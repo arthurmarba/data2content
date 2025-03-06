@@ -1,0 +1,83 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import Head from "next/head";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import SearchBar from "../../components/SearchBar";
+import VideoCarousel from "../../components/VideoCarousel";
+
+export default function AnswerPage() {
+  const { query } = useParams(); // Obtém o parâmetro da URL "query"
+  const [answer, setAnswer] = useState("");
+  const [relatedVideos, setRelatedVideos] = useState<any>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        // Requisição para a resposta da IA
+        const answerRes = await fetch("/api/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query }),
+        });
+        const answerData = await answerRes.json();
+        setAnswer(answerData.answer);
+
+        // Requisição para vídeos relacionados (limitado a 4 vídeos)
+        const videosRes = await fetch(
+          `/api/videos?q=${encodeURIComponent(query)}&maxResults=4`
+        );
+        const videosData = await videosRes.json();
+        setRelatedVideos(Array.isArray(videosData) ? videosData : []);
+      } catch (error) {
+        console.error("Erro ao buscar dados:", error);
+        setRelatedVideos([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [query]);
+
+  return (
+    <div className="min-h-screen bg-white text-gray-900 font-sans">
+      <Head>
+        <title>Resposta - data2content</title>
+        <meta name="description" content="Veja a resposta personalizada da D2C AI" />
+      </Head>
+      <main className="px-8 py-16 pt-24 space-y-8">
+        {/* Cabeçalho e Área de Apresentação */}
+        <div className="text-center">
+          <h1 className="text-4xl font-bold mb-2 font-poppins">data2content</h1>
+          <div className="mx-auto" style={{ maxWidth: "400px" }}>
+            <p className="text-sm text-gray-500">
+              Aqui está a resposta da D2C AI para sua pergunta.
+            </p>
+          </div>
+        </div>
+        {/* Campo de Busca */}
+        <div className="w-full max-w-lg mx-auto">
+          <SearchBar placeholder="Pergunte para d2c AI" />
+        </div>
+        {/* Contêiner de Resposta */}
+        <div className="w-full max-w-lg mx-auto border border-gray-200 rounded p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Resposta</h2>
+          {loading ? (
+            <p className="text-gray-700">Carregando resposta...</p>
+          ) : (
+            <p className="text-sm text-gray-700 whitespace-pre-line">{answer}</p>
+          )}
+          <div className="mt-4 text-right">
+            <Link href="/" className="text-blue-500 hover:underline">
+              Voltar à Home
+            </Link>
+          </div>
+        </div>
+        {/* Carrossel de Vídeos Relacionados */}
+        <VideoCarousel title="Vídeos Relacionados" query={query} maxResults={4} />
+      </main>
+    </div>
+  );
+}

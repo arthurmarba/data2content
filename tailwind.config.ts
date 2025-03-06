@@ -1,18 +1,20 @@
-import type { Config } from "tailwindcss";
-
-export default {
-  content: [
-    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
-  ],
+// tailwind.config.js
+module.exports = {
+  content: ["./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["Inter", "ui-sans-serif", "system-ui"], // Exemplo
+      },
       colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
+        primary: "#1D4ED8", // Azul primário
+        primaryLight: "#93C5FD", // Azul claro
+        grayDark: "#374151",
+        grayLight: "#9CA3AF",
       },
     },
   },
-  plugins: [],
-} satisfies Config;
+  plugins: [
+    require("@tailwindcss/aspect-ratio"), // <-- Adicione esta linha
+  ],
+};

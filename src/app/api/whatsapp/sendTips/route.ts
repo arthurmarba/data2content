@@ -1,0 +1,138 @@
+// src/app/api/whatsapp/sendTips/route.ts
+
+import { NextRequest, NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt"; 
+import { connectToDatabase } from "@/app/lib/mongoose";
+import User from "@/app/models/User";
+import { DailyMetric } from "@/app/models/DailyMetric";
+import { sendWhatsAppMessage } from "@/app/lib/whatsappService";
+import { callOpenAIForTips } from "@/app/lib/aiService";
+
+/**
+ * Exemplo de função de agregação das métricas dos últimos 7 dias.
+ * Ajuste conforme sua necessidade (somar curtidas, calcular engajamento médio, etc.).
+ */
+function aggregateWeeklyMetrics(dailyMetrics: any[]) {
+  let totalCurtidas = 0;
+  const totalPosts = dailyMetrics.length;
+
+  dailyMetrics.forEach((dm) => {
+    totalCurtidas += dm.stats?.curtidas || 0;
+    // ...some outras métricas relevantes
+  });
+
+  const avgCurtidas = totalPosts > 0 ? totalCurtidas / totalPosts : 0;
+
+  return {
+    totalPosts,
+    avgCurtidas,
+    // inclua outras estatísticas necessárias para o prompt do ChatGPT
+  };
+}
+
+/**
+ * Formata a mensagem final para enviar no WhatsApp,
+ * a partir do objeto de dicas retornado pela IA.
+ * Ex.: se a IA retorna { titulo: "...", dicas: ["dica1", "dica2"] }
+ */
+function formatTipsMessage(tipsData: any) {
+  const titulo = tipsData.titulo || "Dicas da Semana";
+  const dicas = tipsData.dicas || [];
+
+  let msg = `*${titulo}*\n\n`;
+  dicas.forEach((d: string, i: number) => {
+    msg += `${i + 1}. ${d}\n`;
+  });
+  msg += "\nBons posts e até a próxima!";
+
+  return msg;
+}
+
+/**
+ * safeSendWhatsAppMessage:
+ * Envolve sendWhatsAppMessage em try/catch para evitar que
+ * um erro interrompa o envio para os demais usuários.
+ */
+async function safeSendWhatsAppMessage(phone: string, body: string) {
+  if (!phone.startsWith("+")) {
+    phone = "+" + phone;
+  }
+  try {
+    await sendWhatsAppMessage(phone, body);
+  } catch (err) {
+    console.error(`Falha ao enviar WhatsApp para ${phone}:`, err);
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    // 1) Verifica se a requisição está autenticada (ex.: admin)
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+    if (!token) {
+      return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    }
+    // Se quiser restringir a admins, cheque: if (token.role !== "admin") { ... }
+
+    // 2) Conecta ao banco
+    await connectToDatabase();
+
+    // 3) Busca todos os usuários com plano ativo e whatsappPhone
+    const users = await User.find({
+      planStatus: "active",
+      whatsappPhone: { $ne: null },
+    });
+
+    if (!users.length) {
+      return NextResponse.json(
+        { message: "Nenhum usuário ativo com WhatsApp cadastrado." },
+        { status: 200 }
+      );
+    }
+
+    // 4) Define o período (7 dias atrás)
+    const now = new Date();
+    const fromDate = new Date();
+    fromDate.setDate(now.getDate() - 7);
+
+    let countSends = 0; // contagem de mensagens enviadas
+
+    // 5) Para cada usuário, gera dicas e envia no WhatsApp
+    for (const user of users) {
+      try {
+        // 5a) Carrega dailyMetrics dos últimos 7 dias
+        const dailyMetrics = await DailyMetric.find({
+          user: user._id,
+          postDate: { $gte: fromDate },
+        });
+
+        // 5b) Agrega métricas
+        const aggregated = aggregateWeeklyMetrics(dailyMetrics);
+
+        // 5c) Chama IA para gerar dicas
+        const tipsData = await callOpenAIForTips(aggregated);
+
+        // 5d) Formata a mensagem
+        const msg = formatTipsMessage(tipsData);
+
+        // 5e) Envia no WhatsApp
+        await safeSendWhatsAppMessage(user.whatsappPhone, msg);
+
+        countSends++;
+        console.log(`Dicas enviadas para userId=${user._id} no número ${user.whatsappPhone}`);
+      } catch (err) {
+        // Se falhar para um usuário, loga e continua para o próximo
+        console.error(`Erro ao processar userId=${user._id}:`, err);
+      }
+    }
+
+    // 6) Retorna sucesso
+    return NextResponse.json(
+      { message: `Dicas enviadas para ${countSends} usuários.` },
+      { status: 200 }
+    );
+
+  } catch (err: any) {
+    console.error("Erro em /api/whatsapp/sendTips:", err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
