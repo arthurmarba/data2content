@@ -14,21 +14,22 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    "baseUrl": ".",
-    // Adicione ou ajuste aliases conforme a estrutura do seu projeto
+    "baseUrl": ".",       // baseUrl = raiz do projeto
     "paths": {
+      // Alias genérico: "@/..." aponta para /src
       "@/*": ["./src/*"],
-      "@/app/*": ["./src/app/*"],
-      "@/models/*": ["./src/app/models/*"],
-      // Se quiser um alias para lib, por exemplo:
-      "@/lib/*": ["./src/app/lib/*"]
+
+      // Alias específico para models
+      "@models/*": ["./src/app/models/*"],
+
+      // Alias específico para lib
+      "@lib/*": ["./src/app/lib/*"]
     },
     "plugins": [
       {
         "name": "next"
       }
     ],
-    // Adiciona verificação de case sensitivo em paths
     "forceConsistentCasingInFileNames": true
   },
   "include": [

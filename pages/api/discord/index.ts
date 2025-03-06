@@ -1,7 +1,7 @@
 // pages/api/affiliates/index.js
 const { getServerSession } = require("next-auth/next");
-const { connectToDatabase } = require("../../../lib/mongoose");
-const User = require("../../../models/User");
+import { connectToDatabase } from "@lib/mongoose";
+import User from "@models/user";
 const { authOptions } = require("../auth/[...nextauth]"); // Import config do NextAuth
 
 module.exports = async function handler(req, res) {
