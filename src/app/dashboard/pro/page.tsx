@@ -1,6 +1,6 @@
 // src/app/dashboard/pro/page.tsx
 
-import ProDashboard from "./prodashboard"; 
+import ProDashboard from "./ProDashboard"; 
 // ^ Importamos o componente client-side
 
 export default function ProDashboardRoute() {

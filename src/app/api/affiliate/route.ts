@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth/next";
 // ^ se você estiver usando o NextAuth no App Router
 import { authOptions } from "@/app/lib/authOptions"; // ou onde estiver definido
 import { connectToDatabase } from "@lib/mongoose";
-import User from "@models/user";
+import User from "@models/User";
 
 export async function GET(request: NextRequest) {
   // 1) Obtém sessão
