@@ -2,13 +2,12 @@
 
 import React, { useState, useEffect } from "react";
 import { useSession, signIn } from "next-auth/react";
-import { DashboardProvider } from "./components/DashboardContext";
-import MegaCard from "./components/MegaCard";
-import ChatCard from "./components/ChatCard";
 
-/**
- * Componente para Upload (até 3 imagens), enviando ao endpoint /api/metrics.
- */
+// Corrija os imports para subir um nível (../) e entrar em components/
+import { DashboardProvider } from "../components/DashboardContext";
+import MegaCard from "../components/MegaCard";
+import ChatCard from "../components/ChatCard";
+
 function UploadMetrics() {
   const { data: session } = useSession();
   const [files, setFiles] = useState<File[]>([]);
