@@ -4,7 +4,7 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Inter", "ui-sans-serif", "system-ui"], // Exemplo
+        sans: ["Inter", "ui-sans-serif", "system-ui"],
       },
       colors: {
         primary: "#1D4ED8", // Azul primário
@@ -15,6 +15,6 @@ module.exports = {
     },
   },
   plugins: [
-    require("@tailwindcss/aspect-ratio"), // <-- Adicione esta linha
+    require("@tailwindcss/aspect-ratio"), 
   ],
 };
