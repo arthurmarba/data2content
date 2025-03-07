@@ -1,10 +1,8 @@
-"use client";
+"use client"; // Indica que este arquivo é um Client Component
 
 import React, { useState, useEffect } from "react";
 import { useSession, signIn } from "next-auth/react";
 import { DashboardProvider } from "./components/DashboardContext";
-
-// Importe seus componentes normalmente
 import MegaCard from "./components/MegaCard";
 import ChatCard from "./components/ChatCard";
 
@@ -19,12 +17,9 @@ function UploadMetrics() {
   const [result, setResult] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  /** Handler para seleção de arquivos */
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files) return;
     let selected = Array.from(e.target.files);
-
-    // Limita a 3 arquivos
     if (selected.length > 3) {
       alert("Máximo de 3 imagens por envio.");
       selected = selected.slice(0, 3);
@@ -32,7 +27,6 @@ function UploadMetrics() {
     setFiles(selected);
   }
 
-  /** Converte um File em base64 */
   async function fileToBase64(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -46,7 +40,6 @@ function UploadMetrics() {
     });
   }
 
-  /** Ao clicar em "Enviar" */
   async function handleUpload() {
     if (!session?.user?.id) {
       alert("Usuário não identificado. Faça login primeiro.");
@@ -59,14 +52,12 @@ function UploadMetrics() {
     setIsLoading(true);
 
     try {
-      // Monta o array de imagens base64
       const images: { base64File: string; mimeType: string }[] = [];
       for (const file of files) {
         const base64File = await fileToBase64(file);
         images.push({ base64File, mimeType: file.type });
       }
 
-      // Payload para /api/metrics
       const payload = {
         userId: session.user.id,
         postLink,
@@ -87,8 +78,6 @@ function UploadMetrics() {
       } else {
         console.log("Métricas criadas:", data.metric);
         setResult(data.metric);
-
-        // Limpa campos
         setFiles([]);
         setPostLink("");
         setDescription("");
@@ -103,11 +92,14 @@ function UploadMetrics() {
 
   return (
     <div className="bg-white/90 border border-gray-200 rounded-2xl shadow-sm p-4">
-      <h3 className="text-lg font-semibold text-gray-800 mb-3">Enviar Print (Métricas)</h3>
+      <h3 className="text-lg font-semibold text-gray-800 mb-3">
+        Enviar Print (Métricas)
+      </h3>
 
-      {/* Link do Conteúdo */}
       <div className="mb-3">
-        <label className="block text-sm font-medium text-gray-700 mb-1">Link do Conteúdo</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Link do Conteúdo
+        </label>
         <input
           type="text"
           value={postLink}
@@ -118,9 +110,10 @@ function UploadMetrics() {
         />
       </div>
 
-      {/* Descrição */}
       <div className="mb-3">
-        <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Descrição
+        </label>
         <textarea
           rows={2}
           value={description}
@@ -131,7 +124,6 @@ function UploadMetrics() {
         />
       </div>
 
-      {/* Selecionar até 3 imagens */}
       <div className="mb-3">
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Selecione até 3 imagens:
@@ -154,7 +146,6 @@ function UploadMetrics() {
         {isLoading ? "Enviando..." : "Enviar"}
       </button>
 
-      {/* Resultado da criação das métricas */}
       {result && (
         <pre className="mt-3 bg-gray-100 p-2 rounded text-xs">
           {JSON.stringify(result, null, 2)}
@@ -164,16 +155,10 @@ function UploadMetrics() {
   );
 }
 
-/**
- * Componente que lista as métricas salvas (usando /api/metrics?userId=...).
- * Agora com um botão para colapsar/expandir.
- */
 function MetricsList() {
   const { data: session } = useSession();
   const [metrics, setMetrics] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-
-  // Estado para abrir/fechar o painel
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
@@ -191,7 +176,6 @@ function MetricsList() {
 
   return (
     <div className="border p-4 rounded bg-white space-y-2">
-      {/* Título + Botão de colapso */}
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-gray-800">Métricas Salvas</h2>
         <button
@@ -204,14 +188,12 @@ function MetricsList() {
 
       {isLoading && <p className="text-xs text-gray-400">Carregando...</p>}
 
-      {/* Se não estiver carregando e o painel estiver fechado, mas houver dados */}
       {!isLoading && !isOpen && metrics.length > 0 && (
         <p className="text-xs text-gray-500">
           Métricas ocultas. Clique em "Ver" para exibir.
         </p>
       )}
 
-      {/* Se estiver aberto, renderiza as métricas */}
       {isOpen && !isLoading && metrics.map((m) => (
         <div key={m._id} className="text-xs text-gray-700 border-b pb-2 mb-2">
           <p><strong>Link:</strong> {m.postLink}</p>
@@ -228,7 +210,6 @@ function MetricsList() {
                   {rd["Comentários"] !== undefined && (
                     <p><strong>Comentários:</strong> {rd["Comentários"]}</p>
                   )}
-                  {/* Exiba outras propriedades se necessário */}
                 </div>
               ))}
             </div>
@@ -240,13 +221,11 @@ function MetricsList() {
               {m.stats.taxaEngajamento !== undefined && (
                 <p>Taxa Engajamento: {m.stats.taxaEngajamento}%</p>
               )}
-              {/* Adicione outras stats se quiser */}
             </div>
           )}
         </div>
       ))}
 
-      {/* Se estiver aberto e não há métricas */}
       {isOpen && !isLoading && metrics.length === 0 && (
         <p className="text-xs text-gray-500">Nenhuma métrica cadastrada.</p>
       )}
@@ -254,21 +233,13 @@ function MetricsList() {
   );
 }
 
-/**
- * Página principal do Dashboard.
- * - Usa <DashboardProvider> para compartilhar o contexto.
- * - Exibe <MegaCard>, <MetricsList>, <UploadMetrics> e <ChatCard> sem scroll separado por coluna.
- * - Permite que o ChatCard cresça conforme as mensagens aumentam.
- */
-export default function ProDashboardPage() {
+export default function ProDashboard() {
   const { data: session, status } = useSession();
 
-  // 1) Se ainda estiver carregando a sessão, exibe "Carregando..."
   if (status === "loading") {
     return <p className="text-center mt-10">Carregando sessão...</p>;
   }
 
-  // 2) Se não estiver logado, exibe aviso + botão de login
   if (!session) {
     return (
       <div className="flex flex-col items-center justify-center h-screen">
@@ -283,30 +254,21 @@ export default function ProDashboardPage() {
     );
   }
 
-  // 3) Se logado, renderiza layout principal
   return (
     <DashboardProvider>
       <div className="flex flex-col min-h-screen bg-white text-gray-900">
-        
-        {/* Container principal centralizado (opcional) */}
         <div className="container mx-auto flex-1 p-8">
           <div className="flex gap-8">
-            
-            {/* Coluna Esquerda (3/4): MegaCard + Métricas */}
             <div className="w-3/4 flex flex-col gap-4">
               <MegaCard />
               <MetricsList />
             </div>
-
-            {/* Coluna Direita (1/4): Upload + Chat */}
             <div className="w-1/4 flex flex-col gap-4">
               <UploadMetrics />
               <ChatCard />
             </div>
           </div>
         </div>
-
-        {/* Footer fixado após todo o conteúdo */}
         <footer className="p-4 text-center text-sm text-gray-500">
           © 2023 D2C Academy. Todos os direitos reservados.
         </footer>
