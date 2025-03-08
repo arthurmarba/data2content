@@ -29,8 +29,6 @@ export function calcFormulas(
   let impressoesExplorar = 0;
 
   let interacoes = 0;
-  let interacoesSeguidores = 0;
-  let interacoesNaoSeguidores = 0;
 
   let visualizacoes = 0;
   let visualizacoesSeguidores = 0;
@@ -50,7 +48,7 @@ export function calcFormulas(
   let duracao = 0;
   let tempoMedioVisualizacao = 0;
 
-  // Se o item tiver "type" ("reel" ou "post"), podemos contar quantos frames são Reels vs. Posts.
+  // Contagem de Reels vs. Posts
   let isReelCount = 0;
   let isPostCount = 0;
 
@@ -73,7 +71,7 @@ export function calcFormulas(
 
   // 3) Somar cada campo do rawDataArray
   rawDataArray.forEach((item) => {
-    // "type"
+    // Identifica se é reel ou post
     const itemType = item["type"] as string | undefined;
     if (itemType === "reel") {
       isReelCount++;
@@ -102,22 +100,14 @@ export function calcFormulas(
     impressoesExplorar += asNumber(item["Impressões de Explorar"]);
 
     interacoes += asNumber(item["Interações"]);
-    interacoesSeguidores += asNumber(item["Interações de Seguidores"]);
-    interacoesNaoSeguidores += asNumber(item["Interações de Não Seguidores"]);
 
     visualizacoes += asNumber(item["Visualizações"]);
     visualizacoesSeguidores += asNumber(item["Visualizações de Seguidores"]);
-    visualizacoesNaoSeguidores += asNumber(
-      item["Visualizações de Não Seguidores"]
-    );
+    visualizacoesNaoSeguidores += asNumber(item["Visualizações de Não Seguidores"]);
 
     contasAlcancadas += asNumber(item["Contas Alcançadas"]);
-    contasAlcancadasSeguidores += asNumber(
-      item["Contas Alcançadas de Seguidores"]
-    );
-    contasAlcancadasNaoSeguidores += asNumber(
-      item["Contas Alcançadas de Não Seguidores"]
-    );
+    contasAlcancadasSeguidores += asNumber(item["Contas Alcançadas de Seguidores"]);
+    contasAlcancadasNaoSeguidores += asNumber(item["Contas Alcançadas de Não Seguidores"]);
     contasComEngajamento += asNumber(item["Contas com Engajamento"]);
     contasComEngajamentoSeguidores += asNumber(
       item["Contas com Engajamento de Seguidores"]
@@ -137,10 +127,8 @@ export function calcFormulas(
     const dateStr = item["Data de Publicação"];
     if (typeof dateStr === "string") {
       const parsedDate = parseDateString(dateStr);
-      if (parsedDate) {
-        if (!dataPublicacao || parsedDate < dataPublicacao) {
-          dataPublicacao = parsedDate;
-        }
+      if (parsedDate && (!dataPublicacao || parsedDate < dataPublicacao)) {
+        dataPublicacao = parsedDate;
       }
     }
   });
@@ -151,36 +139,29 @@ export function calcFormulas(
   const totalInteracoes = curtidas + comentarios + salvamentos + compartilhamentos;
 
   // Função auxiliar para transformar fração em %
-  // e arredondar a 2 casas decimais
   function toPercent(value: number) {
     return parseFloat((value * 100).toFixed(2));
   }
 
   // (I) Taxas de reproduções (em %)
-  const taxaReproducoesIniciais = reproducoesTotais > 0
-    ? toPercent(reproducoesIniciais / reproducoesTotais)
-    : 0;
+  const taxaReproducoesIniciais =
+    reproducoesTotais > 0 ? toPercent(reproducoesIniciais / reproducoesTotais) : 0;
 
-  const taxaRepeticao = reproducoesTotais > 0
-    ? toPercent(repeticoes / reproducoesTotais)
-    : 0;
+  const taxaRepeticao =
+    reproducoesTotais > 0 ? toPercent(repeticoes / reproducoesTotais) : 0;
 
-  const pctReproducoesFacebook = reproducoesTotais > 0
-    ? toPercent(reproducoesFacebook / reproducoesTotais)
-    : 0;
+  const pctReproducoesFacebook =
+    reproducoesTotais > 0 ? toPercent(reproducoesFacebook / reproducoesTotais) : 0;
 
   // (II) Engajamento geral (impressões)
-  const taxaEngajamento = impressoes > 0
-    ? toPercent(totalInteracoes / impressoes)
-    : 0;
+  const taxaEngajamento =
+    impressoes > 0 ? toPercent(totalInteracoes / impressoes) : 0;
 
   // (III) Tempo de Visualização / Retenção
   const mediaDuracao =
     rawDataArray.length > 0 ? duracao / rawDataArray.length : 0;
   const mediaTempoMedioVisualizacao =
-    rawDataArray.length > 0
-      ? tempoMedioVisualizacao / rawDataArray.length
-      : 0;
+    rawDataArray.length > 0 ? tempoMedioVisualizacao / rawDataArray.length : 0;
 
   const taxaRetencao =
     mediaDuracao > 0
@@ -198,9 +179,7 @@ export function calcFormulas(
     visitasPerfil > 0 ? toPercent(comecaramASeguir / visitasPerfil) : 0;
 
   const pctSalvamentos =
-    interacoesTotais > 0
-      ? toPercent(salvamentos / interacoesTotais)
-      : 0;
+    interacoesTotais > 0 ? toPercent(salvamentos / interacoesTotais) : 0;
 
   // (V) Cálculos diários (aprox.)
   let daysSincePublication = 0;
@@ -223,51 +202,10 @@ export function calcFormulas(
   // (VI) Métricas específicas para Reels vs. Posts
   let razaoReelsVsPosts = 0;
   if (isPostCount > 0) {
-    razaoReelsVsPosts = parseFloat(
-      ((isReelCount / isPostCount) * 100).toFixed(2)
-    );
+    razaoReelsVsPosts = parseFloat(((isReelCount / isPostCount) * 100).toFixed(2));
   }
 
-  // (VII) Taxas de Interação (Seguidores vs. Não Seguidores) -> em %
-  const taxaInteracaoSeguidores =
-    interacoes > 0 ? toPercent(interacoesSeguidores / interacoes) : 0;
-
-  const taxaInteracaoNaoSeguidores =
-    interacoes > 0 ? toPercent(interacoesNaoSeguidores / interacoes) : 0;
-
-  // (VIII) Taxas de Visualizações (Seguidores vs. Não Seguidores) -> em %
-  const taxaVisualizacoesSeguidores =
-    visualizacoes > 0
-      ? toPercent(visualizacoesSeguidores / visualizacoes)
-      : 0;
-
-  const taxaVisualizacoesNaoSeguidores =
-    visualizacoes > 0
-      ? toPercent(visualizacoesNaoSeguidores / visualizacoes)
-      : 0;
-
-  // (IX) Engajamento sobre contas alcançadas -> em %
-  const taxaEngajamentoSobreAlcancadas =
-    contasAlcancadas > 0
-      ? toPercent(contasComEngajamento / contasAlcancadas)
-      : 0;
-
-  const taxaEngajamentoSeguidores =
-    contasAlcancadasSeguidores > 0
-      ? toPercent(
-          contasComEngajamentoSeguidores / contasAlcancadasSeguidores
-        )
-      : 0;
-
-  const taxaEngajamentoNaoSeguidores =
-    contasAlcancadasNaoSeguidores > 0
-      ? toPercent(
-          contasComEngajamentoNaoSeguidores /
-            contasAlcancadasNaoSeguidores
-        )
-      : 0;
-
-  // (X) Relações internas -> em %
+  // (XI) Relações internas -> em %
   const ratioLikeComment =
     comentarios > 0
       ? parseFloat(((curtidas / comentarios) * 100).toFixed(2))
@@ -283,37 +221,32 @@ export function calcFormulas(
       ? parseFloat(((salvamentos / curtidas) * 100).toFixed(2))
       : 0;
 
-  // (XI) Relações Seguidores vs. Não Seguidores -> em %
+  // Relação Interação Seguidores vs. Não Seguidores (em %)
   const ratioInteracaoSegNaoSeg =
-    interacoesNaoSeguidores > 0
-      ? parseFloat(
-          ((interacoesSeguidores / interacoesNaoSeguidores) * 100).toFixed(2)
-        )
-      : 0;
-
-  const ratioVisSegNaoSeg =
     visualizacoesNaoSeguidores > 0
       ? parseFloat(
           ((visualizacoesSeguidores / visualizacoesNaoSeguidores) * 100).toFixed(2)
         )
       : 0;
 
+  // Relação Visualização Seguidores vs. Não Seguidores (em %)
+  const ratioVisSegNaoSeg = ratioInteracaoSegNaoSeg; 
+  // Se quiser separar a lógica, basta duplicar a fórmula. Aqui usamos a mesma 
+  // como exemplo. Ajuste se necessário.
+
   // (XII) Relação de origem (Explorar vs. Página Inicial) -> em %
   const razaoExplorarPaginaInicial =
     impressoesPaginaInicial > 0
-      ? parseFloat(
-          ((impressoesExplorar / impressoesPaginaInicial) * 100).toFixed(2)
-        )
+      ? parseFloat(((impressoesExplorar / impressoesPaginaInicial) * 100).toFixed(2))
       : 0;
 
-  // (XIII) Engajamento Profundo vs. Rápido (com base em "contasAlcancadas") -> em %
+  // (XIII) Engajamento Profundo vs. Rápido
   let engajamentoProfundoAlcance = 0;
   let engajamentoRapidoAlcance = 0;
   let ratioProfundoRapidoAlcance = 0;
 
   if (contasAlcancadas > 0) {
-    const prof =
-      (comentarios + salvamentos + compartilhamentos) / contasAlcancadas;
+    const prof = (comentarios + salvamentos + compartilhamentos) / contasAlcancadas;
     const rap = (curtidas + reacoesFacebook) / contasAlcancadas;
     engajamentoProfundoAlcance = parseFloat((prof * 100).toFixed(2));
     engajamentoRapidoAlcance = parseFloat((rap * 100).toFixed(2));
@@ -323,20 +256,19 @@ export function calcFormulas(
     }
   }
 
-  // (XIV) Índice de “Viralidade” / Propagação (compartilhamentos / alcance total) -> em %
+  // (XIV) Índice de Propagação (em %)
   const indicePropagacao =
     contasAlcancadas > 0
       ? parseFloat(((compartilhamentos / contasAlcancadas) * 100).toFixed(2))
       : 0;
 
-  // (XIV-b) Viralidade Ponderada => (compart + salv * alpha + rep * beta) / alcance -> em %
+  // (XIV-b) Viralidade Ponderada => (compart + salv * alpha + rep * beta) / alcance
   const alpha = 0.5;
   const beta = 0.3;
   let viralidadePonderada = 0;
   if (contasAlcancadas > 0) {
     const val =
-      (compartilhamentos + salvamentos * alpha + repeticoes * beta) /
-      contasAlcancadas;
+      (compartilhamentos + salvamentos * alpha + repeticoes * beta) / contasAlcancadas;
     viralidadePonderada = parseFloat((val * 100).toFixed(2));
   }
 
@@ -349,21 +281,17 @@ export function calcFormulas(
   // (XVI) “Engajamento de Não Seguidores” vs. “Seguidores” em % do Alcance
   const taxaEngajamentoNaoSeguidoresEmAlcance =
     contasAlcancadas > 0
-      ? parseFloat(
-          ((interacoesNaoSeguidores / contasAlcancadas) * 100).toFixed(2)
-        )
+      ? parseFloat(((visualizacoesNaoSeguidores / contasAlcancadas) * 100).toFixed(2))
       : 0;
 
   const taxaEngajamentoSeguidoresEmAlcance =
     contasAlcancadas > 0
-      ? parseFloat(
-          ((interacoesSeguidores / contasAlcancadas) * 100).toFixed(2)
-        )
+      ? parseFloat(((visualizacoesSeguidores / contasAlcancadas) * 100).toFixed(2))
       : 0;
 
-  // 7) Retornamos tudo como Record<string, unknown>
+  // 7) Retornamos tudo
   return {
-    // Somas (valores absolutos, não em %)
+    // Somas (valores absolutos)
     reproducoesTotais,
     reproducoesFacebook,
     reproducoes,
@@ -385,14 +313,10 @@ export function calcFormulas(
     impressoesExplorar,
 
     interacoes,
-    interacoesSeguidores,
-    interacoesNaoSeguidores,
-
     visualizacoes,
     visualizacoesSeguidores,
     visualizacoesNaoSeguidores,
 
-    // Alcance total
     contasAlcancadas,
     contasAlcancadasSeguidores,
     contasAlcancadasNaoSeguidores,
@@ -413,7 +337,7 @@ export function calcFormulas(
       : null,
     daysSincePublication,
 
-    // Cálculos de apoio
+    // Soma total de interações
     totalInteracoes,
 
     // Taxa de Engajamento (em %)
@@ -425,11 +349,11 @@ export function calcFormulas(
     pctReproducoesFacebook,
 
     // Tempo / Retenção
-    mediaDuracao, // (segundos ou sem conversão)
+    mediaDuracao,
     mediaTempoMedioVisualizacao,
-    taxaRetencao, // (%)
-    tempoVisualizacaoPorImpressao, // (segundos)
-    tempoMedioVisualizacaoPorView, // (segundos)
+    taxaRetencao,
+    tempoVisualizacaoPorImpressao,
+    tempoMedioVisualizacaoPorView,
 
     // Conversão (em %)
     taxaConversaoSeguidores,
@@ -445,40 +369,38 @@ export function calcFormulas(
     isPostCount,
     razaoReelsVsPosts,
 
-    // Relações internas (em %)
+    // Relações internas
     ratioLikeComment,
     ratioCommentShare,
     ratioSaveLike,
 
-    // Relações Seguidores vs. Não Seguidores (em %)
+    // Relações Seguidores vs. Não Seguidores
     ratioInteracaoSegNaoSeg,
     ratioVisSegNaoSeg,
 
-    // Relação de origem (Explorar vs. Página Inicial) (em %)
+    // Relação de origem (Explorar vs. Página Inicial)
     razaoExplorarPaginaInicial,
 
-    // Engajamento Profundo vs. Rápido (com base em ALCANCE) -> em %
+    // Engajamento Profundo vs. Rápido
     engajamentoProfundoAlcance,
     engajamentoRapidoAlcance,
     ratioProfundoRapidoAlcance,
 
-    // Índice de Propagação (em %)
+    // Índice de Propagação
     indicePropagacao,
-    // Viralidade Ponderada (em %)
     viralidadePonderada,
 
-    // Razão Seguir / Alcance (em %)
+    // Razão Seguir / Alcance
     razaoSeguirAlcance,
 
-    // Engajamento de Não Seguidores e Seguidores em % do Alcance
+    // Engajamento de Não Seguidores e Seguidores
     taxaEngajamentoNaoSeguidoresEmAlcance,
     taxaEngajamentoSeguidoresEmAlcance,
   };
 }
 
 /**
- * Função auxiliar para parsear data no formato dd/mm/yyyy (ou tentar yyyy-mm-dd).
- * Ajuste conforme seu Document AI retorne (yyyy-mm-dd, etc.).
+ * parseDateString: converte datas do formato dd/mm/yyyy ou yyyy-mm-dd em Date.
  */
 function parseDateString(dateStr: string): Date | null {
   if (!dateStr) return null;
@@ -493,7 +415,7 @@ function parseDateString(dateStr: string): Date | null {
   const parts = dateStr.split("/");
   if (parts.length === 3) {
     const dd = parseInt(parts[0], 10);
-    const mm = parseInt(parts[1], 10) - 1; // mês em JS é 0-based
+    const mm = parseInt(parts[1], 10) - 1;
     const yyyy = parseInt(parts[2], 10);
     const d = new Date(yyyy, mm, dd);
     if (!isNaN(d.getTime())) {

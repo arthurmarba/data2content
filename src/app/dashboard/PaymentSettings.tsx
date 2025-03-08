@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 
 /**
  * Estrutura mínima para o objeto de "resgate" (redeem).
@@ -32,15 +32,11 @@ export default function PaymentSettings({ userId }: { userId: string }) {
   const [redemptions, setRedemptions] = useState<Redemption[]>([]);
   const [loadingRedemptions, setLoadingRedemptions] = useState(false);
 
-  // Carrega dados ao montar
-  useEffect(() => {
-    if (!userId) return;
-    fetchPaymentInfo();
-    fetchRedemptions();
-  }, [userId]);
-
-  /** Busca dados de pagamento do usuário */
-  async function fetchPaymentInfo() {
+  /**
+   * Função para buscar dados de pagamento (Pix, conta, etc.).
+   * É memorizada com useCallback, dependendo de userId.
+   */
+  const fetchPaymentInfo = useCallback(async () => {
     try {
       const res = await fetch(`/api/affiliate/paymentinfo?userId=${userId}`);
       const data = await res.json();
@@ -50,13 +46,16 @@ export default function PaymentSettings({ userId }: { userId: string }) {
         setBankAgency(data.bankAgency || "");
         setBankAccount(data.bankAccount || "");
       }
-    } catch (error: unknown) {
+    } catch (error) {
       console.error("Erro ao buscar paymentInfo:", error);
     }
-  }
+  }, [userId]);
 
-  /** Lista os saques do usuário */
-  async function fetchRedemptions() {
+  /**
+   * Função para listar os saques do usuário.
+   * Também memorizada com useCallback, dependendo de userId.
+   */
+  const fetchRedemptions = useCallback(async () => {
     setLoadingRedemptions(true);
     try {
       const res = await fetch(`/api/affiliate/redeem?userId=${userId}`);
@@ -64,14 +63,27 @@ export default function PaymentSettings({ userId }: { userId: string }) {
       if (Array.isArray(data)) {
         setRedemptions(data);
       }
-    } catch (error: unknown) {
+    } catch (error) {
       console.error("Erro ao buscar redemptions:", error);
     } finally {
       setLoadingRedemptions(false);
     }
-  }
+  }, [userId]);
 
-  /** Salva dados de pagamento (PATCH) */
+  /**
+   * useEffect para chamar as duas funções após o componente montar
+   * ou quando userId mudar. Agora adicionamos fetchPaymentInfo e fetchRedemptions
+   * no array de dependências para obedecer ao lint (react-hooks/exhaustive-deps).
+   */
+  useEffect(() => {
+    if (!userId) return;
+    void fetchPaymentInfo();
+    void fetchRedemptions();
+  }, [userId, fetchPaymentInfo, fetchRedemptions]);
+
+  /**
+   * Salva dados de pagamento (PATCH).
+   */
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -94,7 +106,7 @@ export default function PaymentSettings({ userId }: { userId: string }) {
       } else {
         setMessage(data.message || "Dados salvos com sucesso!");
       }
-    } catch (error: unknown) {
+    } catch (error) {
       let errorMsg = "Ocorreu um erro.";
       if (error instanceof Error) {
         errorMsg = error.message;
@@ -105,7 +117,9 @@ export default function PaymentSettings({ userId }: { userId: string }) {
     }
   }
 
-  /** Solicita resgate do saldo (POST) */
+  /**
+   * Solicita resgate do saldo (POST).
+   */
   async function handleRedeem() {
     setRedeemMessage("Processando resgate...");
     try {
@@ -120,9 +134,9 @@ export default function PaymentSettings({ userId }: { userId: string }) {
       } else {
         setRedeemMessage(data.message || "Resgate solicitado com sucesso!");
         // Recarrega lista de saques
-        fetchRedemptions();
+        void fetchRedemptions();
       }
-    } catch (error: unknown) {
+    } catch (error) {
       let errorMsg = "Ocorreu um erro.";
       if (error instanceof Error) {
         errorMsg = error.message;

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/lib/authOptions";
 
-import mongoose from "mongoose";
+// import mongoose from "mongoose"; // REMOVIDO se não for utilizado
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 
@@ -58,7 +58,6 @@ export async function POST(request: Request) {
     }
 
     // (Opcional) Verificar se algum outro usuário já usa este phoneNumber:
-    // Se quiser evitar duplicidade de número
     // const existingPhoneUser = await User.findOne({ whatsappPhone: phoneNumber });
     // if (existingPhoneUser && existingPhoneUser._id.toString() !== user._id.toString()) {
     //   return NextResponse.json(

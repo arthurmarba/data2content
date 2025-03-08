@@ -89,7 +89,7 @@ Observação:
     let parsed: unknown;
     try {
       parsed = JSON.parse(responseText);
-    } catch (error) {
+    } catch {
       // Se não vier JSON válido, devolve como texto cru
       parsed = { rawText: responseText };
     }
@@ -111,13 +111,12 @@ Observação:
     }
 
     return NextResponse.json({ result: parsed }, { status: 200 });
-
-  } catch (error: unknown) {
-    console.error("POST /api/ai/dynamicCards error:", error);
+  } catch (err: unknown) {
+    console.error("POST /api/ai/dynamicCards error:", err);
 
     let message = "Erro desconhecido.";
-    if (error instanceof Error) {
-      message = error.message;
+    if (err instanceof Error) {
+      message = err.message;
     }
     return NextResponse.json({ error: message }, { status: 500 });
   }

@@ -1,14 +1,15 @@
 "use client";
 
 import React, { useState } from "react";
+import { useSession } from "next-auth/react";
 import { useDashboard } from "./DashboardContext";
+
 import InstagramProfile from "./InstagramProfile";
 import CourseVideos from "../curso/CourseVideos";
 import TagInput from "./TagInput";
 import SingleTagInput from "./SingleTagInput";
 import Dashboard from "./Dashboard"; // Se você tem um componente que renderiza as cards
 import ChatPanel from "../ChatPanel";
-import { useSession } from "next-auth/react";
 
 /**
  * Interface para cada "card" retornado pela IA em /api/ai/dynamicCards
@@ -23,7 +24,8 @@ interface DynamicCard {
 
 const DashboardPage: React.FC = () => {
   const { data: session } = useSession(); // para pegar userId (se precisar)
-  const { customData, loading, setCustomData, setLoading } = useDashboard();
+  // Removido "customData" do destructuring para evitar no-unused-vars
+  const { loading, setCustomData, setLoading } = useDashboard();
 
   // Estados para inputs estratégicos
   const [visao, setVisao] = useState("Ser o maior influenciador de humor do Brasil");
@@ -77,8 +79,7 @@ const DashboardPage: React.FC = () => {
         visao,
         missao,
         objetivos,
-        // Se quiser incluir "filtros" no prompt, adicione:
-        filtros,
+        filtros, // se quiser incluir no prompt
       };
 
       // 4) Chama /api/ai/dynamicCards

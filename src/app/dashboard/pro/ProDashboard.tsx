@@ -2,29 +2,42 @@
 
 import React, { useState, useEffect } from "react";
 import { useSession, signIn } from "next-auth/react";
-
 // Ajuste os imports relativos ao seu projeto:
 import { DashboardProvider } from "../components/DashboardContext";
 import MegaCard from "../components/MegaCard";
 import ChatCard from "../components/ChatCard";
 
 /** ===================== */
-/** Componente UploadMetrics */
+/** Tipos e Interfaces */
 /** ===================== */
 
-/**
- * Estrutura mínima para o objeto retornado pela API (/api/metrics) ao criar métricas.
- */
+// Estrutura mínima para o objeto retornado pela API (/api/metrics) ao criar métricas.
 interface MetricResult {
   _id?: string;
   user?: string;
   postLink?: string;
   description?: string;
-  rawData?: unknown[]; // Se quiser detalhar mais, crie outra interface
+  rawData?: unknown[]; 
   stats?: unknown;
   createdAt?: string;
 }
 
+// Estrutura mínima para cada item de métrica (retornado em /api/metrics?userId=...).
+interface RawDataItem {
+  [key: string]: unknown;
+}
+
+interface MetricItem {
+  _id: string;
+  postLink?: string;
+  description?: string;
+  rawData?: RawDataItem[];
+  stats?: Record<string, unknown>;
+}
+
+/** ===================== */
+/** Componente: UploadMetrics */
+/** ===================== */
 function UploadMetrics() {
   const { data: session } = useSession();
   const [files, setFiles] = useState<File[]>([]);
@@ -32,7 +45,10 @@ function UploadMetrics() {
   const [description, setDescription] = useState("");
   const [result, setResult] = useState<MetricResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  // (Opcional) Se quiser tratar erros especificamente, poderia ter um estado de erro:
+  // const [error, setError] = useState<string | null>(null);
 
+  // Lida com a seleção de arquivos, limitando a 3
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     if (!e.target.files) return;
     let selected = Array.from(e.target.files);
@@ -43,6 +59,7 @@ function UploadMetrics() {
     setFiles(selected);
   }
 
+  // Converte um File em base64
   async function fileToBase64(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -56,6 +73,7 @@ function UploadMetrics() {
     });
   }
 
+  // Envia arquivos + link/descrição para /api/metrics
   async function handleUpload() {
     if (!session?.user?.id) {
       alert("Usuário não identificado. Faça login primeiro.");
@@ -66,14 +84,17 @@ function UploadMetrics() {
       return;
     }
     setIsLoading(true);
+    // setError(null); // Se houver estado de erro, poderíamos resetá-lo aqui.
 
     try {
+      // Converte cada File em base64
       const images: { base64File: string; mimeType: string }[] = [];
       for (const file of files) {
         const base64File = await fileToBase64(file);
         images.push({ base64File, mimeType: file.type });
       }
 
+      // Monta payload
       const payload = {
         userId: session.user.id,
         postLink,
@@ -81,6 +102,7 @@ function UploadMetrics() {
         images,
       };
 
+      // Faz requisição para criar métricas
       const res = await fetch("/api/metrics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -91,16 +113,19 @@ function UploadMetrics() {
       if (!res.ok) {
         console.error("Erro ao enviar métricas:", data.error);
         setResult(null);
+        // Se houver estado de erro, setError(data.error || "Erro desconhecido");
       } else {
         console.log("Métricas criadas:", data.metric);
         setResult(data.metric);
+        // Limpa campos
         setFiles([]);
         setPostLink("");
         setDescription("");
       }
-    } catch (error: unknown) {
+    } catch (error) {
       console.error("Erro no upload:", error);
       setResult(null);
+      // Se houver estado de erro, setError(error instanceof Error ? error.message : "Erro desconhecido.");
     } finally {
       setIsLoading(false);
     }
@@ -156,6 +181,7 @@ function UploadMetrics() {
         />
       </div>
 
+      {/* Botão de Enviar */}
       <button
         onClick={handleUpload}
         disabled={isLoading}
@@ -176,43 +202,39 @@ function UploadMetrics() {
 }
 
 /** ===================== */
-/** Componente MetricsList */
+/** Componente: MetricsList */
 /** ===================== */
-
-/**
- * Estrutura mínima para cada item de métrica.
- */
-interface RawDataItem {
-  [key: string]: unknown;
-}
-
-interface MetricItem {
-  _id: string;
-  postLink?: string;
-  description?: string;
-  rawData?: RawDataItem[];
-  stats?: Record<string, unknown>;
-}
-
 function MetricsList() {
   const { data: session } = useSession();
   const [metrics, setMetrics] = useState<MetricItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     if (!session?.user?.id) return;
-    setIsLoading(true);
 
-    fetch(`/api/metrics?userId=${session.user.id}`)
-      .then((res) => res.json())
-      .then((data) => {
+    async function fetchMetrics() {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`/api/metrics?userId=${session.user.id}`);
+        if (!res.ok) {
+          throw new Error(`Erro HTTP: ${res.status}`);
+        }
+        const data = await res.json();
         if (data.metrics) {
           setMetrics(data.metrics);
         }
-      })
-      .catch((error: unknown) => console.error("Erro ao buscar métricas:", error))
-      .finally(() => setIsLoading(false));
+      } catch (err) {
+        console.error("Erro ao buscar métricas:", err);
+        setError(err instanceof Error ? err.message : "Erro desconhecido.");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchMetrics();
   }, [session?.user?.id]);
 
   return (
@@ -228,18 +250,25 @@ function MetricsList() {
         </button>
       </div>
 
-      {/* Se estiver carregando */}
+      {/* Exibe estado de carregamento */}
       {isLoading && <p className="text-xs text-gray-400">Carregando...</p>}
 
-      {/* Se não estiver carregando e o painel estiver fechado, mas houver dados */}
-      {!isLoading && !isOpen && metrics.length > 0 && (
+      {/* Exibe erros se houver */}
+      {error && !isLoading && (
+        <p className="text-xs text-red-500">
+          Ocorreu um erro ao buscar métricas: {error}
+        </p>
+      )}
+
+      {/* Se não estiver carregando, não tiver erro e o painel estiver fechado, mas houver dados */}
+      {!isLoading && !error && !isOpen && metrics.length > 0 && (
         <p className="text-xs text-gray-500">
           Métricas ocultas. Clique em "Ver" para exibir.
         </p>
       )}
 
-      {/* Se estiver aberto, renderiza as métricas */}
-      {isOpen && !isLoading && metrics.map((m) => (
+      {/* Se estiver aberto, renderiza as métricas (e não estiver em loading nem erro) */}
+      {isOpen && !isLoading && !error && metrics.map((m) => (
         <div key={m._id} className="text-xs text-gray-700 border-b pb-2 mb-2">
           <p><strong>Link:</strong> {m.postLink}</p>
           <p><strong>Descrição:</strong> {m.description}</p>
@@ -275,7 +304,7 @@ function MetricsList() {
       ))}
 
       {/* Se estiver aberto e não há métricas */}
-      {isOpen && !isLoading && metrics.length === 0 && (
+      {isOpen && !isLoading && !error && metrics.length === 0 && (
         <p className="text-xs text-gray-500">Nenhuma métrica cadastrada.</p>
       )}
     </div>
@@ -285,14 +314,15 @@ function MetricsList() {
 /** ===================== */
 /** Componente ProDashboard principal */
 /** ===================== */
-
 export default function ProDashboard() {
   const { data: session, status } = useSession();
 
+  // Enquanto carrega sessão
   if (status === "loading") {
     return <p className="text-center mt-10">Carregando sessão...</p>;
   }
 
+  // Se não estiver logado
   if (!session) {
     return (
       <div className="flex flex-col items-center justify-center h-screen">
@@ -307,6 +337,7 @@ export default function ProDashboard() {
     );
   }
 
+  // Se logado, renderiza layout principal
   return (
     <DashboardProvider>
       <div className="flex flex-col min-h-screen bg-white text-gray-900">

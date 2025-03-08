@@ -3,16 +3,21 @@
 import { Configuration, OpenAIApi } from "openai";
 
 /**
- * Se quiser tipar detalhadamente o que contém aggregatedMetrics,
- * você pode criar uma interface (ex.: AggregatedReport).
- * Aqui, usamos Record<string, unknown> para simplificar.
+ * Gera um relatório semanal adaptado aos dados de métricas e período analisado.
+ *
+ * @param aggregatedMetrics Objeto contendo as métricas agregadas (ex.: top3, bottom3, estatísticas de duração etc.).
+ * @param period Texto que indica o período de análise (ex.: "30 dias", "7 dias").
+ * @returns Uma string com o relatório gerado pela IA.
  */
 export async function generateReport(
   aggregatedMetrics: Record<string, unknown>,
   period: string
 ): Promise<string> {
+  // O 'period' é inserido no prompt para contextualizar o período analisado.
   const prompt = `
 Você é um consultor de marketing digital especialista em Instagram e planejamento de conteúdo. 
+Período de Análise: ${period}
+
 Utilizando os dados reais do "RELATÓRIO BASE" abaixo, identifique quais são os temas e padrões predominantes no conteúdo do usuário e elabore um relatório semanal detalhado e adaptado, seguindo exatamente o modelo abaixo.  
 OBSERVAÇÃO: Os exemplos a seguir são ilustrativos. Utilize os dados do "RELATÓRIO BASE" para substituir os exemplos fixos por informações reais do usuário (por exemplo, se o conteúdo predominante for moda/fitness, adapte o planejamento para esse tema).
 
@@ -101,6 +106,7 @@ ${JSON.stringify(aggregatedMetrics)}
 Utilize as informações do relatório base para gerar um relatório adaptado e fiel aos dados reais do usuário.
 `;
 
+  // Configuração do OpenAI
   const configuration = new Configuration({
     apiKey: process.env.OPENAI_API_KEY,
   });
@@ -119,9 +125,9 @@ Utilize as informações do relatório base para gerar um relatório adaptado e 
       throw new Error("Nenhuma resposta gerada pela API.");
     }
     return answer;
-  } catch (error: unknown) {
-    console.error("Erro na geração do relatório:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
+  } catch (err: unknown) {
+    console.error("Erro na geração do relatório:", err);
+    const errorMessage = err instanceof Error ? err.message : String(err);
     return `Desculpe, ocorreu um erro ao gerar o relatório. Detalhes: ${errorMessage}`;
   }
 }

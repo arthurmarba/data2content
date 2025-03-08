@@ -1,6 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
 import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import {
@@ -82,15 +86,12 @@ function PaymentSettings({ userId }: { userId: string }) {
   const [redemptions, setRedemptions] = useState<Redemption[]>([]);
   const [loadingRedemptions, setLoadingRedemptions] = useState(false);
 
-  // Carrega dados de pagamento e lista de saques ao montar
-  useEffect(() => {
-    if (!userId) return;
-    fetchPaymentInfo();
-    fetchRedemptions();
-  }, [userId]);
-
-  // Busca dados de pagamento (Pix, conta, etc.)
-  async function fetchPaymentInfo() {
+  /**
+   * Função para buscar dados de pagamento (Pix, conta, etc.).
+   * Tornamos estável com useCallback para poder adicioná-la
+   * ao array de dependências do useEffect.
+   */
+  const fetchPaymentInfo = useCallback(async () => {
     try {
       const res = await fetch(`/api/affiliate/paymentinfo?userId=${userId}`);
       const data = await res.json();
@@ -100,13 +101,16 @@ function PaymentSettings({ userId }: { userId: string }) {
         setBankAgency(data.bankAgency || "");
         setBankAccount(data.bankAccount || "");
       }
-    } catch (error: unknown) {
+    } catch (error) {
       console.error("Erro ao buscar paymentInfo:", error);
     }
-  }
+  }, [userId]);
 
-  // Busca histórico de saques
-  async function fetchRedemptions() {
+  /**
+   * Função para buscar histórico de saques (redeems).
+   * Também usamos useCallback para estabilizar a referência.
+   */
+  const fetchRedemptions = useCallback(async () => {
     setLoadingRedemptions(true);
     try {
       const res = await fetch(`/api/affiliate/redeem?userId=${userId}`);
@@ -114,12 +118,23 @@ function PaymentSettings({ userId }: { userId: string }) {
       if (Array.isArray(data)) {
         setRedemptions(data);
       }
-    } catch (error: unknown) {
+    } catch (error) {
       console.error("Erro ao buscar redemptions:", error);
     } finally {
       setLoadingRedemptions(false);
     }
-  }
+  }, [userId]);
+
+  /**
+   * useEffect que chama as duas funções após montar
+   * (ou quando userId mudar). Agora incluímos fetchPaymentInfo e fetchRedemptions
+   * no array de dependências.
+   */
+  useEffect(() => {
+    if (!userId) return;
+    void fetchPaymentInfo();
+    void fetchRedemptions();
+  }, [userId, fetchPaymentInfo, fetchRedemptions]);
 
   // Salva dados de pagamento
   async function handleSave(e: React.FormEvent) {
@@ -146,7 +161,7 @@ function PaymentSettings({ userId }: { userId: string }) {
         // Força atualização do session e re-fetch do user
         router.refresh();
       }
-    } catch (error: unknown) {
+    } catch (error) {
       let errorMsg = "Ocorreu um erro.";
       if (error instanceof Error) {
         errorMsg = error.message;
@@ -172,10 +187,10 @@ function PaymentSettings({ userId }: { userId: string }) {
       } else {
         setRedeemMessage(data.message || "Resgate solicitado com sucesso!");
         // Atualiza a lista de saques e o saldo do usuário
-        fetchRedemptions();
+        void fetchRedemptions();
         router.refresh();
       }
-    } catch (error: unknown) {
+    } catch (error) {
       let errorMsg = "Ocorreu um erro.";
       if (error instanceof Error) {
         errorMsg = error.message;
@@ -333,7 +348,7 @@ const Testimonial = React.memo(({ message }: { message: string }) => {
 
 export default function MainDashboard() {
   const { data: session, status } = useSession();
-  const router = useRouter(); // Para router.refresh()
+  const router = useRouter();
   const [redeemMessage, setRedeemMessage] = useState("");
   const [showUpgradePopup, setShowUpgradePopup] = useState(false);
 
@@ -404,7 +419,7 @@ export default function MainDashboard() {
       } else {
         setRedeemMessage(`Erro: ${data.error || "Falha ao resgatar saldo."}`);
       }
-    } catch (error: unknown) {
+    } catch (error) {
       console.error("Erro ao resgatar saldo:", error);
       setRedeemMessage("Ocorreu um erro ao processar o resgate.");
     }

@@ -1,7 +1,5 @@
-// src/app/api/whatsapp/incoming/route.ts
-
 import { NextRequest, NextResponse } from "next/server";
-import mongoose from "mongoose";
+// import mongoose from "mongoose"; // Removido/comentado pois não é usado
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import { DailyMetric } from "@/app/models/DailyMetric";
@@ -56,7 +54,7 @@ function parseIncomingBody(body: unknown): { from: string; text: string } {
  * Tenta encontrar um código de 6 caracteres (A-Z0-9) na mensagem do usuário.
  * Ex.: "Meu código é 1PN8J1".
  */
-function extractVerificationCode(text: string) {
+function extractVerificationCode(text: string): string | null {
   const codeRegex = /([A-Z0-9]{6})/;
   const match = text.match(codeRegex);
   return match ? match[1] : null;
@@ -68,14 +66,14 @@ function extractVerificationCode(text: string) {
  * um erro de envio quebre o fluxo.
  */
 async function safeSendWhatsAppMessage(to: string, body: string) {
-  // Garante que comece com "+"
-  if (!to.startsWith("+")) {
-    to = "+" + to;
+  let phoneNumber = to;
+  if (!phoneNumber.startsWith("+")) {
+    phoneNumber = "+" + phoneNumber;
   }
   try {
-    await sendWhatsAppMessage(to, body);
-  } catch (error) {
-    console.error("Falha ao enviar mensagem para", to, error);
+    await sendWhatsAppMessage(phoneNumber, body);
+  } catch (err) {
+    console.error("Falha ao enviar mensagem para", phoneNumber, err);
   }
 }
 
@@ -151,7 +149,7 @@ export async function POST(request: NextRequest) {
       postDate: { $gte: fromDate },
     });
 
-    // 8) Verifica se o usuário está solicitando o relatório (baseado em palavras-chave)
+    // 8) Verifica se o usuário está solicitando o relatório
     const lowerText = text.toLowerCase();
     if (lowerText.includes("relatório") || lowerText.includes("planejamento de conteúdo")) {
       // Agrega os dados completos utilizando buildAggregatedReport
@@ -166,8 +164,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Relatório gerado e enviado via IA" }, { status: 200 });
     }
 
-    // 9) Caso contrário, utiliza o fluxo genérico de pergunta sobre métricas
-    // Agrega métricas simples (pode ser mantido para outras perguntas)
+    // 9) Caso contrário, fluxo genérico de pergunta
     let totalCurtidas = 0;
     dailyMetrics.forEach((dm) => {
       totalCurtidas += dm.stats?.curtidas || 0;
@@ -192,13 +189,12 @@ Responda de forma amigável e prática, em poucas linhas.
 
     // 12) Retorna 200
     return NextResponse.json({ message: "Respondido com IA" }, { status: 200 });
-
-  } catch (error: unknown) {
-    console.error("Erro em /api/whatsapp/incoming POST:", error);
+  } catch (err: unknown) {
+    console.error("Erro em /api/whatsapp/incoming POST:", err);
 
     let message = "Erro desconhecido.";
-    if (error instanceof Error) {
-      message = error.message;
+    if (err instanceof Error) {
+      message = err.message;
     }
     return NextResponse.json({ error: message }, { status: 500 });
   }

@@ -123,9 +123,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
             </span>
             <span className="text-base pb-1">/mês</span>
           </div>
-          <p className="text-xs text-white/90 italic">
-            Cancele quando quiser
-          </p>
+          <p className="text-xs text-white/90 italic">Cancele quando quiser</p>
         </div>
       </div>
 
@@ -218,9 +216,13 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
           <FaUserShield className="text-blue-600 mr-2" />
           <span className="font-semibold">Joana S.</span>
         </div>
+        {/* 
+          Aqui usamos aspas escapadas para evitar 'no-unescaped-entities'.
+          Poderíamos usar &quot; ou chaves.
+        */}
         <p>
-          “Depois que assinei, minhas métricas melhoraram e as dicas no WhatsApp
-          me ajudaram a dobrar meu engajamento! Recomendo demais.”
+          &quot;Depois que assinei, minhas métricas melhoraram e as dicas no WhatsApp
+          me ajudaram a dobrar meu engajamento! Recomendo demais.&quot;
         </p>
       </div>
 

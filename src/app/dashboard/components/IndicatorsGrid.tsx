@@ -18,7 +18,10 @@ interface IndicatorsGridProps {
   indicators: Indicator[];
 }
 
-// Função auxiliar para formatar o "value" se for porcentagem
+/**
+ * formatIndicatorValue:
+ * Formata o "value" se for percentual, senão retorna como está.
+ */
 function formatIndicatorValue(
   title: string,
   rawValue: number | string | undefined
@@ -31,9 +34,7 @@ function formatIndicatorValue(
   // Agora, rawValue é um number
   const value = rawValue as number;
 
-  // Exemplo de detecção: se title contiver "Taxa", "Razão", "Engajamento", "Ratio", "Pct", etc.
-  // E se o valor estiver entre 0 e 1000, assumimos que é percent.
-  // Ajuste conforme sua realidade (ex.: <= 100 se vc NUNCA ultrapassa 100%).
+  // Exemplo de detecção: se o título contiver "Taxa", "Razão", "Engajamento", etc.
   const isLikelyPercentTitle = /taxa|razão|ratio|pct|porcent|engajamento|%/i.test(title);
   const isWithinPercentRange = value >= 0 && value <= 1000;
 
@@ -66,17 +67,17 @@ const IndicatorsGrid: React.FC<IndicatorsGridProps> = ({ indicators }) => {
     return <p className="text-sm text-gray-500">Nenhum indicador disponível.</p>;
   }
 
-  // Aqui, mapeamos cada indicador e formatamos o "value" se for percentual
-  const finalIndicators = indicators.map((ind, idx) => ({
+  // Formata cada indicador, especialmente se "value" for percentual
+  const finalIndicators = indicators.map((ind) => ({
     ...ind,
     value: formatIndicatorValue(ind.title, ind.value),
   }));
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {finalIndicators.map((ind, idx) => (
+      {finalIndicators.map((ind, _idx) => (
         <IndicatorCard
-          key={ind.id || idx} // se a IA não enviar "id", use idx
+          key={ind.id || _idx} // se a IA não enviar "id", usamos _idx
           title={ind.title}
           value={ind.value}
           description={ind.description}

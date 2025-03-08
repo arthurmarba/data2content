@@ -5,7 +5,8 @@ import Head from "next/head";
 import { FaCheckCircle, FaDollarSign, FaWhatsapp } from "react-icons/fa";
 
 export default function HomePage() {
-  const { data: session, status } = useSession();
+  // Removido o 'status' para evitar o no-unused-vars
+  const { data: session } = useSession();
 
   return (
     <>
