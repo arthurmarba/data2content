@@ -6,7 +6,7 @@ import React, {
   useCallback,
   memo,
 } from "react";
-import Image from "next/image"; // <== Import do Next para substituir <img>
+import Image from "next/image"; // Agora realmente utilizaremos <Image> do Next
 import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import {
@@ -467,21 +467,13 @@ export default function MainDashboard() {
               <div
                 className={`rounded-full border-2 border-white shadow-md flex-shrink-0 ring-4 ${getStatusRingColor()} hover:scale-105 transition-transform animate-pulse`}
               >
-                {/* 
-                  Substituir <img> por <Image> se quiser remover warning:
-                  import Image from "next/image";
-                  <Image
-                    src={session.user.image}
-                    alt={session.user.name || "Usuário"}
-                    width={80}
-                    height={80}
-                    className="rounded-full object-cover"
-                  />
-                */}
-                <img
+                {/* Substituindo <img> por <Image> do Next.js */}
+                <Image
                   src={session.user.image}
                   alt={session.user.name || "Usuário"}
-                  className="w-20 h-20 rounded-full object-cover"
+                  width={80}
+                  height={80}
+                  className="rounded-full object-cover w-20 h-20"
                 />
               </div>
             )}
