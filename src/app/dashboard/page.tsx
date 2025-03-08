@@ -4,6 +4,7 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  memo,
 } from "react";
 import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -87,9 +88,8 @@ function PaymentSettings({ userId }: { userId: string }) {
   const [loadingRedemptions, setLoadingRedemptions] = useState(false);
 
   /**
-   * Função para buscar dados de pagamento (Pix, conta, etc.).
-   * Tornamos estável com useCallback para poder adicioná-la
-   * ao array de dependências do useEffect.
+   * Busca dados de pagamento (Pix, conta, etc.).
+   * UseCallback para estabilizar referência e evitar warn do react-hooks/exhaustive-deps.
    */
   const fetchPaymentInfo = useCallback(async () => {
     try {
@@ -107,8 +107,7 @@ function PaymentSettings({ userId }: { userId: string }) {
   }, [userId]);
 
   /**
-   * Função para buscar histórico de saques (redeems).
-   * Também usamos useCallback para estabilizar a referência.
+   * Busca histórico de saques (redeems).
    */
   const fetchRedemptions = useCallback(async () => {
     setLoadingRedemptions(true);
@@ -126,9 +125,7 @@ function PaymentSettings({ userId }: { userId: string }) {
   }, [userId]);
 
   /**
-   * useEffect que chama as duas funções após montar
-   * (ou quando userId mudar). Agora incluímos fetchPaymentInfo e fetchRedemptions
-   * no array de dependências.
+   * useEffect que chama as duas funções após montar ou quando userId mudar.
    */
   useEffect(() => {
     if (!userId) return;
@@ -336,8 +333,11 @@ function UpgradePopup({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** Mensagem de feedback após resgate de saldo */
-const Testimonial = React.memo(({ message }: { message: string }) => {
+/**
+ * Mensagem de feedback após resgate de saldo.
+ * Usamos React.memo e definimos displayName para evitar lint "react/display-name".
+ */
+const Testimonial = memo(({ message }: { message: string }) => {
   if (!message) return null;
   return (
     <p className="text-sm mt-2 text-green-600 font-semibold">
@@ -345,7 +345,11 @@ const Testimonial = React.memo(({ message }: { message: string }) => {
     </p>
   );
 });
+Testimonial.displayName = "Testimonial";
 
+/** =================== */
+/** DASHBOARD PRINCIPAL */
+/** =================== */
 export default function MainDashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -436,7 +440,7 @@ export default function MainDashboard() {
   // Gamificação
   const userRank = session.user.affiliateRank || 1;
   const userInvites = session.user.affiliateInvites || 0;
-  const invitesNeeded = 5 - userInvites > 0 ? 5 - userInvites : 0;
+  const invitesNeeded = Math.max(5 - userInvites, 0);
   const progressPercent = Math.min((userInvites / 5) * 100, 100);
 
   return (
@@ -462,6 +466,13 @@ export default function MainDashboard() {
               <div
                 className={`rounded-full border-2 border-white shadow-md flex-shrink-0 ring-4 ${getStatusRingColor()} hover:scale-105 transition-transform animate-pulse`}
               >
+                {/* 
+                  AVISO:
+                  Substituir <img> por next/image se quiser otimizar (ver warning @next/next/no-img-element).
+                  ex.: 
+                  import Image from "next/image";
+                  <Image src={session.user.image} ... />
+                */}
                 <img
                   src={session.user.image}
                   alt={session.user.name || "Usuário"}

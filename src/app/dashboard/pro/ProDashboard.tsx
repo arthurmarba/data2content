@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useSession, signIn } from "next-auth/react";
+
 // Ajuste os imports relativos ao seu projeto:
 import { DashboardProvider } from "../components/DashboardContext";
 import MegaCard from "../components/MegaCard";
@@ -40,13 +41,13 @@ interface MetricItem {
 /** ===================== */
 function UploadMetrics() {
   const { data: session } = useSession();
+
+  // Estados para upload
   const [files, setFiles] = useState<File[]>([]);
   const [postLink, setPostLink] = useState("");
   const [description, setDescription] = useState("");
   const [result, setResult] = useState<MetricResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  // (Opcional) Se quiser tratar erros especificamente, poderia ter um estado de erro:
-  // const [error, setError] = useState<string | null>(null);
 
   // Lida com a seleção de arquivos, limitando a 3
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -84,7 +85,6 @@ function UploadMetrics() {
       return;
     }
     setIsLoading(true);
-    // setError(null); // Se houver estado de erro, poderíamos resetá-lo aqui.
 
     try {
       // Converte cada File em base64
@@ -113,10 +113,10 @@ function UploadMetrics() {
       if (!res.ok) {
         console.error("Erro ao enviar métricas:", data.error);
         setResult(null);
-        // Se houver estado de erro, setError(data.error || "Erro desconhecido");
       } else {
         console.log("Métricas criadas:", data.metric);
         setResult(data.metric);
+
         // Limpa campos
         setFiles([]);
         setPostLink("");
@@ -125,7 +125,6 @@ function UploadMetrics() {
     } catch (error) {
       console.error("Erro no upload:", error);
       setResult(null);
-      // Se houver estado de erro, setError(error instanceof Error ? error.message : "Erro desconhecido.");
     } finally {
       setIsLoading(false);
     }

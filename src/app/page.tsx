@@ -5,7 +5,7 @@ import Head from "next/head";
 import { FaCheckCircle, FaDollarSign, FaWhatsapp } from "react-icons/fa";
 
 export default function HomePage() {
-  // Removido o 'status' para evitar o no-unused-vars
+  // Removemos 'status' para evitar variáveis não usadas
   const { data: session } = useSession();
 
   return (
@@ -35,9 +35,19 @@ export default function HomePage() {
         />
         <meta name="twitter:image" content="https://seusite.com/imagem-twitter.jpg" />
 
-        {/* Fonte Poppins */}
+        {/* 
+          Fonte Poppins
+          Para evitar o alerta de @next/next/no-page-custom-font, 
+          mova esta <link> para um arquivo _document.tsx ou layout.tsx.
+          Ou desabilite localmente a regra:
+          // eslint-disable-next-line @next/next/no-page-custom-font
+        */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
         <link
           href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap"
           rel="stylesheet"

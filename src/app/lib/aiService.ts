@@ -30,13 +30,19 @@ export async function callOpenAIForQuestion(prompt: string): Promise<string> {
   }
 }
 
+/** 
+ * Tipo para o objeto de relatório que você deseja passar para o OpenAI.
+ * Ajuste conforme a estrutura real dos dados.
+ */
+export type AggregatedReport = Record<string, unknown>;
+
 /**
  * callOpenAIForWeeklyReport:
  * Recebe um objeto 'aggregatedReport' (ex.: top3, bottom3, etc.) e retorna
  * um texto formatado, simulando um relatório semanal de planejamento de conteúdo.
  */
 export async function callOpenAIForWeeklyReport(
-  aggregatedReport: unknown, // Ajuste para um tipo mais específico se quiser
+  aggregatedReport: AggregatedReport,
   influencerName: string
 ): Promise<string> {
   try {
@@ -72,18 +78,25 @@ o que evitar e possíveis CTAs. Conclua com uma frase de incentivo.
 }
 
 /**
+ * Formato esperado ao retornar as dicas:
+ */
+export interface TipsResponse {
+  titulo: string;
+  dicas: string[];
+}
+
+/**
  * callOpenAIForTips:
  * Recebe métricas agregadas (ex.: totalPosts, avgCurtidas, etc.)
- * e retorna um objeto JSON com dicas da semana:
+ * e retorna um objeto JSON com dicas da semana no formato:
  *   {
  *     "titulo": "Dicas da Semana",
  *     "dicas": ["Dica 1", "Dica 2", ...]
  *   }
  */
-export async function callOpenAIForTips(aggregated: any): Promise<{
-  titulo: string;
-  dicas: string[];
-}> {
+export async function callOpenAIForTips(
+  aggregated: Record<string, unknown>
+): Promise<TipsResponse> {
   try {
     const prompt = `
 Você é um consultor de Instagram.
@@ -119,13 +132,15 @@ Responda somente em JSON, sem texto adicional.
 
     // Tenta parsear como JSON
     try {
-      return JSON.parse(rawAnswer);
+      return JSON.parse(rawAnswer) as TipsResponse;
     } catch (err) {
       // Se não for JSON válido, retorna algo básico
       console.error("Resposta de IA não pôde ser parseada como JSON:", err);
       return {
         titulo: "Dicas da Semana",
-        dicas: [rawAnswer || "Não foi possível gerar dicas em formato JSON."],
+        dicas: [
+          rawAnswer || "Não foi possível gerar dicas em formato JSON."
+        ],
       };
     }
   } catch (error: unknown) {
