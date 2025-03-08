@@ -2,8 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import { useSession, signIn } from "next-auth/react";
-
-// Ajuste os imports relativos ao seu projeto:
 import { DashboardProvider } from "../components/DashboardContext";
 import MegaCard from "../components/MegaCard";
 import ChatCard from "../components/ChatCard";
@@ -18,7 +16,7 @@ interface MetricResult {
   user?: string;
   postLink?: string;
   description?: string;
-  rawData?: unknown[]; 
+  rawData?: unknown[];
   stats?: unknown;
   createdAt?: string;
 }
@@ -262,7 +260,7 @@ function MetricsList() {
       {/* Se não estiver carregando, não tiver erro e o painel estiver fechado, mas houver dados */}
       {!isLoading && !error && !isOpen && metrics.length > 0 && (
         <p className="text-xs text-gray-500">
-          Métricas ocultas. Clique em "Ver" para exibir.
+          Métricas ocultas. Clique em &quot;Ver&quot; para exibir.
         </p>
       )}
 
