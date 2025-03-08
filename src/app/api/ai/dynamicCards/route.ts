@@ -81,13 +81,12 @@ Observação:
       model: "gpt-3.5-turbo",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.3,
-      // Baixar a temperature aumenta a chance de obediência ao prompt
     });
 
     const responseText = completion.data.choices[0]?.message?.content || "";
 
     // Tenta parsear JSON
-    let parsed;
+    let parsed: unknown;
     try {
       parsed = JSON.parse(responseText);
     } catch (error) {
@@ -95,19 +94,31 @@ Observação:
       parsed = { rawText: responseText };
     }
 
-    // Opcional: filtrar cards com value = 0
-    if (parsed.cards && Array.isArray(parsed.cards)) {
-      parsed.cards = parsed.cards.filter((card: any) => {
+    // Se parsed tiver "cards" como array, filtramos as métricas com value=0
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      "cards" in parsed &&
+      Array.isArray((parsed as { cards: unknown[] }).cards)
+    ) {
+      const parsedObj = parsed as { cards: unknown[] };
+      parsedObj.cards = parsedObj.cards.filter((card: unknown) => {
         if (!card || typeof card !== "object") return false;
-        // se card.value for 0, descarta
-        if (card.value === 0) return false;
+        const c = card as { value?: number };
+        if (c.value === 0) return false;
         return true;
       });
     }
 
     return NextResponse.json({ result: parsed }, { status: 200 });
-  } catch (err: any) {
-    console.error("POST /api/ai/dynamicCards error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+
+  } catch (error: unknown) {
+    console.error("POST /api/ai/dynamicCards error:", error);
+
+    let message = "Erro desconhecido.";
+    if (error instanceof Error) {
+      message = error.message;
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

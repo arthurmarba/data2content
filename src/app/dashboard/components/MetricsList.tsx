@@ -2,8 +2,15 @@
 
 import React, { useEffect, useState } from "react";
 
+interface MetricItem {
+  _id: string;
+  postLink?: string;
+  rawData?: unknown;
+  // Adicione outras propriedades conforme sua necessidade
+}
+
 export default function MetricsList() {
-  const [metrics, setMetrics] = useState<any[]>([]);
+  const [metrics, setMetrics] = useState<MetricItem[]>([]);
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
@@ -14,16 +21,16 @@ export default function MetricsList() {
           setMetrics(data.metrics);
         }
       })
-      .catch((err) => console.error("Erro ao buscar /api/metrics:", err));
+      .catch((error: unknown) => {
+        console.error("Erro ao buscar /api/metrics:", error);
+      });
   }, []);
 
   return (
     <div className="border p-4 rounded bg-white/90 shadow-sm">
       {/* Cabeçalho com título e botão de toggle */}
       <div className="flex items-center justify-between mb-2">
-        <h2 className="text-sm font-semibold text-gray-800">
-          Métricas Salvas
-        </h2>
+        <h2 className="text-sm font-semibold text-gray-800">Métricas Salvas</h2>
         <button
           onClick={() => setIsOpen(!isOpen)}
           className="text-xs px-2 py-1 border rounded text-gray-700 hover:bg-gray-100"
@@ -36,7 +43,10 @@ export default function MetricsList() {
       {isOpen && (
         <>
           {metrics.map((m) => (
-            <div key={m._id} className="mb-2 border-b pb-2 text-xs text-gray-700">
+            <div
+              key={m._id}
+              className="mb-2 border-b pb-2 text-xs text-gray-700"
+            >
               <p>
                 <strong>PostLink:</strong> {m.postLink}
               </p>

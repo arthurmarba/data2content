@@ -15,9 +15,17 @@ import { sendWhatsAppMessage } from "@/app/lib/whatsappService";
 async function safeSendWhatsAppMessage(phone: string, body: string) {
   try {
     await sendWhatsAppMessage(phone, body);
-  } catch (err) {
-    console.error(`Falha ao enviar WhatsApp para ${phone}:`, err);
+  } catch (error: unknown) {
+    console.error(`Falha ao enviar WhatsApp para ${phone}:`, error);
   }
+}
+
+/**
+ * Interface para o resultado do envio de relatório a cada usuário.
+ */
+interface ReportResult {
+  userId: string;
+  success: boolean;
 }
 
 export async function POST(request: NextRequest) {
@@ -50,7 +58,7 @@ export async function POST(request: NextRequest) {
     fromDate.setDate(now.getDate() - 7);
 
     // 5) Processa todos os usuários de forma concorrente
-    const results = await Promise.allSettled(
+    const results = await Promise.allSettled<ReportResult>(
       users.map(async (user) => {
         try {
           // 5a) Carrega as métricas (DailyMetric) dos últimos 7 dias para o usuário
@@ -75,25 +83,31 @@ export async function POST(request: NextRequest) {
           await safeSendWhatsAppMessage(phoneWithPlus, reportText);
 
           console.log(`Relatório enviado para userId=${user._id}, phone=${phoneWithPlus}`);
-          return { userId: user._id, success: true };
-        } catch (err) {
-          console.error(`Erro ao processar relatório para userId=${user._id}:`, err);
-          return { userId: user._id, success: false };
+          return { userId: user._id.toString(), success: true };
+        } catch (error: unknown) {
+          console.error(`Erro ao processar relatório para userId=${user._id}:`, error);
+          return { userId: user._id.toString(), success: false };
         }
       })
     );
 
     // 6) Conta quantos relatórios foram enviados com sucesso
     const countSends = results.filter(
-      (r) => r.status === "fulfilled" && (r as PromiseFulfilledResult<any>).value?.success
+      (r) => r.status === "fulfilled" && r.value.success
     ).length;
 
     return NextResponse.json(
       { message: `Relatórios enviados para ${countSends} usuários.` },
       { status: 200 }
     );
-  } catch (error: any) {
+
+  } catch (error: unknown) {
     console.error("Erro no endpoint weeklyReport:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+
+    let message = "Erro desconhecido.";
+    if (error instanceof Error) {
+      message = error.message;
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

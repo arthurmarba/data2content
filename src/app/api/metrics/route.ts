@@ -41,9 +41,14 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ metrics }, { status: 200 });
 
-  } catch (err: any) {
-    console.error("GET /api/metrics error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("GET /api/metrics error:", error);
+
+    let message = "Erro desconhecido.";
+    if (error instanceof Error) {
+      message = error.message;
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -77,7 +82,7 @@ export async function POST(request: Request) {
     }
 
     // 3) ID do usuário vem da session, não do body
-    const userId = session.user.id; 
+    const userId = session.user.id;
     const objectId = new mongoose.Types.ObjectId(userId);
 
     // 4) Chama Document AI
@@ -109,8 +114,13 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ metric: newMetric }, { status: 201 });
 
-  } catch (err: any) {
-    console.error("POST /api/metrics error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("POST /api/metrics error:", error);
+
+    let message = "Erro desconhecido.";
+    if (error instanceof Error) {
+      message = error.message;
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

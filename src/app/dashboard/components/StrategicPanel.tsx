@@ -6,6 +6,27 @@ import MinimalEditableText from "./MinimalEditableText";
 import TagInput from "./TagInput";
 import { useDashboard } from "./DashboardContext";
 
+/**
+ * Estrutura de cada "card" retornado pela IA em /api/ai/dynamicCards
+ */
+interface DynamicCard {
+  metricKey?: string;
+  title?: string;
+  value?: string | number;
+  description?: string;
+  chartData?: unknown;
+  recommendation?: string;
+}
+
+/**
+ * Estrutura para a resposta da IA
+ */
+interface AIResponse {
+  result?: {
+    cards?: DynamicCard[];
+  };
+}
+
 const StrategicPanel: React.FC = () => {
   const { data: session } = useSession();
   const { setLoading, setCustomData } = useDashboard();
@@ -43,9 +64,10 @@ const StrategicPanel: React.FC = () => {
       }
 
       // 2) Buscar histórico agregado (por dia) em /api/metricsHistory
-      // Ajuste "days=360" ou outro valor que desejar
       console.log("[StrategicPanel] Chamando /api/metricsHistory...");
-      const resHistory = await fetch(`/api/metricsHistory?userId=${session.user.id}&days=360`);
+      const resHistory = await fetch(
+        `/api/metricsHistory?userId=${session.user.id}&days=360`
+      );
       if (!resHistory.ok) {
         throw new Error("Falha ao obter histórico de métricas (metricsHistory).");
       }
@@ -75,19 +97,14 @@ const StrategicPanel: React.FC = () => {
         throw new Error(`Falha ao chamar a IA: ${resAI.status}`);
       }
 
-      const dataAI = await resAI.json();
+      const dataAI: AIResponse = await resAI.json();
       console.log("[StrategicPanel] /api/ai/dynamicCards response:", dataAI);
 
       // 5) Se a IA retornar “cards”, mesclamos com chartData
       if (dataAI.result?.cards) {
         console.log("[StrategicPanel] Recebidos cards da IA:", dataAI.result.cards);
 
-        // Aqui, cada card tem "metricKey", "title", "value", "description"
-        // Precisamos injetar "chartData" neles para o front exibir o gráfico.
-        // Exemplo simples: aplicar o mesmo dailyChartData para todos,
-        // ou uma lógica condicional se quiser filtrar. Aqui, iremos
-        // passar dailyChartData para todos os cards (um gráfico universal).
-        const finalCards = dataAI.result.cards.map((card: any) => {
+        const finalCards = dataAI.result.cards.map((card) => {
           return {
             ...card,
             chartData: dailyChartData,
@@ -100,8 +117,8 @@ const StrategicPanel: React.FC = () => {
         setErrorMessage("A IA não retornou cards válidos.");
       }
 
-    } catch (err) {
-      console.error("[StrategicPanel] Erro ao gerar análise dinâmica:", err);
+    } catch (error: unknown) {
+      console.error("[StrategicPanel] Erro ao gerar análise dinâmica:", error);
       setErrorMessage("Ocorreu um erro ao gerar a análise.");
     } finally {
       setLoading(false);
@@ -112,9 +129,7 @@ const StrategicPanel: React.FC = () => {
     <div className="space-y-4">
       <h2 className="text-lg font-semibold text-gray-800">Planejamento Estratégico</h2>
 
-      {errorMessage && (
-        <p className="text-red-500 text-sm">{errorMessage}</p>
-      )}
+      {errorMessage && <p className="text-red-500 text-sm">{errorMessage}</p>}
 
       <div className="flex flex-wrap gap-4">
         <div className="flex-1">

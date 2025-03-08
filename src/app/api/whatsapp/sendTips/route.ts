@@ -1,7 +1,7 @@
 // src/app/api/whatsapp/sendTips/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt"; 
+import { getToken } from "next-auth/jwt";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import { DailyMetric } from "@/app/models/DailyMetric";
@@ -9,10 +9,20 @@ import { sendWhatsAppMessage } from "@/app/lib/whatsappService";
 import { callOpenAIForTips } from "@/app/lib/aiService";
 
 /**
+ * Interface mínima para as métricas diárias usadas em aggregateWeeklyMetrics.
+ */
+interface DailyMetricDoc {
+  stats?: {
+    curtidas?: number;
+    // Adicione outras propriedades se necessário
+  };
+}
+
+/**
  * Exemplo de função de agregação das métricas dos últimos 7 dias.
  * Ajuste conforme sua necessidade (somar curtidas, calcular engajamento médio, etc.).
  */
-function aggregateWeeklyMetrics(dailyMetrics: any[]) {
+function aggregateWeeklyMetrics(dailyMetrics: DailyMetricDoc[]) {
   let totalCurtidas = 0;
   const totalPosts = dailyMetrics.length;
 
@@ -31,16 +41,25 @@ function aggregateWeeklyMetrics(dailyMetrics: any[]) {
 }
 
 /**
+ * Interface mínima para o objeto de dicas retornado pela IA.
+ * Exemplo: { titulo: "...", dicas: ["dica1", "dica2"] }
+ */
+interface TipsData {
+  titulo?: string;
+  dicas?: string[];
+}
+
+/**
  * Formata a mensagem final para enviar no WhatsApp,
  * a partir do objeto de dicas retornado pela IA.
  * Ex.: se a IA retorna { titulo: "...", dicas: ["dica1", "dica2"] }
  */
-function formatTipsMessage(tipsData: any) {
+function formatTipsMessage(tipsData: TipsData) {
   const titulo = tipsData.titulo || "Dicas da Semana";
   const dicas = tipsData.dicas || [];
 
   let msg = `*${titulo}*\n\n`;
-  dicas.forEach((d: string, i: number) => {
+  dicas.forEach((d, i) => {
     msg += `${i + 1}. ${d}\n`;
   });
   msg += "\nBons posts e até a próxima!";
@@ -59,8 +78,8 @@ async function safeSendWhatsAppMessage(phone: string, body: string) {
   }
   try {
     await sendWhatsAppMessage(phone, body);
-  } catch (err) {
-    console.error(`Falha ao enviar WhatsApp para ${phone}:`, err);
+  } catch (error) {
+    console.error(`Falha ao enviar WhatsApp para ${phone}:`, error);
   }
 }
 
@@ -119,9 +138,9 @@ export async function POST(request: NextRequest) {
 
         countSends++;
         console.log(`Dicas enviadas para userId=${user._id} no número ${user.whatsappPhone}`);
-      } catch (err) {
+      } catch (error: unknown) {
         // Se falhar para um usuário, loga e continua para o próximo
-        console.error(`Erro ao processar userId=${user._id}:`, err);
+        console.error(`Erro ao processar userId=${user._id}:`, error);
       }
     }
 
@@ -131,8 +150,13 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
 
-  } catch (err: any) {
-    console.error("Erro em /api/whatsapp/sendTips:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("Erro em /api/whatsapp/sendTips:", error);
+
+    let message = "Erro desconhecido.";
+    if (error instanceof Error) {
+      message = error.message;
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

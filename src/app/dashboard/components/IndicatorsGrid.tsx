@@ -11,7 +11,7 @@ interface Indicator {
   value?: number | string;
   description?: string;
   recommendation?: string; // se a IA quiser fornecer
-  chartData?: any;
+  chartData?: unknown; // Substituímos 'any' por 'unknown' para maior segurança
 }
 
 interface IndicatorsGridProps {
@@ -19,7 +19,10 @@ interface IndicatorsGridProps {
 }
 
 // Função auxiliar para formatar o "value" se for porcentagem
-function formatIndicatorValue(title: string, rawValue: number | string | undefined): string | number | undefined {
+function formatIndicatorValue(
+  title: string,
+  rawValue: number | string | undefined
+): string | number | undefined {
   if (rawValue === undefined || typeof rawValue === "string") {
     // Se já for string (ex. "42.50%") ou undefined, não mexe
     return rawValue;
@@ -32,7 +35,7 @@ function formatIndicatorValue(title: string, rawValue: number | string | undefin
   // E se o valor estiver entre 0 e 1000, assumimos que é percent.
   // Ajuste conforme sua realidade (ex.: <= 100 se vc NUNCA ultrapassa 100%).
   const isLikelyPercentTitle = /taxa|razão|ratio|pct|porcent|engajamento|%/i.test(title);
-  const isWithinPercentRange = (value >= 0 && value <= 1000);
+  const isWithinPercentRange = value >= 0 && value <= 1000;
 
   if (isLikelyPercentTitle && isWithinPercentRange) {
     // Exibe com 2 casas decimais + '%'
@@ -60,20 +63,14 @@ const IndicatorsGrid: React.FC<IndicatorsGridProps> = ({ indicators }) => {
 
   // Se não está carregando e não há indicadores
   if (!indicators || indicators.length === 0) {
-    return (
-      <p className="text-sm text-gray-500">
-        Nenhum indicador disponível.
-      </p>
-    );
+    return <p className="text-sm text-gray-500">Nenhum indicador disponível.</p>;
   }
 
   // Aqui, mapeamos cada indicador e formatamos o "value" se for percentual
-  const finalIndicators = indicators.map((ind, idx) => {
-    return {
-      ...ind,
-      value: formatIndicatorValue(ind.title, ind.value),
-    };
-  });
+  const finalIndicators = indicators.map((ind, idx) => ({
+    ...ind,
+    value: formatIndicatorValue(ind.title, ind.value),
+  }));
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -1,9 +1,22 @@
-// src/app/lib/documentAI.ts
-
 import fetch from "node-fetch"; // ou use fetch nativo do Node 18+ se preferir
 import path from "path";
 import { GoogleAuth } from "google-auth-library";
 import { calcFormulas } from "./formulas";
+
+/**
+ * Interface mínima para a resposta do Document AI.
+ * Ajuste conforme o modelo real retornado pelo seu endpoint.
+ */
+interface DocumentAIEntity {
+  type?: string;
+  mentionText?: string;
+}
+
+interface DocumentAIResponse {
+  document?: {
+    entities?: DocumentAIEntity[];
+  };
+}
 
 /**
  * 1) Configuração da conta de serviço para autenticar no Google Cloud.
@@ -17,7 +30,10 @@ const auth = new GoogleAuth({
 /**
  * 2) Chamada principal ao Document AI (REST), obtendo token dinamicamente.
  */
-export async function callDocumentAI(base64File: string, mimeType: string) {
+export async function callDocumentAI(
+  base64File: string,
+  mimeType: string
+): Promise<DocumentAIResponse> {
   const endpoint = process.env.DOC_AI_ENDPOINT;
   if (!endpoint) {
     throw new Error("DOC_AI_ENDPOINT não definido");
@@ -34,7 +50,7 @@ export async function callDocumentAI(base64File: string, mimeType: string) {
   // 2) Monta payload
   const payload = {
     rawDocument: {
-      content: base64File,  // base64 do arquivo
+      content: base64File, // base64 do arquivo
       mimeType,
     },
   };
@@ -55,10 +71,11 @@ export async function callDocumentAI(base64File: string, mimeType: string) {
   }
 
   // 4) Retorna JSON
-  return await response.json();
+  const json = (await response.json()) as DocumentAIResponse;
+  return json;
 }
 
-/** 
+/**
  * 3) Listas de cabeçalhos e alias (como no seu Apps Script).
  *    Ajuste conforme suas necessidades.
  */
@@ -125,54 +142,56 @@ const TEXT_HEADERS = [
 
 // Alias de nomes
 const METRICS_ALIAS_MAP: Record<string, string> = {
-  "comecaramaseguir": "Começaram a Seguir",
-  "comentarios": "Comentários",
-  "compartilhamentos": "Compartilhamentos",
-  "contasalcancadas": "Contas Alcançadas",
-  "contasalcancadasdeseguidores": "Contas Alcançadas de Seguidores",
-  "contasalcancadasdenaoseguidores": "Contas Alcançadas de Não Seguidores",
-  "contascomengajamento": "Contas com Engajamento",
-  "contascomengajamentodeseguidores": "Contas com Engajamento de Seguidores",
-  "contascomengajamentodenaoseguidores": "Contas com Engajamento de Não Seguidores",
-  "interacoescomreels": "Interações do Reel",
-  "interacoesdoreel": "Interações do Reel",
-  "interacoes": "Interações Totais",
-  "interacoestotais": "Interações Totais",
-  "reacoesnofacebook": "Reações no Facebook",
-  "reproducoesiniciais": "Reproduções Iniciais",
-  "reproducoesinicias": "Reproduções Iniciais",
-  "reproducoes": "Reproduções",
-  "reproducoesnofacebook": "Reproduções no Facebook",
-  "reproducoestotais": "Reproduções Totais",
-  "salvamentos": "Salvamentos",
-  "curtidas": "Curtidas",
-  "datadepublicacao": "Data de Publicação",
-  "duracao": "Duração",
-  "formato": "Formato",
-  "tempodevisualizacao": "Tempo de Visualização",
-  "tempomediodevisualizacao": "Tempo Médio de Visualização",
-  "visitasaoperfil": "Visitas ao Perfil",
-  "visualizacoes": "Visualizações",
-  "visualizacoesdeseguidores": "Visualizações de Seguidores",
-  "visualizacoesdenaoseguidores": "Visualizações de Não Seguidores",
-  "caption": "Caption",
-  "repeticoes": "Repetições",
+  comecaramaseguir: "Começaram a Seguir",
+  comentarios: "Comentários",
+  compartilhamentos: "Compartilhamentos",
+  contasalcancadas: "Contas Alcançadas",
+  contasalcancadasdeseguidores: "Contas Alcançadas de Seguidores",
+  contasalcancadasdenaoseguidores: "Contas Alcançadas de Não Seguidores",
+  contascomengajamento: "Contas com Engajamento",
+  contascomengajamentodeseguidores: "Contas com Engajamento de Seguidores",
+  contascomengajamentodenaoseguidores: "Contas com Engajamento de Não Seguidores",
+  interacoescomreels: "Interações do Reel",
+  interacoesdoreel: "Interações do Reel",
+  interacoes: "Interações Totais",
+  interacoestotais: "Interações Totais",
+  reacoesnofacebook: "Reações no Facebook",
+  reproducoesiniciais: "Reproduções Iniciais",
+  reproducoesinicias: "Reproduções Iniciais",
+  reproducoes: "Reproduções",
+  reproducoesnofacebook: "Reproduções no Facebook",
+  reproducoestotais: "Reproduções Totais",
+  salvamentos: "Salvamentos",
+  curtidas: "Curtidas",
+  datadepublicacao: "Data de Publicação",
+  duracao: "Duração",
+  formato: "Formato",
+  tempodevisualizacao: "Tempo de Visualização",
+  tempomediodevisualizacao: "Tempo Médio de Visualização",
+  visitasaoperfil: "Visitas ao Perfil",
+  visualizacoes: "Visualizações",
+  visualizacoesdeseguidores: "Visualizações de Seguidores",
+  visualizacoesdenaoseguidores: "Visualizações de Não Seguidores",
+  caption: "Caption",
+  repeticoes: "Repetições",
   "repetições": "Repetições",
-  "linkdoconteudo": "Link do Conteúdo",
-  "capadoconteudo": "Capa do Conteúdo"
+  linkdoconteudo: "Link do Conteúdo",
+  capadoconteudo: "Capa do Conteúdo",
 };
 
 /**
  * 4) Extrai as métricas do response do Document AI, usando a lógica avançada (alias, parse de datas, etc.).
  */
-export function extractLabeledMetricsFromDocumentAIResponse(docAIResponse: any) {
+export function extractLabeledMetricsFromDocumentAIResponse(
+  docAIResponse: DocumentAIResponse
+): Record<string, unknown> {
   const document = docAIResponse.document || {};
   const entities = document.entities || [];
 
-  const extractedMetrics: Record<string, any> = {};
+  const extractedMetrics: Record<string, unknown> = {};
 
   for (const entity of entities) {
-    let metricName = normalizeHeader(entity.type);
+    let metricName = normalizeHeader(entity.type ?? "");
     const metricValue = entity.mentionText ? entity.mentionText.trim() : "";
 
     // Aplica alias
@@ -185,13 +204,13 @@ export function extractLabeledMetricsFromDocumentAIResponse(docAIResponse: any) 
     const isPercent = PERCENTAGE_HEADERS.includes(metricName);
     const isText = TEXT_HEADERS.includes(metricName);
 
+    // Se não estiver em nenhum, descarta
     if (!isNumeric && !isPercent && !isText) {
-      // console.log(`Descartando métrica não reconhecida: ${entity.type}`);
       continue;
     }
 
+    // TEXT
     if (isText) {
-      // Lógica de parse para TEXT_HEADERS
       if (metricName === "Data de Publicação") {
         extractedMetrics[metricName] = parseDocAIDate(metricValue);
       } else if (metricName === "Duração") {
@@ -201,8 +220,8 @@ export function extractLabeledMetricsFromDocumentAIResponse(docAIResponse: any) 
       } else {
         extractedMetrics[metricName] = metricValue;
       }
+      // NUMERIC / PERCENT
     } else {
-      // Numérico ou Percent
       if (metricName === "Tempo Médio de Visualização") {
         extractedMetrics[metricName] = parseTempoVisualizacao(metricValue);
       } else {
@@ -232,27 +251,30 @@ function parseDocAIDate(dateStr: string) {
 
   // Caso "3 de outubro de 2024"
   const MESES_MAP: Record<string, string> = {
-    "janeiro": "01",
-    "fevereiro": "02",
-    "março": "03",
-    "marco": "03",
-    "abril": "04",
-    "maio": "05",
-    "junho": "06",
-    "julho": "07",
-    "agosto": "08",
-    "setembro": "09",
-    "outubro": "10",
-    "novembro": "11",
-    "dezembro": "12"
+    janeiro: "01",
+    fevereiro: "02",
+    março: "03",
+    marco: "03",
+    abril: "04",
+    maio: "05",
+    junho: "06",
+    julho: "07",
+    agosto: "08",
+    setembro: "09",
+    outubro: "10",
+    novembro: "11",
+    dezembro: "12",
   };
 
   const parts = dateStr
     .toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .split(" ");
 
-  let dia = "", mes = "", ano = "";
+  let dia = "",
+    mes = "",
+    ano = "";
   for (const part of parts) {
     if (!isNaN(Number(part)) && part.length === 4) {
       ano = part;
@@ -274,23 +296,38 @@ function parseTempoVisualizacao(tempoStr: string) {
 
   const regex = /(\d+)\s*(a|d|h|min|s)/gi;
   let match;
-  let anos = 0, dias = 0, horas = 0, minutos = 0, segundos = 0;
+  let anos = 0,
+    dias = 0,
+    horas = 0,
+    minutos = 0,
+    segundos = 0;
 
   while ((match = regex.exec(tempoStr)) !== null) {
     const valor = parseInt(match[1], 10);
     const unidade = match[2].toLowerCase();
 
     switch (unidade) {
-      case "a": anos += valor; break;
-      case "d": dias += valor; break;
-      case "h": horas += valor; break;
-      case "min": minutos += valor; break;
-      case "s": segundos += valor; break;
+      case "a":
+        anos += valor;
+        break;
+      case "d":
+        dias += valor;
+        break;
+      case "h":
+        horas += valor;
+        break;
+      case "min":
+        minutos += valor;
+        break;
+      case "s":
+        segundos += valor;
+        break;
     }
   }
 
-  let totalSegundos = anos*31536000 + dias*86400 + horas*3600 + minutos*60 + segundos;
-  const MAX_SEGUNDOS = 5*31536000;
+  let totalSegundos =
+    anos * 31536000 + dias * 86400 + horas * 3600 + minutos * 60 + segundos;
+  const MAX_SEGUNDOS = 5 * 31536000;
   if (totalSegundos > MAX_SEGUNDOS) {
     totalSegundos = MAX_SEGUNDOS;
   }
@@ -302,27 +339,29 @@ function parseDuration(durationStr: string) {
 
   if (durationStr.includes(":")) {
     // "HH:MM:SS" ou "MM:SS"
-    const parts = durationStr.split(":").map(p => parseInt(p, 10));
+    const parts = durationStr.split(":").map((p) => parseInt(p, 10));
     if (parts.length === 3) {
       const [hh, mm, ss] = parts;
-      return hh*3600 + mm*60 + ss;
+      return hh * 3600 + mm * 60 + ss;
     } else if (parts.length === 2) {
       const [mm, ss] = parts;
-      return mm*60 + ss;
+      return mm * 60 + ss;
     }
     return 0;
   } else {
     // Ex.: "2h 30m 10s"
     const regex = /(\d+)\s*h|\b(\d+)\s*m\b|\b(\d+)\s*s\b/g;
     let match;
-    let horas = 0, minutos = 0, segundos = 0;
+    let horas = 0,
+      minutos = 0,
+      segundos = 0;
 
     while ((match = regex.exec(durationStr)) !== null) {
       if (match[1]) horas += parseInt(match[1], 10);
       if (match[2]) minutos += parseInt(match[2], 10);
       if (match[3]) segundos += parseInt(match[3], 10);
     }
-    return horas*3600 + minutos*60 + segundos;
+    return horas * 3600 + minutos * 60 + segundos;
   }
 }
 
@@ -387,8 +426,13 @@ export async function processImageFile(base64File: string, mimeType: string) {
   return labeledMetrics;
 }
 
-export async function processMultipleImages(images: { base64File: string; mimeType: string }[]) {
-  const rawDataArray: any[] = [];
+export async function processMultipleImages(
+  images: { base64File: string; mimeType: string }[]
+): Promise<{
+  rawDataArray: Record<string, unknown>[];
+  stats: Record<string, unknown>;
+}> {
+  const rawDataArray: Record<string, unknown>[] = [];
 
   for (const img of images) {
     const extracted = await processImageFile(img.base64File, img.mimeType);

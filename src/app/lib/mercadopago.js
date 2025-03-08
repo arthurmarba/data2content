@@ -1,5 +1,5 @@
 // src/app/lib/mercadopago.js
-const mercadopago = require("mercadopago");
+import mercadopago from "mercadopago";
 
 // Use a versão 1.x que aceita configurations.setAccessToken
 const ACCESS_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN_TEST || "";
@@ -7,4 +7,4 @@ const ACCESS_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN_TEST || "";
 // Ajuste via .configurations.setAccessToken
 mercadopago.configurations.setAccessToken(ACCESS_TOKEN);
 
-module.exports = mercadopago;
+export default mercadopago;

@@ -3,13 +3,14 @@
 import { Configuration, OpenAIApi } from "openai";
 
 /**
- * Gera um relatório semanal padronizado, adaptado aos dados reais do usuário.
- *
- * @param aggregatedMetrics - Objeto contendo os cálculos e métricas já processadas.
- * @param period - Texto que indica o período de análise (ex.: "30 dias", "7 dias").
- * @returns Uma string com o relatório gerado.
+ * Se quiser tipar detalhadamente o que contém aggregatedMetrics,
+ * você pode criar uma interface (ex.: AggregatedReport).
+ * Aqui, usamos Record<string, unknown> para simplificar.
  */
-export async function generateReport(aggregatedMetrics: any, period: string): Promise<string> {
+export async function generateReport(
+  aggregatedMetrics: Record<string, unknown>,
+  period: string
+): Promise<string> {
   const prompt = `
 Você é um consultor de marketing digital especialista em Instagram e planejamento de conteúdo. 
 Utilizando os dados reais do "RELATÓRIO BASE" abaixo, identifique quais são os temas e padrões predominantes no conteúdo do usuário e elabore um relatório semanal detalhado e adaptado, seguindo exatamente o modelo abaixo.  
@@ -112,13 +113,15 @@ Utilize as informações do relatório base para gerar um relatório adaptado e 
       temperature: 0.7,
       max_tokens: 1800,
     });
+
     const answer = response.data.choices[0]?.message?.content;
     if (!answer) {
       throw new Error("Nenhuma resposta gerada pela API.");
     }
     return answer;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Erro na geração do relatório:", error);
-    return "Desculpe, ocorreu um erro ao gerar o relatório. Por favor, tente novamente mais tarde.";
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return `Desculpe, ocorreu um erro ao gerar o relatório. Detalhes: ${errorMessage}`;
   }
 }

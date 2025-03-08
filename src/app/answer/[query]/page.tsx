@@ -10,7 +10,6 @@ import VideoCarousel from "../../components/VideoCarousel";
 export default function AnswerPage() {
   const { query } = useParams(); // Obtém o parâmetro da URL "query"
   const [answer, setAnswer] = useState("");
-  const [relatedVideos, setRelatedVideos] = useState<any>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,16 +23,8 @@ export default function AnswerPage() {
         });
         const answerData = await answerRes.json();
         setAnswer(answerData.answer);
-
-        // Requisição para vídeos relacionados (limitado a 4 vídeos)
-        const videosRes = await fetch(
-          `/api/videos?q=${encodeURIComponent(query)}&maxResults=4`
-        );
-        const videosData = await videosRes.json();
-        setRelatedVideos(Array.isArray(videosData) ? videosData : []);
       } catch (error) {
         console.error("Erro ao buscar dados:", error);
-        setRelatedVideos([]);
       } finally {
         setLoading(false);
       }
@@ -47,6 +38,7 @@ export default function AnswerPage() {
         <title>Resposta - data2content</title>
         <meta name="description" content="Veja a resposta personalizada da D2C AI" />
       </Head>
+
       <main className="px-8 py-16 pt-24 space-y-8">
         {/* Cabeçalho e Área de Apresentação */}
         <div className="text-center">
@@ -57,10 +49,12 @@ export default function AnswerPage() {
             </p>
           </div>
         </div>
+
         {/* Campo de Busca */}
         <div className="w-full max-w-lg mx-auto">
           <SearchBar placeholder="Pergunte para d2c AI" />
         </div>
+
         {/* Contêiner de Resposta */}
         <div className="w-full max-w-lg mx-auto border border-gray-200 rounded p-6">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Resposta</h2>
@@ -75,6 +69,7 @@ export default function AnswerPage() {
             </Link>
           </div>
         </div>
+
         {/* Carrossel de Vídeos Relacionados */}
         <VideoCarousel title="Vídeos Relacionados" query={query} maxResults={4} />
       </main>

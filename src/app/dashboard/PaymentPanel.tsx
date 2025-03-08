@@ -80,8 +80,12 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
           setInitPoint(data.initPoint);
         }
       }
-    } catch (err: any) {
-      setMessage(`Erro: ${err.message}`);
+    } catch (error: unknown) {
+      let errorMsg = "Erro desconhecido.";
+      if (error instanceof Error) {
+        errorMsg = error.message;
+      }
+      setMessage(`Erro: ${errorMsg}`);
     } finally {
       setLoading(false);
     }

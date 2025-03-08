@@ -1,11 +1,17 @@
-// src/app/dashboard/components/TagInput.tsx
 "use client";
 
 import React, { useState } from "react";
 
+/**
+ * Podemos definir um tipo genérico para Tag.
+ * Se você quiser apenas strings, use `type Tag = string;`
+ * Se quiser aceitar qualquer estrutura, use `unknown`.
+ */
+type Tag = unknown;
+
 interface TagInputProps {
-  tags: any[];
-  setTags: (tags: any[]) => void;
+  tags: Tag[];
+  setTags: (tags: Tag[]) => void;
   placeholder?: string;
   variant?: string;
 }
@@ -21,12 +27,14 @@ const TagInput: React.FC<TagInputProps> = ({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && input.trim() !== "") {
       e.preventDefault();
-      if (!tags.includes(input.trim())) {
-        setTags([...tags, input.trim()]);
+      const trimmed = input.trim();
+
+      // Checa se a tag já existe
+      if (!tags.includes(trimmed)) {
+        setTags([...tags, trimmed]);
       }
       setInput("");
-    }
-    if (e.key === "Backspace" && input === "" && tags.length > 0) {
+    } else if (e.key === "Backspace" && input === "" && tags.length > 0) {
       e.preventDefault();
       const newTags = tags.slice(0, tags.length - 1);
       setTags(newTags);
@@ -39,17 +47,26 @@ const TagInput: React.FC<TagInputProps> = ({
 
   return (
     <div className="flex flex-wrap gap-2 p-2 border border-gray-300 rounded-md shadow-sm bg-white">
-      {tags.map((tag, index) => (
-        <div
-          key={index}
-          className={`flex items-center ${variant} px-3 py-1 rounded-full text-sm`}
-        >
-          <span>{typeof tag === "string" ? tag : JSON.stringify(tag)}</span>
-          <button onClick={() => removeTag(index)} className="ml-1 focus:outline-none">
-            ×
-          </button>
-        </div>
-      ))}
+      {tags.map((tag, index) => {
+        // Se o tag for string, exibe diretamente; senão faz JSON.stringify
+        const tagLabel =
+          typeof tag === "string" ? tag : JSON.stringify(tag);
+
+        return (
+          <div
+            key={index}
+            className={`flex items-center ${variant} px-3 py-1 rounded-full text-sm`}
+          >
+            <span>{tagLabel}</span>
+            <button
+              onClick={() => removeTag(index)}
+              className="ml-1 focus:outline-none"
+            >
+              ×
+            </button>
+          </div>
+        );
+      })}
       <input
         type="text"
         value={input}

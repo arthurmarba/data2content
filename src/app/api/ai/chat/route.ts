@@ -1,5 +1,3 @@
-// src/app/api/ai/chat/route.ts
-
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { Metric } from "@/app/models/Metric";
@@ -8,7 +6,7 @@ import { callOpenAIForQuestion } from "@/app/lib/aiService";
 export async function POST(request: Request) {
   try {
     // 1) Lê o body JSON
-    const { userId, query } = await request.json() || {};
+    const { userId, query } = (await request.json()) || {};
 
     // 2) Valida campos
     if (!userId) {
@@ -40,8 +38,14 @@ Responda em português, de forma amigável e direta.
 
     // 6) Retorna a resposta em JSON
     return NextResponse.json({ answer }, { status: 200 });
-  } catch (err: any) {
-    console.error("POST /api/ai/chat error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+
+  } catch (error: unknown) {
+    console.error("POST /api/ai/chat error:", error);
+
+    let message = "Erro desconhecido.";
+    if (error instanceof Error) {
+      message = error.message;
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

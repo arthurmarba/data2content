@@ -233,8 +233,13 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ history }, { status: 200 });
 
-  } catch (err: any) {
-    console.error("/api/metricsHistory error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("/api/metricsHistory error:", error);
+
+    let message = "Erro desconhecido.";
+    if (error instanceof Error) {
+      message = error.message;
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

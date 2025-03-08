@@ -3,8 +3,8 @@ import { getToken } from "next-auth/jwt"; // para autenticação
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 
-// Importamos a instância configurada do Mercado Pago (CommonJS)
-const mercadopago = require("@/app/lib/mercadopago");
+// Em vez de require(), use import para mercadopago
+import mercadopago from "@/app/lib/mercadopago";
 
 /**
  * POST /api/plan/subscribe
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 2) Lê body com as informações de assinatura
-    const body = await req.json() || {};
+    const body = (await req.json()) || {};
     const { planType, affiliateCode } = body;
 
     // 3) Conecta ao Mongo e busca o usuário via email do token
@@ -94,8 +94,14 @@ export async function POST(req: NextRequest) {
       message: "Preferência criada. Redirecione o usuário para esse link.",
       price,
     });
-  } catch (err: any) {
-    console.error("Erro em /api/plan/subscribe:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+
+  } catch (error: unknown) {
+    console.error("Erro em /api/plan/subscribe:", error);
+
+    let message = "Erro desconhecido.";
+    if (error instanceof Error) {
+      message = error.message;
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

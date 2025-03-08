@@ -1,7 +1,7 @@
-// src/app/dashboard/components/InstagramProfile.tsx
 "use client";
 
 import React from "react";
+import Image from "next/image";
 
 interface InstagramProfileProps {
   image: string;
@@ -18,24 +18,22 @@ const InstagramProfile: React.FC<InstagramProfileProps> = ({
 }) => {
   return (
     <div className="flex items-center gap-6">
-      {/* Foto maior: w-32 h-32 (128px) */}
-      <img
-        src={image}
-        alt={name}
-        className="
-          w-32
-          h-32
-          rounded-full
-          object-cover
-          border border-gray-200
-        "
-      />
+      {/* Foto maior: 128px de largura/altura */}
+      <div className="relative w-32 h-32">
+        <Image
+          src={image}
+          alt={name}
+          fill
+          // or width={128} height={128} se preferir fixo
+          className="rounded-full object-cover border border-gray-200"
+        />
+      </div>
       <div>
-        {/* Nome maior: text-lg ou text-xl */}
+        {/* Nome maior: text-xl */}
         <h1 className="text-xl font-semibold text-gray-800">{name}</h1>
         {/* Username maior: text-base */}
         <p className="text-base text-gray-700">@{username}</p>
-        {/* Bio maior: text-sm ou text-base */}
+        {/* Bio maior: text-sm */}
         <p className="text-sm text-gray-600 mt-2">{bio}</p>
       </div>
     </div>

@@ -1,4 +1,4 @@
-// src/app/api/lib/whatsappService.ts
+// src/app/lib/whatsappService.ts
 
 /**
  * WhatsApp Cloud API:
@@ -35,15 +35,16 @@ export async function sendWhatsAppMessage(to: string, body: string): Promise<voi
   }
 
   // 2) Garante que 'to' comece com '+'
-  if (!to.startsWith("+")) {
-    to = "+" + to;
+  let phoneNumber = to;
+  if (!phoneNumber.startsWith("+")) {
+    phoneNumber = "+" + phoneNumber;
   }
 
   // 3) Monta a URL e o payload
   const url = `${BASE_URL}/${PHONE_NUMBER_ID}/messages`;
   const payload = {
     messaging_product: "whatsapp",
-    to,
+    to: phoneNumber,
     text: { body },
   };
 
@@ -66,17 +67,18 @@ export async function sendWhatsAppMessage(to: string, body: string): Promise<voi
     }
 
     // Se quiser confirmar que a mensagem foi enviada, descomente:
-    // console.log(`Mensagem enviada com sucesso para ${to}: ${body}`);
-  } catch (error: any) {
+    // console.log(`Mensagem enviada com sucesso para ${phoneNumber}: ${body}`);
+  } catch (error: unknown) {
     console.error("Erro no sendWhatsAppMessage:", error);
-    throw new Error("Falha ao enviar mensagem via WhatsApp Cloud API.");
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Falha ao enviar mensagem via WhatsApp Cloud API: ${errorMessage}`);
   }
 }
 
 /*
 Exemplo de uso (em outro arquivo):
 
-import { sendWhatsAppMessage } from "@/app/api/lib/whatsappService";
+import { sendWhatsAppMessage } from "@/app/lib/whatsappService";
 
 await sendWhatsAppMessage("+5511999998888", "Olá, isso é um teste!");
 

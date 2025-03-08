@@ -5,7 +5,7 @@ import Head from "next/head";
 import { FaCheckCircle, FaDollarSign, FaWhatsapp } from "react-icons/fa";
 
 export default function HomePage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
 
   return (
     <>
@@ -36,7 +36,7 @@ export default function HomePage() {
 
         {/* Fonte Poppins */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="true" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
           href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap"
           rel="stylesheet"
@@ -69,7 +69,7 @@ export default function HomePage() {
                 loading="lazy"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
-              ></iframe>
+              />
               <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 animate-fadeOut">
                 <span className="text-white text-xs md:text-sm font-semibold">
                   Assista e conheça os Benefícios

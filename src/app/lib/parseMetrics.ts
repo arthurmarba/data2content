@@ -1,4 +1,4 @@
-// lib/parseMetrics.ts
+// src/app/lib/parseMetrics.ts
 import fetch from "node-fetch";
 
 const DOCUMENT_AI_ENDPOINT = process.env.DOCUMENT_AI_ENDPOINT || "";
@@ -7,23 +7,41 @@ const MAX_RETRIES = 3;
 
 // Exemplos de cabeçalhos, ajustados do seu script
 const FIXED_HEADERS = ["Post", "Data"];
-const NUMERIC_HEADERS = [/* ... */];
-const PERCENTAGE_HEADERS = [/* ... */];
-const TEXT_HEADERS = [/* ... */];
+const NUMERIC_HEADERS: string[] = [/* ... */];
+const PERCENTAGE_HEADERS: string[] = [/* ... */];
+const TEXT_HEADERS: string[] = [/* ... */];
+
+/**
+ * Estrutura mínima para representar a resposta do Document AI
+ * (caso queira tipar melhor, crie interfaces mais específicas).
+ */
+interface DocumentAIEntity {
+  type?: string;
+  mentionText?: string;
+}
+
+interface DocumentAIResponse {
+  document?: {
+    entities?: DocumentAIEntity[];
+  };
+}
 
 /**
  * processImageFile: recebe um Buffer + mimeType, chama Document AI e retorna um objeto
  * com todas as métricas consolidadas (ex.: { "Curtidas": 100, "Data de Publicação": "03/10/2024", ... }).
  */
-export async function processImageFile(fileBuffer: Buffer, mimeType: string) {
-  let responseData: any;
+export async function processImageFile(
+  fileBuffer: Buffer,
+  mimeType: string
+): Promise<Record<string, unknown>> {
+  let responseData: DocumentAIResponse | undefined;
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       responseData = await callDocumentAI(fileBuffer, mimeType);
       if (responseData?.document) break;
     } catch (err) {
-      console.log(`Tentativa ${attempt} falhou: ${err}`);
+      console.log(`Tentativa ${attempt} falhou: ${String(err)}`);
       if (attempt === MAX_RETRIES) {
         throw err;
       }
@@ -47,8 +65,13 @@ export async function processImageFile(fileBuffer: Buffer, mimeType: string) {
   return finalMetrics;
 }
 
-/** Chama Document AI, enviando base64 do arquivo. */
-async function callDocumentAI(fileBuffer: Buffer, mimeType: string) {
+/**
+ * Chama Document AI, enviando base64 do arquivo.
+ */
+async function callDocumentAI(
+  fileBuffer: Buffer,
+  mimeType: string
+): Promise<DocumentAIResponse> {
   if (!DOCUMENT_AI_ENDPOINT) {
     throw new Error("DOCUMENT_AI_ENDPOINT não definido.");
   }
@@ -74,11 +97,16 @@ async function callDocumentAI(fileBuffer: Buffer, mimeType: string) {
     throw new Error(`Erro Document AI: ${res.status} - ${text}`);
   }
 
-  return await res.json();
+  const json = (await res.json()) as DocumentAIResponse;
+  return json;
 }
 
-/** Lógica de extração e parse, adaptada do seu Apps Script. */
-function extractLabeledMetricsFromDocumentAIResponse(response: any) {
+/**
+ * Lógica de extração e parse, adaptada do seu Apps Script.
+ */
+function extractLabeledMetricsFromDocumentAIResponse(
+  response: DocumentAIResponse
+): Record<string, unknown> {
   const document = response.document || {};
   const entities = document.entities || [];
 
@@ -90,12 +118,14 @@ function extractLabeledMetricsFromDocumentAIResponse(response: any) {
     // ...
   };
 
-  const extractedMetrics: Record<string, any> = {};
+  const extractedMetrics: Record<string, unknown> = {};
 
   for (const entity of entities) {
-    let metricName = normalizeHeader(entity.type);
+    const rawType = entity.type || "";
+    let metricName = normalizeHeader(rawType);
     const metricValue = entity.mentionText?.trim() || "";
 
+    // Se houver alias, aplica
     if (METRICS_ALIAS_MAP[metricName]) {
       metricName = METRICS_ALIAS_MAP[metricName];
     }
@@ -135,8 +165,12 @@ function extractLabeledMetricsFromDocumentAIResponse(response: any) {
   return extractedMetrics;
 }
 
-function initializeConsolidatedMetrics() {
-  const consolidated: Record<string, any> = {};
+/**
+ * Inicializa o objeto "consolidated" com valores vazios
+ * para cada header que deseja controlar.
+ */
+function initializeConsolidatedMetrics(): Record<string, unknown> {
+  const consolidated: Record<string, unknown> = {};
   FIXED_HEADERS.forEach((h) => (consolidated[h] = ""));
   [...NUMERIC_HEADERS, ...PERCENTAGE_HEADERS, ...TEXT_HEADERS].forEach((h) => {
     consolidated[h] = "";
@@ -144,12 +178,22 @@ function initializeConsolidatedMetrics() {
   return consolidated;
 }
 
-function validateMetrics(metrics: Record<string, any>) {
+/**
+ * Caso queira normalizar ou validar as métricas extraídas, faça aqui.
+ */
+function validateMetrics(metrics: Record<string, unknown>): Record<string, unknown> {
   // Se quiser normalizar, faça aqui
   return metrics;
 }
 
-function consolidateMetrics(consolidated: Record<string, any>, validated: Record<string, any>) {
+/**
+ * Junta as métricas validadas no objeto consolidated, preenchendo
+ * apenas se estiver vazio.
+ */
+function consolidateMetrics(
+  consolidated: Record<string, unknown>,
+  validated: Record<string, unknown>
+): Record<string, unknown> {
   // Numéricos
   NUMERIC_HEADERS.forEach((header) => {
     const value = validated[header];
@@ -177,15 +221,20 @@ function consolidateMetrics(consolidated: Record<string, any>, validated: Record
   return consolidated;
 }
 
-function normalizeHeader(header: string) {
+/**
+ * Normaliza o cabeçalho removendo acentos e convertendo para lowercase.
+ */
+function normalizeHeader(header: string): string {
   return header
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 }
 
-/** parseNumericValuePercent: "12 mil", "3,5mi", "50%", etc. */
-function parseNumericValuePercent(value: string, metricName: string) {
+/**
+ * parseNumericValuePercent: "12 mil", "3,5mi", "50%", etc.
+ */
+function parseNumericValuePercent(value: string, metricName: string): number | string {
   let multiplier = 1;
   let str = value.toLowerCase();
 
@@ -197,6 +246,7 @@ function parseNumericValuePercent(value: string, metricName: string) {
     str = str.replace("mi", "").trim();
   }
 
+  // Remove caracteres não numéricos, exceto vírgula e ponto
   str = str.replace(/[^\d.,]/g, "").trim();
 
   let isPercent = false;
@@ -205,10 +255,13 @@ function parseNumericValuePercent(value: string, metricName: string) {
     str = str.slice(0, -1).trim();
   }
 
+  // Ajusta vírgula decimal
   const commaCount = (str.match(/,/g) || []).length;
   if (commaCount === 1) {
+    // "3,5" => "3.5"
     str = str.replace(",", ".");
   } else if (commaCount > 1) {
+    // "3,000,000" => "3000000"
     str = str.replace(/,/g, "");
   }
 
@@ -217,15 +270,19 @@ function parseNumericValuePercent(value: string, metricName: string) {
 
   let result = num * multiplier;
   if (PERCENTAGE_HEADERS.includes(metricName) || isPercent) {
-    result = result / 100;
+    result /= 100;
   }
   return result;
 }
 
-/** parseTempoVisualizacao: converte "2h 15min" ou "90s" etc. em segundos. */
-function parseTempoVisualizacao(tempoStr: string) {
+/**
+ * parseTempoVisualizacao: converte "2h 15min" ou "90s" etc. em segundos.
+ */
+function parseTempoVisualizacao(tempoStr: string): number {
+  if (!tempoStr) return 0;
+
   const regex = /(\d+)\s*(a|d|h|min|s)/gi;
-  let match;
+  let match: RegExpExecArray | null;
   let anos = 0,
     dias = 0,
     horas = 0,
@@ -235,16 +292,26 @@ function parseTempoVisualizacao(tempoStr: string) {
   while ((match = regex.exec(tempoStr)) !== null) {
     const valor = parseInt(match[1], 10);
     const unidade = match[2].toLowerCase();
-    if (unidade === "a") anos += valor;
-    else if (unidade === "d") dias += valor;
-    else if (unidade === "h") horas += valor;
-    else if (unidade === "min") minutos += valor;
-    else if (unidade === "s") segundos += valor;
+    switch (unidade) {
+      case "a":
+        anos += valor;
+        break;
+      case "d":
+        dias += valor;
+        break;
+      case "h":
+        horas += valor;
+        break;
+      case "min":
+        minutos += valor;
+        break;
+      case "s":
+        segundos += valor;
+        break;
+    }
   }
 
-  let totalSegundos =
-    anos * 31536000 + dias * 86400 + horas * 3600 + minutos * 60 + segundos;
-
+  let totalSegundos = anos * 31536000 + dias * 86400 + horas * 3600 + minutos * 60 + segundos;
   const MAX_SEGUNDOS = 5 * 31536000;
   if (totalSegundos > MAX_SEGUNDOS) {
     totalSegundos = MAX_SEGUNDOS;
@@ -252,9 +319,14 @@ function parseTempoVisualizacao(tempoStr: string) {
   return totalSegundos;
 }
 
-/** parseDuration: "HH:MM:SS" ou "1h 20m 30s" em segundos. */
-function parseDuration(durationStr: string) {
+/**
+ * parseDuration: "HH:MM:SS" ou "1h 20m 30s" em segundos.
+ */
+function parseDuration(durationStr: string): number {
+  if (!durationStr) return 0;
+
   if (durationStr.includes(":")) {
+    // "HH:MM:SS" ou "MM:SS"
     const parts = durationStr.split(":").map((p) => parseInt(p, 10));
     let horas = 0,
       minutos = 0,
@@ -269,8 +341,9 @@ function parseDuration(durationStr: string) {
     }
     return horas * 3600 + minutos * 60 + segundos;
   } else {
+    // Ex.: "2h 30m 10s"
     const regex = /(\d+)\s*h|\b(\d+)\s*m\b|\b(\d+)\s*s\b/g;
-    let match;
+    let match: RegExpExecArray | null;
     let horas = 0,
       minutos = 0,
       segundos = 0;
@@ -284,8 +357,12 @@ function parseDuration(durationStr: string) {
   }
 }
 
-/** parseDocAIDate: "3 de outubro de 2024" => "03/10/2024", etc. */
-function parseDocAIDate(dateStr: string) {
+/**
+ * parseDocAIDate: "3 de outubro de 2024" => "03/10/2024", etc.
+ */
+function parseDocAIDate(dateStr: string): string {
+  if (!dateStr) return "";
+
   const MESES_MAP: Record<string, string> = {
     janeiro: "01",
     fevereiro: "02",

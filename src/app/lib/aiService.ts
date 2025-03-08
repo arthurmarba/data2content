@@ -1,10 +1,9 @@
-// src/app/lib/aiService.ts
 import { Configuration, OpenAIApi } from "openai";
 
 /**
  * callOpenAIForQuestion:
  * Recebe um 'prompt' genérico e retorna a resposta do modelo GPT-3.5-turbo.
- * 
+ *
  * Requisitos:
  *  - Definir OPENAI_API_KEY no .env (ex.: OPENAI_API_KEY="sk-...")
  *  - Instalar 'openai' (npm install openai)
@@ -25,7 +24,7 @@ export async function callOpenAIForQuestion(prompt: string): Promise<string> {
 
     const answer = completion.data.choices[0]?.message?.content || "";
     return answer;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Erro ao chamar OpenAI:", error);
     return "Desculpe, ocorreu um erro ao gerar a resposta da IA.";
   }
@@ -33,7 +32,7 @@ export async function callOpenAIForQuestion(prompt: string): Promise<string> {
 
 /**
  * callOpenAIForWeeklyReport:
- * Recebe um objeto 'aggregatedReport' (ex.: top3, bottom3, etc.) e retorna 
+ * Recebe um objeto 'aggregatedReport' (ex.: top3, bottom3, etc.) e retorna
  * um texto formatado, simulando um relatório semanal de planejamento de conteúdo.
  *
  * Exemplo de uso:
@@ -41,12 +40,11 @@ export async function callOpenAIForQuestion(prompt: string): Promise<string> {
  *   // Então, envie 'reportText' via WhatsApp
  */
 export async function callOpenAIForWeeklyReport(
-  aggregatedReport: any,     // Ajuste o tipo real (ex.: AggregatedReport)
+  aggregatedReport: unknown, // Ajuste para um tipo mais específico se quiser
   influencerName: string
 ): Promise<string> {
   try {
     // Monte um prompt contextualizado, incluindo dados de aggregatedReport
-    // Ex.: top3, bottom3, dayOfWeekStats, durationStats etc.
     const prompt = `
 Você é um consultor de conteúdo no Instagram. Recebeu as seguintes informações agregadas (Top3, Bottom3, dia da semana, etc.):
 
@@ -58,7 +56,7 @@ incluindo sugestões de planejamento de conteúdo (dias, formatos, duração),
 o que evitar e possíveis CTAs. Conclua com uma frase de incentivo.
 `;
 
-    // Chama a mesma API do ChatGPT
+    // Configura a API
     const configuration = new Configuration({
       apiKey: process.env.OPENAI_API_KEY,
     });
@@ -73,7 +71,7 @@ o que evitar e possíveis CTAs. Conclua com uma frase de incentivo.
 
     const answer = completion.data.choices[0]?.message?.content || "";
     return answer;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Erro ao gerar relatório semanal via OpenAI:", error);
     return "Desculpe, ocorreu um erro ao gerar o relatório semanal.";
   }
@@ -82,8 +80,8 @@ o que evitar e possíveis CTAs. Conclua com uma frase de incentivo.
 /**
  * Caso queira outras funções específicas (ex.: callOpenAIForTips),
  * você pode criar funções similares:
- * 
- * export async function callOpenAIForTips(aggregated: any): Promise<string> {
+ *
+ * export async function callOpenAIForTips(aggregated: unknown): Promise<string> {
  *   // Monta prompt focado em 'dicas' e chama createChatCompletion
  * }
  */

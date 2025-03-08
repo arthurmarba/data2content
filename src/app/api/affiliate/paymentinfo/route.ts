@@ -46,9 +46,14 @@ export async function GET(request: NextRequest) {
 
     // 6) Retorna os dados de pagamento
     return NextResponse.json(user.paymentInfo || {}, { status: 200 });
-  } catch (err: any) {
-    console.error("GET /api/affiliate/paymentinfo error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("GET /api/affiliate/paymentinfo error:", error);
+
+    let message = "Erro desconhecido.";
+    if (error instanceof Error) {
+      message = error.message;
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -68,7 +73,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // 2) Lê body
-    const { userId, pixKey, bankName, bankAgency, bankAccount } = await request.json() || {};
+    const { userId, pixKey, bankName, bankAgency, bankAccount } = (await request.json()) || {};
     if (!userId) {
       return NextResponse.json({ error: "Parâmetro 'userId' é obrigatório." }, { status: 400 });
     }
@@ -104,8 +109,13 @@ export async function PATCH(request: NextRequest) {
       message: "Dados de pagamento salvos com sucesso!",
       paymentInfo: user.paymentInfo,
     });
-  } catch (err: any) {
-    console.error("PATCH /api/affiliate/paymentinfo error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("PATCH /api/affiliate/paymentinfo error:", error);
+
+    let message = "Erro desconhecido.";
+    if (error instanceof Error) {
+      message = error.message;
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

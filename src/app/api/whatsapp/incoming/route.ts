@@ -1,27 +1,52 @@
 // src/app/api/whatsapp/incoming/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
+import mongoose from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import { DailyMetric } from "@/app/models/DailyMetric";
 import { sendWhatsAppMessage } from "@/app/lib/whatsappService";
 import { callOpenAIForQuestion } from "@/app/lib/aiService";
-// Importa a nova função de geração de relatório e a função de agregação completa
 import { generateReport } from "@/app/lib/reportService";
 import { buildAggregatedReport } from "@/app/lib/reportHelpers";
+
+/**
+ * Interface parcial para o corpo do Webhook do WhatsApp.
+ * Assim evitamos o uso de `any` em parseIncomingBody.
+ */
+interface WhatsAppWebhookBody {
+  entry?: Array<{
+    changes?: Array<{
+      value?: {
+        messages?: Array<{
+          from?: string;
+          text?: {
+            body?: string;
+          };
+        }>;
+      };
+    }>;
+  }>;
+}
 
 /**
  * parseIncomingBody:
  * Extrai o 'from' (número do remetente) e o 'text' (conteúdo da mensagem)
  * do objeto JSON recebido no webhook da Cloud API.
  */
-function parseIncomingBody(body: any) {
-  const entry = body.entry?.[0];
+function parseIncomingBody(body: unknown): { from: string; text: string } {
+  if (typeof body !== "object" || body === null) {
+    return { from: "", text: "" };
+  }
+
+  const b = body as WhatsAppWebhookBody;
+
+  const entry = b.entry?.[0];
   const changes = entry?.changes?.[0];
   const value = changes?.value;
   const msgObj = value?.messages?.[0];
 
-  const from = msgObj?.from || "";      // Em muitos casos, 'from' vem sem "+"
+  const from = msgObj?.from || "";
   const text = msgObj?.text?.body || "";
   return { from, text };
 }
@@ -167,8 +192,14 @@ Responda de forma amigável e prática, em poucas linhas.
 
     // 12) Retorna 200
     return NextResponse.json({ message: "Respondido com IA" }, { status: 200 });
-  } catch (err: any) {
-    console.error("Erro em /api/whatsapp/incoming POST:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+
+  } catch (error: unknown) {
+    console.error("Erro em /api/whatsapp/incoming POST:", error);
+
+    let message = "Erro desconhecido.";
+    if (error instanceof Error) {
+      message = error.message;
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

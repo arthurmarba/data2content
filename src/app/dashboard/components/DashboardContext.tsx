@@ -1,10 +1,13 @@
-// src/app/dashboard/components/DashboardContext.tsx
 "use client";
 
 import React, { createContext, useContext, useState } from "react";
 
+/**
+ * Definimos `CustomData` como um objeto indexado, 
+ * mas usando `unknown` em vez de `any`.
+ */
 interface CustomData {
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface DashboardContextProps {

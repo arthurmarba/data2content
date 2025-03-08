@@ -20,6 +20,15 @@ import ChatPanel from "./ChatPanel";
 import WhatsAppPanel from "./WhatsAppPanel";
 
 /** =================== */
+/** Interface para cada saque (resgate) */
+interface Redemption {
+  _id: string;
+  createdAt: string;
+  amount: number;
+  status: string;
+}
+
+/** =================== */
 /** MODAL PARA PAGAMENTOS E DADOS BANCÁRIOS */
 /** =================== */
 function PaymentModal({
@@ -56,6 +65,8 @@ function PaymentModal({
 /** =================== */
 function PaymentSettings({ userId }: { userId: string }) {
   const router = useRouter(); // Para router.refresh()
+
+  // Campos do formulário de pagamento
   const [pixKey, setPixKey] = useState("");
   const [bankName, setBankName] = useState("");
   const [bankAgency, setBankAgency] = useState("");
@@ -64,8 +75,11 @@ function PaymentSettings({ userId }: { userId: string }) {
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // Mensagem de retorno de resgate
   const [redeemMessage, setRedeemMessage] = useState("");
-  const [redemptions, setRedemptions] = useState<any[]>([]);
+
+  // Histórico de saques
+  const [redemptions, setRedemptions] = useState<Redemption[]>([]);
   const [loadingRedemptions, setLoadingRedemptions] = useState(false);
 
   // Carrega dados de pagamento e lista de saques ao montar
@@ -86,8 +100,8 @@ function PaymentSettings({ userId }: { userId: string }) {
         setBankAgency(data.bankAgency || "");
         setBankAccount(data.bankAccount || "");
       }
-    } catch (err) {
-      console.error("Erro ao buscar paymentInfo:", err);
+    } catch (error: unknown) {
+      console.error("Erro ao buscar paymentInfo:", error);
     }
   }
 
@@ -100,8 +114,8 @@ function PaymentSettings({ userId }: { userId: string }) {
       if (Array.isArray(data)) {
         setRedemptions(data);
       }
-    } catch (err) {
-      console.error("Erro ao buscar redemptions:", err);
+    } catch (error: unknown) {
+      console.error("Erro ao buscar redemptions:", error);
     } finally {
       setLoadingRedemptions(false);
     }
@@ -132,8 +146,12 @@ function PaymentSettings({ userId }: { userId: string }) {
         // Força atualização do session e re-fetch do user
         router.refresh();
       }
-    } catch (err: any) {
-      setMessage(`Ocorreu um erro: ${err.message}`);
+    } catch (error: unknown) {
+      let errorMsg = "Ocorreu um erro.";
+      if (error instanceof Error) {
+        errorMsg = error.message;
+      }
+      setMessage(`Ocorreu um erro: ${errorMsg}`);
     } finally {
       setSaving(false);
     }
@@ -157,8 +175,12 @@ function PaymentSettings({ userId }: { userId: string }) {
         fetchRedemptions();
         router.refresh();
       }
-    } catch (err: any) {
-      setRedeemMessage(`Ocorreu um erro: ${err.message}`);
+    } catch (error: unknown) {
+      let errorMsg = "Ocorreu um erro.";
+      if (error instanceof Error) {
+        errorMsg = error.message;
+      }
+      setRedeemMessage(`Ocorreu um erro: ${errorMsg}`);
     }
   }
 
@@ -382,7 +404,7 @@ export default function MainDashboard() {
       } else {
         setRedeemMessage(`Erro: ${data.error || "Falha ao resgatar saldo."}`);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro ao resgatar saldo:", error);
       setRedeemMessage("Ocorreu um erro ao processar o resgate.");
     }

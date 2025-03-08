@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     await connectToDatabase();
 
     // 2) Lê e valida parâmetros
-    const { phoneNumber, code } = await request.json() || {};
+    const { phoneNumber, code } = (await request.json()) || {};
     if (!phoneNumber || !code) {
       return NextResponse.json(
         { error: "Parâmetros 'phoneNumber' e 'code' são obrigatórios." },

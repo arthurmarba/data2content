@@ -10,6 +10,17 @@ import Dashboard from "./Dashboard"; // Se você tem um componente que renderiza
 import ChatPanel from "../ChatPanel";
 import { useSession } from "next-auth/react";
 
+/**
+ * Interface para cada "card" retornado pela IA em /api/ai/dynamicCards
+ */
+interface DynamicCard {
+  metricKey?: string;
+  title?: string;
+  value?: string;
+  description?: string;
+  // Se houver outras propriedades, adicione aqui ou use [key: string]: unknown;
+}
+
 const DashboardPage: React.FC = () => {
   const { data: session } = useSession(); // para pegar userId (se precisar)
   const { customData, loading, setCustomData, setLoading } = useDashboard();
@@ -28,8 +39,8 @@ const DashboardPage: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
-  // Indicadores retornados pela IA
-  const [personalizedIndicators, setPersonalizedIndicators] = useState<any[]>([]);
+  // Indicadores retornados pela IA (cards)
+  const [personalizedIndicators, setPersonalizedIndicators] = useState<DynamicCard[]>([]);
 
   /**
    * Função para buscar métricas do usuário e chamar IA (rota /api/ai/dynamicCards).
@@ -93,7 +104,7 @@ const DashboardPage: React.FC = () => {
       } else {
         setErrorMessage("Nenhum dado retornado pela IA.");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Erro ao buscar dados personalizados:", error);
       setErrorMessage("Ocorreu um erro ao gerar o planejamento.");
     } finally {
@@ -204,3 +215,5 @@ const DashboardPage: React.FC = () => {
     </div>
   );
 };
+
+export default DashboardPage;

@@ -59,38 +59,4 @@ export async function POST(request: NextRequest) {
 
       // 9) Se tiver afiliado, credita comissão (10% do valor pago)
       if (user.affiliateUsed) {
-        const affUser = await User.findOne({ affiliateCode: user.affiliateUsed });
-        if (affUser) {
-          const commissionRate = 0.1; // 10%
-          const transactionAmount = paymentDetails.transaction_amount || 0;
-          const commission = transactionAmount * commissionRate;
-
-          // Soma ao saldo do afiliado
-          affUser.affiliateBalance = (affUser.affiliateBalance || 0) + commission;
-
-          // Atualiza contagem de convites
-          affUser.affiliateInvites = (affUser.affiliateInvites || 0) + 1;
-
-          // Exemplo: rank up a cada 5 convites
-          if (affUser.affiliateInvites % 5 === 0) {
-            affUser.affiliateRank = (affUser.affiliateRank || 1) + 1;
-          }
-
-          await affUser.save();
-          console.log(`Comissão de R$${commission.toFixed(2)} creditada para afiliado=${affUser._id}`);
-        }
-      }
-
-      await user.save();
-      console.log(`Plano ativado para userId=${externalReference} (paymentId=${paymentId})`);
-    } else {
-      console.log(`Pagamento status="${paymentDetails.status}" não aprovado.`);
-    }
-
-    // 10) Retorna 200 para confirmar o processamento
-    return NextResponse.json({ received: true }, { status: 200 });
-  } catch (err: any) {
-    console.error("Erro em POST /api/plan/webhook:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
-  }
-}
+        const 

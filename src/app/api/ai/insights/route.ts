@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     }
 
     // 2) Lê o body e obtém o metricId
-    const body = await request.json() || {};
+    const body = (await request.json()) || {};
     const { metricId } = body;
     if (!metricId) {
       return NextResponse.json({ error: "Parâmetro 'metricId' é obrigatório." }, { status: 400 });
@@ -73,10 +73,10 @@ Métricas fornecidas: ${JSON.stringify(stats)}
     const answer = completion.data.choices[0]?.message?.content || "";
 
     // 8) Tenta parsear como JSON
-    let parsed;
+    let parsed: unknown;
     try {
       parsed = JSON.parse(answer);
-    } catch (err) {
+    } catch {
       // Se não vier JSON válido, retorna como texto cru
       parsed = { rawText: answer };
     }
@@ -84,8 +84,13 @@ Métricas fornecidas: ${JSON.stringify(stats)}
     // 9) Retorna insights
     return NextResponse.json({ insights: parsed }, { status: 200 });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("POST /api/ai/insights error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+
+    let message = "Erro desconhecido.";
+    if (error instanceof Error) {
+      message = error.message;
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

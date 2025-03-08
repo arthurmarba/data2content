@@ -3,17 +3,34 @@
 import React, { useState, useEffect } from "react";
 import { useSession, signIn } from "next-auth/react";
 
-// Corrija os imports para subir um nível (../) e entrar em components/
+// Ajuste os imports relativos ao seu projeto:
 import { DashboardProvider } from "../components/DashboardContext";
 import MegaCard from "../components/MegaCard";
 import ChatCard from "../components/ChatCard";
+
+/** ===================== */
+/** Componente UploadMetrics */
+/** ===================== */
+
+/**
+ * Estrutura mínima para o objeto retornado pela API (/api/metrics) ao criar métricas.
+ */
+interface MetricResult {
+  _id?: string;
+  user?: string;
+  postLink?: string;
+  description?: string;
+  rawData?: unknown[]; // Se quiser detalhar mais, crie outra interface
+  stats?: unknown;
+  createdAt?: string;
+}
 
 function UploadMetrics() {
   const { data: session } = useSession();
   const [files, setFiles] = useState<File[]>([]);
   const [postLink, setPostLink] = useState("");
   const [description, setDescription] = useState("");
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<MetricResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -81,8 +98,8 @@ function UploadMetrics() {
         setPostLink("");
         setDescription("");
       }
-    } catch (err) {
-      console.error("Erro no upload:", err);
+    } catch (error: unknown) {
+      console.error("Erro no upload:", error);
       setResult(null);
     } finally {
       setIsLoading(false);
@@ -95,6 +112,7 @@ function UploadMetrics() {
         Enviar Print (Métricas)
       </h3>
 
+      {/* Link do Conteúdo */}
       <div className="mb-3">
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Link do Conteúdo
@@ -109,6 +127,7 @@ function UploadMetrics() {
         />
       </div>
 
+      {/* Descrição */}
       <div className="mb-3">
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Descrição
@@ -123,6 +142,7 @@ function UploadMetrics() {
         />
       </div>
 
+      {/* Selecionar até 3 imagens */}
       <div className="mb-3">
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Selecione até 3 imagens:
@@ -145,6 +165,7 @@ function UploadMetrics() {
         {isLoading ? "Enviando..." : "Enviar"}
       </button>
 
+      {/* Resultado da criação das métricas */}
       {result && (
         <pre className="mt-3 bg-gray-100 p-2 rounded text-xs">
           {JSON.stringify(result, null, 2)}
@@ -154,9 +175,28 @@ function UploadMetrics() {
   );
 }
 
+/** ===================== */
+/** Componente MetricsList */
+/** ===================== */
+
+/**
+ * Estrutura mínima para cada item de métrica.
+ */
+interface RawDataItem {
+  [key: string]: unknown;
+}
+
+interface MetricItem {
+  _id: string;
+  postLink?: string;
+  description?: string;
+  rawData?: RawDataItem[];
+  stats?: Record<string, unknown>;
+}
+
 function MetricsList() {
   const { data: session } = useSession();
-  const [metrics, setMetrics] = useState<any[]>([]);
+  const [metrics, setMetrics] = useState<MetricItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -167,14 +207,17 @@ function MetricsList() {
     fetch(`/api/metrics?userId=${session.user.id}`)
       .then((res) => res.json())
       .then((data) => {
-        if (data.metrics) setMetrics(data.metrics);
+        if (data.metrics) {
+          setMetrics(data.metrics);
+        }
       })
-      .catch((err) => console.error("Erro ao buscar métricas:", err))
+      .catch((error: unknown) => console.error("Erro ao buscar métricas:", error))
       .finally(() => setIsLoading(false));
   }, [session?.user?.id]);
 
   return (
     <div className="border p-4 rounded bg-white space-y-2">
+      {/* Título + Botão de toggle */}
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-gray-800">Métricas Salvas</h2>
         <button
@@ -185,14 +228,17 @@ function MetricsList() {
         </button>
       </div>
 
+      {/* Se estiver carregando */}
       {isLoading && <p className="text-xs text-gray-400">Carregando...</p>}
 
+      {/* Se não estiver carregando e o painel estiver fechado, mas houver dados */}
       {!isLoading && !isOpen && metrics.length > 0 && (
         <p className="text-xs text-gray-500">
           Métricas ocultas. Clique em "Ver" para exibir.
         </p>
       )}
 
+      {/* Se estiver aberto, renderiza as métricas */}
       {isOpen && !isLoading && metrics.map((m) => (
         <div key={m._id} className="text-xs text-gray-700 border-b pb-2 mb-2">
           <p><strong>Link:</strong> {m.postLink}</p>
@@ -201,36 +247,44 @@ function MetricsList() {
           {Array.isArray(m.rawData) && m.rawData.length > 0 && (
             <div className="ml-4 mt-2">
               <p className="text-gray-600">Imagens:</p>
-              {m.rawData.map((rd: any, idx: number) => (
-                <div key={idx} className="ml-2 border-l pl-2">
-                  {rd.Curtidas !== undefined && (
-                    <p><strong>Curtidas:</strong> {rd.Curtidas}</p>
-                  )}
-                  {rd["Comentários"] !== undefined && (
-                    <p><strong>Comentários:</strong> {rd["Comentários"]}</p>
-                  )}
-                </div>
-              ))}
+              {m.rawData.map((rd, idx) => {
+                const rdObj = rd as Record<string, unknown>;
+                return (
+                  <div key={idx} className="ml-2 border-l pl-2">
+                    {rdObj["Curtidas"] !== undefined && (
+                      <p><strong>Curtidas:</strong> {rdObj["Curtidas"]}</p>
+                    )}
+                    {rdObj["Comentários"] !== undefined && (
+                      <p><strong>Comentários:</strong> {rdObj["Comentários"]}</p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 
           {m.stats && (
             <div className="mt-2 bg-gray-50 p-2 rounded">
               <p><strong>Stats Calculados:</strong></p>
-              {m.stats.taxaEngajamento !== undefined && (
-                <p>Taxa Engajamento: {m.stats.taxaEngajamento}%</p>
+              {m.stats["taxaEngajamento"] !== undefined && (
+                <p>Taxa Engajamento: {m.stats["taxaEngajamento"]}%</p>
               )}
             </div>
           )}
         </div>
       ))}
 
+      {/* Se estiver aberto e não há métricas */}
       {isOpen && !isLoading && metrics.length === 0 && (
         <p className="text-xs text-gray-500">Nenhuma métrica cadastrada.</p>
       )}
     </div>
   );
 }
+
+/** ===================== */
+/** Componente ProDashboard principal */
+/** ===================== */
 
 export default function ProDashboard() {
   const { data: session, status } = useSession();
@@ -258,16 +312,20 @@ export default function ProDashboard() {
       <div className="flex flex-col min-h-screen bg-white text-gray-900">
         <div className="container mx-auto flex-1 p-8">
           <div className="flex gap-8">
+            {/* Coluna Esquerda (3/4): MegaCard + Métricas */}
             <div className="w-3/4 flex flex-col gap-4">
               <MegaCard />
               <MetricsList />
             </div>
+
+            {/* Coluna Direita (1/4): Upload + Chat */}
             <div className="w-1/4 flex flex-col gap-4">
               <UploadMetrics />
               <ChatCard />
             </div>
           </div>
         </div>
+
         <footer className="p-4 text-center text-sm text-gray-500">
           © 2023 D2C Academy. Todos os direitos reservados.
         </footer>

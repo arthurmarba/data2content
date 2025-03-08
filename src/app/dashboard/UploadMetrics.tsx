@@ -23,6 +23,18 @@ function UpgradePopup({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** Estrutura mínima para o objeto retornado pela API ao criar métricas */
+interface MetricResult {
+  _id?: string;
+  user?: string;
+  postLink?: string;
+  description?: string;
+  rawData?: unknown[];
+  stats?: unknown;
+  createdAt?: string;
+}
+
+/** Props para o componente UploadMetrics */
 interface UploadMetricsProps {
   canAccessFeatures: boolean;
   userId: string; // Recebe o ID real do usuário logado
@@ -38,7 +50,7 @@ export default function UploadMetrics({
   userId,
 }: UploadMetricsProps) {
   const [file, setFile] = useState<File | null>(null);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<MetricResult | null>(null);
   const [postLink, setPostLink] = useState("");
   const [description, setDescription] = useState("");
   const [showUpgradePopup, setShowUpgradePopup] = useState(false);
@@ -97,8 +109,8 @@ export default function UploadMetrics({
         console.log("Métricas salvas:", data.metric);
         setResult(data.metric);
       }
-    } catch (err) {
-      console.error("Erro no upload:", err);
+    } catch (error: unknown) {
+      console.error("Erro no upload:", error);
       setResult(null);
     }
   }
@@ -192,6 +204,9 @@ export default function UploadMetrics({
   );
 }
 
+/**
+ * Converte um arquivo em base64 (string).
+ */
 async function convertFileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
