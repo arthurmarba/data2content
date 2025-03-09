@@ -2,6 +2,11 @@
 
 import { Configuration, OpenAIApi } from "openai";
 
+// Definimos uma interface que estende Record<string, unknown>
+// Isso permite que qualquer chave string seja aceita, 
+// evitando o erro de "Index signature missing".
+interface AggregatedMetrics extends Record<string, unknown> {}
+
 /**
  * Gera um relatório semanal adaptado aos dados de métricas e período analisado.
  *
@@ -10,7 +15,7 @@ import { Configuration, OpenAIApi } from "openai";
  * @returns Uma string com o relatório gerado pela IA.
  */
 export async function generateReport(
-  aggregatedMetrics: Record<string, unknown>,
+  aggregatedMetrics: AggregatedMetrics,  // <-- Agora aceita qualquer chave string
   period: string
 ): Promise<string> {
   // O 'period' é inserido no prompt para contextualizar o período analisado.
@@ -106,7 +111,6 @@ ${JSON.stringify(aggregatedMetrics)}
 Utilize as informações do relatório base para gerar um relatório adaptado e fiel aos dados reais do usuário.
 `;
 
-  // Configuração do OpenAI
   const configuration = new Configuration({
     apiKey: process.env.OPENAI_API_KEY,
   });
@@ -125,9 +129,9 @@ Utilize as informações do relatório base para gerar um relatório adaptado e 
       throw new Error("Nenhuma resposta gerada pela API.");
     }
     return answer;
-  } catch (err: unknown) {
-    console.error("Erro na geração do relatório:", err);
-    const errorMessage = err instanceof Error ? err.message : String(err);
+  } catch (error: unknown) {
+    console.error("Erro na geração do relatório:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     return `Desculpe, ocorreu um erro ao gerar o relatório. Detalhes: ${errorMessage}`;
   }
 }
