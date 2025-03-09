@@ -1,12 +1,10 @@
-// src/app/lib/reportService.ts
-
 import { Configuration, OpenAIApi } from "openai";
 
 /**
- * Interface para aceitar qualquer chave string em aggregatedMetrics,
- * evitando o erro de no-empty-object-type.
+ * Em vez de usar uma interface vazia que estenda Record<string, unknown>,
+ * definimos um type alias diretamente:
  */
-interface AggregatedMetrics extends Record<string, unknown> {}
+type AggregatedMetrics = Record<string, unknown>;
 
 /**
  * Gera um relatório semanal adaptado aos dados de métricas e período analisado.
@@ -16,7 +14,7 @@ interface AggregatedMetrics extends Record<string, unknown> {}
  * @returns Uma string com o relatório gerado pela IA.
  */
 export async function generateReport(
-  aggregatedMetrics: AggregatedMetrics,  // Aceita qualquer chave string
+  aggregatedMetrics: AggregatedMetrics, // Aceita qualquer chave string
   period: string
 ): Promise<string> {
   // O 'period' é inserido no prompt para contextualizar o período analisado.
