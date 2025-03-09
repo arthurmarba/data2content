@@ -150,8 +150,9 @@ export async function POST(request: NextRequest) {
     const lowerText = text.toLowerCase();
     if (lowerText.includes("relatório") || lowerText.includes("planejamento de conteúdo")) {
       // Agrega os dados completos utilizando buildAggregatedReport
-      // Forçamos o cast para AggregatedMetrics
-      const aggregatedReport = buildAggregatedReport(dailyMetrics) as AggregatedMetrics;
+
+      // -- SOLUÇÃO "double cast": convertemos para unknown, depois para AggregatedMetrics
+      const aggregatedReport = buildAggregatedReport(dailyMetrics) as unknown as AggregatedMetrics;
 
       // Gera o relatório detalhado para o período "30 dias"
       const reportText = await generateReport(aggregatedReport, "30 dias");
