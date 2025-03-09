@@ -7,6 +7,7 @@ import { sendWhatsAppMessage } from "@/app/lib/whatsappService";
 import { callOpenAIForQuestion } from "@/app/lib/aiService";
 import { generateReport } from "@/app/lib/reportService";
 import { buildAggregatedReport } from "@/app/lib/reportHelpers";
+import { AggregatedMetrics } from "@/app/lib/reportService"; // <-- Importe do local onde você definiu AggregatedMetrics
 
 /**
  * Interface parcial para o corpo do Webhook do WhatsApp.
@@ -153,7 +154,9 @@ export async function POST(request: NextRequest) {
     const lowerText = text.toLowerCase();
     if (lowerText.includes("relatório") || lowerText.includes("planejamento de conteúdo")) {
       // Agrega os dados completos utilizando buildAggregatedReport
-      const aggregatedReport = buildAggregatedReport(dailyMetrics);
+
+      // FORÇAMOS O CAST para AggregatedMetrics
+      const aggregatedReport = buildAggregatedReport(dailyMetrics) as AggregatedMetrics;
 
       // Gera o relatório detalhado para o período "30 dias"
       const reportText = await generateReport(aggregatedReport, "30 dias");
