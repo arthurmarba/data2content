@@ -1,3 +1,5 @@
+// src/app/api/auth/[...nextauth]/route.ts
+
 import NextAuth, { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
@@ -5,6 +7,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 
+// Definimos nosso NextAuthOptions
 const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
@@ -45,6 +48,7 @@ const authOptions: NextAuthOptions = {
   ],
 
   callbacks: {
+    // 1) signIn callback
     async signIn({ user, account }) {
       if (account?.provider === "google") {
         await connectToDatabase();
@@ -64,26 +68,27 @@ const authOptions: NextAuthOptions = {
       return true;
     },
 
+    // 2) jwt callback
     async jwt({ token, user }) {
       if (user) {
-        token.sub = user.id;
+        token.sub = user.id; // Copia user.id para token.sub
         if (user.image) {
-          token.picture = user.image;
+          token.picture = user.image; // Salva a foto no token
         }
       }
       return token;
     },
 
+    // 3) session callback
     async session({ session, token }) {
-      // Se o token não tiver 'sub', não temos um ID de usuário
+      // Se não tiver token.sub, não temos ID de usuário
       if (!token.sub) return session;
 
       // Conecta ao banco e carrega dados extras
       await connectToDatabase();
       const dbUser = await User.findById(token.sub);
 
-      // Se por algum motivo session.user estiver indefinido,
-      // inicializamos com um objeto mínimo. Assim, evitamos o erro de TS.
+      // Se session.user estiver indefinido, inicializamos
       if (!session.user) {
         session.user = {
           name: null,
@@ -92,25 +97,42 @@ const authOptions: NextAuthOptions = {
         };
       }
 
+      // Forçamos as propriedades extras via type assertion
+      const typedUser = session.user as {
+        id?: string;
+        role?: string;
+        planStatus?: string;
+        planExpiresAt?: string | null;
+        affiliateCode?: string;
+        affiliateBalance?: number;
+        affiliateRank?: number;
+        affiliateInvites?: number;
+        name: string | null;
+        email: string | null;
+        image: string | null;
+      };
+
+      // Se achamos o usuário no banco, populamos
       if (dbUser) {
-        // Agora é seguro acessar session.user, pois garantimos que não é undefined
-        session.user.id = dbUser._id.toString();
-        session.user.role = dbUser.role;
-        session.user.planStatus = dbUser.planStatus;
-        session.user.planExpiresAt = dbUser.planExpiresAt;
-        session.user.affiliateCode = dbUser.affiliateCode;
-        session.user.affiliateBalance = dbUser.affiliateBalance;
-        session.user.affiliateRank = dbUser.affiliateRank;
-        session.user.affiliateInvites = dbUser.affiliateInvites;
+        typedUser.id = dbUser._id.toString();
+        typedUser.role = dbUser.role;
+        typedUser.planStatus = dbUser.planStatus;
+        typedUser.planExpiresAt = dbUser.planExpiresAt;
+        typedUser.affiliateCode = dbUser.affiliateCode;
+        typedUser.affiliateBalance = dbUser.affiliateBalance;
+        typedUser.affiliateRank = dbUser.affiliateRank;
+        typedUser.affiliateInvites = dbUser.affiliateInvites;
       }
 
+      // Ajusta a imagem, se estiver no token
       if (token.picture) {
-        session.user.image = token.picture as string;
+        typedUser.image = token.picture as string;
       }
 
       return session;
     },
 
+    // 4) redirect callback
     async redirect({ baseUrl }) {
       return baseUrl + "/dashboard";
     },
