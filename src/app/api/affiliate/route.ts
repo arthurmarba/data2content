@@ -1,10 +1,22 @@
 // src/app/api/affiliate/route.ts
 
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next"; // ou "next-auth" dependendo da sua configuração
+import { getServerSession } from "next-auth/next"; // ou "next-auth" se estiver configurado para o App Router
 import { authOptions } from "@/app/lib/authOptions";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
+
+/**
+ * Tipo auxiliar para nosso usuário no session (com 'role' e 'id').
+ * Ajuste conforme suas necessidades (planStatus, etc. se quiser).
+ */
+interface SessionUser {
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+  role?: string;
+  id?: string;
+}
 
 /**
  * GET /api/affiliate
@@ -14,25 +26,28 @@ import User from "@/app/models/User";
 export async function GET() {
   // 1) Obtém sessão
   const session = await getServerSession(authOptions);
-
-  // 2) Se não houver sessão ou session.user, retorna erro de autenticação
-  if (!session || !session.user) {
+  if (!session) {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   }
 
-  // 3) Verifica se user.role === "affiliate"
-  if (session.user.role !== "affiliate") {
+  // 2) Faz type assertion do session.user
+  const user = session.user as SessionUser;
+  if (user.role !== "affiliate") {
     return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
   }
 
-  // 4) Conecta ao banco e busca dados do user
+  // 3) Conecta ao banco e busca dados do user (usando user.id)
   await connectToDatabase();
-  const dbUser = await User.findById(session.user.id);
+  if (!user.id) {
+    return NextResponse.json({ error: "ID do usuário não encontrado na sessão." }, { status: 400 });
+  }
+
+  const dbUser = await User.findById(user.id);
   if (!dbUser) {
     return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });
   }
 
-  // 5) Retorna affiliate_code, affiliate_balance etc.
+  // 4) Retorna affiliate_code, affiliate_balance etc.
   return NextResponse.json({
     affiliate_code: dbUser.affiliateCode,
     affiliate_balance: dbUser.affiliateBalance,
