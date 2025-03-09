@@ -5,24 +5,23 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 
-export const authOptions: NextAuthOptions = {
+// Removemos o "export" aqui para evitar o erro de "authOptions is not a valid Route export field."
+const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      // 1) Define escopo para obter a foto do perfil
       authorization: {
         params: {
           scope: "openid email profile",
         },
       },
-      // 2) Mapeia o objeto "profile" do Google para user (incluindo .image)
       profile(profile) {
         return {
-          id: profile.sub,           // O Google retorna "sub" como ID do usuário
+          id: profile.sub,
           name: profile.name,
           email: profile.email,
-          image: profile.picture,    // Foto de perfil
+          image: profile.picture,
         };
       },
     }),
@@ -57,7 +56,6 @@ export const authOptions: NextAuthOptions = {
         await connectToDatabase();
         const existingUser = await User.findOne({ email: user.email });
         if (!existingUser) {
-          // Cria o usuário no Mongo (sem salvar a foto)
           const created = await User.create({
             name: user.name,
             email: user.email,
@@ -98,7 +96,6 @@ export const authOptions: NextAuthOptions = {
       await connectToDatabase();
       const dbUser = await User.findById(token.sub);
       if (dbUser) {
-        // Populamos dados extras na sessão
         session.user.id = dbUser._id.toString();
         session.user.role = dbUser.role;
         session.user.planStatus = dbUser.planStatus;
@@ -109,7 +106,6 @@ export const authOptions: NextAuthOptions = {
         session.user.affiliateInvites = dbUser.affiliateInvites;
       }
 
-      // Se token.picture existir, definimos session.user.image = token.picture
       if (token.picture) {
         session.user.image = token.picture as string;
       }
@@ -126,7 +122,7 @@ export const authOptions: NextAuthOptions = {
     },
   },
 
-  secret: process.env.NEXTAUTH_SECRET, // Defina no .env
+  secret: process.env.NEXTAUTH_SECRET,
 };
 
 const handler = NextAuth(authOptions);
