@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
-import mongoose from "mongoose";
-import { getServerSession } from "next-auth/next";
+// src/app/api/metrics/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth"; 
 import { authOptions } from "@/app/lib/authOptions";
 
+import mongoose from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { Metric } from "@/app/models/Metric";
 import { DailyMetric } from "@/app/models/DailyMetric";
@@ -10,13 +11,13 @@ import { processMultipleImages } from "@/app/lib/documentAI";
 
 /**
  * GET /api/metrics?userId=...
- * Lista as métricas de um usuário (coleção "Metric"), 
+ * Lista as métricas de um usuário (coleção "Metric"),
  * mas verifica se o userId é o mesmo da session (usuário logado).
  */
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    // 1) Verifica se há sessão
-    const session = await getServerSession(request, authOptions);
+    // 1) Verifica se há sessão (sem passar request)
+    const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
@@ -55,7 +56,7 @@ export async function GET(request: Request) {
 /**
  * POST /api/metrics
  * Recebe { images: [{base64File, mimeType}, ...], postLink, description }
- * (Removemos userId do body ou ignoramos se vier, pois usaremos session.user.id)
+ * (Ignoramos userId do body, pois usaremos session.user.id)
  *
  * - Verifica se usuário está logado.
  * - Usa session.user.id para salvar as métricas no banco.
@@ -65,8 +66,8 @@ export async function POST(request: Request) {
   try {
     console.log("DOC_AI_ENDPOINT:", process.env.DOC_AI_ENDPOINT);
 
-    // 1) Verifica sessão
-    const session = await getServerSession(request, authOptions);
+    // 1) Verifica sessão (sem passar request)
+    const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
     // 2) Lê body
     await connectToDatabase();
     const body = await request.json();
-    const { images, postLink, description } = body;
+    const { images, postLink, description } = body || {};
 
     // Validações básicas
     if (!images || !Array.isArray(images) || images.length === 0) {
@@ -100,27 +101,10 @@ export async function POST(request: Request) {
     // 6) Também salva em "DailyMetric", usando stats.dataPublicacao (se válido) como postDate
     let postDate: Date;
     if (stats.dataPublicacao) {
-      const parsed = new Date(stats.dataPublicacao);
+      const parsed = new Date(stats.dataPublicacao as string);
       postDate = isNaN(parsed.getTime()) ? new Date() : parsed;
     } else {
       postDate = new Date();
     }
 
-    await DailyMetric.create({
-      user: objectId,
-      postDate,
-      stats,
-    });
-
-    return NextResponse.json({ metric: newMetric }, { status: 201 });
-
-  } catch (error: unknown) {
-    console.error("POST /api/metrics error:", error);
-
-    let message = "Erro desconhecido.";
-    if (error instanceof Error) {
-      message = error.message;
-    }
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
-}
+    await Da

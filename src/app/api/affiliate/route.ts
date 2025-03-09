@@ -1,14 +1,16 @@
 // src/app/api/affiliate/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next"; 
-// ^ se você estiver usando o NextAuth no App Router
-import { authOptions } from "@/app/lib/authOptions"; // ou onde estiver definido
-import { connectToDatabase } from "@lib/mongoose";
-import User from "@models/User";
 
-export async function GET(request: NextRequest) {
-  // 1) Obtém sessão
-  const session = await getServerSession(request, authOptions);
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth"; // Import do next-auth
+import { authOptions } from "@/app/lib/authOptions";
+import { connectToDatabase } from "@/app/lib/mongoose";
+import User from "@/app/models/User";
+
+export async function GET(_request: NextRequest) {
+  // 1) Obtém sessão (sem passar o request, pois no App Router
+  //    o next-auth consegue ler os cookies do ambiente)
+  const session = await getServerSession(authOptions);
+
   if (!session) {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   }
@@ -27,7 +29,7 @@ export async function GET(request: NextRequest) {
 
   // 4) Retorna affiliate_code, affiliate_balance etc.
   return NextResponse.json({
-    affiliate_code: dbUser.affiliateCode,    // ou dbUser.affiliate_code
+    affiliate_code: dbUser.affiliateCode,
     affiliate_balance: dbUser.affiliateBalance,
     // inclua outros campos se quiser
   });

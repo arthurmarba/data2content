@@ -1,31 +1,37 @@
+// src/app/api/ai/insights/route.ts
+
 import { NextResponse } from "next/server";
 import { Configuration, OpenAIApi } from "openai";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/lib/authOptions"; // Ajuste o caminho se necessário
-
+import { getServerSession } from "next-auth"; // sem passar request
+import { authOptions } from "@/app/lib/authOptions"; 
 import { connectToDatabase } from "@/app/lib/mongoose";
-import { Metric } from "@/app/models/Metric";
-// Se quiser checar plano ativo, importe User:
-// import User from "@/app/models/User";
+import Metric from "@/app/models/Metric";
+// import User from "@/app/models/User"; // Descomente se quiser checar plano ativo
 
 export async function POST(request: Request) {
   try {
     // 1) Verifica se usuário está logado
-    const session = await getServerSession(request, authOptions);
+    const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
     // 2) Lê o body e obtém o metricId
-    const body = (await request.json()) || {};
-    const { metricId } = body;
+    const body = await request.json();
+    const { metricId } = body || {};
     if (!metricId) {
-      return NextResponse.json({ error: "Parâmetro 'metricId' é obrigatório." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Parâmetro 'metricId' é obrigatório." },
+        { status: 400 }
+      );
     }
 
     // 3) Conecta ao Mongo e busca o Metric pertencente ao usuário logado
     await connectToDatabase();
-    const metric = await Metric.findOne({ _id: metricId, user: session.user.id });
+    const metric = await Metric.findOne({
+      _id: metricId,
+      user: session.user.id,
+    });
     if (!metric) {
       return NextResponse.json(
         { error: "Métrica não encontrada ou não pertence a este usuário." },
@@ -46,7 +52,7 @@ export async function POST(request: Request) {
 
     // 5) Configura o client da OpenAI
     const configuration = new Configuration({
-      apiKey: process.env.OPENAI_API_KEY, // defina no seu .env
+      apiKey: process.env.OPENAI_API_KEY, 
     });
     const openai = new OpenAIApi(configuration);
 
@@ -60,7 +66,7 @@ Métricas fornecidas: ${JSON.stringify(stats)}
    - "insightPrincipal": string
    - "recomendacoes": array de strings
    - "alertas": array de strings (caso encontre problemas)
-    `;
+`;
 
     // 7) Faz a chamada ao ChatGPT
     const completion = await openai.createChatCompletion({
@@ -77,20 +83,4 @@ Métricas fornecidas: ${JSON.stringify(stats)}
     try {
       parsed = JSON.parse(answer);
     } catch {
-      // Se não vier JSON válido, retorna como texto cru
-      parsed = { rawText: answer };
-    }
-
-    // 9) Retorna insights
-    return NextResponse.json({ insights: parsed }, { status: 200 });
-
-  } catch (error: unknown) {
-    console.error("POST /api/ai/insights error:", error);
-
-    let message = "Erro desconhecido.";
-    if (error instanceof Error) {
-      message = error.message;
-    }
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
-}
+      //

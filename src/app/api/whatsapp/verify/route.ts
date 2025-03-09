@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/lib/authOptions";
+// src/app/api/whatsapp/verify/route.ts
 
-// import mongoose from "mongoose"; // REMOVIDO se não for utilizado
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth"; // Ajuste se estiver usando outro import
+import { authOptions } from "@/app/lib/authOptions"; // ajuste o caminho se necessário
+
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 
@@ -15,15 +16,15 @@ import User from "@/app/models/User";
  */
 export async function POST(request: Request) {
   try {
-    // 1) Verifica sessão
-    const session = await getServerSession(request, authOptions);
+    // 1) Verifica sessão (sem passar 'request' para getServerSession)
+    const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
     await connectToDatabase();
 
-    // 2) Lê e valida parâmetros
+    // 2) Lê e valida parâmetros do body
     const { phoneNumber, code } = (await request.json()) || {};
     if (!phoneNumber || !code) {
       return NextResponse.json(
@@ -57,14 +58,16 @@ export async function POST(request: Request) {
       );
     }
 
-    // (Opcional) Verificar se algum outro usuário já usa este phoneNumber:
-    // const existingPhoneUser = await User.findOne({ whatsappPhone: phoneNumber });
-    // if (existingPhoneUser && existingPhoneUser._id.toString() !== user._id.toString()) {
-    //   return NextResponse.json(
-    //     { error: "Este número de telefone já está vinculado a outro usuário." },
-    //     { status: 409 }
-    //   );
-    // }
+    // (Opcional) Verificar duplicidade de número:
+    /*
+    const existingPhoneUser = await User.findOne({ whatsappPhone: phoneNumber });
+    if (existingPhoneUser && existingPhoneUser._id.toString() !== user._id.toString()) {
+      return NextResponse.json(
+        { error: "Este número de telefone já está vinculado a outro usuário." },
+        { status: 409 }
+      );
+    }
+    */
 
     // 6) Vincula phoneNumber e invalida o code
     user.whatsappPhone = phoneNumber;

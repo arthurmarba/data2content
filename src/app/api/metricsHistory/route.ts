@@ -1,5 +1,7 @@
+// src/app/api/metricsHistory/route.ts
+
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
+import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/lib/authOptions"; // ajuste o caminho se necessário
 
 import mongoose from "mongoose";
@@ -8,14 +10,14 @@ import { DailyMetric } from "@/app/models/DailyMetric";
 
 /**
  * GET /api/metricsHistory?userId=...&days=30
- * 
+ *
  * Agrupa por dia e calcula a média de métricas avançadas (ex.: taxaEngajamento).
  * Verifica se o userId do query param corresponde ao session.user.id (usuário logado).
  */
 export async function GET(request: Request) {
   try {
-    // 1) Verifica se há sessão
-    const session = await getServerSession(request, authOptions);
+    // 1) Verifica se há sessão (sem passar 'request' para getServerSession)
+    const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
@@ -232,7 +234,6 @@ export async function GET(request: Request) {
     };
 
     return NextResponse.json({ history }, { status: 200 });
-
   } catch (error: unknown) {
     console.error("/api/metricsHistory error:", error);
 
