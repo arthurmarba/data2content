@@ -2,9 +2,10 @@
 
 import { Configuration, OpenAIApi } from "openai";
 
-// Definimos uma interface que estende Record<string, unknown>
-// Isso permite que qualquer chave string seja aceita, 
-// evitando o erro de "Index signature missing".
+/**
+ * Interface para aceitar qualquer chave string em aggregatedMetrics,
+ * evitando o erro de no-empty-object-type.
+ */
 interface AggregatedMetrics extends Record<string, unknown> {}
 
 /**
@@ -15,7 +16,7 @@ interface AggregatedMetrics extends Record<string, unknown> {}
  * @returns Uma string com o relatório gerado pela IA.
  */
 export async function generateReport(
-  aggregatedMetrics: AggregatedMetrics,  // <-- Agora aceita qualquer chave string
+  aggregatedMetrics: AggregatedMetrics,  // Aceita qualquer chave string
   period: string
 ): Promise<string> {
   // O 'period' é inserido no prompt para contextualizar o período analisado.
