@@ -3,6 +3,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 
+// Definimos um tipo que inclui 'id' (além de name, email, image, etc. se necessário)
+interface SessionUserWithId {
+  id?: string;
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+}
+
+// Interface para cada mensagem do chat
 interface Message {
   sender: "user" | "consultant";
   text: string;
@@ -16,13 +25,18 @@ export default function ChatPanel() {
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Fazemos o cast para garantir que TypeScript reconheça 'id'
+  const userWithId = session?.user as SessionUserWithId | undefined;
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const handleSend = async () => {
     if (!input.trim()) return;
-    if (!session?.user?.id) {
+
+    // Agora verificamos se userWithId?.id existe
+    if (!userWithId?.id) {
       alert("É necessário estar logado para usar o chat.");
       return;
     }
@@ -37,7 +51,7 @@ export default function ChatPanel() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: session.user.id,
+          userId: userWithId.id, // Aqui usamos userWithId.id
           query: userText,
         }),
       });
