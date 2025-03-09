@@ -1,8 +1,6 @@
-// src/app/api/metrics/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth"; 
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/lib/authOptions";
-
 import mongoose from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { Metric } from "@/app/models/Metric";
@@ -14,10 +12,10 @@ import { processMultipleImages } from "@/app/lib/documentAI";
  * Lista as métricas de um usuário (coleção "Metric"),
  * mas verifica se o userId é o mesmo da session (usuário logado).
  */
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
   try {
-    // 1) Verifica se há sessão (sem passar request)
-    const session = await getServerSession(authOptions);
+    // 1) Verifica se há sessão
+    const session = await getServerSession(request, authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
@@ -66,8 +64,8 @@ export async function POST(request: Request) {
   try {
     console.log("DOC_AI_ENDPOINT:", process.env.DOC_AI_ENDPOINT);
 
-    // 1) Verifica sessão (sem passar request)
-    const session = await getServerSession(authOptions);
+    // 1) Verifica sessão
+    const session = await getServerSession(request, authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
@@ -75,7 +73,7 @@ export async function POST(request: Request) {
     // 2) Lê body
     await connectToDatabase();
     const body = await request.json();
-    const { images, postLink, description } = body || {};
+    const { images, postLink, description } = body;
 
     // Validações básicas
     if (!images || !Array.isArray(images) || images.length === 0) {
@@ -107,4 +105,21 @@ export async function POST(request: Request) {
       postDate = new Date();
     }
 
-    await Da
+    await DailyMetric.create({
+      user: objectId,
+      postDate,
+      stats,
+    });
+
+    return NextResponse.json({ metric: newMetric }, { status: 201 });
+
+  } catch (error: unknown) {
+    console.error("POST /api/metrics error:", error);
+
+    let message = "Erro desconhecido.";
+    if (error instanceof Error) {
+      message = error.message;
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

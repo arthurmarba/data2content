@@ -1,24 +1,21 @@
-// src/app/api/ai/insights/route.ts
-
 import { NextResponse } from "next/server";
 import { Configuration, OpenAIApi } from "openai";
-import { getServerSession } from "next-auth"; // sem passar request
-import { authOptions } from "@/app/lib/authOptions"; 
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/lib/authOptions";
 import { connectToDatabase } from "@/app/lib/mongoose";
-import Metric from "@/app/models/Metric";
-// import User from "@/app/models/User"; // Descomente se quiser checar plano ativo
+import { Metric } from "@/app/models/Metric";
 
 export async function POST(request: Request) {
   try {
     // 1) Verifica se usuário está logado
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession(request, authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
     // 2) Lê o body e obtém o metricId
-    const body = await request.json();
-    const { metricId } = body || {};
+    const body = (await request.json()) || {};
+    const { metricId } = body;
     if (!metricId) {
       return NextResponse.json(
         { error: "Parâmetro 'metricId' é obrigatório." },
@@ -28,10 +25,7 @@ export async function POST(request: Request) {
 
     // 3) Conecta ao Mongo e busca o Metric pertencente ao usuário logado
     await connectToDatabase();
-    const metric = await Metric.findOne({
-      _id: metricId,
-      user: session.user.id,
-    });
+    const metric = await Metric.findOne({ _id: metricId, user: session.user.id });
     if (!metric) {
       return NextResponse.json(
         { error: "Métrica não encontrada ou não pertence a este usuário." },
@@ -39,24 +33,16 @@ export async function POST(request: Request) {
       );
     }
 
-    // 4) Pega as stats do Metric (calculadas pelo Document AI)
+    // 4) Pega as stats do Metric (calculadas pelo Document AI, por ex.)
     const stats = metric.stats || {};
-
-    // (Opcional) Se quiser checar plano ativo, descomente:
-    /*
-    const user = await User.findById(session.user.id);
-    if (!user || user.planStatus !== "active") {
-      return NextResponse.json({ error: "Plano inativo." }, { status: 403 });
-    }
-    */
 
     // 5) Configura o client da OpenAI
     const configuration = new Configuration({
-      apiKey: process.env.OPENAI_API_KEY, 
+      apiKey: process.env.OPENAI_API_KEY,
     });
     const openai = new OpenAIApi(configuration);
 
-    // 6) Monta prompt com as métricas do DB
+    // 6) Monta o prompt
     const prompt = `
 Você é um consultor de marketing digital que recebe métricas do Instagram.
 Métricas fornecidas: ${JSON.stringify(stats)}
@@ -68,7 +54,7 @@ Métricas fornecidas: ${JSON.stringify(stats)}
    - "alertas": array de strings (caso encontre problemas)
 `;
 
-    // 7) Faz a chamada ao ChatGPT
+    // 7) Faz a chamada
     const completion = await openai.createChatCompletion({
       model: "gpt-3.5-turbo",
       messages: [{ role: "user", content: prompt }],
@@ -78,9 +64,25 @@ Métricas fornecidas: ${JSON.stringify(stats)}
 
     const answer = completion.data.choices[0]?.message?.content || "";
 
-    // 8) Tenta parsear como JSON
+    // 8) Tenta parsear JSON
     let parsed: unknown;
     try {
       parsed = JSON.parse(answer);
-    } catch {
-      //
+    } catch (err) {
+      // Se não vier JSON válido, devolve como texto cru
+      parsed = { rawText: answer };
+    }
+
+    // 9) Retorna
+    return NextResponse.json({ insights: parsed }, { status: 200 });
+
+  } catch (error: unknown) {
+    console.error("POST /api/ai/insights error:", error);
+
+    let message = "Erro desconhecido.";
+    if (error instanceof Error) {
+      message = error.message;
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
