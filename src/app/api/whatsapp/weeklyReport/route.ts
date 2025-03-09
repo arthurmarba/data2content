@@ -6,7 +6,7 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import { DailyMetric } from "@/app/models/DailyMetric";
 import { buildAggregatedReport } from "@/app/lib/reportHelpers";
-import { generateReport } from "@/app/lib/reportService";
+import { generateReport, AggregatedMetrics } from "@/app/lib/reportService";
 import { sendWhatsAppMessage } from "@/app/lib/whatsappService";
 
 /**
@@ -30,7 +30,7 @@ interface ReportResult {
 
 export async function POST(request: NextRequest) {
   try {
-    // 1) Verifica autenticação (opcional – ex.: admin)
+    // 1) Verifica autenticação (ex.: admin)
     const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
     if (!token) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
@@ -68,12 +68,13 @@ export async function POST(request: NextRequest) {
           });
 
           // 5b) Agrega os dados com a função buildAggregatedReport
-          const aggregatedReport = buildAggregatedReport(dailyMetrics);
+          // Força a conversão para 'AggregatedMetrics'
+          const aggregatedReport = buildAggregatedReport(dailyMetrics) as unknown as AggregatedMetrics;
 
           // 5c) Gera o relatório padronizado, usando o período "7 dias"
           const reportText = await generateReport(aggregatedReport, "7 dias");
 
-          // 5d) Assegura que o número de WhatsApp esteja no formato internacional
+          // 5d) Ajusta número de telefone para o formato internacional
           let phoneWithPlus = user.whatsappPhone;
           if (!phoneWithPlus.startsWith("+")) {
             phoneWithPlus = "+" + phoneWithPlus;
