@@ -19,12 +19,22 @@ interface DynamicCard {
   title?: string;
   value?: string;
   description?: string;
-  // Se houver outras propriedades, adicione aqui ou use [key: string]: unknown;
+}
+
+/**
+ * Interface local para "session.user" com a propriedade "id"
+ * que você adicionou nos callbacks do NextAuth.
+ */
+interface UserWithId {
+  id?: string;
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+  // Se você tiver mais propriedades, inclua aqui
 }
 
 const DashboardPage: React.FC = () => {
-  const { data: session } = useSession(); // para pegar userId (se precisar)
-  // Removido "customData" do destructuring para evitar no-unused-vars
+  const { data: session } = useSession();
   const { loading, setCustomData, setLoading } = useDashboard();
 
   // Estados para inputs estratégicos
@@ -53,15 +63,16 @@ const DashboardPage: React.FC = () => {
     setErrorMessage("");
 
     try {
-      // 1) Verifica se usuário está logado
-      if (!session?.user?.id) {
-        setErrorMessage("Usuário não logado.");
+      // Faz um cast de session.user para a interface UserWithId
+      const user = session?.user as UserWithId | undefined;
+      if (!user?.id) {
+        setErrorMessage("Usuário não logado ou sem ID.");
         setLoading(false);
         return;
       }
 
       // 2) Busca métricas do usuário em /api/metrics
-      const resMetrics = await fetch(`/api/metrics?userId=${session.user.id}`);
+      const resMetrics = await fetch(`/api/metrics?userId=${user.id}`);
       if (!resMetrics.ok) {
         throw new Error("Falha ao obter métricas do usuário");
       }
@@ -73,13 +84,13 @@ const DashboardPage: React.FC = () => {
         return;
       }
 
-      // 3) Monta payload para IA (agora chamando /api/ai/dynamicCards)
+      // 3) Monta payload para IA (rota /api/ai/dynamicCards)
       const payload = {
         userStats: dataMetrics.metrics, // array de Metric
         visao,
         missao,
         objetivos,
-        filtros, // se quiser incluir no prompt
+        filtros,
       };
 
       // 4) Chama /api/ai/dynamicCards
@@ -96,7 +107,6 @@ const DashboardPage: React.FC = () => {
 
       // 5) Verifica se vieram cards
       if (dataAI.result?.cards) {
-        // Armazena no estado local
         setPersonalizedIndicators(dataAI.result.cards);
         // Armazena no DashboardContext (para o MegaCard -> IndicatorsGrid)
         setCustomData({ indicators: dataAI.result.cards });
@@ -192,7 +202,7 @@ const DashboardPage: React.FC = () => {
           </button>
         </div>
 
-        {/* Seção dos Indicadores/Gráficos (caso queira mostrar algo além do MegaCard) */}
+        {/* Seção dos Indicadores/Gráficos */}
         <div className="mb-6">
           {loading ? (
             <p className="text-center text-base">Carregando análise personalizada...</p>
