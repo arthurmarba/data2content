@@ -22,6 +22,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
+    // Fazemos o cast para garantir que session.user tenha 'id'
+    const userWithId = session.user as {
+      id?: string;
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+      // Se houver mais propriedades, inclua aqui
+    };
+
+    // Se a sessão não tiver um ID, não conseguimos comparar
+    if (!userWithId.id) {
+      return NextResponse.json(
+        { error: "Sessão sem ID de usuário" },
+        { status: 400 }
+      );
+    }
+
     await connectToDatabase();
 
     // 2) Lê e valida parâmetros do body
@@ -43,7 +60,7 @@ export async function POST(request: Request) {
     }
 
     // 4) Verifica se esse user é o mesmo da sessão
-    if (user._id.toString() !== session.user.id) {
+    if (user._id.toString() !== userWithId.id) {
       return NextResponse.json(
         { error: "Acesso negado: este código não pertence ao seu usuário." },
         { status: 403 }
