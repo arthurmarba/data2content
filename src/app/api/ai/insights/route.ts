@@ -1,3 +1,5 @@
+// src/app/api/ai/insights/route.ts
+
 import { NextResponse } from "next/server";
 import { Configuration, OpenAIApi } from "openai";
 import { getServerSession } from "next-auth/next";
@@ -68,8 +70,9 @@ Métricas fornecidas: ${JSON.stringify(stats)}
     let parsed: unknown;
     try {
       parsed = JSON.parse(answer);
-    } catch (err) {
-      // Se não vier JSON válido, devolve como texto cru
+    } catch (parseErr) {
+      // Se não vier JSON válido, logamos o erro e retornamos texto cru
+      console.warn("Falha ao parsear JSON da IA:", parseErr);
       parsed = { rawText: answer };
     }
 

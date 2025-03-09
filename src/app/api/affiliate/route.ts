@@ -1,16 +1,19 @@
 // src/app/api/affiliate/route.ts
 
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth"; // Import do next-auth
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next"; // ou "next-auth" se estiver configurado para o App Router
 import { authOptions } from "@/app/lib/authOptions";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 
-export async function GET(_request: NextRequest) {
-  // 1) Obtém sessão (sem passar o request, pois no App Router
-  //    o next-auth consegue ler os cookies do ambiente)
+/**
+ * GET /api/affiliate
+ * Retorna dados do afiliado (se user.role === "affiliate").
+ * Exemplo: affiliate_code, affiliate_balance, etc.
+ */
+export async function GET() {
+  // 1) Obtém sessão (sem precisar do request se estiver configurado para ler do contexto)
   const session = await getServerSession(authOptions);
-
   if (!session) {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   }
@@ -35,7 +38,10 @@ export async function GET(_request: NextRequest) {
   });
 }
 
-// Caso queira bloquear outros métodos, podemos retornar 405:
+/**
+ * POST /api/affiliate
+ * Bloqueado (retorna 405 Method Not Allowed).
+ */
 export async function POST() {
   return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
 }
