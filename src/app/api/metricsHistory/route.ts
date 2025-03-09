@@ -2,7 +2,7 @@
 
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/lib/authOptions"; // ajuste o caminho se necessário
+import { authOptions } from "@/app/lib/authOptions";
 
 import mongoose from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
@@ -16,22 +16,38 @@ import { DailyMetric } from "@/app/models/DailyMetric";
  */
 export async function GET(request: Request) {
   try {
-    // 1) Verifica se há sessão (sem passar 'request' para getServerSession)
+    // 1) Verifica se há sessão
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
-    // 2) Lê userId dos query params
+    // 2) Extrai userId dos query params
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
     if (!userId) {
-      // Se não for fornecido userId, retorne algo vazio ou erro
       return NextResponse.json({ history: null }, { status: 200 });
     }
 
-    // 3) Verifica se userId corresponde ao da sessão
-    if (userId !== session.user.id) {
+    // 3) Força que session.user tenha a propriedade "id"
+    // Se não tiver, retornamos erro ou algo similar
+    const userWithId = session.user as {
+      id?: string;
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+      // ...caso queira mais chaves
+    };
+
+    if (!userWithId.id) {
+      return NextResponse.json(
+        { error: "Sessão sem ID de usuário" },
+        { status: 400 }
+      );
+    }
+
+    // Verifica se userId corresponde ao ID da sessão
+    if (userId !== userWithId.id) {
       return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
     }
 
@@ -68,11 +84,14 @@ export async function GET(request: Request) {
           avgPctSalvamentos: { $avg: "$stats.pctSalvamentos" },
           avgTaxaConversaoSeguidores: { $avg: "$stats.taxaConversaoSeguidores" },
           avgTaxaRetencao: { $avg: "$stats.taxaRetencao" },
-          avgEngajamentoProfundoAlcance: { $avg: "$stats.engajamentoProfundoAlcance" },
-          avgEngajamentoRapidoAlcance: { $avg: "$stats.engajamentoRapidoAlcance" },
+          avgEngajamentoProfundoAlcance: {
+            $avg: "$stats.engajamentoProfundoAlcance",
+          },
+          avgEngajamentoRapidoAlcance: {
+            $avg: "$stats.engajamentoRapidoAlcance",
+          },
           avgCurtidas: { $avg: "$stats.curtidas" },
           avgComentarios: { $avg: "$stats.comentarios" },
-          // ... adicione outras métricas se quiser
         },
       },
       {
@@ -230,7 +249,6 @@ export async function GET(request: Request) {
           },
         ],
       },
-      // ... inclua outras métricas se quiser
     };
 
     return NextResponse.json({ history }, { status: 200 });
