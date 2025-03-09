@@ -8,6 +8,14 @@ import mongoose, { PipelineStage } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { DailyMetric } from "@/app/models/DailyMetric";
 
+interface SessionUser {
+  id?: string;
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+  // outras propriedades, se desejar
+}
+
 /**
  * GET /api/metricsHistory?userId=...&days=30
  *
@@ -30,14 +38,7 @@ export async function GET(request: Request) {
     }
 
     // 3) Garante que session.user tenha 'id'
-    // (caso você tenha configurado no callback do next-auth)
-    const userWithId = session.user as {
-      id?: string;
-      name?: string | null;
-      email?: string | null;
-      image?: string | null;
-      // outras chaves, se quiser
-    };
+    const userWithId = session.user as SessionUser;
     if (!userWithId.id) {
       return NextResponse.json(
         { error: "Sessão sem ID de usuário" },
@@ -62,8 +63,15 @@ export async function GET(request: Request) {
     const fromDate = new Date();
     fromDate.setDate(fromDate.getDate() - days);
 
-    // 6) Define o pipeline de agregação como PipelineStage[], 
-    //    usando type casting para ajustar o $sort
+    // Para evitar o problema de prefer-as-const, definimos sortSpec como um objeto
+    // do tipo Record<string, 1 | -1> e passamos ao pipeline.
+    const sortSpec: Record<string, 1 | -1> = {
+      "_id.year": 1,
+      "_id.month": 1,
+      "_id.day": 1,
+    };
+
+    // 6) Define o pipeline de agregação
     const pipeline: PipelineStage[] = [
       {
         $match: {
@@ -95,12 +103,7 @@ export async function GET(request: Request) {
         },
       },
       {
-        // Necessário "as 1" para o TS aceitar
-        $sort: {
-          "_id.year": 1 as 1,
-          "_id.month": 1 as 1,
-          "_id.day": 1 as 1,
-        },
+        $sort: sortSpec,
       },
     ];
 
@@ -120,21 +123,23 @@ export async function GET(request: Request) {
     const arrCurtidas: number[] = [];
     const arrComentarios: number[] = [];
 
+    // Para cada doc retornado
     results.forEach((doc) => {
       const { year, month, day } = doc._id;
       const label = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
       labels.push(label);
 
-      arrTaxaEngajamento.push(parseFloat(doc.avgTaxaEngajamento || 0));
-      arrIndicePropagacao.push(parseFloat(doc.avgIndicePropagacao || 0));
-      arrRatioLikeComment.push(parseFloat(doc.avgRatioLikeComment || 0));
-      arrPctSalvamentos.push(parseFloat(doc.avgPctSalvamentos || 0));
-      arrTaxaConversaoSeguidores.push(parseFloat(doc.avgTaxaConversaoSeguidores || 0));
-      arrTaxaRetencao.push(parseFloat(doc.avgTaxaRetencao || 0));
-      arrEngajProfundo.push(parseFloat(doc.avgEngajamentoProfundoAlcance || 0));
-      arrEngajRapido.push(parseFloat(doc.avgEngajamentoRapidoAlcance || 0));
-      arrCurtidas.push(parseFloat(doc.avgCurtidas || 0));
-      arrComentarios.push(parseFloat(doc.avgComentarios || 0));
+      // Convertemos valores usando parseFloat e transformando em string se vier undefined
+      arrTaxaEngajamento.push(parseFloat(String(doc.avgTaxaEngajamento ?? "0")));
+      arrIndicePropagacao.push(parseFloat(String(doc.avgIndicePropagacao ?? "0")));
+      arrRatioLikeComment.push(parseFloat(String(doc.avgRatioLikeComment ?? "0")));
+      arrPctSalvamentos.push(parseFloat(String(doc.avgPctSalvamentos ?? "0")));
+      arrTaxaConversaoSeguidores.push(parseFloat(String(doc.avgTaxaConversaoSeguidores ?? "0")));
+      arrTaxaRetencao.push(parseFloat(String(doc.avgTaxaRetencao ?? "0")));
+      arrEngajProfundo.push(parseFloat(String(doc.avgEngajamentoProfundoAlcance ?? "0")));
+      arrEngajRapido.push(parseFloat(String(doc.avgEngajamentoRapidoAlcance ?? "0")));
+      arrCurtidas.push(parseFloat(String(doc.avgCurtidas ?? "0")));
+      arrComentarios.push(parseFloat(String(doc.avgComentarios ?? "0")));
     });
 
     // 9) Retorna objeto "history"
