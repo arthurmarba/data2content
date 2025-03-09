@@ -5,7 +5,6 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 
-// Removemos o "export" aqui para evitar o erro de "authOptions is not a valid Route export field."
 const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
@@ -46,11 +45,6 @@ const authOptions: NextAuthOptions = {
   ],
 
   callbacks: {
-    /**
-     * 1) signIn callback:
-     *    - Para Google, cria o usuário no banco se não existir.
-     *    - Garante que user.id seja o _id do Mongo.
-     */
     async signIn({ user, account }) {
       if (account?.provider === "google") {
         await connectToDatabase();
@@ -70,11 +64,6 @@ const authOptions: NextAuthOptions = {
       return true;
     },
 
-    /**
-     * 2) jwt callback:
-     *    - Copia user.id para token.sub.
-     *    - Copia user.image para token.picture, para exibir depois.
-     */
     async jwt({ token, user }) {
       if (user) {
         token.sub = user.id;
@@ -85,17 +74,26 @@ const authOptions: NextAuthOptions = {
       return token;
     },
 
-    /**
-     * 3) session callback:
-     *    - Carrega do banco dados extras (planStatus, affiliateBalance etc.) usando token.sub.
-     *    - Copia token.picture para session.user.image (exibir no front).
-     */
     async session({ session, token }) {
+      // Se o token não tiver 'sub', não temos um ID de usuário
       if (!token.sub) return session;
 
+      // Conecta ao banco e carrega dados extras
       await connectToDatabase();
       const dbUser = await User.findById(token.sub);
+
+      // Se por algum motivo session.user estiver indefinido,
+      // inicializamos com um objeto mínimo. Assim, evitamos o erro de TS.
+      if (!session.user) {
+        session.user = {
+          name: null,
+          email: null,
+          image: null,
+        };
+      }
+
       if (dbUser) {
+        // Agora é seguro acessar session.user, pois garantimos que não é undefined
         session.user.id = dbUser._id.toString();
         session.user.role = dbUser.role;
         session.user.planStatus = dbUser.planStatus;
@@ -113,10 +111,6 @@ const authOptions: NextAuthOptions = {
       return session;
     },
 
-    /**
-     * 4) redirect callback:
-     *    - Redireciona sempre para /dashboard depois de logar
-     */
     async redirect({ baseUrl }) {
       return baseUrl + "/dashboard";
     },
