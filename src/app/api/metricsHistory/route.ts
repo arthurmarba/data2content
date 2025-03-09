@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/lib/authOptions";
 
-import mongoose from "mongoose";
+import mongoose, { PipelineStage } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { DailyMetric } from "@/app/models/DailyMetric";
 
@@ -29,16 +29,15 @@ export async function GET(request: Request) {
       return NextResponse.json({ history: null }, { status: 200 });
     }
 
-    // 3) Força que session.user tenha a propriedade "id"
-    // Se não tiver, retornamos erro ou algo similar
+    // 3) Garante que session.user tenha 'id'
+    // (caso você tenha configurado no callback do next-auth)
     const userWithId = session.user as {
       id?: string;
       name?: string | null;
       email?: string | null;
       image?: string | null;
-      // ...caso queira mais chaves
+      // outras chaves, se quiser
     };
-
     if (!userWithId.id) {
       return NextResponse.json(
         { error: "Sessão sem ID de usuário" },
@@ -63,8 +62,9 @@ export async function GET(request: Request) {
     const fromDate = new Date();
     fromDate.setDate(fromDate.getDate() - days);
 
-    // Pipeline de agregação
-    const pipeline = [
+    // 6) Define o pipeline de agregação como PipelineStage[], 
+    //    usando type casting para ajustar o $sort
+    const pipeline: PipelineStage[] = [
       {
         $match: {
           user: objectId,
@@ -95,18 +95,19 @@ export async function GET(request: Request) {
         },
       },
       {
+        // Necessário "as 1" para o TS aceitar
         $sort: {
-          "_id.year": 1,
-          "_id.month": 1,
-          "_id.day": 1,
+          "_id.year": 1 as 1,
+          "_id.month": 1 as 1,
+          "_id.day": 1 as 1,
         },
       },
     ];
 
-    // 6) Executa agregação
+    // 7) Executa agregação
     const results = await DailyMetric.aggregate(pipeline);
 
-    // 7) Monta arrays de dados para cada métrica
+    // 8) Monta arrays de dados para cada métrica
     const labels: string[] = [];
     const arrTaxaEngajamento: number[] = [];
     const arrIndicePropagacao: number[] = [];
@@ -119,7 +120,6 @@ export async function GET(request: Request) {
     const arrCurtidas: number[] = [];
     const arrComentarios: number[] = [];
 
-    // Preenche arrays
     results.forEach((doc) => {
       const { year, month, day } = doc._id;
       const label = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -137,7 +137,7 @@ export async function GET(request: Request) {
       arrComentarios.push(parseFloat(doc.avgComentarios || 0));
     });
 
-    // 8) Retorna objeto "history" no formato esperado
+    // 9) Retorna objeto "history"
     const history = {
       taxaEngajamento: {
         labels,
