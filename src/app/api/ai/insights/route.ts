@@ -1,5 +1,3 @@
-// src/app/api/ai/insights/route.ts
-
 import { NextResponse } from "next/server";
 import { Configuration, OpenAIApi } from "openai";
 import { getServerSession } from "next-auth/next";
@@ -9,15 +7,15 @@ import { Metric } from "@/app/models/Metric";
 
 export async function POST(request: Request) {
   try {
-    // 1) Verifica se usuário está logado
-    const session = await getServerSession(request, authOptions);
+    // 1) Verifica se usuário está logado (sem passar o request)
+    const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
     // 2) Lê o body e obtém o metricId
-    const body = (await request.json()) || {};
-    const { metricId } = body;
+    const body = await request.json();
+    const { metricId } = body || {};
     if (!metricId) {
       return NextResponse.json(
         { error: "Parâmetro 'metricId' é obrigatório." },
@@ -25,9 +23,21 @@ export async function POST(request: Request) {
       );
     }
 
-    // 3) Conecta ao Mongo e busca o Metric pertencente ao usuário logado
+    // 3) Conecta ao banco e busca o Metric pertencente ao usuário logado
     await connectToDatabase();
-    const metric = await Metric.findOne({ _id: metricId, user: session.user.id });
+
+    // Extraindo o ID do usuário da sessão (com type assertion, 
+    // pois session.user não tem "id" definido por padrão na tipagem).
+    const userId = (session.user as { id?: string })?.id;
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Usuário sem ID na sessão." },
+        { status: 400 }
+      );
+    }
+
+    // Busca a métrica que pertença a esse userId
+    const metric = await Metric.findOne({ _id: metricId, user: userId });
     if (!metric) {
       return NextResponse.json(
         { error: "Métrica não encontrada ou não pertence a este usuário." },
@@ -78,7 +88,6 @@ Métricas fornecidas: ${JSON.stringify(stats)}
 
     // 9) Retorna
     return NextResponse.json({ insights: parsed }, { status: 200 });
-
   } catch (error: unknown) {
     console.error("POST /api/ai/insights error:", error);
 
