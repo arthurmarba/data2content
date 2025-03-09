@@ -1,17 +1,16 @@
+// src/app/api/whatsapp/incoming/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
-// import mongoose from "mongoose"; // Removido/comentado pois não é usado
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import { DailyMetric } from "@/app/models/DailyMetric";
 import { sendWhatsAppMessage } from "@/app/lib/whatsappService";
 import { callOpenAIForQuestion } from "@/app/lib/aiService";
-import { generateReport } from "@/app/lib/reportService";
+import { generateReport, AggregatedMetrics } from "@/app/lib/reportService";
 import { buildAggregatedReport } from "@/app/lib/reportHelpers";
-import { AggregatedMetrics } from "@/app/lib/reportService"; // <-- Importe do local onde você definiu AggregatedMetrics
 
 /**
  * Interface parcial para o corpo do Webhook do WhatsApp.
- * Assim evitamos o uso de `any` em parseIncomingBody.
  */
 interface WhatsAppWebhookBody {
   entry?: Array<{
@@ -30,8 +29,7 @@ interface WhatsAppWebhookBody {
 
 /**
  * parseIncomingBody:
- * Extrai o 'from' (número do remetente) e o 'text' (conteúdo da mensagem)
- * do objeto JSON recebido no webhook da Cloud API.
+ * Extrai 'from' e 'text' do JSON recebido no webhook da Cloud API.
  */
 function parseIncomingBody(body: unknown): { from: string; text: string } {
   if (typeof body !== "object" || body === null) {
@@ -39,7 +37,6 @@ function parseIncomingBody(body: unknown): { from: string; text: string } {
   }
 
   const b = body as WhatsAppWebhookBody;
-
   const entry = b.entry?.[0];
   const changes = entry?.changes?.[0];
   const value = changes?.value;
@@ -63,8 +60,7 @@ function extractVerificationCode(text: string): string | null {
 
 /**
  * safeSendWhatsAppMessage:
- * Envolve sendWhatsAppMessage em try/catch para evitar que
- * um erro de envio quebre o fluxo.
+ * Tenta enviar mensagem via WhatsApp e evita quebra de fluxo em caso de erro.
  */
 async function safeSendWhatsAppMessage(to: string, body: string) {
   let phoneNumber = to;
@@ -87,7 +83,7 @@ export async function POST(request: NextRequest) {
     // 2) Extrai 'from' e 'text' do corpo
     const { from, text } = parseIncomingBody(body);
     if (!from || !text) {
-      // Se não tivermos remetente ou texto, retornamos 200 para evitar retries do WhatsApp
+      // Se não tivermos remetente ou texto, retornamos 200 (evita retries do WhatsApp)
       return NextResponse.json({ message: "Sem mensagem ou remetente" }, { status: 200 });
     }
 
@@ -150,12 +146,11 @@ export async function POST(request: NextRequest) {
       postDate: { $gte: fromDate },
     });
 
-    // 8) Verifica se o usuário está solicitando o relatório
+    // 8) Verifica se o usuário está solicitando um relatório
     const lowerText = text.toLowerCase();
     if (lowerText.includes("relatório") || lowerText.includes("planejamento de conteúdo")) {
       // Agrega os dados completos utilizando buildAggregatedReport
-
-      // FORÇAMOS O CAST para AggregatedMetrics
+      // Forçamos o cast para AggregatedMetrics
       const aggregatedReport = buildAggregatedReport(dailyMetrics) as AggregatedMetrics;
 
       // Gera o relatório detalhado para o período "30 dias"
@@ -174,6 +169,8 @@ export async function POST(request: NextRequest) {
     });
     const totalPosts = dailyMetrics.length;
     const avgCurtidas = totalPosts > 0 ? totalCurtidas / totalPosts : 0;
+
+    // Monta um objeto de métricas simples para a IA
     const aggregated = { totalPosts, avgCurtidas };
 
     const prompt = `
@@ -192,6 +189,7 @@ Responda de forma amigável e prática, em poucas linhas.
 
     // 12) Retorna 200
     return NextResponse.json({ message: "Respondido com IA" }, { status: 200 });
+
   } catch (err: unknown) {
     console.error("Erro em /api/whatsapp/incoming POST:", err);
 

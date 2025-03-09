@@ -1,10 +1,12 @@
+// src/app/lib/reportService.ts
+
 import { Configuration, OpenAIApi } from "openai";
 
 /**
- * Em vez de usar uma interface vazia que estenda Record<string, unknown>,
- * definimos um type alias diretamente:
+ * Define um type para aceitar qualquer chave string no objeto de métricas,
+ * permitindo importá-lo em outros arquivos (ex.: route.ts).
  */
-type AggregatedMetrics = Record<string, unknown>;
+export type AggregatedMetrics = Record<string, unknown>;
 
 /**
  * Gera um relatório semanal adaptado aos dados de métricas e período analisado.
@@ -14,7 +16,7 @@ type AggregatedMetrics = Record<string, unknown>;
  * @returns Uma string com o relatório gerado pela IA.
  */
 export async function generateReport(
-  aggregatedMetrics: AggregatedMetrics, // Aceita qualquer chave string
+  aggregatedMetrics: AggregatedMetrics,
   period: string
 ): Promise<string> {
   // O 'period' é inserido no prompt para contextualizar o período analisado.
