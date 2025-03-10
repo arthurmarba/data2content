@@ -8,7 +8,6 @@ import InstagramProfile from "./InstagramProfile";
 import CourseVideos from "../curso/CourseVideos";
 import TagInput from "./TagInput";
 import SingleTagInput from "./SingleTagInput";
-import DashboardComponent from "./Dashboard"; // <-- renomeado para evitar conflito
 import ChatPanel from "../ChatPanel";
 
 /**
@@ -22,6 +21,38 @@ interface DynamicCard {
 }
 
 /**
+ * Interface do componente DashboardComponent, 
+ * que recebe um array de DynamicCard em `indicators`.
+ */
+interface DashboardComponentProps {
+  indicators: DynamicCard[];
+}
+
+/**
+ * Componente que exibe os "cards" retornados pela IA.
+ * Você pode personalizar a aparência conforme necessário.
+ */
+function DashboardComponent({ indicators }: DashboardComponentProps) {
+  return (
+    <div className="border p-4 rounded-md bg-white shadow">
+      <h2 className="text-lg font-bold mb-3">Indicadores Personalizados</h2>
+
+      {indicators.map((card, idx) => (
+        <div key={idx} className="mb-4 border-b pb-2">
+          <h3 className="text-sm font-semibold text-gray-700">
+            {card.title || card.metricKey}
+          </h3>
+          <p className="text-xs text-gray-600">Valor: {card.value || "N/A"}</p>
+          <p className="text-xs text-gray-500 mt-1">
+            {card.description || "Sem descrição"}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
  * Interface local para "session.user" com a propriedade "id"
  * (definida nos callbacks do NextAuth).
  */
@@ -32,6 +63,9 @@ interface UserWithId {
   image?: string | null;
 }
 
+/**
+ * Componente principal do Dashboard
+ */
 const DashboardPage: React.FC = () => {
   const { data: session } = useSession();
   const { loading, setCustomData, setLoading } = useDashboard();
@@ -56,6 +90,9 @@ const DashboardPage: React.FC = () => {
   // Indicadores retornados pela IA (cards)
   const [personalizedIndicators, setPersonalizedIndicators] = useState<DynamicCard[]>([]);
 
+  /**
+   * Função para buscar métricas do usuário e chamar IA (rota /api/ai/dynamicCards).
+   */
   const fetchPersonalizedData = async () => {
     setLoading(true);
     setSuccessMessage("");
@@ -83,7 +120,7 @@ const DashboardPage: React.FC = () => {
         return;
       }
 
-      // 2) Monta payload para IA (rota /api/ai/dynamicCards)
+      // 2) Monta payload para IA
       const payload = {
         userStats: dataMetrics.metrics, // array de Metric
         visao,
@@ -124,6 +161,7 @@ const DashboardPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white text-gray-900 p-8 flex">
+      {/* Coluna principal */}
       <div className="flex-1 pr-4 overflow-y-auto">
         {/* Perfil do usuário */}
         <InstagramProfile
@@ -139,6 +177,7 @@ const DashboardPage: React.FC = () => {
         <div className="mb-6 px-4 py-4 border rounded shadow bg-white">
           <h2 className="text-lg font-bold text-gray-800 mb-4">Planejamento Estratégico</h2>
 
+          {/* Mensagens de sucesso/erro */}
           {successMessage && (
             <p className="text-green-600 text-sm mb-2">{successMessage}</p>
           )}
@@ -146,6 +185,7 @@ const DashboardPage: React.FC = () => {
             <p className="text-red-600 text-sm mb-2">{errorMessage}</p>
           )}
 
+          {/* Inputs de Visão, Missão */}
           <div className="flex flex-wrap gap-2 mb-4">
             <SingleTagInput
               label="Visão"
@@ -163,6 +203,7 @@ const DashboardPage: React.FC = () => {
             />
           </div>
 
+          {/* Objetivos */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Objetivos/Desafios
@@ -175,6 +216,7 @@ const DashboardPage: React.FC = () => {
             />
           </div>
 
+          {/* Filtros */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Filtros
@@ -187,6 +229,7 @@ const DashboardPage: React.FC = () => {
             />
           </div>
 
+          {/* Botão para gerar Planejamento */}
           <button
             onClick={fetchPersonalizedData}
             className="w-full px-4 py-2 bg-blue-500 text-white rounded shadow-lg hover:bg-blue-600 transition-all duration-200 text-base"
@@ -200,17 +243,20 @@ const DashboardPage: React.FC = () => {
           {loading ? (
             <p className="text-center text-base">Carregando análise personalizada...</p>
           ) : personalizedIndicators && personalizedIndicators.length > 0 ? (
+            // Renderiza o DashboardComponent com a prop "indicators"
             <DashboardComponent indicators={personalizedIndicators} />
           ) : (
             <p className="text-center text-base">Nenhuma análise personalizada disponível.</p>
           )}
         </div>
 
+        {/* Outras seções (Ex.: Curso) */}
         <div className="mb-6">
           <CourseVideos />
         </div>
       </div>
 
+      {/* Coluna lateral (Chat, etc.) */}
       <div className="w-full md:w-1/4">
         <ChatPanel />
       </div>
