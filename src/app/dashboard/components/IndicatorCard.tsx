@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { FC } from "react";
 import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -11,27 +11,46 @@ import {
   Title,
   Tooltip,
   Legend,
+  ChartData,
 } from "chart.js";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
+
+/**
+ * Se quiser permitir cores personalizadas,
+ * defina abaixo ou no ChartDataSet.
+ */
+interface ChartDataSet {
+  label: string;
+  data: number[];
+  borderColor?: string;
+  backgroundColor?: string;
+}
+
+/**
+ * MyLineChartData:
+ * Estende ChartData<"line"> mas reforça que labels e datasets
+ * sejam arrays de string e ChartDataSet, respectivamente.
+ */
+interface MyLineChartData extends ChartData<"line", number[], string> {
+  labels: string[];
+  datasets: ChartDataSet[];
+}
 
 interface IndicatorCardProps {
   title: string;
   value?: number | string;
   description?: string;
   recommendation?: string;
-  chartData?: {
-    labels: string[];
-    datasets: {
-      label: string;
-      data: number[];
-      borderColor?: string;
-      backgroundColor?: string;
-    }[];
-  };
+
+  /**
+   * chartData pode estar ausente (undefined),
+   * ou então seguir o formato MyLineChartData.
+   */
+  chartData?: MyLineChartData;
 }
 
-const IndicatorCard: React.FC<IndicatorCardProps> = ({
+const IndicatorCard: FC<IndicatorCardProps> = ({
   title,
   value,
   description,
@@ -39,32 +58,21 @@ const IndicatorCard: React.FC<IndicatorCardProps> = ({
   chartData,
 }) => {
   /**
-   * Agora exibimos o gráfico se houver pelo menos 1 label e pelo menos 1 valor de data.
+   * Verifica se chartData realmente existe
+   * e tem pelo menos 1 label e 1 dataset com dados.
    */
   const hasChart = Boolean(
     chartData &&
     Array.isArray(chartData.labels) &&
-    chartData.labels.length >= 1 &&
+    chartData.labels.length > 0 &&
     Array.isArray(chartData.datasets) &&
     chartData.datasets.length > 0 &&
     Array.isArray(chartData.datasets[0].data) &&
-    chartData.datasets[0].data.length >= 1
+    chartData.datasets[0].data.length > 0
   );
 
   return (
-    <div
-      className="
-        bg-white/90
-        backdrop-blur-md
-        border border-gray-200
-        rounded-2xl
-        shadow-sm
-        p-4
-        flex
-        flex-col
-        h-full
-      "
-    >
+    <div className="bg-white/90 backdrop-blur-md border border-gray-200 rounded-2xl shadow-sm p-4 flex flex-col h-full">
       {/* Título */}
       <h3 className="text-sm font-semibold text-gray-800 mb-1">
         {title}
@@ -92,7 +100,9 @@ const IndicatorCard: React.FC<IndicatorCardProps> = ({
             options={{
               responsive: true,
               maintainAspectRatio: false,
-              plugins: { legend: { display: false } },
+              plugins: {
+                legend: { display: false },
+              },
               scales: {
                 x: { display: false },
                 y: { display: false },
