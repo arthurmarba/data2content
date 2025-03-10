@@ -1,4 +1,3 @@
-// src/app/dashboard/components/MegaCard.tsx
 "use client";
 
 import React from "react";
@@ -8,10 +7,27 @@ import CourseVideos from "../curso/CourseVideos";
 import IndicatorsGrid from "./IndicatorsGrid";
 import { useDashboard } from "./DashboardContext";
 
+/**
+ * Interface local para representar cada indicador, 
+ * compatível com a do IndicatorsGrid.
+ */
+interface Indicator {
+  id?: string;
+  title: string;
+  value?: number | string;
+  description?: string;
+  recommendation?: string; // se a IA quiser fornecer
+  chartData?: unknown;      // se houver dados de gráfico
+}
+
 export default function MegaCard() {
   const { customData } = useDashboard();
-  // Se a rota retornar algo como { indicators: [...], ... }, pegamos:
-  const indicators = customData?.indicators || [];
+
+  /**
+   * Garante que customData?.indicators seja um array de Indicator 
+   * ou, se não definido, um array vazio. 
+   */
+  const indicators = (customData?.indicators as Indicator[]) || [];
 
   return (
     <div
@@ -37,7 +53,7 @@ export default function MegaCard() {
         />
       </div>
 
-      {/* Planejamento Estratégico */}
+      {/* Painel Estratégico (exemplo) */}
       <div>
         <StrategicPanel />
       </div>
@@ -47,11 +63,11 @@ export default function MegaCard() {
         <h2 className="text-lg font-semibold text-gray-800 mb-3">
           Seus Indicadores
         </h2>
-        {/* 
-          IndicatorsGrid é onde ocorre a checagem de loading:
-          - Se loading === true, mostra skeletons
-          - Senão, mostra IndicatorCard
-        */}
+        {/**
+         * IndicatorsGrid é onde ocorre a checagem de loading:
+         * - Se loading === true, mostra skeletons
+         * - Senão, mostra IndicatorCard
+         */}
         <IndicatorsGrid indicators={indicators} />
       </div>
 
