@@ -8,7 +8,7 @@ import InstagramProfile from "./InstagramProfile";
 import CourseVideos from "../curso/CourseVideos";
 import TagInput from "./TagInput";
 import SingleTagInput from "./SingleTagInput";
-import Dashboard from "./Dashboard"; // Se você tem um componente que renderiza as cards
+import Dashboard from "./Dashboard"; // Agora o Dashboard tem props definidas
 import ChatPanel from "../ChatPanel";
 
 /**
@@ -26,11 +26,11 @@ interface DynamicCard {
  * que você adicionou nos callbacks do NextAuth.
  */
 interface UserWithId {
-  id?: string;  // <- a propriedade "id" que precisamos
+  id?: string;  
   name?: string | null;
   email?: string | null;
   image?: string | null;
-  // Se você tiver mais propriedades, inclua aqui
+  // Se tiver mais propriedades, inclua aqui
 }
 
 const DashboardPage: React.FC = () => {
@@ -45,7 +45,10 @@ const DashboardPage: React.FC = () => {
     "Aumentar compartilhamento",
     "Ganhar mais seguidores",
   ]);
-  const [filtros, setFiltros] = useState<string[]>(["Reels até 15s", "Períodos: 7 e 30 dias"]);
+  const [filtros, setFiltros] = useState<string[]>([
+    "Reels até 15s",
+    "Períodos: 7 e 30 dias",
+  ]);
 
   // Mensagens de feedback
   const [successMessage, setSuccessMessage] = useState("");
@@ -63,7 +66,7 @@ const DashboardPage: React.FC = () => {
     setErrorMessage("");
 
     try {
-      // Faz um cast de session.user para a interface UserWithId
+      // Faz cast de session.user para a interface UserWithId
       const user = session?.user as UserWithId | undefined;
       if (!user?.id) {
         setErrorMessage("Usuário não logado ou sem ID.");
@@ -108,7 +111,7 @@ const DashboardPage: React.FC = () => {
       // 4) Verifica se vieram cards
       if (dataAI.result?.cards) {
         setPersonalizedIndicators(dataAI.result.cards);
-        // Armazena no DashboardContext (para o MegaCard -> IndicatorsGrid)
+        // Armazena no DashboardContext (para exibir em outro local, se quiser)
         setCustomData({ indicators: dataAI.result.cards });
 
         setSuccessMessage("Planejamento gerado com sucesso!");
@@ -207,6 +210,7 @@ const DashboardPage: React.FC = () => {
           {loading ? (
             <p className="text-center text-base">Carregando análise personalizada...</p>
           ) : personalizedIndicators && personalizedIndicators.length > 0 ? (
+            // Passamos a prop "indicators" para o componente Dashboard
             <Dashboard indicators={personalizedIndicators} />
           ) : (
             <p className="text-center text-base">Nenhuma análise personalizada disponível.</p>

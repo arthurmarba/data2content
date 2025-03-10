@@ -3,25 +3,30 @@ import { Configuration, OpenAIApi } from "openai";
 
 /**
  * POST /api/ai/dynamicCards
- * Recebe { userStats, visao, missao, objetivos }
- * userStats -> array de Metric (ou apenas stats consolidados)
+ * Recebe { userStats, visao, missao, objetivos, filtros? }
+ *   - userStats -> array de Metric (ou stats consolidados)
+ *   - visao, missao, objetivos -> strings do usuário
+ *   - filtros (opcional) -> array de strings
  * Retorna um JSON com "cards": [...]
  */
 export async function POST(request: Request) {
   try {
+    // Lê o body
     const body = await request.json();
-    const { userStats, visao, missao, objetivos } = body;
+    const { userStats, visao, missao, objetivos, filtros } = body;
 
-    if (!userStats || userStats.length === 0) {
+    // Verifica se userStats existe e não está vazio
+    if (!Array.isArray(userStats) || userStats.length === 0) {
       return NextResponse.json({ error: "Sem métricas para analisar" }, { status: 400 });
     }
 
-    // Monta o prompt com instruções detalhadas e estratégicas
+    // Monta o prompt com instruções detalhadas
     const prompt = `
 Você é um consultor de marketing digital especializado em análises avançadas e recomendações estratégicas.
 O usuário tem a seguinte visão: "${visao}"
 Missão: "${missao}"
 Objetivos: "${objetivos?.join(", ")}"
+Filtros (se houver): "${filtros?.join(", ")}"
 
 A seguir, temos as métricas do usuário (stats) em formato JSON:
 ${JSON.stringify(userStats)}
@@ -68,33 +73,34 @@ Cada item do array contém { rawData, stats, ... }. No "stats", podem existir m�
 Observação:
 - Não use métricas zeradas ou nulas.
 - Se houver 9 ou mais métricas avançadas disponíveis (>0), prefira elas a métricas básicas repetidas.
-    `;
+`;
 
-    // Configura OpenAI
+    // Configura OpenAI (use apenas 1 var de ambiente)
     const configuration = new Configuration({
-      apiKey: process.env.OPENAIAI_API_KEY || process.env.OPENAI_API_KEY,
+      apiKey: process.env.OPENAI_API_KEY,
     });
     const openai = new OpenAIApi(configuration);
 
-    // Chama GPT
+    // Faz chamada ao ChatGPT
     const completion = await openai.createChatCompletion({
       model: "gpt-3.5-turbo",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.3,
+      max_tokens: 1500,
     });
 
     const responseText = completion.data.choices[0]?.message?.content || "";
 
-    // Tenta parsear JSON
+    // Tenta parsear como JSON
     let parsed: unknown;
     try {
       parsed = JSON.parse(responseText);
     } catch {
-      // Se não vier JSON válido, devolve como texto cru
+      // Se não for JSON válido, retorna como texto cru
       parsed = { rawText: responseText };
     }
 
-    // Se parsed tiver "cards" como array, filtramos as métricas com value=0
+    // Se parsed tiver "cards" como array, podemos filtrar as métricas com value=0
     if (
       parsed &&
       typeof parsed === "object" &&
@@ -105,12 +111,15 @@ Observação:
       parsedObj.cards = parsedObj.cards.filter((card: unknown) => {
         if (!card || typeof card !== "object") return false;
         const c = card as { value?: number };
+        // Exclui se value===0 (ou se for "0" string, dependendo do caso)
         if (c.value === 0) return false;
         return true;
       });
     }
 
+    // Retorna o objeto final
     return NextResponse.json({ result: parsed }, { status: 200 });
+
   } catch (err: unknown) {
     console.error("POST /api/ai/dynamicCards error:", err);
 
