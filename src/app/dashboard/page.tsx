@@ -45,7 +45,7 @@ interface ExtendedUser {
   email?: string | null;
   image?: string | null;
   planStatus?: string;            // Propriedade extra
-  affiliateCode?: string | null;  // Outras propriedades extras
+  affiliateCode?: string | null;  // Ajustado para aceitar null
   affiliateBalance?: number;
   affiliateRank?: number;
   affiliateInvites?: number;
