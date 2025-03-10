@@ -25,10 +25,6 @@ interface UserWithId {
   image?: string | null;
 }
 
-interface DashboardProps {
-  indicators: DynamicCard[];
-}
-
 const DashboardPage: React.FC = () => {
   const { data: session } = useSession();
   const { loading, setCustomData, setLoading } = useDashboard();
