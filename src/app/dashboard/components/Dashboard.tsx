@@ -8,7 +8,7 @@ import InstagramProfile from "./InstagramProfile";
 import CourseVideos from "../curso/CourseVideos";
 import TagInput from "./TagInput";
 import SingleTagInput from "./SingleTagInput";
-import Dashboard from "./Dashboard"; // Agora o Dashboard tem props definidas
+import Dashboard from "./Dashboard";  // <-- Agora o Dashboard tem props definidas
 import ChatPanel from "../ChatPanel";
 
 /**
@@ -26,11 +26,11 @@ interface DynamicCard {
  * que você adicionou nos callbacks do NextAuth.
  */
 interface UserWithId {
-  id?: string;  
+  id?: string;
   name?: string | null;
   email?: string | null;
   image?: string | null;
-  // Se tiver mais propriedades, inclua aqui
+  // Se você tiver mais propriedades, inclua aqui
 }
 
 const DashboardPage: React.FC = () => {
@@ -177,7 +177,7 @@ const DashboardPage: React.FC = () => {
             </label>
             <TagInput
               tags={objetivos}
-              setTags={setObjetivos}
+              setTags={setObjetivos} // <--- OK, pois TagInputProps define setTags: (tags: Tag[]) => void;
               placeholder="Digite um objetivo e pressione Enter"
               variant="bg-blue-100 text-blue-800 border-blue-100"
             />
@@ -190,7 +190,7 @@ const DashboardPage: React.FC = () => {
             </label>
             <TagInput
               tags={filtros}
-              setTags={setFiltros}
+              setTags={setFiltros} // <--- OK
               placeholder="Digite um filtro e pressione Enter"
               variant="bg-blue-100 text-blue-800 border-blue-100"
             />
@@ -210,7 +210,6 @@ const DashboardPage: React.FC = () => {
           {loading ? (
             <p className="text-center text-base">Carregando análise personalizada...</p>
           ) : personalizedIndicators && personalizedIndicators.length > 0 ? (
-            // Passamos a prop "indicators" para o componente Dashboard
             <Dashboard indicators={personalizedIndicators} />
           ) : (
             <p className="text-center text-base">Nenhuma análise personalizada disponível.</p>
