@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import MinimalEditableText from "./MinimalEditableText";
 import TagInput from "./TagInput";
 import { useDashboard } from "./DashboardContext";
@@ -27,13 +28,29 @@ interface AIResponse {
   };
 }
 
+/**
+ * Interface local para "session.user" com a propriedade "id"
+ * (definida nos callbacks do NextAuth).
+ */
+interface UserWithId {
+  id?: string;
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+  // Se você tiver mais campos, inclua aqui
+}
+
 const StrategicPanel: React.FC = () => {
   const { data: session } = useSession();
+  const router = useRouter();
   const { setLoading, setCustomData } = useDashboard();
 
+  // Campos editáveis e tags
   const [visao, setVisao] = useState("Digite sua visão...");
   const [missao, setMissao] = useState("Digite sua missão...");
   const [objetivos, setObjetivos] = useState<string[]>([]);
+
+  // Mensagens de erro ou feedback
   const [errorMessage, setErrorMessage] = useState("");
 
   async function handleGenerateAnalysis() {
@@ -41,16 +58,18 @@ const StrategicPanel: React.FC = () => {
     setErrorMessage("");
 
     try {
-      if (!session?.user?.id) {
-        console.log("[StrategicPanel] Usuário não logado");
-        setErrorMessage("Usuário não logado.");
+      // Faz cast de session.user para "UserWithId"
+      const user = session?.user as UserWithId | undefined;
+      if (!user?.id) {
+        console.log("[StrategicPanel] Usuário não logado ou sem 'id'");
+        setErrorMessage("Usuário não logado ou sem ID.");
         setLoading(false);
         return;
       }
 
-      // 1) Buscar métricas (snapshot)
+      // 1) Buscar métricas (snapshot) em /api/metrics
       console.log("[StrategicPanel] Chamando /api/metrics...");
-      const resMetrics = await fetch(`/api/metrics?userId=${session.user.id}`);
+      const resMetrics = await fetch(`/api/metrics?userId=${user.id}`);
       if (!resMetrics.ok) {
         throw new Error("Falha ao obter métricas do usuário");
       }
@@ -66,7 +85,7 @@ const StrategicPanel: React.FC = () => {
       // 2) Buscar histórico agregado (por dia) em /api/metricsHistory
       console.log("[StrategicPanel] Chamando /api/metricsHistory...");
       const resHistory = await fetch(
-        `/api/metricsHistory?userId=${session.user.id}&days=360`
+        `/api/metricsHistory?userId=${user.id}&days=360`
       );
       if (!resHistory.ok) {
         throw new Error("Falha ao obter histórico de métricas (metricsHistory).");
@@ -74,7 +93,7 @@ const StrategicPanel: React.FC = () => {
       const dataHistory = await resHistory.json();
       console.log("[StrategicPanel] /api/metricsHistory response:", dataHistory);
 
-      // dataHistory.chartData deve ser algo como { labels: [...], datasets: [...] }
+      // dailyChartData pode ser algo como { labels: [...], datasets: [...] }
       const dailyChartData = dataHistory.chartData || null;
 
       // 3) Monta payload para IA
@@ -107,7 +126,7 @@ const StrategicPanel: React.FC = () => {
         const finalCards = dataAI.result.cards.map((card) => {
           return {
             ...card,
-            chartData: dailyChartData,
+            chartData: dailyChartData, // anexa o histórico
           };
         });
 
@@ -131,6 +150,7 @@ const StrategicPanel: React.FC = () => {
 
       {errorMessage && <p className="text-red-500 text-sm">{errorMessage}</p>}
 
+      {/* Campos de Visão e Missão */}
       <div className="flex flex-wrap gap-4">
         <div className="flex-1">
           <div className="bg-gray-50 border border-gray-200 rounded-md px-3 py-2">
@@ -154,6 +174,7 @@ const StrategicPanel: React.FC = () => {
         </div>
       </div>
 
+      {/* Objetivos (TagInput) */}
       <div>
         <div className="bg-gray-50 border border-gray-200 rounded-md p-2">
           <TagInput
@@ -165,6 +186,7 @@ const StrategicPanel: React.FC = () => {
         </div>
       </div>
 
+      {/* Botão de Ação */}
       <div className="flex justify-end">
         <button
           onClick={handleGenerateAnalysis}
