@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+// Removido: import { useRouter } from "next/navigation";
 import MinimalEditableText from "./MinimalEditableText";
 import TagInput from "./TagInput";
 import { useDashboard } from "./DashboardContext";
@@ -42,7 +42,6 @@ interface UserWithId {
 
 const StrategicPanel: React.FC = () => {
   const { data: session } = useSession();
-  const router = useRouter();
   const { setLoading, setCustomData } = useDashboard();
 
   // Campos editáveis e tags
@@ -84,9 +83,7 @@ const StrategicPanel: React.FC = () => {
 
       // 2) Buscar histórico agregado (por dia) em /api/metricsHistory
       console.log("[StrategicPanel] Chamando /api/metricsHistory...");
-      const resHistory = await fetch(
-        `/api/metricsHistory?userId=${user.id}&days=360`
-      );
+      const resHistory = await fetch(`/api/metricsHistory?userId=${user.id}&days=360`);
       if (!resHistory.ok) {
         throw new Error("Falha ao obter histórico de métricas (metricsHistory).");
       }
