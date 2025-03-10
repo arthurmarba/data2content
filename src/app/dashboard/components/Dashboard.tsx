@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react"; // Removemos useEffect, useCallback, memo, pois não são usados
+import React, { useState } from "react";
 import { useSession } from "next-auth/react";
 import { useDashboard } from "./DashboardContext";
 
@@ -11,9 +11,6 @@ import SingleTagInput from "./SingleTagInput";
 import Dashboard from "./Dashboard";
 import ChatPanel from "../ChatPanel";
 
-/**
- * Interface para cada "card" retornado pela IA em /api/ai/dynamicCards
- */
 interface DynamicCard {
   metricKey?: string;
   title?: string;
@@ -21,23 +18,21 @@ interface DynamicCard {
   description?: string;
 }
 
-/**
- * Interface local para "session.user" com a propriedade "id"
- * que você adicionou nos callbacks do NextAuth.
- */
 interface UserWithId {
-  id?: string; // A propriedade "id" que precisamos
+  id?: string;
   name?: string | null;
   email?: string | null;
   image?: string | null;
-  // Se tiver mais propriedades, inclua aqui
+}
+
+interface DashboardProps {
+  indicators: DynamicCard[];
 }
 
 const DashboardPage: React.FC = () => {
   const { data: session } = useSession();
   const { loading, setCustomData, setLoading } = useDashboard();
 
-  // Estados para inputs estratégicos
   const [visao, setVisao] = useState("Ser o maior influenciador de humor do Brasil");
   const [missao, setMissao] = useState("Fazer as pessoas darem risada todos os dias");
   const [objetivos, setObjetivos] = useState<string[]>([
@@ -50,23 +45,17 @@ const DashboardPage: React.FC = () => {
     "Períodos: 7 e 30 dias",
   ]);
 
-  // Mensagens de feedback
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
-  // Indicadores retornados pela IA (cards)
   const [personalizedIndicators, setPersonalizedIndicators] = useState<DynamicCard[]>([]);
 
-  /**
-   * Função para buscar métricas do usuário e chamar IA (rota /api/ai/dynamicCards).
-   */
   const fetchPersonalizedData = async () => {
     setLoading(true);
     setSuccessMessage("");
     setErrorMessage("");
 
     try {
-      // Faz cast de session.user para a interface UserWithId
       const user = session?.user as UserWithId | undefined;
       if (!user?.id) {
         setErrorMessage("Usuário não logado ou sem ID.");
@@ -74,7 +63,6 @@ const DashboardPage: React.FC = () => {
         return;
       }
 
-      // 1) Busca métricas do usuário em /api/metrics
       const resMetrics = await fetch(`/api/metrics?userId=${user.id}`);
       if (!resMetrics.ok) {
         throw new Error("Falha ao obter métricas do usuário");
@@ -87,16 +75,14 @@ const DashboardPage: React.FC = () => {
         return;
       }
 
-      // 2) Monta payload para IA (rota /api/ai/dynamicCards)
       const payload = {
-        userStats: dataMetrics.metrics, // array de Metric
+        userStats: dataMetrics.metrics,
         visao,
         missao,
         objetivos,
         filtros,
       };
 
-      // 3) Chama /api/ai/dynamicCards
       const resAI = await fetch("/api/ai/dynamicCards", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -108,10 +94,8 @@ const DashboardPage: React.FC = () => {
 
       const dataAI = await resAI.json();
 
-      // 4) Verifica se vieram cards
       if (dataAI.result?.cards) {
         setPersonalizedIndicators(dataAI.result.cards);
-        // Armazena no DashboardContext (para exibir em outro local, se quiser)
         setCustomData({ indicators: dataAI.result.cards });
 
         setSuccessMessage("Planejamento gerado com sucesso!");
@@ -128,9 +112,7 @@ const DashboardPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white text-gray-900 p-8 flex">
-      {/* Área principal (conteúdo e rolagem) */}
       <div className="flex-1 pr-4 overflow-y-auto">
-        {/* Perfil do usuário */}
         <InstagramProfile
           image="/default-profile.png"
           name="Demo User"
@@ -140,11 +122,9 @@ const DashboardPage: React.FC = () => {
 
         <div className="mt-8" />
 
-        {/* Card de Planejamento Estratégico */}
         <div className="mb-6 px-4 py-4 border rounded shadow bg-white">
           <h2 className="text-lg font-bold text-gray-800 mb-4">Planejamento Estratégico</h2>
 
-          {/* Mensagens de sucesso/erro */}
           {successMessage && (
             <p className="text-green-600 text-sm mb-2">{successMessage}</p>
           )}
@@ -152,7 +132,6 @@ const DashboardPage: React.FC = () => {
             <p className="text-red-600 text-sm mb-2">{errorMessage}</p>
           )}
 
-          {/* Inputs de Visão, Missão */}
           <div className="flex flex-wrap gap-2 mb-4">
             <SingleTagInput
               label="Visão"
@@ -170,7 +149,6 @@ const DashboardPage: React.FC = () => {
             />
           </div>
 
-          {/* Objetivos */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Objetivos/Desafios
@@ -183,7 +161,6 @@ const DashboardPage: React.FC = () => {
             />
           </div>
 
-          {/* Filtros */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Filtros
@@ -196,7 +173,6 @@ const DashboardPage: React.FC = () => {
             />
           </div>
 
-          {/* Botão para gerar Planejamento (IA) */}
           <button
             onClick={fetchPersonalizedData}
             className="w-full px-4 py-2 bg-blue-500 text-white rounded shadow-lg hover:bg-blue-600 transition-all duration-200 text-base"
@@ -205,7 +181,6 @@ const DashboardPage: React.FC = () => {
           </button>
         </div>
 
-        {/* Seção dos Indicadores/Gráficos */}
         <div className="mb-6">
           {loading ? (
             <p className="text-center text-base">Carregando análise personalizada...</p>
@@ -216,13 +191,11 @@ const DashboardPage: React.FC = () => {
           )}
         </div>
 
-        {/* Outras seções (Ex.: Curso) */}
         <div className="mb-6">
           <CourseVideos />
         </div>
       </div>
 
-      {/* Chat fixo lateral */}
       <div className="w-full md:w-1/4">
         <ChatPanel />
       </div>
