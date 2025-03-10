@@ -8,7 +8,7 @@ import InstagramProfile from "./InstagramProfile";
 import CourseVideos from "../curso/CourseVideos";
 import TagInput from "./TagInput";
 import SingleTagInput from "./SingleTagInput";
-import Dashboard from "./Dashboard";  // <-- Componente agora aceita a prop indicators
+import DashboardComponent from "./Dashboard"; // <-- renomeado para evitar conflito
 import ChatPanel from "../ChatPanel";
 
 /**
@@ -200,7 +200,7 @@ const DashboardPage: React.FC = () => {
           {loading ? (
             <p className="text-center text-base">Carregando análise personalizada...</p>
           ) : personalizedIndicators && personalizedIndicators.length > 0 ? (
-            <Dashboard indicators={personalizedIndicators} />
+            <DashboardComponent indicators={personalizedIndicators} />
           ) : (
             <p className="text-center text-base">Nenhuma análise personalizada disponível.</p>
           )}
