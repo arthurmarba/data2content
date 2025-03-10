@@ -35,20 +35,20 @@ interface Redemption {
   status: string;
 }
 
-/** 
+/**
  * Interface para `session.user` com campos adicionais
  * que você definiu nos callbacks do NextAuth.
  */
 interface ExtendedUser {
+  id?: string;                    // <--- Adicionamos a propriedade "id" aqui
   name?: string | null;
   email?: string | null;
   image?: string | null;
-  planStatus?: string;           // <--- Propriedade extra
-  affiliateCode?: string | null; // <--- Outras propriedades extras
+  planStatus?: string;            // Propriedade extra
+  affiliateCode?: string | null;  // Outras propriedades extras
   affiliateBalance?: number;
   affiliateRank?: number;
   affiliateInvites?: number;
-  // [key: string]: any; // Se quiser permitir quaisquer outros campos
 }
 
 /** ===================
@@ -356,21 +356,6 @@ const Testimonial = memo(({ message }: { message: string }) => {
 });
 Testimonial.displayName = "Testimonial";
 
-/**
- * Interface para "session.user" com as propriedades extras
- * que você definiu nos callbacks do NextAuth (planStatus, etc.)
- */
-interface ExtendedUser {
-  name?: string | null;
-  email?: string | null;
-  image?: string | null;
-  planStatus?: string;           // Propriedade extra
-  affiliateCode?: string | null; // Outras propriedades
-  affiliateBalance?: number;
-  affiliateRank?: number;
-  affiliateInvites?: number;
-}
-
 /** =================== */
 /** DASHBOARD PRINCIPAL */
 /** =================== */
@@ -409,10 +394,15 @@ export default function MainDashboard() {
 
   // Faz cast do user para ExtendedUser
   const user = session.user as ExtendedUser;
+
+  // Se "id" não existir em "user", definimos como string vazia
+  const userId = user.id || "";
+
+  // Plano
   const planStatus = user.planStatus || "inactive";
   const canAccessFeatures = planStatus === "active";
 
-  // Anel de status em volta da foto
+  // Cor do anel de status
   function getStatusRingColor() {
     if (planStatus === "active") return "ring-green-500";
     if (planStatus === "pending") return "ring-yellow-500";
@@ -430,14 +420,14 @@ export default function MainDashboard() {
     return <FaTimesCircle className="text-red-600 w-4 h-4" />;
   }
 
-  // Resgatar saldo de afiliado (rápido)
+  // Resgatar saldo de afiliado
   async function handleRedeemBalance() {
     try {
       setRedeemMessage("Processando resgate...");
       const res = await fetch("/api/affiliate/redeem", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.id }), // Precisamos do id do user
+        body: JSON.stringify({ userId }), // Passa o userId (string)
       });
       const data = await res.json();
 
@@ -476,7 +466,7 @@ export default function MainDashboard() {
       <PaymentModal
         isOpen={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}
-        userId={user.id || ""}
+        userId={userId}
       />
 
       <div className="min-h-screen bg-animated-gradient font-poppins pt-16 pb-8 px-4">
@@ -578,7 +568,9 @@ export default function MainDashboard() {
               </div>
             </div>
 
+            {/* Feedback de resgate (Testimonial) */}
             <Testimonial message={redeemMessage} />
+
             <button
               onClick={handleRedeemBalance}
               className={`
@@ -605,14 +597,17 @@ export default function MainDashboard() {
             </section>
           )}
 
+          {/* Upload de Métricas */}
           <section className="mb-6">
-            <UploadMetrics canAccessFeatures={canAccessFeatures} userId={user.id || ""} />
+            <UploadMetrics canAccessFeatures={canAccessFeatures} userId={userId} />
           </section>
 
+          {/* Card dedicado ao WhatsApp */}
           <section className="mb-6">
-            <WhatsAppPanel userId={user.id || ""} canAccessFeatures={canAccessFeatures} />
+            <WhatsAppPanel userId={userId} canAccessFeatures={canAccessFeatures} />
           </section>
 
+          {/* Chat IA (exclusivo para assinantes) */}
           <section>
             {canAccessFeatures ? (
               <div className="border border-gray-200 rounded-md shadow-sm bg-white p-4">
