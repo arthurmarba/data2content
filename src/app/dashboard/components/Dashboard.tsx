@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState } from "react"; // Removemos useEffect, useCallback, memo, pois não são usados
 import { useSession } from "next-auth/react";
 import { useDashboard } from "./DashboardContext";
 
@@ -26,11 +26,11 @@ interface DynamicCard {
  * que você adicionou nos callbacks do NextAuth.
  */
 interface UserWithId {
-  id?: string;
+  id?: string; // A propriedade "id" que precisamos
   name?: string | null;
   email?: string | null;
   image?: string | null;
-  // Se você tiver mais propriedades, inclua aqui
+  // Se tiver mais propriedades, inclua aqui
 }
 
 const DashboardPage: React.FC = () => {
