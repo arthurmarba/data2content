@@ -4,7 +4,7 @@ import React, {
   useState,
   memo,
   useCallback,
-  useEffect, // Import necessário para fetchPaymentInfo/fetchRedemptions
+  useEffect,
 } from "react";
 import Image from "next/image";
 import { useSession, signIn } from "next-auth/react";
@@ -33,6 +33,22 @@ interface Redemption {
   createdAt: string;
   amount: number;
   status: string;
+}
+
+/** 
+ * Interface para `session.user` com campos adicionais
+ * que você definiu nos callbacks do NextAuth.
+ */
+interface ExtendedUser {
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+  planStatus?: string;           // <--- Propriedade extra
+  affiliateCode?: string | null; // <--- Outras propriedades extras
+  affiliateBalance?: number;
+  affiliateRank?: number;
+  affiliateInvites?: number;
+  // [key: string]: any; // Se quiser permitir quaisquer outros campos
 }
 
 /** ===================
@@ -340,6 +356,21 @@ const Testimonial = memo(({ message }: { message: string }) => {
 });
 Testimonial.displayName = "Testimonial";
 
+/**
+ * Interface para "session.user" com as propriedades extras
+ * que você definiu nos callbacks do NextAuth (planStatus, etc.)
+ */
+interface ExtendedUser {
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+  planStatus?: string;           // Propriedade extra
+  affiliateCode?: string | null; // Outras propriedades
+  affiliateBalance?: number;
+  affiliateRank?: number;
+  affiliateInvites?: number;
+}
+
 /** =================== */
 /** DASHBOARD PRINCIPAL */
 /** =================== */
@@ -376,8 +407,9 @@ export default function MainDashboard() {
     );
   }
 
-  // Dados do plano
-  const planStatus = session.user.planStatus || "inactive";
+  // Faz cast do user para ExtendedUser
+  const user = session.user as ExtendedUser;
+  const planStatus = user.planStatus || "inactive";
   const canAccessFeatures = planStatus === "active";
 
   // Anel de status em volta da foto
@@ -405,13 +437,13 @@ export default function MainDashboard() {
       const res = await fetch("/api/affiliate/redeem", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: session.user.id }),
+        body: JSON.stringify({ userId: user.id }), // Precisamos do id do user
       });
       const data = await res.json();
 
       if (data.message && !data.error) {
         setRedeemMessage("Saldo resgatado com sucesso!");
-        router.refresh();
+        router.refresh(); // Força atualização da session e recarrega
       } else {
         setRedeemMessage(`Erro: ${data.error || "Falha ao resgatar saldo."}`);
       }
@@ -423,15 +455,15 @@ export default function MainDashboard() {
 
   // Copiar cupom de afiliado
   function copyAffiliateCode() {
-    if (!session.user.affiliateCode) return;
-    navigator.clipboard.writeText(session.user.affiliateCode).then(() => {
+    if (!user.affiliateCode) return;
+    navigator.clipboard.writeText(user.affiliateCode).then(() => {
       alert("Cupom copiado para a área de transferência!");
     });
   }
 
   // Gamificação
-  const userRank = session.user.affiliateRank || 1;
-  const userInvites = session.user.affiliateInvites || 0;
+  const userRank = user.affiliateRank || 1;
+  const userInvites = user.affiliateInvites || 0;
   const invitesNeeded = Math.max(5 - userInvites, 0);
   const progressPercent = Math.min((userInvites / 5) * 100, 100);
 
@@ -444,7 +476,7 @@ export default function MainDashboard() {
       <PaymentModal
         isOpen={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}
-        userId={session.user.id}
+        userId={user.id || ""}
       />
 
       <div className="min-h-screen bg-animated-gradient font-poppins pt-16 pb-8 px-4">
@@ -454,13 +486,13 @@ export default function MainDashboard() {
 
           {/* Topo: Foto, Nome e Status */}
           <div className="flex items-center gap-4 mb-10">
-            {session.user.image && (
+            {user.image && (
               <div
                 className={`rounded-full border-2 border-white shadow-md flex-shrink-0 ring-4 ${getStatusRingColor()} hover:scale-105 transition-transform animate-pulse`}
               >
                 <Image
-                  src={session.user.image}
-                  alt={session.user.name || "Usuário"}
+                  src={user.image}
+                  alt={user.name || "Usuário"}
                   width={80}
                   height={80}
                   className="rounded-full object-cover w-20 h-20"
@@ -469,7 +501,7 @@ export default function MainDashboard() {
             )}
             <div>
               <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-gray-800 hover:underline cursor-pointer">
-                {session.user.name || "Usuário"}
+                {user.name || "Usuário"}
               </h1>
               <div className="flex items-center gap-1 mt-1">
                 {getStatusIcon()}
@@ -521,8 +553,8 @@ export default function MainDashboard() {
                 <FaGift className="text-pink-400 w-4 h-4" />
                 <span className="font-medium text-gray-700">Cupom:</span>
                 <div className="flex items-center gap-2 px-2 py-1 rounded-full border border-pink-200 bg-gradient-to-r from-pink-50 to-pink-100 text-pink-700 shadow-sm hover:shadow transition">
-                  <span>{session.user.affiliateCode || "N/A"}</span>
-                  {session.user.affiliateCode && (
+                  <span>{user.affiliateCode || "N/A"}</span>
+                  {user.affiliateCode && (
                     <button
                       onClick={copyAffiliateCode}
                       className="hover:text-pink-900 transition"
@@ -540,7 +572,7 @@ export default function MainDashboard() {
                 <span className="font-medium text-gray-700">Saldo:</span>
                 <div className="flex items-center gap-1 px-2 py-1 rounded-full border border-green-200 bg-gradient-to-r from-green-50 to-green-100 text-green-700 shadow-sm hover:shadow transition">
                   <span className="font-semibold">
-                    R${session.user.affiliateBalance?.toFixed(2) || "0.00"}
+                    R${user.affiliateBalance?.toFixed(2) || "0.00"}
                   </span>
                 </div>
               </div>
@@ -569,16 +601,16 @@ export default function MainDashboard() {
           {/* Se não for assinante, exibe PaymentPanel; se for assinante, oculta */}
           {!canAccessFeatures && (
             <section className="mb-6">
-              <PaymentPanel user={session.user} />
+              <PaymentPanel user={user} />
             </section>
           )}
 
           <section className="mb-6">
-            <UploadMetrics canAccessFeatures={canAccessFeatures} userId={session.user.id} />
+            <UploadMetrics canAccessFeatures={canAccessFeatures} userId={user.id || ""} />
           </section>
 
           <section className="mb-6">
-            <WhatsAppPanel userId={session.user.id} canAccessFeatures={canAccessFeatures} />
+            <WhatsAppPanel userId={user.id || ""} canAccessFeatures={canAccessFeatures} />
           </section>
 
           <section>
