@@ -40,12 +40,12 @@ interface Redemption {
  * que você definiu nos callbacks do NextAuth.
  */
 interface ExtendedUser {
-  id?: string;                    // <--- Adicionamos a propriedade "id" aqui
+  id?: string;                   // Adicionamos a propriedade "id"
   name?: string | null;
   email?: string | null;
   image?: string | null;
-  planStatus?: string;            // Propriedade extra
-  affiliateCode?: string | null;  // Ajustado para aceitar null
+  planStatus?: string;           // Propriedade extra
+  affiliateCode?: string | null; // Ajustado para aceitar null
   affiliateBalance?: number;
   affiliateRank?: number;
   affiliateInvites?: number;
@@ -445,8 +445,10 @@ export default function MainDashboard() {
 
   // Copiar cupom de afiliado
   function copyAffiliateCode() {
-    if (!user.affiliateCode) return;
-    navigator.clipboard.writeText(user.affiliateCode).then(() => {
+    // Se `affiliateCode` for null, converta para string vazia
+    const code = user.affiliateCode ?? "";
+    if (!code) return;
+    navigator.clipboard.writeText(code).then(() => {
       alert("Cupom copiado para a área de transferência!");
     });
   }
@@ -543,7 +545,7 @@ export default function MainDashboard() {
                 <FaGift className="text-pink-400 w-4 h-4" />
                 <span className="font-medium text-gray-700">Cupom:</span>
                 <div className="flex items-center gap-2 px-2 py-1 rounded-full border border-pink-200 bg-gradient-to-r from-pink-50 to-pink-100 text-pink-700 shadow-sm hover:shadow transition">
-                  <span>{user.affiliateCode || "N/A"}</span>
+                  <span>{user.affiliateCode ?? "N/A"}</span>
                   {user.affiliateCode && (
                     <button
                       onClick={copyAffiliateCode}
@@ -593,7 +595,18 @@ export default function MainDashboard() {
           {/* Se não for assinante, exibe PaymentPanel; se for assinante, oculta */}
           {!canAccessFeatures && (
             <section className="mb-6">
-              <PaymentPanel user={user} />
+              {/* 
+                Aqui passamos apenas as props que o PaymentPanel espera,
+                convertendo null para "" quando necessário.
+              */}
+              <PaymentPanel
+                user={{
+                  planStatus: user.planStatus,
+                  planExpiresAt: null, // se o PaymentPanel precisar
+                  affiliateBalance: user.affiliateBalance ?? 0,
+                  affiliateCode: user.affiliateCode ?? "",
+                }}
+              />
             </section>
           )}
 
