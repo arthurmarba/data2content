@@ -26,7 +26,7 @@ interface DynamicCard {
  * que você adicionou nos callbacks do NextAuth.
  */
 interface UserWithId {
-  id?: string;
+  id?: string;            // <- a propriedade "id" que precisamos
   name?: string | null;
   email?: string | null;
   image?: string | null;
@@ -71,7 +71,7 @@ const DashboardPage: React.FC = () => {
         return;
       }
 
-      // 2) Busca métricas do usuário em /api/metrics
+      // 1) Busca métricas do usuário em /api/metrics
       const resMetrics = await fetch(`/api/metrics?userId=${user.id}`);
       if (!resMetrics.ok) {
         throw new Error("Falha ao obter métricas do usuário");
@@ -84,7 +84,7 @@ const DashboardPage: React.FC = () => {
         return;
       }
 
-      // 3) Monta payload para IA (rota /api/ai/dynamicCards)
+      // 2) Monta payload para IA (rota /api/ai/dynamicCards)
       const payload = {
         userStats: dataMetrics.metrics, // array de Metric
         visao,
@@ -93,7 +93,7 @@ const DashboardPage: React.FC = () => {
         filtros,
       };
 
-      // 4) Chama /api/ai/dynamicCards
+      // 3) Chama /api/ai/dynamicCards
       const resAI = await fetch("/api/ai/dynamicCards", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -105,7 +105,7 @@ const DashboardPage: React.FC = () => {
 
       const dataAI = await resAI.json();
 
-      // 5) Verifica se vieram cards
+      // 4) Verifica se vieram cards
       if (dataAI.result?.cards) {
         setPersonalizedIndicators(dataAI.result.cards);
         // Armazena no DashboardContext (para o MegaCard -> IndicatorsGrid)
