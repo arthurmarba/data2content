@@ -8,7 +8,7 @@ import InstagramProfile from "./InstagramProfile";
 import CourseVideos from "../curso/CourseVideos";
 import TagInput from "./TagInput";
 import SingleTagInput from "./SingleTagInput";
-import Dashboard from "./Dashboard";  // <-- Agora o Dashboard tem props definidas
+import Dashboard from "./Dashboard";
 import ChatPanel from "../ChatPanel";
 
 /**
@@ -177,7 +177,7 @@ const DashboardPage: React.FC = () => {
             </label>
             <TagInput
               tags={objetivos}
-              setTags={setObjetivos} // <--- OK, pois TagInputProps define setTags: (tags: Tag[]) => void;
+              setTags={setObjetivos}
               placeholder="Digite um objetivo e pressione Enter"
               variant="bg-blue-100 text-blue-800 border-blue-100"
             />
@@ -190,7 +190,7 @@ const DashboardPage: React.FC = () => {
             </label>
             <TagInput
               tags={filtros}
-              setTags={setFiltros} // <--- OK
+              setTags={setFiltros}
               placeholder="Digite um filtro e pressione Enter"
               variant="bg-blue-100 text-blue-800 border-blue-100"
             />

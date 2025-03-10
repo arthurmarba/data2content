@@ -6,7 +6,7 @@ import React, {
   useCallback,
   memo,
 } from "react";
-import Image from "next/image"; // Agora realmente utilizaremos <Image> do Next
+import Image from "next/image";
 import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import {
@@ -25,294 +25,31 @@ import UploadMetrics from "./UploadMetrics";
 import ChatPanel from "./ChatPanel";
 import WhatsAppPanel from "./WhatsAppPanel";
 
-/** =================== */
-/** Interface para cada saque (resgate) */
-interface Redemption {
-  _id: string;
-  createdAt: string;
-  amount: number;
-  status: string;
-}
+/** =========================
+ *  INTERFACES / TIPAGENS
+ *  =========================
+ */
 
-/** =================== */
-/** MODAL PARA PAGAMENTOS E DADOS BANCÁRIOS */
-/** =================== */
-function PaymentModal({
-  isOpen,
-  onClose,
-  userId,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  userId: string;
-}) {
-  if (!isOpen) return null;
+/**
+ * Se você tiver campos extras em session.user,
+ * crie uma interface ExtendedUser com esses campos.
+ * Exemplo abaixo:
+ */
+// interface ExtendedUser {
+//   id: string;
+//   planStatus?: string;
+//   planExpiresAt?: string | null;
+//   affiliateCode?: string | null;
+//   affiliateBalance?: number;
+//   affiliateRank?: number;
+//   affiliateInvites?: number;
+//   [key: string]: any; // se quiser permitir outros
+// }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl mx-4 relative">
-        <button
-          onClick={onClose}
-          className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
-        >
-          &times;
-        </button>
-        <div className="p-4 sm:p-6">
-          <h2 className="text-xl font-bold mb-4">Gerenciar Pagamentos</h2>
-          <PaymentSettings userId={userId} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/** =================== */
-/** FORM + LISTA DE SAQUES */
-/** =================== */
-function PaymentSettings({ userId }: { userId: string }) {
-  const router = useRouter(); // Para router.refresh()
-
-  // Campos do formulário de pagamento
-  const [pixKey, setPixKey] = useState("");
-  const [bankName, setBankName] = useState("");
-  const [bankAgency, setBankAgency] = useState("");
-  const [bankAccount, setBankAccount] = useState("");
-
-  const [message, setMessage] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  // Mensagem de retorno de resgate
-  const [redeemMessage, setRedeemMessage] = useState("");
-
-  // Histórico de saques
-  const [redemptions, setRedemptions] = useState<Redemption[]>([]);
-  const [loadingRedemptions, setLoadingRedemptions] = useState(false);
-
-  /**
-   * Busca dados de pagamento (Pix, conta, etc.).
-   * UseCallback para estabilizar referência e evitar warn do react-hooks/exhaustive-deps.
-   */
-  const fetchPaymentInfo = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/affiliate/paymentinfo?userId=${userId}`);
-      const data = await res.json();
-      if (!data.error) {
-        setPixKey(data.pixKey || "");
-        setBankName(data.bankName || "");
-        setBankAgency(data.bankAgency || "");
-        setBankAccount(data.bankAccount || "");
-      }
-    } catch (error) {
-      console.error("Erro ao buscar paymentInfo:", error);
-    }
-  }, [userId]);
-
-  /**
-   * Busca histórico de saques (redeems).
-   */
-  const fetchRedemptions = useCallback(async () => {
-    setLoadingRedemptions(true);
-    try {
-      const res = await fetch(`/api/affiliate/redeem?userId=${userId}`);
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        setRedemptions(data);
-      }
-    } catch (error) {
-      console.error("Erro ao buscar redemptions:", error);
-    } finally {
-      setLoadingRedemptions(false);
-    }
-  }, [userId]);
-
-  /**
-   * useEffect que chama as duas funções após montar ou quando userId mudar.
-   */
-  useEffect(() => {
-    if (!userId) return;
-    void fetchPaymentInfo();
-    void fetchRedemptions();
-  }, [userId, fetchPaymentInfo, fetchRedemptions]);
-
-  // Salva dados de pagamento
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    setMessage("");
-    try {
-      const res = await fetch("/api/affiliate/paymentinfo", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          pixKey,
-          bankName,
-          bankAgency,
-          bankAccount,
-        }),
-      });
-      const data = await res.json();
-      if (data.error) {
-        setMessage(`Erro: ${data.error}`);
-      } else {
-        setMessage(data.message || "Dados salvos com sucesso!");
-        // Força atualização do session e re-fetch do user
-        router.refresh();
-      }
-    } catch (error) {
-      let errorMsg = "Ocorreu um erro.";
-      if (error instanceof Error) {
-        errorMsg = error.message;
-      }
-      setMessage(`Ocorreu um erro: ${errorMsg}`);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  // Resgatar saldo
-  async function handleRedeem() {
-    setRedeemMessage("Processando resgate...");
-    try {
-      const res = await fetch("/api/affiliate/redeem", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
-      });
-      const data = await res.json();
-      if (data.error) {
-        setRedeemMessage(`Erro: ${data.error}`);
-      } else {
-        setRedeemMessage(data.message || "Resgate solicitado com sucesso!");
-        // Atualiza a lista de saques e o saldo do usuário
-        void fetchRedemptions();
-        router.refresh();
-      }
-    } catch (error) {
-      let errorMsg = "Ocorreu um erro.";
-      if (error instanceof Error) {
-        errorMsg = error.message;
-      }
-      setRedeemMessage(`Ocorreu um erro: ${errorMsg}`);
-    }
-  }
-
-  // Verifica se todos os dados bancários estão vazios (para feedback)
-  const hasPaymentInfo = !!(pixKey || bankName || bankAgency || bankAccount);
-
-  return (
-    <div className="space-y-6">
-      {/* Form de dados bancários/Pix */}
-      <form onSubmit={handleSave} className="border border-gray-200 p-4 rounded">
-        <h3 className="text-sm font-semibold mb-3">Seus Dados de Pagamento</h3>
-
-        <label className="block mb-2 text-xs font-medium text-gray-700">
-          Chave Pix
-          <input
-            type="text"
-            value={pixKey}
-            onChange={(e) => setPixKey(e.target.value)}
-            className="mt-1 w-full border border-gray-300 rounded px-2 py-1 text-sm"
-          />
-        </label>
-
-        <label className="block mb-2 text-xs font-medium text-gray-700">
-          Banco
-          <input
-            type="text"
-            value={bankName}
-            onChange={(e) => setBankName(e.target.value)}
-            className="mt-1 w-full border border-gray-300 rounded px-2 py-1 text-sm"
-          />
-        </label>
-
-        <label className="block mb-2 text-xs font-medium text-gray-700">
-          Agência
-          <input
-            type="text"
-            value={bankAgency}
-            onChange={(e) => setBankAgency(e.target.value)}
-            className="mt-1 w-full border border-gray-300 rounded px-2 py-1 text-sm"
-          />
-        </label>
-
-        <label className="block mb-2 text-xs font-medium text-gray-700">
-          Conta
-          <input
-            type="text"
-            value={bankAccount}
-            onChange={(e) => setBankAccount(e.target.value)}
-            className="mt-1 w-full border border-gray-300 rounded px-2 py-1 text-sm"
-          />
-        </label>
-
-        {message && <p className="text-xs text-blue-600 mt-2">{message}</p>}
-
-        <button
-          type="submit"
-          disabled={saving}
-          className="mt-3 px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700"
-        >
-          {saving ? "Salvando..." : "Salvar Dados"}
-        </button>
-      </form>
-
-      {/* Resgatar saldo */}
-      <div>
-        {!hasPaymentInfo && (
-          <p className="text-xs text-red-500 mb-1">
-            É preciso preencher os dados bancários antes de solicitar o saque.
-          </p>
-        )}
-        <button
-          onClick={handleRedeem}
-          disabled={!hasPaymentInfo}
-          className={`px-3 py-1 text-xs rounded ${
-            hasPaymentInfo
-              ? "bg-green-600 text-white hover:bg-green-700"
-              : "bg-gray-300 text-gray-500 cursor-not-allowed"
-          }`}
-        >
-          Resgatar Saldo
-        </button>
-        {redeemMessage && (
-          <p className="text-xs text-blue-600 mt-2">{redeemMessage}</p>
-        )}
-      </div>
-
-      {/* Histórico de Saques */}
-      <div>
-        <h3 className="text-sm font-semibold mb-2">Histórico de Resgates</h3>
-        {loadingRedemptions ? (
-          <p className="text-xs text-gray-500">Carregando saques...</p>
-        ) : redemptions.length === 0 ? (
-          <p className="text-xs text-gray-500">Nenhum saque realizado ainda.</p>
-        ) : (
-          <table className="w-full text-xs border border-gray-200">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="px-2 py-1 text-left">Data</th>
-                <th className="px-2 py-1 text-left">Valor</th>
-                <th className="px-2 py-1 text-left">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {redemptions.map((r) => (
-                <tr key={r._id}>
-                  <td className="px-2 py-1">
-                    {new Date(r.createdAt).toLocaleString("pt-BR")}
-                  </td>
-                  <td className="px-2 py-1">R${r.amount.toFixed(2)}</td>
-                  <td className="px-2 py-1 capitalize">{r.status}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-    </div>
-  );
-}
+/** =========================
+ *  COMPONENTES AUXILIARES
+ *  =========================
+ */
 
 /** Popup simples para Upgrade */
 function UpgradePopup({ onClose }: { onClose: () => void }) {
@@ -348,16 +85,19 @@ const Testimonial = memo(({ message }: { message: string }) => {
 });
 Testimonial.displayName = "Testimonial";
 
-/** =================== */
-/** DASHBOARD PRINCIPAL */
-/** =================== */
+/** =========================
+ *  DASHBOARD PRINCIPAL
+ *  =========================
+ */
 export default function MainDashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [redeemMessage, setRedeemMessage] = useState("");
-  const [showUpgradePopup, setShowUpgradePopup] = useState(false);
 
-  // Modal de pagamento (dados bancários e histórico)
+  // Mensagem de feedback após resgate de saldo
+  const [redeemMessage, setRedeemMessage] = useState("");
+  // Popup de upgrade (caso tente acessar recurso bloqueado)
+  const [showUpgradePopup, setShowUpgradePopup] = useState(false);
+  // Modal de pagamento
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   // Enquanto carrega a sessão
@@ -384,18 +124,22 @@ export default function MainDashboard() {
     );
   }
 
-  // Dados do plano
+  /**
+   * Caso você tenha criado uma interface ExtendedUser, pode fazer:
+   * const user = session.user as ExtendedUser;
+   * e então acessar user.planStatus, user.affiliateCode etc.
+   */
   const planStatus = session.user.planStatus || "inactive";
   const canAccessFeatures = planStatus === "active";
 
-  // Anel de status em volta da foto
+  // Função para definir cor do anel em volta da foto
   function getStatusRingColor() {
     if (planStatus === "active") return "ring-green-500";
     if (planStatus === "pending") return "ring-yellow-500";
     return "ring-red-500";
   }
 
-  // Ícone de status
+  // Ícone de status do plano
   function getStatusIcon() {
     if (planStatus === "active") {
       return <FaCheckCircle className="text-green-600 w-4 h-4" />;
@@ -406,7 +150,7 @@ export default function MainDashboard() {
     return <FaTimesCircle className="text-red-600 w-4 h-4" />;
   }
 
-  // Resgatar saldo de afiliado (rápido)
+  // Resgate rápido de saldo
   async function handleRedeemBalance() {
     try {
       setRedeemMessage("Processando resgate...");
@@ -419,8 +163,7 @@ export default function MainDashboard() {
 
       if (data.message && !data.error) {
         setRedeemMessage("Saldo resgatado com sucesso!");
-        // Força revalidação da session e recarrega a página
-        router.refresh();
+        router.refresh(); // Recarrega a página ou revalida session
       } else {
         setRedeemMessage(`Erro: ${data.error || "Falha ao resgatar saldo."}`);
       }
@@ -446,11 +189,11 @@ export default function MainDashboard() {
 
   return (
     <>
-      {/* Popup se não for assinante e tentar usar algo bloqueado */}
+      {/* Popup de upgrade (caso tente usar recurso bloqueado) */}
       {showUpgradePopup && <UpgradePopup onClose={() => setShowUpgradePopup(false)} />}
 
       {/* Modal de pagamento */}
-      <PaymentModal
+      <PaymentPanel
         isOpen={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}
         userId={session.user.id}
@@ -467,7 +210,7 @@ export default function MainDashboard() {
               <div
                 className={`rounded-full border-2 border-white shadow-md flex-shrink-0 ring-4 ${getStatusRingColor()} hover:scale-105 transition-transform animate-pulse`}
               >
-                {/* Substituindo <img> por <Image> do Next.js */}
+                {/* Uso do <Image> do Next.js */}
                 <Image
                   src={session.user.image}
                   alt={session.user.name || "Usuário"}
