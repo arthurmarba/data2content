@@ -26,7 +26,7 @@ interface DynamicCard {
  * que você adicionou nos callbacks do NextAuth.
  */
 interface UserWithId {
-  id?: string;            // <- a propriedade "id" que precisamos
+  id?: string;  // <- a propriedade "id" que precisamos
   name?: string | null;
   email?: string | null;
   image?: string | null;

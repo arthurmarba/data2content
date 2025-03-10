@@ -3,11 +3,10 @@
 import React, { useState } from "react";
 
 /**
- * Podemos definir um tipo genérico para Tag.
- * Se você quiser apenas strings, use `type Tag = string;`
- * Se quiser aceitar qualquer estrutura, use `unknown`.
+ * Definimos o tipo da Tag como string.
+ * Se quiser aceitar qualquer estrutura, altere para `unknown`.
  */
-type Tag = unknown;
+type Tag = string;
 
 interface TagInputProps {
   tags: Tag[];
@@ -16,6 +15,14 @@ interface TagInputProps {
   variant?: string;
 }
 
+/**
+ * Componente TagInput:
+ * Permite adicionar/remover tags (strings) pressionando Enter.
+ * @param tags       Array de strings que representam as tags
+ * @param setTags    Função para atualizar o array de tags
+ * @param placeholder Texto de placeholder do input
+ * @param variant     Classes de estilo opcionais para personalizar a aparência das tags
+ */
 const TagInput: React.FC<TagInputProps> = ({
   tags,
   setTags,
@@ -25,18 +32,21 @@ const TagInput: React.FC<TagInputProps> = ({
   const [input, setInput] = useState("");
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Ao pressionar Enter, adiciona a tag (se não for vazia)
     if (e.key === "Enter" && input.trim() !== "") {
       e.preventDefault();
       const trimmed = input.trim();
 
-      // Checa se a tag já existe
+      // Checa se a tag já existe antes de inserir
       if (!tags.includes(trimmed)) {
         setTags([...tags, trimmed]);
       }
       setInput("");
-    } else if (e.key === "Backspace" && input === "" && tags.length > 0) {
+    }
+    // Ao pressionar Backspace com input vazio, remove a última tag
+    else if (e.key === "Backspace" && input === "" && tags.length > 0) {
       e.preventDefault();
-      const newTags = tags.slice(0, tags.length - 1);
+      const newTags = tags.slice(0, -1);
       setTags(newTags);
     }
   };
@@ -47,26 +57,20 @@ const TagInput: React.FC<TagInputProps> = ({
 
   return (
     <div className="flex flex-wrap gap-2 p-2 border border-gray-300 rounded-md shadow-sm bg-white">
-      {tags.map((tag, index) => {
-        // Se o tag for string, exibe diretamente; senão faz JSON.stringify
-        const tagLabel =
-          typeof tag === "string" ? tag : JSON.stringify(tag);
-
-        return (
-          <div
-            key={index}
-            className={`flex items-center ${variant} px-3 py-1 rounded-full text-sm`}
+      {tags.map((tag, index) => (
+        <div
+          key={index}
+          className={`flex items-center ${variant} px-3 py-1 rounded-full text-sm`}
+        >
+          <span>{tag}</span>
+          <button
+            onClick={() => removeTag(index)}
+            className="ml-1 focus:outline-none"
           >
-            <span>{tagLabel}</span>
-            <button
-              onClick={() => removeTag(index)}
-              className="ml-1 focus:outline-none"
-            >
-              ×
-            </button>
-          </div>
-        );
-      })}
+            ×
+          </button>
+        </div>
+      ))}
       <input
         type="text"
         value={input}
