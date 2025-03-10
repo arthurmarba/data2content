@@ -10,6 +10,15 @@ import ChatCard from "../components/ChatCard";
 /** Tipos e Interfaces */
 /** ===================== */
 
+// Interface estendida para session.user, incluindo a propriedade "id"
+interface ExtendedUser {
+  id?: string;
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+  // se houver mais campos customizados, inclua aqui
+}
+
 // Estrutura mínima para o objeto retornado pela API (/api/metrics) ao criar métricas.
 interface MetricResult {
   _id?: string;
@@ -74,7 +83,10 @@ function UploadMetrics() {
 
   // Envia arquivos + link/descrição para /api/metrics
   async function handleUpload() {
-    if (!session?.user?.id) {
+    // Faz o cast de session.user para ExtendedUser
+    const user = session?.user as ExtendedUser | undefined;
+
+    if (!user?.id) {
       alert("Usuário não identificado. Faça login primeiro.");
       return;
     }
@@ -94,7 +106,7 @@ function UploadMetrics() {
 
       // Monta payload
       const payload = {
-        userId: session.user.id,
+        userId: user.id,
         postLink,
         description,
         images,
@@ -209,13 +221,16 @@ function MetricsList() {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    if (!session?.user?.id) return;
+    // Faz o cast para ExtendedUser, caso precise do user.id
+    const user = session?.user as ExtendedUser | undefined;
+
+    if (!user?.id) return;
 
     async function fetchMetrics() {
       setIsLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/api/metrics?userId=${session.user.id}`);
+        const res = await fetch(`/api/metrics?userId=${user.id}`);
         if (!res.ok) {
           throw new Error(`Erro HTTP: ${res.status}`);
         }
@@ -232,7 +247,7 @@ function MetricsList() {
     }
 
     fetchMetrics();
-  }, [session?.user?.id]);
+  }, [session?.user]);
 
   return (
     <div className="border p-4 rounded bg-white space-y-2">
@@ -267,8 +282,12 @@ function MetricsList() {
       {/* Se estiver aberto, renderiza as métricas (e não estiver em loading nem erro) */}
       {isOpen && !isLoading && !error && metrics.map((m) => (
         <div key={m._id} className="text-xs text-gray-700 border-b pb-2 mb-2">
-          <p><strong>Link:</strong> {m.postLink}</p>
-          <p><strong>Descrição:</strong> {m.description}</p>
+          <p>
+            <strong>Link:</strong> {m.postLink}
+          </p>
+          <p>
+            <strong>Descrição:</strong> {m.description}
+          </p>
 
           {Array.isArray(m.rawData) && m.rawData.length > 0 && (
             <div className="ml-4 mt-2">
@@ -278,10 +297,14 @@ function MetricsList() {
                 return (
                   <div key={idx} className="ml-2 border-l pl-2">
                     {rdObj["Curtidas"] !== undefined && (
-                      <p><strong>Curtidas:</strong> {rdObj["Curtidas"]}</p>
+                      <p>
+                        <strong>Curtidas:</strong> {rdObj["Curtidas"]}
+                      </p>
                     )}
                     {rdObj["Comentários"] !== undefined && (
-                      <p><strong>Comentários:</strong> {rdObj["Comentários"]}</p>
+                      <p>
+                        <strong>Comentários:</strong> {rdObj["Comentários"]}
+                      </p>
                     )}
                   </div>
                 );
@@ -291,7 +314,9 @@ function MetricsList() {
 
           {m.stats && (
             <div className="mt-2 bg-gray-50 p-2 rounded">
-              <p><strong>Stats Calculados:</strong></p>
+              <p>
+                <strong>Stats Calculados:</strong>
+              </p>
               {m.stats["taxaEngajamento"] !== undefined && (
                 <p>Taxa Engajamento: {m.stats["taxaEngajamento"]}%</p>
               )}
