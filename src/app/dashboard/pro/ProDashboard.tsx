@@ -16,7 +16,7 @@ interface ExtendedUser {
   name?: string | null;
   email?: string | null;
   image?: string | null;
-  // se houver mais campos customizados, inclua aqui
+  // Se houver mais campos customizados, inclua aqui
 }
 
 // Estrutura mínima para o objeto retornado pela API (/api/metrics) ao criar métricas.
