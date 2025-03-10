@@ -90,6 +90,9 @@ function UploadMetrics() {
       alert("Usuário não identificado. Faça login primeiro.");
       return;
     }
+    // Extrai userId para garantir que não seja undefined
+    const userId = user.id;
+
     if (files.length === 0) {
       alert("Selecione ao menos 1 arquivo.");
       return;
@@ -106,7 +109,7 @@ function UploadMetrics() {
 
       // Monta payload
       const payload = {
-        userId: user.id,
+        userId,
         postLink,
         description,
         images,
@@ -156,8 +159,7 @@ function UploadMetrics() {
           value={postLink}
           onChange={(e) => setPostLink(e.target.value)}
           placeholder="https://instagram.com/p/abc"
-          className="block w-full text-sm border border-gray-300 rounded-lg px-2 py-1
-                     focus:ring-1 focus:ring-blue-500"
+          className="block w-full text-sm border border-gray-300 rounded-lg px-2 py-1 focus:ring-1 focus:ring-blue-500"
         />
       </div>
 
@@ -171,8 +173,7 @@ function UploadMetrics() {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Ex: Reels com dicas de marketing..."
-          className="block w-full text-sm border border-gray-300 rounded-lg px-2 py-1
-                     focus:ring-1 focus:ring-blue-500"
+          className="block w-full text-sm border border-gray-300 rounded-lg px-2 py-1 focus:ring-1 focus:ring-blue-500"
         />
       </div>
 
@@ -185,8 +186,7 @@ function UploadMetrics() {
           type="file"
           multiple
           onChange={handleFileChange}
-          className="block w-full text-sm border border-gray-300 rounded-lg
-                     cursor-pointer focus:ring-1 focus:ring-blue-500"
+          className="block w-full text-sm border border-gray-300 rounded-lg cursor-pointer focus:ring-1 focus:ring-blue-500"
         />
       </div>
 
@@ -194,8 +194,7 @@ function UploadMetrics() {
       <button
         onClick={handleUpload}
         disabled={isLoading}
-        className="px-3 py-1 bg-blue-500 text-white rounded text-sm
-                   hover:bg-blue-600 transition disabled:bg-gray-300"
+        className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 transition disabled:bg-gray-300"
       >
         {isLoading ? "Enviando..." : "Enviar"}
       </button>
@@ -226,13 +225,15 @@ function MetricsList() {
 
     // Se não tiver user ou user.id, não tenta buscar
     if (!user?.id) return;
+    // Extrai userId para garantir que não seja undefined
+    const userId = user.id;
 
     async function fetchMetrics() {
       setIsLoading(true);
       setError(null);
       try {
-        // Use crases/backticks para interpolar user.id corretamente
-        const res = await fetch(`/api/metrics?userId=${user.id}`);
+        // Usa a variável userId para garantir que não seja undefined
+        const res = await fetch(`/api/metrics?userId=${userId}`);
         if (!res.ok) {
           throw new Error(`Erro HTTP: ${res.status}`);
         }
@@ -282,50 +283,53 @@ function MetricsList() {
       )}
 
       {/* Se estiver aberto, renderiza as métricas (e não estiver em loading nem erro) */}
-      {isOpen && !isLoading && !error && metrics.map((m) => (
-        <div key={m._id} className="text-xs text-gray-700 border-b pb-2 mb-2">
-          <p>
-            <strong>Link:</strong> {m.postLink}
-          </p>
-          <p>
-            <strong>Descrição:</strong> {m.description}
-          </p>
+      {isOpen &&
+        !isLoading &&
+        !error &&
+        metrics.map((m) => (
+          <div key={m._id} className="text-xs text-gray-700 border-b pb-2 mb-2">
+            <p>
+              <strong>Link:</strong> {m.postLink}
+            </p>
+            <p>
+              <strong>Descrição:</strong> {m.description}
+            </p>
 
-          {Array.isArray(m.rawData) && m.rawData.length > 0 && (
-            <div className="ml-4 mt-2">
-              <p className="text-gray-600">Imagens:</p>
-              {m.rawData.map((rd, idx) => {
-                const rdObj = rd as Record<string, unknown>;
-                return (
-                  <div key={idx} className="ml-2 border-l pl-2">
-                    {rdObj["Curtidas"] !== undefined && (
-                      <p>
-                        <strong>Curtidas:</strong> {rdObj["Curtidas"]}
-                      </p>
-                    )}
-                    {rdObj["Comentários"] !== undefined && (
-                      <p>
-                        <strong>Comentários:</strong> {rdObj["Comentários"]}
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+            {Array.isArray(m.rawData) && m.rawData.length > 0 && (
+              <div className="ml-4 mt-2">
+                <p className="text-gray-600">Imagens:</p>
+                {m.rawData.map((rd, idx) => {
+                  const rdObj = rd as Record<string, unknown>;
+                  return (
+                    <div key={idx} className="ml-2 border-l pl-2">
+                      {rdObj["Curtidas"] !== undefined && (
+                        <p>
+                          <strong>Curtidas:</strong> {rdObj["Curtidas"]}
+                        </p>
+                      )}
+                      {rdObj["Comentários"] !== undefined && (
+                        <p>
+                          <strong>Comentários:</strong> {rdObj["Comentários"]}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
-          {m.stats && (
-            <div className="mt-2 bg-gray-50 p-2 rounded">
-              <p>
-                <strong>Stats Calculados:</strong>
-              </p>
-              {m.stats["taxaEngajamento"] !== undefined && (
-                <p>Taxa Engajamento: {m.stats["taxaEngajamento"]}%</p>
-              )}
-            </div>
-          )}
-        </div>
-      ))}
+            {m.stats && (
+              <div className="mt-2 bg-gray-50 p-2 rounded">
+                <p>
+                  <strong>Stats Calculados:</strong>
+                </p>
+                {m.stats["taxaEngajamento"] !== undefined && (
+                  <p>Taxa Engajamento: {m.stats["taxaEngajamento"]}%</p>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
 
       {/* Se estiver aberto e não há métricas */}
       {isOpen && !isLoading && !error && metrics.length === 0 && (
