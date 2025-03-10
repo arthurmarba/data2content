@@ -224,12 +224,14 @@ function MetricsList() {
     // Faz o cast para ExtendedUser, caso precise do user.id
     const user = session?.user as ExtendedUser | undefined;
 
+    // Se não tiver user ou user.id, não tenta buscar
     if (!user?.id) return;
 
     async function fetchMetrics() {
       setIsLoading(true);
       setError(null);
       try {
+        // Use crases/backticks para interpolar user.id corretamente
         const res = await fetch(`/api/metrics?userId=${user.id}`);
         if (!res.ok) {
           throw new Error(`Erro HTTP: ${res.status}`);
