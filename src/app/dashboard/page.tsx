@@ -1,11 +1,6 @@
 "use client";
 
-import React, {
-  useState,
-  useEffect,
-  useCallback,
-  memo,
-} from "react";
+import React, { useState, memo } from "react";
 import Image from "next/image";
 import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -24,27 +19,6 @@ import PaymentPanel from "./PaymentPanel";
 import UploadMetrics from "./UploadMetrics";
 import ChatPanel from "./ChatPanel";
 import WhatsAppPanel from "./WhatsAppPanel";
-
-/** =========================
- *  INTERFACES / TIPAGENS
- *  =========================
- */
-
-/**
- * Se você tiver campos extras em session.user,
- * crie uma interface ExtendedUser com esses campos.
- * Exemplo abaixo:
- */
-// interface ExtendedUser {
-//   id: string;
-//   planStatus?: string;
-//   planExpiresAt?: string | null;
-//   affiliateCode?: string | null;
-//   affiliateBalance?: number;
-//   affiliateRank?: number;
-//   affiliateInvites?: number;
-//   [key: string]: any; // se quiser permitir outros
-// }
 
 /** =========================
  *  COMPONENTES AUXILIARES
@@ -95,7 +69,7 @@ export default function MainDashboard() {
 
   // Mensagem de feedback após resgate de saldo
   const [redeemMessage, setRedeemMessage] = useState("");
-  // Popup de upgrade (caso tente acessar recurso bloqueado)
+  // Popup de upgrade (caso tente usar recurso bloqueado)
   const [showUpgradePopup, setShowUpgradePopup] = useState(false);
   // Modal de pagamento
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -124,11 +98,9 @@ export default function MainDashboard() {
     );
   }
 
-  /**
-   * Caso você tenha criado uma interface ExtendedUser, pode fazer:
-   * const user = session.user as ExtendedUser;
-   * e então acessar user.planStatus, user.affiliateCode etc.
-   */
+  // Se você tiver definido propriedades extras em session.user, pode fazer:
+  // const planStatus = (session.user as ExtendedUser).planStatus || "inactive";
+  // Neste exemplo, assumimos que session.user já tem planStatus, etc.
   const planStatus = session.user.planStatus || "inactive";
   const canAccessFeatures = planStatus === "active";
 
@@ -189,7 +161,7 @@ export default function MainDashboard() {
 
   return (
     <>
-      {/* Popup de upgrade (caso tente usar recurso bloqueado) */}
+      {/* Popup de upgrade (caso tente usar algo bloqueado) */}
       {showUpgradePopup && <UpgradePopup onClose={() => setShowUpgradePopup(false)} />}
 
       {/* Modal de pagamento */}
