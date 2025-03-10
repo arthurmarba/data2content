@@ -8,9 +8,12 @@ import InstagramProfile from "./InstagramProfile";
 import CourseVideos from "../curso/CourseVideos";
 import TagInput from "./TagInput";
 import SingleTagInput from "./SingleTagInput";
-import Dashboard from "./Dashboard";
+import Dashboard from "./Dashboard";  // <-- Componente agora aceita a prop indicators
 import ChatPanel from "../ChatPanel";
 
+/**
+ * Interface para cada "card" retornado pela IA em /api/ai/dynamicCards
+ */
 interface DynamicCard {
   metricKey?: string;
   title?: string;
@@ -18,6 +21,10 @@ interface DynamicCard {
   description?: string;
 }
 
+/**
+ * Interface local para "session.user" com a propriedade "id"
+ * (definida nos callbacks do NextAuth).
+ */
 interface UserWithId {
   id?: string;
   name?: string | null;
@@ -29,6 +36,7 @@ const DashboardPage: React.FC = () => {
   const { data: session } = useSession();
   const { loading, setCustomData, setLoading } = useDashboard();
 
+  // Inputs estratégicos
   const [visao, setVisao] = useState("Ser o maior influenciador de humor do Brasil");
   const [missao, setMissao] = useState("Fazer as pessoas darem risada todos os dias");
   const [objetivos, setObjetivos] = useState<string[]>([
@@ -41,9 +49,11 @@ const DashboardPage: React.FC = () => {
     "Períodos: 7 e 30 dias",
   ]);
 
+  // Mensagens de feedback
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
+  // Indicadores retornados pela IA (cards)
   const [personalizedIndicators, setPersonalizedIndicators] = useState<DynamicCard[]>([]);
 
   const fetchPersonalizedData = async () => {
@@ -52,6 +62,7 @@ const DashboardPage: React.FC = () => {
     setErrorMessage("");
 
     try {
+      // Faz cast de session.user para a interface UserWithId
       const user = session?.user as UserWithId | undefined;
       if (!user?.id) {
         setErrorMessage("Usuário não logado ou sem ID.");
@@ -59,6 +70,7 @@ const DashboardPage: React.FC = () => {
         return;
       }
 
+      // 1) Busca métricas do usuário em /api/metrics
       const resMetrics = await fetch(`/api/metrics?userId=${user.id}`);
       if (!resMetrics.ok) {
         throw new Error("Falha ao obter métricas do usuário");
@@ -71,14 +83,16 @@ const DashboardPage: React.FC = () => {
         return;
       }
 
+      // 2) Monta payload para IA (rota /api/ai/dynamicCards)
       const payload = {
-        userStats: dataMetrics.metrics,
+        userStats: dataMetrics.metrics, // array de Metric
         visao,
         missao,
         objetivos,
         filtros,
       };
 
+      // 3) Chama /api/ai/dynamicCards
       const resAI = await fetch("/api/ai/dynamicCards", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -90,8 +104,10 @@ const DashboardPage: React.FC = () => {
 
       const dataAI = await resAI.json();
 
+      // 4) Verifica se vieram cards
       if (dataAI.result?.cards) {
         setPersonalizedIndicators(dataAI.result.cards);
+        // Armazena no DashboardContext (para exibir em outro local, se quiser)
         setCustomData({ indicators: dataAI.result.cards });
 
         setSuccessMessage("Planejamento gerado com sucesso!");
@@ -109,6 +125,7 @@ const DashboardPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-white text-gray-900 p-8 flex">
       <div className="flex-1 pr-4 overflow-y-auto">
+        {/* Perfil do usuário */}
         <InstagramProfile
           image="/default-profile.png"
           name="Demo User"
@@ -118,6 +135,7 @@ const DashboardPage: React.FC = () => {
 
         <div className="mt-8" />
 
+        {/* Card de Planejamento Estratégico */}
         <div className="mb-6 px-4 py-4 border rounded shadow bg-white">
           <h2 className="text-lg font-bold text-gray-800 mb-4">Planejamento Estratégico</h2>
 
@@ -177,6 +195,7 @@ const DashboardPage: React.FC = () => {
           </button>
         </div>
 
+        {/* Seção dos Indicadores/Gráficos */}
         <div className="mb-6">
           {loading ? (
             <p className="text-center text-base">Carregando análise personalizada...</p>

@@ -2,11 +2,11 @@
 
 import React, {
   useState,
-  useEffect,
-  useCallback,
   memo,
+  useCallback,
+  useEffect, // Import necessário para fetchPaymentInfo/fetchRedemptions
 } from "react";
-import Image from "next/image"; // Agora realmente utilizaremos <Image> do Next
+import Image from "next/image";
 import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import {
@@ -25,8 +25,9 @@ import UploadMetrics from "./UploadMetrics";
 import ChatPanel from "./ChatPanel";
 import WhatsAppPanel from "./WhatsAppPanel";
 
-/** =================== */
-/** Interface para cada saque (resgate) */
+/** ===================
+ * INTERFACE para cada saque (resgate)
+ * =================== */
 interface Redemption {
   _id: string;
   createdAt: string;
@@ -34,9 +35,9 @@ interface Redemption {
   status: string;
 }
 
-/** =================== */
-/** MODAL PARA PAGAMENTOS E DADOS BANCÁRIOS */
-/** =================== */
+/** ===================
+ * MODAL PARA PAGAMENTOS E DADOS BANCÁRIOS
+ * =================== */
 function PaymentModal({
   isOpen,
   onClose,
@@ -66,11 +67,11 @@ function PaymentModal({
   );
 }
 
-/** =================== */
-/** FORM + LISTA DE SAQUES */
-/** =================== */
+/** ===================
+ * FORM + LISTA DE SAQUES
+ * =================== */
 function PaymentSettings({ userId }: { userId: string }) {
-  const router = useRouter(); // Para router.refresh()
+  const router = useRouter();
 
   // Campos do formulário de pagamento
   const [pixKey, setPixKey] = useState("");
@@ -88,10 +89,7 @@ function PaymentSettings({ userId }: { userId: string }) {
   const [redemptions, setRedemptions] = useState<Redemption[]>([]);
   const [loadingRedemptions, setLoadingRedemptions] = useState(false);
 
-  /**
-   * Busca dados de pagamento (Pix, conta, etc.).
-   * UseCallback para estabilizar referência e evitar warn do react-hooks/exhaustive-deps.
-   */
+  // Busca dados de pagamento (Pix, conta, etc.)
   const fetchPaymentInfo = useCallback(async () => {
     try {
       const res = await fetch(`/api/affiliate/paymentinfo?userId=${userId}`);
@@ -107,9 +105,7 @@ function PaymentSettings({ userId }: { userId: string }) {
     }
   }, [userId]);
 
-  /**
-   * Busca histórico de saques (redeems).
-   */
+  // Busca histórico de saques
   const fetchRedemptions = useCallback(async () => {
     setLoadingRedemptions(true);
     try {
@@ -125,9 +121,7 @@ function PaymentSettings({ userId }: { userId: string }) {
     }
   }, [userId]);
 
-  /**
-   * useEffect que chama as duas funções após montar ou quando userId mudar.
-   */
+  // Chama as duas funções ao montar ou quando userId mudar
   useEffect(() => {
     if (!userId) return;
     void fetchPaymentInfo();
@@ -156,8 +150,7 @@ function PaymentSettings({ userId }: { userId: string }) {
         setMessage(`Erro: ${data.error}`);
       } else {
         setMessage(data.message || "Dados salvos com sucesso!");
-        // Força atualização do session e re-fetch do user
-        router.refresh();
+        router.refresh(); // Força atualização do session e re-fetch do user
       }
     } catch (error) {
       let errorMsg = "Ocorreu um erro.";
@@ -197,7 +190,6 @@ function PaymentSettings({ userId }: { userId: string }) {
     }
   }
 
-  // Verifica se todos os dados bancários estão vazios (para feedback)
   const hasPaymentInfo = !!(pixKey || bankName || bankAgency || bankAccount);
 
   return (
@@ -419,7 +411,6 @@ export default function MainDashboard() {
 
       if (data.message && !data.error) {
         setRedeemMessage("Saldo resgatado com sucesso!");
-        // Força revalidação da session e recarrega a página
         router.refresh();
       } else {
         setRedeemMessage(`Erro: ${data.error || "Falha ao resgatar saldo."}`);
@@ -467,7 +458,6 @@ export default function MainDashboard() {
               <div
                 className={`rounded-full border-2 border-white shadow-md flex-shrink-0 ring-4 ${getStatusRingColor()} hover:scale-105 transition-transform animate-pulse`}
               >
-                {/* Substituindo <img> por <Image> do Next.js */}
                 <Image
                   src={session.user.image}
                   alt={session.user.name || "Usuário"}
@@ -496,12 +486,10 @@ export default function MainDashboard() {
 
           {/* Card de Afiliado */}
           <section className="mt-10 mb-6 border border-gray-100 rounded-lg p-4 bg-white shadow relative hover:shadow-lg transition-shadow">
-            {/* Selo Afiliado */}
             <div className="absolute top-[-10px] left-4 bg-gradient-to-r from-green-300 to-green-500 text-white text-[10px] sm:text-xs px-2 py-1 rounded-full shadow-sm uppercase font-bold tracking-wider drop-shadow-lg animate-bounce-slow">
               Afiliado
             </div>
 
-            {/* Título + Rank */}
             <div className="flex items-center justify-between mt-4 mb-2">
               <h2 className="text-sm font-bold text-gray-800">Ganhe 10% por Venda</h2>
               <div className="flex items-center gap-1 text-yellow-500">
@@ -510,14 +498,12 @@ export default function MainDashboard() {
               </div>
             </div>
 
-            {/* Descrição breve */}
             <p className="text-xs text-gray-600 leading-snug mb-3">
               Cada assinatura usando seu cupom gera{" "}
               <span className="font-semibold">10% de comissão</span>. Suba de rank
               conforme suas indicações aumentam!
             </p>
 
-            {/* Barra de progresso */}
             <div className="w-full bg-gray-200 rounded-full h-2 mb-2 overflow-hidden">
               <div
                 className="bg-green-500 h-2 transition-all duration-500 ease-out"
@@ -529,7 +515,6 @@ export default function MainDashboard() {
               <span className="font-bold">{invitesNeeded}</span> para Rank {userRank + 1}
             </p>
 
-            {/* Cupom + Saldo */}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mt-4">
               {/* Cupom */}
               <div className="flex items-center gap-1 text-xs sm:text-sm">
@@ -561,7 +546,6 @@ export default function MainDashboard() {
               </div>
             </div>
 
-            {/* Resgatar Saldo rápido */}
             <Testimonial message={redeemMessage} />
             <button
               onClick={handleRedeemBalance}
@@ -574,7 +558,6 @@ export default function MainDashboard() {
               Resgatar Saldo
             </button>
 
-            {/* Botão para abrir modal de Gerenciar Pagamentos */}
             <button
               onClick={() => setShowPaymentModal(true)}
               className="mt-2 ml-2 px-3 py-1 rounded text-xs sm:text-sm bg-gray-200 hover:bg-gray-300 text-gray-700"
@@ -590,20 +573,14 @@ export default function MainDashboard() {
             </section>
           )}
 
-          {/* Upload de Métricas */}
           <section className="mb-6">
-            <UploadMetrics
-              canAccessFeatures={canAccessFeatures}
-              userId={session.user.id}
-            />
+            <UploadMetrics canAccessFeatures={canAccessFeatures} userId={session.user.id} />
           </section>
 
-          {/* Card dedicado ao WhatsApp */}
           <section className="mb-6">
             <WhatsAppPanel userId={session.user.id} canAccessFeatures={canAccessFeatures} />
           </section>
 
-          {/* Chat IA (exclusivo para assinantes) */}
           <section>
             {canAccessFeatures ? (
               <div className="border border-gray-200 rounded-md shadow-sm bg-white p-4">
@@ -657,8 +634,6 @@ export default function MainDashboard() {
         .bg-topography {
           background-image: url("https://www.transparenttextures.com/patterns/cubes.png");
         }
-
-        /* Efeito "shimmer" no botão de Resgatar Saldo */
         .shimmer-button {
           position: relative;
           overflow: hidden;
