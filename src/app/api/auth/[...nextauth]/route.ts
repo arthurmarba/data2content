@@ -14,10 +14,10 @@ interface SignInParams {
     id?: string;
     image?: string | null;
   };
-  account?: {
+  account: {
     provider?: string;
     providerAccountId?: string;
-  };
+  } | null;
 }
 
 // Interface para os parâmetros do callback jwt
