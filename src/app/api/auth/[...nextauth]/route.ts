@@ -37,7 +37,7 @@ interface JwtParams {
   };
 }
 
-// Interface para os parâmetros do callback session, utilizando os tipos nativos do NextAuth
+// Interface para os parâmetros do callback session
 interface SessionParams {
   session: Session & {
     user: {
@@ -157,7 +157,7 @@ const authOptions = {
         typedUser.affiliateInvites = dbUser.affiliateInvites;
       }
 
-      if (token.picture) {
+      if (token.picture && session.user) {
         typedUser.image = token.picture as string;
       }
 
