@@ -282,7 +282,7 @@ function MetricsList() {
         </p>
       )}
 
-      {/* Se estiver aberto, renderiza as métricas (e não estiver em loading nem erro) */}
+      {/* Se estiver aberto, renderiza as métricas */}
       {isOpen &&
         !isLoading &&
         !error &&
@@ -302,14 +302,20 @@ function MetricsList() {
                   const rdObj = rd as Record<string, unknown>;
                   return (
                     <div key={idx} className="ml-2 border-l pl-2">
-                      {rdObj["Curtidas"] !== undefined && (
+                      {rdObj["Curtidas"] != null && (
                         <p>
-                          <strong>Curtidas:</strong> {rdObj["Curtidas"]}
+                          <strong>Curtidas:</strong>{" "}
+                          {typeof rdObj["Curtidas"] === "object"
+                            ? JSON.stringify(rdObj["Curtidas"])
+                            : rdObj["Curtidas"].toString()}
                         </p>
                       )}
-                      {rdObj["Comentários"] !== undefined && (
+                      {rdObj["Comentários"] != null && (
                         <p>
-                          <strong>Comentários:</strong> {rdObj["Comentários"]}
+                          <strong>Comentários:</strong>{" "}
+                          {typeof rdObj["Comentários"] === "object"
+                            ? JSON.stringify(rdObj["Comentários"])
+                            : rdObj["Comentários"].toString()}
                         </p>
                       )}
                     </div>
@@ -324,7 +330,9 @@ function MetricsList() {
                   <strong>Stats Calculados:</strong>
                 </p>
                 {m.stats["taxaEngajamento"] !== undefined && (
-                  <p>Taxa Engajamento: {m.stats["taxaEngajamento"]}%</p>
+                  <p>
+                    Taxa Engajamento: {m.stats["taxaEngajamento"]}%
+                  </p>
                 )}
               </div>
             )}
