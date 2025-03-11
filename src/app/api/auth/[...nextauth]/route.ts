@@ -7,7 +7,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 
-// Define a interface para os parâmetros do callback signIn
+// Interface para os parâmetros do callback signIn
 interface SignInParams {
   user: {
     email?: string | null;
@@ -18,6 +18,20 @@ interface SignInParams {
   account?: {
     provider?: string;
     providerAccountId?: string;
+  };
+}
+
+// Interface para os parâmetros do callback jwt
+interface JwtParams {
+  token: {
+    sub?: string;
+    picture?: string;
+    [key: string]: unknown;
+  };
+  user?: {
+    id?: string;
+    image?: string;
+    [key: string]: unknown;
   };
 }
 
@@ -79,7 +93,7 @@ const authOptions = {
       return true;
     },
 
-    async jwt({ token, user }) {
+    async jwt({ token, user }: JwtParams) {
       if (user) {
         token.sub = user.id;
         if (user.image) {
