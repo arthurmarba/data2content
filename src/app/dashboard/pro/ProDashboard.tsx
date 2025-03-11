@@ -5,8 +5,8 @@ import { useSession, signIn } from "next-auth/react";
 import { DashboardProvider } from "../components/DashboardContext";
 import MegaCard from "../components/MegaCard";
 import ChatCard from "../components/ChatCard";
-// Certifique-se de que o arquivo "types.ts" existe no caminho correto ou ajuste o import
-import { ExtendedUser, MetricItem, MetricResult } from "../types";
+// Ajustado o caminho para que a importação dos tipos aponte para o arquivo correto
+import { ExtendedUser, MetricItem, MetricResult } from "./components/types";
 
 /** ===================== */
 /** Componente: UploadMetrics */
