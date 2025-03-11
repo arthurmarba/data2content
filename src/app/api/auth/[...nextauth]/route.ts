@@ -7,6 +7,20 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 
+// Define a interface para os parâmetros do callback signIn
+interface SignInParams {
+  user: {
+    email?: string | null;
+    name?: string | null;
+    id?: string;
+    image?: string | null;
+  };
+  account?: {
+    provider?: string;
+    providerAccountId?: string;
+  };
+}
+
 const authOptions = {
   providers: [
     GoogleProvider({
@@ -46,7 +60,7 @@ const authOptions = {
   ],
 
   callbacks: {
-    async signIn({ user, account }) {
+    async signIn({ user, account }: SignInParams): Promise<boolean> {
       if (account?.provider === "google") {
         await connectToDatabase();
         const existingUser = await User.findOne({ email: user.email });
@@ -81,11 +95,9 @@ const authOptions = {
       await connectToDatabase();
       const dbUser = await User.findById(token.sub);
 
-      // Se session.user não estiver definido, inicializamos
       if (!session.user) {
         session.user = { name: null, email: null, image: null };
       }
-      // Usamos type assertion para incluir as propriedades extras
       const typedUser = session.user as {
         id?: string;
         role?: string;
