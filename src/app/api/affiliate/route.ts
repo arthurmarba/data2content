@@ -5,9 +5,10 @@ import { getServerSession } from "next-auth/next"; // ou "next-auth" se estiver 
 import { authOptions } from "@/app/lib/authOptions";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
+import { Session } from "next-auth";
 
 /**
- * Tipo auxiliar para nosso usuário no session (com 'role' e 'id').
+ * Tipo auxiliar para nosso usuário na sessão (com 'role' e 'id').
  * Ajuste conforme suas necessidades (planStatus, etc. se quiser).
  */
 interface SessionUser {
@@ -24,8 +25,8 @@ interface SessionUser {
  * Exemplo: affiliate_code, affiliate_balance, etc.
  */
 export async function GET() {
-  // 1) Obtém sessão
-  const session = await getServerSession(authOptions);
+  // 1) Obtém a sessão e a tipifica como Session
+  const session = (await getServerSession(authOptions)) as Session | null;
   if (!session) {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   }
