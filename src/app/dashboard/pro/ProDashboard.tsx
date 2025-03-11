@@ -5,7 +5,8 @@ import { useSession, signIn } from "next-auth/react";
 import { DashboardProvider } from "../components/DashboardContext";
 import MegaCard from "../components/MegaCard";
 import ChatCard from "../components/ChatCard";
-import { ExtendedUser, MetricItem } from "../types"; // Supondo que estes tipos estejam definidos em um arquivo separado
+// Certifique-se de que o arquivo "types.ts" existe no caminho correto ou ajuste o import
+import { ExtendedUser, MetricItem, MetricResult } from "../types";
 
 /** ===================== */
 /** Componente: UploadMetrics */
@@ -17,7 +18,7 @@ function UploadMetrics() {
   const [files, setFiles] = useState<File[]>([]);
   const [postLink, setPostLink] = useState("");
   const [description, setDescription] = useState("");
-  const [result, setResult] = useState<any | null>(null);
+  const [result, setResult] = useState<MetricResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   // Lida com a seleção de arquivos, limitando a 3
@@ -31,14 +32,18 @@ function UploadMetrics() {
     setFiles(selected);
   }
 
-  // Converte um File em base64
+  // Converte um File em base64 (validando que o resultado não seja undefined)
   async function fileToBase64(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
         const dataUrl = reader.result as string;
-        const base64 = dataUrl.split(",")[1];
-        resolve(base64);
+        const parts = dataUrl.split(",");
+        if (parts.length < 2 || !parts[1]) {
+          reject(new Error("Formato inválido de data URL"));
+        } else {
+          resolve(parts[1]);
+        }
       };
       reader.onerror = reject;
       reader.readAsDataURL(file);
@@ -49,46 +54,44 @@ function UploadMetrics() {
   async function handleUpload() {
     // Faz o cast de session.user para ExtendedUser
     const user = session?.user as ExtendedUser | undefined;
-
     if (!user?.id) {
       alert("Usuário não identificado. Faça login primeiro.");
       return;
     }
     const userId = user.id;
-
     if (files.length === 0) {
       alert("Selecione ao menos 1 arquivo.");
       return;
     }
     setIsLoading(true);
-
     try {
+      // Converte cada File em base64
       const images: { base64File: string; mimeType: string }[] = [];
       for (const file of files) {
         const base64File = await fileToBase64(file);
         images.push({ base64File, mimeType: file.type });
       }
-
+      // Monta payload
       const payload = {
         userId,
         postLink,
         description,
         images,
       };
-
+      // Faz requisição para criar métricas
       const res = await fetch("/api/metrics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       const data = await res.json();
-
       if (!res.ok) {
         console.error("Erro ao enviar métricas:", data.error);
         setResult(null);
       } else {
         console.log("Métricas criadas:", data.metric);
         setResult(data.metric);
+        // Limpa campos
         setFiles([]);
         setPostLink("");
         setDescription("");
@@ -176,15 +179,12 @@ function MetricsList() {
     const user = session?.user as ExtendedUser | undefined;
     if (!user?.id) return;
     const userId = user.id;
-
     async function fetchMetrics() {
       setIsLoading(true);
       setError(null);
       try {
         const res = await fetch(`/api/metrics?userId=${userId}`);
-        if (!res.ok) {
-          throw new Error(`Erro HTTP: ${res.status}`);
-        }
+        if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
         const data = await res.json();
         if (data.metrics) {
           setMetrics(data.metrics);
@@ -196,7 +196,6 @@ function MetricsList() {
         setIsLoading(false);
       }
     }
-
     fetchMetrics();
   }, [session?.user]);
 
@@ -239,7 +238,7 @@ function MetricsList() {
             {Array.isArray(m.rawData) && m.rawData.length > 0 && (
               <div className="ml-4 mt-2">
                 <p className="text-gray-600">Imagens:</p>
-                {m.rawData.map((rd, idx) => {
+                {m.rawData.map((rd: unknown, idx: number) => {
                   const rdObj = rd as Record<string, unknown>;
                   return (
                     <div key={idx} className="ml-2 border-l pl-2">
