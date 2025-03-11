@@ -37,7 +37,7 @@ interface JwtParams {
 // Interface para os parâmetros do callback session
 interface SessionParams {
   session: {
-    user?: {
+    user: { // Agora obrigatório e com os campos exigidos
       name: string | null;
       email: string | null;
       image: string | null;
@@ -57,6 +57,9 @@ interface SessionParams {
     picture?: string;
     [key: string]: unknown;
   };
+  user: any;
+  newSession: any;
+  trigger: "update";
 }
 
 // Interface para os parâmetros do callback redirect
@@ -139,6 +142,7 @@ const authOptions = {
       await connectToDatabase();
       const dbUser = await User.findById(token.sub);
 
+      // Garante que session.user esteja definido com os campos obrigatórios
       if (!session.user) {
         session.user = { name: null, email: null, image: null };
       }
