@@ -5,8 +5,8 @@ import { useSession, signIn } from "next-auth/react";
 import { DashboardProvider } from "../components/DashboardContext";
 import MegaCard from "../components/MegaCard";
 import ChatCard from "../components/ChatCard";
-// Ajustado o caminho para que a importação dos tipos aponte para o arquivo correto
-import { ExtendedUser, MetricItem, MetricResult } from "./components/types";
+// Atualizado o caminho de importação dos tipos para refletir a estrutura correta
+import { ExtendedUser, MetricItem, MetricResult } from "../components/types";
 
 /** ===================== */
 /** Componente: UploadMetrics */
