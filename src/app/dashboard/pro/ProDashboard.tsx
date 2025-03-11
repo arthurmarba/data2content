@@ -5,43 +5,7 @@ import { useSession, signIn } from "next-auth/react";
 import { DashboardProvider } from "../components/DashboardContext";
 import MegaCard from "../components/MegaCard";
 import ChatCard from "../components/ChatCard";
-
-/** ===================== */
-/** Tipos e Interfaces */
-/** ===================== */
-
-// Interface estendida para session.user, incluindo a propriedade "id"
-interface ExtendedUser {
-  id?: string;
-  name?: string | null;
-  email?: string | null;
-  image?: string | null;
-  // Se houver mais campos customizados, inclua aqui
-}
-
-// Estrutura mínima para o objeto retornado pela API (/api/metrics) ao criar métricas.
-interface MetricResult {
-  _id?: string;
-  user?: string;
-  postLink?: string;
-  description?: string;
-  rawData?: unknown[];
-  stats?: unknown;
-  createdAt?: string;
-}
-
-// Estrutura mínima para cada item de métrica (retornado em /api/metrics?userId=...).
-interface RawDataItem {
-  [key: string]: unknown;
-}
-
-interface MetricItem {
-  _id: string;
-  postLink?: string;
-  description?: string;
-  rawData?: RawDataItem[];
-  stats?: Record<string, unknown>;
-}
+import { ExtendedUser, MetricItem } from "../types"; // Supondo que estes tipos estejam definidos em um arquivo separado
 
 /** ===================== */
 /** Componente: UploadMetrics */
@@ -53,7 +17,7 @@ function UploadMetrics() {
   const [files, setFiles] = useState<File[]>([]);
   const [postLink, setPostLink] = useState("");
   const [description, setDescription] = useState("");
-  const [result, setResult] = useState<MetricResult | null>(null);
+  const [result, setResult] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   // Lida com a seleção de arquivos, limitando a 3
@@ -90,7 +54,6 @@ function UploadMetrics() {
       alert("Usuário não identificado. Faça login primeiro.");
       return;
     }
-    // Extrai userId para garantir que não seja undefined
     const userId = user.id;
 
     if (files.length === 0) {
@@ -100,14 +63,12 @@ function UploadMetrics() {
     setIsLoading(true);
 
     try {
-      // Converte cada File em base64
       const images: { base64File: string; mimeType: string }[] = [];
       for (const file of files) {
         const base64File = await fileToBase64(file);
         images.push({ base64File, mimeType: file.type });
       }
 
-      // Monta payload
       const payload = {
         userId,
         postLink,
@@ -115,7 +76,6 @@ function UploadMetrics() {
         images,
       };
 
-      // Faz requisição para criar métricas
       const res = await fetch("/api/metrics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -129,8 +89,6 @@ function UploadMetrics() {
       } else {
         console.log("Métricas criadas:", data.metric);
         setResult(data.metric);
-
-        // Limpa campos
         setFiles([]);
         setPostLink("");
         setDescription("");
@@ -149,7 +107,6 @@ function UploadMetrics() {
         Enviar Print (Métricas)
       </h3>
 
-      {/* Link do Conteúdo */}
       <div className="mb-3">
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Link do Conteúdo
@@ -163,7 +120,6 @@ function UploadMetrics() {
         />
       </div>
 
-      {/* Descrição */}
       <div className="mb-3">
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Descrição
@@ -177,7 +133,6 @@ function UploadMetrics() {
         />
       </div>
 
-      {/* Selecionar até 3 imagens */}
       <div className="mb-3">
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Selecione até 3 imagens:
@@ -190,7 +145,6 @@ function UploadMetrics() {
         />
       </div>
 
-      {/* Botão de Enviar */}
       <button
         onClick={handleUpload}
         disabled={isLoading}
@@ -199,7 +153,6 @@ function UploadMetrics() {
         {isLoading ? "Enviando..." : "Enviar"}
       </button>
 
-      {/* Resultado da criação das métricas */}
       {result && (
         <pre className="mt-3 bg-gray-100 p-2 rounded text-xs">
           {JSON.stringify(result, null, 2)}
@@ -220,19 +173,14 @@ function MetricsList() {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    // Faz o cast para ExtendedUser, caso precise do user.id
     const user = session?.user as ExtendedUser | undefined;
-
-    // Se não tiver user ou user.id, não tenta buscar
     if (!user?.id) return;
-    // Extrai userId para garantir que não seja undefined
     const userId = user.id;
 
     async function fetchMetrics() {
       setIsLoading(true);
       setError(null);
       try {
-        // Usa a variável userId para garantir que não seja undefined
         const res = await fetch(`/api/metrics?userId=${userId}`);
         if (!res.ok) {
           throw new Error(`Erro HTTP: ${res.status}`);
@@ -254,7 +202,6 @@ function MetricsList() {
 
   return (
     <div className="border p-4 rounded bg-white space-y-2">
-      {/* Título + Botão de toggle */}
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-gray-800">Métricas Salvas</h2>
         <button
@@ -265,24 +212,18 @@ function MetricsList() {
         </button>
       </div>
 
-      {/* Exibe estado de carregamento */}
       {isLoading && <p className="text-xs text-gray-400">Carregando...</p>}
-
-      {/* Exibe erros se houver */}
       {error && !isLoading && (
         <p className="text-xs text-red-500">
           Ocorreu um erro ao buscar métricas: {error}
         </p>
       )}
-
-      {/* Se não estiver carregando, não tiver erro e o painel estiver fechado, mas houver dados */}
       {!isLoading && !error && !isOpen && metrics.length > 0 && (
         <p className="text-xs text-gray-500">
           Métricas ocultas. Clique em &quot;Ver&quot; para exibir.
         </p>
       )}
 
-      {/* Se estiver aberto, renderiza as métricas */}
       {isOpen &&
         !isLoading &&
         !error &&
@@ -344,7 +285,6 @@ function MetricsList() {
           </div>
         ))}
 
-      {/* Se estiver aberto e não há métricas */}
       {isOpen && !isLoading && !error && metrics.length === 0 && (
         <p className="text-xs text-gray-500">Nenhuma métrica cadastrada.</p>
       )}
@@ -358,12 +298,10 @@ function MetricsList() {
 export default function ProDashboard() {
   const { data: session, status } = useSession();
 
-  // Enquanto carrega sessão
   if (status === "loading") {
     return <p className="text-center mt-10">Carregando sessão...</p>;
   }
 
-  // Se não estiver logado
   if (!session) {
     return (
       <div className="flex flex-col items-center justify-center h-screen">
@@ -378,26 +316,21 @@ export default function ProDashboard() {
     );
   }
 
-  // Se logado, renderiza layout principal
   return (
     <DashboardProvider>
       <div className="flex flex-col min-h-screen bg-white text-gray-900">
         <div className="container mx-auto flex-1 p-8">
           <div className="flex gap-8">
-            {/* Coluna Esquerda (3/4): MegaCard + Métricas */}
             <div className="w-3/4 flex flex-col gap-4">
               <MegaCard />
               <MetricsList />
             </div>
-
-            {/* Coluna Direita (1/4): Upload + Chat */}
             <div className="w-1/4 flex flex-col gap-4">
               <UploadMetrics />
               <ChatCard />
             </div>
           </div>
         </div>
-
         <footer className="p-4 text-center text-sm text-gray-500">
           © 2023 D2C Academy. Todos os direitos reservados.
         </footer>

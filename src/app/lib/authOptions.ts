@@ -119,7 +119,7 @@ export const authOptions = {
           // Campos customizados com tipos adequados
           role: undefined as string | undefined,
           planStatus: undefined as string | undefined,
-          planExpiresAt: null as string | null, // Alterado para null em vez de undefined
+          planExpiresAt: null as string | null, // Inicializado como null
           affiliateCode: undefined as string | undefined,
           affiliateBalance: undefined as number | undefined,
           affiliateRank: undefined as string | undefined,
@@ -143,7 +143,8 @@ export const authOptions = {
         fullSession.user.affiliateInvites = dbUser.affiliateInvites;
       }
 
-      return fullSession as Session;
+      // Retorna a sessão com um duplo cast para forçar o tipo correto
+      return fullSession as unknown as Session;
     },
 
     async redirect({ baseUrl }: { baseUrl: string }) {
