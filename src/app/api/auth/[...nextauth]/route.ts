@@ -57,8 +57,8 @@ interface SessionParams {
     picture?: string;
     [key: string]: unknown;
   };
-  user: any;
-  newSession: any;
+  user: unknown; // Substituído de "any" para "unknown"
+  newSession: unknown; // Substituído de "any" para "unknown"
   trigger: "update";
 }
 
