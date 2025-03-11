@@ -41,10 +41,10 @@ interface JwtParams {
 interface SessionParams {
   session: Session & {
     user: {
+      id: string;
       name: string | null;
       email: string | null;
       image: string | null;
-      id?: string;
       role?: string;
       planStatus?: string;
       planExpiresAt?: string | null;
@@ -142,7 +142,7 @@ const authOptions = {
 
       // Garante que session.user esteja definido com os campos obrigatórios
       if (!session.user) {
-        session.user = { name: null, email: null, image: null };
+        session.user = { id: "", name: null, email: null, image: null };
       }
       const typedUser = session.user;
 
