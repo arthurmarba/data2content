@@ -1,14 +1,13 @@
 // src/app/api/auth/[...nextauth]/route.ts
 
-import NextAuth, { NextAuthOptions } from "next-auth";
+import NextAuth from "next-auth/next";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 
-// Definimos nosso NextAuthOptions
-const authOptions: NextAuthOptions = {
+const authOptions = {
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -34,7 +33,6 @@ const authOptions: NextAuthOptions = {
         password: { label: "Senha", type: "password", placeholder: "demo" },
       },
       async authorize(credentials) {
-        // Exemplo simples: login "demo"/"demo"
         if (credentials?.username === "demo" && credentials?.password === "demo") {
           return {
             id: "demo-123",
@@ -48,7 +46,6 @@ const authOptions: NextAuthOptions = {
   ],
 
   callbacks: {
-    // 1) signIn callback
     async signIn({ user, account }) {
       if (account?.provider === "google") {
         await connectToDatabase();
@@ -68,36 +65,27 @@ const authOptions: NextAuthOptions = {
       return true;
     },
 
-    // 2) jwt callback
     async jwt({ token, user }) {
       if (user) {
-        token.sub = user.id; // Copia user.id para token.sub
+        token.sub = user.id;
         if (user.image) {
-          token.picture = user.image; // Salva a foto no token
+          token.picture = user.image;
         }
       }
       return token;
     },
 
-    // 3) session callback
     async session({ session, token }) {
-      // Se não tiver token.sub, não temos ID de usuário
       if (!token.sub) return session;
 
-      // Conecta ao banco e carrega dados extras
       await connectToDatabase();
       const dbUser = await User.findById(token.sub);
 
-      // Se session.user estiver indefinido, inicializamos
+      // Se session.user não estiver definido, inicializamos
       if (!session.user) {
-        session.user = {
-          name: null,
-          email: null,
-          image: null,
-        };
+        session.user = { name: null, email: null, image: null };
       }
-
-      // Forçamos as propriedades extras via type assertion
+      // Usamos type assertion para incluir as propriedades extras
       const typedUser = session.user as {
         id?: string;
         role?: string;
@@ -112,7 +100,6 @@ const authOptions: NextAuthOptions = {
         image: string | null;
       };
 
-      // Se achamos o usuário no banco, populamos
       if (dbUser) {
         typedUser.id = dbUser._id.toString();
         typedUser.role = dbUser.role;
@@ -124,15 +111,13 @@ const authOptions: NextAuthOptions = {
         typedUser.affiliateInvites = dbUser.affiliateInvites;
       }
 
-      // Ajusta a imagem, se estiver no token
-      if (token.picture) {
+      if (token.picture && session.user) {
         typedUser.image = token.picture as string;
       }
 
       return session;
     },
 
-    // 4) redirect callback
     async redirect({ baseUrl }) {
       return baseUrl + "/dashboard";
     },
