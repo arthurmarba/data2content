@@ -16,7 +16,7 @@ interface BaseUser {
   email?: string | null;
 }
 
-// Define a interface para o objeto account, evitando o uso de "any"
+// Define a interface para o objeto account, permitindo null
 interface CustomAccount {
   provider: string;
   providerAccountId: string;
@@ -75,7 +75,7 @@ export const authOptions = {
       account,
     }: {
       user: BaseUser;
-      account: CustomAccount;
+      account: CustomAccount | null;
     }) {
       if (account?.provider === "google") {
         await connectToDatabase();
@@ -118,19 +118,35 @@ export const authOptions = {
      * session callback:
      * - Usa token.sub para buscar dados extras (planStatus etc.) no DB.
      * - Converte planExpiresAt para string ISO e copia token.picture para session.user.image.
+     *
+     * Nota: Para evitar warnings de variáveis não utilizadas, os parâmetros "newSession",
+     * "trigger" e "user" não são desestruturados, mas permanecem na tipagem.
      */
-    async session({ session, token }: { session: Session; token: JWT }) {
-      if (!token.sub) return session;
+    async session(
+      params: {
+        session: Session;
+        token: JWT;
+        newSession: unknown;
+        trigger: "update";
+        user: unknown;
+      }
+    ): Promise<Session> {
+      const { session, token } = params;
+      // Garante que session.user exista definindo um objeto base com os campos obrigatórios
+      const baseUser = {
+        id: token.sub as string,
+        name: session.user?.name ?? null,
+        email: session.user?.email ?? null,
+        image: session.user?.image ?? null,
+      };
+      session.user = baseUser;
 
       await connectToDatabase();
-      // A query já é thenable, portanto .exec() não é necessário
       const dbUser = await DbUser.findById(token.sub);
 
-      if (session.user && dbUser) {
-        session.user.id = (dbUser._id as Types.ObjectId).toString();
+      if (dbUser) {
         session.user.role = dbUser.role;
         session.user.planStatus = dbUser.planStatus;
-        // Converte a data para string ISO, se existir
         session.user.planExpiresAt = dbUser.planExpiresAt
           ? dbUser.planExpiresAt.toISOString()
           : null;
@@ -140,7 +156,7 @@ export const authOptions = {
         session.user.affiliateInvites = dbUser.affiliateInvites;
       }
 
-      if (token.picture && session.user) {
+      if (token.picture) {
         session.user.image = token.picture as string;
       }
       return session;
