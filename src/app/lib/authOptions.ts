@@ -19,10 +19,10 @@ export const authOptions: NextAuthOptions = {
       // 2) Mapeia o objeto "profile" do Google para o objeto "user"
       profile(profile) {
         return {
-          id: profile.sub,          // O Google retorna "sub" como ID do usuário
+          id: profile.sub, // O Google retorna "sub" como ID do usuário
           name: profile.name,
           email: profile.email,
-          image: profile.picture,   // Foto de perfil
+          image: profile.picture, // Foto de perfil
         };
       },
     }),
@@ -81,7 +81,7 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.sub = user.id;
         if (user.image) {
-          token.picture = user.image; // Foto do Google
+          token.picture = user.image;
         }
       }
       return token;
@@ -93,29 +93,23 @@ export const authOptions: NextAuthOptions = {
      *    - Copia token.picture para session.user.image (exibindo a foto no front).
      */
     async session({ session, token }) {
-      // Se não houver sub, não fazemos nada
       if (!token.sub) return session;
 
       await connectToDatabase();
       const dbUser = await User.findById(token.sub);
 
-      // Garante que session.user exista
-      session.user = session.user || {};
-
-      if (dbUser) {
-        // Fazendo asserção para informar ao TS que session.user possui as propriedades extras
-        (session.user as any).id = dbUser._id.toString();
-        (session.user as any).role = dbUser.role;
-        (session.user as any).planStatus = dbUser.planStatus;
-        (session.user as any).planExpiresAt = dbUser.planExpiresAt;
-        (session.user as any).affiliateCode = dbUser.affiliateCode;
-        (session.user as any).affiliateBalance = dbUser.affiliateBalance;
-        (session.user as any).affiliateRank = dbUser.affiliateRank;
-        (session.user as any).affiliateInvites = dbUser.affiliateInvites;
+      if (session.user && dbUser) {
+        session.user.id = dbUser._id.toString();
+        session.user.role = dbUser.role;
+        session.user.planStatus = dbUser.planStatus;
+        session.user.planExpiresAt = dbUser.planExpiresAt;
+        session.user.affiliateCode = dbUser.affiliateCode;
+        session.user.affiliateBalance = dbUser.affiliateBalance;
+        session.user.affiliateRank = dbUser.affiliateRank;
+        session.user.affiliateInvites = dbUser.affiliateInvites;
       }
 
-      // Copia token.picture para session.user.image
-      if (token.picture) {
+      if (token.picture && session.user) {
         session.user.image = token.picture as string;
       }
       return session;
@@ -130,7 +124,7 @@ export const authOptions: NextAuthOptions = {
     },
   },
 
-  secret: process.env.NEXTAUTH_SECRET, // defina no .env
+  secret: process.env.NEXTAUTH_SECRET,
 };
 
 const handler = NextAuth(authOptions);
