@@ -98,6 +98,10 @@ export const authOptions: NextAuthOptions = {
 
       await connectToDatabase();
       const dbUser = await User.findById(token.sub);
+
+      // Garante que session.user exista
+      session.user = session.user || {};
+
       if (dbUser) {
         session.user.id = dbUser._id.toString();
         session.user.role = dbUser.role;
