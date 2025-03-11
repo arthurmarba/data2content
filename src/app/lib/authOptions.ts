@@ -103,14 +103,15 @@ export const authOptions: NextAuthOptions = {
       session.user = session.user || {};
 
       if (dbUser) {
-        session.user.id = dbUser._id.toString();
-        session.user.role = dbUser.role;
-        session.user.planStatus = dbUser.planStatus;
-        session.user.planExpiresAt = dbUser.planExpiresAt;
-        session.user.affiliateCode = dbUser.affiliateCode;
-        session.user.affiliateBalance = dbUser.affiliateBalance;
-        session.user.affiliateRank = dbUser.affiliateRank;
-        session.user.affiliateInvites = dbUser.affiliateInvites;
+        // Fazendo asserção para informar ao TS que session.user possui as propriedades extras
+        (session.user as any).id = dbUser._id.toString();
+        (session.user as any).role = dbUser.role;
+        (session.user as any).planStatus = dbUser.planStatus;
+        (session.user as any).planExpiresAt = dbUser.planExpiresAt;
+        (session.user as any).affiliateCode = dbUser.affiliateCode;
+        (session.user as any).affiliateBalance = dbUser.affiliateBalance;
+        (session.user as any).affiliateRank = dbUser.affiliateRank;
+        (session.user as any).affiliateInvites = dbUser.affiliateInvites;
       }
 
       // Copia token.picture para session.user.image
