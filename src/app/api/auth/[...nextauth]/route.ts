@@ -5,6 +5,9 @@ import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
+import type { Session } from "next-auth";
+import type { JWT } from "next-auth/jwt";
+import type { AdapterUser } from "next-auth/adapters";
 
 // Interface para os parâmetros do callback signIn
 interface SignInParams {
@@ -34,10 +37,10 @@ interface JwtParams {
   };
 }
 
-// Interface para os parâmetros do callback session
+// Interface para os parâmetros do callback session, utilizando os tipos nativos do NextAuth
 interface SessionParams {
-  session: {
-    user: { // Agora obrigatório e com os campos exigidos
+  session: Session & {
+    user: {
       name: string | null;
       email: string | null;
       image: string | null;
@@ -50,15 +53,10 @@ interface SessionParams {
       affiliateRank?: number;
       affiliateInvites?: number;
     };
-    [key: string]: unknown;
   };
-  token: {
-    sub?: string;
-    picture?: string;
-    [key: string]: unknown;
-  };
-  user: unknown; // Substituído de "any" para "unknown"
-  newSession: unknown; // Substituído de "any" para "unknown"
+  token: JWT & { picture?: string };
+  user: AdapterUser;
+  newSession: unknown;
   trigger: "update";
 }
 
@@ -146,19 +144,7 @@ const authOptions = {
       if (!session.user) {
         session.user = { name: null, email: null, image: null };
       }
-      const typedUser = session.user as {
-        id?: string;
-        role?: string;
-        planStatus?: string;
-        planExpiresAt?: string | null;
-        affiliateCode?: string;
-        affiliateBalance?: number;
-        affiliateRank?: number;
-        affiliateInvites?: number;
-        name: string | null;
-        email: string | null;
-        image: string | null;
-      };
+      const typedUser = session.user;
 
       if (dbUser) {
         typedUser.id = dbUser._id.toString();
@@ -171,7 +157,7 @@ const authOptions = {
         typedUser.affiliateInvites = dbUser.affiliateInvites;
       }
 
-      if (token.picture && session.user) {
+      if (token.picture) {
         typedUser.image = token.picture as string;
       }
 
