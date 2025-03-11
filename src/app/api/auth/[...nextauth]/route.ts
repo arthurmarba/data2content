@@ -3,7 +3,6 @@
 import NextAuth from "next-auth/next";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
-
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 
@@ -31,6 +30,31 @@ interface JwtParams {
   user?: {
     id?: string;
     image?: string;
+    [key: string]: unknown;
+  };
+}
+
+// Interface para os parâmetros do callback session
+interface SessionParams {
+  session: {
+    user?: {
+      name: string | null;
+      email: string | null;
+      image: string | null;
+      id?: string;
+      role?: string;
+      planStatus?: string;
+      planExpiresAt?: string | null;
+      affiliateCode?: string;
+      affiliateBalance?: number;
+      affiliateRank?: number;
+      affiliateInvites?: number;
+    };
+    [key: string]: unknown;
+  };
+  token: {
+    sub?: string;
+    picture?: string;
     [key: string]: unknown;
   };
 }
@@ -103,7 +127,7 @@ const authOptions = {
       return token;
     },
 
-    async session({ session, token }) {
+    async session({ session, token }: SessionParams) {
       if (!token.sub) return session;
 
       await connectToDatabase();
