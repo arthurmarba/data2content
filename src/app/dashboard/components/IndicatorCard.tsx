@@ -1,4 +1,4 @@
-"use client";
+"use client"; // Indica que este arquivo é um Client Component
 
 import React from "react";
 import { Line } from "react-chartjs-2";
@@ -44,15 +44,12 @@ const IndicatorCard: React.FC<IndicatorCardProps> = ({
 }) => {
   /**
    * Verifica se há dados suficientes para exibir o gráfico.
-   * Exemplo simples: checa se chartData existe E se há pelo menos 1 label e 1 dataset válido.
+   * Utilizamos nullish coalescing para fornecer arrays vazios se algum dos campos for undefined.
    */
   const hasChart =
-    chartData &&
-    chartData.labels &&
-    chartData.labels.length > 0 &&
-    chartData.datasets &&
-    chartData.datasets.length > 0 &&
-    chartData.datasets[0].data.length > 0;
+    ((chartData?.labels ?? []).length > 0) &&
+    ((chartData?.datasets ?? []).length > 0) &&
+    (((chartData?.datasets ?? [])[0]?.data ?? []).length > 0);
 
   return (
     <div
