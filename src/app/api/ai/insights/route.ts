@@ -4,12 +4,13 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/lib/authOptions";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { Metric } from "@/app/models/Metric";
+import { Session } from "next-auth";
 
 export async function POST(request: Request) {
   try {
-    // 1) Verifica se usuário está logado (sem passar o request)
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    // 1) Verifica se o usuário está logado
+    const session = (await getServerSession(authOptions)) as Session | null;
+    if (!session || !session.user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
@@ -26,9 +27,7 @@ export async function POST(request: Request) {
     // 3) Conecta ao banco e busca o Metric pertencente ao usuário logado
     await connectToDatabase();
 
-    // Extraindo o ID do usuário da sessão (com type assertion, 
-    // pois session.user não tem "id" definido por padrão na tipagem).
-    const userId = (session.user as { id?: string })?.id;
+    const userId = session.user.id;
     if (!userId) {
       return NextResponse.json(
         { error: "Usuário sem ID na sessão." },
@@ -36,7 +35,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Busca a métrica que pertença a esse userId
     const metric = await Metric.findOne({ _id: metricId, user: userId });
     if (!metric) {
       return NextResponse.json(
@@ -76,21 +74,19 @@ Métricas fornecidas: ${JSON.stringify(stats)}
 
     const answer = completion.data.choices[0]?.message?.content || "";
 
-    // 8) Tenta parsear JSON
+    // 8) Tenta parsear o JSON da resposta
     let parsed: unknown;
     try {
       parsed = JSON.parse(answer);
     } catch (parseErr) {
-      // Se não vier JSON válido, logamos o erro e retornamos texto cru
       console.warn("Falha ao parsear JSON da IA:", parseErr);
       parsed = { rawText: answer };
     }
 
-    // 9) Retorna
+    // 9) Retorna a resposta com os insights
     return NextResponse.json({ insights: parsed }, { status: 200 });
   } catch (error: unknown) {
     console.error("POST /api/ai/insights error:", error);
-
     let message = "Erro desconhecido.";
     if (error instanceof Error) {
       message = error.message;
