@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "ES2017",
+    "target": "ES2022", // Atualizado para ES2022
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
@@ -14,30 +14,40 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    "baseUrl": ".",       // baseUrl = raiz do projeto
+    "baseUrl": ".",
     "paths": {
-      // Alias genérico: "@/..." aponta para /src
       "@/*": ["./src/*"],
-
-      // Alias específico para models
       "@models/*": ["./src/app/models/*"],
-
-      // Alias específico para lib
-      "@lib/*": ["./src/app/lib/*"]
+      "@lib/*": ["./src/app/lib/*"],
+      "@auth/*": ["./src/app/api/auth/*"] // Novo alias para auth
     },
     "plugins": [
       {
         "name": "next"
       }
     ],
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "typeRoots": ["./types", "./node_modules/@types"], // Adicionado para suportar tipos customizados
+    "types": ["next", "next-auth"], // Adicionado para suportar Next e NextAuth
+    "strictNullChecks": true, // Melhora a segurança de tipos
+    "noUncheckedIndexedAccess": true, // Melhora a segurança ao acessar propriedades
+    "noImplicitAny": true, // Previne any implícito
+    "noImplicitReturns": true, // Garante que todas as funções retornem algo
+    "noFallthroughCasesInSwitch": true // Previne fallthrough em switch
   },
   "include": [
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "src/app/lib/mercadopago.js"
+    "src/app/lib/mercadopago.js",
+    "types/**/*.d.ts" // Inclui tipos customizados
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "**/node_modules/*",
+    "**/dist/*",
+    "**/.next/*",
+    "**/out/*"
+  ]
 }
