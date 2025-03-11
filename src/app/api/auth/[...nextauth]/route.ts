@@ -59,6 +59,12 @@ interface SessionParams {
   };
 }
 
+// Interface para os parâmetros do callback redirect
+interface RedirectParams {
+  baseUrl: string;
+  url: string;
+}
+
 const authOptions = {
   providers: [
     GoogleProvider({
@@ -168,7 +174,7 @@ const authOptions = {
       return session;
     },
 
-    async redirect({ baseUrl }) {
+    async redirect({ baseUrl }: RedirectParams): Promise<string> {
       return baseUrl + "/dashboard";
     },
   },
