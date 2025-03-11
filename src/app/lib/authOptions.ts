@@ -28,19 +28,17 @@ export const authOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      // Define o escopo para obter a foto de perfil
       authorization: {
         params: {
           scope: "openid email profile",
         },
       },
-      // Mapeia o objeto "profile" do Google para o objeto "user"
       profile(profile) {
         return {
-          id: profile.sub, // O Google retorna "sub" como ID do usuário
+          id: profile.sub,
           name: profile.name,
           email: profile.email,
-          image: profile.picture, // Foto de perfil
+          image: profile.picture,
         };
       },
     }),
@@ -51,7 +49,6 @@ export const authOptions = {
         password: { label: "Senha", type: "password", placeholder: "demo" },
       },
       async authorize(credentials) {
-        // Exemplo simples: login "demo"/"demo"
         if (credentials?.username === "demo" && credentials?.password === "demo") {
           return {
             id: "demo-123",
@@ -59,17 +56,12 @@ export const authOptions = {
             email: "demo@example.com",
           };
         }
-        return null; // Falha na autenticação
+        return null;
       },
     }),
   ],
 
   callbacks: {
-    /**
-     * signIn callback:
-     * - Para Google, cria o usuário no banco se não existir.
-     * - Garante que user.id seja o _id do Mongo.
-     */
     async signIn({
       user,
       account,
@@ -79,10 +71,8 @@ export const authOptions = {
     }) {
       if (account?.provider === "google") {
         await connectToDatabase();
-        // Converte DbUser explicitamente para Model<IUser> para garantir a tipagem correta do findOne
         const existingUser = await (DbUser as Model<IUser>).findOne({ email: user.email });
         if (!existingUser) {
-          // Cria o usuário no Mongo (sem salvar a foto)
           const created = new DbUser({
             name: user.name,
             email: user.email,
@@ -90,7 +80,6 @@ export const authOptions = {
             role: "user",
           });
           await created.save();
-          // Converte o _id para string, garantindo que é do tipo ObjectId
           user.id = (created._id as Types.ObjectId).toString();
         } else {
           user.id = (existingUser._id as Types.ObjectId).toString();
@@ -99,11 +88,6 @@ export const authOptions = {
       return true;
     },
 
-    /**
-     * jwt callback:
-     * - Copia user.id para token.sub.
-     * - Copia user.image para token.picture, para exibir depois sem salvar no DB.
-     */
     async jwt({ token, user }: { token: JWT; user?: IUser | null }) {
       if (user) {
         token.sub = user.id;
@@ -114,14 +98,6 @@ export const authOptions = {
       return token;
     },
 
-    /**
-     * session callback:
-     * - Usa token.sub para buscar dados extras (planStatus etc.) no DB.
-     * - Converte planExpiresAt para string ISO e copia token.picture para session.user.image.
-     *
-     * Nota: Para evitar warnings de variáveis não utilizadas, os parâmetros "newSession",
-     * "trigger" e "user" não são desestruturados, mas permanecem na tipagem.
-     */
     async session(
       params: {
         session: Session;
@@ -132,18 +108,24 @@ export const authOptions = {
       }
     ): Promise<Session> {
       const { session, token } = params;
-      // Garante que session.user exista definindo um objeto base com os campos obrigatórios
-      const baseUser = {
+      // Garante que session.user exista com os campos mínimos exigidos
+      session.user = {
         id: token.sub as string,
         name: session.user?.name ?? null,
         email: session.user?.email ?? null,
         image: session.user?.image ?? null,
+        // Campos customizados (inicializados com undefined ou null)
+        role: undefined,
+        planStatus: undefined,
+        planExpiresAt: undefined,
+        affiliateCode: undefined,
+        affiliateBalance: undefined,
+        affiliateRank: undefined,
+        affiliateInvites: undefined,
       };
-      session.user = baseUser;
 
       await connectToDatabase();
       const dbUser = await DbUser.findById(token.sub);
-
       if (dbUser) {
         session.user.role = dbUser.role;
         session.user.planStatus = dbUser.planStatus;
@@ -162,10 +144,6 @@ export const authOptions = {
       return session;
     },
 
-    /**
-     * redirect callback:
-     * - Redireciona sempre para /dashboard depois de logar.
-     */
     async redirect({ baseUrl }: { baseUrl: string }) {
       return baseUrl + "/dashboard";
     },
