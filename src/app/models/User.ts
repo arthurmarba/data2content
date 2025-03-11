@@ -1,4 +1,53 @@
-import { Schema, model, models } from "mongoose";
+import { Schema, model, models, Document, Model, Types } from "mongoose";
+
+/**
+ * Interface que descreve um documento de usuário.
+ */
+export interface IUser extends Document {
+  // ========================
+  // Dados básicos
+  // ========================
+  name?: string;
+  email: string;
+  image?: string; // Propriedade adicionada para armazenar a imagem do usuário
+  googleId?: string;
+  role: string;
+
+  // ========================
+  // Plano
+  // ========================
+  planStatus?: string;
+  planExpiresAt?: Date | null;
+
+  // ========================
+  // WhatsApp
+  // ========================
+  whatsappVerificationCode?: string | null;
+  whatsappPhone?: string | null;
+
+  // ========================
+  // Gamificação (Ex.: rank de afiliado)
+  // ========================
+  affiliateRank?: number;
+  affiliateInvites?: number;
+
+  // ========================
+  // Afiliado
+  // ========================
+  affiliateCode?: string;
+  affiliateUsed?: string;
+  affiliateBalance?: number;
+
+  // ========================
+  // Dados de pagamento (Pix, conta bancária, etc.)
+  // ========================
+  paymentInfo?: {
+    pixKey?: string;
+    bankName?: string;
+    bankAgency?: string;
+    bankAccount?: string;
+  };
+}
 
 /**
  * Gera um código de afiliado aleatório (6 caracteres maiúsculos).
@@ -13,20 +62,21 @@ function generateAffiliateCode(): string {
  * - Armazena dados básicos, plano, WhatsApp, programa de afiliados e dados de pagamento.
  * - timestamps: true => cria createdAt e updatedAt automaticamente.
  */
-const userSchema = new Schema(
+const userSchema = new Schema<IUser>(
   {
     // ========================
     // Dados básicos
     // ========================
     name: { type: String },
     email: { type: String, required: true, unique: true },
+    image: { type: String }, // Campo para a imagem do usuário
     googleId: { type: String },
     role: { type: String, default: "user" },
 
     // ========================
     // Plano
     // ========================
-    planStatus: { type: String, default: "inactive" }, // "inactive", "active", "pending", "expired" etc.
+    planStatus: { type: String, default: "inactive" },
     planExpiresAt: { type: Date, default: null },
 
     // ========================
@@ -59,15 +109,15 @@ const userSchema = new Schema(
     },
   },
   {
-    timestamps: true, // cria createdAt e updatedAt automaticamente
+    timestamps: true, // Cria createdAt e updatedAt automaticamente
   }
 );
 
 /**
- * pre-save:
+ * Pre-save:
  * Se não existir affiliateCode, gera automaticamente.
  */
-userSchema.pre("save", function (next) {
+userSchema.pre<IUser>("save", function (next) {
   if (!this.affiliateCode) {
     this.affiliateCode = generateAffiliateCode();
   }
@@ -75,16 +125,16 @@ userSchema.pre("save", function (next) {
 });
 
 // ========================
-// ÍNDICES EXTRAS (SEM DUPLICAR OS 'unique')
+// ÍNDICES EXTRAS
 // ========================
-
-// Removemos os índices duplicados de email e affiliateCode,
-// pois já estão definidos como unique nos campos acima.
 
 // Índice para whatsappPhone (busca rápida)
 userSchema.index({ whatsappPhone: 1 });
 
-// Índice para planStatus (se precisar filtrar por status)
+// Índice para planStatus (caso precise filtrar por status)
 userSchema.index({ planStatus: 1 });
 
-export default models.User || model("User", userSchema);
+// Exporta o modelo já tipado. Se o modelo já existir (ex.: hot-reloading), utiliza-o; caso contrário, cria um novo.
+export default models.User
+  ? (models.User as Model<IUser>)
+  : model<IUser>("User", userSchema);

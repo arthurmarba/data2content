@@ -1,22 +1,40 @@
-import NextAuth, { NextAuthOptions } from "next-auth";
+import { Session } from "next-auth";
+import NextAuth from "next-auth/next"; // Atualizado para o caminho correto
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
+import { JWT } from "next-auth/jwt";
+import { Model, Types } from "mongoose";
 
 import { connectToDatabase } from "@/app/lib/mongoose";
-import User from "@/app/models/User";
+// Importa o modelo e a interface do usuário
+import DbUser, { IUser } from "@/app/models/User";
 
-export const authOptions: NextAuthOptions = {
+// Atualize a interface BaseUser para permitir undefined
+interface BaseUser {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+}
+
+// Define a interface para o objeto account, evitando o uso de "any"
+interface CustomAccount {
+  provider: string;
+  providerAccountId: string;
+  // Adicione outras propriedades, se necessário
+}
+
+export const authOptions = {
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      // 1) Define o escopo para obter a foto de perfil
+      // Define o escopo para obter a foto de perfil
       authorization: {
         params: {
           scope: "openid email profile",
         },
       },
-      // 2) Mapeia o objeto "profile" do Google para o objeto "user"
+      // Mapeia o objeto "profile" do Google para o objeto "user"
       profile(profile) {
         return {
           id: profile.sub, // O Google retorna "sub" como ID do usuário
@@ -41,43 +59,52 @@ export const authOptions: NextAuthOptions = {
             email: "demo@example.com",
           };
         }
-        return null; // Falha
+        return null; // Falha na autenticação
       },
     }),
   ],
 
   callbacks: {
     /**
-     * 1) signIn callback:
-     *    - Para Google, cria o usuário no banco se não existir.
-     *    - Garante que user.id seja o _id do Mongo.
+     * signIn callback:
+     * - Para Google, cria o usuário no banco se não existir.
+     * - Garante que user.id seja o _id do Mongo.
      */
-    async signIn({ user, account }) {
+    async signIn({
+      user,
+      account,
+    }: {
+      user: BaseUser;
+      account: CustomAccount;
+    }) {
       if (account?.provider === "google") {
         await connectToDatabase();
-        const existingUser = await User.findOne({ email: user.email });
+        // Converte DbUser explicitamente para Model<IUser> para garantir a tipagem correta do findOne
+        const existingUser = await (DbUser as Model<IUser>).findOne({ email: user.email });
         if (!existingUser) {
           // Cria o usuário no Mongo (sem salvar a foto)
-          const created = await User.create({
+          const created = new DbUser({
             name: user.name,
             email: user.email,
             googleId: account.providerAccountId,
             role: "user",
           });
-          user.id = created._id.toString();
+          await created.save();
+          // Converte o _id para string, garantindo que é do tipo ObjectId
+          user.id = (created._id as Types.ObjectId).toString();
         } else {
-          user.id = existingUser._id.toString();
+          user.id = (existingUser._id as Types.ObjectId).toString();
         }
       }
       return true;
     },
 
     /**
-     * 2) jwt callback:
-     *    - Copia user.id para token.sub.
-     *    - Copia user.image para token.picture, para exibir depois sem salvar no DB.
+     * jwt callback:
+     * - Copia user.id para token.sub.
+     * - Copia user.image para token.picture, para exibir depois sem salvar no DB.
      */
-    async jwt({ token, user }) {
+    async jwt({ token, user }: { token: JWT; user?: IUser | null }) {
       if (user) {
         token.sub = user.id;
         if (user.image) {
@@ -88,21 +115,25 @@ export const authOptions: NextAuthOptions = {
     },
 
     /**
-     * 3) session callback:
-     *    - Usa token.sub para buscar dados extras (planStatus etc.) no DB.
-     *    - Copia token.picture para session.user.image (exibindo a foto no front).
+     * session callback:
+     * - Usa token.sub para buscar dados extras (planStatus etc.) no DB.
+     * - Converte planExpiresAt para string ISO e copia token.picture para session.user.image.
      */
-    async session({ session, token }) {
+    async session({ session, token }: { session: Session; token: JWT }) {
       if (!token.sub) return session;
 
       await connectToDatabase();
-      const dbUser = await User.findById(token.sub);
+      // A query já é thenable, portanto .exec() não é necessário
+      const dbUser = await DbUser.findById(token.sub);
 
       if (session.user && dbUser) {
-        session.user.id = dbUser._id.toString();
+        session.user.id = (dbUser._id as Types.ObjectId).toString();
         session.user.role = dbUser.role;
         session.user.planStatus = dbUser.planStatus;
-        session.user.planExpiresAt = dbUser.planExpiresAt;
+        // Converte a data para string ISO, se existir
+        session.user.planExpiresAt = dbUser.planExpiresAt
+          ? dbUser.planExpiresAt.toISOString()
+          : null;
         session.user.affiliateCode = dbUser.affiliateCode;
         session.user.affiliateBalance = dbUser.affiliateBalance;
         session.user.affiliateRank = dbUser.affiliateRank;
@@ -116,10 +147,10 @@ export const authOptions: NextAuthOptions = {
     },
 
     /**
-     * 4) redirect callback:
-     *    - Redireciona sempre para /dashboard depois de logar
+     * redirect callback:
+     * - Redireciona sempre para /dashboard depois de logar.
      */
-    async redirect({ baseUrl }) {
+    async redirect({ baseUrl }: { baseUrl: string }) {
       return baseUrl + "/dashboard";
     },
   },
