@@ -331,7 +331,12 @@ function MetricsList() {
                 </p>
                 {m.stats["taxaEngajamento"] !== undefined && (
                   <p>
-                    Taxa Engajamento: {m.stats["taxaEngajamento"]}%
+                    Taxa Engajamento:{" "}
+                    {typeof m.stats["taxaEngajamento"] === "object" ||
+                    m.stats["taxaEngajamento"] === null
+                      ? JSON.stringify(m.stats["taxaEngajamento"])
+                      : m.stats["taxaEngajamento"].toString()}
+                    %
                   </p>
                 )}
               </div>
