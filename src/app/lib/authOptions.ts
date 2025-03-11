@@ -108,40 +108,42 @@ export const authOptions = {
       }
     ): Promise<Session> {
       const { session, token } = params;
-      // Garante que session.user exista com os campos mínimos exigidos
-      session.user = {
-        id: token.sub as string,
-        name: session.user?.name ?? null,
-        email: session.user?.email ?? null,
-        image: session.user?.image ?? null,
-        // Campos customizados (inicializados com undefined ou null)
-        role: undefined,
-        planStatus: undefined,
-        planExpiresAt: undefined,
-        affiliateCode: undefined,
-        affiliateBalance: undefined,
-        affiliateRank: undefined,
-        affiliateInvites: undefined,
+      // Cria um objeto fullSession que garante que session.user esteja definido com os campos mínimos
+      const fullSession = {
+        ...session,
+        user: {
+          id: token.sub as string, // Campo obrigatório
+          name: session.user?.name ?? null,
+          email: session.user?.email ?? null,
+          image: token.picture ? (token.picture as string) : (session.user?.image ?? null),
+          // Campos customizados com tipos adequados
+          role: undefined as string | undefined,
+          planStatus: undefined as string | undefined,
+          planExpiresAt: null as string | null, // Alterado para null em vez de undefined
+          affiliateCode: undefined as string | undefined,
+          affiliateBalance: undefined as number | undefined,
+          affiliateRank: undefined as string | undefined,
+          affiliateInvites: undefined as number | undefined,
+        },
       };
 
       await connectToDatabase();
       const dbUser = await DbUser.findById(token.sub);
       if (dbUser) {
-        session.user.role = dbUser.role;
-        session.user.planStatus = dbUser.planStatus;
-        session.user.planExpiresAt = dbUser.planExpiresAt
+        fullSession.user.role = dbUser.role;
+        fullSession.user.planStatus = dbUser.planStatus;
+        fullSession.user.planExpiresAt = dbUser.planExpiresAt
           ? dbUser.planExpiresAt.toISOString()
           : null;
-        session.user.affiliateCode = dbUser.affiliateCode;
-        session.user.affiliateBalance = dbUser.affiliateBalance;
-        session.user.affiliateRank = dbUser.affiliateRank;
-        session.user.affiliateInvites = dbUser.affiliateInvites;
+        fullSession.user.affiliateCode =
+          dbUser.affiliateCode !== undefined ? dbUser.affiliateCode.toString() : undefined;
+        fullSession.user.affiliateBalance = dbUser.affiliateBalance;
+        fullSession.user.affiliateRank =
+          dbUser.affiliateRank !== undefined ? dbUser.affiliateRank.toString() : undefined;
+        fullSession.user.affiliateInvites = dbUser.affiliateInvites;
       }
 
-      if (token.picture) {
-        session.user.image = token.picture as string;
-      }
-      return session;
+      return fullSession as Session;
     },
 
     async redirect({ baseUrl }: { baseUrl: string }) {
