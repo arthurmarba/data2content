@@ -4,10 +4,9 @@ import NextAuth from "next-auth/next";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { connectToDatabase } from "@/app/lib/mongoose";
-import User from "@/app/models/User";
+import User, { IUser } from "@/app/models/User";
 import type { Session } from "next-auth";
 import type { JWT } from "next-auth/jwt";
-import type { AdapterUser } from "next-auth/adapters";
 
 /**
  * Parâmetros para o callback signIn do NextAuth
@@ -24,7 +23,7 @@ interface SignInParams {
     image?: string | null;
   };
   account: {
-    /** Nome do provedor (por exemplo, 'google' ou 'credentials') */
+    /** Nome do provedor (ex.: 'google' ou 'credentials') */
     provider?: string;
     /** Identificador específico da conta no provedor */
     providerAccountId?: string;
@@ -44,7 +43,10 @@ interface JwtParams {
   };
 }
 
-interface SessionParams {
+/**
+ * Interface para os parâmetros do callback session, conforme o padrão NextAuth.
+ */
+interface NextAuthSessionParams {
   session: Session & {
     user: {
       id: string;
@@ -60,10 +62,7 @@ interface SessionParams {
       affiliateInvites?: number;
     };
   };
-  token: JWT & { picture?: string };
-  user: AdapterUser;
-  newSession: unknown;
-  trigger: "update";
+  token: JWT & { picture?: string; sub?: string };
 }
 
 interface RedirectParams {
@@ -113,14 +112,16 @@ const authOptions = {
     async signIn({ user, account }: SignInParams): Promise<boolean> {
       if (account?.provider === "google") {
         await connectToDatabase();
-        const existingUser = await User.findOne({ email: user.email });
+        // Define o tipo de existingUser explicitamente como IUser ou null
+        const existingUser = (await User.findOne({ email: user.email })) as IUser | null;
         if (!existingUser) {
-          const created = await User.create({
+          // Ao criar o usuário, garante que o retorno seja tipado como IUser
+          const created = (await User.create({
             name: user.name,
             email: user.email,
             googleId: account.providerAccountId,
             role: "user",
-          });
+          })) as IUser;
           user.id = created._id.toString();
         } else {
           user.id = existingUser._id.toString();
@@ -139,30 +140,25 @@ const authOptions = {
       return token;
     },
 
-    async session({ session, token }: SessionParams) {
+    async session({ session, token }: NextAuthSessionParams) {
       if (!token.sub) return session;
 
       await connectToDatabase();
       const dbUser = await User.findById(token.sub);
 
-      if (!session.user) {
-        session.user = { id: "", name: null, email: null, image: null };
-      }
-      const typedUser = session.user;
-
       if (dbUser) {
-        typedUser.id = dbUser._id.toString();
-        typedUser.role = dbUser.role;
-        typedUser.planStatus = dbUser.planStatus;
-        typedUser.planExpiresAt = dbUser.planExpiresAt;
-        typedUser.affiliateCode = dbUser.affiliateCode;
-        typedUser.affiliateBalance = dbUser.affiliateBalance;
-        typedUser.affiliateRank = dbUser.affiliateRank;
-        typedUser.affiliateInvites = dbUser.affiliateInvites;
+        session.user.id = dbUser._id.toString();
+        session.user.role = dbUser.role;
+        session.user.planStatus = dbUser.planStatus;
+        session.user.planExpiresAt = dbUser.planExpiresAt ? dbUser.planExpiresAt.toString() : null;
+        session.user.affiliateCode = dbUser.affiliateCode;
+        session.user.affiliateBalance = dbUser.affiliateBalance;
+        session.user.affiliateRank = dbUser.affiliateRank;
+        session.user.affiliateInvites = dbUser.affiliateInvites;
       }
 
-      if (token.picture && session.user) {
-        typedUser.image = token.picture as string;
+      if (token.picture) {
+        session.user.image = token.picture as string;
       }
 
       return session;
