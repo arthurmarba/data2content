@@ -3,8 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { connectToDatabase } from "@/app/lib/mongoose";
-import User, { IUser } from "@/app/models/User";
-// Alterado: Importa DailyMetric e sua interface IDailyMetric como named exports
+import User from "@/app/models/User"; // Removido { IUser } pois não é usado
 import { DailyMetric, IDailyMetric } from "@/app/models/DailyMetric";
 import { buildAggregatedReport } from "@/app/lib/reportHelpers";
 import { generateReport, AggregatedMetrics } from "@/app/lib/reportService";
@@ -76,8 +75,10 @@ export async function POST(request: NextRequest) {
 
           // 5d) Ajusta número de telefone para o formato internacional
           if (!user.whatsappPhone) {
-            console.warn(`Usuário ${(user._id as Types.ObjectId).toString()} não possui número de WhatsApp.`);
-            return { userId: (user._id as Types.ObjectId).toString(), success: false };
+            console.warn(
+              `Usuário ${(user._id as unknown as Types.ObjectId).toString()} não possui número de WhatsApp.`
+            );
+            return { userId: (user._id as unknown as Types.ObjectId).toString(), success: false };
           }
           let phoneWithPlus = user.whatsappPhone;
           if (!phoneWithPlus.startsWith("+")) {
@@ -87,15 +88,15 @@ export async function POST(request: NextRequest) {
           // 5e) Envia o relatório via WhatsApp
           await safeSendWhatsAppMessage(phoneWithPlus, reportText);
           console.log(
-            `Relatório enviado para userId=${(user._id as Types.ObjectId).toString()}, phone=${phoneWithPlus}`
+            `Relatório enviado para userId=${(user._id as unknown as Types.ObjectId).toString()}, phone=${phoneWithPlus}`
           );
-          return { userId: (user._id as Types.ObjectId).toString(), success: true };
+          return { userId: (user._id as unknown as Types.ObjectId).toString(), success: true };
         } catch (error: unknown) {
           console.error(
-            `Erro ao processar relatório para userId=${(user._id as Types.ObjectId).toString()}:`,
+            `Erro ao processar relatório para userId=${(user._id as unknown as Types.ObjectId).toString()}:`,
             error
           );
-          return { userId: (user._id as Types.ObjectId).toString(), success: false };
+          return { userId: (user._id as unknown as Types.ObjectId).toString(), success: false };
         }
       })
     );

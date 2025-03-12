@@ -3,8 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { connectToDatabase } from "@/app/lib/mongoose";
-import User, { IUser } from "@/app/models/User";
-// Importa DailyMetric e sua interface IDailyMetric como named exports
+import User from "@/app/models/User"; // Importação atualizada (sem IUser)
 import { DailyMetric, IDailyMetric } from "@/app/models/DailyMetric";
 import { buildAggregatedReport } from "@/app/lib/reportHelpers";
 import { generateReport, AggregatedMetrics } from "@/app/lib/reportService";
@@ -61,6 +60,9 @@ export async function POST(request: NextRequest) {
     // 5) Processa todos os usuários de forma concorrente
     const results = await Promise.allSettled<ReportResult>(
       users.map(async (user) => {
+        // Define o id do usuário para facilitar a leitura
+        const userId = (user._id as Types.ObjectId).toString();
+
         try {
           // 5a) Carrega as métricas (DailyMetric) dos últimos 7 dias para o usuário
           const dailyMetrics = await (DailyMetric as Model<IDailyMetric>).find({
@@ -76,10 +78,8 @@ export async function POST(request: NextRequest) {
 
           // 5d) Ajusta número de telefone para o formato internacional
           if (!user.whatsappPhone) {
-            console.warn(
-              `Usuário ${(user._id as unknown as Types.ObjectId).toString()} não possui número de WhatsApp.`
-            );
-            return { userId: (user._id as unknown as Types.ObjectId).toString(), success: false };
+            console.warn(`Usuário ${userId} não possui número de WhatsApp.`);
+            return { userId, success: false };
           }
           let phoneWithPlus = user.whatsappPhone;
           if (!phoneWithPlus.startsWith("+")) {
@@ -88,16 +88,11 @@ export async function POST(request: NextRequest) {
 
           // 5e) Envia o relatório via WhatsApp
           await safeSendWhatsAppMessage(phoneWithPlus, reportText);
-          console.log(
-            `Relatório enviado para userId=${(user._id as unknown as Types.ObjectId).toString()}, phone=${phoneWithPlus}`
-          );
-          return { userId: (user._id as unknown as Types.ObjectId).toString(), success: true };
+          console.log(`Relatório enviado para userId=${userId}, phone=${phoneWithPlus}`);
+          return { userId, success: true };
         } catch (error: unknown) {
-          console.error(
-            `Erro ao processar relatório para userId=${(user._id as unknown as Types.ObjectId).toString()}:`,
-            error
-          );
-          return { userId: (user._id as unknown as Types.ObjectId).toString(), success: false };
+          console.error(`Erro ao processar relatório para userId=${userId}:`, error);
+          return { userId, success: false };
         }
       })
     );
