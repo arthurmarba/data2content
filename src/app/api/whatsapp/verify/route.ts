@@ -4,6 +4,7 @@ import { authOptions } from "@/app/lib/authOptions"; // Ensure this is typed wit
 
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User, { IUser } from "@/app/models/User";
+import { Document } from "mongoose"; // Import Document for proper type assertion
 
 /**
  * POST /api/whatsapp/verify
@@ -44,8 +45,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // 3) Busca o usuário com esse code (casting para IUser para garantir que _id é conhecido)
-    const user = (await User.findOne({ whatsappVerificationCode: code })) as IUser | null;
+    // 3) Busca o usuário com esse code
+    // Cast para (IUser & Document) para garantir que _id seja reconhecido
+    const user = (await User.findOne({ whatsappVerificationCode: code })) as (IUser & Document) | null;
     if (!user) {
       return NextResponse.json(
         { error: "Código inválido ou expirado." },
@@ -82,9 +84,6 @@ export async function POST(request: Request) {
   } catch (error: unknown) {
     console.error("Erro em POST /api/whatsapp/verify:", error);
     const errorMessage = error instanceof Error ? error.message : String(error);
-    return NextResponse.json(
-      { error: `Falha ao verificar código: ${errorMessage}` },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: `Falha ao verificar código: ${errorMessage}` }, { status: 500 });
   }
 }
