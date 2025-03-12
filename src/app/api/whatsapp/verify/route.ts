@@ -1,10 +1,12 @@
+// src/app/api/whatsapp/verify/route.ts
+
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next"; // Correct import for NextAuth v4 App Router
 import { authOptions } from "@/app/lib/authOptions"; // Ensure this is typed with NextAuthOptions
 
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User, { IUser } from "@/app/models/User";
-import { Document } from "mongoose"; // Import Document for proper type assertion
+import { Types } from "mongoose";
 
 /**
  * POST /api/whatsapp/verify
@@ -37,7 +39,7 @@ export async function POST(request: Request) {
     await connectToDatabase();
 
     // 2) Lê e valida parâmetros do body
-    const { phoneNumber, code } = (await request.json()) || {};
+    const { phoneNumber, code } = await request.json();
     if (!phoneNumber || !code) {
       return NextResponse.json(
         { error: "Parâmetros 'phoneNumber' e 'code' são obrigatórios." },
@@ -46,8 +48,8 @@ export async function POST(request: Request) {
     }
 
     // 3) Busca o usuário com esse code
-    // Cast para (IUser & Document) para garantir que _id seja reconhecido
-    const user = (await User.findOne({ whatsappVerificationCode: code })) as (IUser & Document) | null;
+    // Como IUser estende Document, _id será reconhecido; usamos cast para garantir o tipo ObjectId
+    const user = (await User.findOne({ whatsappVerificationCode: code })) as IUser | null;
     if (!user) {
       return NextResponse.json(
         { error: "Código inválido ou expirado." },
@@ -56,7 +58,7 @@ export async function POST(request: Request) {
     }
 
     // 4) Verifica se esse user é o mesmo da sessão
-    if (user._id.toString() !== userWithId.id) {
+    if ((user._id as Types.ObjectId).toString() !== userWithId.id) {
       return NextResponse.json(
         { error: "Acesso negado: este código não pertence ao seu usuário." },
         { status: 403 }
@@ -84,6 +86,9 @@ export async function POST(request: Request) {
   } catch (error: unknown) {
     console.error("Erro em POST /api/whatsapp/verify:", error);
     const errorMessage = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: `Falha ao verificar código: ${errorMessage}` }, { status: 500 });
+    return NextResponse.json(
+      { error: `Falha ao verificar código: ${errorMessage}` },
+      { status: 500 }
+    );
   }
 }
