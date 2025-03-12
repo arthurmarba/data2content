@@ -9,21 +9,28 @@ import type { Session } from "next-auth";
 import type { JWT } from "next-auth/jwt";
 import type { AdapterUser } from "next-auth/adapters";
 
-// Interface para os parâmetros do callback signIn
+/**
+ * Parâmetros para o callback signIn do NextAuth
+ */
 interface SignInParams {
   user: {
+    /** Email do usuário retornado pelo provedor */
     email?: string | null;
+    /** Nome do usuário retornado pelo provedor */
     name?: string | null;
+    /** Identificador único do usuário */
     id?: string;
+    /** URL da imagem do usuário */
     image?: string | null;
   };
   account: {
+    /** Nome do provedor (por exemplo, 'google' ou 'credentials') */
     provider?: string;
+    /** Identificador específico da conta no provedor */
     providerAccountId?: string;
   } | null;
 }
 
-// Interface para os parâmetros do callback jwt
 interface JwtParams {
   token: {
     sub?: string;
@@ -37,7 +44,6 @@ interface JwtParams {
   };
 }
 
-// Interface para os parâmetros do callback session
 interface SessionParams {
   session: Session & {
     user: {
@@ -60,7 +66,6 @@ interface SessionParams {
   trigger: "update";
 }
 
-// Interface para os parâmetros do callback redirect
 interface RedirectParams {
   baseUrl: string;
   url: string;
@@ -140,7 +145,6 @@ const authOptions = {
       await connectToDatabase();
       const dbUser = await User.findById(token.sub);
 
-      // Garante que session.user esteja definido com os campos obrigatórios
       if (!session.user) {
         session.user = { id: "", name: null, email: null, image: null };
       }
