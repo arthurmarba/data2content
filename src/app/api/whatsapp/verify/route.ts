@@ -1,11 +1,9 @@
-// src/app/api/whatsapp/verify/route.ts
-
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth"; // Ajuste se estiver usando outro import
-import { authOptions } from "@/app/lib/authOptions"; // ajuste o caminho se necessário
+import { getServerSession } from "next-auth/next"; // Correct import for NextAuth v4 App Router
+import { authOptions } from "@/app/lib/authOptions"; // Ensure this is typed with NextAuthOptions
 
 import { connectToDatabase } from "@/app/lib/mongoose";
-import User from "@/app/models/User";
+import User, { IUser } from "@/app/models/User";
 
 /**
  * POST /api/whatsapp/verify
@@ -16,27 +14,23 @@ import User from "@/app/models/User";
  */
 export async function POST(request: Request) {
   try {
-    // 1) Verifica sessão (sem passar 'request' para getServerSession)
+    // 1) Verifica sessão (não passando 'request' para getServerSession)
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
-    // Fazemos o cast para garantir que session.user tenha 'id'
+    // Faz o cast para garantir que session.user tenha 'id'
     const userWithId = session.user as {
       id?: string;
       name?: string | null;
       email?: string | null;
       image?: string | null;
-      // Se houver mais propriedades, inclua aqui
     };
 
     // Se a sessão não tiver um ID, não conseguimos comparar
     if (!userWithId.id) {
-      return NextResponse.json(
-        { error: "Sessão sem ID de usuário" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Sessão sem ID de usuário" }, { status: 400 });
     }
 
     await connectToDatabase();
@@ -50,8 +44,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // 3) Busca o usuário com esse code
-    const user = await User.findOne({ whatsappVerificationCode: code });
+    // 3) Busca o usuário com esse code (casting para IUser para garantir que _id é conhecido)
+    const user = (await User.findOne({ whatsappVerificationCode: code })) as IUser | null;
     if (!user) {
       return NextResponse.json(
         { error: "Código inválido ou expirado." },
@@ -75,17 +69,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // (Opcional) Verificar duplicidade de número:
-    /*
-    const existingPhoneUser = await User.findOne({ whatsappPhone: phoneNumber });
-    if (existingPhoneUser && existingPhoneUser._id.toString() !== user._id.toString()) {
-      return NextResponse.json(
-        { error: "Este número de telefone já está vinculado a outro usuário." },
-        { status: 409 }
-      );
-    }
-    */
-
     // 6) Vincula phoneNumber e invalida o code
     user.whatsappPhone = phoneNumber;
     user.whatsappVerificationCode = null;
@@ -96,7 +79,6 @@ export async function POST(request: Request) {
       { message: "Vinculação concluída com sucesso!" },
       { status: 200 }
     );
-
   } catch (error: unknown) {
     console.error("Erro em POST /api/whatsapp/verify:", error);
     const errorMessage = error instanceof Error ? error.message : String(error);
