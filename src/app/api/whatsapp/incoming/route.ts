@@ -1,13 +1,15 @@
-// src/app/api/whatsapp/incoming/route.ts
+"use client";
 
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
-import { DailyMetric } from "@/app/models/DailyMetric";
+// Alterado: Importa DailyMetric e IDailyMetric como named exports
+import { DailyMetric, IDailyMetric } from "@/app/models/DailyMetric";
 import { sendWhatsAppMessage } from "@/app/lib/whatsappService";
 import { callOpenAIForQuestion } from "@/app/lib/aiService";
 import { generateReport, AggregatedMetrics } from "@/app/lib/reportService";
 import { buildAggregatedReport } from "@/app/lib/reportHelpers";
+import { Model } from "mongoose";
 
 /**
  * Interface parcial para o corpo do Webhook do WhatsApp.
@@ -35,7 +37,6 @@ function parseIncomingBody(body: unknown): { from: string; text: string } {
   if (typeof body !== "object" || body === null) {
     return { from: "", text: "" };
   }
-
   const b = body as WhatsAppWebhookBody;
   const entry = b.entry?.[0];
   const changes = entry?.changes?.[0];
@@ -43,7 +44,8 @@ function parseIncomingBody(body: unknown): { from: string; text: string } {
   const msgObj = value?.messages?.[0];
 
   const from = msgObj?.from || "";
-  const text = msgObj?.text?.body || "";
+  // Usa ?? para garantir que text seja sempre uma string (fallback para "")
+  const text = msgObj?.text?.body ?? "";
   return { from, text };
 }
 
@@ -55,7 +57,7 @@ function parseIncomingBody(body: unknown): { from: string; text: string } {
 function extractVerificationCode(text: string): string | null {
   const codeRegex = /([A-Z0-9]{6})/;
   const match = text.match(codeRegex);
-  return match ? match[1] : null;
+  return match ? (match[1] ?? null) : null;
 }
 
 /**
@@ -141,7 +143,8 @@ export async function POST(request: NextRequest) {
     const fromDate = new Date();
     fromDate.setDate(fromDate.getDate() - 30);
 
-    const dailyMetrics = await DailyMetric.find({
+    // Corrigido: Cast do DailyMetric para Model<IDailyMetric>
+    const dailyMetrics = await (DailyMetric as unknown as Model<IDailyMetric>).find({
       user: dbUser._id,
       postDate: { $gte: fromDate },
     });
@@ -150,8 +153,6 @@ export async function POST(request: NextRequest) {
     const lowerText = text.toLowerCase();
     if (lowerText.includes("relatório") || lowerText.includes("planejamento de conteúdo")) {
       // Agrega os dados completos utilizando buildAggregatedReport
-
-      // -- SOLUÇÃO "double cast": convertemos para unknown, depois para AggregatedMetrics
       const aggregatedReport = buildAggregatedReport(dailyMetrics) as unknown as AggregatedMetrics;
 
       // Gera o relatório detalhado para o período "30 dias"
@@ -190,10 +191,8 @@ Responda de forma amigável e prática, em poucas linhas.
 
     // 12) Retorna 200
     return NextResponse.json({ message: "Respondido com IA" }, { status: 200 });
-
   } catch (err: unknown) {
     console.error("Erro em /api/whatsapp/incoming POST:", err);
-
     let message = "Erro desconhecido.";
     if (err instanceof Error) {
       message = err.message;
