@@ -1,8 +1,8 @@
 // src/app/lib/mongoose.ts
+
 import mongoose from "mongoose";
 
 export async function connectToDatabase() {
-  // Se já estivermos conectados, não faz nada
   if (mongoose.connection.readyState === 1) {
     return;
   }

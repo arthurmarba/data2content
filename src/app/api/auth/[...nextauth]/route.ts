@@ -1,5 +1,3 @@
-// src/app/api/auth/[...nextauth]/route.ts
-
 import NextAuth from "next-auth/next";
 import type { NextAuthOptions, Session, User, Account } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
@@ -9,7 +7,7 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import DbUser, { IUser } from "@/app/models/User";
 import type { JWT } from "next-auth/jwt";
 
-// Interfaces específicas para os callbacks
+// Interfaces para os callbacks
 interface SignInCallback {
   user: User & { id?: string };
   account: Account | null;
@@ -27,7 +25,6 @@ interface SessionCallback {
 
 interface RedirectCallback {
   baseUrl: string;
-  // Removido "url" pois não é utilizado
 }
 
 export const authOptions: NextAuthOptions = {
@@ -100,7 +97,7 @@ export const authOptions: NextAuthOptions = {
     },
 
     async session({ session, token }: SessionCallback): Promise<Session> {
-      // Inicializa session.user incluindo o campo id
+      // Inicializa session.user se ainda não existir
       if (!session.user) {
         session.user = { id: "", name: "", email: "", image: "" };
       }
@@ -108,7 +105,13 @@ export const authOptions: NextAuthOptions = {
 
       try {
         await connectToDatabase();
-        const dbUser = await DbUser.findById(token.sub);
+        let dbUser;
+        // Se token.sub for um ObjectId válido, usamos findById; caso contrário, buscamos por googleId
+        if (Types.ObjectId.isValid(token.sub)) {
+          dbUser = await DbUser.findById(token.sub);
+        } else {
+          dbUser = await DbUser.findOne({ googleId: token.sub });
+        }
         if (dbUser) {
           session.user.role = dbUser.role;
           session.user.planStatus = dbUser.planStatus;
