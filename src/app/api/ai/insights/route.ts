@@ -3,7 +3,8 @@ import { Configuration, OpenAIApi } from "openai";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/lib/authOptions";
 import { connectToDatabase } from "@/app/lib/mongoose";
-import { Metric } from "@/app/models/Metric";
+import Metric, { IMetric } from "@/app/models/Metric";
+import { Model } from "mongoose";
 import { Session } from "next-auth";
 
 export async function POST(request: Request) {
@@ -35,7 +36,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const metric = await Metric.findOne({ _id: metricId, user: userId });
+    // Cast do Metric para Model<IMetric> para resolver o problema de tipagem
+    const metricModel = Metric as Model<IMetric>;
+    const metric = await metricModel.findOne({ _id: metricId, user: userId });
+    
     if (!metric) {
       return NextResponse.json(
         { error: "Métrica não encontrada ou não pertence a este usuário." },

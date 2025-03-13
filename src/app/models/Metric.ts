@@ -9,8 +9,8 @@ export interface IMetric extends Document {
   user: Schema.Types.ObjectId | string;
   postLink: string;
   description: string;
-  rawData: any[];
-  stats: Record<string, any>;
+  rawData: unknown[]; // Substituído any por unknown para evitar erro de ESLint
+  stats: Record<string, unknown>; // Substituído any por Record<string, unknown>
   createdAt: Date;
 }
 
@@ -83,6 +83,8 @@ metricSchema.index({ user: 1, createdAt: -1 });
  * Evita recriar o modelo em dev/hot reload:
  * Se já existir "Metric" no models, utiliza-o; caso contrário, cria.
  */
-const Metric = models.Metric ? (models.Metric as Model<IMetric>) : model<IMetric>("Metric", metricSchema);
+const MetricModel = models.Metric ? (models.Metric as Model<IMetric>) : model<IMetric>("Metric", metricSchema);
 
-export default Metric;
+// Exportando tanto como default quanto como named export para compatibilidade
+export default MetricModel;
+export const Metric = MetricModel;
