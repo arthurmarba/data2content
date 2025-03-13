@@ -12,8 +12,8 @@ export default function AnswerPage() {
   const params = useParams();
   const rawQuery = params.query; // "query" => string | string[] | undefined
 
-  // Converte para string, evitando erro de tipo
-  const safeQuery = Array.isArray(rawQuery) ? rawQuery[0] : rawQuery ?? "";
+  // Converte para string, garantindo que safeQuery seja sempre uma string
+  const safeQuery = Array.isArray(rawQuery) ? (rawQuery[0] ?? "") : (rawQuery ?? "");
 
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(true);
@@ -36,7 +36,7 @@ export default function AnswerPage() {
       }
     }
 
-    // Aqui chamamos a API mesmo que safeQuery esteja vazio (você pode ajustar conforme a necessidade)
+    // Chama a API mesmo que safeQuery esteja vazio (ajuste conforme sua necessidade)
     fetchData();
   }, [safeQuery]);
 
@@ -79,7 +79,7 @@ export default function AnswerPage() {
         </div>
 
         {/* Carrossel de Vídeos Relacionados */}
-        {/* Agora passamos safeQuery (garantido como string) para o prop "query" */}
+        {/* Passa safeQuery (garantido como string) para o prop "query" */}
         <VideoCarousel title="Vídeos Relacionados" query={safeQuery} maxResults={4} />
       </main>
     </div>
