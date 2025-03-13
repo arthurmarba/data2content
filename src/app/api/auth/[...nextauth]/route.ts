@@ -1,84 +1,47 @@
 // src/app/api/auth/[...nextauth]/route.ts
 
 import NextAuth from "next-auth/next";
+import type { NextAuthOptions, Session, User } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { connectToDatabase } from "@/app/lib/mongoose";
-import User, { IUser } from "@/app/models/User";
-import type { Session } from "next-auth";
+import UserModel, { IUser } from "@/app/models/User";
+import { Types } from "mongoose";
 import type { JWT } from "next-auth/jwt";
 
-/**
- * Parâmetros para o callback signIn do NextAuth
- */
+// Parâmetros para o callback signIn
 interface SignInParams {
   user: {
-    /** Email do usuário retornado pelo provedor */
     email?: string | null;
-    /** Nome do usuário retornado pelo provedor */
     name?: string | null;
-    /** Identificador único do usuário */
     id?: string;
-    /** URL da imagem do usuário */
     image?: string | null;
   };
   account: {
-    /** Nome do provedor (ex.: 'google' ou 'credentials') */
     provider?: string;
-    /** Identificador específico da conta no provedor */
     providerAccountId?: string;
   } | null;
 }
 
+// Parâmetros para o callback jwt
 interface JwtParams {
-  token: {
-    sub?: string;
-    picture?: string;
-    [key: string]: unknown;
-  };
-  user?: {
-    id?: string;
-    image?: string;
-    [key: string]: unknown;
-  };
+  token: JWT;
+  user?: User;
 }
 
-/**
- * Interface para os parâmetros do callback session, conforme o padrão NextAuth.
- */
-interface NextAuthSessionParams {
-  session: Session & {
-    user: {
-      id: string;
-      name: string | null;
-      email: string | null;
-      image: string | null;
-      role?: string;
-      planStatus?: string;
-      planExpiresAt?: string | null;
-      affiliateCode?: string;
-      affiliateBalance?: number;
-      affiliateRank?: number;
-      affiliateInvites?: number;
-    };
-  };
-  token: JWT & { picture?: string; sub?: string };
-}
-
+// Parâmetros para o callback redirect
 interface RedirectParams {
   baseUrl: string;
   url: string;
 }
 
-const authOptions = {
+export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       authorization: {
-        params: {
-          scope: "openid email profile",
-        },
+        params: { scope: "openid email profile" },
       },
       profile(profile) {
         return {
@@ -101,7 +64,7 @@ const authOptions = {
             id: "demo-123",
             name: "Demo User",
             email: "demo@example.com",
-          };
+          } as User;
         }
         return null;
       },
@@ -112,25 +75,31 @@ const authOptions = {
     async signIn({ user, account }: SignInParams): Promise<boolean> {
       if (account?.provider === "google") {
         await connectToDatabase();
-        // Define o tipo de existingUser explicitamente como IUser ou null
-        const existingUser = (await User.findOne({ email: user.email })) as IUser | null;
+        const existingUser = (await UserModel.findOne({ email: user.email })) as IUser | null;
         if (!existingUser) {
-          // Ao criar o usuário, garante que o retorno seja tipado como IUser
-          const created = (await User.create({
+          const created = await UserModel.create({
             name: user.name,
             email: user.email,
             googleId: account.providerAccountId,
             role: "user",
-          })) as IUser;
-          user.id = created._id.toString();
+          });
+          if (created && created._id) {
+            user.id = created._id instanceof Types.ObjectId
+              ? created._id.toString()
+              : String(created._id);
+          }
         } else {
-          user.id = existingUser._id.toString();
+          if (existingUser._id) {
+            user.id = existingUser._id instanceof Types.ObjectId
+              ? existingUser._id.toString()
+              : String(existingUser._id);
+          }
         }
       }
       return true;
     },
 
-    async jwt({ token, user }: JwtParams) {
+    async jwt({ token, user }: JwtParams): Promise<JWT> {
       if (user) {
         token.sub = user.id;
         if (user.image) {
@@ -140,27 +109,27 @@ const authOptions = {
       return token;
     },
 
-    async session({ session, token }: NextAuthSessionParams) {
-      if (!token.sub) return session;
+    async session({ session, token }: { session: Session; token: JWT }): Promise<Session> {
+      // Garantindo que session.user exista (a module augmentation já define as propriedades customizadas)
+      if (!session.user) {
+        session.user = { name: "", email: "", image: "" };
+      }
+      session.user.id = token.sub as string;
 
       await connectToDatabase();
-      const dbUser = await User.findById(token.sub);
-
+      const dbUser = await UserModel.findById(token.sub);
       if (dbUser) {
-        session.user.id = dbUser._id.toString();
         session.user.role = dbUser.role;
         session.user.planStatus = dbUser.planStatus;
-        session.user.planExpiresAt = dbUser.planExpiresAt ? dbUser.planExpiresAt.toString() : null;
-        session.user.affiliateCode = dbUser.affiliateCode;
+        session.user.planExpiresAt = dbUser.planExpiresAt ? dbUser.planExpiresAt.toISOString() : null;
+        session.user.affiliateCode = dbUser.affiliateCode ? dbUser.affiliateCode.toString() : undefined;
         session.user.affiliateBalance = dbUser.affiliateBalance;
-        session.user.affiliateRank = dbUser.affiliateRank;
+        session.user.affiliateRank = dbUser.affiliateRank ? dbUser.affiliateRank.toString() : undefined;
         session.user.affiliateInvites = dbUser.affiliateInvites;
       }
-
       if (token.picture) {
         session.user.image = token.picture as string;
       }
-
       return session;
     },
 

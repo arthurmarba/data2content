@@ -1,5 +1,5 @@
-import "next-auth";
-import { DefaultSession } from "next-auth";
+// types/next-auth.d.ts
+import { DefaultSession, DefaultUser } from "next-auth";
 
 declare module "next-auth" {
   interface Session {
@@ -11,33 +11,35 @@ declare module "next-auth" {
       planExpiresAt?: string | null;
       affiliateCode?: string;
       affiliateBalance?: number;
-      affiliateRank?: number;
+      affiliateRank?: string | number;
       affiliateInvites?: number;
     };
   }
 
-  interface User {
+  interface User extends DefaultUser {
     id: string;
     role?: string;
     planStatus?: string;
-    planExpiresAt?: string | null;
+    planExpiresAt?: Date | string | null;
     affiliateCode?: string;
     affiliateBalance?: number;
-    affiliateRank?: number;
+    affiliateRank?: string | number;
     affiliateInvites?: number;
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT {
-    id: string;
+    sub?: string;
+    id?: string;
     role?: string;
     planStatus?: string;
     planExpiresAt?: string | null;
     affiliateCode?: string;
     affiliateBalance?: number;
-    affiliateRank?: number;
+    affiliateRank?: string | number;
     affiliateInvites?: number;
     lastSync?: number;
+    picture?: string;
   }
 }

@@ -1,29 +1,15 @@
-import { Session } from "next-auth";
-import NextAuth from "next-auth/next"; // Atualizado para o caminho correto
+// src/app/api/auth/[...nextauth]/route.ts
+
+import NextAuth from "next-auth/next";
+import type { NextAuthOptions, Session, User, Account } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { JWT } from "next-auth/jwt";
 import { Model, Types } from "mongoose";
-
 import { connectToDatabase } from "@/app/lib/mongoose";
-// Importa o modelo e a interface do usuário
 import DbUser, { IUser } from "@/app/models/User";
+import type { JWT } from "next-auth/jwt";
 
-// Atualize a interface BaseUser para permitir undefined
-interface BaseUser {
-  id: string;
-  name?: string | null;
-  email?: string | null;
-}
-
-// Define a interface para o objeto account, permitindo null
-interface CustomAccount {
-  provider: string;
-  providerAccountId: string;
-  // Adicione outras propriedades, se necessário
-}
-
-export const authOptions = {
+const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -54,7 +40,7 @@ export const authOptions = {
             id: "demo-123",
             name: "Demo User",
             email: "demo@example.com",
-          };
+          } as User;
         }
         return null;
       },
@@ -62,33 +48,31 @@ export const authOptions = {
   ],
 
   callbacks: {
-    async signIn({
-      user,
-      account,
-    }: {
-      user: BaseUser;
-      account: CustomAccount | null;
-    }) {
+    async signIn({ user, account }: { user: User; account: Account | null }): Promise<boolean> {
       if (account?.provider === "google") {
-        await connectToDatabase();
-        const existingUser = await (DbUser as Model<IUser>).findOne({ email: user.email });
-        if (!existingUser) {
-          const created = new DbUser({
-            name: user.name,
-            email: user.email,
-            googleId: account.providerAccountId,
-            role: "user",
-          });
-          await created.save();
-          user.id = (created._id as Types.ObjectId).toString();
-        } else {
-          user.id = (existingUser._id as Types.ObjectId).toString();
+        try {
+          await connectToDatabase();
+          const existingUser = await (DbUser as Model<IUser>).findOne({ email: user.email });
+          if (!existingUser) {
+            const created = new DbUser({
+              name: user.name,
+              email: user.email,
+              googleId: account.providerAccountId,
+              role: "user",
+            });
+            await created.save();
+            user.id = (created._id as Types.ObjectId).toString();
+          } else {
+            user.id = (existingUser._id as Types.ObjectId).toString();
+          }
+        } catch (error) {
+          console.error("Erro durante signIn:", error);
         }
       }
       return true;
     },
 
-    async jwt({ token, user }: { token: JWT; user?: IUser | null }) {
+    async jwt({ token, user }: { token: JWT; user?: User }): Promise<JWT> {
       if (user) {
         token.sub = user.id;
         if (user.image) {
@@ -98,61 +82,50 @@ export const authOptions = {
       return token;
     },
 
-    async session(
-      params: {
-        session: Session;
-        token: JWT;
-        newSession: unknown;
-        trigger: "update";
-        user: unknown;
-      }
-    ): Promise<Session> {
-      const { session, token } = params;
-      // Cria um objeto fullSession que garante que session.user esteja definido com os campos mínimos
-      const fullSession = {
-        ...session,
-        user: {
-          id: token.sub as string, // Campo obrigatório
-          name: session.user?.name ?? null,
-          email: session.user?.email ?? null,
-          image: token.picture ? (token.picture as string) : (session.user?.image ?? null),
-          // Campos customizados com tipos adequados
-          role: undefined as string | undefined,
-          planStatus: undefined as string | undefined,
-          planExpiresAt: null as string | null, // Inicializado como null
-          affiliateCode: undefined as string | undefined,
-          affiliateBalance: undefined as number | undefined,
-          affiliateRank: undefined as string | undefined,
-          affiliateInvites: undefined as number | undefined,
-        },
-      };
-
-      await connectToDatabase();
-      const dbUser = await DbUser.findById(token.sub);
-      if (dbUser) {
-        fullSession.user.role = dbUser.role;
-        fullSession.user.planStatus = dbUser.planStatus;
-        fullSession.user.planExpiresAt = dbUser.planExpiresAt
-          ? dbUser.planExpiresAt.toISOString()
-          : null;
-        fullSession.user.affiliateCode =
-          dbUser.affiliateCode !== undefined ? dbUser.affiliateCode.toString() : undefined;
-        fullSession.user.affiliateBalance = dbUser.affiliateBalance;
-        fullSession.user.affiliateRank =
-          dbUser.affiliateRank !== undefined ? dbUser.affiliateRank.toString() : undefined;
-        fullSession.user.affiliateInvites = dbUser.affiliateInvites;
+    async session({ session, token }: { session: Session; token: JWT }): Promise<Session> {
+      // Garante que session.user exista
+      if (!session.user) {
+        session.user = { name: null, email: null, image: null };
       }
 
-      // Retorna a sessão com um duplo cast para forçar o tipo correto
-      return fullSession as unknown as Session;
+      session.user.id = token.sub as string;
+
+      try {
+        await connectToDatabase();
+        const dbUser = await DbUser.findById(token.sub);
+        if (dbUser) {
+          session.user.role = dbUser.role;
+          session.user.planStatus = dbUser.planStatus;
+          session.user.planExpiresAt = dbUser.planExpiresAt ? dbUser.planExpiresAt.toISOString() : null;
+          session.user.affiliateCode = dbUser.affiliateCode?.toString();
+          session.user.affiliateBalance = dbUser.affiliateBalance;
+          session.user.affiliateRank = dbUser.affiliateRank?.toString();
+          session.user.affiliateInvites = dbUser.affiliateInvites;
+        }
+      } catch (error) {
+        console.error("Erro ao buscar dados do usuário na sessão:", error);
+      }
+
+      if (token.picture) {
+        session.user.image = token.picture as string;
+      }
+      return session;
     },
 
-    async redirect({ baseUrl }: { baseUrl: string }) {
+    async redirect({ baseUrl, url }: { baseUrl: string; url: string }): Promise<string> {
       return baseUrl + "/dashboard";
     },
   },
 
   secret: process.env.NEXTAUTH_SECRET,
+  pages: {
+    signIn: "/login",
+    error: "/auth/error",
+  },
+  session: {
+    strategy: "jwt" as const,
+    maxAge: 30 * 24 * 60 * 60, // 30 dias
+  },
 };
 
 const handler = NextAuth(authOptions);

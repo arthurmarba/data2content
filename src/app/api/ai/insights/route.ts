@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import { Configuration, OpenAIApi } from "openai";
-import { getServerSession } from "next-auth/next";
+import { getServerSession } from "next-auth/next"; // Corrigido: importação do caminho correto
 import { authOptions } from "@/app/lib/authOptions";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import Metric, { IMetric } from "@/app/models/Metric";
 import { Model } from "mongoose";
-// Removida a importação não utilizada de Session
 
 export async function POST(request: Request) {
   try {
