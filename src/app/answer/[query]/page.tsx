@@ -8,7 +8,7 @@ import SearchBar from "../../components/SearchBar";
 import VideoCarousel from "../../components/VideoCarousel";
 
 export default function AnswerPage() {
-  // useParams() retorna algo que pode ser string, string[] ou undefined
+  // useParams() pode retornar string, string[] ou undefined
   const params = useParams();
   const rawQuery = params.query; // "query" => string | string[] | undefined
 
@@ -21,8 +21,7 @@ export default function AnswerPage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        // Requisição para a resposta da IA,
-        // enviando safeQuery como string
+        // Requisição para a resposta da IA, enviando safeQuery como string
         const answerRes = await fetch("/api/ask", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -37,8 +36,7 @@ export default function AnswerPage() {
       }
     }
 
-    // Se safeQuery estiver vazio, você decide se ainda quer chamar a API ou não
-    // Aqui chamamos de qualquer forma:
+    // Aqui chamamos a API mesmo que safeQuery esteja vazio (você pode ajustar conforme a necessidade)
     fetchData();
   }, [safeQuery]);
 
@@ -81,7 +79,7 @@ export default function AnswerPage() {
         </div>
 
         {/* Carrossel de Vídeos Relacionados */}
-        {/* Agora passamos safeQuery como string no prop "query" */}
+        {/* Agora passamos safeQuery (garantido como string) para o prop "query" */}
         <VideoCarousel title="Vídeos Relacionados" query={safeQuery} maxResults={4} />
       </main>
     </div>
