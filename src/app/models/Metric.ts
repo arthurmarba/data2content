@@ -1,6 +1,18 @@
 // src/app/models/Metric.ts
 
-import { Schema, model, models } from "mongoose";
+import { Schema, model, models, Document, Model } from "mongoose";
+
+/**
+ * Interface que define a estrutura de um documento Metric
+ */
+export interface IMetric extends Document {
+  user: Schema.Types.ObjectId | string;
+  postLink: string;
+  description: string;
+  rawData: any[];
+  stats: Record<string, any>;
+  createdAt: Date;
+}
 
 /**
  * Metric:
@@ -14,7 +26,7 @@ import { Schema, model, models } from "mongoose";
  *
  * Observação: Geralmente é usado como um "log" ou "histórico" de métricas para cada conteúdo.
  */
-const metricSchema = new Schema(
+const metricSchema = new Schema<IMetric>(
   {
     // Usuário dono das métricas
     user: {
@@ -71,4 +83,6 @@ metricSchema.index({ user: 1, createdAt: -1 });
  * Evita recriar o modelo em dev/hot reload:
  * Se já existir "Metric" no models, utiliza-o; caso contrário, cria.
  */
-export const Metric = models.Metric || model("Metric", metricSchema);
+const Metric = models.Metric ? (models.Metric as Model<IMetric>) : model<IMetric>("Metric", metricSchema);
+
+export default Metric;

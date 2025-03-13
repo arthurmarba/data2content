@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/app/lib/mongoose";
-import { Metric } from "@/app/models/Metric";
+import Metric, { IMetric } from "@/app/models/Metric";
+import { Model } from "mongoose";
 import { callOpenAIForQuestion } from "@/app/lib/aiService";
 
 export async function POST(request: Request) {
@@ -18,7 +19,10 @@ export async function POST(request: Request) {
 
     // 3) Conecta ao banco e busca métricas do usuário
     await connectToDatabase();
-    const userMetrics = await Metric.find({ user: userId });
+    
+    // Cast do Metric para Model<IMetric> para resolver o problema de tipagem
+    const metricModel = Metric as Model<IMetric>;
+    const userMetrics = await metricModel.find({ user: userId });
 
     // 4) Monta prompt, instruindo a IA a usar somente as métricas fornecidas
     const prompt = `
