@@ -1,23 +1,20 @@
-// src/app/api/auth/[...nextauth]/route.ts
+// src/app/lib/authOptions.ts
 
-import NextAuth from "next-auth/next";
-import type { NextAuthOptions, Session, User, Account } from "next-auth";
+import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { Model, Types } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
-import DbUser, { IUser } from "@/app/models/User";
-import type { JWT } from "next-auth/jwt";
+import UserModel, { IUser } from "@/app/models/User";
+import { Types } from "mongoose";
+// Removemos a importação de Model, pois não é usada.
 
-const authOptions: NextAuthOptions = {
+export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       authorization: {
-        params: {
-          scope: "openid email profile",
-        },
+        params: { scope: "openid email profile" },
       },
       profile(profile) {
         return {
@@ -40,7 +37,7 @@ const authOptions: NextAuthOptions = {
             id: "demo-123",
             name: "Demo User",
             email: "demo@example.com",
-          } as User;
+          };
         }
         return null;
       },
@@ -48,71 +45,62 @@ const authOptions: NextAuthOptions = {
   ],
 
   callbacks: {
-    async signIn({ user, account }: { user: User; account: Account | null }): Promise<boolean> {
+    async signIn({ user, account }: { user: any; account: any }): Promise<boolean> {
       if (account?.provider === "google") {
-        try {
-          await connectToDatabase();
-          const existingUser = await (DbUser as Model<IUser>).findOne({ email: user.email });
-          if (!existingUser) {
-            const created = new DbUser({
-              name: user.name,
-              email: user.email,
-              googleId: account.providerAccountId,
-              role: "user",
-            });
-            await created.save();
-            user.id = (created._id as Types.ObjectId).toString();
-          } else {
-            user.id = (existingUser._id as Types.ObjectId).toString();
+        await connectToDatabase();
+        const existingUser = (await UserModel.findOne({ email: user.email })) as IUser | null;
+        if (!existingUser) {
+          const created = await UserModel.create({
+            name: user.name,
+            email: user.email,
+            googleId: account.providerAccountId,
+            role: "user",
+          });
+          if (created && created._id) {
+            user.id = created._id instanceof Types.ObjectId
+              ? created._id.toString()
+              : String(created._id);
           }
-        } catch (error) {
-          console.error("Erro durante signIn:", error);
+        } else {
+          if (existingUser._id) {
+            user.id = existingUser._id instanceof Types.ObjectId
+              ? existingUser._id.toString()
+              : String(existingUser._id);
+          }
         }
       }
       return true;
     },
 
-    async jwt({ token, user }: { token: JWT; user?: User }): Promise<JWT> {
+    async jwt({ token, user }: { token: any; user?: any }): Promise<any> {
       if (user) {
         token.sub = user.id;
-        if (user.image) {
-          token.picture = user.image;
-        }
+        if (user.image) token.picture = user.image;
       }
       return token;
     },
 
-    async session({ session, token }: { session: Session; token: JWT }): Promise<Session> {
-      // Garante que session.user exista
+    async session({ session, token }: { session: any; token: any }): Promise<any> {
       if (!session.user) {
-        session.user = { name: null, email: null, image: null };
+        session.user = { name: "", email: "", image: "" };
       }
-
       session.user.id = token.sub as string;
-
-      try {
-        await connectToDatabase();
-        const dbUser = await DbUser.findById(token.sub);
-        if (dbUser) {
-          session.user.role = dbUser.role;
-          session.user.planStatus = dbUser.planStatus;
-          session.user.planExpiresAt = dbUser.planExpiresAt ? dbUser.planExpiresAt.toISOString() : null;
-          session.user.affiliateCode = dbUser.affiliateCode?.toString();
-          session.user.affiliateBalance = dbUser.affiliateBalance;
-          session.user.affiliateRank = dbUser.affiliateRank?.toString();
-          session.user.affiliateInvites = dbUser.affiliateInvites;
-        }
-      } catch (error) {
-        console.error("Erro ao buscar dados do usuário na sessão:", error);
+      await connectToDatabase();
+      const dbUser = await UserModel.findById(token.sub);
+      if (dbUser) {
+        session.user.role = dbUser.role;
+        session.user.planStatus = dbUser.planStatus;
+        session.user.planExpiresAt = dbUser.planExpiresAt ? dbUser.planExpiresAt.toISOString() : null;
+        session.user.affiliateCode = dbUser.affiliateCode ? dbUser.affiliateCode.toString() : undefined;
+        session.user.affiliateBalance = dbUser.affiliateBalance;
+        session.user.affiliateRank = dbUser.affiliateRank ? dbUser.affiliateRank.toString() : undefined;
+        session.user.affiliateInvites = dbUser.affiliateInvites;
       }
-
-      if (token.picture) {
-        session.user.image = token.picture as string;
-      }
+      if (token.picture) session.user.image = token.picture as string;
       return session;
     },
 
-    async redirect({ baseUrl, url }: { baseUrl: string; url: string }): Promise<string> {
+    async redirect({ baseUrl }: { baseUrl: string }): Promise<string> {
       return baseUrl + "/dashboard";
     },
   },
@@ -123,10 +111,9 @@ const authOptions: NextAuthOptions = {
     error: "/auth/error",
   },
   session: {
-    strategy: "jwt" as const,
+    strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 dias
   },
 };
 
-const handler = NextAuth(authOptions);
-export { handler as GET, handler as POST };
+export default authOptions;
