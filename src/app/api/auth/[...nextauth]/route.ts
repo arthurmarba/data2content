@@ -1,38 +1,33 @@
 // src/app/api/auth/[...nextauth]/route.ts
 
 import NextAuth from "next-auth/next";
-import type { NextAuthOptions, Session, User } from "next-auth";
+import type { NextAuthOptions, Session, User, Account } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { connectToDatabase } from "@/app/lib/mongoose";
-import UserModel, { IUser } from "@/app/models/User";
 import { Types } from "mongoose";
+import { connectToDatabase } from "@/app/lib/mongoose";
+import DbUser, { IUser } from "@/app/models/User";
 import type { JWT } from "next-auth/jwt";
 
-// Parâmetros para o callback signIn
-interface SignInParams {
-  user: {
-    email?: string | null;
-    name?: string | null;
-    id?: string;
-    image?: string | null;
-  };
-  account: {
-    provider?: string;
-    providerAccountId?: string;
-  } | null;
+// Interfaces específicas para os callbacks
+interface SignInCallback {
+  user: User & { id?: string };
+  account: Account | null;
 }
 
-// Parâmetros para o callback jwt
-interface JwtParams {
+interface JwtCallback {
   token: JWT;
   user?: User;
 }
 
-// Parâmetros para o callback redirect
-interface RedirectParams {
+interface SessionCallback {
+  session: Session;
+  token: JWT;
+}
+
+interface RedirectCallback {
   baseUrl: string;
-  url: string;
+  // Removido "url" pois não é utilizado
 }
 
 export const authOptions: NextAuthOptions = {
@@ -72,73 +67,81 @@ export const authOptions: NextAuthOptions = {
   ],
 
   callbacks: {
-    async signIn({ user, account }: SignInParams): Promise<boolean> {
+    async signIn({ user, account }: SignInCallback): Promise<boolean> {
       if (account?.provider === "google") {
-        await connectToDatabase();
-        const existingUser = (await UserModel.findOne({ email: user.email })) as IUser | null;
-        if (!existingUser) {
-          const created = await UserModel.create({
-            name: user.name,
-            email: user.email,
-            googleId: account.providerAccountId,
-            role: "user",
-          });
-          if (created && created._id) {
-            user.id = created._id instanceof Types.ObjectId
-              ? created._id.toString()
-              : String(created._id);
+        try {
+          await connectToDatabase();
+          const existingUser = (await DbUser.findOne({ email: user.email })) as IUser | null;
+          if (!existingUser) {
+            const created = new DbUser({
+              name: user.name,
+              email: user.email,
+              googleId: account.providerAccountId,
+              role: "user",
+            });
+            await created.save();
+            user.id = (created._id as Types.ObjectId).toString();
+          } else {
+            user.id = (existingUser._id as Types.ObjectId).toString();
           }
-        } else {
-          if (existingUser._id) {
-            user.id = existingUser._id instanceof Types.ObjectId
-              ? existingUser._id.toString()
-              : String(existingUser._id);
-          }
+        } catch (error) {
+          console.error("Erro durante signIn:", error);
         }
       }
       return true;
     },
 
-    async jwt({ token, user }: JwtParams): Promise<JWT> {
+    async jwt({ token, user }: JwtCallback): Promise<JWT> {
       if (user) {
         token.sub = user.id;
-        if (user.image) {
-          token.picture = user.image;
-        }
+        if (user.image) token.picture = user.image;
       }
       return token;
     },
 
-    async session({ session, token }: { session: Session; token: JWT }): Promise<Session> {
-      // Garantindo que session.user exista (a module augmentation já define as propriedades customizadas)
+    async session({ session, token }: SessionCallback): Promise<Session> {
+      // Inicializa session.user incluindo o campo id
       if (!session.user) {
-        session.user = { name: "", email: "", image: "" };
+        session.user = { id: "", name: "", email: "", image: "" };
       }
       session.user.id = token.sub as string;
 
-      await connectToDatabase();
-      const dbUser = await UserModel.findById(token.sub);
-      if (dbUser) {
-        session.user.role = dbUser.role;
-        session.user.planStatus = dbUser.planStatus;
-        session.user.planExpiresAt = dbUser.planExpiresAt ? dbUser.planExpiresAt.toISOString() : null;
-        session.user.affiliateCode = dbUser.affiliateCode ? dbUser.affiliateCode.toString() : undefined;
-        session.user.affiliateBalance = dbUser.affiliateBalance;
-        session.user.affiliateRank = dbUser.affiliateRank ? dbUser.affiliateRank.toString() : undefined;
-        session.user.affiliateInvites = dbUser.affiliateInvites;
+      try {
+        await connectToDatabase();
+        const dbUser = await DbUser.findById(token.sub);
+        if (dbUser) {
+          session.user.role = dbUser.role;
+          session.user.planStatus = dbUser.planStatus;
+          session.user.planExpiresAt = dbUser.planExpiresAt ? dbUser.planExpiresAt.toISOString() : null;
+          session.user.affiliateCode = dbUser.affiliateCode ? dbUser.affiliateCode.toString() : undefined;
+          session.user.affiliateBalance = dbUser.affiliateBalance;
+          session.user.affiliateRank = dbUser.affiliateRank ? dbUser.affiliateRank.toString() : undefined;
+          session.user.affiliateInvites = dbUser.affiliateInvites;
+        }
+      } catch (error) {
+        console.error("Erro ao buscar dados do usuário na sessão:", error);
       }
+
       if (token.picture) {
         session.user.image = token.picture as string;
       }
       return session;
     },
 
-    async redirect({ baseUrl }: RedirectParams): Promise<string> {
+    async redirect({ baseUrl }: RedirectCallback): Promise<string> {
       return baseUrl + "/dashboard";
     },
   },
 
   secret: process.env.NEXTAUTH_SECRET,
+  pages: {
+    signIn: "/login",
+    error: "/auth/error",
+  },
+  session: {
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 dias
+  },
 };
 
 const handler = NextAuth(authOptions);

@@ -1,5 +1,3 @@
-// src/app/lib/formulas.ts
-
 /**
  * Definimos o tipo do array de entrada como `Record<string, unknown>[]`
  * para evitar o uso de `any[]`. Cada item é um objeto com chaves string e valores desconhecidos.
@@ -187,14 +185,14 @@ export function calcFormulas(
   let interacoesTotaisPorDia = 0;
   let reproducoesTotaisPorDia = 0;
 
-  if (dataPublicacao) {
+  if (dataPublicacao !== null) {
     const now = new Date();
-    const diffMs = now.getTime() - dataPublicacao.getTime();
+    const diffMs = now.getTime() - (dataPublicacao as Date).getTime();
     daysSincePublication = diffMs / (1000 * 60 * 60 * 24);
 
     if (daysSincePublication > 0) {
       impressoesPorDia = impressoes / daysSincePublication;
-      interacoesTotaisPorDia = interacoesTotais / daysSincePublication;
+      interacoesTotaisPorDia = totalInteracoes / daysSincePublication;
       reproducoesTotaisPorDia = reproducoesTotais / daysSincePublication;
     }
   }
@@ -230,9 +228,7 @@ export function calcFormulas(
       : 0;
 
   // Relação Visualização Seguidores vs. Não Seguidores (em %)
-  const ratioVisSegNaoSeg = ratioInteracaoSegNaoSeg; 
-  // Se quiser separar a lógica, basta duplicar a fórmula. Aqui usamos a mesma 
-  // como exemplo. Ajuste se necessário.
+  const ratioVisSegNaoSeg = ratioInteracaoSegNaoSeg;
 
   // (XII) Relação de origem (Explorar vs. Página Inicial) -> em %
   const razaoExplorarPaginaInicial =
@@ -262,7 +258,7 @@ export function calcFormulas(
       ? parseFloat(((compartilhamentos / contasAlcancadas) * 100).toFixed(2))
       : 0;
 
-  // (XIV-b) Viralidade Ponderada => (compart + salv * alpha + rep * beta) / alcance
+  // (XIV-b) Viralidade Ponderada => (compartilhamentos + salvamentos * alpha + repeticoes * beta) / alcance
   const alpha = 0.5;
   const beta = 0.3;
   let viralidadePonderada = 0;
@@ -289,15 +285,13 @@ export function calcFormulas(
       ? parseFloat(((visualizacoesSeguidores / contasAlcancadas) * 100).toFixed(2))
       : 0;
 
-  // 7) Retornamos tudo
+  // 7) Retorna os resultados
   return {
-    // Somas (valores absolutos)
     reproducoesTotais,
     reproducoesFacebook,
     reproducoes,
     reproducoesIniciais,
     repeticoes,
-
     interacoesTotais,
     interacoesReel,
     reacoesFacebook,
@@ -305,118 +299,83 @@ export function calcFormulas(
     comentarios,
     compartilhamentos,
     salvamentos,
-
     impressoes,
     impressoesPaginaInicial,
     impressoesPerfil,
     impressoesOutraPessoa,
     impressoesExplorar,
-
     interacoes,
     visualizacoes,
     visualizacoesSeguidores,
     visualizacoesNaoSeguidores,
-
     contasAlcancadas,
     contasAlcancadasSeguidores,
     contasAlcancadasNaoSeguidores,
     contasComEngajamento,
     contasComEngajamentoSeguidores,
     contasComEngajamentoNaoSeguidores,
-
     visitasPerfil,
     comecaramASeguir,
-
     tempoVisualizacao,
     duracao,
     tempoMedioVisualizacao,
-
-    // Data de Publicação (mais antiga)
-    dataPublicacao: dataPublicacao
-      ? dataPublicacao.toISOString().slice(0, 10)
+    dataPublicacao: dataPublicacao !== null
+      ? (dataPublicacao as Date).toISOString().slice(0, 10)
       : null,
     daysSincePublication,
-
-    // Soma total de interações
     totalInteracoes,
-
-    // Taxa de Engajamento (em %)
     taxaEngajamento,
-
-    // Reproduções (em %)
     taxaReproducoesIniciais,
     taxaRepeticao,
     pctReproducoesFacebook,
-
-    // Tempo / Retenção
     mediaDuracao,
     mediaTempoMedioVisualizacao,
     taxaRetencao,
     tempoVisualizacaoPorImpressao,
     tempoMedioVisualizacaoPorView,
-
-    // Conversão (em %)
     taxaConversaoSeguidores,
     pctSalvamentos,
-
-    // Métricas diárias (aprox.)
     impressoesPorDia,
     interacoesTotaisPorDia,
     reproducoesTotaisPorDia,
-
-    // Reels vs. Posts (em %)
     isReelCount,
     isPostCount,
     razaoReelsVsPosts,
-
-    // Relações internas
     ratioLikeComment,
     ratioCommentShare,
     ratioSaveLike,
-
-    // Relações Seguidores vs. Não Seguidores
     ratioInteracaoSegNaoSeg,
     ratioVisSegNaoSeg,
-
-    // Relação de origem (Explorar vs. Página Inicial)
     razaoExplorarPaginaInicial,
-
-    // Engajamento Profundo vs. Rápido
     engajamentoProfundoAlcance,
     engajamentoRapidoAlcance,
     ratioProfundoRapidoAlcance,
-
-    // Índice de Propagação
     indicePropagacao,
     viralidadePonderada,
-
-    // Razão Seguir / Alcance
     razaoSeguirAlcance,
-
-    // Engajamento de Não Seguidores e Seguidores
     taxaEngajamentoNaoSeguidoresEmAlcance,
     taxaEngajamentoSeguidoresEmAlcance,
   };
 }
 
 /**
- * parseDateString: converte datas do formato dd/mm/yyyy ou yyyy-mm-dd em Date.
+ * parseDateString: converte datas dos formatos "dd/mm/yyyy" ou "yyyy-mm-dd" em Date.
  */
 function parseDateString(dateStr: string): Date | null {
   if (!dateStr) return null;
 
-  // Tenta parsear se estiver no formato "yyyy-mm-dd"
+  // Tenta parsear formato "yyyy-mm-dd"
   const isoParsed = new Date(dateStr);
   if (!isNaN(isoParsed.getTime())) {
     return isoParsed;
   }
 
-  // Se for dd/mm/yyyy
+  // Se for "dd/mm/yyyy"
   const parts = dateStr.split("/");
   if (parts.length === 3) {
-    const dd = parseInt(parts[0], 10);
-    const mm = parseInt(parts[1], 10) - 1;
-    const yyyy = parseInt(parts[2], 10);
+    const dd = parseInt(parts[0]!, 10);
+    const mm = parseInt(parts[1]!, 10) - 1;
+    const yyyy = parseInt(parts[2]!, 10);
     const d = new Date(yyyy, mm, dd);
     if (!isNaN(d.getTime())) {
       return d;

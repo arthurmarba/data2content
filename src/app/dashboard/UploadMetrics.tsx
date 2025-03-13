@@ -211,8 +211,17 @@ async function convertFileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
-      const dataUrl = reader.result as string;
-      const base64 = dataUrl.split(",")[1];
+      const dataUrl = reader.result as string | undefined;
+      if (!dataUrl) {
+        reject("Erro: resultado do FileReader é indefinido.");
+        return;
+      }
+      const parts = dataUrl.split(",");
+      const base64 = parts[1];
+      if (!base64) {
+        reject("Erro: não foi possível extrair a parte base64.");
+        return;
+      }
       resolve(base64);
     };
     reader.onerror = reject;

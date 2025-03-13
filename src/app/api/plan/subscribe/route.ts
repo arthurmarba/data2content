@@ -5,6 +5,7 @@ import User from "@/app/models/User";
 
 // Em vez de require(), use import para mercadopago
 import mercadopago from "@/app/lib/mercadopago";
+import { Types } from "mongoose";
 
 /**
  * POST /api/plan/subscribe
@@ -44,8 +45,9 @@ export async function POST(req: NextRequest) {
       if (!affUser) {
         return NextResponse.json({ error: "Cupom de afiliado inválido." }, { status: 400 });
       }
-      // Impede que o usuário use o próprio cupom
-      if (affUser._id.equals(user._id)) {
+      // Impede que o usuário use o próprio cupom.
+      // Realiza cast explícito para tratar _id como Types.ObjectId
+      if (((affUser as { _id: Types.ObjectId })._id).equals(user._id as Types.ObjectId)) {
         return NextResponse.json(
           { error: "Você não pode usar seu próprio cupom." },
           { status: 400 }
@@ -81,7 +83,7 @@ export async function POST(req: NextRequest) {
         pending: "https://seusite.com/dashboard",
       },
       auto_return: "approved",
-      external_reference: user._id.toString(), // ID do user p/ webhook
+      external_reference: (user._id as Types.ObjectId).toString(), // ID do user para o webhook
     };
 
     // 8) Cria a preferência via SDK do MP
@@ -94,10 +96,8 @@ export async function POST(req: NextRequest) {
       message: "Preferência criada. Redirecione o usuário para esse link.",
       price,
     });
-
   } catch (error: unknown) {
     console.error("Erro em /api/plan/subscribe:", error);
-
     let message = "Erro desconhecido.";
     if (error instanceof Error) {
       message = error.message;

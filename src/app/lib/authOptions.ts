@@ -1,12 +1,34 @@
 // src/app/lib/authOptions.ts
 
-import type { NextAuthOptions } from "next-auth";
+import type { NextAuthOptions, Session, User, Account } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import UserModel, { IUser } from "@/app/models/User";
 import { Types } from "mongoose";
-// Removemos a importação de Model, pois não é usada.
+import type { JWT } from "next-auth/jwt";
+
+// Interfaces específicas para os callbacks
+
+interface SignInCallback {
+  user: User & { id?: string };
+  account: Account | null;
+}
+
+interface JwtCallback {
+  token: JWT;
+  user?: User;
+}
+
+interface SessionCallback {
+  session: Session;
+  token: JWT;
+}
+
+interface RedirectCallback {
+  baseUrl: string;
+  // Parâmetro "url" removido, pois não é utilizado
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -37,7 +59,7 @@ export const authOptions: NextAuthOptions = {
             id: "demo-123",
             name: "Demo User",
             email: "demo@example.com",
-          };
+          } as User;
         }
         return null;
       },
@@ -45,34 +67,31 @@ export const authOptions: NextAuthOptions = {
   ],
 
   callbacks: {
-    async signIn({ user, account }: { user: any; account: any }): Promise<boolean> {
+    async signIn({ user, account }: SignInCallback): Promise<boolean> {
       if (account?.provider === "google") {
-        await connectToDatabase();
-        const existingUser = (await UserModel.findOne({ email: user.email })) as IUser | null;
-        if (!existingUser) {
-          const created = await UserModel.create({
-            name: user.name,
-            email: user.email,
-            googleId: account.providerAccountId,
-            role: "user",
-          });
-          if (created && created._id) {
-            user.id = created._id instanceof Types.ObjectId
-              ? created._id.toString()
-              : String(created._id);
+        try {
+          await connectToDatabase();
+          const existingUser = (await UserModel.findOne({ email: user.email })) as IUser | null;
+          if (!existingUser) {
+            const created = new UserModel({
+              name: user.name,
+              email: user.email,
+              googleId: account.providerAccountId,
+              role: "user",
+            });
+            await created.save();
+            user.id = (created._id as Types.ObjectId).toString();
+          } else {
+            user.id = (existingUser._id as Types.ObjectId).toString();
           }
-        } else {
-          if (existingUser._id) {
-            user.id = existingUser._id instanceof Types.ObjectId
-              ? existingUser._id.toString()
-              : String(existingUser._id);
-          }
+        } catch (error) {
+          console.error("Erro durante signIn:", error);
         }
       }
       return true;
     },
 
-    async jwt({ token, user }: { token: any; user?: any }): Promise<any> {
+    async jwt({ token, user }: JwtCallback): Promise<JWT> {
       if (user) {
         token.sub = user.id;
         if (user.image) token.picture = user.image;
@@ -80,27 +99,36 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
 
-    async session({ session, token }: { session: any; token: any }): Promise<any> {
+    async session({ session, token }: SessionCallback): Promise<Session> {
+      // Inicializa session.user incluindo o campo id (conforme module augmentation)
       if (!session.user) {
-        session.user = { name: "", email: "", image: "" };
+        session.user = { id: "", name: "", email: "", image: "" };
       }
       session.user.id = token.sub as string;
-      await connectToDatabase();
-      const dbUser = await UserModel.findById(token.sub);
-      if (dbUser) {
-        session.user.role = dbUser.role;
-        session.user.planStatus = dbUser.planStatus;
-        session.user.planExpiresAt = dbUser.planExpiresAt ? dbUser.planExpiresAt.toISOString() : null;
-        session.user.affiliateCode = dbUser.affiliateCode ? dbUser.affiliateCode.toString() : undefined;
-        session.user.affiliateBalance = dbUser.affiliateBalance;
-        session.user.affiliateRank = dbUser.affiliateRank ? dbUser.affiliateRank.toString() : undefined;
-        session.user.affiliateInvites = dbUser.affiliateInvites;
+
+      try {
+        await connectToDatabase();
+        const dbUser = await UserModel.findById(token.sub);
+        if (dbUser) {
+          session.user.role = dbUser.role;
+          session.user.planStatus = dbUser.planStatus;
+          session.user.planExpiresAt = dbUser.planExpiresAt ? dbUser.planExpiresAt.toISOString() : null;
+          session.user.affiliateCode = dbUser.affiliateCode ? dbUser.affiliateCode.toString() : undefined;
+          session.user.affiliateBalance = dbUser.affiliateBalance;
+          session.user.affiliateRank = dbUser.affiliateRank ? dbUser.affiliateRank.toString() : undefined;
+          session.user.affiliateInvites = dbUser.affiliateInvites;
+        }
+      } catch (error) {
+        console.error("Erro ao buscar dados do usuário na sessão:", error);
       }
-      if (token.picture) session.user.image = token.picture as string;
+
+      if (token.picture) {
+        session.user.image = token.picture as string;
+      }
       return session;
     },
 
-    async redirect({ baseUrl }: { baseUrl: string }): Promise<string> {
+    async redirect({ baseUrl }: RedirectCallback): Promise<string> {
       return baseUrl + "/dashboard";
     },
   },

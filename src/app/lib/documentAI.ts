@@ -196,7 +196,7 @@ export function extractLabeledMetricsFromDocumentAIResponse(
 
     // Aplica alias
     if (METRICS_ALIAS_MAP[metricName]) {
-      metricName = METRICS_ALIAS_MAP[metricName];
+      metricName = METRICS_ALIAS_MAP[metricName]!; // Asserção para garantir que não seja undefined
     }
 
     // Verifica se é numérico, percentual ou textual
@@ -220,7 +220,6 @@ export function extractLabeledMetricsFromDocumentAIResponse(
       } else {
         extractedMetrics[metricName] = metricValue;
       }
-      // NUMERIC / PERCENT
     } else {
       if (metricName === "Tempo Médio de Visualização") {
         extractedMetrics[metricName] = parseTempoVisualizacao(metricValue);
@@ -303,8 +302,8 @@ function parseTempoVisualizacao(tempoStr: string) {
     segundos = 0;
 
   while ((match = regex.exec(tempoStr)) !== null) {
-    const valor = parseInt(match[1], 10);
-    const unidade = match[2].toLowerCase();
+    const valor = parseInt(match[1]!, 10); // Garante que match[1] não seja undefined
+    const unidade = match[2]!.toLowerCase(); // Garante que match[2] não seja undefined
 
     switch (unidade) {
       case "a":
@@ -341,10 +340,11 @@ function parseDuration(durationStr: string) {
     // "HH:MM:SS" ou "MM:SS"
     const parts = durationStr.split(":").map((p) => parseInt(p, 10));
     if (parts.length === 3) {
-      const [hh, mm, ss] = parts;
+      // Garantindo que hh, mm, ss são definidos:
+      const [hh, mm, ss] = parts as [number, number, number];
       return hh * 3600 + mm * 60 + ss;
     } else if (parts.length === 2) {
-      const [mm, ss] = parts;
+      const [mm, ss] = parts as [number, number];
       return mm * 60 + ss;
     }
     return 0;
@@ -393,13 +393,13 @@ function parseNumericValuePercent(valueStr: string, metricName: string) {
     str = str.replace(/,/g, "");
   }
 
-  // remove resto não-numérico
+  // Remove caracteres não-numéricos
   str = str.replace(/[^\d.]+/g, "");
 
   let num = parseFloat(str) || 0;
   num *= multiplier;
 
-  // Se for cabeçalho de PERCENTAGE_HEADERS ou terminar com '%'
+  // Se for cabeçalho percentual
   if (PERCENTAGE_HEADERS.includes(metricName) || endsWithPercent) {
     num = num / 100;
   }
@@ -439,7 +439,7 @@ export async function processMultipleImages(
     rawDataArray.push(extracted);
   }
 
-  // Calcula stats (por ex., soma de curtidas, comentários, etc.)
+  // Calcula stats (por exemplo, soma de curtidas, comentários, etc.)
   const stats = calcFormulas(rawDataArray);
 
   return { rawDataArray, stats };

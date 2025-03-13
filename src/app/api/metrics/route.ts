@@ -4,11 +4,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User"; // Importação atualizada (sem IUser)
-import { DailyMetric, IDailyMetric } from "@/app/models/DailyMetric";
+import { DailyMetric } from "@/app/models/DailyMetric";
 import { buildAggregatedReport } from "@/app/lib/reportHelpers";
 import { generateReport, AggregatedMetrics } from "@/app/lib/reportService";
 import { sendWhatsAppMessage } from "@/app/lib/whatsappService";
-import { Model, Types } from "mongoose";
+import { Types, Model } from "mongoose";
 
 /**
  * Função auxiliar para enviar WhatsApp com try/catch.
@@ -65,7 +65,9 @@ export async function POST(request: NextRequest) {
 
         try {
           // 5a) Carrega as métricas (DailyMetric) dos últimos 7 dias para o usuário
-          const dailyMetrics = await (DailyMetric as Model<IDailyMetric>).find({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const DailyMetricModel = DailyMetric as Model<any>;
+          const dailyMetrics = await DailyMetricModel.find({
             user: user._id,
             postDate: { $gte: fromDate },
           });

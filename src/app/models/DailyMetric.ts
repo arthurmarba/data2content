@@ -1,44 +1,123 @@
 // src/app/models/DailyMetric.ts
 
-import { Schema, model, models } from "mongoose";
+import { Schema, model, models, Document, Types } from "mongoose";
 
 /**
- * DailyMetric:
- * Representa um snapshot de métricas diárias (ou de um post específico) 
+ * IDailyMetric:
+ * Interface que representa um documento de DailyMetric.
+ */
+export interface IDailyMetric extends Document {
+  user: Types.ObjectId;
+  postDate: Date;
+  stats: {
+    reproducoesTotais: number;
+    reproducoesFacebook: number;
+    reproducoes: number;
+    reproducoesIniciais: number;
+    repeticoes: number;
+
+    interacoesTotais: number;
+    interacoesReel: number;
+    reacoesFacebook: number;
+    curtidas: number;
+    comentarios: number;
+    compartilhamentos: number;
+    salvamentos: number;
+
+    impressoes: number;
+    impressoesPaginaInicial: number;
+    impressoesPerfil: number;
+    impressoesOutraPessoa: number;
+    impressoesExplorar: number;
+
+    interacoes: number;
+    interacoesSeguidores: number;
+    interacoesNaoSeguidores: number;
+
+    visualizacoes: number;
+    visualizacoesSeguidores: number;
+    visualizacoesNaoSeguidores: number;
+
+    contasAlcancadas: number;
+    contasAlcancadasSeguidores: number;
+    contasAlcancadasNaoSeguidores: number;
+    contasComEngajamento: number;
+    contasComEngajamentoSeguidores: number;
+    contasComEngajamentoNaoSeguidores: number;
+
+    visitasPerfil: number;
+    comecaramASeguir: number;
+
+    tempoVisualizacao: number;
+    duracao: number;
+    tempoMedioVisualizacao: number;
+
+    dataPublicacao: string | null;
+    daysSincePublication: number;
+
+    totalInteracoes: number;
+
+    taxaEngajamento: number;
+    taxaReproducoesIniciais: number;
+    taxaRepeticao: number;
+    pctReproducoesFacebook: number;
+
+    mediaDuracao: number;
+    mediaTempoMedioVisualizacao: number;
+    taxaRetencao: number;
+    tempoVisualizacaoPorImpressao: number;
+    tempoMedioVisualizacaoPorView: number;
+
+    taxaConversaoSeguidores: number;
+    pctSalvamentos: number;
+
+    impressoesPorDia: number;
+    interacoesTotaisPorDia: number;
+    reproducoesTotaisPorDia: number;
+
+    isReelCount: number;
+    isPostCount: number;
+    razaoReelsVsPosts: number;
+
+    ratioLikeComment: number;
+    ratioCommentShare: number;
+    ratioSaveLike: number;
+
+    ratioInteracaoSegNaoSeg: number;
+    ratioVisSegNaoSeg: number;
+
+    razaoExplorarPaginaInicial: number;
+
+    engajamentoProfundoAlcance: number;
+    engajamentoRapidoAlcance: number;
+    ratioProfundoRapidoAlcance: number;
+
+    indicePropagacao: number;
+    viralidadePonderada: number;
+
+    razaoSeguirAlcance: number;
+    taxaEngajamentoNaoSeguidoresEmAlcance: number;
+    taxaEngajamentoSeguidoresEmAlcance: number;
+  };
+}
+
+/**
+ * Schema de DailyMetric:
+ * Representa um snapshot de métricas diárias (ou de um post específico)
  * usando a data real de publicação do conteúdo como referência.
- *
- * - user: referência ao User dono das métricas.
- * - postDate: data efetiva do post (não a data de inserção no banco).
- * - stats: objeto contendo todos os campos gerados pelo `calcFormulas` 
- *          (somas, taxas, porcentagens, etc.).
  */
 const dailyMetricSchema = new Schema(
   {
-    // Referência ao usuário (autor/criador do conteúdo)
     user: {
       type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
-
-    /**
-     * postDate:
-     * Em vez de "date: { default: Date.now }", armazenamos a data real de publicação do post.
-     * Por exemplo, se o post foi publicado em "2023-04-15", você converte a string para Date 
-     * e salva aqui. Isso facilita análises por data real do conteúdo.
-     */
     postDate: {
       type: Date,
       required: true,
     },
-
-    /**
-     * stats: Campos calculados pelo Document AI + `calcFormulas`.
-     * Armazena valores absolutos (ex.: curtidas, comentários) e também porcentagens (ex.: taxaEngajamento).
-     * Cada campo tem um default de 0 (ou null) para evitar problemas em agregações.
-     */
     stats: {
-      // ----- Somas (valores absolutos) -----
       reproducoesTotais: { type: Number, default: 0 },
       reproducoesFacebook: { type: Number, default: 0 },
       reproducoes: { type: Number, default: 0 },
@@ -81,14 +160,12 @@ const dailyMetricSchema = new Schema(
       duracao: { type: Number, default: 0 },
       tempoMedioVisualizacao: { type: Number, default: 0 },
 
-      // dataPublicacao original do Document AI (opcional)
       dataPublicacao: { type: String, default: null },
       daysSincePublication: { type: Number, default: 0 },
 
       totalInteracoes: { type: Number, default: 0 },
 
-      // ----- Taxas e Porcentagens -----
-      taxaEngajamento: { type: Number, default: 0 }, // 0–100
+      taxaEngajamento: { type: Number, default: 0 },
       taxaReproducoesIniciais: { type: Number, default: 0 },
       taxaRepeticao: { type: Number, default: 0 },
       pctReproducoesFacebook: { type: Number, default: 0 },
@@ -132,9 +209,6 @@ const dailyMetricSchema = new Schema(
     },
   },
   {
-    // Se quiser armazenar createdAt/updatedAt automaticamente, use:
-    // timestamps: true,
-    // Caso não precise, mantenha false ou remova a opção.
     timestamps: false,
   }
 );
@@ -142,8 +216,5 @@ const dailyMetricSchema = new Schema(
 // Índice para consultas rápidas por usuário e data (por exemplo, últimos 7 ou 30 dias)
 dailyMetricSchema.index({ user: 1, postDate: -1 });
 
-/**
- * Evita recriar o modelo em dev/hot reload (ambiente de desenvolvimento).
- * Se já existir "DailyMetric" no models, utiliza-o; caso contrário, cria.
- */
-export const DailyMetric = models.DailyMetric || model("DailyMetric", dailyMetricSchema);
+// Evita recriar o modelo em dev/hot reload
+export const DailyMetric = models.DailyMetric || model<IDailyMetric>("DailyMetric", dailyMetricSchema);

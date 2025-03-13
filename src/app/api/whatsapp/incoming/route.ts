@@ -1,15 +1,14 @@
 "use client";
 
 import { NextRequest, NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
-// Alterado: Importa DailyMetric e IDailyMetric como named exports
-import { DailyMetric, IDailyMetric } from "@/app/models/DailyMetric";
-import { sendWhatsAppMessage } from "@/app/lib/whatsappService";
-import { callOpenAIForQuestion } from "@/app/lib/aiService";
-import { generateReport, AggregatedMetrics } from "@/app/lib/reportService";
+import { DailyMetric } from "@/app/models/DailyMetric";
 import { buildAggregatedReport } from "@/app/lib/reportHelpers";
-import { Model } from "mongoose";
+import { generateReport, AggregatedMetrics } from "@/app/lib/reportService";
+import { sendWhatsAppMessage } from "@/app/lib/whatsappService";
+import { Types, Model } from "mongoose";
 
 /**
  * Interface parcial para o corpo do Webhook do WhatsApp.
@@ -33,6 +32,7 @@ interface WhatsAppWebhookBody {
  * parseIncomingBody:
  * Extrai 'from' e 'text' do JSON recebido no webhook da Cloud API.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function parseIncomingBody(body: unknown): { from: string; text: string } {
   if (typeof body !== "object" || body === null) {
     return { from: "", text: "" };
@@ -44,7 +44,6 @@ function parseIncomingBody(body: unknown): { from: string; text: string } {
   const msgObj = value?.messages?.[0];
 
   const from = msgObj?.from || "";
-  // Usa ?? para garantir que text seja sempre uma string (fallback para "")
   const text = msgObj?.text?.body ?? "";
   return { from, text };
 }
@@ -54,6 +53,7 @@ function parseIncomingBody(body: unknown): { from: string; text: string } {
  * Tenta encontrar um código de 6 caracteres (A-Z0-9) na mensagem do usuário.
  * Ex.: "Meu código é 1PN8J1".
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function extractVerificationCode(text: string): string | null {
   const codeRegex = /([A-Z0-9]{6})/;
   const match = text.match(codeRegex);
@@ -76,127 +76,95 @@ async function safeSendWhatsAppMessage(to: string, body: string) {
   }
 }
 
+/**
+ * Interface para o resultado do envio de relatório a cada usuário.
+ */
+interface ReportResult {
+  userId: string;
+  success: boolean;
+}
+
 export async function POST(request: NextRequest) {
   try {
-    // 1) Lê o JSON do webhook
-    const body = await request.json();
-    console.log("Webhook WhatsApp /incoming - body:", JSON.stringify(body, null, 2));
-
-    // 2) Extrai 'from' e 'text' do corpo
-    const { from, text } = parseIncomingBody(body);
-    if (!from || !text) {
-      // Se não tivermos remetente ou texto, retornamos 200 (evita retries do WhatsApp)
-      return NextResponse.json({ message: "Sem mensagem ou remetente" }, { status: 200 });
+    // 1) Verifica autenticação (ex.: admin)
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+    if (!token) {
+      return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
-    // 3) Conecta ao banco
+    // 2) Conecta ao banco de dados
     await connectToDatabase();
 
-    // 4) Verifica se a mensagem contém um código de verificação (6 caracteres A-Z0-9)
-    const verificationCode = extractVerificationCode(text);
-    if (verificationCode) {
-      // Tenta achar um user com esse code
-      const user = await User.findOne({ whatsappVerificationCode: verificationCode });
-      if (user) {
-        // Vincula o phone e invalida o code
-        user.whatsappPhone = from;
-        user.whatsappVerificationCode = null;
-        await user.save();
-
-        console.log(`Phone vinculado com sucesso: userId=${user._id}, phone=${from}`);
-        await safeSendWhatsAppMessage(
-          from,
-          "Número verificado com sucesso! Agora você pode enviar perguntas sobre suas métricas."
-        );
-      } else {
-        console.log(`Nenhum user encontrado com code=${verificationCode}`);
-        await safeSendWhatsAppMessage(
-          from,
-          "Código inválido ou expirado. Verifique se digitou corretamente."
-        );
-      }
-
-      return NextResponse.json({ message: "Verificação processada" }, { status: 200 });
-    }
-
-    // 5) Se não for código, interpretamos como pergunta sobre métricas ou relatório
-    const dbUser = await User.findOne({ whatsappPhone: from });
-    if (!dbUser) {
-      // Se não achou user vinculado
-      await safeSendWhatsAppMessage(
-        from,
-        "Você não está cadastrado. Envie 'Meu código é ABC123' para vincular seu número."
+    // 3) Busca todos os usuários com plano ativo e WhatsApp cadastrado
+    const users = await User.find({
+      planStatus: "active",
+      whatsappPhone: { $ne: null },
+    });
+    if (!users?.length) {
+      return NextResponse.json(
+        { message: "Nenhum usuário ativo com WhatsApp cadastrado." },
+        { status: 200 }
       );
-      return NextResponse.json({ message: "User not found" }, { status: 200 });
     }
 
-    // 6) Verifica se o plano está ativo
-    if (dbUser.planStatus !== "active") {
-      await safeSendWhatsAppMessage(
-        from,
-        "Seu plano não está ativo. Acesse nosso site para assinar e continuar recebendo dicas!"
-      );
-      return NextResponse.json({ message: "Plano inativo" }, { status: 200 });
-    }
-
-    // 7) Define o período para carregamento das métricas: últimos 30 dias
+    // 4) Define o período para os dados: últimos 7 dias
+    const now = new Date();
     const fromDate = new Date();
-    fromDate.setDate(fromDate.getDate() - 30);
+    fromDate.setDate(now.getDate() - 7);
 
-    // Corrigido: Cast do DailyMetric para Model<IDailyMetric>
-    const dailyMetrics = await (DailyMetric as unknown as Model<IDailyMetric>).find({
-      user: dbUser._id,
-      postDate: { $gte: fromDate },
-    });
+    // 5) Processa todos os usuários de forma concorrente
+    const results = await Promise.allSettled<ReportResult>(
+      users.map(async (user) => {
+        // Define o id do usuário para facilitar a leitura (cast para Types.ObjectId)
+        const userId = (user._id as Types.ObjectId).toString();
 
-    // 8) Verifica se o usuário está solicitando um relatório
-    const lowerText = text.toLowerCase();
-    if (lowerText.includes("relatório") || lowerText.includes("planejamento de conteúdo")) {
-      // Agrega os dados completos utilizando buildAggregatedReport
-      const aggregatedReport = buildAggregatedReport(dailyMetrics) as unknown as AggregatedMetrics;
+        try {
+          // 5a) Carrega as métricas (DailyMetric) dos últimos 7 dias para o usuário
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const dailyMetrics = await (DailyMetric as unknown as Model<any>).find({
+            user: user._id,
+            postDate: { $gte: fromDate },
+          });
 
-      // Gera o relatório detalhado para o período "30 dias"
-      const reportText = await generateReport(aggregatedReport, "30 dias");
+          // 5b) Agrega os dados completos utilizando buildAggregatedReport
+          const aggregatedReport = buildAggregatedReport(dailyMetrics) as unknown as AggregatedMetrics;
 
-      // Envia o relatório via WhatsApp
-      await safeSendWhatsAppMessage(from, reportText);
+          // 5c) Gera o relatório detalhado para o período "7 dias"
+          const reportText = await generateReport(aggregatedReport, "7 dias");
 
-      return NextResponse.json({ message: "Relatório gerado e enviado via IA" }, { status: 200 });
-    }
+          // 5d) Ajusta número de telefone para o formato internacional
+          if (!user.whatsappPhone) {
+            console.warn(`Usuário ${userId} não possui número de WhatsApp.`);
+            return { userId, success: false };
+          }
+          let phoneWithPlus = user.whatsappPhone;
+          if (!phoneWithPlus.startsWith("+")) {
+            phoneWithPlus = "+" + phoneWithPlus;
+          }
 
-    // 9) Caso contrário, fluxo genérico de pergunta
-    let totalCurtidas = 0;
-    dailyMetrics.forEach((dm) => {
-      totalCurtidas += dm.stats?.curtidas || 0;
-    });
-    const totalPosts = dailyMetrics.length;
-    const avgCurtidas = totalPosts > 0 ? totalCurtidas / totalPosts : 0;
+          // 5e) Envia o relatório via WhatsApp
+          await safeSendWhatsAppMessage(phoneWithPlus, reportText);
+          console.log(`Relatório enviado para userId=${userId}, phone=${phoneWithPlus}`);
+          return { userId, success: true };
+        } catch (error: unknown) {
+          console.error(`Erro ao processar relatório para userId=${userId}:`, error);
+          return { userId, success: false };
+        }
+      })
+    );
 
-    // Monta um objeto de métricas simples para a IA
-    const aggregated = { totalPosts, avgCurtidas };
+    // 6) Conta quantos relatórios foram enviados com sucesso
+    const countSends = results.filter(
+      (r) => r.status === "fulfilled" && r.value.success
+    ).length;
 
-    const prompt = `
-Você é um consultor de Instagram.
-Estas são as métricas (últimos 30 dias) do usuário: ${JSON.stringify(aggregated)}.
-Pergunta: "${text}"
-
-Responda de forma amigável e prática, em poucas linhas.
-    `;
-
-    // 10) Chama a IA com o prompt genérico
-    const answer = await callOpenAIForQuestion(prompt);
-
-    // 11) Envia a resposta no WhatsApp
-    await safeSendWhatsAppMessage(from, answer);
-
-    // 12) Retorna 200
-    return NextResponse.json({ message: "Respondido com IA" }, { status: 200 });
-  } catch (err: unknown) {
-    console.error("Erro em /api/whatsapp/incoming POST:", err);
-    let message = "Erro desconhecido.";
-    if (err instanceof Error) {
-      message = err.message;
-    }
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { message: `Relatórios enviados para ${countSends} usuários.` },
+      { status: 200 }
+    );
+  } catch (error: unknown) {
+    console.error("Erro no endpoint weeklyReport:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

@@ -1,4 +1,3 @@
-// src/app/lib/parseMetrics.ts
 import fetch from "node-fetch";
 
 const DOCUMENT_AI_ENDPOINT = process.env.DOCUMENT_AI_ENDPOINT || "";
@@ -114,6 +113,7 @@ function extractLabeledMetricsFromDocumentAIResponse(
 
   // Mapeamento de alias (se houver)
   const METRICS_ALIAS_MAP: Record<string, string> = {
+    // Exemplo:
     // "comentarios": "Comentários",
     // ...
   };
@@ -125,9 +125,9 @@ function extractLabeledMetricsFromDocumentAIResponse(
     let metricName = normalizeHeader(rawType);
     const metricValue = entity.mentionText?.trim() || "";
 
-    // Se houver alias, aplica
+    // Se houver alias, aplica (com asserção para garantir que o valor não é undefined)
     if (METRICS_ALIAS_MAP[metricName]) {
-      metricName = METRICS_ALIAS_MAP[metricName];
+      metricName = METRICS_ALIAS_MAP[metricName]!;
     }
 
     // Se não estiver nos headers válidos, ignora
@@ -232,7 +232,7 @@ function normalizeHeader(header: string): string {
 }
 
 /**
- * parseNumericValuePercent: "12 mil", "3,5mi", "50%", etc.
+ * parseNumericValuePercent: converte "12 mil", "3,5mi", "50%", etc. para um número.
  */
 function parseNumericValuePercent(value: string, metricName: string): number | string {
   let multiplier = 1;
@@ -258,10 +258,8 @@ function parseNumericValuePercent(value: string, metricName: string): number | s
   // Ajusta vírgula decimal
   const commaCount = (str.match(/,/g) || []).length;
   if (commaCount === 1) {
-    // "3,5" => "3.5"
     str = str.replace(",", ".");
   } else if (commaCount > 1) {
-    // "3,000,000" => "3000000"
     str = str.replace(/,/g, "");
   }
 
@@ -289,11 +287,11 @@ function parseTempoVisualizacao(tempoStr: string): number {
     minutos = 0,
     segundos = 0;
 
-  while ((match = regex.exec(tempoStr)) !== null) {
-    const valor = parseInt(match[1], 10);
-    const unidade = match[2].toLowerCase();
-    switch (unidade) {
-      case "a":
+    while ((match = regex.exec(tempoStr)) !== null) {
+      const valor = parseInt(match[1]!, 10);
+      const unidade = match[2]!.toLowerCase();
+      switch (unidade) {
+        case "a":
         anos += valor;
         break;
       case "d":
@@ -320,7 +318,7 @@ function parseTempoVisualizacao(tempoStr: string): number {
 }
 
 /**
- * parseDuration: "HH:MM:SS" ou "1h 20m 30s" em segundos.
+ * parseDuration: converte "HH:MM:SS" ou "1h 20m 30s" em segundos.
  */
 function parseDuration(durationStr: string): number {
   if (!durationStr) return 0;
@@ -333,9 +331,9 @@ function parseDuration(durationStr: string): number {
       segundos = 0;
 
     if (parts.length === 3) {
-      [horas, minutos, segundos] = parts;
+      [horas, minutos, segundos] = parts as [number, number, number];
     } else if (parts.length === 2) {
-      [minutos, segundos] = parts;
+      [minutos, segundos] = parts as [number, number];
     } else {
       return 0;
     }
@@ -358,7 +356,7 @@ function parseDuration(durationStr: string): number {
 }
 
 /**
- * parseDocAIDate: "3 de outubro de 2024" => "03/10/2024", etc.
+ * parseDocAIDate: converte datas do formato "3 de outubro de 2024" ou similar em "03/10/2024".
  */
 function parseDocAIDate(dateStr: string): string {
   if (!dateStr) return "";

@@ -6,7 +6,10 @@ export function mergeMetrics(
   const merged = { ...defaultMetrics };
   for (const key in customData.metrics) {
     if (Object.hasOwnProperty.call(customData.metrics, key)) {
-      merged[key] = customData.metrics[key];
+      const value = customData.metrics[key];
+      if (value !== undefined) {
+        merged[key] = value;
+      }
     }
   }
   return merged;
