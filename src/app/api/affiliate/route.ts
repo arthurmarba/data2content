@@ -26,8 +26,11 @@ interface SessionUser {
  */
 export async function GET() {
   try {
-    // 1) Obtém a sessão e a tipifica como Session
-    const session = (await getServerSession(authOptions)) as Session | null;
+    // Se authOptions estiver definido como array, usamos o primeiro elemento.
+    const options = Array.isArray(authOptions) ? authOptions[0] : authOptions;
+
+    // 1) Obtém a sessão usando as opções corretas
+    const session = (await getServerSession(options)) as Session | null;
     if (!session) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
