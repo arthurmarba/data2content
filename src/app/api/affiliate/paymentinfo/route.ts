@@ -44,11 +44,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });
     }
 
-    // 6) Retorna os dados de pagamento
+    // 6) Retorna os dados de pagamento (se paymentInfo estiver indefinido, retorna objeto vazio)
     return NextResponse.json(user.paymentInfo || {}, { status: 200 });
   } catch (error: unknown) {
     console.error("GET /api/affiliate/paymentinfo error:", error);
-
     let message = "Erro desconhecido.";
     if (error instanceof Error) {
       message = error.message;
@@ -73,7 +72,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // 2) Lê body
-    const { userId, pixKey, bankName, bankAgency, bankAccount } = (await request.json()) || {};
+    const { userId, pixKey, bankName, bankAgency, bankAccount } = await request.json() || {};
     if (!userId) {
       return NextResponse.json({ error: "Parâmetro 'userId' é obrigatório." }, { status: 400 });
     }
@@ -97,7 +96,10 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });
     }
 
-    // 6) Atualiza paymentInfo
+    // 6) Atualiza paymentInfo (garante que paymentInfo está definido)
+    if (!user.paymentInfo) {
+      user.paymentInfo = {};
+    }
     user.paymentInfo.pixKey = (pixKey || "").trim();
     user.paymentInfo.bankName = (bankName || "").trim();
     user.paymentInfo.bankAgency = (bankAgency || "").trim();
@@ -111,7 +113,6 @@ export async function PATCH(request: NextRequest) {
     });
   } catch (error: unknown) {
     console.error("PATCH /api/affiliate/paymentinfo error:", error);
-
     let message = "Erro desconhecido.";
     if (error instanceof Error) {
       message = error.message;
