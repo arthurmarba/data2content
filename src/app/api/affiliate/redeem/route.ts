@@ -3,7 +3,18 @@ import { getToken } from "next-auth/jwt";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import { Redemption } from "@/app/models/Redemption";
-import { Model } from "mongoose";
+import { Document, Model } from "mongoose";
+
+// Crie uma interface para o Redemption
+interface IRedemption extends Document {
+  user: string; // ou Schema.Types.ObjectId se preferir
+  amount: number;
+  status: "pending" | "paid" | "canceled";
+  paymentMethod: string;
+  notes: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 // GET: lista os saques do usuário
 export async function GET(request: NextRequest) {
@@ -23,7 +34,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Faltou userId" }, { status: 400 });
     }
 
-    // Garante que o userId seja do próprio usuário (se quiser essa segurança)
+    // Garante que o userId seja do próprio usuário
     if (userId !== token.sub) {
       return NextResponse.json(
         { error: "Acesso negado: userId não corresponde ao usuário logado." },
@@ -31,13 +42,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Faz o cast para Model<any> para garantir os métodos de consulta
-    const redemptionModel = Redemption as Model<any>;
+    // Faz o cast para Model<IRedemption>
+    const redemptionModel = Redemption as Model<IRedemption>;
     const redemptions = await redemptionModel.find({ user: userId }).sort({ createdAt: -1 });
     return NextResponse.json(redemptions, { status: 200 });
   } catch (error: unknown) {
     console.error("GET /api/affiliate/redeem error:", error);
-
     let message = "Erro desconhecido.";
     if (error instanceof Error) {
       message = error.message;
@@ -76,7 +86,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });
     }
 
-    // Verifica se tem dados bancários preenchidos
+    // Verifica se os dados bancários foram preenchidos
     const { pixKey, bankName, bankAgency, bankAccount } = user.paymentInfo || {};
     const hasPaymentInfo = !!(pixKey || bankName || bankAgency || bankAccount);
     if (!hasPaymentInfo) {
@@ -95,12 +105,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Cria registro do saque (fazendo cast para garantir os métodos de criação)
-    const redemptionModel = Redemption as Model<any>;
+    // Cria registro do saque
+    const redemptionModel = Redemption as Model<IRedemption>;
     const newRedemption = await redemptionModel.create({
       user: user._id,
       amount: balance,
       status: "pending",
+      paymentMethod: "",
+      notes: "",
     });
 
     // Zera o saldo do usuário
@@ -113,7 +125,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: unknown) {
     console.error("POST /api/affiliate/redeem error:", error);
-
     let message = "Erro desconhecido.";
     if (error instanceof Error) {
       message = error.message;
@@ -133,11 +144,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
-    // Se quiser apenas admin, verifique token.role etc.
-    // if (token.role !== "admin") {
-    //   return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
-    // }
-
+    // Se desejar restringir a atualização apenas para admin, verifique token.role aqui.
     const { redeemId, newStatus } = await request.json() || {};
     if (!redeemId || !newStatus) {
       return NextResponse.json(
@@ -146,7 +153,7 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const redemptionModel = Redemption as Model<any>;
+    const redemptionModel = Redemption as Model<IRedemption>;
     const redemption = await redemptionModel.findById(redeemId);
     if (!redemption) {
       return NextResponse.json({ error: "Resgate não encontrado." }, { status: 404 });
@@ -161,7 +168,6 @@ export async function PATCH(request: NextRequest) {
     });
   } catch (error: unknown) {
     console.error("PATCH /api/affiliate/redeem error:", error);
-
     let message = "Erro desconhecido.";
     if (error instanceof Error) {
       message = error.message;
