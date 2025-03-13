@@ -25,35 +25,44 @@ interface SessionUser {
  * Exemplo: affiliate_code, affiliate_balance, etc.
  */
 export async function GET() {
-  // 1) Obtém a sessão e a tipifica como Session
-  const session = (await getServerSession(authOptions)) as Session | null;
-  if (!session) {
-    return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-  }
+  try {
+    // 1) Obtém a sessão e a tipifica como Session
+    const session = (await getServerSession(authOptions)) as Session | null;
+    if (!session) {
+      return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    }
 
-  // 2) Faz type assertion do session.user
-  const user = session.user as SessionUser;
-  if (user.role !== "affiliate") {
-    return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
-  }
+    // 2) Faz type assertion do session.user
+    const user = session.user as SessionUser;
+    if (user.role !== "affiliate") {
+      return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
+    }
 
-  // 3) Conecta ao banco e busca dados do user (usando user.id)
-  await connectToDatabase();
-  if (!user.id) {
-    return NextResponse.json({ error: "ID do usuário não encontrado na sessão." }, { status: 400 });
-  }
+    // 3) Conecta ao banco e busca dados do user (usando user.id)
+    await connectToDatabase();
+    if (!user.id) {
+      return NextResponse.json(
+        { error: "ID do usuário não encontrado na sessão." },
+        { status: 400 }
+      );
+    }
 
-  const dbUser = await User.findById(user.id);
-  if (!dbUser) {
-    return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });
-  }
+    const dbUser = await User.findById(user.id);
+    if (!dbUser) {
+      return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });
+    }
 
-  // 4) Retorna affiliate_code, affiliate_balance etc.
-  return NextResponse.json({
-    affiliate_code: dbUser.affiliateCode,
-    affiliate_balance: dbUser.affiliateBalance,
-    // inclua outros campos se quiser
-  });
+    // 4) Retorna affiliate_code, affiliate_balance etc.
+    return NextResponse.json({
+      affiliate_code: dbUser.affiliateCode,
+      affiliate_balance: dbUser.affiliateBalance,
+      // inclua outros campos se quiser
+    });
+  } catch (error: unknown) {
+    console.error("GET /api/affiliate error:", error);
+    const message = error instanceof Error ? error.message : "Erro desconhecido.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
 
 /**
