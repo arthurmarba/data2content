@@ -10,7 +10,9 @@ import { Session } from "next-auth";
 export async function POST(request: Request) {
   try {
     // 1) Verifica se o usuário está logado
-    const session = (await getServerSession(authOptions)) as Session | null;
+    // Corrigindo a tipagem do getServerSession
+    const session = await getServerSession(authOptions);
+    
     if (!session || !session.user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
