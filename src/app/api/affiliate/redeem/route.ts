@@ -3,6 +3,7 @@ import { getToken } from "next-auth/jwt";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import { Redemption } from "@/app/models/Redemption";
+import { Model } from "mongoose";
 
 // GET: lista os saques do usuário
 export async function GET(request: NextRequest) {
@@ -30,9 +31,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const redemptions = await Redemption.find({ user: userId }).sort({ createdAt: -1 });
+    // Faz o cast para Model<any> para garantir os métodos de consulta
+    const redemptionModel = Redemption as Model<any>;
+    const redemptions = await redemptionModel.find({ user: userId }).sort({ createdAt: -1 });
     return NextResponse.json(redemptions, { status: 200 });
-
   } catch (error: unknown) {
     console.error("GET /api/affiliate/redeem error:", error);
 
@@ -55,7 +57,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
-    const { userId } = (await request.json()) || {};
+    const { userId } = await request.json() || {};
     if (!userId) {
       return NextResponse.json({ error: "Parâmetro userId é obrigatório." }, { status: 400 });
     }
@@ -78,9 +80,10 @@ export async function POST(request: NextRequest) {
     const { pixKey, bankName, bankAgency, bankAccount } = user.paymentInfo || {};
     const hasPaymentInfo = !!(pixKey || bankName || bankAgency || bankAccount);
     if (!hasPaymentInfo) {
-      return NextResponse.json({
-        error: "É preciso preencher os dados bancários antes de solicitar o saque."
-      }, { status: 400 });
+      return NextResponse.json(
+        { error: "É preciso preencher os dados bancários antes de solicitar o saque." },
+        { status: 400 }
+      );
     }
 
     // Verifica saldo
@@ -92,8 +95,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Cria registro do saque
-    const newRedemption = await Redemption.create({
+    // Cria registro do saque (fazendo cast para garantir os métodos de criação)
+    const redemptionModel = Redemption as Model<any>;
+    const newRedemption = await redemptionModel.create({
       user: user._id,
       amount: balance,
       status: "pending",
@@ -107,7 +111,6 @@ export async function POST(request: NextRequest) {
       message: "Solicitação de resgate criada com sucesso!",
       redemption: newRedemption,
     });
-
   } catch (error: unknown) {
     console.error("POST /api/affiliate/redeem error:", error);
 
@@ -135,7 +138,7 @@ export async function PATCH(request: NextRequest) {
     //   return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
     // }
 
-    const { redeemId, newStatus } = (await request.json()) || {};
+    const { redeemId, newStatus } = await request.json() || {};
     if (!redeemId || !newStatus) {
       return NextResponse.json(
         { error: "Parâmetros redeemId e newStatus são obrigatórios." },
@@ -143,7 +146,8 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const redemption = await Redemption.findById(redeemId);
+    const redemptionModel = Redemption as Model<any>;
+    const redemption = await redemptionModel.findById(redeemId);
     if (!redemption) {
       return NextResponse.json({ error: "Resgate não encontrado." }, { status: 404 });
     }
@@ -155,7 +159,6 @@ export async function PATCH(request: NextRequest) {
       message: `Status atualizado para "${newStatus}" com sucesso!`,
       redemption,
     });
-
   } catch (error: unknown) {
     console.error("PATCH /api/affiliate/redeem error:", error);
 
