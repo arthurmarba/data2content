@@ -5,12 +5,11 @@ import { authOptions } from "@/app/lib/authOptions";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import Metric, { IMetric } from "@/app/models/Metric";
 import { Model } from "mongoose";
-import { Session } from "next-auth";
+// Removida a importação não utilizada de Session
 
 export async function POST(request: Request) {
   try {
     // 1) Verifica se o usuário está logado
-    // Corrigindo a tipagem do getServerSession
     const session = await getServerSession(authOptions);
     
     if (!session || !session.user) {
