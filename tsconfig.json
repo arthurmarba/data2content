@@ -27,8 +27,12 @@
       }
     ],
     "forceConsistentCasingInFileNames": true,
+    // Aqui garantimos que o TypeScript busque declarações personalizadas
     "typeRoots": ["./types", "./node_modules/@types"],
+    // Incluir "next" se for necessário
     "types": ["next"],
+
+    // Boas práticas de rigor
     "strictNullChecks": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitAny": true,
@@ -41,6 +45,7 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "src/app/lib/mercadopago.js",
+    // Aqui garantimos que os arquivos .d.ts dentro de /types sejam incluídos
     "types/**/*.d.ts"
   ],
   "exclude": [

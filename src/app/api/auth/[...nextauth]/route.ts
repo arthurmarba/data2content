@@ -105,20 +105,32 @@ export const authOptions: NextAuthOptions = {
 
       try {
         await connectToDatabase();
-        let dbUser;
-        // Se token.sub for um ObjectId válido, usamos findById; caso contrário, buscamos por googleId
-        if (Types.ObjectId.isValid(token.sub)) {
-          dbUser = await DbUser.findById(token.sub);
-        } else {
-          dbUser = await DbUser.findOne({ googleId: token.sub });
+        let dbUser: IUser | null = null;
+
+        // 1) Verifica se token.sub é string
+        if (typeof token.sub === "string") {
+          // 2) Se for um ObjectId válido, usamos findById
+          if (Types.ObjectId.isValid(token.sub)) {
+            dbUser = await DbUser.findById(token.sub);
+          } else {
+            // 3) Caso contrário, pesquisamos por googleId
+            dbUser = await DbUser.findOne({ googleId: token.sub });
+          }
         }
+
         if (dbUser) {
           session.user.role = dbUser.role;
           session.user.planStatus = dbUser.planStatus;
-          session.user.planExpiresAt = dbUser.planExpiresAt ? dbUser.planExpiresAt.toISOString() : null;
-          session.user.affiliateCode = dbUser.affiliateCode ? dbUser.affiliateCode.toString() : undefined;
+          session.user.planExpiresAt = dbUser.planExpiresAt
+            ? dbUser.planExpiresAt.toISOString()
+            : null;
+          session.user.affiliateCode = dbUser.affiliateCode
+            ? dbUser.affiliateCode.toString()
+            : undefined;
           session.user.affiliateBalance = dbUser.affiliateBalance;
-          session.user.affiliateRank = dbUser.affiliateRank ? dbUser.affiliateRank.toString() : undefined;
+          session.user.affiliateRank = dbUser.affiliateRank
+            ? dbUser.affiliateRank.toString()
+            : undefined;
           session.user.affiliateInvites = dbUser.affiliateInvites;
         }
       } catch (error) {
