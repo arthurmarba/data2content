@@ -41,7 +41,7 @@ export const authOptions: NextAuthOptions = {
         params: { scope: "openid email profile" },
       },
       profile(profile) {
-        // Retornamos o shape básico do usuário
+        // Retorna o shape básico do usuário
         return {
           id: profile.sub,
           name: profile.name,
