@@ -9,20 +9,19 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@auth/core": "^0.34.2",
     "@tailwindcss/aspect-ratio": "^0.4.2",
     "@tailwindcss/postcss": "^4.0.6",
     "chart.js": "^4.4.7",
-    "framer-motion": "^12.4.3",
+    "framer-motion": "^10.12.16",
     "google-auth-library": "^9.15.1",
     "mercadopago": "^1.5.6",
-    "mongoose": "^8.10.1",
-    "next": "15.1.7",
-    "next-auth": "^4.24.11",
+    "mongoose": "^7.6.0",
+    "next": "13.4.19",        // Versão estável do Next 13
+    "next-auth": "^4.24.11",  // Mantido, é estável
     "openai": "^3.3.0",
-    "react": "^19.0.0",
+    "react": "^18.2.0",       // React 18 estável
     "react-chartjs-2": "^5.3.0",
-    "react-dom": "^19.0.0",
+    "react-dom": "^18.2.0",   // React DOM 18 estável
     "react-icons": "^5.4.0",
     "react-youtube": "^10.1.0",
     "uuid": "^11.1.0"
@@ -31,11 +30,11 @@
     "@eslint/eslintrc": "^3",
     "@types/node": "^20",
     "@types/node-fetch": "^2.6.12",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
     "autoprefixer": "^10.4.20",
     "eslint": "^9",
-    "eslint-config-next": "15.1.7",
+    "eslint-config-next": "13.4.19",  // Alinhado com o Next 13.4.x
     "postcss": "^8.5.2",
     "tailwindcss": "^3.4.17",
     "typescript": "^5"

@@ -1,5 +1,3 @@
-// src/app/models/DailyMetric.ts
-
 import { Schema, model, models, Document, Types } from "mongoose";
 
 /**
@@ -106,7 +104,7 @@ export interface IDailyMetric extends Document {
  * Representa um snapshot de métricas diárias (ou de um post específico)
  * usando a data real de publicação do conteúdo como referência.
  */
-const dailyMetricSchema = new Schema(
+const dailyMetricSchema = new Schema<IDailyMetric>(
   {
     user: {
       type: Schema.Types.ObjectId,
@@ -217,4 +215,7 @@ const dailyMetricSchema = new Schema(
 dailyMetricSchema.index({ user: 1, postDate: -1 });
 
 // Evita recriar o modelo em dev/hot reload
-export const DailyMetric = models.DailyMetric || model<IDailyMetric>("DailyMetric", dailyMetricSchema);
+const DailyMetricModel =
+  models.DailyMetric || model<IDailyMetric>("DailyMetric", dailyMetricSchema);
+
+export { DailyMetricModel as DailyMetric };

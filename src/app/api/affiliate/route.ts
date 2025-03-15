@@ -1,11 +1,14 @@
 // src/app/api/affiliate/route.ts
 
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next"; // ou "next-auth" se estiver configurado para o App Router
+import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/lib/authOptions";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
-import { Session } from "next-auth";
+import type { Session } from "next-auth";
+
+// Garante que essa rota use Node.js em vez de Edge
+export const runtime = "nodejs";
 
 /**
  * Tipo auxiliar para nosso usuário na sessão (com 'role' e 'id').
@@ -26,11 +29,8 @@ interface SessionUser {
  */
 export async function GET() {
   try {
-    // Se authOptions estiver definido como array, usamos o primeiro elemento.
-    const options = Array.isArray(authOptions) ? authOptions[0] : authOptions;
-
-    // 1) Obtém a sessão usando as opções corretas
-    const session = (await getServerSession(options)) as Session | null;
+    // 1) Obtém a sessão usando somente o authOptions (App Router)
+    const session = (await getServerSession(authOptions)) as Session | null;
     if (!session) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }

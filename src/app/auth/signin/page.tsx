@@ -1,5 +1,4 @@
-// pages/auth/signin.tsx
-"use client"; // se estiver usando Next.js 13 (app dir) ou não, verifique se precisa
+"use client";
 
 import { signIn } from "next-auth/react";
 
@@ -12,7 +11,6 @@ export default function SignInPage() {
         Entrar com Google
       </button>
 
-      {/* Se quiser manter credenciais (demo) */}
       <br />
       <button
         onClick={() =>

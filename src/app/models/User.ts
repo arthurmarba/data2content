@@ -34,7 +34,7 @@ function generateAffiliateCode(): string {
 }
 
 /**
- * User Schema
+ * Definição do Schema para o User
  */
 const userSchema = new Schema<IUser>(
   {
@@ -64,6 +64,9 @@ const userSchema = new Schema<IUser>(
   }
 );
 
+/**
+ * Pre-save hook para gerar affiliateCode se ainda não existir
+ */
 userSchema.pre<IUser>("save", function (next) {
   if (!this.affiliateCode) {
     this.affiliateCode = generateAffiliateCode();
@@ -71,9 +74,15 @@ userSchema.pre<IUser>("save", function (next) {
   next();
 });
 
+// Índices para buscas mais eficientes
 userSchema.index({ whatsappPhone: 1 });
 userSchema.index({ planStatus: 1 });
 
-export default models.User
+/**
+ * Exporta o modelo 'User', evitando recriação em dev/hot reload
+ */
+const UserModel = models.User
   ? (models.User as Model<IUser>)
   : model<IUser>("User", userSchema);
+
+export default UserModel;

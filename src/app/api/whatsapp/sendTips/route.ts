@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { Model } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import { DailyMetric } from "@/app/models/DailyMetric";
 import { sendWhatsAppMessage } from "@/app/lib/whatsappService";
 import { callOpenAIForTips } from "@/app/lib/aiService";
-import { Model } from "mongoose";
+
+// Garante que essa rota use Node.js em vez de Edge (importante para Mongoose).
+export const runtime = "nodejs";
 
 /**
  * Interface mínima para as métricas diárias usadas em aggregateWeeklyMetrics.
@@ -112,7 +115,8 @@ export async function POST(request: NextRequest) {
     for (const user of users) {
       try {
         // 5a) Carrega dailyMetrics dos últimos 7 dias
-        const dailyMetrics = await (DailyMetric as unknown as Model<DailyMetricDoc>).find({
+        const dailyMetricModel = DailyMetric as Model<DailyMetricDoc>;
+        const dailyMetrics = await dailyMetricModel.find({
           user: user._id,
           postDate: { $gte: fromDate },
         });
@@ -126,11 +130,14 @@ export async function POST(request: NextRequest) {
         // 5d) Formata a mensagem para enviar no WhatsApp
         const msg = formatTipsMessage(tipsData);
 
-        // 5e) Envia a mensagem (utilizando o operador ! para garantir que whatsappPhone não seja nulo)
-        await safeSendWhatsAppMessage(user.whatsappPhone!, msg);
-
-        countSends++;
-        console.log(`Dicas enviadas para userId=${user._id} no número ${user.whatsappPhone}`);
+        // 5e) Envia a mensagem
+        if (user.whatsappPhone) {
+          await safeSendWhatsAppMessage(user.whatsappPhone, msg);
+          countSends++;
+          console.log(`Dicas enviadas para userId=${user._id} no número ${user.whatsappPhone}`);
+        } else {
+          console.warn(`Usuário ${user._id} não possui número de WhatsApp.`);
+        }
       } catch (error: unknown) {
         console.error(`Erro ao processar userId=${user._id}:`, error);
       }

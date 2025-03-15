@@ -1,4 +1,4 @@
-import NextAuth from "next-auth/next";
+import NextAuth from "next-auth";
 import type { NextAuthOptions, Session, User, Account } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
@@ -6,6 +6,9 @@ import { Types } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import DbUser, { IUser } from "@/app/models/User";
 import type { JWT } from "next-auth/jwt";
+
+// Garante que essa rota use Node.js em vez de Edge (importante para Mongoose).
+export const runtime = "nodejs";
 
 // Interfaces para os callbacks
 interface SignInCallback {
@@ -90,8 +93,11 @@ export const authOptions: NextAuthOptions = {
 
     async jwt({ token, user }: JwtCallback): Promise<JWT> {
       if (user) {
+        // Se for Google, user.id é o _id do DB; se for demo, é "demo-123"
         token.sub = user.id;
-        if (user.image) token.picture = user.image;
+        if (user.image) {
+          token.picture = user.image;
+        }
       }
       return token;
     },
@@ -159,5 +165,6 @@ export const authOptions: NextAuthOptions = {
   },
 };
 
+// Cria o handler NextAuth e exporta como GET e POST (App Router).
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };

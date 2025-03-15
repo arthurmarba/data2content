@@ -1,11 +1,12 @@
 // types/next-auth.d.ts
-import { DefaultSession, DefaultUser } from "next-auth";
 
+import { DefaultSession, DefaultUser } from "next-auth";
+import { JWT } from "next-auth/jwt";
+
+/**
+ * Aqui estendemos a interface `Session` para incluir campos extras no `session.user`.
+ */
 declare module "next-auth" {
-  /**
-   * Aqui extendemos a interface `Session` para incluir
-   * campos extras no `session.user`.
-   */
   interface Session {
     user: {
       id: string;
@@ -21,8 +22,8 @@ declare module "next-auth" {
   }
 
   /**
-   * Aqui extendemos a interface `User` para incluir
-   * campos extras que serão salvos no banco de dados (ou retornados pelo provider).
+   * Aqui estendemos a interface `User` para incluir campos extras
+   * que serão salvos no banco de dados (ou retornados pelo provider).
    */
   interface User extends DefaultUser {
     id: string;
@@ -36,13 +37,13 @@ declare module "next-auth" {
   }
 }
 
+/**
+ * Aqui estendemos a interface `JWT` para incluir campos extras
+ * que serão persistidos no token.
+ */
 declare module "next-auth/jwt" {
-  /**
-   * Aqui extendemos a interface `JWT` para incluir
-   * campos extras que serão persistidos no token.
-   */
   interface JWT {
-    sub?: string;
+    sub?: string; // Normalmente, a sub é a id do usuário
     id?: string;
     role?: string;
     planStatus?: string;

@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import mongoose from "mongoose";
-
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
+
+// Garante que essa rota use Node.js em vez de Edge
+export const runtime = "nodejs";
 
 /**
  * Gera um código de verificação aleatório com 6 caracteres maiúsculos.
@@ -12,6 +14,12 @@ function generateVerificationCode(): string {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
+/**
+ * POST /api/whatsapp/generateCode
+ * Body: { userId }
+ * Verifica se o userId corresponde ao token.sub do usuário logado,
+ * gera um código de verificação e limpa o whatsappPhone para forçar re-verificação.
+ */
 export async function POST(request: NextRequest) {
   try {
     // 1) Verifica se há token (usuário logado) via JWT
@@ -21,7 +29,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 2) Lê userId do body
-    const body = await request.json() || {};
+    const body = (await request.json()) || {};
     const { userId } = body;
     if (!userId) {
       return NextResponse.json(

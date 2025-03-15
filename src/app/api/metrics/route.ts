@@ -1,17 +1,18 @@
-"use client";
-
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { connectToDatabase } from "@/app/lib/mongoose";
-import User from "@/app/models/User"; // Importação atualizada (sem IUser)
-import { DailyMetric } from "@/app/models/DailyMetric";
+import User from "@/app/models/User";
+import { DailyMetric, IDailyMetric } from "@/app/models/DailyMetric";
 import { buildAggregatedReport } from "@/app/lib/reportHelpers";
 import { generateReport, AggregatedMetrics } from "@/app/lib/reportService";
 import { sendWhatsAppMessage } from "@/app/lib/whatsappService";
 import { Types, Model } from "mongoose";
 
+// Garante que essa rota use Node.js em vez de Edge
+export const runtime = "nodejs";
+
 /**
- * Função auxiliar para enviar WhatsApp com try/catch.
+ * Função auxiliar para enviar mensagem via WhatsApp com try/catch.
  */
 async function safeSendWhatsAppMessage(phone: string, body: string) {
   try {
@@ -29,9 +30,13 @@ interface ReportResult {
   success: boolean;
 }
 
+/**
+ * POST /api/whatsapp/weeklyReport
+ * Envia relatórios semanais via WhatsApp para todos os usuários com plano ativo.
+ */
 export async function POST(request: NextRequest) {
   try {
-    // 1) Verifica autenticação (ex.: admin)
+    // 1) Verifica autenticação
     const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
     if (!token) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
@@ -45,6 +50,7 @@ export async function POST(request: NextRequest) {
       planStatus: "active",
       whatsappPhone: { $ne: null },
     });
+
     if (!users?.length) {
       return NextResponse.json(
         { message: "Nenhum usuário ativo com WhatsApp cadastrado." },
@@ -60,19 +66,17 @@ export async function POST(request: NextRequest) {
     // 5) Processa todos os usuários de forma concorrente
     const results = await Promise.allSettled<ReportResult>(
       users.map(async (user) => {
-        // Define o id do usuário para facilitar a leitura
         const userId = (user._id as Types.ObjectId).toString();
-
         try {
           // 5a) Carrega as métricas (DailyMetric) dos últimos 7 dias para o usuário
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const DailyMetricModel = DailyMetric as Model<any>;
-          const dailyMetrics = await DailyMetricModel.find({
+          const dailyMetricModel = DailyMetric as Model<IDailyMetric>;
+          const dailyMetrics: IDailyMetric[] = await dailyMetricModel.find({
             user: user._id,
             postDate: { $gte: fromDate },
           });
 
           // 5b) Agrega os dados completos utilizando buildAggregatedReport
+          // Forçamos o cast para AggregatedMetrics caso as interfaces não coincidam
           const aggregatedReport = buildAggregatedReport(dailyMetrics) as unknown as AggregatedMetrics;
 
           // 5c) Gera o relatório detalhado para o período "7 dias"

@@ -4,9 +4,13 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import mercadopago from "@/app/lib/mercadopago";
 import User from "@/app/models/User";
 
-// Se quiser forçar runtime Node, descomente:
-// export const runtime = "nodejs";
+// Garante que essa rota use Node.js em vez de Edge
+export const runtime = "nodejs";
 
+/**
+ * POST /api/plan/webhook
+ * Webhook do Mercado Pago para notificar sobre pagamentos.
+ */
 export async function POST(request: NextRequest) {
   try {
     // 1) Conecta ao banco
@@ -67,7 +71,6 @@ export async function POST(request: NextRequest) {
 
           // Soma ao saldo do afiliado
           affUser.affiliateBalance = (affUser.affiliateBalance || 0) + commission;
-
           // Atualiza contagem de convites
           affUser.affiliateInvites = (affUser.affiliateInvites || 0) + 1;
 

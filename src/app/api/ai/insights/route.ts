@@ -1,16 +1,24 @@
 import { NextResponse } from "next/server";
 import { Configuration, OpenAIApi } from "openai";
-import { getServerSession } from "next-auth/next"; // Corrigido: importação do caminho correto
+import { getServerSession } from "next-auth"; // Para App Router, não passamos `request` como parâmetro
 import { authOptions } from "@/app/lib/authOptions";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import Metric, { IMetric } from "@/app/models/Metric";
 import { Model } from "mongoose";
 
+// Garante que essa rota use Node.js em vez de Edge (importante para Mongoose).
+export const runtime = "nodejs";
+
+/**
+ * POST /api/ai/insights
+ * Body esperado: { metricId }
+ * Retorna insights da IA (modelo GPT-3.5-turbo) baseados em métricas do usuário logado.
+ */
 export async function POST(request: Request) {
   try {
     // 1) Verifica se o usuário está logado
+    // No App Router, use apenas `getServerSession(authOptions)`, sem passar `request`
     const session = await getServerSession(authOptions);
-    
     if (!session || !session.user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
@@ -36,10 +44,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Cast do Metric para Model<IMetric> para resolver o problema de tipagem
+    // Faz cast do Metric para Model<IMetric> para resolver tipagem no Mongoose
     const metricModel = Metric as Model<IMetric>;
     const metric = await metricModel.findOne({ _id: metricId, user: userId });
-    
+
     if (!metric) {
       return NextResponse.json(
         { error: "Métrica não encontrada ou não pertence a este usuário." },
@@ -68,7 +76,7 @@ Métricas fornecidas: ${JSON.stringify(stats)}
    - "alertas": array de strings (caso encontre problemas)
 `;
 
-    // 7) Faz a chamada
+    // 7) Faz a chamada ao modelo GPT-3.5-turbo
     const completion = await openai.createChatCompletion({
       model: "gpt-3.5-turbo",
       messages: [{ role: "user", content: prompt }],
@@ -89,6 +97,7 @@ Métricas fornecidas: ${JSON.stringify(stats)}
 
     // 9) Retorna a resposta com os insights
     return NextResponse.json({ insights: parsed }, { status: 200 });
+
   } catch (error: unknown) {
     console.error("POST /api/ai/insights error:", error);
     let message = "Erro desconhecido.";

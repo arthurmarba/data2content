@@ -1,5 +1,3 @@
-// src/app/lib/authOptions.ts
-
 import type { NextAuthOptions, Session, User, Account } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
@@ -9,7 +7,6 @@ import { Types } from "mongoose";
 import type { JWT } from "next-auth/jwt";
 
 // Interfaces específicas para os callbacks
-
 interface SignInCallback {
   user: User & { id?: string };
   account: Account | null;
@@ -27,7 +24,7 @@ interface SessionCallback {
 
 interface RedirectCallback {
   baseUrl: string;
-  // Parâmetro "url" removido, pois não é utilizado
+  // Parâmetro "url" removido pois não é utilizado
 }
 
 export const authOptions: NextAuthOptions = {
@@ -55,6 +52,7 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (credentials?.username === "demo" && credentials?.password === "demo") {
+          // Exemplo simples de usuário 'demo'
           return {
             id: "demo-123",
             name: "Demo User",
@@ -93,14 +91,17 @@ export const authOptions: NextAuthOptions = {
 
     async jwt({ token, user }: JwtCallback): Promise<JWT> {
       if (user) {
+        // Se for Google, user.id será o _id do DB; se for demo, "demo-123"
         token.sub = user.id;
-        if (user.image) token.picture = user.image;
+        if (user.image) {
+          token.picture = user.image;
+        }
       }
       return token;
     },
 
     async session({ session, token }: SessionCallback): Promise<Session> {
-      // Inicializa session.user incluindo o campo id (conforme module augmentation)
+      // Inicializa session.user com 'id' (conforme extensão no next-auth.d.ts)
       if (!session.user) {
         session.user = { id: "", name: "", email: "", image: "" };
       }
@@ -112,10 +113,16 @@ export const authOptions: NextAuthOptions = {
         if (dbUser) {
           session.user.role = dbUser.role;
           session.user.planStatus = dbUser.planStatus;
-          session.user.planExpiresAt = dbUser.planExpiresAt ? dbUser.planExpiresAt.toISOString() : null;
-          session.user.affiliateCode = dbUser.affiliateCode ? dbUser.affiliateCode.toString() : undefined;
+          session.user.planExpiresAt = dbUser.planExpiresAt
+            ? dbUser.planExpiresAt.toISOString()
+            : null;
+          session.user.affiliateCode = dbUser.affiliateCode
+            ? dbUser.affiliateCode.toString()
+            : undefined;
           session.user.affiliateBalance = dbUser.affiliateBalance;
-          session.user.affiliateRank = dbUser.affiliateRank ? dbUser.affiliateRank.toString() : undefined;
+          session.user.affiliateRank = dbUser.affiliateRank
+            ? dbUser.affiliateRank.toString()
+            : undefined;
           session.user.affiliateInvites = dbUser.affiliateInvites;
         }
       } catch (error) {
@@ -129,15 +136,18 @@ export const authOptions: NextAuthOptions = {
     },
 
     async redirect({ baseUrl }: RedirectCallback): Promise<string> {
+      // Redireciona para /dashboard após login
       return baseUrl + "/dashboard";
     },
   },
 
   secret: process.env.NEXTAUTH_SECRET,
+
   pages: {
-    signIn: "/login",
-    error: "/auth/error",
+    signIn: "/login",       // Caso esteja usando Pages Router para login
+    error: "/auth/error",   // Ou rota custom de erro
   },
+
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 dias

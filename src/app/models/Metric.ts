@@ -1,17 +1,15 @@
-// src/app/models/Metric.ts
-
-import { Schema, model, models, Document, Model } from "mongoose";
+import { Schema, model, models, Document, Model, Types } from "mongoose";
 
 /**
  * Interface que define a estrutura de um documento Metric
  */
 export interface IMetric extends Document {
-  user: Schema.Types.ObjectId | string;
-  postLink: string;
-  description: string;
-  rawData: unknown[]; // Substituído any por unknown para evitar erro de ESLint
-  stats: Record<string, unknown>; // Substituído any por Record<string, unknown>
-  createdAt: Date;
+  user: Types.ObjectId;               // ID do usuário (ObjectId)
+  postLink: string;                   // Link do post (Instagram, TikTok, etc.)
+  description: string;                // Descrição do conteúdo
+  rawData: unknown[];                 // Dados brutos extraídos (ex.: Document AI)
+  stats: Record<string, unknown>;     // Objeto de estatísticas consolidadas
+  createdAt: Date;                    // Data de criação do registro
 }
 
 /**
@@ -24,7 +22,8 @@ export interface IMetric extends Document {
  *  - Objeto de estatísticas consolidadas (stats)
  *  - Data de criação (createdAt)
  *
- * Observação: Geralmente é usado como um "log" ou "histórico" de métricas para cada conteúdo.
+ * Observação: Geralmente é usado como um "log" ou "histórico" de métricas
+ * para cada conteúdo.
  */
 const metricSchema = new Schema<IMetric>(
   {
@@ -83,7 +82,9 @@ metricSchema.index({ user: 1, createdAt: -1 });
  * Evita recriar o modelo em dev/hot reload:
  * Se já existir "Metric" no models, utiliza-o; caso contrário, cria.
  */
-const MetricModel = models.Metric ? (models.Metric as Model<IMetric>) : model<IMetric>("Metric", metricSchema);
+const MetricModel = models.Metric
+  ? (models.Metric as Model<IMetric>)
+  : model<IMetric>("Metric", metricSchema);
 
 // Exportando tanto como default quanto como named export para compatibilidade
 export default MetricModel;

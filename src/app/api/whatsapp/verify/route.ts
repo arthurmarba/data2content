@@ -1,12 +1,14 @@
 // src/app/api/whatsapp/verify/route.ts
 
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next"; // Correct import for NextAuth v4 App Router
-import { authOptions } from "@/app/lib/authOptions"; // Ensure this is typed with NextAuthOptions
-
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/lib/authOptions";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User, { IUser } from "@/app/models/User";
 import { Types } from "mongoose";
+
+// Garante que essa rota use Node.js em vez de Edge
+export const runtime = "nodejs";
 
 /**
  * POST /api/whatsapp/verify
@@ -17,13 +19,13 @@ import { Types } from "mongoose";
  */
 export async function POST(request: Request) {
   try {
-    // 1) Verifica sessão (não passando 'request' para getServerSession)
+    // 1) Verifica sessão usando apenas `authOptions` (App Router não usa request)
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
-    // Faz o cast para garantir que session.user tenha 'id'
+    // 2) Extrai o ID do usuário da sessão
     const userWithId = session.user as {
       id?: string;
       name?: string | null;
@@ -31,14 +33,14 @@ export async function POST(request: Request) {
       image?: string | null;
     };
 
-    // Se a sessão não tiver um ID, não conseguimos comparar
     if (!userWithId.id) {
       return NextResponse.json({ error: "Sessão sem ID de usuário" }, { status: 400 });
     }
 
+    // 3) Conecta ao banco
     await connectToDatabase();
 
-    // 2) Lê e valida parâmetros do body
+    // 4) Lê e valida parâmetros do body
     const { phoneNumber, code } = await request.json();
     if (!phoneNumber || !code) {
       return NextResponse.json(
@@ -47,17 +49,13 @@ export async function POST(request: Request) {
       );
     }
 
-    // 3) Busca o usuário com esse code
-    // Como IUser estende Document, _id será reconhecido; usamos cast para garantir o tipo ObjectId
+    // 5) Busca o usuário com esse code
     const user = (await User.findOne({ whatsappVerificationCode: code })) as IUser | null;
     if (!user) {
-      return NextResponse.json(
-        { error: "Código inválido ou expirado." },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Código inválido ou expirado." }, { status: 404 });
     }
 
-    // 4) Verifica se esse user é o mesmo da sessão
+    // 6) Verifica se esse user é o mesmo da sessão
     if ((user._id as Types.ObjectId).toString() !== userWithId.id) {
       return NextResponse.json(
         { error: "Acesso negado: este código não pertence ao seu usuário." },
@@ -65,20 +63,17 @@ export async function POST(request: Request) {
       );
     }
 
-    // 5) Verifica se o plano está ativo
+    // 7) Verifica se o plano está ativo
     if (user.planStatus !== "active") {
-      return NextResponse.json(
-        { error: "Seu plano não está ativo." },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Seu plano não está ativo." }, { status: 403 });
     }
 
-    // 6) Vincula phoneNumber e invalida o code
+    // 8) Vincula phoneNumber e invalida o code
     user.whatsappPhone = phoneNumber;
     user.whatsappVerificationCode = null;
     await user.save();
 
-    // 7) Retorna sucesso
+    // 9) Retorna sucesso
     return NextResponse.json(
       { message: "Vinculação concluída com sucesso!" },
       { status: 200 }

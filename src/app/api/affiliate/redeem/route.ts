@@ -2,12 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
-import { Redemption } from "@/app/models/Redemption";
+// Se você exportou como default no Redemption.ts, importe assim:
+import Redemption from "@/app/models/Redemption";
 import { Document, Model } from "mongoose";
 
-// Crie uma interface para o Redemption
+// Garante que essa rota use Node.js em vez de Edge
+export const runtime = "nodejs";
+
+/**
+ * Interface para o documento de Redemption, caso não tenha no seu 'Redemption.ts'
+ */
 interface IRedemption extends Document {
-  user: string; // ou Schema.Types.ObjectId se preferir
+  user: string; // ou Types.ObjectId se preferir
   amount: number;
   status: "pending" | "paid" | "canceled";
   paymentMethod: string;
@@ -16,7 +22,10 @@ interface IRedemption extends Document {
   updatedAt: Date;
 }
 
-// GET: lista os saques do usuário
+/**
+ * GET /api/affiliate/redeem?userId=...
+ * Lista os saques do usuário logado
+ */
 export async function GET(request: NextRequest) {
   try {
     await connectToDatabase();
@@ -42,9 +51,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Faz o cast para Model<IRedemption>
-    const redemptionModel = Redemption as Model<IRedemption>;
+    // Faz cast do Redemption para Model<IRedemption>
+    const redemptionModel = Redemption as unknown as Model<IRedemption>;
     const redemptions = await redemptionModel.find({ user: userId }).sort({ createdAt: -1 });
+
     return NextResponse.json(redemptions, { status: 200 });
   } catch (error: unknown) {
     console.error("GET /api/affiliate/redeem error:", error);
@@ -56,7 +66,11 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST: cria solicitação de saque
+/**
+ * POST /api/affiliate/redeem
+ * Cria solicitação de saque para o usuário logado.
+ * Body: { userId }
+ */
 export async function POST(request: NextRequest) {
   try {
     await connectToDatabase();
@@ -67,7 +81,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
-    const { userId } = await request.json() || {};
+    const body = await request.json();
+    const { userId } = body || {};
     if (!userId) {
       return NextResponse.json({ error: "Parâmetro userId é obrigatório." }, { status: 400 });
     }
@@ -106,7 +121,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Cria registro do saque
-    const redemptionModel = Redemption as Model<IRedemption>;
+    const redemptionModel = Redemption as unknown as Model<IRedemption>;
     const newRedemption = await redemptionModel.create({
       user: user._id,
       amount: balance,
@@ -133,7 +148,11 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PATCH: atualiza status do saque (admin)
+/**
+ * PATCH /api/affiliate/redeem
+ * Atualiza o status do saque (apenas admin).
+ * Body: { redeemId, newStatus }
+ */
 export async function PATCH(request: NextRequest) {
   try {
     await connectToDatabase();
@@ -144,8 +163,9 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
-    // Se desejar restringir a atualização apenas para admin, verifique token.role aqui.
-    const { redeemId, newStatus } = await request.json() || {};
+    // Caso queira restringir a admins, checar token.role
+    const body = await request.json();
+    const { redeemId, newStatus } = body || {};
     if (!redeemId || !newStatus) {
       return NextResponse.json(
         { error: "Parâmetros redeemId e newStatus são obrigatórios." },
@@ -153,7 +173,7 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const redemptionModel = Redemption as Model<IRedemption>;
+    const redemptionModel = Redemption as unknown as Model<IRedemption>;
     const redemption = await redemptionModel.findById(redeemId);
     if (!redemption) {
       return NextResponse.json({ error: "Resgate não encontrado." }, { status: 404 });

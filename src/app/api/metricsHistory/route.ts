@@ -1,19 +1,23 @@
-// src/app/api/metricsHistory/route.ts
-
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/lib/authOptions";
-
 import mongoose, { PipelineStage } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { DailyMetric } from "@/app/models/DailyMetric";
+import type { Session } from "next-auth";
 
+// Garante que essa rota use Node.js em vez de Edge
+export const runtime = "nodejs";
+
+/**
+ * Interface auxiliar para o usuário na sessão.
+ * Ajuste conforme necessário (ex.: planStatus, role, etc.).
+ */
 interface SessionUser {
   id?: string;
   name?: string | null;
   email?: string | null;
   image?: string | null;
-  // outras propriedades, se desejar
 }
 
 /**
@@ -24,8 +28,8 @@ interface SessionUser {
  */
 export async function GET(request: Request) {
   try {
-    // 1) Verifica se há sessão
-    const session = await getServerSession(authOptions);
+    // 1) Obtém a sessão usando apenas 'authOptions' no App Router
+    const session = (await getServerSession(authOptions)) as Session | null;
     if (!session?.user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
@@ -34,19 +38,17 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
     if (!userId) {
+      // Se não for passado userId, retornamos history: null (ou o que fizer sentido)
       return NextResponse.json({ history: null }, { status: 200 });
     }
 
-    // 3) Garante que session.user tenha 'id'
+    // 3) Verifica se session.user tem 'id'
     const userWithId = session.user as SessionUser;
     if (!userWithId.id) {
-      return NextResponse.json(
-        { error: "Sessão sem ID de usuário" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Sessão sem ID de usuário" }, { status: 400 });
     }
 
-    // Verifica se userId corresponde ao ID da sessão
+    // Compara userId do query param com session.user.id
     if (userId !== userWithId.id) {
       return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
     }
@@ -63,15 +65,13 @@ export async function GET(request: Request) {
     const fromDate = new Date();
     fromDate.setDate(fromDate.getDate() - days);
 
-    // Para evitar o problema de prefer-as-const, definimos sortSpec como um objeto
-    // do tipo Record<string, 1 | -1> e passamos ao pipeline.
+    // 6) Define o pipeline de agregação
     const sortSpec: Record<string, 1 | -1> = {
       "_id.year": 1,
       "_id.month": 1,
       "_id.day": 1,
     };
 
-    // 6) Define o pipeline de agregação
     const pipeline: PipelineStage[] = [
       {
         $match: {
@@ -92,12 +92,8 @@ export async function GET(request: Request) {
           avgPctSalvamentos: { $avg: "$stats.pctSalvamentos" },
           avgTaxaConversaoSeguidores: { $avg: "$stats.taxaConversaoSeguidores" },
           avgTaxaRetencao: { $avg: "$stats.taxaRetencao" },
-          avgEngajamentoProfundoAlcance: {
-            $avg: "$stats.engajamentoProfundoAlcance",
-          },
-          avgEngajamentoRapidoAlcance: {
-            $avg: "$stats.engajamentoRapidoAlcance",
-          },
+          avgEngajamentoProfundoAlcance: { $avg: "$stats.engajamentoProfundoAlcance" },
+          avgEngajamentoRapidoAlcance: { $avg: "$stats.engajamentoRapidoAlcance" },
           avgCurtidas: { $avg: "$stats.curtidas" },
           avgComentarios: { $avg: "$stats.comentarios" },
         },
@@ -123,13 +119,11 @@ export async function GET(request: Request) {
     const arrCurtidas: number[] = [];
     const arrComentarios: number[] = [];
 
-    // Para cada doc retornado
     results.forEach((doc) => {
       const { year, month, day } = doc._id;
       const label = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
       labels.push(label);
 
-      // Convertemos valores usando parseFloat e transformando em string se vier undefined
       arrTaxaEngajamento.push(parseFloat(String(doc.avgTaxaEngajamento ?? "0")));
       arrIndicePropagacao.push(parseFloat(String(doc.avgIndicePropagacao ?? "0")));
       arrRatioLikeComment.push(parseFloat(String(doc.avgRatioLikeComment ?? "0")));

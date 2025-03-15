@@ -1,6 +1,19 @@
-import { Schema, model, models } from "mongoose";
+import { Schema, model, models, Document, Model, Types } from "mongoose";
 
-const redemptionSchema = new Schema(
+/**
+ * Interface que descreve um documento de Redemption (saque).
+ */
+export interface IRedemption extends Document {
+  user: Types.ObjectId;
+  amount: number;
+  status: "pending" | "paid" | "canceled";
+  paymentMethod?: string;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const redemptionSchema = new Schema<IRedemption>(
   {
     user: {
       type: Schema.Types.ObjectId,
@@ -18,11 +31,10 @@ const redemptionSchema = new Schema(
       enum: ["pending", "paid", "canceled"],
       default: "pending",
     },
-    // Campos opcionais para fornecer mais contexto
     paymentMethod: {
       type: String,
       default: "",
-      // Exemplo de uso: "pix", "transferencia", "paypal" etc.
+      // Ex.: "pix", "transferencia", "paypal" etc.
     },
     notes: {
       type: String,
@@ -35,4 +47,11 @@ const redemptionSchema = new Schema(
   }
 );
 
-export const Redemption = models.Redemption || model("Redemption", redemptionSchema);
+/**
+ * Exporta o modelo 'Redemption', evitando recriação em dev/hot reload
+ */
+const Redemption = models.Redemption
+  ? (models.Redemption as Model<IRedemption>)
+  : model<IRedemption>("Redemption", redemptionSchema);
+
+export default Redemption;

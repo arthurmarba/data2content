@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt"; // para autenticação
+import { getToken } from "next-auth/jwt";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
-
-// Em vez de require(), use import para mercadopago
 import mercadopago from "@/app/lib/mercadopago";
 import { Types } from "mongoose";
+
+// Garante que essa rota use Node.js em vez de Edge
+export const runtime = "nodejs";
 
 /**
  * POST /api/plan/subscribe
@@ -45,9 +46,8 @@ export async function POST(req: NextRequest) {
       if (!affUser) {
         return NextResponse.json({ error: "Cupom de afiliado inválido." }, { status: 400 });
       }
-      // Impede que o usuário use o próprio cupom.
-      // Realiza cast explícito para tratar _id como Types.ObjectId
-      if (((affUser as { _id: Types.ObjectId })._id).equals(user._id as Types.ObjectId)) {
+      // Impede que o usuário use o próprio cupom
+      if ((affUser._id as Types.ObjectId).equals(user._id as Types.ObjectId)) {
         return NextResponse.json(
           { error: "Você não pode usar seu próprio cupom." },
           { status: 400 }

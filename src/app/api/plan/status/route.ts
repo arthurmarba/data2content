@@ -3,38 +3,48 @@ import mongoose from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 
+// Garante que essa rota use Node.js em vez de Edge
+export const runtime = "nodejs";
+
 /**
  * GET /api/plan/status?userId=...
- * Retorna o status do plano e a data de expiração
+ * Retorna o status do plano e a data de expiração.
  * Se expirado, atualiza no banco para "expired".
  */
 export async function GET(request: Request) {
   try {
+    // 1) Conecta ao banco
     await connectToDatabase();
+
+    // 2) Lê userId dos query params
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
     if (!userId) {
       return NextResponse.json({ error: "Faltou userId" }, { status: 400 });
     }
 
+    // 3) Converte para ObjectId
     const objectId = new mongoose.Types.ObjectId(userId);
     const user = await User.findById(objectId);
     if (!user) {
       return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
     }
 
-    // Verifica se expirou
+    // 4) Verifica se expirou
     const now = new Date();
     if (user.planExpiresAt && user.planExpiresAt < now) {
       user.planStatus = "expired";
       await user.save();
     }
 
-    return NextResponse.json({
-      planStatus: user.planStatus,
-      planExpiresAt: user.planExpiresAt,
-    }, { status: 200 });
-
+    // 5) Retorna planStatus e planExpiresAt
+    return NextResponse.json(
+      {
+        planStatus: user.planStatus,
+        planExpiresAt: user.planExpiresAt,
+      },
+      { status: 200 }
+    );
   } catch (error: unknown) {
     console.error("GET /api/plan/status error:", error);
 
