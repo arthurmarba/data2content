@@ -36,7 +36,7 @@ async function safeSendWhatsAppMessage(phone: string, body: string) {
  */
 export async function POST(request: NextRequest) {
   try {
-    // 1) Verifica autenticação
+    // 1) Verifica autenticação (JWT via cookies)
     const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
     if (!token) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
@@ -68,14 +68,15 @@ export async function POST(request: NextRequest) {
       users.map(async (user) => {
         const userId = (user._id as Types.ObjectId).toString();
         try {
-          // 5a) Carrega as métricas (DailyMetric) dos últimos 7 dias
+          // 5a) Carrega as métricas (DailyMetric) dos últimos 7 dias para o usuário
           const dailyMetricModel = DailyMetric as Model<IDailyMetric>;
           const dailyMetrics = await dailyMetricModel
             .find({ user: user._id, postDate: { $gte: fromDate } })
             .lean();
 
           // 5b) Agrega os dados completos utilizando buildAggregatedReport
-          // Forçamos o cast se buildAggregatedReport não retorna 'AggregatedMetrics' diretamente
+          // Se buildAggregatedReport não retorna 'AggregatedMetrics' diretamente,
+          // forçamos o cast:
           const aggregatedReport = buildAggregatedReport(dailyMetrics) as unknown as AggregatedMetrics;
 
           // 5c) Gera o relatório detalhado para o período "7 dias"

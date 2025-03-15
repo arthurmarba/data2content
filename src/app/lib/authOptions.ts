@@ -24,7 +24,6 @@ interface SessionCallback {
 
 interface RedirectCallback {
   baseUrl: string;
-  // Parâmetro "url" removido pois não é utilizado
 }
 
 export const authOptions: NextAuthOptions = {
@@ -144,13 +143,13 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
 
   pages: {
-    signIn: "/login",       // Caso esteja usando Pages Router para login
-    error: "/auth/error",   // Ou rota custom de erro
+    signIn: "/login",       // Caso esteja usando rota custom de login
+    error: "/auth/error",   // Caso tenha uma rota custom de erro
   },
 
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 dias
+    maxAge: 30 * 24 * 60 * 60 // 30 dias
   },
 };
 

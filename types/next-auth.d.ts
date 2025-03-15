@@ -9,8 +9,10 @@ import { JWT } from "next-auth/jwt";
 declare module "next-auth" {
   interface Session {
     user: {
+      /** Aqui o 'id' é obrigatório */
       id: string;
     } & DefaultSession["user"] & {
+      /** Campos extras opcionais */
       role?: string;
       planStatus?: string;
       planExpiresAt?: string | null;
@@ -26,7 +28,13 @@ declare module "next-auth" {
    * que serão salvos no banco de dados (ou retornados pelo provider).
    */
   interface User extends DefaultUser {
+    /** O 'id' você definiu como obrigatório, mas 'email', 'name', e 'image' seguem opcionais */
     id: string;
+    name?: string | null;
+    email?: string | null;
+    image?: string | null;
+
+    /** Seus campos extras */
     role?: string;
     planStatus?: string;
     planExpiresAt?: Date | string | null;

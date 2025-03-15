@@ -1,11 +1,6 @@
 "use client";
 
-import React, {
-  useState,
-  memo,
-  useCallback,
-  useEffect,
-} from "react";
+import React, { useState, memo, useCallback, useEffect } from "react";
 import Image from "next/image";
 import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -40,12 +35,12 @@ interface Redemption {
  * que você definiu nos callbacks do NextAuth.
  */
 interface ExtendedUser {
-  id?: string;                   // Adicionamos a propriedade "id"
+  id?: string;
   name?: string | null;
   email?: string | null;
   image?: string | null;
-  planStatus?: string;           // Propriedade extra
-  affiliateCode?: string | null; // Ajustado para aceitar null
+  planStatus?: string;
+  affiliateCode?: string | null;
   affiliateBalance?: number;
   affiliateRank?: number;
   affiliateInvites?: number;
@@ -108,7 +103,10 @@ function PaymentSettings({ userId }: { userId: string }) {
   // Busca dados de pagamento (Pix, conta, etc.)
   const fetchPaymentInfo = useCallback(async () => {
     try {
-      const res = await fetch(`/api/affiliate/paymentinfo?userId=${userId}`);
+      const res = await fetch(`/api/affiliate/paymentinfo?userId=${userId}`, {
+        // IMPORTANTE para enviar cookies
+        credentials: "include",
+      });
       const data = await res.json();
       if (!data.error) {
         setPixKey(data.pixKey || "");
@@ -125,7 +123,9 @@ function PaymentSettings({ userId }: { userId: string }) {
   const fetchRedemptions = useCallback(async () => {
     setLoadingRedemptions(true);
     try {
-      const res = await fetch(`/api/affiliate/redeem?userId=${userId}`);
+      const res = await fetch(`/api/affiliate/redeem?userId=${userId}`, {
+        credentials: "include", // Envia cookies
+      });
       const data = await res.json();
       if (Array.isArray(data)) {
         setRedemptions(data);
@@ -152,6 +152,7 @@ function PaymentSettings({ userId }: { userId: string }) {
     try {
       const res = await fetch("/api/affiliate/paymentinfo", {
         method: "PATCH",
+        credentials: "include", // Envia cookies
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId,
@@ -185,6 +186,7 @@ function PaymentSettings({ userId }: { userId: string }) {
     try {
       const res = await fetch("/api/affiliate/redeem", {
         method: "POST",
+        credentials: "include", // Envia cookies
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }),
       });
@@ -426,6 +428,7 @@ export default function MainDashboard() {
       setRedeemMessage("Processando resgate...");
       const res = await fetch("/api/affiliate/redeem", {
         method: "POST",
+        credentials: "include", // Envia cookies
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }), // Passa o userId (string)
       });
@@ -595,14 +598,10 @@ export default function MainDashboard() {
           {/* Se não for assinante, exibe PaymentPanel; se for assinante, oculta */}
           {!canAccessFeatures && (
             <section className="mb-6">
-              {/* 
-                Aqui passamos apenas as props que o PaymentPanel espera,
-                convertendo null para "" quando necessário.
-              */}
               <PaymentPanel
                 user={{
                   planStatus: user.planStatus,
-                  planExpiresAt: null, // se o PaymentPanel precisar
+                  planExpiresAt: null,
                   affiliateBalance: user.affiliateBalance ?? 0,
                   affiliateCode: user.affiliateCode ?? "",
                 }}

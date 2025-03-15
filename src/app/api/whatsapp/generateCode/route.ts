@@ -29,8 +29,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 2) Lê userId do body
-    const body = (await request.json()) || {};
-    const { userId } = body;
+    const body = await request.json();
+    const { userId } = body || {};
     if (!userId) {
       return NextResponse.json(
         { error: "Parâmetro 'userId' é obrigatório." },

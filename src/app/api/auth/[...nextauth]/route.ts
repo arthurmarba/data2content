@@ -1,3 +1,5 @@
+// src/app/api/auth/[...nextauth]/route.ts
+
 import NextAuth from "next-auth";
 import type { NextAuthOptions, Session, User, Account } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
@@ -39,6 +41,7 @@ export const authOptions: NextAuthOptions = {
         params: { scope: "openid email profile" },
       },
       profile(profile) {
+        // Retornamos o shape básico do usuário
         return {
           id: profile.sub,
           name: profile.name,
@@ -55,6 +58,7 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (credentials?.username === "demo" && credentials?.password === "demo") {
+          // Exemplo simples de usuário 'demo'
           return {
             id: "demo-123",
             name: "Demo User",
@@ -72,6 +76,7 @@ export const authOptions: NextAuthOptions = {
         try {
           await connectToDatabase();
           const existingUser = (await DbUser.findOne({ email: user.email })) as IUser | null;
+
           if (!existingUser) {
             const created = new DbUser({
               name: user.name,
