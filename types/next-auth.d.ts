@@ -1,7 +1,6 @@
 // types/next-auth.d.ts
 
 import { DefaultSession, DefaultUser } from "next-auth";
-import { JWT } from "next-auth/jwt";
 
 /**
  * Aqui estendemos a interface `Session` para incluir campos extras no `session.user`.
