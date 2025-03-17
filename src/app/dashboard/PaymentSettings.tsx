@@ -38,7 +38,9 @@ export default function PaymentSettings({ userId }: { userId: string }) {
    */
   const fetchPaymentInfo = useCallback(async () => {
     try {
-      const res = await fetch(`/api/affiliate/paymentinfo?userId=${userId}`);
+      const res = await fetch(`/api/affiliate/paymentinfo?userId=${userId}`, {
+        credentials: "include", // Importante para enviar cookies de sessão
+      });
       const data = await res.json();
       if (!data.error) {
         setPixKey(data.pixKey || "");
@@ -58,7 +60,9 @@ export default function PaymentSettings({ userId }: { userId: string }) {
   const fetchRedemptions = useCallback(async () => {
     setLoadingRedemptions(true);
     try {
-      const res = await fetch(`/api/affiliate/redeem?userId=${userId}`);
+      const res = await fetch(`/api/affiliate/redeem?userId=${userId}`, {
+        credentials: "include", // Importante para enviar cookies de sessão
+      });
       const data = await res.json();
       if (Array.isArray(data)) {
         setRedemptions(data);
@@ -72,8 +76,7 @@ export default function PaymentSettings({ userId }: { userId: string }) {
 
   /**
    * useEffect para chamar as duas funções após o componente montar
-   * ou quando userId mudar. Agora adicionamos fetchPaymentInfo e fetchRedemptions
-   * no array de dependências para obedecer ao lint (react-hooks/exhaustive-deps).
+   * ou quando userId mudar.
    */
   useEffect(() => {
     if (!userId) return;
@@ -91,6 +94,7 @@ export default function PaymentSettings({ userId }: { userId: string }) {
     try {
       const res = await fetch("/api/affiliate/paymentinfo", {
         method: "PATCH",
+        credentials: "include", // Importante para enviar cookies de sessão
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId,
@@ -125,6 +129,7 @@ export default function PaymentSettings({ userId }: { userId: string }) {
     try {
       const res = await fetch("/api/affiliate/redeem", {
         method: "POST",
+        credentials: "include", // Importante para enviar cookies de sessão
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }),
       });
