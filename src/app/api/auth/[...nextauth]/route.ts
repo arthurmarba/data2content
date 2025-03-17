@@ -104,10 +104,12 @@ export const authOptions: NextAuthOptions = {
           token.picture = user.image;
         }
       }
+      console.log("JWT Callback - token:", token, "user:", user);
       return token;
     },
 
     async session({ session, token }: SessionCallback): Promise<Session> {
+      console.log("Session Callback (antes) - token:", token, "session:", session);
       // Inicializa session.user se ainda não existir
       if (!session.user) {
         session.user = { id: "", name: "", email: "", image: "" };
@@ -151,6 +153,7 @@ export const authOptions: NextAuthOptions = {
       if (token.picture) {
         session.user.image = token.picture as string;
       }
+      console.log("Session Callback (depois) - session:", session);
       return session;
     },
 
