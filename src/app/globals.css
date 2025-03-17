@@ -1,12 +1,12 @@
 /* src/app/globals.css */
 
+/* Fonte e Variáveis (import) */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
 /* Tailwind base, components, utilities */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Fonte e Variáveis */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
 :root {
   --background: #ffffff;
@@ -45,7 +45,6 @@ body {
   background-color: #999;
 }
 
-/* Ocultar scrollbars em carrosséis */
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
