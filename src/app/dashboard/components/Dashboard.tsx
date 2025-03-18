@@ -21,7 +21,7 @@ interface DynamicCard {
 }
 
 /**
- * Interface do componente DashboardComponent, 
+ * Interface do componente DashboardComponent,
  * que recebe um array de DynamicCard em `indicators`.
  */
 interface DashboardComponentProps {
@@ -30,7 +30,6 @@ interface DashboardComponentProps {
 
 /**
  * Componente que exibe os "cards" retornados pela IA.
- * Você pode personalizar a aparência conforme necessário.
  */
 function DashboardComponent({ indicators }: DashboardComponentProps) {
   return (
@@ -107,8 +106,10 @@ const DashboardPage: React.FC = () => {
         return;
       }
 
-      // 1) Busca métricas do usuário em /api/metrics
-      const resMetrics = await fetch(`/api/metrics?userId=${user.id}`);
+      // 1) Busca métricas do usuário em /api/metrics (com credentials: "include")
+      const resMetrics = await fetch(`/api/metrics?userId=${user.id}`, {
+        credentials: "include",
+      });
       if (!resMetrics.ok) {
         throw new Error("Falha ao obter métricas do usuário");
       }
@@ -129,10 +130,11 @@ const DashboardPage: React.FC = () => {
         filtros,
       };
 
-      // 3) Chama /api/ai/dynamicCards
+      // 3) Chama /api/ai/dynamicCards (com credentials: "include")
       const resAI = await fetch("/api/ai/dynamicCards", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(payload),
       });
       if (!resAI.ok) {

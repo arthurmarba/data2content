@@ -23,7 +23,9 @@ export default function MetricsList() {
       setIsLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/metrics");
+        const res = await fetch("/api/metrics", {
+          credentials: "include", // Adicionado para enviar cookie de sessão
+        });
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`);
         }

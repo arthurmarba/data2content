@@ -50,6 +50,7 @@ export default function ChatPanel() {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include", // Adicionado para enviar o cookie de sessão
         body: JSON.stringify({
           userId: userWithId.id, // Aqui usamos userWithId.id
           query: userText,

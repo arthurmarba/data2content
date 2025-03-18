@@ -65,6 +65,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
       const res = await fetch("/api/plan/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include", // Adicionado para enviar cookie de sessão
         body: JSON.stringify({
           planType: "monthly",
           affiliateCode,

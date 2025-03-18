@@ -54,6 +54,7 @@ export default function WhatsAppPanel({ userId, canAccessFeatures }: WhatsAppPan
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId }),
+          credentials: "include", // Adicionado para enviar o cookie de sessão
         });
         const data = await res.json();
 

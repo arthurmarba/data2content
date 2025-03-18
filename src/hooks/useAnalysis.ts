@@ -39,6 +39,7 @@ export function useAnalysis() {
 
       const res = await fetch("/api/ai/analyze", {
         method: "POST",
+        credentials: "include", // Adicionado para enviar cookie de sessão
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ metrics, userData }),
       });

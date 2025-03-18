@@ -98,6 +98,7 @@ export default function UploadMetrics({
       const res = await fetch("/api/metrics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include", // Adicionado para enviar o cookie de sessão
         body: JSON.stringify(payload),
       });
       const data = await res.json();

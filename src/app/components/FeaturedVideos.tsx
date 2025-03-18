@@ -16,7 +16,9 @@ const FeaturedVideos: React.FC = () => {
   useEffect(() => {
     const fetchVideos = async () => {
       try {
-        const res = await fetch("/api/videos?q=marketing&maxResults=12");
+        const res = await fetch("/api/videos?q=marketing&maxResults=12", {
+          credentials: "include", // Envia cookies de sessão
+        });
         const data = await res.json();
         setVideos(data);
       } catch (error) {

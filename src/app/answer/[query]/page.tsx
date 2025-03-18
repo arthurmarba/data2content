@@ -25,6 +25,7 @@ export default function AnswerPage() {
         const answerRes = await fetch("/api/ask", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include", // Adicionado para enviar cookie de sessão
           body: JSON.stringify({ query: safeQuery }),
         });
         const answerData = await answerRes.json();

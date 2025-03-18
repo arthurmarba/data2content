@@ -57,7 +57,9 @@ export function useMetrics(): UseMetricsReturn {
     if (!session?.user?.id) return;
     setIsLoading(true);
     try {
-      const res = await fetch(`/api/metrics?userId=${session.user.id}`);
+      const res = await fetch(`/api/metrics?userId=${session.user.id}`, {
+        credentials: "include", // Envia cookie de sessão
+      });
       const data: MetricsResponse = await res.json();
 
       if (res.ok && data.metrics) {
@@ -79,6 +81,7 @@ export function useMetrics(): UseMetricsReturn {
       const res = await fetch("/api/metrics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include", // Envia cookie de sessão
         body: JSON.stringify(payload),
       });
       const data: CreateMetricResponse = await res.json();
