@@ -32,6 +32,10 @@ interface RedirectCallback {
   baseUrl: string;
 }
 
+/**
+ * Definição única do NextAuthOptions.
+ * (Removemos a duplicação que existia abaixo.)
+ */
 export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
@@ -41,7 +45,7 @@ export const authOptions: NextAuthOptions = {
         params: { scope: "openid email profile" },
       },
       profile(profile) {
-        // Retorna o shape básico do usuário
+        // Retorna o shape básico do usuário do Google
         return {
           id: profile.sub,
           name: profile.name,
@@ -57,8 +61,8 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Senha", type: "password", placeholder: "demo" },
       },
       async authorize(credentials) {
+        // Login simples de demonstração
         if (credentials?.username === "demo" && credentials?.password === "demo") {
-          // Exemplo simples de usuário 'demo'
           return {
             id: "demo-123",
             name: "Demo User",
@@ -71,6 +75,7 @@ export const authOptions: NextAuthOptions = {
   ],
 
   callbacks: {
+    // Callback chamado quando o usuário faz signIn
     async signIn({ user, account }: SignInCallback): Promise<boolean> {
       if (account?.provider === "google") {
         try {
@@ -96,9 +101,10 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
 
+    // Callback chamado para gerar/atualizar o JWT a cada requisição
     async jwt({ token, user }: JwtCallback): Promise<JWT> {
       if (user) {
-        // Se for Google, user.id é o _id do DB; se for demo, é "demo-123"
+        // Se for Google, user.id é o _id do DB; se for demo, "demo-123"
         token.sub = user.id;
         if (user.image) {
           token.picture = user.image;
@@ -108,8 +114,10 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
 
+    // Callback chamado para popular o objeto session a partir do token
     async session({ session, token }: SessionCallback): Promise<Session> {
       console.log("Session Callback (antes) - token:", token, "session:", session);
+
       // Inicializa session.user se ainda não existir
       if (!session.user) {
         session.user = { id: "", name: "", email: "", image: "" };
@@ -120,13 +128,11 @@ export const authOptions: NextAuthOptions = {
         await connectToDatabase();
         let dbUser: IUser | null = null;
 
-        // 1) Verifica se token.sub é string
+        // Se token.sub for um ObjectId, busca por _id; caso contrário, por googleId
         if (typeof token.sub === "string") {
-          // 2) Se for um ObjectId válido, usamos findById
           if (Types.ObjectId.isValid(token.sub)) {
             dbUser = await DbUser.findById(token.sub);
           } else {
-            // 3) Caso contrário, pesquisamos por googleId
             dbUser = await DbUser.findOne({ googleId: token.sub });
           }
         }
@@ -157,16 +163,22 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
 
+    // Redireciona o usuário após login
     async redirect({ baseUrl }: RedirectCallback): Promise<string> {
       return baseUrl + "/dashboard";
     },
   },
 
+  // Segredo para assinar o JWT
   secret: process.env.NEXTAUTH_SECRET,
+
+  // Páginas customizadas
   pages: {
-    signIn: "/login",
-    error: "/auth/error",
+    signIn: "/login",     // Rota custom de login
+    error: "/auth/error", // Rota custom de erro
   },
+
+  // Configuração de sessão
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 dias

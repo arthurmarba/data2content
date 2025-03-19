@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { Configuration, OpenAIApi } from "openai";
 import { getServerSession } from "next-auth"; // Para App Router, não passamos `request` como parâmetro
-import { authOptions } from "@/app/lib/authOptions";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import Metric, { IMetric } from "@/app/models/Metric";
 import { Model } from "mongoose";

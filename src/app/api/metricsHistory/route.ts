@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/lib/authOptions";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import mongoose, { PipelineStage } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { DailyMetric } from "@/app/models/DailyMetric";
