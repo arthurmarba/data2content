@@ -28,7 +28,7 @@ interface RedirectCallback {
   baseUrl: string;
 }
 
-/** 
+/**
  * Custom encode (HS256) para remover a criptografia "dir"/"A256GCM".
  */
 async function customEncode({
@@ -39,7 +39,7 @@ async function customEncode({
   if (!secret) {
     throw new Error("NEXTAUTH_SECRET ausente em customEncode");
   }
-  // Converte para string, caso seja Buffer ou algo do gênero
+  // Converte para string, caso seja Buffer ou outro tipo
   const secretString = typeof secret === "string" ? secret : String(secret);
 
   const expirationTime =
@@ -49,7 +49,6 @@ async function customEncode({
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(expirationTime)
-    // Usa o secretString convertido
     .sign(new TextEncoder().encode(secretString));
 }
 
@@ -73,13 +72,15 @@ async function customDecode({
 }
 
 export const authOptions: NextAuthOptions = {
+  /**
+   * NÃO defina `secret: process.env.NEXTAUTH_SECRET` aqui no topo.
+   * Mova-o para dentro de `jwt: {...}`.
+   */
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      authorization: {
-        params: { scope: "openid email profile" },
-      },
+      authorization: { params: { scope: "openid email profile" } },
       profile(profile) {
         console.log("NextAuth: Google profile returned:", profile);
         return {
@@ -109,8 +110,9 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
 
-  // Sobrescrevemos encode/decode para usar HS256 sem criptografia
+  // Configurações do JWT
   jwt: {
+    secret: process.env.NEXTAUTH_SECRET, // Mover o secret para cá
     encode: customEncode,
     decode: customDecode,
   },
@@ -200,7 +202,6 @@ export const authOptions: NextAuthOptions = {
     },
   },
 
-  secret: process.env.NEXTAUTH_SECRET,
   pages: {
     signIn: "/login",
     error: "/auth/error",
@@ -209,7 +210,11 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60,
   },
+  // Se quiser habilitar debug, adicione:
+  // debug: true,
 };
 
+// Apenas usamos a importação do NextAuth uma vez no topo.
+// Aqui, reaproveitamos a mesma importação:
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };
