@@ -5,34 +5,73 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { Types } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import DbUser, { IUser } from "@/app/models/User";
-import type { JWT } from "next-auth/jwt";
 
-// Garante que essa rota use Node.js em vez de Edge (importante para Mongoose).
+// Tipos do JWT + Funções da lib 'jose' para assinar/verificar
+import type { JWT, JWTEncodeParams, JWTDecodeParams } from "next-auth/jwt";
+import { SignJWT, jwtVerify } from "jose";
+
 export const runtime = "nodejs";
 
-// Interfaces para os callbacks
 interface SignInCallback {
   user: User & { id?: string };
   account: Account | null;
 }
-
 interface JwtCallback {
   token: JWT;
   user?: User;
 }
-
 interface SessionCallback {
   session: Session;
   token: JWT;
 }
-
 interface RedirectCallback {
   baseUrl: string;
 }
 
-/**
- * Definição única do NextAuthOptions.
+/** 
+ * Custom encode (HS256) para remover a criptografia "dir"/"A256GCM".
  */
+async function customEncode({
+  token,
+  secret,
+  maxAge,
+}: JWTEncodeParams): Promise<string> {
+  if (!secret) {
+    throw new Error("NEXTAUTH_SECRET ausente em customEncode");
+  }
+  // Converte para string, caso seja Buffer ou algo do gênero
+  const secretString = typeof secret === "string" ? secret : String(secret);
+
+  const expirationTime =
+    Math.floor(Date.now() / 1000) + (maxAge ?? 30 * 24 * 60 * 60);
+
+  return await new SignJWT(token as Record<string, unknown>)
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime(expirationTime)
+    // Usa o secretString convertido
+    .sign(new TextEncoder().encode(secretString));
+}
+
+/**
+ * Custom decode (HS256)
+ */
+async function customDecode({
+  token,
+  secret,
+}: JWTDecodeParams): Promise<JWT | null> {
+  if (!token || !secret) return null;
+  const secretString = typeof secret === "string" ? secret : String(secret);
+
+  try {
+    const { payload } = await jwtVerify(token, new TextEncoder().encode(secretString));
+    return payload as JWT;
+  } catch (err) {
+    console.error("Erro ao decodificar JWT customizado:", err);
+    return null;
+  }
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
@@ -41,7 +80,6 @@ export const authOptions: NextAuthOptions = {
       authorization: {
         params: { scope: "openid email profile" },
       },
-      // Log extra para ver se o Google retorna a foto e email
       profile(profile) {
         console.log("NextAuth: Google profile returned:", profile);
         return {
@@ -71,8 +109,13 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
 
+  // Sobrescrevemos encode/decode para usar HS256 sem criptografia
+  jwt: {
+    encode: customEncode,
+    decode: customDecode,
+  },
+
   callbacks: {
-    // Callback chamado quando o usuário faz signIn
     async signIn({ user, account }: SignInCallback): Promise<boolean> {
       console.log("NextAuth: signIn callback - user:", user, "account:", account);
       if (account?.provider === "google") {
@@ -101,10 +144,8 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
 
-    // Callback chamado para gerar/atualizar o JWT a cada requisição
     async jwt({ token, user }: JwtCallback): Promise<JWT> {
       if (user) {
-        // Se for Google, user.id é o _id do DB; se for demo, "demo-123"
         token.sub = user.id;
         if (user.image) {
           token.picture = user.image;
@@ -114,11 +155,9 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
 
-    // Callback chamado para popular o objeto session a partir do token
     async session({ session, token }: SessionCallback): Promise<Session> {
       console.log("NextAuth: Session Callback (antes) - token:", token, "session:", session);
 
-      // Inicializa session.user se ainda não existir
       if (!session.user) {
         session.user = { id: "", name: "", email: "", image: "" };
       }
@@ -126,17 +165,10 @@ export const authOptions: NextAuthOptions = {
 
       try {
         await connectToDatabase();
-        let dbUser: IUser | null = null;
-
-        // Se token.sub for um ObjectId, busca por _id; caso contrário, por googleId
-        if (typeof token.sub === "string") {
-          if (Types.ObjectId.isValid(token.sub)) {
-            dbUser = await DbUser.findById(token.sub);
-          } else {
-            dbUser = await DbUser.findOne({ googleId: token.sub });
-          }
+        let dbUser = await DbUser.findById(token.sub);
+        if (!dbUser && typeof token.sub === "string") {
+          dbUser = await DbUser.findOne({ googleId: token.sub });
         }
-
         if (dbUser) {
           session.user.role = dbUser.role;
           session.user.planStatus = dbUser.planStatus;
@@ -163,28 +195,21 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
 
-    // Redireciona o usuário após login
     async redirect({ baseUrl }: RedirectCallback): Promise<string> {
       return baseUrl + "/dashboard";
     },
   },
 
-  // Segredo para assinar o JWT
   secret: process.env.NEXTAUTH_SECRET,
-
-  // Páginas customizadas
   pages: {
-    signIn: "/login",     // Rota custom de login
-    error: "/auth/error", // Rota custom de erro
+    signIn: "/login",
+    error: "/auth/error",
   },
-
-  // Configuração de sessão
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 dias
+    maxAge: 30 * 24 * 60 * 60,
   },
 };
 
-// Cria o handler NextAuth e exporta como GET e POST (App Router).
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };
