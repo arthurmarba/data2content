@@ -72,10 +72,7 @@ async function customDecode({
 }
 
 export const authOptions: NextAuthOptions = {
-  /**
-   * NÃO defina `secret: process.env.NEXTAUTH_SECRET` aqui no topo.
-   * Mova-o para dentro de `jwt: {...}`.
-   */
+  // Não definir 'secret' aqui no topo
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -110,9 +107,9 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
 
-  // Configurações do JWT
+  // Configurações do JWT (HS256)
   jwt: {
-    secret: process.env.NEXTAUTH_SECRET, // Mover o secret para cá
+    secret: process.env.NEXTAUTH_SECRET, // Use um valor < 32 chars
     encode: customEncode,
     decode: customDecode,
   },
@@ -214,7 +211,6 @@ export const authOptions: NextAuthOptions = {
   // debug: true,
 };
 
-// Apenas usamos a importação do NextAuth uma vez no topo.
-// Aqui, reaproveitamos a mesma importação:
+// Aqui reaproveitamos a mesma importação do NextAuth no topo
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };
