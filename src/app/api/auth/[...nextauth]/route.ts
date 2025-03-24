@@ -1,5 +1,3 @@
-// src/app/api/auth/[...nextauth]/route.ts
-
 import NextAuth from "next-auth";
 import type { NextAuthOptions, Session, User, Account } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
@@ -34,7 +32,6 @@ interface RedirectCallback {
 
 /**
  * Definição única do NextAuthOptions.
- * (Removemos a duplicação que existia abaixo.)
  */
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -44,8 +41,9 @@ export const authOptions: NextAuthOptions = {
       authorization: {
         params: { scope: "openid email profile" },
       },
+      // Log extra para ver se o Google retorna a foto e email
       profile(profile) {
-        // Retorna o shape básico do usuário do Google
+        console.log("NextAuth: Google profile returned:", profile);
         return {
           id: profile.sub,
           name: profile.name,
@@ -61,7 +59,6 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Senha", type: "password", placeholder: "demo" },
       },
       async authorize(credentials) {
-        // Login simples de demonstração
         if (credentials?.username === "demo" && credentials?.password === "demo") {
           return {
             id: "demo-123",
@@ -77,12 +74,14 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     // Callback chamado quando o usuário faz signIn
     async signIn({ user, account }: SignInCallback): Promise<boolean> {
+      console.log("NextAuth: signIn callback - user:", user, "account:", account);
       if (account?.provider === "google") {
         try {
           await connectToDatabase();
           const existingUser = (await DbUser.findOne({ email: user.email })) as IUser | null;
 
           if (!existingUser) {
+            console.log("NextAuth: Criando novo usuário no DB para email:", user.email);
             const created = new DbUser({
               name: user.name,
               email: user.email,
@@ -92,6 +91,7 @@ export const authOptions: NextAuthOptions = {
             await created.save();
             user.id = (created._id as Types.ObjectId).toString();
           } else {
+            console.log("NextAuth: Usuário já existe no DB, id =", existingUser._id);
             user.id = (existingUser._id as Types.ObjectId).toString();
           }
         } catch (error) {
@@ -110,13 +110,13 @@ export const authOptions: NextAuthOptions = {
           token.picture = user.image;
         }
       }
-      console.log("JWT Callback - token:", token, "user:", user);
+      console.log("NextAuth: JWT Callback - token:", token, "user:", user);
       return token;
     },
 
     // Callback chamado para popular o objeto session a partir do token
     async session({ session, token }: SessionCallback): Promise<Session> {
-      console.log("Session Callback (antes) - token:", token, "session:", session);
+      console.log("NextAuth: Session Callback (antes) - token:", token, "session:", session);
 
       // Inicializa session.user se ainda não existir
       if (!session.user) {
@@ -159,7 +159,7 @@ export const authOptions: NextAuthOptions = {
       if (token.picture) {
         session.user.image = token.picture as string;
       }
-      console.log("Session Callback (depois) - session:", session);
+      console.log("NextAuth: Session Callback (depois) - session:", session);
       return session;
     },
 

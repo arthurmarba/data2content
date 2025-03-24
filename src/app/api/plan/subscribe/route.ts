@@ -16,20 +16,29 @@ export const runtime = "nodejs";
  */
 export async function POST(req: NextRequest) {
   try {
+    // Log para verificar se o cookie está chegando
+    const rawCookie = req.headers.get("cookie");
+    console.log("plan/subscribe -> Cookie recebido:", rawCookie || "NENHUM COOKIE");
+
     // 1) Verifica se há token (usuário logado) via JWT
     const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    console.log("plan/subscribe -> Token retornado pelo getToken:", token);
+
     if (!token?.email) {
+      console.log("plan/subscribe -> Falha de autenticação: token?.email ausente");
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
     // 2) Lê body com as informações de assinatura
     const body = (await req.json()) || {};
     const { planType, affiliateCode } = body;
+    console.log("plan/subscribe -> Body recebido:", body);
 
     // 3) Conecta ao Mongo e busca o usuário via email do token
     await connectToDatabase();
     const user = await User.findOne({ email: token.email });
     if (!user) {
+      console.log("plan/subscribe -> Usuário não encontrado para email:", token.email);
       return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
     }
 
@@ -44,10 +53,12 @@ export async function POST(req: NextRequest) {
     if (affiliateCode) {
       const affUser = await User.findOne({ affiliateCode });
       if (!affUser) {
+        console.log("plan/subscribe -> Cupom de afiliado inválido:", affiliateCode);
         return NextResponse.json({ error: "Cupom de afiliado inválido." }, { status: 400 });
       }
       // Impede que o usuário use o próprio cupom
       if ((affUser._id as Types.ObjectId).equals(user._id as Types.ObjectId)) {
+        console.log("plan/subscribe -> Usuário tentando usar próprio cupom:", affiliateCode);
         return NextResponse.json(
           { error: "Você não pode usar seu próprio cupom." },
           { status: 400 }
@@ -55,7 +66,6 @@ export async function POST(req: NextRequest) {
       }
       // Aplica 10% de desconto
       price = parseFloat((price * 0.9).toFixed(2));
-
       // Marca o user.affiliateUsed
       user.affiliateUsed = affiliateCode;
     }
@@ -91,6 +101,8 @@ export async function POST(req: NextRequest) {
     const initPoint = responseMP.body.init_point;
 
     // 9) Retorna o link
+    console.log("plan/subscribe -> Preferência criada com sucesso. Link:", initPoint);
+
     return NextResponse.json({
       initPoint,
       message: "Preferência criada. Redirecione o usuário para esse link.",
