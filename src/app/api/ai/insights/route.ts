@@ -1,109 +1,257 @@
 import { NextResponse } from "next/server";
-import { Configuration, OpenAIApi } from "openai";
-import { getServerSession } from "next-auth"; // Para App Router, não passamos `request` como parâmetro
+import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import mongoose, { PipelineStage } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
-import Metric, { IMetric } from "@/app/models/Metric";
-import { Model } from "mongoose";
+import { DailyMetric } from "@/app/models/DailyMetric";
+import type { Session } from "next-auth";
 
-// Garante que essa rota use Node.js em vez de Edge (importante para Mongoose).
 export const runtime = "nodejs";
 
 /**
- * POST /api/ai/insights
- * Body esperado: { metricId }
- * Retorna insights da IA (modelo GPT-3.5-turbo) baseados em métricas do usuário logado.
+ * Interface auxiliar para o usuário na sessão.
  */
-export async function POST(request: Request) {
+interface SessionUser {
+  id?: string;
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+}
+
+/**
+ * GET /api/metricsHistory?userId=...&days=30
+ *
+ * Agrupa por dia e calcula a média de métricas avançadas (ex.: taxaEngajamento).
+ * Verifica se o userId do query param corresponde ao session.user.id (usuário logado).
+ */
+export async function GET(request: Request) {
   try {
-    // 1) Verifica se o usuário está logado
-    // No App Router, use apenas `getServerSession(authOptions)`, sem passar `request`
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
+    // 1) Obtém a sessão usando getServerSession(authOptions) (no App Router, não é necessário passar request)
+    const session = (await getServerSession(authOptions)) as Session | null;
+    if (!session?.user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
-    // 2) Lê o body e obtém o metricId
-    const body = await request.json();
-    const { metricId } = body || {};
-    if (!metricId) {
-      return NextResponse.json(
-        { error: "Parâmetro 'metricId' é obrigatório." },
-        { status: 400 }
-      );
-    }
-
-    // 3) Conecta ao banco e busca o Metric pertencente ao usuário logado
-    await connectToDatabase();
-
-    const userId = session.user.id;
+    // 2) Extrai userId dos query params
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get("userId");
     if (!userId) {
-      return NextResponse.json(
-        { error: "Usuário sem ID na sessão." },
-        { status: 400 }
-      );
+      // Se não for passado userId, retornamos history: null (ou o que fizer sentido)
+      return NextResponse.json({ history: null }, { status: 200 });
     }
 
-    // Faz cast do Metric para Model<IMetric> para resolver tipagem no Mongoose
-    const metricModel = Metric as Model<IMetric>;
-    const metric = await metricModel.findOne({ _id: metricId, user: userId });
-
-    if (!metric) {
-      return NextResponse.json(
-        { error: "Métrica não encontrada ou não pertence a este usuário." },
-        { status: 404 }
-      );
+    // 3) Verifica se session.user tem 'id'
+    const userWithId = session.user as SessionUser;
+    if (!userWithId.id) {
+      return NextResponse.json({ error: "Sessão sem ID de usuário" }, { status: 400 });
     }
 
-    // 4) Pega as stats do Metric (calculadas pelo Document AI, por ex.)
-    const stats = metric.stats || {};
+    // Compara userId do query param com session.user.id
+    if (userId !== userWithId.id) {
+      return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
+    }
 
-    // 5) Configura o client da OpenAI
-    const configuration = new Configuration({
-      apiKey: process.env.OPENAI_API_KEY,
+    // 4) Lê "days" ou usa 360 como padrão
+    const daysParam = searchParams.get("days") || "360";
+    const days = parseInt(daysParam, 10) || 360;
+
+    // 5) Conecta ao banco
+    await connectToDatabase();
+    const objectId = new mongoose.Types.ObjectId(userId);
+
+    // Data inicial: X dias atrás
+    const fromDate = new Date();
+    fromDate.setDate(fromDate.getDate() - days);
+
+    // 6) Define o pipeline de agregação
+    const sortSpec: Record<string, 1 | -1> = {
+      "_id.year": 1,
+      "_id.month": 1,
+      "_id.day": 1,
+    };
+
+    const pipeline: PipelineStage[] = [
+      {
+        $match: {
+          user: objectId,
+          postDate: { $gte: fromDate },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: "$postDate" },
+            month: { $month: "$postDate" },
+            day: { $dayOfMonth: "$postDate" },
+          },
+          avgTaxaEngajamento: { $avg: "$stats.taxaEngajamento" },
+          avgIndicePropagacao: { $avg: "$stats.indicePropagacao" },
+          avgRatioLikeComment: { $avg: "$stats.ratioLikeComment" },
+          avgPctSalvamentos: { $avg: "$stats.pctSalvamentos" },
+          avgTaxaConversaoSeguidores: { $avg: "$stats.taxaConversaoSeguidores" },
+          avgTaxaRetencao: { $avg: "$stats.taxaRetencao" },
+          avgEngajamentoProfundoAlcance: { $avg: "$stats.engajamentoProfundoAlcance" },
+          avgEngajamentoRapidoAlcance: { $avg: "$stats.engajamentoRapidoAlcance" },
+          avgCurtidas: { $avg: "$stats.curtidas" },
+          avgComentarios: { $avg: "$stats.comentarios" },
+        },
+      },
+      {
+        $sort: sortSpec,
+      },
+    ];
+
+    // 7) Executa agregação
+    const results = await DailyMetric.aggregate(pipeline);
+
+    // 8) Monta arrays de dados para cada métrica
+    const labels: string[] = [];
+    const arrTaxaEngajamento: number[] = [];
+    const arrIndicePropagacao: number[] = [];
+    const arrRatioLikeComment: number[] = [];
+    const arrPctSalvamentos: number[] = [];
+    const arrTaxaConversaoSeguidores: number[] = [];
+    const arrTaxaRetencao: number[] = [];
+    const arrEngajProfundo: number[] = [];
+    const arrEngajRapido: number[] = [];
+    const arrCurtidas: number[] = [];
+    const arrComentarios: number[] = [];
+
+    results.forEach((doc) => {
+      const { year, month, day } = doc._id;
+      const label = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      labels.push(label);
+
+      arrTaxaEngajamento.push(parseFloat(String(doc.avgTaxaEngajamento ?? "0")));
+      arrIndicePropagacao.push(parseFloat(String(doc.avgIndicePropagacao ?? "0")));
+      arrRatioLikeComment.push(parseFloat(String(doc.avgRatioLikeComment ?? "0")));
+      arrPctSalvamentos.push(parseFloat(String(doc.avgPctSalvamentos ?? "0")));
+      arrTaxaConversaoSeguidores.push(parseFloat(String(doc.avgTaxaConversaoSeguidores ?? "0")));
+      arrTaxaRetencao.push(parseFloat(String(doc.avgTaxaRetencao ?? "0")));
+      arrEngajProfundo.push(parseFloat(String(doc.avgEngajamentoProfundoAlcance ?? "0")));
+      arrEngajRapido.push(parseFloat(String(doc.avgEngajamentoRapidoAlcance ?? "0")));
+      arrCurtidas.push(parseFloat(String(doc.avgCurtidas ?? "0")));
+      arrComentarios.push(parseFloat(String(doc.avgComentarios ?? "0")));
     });
-    const openai = new OpenAIApi(configuration);
 
-    // 6) Monta o prompt
-    const prompt = `
-Você é um consultor de marketing digital que recebe métricas do Instagram.
-Métricas fornecidas: ${JSON.stringify(stats)}
+    // 9) Retorna objeto "history"
+    const history = {
+      taxaEngajamento: {
+        labels,
+        datasets: [
+          {
+            label: "Taxa Engajamento (%)",
+            data: arrTaxaEngajamento,
+            borderColor: "rgba(75,192,192,1)",
+            backgroundColor: "rgba(75,192,192,0.2)",
+          },
+        ],
+      },
+      indicePropagacao: {
+        labels,
+        datasets: [
+          {
+            label: "Índice de Propagação (%)",
+            data: arrIndicePropagacao,
+            borderColor: "rgba(153,102,255,1)",
+            backgroundColor: "rgba(153,102,255,0.2)",
+          },
+        ],
+      },
+      ratioLikeComment: {
+        labels,
+        datasets: [
+          {
+            label: "Razão Like/Coment (%)",
+            data: arrRatioLikeComment,
+            borderColor: "rgba(255,159,64,1)",
+            backgroundColor: "rgba(255,159,64,0.2)",
+          },
+        ],
+      },
+      pctSalvamentos: {
+        labels,
+        datasets: [
+          {
+            label: "Pct Salvamentos (%)",
+            data: arrPctSalvamentos,
+            borderColor: "rgba(54,162,235,1)",
+            backgroundColor: "rgba(54,162,235,0.2)",
+          },
+        ],
+      },
+      taxaConversaoSeguidores: {
+        labels,
+        datasets: [
+          {
+            label: "Taxa Conversão Seg (%)",
+            data: arrTaxaConversaoSeguidores,
+            borderColor: "rgba(255,206,86,1)",
+            backgroundColor: "rgba(255,206,86,0.2)",
+          },
+        ],
+      },
+      taxaRetencao: {
+        labels,
+        datasets: [
+          {
+            label: "Taxa Retenção (%)",
+            data: arrTaxaRetencao,
+            borderColor: "rgba(255,99,132,1)",
+            backgroundColor: "rgba(255,99,132,0.2)",
+          },
+        ],
+      },
+      engajamentoProfundoAlcance: {
+        labels,
+        datasets: [
+          {
+            label: "Engaj. Profundo Alcance (%)",
+            data: arrEngajProfundo,
+            borderColor: "rgba(0,128,128,1)",
+            backgroundColor: "rgba(0,128,128,0.2)",
+          },
+        ],
+      },
+      engajamentoRapidoAlcance: {
+        labels,
+        datasets: [
+          {
+            label: "Engaj. Rápido Alcance (%)",
+            data: arrEngajRapido,
+            borderColor: "rgba(128,0,128,1)",
+            backgroundColor: "rgba(128,0,128,0.2)",
+          },
+        ],
+      },
+      curtidas: {
+        labels,
+        datasets: [
+          {
+            label: "Curtidas (média)",
+            data: arrCurtidas,
+            borderColor: "rgba(255,99,132,1)",
+            backgroundColor: "rgba(255,99,132,0.2)",
+          },
+        ],
+      },
+      comentarios: {
+        labels,
+        datasets: [
+          {
+            label: "Comentários (média)",
+            data: arrComentarios,
+            borderColor: "rgba(75,192,192,1)",
+            backgroundColor: "rgba(75,192,192,0.2)",
+          },
+        ],
+      },
+    };
 
-1) Analise os dados e gere insights sobre engajamento, hashtags, melhores horários, etc.
-2) Responda em formato JSON, com os campos:
-   - "insightPrincipal": string
-   - "recomendacoes": array de strings
-   - "alertas": array de strings (caso encontre problemas)
-`;
-
-    // 7) Faz a chamada ao modelo GPT-3.5-turbo
-    const completion = await openai.createChatCompletion({
-      model: "gpt-3.5-turbo",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
-      max_tokens: 600,
-    });
-
-    const answer = completion.data.choices[0]?.message?.content || "";
-
-    // 8) Tenta parsear o JSON da resposta
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(answer);
-    } catch (parseErr) {
-      console.warn("Falha ao parsear JSON da IA:", parseErr);
-      parsed = { rawText: answer };
-    }
-
-    // 9) Retorna a resposta com os insights
-    return NextResponse.json({ insights: parsed }, { status: 200 });
-
+    return NextResponse.json({ history }, { status: 200 });
   } catch (error: unknown) {
-    console.error("POST /api/ai/insights error:", error);
-    let message = "Erro desconhecido.";
-    if (error instanceof Error) {
-      message = error.message;
-    }
+    console.error("/api/metricsHistory error:", error);
+    const message = error instanceof Error ? error.message : "Erro desconhecido.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

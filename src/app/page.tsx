@@ -1,11 +1,12 @@
 "use client";
 
-import { useSession, signIn } from "next-auth/react";
+import React from "react";
 import Head from "next/head";
+import Image from "next/image"; // se quiser usar <Image> do Next.js
+import { useSession, signIn } from "next-auth/react";
 import { FaCheckCircle, FaDollarSign, FaWhatsapp } from "react-icons/fa";
 
 export default function HomePage() {
-  // Removemos 'status' para evitar variáveis não usadas
   const { data: session } = useSession();
 
   return (
@@ -35,11 +36,7 @@ export default function HomePage() {
         />
         <meta name="twitter:image" content="https://seusite.com/imagem-twitter.jpg" />
 
-        {/*
-          Fonte Poppins
-          Se quiser mover para _document.tsx ou layout.tsx, removeria este disable.
-          Aqui desabilitamos apenas para esta linha:
-        */}
+        {/* Fonte Poppins */}
         {/* eslint-disable-next-line @next/next/no-page-custom-font */}
         <link
           href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap"
@@ -52,7 +49,7 @@ export default function HomePage() {
         {/* DECORAÇÃO SUTIL (opcional) */}
         <div className="absolute inset-0 pointer-events-none opacity-5 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-cover" />
 
-        {/* Card central (Mobile First) */}
+        {/* Card central */}
         <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-md w-full text-gray-800 relative z-10">
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-gray-800 mb-3">
             data2content
@@ -101,6 +98,7 @@ export default function HomePage() {
                 </p>
               </div>
             </div>
+
             <div className="flex items-start space-x-2">
               <FaWhatsapp
                 className="text-green-500 mt-[3px] hover:scale-110 transition-transform duration-200"
@@ -115,6 +113,7 @@ export default function HomePage() {
                 </p>
               </div>
             </div>
+
             <div className="flex items-start space-x-2">
               <FaDollarSign
                 className="text-green-500 mt-[3px] hover:scale-110 transition-transform duration-200"
@@ -131,7 +130,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Botão de login */}
+          {/* Botão de login ou mensagem */}
           {!session ? (
             <button
               onClick={() => signIn("google", { callbackUrl: "/dashboard" })}

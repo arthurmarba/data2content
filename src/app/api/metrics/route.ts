@@ -1,20 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import { DailyMetric, IDailyMetric } from "@/app/models/DailyMetric";
-import { buildAggregatedReport } from "@/app/lib/reportHelpers";
+import { callOpenAIForTips } from "@/app/lib/aiService";
 import { generateReport, AggregatedMetrics } from "@/app/lib/reportService";
 import { sendWhatsAppMessage } from "@/app/lib/whatsappService";
-import { Types, Model } from "mongoose";
+import { Model, Types } from "mongoose";
 
-// Garante que essa rota use Node.js em vez de Edge
 export const runtime = "nodejs";
 
 /**
- * Função auxiliar para enviar mensagem via WhatsApp com try/catch.
+ * Função auxiliar para enviar mensagem via WhatsApp com tratamento de erros.
  */
 async function safeSendWhatsAppMessage(phone: string, body: string) {
+  if (!phone.startsWith("+")) {
+    phone = "+" + phone;
+  }
   try {
     await sendWhatsAppMessage(phone, body);
   } catch (error: unknown) {
@@ -23,7 +26,7 @@ async function safeSendWhatsAppMessage(phone: string, body: string) {
 }
 
 /**
- * Interface para o resultado do envio de relatório a cada usuário.
+ * Interface para o resultado do envio de relatório para cada usuário.
  */
 interface ReportResult {
   userId: string;
@@ -31,14 +34,64 @@ interface ReportResult {
 }
 
 /**
+ * Função simples para agregar métricas dos últimos 7 dias.
+ * Aqui soma as curtidas e calcula a média por post.
+ */
+function aggregateWeeklyMetrics(dailyMetrics: DailyMetricDoc[]) {
+  let totalCurtidas = 0;
+  const totalPosts = dailyMetrics.length;
+
+  dailyMetrics.forEach((dm) => {
+    totalCurtidas += dm.stats?.curtidas || 0;
+  });
+
+  const avgCurtidas = totalPosts > 0 ? totalCurtidas / totalPosts : 0;
+
+  return { totalPosts, avgCurtidas };
+}
+
+/**
+ * Interface mínima para as métricas diárias utilizadas na agregação.
+ */
+interface DailyMetricDoc {
+  stats?: {
+    curtidas?: number;
+    // Outras propriedades podem ser adicionadas conforme necessário
+  };
+}
+
+/**
+ * Formata a mensagem final para enviar no WhatsApp a partir do objeto de dicas.
+ */
+function formatTipsMessage(tipsData: TipsData) {
+  const titulo = tipsData.titulo || "Dicas da Semana";
+  const dicas = tipsData.dicas || [];
+  let msg = `*${titulo}*\n\n`;
+  dicas.forEach((d, i) => {
+    msg += `${i + 1}. ${d}\n`;
+  });
+  msg += "\nBons posts e até a próxima!";
+  return msg;
+}
+
+/**
+ * Interface para o objeto de dicas retornado pela IA.
+ */
+interface TipsData {
+  titulo?: string;
+  dicas?: string[];
+}
+
+/**
  * POST /api/whatsapp/weeklyReport
- * Envia relatórios semanais via WhatsApp para todos os usuários com plano ativo.
+ * Envia relatórios semanais via WhatsApp para todos os usuários com plano ativo e número de WhatsApp cadastrado.
  */
 export async function POST(request: NextRequest) {
   try {
-    // 1) Verifica autenticação
-    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
-    if (!token) {
+    // 1) Verifica autenticação usando getServerSession passando { req, ...authOptions }
+    const session = await getServerSession({ req: request, ...authOptions });
+    console.debug("[whatsapp/weeklyReport] Sessão:", session);
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
@@ -50,8 +103,7 @@ export async function POST(request: NextRequest) {
       planStatus: "active",
       whatsappPhone: { $ne: null },
     });
-
-    if (!users?.length) {
+    if (!users.length) {
       return NextResponse.json(
         { message: "Nenhum usuário ativo com WhatsApp cadastrado." },
         { status: 200 }
@@ -70,19 +122,18 @@ export async function POST(request: NextRequest) {
         try {
           // 5a) Carrega as métricas (DailyMetric) dos últimos 7 dias para o usuário
           const dailyMetricModel = DailyMetric as Model<IDailyMetric>;
-          const dailyMetrics: IDailyMetric[] = await dailyMetricModel.find({
+          const dailyMetrics = await dailyMetricModel.find({
             user: user._id,
             postDate: { $gte: fromDate },
           });
 
-          // 5b) Agrega os dados completos utilizando buildAggregatedReport
-          // Forçamos o cast para AggregatedMetrics caso as interfaces não coincidam
-          const aggregatedReport = buildAggregatedReport(dailyMetrics) as unknown as AggregatedMetrics;
+          // 5b) Agrega as métricas
+          const aggregated = aggregateWeeklyMetrics(dailyMetrics) as unknown as AggregatedMetrics;
 
           // 5c) Gera o relatório detalhado para o período "7 dias"
-          const reportText = await generateReport(aggregatedReport, "7 dias");
+          const reportText = await generateReport(aggregated, "7 dias");
 
-          // 5d) Ajusta número de telefone para o formato internacional
+          // 5d) Ajusta o número de telefone para o formato internacional
           if (!user.whatsappPhone) {
             console.warn(`Usuário ${userId} não possui número de WhatsApp.`);
             return { userId, success: false };
@@ -109,11 +160,11 @@ export async function POST(request: NextRequest) {
     ).length;
 
     return NextResponse.json(
-      { message: `Relatórios enviados para ${countSends} usuários.` },
+      { message: `Dicas enviadas para ${countSends} usuários.` },
       { status: 200 }
     );
   } catch (error: unknown) {
-    console.error("Erro no endpoint weeklyReport:", error);
+    console.error("Erro em /api/whatsapp/weeklyReport:", error);
     const errorMessage = error instanceof Error ? error.message : String(error);
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }

@@ -14,10 +14,10 @@ interface Redemption {
 
 /**
  * Componente que gerencia os dados de pagamento (Pix/Conta) e exibe
- * o histórico de saques do afiliado. Permite também solicitar novo saque.
+ * o histórico de saques do afiliado, permitindo também solicitar novo saque.
  */
 export default function PaymentSettings({ userId }: { userId: string }) {
-  // Campos de pagamento
+  // Estados para os dados bancários
   const [pixKey, setPixKey] = useState("");
   const [bankName, setBankName] = useState("");
   const [bankAgency, setBankAgency] = useState("");
@@ -25,76 +25,103 @@ export default function PaymentSettings({ userId }: { userId: string }) {
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // Resgate
+  // Estados para resgate
   const [redeemMessage, setRedeemMessage] = useState("");
 
-  // Histórico de saques
+  // Histórico de resgates
   const [redemptions, setRedemptions] = useState<Redemption[]>([]);
   const [loadingRedemptions, setLoadingRedemptions] = useState(false);
 
   /**
-   * Função para buscar dados de pagamento (Pix, conta, etc.).
-   * É memorizada com useCallback, dependendo de userId.
+   * Busca os dados de pagamento do usuário.
    */
   const fetchPaymentInfo = useCallback(async () => {
+    console.debug("[PaymentSettings] Buscando dados de pagamento para userId =", userId);
+
+    if (!userId) {
+      setMessage("Nenhum userId definido. Talvez você não esteja logado?");
+      return;
+    }
+
     try {
       const res = await fetch(`/api/affiliate/paymentinfo?userId=${userId}`, {
-        credentials: "include", // Importante para enviar cookies de sessão
+        credentials: "include",
       });
       const data = await res.json();
-      if (!data.error) {
+      console.debug("[PaymentSettings] Resposta de paymentInfo:", data);
+
+      if (res.ok && !data.error) {
         setPixKey(data.pixKey || "");
         setBankName(data.bankName || "");
         setBankAgency(data.bankAgency || "");
         setBankAccount(data.bankAccount || "");
+      } else {
+        setMessage(data.error || "Erro ao buscar dados de pagamento.");
       }
     } catch (error) {
-      console.error("Erro ao buscar paymentInfo:", error);
+      console.error("[PaymentSettings] Erro ao buscar paymentInfo:", error);
+      setMessage("Ocorreu um erro ao buscar dados de pagamento.");
     }
   }, [userId]);
 
   /**
-   * Função para listar os saques do usuário.
-   * Também memorizada com useCallback, dependendo de userId.
+   * Busca o histórico de resgates do usuário.
    */
   const fetchRedemptions = useCallback(async () => {
     setLoadingRedemptions(true);
+    if (!userId) {
+      setRedeemMessage("Nenhum userId definido. Talvez você não esteja logado?");
+      setLoadingRedemptions(false);
+      return;
+    }
+
     try {
       const res = await fetch(`/api/affiliate/redeem?userId=${userId}`, {
-        credentials: "include", // Importante para enviar cookies de sessão
+        credentials: "include",
       });
       const data = await res.json();
+      console.debug("[PaymentSettings] Resposta de redemptions:", data);
       if (Array.isArray(data)) {
         setRedemptions(data);
+      } else if (data.error) {
+        setRedeemMessage(data.error);
       }
     } catch (error) {
-      console.error("Erro ao buscar redemptions:", error);
+      console.error("[PaymentSettings] Erro ao buscar redemptions:", error);
+      setRedeemMessage("Ocorreu um erro ao buscar histórico de saques.");
     } finally {
       setLoadingRedemptions(false);
     }
   }, [userId]);
 
-  /**
-   * useEffect para chamar as duas funções após o componente montar
-   * ou quando userId mudar.
-   */
+  // Chama as funções de fetch ao montar ou quando o userId mudar
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      console.warn("[PaymentSettings] userId vazio. Abortando fetch.");
+      return;
+    }
     void fetchPaymentInfo();
     void fetchRedemptions();
   }, [userId, fetchPaymentInfo, fetchRedemptions]);
 
   /**
-   * Salva dados de pagamento (PATCH).
+   * Salva os dados de pagamento (PATCH).
    */
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setMessage("");
+    if (!userId) {
+      setMessage("Nenhum userId definido. Não é possível salvar.");
+      setSaving(false);
+      return;
+    }
+
     try {
+      console.debug("[PaymentSettings] Enviando PATCH para salvar dados...");
       const res = await fetch("/api/affiliate/paymentinfo", {
         method: "PATCH",
-        credentials: "include", // Importante para enviar cookies de sessão
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId,
@@ -105,54 +132,55 @@ export default function PaymentSettings({ userId }: { userId: string }) {
         }),
       });
       const data = await res.json();
-      if (data.error) {
-        setMessage(`Erro: ${data.error}`);
-      } else {
+      console.debug("[PaymentSettings] Resposta do PATCH:", data);
+      if (res.ok && !data.error) {
         setMessage(data.message || "Dados salvos com sucesso!");
+      } else {
+        setMessage(data.error || "Erro ao salvar dados de pagamento.");
       }
     } catch (error) {
-      let errorMsg = "Ocorreu um erro.";
-      if (error instanceof Error) {
-        errorMsg = error.message;
-      }
-      setMessage(`Ocorreu um erro: ${errorMsg}`);
+      console.error("[PaymentSettings] Erro no handleSave:", error);
+      setMessage("Ocorreu um erro ao salvar dados de pagamento.");
     } finally {
       setSaving(false);
     }
   }
 
   /**
-   * Solicita resgate do saldo (POST).
+   * Solicita o resgate do saldo (POST).
    */
   async function handleRedeem() {
     setRedeemMessage("Processando resgate...");
+    if (!userId) {
+      setRedeemMessage("Nenhum userId definido. Não é possível resgatar.");
+      return;
+    }
+
     try {
+      console.debug("[PaymentSettings] Enviando POST para resgatar saldo...");
       const res = await fetch("/api/affiliate/redeem", {
         method: "POST",
-        credentials: "include", // Importante para enviar cookies de sessão
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }),
       });
       const data = await res.json();
-      if (data.error) {
-        setRedeemMessage(`Erro: ${data.error}`);
-      } else {
+      console.debug("[PaymentSettings] Resposta do resgate:", data);
+      if (res.ok && !data.error) {
         setRedeemMessage(data.message || "Resgate solicitado com sucesso!");
-        // Recarrega lista de saques
-        void fetchRedemptions();
+        void fetchRedemptions(); // Atualiza o histórico de saques
+      } else {
+        setRedeemMessage(data.error || "Erro ao solicitar resgate.");
       }
     } catch (error) {
-      let errorMsg = "Ocorreu um erro.";
-      if (error instanceof Error) {
-        errorMsg = error.message;
-      }
-      setRedeemMessage(`Ocorreu um erro: ${errorMsg}`);
+      console.error("[PaymentSettings] Erro no handleRedeem:", error);
+      setRedeemMessage("Ocorreu um erro ao processar o resgate.");
     }
   }
 
   return (
     <div className="space-y-6">
-      {/* Formulário para dados bancários */}
+      {/* Formulário de dados bancários */}
       <form onSubmit={handleSave} className="border border-gray-200 p-4 rounded">
         <h3 className="text-sm font-semibold mb-3">Seus Dados de Pagamento</h3>
 
@@ -207,7 +235,7 @@ export default function PaymentSettings({ userId }: { userId: string }) {
         </button>
       </form>
 
-      {/* Botão para solicitar saque */}
+      {/* Botão para solicitar resgate */}
       <div>
         <button
           onClick={handleRedeem}
@@ -220,7 +248,7 @@ export default function PaymentSettings({ userId }: { userId: string }) {
         )}
       </div>
 
-      {/* Lista de saques (redemptions) */}
+      {/* Histórico de Saques */}
       <div>
         <h3 className="text-sm font-semibold mb-2">Histórico de Resgates</h3>
         {loadingRedemptions ? (

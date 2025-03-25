@@ -55,6 +55,9 @@ export default function UploadMetrics({
   const [description, setDescription] = useState("");
   const [showUpgradePopup, setShowUpgradePopup] = useState(false);
 
+  /** Novo estado para exibir erros de API ou de autenticação. */
+  const [errorMessage, setErrorMessage] = useState("");
+
   // Se não for assinante, exibe popup ao focar/clicar
   function handleBlockFeature(e?: FocusEvent<HTMLElement>) {
     if (!canAccessFeatures) {
@@ -66,6 +69,7 @@ export default function UploadMetrics({
   }
 
   async function handleUpload() {
+    // Verifica se é assinante (bloqueio de feature)
     if (!canAccessFeatures) {
       setShowUpgradePopup(true);
       return;
@@ -75,6 +79,8 @@ export default function UploadMetrics({
       alert("Selecione um arquivo antes de enviar!");
       return;
     }
+
+    setErrorMessage(""); // Reseta mensagens de erro anteriores
 
     try {
       // Converte o arquivo em base64
@@ -101,17 +107,30 @@ export default function UploadMetrics({
         credentials: "include", // Adicionado para enviar o cookie de sessão
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
 
       if (!res.ok) {
-        console.error("Erro:", data.error);
+        // Se a resposta não for OK, trata códigos específicos
+        if (res.status === 401) {
+          setErrorMessage("Não autenticado. Faça login novamente.");
+        } else if (res.status === 403) {
+          setErrorMessage("Seu plano não está ativo ou você não tem acesso.");
+        } else {
+          // Outros erros (400, 500, etc.)
+          const data = await res.json();
+          setErrorMessage(data.error || "Falha ao enviar métricas.");
+        }
+        // Limpa o 'result' para indicar que não houve sucesso
         setResult(null);
-      } else {
-        console.log("Métricas salvas:", data.metric);
-        setResult(data.metric);
+        return;
       }
+
+      // Se deu certo (res.ok === true), processamos a resposta
+      const data = await res.json();
+      console.log("Métricas salvas:", data.metric);
+      setResult(data.metric);
     } catch (error: unknown) {
       console.error("Erro no upload:", error);
+      setErrorMessage("Ocorreu um erro ao enviar as métricas.");
       setResult(null);
     }
   }
@@ -143,6 +162,13 @@ export default function UploadMetrics({
           allowFullScreen
         />
       </div>
+
+      {/* Exibe mensagem de erro (se houver) */}
+      {errorMessage && (
+        <div className="mb-3 bg-red-50 p-2 rounded text-red-600 text-sm">
+          {errorMessage}
+        </div>
+      )}
 
       {/* Inputs (link + descrição) */}
       <div className="mb-3">

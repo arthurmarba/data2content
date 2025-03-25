@@ -49,20 +49,32 @@ export default function WhatsAppPanel({ userId, canAccessFeatures }: WhatsAppPan
 
     async function fetchWhatsAppCode() {
       try {
-        // Agora usando POST em /api/whatsapp/generateCode
         const res = await fetch("/api/whatsapp/generateCode", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include", // Envia cookie de sessão
           body: JSON.stringify({ userId }),
-          credentials: "include", // Adicionado para enviar o cookie de sessão
         });
-        const data = await res.json();
 
-        if (res.ok && data.code) {
-          setWhatsappCode(data.code);
+        if (!res.ok) {
+          // Se for 401 (não autenticado) ou 403 (plano inativo), tratamos:
+          if (res.status === 401) {
+            setErrorMessage("Não autenticado. Faça login novamente.");
+          } else if (res.status === 403) {
+            setErrorMessage("Seu plano não está ativo ou você não tem acesso.");
+          } else {
+            // Erro genérico
+            const data = await res.json();
+            setErrorMessage(data.error || "Falha ao obter código do WhatsApp.");
+          }
         } else {
-          // se vier { error: "..."}
-          setErrorMessage(data.error || "Falha ao obter código do WhatsApp.");
+          // Se ok, pegamos o JSON normalmente
+          const data = await res.json();
+          if (data.code) {
+            setWhatsappCode(data.code);
+          } else {
+            setErrorMessage(data.error || "Falha ao obter código do WhatsApp.");
+          }
         }
       } catch (err) {
         console.error("Erro ao buscar código do WhatsApp:", err);

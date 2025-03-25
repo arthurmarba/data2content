@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
-// Se você exportou como default no Redemption.ts, importe assim:
 import Redemption from "@/app/models/Redemption";
-import { Document, Model } from "mongoose";
+import { Model, Document } from "mongoose";
 
-// Garante que essa rota use Node.js em vez de Edge
 export const runtime = "nodejs";
 
 /**
- * Interface para o documento de Redemption, caso não tenha no seu 'Redemption.ts'
+ * Interface para o documento de Redemption.
  */
 interface IRedemption extends Document {
   user: string; // ou Types.ObjectId se preferir
@@ -24,44 +23,42 @@ interface IRedemption extends Document {
 
 /**
  * GET /api/affiliate/redeem?userId=...
- * Lista os saques do usuário logado
+ * Lista os saques do usuário logado.
  */
 export async function GET(request: NextRequest) {
   try {
     await connectToDatabase();
 
-    // Verifica token (usuário logado)
-    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
-    if (!token) {
+    // Obtém a sessão do usuário
+    const session = await getServerSession({ req: request, ...authOptions });
+    console.debug("[redeem:GET] Sessão:", session);
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
-    // Extrai userId da query
+    // Extrai userId dos query params
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
     if (!userId) {
       return NextResponse.json({ error: "Faltou userId" }, { status: 400 });
     }
 
-    // Garante que o userId seja do próprio usuário
-    if (userId !== token.sub) {
+    // Verifica se o userId da query corresponde ao da sessão
+    if (userId !== session.user.id) {
       return NextResponse.json(
         { error: "Acesso negado: userId não corresponde ao usuário logado." },
         { status: 403 }
       );
     }
 
-    // Faz cast do Redemption para Model<IRedemption>
+    // Busca os resgates do usuário
     const redemptionModel = Redemption as unknown as Model<IRedemption>;
     const redemptions = await redemptionModel.find({ user: userId }).sort({ createdAt: -1 });
 
     return NextResponse.json(redemptions, { status: 200 });
   } catch (error: unknown) {
-    console.error("GET /api/affiliate/redeem error:", error);
-    let message = "Erro desconhecido.";
-    if (error instanceof Error) {
-      message = error.message;
-    }
+    console.error("[redeem:GET] Erro:", error);
+    const message = error instanceof Error ? error.message : "Erro desconhecido.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -75,9 +72,10 @@ export async function POST(request: NextRequest) {
   try {
     await connectToDatabase();
 
-    // Verifica token
-    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
-    if (!token) {
+    // Obtém a sessão do usuário
+    const session = await getServerSession({ req: request, ...authOptions });
+    console.debug("[redeem:POST] Sessão:", session);
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
@@ -87,8 +85,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Parâmetro userId é obrigatório." }, { status: 400 });
     }
 
-    // Garante que o userId seja do próprio usuário
-    if (userId !== token.sub) {
+    // Garante que o userId do corpo corresponda ao da sessão
+    if (userId !== session.user.id) {
       return NextResponse.json(
         { error: "Acesso negado: userId não corresponde ao usuário logado." },
         { status: 403 }
@@ -139,11 +137,8 @@ export async function POST(request: NextRequest) {
       redemption: newRedemption,
     });
   } catch (error: unknown) {
-    console.error("POST /api/affiliate/redeem error:", error);
-    let message = "Erro desconhecido.";
-    if (error instanceof Error) {
-      message = error.message;
-    }
+    console.error("[redeem:POST] Erro:", error);
+    const message = error instanceof Error ? error.message : "Erro desconhecido.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -157,13 +152,13 @@ export async function PATCH(request: NextRequest) {
   try {
     await connectToDatabase();
 
-    // Verifica token
-    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
-    if (!token) {
+    // Obtém a sessão do usuário
+    const session = await getServerSession({ req: request, ...authOptions });
+    console.debug("[redeem:PATCH] Sessão:", session);
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
-    // Caso queira restringir a admins, checar token.role
     const body = await request.json();
     const { redeemId, newStatus } = body || {};
     if (!redeemId || !newStatus) {
@@ -187,11 +182,8 @@ export async function PATCH(request: NextRequest) {
       redemption,
     });
   } catch (error: unknown) {
-    console.error("PATCH /api/affiliate/redeem error:", error);
-    let message = "Erro desconhecido.";
-    if (error instanceof Error) {
-      message = error.message;
-    }
+    console.error("[redeem:PATCH] Erro:", error);
+    const message = error instanceof Error ? error.message : "Erro desconhecido.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

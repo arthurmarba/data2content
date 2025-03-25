@@ -1,28 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
-import { Model } from "mongoose";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
-import { DailyMetric } from "@/app/models/DailyMetric";
-import { sendWhatsAppMessage } from "@/app/lib/whatsappService";
+import { DailyMetric, IDailyMetric } from "@/app/models/DailyMetric";
 import { callOpenAIForTips } from "@/app/lib/aiService";
+import { generateReport, AggregatedMetrics } from "@/app/lib/reportService";
+import { sendWhatsAppMessage } from "@/app/lib/whatsappService";
+import { Model, Types } from "mongoose";
 
-// Garante que essa rota use Node.js em vez de Edge (importante para Mongoose).
 export const runtime = "nodejs";
 
 /**
- * Interface mínima para as métricas diárias usadas em aggregateWeeklyMetrics.
+ * Função auxiliar para enviar mensagem via WhatsApp com tratamento de erros.
  */
-interface DailyMetricDoc {
-  stats?: {
-    curtidas?: number;
-    // Adicione outras propriedades se necessário
-  };
+async function safeSendWhatsAppMessage(phone: string, body: string) {
+  if (!phone.startsWith("+")) {
+    phone = "+" + phone;
+  }
+  try {
+    await sendWhatsAppMessage(phone, body);
+  } catch (error: unknown) {
+    console.error(`Falha ao enviar WhatsApp para ${phone}:`, error);
+  }
 }
 
 /**
- * Função que agrega as métricas dos últimos 7 dias.
- * Ajuste conforme sua necessidade (somar curtidas, calcular engajamento médio, etc.).
+ * Interface para o resultado do envio de relatório para cada usuário.
+ */
+interface ReportResult {
+  userId: string;
+  success: boolean;
+}
+
+/**
+ * Função simples para agregar métricas dos últimos 7 dias.
+ * Aqui soma as curtidas e calcula a média por post.
  */
 function aggregateWeeklyMetrics(dailyMetrics: DailyMetricDoc[]) {
   let totalCurtidas = 0;
@@ -34,19 +47,17 @@ function aggregateWeeklyMetrics(dailyMetrics: DailyMetricDoc[]) {
 
   const avgCurtidas = totalPosts > 0 ? totalCurtidas / totalPosts : 0;
 
-  return {
-    totalPosts,
-    avgCurtidas,
-  };
+  return { totalPosts, avgCurtidas };
 }
 
 /**
- * Interface mínima para o objeto de dicas retornado pela IA.
- * Exemplo: { titulo: "...", dicas: ["dica1", "dica2"] }
+ * Interface mínima para as métricas diárias utilizadas na agregação.
  */
-interface TipsData {
-  titulo?: string;
-  dicas?: string[];
+interface DailyMetricDoc {
+  stats?: {
+    curtidas?: number;
+    // Outras propriedades podem ser adicionadas conforme necessário
+  };
 }
 
 /**
@@ -55,48 +66,43 @@ interface TipsData {
 function formatTipsMessage(tipsData: TipsData) {
   const titulo = tipsData.titulo || "Dicas da Semana";
   const dicas = tipsData.dicas || [];
-
   let msg = `*${titulo}*\n\n`;
   dicas.forEach((d, i) => {
     msg += `${i + 1}. ${d}\n`;
   });
   msg += "\nBons posts e até a próxima!";
-
   return msg;
 }
 
 /**
- * Envolve sendWhatsAppMessage em try/catch para evitar que um erro interrompa o envio para os demais usuários.
+ * Interface para o objeto de dicas retornado pela IA.
  */
-async function safeSendWhatsAppMessage(phone: string, body: string) {
-  if (!phone.startsWith("+")) {
-    phone = "+" + phone;
-  }
-  try {
-    await sendWhatsAppMessage(phone, body);
-  } catch (error) {
-    console.error(`Falha ao enviar WhatsApp para ${phone}:`, error);
-  }
+interface TipsData {
+  titulo?: string;
+  dicas?: string[];
 }
 
+/**
+ * POST /api/whatsapp/weeklyReport
+ * Envia relatórios semanais via WhatsApp para todos os usuários com plano ativo e número de WhatsApp cadastrado.
+ */
 export async function POST(request: NextRequest) {
   try {
-    // 1) Verifica se a requisição está autenticada (ex.: admin)
-    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
-    if (!token) {
+    // 1) Verifica autenticação usando getServerSession passando { req, ...authOptions }
+    const session = await getServerSession({ req: request, ...authOptions });
+    console.debug("[whatsapp/weeklyReport] Sessão:", session);
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
-    // (Opcional) Caso queira restringir a admins: if (token.role !== "admin") { ... }
 
-    // 2) Conecta ao banco
+    // 2) Conecta ao banco de dados
     await connectToDatabase();
 
-    // 3) Busca todos os usuários com plano ativo e whatsappPhone
+    // 3) Busca todos os usuários com plano ativo e WhatsApp cadastrado
     const users = await User.find({
       planStatus: "active",
       whatsappPhone: { $ne: null },
     });
-
     if (!users.length) {
       return NextResponse.json(
         { message: "Nenhum usuário ativo com WhatsApp cadastrado." },
@@ -104,57 +110,60 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4) Define o período: 7 dias atrás
+    // 4) Define o período para os dados: últimos 7 dias
     const now = new Date();
     const fromDate = new Date();
     fromDate.setDate(now.getDate() - 7);
 
-    let countSends = 0; // Contador de mensagens enviadas
+    // 5) Processa todos os usuários de forma concorrente
+    const results = await Promise.allSettled<ReportResult>(
+      users.map(async (user) => {
+        const userId = (user._id as Types.ObjectId).toString();
+        try {
+          // 5a) Carrega as métricas dos últimos 7 dias
+          const dailyMetricModel = DailyMetric as Model<IDailyMetric>;
+          const dailyMetrics = await dailyMetricModel.find({
+            user: user._id,
+            postDate: { $gte: fromDate },
+          });
 
-    // 5) Para cada usuário, gera dicas e envia no WhatsApp
-    for (const user of users) {
-      try {
-        // 5a) Carrega dailyMetrics dos últimos 7 dias
-        const dailyMetricModel = DailyMetric as Model<DailyMetricDoc>;
-        const dailyMetrics = await dailyMetricModel.find({
-          user: user._id,
-          postDate: { $gte: fromDate },
-        });
+          // 5b) Agrega as métricas
+          const aggregated = aggregateWeeklyMetrics(dailyMetrics) as unknown as AggregatedMetrics;
 
-        // 5b) Agrega as métricas
-        const aggregated = aggregateWeeklyMetrics(dailyMetrics);
+          // 5c) Chama a IA para gerar dicas com base nas métricas agregadas
+          const tipsData = await callOpenAIForTips(aggregated);
 
-        // 5c) Chama a IA para gerar dicas com base nas métricas agregadas
-        const tipsData = await callOpenAIForTips(aggregated);
+          // 5d) Formata a mensagem para o WhatsApp
+          const msg = formatTipsMessage(tipsData);
 
-        // 5d) Formata a mensagem para enviar no WhatsApp
-        const msg = formatTipsMessage(tipsData);
-
-        // 5e) Envia a mensagem
-        if (user.whatsappPhone) {
-          await safeSendWhatsAppMessage(user.whatsappPhone, msg);
-          countSends++;
-          console.log(`Dicas enviadas para userId=${user._id} no número ${user.whatsappPhone}`);
-        } else {
-          console.warn(`Usuário ${user._id} não possui número de WhatsApp.`);
+          // 5e) Envia a mensagem via WhatsApp
+          if (user.whatsappPhone) {
+            await safeSendWhatsAppMessage(user.whatsappPhone, msg);
+            console.log(`Relatório enviado para userId=${userId}, phone=${user.whatsappPhone}`);
+            return { userId, success: true };
+          } else {
+            console.warn(`Usuário ${userId} não possui número de WhatsApp.`);
+            return { userId, success: false };
+          }
+        } catch (error: unknown) {
+          console.error(`Erro ao processar relatório para userId=${userId}:`, error);
+          return { userId, success: false };
         }
-      } catch (error: unknown) {
-        console.error(`Erro ao processar userId=${user._id}:`, error);
-      }
-    }
+      })
+    );
 
-    // 6) Retorna sucesso
+    // 6) Conta quantos relatórios foram enviados com sucesso
+    const countSends = results.filter(
+      (r) => r.status === "fulfilled" && r.value.success
+    ).length;
+
     return NextResponse.json(
       { message: `Dicas enviadas para ${countSends} usuários.` },
       { status: 200 }
     );
   } catch (error: unknown) {
-    console.error("Erro em /api/whatsapp/sendTips:", error);
-
-    let message = "Erro desconhecido.";
-    if (error instanceof Error) {
-      message = error.message;
-    }
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("Erro em /api/whatsapp/weeklyReport:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

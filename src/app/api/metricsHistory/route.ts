@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import mongoose, { PipelineStage } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
@@ -11,7 +11,6 @@ export const runtime = "nodejs";
 
 /**
  * Interface auxiliar para o usuário na sessão.
- * Ajuste conforme necessário (ex.: planStatus, role, etc.).
  */
 interface SessionUser {
   id?: string;
@@ -28,8 +27,8 @@ interface SessionUser {
  */
 export async function GET(request: Request) {
   try {
-    // 1) Obtém a sessão usando apenas 'authOptions' no App Router
-    const session = (await getServerSession(authOptions)) as Session | null;
+    // 1) Obtém a sessão usando getServerSession com { req, ...authOptions }
+    const session = (await getServerSession({ req: request, ...authOptions })) as Session | null;
     if (!session?.user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
@@ -253,11 +252,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ history }, { status: 200 });
   } catch (error: unknown) {
     console.error("/api/metricsHistory error:", error);
-
-    let message = "Erro desconhecido.";
-    if (error instanceof Error) {
-      message = error.message;
-    }
+    const message = error instanceof Error ? error.message : "Erro desconhecido.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

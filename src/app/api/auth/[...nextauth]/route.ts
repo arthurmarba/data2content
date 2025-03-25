@@ -6,30 +6,37 @@ import { Types } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import DbUser, { IUser } from "@/app/models/User";
 
-// Tipos do JWT + Funções da lib 'jose' para assinar/verificar
+// Tipos e funções para custom JWT via 'jose'
 import type { JWT, JWTEncodeParams, JWTDecodeParams } from "next-auth/jwt";
 import { SignJWT, jwtVerify } from "jose";
 
 export const runtime = "nodejs";
 
+/**
+ * Interfaces auxiliares para os callbacks
+ */
 interface SignInCallback {
   user: User & { id?: string };
   account: Account | null;
 }
+
 interface JwtCallback {
   token: JWT;
   user?: User;
 }
+
 interface SessionCallback {
   session: Session;
   token: JWT;
 }
+
 interface RedirectCallback {
   baseUrl: string;
 }
 
 /**
  * Custom encode (HS256) para remover a criptografia "dir"/"A256GCM".
+ * Caso não seja estritamente necessário, considere usar o padrão do NextAuth.
  */
 async function customEncode({
   token,
@@ -39,12 +46,9 @@ async function customEncode({
   if (!secret) {
     throw new Error("NEXTAUTH_SECRET ausente em customEncode");
   }
-  // Converte para string, caso seja Buffer ou outro tipo
   const secretString = typeof secret === "string" ? secret : String(secret);
-
   const expirationTime =
     Math.floor(Date.now() / 1000) + (maxAge ?? 30 * 24 * 60 * 60);
-
   return await new SignJWT(token as Record<string, unknown>)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -53,7 +57,7 @@ async function customEncode({
 }
 
 /**
- * Custom decode (HS256)
+ * Custom decode (HS256).
  */
 async function customDecode({
   token,
@@ -61,7 +65,6 @@ async function customDecode({
 }: JWTDecodeParams): Promise<JWT | null> {
   if (!token || !secret) return null;
   const secretString = typeof secret === "string" ? secret : String(secret);
-
   try {
     const { payload } = await jwtVerify(token, new TextEncoder().encode(secretString));
     return payload as JWT;
@@ -71,15 +74,48 @@ async function customDecode({
   }
 }
 
+/**
+ * Configurações do NextAuth.
+ * - Usa cookies seguros em produção.
+ * - Mantém custom JWT (encode/decode) para casos específicos.
+ */
 export const authOptions: NextAuthOptions = {
-  // Não definir 'secret' aqui no topo
+  useSecureCookies: process.env.NODE_ENV === "production",
+  cookies: {
+    sessionToken: {
+      name: "next-auth.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+    callbackUrl: {
+      name: "next-auth.callback-url",
+      options: {
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+    csrfToken: {
+      name: "next-auth.csrf-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+  },
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       authorization: { params: { scope: "openid email profile" } },
       profile(profile) {
-        console.log("NextAuth: Google profile returned:", profile);
+        console.debug("NextAuth: Google profile returned:", profile);
         return {
           id: profile.sub,
           name: profile.name,
@@ -106,24 +142,20 @@ export const authOptions: NextAuthOptions = {
       },
     }),
   ],
-
-  // Configurações do JWT (HS256)
   jwt: {
-    secret: process.env.NEXTAUTH_SECRET, // Use um valor < 32 chars
+    secret: process.env.NEXTAUTH_SECRET,
     encode: customEncode,
     decode: customDecode,
   },
-
   callbacks: {
     async signIn({ user, account }: SignInCallback): Promise<boolean> {
-      console.log("NextAuth: signIn callback - user:", user, "account:", account);
+      console.debug("NextAuth: signIn callback", { user, account });
       if (account?.provider === "google") {
         try {
           await connectToDatabase();
           const existingUser = (await DbUser.findOne({ email: user.email })) as IUser | null;
-
           if (!existingUser) {
-            console.log("NextAuth: Criando novo usuário no DB para email:", user.email);
+            console.debug("NextAuth: Criando novo usuário para email:", user.email);
             const created = new DbUser({
               name: user.name,
               email: user.email,
@@ -131,10 +163,10 @@ export const authOptions: NextAuthOptions = {
               role: "user",
             });
             await created.save();
-            user.id = (created._id as Types.ObjectId).toString();
+            user.id = created._id.toString();
           } else {
-            console.log("NextAuth: Usuário já existe no DB, id =", existingUser._id);
-            user.id = (existingUser._id as Types.ObjectId).toString();
+            console.debug("NextAuth: Usuário já existe, id =", existingUser._id);
+            user.id = existingUser._id.toString();
           }
         } catch (error) {
           console.error("Erro durante signIn:", error);
@@ -142,26 +174,18 @@ export const authOptions: NextAuthOptions = {
       }
       return true;
     },
-
     async jwt({ token, user }: JwtCallback): Promise<JWT> {
       if (user) {
         token.sub = user.id;
-        if (user.image) {
-          token.picture = user.image;
-        }
+        if (user.image) token.picture = user.image;
       }
-      console.log("NextAuth: JWT Callback - token:", token, "user:", user);
+      console.debug("NextAuth: JWT Callback", { token, user });
       return token;
     },
-
     async session({ session, token }: SessionCallback): Promise<Session> {
-      console.log("NextAuth: Session Callback (antes) - token:", token, "session:", session);
-
-      if (!session.user) {
-        session.user = { id: "", name: "", email: "", image: "" };
-      }
+      console.debug("NextAuth: Session Callback (antes)", { token, session });
+      session.user = session.user || { id: "", name: "", email: "", image: "" };
       session.user.id = token.sub as string;
-
       try {
         await connectToDatabase();
         let dbUser = await DbUser.findById(token.sub);
@@ -186,31 +210,26 @@ export const authOptions: NextAuthOptions = {
       } catch (error) {
         console.error("Erro ao buscar dados do usuário na sessão:", error);
       }
-
       if (token.picture) {
         session.user.image = token.picture as string;
       }
-      console.log("NextAuth: Session Callback (depois) - session:", session);
+      console.debug("NextAuth: Session Callback (depois)", session);
       return session;
     },
-
     async redirect({ baseUrl }: RedirectCallback): Promise<string> {
-      return baseUrl + "/dashboard";
+      return `${baseUrl}/dashboard`;
     },
   },
-
   pages: {
     signIn: "/login",
     error: "/auth/error",
   },
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60,
+    maxAge: 30 * 24 * 60 * 60, // 30 dias
   },
-  // Se quiser habilitar debug, adicione:
-  // debug: true,
+  // debug: true, // Ative para logs detalhados durante o desenvolvimento
 };
 
-// Aqui reaproveitamos a mesma importação do NextAuth no topo
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };

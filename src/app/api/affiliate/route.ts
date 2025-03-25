@@ -1,18 +1,14 @@
-// src/app/api/affiliate/route.ts
-
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import type { Session } from "next-auth";
 
-// Garante que essa rota use Node.js em vez de Edge
 export const runtime = "nodejs";
 
 /**
- * Tipo auxiliar para nosso usuário na sessão (com 'role' e 'id').
- * Ajuste conforme suas necessidades (planStatus, etc. se quiser).
+ * Tipo auxiliar para o usuário na sessão.
  */
 interface SessionUser {
   name?: string | null;
@@ -27,27 +23,31 @@ interface SessionUser {
  * Retorna dados do afiliado (se user.role === "affiliate").
  * Exemplo: affiliate_code, affiliate_balance, etc.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // 1) Obtém a sessão usando somente o authOptions (App Router)
-    const session = (await getServerSession(authOptions)) as Session | null;
+    // 1) Log do cookie recebido (para debug)
+    const rawCookie = request.headers.get("cookie");
+    console.debug("[affiliate:GET] Cookie recebido:", rawCookie || "NENHUM COOKIE");
+
+    // 2) Obtém a sessão usando getServerSession
+    const session = (await getServerSession({ req: request, ...authOptions })) as Session | null;
+    console.debug("[affiliate:GET] Sessão retornada:", session);
+
     if (!session) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
-    // 2) Faz type assertion do session.user
+    // 3) Faz type assertion do session.user
     const user = session.user as SessionUser;
     if (user.role !== "affiliate") {
       return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
     }
 
-    // 3) Conecta ao banco e busca dados do user (usando user.id)
+    // 4) Conecta ao banco e busca o usuário
     await connectToDatabase();
+
     if (!user.id) {
-      return NextResponse.json(
-        { error: "ID do usuário não encontrado na sessão." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "ID do usuário não encontrado na sessão." }, { status: 400 });
     }
 
     const dbUser = await User.findById(user.id);
@@ -55,14 +55,14 @@ export async function GET() {
       return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });
     }
 
-    // 4) Retorna affiliate_code, affiliate_balance etc.
+    // 5) Retorna os dados do afiliado
     return NextResponse.json({
       affiliate_code: dbUser.affiliateCode,
       affiliate_balance: dbUser.affiliateBalance,
-      // inclua outros campos se quiser
+      // Você pode incluir outros campos conforme necessário
     });
   } catch (error: unknown) {
-    console.error("GET /api/affiliate error:", error);
+    console.error("[affiliate:GET] Erro:", error);
     const message = error instanceof Error ? error.message : "Erro desconhecido.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
@@ -70,7 +70,7 @@ export async function GET() {
 
 /**
  * POST /api/affiliate
- * Bloqueado (retorna 405 Method Not Allowed).
+ * Método bloqueado (retorna 405 Method Not Allowed).
  */
 export async function POST() {
   return NextResponse.json({ error: "Method not allowed" }, { status: 405 });

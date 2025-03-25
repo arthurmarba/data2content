@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import { DailyMetric, IDailyMetric } from "@/app/models/DailyMetric";
@@ -8,7 +9,6 @@ import { generateReport, AggregatedMetrics } from "@/app/lib/reportService";
 import { sendWhatsAppMessage } from "@/app/lib/whatsappService";
 import { Types, Model } from "mongoose";
 
-// Garante que essa rota use Node.js em vez de Edge
 export const runtime = "nodejs";
 
 /**
@@ -23,7 +23,7 @@ async function safeSendWhatsAppMessage(phone: string, body: string) {
 }
 
 /**
- * Interface para o resultado do envio de relatório a cada usuário.
+ * Interface para o resultado do envio de relatório para cada usuário.
  */
 interface ReportResult {
   userId: string;
@@ -32,13 +32,14 @@ interface ReportResult {
 
 /**
  * POST /api/whatsapp/weeklyReport
- * Envia relatórios semanais via WhatsApp para todos os usuários com plano ativo e whatsappPhone.
+ * Envia relatórios semanais via WhatsApp para todos os usuários com plano ativo e número de WhatsApp cadastrado.
  */
 export async function POST(request: NextRequest) {
   try {
-    // 1) Verifica autenticação
-    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
-    if (!token) {
+    // 1) Verifica autenticação usando getServerSession passando { req, ...authOptions }
+    const session = await getServerSession({ req: request, ...authOptions });
+    console.debug("[whatsapp/weeklyReport] Sessão:", session);
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
@@ -50,7 +51,6 @@ export async function POST(request: NextRequest) {
       planStatus: "active",
       whatsappPhone: { $ne: null },
     });
-
     if (!users?.length) {
       return NextResponse.json(
         { message: "Nenhum usuário ativo com WhatsApp cadastrado." },
@@ -75,14 +75,13 @@ export async function POST(request: NextRequest) {
             postDate: { $gte: fromDate },
           });
 
-          // 5b) Agrega os dados completos utilizando buildAggregatedReport
-          // Forçamos o cast se buildAggregatedReport não retorna 'AggregatedMetrics' diretamente
+          // 5b) Agrega os dados utilizando buildAggregatedReport
           const aggregatedReport = buildAggregatedReport(dailyMetrics) as unknown as AggregatedMetrics;
 
           // 5c) Gera o relatório detalhado para o período "7 dias"
           const reportText = await generateReport(aggregatedReport, "7 dias");
 
-          // 5d) Ajusta número de telefone para o formato internacional
+          // 5d) Ajusta o número de telefone para o formato internacional
           if (!user.whatsappPhone) {
             console.warn(`Usuário ${userId} não possui número de WhatsApp.`);
             return { userId, success: false };

@@ -1,105 +1,108 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route"; // Ajuste o caminho conforme necessário
 import mongoose from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import mercadopago from "@/app/lib/mercadopago";
 import User from "@/app/models/User";
 
-// Garante que essa rota use Node.js em vez de Edge
 export const runtime = "nodejs";
 
 /**
  * POST /api/plan/webhook
  * Webhook do Mercado Pago para notificar sobre pagamentos.
+ * Geralmente, webhooks não exigem sessão, mas aqui ilustramos o uso opcional de getServerSession.
  */
 export async function POST(request: NextRequest) {
   try {
-    // 1) Conecta ao banco
+    // 1) (Opcional) Obter sessão do NextAuth para debug ou controle de admin
+    const session = await getServerSession({ req: request, ...authOptions });
+    console.debug("[plan/webhook] Sessão opcional retornada:", session);
+
+    // 2) Conecta ao banco
     await connectToDatabase();
 
-    // 2) Lê o corpo da requisição
+    // 3) Lê o corpo da requisição (JSON enviado pelo Mercado Pago)
     const body = await request.json();
-    console.log("Plan Webhook - body:", JSON.stringify(body, null, 2));
+    console.debug("[plan/webhook] Corpo recebido:", JSON.stringify(body, null, 2));
 
-    // 3) Verifica se é simulação ou se não há 'data.id'
+    // 4) Verifica se a notificação possui 'data.id'; se não, trata como simulação.
     if (!body.data || !body.data.id) {
-      console.log("Notificação sem 'data.id' - possivelmente simulação.");
+      console.debug("[plan/webhook] Notificação sem 'data.id' - possivelmente simulação.");
       return NextResponse.json({ received: true, simulation: true }, { status: 200 });
     }
 
-    // 4) Se não for "payment", ignoramos
+    // 5) Se o tipo não for "payment", ignoramos a notificação
     if (body.type !== "payment") {
-      console.log(`Notificação de tipo diferente: ${body.type}`);
+      console.debug(`[plan/webhook] Notificação ignorada. Tipo recebido: ${body.type}`);
       return NextResponse.json({ received: true, nonPayment: true }, { status: 200 });
     }
 
-    // 5) Extrai o ID do pagamento e busca detalhes no Mercado Pago
+    // 6) Extrai o ID do pagamento e obtém os detalhes via SDK do MP
     const paymentId = body.data.id;
     const paymentResponse = await mercadopago.payment.get(paymentId);
-    const paymentDetails = paymentResponse.body; // Em algumas versões, use paymentResponse.response
+    const paymentDetails = paymentResponse.body;
+    console.debug("[plan/webhook] Detalhes do pagamento:", paymentDetails);
 
-    // 6) Valida external_reference (deve ser o _id do User)
+    // 7) Valida o campo external_reference (deve ser o _id do usuário)
     const externalReference = paymentDetails.external_reference;
     if (!externalReference) {
-      console.log("Payment details sem 'external_reference'. (Modo teste?)");
+      console.debug("[plan/webhook] Detalhes do pagamento sem 'external_reference' (modo teste?)");
       return NextResponse.json({ received: true, noExternalRef: true }, { status: 200 });
     }
     if (!mongoose.isValidObjectId(externalReference)) {
-      console.log(`Referência externa inválida: ${externalReference}`);
+      console.error(`[plan/webhook] Referência externa inválida: ${externalReference}`);
       return NextResponse.json({ error: "Referência externa inválida." }, { status: 200 });
     }
 
-    // 7) Busca o usuário
+    // 8) Busca o usuário pelo external_reference
     const user = await User.findById(externalReference);
     if (!user) {
-      console.log(`Usuário não encontrado para externalReference=${externalReference}`);
+      console.error(`[plan/webhook] Usuário não encontrado para externalReference=${externalReference}`);
       return NextResponse.json({ error: "Usuário não encontrado" }, { status: 200 });
     }
 
-    // 8) Se o pagamento for aprovado, ativa o plano
+    // 9) Se o pagamento for aprovado, ativa o plano e processa comissão do afiliado
     if (paymentDetails.status === "approved") {
-      // Ex.: plano ativo por +30 dias
       user.planStatus = "active";
-      user.planExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      user.planExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // Plano ativo por 30 dias
 
-      // 9) Se tiver afiliado, credita comissão (10% do valor pago)
+      // 10) Se houver cupom de afiliado, credita comissão de 10%
       if (user.affiliateUsed) {
         const affUser = await User.findOne({ affiliateCode: user.affiliateUsed });
         if (affUser) {
-          const commissionRate = 0.1; // 10%
+          const commissionRate = 0.1;
           const transactionAmount = paymentDetails.transaction_amount || 0;
           const commission = transactionAmount * commissionRate;
 
-          // Soma ao saldo do afiliado
           affUser.affiliateBalance = (affUser.affiliateBalance || 0) + commission;
-          // Atualiza contagem de convites
           affUser.affiliateInvites = (affUser.affiliateInvites || 0) + 1;
 
-          // Exemplo: rank up a cada 5 convites
+          // Rank up a cada 5 convites
           if (affUser.affiliateInvites % 5 === 0) {
             affUser.affiliateRank = (affUser.affiliateRank || 1) + 1;
           }
 
           await affUser.save();
-          console.log(`Comissão de R$${commission.toFixed(2)} creditada para afiliado=${affUser._id}`);
+          console.debug(
+            `[plan/webhook] Comissão de R$${commission.toFixed(2)} creditada para afiliado=${affUser._id}`
+          );
         }
       }
 
       await user.save();
-      console.log(`Plano ativado para userId=${externalReference} (paymentId=${paymentId})`);
+      console.debug(
+        `[plan/webhook] Plano ativado para userId=${externalReference} (paymentId=${paymentId})`
+      );
     } else {
-      console.log(`Pagamento status="${paymentDetails.status}" não aprovado.`);
+      console.debug(`[plan/webhook] Pagamento com status "${paymentDetails.status}" não aprovado.`);
     }
 
-    // 10) Retorna 200 para confirmar o processamento
+    // 11) Retorna resposta 200 confirmando o processamento
     return NextResponse.json({ received: true }, { status: 200 });
-
   } catch (error: unknown) {
-    console.error("Erro em POST /api/plan/webhook:", error);
-
-    let message = "Erro desconhecido.";
-    if (error instanceof Error) {
-      message = error.message;
-    }
+    console.error("[plan/webhook] Erro em POST /api/plan/webhook:", error);
+    const message = error instanceof Error ? error.message : "Erro desconhecido.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

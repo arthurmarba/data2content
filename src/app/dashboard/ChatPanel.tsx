@@ -35,7 +35,7 @@ export default function ChatPanel() {
   const handleSend = async () => {
     if (!input.trim()) return;
 
-    // Agora verificamos se userWithId?.id existe
+    // Verifica se há userId
     if (!userWithId?.id) {
       alert("É necessário estar logado para usar o chat.");
       return;
@@ -43,6 +43,7 @@ export default function ChatPanel() {
 
     const userText = input.trim();
 
+    // Adiciona a mensagem do usuário localmente
     setMessages((prev) => [...prev, { sender: "user", text: userText }]);
     setInput("");
 
@@ -50,14 +51,49 @@ export default function ChatPanel() {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include", // Adicionado para enviar o cookie de sessão
+        credentials: "include", // Envia cookies de sessão
         body: JSON.stringify({
-          userId: userWithId.id, // Aqui usamos userWithId.id
+          userId: userWithId.id, // ID do usuário logado
           query: userText,
         }),
       });
-      const data = await res.json();
 
+      // Se a resposta não for ok, trata status code
+      if (!res.ok) {
+        if (res.status === 401) {
+          // Não autenticado
+          setMessages((prev) => [
+            ...prev,
+            {
+              sender: "consultant",
+              text: "Não autenticado. Faça login novamente.",
+            },
+          ]);
+        } else if (res.status === 403) {
+          // Plano inativo ou acesso negado
+          setMessages((prev) => [
+            ...prev,
+            {
+              sender: "consultant",
+              text: "Acesso negado ou plano inativo.",
+            },
+          ]);
+        } else {
+          // Outros códigos de erro
+          const data = await res.json();
+          setMessages((prev) => [
+            ...prev,
+            {
+              sender: "consultant",
+              text: data.error || "Não foi possível obter resposta.",
+            },
+          ]);
+        }
+        return; // Importante para não processar o resto
+      }
+
+      // Se a resposta for OK, tenta parsear
+      const data = await res.json();
       if (data.answer) {
         setMessages((prev) => [
           ...prev,

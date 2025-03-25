@@ -14,11 +14,19 @@ export default function PaymentModal({
   onClose,
   userId,
 }: PaymentModalProps) {
-  if (!isOpen) return null; // Se o modal não estiver aberto, não renderiza
+  if (!isOpen) return null; // Se o modal não estiver aberto, não renderiza nada
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl mx-4 relative">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+      // Fechar modal ao clicar fora (opcional):
+      onClick={onClose}
+    >
+      {/* Impedir que clique dentro do modal feche o modal */}
+      <div
+        className="bg-white rounded-lg shadow-lg w-full max-w-2xl mx-4 relative"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Botão para fechar */}
         <button
           onClick={onClose}
@@ -29,7 +37,8 @@ export default function PaymentModal({
 
         <div className="p-4 sm:p-6">
           <h2 className="text-xl font-bold mb-4">Gerenciar Pagamentos</h2>
-          {/* Aqui, chamamos o componente que gerencia dados bancários e exibe os saques */}
+
+          {/* Componente que gerencia dados bancários e exibe o histórico de saques */}
           <PaymentSettings userId={userId} />
         </div>
       </div>

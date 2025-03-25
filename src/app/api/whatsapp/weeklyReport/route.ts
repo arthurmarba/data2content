@@ -8,11 +8,10 @@ import { generateReport, AggregatedMetrics } from "@/app/lib/reportService";
 import { sendWhatsAppMessage } from "@/app/lib/whatsappService";
 import { Model, Types } from "mongoose";
 
-// Garante que essa rota use Node.js em vez de Edge
 export const runtime = "nodejs";
 
 /**
- * Interface para o resultado do envio de relatório a cada usuário.
+ * Interface para o resultado do envio de relatório para cada usuário.
  */
 interface ReportResult {
   userId: string;
@@ -20,7 +19,7 @@ interface ReportResult {
 }
 
 /**
- * Função auxiliar para enviar mensagem via WhatsApp com try/catch.
+ * Função auxiliar para enviar mensagem via WhatsApp com tratamento de erros.
  */
 async function safeSendWhatsAppMessage(phone: string, body: string) {
   try {
@@ -32,7 +31,7 @@ async function safeSendWhatsAppMessage(phone: string, body: string) {
 
 /**
  * POST /api/whatsapp/weeklyReport
- * Envia relatórios semanais via WhatsApp para todos os usuários com plano ativo e whatsappPhone.
+ * Envia relatórios semanais via WhatsApp para todos os usuários com plano ativo e WhatsApp cadastrado.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -50,7 +49,6 @@ export async function POST(request: NextRequest) {
       planStatus: "active",
       whatsappPhone: { $ne: null },
     });
-
     if (!users?.length) {
       return NextResponse.json(
         { message: "Nenhum usuário ativo com WhatsApp cadastrado." },
@@ -58,12 +56,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4) Define o período para os dados: últimos 7 dias
+    // 4) Define o período: últimos 7 dias
     const now = new Date();
     const fromDate = new Date();
     fromDate.setDate(now.getDate() - 7);
 
-    // 5) Processa todos os usuários de forma concorrente
+    // 5) Processa os usuários de forma concorrente
     const results = await Promise.allSettled<ReportResult>(
       users.map(async (user) => {
         const userId = (user._id as Types.ObjectId).toString();
@@ -74,15 +72,14 @@ export async function POST(request: NextRequest) {
             .find({ user: user._id, postDate: { $gte: fromDate } })
             .lean();
 
-          // 5b) Agrega os dados completos utilizando buildAggregatedReport
-          // Se buildAggregatedReport não retorna 'AggregatedMetrics' diretamente,
-          // forçamos o cast:
+          // 5b) Agrega os dados utilizando buildAggregatedReport
+          // Se necessário, ajuste o cast para garantir o tipo AggregatedMetrics.
           const aggregatedReport = buildAggregatedReport(dailyMetrics) as unknown as AggregatedMetrics;
 
           // 5c) Gera o relatório detalhado para o período "7 dias"
           const reportText = await generateReport(aggregatedReport, "7 dias");
 
-          // 5d) Ajusta número de telefone para o formato internacional
+          // 5d) Ajusta o número de telefone para o formato internacional
           if (!user.whatsappPhone) {
             console.warn(`Usuário ${userId} não possui número de WhatsApp.`);
             return { userId, success: false };
@@ -95,7 +92,6 @@ export async function POST(request: NextRequest) {
           // 5e) Envia o relatório via WhatsApp
           await safeSendWhatsAppMessage(phoneWithPlus, reportText);
           console.log(`Relatório enviado para userId=${userId}, phone=${phoneWithPlus}`);
-
           return { userId, success: true };
         } catch (error: unknown) {
           console.error(`Erro ao processar relatório para userId=${userId}:`, error);
@@ -104,7 +100,7 @@ export async function POST(request: NextRequest) {
       })
     );
 
-    // 6) Conta quantos relatórios foram enviados com sucesso
+    // 6) Conta quantos envios foram realizados com sucesso
     const countSends = results.filter(
       (r) => r.status === "fulfilled" && r.value.success
     ).length;

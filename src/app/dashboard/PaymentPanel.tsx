@@ -18,13 +18,11 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
   const [message, setMessage] = useState("");
   const [initPoint, setInitPoint] = useState("");
 
-  // 1) Se o plano estiver ativo, mostra apenas um resumo
+  // Se o plano estiver ativo, exibe informações do plano
   if (user.planStatus === "active") {
     return (
       <div className="border rounded-lg shadow p-4 sm:p-6 bg-white/90">
-        <h2 className="text-xl font-bold text-green-700 mb-2">
-          Seu plano está ativo!
-        </h2>
+        <h2 className="text-xl font-bold text-green-700 mb-2">Seu plano está ativo!</h2>
         <p className="text-sm text-gray-700 mb-1">
           Validade até:{" "}
           {user.planExpiresAt
@@ -38,13 +36,11 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
     );
   }
 
-  // 2) Se o plano estiver "pending", exibe card de pendência
+  // Se o plano estiver pendente, informa que o pagamento está em análise
   if (user.planStatus === "pending") {
     return (
       <div className="border rounded-lg shadow p-4 sm:p-6 bg-white/90">
-        <h2 className="text-xl font-bold text-yellow-700 mb-2">
-          Pagamento Pendente
-        </h2>
+        <h2 className="text-xl font-bold text-yellow-700 mb-2">Pagamento Pendente</h2>
         <p className="text-sm text-gray-700">
           Estamos aguardando a confirmação do seu pagamento.
           <br />
@@ -54,25 +50,24 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
     );
   }
 
-  // 3) Se o plano NÃO está ativo e NÃO está pendente, exibe o card de assinatura
+  // Se o plano não está ativo nem pendente, exibe o card de assinatura
   async function handleSubscribe() {
     setLoading(true);
     setMessage("");
     setInitPoint("");
 
     try {
-      // Chama /api/plan/subscribe com planType fixo = "monthly"
       const res = await fetch("/api/plan/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include", // Adicionado para enviar cookie de sessão
+        credentials: "include", // Envia cookies de sessão
         body: JSON.stringify({
           planType: "monthly",
           affiliateCode,
         }),
       });
-      const data = await res.json();
 
+      const data = await res.json();
       if (data.error) {
         setMessage(`Erro: ${data.error}`);
       } else {
@@ -94,7 +89,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
 
   return (
     <div className="border rounded-lg shadow p-4 sm:p-6 bg-white/90 relative">
-      {/* Título e subtítulo */}
+      {/* Cabeçalho com título e subtítulo */}
       <div className="mb-4 text-center">
         <h2 className="text-2xl font-bold text-gray-800">
           Assine agora e receba <br className="hidden sm:block" />
@@ -105,7 +100,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
         </p>
       </div>
 
-      {/* Vídeo explicativo (mantendo proporção 16:9) */}
+      {/* Vídeo explicativo */}
       <div className="aspect-w-16 aspect-h-9 mb-4 rounded-md border border-gray-200 overflow-hidden">
         <iframe
           className="w-full h-full"
@@ -119,9 +114,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
       <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg p-4 mb-4 shadow-lg">
         <div className="text-center">
           <div className="flex items-end justify-center space-x-2 mb-2">
-            <span className="text-4xl font-extrabold tracking-tight leading-none">
-              R$19,90
-            </span>
+            <span className="text-4xl font-extrabold tracking-tight leading-none">R$19,90</span>
             <span className="text-base pb-1">/mês</span>
           </div>
           <p className="text-xs text-white/90 italic">Cancele quando quiser</p>
@@ -148,7 +141,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
         </li>
       </ul>
 
-      {/* Campo para Cupom de Afiliado (opcional) */}
+      {/* Input para Cupom de Afiliado */}
       <label className="block mb-3">
         <span className="text-sm font-medium text-gray-700">
           Código de Afiliado (opcional)
@@ -162,7 +155,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
         />
       </label>
 
-      {/* Botão de Assinar com animação de brilho */}
+      {/* Botão de Assinatura */}
       <button
         onClick={handleSubscribe}
         disabled={loading}
@@ -189,14 +182,14 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
         {loading ? "Processando..." : "Assinar Agora"}
       </button>
 
-      {/* Mensagem de retorno (erro ou sucesso) */}
+      {/* Mensagem de feedback */}
       {message && (
         <div className="mt-3 text-sm bg-gray-50 p-2 rounded text-gray-700">
           {message}
         </div>
       )}
 
-      {/* Link de pagamento, se existir */}
+      {/* Exibe link de pagamento se disponível */}
       {initPoint && (
         <div className="mt-3 text-sm">
           <p className="mb-1 font-semibold text-gray-600">Link de Pagamento:</p>
@@ -211,23 +204,19 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
         </div>
       )}
 
-      {/* Testemunho (fictício) */}
+      {/* Testemunho fictício */}
       <div className="mt-6 bg-gray-50 p-3 rounded text-xs text-gray-600 relative">
         <div className="flex items-center mb-1">
           <FaUserShield className="text-blue-600 mr-2" />
           <span className="font-semibold">Joana S.</span>
         </div>
-        {/* 
-          Aqui usamos aspas escapadas para evitar 'no-unescaped-entities'.
-          Poderíamos usar &quot; ou chaves.
-        */}
         <p>
           &quot;Depois que assinei, minhas métricas melhoraram e as dicas no WhatsApp
           me ajudaram a dobrar meu engajamento! Recomendo demais.&quot;
         </p>
       </div>
 
-      {/* Garantia e Segurança */}
+      {/* Garantia e segurança */}
       <div className="mt-4 text-xs text-gray-500 border-t pt-3 flex flex-col space-y-2">
         <div className="flex items-center space-x-1">
           <FaLock className="text-gray-400" />
@@ -238,7 +227,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
         </p>
       </div>
 
-      {/* CSS para a animação de brilho (shimmer) do botão */}
+      {/* CSS para animação shimmer do botão */}
       <style jsx>{`
         .shimmer-button {
           position: relative;
@@ -262,7 +251,6 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
         .shimmer-button:hover::before {
           animation: shimmer 1.5s infinite;
         }
-
         @keyframes shimmer {
           0% {
             left: -150%;

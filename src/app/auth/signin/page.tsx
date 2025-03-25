@@ -7,11 +7,21 @@ export default function SignInPage() {
     <div style={{ padding: 20 }}>
       <h1>Fazer Login</h1>
 
-      <button onClick={() => signIn("google", { callbackUrl: "/dashboard" })}>
+      {/* Botão para Login via Google */}
+      <button
+        onClick={() =>
+          signIn("google", {
+            callbackUrl: "/dashboard", // para onde redirecionar após login
+          })
+        }
+        style={{ marginBottom: 10 }}
+      >
         Entrar com Google
       </button>
 
       <br />
+
+      {/* Botão para Login via Credenciais "demo" */}
       <button
         onClick={() =>
           signIn("credentials", {
