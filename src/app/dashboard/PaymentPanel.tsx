@@ -36,21 +36,25 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
     );
   }
 
-  // Se o plano estiver pendente, informa que o pagamento está em análise
-  if (user.planStatus === "pending") {
-    return (
-      <div className="border rounded-lg shadow p-4 sm:p-6 bg-white/90">
-        <h2 className="text-xl font-bold text-yellow-700 mb-2">Pagamento Pendente</h2>
-        <p className="text-sm text-gray-700">
-          Estamos aguardando a confirmação do seu pagamento.
-          <br />
-          Assim que for aprovado, seu plano será ativado automaticamente!
-        </p>
-      </div>
-    );
-  }
+  /**
+   * REMOVA ou COMENTE este bloco, para não exibir o card de "Pagamento Pendente"
+   * Assim, quando o status for "pending", o código cairá no else e mostrará
+   * o card de assinatura + link de pagamento
+   */
+  // if (user.planStatus === "pending") {
+  //   return (
+  //     <div className="border rounded-lg shadow p-4 sm:p-6 bg-white/90">
+  //       <h2 className="text-xl font-bold text-yellow-700 mb-2">Pagamento Pendente</h2>
+  //       <p className="text-sm text-gray-700">
+  //         Estamos aguardando a confirmação do seu pagamento.
+  //         <br />
+  //         Assim que for aprovado, seu plano será ativado automaticamente!
+  //       </p>
+  //     </div>
+  //   );
+  // }
 
-  // Se o plano não está ativo nem pendente, exibe o card de assinatura
+  // Se o plano não está ativo (ou estiver pendente), exibe o card de assinatura
   async function handleSubscribe() {
     setLoading(true);
     setMessage("");
@@ -89,7 +93,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
 
   return (
     <div className="border rounded-lg shadow p-4 sm:p-6 bg-white/90 relative">
-      {/* Cabeçalho com título e subtítulo */}
+      {/* Cabeçalho */}
       <div className="mb-4 text-center">
         <h2 className="text-2xl font-bold text-gray-800">
           Assine agora e receba <br className="hidden sm:block" />
@@ -121,27 +125,12 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
         </div>
       </div>
 
-      {/* Lista de Benefícios */}
+      {/* Benefícios */}
       <ul className="space-y-2 mb-4 text-sm">
-        <li className="flex items-center text-gray-700">
-          <FaCheckCircle className="text-green-500 mr-2" />
-          Envio ilimitado de métricas
-        </li>
-        <li className="flex items-center text-gray-700">
-          <FaCheckCircle className="text-green-500 mr-2" />
-          Dicas personalizadas no WhatsApp
-        </li>
-        <li className="flex items-center text-gray-700">
-          <FaCheckCircle className="text-green-500 mr-2" />
-          Chat de IA 24h para suas dúvidas
-        </li>
-        <li className="flex items-center text-gray-700">
-          <FaCheckCircle className="text-green-500 mr-2" />
-          Atualizações sem custo extra
-        </li>
+        {/* ... lista de benefícios */}
       </ul>
 
-      {/* Input para Cupom de Afiliado */}
+      {/* Input de Cupom */}
       <label className="block mb-3">
         <span className="text-sm font-medium text-gray-700">
           Código de Afiliado (opcional)
@@ -189,7 +178,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
         </div>
       )}
 
-      {/* Exibe link de pagamento se disponível */}
+      {/* Link de pagamento */}
       {initPoint && (
         <div className="mt-3 text-sm">
           <p className="mb-1 font-semibold text-gray-600">Link de Pagamento:</p>
@@ -204,28 +193,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
         </div>
       )}
 
-      {/* Testemunho fictício */}
-      <div className="mt-6 bg-gray-50 p-3 rounded text-xs text-gray-600 relative">
-        <div className="flex items-center mb-1">
-          <FaUserShield className="text-blue-600 mr-2" />
-          <span className="font-semibold">Joana S.</span>
-        </div>
-        <p>
-          &quot;Depois que assinei, minhas métricas melhoraram e as dicas no WhatsApp
-          me ajudaram a dobrar meu engajamento! Recomendo demais.&quot;
-        </p>
-      </div>
-
-      {/* Garantia e segurança */}
-      <div className="mt-4 text-xs text-gray-500 border-t pt-3 flex flex-col space-y-2">
-        <div className="flex items-center space-x-1">
-          <FaLock className="text-gray-400" />
-          <p>Pagamento 100% seguro via Mercado Pago</p>
-        </div>
-        <p className="leading-tight">
-          Suporte via WhatsApp para qualquer dúvida. Cancelamento simples a qualquer momento.
-        </p>
-      </div>
+      {/* ... restante do card (testemunho, garantia etc.) */}
 
       {/* CSS para animação shimmer do botão */}
       <style jsx>{`
