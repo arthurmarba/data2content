@@ -1,8 +1,8 @@
 import mercadopago from "mercadopago";
 
-const ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN || "";
+const ACCESS_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN_TEST || "";
 if (!ACCESS_TOKEN) {
-  console.warn("MP_ACCESS_TOKEN não está definido!");
+  console.warn("MERCADOPAGO_ACCESS_TOKEN_TEST não está definido!");
 }
 
 mercadopago.configurations.setAccessToken(ACCESS_TOKEN);
