@@ -49,13 +49,12 @@ export default function UploadMetrics({
   canAccessFeatures,
   userId,
 }: UploadMetricsProps) {
-  const [file, setFile] = useState<File | null>(null);
+  // Agora armazenamos um array de arquivos, permitindo múltiplos uploads
+  const [files, setFiles] = useState<File[]>([]);
   const [result, setResult] = useState<MetricResult | null>(null);
   const [postLink, setPostLink] = useState("");
   const [description, setDescription] = useState("");
   const [showUpgradePopup, setShowUpgradePopup] = useState(false);
-
-  /** Novo estado para exibir erros de API ou de autenticação. */
   const [errorMessage, setErrorMessage] = useState("");
 
   // Se não for assinante, exibe popup ao focar/clicar
@@ -69,64 +68,77 @@ export default function UploadMetrics({
   }
 
   async function handleUpload() {
+    console.log("handleUpload disparado", { files, postLink, description });
+
     // Verifica se é assinante (bloqueio de feature)
     if (!canAccessFeatures) {
+      console.warn("Usuário não tem acesso às features. Exibindo popup.");
       setShowUpgradePopup(true);
       return;
     }
 
-    if (!file) {
-      alert("Selecione um arquivo antes de enviar!");
+    if (files.length === 0) {
+      alert("Selecione ao menos um arquivo antes de enviar!");
       return;
     }
 
     setErrorMessage(""); // Reseta mensagens de erro anteriores
 
     try {
-      // Converte o arquivo em base64
-      const base64File = await convertFileToBase64(file);
-      const mimeType = file.type;
+      console.log("Iniciando conversão dos arquivos para base64.");
+      // Converte cada arquivo em base64 usando Promise.all
+      const images = await Promise.all(
+        files.map(async (file) => {
+          console.log("Convertendo arquivo:", file.name);
+          const base64File = await convertFileToBase64(file);
+          console.log("Arquivo convertido com sucesso:", file.name);
+          return {
+            base64File,
+            mimeType: file.type,
+          };
+        })
+      );
+
+      // Limita o envio a no máximo 4 imagens
+      const imagesToSend = images.slice(0, 4);
+      console.log("Imagens a enviar (máximo 4):", imagesToSend);
 
       // Monta o payload com userId correto
       const payload = {
-        images: [
-          {
-            base64File,
-            mimeType,
-          },
-        ],
+        images: imagesToSend,
         userId, // Agora usamos o ID do usuário logado
         postLink,
         description,
       };
+      console.log("Payload montado:", payload);
 
       // Envia para /api/metrics
       const res = await fetch("/api/metrics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include", // Adicionado para enviar o cookie de sessão
+        credentials: "include", // Envia o cookie de sessão
         body: JSON.stringify(payload),
       });
 
+      console.log("Resposta da API:", res);
+
       if (!res.ok) {
-        // Se a resposta não for OK, trata códigos específicos
+        console.error("Erro na resposta da API, status:", res.status);
         if (res.status === 401) {
           setErrorMessage("Não autenticado. Faça login novamente.");
         } else if (res.status === 403) {
           setErrorMessage("Seu plano não está ativo ou você não tem acesso.");
         } else {
-          // Outros erros (400, 500, etc.)
           const data = await res.json();
+          console.error("Erro retornado pela API:", data);
           setErrorMessage(data.error || "Falha ao enviar métricas.");
         }
-        // Limpa o 'result' para indicar que não houve sucesso
         setResult(null);
         return;
       }
 
-      // Se deu certo (res.ok === true), processamos a resposta
       const data = await res.json();
-      console.log("Métricas salvas:", data.metric);
+      console.log("Métricas salvas com sucesso:", data.metric);
       setResult(data.metric);
     } catch (error: unknown) {
       console.error("Erro no upload:", error);
@@ -137,12 +149,10 @@ export default function UploadMetrics({
 
   return (
     <div className="border rounded-lg shadow p-4 sm:p-6 bg-white/90 relative">
-      {/* Popup para upgrade se não for assinante */}
       {showUpgradePopup && (
         <UpgradePopup onClose={() => setShowUpgradePopup(false)} />
       )}
 
-      {/* Título + ícone */}
       <div className="flex items-center gap-2 mb-2">
         <FaCloudUploadAlt className="text-blue-500 w-5 h-5" />
         <h3 className="text-lg sm:text-xl font-bold text-gray-800">
@@ -150,10 +160,9 @@ export default function UploadMetrics({
         </h3>
       </div>
       <p className="text-xs sm:text-sm text-gray-600 mb-4">
-        Carregue um print das métricas e informe o link e descrição do conteúdo.
+        Carregue até 4 prints das métricas, e informe o link e descrição do conteúdo.
       </p>
 
-      {/* Vídeo explicativo (16:9) */}
       <div className="aspect-w-16 aspect-h-9 mb-4 rounded-md border border-gray-200 overflow-hidden">
         <iframe
           className="w-full h-full"
@@ -163,14 +172,12 @@ export default function UploadMetrics({
         />
       </div>
 
-      {/* Exibe mensagem de erro (se houver) */}
       {errorMessage && (
         <div className="mb-3 bg-red-50 p-2 rounded text-red-600 text-sm">
           {errorMessage}
         </div>
       )}
 
-      {/* Inputs (link + descrição) */}
       <div className="mb-3">
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Link do Conteúdo
@@ -179,7 +186,10 @@ export default function UploadMetrics({
           type="text"
           value={postLink}
           onFocus={handleBlockFeature}
-          onChange={(e) => setPostLink(e.target.value)}
+          onChange={(e) => {
+            console.log("Atualizando postLink:", e.target.value);
+            setPostLink(e.target.value);
+          }}
           className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 transition"
           placeholder="https://instagram.com/p/abc..."
         />
@@ -192,27 +202,34 @@ export default function UploadMetrics({
         <textarea
           value={description}
           onFocus={handleBlockFeature}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={(e) => {
+            console.log("Atualizando description:", e.target.value);
+            setDescription(e.target.value);
+          }}
           rows={2}
           className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 transition"
           placeholder="Breve descrição do conteúdo..."
         />
       </div>
 
-      {/* Upload de arquivo */}
       <div className="mb-4">
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Print das Métricas
+          Prints das Métricas (até 4)
         </label>
         <input
           type="file"
+          multiple
           onFocus={handleBlockFeature}
-          onChange={(e) => setFile(e.target.files?.[0] || null)}
+          onChange={(e) => {
+            if (e.target.files) {
+              console.log("Arquivos selecionados:", e.target.files);
+              setFiles(Array.from(e.target.files));
+            }
+          }}
           className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 transition file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
         />
       </div>
 
-      {/* Botão de Enviar */}
       <button
         onClick={handleUpload}
         onFocus={handleBlockFeature}
@@ -221,7 +238,6 @@ export default function UploadMetrics({
         Enviar
       </button>
 
-      {/* Resultado da requisição */}
       {result && (
         <pre className="mt-4 bg-gray-100 p-2 rounded text-xs overflow-auto max-h-40">
           {JSON.stringify(result, null, 2)}
@@ -240,18 +256,23 @@ async function convertFileToBase64(file: File): Promise<string> {
     reader.onload = () => {
       const dataUrl = reader.result as string | undefined;
       if (!dataUrl) {
+        console.error("Erro: resultado do FileReader é indefinido para", file.name);
         reject("Erro: resultado do FileReader é indefinido.");
         return;
       }
       const parts = dataUrl.split(",");
       const base64 = parts[1];
       if (!base64) {
+        console.error("Erro: não foi possível extrair a parte base64 para", file.name);
         reject("Erro: não foi possível extrair a parte base64.");
         return;
       }
       resolve(base64);
     };
-    reader.onerror = reject;
+    reader.onerror = (err) => {
+      console.error("Erro no FileReader para", file.name, err);
+      reject(err);
+    };
     reader.readAsDataURL(file);
   });
 }

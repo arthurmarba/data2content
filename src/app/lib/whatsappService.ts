@@ -20,27 +20,22 @@ const BASE_URL = "https://graph.facebook.com/v16.0";
 
 /**
  * sendWhatsAppMessage:
- * Envia uma mensagem de texto simples para o número de WhatsApp fornecido (ex.: "+5561999998888").
+ * Envia uma mensagem de texto simples para o número de WhatsApp fornecido.
  *
- * @param to   Número de destino em formato internacional (com código de país). Ex.: "+5511999998888"
+ * @param to   Número de destino em formato internacional (ex.: "+5511999998888")
  * @param body Texto da mensagem que deseja enviar
  * @throws Lança erro caso falhe no envio ou se as variáveis de ambiente não estiverem definidas
  */
 export async function sendWhatsAppMessage(to: string, body: string): Promise<void> {
   // 1) Verifica se as variáveis de ambiente estão definidas
   if (!WABA_TOKEN || !PHONE_NUMBER_ID) {
-    throw new Error(
-      "Variáveis WHATSAPP_TOKEN ou WHATSAPP_PHONE_NUMBER_ID não definidas no .env"
-    );
+    throw new Error("Variáveis WHATSAPP_TOKEN ou WHATSAPP_PHONE_NUMBER_ID não definidas no .env");
   }
 
-  // 2) Garante que 'to' comece com '+'
-  let phoneNumber = to;
-  if (!phoneNumber.startsWith("+")) {
-    phoneNumber = "+" + phoneNumber;
-  }
+  // 2) Garante que o número comece com '+'
+  const phoneNumber = to.startsWith("+") ? to : `+${to}`;
 
-  // 3) Monta a URL e o payload
+  // 3) Monta a URL e o payload para a requisição
   const url = `${BASE_URL}/${PHONE_NUMBER_ID}/messages`;
   const payload = {
     messaging_product: "whatsapp",
@@ -49,7 +44,7 @@ export async function sendWhatsAppMessage(to: string, body: string): Promise<voi
   };
 
   try {
-    // 4) Faz a requisição
+    // 4) Realiza a chamada à API do WhatsApp
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -59,14 +54,14 @@ export async function sendWhatsAppMessage(to: string, body: string): Promise<voi
       body: JSON.stringify(payload),
     });
 
-    // 5) Se falhar, lança erro com detalhes
+    // 5) Verifica se a resposta foi bem-sucedida; se não, lança erro com os detalhes
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Erro ao enviar mensagem WhatsApp:", errorText);
       throw new Error(`WhatsApp API retornou status ${response.status}: ${errorText}`);
     }
 
-    // Se quiser confirmar que a mensagem foi enviada, descomente:
+    // Opcional: Log de sucesso
     // console.log(`Mensagem enviada com sucesso para ${phoneNumber}: ${body}`);
   } catch (error: unknown) {
     console.error("Erro no sendWhatsAppMessage:", error);
@@ -74,16 +69,3 @@ export async function sendWhatsAppMessage(to: string, body: string): Promise<voi
     throw new Error(`Falha ao enviar mensagem via WhatsApp Cloud API: ${errorMessage}`);
   }
 }
-
-/*
-Exemplo de uso (em outro arquivo):
-
-import { sendWhatsAppMessage } from "@/app/lib/whatsappService";
-
-await sendWhatsAppMessage("+5511999998888", "Olá, isso é um teste!");
-
-- Certifique-se de que o número esteja no formato internacional.
-- Ajuste a versão da API se necessário (ex.: v17.0).
-- Se precisar enviar mídia (imagens, documentos), pesquise a documentação oficial
-  da WhatsApp Cloud API para montar o payload apropriado.
-*/

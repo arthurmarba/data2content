@@ -1,171 +1,158 @@
+// src/app/api/metrics/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
-import User from "@/app/models/User";
-import { DailyMetric, IDailyMetric } from "@/app/models/DailyMetric";
-import { callOpenAIForTips } from "@/app/lib/aiService";
-import { generateReport, AggregatedMetrics } from "@/app/lib/reportService";
-import { sendWhatsAppMessage } from "@/app/lib/whatsappService";
-import { Model, Types } from "mongoose";
+import Metric from "@/app/models/Metric"; // Seu modelo Metric
+import { DailyMetric } from "@/app/models/DailyMetric"; // Seu modelo DailyMetric
+import { processMultipleImages } from "@/app/lib/parseMetrics"; // Sua função de processamento
+import mongoose from "mongoose"; // Importar mongoose para tratamento de erro
+import { parse } from 'date-fns'; // Para parsing robusto de data
+
+// <<< NOVO: Importar a função de classificação >>>
+import { classifyContent } from '@/app/lib/classification'; // <-- AJUSTE O CAMINHO SE NECESSÁRIO
 
 export const runtime = "nodejs";
 
-/**
- * Função auxiliar para enviar mensagem via WhatsApp com tratamento de erros.
- */
-async function safeSendWhatsAppMessage(phone: string, body: string) {
-  if (!phone.startsWith("+")) {
-    phone = "+" + phone;
-  }
-  try {
-    await sendWhatsAppMessage(phone, body);
-  } catch (error: unknown) {
-    console.error(`Falha ao enviar WhatsApp para ${phone}:`, error);
-  }
+// Função auxiliar para parsear data DD/MM/YYYY (mantida)
+function parseBrazilianDate(dateStr: string): Date | null {
+    try {
+        const parsed = parse(dateStr, 'dd/MM/yyyy', new Date());
+        if (!isNaN(parsed.getTime())) {
+            return parsed;
+        }
+        const directParsed = new Date(dateStr);
+         if (!isNaN(directParsed.getTime())) {
+             console.warn(`[parseBrazilianDate] Usando fallback de new Date() para: ${dateStr}`);
+             return directParsed;
+         }
+        return null;
+    } catch (e) {
+        console.error(`[parseBrazilianDate] Erro ao parsear data ${dateStr}:`, e);
+        return null;
+    }
 }
 
-/**
- * Interface para o resultado do envio de relatório para cada usuário.
- */
-interface ReportResult {
-  userId: string;
-  success: boolean;
-}
 
-/**
- * Função simples para agregar métricas dos últimos 7 dias.
- * Aqui soma as curtidas e calcula a média por post.
- */
-function aggregateWeeklyMetrics(dailyMetrics: DailyMetricDoc[]) {
-  let totalCurtidas = 0;
-  const totalPosts = dailyMetrics.length;
-
-  dailyMetrics.forEach((dm) => {
-    totalCurtidas += dm.stats?.curtidas || 0;
-  });
-
-  const avgCurtidas = totalPosts > 0 ? totalCurtidas / totalPosts : 0;
-
-  return { totalPosts, avgCurtidas };
-}
-
-/**
- * Interface mínima para as métricas diárias utilizadas na agregação.
- */
-interface DailyMetricDoc {
-  stats?: {
-    curtidas?: number;
-    // Outras propriedades podem ser adicionadas conforme necessário
-  };
-}
-
-/**
- * Formata a mensagem final para enviar no WhatsApp a partir do objeto de dicas.
- */
-function formatTipsMessage(tipsData: TipsData) {
-  const titulo = tipsData.titulo || "Dicas da Semana";
-  const dicas = tipsData.dicas || [];
-  let msg = `*${titulo}*\n\n`;
-  dicas.forEach((d, i) => {
-    msg += `${i + 1}. ${d}\n`;
-  });
-  msg += "\nBons posts e até a próxima!";
-  return msg;
-}
-
-/**
- * Interface para o objeto de dicas retornado pela IA.
- */
-interface TipsData {
-  titulo?: string;
-  dicas?: string[];
-}
-
-/**
- * POST /api/whatsapp/weeklyReport
- * Envia relatórios semanais via WhatsApp para todos os usuários com plano ativo e número de WhatsApp cadastrado.
- */
 export async function POST(request: NextRequest) {
   try {
-    // 1) Verifica autenticação usando getServerSession passando { req, ...authOptions }
+    // 1) Verifica autenticação
     const session = await getServerSession({ req: request, ...authOptions });
-    console.debug("[whatsapp/weeklyReport] Sessão:", session);
     if (!session?.user?.id) {
+      console.error("[API Metrics POST] Erro: Usuário não autenticado.");
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
+    const userId = session.user.id;
 
-    // 2) Conecta ao banco de dados
-    await connectToDatabase();
+    // 2) Extrai dados da requisição
+    const { images, postLink, description } = await request.json();
+    // Usando console.log/debug/info/warn/error para manter consistência com o arquivo original
+    console.log(`[API Metrics POST] Recebido para User ${userId}: ${images?.length} imagens, link: ${postLink}, desc: ${description?.substring(0,50)}...`);
 
-    // 3) Busca todos os usuários com plano ativo e WhatsApp cadastrado
-    const users = await User.find({
-      planStatus: "active",
-      whatsappPhone: { $ne: null },
-    });
-    if (!users.length) {
-      return NextResponse.json(
-        { message: "Nenhum usuário ativo com WhatsApp cadastrado." },
-        { status: 200 }
-      );
+    // 3) Valida campos
+    if (!images || !Array.isArray(images) || images.length === 0) {
+      console.error("[API Metrics POST] Erro: Nenhuma imagem enviada.");
+      return NextResponse.json({ error: "Nenhuma imagem enviada" }, { status: 400 });
+    }
+    // Descrição é essencial para a classificação agora
+    if (!postLink || !description) {
+       console.error("[API Metrics POST] Erro: Post link e descrição obrigatórios.");
+      return NextResponse.json({ error: "Post link e descrição são obrigatórios" }, { status: 400 });
     }
 
-    // 4) Define o período para os dados: últimos 7 dias
-    const now = new Date();
-    const fromDate = new Date();
-    fromDate.setDate(now.getDate() - 7);
+    // 4) Conecta ao BD
+    await connectToDatabase();
+    console.log("[API Metrics POST] Conectado ao BD.");
 
-    // 5) Processa todos os usuários de forma concorrente
-    const results = await Promise.allSettled<ReportResult>(
-      users.map(async (user) => {
-        const userId = (user._id as Types.ObjectId).toString();
+    // 5) Processa imagens via parseMetrics (Document AI)
+    console.log("[API Metrics POST] Processando imagens...");
+    const { rawDataArray, stats } = await processMultipleImages(images);
+    console.log("[API Metrics POST] Imagens processadas. Stats:", stats ? "OK" : "Falhou");
+    if (!stats) {
+        console.error("[API Metrics POST] Erro: Falha ao processar imagens/extrair stats.");
+        return NextResponse.json({ error: "Falha ao processar imagens e extrair estatísticas." }, { status: 500 });
+    }
+
+    // 6) Determina postDate
+    let postDate: Date | null = null;
+    if (rawDataArray && rawDataArray.length > 0 && rawDataArray[0] && typeof rawDataArray[0]["Data de Publicação"] === "string") {
+      const dateStr = rawDataArray[0]["Data de Publicação"] as string;
+      console.log(`[API Metrics POST] Tentando parsear data da imagem: ${dateStr}`);
+      postDate = parseBrazilianDate(dateStr);
+    }
+    if (!postDate) {
+      postDate = new Date();
+      console.warn(`[API Metrics POST] Não foi possível determinar postDate da imagem, usando data atual: ${postDate.toISOString()}`);
+    } else {
+         console.log(`[API Metrics POST] PostDate determinada: ${postDate.toISOString()}`);
+    }
+
+    // ---------------------------------------------------------------
+    // 6.1 <<< NOVO: Classificar Conteúdo usando a Descrição >>>
+    // ---------------------------------------------------------------
+    let classification = { proposal: "Outro", context: "Geral" }; // Valores padrão
+    // Verifica se a descrição existe antes de classificar
+    if (description && description.trim()) {
         try {
-          // 5a) Carrega as métricas (DailyMetric) dos últimos 7 dias para o usuário
-          const dailyMetricModel = DailyMetric as Model<IDailyMetric>;
-          const dailyMetrics = await dailyMetricModel.find({
-            user: user._id,
-            postDate: { $gte: fromDate },
-          });
-
-          // 5b) Agrega as métricas
-          const aggregated = aggregateWeeklyMetrics(dailyMetrics) as unknown as AggregatedMetrics;
-
-          // 5c) Gera o relatório detalhado para o período "7 dias"
-          const reportText = await generateReport(aggregated, "7 dias");
-
-          // 5d) Ajusta o número de telefone para o formato internacional
-          if (!user.whatsappPhone) {
-            console.warn(`Usuário ${userId} não possui número de WhatsApp.`);
-            return { userId, success: false };
-          }
-          let phoneWithPlus = user.whatsappPhone;
-          if (!phoneWithPlus.startsWith("+")) {
-            phoneWithPlus = "+" + phoneWithPlus;
-          }
-
-          // 5e) Envia o relatório via WhatsApp
-          await safeSendWhatsAppMessage(phoneWithPlus, reportText);
-          console.log(`Relatório enviado para userId=${userId}, phone=${phoneWithPlus}`);
-          return { userId, success: true };
-        } catch (error: unknown) {
-          console.error(`Erro ao processar relatório para userId=${userId}:`, error);
-          return { userId, success: false };
+            console.debug(`[API Metrics POST] Iniciando classificação para User ${userId}...`);
+            classification = await classifyContent(description); // Chama a função importada
+            console.info(`[API Metrics POST] Conteúdo classificado para User ${userId}: P=${classification.proposal}, C=${classification.context}`);
+        } catch (classError) {
+            console.error(`[API Metrics POST] Erro durante a classificação do conteúdo para User ${userId}. Usando defaults.`, classError);
+            // classification já tem os valores padrão definidos acima
         }
-      })
-    );
+    } else {
+        // Se a descrição estiver vazia (embora tenhamos validado antes, é uma segurança extra)
+        console.warn(`[API Metrics POST] Descrição vazia para User ${userId}. Usando defaults para classificação.`);
+    }
+    // ---------------------------------------------------------------
+    // <<< FIM DA CLASSIFICAÇÃO >>>
+    // ---------------------------------------------------------------
 
-    // 6) Conta quantos relatórios foram enviados com sucesso
-    const countSends = results.filter(
-      (r) => r.status === "fulfilled" && r.value.success
-    ).length;
 
+    // 7) <<< ALTERADO: Cria e salva o Metric com postDate, proposal e context >>>
+    console.log("[API Metrics POST] Criando documento Metric...");
+    const newMetric = new Metric({
+      user: userId,
+      postLink,
+      description,
+      rawData: rawDataArray,
+      stats: stats, // Avalie se este campo é necessário aqui ou apenas no DailyMetric
+      postDate: postDate,
+      proposal: classification.proposal, // <<< ADICIONADO
+      context: classification.context,   // <<< ADICIONADO
+      createdAt: new Date(), // Mantido se você não usa timestamps: true no schema Metric
+    });
+    const savedMetric = await newMetric.save();
+    console.log("[API Metrics POST] Documento Metric salvo:", savedMetric._id);
+
+    // 8) Cria e salva o DailyMetric
+    console.log("[API Metrics POST] Criando documento DailyMetric...");
+    const newDailyMetric = new DailyMetric({
+      user: userId,
+      postId: savedMetric._id,
+      postDate: postDate,
+      stats: stats,
+    });
+    const savedDailyMetric = await newDailyMetric.save();
+    console.log("[API Metrics POST] Documento DailyMetric salvo:", savedDailyMetric._id);
+
+    // 9) Retorna sucesso
+    console.log("[API Metrics POST] Processo concluído com sucesso.");
     return NextResponse.json(
-      { message: `Dicas enviadas para ${countSends} usuários.` },
+      { metric: savedMetric, dailyMetric: savedDailyMetric },
       { status: 200 }
     );
+
   } catch (error: unknown) {
-    console.error("Erro em /api/whatsapp/weeklyReport:", error);
+    // Tratamento de erro geral (mantido)
+    console.error("[API Metrics POST] Erro GERAL no processamento:", error);
     const errorMessage = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    if (error instanceof mongoose.Error.ValidationError) {
+        console.error("[API Metrics POST] Erro de Validação Mongoose:", error.errors);
+        return NextResponse.json({ error: "Erro de validação: " + errorMessage, details: error.errors }, { status: 400 });
+    }
+    return NextResponse.json({ error: "Erro interno do servidor: " + errorMessage }, { status: 500 });
   }
 }

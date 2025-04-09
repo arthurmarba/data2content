@@ -1,5 +1,6 @@
+// src/app/api/plan/status/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
+import { getToken } from "next-auth/jwt";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import mongoose from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
@@ -10,18 +11,17 @@ export const runtime = "nodejs";
 /**
  * GET /api/plan/status?userId=...
  * Retorna o status do plano e a data de expiração do usuário.
- * Se expirado, atualiza no banco para "expired".
+ * Se o plano estiver expirado, atualiza no banco para "expired".
  */
 export async function GET(request: NextRequest) {
   try {
-    // 1) Conecta ao banco
+    // 1) Conecta ao banco de dados
     await connectToDatabase();
 
-    // 2) Obtém a sessão usando getServerSession, passando um objeto com req e authOptions
-    const session = await getServerSession({ req: request, ...authOptions });
-    console.debug("[plan/status] Sessão retornada:", session);
-
-    if (!session?.user?.id) {
+    // 2) Extrai o token JWT dos cookies ou headers
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+    console.debug("[plan/status] Token extraído:", token);
+    if (!token || !token.sub) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
@@ -32,19 +32,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Faltou userId" }, { status: 400 });
     }
 
-    // 4) Compara userId do param com session.user.id (o ID salvo na sessão)
-    if (userId !== session.user.id) {
+    // 4) Compara o userId do query param com token.sub
+    if (userId !== token.sub) {
       return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
     }
 
-    // 5) Converte para ObjectId e busca o usuário
+    // 5) Converte o userId para ObjectId e busca o usuário no banco de dados
     const objectId = new mongoose.Types.ObjectId(userId);
     const user = await User.findById(objectId);
     if (!user) {
       return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
     }
 
-    // 6) Verifica se o plano expirou
+    // 6) Verifica se o plano expirou; se sim, atualiza o status para "expired"
     const now = new Date();
     if (user.planExpiresAt && user.planExpiresAt < now) {
       user.planStatus = "expired";

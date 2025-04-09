@@ -1,10 +1,11 @@
+// src/app/api/auth/[...nextauth]/route.ts
 import NextAuth from "next-auth";
 import type { NextAuthOptions, Session, User, Account } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { Types } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import DbUser, { IUser } from "@/app/models/User";
+import { Types } from "mongoose";
 
 // Tipos e funções para custom JWT via 'jose'
 import type { JWT, JWTEncodeParams, JWTDecodeParams } from "next-auth/jwt";
@@ -13,7 +14,7 @@ import { SignJWT, jwtVerify } from "jose";
 export const runtime = "nodejs";
 
 /**
- * Interfaces auxiliares para os callbacks
+ * Interfaces auxiliares para os callbacks.
  */
 interface SignInCallback {
   user: User & { id?: string };
@@ -35,8 +36,9 @@ interface RedirectCallback {
 }
 
 /**
- * Custom encode (HS256) para remover a criptografia "dir"/"A256GCM".
- * Caso não seja estritamente necessário, considere usar o padrão do NextAuth.
+ * Custom encode (HS256) para JWT.
+ * Essa abordagem remove a criptografia "dir"/"A256GCM". 
+ * Caso não seja estritamente necessária, considere usar o padrão do NextAuth.
  */
 async function customEncode({
   token,
@@ -47,8 +49,7 @@ async function customEncode({
     throw new Error("NEXTAUTH_SECRET ausente em customEncode");
   }
   const secretString = typeof secret === "string" ? secret : String(secret);
-  const expirationTime =
-    Math.floor(Date.now() / 1000) + (maxAge ?? 30 * 24 * 60 * 60);
+  const expirationTime = Math.floor(Date.now() / 1000) + (maxAge ?? 30 * 24 * 60 * 60);
   return await new SignJWT(token as Record<string, unknown>)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -57,29 +58,35 @@ async function customEncode({
 }
 
 /**
- * Custom decode (HS256).
+ * Custom decode (HS256) para JWT com logs adicionais.
  */
 async function customDecode({
   token,
   secret,
 }: JWTDecodeParams): Promise<JWT | null> {
-  if (!token || !secret) return null;
+  if (!token || !secret) {
+    console.error("customDecode: Token ou secret não fornecidos.");
+    return null;
+  }
   const secretString = typeof secret === "string" ? secret : String(secret);
   try {
+    console.debug("customDecode: Iniciando decodificação do token:", token);
     const { payload } = await jwtVerify(token, new TextEncoder().encode(secretString));
+    console.debug("customDecode: Token decodificado com sucesso. Payload:", payload);
     return payload as JWT;
   } catch (err) {
-    console.error("Erro ao decodificar JWT customizado:", err);
+    console.error("customDecode: Erro ao decodificar token:", err);
     return null;
   }
 }
 
 /**
  * Configurações do NextAuth.
- * - Usa cookies seguros em produção.
- * - Mantém custom JWT (encode/decode) para casos específicos.
+ * - Cookies seguros apenas em produção.
+ * - Custom JWT para encode/decode.
  */
 export const authOptions: NextAuthOptions = {
+  // Use cookies seguros apenas em produção
   useSecureCookies: process.env.NODE_ENV === "production",
   cookies: {
     sessionToken: {

@@ -57,21 +57,23 @@ export default function WhatsAppPanel({ userId, canAccessFeatures }: WhatsAppPan
         });
 
         if (!res.ok) {
-          // Se for 401 (não autenticado) ou 403 (plano inativo), tratamos:
           if (res.status === 401) {
             setErrorMessage("Não autenticado. Faça login novamente.");
           } else if (res.status === 403) {
             setErrorMessage("Seu plano não está ativo ou você não tem acesso.");
           } else {
-            // Erro genérico
             const data = await res.json();
             setErrorMessage(data.error || "Falha ao obter código do WhatsApp.");
           }
         } else {
-          // Se ok, pegamos o JSON normalmente
           const data = await res.json();
           if (data.code) {
             setWhatsappCode(data.code);
+            setErrorMessage("");
+          } else if (data.linked) {
+            // Número já vinculado, sem erro
+            setWhatsappCode(null);
+            setErrorMessage("");
           } else {
             setErrorMessage(data.error || "Falha ao obter código do WhatsApp.");
           }
@@ -110,12 +112,10 @@ export default function WhatsAppPanel({ userId, canAccessFeatures }: WhatsAppPan
 
   return (
     <div className="border rounded-lg shadow p-4 sm:p-6 bg-white/90 relative">
-      {/* Popup de upgrade se não for assinante */}
       {showUpgradePopup && (
         <UpgradePopup onClose={() => setShowUpgradePopup(false)} />
       )}
 
-      {/* Cabeçalho (ícone + título) */}
       <div className="flex items-center gap-2 mb-3">
         <FaWhatsapp className="text-green-500 w-5 h-5" />
         <h2 className="text-lg sm:text-xl font-bold text-gray-800">
@@ -123,20 +123,17 @@ export default function WhatsAppPanel({ userId, canAccessFeatures }: WhatsAppPan
         </h2>
       </div>
 
-      {/* Descrição Comercial */}
       <p className="text-sm text-gray-600 mb-4 leading-relaxed">
         Converse diretamente com nosso especialista para receber dicas e análises
         personalizadas das suas métricas do Instagram!
       </p>
 
-      {/* Exibe erro ao buscar code, se houver */}
       {errorMessage && (
         <div className="text-sm bg-red-50 p-2 rounded text-red-600 mb-3">
           {errorMessage}
         </div>
       )}
 
-      {/* Botão principal (Abrir WhatsApp) */}
       <button
         onClick={handleOpenWhatsApp}
         disabled={loading}
@@ -163,7 +160,6 @@ export default function WhatsAppPanel({ userId, canAccessFeatures }: WhatsAppPan
         {loading ? "Carregando..." : "Abrir WhatsApp"}
       </button>
 
-      {/* CSS do shimmer no botão */}
       <style jsx>{`
         .shimmer-button {
           position: relative;
