@@ -9,7 +9,7 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "module": "esnext",
-    "moduleResolution": "NodeNext", // <<< ALTERADO de "Bundler" para "NodeNext" >>>
+    "moduleResolution": "node",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
@@ -27,32 +27,32 @@
       }
     ],
     "forceConsistentCasingInFileNames": true,
+    // Aqui garantimos que o TypeScript busque declarações personalizadas
     "typeRoots": ["./types", "./node_modules/@types"],
-    "types": ["node", "next"], // <<< Adicionado "node" para garantir tipos do Node.js >>>
+    // Incluir "next" se for necessário
+    "types": ["next"],
 
     // Boas práticas de rigor
     "strictNullChecks": true,
-    "noUncheckedIndexedAccess": true, // <<< Considere desabilitar temporariamente se causar muitos erros não relacionados >>>
+    "noUncheckedIndexedAccess": true,
     "noImplicitAny": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true
   },
   "include": [
     "next-env.d.ts",
-    "**/*.ts", // <<< Cobre todos os arquivos .ts, incluindo consultantService.ts >>>
+    "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "types/**/*.d.ts" // Mantém seus tipos customizados
-    // "src/app/lib/mercadopago.js", // <<< REMOVIDO - Arquivos .js geralmente não são incluídos aqui para o TS, o build processa >>>
-    // "next.config.js", // <<< REMOVIDO - Agora deve ser next.config.cjs e é lido pelo Next.js, não TS >>>
-    // "src/app/lib/consultantService.mts" // <<< REMOVIDO - Voltamos para .ts e já está coberto por **/*.ts >>>
+    "src/app/lib/mercadopago.js",
+    // Aqui garantimos que os arquivos .d.ts dentro de /types sejam incluídos
+    "types/**/*.d.ts"
   ],
   "exclude": [
     "node_modules",
-    // Redundante, mas não prejudica:
-    // "**/node_modules/*",
-    // "**/dist/*",
-    // "**/.next/*",
-    // "**/out/*"
+    "**/node_modules/*",
+    "**/dist/*",
+    "**/.next/*",
+    "**/out/*"
   ]
 }
