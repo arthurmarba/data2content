@@ -1,78 +1,136 @@
-import { Configuration, OpenAIApi } from "openai";
-import winston from "winston"; // <<< ADICIONADO: Logger para consistência
+// @/app/lib/aiService.ts - CORRIGIDO (Tratamento de Erro Robusto no Catch)
 
-// Configuração básica do Logger (similar aos outros arquivos)
+import { Configuration, OpenAIApi } from "openai";
+import winston from "winston";
+import { AIError } from "@/app/lib/errors"; // Importar erro customizado
+
+// Configuração básica do Logger
 const logger = winston.createLogger({
-    level: process.env.LOG_LEVEL || "info", // Usar 'info' ou 'debug'
+    level: process.env.LOG_LEVEL || "info",
+    format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.json()
+    ),
     transports: [
         new winston.transports.Console({
             format: winston.format.combine(
                 winston.format.timestamp(),
                 winston.format.colorize(),
-                winston.format.simple()
+                // Formatando para incluir contexto extra logado
+                winston.format.printf(info => {
+                    let log = `${info.timestamp} ${info.level}: ${info.message}`;
+                    // Adiciona propriedades extras do objeto de log, exceto as padrões
+                    const keys = Object.keys(info).filter(key => !['timestamp', 'level', 'message'].includes(key));
+                    if (keys.length > 0) {
+                        log += ' ' + JSON.stringify(Object.fromEntries(keys.map(key => [key, info[key]])));
+                    }
+                    return log;
+                })
             )
         })
     ]
 });
 
+
 /**
  * callOpenAIForQuestion:
  * Recebe um 'prompt' genérico e retorna a resposta do modelo GPT-4o.
- * Função genérica - A qualidade da resposta DEPENDE INTEIRAMENTE da qualidade e
- * das instruções contidas no 'prompt' fornecido pelo chamador.
- *
- * Requisitos:
- * - Definir OPENAI_API_KEY no .env
+ * @throws {AIError} Se a chave API não estiver configurada, a API OpenAI retornar um erro, ou a resposta estiver vazia/inválida.
  */
 export async function callOpenAIForQuestion(
     prompt: string,
-    options?: { temperature?: number; max_tokens?: number } // <<< ADICIONADO: Opções para flexibilidade
+    options?: { temperature?: number; max_tokens?: number }
 ): Promise<string> {
-    logger.debug("[callOpenAIForQuestion] Iniciando chamada genérica...");
+    const fnTag = "[callOpenAIForQuestion]";
+    logger.debug(`${fnTag} Iniciando chamada genérica...`);
 
     const configuration = new Configuration({
       apiKey: process.env.OPENAI_API_KEY,
     });
     if (!configuration.apiKey) {
-        logger.error("[callOpenAIForQuestion] Chave da API OpenAI (OPENAI_API_KEY) não configurada.");
-        return "Erro de configuração: A chave da API OpenAI não foi definida.";
+        const errorMsg = "Chave da API OpenAI (OPENAI_API_KEY) não configurada.";
+        logger.error(`${fnTag} ${errorMsg}`);
+        throw new AIError(errorMsg, undefined); // Passa undefined como erro original
     }
     const openai = new OpenAIApi(configuration);
 
-    // Define defaults se não forem passados nas opções
-    const temperature = options?.temperature ?? 0.7; // Default 0.7 para genérico
-    const max_tokens = options?.max_tokens ?? 600;   // Default 600 para genérico
+    const temperature = options?.temperature ?? 0.7;
+    const max_tokens = options?.max_tokens ?? 600;
 
     try {
-        logger.debug(`[callOpenAIForQuestion] Chamando GPT-4o com temp=${temperature}, max_tokens=${max_tokens}`);
+        logger.debug(`${fnTag} Chamando GPT-4o com temp=${temperature}, max_tokens=${max_tokens}`);
         const completion = await openai.createChatCompletion({
-            model: "gpt-4o", // <<< MODELO ATUALIZADO
+            model: "gpt-4o",
             messages: [{ role: "user", content: prompt }],
             temperature: temperature,
             max_tokens: max_tokens,
         });
 
-        const answer = completion.data.choices?.[0]?.message?.content?.trim() || "";
-        logger.debug("[callOpenAIForQuestion] Resposta recebida da IA.");
+        const rawContent = completion.data.choices?.[0]?.message?.content;
+
+        if (rawContent === null || rawContent === undefined) {
+             const errorMsg = "AI response structure missing message content.";
+             logger.warn(`${fnTag} ${errorMsg}`);
+             throw new AIError(errorMsg, undefined); // Passa undefined como erro original
+        }
+
+        const answer = rawContent.trim();
+
+        if (answer === "") {
+            const errorMsg = "AI returned empty content string.";
+            logger.warn(`${fnTag} ${errorMsg}`);
+            throw new AIError(errorMsg, undefined); // Passa undefined como erro original
+        }
+
+        logger.debug(`${fnTag} Resposta recebida e validada da IA.`);
         return answer;
 
     } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        let statusCode: number | string = 'N/A';
-        if (typeof error === 'object' && error !== null && 'response' in error) {
-            const responseError = error.response as any;
-            statusCode = responseError?.status ?? 'N/A';
-            logger.error("[callOpenAIForQuestion] Erro na chamada da API OpenAI:", { status: statusCode, message: errorMessage, data: responseError?.data });
-        } else {
-             logger.error("[callOpenAIForQuestion] Erro ao chamar OpenAI:", { message: errorMessage });
-        }
-        // Retorna uma string de erro genérica para o chamador tratar
-        return `Desculpe, ocorreu um erro ao gerar a resposta da IA (Status: ${statusCode}).`;
+         // <<< INÍCIO: Bloco CATCH Reestruturado >>>
+         if (error instanceof AIError) { // Se já for um AIError (das verificações acima), apenas relança
+             throw error;
+         }
+
+         let message: string;
+         let originalError: Error | undefined; // Inicializa para clareza
+
+         if (error instanceof Error) { // Verifica se é uma instância de Error padrão
+              originalError = error; // É seguro atribuir
+              message = error.message; // Mensagem padrão é a do erro original
+
+              // Tenta verificar se é um erro com detalhes de resposta HTTP (como Axios)
+              if (typeof error === 'object' && error !== null && 'response' in error) {
+                  // Usar 'as any' ou definir uma interface/tipo mais específico se conhecer a estrutura
+                  const responseError = (error as any).response;
+                  const statusCode = responseError?.status ?? 'N/A';
+                  // Tenta pegar a mensagem de erro específica da API, se disponível
+                  const apiErrorMessage = responseError?.data?.error?.message || message;
+                  const errorData = responseError?.data;
+                  logger.error(`${fnTag} Erro na chamada da API OpenAI:`, { status: statusCode, message: apiErrorMessage, data: errorData });
+                  // Define uma mensagem mais específica para o AIError
+                  message = `Falha na chamada da API OpenAI (Status: ${statusCode}): ${apiErrorMessage}`;
+              } else {
+                  // É um Error, mas não tem a estrutura esperada de erro de resposta HTTP
+                  logger.error(`${fnTag} Erro (não-API) ao chamar OpenAI:`, { message: message, name: error.name });
+                  // Mantém a mensagem original do erro
+              }
+              // Lança AIError com a mensagem definida e o erro original (que é instanceof Error)
+              throw new AIError(message, originalError);
+
+         } else {
+              // Não é uma instância de Error (pode ser string, objeto, etc.)
+              const unknownErrorMessage = String(error);
+              logger.error(`${fnTag} Erro desconhecido (não-Error) ao chamar OpenAI:`, { error: unknownErrorMessage });
+              message = `Erro desconhecido ao chamar OpenAI: ${unknownErrorMessage}`;
+              // Lança AIError com a mensagem e undefined como erro original
+              throw new AIError(message, undefined);
+         }
+         // <<< FIM: Bloco CATCH Reestruturado >>>
     }
 }
 
 /**
- * Formato esperado ao retornar as dicas (se mantiver JSON):
+ * Formato esperado ao retornar as dicas.
  */
 export interface TipsResponse {
   titulo: string;
@@ -82,23 +140,20 @@ export interface TipsResponse {
 /**
  * callOpenAIForTips:
  * Recebe métricas agregadas e retorna um objeto JSON com dicas da semana.
- * ATENÇÃO: Este prompt AINDA pede JSON. Se o objetivo for dicas em texto
- * conversacional, o prompt e o tipo de retorno precisam ser alterados.
+ * @throws {AIError} Se a chave API não estiver configurada, a API OpenAI retornar um erro, ou a resposta não for JSON válido.
  */
 export async function callOpenAIForTips(
-  aggregated: Record<string, unknown> // Usar tipo mais específico se possível
+  aggregated: Record<string, unknown>
 ): Promise<TipsResponse> {
-     logger.debug(`[callOpenAIForTips] Gerando dicas em JSON...`);
+     const fnTag = "[callOpenAIForTips]";
+     logger.debug(`${fnTag} Gerando dicas em JSON...`);
 
-     // <<< PROMPT MANTIDO para gerar JSON, mas modelo atualizado >>>
-     // Se precisar de texto conversacional, este prompt deve ser reescrito!
      const prompt = `
 Você é um consultor de Instagram focado em dados.
 Estas são as métricas do usuário:
 \`\`\`json
 ${JSON.stringify(aggregated, null, 2)}
 \`\`\`
-
 Instruções:
 - Baseie as dicas **exclusivamente** nos dados apresentados.
 - Retorne sua resposta **APENAS** em formato JSON válido, seguindo esta estrutura EXATA:
@@ -117,59 +172,90 @@ Instruções:
       apiKey: process.env.OPENAI_API_KEY,
     });
     if (!configuration.apiKey) {
-        logger.error("[callOpenAIForTips] Chave da API OpenAI (OPENAI_API_KEY) não configurada.");
-        // Retorna um objeto TipsResponse indicando o erro
-        return { titulo: "Erro", dicas: ["Erro de configuração: Chave da API não definida."] };
+        const errorMsg = "Chave da API OpenAI (OPENAI_API_KEY) não configurada.";
+        logger.error(`${fnTag} ${errorMsg}`);
+        throw new AIError(errorMsg, undefined); // Passa undefined como erro original
     }
     const openai = new OpenAIApi(configuration);
 
     try {
-        logger.debug(`[callOpenAIForTips] Chamando GPT-4o para gerar JSON de dicas...`);
+        logger.debug(`${fnTag} Chamando GPT-4o para gerar JSON de dicas...`);
         const completion = await openai.createChatCompletion({
-            model: "gpt-4o",        // <<< MODELO ATUALIZADO
+            model: "gpt-4o",
             messages: [{ role: "user", content: prompt }],
-            temperature: 0.5,       // Temp baixa para seguir formato JSON
-            max_tokens: 400,        // Suficiente para o JSON esperado
-            // Forçar resposta JSON se a API suportar (algumas versões/modelos têm parâmetros para isso)
-            // response_format: { type: "json_object" }, // Descomentar se aplicável e suportado
+            temperature: 0.5,
+            max_tokens: 400,
         });
 
         const rawAnswer = completion.data.choices?.[0]?.message?.content?.trim() || "";
 
-        // Tenta parsear como JSON
         try {
-            // Remover possíveis ```json ``` do início/fim se a IA adicionar
             const cleanedAnswer = rawAnswer.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+            if (!cleanedAnswer) {
+                 const errorMsg = "Resposta da IA estava vazia após limpeza, não é possível parsear JSON.";
+                 logger.error(`${fnTag} ${errorMsg}`);
+                 // Lança um erro normal aqui, que será pego pelo catch externo e transformado em AIError
+                 throw new Error(errorMsg);
+            }
             const parsed = JSON.parse(cleanedAnswer) as TipsResponse;
-            // Validação básica da estrutura
+
             if (parsed && parsed.titulo && Array.isArray(parsed.dicas)) {
-                 logger.info("[callOpenAIForTips] Dicas em JSON geradas e parseadas com sucesso.");
+                 logger.info(`${fnTag} Dicas em JSON geradas e parseadas com sucesso.`);
                  return parsed;
             } else {
+                 // Lança um erro normal aqui, que será pego pelo catch externo e transformado em AIError
                  throw new Error("Estrutura JSON inválida recebida da API.");
             }
-        } catch (err) {
-            logger.error("[callOpenAIForTips] Resposta de IA não pôde ser parseada como JSON:", { response: rawAnswer, error: err });
-            // Retorna a resposta crua dentro da estrutura esperada como fallback
-            return {
-                titulo: "Dicas da Semana (Erro de Formato)",
-                dicas: [rawAnswer || "Não foi possível gerar dicas em formato JSON válido."]
-            };
+        } catch (parseError: unknown) {
+            // Este catch pega erros do JSON.parse ou dos 'throw new Error' acima
+            logger.error(`${fnTag} Resposta de IA não pôde ser parseada como JSON:`, { response: rawAnswer, error: parseError });
+            // Lança um AIError específico para erro de formato, passando o erro de parse original
+            throw new AIError("Resposta da IA não está no formato JSON esperado.", parseError as Error); // Assumindo que parseError é geralmente um Error
         }
     } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        let statusCode: number | string = 'N/A';
-         if (typeof error === 'object' && error !== null && 'response' in error) {
-            const responseError = error.response as any;
-            statusCode = responseError?.status ?? 'N/A';
-            logger.error("[callOpenAIForTips] Erro na chamada da API OpenAI:", { status: statusCode, message: errorMessage, data: responseError?.data });
-        } else {
-             logger.error("[callOpenAIForTips] Erro ao gerar dicas via OpenAI:", { message: errorMessage });
-        }
-        // Retorna um objeto TipsResponse indicando o erro
-        return {
-            titulo: "Erro ao Gerar Dicas",
-            dicas: [`Desculpe, ocorreu um erro ao gerar as dicas (Status: ${statusCode}).`]
-        };
+         // <<< INÍCIO: Bloco CATCH Reestruturado >>>
+         if (error instanceof AIError) { // Se já for um AIError (do parser JSON acima), apenas relança
+             throw error;
+         }
+
+         let message: string;
+         let originalError: Error | undefined; // Inicializa para clareza
+
+         if (error instanceof Error) { // Verifica se é uma instância de Error padrão
+              originalError = error; // É seguro atribuir
+              message = error.message; // Mensagem padrão é a do erro original
+
+              // Tenta verificar se é um erro com detalhes de resposta HTTP (como Axios)
+              if (typeof error === 'object' && error !== null && 'response' in error) {
+                  const responseError = (error as any).response;
+                  const statusCode = responseError?.status ?? 'N/A';
+                  const apiErrorMessage = responseError?.data?.error?.message || message;
+                  const errorData = responseError?.data;
+                  logger.error(`${fnTag} Erro na chamada da API OpenAI para gerar dicas:`, { status: statusCode, message: apiErrorMessage, data: errorData });
+                  message = `Falha na chamada da API OpenAI para gerar dicas (Status: ${statusCode}): ${apiErrorMessage}`;
+              } else {
+                  logger.error(`${fnTag} Erro (não-API) ao gerar dicas via OpenAI:`, { message: message, name: error.name });
+                  // Mantém a mensagem original do erro
+              }
+              throw new AIError(message, originalError);
+
+         } else {
+              // Não é uma instância de Error
+              const unknownErrorMessage = String(error);
+              logger.error(`${fnTag} Erro desconhecido (não-Error) ao gerar dicas via OpenAI:`, { error: unknownErrorMessage });
+              message = `Erro desconhecido ao gerar dicas via OpenAI: ${unknownErrorMessage}`;
+              throw new AIError(message, undefined);
+         }
+         // <<< FIM: Bloco CATCH Reestruturado >>>
     }
 }
+
+// --- NOTA IMPORTANTE ---
+// (Mesma nota anterior sobre AIError e a necessidade de revisar a camada de resiliência)
+// **Recomendação:** Para manter informações extras como 'errorCode', 'statusCode'
+// ou 'errorData' de forma estruturada, considere modificar a classe `AIError`
+// em `@/app/lib/errors.ts` para aceitar esses parâmetros no construtor ou
+// ter propriedades públicas para armazená-los.
+//
+// Lembre-se também de revisar a LÓGICA DE RESILIÊNCIA (callAIWithResilience, etc.)
+// para garantir que ela capture e propague corretamente os AIError lançados aqui.
