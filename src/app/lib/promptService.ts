@@ -1,4 +1,4 @@
-// @/app/lib/promptService.ts - v3.Z.10 (Roteiro Sobre o Tema da Fonte)
+// @/app/lib/promptService.ts - v3.Z.11 (Exporta Formatadores + Foco Roteiro na Descrição)
 
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -6,6 +6,7 @@ import { logger } from '@/app/lib/logger';
 import { Types } from 'mongoose';
 
 // --- Tipos e Interfaces (Revisar se necessário importar de outros locais) ---
+// (Interfaces mantidas como na v3.Z.10)
 interface IMetricMinimal { _id?: Types.ObjectId; description?: string; postLink?: string; proposal?: string; context?: string; }
 interface OverallStats { avgAlcance?: number; avgCompartilhamentos?: number; avgSalvamentos?: number; avgCurtidas?: number; avgComentarios?: number; }
 interface DurationStat { range: string; contentCount: number; averageShares: number; averageSaves?: number; }
@@ -16,20 +17,52 @@ export interface ProposalStat extends BaseStat { _id: { proposal: string; }; }
 export interface ContextStat extends BaseStat { _id: { context: string; }; }
 export interface IEnrichedReport { overallStats?: OverallStats; profileSegment?: string; multimediaSuggestion?: string; top3Posts?: Pick<IMetricMinimal, '_id' | 'description' | 'postLink'>[]; bottom3Posts?: Pick<IMetricMinimal, '_id' | 'description' | 'postLink'>[]; durationStats?: DurationStat[]; detailedContentStats?: DetailedContentStat[]; proposalStats?: ProposalStat[]; contextStats?: ContextStat[]; historicalComparisons?: object; longTermComparisons?: object; }
 
+
 // --- Constantes Internas ---
 const METRICS_FETCH_DAYS_LIMIT = 180;
 const DETAILED_STATS_LIMIT_FOR_PROMPT = 7;
 const RANKING_LIMIT = 5;
 const TOP_EXAMPLES_PER_GROUP_LIMIT = 3;
 
-// --- Funções Auxiliares de Formatação ---
-const formatNumericMetric = (value: number | undefined | null, precision = 1, suffix = ''): string => { return (value !== undefined && value !== null && isFinite(value)) ? value.toFixed(precision) + suffix : 'N/A'; };
-const formatPercentageDiff = (diff: number | undefined | null, label = ''): string => { if (diff === undefined || diff === null || !isFinite(diff)) return ''; const sign = diff >= 0 ? '+' : ''; const labelPart = label ? ` ${label}` : ''; return ` (${sign}${diff.toFixed(0)}%)`; };
-const createSafeMarkdownLink = (text: string, url: string | undefined | null): string => { if (url && /^https?:\/\//.test(url)) { return `[${text}](${url})`; } return ''; };
-function formatFPCLabel(statId: StatId | undefined | null): string { if (!statId) return 'Geral'; const f = statId.format && statId.format !== 'Desconhecido' ? `F:${statId.format}` : ''; const p = statId.proposal && statId.proposal !== 'Outro' ? `P:${statId.proposal}` : ''; const c = statId.context && statId.context !== 'Geral' ? `C:${statId.context}` : ''; return [f, p, c].filter(Boolean).join('/') || 'Geral'; }
+// --- Funções Auxiliares de Formatação (AGORA EXPORTADAS) ---
+export const formatNumericMetric = (value: number | undefined | null, precision = 1, suffix = ''): string => {
+    // Verifica se o valor é um número finito
+    if (value !== undefined && value !== null && isFinite(value)) {
+        return value.toFixed(precision) + suffix;
+    }
+    return 'N/A'; // Retorna 'N/A' para valores inválidos ou nulos
+};
+
+export const formatPercentageDiff = (diff: number | undefined | null, label = ''): string => {
+    // Retorna string vazia se a diferença for inválida ou nula
+    if (diff === undefined || diff === null || !isFinite(diff)) return '';
+    const sign = diff >= 0 ? '+' : ''; // Adiciona sinal de '+' para valores positivos ou zero
+    const labelPart = label ? ` ${label}` : ''; // Adiciona label se fornecido
+    // Formata a diferença como porcentagem com 0 casas decimais e adiciona parênteses
+    return ` (${sign}${diff.toFixed(0)}%${labelPart})`;
+};
+
+const createSafeMarkdownLink = (text: string, url: string | undefined | null): string => {
+    // Cria um link Markdown seguro, verificando se a URL é válida
+    if (url && /^https?:\/\//.test(url)) {
+        return `[${text}](${url})`;
+    }
+    return ''; // Retorna string vazia se a URL for inválida
+};
+
+function formatFPCLabel(statId: StatId | undefined | null): string {
+    // Formata o rótulo F/P/C (Formato/Proposta/Contexto)
+    if (!statId) return 'Geral';
+    const f = statId.format && statId.format !== 'Desconhecido' ? `F:${statId.format}` : '';
+    const p = statId.proposal && statId.proposal !== 'Outro' ? `P:${statId.proposal}` : '';
+    const c = statId.context && statId.context !== 'Geral' ? `C:${statId.context}` : '';
+    // Junta as partes com '/', filtrando as vazias
+    return [f, p, c].filter(Boolean).join('/') || 'Geral';
+}
 
 // --- Função Auxiliar para Formatação Objetiva de Lista de Posts ---
 function formatPostListForObjectiveResponse(posts: Pick<IMetricMinimal, '_id' | 'description' | 'postLink'>[] | undefined): string {
+    // Formata uma lista de posts para exibição concisa
     if (!posts || posts.length === 0) return "(Nenhum)";
     let formatted = "";
     posts.forEach(post => {
@@ -45,9 +78,9 @@ function formatPostListForObjectiveResponse(posts: Pick<IMetricMinimal, '_id' | 
 
 /**
  * Formata dados gerais do relatório para o prompt.
- * Usa bullet point padrão (•) e negrito.
  */
 function formatGeneralReportDataForPrompt(report: IEnrichedReport, maxDetailedStats: number = DETAILED_STATS_LIMIT_FOR_PROMPT): string {
+    // (Implementação mantida como na v3.Z.4)
     let dataString = "";
     dataString += `\n## **Resumo Geral (Médias ${METRICS_FETCH_DAYS_LIMIT}d):**\n`;
     if (report.overallStats) {
@@ -56,10 +89,7 @@ function formatGeneralReportDataForPrompt(report: IEnrichedReport, maxDetailedSt
         dataString += `• **Salv. Médio:** ${formatNumericMetric(report.overallStats.avgSalvamentos, 1)}\n`;
         dataString += `• **Coment. Médio:** ${formatNumericMetric(report.overallStats.avgComentarios, 1)}\n`;
         dataString += `• **Curt. Médias:** ${formatNumericMetric(report.overallStats.avgCurtidas, 1)}\n`;
-    } else {
-        dataString += "• Dados gerais indisponíveis.\n";
-    }
-
+    } else { dataString += "• Dados gerais indisponíveis.\n"; }
     dataString += `\n## **Desempenho Detalhado (Top ${maxDetailedStats} Combinações F/P/C ordenadas por Desempenho Relativo em Compartilhamentos):**\n`;
     if (report.detailedContentStats && report.detailedContentStats.length > 0) {
         const sortedStats = [...report.detailedContentStats].sort((a, b) => (b.shareDiffPercentage ?? -Infinity) - (a.shareDiffPercentage ?? -Infinity) );
@@ -75,13 +105,8 @@ function formatGeneralReportDataForPrompt(report: IEnrichedReport, maxDetailedSt
             const commentDiff = formatPercentageDiff(stat.commentDiffPercentage, 'Coment.');
             dataString += `${index + 1}. **${labels}** (${stat.count}p): Comp=${compAvg}${shareDiff}, Salv=${salvAvg}${saveDiff}, Coment=${commentAvg}${commentDiff}\n`;
         });
-        if (report.detailedContentStats.length > maxDetailedStats) {
-            dataString += `• ... (outras ${report.detailedContentStats.length - maxDetailedStats} combinações omitidas)\n`;
-        }
-    } else {
-        dataString += "• Não há dados detalhados por combinação F/P/C disponíveis.\n";
-    }
-
+        if (report.detailedContentStats.length > maxDetailedStats) { dataString += `• ... (outras ${report.detailedContentStats.length - maxDetailedStats} combinações omitidas)\n`; }
+    } else { dataString += "• Não há dados detalhados por combinação F/P/C disponíveis.\n"; }
     dataString += "\n## **Desempenho por Duração (Vídeos):**\n";
     if (report.durationStats && report.durationStats.length > 0) {
         report.durationStats.forEach(stat => {
@@ -89,101 +114,46 @@ function formatGeneralReportDataForPrompt(report: IEnrichedReport, maxDetailedSt
             const salvAvg = formatNumericMetric(stat.averageSaves, 2);
             dataString += `• **Faixa ${stat.range}** (${stat.contentCount}p): Comp. Médio=${compAvg}, Salv. Médio=${salvAvg}\n`;
         });
-    } else {
-        dataString += "• Não há dados de desempenho por duração disponíveis.\n";
-    }
+    } else { dataString += "• Não há dados de desempenho por duração disponíveis.\n"; }
     return dataString.trim();
 }
 
 /**
  * Formata dados para o prompt de plano de conteúdo.
- * Usa bullet point padrão (•) e negrito.
  */
 function formatDataForContentPlanPrompt(
     report: IEnrichedReport,
     targetMetricField: keyof DetailedContentStat | null,
     targetMetricFriendlyName: string | null
 ): string {
+    // (Implementação mantida como na v3.Z.6)
     const fnTag = "[formatDataForContentPlanPrompt]";
     const defaultSortField: keyof DetailedContentStat = 'shareDiffPercentage';
     const sortField = targetMetricField ?? defaultSortField;
     const sortFriendlyName = targetMetricFriendlyName ?? 'Compartilhamentos (padrão)';
     logger.debug(`${fnTag} Iniciando formatação de dados para plano. Ordenando por: ${sortField} (Foco: ${sortFriendlyName})`);
-
     let dataString = `## **Desempenho Detalhado por Combinação (F/P/C) - Base para o Plano (Priorizado por ${sortFriendlyName}):**\n`;
-    if (!report.detailedContentStats || report.detailedContentStats.length === 0) {
-        dataString += "• Nenhum dado detalhado por combinação F/P/C disponível para basear o plano.\n";
-    } else {
+    if (!report.detailedContentStats || report.detailedContentStats.length === 0) { dataString += "• Nenhum dado detalhado por combinação F/P/C disponível para basear o plano.\n"; }
+    else { /* ... lógica de ordenação e formatação mantida ... */
         let sortedStats = [...report.detailedContentStats];
         const firstStat = sortedStats[0];
         const canSortByTarget = firstStat && sortField && sortField in firstStat;
-
-        if (sortField && canSortByTarget) {
-            logger.debug(`${fnTag} Aplicando ordenação dinâmica pelo campo: ${sortField}`);
-            sortedStats.sort((a, b) => {
-                const valA = (a[sortField] as number | null | undefined) ?? -Infinity;
-                const valB = (b[sortField] as number | null | undefined) ?? -Infinity;
-                return valB - valA;
-            });
-        } else {
-            logger.warn(`${fnTag} Campo alvo '${sortField}' não encontrado ou inválido para ordenação em pelo menos um item. Usando ordenação padrão por ${defaultSortField}.`);
-            if (firstStat && defaultSortField in firstStat) {
-                sortedStats.sort((a, b) => (b[defaultSortField] ?? -Infinity) - (a[defaultSortField] ?? -Infinity));
-            } else {
-                logger.error(`${fnTag} Campo de ordenação padrão '${defaultSortField}' também não encontrado nos dados! Os dados não serão ordenados.`);
-            }
-        }
-
+        if (sortField && canSortByTarget) { logger.debug(`${fnTag} Aplicando ordenação dinâmica pelo campo: ${sortField}`); sortedStats.sort((a, b) => { const valA = (a[sortField] as number | null | undefined) ?? -Infinity; const valB = (b[sortField] as number | null | undefined) ?? -Infinity; return valB - valA; }); } else { logger.warn(`${fnTag} Campo alvo '${sortField}' não encontrado ou inválido para ordenação. Usando padrão ${defaultSortField}.`); if (firstStat && defaultSortField in firstStat) { sortedStats.sort((a, b) => (b[defaultSortField] ?? -Infinity) - (a[defaultSortField] ?? -Infinity)); } else { logger.error(`${fnTag} Campo de ordenação padrão '${defaultSortField}' também não encontrado!`); } }
         const statsToFormat = sortedStats.slice(0, DETAILED_STATS_LIMIT_FOR_PROMPT);
         let combinationsFound = 0;
         statsToFormat.forEach((stat, index) => {
-            if (!stat || !stat._id || stat.count < 2) return;
-            combinationsFound++;
-            const f = stat._id.format || 'Desconhecido';
-            const p = stat._id.proposal || 'Outro';
-            const c = stat._id.context || 'Geral';
-            const labels = formatFPCLabel(stat._id);
-
+            if (!stat || !stat._id || stat.count < 2) return; combinationsFound++;
+            const f = stat._id.format || 'Desconhecido'; const p = stat._id.proposal || 'Outro'; const c = stat._id.context || 'Geral'; const labels = formatFPCLabel(stat._id);
             dataString += `\n### **${index + 1}. Combinação: ${labels} (${stat.count} posts)**\n`;
-            dataString += `   • **Proposta Principal:** ${p}\n`;
-            dataString += `   • **Contexto Principal:** ${c}\n`;
-            dataString += `   • **Formato Base:** ${f}\n`;
+            dataString += `   • **Proposta Principal:** ${p}\n`; dataString += `   • **Contexto Principal:** ${c}\n`; dataString += `   • **Formato Base:** ${f}\n`;
             dataString += `   • **Desempenho Chave:** Comp=${formatNumericMetric(stat.avgCompartilhamentos)}${formatPercentageDiff(stat.shareDiffPercentage)}, Salv=${formatNumericMetric(stat.avgSalvamentos)}${formatPercentageDiff(stat.saveDiffPercentage)}, Alcance=${formatNumericMetric(stat.avgAlcance, 0)}${formatPercentageDiff(stat.reachDiffPercentage)}, Coment=${formatNumericMetric(stat.avgComentarios)}${formatPercentageDiff(stat.commentDiffPercentage)}\n`;
             dataString += `   • **Exemplos de Sucesso Recentes (Base para Síntese do Tema):**\n`;
-            if (stat.topExamplesInGroup && stat.topExamplesInGroup.length > 0) {
-                const examplesToShow = stat.topExamplesInGroup.slice(0, TOP_EXAMPLES_PER_GROUP_LIMIT);
-                examplesToShow.forEach((example, exIndex) => {
-                    if (!example) return;
-                    const desc = example.description ? `"${example.description.substring(0, 70)}..."` : '(Sem descrição)';
-                    const link = createSafeMarkdownLink('Ver', example.postLink);
-                    dataString += `      * ${exIndex + 1}. DESCRIÇÃO: ${desc} ${link}\n`;
-                });
-            } else {
-                dataString += `      * (Nenhuma descrição de exemplo encontrada para esta combinação.)\n`;
-            }
+            if (stat.topExamplesInGroup && stat.topExamplesInGroup.length > 0) { const examplesToShow = stat.topExamplesInGroup.slice(0, TOP_EXAMPLES_PER_GROUP_LIMIT); examplesToShow.forEach((example, exIndex) => { if (!example) return; const desc = example.description ? `"${example.description.substring(0, 70)}..."` : '(Sem descrição)'; const link = createSafeMarkdownLink('Ver', example.postLink); dataString += `      * ${exIndex + 1}. DESCRIÇÃO: ${desc} ${link}\n`; }); } else { dataString += `      * (Nenhuma descrição de exemplo encontrada para esta combinação.)\n`; }
         });
-
-        if (combinationsFound === 0) {
-            dataString += "• Nenhuma combinação F/P/C com dados suficientes (mínimo 2 posts) encontrada para basear o plano.\n";
-        } else if (sortedStats.length > DETAILED_STATS_LIMIT_FOR_PROMPT) {
-            const omittedCount = sortedStats.length - combinationsFound;
-            if (omittedCount > 0) {
-                dataString += `\n• (... outras ${omittedCount} combinações com menor desempenho em ${sortFriendlyName} ou dados omitidas ...)\n`;
-            }
-        }
+        if (combinationsFound === 0) { dataString += "• Nenhuma combinação F/P/C com dados suficientes (mínimo 2 posts) encontrada para basear o plano.\n"; } else if (sortedStats.length > DETAILED_STATS_LIMIT_FOR_PROMPT) { const omittedCount = sortedStats.length - combinationsFound; if (omittedCount > 0) { dataString += `\n• (... outras ${omittedCount} combinações com menor desempenho em ${sortFriendlyName} ou dados omitidas ...)\n`; } }
     }
-
     dataString += "\n\n## **Desempenho Geral por Duração (Vídeos):**\n";
-    if (report.durationStats && report.durationStats.length > 0) {
-        const sortedDurationStats = [...report.durationStats].sort((a, b) => (b.averageSaves ?? -Infinity) - (a.averageSaves ?? -Infinity));
-        sortedDurationStats.forEach(d => {
-            const compAvg = formatNumericMetric(d.averageShares, 2);
-            const salvAvg = formatNumericMetric(d.averageSaves, 2);
-            dataString += `• **Faixa ${d.range}** (${d.contentCount} posts): Comp. Médio=${compAvg}, Salv. Médio=${salvAvg}\n`;
-        });
-    } else {
-        dataString += "• Não há dados disponíveis.\n";
-    }
+    if (report.durationStats && report.durationStats.length > 0) { const sortedDurationStats = [...report.durationStats].sort((a, b) => (b.averageSaves ?? -Infinity) - (a.averageSaves ?? -Infinity)); sortedDurationStats.forEach(d => { const compAvg = formatNumericMetric(d.averageShares, 2); const salvAvg = formatNumericMetric(d.averageSaves, 2); dataString += `• **Faixa ${d.range}** (${d.contentCount} posts): Comp. Médio=${compAvg}, Salv. Médio=${salvAvg}\n`; }); } else { dataString += "• Não há dados disponíveis.\n"; }
     return dataString.trim();
 }
 
@@ -192,25 +162,21 @@ function formatDataForContentPlanPrompt(
  * Formata os dados para o prompt de ranking.
  */
 function formatRankingDataForPrompt(report: IEnrichedReport): string {
+    // (Implementação mantida como na v3.Z.4)
     const fnTag = "[formatRankingDataForPrompt v3.Z.4]";
     logger.debug(`${fnTag} Formatando dados para prompt de ranking objetivo.`);
     let dataString = "## **Dados Disponíveis para Ranking (Ordenados por Desempenho Relativo em Compartilhamentos):**\n";
     const topN = RANKING_LIMIT;
-
-    const formatRankingStatLine = ( label: string, stat: DetailedContentStat | ProposalStat | ContextStat | undefined | null ): string => { /* ... (mantido como v3.Z.4) ... */ if (!stat || !stat._id || stat.count < 1) return `   * ${label}: Dados insuficientes.`; let format = ''; if (typeof stat._id === 'object' && 'format' in stat._id && stat._id.format && stat._id.format !== 'Desconhecido') { format = stat._id.format; } else if (stat.bestPostInGroup && stat.bestPostInGroup.description?.toLowerCase().includes('reels')) { format = 'Reels'; } else if (stat.bestPostInGroup && stat.bestPostInGroup.description?.toLowerCase().includes('post')) { format = 'Post'; } const metricValue = formatNumericMetric(stat.avgCompartilhamentos, 1); const metricDiff = formatPercentageDiff(stat.shareDiffPercentage); let exampleLine = ''; if (stat.bestPostInGroup) { const link = createSafeMarkdownLink('link de referência', stat.bestPostInGroup.postLink); if (link) { exampleLine = `\n   * **Exemplo:** ${link}`; } } let line = `**${label}**`; if (format) { line += `\n   * **Formato:** ${format}`; } line += `\n   * **Métrica:** ${metricValue} compartilhamentos ${metricDiff}`; line += exampleLine; return line; };
-
+    const formatRankingStatLine = ( label: string, stat: DetailedContentStat | ProposalStat | ContextStat | undefined | null ): string => { if (!stat || !stat._id || stat.count < 1) return `   * ${label}: Dados insuficientes.`; let format = ''; if (typeof stat._id === 'object' && 'format' in stat._id && stat._id.format && stat._id.format !== 'Desconhecido') { format = stat._id.format; } else if (stat.bestPostInGroup && stat.bestPostInGroup.description?.toLowerCase().includes('reels')) { format = 'Reels'; } else if (stat.bestPostInGroup && stat.bestPostInGroup.description?.toLowerCase().includes('post')) { format = 'Post'; } const metricValue = formatNumericMetric(stat.avgCompartilhamentos, 1); const metricDiff = formatPercentageDiff(stat.shareDiffPercentage); let exampleLine = ''; if (stat.bestPostInGroup) { const link = createSafeMarkdownLink('link de referência', stat.bestPostInGroup.postLink); if (link) { exampleLine = `\n   * **Exemplo:** ${link}`; } } let line = `**${label}**`; if (format) { line += `\n   * **Formato:** ${format}`; } line += `\n   * **Métrica:** ${metricValue} compartilhamentos ${metricDiff}`; line += exampleLine; return line; };
     let proposalRanking = "\n**Ranking por PROPOSTA:**\n";
     const sortedProposalStats = [...(report.proposalStats || [])].sort((a, b) => (b.shareDiffPercentage ?? -Infinity) - (a.shareDiffPercentage ?? -Infinity));
     if (sortedProposalStats.length > 0) { const statsToShow = sortedProposalStats.slice(0, topN); proposalRanking += statsToShow.map((stat, i) => `${i + 1}. ${formatRankingStatLine(stat?._id?.proposal || `Proposta ${i + 1}`, stat)}`).join('\n'); if (sortedProposalStats.length > topN) proposalRanking += `\n   • (...)\n`; } else { proposalRanking += "   • Nenhum dado disponível.\n"; }
-
     let contextRanking = "\n**Ranking por CONTEXTO:**\n";
     const sortedContextStats = [...(report.contextStats || [])].sort((a, b) => (b.shareDiffPercentage ?? -Infinity) - (a.shareDiffPercentage ?? -Infinity));
     if (sortedContextStats.length > 0) { const statsToShow = sortedContextStats.slice(0, topN); contextRanking += statsToShow.map((stat, i) => `${i + 1}. ${formatRankingStatLine(stat?._id?.context || `Contexto ${i + 1}`, stat)}`).join('\n'); if (sortedContextStats.length > topN) contextRanking += `\n   • (...)\n`; } else { contextRanking += "   • Nenhum dado disponível.\n"; }
-
     let detailedRanking = "\n**Ranking por COMBINAÇÃO (F/P/C):**\n";
     const sortedDetailedStats = [...(report.detailedContentStats || [])].sort((a, b) => (b.shareDiffPercentage ?? -Infinity) - (a.shareDiffPercentage ?? -Infinity));
     if (sortedDetailedStats.length > 0) { const statsToShow = sortedDetailedStats.slice(0, topN); detailedRanking += statsToShow.map((stat, i) => { if (!stat || !stat._id) return ''; const labels = formatFPCLabel(stat._id); return `${i + 1}. ${formatRankingStatLine(labels, stat)}`; }).filter(Boolean).join('\n'); if (sortedDetailedStats.length > topN) detailedRanking += `\n   • (...)\n`; } else { detailedRanking += "   • Nenhum dado disponível.\n"; }
-
     return (dataString + proposalRanking + contextRanking + detailedRanking).trim();
 }
 
@@ -580,7 +546,7 @@ export function generateScriptInstructions(
 
 ## **PARTE 2: Conversa e Próximos Passos (Tom de Consultora - CONCISO e DIRETO)**
 *(Retome um tom mais conversacional, mas MANTENHA A CONCISÃO e seja direta. EVITE REPETIR o roteiro.)*
-[Faça UM breve comentário sobre o roteiro gerado para o tema identificado. Ex: "Aqui está uma sugestão de roteiro otimizada sobre **[Tema Identificado]**..." ou "Usei a ideia do seu post de sucesso para criar este roteiro sobre **[Tema Identificado]**, adicionando algumas táticas atuais..."]
+[Faça UM breve comentário sobre o roteiro gerado para o tema específico. Ex: "Aqui está uma sugestão de roteiro otimizada sobre **[Tema Identificado]**..." ou "Usei a ideia do seu post de sucesso para criar este roteiro sobre **[Tema Identificado]**, adicionando algumas táticas atuais..."]
 **[Faça UMA pergunta CONCISA e relevante sobre o roteiro ou próximos passos. EVITE perguntas genéricas.]**
 * **Exemplos VARIADOS (Adapte!):**
     * "Essa estrutura de roteiro te ajuda a visualizar o vídeo final, ${userName}?"

@@ -1,8 +1,8 @@
-// @/app/lib/consultantService.ts - v3.35 (Correção Comparação Intent + Roteiro Proativo)
+// @/app/lib/consultantService.ts - v3.41 (Correção defaultInfo undefined + Handlers Analíticos - Código Completo)
 
 // --- Imports Essenciais e Módulos ---
 import { Model, Types } from "mongoose";
-import { subDays, format } from "date-fns";
+import { subDays, format, differenceInDays } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 import opossum from "opossum";
 import { logger } from '@/app/lib/logger';
@@ -11,7 +11,7 @@ import { createClient } from "redis";
 // Importa os novos módulos de serviço
 import * as intentService from './intentService';
 // Assuming DeterminedIntent type is exported from intentService or defined appropriately
-import { getRandomGreeting, normalizeText as normalizeTextInput, isSimpleConfirmation, DeterminedIntent } from './intentService';
+import { getRandomGreeting, normalizeText as normalizeTextInput, isSimpleConfirmation, DeterminedIntent } from './intentService'; // Needs DeterminedIntent export
 import * as dataService from './dataService';
 // Importa funções específicas com alias e tipos explícitos
 import {
@@ -19,8 +19,11 @@ import {
     generateContentPlanInstructions as importedGenerateContentPlanInstructions,
     generateGroupedContentPlanInstructions as importedGenerateGroupedContentPlanInstructions,
     generateRankingInstructions as importedGenerateRankingInstructions,
-    generateScriptInstructions as importedGenerateScriptInstructions
-} from './promptService'; // Assuming v3.Z.8 or later
+    generateScriptInstructions as importedGenerateScriptInstructions, // Imported with alias
+    // *** IMPORT DOS FORMATADORES ***
+    formatNumericMetric,
+    formatPercentageDiff
+} from './promptService'; // Assuming v3.Z.11 or later (with exports)
 import { callOpenAIForQuestion } from "@/app/lib/aiService";
 
 // Importa tipos de erro
@@ -35,7 +38,10 @@ import Metric, { IMetric } from "@/app/models/Metric";
 
 // Importa tipos dos outros serviços e helpers
 import { IEnrichedReport, ReferenceSearchResult } from './dataService';
-import { DetailedContentStat, AggregatedReport, StatId } from './reportHelpers'; // Assuming DetailedContentStat is exported from reportHelpers
+// Ensure DetailedContentStat, ProposalStat, ContextStat etc are available
+// *** ADICIONAR AQUI A INTERFACE PARA DADOS POR DIA DA SEMANA QUANDO DEFINIDA ***
+// Exemplo: import { PerformanceByDay } from './reportHelpers';
+import { DetailedContentStat, ProposalStat, ContextStat, AggregatedReport, StatId, DurationStat, OverallStats } from './reportHelpers';
 
 // --- Novas Interfaces para Contexto do Plano ---
 interface IPlanItemContext { identifier: string; description: string; proposal?: string; context?: string; }
@@ -55,21 +61,141 @@ const REDIS_HISTORY_TTL_SECONDS = 60 * 60 * 24 * 30;
 const MIN_POST_COUNT_FOR_PROACTIVE = 1; // Minimum posts for a combo to be considered
 
 // --- Definições para Extração de Métrica Alvo ---
-const METRIC_FOCUS_MAP: { [keyword: string]: string | null } = { 'comentarios': 'commentDiffPercentage', 'comentario': 'commentDiffPercentage', 'alcance': 'reachDiffPercentage', 'alcancadas': 'reachDiffPercentage', 'salvamentos': 'saveDiffPercentage', 'salvos': 'saveDiffPercentage', 'compartilhamentos': 'shareDiffPercentage', 'shares': 'shareDiffPercentage', 'curtidas': 'likeDiffPercentage', 'likes': 'likeDiffPercentage', 'visualizacoes': 'avgVisualizacoes', 'views': 'avgVisualizacoes', };
-const METRIC_FRIENDLY_NAMES: { [field: string]: string } = { 'commentDiffPercentage': 'Comentários', 'reachDiffPercentage': 'Alcance', 'saveDiffPercentage': 'Salvamentos', 'shareDiffPercentage': 'Compartilhamentos', 'likeDiffPercentage': 'Curtidas', 'avgVisualizacoes': 'Visualizações', 'taxaRetencao': 'Retenção', 'taxaEngajamento': 'Engajamento (Geral)' };
-function extractTargetMetricFocus(normalizedQuery: string): { targetMetricField: string | null, friendlyName: string | null } { const fnTag = "[extractTargetMetricFocus]"; const patterns = [ /focado em (?:ter |gerar )?mais (\w+)/, /priorizando (\w+)/, /com mais (\w+)/, /aumentar (\w+)/, /melhorar (\w+)/, /gerar (\w+)/ ]; for (const pattern of patterns) { const match = normalizedQuery.match(pattern); const keyword = match?.[1]; if (keyword && METRIC_FOCUS_MAP[keyword]) { const targetField = METRIC_FOCUS_MAP[keyword]; if (targetField) { const friendlyName = METRIC_FRIENDLY_NAMES[targetField] || targetField; logger.debug(`${fnTag} Métrica alvo identificada: ${keyword} -> ${targetField} (Nome amigável: ${friendlyName})`); return { targetMetricField: targetField, friendlyName: friendlyName }; } } } logger.debug(`${fnTag} Nenhuma métrica alvo específica identificada na query. Usando padrão.`); const defaultSortField = 'shareDiffPercentage'; const defaultFriendlyName = METRIC_FRIENDLY_NAMES[defaultSortField] || defaultSortField; return { targetMetricField: defaultSortField, friendlyName: defaultFriendlyName }; }
+// Mapping from keywords to metric fields and friendly names
+const METRIC_FOCUS_MAP: { [keyword: string]: { field: keyof ProposalStat | keyof DetailedContentStat | keyof ContextStat | null, friendly: string, avgField?: keyof ProposalStat | keyof DetailedContentStat | keyof ContextStat } } = {
+    'comentarios': { field: 'commentDiffPercentage', friendly: 'Comentários', avgField: 'avgComentarios' },
+    'comentario': { field: 'commentDiffPercentage', friendly: 'Comentários', avgField: 'avgComentarios' },
+    'alcance': { field: 'reachDiffPercentage', friendly: 'Alcance', avgField: 'avgAlcance' },
+    'alcancadas': { field: 'reachDiffPercentage', friendly: 'Alcance', avgField: 'avgAlcance' },
+    'alcance relativo': { field: 'reachDiffPercentage', friendly: 'Alcance Relativo', avgField: 'avgAlcance' }, // Added specific term
+    'salvamentos': { field: 'saveDiffPercentage', friendly: 'Salvamentos', avgField: 'avgSalvamentos' },
+    'salvos': { field: 'saveDiffPercentage', friendly: 'Salvamentos', avgField: 'avgSalvamentos' },
+    'salvamento': { field: 'saveDiffPercentage', friendly: 'Salvamentos', avgField: 'avgSalvamentos' }, // Added singular
+    'compartilhamentos': { field: 'shareDiffPercentage', friendly: 'Compartilhamentos', avgField: 'avgCompartilhamentos' },
+    'shares': { field: 'shareDiffPercentage', friendly: 'Compartilhamentos', avgField: 'avgCompartilhamentos' },
+    'compartilhamento': { field: 'shareDiffPercentage', friendly: 'Compartilhamentos', avgField: 'avgCompartilhamentos' }, // Added singular
+    'curtidas': { field: 'likeDiffPercentage', friendly: 'Curtidas', avgField: 'avgCurtidas' },
+    'likes': { field: 'likeDiffPercentage', friendly: 'Curtidas', avgField: 'avgCurtidas' },
+    'curtida': { field: 'likeDiffPercentage', friendly: 'Curtidas', avgField: 'avgCurtidas' }, // Added singular
+    'visualizacoes': { field: 'avgVisualizacoes', friendly: 'Visualizações', avgField: 'avgVisualizacoes' }, // Diff field might not exist
+    'views': { field: 'avgVisualizacoes', friendly: 'Visualizações', avgField: 'avgVisualizacoes' },
+    // Add more mappings as needed
+};
+// Mapping from metric field names to friendly names
+const METRIC_FIELD_TO_FRIENDLY_NAME: { [field: string]: string } = {
+    'commentDiffPercentage': 'Comentários',
+    'reachDiffPercentage': 'Alcance',
+    'saveDiffPercentage': 'Salvamentos',
+    'shareDiffPercentage': 'Compartilhamentos',
+    'likeDiffPercentage': 'Curtidas',
+    'avgCompartilhamentos': 'Compartilhamentos (média)',
+    'avgSalvamentos': 'Salvamentos (média)',
+    'avgAlcance': 'Alcance (média)',
+    'avgComentarios': 'Comentários (média)',
+    'avgCurtidas': 'Curtidas (média)',
+    'avgVisualizacoes': 'Visualizações (média)',
+    'taxaRetencao': 'Retenção',
+    'taxaEngajamento': 'Engajamento (Geral)'
+};
+
+/**
+ * Extracts the target metric and its friendly name for planning purposes.
+ */
+function extractTargetMetricFocus(normalizedQuery: string): { targetMetricField: keyof DetailedContentStat | null, friendlyName: string | null } {
+    const fnTag = "[extractTargetMetricFocus]";
+    const patterns = [
+        /focado em (?:ter |gerar )?mais (\w+)/,
+        /priorizando (\w+)/,
+        /com mais (\w+)/,
+        /aumentar (\w+)/,
+        /melhorar (\w+)/,
+        /gerar (\w+)/,
+        /mais (\w+)/
+    ];
+    for (const pattern of patterns) {
+        const match = normalizedQuery.match(pattern);
+        const keyword = match?.[1];
+        if (keyword && METRIC_FOCUS_MAP[keyword]) {
+            const metricInfo = METRIC_FOCUS_MAP[keyword];
+            if (metricInfo && metricInfo.field) {
+                const field = metricInfo.field as keyof DetailedContentStat;
+                const friendlyName = metricInfo.friendly;
+                logger.debug(`${fnTag} Métrica alvo identificada: ${keyword} -> ${field} (Nome amigável: ${friendlyName})`);
+                return { targetMetricField: field, friendlyName: friendlyName };
+            }
+        }
+    }
+    logger.debug(`${fnTag} Nenhuma métrica alvo específica identificada na query. Usando padrão.`);
+    const defaultSortField = 'shareDiffPercentage' as keyof DetailedContentStat;
+    const defaultFriendlyName = METRIC_FIELD_TO_FRIENDLY_NAME[defaultSortField] || defaultSortField;
+    return { targetMetricField: defaultSortField, friendlyName: defaultFriendlyName };
+}
+
+/**
+ * Extracts the target metric and its friendly name for analytical Q&A.
+ * Now tries to match more specific phrases first.
+ */
+function extractMetricForAnalysis(normalizedQuery: string): {
+    field: keyof ProposalStat | keyof DetailedContentStat | keyof ContextStat | null,
+    avgField: keyof ProposalStat | keyof DetailedContentStat | keyof ContextStat | null,
+    friendlyName: string
+} {
+    const fnTag = "[extractMetricForAnalysis v1.1]";
+    // Prioritize longer/more specific matches
+    const patterns = [
+        /gera mais (\w+)/,
+        /melhor desempenho em (\w+)/,
+        /maior desempenho em (\w+)/,
+        /recordista em (\w+)/,
+        /performam melhor em (\w+)/,
+        /quais dao mais (\w+)/,
+        /o que da mais (\w+)/,
+        /alcance relativo/, // Specific phrase check
+        /mais (\w+)/ // General check last
+    ];
+
+    for (const pattern of patterns) {
+        const match = normalizedQuery.match(pattern);
+        // For "alcance relativo", keyword is the phrase itself
+        const keyword = pattern.source === "alcance relativo" ? "alcance relativo" : match?.[1];
+
+        if (keyword && METRIC_FOCUS_MAP[keyword]) {
+            const metricInfo = METRIC_FOCUS_MAP[keyword];
+            if (metricInfo && metricInfo.field) {
+                 const field = metricInfo.field;
+                 const avgField = metricInfo.avgField ?? null; // Get corresponding avg field if defined
+                 const friendlyName = metricInfo.friendly;
+                 logger.debug(`${fnTag} Métrica para análise identificada: ${keyword} -> ${field} (Avg: ${avgField}, Friendly: ${friendlyName})`);
+                 return {
+                     field: field as keyof ProposalStat | keyof DetailedContentStat | keyof ContextStat,
+                     avgField: avgField as keyof ProposalStat | keyof DetailedContentStat | keyof ContextStat | null,
+                     friendlyName
+                    };
+            }
+        }
+    }
+    // Default if no specific metric is mentioned in the question
+    logger.debug(`${fnTag} Nenhuma métrica específica na pergunta. Usando 'Compartilhamentos' como padrão.`);
+    const defaultInfo = METRIC_FOCUS_MAP['compartilhamentos'];
+
+    // --- CORREÇÃO APLICADA AQUI (v3.41) ---
+    if (defaultInfo && defaultInfo.field) { // Check if defaultInfo and its essential field exist
+        return {
+            field: defaultInfo.field as keyof ProposalStat, // Cast to a specific type for default
+            avgField: defaultInfo.avgField ?? null,
+            friendlyName: defaultInfo.friendly
+        };
+    } else {
+        // Fallback if the default key is somehow missing from the map
+        logger.error(`${fnTag} Falha ao obter informações padrão para 'compartilhamentos' do METRIC_FOCUS_MAP.`);
+        return { field: null, avgField: null, friendlyName: 'Desempenho' }; // Safe fallback
+    }
+    // --- FIM DA CORREÇÃO ---
+}
+
 
 // --- Tipagem Explícita para Funções Importadas do promptService ---
-type GenerateAIInstructionsType = (userName: string, report: IEnrichedReport, history: string, tone: string, userQuery: string) => string;
-type GenerateContentPlanInstructionsType = (userName: string, report: IEnrichedReport, history: string, tone: string, userMessage: string, targetMetricField: keyof DetailedContentStat | null, targetMetricFriendlyName: string | null) => string;
-type GenerateGroupedContentPlanInstructionsType = (userName: string, commonCombinationData: { proposal: string; context: string; stat: DetailedContentStat }, enrichedReport: IEnrichedReport, history: string, tone: string, userMessage: string, targetMetricField: keyof DetailedContentStat | null, targetMetricFriendlyName: string | null) => string;
-type GenerateRankingInstructionsType = (userName: string, report: IEnrichedReport, history: string, tone: string, userMessage: string) => string;
-type GenerateScriptInstructionsType = (userName: string, sourceDescription: string, sourceProposal: string | undefined, sourceContext: string | undefined, history: string, tone: string, userMessage: string) => string;
-const generateAIInstructions: GenerateAIInstructionsType = importedGenerateAIInstructions;
-const generateContentPlanInstructions: GenerateContentPlanInstructionsType = importedGenerateContentPlanInstructions;
-const generateGroupedContentPlanInstructions: GenerateGroupedContentPlanInstructionsType = importedGenerateGroupedContentPlanInstructions;
-const generateRankingInstructions: GenerateRankingInstructionsType = importedGenerateRankingInstructions;
-const generateScriptInstructions: GenerateScriptInstructionsType = importedGenerateScriptInstructions;
+// (generate... functions are imported above with formatters)
 
 // --- Lógica de Cache (Redis) ---
 const redisClient = createClient({ url: process.env.REDIS_URL || 'redis://localhost:6379' });
@@ -171,7 +297,7 @@ function parsePlanItemsFromResponse(responseText: string): IPlanItemContext[] | 
             // Process each header section
             for(let i = 0; i < headers.length; i++) {
                 const currentHeader = headers[i];
-                // --- CORREÇÃO APLICADA AQUI ---
+                // --- CORREÇÃO APLICADA AQUI (v3.34) ---
                 if (currentHeader) { // Add safety check for currentHeader
                     const identifier = currentHeader.match[1]?.trim();
                     const proposal = currentHeader.match[2]?.trim();
@@ -208,7 +334,7 @@ function parsePlanItemsFromResponse(responseText: string): IPlanItemContext[] | 
 
 function findPlanItemByUserInput( userInput: string, planItems: IPlanItemContext[] ): IPlanItemContext | null {
     const fnTag = "[findPlanItemByUserInput v1.2]";
-    const normalizedInput = normalizeTextInput(userInput);
+    const normalizedInput = normalizeTextInput(userInput); // Use alias here
 
     if (!normalizedInput || !planItems || planItems.length === 0) {
         logger.debug(`${fnTag} Input ou itens do plano inválidos/vazios.`);
@@ -234,7 +360,7 @@ function findPlanItemByUserInput( userInput: string, planItems: IPlanItemContext
         if (!item || !item.identifier) continue;
 
         // Normalize the item identifier (remove accents, lowercase, remove brackets)
-        const normalizedIdentifier = normalizeTextInput(item.identifier.replace(/[\[\]]/g, ''));
+        const normalizedIdentifier = normalizeTextInput(item.identifier.replace(/[\[\]]/g, '')); // Use alias here
         if (!normalizedIdentifier) continue; // Skip if normalized identifier is empty
 
         // --- Strategy 1: Exact Match ---
@@ -344,7 +470,7 @@ async function loadContext(userIdStr: string): Promise<{ dialogueState: IDialogu
         getDialogueState(userIdStr),
         getConversationHistory(userIdStr)
     ]);
-    logger.debug(`[loadContext] Contexto carregado para ${userIdStr}. Estado Keys: ${Object.keys(dialogueState).join(', ')}. Tam Histórico: ${conversationHistory.length}. Oferta Roteiro:`, dialogueState.lastOfferedScriptIdea);
+    logger.debug(`[loadContext] Contexto carregado para ${userIdStr}.`);
     return { dialogueState, conversationHistory };
 }
 
@@ -518,340 +644,299 @@ interface HandlerResult {
     finalResponseString: string; // The final response to send to the user (with greeting/extras)
 }
 
+// =========================================================================
+// <<< INÍCIO: NOVOS HANDLERS E HELPERS ANALÍTICOS >>>
+// =========================================================================
+
 /**
- * Handler for script_request intent (v1.5 - Proactive Logic)
+ * Formats a concise insight response with a next step prompt.
  */
+function generateDirectInsightResponse(
+    insight: string,
+    followUpQuestion: string,
+    userName: string
+): string {
+    // Simple formatter
+    return `${insight}\n\n---\n**Próximos passos:**\n${followUpQuestion}, ${userName}?`;
+}
+
+/**
+ * Handler for ASK_BEST_PERFORMER intent (v1.1 - Corrected Formatting)
+ * Analyzes report data to answer "What type of content performs best for metric X?".
+ */
+async function _handleAskBestPerformer(params: HandlerParams): Promise<HandlerResult> {
+    const { user, incomingText, normalizedQuery, initialDialogueState, tone, userIdStr, greeting, enrichedReport } = params;
+    const handlerTag = "[_handleAskBestPerformer v1.1 - Corrected Formatting]";
+    logger.debug(`${handlerTag} Iniciando...`);
+
+    if (!enrichedReport) {
+        logger.error(`${handlerTag} Erro: enrichedReport não fornecido.`);
+        throw new Error("Relatório de dados não disponível para análise.");
+    }
+
+    // 1. Extract target metric info
+    const { field: targetMetricField, avgField: targetAvgField, friendlyName: targetMetricFriendlyName } = extractMetricForAnalysis(normalizedQuery);
+    // Determine the field to sort by (prefer diff percentage for ranking 'best')
+    const sortField = targetMetricField?.endsWith('DiffPercentage') ? targetMetricField : 'shareDiffPercentage';
+    const sortFriendlyName = METRIC_FIELD_TO_FRIENDLY_NAME[sortField] || 'Desempenho Relativo';
+
+    logger.debug(`${handlerTag} Analisando melhor performance para métrica: ${targetMetricFriendlyName} (Sorteando por: ${sortFriendlyName} / Campo: ${sortField})`);
+
+    // 2. Analyze Data (Using proposalStats as primary source for "type")
+    let bestPerformerName = "N/A";
+    let bestPerformerAvgValueStr = "N/A";
+    let bestPerformerDiffValue: number | null | undefined = undefined;
+
+    const statsToAnalyze = enrichedReport.proposalStats?.filter(stat => stat && stat.count >= 1);
+
+    if (statsToAnalyze && statsToAnalyze.length > 0) {
+        // Sort based on the determined sortField
+        statsToAnalyze.sort((a, b) => {
+             const valA = (a[sortField as keyof ProposalStat] as number | null | undefined) ?? -Infinity;
+             const valB = (b[sortField as keyof ProposalStat] as number | null | undefined) ?? -Infinity;
+             return valB - valA; // Descending order
+        });
+
+        const bestStat = statsToAnalyze[0];
+
+        if (bestStat) {
+            bestPerformerName = bestStat._id?.proposal || "Desconhecida";
+
+            // Attempt to get the specific average value related to the query
+            const avgFieldToUse = targetAvgField || (sortField.startsWith('avg') ? sortField : null);
+            if (avgFieldToUse) {
+                const avgValue = bestStat[avgFieldToUse as keyof ProposalStat] as number | null | undefined;
+                if (avgValue !== null && avgValue !== undefined) {
+                     const precision = (avgFieldToUse === 'avgAlcance') ? 0 : 1;
+                     bestPerformerAvgValueStr = formatNumericMetric(avgValue, precision);
+                }
+            }
+
+            // Attempt to get the specific diff percentage related to the query
+            const diffFieldToUse = targetMetricField?.endsWith('DiffPercentage') ? targetMetricField : sortField.endsWith('DiffPercentage') ? sortField : null;
+             if (diffFieldToUse) {
+                 bestPerformerDiffValue = bestStat[diffFieldToUse as keyof ProposalStat] as number | null | undefined;
+             }
+             // If no specific diff% field found, try to find corresponding diff for avg field
+             else if (avgFieldToUse) {
+                  const correspondingDiffField = Object.keys(bestStat).find(key => key.startsWith(avgFieldToUse.replace('avg','').toLowerCase().substring(0,4)) && key.endsWith('DiffPercentage')) as keyof ProposalStat | undefined;
+                  if (correspondingDiffField) {
+                      bestPerformerDiffValue = bestStat[correspondingDiffField] as number | null | undefined;
+                  }
+             }
+        }
+    }
+
+    // 3. Format Response based on user example ("X é recordista em Y com [Média Real] em média, [+Z%] a mais que a média geral.")
+    let insight: string;
+    let followUp: string;
+
+    if (bestPerformerName !== "N/A") {
+        const diffFormatted = (bestPerformerDiffValue !== null && bestPerformerDiffValue !== undefined)
+                              ? formatPercentageDiff(bestPerformerDiffValue) : null;
+
+        if (bestPerformerAvgValueStr !== "N/A" && diffFormatted && diffFormatted !== '(+0%)' && diffFormatted !== '(0%)' && diffFormatted !== '(-0%)') {
+            // Ideal case: Have average and meaningful diff
+             insight = `- **${bestPerformerName}** é o destaque em ${targetMetricFriendlyName}, com **${bestPerformerAvgValueStr}** em média, ${diffFormatted.replace(/[()]/g,'')} em relação à média geral.`;
+             followUp = `Quer explorar ideias de conteúdo para ${bestPerformerName}?`;
+        } else if (bestPerformerAvgValueStr !== "N/A") {
+            // Case: Have average but no meaningful diff
+             insight = `- Em termos de ${targetMetricFriendlyName}, **${bestPerformerName}** se destaca com uma média de **${bestPerformerAvgValueStr}**.`;
+             followUp = `Quer explorar ideias de conteúdo para ${bestPerformerName}?`;
+        } else if (diffFormatted && diffFormatted !== '(+0%)' && diffFormatted !== '(0%)' && diffFormatted !== '(-0%)') {
+            // Case: Have meaningful diff but no average (or avg wasn't requested/found)
+             insight = `- **${bestPerformerName}** se destaca em ${targetMetricFriendlyName}, apresentando um desempenho **${diffFormatted.replace(/[()]/g,'')}** em relação à média geral.`;
+             followUp = `Quer explorar ideias de conteúdo para ${bestPerformerName}?`;
+        } else {
+            // Case: No meaningful data found for the best performer
+             insight = `- Encontrei **${bestPerformerName}** como um tipo de conteúdo frequente, mas não identifiquei um desempenho excepcional claro em ${targetMetricFriendlyName} nos dados recentes.`;
+             followUp = `Quer ver o ranking completo ou tentar um plano de conteúdo geral?`;
+        }
+    } else {
+        // Case: No performer found at all
+        insight = `- Não consegui identificar um destaque claro para ${targetMetricFriendlyName} nos dados recentes.`;
+        followUp = `Quer ver o ranking completo ou tentar um plano de conteúdo geral?`;
+    }
+
+
+    const aiCoreResponse = insight;
+    const finalResponseString = generateDirectInsightResponse(insight, followUp, user.name || "usuário");
+
+    // 4. Set Next State
+    let nextState: IDialogueState = { ...initialDialogueState, lastInteraction: Date.now(), recentPlanIdeas: null, recentPlanTimestamp: undefined, lastOfferedScriptIdea: null };
+     const { finalResponse, greetingAdded } = await addGreetingAndGraph(finalResponseString, userIdStr, greeting, nextState);
+     if (greetingAdded) {
+         nextState.lastGreetingSent = Date.now();
+     }
+
+    return { aiCoreResponse, nextDialogueState: nextState, finalResponseString: finalResponse };
+}
+
+/**
+ * Handler for ASK_BEST_TIME intent (v1.1 - Structured Fallback)
+ */
+async function _handleAskBestTime(params: HandlerParams): Promise<HandlerResult> {
+    // (Mantida como na v3.38 - com correção normalizeTextInput)
+    const { user, incomingText, normalizedQuery, initialDialogueState, tone, userIdStr, greeting, enrichedReport } = params;
+    const handlerTag = "[_handleAskBestTime v1.1 - Structured Fallback]";
+    logger.debug(`${handlerTag} Iniciando...`);
+
+     if (!enrichedReport) {
+        logger.error(`${handlerTag} Erro: enrichedReport não fornecido.`);
+        throw new Error("Relatório de dados não disponível para análise.");
+    }
+
+    // 1. Extract Target Strategy/Proposal and Goal (Simplified)
+    let targetStrategy = "esse tipo de conteúdo";
+    let targetGoal = "engajamento";
+    let goalMetric: keyof ProposalStat | null = "shareDiffPercentage";
+
+    const proposalMatch = normalizedQuery.match(/quando postar (.*?)(?: para |$)/);
+    if (proposalMatch && proposalMatch[1]) {
+        const extractedStrategyNormalized = normalizeTextInput(proposalMatch[1].trim()); // Use alias
+         const foundStat = enrichedReport.proposalStats?.find(p => normalizeTextInput(p._id?.proposal || '') === extractedStrategyNormalized); // Use alias
+         if (foundStat && foundStat._id?.proposal) {
+             targetStrategy = foundStat._id.proposal;
+         } else {
+             targetStrategy = proposalMatch[1].trim();
+             logger.warn(`${handlerTag} Estratégia "${targetStrategy}" mencionada não encontrada nos dados.`);
+         }
+    }
+    if (normalizedQuery.includes("ganhar seguidor")) {
+        targetGoal = "ganhar seguidores";
+        goalMetric = "shareDiffPercentage";
+    } else if (normalizedQuery.includes("mais alcance")) {
+         targetGoal = "aumentar o alcance";
+         goalMetric = "reachDiffPercentage";
+    }
+
+    // 2. Check for Day-of-Week Data (Assume Unavailable)
+    // *** SET THIS TO TRUE AND IMPLEMENT LOGIC BELOW WHEN DATA IS AVAILABLE ***
+    const DAY_OF_WEEK_DATA_AVAILABLE = false;
+    if (!DAY_OF_WEEK_DATA_AVAILABLE) {
+        logger.warn(`${handlerTag} Análise por dia da semana NÃO IMPLEMENTADA/disponível. Usando fallback.`);
+    }
+
+    // 3. Generate Response
+    let insight: string;
+    let followUp: string;
+
+    if (DAY_OF_WEEK_DATA_AVAILABLE) {
+        // --- Placeholder for Day-of-Week Analysis ---
+        logger.warn(`${handlerTag} Bloco de análise por dia atingido, mas não implementado!`);
+        // TODO: Implement this logic when day-of-week data is available in enrichedReport.
+        insight = `- Análise por dia da semana para **${targetStrategy}** ainda em desenvolvimento.`;
+        followUp = `Quer um plano de conteúdo geral para ${targetStrategy}?`;
+        // --- End Placeholder ---
+    } else {
+        // Fallback logic
+        const strategyStat = enrichedReport.proposalStats?.find(p => normalizeTextInput(p._id?.proposal || '') === normalizeTextInput(targetStrategy)); // Use alias
+        let performanceInfo = "";
+        if (strategyStat && goalMetric) {
+             const metricValue = strategyStat[goalMetric] as number | null | undefined;
+             const friendlyMetricName = METRIC_FIELD_TO_FRIENDLY_NAME[goalMetric] || goalMetric;
+             if (metricValue !== null && metricValue !== undefined) {
+                 if (goalMetric.endsWith('DiffPercentage')) {
+                    const diffFormatted = formatPercentageDiff(metricValue); // *** USES IMPORTED FUNCTION ***
+                     if (diffFormatted && diffFormatted !== '(+0%)' && diffFormatted !== '(0%)' && diffFormatted !== '(-0%)') {
+                         performanceInfo = ` (historicamente tem bom desempenho relativo de ${friendlyMetricName}: ${diffFormatted})`;
+                     }
+                 } else {
+                     const avgValueFormatted = formatNumericMetric(metricValue); // *** USES IMPORTED FUNCTION ***
+                     if (avgValueFormatted !== "N/A") {
+                         performanceInfo = ` (costuma ter boa média de ${friendlyMetricName}: ${avgValueFormatted})`;
+                     }
+                 }
+             }
+        }
+
+        if (targetGoal === "ganhar seguidores") {
+            insight = `- Para ${targetGoal}, você precisa aumentar seus compartilhamentos pra ter mais alcance de não seguidores${performanceInfo}. No momento, não tenho dados por dia da semana para indicar os melhores dias exatos para **${targetStrategy}**.`;
+        } else {
+            insight = `- Para ${targetGoal} com **${targetStrategy}**${performanceInfo}, o ideal é focar na consistência e qualidade. Ainda não consigo analisar o melhor dia da semana específico para postar.`;
+        }
+        followUp = `Recomendo testar em dias diferentes e observar seus Insights. Quer um plano de conteúdo com foco em ${targetStrategy}?`;
+    }
+
+
+    const aiCoreResponse = insight;
+    const finalResponseString = generateDirectInsightResponse(insight, followUp, user.name || "usuário");
+
+    // 4. Set Next State
+    let nextState: IDialogueState = { ...initialDialogueState, lastInteraction: Date.now(), recentPlanIdeas: null, recentPlanTimestamp: undefined, lastOfferedScriptIdea: null };
+    const { finalResponse, greetingAdded } = await addGreetingAndGraph(finalResponseString, userIdStr, greeting, nextState);
+    if (greetingAdded) {
+        nextState.lastGreetingSent = Date.now();
+    }
+
+    return { aiCoreResponse, nextDialogueState: nextState, finalResponseString: finalResponse };
+}
+
+// =========================================================================
+// <<< FIM: NOVOS HANDLERS E HELPERS ANALÍTICOS >>>
+// =========================================================================
+
+
+/** Handler para a intenção script_request */
 async function _handleScriptRequest(params: HandlerParams): Promise<HandlerResult> {
+    // (Mantida como na v1.5 - Proactive Logic)
     const { user, incomingText, normalizedQuery, promptHistoryForAI, conversationHistory, initialDialogueState, tone, userIdStr, greeting, enrichedReport } = params;
     const scriptFlowTag = "[_handleScriptRequest v1.5 - Proactive Logic]";
     logger.debug(`${scriptFlowTag} Iniciando...`);
-
-    let sourceDescription: string | undefined;
-    let sourceProposal: string | undefined;
-    let sourceContext: string | undefined;
-    let scriptSourceFound = false;
-    let finalClarificationMessage: string | null = null;
-    // Start with initial state, update as needed, ensure lastInteraction is set
-    let nextState: IDialogueState = { ...initialDialogueState, lastInteraction: Date.now() };
-
+    let sourceDescription: string | undefined; let sourceProposal: string | undefined; let sourceContext: string | undefined; let scriptSourceFound = false; let finalClarificationMessage: string | null = null; let nextState: IDialogueState = { ...initialDialogueState, lastInteraction: Date.now() };
     logger.debug(`${scriptFlowTag} Estado inicial recebido:`, initialDialogueState);
-
-    // 1. Try finding explicit source (post reference)
     logger.debug(`${scriptFlowTag} Tentando extrair referência explícita...`);
     const referenceResult = await dataService.extractReferenceAndFindPost(incomingText, user._id);
-    if (referenceResult.status === 'found' && referenceResult.post) {
-        if (referenceResult.post.description) {
-            logger.info(`${scriptFlowTag} Fonte explícita encontrada: Post ID ${referenceResult.post._id}`);
-            sourceDescription = referenceResult.post.description;
-            sourceProposal = referenceResult.post.proposal;
-            sourceContext = referenceResult.post.context;
-            scriptSourceFound = true;
-        } else {
-            logger.warn(`${scriptFlowTag} Post ${referenceResult.post._id} encontrado, mas sem descrição.`);
-            finalClarificationMessage = 'Encontrei o post que você mencionou, mas ele parece não ter uma descrição para eu poder analisar e criar o roteiro. 🤔';
-        }
-    } else if (referenceResult.status === 'error') {
-        logger.error(`${scriptFlowTag} Erro de dataService ao buscar referência: ${referenceResult.message}`);
-        // Preserve state before throwing
-        nextState = { ...nextState, recentPlanIdeas: initialDialogueState.recentPlanIdeas, recentPlanTimestamp: initialDialogueState.recentPlanTimestamp, lastOfferedScriptIdea: initialDialogueState.lastOfferedScriptIdea };
-        await updateDialogueState(userIdStr, nextState); // Attempt to save state before erroring
-        throw new DatabaseError(referenceResult.message || "Desculpe, tive um problema ao buscar a referência do seu post.");
-    } else {
-        logger.debug(`${scriptFlowTag} Referência explícita não encontrada ou ambígua. Status: ${referenceResult.status}`);
-        if (referenceResult.status === 'clarify' && referenceResult.message) {
-            finalClarificationMessage = referenceResult.message;
-        }
-    }
-
-    // 2. Try finding contextual source (recent plan)
-    if (!scriptSourceFound) {
-        logger.debug(`${scriptFlowTag} Verificando contexto de plano recente no estado...`);
-        const recentIdeas = initialDialogueState.recentPlanIdeas;
-        const planTimestamp = initialDialogueState.recentPlanTimestamp;
-        logger.debug(`${scriptFlowTag} Contexto do plano no estado:`, { hasIdeas: !!recentIdeas, count: recentIdeas?.length, timestamp: planTimestamp });
-
-        if (recentIdeas && recentIdeas.length > 0 && planTimestamp) {
-            const planAgeMinutes = (Date.now() - planTimestamp) / (1000 * 60);
-            if (planAgeMinutes < MAX_PLAN_CONTEXT_AGE_MINUTES) {
-                const matchedItem = findPlanItemByUserInput(incomingText, recentIdeas);
-                if (matchedItem) {
-                    logger.info(`${scriptFlowTag} Fonte contextual (plano) encontrada: Identifier='${matchedItem.identifier}'`);
-                    sourceDescription = matchedItem.description;
-                    sourceProposal = matchedItem.proposal;
-                    sourceContext = matchedItem.context;
-                    scriptSourceFound = true;
-                    nextState.recentPlanIdeas = null; // Clear used context
-                    nextState.recentPlanTimestamp = undefined;
-                }
-            } else {
-                logger.debug(`${scriptFlowTag} Contexto do plano antigo (>${MAX_PLAN_CONTEXT_AGE_MINUTES} min). Limpando.`);
-                nextState.recentPlanIdeas = null;
-                nextState.recentPlanTimestamp = undefined;
-            }
-        } else {
-            logger.debug(`${scriptFlowTag} Nenhum contexto de plano válido no estado.`);
-        }
-    }
-
-    // 3. Try finding contextual source (accepted proactive offer)
-    if (!scriptSourceFound) {
-        logger.debug(`${scriptFlowTag} Verificando última oferta proativa de roteiro no estado...`);
-        const offeredContext = initialDialogueState.lastOfferedScriptIdea;
-        logger.debug(`${scriptFlowTag} Contexto da oferta no estado:`, offeredContext);
-
-        if (offeredContext && offeredContext.timestamp) {
-            const offerAgeMinutes = (Date.now() - offeredContext.timestamp) / (1000 * 60);
-            logger.debug(`${scriptFlowTag} Idade da oferta: ${offerAgeMinutes.toFixed(1)} min (Max: ${MAX_OFFERED_SCRIPT_CONTEXT_AGE_MINUTES})`);
-            if (offerAgeMinutes < MAX_OFFERED_SCRIPT_CONTEXT_AGE_MINUTES) {
-                 if (isSimpleConfirmation(normalizedQuery)) {
-                    logger.info(`${scriptFlowTag} Contexto de oferta proativa válido e input é confirmação. Usando como fonte.`);
-                    // Prioritize original source if available
-                    if (offeredContext.originalSource?.description) {
-                        sourceDescription = offeredContext.originalSource.description;
-                        sourceProposal = offeredContext.originalSource.proposal;
-                        sourceContext = offeredContext.originalSource.context;
-                        logger.debug(`${scriptFlowTag} Usando fonte original da oferta: "${sourceDescription.substring(0,50)}..."`);
-                    } else {
-                        sourceDescription = offeredContext.aiGeneratedIdeaDescription;
-                        sourceProposal = undefined; // Cannot infer from AI description alone
-                        sourceContext = undefined;
-                        logger.debug(`${scriptFlowTag} Usando descrição gerada pela IA da oferta: "${sourceDescription.substring(0,50)}..."`);
-                    }
-                    scriptSourceFound = true;
-                    nextState.lastOfferedScriptIdea = null; // Clear used context
-                 } else {
-                     logger.debug(`${scriptFlowTag} Contexto de oferta recente, mas input não é confirmação simples. Mantendo oferta no estado.`);
-                     // Keep the offer in the state if not explicitly accepted/rejected by non-confirmation
-                     nextState.lastOfferedScriptIdea = initialDialogueState.lastOfferedScriptIdea;
-                 }
-            } else {
-                logger.debug(`${scriptFlowTag} Contexto de oferta proativa encontrado, mas muito antigo. Limpando.`);
-                 nextState.lastOfferedScriptIdea = null; // Clear expired context
-            }
-        } else {
-            logger.debug(`${scriptFlowTag} Nenhuma oferta proativa válida encontrada no estado.`);
-            nextState.lastOfferedScriptIdea = null; // Ensure it's null if not found
-        }
-    }
-
-    // --- START: New Proactive Logic Block ---
-    if (!scriptSourceFound) {
-        const isProactiveTrigger = containsDayOfWeek(normalizedQuery) || isGenericScriptRequest(normalizedQuery);
-        logger.debug(`${scriptFlowTag} Verificando gatilho proativo: ${isProactiveTrigger}`);
-
-        if (isProactiveTrigger) {
-            // Ensure we have report data (should have been fetched by processMainAIRequest)
-            if (!enrichedReport) {
-                logger.error(`${scriptFlowTag} Erro Crítico: Lógica proativa de roteiro requer enrichedReport, mas não foi fornecido. Verifique processMainAIRequest.`);
-                // Handle this critical error - maybe throw or return a specific error message
-                throw new Error("Relatório de dados não disponível para roteiro proativo.");
-            }
-
-            const targetDay = extractDayOfWeek(normalizedQuery);
-            logger.debug(`${scriptFlowTag} Tentando análise proativa. Dia alvo: ${targetDay}`);
-
-            // Find the best combination (prioritizes overall best for now)
-            const bestCombination = await findBestCombinationForScript(enrichedReport, targetDay);
-
-            if (bestCombination) {
-                // Description is already validated within findBestCombinationForScript
-                logger.info(`${scriptFlowTag} Melhor combinação proativa encontrada: P='${bestCombination._id.proposal}', C='${bestCombination._id.context}'`);
-                sourceDescription = bestCombination.bestPostInGroup!.description!; // Non-null assertion based on filter
-                sourceProposal = bestCombination._id.proposal;
-                sourceContext = bestCombination._id.context;
-                scriptSourceFound = true;
-                logger.info(`${scriptFlowTag} Usando descrição do bestPostInGroup para roteiro proativo.`);
-                // Clear potentially lingering context from previous steps if proactive is used
-                nextState.recentPlanIdeas = null;
-                nextState.recentPlanTimestamp = undefined;
-                nextState.lastOfferedScriptIdea = null;
-            } else {
-                logger.warn(`${scriptFlowTag} Nenhuma combinação adequada encontrada na análise proativa.`);
-                // Proactive analysis was triggered but failed to find a source
-                const overallBest = await findBestCombinationForScript(enrichedReport, null); // Find overall best as fallback suggestion
-                const suggestion = overallBest?.bestPostInGroup?.description // Check if overall best has description
-                    ? `Que tal criarmos um roteiro baseado na sua combinação de maior sucesso geral: **${overallBest._id.proposal || 'N/A'}** sobre **${overallBest._id.context || 'N/A'}**?`
-                    : "Você prefere me dar uma ideia ou tema específico?";
-                const dayMentioned = targetDay ? `para ${targetDay.charAt(0).toUpperCase() + targetDay.slice(1)} ` : "";
-                finalClarificationMessage = `Não encontrei dados específicos ${dayMentioned}no seu histórico recente para basear um roteiro proativo. 😕 ${suggestion}`;
-                logger.info(`${scriptFlowTag} Análise proativa falhou. Definindo mensagem de clarificação específica.`);
-                // Clear context as proactive failed
-                nextState.recentPlanIdeas = null;
-                nextState.recentPlanTimestamp = undefined;
-                nextState.lastOfferedScriptIdea = null;
-            }
-        } else {
-             logger.debug(`${scriptFlowTag} Não é um gatilho proativo.`);
-             // If not proactive trigger and no source found yet, ensure context is cleared if expired
-             if (nextState.recentPlanTimestamp && (Date.now() - nextState.recentPlanTimestamp) / (1000 * 60) > MAX_PLAN_CONTEXT_AGE_MINUTES) {
-                 nextState.recentPlanIdeas = null;
-                 nextState.recentPlanTimestamp = undefined;
-             }
-             if (nextState.lastOfferedScriptIdea?.timestamp && (Date.now() - nextState.lastOfferedScriptIdea.timestamp) / (1000 * 60) > MAX_OFFERED_SCRIPT_CONTEXT_AGE_MINUTES) {
-                 nextState.lastOfferedScriptIdea = null;
-             }
-        }
-    }
-    // --- END: New Proactive Logic Block ---
-
-    // 4. Final Decision: Generate Script or Clarify
+    if (referenceResult.status === 'found' && referenceResult.post) { if (referenceResult.post.description) { logger.info(`${scriptFlowTag} Fonte explícita encontrada: Post ID ${referenceResult.post._id}`); sourceDescription = referenceResult.post.description; sourceProposal = referenceResult.post.proposal; sourceContext = referenceResult.post.context; scriptSourceFound = true; } else { logger.warn(`${scriptFlowTag} Post ${referenceResult.post._id} encontrado, mas sem descrição.`); finalClarificationMessage = 'Encontrei o post que você mencionou, mas ele parece não ter uma descrição para eu poder analisar e criar o roteiro. 🤔'; } } else if (referenceResult.status === 'error') { logger.error(`${scriptFlowTag} Erro de dataService ao buscar referência: ${referenceResult.message}`); nextState = { ...nextState, recentPlanIdeas: initialDialogueState.recentPlanIdeas, recentPlanTimestamp: initialDialogueState.recentPlanTimestamp, lastOfferedScriptIdea: initialDialogueState.lastOfferedScriptIdea }; await updateDialogueState(userIdStr, nextState); throw new DatabaseError(referenceResult.message || "Desculpe, tive um problema ao buscar a referência do seu post."); } else { logger.debug(`${scriptFlowTag} Referência explícita não encontrada ou ambígua. Status: ${referenceResult.status}`); if (referenceResult.status === 'clarify' && referenceResult.message) { finalClarificationMessage = referenceResult.message; } }
+    if (!scriptSourceFound) { logger.debug(`${scriptFlowTag} Verificando contexto de plano recente no estado...`); const recentIdeas = initialDialogueState.recentPlanIdeas; const planTimestamp = initialDialogueState.recentPlanTimestamp; logger.debug(`${scriptFlowTag} Contexto do plano no estado:`, { hasIdeas: !!recentIdeas, count: recentIdeas?.length, timestamp: planTimestamp }); if (recentIdeas && recentIdeas.length > 0 && planTimestamp) { const planAgeMinutes = (Date.now() - planTimestamp) / (1000 * 60); if (planAgeMinutes < MAX_PLAN_CONTEXT_AGE_MINUTES) { const matchedItem = findPlanItemByUserInput(incomingText, recentIdeas); if (matchedItem) { logger.info(`${scriptFlowTag} Fonte contextual (plano) encontrada: Identifier='${matchedItem.identifier}'`); sourceDescription = matchedItem.description; sourceProposal = matchedItem.proposal; sourceContext = matchedItem.context; scriptSourceFound = true; nextState.recentPlanIdeas = null; nextState.recentPlanTimestamp = undefined; } } else { logger.debug(`${scriptFlowTag} Contexto do plano antigo. Limpando.`); nextState.recentPlanIdeas = null; nextState.recentPlanTimestamp = undefined; } } else { logger.debug(`${scriptFlowTag} Nenhum contexto de plano válido no estado.`); } }
+    if (!scriptSourceFound) { logger.debug(`${scriptFlowTag} Verificando última oferta proativa de roteiro no estado...`); const offeredContext = initialDialogueState.lastOfferedScriptIdea; logger.debug(`${scriptFlowTag} Contexto da oferta no estado:`, offeredContext); if (offeredContext && offeredContext.timestamp) { const offerAgeMinutes = (Date.now() - offeredContext.timestamp) / (1000 * 60); logger.debug(`${scriptFlowTag} Idade da oferta: ${offerAgeMinutes.toFixed(1)} min`); if (offerAgeMinutes < MAX_OFFERED_SCRIPT_CONTEXT_AGE_MINUTES) { if (isSimpleConfirmation(normalizedQuery)) { logger.info(`${scriptFlowTag} Contexto de oferta proativa válido e input é confirmação.`); if (offeredContext.originalSource?.description) { sourceDescription = offeredContext.originalSource.description; sourceProposal = offeredContext.originalSource.proposal; sourceContext = offeredContext.originalSource.context; logger.debug(`${scriptFlowTag} Usando fonte original da oferta.`); } else { sourceDescription = offeredContext.aiGeneratedIdeaDescription; sourceProposal = undefined; sourceContext = undefined; logger.debug(`${scriptFlowTag} Usando descrição gerada pela IA da oferta.`); } scriptSourceFound = true; nextState.lastOfferedScriptIdea = null; } else { logger.debug(`${scriptFlowTag} Contexto de oferta recente, mas input não é confirmação simples.`); nextState.lastOfferedScriptIdea = initialDialogueState.lastOfferedScriptIdea; } } else { logger.debug(`${scriptFlowTag} Contexto de oferta proativa antigo. Limpando.`); nextState.lastOfferedScriptIdea = null; } } else { logger.debug(`${scriptFlowTag} Nenhuma oferta proativa válida encontrada.`); nextState.lastOfferedScriptIdea = null; } }
+    if (!scriptSourceFound) { const isProactiveTrigger = containsDayOfWeek(normalizedQuery) || isGenericScriptRequest(normalizedQuery); logger.debug(`${scriptFlowTag} Verificando gatilho proativo: ${isProactiveTrigger}`); if (isProactiveTrigger) { if (!enrichedReport) { logger.error(`${scriptFlowTag} Erro Crítico: Lógica proativa requer enrichedReport.`); throw new Error("Relatório de dados não disponível para roteiro proativo."); } const targetDay = extractDayOfWeek(normalizedQuery); logger.debug(`${scriptFlowTag} Tentando análise proativa. Dia alvo: ${targetDay}`); const bestCombination = await findBestCombinationForScript(enrichedReport, targetDay); if (bestCombination) { logger.info(`${scriptFlowTag} Melhor combinação proativa encontrada: P='${bestCombination._id.proposal}', C='${bestCombination._id.context}'`); sourceDescription = bestCombination.bestPostInGroup!.description!; sourceProposal = bestCombination._id.proposal; sourceContext = bestCombination._id.context; scriptSourceFound = true; logger.info(`${scriptFlowTag} Usando descrição do bestPostInGroup para roteiro proativo.`); nextState.recentPlanIdeas = null; nextState.recentPlanTimestamp = undefined; nextState.lastOfferedScriptIdea = null; } else { logger.warn(`${scriptFlowTag} Nenhuma combinação adequada encontrada na análise proativa.`); const overallBest = await findBestCombinationForScript(enrichedReport, null); const suggestion = overallBest?.bestPostInGroup?.description ? `Que tal criarmos um roteiro baseado na sua combinação de maior sucesso geral: **${overallBest._id.proposal || 'N/A'}** sobre **${overallBest._id.context || 'N/A'}**?` : "Você prefere me dar uma ideia ou tema específico?"; const dayMentioned = targetDay ? `para ${targetDay.charAt(0).toUpperCase() + targetDay.slice(1)} ` : ""; finalClarificationMessage = `Não encontrei dados específicos ${dayMentioned}no seu histórico recente para basear um roteiro proativo. 😕 ${suggestion}`; logger.info(`${scriptFlowTag} Análise proativa falhou. Definindo mensagem de clarificação específica.`); nextState.recentPlanIdeas = null; nextState.recentPlanTimestamp = undefined; nextState.lastOfferedScriptIdea = null; } } else { logger.debug(`${scriptFlowTag} Não é um gatilho proativo.`); if (nextState.recentPlanTimestamp && (Date.now() - nextState.recentPlanTimestamp) / (1000 * 60) > MAX_PLAN_CONTEXT_AGE_MINUTES) { nextState.recentPlanIdeas = null; nextState.recentPlanTimestamp = undefined; } if (nextState.lastOfferedScriptIdea?.timestamp && (Date.now() - nextState.lastOfferedScriptIdea.timestamp) / (1000 * 60) > MAX_OFFERED_SCRIPT_CONTEXT_AGE_MINUTES) { nextState.lastOfferedScriptIdea = null; } } }
     logger.debug(`${scriptFlowTag} Decisão final: scriptSourceFound=${scriptSourceFound}, sourceDescription=${!!sourceDescription}`);
-    if (scriptSourceFound && sourceDescription) {
-        logger.info(`${scriptFlowTag} Fonte final encontrada. Gerando prompt de roteiro...`);
-        // Ensure proposal/context are strings or undefined
-        const finalSourceProposal = typeof sourceProposal === 'string' ? sourceProposal : undefined;
-        const finalSourceContext = typeof sourceContext === 'string' ? sourceContext : undefined;
-
-        const prompt = generateScriptInstructions(
-            user.name || "usuário",
-            sourceDescription,
-            finalSourceProposal,
-            finalSourceContext,
-            promptHistoryForAI,
-            tone,
-            incomingText // Pass original user message for context in prompt
-        );
-        const aiCoreResponse = await callAIWithResilience(prompt);
-
-        // Add greeting if needed, update lastGreetingSent in nextState
-        const { finalResponse, greetingAdded } = await addGreetingAndGraph(aiCoreResponse, userIdStr, greeting, nextState);
-        if (greetingAdded) {
-            nextState.lastGreetingSent = Date.now();
-        }
-
-        logger.debug(`${scriptFlowTag} Roteiro gerado pela IA OK.`);
-        // Ensure lastInteraction is updated
-        nextState.lastInteraction = Date.now();
-        return { aiCoreResponse, nextDialogueState: nextState, finalResponseString: finalResponse };
-
-    } else {
-        logger.info(`${scriptFlowTag} Fonte não encontrada ou inválida. Retornando clarificação.`);
-        // Use the specific message if proactive failed, otherwise use the default/reference clarification
-        const response = finalClarificationMessage ?? "Não consegui identificar exatamente sobre qual ideia você quer o roteiro. Pode me dar uma referência mais clara?";
-
-        // Add greeting if needed, update lastGreetingSent in nextState
-        // IMPORTANT: Preserve relevant context if clarification is needed (e.g., keep plan ideas if asking about them)
-        // The current logic clears context when proactive logic runs and finds something OR fails.
-        // If clarification is the *standard* one (not the proactive failure one), we might need to preserve context.
-        // Let's stick to the state as modified by the logic above for now.
-        const { finalResponse: finalClarificationWithGreeting, greetingAdded } = await addGreetingAndGraph(response, userIdStr, greeting, nextState);
-        if (greetingAdded) {
-            nextState.lastGreetingSent = Date.now();
-        }
-        // Ensure lastInteraction is updated
-        nextState.lastInteraction = Date.now();
-        return { aiCoreResponse: response, nextDialogueState: nextState, finalResponseString: finalClarificationWithGreeting };
-    }
+    if (scriptSourceFound && sourceDescription) { logger.info(`${scriptFlowTag} Fonte final encontrada. Gerando prompt de roteiro...`); const finalSourceProposal = typeof sourceProposal === 'string' ? sourceProposal : undefined; const finalSourceContext = typeof sourceContext === 'string' ? sourceContext : undefined;
+        // *** CORREÇÃO APLICADA AQUI (v3.40) ***
+        const prompt = importedGenerateScriptInstructions( user.name || "usuário", sourceDescription, finalSourceProposal, finalSourceContext, promptHistoryForAI, tone, incomingText );
+        const aiCoreResponse = await callAIWithResilience(prompt); const { finalResponse, greetingAdded } = await addGreetingAndGraph(aiCoreResponse, userIdStr, greeting, nextState); if (greetingAdded) { nextState.lastGreetingSent = Date.now(); } logger.debug(`${scriptFlowTag} Roteiro gerado pela IA OK.`); nextState.lastInteraction = Date.now(); return { aiCoreResponse, nextDialogueState: nextState, finalResponseString: finalResponse }; }
+    else { logger.info(`${scriptFlowTag} Fonte não encontrada ou inválida. Retornando clarificação.`); const response = finalClarificationMessage ?? "Não consegui identificar exatamente sobre qual ideia você quer o roteiro. Pode me dar uma referência mais clara?"; const { finalResponse: finalClarificationWithGreeting, greetingAdded } = await addGreetingAndGraph(response, userIdStr, greeting, nextState); if (greetingAdded) { nextState.lastGreetingSent = Date.now(); } nextState.lastInteraction = Date.now(); return { aiCoreResponse: response, nextDialogueState: nextState, finalResponseString: finalClarificationWithGreeting }; }
 }
 
 
 /** Handler para a intenção content_plan */
 async function _handleContentPlanRequest(params: HandlerParams): Promise<HandlerResult> {
+    // *** CORREÇÃO APLICADA AQUI (v3.40) ***
     const { user, incomingText, normalizedQuery, promptHistoryForAI, initialDialogueState, tone, userIdStr, greeting, enrichedReport } = params;
-    const planFlowTag = "[_handleContentPlanRequest v1.3 - Dynamic Metric]";
-    logger.debug(`${planFlowTag} Iniciando...`);
-    if (!enrichedReport) { throw new Error("Relatório enriquecido (enrichedReport) não foi fornecido para _handleContentPlanRequest. Verifique o fluxo de dados."); }
-    const { targetMetricField, friendlyName: targetMetricFriendlyName } = extractTargetMetricFocus(normalizedQuery);
-    let prompt: string;
-    let commonCombinationDataForPlan: { proposal: string; context: string; stat: DetailedContentStat } | null = null;
-    const reliableStats = (enrichedReport.detailedContentStats || []) .filter(stat => !!(stat && stat._id && stat.count >= 2)); // Require count >= 2 for planning reliability
-    if (reliableStats.length === 1) { const bestStat = reliableStats[0]!; commonCombinationDataForPlan = { proposal: bestStat._id.proposal || 'N/A', context: bestStat._id.context || 'N/A', stat: bestStat as DetailedContentStat }; } else if (reliableStats.length > 1) { const bestStat = reliableStats[0]!; const bestPCKey = `${bestStat._id.proposal || 'N/A'}|${bestStat._id.context || 'N/A'}`; const top3Keys = reliableStats.slice(0, 3).map(stat => `${stat._id.proposal || 'N/A'}|${stat._id.context || 'N/A'}`); if (top3Keys.filter(key => key === bestPCKey).length >= 2) { commonCombinationDataForPlan = { proposal: bestStat._id.proposal || 'N/A', context: bestStat._id.context || 'N/A', stat: bestStat as DetailedContentStat }; } }
-    if (commonCombinationDataForPlan) { prompt = generateGroupedContentPlanInstructions( user.name || "usuário", commonCombinationDataForPlan, enrichedReport, promptHistoryForAI, tone, incomingText, targetMetricField as keyof DetailedContentStat | null, targetMetricFriendlyName ); logger.info(`${planFlowTag} Usando prompt AGRUPADO (Foco: ${targetMetricFriendlyName ?? 'Padrão'}).`); } else { prompt = generateContentPlanInstructions( user.name || "usuário", enrichedReport, promptHistoryForAI, tone, incomingText, targetMetricField as keyof DetailedContentStat | null, targetMetricFriendlyName ); logger.info(`${planFlowTag} Usando prompt PADRÃO (Foco: ${targetMetricFriendlyName ?? 'Padrão'}).`); }
-    const aiCoreResponse = await callAIWithResilience(prompt);
-    const planContextToSave = parsePlanItemsFromResponse(aiCoreResponse);
-    let nextState: IDialogueState = { ...initialDialogueState, lastInteraction: Date.now(), recentPlanIdeas: null, recentPlanTimestamp: undefined, lastOfferedScriptIdea: null }; // Clear previous script offer on new plan
-    if (planContextToSave) { logger.info(`${planFlowTag} Contexto do plano com ${planContextToSave.length} itens extraído.`); nextState.recentPlanIdeas = planContextToSave; nextState.recentPlanTimestamp = Date.now(); } else { logger.warn(`${planFlowTag} Não foi possível extrair contexto do plano da resposta da IA (formato pode ser inesperado). O estado não será atualizado com 'recentPlanIdeas'.`); }
-    const { finalResponse, greetingAdded } = await addGreetingAndGraph(aiCoreResponse, userIdStr, greeting, nextState);
-    if (greetingAdded) { nextState.lastGreetingSent = Date.now(); }
-    return { aiCoreResponse, nextDialogueState: nextState, finalResponseString: finalResponse };
+    const planFlowTag = "[_handleContentPlanRequest v1.3 - Dynamic Metric]"; logger.debug(`${planFlowTag} Iniciando...`); if (!enrichedReport) { throw new Error("Relatório enriquecido não fornecido."); } const { targetMetricField, friendlyName: targetMetricFriendlyName } = extractTargetMetricFocus(normalizedQuery); let prompt: string; let commonCombinationDataForPlan: { proposal: string; context: string; stat: DetailedContentStat } | null = null; const reliableStats = (enrichedReport.detailedContentStats || []) .filter(stat => !!(stat && stat._id && stat.count >= 2)); if (reliableStats.length === 1) { const bestStat = reliableStats[0]!; commonCombinationDataForPlan = { proposal: bestStat._id.proposal || 'N/A', context: bestStat._id.context || 'N/A', stat: bestStat as DetailedContentStat }; } else if (reliableStats.length > 1) { const bestStat = reliableStats[0]!; const bestPCKey = `${bestStat._id.proposal || 'N/A'}|${bestStat._id.context || 'N/A'}`; const top3Keys = reliableStats.slice(0, 3).map(stat => `${stat._id.proposal || 'N/A'}|${stat._id.context || 'N/A'}`); if (top3Keys.filter(key => key === bestPCKey).length >= 2) { commonCombinationDataForPlan = { proposal: bestStat._id.proposal || 'N/A', context: bestStat._id.context || 'N/A', stat: bestStat as DetailedContentStat }; } }
+    if (commonCombinationDataForPlan) {
+        prompt = importedGenerateGroupedContentPlanInstructions( user.name || "usuário", commonCombinationDataForPlan, enrichedReport, promptHistoryForAI, tone, incomingText, targetMetricField as keyof DetailedContentStat | null, targetMetricFriendlyName ); logger.info(`${planFlowTag} Usando prompt AGRUPADO.`);
+    } else {
+        prompt = importedGenerateContentPlanInstructions( user.name || "usuário", enrichedReport, promptHistoryForAI, tone, incomingText, targetMetricField as keyof DetailedContentStat | null, targetMetricFriendlyName ); logger.info(`${planFlowTag} Usando prompt PADRÃO.`);
+    }
+    const aiCoreResponse = await callAIWithResilience(prompt); const planContextToSave = parsePlanItemsFromResponse(aiCoreResponse); let nextState: IDialogueState = { ...initialDialogueState, lastInteraction: Date.now(), recentPlanIdeas: null, recentPlanTimestamp: undefined, lastOfferedScriptIdea: null }; if (planContextToSave) { logger.info(`${planFlowTag} Contexto do plano com ${planContextToSave.length} itens extraído.`); nextState.recentPlanIdeas = planContextToSave; nextState.recentPlanTimestamp = Date.now(); } else { logger.warn(`${planFlowTag} Não foi possível extrair contexto do plano.`); } const { finalResponse, greetingAdded } = await addGreetingAndGraph(aiCoreResponse, userIdStr, greeting, nextState); if (greetingAdded) { nextState.lastGreetingSent = Date.now(); } return { aiCoreResponse, nextDialogueState: nextState, finalResponseString: finalResponse };
 }
 
 
 /** Handler para a intenção ranking_request */
 async function _handleRankingRequest(params: HandlerParams): Promise<HandlerResult> {
+    // *** CORREÇÃO APLICADA AQUI (v3.40) ***
      const { user, incomingText, promptHistoryForAI, initialDialogueState, tone, userIdStr, greeting, enrichedReport } = params;
-     const rankingFlowTag = "[_handleRankingRequest v1.1]";
-     logger.debug(`${rankingFlowTag} Iniciando...`);
-     if (!enrichedReport) { throw new Error("Relatório enriquecido não fornecido para _handleRankingRequest"); }
-     const prompt = generateRankingInstructions(user.name || "usuário", enrichedReport, promptHistoryForAI, tone, incomingText);
-     const aiCoreResponse = await callAIWithResilience(prompt);
-     // Preserve script offer context, clear plan context
-     let nextState: IDialogueState = { ...initialDialogueState, lastInteraction: Date.now(), recentPlanIdeas: null, recentPlanTimestamp: undefined, lastOfferedScriptIdea: initialDialogueState.lastOfferedScriptIdea };
-     const { finalResponse, greetingAdded } = await addGreetingAndGraph(aiCoreResponse, userIdStr, greeting, nextState);
-     if (greetingAdded) { nextState.lastGreetingSent = Date.now(); }
-     return { aiCoreResponse, nextDialogueState: nextState, finalResponseString: finalResponse };
+     const rankingFlowTag = "[_handleRankingRequest v1.1]"; logger.debug(`${rankingFlowTag} Iniciando...`); if (!enrichedReport) { throw new Error("Relatório enriquecido não fornecido."); }
+     const prompt = importedGenerateRankingInstructions(user.name || "usuário", enrichedReport, promptHistoryForAI, tone, incomingText); // Use alias
+     const aiCoreResponse = await callAIWithResilience(prompt); let nextState: IDialogueState = { ...initialDialogueState, lastInteraction: Date.now(), recentPlanIdeas: null, recentPlanTimestamp: undefined, lastOfferedScriptIdea: initialDialogueState.lastOfferedScriptIdea }; const { finalResponse, greetingAdded } = await addGreetingAndGraph(aiCoreResponse, userIdStr, greeting, nextState); if (greetingAdded) { nextState.lastGreetingSent = Date.now(); } return { aiCoreResponse, nextDialogueState: nextState, finalResponseString: finalResponse };
 }
 
 /** Handler para intenções gerais (general, report, content_ideas, etc.) */
 async function _handleGeneralRequest(params: HandlerParams, intent: string): Promise<HandlerResult> {
+    // *** CORREÇÃO APLICADA AQUI (v3.40) ***
     const { user, incomingText, promptHistoryForAI, initialDialogueState, tone, userIdStr, greeting, enrichedReport } = params;
-    const generalFlowTag = `[_handleGeneralRequest v1.7 - Intent: ${intent}]`;
-    logger.debug(`${generalFlowTag} Iniciando...`);
-    if (!enrichedReport) { throw new Error("Relatório enriquecido não fornecido para _handleGeneralRequest"); }
-    const prompt = generateAIInstructions(user.name || "usuário", enrichedReport, promptHistoryForAI, tone, incomingText);
-    const aiCoreResponse = await callAIWithResilience(prompt);
-    const originalAICoreResponseForSaving = aiCoreResponse; // Save original response before adding extras
-    let offeredScriptContextToSave: IDialogueState['lastOfferedScriptIdea'] = null;
-    try {
-        const proactiveContext = extractProactiveSuggestionContext(aiCoreResponse);
-        if (proactiveContext) {
-            logger.info(`${generalFlowTag} Contexto de oferta proativa (placeholder) extraído: "${proactiveContext.aiGeneratedIdeaDescription}"`);
-            let originalSourceData: OriginalSourceContext = null;
-            // Find the best performing detailed stat to use as potential source
-            const sortedDetailedStats = [...(enrichedReport.detailedContentStats || [])]
-                .filter(stat => stat && stat.count >= 1) // Ensure there's at least one post
-                .sort((a, b) => (b.shareDiffPercentage ?? -Infinity) - (a.shareDiffPercentage ?? -Infinity));
-            const topStat = sortedDetailedStats[0];
-            const bestPostCandidate = topStat?.bestPostInGroup;
-
-            if (isValidBestPostWithDescription(bestPostCandidate)) {
-                originalSourceData = {
-                    description: bestPostCandidate.description,
-                    proposal: topStat?._id?.proposal,
-                    context: topStat?._id?.context,
-                };
-                logger.info(`${generalFlowTag} Fonte original ('bestPostInGroup' do Top Stat) encontrada para oferta proativa: "${originalSourceData.description.substring(0,50)}..."`);
-            } else {
-                const bestPostExists = !!bestPostCandidate;
-                logger.warn(`${generalFlowTag} Não foi possível encontrar fonte original rica ('bestPostInGroup' ${bestPostExists ? 'sem descrição válida' : 'ausente no Top Stat'}) para oferta proativa.`);
-            }
-            offeredScriptContextToSave = {
-                aiGeneratedIdeaDescription: proactiveContext.aiGeneratedIdeaDescription,
-                originalSource: originalSourceData,
-                timestamp: Date.now()
-            };
-            logger.debug(`${generalFlowTag} Contexto de oferta a ser salvo:`, offeredScriptContextToSave);
-        } else {
-            logger.debug(`${generalFlowTag} Nenhum placeholder de oferta proativa encontrado na resposta da IA.`);
-        }
-    } catch (parseError) {
-        logger.error(`${generalFlowTag} Erro ao extrair/enriquecer contexto proativo:`, parseError);
-    }
-    // Clear plan context, set script offer context
-    let nextState: IDialogueState = { ...initialDialogueState, lastInteraction: Date.now(), recentPlanIdeas: null, recentPlanTimestamp: undefined, lastOfferedScriptIdea: offeredScriptContextToSave };
-
-    // Add Top/Bottom posts info
-    let postsInfo = "";
-    const topFormatted = formatPostListWithLinks(enrichedReport.top3Posts, "📈 Posts gerais que se destacaram:");
-    const bottomFormatted = formatPostListWithLinks(enrichedReport.bottom3Posts, "📉 Posts gerais com menor desempenho:");
-    if (topFormatted || bottomFormatted) {
-        postsInfo = `\n\n---\n**Posts gerais referência:**${topFormatted}${topFormatted && bottomFormatted ? '\n' : ''}${bottomFormatted}`;
-    }
-    const responseWithExtras = aiCoreResponse + postsInfo; // Append info to the AI's core response
-
-    const { finalResponse, greetingAdded } = await addGreetingAndGraph(responseWithExtras, userIdStr, greeting, nextState);
-    if (greetingAdded) {
-        nextState.lastGreetingSent = Date.now();
-    }
-    // Return the original AI response for history saving, but the enhanced one for the user
-    return { aiCoreResponse: originalAICoreResponseForSaving, nextDialogueState: nextState, finalResponseString: finalResponse };
+    const generalFlowTag = `[_handleGeneralRequest v1.7 - Intent: ${intent}]`; logger.debug(`${generalFlowTag} Iniciando...`); if (!enrichedReport) { throw new Error("Relatório enriquecido não fornecido."); }
+    const prompt = importedGenerateAIInstructions(user.name || "usuário", enrichedReport, promptHistoryForAI, tone, incomingText); // Use alias
+    const aiCoreResponse = await callAIWithResilience(prompt); const originalAICoreResponseForSaving = aiCoreResponse; let offeredScriptContextToSave: IDialogueState['lastOfferedScriptIdea'] = null; try { const proactiveContext = extractProactiveSuggestionContext(aiCoreResponse); if (proactiveContext) { logger.info(`${generalFlowTag} Contexto de oferta proativa extraído: "${proactiveContext.aiGeneratedIdeaDescription}"`); let originalSourceData: OriginalSourceContext = null; const sortedDetailedStats = [...(enrichedReport.detailedContentStats || [])] .filter(stat => stat && stat.count >= 1) .sort((a, b) => (b.shareDiffPercentage ?? -Infinity) - (a.shareDiffPercentage ?? -Infinity)); const topStat = sortedDetailedStats[0]; const bestPostCandidate = topStat?.bestPostInGroup; if (isValidBestPostWithDescription(bestPostCandidate)) { originalSourceData = { description: bestPostCandidate.description, proposal: topStat?._id?.proposal, context: topStat?._id?.context, }; logger.info(`${generalFlowTag} Fonte original encontrada para oferta proativa.`); } else { logger.warn(`${generalFlowTag} Não foi possível encontrar fonte original rica para oferta proativa.`); } offeredScriptContextToSave = { aiGeneratedIdeaDescription: proactiveContext.aiGeneratedIdeaDescription, originalSource: originalSourceData, timestamp: Date.now() }; logger.debug(`${generalFlowTag} Contexto de oferta a ser salvo:`, offeredScriptContextToSave); } else { logger.debug(`${generalFlowTag} Nenhum placeholder de oferta proativa encontrado.`); } } catch (parseError) { logger.error(`${generalFlowTag} Erro ao extrair/enriquecer contexto proativo:`, parseError); } let nextState: IDialogueState = { ...initialDialogueState, lastInteraction: Date.now(), recentPlanIdeas: null, recentPlanTimestamp: undefined, lastOfferedScriptIdea: offeredScriptContextToSave }; let postsInfo = ""; const topFormatted = formatPostListWithLinks(enrichedReport.top3Posts, "📈 Posts gerais que se destacaram:"); const bottomFormatted = formatPostListWithLinks(enrichedReport.bottom3Posts, "📉 Posts gerais com menor desempenho:"); if (topFormatted || bottomFormatted) { postsInfo = `\n\n---\n**Posts gerais referência:**${topFormatted}${topFormatted && bottomFormatted ? '\n' : ''}${bottomFormatted}`; } const responseWithExtras = aiCoreResponse + postsInfo; const { finalResponse, greetingAdded } = await addGreetingAndGraph(responseWithExtras, userIdStr, greeting, nextState); if (greetingAdded) { nextState.lastGreetingSent = Date.now(); } return { aiCoreResponse: originalAICoreResponseForSaving, nextDialogueState: nextState, finalResponseString: finalResponse };
 }
 
 
 // --- Lógica Principal de Processamento REATORADA ---
 /**
  * Main orchestrator for processing user requests.
- * v3.35: Corrected intent type comparison.
+ * v3.41: Corrected defaultInfo check in extractMetricForAnalysis. Corrected alias calls.
  */
 async function processMainAIRequest(
     user: IUser,
@@ -863,7 +948,7 @@ async function processMainAIRequest(
     userIdStr: string,
     cacheKey: string
 ): Promise<string> {
-    const versionTag = "[processMainAIRequest v3.35 - Intent Type Fix]"; // Updated version tag
+    const versionTag = "[processMainAIRequest v3.41 - Analytical Handlers + Fixes]"; // Updated version tag
     logger.debug(`${versionTag} Orquestrando para ${userIdStr}. Estado Inicial:`, initialDialogueState);
 
     // Determine Intent First
@@ -886,8 +971,6 @@ async function processMainAIRequest(
 
     // --- CORRECTED DATA FETCHING ---
     // Fetch report data for all non-special intents.
-    // The earlier check `if (intentResult.type === 'special_handled')` already prevents this block
-    // from running for special cases. The incorrect check `if (intent !== 'special_handled')` is removed.
     const dataPrepStartTime = Date.now();
     try {
         logger.debug(`${versionTag} Buscando dados do relatório para intent: ${intent}`);
@@ -916,6 +999,7 @@ async function processMainAIRequest(
     };
 
     // Call the appropriate handler based on intent
+    // *** UPDATED SWITCH STATEMENT ***
     switch (intent) {
         case 'script_request':
             handlerResult = await _handleScriptRequest(handlerParams);
@@ -926,7 +1010,21 @@ async function processMainAIRequest(
         case 'ranking_request':
             handlerResult = await _handleRankingRequest(handlerParams);
             break;
-        default: // Includes 'general', 'report', 'content_ideas', etc.
+        case 'ASK_BEST_PERFORMER': // *** NEW CASE ***
+            handlerResult = await _handleAskBestPerformer(handlerParams);
+            break;
+        case 'ASK_BEST_TIME':      // *** NEW CASE ***
+            handlerResult = await _handleAskBestTime(handlerParams);
+            break;
+        // Ensure 'general', 'report', 'content_ideas' fall through to default
+        case 'general':
+        case 'report':
+        case 'content_ideas':
+        default: // Includes 'general', 'report', 'content_ideas', and any unknown intents
+             // Log if the intent wasn't explicitly handled above but isn't 'general' etc.
+             if (!['general', 'report', 'content_ideas', 'ASK_BEST_PERFORMER', 'ASK_BEST_TIME'].includes(intent)) { // Added new intents to known list
+                 logger.warn(`${versionTag} Intent '${intent}' não possui handler explícito, usando _handleGeneralRequest.`);
+             }
             handlerResult = await _handleGeneralRequest(handlerParams, intent);
             break;
     }
@@ -970,7 +1068,7 @@ export async function getConsultantResponse(fromPhone: string, incomingText: str
     const versionTag = "[getConsultantResponse v3.15]"; // Keep main entry version stable unless major change
     const startTime = Date.now();
     logger.info(`${versionTag} INÍCIO: Chamada de ${fromPhone.slice(0, -4)}****. Msg: "${incomingText.substring(0, 50)}..."`);
-    const normalizedQuery = normalizeTextInput(incomingText.trim());
+    const normalizedQuery = normalizeTextInput(incomingText.trim()); // Use alias here
     const normalizedQueryForCache = normalizedQuery.replace(/\s+/g, '_').substring(0, 100);
     const cacheKey = `response:${fromPhone}:${normalizedQueryForCache}`;
     let user: IUser | null = null;
@@ -1035,5 +1133,5 @@ export async function generateStrategicWeeklySummary(userName: string, aggregate
 
 
 // =========================================================================
-// FIM: consultantService.ts - v3.35 (Correção Comparação Intent)
+// FIM: consultantService.ts - v3.41 (Correção defaultInfo undefined)
 // =========================================================================
