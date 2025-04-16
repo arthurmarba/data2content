@@ -1,10 +1,10 @@
-// @/app/lib/reportHelpers.ts - v3.6 MODIFICADO (Com Passo 2 da Priorização Dinâmica e Correções de Tipo v3)
+// @/app/lib/reportHelpers.ts - v3.7 (Agregação Dia/Proposta/Contexto + Correções Anteriores)
 
 import { DailyMetric, IDailyMetric } from "@/app/models/DailyMetric";
 import { Types, Model } from "mongoose";
-import { formatISO } from 'date-fns';
-import { logger } from '@/app/lib/logger'; // Certifique-se que o caminho está correto
-import { IMetric, Metric } from "@/app/models/Metric"; // Import IMetric e o Modelo Metric
+import { formatISO, getDay } from 'date-fns'; // Import getDay
+import { logger } from '@/app/lib/logger';
+import { IMetric, Metric } from "@/app/models/Metric";
 
 const TOP_EXAMPLES_PER_GROUP_LIMIT = 3;
 
@@ -25,7 +25,7 @@ export class DetailedStatsError extends ReportError { /* ... */ }
 
 
 // ======================================================================================
-// Interfaces Atualizadas (v3.6 + Priorização Dinâmica Passo 2)
+// Interfaces Atualizadas (v3.7 - Adiciona PerformanceByDayPCO)
 // ======================================================================================
 
 export interface OverallStats {
@@ -47,7 +47,7 @@ export interface DurationStat {
 
 // Interface BASE comum para enriquecimento
 export interface BaseStat {
-    _id: object;
+    _id: object; // Can be complex for detailed, simpler for proposal/context
     avgCompartilhamentos: number;
     avgSalvamentos: number;
     avgCurtidas: number;
@@ -61,6 +61,9 @@ export interface BaseStat {
     likeDiffPercentage?: number | null;
     bestPostInGroup?: { _id: Types.ObjectId; description?: string; postLink?: string; shares?: number; saves?: number; };
     avgVisualizacoes?: number;
+    // Potential future additions:
+    // taxaRetencao?: number;
+    // taxaEngajamento?: number;
 }
 
 export interface StatId {
@@ -72,11 +75,10 @@ export interface StatId {
 // Interface Detalhada (F/P/C)
 export interface DetailedContentStat extends BaseStat {
   _id: { format: string; proposal: string; context: string; };
-  // <<< CORREÇÃO DE TIPO v3 >>> Define explicitamente o tipo do array, permitindo opcionais
   topExamplesInGroup?: {
-      _id: Types.ObjectId; // Assumindo que _id sempre vem de IMetric
-      description?: string; // Permite undefined
-      postLink?: string;    // Permite undefined
+      _id: Types.ObjectId;
+      description?: string;
+      postLink?: string;
   }[];
 }
 
@@ -90,16 +92,42 @@ export interface ContextStat extends BaseStat {
   _id: { context: string; };
 }
 
+// --- Novas Interfaces para Agregação Dia/Proposta/Contexto ---
+export interface DayPCOPerformanceStats { // PCO = Proposal, Context, Overall
+    avgCompartilhamentos?: number;
+    avgSalvamentos?: number;
+    avgAlcance?: number;
+    avgComentarios?: number;
+    avgCurtidas?: number;
+    avgVisualizacoes?: number;
+    // Adicionar outras métricas médias relevantes...
+    count: number;
+}
+export interface PerformanceByContextDay {
+    [context: string]: DayPCOPerformanceStats;
+}
+export interface PerformanceByProposalDay {
+    [proposal: string]: PerformanceByContextDay;
+}
+// Interface principal para adicionar ao AggregatedReport
+// A chave do objeto externo é o número do dia (0=Domingo a 6=Sábado)
+export interface PerformanceByDayPCO {
+    [dayOfWeek: number]: PerformanceByProposalDay;
+}
+// --- Fim Novas Interfaces ---
+
+
 // Interface para o relatório agregado final
 export interface AggregatedReport {
     top3: IDailyMetric[];
     bottom3: IDailyMetric[];
-    dayOfWeekStats: DayOfWeekStat[];
+    dayOfWeekStats: DayOfWeekStat[]; // Overall shares per day
     durationStats: DurationStat[];
     detailedContentStats: DetailedContentStat[];
     proposalStats?: ProposalStat[];
     contextStats?: ContextStat[];
     overallStats?: OverallStats;
+    performanceByDayPCO?: PerformanceByDayPCO; // <<< NOVO CAMPO OPCIONAL
 }
 
 // ======================================================================================
@@ -147,7 +175,7 @@ async function fetchMetricDetailsForEnrichment(
     try {
         // Seleciona apenas os campos que existem em IMetric e são necessários
         const metrics = await metricModel.find({ _id: { $in: uniquePostIds } })
-            .select('_id description postLink format proposal context') // Remove 'shares', 'saves'
+            .select('_id description postLink format proposal context') // Select necessary fields
             .lean().exec();
         // Ajusta o tipo do Map para refletir os campos realmente selecionados
         const map = new Map<string, Pick<IMetric, '_id' | 'description' | 'postLink' | 'format' | 'proposal' | 'context'>>();
@@ -177,14 +205,13 @@ async function getDetailedContentStatsBase(
             avgCurtidas: { $avg: { $ifNull: ["$stats.curtidas", 0] } },
             avgComentarios: { $avg: { $ifNull: ["$stats.comentarios", 0] } },
             avgAlcance: { $avg: { $ifNull: ["$stats.contasAlcancadas", 0] } },
-            avgVisualizacoes: { $avg: { $ifNull: ["$stats.visualizacoes", 0] } }, // Adicionado avgVisualizacoes
+            avgVisualizacoes: { $avg: { $ifNull: ["$stats.visualizacoes", 0] } },
             count: { $sum: 1 }
         }},
         { $sort: { count: -1, avgCompartilhamentos: -1 } }
     ];
     try {
-        // Ajusta o tipo esperado da agregação para incluir avgVisualizacoes
-        const results: Omit<DetailedContentStat, 'topExamplesInGroup' | 'bestPostInGroup' | 'shareDiffPercentage' | 'saveDiffPercentage' | 'reachDiffPercentage' | 'commentDiffPercentage' | 'likeDiffPercentage' | 'taxaRetencao' | 'taxaEngajamento'>[] = await dailyMetricModel.aggregate(pipeline).exec();
+        const results: Omit<DetailedContentStat, 'topExamplesInGroup' | 'bestPostInGroup' | 'shareDiffPercentage' | 'saveDiffPercentage' | 'reachDiffPercentage' | 'commentDiffPercentage' | 'likeDiffPercentage'>[] = await dailyMetricModel.aggregate(pipeline).exec();
         logger.debug(`[getDetailedContentStatsBase v3.4] F/P/C retornou ${results.length} grupos.`);
         return results as DetailedContentStat[];
      }
@@ -207,13 +234,13 @@ async function getProposalStatsBase(
             avgCurtidas: { $avg: { $ifNull: ["$stats.curtidas", 0] } },
             avgComentarios: { $avg: { $ifNull: ["$stats.comentarios", 0] } },
             avgAlcance: { $avg: { $ifNull: ["$stats.contasAlcancadas", 0] } },
-            avgVisualizacoes: { $avg: { $ifNull: ["$stats.visualizacoes", 0] } }, // Adicionado avgVisualizacoes
+            avgVisualizacoes: { $avg: { $ifNull: ["$stats.visualizacoes", 0] } },
             count: { $sum: 1 }
         }},
         { $sort: { count: -1, avgCompartilhamentos: -1 } }
     ];
     try {
-        const results: Omit<ProposalStat, 'bestPostInGroup' | 'shareDiffPercentage' | 'saveDiffPercentage' | 'reachDiffPercentage' | 'commentDiffPercentage' | 'likeDiffPercentage' | 'taxaRetencao' | 'taxaEngajamento'>[] = await dailyMetricModel.aggregate(pipeline).exec();
+        const results: Omit<ProposalStat, 'bestPostInGroup' | 'shareDiffPercentage' | 'saveDiffPercentage' | 'reachDiffPercentage' | 'commentDiffPercentage' | 'likeDiffPercentage'>[] = await dailyMetricModel.aggregate(pipeline).exec();
         logger.debug(`[getProposalStatsBase v3.4] Proposta retornou ${results.length} grupos.`);
         return results as ProposalStat[];
     }
@@ -236,18 +263,116 @@ async function getContextStatsBase(
              avgCurtidas: { $avg: { $ifNull: ["$stats.curtidas", 0] } },
              avgComentarios: { $avg: { $ifNull: ["$stats.comentarios", 0] } },
              avgAlcance: { $avg: { $ifNull: ["$stats.contasAlcancadas", 0] } },
-             avgVisualizacoes: { $avg: { $ifNull: ["$stats.visualizacoes", 0] } }, // Adicionado avgVisualizacoes
+             avgVisualizacoes: { $avg: { $ifNull: ["$stats.visualizacoes", 0] } },
              count: { $sum: 1 }
          }},
          { $sort: { count: -1, avgCompartilhamentos: -1 } }
     ];
     try {
-        const results: Omit<ContextStat, 'bestPostInGroup' | 'shareDiffPercentage' | 'saveDiffPercentage' | 'reachDiffPercentage' | 'commentDiffPercentage' | 'likeDiffPercentage' | 'taxaRetencao' | 'taxaEngajamento'>[] = await dailyMetricModel.aggregate(pipeline).exec();
+        const results: Omit<ContextStat, 'bestPostInGroup' | 'shareDiffPercentage' | 'saveDiffPercentage' | 'reachDiffPercentage' | 'commentDiffPercentage' | 'likeDiffPercentage'>[] = await dailyMetricModel.aggregate(pipeline).exec();
         logger.debug(`[getContextStatsBase v3.4] Contexto retornou ${results.length} grupos.`);
         return results as ContextStat[];
      }
     catch (error) { logger.error(`[getContextStatsBase v3.4] Erro.`, error); throw new DetailedStatsError(`Falha ao agregar por Contexto para User ${userId}`, error); }
 }
+
+// ======================================================================================
+// <<< INÍCIO: Nova Função para Agregação Dia/Proposta/Contexto >>>
+// ======================================================================================
+
+/**
+ * Busca e processa estatísticas agrupadas por Dia da Semana, Proposta e Contexto.
+ */
+async function getDayPCOStatsBase(
+    userId: Types.ObjectId, startDate: Date, dailyMetricModel: Model<IDailyMetric>, metricModel: Model<IMetric>
+): Promise<PerformanceByDayPCO> {
+    const fnTag = "[getDayPCOStatsBase v1.0]";
+    logger.debug(`${fnTag} Buscando por Dia/P/C para User ${userId}`);
+
+    const pipeline: any[] = [
+        { $match: { user: userId, postDate: { $gte: startDate }, postId: { $exists: true, $ne: null } } },
+        // Add dayOfWeek field (0=Sun, 1=Mon, ..., 6=Sat) - Adjust based on timezone if needed
+        {
+            $addFields: {
+                dayOfWeek: { $subtract: [ { $dayOfWeek: "$postDate" }, 1 ] } // $dayOfWeek returns 1-7, subtract 1 for 0-6
+            }
+        },
+        // Lookup metric details (proposal, context)
+        { $lookup: { from: metricModel.collection.name, localField: "postId", foreignField: "_id", as: "metricInfo" } },
+        { $unwind: { path: "$metricInfo", preserveNullAndEmptyArrays: false } }, // Exclude metrics without details
+        // Group by day, proposal, and context
+        {
+          $group: {
+            _id: {
+              dayOfWeek: "$dayOfWeek",
+              proposal: { $ifNull: ["$metricInfo.proposal", "Outro"] },
+              context: { $ifNull: ["$metricInfo.context", "Geral"] }
+            },
+            // Calculate average metrics for each group
+            avgCompartilhamentos: { $avg: { $ifNull: ["$stats.compartilhamentos", 0] } },
+            avgSalvamentos: { $avg: { $ifNull: ["$stats.salvamentos", 0] } },
+            avgAlcance: { $avg: { $ifNull: ["$stats.contasAlcancadas", 0] } },
+            avgComentarios: { $avg: { $ifNull: ["$stats.comentarios", 0] } },
+            avgCurtidas: { $avg: { $ifNull: ["$stats.curtidas", 0] } },
+            avgVisualizacoes: { $avg: { $ifNull: ["$stats.visualizacoes", 0] } },
+            // Add other relevant averages here...
+            count: { $sum: 1 } // Count posts in each group
+          }
+        }
+    ];
+
+    try {
+        // Execute aggregation
+        const aggregationResults = await dailyMetricModel.aggregate(pipeline).exec();
+        logger.debug(`${fnTag} Agregação Dia/P/C retornou ${aggregationResults.length} resultados brutos.`);
+
+        // Process results into the nested PerformanceByDayPCO structure
+        const performanceByDayPCO: PerformanceByDayPCO = {};
+
+        for (const result of aggregationResults) {
+            const { dayOfWeek, proposal, context } = result._id;
+
+            // Ensure dayOfWeek is a valid number (0-6)
+            if (typeof dayOfWeek !== 'number' || dayOfWeek < 0 || dayOfWeek > 6) {
+                logger.warn(`${fnTag} Resultado com dayOfWeek inválido:`, result._id);
+                continue;
+            }
+
+            // Initialize nested objects if they don't exist
+            if (!performanceByDayPCO[dayOfWeek]) {
+                performanceByDayPCO[dayOfWeek] = {};
+            }
+            if (!performanceByDayPCO[dayOfWeek]![proposal]) {
+                performanceByDayPCO[dayOfWeek]![proposal] = {};
+            }
+
+            // Assign the calculated stats
+            performanceByDayPCO[dayOfWeek]![proposal]![context] = {
+                avgCompartilhamentos: result.avgCompartilhamentos,
+                avgSalvamentos: result.avgSalvamentos,
+                avgAlcance: result.avgAlcance,
+                avgComentarios: result.avgComentarios,
+                avgCurtidas: result.avgCurtidas,
+                avgVisualizacoes: result.avgVisualizacoes,
+                // Assign other calculated averages here...
+                count: result.count
+            };
+        }
+
+        logger.debug(`${fnTag} Estrutura PerformanceByDayPCO processada.`);
+        return performanceByDayPCO;
+
+     } catch (error) {
+        logger.error(`${fnTag} Erro durante agregação ou processamento Dia/P/C.`, error);
+        // Return empty object or throw specific error
+        throw new DetailedStatsError(`Falha ao agregar por Dia/P/C para User ${userId}`, error);
+     }
+}
+
+// ======================================================================================
+// <<< FIM: Nova Função para Agregação Dia/Proposta/Contexto >>>
+// ======================================================================================
+
 
 // ======================================================================================
 // Função Genérica para Enriquecer Stats
@@ -258,26 +383,23 @@ function enrichStats<T extends BaseStat>(
     statsBase: T[],
     overallStats: OverallStats | undefined,
     dailyMetrics: IDailyMetric[],
-    metricDetailsMap: Map<string, Pick<IMetric, '_id' | 'description' | 'postLink' | 'format' | 'proposal' | 'context'>>, // Usa o tipo corrigido do Map
+    metricDetailsMap: Map<string, Pick<IMetric, '_id' | 'description' | 'postLink' | 'format' | 'proposal' | 'context'>>,
     groupingType: 'detailed' | 'proposal' | 'context'
 ): T[] {
     if (!overallStats) {
         logger.warn("[enrichStats] OverallStats não disponíveis, pulando cálculo de DiffPercentages.");
         if (groupingType === 'detailed') {
-             // <<< CORREÇÃO DE TIPO GENÉRICO >>> Cast do resultado para T[]
              return addTopExamplesOnly(statsBase as DetailedContentStat[], dailyMetrics, metricDetailsMap) as T[];
         }
         return statsBase;
     }
 
-    // Garante que as médias gerais existem antes de desestruturar
     const {
         avgCompartilhamentos: overallAvgShares = 0,
         avgSalvamentos: overallAvgSaves = 0,
         avgAlcance: overallAvgReach = 0,
         avgComentarios: overallAvgComments = 0,
         avgCurtidas: overallAvgLikes = 0
-        // avgVisualizacoes: overallAvgViews = 0 // Adicionar se for calcular viewDiffPercentage
     } = overallStats;
 
     logger.debug(`[enrichStats] Médias Gerais para Cálculo de Diff: Shares=${overallAvgShares.toFixed(1)}, Saves=${overallAvgSaves.toFixed(1)}, Reach=${overallAvgReach.toFixed(0)}, Comments=${overallAvgComments.toFixed(1)}, Likes=${overallAvgLikes.toFixed(1)}`);
@@ -289,31 +411,15 @@ function enrichStats<T extends BaseStat>(
         if (overallAvgShares > 0) enrichedStat.shareDiffPercentage = ((enrichedStat.avgCompartilhamentos / overallAvgShares) - 1) * 100; else enrichedStat.shareDiffPercentage = null;
         if (overallAvgSaves > 0) enrichedStat.saveDiffPercentage = ((enrichedStat.avgSalvamentos / overallAvgSaves) - 1) * 100; else enrichedStat.saveDiffPercentage = null;
         if (overallAvgReach > 0) enrichedStat.reachDiffPercentage = ((enrichedStat.avgAlcance / overallAvgReach) - 1) * 100; else enrichedStat.reachDiffPercentage = null;
-
-        // <<< NOVOS CÁLCULOS (Passo 2) >>>
-        // Verifica se avgComentarios/avgCurtidas existem no statBase antes de calcular
         if (overallAvgComments > 0 && enrichedStat.avgComentarios !== undefined && enrichedStat.avgComentarios !== null) {
             enrichedStat.commentDiffPercentage = ((enrichedStat.avgComentarios / overallAvgComments) - 1) * 100;
-        } else {
-            enrichedStat.commentDiffPercentage = null;
-        }
-
+        } else { enrichedStat.commentDiffPercentage = null; }
         if (overallAvgLikes > 0 && enrichedStat.avgCurtidas !== undefined && enrichedStat.avgCurtidas !== null) {
             enrichedStat.likeDiffPercentage = ((enrichedStat.avgCurtidas / overallAvgLikes) - 1) * 100;
-        } else {
-            enrichedStat.likeDiffPercentage = null;
-        }
-        // Exemplo: Adicionar viewDiffPercentage se necessário
-        // if (overallAvgViews > 0 && enrichedStat.avgVisualizacoes !== undefined && enrichedStat.avgVisualizacoes !== null) {
-        //     enrichedStat.viewDiffPercentage = ((enrichedStat.avgVisualizacoes / overallAvgViews) - 1) * 100;
-        // } else {
-        //     enrichedStat.viewDiffPercentage = null;
-        // }
-        // <<< FIM NOVOS CÁLCULOS >>>
+        } else { enrichedStat.likeDiffPercentage = null; }
 
         // 2. Encontrar e Processar Top N exemplos (APENAS para 'detailed')
         if (groupingType === 'detailed') {
-            // Cast seguro para DetailedContentStat dentro deste bloco
             const detailedStat = enrichedStat as DetailedContentStat;
             let groupCandidates: { dm: IDailyMetric, metricDetail: Pick<IMetric, '_id' | 'description' | 'postLink' | 'format' | 'proposal' | 'context'> }[] = [];
             const detailedId = detailedStat._id as DetailedContentStat['_id'];
@@ -322,52 +428,40 @@ function enrichStats<T extends BaseStat>(
                 if (!dm.postId) return;
                 const metricDetail = metricDetailsMap.get(dm.postId.toString());
                 if (!metricDetail) return;
-
                 if ((metricDetail.format ?? 'Desconhecido') === detailedId.format &&
                     (metricDetail.proposal ?? 'Outro') === detailedId.proposal &&
                     (metricDetail.context ?? 'Geral') === detailedId.context)
-                {
-                    groupCandidates.push({ dm, metricDetail });
-                }
+                { groupCandidates.push({ dm, metricDetail }); }
             });
 
             groupCandidates.sort((a, b) =>
                 (b.dm.stats?.compartilhamentos ?? 0) - (a.dm.stats?.compartilhamentos ?? 0) ||
                 (b.dm.stats?.salvamentos ?? 0) - (a.dm.stats?.salvamentos ?? 0)
             );
-
             const topNCandidates = groupCandidates.slice(0, TOP_EXAMPLES_PER_GROUP_LIMIT);
 
-            // Atribui ao campo correto e garante tipo compatível
             detailedStat.topExamplesInGroup = topNCandidates.map(candidate => {
-                // Cria o objeto com o tipo esperado { _id, description?, postLink? }
                 const example: { _id: Types.ObjectId; description?: string; postLink?: string; } = {
                     _id: candidate.metricDetail._id,
-                    description: candidate.metricDetail.description ?? undefined, // Garante string | undefined
-                    postLink: (candidate.metricDetail.postLink && candidate.metricDetail.postLink.startsWith('http'))
-                               ? candidate.metricDetail.postLink
-                               : undefined // Garante string | undefined
+                    description: candidate.metricDetail.description ?? undefined,
+                    postLink: (candidate.metricDetail.postLink && candidate.metricDetail.postLink.startsWith('http')) ? candidate.metricDetail.postLink : undefined
                 };
                 return example;
-            }).filter(example => example._id); // Mantém filtro por _id se necessário
+            }).filter(example => example._id);
 
             const bestCandidate = topNCandidates[0];
             if (bestCandidate) {
                 detailedStat.bestPostInGroup = {
                     _id: bestCandidate.metricDetail._id,
                     description: bestCandidate.metricDetail.description ?? undefined,
-                    postLink: (bestCandidate.metricDetail.postLink && bestCandidate.metricDetail.postLink.startsWith('http'))
-                               ? bestCandidate.metricDetail.postLink
-                               : undefined,
+                    postLink: (bestCandidate.metricDetail.postLink && bestCandidate.metricDetail.postLink.startsWith('http')) ? bestCandidate.metricDetail.postLink : undefined,
                     shares: bestCandidate.dm.stats?.compartilhamentos,
                     saves: bestCandidate.dm.stats?.salvamentos
                 };
-            } else {
-                detailedStat.bestPostInGroup = undefined;
-            }
+            } else { detailedStat.bestPostInGroup = undefined; }
         } // Fim do if (groupingType === 'detailed')
 
-        return enrichedStat; // Retorna o tipo genérico original T
+        return enrichedStat;
     });
 }
 
@@ -390,9 +484,7 @@ function addTopExamplesOnly(
              if ((metricDetail.format ?? 'Desconhecido') === detailedId.format &&
                  (metricDetail.proposal ?? 'Outro') === detailedId.proposal &&
                  (metricDetail.context ?? 'Geral') === detailedId.context)
-             {
-                 groupCandidates.push({ dm, metricDetail });
-             }
+             { groupCandidates.push({ dm, metricDetail }); }
          });
 
          groupCandidates.sort((a, b) =>
@@ -401,7 +493,6 @@ function addTopExamplesOnly(
          );
          const topNCandidates = groupCandidates.slice(0, TOP_EXAMPLES_PER_GROUP_LIMIT);
 
-         // Atribui ao campo correto e garante tipo compatível
          enrichedStat.topExamplesInGroup = topNCandidates.map(candidate => {
              const example: { _id: Types.ObjectId; description?: string; postLink?: string; } = {
                  _id: candidate.metricDetail._id,
@@ -420,9 +511,7 @@ function addTopExamplesOnly(
                  shares: bestCandidate.dm.stats?.compartilhamentos,
                  saves: bestCandidate.dm.stats?.salvamentos
              };
-         } else {
-             enrichedStat.bestPostInGroup = undefined;
-         }
+         } else { enrichedStat.bestPostInGroup = undefined; }
          return enrichedStat;
      });
 }
@@ -433,8 +522,8 @@ function addTopExamplesOnly(
 // ======================================================================================
 
 /**
- * Gera o relatório agregado principal, incluindo estatísticas ENRIQUECIDAS para
- * F/P/C (com Top N exemplos), Proposta e Contexto, agora com mais diffs%.
+ * Gera o relatório agregado principal, incluindo estatísticas ENRIQUECIDAS e
+ * a nova agregação por Dia/Proposta/Contexto.
  */
 export async function buildAggregatedReport(
     dailyMetrics: IDailyMetric[], userId: Types.ObjectId, startDate: Date,
@@ -445,11 +534,11 @@ export async function buildAggregatedReport(
         throw new Error('Input inválido para buildAggregatedReport.');
     }
     if (!dailyMetrics || dailyMetrics.length === 0) {
-        logger.warn('[buildAggregatedReport v3.6+] Array de dailyMetrics vazio.');
-        return { top3: [], bottom3: [], dayOfWeekStats: [], durationStats: [], detailedContentStats: [], proposalStats: [], contextStats: [], overallStats: undefined };
+        logger.warn('[buildAggregatedReport v3.7] Array de dailyMetrics vazio.');
+        return { top3: [], bottom3: [], dayOfWeekStats: [], durationStats: [], detailedContentStats: [], proposalStats: [], contextStats: [], overallStats: undefined, performanceByDayPCO: undefined };
     }
 
-    logger.debug(`[buildAggregatedReport v3.6+] Iniciando para ${dailyMetrics.length} métricas. User: ${userId}`);
+    logger.debug(`[buildAggregatedReport v3.7] Iniciando para ${dailyMetrics.length} métricas. User: ${userId}`);
 
     let overallStats: OverallStats | undefined;
     let top3: IDailyMetric[] = []; let bottom3: IDailyMetric[] = [];
@@ -457,71 +546,78 @@ export async function buildAggregatedReport(
     let detailedContentStatsEnriched: DetailedContentStat[] = [];
     let proposalStatsEnriched: ProposalStat[] = [];
     let contextStatsEnriched: ContextStat[] = [];
+    let performanceByDayPCOData: PerformanceByDayPCO | undefined = undefined; // <<< Variável para resultado Dia/P/C
 
-    // Pré-busca detalhes Metrics (agora sem shares/saves)
+    // Pré-busca detalhes Metrics
     const metricDetailsMap = await fetchMetricDetailsForEnrichment(dailyMetrics, metricModel);
 
     try {
-        // Calcular Overall Stats (já inclui avgComentarios, avgCurtidas)
+        // Calcular Overall Stats
         overallStats = calculateOverallStats(dailyMetrics);
 
         // Cálculos simples (mantidos)
         const sortedByShares = [...dailyMetrics].sort((a, b) => (b.stats?.compartilhamentos ?? 0) - (a.stats?.compartilhamentos ?? 0));
         top3 = sortedByShares.slice(0, 3);
         bottom3 = sortedByShares.slice(-3).reverse();
-        // ... (cálculo de dayOfWeekStats mantido) ...
         const dayMap: { [key: string]: { totalShares: number, count: number } } = {}; const dayOrder = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
         dailyMetrics.forEach(metric => { try { if (metric.postDate instanceof Date && !isNaN(metric.postDate.getTime())) { const dayName = mapDayOfWeek(metric.postDate.getUTCDay()); if (!dayMap[dayName]) { dayMap[dayName] = { totalShares: 0, count: 0 }; } dayMap[dayName]!.totalShares += metric.stats?.compartilhamentos ?? 0; dayMap[dayName]!.count += 1; } } catch (e) { /* log */ } });
         dayOfWeekStats = Object.entries(dayMap).map(([dayName, data]) => ({ dayName, averageShares: data.count > 0 ? data.totalShares / data.count : 0, totalPosts: data.count, })).sort((a, b) => dayOrder.indexOf(a.dayName) - dayOrder.indexOf(b.dayName));
-        // ... (cálculo de durationStats mantido) ...
         const finalDurations = [ { range: '0-15s', min: 0, max: 15 }, { range: '15-29s', min: 15, max: 29 }, { range: '30-59s', min: 30, max: 59 }, { range: '60s+', min: 60, max: Infinity }, ]; const finalDurationMap = new Map<string, { totalShares: number, totalSaves: number, count: number }>(); finalDurations.forEach(d => { finalDurationMap.set(d.range, { totalShares: 0, totalSaves: 0, count: 0 }); });
         dailyMetrics.forEach(metric => { const duration = metric.stats?.duracao; if (typeof duration === 'number' && isFinite(duration) && duration >= 0) { const foundRange = finalDurations.find(d => duration >= d.min && (duration < d.max || d.max === Infinity)); if (foundRange) { const statsForRange = finalDurationMap.get(foundRange.range); if (statsForRange) { statsForRange.totalShares += metric.stats?.compartilhamentos ?? 0; statsForRange.totalSaves += metric.stats?.salvamentos ?? 0; statsForRange.count += 1; } } } });
         durationStats = finalDurations.map(d => { const stats = finalDurationMap.get(d.range); const count = stats?.count ?? 0; return { range: d.range, contentCount: count, averageShares: count > 0 ? (stats!.totalShares / count) : 0, averageSaves: count > 0 ? (stats!.totalSaves / count) : 0, }; });
 
 
-        // --- Buscar Stats Detalhados BASE em paralelo ---
-        // Assegure que $group inclua $avg para comentarios e curtidas
-        const [detailedStatsResult, proposalStatsResult, contextStatsResult] = await Promise.allSettled([
+        // --- Buscar Stats Detalhados BASE e Dia/P/C em paralelo ---
+        const [detailedStatsResult, proposalStatsResult, contextStatsResult, dayPCOStatsResult] = await Promise.allSettled([
             getDetailedContentStatsBase(userId, startDate, dailyMetricModel, metricModel),
             getProposalStatsBase(userId, startDate, dailyMetricModel, metricModel),
-            getContextStatsBase(userId, startDate, dailyMetricModel, metricModel)
+            getContextStatsBase(userId, startDate, dailyMetricModel, metricModel),
+            getDayPCOStatsBase(userId, startDate, dailyMetricModel, metricModel) // <<< Chama a nova função
         ]);
 
         // --- Enriquecer cada conjunto de stats ---
-        // A função enrichStats agora calcula os diffs adicionais
         if (detailedStatsResult.status === 'fulfilled') {
             detailedContentStatsEnriched = enrichStats(detailedStatsResult.value, overallStats, dailyMetrics, metricDetailsMap, 'detailed');
-            // Ordenação final pode ser feita aqui ou na formatação do prompt
             detailedContentStatsEnriched.sort((a, b) => (b.shareDiffPercentage ?? -Infinity) - (a.shareDiffPercentage ?? -Infinity));
-            logger.debug(`[buildAggregatedReport v3.6+] F/P/C enriquecidos (com diffs e Top N): ${detailedContentStatsEnriched.length}.`);
-        } else { logger.error(`[buildAggregatedReport v3.6+] Falha F/P/C.`, detailedStatsResult.reason); }
+            logger.debug(`[buildAggregatedReport v3.7] F/P/C enriquecidos: ${detailedContentStatsEnriched.length}.`);
+        } else { logger.error(`[buildAggregatedReport v3.7] Falha F/P/C.`, detailedStatsResult.reason); }
 
         if (proposalStatsResult.status === 'fulfilled') {
             proposalStatsEnriched = enrichStats(proposalStatsResult.value, overallStats, dailyMetrics, metricDetailsMap, 'proposal');
             proposalStatsEnriched.sort((a, b) => (b.shareDiffPercentage ?? -Infinity) - (a.shareDiffPercentage ?? -Infinity));
-            logger.debug(`[buildAggregatedReport v3.6+] Proposta enriquecidos: ${proposalStatsEnriched.length}.`);
-        } else { logger.error(`[buildAggregatedReport v3.6+] Falha Proposta.`, proposalStatsResult.reason); }
+            logger.debug(`[buildAggregatedReport v3.7] Proposta enriquecidos: ${proposalStatsEnriched.length}.`);
+        } else { logger.error(`[buildAggregatedReport v3.7] Falha Proposta.`, proposalStatsResult.reason); }
 
         if (contextStatsResult.status === 'fulfilled') {
             contextStatsEnriched = enrichStats(contextStatsResult.value, overallStats, dailyMetrics, metricDetailsMap, 'context');
             contextStatsEnriched.sort((a, b) => (b.shareDiffPercentage ?? -Infinity) - (a.shareDiffPercentage ?? -Infinity));
-            logger.debug(`[buildAggregatedReport v3.6+] Contexto enriquecidos: ${contextStatsEnriched.length}.`);
-        } else { logger.error(`[buildAggregatedReport v3.6+] Falha Contexto.`, contextStatsResult.reason); }
+            logger.debug(`[buildAggregatedReport v3.7] Contexto enriquecidos: ${contextStatsEnriched.length}.`);
+        } else { logger.error(`[buildAggregatedReport v3.7] Falha Contexto.`, contextStatsResult.reason); }
+
+        // --- Processar resultado da agregação Dia/P/C ---
+        if (dayPCOStatsResult.status === 'fulfilled') {
+            performanceByDayPCOData = dayPCOStatsResult.value;
+            logger.debug(`[buildAggregatedReport v3.7] Dados Dia/P/C processados.`);
+        } else {
+             logger.error(`[buildAggregatedReport v3.7] Falha ao buscar dados Dia/P/C.`, dayPCOStatsResult.reason);
+             performanceByDayPCOData = undefined; // Garante que seja undefined em caso de erro
+        }
         // --- Fim Busca e Enriquecimento ---
 
-        logger.info(`[buildAggregatedReport v3.6+] Processo concluído. User: ${userId}.`);
+        logger.info(`[buildAggregatedReport v3.7] Processo concluído. User: ${userId}.`);
 
+        // Retorna o relatório completo, incluindo os novos dados
         return {
             top3, bottom3, dayOfWeekStats, durationStats, overallStats,
             detailedContentStats: detailedContentStatsEnriched,
             proposalStats: proposalStatsEnriched,
             contextStats: contextStatsEnriched,
+            performanceByDayPCO: performanceByDayPCOData // <<< Inclui o novo campo
         };
 
     } catch (error) {
-        logger.error(`[buildAggregatedReport v3.6+] Erro inesperado no processo geral. User: ${userId}.`, error);
-        // Garante que erros específicos de agregação sejam relançados corretamente
+        logger.error(`[buildAggregatedReport v3.7] Erro inesperado no processo geral. User: ${userId}.`, error);
         if (error instanceof ReportAggregationError || error instanceof DetailedStatsError) throw error;
-        throw new ReportAggregationError(`Falha no processo geral v3.6+. User: ${userId}`, error);
+        throw new ReportAggregationError(`Falha no processo geral v3.7. User: ${userId}`, error);
     }
 }

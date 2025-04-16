@@ -1,8 +1,8 @@
-// @/app/lib/consultantService.ts - v3.41 (Correção defaultInfo undefined + Handlers Analíticos - Código Completo)
+// @/app/lib/consultantService.ts - v3.44 (Debug Logs + Tipo Simplificado + Usa Dados Dia/P/C)
 
 // --- Imports Essenciais e Módulos ---
 import { Model, Types } from "mongoose";
-import { subDays, format, differenceInDays } from "date-fns";
+import { subDays, format, differenceInDays, getDay } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 import opossum from "opossum";
 import { logger } from '@/app/lib/logger';
@@ -13,6 +13,9 @@ import * as intentService from './intentService';
 // Assuming DeterminedIntent type is exported from intentService or defined appropriately
 import { getRandomGreeting, normalizeText as normalizeTextInput, isSimpleConfirmation, DeterminedIntent } from './intentService'; // Needs DeterminedIntent export
 import * as dataService from './dataService';
+// <<< CORREÇÃO v3.44 >>> Importa IEnrichedReport de dataService onde está definida com o campo opcional
+import { IEnrichedReport, ReferenceSearchResult } from './dataService';
+
 // Importa funções específicas com alias e tipos explícitos
 import {
     generateAIInstructions as importedGenerateAIInstructions,
@@ -20,7 +23,6 @@ import {
     generateGroupedContentPlanInstructions as importedGenerateGroupedContentPlanInstructions,
     generateRankingInstructions as importedGenerateRankingInstructions,
     generateScriptInstructions as importedGenerateScriptInstructions, // Imported with alias
-    // *** IMPORT DOS FORMATADORES ***
     formatNumericMetric,
     formatPercentageDiff
 } from './promptService'; // Assuming v3.Z.11 or later (with exports)
@@ -37,11 +39,12 @@ import { DailyMetric, IDailyMetric } from "@/app/models/DailyMetric";
 import Metric, { IMetric } from "@/app/models/Metric";
 
 // Importa tipos dos outros serviços e helpers
-import { IEnrichedReport, ReferenceSearchResult } from './dataService';
-// Ensure DetailedContentStat, ProposalStat, ContextStat etc are available
-// *** ADICIONAR AQUI A INTERFACE PARA DADOS POR DIA DA SEMANA QUANDO DEFINIDA ***
-// Exemplo: import { PerformanceByDay } from './reportHelpers';
-import { DetailedContentStat, ProposalStat, ContextStat, AggregatedReport, StatId, DurationStat, OverallStats } from './reportHelpers';
+// <<< CORREÇÃO v3.44 >>> Remove import duplicado de IEnrichedReport
+import {
+    DetailedContentStat, ProposalStat, ContextStat, AggregatedReport, StatId, DurationStat, OverallStats,
+    PerformanceByDayPCO,
+    DayPCOPerformanceStats
+} from './reportHelpers';
 
 // --- Novas Interfaces para Contexto do Plano ---
 interface IPlanItemContext { identifier: string; description: string; proposal?: string; context?: string; }
@@ -67,19 +70,18 @@ const METRIC_FOCUS_MAP: { [keyword: string]: { field: keyof ProposalStat | keyof
     'comentario': { field: 'commentDiffPercentage', friendly: 'Comentários', avgField: 'avgComentarios' },
     'alcance': { field: 'reachDiffPercentage', friendly: 'Alcance', avgField: 'avgAlcance' },
     'alcancadas': { field: 'reachDiffPercentage', friendly: 'Alcance', avgField: 'avgAlcance' },
-    'alcance relativo': { field: 'reachDiffPercentage', friendly: 'Alcance Relativo', avgField: 'avgAlcance' }, // Added specific term
+    'alcance relativo': { field: 'reachDiffPercentage', friendly: 'Alcance Relativo', avgField: 'avgAlcance' },
     'salvamentos': { field: 'saveDiffPercentage', friendly: 'Salvamentos', avgField: 'avgSalvamentos' },
     'salvos': { field: 'saveDiffPercentage', friendly: 'Salvamentos', avgField: 'avgSalvamentos' },
-    'salvamento': { field: 'saveDiffPercentage', friendly: 'Salvamentos', avgField: 'avgSalvamentos' }, // Added singular
+    'salvamento': { field: 'saveDiffPercentage', friendly: 'Salvamentos', avgField: 'avgSalvamentos' },
     'compartilhamentos': { field: 'shareDiffPercentage', friendly: 'Compartilhamentos', avgField: 'avgCompartilhamentos' },
     'shares': { field: 'shareDiffPercentage', friendly: 'Compartilhamentos', avgField: 'avgCompartilhamentos' },
-    'compartilhamento': { field: 'shareDiffPercentage', friendly: 'Compartilhamentos', avgField: 'avgCompartilhamentos' }, // Added singular
+    'compartilhamento': { field: 'shareDiffPercentage', friendly: 'Compartilhamentos', avgField: 'avgCompartilhamentos' },
     'curtidas': { field: 'likeDiffPercentage', friendly: 'Curtidas', avgField: 'avgCurtidas' },
     'likes': { field: 'likeDiffPercentage', friendly: 'Curtidas', avgField: 'avgCurtidas' },
-    'curtida': { field: 'likeDiffPercentage', friendly: 'Curtidas', avgField: 'avgCurtidas' }, // Added singular
-    'visualizacoes': { field: 'avgVisualizacoes', friendly: 'Visualizações', avgField: 'avgVisualizacoes' }, // Diff field might not exist
+    'curtida': { field: 'likeDiffPercentage', friendly: 'Curtidas', avgField: 'avgCurtidas' },
+    'visualizacoes': { field: 'avgVisualizacoes', friendly: 'Visualizações', avgField: 'avgVisualizacoes' },
     'views': { field: 'avgVisualizacoes', friendly: 'Visualizações', avgField: 'avgVisualizacoes' },
-    // Add more mappings as needed
 };
 // Mapping from metric field names to friendly names
 const METRIC_FIELD_TO_FRIENDLY_NAME: { [field: string]: string } = {
@@ -97,21 +99,25 @@ const METRIC_FIELD_TO_FRIENDLY_NAME: { [field: string]: string } = {
     'taxaRetencao': 'Retenção',
     'taxaEngajamento': 'Engajamento (Geral)'
 };
+// Helper map for day names
+const DAY_NAMES_PT = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+// Helper map to get the average field corresponding to a goal metric
+const GOAL_METRIC_TO_AVG_FIELD: { [key: string]: keyof DayPCOPerformanceStats | undefined } = {
+    shareDiffPercentage: 'avgCompartilhamentos',
+    saveDiffPercentage: 'avgSalvamentos',
+    reachDiffPercentage: 'avgAlcance',
+    commentDiffPercentage: 'avgComentarios',
+    likeDiffPercentage: 'avgCurtidas',
+    // Add mappings for other goal metrics if needed
+};
+
 
 /**
  * Extracts the target metric and its friendly name for planning purposes.
  */
 function extractTargetMetricFocus(normalizedQuery: string): { targetMetricField: keyof DetailedContentStat | null, friendlyName: string | null } {
     const fnTag = "[extractTargetMetricFocus]";
-    const patterns = [
-        /focado em (?:ter |gerar )?mais (\w+)/,
-        /priorizando (\w+)/,
-        /com mais (\w+)/,
-        /aumentar (\w+)/,
-        /melhorar (\w+)/,
-        /gerar (\w+)/,
-        /mais (\w+)/
-    ];
+    const patterns = [ /focado em (?:ter |gerar )?mais (\w+)/, /priorizando (\w+)/, /com mais (\w+)/, /aumentar (\w+)/, /melhorar (\w+)/, /gerar (\w+)/, /mais (\w+)/ ];
     for (const pattern of patterns) {
         const match = normalizedQuery.match(pattern);
         const keyword = match?.[1];
@@ -133,7 +139,6 @@ function extractTargetMetricFocus(normalizedQuery: string): { targetMetricField:
 
 /**
  * Extracts the target metric and its friendly name for analytical Q&A.
- * Now tries to match more specific phrases first.
  */
 function extractMetricForAnalysis(normalizedQuery: string): {
     field: keyof ProposalStat | keyof DetailedContentStat | keyof ContextStat | null,
@@ -141,29 +146,15 @@ function extractMetricForAnalysis(normalizedQuery: string): {
     friendlyName: string
 } {
     const fnTag = "[extractMetricForAnalysis v1.1]";
-    // Prioritize longer/more specific matches
-    const patterns = [
-        /gera mais (\w+)/,
-        /melhor desempenho em (\w+)/,
-        /maior desempenho em (\w+)/,
-        /recordista em (\w+)/,
-        /performam melhor em (\w+)/,
-        /quais dao mais (\w+)/,
-        /o que da mais (\w+)/,
-        /alcance relativo/, // Specific phrase check
-        /mais (\w+)/ // General check last
-    ];
-
+    const patterns = [ /gera mais (\w+)/, /melhor desempenho em (\w+)/, /maior desempenho em (\w+)/, /recordista em (\w+)/, /performam melhor em (\w+)/, /quais dao mais (\w+)/, /o que da mais (\w+)/, /alcance relativo/, /mais (\w+)/ ];
     for (const pattern of patterns) {
         const match = normalizedQuery.match(pattern);
-        // For "alcance relativo", keyword is the phrase itself
         const keyword = pattern.source === "alcance relativo" ? "alcance relativo" : match?.[1];
-
         if (keyword && METRIC_FOCUS_MAP[keyword]) {
             const metricInfo = METRIC_FOCUS_MAP[keyword];
             if (metricInfo && metricInfo.field) {
                  const field = metricInfo.field;
-                 const avgField = metricInfo.avgField ?? null; // Get corresponding avg field if defined
+                 const avgField = metricInfo.avgField ?? null;
                  const friendlyName = metricInfo.friendly;
                  logger.debug(`${fnTag} Métrica para análise identificada: ${keyword} -> ${field} (Avg: ${avgField}, Friendly: ${friendlyName})`);
                  return {
@@ -174,10 +165,8 @@ function extractMetricForAnalysis(normalizedQuery: string): {
             }
         }
     }
-    // Default if no specific metric is mentioned in the question
     logger.debug(`${fnTag} Nenhuma métrica específica na pergunta. Usando 'Compartilhamentos' como padrão.`);
     const defaultInfo = METRIC_FOCUS_MAP['compartilhamentos'];
-
     // --- CORREÇÃO APLICADA AQUI (v3.41) ---
     if (defaultInfo && defaultInfo.field) { // Check if defaultInfo and its essential field exist
         return {
@@ -626,6 +615,7 @@ async function findBestCombinationForScript(report: IEnrichedReport, targetDay: 
 
 // --- Funções Handler Refatoradas ---
 
+// <<< CORREÇÃO v3.44 >>> Simplifica tipo do enrichedReport
 interface HandlerParams {
     user: IUser;
     incomingText: string;
@@ -636,7 +626,7 @@ interface HandlerParams {
     tone: string;
     userIdStr: string;
     greeting: string;
-    enrichedReport?: IEnrichedReport; // Report data, fetched before calling handler
+    enrichedReport?: IEnrichedReport; // Importado de dataService, já inclui performanceByDayPCO?
 }
 interface HandlerResult {
     aiCoreResponse: string; // The core response from the AI (without greeting/extras)
@@ -773,76 +763,162 @@ async function _handleAskBestPerformer(params: HandlerParams): Promise<HandlerRe
 }
 
 /**
- * Handler for ASK_BEST_TIME intent (v1.1 - Structured Fallback)
+ * Handler for ASK_BEST_TIME intent (v1.2 - Implemented Day Analysis)
+ * Answers "When should I post X for goal Y?". Uses day-of-week data if available.
  */
 async function _handleAskBestTime(params: HandlerParams): Promise<HandlerResult> {
-    // (Mantida como na v3.38 - com correção normalizeTextInput)
     const { user, incomingText, normalizedQuery, initialDialogueState, tone, userIdStr, greeting, enrichedReport } = params;
-    const handlerTag = "[_handleAskBestTime v1.1 - Structured Fallback]";
+    const handlerTag = "[_handleAskBestTime v1.2 - Implemented Day Analysis]";
     logger.debug(`${handlerTag} Iniciando...`);
 
-     if (!enrichedReport) {
+    if (!enrichedReport) {
         logger.error(`${handlerTag} Erro: enrichedReport não fornecido.`);
         throw new Error("Relatório de dados não disponível para análise.");
     }
 
-    // 1. Extract Target Strategy/Proposal and Goal (Simplified)
+    // 1. Extract Target Strategy/Proposal and Goal
     let targetStrategy = "esse tipo de conteúdo";
     let targetGoal = "engajamento";
-    let goalMetric: keyof ProposalStat | null = "shareDiffPercentage";
+    let goalMetricField: keyof DayPCOPerformanceStats | null = 'avgCompartilhamentos'; // Default metric to compare days
+    let goalMetricFriendly = 'Compartilhamentos (média)';
 
     const proposalMatch = normalizedQuery.match(/quando postar (.*?)(?: para |$)/);
     if (proposalMatch && proposalMatch[1]) {
-        const extractedStrategyNormalized = normalizeTextInput(proposalMatch[1].trim()); // Use alias
-         const foundStat = enrichedReport.proposalStats?.find(p => normalizeTextInput(p._id?.proposal || '') === extractedStrategyNormalized); // Use alias
-         if (foundStat && foundStat._id?.proposal) {
-             targetStrategy = foundStat._id.proposal;
-         } else {
-             targetStrategy = proposalMatch[1].trim();
-             logger.warn(`${handlerTag} Estratégia "${targetStrategy}" mencionada não encontrada nos dados.`);
-         }
+        const extractedStrategyNormalized = normalizeTextInput(proposalMatch[1].trim());
+        const foundStat = enrichedReport.proposalStats?.find(p => normalizeTextInput(p._id?.proposal || '') === extractedStrategyNormalized);
+        if (foundStat && foundStat._id?.proposal) {
+            targetStrategy = foundStat._id.proposal;
+        } else {
+            targetStrategy = proposalMatch[1].trim();
+            logger.warn(`${handlerTag} Estratégia "${targetStrategy}" mencionada não encontrada nos dados.`);
+        }
     }
+
     if (normalizedQuery.includes("ganhar seguidor")) {
         targetGoal = "ganhar seguidores";
-        goalMetric = "shareDiffPercentage";
+        goalMetricField = 'avgCompartilhamentos';
+        goalMetricFriendly = METRIC_FIELD_TO_FRIENDLY_NAME[goalMetricField] || 'Compartilhamentos';
     } else if (normalizedQuery.includes("mais alcance")) {
-         targetGoal = "aumentar o alcance";
-         goalMetric = "reachDiffPercentage";
-    }
+        targetGoal = "aumentar o alcance";
+        goalMetricField = 'avgAlcance';
+        goalMetricFriendly = METRIC_FIELD_TO_FRIENDLY_NAME[goalMetricField] || 'Alcance';
+    } else if (normalizedQuery.includes("mais salvamento")) {
+        targetGoal = "aumentar salvamentos";
+        goalMetricField = 'avgSalvamentos';
+        goalMetricFriendly = METRIC_FIELD_TO_FRIENDLY_NAME[goalMetricField] || 'Salvamentos';
+    } // Add more goal mappings and corresponding metric fields
 
-    // 2. Check for Day-of-Week Data (Assume Unavailable)
-    // *** SET THIS TO TRUE AND IMPLEMENT LOGIC BELOW WHEN DATA IS AVAILABLE ***
-    const DAY_OF_WEEK_DATA_AVAILABLE = false;
-    if (!DAY_OF_WEEK_DATA_AVAILABLE) {
-        logger.warn(`${handlerTag} Análise por dia da semana NÃO IMPLEMENTADA/disponível. Usando fallback.`);
-    }
+    logger.debug(`${handlerTag} Analisando melhor dia para ${targetStrategy} com objetivo ${targetGoal} (métrica: ${goalMetricField})`);
 
-    // 3. Generate Response
+    // 2. Check for Day-of-Week Data Availability
+    // <<< ATIVAÇÃO DA LÓGICA (v3.42) >>> Checa se o campo existe no relatório
+    // <<< CORREÇÃO v3.44 >>> Acessa o campo corretamente
+    const performanceByDayPCO = enrichedReport.performanceByDayPCO;
+    const DAY_OF_WEEK_DATA_AVAILABLE = !!performanceByDayPCO;
+
     let insight: string;
     let followUp: string;
 
-    if (DAY_OF_WEEK_DATA_AVAILABLE) {
-        // --- Placeholder for Day-of-Week Analysis ---
-        logger.warn(`${handlerTag} Bloco de análise por dia atingido, mas não implementado!`);
-        // TODO: Implement this logic when day-of-week data is available in enrichedReport.
-        insight = `- Análise por dia da semana para **${targetStrategy}** ainda em desenvolvimento.`;
-        followUp = `Quer um plano de conteúdo geral para ${targetStrategy}?`;
-        // --- End Placeholder ---
+    if (DAY_OF_WEEK_DATA_AVAILABLE && goalMetricField) {
+        logger.info(`${handlerTag} Dados por Dia/P/C encontrados. Analisando...`);
+        const strategyDataByDay: { day: number; value: number }[] = [];
+        const normalizedTargetStrategy = normalizeTextInput(targetStrategy);
+        let foundDataForStrategy = false;
+
+        for (let day = 0; day < 7; day++) { // 0=Sun, 6=Sat
+            const dayData = performanceByDayPCO[day];
+            logger.debug(`${handlerTag} [Dia ${day}] Data: ${dayData ? 'Existe' : 'Ausente'}`);
+            if (dayData) {
+                logger.debug(`${handlerTag} [Dia ${day}] Chaves de Proposta: [${Object.keys(dayData).join(', ')}]`);
+                // Find proposal data for the day (case-insensitive recommended)
+                const proposalKey = Object.keys(dayData).find(p => normalizeTextInput(p) === normalizedTargetStrategy);
+                logger.debug(`${handlerTag} [Dia ${day}] Procurando por '${normalizedTargetStrategy}'. Chave encontrada: ${proposalKey ?? 'NENHUMA'}`);
+                const proposalPerf = proposalKey ? dayData[proposalKey] : undefined;
+
+                if (proposalPerf) {
+                    logger.debug(`${handlerTag} [Dia ${day}, Prop ${proposalKey}] Chaves de Contexto: [${Object.keys(proposalPerf).join(', ')}]`);
+                    // Assume 'Geral' context or the first context found
+                    const contextKey = Object.keys(proposalPerf).find(c => c === 'Geral') || Object.keys(proposalPerf)[0];
+                    logger.debug(`${handlerTag} [Dia ${day}, Prop ${proposalKey}] Chave de Contexto selecionada: ${contextKey ?? 'NENHUMA'}`);
+                    const contextPerf = contextKey ? proposalPerf[contextKey] : undefined;
+
+                    if (contextPerf) {
+                        foundDataForStrategy = true; // Mark that we found *some* data for this strategy
+                        const metricValue = contextPerf[goalMetricField as keyof DayPCOPerformanceStats] as number | undefined;
+                        logger.debug(`${handlerTag} [Dia ${day}, Prop ${proposalKey}, Ctx ${contextKey}] Buscando métrica '${goalMetricField}'. Valor: ${metricValue ?? 'Ausente/Inválido'}`);
+
+                        if (typeof metricValue === 'number' && isFinite(metricValue)) {
+                            strategyDataByDay.push({ day: day, value: metricValue });
+                        } else {
+                             logger.debug(`${handlerTag} Valor para ${goalMetricField} inválido ou ausente para ${targetStrategy}/${contextKey} no dia ${day}`);
+                        }
+                    }
+                }
+            }
+        } // End loop days
+
+        logger.debug(`${handlerTag} Dados coletados por dia para '${targetStrategy}' (Métrica: ${goalMetricField}):`, strategyDataByDay);
+
+        if (strategyDataByDay.length > 0) {
+            strategyDataByDay.sort((a, b) => b.value - a.value); // Sort descending by metric value
+
+            // --- CORREÇÃO APLICADA AQUI (v3.43) ---
+            const firstDayData = strategyDataByDay[0];
+            if (firstDayData) { // Check if the first element exists
+                const maxValue = firstDayData.value;
+                logger.debug(`${handlerTag} Valor máximo encontrado: ${maxValue}`);
+
+                // Find all days with the max value (allow small tolerance, e.g., >= 90% of max?)
+                const bestDaysIndices = strategyDataByDay
+                    .filter(d => d.value >= maxValue * 0.90) // Example: top days within 10% of max
+                    .map(d => d.day);
+                const bestDayNames = bestDaysIndices.map(dayIndex => DAY_NAMES_PT[dayIndex] || `Dia ${dayIndex}`);
+                logger.debug(`${handlerTag} Melhores dias (índices): [${bestDaysIndices.join(', ')}], Nomes: [${bestDayNames.join(', ')}]`);
+
+                if (bestDayNames.length > 0) {
+                     insight = `- Para ${targetGoal} com **${targetStrategy}**, os dados recentes sugerem que os melhores dias para postar são: **${bestDayNames.join(' e ')}** (com base em ${goalMetricFriendly}).`;
+                     followUp = `Quer ideias de ${targetStrategy} para esses dias?`;
+                } else {
+                     // Should not happen if strategyDataByDay has items and firstDayData exists, but as a fallback
+                     insight = `- Encontrei dados para **${targetStrategy}**, mas não consegui determinar os melhores dias para ${targetGoal} com base em ${goalMetricFriendly}.`;
+                     followUp = `Quer tentar um plano de conteúdo geral para ${targetStrategy}?`;
+                }
+            } else {
+                 // Fallback if strategyDataByDay[0] is somehow undefined (very unlikely after length check)
+                 logger.error(`${handlerTag} Erro inesperado: strategyDataByDay não vazio, mas elemento 0 é indefinido.`);
+                 insight = `- Encontrei dados para **${targetStrategy}**, mas ocorreu um erro inesperado ao processá-los.`;
+                 followUp = `Quer tentar um plano de conteúdo geral para ${targetStrategy}?`;
+            }
+            // --- FIM DA CORREÇÃO ---
+
+        } else {
+             // If foundDataForStrategy is true, it means we found the proposal/context but not the specific metric value for any day
+             if (foundDataForStrategy) {
+                insight = `- Encontrei dados para **${targetStrategy}**, mas não especificamente para a métrica ${goalMetricFriendly} por dia da semana.`;
+             } else {
+                insight = `- Não encontrei dados de desempenho por dia da semana específicos para **${targetStrategy}** para analisar o melhor momento para ${targetGoal}.`;
+             }
+             followUp = `Recomendo testar em dias diferentes. Quer um plano de conteúdo focado em ${targetStrategy}?`;
+        }
+
     } else {
-        // Fallback logic
-        const strategyStat = enrichedReport.proposalStats?.find(p => normalizeTextInput(p._id?.proposal || '') === normalizeTextInput(targetStrategy)); // Use alias
+        // Fallback logic when day-of-week data is unavailable OR goalMetricField is null
+        logger.warn(`${handlerTag} Usando fallback. DAY_OF_WEEK_DATA_AVAILABLE=${DAY_OF_WEEK_DATA_AVAILABLE}, goalMetricField=${goalMetricField}`);
+        const strategyStat = enrichedReport?.proposalStats?.find(p => normalizeTextInput(p._id?.proposal || '') === normalizeTextInput(targetStrategy));
         let performanceInfo = "";
-        if (strategyStat && goalMetric) {
-             const metricValue = strategyStat[goalMetric] as number | null | undefined;
-             const friendlyMetricName = METRIC_FIELD_TO_FRIENDLY_NAME[goalMetric] || goalMetric;
+        // Use the originally intended goal metric (diff%) for fallback info if available
+        const fallbackMetric = (goalMetricField && GOAL_METRIC_TO_AVG_FIELD[goalMetricField]) ? goalMetricField : 'shareDiffPercentage';
+        if (strategyStat && fallbackMetric) {
+             const metricValue = strategyStat[fallbackMetric as keyof ProposalStat] as number | null | undefined;
+             const friendlyMetricName = METRIC_FIELD_TO_FRIENDLY_NAME[fallbackMetric] || fallbackMetric;
              if (metricValue !== null && metricValue !== undefined) {
-                 if (goalMetric.endsWith('DiffPercentage')) {
-                    const diffFormatted = formatPercentageDiff(metricValue); // *** USES IMPORTED FUNCTION ***
+                 if (fallbackMetric.endsWith('DiffPercentage')) {
+                    const diffFormatted = formatPercentageDiff(metricValue);
                      if (diffFormatted && diffFormatted !== '(+0%)' && diffFormatted !== '(0%)' && diffFormatted !== '(-0%)') {
                          performanceInfo = ` (historicamente tem bom desempenho relativo de ${friendlyMetricName}: ${diffFormatted})`;
                      }
                  } else {
-                     const avgValueFormatted = formatNumericMetric(metricValue); // *** USES IMPORTED FUNCTION ***
+                     const avgValueFormatted = formatNumericMetric(metricValue);
                      if (avgValueFormatted !== "N/A") {
                          performanceInfo = ` (costuma ter boa média de ${friendlyMetricName}: ${avgValueFormatted})`;
                      }
@@ -893,7 +969,6 @@ async function _handleScriptRequest(params: HandlerParams): Promise<HandlerResul
     if (!scriptSourceFound) { const isProactiveTrigger = containsDayOfWeek(normalizedQuery) || isGenericScriptRequest(normalizedQuery); logger.debug(`${scriptFlowTag} Verificando gatilho proativo: ${isProactiveTrigger}`); if (isProactiveTrigger) { if (!enrichedReport) { logger.error(`${scriptFlowTag} Erro Crítico: Lógica proativa requer enrichedReport.`); throw new Error("Relatório de dados não disponível para roteiro proativo."); } const targetDay = extractDayOfWeek(normalizedQuery); logger.debug(`${scriptFlowTag} Tentando análise proativa. Dia alvo: ${targetDay}`); const bestCombination = await findBestCombinationForScript(enrichedReport, targetDay); if (bestCombination) { logger.info(`${scriptFlowTag} Melhor combinação proativa encontrada: P='${bestCombination._id.proposal}', C='${bestCombination._id.context}'`); sourceDescription = bestCombination.bestPostInGroup!.description!; sourceProposal = bestCombination._id.proposal; sourceContext = bestCombination._id.context; scriptSourceFound = true; logger.info(`${scriptFlowTag} Usando descrição do bestPostInGroup para roteiro proativo.`); nextState.recentPlanIdeas = null; nextState.recentPlanTimestamp = undefined; nextState.lastOfferedScriptIdea = null; } else { logger.warn(`${scriptFlowTag} Nenhuma combinação adequada encontrada na análise proativa.`); const overallBest = await findBestCombinationForScript(enrichedReport, null); const suggestion = overallBest?.bestPostInGroup?.description ? `Que tal criarmos um roteiro baseado na sua combinação de maior sucesso geral: **${overallBest._id.proposal || 'N/A'}** sobre **${overallBest._id.context || 'N/A'}**?` : "Você prefere me dar uma ideia ou tema específico?"; const dayMentioned = targetDay ? `para ${targetDay.charAt(0).toUpperCase() + targetDay.slice(1)} ` : ""; finalClarificationMessage = `Não encontrei dados específicos ${dayMentioned}no seu histórico recente para basear um roteiro proativo. 😕 ${suggestion}`; logger.info(`${scriptFlowTag} Análise proativa falhou. Definindo mensagem de clarificação específica.`); nextState.recentPlanIdeas = null; nextState.recentPlanTimestamp = undefined; nextState.lastOfferedScriptIdea = null; } } else { logger.debug(`${scriptFlowTag} Não é um gatilho proativo.`); if (nextState.recentPlanTimestamp && (Date.now() - nextState.recentPlanTimestamp) / (1000 * 60) > MAX_PLAN_CONTEXT_AGE_MINUTES) { nextState.recentPlanIdeas = null; nextState.recentPlanTimestamp = undefined; } if (nextState.lastOfferedScriptIdea?.timestamp && (Date.now() - nextState.lastOfferedScriptIdea.timestamp) / (1000 * 60) > MAX_OFFERED_SCRIPT_CONTEXT_AGE_MINUTES) { nextState.lastOfferedScriptIdea = null; } } }
     logger.debug(`${scriptFlowTag} Decisão final: scriptSourceFound=${scriptSourceFound}, sourceDescription=${!!sourceDescription}`);
     if (scriptSourceFound && sourceDescription) { logger.info(`${scriptFlowTag} Fonte final encontrada. Gerando prompt de roteiro...`); const finalSourceProposal = typeof sourceProposal === 'string' ? sourceProposal : undefined; const finalSourceContext = typeof sourceContext === 'string' ? sourceContext : undefined;
-        // *** CORREÇÃO APLICADA AQUI (v3.40) ***
         const prompt = importedGenerateScriptInstructions( user.name || "usuário", sourceDescription, finalSourceProposal, finalSourceContext, promptHistoryForAI, tone, incomingText );
         const aiCoreResponse = await callAIWithResilience(prompt); const { finalResponse, greetingAdded } = await addGreetingAndGraph(aiCoreResponse, userIdStr, greeting, nextState); if (greetingAdded) { nextState.lastGreetingSent = Date.now(); } logger.debug(`${scriptFlowTag} Roteiro gerado pela IA OK.`); nextState.lastInteraction = Date.now(); return { aiCoreResponse, nextDialogueState: nextState, finalResponseString: finalResponse }; }
     else { logger.info(`${scriptFlowTag} Fonte não encontrada ou inválida. Retornando clarificação.`); const response = finalClarificationMessage ?? "Não consegui identificar exatamente sobre qual ideia você quer o roteiro. Pode me dar uma referência mais clara?"; const { finalResponse: finalClarificationWithGreeting, greetingAdded } = await addGreetingAndGraph(response, userIdStr, greeting, nextState); if (greetingAdded) { nextState.lastGreetingSent = Date.now(); } nextState.lastInteraction = Date.now(); return { aiCoreResponse: response, nextDialogueState: nextState, finalResponseString: finalClarificationWithGreeting }; }
@@ -902,7 +977,6 @@ async function _handleScriptRequest(params: HandlerParams): Promise<HandlerResul
 
 /** Handler para a intenção content_plan */
 async function _handleContentPlanRequest(params: HandlerParams): Promise<HandlerResult> {
-    // *** CORREÇÃO APLICADA AQUI (v3.40) ***
     const { user, incomingText, normalizedQuery, promptHistoryForAI, initialDialogueState, tone, userIdStr, greeting, enrichedReport } = params;
     const planFlowTag = "[_handleContentPlanRequest v1.3 - Dynamic Metric]"; logger.debug(`${planFlowTag} Iniciando...`); if (!enrichedReport) { throw new Error("Relatório enriquecido não fornecido."); } const { targetMetricField, friendlyName: targetMetricFriendlyName } = extractTargetMetricFocus(normalizedQuery); let prompt: string; let commonCombinationDataForPlan: { proposal: string; context: string; stat: DetailedContentStat } | null = null; const reliableStats = (enrichedReport.detailedContentStats || []) .filter(stat => !!(stat && stat._id && stat.count >= 2)); if (reliableStats.length === 1) { const bestStat = reliableStats[0]!; commonCombinationDataForPlan = { proposal: bestStat._id.proposal || 'N/A', context: bestStat._id.context || 'N/A', stat: bestStat as DetailedContentStat }; } else if (reliableStats.length > 1) { const bestStat = reliableStats[0]!; const bestPCKey = `${bestStat._id.proposal || 'N/A'}|${bestStat._id.context || 'N/A'}`; const top3Keys = reliableStats.slice(0, 3).map(stat => `${stat._id.proposal || 'N/A'}|${stat._id.context || 'N/A'}`); if (top3Keys.filter(key => key === bestPCKey).length >= 2) { commonCombinationDataForPlan = { proposal: bestStat._id.proposal || 'N/A', context: bestStat._id.context || 'N/A', stat: bestStat as DetailedContentStat }; } }
     if (commonCombinationDataForPlan) {
@@ -916,7 +990,6 @@ async function _handleContentPlanRequest(params: HandlerParams): Promise<Handler
 
 /** Handler para a intenção ranking_request */
 async function _handleRankingRequest(params: HandlerParams): Promise<HandlerResult> {
-    // *** CORREÇÃO APLICADA AQUI (v3.40) ***
      const { user, incomingText, promptHistoryForAI, initialDialogueState, tone, userIdStr, greeting, enrichedReport } = params;
      const rankingFlowTag = "[_handleRankingRequest v1.1]"; logger.debug(`${rankingFlowTag} Iniciando...`); if (!enrichedReport) { throw new Error("Relatório enriquecido não fornecido."); }
      const prompt = importedGenerateRankingInstructions(user.name || "usuário", enrichedReport, promptHistoryForAI, tone, incomingText); // Use alias
@@ -925,7 +998,6 @@ async function _handleRankingRequest(params: HandlerParams): Promise<HandlerResu
 
 /** Handler para intenções gerais (general, report, content_ideas, etc.) */
 async function _handleGeneralRequest(params: HandlerParams, intent: string): Promise<HandlerResult> {
-    // *** CORREÇÃO APLICADA AQUI (v3.40) ***
     const { user, incomingText, promptHistoryForAI, initialDialogueState, tone, userIdStr, greeting, enrichedReport } = params;
     const generalFlowTag = `[_handleGeneralRequest v1.7 - Intent: ${intent}]`; logger.debug(`${generalFlowTag} Iniciando...`); if (!enrichedReport) { throw new Error("Relatório enriquecido não fornecido."); }
     const prompt = importedGenerateAIInstructions(user.name || "usuário", enrichedReport, promptHistoryForAI, tone, incomingText); // Use alias
@@ -936,7 +1008,7 @@ async function _handleGeneralRequest(params: HandlerParams, intent: string): Pro
 // --- Lógica Principal de Processamento REATORADA ---
 /**
  * Main orchestrator for processing user requests.
- * v3.41: Corrected defaultInfo check in extractMetricForAnalysis. Corrected alias calls.
+ * v3.43: Corrected array access check in _handleAskBestTime.
  */
 async function processMainAIRequest(
     user: IUser,
@@ -948,7 +1020,7 @@ async function processMainAIRequest(
     userIdStr: string,
     cacheKey: string
 ): Promise<string> {
-    const versionTag = "[processMainAIRequest v3.41 - Analytical Handlers + Fixes]"; // Updated version tag
+    const versionTag = "[processMainAIRequest v3.43 - Array Check Fix]"; // Updated version tag
     logger.debug(`${versionTag} Orquestrando para ${userIdStr}. Estado Inicial:`, initialDialogueState);
 
     // Determine Intent First
@@ -967,15 +1039,17 @@ async function processMainAIRequest(
     const tone = adjustTone(user.profileTone || "informal e prestativo");
     const promptHistoryForAI = getPromptHistory(conversationHistory);
     let handlerResult: HandlerResult;
-    let enrichedReportData: IEnrichedReport | undefined = undefined;
+    // <<< TIPO ATUALIZADO >>> Define o tipo esperado do relatório enriquecido
+    let enrichedReportData: IEnrichedReport | undefined = undefined; // Use IEnrichedReport from dataService
 
     // --- CORRECTED DATA FETCHING ---
     // Fetch report data for all non-special intents.
     const dataPrepStartTime = Date.now();
     try {
         logger.debug(`${versionTag} Buscando dados do relatório para intent: ${intent}`);
+        // Assume fetchAndPrepareReportData now returns the enriched report possibly containing performanceByDayPCO
         const { enrichedReport } = await dataService.fetchAndPrepareReportData({ user, dailyMetricModel: DailyMetric, contentMetricModel: Metric });
-        enrichedReportData = enrichedReport;
+        enrichedReportData = enrichedReport; // Assign directly, type is IEnrichedReport from dataService
         logger.debug(`${versionTag} Preparação de dados via DataService OK (${Date.now() - dataPrepStartTime}ms).`);
     } catch (dataError) {
         logger.error(`${versionTag} Falha na preparação de dados para intent ${intent}`, dataError);
@@ -995,7 +1069,7 @@ async function processMainAIRequest(
         tone,
         userIdStr,
         greeting,
-        enrichedReport: enrichedReportData // Pass fetched data
+        enrichedReport: enrichedReportData // Pass the potentially extended report
     };
 
     // Call the appropriate handler based on intent
@@ -1133,5 +1207,5 @@ export async function generateStrategicWeeklySummary(userName: string, aggregate
 
 
 // =========================================================================
-// FIM: consultantService.ts - v3.41 (Correção defaultInfo undefined)
+// FIM: consultantService.ts - v3.43 (Import DayPCOPerformanceStats)
 // =========================================================================

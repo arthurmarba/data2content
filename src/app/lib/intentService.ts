@@ -1,27 +1,43 @@
-// @/app/lib/intentService.ts - v2.10 (Novas Intenções Analíticas)
+// @/app/lib/intentService.ts - v2.13 (Reordena isGreeting + Correções Anteriores)
 
-import { IUser } from "@/app/models/User";
 import { logger } from '@/app/lib/logger';
+import { IUser } from "@/app/models/User"; // Assuming IUser is exported from User model
+import { Types } from 'mongoose';
+
+// Assuming IDialogueState is defined elsewhere or here if simple
+// For now, let's assume it's imported or defined with necessary fields
+interface IDialogueState {
+    lastInteraction?: number;
+    lastGreetingSent?: number;
+    recentPlanIdeas?: { identifier: string; description: string; }[] | null;
+    recentPlanTimestamp?: number;
+    lastOfferedScriptIdea?: { aiGeneratedIdeaDescription: string; originalSource: any; timestamp: number; } | null; // Added originalSource back based on usage
+}
+
+// --- Tipos e Constantes ---
+export type DeterminedIntent =
+    | 'script_request'
+    | 'content_plan'
+    | 'ranking_request'
+    | 'general' // Default/Fallback
+    | 'report' // Explicit report request
+    | 'content_ideas' // Explicit idea request
+    | 'greeting' // Simple greeting
+    | 'clarification_follow_up' // User responding to a clarification request
+    | 'proactive_script_accept' // User accepts a proactive script offer
+    | 'proactive_script_reject' // User rejects or ignores proactive offer
+    | 'ASK_BEST_PERFORMER' // New: Ask about best performing content type/proposal/context
+    | 'ASK_BEST_TIME';     // New: Ask about best time/day to post
+
+// Represents the result of intent determination
+export type IntentResult =
+    | { type: 'intent_determined'; intent: DeterminedIntent }
+    | { type: 'special_handled'; response: string }; // For immediate responses (greeting, empty)
 
 // --- Funções Utilitárias ---
 const selectRandom = <T>(arr: T[]): T | undefined => { if (arr.length === 0) return undefined; return arr[Math.floor(Math.random() * arr.length)]; };
 export const getRandomGreeting = (userName: string): string => { const greetings = [ `Oi ${userName}! Como posso ajudar hoje?`, `Olá ${userName}! Pronto(a) para analisar seus resultados?`, `E aí ${userName}, tudo certo? O que manda?` ]; return selectRandom(greetings) ?? `Olá ${userName}!`; };
 const updateUserFeedback = async (userId: string): Promise<number | null> => { logger.debug(`[Placeholder] updateUserFeedback chamado para ${userId}`); return null; };
-
-// --- Interface de Estado do Diálogo ---
-interface IPlanItemContext { identifier: string; description: string; proposal?: string; context?: string; }
-type OriginalSourceContext = { description: string; proposal?: string; context?: string; } | null;
-interface IDialogueState {
-    lastInteraction?: number;
-    lastGreetingSent?: number;
-    recentPlanIdeas?: IPlanItemContext[] | null;
-    recentPlanTimestamp?: number;
-    lastOfferedScriptIdea?: {
-        aiGeneratedIdeaDescription: string;
-        originalSource: OriginalSourceContext;
-        timestamp: number;
-    } | null;
-}
 
 // --- Constantes ---
 const MAX_PLAN_CONTEXT_AGE_MINUTES = 30;
@@ -39,16 +55,16 @@ const FEEDBACK_NEUTRAL_RESPONSE_WORDS = ["não", "nao"];
 const CONTENT_IDEAS_KEYWORDS = [ "ideia", "ideias", "conteúdo", "sugestão de post", "sugestões de post", "sugere", "sugestão", "o que postar", "inspiração", "exemplos de posts", "dicas de conteúdo", "ideias criativas" ];
 const REPORT_KEYWORDS = ["relatório", "relatorio", "plano", "estratégia", "detalhado", "completo", "performance", "analisa", "analise", "visão geral", "resultado", "resultados", "desempenho"];
 const CONTENT_PLAN_KEYWORDS = ["planejamento", "plano de conteudo", "agenda de posts", "calendario editorial", "o que postar essa semana", "sugestao de agenda", "me da um plano", "cria um plano"];
-const RANKING_KEYWORDS = ["ranking", "top", "melhores", "piores", "classificação", "quais performam", "performam melhor", "performam pior", "lista de"];
+const RANKING_KEYWORDS = ["ranking", "rank", "melhores", "piores", "top", "quais sao os", "lista de"];
 const SCRIPT_KEYWORDS = ["roteiro", "script", "estrutura", "outline", "sequencia", "escreve pra mim", "como fazer video sobre", "estrutura de post", "roteiriza"];
 const AMBIGUOUS_REFERENCE_KEYWORDS = [ "primeiro", "primeira", "segundo", "segunda", "terceiro", "terceira", "quarto", "quarta", "quinto", "quinta", "1", "2", "3", "4", "5", "segunda", "terca", "quarta", "quinta", "sexta", "sabado", "domingo", "esse", "essa", "este", "esta", "aquele", "aquela", "gostei", "quero", "faz", "fazer", "pode ser", "manda", "o ultimo", "a ultima", "ultimo", "ultima" ];
 const AMBIGUOUS_REFERENCE_REGEX = /\b(gostei d[oa]|quero [oa]|faz [oa]|fazer [oa]|pode ser [oa]|mand[ae] [oa])\s+(.+)/i;
 
 // *** NOVAS KEYWORDS ***
 const ASK_BEST_PERFORMER_KEYWORDS = ["qual tipo", "qual conteudo", "qual proposta", "qual contexto", "gera mais", "melhor desempenho", "maior desempenho", "recordista em", "performam melhor", "quais dao mais", "o que da mais"];
-const BEST_TIME_KEYWORDS = ["melhor dia", "melhor hora", "melhor horario", "qual dia", "qual hora", "qual horario", "quando postar", "frequencia", "cadencia"]; // Mantida, mas agora para intent principal
+const BEST_TIME_KEYWORDS = ["melhor dia", "melhor hora", "melhor horario", "qual dia", "qual hora", "qual horario", "quando postar", "frequencia", "cadencia"];
 
-// Lista de exclusão atualizada para incluir novas keywords se necessário (avaliar se precisa)
+// Lista de exclusão atualizada para incluir novas keywords se necessário
 const STRONG_INTENT_KEYWORDS_EXCLUSION = [
     ...CONTENT_PLAN_KEYWORDS, ...RANKING_KEYWORDS, ...REPORT_KEYWORDS,
     ...CONTENT_IDEAS_KEYWORDS, ...ASK_BEST_PERFORMER_KEYWORDS, ...BEST_TIME_KEYWORDS
@@ -148,10 +164,132 @@ export function isSimpleConfirmation(
     return false;
 }
 
+/** Checks for simple rejections (no, etc.). */
+function isSimpleRejection(normalizedText: string): boolean {
+    const rejections = ["nao", "n", "agora nao", "depois", "talvez depois", "outra hora", "deixa pra la"];
+    return rejections.includes(normalizedText);
+}
+
+/** Checks for requests for content ideas. */
+function isAskingForIdeas(normalizedText: string): boolean {
+    const ideaKeywords = ["ideia", "ideias", "sugestao", "sugestoes", "sugere", "inspiracao", "pauta", "pautas"];
+    const ideaPatterns = [
+        /me da (uma |umas )?(ideia|sugestao|inspiracao|pauta)/,
+        /preciso de (ideia|sugestao|inspiracao|pauta)/,
+        /tem (ideia|sugestao|inspiracao|pauta)s? para/,
+        /quais (ideia|sugestao|inspiracao|pauta)s? voce tem/,
+        /gera (ideia|sugestao|pauta)s?/,
+    ];
+    return ideaKeywords.some(kw => normalizedText.includes(kw)) || ideaPatterns.some(p => p.test(normalizedText));
+}
+
+/** Checks for requests for reports/summaries. */
+function isAskingForReport(normalizedText: string): boolean {
+    const reportKeywords = ["relatorio", "resumo", "desempenho", "performance", "analise", "como fui", "como estou indo"];
+    const reportPatterns = [
+        /me da o (relatorio|resumo|desempenho)/,
+        /gera um (relatorio|resumo)/,
+        /como foi meu (desempenho|performance)/,
+        /faz uma analise/,
+    ];
+    return reportKeywords.some(kw => normalizedText.includes(kw)) || reportPatterns.some(p => p.test(normalizedText));
+}
+
+/** Checks for requests for rankings. */
+function isAskingForRanking(normalizedText: string): boolean {
+    const rankingKeywords = ["ranking", "rank", "melhores", "piores", "top", "quais sao os", "lista de"];
+    const rankingPatterns = [
+        /(?:me )?mostra o ranking/,
+        /quais (foram|sao) os melhores/,
+        /quais (foram|sao) os piores/,
+        /faz um top \d+/,
+        /lista (os|as) (melhores|piores)/,
+    ];
+    // Avoid matching "melhores dias" which should be ASK_BEST_TIME
+    if (normalizedText.includes("melhores dias")) {
+        return false;
+    }
+    return rankingKeywords.some(kw => normalizedText.includes(kw)) || rankingPatterns.some(p => p.test(normalizedText));
+}
+
+/** Checks for requests for content plans. */
+function isAskingForPlan(normalizedText: string): boolean {
+    const planKeywords = ["plano", "planejamento", "calendario", "agenda", "cronograma", "conteudo", "postagens"];
+    const planPatterns = [
+        /(?:me )?da (o|um) (plano|planejamento|calendario|cronograma)/,
+        /cria (um )?(plano|planejamento|calendario|cronograma)/,
+        /preciso de (um )?(plano|planejamento)/,
+        /sugere? (um )?(plano|planejamento)/,
+        /organiza (minhas postagens|meu conteudo)/,
+        /planejamento (semanal|de conteudo)/,
+    ];
+    // Avoid triggering if just asking for "ideas" or "report" which might contain "conteudo"
+    if (isAskingForIdeas(normalizedText) || isAskingForReport(normalizedText)) {
+        return false;
+    }
+    return planKeywords.some(kw => normalizedText.includes(kw)) || planPatterns.some(p => p.test(normalizedText));
+}
+
+/** Checks for requests for scripts/outlines. */
+function isAskingForScript(normalizedText: string): boolean {
+    const scriptKeywords = ["roteiro", "script", "estrutura", "outline", "sequencia", "escreve pra mim", "roteiriza"];
+    const scriptPatterns = [
+        /(?:me )?da (o|um) (roteiro|script|outline|estrutura)/,
+        /cria (um )?(roteiro|script|outline|estrutura)/,
+        /faz (um )?(roteiro|script|outline)/,
+        /preciso de (um )?(roteiro|script)/,
+        /como fazer (um )?video sobre/,
+        /estrutura de post sobre/,
+        /(?:me )?ajuda a roteirizar/,
+    ];
+    return scriptKeywords.some(kw => normalizedText.includes(kw)) || scriptPatterns.some(p => p.test(normalizedText));
+}
+
+/** Checks for questions about best performing content. */
+function isAskingBestPerformer(normalizedText: string): boolean {
+    const patterns = [
+        /qual (tipo de )?conteudo (gera|da|tem|teve) mais/,
+        /qual (proposta|contexto) (gera|da|tem|teve) mais/,
+        /o que (gera|da|tem|teve) mais (\w+)/,
+        /(?:qual|quais) (proposta|contexto|conteudo|post) (performou|performaram|foi|foram) melhor/,
+        /(?:qual|quais) (dao|da) mais (\w+)/,
+        /melhor desempenho em/,
+        /maior desempenho em/,
+        /recordista em/,
+    ];
+    return patterns.some(p => p.test(normalizedText));
+}
+
+/** Checks for questions about the best time/day to post. */
+// <<< LÓGICA ATUALIZADA (v2.11) >>> Prioriza "melhor dia" e "quando postar"
+function isAskingBestTime(normalizedText: string): boolean {
+    const specificDayPatterns = [
+        /qual (o )?melhor dia (da semana )?para postar/,
+        /em qual dia devo postar/,
+        /quando (?:e|seria) melhor postar (?:sobre|o|a)/, // "quando é melhor postar sobre vendas"
+        /melhores dias para (?:a|o) proposta/, // "melhores dias para a proposta X"
+    ];
+    const generalTimePatterns = [
+        /qual (o )?melhor horario/, // Less common, might need specific handling later
+        /quando postar (?:sobre|o|a)/, // More general "when to post"
+    ];
+
+    // Prioritize specific day questions
+    if (specificDayPatterns.some(p => p.test(normalizedText))) {
+        return true;
+    }
+    // Check general time questions only if not asking for ranking/best performer
+    if (!isAskingForRanking(normalizedText) && !isAskingBestPerformer(normalizedText)) {
+        if (generalTimePatterns.some(p => p.test(normalizedText))) {
+            return true;
+        }
+    }
+    return false;
+}
+
 
 /**
  * Lida com casos especiais como saudações e feedback.
- * v2.3 -> v2.10: Remove tratamento de BEST_TIME_KEYWORDS.
  */
 async function handleSpecialCases(
     user: IUser,
@@ -165,22 +303,28 @@ async function handleSpecialCases(
     const wordCount = normalizedQuery.split(' ').filter(Boolean).length;
 
     // 1. Checar Saudação Simples (MAIS RESTRITO)
+    // <<< DEFINIÇÃO MOVIDA PARA CÁ (v2.13) >>>
+    function isGreeting(normalizedText: string): boolean {
+        const greetings = ["oi", "ola", "bom dia", "boa tarde", "boa noite", "e ai", "tudo bem", "tudo bom", "como vai"];
+        // Check if the normalized text *is* exactly one of the greetings
+        return greetings.includes(normalizedText);
+    }
+    // <<< FIM DA DEFINIÇÃO MOVIDA >>>
+
     const hasGreetingKeyword = includesAnyKeyword(normalizedQuery, NORMALIZED_GREETING_KEYWORDS);
     if (hasGreetingKeyword) {
         // Verifica se há outras keywords fortes que indicariam uma intenção principal
         const hasOtherKeywords = includesAnyKeyword(normalizedQuery, NORMALIZED_STRONG_INTENT_KEYWORDS_EXCLUSION) ||
                                  includesAnyKeyword(normalizedQuery, NORMALIZED_SCRIPT_KEYWORDS); // Script é tratado separadamente
-        if (wordCount <= MAX_WORDS_FOR_GREETING_CASE && !hasOtherKeywords) {
+        if (wordCount <= MAX_WORDS_FOR_GREETING_CASE && !hasOtherKeywords && isGreeting(normalizedQuery)) { // Usa a função local
             logger.debug(`${fnTag} Tratando como saudação (curta, sem outras keywords fortes).`);
             return `${greeting} Em que posso ajudar?`;
         } else {
-             logger.debug(`${fnTag} Keyword de saudação encontrada, mas ignorada (longa ou outras keywords fortes presentes).`);
+             logger.debug(`${fnTag} Keyword de saudação encontrada, mas ignorada (longa ou outras keywords fortes presentes ou não é apenas saudação).`);
         }
     }
 
-    // 2. Checar Pergunta sobre Melhor Hora/Dia - REMOVIDO DAQUI, será tratado como intent principal
-
-    // 3. Checar Feedback sobre a Resposta Anterior (MAIS RESTRITO)
+    // 2. Checar Feedback sobre a Resposta Anterior (MAIS RESTRITO)
     const isPositiveFeedbackWord = includesAnyKeyword(normalizedQuery, NORMALIZED_FEEDBACK_POSITIVE_KEYWORDS);
     const isNegativeFeedbackWord = includesAnyKeyword(normalizedQuery, NORMALIZED_FEEDBACK_NEGATIVE_KEYWORDS)
                              && !FEEDBACK_NEUTRAL_RESPONSE_WORDS.includes(normalizedQuery); // Evita "não" sozinho
@@ -214,126 +358,117 @@ async function handleSpecialCases(
 
 // --- Função Principal de Determinação de Intenção ---
 
-/** Define os possíveis valores de intenção principal determinada. */
-export type DeterminedIntent =
-    | 'report'
-    | 'content_ideas'
-    | 'content_plan'
-    | 'ranking_request'
-    | 'script_request'
-    | 'general'
-    | 'ASK_BEST_PERFORMER' // Nova intenção analítica
-    | 'ASK_BEST_TIME';      // Nova intenção analítica
-
-/** Define o tipo de retorno da função principal de intenção. */
-export type IntentResult =
-    | { type: 'special_handled'; response: string }
-    | { type: 'intent_determined'; intent: DeterminedIntent };
+// <<< DEFINIÇÃO MOVIDA PARA CÁ (v2.13) >>>
+/** Checks for simple greetings. */
+function isGreeting(normalizedText: string): boolean {
+    const greetings = ["oi", "ola", "bom dia", "boa tarde", "boa noite", "e ai", "tudo bem", "tudo bom", "como vai"];
+    // Check if the normalized text *is* exactly one of the greetings
+    return greetings.includes(normalizedText);
+}
+// <<< FIM DA DEFINIÇÃO MOVIDA >>>
 
 /**
- * Determina a intenção do usuário, considerando casos especiais, contexto,
- * e keywords explícitas, com ordem de prioridade ajustada e logging detalhado.
- * v2.10: Adiciona intents ASK_BEST_PERFORMER e ASK_BEST_TIME. Remove BEST_TIME de special cases.
+ * Determines the user's intent based on text, context, and dialogue state.
+ * v2.13: Moved isGreeting definition locally.
  */
 export async function determineIntent(
-    normalizedQuery: string,
+    normalizedText: string,
     user: IUser,
-    incomingText: string,
+    originalText: string, // Keep original text for potential future use (e.g., context extraction)
     dialogueState: IDialogueState,
-    greeting: string,
-    userIdStr: string
+    greeting: string, // Pass greeting for context
+    userIdStr: string // For logging
 ): Promise<IntentResult> {
-    const fnTag = "[determineIntent v2.10 - Novas Intenções]"; // Versão atualizada
-    logger.debug(`${fnTag} Iniciando determinação para query: "${normalizedQuery}"`);
+    const fnTag = "[determineIntent v2.13 - Reorder Fix]"; // Versão atualizada
+    logger.debug(`${fnTag} Iniciando determinação para query: "${normalizedText}"`);
     logger.debug(`${fnTag} Estado recebido:`, dialogueState);
 
-    // Etapa 1: Verificar casos especiais (Saudação, Feedback)
-    // handleSpecialCases agora não trata mais BEST_TIME
-    const specialResponse = await handleSpecialCases(user, incomingText, normalizedQuery, dialogueState, greeting, userIdStr);
-    if (specialResponse !== null) {
-        logger.info(`${fnTag} Caso especial tratado para user ${userIdStr}. Resposta: "${specialResponse.substring(0, 50)}..."`);
-        return { type: 'special_handled', response: specialResponse };
+    // 1. Handle Empty Input (Should ideally be caught before calling this)
+    if (!normalizedText) {
+        logger.warn(`${fnTag} Texto normalizado vazio.`);
+        // Respond immediately if possible, or return a specific intent/error
+        return { type: 'special_handled', response: `${greeting} Não entendi o que você quis dizer. Pode tentar de novo?` };
     }
 
-    // Etapa 2: Verificar CONTEXTO (Oferta de Roteiro, Plano Recente)
+    // 2. Check for Contextual Follow-ups (based on dialogue state)
     logger.debug(`${fnTag} Verificando lógica contextual...`);
-    const offerTimestamp = dialogueState.lastOfferedScriptIdea?.timestamp;
-    const hasRecentOfferContext = dialogueState.lastOfferedScriptIdea;
-    if (offerTimestamp && hasRecentOfferContext) {
-        const offerAgeMinutes = (Date.now() - offerTimestamp) / (1000 * 60);
-        logger.debug(`${fnTag} Contexto Oferta: Encontrado (Idade: ${offerAgeMinutes.toFixed(1)} min).`);
-        if (offerAgeMinutes < MAX_OFFERED_SCRIPT_CONTEXT_AGE_MINUTES) {
-            if (isSimpleConfirmation(normalizedQuery)) {
-                 logger.info(`${fnTag} DETECÇÃO CONTEXTUAL (Oferta): Query "${normalizedQuery}" interpretada como 'script_request' pela confirmação simples.`);
-                 return { type: 'intent_determined', intent: 'script_request' };
-            } else {
-                 logger.debug(`${fnTag} Contexto Oferta: Recente, mas query NÃO é confirmação simples.`);
-            }
-        } else {
-            logger.debug(`${fnTag} Contexto Oferta: Ignorado (muito antigo).`);
+    // 2a. Check if AI offered a script proactively
+    const offeredContext = dialogueState.lastOfferedScriptIdea;
+    if (offeredContext?.timestamp && (Date.now() - offeredContext.timestamp) < (MAX_OFFERED_SCRIPT_CONTEXT_AGE_MINUTES * 60 * 1000)) {
+        logger.debug(`${fnTag} Contexto Oferta: Encontrado. Desc: "${offeredContext.aiGeneratedIdeaDescription.substring(0,30)}..."`);
+        if (isSimpleConfirmation(normalizedText)) {
+            logger.info(`${fnTag} Intenção contextual: proactive_script_accept`);
+            return { type: 'intent_determined', intent: 'script_request' }; // Treat acceptance as a script request
         }
+        if (isSimpleRejection(normalizedText)) {
+            logger.info(`${fnTag} Intenção contextual: proactive_script_reject`);
+            // Clear the offer state? Maybe handled in consultantService after rejection response.
+            return { type: 'intent_determined', intent: 'general' }; // Treat rejection as general for now
+        }
+        // If not a clear accept/reject, assume the user is asking something else, ignore the offer context for now.
+        logger.debug(`${fnTag} Contexto de oferta presente, mas input não é confirmação/rejeição clara.`);
     } else {
-        logger.debug(`${fnTag} Contexto Oferta: Não encontrado no estado.`);
+         logger.debug(`${fnTag} Contexto Oferta: Não encontrado no estado.`);
     }
 
-    // Verifica contexto do plano
-    const planTimestamp = dialogueState.recentPlanTimestamp;
-    const hasRecentPlanContext = dialogueState.recentPlanIdeas && dialogueState.recentPlanIdeas.length > 0;
-    if (planTimestamp && hasRecentPlanContext) {
-        const planAgeMinutes = (Date.now() - planTimestamp) / (1000 * 60);
-        logger.debug(`${fnTag} Contexto Plano: Encontrado (Idade: ${planAgeMinutes.toFixed(1)} min).`);
-        if (planAgeMinutes < MAX_PLAN_CONTEXT_AGE_MINUTES) {
-            const isShortQuery = normalizedQuery.split(' ').length < MAX_WORDS_FOR_CONTEXTUAL_INTENT;
-            // Verifica se NÃO contém keywords de outras intenções fortes (incluindo as novas)
-            const hasExclusionKeyword = includesAnyKeyword(normalizedQuery, NORMALIZED_STRONG_INTENT_KEYWORDS_EXCLUSION);
-            const hasScriptKeyword = includesAnyKeyword(normalizedQuery, NORMALIZED_SCRIPT_KEYWORDS);
-            const hasAmbiguousRef = containsAmbiguousReference(normalizedQuery);
-            logger.debug(`${fnTag} Contexto Plano: Curta? ${isShortQuery}. Exclusão? ${hasExclusionKeyword}. ScriptKW? ${hasScriptKeyword}. AmbigRef? ${hasAmbiguousRef}.`);
+    // 2b. Check if AI presented plan items and user might be selecting one for a script
+    const planContext = dialogueState.recentPlanIdeas;
+    if (planContext && planContext.length > 0 && dialogueState.recentPlanTimestamp && (Date.now() - dialogueState.recentPlanTimestamp) < (MAX_PLAN_CONTEXT_AGE_MINUTES * 60 * 1000)) {
+        logger.debug(`${fnTag} Contexto Plano: Encontrado (${planContext.length} itens). Verificando se input corresponde a item.`);
+        // Check if the user input clearly refers to one of the plan items (e.g., "roteiro para a 2", "faz o script da [identifier]")
+        const planFollowUpKeywords = ["roteiro para", "script da", "faz o", "detalha a", "escolho a", "quero a ideia"];
+        // --- CORREÇÃO APLICADA AQUI (v2.12) ---
+        const firstWord = normalizedText.split(' ')[0]; // Get the first word
+        // Check if firstWord is defined before testing regex
+        const isNumericOrOrdinal = firstWord !== undefined && /^(?:[1-9]|primeir[ao]|segund[ao]|terceir[ao]|quart[ao]|quint[ao])$/.test(firstWord);
+        // --- FIM DA CORREÇÃO ---
 
-            if (isShortQuery && !hasExclusionKeyword && hasAmbiguousRef && hasScriptKeyword) {
-                logger.info(`${fnTag} DETECÇÃO CONTEXTUAL (Plano): Query "${normalizedQuery}" interpretada como 'script_request' (ref ambígua + script kw).`);
-                return { type: 'intent_determined', intent: 'script_request' };
-            } else {
-                 logger.debug(`${fnTag} Contexto Plano: Condições para script contextual (ref ambígua + script kw) não atendidas.`);
-            }
+        if (planFollowUpKeywords.some(kw => normalizedText.includes(kw)) || isNumericOrOrdinal) { // Use the boolean result
+            logger.info(`${fnTag} Intenção contextual: Possível seleção de item do plano para roteiro -> script_request`);
+            return { type: 'intent_determined', intent: 'script_request' };
         } else {
-             logger.debug(`${fnTag} Contexto Plano: Ignorado (muito antigo).`);
+            logger.debug(`${fnTag} Contexto Plano: Condições para script contextual não atendidas.`);
         }
     } else {
-        logger.debug(`${fnTag} Contexto Plano: Não encontrado no estado.`);
+         logger.debug(`${fnTag} Contexto Plano: Não encontrado no estado.`);
     }
     // --- Fim Lógica Contextual ---
 
 
-    // Etapa 3: Determinar por Keywords Explícitas (ORDEM AJUSTADA com NOVAS INTENTS)
+    // 3. Explicit Keyword/Pattern Matching (Order matters!)
     logger.debug(`${fnTag} Procedendo com a detecção por keywords explícitas...`);
     let intent: DeterminedIntent = 'general'; // Padrão
     let matchedKeywordList: string | null = null; // Para log
 
     // Ordem de prioridade: Mais específicos primeiro
-    if (includesAnyKeyword(normalizedQuery, NORMALIZED_CONTENT_PLAN_KEYWORDS)) {
+    if (isAskingBestTime(normalizedText)) { // Prioritize this check
+        intent = 'ASK_BEST_TIME';
+        matchedKeywordList = 'BEST_TIME';
+    } else if (includesAnyKeyword(normalizedText, NORMALIZED_CONTENT_PLAN_KEYWORDS)) {
         intent = 'content_plan';
         matchedKeywordList = 'CONTENT_PLAN';
-    } else if (includesAnyKeyword(normalizedQuery, NORMALIZED_SCRIPT_KEYWORDS)) {
+    } else if (includesAnyKeyword(normalizedText, NORMALIZED_SCRIPT_KEYWORDS)) {
         // Se chegou aqui, não foi interpretado como script contextual
         intent = 'script_request';
         matchedKeywordList = 'SCRIPT';
-    } else if (includesAnyKeyword(normalizedQuery, NORMALIZED_ASK_BEST_PERFORMER_KEYWORDS)) { // *** NOVO CHECK ***
+    } else if (includesAnyKeyword(normalizedText, NORMALIZED_ASK_BEST_PERFORMER_KEYWORDS)) {
         intent = 'ASK_BEST_PERFORMER';
         matchedKeywordList = 'ASK_BEST_PERFORMER';
-    } else if (includesAnyKeyword(normalizedQuery, NORMALIZED_BEST_TIME_KEYWORDS)) { // *** NOVO CHECK *** (Removido de special cases)
-        intent = 'ASK_BEST_TIME';
-        matchedKeywordList = 'BEST_TIME';
-    } else if (includesAnyKeyword(normalizedQuery, NORMALIZED_CONTENT_IDEAS_KEYWORDS)) {
+    } else if (includesAnyKeyword(normalizedText, NORMALIZED_CONTENT_IDEAS_KEYWORDS)) {
         intent = 'content_ideas';
         matchedKeywordList = 'CONTENT_IDEAS';
-    } else if (includesAnyKeyword(normalizedQuery, NORMALIZED_RANKING_KEYWORDS)) {
+    } else if (isAskingForRanking(normalizedText)) { // Check ranking after specific day questions
         intent = 'ranking_request';
         matchedKeywordList = 'RANKING';
-    } else if (includesAnyKeyword(normalizedQuery, NORMALIZED_REPORT_KEYWORDS)) {
+    } else if (includesAnyKeyword(normalizedText, NORMALIZED_REPORT_KEYWORDS)) {
         // 'plano' também está em REPORT_KEYWORDS, mas CONTENT_PLAN tem prioridade maior
         intent = 'report';
         matchedKeywordList = 'REPORT';
+    } else if (isGreeting(normalizedText)) { // <<< CHAMADA CORRIGIDA (v2.13 - usa função local)
+        // Handle greeting last among explicit keywords, as it was handled by special cases if simple enough
+        logger.debug(`${fnTag} Keyword match explícito encontrado na lista: GREETING (tratado como general).`);
+        intent = 'general'; // Treat complex greetings as general query
+        matchedKeywordList = 'GREETING (Complex)';
     }
 
     // Log detalhado da decisão por keyword
@@ -348,5 +483,5 @@ export async function determineIntent(
 }
 
 // ====================================================
-// FIM: intentService.ts - v2.10 (Novas Intenções Analíticas)
+// FIM: intentService.ts - v2.13 (Reordena isGreeting)
 // ====================================================
