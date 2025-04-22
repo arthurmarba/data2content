@@ -1,50 +1,44 @@
-/* src/app/globals.css */
-
-/* Fonte e Variáveis (import) */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+/* src/app/globals.css (Otimizado) */
 
 /* Tailwind base, components, utilities */
+/* Estas são as diretivas essenciais para o Tailwind funcionar */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --primary: #171717;
-  --secondary: #555555;
-}
+/* REMOVIDO: @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap'); */
+/* A fonte Poppins agora é carregada via next/font/google no layout.tsx */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    --primary: #ededed;
-    --secondary: #aaa;
-  }
-}
+/* REMOVIDO: Bloco :root com variáveis CSS */
+/* As cores base são aplicadas via classes Tailwind no layout.tsx, usando o tailwind.config.ts */
+/* :root { ... } */
+/* @media (prefers-color-scheme: dark) { :root { ... } } */
 
-body {
-  background-color: var(--background);
-  color: var(--foreground);
-  font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif;
-}
+/* REMOVIDO: Estilos diretos no body */
+/* A fonte, cor de fundo e cor de texto base são aplicadas via classes Tailwind no layout.tsx */
+/* body { ... } */
+
+
+/* --- ESTILOS CUSTOMIZADOS OPCIONAIS (Manter apenas se necessário) --- */
 
 /* Custom scrollbar (opcional) */
+/* Se você gosta e usa, pode manter. Caso contrário, remova para simplificar. */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: #f5f5f5;
+  background: #f1f1f1; /* Cor de fundo da track um pouco mais suave */
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #bbb;
+  background-color: #c1c1c1; /* Cor do thumb um pouco mais suave */
   border-radius: 3px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: #999;
+  background-color: #a8a8a8; /* Cor do thumb no hover */
 }
 
+/* Scrollbar Hide utility (opcional) */
+/* Mantenha apenas se precisar esconder scrollbars em elementos específicos. */
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
@@ -53,8 +47,20 @@ body {
   scrollbar-width: none;
 }
 
-/* Placeholder para campos contentEditable */
+/* Placeholder para campos contentEditable (opcional) */
+/* Mantenha apenas se você usa campos editáveis com placeholder via atributo data-*. */
 [data-placeholder]:empty:before {
   content: attr(data-placeholder);
-  color: #a0aec0;
+  color: #a0aec0; /* Cinza padrão do Tailwind */
+  pointer-events: none; /* Garante que o placeholder não interfira no clique */
+  display: block; /* Garante que o placeholder seja exibido */
 }
+
+/* Adicione aqui outros estilos globais realmente necessários */
+/* Exemplo: Estilos base para links, se não cobertos pelo Tailwind/Typography plugin */
+/*
+a {
+  @apply text-brand-pink hover:underline;
+}
+*/
+

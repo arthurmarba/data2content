@@ -18,6 +18,10 @@ const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
 // URL base da Cloud API (ajuste a versão se necessário)
 const BASE_URL = "https://graph.facebook.com/v16.0";
 
+interface WhatsAppSuccessResponse {
+  messages?: { id?: string }[];
+}
+
 /**
  * sendWhatsAppMessage:
  * Envia uma mensagem de texto simples para o número de WhatsApp fornecido.
@@ -61,8 +65,13 @@ export async function sendWhatsAppMessage(to: string, body: string): Promise<voi
       throw new Error(`WhatsApp API retornou status ${response.status}: ${errorText}`);
     }
 
-    // Opcional: Log de sucesso
-    // console.log(`Mensagem enviada com sucesso para ${phoneNumber}: ${body}`);
+    // 6) Optional: loga o message_id retornado
+    const data = (await response.json()) as WhatsAppSuccessResponse;
+    const msgs = data.messages;
+    if (msgs && msgs.length > 0) {
+      const messageId = msgs[0]?.id ?? "<sem-id>";
+      console.debug(`WhatsApp message sent, id=${messageId} to=${phoneNumber}`);
+    }
   } catch (error: unknown) {
     console.error("Erro no sendWhatsAppMessage:", error);
     const errorMessage = error instanceof Error ? error.message : String(error);

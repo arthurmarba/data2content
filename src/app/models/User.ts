@@ -1,9 +1,12 @@
-import { Schema, model, models, Document, Model } from "mongoose";
+// @/app/models/User.ts - v1.1 (com whatsappVerified)
+
+import { Schema, model, models, Document, Model, Types } from "mongoose"; // Importar Types
 
 /**
  * Interface que descreve um documento de usuário.
  */
 export interface IUser extends Document {
+  _id: Types.ObjectId; // Adicionar _id para clareza
   name?: string;
   email: string;
   image?: string;
@@ -13,8 +16,9 @@ export interface IUser extends Document {
   planExpiresAt?: Date | null;
   whatsappVerificationCode?: string | null;
   whatsappPhone?: string | null;
-  profileTone?: string; // <-- ADICIONADO: Tom de perfil para o serviço
-  hobbies?: string[];   // <-- ADICIONADO: Hobbies/Interesses para o serviço
+  whatsappVerified?: boolean; // <-- ADICIONADO
+  profileTone?: string;
+  hobbies?: string[];
   affiliateRank?: number;
   affiliateInvites?: number;
   affiliateCode?: string;
@@ -26,7 +30,6 @@ export interface IUser extends Document {
     bankAgency?: string;
     bankAccount?: string;
   };
-  // Adicionados para refletir timestamps: true
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -35,7 +38,6 @@ export interface IUser extends Document {
  * Gera um código de afiliado aleatório (6 caracteres maiúsculos).
  */
 function generateAffiliateCode(): string {
-  // Mantida a sua implementação original
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
@@ -47,18 +49,19 @@ const userSchema = new Schema<IUser>(
     name: { type: String },
     email: { type: String, required: true, unique: true },
     image: { type: String },
-    googleId: { type: String }, // Mantido como está
+    googleId: { type: String },
     role: { type: String, default: "user" },
     planStatus: { type: String, default: "inactive" },
     planExpiresAt: { type: Date, default: null },
-    whatsappVerificationCode: { type: String, default: null },
-    whatsappPhone: { type: String, default: null },
-    profileTone: { type: String, default: 'informal e prestativo' }, // <-- ADICIONADO: Com valor padrão
-    hobbies: { type: [String], default: [] }, // <-- ADICIONADO: Com array vazio como padrão
+    whatsappVerificationCode: { type: String, default: null, index: true }, // Adicionado index
+    whatsappPhone: { type: String, default: null, index: true }, // Mantido index
+    whatsappVerified: { type: Boolean, default: false }, // <-- ADICIONADO
+    profileTone: { type: String, default: 'informal e prestativo' },
+    hobbies: { type: [String], default: [] },
     affiliateRank: { type: Number, default: 1 },
     affiliateInvites: { type: Number, default: 0 },
-    affiliateCode: { type: String, unique: true }, // Mantido como está (sem sparse)
-    affiliateUsed: { type: String, default: "" }, // Mantido como está
+    affiliateCode: { type: String, unique: true },
+    affiliateUsed: { type: String, default: "" },
     affiliateBalance: { type: Number, default: 0 },
     paymentInfo: {
       pixKey: { type: String, default: "" },
@@ -68,7 +71,7 @@ const userSchema = new Schema<IUser>(
     },
   },
   {
-    timestamps: true, // Mantido
+    timestamps: true,
   }
 );
 
@@ -76,22 +79,20 @@ const userSchema = new Schema<IUser>(
  * Pre-save hook para gerar affiliateCode se ainda não existir
  */
 userSchema.pre<IUser>("save", function (next) {
-  // Mantido como está (sem checar isNew)
   if (!this.affiliateCode) {
     this.affiliateCode = generateAffiliateCode();
   }
   next();
 });
 
-// Índices para buscas mais eficientes (Mantidos como estavam)
-userSchema.index({ whatsappPhone: 1 });
-userSchema.index({ planStatus: 1 });
-// Considerar adicionar: userSchema.index({ email: 1 });
+// Índices (mantidos e adicionados)
+// userSchema.index({ whatsappPhone: 1 }); // Já definido no schema
+userSchema.index({ email: 1 }); // Adicionado explicitamente se não estava
+// userSchema.index({ whatsappVerificationCode: 1 }); // Já definido no schema
 
 /**
  * Exporta o modelo 'User', evitando recriação em dev/hot reload
  */
-// Garante que o tipo exportado seja Model<IUser>
 const UserModel: Model<IUser> = models.User || model<IUser>("User", userSchema);
 
 export default UserModel;

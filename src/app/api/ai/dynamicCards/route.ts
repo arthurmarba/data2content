@@ -1,5 +1,8 @@
+// @/src/app/api/ai/dynamicCards/route.ts – rev. OpenAI‑v4
+// Corrige import do SDK, simplifica instância e mantém restante da lógica.
+
 import { NextResponse } from "next/server";
-import { Configuration, OpenAIApi } from "openai";
+import OpenAI from "openai";
 
 /**
  * POST /api/ai/dynamicCards
@@ -11,27 +14,30 @@ import { Configuration, OpenAIApi } from "openai";
  */
 export async function POST(request: Request) {
   try {
-    // Lê o body
+    /* --------------------------------------------------
+       1. Leitura e validação do corpo
+    -------------------------------------------------- */
     const body = await request.json();
-    const { userStats, visao, missao, objetivos, filtros } = body;
+    const { userStats, visao, missao, objetivos, filtros } = body ?? {};
 
-    // Verifica se userStats existe e não está vazio
     if (!Array.isArray(userStats) || userStats.length === 0) {
       return NextResponse.json({ error: "Sem métricas para analisar" }, { status: 400 });
     }
 
-    // Monta o prompt com instruções detalhadas
+    /* --------------------------------------------------
+       2. Construção do prompt → (fica igual)
+    -------------------------------------------------- */
     const prompt = `
 Você é um consultor de marketing digital especializado em análises avançadas e recomendações estratégicas.
 O usuário tem a seguinte visão: "${visao}"
 Missão: "${missao}"
-Objetivos: "${objetivos?.join(", ")}"
-Filtros (se houver): "${filtros?.join(", ")}"
+Objetivos: "${(objetivos ?? []).join(", ")}"
+Filtros (se houver): "${(filtros ?? []).join(", ")}"
 
 A seguir, temos as métricas do usuário (stats) em formato JSON:
 ${JSON.stringify(userStats)}
 
-Cada item do array contém { rawData, stats, ... }. No "stats", podem existir métricas básicas 
+Cada item do array contém { rawData, stats, ... }. No "stats", podem existir métricas básicas
 (p.ex. "totalCurtidas", "taxaEngajamento") e métricas avançadas 
 (p.ex. "ratioLikeComment", "indicePropagacao", "engajamentoProfundoAlcance", etc.).
 
@@ -57,15 +63,7 @@ Cada item do array contém { rawData, stats, ... }. No "stats", podem existir m�
 
 4) Responda em JSON no formato:
 {
-  "cards": [
-    {
-      "metricKey": "...",
-      "title": "...",
-      "value": "...",
-      "description": "..."
-    },
-    ...
-  ]
+  "cards": [ <objetos> ]
 }
 
 5) Se não encontrar dados suficientes, retorne "cards": [].
@@ -75,58 +73,53 @@ Observação:
 - Se houver 9 ou mais métricas avançadas disponíveis (>0), prefira elas a métricas básicas repetidas.
 `;
 
-    // Configura OpenAI (use apenas 1 var de ambiente)
-    const configuration = new Configuration({
+    /* --------------------------------------------------
+       3. Instância OpenAI (v4)
+    -------------------------------------------------- */
+    const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
-    const openai = new OpenAIApi(configuration);
 
-    // Faz chamada ao ChatGPT
-    const completion = await openai.createChatCompletion({
+    /* --------------------------------------------------
+       4. Chamada Chat Completion
+    -------------------------------------------------- */
+    const { choices } = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
-      messages: [{ role: "user", content: prompt }],
       temperature: 0.3,
       max_tokens: 1500,
+      messages: [{ role: "user", content: prompt }],
     });
 
-    const responseText = completion.data.choices[0]?.message?.content || "";
+    const responseText = choices[0]?.message?.content ?? "";
 
-    // Tenta parsear como JSON
+    /* --------------------------------------------------
+       5. Parseia saída JSON (tolerante a erro)
+    -------------------------------------------------- */
     let parsed: unknown;
     try {
       parsed = JSON.parse(responseText);
     } catch {
-      // Se não for JSON válido, retorna como texto cru
       parsed = { rawText: responseText };
     }
 
-    // Se parsed tiver "cards" como array, podemos filtrar as métricas com value=0
+    // Filtra cards com value === 0
     if (
       parsed &&
       typeof parsed === "object" &&
       "cards" in parsed &&
       Array.isArray((parsed as { cards: unknown[] }).cards)
     ) {
-      const parsedObj = parsed as { cards: unknown[] };
-      parsedObj.cards = parsedObj.cards.filter((card: unknown) => {
+      (parsed as { cards: any[] }).cards = (parsed as { cards: any[] }).cards.filter((card) => {
         if (!card || typeof card !== "object") return false;
-        const c = card as { value?: number };
-        // Exclui se value===0 (ou se for "0" string, dependendo do caso)
-        if (c.value === 0) return false;
-        return true;
+        const val = (card as any).value;
+        return !(val === 0 || val === "0");
       });
     }
 
-    // Retorna o objeto final
     return NextResponse.json({ result: parsed }, { status: 200 });
-
   } catch (err: unknown) {
     console.error("POST /api/ai/dynamicCards error:", err);
-
-    let message = "Erro desconhecido.";
-    if (err instanceof Error) {
-      message = err.message;
-    }
+    const message = err instanceof Error ? err.message : "Erro desconhecido.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

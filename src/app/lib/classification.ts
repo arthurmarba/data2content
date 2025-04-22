@@ -103,10 +103,10 @@ export async function classifyContent(description: string): Promise<Classificati
   try {
       logger.debug(`[classifyContent v3.2] Chamando IA para classificar format/proposal/context (início: "${description.substring(0, 50)}...")`);
 
-      const rawResponse = await callOpenAIForQuestion(classificationPrompt, {
-          temperature: 0.15, // Mantém baixa para consistência
-          max_tokens: 100    // Aumenta um pouco para acomodar o novo campo
-      });
+      const rawResponse = await callOpenAIForQuestion(
+        classificationPrompt,
+        { temperature: 0.15, max_tokens: 100 }
+      );
 
       if (!rawResponse) {
           throw new Error("Resposta vazia da IA para classification.");
