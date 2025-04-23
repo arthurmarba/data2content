@@ -50,9 +50,7 @@ export default function MainDashboard() {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false); // Hook 6
 
   // --- useEffect para lidar com status da sessão (erros e redirecionamento) ---
-  // ESTE HOOK É CHAMADO EM TODAS AS RENDERIZAÇÕES
   useEffect(() => {
-    // --- CORREÇÃO: Lógica de redirecionamento movida para cá ---
     // Se o status for 'unauthenticated', redireciona para a home
     if (status === "unauthenticated") {
       router.push('/'); // Redireciona para a página inicial
@@ -60,12 +58,8 @@ export default function MainDashboard() {
     // Se estiver autenticado mas a sessão for inválida, loga um erro
     else if (status === "authenticated" && (!session || !session.user)) {
       console.error("Erro: Autenticado, mas session ou session.user inválido.", session);
-      // Poderia adicionar um redirecionamento para erro ou logout aqui também
-      // signOut({ redirect: false }); // Exemplo
-      // router.push('/error'); // Exemplo
     }
-    // Não faz nada se status === 'loading' ou 'authenticated' com sessão válida
-  }, [status, session, router]); // Dependências: re-executa se status, session ou router mudarem
+  }, [status, session, router]); // Dependências
 
   // Animação para os cards
   const cardVariants = {
@@ -79,7 +73,6 @@ export default function MainDashboard() {
 
   // Lógica de Resgate
   const handleRedeemBalance = useCallback(async (userId: string | undefined) => { // Hook 7
-     // ... (código mantido)
      if (!userId) { setRedeemMessage("Erro: ID do usuário não encontrado."); return; }
      setRedeemMessage("Processando...");
      try {
@@ -95,8 +88,7 @@ export default function MainDashboard() {
 
   // Lógica para Copiar Código
   const copyAffiliateCode = useCallback(() => { // Hook 8
-     // ... (código mantido)
-    const user = session?.user as ExtendedUser | undefined; // Usa optional chaining aqui por segurança
+    const user = session?.user as ExtendedUser | undefined;
     const code = user?.affiliateCode ?? "";
     if (!code || !navigator.clipboard) return;
 
@@ -111,7 +103,6 @@ export default function MainDashboard() {
   // --- Renderização Condicional Refinada ---
 
   // 1. Estado de Carregamento Inicial OU Redirecionamento Pendente
-  // Mostra skeleton se loading, ou mensagem de redirecionamento se unauthenticated (enquanto o useEffect redireciona)
   if (status === "loading" || status === "unauthenticated") {
     return (
         <div className="min-h-screen bg-brand-light p-4 sm:p-6 lg:p-8">
@@ -147,14 +138,8 @@ export default function MainDashboard() {
     );
   }
 
-  // --- CORREÇÃO: Removido o bloco 'if (status === "unauthenticated")' daqui ---
-  // A lógica foi movida para o useEffect e para a condição acima.
-
   // --- Verificação explícita para session e session.user ---
-  // Garante que, se o status for 'authenticated', a sessão é válida antes de continuar.
   if (!session || !session.user) {
-      // Mostra uma mensagem genérica de carregamento ou erro.
-      // O useEffect no topo já logou um erro se for um problema persistente.
       return (
           <div className="min-h-screen flex items-center justify-center bg-brand-light">
               <p className="text-gray-500 font-medium">Carregando dados do usuário...</p>
@@ -163,13 +148,12 @@ export default function MainDashboard() {
   }
 
   // 4. Estado Autenticado e Válido
-  // Se chegou aqui, temos: status === "authenticated" E session E session.user.
   const user = session.user as ExtendedUser;
   const userId = user?.id ?? "";
   const planStatus = user?.planStatus ?? "inactive";
   const userImage = user?.image ?? null;
   const userName = user?.name ?? 'Usuário';
-  const affiliateCode = user?.affiliateCode ?? null; // Pode ser null aqui
+  const affiliateCode = user?.affiliateCode ?? null;
   const affiliateBalance = user?.affiliateBalance ?? 0;
   const affiliateRank = user?.affiliateRank ?? 1;
   const affiliateInvites = user?.affiliateInvites ?? 0;
@@ -193,6 +177,19 @@ export default function MainDashboard() {
     planExpiresAt: user.planExpiresAt,
     affiliateBalance: user.affiliateBalance,
     affiliateCode: user.affiliateCode === null ? undefined : user.affiliateCode,
+    // id: userId, // Adicione se PaymentPanel precisar
+    // email: user.email, // Adicione se PaymentPanel precisar
+    // name: userName, // Adicione se PaymentPanel precisar
+  };
+
+  // Função helper para scroll suave
+  const scrollToPayment = () => {
+    const paymentSection = document.getElementById('payment-section');
+    if (paymentSection) {
+      paymentSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else {
+      console.warn("Seção #payment-section não encontrada para scroll.");
+    }
   };
 
 
@@ -230,6 +227,7 @@ export default function MainDashboard() {
                                     className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50"
                                     onMouseLeave={() => setIsUserMenuOpen(false)}
                                 >
+                                    {/* ... (conteúdo do dropdown mantido) ... */}
                                     <div className="px-4 py-3 border-b border-gray-100">
                                         <p className="text-sm font-semibold text-brand-dark truncate">{userName}</p>
                                         <p className="text-xs text-gray-500 truncate">{user.email || 'Sem email'}</p>
@@ -243,7 +241,6 @@ export default function MainDashboard() {
                                         </a>
                                     </div>
                                     <div className="py-1 border-t border-gray-100">
-                                        {/* Botão Sair agora só chama signOut */}
                                         <button
                                             onClick={() => signOut({ callbackUrl: '/' })}
                                             className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-brand-red transition-colors rounded-md mx-1 my-0.5"
@@ -292,14 +289,7 @@ export default function MainDashboard() {
                         </div>
                         {!canAccessFeatures && (
                             <button
-                                onClick={() => {
-                                    const paymentSection = document.getElementById('payment-section');
-                                    if (paymentSection) {
-                                        paymentSection.scrollIntoView({ behavior: 'smooth' });
-                                    } else {
-                                        setShowPaymentModal(true);
-                                    }
-                                }}
+                                onClick={scrollToPayment} // Usa a função helper
                                 className="text-xs bg-brand-pink text-white px-4 py-1.5 rounded-full hover:opacity-90 font-semibold transition-default align-middle"
                             >
                                 Fazer Upgrade
@@ -309,39 +299,55 @@ export default function MainDashboard() {
                  </div>
               </motion.section>
 
-              {/* Card de Acesso ao Tuca (via WhatsApp) */}
-               <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={1}>
-                 <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Consultor IA Tuca (WhatsApp)</h2>
-                 {canAccessFeatures ? (
-                     <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
-                         <div className="flex items-center gap-4 mb-4">
+              {/* Card do Tuca SEMPRE VISÍVEL, mas com conteúdo condicional */}
+              <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={1}>
+                  <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Consultor IA Tuca (WhatsApp)</h2>
+                  {/* Renderiza conteúdo diferente baseado em canAccessFeatures */}
+                  {canAccessFeatures ? (
+                      // Conteúdo para ASSINANTES
+                      <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
+                          <div className="flex items-center gap-4 mb-4">
                               <div className="p-3 bg-green-100 rounded-full text-green-600"><FaWhatsapp className="w-6 h-6"/></div>
                               <h3 className="font-semibold text-lg text-brand-dark">Acesso Liberado via WhatsApp</h3>
                           </div>
-                         <p className="text-base text-gray-700 font-light mb-6 leading-relaxed">Converse com o Tuca diretamente no seu WhatsApp para receber análises e estratégias personalizadas.</p>
-                         <WhatsAppPanel userId={userId} canAccessFeatures={canAccessFeatures} />
-                     </div>
-                 ) : (
-                     <div className="bg-gradient-to-br from-brand-pink to-brand-red text-white p-8 rounded-xl shadow-xl text-center flex flex-col items-center">
-                          <div className="mb-5 text-5xl inline-block p-4 bg-white/20 rounded-full"><FaLock /></div>
-                         <h3 className="text-2xl font-bold mb-3">Desbloqueie o Tuca no WhatsApp!</h3>
-                         <p className="text-white/90 mb-8 text-base leading-relaxed font-light max-w-md">Assine para ter acesso ilimitado ao seu consultor IA pessoal e receber insights diretamente no seu chat.</p>
-                         <button
-                            onClick={() => {
-                                const paymentSection = document.getElementById('payment-section');
-                                if (paymentSection) {
-                                    paymentSection.scrollIntoView({ behavior: 'smooth' });
-                                } else {
-                                    setShowPaymentModal(true);
-                                }
-                            }}
-                            className="w-full sm:w-auto inline-block px-8 py-3 bg-white text-brand-pink rounded-full shadow-lg font-bold text-base hover:bg-gray-100 transition-default transform hover:scale-105"
-                         >
-                             Ver Planos e Assinar
-                         </button>
-                     </div>
-                 )}
-               </motion.section>
+                          <p className="text-base text-gray-700 font-light mb-6 leading-relaxed">Converse com o Tuca diretamente no seu WhatsApp para receber análises e estratégias personalizadas.</p>
+                          {/* Renderiza o painel funcional */}
+                          <WhatsAppPanel userId={userId} canAccessFeatures={canAccessFeatures} />
+                      </div>
+                  ) : (
+                      // Conteúdo para NÃO ASSINANTES (Preview/Bloqueado)
+                      <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg relative overflow-hidden border border-gray-200">
+                          {/* Overlay sutil para indicar bloqueio */}
+                          <div className="absolute inset-0 bg-gray-50 opacity-50 z-10"></div>
+                          {/* Conteúdo visualmente desabilitado */}
+                          <div className="relative z-0 filter grayscale-[50%] opacity-70">
+                              <div className="flex items-center gap-4 mb-4">
+                                  <div className="p-3 bg-gray-200 rounded-full text-gray-400"><FaWhatsapp className="w-6 h-6"/></div>
+                                  <h3 className="font-semibold text-lg text-gray-500">Acesso via WhatsApp (Exclusivo)</h3>
+                              </div>
+                              <p className="text-base text-gray-500 font-light mb-6 leading-relaxed">Converse com o Tuca diretamente no seu WhatsApp para receber análises e estratégias personalizadas.</p>
+                              {/* Placeholder ou versão desabilitada do WhatsAppPanel */}
+                              <div className="h-10 bg-gray-200 rounded-md flex items-center justify-center text-sm text-gray-400">
+                                  (Preview do painel de acesso WhatsApp)
+                              </div>
+                          </div>
+                          {/* Mensagem e Botão de Desbloqueio */}
+                          <div className="relative z-20 mt-6 text-center border-t border-gray-200 pt-5">
+                              <div className="flex items-center justify-center gap-2 text-brand-red mb-3">
+                                  <FaLock className="w-4 h-4"/>
+                                  <span className="text-sm font-semibold">Recurso para Assinantes</span>
+                              </div>
+                              <p className="text-sm text-gray-600 mb-4">Assine para desbloquear o acesso ao Tuca.</p>
+                              <button
+                                  onClick={scrollToPayment} // Usa a função helper
+                                  className="px-5 py-2 bg-brand-pink text-white rounded-full text-sm font-semibold hover:opacity-90 transition-default shadow-sm"
+                              >
+                                  Desbloquear Agora
+                              </button>
+                          </div>
+                      </div>
+                  )}
+              </motion.section>
 
               {/* Card de Upload de Métricas */}
               <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={2}>
@@ -351,21 +357,45 @@ export default function MainDashboard() {
                             <div className="p-3 bg-brand-light rounded-full text-brand-dark"><FaUpload className="w-5 h-5"/></div>
                             <h3 className="font-semibold text-lg text-brand-dark">Upload de Métricas</h3>
                         </div>
-                       <p className="text-base text-gray-700 font-light mb-6 leading-relaxed">Envie seus dados mais recentes do Instagram para que o Tuca possa fazer análises precisas.</p>
+                       {/* Mostra descrição normal se tiver acesso, ou aviso se não tiver */}
+                       {canAccessFeatures ? (
+                            <p className="text-base text-gray-700 font-light mb-6 leading-relaxed">Envie seus dados mais recentes do Instagram para que o Tuca possa fazer análises precisas.</p>
+                       ) : (
+                            <p className="text-base text-gray-700 font-light mb-6 leading-relaxed">
+                                <span className="font-semibold text-brand-red"><FaLock className="inline w-3 h-3 mr-1 mb-0.5"/> Recurso bloqueado.</span> Assine um plano para poder enviar seus prints e liberar esta funcionalidade.
+                            </p>
+                       )}
+                       {/* O componente UploadMetrics já tem a lógica interna de bloqueio */}
                        <UploadMetrics canAccessFeatures={canAccessFeatures} userId={userId} />
                    </div>
                </motion.section>
 
-               {/* Card Pagamento/Assinatura */}
+               {/* Card Pagamento/Assinatura com BORDA ANIMADA (Técnica Final) */}
                {!canAccessFeatures && (
                   <motion.section
                     id="payment-section"
-                    variants={cardVariants} initial="hidden" animate="visible" custom={1.5}
-                    className="bg-white p-6 sm:p-8 rounded-xl shadow-lg"
+                    variants={cardVariants} initial="hidden" animate="visible" custom={2.5}
+                    // Container externo com a classe para a borda
+                    className="animated-border-card" // Nova classe mais específica
                   >
-                     <h2 className="text-lg font-semibold text-brand-dark mb-4">Assine o Data2Content</h2>
-                     {/* --- Passando o objeto de props ajustado --- */}
-                     <PaymentPanel user={paymentPanelUserProps} />
+                    {/* Div interna com o conteúdo e fundo branco */}
+                    <div className="card-content bg-white p-6 sm:p-8 rounded-xl"> {/* Classe para conteúdo */}
+                         {/* Header Estilizado */}
+                         <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 mb-6 text-center sm:text-left">
+                            <div className="mb-3 sm:mb-0 text-3xl inline-block p-3 bg-gradient-to-br from-brand-pink to-brand-red text-white rounded-full flex-shrink-0 shadow-md">
+                                <FaLock />
+                            </div>
+                            <div className="flex-grow">
+                                <h2 className="text-2xl font-bold mb-2 text-brand-dark">Escolha seu Plano e Desbloqueie!</h2>
+                                <p className="text-gray-600 text-base leading-relaxed font-light max-w-xl">
+                                    Libere o Tuca no WhatsApp, envie suas métricas e tenha acesso a todos os recursos da plataforma.
+                                </p>
+                            </div>
+                         </div>
+
+                         {/* Renderiza o PaymentPanel */}
+                         <PaymentPanel user={paymentPanelUserProps} />
+                    </div>
                   </motion.section>
               )}
 
@@ -373,9 +403,9 @@ export default function MainDashboard() {
 
             {/* Coluna Direita (Sidebar) */}
             <div className="lg:col-span-1 space-y-8">
-                 {/* Card Afiliado */}
+                 {/* Card Afiliado (Mantido como está) */}
               <motion.section
-                variants={cardVariants} initial="hidden" animate="visible" custom={0.5}
+                variants={cardVariants} initial="hidden" animate="visible" custom={0.5} // Delay pode ser ajustado se necessário
                 className="bg-white p-6 rounded-xl shadow-lg border-t-4 border-brand-pink"
               >
                     {/* ... (código do card afiliado mantido) ... */}
@@ -457,9 +487,9 @@ export default function MainDashboard() {
                     </div>
               </motion.section>
 
-              {/* Card Ajuda/Suporte */}
+              {/* Card Ajuda/Suporte (Mantido como está) */}
               <motion.section
-                variants={cardVariants} initial="hidden" animate="visible" custom={2}
+                variants={cardVariants} initial="hidden" animate="visible" custom={3}
                 className="bg-brand-light p-6 rounded-xl border border-gray-200 text-center hover:shadow-md transition-shadow flex flex-col items-center"
               >
                  {/* ... (código do card ajuda mantido) ... */}
@@ -482,9 +512,52 @@ export default function MainDashboard() {
 
       </div> {/* Fim Div Principal do Dashboard */}
 
-      {/* Estilos Globais (se houver) */}
+      {/* --- CSS para a Borda Animada (Técnica Final - ::before para Borda) --- */}
       <style jsx global>{`
-        /* Adicione estilos globais específicos para esta página aqui, se necessário */
+        /* Animação para girar o gradiente */
+        @keyframes spin-gradient-border {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        /* Classe aplicada ao container EXTERNO */
+        .animated-border-card {
+          position: relative; /* Para posicionar o pseudo-elemento */
+          border-radius: 0.80rem; /* Arredondamento externo (ajuste se o interno for diferente de rounded-xl) */
+          overflow: hidden; /* Esconde partes do gradiente que vazam */
+          padding: 2px; /* Espessura da borda */
+          z-index: 1; /* Garante contexto de empilhamento */
+          background: white; /* Fundo padrão caso o gradiente não carregue */
+          box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); /* shadow-xl */
+        }
+
+        /* Pseudo-elemento para criar a borda gradiente animada */
+        .animated-border-card::before {
+          content: '';
+          position: absolute;
+          /* Posiciona o gradiente grande atrás */
+          inset: -200%; /* Começa bem grande */
+          z-index: -1; /* Fica atrás do conteúdo interno */
+          /* Gradiente cônico que gira */
+          background: conic-gradient(
+            from 90deg, /* Ajuste o ângulo inicial se necessário */
+            #E91E63, /* Cor 1 (brand-pink) */
+            #EF4444, /* Cor 2 (brand-red) */
+            #E91E63  /* Volta para a cor inicial */
+          );
+          /* Aplica a animação de rotação */
+          animation: spin-gradient-border 4s linear infinite;
+        }
+
+        /* A div interna com bg-white e conteúdo */
+        .animated-border-card > .card-content {
+             /* Garante que o fundo branco cubra o gradiente, exceto na borda (devido ao padding do pai) */
+             /* O arredondamento já está aplicado no JSX */
+             /* border-radius: calc(0.80rem - 2px); */
+             /* Garante que fique acima do pseudo-elemento */
+             position: relative;
+             z-index: 2;
+        }
       `}</style>
     </>
   );
