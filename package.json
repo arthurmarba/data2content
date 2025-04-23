@@ -16,6 +16,7 @@
     "date-fns": "^4.1.0",
     "framer-motion": "^10.12.16",
     "google-auth-library": "^9.15.1",
+    "ioredis": "^5.6.1",
     "jose": "^6.0.10",
     "mercadopago": "^1.5.6",
     "mongoose": "^7.6.0",
