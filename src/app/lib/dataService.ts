@@ -1,10 +1,11 @@
 /**
  * @fileoverview Serviço de acesso a dados (Usuários, Métricas, Relatórios).
  * Versão otimizada com função para buscar o último relatório agregado.
- * @version 2.4-FC-Optimized
+ * Adicionada função lookupUserById.
+ * @version 2.5
  */
 
-import { Model, Types } from 'mongoose';
+import mongoose, { Model, Types } from 'mongoose'; // Importa mongoose completo
 import { subDays, differenceInDays } from 'date-fns';
 import { logger } from '@/app/lib/logger';
 
@@ -212,6 +213,42 @@ export async function lookupUser(fromPhone: string): Promise<IUser> {
 }
 
 /**
+ * *** NOVO: Busca um usuário no banco de dados pelo seu ID. ***
+ * @param {string} userId O ID do usuário (como string).
+ * @returns {Promise<IUser>} O objeto do usuário encontrado.
+ * @throws {UserNotFoundError} Se o usuário não for encontrado.
+ * @throws {DatabaseError} Se ocorrer um erro no banco de dados ou ID inválido.
+ */
+export async function lookupUserById(userId: string): Promise<IUser> {
+    logger.debug(`[lookupUserById] Buscando usuário por ID ${userId}`);
+
+    // Valida se o ID é um ObjectId válido antes de buscar
+    if (!mongoose.isValidObjectId(userId)) {
+        logger.error(`[lookupUserById] ID de usuário inválido fornecido: ${userId}`);
+        throw new DatabaseError(`ID de usuário inválido: ${userId}`);
+    }
+
+    try {
+        const user = await User.findById(userId).lean(); // Busca pelo ID
+        if (!user) {
+            logger.warn(`[lookupUserById] Usuário não encontrado para ID ${userId}`);
+            throw new UserNotFoundError(`Usuário não encontrado para ID: ${userId}`);
+        }
+        logger.info(`[lookupUserById] Usuário ${userId} encontrado.`);
+        return user as IUser; // Faz cast
+    } catch (error: any) {
+        // Se já for um UserNotFoundError, relança
+        if (error instanceof UserNotFoundError) {
+            throw error;
+        }
+        // Outros erros são tratados como erros de banco de dados
+        logger.error(`[lookupUserById] Erro de banco de dados ao buscar usuário ${userId}:`, error);
+        throw new DatabaseError(`Erro ao buscar usuário por ID: ${error.message}`);
+    }
+}
+
+
+/**
  * Busca as métricas diárias recentes, gera o relatório agregado e enriquece com detalhes.
  * @param {object} params Parâmetros da função.
  * @param {IUser} params.user Objeto do usuário.
@@ -409,7 +446,7 @@ export async function extractReferenceAndFindPost(
 
 
 /**
- * *** NOVO: Busca o relatório agregado mais recente para um usuário. ***
+ * Busca o relatório agregado mais recente para um usuário.
  * @param {string} userId ID do usuário.
  * @returns {Promise<AggregatedReport | null>} O relatório mais recente ou null se não encontrado.
  * @throws {DatabaseError} Se ocorrer um erro no banco de dados.
@@ -417,6 +454,11 @@ export async function extractReferenceAndFindPost(
 export async function getLatestAggregatedReport(userId: string): Promise<AggregatedReport | null> {
     const TAG = '[getLatestAggregatedReport]';
     logger.debug(`${TAG} Buscando último relatório agregado para usuário ${userId}`);
+
+     if (!mongoose.isValidObjectId(userId)) {
+        logger.error(`${TAG} ID de usuário inválido fornecido: ${userId}`);
+        throw new DatabaseError(`ID de usuário inválido: ${userId}`);
+    }
 
     try {
         // --- IMPORTANTE: Substitua esta linha pela sua lógica real de busca ---
