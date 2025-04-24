@@ -41,7 +41,8 @@ const PERCENTAGE_HEADERS: string[] = [
 
 // Cabeçalhos textuais (conforme App Script)
 const TEXT_HEADERS: string[] = [
-  "Data de Publicação", "Hora de Publicação", "Creator", "Caption", "Formato",
+  "Data de Publicação", "Hora de Publicação", // Hora de Publicação pode ser extraída separadamente se necessário
+  "Creator", "Caption", "Formato",
   "Proposta do Conteúdo", "Contexto do Conteúdo", "Tema do Conteúdo", "Collab",
   "Creator da Collab", "Link do Conteúdo", "Capa do Conteúdo"
 ];
@@ -464,72 +465,95 @@ function parseDuration(durationStr: string | number | undefined | null): number 
 }
 
 
+// --- FUNÇÃO parseDocAIDate ATUALIZADA ---
 function parseDocAIDate(dateStr: string | undefined | null): string {
   if (!dateStr) return "";
   const str = dateStr.trim();
+  const TAG = '[parseDocAIDate]';
 
-  // Tenta parsear diretamente (ex: "2024-04-23T...")
+  // 1. Tenta parsear diretamente (formatos ISO, etc.)
   const directDate = new Date(str);
   if (!isNaN(directDate.getTime())) {
-    // Verifica se o ano parece razoável (evita anos muito distantes)
     const year = directDate.getFullYear();
     if (year > 1990 && year < 2100) {
         const dd = String(directDate.getDate()).padStart(2, "0");
         const mm = String(directDate.getMonth() + 1).padStart(2, "0");
-        const yyyy = directDate.getFullYear(); // Corrigido para yyyy
+        const yyyy = directDate.getFullYear();
+        logger.debug(`${TAG} Parse direto bem-sucedido: ${dd}/${mm}/${yyyy}`);
         return `${dd}/${mm}/${yyyy}`;
     }
   }
 
-  // Tenta formato "DD de MMMM de YYYY" (ex: 23 de abril de 2024)
+  // 2. Tenta formato "DD de MMMM de YYYY às HH:MM" ou "DD de MMMM de YYYY"
   const MESES_MAP: Record<string, string> = {
     janeiro: "01", fev: "02", fevereiro: "02", mar: "03", março: "03", marco: "03",
     abr: "04", abril: "04", mai: "05", maio: "05", jun: "06", junho: "06",
     jul: "07", julho: "07", ago: "08", agosto: "08", set: "09", setembro: "09",
     out: "10", outubro: "10", nov: "11", novembro: "11", dez: "12", dezembro: "12",
   };
-  const dateParts = str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[\s,de]+/); // Split por espaço, 'de', vírgula
-  let dia = "", mes = "", ano = "";
 
-  for (const part of dateParts) {
-    if (!part) continue; // Pula partes vazias
+  // Remove pontuação irrelevante, normaliza e separa por espaços ou 'de' ou 'às'
+  const parts = str.toLowerCase()
+                   .normalize("NFD")
+                   .replace(/[\u0300-\u036f]/g, "") // Remove acentos
+                   .replace(/,/g, '') // Remove vírgulas
+                   .split(/[\s]+(?:de|às|as)?[\s]+/); // Separa por espaços e opcionalmente 'de'/'às'/'as'
+
+  let dia = "", mes = "", ano = "", hora = "00", minuto = "00"; // Inicializa hora/minuto
+
+  for (const part of parts) {
+    if (!part) continue;
     if (!isNaN(Number(part))) { // É um número
-        if (part.length === 4 && !ano) { // Assume ano se 4 dígitos
+        if (part.length === 4 && !ano && Number(part) > 1900) { // Ano (4 dígitos)
             ano = part;
-        } else if (part.length <= 2 && !dia) { // Assume dia se 1 ou 2 dígitos
+        } else if (part.length <= 2 && !dia && Number(part) > 0 && Number(part) <= 31) { // Dia (1 ou 2 dígitos)
             dia = part.padStart(2, "0");
+        } else if (part.includes(':') && hora === "00") { // Hora (contém ':') - Verifica se hora ainda não foi setada
+             const timeParts = part.split(':');
+             if (timeParts.length === 2) {
+                 // --- CORREÇÃO AQUI ---
+                 const h = parseInt(timeParts[0] ?? '', 10); // Usa ?? '' para garantir string
+                 const m = parseInt(timeParts[1] ?? '', 10); // Usa ?? '' para garantir string
+                 // --- FIM DA CORREÇÃO ---
+                 if (!isNaN(h) && h >= 0 && h < 24 && !isNaN(m) && m >= 0 && m < 60) {
+                     hora = String(h).padStart(2, '0');
+                     minuto = String(m).padStart(2, '0');
+                 }
+             }
         }
-    } else if (MESES_MAP[part] && !mes) { // É um nome de mês mapeado
+    } else if (MESES_MAP[part] && !mes) { // Mês
         mes = MESES_MAP[part];
     }
   }
 
-  // Se o ano não foi encontrado, tenta pegar os últimos 4 dígitos da string original
+  // Fallback para o ano se não encontrado explicitamente
   if (!ano) {
-      const yearMatch = str.match(/\b(\d{4})\b$/); // Pega 4 dígitos no final da string
-      // --- CORREÇÃO AQUI ---
-      if (yearMatch && yearMatch[1]) { // Verifica se yearMatch[1] não é undefined
+      const yearMatch = str.match(/\b(\d{4})\b/); // Procura 4 dígitos em qualquer lugar
+      if (yearMatch && yearMatch[1]) {
           ano = yearMatch[1];
+      } else {
+          ano = new Date().getFullYear().toString(); // Usa ano atual
+          logger.debug(`${TAG} Usando ano atual como fallback para: "${dateStr}"`);
       }
-      // --- FIM DA CORREÇÃO ---
-  }
-  // Se ainda não tem ano, usa o ano atual como fallback
-  if (!ano) {
-    ano = new Date().getFullYear().toString();
-    logger.debug(`[parseDocAIDate] Usando ano atual como fallback para: "${dateStr}"`);
   }
 
   if (dia && mes && ano) {
     // Validação final da data construída
-    const finalDate = new Date(`${ano}-${mes}-${dia}T12:00:00Z`); // Usa meio-dia UTC para evitar problemas de fuso
+    // Usa T12:00:00Z se a hora não foi encontrada, senão usa a hora encontrada
+    const timeString = (hora !== "00" && minuto !== "00") ? `T${hora}:${minuto}:00Z` : "T12:00:00Z"; // Verifica se hora foi setada
+    const finalDate = new Date(`${ano}-${mes}-${dia}${timeString}`);
     if (!isNaN(finalDate.getTime())) {
-        return `${dia}/${mes}/${ano}`;
+        const dd = String(finalDate.getUTCDate()).padStart(2, "0");
+        const mm = String(finalDate.getUTCMonth() + 1).padStart(2, "0");
+        const yyyy = finalDate.getUTCFullYear();
+        logger.debug(`${TAG} Parse formato 'DD de MMMM...' bem-sucedido: ${dd}/${mm}/${yyyy}`);
+        return `${dd}/${mm}/${yyyy}`; // Retorna apenas DD/MM/YYYY
     } else {
-        logger.warn(`[parseDocAIDate] Data construída inválida: ${dia}/${mes}/${ano} a partir de "${dateStr}"`);
+        logger.warn(`${TAG} Data construída inválida: ${dia}/${mes}/${ano} ${hora}:${minuto} a partir de "${dateStr}"`);
     }
   }
 
-  logger.warn(`[parseDocAIDate] Não foi possível parsear data de forma robusta: "${dateStr}"`);
+  logger.warn(`${TAG} Não foi possível parsear data de forma robusta: "${dateStr}"`);
   return ""; // Retorna vazio se não conseguir parsear
 }
 
