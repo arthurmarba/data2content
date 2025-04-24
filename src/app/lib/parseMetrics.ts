@@ -11,7 +11,7 @@ import { logger } from '@/app/lib/logger'; // Importa o logger
 // Configurações e variáveis de ambiente
 const DOCUMENT_AI_ENDPOINT = process.env.DOCUMENT_AI_ENDPOINT || "";
 const MAX_RETRIES = 3;
-// <<< NOVO: Variável para credenciais >>>
+// <<< Variável para credenciais >>>
 const GOOGLE_CREDENTIALS_JSON = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
 
 // Cabeçalhos fixos
@@ -114,15 +114,28 @@ async function callDocumentAI(
 
   let googleCredentials;
   try {
-    googleCredentials = JSON.parse(GOOGLE_CREDENTIALS_JSON);
+    // 1. Parse o JSON da variável de ambiente
+    const parsedJson = JSON.parse(GOOGLE_CREDENTIALS_JSON);
+
+    // 2. *** CORREÇÃO: Substitui '\\n' por '\n' na chave privada ***
+    if (parsedJson.private_key && typeof parsedJson.private_key === 'string') {
+        parsedJson.private_key = parsedJson.private_key.replace(/\\n/g, '\n');
+    } else {
+        logger.error(`${TAG} Campo 'private_key' ausente ou inválido nas credenciais parseadas.`);
+        throw new Error('private_key ausente ou inválido nas credenciais do Google Cloud.');
+    }
+    // --- FIM DA CORREÇÃO ---
+
+    googleCredentials = parsedJson; // Usa o objeto corrigido
+
   } catch (e) {
-    logger.error(`${TAG} Erro ao fazer parse das credenciais JSON do Google Cloud:`, e);
-    throw new Error("Formato inválido para as credenciais do Google Cloud na variável de ambiente.");
+    logger.error(`${TAG} Erro ao fazer parse ou processar as credenciais JSON do Google Cloud:`, e);
+    throw new Error("Formato inválido ou erro ao processar as credenciais do Google Cloud na variável de ambiente.");
   }
 
-  // Configura autenticação usando as credenciais da variável de ambiente
+  // Configura autenticação usando as credenciais processadas
   const authOptions: GoogleAuthOptions = {
-    credentials: googleCredentials,
+    credentials: googleCredentials, // Passa o objeto com private_key corrigida
     scopes: ["https://www.googleapis.com/auth/cloud-platform"],
   };
   const auth = new GoogleAuth(authOptions);
