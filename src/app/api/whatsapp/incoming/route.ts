@@ -1,4 +1,4 @@
-// src/app/api/whatsapp/incoming/route.ts - v1.9 (Log RawText na Verificação)
+// src/app/api/whatsapp/incoming/route.ts - v2.0 (Verificação Flexível de Código)
 
 import { NextRequest, NextResponse } from 'next/server';
 import { normalizePhoneNumber } from '@/app/lib/helpers';
@@ -86,7 +86,7 @@ function getSenderAndMessage(body: any): { from: string; text: string } | null {
  * Receives message, handles verification codes OR sends initial ack & publishes task to QStash, returns immediate 200 OK.
  */
 export async function POST(request: NextRequest) {
-  const postTag = '[whatsapp/incoming POST v1.9 QStash]'; // Tag atualizada
+  const postTag = '[whatsapp/incoming POST v2.0 QStash]'; // Tag atualizada
   let body: any;
 
   // 1. Parse Body & Basic Validation
@@ -128,13 +128,14 @@ export async function POST(request: NextRequest) {
   logger.info(`${postTag} Mensagem recebida de: ${fromPhone}, Texto: "${rawText.slice(0, 50)}..."`);
 
   // --- TENTA TRATAR COMO CÓDIGO DE VERIFICAÇÃO PRIMEIRO ---
-  // *** LOG ADICIONADO AQUI ***
-  logger.debug(`${postTag} Verificando se texto "${rawText}" corresponde a um código de 6 caracteres (A-Z, 0-9)...`);
-  const codeMatch = rawText.match(/^\s*([A-Z0-9]{6})\s*$/);
-  // *** FIM DO LOG ADICIONADO ***
+  // *** Regex ATUALIZADA para ser mais flexível ***
+  // Procura por 6 caracteres alfanuméricos maiúsculos como uma "palavra" isolada
+  const codeMatch = rawText.match(/\b([A-Z0-9]{6})\b/);
+  logger.debug(`${postTag} Verificando se texto "${rawText}" contém um código de 6 caracteres (A-Z, 0-9)... Match: ${codeMatch ? codeMatch[1] : 'Nenhum'}`);
+  // *** FIM DA ATUALIZAÇÃO ***
 
   if (codeMatch && codeMatch[1]) {
-    const verificationCode = codeMatch[1];
+    const verificationCode = codeMatch[1]; // Pega o código capturado
     const verifyTag = '[whatsapp/incoming][Verification]';
     logger.info(`${verifyTag} Código de verificação detectado: ${verificationCode} de ${fromPhone}`);
 
@@ -180,7 +181,7 @@ export async function POST(request: NextRequest) {
   // --- FIM DO TRATAMENTO DE CÓDIGO ---
 
   // --- Se NÃO for um código de verificação, continua com o fluxo normal (QStash) ---
-  logger.debug(`${postTag} Mensagem não é código de verificação. Prosseguindo para fluxo QStash.`);
+  logger.debug(`${postTag} Mensagem não é código de verificação ou não foi encontrado padrão. Prosseguindo para fluxo QStash.`);
 
   // 2. Lookup User (pelo telefone, necessário para mensagem inicial e payload)
   let user: IUser;
