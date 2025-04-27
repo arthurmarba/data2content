@@ -1,4 +1,4 @@
-// src/app/api/whatsapp/incoming/route.ts - v1.8 (Logs Detalhados Verificação)
+// src/app/api/whatsapp/incoming/route.ts - v1.9 (Log RawText na Verificação)
 
 import { NextRequest, NextResponse } from 'next/server';
 import { normalizePhoneNumber } from '@/app/lib/helpers';
@@ -86,7 +86,7 @@ function getSenderAndMessage(body: any): { from: string; text: string } | null {
  * Receives message, handles verification codes OR sends initial ack & publishes task to QStash, returns immediate 200 OK.
  */
 export async function POST(request: NextRequest) {
-  const postTag = '[whatsapp/incoming POST v1.8 QStash]'; // Tag atualizada
+  const postTag = '[whatsapp/incoming POST v1.9 QStash]'; // Tag atualizada
   let body: any;
 
   // 1. Parse Body & Basic Validation
@@ -123,12 +123,16 @@ export async function POST(request: NextRequest) {
   }
 
   const fromPhone = normalizePhoneNumber(senderAndMsg.from);
-  const rawText = senderAndMsg.text.trim();
-  const normText = normalizeText(rawText);
+  const rawText = senderAndMsg.text.trim(); // Usa trim() para remover espaços extras no início/fim
+  const normText = normalizeText(rawText); // Normaliza para intent (lowercase, sem acentos)
   logger.info(`${postTag} Mensagem recebida de: ${fromPhone}, Texto: "${rawText.slice(0, 50)}..."`);
 
   // --- TENTA TRATAR COMO CÓDIGO DE VERIFICAÇÃO PRIMEIRO ---
+  // *** LOG ADICIONADO AQUI ***
+  logger.debug(`${postTag} Verificando se texto "${rawText}" corresponde a um código de 6 caracteres (A-Z, 0-9)...`);
   const codeMatch = rawText.match(/^\s*([A-Z0-9]{6})\s*$/);
+  // *** FIM DO LOG ADICIONADO ***
+
   if (codeMatch && codeMatch[1]) {
     const verificationCode = codeMatch[1];
     const verifyTag = '[whatsapp/incoming][Verification]';
@@ -184,8 +188,6 @@ export async function POST(request: NextRequest) {
       await connectToDatabase(); // Conecta ao DB *antes* de buscar o usuário
       user = await dataService.lookupUser(fromPhone);
       // Se lookupUser funcionou, o número JÁ ESTÁ VINCULADO.
-      // Isso não deveria acontecer se o fluxo de verificação estivesse correto,
-      // mas é uma segurança extra.
       logger.info(`${postTag} Usuário ${user._id} encontrado para ${fromPhone} (já vinculado?).`);
 
   } catch (e) {
