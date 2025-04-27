@@ -1,17 +1,17 @@
-// src/app/api/whatsapp/incoming/route.ts - v1.7 (Refatorado para QStash)
+// src/app/api/whatsapp/incoming/route.ts - v1.8 (Logs Detalhados Verificação)
 
 import { NextRequest, NextResponse } from 'next/server';
 import { normalizePhoneNumber } from '@/app/lib/helpers';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import { sendWhatsAppMessage } from '@/app/lib/whatsappService';
 // getConsultantResponse não será mais chamado diretamente aqui
-// import { getConsultantResponse } from '@/app/lib/consultantService';
 import { UserNotFoundError } from '@/app/lib/errors';
 import { logger } from '@/app/lib/logger';
 import { Client as QStashClient } from "@upstash/qstash"; // Importa o cliente QStash
 import * as dataService from '@/app/lib/dataService'; // Para lookupUser
 import { normalizeText, determineIntent, getRandomGreeting, IntentResult, DeterminedIntent } from '@/app/lib/intentService'; // Para determinar intenção
 import { IUser } from '@/app/models/User';
+import User from '@/app/models/User'; // <<< IMPORTAÇÃO DIRETA DO MODELO USER >>>
 import * as stateService from '@/app/lib/stateService'; // Para obter estado para determineIntent
 
 
@@ -83,16 +83,14 @@ function getSenderAndMessage(body: any): { from: string; text: string } | null {
 
 /**
  * POST /api/whatsapp/incoming
- * Receives message, sends initial ack, publishes task to QStash, returns immediate 200 OK.
+ * Receives message, handles verification codes OR sends initial ack & publishes task to QStash, returns immediate 200 OK.
  */
 export async function POST(request: NextRequest) {
-  const postTag = '[whatsapp/incoming POST v1.7 QStash]'; // Tag atualizada
+  const postTag = '[whatsapp/incoming POST v1.8 QStash]'; // Tag atualizada
   let body: any;
 
   // 1. Parse Body & Basic Validation
   try {
-    // Não conectar ao DB aqui necessariamente, o worker fará isso.
-    // await connectToDatabase(); // Removido - conexão desnecessária aqui
     body = await request.json();
   } catch (error) {
     logger.error(`${postTag} Erro ao parsear JSON:`, error);
@@ -129,19 +127,77 @@ export async function POST(request: NextRequest) {
   const normText = normalizeText(rawText);
   logger.info(`${postTag} Mensagem recebida de: ${fromPhone}, Texto: "${rawText.slice(0, 50)}..."`);
 
-  // 2. Lookup User (Necessário para mensagem inicial e payload)
+  // --- TENTA TRATAR COMO CÓDIGO DE VERIFICAÇÃO PRIMEIRO ---
+  const codeMatch = rawText.match(/^\s*([A-Z0-9]{6})\s*$/);
+  if (codeMatch && codeMatch[1]) {
+    const verificationCode = codeMatch[1];
+    const verifyTag = '[whatsapp/incoming][Verification]';
+    logger.info(`${verifyTag} Código de verificação detectado: ${verificationCode} de ${fromPhone}`);
+
+    try {
+        await connectToDatabase(); // Conecta ao DB para buscar pelo código
+        logger.debug(`${verifyTag} Buscando usuário com código: ${verificationCode}`);
+
+        // Busca usuário pelo código
+        const userWithCode = await User.findOne({ whatsappVerificationCode: verificationCode });
+
+        if (userWithCode) {
+            logger.info(`${verifyTag} Usuário ${userWithCode._id} encontrado para o código ${verificationCode}.`);
+            let reply = '';
+            if (userWithCode.planStatus === 'active') {
+                logger.debug(`${verifyTag} Plano ativo. Vinculando número ${fromPhone} ao usuário ${userWithCode._id}`);
+                userWithCode.whatsappPhone = fromPhone; // Vincula o número
+                userWithCode.whatsappVerificationCode = null; // Limpa o código
+                userWithCode.whatsappVerified = true; // Marca como verificado
+                await userWithCode.save();
+                reply = `Olá ${userWithCode.name || ''}! Seu número de WhatsApp (${fromPhone}) foi vinculado com sucesso à sua conta.`;
+                logger.info(`${verifyTag} Número ${fromPhone} vinculado com sucesso ao usuário ${userWithCode._id}.`);
+            } else {
+                reply = `Olá ${userWithCode.name || ''}. Encontramos seu código, mas seu plano (${userWithCode.planStatus}) não está ativo. Ative seu plano para vincular o WhatsApp.`;
+                logger.warn(`${verifyTag} Usuário ${userWithCode._id} tentou vincular com plano ${userWithCode.planStatus}.`);
+            }
+            await sendWhatsAppMessage(fromPhone, reply);
+            logger.debug(`${verifyTag} Resposta de verificação enviada para ${fromPhone}.`);
+        } else {
+            logger.warn(`${verifyTag} Nenhum usuário encontrado para o código de verificação: ${verificationCode}`);
+            await sendWhatsAppMessage(fromPhone, 'Código inválido ou expirado. Verifique o código no seu perfil ou gere um novo.');
+        }
+        // Retorna OK para Meta após tratar o código (sucesso ou falha)
+        return NextResponse.json({ verification_attempted: true, user_found: !!userWithCode }, { status: 200 });
+
+    } catch (error) {
+        logger.error(`${verifyTag} Erro ao processar código de verificação ${verificationCode}:`, error);
+        // Tenta enviar uma mensagem de erro genérica
+        try { await sendWhatsAppMessage(fromPhone, "Ocorreu um erro ao tentar verificar seu código. Tente novamente mais tarde."); } catch (e) {}
+        // Retorna 500 para Meta indicar falha no processamento
+        return NextResponse.json({ error: 'Failed to process verification code' }, { status: 500 });
+    }
+  }
+  // --- FIM DO TRATAMENTO DE CÓDIGO ---
+
+  // --- Se NÃO for um código de verificação, continua com o fluxo normal (QStash) ---
+  logger.debug(`${postTag} Mensagem não é código de verificação. Prosseguindo para fluxo QStash.`);
+
+  // 2. Lookup User (pelo telefone, necessário para mensagem inicial e payload)
   let user: IUser;
   try {
       await connectToDatabase(); // Conecta ao DB *antes* de buscar o usuário
       user = await dataService.lookupUser(fromPhone);
+      // Se lookupUser funcionou, o número JÁ ESTÁ VINCULADO.
+      // Isso não deveria acontecer se o fluxo de verificação estivesse correto,
+      // mas é uma segurança extra.
+      logger.info(`${postTag} Usuário ${user._id} encontrado para ${fromPhone} (já vinculado?).`);
+
   } catch (e) {
+      // Se o usuário não foi encontrado PELO TELEFONE, envia mensagem de erro e para.
       logger.error(`${postTag} Erro em lookupUser para ${fromPhone}:`, e);
       if (e instanceof UserNotFoundError) {
           // Envia mensagem para usuário não encontrado e retorna OK para Meta
           try {
-              await sendWhatsAppMessage(fromPhone, 'Olá! Parece que é nosso primeiro contato por aqui. Para começar, preciso fazer seu cadastro rápido. Pode me confirmar seu nome completo, por favor?');
+              // MENSAGEM AJUSTADA: Não pede mais o nome, pois o usuário pode já existir mas sem o telefone vinculado.
+              await sendWhatsAppMessage(fromPhone, 'Olá! Não encontrei uma conta associada a este número de WhatsApp. Se você já se registou (ex: com Google), por favor, acesse a plataforma e use a opção "Vincular WhatsApp" no seu perfil.');
           } catch (sendError) {
-              logger.error(`${postTag} Falha ao enviar mensagem de usuário não encontrado:`, sendError);
+              logger.error(`${postTag} Falha ao enviar mensagem de usuário não encontrado/vinculado:`, sendError);
           }
           return NextResponse.json({ user_not_found_message_sent: true }, { status: 200 });
       }
@@ -202,11 +258,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'QStash client not configured' }, { status: 500 });
   }
 
-  const workerUrl = `${process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'YOUR_FALLBACK_URL'}/api/whatsapp/process-response`;
-  if (workerUrl.includes('YOUR_FALLBACK_URL')) {
-       logger.error(`${postTag} URL do worker não configurada (APP_BASE_URL ou NEXT_PUBLIC_APP_URL ausente!).`);
-       return NextResponse.json({ error: 'Worker URL not configured' }, { status: 500 });
+  const appBaseUrl = process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL;
+  if (!appBaseUrl) {
+      logger.error(`${postTag} URL base da aplicação não configurada (APP_BASE_URL ou NEXT_PUBLIC_APP_URL ausente!).`);
+      return NextResponse.json({ error: 'App base URL not configured' }, { status: 500 });
   }
+  const workerUrl = `${appBaseUrl}/api/whatsapp/process-response`;
+
 
   const payload = {
       fromPhone: fromPhone,
