@@ -7,11 +7,12 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 // Import Swiper styles
 import 'swiper/css';
 import 'swiper/css/navigation';
-import 'swiper/css/pagination';
-import 'swiper/css/effect-coverflow'; // Import coverflow effect if needed for centering emphasis
+// REMOVIDO: import 'swiper/css/pagination';
+import 'swiper/css/effect-coverflow';
 
 // import required modules
-import { Navigation, Pagination, A11y } from 'swiper/modules'; // Added A11y for accessibility
+// REMOVIDO: Pagination
+import { Navigation, A11y } from 'swiper/modules';
 
 // Ícone para o placeholder
 import { FaYoutube } from 'react-icons/fa';
@@ -35,84 +36,75 @@ export default function VideoCarousel({ videos, swiperRef }: VideoCarouselProps)
   }
 
   // Garante que haja vídeos suficientes para o loop funcionar corretamente
-  const enableLoop = videos.length > 2;
+  const enableLoop = videos.length > 2; // Netflix style often doesn't loop, but can keep for usability
 
   return (
-    <div className="relative video-carousel-container"> {/* Container para posicionar botões */}
+    // Container ajustado: removido padding extra de botões no mobile
+    <div className="relative video-carousel-container">
       <Swiper
-        // Passa a ref para controle externo, se fornecida
         onSwiper={(swiper) => {
             if (swiperRef) {
                 swiperRef.current = swiper;
             }
         }}
-        modules={[Navigation, Pagination, A11y]} // Habilita módulos
-        // --- Configurações para Mobile (com Peek) ---
-        slidesPerView={'auto'} // Mostra quantos slides couberem, permitindo peek
-        spaceBetween={15} // Espaço entre os slides (ajuste fino)
+        // REMOVIDO: Pagination module
+        modules={[Navigation, A11y]}
+        // --- Configurações Mobile (Estilo Netflix) ---
+        slidesPerView={'auto'} // Essencial para peek view
+        spaceBetween={12} // Espaço entre slides (pode ajustar)
         centeredSlides={true} // Centraliza o slide ativo
-        loop={enableLoop} // Habilita loop infinito se houver vídeos suficientes
+        loop={enableLoop}
         // --- Fim Configurações Mobile ---
-        navigation={{ // Configuração dos botões de navegação
+        navigation={{ // Mantém a lógica, mas os botões serão escondidos no CSS mobile
             nextEl: '.swiper-button-next-custom',
             prevEl: '.swiper-button-prev-custom',
         }}
-        pagination={{ clickable: true }} // Adiciona paginação clicável (pontos)
-        grabCursor={true} // Mostra cursor de "agarrar"
-        className="mySwiper" // Classe para estilização customizada
-        // Breakpoints para responsividade (mantém como antes para telas maiores)
+        // REMOVIDO: pagination config
+        grabCursor={true} // Mantém o cursor de agarrar
+        className="mySwiper"
         breakpoints={{
-          // Quando a largura da tela for >= 640px (tablets)
+          // 640px (Tablets) - Mostra setas e mais slides
           640: {
-            slidesPerView: 2, // Volta a mostrar 2 slides completos
+            slidesPerView: 2,
             spaceBetween: 20,
-            centeredSlides: false, // Desativa centralização em telas maiores se preferir
-            loop: enableLoop, // Mantém loop se ativado
-          },
-          // Quando a largura da tela for >= 1024px (desktops)
-          1024: {
-            slidesPerView: 3, // Mostra 3 slides completos
-            spaceBetween: 30,
             centeredSlides: false, // Desativa centralização
-            loop: enableLoop, // Mantém loop se ativado
+            loop: enableLoop,
+          },
+          // 1024px (Desktops) - Mostra setas e mais slides
+          1024: {
+            slidesPerView: 3,
+            spaceBetween: 30,
+            centeredSlides: false,
+            loop: enableLoop,
           },
         }}
-        // Adiciona atributos de acessibilidade
         a11y={{
             prevSlideMessage: 'Slide anterior',
             nextSlideMessage: 'Próximo slide',
-            paginationBulletMessage: 'Ir para o slide {{index}}',
+            // REMOVIDO: paginationBulletMessage
         }}
       >
         {videos.map((video, index) => (
-          // Adiciona uma classe de largura para o 'auto' funcionar bem
-          // REMOVIDO pb-4 (padding-bottom) para ajustar após remoção do título
-          <SwiperSlide key={video.id + '-' + index} className="bg-gray-100 rounded-lg overflow-hidden border border-gray-200 shadow-sm w-[85%] sm:w-[calc(50%-10px)] lg:w-[calc(33.33%-20px)] flex-shrink-0">
+          // Ajustado w-[80%] para mostrar um pouco mais dos lados
+          <SwiperSlide key={video.id + '-' + index} className="bg-gray-100 rounded-lg overflow-hidden border border-gray-200 shadow-sm w-[80%] sm:w-[calc(50%-10px)] lg:w-[calc(33.33%-20px)] flex-shrink-0">
             {/* Container responsivo para o vídeo */}
             <div className="aspect-video w-full bg-black">
               <iframe
                 width="100%"
                 height="100%"
                 src={`https://www.youtube.com/embed/${video.youtubeVideoId}?modestbranding=1&rel=0`}
-                // O title do iframe ainda é útil para acessibilidade
-                title={video.title}
+                title={video.title} // Mantido para acessibilidade
                 frameBorder="0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
                 loading="lazy"
               ></iframe>
             </div>
-            {/* Título do vídeo abaixo REMOVIDO */}
-            {/*
-            <h4 className="text-sm font-semibold text-brand-dark px-3 pt-3 truncate">
-              {video.title}
-            </h4>
-            */}
           </SwiperSlide>
         ))}
       </Swiper>
 
-      {/* Botões de Navegação Customizados (mantidos) */}
+      {/* Botões de Navegação Customizados - Serão escondidos no mobile via CSS */}
        <button className="swiper-button-prev-custom absolute top-1/2 left-0 transform -translate-y-1/2 z-10 bg-white/80 hover:bg-white rounded-full p-2 shadow-md text-brand-dark hover:text-brand-pink transition-all disabled:opacity-30 disabled:cursor-not-allowed">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
           <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
@@ -124,64 +116,69 @@ export default function VideoCarousel({ videos, swiperRef }: VideoCarouselProps)
         </svg>
       </button>
 
-      {/* Estilos Globais (mantidos e ajustados) */}
+      {/* Estilos Globais */}
       <style jsx global>{`
         .swiper-button-disabled {
           opacity: 0.3;
           cursor: not-allowed;
         }
-        .swiper-pagination-bullet {
-            background-color: #ccc;
-            opacity: 0.7;
-            transition: background-color 0.2s ease; /* Suaviza a transição da cor */
+
+        /* --- Estilo Mobile-First --- */
+
+        /* Esconde botões por padrão (mobile) */
+        .swiper-button-prev-custom,
+        .swiper-button-next-custom {
+            display: none;
         }
-        .swiper-pagination-bullet-active {
-            background-color: #E91E63; /* Cor brand-pink */
-            opacity: 1;
+
+        /* Remove padding extra do container no mobile */
+        .video-carousel-container {
+            /* padding-left: 0; */ /* Removido padding antigo */
+            /* padding-right: 0; */ /* Removido padding antigo */
+            overflow: hidden; /* Mantém para evitar vazamento visual */
         }
-        /* Ajuste para centralização e peek view */
+
+        /* Efeito de foco no slide central (mobile) */
         .mySwiper .swiper-slide {
-          transition: transform 0.3s ease, opacity 0.3s ease; /* Adiciona transição suave */
-          opacity: 0.6; /* Deixa slides não ativos levemente transparentes */
-          transform: scale(0.9); /* Deixa slides não ativos levemente menores */
+          transition: transform 0.3s ease, opacity 0.3s ease;
+          opacity: 0.6;
+          transform: scale(0.9);
         }
         .mySwiper .swiper-slide-active {
-           opacity: 1; /* Slide ativo totalmente opaco */
-           transform: scale(1); /* Slide ativo no tamanho normal */
-           z-index: 1; /* Garante que o slide ativo fique na frente */
+           opacity: 1;
+           transform: scale(1);
+           z-index: 1;
         }
 
-        /* Ajusta o padding do container para os botões não sobreporem o conteúdo em telas pequenas */
-        .video-carousel-container {
-            padding-left: 2.5rem; /* Mais espaço para botão prev */
-            padding-right: 2.5rem; /* Mais espaço para botão next */
-            overflow: hidden; /* Evita que slides "vazem" visualmente do container */
+        /* Garante que o Swiper ocupe o espaço horizontal */
+        .mySwiper {
+            width: 100%;
+            /* REMOVIDO: padding-bottom para paginação */
         }
-         /* Remove padding extra dos botões em telas maiores onde eles ficam fora */
-        @media (min-width: 768px) {
-            .video-carousel-container {
-                padding-left: 0;
-                padding-right: 0;
-                overflow: visible; /* Permite que os botões fiquem fora */
+
+        /* --- Estilos para Telas Maiores (sm: 640px+) --- */
+        @media (min-width: 640px) {
+            /* Mostra os botões novamente */
+            .swiper-button-prev-custom,
+            .swiper-button-next-custom {
+                display: block; /* Ou inline-block, flex, etc. */
             }
-            .swiper-button-prev-custom { left: -1rem; } /* Posição ajustada para fora */
-            .swiper-button-next-custom { right: -1rem; } /* Posição ajustada para fora */
 
-             /* Remove efeitos de escala/opacidade em telas maiores se não quiser */
+             /* Posiciona os botões fora do container */
+            .video-carousel-container {
+                overflow: visible; /* Permite botões fora */
+            }
+            .swiper-button-prev-custom { left: -1rem; }
+            .swiper-button-next-custom { right: -1rem; }
+
+             /* Remove efeitos de escala/opacidade em telas maiores */
              .mySwiper .swiper-slide {
                 opacity: 1;
                 transform: scale(1);
              }
         }
 
-        /* Garante que o Swiper ocupe o espaço horizontal */
-        .mySwiper {
-            width: 100%;
-            padding-bottom: 30px; /* Espaço para a paginação (pontos) */
-        }
-
       `}</style>
     </div>
   );
 }
-
