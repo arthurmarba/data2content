@@ -32,8 +32,8 @@ export default function VideoCarousel({ videos, swiperRef }: VideoCarouselProps)
     return <p className="text-sm text-gray-500 text-center py-4">Nenhum guia em vídeo disponível no momento.</p>;
   }
 
-  // Ajustar condição de loop para centeredSlides
-  const enableLoop = videos.length > 1; // Com centeredSlides, loop pode funcionar com 2+
+  // Ajustar condição de loop
+  const enableLoop = videos.length > 3; // Loop funciona melhor com mais slides que o visível
 
   return (
     // Container ajustado
@@ -45,12 +45,12 @@ export default function VideoCarousel({ videos, swiperRef }: VideoCarouselProps)
             }
         }}
         modules={[Navigation, A11y]}
-        // --- Configurações Mobile (Estilo Netflix - Tentativa 3) ---
-        slidesPerView={'auto'} // Essencial para peek view
-        spaceBetween={12} // Espaço reduzido entre slides
-        centeredSlides={true} // <<< REATIVADO: Centraliza o slide ativo
+        // --- Configurações Mobile (Correção Peek/Swipe v4) ---
+        slidesPerView={1.3} // <<< MUDANÇA: Número decimal para forçar peek
+        spaceBetween={15} // Espaço entre slides
+        centeredSlides={false} // <<< MUDANÇA: Desativado
         loop={enableLoop}
-        watchOverflow={true} // Ajuda Swiper a detectar se não há slides suficientes para scroll/loop
+        watchOverflow={true}
         // --- Fim Configurações Mobile ---
         navigation={{ // Mantém a lógica, botões escondidos no CSS mobile
             nextEl: '.swiper-button-next-custom',
@@ -58,19 +58,18 @@ export default function VideoCarousel({ videos, swiperRef }: VideoCarouselProps)
         }}
         grabCursor={true} // Mantém o cursor de agarrar (importante para swipe)
         className="mySwiper" // Classe para Swiper principal
-        // REMOVIDO: slidesOffsetBefore/After
 
         breakpoints={{
-          // 640px (Tablets) - Configuração anterior mantida (sem centralizar)
+          // 640px (Tablets) - Volta para números inteiros
           640: {
-            slidesPerView: 2,
+            slidesPerView: 2, // <<< MUDANÇA: Volta para inteiro
             spaceBetween: 20,
-            centeredSlides: false, // Mantém desativado para telas maiores
+            centeredSlides: false,
             loop: enableLoop,
           },
-          // 1024px (Desktops) - Configuração anterior mantida (sem centralizar)
+          // 1024px (Desktops) - Volta para números inteiros
           1024: {
-            slidesPerView: 3,
+            slidesPerView: 3, // <<< MUDANÇA: Volta para inteiro
             spaceBetween: 30,
             centeredSlides: false,
             loop: enableLoop,
@@ -82,14 +81,15 @@ export default function VideoCarousel({ videos, swiperRef }: VideoCarouselProps)
         }}
       >
         {videos.map((video, index) => (
-          // *** AJUSTADO: w-[65%] para garantir peek com centralização ***
-          <SwiperSlide key={video.id + '-' + index} className="bg-gray-100 rounded-lg overflow-hidden border border-gray-200 shadow-sm w-[65%] sm:w-[calc(50%-10px)] lg:w-[calc(33.33%-20px)] flex-shrink-0">
+          // *** REMOVIDO: Classe de largura w-[...] ***
+          <SwiperSlide key={video.id + '-' + index} className="bg-gray-100 rounded-lg overflow-hidden border border-gray-200 shadow-sm flex-shrink-0">
             {/* Container responsivo para o vídeo */}
             <div className="aspect-video w-full bg-black">
+              {/* *** CORREÇÃO: URL do iframe corrigida *** */}
               <iframe
                 width="100%"
                 height="100%"
-                src={`https://www.youtube.com/embed/${video.youtubeVideoId}?modestbranding=1&rel=0`}
+                src={`https://www.youtube.com/embed/${video.youtubeVideoId}?modestbranding=1&rel=0`} // URL Correta
                 title={video.title} // Mantido para acessibilidade
                 frameBorder="0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -131,30 +131,28 @@ export default function VideoCarousel({ videos, swiperRef }: VideoCarouselProps)
         /* Container principal: overflow hidden mantido */
         .video-carousel-container {
             overflow: hidden;
+             /* Adiciona padding lateral para os slides não colarem nas bordas */
+             padding-left: 16px;
+             padding-right: 16px;
         }
 
-        /* Simplifica estilo dos slides no mobile */
+        /* Estilo dos slides */
         .mySwiper .swiper-slide {
            transition: none;
            opacity: 1;
            transform: none;
-           /* Adiciona um filtro leve nos slides não centrados para dar destaque ao ativo */
-           /* filter: brightness(0.9); */ /* Descomente se quiser um leve escurecimento */
+           /* Garante que a altura seja calculada corretamente */
+           height: auto;
         }
-        /* Estilo para o slide ativo (centralizado) */
-         .mySwiper .swiper-slide-active {
-             /* filter: brightness(1); */ /* Garante brilho normal */
-             /* Poderia adicionar uma leve escala aqui se quisesse */
-             /* transform: scale(1.02); */
-             z-index: 1; /* Garante que fique na frente */
-         }
-
 
         /* Garante que o Swiper ocupe o espaço horizontal e permite overflow interno */
         .mySwiper {
             width: 100%;
-            overflow: visible; /* Permite que slides "vazem" */
-            padding: 0;
+            overflow: visible; /* Permite que slides "vazem" para o padding */
+            padding: 0; /* Remove padding interno do Swiper */
+            /* Adiciona margem negativa para compensar o padding do container, se necessário */
+             margin-left: -16px;
+             margin-right: -16px;
         }
 
         /* --- Estilos para Telas Maiores (sm: 640px+) --- */
@@ -168,16 +166,21 @@ export default function VideoCarousel({ videos, swiperRef }: VideoCarouselProps)
              /* Posiciona os botões fora do container */
             .video-carousel-container {
                 overflow: visible; /* Permite botões fora */
+                 padding-left: 0; /* Remove padding do container */
+                 padding-right: 0; /* Remove padding do container */
             }
             .swiper-button-prev-custom { left: -1rem; }
             .swiper-button-next-custom { right: -1rem; }
+
+            .mySwiper {
+                 margin-left: 0; /* Remove margem negativa */
+                 margin-right: 0; /* Remove margem negativa */
+            }
 
              /* Estilos de slide para desktop */
               .mySwiper .swiper-slide {
                  opacity: 1;
                  transform: scale(1);
-                 filter: none; /* Remove filtro de brilho */
-                 /* transition: transform 0.3s ease, opacity 0.3s ease; */
               }
         }
 
