@@ -36,8 +36,8 @@ export default function VideoCarousel({ videos, swiperRef }: VideoCarouselProps)
   const enableLoop = videos.length > 3; // Loop funciona melhor com mais slides que o visível
 
   return (
-    // Container principal: Adicionado padding horizontal para criar espaço para o peek
-    <div className="relative video-carousel-container w-full overflow-hidden px-4"> {/* Adicionado px-4 */}
+    // Container principal: Mantido com padding e overflow
+    <div className="relative video-carousel-container w-full overflow-hidden px-4">
       <Swiper
         onSwiper={(swiper) => {
             if (swiperRef) {
@@ -45,20 +45,22 @@ export default function VideoCarousel({ videos, swiperRef }: VideoCarouselProps)
             }
         }}
         modules={[Navigation, A11y]}
-        // --- Configurações Mobile (Correção Peek/Swipe v6) ---
-        slidesPerView={1.25} // <<< MUDANÇA: Usando valor decimal (1 slide + 25% do próximo)
-        spaceBetween={15} // Espaço entre slides
-        centeredSlides={false} // <<< MUDANÇA: Desativado
+        // --- Configurações Mobile (Mantendo slidesPerView decimal) ---
+        slidesPerView={1.25}
+        spaceBetween={15}
+        centeredSlides={false}
         loop={enableLoop}
         watchOverflow={true}
-        // REMOVIDO: slidesOffsetBefore/After
         // --- Fim Configurações Mobile ---
         navigation={{ // Mantém a lógica, botões escondidos no CSS mobile
             nextEl: '.swiper-button-next-custom',
             prevEl: '.swiper-button-prev-custom',
         }}
-        grabCursor={true} // Mantém o cursor de agarrar (importante para swipe)
+        grabCursor={true} // Mantém o cursor de agarrar
         className="mySwiper" // Classe para Swiper principal
+        // Adiciona configuração para tentar melhorar detecção de swipe
+        touchStartPreventDefault={false} // Tenta não prevenir o default do touchstart
+        touchStartForcePreventDefault={false}
 
         breakpoints={{
           // 640px (Tablets) - Volta para números inteiros
@@ -80,11 +82,11 @@ export default function VideoCarousel({ videos, swiperRef }: VideoCarouselProps)
         }}
       >
         {videos.map((video, index) => (
-          // *** REMOVIDO: Classe de largura fixa w-[...] ***
           <SwiperSlide key={video.id + '-' + index} className="bg-gray-100 rounded-lg overflow-hidden border border-gray-200 shadow-sm flex-shrink-0">
-            {/* Container responsivo para o vídeo */}
-            <div className="aspect-video w-full bg-black">
+            {/* Container relativo para posicionar o overlay */}
+            <div className="relative aspect-video w-full bg-black">
               <iframe
+                className="absolute top-0 left-0 w-full h-full" // Posiciona o iframe para preencher
                 width="100%"
                 height="100%"
                 src={`https://www.youtube.com/embed/${video.youtubeVideoId}?modestbranding=1&rel=0`} // URL Correta
@@ -94,18 +96,20 @@ export default function VideoCarousel({ videos, swiperRef }: VideoCarouselProps)
                 allowFullScreen
                 loading="lazy"
               ></iframe>
+              {/* *** NOVO: Overlay transparente sobre o iframe *** */}
+              <div className="absolute top-0 left-0 w-full h-full z-10"></div> {/* Este div captura o swipe */}
             </div>
           </SwiperSlide>
         ))}
       </Swiper>
 
       {/* Botões de Navegação Customizados - Serão escondidos no mobile via CSS */}
-       <button className="swiper-button-prev-custom absolute top-1/2 left-2 transform -translate-y-1/2 z-10 bg-white/80 hover:bg-white rounded-full p-2 shadow-md text-brand-dark hover:text-brand-pink transition-all disabled:opacity-30 disabled:cursor-not-allowed">
+       <button className="swiper-button-prev-custom absolute top-1/2 left-2 transform -translate-y-1/2 z-20 bg-white/80 hover:bg-white rounded-full p-2 shadow-md text-brand-dark hover:text-brand-pink transition-all disabled:opacity-30 disabled:cursor-not-allowed"> {/* Aumentado z-index */}
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
           <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
         </svg>
       </button>
-      <button className="swiper-button-next-custom absolute top-1/2 right-2 transform -translate-y-1/2 z-10 bg-white/80 hover:bg-white rounded-full p-2 shadow-md text-brand-dark hover:text-brand-pink transition-all disabled:opacity-30 disabled:cursor-not-allowed">
+      <button className="swiper-button-next-custom absolute top-1/2 right-2 transform -translate-y-1/2 z-20 bg-white/80 hover:bg-white rounded-full p-2 shadow-md text-brand-dark hover:text-brand-pink transition-all disabled:opacity-30 disabled:cursor-not-allowed"> {/* Aumentado z-index */}
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
           <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
         </svg>
@@ -130,7 +134,7 @@ export default function VideoCarousel({ videos, swiperRef }: VideoCarouselProps)
         .video-carousel-container {
             /* w-full já aplicado via Tailwind */
             /* overflow-hidden já aplicado via Tailwind */
-            /* px-4 já aplicado via Tailwind (equivale a padding-left: 1rem; padding-right: 1rem;) */
+            /* px-4 já aplicado via Tailwind */
         }
 
         /* Estilo dos slides */
@@ -139,20 +143,19 @@ export default function VideoCarousel({ videos, swiperRef }: VideoCarouselProps)
            opacity: 1;
            transform: none;
            height: auto; /* Garante altura correta */
-           /* A largura será calculada pelo Swiper com base no slidesPerView */
         }
 
         /* Swiper interno: permite overflow para "vazar" no padding do container */
         .mySwiper {
             width: 100%;
-            overflow: visible; /* <<< IMPORTANTE: Permite vazar no padding */
+            overflow: visible; /* Permite vazar no padding */
             padding: 0;
             margin: 0;
-            /* Tenta garantir que o swipe funcione */
-            -webkit-overflow-scrolling: touch; /* Para iOS */
-            touch-action: pan-y pinch-zoom; /* Permite scroll vertical e zoom, prioriza pan horizontal */
-            user-select: none; /* Evita seleção de texto durante swipe */
-            -webkit-user-drag: none; /* Evita drag de imagem */
+            /* Remove touch-action e outras propriedades que podem interferir */
+             /* -webkit-overflow-scrolling: touch; */
+             /* touch-action: pan-y pinch-zoom; */
+             /* user-select: none; */
+             /* -webkit-user-drag: none; */
         }
 
         /* --- Estilos para Telas Maiores (sm: 640px+) --- */
@@ -175,7 +178,7 @@ export default function VideoCarousel({ videos, swiperRef }: VideoCarouselProps)
 
             .mySwiper {
                  overflow: hidden; /* Esconde overflow no desktop */
-                 touch-action: auto; /* Restaura padrão */
+                 /* touch-action: auto; */ /* Restaura padrão se necessário */
             }
 
              /* Estilos de slide para desktop */
@@ -183,6 +186,11 @@ export default function VideoCarousel({ videos, swiperRef }: VideoCarouselProps)
                  opacity: 1;
                  transform: scale(1);
               }
+
+             /* Remove o overlay em telas maiores onde o swipe não é o principal */
+             .mySwiper .swiper-slide .absolute.z-10 {
+                /* display: none; */ /* Descomente se o overlay atrapalhar o clique no player no desktop */
+             }
         }
 
       `}</style>
