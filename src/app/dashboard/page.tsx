@@ -1,26 +1,30 @@
-"use client";
+ // src/app/dashboard/page.tsx (ou o nome do seu arquivo principal do dashboard)
+ "use client";
 
-import React, { useState, useEffect, useCallback, Fragment } from 'react';
-import { useSession, signIn, signOut } from 'next-auth/react';
-import { useRouter } from "next/navigation";
-import Image from 'next/image';
-import Head from 'next/head';
-// Usando React Icons (Font Awesome)
-import { FaCopy, FaCheckCircle, FaClock, FaTimesCircle, FaLock, FaTrophy, FaGift, FaMoneyBillWave, FaWhatsapp, FaUpload, FaCog, FaQuestionCircle, FaSignOutAlt, FaUserCircle, FaDollarSign, FaEllipsisV } from 'react-icons/fa';
-// Framer Motion para animações
-import { motion, AnimatePresence } from "framer-motion";
+ import React, { useState, useEffect, useCallback, Fragment } from 'react';
+ import { useSession, signIn, signOut } from 'next-auth/react';
+ import { useRouter } from "next/navigation";
+ import Image from 'next/image';
+ import Head from 'next/head';
+ // Usando React Icons (Font Awesome)
+ import { FaCopy, FaCheckCircle, FaClock, FaTimesCircle, FaLock, FaTrophy, FaGift, FaMoneyBillWave, FaWhatsapp, FaUpload, FaCog, FaQuestionCircle, FaSignOutAlt, FaUserCircle, FaDollarSign, FaEllipsisV, FaBullhorn } from 'react-icons/fa'; // Adicionado FaBullhorn
+ // Framer Motion para animações
+ import { motion, AnimatePresence } from "framer-motion";
 
-// --- Imports dos seus Componentes Reais ---
-// Certifique-se que os caminhos estão corretos
-import PaymentPanel from './PaymentPanel';
-import UploadMetrics from './UploadMetrics';
-import WhatsAppPanel from './WhatsAppPanel';
-import PaymentModal from './PaymentModal'; // Importando o modal separado
-// --- FIM IMPORTS ---
+ // --- Imports dos seus Componentes Reais ---
+ // Certifique-se que os caminhos estão corretos
+ import PaymentPanel from './PaymentPanel';
+ import UploadMetrics from './UploadMetrics';
+ import WhatsAppPanel from './WhatsAppPanel';
+ import PaymentModal from './PaymentModal'; // Importando o modal separado
+ // *** IMPORTAÇÃO CORRIGIDA ***
+ import AdDealForm from './AdDealForm';
+ // *** FIM DA CORREÇÃO ***
+ // --- FIM IMPORTS ---
 
 
-// --- INTERFACES ---
-interface ExtendedUser {
+ // --- INTERFACES ---
+ interface ExtendedUser {
   id?: string;
   name?: string | null;
   email?: string | null;
@@ -31,16 +35,16 @@ interface ExtendedUser {
   affiliateBalance?: number;
   affiliateRank?: number;
   affiliateInvites?: number;
-}
+ }
 
-// --- COMPONENTE SKELETON LOADER (Refinado) ---
-const SkeletonLoader = ({ className = "" }: { className?: string }) => (
+ // --- COMPONENTE SKELETON LOADER (Refinado) ---
+ const SkeletonLoader = ({ className = "" }: { className?: string }) => (
     // Usando cores mais suaves e animação pulse do Tailwind
     <div className={`animate-pulse bg-gray-200 rounded-xl ${className}`}></div>
-);
+ );
 
-// --- COMPONENTE PRINCIPAL DASHBOARD ---
-export default function MainDashboard() {
+ // --- COMPONENTE PRINCIPAL DASHBOARD ---
+ export default function MainDashboard() {
   // --- Hooks Chamados no Nível Superior ---
   const { data: session, status } = useSession(); // Hook 1
   const router = useRouter(); // Hook 2
@@ -370,11 +374,36 @@ export default function MainDashboard() {
                    </div>
                </motion.section>
 
+               {/* *** NOVO CARD: Registo de Publicidade *** */}
+               <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={3}>
+                   <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Suas Parcerias</h2>
+                   <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
+                       <div className="flex items-center gap-4 mb-4">
+                           <div className="p-3 bg-blue-100 rounded-full text-blue-600"><FaBullhorn className="w-5 h-5"/></div> {/* Ícone diferente */}
+                           <h3 className="font-semibold text-lg text-brand-dark">Registar Nova Publicidade</h3>
+                       </div>
+                       {canAccessFeatures ? (
+                           <>
+                               <p className="text-base text-gray-700 font-light mb-6 leading-relaxed">
+                                   Registe os detalhes das suas parcerias para que o Tuca possa analisar seu faturamento e valor de mercado.
+                               </p>
+                               {/* Renderiza o formulário aqui */}
+                               <AdDealForm userId={userId} />
+                           </>
+                       ) : (
+                           <p className="text-base text-gray-700 font-light mb-6 leading-relaxed">
+                               <span className="font-semibold text-brand-red"><FaLock className="inline w-3 h-3 mr-1 mb-0.5"/> Recurso bloqueado.</span> Assine um plano para poder registar e analisar suas parcerias publicitárias.
+                           </p>
+                       )}
+                   </div>
+               </motion.section>
+               {/* *** FIM DO NOVO CARD *** */}
+
                {/* Card Pagamento/Assinatura com BORDA ANIMADA (Técnica Final) */}
                {!canAccessFeatures && (
                   <motion.section
                     id="payment-section"
-                    variants={cardVariants} initial="hidden" animate="visible" custom={2.5}
+                    variants={cardVariants} initial="hidden" animate="visible" custom={4} // Ajusta delay
                     // Container externo com a classe para a borda
                     className="animated-border-card" // Nova classe mais específica
                   >
@@ -489,7 +518,7 @@ export default function MainDashboard() {
 
               {/* Card Ajuda/Suporte (Mantido como está) */}
               <motion.section
-                variants={cardVariants} initial="hidden" animate="visible" custom={3}
+                variants={cardVariants} initial="hidden" animate="visible" custom={3} // Ajusta delay
                 className="bg-brand-light p-6 rounded-xl border border-gray-200 text-center hover:shadow-md transition-shadow flex flex-col items-center"
               >
                  {/* ... (código do card ajuda mantido) ... */}
@@ -562,3 +591,5 @@ export default function MainDashboard() {
     </>
   );
 }
+
+ 

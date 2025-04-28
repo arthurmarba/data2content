@@ -1,8 +1,7 @@
 /**
  * @fileoverview Orquestrador de chamadas à API OpenAI com Function Calling e Streaming.
- * Versão otimizada para receber contexto enriquecido (incluindo relatório de métricas).
- * Modelo padrão alterado para gpt-4o-mini.
- * @version 0.7.1
+ * Integra AdDealInsights no contexto enviado para a IA.
+ * @version 0.7.2
  */
 
 import OpenAI from 'openai';
@@ -10,7 +9,7 @@ import type {
     ChatCompletionMessageParam,
     ChatCompletionChunk,
     ChatCompletionAssistantMessageParam,
-    ChatCompletionSystemMessageParam, // Importa o tipo SystemMessageParam
+    ChatCompletionSystemMessageParam,
     ChatCompletion,
 } from 'openai/resources/chat/completions';
 import { logger } from '@/app/lib/logger';
@@ -18,15 +17,12 @@ import { functionSchemas, functionExecutors } from './aiFunctions'; // Funções
 import { getSystemPrompt } from '@/app/lib/promptSystemFC'; // Prompt base do Tuca
 import { IUser } from '@/app/models/User'; // Tipo do usuário
 import { AggregatedReport } from './reportHelpers'; // Tipo do relatório agregado
+import { AdDealInsights } from './dataService'; // *** IMPORTAÇÃO ADICIONADA ***
 import * as stateService from '@/app/lib/stateService'; // Para tipo DialogueState
 
 // Configuração do cliente OpenAI e constantes
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
-
-// *** MODELO ALTERADO AQUI ***
-const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini'; // Modelo default agora é gpt-4o-mini
-// *** FIM DA ALTERAÇÃO ***
-
+const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini'; // Modelo default
 const TEMP = Number(process.env.OPENAI_TEMP) || 0.7; // Temperatura default
 const TOKENS = Number(process.env.OPENAI_MAXTOK) || 900; // Máximo de tokens na resposta
 const MAX_ITERS = 6; // Máximo de chamadas de função em loop
@@ -35,20 +31,21 @@ const OPENAI_TIMEOUT_MS = Number(process.env.OPENAI_TIMEOUT_MS) || 45_000; // Ti
 /**
  * @interface EnrichedContext
  * @description Define a estrutura do contexto recebido pelo orquestrador.
- * (Idealmente, importar de um local compartilhado ou do consultantService)
+ * *** ATUALIZADO: Inclui AdDealInsights ***
  */
 interface EnrichedContext {
     user: IUser;
     historyMessages: ChatCompletionMessageParam[];
     dialogueState?: stateService.DialogueState;
     latestReport?: AggregatedReport | null;
+    adDealInsights?: AdDealInsights | null; // <<< NOVO CAMPO >>>
 }
 
 /**
  * Envia uma mensagem ao LLM com Function Calling em modo streaming,
- * utilizando um contexto enriquecido que inclui dados do usuário e métricas.
+ * utilizando um contexto enriquecido que inclui dados do usuário, métricas e insights de publicidade.
  *
- * @param {EnrichedContext} enrichedContext Objeto contendo dados do usuário, histórico, estado e último relatório.
+ * @param {EnrichedContext} enrichedContext Objeto contendo dados do usuário, histórico, estado, último relatório e insights de publicidade.
  * @param {string} incomingText Mensagem atual enviada pelo usuário.
  * @returns {Promise<{ stream: ReadableStream<string>, history: ChatCompletionMessageParam[] }>}
  * Um ReadableStream com os deltas de conteúdo da resposta e o histórico completo da interação.
@@ -60,9 +57,10 @@ export async function askLLMWithEnrichedContext(
     stream: ReadableStream<string>;
     history: ChatCompletionMessageParam[];
 }> {
-    const fnTag = '[askLLMWithEnrichedContext v0.7.1]'; // Versão atualizada
-    const { user, historyMessages, dialogueState, latestReport } = enrichedContext;
-    logger.info(`${fnTag} Iniciando para usuário ${user._id}. Texto: "${incomingText.slice(0, 50)}..." Usando modelo: ${MODEL}`); // Log do modelo
+    const fnTag = '[askLLMWithEnrichedContext v0.7.2]'; // Versão atualizada
+    // Desestrutura o contexto, incluindo adDealInsights
+    const { user, historyMessages, dialogueState, latestReport, adDealInsights } = enrichedContext;
+    logger.info(`${fnTag} Iniciando para usuário ${user._id}. Texto: "${incomingText.slice(0, 50)}..." Usando modelo: ${MODEL}`);
 
     // --- Monta o Histórico Inicial para o LLM ---
     const initialMsgs: ChatCompletionMessageParam[] = [];
@@ -85,10 +83,35 @@ ${JSON.stringify(latestReport.overallStats, null, 2)}
         logger.debug(`${fnTag} Nenhum relatório recente para adicionar ao contexto.`);
     }
 
-    // 3. Adiciona o histórico da conversa anterior (limitado pelo consultantService)
+    // 3. *** NOVO: Adiciona os insights de publicidade como mensagem de sistema ***
+    if (adDealInsights) {
+        logger.debug(`${fnTag} Adicionando insights de publicidade ao contexto do LLM.`);
+        const adContext: ChatCompletionSystemMessageParam = {
+            role: 'system',
+            content: `[RESUMO DAS PARCERIAS PUBLICITÁRIAS RECENTES (${adDealInsights.period})]
+Total de Parcerias: ${adDealInsights.totalDeals}
+Faturamento Total (BRL): ${adDealInsights.totalRevenueBRL.toFixed(2)}
+Valor Médio por Parceria Paga (BRL): ${adDealInsights.averageDealValueBRL?.toFixed(2) ?? 'N/A'}
+Segmentos de Marca Comuns: ${adDealInsights.commonBrandSegments.join(', ') || 'Nenhum registado'}
+Valor Médio por Tipo (BRL): ${JSON.stringify(adDealInsights.avgValueByCompensation || {})}
+Entregas Comuns: ${adDealInsights.commonDeliverables.join(', ') || 'Nenhuma registada'}
+Plataformas Comuns: ${adDealInsights.commonPlatforms.join(', ') || 'Nenhuma registada'}
+Frequência Média: ${adDealInsights.dealsFrequency?.toFixed(1) ?? 'N/A'} parcerias/mês
+OBS: Use estes dados para aconselhar sobre preços, negociações e oportunidades de mercado.
+[FIM DOS INSIGHTS DE PUBLICIDADE]`
+        };
+        initialMsgs.push(adContext);
+    } else {
+        logger.debug(`${fnTag} Nenhum insight de publicidade para adicionar ao contexto.`);
+        // Opcional: Adicionar mensagem informando ausência de dados de publicidade?
+        // initialMsgs.push({ role: 'system', content: "[AVISO: Não há dados de parcerias publicitárias registados recentemente.]" });
+    }
+    // --- FIM DA ADIÇÃO ---
+
+    // 4. Adiciona o histórico da conversa anterior (limitado pelo consultantService)
     initialMsgs.push(...historyMessages);
 
-    // 4. Adiciona a mensagem atual do usuário
+    // 5. Adiciona a mensagem atual do usuário
     initialMsgs.push({ role: 'user', content: incomingText });
 
     logger.debug(`${fnTag} Histórico inicial montado com ${initialMsgs.length} mensagens.`);
@@ -129,7 +152,7 @@ ${JSON.stringify(latestReport.overallStats, null, 2)}
         writer: WritableStreamDefaultWriter<string>,
         currentUser: IUser
     ): Promise<void> {
-        const turnTag = `[processTurn iter ${iter} v0.7.1]`; // Versão atualizada
+        const turnTag = `[processTurn iter ${iter} v0.7.2]`; // Versão atualizada
         logger.debug(`${turnTag} Iniciando.`);
 
         if (iter >= MAX_ITERS) {
@@ -145,14 +168,14 @@ ${JSON.stringify(latestReport.overallStats, null, 2)}
 
         let completionStream: AsyncIterable<ChatCompletionChunk>;
         try {
-            logger.debug(`${turnTag} Chamando OpenAI API (Modelo: ${MODEL}, Histórico: ${currentMsgs.length} msgs).`); // Log do modelo
+            logger.debug(`${turnTag} Chamando OpenAI API (Modelo: ${MODEL}, Histórico: ${currentMsgs.length} msgs).`);
             completionStream = await openai.chat.completions.create(
                 {
-                    model: MODEL, // Usa a constante MODEL definida acima
+                    model: MODEL,
                     temperature: TEMP,
                     max_tokens: TOKENS,
                     stream: true,
-                    messages: currentMsgs,
+                    messages: currentMsgs, // Passa o histórico completo com os novos system prompts
                     functions: [...functionSchemas],
                     function_call: 'auto',
                 },
@@ -289,4 +312,3 @@ ${JSON.stringify(latestReport.overallStats, null, 2)}
         logger.debug(`${turnTag} Turno concluído sem chamada de função.`);
     } // Fim da função processTurn
 }
-

@@ -1,18 +1,20 @@
 /**
- * @fileoverview Serviço de acesso a dados (Usuários, Métricas, Relatórios).
+ * @fileoverview Serviço de acesso a dados (Usuários, Métricas, Relatórios, Publicidades).
  * Versão otimizada com função para buscar o último relatório agregado.
  * Adicionada função lookupUserById.
- * @version 2.5
+ * Adicionada função getAdDealInsights.
+ * @version 2.9
  */
 
 import mongoose, { Model, Types } from 'mongoose'; // Importa mongoose completo
-import { subDays, differenceInDays } from 'date-fns';
+import { subDays, differenceInDays, startOfDay, endOfDay } from 'date-fns'; // Adiciona startOfDay, endOfDay
 import { logger } from '@/app/lib/logger';
 
 // Modelos do Mongoose (ajuste os imports conforme necessário)
 import User, { IUser } from '@/app/models/User';
 import { DailyMetric, IDailyMetric } from '@/app/models/DailyMetric';
 import Metric, { IMetric } from '@/app/models/Metric';
+import AdDeal, { IAdDeal } from '@/app/models/AdDeal'; // <<< NOVO: Importa AdDeal >>>
 // Assumindo que você tem um modelo para os relatórios agregados
 // import ReportModel from '@/app/models/AggregatedReport'; // Exemplo, ajuste o nome
 
@@ -82,6 +84,21 @@ interface IGrowthDataResult {
     historical?: IGrowthComparisons;
     longTerm?: IGrowthComparisons;
 }
+
+// <<< NOVO: Interface para AdDeal Insights >>>
+export interface AdDealInsights {
+    period: 'last30d' | 'last90d' | 'all';
+    totalDeals: number;
+    totalRevenueBRL: number; // Faturamento total em BRL (ou moeda principal)
+    averageDealValueBRL?: number; // Valor médio das parcerias pagas
+    commonBrandSegments: string[]; // Top 3 segmentos mais comuns
+    avgValueByCompensation?: { [key: string]: number }; // Valor médio por tipo (ex: {'Valor Fixo': 1500, 'Permuta': 500})
+    commonDeliverables: string[]; // Top 5 entregas mais comuns
+    commonPlatforms: string[]; // Top 3 plataformas mais comuns
+    dealsFrequency?: number; // Média de deals por mês no período
+}
+// <<< FIM NOVO >>>
+
 
 /* ------------------------------------------------------------------ *
  * Funções auxiliares (perfil, multimídia, growth, helpers)           *
@@ -213,7 +230,7 @@ export async function lookupUser(fromPhone: string): Promise<IUser> {
 }
 
 /**
- * *** NOVO: Busca um usuário no banco de dados pelo seu ID. ***
+ * Busca um usuário no banco de dados pelo seu ID.
  * @param {string} userId O ID do usuário (como string).
  * @returns {Promise<IUser>} O objeto do usuário encontrado.
  * @throws {UserNotFoundError} Se o usuário não for encontrado.
@@ -487,3 +504,165 @@ export async function getLatestAggregatedReport(userId: string): Promise<Aggrega
         throw new DatabaseError(`Erro ao buscar último relatório: ${error.message}`);
     }
 }
+
+// <<< --- NOVA FUNÇÃO: getAdDealInsights --- >>>
+
+/**
+ * Calcula e retorna insights agregados sobre as parcerias publicitárias de um usuário.
+ * @param {string} userId ID do usuário.
+ * @param {'last30d' | 'last90d' | 'all'} [period='last90d'] Período de análise.
+ * @returns {Promise<AdDealInsights | null>} Objeto com os insights ou null se não houver dados.
+ * @throws {DatabaseError} Se ocorrer um erro no banco de dados.
+ */
+export async function getAdDealInsights(
+    userId: string,
+    period: 'last30d' | 'last90d' | 'all' = 'last90d'
+): Promise<AdDealInsights | null> {
+    const TAG = '[getAdDealInsights]';
+    logger.debug(`${TAG} Calculando insights de AdDeals para User ${userId}, período: ${period}`);
+
+    if (!mongoose.isValidObjectId(userId)) {
+        logger.error(`${TAG} ID de usuário inválido: ${userId}`);
+        throw new DatabaseError(`ID de usuário inválido: ${userId}`);
+    }
+    const userIdObj = new Types.ObjectId(userId);
+
+    // Define o filtro de data baseado no período
+    let dateFilter = {};
+    const now = new Date();
+    if (period === 'last30d') {
+        dateFilter = { $gte: subDays(now, 30) };
+    } else if (period === 'last90d') {
+        dateFilter = { $gte: subDays(now, 90) };
+    }
+    // Se for 'all', dateFilter continua vazio {}
+
+    try {
+        // Query base para buscar os deals do usuário no período
+        const baseQuery = { userId: userIdObj, dealDate: dateFilter };
+
+        // 1. Contagem total de deals
+        const totalDeals = await AdDeal.countDocuments(baseQuery);
+        logger.debug(`${TAG} Total de deals no período: ${totalDeals}`);
+
+        if (totalDeals === 0) {
+            logger.info(`${TAG} Nenhum AdDeal encontrado para User ${userId} no período ${period}.`);
+            return null; // Retorna null se não houver dados
+        }
+
+        // 2. Agregações em paralelo
+        const [revenueStats, segmentStats, compensationStats, deliverableStats, platformStats, frequencyStats] = await Promise.all([
+            // Faturamento e valor médio (apenas para Valor Fixo e Misto, moeda BRL)
+            AdDeal.aggregate([
+                { $match: { ...baseQuery, compensationType: { $in: ['Valor Fixo', 'Misto'] }, compensationCurrency: 'BRL' } },
+                { $group: {
+                    _id: null,
+                    totalRevenueBRL: { $sum: '$compensationValue' },
+                    countPaid: { $sum: 1 }
+                }}
+            ]),
+            // Segmentos de marca mais comuns
+            AdDeal.aggregate([
+                { $match: { ...baseQuery, brandSegment: { $nin: [null, ""] } } }, // Ignora nulos/vazios
+                { $group: { _id: '$brandSegment', count: { $sum: 1 } } },
+                { $sort: { count: -1 } },
+                { $limit: 3 } // Top 3
+            ]),
+            // Valor médio por tipo de compensação (apenas BRL)
+            AdDeal.aggregate([
+                { $match: { ...baseQuery, compensationValue: { $ne: null }, compensationCurrency: 'BRL' } },
+                { $group: {
+                    _id: '$compensationType',
+                    avgValueBRL: { $avg: '$compensationValue' },
+                    count: { $sum: 1 }
+                }}
+            ]),
+            // Entregas mais comuns (desagregando o array)
+            AdDeal.aggregate([
+                { $match: { ...baseQuery, deliverables: { $ne: null, $exists: true } } }, // Garante que deliverables existe e não é null
+                { $unwind: '$deliverables' }, // Desagrega o array
+                { $match: { deliverables: { $nin: [null, ""] } } }, // Filtra strings vazias após unwind
+                { $group: { _id: '$deliverables', count: { $sum: 1 } } },
+                { $sort: { count: -1 } },
+                { $limit: 5 } // Top 5
+            ]),
+            // Plataformas mais comuns
+            AdDeal.aggregate([
+                { $match: { ...baseQuery, platform: { $nin: [null, ""] } } }, // Usa $nin para não nulo/vazio
+                { $group: { _id: '$platform', count: { $sum: 1 } } },
+                { $sort: { count: -1 } },
+                { $limit: 3 } // Top 3
+            ]),
+             // Frequência (deals por mês) - Calcula a diferença em dias e divide
+             AdDeal.aggregate([
+                { $match: baseQuery },
+                { $group: {
+                    _id: null,
+                    firstDealDate: { $min: "$dealDate" },
+                    lastDealDate: { $max: "$dealDate" },
+                    totalDeals: { $sum: 1 } // Re-calcula aqui para ter no mesmo pipeline
+                }},
+                { $project: {
+                    _id: 0,
+                    totalDeals: 1,
+                    periodInDays: {
+                        $max: [ // Garante pelo menos 1 dia para evitar divisão por zero se só houver 1 deal
+                            { $divide: [ { $subtract: ["$lastDealDate", "$firstDealDate"] }, 1000 * 60 * 60 * 24 ] },
+                            1
+                        ]
+                    }
+                }}
+            ])
+        ]);
+
+        // 3. Processar e formatar os resultados
+        const revenueResult = revenueStats[0] || { totalRevenueBRL: 0, countPaid: 0 };
+        // Evita divisão por zero explicitamente
+        const avgDealValueBRL = revenueResult.countPaid > 0 ? revenueResult.totalRevenueBRL / revenueResult.countPaid : undefined;
+
+        const commonBrandSegments = segmentStats.map(s => s._id).filter(s => s); // Filtra possíveis nulos/undefined
+
+        const avgValueByCompensation = compensationStats.reduce((acc, curr) => {
+            if (curr._id) { // Garante que _id não é null/undefined
+                acc[curr._id] = curr.avgValueBRL;
+            }
+            return acc;
+        }, {} as { [key: string]: number });
+
+        const commonDeliverables = deliverableStats.map(d => d._id).filter(d => d); // Filtra possíveis nulos/undefined
+        const commonPlatforms = platformStats.map(p => p._id).filter(p => p); // Filtra possíveis nulos/undefined
+
+        let dealsFrequency: number | undefined = undefined;
+        // Garante que temos dados e o período é maior que 0 dias antes de calcular
+        if (frequencyStats.length > 0 && frequencyStats[0].periodInDays >= 1 && frequencyStats[0].totalDeals > 0) {
+            const days = frequencyStats[0].periodInDays;
+            const deals = frequencyStats[0].totalDeals;
+            // Calcula deals por mês (aproximado)
+            dealsFrequency = (deals / days) * 30.44; // Média de dias no mês
+        }
+
+        // --- CORREÇÃO AQUI: Usa avgDealValueBRL em vez de averageDealValueBRL ---
+        const insights: AdDealInsights = {
+            period,
+            totalDeals,
+            totalRevenueBRL: revenueResult.totalRevenueBRL ?? 0, // Garante que é número
+            averageDealValueBRL: avgDealValueBRL, // Usa a variável calculada
+            commonBrandSegments,
+            avgValueByCompensation,
+            commonDeliverables,
+            commonPlatforms,
+            dealsFrequency
+        };
+        // --- FIM DA CORREÇÃO ---
+
+        logger.info(`${TAG} Insights de AdDeals calculados com sucesso para User ${userId}.`);
+        logger.debug(`${TAG} Insights:`, insights);
+        return insights;
+
+    } catch (error: any) {
+        logger.error(`${TAG} Erro ao calcular insights de AdDeals para User ${userId}:`, error);
+        throw new DatabaseError(`Erro ao calcular insights de publicidade: ${error.message}`);
+    }
+}
+// <<< --- FIM NOVA FUNÇÃO --- >>>
+

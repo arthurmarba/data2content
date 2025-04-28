@@ -1,42 +1,42 @@
 /**
  * @fileoverview Serviço principal para obter respostas do consultor Tuca.
- * Versão otimizada para buscar métricas proativamente e enviá-las no contexto inicial do LLM.
- * Timeout de leitura do stream aumentado.
- * Adiciona mensagem inicial de processamento dinâmica baseada na intenção detectada.
- * Limita o histórico enviado ao LLM para acelerar o processamento.
- * @version 4.3.5
+ * Integra AdDealInsights no contexto enviado para a IA.
+ * @version 4.4.0
  */
 
 import { logger } from '@/app/lib/logger';
 import { normalizeText, determineIntent, getRandomGreeting, IntentResult, DeterminedIntent } from './intentService';
 import { askLLMWithEnrichedContext } from './aiOrchestrator';
 import * as stateService from '@/app/lib/stateService';
-import * as dataService from './dataService';
+import * as dataService from './dataService'; // Agora inclui getAdDealInsights
 import { UserNotFoundError } from '@/app/lib/errors';
 import { IUser } from '@/app/models/User';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { AggregatedReport } from './reportHelpers';
+import { AdDealInsights } from './dataService'; // *** IMPORTAÇÃO ADICIONADA ***
 import { sendWhatsAppMessage } from '@/app/lib/whatsappService';
 
 // Configurações
 const CACHE_TTL_SECONDS = Number(process.env.CACHE_TTL_SECONDS) || 60 * 5;
 const STREAM_READ_TIMEOUT_MS = Number(process.env.STREAM_READ_TIMEOUT_MS) || 90_000;
-const HISTORY_LIMIT = Number(process.env.LLM_HISTORY_LIMIT) || 10; // *** NOVO: Limite de mensagens no histórico ***
+const HISTORY_LIMIT = Number(process.env.LLM_HISTORY_LIMIT) || 10;
 
 /**
  * @interface EnrichedContext
- * @description Define a estrutura do contexto enviado ao LLM, incluindo dados do usuário e métricas.
+ * @description Define a estrutura do contexto enviado ao LLM.
+ * *** ATUALIZADO: Inclui AdDealInsights ***
  */
 interface EnrichedContext {
     user: IUser;
-    historyMessages: ChatCompletionMessageParam[]; // Este será o histórico limitado
+    historyMessages: ChatCompletionMessageParam[];
     dialogueState?: stateService.DialogueState;
     latestReport?: AggregatedReport | null;
+    adDealInsights?: AdDealInsights | null; // <<< NOVO CAMPO >>>
 }
 
 /**
  * Obtém a resposta do consultor Tuca para uma mensagem recebida.
- * Busca proativamente o último relatório de métricas do usuário.
+ * Busca proativamente métricas e insights de publicidade.
  * @param {string} fromPhone Número de telefone do remetente.
  * @param {string} incoming Mensagem recebida do usuário.
  * @returns {Promise<string>} A resposta do consultor.
@@ -46,7 +46,7 @@ export async function getConsultantResponse(
     incoming: string
 ): Promise<string> {
     // Define uma TAG mais específica para esta versão
-    const TAG = '[consultantService 4.3.5]'; // Versão atualizada
+    const TAG = '[consultantService 4.4.0]'; // Versão atualizada
     const start = Date.now();
     const rawText = incoming;
     logger.info(`${TAG} ⇢ ${fromPhone.slice(-4)}… «${rawText.slice(0, 40)}»`);
@@ -134,79 +134,60 @@ export async function getConsultantResponse(
             let currentRole: 'user' | 'assistant' | null = null;
             let currentContent = '';
             for (const line of lines) {
-                if (line.startsWith('User: ')) {
-                    if (currentRole) historyMessages.push({ role: currentRole, content: currentContent.trim() });
-                    currentRole = 'user';
-                    currentContent = line.substring(6);
-                } else if (line.startsWith('Assistant: ')) {
-                    if (currentRole) historyMessages.push({ role: currentRole, content: currentContent.trim() });
-                    currentRole = 'assistant';
-                    currentContent = line.substring(11);
-                } else if (currentRole) {
-                    currentContent += '\n' + line;
-                }
+                if (line.startsWith('User: ')) { if (currentRole) historyMessages.push({ role: currentRole, content: currentContent.trim() }); currentRole = 'user'; currentContent = line.substring(6); }
+                else if (line.startsWith('Assistant: ')) { if (currentRole) historyMessages.push({ role: currentRole, content: currentContent.trim() }); currentRole = 'assistant'; currentContent = line.substring(11); }
+                else if (currentRole) { currentContent += '\n' + line; }
             }
             if (currentRole) historyMessages.push({ role: currentRole, content: currentContent.trim() });
             logger.debug(`${TAG} Histórico completo convertido para ${historyMessages.length} mensagens.`);
-        } catch (parseError) {
-            logger.error(`${TAG} Erro ao parsear histórico:`, parseError);
-            historyMessages.length = 0;
-        }
+        } catch (parseError) { logger.error(`${TAG} Erro ao parsear histórico:`, parseError); historyMessages.length = 0; }
     }
-    // *** NOVO: Aplica o limite ao histórico ***
     const limitedHistoryMessages = historyMessages.slice(-HISTORY_LIMIT);
-    if (historyMessages.length > HISTORY_LIMIT) {
-        logger.debug(`${TAG} Histórico limitado a ${HISTORY_LIMIT} mensagens (original: ${historyMessages.length}).`);
-    }
+    if (historyMessages.length > HISTORY_LIMIT) { logger.debug(`${TAG} Histórico limitado a ${HISTORY_LIMIT} mensagens (original: ${historyMessages.length}).`); }
     // -----------------------------------------
 
 
-    // --- 4. Carregar Dados de Métricas (Relatório Agregado) ---
+    // --- 4. Carregar Dados de Métricas e Publicidade (em paralelo) ---
     let latestReport: AggregatedReport | null = null;
+    let adDealInsights: AdDealInsights | null = null; // <<< VARIÁVEL ADICIONADA >>>
     try {
-        latestReport = await dataService.getLatestAggregatedReport(uid);
-        if (latestReport) {
-            logger.debug(`${TAG} Relatório agregado carregado (Overall Stats: ${!!latestReport.overallStats}).`);
-        } else {
-            logger.info(`${TAG} Nenhum relatório agregado recente encontrado para o usuário ${uid}.`);
-        }
-    } catch (reportError) {
-        logger.error(`${TAG} Erro ao buscar relatório agregado:`, reportError);
+        logger.debug(`${TAG} Buscando relatório de métricas e insights de publicidade...`);
+        [latestReport, adDealInsights] = await Promise.all([ // <<< CHAMADA PARALELA >>>
+            dataService.getLatestAggregatedReport(uid),
+            dataService.getAdDealInsights(uid) // <<< CHAMA A NOVA FUNÇÃO >>>
+        ]);
+
+        if (latestReport) { logger.debug(`${TAG} Relatório agregado carregado.`); }
+        else { logger.info(`${TAG} Nenhum relatório agregado recente encontrado.`); }
+
+        if (adDealInsights) { logger.debug(`${TAG} Insights de publicidade carregados.`); }
+        else { logger.info(`${TAG} Nenhum insight de publicidade encontrado.`); }
+
+    } catch (dataError) {
+        logger.error(`${TAG} Erro ao buscar relatório ou insights de publicidade:`, dataError);
+        // Continua mesmo se falhar, a IA será instruída a lidar com dados ausentes
     }
+    // --------------------------------------------------------------------
 
     // --- 5. Preparar Contexto Enriquecido para o LLM ---
     const enrichedContext: EnrichedContext = {
         user: user,
-        historyMessages: limitedHistoryMessages, // *** USA O HISTÓRICO LIMITADO ***
+        historyMessages: limitedHistoryMessages,
         dialogueState: dialogueState,
         latestReport: latestReport,
+        adDealInsights: adDealInsights, // <<< ADICIONADO AO CONTEXTO >>>
     };
 
     // --- 5.5 ENVIAR MENSAGEM INICIAL DE PROCESSAMENTO (BASEADA NA INTENÇÃO) ---
     try {
         let processingMessage = `Ok, ${userName}! Recebi seu pedido. 👍\nEstou a analisar as informações e já te trago os insights...`; // Default
         switch (determinedIntent) {
-            case 'script_request':
-                processingMessage = `Ok, ${userName}! Pedido de roteiro recebido. 👍\nEstou a estruturar as ideias e já te mando o script...`;
-                break;
-            case 'content_plan':
-                processingMessage = `Ok, ${userName}! Recebi seu pedido de plano de conteúdo. 👍\nEstou a organizar a agenda e já te apresento o planejamento...`;
-                break;
-            case 'ranking_request':
-                processingMessage = `Entendido, ${userName}! Você quer um ranking. 👍\nEstou a comparar os dados e já te mostro os resultados ordenados...`;
-                break;
-            case 'report':
-            case 'ASK_BEST_PERFORMER':
-            case 'ASK_BEST_TIME':
-                processingMessage = `Certo, ${userName}! Recebi seu pedido de análise/relatório. 👍\nEstou a compilar os dados e já te apresento os resultados...`;
-                break;
-            case 'content_ideas':
-                processingMessage = `Legal, ${userName}! Buscando ideias de conteúdo para você. 👍\nEstou a verificar as tendências e já te trago algumas sugestões...`;
-                break;
-            case 'general':
-            default:
-                processingMessage = `Ok, ${userName}! Recebi sua mensagem. 👍\nEstou a processar e já te respondo...`;
-                break;
+            case 'script_request': processingMessage = `Ok, ${userName}! Pedido de roteiro recebido. 👍\nEstou a estruturar as ideias e já te mando o script...`; break;
+            case 'content_plan': processingMessage = `Ok, ${userName}! Recebi seu pedido de plano de conteúdo. 👍\nEstou a organizar a agenda e já te apresento o planejamento...`; break;
+            case 'ranking_request': processingMessage = `Entendido, ${userName}! Você quer um ranking. 👍\nEstou a comparar os dados e já te mostro os resultados ordenados...`; break;
+            case 'report': case 'ASK_BEST_PERFORMER': case 'ASK_BEST_TIME': processingMessage = `Certo, ${userName}! Recebi seu pedido de análise/relatório. 👍\nEstou a compilar os dados e já te apresento os resultados...`; break;
+            case 'content_ideas': processingMessage = `Legal, ${userName}! Buscando ideias de conteúdo para você. 👍\nEstou a verificar as tendências e já te trago algumas sugestões...`; break;
+            case 'general': default: processingMessage = `Ok, ${userName}! Recebi sua mensagem. 👍\nEstou a processar e já te respondo...`; break;
         }
         logger.debug(`${TAG} Enviando mensagem de processamento (intenção: ${determinedIntent}) para ${fromPhone}...`);
         await sendWhatsAppMessage(fromPhone, processingMessage);
@@ -223,117 +204,39 @@ export async function getConsultantResponse(
     let reader: ReadableStreamDefaultReader<string> | null = null;
 
     try {
-        logger.debug(`${TAG} Chamando askLLMWithEnrichedContext com histórico limitado (${limitedHistoryMessages.length} msgs)...`); // Log atualizado
+        logger.debug(`${TAG} Chamando askLLMWithEnrichedContext com histórico limitado (${limitedHistoryMessages.length} msgs)...`);
         const { stream, history: updatedHistory } = await askLLMWithEnrichedContext(
-            enrichedContext, // Passa o contexto com histórico limitado
-            rawText // Passa o texto original aqui
+            enrichedContext, // <<< PASSA O CONTEXTO ENRIQUECIDO >>>
+            rawText
         );
-        historyFromLLM = updatedHistory; // Este histórico retornado pelo orchestrator PODE ser diferente do limitado enviado
+        historyFromLLM = updatedHistory;
         logger.debug(`${TAG} askLLMWithEnrichedContext retornou. Iniciando leitura do stream...`);
 
         reader = stream.getReader();
 
-        streamTimeout = setTimeout(() => {
-            logger.warn(`${TAG} Timeout (${STREAM_READ_TIMEOUT_MS}ms) durante leitura do stream. Cancelando reader.`);
-            streamTimeout = null;
-            reader?.cancel(`Stream reading timeout after ${STREAM_READ_TIMEOUT_MS}ms`)
-                  .catch(e => logger.error(`${TAG} Erro ao cancelar reader no timeout:`, e));
-        }, STREAM_READ_TIMEOUT_MS);
+        streamTimeout = setTimeout(() => { /* ... lógica de timeout ... */ logger.warn(`${TAG} Timeout (${STREAM_READ_TIMEOUT_MS}ms) durante leitura do stream...`); streamTimeout = null; reader?.cancel().catch(e => logger.error(`${TAG} Erro ao cancelar reader:`, e)); }, STREAM_READ_TIMEOUT_MS);
 
-        while (true) {
-            // (Loop de leitura do stream mantido como está)
-            readCounter++;
-            let value: string | undefined;
-            let done: boolean | undefined;
-
-            try {
-                const result = await reader.read();
-                if (streamTimeout === null && !result.done) {
-                    logger.warn(`${TAG} [Leitura ${readCounter}] Leitura retornou após timeout/cancelamento, ignorando chunk.`);
-                    continue;
-                }
-                value = result.value;
-                done = result.done;
-
-            } catch (readError: any) {
-                logger.error(`${TAG} [Leitura ${readCounter}] Erro em reader.read(): ${readError.message}`);
-                if (streamTimeout) clearTimeout(streamTimeout);
-                streamTimeout = null;
-                throw new Error(`Erro ao ler stream: ${readError.message}`);
-            }
-
-            if (done) {
-                logger.debug(`${TAG} [Leitura ${readCounter}] Stream finalizado (done=true).`);
-                break;
-            }
-
-            if (typeof value === 'string') {
-                finalText += value;
-            } else {
-                logger.warn(`${TAG} [Leitura ${readCounter}] Recebido 'value' undefined, mas 'done' é false.`);
-            }
+        while (true) { /* ... loop de leitura ... */
+             readCounter++; let value: string | undefined; let done: boolean | undefined;
+             try { const result = await reader.read(); if (streamTimeout === null && !result.done) { continue; } value = result.value; done = result.done; }
+             catch (readError: any) { logger.error(`${TAG} Erro em reader.read(): ${readError.message}`); if (streamTimeout) clearTimeout(streamTimeout); streamTimeout = null; throw new Error(`Erro ao ler stream: ${readError.message}`); }
+             if (done) { break; } if (typeof value === 'string') { finalText += value; } else { logger.warn(`${TAG} 'value' undefined mas 'done' false.`); }
         }
-
-        if (streamTimeout) {
-            clearTimeout(streamTimeout);
-            logger.debug(`${TAG} Leitura do stream concluída antes do timeout.`);
-        }
-
+        if (streamTimeout) { clearTimeout(streamTimeout); }
         logger.debug(`${TAG} Texto final montado: ${finalText.length} chars.`);
+        if (finalText.trim().length === 0) { finalText = 'Hum... tive um problema ao gerar a resposta final.'; }
 
-        if (finalText.trim().length === 0) {
-            logger.warn(`${TAG} Stream finalizado mas finalText está vazio após ${readCounter} leituras.`);
-            return 'Hum... tive um problema ao gerar a resposta final. Pode tentar de novo ou reformular seu pedido?';
-        }
-
-    } catch (err: any) {
-        logger.error(`${TAG} Erro durante chamada ao LLM ou leitura do stream (após ${readCounter} leituras):`, err);
-        if (streamTimeout) clearTimeout(streamTimeout);
-        streamTimeout = null;
-        return 'Ops! Tive uma dificuldade técnica aqui ao gerar a resposta final. Poderia tentar sua pergunta novamente em alguns instantes? 🙏';
-    } finally {
-        if (reader) {
-            try {
-                await reader.releaseLock();
-            } catch (releaseError) {
-                logger.error(`${TAG} Erro (não fatal) ao liberar reader lock no finally:`, releaseError);
-            }
-        }
-    }
+    } catch (err: any) { /* ... tratamento de erro ... */ logger.error(`${TAG} Erro durante chamada/leitura LLM:`, err); if (streamTimeout) clearTimeout(streamTimeout); streamTimeout = null; finalText = 'Ops! Tive uma dificuldade técnica.';
+    } finally { /* ... releaseLock ... */ if (reader) { try { await reader.releaseLock(); } catch (e) { logger.error(`${TAG} Erro releaseLock:`, e); } } }
 
     // --- 7. Persistência Pós-Resposta ---
-    try {
-        logger.debug(`${TAG} Iniciando persistência no Redis...`);
-        const nextState = { ...(dialogueState || {}), lastInteraction: Date.now() };
-
-        // *** IMPORTANTE: Persistir o histórico COMPLETO ou o LIMITADO? ***
-        // Atualmente, historyFromLLM contém o histórico que o orchestrator usou/retornou.
-        // Se você quiser salvar o histórico COMPLETO no Redis (recomendado para manter o contexto real),
-        // você precisaria reconstruí-lo adicionando a última interação (rawText + finalText) ao histórico
-        // completo original (historyMessages) antes de limitar.
-        // Por simplicidade AGORA, vamos salvar o que o orchestrator retornou (historyFromLLM),
-        // mas esteja ciente que isso pode não representar o histórico completo real da conversa no Redis.
-        // Para salvar o histórico completo REAL, a lógica aqui precisaria ser mais elaborada.
-
-        const newHistoryString = historyFromLLM // Usando o histórico retornado pelo orchestrator
-            .filter(msg => msg.role === 'user' || (msg.role === 'assistant' && typeof msg.content === 'string' && msg.content.trim().length > 0))
-            .map(msg => {
-                const rolePrefix = msg.role === 'user' ? 'User' : 'Assistant';
-                const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
-                return `${rolePrefix}: ${content}`;
-            })
-            .join('\n');
-
-        await Promise.allSettled([
-            stateService.updateDialogueState(uid, nextState),
-            stateService.setConversationHistory(uid, newHistoryString), // Salva o histórico usado/retornado pelo LLM
-            stateService.setInCache(cacheKey, finalText, CACHE_TTL_SECONDS),
-            stateService.incrementUsageCounter(uid),
-        ]);
-        logger.debug(`${TAG} Persistência no Redis concluída (histórico salvo: ${historyFromLLM.length} msgs).`);
-    } catch (persistError) {
-        logger.error(`${TAG} Erro durante a persistência no Redis (não fatal):`, persistError);
-    }
+    try { /* ... lógica de persistência ... */
+         logger.debug(`${TAG} Iniciando persistência no Redis...`);
+         const nextState = { ...(dialogueState || {}), lastInteraction: Date.now() };
+         const newHistoryString = historyFromLLM.filter(msg => msg.role === 'user' || (msg.role === 'assistant' && typeof msg.content === 'string' && msg.content.trim().length > 0)).map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)}`).join('\n');
+         await Promise.allSettled([ stateService.updateDialogueState(uid, nextState), stateService.setConversationHistory(uid, newHistoryString), stateService.setInCache(cacheKey, finalText, CACHE_TTL_SECONDS), stateService.incrementUsageCounter(uid), ]);
+         logger.debug(`${TAG} Persistência no Redis concluída (histórico salvo: ${historyFromLLM.length} msgs).`);
+    } catch (persistError) { logger.error(`${TAG} Erro persistência (não fatal):`, persistError); }
 
     // --- Finalização ---
     const duration = Date.now() - start;
