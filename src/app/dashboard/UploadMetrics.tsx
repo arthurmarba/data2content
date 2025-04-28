@@ -1,12 +1,13 @@
+// src/app/dashboard/UploadMetrics.tsx
 "use client";
 
 import React, { useState, FocusEvent, useCallback, useRef } from "react";
-// Ícones: Adicionados Spinner, Check, Times para feedback
-import { FaCloudUploadAlt, FaUpload, FaSpinner, FaCheckCircle, FaTimesCircle } from "react-icons/fa";
+// Ícones: Adicionados Spinner, Check, Times, QuestionCircle
+import { FaCloudUploadAlt, FaUpload, FaSpinner, FaCheckCircle, FaTimesCircle, FaQuestionCircle } from "react-icons/fa";
 // Framer Motion para animações de feedback
 import { motion, AnimatePresence } from 'framer-motion';
 
-/** Popup simples para “Exclusivo para Assinantes” */
+// --- Popup Upgrade (mantido como estava) ---
 function UpgradePopup({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-4">
@@ -15,7 +16,6 @@ function UpgradePopup({ onClose }: { onClose: () => void }) {
         <p className="text-sm text-gray-600 mb-5 leading-relaxed">
           Assine agora para desbloquear o envio de métricas e aproveitar todos os recursos!
         </p>
-        {/* Ajuste de estilo do botão para combinar */}
         <button
           onClick={onClose}
           className="px-5 py-2 bg-brand-pink text-white rounded-full text-sm font-semibold hover:opacity-90 transition-default shadow-sm"
@@ -27,7 +27,7 @@ function UpgradePopup({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** Estrutura mínima para o objeto retornado pela API ao criar métricas */
+// --- Interface MetricResult (mantida) ---
 interface MetricResult {
   _id?: string;
   user?: string;
@@ -38,22 +38,25 @@ interface MetricResult {
   createdAt?: string;
 }
 
-/** Props para o componente UploadMetrics */
+// --- Props para o componente UploadMetrics ---
 interface UploadMetricsProps {
   canAccessFeatures: boolean;
-  userId: string; // Recebe o ID real do usuário logado
+  userId: string;
+  onNeedHelp: () => void; // <<< NOVO: Função para chamar quando o usuário precisar de ajuda
 }
 
 /**
  * Componente de Envio de Métricas (Upload)
- * - Recebe userId como prop.
+ * - Recebe userId e onNeedHelp como props.
  * - Bloqueia ações se o usuário não for assinante (popup).
  * - Inclui estado de carregamento e feedback visual.
- * - Limpa campos durante o upload e restaura após (exceto arquivos em caso de sucesso).
+ * - Limpa campos durante o upload e restaura após.
+ * - Adiciona link para tutorial em vídeo.
  */
 export default function UploadMetrics({
   canAccessFeatures,
   userId,
+  onNeedHelp, // <<< Recebe a função como prop
 }: UploadMetricsProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [result, setResult] = useState<MetricResult | null>(null);
@@ -62,7 +65,6 @@ export default function UploadMetrics({
   const [showUpgradePopup, setShowUpgradePopup] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
-  // Ref para o input de arquivo para poder limpá-lo programaticamente se necessário
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Se não for assinante, exibe popup ao focar/clicar
@@ -75,7 +77,7 @@ export default function UploadMetrics({
     return false;
   }
 
-  // Lida com a seleção de arquivos
+  // Lida com a seleção de arquivos (mantido)
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
       const selectedFiles = Array.from(event.target.files).slice(0, 4);
@@ -86,80 +88,55 @@ export default function UploadMetrics({
     } else {
       setFiles([]);
     }
-    // Não limpamos event.target.value aqui, pois pode interferir
-    // se o usuário cancelar a seleção após escolher arquivos.
   };
 
 
-  // Função para lidar com o upload
+  // Função para lidar com o upload (lógica principal mantida)
   const handleUpload = useCallback(async () => {
     console.log("handleUpload disparado");
-
     if (handleBlockFeature()) return;
-
     if (files.length === 0) {
       setUploadStatus({ message: 'Selecione ao menos um print antes de enviar!', type: 'info' });
       setTimeout(() => setUploadStatus(prev => prev?.type === 'info' ? null : prev), 3000);
       return;
     }
 
-    // --- Inicia o processo de upload ---
     setIsUploading(true);
     setUploadStatus(null);
     setResult(null);
-
-    // --- Salva os valores atuais antes de limpar o estado ---
     const currentPostLink = postLink;
     const currentDescription = description;
-    const currentFiles = files; // Guarda a referência aos arquivos que serão enviados
-
-    // --- Limpa os campos VISUALMENTE (estado) logo ao iniciar ---
+    const currentFiles = files;
     setPostLink("");
     setDescription("");
-    setFiles([]); // Limpa a lista visual de arquivos
-
-    // Limpa o valor do input de arquivo programaticamente
+    setFiles([]);
     if (fileInputRef.current) {
         fileInputRef.current.value = '';
     }
 
-
-    let uploadSuccessful = false; // Flag para controlar restauração
+    let uploadSuccessful = false;
 
     try {
       console.log("Iniciando conversão dos arquivos para base64.");
-      // --- Usa os arquivos da variável 'currentFiles' para conversão ---
       const images = await Promise.all(
         currentFiles.map(async (file) => {
-          console.log("Convertendo arquivo:", file.name);
           const base64File = await convertFileToBase64(file);
-          console.log("Arquivo convertido com sucesso:", file.name);
           return { base64File, mimeType: file.type };
         })
       );
 
-      // Monta o payload com os dados salvos
-      const payload = {
-        images: images,
-        userId,
-        postLink: currentPostLink, // Usa o valor salvo
-        description: currentDescription, // Usa o valor salvo
-      };
+      const payload = { images, userId, postLink: currentPostLink, description: currentDescription };
       console.log("Payload montado:", payload);
 
-      // --- Chamada Real da API ---
       const res = await fetch("/api/metrics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify(payload),
       });
-      // --- Fim Chamada API ---
-
       console.log("Resposta da API recebida, status:", res.status);
 
       if (!res.ok) {
-        // Tratamento de erro da API (mantido)
         let errorMessage = "Falha ao enviar métricas. Tente novamente.";
         try {
             const data = await res.json();
@@ -170,20 +147,15 @@ export default function UploadMetrics({
         }
         if (res.status === 401) errorMessage = "Não autenticado. Faça login novamente.";
         else if (res.status === 403) errorMessage = "Seu plano não permite esta ação ou não está ativo.";
-
         setUploadStatus({ message: errorMessage, type: 'error' });
-        // Não define uploadSuccessful como true
-        return; // Interrompe aqui em caso de erro da API
+        return;
       }
 
-      // Sucesso
       const data = await res.json();
       console.log("Métricas salvas com sucesso:", data.metric);
       setResult(data.metric);
       setUploadStatus({ message: 'Métricas enviadas com sucesso!', type: 'success' });
-      uploadSuccessful = true; // Marca como sucesso
-
-      // Limpa a mensagem de sucesso após alguns segundos
+      uploadSuccessful = true;
       setTimeout(() => setUploadStatus(prev => prev?.type === 'success' ? null : prev), 4000);
 
     } catch (error: unknown) {
@@ -192,24 +164,21 @@ export default function UploadMetrics({
         message: `Ocorreu um erro inesperado: ${error instanceof Error ? error.message : 'Tente novamente.'}`,
         type: 'error'
       });
-      // Não define uploadSuccessful como true
     } finally {
-      // --- Finaliza o processo de upload ---
       setIsUploading(false);
-
-      // --- Restaura os campos de Link e Descrição ---
-      // Restaura sempre, exceto se o upload foi bem sucedido (nesse caso já foram limpos)
-      // A intenção original era restaurar após o fim do processamento.
-      setPostLink(currentPostLink);
-      setDescription(currentDescription);
-
-      // Os arquivos (`files` state) permanecem limpos se o upload foi bem sucedido,
-      // caso contrário, eles já foram limpos no início do `handleUpload`.
-      // O input de arquivo (`fileInputRef`) também já foi limpo.
+      // Restaura os campos se o upload falhou (se teve sucesso, já foram limpos intencionalmente)
+      if (!uploadSuccessful) {
+          setPostLink(currentPostLink);
+          setDescription(currentDescription);
+          // Os arquivos já foram limpos visualmente do estado `files`
+          // O input `fileInputRef` já foi limpo
+          // Considerar se deve restaurar a lista de arquivos `files` em caso de erro?
+          // Por ora, mantém limpo para evitar reenvio acidental do mesmo lote.
+      }
     }
   }, [postLink, description, files, userId, canAccessFeatures]); // Dependências
 
-  // Define o ícone com base no tipo de status
+  // Define o ícone com base no tipo de status (mantido)
   const getStatusIcon = () => {
     if (!uploadStatus) return null;
     switch (uploadStatus.type) {
@@ -226,7 +195,7 @@ export default function UploadMetrics({
         <UpgradePopup onClose={() => setShowUpgradePopup(false)} />
       )}
 
-      {/* Título e Descrição */}
+      {/* Título e Descrição (mantidos) */}
       <div className="flex items-center gap-3">
         <FaCloudUploadAlt className="text-brand-pink w-6 h-6 flex-shrink-0" />
         <div>
@@ -239,7 +208,7 @@ export default function UploadMetrics({
         </div>
       </div>
 
-      {/* Campos de Input */}
+      {/* Campos de Input (mantidos) */}
       <div className="space-y-4">
         <div>
           <label htmlFor="postLink" className="block text-xs font-medium text-gray-600 mb-1">
@@ -248,7 +217,7 @@ export default function UploadMetrics({
           <input
             id="postLink"
             type="url"
-            value={postLink} // Controlado pelo estado
+            value={postLink}
             onFocus={handleBlockFeature}
             onChange={(e) => setPostLink(e.target.value)}
             disabled={isUploading || !canAccessFeatures}
@@ -263,7 +232,7 @@ export default function UploadMetrics({
           </label>
           <textarea
             id="description"
-            value={description} // Controlado pelo estado
+            value={description}
             onFocus={handleBlockFeature}
             onChange={(e) => setDescription(e.target.value)}
             rows={2}
@@ -278,7 +247,7 @@ export default function UploadMetrics({
             Prints das Métricas (até 4)
           </label>
           <input
-            ref={fileInputRef} // Adiciona a ref ao input
+            ref={fileInputRef}
             id="metricFiles"
             type="file"
             multiple
@@ -288,7 +257,6 @@ export default function UploadMetrics({
             disabled={isUploading || !canAccessFeatures}
             className="block w-full text-sm text-gray-500 border border-gray-300 rounded-md cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand-pink focus:border-brand-pink transition file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-brand-light file:text-brand-dark hover:file:bg-gray-100 disabled:opacity-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
           />
-           {/* Mostra nomes dos arquivos selecionados (agora controlado pelo estado 'files') */}
            {files.length > 0 && (
              <div className="mt-2 space-y-1">
                {files.map(file => (
@@ -303,7 +271,6 @@ export default function UploadMetrics({
       <div className="flex flex-col items-center gap-3 mt-5">
         <button
           onClick={handleUpload}
-          // Desabilita se não houver arquivos NO ESTADO INICIAL ou se estiver carregando/sem acesso
           disabled={(files.length === 0 && !isUploading) || isUploading || !canAccessFeatures}
           className="w-full sm:w-auto px-8 py-2.5 bg-brand-pink text-white rounded-full text-sm font-semibold hover:opacity-90 transition-default disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex items-center justify-center gap-2"
         >
@@ -320,7 +287,7 @@ export default function UploadMetrics({
           )}
         </button>
 
-        {/* Mensagem de Status Animada */}
+        {/* Mensagem de Status Animada (mantida) */}
         <AnimatePresence>
             {uploadStatus && (
                 <motion.div
@@ -340,7 +307,16 @@ export default function UploadMetrics({
             {!uploadStatus && <div className="h-4"></div>}
         </AnimatePresence>
 
-        {/* Mensagem de bloqueio se não for assinante */}
+        {/* <<< NOVO: Link/Botão para Ajuda >>> */}
+        <button
+            onClick={onNeedHelp} // Chama a função recebida por prop
+            className="text-xs text-gray-500 hover:text-brand-pink hover:underline mt-2 flex items-center gap-1"
+        >
+            <FaQuestionCircle className="w-3 h-3" />
+            Precisa de ajuda para enviar? Veja o tutorial
+        </button>
+
+        {/* Mensagem de bloqueio se não for assinante (mantida) */}
         {!canAccessFeatures && (
              <p className="text-xs text-center text-red-600 font-medium mt-2 px-4">
                 Assine um plano para poder enviar suas métricas e liberar esta funcionalidade.
@@ -349,7 +325,7 @@ export default function UploadMetrics({
       </div>
 
 
-      {/* Exibição do resultado JSON (opcional) */}
+      {/* Exibição do resultado JSON (mantido) */}
       {result && (
         <details className="mt-6">
             <summary className="text-xs text-gray-500 cursor-pointer hover:text-brand-dark">Ver dados retornados (debug)</summary>
@@ -362,31 +338,22 @@ export default function UploadMetrics({
   );
 }
 
-/**
- * Converte um arquivo em base64 (string).
- */
+// --- Função convertFileToBase64 (mantida) ---
 async function convertFileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = reader.result as string | undefined;
       if (!dataUrl) {
-        console.error("Erro: resultado do FileReader é indefinido para", file.name);
-        reject("Erro: resultado do FileReader é indefinido.");
-        return;
+        reject("Erro: resultado do FileReader é indefinido."); return;
       }
       const base64 = dataUrl.split(',')[1];
       if (!base64) {
-        console.error("Erro: não foi possível extrair a parte base64 para", file.name);
-        reject("Erro: não foi possível extrair a parte base64.");
-        return;
+        reject("Erro: não foi possível extrair a parte base64."); return;
       }
       resolve(base64);
     };
-    reader.onerror = (err) => {
-      console.error("Erro no FileReader para", file.name, err);
-      reject(err);
-    };
+    reader.onerror = (err) => reject(err);
     reader.readAsDataURL(file);
   });
 }

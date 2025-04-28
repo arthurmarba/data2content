@@ -1,25 +1,24 @@
- // src/app/dashboard/page.tsx (ou o nome do seu arquivo principal do dashboard)
+ // src/app/dashboard/page.tsx
  "use client";
 
- import React, { useState, useEffect, useCallback, Fragment } from 'react';
+ import React, { useState, useEffect, useCallback, Fragment, useRef } from 'react'; // Adicionado useRef
  import { useSession, signIn, signOut } from 'next-auth/react';
  import { useRouter } from "next/navigation";
  import Image from 'next/image';
  import Head from 'next/head';
  // Usando React Icons (Font Awesome)
- import { FaCopy, FaCheckCircle, FaClock, FaTimesCircle, FaLock, FaTrophy, FaGift, FaMoneyBillWave, FaWhatsapp, FaUpload, FaCog, FaQuestionCircle, FaSignOutAlt, FaUserCircle, FaDollarSign, FaEllipsisV, FaBullhorn } from 'react-icons/fa'; // Adicionado FaBullhorn
+ import { FaCopy, FaCheckCircle, FaClock, FaTimesCircle, FaLock, FaTrophy, FaGift, FaMoneyBillWave, FaWhatsapp, FaUpload, FaCog, FaQuestionCircle, FaSignOutAlt, FaUserCircle, FaDollarSign, FaEllipsisV, FaBullhorn, FaVideo } from 'react-icons/fa'; // Adicionado FaVideo
  // Framer Motion para animações
  import { motion, AnimatePresence } from "framer-motion";
 
  // --- Imports dos seus Componentes Reais ---
- // Certifique-se que os caminhos estão corretos
  import PaymentPanel from './PaymentPanel';
  import UploadMetrics from './UploadMetrics';
  import WhatsAppPanel from './WhatsAppPanel';
- import PaymentModal from './PaymentModal'; // Importando o modal separado
- // *** IMPORTAÇÃO CORRIGIDA ***
+ import PaymentModal from './PaymentModal';
  import AdDealForm from './AdDealForm';
- // *** FIM DA CORREÇÃO ***
+ import VideoCarousel from './VideoCarousel'; // <<< NOVO: Importa o componente do carrossel
+
  // --- FIM IMPORTS ---
 
 
@@ -37,33 +36,37 @@
   affiliateInvites?: number;
  }
 
+ // Interface para os dados dos vídeos (igual ao VideoCarousel.tsx)
+ interface VideoData {
+    id: string;
+    title: string;
+    youtubeVideoId: string;
+ }
+
  // --- COMPONENTE SKELETON LOADER (Refinado) ---
  const SkeletonLoader = ({ className = "" }: { className?: string }) => (
-    // Usando cores mais suaves e animação pulse do Tailwind
     <div className={`animate-pulse bg-gray-200 rounded-xl ${className}`}></div>
  );
 
  // --- COMPONENTE PRINCIPAL DASHBOARD ---
  export default function MainDashboard() {
   // --- Hooks Chamados no Nível Superior ---
-  const { data: session, status } = useSession(); // Hook 1
-  const router = useRouter(); // Hook 2
-  const [showPaymentModal, setShowPaymentModal] = useState(false); // Hook 3
-  const [copySuccess, setCopySuccess] = useState(false); // Hook 4
-  const [redeemMessage, setRedeemMessage] = useState(""); // Hook 5
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false); // Hook 6
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
+  const [redeemMessage, setRedeemMessage] = useState("");
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const swiperRef = useRef<any>(null); // <<< NOVO: Ref para controlar o Swiper
 
-  // --- useEffect para lidar com status da sessão (erros e redirecionamento) ---
+  // --- useEffect para lidar com status da sessão ---
   useEffect(() => {
-    // Se o status for 'unauthenticated', redireciona para a home
     if (status === "unauthenticated") {
-      router.push('/'); // Redireciona para a página inicial
-    }
-    // Se estiver autenticado mas a sessão for inválida, loga um erro
-    else if (status === "authenticated" && (!session || !session.user)) {
+      router.push('/');
+    } else if (status === "authenticated" && (!session || !session.user)) {
       console.error("Erro: Autenticado, mas session ou session.user inválido.", session);
     }
-  }, [status, session, router]); // Dependências
+  }, [status, session, router]);
 
   // Animação para os cards
   const cardVariants = {
@@ -76,7 +79,7 @@
    };
 
   // Lógica de Resgate
-  const handleRedeemBalance = useCallback(async (userId: string | undefined) => { // Hook 7
+  const handleRedeemBalance = useCallback(async (userId: string | undefined) => {
      if (!userId) { setRedeemMessage("Erro: ID do usuário não encontrado."); return; }
      setRedeemMessage("Processando...");
      try {
@@ -91,7 +94,7 @@
    }, [router]);
 
   // Lógica para Copiar Código
-  const copyAffiliateCode = useCallback(() => { // Hook 8
+  const copyAffiliateCode = useCallback(() => {
     const user = session?.user as ExtendedUser | undefined;
     const code = user?.affiliateCode ?? "";
     if (!code || !navigator.clipboard) return;
@@ -104,10 +107,9 @@
     });
    }, [session]);
 
-  // --- Renderização Condicional Refinada ---
-
-  // 1. Estado de Carregamento Inicial OU Redirecionamento Pendente
+  // --- Renderização Condicional ---
   if (status === "loading" || status === "unauthenticated") {
+    // ... (código do skeleton loader mantido) ...
     return (
         <div className="min-h-screen bg-brand-light p-4 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
@@ -142,7 +144,6 @@
     );
   }
 
-  // --- Verificação explícita para session e session.user ---
   if (!session || !session.user) {
       return (
           <div className="min-h-screen flex items-center justify-center bg-brand-light">
@@ -151,7 +152,7 @@
       );
   }
 
-  // 4. Estado Autenticado e Válido
+  // --- Dados do Usuário Autenticado ---
   const user = session.user as ExtendedUser;
   const userId = user?.id ?? "";
   const planStatus = user?.planStatus ?? "inactive";
@@ -181,27 +182,57 @@
     planExpiresAt: user.planExpiresAt,
     affiliateBalance: user.affiliateBalance,
     affiliateCode: user.affiliateCode === null ? undefined : user.affiliateCode,
-    // id: userId, // Adicione se PaymentPanel precisar
-    // email: user.email, // Adicione se PaymentPanel precisar
-    // name: userName, // Adicione se PaymentPanel precisar
   };
 
   // Função helper para scroll suave
-  const scrollToPayment = () => {
-    const paymentSection = document.getElementById('payment-section');
-    if (paymentSection) {
-      paymentSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const scrollToSection = (sectionId: string) => {
+    const section = document.getElementById(sectionId);
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth', block: 'center' });
     } else {
-      console.warn("Seção #payment-section não encontrada para scroll.");
+      console.warn(`Seção #${sectionId} não encontrada para scroll.`);
     }
   };
+
+  // <<< NOVO: Função para scroll e navegação do carrossel >>>
+  const scrollToVideoGuide = (videoId: string) => {
+    const guideSection = document.getElementById('video-guides-section');
+    if (guideSection) {
+        guideSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        // Tenta navegar o Swiper para o slide correto
+        if (swiperRef.current && swiperRef.current.slides) {
+            const slideIndex = videoGuidesData.findIndex(video => video.id === videoId);
+            if (slideIndex !== -1) {
+                // Espera um pouco para o scroll terminar antes de mudar o slide
+                setTimeout(() => {
+                    swiperRef.current.slideTo(slideIndex);
+                }, 300); // Ajuste o delay se necessário
+            } else {
+                 console.warn(`Vídeo com ID "${videoId}" não encontrado nos dados do carrossel.`);
+            }
+        } else {
+             console.warn("Referência do Swiper ou slides não encontrados.");
+        }
+    } else {
+      console.warn("Seção #video-guides-section não encontrada para scroll.");
+    }
+  };
+
+  // <<< NOVO: Dados placeholder para os vídeos >>>
+  const videoGuidesData: VideoData[] = [
+    { id: 'intro-plataforma', title: 'Bem-vindo à Data2Content!', youtubeVideoId: 'BHACKCNDMW8' }, // Exemplo natureza
+    { id: 'upload-metrics-guide', title: 'Como Enviar suas Métricas', youtubeVideoId: '_dpB7R6csAE' }, // Exemplo tutorial
+    { id: 'afiliados-explainer', title: 'Entenda o Programa de Afiliados', youtubeVideoId: 'I7hJJkF00hU' }, // Exemplo explicação
+    { id: 'whatsapp-tuca', title: 'Conectando ao Tuca no WhatsApp', youtubeVideoId: 'iG9CE55wbtY' }, // Exemplo demo
+    { id: 'seguranca-dados', title: 'Como Cuidamos dos Seus Dados', youtubeVideoId: 'eX2qFMC8cFo' }, // Exemplo segurança (placeholder)
+  ];
 
 
   // Retorna o JSX do Dashboard para usuário autenticado
   return (
     <>
       <Head><title>Dashboard - Data2Content</title></Head>
-      {/* Renderiza o Modal de Pagamento */}
       <PaymentModal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)} userId={userId} />
 
       <div className="min-h-screen bg-brand-light">
@@ -266,11 +297,12 @@
 
             {/* Coluna Principal (Esquerda) */}
             <div className="lg:col-span-2 space-y-12">
-              {/* Card Boas Vindas com Avatar */}
+              {/* Card Boas Vindas */}
               <motion.section
                 variants={cardVariants} initial="hidden" animate="visible" custom={0}
                 className="bg-white p-6 sm:p-8 rounded-xl shadow-lg border-t-4 border-brand-pink flex flex-col sm:flex-row items-center gap-6"
               >
+                 {/* ... (conteúdo do card boas vindas mantido) ... */}
                  <div className="flex-shrink-0">
                     {userImage ? (
                         <Image src={userImage} alt="Avatar" width={88} height={88} className="rounded-full border-4 border-white shadow-md" />
@@ -293,7 +325,7 @@
                         </div>
                         {!canAccessFeatures && (
                             <button
-                                onClick={scrollToPayment} // Usa a função helper
+                                onClick={() => scrollToSection('payment-section')} // Usa a função helper
                                 className="text-xs bg-brand-pink text-white px-4 py-1.5 rounded-full hover:opacity-90 font-semibold transition-default align-middle"
                             >
                                 Fazer Upgrade
@@ -303,10 +335,27 @@
                  </div>
               </motion.section>
 
-              {/* Card do Tuca SEMPRE VISÍVEL, mas com conteúdo condicional */}
+              {/* <<< NOVO: Card Guias Rápidos (Carrossel) >>> */}
+              <motion.section
+                id="video-guides-section" // ID para o scroll funcionar
+                variants={cardVariants} initial="hidden" animate="visible" custom={0.5} // Ajuste o delay conforme necessário
+              >
+                  <div className="flex items-center gap-3 mb-5 ml-1">
+                     <FaVideo className="w-5 h-5 text-brand-pink"/>
+                     <h2 className="text-xl font-semibold text-brand-dark">Guias Rápidos da Plataforma</h2>
+                  </div>
+                   <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
+                       {/* Renderiza o carrossel passando a ref */}
+                       <VideoCarousel videos={videoGuidesData} swiperRef={swiperRef} />
+                   </div>
+               </motion.section>
+              {/* <<< FIM NOVO Card Guias Rápidos >>> */}
+
+
+              {/* Card do Tuca */}
               <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={1}>
                   <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Consultor IA Tuca (WhatsApp)</h2>
-                  {/* Renderiza conteúdo diferente baseado em canAccessFeatures */}
+                  {/* ... (código do card Tuca mantido) ... */}
                   {canAccessFeatures ? (
                       // Conteúdo para ASSINANTES
                       <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
@@ -315,14 +364,13 @@
                               <h3 className="font-semibold text-lg text-brand-dark">Acesso Liberado via WhatsApp</h3>
                           </div>
                           <p className="text-base text-gray-700 font-light mb-6 leading-relaxed">Converse com o Tuca diretamente no seu WhatsApp para receber análises e estratégias personalizadas.</p>
-                          {/* Renderiza o painel funcional */}
                           <WhatsAppPanel userId={userId} canAccessFeatures={canAccessFeatures} />
                       </div>
                   ) : (
                       // Conteúdo para NÃO ASSINANTES (Preview/Bloqueado)
                       <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg relative overflow-hidden border border-gray-200">
-                          {/* Overlay sutil para indicar bloqueio */}
-                          <div className="absolute inset-0 bg-gray-50 opacity-50 z-10"></div>
+                          {/* ... (código do preview bloqueado mantido) ... */}
+                           <div className="absolute inset-0 bg-gray-50 opacity-50 z-10"></div>
                           {/* Conteúdo visualmente desabilitado */}
                           <div className="relative z-0 filter grayscale-[50%] opacity-70">
                               <div className="flex items-center gap-4 mb-4">
@@ -343,7 +391,7 @@
                               </div>
                               <p className="text-sm text-gray-600 mb-4">Assine para desbloquear o acesso ao Tuca.</p>
                               <button
-                                  onClick={scrollToPayment} // Usa a função helper
+                                  onClick={() => scrollToSection('payment-section')} // Usa a função helper
                                   className="px-5 py-2 bg-brand-pink text-white rounded-full text-sm font-semibold hover:opacity-90 transition-default shadow-sm"
                               >
                                   Desbloquear Agora
@@ -361,7 +409,6 @@
                             <div className="p-3 bg-brand-light rounded-full text-brand-dark"><FaUpload className="w-5 h-5"/></div>
                             <h3 className="font-semibold text-lg text-brand-dark">Upload de Métricas</h3>
                         </div>
-                       {/* Mostra descrição normal se tiver acesso, ou aviso se não tiver */}
                        {canAccessFeatures ? (
                             <p className="text-base text-gray-700 font-light mb-6 leading-relaxed">Envie seus dados mais recentes do Instagram para que o Tuca possa fazer análises precisas.</p>
                        ) : (
@@ -369,16 +416,21 @@
                                 <span className="font-semibold text-brand-red"><FaLock className="inline w-3 h-3 mr-1 mb-0.5"/> Recurso bloqueado.</span> Assine um plano para poder enviar seus prints e liberar esta funcionalidade.
                             </p>
                        )}
-                       {/* O componente UploadMetrics já tem a lógica interna de bloqueio */}
-                       <UploadMetrics canAccessFeatures={canAccessFeatures} userId={userId} />
+                       {/* Passa a função scrollToVideoGuide para UploadMetrics */}
+                       <UploadMetrics
+                            canAccessFeatures={canAccessFeatures}
+                            userId={userId}
+                            onNeedHelp={() => scrollToVideoGuide('upload-metrics-guide')} // <<< NOVO: Passa a função
+                        />
                    </div>
                </motion.section>
 
-               {/* *** NOVO CARD: Registo de Publicidade *** */}
+               {/* Card de Registo de Publicidade */}
                <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={3}>
                    <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Suas Parcerias</h2>
                    <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
-                       <div className="flex items-center gap-4 mb-4">
+                       {/* ... (código do card publicidade mantido) ... */}
+                        <div className="flex items-center gap-4 mb-4">
                            <div className="p-3 bg-blue-100 rounded-full text-blue-600"><FaBullhorn className="w-5 h-5"/></div> {/* Ícone diferente */}
                            <h3 className="font-semibold text-lg text-brand-dark">Registar Nova Publicidade</h3>
                        </div>
@@ -397,19 +449,16 @@
                        )}
                    </div>
                </motion.section>
-               {/* *** FIM DO NOVO CARD *** */}
 
-               {/* Card Pagamento/Assinatura com BORDA ANIMADA (Técnica Final) */}
+               {/* Card Pagamento/Assinatura */}
                {!canAccessFeatures && (
                   <motion.section
                     id="payment-section"
-                    variants={cardVariants} initial="hidden" animate="visible" custom={4} // Ajusta delay
-                    // Container externo com a classe para a borda
-                    className="animated-border-card" // Nova classe mais específica
+                    variants={cardVariants} initial="hidden" animate="visible" custom={4}
+                    className="animated-border-card"
                   >
-                    {/* Div interna com o conteúdo e fundo branco */}
-                    <div className="card-content bg-white p-6 sm:p-8 rounded-xl"> {/* Classe para conteúdo */}
-                         {/* Header Estilizado */}
+                    <div className="card-content bg-white p-6 sm:p-8 rounded-xl">
+                         {/* ... (código do card pagamento mantido) ... */}
                          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 mb-6 text-center sm:text-left">
                             <div className="mb-3 sm:mb-0 text-3xl inline-block p-3 bg-gradient-to-br from-brand-pink to-brand-red text-white rounded-full flex-shrink-0 shadow-md">
                                 <FaLock />
@@ -421,8 +470,6 @@
                                 </p>
                             </div>
                          </div>
-
-                         {/* Renderiza o PaymentPanel */}
                          <PaymentPanel user={paymentPanelUserProps} />
                     </div>
                   </motion.section>
@@ -432,13 +479,13 @@
 
             {/* Coluna Direita (Sidebar) */}
             <div className="lg:col-span-1 space-y-8">
-                 {/* Card Afiliado (Mantido como está) */}
+                 {/* Card Afiliado */}
               <motion.section
-                variants={cardVariants} initial="hidden" animate="visible" custom={0.5} // Delay pode ser ajustado se necessário
+                variants={cardVariants} initial="hidden" animate="visible" custom={0.5}
                 className="bg-white p-6 rounded-xl shadow-lg border-t-4 border-brand-pink"
               >
                     {/* ... (código do card afiliado mantido) ... */}
-                    <div className="flex justify-between items-center mb-6">
+                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-lg font-semibold text-brand-dark">Programa de Afiliados</h2>
                         <div className="flex items-center gap-1 text-yellow-800 bg-yellow-100 px-2.5 py-1 rounded-full border border-yellow-200">
                             <FaTrophy className="w-3.5 h-3.5" />
@@ -516,13 +563,13 @@
                     </div>
               </motion.section>
 
-              {/* Card Ajuda/Suporte (Mantido como está) */}
+              {/* Card Ajuda/Suporte */}
               <motion.section
-                variants={cardVariants} initial="hidden" animate="visible" custom={3} // Ajusta delay
+                variants={cardVariants} initial="hidden" animate="visible" custom={3}
                 className="bg-brand-light p-6 rounded-xl border border-gray-200 text-center hover:shadow-md transition-shadow flex flex-col items-center"
               >
                  {/* ... (código do card ajuda mantido) ... */}
-                 <div className="p-3 bg-brand-pink/10 rounded-full text-brand-pink mb-4">
+                  <div className="p-3 bg-brand-pink/10 rounded-full text-brand-pink mb-4">
                     <FaQuestionCircle className="w-6 h-6"/>
                  </div>
                  <h3 className="font-semibold text-brand-dark mb-2 text-lg">Precisa de Ajuda?</h3>
@@ -541,55 +588,14 @@
 
       </div> {/* Fim Div Principal do Dashboard */}
 
-      {/* --- CSS para a Borda Animada (Técnica Final - ::before para Borda) --- */}
+      {/* CSS para a Borda Animada */}
       <style jsx global>{`
-        /* Animação para girar o gradiente */
-        @keyframes spin-gradient-border {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-
-        /* Classe aplicada ao container EXTERNO */
-        .animated-border-card {
-          position: relative; /* Para posicionar o pseudo-elemento */
-          border-radius: 0.80rem; /* Arredondamento externo (ajuste se o interno for diferente de rounded-xl) */
-          overflow: hidden; /* Esconde partes do gradiente que vazam */
-          padding: 2px; /* Espessura da borda */
-          z-index: 1; /* Garante contexto de empilhamento */
-          background: white; /* Fundo padrão caso o gradiente não carregue */
-          box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); /* shadow-xl */
-        }
-
-        /* Pseudo-elemento para criar a borda gradiente animada */
-        .animated-border-card::before {
-          content: '';
-          position: absolute;
-          /* Posiciona o gradiente grande atrás */
-          inset: -200%; /* Começa bem grande */
-          z-index: -1; /* Fica atrás do conteúdo interno */
-          /* Gradiente cônico que gira */
-          background: conic-gradient(
-            from 90deg, /* Ajuste o ângulo inicial se necessário */
-            #E91E63, /* Cor 1 (brand-pink) */
-            #EF4444, /* Cor 2 (brand-red) */
-            #E91E63  /* Volta para a cor inicial */
-          );
-          /* Aplica a animação de rotação */
-          animation: spin-gradient-border 4s linear infinite;
-        }
-
-        /* A div interna com bg-white e conteúdo */
-        .animated-border-card > .card-content {
-             /* Garante que o fundo branco cubra o gradiente, exceto na borda (devido ao padding do pai) */
-             /* O arredondamento já está aplicado no JSX */
-             /* border-radius: calc(0.80rem - 2px); */
-             /* Garante que fique acima do pseudo-elemento */
-             position: relative;
-             z-index: 2;
-        }
+        /* ... (código CSS da borda animada mantido) ... */
+        @keyframes spin-gradient-border { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .animated-border-card { position: relative; border-radius: 0.80rem; overflow: hidden; padding: 2px; z-index: 1; background: white; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }
+        .animated-border-card::before { content: ''; position: absolute; inset: -200%; z-index: -1; background: conic-gradient( from 90deg, #E91E63, #EF4444, #E91E63 ); animation: spin-gradient-border 4s linear infinite; }
+        .animated-border-card > .card-content { position: relative; z-index: 2; }
       `}</style>
     </>
   );
 }
-
- 
