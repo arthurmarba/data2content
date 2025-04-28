@@ -7,9 +7,10 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 // Import Swiper styles
 import 'swiper/css';
 import 'swiper/css/navigation'; // Mantém para as setas
+import 'swiper/css/pagination'; // <<< NOVO: Importa CSS da paginação
 
 // import required modules
-import { Navigation, A11y } from 'swiper/modules';
+import { Navigation, Pagination, A11y } from 'swiper/modules'; // <<< NOVO: Adiciona Pagination
 
 // Ícone para o placeholder
 import { FaYoutube } from 'react-icons/fa';
@@ -44,19 +45,22 @@ export default function VideoCarousel({ videos, swiperRef }: VideoCarouselProps)
                 swiperRef.current = swiper;
             }
         }}
-        modules={[Navigation, A11y]}
+        modules={[Navigation, Pagination, A11y]} // <<< NOVO: Adicionado Pagination aos módulos
         // --- Configurações Mobile (Foco nas Setas) ---
-        slidesPerView={1} // <<< MUDANÇA: 1 slide por vez no mobile
-        spaceBetween={15} // Espaço entre slides
-        centeredSlides={false} // Desativado
+        slidesPerView={1}
+        spaceBetween={15}
+        centeredSlides={false}
         loop={enableLoop}
         watchOverflow={true}
         // --- Fim Configurações Mobile ---
-        navigation={{ // Lógica mantida, botões agora sempre visíveis via CSS
+        navigation={{ // Lógica mantida, botões visíveis
             nextEl: '.swiper-button-next-custom',
             prevEl: '.swiper-button-prev-custom',
         }}
-        grabCursor={true} // Mantém o cursor de agarrar (swipe ainda funciona se o usuário tentar)
+        pagination={{ // <<< NOVO: Habilita paginação clicável
+            clickable: true,
+        }}
+        grabCursor={true}
         className="mySwiper" // Classe para Swiper principal
 
         breakpoints={{
@@ -76,11 +80,11 @@ export default function VideoCarousel({ videos, swiperRef }: VideoCarouselProps)
         a11y={{
             prevSlideMessage: 'Slide anterior',
             nextSlideMessage: 'Próximo slide',
+            paginationBulletMessage: 'Ir para o slide {{index}}', // <<< NOVO: Mensagem para acessibilidade
         }}
       >
         {videos.map((video, index) => (
-          // Removida largura fixa, Swiper calcula baseado em slidesPerView
-          <SwiperSlide key={video.id + '-' + index} className="bg-gray-100 rounded-lg overflow-hidden border border-gray-200 shadow-sm flex-shrink-0">
+          <SwiperSlide key={video.id + '-' + index} className="bg-gray-100 rounded-lg overflow-hidden border border-gray-200 shadow-sm flex-shrink-0 pb-8"> {/* <<< NOVO: Adicionado pb-8 para dar espaço à paginação */}
             {/* Container com aspect-ratio para manter proporção do vídeo */}
             <div className="aspect-video w-full bg-black">
               {/* Iframe preenche o container aspect-ratio */}
@@ -95,20 +99,19 @@ export default function VideoCarousel({ videos, swiperRef }: VideoCarouselProps)
                 allowFullScreen
                 loading="lazy"
               ></iframe>
-              {/* REMOVIDO: Overlay transparente */}
             </div>
           </SwiperSlide>
         ))}
       </Swiper>
 
-      {/* Botões de Navegação Customizados - Agora visíveis sempre, estilizados */}
-       <button className="swiper-button-prev-custom absolute top-1/2 left-2 transform -translate-y-1/2 z-10 bg-black/40 hover:bg-black/60 text-white rounded-full p-2.5 shadow-md transition-colors duration-200 ease-in-out disabled:opacity-30 disabled:cursor-not-allowed"> {/* Estilo ajustado */}
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5"> {/* Ícone mais grosso */}
+      {/* Botões de Navegação Customizados - Mantidos */}
+       <button className="swiper-button-prev-custom absolute top-1/2 left-2 transform -translate-y-1/2 z-10 bg-black/40 hover:bg-black/60 text-white rounded-full p-2.5 shadow-md transition-colors duration-200 ease-in-out disabled:opacity-30 disabled:cursor-not-allowed">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
           <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
         </svg>
       </button>
-      <button className="swiper-button-next-custom absolute top-1/2 right-2 transform -translate-y-1/2 z-10 bg-black/40 hover:bg-black/60 text-white rounded-full p-2.5 shadow-md transition-colors duration-200 ease-in-out disabled:opacity-30 disabled:cursor-not-allowed"> {/* Estilo ajustado */}
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5"> {/* Ícone mais grosso */}
+      <button className="swiper-button-next-custom absolute top-1/2 right-2 transform -translate-y-1/2 z-10 bg-black/40 hover:bg-black/60 text-white rounded-full p-2.5 shadow-md transition-colors duration-200 ease-in-out disabled:opacity-30 disabled:cursor-not-allowed">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
           <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
         </svg>
       </button>
@@ -116,24 +119,16 @@ export default function VideoCarousel({ videos, swiperRef }: VideoCarouselProps)
       {/* Estilos Globais */}
       <style jsx global>{`
         .swiper-button-disabled {
-          opacity: 0.3 !important; /* Garante opacidade quando desabilitado */
+          opacity: 0.3 !important;
           cursor: not-allowed !important;
-        }
-
-        /* --- Estilo Mobile-First --- */
-
-        /* Botões agora são visíveis por padrão */
-        .swiper-button-prev-custom,
-        .swiper-button-next-custom {
-            /* display: block; */ /* Não precisa mais esconder */
         }
 
         /* Container principal: overflow hidden */
         .video-carousel-container {
-            /* w-full já aplicado via Tailwind */
-            /* overflow-hidden já aplicado via Tailwind */
-             padding-left: 0; /* Remove padding */
-             padding-right: 0; /* Remove padding */
+             padding-left: 0;
+             padding-right: 0;
+             /* Adiciona padding inferior para garantir espaço para os pontos */
+             padding-bottom: 10px;
         }
 
         /* Estilo dos slides */
@@ -141,8 +136,7 @@ export default function VideoCarousel({ videos, swiperRef }: VideoCarouselProps)
            transition: none;
            opacity: 1;
            transform: none;
-           height: auto; /* Garante altura correta */
-           /* Garante que o aspect-video funcione */
+           height: auto;
            display: flex;
            flex-direction: column;
         }
@@ -150,16 +144,55 @@ export default function VideoCarousel({ videos, swiperRef }: VideoCarouselProps)
         /* Swiper interno: overflow hidden */
         .mySwiper {
             width: 100%;
-            overflow: hidden; /* <<< MUDANÇA: Esconde overflow */
+            overflow: hidden;
             padding: 0;
             margin: 0;
+             /* Adiciona padding inferior para os pontos não ficarem colados */
+             padding-bottom: 20px !important;
+        }
+
+        /* <<< NOVO: Estilização dos pontos de paginação >>> */
+        .swiper-pagination {
+            position: absolute; /* Posiciona relativo ao Swiper */
+            bottom: 0px !important; /* Ajusta posição vertical (mais para baixo) */
+            left: 0;
+            width: 100%;
+            text-align: center;
+            z-index: 10; /* Garante que fiquem visíveis */
+        }
+        .swiper-pagination-bullet {
+            width: 8px;
+            height: 8px;
+            background-color: #ccc; /* Cor padrão cinza claro */
+            opacity: 0.7;
+            border-radius: 50%;
+            display: inline-block;
+            margin: 0 4px; /* Espaçamento entre os pontos */
+            cursor: pointer;
+            transition: background-color 0.2s ease, opacity 0.2s ease;
+        }
+        .swiper-pagination-bullet-active {
+            background-color: #E91E63; /* Cor brand-pink para o ponto ativo */
+            opacity: 1;
         }
 
         /* --- Estilos para Telas Maiores (sm: 640px+) --- */
         @media (min-width: 640px) {
-            /* Ajusta posição dos botões se necessário para telas maiores */
-            /* .swiper-button-prev-custom { left: 0.5rem; } */
-            /* .swiper-button-next-custom { right: 0.5rem; } */
+            /* Mantém botões visíveis */
+            .swiper-button-prev-custom,
+            .swiper-button-next-custom {
+                display: block;
+            }
+             /* Ajusta posição dos botões */
+             .swiper-button-prev-custom { left: 0.5rem; }
+             .swiper-button-next-custom { right: 0.5rem; }
+
+             .video-carousel-container {
+                 padding-bottom: 0; /* Remove padding extra do container */
+             }
+             .mySwiper {
+                 padding-bottom: 30px !important; /* Mantém espaço para paginação no desktop */
+             }
         }
 
       `}</style>

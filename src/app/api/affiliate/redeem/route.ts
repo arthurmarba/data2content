@@ -1,8 +1,9 @@
+// src/app/api/affiliate/redeem/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
-import User from "@/app/models/User";
+import User from "@/app/models/User"; // Assume que User tem a role
 import Redemption from "@/app/models/Redemption";
 import { Model, Document } from "mongoose";
 
@@ -20,6 +21,20 @@ interface IRedemption extends Document {
   createdAt: Date;
   updatedAt: Date;
 }
+
+/**
+ * Tipo auxiliar para o usuário na sessão, incluindo a role.
+ */
+interface SessionUser {
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+  role?: string; // Adiciona a role aqui
+  id?: string;
+}
+
+
+// --- GET e POST mantidos como antes ---
 
 /**
  * GET /api/affiliate/redeem?userId=...
@@ -111,9 +126,11 @@ export async function POST(request: NextRequest) {
 
     // Verifica saldo
     const balance = user.affiliateBalance || 0;
-    if (balance <= 0) {
+    // <<< ADICIONAR VALOR MÍNIMO DE SAQUE SE NECESSÁRIO >>>
+    const MINIMUM_REDEEM_AMOUNT = 50; // Exemplo: R$ 50,00
+    if (balance < MINIMUM_REDEEM_AMOUNT) {
       return NextResponse.json(
-        { error: "Saldo insuficiente para resgatar." },
+        { error: `Saldo insuficiente. O valor mínimo para resgate é R$ ${MINIMUM_REDEEM_AMOUNT.toFixed(2)}.` },
         { status: 400 }
       );
     }
@@ -124,8 +141,8 @@ export async function POST(request: NextRequest) {
       user: user._id,
       amount: balance,
       status: "pending",
-      paymentMethod: "",
-      notes: "",
+      paymentMethod: "", // Pode ser preenchido depois pelo admin ou automaticamente
+      notes: "", // Pode ser preenchido depois pelo admin
     });
 
     // Zera o saldo do usuário
@@ -143,10 +160,12 @@ export async function POST(request: NextRequest) {
   }
 }
 
+
 /**
  * PATCH /api/affiliate/redeem
  * Atualiza o status do saque (apenas admin).
  * Body: { redeemId, newStatus }
+ * <<< SEGURANÇA ADICIONADA >>>
  */
 export async function PATCH(request: NextRequest) {
   try {
@@ -155,10 +174,19 @@ export async function PATCH(request: NextRequest) {
     // Obtém a sessão do usuário
     const session = await getServerSession({ req: request, ...authOptions });
     console.debug("[redeem:PATCH] Sessão:", session);
+
+    // 1. Verifica se está autenticado
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
+    // 2. <<< NOVO: Verifica se o usuário tem a role 'admin' >>>
+    const userSession = session.user as SessionUser; // Faz type assertion para acessar a role
+    if (userSession.role !== 'admin') {
+        return NextResponse.json({ error: "Acesso negado. Permissão de administrador necessária." }, { status: 403 });
+    }
+
+    // 3. Processa o corpo da requisição
     const body = await request.json();
     const { redeemId, newStatus } = body || {};
     if (!redeemId || !newStatus) {
@@ -168,15 +196,28 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
+    // 4. Valida o novo status (opcional, mas recomendado)
+    const validStatuses = ['pending', 'paid', 'canceled']; // Adicione outros se necessário
+    if (!validStatuses.includes(newStatus)) {
+         return NextResponse.json({ error: `Status inválido: ${newStatus}` }, { status: 400 });
+    }
+
+    // 5. Busca e atualiza o resgate
     const redemptionModel = Redemption as unknown as Model<IRedemption>;
     const redemption = await redemptionModel.findById(redeemId);
     if (!redemption) {
       return NextResponse.json({ error: "Resgate não encontrado." }, { status: 404 });
     }
 
+    // <<< LÓGICA ADICIONAL: Se status for 'paid', talvez adicionar nota/data? >>>
+    // if (newStatus === 'paid') {
+    //     redemption.notes = `Pago por ${userSession.name || userSession.email} em ${new Date().toISOString()}`;
+    // }
+
     redemption.status = newStatus;
     await redemption.save();
 
+    // 6. Retorna sucesso
     return NextResponse.json({
       message: `Status atualizado para "${newStatus}" com sucesso!`,
       redemption,

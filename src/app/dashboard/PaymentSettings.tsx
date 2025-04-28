@@ -1,3 +1,4 @@
+// src/app/dashboard/PaymentSettings.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
@@ -5,6 +6,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { FaSpinner, FaCheckCircle, FaTimesCircle, FaInfoCircle } from "react-icons/fa";
 // Importando Framer Motion para animações
 import { motion, AnimatePresence } from "framer-motion";
+// Importando useSession para atualizar o saldo
+import { useSession } from "next-auth/react";
 
 /**
  * Estrutura mínima para o objeto de "resgate" (redeem).
@@ -20,9 +23,28 @@ interface Redemption {
 /** Props para o componente PaymentSettings */
 interface PaymentSettingsProps {
   userId: string;
-  // TODO: Considerar passar o saldo disponível como prop para exibir contexto ao botão de resgate
-  // availableBalance?: number;
+  // Passando o saldo disponível como prop para exibir contexto e checagem
+  availableBalance?: number;
 }
+
+// Interface para a resposta da API de resgate
+interface RedeemApiResponse {
+    message?: string;
+    error?: string;
+    redemption?: any; // Detalhes do resgate criado
+ }
+
+// Interface para a resposta da API de busca de dados de pagamento
+interface PaymentInfoApiResponse {
+    paymentInfo?: {
+        pixKey?: string;
+        bankName?: string;
+        bankAgency?: string;
+        bankAccount?: string;
+    };
+    error?: string;
+}
+
 
 // Componente auxiliar para mensagens de feedback
 const FeedbackMessage = ({ message, type }: { message: string; type: 'success' | 'error' | 'info' }) => {
@@ -85,20 +107,22 @@ const StatusBadge = ({ status }: { status: string }) => {
 /**
  * Componente que gerencia os dados de pagamento (Pix/Conta) e exibe
  * o histórico de saques do afiliado, permitindo também solicitar novo saque.
- * (Versão com melhorias de UX/UI)
  */
-export default function PaymentSettings({ userId }: PaymentSettingsProps) {
+export default function PaymentSettings({ userId, availableBalance = 0 }: PaymentSettingsProps) {
+  // Hook useSession para atualizar dados
+  const { update: updateSession } = useSession();
+
   // Estados para os dados bancários
   const [pixKey, setPixKey] = useState("");
   const [bankName, setBankName] = useState("");
   const [bankAgency, setBankAgency] = useState("");
   const [bankAccount, setBankAccount] = useState("");
   const [saveStatus, setSaveStatus] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
-  const [isSaving, setIsSaving] = useState(false); // Renomeado de 'saving'
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Estados para resgate
-  const [redeemStatus, setRedeemStatus] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
-  const [isRedeeming, setIsRedeeming] = useState(false); // Novo estado para loading do resgate
+  // Estados para resgate (agora usando 'idle', 'processing', etc.)
+  const [redeemMessage, setRedeemMessage] = useState("");
+  const [redeemStatusState, setRedeemStatusState] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
 
   // Histórico de resgates
   const [redemptions, setRedemptions] = useState<Redemption[]>([]);
@@ -106,10 +130,11 @@ export default function PaymentSettings({ userId }: PaymentSettingsProps) {
 
   /**
    * Busca os dados de pagamento do usuário.
+   * <<< CORRIGIDO para ler data.paymentInfo >>>
    */
   const fetchPaymentInfo = useCallback(async () => {
     console.debug("[PaymentSettings] Buscando dados de pagamento para userId =", userId);
-    setSaveStatus(null); // Limpa status ao buscar
+    setSaveStatus(null);
     if (!userId) {
       setSaveStatus({ message: "ID do usuário não encontrado.", type: 'error' });
       return;
@@ -119,31 +144,43 @@ export default function PaymentSettings({ userId }: PaymentSettingsProps) {
       const res = await fetch(`/api/affiliate/paymentinfo?userId=${userId}`, {
         credentials: "include",
       });
-      const data = await res.json();
+      // Define o tipo esperado da resposta da API
+      const data: PaymentInfoApiResponse = await res.json();
       console.debug("[PaymentSettings] Resposta de paymentInfo:", data);
 
-      if (res.ok && !data.error) {
-        setPixKey(data.pixKey || "");
-        setBankName(data.bankName || "");
-        setBankAgency(data.bankAgency || "");
-        setBankAccount(data.bankAccount || "");
+      // Verifica se a resposta está OK e se existe o objeto paymentInfo
+      if (res.ok && data.paymentInfo) {
+        // <<< CORREÇÃO: Acessa os dados dentro de data.paymentInfo >>>
+        setPixKey(data.paymentInfo.pixKey || "");
+        setBankName(data.paymentInfo.bankName || "");
+        setBankAgency(data.paymentInfo.bankAgency || "");
+        setBankAccount(data.paymentInfo.bankAccount || "");
       } else {
-        setSaveStatus({ message: data.error || "Erro ao buscar dados de pagamento.", type: 'error' });
+         // Não mostra erro se apenas não encontrou dados (status 404)
+         if (res.status !== 404) {
+             setSaveStatus({ message: data.error || "Erro ao buscar dados de pagamento.", type: 'error' });
+         }
+         console.warn("Dados de pagamento não encontrados ou erro:", data.error || res.status);
+         // Garante que os campos fiquem vazios se não houver dados
+         setPixKey("");
+         setBankName("");
+         setBankAgency("");
+         setBankAccount("");
       }
     } catch (error) {
       console.error("[PaymentSettings] Erro ao buscar paymentInfo:", error);
       setSaveStatus({ message: "Ocorreu um erro de rede ao buscar dados.", type: 'error' });
     }
-  }, [userId]);
+  }, [userId]); // Mantém userId como dependência
 
   /**
    * Busca o histórico de resgates do usuário.
    */
   const fetchRedemptions = useCallback(async () => {
     setLoadingRedemptions(true);
-    setRedeemStatus(null); // Limpa status ao buscar
+    setRedeemMessage(""); // Limpa mensagem de resgate ao buscar histórico
+    setRedeemStatusState('idle'); // Reseta estado do resgate
     if (!userId) {
-      setRedeemStatus({ message: "ID do usuário não encontrado.", type: 'error' });
       setLoadingRedemptions(false);
       return;
     }
@@ -157,15 +194,14 @@ export default function PaymentSettings({ userId }: PaymentSettingsProps) {
       if (Array.isArray(data)) {
         setRedemptions(data);
       } else if (data.error) {
-        setRedeemStatus({ message: data.error, type: 'error' });
-        setRedemptions([]); // Limpa em caso de erro
+         console.error("Erro ao buscar histórico:", data.error);
+        setRedemptions([]);
       } else {
-         setRedemptions([]); // Limpa se a resposta não for array
+         setRedemptions([]);
       }
     } catch (error) {
       console.error("[PaymentSettings] Erro ao buscar redemptions:", error);
-      setRedeemStatus({ message: "Ocorreu um erro de rede ao buscar histórico.", type: 'error' });
-       setRedemptions([]); // Limpa em caso de erro
+       setRedemptions([]);
     } finally {
       setLoadingRedemptions(false);
     }
@@ -212,6 +248,11 @@ export default function PaymentSettings({ userId }: PaymentSettingsProps) {
       console.debug("[PaymentSettings] Resposta do PATCH:", data);
       if (res.ok && !data.error) {
         setSaveStatus({ message: data.message || "Dados salvos com sucesso!", type: 'success' });
+        // Limpa mensagem de sucesso após um tempo
+        setTimeout(() => {
+            // Verifica se o estado ainda é de sucesso antes de limpar
+            setSaveStatus(prev => (prev?.type === 'success' ? null : prev));
+        }, 4000);
       } else {
         setSaveStatus({ message: data.error || "Erro ao salvar dados.", type: 'error' });
       }
@@ -220,53 +261,72 @@ export default function PaymentSettings({ userId }: PaymentSettingsProps) {
       setSaveStatus({ message: "Ocorreu um erro de rede ao salvar.", type: 'error' });
     } finally {
       setIsSaving(false);
-      // Limpa mensagem de sucesso após um tempo
-      if (saveStatus?.type === 'success') {
-          setTimeout(() => setSaveStatus(null), 4000);
-      }
     }
   }
 
   /**
    * Solicita o resgate do saldo (POST).
+   * Lógica já alinhada com MainDashboard.
    */
-  async function handleRedeem() {
-    setIsRedeeming(true); // Inicia loading do resgate
-    setRedeemStatus(null);
-    if (!userId) {
-      setRedeemStatus({ message: "ID do usuário não encontrado.", type: 'error' });
-      setIsRedeeming(false);
-      return;
-    }
+  const handleRedeem = useCallback(async () => {
+     if (!userId) {
+        setRedeemMessage("Erro: ID do usuário não encontrado.");
+        setRedeemStatusState('error');
+        return;
+     }
 
-    try {
-      console.debug("[PaymentSettings] Enviando POST para resgatar saldo...");
-      const res = await fetch("/api/affiliate/redeem", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }), // A API deve verificar o saldo e dados bancários
-      });
-      const data = await res.json();
-      console.debug("[PaymentSettings] Resposta do resgate:", data);
-      if (res.ok && !data.error) {
-        setRedeemStatus({ message: data.message || "Resgate solicitado com sucesso!", type: 'success' });
-        void fetchRedemptions(); // Atualiza o histórico de saques
-        // TODO: Atualizar o saldo disponível (se exibido aqui ou no componente pai)
-      } else {
-        setRedeemStatus({ message: data.error || "Erro ao solicitar resgate.", type: 'error' });
-      }
-    } catch (error) {
-      console.error("[PaymentSettings] Erro no handleRedeem:", error);
-      setRedeemStatus({ message: "Ocorreu um erro de rede ao processar o resgate.", type: 'error' });
-    } finally {
-      setIsRedeeming(false); // Finaliza loading do resgate
-       // Limpa mensagem de sucesso após um tempo
-      if (redeemStatus?.type === 'success') {
-          setTimeout(() => setRedeemStatus(null), 4000);
-      }
+     setRedeemMessage(""); // Limpa mensagem anterior
+     setRedeemStatusState('processing'); // Define como processando
+
+     try {
+        const response = await fetch('/api/affiliate/redeem', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ userId }),
+        });
+
+        const data: RedeemApiResponse = await response.json();
+
+        if (!response.ok) {
+            setRedeemMessage(data.error || `Erro ${response.status}: Falha ao solicitar resgate.`);
+            setRedeemStatusState('error');
+            console.error("Erro da API de resgate:", data.error || response.statusText);
+            setTimeout(() => {
+                setRedeemStatusState(prev => (prev === 'error' ? 'idle' : prev));
+                setRedeemMessage(prevMsg => (redeemStatusState === 'error' ? "" : prevMsg)); // Limpa msg só se ainda for erro
+            }, 5000);
+            return;
+        }
+
+        // Sucesso!
+        setRedeemMessage("Solicitação enviada! O pagamento será processado manualmente em até 72 horas.");
+        setRedeemStatusState('success');
+        setTimeout(() => {
+             setRedeemStatusState(prev => (prev === 'success' ? 'idle' : prev));
+             setRedeemMessage(prevMsg => (redeemStatusState === 'success' ? "" : prevMsg)); // Limpa msg só se ainda for sucesso
+        }, 7000);
+
+        // Atualiza sessão e histórico
+        await updateSession();
+        void fetchRedemptions();
+
+    } catch (error: unknown) {
+        console.error("[handleRedeem - PaymentSettings] Erro no fetch:", error);
+        const message = error instanceof Error ? error.message : "Erro inesperado ao conectar com o servidor.";
+        setRedeemMessage(`Erro: ${message}`);
+        setRedeemStatusState('error');
+         setTimeout(() => {
+             setRedeemStatusState(prev => (prev === 'error' ? 'idle' : prev));
+             setRedeemMessage(prevMsg => (redeemStatusState === 'error' ? "" : prevMsg));
+        }, 5000);
     }
-  }
+   // Adiciona saveStatus como dependência para evitar stale closure nos setTimeouts
+   }, [userId, fetchRedemptions, updateSession, redeemStatusState, saveStatus]);
+
+   // Condição para habilitar o botão de resgate no modal
+   const canRedeemModal = availableBalance > 0 && redeemStatusState !== 'processing';
 
   return (
     // Container principal com espaçamento vertical
@@ -274,11 +334,9 @@ export default function PaymentSettings({ userId }: PaymentSettingsProps) {
 
       {/* Formulário de dados bancários */}
       <form onSubmit={handleSave} className="border border-gray-200 p-4 sm:p-6 rounded-lg shadow-sm bg-white">
-        <h3 className="text-lg font-semibold mb-4 text-brand-dark">Seus Dados de Pagamento</h3>
-
-        {/* Agrupamento dos campos */}
+         {/* ... (campos do formulário mantidos como antes) ... */}
+          <h3 className="text-lg font-semibold mb-4 text-brand-dark">Seus Dados de Pagamento</h3>
         <div className="space-y-4">
-            {/* Chave Pix */}
             <div>
                 <label htmlFor="pixKey" className="block text-sm font-medium text-gray-700 mb-1">
                 Chave Pix (Recomendado)
@@ -293,8 +351,6 @@ export default function PaymentSettings({ userId }: PaymentSettingsProps) {
                     placeholder="Email, CPF/CNPJ, Telefone ou Chave Aleatória"
                 />
             </div>
-
-            {/* Divisor ou texto */}
              <div className="relative my-4">
                 <div className="absolute inset-0 flex items-center" aria-hidden="true">
                     <div className="w-full border-t border-gray-200" />
@@ -303,8 +359,6 @@ export default function PaymentSettings({ userId }: PaymentSettingsProps) {
                     <span className="bg-white px-2 text-xs text-gray-500">OU</span>
                 </div>
             </div>
-
-            {/* Dados Bancários */}
             <div className="space-y-4 p-4 border border-gray-200 rounded-md bg-gray-50/50">
                  <h4 className="text-sm font-medium text-gray-600 mb-2">Conta Bancária (Opcional)</h4>
                  <div>
@@ -329,9 +383,9 @@ export default function PaymentSettings({ userId }: PaymentSettingsProps) {
                         <input
                             id="bankAgency"
                             type="text"
-                            inputMode="numeric" // Ajuda em teclados mobile
+                            inputMode="numeric"
                             value={bankAgency}
-                            onChange={(e) => setBankAgency(e.target.value.replace(/\D/g, ''))} // Permite apenas números
+                            onChange={(e) => setBankAgency(e.target.value.replace(/\D/g, ''))}
                             disabled={isSaving}
                             className="block w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm shadow-sm focus:ring-1 focus:ring-brand-pink focus:border-brand-pink transition disabled:opacity-50 disabled:bg-gray-50"
                             placeholder="Ex: 1234"
@@ -345,7 +399,7 @@ export default function PaymentSettings({ userId }: PaymentSettingsProps) {
                             id="bankAccount"
                             type="text"
                             value={bankAccount}
-                            onChange={(e) => setBankAccount(e.target.value)} // Pode precisar de máscara/validação
+                            onChange={(e) => setBankAccount(e.target.value)}
                             disabled={isSaving}
                             className="block w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm shadow-sm focus:ring-1 focus:ring-brand-pink focus:border-brand-pink transition disabled:opacity-50 disabled:bg-gray-50"
                             placeholder="Ex: 12345-6"
@@ -364,53 +418,47 @@ export default function PaymentSettings({ userId }: PaymentSettingsProps) {
         <button
           type="submit"
           disabled={isSaving}
-          // Estilo consistente com outros botões primários
           className="mt-5 px-5 py-2 bg-brand-pink text-white text-sm font-semibold rounded-full hover:opacity-90 transition-default disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2"
         >
           {isSaving ? (
-            <>
-              <FaSpinner className="animate-spin w-4 h-4" />
-              <span>Salvando...</span>
-            </>
-          ) : (
-            "Salvar Dados"
-          )}
+            <> <FaSpinner className="animate-spin w-4 h-4" /> <span>Salvando...</span> </>
+          ) : ( "Salvar Dados" )}
         </button>
       </form>
 
       {/* Seção de Resgate */}
-      {/* TODO: Decidir se esta seção fica aqui ou no card de afiliados */}
       <div className="border border-gray-200 p-4 sm:p-6 rounded-lg shadow-sm bg-white">
-         <h3 className="text-lg font-semibold mb-4 text-brand-dark">Solicitar Resgate</h3>
-         {/* TODO: Exibir saldo disponível aqui */}
-         {/* <p className="text-sm text-gray-600 mb-4">Saldo disponível: R$ {availableBalance?.toFixed(2) ?? '0.00'}</p> */}
-         <p className="text-xs text-gray-500 mb-4">O valor mínimo para resgate é R$ XX,XX. O pagamento será processado em até X dias úteis.</p>
+         <h3 className="text-lg font-semibold mb-2 text-brand-dark">Solicitar Resgate</h3>
+         {/* Exibe saldo disponível */}
+         <p className="text-sm text-gray-600 mb-4">Saldo disponível atual: <strong className="text-green-600">R$ {availableBalance.toFixed(2)}</strong></p>
+         <p className="text-xs text-gray-500 mb-4">O pagamento será processado manualmente em até 72 horas após a solicitação.</p>
 
+         {/* Botão de Resgate Atualizado */}
          <button
           onClick={handleRedeem}
-          disabled={isRedeeming} // Desabilita durante o resgate
-          // Estilo consistente (talvez verde para diferenciar?)
+          disabled={!canRedeemModal} // Usa a nova condição
           className="px-5 py-2 bg-green-600 text-white text-sm font-semibold rounded-full hover:bg-green-700 transition-default disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2"
          >
-          {isRedeeming ? (
-            <>
-              <FaSpinner className="animate-spin w-4 h-4" />
-              <span>Processando...</span>
-            </>
-          ) : (
-            "Resgatar Saldo Disponível"
-          )}
+          {redeemStatusState === 'processing' ? (
+            <> <FaSpinner className="animate-spin w-4 h-4" /> <span>Processando...</span> </>
+          ) : ( "Resgatar Saldo Disponível" )}
         </button>
 
         {/* Feedback de Resgate */}
         <AnimatePresence>
-            {redeemStatus && <FeedbackMessage message={redeemStatus.message} type={redeemStatus.type} />}
+            {redeemMessage && (
+                 <FeedbackMessage
+                    message={redeemMessage}
+                    type={redeemStatusState === 'error' ? 'error' : redeemStatusState === 'success' ? 'success' : 'info'}
+                 />
+            )}
         </AnimatePresence>
       </div>
 
 
       {/* Histórico de Saques */}
       <div className="border border-gray-200 p-4 sm:p-6 rounded-lg shadow-sm bg-white">
+        {/* ... (código do histórico mantido como antes) ... */}
         <h3 className="text-lg font-semibold mb-4 text-brand-dark">Histórico de Resgates</h3>
         {loadingRedemptions ? (
           <div className="flex items-center justify-center text-sm text-gray-500 py-4">
@@ -420,8 +468,6 @@ export default function PaymentSettings({ userId }: PaymentSettingsProps) {
         ) : redemptions.length === 0 ? (
           <p className="text-sm text-center text-gray-500 py-4">Nenhum resgate realizado ainda.</p>
         ) : (
-          // Tabela com melhorias de estilo
-          // TODO: Considerar layout de cards para mobile se a tabela ficar muito larga
           <div className="overflow-x-auto">
              <table className="w-full text-sm border-collapse">
                 <thead className="bg-gray-50">

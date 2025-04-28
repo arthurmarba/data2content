@@ -13,9 +13,6 @@ import { SignJWT, jwtVerify } from "jose";
 
 export const runtime = "nodejs";
 
-// --- REMOVIDAS INTERFACES SessionUser e CustomSession ---
-// A tipagem agora vem exclusivamente do seu types/next-auth.d.ts
-
 /**
  * Interfaces auxiliares para os callbacks (mantidas para clareza interna).
  */
@@ -69,10 +66,6 @@ async function customDecode({ token, secret }: JWTDecodeParams): Promise<JWT | n
         return null;
     }
 }
-
-
-// --- REMOVIDA função generateAffiliateCode local ---
-// A geração agora é feita pelo hook pre-save do Mongoose no models/User.ts
 
 
 /**
@@ -165,70 +158,47 @@ export const authOptions: NextAuthOptions = {
 
           if (!existingUser) {
             console.debug("NextAuth: Criando novo usuário para email:", user.email);
-            // Não precisamos gerar affiliateCode aqui, o hook pre-save fará isso.
-
             const newUser = new DbUser({
               name: user.name,
               email: user.email,
               image: user.image,
-              googleId: account.providerAccountId,
-              role: "user",
+              googleId: account.providerAccountId, // Salva o ID do Google
+              role: "user", // Role padrão
               planStatus: "inactive",
               planExpiresAt: null,
-              // affiliateCode será gerado pelo hook pre-save
-              // Inicializa os outros campos de afiliado
-              affiliateBalance: 0,
-              affiliateRank: 1,
-              affiliateInvites: 0,
+              affiliateBalance: 0, // Inicializa
+              affiliateRank: 1,    // Inicializa
+              affiliateInvites: 0, // Inicializa
             });
-            // O hook pre-save será executado aqui, antes do save real
+            // Hook pre-save gerará affiliateCode
             existingUser = await newUser.save();
-            user.id = existingUser._id.toString();
+            user.id = existingUser._id.toString(); // Atribui o ID do DB ao user da sessão
             console.debug("NextAuth: Novo usuário criado com sucesso, id =", user.id);
-            console.debug("NextAuth: Código de afiliado atribuído pelo hook:", existingUser.affiliateCode); // Log para confirmar
+            console.debug("NextAuth: Código de afiliado atribuído pelo hook:", existingUser.affiliateCode);
 
           } else {
             console.debug("NextAuth: Usuário já existe, id =", existingUser._id.toString());
-            user.id = existingUser._id.toString();
+            user.id = existingUser._id.toString(); // Garante que o ID do DB esteja no user da sessão
 
-             // Atualiza nome/imagem se mudou no Google (opcional)
              let needsSave = false;
-             if (user.name && user.name !== existingUser.name) {
-                 existingUser.name = user.name;
-                 needsSave = true;
-             }
-             if (user.image && user.image !== existingUser.image) {
-                 existingUser.image = user.image;
-                 needsSave = true;
-             }
+             // Atualiza nome/imagem se mudou
+             if (user.name && user.name !== existingUser.name) { existingUser.name = user.name; needsSave = true; }
+             if (user.image && user.image !== existingUser.image) { existingUser.image = user.image; needsSave = true; }
+             // Atualiza googleId se não existia (caso raro de conta criada manualmente antes)
+             if (!existingUser.googleId && account.providerAccountId) { existingUser.googleId = account.providerAccountId; needsSave = true; }
 
-             // Verifica se campos de afiliado existem e inicializa se necessário
-             // O hook pre-save cuidará do affiliateCode se ele estiver faltando e 'needsSave' for true
-             if (existingUser.affiliateBalance === undefined || existingUser.affiliateBalance === null) {
-                 existingUser.affiliateBalance = 0;
-                 needsSave = true;
-             }
-              if (existingUser.affiliateRank === undefined || existingUser.affiliateRank === null) {
-                 existingUser.affiliateRank = 1;
-                 needsSave = true;
-             }
-              if (existingUser.affiliateInvites === undefined || existingUser.affiliateInvites === null) {
-                 existingUser.affiliateInvites = 0;
-                 needsSave = true;
-             }
-             // Se o código estiver faltando, marcar para salvar fará o hook pre-save rodar
+             // Inicializa campos de afiliado se necessário
+             if (existingUser.affiliateBalance === undefined || existingUser.affiliateBalance === null) { existingUser.affiliateBalance = 0; needsSave = true; }
+             if (existingUser.affiliateRank === undefined || existingUser.affiliateRank === null) { existingUser.affiliateRank = 1; needsSave = true; }
+             if (existingUser.affiliateInvites === undefined || existingUser.affiliateInvites === null) { existingUser.affiliateInvites = 0; needsSave = true; }
+             // Verifica código de afiliado (hook cuidará se 'needsSave' for true)
              if (!existingUser.affiliateCode) {
                  console.warn("Usuário existente sem affiliateCode. Será gerado no próximo save (se houver).");
-                 // Não precisamos gerar aqui, mas precisamos salvar se outros campos mudaram
-                 // Se needsSave já for true, o hook rodará. Se não, o código só será gerado
-                 // se o usuário for salvo por outro motivo no futuro.
-                 // Para garantir, podemos forçar o save se o código estiver faltando:
-                 // needsSave = true; // Descomente se quiser garantir a criação imediata
+                 // Descomente abaixo se quiser forçar a criação imediata
+                 // needsSave = true;
              }
 
-
             if (needsSave) {
-                // O hook pre-save rodará aqui se affiliateCode estiver faltando
                 await existingUser.save();
                 console.debug("NextAuth: Dados do usuário existente atualizados/verificados.");
             }
@@ -238,84 +208,76 @@ export const authOptions: NextAuthOptions = {
           return false;
         }
       } else if (account?.provider === "credentials") {
-         if (!user?.id) {
-            console.error("Erro: Usuário de Credentials sem ID após authorize.");
-            return false;
-         }
-         // Lógica para Credentials: Buscar usuário e verificar/inicializar campos de afiliado
+         // Lógica similar para Credentials (verificar/inicializar afiliado)
+         if (!user?.id) { console.error("Erro: Usuário de Credentials sem ID."); return false; }
          try {
             await connectToDatabase();
             const credUser = await DbUser.findById(user.id);
             if (credUser && !credUser.affiliateCode) {
-                // O hook pre-save gerará o código se salvarmos
                 credUser.affiliateBalance = credUser.affiliateBalance ?? 0;
                 credUser.affiliateRank = credUser.affiliateRank ?? 1;
                 credUser.affiliateInvites = credUser.affiliateInvites ?? 0;
-                await credUser.save();
+                await credUser.save(); // Hook pre-save gerará o código
                 console.debug("NextAuth: Código/dados de afiliado inicializados para usuário de Credentials.");
             }
-         } catch(error) {
-             console.error("Erro ao verificar/atualizar usuário de Credentials:", error);
-             // Não impedir login necessariamente, mas logar o erro
-         }
-
+         } catch(error) { console.error("Erro ao verificar/atualizar usuário de Credentials:", error); }
       }
 
-      if (!user?.id) {
-          console.error("Erro no signIn: user.id não definido ao final.");
-          return false;
-      }
-
-      return true;
+      if (!user?.id) { console.error("Erro no signIn: user.id não definido."); return false; }
+      return true; // Permite o login
     },
+
     async jwt({ token, user, account }: { token: JWT; user?: User | AdapterUser; account?: Account | null }): Promise<JWT> {
         console.debug("NextAuth: JWT Callback initiated", { userId: user?.id, accountProvider: account?.provider });
+        // Na primeira vez (login), adiciona o ID do usuário ao token
         if (account && user?.id) {
             token.id = user.id;
         }
+        // Poderia adicionar a role ao token aqui também para evitar busca no DB a cada sessão?
+        // if (user?.role) { token.role = user.role } // Exemplo, mas requer buscar no DB no signIn
         console.debug("NextAuth: JWT Callback finished", { tokenId: token.id });
         return token;
     },
+
     async session({ session, token }: { session: Session; token: JWT }): Promise<Session> {
       console.debug("NextAuth: Session Callback initiated", { tokenId: token.id });
 
+      // Garante que user exista e atribui o ID do token
       if (token.id && session.user) {
           session.user.id = token.id as string;
       } else {
-          console.error("Erro na Session Callback: token.id ou session.user ausente.", { tokenId: token.id, sessionUserExists: !!session.user });
-          return session;
+          console.error("Erro na Session Callback: token.id ou session.user ausente.");
+          return session; // Retorna sessão original ou vazia
       }
 
       try {
         await connectToDatabase();
-        const dbUser = await DbUser.findById(token.id).lean();
+        // Busca o usuário no DB a cada chamada de sessão para ter dados atualizados
+        const dbUser = await DbUser.findById(token.id).lean(); // .lean() para objeto JS puro
 
         if (dbUser && session.user) {
           console.debug("NextAuth: Usuário encontrado no DB para sessão:", dbUser._id);
 
-          session.user.name = dbUser.name ?? session.user.name;
+          // Atribui os dados do DB para a sessão
+          session.user.name = dbUser.name ?? session.user.name; // Mantém da sessão se DB for nulo
           session.user.email = dbUser.email ?? session.user.email;
           session.user.image = dbUser.image ?? session.user.image;
 
-          session.user.role = dbUser.role;
-          session.user.planStatus = dbUser.planStatus;
+          // Campos customizados
+          session.user.role = dbUser.role ?? 'user'; // Default para 'user' se não definido
+          session.user.planStatus = dbUser.planStatus ?? 'inactive';
           session.user.planExpiresAt = dbUser.planExpiresAt instanceof Date
                                         ? dbUser.planExpiresAt.toISOString()
                                         : null;
-          session.user.affiliateCode = dbUser.affiliateCode ?? undefined;
+          session.user.affiliateCode = dbUser.affiliateCode ?? undefined; // Usa undefined se não existir
           session.user.affiliateBalance = dbUser.affiliateBalance ?? 0;
-
-          // Lógica para affiliateRank (considerando string | number do seu .d.ts)
-          if (typeof dbUser.affiliateRank === 'number' || typeof dbUser.affiliateRank === 'string') {
-              session.user.affiliateRank = dbUser.affiliateRank;
-          } else {
-              session.user.affiliateRank = undefined; // Ou um valor padrão, como 1
-          }
-
+          // <<< LÓGICA SIMPLIFICADA para affiliateRank >>>
+          session.user.affiliateRank = dbUser.affiliateRank ?? 1; // Usa default 1 se não definido
           session.user.affiliateInvites = dbUser.affiliateInvites ?? 0;
 
         } else if (session.user) {
-           console.error(`Usuário não encontrado no DB para id: ${token.id}, limpando campos customizados da sessão.`);
+           // Se não encontrou usuário no DB, remove campos customizados da sessão
+           console.error(`Usuário não encontrado no DB para id: ${token.id}, limpando campos customizados.`);
            delete session.user.role;
            delete session.user.planStatus;
            delete session.user.planExpiresAt;
@@ -326,28 +288,32 @@ export const authOptions: NextAuthOptions = {
         }
       } catch (error) {
         console.error("Erro ao buscar/processar dados do usuário na sessão:", error);
+        // Não quebra a sessão, mas loga o erro
       }
 
       console.debug("NextAuth: Session Callback finished", session.user);
-      return session;
+      return session; // Retorna a sessão modificada (ou original em caso de erro)
     },
+
     async redirect({ baseUrl }: RedirectCallback): Promise<string> {
-      // ... (callback redirect mantido) ...
+      // Redireciona sempre para o dashboard após login/erro
       return `${baseUrl}/dashboard`;
     },
   },
   pages: {
-    // ... (configuração de pages mantida) ...
-    signIn: "/login",
-    error: "/auth/error",
+    signIn: "/login", // Página de login customizada
+    error: "/auth/error", // Página para exibir erros de autenticação
+    // signOut: '/auth/signout', // Página opcional de signout
+    // verifyRequest: '/auth/verify-request', // Usado para email provider
+    // newUser: '/auth/new-user' // Página opcional para novos usuários
   },
   session: {
-    // ... (configuração de session mantida) ...
-    strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 dias
+    strategy: "jwt", // Usa JWT para sessão
+    maxAge: 30 * 24 * 60 * 60, // Duração da sessão: 30 dias
   },
-  // debug: process.env.NODE_ENV === 'development',
+  // debug: process.env.NODE_ENV === 'development', // Habilita logs detalhados em dev
 };
 
+// Exporta o handler do NextAuth
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };

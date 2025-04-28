@@ -32,9 +32,7 @@ const AdDealForm: React.FC<AdDealFormProps> = ({ userId, onDealAdded }) => {
   const initialState: AdDealFormData = {
     brandName: '',
     brandSegment: '',
-    // --- CORREÇÃO AQUI ---
     dealDate: new Date().toISOString().split('T')[0] ?? '', // Garante que é string
-    // --- FIM DA CORREÇÃO ---
     campaignStartDate: '',
     campaignEndDate: '',
     deliverables: '', // Inicialmente vazio
@@ -78,17 +76,16 @@ const AdDealForm: React.FC<AdDealFormProps> = ({ userId, onDealAdded }) => {
 
     // Prepara os dados para enviar (converte números, trata deliverables)
     const dataToSend = {
+        // --- CORREÇÃO APLICADA AQUI ---
+        userId: userId, // Inclui o ID do usuário no payload
+        // --- FIM DA CORREÇÃO ---
         ...formData,
-        // Converte valores numéricos de string para number, ou null se vazio/inválido
+        // Converte valores numéricos de string para number, ou undefined se vazio/inválido
         compensationValue: formData.compensationValue ? parseFloat(formData.compensationValue) : undefined,
         productValue: formData.productValue ? parseFloat(formData.productValue) : undefined,
         // Separa deliverables por linha e remove linhas vazias
         deliverables: formData.deliverables.split('\n').map(d => d.trim()).filter(d => d.length > 0),
-        // Converte datas para objetos Date (API espera Date) - Mongoose também aceita string ISO
-        // dealDate: new Date(formData.dealDate + 'T00:00:00'), // Adiciona hora para evitar problemas de fuso
-        // campaignStartDate: formData.campaignStartDate ? new Date(formData.campaignStartDate + 'T00:00:00') : undefined,
-        // campaignEndDate: formData.campaignEndDate ? new Date(formData.campaignEndDate + 'T00:00:00') : undefined,
-        // Nota: Enviar como string ISO 8601 (YYYY-MM-DD) também funciona com Mongoose
+        // Mantém datas como string ISO 8601 (YYYY-MM-DD) - Mongoose aceita
         dealDate: formData.dealDate,
         campaignStartDate: formData.campaignStartDate || undefined,
         campaignEndDate: formData.campaignEndDate || undefined,
@@ -96,25 +93,28 @@ const AdDealForm: React.FC<AdDealFormProps> = ({ userId, onDealAdded }) => {
     };
 
     try {
+      // Envia a requisição para o endpoint da API
       const response = await fetch('/api/ads', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(dataToSend),
+        body: JSON.stringify(dataToSend), // Envia os dados preparados
       });
 
+      // Processa a resposta da API
       const result = await response.json();
 
+      // Verifica se a resposta indica erro
       if (!response.ok) {
-        // Tenta extrair detalhes do erro, senão usa mensagem genérica
+        // Tenta extrair detalhes do erro da resposta JSON, senão usa mensagem genérica
         const errorMsg = result.details ? result.details.join(', ') : (result.error || `Erro ${response.status}`);
         throw new Error(errorMsg);
       }
 
       // Sucesso
       setSubmitStatus({ type: 'success', message: 'Parceria registada com sucesso!' });
-      setFormData(initialState); // Limpa o formulário
+      setFormData(initialState); // Limpa o formulário após sucesso
       if (onDealAdded) {
         onDealAdded(); // Chama o callback se fornecido
       }
@@ -122,10 +122,12 @@ const AdDealForm: React.FC<AdDealFormProps> = ({ userId, onDealAdded }) => {
       setTimeout(() => setSubmitStatus(null), 4000);
 
     } catch (error) {
+      // Captura e exibe erros de rede ou da API
       console.error("Erro ao registar parceria:", error);
       setSubmitStatus({ type: 'error', message: `Erro ao registar: ${error instanceof Error ? error.message : String(error)}` });
-       // Não limpar a mensagem de erro automaticamente
+       // Não limpar a mensagem de erro automaticamente para que o usuário veja
     } finally {
+      // Garante que o estado de loading é desativado
       setIsLoading(false);
     }
   };
@@ -135,7 +137,7 @@ const AdDealForm: React.FC<AdDealFormProps> = ({ userId, onDealAdded }) => {
   const labelClasses = "block text-sm font-medium text-gray-700";
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 rounded-lg shadow"> {/* Adiciona fundo e sombra */}
       {/* Linha 1: Nome da Marca e Segmento */}
       <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
         <div>
@@ -151,6 +153,7 @@ const AdDealForm: React.FC<AdDealFormProps> = ({ userId, onDealAdded }) => {
             className={inputClasses}
             required
             placeholder="Ex: Marca Incrível"
+            disabled={isLoading} // Desabilita durante o loading
           />
         </div>
         <div>
@@ -165,6 +168,7 @@ const AdDealForm: React.FC<AdDealFormProps> = ({ userId, onDealAdded }) => {
             onChange={handleChange}
             className={inputClasses}
             placeholder="Ex: Moda, Beleza, Tecnologia"
+            disabled={isLoading}
           />
         </div>
       </div>
@@ -183,6 +187,7 @@ const AdDealForm: React.FC<AdDealFormProps> = ({ userId, onDealAdded }) => {
              onChange={handleChange}
              className={inputClasses}
              required
+             disabled={isLoading}
            />
          </div>
          <div>
@@ -196,6 +201,7 @@ const AdDealForm: React.FC<AdDealFormProps> = ({ userId, onDealAdded }) => {
              value={formData.campaignStartDate}
              onChange={handleChange}
              className={inputClasses}
+             disabled={isLoading}
            />
          </div>
          <div>
@@ -209,6 +215,7 @@ const AdDealForm: React.FC<AdDealFormProps> = ({ userId, onDealAdded }) => {
              value={formData.campaignEndDate}
              onChange={handleChange}
              className={inputClasses}
+             disabled={isLoading}
            />
          </div>
       </div>
@@ -228,6 +235,7 @@ const AdDealForm: React.FC<AdDealFormProps> = ({ userId, onDealAdded }) => {
                     className={inputClasses}
                     required
                     placeholder="Ex:&#10;1 Reel 60s&#10;3 Stories (sequência)&#10;1 Post Carrossel (5 fotos)"
+                    disabled={isLoading}
                 />
                  <p className="mt-1 text-xs text-gray-500">Liste cada entrega numa linha separada.</p>
             </div>
@@ -241,6 +249,7 @@ const AdDealForm: React.FC<AdDealFormProps> = ({ userId, onDealAdded }) => {
                     value={formData.platform}
                     onChange={handleChange}
                     className={inputClasses}
+                    disabled={isLoading}
                 >
                     <option>Instagram</option>
                     <option>TikTok</option>
@@ -265,6 +274,7 @@ const AdDealForm: React.FC<AdDealFormProps> = ({ userId, onDealAdded }) => {
                     onChange={handleChange}
                     className={inputClasses}
                     required
+                    disabled={isLoading}
                 >
                     <option value="" disabled>Selecione...</option>
                     <option>Valor Fixo</option>
@@ -291,6 +301,7 @@ const AdDealForm: React.FC<AdDealFormProps> = ({ userId, onDealAdded }) => {
                        placeholder="0.00"
                        step="0.01"
                        min="0"
+                       disabled={isLoading}
                      />
                  </div>
             </div>
@@ -312,6 +323,7 @@ const AdDealForm: React.FC<AdDealFormProps> = ({ userId, onDealAdded }) => {
                         placeholder="0.00"
                         step="0.01"
                         min="0"
+                        disabled={isLoading}
                     />
                  </div>
             </div>
@@ -331,6 +343,7 @@ const AdDealForm: React.FC<AdDealFormProps> = ({ userId, onDealAdded }) => {
                     onChange={handleChange}
                     className={inputClasses}
                     placeholder="Ex: Contato da agência, detalhes específicos do acordo..."
+                    disabled={isLoading}
                 />
             </div>
              <div>
@@ -345,6 +358,7 @@ const AdDealForm: React.FC<AdDealFormProps> = ({ userId, onDealAdded }) => {
                     onChange={handleChange}
                     className={inputClasses}
                     placeholder="Cole o ID do post (se aplicável)"
+                    disabled={isLoading}
                 />
                  <p className="mt-1 text-xs text-gray-500">Se esta publi corresponde a um post específico já registado.</p>
             </div>
@@ -374,7 +388,7 @@ const AdDealForm: React.FC<AdDealFormProps> = ({ userId, onDealAdded }) => {
           <button
             type="submit"
             disabled={isLoading}
-            className="inline-flex justify-center items-center gap-2 py-2.5 px-6 border border-transparent shadow-sm text-sm font-semibold rounded-full text-white bg-brand-pink hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-pink disabled:opacity-50 transition-default"
+            className="inline-flex justify-center items-center gap-2 py-2.5 px-6 border border-transparent shadow-sm text-sm font-semibold rounded-full text-white bg-pink-600 hover:bg-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 disabled:opacity-50 transition duration-150 ease-in-out" // Ajuste de cor e estilo
           >
             {isLoading ? (
               <>
