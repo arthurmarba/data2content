@@ -8,6 +8,10 @@ import { logger } from '@/app/lib/logger';
 
 export const runtime = 'nodejs'; // Garante execução no Node.js
 
+// --- ADICIONADO: Força a rota a ser dinâmica ---
+export const dynamic = 'force-dynamic';
+// ---------------------------------------------
+
 /**
  * GET /api/instagram/fetch-media
  * Busca as mídias recentes do Instagram para o usuário autenticado.
@@ -57,7 +61,11 @@ export async function GET(request: NextRequest) {
     } catch (error: unknown) {
         logger.error(`${TAG} Erro GERAL inesperado na rota:`, error);
         const errorMessage = error instanceof Error ? error.message : String(error);
+        // Verifica se o erro é o DynamicServerError para dar um retorno mais específico, se necessário
+        if (error instanceof Error && (error as any).digest === 'DYNAMIC_SERVER_USAGE') {
+             logger.error(`${TAG} Erro DYNAMIC_SERVER_USAGE capturado. Verifique uso de headers/cookies.`);
+             // Poderia retornar um erro 500 específico, mas geralmente o catch geral já cobre
+        }
         return NextResponse.json({ error: "Erro interno do servidor", details: errorMessage }, { status: 500 });
     }
 }
-
