@@ -1,16 +1,22 @@
-// @/app/models/User.ts - v1.2 (com lastProcessedPaymentId)
+// @/app/models/User.ts - v1.4 (com campos para Instagram)
 
-import { Schema, model, models, Document, Model, Types } from "mongoose"; // Importar Types
+import { Schema, model, models, Document, Model, Types } from "mongoose";
 
 /**
  * Interface que descreve um documento de usuário.
  */
 export interface IUser extends Document {
-  _id: Types.ObjectId; // Adicionar _id para clareza
+  _id: Types.ObjectId;
   name?: string;
   email: string;
   image?: string;
   googleId?: string;
+  provider?: string;
+  providerAccountId?: string;
+  // --- CAMPOS ADICIONADOS PARA INTEGRAÇÃO INSTAGRAM ---
+  instagramAccessToken?: string; // Token de Longa Duração (LLAT)
+  instagramAccountId?: string; // ID da Conta Profissional do Instagram
+  // ---------------------------------------------------
   role: string;
   planStatus?: string;
   planExpiresAt?: Date | null;
@@ -30,7 +36,7 @@ export interface IUser extends Document {
     bankAgency?: string;
     bankAccount?: string;
   };
-  lastProcessedPaymentId?: string; // <<< NOVO CAMPO ADICIONADO AQUI
+  lastProcessedPaymentId?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -48,11 +54,23 @@ function generateAffiliateCode(): string {
 const userSchema = new Schema<IUser>(
   {
     name: { type: String },
-    email: { type: String, required: true, unique: true },
+    email: {
+        type: String,
+        required: [true, 'Email is required.'],
+        unique: true,
+        match: [/.+\@.+\..+/, 'Please fill a valid email address'],
+        index: true,
+    },
     image: { type: String },
     googleId: { type: String },
-    role: { type: String, default: "user" }, // Ex: 'user', 'affiliate', 'admin'
-    planStatus: { type: String, default: "inactive" }, // Ex: 'inactive', 'pending', 'active', 'expired'
+    provider: { type: String, index: true },
+    providerAccountId: { type: String, index: true },
+    // --- CAMPOS ADICIONADOS PARA INTEGRAÇÃO INSTAGRAM ---
+    instagramAccessToken: { type: String }, // Armazena o LLAT
+    instagramAccountId: { type: String, index: true }, // ID da conta IG vinculada
+    // ---------------------------------------------------
+    role: { type: String, default: "user" },
+    planStatus: { type: String, default: "inactive" },
     planExpiresAt: { type: Date, default: null },
     whatsappVerificationCode: { type: String, default: null, index: true },
     whatsappPhone: { type: String, default: null, index: true },
@@ -62,8 +80,8 @@ const userSchema = new Schema<IUser>(
     // Campos de Afiliado
     affiliateRank: { type: Number, default: 1 },
     affiliateInvites: { type: Number, default: 0 },
-    affiliateCode: { type: String, unique: true, sparse: true }, // sparse: true permite múltiplos nulos/undefined
-    affiliateUsed: { type: String, default: null }, // Código que este usuário usou para se inscrever
+    affiliateCode: { type: String, unique: true, sparse: true },
+    affiliateUsed: { type: String, default: null },
     affiliateBalance: { type: Number, default: 0 },
     // Dados de Pagamento do Afiliado
     paymentInfo: {
@@ -73,10 +91,10 @@ const userSchema = new Schema<IUser>(
       bankAccount: { type: String, default: "" },
     },
     // Controle de Webhook
-    lastProcessedPaymentId: { type: String, default: null, index: true }, // <<< NOVO CAMPO ADICIONADO AQUI (index opcional, mas pode ajudar)
+    lastProcessedPaymentId: { type: String, default: null, index: true },
   },
   {
-    timestamps: true, // Adiciona createdAt e updatedAt automaticamente
+    timestamps: true,
   }
 );
 
@@ -84,15 +102,11 @@ const userSchema = new Schema<IUser>(
  * Pre-save hook para gerar affiliateCode se ainda não existir
  */
 userSchema.pre<IUser>("save", function (next) {
-  if (this.isNew && !this.affiliateCode) { // Gera apenas para novos usuários sem código
+  if (this.isNew && !this.affiliateCode) {
     this.affiliateCode = generateAffiliateCode();
-    // TODO: Adicionar lógica para garantir unicidade em caso de colisão (raro)
   }
   next();
 });
-
-// Índices
-userSchema.index({ email: 1 }); // Garante índice no email
 
 /**
  * Exporta o modelo 'User', evitando recriação em dev/hot reload
@@ -100,4 +114,3 @@ userSchema.index({ email: 1 }); // Garante índice no email
 const UserModel: Model<IUser> = models.User || model<IUser>("User", userSchema);
 
 export default UserModel;
-

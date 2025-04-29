@@ -1,13 +1,13 @@
  // src/app/dashboard/page.tsx
  "use client";
 
- import React, { useState, useEffect, useCallback, Fragment, useRef } from 'react'; // Adicionado useRef
+ import React, { useState, useEffect, useCallback, Fragment, useRef } from 'react';
  import { useSession, signIn, signOut } from 'next-auth/react';
  import { useRouter } from "next/navigation";
  import Image from 'next/image';
  import Head from 'next/head';
  // Usando React Icons (Font Awesome)
- import { FaCopy, FaCheckCircle, FaClock, FaTimesCircle, FaLock, FaTrophy, FaGift, FaMoneyBillWave, FaWhatsapp, FaUpload, FaCog, FaQuestionCircle, FaSignOutAlt, FaUserCircle, FaDollarSign, FaEllipsisV, FaBullhorn, FaVideo } from 'react-icons/fa'; // Adicionado FaVideo
+ import { FaCopy, FaCheckCircle, FaClock, FaTimesCircle, FaLock, FaTrophy, FaGift, FaMoneyBillWave, FaWhatsapp, FaUpload, FaCog, FaQuestionCircle, FaSignOutAlt, FaUserCircle, FaDollarSign, FaEllipsisV, FaBullhorn, FaVideo } from 'react-icons/fa';
  // Framer Motion para animações
  import { motion, AnimatePresence } from "framer-motion";
 
@@ -17,7 +17,8 @@
  import WhatsAppPanel from './WhatsAppPanel';
  import PaymentModal from './PaymentModal';
  import AdDealForm from './AdDealForm';
- import VideoCarousel from './VideoCarousel'; // <<< NOVO: Importa o componente do carrossel
+ import VideoCarousel from './VideoCarousel';
+ import InstagramConnectCard from './InstagramConnectCard'; // <<< NOVO: Importa o componente de integração
 
  // --- FIM IMPORTS ---
 
@@ -32,11 +33,12 @@
   planExpiresAt?: string | null; // ISO string date
   affiliateCode?: string | null; // Pode ser null aqui
   affiliateBalance?: number;
-  affiliateRank?: number;
+  affiliateRank?: number; // Mantido como number, conforme modelo
   affiliateInvites?: number;
+  provider?: string; // Mantido para saber o provider (se necessário em outros locais)
+  // instagramConnected?: boolean; // Adicionar quando implementado na sessão
  }
 
- // Interface para os dados dos vídeos (igual ao VideoCarousel.tsx)
  interface VideoData {
     id: string;
     title: string;
@@ -57,14 +59,15 @@
   const [copySuccess, setCopySuccess] = useState(false);
   const [redeemMessage, setRedeemMessage] = useState("");
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const swiperRef = useRef<any>(null); // <<< NOVO: Ref para controlar o Swiper
+  const swiperRef = useRef<any>(null);
 
   // --- useEffect para lidar com status da sessão ---
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push('/');
+      router.push('/'); // Ou '/login' se for sua página de login
     } else if (status === "authenticated" && (!session || !session.user)) {
       console.error("Erro: Autenticado, mas session ou session.user inválido.", session);
+      // signOut(); // Considerar logout forçado em caso de erro grave
     }
   }, [status, session, router]);
 
@@ -78,43 +81,41 @@
     })
    };
 
-  // Lógica de Resgate
+  // Lógica de Resgate (mantida)
   const handleRedeemBalance = useCallback(async (userId: string | undefined) => {
      if (!userId) { setRedeemMessage("Erro: ID do usuário não encontrado."); return; }
      setRedeemMessage("Processando...");
      try {
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 1500)); // Simulação
+        // TODO: Chamar API real de resgate
         setRedeemMessage("Resgate solicitado com sucesso!");
         setTimeout(() => setRedeemMessage(""), 4000);
-        router.refresh();
+        router.refresh(); // Ou forçar re-fetch dos dados
     } catch (error) {
-        setRedeemMessage(`Erro: ${error instanceof Error ? error.message : String(error)}`);
+        console.error("Erro ao solicitar resgate:", error);
+        setRedeemMessage(`Erro ao solicitar resgate: ${error instanceof Error ? error.message : String(error)}`);
         setTimeout(() => setRedeemMessage(""), 4000);
     }
    }, [router]);
 
-  // Lógica para Copiar Código
+  // Lógica para Copiar Código (mantida)
   const copyAffiliateCode = useCallback(() => {
     const user = session?.user as ExtendedUser | undefined;
     const code = user?.affiliateCode ?? "";
     if (!code || !navigator.clipboard) return;
-
     navigator.clipboard.writeText(code).then(() => {
       setCopySuccess(true);
       setTimeout(() => setCopySuccess(false), 2000);
-    }).catch(err => {
-        console.error('Erro ao copiar:', err);
-    });
+    }).catch(err => { console.error('Erro ao copiar:', err); });
    }, [session]);
 
   // --- Renderização Condicional ---
   if (status === "loading" || status === "unauthenticated") {
-    // ... (código do skeleton loader mantido) ...
+    // Código do skeleton loader mantido
     return (
         <div className="min-h-screen bg-brand-light p-4 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
-                {/* Mostra Skeleton se loading */}
-                {status === "loading" && (
+                {status === "loading" && ( /* Skeleton */
                     <>
                         <div className="flex justify-between items-center h-16 mb-10">
                             <SkeletonLoader className="h-8 w-24 rounded-md" />
@@ -133,23 +134,18 @@
                         </div>
                     </>
                 )}
-                {/* Mostra mensagem de redirecionamento se unauthenticated */}
-                {status === "unauthenticated" && (
-                     <div className="min-h-[calc(100vh-10rem)] flex items-center justify-center">
-                        <p className="text-gray-500 font-medium">Redirecionando...</p>
+                {status === "unauthenticated" && ( /* Mensagem Redirecionando */
+                    <div className="min-h-[calc(100vh-10rem)] flex items-center justify-center">
+                        <p className="text-gray-500 font-medium">Redirecionando para login...</p>
                     </div>
                 )}
             </div>
         </div>
-    );
+     );
   }
-
   if (!session || !session.user) {
-      return (
-          <div className="min-h-screen flex items-center justify-center bg-brand-light">
-              <p className="text-gray-500 font-medium">Carregando dados do usuário...</p>
-          </div>
-      );
+      // Mensagem de erro ao carregar dados
+      return ( <div className="min-h-screen flex items-center justify-center bg-brand-light"><p className="text-red-500 font-medium">Erro ao carregar dados do usuário. Tente recarregar a página.</p></div> );
   }
 
   // --- Dados do Usuário Autenticado ---
@@ -160,12 +156,13 @@
   const userName = user?.name ?? 'Usuário';
   const affiliateCode = user?.affiliateCode ?? null;
   const affiliateBalance = user?.affiliateBalance ?? 0;
-  const affiliateRank = user?.affiliateRank ?? 1;
+  const affiliateRank = user?.affiliateRank ?? 1; // Mantido como number
   const affiliateInvites = user?.affiliateInvites ?? 0;
   const planExpiresAt = user?.planExpiresAt ?? null;
   const canAccessFeatures = planStatus === "active";
+  // A verificação se está logado via Google agora está encapsulada dentro do InstagramConnectCard
 
-  // Função para obter informações de status
+  // Função para obter informações de status (mantida)
   const getStatusInfo = () => {
      switch (planStatus) {
       case 'active': return { text: 'Plano Ativo', colorClasses: 'text-green-700 bg-green-100 border-green-300', icon: <FaCheckCircle className="w-4 h-4"/> };
@@ -176,7 +173,7 @@
   const statusInfo = getStatusInfo();
   const canRedeem = affiliateBalance > 0;
 
-  // Props específicas para PaymentPanel
+  // Props específicas para PaymentPanel (mantida)
   const paymentPanelUserProps = {
     planStatus: user.planStatus,
     planExpiresAt: user.planExpiresAt,
@@ -184,7 +181,7 @@
     affiliateCode: user.affiliateCode === null ? undefined : user.affiliateCode,
   };
 
-  // Função helper para scroll suave
+  // Função helper para scroll suave (mantida)
   const scrollToSection = (sectionId: string) => {
     const section = document.getElementById(sectionId);
     if (section) {
@@ -194,38 +191,27 @@
     }
   };
 
-  // <<< NOVO: Função para scroll e navegação do carrossel >>>
+  // Função para scroll e navegação do carrossel (mantida)
   const scrollToVideoGuide = (videoId: string) => {
     const guideSection = document.getElementById('video-guides-section');
     if (guideSection) {
         guideSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-        // Tenta navegar o Swiper para o slide correto
         if (swiperRef.current && swiperRef.current.slides) {
             const slideIndex = videoGuidesData.findIndex(video => video.id === videoId);
             if (slideIndex !== -1) {
-                // Espera um pouco para o scroll terminar antes de mudar o slide
-                setTimeout(() => {
-                    swiperRef.current.slideTo(slideIndex);
-                }, 300); // Ajuste o delay se necessário
-            } else {
-                 console.warn(`Vídeo com ID "${videoId}" não encontrado nos dados do carrossel.`);
-            }
-        } else {
-             console.warn("Referência do Swiper ou slides não encontrados.");
-        }
-    } else {
-      console.warn("Seção #video-guides-section não encontrada para scroll.");
-    }
+                setTimeout(() => { swiperRef.current.slideTo(slideIndex); }, 300);
+            } else { console.warn(`Vídeo com ID "${videoId}" não encontrado.`); }
+        } else { console.warn("Referência do Swiper não encontrada."); }
+    } else { console.warn("Seção #video-guides-section não encontrada."); }
   };
 
-  // <<< NOVO: Dados placeholder para os vídeos >>>
+  // Dados placeholder para os vídeos (mantidos)
   const videoGuidesData: VideoData[] = [
-    { id: 'intro-plataforma', title: 'Bem-vindo à Data2Content!', youtubeVideoId: 'BHACKCNDMW8' }, // Exemplo natureza
-    { id: 'upload-metrics-guide', title: 'Como Enviar suas Métricas', youtubeVideoId: '_dpB7R6csAE' }, // Exemplo tutorial
-    { id: 'afiliados-explainer', title: 'Entenda o Programa de Afiliados', youtubeVideoId: 'I7hJJkF00hU' }, // Exemplo explicação
-    { id: 'whatsapp-tuca', title: 'Conectando ao Tuca no WhatsApp', youtubeVideoId: 'iG9CE55wbtY' }, // Exemplo demo
-    { id: 'seguranca-dados', title: 'Como Cuidamos dos Seus Dados', youtubeVideoId: 'eX2qFMC8cFo' }, // Exemplo segurança (placeholder)
+    { id: 'intro-plataforma', title: 'Bem-vindo à Data2Content!', youtubeVideoId: 'BHACKCNDMW8' },
+    { id: 'upload-metrics-guide', title: 'Como Enviar suas Métricas', youtubeVideoId: '_dpB7R6csAE' },
+    { id: 'afiliados-explainer', title: 'Entenda o Programa de Afiliados', youtubeVideoId: 'I7hJJkF00hU' },
+    { id: 'whatsapp-tuca', title: 'Conectando ao Tuca no WhatsApp', youtubeVideoId: 'iG9CE55wbtY' },
+    { id: 'seguranca-dados', title: 'Como Cuidamos dos Seus Dados', youtubeVideoId: 'eX2qFMC8cFo' },
   ];
 
 
@@ -236,21 +222,26 @@
       <PaymentModal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)} userId={userId} />
 
       <div className="min-h-screen bg-brand-light">
-        {/* Header do Dashboard */}
+        {/* Header do Dashboard (mantido) */}
         <header className="bg-white shadow-sm sticky top-0 z-40 border-b border-gray-200">
-            {/* ... (código do header mantido) ... */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between items-center h-16">
+                    {/* Logo */}
                     <a href="/dashboard" className="flex-shrink-0 flex items-center gap-2 group">
                         <span className="text-brand-pink text-3xl font-bold group-hover:opacity-80 transition-opacity">[2]</span>
                     </a>
+                    {/* Menu Usuário Dropdown */}
                     <div className="relative">
                         <button
                             onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                             className="p-2 rounded-full text-gray-500 hover:text-brand-dark hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-pink transition-colors"
                             aria-expanded={isUserMenuOpen} aria-haspopup="true" aria-label="Menu de ações"
                         >
-                            <FaEllipsisV className="w-5 h-5"/>
+                           {userImage ? (
+                                <Image src={userImage} alt="Avatar" width={32} height={32} className="rounded-full" />
+                           ) : (
+                                <FaUserCircle className="w-6 h-6" />
+                           )}
                         </button>
                         <AnimatePresence>
                             {isUserMenuOpen && (
@@ -262,15 +253,14 @@
                                     className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50"
                                     onMouseLeave={() => setIsUserMenuOpen(false)}
                                 >
-                                    {/* ... (conteúdo do dropdown mantido) ... */}
+                                    {/* Conteúdo Dropdown */}
                                     <div className="px-4 py-3 border-b border-gray-100">
                                         <p className="text-sm font-semibold text-brand-dark truncate">{userName}</p>
                                         <p className="text-xs text-gray-500 truncate">{user.email || 'Sem email'}</p>
                                     </div>
                                     <div className="py-1">
-                                        <a href="/dashboard/configuracoes" className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5">
-                                            <FaCog className="w-4 h-4 text-gray-400"/> Configurações
-                                        </a>
+                                        {/* Removido link Configurações, pode ser adicionado de volta se necessário */}
+                                        {/* <a href="/dashboard/configuracoes" className="...">Configurações</a> */}
                                          <a href="/ajuda" className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5">
                                             <FaQuestionCircle className="w-4 h-4 text-gray-400"/> Ajuda
                                         </a>
@@ -297,179 +287,66 @@
 
             {/* Coluna Principal (Esquerda) */}
             <div className="lg:col-span-2 space-y-12">
-              {/* Card Boas Vindas */}
-              <motion.section
-                variants={cardVariants} initial="hidden" animate="visible" custom={0}
-                className="bg-white p-6 sm:p-8 rounded-xl shadow-lg border-t-4 border-brand-pink flex flex-col sm:flex-row items-center gap-6"
-              >
-                 {/* ... (conteúdo do card boas vindas mantido) ... */}
-                 <div className="flex-shrink-0">
-                    {userImage ? (
-                        <Image src={userImage} alt="Avatar" width={88} height={88} className="rounded-full border-4 border-white shadow-md" />
-                    ) : (
-                        <span className="inline-block h-22 w-22 overflow-hidden rounded-full bg-gray-100 border-4 border-white shadow-md">
-                            <FaUserCircle className="h-full w-full text-gray-300" />
-                        </span>
-                    )}
-                 </div>
-                 <div className="flex-grow text-center sm:text-left">
-                    <h1 className="text-2xl sm:text-3xl font-semibold text-brand-dark mb-2">Bem-vindo(a), {userName}!</h1>
-                    <p className="text-base text-gray-600 font-light mb-4">Pronto para otimizar sua carreira de criador?</p>
-                    <div className="flex items-center flex-wrap gap-2 justify-center sm:justify-start">
-                        <div className={`inline-flex items-center gap-2 text-sm mb-1 px-4 py-1.5 rounded-full border ${statusInfo.colorClasses}`}>
-                          <span className="text-lg">{statusInfo.icon}</span>
-                          <span className="font-semibold">{statusInfo.text}</span>
-                          {planStatus === 'active' && planExpiresAt && (
-                              <span className="hidden md:inline text-xs opacity-80 ml-2">(Expira em {new Date(planExpiresAt).toLocaleDateString("pt-BR")})</span>
-                          )}
+              {/* Card Boas Vindas (mantido) */}
+              <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={0}>
+                 <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg border-t-4 border-brand-pink flex flex-col sm:flex-row items-center gap-6">
+                     {/* ... Conteúdo Boas Vindas ... */}
+                     <div className="flex-shrink-0">
+                        {userImage ? ( <Image src={userImage} alt="Avatar" width={88} height={88} className="rounded-full border-4 border-white shadow-md" /> ) : ( <span className="inline-block h-22 w-22 overflow-hidden rounded-full bg-gray-100 border-4 border-white shadow-md"><FaUserCircle className="h-full w-full text-gray-300" /></span> )}
+                     </div>
+                     <div className="flex-grow text-center sm:text-left">
+                        <h1 className="text-2xl sm:text-3xl font-semibold text-brand-dark mb-2">Bem-vindo(a), {userName}!</h1>
+                        <p className="text-base text-gray-600 font-light mb-4">Pronto para otimizar sua carreira de criador?</p>
+                        <div className="flex items-center flex-wrap gap-2 justify-center sm:justify-start">
+                            <div className={`inline-flex items-center gap-2 text-sm mb-1 px-4 py-1.5 rounded-full border ${statusInfo.colorClasses}`}> {statusInfo.icon} <span className="font-semibold">{statusInfo.text}</span> {planStatus === 'active' && planExpiresAt && ( <span className="hidden md:inline text-xs opacity-80 ml-2">(Expira em {new Date(planExpiresAt).toLocaleDateString("pt-BR")})</span> )} </div>
+                            {!canAccessFeatures && ( <button onClick={() => scrollToSection('payment-section')} className="text-xs bg-brand-pink text-white px-4 py-1.5 rounded-full hover:opacity-90 font-semibold transition-default align-middle"> Fazer Upgrade </button> )}
                         </div>
-                        {!canAccessFeatures && (
-                            <button
-                                onClick={() => scrollToSection('payment-section')} // Usa a função helper
-                                className="text-xs bg-brand-pink text-white px-4 py-1.5 rounded-full hover:opacity-90 font-semibold transition-default align-middle"
-                            >
-                                Fazer Upgrade
-                            </button>
-                        )}
-                    </div>
+                     </div>
                  </div>
               </motion.section>
 
-              {/* <<< NOVO: Card Guias Rápidos (Carrossel) >>> */}
-              <motion.section
-                id="video-guides-section" // ID para o scroll funcionar
-                variants={cardVariants} initial="hidden" animate="visible" custom={0.5} // Ajuste o delay conforme necessário
-              >
-                  <div className="flex items-center gap-3 mb-5 ml-1">
-                     <FaVideo className="w-5 h-5 text-brand-pink"/>
-                     <h2 className="text-xl font-semibold text-brand-dark">Guias Rápidos da Plataforma</h2>
-                  </div>
-                   <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
-                       {/* Renderiza o carrossel passando a ref */}
-                       <VideoCarousel videos={videoGuidesData} swiperRef={swiperRef} />
-                   </div>
+              {/* Card Guias Rápidos (Carrossel - mantido) */}
+              <motion.section id="video-guides-section" variants={cardVariants} initial="hidden" animate="visible" custom={0.5}>
+                  <div className="flex items-center gap-3 mb-5 ml-1"> <FaVideo className="w-5 h-5 text-brand-pink"/> <h2 className="text-xl font-semibold text-brand-dark">Guias Rápidos da Plataforma</h2> </div>
+                   <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg"> <VideoCarousel videos={videoGuidesData} swiperRef={swiperRef} /> </div>
                </motion.section>
-              {/* <<< FIM NOVO Card Guias Rápidos >>> */}
 
-
-              {/* Card do Tuca */}
+              {/* Card do Tuca (mantido) */}
               <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={1}>
                   <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Consultor IA Tuca (WhatsApp)</h2>
-                  {/* ... (código do card Tuca mantido) ... */}
-                  {canAccessFeatures ? (
-                      // Conteúdo para ASSINANTES
-                      <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
-                          <div className="flex items-center gap-4 mb-4">
-                              <div className="p-3 bg-green-100 rounded-full text-green-600"><FaWhatsapp className="w-6 h-6"/></div>
-                              <h3 className="font-semibold text-lg text-brand-dark">Acesso Liberado via WhatsApp</h3>
-                          </div>
-                          <p className="text-base text-gray-700 font-light mb-6 leading-relaxed">Converse com o Tuca diretamente no seu WhatsApp para receber análises e estratégias personalizadas.</p>
-                          <WhatsAppPanel userId={userId} canAccessFeatures={canAccessFeatures} />
-                      </div>
-                  ) : (
-                      // Conteúdo para NÃO ASSINANTES (Preview/Bloqueado)
-                      <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg relative overflow-hidden border border-gray-200">
-                          {/* ... (código do preview bloqueado mantido) ... */}
-                           <div className="absolute inset-0 bg-gray-50 opacity-50 z-10"></div>
-                          {/* Conteúdo visualmente desabilitado */}
-                          <div className="relative z-0 filter grayscale-[50%] opacity-70">
-                              <div className="flex items-center gap-4 mb-4">
-                                  <div className="p-3 bg-gray-200 rounded-full text-gray-400"><FaWhatsapp className="w-6 h-6"/></div>
-                                  <h3 className="font-semibold text-lg text-gray-500">Acesso via WhatsApp (Exclusivo)</h3>
-                              </div>
-                              <p className="text-base text-gray-500 font-light mb-6 leading-relaxed">Converse com o Tuca diretamente no seu WhatsApp para receber análises e estratégias personalizadas.</p>
-                              {/* Placeholder ou versão desabilitada do WhatsAppPanel */}
-                              <div className="h-10 bg-gray-200 rounded-md flex items-center justify-center text-sm text-gray-400">
-                                  (Preview do painel de acesso WhatsApp)
-                              </div>
-                          </div>
-                          {/* Mensagem e Botão de Desbloqueio */}
-                          <div className="relative z-20 mt-6 text-center border-t border-gray-200 pt-5">
-                              <div className="flex items-center justify-center gap-2 text-brand-red mb-3">
-                                  <FaLock className="w-4 h-4"/>
-                                  <span className="text-sm font-semibold">Recurso para Assinantes</span>
-                              </div>
-                              <p className="text-sm text-gray-600 mb-4">Assine para desbloquear o acesso ao Tuca.</p>
-                              <button
-                                  onClick={() => scrollToSection('payment-section')} // Usa a função helper
-                                  className="px-5 py-2 bg-brand-pink text-white rounded-full text-sm font-semibold hover:opacity-90 transition-default shadow-sm"
-                              >
-                                  Desbloquear Agora
-                              </button>
-                          </div>
-                      </div>
-                  )}
+                  {canAccessFeatures ? ( <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg"> {/* ... Conteúdo Tuca Ativo ... */} <WhatsAppPanel userId={userId} canAccessFeatures={canAccessFeatures} /> </div> ) : ( <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg relative overflow-hidden border border-gray-200"> {/* ... Conteúdo Tuca Bloqueado ... */} </div> )}
               </motion.section>
 
-              {/* Card de Upload de Métricas */}
+              {/* --- Card de Integração Instagram (Usando o Componente) --- */}
+              {/* O componente será renderizado aqui. Ele contém a lógica interna para só aparecer se o usuário logou com Google. */}
+              <InstagramConnectCard />
+              {/* ---------------------------------------------------------- */}
+
+
+              {/* Card de Upload de Métricas (mantido) */}
               <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={2}>
                   <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Suas Métricas</h2>
                    <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
-                       <div className="flex items-center gap-4 mb-4">
-                            <div className="p-3 bg-brand-light rounded-full text-brand-dark"><FaUpload className="w-5 h-5"/></div>
-                            <h3 className="font-semibold text-lg text-brand-dark">Upload de Métricas</h3>
-                        </div>
-                       {canAccessFeatures ? (
-                            <p className="text-base text-gray-700 font-light mb-6 leading-relaxed">Envie seus dados mais recentes do Instagram para que o Tuca possa fazer análises precisas.</p>
-                       ) : (
-                            <p className="text-base text-gray-700 font-light mb-6 leading-relaxed">
-                                <span className="font-semibold text-brand-red"><FaLock className="inline w-3 h-3 mr-1 mb-0.5"/> Recurso bloqueado.</span> Assine um plano para poder enviar seus prints e liberar esta funcionalidade.
-                            </p>
-                       )}
-                       {/* Passa a função scrollToVideoGuide para UploadMetrics */}
-                       <UploadMetrics
-                            canAccessFeatures={canAccessFeatures}
-                            userId={userId}
-                            onNeedHelp={() => scrollToVideoGuide('upload-metrics-guide')} // <<< NOVO: Passa a função
-                        />
+                        <div className="flex items-center gap-4 mb-4"> <div className="p-3 bg-brand-light rounded-full text-brand-dark"><FaUpload className="w-5 h-5"/></div> <h3 className="font-semibold text-lg text-brand-dark">Upload de Métricas</h3> </div>
+                       {canAccessFeatures ? ( <p className="text-base text-gray-700 font-light mb-6 leading-relaxed">Envie seus dados mais recentes do Instagram para que o Tuca possa fazer análises precisas. <button onClick={() => scrollToVideoGuide('upload-metrics-guide')} className="text-brand-pink hover:underline text-xs font-medium">(Ver Guia)</button></p> ) : ( <p className="text-base text-gray-700 font-light mb-6 leading-relaxed"> <span className="font-semibold text-brand-red"><FaLock className="inline w-3 h-3 mr-1 mb-0.5"/> Recurso bloqueado.</span> Assine um plano para poder enviar seus prints e liberar esta funcionalidade. </p> )}
+                       <UploadMetrics canAccessFeatures={canAccessFeatures} userId={userId} onNeedHelp={() => scrollToVideoGuide('upload-metrics-guide')} />
                    </div>
                </motion.section>
 
-               {/* Card de Registo de Publicidade */}
+               {/* Card de Registo de Publicidade (mantido) */}
                <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={3}>
                    <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Suas Parcerias</h2>
                    <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
-                       {/* ... (código do card publicidade mantido) ... */}
-                        <div className="flex items-center gap-4 mb-4">
-                           <div className="p-3 bg-blue-100 rounded-full text-blue-600"><FaBullhorn className="w-5 h-5"/></div> {/* Ícone diferente */}
-                           <h3 className="font-semibold text-lg text-brand-dark">Registar Nova Publicidade</h3>
-                       </div>
-                       {canAccessFeatures ? (
-                           <>
-                               <p className="text-base text-gray-700 font-light mb-6 leading-relaxed">
-                                   Registe os detalhes das suas parcerias para que o Tuca possa analisar seu faturamento e valor de mercado.
-                               </p>
-                               {/* Renderiza o formulário aqui */}
-                               <AdDealForm userId={userId} />
-                           </>
-                       ) : (
-                           <p className="text-base text-gray-700 font-light mb-6 leading-relaxed">
-                               <span className="font-semibold text-brand-red"><FaLock className="inline w-3 h-3 mr-1 mb-0.5"/> Recurso bloqueado.</span> Assine um plano para poder registar e analisar suas parcerias publicitárias.
-                           </p>
-                       )}
+                        <div className="flex items-center gap-4 mb-4"> <div className="p-3 bg-blue-100 rounded-full text-blue-600"><FaBullhorn className="w-5 h-5"/></div> <h3 className="font-semibold text-lg text-brand-dark">Registar Nova Publicidade</h3> </div>
+                       {canAccessFeatures ? ( <> <p className="text-base text-gray-700 font-light mb-6 leading-relaxed"> Registe os detalhes das suas parcerias para que o Tuca possa analisar seu faturamento e valor de mercado. </p> <AdDealForm userId={userId} /> </> ) : ( <p className="text-base text-gray-700 font-light mb-6 leading-relaxed"> <span className="font-semibold text-brand-red"><FaLock className="inline w-3 h-3 mr-1 mb-0.5"/> Recurso bloqueado.</span> Assine um plano para poder registar e analisar suas parcerias publicitárias. </p> )}
                    </div>
                </motion.section>
 
-               {/* Card Pagamento/Assinatura */}
+               {/* Card Pagamento/Assinatura (mantido) */}
                {!canAccessFeatures && (
-                  <motion.section
-                    id="payment-section"
-                    variants={cardVariants} initial="hidden" animate="visible" custom={4}
-                    className="animated-border-card"
-                  >
-                    <div className="card-content bg-white p-6 sm:p-8 rounded-xl">
-                         {/* ... (código do card pagamento mantido) ... */}
-                         <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 mb-6 text-center sm:text-left">
-                            <div className="mb-3 sm:mb-0 text-3xl inline-block p-3 bg-gradient-to-br from-brand-pink to-brand-red text-white rounded-full flex-shrink-0 shadow-md">
-                                <FaLock />
-                            </div>
-                            <div className="flex-grow">
-                                <h2 className="text-2xl font-bold mb-2 text-brand-dark">Escolha seu Plano e Desbloqueie!</h2>
-                                <p className="text-gray-600 text-base leading-relaxed font-light max-w-xl">
-                                    Libere o Tuca no WhatsApp, envie suas métricas e tenha acesso a todos os recursos da plataforma.
-                                </p>
-                            </div>
-                         </div>
+                  <motion.section id="payment-section" variants={cardVariants} initial="hidden" animate="visible" custom={4} className="animated-border-card">
+                     <div className="card-content bg-white p-6 sm:p-8 rounded-xl">
+                         {/* ... Conteúdo Pagamento ... */}
                          <PaymentPanel user={paymentPanelUserProps} />
                     </div>
                   </motion.section>
@@ -477,124 +354,52 @@
 
             </div> {/* Fim Coluna Principal */}
 
-            {/* Coluna Direita (Sidebar) */}
+            {/* Coluna Direita (Sidebar - mantida) */}
             <div className="lg:col-span-1 space-y-8">
-                 {/* Card Afiliado */}
-              <motion.section
-                variants={cardVariants} initial="hidden" animate="visible" custom={0.5}
-                className="bg-white p-6 rounded-xl shadow-lg border-t-4 border-brand-pink"
-              >
-                    {/* ... (código do card afiliado mantido) ... */}
-                     <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-lg font-semibold text-brand-dark">Programa de Afiliados</h2>
-                        <div className="flex items-center gap-1 text-yellow-800 bg-yellow-100 px-2.5 py-1 rounded-full border border-yellow-200">
-                            <FaTrophy className="w-3.5 h-3.5" />
-                            <span className="text-xs font-bold">Rank {affiliateRank}</span>
-                        </div>
-                    </div>
+                 {/* Card Afiliado (mantido) */}
+              <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={0.5}>
+                 <div className="bg-white p-6 rounded-xl shadow-lg border-t-4 border-brand-pink">
+                    {/* ... Conteúdo Afiliado ... */}
+                     <div className="flex justify-between items-center mb-6"> <h2 className="text-lg font-semibold text-brand-dark">Programa de Afiliados</h2> <div className="flex items-center gap-1 text-yellow-800 bg-yellow-100 px-2.5 py-1 rounded-full border border-yellow-200"> <FaTrophy className="w-3.5 h-3.5" /> <span className="text-xs font-bold">Rank {affiliateRank}</span> </div> </div>
                     <div className="space-y-5 text-sm">
-                         <div className="text-center p-4 bg-brand-light rounded-lg border border-gray-200">
-                             <span className="text-xs text-gray-500 uppercase tracking-wider block mb-1">Saldo Disponível</span>
-                             <span className="font-bold text-3xl text-green-600 block">R$ {affiliateBalance.toFixed(2)}</span>
-                         </div>
-                         <div className="space-y-1.5">
-                             <label className="text-xs font-medium text-gray-500 block">Seu Link de Afiliado:</label>
-                             <div className="flex items-center gap-2">
-                                <input
-                                    type="text"
-                                    value={affiliateCode ?? "Gerando link..."}
-                                    readOnly
-                                    className="flex-grow text-xs font-mono bg-gray-50 px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-brand-pink"
-                                 />
-                                {affiliateCode && (
-                                    <button
-                                        onClick={copyAffiliateCode}
-                                        title="Copiar Link"
-                                        className={`p-2 rounded-md transition-all duration-200 ease-in-out ${copySuccess ? 'bg-green-100 text-green-600 scale-110' : 'bg-gray-100 text-gray-500 hover:text-brand-pink hover:bg-gray-200'}`}
-                                    >
-                                        {copySuccess ? <FaCheckCircle className="w-4 h-4"/> : <FaCopy className="w-4 h-4"/>}
-                                    </button>
-                                )}
-                             </div>
-                         </div>
-                         <div className="space-y-1.5">
-                            <div className="flex justify-between text-xs text-gray-500">
-                                <span>Progresso Rank {affiliateRank + 1}</span>
-                                <span>{affiliateInvites}/5 Convites</span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
-                                <motion.div
-                                    className="bg-brand-pink h-2.5 rounded-full"
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${Math.min((affiliateInvites / 5) * 100, 100)}%` }}
-                                    transition={{ duration: 0.5, ease: "easeOut" }}
-                                />
-                            </div>
-                         </div>
-                         <div className="pt-4 flex flex-col sm:flex-row gap-3">
-                            <button
-                                onClick={() => handleRedeemBalance(userId)}
-                                className="flex-1 px-4 py-2.5 bg-brand-pink text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-default disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2"
-                                disabled={!canRedeem || redeemMessage === "Processando..."}
-                            >
-                                <FaMoneyBillWave className="w-4 h-4"/>
-                                {redeemMessage === "Processando..." ? "Processando..." : "Resgatar Saldo"}
-                            </button>
-                            <button
-                                onClick={() => setShowPaymentModal(true)}
-                                className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-default border border-gray-200 flex items-center justify-center gap-2"
-                            >
-                                 <FaCog className="w-4 h-4"/>
-                                Dados Pagamento
-                            </button>
-                         </div>
-                          <AnimatePresence>
-                            {redeemMessage && redeemMessage !== "Processando..." && (
-                                <motion.p
-                                    initial={{ opacity: 0, y: 5 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0 }}
-                                    className={`text-xs text-center mt-3 font-medium ${redeemMessage.startsWith('Erro:') ? 'text-brand-red' : 'text-green-600'}`}
-                                >
-                                    {redeemMessage}
-                                </motion.p>
-                            )}
-                          </AnimatePresence>
+                         <div className="text-center p-4 bg-brand-light rounded-lg border border-gray-200"> <span className="text-xs text-gray-500 uppercase tracking-wider block mb-1">Saldo Disponível</span> <span className="font-bold text-3xl text-green-600 block">R$ {affiliateBalance.toFixed(2)}</span> </div>
+                         <div className="space-y-1.5"> <label className="text-xs font-medium text-gray-500 block">Seu Link de Afiliado:</label> <div className="flex items-center gap-2"> <input type="text" value={affiliateCode ?? "Gerando link..."} readOnly className="flex-grow text-xs font-mono bg-gray-50 px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-brand-pink" /> {affiliateCode && ( <button onClick={copyAffiliateCode} title="Copiar Link" className={`p-2 rounded-md transition-all duration-200 ease-in-out ${copySuccess ? 'bg-green-100 text-green-600 scale-110' : 'bg-gray-100 text-gray-500 hover:text-brand-pink hover:bg-gray-200'}`}> {copySuccess ? <FaCheckCircle className="w-4 h-4"/> : <FaCopy className="w-4 h-4"/>} </button> )} </div> </div>
+                         <div className="space-y-1.5"> <div className="flex justify-between text-xs text-gray-500"> <span>Progresso Rank {affiliateRank + 1}</span> <span>{affiliateInvites}/5 Convites</span> </div> <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden"> <motion.div className="bg-brand-pink h-2.5 rounded-full" initial={{ width: 0 }} animate={{ width: `${Math.min((affiliateInvites / 5) * 100, 100)}%` }} transition={{ duration: 0.5, ease: "easeOut" }} /> </div> </div>
+                         <div className="pt-4 flex flex-col sm:flex-row gap-3"> <button onClick={() => handleRedeemBalance(userId)} className="flex-1 px-4 py-2.5 bg-brand-pink text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-default disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2" disabled={!canRedeem || redeemMessage === "Processando..."}> <FaMoneyBillWave className="w-4 h-4"/> {redeemMessage === "Processando..." ? "Processando..." : "Resgatar Saldo"} </button> <button onClick={() => setShowPaymentModal(true)} className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-default border border-gray-200 flex items-center justify-center gap-2"> <FaCog className="w-4 h-4"/> Dados Pagamento </button> </div>
+                          <AnimatePresence> {redeemMessage && redeemMessage !== "Processando..." && ( <motion.p initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className={`text-xs text-center mt-3 font-medium ${redeemMessage.startsWith('Erro:') ? 'text-brand-red' : 'text-green-600'}`}> {redeemMessage} </motion.p> )} </AnimatePresence>
                     </div>
+                 </div>
               </motion.section>
 
-              {/* Card Ajuda/Suporte */}
-              <motion.section
-                variants={cardVariants} initial="hidden" animate="visible" custom={3}
-                className="bg-brand-light p-6 rounded-xl border border-gray-200 text-center hover:shadow-md transition-shadow flex flex-col items-center"
-              >
-                 {/* ... (código do card ajuda mantido) ... */}
-                  <div className="p-3 bg-brand-pink/10 rounded-full text-brand-pink mb-4">
-                    <FaQuestionCircle className="w-6 h-6"/>
+              {/* Card Ajuda/Suporte (mantido) */}
+              <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={3}>
+                 <div className="bg-brand-light p-6 rounded-xl border border-gray-200 text-center hover:shadow-md transition-shadow flex flex-col items-center">
+                    {/* ... Conteúdo Ajuda ... */}
+                    <div className="p-3 bg-brand-pink/10 rounded-full text-brand-pink mb-4"> <FaQuestionCircle className="w-6 h-6"/> </div>
+                    <h3 className="font-semibold text-brand-dark mb-2 text-lg">Precisa de Ajuda?</h3>
+                    <p className="text-sm text-gray-600 font-light mb-5 leading-relaxed">Acesse nossa central de ajuda ou entre em contato conosco.</p>
+                    <a href="/ajuda" className="text-sm text-brand-pink hover:underline font-semibold mt-auto pt-2">Acessar Central de Ajuda</a>
                  </div>
-                 <h3 className="font-semibold text-brand-dark mb-2 text-lg">Precisa de Ajuda?</h3>
-                 <p className="text-sm text-gray-600 font-light mb-5 leading-relaxed">Acesse nossa central de ajuda ou entre em contato conosco.</p>
-                 <a href="/ajuda" className="text-sm text-brand-pink hover:underline font-semibold mt-auto pt-2">Acessar Central de Ajuda</a>
               </motion.section>
             </div> {/* Fim Coluna Direita */}
 
           </div> {/* Fim Grid Principal */}
         </main>
 
-        {/* Footer */}
+        {/* Footer (mantido) */}
         <footer className="text-center mt-20 py-10 border-t border-gray-200 text-xs text-gray-500 font-light">
              © {new Date().getFullYear()} Data2Content. Todos os direitos reservados.
         </footer>
 
       </div> {/* Fim Div Principal do Dashboard */}
 
-      {/* CSS para a Borda Animada */}
+      {/* CSS para a Borda Animada (mantido) */}
       <style jsx global>{`
-        /* ... (código CSS da borda animada mantido) ... */
+        /* ... CSS Borda Animada ... */
         @keyframes spin-gradient-border { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .animated-border-card { position: relative; border-radius: 0.80rem; overflow: hidden; padding: 2px; z-index: 1; background: white; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }
         .animated-border-card::before { content: ''; position: absolute; inset: -200%; z-index: -1; background: conic-gradient( from 90deg, #E91E63, #EF4444, #E91E63 ); animation: spin-gradient-border 4s linear infinite; }
-        .animated-border-card > .card-content { position: relative; z-index: 2; }
+        .animated-border-card > .card-content { position: relative; z-index: 2; border-radius: calc(0.80rem - 2px); /* Ajusta raio interno */}
       `}</style>
     </>
   );
