@@ -1,4 +1,4 @@
-// src/app/api/auth/[...nextauth]/route.ts (Corrigido Retorno de ID na Vinculação)
+// src/app/api/auth/[...nextauth]/route.ts (Completo - Restaurado Encode/Decode + Vinculação)
 import NextAuth from "next-auth";
 import type { NextAuthOptions, Session, User, Account } from "next-auth";
 import type { AdapterUser } from "next-auth/adapters";
@@ -8,80 +8,216 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import DbUser, { IUser } from "@/app/models/User"; // Importa o modelo atualizado com facebookProviderAccountId
 import { Types } from "mongoose";
-import type { JWT } from "next-auth/jwt";
+// <<< RE-ADICIONADO JWTEncodeParams, JWTDecodeParams e jose >>>
+import type { JWT, JWTEncodeParams, JWTDecodeParams } from "next-auth/jwt";
+import { SignJWT, jwtVerify } from "jose";
 import { logger } from "@/app/lib/logger";
+
+// <<< LOG TEMPORÁRIO PARA DEPURAR SECRET >>>
+// Remova esta linha após a depuração
+console.log("--- DEBUG --- NEXTAUTH_SECRET:", process.env.NEXTAUTH_SECRET ? process.env.NEXTAUTH_SECRET.substring(0, 5) + "..." : "NÃO DEFINIDA");
+// <<< FIM LOG TEMPORÁRIO >>>
 
 console.log("--- SERVER START --- NEXTAUTH_URL:", process.env.NEXTAUTH_URL);
 export const runtime = "nodejs";
 
 interface SignInCallback { user: User & { id?: string }; account: Account | null; }
-// Adicionado trigger e profile ao JwtCallback se ainda não estiverem lá
 interface JwtCallback { token: JWT; user?: User | AdapterUser; account?: Account | null; profile?: any; trigger?: "signIn" | "signUp" | "update" | undefined; }
 interface RedirectCallback { baseUrl: string; }
 
-// --- FUNÇÃO HELPER: Obter LLAT e ID do Instagram (mantida como antes) ---
+
+// --- Função customEncode RESTAURADA ---
+/**
+ * Custom encode (HS256) para JWT.
+ */
+async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise<string> {
+    logger.debug("customEncode: Codificando token:", JSON.stringify(token));
+    if (!secret) throw new Error("NEXTAUTH_SECRET ausente em customEncode");
+    const secretString = typeof secret === "string" ? secret : String(secret);
+    const expirationTime = Math.floor(Date.now() / 1000) + (maxAge ?? 30 * 24 * 60 * 60); // Default 30 dias
+    return await new SignJWT({ ...token })
+        .setProtectedHeader({ alg: "HS256" })
+        .setIssuedAt()
+        .setExpirationTime(expirationTime)
+        .sign(new TextEncoder().encode(secretString));
+}
+
+// --- Função customDecode RESTAURADA ---
+/**
+ * Custom decode (HS256) para JWT com logs adicionais.
+ */
+async function customDecode({ token, secret }: JWTDecodeParams): Promise<JWT | null> {
+    if (!token || !secret) {
+        logger.error("customDecode: Token ou secret não fornecidos.");
+        return null;
+    }
+    const secretString = typeof secret === "string" ? secret : String(secret);
+    try {
+        const { payload } = await jwtVerify(token, new TextEncoder().encode(secretString), {
+            algorithms: ["HS256"], // Especifica o algoritmo esperado
+        });
+        logger.debug("customDecode: Token decodificado com sucesso. Payload:", JSON.stringify(payload));
+        return payload as JWT; // Retorna o payload (conteúdo do token)
+    } catch (err) {
+        logger.error(`customDecode: Erro ao decodificar token HS256: ${err instanceof Error ? err.message : String(err)}`);
+        return null; // Retorna null se a decodificação falhar
+    }
+}
+
+
+// --- FUNÇÃO HELPER: Obter LLAT e ID do Instagram (Completa) ---
+/**
+ * Troca o SLAT por LLAT, busca páginas do FB e encontra o ID da conta IG vinculada.
+ * Salva o LLAT e o ID IG no banco de dados do usuário.
+ */
 async function getFacebookLongLivedTokenAndIgId(
     shortLivedToken: string,
-    userId: string
+    userId: string // ID do usuário na SUA plataforma (MongoDB ObjectId)
 ): Promise<{ success: boolean; error?: string }> {
     const TAG = '[getFacebookLongLivedTokenAndIgId]';
     const FB_APP_ID = process.env.FACEBOOK_CLIENT_ID;
     const FB_APP_SECRET = process.env.FACEBOOK_CLIENT_SECRET;
 
-    if (!FB_APP_ID || !FB_APP_SECRET) { /* ... */ return { success: false, error: '...' }; }
+    if (!FB_APP_ID || !FB_APP_SECRET) {
+        logger.error(`${TAG} Variáveis de ambiente FACEBOOK_CLIENT_ID ou FACEBOOK_CLIENT_SECRET não definidas.`);
+        return { success: false, error: 'Configuração do servidor incompleta.' };
+    }
 
     try {
         // 1. Trocar SLAT por LLAT
-        // ... (código mantido)
+        logger.debug(`${TAG} Trocando SLAT por LLAT para User ${userId}...`);
         const llatResponse = await fetch(`https://graph.facebook.com/v19.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${FB_APP_ID}&client_secret=${FB_APP_SECRET}&fb_exchange_token=${shortLivedToken}`);
         const llatData = await llatResponse.json();
-        if (!llatResponse.ok || !llatData.access_token) { /* ... */ return { success: false, error: '...' }; }
-        const longLivedToken = llatData.access_token;
-        // ... (logs mantidos)
 
-        // 2. Buscar Páginas do Facebook
-        // ... (código mantido)
+        if (!llatResponse.ok || !llatData.access_token) {
+            logger.error(`${TAG} Erro ao obter LLAT:`, llatData);
+            return { success: false, error: llatData.error?.message || 'Falha ao obter token de longa duração.' };
+        }
+        const longLivedToken = llatData.access_token;
+        logger.debug(`${TAG} LLAT obtido com sucesso para User ${userId}.`);
+
+        // 2. Buscar Páginas do Facebook conectadas
+        logger.debug(`${TAG} Buscando páginas do Facebook para User ${userId}...`);
         const pagesResponse = await fetch(`https://graph.facebook.com/v19.0/me/accounts?access_token=${longLivedToken}`);
         const pagesData = await pagesResponse.json();
-         if (!pagesResponse.ok || !pagesData.data) { /* ... */ return { success: false, error: '...' }; }
-        // ... (logs mantidos)
+
+        if (!pagesResponse.ok || !pagesData.data) {
+            logger.error(`${TAG} Erro ao buscar páginas do Facebook:`, pagesData);
+            return { success: false, error: pagesData.error?.message || 'Falha ao buscar páginas do Facebook.' };
+        }
 
         // 3. Encontrar a Conta do Instagram vinculada
         let instagramAccountId: string | null = null;
-        // ... (loop e fetch mantidos) ...
-        for (const page of pagesData.data) { /* ... */ }
-        // ... (logs mantidos)
+        logger.debug(`${TAG} Procurando conta Instagram vinculada entre ${pagesData.data.length} páginas...`);
+        for (const page of pagesData.data) {
+            const pageId = page.id;
+            // Adiciona tratamento de erro para a chamada da API do Instagram
+            try {
+                const igResponse = await fetch(`https://graph.facebook.com/v19.0/${pageId}?fields=instagram_business_account&access_token=${longLivedToken}`);
+                const igData = await igResponse.json();
+
+                if (igResponse.ok && igData.instagram_business_account) {
+                    instagramAccountId = igData.instagram_business_account.id;
+                    logger.info(`${TAG} Conta Instagram encontrada para User ${userId}: ${instagramAccountId} (vinculada à Página FB ${pageId})`);
+                    break; // Para após encontrar a primeira conta IG
+                } else if (!igResponse.ok) {
+                     logger.warn(`${TAG} Erro ao buscar conta IG para a página ${pageId}:`, igData);
+                }
+            } catch (pageError) {
+                 logger.error(`${TAG} Erro de rede ou inesperado ao buscar conta IG para página ${pageId}:`, pageError);
+            }
+        }
+
+        if (!instagramAccountId) {
+            logger.warn(`${TAG} Nenhuma conta profissional do Instagram encontrada vinculada às páginas do Facebook para User ${userId}. O usuário pode precisar conectar a conta IG à página FB.`);
+            // Não retorna erro, apenas salva o token sem o ID IG
+        }
 
         // 4. Salvar LLAT e ID do Instagram no Banco de Dados
         logger.debug(`${TAG} Atualizando usuário ${userId} no DB com LLAT e ID IG...`);
-        await connectToDatabase();
+        await connectToDatabase(); // Garante conexão
         const updateResult = await DbUser.findByIdAndUpdate(userId, {
-            $set: {
+            $set: { // Usa $set para garantir que apenas esses campos sejam atualizados
                instagramAccessToken: longLivedToken,
-               instagramAccountId: instagramAccountId,
-               isInstagramConnected: !!instagramAccountId // Atualiza flag
+               instagramAccountId: instagramAccountId, // Salva null se não encontrado
+               isInstagramConnected: !!instagramAccountId // Atualiza flag baseada na existência do ID
             }
-        }, { new: true });
+        }, { new: true }); // { new: true } é opcional, retorna o doc atualizado
 
-        if (!updateResult) { /* ... */ return { success: false, error: '...' }; }
+        if (!updateResult) {
+             logger.error(`${TAG} Usuário ${userId} não encontrado no DB para atualização.`);
+             return { success: false, error: 'Usuário não encontrado no banco de dados.' };
+        }
 
         logger.info(`${TAG} Usuário ${userId} atualizado com sucesso com dados do Instagram.`);
         return { success: true };
 
-    } catch (error: unknown) { /* ... */ return { success: false, error: '...' }; }
+    } catch (error: unknown) {
+        logger.error(`${TAG} Erro inesperado no processo:`, error);
+        const message = error instanceof Error ? error.message : String(error);
+        return { success: false, error: `Erro interno: ${message}` };
+    }
 }
 // --- FIM FUNÇÃO HELPER ---
 
 export const authOptions: NextAuthOptions = {
   useSecureCookies: process.env.NODE_ENV === "production",
-  cookies: { /* ... configurações de cookies mantidas ... */ },
-  providers: [ /* ... GoogleProvider, FacebookProvider, CredentialsProvider mantidos ... */ ],
+  cookies: {
+    sessionToken: {
+      name: process.env.NODE_ENV === 'production' ? "__Secure-next-auth.session-token" : "next-auth.session-token",
+      options: { httpOnly: true, sameSite: "lax", path: "/", domain: process.env.NODE_ENV === 'production' ? process.env.NEXTAUTH_COOKIE_DOMAIN : undefined, secure: process.env.NODE_ENV === "production" },
+    },
+    callbackUrl: {
+      name: process.env.NODE_ENV === 'production' ? "__Secure-next-auth.callback-url" : "next-auth.callback-url",
+      options: { sameSite: "lax", path: "/", domain: process.env.NODE_ENV === 'production' ? process.env.NEXTAUTH_COOKIE_DOMAIN : undefined, secure: process.env.NODE_ENV === "production" },
+    },
+    csrfToken: {
+      name: process.env.NODE_ENV === 'production' ? "__Host-next-auth.csrf-token" : "next-auth.csrf-token",
+      options: { httpOnly: true, sameSite: "lax", path: "/", domain: process.env.NODE_ENV === 'production' ? process.env.NEXTAUTH_COOKIE_DOMAIN : undefined, secure: process.env.NODE_ENV === "production" },
+    },
+  },
+  providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      authorization: { params: { scope: "openid email profile" } },
+      profile(profile) {
+        logger.debug("NextAuth: Google profile returned:", profile);
+        return { id: profile.sub, name: profile.name, email: profile.email, image: profile.picture };
+      },
+    }),
+    FacebookProvider({
+      clientId: process.env.FACEBOOK_CLIENT_ID!,
+      clientSecret: process.env.FACEBOOK_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          scope: [
+            'email', 'public_profile', 'pages_show_list',
+            'pages_read_engagement', 'instagram_basic',
+            'instagram_manage_insights', 'instagram_manage_comments',
+          ].join(','),
+        },
+      },
+    }),
+    CredentialsProvider({
+      name: "Demo",
+      credentials: { username: { label: "Usuário", type: "text", placeholder: "demo" }, password: { label: "Senha", type: "password", placeholder: "demo" } },
+      async authorize(credentials) {
+        if (credentials?.username === "demo" && credentials?.password === "demo") {
+          return { id: "demo-123", name: "Demo User", email: "demo@example.com" } as User;
+        }
+        return null;
+      },
+    }),
+  ],
   jwt: {
     secret: process.env.NEXTAUTH_SECRET,
+    // <<< RE-ADICIONADO encode/decode customizado >>>
+    encode: customEncode,
+    decode: customDecode,
   },
   callbacks: {
-    // <<< CALLBACK SIGNIN (Revertido para lógica mais simples) >>>
-    // Foca em encontrar ou criar o utilizador e passar o ID correto para JWT
+    // <<< CALLBACK SIGNIN (Lógica de encontrar/criar/vincular ID) >>>
     async signIn({ user, account, profile }: { user: User & { id?: string }, account: Account | null, profile?: any }): Promise<boolean> {
         const TAG_SIGNIN = '[NextAuth signIn Callback]';
         logger.debug(`${TAG_SIGNIN} Iniciado`, { userId: user.id, provider: account?.provider, email: user.email });
@@ -91,7 +227,11 @@ export const authOptions: NextAuthOptions = {
             return false;
         }
 
-        if (account.provider === "credentials") { /* ... credentials logic ... */ return true; }
+        if (account.provider === "credentials") {
+            if (!user?.id) { logger.error(`${TAG_SIGNIN} Usuário de Credentials sem ID.`); return false; }
+            logger.debug(`${TAG_SIGNIN} Permitindo login via Credentials para User ${user.id}`);
+            return true;
+        }
 
         // Lógica para Google e Facebook
         if (account.provider === "google" || account.provider === "facebook") {
@@ -103,10 +243,12 @@ export const authOptions: NextAuthOptions = {
                 let query: any = {};
                 if (account.provider === 'facebook' && account.providerAccountId) {
                     query = { facebookProviderAccountId: account.providerAccountId };
+                    logger.debug(`${TAG_SIGNIN} Tentando encontrar por facebookProviderAccountId: ${account.providerAccountId}`);
                     existingUser = await DbUser.findOne(query).exec();
                 } else if (account.provider === 'google' && account.providerAccountId) {
                     // Assumindo que providerAccountId principal é o Google ID para contas Google
                     query = { providerAccountId: account.providerAccountId, provider: 'google' };
+                     logger.debug(`${TAG_SIGNIN} Tentando encontrar por providerAccountId (Google): ${account.providerAccountId}`);
                     existingUser = await DbUser.findOne(query).exec();
                 }
 
@@ -158,8 +300,10 @@ export const authOptions: NextAuthOptions = {
                         provider: account.provider, // Provider do primeiro login
                         providerAccountId: account.provider === 'google' ? account.providerAccountId : null, // ID principal (Google)
                         facebookProviderAccountId: account.provider === 'facebook' ? account.providerAccountId : null, // ID Facebook
-                        role: "user", planStatus: "inactive", // ... outros defaults
+                        role: "user", planStatus: "inactive", planExpiresAt: null,
+                        affiliateBalance: 0, affiliateRank: 1, affiliateInvites: 0,
                         isInstagramConnected: false,
+                        // ... outros defaults do schema
                     });
                     const savedUser = await newUser.save();
                     user.id = savedUser._id.toString(); // *** ESSENCIAL: Passa o ID correto para o JWT ***
@@ -219,8 +363,11 @@ export const authOptions: NextAuthOptions = {
                             // Busca token/ID do Instagram para a conta principal
                             if (account.access_token) {
                                 getFacebookLongLivedTokenAndIgId(account.access_token, userIdToUse) // Usa o ID da conta existente
-                                    .then(result => { /* ... logs ... */ })
-                                    .catch(error => { /* ... log ... */ });
+                                    .then(result => {
+                                        if (!result.success) { logger.error(`${TAG_JWT} Falha assíncrona ao processar dados do Facebook para User ${userIdToUse}: ${result.error}`); }
+                                        else { logger.info(`${TAG_JWT} Processamento assíncrono de dados do Facebook concluído para User ${userIdToUse}.`); }
+                                    })
+                                    .catch(error => { logger.error(`${TAG_JWT} Erro não capturado em getFacebookLongLivedTokenAndIgId (async) para User ${userIdToUse}:`, error); });
                             }
                             // *** PREPARA O TOKEN DE RETORNO COM DADOS DA SESSÃO EXISTENTE ***
                             token.id = userIdToUse; // Garante ID correto
@@ -248,8 +395,11 @@ export const authOptions: NextAuthOptions = {
                     // Busca token/ID do Instagram
                     if (account.access_token) {
                         getFacebookLongLivedTokenAndIgId(account.access_token, token.id as string)
-                            .then(result => { /* ... logs ... */ })
-                            .catch(error => { /* ... log ... */ });
+                            .then(result => {
+                                if (!result.success) { logger.error(`${TAG_JWT} Falha assíncrona ao processar dados do Facebook para User ${token.id}: ${result.error}`); }
+                                else { logger.info(`${TAG_JWT} Processamento assíncrono de dados do Facebook concluído para User ${token.id}.`); }
+                            })
+                            .catch(error => { logger.error(`${TAG_JWT} Erro não capturado em getFacebookLongLivedTokenAndIgId (async) para User ${token.id}:`, error); });
                     }
                 }
             }
@@ -294,7 +444,7 @@ export const authOptions: NextAuthOptions = {
         return returnToken;
     },
 
-    // <<< CALLBACK SESSION (Mantido como antes, depende do token.id correto) >>>
+    // <<< CALLBACK SESSION (Mantido como antes, depende do token.id correto do JWT) >>>
     async session({ session, token }: { session: Session; token: JWT }): Promise<Session> {
       const TAG_SESSION = '[NextAuth Session Callback]';
       logger.debug(`${TAG_SESSION} Iniciado. Token recebido:`, JSON.stringify(token));
