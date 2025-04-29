@@ -370,21 +370,19 @@ export const authOptions: NextAuthOptions = {
 
         // 3. Adiciona/Atualiza Role
         const finalUserId = token.id;
-        if (finalUserId && (!token.role || isSignInOrSignUp)) { // Atualiza role no login/signup
+        if (finalUserId && Types.ObjectId.isValid(finalUserId as string) && (!token.role || isSignInOrSignUp)) { // Verifica se ID é válido antes de buscar
              try {
                 await connectToDatabase();
                 const dbUser = await DbUser.findById(finalUserId).select('role').lean();
                 if (dbUser) { token.role = dbUser.role; logger.debug(`${TAG_JWT} Role '${token.role}' definida/confirmada no token para User ${finalUserId}`); }
                 else { logger.warn(`${TAG_JWT} Usuário ${finalUserId} não encontrado no DB ao buscar role.`); delete token.role; }
              } catch (error) {
-                 // Evita que erro de CastError (ID inválido) quebre o fluxo JWT
-                 if (error instanceof Error && error.name === 'CastError') {
-                     logger.error(`${TAG_JWT} Erro de Cast ao buscar role para ID '${finalUserId}': ${error.message}`);
-                     delete token.role; // Remove role inválida
-                 } else {
-                    logger.error(`${TAG_JWT} Erro ao buscar role para User ${finalUserId} no callback JWT:`, error);
-                 }
+                 // O erro de CastError já não deve acontecer devido à verificação Types.ObjectId.isValid
+                 logger.error(`${TAG_JWT} Erro ao buscar role para User ${finalUserId} no callback JWT:`, error);
              }
+        } else if (finalUserId && !Types.ObjectId.isValid(finalUserId as string)) {
+             logger.error(`${TAG_JWT} Tentando buscar role com ID inválido: ${finalUserId}`);
+             delete token.role; // Remove role se ID for inválido
         }
 
         // Cria um novo objeto de token para retornar, excluindo o erro temporário
@@ -395,12 +393,12 @@ export const authOptions: NextAuthOptions = {
         return returnToken;
     },
 
-    // <<< CALLBACK SESSION (Lógica expandida) >>>
+    // <<< CALLBACK SESSION (Lógica expandida com verificação de ID) >>>
     async session({ session, token }: { session: Session; token: JWT }): Promise<Session> {
       const TAG_SESSION = '[NextAuth Session Callback]';
       logger.debug(`${TAG_SESSION} Iniciado. Token recebido:`, JSON.stringify(token));
 
-      // Popula a sessão APENAS se o token contiver o ID do nosso DB
+      // Popula a sessão APENAS se o token contiver um ID válido do nosso DB
       if (token.id && Types.ObjectId.isValid(token.id as string)) { // Verifica se ID é um ObjectId válido
           // Inicializa session.user com dados básicos do token
           session.user = {
