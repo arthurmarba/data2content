@@ -8,13 +8,11 @@ import { JWT as DefaultJWT } from "next-auth/jwt"; // Import JWT type for mergin
  */
 declare module "next-auth" {
   interface Session {
-    // REMOVIDO: provider?: string; // Provider não pertence à raiz da Session
-
     // Torna o user opcional para permitir 'limpar' a sessão em caso de erro
     user?: {
       // Adiciona campos ao objeto 'user' dentro da Session
       id: string; // ID do seu banco de dados (obrigatório)
-      provider?: string | null; // <<< ADICIONADO AQUI: Provider usado no login ('google', 'facebook')
+      provider?: string | null; // Provider usado no login ('google', 'facebook')
       role?: string;
       planStatus?: string;
       planExpiresAt?: string | null; // Convertido para string ISO no callback session
@@ -22,13 +20,15 @@ declare module "next-auth" {
       affiliateBalance?: number;
       affiliateRank?: number;
       affiliateInvites?: number;
-      instagramConnected?: boolean;
+      instagramConnected?: boolean; // Status da conexão IG (vem do DB via session callback)
       // Adicione outros campos do seu IUser que você passa no callback session
     } & DefaultSession["user"]; // Mantém os campos padrão (name, email, image)
   }
 
   /**
    * Aqui estendemos a interface `User` padrão do NextAuth.
+   * Esta interface representa o objeto 'user' como ele pode existir
+   * no banco de dados ou ser retornado pelo callback 'profile'.
    */
   interface User extends DefaultUser {
     id: string; // ID do seu banco de dados (obrigatório)
@@ -44,6 +44,7 @@ declare module "next-auth" {
     providerAccountId?: string; // Mantido para consistência
     instagramAccountId?: string; // Mantido para consistência
     instagramAccessToken?: string; // Mantido para consistência
+    isInstagramConnected?: boolean; // <<< ADICIONADO AQUI >>> Para consistência com IUser
   }
 }
 
@@ -57,14 +58,6 @@ declare module "next-auth/jwt" {
     id: string; // ID do usuário do seu DB (obrigatório)
     accessToken?: string; // Token de acesso do provider (ex: Facebook, Google) - Usado temporariamente
     provider?: string; // Mantido: Provider usado ('google', 'facebook')
-    role?: string;
-    // Removidos campos redundantes que são buscados do DB no callback session
-    // planStatus?: string;
-    // planExpiresAt?: string | null;
-    // affiliateCode?: string;
-    // affiliateBalance?: number;
-    // affiliateRank?: number;
-    // affiliateInvites?: number;
-    // lastSync?: number; // Removido se não estiver sendo usado no callback jwt
+    role?: string; // Adicionado no callback jwt
   }
 }

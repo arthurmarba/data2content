@@ -1,4 +1,4 @@
-// @/app/models/User.ts - v1.4 (com campos para Instagram)
+// @/app/models/User.ts - v1.5 (Adicionado isInstagramConnected)
 
 import { Schema, model, models, Document, Model, Types } from "mongoose";
 
@@ -16,6 +16,7 @@ export interface IUser extends Document {
   // --- CAMPOS ADICIONADOS PARA INTEGRAÇÃO INSTAGRAM ---
   instagramAccessToken?: string; // Token de Longa Duração (LLAT)
   instagramAccountId?: string; // ID da Conta Profissional do Instagram
+  isInstagramConnected?: boolean; // <<< ADICIONADO AQUI >>> Flag de status da conexão
   // ---------------------------------------------------
   role: string;
   planStatus?: string;
@@ -68,6 +69,7 @@ const userSchema = new Schema<IUser>(
     // --- CAMPOS ADICIONADOS PARA INTEGRAÇÃO INSTAGRAM ---
     instagramAccessToken: { type: String }, // Armazena o LLAT
     instagramAccountId: { type: String, index: true }, // ID da conta IG vinculada
+    isInstagramConnected: { type: Boolean, default: false }, // <<< ADICIONADO AQUI >>>
     // ---------------------------------------------------
     role: { type: String, default: "user" },
     planStatus: { type: String, default: "inactive" },
@@ -104,6 +106,10 @@ const userSchema = new Schema<IUser>(
 userSchema.pre<IUser>("save", function (next) {
   if (this.isNew && !this.affiliateCode) {
     this.affiliateCode = generateAffiliateCode();
+  }
+  // <<< ADICIONADO >>> Garante que isInstagramConnected seja definido com base no accountId se for indefinido
+  if (this.isInstagramConnected === undefined) {
+      this.isInstagramConnected = !!this.instagramAccountId;
   }
   next();
 });
