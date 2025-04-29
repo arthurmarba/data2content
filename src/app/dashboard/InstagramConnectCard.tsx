@@ -18,14 +18,15 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = () => {
         console.log("[InstagramConnectCard] Status da Sessão:", status);
         if (status === 'authenticated') {
             console.log("[InstagramConnectCard] Objeto Session:", JSON.stringify(session, null, 2));
-            console.log("[InstagramConnectCard] Session Provider:", session?.provider);
+            console.log("[InstagramConnectCard] Session User Provider:", session?.user?.provider);
             console.log("[InstagramConnectCard] Session User Instagram Connected:", session?.user?.instagramConnected);
         }
     }, [status, session]);
     // -------------------------------------
 
     const isLoading = status === 'loading';
-    const isLoggedInViaGoogle = status === 'authenticated' && session?.provider === 'google';
+    const isLoggedInViaGoogle = status === 'authenticated' && session?.user?.provider === 'google';
+
     const isInstagramConnected = session?.user?.instagramConnected ?? false;
 
     // Log da condição de renderização

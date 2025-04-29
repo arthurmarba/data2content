@@ -51,12 +51,14 @@ async function customDecode({ token, secret }: JWTDecodeParams): Promise<JWT | n
     }
     const secretString = typeof secret === "string" ? secret : String(secret);
     try {
-        logger.debug("customDecode: Iniciando decodificação do token:", token.substring(0, 10) + "...");
+        // Log removido para evitar log excessivo de tokens
+        // logger.debug("customDecode: Iniciando decodificação do token:", token.substring(0, 10) + "...");
         // Verifica e decodifica o token usando 'jose'
         const { payload } = await jwtVerify(token, new TextEncoder().encode(secretString), {
             algorithms: ["HS256"], // Especifica o algoritmo esperado
         });
-        logger.debug("customDecode: Token decodificado com sucesso.");
+        // Log removido para evitar log excessivo de tokens decodificados
+        // logger.debug("customDecode: Token decodificado com sucesso.");
         return payload as JWT; // Retorna o payload (conteúdo do token)
     } catch (err) {
         // Loga erros comuns como token expirado ou assinatura inválida
@@ -290,7 +292,7 @@ export const authOptions: NextAuthOptions = {
         // Na primeira vez (login) ou quando há uma conta
         if (account && user?.id) {
             token.id = user.id;
-            token.provider = account.provider;
+            token.provider = account.provider; // Adiciona o provider ao token JWT
 
             if (account.provider === 'facebook' && account.access_token) {
                 logger.info(`${TAG_JWT} Login via Facebook para User ${user.id}. Iniciando processamento assíncrono de token/IG ID...`);
@@ -327,7 +329,11 @@ export const authOptions: NextAuthOptions = {
       // Atribui dados básicos do token à sessão
       if (token.id && session.user) {
           session.user.id = token.id as string;
-          session.provider = token.provider as string;
+          // --- CORREÇÃO APLICADA AQUI ---
+          // Atribui o provider DENTRO do objeto session.user, não na raiz da session
+          session.user.provider = token.provider as string;
+          // -----------------------------
+          logger.debug(`${TAG_SESSION} Provider '${token.provider}' atribuído a session.user para User ${token.id}`);
       } else {
           logger.error(`${TAG_SESSION} Erro: token.id ou session.user inicial ausente.`);
           session.user = undefined; // Limpa o usuário da sessão
@@ -371,6 +377,7 @@ export const authOptions: NextAuthOptions = {
                delete session.user.affiliateRank;
                delete session.user.affiliateInvites;
                delete session.user.instagramConnected;
+               // Não deleta session.user.provider pois ele vem do token
            }
         }
       } catch (error) {
@@ -401,4 +408,5 @@ const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };
 
 // --- ATUALIZAÇÃO FINAL: Definição de Tipos ---
-// Lembre-se de atualizar `types/next-auth.d.ts` para incluir `instagramConnected?: boolean;` na interface Session.user
+// Lembre-se de atualizar `types/next-auth.d.ts` para incluir `provider?: string;`
+// e `instagramConnected?: boolean;` na interface Session.user
