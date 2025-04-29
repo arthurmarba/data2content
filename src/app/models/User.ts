@@ -1,4 +1,4 @@
-// @/app/models/User.ts - v1.5 (Adicionado isInstagramConnected)
+// @/app/models/User.ts - v1.6 (Adicionado facebookProviderAccountId)
 
 import { Schema, model, models, Document, Model, Types } from "mongoose";
 
@@ -8,15 +8,16 @@ import { Schema, model, models, Document, Model, Types } from "mongoose";
 export interface IUser extends Document {
   _id: Types.ObjectId;
   name?: string;
-  email: string;
+  email: string; // Email principal (pode ser do Google ou do primeiro login)
   image?: string;
-  googleId?: string;
-  provider?: string;
-  providerAccountId?: string;
+  googleId?: string; // Mantido se necessário para referência específica
+  provider?: string; // Provider do PRIMEIRO login ou o principal
+  providerAccountId?: string; // ID da conta do provider principal
+  facebookProviderAccountId?: string; // <<< ADICIONADO AQUI >>> ID específico da conta do Facebook
   // --- CAMPOS ADICIONADOS PARA INTEGRAÇÃO INSTAGRAM ---
-  instagramAccessToken?: string; // Token de Longa Duração (LLAT)
-  instagramAccountId?: string; // ID da Conta Profissional do Instagram
-  isInstagramConnected?: boolean; // <<< ADICIONADO AQUI >>> Flag de status da conexão
+  instagramAccessToken?: string;
+  instagramAccountId?: string;
+  isInstagramConnected?: boolean;
   // ---------------------------------------------------
   role: string;
   planStatus?: string;
@@ -64,12 +65,13 @@ const userSchema = new Schema<IUser>(
     },
     image: { type: String },
     googleId: { type: String },
-    provider: { type: String, index: true },
-    providerAccountId: { type: String, index: true },
+    provider: { type: String, index: true }, // Provider do primeiro login
+    providerAccountId: { type: String, index: true }, // ID do provider principal
+    facebookProviderAccountId: { type: String, index: true, sparse: true }, // <<< ADICIONADO AQUI >>> ID do Facebook
     // --- CAMPOS ADICIONADOS PARA INTEGRAÇÃO INSTAGRAM ---
-    instagramAccessToken: { type: String }, // Armazena o LLAT
-    instagramAccountId: { type: String, index: true }, // ID da conta IG vinculada
-    isInstagramConnected: { type: Boolean, default: false }, // <<< ADICIONADO AQUI >>>
+    instagramAccessToken: { type: String },
+    instagramAccountId: { type: String, index: true },
+    isInstagramConnected: { type: Boolean, default: false },
     // ---------------------------------------------------
     role: { type: String, default: "user" },
     planStatus: { type: String, default: "inactive" },
@@ -107,7 +109,6 @@ userSchema.pre<IUser>("save", function (next) {
   if (this.isNew && !this.affiliateCode) {
     this.affiliateCode = generateAffiliateCode();
   }
-  // <<< ADICIONADO >>> Garante que isInstagramConnected seja definido com base no accountId se for indefinido
   if (this.isInstagramConnected === undefined) {
       this.isInstagramConnected = !!this.instagramAccountId;
   }
@@ -120,3 +121,4 @@ userSchema.pre<IUser>("save", function (next) {
 const UserModel: Model<IUser> = models.User || model<IUser>("User", userSchema);
 
 export default UserModel;
+

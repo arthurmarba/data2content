@@ -8,31 +8,26 @@ import { JWT as DefaultJWT } from "next-auth/jwt"; // Import JWT type for mergin
  */
 declare module "next-auth" {
   interface Session {
-    // Torna o user opcional para permitir 'limpar' a sessão em caso de erro
     user?: {
-      // Adiciona campos ao objeto 'user' dentro da Session
       id: string; // ID do seu banco de dados (obrigatório)
-      provider?: string | null; // Provider usado no login ('google', 'facebook')
+      provider?: string | null; // Provider usado no login ATUAL ('google', 'facebook')
       role?: string;
       planStatus?: string;
-      planExpiresAt?: string | null; // Convertido para string ISO no callback session
+      planExpiresAt?: string | null;
       affiliateCode?: string;
       affiliateBalance?: number;
       affiliateRank?: number;
       affiliateInvites?: number;
-      instagramConnected?: boolean; // Status da conexão IG (vem do DB via session callback)
-      // Adicione outros campos do seu IUser que você passa no callback session
-    } & DefaultSession["user"]; // Mantém os campos padrão (name, email, image)
+      instagramConnected?: boolean;
+    } & DefaultSession["user"];
   }
 
   /**
    * Aqui estendemos a interface `User` padrão do NextAuth.
-   * Esta interface representa o objeto 'user' como ele pode existir
-   * no banco de dados ou ser retornado pelo callback 'profile'.
+   * Representa o objeto 'user' no DB ou retornado pelo 'profile'.
    */
   interface User extends DefaultUser {
     id: string; // ID do seu banco de dados (obrigatório)
-    // Seus campos extras que vêm do DB ou são definidos no profile/authorize
     role?: string;
     planStatus?: string;
     planExpiresAt?: Date | string | null;
@@ -40,11 +35,12 @@ declare module "next-auth" {
     affiliateBalance?: number;
     affiliateRank?: number;
     affiliateInvites?: number;
-    provider?: string; // Mantido para consistência
-    providerAccountId?: string; // Mantido para consistência
-    instagramAccountId?: string; // Mantido para consistência
-    instagramAccessToken?: string; // Mantido para consistência
-    isInstagramConnected?: boolean; // <<< ADICIONADO AQUI >>> Para consistência com IUser
+    provider?: string; // Provider do primeiro login ou principal
+    providerAccountId?: string; // ID do provider principal
+    facebookProviderAccountId?: string; // <<< ADICIONADO AQUI >>> ID específico do Facebook
+    instagramAccountId?: string;
+    instagramAccessToken?: string;
+    isInstagramConnected?: boolean;
   }
 }
 
@@ -54,10 +50,9 @@ declare module "next-auth" {
  */
 declare module "next-auth/jwt" {
   interface JWT extends DefaultJWT { // Estende o JWT padrão
-    // Campos que você adiciona no callback jwt
     id: string; // ID do usuário do seu DB (obrigatório)
-    accessToken?: string; // Token de acesso do provider (ex: Facebook, Google) - Usado temporariamente
-    provider?: string; // Mantido: Provider usado ('google', 'facebook')
-    role?: string; // Adicionado no callback jwt
+    provider?: string; // Provider do login ATUAL ('google', 'facebook')
+    role?: string;
+    // Não precisamos de accessToken aqui pois o LLAT é guardado no DB
   }
 }
