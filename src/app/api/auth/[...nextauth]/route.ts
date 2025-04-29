@@ -28,16 +28,17 @@ interface RedirectCallback { baseUrl: string; }
  * Custom encode (HS256) para JWT.
  */
 async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise<string> {
+    // <<< NOVO LOG >>>
+    logger.debug("customEncode: Codificando token:", JSON.stringify(token));
+    // <<< FIM NOVO LOG >>>
     if (!secret) throw new Error("NEXTAUTH_SECRET ausente em customEncode");
     const secretString = typeof secret === "string" ? secret : String(secret);
-    // Calcula o tempo de expiração em segundos desde a epoch
-    const expirationTime = Math.floor(Date.now() / 1000) + (maxAge ?? 30 * 24 * 60 * 60); // Default 30 days
-    // Cria e assina o JWT usando 'jose'
+    const expirationTime = Math.floor(Date.now() / 1000) + (maxAge ?? 30 * 24 * 60 * 60);
     return await new SignJWT({ ...token })
         .setProtectedHeader({ alg: "HS256" })
-        .setIssuedAt() // Define o tempo de emissão
-        .setExpirationTime(expirationTime) // Define o tempo de expiração
-        .sign(new TextEncoder().encode(secretString)); // Assina com o segredo
+        .setIssuedAt()
+        .setExpirationTime(expirationTime)
+        .sign(new TextEncoder().encode(secretString));
 }
 
 // --- Função customDecode RESTAURADA ---
@@ -51,30 +52,23 @@ async function customDecode({ token, secret }: JWTDecodeParams): Promise<JWT | n
     }
     const secretString = typeof secret === "string" ? secret : String(secret);
     try {
-        // Log removido para evitar log excessivo de tokens
-        // logger.debug("customDecode: Iniciando decodificação do token:", token.substring(0, 10) + "...");
-        // Verifica e decodifica o token usando 'jose'
         const { payload } = await jwtVerify(token, new TextEncoder().encode(secretString), {
-            algorithms: ["HS256"], // Especifica o algoritmo esperado
+            algorithms: ["HS256"],
         });
-        // Log removido para evitar log excessivo de tokens decodificados
-        // logger.debug("customDecode: Token decodificado com sucesso.");
-        return payload as JWT; // Retorna o payload (conteúdo do token)
+        // <<< NOVO LOG >>>
+        logger.debug("customDecode: Token decodificado com sucesso. Payload:", JSON.stringify(payload));
+        // <<< FIM NOVO LOG >>>
+        return payload as JWT;
     } catch (err) {
-        // Loga erros comuns como token expirado ou assinatura inválida
         logger.error("customDecode: Erro ao decodificar token:", err instanceof Error ? err.message : err);
-        return null; // Retorna null se a decodificação falhar
+        return null;
     }
 }
 
 // --- FUNÇÃO HELPER: Obter LLAT e ID do Instagram (mantida) ---
-/**
- * Troca o SLAT por LLAT, busca páginas do FB e encontra o ID da conta IG vinculada.
- * Salva o LLAT e o ID IG no banco de dados do usuário.
- */
 async function getFacebookLongLivedTokenAndIgId(
     shortLivedToken: string,
-    userId: string // ID do usuário no SEU banco de dados
+    userId: string
 ): Promise<{ success: boolean; error?: string }> {
     const TAG = '[getFacebookLongLivedTokenAndIgId]';
     const FB_APP_ID = process.env.FACEBOOK_CLIENT_ID;
@@ -113,7 +107,6 @@ async function getFacebookLongLivedTokenAndIgId(
         logger.debug(`${TAG} Procurando conta Instagram vinculada entre ${pagesData.data.length} páginas...`);
         for (const page of pagesData.data) {
             const pageId = page.id;
-            // Adiciona tratamento de erro para a chamada da API do Instagram
             try {
                 const igResponse = await fetch(`https://graph.facebook.com/v19.0/${pageId}?fields=instagram_business_account&access_token=${longLivedToken}`);
                 const igData = await igResponse.json();
@@ -121,7 +114,7 @@ async function getFacebookLongLivedTokenAndIgId(
                 if (igResponse.ok && igData.instagram_business_account) {
                     instagramAccountId = igData.instagram_business_account.id;
                     logger.info(`${TAG} Conta Instagram encontrada para User ${userId}: ${instagramAccountId} (vinculada à Página FB ${pageId})`);
-                    break; // Para após encontrar a primeira conta IG
+                    break;
                 } else if (!igResponse.ok) {
                      logger.warn(`${TAG} Erro ao buscar conta IG para a página ${pageId}:`, igData);
                 }
@@ -131,19 +124,18 @@ async function getFacebookLongLivedTokenAndIgId(
         }
 
         if (!instagramAccountId) {
-            logger.warn(`${TAG} Nenhuma conta profissional do Instagram encontrada vinculada às páginas do Facebook para User ${userId}. O usuário pode precisar conectar a conta IG à página FB.`);
-            // Não retorna erro, apenas salva o token sem o ID IG
+            logger.warn(`${TAG} Nenhuma conta profissional do Instagram encontrada vinculada às páginas do Facebook para User ${userId}.`);
         }
 
         // 4. Salvar LLAT e ID do Instagram no Banco de Dados
         logger.debug(`${TAG} Atualizando usuário ${userId} no DB com LLAT e ID IG...`);
-        await connectToDatabase(); // Garante conexão
+        await connectToDatabase();
         const updateResult = await DbUser.findByIdAndUpdate(userId, {
-            $set: { // Usa $set para garantir que apenas esses campos sejam atualizados
+            $set: {
                instagramAccessToken: longLivedToken,
-               instagramAccountId: instagramAccountId, // Salva null se não encontrado
+               instagramAccountId: instagramAccountId,
             }
-        }, { new: true }); // { new: true } é opcional, retorna o doc atualizado
+        }, { new: true });
 
         if (!updateResult) {
              logger.error(`${TAG} Usuário ${userId} não encontrado no DB para atualização.`);
@@ -217,8 +209,8 @@ export const authOptions: NextAuthOptions = {
   ],
   jwt: {
     secret: process.env.NEXTAUTH_SECRET,
-    encode: customEncode, // Usa a função restaurada
-    decode: customDecode, // Usa a função restaurada
+    encode: customEncode,
+    decode: customDecode,
   },
   callbacks: {
     async signIn({ user, account }: SignInCallback): Promise<boolean> {
@@ -228,7 +220,7 @@ export const authOptions: NextAuthOptions = {
       if (account?.provider === "google" || account?.provider === "facebook") {
         if (!user.email) {
              logger.error(`${TAG_SIGNIN} Email do ${account.provider} não encontrado.`);
-             return false; // Impede login se não houver email
+             return false;
         }
         try {
           await connectToDatabase();
@@ -243,15 +235,14 @@ export const authOptions: NextAuthOptions = {
               affiliateBalance: 0, affiliateRank: 1, affiliateInvites: 0,
             });
             existingUser = await newUser.save();
-            user.id = existingUser._id.toString(); // Atualiza o ID do usuário da sessão
+            user.id = existingUser._id.toString();
             logger.debug(`${TAG_SIGNIN} Novo usuário (${account.provider}) criado: ${user.id}`);
 
           } else {
             logger.debug(`${TAG_SIGNIN} Usuário (${account.provider}) já existe: ${existingUser._id}`);
-            user.id = existingUser._id.toString(); // Garante que o ID do DB está na sessão
+            user.id = existingUser._id.toString();
 
              let needsSave = false;
-             // Atualiza dados que podem mudar
              if (user.name && user.name !== existingUser.name) { existingUser.name = user.name; needsSave = true; }
              if (user.image && user.image !== existingUser.image) { existingUser.image = user.image; needsSave = true; }
              if (account.providerAccountId && account.providerAccountId !== existingUser.providerAccountId) {
@@ -259,11 +250,10 @@ export const authOptions: NextAuthOptions = {
                  existingUser.provider = account.provider;
                  needsSave = true;
              }
-             // Inicializa campos de afiliado se necessário (mantido)
              if (existingUser.affiliateBalance === undefined || existingUser.affiliateBalance === null) { existingUser.affiliateBalance = 0; needsSave = true; }
              if (existingUser.affiliateRank === undefined || existingUser.affiliateRank === null) { existingUser.affiliateRank = 1; needsSave = true; }
              if (existingUser.affiliateInvites === undefined || existingUser.affiliateInvites === null) { existingUser.affiliateInvites = 0; needsSave = true; }
-             if (!existingUser.affiliateCode) { logger.warn(`${TAG_SIGNIN} Usuário existente sem affiliateCode.`); needsSave = true; } // Gera no save
+             if (!existingUser.affiliateCode) { logger.warn(`${TAG_SIGNIN} Usuário existente sem affiliateCode.`); needsSave = true; }
 
             if (needsSave) {
                 await existingUser.save();
@@ -272,31 +262,32 @@ export const authOptions: NextAuthOptions = {
           }
         } catch (error) {
           logger.error(`${TAG_SIGNIN} Erro (${account.provider}) ao interagir com o banco:`, error);
-          return false; // Impede login em caso de erro no DB
+          return false;
         }
       } else if (account?.provider === "credentials") {
-         // Lógica para Credentials (mantida e simplificada)
          if (!user?.id) { logger.error(`${TAG_SIGNIN} Usuário de Credentials sem ID.`); return false; }
-         // Não precisa buscar no DB aqui se não for inicializar nada específico
       }
 
       if (!user?.id) { logger.error(`${TAG_SIGNIN} user.id não definido no final.`); return false; }
       logger.debug(`${TAG_SIGNIN} Finalizado com sucesso para User ${user.id}`);
-      return true; // Permite o login
+      return true;
     },
 
     async jwt({ token, user, account, profile }: JwtCallback): Promise<JWT> {
         const TAG_JWT = '[NextAuth JWT Callback]';
-        logger.debug(`${TAG_JWT} Iniciado`, { userId: user?.id, accountProvider: account?.provider });
+        // <<< NOVO LOG >>> Loga o token recebido no início
+        logger.debug(`${TAG_JWT} Iniciado. Token recebido:`, JSON.stringify(token));
+        logger.debug(`${TAG_JWT} User ID: ${user?.id}, Account Provider: ${account?.provider}`);
 
         // Na primeira vez (login) ou quando há uma conta
         if (account && user?.id) {
+            logger.debug(`${TAG_JWT} Evento de login/conexão detectado (account existe). Provider: ${account.provider}`);
             token.id = user.id;
             token.provider = account.provider; // Adiciona o provider ao token JWT
+            logger.debug(`${TAG_JWT} Provider '${account.provider}' adicionado ao token.`);
 
             if (account.provider === 'facebook' && account.access_token) {
                 logger.info(`${TAG_JWT} Login via Facebook para User ${user.id}. Iniciando processamento assíncrono de token/IG ID...`);
-                // Chama a função helper em background (não bloqueia)
                 getFacebookLongLivedTokenAndIgId(account.access_token, user.id)
                     .then(result => {
                         if (!result.success) { logger.error(`${TAG_JWT} Falha assíncrona ao processar dados do Facebook para User ${user.id}: ${result.error}`); }
@@ -305,8 +296,10 @@ export const authOptions: NextAuthOptions = {
                     .catch(error => { logger.error(`${TAG_JWT} Erro não capturado em getFacebookLongLivedTokenAndIgId (async) para User ${user.id}:`, error); });
             } else if (account.provider === 'google') {
                  logger.debug(`${TAG_JWT} Login via Google para User ${user.id}.`);
-                 // Não guarda token do Google no JWT por padrão
             }
+        } else {
+            // <<< NOVO LOG >>> Loga quando não é evento de login
+             logger.debug(`${TAG_JWT} Evento subsequente (account não existe). Verificando provider no token existente: ${token.provider}`);
         }
 
         // Adiciona/atualiza a role no token (mantido)
@@ -318,39 +311,38 @@ export const authOptions: NextAuthOptions = {
              } catch (error) { logger.error(`${TAG_JWT} Erro ao buscar role para User ${token.id} no callback JWT:`, error); }
         }
 
-        logger.debug(`${TAG_JWT} Finalizado`, { tokenId: token.id, provider: token.provider });
+        // <<< NOVO LOG >>> Loga o token COMPLETO antes de retornar
+        logger.debug(`${TAG_JWT} Finalizado. Retornando token:`, JSON.stringify(token));
         return token;
     },
 
     async session({ session, token }: { session: Session; token: JWT }): Promise<Session> {
       const TAG_SESSION = '[NextAuth Session Callback]';
-      logger.debug(`${TAG_SESSION} Iniciado`, { tokenId: token.id });
+      // <<< NOVO LOG >>> Loga o token recebido no início do session callback
+      logger.debug(`${TAG_SESSION} Iniciado. Token recebido:`, JSON.stringify(token));
 
       // Atribui dados básicos do token à sessão
       if (token.id && session.user) {
           session.user.id = token.id as string;
-          // --- CORREÇÃO APLICADA AQUI ---
-          // Atribui o provider DENTRO do objeto session.user, não na raiz da session
+          // Atribui o provider DENTRO do objeto session.user
           session.user.provider = token.provider as string;
-          // -----------------------------
-          logger.debug(`${TAG_SESSION} Provider '${token.provider}' atribuído a session.user para User ${token.id}`);
+          // <<< LOG MODIFICADO >>> Mostra o provider que ESTÁ SENDO atribuído
+          logger.debug(`${TAG_SESSION} Atribuindo provider '${token.provider}' a session.user para User ${token.id}`);
       } else {
           logger.error(`${TAG_SESSION} Erro: token.id ou session.user inicial ausente.`);
-          session.user = undefined; // Limpa o usuário da sessão
+          session.user = undefined;
           return session;
       }
 
       // Busca no DB para dados atualizados
       try {
         await connectToDatabase();
-        // Seleciona explicitamente os campos necessários + os novos campos do Instagram
         const dbUser = await DbUser.findById(token.id)
                                    .select('name email image role planStatus planExpiresAt affiliateCode affiliateBalance affiliateRank affiliateInvites instagramAccountId')
                                    .lean();
 
         if (dbUser && session.user) {
           logger.debug(`${TAG_SESSION} Usuário encontrado no DB para sessão:`, dbUser._id);
-          // Atribui os dados do DB para a sessão (mantido e verificado)
           session.user.name = dbUser.name ?? session.user.name;
           session.user.email = dbUser.email ?? session.user.email;
           session.user.image = dbUser.image ?? session.user.image;
@@ -361,13 +353,11 @@ export const authOptions: NextAuthOptions = {
           session.user.affiliateBalance = dbUser.affiliateBalance ?? 0;
           session.user.affiliateRank = dbUser.affiliateRank ?? 1;
           session.user.affiliateInvites = dbUser.affiliateInvites ?? 0;
-          // Status de conexão com Instagram
-          session.user.instagramConnected = !!dbUser.instagramAccountId; // Define baseado na existência do ID
+          session.user.instagramConnected = !!dbUser.instagramAccountId;
           logger.debug(`${TAG_SESSION} Status conexão Instagram para User ${token.id}: ${session.user.instagramConnected}`);
 
         } else if (session.user) {
            logger.error(`${TAG_SESSION} Usuário não encontrado no DB para id: ${token.id}. Sessão pode ficar incompleta.`);
-           // Não limpa mais os campos padrão, apenas os customizados que não vieram do token
            if (session.user) {
                delete session.user.role;
                delete session.user.planStatus;
@@ -377,14 +367,14 @@ export const authOptions: NextAuthOptions = {
                delete session.user.affiliateRank;
                delete session.user.affiliateInvites;
                delete session.user.instagramConnected;
-               // Não deleta session.user.provider pois ele vem do token
            }
         }
       } catch (error) {
         logger.error(`${TAG_SESSION} Erro ao buscar/processar dados do usuário na sessão:`, error);
       }
 
-      logger.debug(`${TAG_SESSION} Finalizado`, session.user);
+      // <<< NOVO LOG >>> Loga o objeto session.user COMPLETO antes de retornar
+      logger.debug(`${TAG_SESSION} Finalizado. Retornando session.user:`, JSON.stringify(session.user));
       return session;
     },
 
@@ -400,13 +390,10 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  // debug: process.env.NODE_ENV === 'development',
 };
 
-// Exporta o handler do NextAuth
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };
 
 // --- ATUALIZAÇÃO FINAL: Definição de Tipos ---
-// Lembre-se de atualizar `types/next-auth.d.ts` para incluir `provider?: string;`
-// e `instagramConnected?: boolean;` na interface Session.user
+// Lembre-se de atualizar `types/next-auth.d.ts`
