@@ -1,4 +1,4 @@
-// src/app/api/auth/[...nextauth]/route.ts (Completo - HS256 + Vinculação Corrigida v2)
+// src/app/api/auth/[...nextauth]/route.ts (Completo - HS256 + Vinculação Corrigida v4 - Correção de Tipo)
 import NextAuth from "next-auth";
 import type { NextAuthOptions, Session, User, Account } from "next-auth";
 import type { AdapterUser } from "next-auth/adapters";
@@ -11,9 +11,6 @@ import { Types } from "mongoose";
 import type { JWT, JWTEncodeParams, JWTDecodeParams } from "next-auth/jwt";
 import { SignJWT, jwtVerify } from "jose";
 import { logger } from "@/app/lib/logger";
-
-// Remova esta linha após a depuração, se desejar
-// console.log("--- DEBUG --- NEXTAUTH_SECRET:", process.env.NEXTAUTH_SECRET ? process.env.NEXTAUTH_SECRET.substring(0, 5) + "..." : "NÃO DEFINIDA");
 
 console.log("--- SERVER START --- NEXTAUTH_URL:", process.env.NEXTAUTH_URL);
 export const runtime = "nodejs";
@@ -211,12 +208,10 @@ export const authOptions: NextAuthOptions = {
   ],
   jwt: {
     secret: process.env.NEXTAUTH_SECRET,
-    // <<< RE-ADICIONADO encode/decode customizado >>>
     encode: customEncode,
     decode: customDecode,
   },
   callbacks: {
-    // <<< CALLBACK SIGNIN (Corrigido para não criar user FB indevidamente) >>>
     async signIn({ user, account, profile }: { user: User & { id?: string }, account: Account | null, profile?: any }): Promise<boolean> {
         const TAG_SIGNIN = '[NextAuth signIn Callback]';
         logger.debug(`${TAG_SIGNIN} Iniciado`, { userId: user.id, provider: account?.provider, email: user.email });
@@ -331,7 +326,7 @@ export const authOptions: NextAuthOptions = {
         return false;
     },
 
-    // <<< CALLBACK JWT (Corrigido para manter ID correto na vinculação) >>>
+    // <<< CALLBACK JWT COM CORREÇÃO DE TIPO E LOGS ADICIONAIS >>>
     async jwt({ token, user, account, profile, trigger }: JwtCallback): Promise<JWT> {
         const TAG_JWT = '[NextAuth JWT Callback]';
         logger.debug(`${TAG_JWT} Iniciado. Trigger: ${trigger}. Account Provider: ${account?.provider}. Token recebido:`, JSON.stringify(token));
@@ -341,14 +336,25 @@ export const authOptions: NextAuthOptions = {
         const existingTokenId = token.id; // ID da sessão existente (se houver)
 
         // 1. Evento de Login/Conexão Inicial
-        if (isSignInOrSignUp && account && user?.id) {
+        if (isSignInOrSignUp && account) {
             // Se for login/conexão via Facebook
             if (account.provider === 'facebook') {
-                // Cenário de Vinculação: Usuário já estava logado (existingTokenId existe)
+
+                // <<< LOGS DE DEPURAÇÃO ADICIONADOS >>>
+                logger.debug(`${TAG_JWT} --- Verificando Condições de Vinculação ---`);
+                logger.debug(`${TAG_JWT} Condição 1 (existingTokenId): ${existingTokenId}`);
+                const isValidObjectId = existingTokenId ? Types.ObjectId.isValid(existingTokenId as string) : false;
+                logger.debug(`${TAG_JWT} Condição 2 (ObjectId Válido): ${isValidObjectId}`);
+                logger.debug(`${TAG_JWT} Condição 3 (token.provider !== 'facebook'): ${token.provider !== 'facebook'} (Valor: ${token.provider})`);
+                logger.debug(`${TAG_JWT} Condição 4 (account?.provider === 'facebook'): ${account?.provider === 'facebook'} (Valor: ${account?.provider})`);
+                // <<< FIM DOS LOGS ADICIONADOS >>>
+
+                // Cenário de Vinculação: Usuário já estava logado (existingTokenId existe e é válido)
                 // E o login atual é Facebook, E o provider da sessão NÃO é Facebook
-                if (existingTokenId && Types.ObjectId.isValid(existingTokenId as string) && token.provider !== 'facebook') { // <<< VERIFICA SE existingTokenId É VÁLIDO >>>
-                    logger.info(`${TAG_JWT} Vinculando Facebook (${account.providerAccountId}) à conta existente ${existingTokenId} (provider original: ${token.provider})`);
-                    const userIdToUse = existingTokenId as string; // ID da conta Google
+                if (existingTokenId && isValidObjectId && token.provider !== 'facebook') {
+                    logger.info(`${TAG_JWT} *** BLOCO DE VINCULAÇÃO EXECUTADO ***`); // Log para confirmar entrada
+                    const userIdToUse = existingTokenId as string; // ID da conta Google/existente
+                    logger.info(`${TAG_JWT} Vinculando Facebook (${account.providerAccountId}) à conta existente ${userIdToUse} (provider original: ${token.provider})`);
 
                     try {
                         await connectToDatabase();
@@ -358,7 +364,6 @@ export const authOptions: NextAuthOptions = {
                             logger.error(`${TAG_JWT} Esta conta do Facebook (${account.providerAccountId}) já está vinculada a outro usuário (${userWithThisFbId._id}). Vinculação cancelada.`);
                             token.error = "fb_already_linked";
                             token.id = userIdToUse; // Mantém ID original
-                            // token.provider permanece o original
                             return token;
                         }
 
@@ -370,10 +375,7 @@ export const authOptions: NextAuthOptions = {
                         if (updatedUser) {
                             logger.info(`${TAG_JWT} Conta Facebook vinculada com sucesso ao User ${userIdToUse}.`);
                             if (account.access_token) { getFacebookLongLivedTokenAndIgId(account.access_token, userIdToUse); }
-                            // *** CORREÇÃO APLICADA AQUI: Mantém o token existente ***
                             token.id = userIdToUse; // Garante que o ID correto está no token
-                            // token.provider não é alterado
-                            // A role será buscada/confirmada abaixo
                         } else {
                              logger.error(`${TAG_JWT} Falha ao vincular Facebook: Usuário existente ${userIdToUse} não encontrado no DB.`);
                              token.error = "link_user_not_found";
@@ -388,50 +390,74 @@ export const authOptions: NextAuthOptions = {
                     }
                 }
                 // Cenário de Login Novo com Facebook (sem sessão prévia ou já era Facebook)
+                // OU falha na lógica de vinculação acima
                 else {
-                    logger.debug(`${TAG_JWT} Processando login/conexão inicial com Facebook.`);
-                    // Usa o ID passado pelo signIn (que pode ser o ID do FB ou de um user existente encontrado pelo email/ID do FB)
-                    token.id = user.id;
+                    logger.warn(`${TAG_JWT} *** BLOCO DE VINCULAÇÃO PULADO ***. Caindo no 'else' (Login Novo/Falha Vinculação).`); // Log para confirmar não entrada
+                    logger.debug(`${TAG_JWT} Processando login/conexão inicial com Facebook (ou falha na vinculação).`);
+
+                    // <<< CORREÇÃO DE TIPO APLICADA AQUI >>>
+                    // Atribui token.id apenas se user.id for uma string válida
+                    if (typeof user?.id === 'string') {
+                        token.id = user.id; // Garantido ser string
+                    } else {
+                        // Loga um erro se user.id não for uma string (estado inesperado)
+                        logger.error(`${TAG_JWT} Tentativa de definir token.id falhou no 'else': user.id não é uma string válida ('${user?.id}').`);
+                        // Neste caso, token.id permanecerá como estava (possivelmente o ID antigo ou undefined)
+                        // A lógica de busca de role abaixo tratará o ID inválido/ausente.
+                    }
+
                     token.provider = 'facebook';
-                    logger.debug(`${TAG_JWT} Definindo token.id=${token.id}, token.provider=${token.provider}`);
-                    // Só chama getFacebookLongLivedTokenAndIgId se o ID for um ObjectId válido (ou seja, um utilizador do nosso DB)
-                    if (account.access_token && Types.ObjectId.isValid(token.id as string)) {
+                    logger.debug(`${TAG_JWT} Definindo token.id=${token.id}, token.provider=${token.provider}`); // Log mostrará se id ficou undefined
+                    // Só chama getFacebookLongLivedTokenAndIgId se o ID for um ObjectId válido
+                    if (account.access_token && token.id && Types.ObjectId.isValid(token.id as string)) {
                          getFacebookLongLivedTokenAndIgId(account.access_token, token.id as string);
                     } else if (account.access_token) {
-                        logger.warn(`${TAG_JWT} Não chamando getFacebookLongLivedTokenAndIgId porque o ID (${token.id}) não é um ObjectId válido (provavelmente ID do Facebook).`);
+                        logger.warn(`${TAG_JWT} Não chamando getFacebookLongLivedTokenAndIgId porque o ID (${token.id}) não é um ObjectId válido (provavelmente ID do Facebook ou user.id ausente/inválido).`);
                     }
                 }
             }
             // Se for login/conexão via Google ou Credentials
             else {
                 logger.debug(`${TAG_JWT} Processando login inicial com ${account.provider}.`);
-                token.id = user.id; // ID do usuário do DB
+                // Aqui, user.id deve ser o ID do MongoDB (string) vindo do signIn
+                if (typeof user?.id === 'string') {
+                    token.id = user.id;
+                } else {
+                     logger.error(`${TAG_JWT} Tentativa de definir token.id falhou para ${account.provider}: user.id não é uma string válida ('${user?.id}').`);
+                }
                 token.provider = account.provider;
                 logger.debug(`${TAG_JWT} Definindo token.id=${token.id}, token.provider=${token.provider}`);
             }
         }
 
-        // 2. Garante que ID persista em eventos subsequentes
-        if (!token.id && user?.id) {
+        // 2. Garante que ID persista em eventos subsequentes (Fallback)
+        if (!token.id && typeof user?.id === 'string') {
              token.id = user.id;
-             logger.warn(`${TAG_JWT} ID recuperado para token em evento subsequente.`);
-        } else if (!token.id && !user?.id && existingTokenId) {
+             logger.warn(`${TAG_JWT} ID recuperado para token (user.id) em evento subsequente.`);
+        } else if (!token.id && typeof existingTokenId === 'string') { // Verifica se existingTokenId é string
             token.id = existingTokenId;
-             logger.warn(`${TAG_JWT} ID recuperado do token anterior em evento subsequente.`);
+             logger.warn(`${TAG_JWT} ID recuperado do token anterior (existingTokenId) em evento subsequente.`);
         }
 
 
         // 3. Adiciona/Atualiza Role
         const finalUserId = token.id;
-        // <<< CORREÇÃO >>> Verifica se finalUserId é válido ANTES de buscar no DB
+        // Verifica se finalUserId é válido ANTES de buscar no DB
         if (finalUserId && Types.ObjectId.isValid(finalUserId as string) && (!token.role || isSignInOrSignUp)) {
              try {
                 await connectToDatabase();
+                // Busca apenas a role para otimizar
                 const dbUser = await DbUser.findById(finalUserId).select('role').lean();
-                if (dbUser) { token.role = dbUser.role; logger.debug(`${TAG_JWT} Role '${token.role}' definida/confirmada no token para User ${finalUserId}`); }
-                else { logger.warn(`${TAG_JWT} Usuário ${finalUserId} não encontrado no DB ao buscar role.`); delete token.role; }
+                if (dbUser) {
+                    token.role = dbUser.role;
+                    logger.debug(`${TAG_JWT} Role '${token.role}' definida/confirmada no token para User ${finalUserId}`);
+                } else {
+                    logger.warn(`${TAG_JWT} Usuário ${finalUserId} não encontrado no DB ao buscar role.`);
+                    delete token.role; // Remove role se usuário não for encontrado
+                }
              } catch (error) {
                  logger.error(`${TAG_JWT} Erro ao buscar role para User ${finalUserId} no callback JWT:`, error);
+                 delete token.role; // Remove role em caso de erro
              }
         } else if (finalUserId && !Types.ObjectId.isValid(finalUserId as string)) {
              logger.error(`${TAG_JWT} Tentando buscar role com ID inválido: ${finalUserId}`);
@@ -441,7 +467,7 @@ export const authOptions: NextAuthOptions = {
              delete token.role;
         }
 
-        // Cria um novo objeto de token para retornar
+        // Cria um novo objeto de token para retornar, removendo o campo de erro temporário
         const returnToken: JWT = { ...token };
         delete returnToken.error;
 
@@ -458,8 +484,9 @@ export const authOptions: NextAuthOptions = {
       if (token.id && Types.ObjectId.isValid(token.id as string)) {
           session.user = {
               id: token.id as string,
-              provider: token.provider as string,
-              role: token.role as string ?? 'user',
+              // Garante que provider e role sejam strings ou undefined
+              provider: typeof token.provider === 'string' ? token.provider : undefined,
+              role: typeof token.role === 'string' ? token.role : 'user', // Default para 'user' se ausente
           };
           logger.debug(`${TAG_SESSION} Session.user inicializado com id='${session.user.id}', provider='${session.user.provider}', role='${session.user.role}'`);
 
@@ -470,11 +497,11 @@ export const authOptions: NextAuthOptions = {
                                        .lean();
 
             if (dbUser && session.user) {
-              logger.debug(`${TAG_SESSION} Usuário encontrado no DB para sessão:`, dbUser._id);
+              logger.debug(`${TAG_SESSION} Usuário encontrado no DB para sessão: ${dbUser._id}`);
               session.user.name = dbUser.name ?? session.user.name;
               session.user.email = dbUser.email ?? session.user.email;
               session.user.image = dbUser.image ?? session.user.image;
-              session.user.role = dbUser.role ?? session.user.role;
+              session.user.role = dbUser.role ?? session.user.role; // Usa role do DB como prioridade
               session.user.planStatus = dbUser.planStatus ?? 'inactive';
               session.user.planExpiresAt = dbUser.planExpiresAt instanceof Date ? dbUser.planExpiresAt.toISOString() : null;
               session.user.affiliateCode = dbUser.affiliateCode ?? undefined;
@@ -486,12 +513,24 @@ export const authOptions: NextAuthOptions = {
 
             } else {
                logger.error(`${TAG_SESSION} Usuário ${token.id} (ID válido) não encontrado no DB. Sessão pode estar incompleta.`);
-               delete session.user?.planStatus;
-               delete session.user?.instagramConnected;
-               // ... outros
+               // Limpa dados que dependem do DB se o usuário não for encontrado
+               if(session.user) {
+                   delete session.user.name;
+                   delete session.user.email;
+                   delete session.user.image;
+                   // Mantém id, provider, role do token se possível
+                   delete session.user.planStatus;
+                   delete session.user.planExpiresAt;
+                   delete session.user.affiliateCode;
+                   delete session.user.affiliateBalance;
+                   delete session.user.affiliateRank;
+                   delete session.user.affiliateInvites;
+                   delete session.user.instagramConnected;
+               }
             }
           } catch (error) {
             logger.error(`${TAG_SESSION} Erro ao buscar/processar dados do usuário na sessão:`, error);
+            // Limpa dados que dependem do DB em caso de erro
             if(session.user) {
                 delete session.user.planStatus;
                 delete session.user.instagramConnected;
@@ -500,6 +539,7 @@ export const authOptions: NextAuthOptions = {
           }
       } else {
           logger.error(`${TAG_SESSION} Erro: token.id ausente ou inválido ('${token.id}'). Retornando sessão vazia.`);
+          // Retorna uma sessão sem usuário definido
           return { ...session, user: undefined, expires: session.expires };
       }
 
