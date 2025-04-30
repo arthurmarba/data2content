@@ -1,4 +1,4 @@
-// @/app/models/User.ts - v1.6 (Adicionado facebookProviderAccountId)
+// @/app/models/User.ts - v1.7 (Adicionado Campos de Link Token)
 
 import { Schema, model, models, Document, Model, Types } from "mongoose";
 
@@ -13,11 +13,14 @@ export interface IUser extends Document {
   googleId?: string; // Mantido se necessário para referência específica
   provider?: string; // Provider do PRIMEIRO login ou o principal
   providerAccountId?: string; // ID da conta do provider principal
-  facebookProviderAccountId?: string; // <<< ADICIONADO AQUI >>> ID específico da conta do Facebook
+  facebookProviderAccountId?: string; // ID específico da conta do Facebook
   // --- CAMPOS ADICIONADOS PARA INTEGRAÇÃO INSTAGRAM ---
   instagramAccessToken?: string;
   instagramAccountId?: string;
   isInstagramConnected?: boolean;
+  // --- CAMPOS ADICIONADOS PARA VINCULAÇÃO TEMPORÁRIA --- // <<< ADICIONADOS AQUI >>>
+  linkToken?: string;
+  linkTokenExpiresAt?: Date;
   // ---------------------------------------------------
   role: string;
   planStatus?: string;
@@ -67,11 +70,14 @@ const userSchema = new Schema<IUser>(
     googleId: { type: String },
     provider: { type: String, index: true }, // Provider do primeiro login
     providerAccountId: { type: String, index: true }, // ID do provider principal
-    facebookProviderAccountId: { type: String, index: true, sparse: true }, // <<< ADICIONADO AQUI >>> ID do Facebook
+    facebookProviderAccountId: { type: String, index: true, sparse: true }, // ID do Facebook
     // --- CAMPOS ADICIONADOS PARA INTEGRAÇÃO INSTAGRAM ---
     instagramAccessToken: { type: String },
     instagramAccountId: { type: String, index: true },
     isInstagramConnected: { type: Boolean, default: false },
+    // --- CAMPOS ADICIONADOS PARA VINCULAÇÃO TEMPORÁRIA --- // <<< ADICIONADOS AQUI >>>
+    linkToken: { type: String, index: true, sparse: true }, // Token temporário para vincular contas
+    linkTokenExpiresAt: { type: Date }, // Data de expiração do linkToken
     // ---------------------------------------------------
     role: { type: String, default: "user" },
     planStatus: { type: String, default: "inactive" },
@@ -109,8 +115,11 @@ userSchema.pre<IUser>("save", function (next) {
   if (this.isNew && !this.affiliateCode) {
     this.affiliateCode = generateAffiliateCode();
   }
-  if (this.isInstagramConnected === undefined) {
+  // Garante que isInstagramConnected reflita o estado de instagramAccountId se não definido
+  if (this.isInstagramConnected === undefined && this.instagramAccountId !== undefined) {
       this.isInstagramConnected = !!this.instagramAccountId;
+  } else if (this.isInstagramConnected === undefined) {
+      this.isInstagramConnected = false; // Garante um valor padrão se instagramAccountId também for undefined
   }
   next();
 });
@@ -121,4 +130,3 @@ userSchema.pre<IUser>("save", function (next) {
 const UserModel: Model<IUser> = models.User || model<IUser>("User", userSchema);
 
 export default UserModel;
-
