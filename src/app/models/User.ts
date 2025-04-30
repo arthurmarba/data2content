@@ -1,27 +1,41 @@
-// @/app/models/User.ts - v1.7 (Adicionado Campos de Link Token)
+// @/app/models/User.ts - v1.8 (Adicionado Campos API e Link Token)
 
 import { Schema, model, models, Document, Model, Types } from "mongoose";
 
 /**
  * Interface que descreve um documento de usuário.
+ * ATUALIZADO v1.8: Adicionados campos básicos da API do Instagram.
  */
 export interface IUser extends Document {
   _id: Types.ObjectId;
   name?: string;
-  email: string; // Email principal (pode ser do Google ou do primeiro login)
+  email: string;
   image?: string;
-  googleId?: string; // Mantido se necessário para referência específica
-  provider?: string; // Provider do PRIMEIRO login ou o principal
-  providerAccountId?: string; // ID da conta do provider principal
-  facebookProviderAccountId?: string; // ID específico da conta do Facebook
-  // --- CAMPOS ADICIONADOS PARA INTEGRAÇÃO INSTAGRAM ---
+  googleId?: string;
+  provider?: string;
+  providerAccountId?: string;
+  facebookProviderAccountId?: string;
+
+  // --- CAMPOS DA INTEGRAÇÃO INSTAGRAM ---
   instagramAccessToken?: string;
   instagramAccountId?: string;
   isInstagramConnected?: boolean;
-  // --- CAMPOS ADICIONADOS PARA VINCULAÇÃO TEMPORÁRIA --- // <<< ADICIONADOS AQUI >>>
+  // Campos básicos da conta IG (obtidos via API)
+  username?: string;          // <<< ADICIONADO v1.8 >>>
+  biography?: string;         // <<< ADICIONADO v1.8 >>>
+  website?: string;           // <<< ADICIONADO v1.8 >>>
+  profile_picture_url?: string; // <<< ADICIONADO v1.8 >>>
+  followers_count?: number;   // <<< ADICIONADO v1.8 >>>
+  follows_count?: number;     // <<< ADICIONADO v1.8 >>>
+  media_count?: number;       // <<< ADICIONADO v1.8 >>>
+  is_published?: boolean;     // <<< ADICIONADO v1.8 >>>
+  shopping_product_tag_eligibility?: boolean; // <<< ADICIONADO v1.8 >>>
+
+  // --- CAMPOS DE VINCULAÇÃO TEMPORÁRIA ---
   linkToken?: string;
   linkTokenExpiresAt?: Date;
-  // ---------------------------------------------------
+
+  // --- Outros Campos ---
   role: string;
   planStatus?: string;
   planExpiresAt?: Date | null;
@@ -55,6 +69,7 @@ function generateAffiliateCode(): string {
 
 /**
  * Definição do Schema para o User
+ * ATUALIZADO v1.8: Adicionados campos básicos da API no Schema (opcionalmente).
  */
 const userSchema = new Schema<IUser>(
   {
@@ -68,17 +83,30 @@ const userSchema = new Schema<IUser>(
     },
     image: { type: String },
     googleId: { type: String },
-    provider: { type: String, index: true }, // Provider do primeiro login
-    providerAccountId: { type: String, index: true }, // ID do provider principal
-    facebookProviderAccountId: { type: String, index: true, sparse: true }, // ID do Facebook
-    // --- CAMPOS ADICIONADOS PARA INTEGRAÇÃO INSTAGRAM ---
+    provider: { type: String, index: true },
+    providerAccountId: { type: String, index: true },
+    facebookProviderAccountId: { type: String, index: true, sparse: true },
+
+    // --- CAMPOS DA INTEGRAÇÃO INSTAGRAM ---
     instagramAccessToken: { type: String },
     instagramAccountId: { type: String, index: true },
     isInstagramConnected: { type: Boolean, default: false },
-    // --- CAMPOS ADICIONADOS PARA VINCULAÇÃO TEMPORÁRIA --- // <<< ADICIONADOS AQUI >>>
-    linkToken: { type: String, index: true, sparse: true }, // Token temporário para vincular contas
-    linkTokenExpiresAt: { type: Date }, // Data de expiração do linkToken
-    // ---------------------------------------------------
+    // Campos básicos da conta IG (opcional adicionar ao schema se quiser salvar)
+    username: { type: String, sparse: true }, // <<< ADICIONADO v1.8 (Opcional no Schema) >>>
+    biography: { type: String },              // <<< ADICIONADO v1.8 (Opcional no Schema) >>>
+    website: { type: String },                // <<< ADICIONADO v1.8 (Opcional no Schema) >>>
+    profile_picture_url: { type: String },    // <<< ADICIONADO v1.8 (Opcional no Schema) >>>
+    followers_count: { type: Number },        // <<< ADICIONADO v1.8 (Opcional no Schema) >>>
+    follows_count: { type: Number },          // <<< ADICIONADO v1.8 (Opcional no Schema) >>>
+    media_count: { type: Number },            // <<< ADICIONADO v1.8 (Opcional no Schema) >>>
+    is_published: { type: Boolean },          // <<< ADICIONADO v1.8 (Opcional no Schema) >>>
+    shopping_product_tag_eligibility: { type: Boolean }, // <<< ADICIONADO v1.8 (Opcional no Schema) >>>
+
+    // --- CAMPOS DE VINCULAÇÃO TEMPORÁRIA ---
+    linkToken: { type: String, index: true, sparse: true },
+    linkTokenExpiresAt: { type: Date },
+
+    // --- Outros Campos ---
     role: { type: String, default: "user" },
     planStatus: { type: String, default: "inactive" },
     planExpiresAt: { type: Date, default: null },
@@ -87,24 +115,21 @@ const userSchema = new Schema<IUser>(
     whatsappVerified: { type: Boolean, default: false },
     profileTone: { type: String, default: 'informal e prestativo' },
     hobbies: { type: [String], default: [] },
-    // Campos de Afiliado
     affiliateRank: { type: Number, default: 1 },
     affiliateInvites: { type: Number, default: 0 },
     affiliateCode: { type: String, unique: true, sparse: true },
     affiliateUsed: { type: String, default: null },
     affiliateBalance: { type: Number, default: 0 },
-    // Dados de Pagamento do Afiliado
     paymentInfo: {
       pixKey: { type: String, default: "" },
       bankName: { type: String, default: "" },
       bankAgency: { type: String, default: "" },
       bankAccount: { type: String, default: "" },
     },
-    // Controle de Webhook
     lastProcessedPaymentId: { type: String, default: null, index: true },
   },
   {
-    timestamps: true,
+    timestamps: true, // Adiciona createdAt e updatedAt automaticamente
   }
 );
 
@@ -119,7 +144,7 @@ userSchema.pre<IUser>("save", function (next) {
   if (this.isInstagramConnected === undefined && this.instagramAccountId !== undefined) {
       this.isInstagramConnected = !!this.instagramAccountId;
   } else if (this.isInstagramConnected === undefined) {
-      this.isInstagramConnected = false; // Garante um valor padrão se instagramAccountId também for undefined
+      this.isInstagramConnected = false;
   }
   next();
 });
@@ -130,3 +155,4 @@ userSchema.pre<IUser>("save", function (next) {
 const UserModel: Model<IUser> = models.User || model<IUser>("User", userSchema);
 
 export default UserModel;
+

@@ -1,24 +1,27 @@
 // src/app/dashboard/InstagramConnectCard.tsx
 "use client";
 
-import React, { useEffect, useState } from 'react'; // Importa useState
-import { useSession, signIn, signOut } from 'next-auth/react';
+import React, { useEffect, useState } from 'react';
+import { useSession, signIn } from 'next-auth/react';
 import { FaFacebook, FaInstagram, FaSpinner, FaUnlink, FaExclamationCircle, FaCheckCircle } from 'react-icons/fa';
 import { motion } from "framer-motion";
-import { logger } from '@/app/lib/logger'; // Importa o logger (se configurado no frontend)
+// Removido import do logger, usar console.log no frontend
+// import { logger } from '@/app/lib/logger';
 
 interface InstagramConnectCardProps {
     // Props futuras, se necessário
 }
 
 const InstagramConnectCard: React.FC<InstagramConnectCardProps> = () => {
-    const { data: session, status, update } = useSession(); // Adiciona update para forçar recarga da sessão
-    const [isLinking, setIsLinking] = useState(false); // Estado para carregamento da API de link
-    const [linkError, setLinkError] = useState<string | null>(null); // Estado para erro da API de link
+    // Hooks de estado e sessão
+    const { data: session, status, update } = useSession(); // update é crucial para recarregar a sessão
+    const [isLinking, setIsLinking] = useState(false); // Estado para carregamento da API de link (Conectar)
+    const [linkError, setLinkError] = useState<string | null>(null); // Estado para erro da API de link (Conectar)
+    const [isDisconnecting, setIsDisconnecting] = useState(false); // <<< NOVO >>> Estado para carregamento (Desconectar)
+    const [disconnectError, setDisconnectError] = useState<string | null>(null); // <<< NOVO >>> Estado para erro (Desconectar)
 
-    // --- LOGS PARA DEPURAÇÃO ---
+    // Logs de depuração no console do navegador
     useEffect(() => {
-        // Usando console.log pois logger pode não estar configurado no client-side
         console.log("[InstagramConnectCard] Status da Sessão:", status);
         if (status === 'authenticated') {
             console.log("[InstagramConnectCard] Objeto Session:", JSON.stringify(session, null, 2));
@@ -26,86 +29,101 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = () => {
             console.log("[InstagramConnectCard] Session User Instagram Connected:", session?.user?.instagramConnected);
         }
     }, [status, session]);
-    // -------------------------------------
 
+    // Variáveis de estado da sessão e conexão
     const isLoadingSession = status === 'loading';
-    // Renderiza se autenticado (não importa mais se é Google ou não, a API de link verifica)
     const isAuthenticated = status === 'authenticated';
-
     const isInstagramConnected = session?.user?.instagramConnected ?? false;
 
-    // Log da condição de renderização
-    console.log(`[InstagramConnectCard] Render Check: isLoadingSession=${isLoadingSession}, isAuthenticated=${isAuthenticated}`);
+    console.log(`[InstagramConnectCard] Render Check: isLoadingSession=${isLoadingSession}, isAuthenticated=${isAuthenticated}, isInstagramConnected=${isInstagramConnected}`);
 
-    // Função para iniciar a vinculação
+    // Função para iniciar a vinculação (Conectar)
     const handleConnectInstagram = async () => {
         setIsLinking(true);
         setLinkError(null);
+        setDisconnectError(null); // Limpa erro de desconexão anterior
         console.log("[InstagramConnectCard] Iniciando processo de vinculação...");
 
         try {
-            // 1. Chama a API para gerar o token de link e o cookie
             console.log("[InstagramConnectCard] Chamando POST /api/auth/iniciar-vinculacao-fb...");
             const response = await fetch('/api/auth/iniciar-vinculacao-fb', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json', // Mesmo sem corpo, é boa prática
-                },
+                headers: { 'Content-Type': 'application/json' },
             });
 
-            console.log("[InstagramConnectCard] Resposta da API:", response.status, response.statusText);
+            console.log("[InstagramConnectCard] Resposta da API de iniciar vinculação:", response.status, response.statusText);
 
             if (!response.ok) {
-                // Tenta pegar mensagem de erro do corpo da resposta
                 let errorMessage = 'Falha ao iniciar a vinculação.';
                 try {
                     const errorData = await response.json();
                     errorMessage = errorData.message || errorMessage;
-                } catch (parseError) {
-                    // Ignora erro de parsing se não for JSON
-                }
+                } catch (parseError) { /* Ignora erro de parsing */ }
                 throw new Error(errorMessage);
             }
 
-            // 2. Se a API foi sucesso, inicia o fluxo OAuth do Facebook
             console.log("[InstagramConnectCard] API de vinculação OK. Iniciando signIn('facebook')...");
-            signIn('facebook', {
-                // Redireciona de volta para o dashboard após o fluxo do Facebook
-                // Isso ajuda a garantir que a sessão seja atualizada corretamente
-                callbackUrl: '/dashboard?linked=true' // Adiciona um parâmetro para possível feedback
-            });
-            // Não definimos isLinking como false aqui, pois a página será recarregada
+            signIn('facebook', { callbackUrl: '/dashboard?linked=true' });
 
         } catch (error: any) {
             console.error("[InstagramConnectCard] Erro ao conectar Instagram:", error);
             setLinkError(error.message || 'Ocorreu um erro inesperado.');
-            setIsLinking(false); // Define como false em caso de erro
+            setIsLinking(false);
         }
-        // Não precisamos do finally setIsLinking(false) porque o signIn recarrega a página
     };
 
-    // Função para desconectar (placeholder)
+    // <<< FUNÇÃO ATUALIZADA >>> Função para desconectar Instagram
     const handleDisconnectInstagram = async () => {
-        alert("Funcionalidade de desconectar Instagram ainda não implementada.");
-        // Lógica futura:
-        // 1. Chamar uma API de backend para:
-        //    - Limpar facebookProviderAccountId, instagramAccessToken, instagramAccountId no DB
-        //    - Definir isInstagramConnected = false
-        // 2. Chamar update() do useSession para forçar a atualização da sessão no frontend
+        setIsDisconnecting(true);
+        setDisconnectError(null);
+        setLinkError(null); // Limpa erro de conexão anterior
+        console.log("[InstagramConnectCard] Iniciando processo de desconexão...");
+
+        try {
+            console.log("[InstagramConnectCard] Chamando POST /api/instagram/disconnect...");
+            const response = await fetch('/api/instagram/disconnect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+
+            console.log("[InstagramConnectCard] Resposta da API de desconexão:", response.status, response.statusText);
+
+            if (!response.ok) {
+                let errorMessage = 'Falha ao desconectar.';
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.message || errorData.error || errorMessage; // Tenta pegar 'error' também
+                } catch (parseError) { /* Ignora erro de parsing */ }
+                throw new Error(errorMessage);
+            }
+
+            // Se a API foi sucesso (limpou no backend), força a atualização da sessão no frontend
+            console.log("[InstagramConnectCard] API de desconexão OK. Atualizando sessão...");
+            await update(); // Força o useSession a buscar os dados atualizados
+            console.log("[InstagramConnectCard] Sessão atualizada após desconexão.");
+
+
+        } catch (error: any) {
+            console.error("[InstagramConnectCard] Erro ao desconectar Instagram:", error);
+            setDisconnectError(error.message || 'Ocorreu um erro inesperado ao desconectar.');
+        } finally {
+            setIsDisconnecting(false); // Garante que o estado de loading termine
+        }
     };
 
+    // Variantes de animação (mantidas)
     const cardVariants = {
         hidden: { opacity: 0, y: 15 },
         visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
     };
 
-    // Condição de renderização: Só mostra se estiver autenticado
+    // Condição de renderização principal
     if (isLoadingSession || !isAuthenticated) {
         console.log("[InstagramConnectCard] Não renderizando o card (sessão carregando ou não autenticada).");
-        return null; // Não mostra nada se estiver carregando ou não logado
+        return null;
     }
 
-    // Se passou pela condição, renderiza o card
+    // Renderização do Card
     console.log("[InstagramConnectCard] Renderizando o card.");
     return (
         <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={1.5}>
@@ -126,29 +144,39 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = () => {
                     {/* Botão e Status */}
                     <div className="flex-shrink-0 w-full sm:w-auto mt-4 sm:mt-0">
                         {isInstagramConnected ? (
-                            // Estado Conectado
+                            // --- Estado Conectado ---
                             <div className="flex flex-col sm:items-end items-center gap-2">
                                 <span className="flex items-center gap-1.5 text-sm text-green-600 font-medium bg-green-50 px-3 py-1 rounded-full border border-green-200 whitespace-nowrap">
                                     <FaCheckCircle />
                                     Instagram Conectado
                                 </span>
-                                {/* Botão Desconectar (ainda desabilitado) */}
+                                {/* <<< BOTÃO DESCONECTAR ATUALIZADO >>> */}
                                 <button
                                     onClick={handleDisconnectInstagram}
+                                    disabled={isDisconnecting} // Desabilita durante a ação
                                     title="Desconectar conta Instagram"
-                                    className="px-3 py-1 bg-red-100 text-red-600 text-xs font-medium rounded hover:bg-red-200 border border-red-200 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    disabled // MANTIDO DESABILITADO POR ENQUANTO
+                                    className="px-3 py-1 bg-red-100 text-red-600 text-xs font-medium rounded hover:bg-red-200 border border-red-200 flex items-center justify-center gap-1 disabled:opacity-70 disabled:cursor-wait"
                                 >
-                                    <FaUnlink className="w-3 h-3" />
-                                    Desconectar
+                                    {isDisconnecting ? (
+                                        <FaSpinner className="animate-spin w-3 h-3" />
+                                    ) : (
+                                        <FaUnlink className="w-3 h-3" />
+                                    )}
+                                    {isDisconnecting ? 'Desconectando...' : 'Desconectar'}
                                 </button>
+                                {disconnectError && (
+                                     <p className="text-xs text-red-600 mt-1 flex items-center gap-1 text-right">
+                                         <FaExclamationCircle />
+                                         {disconnectError}
+                                     </p>
+                                )}
                             </div>
                         ) : (
-                            // Estado Desconectado
+                            // --- Estado Desconectado ---
                             <div className="flex flex-col items-center sm:items-end w-full sm:w-auto">
                                 <button
                                     onClick={handleConnectInstagram}
-                                    disabled={isLinking} // Desabilita durante a chamada da API
+                                    disabled={isLinking}
                                     className="w-full sm:w-auto px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center justify-center gap-2 transition duration-150 ease-in-out disabled:opacity-70 disabled:cursor-wait"
                                 >
                                     {isLinking ? (

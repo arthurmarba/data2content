@@ -1,9 +1,10 @@
-// @/app/lib/aiFunctions.ts – v0.5.4-FC (Mapeamento Branding)
+// @/app/lib/aiFunctions.ts – v0.5.4-FC (Mapeamento Branding - Correção Modelo)
 import { Types } from 'mongoose';
 import { logger } from '@/app/lib/logger';
 
 import { DailyMetric, IDailyMetric } from '@/app/models/DailyMetric';
-import { Metric, IMetric } from '@/app/models/Metric';
+// <<< Importação CORRIGIDA >>>
+import MetricModel, { IMetric } from '@/app/models/Metric';
 import { IUser } from '@/app/models/User';
 
 import {
@@ -11,11 +12,11 @@ import {
 } from './dataService';
 
 // Imports dos arquivos de conhecimento
-import * as PricingKnowledge from './knowledge/pricingKnowledge'; // Ajuste o caminho se necessário
-import * as AlgorithmKnowledge from './knowledge/algorithmKnowledge'; // Ajuste o caminho se necessário
-import * as MetricsKnowledge from './knowledge/metricsKnowledge'; // Ajuste o caminho se necessário
-import * as BrandingKnowledge from './knowledge/personalBrandingKnowledge'; // Ajuste o caminho se necessário
-import * as MethodologyKnowledge from './knowledge/methodologyDeepDive'; // Ajuste o caminho se necessário
+import * as PricingKnowledge from './knowledge/pricingKnowledge';
+import * as AlgorithmKnowledge from './knowledge/algorithmKnowledge';
+import * as MetricsKnowledge from './knowledge/metricsKnowledge';
+import * as BrandingKnowledge from './knowledge/personalBrandingKnowledge';
+import * as MethodologyKnowledge from './knowledge/methodologyDeepDive';
 
 
 /* ------------------------------------------------------------------ *
@@ -55,7 +56,6 @@ export const functionSchemas = [
             topic: {
                 type: 'string',
                 description: 'O tópico específico sobre o qual buscar conhecimento ou explicação.',
-                // --- ENUM ATUALIZADO com tópicos de branding ---
                 enum: [
                     // Algoritmo
                     'algorithm_overview', 'algorithm_feed', 'algorithm_stories', 'algorithm_reels',
@@ -68,16 +68,15 @@ export const functionSchemas = [
                     'metrics_analysis', 'metrics_retention_rate',
                     'metrics_avg_watch_time', 'metrics_reach_ratio',
                     // Branding
-                    'personal_branding_principles', // <-- Mantido para princípios gerais
-                    'branding_aesthetics', // <-- NOVO
-                    'branding_positioning_by_size', // <-- NOVO
-                    'branding_monetization', // <-- NOVO
-                    'branding_case_studies', // <-- NOVO
-                    'branding_trends', // <-- NOVO
+                    'personal_branding_principles',
+                    'branding_aesthetics',
+                    'branding_positioning_by_size',
+                    'branding_monetization',
+                    'branding_case_studies',
+                    'branding_trends',
                     // Metodologia
                     'methodology_shares_retention', 'methodology_format_proficiency', 'methodology_cadence_quality',
                 ]
-                // --- FIM ATUALIZAÇÃO ---
             }
         },
         required: ['topic']
@@ -100,7 +99,8 @@ const getAggregatedReport: ExecutorFn = async (_args, loggedUser) => {
     const { enrichedReport } = await fetchAndPrepareReportData({
       user: loggedUser,
       dailyMetricModel: DailyMetric,
-      contentMetricModel: Metric
+      // <<< CORRIGIDO: Usa MetricModel >>>
+      contentMetricModel: MetricModel
     });
     logger.info(`${fnTag} Relatório agregado gerado com sucesso.`);
     return enrichedReport;
@@ -117,33 +117,45 @@ const getTopPosts: ExecutorFn = async (args, loggedUser) => {
     const userId = new Types.ObjectId(loggedUser._id);
     const { metric = 'shares', limit = 3 } = args;
     logger.info(`${fnTag} Executando para user ${userId}. Métrica: ${metric}, Limite: ${limit}`);
-    const sortField = metric === 'saves' ? 'stats.salvamentos' : 'stats.compartilhamentos';
+
+    // <<< ATENÇÃO: Ajustar nomes dos campos se mudaram no schema Metric/DailyMetric >>>
+    // A lógica abaixo assume que DailyMetric ainda tem 'stats.salvamentos' e 'stats.compartilhamentos'
+    // Se esses campos mudaram para 'stats.saved' e 'stats.shares' no DailyMetric também, ajuste aqui.
+    const sortField = metric === 'saves' ? 'stats.salvamentos' : 'stats.compartilhamentos'; // <<< REVISAR NOMES >>>
+
     const dailyTop: IDailyMetric[] = await DailyMetric.find({ user: userId, postId: { $exists: true, $ne: null } })
-      .select('postId stats.' + (metric === 'saves' ? 'salvamentos' : 'compartilhamentos'))
+      .select(`postId stats.${metric === 'saves' ? 'salvamentos' : 'compartilhamentos'}`) // <<< REVISAR NOMES >>>
       .sort({ [sortField]: -1 })
       .limit(limit)
       .lean()
       .exec();
+
     const postIds = dailyTop.map(d => d.postId).filter((id): id is Types.ObjectId => !!id);
     if (postIds.length === 0) {
         logger.warn(`${fnTag} Nenhum post encontrado para o ranking.`);
         return { metric, limit, posts: [] };
     }
+    // <<< CORRIGIDO: Usa MetricModel >>>
     const postsData: Pick<IMetric, '_id' | 'description' | 'postLink'>[] =
-      await Metric.find({ _id: { $in: postIds } })
+      await MetricModel.find({ _id: { $in: postIds } })
                   .select('_id description postLink')
                   .lean()
                   .exec();
+
     const postsMap = new Map(postsData.map(p => [p._id.toString(), p]));
+
     const sortedPosts = dailyTop.map(dm => {
         const postDetail = dm.postId ? postsMap.get(dm.postId.toString()) : undefined;
+        // <<< REVISAR NOMES das métricas em dm.stats se necessário >>>
+        const metricValue = metric === 'saves' ? dm.stats?.salvamentos : dm.stats?.compartilhamentos;
         return {
             _id: dm.postId,
             description: postDetail?.description ?? 'Sem descrição',
             postLink: postDetail?.postLink,
-            metricValue: metric === 'saves' ? dm.stats?.salvamentos : dm.stats?.compartilhamentos
+            metricValue: metricValue
         };
     }).filter(p => p._id);
+
     logger.info(`${fnTag} Top ${sortedPosts.length} posts encontrados.`);
     return { metric, limit, posts: sortedPosts };
   } catch (err) {
@@ -160,9 +172,11 @@ const getDayPCOStats: ExecutorFn = async (_args, loggedUser) => {
     const { enrichedReport } = await fetchAndPrepareReportData({
       user: loggedUser,
       dailyMetricModel: DailyMetric,
-      contentMetricModel: Metric
+      // <<< CORRIGIDO: Usa MetricModel >>>
+      contentMetricModel: MetricModel
     });
     logger.info(`${fnTag} Dados Dia/P/C obtidos.`);
+    // Retorna apenas a parte relevante do relatório
     return enrichedReport.performanceByDayPCO ?? {};
   } catch (err) {
     logger.error(`${fnTag} Erro:`, err);
@@ -186,7 +200,7 @@ const getConsultingKnowledge: ExecutorFn = async (args, _loggedUser) => {
 
     try {
         let knowledge = '';
-        // --- SWITCH ATUALIZADO com novos cases de branding ---
+        // Switch para buscar conhecimento baseado no tópico
         switch (topic) {
             // Algoritmo
             case 'algorithm_overview': knowledge = AlgorithmKnowledge.getAlgorithmOverview(); break;
@@ -207,8 +221,6 @@ const getConsultingKnowledge: ExecutorFn = async (args, _loggedUser) => {
             case 'pricing_benchmarks_sector': knowledge = PricingKnowledge.getSectorBenchmarks(); break;
             case 'pricing_negotiation_contracts': knowledge = PricingKnowledge.getNegotiationStructureInfo(); break;
             case 'pricing_trends': knowledge = PricingKnowledge.getPricingTrends(); break;
-            // case 'pricing_strategies': knowledge = PricingKnowledge.getPricingStrategies(); break; // Mantido ou removido
-            // case 'negotiation_tips': knowledge = PricingKnowledge.getNegotiationTips(); break; // Mantido ou removido
 
             // Métricas
             case 'metrics_analysis': knowledge = MetricsKnowledge.getCoreMetricsAnalysis(); break;
@@ -218,19 +230,19 @@ const getConsultingKnowledge: ExecutorFn = async (args, _loggedUser) => {
 
             // Branding
             case 'personal_branding_principles': knowledge = BrandingKnowledge.getPersonalBrandingPrinciples(); break;
-            case 'branding_aesthetics': // <-- NOVO
+            case 'branding_aesthetics':
                 knowledge = BrandingKnowledge.explainAestheticsAndVisualStorytelling();
                 break;
-            case 'branding_positioning_by_size': // <-- NOVO
+            case 'branding_positioning_by_size':
                 knowledge = BrandingKnowledge.explainPositioningBySize();
                 break;
-            case 'branding_monetization': // <-- NOVO
+            case 'branding_monetization':
                 knowledge = BrandingKnowledge.explainImageAndMonetization();
                 break;
-            case 'branding_case_studies': // <-- NOVO
+            case 'branding_case_studies':
                 knowledge = BrandingKnowledge.getBrandingCaseStudies();
                 break;
-            case 'branding_trends': // <-- NOVO
+            case 'branding_trends':
                 knowledge = BrandingKnowledge.getEmergingBrandingTrends();
                 break;
 
@@ -244,7 +256,6 @@ const getConsultingKnowledge: ExecutorFn = async (args, _loggedUser) => {
                 const validTopics = functionSchemas.find(s => s.name === 'getConsultingKnowledge')?.parameters.properties.topic.enum ?? ['N/A'];
                 knowledge = `Desculpe, não encontrei informações específicas sobre "${topic}". Tópicos disponíveis: ${validTopics.join(', ')}.`;
         }
-        // --- FIM ATUALIZAÇÃO SWITCH ---
 
         logger.info(`${fnTag} Conhecimento sobre "${topic}" encontrado.`);
         return { knowledge: knowledge };
@@ -257,7 +268,7 @@ const getConsultingKnowledge: ExecutorFn = async (args, _loggedUser) => {
 
 
 /* ------------------------------------------------------------------ *
- * 3.  Mapa exportado (com a nova função)                             *
+ * 3.  Mapa exportado                                                 *
  * ------------------------------------------------------------------ */
 export const functionExecutors: Record<string, ExecutorFn> = {
   getAggregatedReport,

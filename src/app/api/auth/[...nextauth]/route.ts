@@ -1,4 +1,4 @@
-// src/app/api/auth/[...nextauth]/route.ts (Completo - HS256 + Vinculação v6.6 - Link Token - Correção de Tipo v6)
+// src/app/api/auth/[...nextauth]/route.ts (Completo - HS256 + Vinculação v6.7 - Coleta Inicial)
 import NextAuth from "next-auth";
 import type { NextAuthOptions, Session, User, Account } from "next-auth";
 import type { AdapterUser } from "next-auth/adapters";
@@ -12,6 +12,8 @@ import type { JWT, JWTEncodeParams, JWTDecodeParams } from "next-auth/jwt";
 import { SignJWT, jwtVerify } from "jose";
 import { logger } from "@/app/lib/logger";
 import { cookies } from 'next/headers'; // Importar cookies para ler/escrever
+// <<< Importar as funções do instagramService >>>
+import { triggerDataRefresh, getFacebookLongLivedTokenAndIgId } from "@/app/lib/instagramService"; // Garante que ambas estão importadas
 
 console.log("--- SERVER START --- NEXTAUTH_URL:", process.env.NEXTAUTH_URL);
 export const runtime = "nodejs";
@@ -64,95 +66,9 @@ async function customDecode({ token, secret }: JWTDecodeParams): Promise<JWT | n
 }
 
 
-// --- FUNÇÃO HELPER: Obter LLAT e ID do Instagram ---
-async function getFacebookLongLivedTokenAndIgId(
-    shortLivedToken: string,
-    userId: string
-): Promise<{ success: boolean; error?: string }> {
-    const TAG = '[getFacebookLongLivedTokenAndIgId]';
-    const FB_APP_ID = process.env.FACEBOOK_CLIENT_ID;
-    const FB_APP_SECRET = process.env.FACEBOOK_CLIENT_SECRET;
+// --- FUNÇÃO HELPER: Obter LLAT e ID do Instagram (Movida para instagramService.ts) ---
+// A função getFacebookLongLivedTokenAndIgId agora é importada de instagramService.ts
 
-    if (!FB_APP_ID || !FB_APP_SECRET) {
-        logger.error(`${TAG} Variáveis de ambiente FACEBOOK_CLIENT_ID ou FACEBOOK_CLIENT_SECRET não definidas.`);
-        return { success: false, error: 'Configuração do servidor incompleta.' };
-    }
-
-    try {
-        // 1. Trocar SLAT por LLAT
-        logger.debug(`${TAG} Trocando SLAT por LLAT para User ${userId}...`);
-        const llatResponse = await fetch(`https://graph.facebook.com/v19.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${FB_APP_ID}&client_secret=${FB_APP_SECRET}&fb_exchange_token=${shortLivedToken}`);
-        const llatData = await llatResponse.json();
-
-        if (!llatResponse.ok || !llatData.access_token) {
-            logger.error(`${TAG} Erro ao obter LLAT:`, llatData);
-            return { success: false, error: llatData.error?.message || 'Falha ao obter token de longa duração.' };
-        }
-        const longLivedToken = llatData.access_token;
-        logger.debug(`${TAG} LLAT obtido com sucesso para User ${userId}.`);
-
-        // 2. Buscar Páginas do Facebook
-        logger.debug(`${TAG} Buscando páginas do Facebook para User ${userId}...`);
-        const pagesResponse = await fetch(`https://graph.facebook.com/v19.0/me/accounts?access_token=${longLivedToken}`);
-        const pagesData = await pagesResponse.json();
-
-        if (!pagesResponse.ok || !pagesData.data) {
-            logger.error(`${TAG} Erro ao buscar páginas do Facebook:`, pagesData);
-            return { success: false, error: pagesData.error?.message || 'Falha ao buscar páginas do Facebook.' };
-        }
-        logger.debug(`${TAG} Encontradas ${pagesData.data.length} páginas.`);
-
-        // 3. Encontrar Conta Instagram
-        let instagramAccountId: string | null = null;
-        logger.debug(`${TAG} Procurando conta Instagram vinculada...`);
-        for (const page of pagesData.data) {
-            const pageId = page.id;
-            try {
-                const igResponse = await fetch(`https://graph.facebook.com/v19.0/${pageId}?fields=instagram_business_account&access_token=${longLivedToken}`);
-                const igData = await igResponse.json();
-                if (igResponse.ok && igData.instagram_business_account) {
-                    instagramAccountId = igData.instagram_business_account.id;
-                    logger.info(`${TAG} Conta Instagram encontrada para User ${userId}: ${instagramAccountId} (vinculada à Página FB ${pageId})`);
-                    break;
-                } else if (!igResponse.ok) {
-                     logger.warn(`${TAG} Erro ao buscar conta IG para a página ${pageId}:`, igData);
-                }
-            } catch (pageError) {
-                 logger.error(`${TAG} Erro de rede ou inesperado ao buscar conta IG para página ${pageId}:`, pageError);
-            }
-        }
-        if (!instagramAccountId) { logger.warn(`${TAG} Nenhuma conta IG encontrada.`); }
-
-        // 4. Salvar no DB
-        logger.debug(`${TAG} Atualizando usuário ${userId} no DB com LLAT e ID IG...`);
-        await connectToDatabase();
-        if (!Types.ObjectId.isValid(userId)) {
-             logger.error(`${TAG} ID de usuário inválido para atualização no DB: ${userId}`);
-             return { success: false, error: 'ID de usuário inválido.' };
-        }
-        const updateResult = await DbUser.findByIdAndUpdate(userId, {
-            $set: {
-               instagramAccessToken: longLivedToken,
-               instagramAccountId: instagramAccountId,
-               isInstagramConnected: !!instagramAccountId
-            }
-        }, { new: true });
-
-        if (!updateResult) {
-            logger.error(`${TAG} Usuário ${userId} não encontrado no DB para atualização.`);
-            return { success: false, error: 'Usuário não encontrado no banco de dados.' };
-         }
-
-        logger.info(`${TAG} Usuário ${userId} atualizado com sucesso com dados do Instagram.`);
-        return { success: true };
-
-    } catch (error: unknown) {
-        logger.error(`${TAG} Erro inesperado no processo:`, error);
-        const message = error instanceof Error ? error.message : String(error);
-        return { success: false, error: `Erro interno: ${message}` };
-     }
-}
-// --- FIM FUNÇÃO HELPER ---
 
 export const authOptions: NextAuthOptions = {
   useSecureCookies: process.env.NODE_ENV === "production",
@@ -347,14 +263,12 @@ export const authOptions: NextAuthOptions = {
         return false;
     },
 
-    // <<< CALLBACK JWT ATUALIZADO PARA USAR LINK TOKEN >>>
+    // <<< CALLBACK JWT ATUALIZADO PARA USAR LINK TOKEN E DISPARAR COLETA INICIAL >>>
     async jwt({ token, user, account, profile, trigger }: JwtCallback): Promise<JWT> {
         const TAG_JWT = '[NextAuth JWT Callback]';
         logger.debug(`${TAG_JWT} Iniciado. Trigger: ${trigger}. Account Provider: ${account?.provider}. UserID entrada: ${user?.id}. Token entrada ID: ${token?.id}`);
 
         const isSignInOrSignUp = trigger === 'signIn' || trigger === 'signUp';
-        // <<< CORREÇÃO AQUI vvv >>>
-        // Inicializa finalTokenData com a cópia do token e garante que 'id' seja string
         let finalTokenData: JWT = { ...token, id: typeof token?.id === 'string' ? token.id : '' };
 
         // 1. Evento de Login/Conexão Inicial
@@ -432,8 +346,26 @@ export const authOptions: NextAuthOptions = {
                             if (updateResult.modifiedCount > 0 || updateResult.matchedCount > 0) {
                                 logger.info(`${TAG_JWT} Conta Facebook vinculada com sucesso ao User ${userIdToUse}.`);
                                 if (account.access_token) {
-                                    getFacebookLongLivedTokenAndIgId(account.access_token, userIdToUse);
+                                    // Chama a busca de LLAT e ID IG (assíncrono)
+                                    getFacebookLongLivedTokenAndIgId(account.access_token, userIdToUse)
+                                        .then(result => {
+                                            if (result.success) {
+                                                logger.info(`${TAG_JWT} getFacebookLongLivedTokenAndIgId concluído com sucesso para ${userIdToUse}.`);
+                                                // <<< DISPARA A COLETA INICIAL DE DADOS EM SEGUNDO PLANO >>>
+                                                logger.info(`${TAG_JWT} Disparando coleta inicial de dados (triggerDataRefresh) para ${userIdToUse}...`);
+                                                triggerDataRefresh(userIdToUse).catch(err => {
+                                                     logger.error(`${TAG_JWT} Erro não capturado na coleta inicial (triggerDataRefresh) para ${userIdToUse}:`, err);
+                                                });
+                                                // ---------------------------------------------------------
+                                            } else {
+                                                 logger.error(`${TAG_JWT} Falha ao obter LLAT/IG ID para ${userIdToUse}: ${result.error}`);
+                                            }
+                                        })
+                                        .catch(err => {
+                                             logger.error(`${TAG_JWT} Erro não capturado em getFacebookLongLivedTokenAndIgId para ${userIdToUse}:`, err);
+                                        });
                                 }
+                                // Prepara token de retorno com dados do usuário original
                                 finalTokenData = {
                                     id: userIdToUse, provider: linkTokenUser.provider, role: linkTokenUser.role,
                                     name: linkTokenUser.name, email: linkTokenUser.email, image: linkTokenUser.image,
@@ -488,7 +420,10 @@ export const authOptions: NextAuthOptions = {
                             name: existingFbUser.name, email: existingFbUser.email, image: existingFbUser.image,
                         };
                         if (account.access_token) {
-                            getFacebookLongLivedTokenAndIgId(account.access_token, existingFbUser._id.toString());
+                            // Dispara busca de LLAT/ID IG, mas não a coleta completa de dados aqui
+                            getFacebookLongLivedTokenAndIgId(account.access_token, existingFbUser._id.toString()).catch(err => {
+                                 logger.error(`${TAG_JWT} Erro não capturado em getFacebookLongLivedTokenAndIgId (login normal FB) para ${existingFbUser?._id}:`, err);
+                            });
                         }
                     } else {
                         logger.info(`${TAG_JWT} Login normal Facebook: Criando novo usuário para FB ID ${account.providerAccountId}.`);
@@ -512,7 +447,16 @@ export const authOptions: NextAuthOptions = {
                                     name: savedUser.name, email: savedUser.email, image: savedUser.image,
                                 };
                                 if (account.access_token) {
-                                    getFacebookLongLivedTokenAndIgId(account.access_token, savedUser._id.toString());
+                                    // Dispara busca de LLAT/ID IG para o novo usuário
+                                    getFacebookLongLivedTokenAndIgId(account.access_token, savedUser._id.toString()).catch(err => {
+                                         logger.error(`${TAG_JWT} Erro não capturado em getFacebookLongLivedTokenAndIgId (novo usuário FB) para ${savedUser._id}:`, err);
+                                    });
+                                    // <<< DISPARA A COLETA INICIAL DE DADOS PARA NOVO USUÁRIO FB >>>
+                                    logger.info(`${TAG_JWT} Disparando coleta inicial de dados (triggerDataRefresh) para NOVO usuário FB ${savedUser._id}...`);
+                                    triggerDataRefresh(savedUser._id.toString()).catch(err => {
+                                         logger.error(`${TAG_JWT} Erro não capturado na coleta inicial (triggerDataRefresh) para NOVO usuário FB ${savedUser._id}:`, err);
+                                    });
+                                    // ---------------------------------------------------------
                                 }
                             } catch (dbError: any) {
                                 if (dbError.code === 11000 && dbError.keyPattern?.email) {
@@ -543,12 +487,12 @@ export const authOptions: NextAuthOptions = {
                         await connectToDatabase();
                         const dbUser = await DbUser.findById(finalTokenData.id).select('role').lean();
                         if (dbUser) { finalTokenData.role = dbUser.role; }
-                        else { logger.warn(`${TAG_JWT} Usuário ${finalTokenData.id} não encontrado no DB ao buscar role (Google/Credentials).`); finalTokenData.role = undefined; } // Define role como undefined
-                    } catch (error) { logger.error(`${TAG_JWT} Erro ao buscar role (Google/Credentials):`, error); finalTokenData.role = undefined; } // Define role como undefined
+                        else { logger.warn(`${TAG_JWT} Usuário ${finalTokenData.id} não encontrado no DB ao buscar role (Google/Credentials).`); finalTokenData.role = undefined; }
+                    } catch (error) { logger.error(`${TAG_JWT} Erro ao buscar role (Google/Credentials):`, error); finalTokenData.role = undefined; }
                 } else {
                      logger.error(`${TAG_JWT} ID do usuário inválido ou ausente para ${account.provider}: '${user?.id}'.`);
-                     finalTokenData.id = ''; // Define id como string vazia em caso de erro
-                     finalTokenData.role = undefined; // Garante que role seja undefined
+                     finalTokenData.id = '';
+                     finalTokenData.role = undefined;
                 }
             }
         }
@@ -556,25 +500,23 @@ export const authOptions: NextAuthOptions = {
         // Fallback para atualizações de sessão, etc.
         if (!finalTokenData.id && token.id && Types.ObjectId.isValid(token.id as string)) {
             logger.warn(`${TAG_JWT} ID final ausente (não signIn/signUp?), recuperando do token original recebido: ${token.id}`);
-            finalTokenData = { ...token }; // Restaura o token original
+            finalTokenData = { ...token };
         }
 
         // Busca final de role se necessário e ID for válido
         const finalUserId = finalTokenData.id;
-        // Verifica se finalUserId é uma string ObjectId válida antes de buscar role
         if (finalUserId && typeof finalUserId === 'string' && Types.ObjectId.isValid(finalUserId) && !finalTokenData.role) {
              logger.debug(`${TAG_JWT} Buscando role final para User ${finalUserId} (role estava ausente).`);
              try {
                 await connectToDatabase();
                 const dbUser = await DbUser.findById(finalUserId).select('role').lean();
                 if (dbUser) { finalTokenData.role = dbUser.role; logger.debug(`${TAG_JWT} Role final '${finalTokenData.role}' definida.`); }
-                else { logger.warn(`${TAG_JWT} Usuário ${finalUserId} não encontrado no DB na busca final de role.`); finalTokenData.role = undefined; } // Define role como undefined
+                else { logger.warn(`${TAG_JWT} Usuário ${finalUserId} não encontrado no DB na busca final de role.`); finalTokenData.role = undefined; }
              } catch (error) {
                  logger.error(`${TAG_JWT} Erro na busca final de role para User ${finalUserId}:`, error);
-                 finalTokenData.role = undefined; // Define role como undefined
+                 finalTokenData.role = undefined;
              }
         } else if (!finalUserId || !Types.ObjectId.isValid(finalUserId as string)) {
-             // Se o ID final não for um ObjectId válido (incluindo string vazia), garante que a role seja undefined
              logger.debug(`${TAG_JWT} ID final inválido ou vazio ('${finalUserId}'), garantindo que role seja undefined.`);
              finalTokenData.role = undefined;
         }
@@ -583,8 +525,7 @@ export const authOptions: NextAuthOptions = {
         if (finalTokenData.id && typeof finalTokenData.id === 'string' && finalTokenData.id !== '') {
             finalTokenData.sub = finalTokenData.id;
         } else {
-             // Se id for inválido ou vazio, remove sub ou define como undefined
-             delete finalTokenData.sub; // Ou finalTokenData.sub = undefined;
+             delete finalTokenData.sub;
         }
 
 
@@ -602,7 +543,6 @@ export const authOptions: NextAuthOptions = {
       logger.debug(`${TAG_SESSION} Iniciado. Token recebido:`, JSON.stringify(token));
 
       // Popula a sessão APENAS se o token contiver um ID válido do nosso DB
-      // Verifica também se token.id não é uma string vazia
       if (token.id && typeof token.id === 'string' && token.id !== '' && Types.ObjectId.isValid(token.id)) {
           session.user = {
               id: token.id as string,
@@ -610,7 +550,7 @@ export const authOptions: NextAuthOptions = {
               email: token.email as string | undefined,
               image: token.image as string | undefined,
               provider: typeof token.provider === 'string' ? token.provider : undefined,
-              role: typeof token.role === 'string' ? token.role : 'user', // Default 'user'
+              role: typeof token.role === 'string' ? token.role : 'user',
           };
           logger.debug(`${TAG_SESSION} Session.user inicializado com id='${session.user.id}', provider='${session.user.provider}', role='${session.user.role}'`);
 
