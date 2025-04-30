@@ -1,4 +1,4 @@
-// src/app/api/auth/[...nextauth]/route.ts (Completo - HS256 + Vinculação v6.7 - Coleta Inicial)
+// src/app/api/auth/[...nextauth]/route.ts (v6.8 - Correção Imagem Vinculação)
 import NextAuth from "next-auth";
 import type { NextAuthOptions, Session, User, Account } from "next-auth";
 import type { AdapterUser } from "next-auth/adapters";
@@ -11,9 +11,8 @@ import { Types } from "mongoose";
 import type { JWT, JWTEncodeParams, JWTDecodeParams } from "next-auth/jwt";
 import { SignJWT, jwtVerify } from "jose";
 import { logger } from "@/app/lib/logger";
-import { cookies } from 'next/headers'; // Importar cookies para ler/escrever
-// <<< Importar as funções do instagramService >>>
-import { triggerDataRefresh, getFacebookLongLivedTokenAndIgId } from "@/app/lib/instagramService"; // Garante que ambas estão importadas
+import { cookies } from 'next/headers';
+import { triggerDataRefresh, getFacebookLongLivedTokenAndIgId } from "@/app/lib/instagramService";
 
 console.log("--- SERVER START --- NEXTAUTH_URL:", process.env.NEXTAUTH_URL);
 export const runtime = "nodejs";
@@ -28,7 +27,6 @@ async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise
     if (!secret) throw new Error("NEXTAUTH_SECRET ausente em customEncode");
     const secretString = typeof secret === "string" ? secret : String(secret);
     const expirationTime = Math.floor(Date.now() / 1000) + (maxAge ?? 30 * 24 * 60 * 60);
-    // Garante que o token a ser codificado não tenha valores undefined que causem erro na serialização
     const cleanToken = Object.entries(token ?? {}).reduce((acc, [key, value]) => {
         if (value !== undefined) {
             acc[key] = value;
@@ -54,9 +52,8 @@ async function customDecode({ token, secret }: JWTDecodeParams): Promise<JWT | n
         const { payload } = await jwtVerify(token, new TextEncoder().encode(secretString), {
             algorithms: ["HS256"],
         });
-        // Garante que o payload retornado está em conformidade com JWT, especialmente 'id'
         if (payload && typeof payload.id !== 'string') {
-             payload.id = ''; // Define como string vazia se não for string
+             payload.id = '';
         }
         return payload as JWT;
     } catch (err) {
@@ -66,14 +63,9 @@ async function customDecode({ token, secret }: JWTDecodeParams): Promise<JWT | n
 }
 
 
-// --- FUNÇÃO HELPER: Obter LLAT e ID do Instagram (Movida para instagramService.ts) ---
-// A função getFacebookLongLivedTokenAndIgId agora é importada de instagramService.ts
-
-
 export const authOptions: NextAuthOptions = {
   useSecureCookies: process.env.NODE_ENV === "production",
   cookies: {
-    // Configuração dos cookies principais de sessão, callback, csrf
     sessionToken: {
       name: process.env.NODE_ENV === 'production' ? "__Secure-next-auth.session-token" : "next-auth.session-token",
       options: { httpOnly: true, sameSite: "lax", path: "/", domain: process.env.NODE_ENV === 'production' ? process.env.NEXTAUTH_COOKIE_DOMAIN : undefined, secure: process.env.NODE_ENV === "production" },
@@ -86,7 +78,6 @@ export const authOptions: NextAuthOptions = {
       name: process.env.NODE_ENV === 'production' ? "__Host-next-auth.csrf-token" : "next-auth.csrf-token",
       options: { httpOnly: true, sameSite: "lax", path: "/", domain: process.env.NODE_ENV === 'production' ? process.env.NEXTAUTH_COOKIE_DOMAIN : undefined, secure: process.env.NODE_ENV === "production" },
     },
-    // A manipulação do cookie 'auth-link-token' é feita manualmente
   },
   providers: [
     GoogleProvider({
@@ -101,6 +92,7 @@ export const authOptions: NextAuthOptions = {
     FacebookProvider({
       clientId: process.env.FACEBOOK_CLIENT_ID!,
       clientSecret: process.env.FACEBOOK_CLIENT_SECRET!,
+      // Solicita permissões para perfil, email, páginas e insights do Instagram
       authorization: {
         params: {
           scope: [
@@ -110,6 +102,8 @@ export const authOptions: NextAuthOptions = {
           ].join(','),
         },
       },
+      // Opcional: profile callback para normalizar dados do Facebook se necessário
+      // profile(profile) { ... }
     }),
     CredentialsProvider({
       name: "Demo",
@@ -132,64 +126,73 @@ export const authOptions: NextAuthOptions = {
         const TAG_SIGNIN = '[NextAuth signIn Callback]';
         logger.debug(`${TAG_SIGNIN} Iniciado`, { userId: user.id, provider: account?.provider, email: user.email });
 
-        // Permite login via credentials diretamente
         if (account?.provider === "credentials") {
             if (!user?.id) { logger.error(`${TAG_SIGNIN} Usuário de Credentials sem ID.`); return false; }
             logger.debug(`${TAG_SIGNIN} Permitindo login via Credentials para User ${user.id}`);
             return true;
          }
 
-        // Verifica se temos as informações mínimas para Google ou Facebook
         if (!account || !account.providerAccountId) {
             logger.error(`${TAG_SIGNIN} Informações mínimas ausentes (account, providerAccountId). Provider: ${account?.provider}`);
             return false;
         }
-        // Garante que temos um email para processar (seja do user ou profile)
         const currentEmail = user?.email ?? (profile as any)?.email;
-        if (!currentEmail && account.provider !== 'facebook') { // Email é opcional para vinculação FB, mas necessário para Google ou novo FB
+        if (!currentEmail && account.provider !== 'facebook') {
              logger.error(`${TAG_SIGNIN} Email ausente para ${account.provider}.`);
              return false;
         }
 
-
-        // Lógica para Google e Facebook
         if (account.provider === "google" || account.provider === "facebook") {
             try {
                 await connectToDatabase();
                 let existingUser: IUser | null = null;
-
-                // 1. Tentar encontrar por Provider ID específico
                 let query: any = {};
+
                  if (account.provider === 'facebook') {
                     query = { facebookProviderAccountId: account.providerAccountId };
                     logger.debug(`${TAG_SIGNIN} Tentando encontrar por facebookProviderAccountId: ${account.providerAccountId}`);
                     existingUser = await DbUser.findOne(query).exec();
-                } else { // provider === 'google'
+                } else {
                     query = { providerAccountId: account.providerAccountId, provider: 'google' };
                      logger.debug(`${TAG_SIGNIN} Tentando encontrar por providerAccountId (Google): ${account.providerAccountId}`);
                     existingUser = await DbUser.findOne(query).exec();
                 }
 
-                // 2. Se não encontrou por Provider ID E temos um email, tentar por Email
                 if (!existingUser && currentEmail) {
                     logger.debug(`${TAG_SIGNIN} Não encontrado por Provider ID, tentando por email: ${currentEmail}`);
                     query = { email: currentEmail };
                     existingUser = await DbUser.findOne(query).exec();
                 }
 
-                // 3. Processar resultado
                 if (existingUser) {
-                    // Usuário encontrado (pelo ID do provider ou email)
                     logger.debug(`${TAG_SIGNIN} Usuário existente encontrado (query: ${JSON.stringify(query)}) para ${account.provider}. ID: ${existingUser._id}`);
-                    user.id = existingUser._id.toString(); // Passa o ID correto do DB para o JWT
+                    user.id = existingUser._id.toString();
 
-                    // Atualiza dados básicos e vincula/atualiza ID do provider se necessário
                     let needsSave = false;
-                    // Atualiza nome/imagem se vierem do provider e forem diferentes
                     const providerName = user?.name ?? (profile as any)?.name;
                     const providerImage = user?.image ?? (profile as any)?.picture ?? (profile as any)?.image;
-                    if (providerName && providerName !== existingUser.name) { existingUser.name = providerName; needsSave = true; }
-                    if (providerImage && providerImage !== existingUser.image) { existingUser.image = providerImage; needsSave = true; }
+
+                    if (providerName && providerName !== existingUser.name) {
+                        existingUser.name = providerName;
+                        needsSave = true;
+                    }
+
+                    // --- LÓGICA DE ATUALIZAÇÃO DE IMAGEM MODIFICADA ---
+                    // Só atualiza a imagem se:
+                    // 1. O provedor fornecer uma imagem (providerImage é truthy)
+                    // 2. E (OU o usuário ainda não tem imagem OU o provedor NÃO é o Facebook)
+                    // Isso prioriza a imagem existente (do Google) durante a vinculação do Facebook.
+                    if (providerImage && (!existingUser.image || account.provider !== 'facebook')) {
+                        if (providerImage !== existingUser.image) { // Verifica se é realmente diferente
+                            existingUser.image = providerImage;
+                            needsSave = true;
+                            logger.debug(`${TAG_SIGNIN} Atualizando imagem do usuário com a do provider ${account.provider}.`);
+                        }
+                    } else if (providerImage && account.provider === 'facebook' && existingUser.image) {
+                         // Log para indicar que a imagem existente está sendo mantida
+                         logger.debug(`${TAG_SIGNIN} Mantendo imagem existente (${existingUser.image.substring(0,20)}...) em vez de atualizar com a do Facebook (${providerImage.substring(0,20)}...).`);
+                    }
+                    // --- FIM DA LÓGICA MODIFICADA ---
 
                     if (account.provider === 'facebook' && existingUser.facebookProviderAccountId !== account.providerAccountId) {
                         logger.info(`${TAG_SIGNIN} Vinculando/Atualizando facebookProviderAccountId para ${account.providerAccountId} no User ${existingUser._id}`);
@@ -198,27 +201,26 @@ export const authOptions: NextAuthOptions = {
                     } else if (account.provider === 'google' && existingUser.providerAccountId !== account.providerAccountId) {
                          logger.info(`${TAG_SIGNIN} Vinculando/Atualizando providerAccountId (Google) para ${account.providerAccountId} no User ${existingUser._id}`);
                          existingUser.providerAccountId = account.providerAccountId;
-                         if (!existingUser.provider) existingUser.provider = 'google'; // Define provider se não existir
+                         if (!existingUser.provider) existingUser.provider = 'google';
                          needsSave = true;
                     }
-                    // Garante que isInstagramConnected esteja definido
                      if (existingUser.isInstagramConnected === undefined) {
                          existingUser.isInstagramConnected = !!existingUser.instagramAccountId;
                          needsSave = true;
                      }
-                     // Atualiza email se encontrado por ID e email do provider é diferente (cuidado com verificação)
                      if (currentEmail && currentEmail !== existingUser.email && query.email === undefined) {
                          logger.warn(`${TAG_SIGNIN} Email do provider (${currentEmail}) diferente do email existente (${existingUser.email}) para User ${existingUser._id}. Não atualizando email automaticamente.`);
                      }
 
-
-                    if (needsSave) { await existingUser.save(); logger.debug(`${TAG_SIGNIN} Dados do usuário existente atualizados/vinculados.`); }
-                    return true; // Permite o login/vinculação
+                    if (needsSave) {
+                        await existingUser.save();
+                        logger.debug(`${TAG_SIGNIN} Dados do usuário existente atualizados/vinculados.`);
+                    }
+                    return true;
 
                 } else {
                     // Usuário não encontrado
                     if (account.provider === 'google') {
-                        // Cria novo usuário para Google (requer email)
                         if (!currentEmail) {
                              logger.error(`${TAG_SIGNIN} Email ausente para criar novo usuário Google.`);
                              return false;
@@ -227,30 +229,25 @@ export const authOptions: NextAuthOptions = {
                         const newUser = new DbUser({
                             name: user?.name ?? (profile as any)?.name,
                             email: currentEmail,
-                            image: user?.image ?? (profile as any)?.picture ?? (profile as any)?.image,
+                            image: user?.image ?? (profile as any)?.picture ?? (profile as any)?.image, // Usa a imagem do Google
                             provider: account.provider,
-                            providerAccountId: account.providerAccountId, // Google ID
-                            facebookProviderAccountId: null,
-                            role: "user", planStatus: "inactive", planExpiresAt: null,
-                            affiliateBalance: 0, affiliateRank: 1, affiliateInvites: 0,
-                            isInstagramConnected: false,
+                            providerAccountId: account.providerAccountId,
+                            // ... outros campos padrão ...
+                            role: "user", planStatus: "inactive", isInstagramConnected: false,
                          });
                         const savedUser = await newUser.save();
-                        user.id = savedUser._id.toString(); // Passa o ID do NOVO usuário para JWT
+                        user.id = savedUser._id.toString();
                         logger.debug(`${TAG_SIGNIN} Novo usuário (Google) criado: ${user.id}`);
-                        return true; // Permite o login
+                        return true;
                     }
                     else if (account.provider === 'facebook') {
-                         // Se for Facebook e NÃO encontrou, permite continuar para o JWT.
                          logger.debug(`${TAG_SIGNIN} Utilizador não encontrado para Facebook. Permitindo fluxo para JWT (possível vinculação ou novo usuário FB).`);
-                         user.id = account.providerAccountId; // Passa o ID do Facebook para o JWT
-                         // Passa email e nome do profile para JWT se disponíveis
+                         user.id = account.providerAccountId;
                          user.email = currentEmail;
                          user.name = user?.name ?? (profile as any)?.name;
-                         user.image = user?.image ?? (profile as any)?.picture ?? (profile as any)?.image;
-
+                         user.image = user?.image ?? (profile as any)?.picture ?? (profile as any)?.image; // Passa a imagem do Facebook para o JWT
                          logger.debug(`${TAG_SIGNIN} Passando user.id=${user.id} (providerAccountId do FB) e dados do profile para JWT.`);
-                         return true; // Permite continuar
+                         return true;
                     }
                 }
             } catch (error) {
@@ -263,7 +260,6 @@ export const authOptions: NextAuthOptions = {
         return false;
     },
 
-    // <<< CALLBACK JWT ATUALIZADO PARA USAR LINK TOKEN E DISPARAR COLETA INICIAL >>>
     async jwt({ token, user, account, profile, trigger }: JwtCallback): Promise<JWT> {
         const TAG_JWT = '[NextAuth JWT Callback]';
         logger.debug(`${TAG_JWT} Iniciado. Trigger: ${trigger}. Account Provider: ${account?.provider}. UserID entrada: ${user?.id}. Token entrada ID: ${token?.id}`);
@@ -273,28 +269,23 @@ export const authOptions: NextAuthOptions = {
 
         // 1. Evento de Login/Conexão Inicial
         if (isSignInOrSignUp && account) {
-            // Se for login/conexão via Facebook (potencial vinculação)
             if (account.provider === 'facebook') {
                 let linkTokenUser: IUser | null = null;
                 let linkTokenValue: string | undefined = undefined;
 
-                // <<< Tenta ler e processar o cookie de link temporário 'auth-link-token' >>>
                 try {
                     const cookieStore = cookies();
                     const linkCookie = cookieStore.get('auth-link-token');
                     linkTokenValue = linkCookie?.value;
-
                     if (linkTokenValue) {
                         logger.info(`${TAG_JWT} Cookie 'auth-link-token' encontrado. Valor: ${linkTokenValue.substring(0, 6)}...`);
                         cookieStore.delete('auth-link-token');
                         logger.info(`${TAG_JWT} Cookie 'auth-link-token' deletado.`);
-
                         await connectToDatabase();
                         linkTokenUser = await DbUser.findOne({
                             linkToken: linkTokenValue,
                             linkTokenExpiresAt: { $gt: new Date() }
                         }).lean().exec();
-
                         if (linkTokenUser) {
                             logger.info(`${TAG_JWT} Usuário encontrado via linkToken: ${linkTokenUser._id}. Iniciando vinculação.`);
                             await DbUser.updateOne(
@@ -314,15 +305,12 @@ export const authOptions: NextAuthOptions = {
                          try { cookies().delete('auth-link-token'); } catch { /* Ignora erro na deleção */ }
                      }
                 }
-                // <<< Fim da leitura do link token >>>
-
 
                 // --- LÓGICA DE VINCULAÇÃO (Se usuário foi encontrado pelo linkToken) ---
                 if (linkTokenUser && account.providerAccountId) {
                     const userIdToUse = linkTokenUser._id.toString();
                     logger.info(`${TAG_JWT} *** BLOCO DE VINCULAÇÃO VIA LINK TOKEN EXECUTADO ***`);
                     logger.info(`${TAG_JWT} Vinculando Facebook (${account.providerAccountId}) à conta existente ${userIdToUse} (Provider original: ${linkTokenUser.provider})`);
-
                     try {
                         await connectToDatabase();
                         const userWithThisFbId = await DbUser.findOne({
@@ -340,23 +328,19 @@ export const authOptions: NextAuthOptions = {
                         } else {
                             const updateResult = await DbUser.updateOne(
                                 { _id: linkTokenUser._id },
-                                { $set: { facebookProviderAccountId: account.providerAccountId } }
+                                { $set: { facebookProviderAccountId: account.providerAccountId } } // A imagem não é atualizada aqui, foi tratada no signIn
                             );
-
                             if (updateResult.modifiedCount > 0 || updateResult.matchedCount > 0) {
                                 logger.info(`${TAG_JWT} Conta Facebook vinculada com sucesso ao User ${userIdToUse}.`);
                                 if (account.access_token) {
-                                    // Chama a busca de LLAT e ID IG (assíncrono)
                                     getFacebookLongLivedTokenAndIgId(account.access_token, userIdToUse)
                                         .then(result => {
                                             if (result.success) {
                                                 logger.info(`${TAG_JWT} getFacebookLongLivedTokenAndIgId concluído com sucesso para ${userIdToUse}.`);
-                                                // <<< DISPARA A COLETA INICIAL DE DADOS EM SEGUNDO PLANO >>>
                                                 logger.info(`${TAG_JWT} Disparando coleta inicial de dados (triggerDataRefresh) para ${userIdToUse}...`);
                                                 triggerDataRefresh(userIdToUse).catch(err => {
                                                      logger.error(`${TAG_JWT} Erro não capturado na coleta inicial (triggerDataRefresh) para ${userIdToUse}:`, err);
                                                 });
-                                                // ---------------------------------------------------------
                                             } else {
                                                  logger.error(`${TAG_JWT} Falha ao obter LLAT/IG ID para ${userIdToUse}: ${result.error}`);
                                             }
@@ -365,10 +349,10 @@ export const authOptions: NextAuthOptions = {
                                              logger.error(`${TAG_JWT} Erro não capturado em getFacebookLongLivedTokenAndIgId para ${userIdToUse}:`, err);
                                         });
                                 }
-                                // Prepara token de retorno com dados do usuário original
+                                // Prepara token com dados do usuário original (Google neste caso)
                                 finalTokenData = {
                                     id: userIdToUse, provider: linkTokenUser.provider, role: linkTokenUser.role,
-                                    name: linkTokenUser.name, email: linkTokenUser.email, image: linkTokenUser.image,
+                                    name: linkTokenUser.name, email: linkTokenUser.email, image: linkTokenUser.image, // Usa imagem do Google
                                 };
                                 logger.debug(`${TAG_JWT} Preparando token de retorno com dados do usuário original (pós-vinculação): ID=${finalTokenData.id}, Provider=${finalTokenData.provider}`);
                             } else {
@@ -417,10 +401,9 @@ export const authOptions: NextAuthOptions = {
                         logger.info(`${TAG_JWT} Login normal Facebook: Usuário existente encontrado ID: ${existingFbUser._id}`);
                         finalTokenData = {
                             id: existingFbUser._id.toString(), provider: existingFbUser.provider || 'facebook', role: existingFbUser.role,
-                            name: existingFbUser.name, email: existingFbUser.email, image: existingFbUser.image,
+                            name: existingFbUser.name, email: existingFbUser.email, image: existingFbUser.image, // Usa imagem do DB
                         };
                         if (account.access_token) {
-                            // Dispara busca de LLAT/ID IG, mas não a coleta completa de dados aqui
                             getFacebookLongLivedTokenAndIgId(account.access_token, existingFbUser._id.toString()).catch(err => {
                                  logger.error(`${TAG_JWT} Erro não capturado em getFacebookLongLivedTokenAndIgId (login normal FB) para ${existingFbUser?._id}:`, err);
                             });
@@ -429,15 +412,13 @@ export const authOptions: NextAuthOptions = {
                         logger.info(`${TAG_JWT} Login normal Facebook: Criando novo usuário para FB ID ${account.providerAccountId}.`);
                         if (!currentEmail || !account.providerAccountId) {
                              logger.error(`${TAG_JWT} Email (${currentEmail}) ou providerAccountId (${account.providerAccountId}) ausente para criar novo usuário FB.`);
-                             finalTokenData = { ...finalTokenData, id: '', error: "fb_create_missing_data" }; // Usa id: '' e mantém outros campos
+                             finalTokenData = { ...finalTokenData, id: '', error: "fb_create_missing_data" };
                         } else {
                             const newUser = new DbUser({
-                                name: user?.name, email: currentEmail, image: user?.image,
+                                name: user?.name, email: currentEmail, image: user?.image, // Usa imagem do Facebook se veio no user/profile
                                 provider: 'facebook', providerAccountId: null,
                                 facebookProviderAccountId: account.providerAccountId,
-                                role: "user", planStatus: "inactive", planExpiresAt: null,
-                                affiliateBalance: 0, affiliateRank: 1, affiliateInvites: 0,
-                                isInstagramConnected: false,
+                                role: "user", planStatus: "inactive", isInstagramConnected: false,
                             });
                             try {
                                 const savedUser = await newUser.save();
@@ -447,24 +428,21 @@ export const authOptions: NextAuthOptions = {
                                     name: savedUser.name, email: savedUser.email, image: savedUser.image,
                                 };
                                 if (account.access_token) {
-                                    // Dispara busca de LLAT/ID IG para o novo usuário
                                     getFacebookLongLivedTokenAndIgId(account.access_token, savedUser._id.toString()).catch(err => {
                                          logger.error(`${TAG_JWT} Erro não capturado em getFacebookLongLivedTokenAndIgId (novo usuário FB) para ${savedUser._id}:`, err);
                                     });
-                                    // <<< DISPARA A COLETA INICIAL DE DADOS PARA NOVO USUÁRIO FB >>>
                                     logger.info(`${TAG_JWT} Disparando coleta inicial de dados (triggerDataRefresh) para NOVO usuário FB ${savedUser._id}...`);
                                     triggerDataRefresh(savedUser._id.toString()).catch(err => {
                                          logger.error(`${TAG_JWT} Erro não capturado na coleta inicial (triggerDataRefresh) para NOVO usuário FB ${savedUser._id}:`, err);
                                     });
-                                    // ---------------------------------------------------------
                                 }
                             } catch (dbError: any) {
                                 if (dbError.code === 11000 && dbError.keyPattern?.email) {
                                      logger.error(`${TAG_JWT} Erro: Email (${currentEmail}) já existe. Não foi possível criar novo usuário FB.`);
-                                     finalTokenData = { ...finalTokenData, id: '', error: "fb_email_exists" }; // Usa id: '' e mantém outros campos
+                                     finalTokenData = { ...finalTokenData, id: '', error: "fb_email_exists" };
                                 } else {
                                      logger.error(`${TAG_JWT} Erro ao salvar novo usuário Facebook no DB:`, dbError);
-                                     finalTokenData = { ...finalTokenData, id: '', error: "fb_create_db_error" }; // Usa id: '' e mantém outros campos
+                                     finalTokenData = { ...finalTokenData, id: '', error: "fb_create_db_error" };
                                 }
                             }
                         }
@@ -481,7 +459,7 @@ export const authOptions: NextAuthOptions = {
                     finalTokenData.provider = account.provider;
                     finalTokenData.name = user.name;
                     finalTokenData.email = user.email;
-                    finalTokenData.image = user.image;
+                    finalTokenData.image = user.image; // Imagem do Google/Credentials
                     logger.debug(`${TAG_JWT} Definindo token.id=${finalTokenData.id}, token.provider=${finalTokenData.provider}`);
                     try {
                         await connectToDatabase();
@@ -497,13 +475,11 @@ export const authOptions: NextAuthOptions = {
             }
         }
 
-        // Fallback para atualizações de sessão, etc.
         if (!finalTokenData.id && token.id && Types.ObjectId.isValid(token.id as string)) {
             logger.warn(`${TAG_JWT} ID final ausente (não signIn/signUp?), recuperando do token original recebido: ${token.id}`);
             finalTokenData = { ...token };
         }
 
-        // Busca final de role se necessário e ID for válido
         const finalUserId = finalTokenData.id;
         if (finalUserId && typeof finalUserId === 'string' && Types.ObjectId.isValid(finalUserId) && !finalTokenData.role) {
              logger.debug(`${TAG_JWT} Buscando role final para User ${finalUserId} (role estava ausente).`);
@@ -521,15 +497,12 @@ export const authOptions: NextAuthOptions = {
              finalTokenData.role = undefined;
         }
 
-        // Garante que 'sub' seja igual a 'id' se 'id' for válido
         if (finalTokenData.id && typeof finalTokenData.id === 'string' && finalTokenData.id !== '') {
             finalTokenData.sub = finalTokenData.id;
         } else {
              delete finalTokenData.sub;
         }
 
-
-        // Limpa o campo de erro temporário antes de retornar
         const returnToken: JWT = { ...finalTokenData };
         delete returnToken.error;
 
@@ -537,18 +510,16 @@ export const authOptions: NextAuthOptions = {
         return returnToken;
     },
 
-    // <<< CALLBACK SESSION (Mantido como antes) >>>
     async session({ session, token }: { session: Session; token: JWT }): Promise<Session> {
       const TAG_SESSION = '[NextAuth Session Callback]';
       logger.debug(`${TAG_SESSION} Iniciado. Token recebido:`, JSON.stringify(token));
 
-      // Popula a sessão APENAS se o token contiver um ID válido do nosso DB
       if (token.id && typeof token.id === 'string' && token.id !== '' && Types.ObjectId.isValid(token.id)) {
           session.user = {
               id: token.id as string,
               name: token.name as string | undefined,
               email: token.email as string | undefined,
-              image: token.image as string | undefined,
+              image: token.image as string | undefined, // <<< Vem do JWT (que agora prioriza a imagem original)
               provider: typeof token.provider === 'string' ? token.provider : undefined,
               role: typeof token.role === 'string' ? token.role : 'user',
           };
@@ -557,14 +528,19 @@ export const authOptions: NextAuthOptions = {
           try {
             await connectToDatabase();
             const dbUser = await DbUser.findById(token.id)
-                                       .select('name email image role planStatus planExpiresAt affiliateCode affiliateBalance affiliateRank affiliateInvites isInstagramConnected')
+                                       .select('name email image role planStatus planExpiresAt affiliateCode affiliateBalance affiliateRank affiliateInvites isInstagramConnected') // Inclui 'image'
                                        .lean();
 
             if (dbUser && session.user) {
               logger.debug(`${TAG_SESSION} Usuário encontrado no DB para sessão: ${dbUser._id}`);
               session.user.name = dbUser.name ?? session.user.name;
               session.user.email = dbUser.email ?? session.user.email;
+              // <<< Lógica de Imagem na Sessão >>>
+              // Prioriza a imagem do DB (que não foi sobrescrita pelo FB no signIn)
+              // Se por algum motivo a imagem do DB for nula, mantém a imagem do token (original do Google)
               session.user.image = dbUser.image ?? session.user.image;
+              logger.debug(`${TAG_SESSION} Imagem final da sessão: ${session.user.image?.substring(0,30)}... (Prioridade: DB, Fallback: Token)`);
+              // <<< Fim Lógica Imagem >>>
               session.user.role = dbUser.role ?? session.user.role;
               session.user.planStatus = dbUser.planStatus ?? 'inactive';
               session.user.planExpiresAt = dbUser.planExpiresAt instanceof Date ? dbUser.planExpiresAt.toISOString() : null;
@@ -596,7 +572,6 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
 
-    // <<< CALLBACK REDIRECT MANTIDO >>>
     async redirect({ baseUrl }: RedirectCallback): Promise<string> {
       return `${baseUrl}/dashboard`;
     },
