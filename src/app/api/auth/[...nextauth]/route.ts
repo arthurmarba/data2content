@@ -1,4 +1,4 @@
-// src/app/api/auth/[...nextauth]/route.ts (Completo - HS256 + Vinculação v6.4 - Link Token - Correção de Tipo v4)
+// src/app/api/auth/[...nextauth]/route.ts (Completo - HS256 + Vinculação v6.6 - Link Token - Correção de Tipo v6)
 import NextAuth from "next-auth";
 import type { NextAuthOptions, Session, User, Account } from "next-auth";
 import type { AdapterUser } from "next-auth/adapters";
@@ -26,7 +26,15 @@ async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise
     if (!secret) throw new Error("NEXTAUTH_SECRET ausente em customEncode");
     const secretString = typeof secret === "string" ? secret : String(secret);
     const expirationTime = Math.floor(Date.now() / 1000) + (maxAge ?? 30 * 24 * 60 * 60);
-    return await new SignJWT({ ...token })
+    // Garante que o token a ser codificado não tenha valores undefined que causem erro na serialização
+    const cleanToken = Object.entries(token ?? {}).reduce((acc, [key, value]) => {
+        if (value !== undefined) {
+            acc[key] = value;
+        }
+        return acc;
+    }, {} as Record<string, any>);
+
+    return await new SignJWT(cleanToken)
         .setProtectedHeader({ alg: "HS256" })
         .setIssuedAt()
         .setExpirationTime(expirationTime)
@@ -44,6 +52,10 @@ async function customDecode({ token, secret }: JWTDecodeParams): Promise<JWT | n
         const { payload } = await jwtVerify(token, new TextEncoder().encode(secretString), {
             algorithms: ["HS256"],
         });
+        // Garante que o payload retornado está em conformidade com JWT, especialmente 'id'
+        if (payload && typeof payload.id !== 'string') {
+             payload.id = ''; // Define como string vazia se não for string
+        }
         return payload as JWT;
     } catch (err) {
         logger.error(`customDecode: Erro ao decodificar token HS256: ${err instanceof Error ? err.message : String(err)}`);
@@ -341,7 +353,9 @@ export const authOptions: NextAuthOptions = {
         logger.debug(`${TAG_JWT} Iniciado. Trigger: ${trigger}. Account Provider: ${account?.provider}. UserID entrada: ${user?.id}. Token entrada ID: ${token?.id}`);
 
         const isSignInOrSignUp = trigger === 'signIn' || trigger === 'signUp';
-        let finalTokenData: JWT = { ...token }; // Começa com o token recebido, será modificado
+        // <<< CORREÇÃO AQUI vvv >>>
+        // Inicializa finalTokenData com a cópia do token e garante que 'id' seja string
+        let finalTokenData: JWT = { ...token, id: typeof token?.id === 'string' ? token.id : '' };
 
         // 1. Evento de Login/Conexão Inicial
         if (isSignInOrSignUp && account) {
@@ -480,7 +494,7 @@ export const authOptions: NextAuthOptions = {
                         logger.info(`${TAG_JWT} Login normal Facebook: Criando novo usuário para FB ID ${account.providerAccountId}.`);
                         if (!currentEmail || !account.providerAccountId) {
                              logger.error(`${TAG_JWT} Email (${currentEmail}) ou providerAccountId (${account.providerAccountId}) ausente para criar novo usuário FB.`);
-                             finalTokenData = { ...token, id: '', error: "fb_create_missing_data" }; // Usa id: ''
+                             finalTokenData = { ...finalTokenData, id: '', error: "fb_create_missing_data" }; // Usa id: '' e mantém outros campos
                         } else {
                             const newUser = new DbUser({
                                 name: user?.name, email: currentEmail, image: user?.image,
@@ -503,10 +517,10 @@ export const authOptions: NextAuthOptions = {
                             } catch (dbError: any) {
                                 if (dbError.code === 11000 && dbError.keyPattern?.email) {
                                      logger.error(`${TAG_JWT} Erro: Email (${currentEmail}) já existe. Não foi possível criar novo usuário FB.`);
-                                     finalTokenData = { ...token, id: '', error: "fb_email_exists" }; // Usa id: ''
+                                     finalTokenData = { ...finalTokenData, id: '', error: "fb_email_exists" }; // Usa id: '' e mantém outros campos
                                 } else {
                                      logger.error(`${TAG_JWT} Erro ao salvar novo usuário Facebook no DB:`, dbError);
-                                     finalTokenData = { ...token, id: '', error: "fb_create_db_error" }; // Usa id: ''
+                                     finalTokenData = { ...finalTokenData, id: '', error: "fb_create_db_error" }; // Usa id: '' e mantém outros campos
                                 }
                             }
                         }
@@ -529,12 +543,12 @@ export const authOptions: NextAuthOptions = {
                         await connectToDatabase();
                         const dbUser = await DbUser.findById(finalTokenData.id).select('role').lean();
                         if (dbUser) { finalTokenData.role = dbUser.role; }
-                        else { logger.warn(`${TAG_JWT} Usuário ${finalTokenData.id} não encontrado no DB ao buscar role (Google/Credentials).`); delete finalTokenData.role;}
-                    } catch (error) { logger.error(`${TAG_JWT} Erro ao buscar role (Google/Credentials):`, error); delete finalTokenData.role; }
+                        else { logger.warn(`${TAG_JWT} Usuário ${finalTokenData.id} não encontrado no DB ao buscar role (Google/Credentials).`); finalTokenData.role = undefined; } // Define role como undefined
+                    } catch (error) { logger.error(`${TAG_JWT} Erro ao buscar role (Google/Credentials):`, error); finalTokenData.role = undefined; } // Define role como undefined
                 } else {
                      logger.error(`${TAG_JWT} ID do usuário inválido ou ausente para ${account.provider}: '${user?.id}'.`);
-                     // <<< CORREÇÃO AQUI vvv >>>
                      finalTokenData.id = ''; // Define id como string vazia em caso de erro
+                     finalTokenData.role = undefined; // Garante que role seja undefined
                 }
             }
         }
@@ -542,26 +556,37 @@ export const authOptions: NextAuthOptions = {
         // Fallback para atualizações de sessão, etc.
         if (!finalTokenData.id && token.id && Types.ObjectId.isValid(token.id as string)) {
             logger.warn(`${TAG_JWT} ID final ausente (não signIn/signUp?), recuperando do token original recebido: ${token.id}`);
-            finalTokenData = { ...token };
+            finalTokenData = { ...token }; // Restaura o token original
         }
 
-        // Busca final de role se necessário
+        // Busca final de role se necessário e ID for válido
         const finalUserId = finalTokenData.id;
-        // Verifica se finalUserId é uma string válida E se é um ObjectId válido antes de buscar role
+        // Verifica se finalUserId é uma string ObjectId válida antes de buscar role
         if (finalUserId && typeof finalUserId === 'string' && Types.ObjectId.isValid(finalUserId) && !finalTokenData.role) {
              logger.debug(`${TAG_JWT} Buscando role final para User ${finalUserId} (role estava ausente).`);
              try {
                 await connectToDatabase();
                 const dbUser = await DbUser.findById(finalUserId).select('role').lean();
                 if (dbUser) { finalTokenData.role = dbUser.role; logger.debug(`${TAG_JWT} Role final '${finalTokenData.role}' definida.`); }
-                else { logger.warn(`${TAG_JWT} Usuário ${finalUserId} não encontrado no DB na busca final de role.`); }
+                else { logger.warn(`${TAG_JWT} Usuário ${finalUserId} não encontrado no DB na busca final de role.`); finalTokenData.role = undefined; } // Define role como undefined
              } catch (error) {
                  logger.error(`${TAG_JWT} Erro na busca final de role para User ${finalUserId}:`, error);
+                 finalTokenData.role = undefined; // Define role como undefined
              }
-        } else if (finalUserId === '') {
-             logger.debug(`${TAG_JWT} ID final é uma string vazia, pulando busca final de role.`);
-             delete finalTokenData.role; // Remove role se ID for inválido/vazio
+        } else if (!finalUserId || !Types.ObjectId.isValid(finalUserId as string)) {
+             // Se o ID final não for um ObjectId válido (incluindo string vazia), garante que a role seja undefined
+             logger.debug(`${TAG_JWT} ID final inválido ou vazio ('${finalUserId}'), garantindo que role seja undefined.`);
+             finalTokenData.role = undefined;
         }
+
+        // Garante que 'sub' seja igual a 'id' se 'id' for válido
+        if (finalTokenData.id && typeof finalTokenData.id === 'string' && finalTokenData.id !== '') {
+            finalTokenData.sub = finalTokenData.id;
+        } else {
+             // Se id for inválido ou vazio, remove sub ou define como undefined
+             delete finalTokenData.sub; // Ou finalTokenData.sub = undefined;
+        }
+
 
         // Limpa o campo de erro temporário antes de retornar
         const returnToken: JWT = { ...finalTokenData };
@@ -585,7 +610,7 @@ export const authOptions: NextAuthOptions = {
               email: token.email as string | undefined,
               image: token.image as string | undefined,
               provider: typeof token.provider === 'string' ? token.provider : undefined,
-              role: typeof token.role === 'string' ? token.role : 'user',
+              role: typeof token.role === 'string' ? token.role : 'user', // Default 'user'
           };
           logger.debug(`${TAG_SESSION} Session.user inicializado com id='${session.user.id}', provider='${session.user.provider}', role='${session.user.role}'`);
 
