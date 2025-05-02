@@ -1,6 +1,6 @@
-// src/app/lib/instagramService.ts - v1.7.6 (Corrige erro tipo 'lastWebhookUpdate' e mantém logs DEBUG)
-// - Remove a chave 'lastWebhookUpdate' do updateData em processStoryWebhookPayload.
-// - Mantém correções anteriores ('recordedAt', 'insights', 'demographics', 'format').
+// src/app/lib/instagramService.ts - v1.7.7 (Corrige URL /me/accounts e mantém logs DEBUG)
+// - Remove duplicação da versão da API na URL de /me/accounts.
+// - Mantém correções anteriores de tipo.
 // - Mantém implementação real e logs de depuração em getFacebookLongLivedTokenAndIgId.
 // - Mantém refatoração e otimizações anteriores.
 
@@ -117,6 +117,7 @@ export async function fetchInstagramMedia(userId: string, pageUrl?: string): Pro
             const accountId = connectionDetails.accountId;
             const fields = 'id,media_type,timestamp,caption,permalink,username,children{id,media_type,media_url,permalink}';
             const limit = 25; // Limite padrão da API, pode ser ajustado se necessário
+            // Presume que BASE_URL já inclui a versão, ex: https://graph.facebook.com/v19.0
             return `${BASE_URL}/${accountId}/media?fields=${fields}&limit=${limit}&access_token=${accessToken}`;
         }
     };
@@ -182,6 +183,7 @@ export async function fetchMediaInsights(mediaId: string, accessToken: string): 
     logger.debug(`${TAG} Buscando insights v19.0+ para Media ID: ${mediaId}...`);
 
     const metrics = MEDIA_INSIGHTS_METRICS;
+    // Presume que BASE_URL já inclui a versão
     let urlBase = `${BASE_URL}/${mediaId}/insights?metric=${metrics}`;
     // Adiciona breakdown se necessário para métricas específicas (ex: profile_activity)
     const requestedMetrics = metrics.split(',');
@@ -269,6 +271,7 @@ export async function fetchAccountInsights(
     logger.debug(`${TAG} Buscando insights da conta ${accountId} para o período: ${period}...`);
 
     const metrics = ACCOUNT_INSIGHTS_METRICS;
+    // Presume que BASE_URL já inclui a versão
     let urlBase = `${BASE_URL}/${accountId}/insights?metric=${metrics}&period=${period}`;
     // Adiciona breakdowns necessários para métricas de conta
     const requestedMetrics = metrics.split(',');
@@ -344,6 +347,7 @@ export async function fetchAudienceDemographics(
     const period = 'lifetime'; // Demografia geralmente é 'lifetime'
     const breakdown = DEMOGRAPHICS_BREAKDOWNS; // Ex: 'gender,age,city,country'
     const timeframe = DEMOGRAPHICS_TIMEFRAME; // Ex: 'last_90_days' (para audiência engajada)
+    // Presume que BASE_URL já inclui a versão
     const urlBase = `${BASE_URL}/${accountId}/insights?metric=${metrics}&period=${period}&breakdown=${breakdown}&timeframe=${timeframe}`;
 
     try {
@@ -445,6 +449,7 @@ export async function fetchBasicAccountData(
     logger.debug(`${TAG} Buscando dados básicos da conta ${accountId}...`);
 
     const fields = BASIC_ACCOUNT_FIELDS; // Ex: 'id,username,name,profile_picture_url,followers_count,...'
+    // Presume que BASE_URL já inclui a versão
     const urlBase = `${BASE_URL}/${accountId}?fields=${fields}`;
 
     try {
@@ -1090,8 +1095,9 @@ export async function getFacebookLongLivedTokenAndIgId(
         logger.debug(`${TAG} Buscando páginas do Facebook (/me/accounts) para User ${userId}...`);
         console.log(`***** ${TAG} Buscando páginas do Facebook (/me/accounts) para User ${userId}... *****`);
         // Solicita ID, nome, token de acesso da página e o ID da conta Instagram vinculada
-        const meAccountsUrl = `${BASE_URL}/${API_VERSION}/me/accounts?fields=id,name,access_token,instagram_business_account{id}&access_token=${longLivedAccessToken}`;
-        console.log(`***** ${TAG} URL /me/accounts (sem token): ${meAccountsUrl.split('?')[0]}?fields=id,name,access_token,instagram_business_account{id} *****`);
+        // CORREÇÃO v1.7.7: Remove /${API_VERSION} duplicado
+        const meAccountsUrl = `${BASE_URL}/me/accounts?fields=id,name,access_token,instagram_business_account{id}&access_token=${longLivedAccessToken}`;
+        console.log(`***** ${TAG} URL /me/accounts CORRIGIDA (sem token): ${meAccountsUrl.split('?')[0]}?fields=id,name,access_token,instagram_business_account{id} *****`);
         console.log(`***** ${TAG} Usando LLAT (parcial): ${longLivedAccessToken?.substring(0, 5)}...${longLivedAccessToken?.slice(-5)} *****`);
 
         const meAccountsResponse = await fetch(meAccountsUrl);
@@ -1262,7 +1268,7 @@ export async function processStoryWebhookPayload(
             instagramMediaId: mediaId,
             // format: 'Story', // Removido anteriormente
             stats: stats as IStoryStats,
-            // lastWebhookUpdate: new Date(), // <<< CORREÇÃO AQUI: Removido pois não existe em IStoryMetric >>>
+            // lastWebhookUpdate: new Date(), // Removido anteriormente
         };
 
         // Remove chaves undefined antes do update
@@ -1285,4 +1291,3 @@ export async function processStoryWebhookPayload(
         return { success: false, error: 'Erro interno ao processar webhook de Story.' };
     }
 }
-
