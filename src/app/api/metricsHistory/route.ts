@@ -1,13 +1,19 @@
+// src/app/api/metricsHistory/route.ts - v1.2 (Corrigido e Forçado Dinâmico)
+
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route"; // Ajuste o caminho
 import mongoose, { PipelineStage } from "mongoose";
-import { connectToDatabase } from "@/app/lib/mongoose";
-import { DailyMetric } from "@/app/models/DailyMetric";
+import { connectToDatabase } from "@/app/lib/mongoose"; // Ajuste o caminho
+import Metric from "@/app/models/Metric"; // <<< USA MetricModel >>>
 import type { Session } from "next-auth";
+import { logger } from '@/app/lib/logger'; // Ajuste o caminho
 
-// Garante que essa rota use Node.js em vez de Edge
+// <<< ADICIONADO: Força a rota a ser dinâmica >>>
+export const dynamic = 'force-dynamic';
+// Garante que essa rota use Node.js em vez de Edge (mantido)
 export const runtime = "nodejs";
+
 
 /**
  * Interface auxiliar para o usuário na sessão.
@@ -22,39 +28,49 @@ interface SessionUser {
 /**
  * GET /api/metricsHistory?userId=...&days=30
  *
- * Agrupa por dia e calcula a média de métricas avançadas (ex.: taxaEngajamento).
- * Verifica se o userId do query param corresponde ao session.user.id (usuário logado).
+ * Agrupa por dia e calcula a média de métricas avançadas.
+ * ATUALIZADO v1.2: Consulta MetricModel, usa chaves canônicas e força renderização dinâmica.
  */
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) { // Usa NextRequest
+  const TAG = '[API metricsHistory GET v1.2]'; // Atualiza tag
   try {
-    // 1) Obtém a sessão usando getServerSession com { req, ...authOptions }
+    // 1) Obtém a sessão (esta chamada usa headers implicitamente)
     const session = (await getServerSession({ req: request, ...authOptions })) as Session | null;
     if (!session?.user) {
+      logger.warn(`${TAG} Tentativa de acesso não autenticada.`);
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
     // 2) Extrai userId dos query params
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl; // Usa nextUrl
     const userId = searchParams.get("userId");
     if (!userId) {
-      // Se não for passado userId, retornamos history: null (ou o que fizer sentido)
-      return NextResponse.json({ history: null }, { status: 200 });
+      logger.warn(`${TAG} userId não fornecido nos query params.`);
+      return NextResponse.json({ error: "userId é obrigatório" }, { status: 400 });
     }
 
     // 3) Verifica se session.user tem 'id'
     const userWithId = session.user as SessionUser;
     if (!userWithId.id) {
-      return NextResponse.json({ error: "Sessão sem ID de usuário" }, { status: 400 });
+      logger.error(`${TAG} Sessão encontrada, mas sem ID de usuário.`);
+      return NextResponse.json({ error: "Sessão inválida (sem ID)" }, { status: 500 });
     }
 
     // Compara userId do query param com session.user.id
     if (userId !== userWithId.id) {
+      logger.warn(`${TAG} Tentativa de acesso não autorizada. User ${userWithId.id} tentando acessar dados de ${userId}.`);
       return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
     }
 
     // 4) Lê "days" ou usa 360 como padrão
     const daysParam = searchParams.get("days") || "360";
-    const days = parseInt(daysParam, 10) || 360;
+    let days = parseInt(daysParam, 10);
+    if (isNaN(days) || days <= 0) {
+        logger.warn(`${TAG} Parâmetro 'days' inválido: ${daysParam}. Usando 360.`);
+        days = 360; // Usa default se inválido
+    }
+    logger.info(`${TAG} Buscando histórico para User ${userId}, últimos ${days} dias.`);
+
 
     // 5) Conecta ao banco
     await connectToDatabase();
@@ -62,197 +78,141 @@ export async function GET(request: Request) {
 
     // Data inicial: X dias atrás
     const fromDate = new Date();
+    fromDate.setHours(0, 0, 0, 0); // Zera a hora para pegar desde o início do dia
     fromDate.setDate(fromDate.getDate() - days);
+    logger.debug(`${TAG} Data inicial da busca: ${fromDate.toISOString()}`);
 
-    // 6) Define o pipeline de agregação
+    // 6) Define o pipeline de agregação (Consultando MetricModel e usando chaves canônicas)
     const sortSpec: Record<string, 1 | -1> = {
-      "_id.year": 1,
-      "_id.month": 1,
-      "_id.day": 1,
+      "_id.year": 1, "_id.month": 1, "_id.day": 1,
     };
 
     const pipeline: PipelineStage[] = [
-      {
-        $match: {
-          user: objectId,
-          postDate: { $gte: fromDate },
-        },
-      },
+      { $match: { user: objectId, postDate: { $gte: fromDate } } }, // Filtra por postDate no MetricModel
       {
         $group: {
-          _id: {
-            year: { $year: "$postDate" },
-            month: { $month: "$postDate" },
-            day: { $dayOfMonth: "$postDate" },
-          },
-          avgTaxaEngajamento: { $avg: "$stats.taxaEngajamento" },
-          avgIndicePropagacao: { $avg: "$stats.indicePropagacao" },
-          avgRatioLikeComment: { $avg: "$stats.ratioLikeComment" },
-          avgPctSalvamentos: { $avg: "$stats.pctSalvamentos" },
-          avgTaxaConversaoSeguidores: { $avg: "$stats.taxaConversaoSeguidores" },
-          avgTaxaRetencao: { $avg: "$stats.taxaRetencao" },
-          avgEngajamentoProfundoAlcance: { $avg: "$stats.engajamentoProfundoAlcance" },
-          avgEngajamentoRapidoAlcance: { $avg: "$stats.engajamentoRapidoAlcance" },
-          avgCurtidas: { $avg: "$stats.curtidas" },
-          avgComentarios: { $avg: "$stats.comentarios" },
+          _id: { year: { $year: "$postDate" }, month: { $month: "$postDate" }, day: { $dayOfMonth: "$postDate" } },
+          // <<< USA CHAVES CANÔNICAS/DESCRITIVAS DE Metric.stats >>>
+          avgEngagementRate: { $avg: "$stats.engagement_rate" }, // Taxa de engajamento sobre alcance
+          avgPropagationIndex: { $avg: "$stats.propagation_index" },
+          avgLikeCommentRatio: { $avg: "$stats.like_comment_ratio" },
+          avgSaveRateOnReach: { $avg: "$stats.save_rate_on_reach" },
+          avgFollowerConversionRate: { $avg: "$stats.follower_conversion_rate" },
+          avgRetentionRate: { $avg: "$stats.retention_rate" },
+          avgEngagementDeepVsReach: { $avg: "$stats.engagement_deep_vs_reach" },
+          avgEngagementFastVsReach: { $avg: "$stats.engagement_fast_vs_reach" },
+          avgLikes: { $avg: "$stats.likes" }, // Média de likes
+          avgComments: { $avg: "$stats.comments" }, // Média de comentários
+          // Adicionar outras médias se necessário para os gráficos
+          // avgShares: { $avg: "$stats.shares" },
+          // avgSaved: { $avg: "$stats.saved" },
+          // avgReach: { $avg: "$stats.reach" },
+          // avgViews: { $avg: "$stats.views" },
+          count: { $sum: 1 } // Conta quantos posts por dia
         },
       },
-      {
-        $sort: sortSpec,
-      },
+      { $sort: sortSpec },
     ];
 
-    // 7) Executa agregação
-    const results = await DailyMetric.aggregate(pipeline);
+    // 7) Executa agregação no MetricModel
+    logger.debug(`${TAG} Executando agregação no MetricModel...`);
+    const results = await Metric.aggregate(pipeline); // <<< USA Metric.aggregate >>>
+    logger.info(`${TAG} Agregação concluída. ${results.length} dias com dados encontrados.`);
 
-    // 8) Monta arrays de dados para cada métrica
+    // 8) Monta arrays de dados para cada métrica (usando novas chaves de resultado)
     const labels: string[] = [];
-    const arrTaxaEngajamento: number[] = [];
-    const arrIndicePropagacao: number[] = [];
-    const arrRatioLikeComment: number[] = [];
-    const arrPctSalvamentos: number[] = [];
-    const arrTaxaConversaoSeguidores: number[] = [];
-    const arrTaxaRetencao: number[] = [];
-    const arrEngajProfundo: number[] = [];
-    const arrEngajRapido: number[] = [];
-    const arrCurtidas: number[] = [];
-    const arrComentarios: number[] = [];
+    const arrEngagementRate: number[] = []; const arrPropagationIndex: number[] = [];
+    const arrLikeCommentRatio: number[] = []; const arrSaveRate: number[] = [];
+    const arrFollowerConversion: number[] = []; const arrRetentionRate: number[] = [];
+    const arrEngajDeep: number[] = []; const arrEngajFast: number[] = [];
+    const arrLikes: number[] = []; const arrComments: number[] = [];
+
+    // Função auxiliar para parsear e tratar nulos/NaN da agregação
+    const parseAvg = (value: any): number => {
+        // Tenta converter para string antes de parseFloat para lidar com tipos inesperados
+        const num = parseFloat(String(value ?? "0").replace(",",".")); // Garante ponto decimal
+        return isNaN(num) || !isFinite(num) ? 0 : num;
+    };
 
     results.forEach((doc) => {
       const { year, month, day } = doc._id;
-      const label = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      // Formata a data consistentemente como YYYY-MM-DD
+      const label = `${String(year).padStart(4, '0')}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
       labels.push(label);
 
-      arrTaxaEngajamento.push(parseFloat(String(doc.avgTaxaEngajamento ?? "0")));
-      arrIndicePropagacao.push(parseFloat(String(doc.avgIndicePropagacao ?? "0")));
-      arrRatioLikeComment.push(parseFloat(String(doc.avgRatioLikeComment ?? "0")));
-      arrPctSalvamentos.push(parseFloat(String(doc.avgPctSalvamentos ?? "0")));
-      arrTaxaConversaoSeguidores.push(parseFloat(String(doc.avgTaxaConversaoSeguidores ?? "0")));
-      arrTaxaRetencao.push(parseFloat(String(doc.avgTaxaRetencao ?? "0")));
-      arrEngajProfundo.push(parseFloat(String(doc.avgEngajamentoProfundoAlcance ?? "0")));
-      arrEngajRapido.push(parseFloat(String(doc.avgEngajamentoRapidoAlcance ?? "0")));
-      arrCurtidas.push(parseFloat(String(doc.avgCurtidas ?? "0")));
-      arrComentarios.push(parseFloat(String(doc.avgComentarios ?? "0")));
+      // Usa as novas chaves do $group e a função parseAvg
+      arrEngagementRate.push(parseAvg(doc.avgEngagementRate));
+      arrPropagationIndex.push(parseAvg(doc.avgPropagationIndex));
+      arrLikeCommentRatio.push(parseAvg(doc.avgLikeCommentRatio));
+      arrSaveRate.push(parseAvg(doc.avgSaveRateOnReach));
+      arrFollowerConversion.push(parseAvg(doc.avgFollowerConversionRate));
+      arrRetentionRate.push(parseAvg(doc.avgRetentionRate));
+      arrEngajDeep.push(parseAvg(doc.avgEngagementDeepVsReach));
+      arrEngajFast.push(parseAvg(doc.avgEngagementFastVsReach));
+      arrLikes.push(parseAvg(doc.avgLikes));
+      arrComments.push(parseAvg(doc.avgComments));
     });
 
-    // 9) Retorna objeto "history"
+    // 9) Retorna objeto "history" com dados para os gráficos (nomes das métricas atualizados)
     const history = {
-      taxaEngajamento: {
+      engagementRate: { // Renomeado para refletir a métrica
         labels,
-        datasets: [
-          {
-            label: "Taxa Engajamento (%)",
-            data: arrTaxaEngajamento,
-            borderColor: "rgba(75,192,192,1)",
-            backgroundColor: "rgba(75,192,192,0.2)",
-          },
-        ],
+        datasets: [ { label: "Taxa Engajamento / Alcance (%)", data: arrEngagementRate.map(v => v * 100), /* ... cores ... */ } ],
       },
-      indicePropagacao: {
+      propagationIndex: { // Renomeado
         labels,
-        datasets: [
-          {
-            label: "Índice de Propagação (%)",
-            data: arrIndicePropagacao,
-            borderColor: "rgba(153,102,255,1)",
-            backgroundColor: "rgba(153,102,255,0.2)",
-          },
-        ],
+        datasets: [ { label: "Índice de Propagação (%)", data: arrPropagationIndex.map(v => v * 100), /* ... cores ... */ } ],
       },
-      ratioLikeComment: {
+      likeCommentRatio: { // Renomeado
         labels,
-        datasets: [
-          {
-            label: "Razão Like/Coment (%)",
-            data: arrRatioLikeComment,
-            borderColor: "rgba(255,159,64,1)",
-            backgroundColor: "rgba(255,159,64,0.2)",
-          },
-        ],
+        datasets: [ { label: "Razão Like/Comentário", data: arrLikeCommentRatio, /* ... cores ... */ } ], // Não multiplica por 100
       },
-      pctSalvamentos: {
+      saveRateOnReach: { // Renomeado
         labels,
-        datasets: [
-          {
-            label: "Pct Salvamentos (%)",
-            data: arrPctSalvamentos,
-            borderColor: "rgba(54,162,235,1)",
-            backgroundColor: "rgba(54,162,235,0.2)",
-          },
-        ],
+        datasets: [ { label: "Taxa Salvamento / Alcance (%)", data: arrSaveRate.map(v => v * 100), /* ... cores ... */ } ],
       },
-      taxaConversaoSeguidores: {
+      followerConversionRate: { // Renomeado
         labels,
-        datasets: [
-          {
-            label: "Taxa Conversão Seg (%)",
-            data: arrTaxaConversaoSeguidores,
-            borderColor: "rgba(255,206,86,1)",
-            backgroundColor: "rgba(255,206,86,0.2)",
-          },
-        ],
+        datasets: [ { label: "Taxa Conversão Seg. (%)", data: arrFollowerConversion.map(v => v * 100), /* ... cores ... */ } ],
       },
-      taxaRetencao: {
+      retentionRate: { // Renomeado
         labels,
-        datasets: [
-          {
-            label: "Taxa Retenção (%)",
-            data: arrTaxaRetencao,
-            borderColor: "rgba(255,99,132,1)",
-            backgroundColor: "rgba(255,99,132,0.2)",
-          },
-        ],
+        datasets: [ { label: "Taxa Retenção Média (%)", data: arrRetentionRate.map(v => v * 100), /* ... cores ... */ } ],
       },
-      engajamentoProfundoAlcance: {
+      engagementDeepVsReach: { // Renomeado
         labels,
-        datasets: [
-          {
-            label: "Engaj. Profundo Alcance (%)",
-            data: arrEngajProfundo,
-            borderColor: "rgba(0,128,128,1)",
-            backgroundColor: "rgba(0,128,128,0.2)",
-          },
-        ],
+        datasets: [ { label: "Engaj. Profundo / Alcance (%)", data: arrEngajDeep.map(v => v * 100), /* ... cores ... */ } ],
       },
-      engajamentoRapidoAlcance: {
+      engagementFastVsReach: { // Renomeado
         labels,
-        datasets: [
-          {
-            label: "Engaj. Rápido Alcance (%)",
-            data: arrEngajRapido,
-            borderColor: "rgba(128,0,128,1)",
-            backgroundColor: "rgba(128,0,128,0.2)",
-          },
-        ],
+        datasets: [ { label: "Engaj. Rápido / Alcance (%)", data: arrEngajFast.map(v => v * 100), /* ... cores ... */ } ],
       },
-      curtidas: {
+      likes: { // Renomeado
         labels,
-        datasets: [
-          {
-            label: "Curtidas (média)",
-            data: arrCurtidas,
-            borderColor: "rgba(255,99,132,1)",
-            backgroundColor: "rgba(255,99,132,0.2)",
-          },
-        ],
+        datasets: [ { label: "Curtidas (média diária)", data: arrLikes, /* ... cores ... */ } ],
       },
-      comentarios: {
+      comments: { // Renomeado
         labels,
-        datasets: [
-          {
-            label: "Comentários (média)",
-            data: arrComentarios,
-            borderColor: "rgba(75,192,192,1)",
-            backgroundColor: "rgba(75,192,192,0.2)",
-          },
-        ],
+        datasets: [ { label: "Comentários (média diária)", data: arrComments, /* ... cores ... */ } ],
       },
     };
+    // Adicionar cores aos datasets se necessário para os gráficos
+    // Ex: borderColor: "rgba(75,192,192,1)", backgroundColor: "rgba(75,192,192,0.2)"
 
+    logger.info(`${TAG} Histórico de métricas preparado para User ${userId}.`);
     return NextResponse.json({ history }, { status: 200 });
+
   } catch (error: unknown) {
-    console.error("/api/metricsHistory error:", error);
+    logger.error(`${TAG} Erro:`, error);
     const message = error instanceof Error ? error.message : "Erro desconhecido.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    if (error instanceof Error && error.message.includes("Argument passed in must be a single String")) {
+        return NextResponse.json({ error: "Formato de userId inválido." }, { status: 400 });
+    }
+    // Verifica se é o erro de DynamicServerError para dar uma mensagem mais específica
+    if (error instanceof Error && (error as any).digest === 'DYNAMIC_SERVER_USAGE') {
+        logger.error(`${TAG} Erro de Geração Estática: A rota usou uma função dinâmica (headers, cookies, etc.). Certifique-se que 'export const dynamic = \"force-dynamic\";' está no topo do arquivo.`);
+        return NextResponse.json({ error: "Erro interno do servidor durante a geração da página." }, { status: 500 });
+    }
+    return NextResponse.json({ error: `Erro ao buscar histórico: ${message}` }, { status: 500 });
   }
 }

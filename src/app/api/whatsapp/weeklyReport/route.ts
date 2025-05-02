@@ -1,17 +1,17 @@
+// src/app/api/whatsapp/weeklyReport/route.ts - Correção v1
+
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { connectDB, safeSendWhatsAppMessage } from "@/app/lib/helpers"; // Verifique os caminhos
 import User from "@/app/models/User"; // Verifique o caminho
-import { DailyMetric, IDailyMetric } from "@/app/models/DailyMetric"; // Verifique o caminho
-import Metric, { IMetric } from "@/app/models/Metric"; // Verifique o caminho
-import { buildAggregatedReport, AggregatedReport, DetailedContentStat } from "@/app/lib/reportHelpers"; // Verifique o caminho
+// import { DailyMetric, IDailyMetric } from "@/app/models/DailyMetric"; // <<< REMOVIDO: Não é mais passado para buildAggregatedReport >>>
+import Metric, { IMetric } from "@/app/models/Metric"; // Verifique o caminho - NECESSÁRIO AGORA
+import { buildAggregatedReport, AggregatedReport } from "@/app/lib/reportHelpers"; // Verifique o caminho - Importa a versão refatorada
 import { generateStrategicWeeklySummary } from "@/app/lib/consultantService"; // Verifique o caminho
 import { Types, Model } from "mongoose";
-// import { subDays } from "date-fns"; // Importe se for usar subDays
+import { logger } from '@/app/lib/logger'; // Ajuste o caminho se necessário
 
 export const runtime = "nodejs";
-// Adicionado logger para este arquivo também, para consistência
-import { logger } from '@/app/lib/logger'; // Ajuste o caminho se necessário
 
 /**
  * GET /api/whatsapp/weeklyReport
@@ -24,13 +24,13 @@ export async function GET(request: NextRequest) {
   const challenge = searchParams.get("hub.challenge");
 
   if (mode === "subscribe" && token === process.env.WHATSAPP_VERIFY_TOKEN) {
-    logger.debug("[whatsapp/weeklyReport GET] Verificação de callback sucedida."); // Usando logger
+    logger.debug("[whatsapp/weeklyReport GET] Verificação de callback sucedida.");
     return new Response(challenge || "", { status: 200 });
   }
-  logger.error("[whatsapp/weeklyReport GET] Falha na verificação do callback:", { // Usando logger
+  logger.error("[whatsapp/weeklyReport GET] Falha na verificação do callback:", {
     mode,
-    token: token ? '***' : 'MISSING', // Não logar o token recebido
-    expected: process.env.WHATSAPP_VERIFY_TOKEN ? '***' : 'UNDEFINED', // Não logar o token esperado
+    token: token ? '***' : 'MISSING',
+    expected: process.env.WHATSAPP_VERIFY_TOKEN ? '***' : 'UNDEFINED',
   });
   return NextResponse.json(
     { error: "Token de verificação inválido ou parâmetros faltando" },
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 interface ReportResult {
   userId: string;
   success: boolean;
-  reason?: string; // Adicionado para detalhar falhas
+  reason?: string;
 }
 
 /**
@@ -54,11 +54,10 @@ interface ReportResult {
  * Utiliza JWT para autenticação (getToken).
  */
 export async function POST(request: NextRequest) {
-  const functionName = "[whatsapp/weeklyReport POST]"; // Para logs
+  const functionName = "[whatsapp/weeklyReport POST v1.1]"; // Atualiza tag da versão
   try {
     // Verifica se hoje é sexta-feira (dia 5)
     const today = new Date().getDay();
-    // Permite rodar em ambiente de desenvolvimento em qualquer dia para testes
     if (today !== 5 && process.env.NODE_ENV !== 'development') {
         logger.warn(`${functionName} Endpoint chamado fora de sexta-feira (e não em dev). Nenhum relatório será enviado.`);
         return NextResponse.json({ message: "Relatórios só são enviados às sextas-feiras." }, { status: 200 });
@@ -85,13 +84,11 @@ export async function POST(request: NextRequest) {
     logger.debug(`${functionName} Buscando usuários...`);
     const users = await User.find({
       planStatus: "active",
-      // <<< CORREÇÃO APLICADA AQUI >>>
       whatsappPhone: {
-        $exists: true,       // Garante que o campo existe
-        $nin: [null, ""]     // Garante que o valor NÃO é null NEM ""
+        $exists: true,
+        $nin: [null, ""]
       }
-      // <<< FIM DA CORREÇÃO >>>
-    }).lean(); // lean() para performance
+    }).lean();
     logger.info(`${functionName} Usuários ativos com WhatsApp encontrados: ${users.length}`);
     if (!users?.length) {
       return NextResponse.json(
@@ -102,49 +99,45 @@ export async function POST(request: NextRequest) {
 
     // 4) Define o período para os dados: últimos 7 dias
     const now = new Date();
-    const fromDate = new Date(); // Cria uma nova instância
-    fromDate.setDate(now.getDate() - 7); // Define a data para 7 dias atrás
-    fromDate.setHours(0, 0, 0, 0); // Zera horas/minutos/segundos para pegar desde o início do dia
+    const fromDate = new Date();
+    fromDate.setDate(now.getDate() - 7);
+    fromDate.setHours(0, 0, 0, 0);
     logger.debug(`${functionName} Período de análise: ${fromDate.toISOString()} até ${now.toISOString()}`);
 
     // 5) Processa os usuários
     const results = await Promise.allSettled<ReportResult>(
-      users.map(async (user): Promise<ReportResult> => { // Adiciona tipo de retorno explícito
-        // Validação robusta do usuário e whatsappPhone
+      users.map(async (user): Promise<ReportResult> => {
         if (!user?._id || !user.whatsappPhone || typeof user.whatsappPhone !== 'string' || user.whatsappPhone.trim() === '') {
             logger.error(`${functionName} Usuário inválido ou sem WhatsApp válido:`, user?._id);
             return { userId: user?._id?.toString() || 'INVALID_USER', success: false, reason: "Dados inválidos do usuário" };
         }
-        const userId = user._id.toString(); // Converte para string para logs
-        const userIdObj = new Types.ObjectId(userId); // Mantém como ObjectId para queries
+        const userId = user._id.toString();
+        const userIdObj = new Types.ObjectId(userId);
 
         try {
           logger.debug(`${functionName} Iniciando processamento para usuário ${userId}`);
 
-          // 5a) Carrega DailyMetrics dos últimos 7 dias
-          const dailyMetrics = await DailyMetric.find({ // Usa o Model importado diretamente
-            user: userIdObj, // Usa ObjectId
-            postDate: { $gte: fromDate },
-          }).lean();
-          logger.debug(`${functionName} ${dailyMetrics.length} métricas carregadas para usuário ${userId}`);
+          // <<< REMOVIDO: Não busca mais DailyMetrics aqui, buildAggregatedReport busca Metrics >>>
+          // const dailyMetrics = await DailyMetric.find({ ... }).lean();
+          // if (dailyMetrics.length === 0) { ... }
 
-          if (dailyMetrics.length === 0) {
-            logger.warn(`${functionName} Nenhuma métrica encontrada nos últimos 7 dias para usuário ${userId}. Relatório não gerado.`);
-            return { userId, success: false, reason: "Sem métricas recentes" };
-          }
-
-          // 5b) Agrega os dados usando buildAggregatedReport (v3.2)
-          logger.debug(`${functionName} Chamando buildAggregatedReport para ${userId}...`);
+          // 5b) <<< CORRIGIDO: Chama buildAggregatedReport com 3 argumentos >>>
+          logger.debug(`${functionName} Chamando buildAggregatedReport (v4.0) para ${userId}...`);
           const aggregatedReport: AggregatedReport = await buildAggregatedReport(
-            dailyMetrics,
-            userIdObj,  // Passa ObjectId
-            fromDate,   // Passa a data de início correta
-            DailyMetric,// Passa o Model importado
-            Metric      // Passa o Model importado
+            userIdObj,  // 1. userId (ObjectId)
+            fromDate,   // 2. startDate (Date)
+            Metric      // 3. metricModel (O modelo Metric importado)
           );
           logger.debug(`${functionName} Dados agregados para usuário ${userId} calculados.`);
 
-          // 5c) Gera o resumo estratégico semanal (v3.2 - ciente das limitações)
+          // Verifica se o relatório foi gerado (pode retornar vazio se não houver métricas no período)
+          if (!aggregatedReport || !aggregatedReport.overallStats) {
+               logger.warn(`${functionName} Nenhum dado encontrado no período para gerar relatório para usuário ${userId}.`);
+               return { userId, success: false, reason: "Sem dados no período" };
+          }
+
+
+          // 5c) Gera o resumo estratégico semanal
           logger.debug(`${functionName} Gerando resumo estratégico para ${userId}...`);
           const reportText = await generateStrategicWeeklySummary(user.name || "Usuário", aggregatedReport);
 
@@ -154,23 +147,18 @@ export async function POST(request: NextRequest) {
           }
           logger.debug(`${functionName} Relatório estratégico gerado para usuário ${userId} (Início: ${reportText.substring(0,100)}...).`);
 
-          // 5d) Ajusta número de telefone
-          let phoneWithPlus = user.whatsappPhone.trim(); // Remove espaços extras
+          // 5d) Ajusta número de telefone (lógica mantida)
+          let phoneWithPlus = user.whatsappPhone.trim();
           if (!phoneWithPlus.startsWith("+")) {
-             // Lógica simples para tentar adicionar +55 (ajuste conforme necessário)
-             if ((phoneWithPlus.length === 11 && (phoneWithPlus.startsWith('21') || phoneWithPlus.startsWith('11'))) || (phoneWithPlus.length === 10 && !(phoneWithPlus.startsWith('21') || phoneWithPlus.startsWith('11')))) { // Ex: 219XXXXXXXX ou 31XXXXXXXX
+             if ((phoneWithPlus.length === 11 && (phoneWithPlus.startsWith('21') || phoneWithPlus.startsWith('11'))) || (phoneWithPlus.length === 10 && !(phoneWithPlus.startsWith('21') || phoneWithPlus.startsWith('11')))) {
                 phoneWithPlus = "+55" + phoneWithPlus;
-             } else if (phoneWithPlus.length === 13 && phoneWithPlus.startsWith('55')) { // Já tem 55 mas sem o +
+             } else if (phoneWithPlus.length === 13 && phoneWithPlus.startsWith('55')) {
                 phoneWithPlus = "+" + phoneWithPlus;
              }
              else {
-                 // Outros casos podem precisar de lógica adicional ou serem considerados inválidos
                  logger.warn(`${functionName} Formato de telefone não reconhecido para adicionar '+' automaticamente para usuário ${userId}: ${user.whatsappPhone}`);
-                 // Decide se quer tentar enviar mesmo assim ou falhar
-                 // phoneWithPlus = "+" + phoneWithPlus; // Opção: tenta adicionar '+' de qualquer forma
              }
           }
-          // Validação mais permissiva do formato internacional (apenas '+' seguido de números)
           if (!/^\+\d{9,15}$/.test(phoneWithPlus)) {
               logger.warn(`${functionName} Número de telefone ${phoneWithPlus} (após ajuste) para usuário ${userId} parece inválido. Pulando envio.`);
               return { userId, success: false, reason: `Número de telefone inválido: ${user.whatsappPhone}` };
@@ -188,26 +176,25 @@ export async function POST(request: NextRequest) {
           let reason = "Erro desconhecido no processamento";
           if (error instanceof Error) {
               logger.error(`${functionName} Error details for ${userId}: Name=${error.name}, Message=${error.message}, Stack=${error.stack?.substring(0, 500)}...`);
-              reason = error.message; // Usa a mensagem de erro como motivo
+              reason = error.message;
           }
           return { userId, success: false, reason };
         }
       })
     );
 
-    // 6) Conta sucessos e falhas
+    // 6) Conta sucessos e falhas (lógica mantida)
     const successResults = results.filter(r => r.status === 'fulfilled' && r.value.success);
     const failedResults = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success));
 
     logger.info(`${functionName} Processamento concluído. Sucessos: ${successResults.length}, Falhas: ${failedResults.length}`);
     if (failedResults.length > 0) {
-        // Loga detalhes das falhas
         const failureDetails = failedResults.map(r => {
             if (r.status === 'rejected') return { status: r.status, reason: r.reason?.message || r.reason };
             if (r.status === 'fulfilled') return { status: r.status, value: { userId: r.value.userId, success: r.value.success, reason: r.value.reason } };
-            return { status: 'unknown' }; // Caso inesperado
+            return { status: 'unknown' };
         });
-        logger.warn(`${functionName} Detalhes das falhas:`, JSON.stringify(failureDetails, null, 2)); // Formata para melhor leitura
+        logger.warn(`${functionName} Detalhes das falhas:`, JSON.stringify(failureDetails, null, 2));
     }
 
     return NextResponse.json(
