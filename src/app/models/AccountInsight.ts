@@ -1,3 +1,4 @@
+// src/app/models/AccountInsight.ts (v1.3 - Adiciona recordedAt)
 import { Schema, model, models, Document, Model, Types } from "mongoose";
 
 /**
@@ -65,12 +66,13 @@ interface IAccountInsightsPeriod {
 
 /**
  * Interface que define a estrutura de um documento AccountInsight.
- * ATUALIZADO v1.2: Reflete as novas estruturas em 'accountInsightsPeriod' e 'audienceDemographics'.
+ * ATUALIZADO v1.3: Adicionado campo 'recordedAt'.
  */
 export interface IAccountInsight extends Document {
   user: Types.ObjectId;                   // Referência ao usuário
   instagramAccountId: string;             // ID da conta do Instagram
-  fetchDate: Date;                        // Data da coleta dos dados
+  fetchDate?: Date;                        // Data da coleta dos dados (Tornado opcional, pois 'recordedAt' pode ser usado)
+  recordedAt: Date;                       // <<< ADICIONADO v1.3 >>> Data em que este registro específico foi criado/salvo
   // Métricas básicas da conta (mantidas)
   followersCount?: number;
   followsCount?: number;
@@ -78,12 +80,23 @@ export interface IAccountInsight extends Document {
   // Subdocumentos atualizados
   accountInsightsPeriod?: IAccountInsightsPeriod; // <<< USA NOVA INTERFACE >>>
   audienceDemographics?: IAudienceDemographics;   // <<< USA NOVA INTERFACE >>>
-  createdAt: Date;
+  // Adicionado campo para detalhes básicos da conta no momento do snapshot
+  accountDetails?: {
+      username?: string;
+      name?: string;
+      biography?: string;
+      website?: string;
+      profile_picture_url?: string;
+      followers_count?: number; // Pode ser redundante com followersCount acima, mas representa o valor no momento do snapshot
+      follows_count?: number;   // Pode ser redundante
+      media_count?: number;     // Pode ser redundante
+  };
+  createdAt?: Date; // Mantido para compatibilidade, mas 'recordedAt' é mais específico para o snapshot
 }
 
 /**
  * Schema para o modelo AccountInsight.
- * ATUALIZADO v1.2: Reflete as novas estruturas.
+ * ATUALIZADO v1.3: Adicionado campo 'recordedAt' e 'accountDetails'.
  */
 const accountInsightSchema = new Schema<IAccountInsight>(
   {
@@ -98,12 +111,18 @@ const accountInsightSchema = new Schema<IAccountInsight>(
       required: [true, 'O ID da conta do Instagram é obrigatório.'],
       index: true,
     },
-    fetchDate: {
+    fetchDate: { // Mantido por enquanto, mas talvez depreciar em favor de recordedAt
       type: Date,
-      required: [true, 'A data da coleta (fetchDate) é obrigatória.'],
+      // required: [true, 'A data da coleta (fetchDate) é obrigatória.'], // Tornando opcional
       index: true,
     },
-    // Métricas básicas (mantidas)
+    recordedAt: { // <<< ADICIONADO v1.3 >>>
+      type: Date,
+      required: [true, 'A data de registro (recordedAt) é obrigatória.'],
+      default: Date.now, // Define automaticamente na criação
+      index: true,
+    },
+    // Métricas básicas (mantidas, mas podem ser redundantes com accountDetails)
     followersCount: { type: Number },
     followsCount: { type: Number },
     mediaCount: { type: Number },
@@ -156,18 +175,35 @@ const accountInsightSchema = new Schema<IAccountInsight>(
       default: null,
       _id: false
     },
-    createdAt: {
+     // Subdocumento para detalhes básicos da conta no momento do snapshot <<< ADICIONADO v1.3 >>>
+     accountDetails: {
+         type: {
+             username: { type: String },
+             name: { type: String },
+             biography: { type: String },
+             website: { type: String },
+             profile_picture_url: { type: String },
+             followers_count: { type: Number },
+             follows_count: { type: Number },
+             media_count: { type: Number },
+         },
+         default: null,
+         _id: false,
+     },
+    createdAt: { // Mantido para compatibilidade
       type: Date,
       default: Date.now,
     },
   },
+  // { timestamps: true } // Alternativa para createdAt/updatedAt automáticos, mas recordedAt é mais explícito aqui
 );
 
 /**
- * Índices (Mantidos da versão anterior)
+ * Índices (Mantidos e adicionado índice para recordedAt)
  */
-accountInsightSchema.index({ user: 1, instagramAccountId: 1, fetchDate: -1 });
-accountInsightSchema.index({ instagramAccountId: 1, fetchDate: -1 });
+accountInsightSchema.index({ user: 1, instagramAccountId: 1, recordedAt: -1 }); // Usa recordedAt
+accountInsightSchema.index({ instagramAccountId: 1, recordedAt: -1 }); // Usa recordedAt
+accountInsightSchema.index({ user: 1, instagramAccountId: 1, fetchDate: -1 }); // Mantido por enquanto
 
 
 const AccountInsightModel = models.AccountInsight

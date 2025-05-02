@@ -1,8 +1,8 @@
-// src/app/lib/instagramService.ts - v1.7.1 (Implementa Processamento Incremental e Corrige Erros)
-// - Refatora triggerDataRefresh para buscar insights e salvar dados por página de mídia.
-// - Mantém otimizações da v1.6.0 (logs de duração, validação de tipo, etc.).
-// - Corrige erro de tipo ao passar nextPageMediaUrl (null vs undefined).
-// - Corrige chave '}' faltante no final do arquivo.
+// src/app/lib/instagramService.ts - v1.7.6 (Corrige erro tipo 'lastWebhookUpdate' e mantém logs DEBUG)
+// - Remove a chave 'lastWebhookUpdate' do updateData em processStoryWebhookPayload.
+// - Mantém correções anteriores ('recordedAt', 'insights', 'demographics', 'format').
+// - Mantém implementação real e logs de depuração em getFacebookLongLivedTokenAndIgId.
+// - Mantém refatoração e otimizações anteriores.
 
 import { connectToDatabase } from "@/app/lib/mongoose";
 import DbUser, { IUser } from "@/app/models/User";
@@ -12,9 +12,9 @@ import AccountInsightModel, {
     IAccountInsightsPeriod,
     IAudienceDemographics,
     IDemographicBreakdown
-} from "@/app/models/AccountInsight";
-import StoryMetricModel, { IStoryMetric, IStoryStats } from "@/app/models/StoryMetric";
-import DailyMetricSnapshotModel, { IDailyMetricSnapshot } from "@/app/models/DailyMetricSnapshot"; // Import do modelo de Snapshot
+} from "@/app/models/AccountInsight"; // Presume que este model foi atualizado com 'recordedAt'
+import StoryMetricModel, { IStoryMetric, IStoryStats } from "@/app/models/StoryMetric"; // Presume que este model NÃO tem 'format' nem 'lastWebhookUpdate'
+import DailyMetricSnapshotModel, { IDailyMetricSnapshot } from "@/app/models/DailyMetricSnapshot";
 import { logger } from "@/app/lib/logger";
 import mongoose, { Types, Document } from "mongoose";
 import retry from 'async-retry';
@@ -32,11 +32,10 @@ import {
 // --- Configurações ---
 const RETRY_OPTIONS = { retries: 3, factor: 2, minTimeout: 500, maxTimeout: 5000, randomize: true };
 const INSIGHTS_CONCURRENCY_LIMIT = 5;
-const MAX_PAGES_MEDIA = 10; // Mantém o limite de páginas para evitar loops infinitos
+const MAX_PAGES_MEDIA = 10;
 const DELAY_MS = 250;
 
 // --- Interfaces ---
-// Interfaces da API do Instagram (mantidas como no original)
 interface InstagramConnectionDetails { accessToken: string | null; accountId: string | null; }
 interface InstagramMedia {
     id: string;
@@ -66,7 +65,6 @@ const limitInsightsFetch = pLimit(INSIGHTS_CONCURRENCY_LIMIT);
 
 /**
  * Busca o token de acesso e o ID da conta do Instagram para um usuário.
- * (Sem alterações da v1.4)
  */
 export async function getInstagramConnectionDetails(userId: string | mongoose.Types.ObjectId): Promise<InstagramConnectionDetails | null> {
     const TAG = '[getInstagramConnectionDetails]';
@@ -98,7 +96,6 @@ export async function getInstagramConnectionDetails(userId: string | mongoose.Ty
 
 /**
  * Busca as mídias (Posts, Reels, Carrosséis) de uma conta do Instagram.
- * Assinatura atualizada para aceitar string | undefined no pageUrl.
  */
 export async function fetchInstagramMedia(userId: string, pageUrl?: string): Promise<FetchMediaResult> { // pageUrl é string | undefined
     const TAG = '[fetchInstagramMedia]';
@@ -179,7 +176,6 @@ export async function fetchInstagramMedia(userId: string, pageUrl?: string): Pro
 
 /**
  * Busca os insights para uma mídia específica (Post, Reel, Carrossel).
- * (Sem alterações da v1.4)
  */
 export async function fetchMediaInsights(mediaId: string, accessToken: string): Promise<FetchInsightsResult<IMetricStats>> {
     const TAG = '[fetchMediaInsights]';
@@ -263,7 +259,6 @@ export async function fetchMediaInsights(mediaId: string, accessToken: string): 
 
 /**
  * Busca os insights de nível de conta para um período específico.
- * (Sem alterações da v1.4)
  */
 export async function fetchAccountInsights(
     accountId: string,
@@ -337,7 +332,6 @@ export async function fetchAccountInsights(
 
 /**
  * Busca os dados demográficos da audiência (seguidores e engajados).
- * (Sem alterações da v1.4)
  */
 export async function fetchAudienceDemographics(
     accountId: string,
@@ -442,7 +436,6 @@ export async function fetchAudienceDemographics(
 
 /**
  * Busca dados básicos da conta do Instagram (IG User node).
- * (Sem alterações da v1.4)
  */
 export async function fetchBasicAccountData(
     accountId: string,
@@ -507,7 +500,6 @@ export async function fetchBasicAccountData(
 
 /**
  * Limpa os dados de conexão do Instagram para um usuário no banco de dados.
- * (Sem alterações da v1.4)
  */
 export async function clearInstagramConnection(userId: string | mongoose.Types.ObjectId): Promise<void> {
     const TAG = '[clearInstagramConnection]';
@@ -534,7 +526,6 @@ export async function clearInstagramConnection(userId: string | mongoose.Types.O
 
 /**
  * Mapeia o media_type da API do Instagram para o campo 'format' do nosso modelo.
- * (Sem alterações da v1.4)
  */
 function mapMediaTypeToFormat(mediaType?: 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM'): string {
     switch (mediaType) {
@@ -547,8 +538,6 @@ function mapMediaTypeToFormat(mediaType?: 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM'):
 
 /**
  * Salva ou atualiza os dados de uma mídia (Post/Reel/Carrossel) e seus insights no MetricModel.
- * ATUALIZADO v1.6.0 (Otimizações): Adiciona lógica de snapshot, logs de duração e validações.
- * Lança erro em caso de falha no DB para MetricModel.
  */
 async function saveMetricData(
     userId: Types.ObjectId,
@@ -578,7 +567,6 @@ async function saveMetricData(
         const updateData: Partial<IMetric> = {
             user: userId, instagramMediaId: media.id, source: 'api',
             postLink: media.permalink ?? '', description: media.caption ?? '',
-            // Ação 1.1: Assume-se que media.timestamp é uma string ISO 8601 ou similar que new Date() parseia corretamente para UTC
             postDate: media.timestamp ? new Date(media.timestamp) : new Date(),
             format: format, stats: insights,
         };
@@ -676,7 +664,6 @@ async function saveMetricData(
 
                 for (const metricName of metricsToCalculateDelta) {
                     const currentVal = (currentCumulativeStats[metricName] as number) ?? 0;
-                    // Ação 4.1: Validação adicional de tipo
                     if (typeof currentVal !== 'number') {
                         logger.warn(`${SNAPSHOT_TAG} Valor inesperado não numérico para '${metricName as string}' em Metric ${savedMetric._id}: Recebido ${typeof currentVal}. Pulando.`);
                         continue;
@@ -723,18 +710,15 @@ async function saveMetricData(
                 );
                 logger.debug(`${SNAPSHOT_TAG} Snapshot salvo/atualizado com sucesso para Metric ${savedMetric._id} em ${snapshotDate.toISOString().split('T')[0]}.`);
             } catch (snapError) {
-                // Ação 2.2 / 2.3: Erro de snapshot é logado mas não relançado
                 logger.error(`${SNAPSHOT_TAG} Erro NÃO FATAL ao processar/salvar snapshot para Metric ${savedMetric._id}:`, snapError);
             }
         }
         // <<< FIM DA LÓGICA DE SNAPSHOT DIÁRIO >>>
 
     } catch (error) {
-        // Ação 2.3: Catch externo simplificado. Só captura erros do MetricModel.findOneAndUpdate ou outros inesperados.
         logger.error(`${TAG} Erro CRÍTICO durante o salvamento/atualização da métrica ${media.id} no DB:`, error);
         throw error; // Relança o erro crítico para ser tratado por triggerDataRefresh
     } finally {
-        // Ação 3.1: Log de fim e duração
         const duration = Date.now() - startTime;
         logger.info(`${TAG} Concluído. User: ${userId}, Media: ${media.id}. Duração: ${duration}ms`);
     }
@@ -743,7 +727,6 @@ async function saveMetricData(
 
 /**
  * Salva um novo snapshot de insights de conta no AccountInsightModel.
- * (Sem alterações da v1.4)
  */
 export async function saveAccountInsightData(
     userId: Types.ObjectId,
@@ -752,8 +735,51 @@ export async function saveAccountInsightData(
     demographics: IAudienceDemographics | undefined,
     accountData: Partial<IUser> | undefined
 ): Promise<void> {
-    const TAG = '[saveAccountInsightData]';
-    // ... (código mantido da v1.6.0) ...
+    const TAG = '[saveAccountInsightData v1.7.4]'; // Tag atualizada
+    logger.debug(`${TAG} Salvando snapshot de insights/demografia/dados básicos para User ${userId}, Conta IG ${accountId}...`);
+    try {
+        await connectToDatabase();
+        // A interface IAccountInsight agora deve ter 'recordedAt', 'accountInsightsPeriod' e 'audienceDemographics'
+        const snapshot: Partial<IAccountInsight> = {
+            user: userId,
+            instagramAccountId: accountId,
+            recordedAt: new Date(), // Presume que AccountInsight.ts foi atualizado
+            accountInsightsPeriod: insights, // Chave correta da interface
+            audienceDemographics: demographics, // Chave correta da interface
+            // Inclui dados básicos da conta se disponíveis
+            accountDetails: accountData ? {
+                username: accountData.username,
+                name: accountData.name,
+                biography: accountData.biography,
+                website: accountData.website,
+                profile_picture_url: accountData.profile_picture_url,
+                followers_count: accountData.followers_count,
+                follows_count: accountData.follows_count,
+                media_count: accountData.media_count,
+            } : undefined,
+        };
+
+        // Remove chaves undefined do snapshot antes de salvar
+        Object.keys(snapshot).forEach(key => snapshot[key as keyof typeof snapshot] === undefined && delete snapshot[key as keyof typeof snapshot]);
+        if (snapshot.accountInsightsPeriod && Object.keys(snapshot.accountInsightsPeriod).length === 0) delete snapshot.accountInsightsPeriod;
+        if (snapshot.audienceDemographics && Object.keys(snapshot.audienceDemographics).length === 0) delete snapshot.audienceDemographics;
+        if (snapshot.accountDetails && Object.keys(snapshot.accountDetails).length === 0) delete snapshot.accountDetails;
+
+        // Verifica se há dados além dos identificadores antes de criar
+        const hasInsights = snapshot.accountInsightsPeriod && Object.keys(snapshot.accountInsightsPeriod).length > 0;
+        const hasDemographics = snapshot.audienceDemographics && Object.keys(snapshot.audienceDemographics).length > 0;
+        const hasAccountDetails = snapshot.accountDetails && Object.keys(snapshot.accountDetails).length > 0;
+
+        // Ajuste na condição para incluir 'recordedAt' como campo válido mínimo
+        if (Object.keys(snapshot).length > 3 || (hasInsights || hasDemographics || hasAccountDetails)) {
+            await AccountInsightModel.create(snapshot);
+            logger.info(`${TAG} Snapshot de insights/demografia/dados básicos salvo com sucesso para User ${userId}.`);
+        } else {
+            logger.warn(`${TAG} Nenhum dado novo de insight/demografia/básico de conta para salvar no snapshot para User ${userId}.`);
+        }
+    } catch (error) {
+        logger.error(`${TAG} Erro ao salvar snapshot de insights/demografia/dados básicos para User ${userId}:`, error);
+    }
 }
 
 
@@ -761,10 +787,9 @@ export async function saveAccountInsightData(
 
 /**
  * Orquestra a coleta de dados do Instagram para um usuário.
- * ATUALIZADO v1.7.1: Processa insights e salva dados incrementalmente por página de mídia. Corrige erro de tipo.
  */
 export async function triggerDataRefresh(userId: string): Promise<{ success: boolean; message: string; details?: any }> {
-    const TAG = '[triggerDataRefresh v1.7.1 Incremental]'; // <<< TAG ATUALIZADA >>>
+    const TAG = '[triggerDataRefresh v1.7.1 Incremental]'; // Mantém tag da lógica principal
     const startTime = Date.now();
     logger.info(`${TAG} Iniciando atualização de dados v1.7.1 (incremental) do Instagram para User ${userId}...`);
 
@@ -808,9 +833,6 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
         } else {
              logger.warn(`${TAG} Falha ao obter dados básicos da conta: ${basicDataResult.error}`);
              errors.push(`Dados básicos conta: ${basicDataResult.error ?? 'Erro desconhecido'}`);
-             // <<< IMPORTANTE: Verificar se o erro de permissão aqui deve parar o processo >>>
-             // Se for erro #10, talvez não faça sentido continuar? Ou continuar sem os dados básicos?
-             // Por enquanto, continua, mas adiciona ao array de erros.
         }
         await new Promise(resolve => setTimeout(resolve, DELAY_MS));
 
@@ -827,7 +849,6 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
 
             // 2.1 Buscar Mídias da Página Atual
             logger.debug(`${TAG} Chamando fetchInstagramMedia para página ${currentPage}...`);
-            // <<< CORREÇÃO APLICADA AQUI: Usa ?? undefined para garantir que null não seja passado >>>
             const mediaResult = await fetchInstagramMedia(userId, nextPageMediaUrl ?? undefined);
             logger.debug(`${TAG} fetchInstagramMedia para página ${currentPage} concluído. Sucesso: ${mediaResult.success}`);
 
@@ -838,8 +859,6 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
                     logger.warn(`${TAG} Interrompendo busca devido a erro de token na página ${currentPage}.`);
                     hasMoreMediaPages = false; // Para o loop principal
                 }
-                // Decide se continua para a próxima página mesmo com erro (exceto token)
-                // Poderia parar aqui se preferir: hasMoreMediaPages = false;
             }
 
             // 2.2 Processar Mídias da Página Atual (se houver dados)
@@ -873,7 +892,6 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
                         if (insightsResult?.success && insightsResult.data) {
                             collectedMediaInsights++;
                             try {
-                                // Chama saveMetricData (v1.6.0) que inclui snapshot
                                 await saveMetricData(userObjectId, media, insightsResult.data);
                                 savedMediaMetrics++;
                             } catch (saveError: unknown) {
@@ -905,7 +923,6 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
                 logger.info(`${TAG} Fim da busca de mídias. Última página processada: ${currentPage}.`);
             } else {
                 logger.debug(`${TAG} Preparando para buscar próxima página (${currentPage + 1}). Próxima URL existe.`);
-                // Delay entre páginas
                 await new Promise(resolve => setTimeout(resolve, DELAY_MS));
             }
 
@@ -922,7 +939,6 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
 
 
         // --- 3. Buscar e Salvar Insights da Conta e Demografia (Após processar mídias) ---
-        // Esta parte permanece sequencial no final
         let accountInsightData: IAccountInsightsPeriod | undefined;
         let audienceDemographicsData: IAudienceDemographics | undefined;
         if (accountId && accessToken) { // Verifica novamente se temos os dados necessários
@@ -950,6 +966,8 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
             }
             if (accountInsightData || audienceDemographicsData || basicAccountData) {
                  logger.info(`${TAG} Salvando snapshot de insights/demografia/dados básicos da conta...`);
+                 // Passa a variável local 'accountInsightData' (renomeada para 'insights' na chamada)
+                 // e 'audienceDemographicsData' (renomeada para 'demographics' na chamada)
                  await saveAccountInsightData( userObjectId, accountId, accountInsightData, audienceDemographicsData, basicAccountData );
                  savedAccountInsights++;
             } else {
@@ -961,7 +979,7 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
 
         // --- Conclusão ---
         const duration = Date.now() - startTime;
-        const successMessage = `Atualização v1.7.1 concluída para User ${userId}. ` + // <<< VERSÃO ATUALIZADA NO LOG
+        const successMessage = `Atualização v1.7.1 concluída para User ${userId}. ` +
                                `Mídias: ${savedMediaMetrics}/${totalMediaProcessed} processadas (${totalMediaFound} encontradas em ${currentPage} pág.). ` +
                                `Insights Conta: ${savedAccountInsights > 0 ? 'Salvo' : 'Não salvo/Sem dados'}. ` +
                                `Demografia: ${savedDemographics ? 'Salva' : 'Não salva/Insuficiente'}. ` +
@@ -996,29 +1014,275 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
     }
 }
 
+// ==========================================================================
+// == NOVA IMPLEMENTAÇÃO de getFacebookLongLivedTokenAndIgId com LOGS DEBUG ==
+// ==========================================================================
 /**
- * Função auxiliar para obter LLAT e ID do Instagram.
- * (Sem alterações da v1.4)
+ * Troca um token de acesso de curta duração do Facebook por um de longa duração (LLAT),
+ * busca as páginas do Facebook gerenciadas pelo usuário, identifica a conta do Instagram
+ * vinculada e atualiza os dados do usuário no banco de dados.
+ * Inclui logging detalhado para diagnóstico (Fase 1).
  */
 export async function getFacebookLongLivedTokenAndIgId(
     shortLivedToken: string,
     userId: string
 ): Promise<{ success: boolean; error?: string }> {
-    const TAG = '[getFacebookLongLivedTokenAndIgId]';
-    // ... (código mantido da v1.6.0) ...
-     return { success: true }; // Simulado para compilar
+    const TAG = '[getFacebookLongLivedTokenAndIgId_vDEBUG]'; // Tag atualizada para depuração
+    logger.info(`${TAG} Iniciando para User ID: ${userId}.`);
+    console.log(`***** ${TAG} Iniciando para User ID: ${userId} *****`); // Log de console adicional
+    console.log(`***** ${TAG} Recebido Short-Lived Token (parcial): ${shortLivedToken?.substring(0, 10)}... *****`);
+
+    if (!process.env.FACEBOOK_CLIENT_ID || !process.env.FACEBOOK_CLIENT_SECRET) {
+        const errorMsg = "FACEBOOK_CLIENT_ID ou FACEBOOK_CLIENT_SECRET não definidos nas variáveis de ambiente.";
+        logger.error(`${TAG} ${errorMsg}`);
+        console.error(`***** ${TAG} ${errorMsg} *****`);
+        return { success: false, error: errorMsg };
+    }
+
+    if (!mongoose.isValidObjectId(userId)) {
+        const errorMsg = `ID de usuário inválido fornecido: ${userId}`;
+        logger.error(`${TAG} ${errorMsg}`);
+        console.error(`***** ${TAG} ${errorMsg} *****`);
+        return { success: false, error: errorMsg };
+    }
+
+    let longLivedAccessToken: string | null = null;
+    let pagesData: any[] = [];
+    let selectedPage: any = null;
+    let instagramAccountId: string | null = null;
+
+    try {
+        // --- 1. Trocar Short-Lived Token por Long-Lived Access Token (LLAT) ---
+        logger.debug(`${TAG} Tentando obter LLAT para User ${userId}...`);
+        console.log(`***** ${TAG} Tentando obter LLAT para User ${userId}... *****`);
+        const llatUrl = `${BASE_URL}/oauth/access_token?grant_type=fb_exchange_token&client_id=${process.env.FACEBOOK_CLIENT_ID}&client_secret=${process.env.FACEBOOK_CLIENT_SECRET}&fb_exchange_token=${shortLivedToken}`;
+        console.log(`***** ${TAG} URL Troca Token (sem segredos): ${llatUrl.replace(process.env.FACEBOOK_CLIENT_SECRET, '***SECRET***').replace(shortLivedToken, '***SLT***')} *****`);
+
+        const llatResponse = await fetch(llatUrl);
+        const llatResponseText = await llatResponse.text(); // Lê como texto primeiro
+        console.log(`***** ${TAG} Status Resposta Troca Token: ${llatResponse.status} *****`);
+        console.log(`***** ${TAG} Corpo Resposta Troca Token (raw): ${llatResponseText} *****`);
+
+        let llatData;
+        try {
+            llatData = JSON.parse(llatResponseText);
+            console.log(`***** ${TAG} Corpo Resposta Troca Token (parsed JSON):`, llatData);
+        } catch (parseError) {
+            logger.error(`${TAG} Erro ao parsear resposta JSON da troca de token:`, parseError);
+            console.error(`***** ${TAG} Erro ao parsear resposta JSON da troca de token: ${parseError instanceof Error ? parseError.message : String(parseError)} *****`);
+            return { success: false, error: `Falha ao processar resposta da troca de token: ${llatResponseText}` };
+        }
+
+
+        if (!llatResponse.ok || llatData.error || !llatData.access_token) {
+            const error = llatData.error || { message: `Erro ${llatResponse.status} ao obter LLAT`, code: llatResponse.status };
+            logger.error(`${TAG} Erro da API ao obter LLAT para User ${userId}:`, error);
+            console.error(`***** ${TAG} Erro da API ao obter LLAT: ${JSON.stringify(error)} *****`);
+            return { success: false, error: `Falha ao obter token de longa duração: ${error.message}` };
+        }
+
+        longLivedAccessToken = llatData.access_token;
+        logger.info(`${TAG} LLAT obtido com sucesso para User ${userId}.`);
+        console.log(`***** ${TAG} LLAT OBTIDO COM SUCESSO (parcial): ${longLivedAccessToken?.substring(0, 10)}...${longLivedAccessToken?.slice(-5)} *****`);
+
+
+        // --- 2. Buscar Páginas do Facebook (/me/accounts) usando o LLAT ---
+        logger.debug(`${TAG} Buscando páginas do Facebook (/me/accounts) para User ${userId}...`);
+        console.log(`***** ${TAG} Buscando páginas do Facebook (/me/accounts) para User ${userId}... *****`);
+        // Solicita ID, nome, token de acesso da página e o ID da conta Instagram vinculada
+        const meAccountsUrl = `${BASE_URL}/${API_VERSION}/me/accounts?fields=id,name,access_token,instagram_business_account{id}&access_token=${longLivedAccessToken}`;
+        console.log(`***** ${TAG} URL /me/accounts (sem token): ${meAccountsUrl.split('?')[0]}?fields=id,name,access_token,instagram_business_account{id} *****`);
+        console.log(`***** ${TAG} Usando LLAT (parcial): ${longLivedAccessToken?.substring(0, 5)}...${longLivedAccessToken?.slice(-5)} *****`);
+
+        const meAccountsResponse = await fetch(meAccountsUrl);
+        const meAccountsResponseText = await meAccountsResponse.text(); // Lê como texto primeiro
+        console.log(`***** ${TAG} Status Resposta /me/accounts: ${meAccountsResponse.status} *****`);
+        console.log(`***** ${TAG} Corpo Resposta /me/accounts (raw): ${meAccountsResponseText} *****`);
+
+        let meAccountsData;
+        try {
+            meAccountsData = JSON.parse(meAccountsResponseText);
+            console.log(`***** ${TAG} Corpo Resposta /me/accounts (parsed JSON):`, meAccountsData);
+        } catch (parseError) {
+            logger.error(`${TAG} Erro ao parsear resposta JSON de /me/accounts:`, parseError);
+            console.error(`***** ${TAG} Erro ao parsear resposta JSON de /me/accounts: ${parseError instanceof Error ? parseError.message : String(parseError)} *****`);
+            return { success: false, error: `Falha ao processar resposta de /me/accounts: ${meAccountsResponseText}` };
+        }
+
+        if (!meAccountsResponse.ok || meAccountsData.error) {
+            const error = meAccountsData.error || { message: `Erro ${meAccountsResponse.status} ao buscar /me/accounts`, code: meAccountsResponse.status };
+            logger.error(`${TAG} Erro da API ao buscar /me/accounts para User ${userId}:`, error);
+            console.error(`***** ${TAG} Erro na API /me/accounts: ${JSON.stringify(error)} *****`);
+            // Tentar dar uma mensagem mais útil para erros comuns
+            if (error.code === 190) return { success: false, error: 'Token de acesso inválido ou expirado ao buscar páginas.' };
+            if (error.code === 10) return { success: false, error: 'Permissão `pages_show_list` ausente ou negada ao buscar páginas.' };
+            if (error.code === 100 && error.error_subcode === 33) return { success: false, error: 'Esta ação requer uma Página conectada a uma conta do Instagram.' }; // Comum se a página não tem IG
+            return { success: false, error: `Falha ao buscar páginas do Facebook: ${error.message}` };
+        }
+
+        if (!meAccountsData.data || meAccountsData.data.length === 0) {
+            const errorMsg = "Nenhuma página do Facebook encontrada para este usuário ou permissão não concedida para páginas específicas.";
+            logger.warn(`${TAG} ${errorMsg} User: ${userId}`);
+            console.warn(`***** ${TAG} /me/accounts retornou um array de dados vazio ou ausente. Nenhuma página encontrada! *****`);
+            return { success: false, error: errorMsg };
+        }
+
+        pagesData = meAccountsData.data;
+        logger.info(`${TAG} ${pagesData.length} página(s) do Facebook encontrada(s) para User ${userId}.`);
+        console.log(`***** ${TAG} Páginas encontradas:`, pagesData.map((p: any) => ({ id: p.id, name: p.name, hasIg: !!p.instagram_business_account })));
+
+
+        // --- 3. Encontrar a Página Correta e o ID do Instagram ---
+        // Lógica para selecionar a página: Por enquanto, pega a PRIMEIRA que tiver um instagram_business_account.
+        // Idealmente, você pode querer permitir que o usuário escolha qual página/conta IG usar se houver múltiplas.
+        selectedPage = pagesData.find(page => page.instagram_business_account && page.instagram_business_account.id);
+
+        if (!selectedPage) {
+            const errorMsg = "Nenhuma das páginas encontradas possui uma conta do Instagram Business/Creator vinculada.";
+            logger.warn(`${TAG} ${errorMsg} User: ${userId}`);
+            console.warn(`***** ${TAG} Nenhuma página com instagram_business_account encontrado na lista. *****`);
+            return { success: false, error: errorMsg };
+        }
+
+        instagramAccountId = selectedPage.instagram_business_account.id;
+        const pageAccessToken = selectedPage.access_token; // Token específico da página (geralmente não necessário se o LLAT do usuário tem permissões suficientes)
+        logger.info(`${TAG} Conta Instagram encontrada (ID: ${instagramAccountId}) na Página ${selectedPage.id} (${selectedPage.name}) para User ${userId}.`);
+        console.log(`***** ${TAG} Conta Instagram ID: ${instagramAccountId} | Página FB ID: ${selectedPage.id} (${selectedPage.name}) *****`);
+        // console.log(`***** ${TAG} Page Access Token (parcial): ${pageAccessToken?.substring(0, 10)}... *****`); // Opcional logar
+
+        // --- 4. Atualizar Usuário no Banco de Dados ---
+        logger.debug(`${TAG} Tentando atualizar usuário ${userId} no DB com LLAT e IG ID...`);
+        const updateData = {
+            instagramAccessToken: longLivedAccessToken, // Salva o LLAT
+            instagramAccountId: instagramAccountId,    // Salva o ID da conta IG
+            isInstagramConnected: true,                // Marca como conectado
+            // Opcional: Salvar ID e nome da página FB conectada
+            // facebookPageId: selectedPage.id,
+            // facebookPageName: selectedPage.name,
+            lastInstagramSyncAttempt: new Date(),
+            lastInstagramSyncSuccess: true // Marca como sucesso inicial
+        };
+        console.log(`***** ${TAG} Dados para atualizar no DB User ${userId}:`, {
+            instagramAccessToken: `LLAT(${longLivedAccessToken?.length})`, // Loga apenas o tamanho
+            instagramAccountId: updateData.instagramAccountId,
+            isInstagramConnected: updateData.isInstagramConnected,
+            // facebookPageId: updateData.facebookPageId,
+            // facebookPageName: updateData.facebookPageName,
+        });
+
+        await connectToDatabase();
+        const updateResult = await DbUser.findByIdAndUpdate(userId, { $set: updateData });
+
+        if (!updateResult) {
+            // Isso é improvável se o userId era válido, mas é bom verificar
+            const errorMsg = `Falha ao encontrar usuário ${userId} no DB para atualização final.`;
+            logger.error(`${TAG} ${errorMsg}`);
+            console.error(`***** ${TAG} ${errorMsg} *****`);
+            // Não necessariamente falha a conexão, mas o DB não foi atualizado
+            return { success: false, error: errorMsg };
+        }
+
+        logger.info(`${TAG} Usuário ${userId} atualizado com sucesso no DB com dados de conexão Instagram.`);
+        console.log(`***** ${TAG} Usuário ${userId} atualizado com sucesso no DB. *****`);
+
+        // --- 5. Retornar Sucesso ---
+        logger.info(`${TAG} Processo concluído com sucesso para User ${userId}.`);
+        console.log(`***** ${TAG} Processo concluído com sucesso para User ${userId}. *****`);
+        return { success: true };
+
+    } catch (error: unknown) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        logger.error(`${TAG} Erro CRÍTICO inesperado durante o processo para User ${userId}:`, error);
+        console.error(`***** ${TAG} Erro CRÍTICO inesperado: ${errorMsg} *****`, error);
+        // Tentar limpar a conexão se algo deu muito errado e temos um LLAT
+        if (longLivedAccessToken && errorMsg.includes('Token de acesso inválido')) {
+             // Chama a função clearInstagramConnection que já deve estar definida neste arquivo
+             await clearInstagramConnection(userId);
+        }
+        return { success: false, error: `Erro interno: ${errorMsg}` };
+    }
 }
+// ==========================================================================
+// == FIM DA NOVA IMPLEMENTAÇÃO                                            ==
+// ==========================================================================
 
 /**
  * Processa o payload recebido do webhook 'story_insights'.
- * (Sem alterações da v1.4)
+ * CORRIGIDO v1.7.6: Remove 'lastWebhookUpdate'.
  */
 export async function processStoryWebhookPayload(
     mediaId: string,
     webhookAccountId: string | undefined,
     value: any
 ): Promise<{ success: boolean; error?: string }> {
-    const TAG = '[processStoryWebhookPayload v1.4]';
-    // ... (código mantido da v1.6.0) ...
-     return { success: true }; // Simulado para compilar
-} // <<< CHAVE FINAL PRESENTE AQUI >>>
+    const TAG = '[processStoryWebhookPayload v1.7.6]'; // Tag atualizada
+    logger.debug(`${TAG} Recebido payload para Media ${mediaId}, Conta Webhook ${webhookAccountId}.`);
+
+    if (!webhookAccountId) {
+        logger.warn(`${TAG} ID da conta do Instagram ausente no payload do webhook.`);
+        return { success: false, error: 'ID da conta ausente no webhook.' };
+    }
+    if (!value || typeof value !== 'object') {
+        logger.warn(`${TAG} Payload 'value' inválido ou ausente para Media ${mediaId}.`);
+        return { success: false, error: 'Payload value inválido.' };
+    }
+
+    try {
+        await connectToDatabase();
+        // Encontra o usuário pelo ID da conta do Instagram recebido no webhook
+        const user = await DbUser.findOne({ instagramAccountId: webhookAccountId }).select('_id').lean();
+        if (!user) {
+            logger.warn(`${TAG} Usuário não encontrado no DB para Instagram Account ID ${webhookAccountId} (Webhook).`);
+            // Considerar retornar sucesso para não reenviar o webhook, mas logar o aviso.
+            return { success: true }; // Ou false se quiser forçar retry
+        }
+        const userId = user._id;
+
+        // Extrai e mapeia os insights do story do objeto 'value'
+        const stats: Partial<IStoryStats> = {
+            impressions: value.impressions,
+            reach: value.reach,
+            taps_forward: value.taps_forward,
+            taps_back: value.taps_back,
+            exits: value.exits,
+            replies: value.replies,
+            // Adicionar outros campos se disponíveis e relevantes (ex: profile_activity, navigation)
+        };
+         // Remove chaves com valor undefined ou null
+         Object.keys(stats).forEach(key => (stats[key as keyof IStoryStats] === undefined || stats[key as keyof IStoryStats] === null) && delete stats[key as keyof IStoryStats]);
+
+        if (Object.keys(stats).length === 0) {
+            logger.warn(`${TAG} Nenhum insight válido extraído do payload do webhook para Media ${mediaId}.`);
+            return { success: false, error: 'Nenhum insight válido no payload.' };
+        }
+
+        const filter = { user: userId, instagramMediaId: mediaId };
+        const updateData: Partial<IStoryMetric> = {
+            user: userId,
+            instagramMediaId: mediaId,
+            // format: 'Story', // Removido anteriormente
+            stats: stats as IStoryStats,
+            // lastWebhookUpdate: new Date(), // <<< CORREÇÃO AQUI: Removido pois não existe em IStoryMetric >>>
+        };
+
+        // Remove chaves undefined antes do update
+        Object.keys(updateData).forEach(key => updateData[key as keyof IStoryMetric] === undefined && delete updateData[key as keyof IStoryMetric]);
+        if (updateData.stats && Object.keys(updateData.stats).length === 0) delete updateData.stats;
+
+        const options = { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true };
+        const savedStoryMetric = await StoryMetricModel.findOneAndUpdate(filter, { $set: updateData }, options);
+
+        if (!savedStoryMetric) {
+            logger.error(`${TAG} Falha ao salvar/atualizar métrica de Story ${mediaId} via webhook (findOneAndUpdate retornou null).`);
+            return { success: false, error: 'Falha ao salvar dados do Story no DB.' };
+        }
+
+        logger.info(`${TAG} Insights do Story ${mediaId} (Webhook) salvos/atualizados com sucesso para User ${userId}.`);
+        return { success: true };
+
+    } catch (error) {
+        logger.error(`${TAG} Erro ao processar webhook de Story para Media ${mediaId}, Conta ${webhookAccountId}:`, error);
+        return { success: false, error: 'Erro interno ao processar webhook de Story.' };
+    }
+}
+
