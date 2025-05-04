@@ -1,6 +1,6 @@
-// src/app/api/auth/[...nextauth]/route.ts (v6.15 - Usa Cookie para Sinalizar Seleção Pendente)
-// - Callback jwt agora define um cookie 'ig-connect-status=pending' em caso de sucesso.
-// - Callback redirect volta a ser simples.
+// src/app/api/auth/[...nextauth]/route.ts (v6.16 - Adiciona auth_type e display)
+// - Adiciona auth_type: 'rerequest' e display: 'popup' ao FacebookProvider.
+// - Mantém fluxo com cookie para sinalizar seleção pendente.
 // - Mantém correções anteriores.
 
 import NextAuth from "next-auth";
@@ -15,7 +15,7 @@ import { Types } from "mongoose";
 import type { JWT, JWTEncodeParams, JWTDecodeParams } from "next-auth/jwt";
 import { SignJWT, jwtVerify } from "jose";
 import { logger } from "@/app/lib/logger";
-import { cookies } from 'next/headers'; // Importa cookies para definir o cookie de status
+import { cookies } from 'next/headers';
 import {
     fetchAvailableInstagramAccounts,
     AvailableInstagramAccount,
@@ -23,11 +23,11 @@ import {
 import { storeTemporaryLlat } from "@/app/lib/tempTokenStorage";
 
 // --- AUGMENT NEXT-AUTH TYPES (Mantido) ---
-declare module "next-auth" { /* ... */
+declare module "next-auth" {
     interface User extends DefaultUser { id: string; role?: string | null; provider?: string | null; planStatus?: string | null; planExpiresAt?: string | null; affiliateCode?: string | null; affiliateBalance?: number | null; affiliateRank?: number | null; affiliateInvites?: number | null; instagramConnected?: boolean | null; instagramAccountId?: string | null; instagramUsername?: string | null; pendingInstagramConnection?: boolean | null; availableIgAccounts?: AvailableInstagramAccount[] | null; igConnectionError?: string | null; image?: string | null; }
     interface Session extends DefaultSession { user?: User; }
 }
-declare module "next-auth/jwt" { /* ... */
+declare module "next-auth/jwt" {
      interface JWT { id: string; role?: string | null; provider?: string | null; pendingInstagramConnection?: boolean | null; availableIgAccounts?: AvailableInstagramAccount[] | null; igConnectionError?: string | null; name?: string | null; email?: string | null; picture?: string | null; image?: string | null; sub?: string; }
 }
 // --- END AUGMENT NEXT-AUTH TYPES ---
@@ -37,7 +37,6 @@ export const runtime = "nodejs";
 
 interface SignInCallback { user: User & { id?: string }; account: Account | null; }
 interface JwtCallback { token: JWT; user?: User | AdapterUser; account?: Account | null; profile?: any; trigger?: "signIn" | "signUp" | "update" | undefined; }
-// Remove token do RedirectCallback, pois não o usamos mais aqui
 interface RedirectCallback { baseUrl: string; }
 
 async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise<string> { /* ... (mantido) ... */
@@ -66,25 +65,34 @@ export const authOptions: NextAuthOptions = {
     sessionToken: { name: process.env.NODE_ENV === 'production' ? "__Secure-next-auth.session-token" : "next-auth.session-token", options: { httpOnly: true, sameSite: "lax", path: "/", domain: process.env.NODE_ENV === 'production' ? process.env.NEXTAUTH_COOKIE_DOMAIN : undefined, secure: process.env.NODE_ENV === "production" }, },
     callbackUrl: { name: process.env.NODE_ENV === 'production' ? "__Secure-next-auth.callback-url" : "next-auth.callback-url", options: { sameSite: "lax", path: "/", domain: process.env.NODE_ENV === 'production' ? process.env.NEXTAUTH_COOKIE_DOMAIN : undefined, secure: process.env.NODE_ENV === "production" }, },
     csrfToken: { name: process.env.NODE_ENV === 'production' ? "__Host-next-auth.csrf-token" : "next-auth.csrf-token", options: { httpOnly: true, sameSite: "lax", path: "/", domain: process.env.NODE_ENV === 'production' ? process.env.NEXTAUTH_COOKIE_DOMAIN : undefined, secure: process.env.NODE_ENV === "production" }, },
-    // Adiciona definição do cookie de status (opcional, mas bom para documentar)
-    // O cookie real será definido programaticamente no callback jwt
-    /*
-    stateCookie: {
-        name: 'ig-connect-status',
-        options: {
-            httpOnly: false, // Precisa ser lido pelo JS do cliente
-            secure: process.env.NODE_ENV === "production",
-            sameSite: 'lax',
-            path: '/',
-            maxAge: 60, // Curta duração (ex: 60 segundos)
-        },
-    }
-    */
   },
-  providers: [ /* ... (providers mantidos) ... */
-    GoogleProvider({ clientId: process.env.GOOGLE_CLIENT_ID!, clientSecret: process.env.GOOGLE_CLIENT_SECRET!, authorization: { params: { scope: "openid email profile" } }, profile(profile) { logger.debug("NextAuth: Google profile returned:", profile); return { id: profile.sub, name: profile.name, email: profile.email, image: profile.picture }; }, }),
-    FacebookProvider({ clientId: process.env.FACEBOOK_CLIENT_ID!, clientSecret: process.env.FACEBOOK_CLIENT_SECRET!, authorization: { params: { scope: [ 'email', 'public_profile', 'pages_show_list', 'pages_read_engagement', 'instagram_basic', 'instagram_manage_insights', 'instagram_manage_comments', ].join(','), }, }, profile(profile) { logger.debug("NextAuth: Facebook profile returned:", profile); return { id: profile.id, name: profile.name, email: profile.email, image: profile.picture?.data?.url, }; }, }),
-    CredentialsProvider({ name: "Demo", credentials: { username: { label: "Usuário", type: "text", placeholder: "demo" }, password: { label: "Senha", type: "password", placeholder: "demo" } }, async authorize(credentials) { if (credentials?.username === "demo" && credentials?.password === "demo") { return { id: "demo-123", name: "Demo User", email: "demo@example.com" }; } return null; }, }),
+  providers: [
+    GoogleProvider({ /* ... (mantido) ... */
+        clientId: process.env.GOOGLE_CLIENT_ID!, clientSecret: process.env.GOOGLE_CLIENT_SECRET!, authorization: { params: { scope: "openid email profile" } }, profile(profile) { logger.debug("NextAuth: Google profile returned:", profile); return { id: profile.sub, name: profile.name, email: profile.email, image: profile.picture }; },
+    }),
+    // --- FacebookProvider ATUALIZADO ---
+    FacebookProvider({
+      clientId: process.env.FACEBOOK_CLIENT_ID!,
+      clientSecret: process.env.FACEBOOK_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          scope: [
+            'email', 'public_profile', 'pages_show_list',
+            'pages_read_engagement', 'instagram_basic',
+            'instagram_manage_insights', 'instagram_manage_comments',
+          ].join(','),
+          // --- ADICIONADO ---
+          auth_type: 'rerequest', // Força a exibição da tela de permissão
+          display: 'popup'        // Define o modo de exibição do diálogo (pode ser 'page')
+          // --- FIM DA ADIÇÃO ---
+        },
+      },
+      profile(profile) { logger.debug("NextAuth: Facebook profile returned:", profile); return { id: profile.id, name: profile.name, email: profile.email, image: profile.picture?.data?.url, }; },
+    }),
+    // --- FIM DA ATUALIZAÇÃO ---
+    CredentialsProvider({ /* ... (mantido) ... */
+        name: "Demo", credentials: { username: { label: "Usuário", type: "text", placeholder: "demo" }, password: { label: "Senha", type: "password", placeholder: "demo" } }, async authorize(credentials) { if (credentials?.username === "demo" && credentials?.password === "demo") { return { id: "demo-123", name: "Demo User", email: "demo@example.com" }; } return null; },
+    }),
   ],
   jwt: { secret: process.env.NEXTAUTH_SECRET, encode: customEncode, decode: customDecode, },
   callbacks: {
@@ -146,7 +154,7 @@ export const authOptions: NextAuthOptions = {
         return false;
     },
 
-    // --- Callback jwt ATUALIZADO ---
+    // --- Callback jwt (sem alterações na lógica interna) ---
     async jwt({ token, user, account, profile, trigger }: JwtCallback): Promise<JWT> {
         const TAG_JWT = '[NextAuth JWT Callback v1.8.0]';
         let finalTokenData: JWT = { ...token, id: typeof token?.id === 'string' ? token.id : '' };
@@ -155,47 +163,16 @@ export const authOptions: NextAuthOptions = {
         const isSignInOrSignUp = trigger === 'signIn' || trigger === 'signUp';
 
         if (isSignInOrSignUp && account) {
-            if (account.provider === 'facebook') {
+            if (account.provider === 'facebook') { /* ... (lógica FB mantida, incluindo chamada a fetchAvailableInstagramAccounts e storeTemporaryLlat e definição do cookie) ... */
                 let linkTokenUser: IUser | null = null; let linkTokenValue: string | undefined = undefined; let userIdToUse: string | undefined; let isLinkingFlow = false;
-                try { /* ... (lógica do linkToken mantida) ... */
-                    const cookieStore = cookies(); const linkCookie = cookieStore.get('auth-link-token'); linkTokenValue = linkCookie?.value; if (linkTokenValue) { logger.info(`${TAG_JWT} Cookie link encontrado.`); cookieStore.delete('auth-link-token'); await connectToDatabase(); linkTokenUser = await DbUser.findOne({ linkToken: linkTokenValue, linkTokenExpiresAt: { $gt: new Date() } }).lean().exec(); if (linkTokenUser) { isLinkingFlow = true; logger.info(`${TAG_JWT} Usuário via linkToken: ${linkTokenUser._id}.`); userIdToUse = linkTokenUser._id.toString(); await DbUser.updateOne({ _id: linkTokenUser._id }, { $unset: { linkToken: "", linkTokenExpiresAt: "" } }); logger.info(`${TAG_JWT} linkToken removido.`); } else { logger.warn(`${TAG_JWT} Link token inválido/expirado.`); } } else { logger.debug(`${TAG_JWT} Cookie link não encontrado.`); } } catch (err) { logger.error(`${TAG_JWT} Erro cookie link:`, err); if (linkTokenValue) { try { cookies().delete('auth-link-token'); } catch {} } }
+                try { const cookieStore = cookies(); const linkCookie = cookieStore.get('auth-link-token'); linkTokenValue = linkCookie?.value; if (linkTokenValue) { logger.info(`${TAG_JWT} Cookie link encontrado.`); cookieStore.delete('auth-link-token'); await connectToDatabase(); linkTokenUser = await DbUser.findOne({ linkToken: linkTokenValue, linkTokenExpiresAt: { $gt: new Date() } }).lean().exec(); if (linkTokenUser) { isLinkingFlow = true; logger.info(`${TAG_JWT} Usuário via linkToken: ${linkTokenUser._id}.`); userIdToUse = linkTokenUser._id.toString(); await DbUser.updateOne({ _id: linkTokenUser._id }, { $unset: { linkToken: "", linkTokenExpiresAt: "" } }); logger.info(`${TAG_JWT} linkToken removido.`); } else { logger.warn(`${TAG_JWT} Link token inválido/expirado.`); } } else { logger.debug(`${TAG_JWT} Cookie link não encontrado.`); } } catch (err) { logger.error(`${TAG_JWT} Erro cookie link:`, err); if (linkTokenValue) { try { cookies().delete('auth-link-token'); } catch {} } }
                 let dbUserDoc: IUser | null = null;
                 if (isLinkingFlow && linkTokenUser) { userIdToUse = linkTokenUser._id.toString(); finalTokenData = { ...finalTokenData, id: userIdToUse, provider: linkTokenUser.provider, role: linkTokenUser.role, name: linkTokenUser.name, email: linkTokenUser.email, image: linkTokenUser.image, }; logger.debug(`${TAG_JWT} Dados básicos preenchidos (vinculação).`); }
                 else { await connectToDatabase(); if (account.providerAccountId) { dbUserDoc = await DbUser.findOne({ facebookProviderAccountId: account.providerAccountId }).exec(); } const currentEmail = user?.email; if (!dbUserDoc && currentEmail) { dbUserDoc = await DbUser.findOne({ email: currentEmail }).exec(); }
                     if (dbUserDoc) { userIdToUse = dbUserDoc._id.toString(); logger.info(`${TAG_JWT} Usuário existente ${userIdToUse} (Login Normal/Email).`); if (dbUserDoc.facebookProviderAccountId !== account.providerAccountId && account.providerAccountId) { const otherUserWithFbId = await DbUser.findOne({ facebookProviderAccountId: account.providerAccountId, _id: { $ne: dbUserDoc._id } }).select('_id').lean().exec(); if (otherUserWithFbId) { logger.error(`${TAG_JWT} FB ID já vinculado a outro user.`); finalTokenData = { ...finalTokenData, id: userIdToUse, provider: dbUserDoc.provider, role: dbUserDoc.role, name: dbUserDoc.name, email: dbUserDoc.email, image: dbUserDoc.image, igConnectionError: "fb_already_linked", }; return finalTokenData; } else { logger.info(`${TAG_JWT} Vinculando FB ID ${account.providerAccountId} a ${userIdToUse}.`); dbUserDoc.facebookProviderAccountId = account.providerAccountId; await dbUserDoc.save(); } } finalTokenData = { ...finalTokenData, id: userIdToUse, provider: dbUserDoc.provider || 'facebook', role: dbUserDoc.role, name: dbUserDoc.name, email: dbUserDoc.email, image: dbUserDoc.image, }; }
                     else { logger.info(`${TAG_JWT} Criando novo user FB ${account.providerAccountId}.`); const currentEmail = user?.email; if (!account.providerAccountId) { logger.error(`${TAG_JWT} FB ProviderAccountId ausente.`); finalTokenData = { ...finalTokenData, id: '', igConnectionError: "fb_create_missing_id" }; return finalTokenData; } if (currentEmail) { const userWithEmail = await DbUser.findOne({ email: currentEmail }).select('_id').lean().exec(); if (userWithEmail) { logger.error(`${TAG_JWT} Email ${currentEmail} já existe.`); finalTokenData = { ...finalTokenData, id: '', igConnectionError: "fb_email_exists" }; return finalTokenData; } } const newUser = new DbUser({ name: user?.name, email: currentEmail, image: user?.image, provider: 'facebook', providerAccountId: null, facebookProviderAccountId: account.providerAccountId, role: "user", planStatus: "inactive", isInstagramConnected: false, }); try { const savedUser = await newUser.save(); userIdToUse = savedUser._id.toString(); logger.info(`${TAG_JWT} Novo user FB criado: ${userIdToUse}`); finalTokenData = { ...finalTokenData, id: userIdToUse, provider: 'facebook', role: savedUser.role, name: savedUser.name, email: savedUser.email, image: savedUser.image, }; } catch (dbError: any) { logger.error(`${TAG_JWT} Erro DB ao criar user FB:`, dbError); finalTokenData = { ...finalTokenData, id: '', igConnectionError: "fb_create_db_error" }; return finalTokenData; } } }
-                if (userIdToUse && account.access_token) {
-                    logger.info(`${TAG_JWT} Chamando fetchAvailableInstagramAccounts para ${userIdToUse}...`);
-                    const igAccountsResult = await fetchAvailableInstagramAccounts(account.access_token, userIdToUse);
-                    if (igAccountsResult.success) {
-                        logger.info(`${TAG_JWT} Busca IG OK: ${igAccountsResult.accounts.length} contas.`);
-                        const storedLlat = await storeTemporaryLlat(userIdToUse, igAccountsResult.longLivedAccessToken);
-                        if (!storedLlat) { logger.error(`${TAG_JWT} Falha ao armazenar LLAT.`); finalTokenData.igConnectionError = "temp_llat_storage_failed"; }
-                        finalTokenData.pendingInstagramConnection = true;
-                        finalTokenData.availableIgAccounts = igAccountsResult.accounts;
-                        // --- ADICIONADO: Define o cookie de status ---
-                        try {
-                            cookies().set('ig-connect-status', 'pending', {
-                                path: '/',
-                                maxAge: 60, // 1 minuto de duração
-                                sameSite: 'lax',
-                                secure: process.env.NODE_ENV === 'production',
-                                // httpOnly: false, // Precisa ser false para JS ler
-                            });
-                            logger.info(`${TAG_JWT} Cookie 'ig-connect-status=pending' definido.`);
-                        } catch (cookieError) {
-                            logger.error(`${TAG_JWT} Erro ao definir cookie de status:`, cookieError);
-                            // Não bloqueia o fluxo, mas loga o erro
-                        }
-                        // --- FIM DA ADIÇÃO ---
-                    } else {
-                        logger.error(`${TAG_JWT} Falha busca IG: ${igAccountsResult.error}`);
-                        finalTokenData.igConnectionError = igAccountsResult.error;
-                        // --- ADICIONADO: Limpa cookie se busca falhar ---
-                        try { cookies().delete('ig-connect-status'); } catch {}
-                        // --- FIM DA ADIÇÃO ---
-                    }
-                } else { logger.warn(`${TAG_JWT} Pulando busca IG.`); if (!account.access_token) finalTokenData.igConnectionError = "missing_fb_token"; }
+                if (userIdToUse && account.access_token) { logger.info(`${TAG_JWT} Chamando fetchAvailableInstagramAccounts para ${userIdToUse}...`); const igAccountsResult = await fetchAvailableInstagramAccounts(account.access_token, userIdToUse); if (igAccountsResult.success) { logger.info(`${TAG_JWT} Busca IG OK: ${igAccountsResult.accounts.length} contas.`); const storedLlat = await storeTemporaryLlat(userIdToUse, igAccountsResult.longLivedAccessToken); if (!storedLlat) { logger.error(`${TAG_JWT} Falha ao armazenar LLAT.`); finalTokenData.igConnectionError = "temp_llat_storage_failed"; } finalTokenData.pendingInstagramConnection = true; finalTokenData.availableIgAccounts = igAccountsResult.accounts; try { cookies().set('ig-connect-status', 'pending', { path: '/', maxAge: 60, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', }); logger.info(`${TAG_JWT} Cookie 'ig-connect-status=pending' definido.`); } catch (cookieError) { logger.error(`${TAG_JWT} Erro ao definir cookie de status:`, cookieError); } } else { logger.error(`${TAG_JWT} Falha busca IG: ${igAccountsResult.error}`); finalTokenData.igConnectionError = igAccountsResult.error; try { cookies().delete('ig-connect-status'); } catch {} } }
+                else { logger.warn(`${TAG_JWT} Pulando busca IG.`); if (!account.access_token) finalTokenData.igConnectionError = "missing_fb_token"; }
             } else { /* ... (lógica Google/Credentials mantida) ... */
                 logger.debug(`${TAG_JWT} Processando ${account.provider}.`);
                 if (user?.id && typeof user.id === 'string' && Types.ObjectId.isValid(user.id)) { finalTokenData.id = user.id; finalTokenData.provider = account.provider; finalTokenData.name = user.name; finalTokenData.email = user.email; finalTokenData.image = user.image; logger.debug(`${TAG_JWT} Definindo token.id=${finalTokenData.id}`); try { await connectToDatabase(); const dbUser = await DbUser.findById(finalTokenData.id).select('role').lean(); finalTokenData.role = dbUser?.role; if (!dbUser) logger.warn(`${TAG_JWT} User ${finalTokenData.id} não encontrado (role).`); } catch (error) { logger.error(`${TAG_JWT} Erro busca role:`, error); finalTokenData.role = undefined; } }
@@ -251,10 +228,10 @@ export const authOptions: NextAuthOptions = {
     },
 
     // --- Callback redirect SIMPLIFICADO ---
-    // Removemos a lógica de verificar o token aqui
     async redirect({ baseUrl }: RedirectCallback): Promise<string> {
         const TAG_REDIRECT = '[NextAuth Redirect Callback]';
         const defaultRedirectUrl = `${baseUrl}/dashboard`;
+        // A lógica de adicionar query param foi removida, pois usamos o cookie agora
         logger.info(`${TAG_REDIRECT} Redirecionando para: ${defaultRedirectUrl}`);
         return defaultRedirectUrl;
     },
