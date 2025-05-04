@@ -2,30 +2,26 @@
 // Atualizado para incluir seleção de conta Instagram
 // CORRIGIDO: Usa 'type' com interseção em vez de 'interface extends'
 // CORRIGIDO: Acesso mais seguro a availableIgAccounts[0]
+// ADICIONADO: Força atualização da sessão após redirect do Facebook
 
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react'; // Importa useRef
 import { useSession, signIn } from 'next-auth/react';
 import { FaFacebook, FaInstagram, FaSpinner, FaUnlink, FaExclamationCircle, FaCheckCircle } from 'react-icons/fa';
 import { motion } from "framer-motion";
-// Importa a interface para as contas disponíveis
-import type { AvailableInstagramAccount } from '@/app/lib/instagramService'; // Ajuste o caminho se necessário
-// Importa os tipos base do NextAuth para clareza
+import type { AvailableInstagramAccount } from '@/app/lib/instagramService';
 import type { Session } from "next-auth";
+// Importa hook para ler query params
+import { useSearchParams } from 'next/navigation';
 
-interface InstagramConnectCardProps {
-    // Props futuras, se necessário
-}
+interface InstagramConnectCardProps {}
 
-// Define o tipo base do usuário da sessão de forma mais explícita
-type BaseUserType = NonNullable<Session['user']>; // Usa o tipo User da Session importada
-
-// Usa 'type' com interseção (&) para adicionar os campos customizados
+type BaseUserType = NonNullable<Session['user']>;
 type SessionUserWithInstagram = BaseUserType & {
     instagramConnected?: boolean;
     pendingInstagramConnection?: boolean;
-    availableIgAccounts?: AvailableInstagramAccount[] | null; // Permite null explicitamente
+    availableIgAccounts?: AvailableInstagramAccount[] | null;
     igConnectionError?: string;
     instagramAccountId?: string;
     instagramUsername?: string;
@@ -39,10 +35,9 @@ type SessionUserWithInstagram = BaseUserType & {
     affiliateInvites?: number;
 };
 
-
 const InstagramConnectCard: React.FC<InstagramConnectCardProps> = () => {
-    // --- Hooks de Estado e Sessão ---
     const { data: session, status, update } = useSession();
+    const searchParams = useSearchParams(); // Hook para ler query params
     const [isLinking, setIsLinking] = useState(false);
     const [linkError, setLinkError] = useState<string | null>(null);
     const [isDisconnecting, setIsDisconnecting] = useState(false);
@@ -50,36 +45,53 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = () => {
     const [selectedIgAccountId, setSelectedIgAccountId] = useState<string>('');
     const [isFinalizing, setIsFinalizing] = useState(false);
     const [finalizeError, setFinalizeError] = useState<string | null>(null);
+    // Ref para evitar chamada dupla do update no useEffect em StrictMode
+    const updateCalledRef = useRef(false);
 
-    // --- Logs de Depuração ---
+    // --- Efeito para forçar update da sessão e definir conta padrão ---
     useEffect(() => {
-        console.log("[InstagramConnectCard] Status da Sessão:", status);
+        console.log("[InstagramConnectCard] useEffect - Status:", status);
+        const shouldUpdateSession = searchParams.get('step') === 'selectAccount';
+
         if (status === 'authenticated') {
             const user = session?.user as SessionUserWithInstagram | undefined;
-            console.log("[InstagramConnectCard] Objeto Session User:", JSON.stringify(user, null, 2));
+            console.log("[InstagramConnectCard] useEffect - Session User:", JSON.stringify(user, null, 2));
 
-            if (user?.instagramConnected || !user?.pendingInstagramConnection) {
-                setSelectedIgAccountId('');
+            // Força update da sessão se viemos do redirect do Facebook
+            // e ainda não chamamos update() nesta montagem
+            if (shouldUpdateSession && !updateCalledRef.current) {
+                console.log("[InstagramConnectCard] Parâmetro 'step=selectAccount' detectado. Forçando update da sessão...");
+                updateCalledRef.current = true; // Marca que chamamos update
+                update().then(() => {
+                    console.log("[InstagramConnectCard] Update da sessão concluído após redirect.");
+                    // Após o update, a sessão deve ter os dados mais recentes
+                    // A lógica abaixo para definir a conta padrão será reavaliada no próximo render
+                }).catch(err => {
+                    console.error("[InstagramConnectCard] Erro ao forçar update da sessão:", err);
+                });
+                // Retorna aqui para não processar a lógica de seleção com dados potencialmente antigos
+                return;
             }
 
-            // Define a primeira conta como selecionada por padrão se houver seleção pendente
-            // --- CORREÇÃO DO ERRO DE TIPO ---
-            // Verifica se 'availableIgAccounts' existe e não está vazio antes de acessar [0]
-            if (user?.pendingInstagramConnection && user.availableIgAccounts && user.availableIgAccounts.length > 0 && !selectedIgAccountId) {
-                // Atribui a uma variável para ajudar na inferência de tipo e garantir que não é null/undefined
+            // Lógica para definir conta padrão e limpar seleção (executa APÓS o update, se necessário)
+            if (user?.instagramConnected || !user?.pendingInstagramConnection) {
+                 if (selectedIgAccountId !== '') {
+                    console.log("[InstagramConnectCard] Limpando seleção de conta IG.");
+                    setSelectedIgAccountId('');
+                 }
+            } else if (user?.pendingInstagramConnection && user.availableIgAccounts && user.availableIgAccounts.length > 0 && !selectedIgAccountId) {
                 const accounts = user.availableIgAccounts;
-                // A verificação 'accounts.length > 0' garante que accounts[0] existe
                 const firstAccount = accounts[0];
-                if (firstAccount) { // Checagem extra por segurança
-                    // A verificação .some() não é estritamente necessária aqui, pois já sabemos que accounts[0] existe.
-                    // Apenas definimos o ID da primeira conta.
+                if (firstAccount) {
                     setSelectedIgAccountId(firstAccount.igAccountId);
                     console.log("[InstagramConnectCard] Definindo conta IG padrão:", firstAccount.igAccountId);
                 }
             }
-            // --- FIM DA CORREÇÃO ---
+        } else if (status === 'unauthenticated') {
+             // Reseta a flag se o usuário deslogar
+             updateCalledRef.current = false;
         }
-    }, [status, session, selectedIgAccountId]);
+    }, [status, session, searchParams, selectedIgAccountId, update]); // Adiciona searchParams e update
 
     // --- Variáveis Derivadas da Sessão ---
     const isLoadingSession = status === 'loading';
@@ -87,14 +99,13 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = () => {
     const user = session?.user as SessionUserWithInstagram | undefined;
     const isInstagramConnected = user?.instagramConnected ?? false;
     const isPendingConnection = user?.pendingInstagramConnection ?? false;
-    // Garante que availableAccounts seja sempre um array
     const availableAccounts = user?.availableIgAccounts ?? [];
     const displayError = finalizeError || disconnectError || user?.igConnectionError || linkError;
 
     console.log(`[InstagramConnectCard] Render Check: isLoadingSession=${isLoadingSession}, isAuthenticated=${isAuthenticated}, isInstagramConnected=${isInstagramConnected}, isPendingConnection=${isPendingConnection}`);
 
     // --- Funções Handler (mantidas como antes) ---
-    const handleInitiateFacebookLink = async () => {
+    const handleInitiateFacebookLink = async () => { /* ... */
         setIsLinking(true);
         setLinkError(null);
         setDisconnectError(null);
@@ -110,6 +121,7 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = () => {
                 throw new Error(errorMessage);
             }
             console.log("[InstagramConnectCard] API iniciar-vinculacao OK. Redirecionando para signIn('facebook')...");
+            // Adiciona o parâmetro na URL de callback
             signIn('facebook', { callbackUrl: '/dashboard?step=selectAccount' });
         } catch (error: any) {
             console.error("[InstagramConnectCard] Erro ao iniciar vinculação:", error);
@@ -117,8 +129,7 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = () => {
             setIsLinking(false);
         }
     };
-
-    const handleFinalizeConnection = async () => {
+    const handleFinalizeConnection = async () => { /* ... */
         if (!selectedIgAccountId) { setFinalizeError("Por favor, selecione uma conta Instagram."); return; }
         setIsFinalizing(true);
         setFinalizeError(null); setLinkError(null); setDisconnectError(null);
@@ -133,7 +144,10 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = () => {
                 throw new Error(errorMessage);
             }
             console.log("[InstagramConnectCard] API finalize-connection OK. Atualizando sessão...");
-            await update();
+            // Limpa o query param da URL sem recarregar a página (opcional, mas limpo)
+            window.history.replaceState(null, '', '/dashboard');
+            updateCalledRef.current = false; // Permite novo update se necessário
+            await update(); // Atualiza a sessão para refletir a conexão
             console.log("[InstagramConnectCard] Sessão atualizada após finalização.");
             setSelectedIgAccountId('');
         } catch (error: any) {
@@ -143,8 +157,7 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = () => {
             setIsFinalizing(false);
         }
     };
-
-    const handleDisconnectInstagram = async () => {
+    const handleDisconnectInstagram = async () => { /* ... */
         setIsDisconnecting(true);
         setDisconnectError(null); setLinkError(null); setFinalizeError(null);
         console.log("[InstagramConnectCard] Iniciando processo de desconexão...");
@@ -158,6 +171,7 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = () => {
                 throw new Error(errorMessage);
             }
             console.log("[InstagramConnectCard] API desconexão OK. Atualizando sessão...");
+            updateCalledRef.current = false; // Permite novo update se necessário
             await update();
             console.log("[InstagramConnectCard] Sessão atualizada após desconexão.");
         } catch (error: any) {
@@ -168,7 +182,7 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = () => {
         }
     };
 
-    // --- Renderização (mantida como antes) ---
+    // --- Renderização (sem alterações na estrutura JSX) ---
     const cardVariants = { hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } } };
 
     if (isLoadingSession || !isAuthenticated) {
@@ -215,7 +229,6 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = () => {
                             <div className="flex flex-col items-center sm:items-end w-full sm:w-auto gap-2">
                                 <label htmlFor="igAccountSelect" className="text-sm font-medium text-gray-700 self-start sm:self-end">Selecione a conta Instagram:</label>
                                 <select id="igAccountSelect" value={selectedIgAccountId} onChange={(e) => { setSelectedIgAccountId(e.target.value); setFinalizeError(null); }} disabled={isFinalizing || availableAccounts.length === 0} className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm disabled:opacity-70 bg-white">
-                                    {/* Garante que availableAccounts é um array antes de usar map */}
                                     {availableAccounts.length === 0 && <option value="">Carregando contas...</option>}
                                     {availableAccounts.map(acc => ( <option key={acc.igAccountId} value={acc.igAccountId}> {acc.pageName} ({acc.igAccountId}) </option> ))}
                                 </select>
