@@ -136,7 +136,8 @@ export const authOptions: NextAuthOptions = {
                         'instagram_manage_insights', 'instagram_manage_comments'
                     ].join(','),
                     auth_type: 'rerequest',
-                    display: 'popup'
+                    display: 'popup',
+                    config_id: process.env.FACEBOOK_LOGIN_CONFIG_ID!
                 }
             },
             profile(profile) {
@@ -257,14 +258,12 @@ export const authOptions: NextAuthOptions = {
                     }
                     t.id = userId;
                 } else {
-                    // Google flow
                     if (user?.id && Types.ObjectId.isValid(user.id)) {
                         t.id = user.id;
                         t.provider = account.provider;
                         t.name = user.name;
                         t.email = user.email;
                         t.image = user.image;
-                        const db = await connectToDatabase();
                         const doc = await DbUser.findById(t.id).select('role').lean();
                         t.role = doc?.role;
                     }
@@ -274,7 +273,6 @@ export const authOptions: NextAuthOptions = {
             return t;
         },
         async session({ session, token }) {
-            const TAG_SESSION = '[NextAuth Session Callback]';
             if (!token.id || !Types.ObjectId.isValid(token.id)) {
                 return { ...session, user: undefined };
             }
@@ -287,14 +285,23 @@ export const authOptions: NextAuthOptions = {
                 role: token.role ?? 'user',
                 pendingInstagramConnection: token.pendingInstagramConnection ?? false,
                 availableIgAccounts: token.availableIgAccounts,
-                igConnectionError: token.igConnectionError
+                igConnectionError: token.igConnectionError,
+                instagramConnected: undefined,
+                instagramAccountId: undefined,
+                instagramUsername: undefined,
+                planStatus: undefined,
+                planExpiresAt: undefined,
+                affiliateCode: undefined,
+                affiliateBalance: undefined,
+                affiliateRank: undefined,
+                affiliateInvites: undefined
             };
             try {
-                const db = await connectToDatabase();
-                const doc = await DbUser.findById(token.id).lean();
-                if (doc) {
+                const doc = await DbUser.findById(token.id).select('isInstagramConnected instagramAccountId username').lean();
+                if (doc && session.user) {
                     session.user.instagramConnected = doc.isInstagramConnected;
                     session.user.instagramAccountId = doc.instagramAccountId;
+                    session.user.instagramUsername = doc.username;
                 }
             } catch {}
             return session;
