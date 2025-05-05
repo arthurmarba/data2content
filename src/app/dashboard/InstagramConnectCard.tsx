@@ -1,9 +1,5 @@
 // src/app/dashboard/InstagramConnectCard.tsx
-// Atualizado para incluir seleção de conta Instagram
-// CORRIGIDO: Usa 'type' com interseção em vez de 'interface extends'
-// CORRIGIDO: Acesso mais seguro a availableIgAccounts[0]
-// REVISADO: Usa cookie 'ig-connect-status' para mostrar seleção
-// MELHORADO: Tratamento e exibição de mensagens de erro
+// Adiciona logs detalhados na função handleFinalizeConnection
 
 "use client";
 
@@ -13,8 +9,7 @@ import { FaFacebook, FaInstagram, FaSpinner, FaUnlink, FaExclamationCircle, FaCh
 import { motion } from "framer-motion";
 import type { AvailableInstagramAccount } from '@/app/lib/instagramService';
 import type { Session } from "next-auth";
-// useSearchParams não é mais necessário aqui
-// import { useSearchParams } from 'next/navigation';
+// import { useSearchParams } from 'next/navigation'; // Não mais necessário
 
 interface InstagramConnectCardProps {}
 
@@ -153,129 +148,88 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = () => {
         }
     };
 
+    // --- handleFinalizeConnection COM LOGS ---
     const handleFinalizeConnection = async () => {
-        if (!selectedIgAccountId) { setFinalizeError("Por favor, selecione uma conta Instagram."); return; }
+        console.log("[handleFinalizeConnection] Log 1: Iniciando..."); // Log 1
+        if (!selectedIgAccountId) {
+            setFinalizeError("Por favor, selecione uma conta Instagram.");
+            console.log("[handleFinalizeConnection] Log 2: Erro - Nenhuma conta selecionada."); // Log 2
+            return;
+        }
         setIsFinalizing(true);
         setFinalizeError(null); setLinkError(null); setDisconnectError(null);
+        console.log(`[handleFinalizeConnection] Log 3: Estado definido como 'finalizing'. Tentando conectar conta: ${selectedIgAccountId}`); // Log 3
+
         try {
-            const response = await fetch('/api/instagram/finalize-connection', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ selectedIgAccountId }) });
+            console.log("[handleFinalizeConnection] Log 4: Dentro do TRY, antes do fetch."); // Log 4
+            const response = await fetch('/api/instagram/finalize-connection', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ selectedIgAccountId }),
+            });
+            console.log("[handleFinalizeConnection] Log 5: Fetch concluído. Status:", response.status); // Log 5
+
             if (!response.ok) {
                 let errorMessage = 'Falha ao finalizar a conexão.';
-                try { const errorData = await response.json(); errorMessage = errorData.message || errorMessage; } catch (e) {}
+                try {
+                    const errorData = await response.json();
+                    console.log("[handleFinalizeConnection] Log 6: Resposta de erro da API:", errorData); // Log 6
+                    errorMessage = errorData.message || errorMessage;
+                } catch (e) {
+                     console.log("[handleFinalizeConnection] Log 7: Falha ao parsear resposta de erro."); // Log 7
+                }
                 throw new Error(errorMessage);
             }
-            // Limpa o cookie de status (embora já deva ter sido limpo no useEffect)
-             document.cookie = 'ig-connect-status=; Path=/; Max-Age=0; SameSite=Lax';
-             setShowSelectionFromCookie(false); // Reseta estado local
-            await update(); // Atualiza a sessão
+
+            const successData = await response.json(); // Tenta ler corpo do sucesso
+            console.log("[handleFinalizeConnection] Log 8: Resposta de sucesso da API:", successData); // Log 8
+            console.log("[handleFinalizeConnection] Limpando cookie e atualizando sessão...");
+            document.cookie = 'ig-connect-status=; Path=/; Max-Age=0; SameSite=Lax';
+            setShowSelectionFromCookie(false);
+            await update();
+            console.log("[handleFinalizeConnection] Sessão atualizada.");
             setSelectedIgAccountId('');
         } catch (error: any) {
-            console.error("[InstagramConnectCard] Erro ao finalizar conexão:", error);
+            console.error("[handleFinalizeConnection] Log 9: Erro no CATCH:", error); // Log 9
             setFinalizeError(error.message || 'Ocorreu um erro inesperado ao finalizar.');
         } finally {
+            console.log("[handleFinalizeConnection] Log 10: Dentro do FINALLY. Resetando isFinalizing."); // Log 10
             setIsFinalizing(false);
         }
     };
+    // --- FIM handleFinalizeConnection COM LOGS ---
 
-    const handleDisconnectInstagram = async () => {
+    const handleDisconnectInstagram = async () => { /* ... (mantida) ... */
         setIsDisconnecting(true);
         setDisconnectError(null); setLinkError(null); setFinalizeError(null);
         try {
             const response = await fetch('/api/instagram/disconnect', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
-            if (!response.ok) {
-                let errorMessage = 'Falha ao desconectar.';
-                try { const errorData = await response.json(); errorMessage = errorData.message || errorData.error || errorMessage; } catch (e) {}
-                throw new Error(errorMessage);
-            }
-             // Limpa cookie de status se existir
+            if (!response.ok) { let errorMessage = 'Falha ao desconectar.'; try { const errorData = await response.json(); errorMessage = errorData.message || errorData.error || errorMessage; } catch (e) {} throw new Error(errorMessage); }
              document.cookie = 'ig-connect-status=; Path=/; Max-Age=0; SameSite=Lax';
              setShowSelectionFromCookie(false);
             await update();
-        } catch (error: any) {
-            console.error("[InstagramConnectCard] Erro ao desconectar Instagram:", error);
-            setDisconnectError(error.message || 'Ocorreu um erro inesperado ao desconectar.');
-        } finally {
-            setIsDisconnecting(false);
-        }
+        } catch (error: any) { console.error("[InstagramConnectCard] Erro ao desconectar Instagram:", error); setDisconnectError(error.message || 'Ocorreu um erro inesperado ao desconectar.'); } finally { setIsDisconnecting(false); }
     };
 
     // --- Renderização ---
     const cardVariants = { hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } } };
-
     if (isLoadingSession || !isAuthenticated) { return null; }
-
     return (
         <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={1.5}>
             <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Automação de Métricas</h2>
             <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     {/* Informações */}
-                    <div className="flex items-center gap-3">
-                        <FaInstagram className="w-8 h-8 text-pink-600 flex-shrink-0" />
-                        <div>
-                            <h3 className="font-semibold text-lg text-gray-800">Instagram Insights</h3>
-                            <p className="text-sm text-gray-500 mt-1">
-                                {isInstagramConnected
-                                    ? `Conectado como: ${user?.instagramUsername ?? user?.instagramAccountId ?? 'Conta Conectada'}`
-                                    : "Conecte sua conta profissional do Instagram."
-                                }
-                            </p>
-                        </div>
-                    </div>
-
+                    <div className="flex items-center gap-3"> <FaInstagram className="w-8 h-8 text-pink-600 flex-shrink-0" /> <div> <h3 className="font-semibold text-lg text-gray-800">Instagram Insights</h3> <p className="text-sm text-gray-500 mt-1"> {isInstagramConnected ? `Conectado como: ${user?.instagramUsername ?? user?.instagramAccountId ?? 'Conta Conectada'}` : "Conecte sua conta profissional do Instagram."} </p> </div> </div>
                     {/* Ações */}
                     <div className="flex-shrink-0 w-full sm:w-auto mt-4 sm:mt-0">
-                        {isInstagramConnected ? (
-                            // --- Conectado ---
-                           <div className="flex flex-col sm:items-end items-center gap-2">
-                                <span className="flex items-center gap-1.5 text-sm text-green-600 font-medium bg-green-50 px-3 py-1 rounded-full border border-green-200 whitespace-nowrap">
-                                    <FaCheckCircle /> Conectado
-                                </span>
-                                <button onClick={handleDisconnectInstagram} disabled={isDisconnecting} title="Desconectar conta Instagram" className="px-3 py-1 bg-red-100 text-red-600 text-xs font-medium rounded hover:bg-red-200 border border-red-200 flex items-center justify-center gap-1 disabled:opacity-70 disabled:cursor-wait">
-                                    {isDisconnecting ? <FaSpinner className="animate-spin w-3 h-3" /> : <FaUnlink className="w-3 h-3" />}
-                                    {isDisconnecting ? 'Desconectando...' : 'Desconectar'}
-                                </button>
-                                {disconnectError && ( <p className="text-xs text-red-600 mt-1 flex items-center gap-1 text-right"> <FaExclamationCircle /> {disconnectError} </p> )}
-                            </div>
-                        ) : showSelectionUI ? ( // <<< USA showSelectionUI (baseado no cookie/sessão)
-                            // --- Pendente de Seleção ---
-                            <div className="flex flex-col items-center sm:items-end w-full sm:w-auto gap-2">
-                                <label htmlFor="igAccountSelect" className="text-sm font-medium text-gray-700 self-start sm:self-end">Selecione a conta Instagram:</label>
-                                <select id="igAccountSelect" value={selectedIgAccountId} onChange={(e) => { setSelectedIgAccountId(e.target.value); setFinalizeError(null); }} disabled={isFinalizing || availableAccounts.length === 0} className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm disabled:opacity-70 bg-white">
-                                    {/* Mostra carregando se a lista da sessão ainda não chegou E não há erro */}
-                                    {availableAccounts.length === 0 && !user?.igConnectionError && <option value="">Carregando contas...</option>}
-                                    {availableAccounts.length === 0 && user?.igConnectionError && <option value="">Erro ao buscar contas</option>}
-                                    {availableAccounts.map(acc => ( <option key={acc.igAccountId} value={acc.igAccountId}> {acc.pageName} ({acc.igAccountId}) </option> ))}
-                                </select>
-                                <button onClick={handleFinalizeConnection} disabled={isFinalizing || availableAccounts.length === 0 || !selectedIgAccountId} className="w-full sm:w-auto px-5 py-2.5 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 flex items-center justify-center gap-2 transition duration-150 ease-in-out disabled:opacity-70 disabled:cursor-wait">
-                                    {isFinalizing ? <FaSpinner className="animate-spin w-4 h-4" /> : <FaCheckCircle className="w-4 h-4" />}
-                                    {isFinalizing ? 'Confirmando...' : 'Confirmar Conta'}
-                                </button>
-                                {displayError && ( <p className="text-xs text-red-600 mt-1 flex items-center gap-1 self-start sm:self-end text-left sm:text-right max-w-xs"> <FaExclamationCircle className="flex-shrink-0 w-3 h-3"/> {displayError} </p> )}
-                            </div>
-                        ) : (
-                            // --- Desconectado (Inicial) ---
-                            <div className="flex flex-col items-center sm:items-end w-full sm:w-auto">
-                                <button onClick={handleInitiateFacebookLink} disabled={isLinking} className="w-full sm:w-auto px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center justify-center gap-2 transition duration-150 ease-in-out disabled:opacity-70 disabled:cursor-wait">
-                                    {isLinking ? <FaSpinner className="animate-spin w-4 h-4" /> : <FaFacebook className="w-4 h-4" />}
-                                    {isLinking ? 'Iniciando...' : 'Conectar com Facebook'}
-                                </button>
-                                {displayError && ( <p className="text-xs text-red-600 mt-2 flex items-center gap-1 self-start sm:self-end text-left sm:text-right max-w-xs"> <FaExclamationCircle className="flex-shrink-0 w-3 h-3"/> {displayError} </p> )}
-                            </div>
-                        )}
+                        {isInstagramConnected ? ( /* ... Estado Conectado ... */ <div className="flex flex-col sm:items-end items-center gap-2"> <span className="flex items-center gap-1.5 text-sm text-green-600 font-medium bg-green-50 px-3 py-1 rounded-full border border-green-200 whitespace-nowrap"> <FaCheckCircle /> Conectado </span> <button onClick={handleDisconnectInstagram} disabled={isDisconnecting} title="Desconectar conta Instagram" className="px-3 py-1 bg-red-100 text-red-600 text-xs font-medium rounded hover:bg-red-200 border border-red-200 flex items-center justify-center gap-1 disabled:opacity-70 disabled:cursor-wait"> {isDisconnecting ? <FaSpinner className="animate-spin w-3 h-3" /> : <FaUnlink className="w-3 h-3" />} {isDisconnecting ? 'Desconectando...' : 'Desconectar'} </button> {disconnectError && ( <p className="text-xs text-red-600 mt-1 flex items-center gap-1 text-right"> <FaExclamationCircle /> {disconnectError} </p> )} </div> )
+                        : showSelectionUI ? ( /* ... Estado Pendente ... */ <div className="flex flex-col items-center sm:items-end w-full sm:w-auto gap-2"> <label htmlFor="igAccountSelect" className="text-sm font-medium text-gray-700 self-start sm:self-end">Selecione a conta Instagram:</label> <select id="igAccountSelect" value={selectedIgAccountId} onChange={(e) => { setSelectedIgAccountId(e.target.value); setFinalizeError(null); }} disabled={isFinalizing || availableAccounts.length === 0} className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm disabled:opacity-70 bg-white"> {availableAccounts.length === 0 && !user?.igConnectionError && <option value="">Carregando contas...</option>} {availableAccounts.length === 0 && user?.igConnectionError && <option value="">Erro ao buscar contas</option>} {availableAccounts.map(acc => ( <option key={acc.igAccountId} value={acc.igAccountId}> {acc.pageName} ({acc.igAccountId}) </option> ))} </select> <button onClick={handleFinalizeConnection} disabled={isFinalizing || availableAccounts.length === 0 || !selectedIgAccountId} className="w-full sm:w-auto px-5 py-2.5 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 flex items-center justify-center gap-2 transition duration-150 ease-in-out disabled:opacity-70 disabled:cursor-wait"> {isFinalizing ? <FaSpinner className="animate-spin w-4 h-4" /> : <FaCheckCircle className="w-4 h-4" />} {isFinalizing ? 'Confirmando...' : 'Confirmar Conta'} </button> {displayError && ( <p className="text-xs text-red-600 mt-1 flex items-center gap-1 self-start sm:self-end text-left sm:text-right max-w-xs"> <FaExclamationCircle className="flex-shrink-0 w-3 h-3"/> {displayError} </p> )} </div> )
+                        : ( /* ... Estado Desconectado ... */ <div className="flex flex-col items-center sm:items-end w-full sm:w-auto"> <button onClick={handleInitiateFacebookLink} disabled={isLinking} className="w-full sm:w-auto px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center justify-center gap-2 transition duration-150 ease-in-out disabled:opacity-70 disabled:cursor-wait"> {isLinking ? <FaSpinner className="animate-spin w-4 h-4" /> : <FaFacebook className="w-4 h-4" />} {isLinking ? 'Iniciando...' : 'Conectar com Facebook'} </button> {displayError && ( <p className="text-xs text-red-600 mt-2 flex items-center gap-1 self-start sm:self-end text-left sm:text-right max-w-xs"> <FaExclamationCircle className="flex-shrink-0 w-3 h-3"/> {displayError} </p> )} </div> )}
                     </div>
                 </div>
-
                 {/* Mensagem adicional */}
-                <p className="text-xs text-gray-500 mt-4 border-t border-gray-100 pt-3">
-                    {isInstagramConnected
-                        ? "A coleta automática de métricas está ativa."
-                        // Mensagem ajustada
-                        : showSelectionUI
-                            ? "Selecione a conta Instagram correta e clique em \"Confirmar Conta\"."
-                            : "Clique em \"Conectar com Facebook\" para autorizar o acesso."
-                    }
-                </p>
+                <p className="text-xs text-gray-500 mt-4 border-t border-gray-100 pt-3"> {isInstagramConnected ? "A coleta automática de métricas está ativa." : showSelectionUI ? "Selecione a conta Instagram correta e clique em \"Confirmar Conta\"." : "Clique em \"Conectar com Facebook\" para autorizar o acesso." } </p>
             </div>
         </motion.section>
     );
