@@ -21,9 +21,9 @@ interface InstagramConnectCardProps {}
 type BaseUserType = NonNullable<Session['user']>;
 type SessionUserWithInstagram = BaseUserType & {
     instagramConnected?: boolean;
-    pendingInstagramConnection?: boolean;
+    pendingInstagramConnection?: boolean; // Ainda lemos da sessão para pegar a lista
     availableIgAccounts?: AvailableInstagramAccount[] | null;
-    igConnectionError?: string;
+    igConnectionError?: string; // Erro vindo do backend (busca de contas)
     instagramAccountId?: string;
     instagramUsername?: string;
     provider?: string;
@@ -42,18 +42,18 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = () => {
     const { data: session, status, update } = useSession();
     // const searchParams = useSearchParams(); // Removido
     const [isLinking, setIsLinking] = useState(false);
-    const [linkError, setLinkError] = useState<string | null>(null);
+    const [linkError, setLinkError] = useState<string | null>(null); // Erro ao iniciar link
     const [isDisconnecting, setIsDisconnecting] = useState(false);
-    const [disconnectError, setDisconnectError] = useState<string | null>(null);
+    const [disconnectError, setDisconnectError] = useState<string | null>(null); // Erro ao desconectar
     const [selectedIgAccountId, setSelectedIgAccountId] = useState<string>('');
     const [isFinalizing, setIsFinalizing] = useState(false);
-    const [finalizeError, setFinalizeError] = useState<string | null>(null);
+    const [finalizeError, setFinalizeError] = useState<string | null>(null); // Erro ao finalizar
     // Novo estado para controlar a exibição da seleção baseado no cookie
     const [showSelectionFromCookie, setShowSelectionFromCookie] = useState(false);
 
     // --- Efeito para ler o cookie e definir conta padrão ---
     useEffect(() => {
-        console.log("[InstagramConnectCard] useEffect - Status:", status);
+        // console.log("[InstagramConnectCard] useEffect - Status:", status);
 
         // --- Lógica para Ler e Limpar o Cookie ---
         // Executa apenas no cliente e uma vez após a montagem inicial ou mudança de status para autenticado
@@ -270,7 +270,8 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = () => {
                 <p className="text-xs text-gray-500 mt-4 border-t border-gray-100 pt-3">
                     {isInstagramConnected
                         ? "A coleta automática de métricas está ativa."
-                        : showSelectionUI // Mensagem ajustada
+                        // Mensagem ajustada
+                        : showSelectionUI
                             ? "Selecione a conta Instagram correta e clique em \"Confirmar Conta\"."
                             : "Clique em \"Conectar com Facebook\" para autorizar o acesso."
                     }
