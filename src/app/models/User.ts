@@ -1,10 +1,11 @@
-// @/app/models/User.ts - v1.8 (Adicionado Campos API e Link Token)
+// @/app/models/User.ts - v1.8.1 (Adicionado Campos Sync Status)
+// - Adiciona lastInstagramSyncAttempt e lastInstagramSyncSuccess ao Schema e Interface.
 
 import { Schema, model, models, Document, Model, Types } from "mongoose";
 
 /**
  * Interface que descreve um documento de usuário.
- * ATUALIZADO v1.8: Adicionados campos básicos da API do Instagram.
+ * ATUALIZADO v1.8.1: Adicionados campos de status de sincronização.
  */
 export interface IUser extends Document {
   _id: Types.ObjectId;
@@ -20,16 +21,18 @@ export interface IUser extends Document {
   instagramAccessToken?: string;
   instagramAccountId?: string;
   isInstagramConnected?: boolean;
+  lastInstagramSyncAttempt?: Date | null;   // <<< ADICIONADO v1.8.1 >>>
+  lastInstagramSyncSuccess?: boolean | null;// <<< ADICIONADO v1.8.1 >>>
   // Campos básicos da conta IG (obtidos via API)
-  username?: string;          // <<< ADICIONADO v1.8 >>>
-  biography?: string;         // <<< ADICIONADO v1.8 >>>
-  website?: string;           // <<< ADICIONADO v1.8 >>>
-  profile_picture_url?: string; // <<< ADICIONADO v1.8 >>>
-  followers_count?: number;   // <<< ADICIONADO v1.8 >>>
-  follows_count?: number;     // <<< ADICIONADO v1.8 >>>
-  media_count?: number;       // <<< ADICIONADO v1.8 >>>
-  is_published?: boolean;     // <<< ADICIONADO v1.8 >>>
-  shopping_product_tag_eligibility?: boolean; // <<< ADICIONADO v1.8 >>>
+  username?: string;
+  biography?: string;
+  website?: string;
+  profile_picture_url?: string;
+  followers_count?: number;
+  follows_count?: number;
+  media_count?: number;
+  is_published?: boolean;
+  shopping_product_tag_eligibility?: boolean;
 
   // --- CAMPOS DE VINCULAÇÃO TEMPORÁRIA ---
   linkToken?: string;
@@ -69,7 +72,7 @@ function generateAffiliateCode(): string {
 
 /**
  * Definição do Schema para o User
- * ATUALIZADO v1.8: Adicionados campos básicos da API no Schema (opcionalmente).
+ * ATUALIZADO v1.8.1: Adicionados campos de status de sincronização.
  */
 const userSchema = new Schema<IUser>(
   {
@@ -91,16 +94,18 @@ const userSchema = new Schema<IUser>(
     instagramAccessToken: { type: String },
     instagramAccountId: { type: String, index: true },
     isInstagramConnected: { type: Boolean, default: false },
+    lastInstagramSyncAttempt: { type: Date, default: null },   // <<< ADICIONADO v1.8.1 >>>
+    lastInstagramSyncSuccess: { type: Boolean, default: null },// <<< ADICIONADO v1.8.1 >>>
     // Campos básicos da conta IG (opcional adicionar ao schema se quiser salvar)
-    username: { type: String, sparse: true }, // <<< ADICIONADO v1.8 (Opcional no Schema) >>>
-    biography: { type: String },              // <<< ADICIONADO v1.8 (Opcional no Schema) >>>
-    website: { type: String },                // <<< ADICIONADO v1.8 (Opcional no Schema) >>>
-    profile_picture_url: { type: String },    // <<< ADICIONADO v1.8 (Opcional no Schema) >>>
-    followers_count: { type: Number },        // <<< ADICIONADO v1.8 (Opcional no Schema) >>>
-    follows_count: { type: Number },          // <<< ADICIONADO v1.8 (Opcional no Schema) >>>
-    media_count: { type: Number },            // <<< ADICIONADO v1.8 (Opcional no Schema) >>>
-    is_published: { type: Boolean },          // <<< ADICIONADO v1.8 (Opcional no Schema) >>>
-    shopping_product_tag_eligibility: { type: Boolean }, // <<< ADICIONADO v1.8 (Opcional no Schema) >>>
+    username: { type: String, sparse: true },
+    biography: { type: String },
+    website: { type: String },
+    profile_picture_url: { type: String },
+    followers_count: { type: Number },
+    follows_count: { type: Number },
+    media_count: { type: Number },
+    is_published: { type: Boolean },
+    shopping_product_tag_eligibility: { type: Boolean },
 
     // --- CAMPOS DE VINCULAÇÃO TEMPORÁRIA ---
     linkToken: { type: String, index: true, sparse: true },
@@ -141,6 +146,8 @@ userSchema.pre<IUser>("save", function (next) {
     this.affiliateCode = generateAffiliateCode();
   }
   // Garante que isInstagramConnected reflita o estado de instagramAccountId se não definido
+  // NOTA: A lógica explícita em connectInstagramAccount / clearInstagramConnection provavelmente
+  // tornará esta parte menos crítica, mas é um bom fallback.
   if (this.isInstagramConnected === undefined && this.instagramAccountId !== undefined) {
       this.isInstagramConnected = !!this.instagramAccountId;
   } else if (this.isInstagramConnected === undefined) {
@@ -155,4 +162,3 @@ userSchema.pre<IUser>("save", function (next) {
 const UserModel: Model<IUser> = models.User || model<IUser>("User", userSchema);
 
 export default UserModel;
-
