@@ -1,10 +1,7 @@
-// src/app/lib/instagramService.ts - v1.9.4 (Completo com Correção LLAT)
-// - Garante que todas as funções da v1.8.10 estão presentes.
-// - fetchAvailableInstagramAccounts sempre obtém e retorna LLAT do usuário.
-// - Adiciona connectInstagramAccount que salva o LLAT do usuário no DB.
-// - triggerDataRefresh busca o token do DB internamente.
-// - Corrige tratamento de erro #10 em fetchBasicAccountData.
-// - Adiciona API_VERSION às URLs.
+// src/app/lib/instagramService.ts - v1.9.5 (Prioriza LLAT e Token Explícito)
+// - triggerDataRefresh prioriza LLAT do usuário, usa System Token como fallback.
+// - Funções de fetch (Media, Insights, Basic) recebem accessToken como parâmetro.
+// - Mantém correções e funcionalidades anteriores.
 
 import { connectToDatabase } from "@/app/lib/mongoose";
 import DbUser, { IUser } from "@/app/models/User"; // Certifique-se que IUser inclui os novos campos de sync
@@ -94,12 +91,13 @@ const limitInsightsFetch = pLimit(INSIGHTS_CONCURRENCY_LIMIT);
 
 /**
  * Busca detalhes da conexão Instagram (token, ID da conta) para um usuário no banco de dados.
- * Retorna o LLAT do usuário se existir e a conta estiver conectada.
+ * Usado principalmente para obter o LLAT do usuário salvo.
  * @param userId - ID do usuário (string ou ObjectId).
  * @returns Detalhes da conexão ou null se não encontrado/inválido.
  */
 export async function getInstagramConnectionDetails(userId: string | mongoose.Types.ObjectId): Promise<InstagramConnectionDetails | null> {
     const TAG = '[getInstagramConnectionDetails]';
+    // ... (código mantido como na v1.9.4) ...
     logger.debug(`${TAG} Buscando detalhes de conexão IG para User ${userId}...`);
     if (!mongoose.isValidObjectId(userId)) {
         logger.error(`${TAG} ID de usuário inválido: ${userId}`);
@@ -114,12 +112,10 @@ export async function getInstagramConnectionDetails(userId: string | mongoose.Ty
             logger.warn(`${TAG} Usuário ${userId} não encontrado no DB.`);
             return null;
         }
-        // Retorna null se não estiver conectado ou não tiver accountId
         if (!user.isInstagramConnected || !user.instagramAccountId) {
              logger.warn(`${TAG} Conexão Instagram inativa ou ID da conta ausente para User ${userId}. isConnected: ${user.isInstagramConnected}`);
              return null;
         }
-        // Retorna o token (pode ser null se não foi salvo) e o accountId
         logger.debug(`${TAG} Detalhes de conexão IG encontrados para User ${userId}. Token ${user.instagramAccessToken ? 'existe' : 'NÃO existe'}. AccountId: ${user.instagramAccountId}`);
         return { accessToken: user.instagramAccessToken ?? null, accountId: user.instagramAccountId };
     } catch (error) {
@@ -130,75 +126,113 @@ export async function getInstagramConnectionDetails(userId: string | mongoose.Ty
 
 /**
  * Busca mídias (posts) de uma conta do Instagram, com suporte a paginação.
- * Requer um accessToken válido (LLAT do usuário).
- * @param userId - ID do usuário proprietário da conta.
+ * <<< MODIFICADO: Recebe accessToken como parâmetro >>>
+ * @param accountId - ID da conta Instagram a ser consultada.
+ * @param accessToken - Token de acesso válido (LLAT do usuário ou System User Token).
  * @param pageUrl - URL da página específica a ser buscada (para paginação). Se omitido, busca a primeira página.
  * @returns Resultado da busca, incluindo dados da mídia e URL da próxima página.
  */
-export async function fetchInstagramMedia(userId: string, pageUrl?: string): Promise<FetchMediaResult> {
+export async function fetchInstagramMedia(
+    accountId: string,
+    accessToken: string, // <<< Recebe token como parâmetro
+    pageUrl?: string
+): Promise<FetchMediaResult> {
     const TAG = '[fetchInstagramMedia]';
     const logPrefix = pageUrl ? `${TAG} (Paginação)` : TAG;
-    logger.info(`${logPrefix} Iniciando busca de mídias para User ${userId}...`);
+    logger.info(`${logPrefix} Iniciando busca de mídias para Conta IG ${accountId}...`);
 
-    const connectionDetails = await getInstagramConnectionDetails(userId);
-    // Precisa de um token de acesso VÁLIDO (não pode ser null) e accountId
-    if (!connectionDetails?.accessToken || !connectionDetails?.accountId) {
-        logger.error(`${logPrefix} Usuário ${userId} não conectado ou token/accountId ausente no DB.`);
-        return { success: false, error: 'Usuário não conectado ao Instagram ou token/accountId ausente no DB.' };
-    }
-    const { accessToken, accountId } = connectionDetails; // accessToken aqui é garantido não ser null
+    // Validação básica dos parâmetros recebidos
+    if (!accountId) return { success: false, error: 'ID da conta Instagram não fornecido.' };
+    if (!accessToken) return { success: false, error: 'Token de acesso não fornecido.' };
 
+    // Função para construir a URL da API
     const getUrl = () => {
         if (pageUrl) {
             let url = pageUrl;
-            if (!url.includes('access_token=')) { url += `&access_token=${accessToken}`; }
+            // Garante que o token seja adicionado se não estiver na URL de paginação
+            if (!url.includes('access_token=')) {
+                url += `&access_token=${accessToken}`;
+            }
             return url;
         } else {
+            // Constrói URL para a primeira página
             const fields = 'id,media_type,timestamp,caption,permalink,username,children{id,media_type,media_url,permalink}';
-            const limit = 25;
+            const limit = 25; // Limite padrão da API
             return `${BASE_URL}/${API_VERSION}/${accountId}/media?fields=${fields}&limit=${limit}&access_token=${accessToken}`;
         }
     };
 
     try {
+        // Lógica de retentativa para buscar dados
         const responseData = await retry(async (bail, attempt) => {
             const currentUrl = getUrl();
-            if (attempt > 1) { logger.warn(`${logPrefix} Tentativa ${attempt} mídias. URL: ${currentUrl.replace(accessToken, '[TOKEN_OCULTO]')}`); }
-            else { logger.debug(`${logPrefix} URL API: ${currentUrl.replace(accessToken, '[TOKEN_OCULTO]')}`); }
+            if (attempt > 1) {
+                 logger.warn(`${logPrefix} Tentativa ${attempt} para buscar mídias. URL: ${currentUrl.replace(accessToken, '[TOKEN_OCULTO]')}`);
+            } else {
+                 logger.debug(`${logPrefix} URL da API: ${currentUrl.replace(accessToken, '[TOKEN_OCULTO]')}`);
+            }
 
             const response = await fetch(currentUrl);
             const data: InstagramApiResponse<InstagramMedia> & FacebookApiError = await response.json();
 
+            // Tratamento de erros da API
             if (!response.ok || data.error) {
                 type ErrorType = FacebookApiErrorStructure | { message: string; code: number; };
-                const error: ErrorType = data.error || { message: `Erro ${response.status} API`, code: response.status };
-                logger.error(`${logPrefix} Erro API (Tentativa ${attempt}) mídias User ${userId}:`, error);
-                const isTokenError = error.code === 190 || ('error_subcode' in error && (error.error_subcode === 463 || error.error_subcode === 467));
-                if (isTokenError) { logger.warn(`${TAG} Erro token (${error.code}/${'error_subcode' in error ? error.error_subcode : 'N/A'}). Limpando conexão.`); await clearInstagramConnection(userId); bail(new Error('Token inválido/expirado. Reconecte.')); return; }
-                if (response.status >= 400 && response.status < 500 && response.status !== 429) { logger.warn(`${TAG} Erro ${response.status} não recuperável.`); bail(new Error(`Falha mídias (Erro ${response.status}): ${error.message}`)); return; }
-                throw new Error(`Erro temp (${response.status}) mídias: ${error.message}`);
-            } return data;
+                const error: ErrorType = data.error || { message: `Erro ${response.status} da API`, code: response.status };
+                logger.error(`${logPrefix} Erro da API (Tentativa ${attempt}) ao buscar mídias para Conta ${accountId}:`, error);
+
+                const isTokenError = error.code === 190 ||
+                                     ('error_subcode' in error && (error.error_subcode === 463 || error.error_subcode === 467));
+
+                if (isTokenError) {
+                    logger.warn(`${TAG} Erro de token (${error.code}/${'error_subcode' in error ? error.error_subcode : 'N/A'}) detectado. Não tentar novamente.`);
+                    // Não podemos limpar a conexão aqui pois não temos mais o userId diretamente
+                    bail(new Error('Token de acesso inválido ou expirado ao buscar mídias.'));
+                    return;
+                }
+                if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+                    logger.warn(`${TAG} Erro ${response.status} (Client Error) não recuperável. Não tentar novamente.`);
+                    bail(new Error(`Falha ao buscar mídias (Erro ${response.status}): ${error.message}`));
+                    return;
+                }
+                throw new Error(`Erro temporário (${response.status}) ao buscar mídias: ${error.message}`);
+            }
+            return data;
+
         }, RETRY_OPTIONS);
 
-        logger.info(`${logPrefix} Mídias buscadas com sucesso User ${userId}. ${responseData?.data?.length || 0} itens.`);
-        return { success: true, data: responseData?.data || [], nextPageUrl: responseData?.paging?.next || null };
+        logger.info(`${logPrefix} Mídias buscadas com sucesso para Conta ${accountId}. ${responseData?.data?.length || 0} itens retornados.`);
+        return {
+            success: true,
+            data: responseData?.data || [],
+            nextPageUrl: responseData?.paging?.next || null,
+        };
+
     } catch (error: unknown) {
-        logger.error(`${logPrefix} Erro final mídias User ${userId}:`, error);
+        logger.error(`${logPrefix} Erro final ao buscar mídias para Conta ${accountId} após retentativas:`, error);
         const message = error instanceof Error ? error.message : String(error);
-        return { success: false, error: message.startsWith('Token') || message.startsWith('Falha') ? message : `Erro interno mídias: ${message}` };
+        return { success: false, error: message.startsWith('Token') || message.startsWith('Falha') ? message : `Erro interno ao buscar mídias: ${message}` };
     }
 }
 
+
 /**
  * Busca insights para uma mídia específica do Instagram.
+ * <<< MODIFICADO: Recebe accessToken como parâmetro >>>
  * @param mediaId - ID da mídia do Instagram.
  * @param accessToken - Token de acesso válido (System User ou LLAT do usuário).
  * @returns Resultado da busca de insights.
  */
-export async function fetchMediaInsights(mediaId: string, accessToken: string): Promise<FetchInsightsResult<IMetricStats>> {
+export async function fetchMediaInsights(
+    mediaId: string,
+    accessToken: string // <<< Recebe token como parâmetro
+): Promise<FetchInsightsResult<IMetricStats>> {
     const TAG = '[fetchMediaInsights]';
-    // ... (código inalterado, mas com API_VERSION adicionada na URL base) ...
     logger.debug(`${TAG} Buscando insights para Media ID: ${mediaId}...`);
+
+    // Validação básica
+    if (!mediaId) return { success: false, error: 'ID da mídia não fornecido.' };
+    if (!accessToken) return { success: false, error: 'Token de acesso não fornecido.' };
 
     const metrics = MEDIA_INSIGHTS_METRICS;
     let urlBase = `${BASE_URL}/${API_VERSION}/${mediaId}/insights?metric=${metrics}`;
@@ -247,6 +281,7 @@ export async function fetchMediaInsights(mediaId: string, accessToken: string): 
 
 /**
  * Busca insights agregados para uma conta do Instagram em um período específico.
+ * <<< MODIFICADO: Recebe accessToken como parâmetro >>>
  * @param accountId - ID da conta do Instagram.
  * @param accessToken - Token de acesso válido (System User ou LLAT do usuário).
  * @param period - Período dos insights (ex: 'day', 'week', 'days_28').
@@ -254,12 +289,15 @@ export async function fetchMediaInsights(mediaId: string, accessToken: string): 
  */
 export async function fetchAccountInsights(
     accountId: string,
-    accessToken: string,
+    accessToken: string, // <<< Recebe token como parâmetro
     period: string = DEFAULT_ACCOUNT_INSIGHTS_PERIOD
 ): Promise<FetchInsightsResult<IAccountInsightsPeriod>> {
     const TAG = '[fetchAccountInsights]';
-     // ... (código inalterado, mas com API_VERSION adicionada na URL base) ...
     logger.debug(`${TAG} Buscando insights da conta ${accountId} período: ${period}...`);
+
+    // Validação básica
+    if (!accountId) return { success: false, error: 'ID da conta não fornecido.' };
+    if (!accessToken) return { success: false, error: 'Token de acesso não fornecido.' };
 
     const metrics = ACCOUNT_INSIGHTS_METRICS;
     let urlBase = `${BASE_URL}/${API_VERSION}/${accountId}/insights?metric=${metrics}&period=${period}`;
@@ -280,6 +318,8 @@ export async function fetchAccountInsights(
                 logger.error(`${TAG} Erro API (Tentativa ${attempt}) insights conta ${accountId}:`, error);
                 const isTokenError = error.code === 190 || ('error_subcode' in error && (error.error_subcode === 463 || error.error_subcode === 467));
                 if (error.code === 10) { bail(new Error(`Permissão insuficiente insights conta: ${error.message}`)); return; }
+                // <<< CORRIGIDO: Erro #100 de métrica inválida agora interrompe (bail) >>>
+                if (error.code === 100 && error.message.includes('metric')) { bail(new Error(`Métrica inválida solicitada: ${error.message}`)); return;}
                 if (isTokenError) { bail(new Error('Token inválido/expirado insights conta.')); return; }
                 if (response.status >= 400 && response.status < 500 && response.status !== 429) { bail(new Error(`Falha insights conta (Erro ${response.status}): ${error.message}`)); return; }
                 throw new Error(`Erro temp (${response.status}) insights conta: ${error.message}`);
@@ -302,23 +342,26 @@ export async function fetchAccountInsights(
     } catch (error: unknown) {
         logger.error(`${TAG} Erro final insights Conta ${accountId}:`, error);
         const message = error instanceof Error ? error.message : String(error);
-        return { success: false, error: message.includes('Permissão') || message.includes('Token') || message.includes('Falha') ? message : `Erro interno insights conta: ${message}` };
+        return { success: false, error: message.includes('Permissão') || message.includes('Token') || message.includes('Falha') || message.includes('Métrica inválida') ? message : `Erro interno insights conta: ${message}` };
     }
 }
 
 /**
  * Busca dados demográficos da audiência de uma conta do Instagram.
+ * <<< MODIFICADO: Recebe accessToken como parâmetro >>>
  * @param accountId - ID da conta do Instagram.
  * @param accessToken - Token de acesso válido (System User ou LLAT do usuário).
  * @returns Resultado da busca de dados demográficos.
  */
 export async function fetchAudienceDemographics(
     accountId: string,
-    accessToken: string
+    accessToken: string // <<< Recebe token como parâmetro
 ): Promise<FetchInsightsResult<IAudienceDemographics>> {
     const TAG = '[fetchAudienceDemographics]';
-     // ... (código inalterado, mas com API_VERSION adicionada na URL base) ...
+     // ... (código inalterado, mas com API_VERSION adicionada na URL base e recebe token) ...
     logger.debug(`${TAG} Buscando dados demográficos da conta ${accountId}...`);
+    if (!accountId) return { success: false, error: 'ID da conta não fornecido.' };
+    if (!accessToken) return { success: false, error: 'Token de acesso não fornecido.' };
 
     const metrics = DEMOGRAPHICS_METRICS; const period = 'lifetime';
     const breakdown = DEMOGRAPHICS_BREAKDOWNS; const timeframe = DEMOGRAPHICS_TIMEFRAME;
@@ -376,16 +419,21 @@ export async function fetchAudienceDemographics(
 
 /**
  * Busca dados básicos do perfil de uma conta do Instagram.
+ * <<< MODIFICADO: Recebe accessToken como parâmetro >>>
  * @param accountId - ID da conta do Instagram.
  * @param accessToken - Token de acesso válido (System User ou LLAT do usuário).
  * @returns Resultado da busca dos dados básicos.
  */
 export async function fetchBasicAccountData(
     accountId: string,
-    accessToken: string
+    accessToken: string // <<< Recebe token como parâmetro
 ): Promise<FetchBasicAccountDataResult> {
     const TAG = '[fetchBasicAccountData]';
     logger.debug(`${TAG} Buscando dados básicos da conta ${accountId}...`);
+
+    // Validação básica
+    if (!accountId) return { success: false, error: 'ID da conta não fornecido.' };
+    if (!accessToken) return { success: false, error: 'Token de acesso não fornecido.' };
 
     const fields = BASIC_ACCOUNT_FIELDS;
     const urlBase = `${BASE_URL}/${API_VERSION}/${accountId}?fields=${fields}`;
@@ -513,9 +561,9 @@ async function createOrUpdateDailySnapshot(metric: IMetric): Promise<void> {
  * Salva um snapshot dos insights da conta, demografia e dados básicos do perfil.
  * @param userId - ObjectId do usuário.
  * @param accountId - ID da conta do Instagram.
- * @param insights - Insights do período da conta (opcional).
- * @param demographics - Dados demográficos da audiência (opcional).
- * @param accountData - Dados básicos do perfil da conta (opcional).
+ * @param insights - Insights do período da conta.
+ * @param demographics - Dados demográficos da audiência.
+ * @param accountData - Dados básicos do perfil da conta.
  */
 export async function saveAccountInsightData( userId: Types.ObjectId, accountId: string, insights: IAccountInsightsPeriod | undefined, demographics: IAudienceDemographics | undefined, accountData: Partial<IUser> | undefined ): Promise<void> {
     const TAG = '[saveAccountInsightData]';
@@ -531,11 +579,12 @@ export async function saveAccountInsightData( userId: Types.ObjectId, accountId:
 
 /**
  * Dispara o processo completo de atualização de dados do Instagram para um usuário.
+ * <<< MODIFICADO: Prioriza LLAT do usuário, passa token explicitamente >>>
  * @param userId - ID (string) do usuário.
  * @returns Objeto com status de sucesso, mensagem e detalhes da operação.
  */
 export async function triggerDataRefresh(userId: string): Promise<{ success: boolean; message: string; details?: any }> {
-    const TAG = '[triggerDataRefresh]';
+    const TAG = '[triggerDataRefresh v1.9.5]'; // <<< Versão atualizada
     const startTime = Date.now();
     logger.info(`${TAG} Iniciando atualização de dados para User ${userId}...`);
 
@@ -545,43 +594,43 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
     }
     const userObjectId = new Types.ObjectId(userId);
 
-    // <<< MODIFICADO: Busca token e accountId DENTRO da função >>>
+    // --- Obtenção do Token e Account ID (Lógica Invertida) ---
     let accessToken: string | null = null;
     let accountId: string | null = null;
-    let usingSystemToken = false; // Flag para saber qual token está em uso
+    let usingSystemToken = false;
+    const systemTokenEnv = process.env.FB_SYSTEM_USER_TOKEN;
 
     try {
         const connectionDetails = await getInstagramConnectionDetails(userObjectId);
-        if (!connectionDetails?.accountId) { // Precisa pelo menos do accountId
+        if (!connectionDetails?.accountId) {
             logger.error(`${TAG} Usuário ${userId} não conectado ou accountId ausente no DB. Abortando refresh.`);
             await DbUser.findByIdAndUpdate(userObjectId, { $set: { lastInstagramSyncAttempt: new Date(), lastInstagramSyncSuccess: false } }).catch(dbErr => logger.error(`${TAG} Falha ao atualizar status sync (conexão inválida) ${userId}:`, dbErr));
             return { success: false, message: 'Usuário não conectado ou ID da conta Instagram não encontrado.' };
         }
         accountId = connectionDetails.accountId; // Temos o accountId
 
-        // Tenta usar o System User Token se configurado
-        const systemTokenEnv = process.env.FB_SYSTEM_USER_TOKEN;
-        if (systemTokenEnv) {
+        // <<< LÓGICA INVERTIDA: Prioriza LLAT do usuário >>>
+        if (connectionDetails.accessToken) {
+            accessToken = connectionDetails.accessToken;
+            usingSystemToken = false;
+            logger.info(`${TAG} Utilizando LLAT do usuário para o refresh.`);
+        } else if (systemTokenEnv) {
             accessToken = systemTokenEnv;
             usingSystemToken = true;
-            logger.info(`${TAG} Utilizando System User Token para o refresh.`);
+            logger.warn(`${TAG} LLAT do usuário não encontrado no DB; usando System User Token como fallback para o refresh.`);
         } else {
-            // Se não tem System Token, usa o LLAT do usuário do DB
-            accessToken = connectionDetails.accessToken; // Pode ser null se não foi salvo
-            usingSystemToken = false;
-            if (!accessToken) {
-                logger.error(`${TAG} System Token não configurado E token do usuário (LLAT) não encontrado no DB para ${userId}. Abortando refresh.`);
-                await DbUser.findByIdAndUpdate(userObjectId, { $set: { lastInstagramSyncAttempt: new Date(), lastInstagramSyncSuccess: false } }).catch(dbErr => logger.error(`${TAG} Falha ao atualizar status sync (token ausente) ${userId}:`, dbErr));
-                return { success: false, message: 'Token de acesso necessário não encontrado.' };
-            }
-            logger.info(`${TAG} Utilizando token de acesso do usuário (LLAT) para o refresh.`);
+            // Erro crítico: nem LLAT nem System Token disponíveis
+            logger.error(`${TAG} LLAT do usuário E System Token não encontrados. Abortando refresh.`);
+            await DbUser.findByIdAndUpdate(userObjectId, { $set: { lastInstagramSyncAttempt: new Date(), lastInstagramSyncSuccess: false } }).catch(dbErr => logger.error(`${TAG} Falha ao atualizar status sync (token ausente) ${userId}:`, dbErr));
+            return { success: false, message: 'Token de acesso necessário não encontrado (nem LLAT, nem System User).' };
         }
+        // <<< FIM DA LÓGICA INVERTIDA >>>
 
     } catch (dbError) {
         logger.error(`${TAG} Erro ao buscar dados iniciais do usuário ${userId} no DB:`, dbError);
         return { success: false, message: 'Erro ao acessar dados do usuário no banco de dados.' };
     }
-    // <<< FIM DA MODIFICAÇÃO: accessToken e accountId definidos >>>
+    // --- Fim Obtenção Token ---
 
     // Marca a tentativa de sync no DB
     await DbUser.findByIdAndUpdate(userObjectId, { $set: { lastInstagramSyncAttempt: new Date() } }).catch(dbErr => logger.error(`${TAG} Falha ao atualizar início sync ${userId}:`, dbErr));
@@ -599,12 +648,12 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
         // --- 1. Fetch Basic Account Data ---
         logger.info(`${TAG} Buscando dados básicos da conta ${accountId}...`);
         let basicAccountData: Partial<IUser> | undefined;
-        const basicDataResult = await fetchBasicAccountData(accountId!, accessToken!); // Usa os tokens obtidos
+        // <<< MODIFICADO: Passa o accessToken obtido >>>
+        const basicDataResult = await fetchBasicAccountData(accountId!, accessToken!);
         if (basicDataResult.success && basicDataResult.data) {
              collectedBasicAccountData = true; basicAccountData = basicDataResult.data; logger.debug(`${TAG} Dados básicos obtidos.`);
         } else {
              logger.warn(`${TAG} Falha ao obter dados básicos: ${basicDataResult.error}`); errors.push(`Dados básicos: ${basicDataResult.error ?? 'Erro desconhecido'}`);
-             // <<< MODIFICADO: Interrompe se for erro crítico >>>
              if (basicDataResult.error?.includes('Token') || basicDataResult.error?.includes('Permissão')) { overallSuccess = false; throw new Error(`Erro crítico (Token/Permissão) ao buscar dados básicos: ${basicDataResult.error}`); }
         }
 
@@ -614,12 +663,8 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
             let nextPageMediaUrl: string | null | undefined = undefined; mediaCurrentPage = 0;
             do {
                 mediaCurrentPage++; const pageStartTime = Date.now(); logger.info(`${TAG} Processando pág ${mediaCurrentPage}/${MAX_PAGES_MEDIA} de mídias...`);
-                // fetchInstagramMedia usa getInstagramConnectionDetails, que retorna o LLAT do usuário
-                // Isso pode falhar se estivermos usando System Token e o LLAT não foi salvo.
-                // SOLUÇÃO: Passar o accessToken correto para fetchInstagramMedia
-                // Por ora, manteremos a dependência interna de getInstagramConnectionDetails,
-                // mas isso SÓ FUNCIONARÁ se o LLAT do usuário estiver salvo no DB.
-                const mediaResult = await fetchInstagramMedia(userId, nextPageMediaUrl ?? undefined);
+                // <<< MODIFICADO: Passa o accessToken obtido para fetchInstagramMedia >>>
+                const mediaResult = await fetchInstagramMedia(accountId!, accessToken!, nextPageMediaUrl ?? undefined);
                 if (!mediaResult.success) {
                     logger.error(`${TAG} Falha busca pág ${mediaCurrentPage} mídias: ${mediaResult.error}`); errors.push(`Busca mídia pág ${mediaCurrentPage}: ${mediaResult.error ?? 'Erro desconhecido'}`);
                     if (mediaResult.error?.includes('Token')) { logger.warn(`${TAG} Erro de token, interrompendo busca de mídias.`); hasMoreMediaPages = false; overallSuccess = false; break; }
@@ -630,7 +675,8 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
                     logger.info(`${TAG} Pág ${mediaCurrentPage}: ${processableMedia.length} mídias processáveis. Buscando insights...`);
                     const insightTasks = processableMedia.map(media => limitInsightsFetch(async () => {
                         if (!media.id || !accessToken) return { mediaId: media.id ?? '?', status: 'skipped', reason: 'ID/Token ausente' };
-                        const insightsResult = await fetchMediaInsights(media.id, accessToken!); // Usa o token obtido
+                        // <<< MODIFICADO: Passa o accessToken obtido >>>
+                        const insightsResult = await fetchMediaInsights(media.id, accessToken!);
                         if (!insightsResult.success && insightsResult.error?.includes('Token')) throw new Error('Token error');
                         return { mediaId: media.id, media, insightsResult };
                     }));
@@ -660,12 +706,14 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
             logger.info(`${TAG} Buscando insights/demografia da conta ${accountId}...`);
             let accountInsightData: IAccountInsightsPeriod | undefined; let audienceDemographicsData: IAudienceDemographics | undefined;
             const insightPeriod = DEFAULT_ACCOUNT_INSIGHTS_PERIOD;
-            const accountInsightsResult = await fetchAccountInsights(accountId!, accessToken!, insightPeriod); // Usa tokens obtidos
+            // <<< MODIFICADO: Passa o accessToken obtido >>>
+            const accountInsightsResult = await fetchAccountInsights(accountId!, accessToken!, insightPeriod);
             if (accountInsightsResult.success && accountInsightsResult.data) { collectedAccountInsights = true; accountInsightData = accountInsightsResult.data; }
             else { errors.push(`Insights conta: ${accountInsightsResult.error ?? 'Erro desconhecido'}`); if (accountInsightsResult.error?.includes('Token')) { overallSuccess = false; logger.error(`${TAG} Erro de token ao buscar insights da conta.`); } }
             if (overallSuccess) {
                 await new Promise(r => setTimeout(r, DELAY_MS));
-                const demographicsResult = await fetchAudienceDemographics(accountId!, accessToken!); // Usa tokens obtidos
+                 // <<< MODIFICADO: Passa o accessToken obtido >>>
+                const demographicsResult = await fetchAudienceDemographics(accountId!, accessToken!);
                 collectedDemographics = true;
                 if (demographicsResult.success && demographicsResult.data && (demographicsResult.data.follower_demographics || demographicsResult.data.engaged_audience_demographics)) { audienceDemographicsData = demographicsResult.data; savedDemographics = true; }
                 else { logger.warn(`${TAG} Falha/Dados insuficientes demografia: ${demographicsResult.error || demographicsResult.errorMessage}`); if(demographicsResult.error) errors.push(`Demografia: ${demographicsResult.error}`); if (demographicsResult.error?.includes('Token')) { overallSuccess = false; logger.error(`${TAG} Erro de token ao buscar demografia.`); } }
@@ -693,14 +741,14 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
 }
 
 // =========================================================================
-// == Função fetchAvailableInstagramAccounts ATUALIZADA com Fluxo System User e LLAT User ===
+// == Função fetchAvailableInstagramAccounts ATUALIZADA com LLAT User ===
 // =========================================================================
 /**
  * Busca contas Instagram Business/Creator disponíveis para um usuário.
- * Tenta primeiro via System User Token (se configurado) para listar contas.
- * SEMPRE obtém e retorna o LLAT do usuário para uso posterior na coleta de dados.
- * @param shortLivedToken - Token de curta duração do usuário (SEMPRE necessário para obter LLAT).
- * @param userId - ID do usuário no DB (SEMPRE necessário para fallback e limpeza de token).
+ * Tenta listar via System User Token ou Fallback (/me/accounts).
+ * SEMPRE obtém e retorna o LLAT do usuário.
+ * @param shortLivedToken - Token de curta duração do usuário (SEMPRE necessário).
+ * @param userId - ID do usuário no DB (SEMPRE necessário).
  * @returns Objeto com lista de contas e LLAT do usuário (ou erro).
  */
 export async function fetchAvailableInstagramAccounts(
@@ -738,13 +786,8 @@ export async function fetchAvailableInstagramAccounts(
             userLongLivedAccessToken = llatData.access_token;
             logger.info(`${TAG} LLAT do usuário ${userId} obtido com sucesso.`);
         } catch (llatError: any) {
-             // Se a troca de SLT por LLAT falhar, isso é um erro crítico para o fluxo de fallback
-             // e também impede a coleta de dados posterior no fluxo System User.
              logger.error(`${TAG} Falha CRÍTICA ao obter LLAT do usuário ${userId}:`, llatError);
-             // Limpa a conexão antiga se o erro for de token inválido
-             if (llatError.message.toLowerCase().includes('token')) {
-                 await clearInstagramConnection(userId);
-             }
+             if (llatError.message.toLowerCase().includes('token')) { await clearInstagramConnection(userId); }
              return { success: false, error: `Falha ao obter token de acesso necessário: ${llatError.message}` };
         }
         // --- Fim Etapa Comum ---
@@ -752,12 +795,12 @@ export async function fetchAvailableInstagramAccounts(
 
         // --- Fluxo Primário: System User Token (para listar contas) ---
         if (businessId && systemUserToken) {
+            // ... (Lógica inalterada para buscar páginas via System User) ...
             logger.info(`${TAG} Utilizando fluxo primário via System User Token para listar contas.`);
             const systemUserAccessToken = systemUserToken;
             const allPagesData: PageAccountData[] = [];
             let currentPageUrl: string | null = `${BASE_URL}/${API_VERSION}/${businessId}/owned_pages?fields=id,name,instagram_business_account{id}&limit=100&access_token=${systemUserAccessToken}`;
             let pageCount = 0; let fetchError: Error | null = null;
-
             logger.debug(`${TAG} Buscando páginas via /${businessId}/owned_pages...`);
             while (currentPageUrl && pageCount < MAX_ACCOUNT_FETCH_PAGES) {
                 pageCount++; logger.debug(`${TAG} Buscando página ${pageCount}/${MAX_ACCOUNT_FETCH_PAGES} de /owned_pages...`);
@@ -800,6 +843,7 @@ export async function fetchAvailableInstagramAccounts(
         }
         // --- Fluxo de Fallback: Token de Usuário (para listar contas) ---
         else {
+             // ... (Lógica inalterada para buscar páginas via /me/accounts usando userLongLivedAccessToken) ...
             logger.info(`${TAG} Utilizando fluxo de fallback via User Token (LLAT) e /me/accounts para listar contas.`);
             if (!userLongLivedAccessToken) { throw new Error("LLAT do usuário não obtido na etapa comum (Fallback)."); }
 
@@ -833,11 +877,10 @@ export async function fetchAvailableInstagramAccounts(
 
             const availableAccounts: AvailableInstagramAccount[] = [];
             for (const page of allPagesData) { if (page.instagram_business_account?.id) { availableAccounts.push({ igAccountId: page.instagram_business_account.id, pageId: page.id, pageName: page.name }); } }
-            if (availableAccounts.length === 0) { const errorMsg = "Nenhuma conta IG Business/Creator encontrada vinculada às páginas FB que o usuário gerencia."; logger.warn(`${TAG} (Fallback) ${errorMsg} User: ${userId}. Págs processadas: ${allPagesData.length}`); return { success: false, error: errorMsg, errorCode: 404 }; }
+            if (availableAccounts.length === 0) { const errorMsg = "Nenhuma conta IG Business/Creator vinculada encontrada (pós-paginação /me/accounts)."; logger.warn(`${TAG} (Fallback) ${errorMsg} User: ${userId}. Págs processadas: ${allPagesData.length}`); return { success: false, error: errorMsg, errorCode: 404 }; }
             logger.info(`${TAG} (Fallback) Encontradas ${availableAccounts.length} contas IG vinculadas para User ${userId}.`);
             logger.debug(`${TAG} (Fallback) Contas (Nomes): ${availableAccounts.map(a => a.pageName).join(', ')}`);
 
-            // Retorna Lista e LLAT do Usuário
             return { success: true, accounts: availableAccounts, longLivedAccessToken: userLongLivedAccessToken };
         } // Fim do try/catch interno do fallback
     } // Fim do else (Fallback)
@@ -860,7 +903,6 @@ export async function fetchAvailableInstagramAccounts(
 
 /**
  * Atualiza o status de conexão do Instagram para um usuário no DB.
- * Usado após fetchAvailableInstagramAccounts ter sucesso (System User ou Fallback).
  * Salva o ID da conta e o LLAT do usuário (se disponível).
  * Dispara a atualização de dados em segundo plano.
  * @param userId - ID do usuário (string ou ObjectId).
@@ -881,7 +923,7 @@ export async function connectInstagramAccount(
     try {
         await connectToDatabase();
         const updateData = {
-            instagramAccessToken: longLivedAccessToken, // <<< Salva o LLAT recebido (pode ser null)
+            instagramAccessToken: longLivedAccessToken, // <<< Salva o LLAT recebido
             instagramAccountId: instagramAccountId,
             isInstagramConnected: true,
             lastInstagramSyncAttempt: new Date(),
@@ -908,7 +950,6 @@ export async function connectInstagramAccount(
             });
         } else {
             logger.warn(`${TAG} Pulando triggerDataRefresh para ${userId} pois o LLAT do usuário não foi obtido/salvo.`);
-            // Marca o sync como falho se não puder rodar por falta de token
              await DbUser.findByIdAndUpdate(userId, { $set: { lastInstagramSyncSuccess: false } }).catch(dbErr => logger.error(`${TAG} Falha ao atualizar status sync (sem LLAT) ${userId}:`, dbErr));
         }
 
