@@ -1,9 +1,6 @@
-// src/app/lib/instagramService.ts - v1.9.0 (Implementa Fluxo System User)
-// - Modifica fetchAvailableInstagramAccounts para priorizar System User Token e /owned_pages.
-// - Mantém o fluxo via /me/accounts (com token de usuário) como fallback.
-// - Implementa paginação para /owned_pages.
-// - Adiciona uso da constante API_VERSION nas chamadas Graph API.
-// - Mantém correções e funcionalidades anteriores.
+// src/app/lib/instagramService.ts - v1.9.1 (Adiciona Log Debug System Token)
+// - Adiciona logger.debug para verificar o FB_SYSTEM_USER_TOKEN antes da chamada /owned_pages.
+// - Mantém fluxo System User / Fallback e outras funcionalidades.
 
 import { connectToDatabase } from "@/app/lib/mongoose";
 import DbUser, { IUser } from "@/app/models/User";
@@ -98,6 +95,7 @@ const limitInsightsFetch = pLimit(INSIGHTS_CONCURRENCY_LIMIT);
  */
 export async function getInstagramConnectionDetails(userId: string | mongoose.Types.ObjectId): Promise<InstagramConnectionDetails | null> {
     const TAG = '[getInstagramConnectionDetails]';
+    // ... (código inalterado) ...
     logger.debug(`${TAG} Buscando detalhes de conexão IG para User ${userId}...`);
     if (!mongoose.isValidObjectId(userId)) {
         logger.error(`${TAG} ID de usuário inválido: ${userId}`);
@@ -132,6 +130,7 @@ export async function getInstagramConnectionDetails(userId: string | mongoose.Ty
  */
 export async function fetchInstagramMedia(userId: string, pageUrl?: string): Promise<FetchMediaResult> {
     const TAG = '[fetchInstagramMedia]';
+    // ... (código inalterado, mas com API_VERSION adicionada na URL base) ...
     const logPrefix = pageUrl ? `${TAG} (Paginação)` : TAG;
     logger.info(`${logPrefix} Iniciando busca de mídias para User ${userId}...`);
 
@@ -151,7 +150,6 @@ export async function fetchInstagramMedia(userId: string, pageUrl?: string): Pro
         } else {
             const fields = 'id,media_type,timestamp,caption,permalink,username,children{id,media_type,media_url,permalink}';
             const limit = 25;
-            // Inclui API_VERSION na URL
             return `${BASE_URL}/${API_VERSION}/${accountId}/media?fields=${fields}&limit=${limit}&access_token=${accessToken}`;
         }
     };
@@ -215,10 +213,10 @@ export async function fetchInstagramMedia(userId: string, pageUrl?: string): Pro
  */
 export async function fetchMediaInsights(mediaId: string, accessToken: string): Promise<FetchInsightsResult<IMetricStats>> {
     const TAG = '[fetchMediaInsights]';
+     // ... (código inalterado, mas com API_VERSION adicionada na URL base) ...
     logger.debug(`${TAG} Buscando insights para Media ID: ${mediaId}...`);
 
     const metrics = MEDIA_INSIGHTS_METRICS;
-    // Inclui API_VERSION na URL
     let urlBase = `${BASE_URL}/${API_VERSION}/${mediaId}/insights?metric=${metrics}`;
     const requestedMetrics = metrics.split(',');
     if (requestedMetrics.includes('profile_activity') && MEDIA_BREAKDOWNS['profile_activity']) {
@@ -294,10 +292,10 @@ export async function fetchAccountInsights(
     period: string = DEFAULT_ACCOUNT_INSIGHTS_PERIOD
 ): Promise<FetchInsightsResult<IAccountInsightsPeriod>> {
     const TAG = '[fetchAccountInsights]';
+     // ... (código inalterado, mas com API_VERSION adicionada na URL base) ...
     logger.debug(`${TAG} Buscando insights da conta ${accountId} para o período: ${period}...`);
 
     const metrics = ACCOUNT_INSIGHTS_METRICS;
-    // Inclui API_VERSION na URL
     let urlBase = `${BASE_URL}/${API_VERSION}/${accountId}/insights?metric=${metrics}&period=${period}`;
     const requestedMetrics = metrics.split(',');
     for (const metric of requestedMetrics) {
@@ -369,13 +367,13 @@ export async function fetchAudienceDemographics(
     accessToken: string
 ): Promise<FetchInsightsResult<IAudienceDemographics>> {
     const TAG = '[fetchAudienceDemographics]';
+     // ... (código inalterado, mas com API_VERSION adicionada na URL base) ...
     logger.debug(`${TAG} Buscando dados demográficos da conta ${accountId}...`);
 
     const metrics = DEMOGRAPHICS_METRICS;
     const period = 'lifetime';
     const breakdown = DEMOGRAPHICS_BREAKDOWNS;
     const timeframe = DEMOGRAPHICS_TIMEFRAME;
-    // Inclui API_VERSION na URL
     const urlBase = `${BASE_URL}/${API_VERSION}/${accountId}/insights?metric=${metrics}&period=${period}&breakdown=${breakdown}&timeframe=${timeframe}`;
 
     try {
@@ -487,10 +485,10 @@ export async function fetchBasicAccountData(
     accessToken: string
 ): Promise<FetchBasicAccountDataResult> {
     const TAG = '[fetchBasicAccountData]';
+     // ... (código inalterado, mas com API_VERSION adicionada na URL base) ...
     logger.debug(`${TAG} Buscando dados básicos da conta ${accountId}...`);
 
     const fields = BASIC_ACCOUNT_FIELDS;
-    // Inclui API_VERSION na URL
     const urlBase = `${BASE_URL}/${API_VERSION}/${accountId}?fields=${fields}`;
 
     try {
@@ -552,6 +550,7 @@ export async function fetchBasicAccountData(
  */
 export async function clearInstagramConnection(userId: string | mongoose.Types.ObjectId): Promise<void> {
     const TAG = '[clearInstagramConnection]';
+     // ... (código inalterado) ...
     logger.warn(`${TAG} Limpando dados de conexão Instagram para User ${userId}...`);
     if (!mongoose.isValidObjectId(userId)) {
         logger.error(`${TAG} ID de usuário inválido fornecido para limpar conexão: ${userId}`);
@@ -583,6 +582,7 @@ export async function clearInstagramConnection(userId: string | mongoose.Types.O
  * @returns String formatada do tipo de mídia.
  */
 function mapMediaTypeToFormat(mediaType?: 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM'): string {
+    // ... (código inalterado) ...
     switch (mediaType) {
         case 'IMAGE': return 'Foto';
         case 'VIDEO': return 'Reel';
@@ -604,6 +604,7 @@ async function saveMetricData(
     insights: IMetricStats
 ): Promise<void> {
     const TAG = '[saveMetricData]';
+     // ... (código inalterado) ...
     const startTime = Date.now();
     logger.info(`${TAG} Iniciando salvamento/atualização para User: ${userId}, Media: ${media.id}`);
 
@@ -694,6 +695,7 @@ async function saveMetricData(
  */
 async function createOrUpdateDailySnapshot(metric: IMetric): Promise<void> {
     const SNAPSHOT_TAG = '[DailySnapshot]';
+     // ... (código inalterado) ...
     if (metric.source !== 'api') { return; }
     if (!metric.postDate) {
         logger.warn(`${SNAPSHOT_TAG} Metric ${metric._id} não possui postDate. Impossível calcular snapshot.`);
@@ -729,7 +731,7 @@ async function createOrUpdateDailySnapshot(metric: IMetric): Promise<void> {
         if (!currentCumulativeStats) { logger.warn(`${SNAPSHOT_TAG} Metric ${metric._id} sem 'stats' atuais.`); return; }
 
         const dailyStats: Partial<Record<keyof IDailyMetricSnapshot, number>> = {};
-        const metricsToCalculateDelta: (keyof IMetricStats)[] = [ 'views', 'likes', 'comments', 'shares', 'saved', 'reach', 'follows', 'profile_visits' /* Removido 'total_interactions' */ ];
+        const metricsToCalculateDelta: (keyof IMetricStats)[] = [ 'views', 'likes', 'comments', 'shares', 'saved', 'reach', 'follows', 'profile_visits' ];
 
         for (const metricName of metricsToCalculateDelta) {
             const currentVal = Number(currentCumulativeStats[metricName] ?? 0);
@@ -741,7 +743,6 @@ async function createOrUpdateDailySnapshot(metric: IMetric): Promise<void> {
             if (currentVal < previousVal) { logger.warn(`${SNAPSHOT_TAG} Valor cumulativo de '${metricNameStr}' diminuiu (${metric._id}). Atual: ${currentVal}, Anterior: ${previousVal}.`); }
         }
 
-        // Tipo explícito para os dados do snapshot
         type SnapshotUpdateData = {
             metric: Types.ObjectId; date: Date;
             dailyViews?: number; dailyLikes?: number; dailyComments?: number; dailyShares?: number; dailySaved?: number;
@@ -787,6 +788,7 @@ export async function saveAccountInsightData(
     accountData: Partial<IUser> | undefined
 ): Promise<void> {
     const TAG = '[saveAccountInsightData]';
+     // ... (código inalterado) ...
     logger.debug(`${TAG} Preparando snapshot de insights/demografia/dados básicos para User ${userId}, Conta IG ${accountId}...`);
     try {
         const snapshot: Partial<IAccountInsight> = {
@@ -824,6 +826,7 @@ export async function saveAccountInsightData(
  */
 export async function triggerDataRefresh(userId: string): Promise<{ success: boolean; message: string; details?: any }> {
     const TAG = '[triggerDataRefresh]';
+     // ... (código inalterado) ...
     const startTime = Date.now();
     logger.info(`${TAG} Iniciando atualização de dados para User ${userId}...`);
 
@@ -968,6 +971,11 @@ export async function fetchAvailableInstagramAccounts(
                 const paginationRetryOptions = { ...RETRY_OPTIONS, retries: 2 };
                 const pageData = await retry(async (bail, attempt) => {
                     if (attempt > 1) logger.warn(`${TAG} Tentativa ${attempt} pág ${pageCount} /owned_pages.`);
+
+                    // <<< ADICIONADO LOG DE DEBUG AQUI >>>
+                    logger.debug(`${TAG} [System User Flow] Chamando fetch para URL: ${currentPageUrl?.replace(systemUserAccessToken, '[SYSTEM_TOKEN_OCULTO]')}`);
+                    // <<< FIM DO LOG DE DEBUG >>>
+
                     const response = await fetch(currentPageUrl!);
                     if (!response.headers.get('content-type')?.includes('application/json')) {
                         logger.error(`${TAG} Resposta não-JSON (Status: ${response.status}) pág ${pageCount} /owned_pages`);
@@ -978,7 +986,6 @@ export async function fetchAvailableInstagramAccounts(
                         type ErrorType = FacebookApiErrorStructure | { message: string; code: number; };
                         const error: ErrorType = data.error || { message: `Erro ${response.status} pág ${pageCount}`, code: response.status };
                         logger.error(`${TAG} Erro API (System User) (Tentativa ${attempt}) pág ${pageCount}:`, error);
-                        // Erros específicos do System User/Business API
                         if (error.code === 190) { bail(new Error('System User Token inválido/expirado.')); return; }
                         if (error.code === 10 || error.code === 200) { bail(new Error('Permissão insuficiente para System User (business_management, pages_show_list, etc.).')); return; }
                         if (error.code === 100 && error.message.includes("Unsupported get request")) { bail(new Error(`Business ID (${businessId}) inválido ou não acessível pelo System User Token.`)); return; }
@@ -1001,7 +1008,6 @@ export async function fetchAvailableInstagramAccounts(
 
         if (pageCount >= MAX_ACCOUNT_FETCH_PAGES && currentPageUrl) logger.warn(`${TAG} Limite ${MAX_ACCOUNT_FETCH_PAGES} págs /owned_pages atingido.`);
         if (fetchError) {
-            // Retorna erro específico do System User
             return { success: false, error: `Erro ao buscar páginas via System User: ${fetchError.message}`, errorCode: 500 };
         }
 
@@ -1021,12 +1027,12 @@ export async function fetchAvailableInstagramAccounts(
 
         logger.info(`${TAG} (System User) Encontradas ${availableAccounts.length} contas IG vinculadas.`);
         logger.debug(`${TAG} (System User) Contas (Nomes): ${availableAccounts.map(a => a.pageName).join(', ')}`);
-        // Retorna sucesso com as contas, mas LLAT vazio pois não é relevante aqui
         return { success: true, accounts: availableAccounts, longLivedAccessToken: '' };
 
     }
     // --- Fluxo de Fallback: Token de Usuário ---
     else {
+        // ... (Código do Fallback inalterado) ...
         logger.info(`${TAG} Utilizando fluxo de fallback via User Token (LLAT) e /me/accounts.`);
         if (!mongoose.isValidObjectId(userId)) {
             const errorMsg = `ID de usuário inválido fornecido para o fluxo de fallback: ${userId}`;
@@ -1043,10 +1049,10 @@ export async function fetchAvailableInstagramAccounts(
         type PageAccountData = { id: string; name: string; instagram_business_account?: { id: string; } };
 
         try {
-            // 1. Trocar SLT por LLAT (igual ao código anterior)
+            // 1. Trocar SLT por LLAT
             logger.debug(`${TAG} (Fallback) Tentando obter LLAT para User ${userId}...`);
             const llatUrl = `${BASE_URL}/oauth/access_token?grant_type=fb_exchange_token&client_id=${process.env.FACEBOOK_CLIENT_ID}&client_secret=${process.env.FACEBOOK_CLIENT_SECRET}&fb_exchange_token=${shortLivedToken}`;
-            const llatData = await retry(async (bail, attempt) => { /* ... lógica retry LLAT ... */
+            const llatData = await retry(async (bail, attempt) => {
                 if (attempt > 1) logger.warn(`${TAG} (Fallback) Tentativa ${attempt} para obter LLAT.`);
                 const response = await fetch(llatUrl); const data: any & FacebookApiError = await response.json();
                 if (!response.ok || !data.access_token) {
@@ -1060,17 +1066,20 @@ export async function fetchAvailableInstagramAccounts(
             userLongLivedAccessToken = llatData.access_token;
             logger.info(`${TAG} (Fallback) LLAT obtido com sucesso para User ${userId}.`);
 
-            // 2. Buscar Páginas via /me/accounts com paginação (igual ao código anterior)
+            // 2. Buscar Páginas via /me/accounts com paginação
             logger.debug(`${TAG} (Fallback) Buscando páginas FB (/me/accounts) com paginação para User ${userId}...`);
             const allPagesData: PageAccountData[] = [];
             let currentPageUrl: string | null = `${BASE_URL}/${API_VERSION}/me/accounts?fields=id,name,instagram_business_account{id}&limit=100&access_token=${userLongLivedAccessToken}`;
             let pageCount = 0; let fetchError: Error | null = null;
-            while (currentPageUrl && pageCount < MAX_ACCOUNT_FETCH_PAGES) { /* ... lógica while idêntica à anterior para /me/accounts ... */
+            while (currentPageUrl && pageCount < MAX_ACCOUNT_FETCH_PAGES) {
                 pageCount++; logger.debug(`${TAG} (Fallback) Buscando página ${pageCount}/${MAX_ACCOUNT_FETCH_PAGES} de /me/accounts...`);
                 try {
                     const paginationRetryOptions = { ...RETRY_OPTIONS, retries: 2 };
-                    const pageData = await retry(async (bail, attempt) => { /* ... lógica retry fetch /me/accounts ... */
+                    const pageData = await retry(async (bail, attempt) => {
                         if (attempt > 1) logger.warn(`${TAG} (Fallback) Tentativa ${attempt} pág ${pageCount} /me/accounts.`);
+                        // <<< ADICIONADO LOG DE DEBUG AQUI (Fallback) >>>
+                        logger.debug(`${TAG} [Fallback Flow] Chamando fetch para URL: ${currentPageUrl?.replace(userLongLivedAccessToken!, '[USER_TOKEN_OCULTO]')}`);
+                        // <<< FIM DO LOG DE DEBUG >>>
                         const response = await fetch(currentPageUrl!); if (!response.headers.get('content-type')?.includes('application/json')) { bail(new Error(`Resposta não-JSON (Status: ${response.status})`)); return null; }
                         const data: InstagramApiResponse<PageAccountData> & FacebookApiError = await response.json();
                         if (!response.ok || data.error) {
@@ -1088,7 +1097,7 @@ export async function fetchAvailableInstagramAccounts(
             if (fetchError) { if (fetchError.message.toLowerCase().includes('token')) { await clearInstagramConnection(userId); } throw fetchError; }
             logger.info(`${TAG} (Fallback) Busca paginada /me/accounts concluída. ${allPagesData.length} itens em ${pageCount} págs API.`);
 
-            // 3. Filtrar e Mapear Contas (igual ao código anterior)
+            // 3. Filtrar e Mapear Contas
             const availableAccounts: AvailableInstagramAccount[] = [];
             for (const page of allPagesData) { if (page.instagram_business_account?.id) { availableAccounts.push({ igAccountId: page.instagram_business_account.id, pageId: page.id, pageName: page.name }); } }
             if (availableAccounts.length === 0) { const errorMsg = "Nenhuma conta IG Business/Creator vinculada encontrada (pós-paginação /me/accounts)."; logger.warn(`${TAG} (Fallback) ${errorMsg} User: ${userId}. Págs processadas: ${allPagesData.length}`); return { success: false, error: errorMsg, errorCode: 404 }; }
@@ -1125,8 +1134,7 @@ export async function finalizeInstagramConnection(
     longLivedAccessToken: string // Este token vem do fluxo de fallback
 ): Promise<{ success: boolean; message?: string; error?: string }> {
     const TAG = '[finalizeInstagramConnection]';
-    // Nota: Esta função agora só é relevante para o fluxo de fallback.
-    // O fluxo de System User não precisa "finalizar" desta forma.
+    // ... (código inalterado) ...
     logger.info(`${TAG} (Fallback) Finalizando conexão User ${userId}, Conta IG ${selectedIgAccountId}`);
 
     if (!mongoose.isValidObjectId(userId)) return { success: false, error: `ID usuário inválido: ${userId}` };
@@ -1135,7 +1143,6 @@ export async function finalizeInstagramConnection(
 
     try {
         await connectToDatabase();
-        // Salva o LLAT do *usuário* e o ID da conta selecionada
         const updateData = {
             instagramAccessToken: longLivedAccessToken,
             instagramAccountId: selectedIgAccountId,
@@ -1149,7 +1156,6 @@ export async function finalizeInstagramConnection(
 
         logger.info(`${TAG} (Fallback) Usuário ${userId} atualizado. Conexão IG ${selectedIgAccountId} OK.`);
 
-        // Trigger data refresh async
         triggerDataRefresh(userId).then(res => {
             logger.info(`${TAG} (Fallback) triggerDataRefresh async ${userId}. Sucesso: ${res.success}. Msg: ${res.message}`);
             DbUser.findByIdAndUpdate(userId, { $set: { lastInstagramSyncSuccess: res.success } })
@@ -1182,6 +1188,7 @@ export async function processStoryWebhookPayload(
     value: any
 ): Promise<{ success: boolean; error?: string }> {
     const TAG = '[processStoryWebhookPayload]';
+     // ... (código inalterado) ...
     logger.debug(`${TAG} Payload Media ${mediaId}, Conta ${webhookAccountId}.`);
 
     if (!webhookAccountId) return { success: false, error: 'ID conta webhook ausente.' };
