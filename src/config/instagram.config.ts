@@ -9,18 +9,26 @@ export const BASE_URL = `https://graph.facebook.com`; // BASE_URL não inclui ma
 // !! RECOMENDAÇÃO: Verificar se todos os campos/métricas abaixo são válidos na API_VERSION definida !!
 
 // Campos básicos para buscar dados da conta de usuário do Instagram (IG User node)
-export const BASIC_ACCOUNT_FIELDS = 'id,username,name,biography,website,profile_picture_url,followers_count,follows_count,media_count,is_published,shopping_product_tag_eligibility';
+// OTIMIZADO: Começar com um conjunto mínimo para evitar erros de permissão (#10) durante a revisão.
+// Adicionar outros campos (biography, website, follows_count) gradualmente após aprovação, se necessário.
+// Campos como is_published, shopping_product_tag_eligibility são mais propensos a erros de permissão.
+export const BASIC_ACCOUNT_FIELDS = 'id,username,name,profile_picture_url,followers_count,media_count';
 
 // Métricas para buscar insights de mídias (Posts, Reels, Carrosséis)
+// Esta lista parece razoável, mas sempre valide com a documentação da API para a versão v22.0.
 export const MEDIA_INSIGHTS_METRICS = 'views,reach,total_interactions,saved,likes,comments,shares,ig_reels_avg_watch_time,ig_reels_video_view_total_time,profile_visits,follows,profile_activity';
 
 // Métricas de Story (principalmente para referência do Webhook e mapeamento)
+// Validar se estas ainda são as métricas corretas/disponíveis para webhooks de story na v22.0.
 export const STORY_INSIGHTS_METRICS = 'views,reach,navigation,replies,shares,profile_visits,follows,profile_activity,total_interactions';
 
 // Métricas para buscar insights de nível de conta (agregados)
-export const ACCOUNT_INSIGHTS_METRICS = 'views,reach,accounts_engaged,total_interactions,profile_links_taps,follows_and_unfollows,comments,likes,saved,shares,replies';
+// OTIMIZADO: Reduzido para métricas de nível de conta mais comuns e menos propensas a erros de permissão.
+// Métricas como comments, likes, saved, shares, replies agregadas podem ser problemáticas.
+export const ACCOUNT_INSIGHTS_METRICS = 'views,reach,accounts_engaged,total_interactions,profile_links_taps,follows_and_unfollows';
 
 // Métricas para buscar dados demográficos
+// Validar se 'follower_demographics' e 'engaged_audience_demographics' são os nomes corretos e se as permissões são suficientes.
 export const DEMOGRAPHICS_METRICS = 'follower_demographics,engaged_audience_demographics';
 
 
@@ -34,17 +42,18 @@ export const MEDIA_BREAKDOWNS: { [metric: string]: string } = {
 
 // Breakdowns aplicáveis a insights de Story (para referência do Webhook)
 export const STORY_BREAKDOWNS: { [metric: string]: string } = {
-  navigation: 'story_navigation_action_type',
+  navigation: 'story_navigation_action_type', // Ex: taps_forward, taps_back, exits, replies (se replies for um tipo de navegação)
   profile_activity: 'action_type',
 };
 
 // Breakdowns aplicáveis a insights de Conta
 export const ACCOUNT_BREAKDOWNS: { [metric: string]: string } = {
-  profile_links_taps: 'contact_button_type',
-  follows_and_unfollows: 'follow_type',
+  profile_links_taps: 'contact_button_type', // Ex: email_contacts, phone_call_clicks, get_directions_clicks, website_clicks
+  follows_and_unfollows: 'follow_type', // Ex: follower_gains, unfollows
 };
 
 // Breakdowns aplicáveis a dados Demográficos (passados como string única)
+// Validar se 'age' e 'gender' são os breakdowns corretos e se não exigem permissões adicionais.
 export const DEMOGRAPHICS_BREAKDOWNS = 'city,country,age,gender';
 
 
@@ -60,11 +69,13 @@ export const DEFAULT_ACCOUNT_INSIGHTS_PERIOD = 'days_28';
 
 // --- Permissões OAuth Necessárias (Referência) ---
 // Esta lista é apenas para referência, as permissões reais são solicitadas no next-auth
+// e devem ser justificadas na submissão para Revisão de Aplicativos.
 export const REQUIRED_OAUTH_PERMISSIONS = [
   'instagram_basic',
   'instagram_manage_insights',
   'pages_read_engagement',
   'pages_show_list',
   'business_management', // Adicionado, pois é necessário para System User / Business API
-  'instagram_manage_comments', // Mantido da sua config
+  'instagram_manage_comments', // Mantido da sua config, justificar se necessário para a IA Tuca
+  // Adicionar 'whatsapp_business_management' e 'whatsapp_business_messaging' se o System User também gerenciar WhatsApp
 ];

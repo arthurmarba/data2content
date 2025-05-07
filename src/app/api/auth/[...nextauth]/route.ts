@@ -18,13 +18,13 @@ import { logger } from "@/app/lib/logger";
 import { cookies } from 'next/headers';
 import {
     fetchAvailableInstagramAccounts,
-    connectInstagramAccount, // <<< IMPORTAÇÃO JÁ EXISTENTE, CORRETO >>>
+    connectInstagramAccount, // <<< IMPORTAÇÃO VERIFICADA E MANTIDA >>>
     AvailableInstagramAccount,
 } from "@/app/lib/instagramService";
-// import { storeTemporaryLlat } from "@/app/lib/tempTokenStorage"; // REMOVIDO (JÁ ESTAVA COMENTADO)
+// import { storeTemporaryLlat } from "@/app/lib/tempTokenStorage"; // <<< REMOVIDO CONFORME PLANO (JÁ ESTAVA COMENTADO)
 
 // --- AUGMENT NEXT-AUTH TYPES ---
-// (Mantido como estava - pendingInstagramConnection já removido dos tipos)
+// (Mantido como estava - pendingInstagramConnection já removido dos tipos conforme plano)
 declare module "next-auth" {
     interface User extends DefaultUser {
         id: string;
@@ -42,6 +42,7 @@ declare module "next-auth" {
         availableIgAccounts?: AvailableInstagramAccount[] | null;
         igConnectionError?: string | null;
         image?: string | null;
+        // pendingInstagramConnection?: boolean | null; // <<< REMOVIDO CONFORME PLANO (JÁ AUSENTE)
     }
     interface Session extends DefaultSession { user?: User; }
 }
@@ -57,6 +58,7 @@ declare module "next-auth/jwt" {
          picture?: string | null;
          image?: string | null;
          sub?: string;
+         // pendingInstagramConnection?: boolean | null; // <<< REMOVIDO CONFORME PLANO (JÁ AUSENTE)
      }
 }
 // --- END AUGMENT NEXT-AUTH TYPES ---
@@ -285,26 +287,22 @@ export const authOptions: NextAuthOptions = {
             let currentToken: Partial<JWT> = {
                 id: token.id, name: token.name, email: token.email, image: token.image,
                 role: token.role, provider: token.provider, sub: token.sub
-                // availableIgAccounts e igConnectionError serão definidos abaixo, se aplicável
             };
-            // Limpa erros de conexao IG anteriores ao reprocessar
             delete currentToken.igConnectionError;
             delete currentToken.availableIgAccounts;
-
 
             const isSignInOrSignUp = trigger === 'signIn' || trigger === 'signUp';
 
             if (isSignInOrSignUp && account) {
                 if (account.provider === 'facebook') {
                     logger.debug(`${TAG_JWT} Processando login/vinculação Facebook...`);
-                    let userId = ''; // ID do usuário do NOSSO banco de dados (Mongoose _id)
+                    let userId = ''; 
 
-                    // Tenta encontrar o usuário pelo linkToken (vinculação explícita)
                     try {
                         const authLink = cookies().get('auth-link-token')?.value;
                         if (authLink) {
                             logger.info(`${TAG_JWT} Cookie 'auth-link-token' encontrado.`);
-                            cookies().delete('auth-link-token'); // Limpa o cookie após o uso
+                            cookies().delete('auth-link-token'); 
                             await connectToDatabase();
                             const linkDoc = await DbUser.findOne({ linkToken: authLink, linkTokenExpiresAt: { $gt: new Date() } }).lean();
                             if (linkDoc) {
@@ -319,7 +317,6 @@ export const authOptions: NextAuthOptions = {
                         }
                     } catch (e) { logger.error(`${TAG_JWT} Erro ao processar link token:`, e); }
 
-                    // Se não encontrou pelo linkToken, tenta pelo ID do Facebook (login normal/já vinculado)
                     if (!userId && account.providerAccountId) {
                         logger.debug(`${TAG_JWT} Tentando encontrar usuário pelo facebookProviderAccountId: ${account.providerAccountId}`);
                         await connectToDatabase();
@@ -329,20 +326,9 @@ export const authOptions: NextAuthOptions = {
                             logger.info(`${TAG_JWT} Usuário ${userId} identificado via facebookProviderAccountId.`);
                         } else {
                              logger.warn(`${TAG_JWT} Nenhum usuário encontrado para facebookProviderAccountId ${account.providerAccountId}.`);
-                             // Aqui, se o usuário não existe, pode ser um novo login via Facebook.
-                             // A criação do usuário em si pode ocorrer aqui ou ser delegada,
-                             // mas para a vinculação do IG, precisamos de um `userId` do nosso sistema.
-                             // Se o seu fluxo `signIn` não cria o usuário Facebook, ele precisaria ser criado aqui.
-                             // Assumindo por agora que o `signIn` permite passar ou um `user.id` já existe se for um novo usuário que acabou de ser criado.
-                             // Ou, se `user` é fornecido pelo NextAuth após um novo cadastro via Facebook:
                              if (user?.id && Types.ObjectId.isValid(user.id)){
-                                // Este user.id seria o _id do Mongoose se o Adapter o criou.
-                                // Ou se o signIn retornou um user.id válido.
                                 logger.info(`${TAG_JWT} Utilizando user.id (${user.id}) fornecido pelo fluxo NextAuth para novo usuário Facebook.`);
                                 userId = user.id;
-                                // Se este é um NOVO usuário, precisamos garantir que ele está no DB
-                                // e que `facebookProviderAccountId` seja salvo.
-                                // O callback `signIn` já tenta tratar isso, mas podemos reforçar.
                                 const userForFbId = await DbUser.findById(userId);
                                 if(userForFbId && !userForFbId.facebookProviderAccountId){
                                     userForFbId.facebookProviderAccountId = account.providerAccountId;
@@ -364,47 +350,47 @@ export const authOptions: NextAuthOptions = {
                             const result = await fetchAvailableInstagramAccounts(account.access_token, userId);
 
                             // ============================================================
-                            // == INÍCIO DO BLOCO MODIFICADO CONFORME PLANO            ==
+                            // == INÍCIO DO BLOCO MODIFICADO CONFORME PLANO DE ATUALIZAÇÃO ==
                             // ============================================================
                             if (result.success) {
                                 logger.info(`${TAG_JWT} fetchAvailableInstagramAccounts retornou sucesso. Contas: ${result.accounts?.length ?? 0}. LLAT Obtido: ${!!result.longLivedAccessToken}`);
-                                currentToken.availableIgAccounts = result.accounts;
-                                const userLongLivedAccessToken = result.longLivedAccessToken; // <<< Pega o LLAT retornado
+                                currentToken.availableIgAccounts = result.accounts; // <<< Manter: Popula currentToken.availableIgAccounts
+                                const userLongLivedAccessToken = result.longLivedAccessToken; // <<< Extrair LLAT do Usuário
 
-                                // Remover lógica de estado pendente (já não estava ativa no seu código anterior aqui)
-                                // delete currentToken.pendingInstagramConnection;
-                                // Nenhuma chamada a storeTemporaryLlat aqui.
-                                // Nenhum cookie ig-connect-status sendo setado aqui.
+                                // Lógica de estado pendente (cookie, flag pendingInstagramConnection, storeTemporaryLlat) removida conforme plano.
 
-                                if (result.accounts && result.accounts.length > 0 && userLongLivedAccessToken) {
+                                // Implementar Nova Lógica de Conexão Automática:
+                                if (result.accounts && result.accounts.length > 0) {
                                     const firstAccount = result.accounts[0];
                                     if (firstAccount && firstAccount.igAccountId) {
-                                        logger.info(`${TAG_JWT} Tentando conectar automaticamente a primeira conta IG: ${firstAccount.igAccountId} para User ${userId}`);
+                                        logger.info(`${TAG_JWT} Tentando conectar automaticamente a primeira conta encontrada: ${firstAccount.igAccountId} para User ${userId}`);
 
-                                        // Chama a função para atualizar o DB e salvar o LLAT (assíncrono)
-                                        connectInstagramAccount(userId, firstAccount.igAccountId, userLongLivedAccessToken)
-                                            .then(connectResult => {
-                                                if (!connectResult.success) {
-                                                    logger.error(`${TAG_JWT} Falha ao chamar connectInstagramAccount (async) para ${userId}: ${connectResult.error}`);
-                                                    // Opcional: Definir erro no token se a atualização do DB falhar
-                                                    // currentToken.igConnectionError = connectResult.error || "Falha ao salvar conexão no DB.";
-                                                } else {
-                                                    logger.info(`${TAG_JWT} connectInstagramAccount chamado com sucesso (async) para ${userId}. DB será atualizado.`);
-                                                }
-                                            })
-                                            .catch(err => {
-                                                 logger.error(`${TAG_JWT} Erro não capturado ao chamar connectInstagramAccount (async) para ${userId}:`, err);
-                                                 // currentToken.igConnectionError = "Erro inesperado ao iniciar conexão IG.";
-                                            });
+                                        if (userLongLivedAccessToken) { // Garante que temos o LLAT antes de tentar conectar
+                                            // Chama a função para atualizar o DB e salvar o LLAT (assíncrono)
+                                            connectInstagramAccount(userId, firstAccount.igAccountId, userLongLivedAccessToken) // <<< PASSA O LLAT AQUI
+                                                .then(connectResult => {
+                                                    if (!connectResult.success) {
+                                                        logger.error(`${TAG_JWT} Falha ao chamar connectInstagramAccount (async) para ${userId}: ${connectResult.error}`);
+                                                        // Opcional: Adicionar um erro específico ao token se a atualização do DB falhar?
+                                                        // currentToken.igConnectionError = connectResult.error || "Falha ao salvar conexão no DB.";
+                                                    } else {
+                                                        logger.info(`${TAG_JWT} connectInstagramAccount chamado com sucesso (async) para ${userId}. O status será refletido na próxima leitura da sessão.`);
+                                                    }
+                                                })
+                                                .catch(err => {
+                                                     logger.error(`${TAG_JWT} Erro não capturado ao chamar connectInstagramAccount (async) para ${userId}:`, err);
+                                                     // currentToken.igConnectionError = "Erro inesperado ao iniciar conexão IG.";
+                                                });
+                                        } else {
+                                            logger.warn(`${TAG_JWT} Contas IG encontradas (${firstAccount.igAccountId}), mas Long-Lived Access Token (LLAT) ausente. Não é possível conectar automaticamente User ${userId}.`);
+                                            currentToken.igConnectionError = "Token de acesso de longa duração do Instagram não obtido para conectar.";
+                                        }
                                     } else {
-                                         logger.warn(`${TAG_JWT} Lista de contas IG retornada, mas o primeiro elemento é inválido ou não possui igAccountId.`);
+                                         logger.warn(`${TAG_JWT} Lista de contas retornada, mas o primeiro elemento é inválido ou não possui igAccountId.`);
                                          currentToken.igConnectionError = "Erro ao processar lista de contas Instagram.";
                                     }
-                                } else if (!userLongLivedAccessToken && result.accounts && result.accounts.length > 0) {
-                                    logger.warn(`${TAG_JWT} Contas IG encontradas, mas LLAT ausente. Não é possível conectar automaticamente User ${userId}.`);
-                                    currentToken.igConnectionError = "Token de acesso de longa duração do Instagram não obtido.";
-                                } else if (!result.accounts || result.accounts.length === 0) {
-                                    logger.warn(`${TAG_JWT} fetchAvailableInstagramAccounts retornou sucesso mas sem contas IG disponíveis para User ${userId}.`);
+                                } else {
+                                    logger.warn(`${TAG_JWT} fetchAvailableInstagramAccounts retornou sucesso mas sem contas IG disponíveis.`);
                                     currentToken.igConnectionError = "Nenhuma conta Instagram encontrada para vincular.";
                                 }
                             } else {
@@ -416,7 +402,7 @@ export const authOptions: NextAuthOptions = {
                             // == FIM DO BLOCO MODIFICADO                              ==
                             // ============================================================
                         } catch (error) {
-                            logger.error(`${TAG_JWT} Exceção ao chamar fetchAvailableInstagramAccounts ou connectInstagramAccount para User ${userId}:`, error);
+                            logger.error(`${TAG_JWT} Exceção ao chamar fetchAvailableInstagramAccounts ou processar conexão IG para User ${userId}:`, error);
                             currentToken.igConnectionError = error instanceof Error ? error.message : "Erro inesperado no processo de conexão IG.";
                         }
                     } else if (!userId) {
@@ -427,7 +413,7 @@ export const authOptions: NextAuthOptions = {
                          currentToken.igConnectionError = "Token do Facebook ausente.";
                     }
 
-                    currentToken.id = userId; // Define o ID no token, mesmo que vazio se a identificação falhou
+                    currentToken.id = userId; 
                     currentToken.provider = 'facebook';
 
                 } else { // Provedor Google ou Credentials
@@ -437,7 +423,7 @@ export const authOptions: NextAuthOptions = {
                         currentToken.provider = account.provider;
                         currentToken.name = user.name;
                         currentToken.email = user.email;
-                        currentToken.image = user.image; // ou user.picture
+                        currentToken.image = user.image;
                         try {
                             await connectToDatabase();
                             const doc = await DbUser.findById(currentToken.id).select('role').lean();
@@ -445,20 +431,17 @@ export const authOptions: NextAuthOptions = {
                         } catch (error) { logger.error(`${TAG_JWT} Erro ao buscar role (${account.provider}) para ${currentToken.id}:`, error); currentToken.role = 'user'; }
                     } else {
                          logger.error(`${TAG_JWT} ID do usuário inválido ou ausente para ${account.provider}: '${user?.id}'. Invalidando token.`);
-                         currentToken.id = ''; // Invalida o token se não houver ID
+                         currentToken.id = ''; 
                     }
                 }
-            } // Fim de isSignInOrSignUp && account
+            } 
 
-            // Garantir que o token tenha as informações básicas do usuário se o ID for válido
-            const finalUserId = currentToken.id || token.id; // Usa o ID do token anterior se o atual for indefinido
+            const finalUserId = currentToken.id || token.id; 
 
             if (finalUserId && typeof finalUserId === 'string' && Types.ObjectId.isValid(finalUserId)) {
-                currentToken.id = finalUserId; // Garante que o ID esteja definido
+                currentToken.id = finalUserId; 
                 currentToken.sub = finalUserId;
 
-                // Preenche informações do DB se estiverem faltando no token
-                // (pode ser útil se o token for de uma sessão antiga ou atualizado por 'update' trigger)
                 if (!currentToken.name || !currentToken.email || !currentToken.image || !currentToken.role || !currentToken.provider) {
                     logger.debug(`${TAG_JWT} ID ${finalUserId} válido. Verificando/Preenchendo dados do DB no token...`);
                     try {
@@ -474,18 +457,16 @@ export const authOptions: NextAuthOptions = {
                             }
                         } else {
                             logger.warn(`${TAG_JWT} Usuário ${finalUserId} não encontrado no DB para preencher token.`);
-                            currentToken.id = ''; // Invalida se o usuário não existe mais
+                            currentToken.id = ''; 
                         }
                     } catch (error) {
                         logger.error(`${TAG_JWT} Erro ao buscar dados do DB para preencher token para ${finalUserId}:`, error);
                     }
                 }
-            } else if (trigger !== 'signUp' && trigger !== 'signIn') { // Não invalidar token durante signIn/Up antes do ID ser definido
+            } else if (trigger !== 'signUp' && trigger !== 'signIn') { 
                 logger.warn(`${TAG_JWT} ID final inválido ou vazio ('${finalUserId}') fora do fluxo de login. Limpando token.`);
-                // Retorna um token "vazio" para forçar logout ou tratamento de erro
-                return {} as JWT; // Ou um token com erro específico
+                return {} as JWT; 
             }
-
 
             logger.debug(`${TAG_JWT} Finalizado. Retornando token:`, {
                 id: currentToken.id, role: currentToken.role, provider: currentToken.provider,
@@ -498,43 +479,41 @@ export const authOptions: NextAuthOptions = {
         // --- Fim Callback jwt ---
 
         // --- Callback session ---
-        // (Mantido como estava, mas revisado para consistência)
+        // (Mantido como estava, mas revisado para consistência e remoção de pendingInstagramConnection)
         async session({ session, token }) {
              const TAG_SESSION = '[NextAuth Session Callback]';
              logger.debug(`${TAG_SESSION} Iniciado. Token ID: ${token?.id}, Token Sub: ${token?.sub}`);
 
              if (!token?.id || typeof token.id !== 'string' || !Types.ObjectId.isValid(token.id)) {
                  logger.error(`${TAG_SESSION} Token ID inválido ou ausente ('${token?.id}'). Retornando sessão sem usuário.`);
-                 return { ...session, user: undefined, expires: session.expires }; // Mantenha expires
+                 return { ...session, user: undefined, expires: session.expires }; 
              }
 
-             // Inicializa session.user com dados do token
              session.user = {
                  id: token.id,
                  name: token.name ?? undefined,
                  email: token.email ?? undefined,
-                 image: token.image ?? token.picture ?? undefined, // 'image' é preferencial
+                 image: token.image ?? token.picture ?? undefined, 
                  role: token.role ?? 'user',
                  provider: token.provider,
-                 // Campos específicos do Instagram e App
                  availableIgAccounts: token.availableIgAccounts,
                  igConnectionError: token.igConnectionError,
-                 // Outros campos serão preenchidos pelo DB
-                 instagramConnected: false, // Default, será sobrescrito pelo DB
+                 instagramConnected: false, 
                  instagramAccountId: undefined,
                  instagramUsername: undefined,
-                 planStatus: 'inactive', // Default
+                 planStatus: 'inactive', 
                  planExpiresAt: null,
                  affiliateCode: undefined,
                  affiliateBalance: 0,
                  affiliateRank: 1,
                  affiliateInvites: 0,
+                 // pendingInstagramConnection: false, // <<< REMOVIDO CONFORME PLANO (JÁ AUSENTE/COMENTADO)
              };
 
              try {
                  await connectToDatabase();
                  const dbUser = await DbUser.findById(token.id)
-                     .select('name email image role planStatus planExpiresAt affiliateCode affiliateBalance affiliateRank affiliateInvites isInstagramConnected instagramAccountId username')
+                     .select('name email image role planStatus planExpiresAt affiliateCode affiliateBalance affiliateRank affiliateInvites isInstagramConnected instagramAccountId username') // 'username' aqui é o instagramUsername
                      .lean();
 
                  if (dbUser && session.user) {
@@ -551,18 +530,15 @@ export const authOptions: NextAuthOptions = {
                      session.user.affiliateInvites = dbUser.affiliateInvites ?? 0;
                      session.user.instagramConnected = dbUser.isInstagramConnected ?? false;
                      session.user.instagramAccountId = dbUser.instagramAccountId ?? undefined;
-                     session.user.instagramUsername = dbUser.username ?? undefined; // Assumindo que 'username' no DB é o do Instagram
+                     session.user.instagramUsername = dbUser.username ?? undefined; 
 
-                     // Limpa o erro de conexão IG da sessão se a conexão estiver OK no DB
                      if (session.user.instagramConnected) {
                         delete session.user.igConnectionError;
-                        // delete session.user.availableIgAccounts; // Opcional: limpar contas disponíveis após conexão
                      }
                      logger.debug(`${TAG_SESSION} Finalizado. Session.user ID: ${session.user?.id}, IG Connected: ${session.user.instagramConnected}`);
 
                  } else if (session.user) {
                       logger.error(`${TAG_SESSION} Usuário ${token.id} não encontrado no DB ao popular sessão. Sessão pode estar incompleta.`);
-                      // Mantém os dados do token, mas sinaliza que o DB falhou
                       session.user.igConnectionError = session.user.igConnectionError || "Falha ao carregar dados completos do usuário.";
                  }
              } catch (error) {

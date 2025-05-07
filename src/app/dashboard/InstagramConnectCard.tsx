@@ -1,15 +1,15 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import { FaFacebook, FaInstagram, FaSpinner, FaUnlink, FaExclamationCircle, FaCheckCircle } from 'react-icons/fa';
 import { motion } from 'framer-motion';
-import type { AvailableInstagramAccount } from '@/app/lib/instagramService'; // Garanta que o caminho está correto
+import type { AvailableInstagramAccount } from '@/app/lib/instagramService'; // Ensure the path is correct
 import type { Session } from 'next-auth';
 
 interface InstagramConnectCardProps {}
 
-// Tipo estendido para a sessão, incluindo campos do Instagram
+// Extended type for the session, including Instagram fields
 type BaseUserType = NonNullable<Session['user']>;
 type SessionUserWithInstagram = BaseUserType & {
   instagramConnected?: boolean;
@@ -20,20 +20,20 @@ type SessionUserWithInstagram = BaseUserType & {
 };
 
 const InstagramConnectCard: React.FC<InstagramConnectCardProps> = () => {
-  // Hooks de sessão e estado local
+  // Session and local state hooks
   const { data: session, status, update } = useSession();
-  const [isLinking, setIsLinking] = useState(false); // Estado de carregamento para iniciar conexão FB
-  const [linkError, setLinkError] = useState<string | null>(null); // Erro local ao iniciar conexão FB
-  const [isDisconnecting, setIsDisconnecting] = useState(false); // Estado de carregamento para desconectar
-  const [disconnectError, setDisconnectError] = useState<string | null>(null); // Erro local ao desconectar
+  const [isLinking, setIsLinking] = useState(false); // Loading state for initiating FB connection
+  const [linkError, setLinkError] = useState<string | null>(null); // Local error when initiating FB connection
+  const [isDisconnecting, setIsDisconnecting] = useState(false); // Loading state for disconnecting
+  const [disconnectError, setDisconnectError] = useState<string | null>(null); // Local error when disconnecting
 
-  // Variáveis derivadas do estado da sessão
+  // Derived variables from session state
   const isLoadingSession = status === 'loading';
   const isAuthenticated = status === 'authenticated';
   const user = session?.user as SessionUserWithInstagram | undefined;
   const isInstagramConnected = user?.instagramConnected ?? false;
 
-  // Lógica para exibir contas disponíveis (informativo)
+  // Logic to display available accounts (informational)
   // This list comes from the backend if multiple accounts were found during initial Facebook OAuth
   const informationalAvailableAccounts: AvailableInstagramAccount[] =
     (!isInstagramConnected && user?.availableIgAccounts && user.availableIgAccounts.length > 0)
@@ -41,13 +41,13 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = () => {
       : [];
   const showInformationalAccountList = informationalAvailableAccounts.length > 0;
 
-  // Função para obter a mensagem de erro a ser exibida
+  // Function to get the error message to be displayed
   const getDisplayError = (): string | null => {
-    // Prioriza erros locais (desconexão, link) e depois erros da sessão (backend)
+    // Prioritize local errors (disconnect, link) then session errors (backend)
     if (disconnectError) return `Erro ao desconectar: ${disconnectError}`;
-    if (linkError) return `Erro ao iniciar: ${linkError}`; // Erro local ao clicar no botão
+    if (linkError) return `Erro ao iniciar: ${linkError}`; // Local error on button click
     if (user?.igConnectionError) {
-      // Traduz mensagens de erro comuns vindas do backend
+      // Translate common error messages from the backend
       if (user.igConnectionError.includes('Nenhuma conta IG Business/Creator vinculada encontrada'))
         return 'Nenhuma conta Instagram profissional encontrada ou selecionada.';
       if (user.igConnectionError.includes('Permissão') || user.igConnectionError.includes('ausente'))
@@ -56,22 +56,22 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = () => {
         return 'Sessão expirada ou inválida. Conecte novamente.';
       if (user.igConnectionError.includes('Usuário não identificado'))
         return 'Faça login com Google antes de conectar o Instagram.';
-      // Outros erros vindos do backend
+      // Other errors from the backend
       return `Erro de conexão: ${user.igConnectionError}`;
     }
-    return null; // Sem erro
+    return null; // No error
   };
   const displayError = getDisplayError();
 
-  // Manipulador para iniciar o fluxo de vinculação/login com Facebook
+  // Handler to initiate the Facebook linking/login flow
   const handleInitiateFacebookLink = async () => {
     setIsLinking(true);
     setLinkError(null);
     setDisconnectError(null);
-    // Limpa erros da sessão ANTES de iniciar o signIn para que a UI reflita a tentativa
+    // Clear session errors BEFORE initiating signIn so UI reflects the attempt
     if (user?.igConnectionError || user?.availableIgAccounts) {
         try {
-            await update({
+            await update({ // Optimistically update client session and trigger refetch
                 ...session,
                 user: {
                     ...user,
@@ -80,42 +80,42 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = () => {
                 }
             });
         } catch (updateError) {
-            console.error("Falha ao limpar erros da sessão antes de conectar:", updateError);
+            console.error("[InstagramConnectCard] Falha ao limpar erros da sessão antes de conectar:", updateError);
         }
     }
 
     try {
-      // Chama a API interna para gerar o link token (se necessário para vincular)
+      // Call the internal API to generate the link token (if needed for linking)
       const res = await fetch('/api/auth/iniciar-vinculacao-fb', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
+        const err = await res.json().catch(() => ({ message: 'Falha ao preparar vinculação.' }));
         throw new Error(err.message || 'Falha ao preparar vinculação');
       }
-      // Inicia o fluxo de login do NextAuth com o provedor 'facebook'
-      // O backend agora conecta automaticamente a conta encontrada.
+      // Start NextAuth login flow with 'facebook' provider
+      // The backend now automatically connects the found account.
       signIn('facebook', { callbackUrl: '/dashboard' });
     } catch (e: any) {
       console.error('[InstagramConnectCard] Erro ao iniciar vinculação:', e);
       setLinkError(e.message || 'Erro inesperado');
-      setIsLinking(false); // Reseta estado de carregamento apenas em caso de erro *antes* do signIn
+      setIsLinking(false); // Reset loading state only on error *before* signIn
     }
-    // Não reseta isLinking aqui, pois o signIn redireciona
+    // Do not reset isLinking here as signIn redirects
   };
 
-  // Manipulador para desconectar a conta do Instagram
+  // Handler to disconnect the Instagram account
   const handleDisconnectInstagram = async () => {
     setIsDisconnecting(true);
     setDisconnectError(null);
     setLinkError(null);
 
     try {
-      // Chama a API de desconexão no backend
+      // Call the disconnect API on the backend
       const res = await fetch('/api/instagram/disconnect', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
+        const err = await res.json().catch(() => ({ message: 'Falha ao desconectar.' }));
         throw new Error(err.message || 'Falha ao desconectar');
       }
-      // Força a atualização da sessão para refletir o estado desconectado
+      // Force session update to reflect disconnected state
       await update();
     } catch (e: any) {
       console.error('[InstagramConnectCard] Erro ao desconectar:', e);
@@ -125,32 +125,32 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = () => {
     }
   };
 
-  // Não renderiza nada se a sessão estiver carregando ou se não estiver autenticado
+  // Do not render anything if session is loading or if not authenticated
   if (isLoadingSession || !isAuthenticated) return null;
 
-  // Renderização principal do componente
+  // Main component rendering
   return (
     <motion.section initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
       <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Automação de Métricas</h2>
       <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          {/* Informações da Conta */}
+          {/* Account Information */}
           <div className="flex items-center gap-3">
             <FaInstagram className="w-8 h-8 text-pink-600" />
             <div>
               <h3 className="font-semibold text-lg text-gray-800">Instagram Insights</h3>
               <p className="text-sm text-gray-500 mt-1">
                 {isInstagramConnected
-                  ? `Conectado como: ${user?.instagramUsername ?? user?.instagramAccountId}` // Mostra username ou ID da conta conectada
+                  ? `Conectado como: ${user?.instagramUsername || user?.instagramAccountId || 'Conta Desconhecida'}` // Show username or ID of connected account
                   : 'Conecte sua conta profissional do Instagram.'}
               </p>
             </div>
           </div>
 
-          {/* Botões de Ação */}
+          {/* Action Buttons */}
           <div className="flex-shrink-0 w-full sm:w-auto mt-4 sm:mt-0">
             {isInstagramConnected ? (
-              // --- Estado Conectado ---
+              // --- Connected State ---
               <div className="flex flex-col sm:items-end items-center gap-2">
                 <span className="flex items-center gap-1.5 text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-200">
                   <FaCheckCircle /> Conectado
@@ -163,30 +163,30 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = () => {
                   {isDisconnecting ? <FaSpinner className="animate-spin w-3 h-3" /> : <FaUnlink className="w-3 h-3" />}
                   {isDisconnecting ? 'Desconectando...' : 'Desconectar'}
                 </button>
-                {/* Exibe erro local de desconexão */}
+                {/* Display local disconnect error */}
                 {disconnectError && <p className="text-xs text-red-600 mt-1 flex items-center gap-1"><FaExclamationCircle /> {disconnectError}</p>}
               </div>
             ) : (
-              // --- Estado Desconectado ---
+              // --- Disconnected State ---
               <div className="flex flex-col items-center sm:items-end w-full sm:w-auto">
-                {/* Botão principal: Conectar ou Tentar Novamente se houver erro */}
+                {/* Main button: Connect or Try Again if there's an error */}
                 <button
                   onClick={handleInitiateFacebookLink}
                   disabled={isLinking}
                   className={`w-full sm:w-auto px-5 py-2.5 text-sm rounded-md flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-wait ${
-                    displayError ? 'bg-yellow-500 hover:bg-yellow-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white' // Estilo diferente se for retry
+                    displayError ? 'bg-yellow-500 hover:bg-yellow-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white' // Different style if it's a retry
                   }`}
                 >
                   {isLinking ? <FaSpinner className="animate-spin w-4 h-4" /> : <FaFacebook className="w-4 h-4" />}
                   {isLinking ? 'Iniciando...' : (displayError ? 'Tentar Conectar Novamente' : 'Conectar com Facebook')}
                 </button>
-                {/* Exibe erro (local ou da sessão) - não mostra se a lista informativa de contas já está visível E não há erro */}
-                {displayError && !showInformationalAccountList && <p className="text-xs text-red-600 mt-2 flex items-center gap-1 max-w-xs"><FaExclamationCircle /> {displayError}</p>}
+                {/* Display error (local or session) - do not show if informational account list is already visible AND there's no error */}
+                {displayError && !showInformationalAccountList && <p className="text-xs text-red-600 mt-2 flex items-center gap-1 max-w-xs text-left sm:text-right"><FaExclamationCircle /> {displayError}</p>}
               </div>
             )}
           </div>
         </div>
-        {/* Seção Informativa para Contas Detectadas (quando não conectado ainda e sem erro no botão principal) */}
+        {/* Informational Section for Detected Accounts (when not connected yet and no error on main button) */}
         {showInformationalAccountList && !displayError && (
           <div className="mt-4 p-3 border border-sky-200 bg-sky-50 rounded-md">
             <p className="text-sm text-sky-700 mb-2 font-medium">
@@ -195,8 +195,8 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = () => {
             <ul className="list-disc list-inside pl-2 text-sm text-gray-600">
               {informationalAvailableAccounts.map(acc => (
                 <li key={acc.igAccountId}>
-                  {/* CORREÇÃO: Usando acc.igAccountId como fallback se username/name não estiverem disponíveis */}
-                  ID da Conta: {acc.igAccountId}
+                  {/* UPDATED: Display pageName and igAccountId */}
+                  {acc.pageName ? `${acc.pageName} (ID: ${acc.igAccountId})` : `ID da Conta: ${acc.igAccountId}`}
                 </li>
               ))}
             </ul>
@@ -206,17 +206,18 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = () => {
             </p>
           </div>
         )}
-        {/* Exibe erro da sessão mesmo se a lista informativa estiver visível (caso o erro seja relevante junto à lista) */}
-         {showInformationalAccountList && displayError && <p className="text-xs text-red-600 mt-2 flex items-center gap-1 max-w-xs"><FaExclamationCircle /> {displayError}</p>}
+        {/* Display session error even if informational list is visible (if error is relevant alongside the list) */}
+         {showInformationalAccountList && displayError && <p className="text-xs text-red-600 mt-2 flex items-center gap-1 max-w-xs text-left"><FaExclamationCircle /> {displayError}</p>}
 
 
         <p className="text-xs text-gray-500 mt-4 border-t pt-3">
           {isInstagramConnected
             ? 'A coleta automática de métricas está ativa.'
-            : displayError
-            ? 'Ocorreu um erro durante a conexão. Verifique as permissões no Facebook ou tente novamente.' // Mensagem de erro genérica
-            : showInformationalAccountList
+            : displayError // If there's an error
+            ? 'Ocorreu um erro durante a conexão. Verifique as permissões no Facebook ou tente novamente.' // Generic error message
+            : showInformationalAccountList // No error, but list is shown
             ? 'O processo de conexão automática foi iniciado. Verifique o status em instantes.'
+            // No error, no list shown (initial state)
             : 'Clique em "Conectar com Facebook" para autorizar o acesso à sua conta profissional do Instagram. A conexão será automática.'}
         </p>
       </div>
