@@ -1,5 +1,6 @@
-// src/app/lib/instagramService.ts - v1.9.9 (Isolando Erro QStash)
-// - Adicionado try/catch específico em volta de qstashClient.publishJSON.
+// src/app/lib/instagramService.ts - v1.9.10 (Teste Conectividade)
+// - Adicionado log dentro do catch de publishJSON.
+// - Adicionado teste fetch simples antes de publishJSON.
 // - Mantém correções anteriores.
 
 import { connectToDatabase } from "@/app/lib/mongoose";
@@ -18,6 +19,7 @@ import mongoose, { Types } from "mongoose";
 import retry from 'async-retry';
 import { Client } from "@upstash/qstash";
 import pLimit from 'p-limit';
+import fetch from 'node-fetch'; // Certifique-se de ter node-fetch instalado ou use o fetch global se disponível
 
 // Importar constantes globais
 import {
