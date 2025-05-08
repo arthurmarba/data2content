@@ -1,6 +1,5 @@
-// src/app/lib/instagramService.ts - v1.9.10 (Teste Conectividade)
-// - Adicionado log dentro do catch de publishJSON.
-// - Adicionado teste fetch simples antes de publishJSON.
+// src/app/lib/instagramService.ts - v1.9.11 (Teste Bloco QStash)
+// - Comentado publishJSON e fetch de teste. Adicionado logs simples dentro do bloco if.
 // - Mantém correções anteriores.
 
 import { connectToDatabase } from "@/app/lib/mongoose";
@@ -19,7 +18,7 @@ import mongoose, { Types } from "mongoose";
 import retry from 'async-retry';
 import { Client } from "@upstash/qstash";
 import pLimit from 'p-limit';
-import fetch from 'node-fetch'; // Certifique-se de ter node-fetch instalado ou use o fetch global se disponível
+import fetch from 'node-fetch'; // Mantido caso precise descomentar
 
 // Importar constantes globais
 import {
@@ -626,7 +625,7 @@ export async function connectInstagramAccount(
     instagramAccountId: string,
     longLivedAccessToken: string | null // <<< Aceita LLAT (pode ser null)
 ): Promise<{ success: boolean; error?: string }> {
-    const TAG = '[connectInstagramAccount v1.9.9]'; // <<< Versão Atualizada
+    const TAG = '[connectInstagramAccount v1.9.11]'; // <<< Versão Atualizada
     logger.info(`${TAG} Atualizando status de conexão para User ${userId}, Conta IG ${instagramAccountId}`);
 
     if (!mongoose.isValidObjectId(userId)) { const errorMsg = `ID de usuário inválido: ${userId}`; logger.error(`${TAG} ${errorMsg}`); return { success: false, error: errorMsg }; }
@@ -657,37 +656,39 @@ export async function connectInstagramAccount(
 
         // Dispara a atualização de dados em segundo plano via QStash se configurado
         const refreshWorkerUrl = process.env.REFRESH_WORKER_URL; // Lê a URL da env var
-        // <<< LOG ADICIONAL 1: Verifica cliente e URL >>>
         logger.info(`${TAG} Verificando QStash. Cliente inicializado: ${!!qstashClient}. URL do Worker: ${refreshWorkerUrl}`);
 
         if (qstashClient && refreshWorkerUrl) {
-            // <<< LOG ADICIONAL 2: Antes de publicar >>>
-            logger.info(`${TAG} Tentando enviar tarefa de refresh para QStash (Worker) para User ${userId}. URL: ${refreshWorkerUrl}`);
-            try { // <<< TRY/CATCH ESPECÍFICO PARA publishJSON >>>
-                const publishResponse = await qstashClient.publishJSON({
-                    url: refreshWorkerUrl, // Usa a variável lida
-                    body: { userId: userId.toString() },
-                });
-                // <<< LOG ADICIONAL 3: Após publicar (sucesso) >>>
-                logger.info(`${TAG} Tarefa de refresh enviada com sucesso para QStash para User ${userId}. Message ID: ${publishResponse.messageId}`);
-            } catch (qstashError: any) { // <<< Captura erro específico do publishJSON >>>
-                // <<< LOG ADICIONAL 4: Erro ao publicar >>>
-                logger.error(`${TAG} Falha CRÍTICA ao enviar tarefa para QStash para User ${userId}:`, qstashError);
-                // Loga a mensagem de erro específica, se disponível
+            logger.info(`${TAG} Bloco IF para QStash alcançado.`); // <<< LOG TESTE 1 >>>
+            try {
+                logger.info(`${TAG} Dentro do TRY, antes de publishJSON.`); // <<< LOG TESTE 2 >>>
+
+                // --- TEMPORARIAMENTE COMENTADO PARA TESTE ---
+                // const publishResponse = await qstashClient.publishJSON({
+                //     url: refreshWorkerUrl,
+                //     body: { userId: userId.toString() },
+                // });
+                // logger.info(`${TAG} Tarefa de refresh enviada com sucesso para QStash para User ${userId}. Message ID: ${publishResponse.messageId}`);
+                // --- FIM DO COMENTÁRIO ---
+
+                logger.info(`${TAG} Dentro do TRY, APÓS publishJSON (comentado).`); // <<< LOG TESTE 3 >>>
+
+            } catch (qstashError: any) {
+                logger.error(`${TAG} DENTRO DO CATCH do publishJSON! Erro:`, qstashError); // <<< LOG TESTE 4 >>>
                 if (qstashError.message) {
                      logger.error(`${TAG} Mensagem de erro QStash: ${qstashError.message}`);
                 }
-                // Marca a sincronização como falha, pois não foi agendada
                 await DbUser.findByIdAndUpdate(userId, { $set: { lastInstagramSyncSuccess: false } }).catch(dbErr => logger.error(`${TAG} Falha ao atualizar status sync (erro QStash) ${userId}:`, dbErr));
             }
+             logger.info(`${TAG} Fora do TRY/CATCH do publishJSON.`); // <<< LOG TESTE 5 >>>
         } else {
             logger.warn(`${TAG} QStash Client ou REFRESH_WORKER_URL não configurado corretamente. Pulando agendamento de refresh automático via worker.`);
-            // await triggerDataRefresh(userId.toString()); // MANTENHA COMENTADO SE USA QSTASH
              await DbUser.findByIdAndUpdate(userId, { $set: { lastInstagramSyncSuccess: false } }).catch(dbErr => logger.error(`${TAG} Falha ao atualizar status sync (sem worker) ${userId}:`, dbErr));
         }
+        logger.info(`${TAG} Finalizando connectInstagramAccount.`); // <<< LOG TESTE 6 >>>
         return { success: true };
 
-    } catch (error: unknown) { // Catch para erros gerais em connectInstagramAccount (ex: erro no DB)
+    } catch (error: unknown) {
         const errorMsg = error instanceof Error ? error.message : String(error);
         logger.error(`${TAG} Erro CRÍTICO GERAL ao conectar conta IG para User ${userId}:`, error);
         return { success: false, error: `Erro interno ao conectar conta: ${errorMsg}` };
@@ -716,21 +717,11 @@ export async function processStoryWebhookPayload( mediaId: string, webhookAccoun
     try {
         await connectToDatabase();
         const user = await DbUser.findOne({ instagramAccountId: webhookAccountId }).select('_id').lean();
-        if (!user) { logger.warn(`${TAG} Usuário não encontrado para instagramAccountId ${webhookAccountId} (Webhook). Ignorando.`); return { success: true }; } // Retorna sucesso se usuário não existe mais
+        if (!user) { logger.warn(`${TAG} Usuário não encontrado para instagramAccountId ${webhookAccountId} (Webhook). Ignorando.`); return { success: true }; }
         const userId = user._id;
-        // Mapeia os campos do webhook para a interface IStoryStats
-        const stats: Partial<IStoryStats> = {
-            impressions: value.impressions,
-            reach: value.reach,
-            taps_forward: value.taps_forward,
-            taps_back: value.taps_back,
-            exits: value.exits,
-            replies: value.replies,
-            // Adicionar outras métricas se o webhook fornecer (ex: shares, profile_visits)
-        };
-        // Remove campos nulos/undefined
+        const stats: Partial<IStoryStats> = { impressions: value.impressions, reach: value.reach, taps_forward: value.taps_forward, taps_back: value.taps_back, exits: value.exits, replies: value.replies, };
         Object.keys(stats).forEach(key => (stats[key as keyof IStoryStats] == null) && delete stats[key as keyof IStoryStats]);
-        if (Object.keys(stats).length === 0) { logger.warn(`${TAG} Nenhum insight válido encontrado no payload do webhook para Story ${mediaId}.`); return { success: true }; } // Sucesso se não há dados válidos
+        if (Object.keys(stats).length === 0) { logger.warn(`${TAG} Nenhum insight válido encontrado no payload do webhook para Story ${mediaId}.`); return { success: true }; }
         const filter = { user: userId, instagramMediaId: mediaId };
         const updateData = { $set: { stats: stats as IStoryStats, lastWebhookAt: new Date() }, $setOnInsert: { user: userId, instagramMediaId: mediaId, createdAt: new Date() } };
         const options = { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true };
@@ -740,3 +731,4 @@ export async function processStoryWebhookPayload( mediaId: string, webhookAccoun
         return { success: true };
     } catch (error) { logger.error(`${TAG} Erro ao processar webhook de Story ${mediaId}, Conta ${webhookAccountId}:`, error); return { success: false, error: 'Erro interno ao processar webhook de Story.' }; }
 }
+
