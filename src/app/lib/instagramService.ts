@@ -1,6 +1,7 @@
-// src/app/lib/instagramService.ts - v1.9.11 (Teste Bloco QStash)
-// - Comentado publishJSON e fetch de teste. Adicionado logs simples dentro do bloco if.
-// - Mantém correções anteriores.
+// src/app/lib/instagramService.ts - v1.9.12 (Otimizado)
+// - OTIMIZAÇÃO: triggerDataRefresh agora só busca insights e salva/atualiza métricas
+//   para posts publicados nos últimos 'INSIGHT_FETCH_CUTOFF_DAYS' dias.
+// - Mantém correções anteriores (logs QStash, etc.).
 
 import { connectToDatabase } from "@/app/lib/mongoose";
 import DbUser, { IUser } from "@/app/models/User";
@@ -18,7 +19,7 @@ import mongoose, { Types } from "mongoose";
 import retry from 'async-retry';
 import { Client } from "@upstash/qstash";
 import pLimit from 'p-limit';
-import fetch from 'node-fetch'; // Mantido caso precise descomentar
+import fetch from 'node-fetch';
 
 // Importar constantes globais
 import {
@@ -32,10 +33,15 @@ import {
 // --- Configurações ---
 const RETRY_OPTIONS = { retries: 3, factor: 2, minTimeout: 500, maxTimeout: 5000, randomize: true };
 const INSIGHTS_CONCURRENCY_LIMIT = 5;
-const MAX_PAGES_MEDIA = 10;
+const MAX_PAGES_MEDIA = 10; // Limite para busca de *mídias* (posts) - Pode ser ajustado
 const DELAY_MS = 250;
 const MAX_ACCOUNT_FETCH_PAGES = 30;
 const ACCOUNT_FETCH_DELAY_MS = 100;
+// <<< NOVA CONSTANTE PARA OTIMIZAÇÃO >>>
+// Define quantos dias no passado buscar insights/atualizar métricas de posts.
+// Ex: 30 dias significa que apenas posts dos últimos 30 dias terão insights atualizados.
+const INSIGHT_FETCH_CUTOFF_DAYS = 30;
+
 
 // --- Interfaces ---
 // ... (Interfaces mantidas) ...
@@ -88,7 +94,7 @@ const limitInsightsFetch = pLimit(INSIGHTS_CONCURRENCY_LIMIT);
 
 // --- Funções ---
 
-// ... (getInstagramConnectionDetails, fetchInstagramMedia, fetchMediaInsights, fetchAccountInsights, fetchAudienceDemographics, fetchBasicAccountData, clearInstagramConnection, mapMediaTypeToFormat, saveMetricData, createOrUpdateDailySnapshot, saveAccountInsightData, triggerDataRefresh - MANTIDAS COMO NA v1.9.7) ...
+// ... (getInstagramConnectionDetails, fetchInstagramMedia, fetchMediaInsights, fetchAccountInsights, fetchAudienceDemographics, fetchBasicAccountData, clearInstagramConnection, mapMediaTypeToFormat - MANTIDAS COMO NA v1.9.7) ...
 export async function getInstagramConnectionDetails(userId: string | mongoose.Types.ObjectId): Promise<InstagramConnectionDetails | null> {
     const TAG = '[getInstagramConnectionDetails]';
     logger.debug(`${TAG} Buscando detalhes de conexão IG para User ${userId}...`);
@@ -472,57 +478,160 @@ export async function saveAccountInsightData( userId: Types.ObjectId, accountId:
     } catch (error) { logger.error(`${TAG} Erro ao salvar snapshot de insights da conta para User ${userId}:`, error); }
 }
 
+/**
+ * Dispara o processo completo de atualização de dados do Instagram para um usuário.
+ * <<< OTIMIZADO v1.9.12: Apenas busca insights/salva posts recentes >>>
+ * @param userId - ID (string) do usuário.
+ * @returns Objeto com status de sucesso, mensagem e detalhes da operação.
+ */
 export async function triggerDataRefresh(userId: string): Promise<{ success: boolean; message: string; details?: any }> {
-    const TAG = '[triggerDataRefresh v1.9.7]';
+    const TAG = '[triggerDataRefresh v1.9.12]'; // <<< Versão Atualizada
     const startTime = Date.now();
     logger.info(`${TAG} Iniciando atualização de dados para User ${userId}...`);
-    if (!mongoose.isValidObjectId(userId)) { logger.error(`${TAG} ID de usuário inválido: ${userId}`); return { success: false, message: 'ID de usuário inválido.' }; }
+
+    if (!mongoose.isValidObjectId(userId)) {
+        logger.error(`${TAG} ID de usuário inválido: ${userId}`);
+        return { success: false, message: 'ID de usuário inválido.' };
+    }
     const userObjectId = new Types.ObjectId(userId);
-    let accessToken: string | null = null; let accountId: string | null = null; let usingSystemToken = false; const systemTokenEnv = process.env.FB_SYSTEM_USER_TOKEN;
+
+    // --- Obtenção do Token e Account ID ---
+    let accessToken: string | null = null;
+    let accountId: string | null = null;
+    let usingSystemToken = false;
+    const systemTokenEnv = process.env.FB_SYSTEM_USER_TOKEN;
+
     try {
         await connectToDatabase();
         const connectionDetails = await getInstagramConnectionDetails(userObjectId);
-        if (!connectionDetails?.accountId) { logger.error(`${TAG} Usuário ${userId} não conectado ou accountId ausente no DB. Abortando refresh.`); await DbUser.findByIdAndUpdate(userObjectId, { $set: { lastInstagramSyncAttempt: new Date(), lastInstagramSyncSuccess: false } }).catch(dbErr => logger.error(`${TAG} Falha ao atualizar status sync (conexão inválida) ${userId}:`, dbErr)); return { success: false, message: 'Usuário não conectado ou ID da conta Instagram não encontrado.' }; }
+        if (!connectionDetails?.accountId) {
+            logger.error(`${TAG} Usuário ${userId} não conectado ou accountId ausente no DB. Abortando refresh.`);
+            await DbUser.findByIdAndUpdate(userObjectId, { $set: { lastInstagramSyncAttempt: new Date(), lastInstagramSyncSuccess: false } }).catch(dbErr => logger.error(`${TAG} Falha ao atualizar status sync (conexão inválida) ${userId}:`, dbErr));
+            return { success: false, message: 'Usuário não conectado ou ID da conta Instagram não encontrado.' };
+        }
         accountId = connectionDetails.accountId;
-        if (connectionDetails.accessToken) { accessToken = connectionDetails.accessToken; usingSystemToken = false; logger.info(`${TAG} Utilizando LLAT do usuário (${userId}) para o refresh.`); }
-        else if (systemTokenEnv) { accessToken = systemTokenEnv; usingSystemToken = true; logger.warn(`${TAG} LLAT do usuário ${userId} não encontrado no DB; usando System User Token como fallback para o refresh.`); }
-        else { logger.error(`${TAG} LLAT do usuário ${userId} E System Token não encontrados. Abortando refresh.`); await DbUser.findByIdAndUpdate(userObjectId, { $set: { lastInstagramSyncAttempt: new Date(), lastInstagramSyncSuccess: false } }).catch(dbErr => logger.error(`${TAG} Falha ao atualizar status sync (token ausente) ${userId}:`, dbErr)); return { success: false, message: 'Token de acesso necessário não encontrado (nem LLAT, nem System User).' }; }
-    } catch (dbError) { logger.error(`${TAG} Erro ao buscar dados iniciais do usuário ${userId} no DB:`, dbError); return { success: false, message: 'Erro ao acessar dados do usuário no banco de dados.' }; }
+
+        if (connectionDetails.accessToken) {
+            accessToken = connectionDetails.accessToken; usingSystemToken = false; logger.info(`${TAG} Utilizando LLAT do usuário (${userId}) para o refresh.`);
+        } else if (systemTokenEnv) {
+            accessToken = systemTokenEnv; usingSystemToken = true; logger.warn(`${TAG} LLAT do usuário ${userId} não encontrado no DB; usando System User Token como fallback para o refresh.`);
+        } else {
+            logger.error(`${TAG} LLAT do usuário ${userId} E System Token não encontrados. Abortando refresh.`);
+            await DbUser.findByIdAndUpdate(userObjectId, { $set: { lastInstagramSyncAttempt: new Date(), lastInstagramSyncSuccess: false } }).catch(dbErr => logger.error(`${TAG} Falha ao atualizar status sync (token ausente) ${userId}:`, dbErr));
+            return { success: false, message: 'Token de acesso necessário não encontrado (nem LLAT, nem System User).' };
+        }
+    } catch (dbError) {
+        logger.error(`${TAG} Erro ao buscar dados iniciais do usuário ${userId} no DB:`, dbError);
+        return { success: false, message: 'Erro ao acessar dados do usuário no banco de dados.' };
+    }
+
     await DbUser.findByIdAndUpdate(userObjectId, { $set: { lastInstagramSyncAttempt: new Date() } }).catch(dbErr => logger.error(`${TAG} Falha ao atualizar início sync ${userId}:`, dbErr));
-    let totalMediaFound = 0, totalMediaProcessed = 0, collectedMediaInsights = 0, savedMediaMetrics = 0;
+
+    let totalMediaFound = 0, totalMediaProcessed = 0, collectedMediaInsights = 0, savedMediaMetrics = 0, skippedOldMedia = 0; // <<< Adicionado skippedOldMedia
     let collectedAccountInsights = false, savedAccountInsights = false, collectedDemographics = false;
     let savedDemographics = false, collectedBasicAccountData = false;
     let errors: { step: string; message: string; details?: any }[] = [];
     let mediaCurrentPage = 0; let hasMoreMediaPages = true; let overallSuccess = true;
+
+    // <<< OTIMIZAÇÃO: Calcula data limite para buscar insights >>>
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - INSIGHT_FETCH_CUTOFF_DAYS);
+    logger.info(`${TAG} Buscará insights/atualizará métricas apenas para posts desde: ${cutoffDate.toISOString().split('T')[0]}`);
+
     try {
+        // --- 1. Fetch Basic Account Data ---
         logger.info(`${TAG} [Step 1/3] Buscando dados básicos da conta ${accountId}...`);
         let basicAccountData: Partial<IUser> | undefined;
         const basicDataResult = await fetchBasicAccountData(accountId!, accessToken!);
-        if (basicDataResult.success && basicDataResult.data) { collectedBasicAccountData = true; basicAccountData = basicDataResult.data; logger.debug(`${TAG} Dados básicos obtidos.`); }
-        else { logger.warn(`${TAG} Falha ao obter dados básicos: ${basicDataResult.error}`); errors.push({ step: 'fetchBasicAccountData', message: basicDataResult.error ?? 'Erro desconhecido' }); if (basicDataResult.error?.includes('Token') || basicDataResult.error?.includes('Permissão')) { overallSuccess = false; throw new Error(`Erro crítico (Token/Permissão) ao buscar dados básicos: ${basicDataResult.error}`); } }
+        if (basicDataResult.success && basicDataResult.data) {
+             collectedBasicAccountData = true; basicAccountData = basicDataResult.data; logger.debug(`${TAG} Dados básicos obtidos.`);
+        } else {
+             logger.warn(`${TAG} Falha ao obter dados básicos: ${basicDataResult.error}`); errors.push({ step: 'fetchBasicAccountData', message: basicDataResult.error ?? 'Erro desconhecido' });
+             if (basicDataResult.error?.includes('Token') || basicDataResult.error?.includes('Permissão')) {
+                 overallSuccess = false; throw new Error(`Erro crítico (Token/Permissão) ao buscar dados básicos: ${basicDataResult.error}`);
+             }
+        }
+
+        // --- 2. Fetch and Process Media Pages ---
         logger.info(`${TAG} [Step 2/3] Iniciando busca de mídias (limite ${MAX_PAGES_MEDIA} pgs)...`);
         let nextPageMediaUrl: string | null | undefined = undefined; mediaCurrentPage = 0;
         do {
             mediaCurrentPage++; const pageStartTime = Date.now(); logger.info(`${TAG} Processando pág ${mediaCurrentPage}/${MAX_PAGES_MEDIA} de mídias...`);
             const mediaResult = await fetchInstagramMedia(accountId!, accessToken!, nextPageMediaUrl ?? undefined);
-            if (!mediaResult.success) { logger.error(`${TAG} Falha busca pág ${mediaCurrentPage} mídias: ${mediaResult.error}`); errors.push({ step: 'fetchInstagramMedia', message: `Pág ${mediaCurrentPage}: ${mediaResult.error ?? 'Erro desconhecido'}` }); if (mediaResult.error?.includes('Token')) { logger.warn(`${TAG} Erro de token, interrompendo busca de mídias.`); hasMoreMediaPages = false; overallSuccess = false; break; } }
+            if (!mediaResult.success) {
+                logger.error(`${TAG} Falha busca pág ${mediaCurrentPage} mídias: ${mediaResult.error}`); errors.push({ step: 'fetchInstagramMedia', message: `Pág ${mediaCurrentPage}: ${mediaResult.error ?? 'Erro desconhecido'}` });
+                if (mediaResult.error?.includes('Token')) { logger.warn(`${TAG} Erro de token, interrompendo busca de mídias.`); hasMoreMediaPages = false; overallSuccess = false; break; }
+            }
             const mediaInPage = mediaResult.data ?? []; totalMediaFound += mediaInPage.length;
             if (mediaInPage.length > 0 && overallSuccess) {
-                const processableMedia = mediaInPage.filter(m => m.media_type !== 'STORY'); totalMediaProcessed += processableMedia.length;
-                logger.info(`${TAG} Pág ${mediaCurrentPage}: ${processableMedia.length} mídias processáveis. Buscando insights...`);
-                const insightTasks = processableMedia.map(media => limitInsightsFetch(async () => { if (!media.id || !accessToken) return { mediaId: media.id ?? '?', status: 'skipped', reason: 'ID/Token ausente' }; const insightsResult = await fetchMediaInsights(media.id, accessToken!); if (!insightsResult.success && insightsResult.error?.includes('Token')) throw new Error(`Token error on media ${media.id}`); return { mediaId: media.id, media, insightsResult }; }));
-                const insightTaskResults = await Promise.allSettled(insightTasks);
-                for (const result of insightTaskResults) {
-                    if (result.status === 'fulfilled' && result.value) { const { mediaId, media, insightsResult } = result.value; if (insightsResult?.success && insightsResult.data) { collectedMediaInsights++; try { await saveMetricData(userObjectId, media, insightsResult.data); savedMediaMetrics++; } catch (saveError: any) { logger.error(`${TAG} Erro ao salvar métrica ${mediaId}:`, saveError); errors.push({ step: 'saveMetricData', message: `Salvar métrica ${mediaId}: ${saveError.message}` }); } } else if (insightsResult) { logger.warn(`${TAG} Falha ao buscar insights mídia ${mediaId}: ${insightsResult.error || result.value.reason}`); errors.push({ step: 'fetchMediaInsights', message: `Insights mídia ${mediaId}: ${insightsResult.error || result.value.reason || 'Erro desconhecido'}` }); } }
-                    else if (result.status === 'rejected') { const errorMsg = result.reason instanceof Error ? result.reason.message : String(result.reason); if (errorMsg.includes('Token error')) { logger.error(`${TAG} Erro de token detectado nos insights de mídia. Interrompendo busca de mídias.`); errors.push({ step: 'fetchMediaInsights', message: 'Erro de token durante busca de insights de mídia.' }); overallSuccess = false; hasMoreMediaPages = false; break; } else { logger.error(`${TAG} Erro não tratado em tarefa de insight de mídia: ${errorMsg}`); errors.push({ step: 'fetchMediaInsights', message: `Erro tarefa insight mídia: ${errorMsg}` }); } }
-                } if (!overallSuccess) break;
-            } else if (!overallSuccess) logger.info(`${TAG} Pulando processamento de insights da pág ${mediaCurrentPage} por erro anterior.`); else logger.info(`${TAG} Pág ${mediaCurrentPage}: Nenhuma mídia encontrada.`);
+                const processableMedia = mediaInPage.filter(m => m.media_type !== 'STORY');
+                logger.info(`${TAG} Pág ${mediaCurrentPage}: ${processableMedia.length} mídias processáveis.`);
+
+                // <<< OTIMIZAÇÃO: Filtra mídias recentes ANTES de buscar insights >>>
+                const recentProcessableMedia = processableMedia.filter(media => {
+                    if (!media.timestamp) return false; // Ignora se não tiver timestamp
+                    const postDate = new Date(media.timestamp);
+                    if (postDate >= cutoffDate) {
+                        return true; // Processa se for recente
+                    } else {
+                        skippedOldMedia++; // Conta as mídias antigas puladas
+                        logger.debug(`${TAG} Pulando insights/save para mídia antiga ${media.id} (Data: ${postDate.toISOString().split('T')[0]})`);
+                        return false;
+                    }
+                });
+                totalMediaProcessed += recentProcessableMedia.length; // Conta apenas as que serão processadas
+
+                if (recentProcessableMedia.length > 0) {
+                    logger.info(`${TAG} Pág ${mediaCurrentPage}: ${recentProcessableMedia.length} mídias recentes para buscar insights...`);
+                    const insightTasks = recentProcessableMedia.map(media => limitInsightsFetch(async () => {
+                        if (!media.id || !accessToken) return { mediaId: media.id ?? '?', status: 'skipped', reason: 'ID/Token ausente' };
+                        const insightsResult = await fetchMediaInsights(media.id, accessToken!);
+                        if (!insightsResult.success && insightsResult.error?.includes('Token')) throw new Error(`Token error on media ${media.id}`);
+                        return { mediaId: media.id, media, insightsResult };
+                    }));
+                    const insightTaskResults = await Promise.allSettled(insightTasks);
+                    for (const result of insightTaskResults) {
+                        if (result.status === 'fulfilled' && result.value) {
+                            const { mediaId, media, insightsResult } = result.value;
+                            if (insightsResult?.success && insightsResult.data) {
+                                collectedMediaInsights++;
+                                try {
+                                    await saveMetricData(userObjectId, media, insightsResult.data);
+                                    savedMediaMetrics++;
+                                } catch (saveError: any) {
+                                    logger.error(`${TAG} Erro ao salvar métrica ${mediaId}:`, saveError);
+                                    errors.push({ step: 'saveMetricData', message: `Salvar métrica ${mediaId}: ${saveError.message}` });
+                                }
+                            } else if (insightsResult) {
+                                logger.warn(`${TAG} Falha ao buscar insights mídia ${mediaId}: ${insightsResult.error || result.value.reason}`);
+                                errors.push({ step: 'fetchMediaInsights', message: `Insights mídia ${mediaId}: ${insightsResult.error || result.value.reason || 'Erro desconhecido'}` });
+                            }
+                        } else if (result.status === 'rejected') {
+                            const errorMsg = result.reason instanceof Error ? result.reason.message : String(result.reason);
+                            if (errorMsg.includes('Token error')) {
+                                logger.error(`${TAG} Erro de token detectado nos insights de mídia. Interrompendo busca de mídias.`);
+                                errors.push({ step: 'fetchMediaInsights', message: 'Erro de token durante busca de insights de mídia.' });
+                                overallSuccess = false; hasMoreMediaPages = false; break;
+                            } else {
+                                logger.error(`${TAG} Erro não tratado em tarefa de insight de mídia: ${errorMsg}`);
+                                errors.push({ step: 'fetchMediaInsights', message: `Erro tarefa insight mídia: ${errorMsg}` });
+                            }
+                        }
+                    } if (!overallSuccess) break;
+                } else {
+                     logger.info(`${TAG} Pág ${mediaCurrentPage}: Nenhuma mídia RECENTE para processar insights.`);
+                }
+            } else if (!overallSuccess) logger.info(`${TAG} Pulando processamento de insights da pág ${mediaCurrentPage} por erro anterior.`);
+            else logger.info(`${TAG} Pág ${mediaCurrentPage}: Nenhuma mídia encontrada.`);
             nextPageMediaUrl = mediaResult.nextPageUrl; if (!nextPageMediaUrl) hasMoreMediaPages = false;
             logger.info(`${TAG} Pág ${mediaCurrentPage} mídias processada em ${Date.now() - pageStartTime}ms.`);
             if (hasMoreMediaPages && mediaCurrentPage < MAX_PAGES_MEDIA && overallSuccess) await new Promise(r => setTimeout(r, DELAY_MS));
         } while (hasMoreMediaPages && mediaCurrentPage < MAX_PAGES_MEDIA && overallSuccess);
         if (mediaCurrentPage >= MAX_PAGES_MEDIA && hasMoreMediaPages) errors.push({ step: 'fetchInstagramMedia', message: `Limite de ${MAX_PAGES_MEDIA} páginas de mídia atingido.` });
-        logger.info(`${TAG} Processamento de mídias concluído.`);
+        logger.info(`${TAG} Processamento de mídias concluído. ${skippedOldMedia} mídias antigas puladas.`); // <<< Log atualizado
+
+
+        // --- 3. Fetch and Save Account Insights & Demographics ---
         if (overallSuccess) {
             logger.info(`${TAG} [Step 3/3] Buscando insights/demografia da conta ${accountId}...`);
             let accountInsightData: IAccountInsightsPeriod | undefined; let audienceDemographicsData: IAudienceDemographics | undefined;
@@ -540,15 +649,20 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
             if (overallSuccess && (accountInsightData || audienceDemographicsData || basicAccountData)) { logger.info(`${TAG} Salvando snapshot da conta...`); await saveAccountInsightData( userObjectId, accountId!, accountInsightData, audienceDemographicsData, basicAccountData ); savedAccountInsights = true; }
             else if (!overallSuccess) logger.warn(`${TAG} Pulando save snapshot conta por erro anterior de token/permissão.`); else logger.warn(`${TAG} Nenhum dado novo de insights/demografia/básico da conta para salvar no snapshot.`);
         } else logger.warn(`${TAG} Pulando insights/demografia da conta por erro anterior.`);
-        const duration = Date.now() - startTime; const finalSuccessStatus = overallSuccess;
+
+        // --- Conclusion ---
+        const duration = Date.now() - startTime;
+        const finalSuccessStatus = overallSuccess;
         const statusMsg = finalSuccessStatus ? 'concluída com sucesso' : 'concluída com erros (verificar token/permissões ou erros não fatais)';
-        const summary = `Mídias Salvas: ${savedMediaMetrics}/${totalMediaProcessed}. Insights Conta: ${savedAccountInsights ? 'Salvo' : 'Não'}. Demo: ${savedDemographics ? 'Salva' : 'Não'}. Básicos: ${collectedBasicAccountData ? 'OK' : 'Falha'}.`;
+        // <<< Sumário Atualizado >>>
+        const summary = `Mídias Recentes Salvas/Atualizadas: ${savedMediaMetrics}/${totalMediaProcessed}. Mídias Antigas Puladas: ${skippedOldMedia}. Insights Conta: ${savedAccountInsights ? 'Salvo' : 'Não'}. Demo: ${savedDemographics ? 'Salva' : 'Não'}. Básicos: ${collectedBasicAccountData ? 'OK' : 'Falha'}.`;
         const errorSummary = errors.length > 0 ? `Erros (${errors.length}): ${errors.map(e => `${e.step}: ${e.message}`).slice(0, 3).join('; ')}...` : 'Nenhum erro reportado.';
         const finalMessage = `Atualização ${statusMsg} para User ${userId}. ${summary} ${errorSummary}`;
         logger.info(`${TAG} Finalizado. User: ${userId}. Sucesso Geral: ${finalSuccessStatus}. Duração: ${duration}ms. ${finalMessage}`);
         if(errors.length > 0) logger.warn(`${TAG} Detalhes dos erros (${errors.length}):`, errors);
         await DbUser.findByIdAndUpdate(userObjectId, { $set: { lastInstagramSyncSuccess: finalSuccessStatus } }).catch(dbErr => logger.error(`${TAG} Falha ao atualizar status final sync ${userId}:`, dbErr));
-        return { success: finalSuccessStatus, message: finalMessage, details: { errors, durationMs: duration, savedMediaMetrics, totalMediaProcessed, collectedAccountInsights, savedAccountInsights, collectedDemographics, savedDemographics, collectedBasicAccountData } };
+        return { success: finalSuccessStatus, message: finalMessage, details: { errors, durationMs: duration, savedMediaMetrics, totalMediaProcessed, skippedOldMedia, collectedAccountInsights, savedAccountInsights, collectedDemographics, savedDemographics, collectedBasicAccountData } }; // <<< Adicionado skippedOldMedia aos details
+
     } catch (error: unknown) {
         const duration = Date.now() - startTime; logger.error(`${TAG} Erro crítico NÃO TRATADO durante refresh para ${userId}. Duração: ${duration}ms`, error);
         const message = error instanceof Error ? error.message : String(error);
@@ -557,6 +671,10 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
     }
 }
 
+
+// =========================================================================
+// == Função fetchAvailableInstagramAccounts (Mantida como v1.9.9) ===
+// =========================================================================
 export async function fetchAvailableInstagramAccounts(
     shortLivedToken: string,
     userId: string
@@ -611,19 +729,10 @@ export async function fetchAvailableInstagramAccounts(
     }
 }
 
-
-/**
- * Atualiza o status de conexão do Instagram para um usuário no DB.
- * Salva o ID da conta e o LLAT do usuário (se disponível).
- * Dispara a atualização de dados em segundo plano.
- * @param userId - ID do usuário (string ou ObjectId).
- * @param instagramAccountId - ID da conta Instagram a ser conectada.
- * @param longLivedAccessToken - O LLAT do *usuário* (pode ser null se a troca falhar).
- */
 export async function connectInstagramAccount(
     userId: string | Types.ObjectId,
     instagramAccountId: string,
-    longLivedAccessToken: string | null // <<< Aceita LLAT (pode ser null)
+    longLivedAccessToken: string | null
 ): Promise<{ success: boolean; error?: string }> {
     const TAG = '[connectInstagramAccount v1.9.11]'; // <<< Versão Atualizada
     logger.info(`${TAG} Atualizando status de conexão para User ${userId}, Conta IG ${instagramAccountId}`);
@@ -633,36 +742,24 @@ export async function connectInstagramAccount(
 
     try {
         await connectToDatabase();
-        const updateData: Partial<IUser> & { $unset?: any } = { // Define tipo explícito
-            instagramAccessToken: longLivedAccessToken ?? undefined, // Salva LLAT ou undefined
+        const updateData: Partial<IUser> & { $unset?: any } = {
+            instagramAccessToken: longLivedAccessToken ?? undefined,
             instagramAccountId: instagramAccountId,
             isInstagramConnected: true,
-            lastInstagramSyncAttempt: new Date(), // Marca a tentativa inicial
-            lastInstagramSyncSuccess: null, // Define como null inicialmente
+            lastInstagramSyncAttempt: new Date(),
+            lastInstagramSyncSuccess: null,
         };
-
-        // Se o LLAT for null, remove o campo do DB em vez de salvar null
-        if (longLivedAccessToken === null) {
-            updateData.$unset = { instagramAccessToken: "" };
-            delete updateData.instagramAccessToken; // Remove do $set
-        }
-
+        if (longLivedAccessToken === null) { updateData.$unset = { instagramAccessToken: "" }; delete updateData.instagramAccessToken; }
         logger.debug(`${TAG} Atualizando usuário ${userId} no DB com dados de conexão... Token ${longLivedAccessToken ? 'presente' : 'ausente/será removido'}`);
-        const updateResult = await DbUser.findByIdAndUpdate(userId, updateData); // Usa updateData que pode conter $set e $unset
-
+        const updateResult = await DbUser.findByIdAndUpdate(userId, updateData);
         if (!updateResult) { const errorMsg = `Falha ao encontrar usuário ${userId} no DB para conectar conta IG.`; logger.error(`${TAG} ${errorMsg}`); return { success: false, error: errorMsg }; }
-
         logger.info(`${TAG} Usuário ${userId} atualizado. Conexão com IG ${instagramAccountId} marcada como ativa.`);
-
-        // Dispara a atualização de dados em segundo plano via QStash se configurado
-        const refreshWorkerUrl = process.env.REFRESH_WORKER_URL; // Lê a URL da env var
+        const refreshWorkerUrl = process.env.REFRESH_WORKER_URL;
         logger.info(`${TAG} Verificando QStash. Cliente inicializado: ${!!qstashClient}. URL do Worker: ${refreshWorkerUrl}`);
-
         if (qstashClient && refreshWorkerUrl) {
             logger.info(`${TAG} Bloco IF para QStash alcançado.`); // <<< LOG TESTE 1 >>>
             try {
                 logger.info(`${TAG} Dentro do TRY, antes de publishJSON.`); // <<< LOG TESTE 2 >>>
-
                 // --- TEMPORARIAMENTE COMENTADO PARA TESTE ---
                 // const publishResponse = await qstashClient.publishJSON({
                 //     url: refreshWorkerUrl,
@@ -670,14 +767,10 @@ export async function connectInstagramAccount(
                 // });
                 // logger.info(`${TAG} Tarefa de refresh enviada com sucesso para QStash para User ${userId}. Message ID: ${publishResponse.messageId}`);
                 // --- FIM DO COMENTÁRIO ---
-
                 logger.info(`${TAG} Dentro do TRY, APÓS publishJSON (comentado).`); // <<< LOG TESTE 3 >>>
-
             } catch (qstashError: any) {
                 logger.error(`${TAG} DENTRO DO CATCH do publishJSON! Erro:`, qstashError); // <<< LOG TESTE 4 >>>
-                if (qstashError.message) {
-                     logger.error(`${TAG} Mensagem de erro QStash: ${qstashError.message}`);
-                }
+                if (qstashError.message) { logger.error(`${TAG} Mensagem de erro QStash: ${qstashError.message}`); }
                 await DbUser.findByIdAndUpdate(userId, { $set: { lastInstagramSyncSuccess: false } }).catch(dbErr => logger.error(`${TAG} Falha ao atualizar status sync (erro QStash) ${userId}:`, dbErr));
             }
              logger.info(`${TAG} Fora do TRY/CATCH do publishJSON.`); // <<< LOG TESTE 5 >>>
@@ -687,7 +780,6 @@ export async function connectInstagramAccount(
         }
         logger.info(`${TAG} Finalizando connectInstagramAccount.`); // <<< LOG TESTE 6 >>>
         return { success: true };
-
     } catch (error: unknown) {
         const errorMsg = error instanceof Error ? error.message : String(error);
         logger.error(`${TAG} Erro CRÍTICO GERAL ao conectar conta IG para User ${userId}:`, error);
@@ -695,40 +787,31 @@ export async function connectInstagramAccount(
     }
 }
 
-
-/**
- * Finaliza a conexão com o Instagram salvando o token e ID selecionado no DB.
- * @deprecated Esta função não é mais necessária com a lógica movida para connectInstagramAccount.
- */
 export async function finalizeInstagramConnection( userId: string, selectedIgAccountId: string, longLivedAccessToken: string ): Promise<{ success: boolean; message?: string; error?: string }> {
-    const TAG = '[finalizeInstagramConnection - DEPRECATED]';
-    logger.warn(`${TAG} Chamada obsoleta. Redirecionando para connectInstagramAccount.`);
-    return connectInstagramAccount(userId, selectedIgAccountId, longLivedAccessToken);
+    const TAG = '[finalizeInstagramConnection - DEPRECATED]';
+    logger.warn(`${TAG} Chamada obsoleta. Redirecionando para connectInstagramAccount.`);
+    return connectInstagramAccount(userId, selectedIgAccountId, longLivedAccessToken);
 }
 
-/**
- * Processa um payload de webhook para insights de Story.
- */
 export async function processStoryWebhookPayload( mediaId: string, webhookAccountId: string | undefined, value: any ): Promise<{ success: boolean; error?: string }> {
-    const TAG = '[processStoryWebhookPayload]';
-    logger.debug(`${TAG} Recebido webhook Story Media ${mediaId}, Conta ${webhookAccountId}.`);
-    if (!webhookAccountId) return { success: false, error: 'ID da conta do webhook ausente.' };
-    if (!value || typeof value !== 'object') return { success: false, error: 'Payload \'value\' inválido ou ausente.' };
-    try {
-        await connectToDatabase();
-        const user = await DbUser.findOne({ instagramAccountId: webhookAccountId }).select('_id').lean();
-        if (!user) { logger.warn(`${TAG} Usuário não encontrado para instagramAccountId ${webhookAccountId} (Webhook). Ignorando.`); return { success: true }; }
-        const userId = user._id;
-        const stats: Partial<IStoryStats> = { impressions: value.impressions, reach: value.reach, taps_forward: value.taps_forward, taps_back: value.taps_back, exits: value.exits, replies: value.replies, };
-        Object.keys(stats).forEach(key => (stats[key as keyof IStoryStats] == null) && delete stats[key as keyof IStoryStats]);
-        if (Object.keys(stats).length === 0) { logger.warn(`${TAG} Nenhum insight válido encontrado no payload do webhook para Story ${mediaId}.`); return { success: true }; }
-        const filter = { user: userId, instagramMediaId: mediaId };
-        const updateData = { $set: { stats: stats as IStoryStats, lastWebhookAt: new Date() }, $setOnInsert: { user: userId, instagramMediaId: mediaId, createdAt: new Date() } };
-        const options = { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true };
-        const savedStoryMetric = await StoryMetricModel.findOneAndUpdate(filter, updateData, options);
-        if (!savedStoryMetric) { logger.error(`${TAG} Falha ao salvar/atualizar métrica de Story via webhook ${mediaId}.`); return { success: false, error: 'Falha ao salvar dados do webhook de Story no DB.' }; }
-        logger.info(`${TAG} Insights de Story ${mediaId} (Webhook) processados com sucesso para User ${userId}.`);
-        return { success: true };
-    } catch (error) { logger.error(`${TAG} Erro ao processar webhook de Story ${mediaId}, Conta ${webhookAccountId}:`, error); return { success: false, error: 'Erro interno ao processar webhook de Story.' }; }
+    const TAG = '[processStoryWebhookPayload]';
+    logger.debug(`${TAG} Recebido webhook Story Media ${mediaId}, Conta ${webhookAccountId}.`);
+    if (!webhookAccountId) return { success: false, error: 'ID da conta do webhook ausente.' };
+    if (!value || typeof value !== 'object') return { success: false, error: 'Payload \'value\' inválido ou ausente.' };
+    try {
+        await connectToDatabase();
+        const user = await DbUser.findOne({ instagramAccountId: webhookAccountId }).select('_id').lean();
+        if (!user) { logger.warn(`${TAG} Usuário não encontrado para instagramAccountId ${webhookAccountId} (Webhook). Ignorando.`); return { success: true }; }
+        const userId = user._id;
+        const stats: Partial<IStoryStats> = { impressions: value.impressions, reach: value.reach, taps_forward: value.taps_forward, taps_back: value.taps_back, exits: value.exits, replies: value.replies, };
+        Object.keys(stats).forEach(key => (stats[key as keyof IStoryStats] == null) && delete stats[key as keyof IStoryStats]);
+        if (Object.keys(stats).length === 0) { logger.warn(`${TAG} Nenhum insight válido encontrado no payload do webhook para Story ${mediaId}.`); return { success: true }; }
+        const filter = { user: userId, instagramMediaId: mediaId };
+        const updateData = { $set: { stats: stats as IStoryStats, lastWebhookAt: new Date() }, $setOnInsert: { user: userId, instagramMediaId: mediaId, createdAt: new Date() } };
+        const options = { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true };
+        const savedStoryMetric = await StoryMetricModel.findOneAndUpdate(filter, updateData, options);
+        if (!savedStoryMetric) { logger.error(`${TAG} Falha ao salvar/atualizar métrica de Story via webhook ${mediaId}.`); return { success: false, error: 'Falha ao salvar dados do webhook de Story no DB.' }; }
+        logger.info(`${TAG} Insights de Story ${mediaId} (Webhook) processados com sucesso para User ${userId}.`);
+        return { success: true };
+    } catch (error) { logger.error(`${TAG} Erro ao processar webhook de Story ${mediaId}, Conta ${webhookAccountId}:`, error); return { success: false, error: 'Erro interno ao processar webhook de Story.' }; }
 }
-
