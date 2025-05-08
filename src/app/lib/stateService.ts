@@ -1,92 +1,64 @@
-// @/app/lib/stateService.ts - v1.4 (Usando @upstash/redis SDK)
+// @/app/lib/stateService.ts - v1.5 (Histórico como JSON)
 
-import { Redis } from '@upstash/redis'; // Importa o SDK oficial do Upstash
+import { Redis } from '@upstash/redis';
 import { logger } from '@/app/lib/logger';
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'; // <<< Importa o tipo
 
 // Variáveis de ambiente para o SDK @upstash/redis
 const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL;
 const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 
-let redisClient: Redis | null = null; // Cliente @upstash/redis
+let redisClient: Redis | null = null;
 
 // Função para inicializar e retornar o cliente (Singleton)
 function getClient(): Redis {
-  // Se o cliente já existe, retorna ele
   if (redisClient) {
     return redisClient;
   }
-
-  // Verifica se as variáveis de ambiente estão definidas
   if (!UPSTASH_URL || !UPSTASH_TOKEN) {
     logger.error('[stateService][@upstash/redis] Variáveis UPSTASH_REDIS_REST_URL ou UPSTASH_REDIS_REST_TOKEN não definidas.');
     throw new Error('Configuração do Upstash Redis incompleta no ambiente.');
   }
-
   logger.info('[stateService][@upstash/redis] Criando nova instância do cliente Redis via REST API...');
-
   try {
-    // Cria a instância do cliente Redis usando as credenciais REST
-    redisClient = new Redis({
-      url: UPSTASH_URL,
-      token: UPSTASH_TOKEN,
-    });
-
+    redisClient = new Redis({ url: UPSTASH_URL, token: UPSTASH_TOKEN });
     logger.info('[stateService][@upstash/redis] Cliente Redis (REST) inicializado.');
-    // Nota: O cliente REST não mantém uma conexão persistente como ioredis,
-    // então não há eventos 'connect', 'ready', 'error' da mesma forma.
-    // Cada comando é uma requisição HTTPS separada.
     return redisClient;
-
   } catch (error) {
     logger.error('[stateService][@upstash/redis] Falha ao criar instância do cliente Redis:', error);
-    redisClient = null; // Garante que não fique com instância inválida
-    throw error; // Propaga o erro
+    redisClient = null;
+    throw error;
   }
 }
 
-// --- Funções existentes adaptadas para usar o novo getClient ---
-// A API do @upstash/redis é muito similar à do ioredis para comandos básicos.
+// --- Cache e Estado (sem alterações) ---
 
-/**
- * Cache simples (para respostas).
- */
 export async function getFromCache(key: string): Promise<string | null> {
   const TAG = '[stateService][getFromCache]';
   try {
-    const redis = getClient(); // Obtém o cliente @upstash/redis
+    const redis = getClient();
     logger.debug(`${TAG} Buscando chave: ${key}`);
-    const value = await redis.get<string>(key); // Usa redis.get<Type>()
+    const value = await redis.get<string>(key);
     logger.debug(`${TAG} Resultado para ${key}: ${value ? value.slice(0, 50)+'...' : 'null'}`);
     return value;
   } catch (error) {
      logger.error(`${TAG} Erro para key ${key}:`, error);
-     // Em caso de erro com o cliente REST, pode ser útil resetar a instância
-     // redisClient = null; // Descomente se quiser forçar recriação na próxima chamada
      return null;
   }
 }
 
-export async function setInCache(
-  key: string,
-  value: string,
-  ttlSeconds: number
-): Promise<void> {
+export async function setInCache(key: string, value: string, ttlSeconds: number): Promise<void> {
    const TAG = '[stateService][setInCache]';
    try {
-    const redis = getClient(); // Obtém o cliente @upstash/redis
+    const redis = getClient();
     logger.debug(`${TAG} Definindo chave: ${key} com TTL: ${ttlSeconds}s`);
-    // Usa redis.set com opções para TTL (EX = seconds)
     await redis.set(key, value, { ex: ttlSeconds });
     logger.debug(`${TAG} Chave ${key} definida com sucesso.`);
   } catch (error) {
      logger.error(`${TAG} Erro para key ${key}:`, error);
-     // redisClient = null; // Descomente se quiser forçar recriação
   }
 }
 
-/**
- * Estado da conversa (salvo como JSON em Redis).
- */
 export interface DialogueState {
   lastInteraction?: number;
   lastGreetingSent?: number;
@@ -99,13 +71,11 @@ export interface DialogueState {
   } | null;
 }
 
-export async function getDialogueState(
-  userId: string
-): Promise<DialogueState> {
+export async function getDialogueState(userId: string): Promise<DialogueState> {
   const TAG = '[stateService][getDialogueState]';
   const key = `state:${userId}`;
   try {
-    const redis = getClient(); // Obtém o cliente @upstash/redis
+    const redis = getClient();
     logger.debug(`${TAG} Buscando estado para user: ${userId} (key: ${key})`);
     const data = await redis.get<string>(key);
     if (!data) {
@@ -121,82 +91,104 @@ export async function getDialogueState(
     }
   } catch (error) {
      logger.error(`${TAG} Erro para user ${userId}:`, error);
-     // redisClient = null; // Descomente se quiser forçar recriação
      return {};
   }
 }
 
-export async function updateDialogueState(
-  userId: string,
-  state: DialogueState
-): Promise<void> {
+export async function updateDialogueState(userId: string, state: DialogueState): Promise<void> {
    const TAG = '[stateService][updateDialogueState]';
    const key = `state:${userId}`;
    try {
-    const redis = getClient(); // Obtém o cliente @upstash/redis
+    const redis = getClient();
     const stateJson = JSON.stringify(state);
     logger.debug(`${TAG} Atualizando estado para user: ${userId} (key: ${key}), tamanho: ${stateJson.length}`);
     await redis.set(key, stateJson);
     logger.debug(`${TAG} Estado atualizado para user: ${userId}`);
   } catch (error) {
      logger.error(`${TAG} Erro para user ${userId}:`, error);
-     // redisClient = null; // Descomente se quiser forçar recriação
   }
 }
 
+// --- Histórico de Conversas (MODIFICADO PARA JSON) ---
+
 /**
- * Histórico de conversas (string única).
+ * Busca o histórico de conversas (array de mensagens) para um usuário.
+ * Retorna um array vazio se não houver histórico ou ocorrer erro no parse.
  */
 export async function getConversationHistory(
   userId: string
-): Promise<string> {
-   const TAG = '[stateService][getConversationHistory]';
+): Promise<ChatCompletionMessageParam[]> { // <<< RETORNA ARRAY
+   const TAG = '[stateService][getConversationHistory v1.5]'; // Versão atualizada
    const key = `history:${userId}`;
    try {
-    const redis = getClient(); // Obtém o cliente @upstash/redis
+    const redis = getClient();
     logger.debug(`${TAG} Buscando histórico para user: ${userId} (key: ${key})`);
-    const history = await redis.get<string>(key);
-    logger.debug(`${TAG} Histórico encontrado para user ${userId}: ${history ? history.length + ' chars' : 'nenhum'}`);
-    return history || '';
+    const historyJson = await redis.get<string>(key); // Busca como string JSON
+
+    if (!historyJson) {
+      logger.debug(`${TAG} Nenhum histórico JSON encontrado para user ${userId}.`);
+      return []; // Retorna array vazio
+    }
+
+    logger.debug(`${TAG} Histórico JSON encontrado (${historyJson.length} chars), parseando...`);
+    try {
+      // Tenta parsear a string JSON para o array de mensagens
+      const historyArray = JSON.parse(historyJson) as ChatCompletionMessageParam[];
+      // Validação básica (opcional, mas recomendada)
+      if (!Array.isArray(historyArray)) {
+          logger.error(`${TAG} Dado do histórico para ${userId} não é um array após parse JSON.`);
+          return [];
+      }
+      logger.debug(`${TAG} Histórico parseado com sucesso (${historyArray.length} mensagens) para user ${userId}.`);
+      return historyArray;
+    } catch (parseError) {
+      logger.error(`${TAG} Erro ao parsear JSON do histórico para ${userId}. Dados podem estar em formato antigo (string) ou corrompidos.`, parseError);
+      // Aqui você pode decidir o que fazer com dados antigos/corrompidos.
+      // Por enquanto, retornamos array vazio.
+      // TODO: Considerar uma migração ou tratamento específico para dados no formato string antigo, se necessário.
+      return []; // Retorna array vazio em caso de erro de parse
+    }
   } catch (error) {
-     logger.error(`${TAG} Erro para user ${userId}:`, error);
-     // redisClient = null; // Descomente se quiser forçar recriação
-     return '';
+     logger.error(`${TAG} Erro ao buscar histórico no Redis para user ${userId}:`, error);
+     return []; // Retorna array vazio em caso de erro do Redis
   }
 }
 
 /**
- * Define/sobrescreve o histórico completo da conversa para um usuário.
+ * Define/sobrescreve o histórico completo da conversa para um usuário,
+ * salvando como uma string JSON.
  */
-export async function setConversationHistory(userId: string, history: string): Promise<void> {
-  const TAG = '[stateService][setConversationHistory]';
+export async function setConversationHistory(
+    userId: string,
+    history: ChatCompletionMessageParam[] // <<< ACEITA ARRAY
+): Promise<void> {
+  const TAG = '[stateService][setConversationHistory v1.5]'; // Versão atualizada
   const key = `history:${userId}`;
   try {
-    const redis = getClient(); // Obtém o cliente @upstash/redis
-    logger.debug(`${TAG} Definindo histórico para user: ${userId} (key: ${key}), tamanho: ${history.length}`);
-    await redis.set(key, history); // Pode adicionar { ex: ttlSeconds } aqui se necessário
-    logger.debug(`${TAG} Histórico definido para user ${userId}.`);
+    const redis = getClient();
+    // Converte o array de mensagens para uma string JSON
+    const historyJson = JSON.stringify(history);
+    logger.debug(`${TAG} Definindo histórico JSON para user: ${userId} (key: ${key}), ${history.length} mensagens, tamanho JSON: ${historyJson.length}`);
+    // Salva a string JSON no Redis (pode adicionar TTL se quiser que expire)
+    // await redis.set(key, historyJson, { ex: SEU_TTL_EM_SEGUNDOS });
+    await redis.set(key, historyJson);
+    logger.debug(`${TAG} Histórico JSON definido para user ${userId}.`);
   } catch (error) {
-     logger.error(`${TAG} Erro para user ${userId}:`, error);
-     // redisClient = null; // Descomente se quiser forçar recriação
+     logger.error(`${TAG} Erro ao salvar histórico JSON no Redis para user ${userId}:`, error);
   }
 }
 
-/**
- * Contador de uso (por usuário).
- */
-export async function incrementUsageCounter(
-  userId: string
-): Promise<void> {
+// --- Contador de Uso (sem alterações) ---
+
+export async function incrementUsageCounter(userId: string): Promise<void> {
    const TAG = '[stateService][incrementUsageCounter]';
    const key = `usage:${userId}`;
    try {
-    const redis = getClient(); // Obtém o cliente @upstash/redis
+    const redis = getClient();
     logger.debug(`${TAG} Incrementando contador para user: ${userId} (key: ${key})`);
     const newValue = await redis.incr(key);
     logger.debug(`${TAG} Contador incrementado para user ${userId}. Novo valor: ${newValue}`);
   } catch (error) {
      logger.error(`${TAG} Erro para user ${userId}:`, error);
-     // redisClient = null; // Descomente se quiser forçar recriação
   }
 }
