@@ -1,8 +1,7 @@
-// @/app/lib/aiFunctions.ts – v0.9.6 (Multiple Knowledge Function Call Fixes)
-// - ATUALIZADO: Correctly access enum options from Zod schemas wrapped with .optional() or .default()
-//   using .removeDefault().unwrap()._def.values.
-// - ATUALIZADO: Corrected multiple knowledge function calls in getConsultingKnowledge.
-// - Ensures getAggregatedReport still accepts 'analysisPeriod'.
+// @/app/lib/aiFunctions.ts – v0.9.7 (Reviewed for Reel Time Metrics Compatibility)
+// - Revisado e confirmado compatível com as atualizações para coleta e apresentação 
+//   de métricas de tempo de Reels (reportHelpers v4.5, promptSystemFC v2.26.6).
+// - Mantém correções anteriores de acesso a enums Zod e chamadas de função de conhecimento.
 
 import { Types, Model } from 'mongoose';
 import { z } from 'zod';
@@ -22,7 +21,7 @@ import {
   getAdDealInsights,
   AdDealInsights,
   IEnrichedReport,
-} from './dataService';
+} from './dataService'; // Presume-se que dataService usa reportHelpers v4.5
 import { subDays, subYears } from 'date-fns';
 
 // Imports dos arquivos de conhecimento
@@ -172,12 +171,12 @@ export const functionSchemas = [
 type ExecutorFn = (args: any, user: IUser) => Promise<unknown>;
 
 /* ---------------------------------------------------------------------- *
- * 2.  Executores das Funções (v0.9.6)                                  *
+ * 2.  Executores das Funções (v0.9.7)                                  *
  * ---------------------------------------------------------------------- */
 
 /* 2.1 getAggregatedReport */
 const getAggregatedReport: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetAggregatedReportArgsSchema>, loggedUser) => {
-  const fnTag = '[fn:getAggregatedReport v0.9.6]';
+  const fnTag = '[fn:getAggregatedReport v0.9.7]'; // ATUALIZADO: Versão
   try {
     const analysisPeriod = args.analysisPeriod;
     logger.info(`${fnTag} Executando para usuário ${loggedUser._id} com período de análise: ${analysisPeriod}`);
@@ -194,6 +193,8 @@ const getAggregatedReport: ExecutorFn = async (args: z.infer<typeof ZodSchemas.G
     }
     logger.debug(`${fnTag} Data de início da análise calculada: ${sinceDate.toISOString()} para período ${analysisPeriod}`);
 
+    // fetchAndPrepareReportData (de dataService) agora usa reportHelpers v4.5,
+    // que inclui as métricas de tempo de Reels em OverallStats.
     const [reportResult, adDealResult] = await Promise.allSettled([
         fetchAndPrepareReportData({
             user: loggedUser,
@@ -208,6 +209,10 @@ const getAggregatedReport: ExecutorFn = async (args: z.infer<typeof ZodSchemas.G
     if (reportResult.status === 'fulfilled') {
         enrichedReportData = reportResult.value.enrichedReport;
         logger.info(`${fnTag} Relatório agregado de métricas gerado com sucesso para o período ${analysisPeriod}. Posts no relatório: ${enrichedReportData?.overallStats?.totalPosts ?? 'N/A'}`);
+        // Log para verificar as novas métricas de Reels em OverallStats
+        if (enrichedReportData?.overallStats) {
+            logger.debug(`${fnTag} OverallStats contém: totalReels=${enrichedReportData.overallStats.totalReelsInPeriod}, avgReelAvgWatchTimeSecs=${enrichedReportData.overallStats.avgReelAvgWatchTimeSeconds}`);
+        }
     } else {
         reportError = `Falha ao gerar parte do relatório (métricas) para o período ${analysisPeriod}: ${reportResult.reason?.message || 'Erro desconhecido'}`;
         logger.error(`${fnTag} Erro ao gerar relatório agregado de métricas:`, reportResult.reason);
@@ -231,7 +236,7 @@ const getAggregatedReport: ExecutorFn = async (args: z.infer<typeof ZodSchemas.G
     
     return {
         analysisPeriodUsed: analysisPeriod,
-        reportData: enrichedReportData,
+        reportData: enrichedReportData, // Este já contém as métricas de Reels em OverallStats (em segundos)
         adDealInsights: adDealInsightsData,
         reportError: reportError,
         adDealError: adDealError
@@ -245,7 +250,7 @@ const getAggregatedReport: ExecutorFn = async (args: z.infer<typeof ZodSchemas.G
 
 /* 2.2 getTopPosts */
 const getTopPosts: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetTopPostsArgsSchema>, loggedUser) => {
-  const fnTag = '[fn:getTopPosts v0.9.6]';
+  const fnTag = '[fn:getTopPosts v0.9.7]'; // ATUALIZADO: Versão
   try {
     const userId = new Types.ObjectId(loggedUser._id);
     const metric = args.metric;
@@ -256,7 +261,7 @@ const getTopPosts: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetTopPos
     const topPosts: Pick<IMetric, '_id' | 'description' | 'postLink' | 'stats'>[] = await MetricModel.find({
         user: userId, postDate: { $exists: true }, [sortField]: { $exists: true, $ne: null }
       })
-      .select(`_id description postLink stats.${metric} stats.shares stats.saved`)
+      .select(`_id description postLink stats.${metric} stats.shares stats.saved`) // stats completas são retornadas
       .sort({ [sortField]: -1 })
       .limit(limit)
       .lean()
@@ -277,6 +282,7 @@ const getTopPosts: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetTopPos
             metricValue: metricValue,
             shares: post.stats?.shares,
             saved: post.stats?.saved
+            // Se o LLM precisar das métricas de tempo de Reels aqui, elas estarão em post.stats (em ms)
         };
     });
     logger.info(`${fnTag} Top ${formattedPosts.length} posts encontrados para métrica ${metric}.`);
@@ -290,10 +296,10 @@ const getTopPosts: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetTopPos
 
 /* 2.3 getDayPCOStats */
 const getDayPCOStats: ExecutorFn = async (_args: z.infer<typeof ZodSchemas.GetDayPCOStatsArgsSchema>, loggedUser) => {
-   const fnTag = '[fn:getDayPCOStats v0.9.6]';
+   const fnTag = '[fn:getDayPCOStats v0.9.7]'; // ATUALIZADO: Versão
    try {
     logger.info(`${fnTag} Executando para usuário ${loggedUser._id}`);
-    const sinceDate = subDays(new Date(), 180);
+    const sinceDate = subDays(new Date(), 180); // Usa período padrão aqui, o relatório principal pode ter período diferente
     const { enrichedReport } = await fetchAndPrepareReportData({
         user: loggedUser,
         contentMetricModel: MetricModel,
@@ -319,7 +325,7 @@ const getDayPCOStats: ExecutorFn = async (_args: z.infer<typeof ZodSchemas.GetDa
 
 /* 2.4 getMetricDetailsById */
 const getMetricDetailsById: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetMetricDetailsByIdArgsSchema>, loggedUser) => {
-    const fnTag = '[fn:getMetricDetailsById v0.9.6]';
+    const fnTag = '[fn:getMetricDetailsById v0.9.7]'; // ATUALIZADO: Versão
     try {
         const userId = new Types.ObjectId(loggedUser._id);
         const metricId = args.metricId;
@@ -331,8 +337,10 @@ const getMetricDetailsById: ExecutorFn = async (args: z.infer<typeof ZodSchemas.
         const objectMetricId = new Types.ObjectId(metricId);
 
         logger.info(`${fnTag} Buscando detalhes para Metric ID: ${metricId} para User: ${userId}`);
+        // Retorna o documento completo, incluindo o objeto 'stats' com as métricas de Reels em milissegundos.
+        // O promptSystemFC.ts (v2.26.6) instrui a IA a converter e apresentar esses valores.
         const metricDoc = await MetricModel.findOne({ _id: objectMetricId, user: userId })
-            .select('-rawData -__v')
+            .select('-rawData -__v') 
             .lean()
             .exec();
 
@@ -342,6 +350,11 @@ const getMetricDetailsById: ExecutorFn = async (args: z.infer<typeof ZodSchemas.
         }
 
         logger.info(`${fnTag} Detalhes da Métrica ${metricId} encontrados.`);
+        // Log para verificar se as métricas de Reels estão presentes para um Reel
+        if (metricDoc.format === 'Reel' && metricDoc.stats) {
+            logger.debug(`${fnTag} Detalhes do Reel ${metricId}: avgWatchTime(ms)=${(metricDoc.stats as IMetricStats).ig_reels_avg_watch_time}, totalWatchTime(ms)=${(metricDoc.stats as IMetricStats).ig_reels_video_view_total_time}`);
+        }
+        
         const result = { 
             ...metricDoc, 
             _id: metricDoc._id.toString(), 
@@ -357,7 +370,7 @@ const getMetricDetailsById: ExecutorFn = async (args: z.infer<typeof ZodSchemas.
 
 /* 2.5 findPostsByCriteria */
 const findPostsByCriteria: ExecutorFn = async (args: z.infer<typeof ZodSchemas.FindPostsByCriteriaArgsSchema>, loggedUser) => {
-    const fnTag = '[fn:findPostsByCriteria v0.9.6]';
+    const fnTag = '[fn:findPostsByCriteria v0.9.7]'; // ATUALIZADO: Versão
     try {
         const userId = new Types.ObjectId(loggedUser._id);
         const { criteria, limit, sortBy, sortOrder } = args;
@@ -394,7 +407,7 @@ const findPostsByCriteria: ExecutorFn = async (args: z.infer<typeof ZodSchemas.F
         logger.debug(`${fnTag} Ordenação MQL: ${JSON.stringify(sortOptions)}`);
 
         const posts = await MetricModel.find(filter)
-            .select('_id description postLink postDate stats.likes stats.shares stats.saved stats.reach format proposal context')
+            .select('_id description postLink postDate stats.likes stats.shares stats.saved stats.reach format proposal context') // stats completas não são selecionadas aqui, apenas as listadas.
             .sort(sortOptions)
             .limit(limit)
             .lean()
@@ -413,6 +426,8 @@ const findPostsByCriteria: ExecutorFn = async (args: z.infer<typeof ZodSchemas.F
              postDate: post.postDate?.toISOString().split('T')[0],
              format: post.format, proposal: post.proposal, context: post.context,
              likes: post.stats?.likes ?? 0, shares: post.stats?.shares ?? 0, saved: post.stats?.saved ?? 0, reach: post.stats?.reach ?? 0,
+             // Se o LLM precisar das métricas de tempo de Reels aqui, elas não estarão disponíveis
+             // pois não foram selecionadas no .select() acima.
         }));
         return { count: formattedPosts.length, posts: formattedPosts };
 
@@ -424,7 +439,7 @@ const findPostsByCriteria: ExecutorFn = async (args: z.infer<typeof ZodSchemas.F
 
 /* 2.6 getDailyMetricHistory */
 const getDailyMetricHistory: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetDailyMetricHistoryArgsSchema>, loggedUser) => {
-    const fnTag = '[fn:getDailyMetricHistory v0.9.6]';
+    const fnTag = '[fn:getDailyMetricHistory v0.9.7]'; // ATUALIZADO: Versão
     try {
         const userId = new Types.ObjectId(loggedUser._id);
         const metricId = args.metricId;
@@ -443,9 +458,11 @@ const getDailyMetricHistory: ExecutorFn = async (args: z.infer<typeof ZodSchemas
             else { return { error: "Você não tem permissão para acessar o histórico desta métrica." }; }
         }
 
+        // DailyMetricSnapshotModel v1.1.0 agora inclui campos de Reels.
+        // A seleção aqui pode ser ajustada para incluir esses novos campos se necessário para a IA.
         const snapshots = await DailyMetricSnapshotModel.find({ metric: objectMetricId })
             .sort({ date: 1 })
-            .select('date dailyViews dailyLikes dailyComments dailyShares dailySaved dailyReach dailyFollows dailyProfileVisits cumulativeViews cumulativeLikes cumulativeComments cumulativeShares cumulativeSaved cumulativeReach cumulativeFollows cumulativeProfileVisits cumulativeTotalInteractions -_id')
+            .select('date dailyViews dailyLikes dailyComments dailyShares dailySaved dailyReach dailyFollows dailyProfileVisits cumulativeViews cumulativeLikes cumulativeComments cumulativeShares cumulativeSaved cumulativeReach cumulativeFollows cumulativeProfileVisits cumulativeTotalInteractions dailyReelsVideoViewTotalTime cumulativeReelsVideoViewTotalTime currentReelsAvgWatchTime -_id') // Adicionados campos de Reels
             .lean();
 
         if (snapshots.length === 0) {
@@ -466,7 +483,7 @@ const getDailyMetricHistory: ExecutorFn = async (args: z.infer<typeof ZodSchemas
 
 /* 2.7 getConsultingKnowledge */
 const getConsultingKnowledge: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetConsultingKnowledgeArgsSchema>, _loggedUser) => {
-    const fnTag = '[fn:getConsultingKnowledge v0.9.6]';
+    const fnTag = '[fn:getConsultingKnowledge v0.9.7]'; // ATUALIZADO: Versão
     const topic = args.topic;
 
     logger.info(`${fnTag} Buscando conhecimento sobre o tópico: ${topic}`);
@@ -510,7 +527,6 @@ const getConsultingKnowledge: ExecutorFn = async (args: z.infer<typeof ZodSchema
              // case 'best_posting_times': knowledge = AlgorithmKnowledge.getBestPostingTimesGeneral(); break; // NOTA: getBestPostingTimesGeneral não existe em algorithmKnowledge.ts v1.2
             default:
                 logger.warn(`${fnTag} Tópico não mapeado recebido (apesar da validação Zod?): ${topic}`);
-                // Adicionar aqui uma verificação se `topic` é um dos valores esperados pelo Zod Schema para evitar erros inesperados
                 const validTopics = ZodSchemas.GetConsultingKnowledgeArgsSchema.shape.topic._def.values;
                 if (!validTopics.includes(topic as any)) {
                      return { error: `Tópico de conhecimento inválido ou não reconhecido: "${topic}". Por favor, escolha um dos tópicos válidos.` };
