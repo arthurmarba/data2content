@@ -1,15 +1,14 @@
-// src/app/lib/instagramService.ts - v1.9.14 (Daily Snapshots com Métricas de Reels)
-// - MODIFICADO: createOrUpdateDailySnapshot agora calcula e salva métricas específicas de Reels.
+// src/app/lib/instagramService.ts - v1.9.15 (Correct Metrics for Reels)
+// - MODIFICADO: triggerDataRefresh agora usa REEL_SAFE_GENERAL_METRICS e
+//   REEL_SPECIFIC_INSIGHTS_METRICS para mídias do tipo VIDEO (Reels).
+// - MODIFICADO: createOrUpdateDailySnapshot agora calcula e salva métricas específicas de Reels (mantido de v1.9.14).
 // - MODIFICADO: fetchMediaInsights agora aceita uma string de métricas a serem buscadas (mantido de v1.9.13).
-// - MODIFICADO: triggerDataRefresh agora constrói dinamicamente a lista de métricas
-//   para incluir métricas específicas de Reels quando o media_type for VIDEO (mantido de v1.9.13).
 // - OTIMIZAÇÃO: triggerDataRefresh agora só busca insights e salva/atualiza métricas
 //   para posts publicados nos últimos 'INSIGHT_FETCH_CUTOFF_DAYS' dias (mantido).
-// - Mantém correções anteriores (logs QStash, etc.).
 
 import { connectToDatabase } from "@/app/lib/mongoose";
 import DbUser, { IUser } from "@/app/models/User";
-import MetricModel, { IMetric, IMetricStats } from "@/app/models/Metric"; // IMetricStats é crucial aqui
+import MetricModel, { IMetric, IMetricStats } from "@/app/models/Metric";
 import AccountInsightModel, {
     IAccountInsight,
     IAccountInsightsPeriod,
@@ -17,7 +16,6 @@ import AccountInsightModel, {
     IDemographicBreakdown
 } from "@/app/models/AccountInsight";
 import StoryMetricModel, { IStoryMetric, IStoryStats } from "@/app/models/StoryMetric";
-// Importa o modelo e a interface atualizados para DailyMetricSnapshot
 import DailyMetricSnapshotModel, { IDailyMetricSnapshot } from "@/app/models/DailyMetricSnapshot"; 
 import { logger } from "@/app/lib/logger";
 import mongoose, { Types } from "mongoose";
@@ -29,12 +27,14 @@ import fetch from 'node-fetch';
 // Importar constantes globais
 import {
     API_VERSION,
-    BASE_URL, BASIC_ACCOUNT_FIELDS, MEDIA_INSIGHTS_METRICS,
-    REEL_SPECIFIC_INSIGHTS_METRICS,
+    BASE_URL, BASIC_ACCOUNT_FIELDS,
+    MEDIA_INSIGHTS_METRICS, // Para mídias não-Reel (IMAGE, CAROUSEL_ALBUM)
+    REEL_SAFE_GENERAL_METRICS, // <<< Métricas gerais seguras para Reels
+    REEL_SPECIFIC_INSIGHTS_METRICS, // Métricas específicas de Reels
     ACCOUNT_INSIGHTS_METRICS, DEMOGRAPHICS_METRICS,
     MEDIA_BREAKDOWNS, ACCOUNT_BREAKDOWNS,
     DEMOGRAPHICS_BREAKDOWNS, DEMOGRAPHICS_TIMEFRAME, DEFAULT_ACCOUNT_INSIGHTS_PERIOD
-} from '@/config/instagram.config'; // Usando v1.9.9 (ou superior) do config
+} from '@/config/instagram.config'; // Usando v1.9.10 (ou superior) do config
 
 // --- Configurações ---
 const RETRY_OPTIONS = { retries: 3, factor: 2, minTimeout: 500, maxTimeout: 5000, randomize: true };
@@ -189,7 +189,7 @@ export async function fetchMediaInsights(
     accessToken: string,
     metricsToFetch: string
 ): Promise<FetchInsightsResult<IMetricStats>> {
-    const TAG = '[fetchMediaInsights v1.9.13]';
+    const TAG = '[fetchMediaInsights v1.9.15]';
     logger.debug(`${TAG} Buscando insights para Media ID: ${mediaId} com métricas: ${metricsToFetch}...`);
     if (!mediaId) return { success: false, error: 'ID da mídia não fornecido.' };
     if (!accessToken) return { success: false, error: 'Token de acesso não fornecido.' };
@@ -420,7 +420,7 @@ function mapMediaTypeToFormat(mediaType?: 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM' |
 }
 
 async function saveMetricData( userId: Types.ObjectId, media: InstagramMedia, insights: IMetricStats ): Promise<void> {
-    const TAG = '[saveMetricData v1.9.13]';
+    const TAG = '[saveMetricData v1.9.15]';
     const startTime = Date.now(); logger.debug(`${TAG} Iniciando save/update User: ${userId}, Media: ${media.id}`);
     if (!media.id) { logger.error(`${TAG} Sem instagramMediaId.`); throw new Error("Sem instagramMediaId."); }
     if (media.media_type === 'STORY') { logger.debug(`${TAG} Ignorando STORY ${media.id}.`); return; }
@@ -435,16 +435,14 @@ async function saveMetricData( userId: Types.ObjectId, media: InstagramMedia, in
         logger.debug(`${TAG} Métrica ${savedMetric._id} (Media ${media.id}) salva/atualizada. Formato: ${format}`);
         const workerUrl = process.env.CLASSIFICATION_WORKER_URL; if (qstashClient && workerUrl) { if (savedMetric.classificationStatus === 'pending' && savedMetric.description && savedMetric.description.trim() !== '') { try { await qstashClient.publishJSON({ url: workerUrl, body: { metricId: savedMetric._id.toString() } }); logger.info(`${TAG} Tarefa classificação QStash OK: ${savedMetric._id}.`); } catch (qstashError) { logger.error(`${TAG} ERRO QStash ${savedMetric._id}.`, qstashError); } } } else if (!workerUrl && qstashClient) { logger.warn(`${TAG} CLASSIFICATION_WORKER_URL não definido, classificação não será enviada.`); }
         
-        // <<< CHAMADA PARA A FUNÇÃO createOrUpdateDailySnapshot ATUALIZADA >>>
         await createOrUpdateDailySnapshot(savedMetric);
 
     } catch (error) { logger.error(`${TAG} Erro CRÍTICO save/update métrica ${media.id}:`, error); throw error;
     } finally { const duration = Date.now() - startTime; logger.debug(`${TAG} Concluído save/update. User: ${userId}, Media: ${media.id}. Duração: ${duration}ms`); }
 }
 
-// <<< FUNÇÃO createOrUpdateDailySnapshot ATUALIZADA PARA INCLUIR MÉTRICAS DE REELS >>>
 async function createOrUpdateDailySnapshot(metric: IMetric): Promise<void> {
-    const SNAPSHOT_TAG = '[DailySnapshot v1.9.14_Reels]'; // Nova versão para o log
+    const SNAPSHOT_TAG = '[DailySnapshot v1.9.14_Reels]'; 
     if (metric.source !== 'api') {
         logger.debug(`${SNAPSHOT_TAG} Pulando snapshot para métrica não-API ${metric._id}.`);
         return;
@@ -459,7 +457,7 @@ async function createOrUpdateDailySnapshot(metric: IMetric): Promise<void> {
         const today = new Date();
         today.setUTCHours(0, 0, 0, 0);
 
-        const cutoffDaysForSnapshot = 30; // Mantém o corte de 30 dias para relevância do snapshot diário
+        const cutoffDaysForSnapshot = 30;
         const cutoffDate = new Date(postDate);
         cutoffDate.setUTCDate(cutoffDate.getUTCDate() + cutoffDaysForSnapshot);
         cutoffDate.setUTCHours(0, 0, 0, 0);
@@ -477,10 +475,9 @@ async function createOrUpdateDailySnapshot(metric: IMetric): Promise<void> {
             date: { $lt: snapshotDate }
         }).sort({ date: -1 }).lean();
 
-        // Define a estrutura para os stats cumulativos anteriores, incluindo os de Reels
         const previousCumulativeStats: Partial<Record<keyof IMetricStats | 'reelsVideoViewTotalTime', number>> = {
             views: 0, likes: 0, comments: 0, shares: 0, saved: 0, reach: 0, follows: 0, profile_visits: 0, total_interactions: 0,
-            reelsVideoViewTotalTime: 0, // Para o cálculo do delta de Reels
+            reelsVideoViewTotalTime: 0,
         };
 
         if (lastSnapshot) {
@@ -519,12 +516,11 @@ async function createOrUpdateDailySnapshot(metric: IMetric): Promise<void> {
             const metricNameStr = String(metricName);
             const dailyKey = `daily${metricNameStr.charAt(0).toUpperCase() + metricNameStr.slice(1)}` as keyof IDailyMetricSnapshot;
             dailyStats[dailyKey] = Math.max(0, currentVal - previousVal);
-            if (currentVal < previousVal && previousVal > 0) { // Adicionado previousVal > 0 para evitar log em inicialização
+            if (currentVal < previousVal && previousVal > 0) {
                 logger.warn(`${SNAPSHOT_TAG} Valor cumulativo '${metricNameStr}' diminuiu para Metric ${metric._id}. Atual: ${currentVal}, Anterior: ${previousVal}.`);
             }
         }
 
-        // Cálculo específico para dailyReelsVideoViewTotalTime
         const currentReelsVideoViewTotalTime = Number(currentMetricStats.ig_reels_video_view_total_time ?? 0);
         if (!isNaN(currentReelsVideoViewTotalTime)) {
             const previousReelsVideoViewTotalTime = previousCumulativeStats.reelsVideoViewTotalTime ?? 0;
@@ -534,7 +530,7 @@ async function createOrUpdateDailySnapshot(metric: IMetric): Promise<void> {
             }
         } else {
             logger.warn(`${SNAPSHOT_TAG} Valor inválido para 'ig_reels_video_view_total_time' na Metric ${metric._id}. Valor: ${currentMetricStats.ig_reels_video_view_total_time}`);
-            dailyStats.dailyReelsVideoViewTotalTime = 0; // Garante que seja 0 se inválido
+            dailyStats.dailyReelsVideoViewTotalTime = 0;
         }
         
         const currentReelsAvgWatchTime = Number(currentMetricStats.ig_reels_avg_watch_time ?? 0);
@@ -603,7 +599,7 @@ export async function saveAccountInsightData( userId: Types.ObjectId, accountId:
 }
 
 export async function triggerDataRefresh(userId: string): Promise<{ success: boolean; message: string; details?: any }> {
-    const TAG = '[triggerDataRefresh v1.9.14]'; // <<< Versão Atualizada do triggerDataRefresh
+    const TAG = '[triggerDataRefresh v1.9.15]'; // <<< Versão Atualizada
     const startTime = Date.now();
     logger.info(`${TAG} Iniciando atualização de dados para User ${userId}...`);
 
@@ -698,14 +694,20 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
                     const insightTasks = recentProcessableMedia.map(media => limitInsightsFetch(async () => {
                         if (!media.id || !accessToken) return { mediaId: media.id ?? '?', status: 'skipped', reason: 'ID/Token ausente' };
                         
-                        let currentMetricsToFetch = MEDIA_INSIGHTS_METRICS;
-                        if (media.media_type === 'VIDEO') {
-                            logger.debug(`${TAG} Mídia ${media.id} (timestamp: ${media.timestamp}) é VIDEO, adicionando métricas de Reels.`);
-                            const baseMetricsSet = new Set(MEDIA_INSIGHTS_METRICS.split(',').map(s => s.trim()).filter(s => s));
-                            REEL_SPECIFIC_INSIGHTS_METRICS.split(',').map(s => s.trim()).filter(s => s).forEach(metric => baseMetricsSet.add(metric));
-                            currentMetricsToFetch = Array.from(baseMetricsSet).join(',');
+                        let currentMetricsToFetch: string;
+                        // <<< LÓGICA ATUALIZADA PARA SELECIONAR MÉTRICAS >>>
+                        if (media.media_type === 'VIDEO') { 
+                            logger.debug(`${TAG} Mídia ${media.id} (timestamp: ${media.timestamp}) é VIDEO, usando REEL_SAFE_GENERAL_METRICS + REEL_SPECIFIC_INSIGHTS_METRICS.`);
+                            // Combina métricas gerais seguras para Reels com as específicas de Reels
+                            const reelMetricsSet = new Set(REEL_SAFE_GENERAL_METRICS.split(',').map(s => s.trim()).filter(s => s));
+                            REEL_SPECIFIC_INSIGHTS_METRICS.split(',').map(s => s.trim()).filter(s => s).forEach(metric => reelMetricsSet.add(metric));
+                            currentMetricsToFetch = Array.from(reelMetricsSet).join(',');
                             logger.debug(`${TAG} Métricas para Reel ${media.id}: ${currentMetricsToFetch}`);
+                        } else { // Para outros tipos de mídia (IMAGE, CAROUSEL_ALBUM)
+                            currentMetricsToFetch = MEDIA_INSIGHTS_METRICS;
+                            logger.debug(`${TAG} Mídia ${media.id} (tipo: ${media.media_type}) usando métricas gerais: ${currentMetricsToFetch}`);
                         }
+                        // <<< FIM DA LÓGICA ATUALIZADA >>>
 
                         const insightsResult = await fetchMediaInsights(media.id, accessToken!, currentMetricsToFetch);
                         
