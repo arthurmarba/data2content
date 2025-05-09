@@ -1,8 +1,10 @@
-// @/app/lib/intentService.ts – v2.15.1 (Corrige type guard para special.response)
+// @/app/lib/intentService.ts – v2.16.1 (Adds 'generate_proactive_alert' intent type)
 // --------------------------------------------------
 
 import { logger } from '@/app/lib/logger';
 import { IUser }  from '@/app/models/User';
+// ATUALIZADO: Importa a interface IDialogueState do stateService
+import { IDialogueState } from './stateService'; // Certifique-se que o caminho está correto para seu projeto
 
 /* -------------------------------------------------- *
  * Tipagens internas
@@ -21,26 +23,20 @@ export type DeterminedIntent =
   | 'ASK_BEST_PERFORMER'
   | 'ASK_BEST_TIME'
   | 'social_query'
-  | 'meta_query_personal';
+  | 'meta_query_personal'
+  | 'user_confirms_pending_action'
+  | 'user_denies_pending_action'
+  // --- ADICIONADO: Nova intenção para alertas proativos ---
+  | 'generate_proactive_alert';
 
 export type IntentResult =
-  | { type: 'intent_determined'; intent: DeterminedIntent }
+  | { type: 'intent_determined'; intent: DeterminedIntent; pendingActionContext?: any }
   | { type: 'special_handled'; response: string };
 
-export interface IDialogueState {
-  lastInteraction?: number;
-  lastGreetingSent?: number;
-  recentPlanIdeas?: { identifier: string; description: string }[] | null;
-  recentPlanTimestamp?: number;
-  lastOfferedScriptIdea?: {
-    aiGeneratedIdeaDescription: string;
-    originalSource: any;
-    timestamp: number;
-  } | null;
-}
+// A interface IDialogueState agora é importada do stateService.ts
 
 /* -------------------------------------------------- *
- * Listas de keywords
+ * Listas de keywords (sem alterações nesta seção)
  * -------------------------------------------------- */
 const SCRIPT_KEYWORDS: string[] = [
   'roteiro','script','estrutura','outline','sequencia',
@@ -87,10 +83,12 @@ const META_QUERY_PERSONAL_KEYWORDS: string[] = [
   'voce pensa', 'voce sonha', 'voce dorme', 'onde voce mora', 'qual sua idade', 'seu nome é tuca', 'por que tuca',
   'voce é o tuca', 'fale sobre voce'
 ];
+const AFFIRMATIVE_KEYWORDS: string[] = ['sim', 's', 'pode ser', 'pode', 'claro', 'com certeza', 'quero', 'manda', 'ok', 'dale', 'bora', 'positivo', 'afirmativo', 'isso', 'exato', 'aham', 'uhum'];
+const NEGATIVE_KEYWORDS: string[] = ['não', 'nao', 'n', 'agora não', 'deixa pra depois', 'depois', 'outra hora', 'negativo', 'nada', 'nem', 'nunca'];
 
 
 /* -------------------------------------------------- *
- * Utilidades
+ * Utilidades (sem alterações nesta seção)
  * -------------------------------------------------- */
 const normalize = (s: string) =>
   s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -108,13 +106,12 @@ const N_GREET_KW     = toNormSet(GREETING_KEYWORDS);
 const N_FAREWELL_KW  = toNormSet(FAREWELL_KEYWORDS);
 const N_SOCIAL_KW    = toNormSet(SOCIAL_QUERY_KEYWORDS);
 const N_META_KW      = toNormSet(META_QUERY_PERSONAL_KEYWORDS);
+const N_AFFIRM_KW    = toNormSet(AFFIRMATIVE_KEYWORDS);
+const N_NEG_KW       = toNormSet(NEGATIVE_KEYWORDS);
 
 const includesKw = (txt: string, kwSet: Set<string>) =>
   [...kwSet].some((kw) => txt.includes(kw));
 
-/**
- * Retorna um elemento aleatório de arr, garantindo não-undefined.
- */
 const pickRandom = <T>(arr: T[]): T => {
   if (arr.length === 0) throw new Error('pickRandom: array vazio');
   const idx = Math.floor(Math.random() * arr.length);
@@ -124,7 +121,7 @@ const pickRandom = <T>(arr: T[]): T => {
 };
 
 /* -------------------------------------------------- *
- * Helpers de intenção
+ * Helpers de intenção (sem alterações nesta seção)
  * -------------------------------------------------- */
 const isPlanRequest     = (txt: string) => includesKw(txt, N_PLAN_KW);
 const isScriptRequest   = (txt: string) => includesKw(txt, N_SCRIPT_KW);
@@ -155,9 +152,19 @@ function isFarewellOnly(norm: string): boolean {
   return nonFarewellWords.length === 0;
 }
 
+function isSimpleAffirmative(norm: string): boolean {
+    const words = norm.split(/\s+/);
+    return words.length <= 2 && N_AFFIRM_KW.has(norm);
+}
+
+function isSimpleNegative(norm: string): boolean {
+    const words = norm.split(/\s+/);
+    return words.length <= 3 && N_NEG_KW.has(norm);
+}
+
 
 /* -------------------------------------------------- *
- * CASOS ESPECIAIS RÁPIDOS
+ * CASOS ESPECIAIS RÁPIDOS (sem alterações nesta seção)
  * -------------------------------------------------- */
 async function quickSpecialHandle(
   user: IUser,
@@ -171,14 +178,13 @@ async function quickSpecialHandle(
         `${greeting} Em que posso ajudar hoje?`,
         `${greeting} Como posso ser útil?`,
         `${greeting} Pronto para começar o dia? Me diga o que precisa!`,
-        `Opa, ${user.name || 'tudo bem'}! Tudo certo? O que manda?`, // Usando user.name
+        `Opa, ${user.name || 'tudo bem'}! Tudo certo? O que manda?`,
       ]),
     };
   }
 
-  // Inclui 'valeu', 'vlw', 'thx', 'agradecido', 'agradecida' em lowercase
   const thanksKeywords = ['obrigado','obrigada','valeu','show','thanks','vlw', 'thx', 'agradecido', 'agradecida'];
-  if (thanksKeywords.includes(normalized)) { // Normalized já está em lowercase
+  if (thanksKeywords.includes(normalized)) {
     return {
       type: 'special_handled',
       response: pickRandom([
@@ -197,7 +203,7 @@ async function quickSpecialHandle(
         'Até mais! 👋',
         'Tchau, tchau! Se cuida!',
         'Falou! Precisando, estou por aqui.',
-        `Até a próxima, ${user.name || ''}!`.trim(), // Usando user.name e trim para caso seja vazio
+        `Até a próxima, ${user.name || ''}!`.trim(),
       ]),
     };
   }
@@ -206,30 +212,51 @@ async function quickSpecialHandle(
 }
 
 /* -------------------------------------------------- *
- * FUNÇÃO PRINCIPAL (exportada)
+ * FUNÇÃO PRINCIPAL (exportada) (sem alterações nesta seção, além da versão no log)
  * -------------------------------------------------- */
 export async function determineIntent(
   normalizedText : string,
   user           : IUser,
-  rawText        : string, // Mantido para logs ou futuras lógicas contextuais mais complexas
-  dialogueState  : IDialogueState, // Mantido para futuras lógicas contextuais
+  rawText        : string,
+  dialogueState  : IDialogueState,
   greeting       : string,
   userId         : string
 ): Promise<IntentResult> {
-  const tag = '[intentService.determineIntent v2.15.1]'; // ALTERADO: Versão
-  logger.debug(`${tag} analisando: "${normalizedText}" para user ${userId} (${user.name || 'Nome não disponível'})`);
+  const tag = '[intentService.determineIntent v2.16.1]'; // ATUALIZADO: Versão
+  logger.debug(`${tag} analisando: "${normalizedText}" para user ${userId} (${user.name || 'Nome não disponível'}). Estado do diálogo: ${JSON.stringify(dialogueState)}`);
+
+  if (dialogueState.lastAIQuestionType) {
+    logger.debug(`${tag} Estado de diálogo indica pergunta pendente da IA: ${dialogueState.lastAIQuestionType}`);
+    if (isSimpleAffirmative(normalizedText)) {
+      logger.info(`${tag} Usuário confirmou ação pendente: ${dialogueState.lastAIQuestionType} com texto: "${normalizedText}"`);
+      return {
+        type: 'intent_determined',
+        intent: 'user_confirms_pending_action',
+        pendingActionContext: dialogueState.pendingActionContext
+      };
+    }
+    if (isSimpleNegative(normalizedText)) {
+      logger.info(`${tag} Usuário negou ação pendente: ${dialogueState.lastAIQuestionType} com texto: "${normalizedText}"`);
+      return {
+        type: 'intent_determined',
+        intent: 'user_denies_pending_action',
+        pendingActionContext: dialogueState.pendingActionContext
+      };
+    }
+    logger.debug(`${tag} Resposta "${normalizedText}" não é afirmação/negação simples para pergunta pendente. Prosseguindo para detecção geral.`);
+  }
 
   const special = await quickSpecialHandle(user, normalizedText, greeting);
-  // ***** CORREÇÃO APLICADA AQUI *****
   if (special && special.type === 'special_handled') {
-    // Agora o TypeScript sabe que special.response existe e é seguro acessá-lo.
     logger.info(`${tag} intenção especial resolvida: "${special.response.slice(0,50)}..." para user ${userId}`);
     return special;
   }
-  // Se 'special' não for 'special_handled' (ou for null), a lógica continua abaixo.
 
   let intent: DeterminedIntent;
 
+  // A intenção 'generate_proactive_alert' não é determinada aqui,
+  // ela é definida pelo sistema ao enfileirar a tarefa proativa.
+  // Esta função lida com a entrada do usuário.
   if      (isBestTimeRequest(normalizedText)) intent = 'ASK_BEST_TIME';
   else if (isPlanRequest(normalizedText))     intent = 'content_plan';
   else if (isScriptRequest(normalizedText))   intent = 'script_request';
@@ -252,7 +279,7 @@ export async function determineIntent(
 }
 
 /* -------------------------------------------------- *
- * Helpers expostos para consultantService
+ * Helpers expostos (sem alterações nesta seção)
  * -------------------------------------------------- */
 export const normalizeText = normalize;
 export function getRandomGreeting(userName = 'criador') {

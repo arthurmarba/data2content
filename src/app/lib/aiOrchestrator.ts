@@ -1,7 +1,7 @@
 /**
  * @fileoverview Orquestrador de chamadas à API OpenAI com Function Calling e Streaming.
  * Otimizado para buscar dados sob demanda via funções e modular comportamento por intenção.
- * @version 0.9.1 (Corrige tipo de functionCallSetting)
+ * @version 0.9.2 (Corrige tipo de dialogueState para IDialogueState)
  */
 
 import OpenAI from 'openai';
@@ -9,16 +9,14 @@ import type {
     ChatCompletionMessageParam,
     ChatCompletionChunk,
     ChatCompletionAssistantMessageParam,
-    // ADICIONADO: Importar o tipo específico para o parâmetro function_call se necessário,
-    // ou usar a união de string literals diretamente.
-    // Geralmente, o tipo do parâmetro em si já é uma união como 'none' | 'auto' | object.
-    ChatCompletionFunctionCallOption // Este é o tipo { name: string; }
+    ChatCompletionFunctionCallOption
 } from 'openai/resources/chat/completions';
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
 import { functionSchemas, functionExecutors } from './aiFunctions';
 import { getSystemPrompt } from '@/app/lib/promptSystemFC';
 import { IUser } from '@/app/models/User';
+// ATUALIZADO: Importa IDialogueState de stateService
 import * as stateService from '@/app/lib/stateService';
 import { functionValidators } from './aiFunctionSchemas.zod';
 import { DeterminedIntent } from './intentService';
@@ -38,7 +36,9 @@ const OPENAI_TIMEOUT_MS = Number(process.env.OPENAI_TIMEOUT_MS) || 45_000;
 interface EnrichedContext {
     user: IUser;
     historyMessages: ChatCompletionMessageParam[];
-    dialogueState?: stateService.DialogueState;
+    // ***** CORREÇÃO APLICADA AQUI *****
+    dialogueState?: stateService.IDialogueState; // Usa o tipo IDialogueState exportado
+    // ***********************************
 }
 
 /**
@@ -58,7 +58,7 @@ export async function askLLMWithEnrichedContext(
     incomingText: string,
     intent: DeterminedIntent
 ): Promise<AskLLMResult> {
-    const fnTag = '[askLLMWithEnrichedContext v0.9.1]'; // ALTERADO: Versão
+    const fnTag = '[askLLMWithEnrichedContext v0.9.2]'; // ATUALIZADO: Versão
     const { user, historyMessages } = enrichedContext;
     logger.info(`${fnTag} Iniciando para usuário ${user._id}. Intenção: ${intent}. Texto: "${incomingText.slice(0, 50)}..." Usando modelo: ${MODEL}`);
 
@@ -114,7 +114,7 @@ export async function askLLMWithEnrichedContext(
         currentUser: IUser,
         currentIntent: DeterminedIntent
     ): Promise<ChatCompletionMessageParam[]> {
-        const turnTag = `[processTurn iter ${iter} v0.9.1]`; // ALTERADO: Versão
+        const turnTag = `[processTurn iter ${iter} v0.9.2]`; // ATUALIZADO: Versão
         logger.debug(`${turnTag} Iniciando. Intenção atual do turno: ${currentIntent}`);
 
         if (iter >= MAX_ITERS) { throw new Error(`Function-call loop excedeu MAX_ITERS (${MAX_ITERS})`); }
@@ -123,20 +123,18 @@ export async function askLLMWithEnrichedContext(
         const timeout = setTimeout(() => { aborter.abort(); logger.warn(`${turnTag} Timeout API OpenAI atingido.`); }, OPENAI_TIMEOUT_MS);
 
         let functionsForAPI: OpenAI.Chat.Completions.ChatCompletionCreateParams.Function[] | undefined = undefined;
-        // ***** ESTA É A LINHA CRÍTICA CORRIGIDA *****
         let functionCallSetting: 'none' | 'auto' | ChatCompletionFunctionCallOption | undefined = undefined;
-        // *********************************************
 
-        const isLightweightIntent = currentIntent === 'social_query' || currentIntent === 'meta_query_personal';
+        const isLightweightIntent = currentIntent === 'social_query' || currentIntent === 'meta_query_personal' || currentIntent === 'generate_proactive_alert'; // Adicionada generate_proactive_alert
 
         if (isLightweightIntent) {
             logger.info(`${turnTag} Intenção '${currentIntent}' é leve. Desabilitando function calling explícito para esta chamada.`);
             functionsForAPI = undefined;
-            functionCallSetting = 'none'; // Esta atribuição agora é válida por causa da correção acima
+            functionCallSetting = 'none';
         } else {
             logger.info(`${turnTag} Intenção '${currentIntent}' permite function calling. Habilitando funções padrão.`);
             functionsForAPI = [...functionSchemas];
-            functionCallSetting = 'auto'; // Esta atribuição também é válida
+            functionCallSetting = 'auto';
         }
 
         let completionStream: AsyncIterable<ChatCompletionChunk>;

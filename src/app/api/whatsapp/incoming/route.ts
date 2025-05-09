@@ -1,18 +1,18 @@
-// src/app/api/whatsapp/incoming/route.ts - v2.0 (Verificação Flexível de Código)
+// src/app/api/whatsapp/incoming/route.ts - v2.1 (Corrige tipo DialogueState)
 
 import { NextRequest, NextResponse } from 'next/server';
 import { normalizePhoneNumber } from '@/app/lib/helpers';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import { sendWhatsAppMessage } from '@/app/lib/whatsappService';
-// getConsultantResponse não será mais chamado diretamente aqui
 import { UserNotFoundError } from '@/app/lib/errors';
 import { logger } from '@/app/lib/logger';
-import { Client as QStashClient } from "@upstash/qstash"; // Importa o cliente QStash
-import * as dataService from '@/app/lib/dataService'; // Para lookupUser
-import { normalizeText, determineIntent, getRandomGreeting, IntentResult, DeterminedIntent } from '@/app/lib/intentService'; // Para determinar intenção
+import { Client as QStashClient } from "@upstash/qstash";
+import * as dataService from '@/app/lib/dataService';
+import { normalizeText, determineIntent, getRandomGreeting, IntentResult, DeterminedIntent } from '@/app/lib/intentService';
 import { IUser } from '@/app/models/User';
-import User from '@/app/models/User'; // <<< IMPORTAÇÃO DIRETA DO MODELO USER >>>
-import * as stateService from '@/app/lib/stateService'; // Para obter estado para determineIntent
+import User from '@/app/models/User';
+// ATUALIZADO: Importa IDialogueState de stateService
+import * as stateService from '@/app/lib/stateService';
 
 
 // Validações de ambiente
@@ -21,7 +21,6 @@ if (!process.env.QSTASH_TOKEN) {
 }
 if (!process.env.APP_BASE_URL && !process.env.NEXT_PUBLIC_APP_URL) {
     logger.warn("[whatsapp/incoming] Variável de ambiente APP_BASE_URL ou NEXT_PUBLIC_APP_URL não definida! Usando fallback.");
-    // Considere lançar um erro aqui se for crítico
 }
 
 // Inicializa cliente QStash (fora da função para reutilizar)
@@ -30,7 +29,7 @@ const qstashClient = process.env.QSTASH_TOKEN ? new QStashClient({ token: proces
 
 /**
  * GET /api/whatsapp/incoming
- * Webhook verification for WhatsApp/Facebook. (Mantido como está)
+ * Webhook verification for WhatsApp/Facebook.
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -58,7 +57,7 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * Extracts the sender phone and message text from the webhook payload. (Mantido como está)
+ * Extracts the sender phone and message text from the webhook payload.
  */
 function getSenderAndMessage(body: any): { from: string; text: string } | null {
     try {
@@ -86,7 +85,7 @@ function getSenderAndMessage(body: any): { from: string; text: string } | null {
  * Receives message, handles verification codes OR sends initial ack & publishes task to QStash, returns immediate 200 OK.
  */
 export async function POST(request: NextRequest) {
-  const postTag = '[whatsapp/incoming POST v2.0 QStash]'; // Tag atualizada
+  const postTag = '[whatsapp/incoming POST v2.1 QStash]'; // Tag atualizada
   let body: any;
 
   // 1. Parse Body & Basic Validation
@@ -108,42 +107,36 @@ export async function POST(request: NextRequest) {
 
   if (!senderAndMsg && !isStatusUpdate) {
     logger.warn(`${postTag} Payload não contém mensagem de texto válida ou status conhecido.`);
-    return NextResponse.json({ received_but_not_processed: true }, { status: 200 }); // Retorna OK para Meta
+    return NextResponse.json({ received_but_not_processed: true }, { status: 200 });
   }
 
   if (isStatusUpdate) {
     logger.debug(`${postTag} Atualização de status recebida, confirmando e ignorando.`);
-    return NextResponse.json({ received_status_update: true }, { status: 200 }); // Retorna OK para Meta
+    return NextResponse.json({ received_status_update: true }, { status: 200 });
   }
 
-  // Se chegou aqui, é uma mensagem de texto válida
   if (!senderAndMsg) {
       logger.error(`${postTag} Erro crítico: senderAndMsg é null após validações.`);
       return NextResponse.json({ error: 'Internal processing error' }, { status: 500 });
   }
 
   const fromPhone = normalizePhoneNumber(senderAndMsg.from);
-  const rawText = senderAndMsg.text.trim(); // Usa trim() para remover espaços extras no início/fim
-  const normText = normalizeText(rawText); // Normaliza para intent (lowercase, sem acentos)
+  const rawText = senderAndMsg.text.trim();
+  const normText = normalizeText(rawText);
   logger.info(`${postTag} Mensagem recebida de: ${fromPhone}, Texto: "${rawText.slice(0, 50)}..."`);
 
-  // --- TENTA TRATAR COMO CÓDIGO DE VERIFICAÇÃO PRIMEIRO ---
-  // *** Regex ATUALIZADA para ser mais flexível ***
-  // Procura por 6 caracteres alfanuméricos maiúsculos como uma "palavra" isolada
   const codeMatch = rawText.match(/\b([A-Z0-9]{6})\b/);
   logger.debug(`${postTag} Verificando se texto "${rawText}" contém um código de 6 caracteres (A-Z, 0-9)... Match: ${codeMatch ? codeMatch[1] : 'Nenhum'}`);
-  // *** FIM DA ATUALIZAÇÃO ***
 
   if (codeMatch && codeMatch[1]) {
-    const verificationCode = codeMatch[1]; // Pega o código capturado
+    const verificationCode = codeMatch[1];
     const verifyTag = '[whatsapp/incoming][Verification]';
     logger.info(`${verifyTag} Código de verificação detectado: ${verificationCode} de ${fromPhone}`);
 
     try {
-        await connectToDatabase(); // Conecta ao DB para buscar pelo código
+        await connectToDatabase();
         logger.debug(`${verifyTag} Buscando usuário com código: ${verificationCode}`);
 
-        // Busca usuário pelo código
         const userWithCode = await User.findOne({ whatsappVerificationCode: verificationCode });
 
         if (userWithCode) {
@@ -151,9 +144,9 @@ export async function POST(request: NextRequest) {
             let reply = '';
             if (userWithCode.planStatus === 'active') {
                 logger.debug(`${verifyTag} Plano ativo. Vinculando número ${fromPhone} ao usuário ${userWithCode._id}`);
-                userWithCode.whatsappPhone = fromPhone; // Vincula o número
-                userWithCode.whatsappVerificationCode = null; // Limpa o código
-                userWithCode.whatsappVerified = true; // Marca como verificado
+                userWithCode.whatsappPhone = fromPhone;
+                userWithCode.whatsappVerificationCode = null;
+                userWithCode.whatsappVerified = true;
                 await userWithCode.save();
                 reply = `Olá ${userWithCode.name || ''}! Seu número de WhatsApp (${fromPhone}) foi vinculado com sucesso à sua conta.`;
                 logger.info(`${verifyTag} Número ${fromPhone} vinculado com sucesso ao usuário ${userWithCode._id}.`);
@@ -167,44 +160,33 @@ export async function POST(request: NextRequest) {
             logger.warn(`${verifyTag} Nenhum usuário encontrado para o código de verificação: ${verificationCode}`);
             await sendWhatsAppMessage(fromPhone, 'Código inválido ou expirado. Verifique o código no seu perfil ou gere um novo.');
         }
-        // Retorna OK para Meta após tratar o código (sucesso ou falha)
         return NextResponse.json({ verification_attempted: true, user_found: !!userWithCode }, { status: 200 });
 
     } catch (error) {
         logger.error(`${verifyTag} Erro ao processar código de verificação ${verificationCode}:`, error);
-        // Tenta enviar uma mensagem de erro genérica
         try { await sendWhatsAppMessage(fromPhone, "Ocorreu um erro ao tentar verificar seu código. Tente novamente mais tarde."); } catch (e) {}
-        // Retorna 500 para Meta indicar falha no processamento
         return NextResponse.json({ error: 'Failed to process verification code' }, { status: 500 });
     }
   }
-  // --- FIM DO TRATAMENTO DE CÓDIGO ---
 
-  // --- Se NÃO for um código de verificação, continua com o fluxo normal (QStash) ---
   logger.debug(`${postTag} Mensagem não é código de verificação ou não foi encontrado padrão. Prosseguindo para fluxo QStash.`);
 
-  // 2. Lookup User (pelo telefone, necessário para mensagem inicial e payload)
   let user: IUser;
   try {
-      await connectToDatabase(); // Conecta ao DB *antes* de buscar o usuário
+      await connectToDatabase();
       user = await dataService.lookupUser(fromPhone);
-      // Se lookupUser funcionou, o número JÁ ESTÁ VINCULADO.
-      logger.info(`${postTag} Usuário ${user._id} encontrado para ${fromPhone} (já vinculado?).`);
+      logger.info(`${postTag} Usuário ${user._id} encontrado para ${fromPhone}.`);
 
   } catch (e) {
-      // Se o usuário não foi encontrado PELO TELEFONE, envia mensagem de erro e para.
       logger.error(`${postTag} Erro em lookupUser para ${fromPhone}:`, e);
       if (e instanceof UserNotFoundError) {
-          // Envia mensagem para usuário não encontrado e retorna OK para Meta
           try {
-              // MENSAGEM AJUSTADA: Não pede mais o nome, pois o usuário pode já existir mas sem o telefone vinculado.
               await sendWhatsAppMessage(fromPhone, 'Olá! Não encontrei uma conta associada a este número de WhatsApp. Se você já se registou (ex: com Google), por favor, acesse a plataforma e use a opção "Vincular WhatsApp" no seu perfil.');
           } catch (sendError) {
               logger.error(`${postTag} Falha ao enviar mensagem de usuário não encontrado/vinculado:`, sendError);
           }
           return NextResponse.json({ user_not_found_message_sent: true }, { status: 200 });
       }
-      // Outro erro no lookup, retorna erro 500 para Meta
       return NextResponse.json({ error: 'Failed to lookup user' }, { status: 500 });
   }
   const uid = user._id.toString();
@@ -212,9 +194,11 @@ export async function POST(request: NextRequest) {
   const greeting = getRandomGreeting(userName);
 
   // 3. Determine Intent & Handle Special Cases (Ex: Greetings, Thanks)
-  let dialogueState: stateService.DialogueState = {};
+  // ***** CORREÇÃO APLICADA AQUI *****
+  let dialogueState: stateService.IDialogueState = {}; // Usa IDialogueState
+  // ***********************************
   try {
-      dialogueState = await stateService.getDialogueState(uid); // Busca estado para intentService
+      dialogueState = await stateService.getDialogueState(uid);
   } catch (stateError) {
       logger.error(`${postTag} Erro ao buscar estado do Redis para ${uid} (não fatal):`, stateError);
   }
@@ -226,38 +210,58 @@ export async function POST(request: NextRequest) {
       if (intentResult.type === 'special_handled') {
           logger.info(`${postTag} Intenção tratada como caso especial para ${uid}: ${intentResult.response.slice(0, 50)}...`);
           await sendWhatsAppMessage(fromPhone, intentResult.response);
-          return NextResponse.json({ special_handled: true }, { status: 200 }); // Retorna OK para Meta
+          // ATUALIZADO: Limpar estado de ação pendente após special_handled
+          await stateService.clearPendingActionState(uid);
+          await stateService.updateDialogueState(uid, { lastInteraction: Date.now() });
+          return NextResponse.json({ special_handled: true }, { status: 200 });
       } else {
           determinedIntent = intentResult.intent;
+          // ATUALIZADO: Se a intenção for de confirmação/negação, o worker (process-response) lidará com isso.
+          // Aqui, apenas registramos a intenção. O worker precisará do pendingActionContext.
+          // Se a intenção NÃO for de confirmação/negação, mas havia uma ação pendente, limpamos.
+          if (dialogueState.lastAIQuestionType && determinedIntent !== 'user_confirms_pending_action' && determinedIntent !== 'user_denies_pending_action') {
+              logger.info(`${postTag} Usuário mudou de assunto enquanto havia ação pendente (${dialogueState.lastAIQuestionType}). Limpando estado pendente.`);
+              await stateService.clearPendingActionState(uid);
+          }
           logger.info(`${postTag} Intenção determinada para ${uid}: ${determinedIntent}`);
       }
   } catch (intentError) {
       logger.error(`${postTag} Erro ao determinar intenção para ${uid}:`, intentError);
-      determinedIntent = 'general'; // Fallback
+      determinedIntent = 'general';
+      if (dialogueState.lastAIQuestionType) { // Limpa se erro na intenção e havia ação pendente
+        await stateService.clearPendingActionState(uid);
+      }
   }
 
-  // 4. Send Initial Processing Message
-  try {
-      let processingMessage = `Ok, ${userName}! Recebi seu pedido. 👍\nEstou a analisar as informações e já te trago os insights...`; // Default
-      switch (determinedIntent) {
-          case 'script_request': processingMessage = `Ok, ${userName}! Pedido de roteiro recebido. 👍\nEstou a estruturar as ideias e já te mando o script...`; break;
-          case 'content_plan': processingMessage = `Ok, ${userName}! Recebi seu pedido de plano de conteúdo. 👍\nEstou a organizar a agenda e já te apresento o planejamento...`; break;
-          case 'ranking_request': processingMessage = `Entendido, ${userName}! Você quer um ranking. 👍\nEstou a comparar os dados e já te mostro os resultados ordenados...`; break;
-          case 'report': case 'ASK_BEST_PERFORMER': case 'ASK_BEST_TIME': processingMessage = `Certo, ${userName}! Recebi seu pedido de análise/relatório. 👍\nEstou a compilar os dados e já te apresento os resultados...`; break;
-          case 'content_ideas': processingMessage = `Legal, ${userName}! Buscando ideias de conteúdo para você. 👍\nEstou a verificar as tendências e já te trago algumas sugestões...`; break;
-          case 'general': default: processingMessage = `Ok, ${userName}! Recebi sua mensagem. 👍\nEstou a processar e já te respondo...`; break;
-      }
-      logger.debug(`${postTag} Enviando mensagem de processamento (intenção: ${determinedIntent}) para ${fromPhone}...`);
-      await sendWhatsAppMessage(fromPhone, processingMessage);
-  } catch (sendError) {
-      logger.error(`${postTag} Falha ao enviar mensagem inicial de processamento para ${fromPhone} (não fatal):`, sendError);
-      // Continua mesmo se a mensagem inicial falhar
+  // 4. Send Initial Processing Message (APENAS se NÃO for uma confirmação/negação, pois essas serão tratadas no worker)
+  // E APENAS se não for uma query leve (social/meta)
+  const isLightweightQuery = determinedIntent === 'social_query' || determinedIntent === 'meta_query_personal';
+  const isContextualResponse = determinedIntent === 'user_confirms_pending_action' || determinedIntent === 'user_denies_pending_action';
+
+  if (!isLightweightQuery && !isContextualResponse) {
+    try {
+        let processingMessage = `Ok, ${userName}! Recebi seu pedido. 👍\nEstou a analisar as informações e já te trago os insights...`;
+        switch (determinedIntent) {
+            case 'script_request': processingMessage = `Ok, ${userName}! Pedido de roteiro recebido. 👍\nEstou a estruturar as ideias e já te mando o script...`; break;
+            case 'content_plan': processingMessage = `Ok, ${userName}! Recebi seu pedido de plano de conteúdo. 👍\nEstou a organizar a agenda e já te apresento o planejamento...`; break;
+            case 'ranking_request': processingMessage = `Entendido, ${userName}! Você quer um ranking. 👍\nEstou a comparar os dados e já te mostro os resultados ordenados...`; break;
+            case 'report': case 'ASK_BEST_PERFORMER': case 'ASK_BEST_TIME': processingMessage = `Certo, ${userName}! Recebi seu pedido de análise/relatório. 👍\nEstou a compilar os dados e já te apresento os resultados...`; break;
+            case 'content_ideas': processingMessage = `Legal, ${userName}! Buscando ideias de conteúdo para você. 👍\nEstou a verificar as tendências e já te trago algumas sugestões...`; break;
+            case 'general': default: processingMessage = `Ok, ${userName}! Recebi sua mensagem. 👍\nEstou a processar e já te respondo...`; break;
+        }
+        logger.debug(`${postTag} Enviando mensagem de processamento (intenção: ${determinedIntent}) para ${fromPhone}...`);
+        await sendWhatsAppMessage(fromPhone, processingMessage);
+    } catch (sendError) {
+        logger.error(`${postTag} Falha ao enviar mensagem inicial de processamento para ${fromPhone} (não fatal):`, sendError);
+    }
+  } else {
+      logger.debug(`${postTag} Pulando mensagem de processamento para intenção leve/contextual: ${determinedIntent}`);
   }
+
 
   // 5. Publish Task to QStash
   if (!qstashClient) {
       logger.error(`${postTag} Cliente QStash não inicializado (QSTASH_TOKEN ausente?). Não é possível enfileirar tarefa.`);
-      // Retorna erro 500 para Meta, pois não podemos processar
       return NextResponse.json({ error: 'QStash client not configured' }, { status: 500 });
   }
 
@@ -269,30 +273,29 @@ export async function POST(request: NextRequest) {
   const workerUrl = `${appBaseUrl}/api/whatsapp/process-response`;
 
 
-  const payload = {
+  const qstashPayload = { // Renomeado para evitar conflito com 'payload' da requisição
       fromPhone: fromPhone,
-      incomingText: rawText, // Envia o texto original
+      incomingText: rawText,
       userId: uid,
-      // Inclua outros dados se o worker precisar e for mais eficiente que buscar lá
-      // userName: userName,
+      // ATUALIZADO: Envia a intenção determinada e o contexto da ação pendente para o worker
+      determinedIntent: determinedIntent, // Pode ser null se special_handled, mas já retornamos antes
+      // pendingActionContext: (intentResult.type === 'intent_determined' && (intentResult.intent === 'user_confirms_pending_action' || intentResult.intent === 'user_denies_pending_action')) ? intentResult.pendingActionContext : null,
+      // Simplificando: o worker vai buscar o dialogueState de qualquer forma, que contém o pendingActionContext.
+      // Apenas a intenção já é suficiente para o worker decidir o fluxo.
   };
 
   try {
-      logger.info(`${postTag} Publicando tarefa no QStash para ${workerUrl} com payload para User ${uid}...`);
+      logger.info(`${postTag} Publicando tarefa no QStash para ${workerUrl} com payload para User ${uid}. Payload: ${JSON.stringify(qstashPayload)}`);
       const publishResponse = await qstashClient.publishJSON({
           url: workerUrl,
-          body: payload,
-          // contentBasedDeduplication: true, // Opcional: Evita duplicatas se a mesma msg chegar rápido
-          // delay: '1s' // Opcional: Adiciona um pequeno delay se necessário
+          body: qstashPayload,
       });
       logger.info(`${postTag} Tarefa publicada no QStash com sucesso. Message ID: ${publishResponse.messageId}`);
   } catch (qstashError) {
       logger.error(`${postTag} Falha ao publicar tarefa no QStash para User ${uid}:`, qstashError);
-      // Retorna erro 500 para Meta, pois a tarefa não foi enfileirada
       return NextResponse.json({ error: 'Failed to queue task' }, { status: 500 });
   }
 
-  // 6. Return Immediate OK to Meta
   logger.debug(`${postTag} Retornando 200 OK para Meta.`);
   return NextResponse.json({ received_message: true, task_queued: true }, { status: 200 });
 }

@@ -1,8 +1,8 @@
-// @/app/lib/stateService.ts - v1.5 (Histórico como JSON)
+// @/app/lib/stateService.ts - v1.6.0 (Estado de Diálogo Aprimorado com Ações Pendentes)
 
 import { Redis } from '@upstash/redis';
 import { logger } from '@/app/lib/logger';
-import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'; // <<< Importa o tipo
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 
 // Variáveis de ambiente para o SDK @upstash/redis
 const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL;
@@ -31,7 +31,7 @@ function getClient(): Redis {
   }
 }
 
-// --- Cache e Estado (sem alterações) ---
+// --- Cache (sem alterações) ---
 
 export async function getFromCache(key: string): Promise<string | null> {
   const TAG = '[stateService][getFromCache]';
@@ -59,7 +59,10 @@ export async function setInCache(key: string, value: string, ttlSeconds: number)
   }
 }
 
-export interface DialogueState {
+// --- Estado do Diálogo (MODIFICADO) ---
+
+// ATUALIZADO: Interface IDialogueState para incluir campos de ação pendente
+export interface IDialogueState {
   lastInteraction?: number;
   lastGreetingSent?: number;
   recentPlanIdeas?: { identifier: string; description: string }[] | null;
@@ -69,72 +72,99 @@ export interface DialogueState {
     originalSource: any;
     timestamp: number;
   } | null;
+  // ADICIONADO: Para rastrear perguntas da IA que aguardam confirmação do usuário
+  lastAIQuestionType?: 'confirm_fetch_day_stats' | 'confirm_another_action' | string; // Tipo da pergunta/ação pendente
+  pendingActionContext?: Record<string, any> | string | null; // Contexto necessário para executar a ação se confirmada
 }
 
-export async function getDialogueState(userId: string): Promise<DialogueState> {
-  const TAG = '[stateService][getDialogueState]';
-  const key = `state:${userId}`;
+export async function getDialogueState(userId: string): Promise<IDialogueState> {
+  const TAG = '[stateService][getDialogueState v1.6.0]'; // Versão atualizada
+  const key = `state:${userId}`; // Mantendo o padrão de chave original
   try {
     const redis = getClient();
     logger.debug(`${TAG} Buscando estado para user: ${userId} (key: ${key})`);
     const data = await redis.get<string>(key);
     if (!data) {
         logger.debug(`${TAG} Nenhum estado encontrado para user: ${userId}`);
-        return {};
+        return {}; // Retorna objeto vazio se não encontrado
     }
     logger.debug(`${TAG} Estado encontrado para user: ${userId}, parseando JSON...`);
     try {
-      return JSON.parse(data);
+      return JSON.parse(data) as IDialogueState; // Cast para a interface atualizada
     } catch (parseError) {
       logger.error(`${TAG} Erro ao parsear JSON do estado para ${userId}:`, parseError);
-      return {};
+      return {}; // Retorna objeto vazio em caso de erro de parse
     }
   } catch (error) {
-     logger.error(`${TAG} Erro para user ${userId}:`, error);
-     return {};
+     logger.error(`${TAG} Erro ao buscar estado no Redis para user ${userId}:`, error);
+     return {}; // Retorna objeto vazio em caso de erro do Redis
   }
 }
 
-export async function updateDialogueState(userId: string, state: DialogueState): Promise<void> {
-   const TAG = '[stateService][updateDialogueState]';
+/**
+ * Atualiza o estado do diálogo para um usuário, mesclando o novo estado parcial com o existente.
+ */
+export async function updateDialogueState(userId: string, newState: Partial<IDialogueState>): Promise<void> {
+   const TAG = '[stateService][updateDialogueState v1.6.0]'; // Versão atualizada
    const key = `state:${userId}`;
    try {
     const redis = getClient();
-    const stateJson = JSON.stringify(state);
-    logger.debug(`${TAG} Atualizando estado para user: ${userId} (key: ${key}), tamanho: ${stateJson.length}`);
+    const currentState = await getDialogueState(userId); // Busca o estado atual
+    const mergedState = { ...currentState, ...newState }; // Mescla com o novo estado parcial
+    const stateJson = JSON.stringify(mergedState);
+    logger.debug(`${TAG} Atualizando estado para user: ${userId} (key: ${key}), novo estado parcial: ${JSON.stringify(newState)}, estado mesclado tamanho: ${stateJson.length}`);
     await redis.set(key, stateJson);
-    logger.debug(`${TAG} Estado atualizado para user: ${userId}`);
+    logger.debug(`${TAG} Estado mesclado e atualizado para user ${userId}.`);
   } catch (error) {
-     logger.error(`${TAG} Erro para user ${userId}:`, error);
+     logger.error(`${TAG} Erro ao atualizar estado para user ${userId}:`, error);
   }
 }
 
-// --- Histórico de Conversas (MODIFICADO PARA JSON) ---
-
 /**
- * Busca o histórico de conversas (array de mensagens) para um usuário.
- * Retorna um array vazio se não houver histórico ou ocorrer erro no parse.
+ * ADICIONADO: Limpa os campos de ação pendente do estado do diálogo.
  */
+export async function clearPendingActionState(userId: string): Promise<void> {
+    const TAG = '[stateService][clearPendingActionState v1.6.0]';
+    try {
+        const currentState = await getDialogueState(userId);
+        // Cria um novo objeto de estado sem as chaves de ação pendente
+        const { lastAIQuestionType, pendingActionContext, ...restOfState } = currentState;
+        
+        // Verifica se realmente havia algo para limpar, para evitar reescrita desnecessária
+        if (lastAIQuestionType !== undefined || pendingActionContext !== undefined) {
+            const newStateJson = JSON.stringify(restOfState);
+            const key = `state:${userId}`;
+            const redis = getClient();
+            await redis.set(key, newStateJson);
+            logger.info(`${TAG} Estado de ação pendente limpo para user ${userId}.`);
+        } else {
+            logger.debug(`${TAG} Nenhum estado de ação pendente para limpar para user ${userId}.`);
+        }
+    } catch (error) {
+        logger.error(`${TAG} Erro ao limpar estado de ação pendente para user ${userId}:`, error);
+    }
+}
+
+
+// --- Histórico de Conversas (sem alterações na lógica, apenas nos comentários de versão se desejar) ---
+
 export async function getConversationHistory(
   userId: string
-): Promise<ChatCompletionMessageParam[]> { // <<< RETORNA ARRAY
-   const TAG = '[stateService][getConversationHistory v1.5]'; // Versão atualizada
+): Promise<ChatCompletionMessageParam[]> {
+   const TAG = '[stateService][getConversationHistory v1.5]';
    const key = `history:${userId}`;
    try {
     const redis = getClient();
     logger.debug(`${TAG} Buscando histórico para user: ${userId} (key: ${key})`);
-    const historyJson = await redis.get<string>(key); // Busca como string JSON
+    const historyJson = await redis.get<string>(key);
 
     if (!historyJson) {
       logger.debug(`${TAG} Nenhum histórico JSON encontrado para user ${userId}.`);
-      return []; // Retorna array vazio
+      return [];
     }
-
     logger.debug(`${TAG} Histórico JSON encontrado (${historyJson.length} chars), parseando...`);
     try {
-      // Tenta parsear a string JSON para o array de mensagens
       const historyArray = JSON.parse(historyJson) as ChatCompletionMessageParam[];
-      // Validação básica (opcional, mas recomendada)
       if (!Array.isArray(historyArray)) {
           logger.error(`${TAG} Dado do histórico para ${userId} não é um array após parse JSON.`);
           return [];
@@ -142,35 +172,25 @@ export async function getConversationHistory(
       logger.debug(`${TAG} Histórico parseado com sucesso (${historyArray.length} mensagens) para user ${userId}.`);
       return historyArray;
     } catch (parseError) {
-      logger.error(`${TAG} Erro ao parsear JSON do histórico para ${userId}. Dados podem estar em formato antigo (string) ou corrompidos.`, parseError);
-      // Aqui você pode decidir o que fazer com dados antigos/corrompidos.
-      // Por enquanto, retornamos array vazio.
-      // TODO: Considerar uma migração ou tratamento específico para dados no formato string antigo, se necessário.
-      return []; // Retorna array vazio em caso de erro de parse
+      logger.error(`${TAG} Erro ao parsear JSON do histórico para ${userId}.`, parseError);
+      return [];
     }
   } catch (error) {
      logger.error(`${TAG} Erro ao buscar histórico no Redis para user ${userId}:`, error);
-     return []; // Retorna array vazio em caso de erro do Redis
+     return [];
   }
 }
 
-/**
- * Define/sobrescreve o histórico completo da conversa para um usuário,
- * salvando como uma string JSON.
- */
 export async function setConversationHistory(
     userId: string,
-    history: ChatCompletionMessageParam[] // <<< ACEITA ARRAY
+    history: ChatCompletionMessageParam[]
 ): Promise<void> {
-  const TAG = '[stateService][setConversationHistory v1.5]'; // Versão atualizada
+  const TAG = '[stateService][setConversationHistory v1.5]';
   const key = `history:${userId}`;
   try {
     const redis = getClient();
-    // Converte o array de mensagens para uma string JSON
     const historyJson = JSON.stringify(history);
     logger.debug(`${TAG} Definindo histórico JSON para user: ${userId} (key: ${key}), ${history.length} mensagens, tamanho JSON: ${historyJson.length}`);
-    // Salva a string JSON no Redis (pode adicionar TTL se quiser que expire)
-    // await redis.set(key, historyJson, { ex: SEU_TTL_EM_SEGUNDOS });
     await redis.set(key, historyJson);
     logger.debug(`${TAG} Histórico JSON definido para user ${userId}.`);
   } catch (error) {
@@ -182,7 +202,7 @@ export async function setConversationHistory(
 
 export async function incrementUsageCounter(userId: string): Promise<void> {
    const TAG = '[stateService][incrementUsageCounter]';
-   const key = `usage:${userId}`;
+   const key = `usage:${userId}`; // Usando um prefixo mais explícito se desejar, ex: `d2c:usage:${userId}`
    try {
     const redis = getClient();
     logger.debug(`${TAG} Incrementando contador para user: ${userId} (key: ${key})`);
