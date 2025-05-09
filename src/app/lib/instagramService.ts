@@ -1,11 +1,15 @@
-// src/app/lib/instagramService.ts - v1.9.12 (Otimizado)
+// src/app/lib/instagramService.ts - v1.9.14 (Daily Snapshots com Métricas de Reels)
+// - MODIFICADO: createOrUpdateDailySnapshot agora calcula e salva métricas específicas de Reels.
+// - MODIFICADO: fetchMediaInsights agora aceita uma string de métricas a serem buscadas (mantido de v1.9.13).
+// - MODIFICADO: triggerDataRefresh agora constrói dinamicamente a lista de métricas
+//   para incluir métricas específicas de Reels quando o media_type for VIDEO (mantido de v1.9.13).
 // - OTIMIZAÇÃO: triggerDataRefresh agora só busca insights e salva/atualiza métricas
-//   para posts publicados nos últimos 'INSIGHT_FETCH_CUTOFF_DAYS' dias.
+//   para posts publicados nos últimos 'INSIGHT_FETCH_CUTOFF_DAYS' dias (mantido).
 // - Mantém correções anteriores (logs QStash, etc.).
 
 import { connectToDatabase } from "@/app/lib/mongoose";
 import DbUser, { IUser } from "@/app/models/User";
-import MetricModel, { IMetric, IMetricStats } from "@/app/models/Metric";
+import MetricModel, { IMetric, IMetricStats } from "@/app/models/Metric"; // IMetricStats é crucial aqui
 import AccountInsightModel, {
     IAccountInsight,
     IAccountInsightsPeriod,
@@ -13,7 +17,8 @@ import AccountInsightModel, {
     IDemographicBreakdown
 } from "@/app/models/AccountInsight";
 import StoryMetricModel, { IStoryMetric, IStoryStats } from "@/app/models/StoryMetric";
-import DailyMetricSnapshotModel, { IDailyMetricSnapshot } from "@/app/models/DailyMetricSnapshot";
+// Importa o modelo e a interface atualizados para DailyMetricSnapshot
+import DailyMetricSnapshotModel, { IDailyMetricSnapshot } from "@/app/models/DailyMetricSnapshot"; 
 import { logger } from "@/app/lib/logger";
 import mongoose, { Types } from "mongoose";
 import retry from 'async-retry';
@@ -25,26 +30,23 @@ import fetch from 'node-fetch';
 import {
     API_VERSION,
     BASE_URL, BASIC_ACCOUNT_FIELDS, MEDIA_INSIGHTS_METRICS,
+    REEL_SPECIFIC_INSIGHTS_METRICS,
     ACCOUNT_INSIGHTS_METRICS, DEMOGRAPHICS_METRICS,
     MEDIA_BREAKDOWNS, ACCOUNT_BREAKDOWNS,
     DEMOGRAPHICS_BREAKDOWNS, DEMOGRAPHICS_TIMEFRAME, DEFAULT_ACCOUNT_INSIGHTS_PERIOD
-} from '@/config/instagram.config'; // Usando v1.9.8 do config
+} from '@/config/instagram.config'; // Usando v1.9.9 (ou superior) do config
 
 // --- Configurações ---
 const RETRY_OPTIONS = { retries: 3, factor: 2, minTimeout: 500, maxTimeout: 5000, randomize: true };
 const INSIGHTS_CONCURRENCY_LIMIT = 5;
-const MAX_PAGES_MEDIA = 10; // Limite para busca de *mídias* (posts) - Pode ser ajustado
+const MAX_PAGES_MEDIA = 10;
 const DELAY_MS = 250;
 const MAX_ACCOUNT_FETCH_PAGES = 30;
 const ACCOUNT_FETCH_DELAY_MS = 100;
-// <<< NOVA CONSTANTE PARA OTIMIZAÇÃO >>>
-// Define quantos dias no passado buscar insights/atualizar métricas de posts.
-// Ex: 30 dias significa que apenas posts dos últimos 30 dias terão insights atualizados.
-const INSIGHT_FETCH_CUTOFF_DAYS = 30;
+const INSIGHT_FETCH_CUTOFF_DAYS = 180; // Mantido em 180 dias
 
 
 // --- Interfaces ---
-// ... (Interfaces mantidas) ...
 interface InstagramConnectionDetails { accessToken: string | null; accountId: string | null; }
 interface InstagramMedia {
     id: string;
@@ -84,17 +86,14 @@ export interface FetchInstagramAccountsError {
 }
 // --- FIM DAS INTERFACES ---
 
-// Inicializa cliente QStash
 const qstashToken = process.env.QSTASH_TOKEN;
 const qstashClient = qstashToken ? new Client({ token: qstashToken }) : null;
 if (!qstashClient) { logger.error("[instagramService] QSTASH_TOKEN não definido ou cliente falhou ao inicializar."); }
 
-// Inicializa limitador de concorrência
 const limitInsightsFetch = pLimit(INSIGHTS_CONCURRENCY_LIMIT);
 
 // --- Funções ---
 
-// ... (getInstagramConnectionDetails, fetchInstagramMedia, fetchMediaInsights, fetchAccountInsights, fetchAudienceDemographics, fetchBasicAccountData, clearInstagramConnection, mapMediaTypeToFormat - MANTIDAS COMO NA v1.9.7) ...
 export async function getInstagramConnectionDetails(userId: string | mongoose.Types.ObjectId): Promise<InstagramConnectionDetails | null> {
     const TAG = '[getInstagramConnectionDetails]';
     logger.debug(`${TAG} Buscando detalhes de conexão IG para User ${userId}...`);
@@ -187,14 +186,18 @@ export async function fetchInstagramMedia(
 
 export async function fetchMediaInsights(
     mediaId: string,
-    accessToken: string
+    accessToken: string,
+    metricsToFetch: string
 ): Promise<FetchInsightsResult<IMetricStats>> {
-    const TAG = '[fetchMediaInsights v1.9.6]';
-    logger.debug(`${TAG} Buscando insights para Media ID: ${mediaId}...`);
+    const TAG = '[fetchMediaInsights v1.9.13]';
+    logger.debug(`${TAG} Buscando insights para Media ID: ${mediaId} com métricas: ${metricsToFetch}...`);
     if (!mediaId) return { success: false, error: 'ID da mídia não fornecido.' };
     if (!accessToken) return { success: false, error: 'Token de acesso não fornecido.' };
-    const metrics = MEDIA_INSIGHTS_METRICS;
-    const urlBase = `${BASE_URL}/${API_VERSION}/${mediaId}/insights?metric=${metrics}`;
+    if (!metricsToFetch || metricsToFetch.trim() === '') {
+        return { success: false, error: 'Lista de métricas para buscar não fornecida ou vazia.' };
+    }
+    
+    const urlBase = `${BASE_URL}/${API_VERSION}/${mediaId}/insights?metric=${metricsToFetch}`;
     try {
         const responseData = await retry(async (bail, attempt) => {
             const currentUrl = `${urlBase}&access_token=${accessToken}`;
@@ -207,13 +210,17 @@ export async function fetchMediaInsights(
                 const error: ErrorType = data.error || { message: `Erro ${response.status} API`, code: response.status };
                 logger.error(`${TAG} Erro API (Tentativa ${attempt}) insights Media ${mediaId}:`, error);
                 const isTokenError = error.code === 190 || ('error_subcode' in error && (error.error_subcode === 463 || error.error_subcode === 467));
+                if (error.code === 100 && error.message.toLowerCase().includes('metric')) {
+                    logger.error(`${TAG} Erro API (#100) - Métrica possivelmente inválida para Media ${mediaId} ou API ${API_VERSION}. Métricas pedidas: ${metricsToFetch}. Erro: ${error.message}`);
+                    bail(new Error(`Métrica inválida para mídia ${mediaId} (API ${API_VERSION}): ${error.message}. Pedido: ${metricsToFetch}`)); return;
+                }
                 if (error.code === 10) { bail(new Error(`Permissão insuficiente insights mídia: ${error.message}`)); return; }
-                if (error.code === 100 && error.message.includes('metric') || error.message.includes('breakdown')) { bail(new Error(`Métrica/Breakdown inválido: ${error.message}`)); return;}
                 if (isTokenError) { bail(new Error('Token inválido/expirado insights mídia.')); return; }
                 if (response.status >= 400 && response.status < 500 && response.status !== 429) { bail(new Error(`Falha insights mídia (Erro ${response.status}): ${error.message}`)); return; }
                 throw new Error(`Erro temp (${response.status}) insights mídia: ${error.message}`);
             } return data;
         }, RETRY_OPTIONS);
+
         const insights: Partial<IMetricStats> = {};
         if (responseData?.data) {
             responseData.data.forEach(item => {
@@ -230,7 +237,7 @@ export async function fetchMediaInsights(
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         logger.error(`${TAG} Erro final insights Media ${mediaId}:`, error);
-        return { success: false, error: message.includes('Permissão') || message.includes('Token') || message.includes('Falha') || message.includes('inválido') ? message : `Erro interno insights mídia: ${message}` };
+        return { success: false, error: message.includes('Permissão') || message.includes('Token') || message.includes('Falha') || message.includes('inválida') ? message : `Erro interno insights mídia: ${message}` };
     }
 }
 
@@ -408,12 +415,12 @@ export async function clearInstagramConnection(userId: string | mongoose.Types.O
     } catch (error) { logger.error(`${TAG} Erro ao limpar dados de conexão Instagram no DB para User ${userId}:`, error); }
 }
 
-function mapMediaTypeToFormat(mediaType?: 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM'): string {
+function mapMediaTypeToFormat(mediaType?: 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM' | 'STORY'): string {
     switch (mediaType) { case 'IMAGE': return 'Foto'; case 'VIDEO': return 'Reel'; case 'CAROUSEL_ALBUM': return 'Carrossel'; default: return 'Desconhecido'; }
 }
 
 async function saveMetricData( userId: Types.ObjectId, media: InstagramMedia, insights: IMetricStats ): Promise<void> {
-    const TAG = '[saveMetricData]';
+    const TAG = '[saveMetricData v1.9.13]';
     const startTime = Date.now(); logger.debug(`${TAG} Iniciando save/update User: ${userId}, Media: ${media.id}`);
     if (!media.id) { logger.error(`${TAG} Sem instagramMediaId.`); throw new Error("Sem instagramMediaId."); }
     if (media.media_type === 'STORY') { logger.debug(`${TAG} Ignorando STORY ${media.id}.`); return; }
@@ -425,40 +432,157 @@ async function saveMetricData( userId: Types.ObjectId, media: InstagramMedia, in
         const options = { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true };
         savedMetric = await MetricModel.findOneAndUpdate(filter, finalUpdateOperation, options);
         if (!savedMetric) { logger.error(`${TAG} Falha CRÍTICA save/update métrica ${media.id}. Filter:`, filter, 'Update:', finalUpdateOperation); throw new Error(`Falha crítica save métrica ${media.id}.`); }
-        logger.debug(`${TAG} Métrica ${savedMetric._id} (Media ${media.id}) salva/atualizada.`);
+        logger.debug(`${TAG} Métrica ${savedMetric._id} (Media ${media.id}) salva/atualizada. Formato: ${format}`);
         const workerUrl = process.env.CLASSIFICATION_WORKER_URL; if (qstashClient && workerUrl) { if (savedMetric.classificationStatus === 'pending' && savedMetric.description && savedMetric.description.trim() !== '') { try { await qstashClient.publishJSON({ url: workerUrl, body: { metricId: savedMetric._id.toString() } }); logger.info(`${TAG} Tarefa classificação QStash OK: ${savedMetric._id}.`); } catch (qstashError) { logger.error(`${TAG} ERRO QStash ${savedMetric._id}.`, qstashError); } } } else if (!workerUrl && qstashClient) { logger.warn(`${TAG} CLASSIFICATION_WORKER_URL não definido, classificação não será enviada.`); }
+        
+        // <<< CHAMADA PARA A FUNÇÃO createOrUpdateDailySnapshot ATUALIZADA >>>
         await createOrUpdateDailySnapshot(savedMetric);
+
     } catch (error) { logger.error(`${TAG} Erro CRÍTICO save/update métrica ${media.id}:`, error); throw error;
     } finally { const duration = Date.now() - startTime; logger.debug(`${TAG} Concluído save/update. User: ${userId}, Media: ${media.id}. Duração: ${duration}ms`); }
 }
 
+// <<< FUNÇÃO createOrUpdateDailySnapshot ATUALIZADA PARA INCLUIR MÉTRICAS DE REELS >>>
 async function createOrUpdateDailySnapshot(metric: IMetric): Promise<void> {
-    const SNAPSHOT_TAG = '[DailySnapshot v1.9.7]';
-    if (metric.source !== 'api') { logger.debug(`${SNAPSHOT_TAG} Pulando snapshot para métrica não-API ${metric._id}.`); return; }
-    if (!metric.postDate) { logger.warn(`${SNAPSHOT_TAG} Metric ${metric._id} sem postDate, não é possível criar snapshot.`); return; }
+    const SNAPSHOT_TAG = '[DailySnapshot v1.9.14_Reels]'; // Nova versão para o log
+    if (metric.source !== 'api') {
+        logger.debug(`${SNAPSHOT_TAG} Pulando snapshot para métrica não-API ${metric._id}.`);
+        return;
+    }
+    if (!metric.postDate) {
+        logger.warn(`${SNAPSHOT_TAG} Metric ${metric._id} sem postDate, não é possível criar snapshot.`);
+        return;
+    }
+
     try {
-        const postDate = new Date(metric.postDate); const today = new Date(); today.setUTCHours(0, 0, 0, 0);
-        const cutoffDate = new Date(postDate); cutoffDate.setUTCDate(cutoffDate.getUTCDate() + 30); cutoffDate.setUTCHours(0, 0, 0, 0);
-        if (today > cutoffDate) { logger.debug(`${SNAPSHOT_TAG} Metric ${metric._id} passou da data de corte para snapshots.`); return; }
+        const postDate = new Date(metric.postDate);
+        const today = new Date();
+        today.setUTCHours(0, 0, 0, 0);
+
+        const cutoffDaysForSnapshot = 30; // Mantém o corte de 30 dias para relevância do snapshot diário
+        const cutoffDate = new Date(postDate);
+        cutoffDate.setUTCDate(cutoffDate.getUTCDate() + cutoffDaysForSnapshot);
+        cutoffDate.setUTCHours(0, 0, 0, 0);
+
+        if (today > cutoffDate) {
+            logger.debug(`${SNAPSHOT_TAG} Metric ${metric._id} (postado em ${postDate.toISOString().split('T')[0]}) passou da data de corte de ${cutoffDaysForSnapshot} dias para snapshots (hoje é ${today.toISOString().split('T')[0]}).`);
+            return;
+        }
+
         const snapshotDate = today;
-        logger.debug(`${SNAPSHOT_TAG} Calculando snapshot Metric ${metric._id} data ${snapshotDate.toISOString().split('T')[0]}.`);
-        const lastSnapshot: IDailyMetricSnapshot | null = await DailyMetricSnapshotModel.findOne({ metric: metric._id, date: { $lt: snapshotDate } }).sort({ date: -1 }).lean();
-        const previousCumulativeStats: Partial<Record<keyof IMetricStats, number>> = { views: 0, likes: 0, comments: 0, shares: 0, saved: 0, reach: 0, follows: 0, profile_visits: 0, total_interactions: 0 };
-        if (lastSnapshot) { Object.assign(previousCumulativeStats, { views: lastSnapshot.cumulativeViews ?? 0, likes: lastSnapshot.cumulativeLikes ?? 0, comments: lastSnapshot.cumulativeComments ?? 0, shares: lastSnapshot.cumulativeShares ?? 0, saved: lastSnapshot.cumulativeSaved ?? 0, reach: lastSnapshot.cumulativeReach ?? 0, follows: lastSnapshot.cumulativeFollows ?? 0, profile_visits: lastSnapshot.cumulativeProfileVisits ?? 0, total_interactions: lastSnapshot.cumulativeTotalInteractions ?? 0 }); }
-        const currentCumulativeStats = metric.stats; if (!currentCumulativeStats) { logger.warn(`${SNAPSHOT_TAG} Metric ${metric._id} sem 'stats' atuais para snapshot.`); return; }
-        const dailyStats: Partial<Record<keyof IDailyMetricSnapshot, number>> = {}; const metricsToCalculateDelta: (keyof IMetricStats)[] = [ 'views', 'likes', 'comments', 'shares', 'saved', 'reach', 'follows', 'profile_visits' ];
-        for (const metricName of metricsToCalculateDelta) { const currentVal = Number(currentCumulativeStats[metricName] ?? 0); if (isNaN(currentVal)) { logger.warn(`${SNAPSHOT_TAG} Valor inválido '${metricName}' Metric ${metric._id}.`); continue; } const previousVal = previousCumulativeStats[metricName] ?? 0; const metricNameStr = String(metricName); const dailyKey = `daily${metricNameStr.charAt(0).toUpperCase() + metricNameStr.slice(1)}` as keyof IDailyMetricSnapshot; dailyStats[dailyKey] = Math.max(0, currentVal - previousVal); if (currentVal < previousVal) { logger.warn(`${SNAPSHOT_TAG} Valor cumulativo '${metricNameStr}' diminuiu (${metric._id}). Atual: ${currentVal}, Ant: ${previousVal}.`); } }
+        logger.debug(`${SNAPSHOT_TAG} Calculando snapshot Metric ${metric._id} para data ${snapshotDate.toISOString().split('T')[0]}.`);
+
+        const lastSnapshot: IDailyMetricSnapshot | null = await DailyMetricSnapshotModel.findOne({
+            metric: metric._id,
+            date: { $lt: snapshotDate }
+        }).sort({ date: -1 }).lean();
+
+        // Define a estrutura para os stats cumulativos anteriores, incluindo os de Reels
+        const previousCumulativeStats: Partial<Record<keyof IMetricStats | 'reelsVideoViewTotalTime', number>> = {
+            views: 0, likes: 0, comments: 0, shares: 0, saved: 0, reach: 0, follows: 0, profile_visits: 0, total_interactions: 0,
+            reelsVideoViewTotalTime: 0, // Para o cálculo do delta de Reels
+        };
+
+        if (lastSnapshot) {
+            Object.assign(previousCumulativeStats, {
+                views: lastSnapshot.cumulativeViews ?? 0,
+                likes: lastSnapshot.cumulativeLikes ?? 0,
+                comments: lastSnapshot.cumulativeComments ?? 0,
+                shares: lastSnapshot.cumulativeShares ?? 0,
+                saved: lastSnapshot.cumulativeSaved ?? 0,
+                reach: lastSnapshot.cumulativeReach ?? 0,
+                follows: lastSnapshot.cumulativeFollows ?? 0,
+                profile_visits: lastSnapshot.cumulativeProfileVisits ?? 0,
+                total_interactions: lastSnapshot.cumulativeTotalInteractions ?? 0,
+                reelsVideoViewTotalTime: lastSnapshot.cumulativeReelsVideoViewTotalTime ?? 0,
+            });
+        }
+
+        const currentMetricStats = metric.stats as IMetricStats; 
+        if (!currentMetricStats) {
+            logger.warn(`${SNAPSHOT_TAG} Metric ${metric._id} sem 'stats' atuais para snapshot.`);
+            return;
+        }
+
+        const dailyStats: Partial<Record<keyof IDailyMetricSnapshot, number>> = {};
+        const metricsToCalculateDelta: (keyof IMetricStats)[] = [
+            'views', 'likes', 'comments', 'shares', 'saved', 'reach', 'follows', 'profile_visits'
+        ];
+
+        for (const metricName of metricsToCalculateDelta) {
+            const currentVal = Number(currentMetricStats[metricName] ?? 0);
+            if (isNaN(currentVal)) {
+                logger.warn(`${SNAPSHOT_TAG} Valor inválido para '${metricName}' na Metric ${metric._id}. Valor: ${currentMetricStats[metricName]}`);
+                continue;
+            }
+            const previousVal = previousCumulativeStats[metricName] ?? 0;
+            const metricNameStr = String(metricName);
+            const dailyKey = `daily${metricNameStr.charAt(0).toUpperCase() + metricNameStr.slice(1)}` as keyof IDailyMetricSnapshot;
+            dailyStats[dailyKey] = Math.max(0, currentVal - previousVal);
+            if (currentVal < previousVal && previousVal > 0) { // Adicionado previousVal > 0 para evitar log em inicialização
+                logger.warn(`${SNAPSHOT_TAG} Valor cumulativo '${metricNameStr}' diminuiu para Metric ${metric._id}. Atual: ${currentVal}, Anterior: ${previousVal}.`);
+            }
+        }
+
+        // Cálculo específico para dailyReelsVideoViewTotalTime
+        const currentReelsVideoViewTotalTime = Number(currentMetricStats.ig_reels_video_view_total_time ?? 0);
+        if (!isNaN(currentReelsVideoViewTotalTime)) {
+            const previousReelsVideoViewTotalTime = previousCumulativeStats.reelsVideoViewTotalTime ?? 0;
+            dailyStats.dailyReelsVideoViewTotalTime = Math.max(0, currentReelsVideoViewTotalTime - previousReelsVideoViewTotalTime);
+            if (currentReelsVideoViewTotalTime < previousReelsVideoViewTotalTime && previousReelsVideoViewTotalTime > 0) {
+                logger.warn(`${SNAPSHOT_TAG} Valor cumulativo 'ig_reels_video_view_total_time' diminuiu para Metric ${metric._id}. Atual: ${currentReelsVideoViewTotalTime}, Anterior: ${previousReelsVideoViewTotalTime}.`);
+            }
+        } else {
+            logger.warn(`${SNAPSHOT_TAG} Valor inválido para 'ig_reels_video_view_total_time' na Metric ${metric._id}. Valor: ${currentMetricStats.ig_reels_video_view_total_time}`);
+            dailyStats.dailyReelsVideoViewTotalTime = 0; // Garante que seja 0 se inválido
+        }
+        
+        const currentReelsAvgWatchTime = Number(currentMetricStats.ig_reels_avg_watch_time ?? 0);
+        if (isNaN(currentReelsAvgWatchTime)) {
+            logger.warn(`${SNAPSHOT_TAG} Valor inválido para 'ig_reels_avg_watch_time' na Metric ${metric._id}. Valor: ${currentMetricStats.ig_reels_avg_watch_time}`);
+        }
+
         type SnapshotUpdateDataType = Omit<Partial<IDailyMetricSnapshot>, '_id' | 'metric' | 'date'> & { metric: Types.ObjectId; date: Date; };
         const snapshotData: SnapshotUpdateDataType = {
             metric: metric._id,
             date: snapshotDate,
-            dailyViews: dailyStats.dailyViews, dailyLikes: dailyStats.dailyLikes, dailyComments: dailyStats.dailyComments, dailyShares: dailyStats.dailyShares, dailySaved: dailyStats.dailySaved, dailyReach: dailyStats.dailyReach, dailyFollows: dailyStats.dailyFollows, dailyProfileVisits: dailyStats.dailyProfileVisits,
-            cumulativeViews: Number(currentCumulativeStats.views ?? 0), cumulativeLikes: Number(currentCumulativeStats.likes ?? 0), cumulativeComments: Number(currentCumulativeStats.comments ?? 0), cumulativeShares: Number(currentCumulativeStats.shares ?? 0), cumulativeSaved: Number(currentCumulativeStats.saved ?? 0), cumulativeReach: Number(currentCumulativeStats.reach ?? 0), cumulativeFollows: Number(currentCumulativeStats.follows ?? 0), cumulativeProfileVisits: Number(currentCumulativeStats.profile_visits ?? 0), cumulativeTotalInteractions: Number(currentCumulativeStats.total_interactions ?? 0),
+
+            dailyViews: dailyStats.dailyViews,
+            dailyLikes: dailyStats.dailyLikes,
+            dailyComments: dailyStats.dailyComments,
+            dailyShares: dailyStats.dailyShares,
+            dailySaved: dailyStats.dailySaved,
+            dailyReach: dailyStats.dailyReach,
+            dailyFollows: dailyStats.dailyFollows,
+            dailyProfileVisits: dailyStats.dailyProfileVisits,
+            dailyReelsVideoViewTotalTime: dailyStats.dailyReelsVideoViewTotalTime,
+
+            cumulativeViews: Number(currentMetricStats.views ?? 0),
+            cumulativeLikes: Number(currentMetricStats.likes ?? 0),
+            cumulativeComments: Number(currentMetricStats.comments ?? 0),
+            cumulativeShares: Number(currentMetricStats.shares ?? 0),
+            cumulativeSaved: Number(currentMetricStats.saved ?? 0),
+            cumulativeReach: Number(currentMetricStats.reach ?? 0),
+            cumulativeFollows: Number(currentMetricStats.follows ?? 0),
+            cumulativeProfileVisits: Number(currentMetricStats.profile_visits ?? 0),
+            cumulativeTotalInteractions: Number(currentMetricStats.total_interactions ?? 0),
+            cumulativeReelsVideoViewTotalTime: !isNaN(currentReelsVideoViewTotalTime) ? currentReelsVideoViewTotalTime : 0,
+
+            currentReelsAvgWatchTime: !isNaN(currentReelsAvgWatchTime) ? currentReelsAvgWatchTime : 0,
         };
-        await DailyMetricSnapshotModel.updateOne({ metric: metric._id, date: snapshotDate }, { $set: snapshotData }, { upsert: true });
-        logger.debug(`${SNAPSHOT_TAG} Snapshot salvo/atualizado Metric ${metric._id} data ${snapshotDate.toISOString().split('T')[0]}.`);
-    } catch (snapError) { logger.error(`${SNAPSHOT_TAG} Erro NÃO FATAL ao criar/atualizar snapshot para Metric ${metric._id}:`, snapError); }
+
+        await DailyMetricSnapshotModel.updateOne(
+            { metric: metric._id, date: snapshotDate },
+            { $set: snapshotData },
+            { upsert: true }
+        );
+        logger.debug(`${SNAPSHOT_TAG} Snapshot salvo/atualizado para Metric ${metric._id} na data ${snapshotDate.toISOString().split('T')[0]}.`);
+
+    } catch (snapError) {
+        logger.error(`${SNAPSHOT_TAG} Erro NÃO FATAL ao criar/atualizar snapshot para Metric ${metric._id}:`, snapError);
+    }
 }
+
 
 export async function saveAccountInsightData( userId: Types.ObjectId, accountId: string, insights: IAccountInsightsPeriod | undefined, demographics: IAudienceDemographics | undefined, accountData: Partial<IUser> | undefined ): Promise<void> {
     const TAG = '[saveAccountInsightData]';
@@ -478,14 +602,8 @@ export async function saveAccountInsightData( userId: Types.ObjectId, accountId:
     } catch (error) { logger.error(`${TAG} Erro ao salvar snapshot de insights da conta para User ${userId}:`, error); }
 }
 
-/**
- * Dispara o processo completo de atualização de dados do Instagram para um usuário.
- * <<< OTIMIZADO v1.9.12: Apenas busca insights/salva posts recentes >>>
- * @param userId - ID (string) do usuário.
- * @returns Objeto com status de sucesso, mensagem e detalhes da operação.
- */
 export async function triggerDataRefresh(userId: string): Promise<{ success: boolean; message: string; details?: any }> {
-    const TAG = '[triggerDataRefresh v1.9.12]'; // <<< Versão Atualizada
+    const TAG = '[triggerDataRefresh v1.9.14]'; // <<< Versão Atualizada do triggerDataRefresh
     const startTime = Date.now();
     logger.info(`${TAG} Iniciando atualização de dados para User ${userId}...`);
 
@@ -495,10 +613,8 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
     }
     const userObjectId = new Types.ObjectId(userId);
 
-    // --- Obtenção do Token e Account ID ---
     let accessToken: string | null = null;
     let accountId: string | null = null;
-    let usingSystemToken = false;
     const systemTokenEnv = process.env.FB_SYSTEM_USER_TOKEN;
 
     try {
@@ -512,9 +628,9 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
         accountId = connectionDetails.accountId;
 
         if (connectionDetails.accessToken) {
-            accessToken = connectionDetails.accessToken; usingSystemToken = false; logger.info(`${TAG} Utilizando LLAT do usuário (${userId}) para o refresh.`);
+            accessToken = connectionDetails.accessToken; logger.info(`${TAG} Utilizando LLAT do usuário (${userId}) para o refresh.`);
         } else if (systemTokenEnv) {
-            accessToken = systemTokenEnv; usingSystemToken = true; logger.warn(`${TAG} LLAT do usuário ${userId} não encontrado no DB; usando System User Token como fallback para o refresh.`);
+            accessToken = systemTokenEnv; logger.warn(`${TAG} LLAT do usuário ${userId} não encontrado no DB; usando System User Token como fallback para o refresh.`);
         } else {
             logger.error(`${TAG} LLAT do usuário ${userId} E System Token não encontrados. Abortando refresh.`);
             await DbUser.findByIdAndUpdate(userObjectId, { $set: { lastInstagramSyncAttempt: new Date(), lastInstagramSyncSuccess: false } }).catch(dbErr => logger.error(`${TAG} Falha ao atualizar status sync (token ausente) ${userId}:`, dbErr));
@@ -527,19 +643,17 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
 
     await DbUser.findByIdAndUpdate(userObjectId, { $set: { lastInstagramSyncAttempt: new Date() } }).catch(dbErr => logger.error(`${TAG} Falha ao atualizar início sync ${userId}:`, dbErr));
 
-    let totalMediaFound = 0, totalMediaProcessed = 0, collectedMediaInsights = 0, savedMediaMetrics = 0, skippedOldMedia = 0; // <<< Adicionado skippedOldMedia
+    let totalMediaFound = 0, totalMediaProcessed = 0, collectedMediaInsights = 0, savedMediaMetrics = 0, skippedOldMedia = 0;
     let collectedAccountInsights = false, savedAccountInsights = false, collectedDemographics = false;
     let savedDemographics = false, collectedBasicAccountData = false;
     let errors: { step: string; message: string; details?: any }[] = [];
     let mediaCurrentPage = 0; let hasMoreMediaPages = true; let overallSuccess = true;
 
-    // <<< OTIMIZAÇÃO: Calcula data limite para buscar insights >>>
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - INSIGHT_FETCH_CUTOFF_DAYS);
     logger.info(`${TAG} Buscará insights/atualizará métricas apenas para posts desde: ${cutoffDate.toISOString().split('T')[0]}`);
 
     try {
-        // --- 1. Fetch Basic Account Data ---
         logger.info(`${TAG} [Step 1/3] Buscando dados básicos da conta ${accountId}...`);
         let basicAccountData: Partial<IUser> | undefined;
         const basicDataResult = await fetchBasicAccountData(accountId!, accessToken!);
@@ -552,7 +666,6 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
              }
         }
 
-        // --- 2. Fetch and Process Media Pages ---
         logger.info(`${TAG} [Step 2/3] Iniciando busca de mídias (limite ${MAX_PAGES_MEDIA} pgs)...`);
         let nextPageMediaUrl: string | null | undefined = undefined; mediaCurrentPage = 0;
         do {
@@ -565,30 +678,41 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
             const mediaInPage = mediaResult.data ?? []; totalMediaFound += mediaInPage.length;
             if (mediaInPage.length > 0 && overallSuccess) {
                 const processableMedia = mediaInPage.filter(m => m.media_type !== 'STORY');
-                logger.info(`${TAG} Pág ${mediaCurrentPage}: ${processableMedia.length} mídias processáveis.`);
+                logger.info(`${TAG} Pág ${mediaCurrentPage}: ${processableMedia.length} mídias processáveis (não-Story).`);
 
-                // <<< OTIMIZAÇÃO: Filtra mídias recentes ANTES de buscar insights >>>
                 const recentProcessableMedia = processableMedia.filter(media => {
-                    if (!media.timestamp) return false; // Ignora se não tiver timestamp
+                    if (!media.timestamp) return false;
                     const postDate = new Date(media.timestamp);
                     if (postDate >= cutoffDate) {
-                        return true; // Processa se for recente
+                        return true;
                     } else {
-                        skippedOldMedia++; // Conta as mídias antigas puladas
+                        skippedOldMedia++;
                         logger.debug(`${TAG} Pulando insights/save para mídia antiga ${media.id} (Data: ${postDate.toISOString().split('T')[0]})`);
                         return false;
                     }
                 });
-                totalMediaProcessed += recentProcessableMedia.length; // Conta apenas as que serão processadas
+                totalMediaProcessed += recentProcessableMedia.length;
 
                 if (recentProcessableMedia.length > 0) {
                     logger.info(`${TAG} Pág ${mediaCurrentPage}: ${recentProcessableMedia.length} mídias recentes para buscar insights...`);
                     const insightTasks = recentProcessableMedia.map(media => limitInsightsFetch(async () => {
                         if (!media.id || !accessToken) return { mediaId: media.id ?? '?', status: 'skipped', reason: 'ID/Token ausente' };
-                        const insightsResult = await fetchMediaInsights(media.id, accessToken!);
+                        
+                        let currentMetricsToFetch = MEDIA_INSIGHTS_METRICS;
+                        if (media.media_type === 'VIDEO') {
+                            logger.debug(`${TAG} Mídia ${media.id} (timestamp: ${media.timestamp}) é VIDEO, adicionando métricas de Reels.`);
+                            const baseMetricsSet = new Set(MEDIA_INSIGHTS_METRICS.split(',').map(s => s.trim()).filter(s => s));
+                            REEL_SPECIFIC_INSIGHTS_METRICS.split(',').map(s => s.trim()).filter(s => s).forEach(metric => baseMetricsSet.add(metric));
+                            currentMetricsToFetch = Array.from(baseMetricsSet).join(',');
+                            logger.debug(`${TAG} Métricas para Reel ${media.id}: ${currentMetricsToFetch}`);
+                        }
+
+                        const insightsResult = await fetchMediaInsights(media.id, accessToken!, currentMetricsToFetch);
+                        
                         if (!insightsResult.success && insightsResult.error?.includes('Token')) throw new Error(`Token error on media ${media.id}`);
                         return { mediaId: media.id, media, insightsResult };
                     }));
+
                     const insightTaskResults = await Promise.allSettled(insightTasks);
                     for (const result of insightTaskResults) {
                         if (result.status === 'fulfilled' && result.value) {
@@ -628,10 +752,8 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
             if (hasMoreMediaPages && mediaCurrentPage < MAX_PAGES_MEDIA && overallSuccess) await new Promise(r => setTimeout(r, DELAY_MS));
         } while (hasMoreMediaPages && mediaCurrentPage < MAX_PAGES_MEDIA && overallSuccess);
         if (mediaCurrentPage >= MAX_PAGES_MEDIA && hasMoreMediaPages) errors.push({ step: 'fetchInstagramMedia', message: `Limite de ${MAX_PAGES_MEDIA} páginas de mídia atingido.` });
-        logger.info(`${TAG} Processamento de mídias concluído. ${skippedOldMedia} mídias antigas puladas.`); // <<< Log atualizado
+        logger.info(`${TAG} Processamento de mídias concluído. ${skippedOldMedia} mídias antigas puladas.`);
 
-
-        // --- 3. Fetch and Save Account Insights & Demographics ---
         if (overallSuccess) {
             logger.info(`${TAG} [Step 3/3] Buscando insights/demografia da conta ${accountId}...`);
             let accountInsightData: IAccountInsightsPeriod | undefined; let audienceDemographicsData: IAudienceDemographics | undefined;
@@ -650,18 +772,16 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
             else if (!overallSuccess) logger.warn(`${TAG} Pulando save snapshot conta por erro anterior de token/permissão.`); else logger.warn(`${TAG} Nenhum dado novo de insights/demografia/básico da conta para salvar no snapshot.`);
         } else logger.warn(`${TAG} Pulando insights/demografia da conta por erro anterior.`);
 
-        // --- Conclusion ---
         const duration = Date.now() - startTime;
         const finalSuccessStatus = overallSuccess;
         const statusMsg = finalSuccessStatus ? 'concluída com sucesso' : 'concluída com erros (verificar token/permissões ou erros não fatais)';
-        // <<< Sumário Atualizado >>>
         const summary = `Mídias Recentes Salvas/Atualizadas: ${savedMediaMetrics}/${totalMediaProcessed}. Mídias Antigas Puladas: ${skippedOldMedia}. Insights Conta: ${savedAccountInsights ? 'Salvo' : 'Não'}. Demo: ${savedDemographics ? 'Salva' : 'Não'}. Básicos: ${collectedBasicAccountData ? 'OK' : 'Falha'}.`;
         const errorSummary = errors.length > 0 ? `Erros (${errors.length}): ${errors.map(e => `${e.step}: ${e.message}`).slice(0, 3).join('; ')}...` : 'Nenhum erro reportado.';
         const finalMessage = `Atualização ${statusMsg} para User ${userId}. ${summary} ${errorSummary}`;
         logger.info(`${TAG} Finalizado. User: ${userId}. Sucesso Geral: ${finalSuccessStatus}. Duração: ${duration}ms. ${finalMessage}`);
         if(errors.length > 0) logger.warn(`${TAG} Detalhes dos erros (${errors.length}):`, errors);
         await DbUser.findByIdAndUpdate(userObjectId, { $set: { lastInstagramSyncSuccess: finalSuccessStatus } }).catch(dbErr => logger.error(`${TAG} Falha ao atualizar status final sync ${userId}:`, dbErr));
-        return { success: finalSuccessStatus, message: finalMessage, details: { errors, durationMs: duration, savedMediaMetrics, totalMediaProcessed, skippedOldMedia, collectedAccountInsights, savedAccountInsights, collectedDemographics, savedDemographics, collectedBasicAccountData } }; // <<< Adicionado skippedOldMedia aos details
+        return { success: finalSuccessStatus, message: finalMessage, details: { errors, durationMs: duration, savedMediaMetrics, totalMediaProcessed, skippedOldMedia, collectedAccountInsights, savedAccountInsights, collectedDemographics, savedDemographics, collectedBasicAccountData } };
 
     } catch (error: unknown) {
         const duration = Date.now() - startTime; logger.error(`${TAG} Erro crítico NÃO TRATADO durante refresh para ${userId}. Duração: ${duration}ms`, error);
@@ -671,10 +791,6 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
     }
 }
 
-
-// =========================================================================
-// == Função fetchAvailableInstagramAccounts (Mantida como v1.9.9) ===
-// =========================================================================
 export async function fetchAvailableInstagramAccounts(
     shortLivedToken: string,
     userId: string
@@ -695,6 +811,7 @@ export async function fetchAvailableInstagramAccounts(
             const llatData = await retry(async (bail, attempt) => { if (attempt > 1) logger.warn(`${TAG} Tentativa ${attempt} para obter LLAT do usuário.`); const response = await fetch(llatUrl); const data: any & FacebookApiError = await response.json(); if (!response.ok || !data.access_token) { type ErrorType = FacebookApiErrorStructure | { message: string; code: number; }; const error: ErrorType = data.error || { message: `Erro ${response.status} ao obter LLAT`, code: response.status }; logger.error(`${TAG} Erro API (Tentativa ${attempt}) ao obter LLAT do usuário:`, error); if (response.status === 400 || error.code === 190) { bail(new Error(error.message || 'Falha ao obter token de longa duração (SLT inválido/expirado?).')); return; } if (response.status >= 400 && response.status < 500 && response.status !== 429) { bail(new Error(error.message || `Falha não recuperável (${response.status}) ao obter LLAT.`)); return; } throw new Error(error.message || `Erro temporário ${response.status} ao obter LLAT.`); } return data; }, RETRY_OPTIONS);
             userLongLivedAccessToken = llatData.access_token; logger.info(`${TAG} LLAT do usuário ${userId} obtido com sucesso.`);
         } catch (llatError: any) { logger.error(`${TAG} Falha CRÍTICA ao obter LLAT do usuário ${userId}:`, llatError); if (llatError.message.toLowerCase().includes('token')) { await clearInstagramConnection(userId); } return { success: false, error: `Falha ao obter token de acesso necessário: ${llatError.message}` }; }
+        
         if (businessId && systemUserToken) {
             logger.info(`${TAG} Utilizando fluxo primário via System User Token para listar contas.`);
             const systemUserAccessToken = systemUserToken; const allPagesData: PageAccountData[] = []; let currentPageUrl: string | null = `${BASE_URL}/${API_VERSION}/${businessId}/owned_pages?fields=id,name,instagram_business_account{id}&limit=100&access_token=${systemUserAccessToken}`; let pageCount = 0; let fetchError: Error | null = null; logger.debug(`${TAG} Buscando páginas via /${businessId}/owned_pages...`);
@@ -734,7 +851,7 @@ export async function connectInstagramAccount(
     instagramAccountId: string,
     longLivedAccessToken: string | null
 ): Promise<{ success: boolean; error?: string }> {
-    const TAG = '[connectInstagramAccount v1.9.11]'; // <<< Versão Atualizada
+    const TAG = '[connectInstagramAccount v1.9.11]';
     logger.info(`${TAG} Atualizando status de conexão para User ${userId}, Conta IG ${instagramAccountId}`);
 
     if (!mongoose.isValidObjectId(userId)) { const errorMsg = `ID de usuário inválido: ${userId}`; logger.error(`${TAG} ${errorMsg}`); return { success: false, error: errorMsg }; }
@@ -757,28 +874,24 @@ export async function connectInstagramAccount(
         const refreshWorkerUrl = process.env.REFRESH_WORKER_URL;
         logger.info(`${TAG} Verificando QStash. Cliente inicializado: ${!!qstashClient}. URL do Worker: ${refreshWorkerUrl}`);
         if (qstashClient && refreshWorkerUrl) {
-            logger.info(`${TAG} Bloco IF para QStash alcançado.`); // <<< LOG TESTE 1 >>>
+            logger.info(`${TAG} Bloco IF para QStash alcançado.`);
             try {
-                logger.info(`${TAG} Dentro do TRY, antes de publishJSON.`); // <<< LOG TESTE 2 >>>
-                // --- TEMPORARIAMENTE COMENTADO PARA TESTE ---
-                // const publishResponse = await qstashClient.publishJSON({
-                //     url: refreshWorkerUrl,
-                //     body: { userId: userId.toString() },
-                // });
-                // logger.info(`${TAG} Tarefa de refresh enviada com sucesso para QStash para User ${userId}. Message ID: ${publishResponse.messageId}`);
-                // --- FIM DO COMENTÁRIO ---
-                logger.info(`${TAG} Dentro do TRY, APÓS publishJSON (comentado).`); // <<< LOG TESTE 3 >>>
+                logger.info(`${TAG} Dentro do TRY, antes de publishJSON.`);
+                const publishResponse = await qstashClient.publishJSON({
+                     url: refreshWorkerUrl,
+                     body: { userId: userId.toString() },
+                });
+                logger.info(`${TAG} Tarefa de refresh enviada com sucesso para QStash para User ${userId}. Message ID: ${publishResponse.messageId}`);
+                logger.info(`${TAG} Dentro do TRY, APÓS publishJSON (ou bloco de produção).`);
             } catch (qstashError: any) {
-                logger.error(`${TAG} DENTRO DO CATCH do publishJSON! Erro:`, qstashError); // <<< LOG TESTE 4 >>>
+                logger.error(`${TAG} DENTRO DO CATCH do publishJSON! Erro:`, qstashError);
                 if (qstashError.message) { logger.error(`${TAG} Mensagem de erro QStash: ${qstashError.message}`); }
-                await DbUser.findByIdAndUpdate(userId, { $set: { lastInstagramSyncSuccess: false } }).catch(dbErr => logger.error(`${TAG} Falha ao atualizar status sync (erro QStash) ${userId}:`, dbErr));
             }
-             logger.info(`${TAG} Fora do TRY/CATCH do publishJSON.`); // <<< LOG TESTE 5 >>>
+             logger.info(`${TAG} Fora do TRY/CATCH do publishJSON.`);
         } else {
             logger.warn(`${TAG} QStash Client ou REFRESH_WORKER_URL não configurado corretamente. Pulando agendamento de refresh automático via worker.`);
-             await DbUser.findByIdAndUpdate(userId, { $set: { lastInstagramSyncSuccess: false } }).catch(dbErr => logger.error(`${TAG} Falha ao atualizar status sync (sem worker) ${userId}:`, dbErr));
         }
-        logger.info(`${TAG} Finalizando connectInstagramAccount.`); // <<< LOG TESTE 6 >>>
+        logger.info(`${TAG} Finalizando connectInstagramAccount.`);
         return { success: true };
     } catch (error: unknown) {
         const errorMsg = error instanceof Error ? error.message : String(error);

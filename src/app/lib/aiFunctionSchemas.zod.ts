@@ -1,11 +1,17 @@
 // @/app/lib/aiFunctionSchemas.zod.ts
+// v1.1.0 - Adiciona analysisPeriod a GetAggregatedReportArgsSchema e 'best_posting_times' a GetConsultingKnowledgeArgsSchema.
 // Arquivo para definir os schemas Zod para validar os argumentos das funções chamadas pela IA.
 
 import { z } from 'zod';
 import { Types } from 'mongoose'; // Importado para validação de ObjectId, se necessário
 
-// Schema para getAggregatedReport (sem argumentos)
-export const GetAggregatedReportArgsSchema = z.object({}).strict();
+// Schema para getAggregatedReport (ATUALIZADO)
+export const GetAggregatedReportArgsSchema = z.object({
+  analysisPeriod: z.enum(['last180days', 'last365days', 'allTime'])
+    .optional()
+    .default('last180days')
+    .describe("O período a ser considerado para a análise do relatório. 'last180days' para os últimos 180 dias, 'last365days' para o último ano, 'allTime' para todo o histórico disponível."),
+}).strict().describe("Argumentos para buscar o relatório agregado e insights de publicidade."); // Adicionado describe e strict
 
 // Schema para getTopPosts
 export const GetTopPostsArgsSchema = z.object({
@@ -18,9 +24,11 @@ export const GetTopPostsArgsSchema = z.object({
            .default(3),
 }).strict();
 
-// Schema para getDayPCOStats (sem argumentos - igual a getAggregatedReport)
-// Se esta função realmente não tiver argumentos, podemos reutilizar o schema.
-// Certifique-se de que a definição em aiFunctions.ts corresponde.
+// Schema para getDayPCOStats (sem argumentos - igual a getAggregatedReport ANTES da mudança)
+// Se esta função realmente não tiver argumentos, podemos manter z.object({}).strict().
+// Mas getAggregatedReport agora tem 'analysisPeriod'. Se getDayPCOStats também precisar de período,
+// ele deveria ter seu próprio schema ou usar um schema genérico de período.
+// Por ora, mantendo como estava, assumindo que não precisa de 'analysisPeriod'.
 export const GetDayPCOStatsArgsSchema = z.object({}).strict();
 
 // Schema para getMetricDetailsById
@@ -41,26 +49,26 @@ export const FindPostsByCriteriaArgsSchema = z.object({
     proposal: z.string().optional(),
     context: z.string().optional(),
     dateRange: z.object({
-        start: dateStringSchema, // Usa schema de data validado
-        end: dateStringSchema,   // Usa schema de data validado
+        start: dateStringSchema.optional(), // Tornando start e end opcionais individualmente dentro do dateRange
+        end: dateStringSchema.optional(),   // Tornando start e end opcionais individualmente
       }).optional(),
     minLikes: z.number().int().positive("minLikes deve ser um inteiro positivo.").optional(),
     minShares: z.number().int().positive("minShares deve ser um inteiro positivo.").optional(),
-  }).strict("Apenas critérios definidos (format, proposal, etc.) são permitidos."), // Mensagem de erro para chaves extras
+  }).strict("Apenas critérios definidos (format, proposal, etc.) são permitidos."),
   limit: z.number().int().min(1).max(20).optional().default(5),
   sortBy: z.enum(['postDate', 'stats.shares', 'stats.saved', 'stats.likes', 'stats.reach']).optional().default('postDate'),
   sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
-}).strict(); // Não permite chaves extras no nível raiz
+}).strict();
 
 // Schema para getDailyMetricHistory
 export const GetDailyMetricHistoryArgsSchema = z.object({
   metricId: z.string().min(1, { message: "O ID da métrica não pode ser vazio." })
-             // .refine(val => Types.ObjectId.isValid(val), { message: "ID da métrica inválido (formato ObjectId esperado)." }) // Opcional
+             // .refine(val => Types.ObjectId.isValid(val), { message: "ID da métrica inválido (formato ObjectId esperado)." })
   ,
 }).strict();
 
 // Schema para getConsultingKnowledge
-// IMPORTANTE: Mantenha esta lista sincronizada com functionSchemas em aiFunctions.ts
+// IMPORTANTE: Mantenha esta lista sincronizada com functionSchemas em aiFunctions.ts e o prompt
 const validKnowledgeTopics = [
   'algorithm_overview', 'algorithm_feed', 'algorithm_stories', 'algorithm_reels',
   'algorithm_explore', 'engagement_signals', 'account_type_differences',
@@ -73,7 +81,8 @@ const validKnowledgeTopics = [
   'branding_positioning_by_size', 'branding_monetization',
   'branding_case_studies', 'branding_trends',
   'methodology_shares_retention', 'methodology_format_proficiency', 'methodology_cadence_quality',
-] as const; // 'as const' ajuda na inferência de tipo para o enum
+  'best_posting_times' // <<< ADICIONADO 'best_posting_times' >>>
+] as const;
 
 export const GetConsultingKnowledgeArgsSchema = z.object({
   topic: z.enum(validKnowledgeTopics, {
@@ -83,19 +92,16 @@ export const GetConsultingKnowledgeArgsSchema = z.object({
 
 
 // --- Mapa de Validadores ---
-// Tipo base para o mapa
 type ValidatorMap = {
   [key: string]: z.ZodType<any, any, any>;
 };
 
-// Mapa que associa o nome da função ao seu schema Zod de validação de argumentos
 export const functionValidators: ValidatorMap = {
   getAggregatedReport: GetAggregatedReportArgsSchema,
   getTopPosts: GetTopPostsArgsSchema,
-  getDayPCOStats: GetDayPCOStatsArgsSchema, // Reutiliza se não tiver args
+  getDayPCOStats: GetDayPCOStatsArgsSchema,
   getMetricDetailsById: GetMetricDetailsByIdArgsSchema,
   findPostsByCriteria: FindPostsByCriteriaArgsSchema,
   getDailyMetricHistory: GetDailyMetricHistoryArgsSchema,
   getConsultingKnowledge: GetConsultingKnowledgeArgsSchema,
-  // Certifique-se de que TODAS as suas funções de aiFunctions.ts tenham uma entrada aqui
 };

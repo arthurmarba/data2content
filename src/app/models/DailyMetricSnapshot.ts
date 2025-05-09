@@ -1,17 +1,21 @@
+// src/app/models/DailyMetricSnapshot.ts - v1.1.0 (Adiciona Métricas de Reels)
+// - Adicionados campos para métricas específicas de Reels:
+//   - currentReelsAvgWatchTime (valor mais recente do tempo médio de visualização)
+//   - dailyReelsVideoViewTotalTime (delta diário do tempo total de visualização)
+//   - cumulativeReelsVideoViewTotalTime (cumulativo do tempo total de visualização)
+
 import { Schema, model, models, Document, Model, Types } from "mongoose";
 import { IMetric } from "./Metric"; // Importa a interface IMetric para referência
 
 /**
  * Interface que define a estrutura de um snapshot diário de métricas.
- * Armazena tanto as métricas calculadas para um dia específico (deltas)
- * quanto as métricas cumulativas totais até o final daquele dia, conforme
- * obtidas da API ou outra fonte.
+ * ATUALIZADO v1.1.0: Adiciona campos para métricas específicas de Reels.
  */
 export interface IDailyMetricSnapshot extends Document {
   /**
    * Referência ao documento Metric original ao qual este snapshot pertence.
    */
-  metric: Types.ObjectId | IMetric; // Permite popular a referência
+  metric: Types.ObjectId | IMetric;
 
   /**
    * A data específica para a qual este snapshot se refere.
@@ -36,7 +40,8 @@ export interface IDailyMetricSnapshot extends Document {
   dailyFollows?: number;
   /** Visitas ao perfil originadas deste post apenas neste dia. */
   dailyProfileVisits?: number;
-  // Adicionar outros deltas relevantes se necessário no futuro
+  /** Delta diário do tempo total de visualização de Reels (em milissegundos ou segundos, conforme API). */
+  dailyReelsVideoViewTotalTime?: number;
 
   // --- Métricas CUMULATIVAS (Total *ATÉ O FINAL* daquele dia) ---
   /** Total de visualizações acumuladas até o final deste dia. */
@@ -57,11 +62,17 @@ export interface IDailyMetricSnapshot extends Document {
   cumulativeProfileVisits?: number;
   /** Total de interações acumuladas (soma principal da API) até o final deste dia. */
   cumulativeTotalInteractions?: number;
-  // Adicionar outras métricas cumulativas importantes da IMetricStats se necessário
+  /** Tempo total de visualização de Reels acumulado até o final deste dia. */
+  cumulativeReelsVideoViewTotalTime?: number;
+
+  // --- Métricas PONTUAIS/MÉDIAS (Valor do dia) ---
+  /** Tempo médio de visualização de Reels (valor mais recente no dia do snapshot). */
+  currentReelsAvgWatchTime?: number;
 }
 
 /**
  * Schema Mongoose para o modelo DailyMetricSnapshot.
+ * ATUALIZADO v1.1.0: Adiciona campos para métricas de Reels.
  */
 const dailyMetricSnapshotSchema = new Schema<IDailyMetricSnapshot>(
   {
@@ -85,6 +96,8 @@ const dailyMetricSnapshotSchema = new Schema<IDailyMetricSnapshot>(
     dailyReach: { type: Number, default: 0 },
     dailyFollows: { type: Number, default: 0 },
     dailyProfileVisits: { type: Number, default: 0 },
+    dailyReelsVideoViewTotalTime: { type: Number, default: 0 }, // Novo
+
     // Métricas Cumulativas
     cumulativeViews: { type: Number, default: 0 },
     cumulativeLikes: { type: Number, default: 0 },
@@ -95,6 +108,10 @@ const dailyMetricSnapshotSchema = new Schema<IDailyMetricSnapshot>(
     cumulativeFollows: { type: Number, default: 0 },
     cumulativeProfileVisits: { type: Number, default: 0 },
     cumulativeTotalInteractions: { type: Number, default: 0 },
+    cumulativeReelsVideoViewTotalTime: { type: Number, default: 0 }, // Novo
+
+    // Métricas Pontuais/Médias
+    currentReelsAvgWatchTime: { type: Number, default: 0 }, // Novo
   },
   {
     timestamps: true, // Adiciona createdAt e updatedAt automaticamente
@@ -115,9 +132,6 @@ dailyMetricSnapshotSchema.index(
   { metric: 1, date: -1 },
   { name: "idx_metric_history" }
 );
-// Otimiza buscas gerais por data (ex: snapshots recentes, pruning).
-// O índice em 'date' já foi criado na definição do campo, mas podemos reafirmar ou criar um composto se necessário.
-// dailyMetricSnapshotSchema.index({ date: -1 }, { name: 'idx_recent_snapshots' }); // Redundante se já indexado acima
 
 /**
  * Modelo Mongoose para DailyMetricSnapshot.
@@ -131,4 +145,3 @@ const DailyMetricSnapshotModel =
   );
 
 export default DailyMetricSnapshotModel;
-

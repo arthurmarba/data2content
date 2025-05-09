@@ -1,6 +1,8 @@
-// src/config/instagram.config.ts - v1.9.8 (Reel Metrics Removed)
+// src/config/instagram.config.ts - v1.9.9 (Reel Specific Metrics Added)
+// - Adicionada constante REEL_SPECIFIC_INSIGHTS_METRICS para métricas exclusivas de Reels.
+// - MEDIA_INSIGHTS_METRICS mantém métricas gerais para compatibilidade.
 // - Removido ig_reels_avg_watch_time e ig_reels_video_view_total_time de MEDIA_INSIGHTS_METRICS
-//   para evitar erro (#100) ao buscar insights de mídias não-Reels.
+//   para evitar erro (#100) ao buscar insights de mídias não-Reels (mantido da v1.9.8).
 
 // ATUALIZADO para v22.0 (ou a versão desejada/configurada no painel da Meta)
 export const API_VERSION = 'v22.0';
@@ -13,9 +15,19 @@ export const BASE_URL = `https://graph.facebook.com`; // BASE_URL não inclui ma
 // OTIMIZADO: Começar com um conjunto mínimo para evitar erros de permissão (#10) durante a revisão.
 export const BASIC_ACCOUNT_FIELDS = 'id,username,name,profile_picture_url,followers_count,media_count';
 
-// Métricas para buscar insights de mídias (Posts, Reels, Carrosséis)
-// CORRIGIDO v1.9.8: Removidas métricas específicas de Reels para compatibilidade geral.
+// Métricas GERAIS para buscar insights de mídias (Posts, Reels, Carrosséis)
+// Estas são as métricas que funcionam para todos os tipos de mídia sem causar erro.
 export const MEDIA_INSIGHTS_METRICS = 'views,reach,total_interactions,saved,likes,comments,shares,profile_visits,follows,profile_activity';
+
+// >>> NOVA CONSTANTE PARA MÉTRICAS ESPECÍFICAS DE REELS (v1.9.9) <<<
+// Métricas que só devem ser solicitadas para mídias do tipo Reel (identificadas como media_type: 'VIDEO' no instagramService).
+// Os nomes devem corresponder aos campos em IMetricStats e à API do Instagram v22.0.
+export const REEL_SPECIFIC_INSIGHTS_METRICS = 'ig_reels_avg_watch_time,ig_reels_video_view_total_time';
+// NOTA: É crucial validar se 'ig_reels_avg_watch_time' e 'ig_reels_video_view_total_time' são
+// os nomes exatos que a API Graph v22.0 espera para estas métricas de Reels.
+// Consulte a documentação da API para /insights do nó de mídia do Instagram.
+// Outras métricas de Reels como 'plays' ou 'reels_plays' podem já estar cobertas por 'views'
+// em MEDIA_INSIGHTS_METRICS, mas confirme.
 
 // Métricas de Story (principalmente para referência do Webhook e mapeamento)
 // Validar se estas ainda são as métricas corretas/disponíveis para webhooks de story na v22.0.

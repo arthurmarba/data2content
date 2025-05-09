@@ -4,16 +4,16 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'; // Ajuste o caminho se necessário
 import {
     fetchBasicAccountData,
-    // fetchAvailableInstagramAccounts, // Comentado pois requer SLT, e já temos LLAT/accountId
     fetchInstagramMedia,
     fetchMediaInsights,
     getInstagramConnectionDetails,
 } from '@/app/lib/instagramService'; // Ajuste o caminho se necessário
 import { logger } from '@/app/lib/logger';
 import mongoose from 'mongoose';
-import UserModel, { IUser } from '@/app/models/User'; // <<< Importa o modelo User e a interface IUser
-import { connectToDatabase } from '@/app/lib/mongoose'; // <<< Importa a função de conexão com o DB
-import { BASE_URL, API_VERSION } from '@/config/instagram.config'; // Para teste de pages_show_list
+import UserModel from '@/app/models/User'; // Removida a importação duplicada de IUser
+import { connectToDatabase } from '@/app/lib/mongoose';
+// <<< ADICIONADO: Importar MEDIA_INSIGHTS_METRICS e outras constantes necessárias >>>
+import { BASE_URL, API_VERSION, MEDIA_INSIGHTS_METRICS } from '@/config/instagram.config';
 
 const TAG = '[API TestPermissions]';
 
@@ -52,9 +52,6 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
     }
 
-    // Verifique se o usuário é um administrador
-    // IMPORTANTE: Este endpoint é para desenvolvimento/teste.
-    // Em produção, proteja-o adequadamente ou remova-o.
     if (!await isAdmin(session.user.id)) {
         logger.warn(`${TAG} Usuário ${session.user.id} tentou acessar endpoint de teste de admin sem permissão.`);
         return NextResponse.json({ error: 'Não autorizado. Apenas administradores.' }, { status: 403 });
@@ -69,9 +66,8 @@ export async function GET(request: NextRequest) {
         if (!mongoose.isValidObjectId(userIdForTest)) {
             throw new Error("ID do usuário de teste (admin) inválido.");
         }
-        await connectToDatabase(); // Garante conexão para as operações seguintes
+        await connectToDatabase();
 
-        // 1. Obter detalhes da conexão (accountId e accessToken) do usuário de teste
         logger.debug(`${TAG} Buscando detalhes de conexão para ${userIdForTest}...`);
         const connectionDetails = await getInstagramConnectionDetails(userIdForTest);
 
@@ -85,7 +81,6 @@ export async function GET(request: NextRequest) {
         logger.info(`${TAG} Usando Account ID: ${accountId} e Access Token (do usuário admin) para testes.`);
         results['connectionDetails'] = { success: true, data: { accountId, tokenSource: 'user_llat' } };
 
-        // 2. Testar 'instagram_basic'
         logger.debug(`${TAG} Testando permissão: instagram_basic (via fetchBasicAccountData)...`);
         try {
             const basicData = await fetchBasicAccountData(accountId, accessToken);
@@ -97,14 +92,11 @@ export async function GET(request: NextRequest) {
             results['instagram_basic'] = { success: false, error: e.message };
         }
 
-        // 3. Testar 'pages_show_list'
-        // Esta permissão permite listar as Páginas do Facebook às quais um usuário tem acesso.
-        // A chamada /me/accounts é a mais direta para isso.
         logger.debug(`${TAG} Testando permissão: pages_show_list (via /me/accounts)...`);
         try {
             const meAccountsUrl = `${BASE_URL}/${API_VERSION}/me/accounts?fields=id,name,access_token,instagram_business_account{id,username}&access_token=${accessToken}`;
             const fbResponse = await fetch(meAccountsUrl);
-            const fbData = await fbResponse.json();
+            const fbData = await fbResponse.json() as any; // Adicionado 'as any' para evitar erro de tipo com fbData.error
             if (!fbResponse.ok || fbData.error) {
                 const error = fbData.error || { message: `Erro ${fbResponse.status}`};
                 logger.warn(`${TAG} pages_show_list (/me/accounts): FALHA - ${error.message}`);
@@ -118,7 +110,6 @@ export async function GET(request: NextRequest) {
             results['pages_show_list'] = { success: false, error: e.message };
         }
 
-        // 4. Testar 'pages_read_engagement' e 'instagram_manage_insights'
         logger.debug(`${TAG} Testando permissões: pages_read_engagement & instagram_manage_insights...`);
         let mediaIdForInsightTest: string | null = null;
         try {
@@ -142,7 +133,8 @@ export async function GET(request: NextRequest) {
         if (mediaIdForInsightTest) {
             logger.debug(`${TAG} Chamando fetchMediaInsights para Media ID: ${mediaIdForInsightTest}...`);
             try {
-                const insightsResult = await fetchMediaInsights(mediaIdForInsightTest, accessToken);
+                // <<< CORRIGIDO: Adicionado MEDIA_INSIGHTS_METRICS como terceiro argumento >>>
+                const insightsResult = await fetchMediaInsights(mediaIdForInsightTest, accessToken, MEDIA_INSIGHTS_METRICS);
                 results['fetchMediaInsights (instagram_manage_insights)'] = insightsResult;
                 if (insightsResult.success) logger.info(`${TAG} fetchMediaInsights: SUCESSO`);
                 else logger.warn(`${TAG} fetchMediaInsights: FALHA - ${insightsResult.error}`);
@@ -152,35 +144,9 @@ export async function GET(request: NextRequest) {
             }
         } else {
             const msg = "Nenhuma mídia encontrada para testar insights.";
-            results['fetchMediaInsights (instagram_manage_insights)'] = { success: true, message: msg }; // Sucesso na operação, mas sem dados para testar
+            results['fetchMediaInsights (instagram_manage_insights)'] = { success: true, message: msg };
             logger.warn(`${TAG} fetchMediaInsights: PULADO - ${msg}`);
         }
-
-        // Adicione aqui chamadas para outras permissões que você precisa testar
-        // Ex: instagram_manage_comments (se aplicável para a IA Tuca)
-        // logger.debug(`${TAG} Testando permissão: instagram_manage_comments...`);
-        // try {
-        //    // Exemplo: Tentar ler comentários de uma mídia (mediaIdForInsightTest)
-        //    if (mediaIdForInsightTest) {
-        //        const commentsUrl = `${BASE_URL}/${API_VERSION}/${mediaIdForInsightTest}/comments?access_token=${accessToken}`;
-        //        const commentsResponse = await fetch(commentsUrl);
-        //        const commentsData = await commentsResponse.json();
-        //        if (!commentsResponse.ok || commentsData.error) {
-        //            const error = commentsData.error || { message: `Erro ${commentsResponse.status}`};
-        //            results['instagram_manage_comments'] = { success: false, error: error.message, data: commentsData };
-        //        } else {
-        //            results['instagram_manage_comments'] = { success: true, data: commentsData.data };
-        //        }
-        //    } else {
-        //        results['instagram_manage_comments'] = { success: true, message: "Nenhuma mídia para testar leitura de comentários." };
-        //    }
-        // } catch (e: any) {
-        //    results['instagram_manage_comments'] = { success: false, error: e.message };
-        // }
-
-
-        // Ex: whatsapp_business_management, whatsapp_business_messaging (se aplicável)
-        // Estas permissões são para a API do WhatsApp e podem exigir um setup de teste diferente.
 
         logger.info(`${TAG} Testes de permissões concluídos para o usuário: ${userIdForTest}`);
         return NextResponse.json({ message: 'Testes de API para permissões concluídos.', results }, { status: 200 });
