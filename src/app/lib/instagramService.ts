@@ -1,6 +1,6 @@
 // src/app/lib/instagramService.ts - v1.9.15 (Correct Metrics for Reels)
 // - MODIFICADO: triggerDataRefresh agora usa REEL_SAFE_GENERAL_METRICS e
-//   REEL_SPECIFIC_INSIGHTS_METRICS para mídias do tipo VIDEO (Reels).
+//   REEL_SPECIFIC_INSIGHTS_METRICS para mídias do tipo VIDEO (Reels) para evitar erros.
 // - MODIFICADO: createOrUpdateDailySnapshot agora calcula e salva métricas específicas de Reels (mantido de v1.9.14).
 // - MODIFICADO: fetchMediaInsights agora aceita uma string de métricas a serem buscadas (mantido de v1.9.13).
 // - OTIMIZAÇÃO: triggerDataRefresh agora só busca insights e salva/atualiza métricas
@@ -29,7 +29,7 @@ import {
     API_VERSION,
     BASE_URL, BASIC_ACCOUNT_FIELDS,
     MEDIA_INSIGHTS_METRICS, // Para mídias não-Reel (IMAGE, CAROUSEL_ALBUM)
-    REEL_SAFE_GENERAL_METRICS, // <<< Métricas gerais seguras para Reels
+    REEL_SAFE_GENERAL_METRICS, // <<< ADICIONADO: Métricas gerais seguras para Reels
     REEL_SPECIFIC_INSIGHTS_METRICS, // Métricas específicas de Reels
     ACCOUNT_INSIGHTS_METRICS, DEMOGRAPHICS_METRICS,
     MEDIA_BREAKDOWNS, ACCOUNT_BREAKDOWNS,
@@ -695,7 +695,7 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
                         if (!media.id || !accessToken) return { mediaId: media.id ?? '?', status: 'skipped', reason: 'ID/Token ausente' };
                         
                         let currentMetricsToFetch: string;
-                        // <<< LÓGICA ATUALIZADA PARA SELECIONAR MÉTRICAS >>>
+                        // <<< LÓGICA ATUALIZADA PARA SELECIONAR MÉTRICAS (v1.9.15) >>>
                         if (media.media_type === 'VIDEO') { 
                             logger.debug(`${TAG} Mídia ${media.id} (timestamp: ${media.timestamp}) é VIDEO, usando REEL_SAFE_GENERAL_METRICS + REEL_SPECIFIC_INSIGHTS_METRICS.`);
                             // Combina métricas gerais seguras para Reels com as específicas de Reels
