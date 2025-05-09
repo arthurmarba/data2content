@@ -1,11 +1,11 @@
-// @/app/lib/intentService.ts – v2.14 (clean & fixed pickRandom)
+// @/app/lib/intentService.ts – v2.15.1 (Corrige type guard para special.response)
 // --------------------------------------------------
 
 import { logger } from '@/app/lib/logger';
 import { IUser }  from '@/app/models/User';
 
 /* -------------------------------------------------- *
- *  Tipagens internas
+ * Tipagens internas
  * -------------------------------------------------- */
 export type DeterminedIntent =
   | 'script_request'
@@ -19,7 +19,9 @@ export type DeterminedIntent =
   | 'proactive_script_accept'
   | 'proactive_script_reject'
   | 'ASK_BEST_PERFORMER'
-  | 'ASK_BEST_TIME';
+  | 'ASK_BEST_TIME'
+  | 'social_query'
+  | 'meta_query_personal';
 
 export type IntentResult =
   | { type: 'intent_determined'; intent: DeterminedIntent }
@@ -38,7 +40,7 @@ export interface IDialogueState {
 }
 
 /* -------------------------------------------------- *
- *  Listas de keywords
+ * Listas de keywords
  * -------------------------------------------------- */
 const SCRIPT_KEYWORDS: string[] = [
   'roteiro','script','estrutura','outline','sequencia',
@@ -70,11 +72,25 @@ const BEST_TIME_KEYWORDS: string[] = [
   'qual horario','quando postar','frequencia','cadencia'
 ];
 const GREETING_KEYWORDS: string[] = [
-  'oi','olá','ola','tudo bem','bom dia','boa tarde','boa noite','e aí','eae'
+  'oi','olá','ola','tudo bem','bom dia','boa tarde','boa noite','e aí','eae', 'opa', 'fala'
+];
+const FAREWELL_KEYWORDS: string[] = [
+  'tchau', 'adeus', 'até mais', 'ate logo', 'falou', 'fui', 'até amanhã', 'desligar'
+];
+const SOCIAL_QUERY_KEYWORDS: string[] = [
+  'amigo', 'amiga', 'gosta de mim', 'sozinho', 'sozinha', 'sentimento', 'sente', 'triste', 'feliz',
+  'namorado', 'namorada', 'casado', 'solteiro', 'como voce esta se sentindo', 'voce esta bem',
+  'quer ser meu', 'quer sair', 'vamos conversar sobre', 'minha vida'
+];
+const META_QUERY_PERSONAL_KEYWORDS: string[] = [
+  'quem é voce', 'voce é um robo', 'quem te criou', 'qual seu proposito', 'voce é real', 'inteligencia artificial',
+  'voce pensa', 'voce sonha', 'voce dorme', 'onde voce mora', 'qual sua idade', 'seu nome é tuca', 'por que tuca',
+  'voce é o tuca', 'fale sobre voce'
 ];
 
+
 /* -------------------------------------------------- *
- *  Utilidades
+ * Utilidades
  * -------------------------------------------------- */
 const normalize = (s: string) =>
   s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -89,6 +105,9 @@ const N_IDEAS_KW     = toNormSet(CONTENT_IDEAS_KEYWORDS);
 const N_BEST_PERF_KW = toNormSet(ASK_BEST_PERFORMER_KEYWORDS);
 const N_BEST_TIME_KW = toNormSet(BEST_TIME_KEYWORDS);
 const N_GREET_KW     = toNormSet(GREETING_KEYWORDS);
+const N_FAREWELL_KW  = toNormSet(FAREWELL_KEYWORDS);
+const N_SOCIAL_KW    = toNormSet(SOCIAL_QUERY_KEYWORDS);
+const N_META_KW      = toNormSet(META_QUERY_PERSONAL_KEYWORDS);
 
 const includesKw = (txt: string, kwSet: Set<string>) =>
   [...kwSet].some((kw) => txt.includes(kw));
@@ -105,7 +124,7 @@ const pickRandom = <T>(arr: T[]): T => {
 };
 
 /* -------------------------------------------------- *
- *  Helpers de intenção
+ * Helpers de intenção
  * -------------------------------------------------- */
 const isPlanRequest     = (txt: string) => includesKw(txt, N_PLAN_KW);
 const isScriptRequest   = (txt: string) => includesKw(txt, N_SCRIPT_KW);
@@ -117,15 +136,28 @@ const isBestTimeRequest = (txt: string) => {
   if (txt.includes('melhores dias') || txt.includes('melhor dia')) return true;
   return includesKw(txt, N_BEST_TIME_KW);
 };
+const isSocialQueryRequest = (txt: string) => includesKw(txt, N_SOCIAL_KW);
+const isMetaQueryRequest   = (txt: string) => includesKw(txt, N_META_KW);
 
 function isGreetingOnly(norm: string): boolean {
   if (!includesKw(norm, N_GREET_KW)) return false;
   const words = norm.split(/\s+/);
-  return words.length <= 3 && words.every((w) => N_GREET_KW.has(w));
+  if (words.length > 4) return false;
+  const nonGreetingWords = words.filter(w => !N_GREET_KW.has(w) && w.length > 2);
+  return nonGreetingWords.length <= 1;
 }
 
+function isFarewellOnly(norm: string): boolean {
+  if (!includesKw(norm, N_FAREWELL_KW)) return false;
+  const words = norm.split(/\s+/);
+  if (words.length > 3) return false;
+  const nonFarewellWords = words.filter(w => !N_FAREWELL_KW.has(w));
+  return nonFarewellWords.length === 0;
+}
+
+
 /* -------------------------------------------------- *
- *  CASOS ESPECIAIS RÁPIDOS
+ * CASOS ESPECIAIS RÁPIDOS
  * -------------------------------------------------- */
 async function quickSpecialHandle(
   user: IUser,
@@ -135,42 +167,69 @@ async function quickSpecialHandle(
   if (isGreetingOnly(normalized)) {
     return {
       type: 'special_handled',
-      response: `${greeting} Em que posso ajudar?`,
-    };
-  }
-  if (['obrigado','obrigada','valeu','show','thanks'].includes(normalized)) {
-    return {
-      type: 'special_handled',
       response: pickRandom([
-        'Disponha! 😊',
-        'Que bom! Qual o próximo passo?',
-        '👍 Fico à disposição.',
+        `${greeting} Em que posso ajudar hoje?`,
+        `${greeting} Como posso ser útil?`,
+        `${greeting} Pronto para começar o dia? Me diga o que precisa!`,
+        `Opa, ${user.name || 'tudo bem'}! Tudo certo? O que manda?`, // Usando user.name
       ]),
     };
   }
+
+  // Inclui 'valeu', 'vlw', 'thx', 'agradecido', 'agradecida' em lowercase
+  const thanksKeywords = ['obrigado','obrigada','valeu','show','thanks','vlw', 'thx', 'agradecido', 'agradecida'];
+  if (thanksKeywords.includes(normalized)) { // Normalized já está em lowercase
+    return {
+      type: 'special_handled',
+      response: pickRandom([
+        'Disponha! 😊 Se precisar de mais algo, é só chamar.',
+        'De nada! Qual o próximo passo?',
+        '👍 Fico à disposição. Algo mais?',
+        'Por nada! Sempre bom ajudar. Precisa de outra coisa?',
+      ]),
+    };
+  }
+
+  if (isFarewellOnly(normalized)) {
+    return {
+      type: 'special_handled',
+      response: pickRandom([
+        'Até mais! 👋',
+        'Tchau, tchau! Se cuida!',
+        'Falou! Precisando, estou por aqui.',
+        `Até a próxima, ${user.name || ''}!`.trim(), // Usando user.name e trim para caso seja vazio
+      ]),
+    };
+  }
+
   return null;
 }
 
 /* -------------------------------------------------- *
- *  FUNÇÃO PRINCIPAL (exportada)
+ * FUNÇÃO PRINCIPAL (exportada)
  * -------------------------------------------------- */
 export async function determineIntent(
   normalizedText : string,
   user           : IUser,
-  rawText        : string,
-  dialogueState  : IDialogueState,
+  rawText        : string, // Mantido para logs ou futuras lógicas contextuais mais complexas
+  dialogueState  : IDialogueState, // Mantido para futuras lógicas contextuais
   greeting       : string,
   userId         : string
 ): Promise<IntentResult> {
-  const tag = '[intentService.determineIntent v2.14]';
-  logger.debug(`${tag} analisando: "${normalizedText}"`);
+  const tag = '[intentService.determineIntent v2.15.1]'; // ALTERADO: Versão
+  logger.debug(`${tag} analisando: "${normalizedText}" para user ${userId} (${user.name || 'Nome não disponível'})`);
 
   const special = await quickSpecialHandle(user, normalizedText, greeting);
-  if (special) return special;
+  // ***** CORREÇÃO APLICADA AQUI *****
+  if (special && special.type === 'special_handled') {
+    // Agora o TypeScript sabe que special.response existe e é seguro acessá-lo.
+    logger.info(`${tag} intenção especial resolvida: "${special.response.slice(0,50)}..." para user ${userId}`);
+    return special;
+  }
+  // Se 'special' não for 'special_handled' (ou for null), a lógica continua abaixo.
 
-  // Aqui você pode inserir a lógica contextual antes…
+  let intent: DeterminedIntent;
 
-  let intent: DeterminedIntent = 'general';
   if      (isBestTimeRequest(normalizedText)) intent = 'ASK_BEST_TIME';
   else if (isPlanRequest(normalizedText))     intent = 'content_plan';
   else if (isScriptRequest(normalizedText))   intent = 'script_request';
@@ -178,19 +237,29 @@ export async function determineIntent(
   else if (isIdeasRequest(normalizedText))    intent = 'content_ideas';
   else if (isRankingRequest(normalizedText))  intent = 'ranking_request';
   else if (isReportRequest(normalizedText))   intent = 'report';
+  else if (isSocialQueryRequest(normalizedText)) {
+    intent = 'social_query';
+  }
+  else if (isMetaQueryRequest(normalizedText)) {
+    intent = 'meta_query_personal';
+  }
+  else {
+    intent = 'general';
+  }
 
-  logger.info(`${tag} intenção final: ${intent} para user ${userId}`);
+  logger.info(`${tag} intenção final determinada: ${intent} para user ${userId}`);
   return { type: 'intent_determined', intent };
 }
 
 /* -------------------------------------------------- *
- *  Helpers expostos para consultantService
+ * Helpers expostos para consultantService
  * -------------------------------------------------- */
 export const normalizeText = normalize;
 export function getRandomGreeting(userName = 'criador') {
   return pickRandom([
     `Oi ${userName}!`,
     `Olá ${userName}!`,
-    `E aí, ${userName}?`,
+    `E aí, ${userName}? Como vai?`,
+    `Fala, ${userName}! Tudo certo?`,
   ]);
 }
