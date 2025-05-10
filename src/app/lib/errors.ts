@@ -1,4 +1,5 @@
-// src/app/lib/errors.ts
+// @/app/lib/errors.ts - v1.1.0 (Adiciona OperationNotPermittedError)
+// - ADICIONADO: Nova classe de erro 'OperationNotPermittedError'.
 
 /**
  * Classe base para erros customizados da aplicação.
@@ -131,6 +132,19 @@ export class ValidationError extends BaseError {
         this.name = 'ValidationError';
     }
 }
+
+// <<< NOVO: Erro para Operação Não Permitida >>>
+/**
+ * Erro lançado quando uma operação não é permitida devido a alguma condição de negócio
+ * (ex: usuário não fez opt-in para uma funcionalidade).
+ */
+export class OperationNotPermittedError extends BaseError {
+    constructor(message: string = "Operação não permitida.", cause?: Error | unknown) {
+        super(message, cause);
+        this.name = 'OperationNotPermittedError';
+    }
+}
+// <<< FIM NOVO: Erro para Operação Não Permitida >>>
 
 
 // Você pode adicionar mais classes de erro conforme necessário para sua aplicação.

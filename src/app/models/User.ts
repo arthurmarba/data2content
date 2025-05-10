@@ -1,6 +1,6 @@
-// @/app/models/User.ts - v1.8.2 (Adicionado commissionLog)
-// - Adiciona lastInstagramSyncAttempt e lastInstagramSyncSuccess ao Schema e Interface.
-// - Adiciona commissionLog para histórico de comissões de afiliados.
+// @/app/models/User.ts - v1.9.2 (Comunidade - Simplifica Preferência)
+// - REMOVIDO: Campo 'communityInspirationSharingPreference'.
+// - Mantém funcionalidades da v1.9.1 (campo 'goal', etc.).
 
 import { Schema, model, models, Document, Model, Types } from "mongoose";
 
@@ -10,14 +10,22 @@ import { Schema, model, models, Document, Model, Types } from "mongoose";
 export interface ICommissionLogEntry {
   date: Date;
   amount: number;
-  description: string; // Ex: "Comissão referente à assinatura do usuário XYZ"
-  sourcePaymentId?: string; // ID do pagamento do Mercado Pago que originou a comissão
-  referredUserId?: Types.ObjectId; // ID do usuário indicado que gerou a comissão (opcional)
+  description: string; 
+  sourcePaymentId?: string; 
+  referredUserId?: Types.ObjectId;
+}
+
+/**
+ * Interface para rastrear a última inspiração diária mostrada.
+ */
+export interface ILastCommunityInspirationShown {
+  date: Date;
+  inspirationIds: Types.ObjectId[];
 }
 
 /**
  * Interface que descreve um documento de usuário.
- * ATUALIZADO v1.8.2: Adicionado commissionLog.
+ * ATUALIZADO v1.9.2: Removido 'communityInspirationSharingPreference'.
  */
 export interface IUser extends Document {
   _id: Types.ObjectId;
@@ -58,12 +66,13 @@ export interface IUser extends Document {
   whatsappVerified?: boolean;
   profileTone?: string;
   hobbies?: string[];
+  goal?: string; 
   affiliateRank?: number;
   affiliateInvites?: number;
   affiliateCode?: string;
   affiliateUsed?: string;
   affiliateBalance?: number;
-  commissionLog?: ICommissionLogEntry[]; // <<< NOVO CAMPO PARA LOG DE COMISSÕES >>>
+  commissionLog?: ICommissionLogEntry[];
   paymentInfo?: {
     pixKey?: string;
     bankName?: string;
@@ -71,6 +80,14 @@ export interface IUser extends Document {
     bankAccount?: string;
   };
   lastProcessedPaymentId?: string;
+  
+  // --- Campos para Comunidade de Inspiração (ATUALIZADO) ---
+  communityInspirationOptIn?: boolean;
+  communityInspirationOptInDate?: Date | null;
+  communityInspirationTermsVersion?: string | null;
+  // communityInspirationSharingPreference?: 'credited' | 'anonymous_creator'; // <<< REMOVIDO >>>
+  lastCommunityInspirationShown_Daily?: ILastCommunityInspirationShown | null;
+
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -84,7 +101,6 @@ function generateAffiliateCode(): string {
 
 /**
  * Schema para uma entrada no log de comissões.
- * Não terá um _id próprio por padrão, pois será um subdocumento.
  */
 const commissionLogEntrySchema = new Schema<ICommissionLogEntry>({
   date: { type: Date, required: true, default: Date.now },
@@ -94,10 +110,18 @@ const commissionLogEntrySchema = new Schema<ICommissionLogEntry>({
   referredUserId: { type: Schema.Types.ObjectId, ref: 'User' }
 }, { _id: false });
 
+/**
+ * Schema para o subdocumento 'lastCommunityInspirationShown_Daily'.
+ */
+const lastCommunityInspirationShownSchema = new Schema<ILastCommunityInspirationShown>({
+  date: { type: Date, required: true },
+  inspirationIds: [{ type: Schema.Types.ObjectId, ref: 'CommunityInspiration' }]
+}, { _id: false });
+
 
 /**
  * Definição do Schema para o User
- * ATUALIZADO v1.8.2: Adicionado commissionLog.
+ * ATUALIZADO v1.9.2: Removido 'communityInspirationSharingPreference'.
  */
 const userSchema = new Schema<IUser>(
   {
@@ -144,12 +168,13 @@ const userSchema = new Schema<IUser>(
     whatsappVerified: { type: Boolean, default: false },
     profileTone: { type: String, default: 'informal e prestativo' },
     hobbies: { type: [String], default: [] },
+    goal: { type: String, default: null }, 
     affiliateRank: { type: Number, default: 1 },
     affiliateInvites: { type: Number, default: 0 },
     affiliateCode: { type: String, unique: true, sparse: true },
     affiliateUsed: { type: String, default: null },
     affiliateBalance: { type: Number, default: 0 },
-    commissionLog: { type: [commissionLogEntrySchema], default: [] }, // <<< NOVO CAMPO ADICIONADO AO SCHEMA >>>
+    commissionLog: { type: [commissionLogEntrySchema], default: [] },
     paymentInfo: {
       pixKey: { type: String, default: "" },
       bankName: { type: String, default: "" },
@@ -157,15 +182,20 @@ const userSchema = new Schema<IUser>(
       bankAccount: { type: String, default: "" },
     },
     lastProcessedPaymentId: { type: String, default: null, index: true },
+
+    // --- Campos para Comunidade de Inspiração (ATUALIZADO) ---
+    communityInspirationOptIn: { type: Boolean, default: false },
+    communityInspirationOptInDate: { type: Date, default: null },
+    communityInspirationTermsVersion: { type: String, default: null },
+    // communityInspirationSharingPreference: { type: String, enum: ['credited', 'anonymous_creator'], default: 'anonymous_creator' }, // <<< REMOVIDO >>>
+    lastCommunityInspirationShown_Daily: { type: lastCommunityInspirationShownSchema, default: null },
+
   },
   {
-    timestamps: true, // Adiciona createdAt e updatedAt automaticamente
+    timestamps: true, 
   }
 );
 
-/**
- * Pre-save hook para gerar affiliateCode se ainda não existir
- */
 userSchema.pre<IUser>("save", function (next) {
   if (this.isNew && !this.affiliateCode) {
     this.affiliateCode = generateAffiliateCode();
@@ -178,9 +208,6 @@ userSchema.pre<IUser>("save", function (next) {
   next();
 });
 
-/**
- * Exporta o modelo 'User', evitando recriação em dev/hot reload
- */
 const UserModel: Model<IUser> = models.User || model<IUser>("User", userSchema);
 
 export default UserModel;

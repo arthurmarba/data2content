@@ -1,17 +1,15 @@
-// src/app/api/auth/[...nextauth]/route.ts (vConnectAccount - COM LOGS DETALHADOS)
-// - Modifica callback JWT para chamar connectInstagramAccount após fetch bem-sucedido.
-// - Importa connectInstagramAccount de instagramService.
-// - Remove uso de storeTemporaryLlat, cookie ig-connect-status e flag pendingInstagramConnection.
-// - ADICIONADOS LOGS DETALHADOS PARA DEBUG DE ID DE USUÁRIO (08/05/2025)
+// src/app/api/auth/[...nextauth]/route.ts (vConnectAccount-OnboardingFlag)
+// - ADICIONADO: Flag 'isNewUserForOnboarding' ao token JWT e à sessão para novos usuários.
+// - Mantém chamada a dataService.optInUserToCommunity e funcionalidades anteriores.
 
 import NextAuth from "next-auth";
 import type { DefaultSession, DefaultUser, NextAuthOptions, Session, User, Account } from "next-auth";
-import type { AdapterUser } from "next-auth/adapters";
+// import type { AdapterUser } from "next-auth/adapters"; // AdapterUser não está a ser usado diretamente
 import GoogleProvider from "next-auth/providers/google";
 import FacebookProvider from "next-auth/providers/facebook";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { connectToDatabase } from "@/app/lib/mongoose";
-import DbUser, { IUser } from "@/app/models/User"; // Certifique-se que IUser inclui os campos de sync
+import DbUser, { IUser } from "@/app/models/User"; // Espera-se IUser v1.9.2+
 import { Types } from "mongoose";
 import type { JWT, JWTEncodeParams, JWTDecodeParams } from "next-auth/jwt";
 import { SignJWT, jwtVerify } from "jose";
@@ -22,6 +20,7 @@ import {
     connectInstagramAccount,
     AvailableInstagramAccount,
 } from "@/app/lib/instagramService";
+import * as dataService from "@/app/lib/dataService"; // Espera-se dataService v2.12.1+
 
 // --- AUGMENT NEXT-AUTH TYPES ---
 declare module "next-auth" {
@@ -41,8 +40,11 @@ declare module "next-auth" {
         availableIgAccounts?: AvailableInstagramAccount[] | null;
         igConnectionError?: string | null;
         image?: string | null;
+        isNewUserForOnboarding?: boolean; // <<< NOVO FLAG >>>
     }
-    interface Session extends DefaultSession { user?: User; }
+    interface Session extends DefaultSession { 
+        user?: User; // User já inclui isNewUserForOnboarding
+    }
 }
 declare module "next-auth/jwt" {
      interface JWT {
@@ -56,12 +58,15 @@ declare module "next-auth/jwt" {
          picture?: string | null;
          image?: string | null;
          sub?: string;
+         isNewUserForOnboarding?: boolean; // <<< NOVO FLAG >>>
      }
 }
 // --- END AUGMENT NEXT-AUTH TYPES ---
 
 console.log("--- SERVER START --- NEXTAUTH_URL:", process.env.NEXTAUTH_URL);
 export const runtime = "nodejs";
+
+const DEFAULT_TERMS_VERSION = "1.0_community_included"; 
 
 // --- Funções customEncode e customDecode ---
 async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise<string> {
@@ -154,7 +159,7 @@ export const authOptions: NextAuthOptions = {
         CredentialsProvider({
             name: "Demo",
             credentials: {
-                username: { label: "Usuário", type: "text", placeholder: "demo" },
+                username: { label: "Utilizador", type: "text", placeholder: "demo" },
                 password: { label: "Senha", type: "password", placeholder: "demo" }
             },
             async authorize(credentials) {
@@ -175,31 +180,26 @@ export const authOptions: NextAuthOptions = {
     },
     callbacks: {
         async signIn({ user, account, profile }) {
-            const TAG_SIGNIN = '[NextAuth signIn Callback]';
+            const TAG_SIGNIN = '[NextAuth signIn Callback vConnectAccount-OnboardingFlag]'; 
             logger.debug(`${TAG_SIGNIN} Iniciado`, { userIdRaw: user.id, provider: account?.provider, userObj: JSON.stringify(user) });
+            let isNewUser = false; 
 
             if (account?.provider === 'credentials') {
-                logger.debug(`${TAG_SIGNIN} Permitindo login via Credentials (usuário: ${user.id}).`);
+                logger.debug(`${TAG_SIGNIN} Permitindo login via Credentials (utilizador: ${user.id}).`);
                 return true;
             }
-
-            if (!account?.providerAccountId) {
-                logger.error(`${TAG_SIGNIN} providerAccountId ausente para ${account?.provider}.`);
-                return false;
-            }
-
+            
+            if (!account?.providerAccountId) { logger.error(`${TAG_SIGNIN} providerAccountId ausente para ${account?.provider}.`); return false; }
             const currentEmail = user.email;
-            if (!currentEmail && account.provider !== 'facebook') {
-                logger.error(`${TAG_SIGNIN} Email ausente para ${account.provider}.`);
-                return false;
-            }
+            if (!currentEmail && account.provider !== 'facebook') { logger.error(`${TAG_SIGNIN} Email ausente para ${account.provider}.`); return false; }
+
 
             try {
                 await connectToDatabase();
                 let existing: IUser | null = null;
 
                 if (account.provider === 'google') {
-                    logger.debug(`${TAG_SIGNIN} [Google Flow DEBUG] Tentando encontrar usuário existente. ProviderAccountId: ${account.providerAccountId}, Email: ${currentEmail}`);
+                    logger.debug(`${TAG_SIGNIN} [Google Flow DEBUG] Tentando encontrar utilizador existente. ProviderAccountId: ${account.providerAccountId}, Email: ${currentEmail}`);
                     existing = await DbUser.findOne({ providerAccountId: account.providerAccountId, provider: 'google' }).exec();
                     if (!existing && currentEmail) {
                         logger.debug(`${TAG_SIGNIN} [Google Flow DEBUG] Não encontrado por providerAccountId, tentando por email: ${currentEmail}`);
@@ -207,61 +207,59 @@ export const authOptions: NextAuthOptions = {
                     }
 
                     if (existing) {
-                        logger.info(`${TAG_SIGNIN} [Google Flow DEBUG] Usuário existente ENCONTRADO: _id='${existing._id}'. ProviderAccountId do DB: ${existing.providerAccountId}`);
+                        logger.info(`${TAG_SIGNIN} [Google Flow DEBUG] Utilizador existente ENCONTRADO: _id='${existing._id}'. ProviderAccountId do DB: ${existing.providerAccountId}`);
                         user.id = existing._id.toString();
-                        logger.debug(`${TAG_SIGNIN} [Google Flow DEBUG] user.id ATRIBUÍDO (existente): '${user.id}'`);
-
+                        
                         let needsSave = false;
                         if (user.name && user.name !== existing.name) { existing.name = user.name; needsSave = true; }
                         if (existing.providerAccountId !== account.providerAccountId) { existing.providerAccountId = account.providerAccountId; needsSave = true;}
                         if (!existing.provider) { existing.provider = 'google'; needsSave = true; }
                         const providerImage = user.image;
                         if (providerImage && providerImage !== existing.image) { existing.image = providerImage; needsSave = true; }
+                        if (needsSave) { await existing.save(); logger.info(`${TAG_SIGNIN} [Google Flow DEBUG] Utilizador existente ${existing._id} atualizado.`);}
 
-                        if (needsSave) {
-                            await existing.save();
-                            logger.info(`${TAG_SIGNIN} [Google Flow DEBUG] Usuário existente ${existing._id} atualizado.`);
+                    } else { 
+                        isNewUser = true; 
+                        if (!currentEmail) { logger.error(`${TAG_SIGNIN} [Google Flow DEBUG] Email ausente ao tentar CRIAR utilizador Google.`); return false; }
+                        logger.info(`${TAG_SIGNIN} [Google Flow DEBUG] Criando NOVO utilizador Google para ${currentEmail}...`);
+                        const newUserDoc = { name: user.name, email: currentEmail, image: user.image, provider: 'google', providerAccountId: account.providerAccountId, role: 'user', isInstagramConnected: false, };
+                        const newUser = new DbUser(newUserDoc);
+                        const saved = await newUser.save();
+                        user.id = saved._id.toString(); 
+                        logger.info(`${TAG_SIGNIN} [Google Flow DEBUG] Novo utilizador Google CRIADO com _id: '${saved._id}'. user.id ATRIBUÍDO: '${user.id}'`);
+                        
+                        try {
+                            logger.info(`${TAG_SIGNIN} [Google Flow DEBUG] Registando opt-in na comunidade para novo utilizador ${saved._id}. Versão Termos: ${DEFAULT_TERMS_VERSION}`);
+                            await dataService.optInUserToCommunity(saved._id.toString(), DEFAULT_TERMS_VERSION);
+                            logger.info(`${TAG_SIGNIN} [Google Flow DEBUG] Opt-in na comunidade registado com sucesso para novo utilizador ${saved._id}.`);
+                        } catch (optInError) {
+                            logger.error(`${TAG_SIGNIN} [Google Flow DEBUG] Falha ao registar opt-in na comunidade para novo utilizador ${saved._id}:`, optInError);
                         }
-                        logger.debug(`${TAG_SIGNIN} [Google Flow DEBUG] FINAL para usuário existente: user.id='${user.id}', user.name='${user.name}', user.email='${user.email}'`);
-                        return true;
                     }
-
-                    if (!currentEmail) {
-                         logger.error(`${TAG_SIGNIN} [Google Flow DEBUG] Email ausente ao tentar CRIAR usuário Google.`);
-                         return false;
-                    }
-                    logger.info(`${TAG_SIGNIN} [Google Flow DEBUG] Criando NOVO usuário Google para ${currentEmail}...`);
-                    const newUser = new DbUser({
-                        name: user.name, email: currentEmail, image: user.image,
-                        provider: 'google', providerAccountId: account.providerAccountId,
-                        role: 'user', isInstagramConnected: false
-                    });
-                    const saved = await newUser.save();
-                    user.id = saved._id.toString();
-                    logger.info(`${TAG_SIGNIN} [Google Flow DEBUG] Novo usuário Google CRIADO com _id: '${saved._id}'. user.id ATRIBUÍDO: '${user.id}'`);
-                    logger.debug(`${TAG_SIGNIN} [Google Flow DEBUG] FINAL para novo usuário: user.id='${user.id}', user.name='${user.name}', user.email='${user.email}'`);
+                    (user as any).isNewUserForOnboarding = isNewUser; 
+                    logger.debug(`${TAG_SIGNIN} [Google Flow DEBUG] FINAL para utilizador: user.id='${user.id}', isNewUserForOnboarding=${isNewUser}`);
                     return true;
 
                 } else if (account.provider === 'facebook') {
-                    // A lógica do Facebook signIn é mais complexa e focada na vinculação.
-                    // Se o objetivo principal não for criar uma sessão FB, mas sim vincular,
-                    // a checagem de 'existing' pode ser diferente.
                     existing = await DbUser.findOne({ facebookProviderAccountId: account.providerAccountId }).exec();
                      if (existing) {
-                        logger.info(`${TAG_SIGNIN} Usuário existente encontrado (Facebook): ${existing._id}. Atualizando user.id para _id do DB.`);
-                        user.id = existing._id.toString(); // Garante que o user.id seja o _id do MongoDB
-                        // Atualiza dados se necessário
+                        logger.info(`${TAG_SIGNIN} Utilizador existente encontrado (Facebook): ${existing._id}. Atualizando user.id para _id do DB.`);
+                        user.id = existing._id.toString(); 
                         let needsSave = false;
                         if (user.name && user.name !== existing.name) { existing.name = user.name; needsSave = true;}
                         const providerImage = user.image;
                         if (providerImage && providerImage !== existing.image) { existing.image = providerImage; needsSave = true; }
-                        if (needsSave) { await existing.save(); logger.info(`${TAG_SIGNIN} Usuário Facebook existente ${existing._id} atualizado.`);}
+                        if (needsSave) { await existing.save(); logger.info(`${TAG_SIGNIN} Utilizador Facebook existente ${existing._id} atualizado.`);}
+                        // Se o usuário FB já existe, isNewUser continua false (default)
+                        (user as any).isNewUserForOnboarding = false; 
                         return true;
                     }
-                    logger.warn(`${TAG_SIGNIN} Usuário não encontrado para Facebook no signIn (ou sem email para vincular via email). Permitindo fluxo para JWT (vinculação ou falha lá). user.id atual: ${user.id}`);
-                    return true; // Permite que o callback JWT trate a criação/vinculação
+                    // Se o usuário não existe pelo facebookProviderAccountId, a lógica de vinculação/criação
+                    // (e potencial definição de isNewUser) ocorre no callback JWT para Facebook.
+                    logger.warn(`${TAG_SIGNIN} Utilizador não encontrado para Facebook no signIn. Permitindo fluxo para JWT (vinculação ou potencial criação lá). user.id atual: ${user.id}`);
+                    // Passa o user original para o JWT, que pode ter o ID do FB
+                    return true; 
                 }
-
                 logger.error(`${TAG_SIGNIN} Provedor ${account.provider} não resultou em criação ou login (final do try).`);
                 return false;
 
@@ -272,112 +270,118 @@ export const authOptions: NextAuthOptions = {
         },
 
         async jwt({ token, user, account, trigger }) {
-            const TAG_JWT = '[NextAuth JWT Callback]';
+            const TAG_JWT = '[NextAuth JWT Callback vConnectAccount-OnboardingFlag]'; 
             logger.debug(`${TAG_JWT} Iniciado. Trigger: ${trigger}. Provider: ${account?.provider}. UserID (do param): ${user?.id}. TokenInID (do param): ${token?.id}`);
-
-            let currentToken: Partial<JWT> = {
-                id: token?.id, name: token?.name, email: token?.email, image: token?.image,
-                role: token?.role, provider: token?.provider, sub: token?.sub
-            };
-            delete currentToken.igConnectionError;
-            delete currentToken.availableIgAccounts;
+            
+            let currentToken: Partial<JWT> = { id: token?.id, name: token?.name, email: token?.email, image: token?.image, role: token?.role, provider: token?.provider, sub: token?.sub };
+            delete currentToken.igConnectionError; delete currentToken.availableIgAccounts;
 
             const isSignInOrSignUp = trigger === 'signIn' || trigger === 'signUp';
 
-            if (isSignInOrSignUp && account && user) { // Adicionado 'user' aqui para garantir que existe neste fluxo
+            if (isSignInOrSignUp && account && user) {
+                // Passa o flag do objeto user (se existir, vindo do signIn) para o token
+                if ((user as any).isNewUserForOnboarding !== undefined) { // Verifica se a propriedade existe
+                    currentToken.isNewUserForOnboarding = (user as any).isNewUserForOnboarding;
+                    logger.info(`${TAG_JWT} [${account.provider} Flow DEBUG] Flag 'isNewUserForOnboarding' (${currentToken.isNewUserForOnboarding}) definido no token para user ID: ${user.id}`);
+                }
+                
                 if (account.provider === 'facebook') {
                     logger.debug(`${TAG_JWT} [Facebook Flow DEBUG] Processando login/vinculação Facebook...`);
-                    let userId = ''; // Este será o _id do MongoDB
-
-                    try {
+                    let userId = ''; 
+                    let isNewUserFbFlow = false;
+                    try { 
                         const authLink = cookies().get('auth-link-token')?.value;
                         if (authLink) {
-                            logger.info(`${TAG_JWT} [Facebook Flow DEBUG] Cookie 'auth-link-token' encontrado: ${authLink}`);
                             cookies().delete('auth-link-token');
                             await connectToDatabase();
-                            const linkDoc = await DbUser.findOne({ linkToken: authLink, linkTokenExpiresAt: { $gt: new Date() } }).lean();
+                            const linkDoc = await DbUser.findOne({ linkToken: authLink, linkTokenExpiresAt: { $gt: new Date() } }).select('_id communityInspirationOptIn').lean(); // Seleciona communityInspirationOptIn
                             if (linkDoc) {
                                 userId = linkDoc._id.toString();
-                                logger.info(`${TAG_JWT} [Facebook Flow DEBUG] Usuário ${userId} (MongoDB _id) identificado via linkToken.`);
+                                logger.info(`${TAG_JWT} [Facebook Flow DEBUG] Utilizador ${userId} (MongoDB _id) identificado via linkToken.`);
                                 await DbUser.updateOne({ _id: linkDoc._id }, { $unset: { linkToken: '', linkTokenExpiresAt: '' } });
-                            } else {
-                                logger.warn(`${TAG_JWT} [Facebook Flow DEBUG] Link token do cookie inválido ou expirado.`);
-                            }
-                        } else {
-                             logger.debug(`${TAG_JWT} [Facebook Flow DEBUG] Cookie 'auth-link-token' não encontrado.`);
-                        }
+                                // Se foi vinculado via linkToken e ainda não fez opt-in, considera novo para onboarding de termos
+                                if (!linkDoc.communityInspirationOptIn) {
+                                    isNewUserFbFlow = true;
+                                }
+                            } else { logger.warn(`${TAG_JWT} [Facebook Flow DEBUG] Link token do cookie inválido ou expirado.`); }
+                        } else { logger.debug(`${TAG_JWT} [Facebook Flow DEBUG] Cookie 'auth-link-token' não encontrado.`); }
                     } catch (e) { logger.error(`${TAG_JWT} [Facebook Flow DEBUG] Erro ao processar link token:`, e); }
 
-                    // Se não encontrou pelo linkToken, tenta pelo providerAccountId do Facebook
                     if (!userId && account.providerAccountId) {
-                        logger.debug(`${TAG_JWT} [Facebook Flow DEBUG] Tentando encontrar usuário pelo facebookProviderAccountId: ${account.providerAccountId}`);
                         await connectToDatabase();
-                        const doc = await DbUser.findOne({ facebookProviderAccountId: account.providerAccountId }).lean().exec();
-                        if (doc) {
-                            userId = doc._id.toString(); // Este é o _id do MongoDB
-                            logger.info(`${TAG_JWT} [Facebook Flow DEBUG] Usuário ${userId} (MongoDB _id) identificado via facebookProviderAccountId.`);
+                        const doc = await DbUser.findOne({ facebookProviderAccountId: account.providerAccountId }).select('_id communityInspirationOptIn').lean().exec(); // Seleciona communityInspirationOptIn
+                        if (doc) { 
+                            userId = doc._id.toString(); 
+                            logger.info(`${TAG_JWT} [Facebook Flow DEBUG] Utilizador ${userId} (MongoDB _id) identificado via facebookProviderAccountId.`);
+                            if (!doc.communityInspirationOptIn) { // Se já existe mas não fez opt-in
+                                isNewUserFbFlow = true;
+                            }
                         } else {
-                             logger.warn(`${TAG_JWT} [Facebook Flow DEBUG] Nenhum usuário encontrado para facebookProviderAccountId ${account.providerAccountId}.`);
-                             // Neste ponto, para Facebook, o objetivo é vincular, não criar um novo usuário se não houver contexto (linkToken ou sessão existente)
-                             // O user.id aqui é o ID numérico do Facebook, vindo do profile callback
-                             logger.debug(`${TAG_JWT} [Facebook Flow DEBUG] user.id (do Facebook profile): '${user.id}'. Email do user: '${user.email}'`);
-                             if (user.email) { // Tenta vincular ou encontrar por email se não achou pelo providerAccountId
-                                logger.info(`${TAG_JWT} [Facebook Flow DEBUG] Tentando encontrar DbUser por email ('${user.email}') para possível vinculação/criação FB.`);
+                             if (user.email) { 
                                 await connectToDatabase();
                                 let userByEmail = await DbUser.findOne({ email: user.email });
                                 if (userByEmail) {
-                                    logger.info(`${TAG_JWT} [Facebook Flow DEBUG] DbUser '${userByEmail._id}' encontrado por email. Vinculando facebookProviderAccountId.`);
                                     userId = userByEmail._id.toString();
+                                    logger.info(`${TAG_JWT} [Facebook Flow DEBUG] DbUser '${userByEmail._id}' encontrado por email. Vinculando facebookProviderAccountId.`);
                                     if (!userByEmail.facebookProviderAccountId) {
                                         userByEmail.facebookProviderAccountId = account.providerAccountId;
                                         if (user.name && userByEmail.name !== user.name) userByEmail.name = user.name;
                                         if (user.image && userByEmail.image !== user.image) userByEmail.image = user.image;
                                         await userByEmail.save();
+                                        if (!userByEmail.communityInspirationOptIn) { 
+                                            isNewUserFbFlow = true;
+                                        }
+                                    } else if (!userByEmail.communityInspirationOptIn) { // Já tinha FB acc, mas não opt-in
+                                        isNewUserFbFlow = true;
                                     }
                                 } else {
-                                    // Se o objetivo NÃO é criar usuário via FB, esta parte deve ser removida ou ajustada
-                                    logger.error(`${TAG_JWT} [Facebook Flow DEBUG] Nenhum usuário existente encontrado por email para vincular conta Facebook. Nova criação de usuário via FB não implementada/desabilitada aqui.`);
-                                    // userId permanece ''
+                                    // Se NENHUM usuário existe por email, e estamos no fluxo de FB,
+                                    // significa que é um NOVO usuário sendo criado implicitamente pelo FB.
+                                    // Esta lógica de criação precisa ser explícita se desejada.
+                                    // Por ora, se não há userByEmail, userId permanece vazio e o opt-in não ocorre aqui.
+                                    logger.error(`${TAG_JWT} [Facebook Flow DEBUG] Nenhum utilizador existente encontrado por email para vincular/criar conta Facebook. O opt-in da comunidade não ocorrerá aqui.`);
                                 }
                              } else {
-                                 logger.error(`${TAG_JWT} [Facebook Flow DEBUG] Email ausente do perfil do Facebook, não é possível vincular/criar usuário por email.`);
-                                 // userId permanece ''
+                                 logger.error(`${TAG_JWT} [Facebook Flow DEBUG] Email ausente do perfil do Facebook, não é possível vincular/criar utilizador por email.`);
                              }
                         }
                     }
-                    // Se userId ainda for vazio aqui, a vinculação falhou ou não foi possível identificar o usuário do DB
+                    
+                    if (userId && isNewUserFbFlow) {
+                        currentToken.isNewUserForOnboarding = true;
+                        try {
+                            logger.info(`${TAG_JWT} [Facebook Flow DEBUG] Registando opt-in na comunidade para utilizador ${userId}. Termos: ${DEFAULT_TERMS_VERSION}`);
+                            await dataService.optInUserToCommunity(userId, DEFAULT_TERMS_VERSION);
+                            logger.info(`${TAG_JWT} [Facebook Flow DEBUG] Opt-in na comunidade registado com sucesso para utilizador ${userId}.`);
+                        } catch (optInError) {
+                            logger.error(`${TAG_JWT} [Facebook Flow DEBUG] Falha ao registar opt-in na comunidade para utilizador ${userId}:`, optInError);
+                        }
+                    }
+
                     if (!userId) {
-                        logger.error(`${TAG_JWT} [Facebook Flow DEBUG] Não foi possível determinar o MongoDB _id para o fluxo do Facebook. O token não terá um ID válido.`);
-                        // Define um erro no token para a sessão, mas não limpa o id para não interferir com a sessão Google se houver uma
-                        // currentToken.id = ''; // NÃO FAÇA ISSO AQUI se o objetivo é só vincular
-                        currentToken.igConnectionError = "Falha ao vincular conta Facebook: usuário do sistema não identificado.";
-                    } else {
-                        // userId é um MongoDB _id. Prosseguir com a lógica do Instagram usando este userId.
-                        // O id do token principal (se já existir de uma sessão Google) não deve ser sobrescrito.
-                        // Se currentToken.id já é um ObjectId válido (da sessão Google), mantenha-o.
-                        // Se não há currentToken.id (fluxo de link puro sem sessão NextAuth ainda), então defina-o com o userId (MongoDB _id).
+                        logger.error(`${TAG_JWT} [Facebook Flow DEBUG] Não foi possível determinar o MongoDB _id para o fluxo do Facebook.`);
+                        currentToken.igConnectionError = "Falha ao vincular conta Facebook: utilizador do sistema não identificado.";
+                    } else { 
                         if (!currentToken.id || !Types.ObjectId.isValid(currentToken.id)) {
                             logger.info(`${TAG_JWT} [Facebook Flow DEBUG] Definindo currentToken.id para o userId do Facebook Flow (MongoDB _id): '${userId}'`);
                             currentToken.id = userId;
                         } else {
                             logger.info(`${TAG_JWT} [Facebook Flow DEBUG] Mantendo currentToken.id existente ('${currentToken.id}') da sessão Google durante o fluxo do Facebook.`);
-                            // Garante que o userId para operações do IG seja o correto
-                            // userId = currentToken.id; // Desnecessário se já estiver usando o userId correto
                         }
-
+                        // (Lógica de fetchAvailableInstagramAccounts mantida)
                         if (account.access_token) {
                             logger.info(`${TAG_JWT} [Facebook Flow DEBUG] Chamando fetchAvailableInstagramAccounts para User (MongoDB _id) ${userId}...`);
                             try {
-                                const result = await fetchAvailableInstagramAccounts(account.access_token, userId); // userId AQUI DEVE SER O MONGODB _ID
+                                const result = await fetchAvailableInstagramAccounts(account.access_token, userId); 
                                 if (result.success) {
-                                    // ... (lógica de connectInstagramAccount mantida, usando 'userId' que é o MongoDB _id)
                                     if (result.accounts && result.accounts.length > 0) {
                                         const firstAccount = result.accounts[0];
                                         if (firstAccount && firstAccount.igAccountId && result.longLivedAccessToken) {
                                             connectInstagramAccount(userId, firstAccount.igAccountId, result.longLivedAccessToken)
-                                                .then(/* ... */).catch(/* ... */);
-                                        } // ... (logs de erro para outros casos)
-                                    } // ... (logs de erro para outros casos)
+                                                .then(() => logger.info(`${TAG_JWT} Conexão IG iniciada para ${userId}`))
+                                                .catch(err => logger.error(`${TAG_JWT} Erro ao conectar IG para ${userId}`, err));
+                                        } 
+                                    } 
                                     currentToken.availableIgAccounts = result.accounts;
                                 } else {
                                     logger.error(`${TAG_JWT} [Facebook Flow DEBUG] fetchAvailableInstagramAccounts falhou para User ${userId}: ${result.error}`);
@@ -392,60 +396,38 @@ export const authOptions: NextAuthOptions = {
                             currentToken.igConnectionError = "Token do Facebook ausente.";
                         }
                     }
-                    // Define o provider no token para fins informativos, mas o ID principal deve ser do Google se já logado.
-                    // Se não havia sessão Google, currentToken.provider será 'facebook'.
                     if (!currentToken.provider && userId) currentToken.provider = 'facebook';
 
-                } else { // Provedor Google ou Credentials
+                } else { 
                     const providerName = account.provider || 'unknown_provider';
                     logger.debug(`${TAG_JWT} [${providerName} Flow DEBUG] Processando login inicial.`);
-                    logger.debug(`${TAG_JWT} [${providerName} Flow DEBUG] Objeto 'user' recebido do signIn: ${JSON.stringify(user)}`);
-                    logger.debug(`${TAG_JWT} [${providerName} Flow DEBUG] Valor de user?.id ANTES da validação: '${user.id}'`);
-
                     const isValidObjectId = user.id ? Types.ObjectId.isValid(user.id) : false;
-                    logger.debug(`${TAG_JWT} [${providerName} Flow DEBUG] Resultado de Types.ObjectId.isValid(user.id='${user.id}'): ${isValidObjectId}`);
-
                     if (user.id && isValidObjectId) {
                         currentToken.id = user.id;
                         currentToken.provider = account.provider;
                         currentToken.name = user.name;
                         currentToken.email = user.email;
                         currentToken.image = user.image;
-                        try {
+                        try { 
                             await connectToDatabase();
-                            const doc = await DbUser.findById(currentToken.id).select('role').lean();
-                            currentToken.role = doc?.role ?? 'user';
-                            logger.debug(`${TAG_JWT} [${providerName} Flow DEBUG] Role buscada do DB: '${currentToken.role}' para user ID '${currentToken.id}'`);
-                        } catch (error) {
-                            logger.error(`${TAG_JWT} [${providerName} Flow DEBUG] Erro ao buscar role para ${currentToken.id}:`, error);
-                            currentToken.role = 'user'; // Fallback role
-                        }
+                            const doc = await DbUser.findById(currentToken.id).select('role').lean(); 
+                            currentToken.role = doc?.role ?? 'user'; 
+                        } catch (error) { logger.error(`${TAG_JWT} [${providerName} Flow DEBUG] Erro ao buscar role para ${currentToken.id}:`, error); currentToken.role = 'user'; }
                     } else {
-                         logger.error(`${TAG_JWT} [${providerName} Flow DEBUG] ID do usuário ('${user.id}') inválido ou ausente. DEFININDO currentToken.id PARA ''.`);
-                         currentToken.id = ''; // ID é explicitamente definido como STRING VAZIA!
+                         logger.error(`${TAG_JWT} [${providerName} Flow DEBUG] ID do utilizador ('${user.id}') inválido ou ausente. DEFININDO currentToken.id PARA ''.`);
+                         currentToken.id = ''; 
                     }
-                    logger.debug(`${TAG_JWT} [${providerName} Flow DEBUG] currentToken.id APÓS bloco inicial: '${currentToken.id}'`);
                 }
             }
 
             const finalUserId = currentToken.id || token?.id;
-            logger.debug(`${TAG_JWT} [Consolidation DEBUG] finalUserId determinado como: '${finalUserId}'. (currentToken.id: '${currentToken.id}', token?.id: '${token?.id}')`);
-
-
             if (finalUserId && typeof finalUserId === 'string' && Types.ObjectId.isValid(finalUserId)) {
-                currentToken.id = finalUserId;
+                currentToken.id = finalUserId; 
                 currentToken.sub = finalUserId;
-                logger.debug(`${TAG_JWT} [Consolidation DEBUG] finalUserId ('${finalUserId}') é válido. currentToken.id e .sub definidos.`);
-
                 if (!currentToken.name || !currentToken.email || !currentToken.image || !currentToken.role || !currentToken.provider) {
-                    logger.debug(`${TAG_JWT} [Enrichment Block DEBUG] ENTRANDO NO BLOCO DE ENRIQUECIMENTO DE TOKEN PARA UserID: ${finalUserId}. Valores atuais: name='${currentToken.name}', email='${currentToken.email}', image='${currentToken.image}', role='${currentToken.role}', provider='${currentToken.provider}'`);
                     try {
-                        logger.debug(`${TAG_JWT} [Enrichment Block DEBUG] Chamando connectToDatabase() ANTES de findById.`);
                         await connectToDatabase();
-                        logger.debug(`${TAG_JWT} [Enrichment Block DEBUG] connectToDatabase() CONCLUÍDO. Chamando DbUser.findById('${finalUserId}')...`);
                         const dbUser = await DbUser.findById(finalUserId).select('name email image role provider facebookProviderAccountId').lean();
-                        logger.debug(`${TAG_JWT} [Enrichment Block DEBUG] Resultado de DbUser.findById: ${dbUser ? `ENCONTRADO (ID: ${dbUser._id})` : 'NÃO ENCONTRADO (null)'}`);
-
                         if (dbUser) {
                             if (!currentToken.name) currentToken.name = dbUser.name;
                             if (!currentToken.email) currentToken.email = dbUser.email;
@@ -454,27 +436,18 @@ export const authOptions: NextAuthOptions = {
                             if (!currentToken.provider) {
                                 currentToken.provider = dbUser.provider ?? (dbUser.facebookProviderAccountId ? 'facebook' : undefined);
                             }
-                            logger.debug(`${TAG_JWT} [Enrichment Block DEBUG] Token enriquecido. ID mantido: ${currentToken.id}`);
-                        } else {
-                            logger.warn(`${TAG_JWT} [Enrichment Block DEBUG] Usuário ${finalUserId} NÃO encontrado no DB para preencher token. DEFININDO currentToken.id PARA ''.`);
-                            currentToken.id = '';
-                        }
-                    } catch (error) {
-                        logger.error(`${TAG_JWT} [Enrichment Block DEBUG] ERRO NO TRY/CATCH do enriquecimento para ${finalUserId}:`, error);
-                    }
-                } else {
-                    logger.debug(`${TAG_JWT} [Enrichment Block DEBUG] PULO DO BLOCO DE ENRIQUECIMENTO para UserID: ${finalUserId}. Dados já completos no token inicial.`);
+                        } else { currentToken.id = ''; }
+                    } catch (error) { logger.error(`${TAG_JWT} [Enrichment Block DEBUG] ERRO NO TRY/CATCH do enriquecimento para ${finalUserId}:`, error); }
                 }
             } else if (trigger !== 'signUp' && trigger !== 'signIn') {
                 logger.warn(`${TAG_JWT} [Consolidation DEBUG] ID final ('${finalUserId}') inválido ou vazio FORA DO FLUXO DE LOGIN. Limpando token (retornando {}).`);
                 return {} as JWT;
             } else if (isSignInOrSignUp && (!finalUserId || !Types.ObjectId.isValid(finalUserId))) {
                 logger.error(`${TAG_JWT} [Consolidation DEBUG] ID final ('${finalUserId}') inválido ou não é ObjectId válido DURANTE O FLUXO DE LOGIN. Definindo currentToken.id como ''.`);
-                currentToken.id = ''; // Garante que um ID inválido no login não prossiga
+                currentToken.id = ''; 
             }
 
-
-            logger.debug(`${TAG_JWT} FINAL do callback jwt. Retornando token com id: '${currentToken.id}', sub: '${currentToken.sub}', provider: '${currentToken.provider}'`, {
+            logger.debug(`${TAG_JWT} FINAL do callback jwt. Retornando token com id: '${currentToken.id}', isNewUserForOnboarding: ${currentToken.isNewUserForOnboarding}`, {
                 availableIgAccountsCount: currentToken.availableIgAccounts?.length,
                 igConnectionError: currentToken.igConnectionError
             });
@@ -482,11 +455,11 @@ export const authOptions: NextAuthOptions = {
         },
 
         async session({ session, token }) {
-             const TAG_SESSION = '[NextAuth Session Callback]';
-             logger.debug(`${TAG_SESSION} Iniciado. Token ID: ${token?.id}, Token Sub: ${token?.sub}, Token Provider: ${token?.provider}`);
-
+             const TAG_SESSION = '[NextAuth Session Callback vConnectAccount-OnboardingFlag]';
+             logger.debug(`${TAG_SESSION} Iniciado. Token ID: ${token?.id}, Token Sub: ${token?.sub}, Token isNewUserForOnboarding: ${token?.isNewUserForOnboarding}`);
+             
              if (!token?.id || typeof token.id !== 'string' || !Types.ObjectId.isValid(token.id)) {
-                 logger.error(`${TAG_SESSION} Token ID inválido ou ausente ('${token?.id}'). Retornando sessão sem usuário.`);
+                 logger.error(`${TAG_SESSION} Token ID inválido ou ausente ('${token?.id}'). Retornando sessão sem utilizador.`);
                  return { ...session, user: undefined, expires: session.expires };
              }
 
@@ -499,6 +472,7 @@ export const authOptions: NextAuthOptions = {
                  provider: token.provider,
                  availableIgAccounts: token.availableIgAccounts,
                  igConnectionError: token.igConnectionError,
+                 isNewUserForOnboarding: token.isNewUserForOnboarding ?? false, 
                  instagramConnected: false,
                  instagramAccountId: undefined,
                  instagramUsername: undefined,
@@ -509,15 +483,13 @@ export const authOptions: NextAuthOptions = {
                  affiliateRank: 1,
                  affiliateInvites: 0,
              };
-
+             
              try {
                  await connectToDatabase();
                  const dbUser = await DbUser.findById(token.id)
-                     .select('name email image role planStatus planExpiresAt affiliateCode affiliateBalance affiliateRank affiliateInvites isInstagramConnected instagramAccountId username')
+                     .select('name email image role planStatus planExpiresAt affiliateCode affiliateBalance affiliateRank affiliateInvites isInstagramConnected instagramAccountId username') 
                      .lean();
-
                  if (dbUser && session.user) {
-                     logger.debug(`${TAG_SESSION} Usuário ${token.id} encontrado no DB. Atualizando sessão.`);
                      session.user.name = dbUser.name ?? session.user.name;
                      session.user.email = dbUser.email ?? session.user.email;
                      session.user.image = dbUser.image ?? session.user.image;
@@ -531,36 +503,32 @@ export const authOptions: NextAuthOptions = {
                      session.user.instagramConnected = dbUser.isInstagramConnected ?? false;
                      session.user.instagramAccountId = dbUser.instagramAccountId ?? undefined;
                      session.user.instagramUsername = dbUser.username ?? undefined;
-
-                     if (session.user.instagramConnected) {
-                        delete session.user.igConnectionError;
-                     }
-                     logger.debug(`${TAG_SESSION} Finalizado. Session.user ID: ${session.user?.id}, IG Connected: ${session.user.instagramConnected}`);
-
-                 } else if (session.user) {
-                      logger.error(`${TAG_SESSION} Usuário ${token.id} não encontrado no DB ao popular sessão. Sessão pode estar incompleta.`);
-                      session.user.igConnectionError = session.user.igConnectionError || "Falha ao carregar dados completos do usuário.";
+                     if (session.user.instagramConnected) { delete session.user.igConnectionError; }
+                     logger.debug(`${TAG_SESSION} Finalizado. Session.user ID: ${session.user?.id}, isNewUserForOnboarding: ${session.user.isNewUserForOnboarding}`);
+                 } else if (session.user) { 
+                      logger.error(`${TAG_SESSION} Utilizador ${token.id} não encontrado no DB ao popular sessão. Sessão pode estar incompleta.`);
+                      session.user.igConnectionError = session.user.igConnectionError || "Falha ao carregar dados completos do utilizador.";
                  }
              } catch (error) {
-                  logger.error(`${TAG_SESSION} Erro ao buscar dados do usuário ${token.id} na sessão:`, error);
+                  logger.error(`${TAG_SESSION} Erro ao buscar dados do utilizador ${token.id} na sessão:`, error);
                    if(session.user) {
-                     session.user.igConnectionError = session.user.igConnectionError || "Erro ao carregar dados do usuário.";
+                     session.user.igConnectionError = session.user.igConnectionError || "Erro ao carregar dados do utilizador.";
                    }
              }
              return session;
          },
 
         async redirect({ baseUrl }) {
-            return `${baseUrl}/dashboard`;
+            return `${baseUrl}/dashboard`; 
         }
     },
     pages: {
-        signIn: '/login',
+        signIn: '/login', 
         error: '/auth/error'
     },
     session: {
         strategy: 'jwt',
-        maxAge: 30 * 24 * 60 * 60 // 30 days
+        maxAge: 30 * 24 * 60 * 60 
     }
 };
 
