@@ -5,19 +5,20 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User"; // Assume que User tem a role
 import Redemption from "@/app/models/Redemption";
-import { Model, Document } from "mongoose";
+import { Model, Document, Types } from "mongoose"; // Types importado para _id
 
 export const runtime = "nodejs";
 
 /**
  * Interface para o documento de Redemption.
  */
-interface IRedemption extends Document {
-  user: string; // ou Types.ObjectId se preferir
+interface IRedemptionDocument extends Document { // Renomeado para IRedemptionDocument para clareza
+  _id: Types.ObjectId; // Adicionado _id
+  user: string | Types.ObjectId; // Pode ser string ou ObjectId
   amount: number;
   status: "pending" | "paid" | "canceled";
   paymentMethod: string;
-  notes: string;
+  notes: string; // Este campo será usado para as notas do admin
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,12 +30,11 @@ interface SessionUser {
   name?: string | null;
   email?: string | null;
   image?: string | null;
-  role?: string; // Adiciona a role aqui
+  role?: string;
   id?: string;
 }
 
-
-// --- GET e POST mantidos como antes ---
+// --- GET e POST (sem alterações, mantidos como no seu arquivo original) ---
 
 /**
  * GET /api/affiliate/redeem?userId=...
@@ -44,21 +44,18 @@ export async function GET(request: NextRequest) {
   try {
     await connectToDatabase();
 
-    // Obtém a sessão do usuário
     const session = await getServerSession({ req: request, ...authOptions });
-    console.debug("[redeem:GET] Sessão:", session);
+    // console.debug("[redeem:GET] Sessão:", session);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
-    // Extrai userId dos query params
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
     if (!userId) {
       return NextResponse.json({ error: "Faltou userId" }, { status: 400 });
     }
 
-    // Verifica se o userId da query corresponde ao da sessão
     if (userId !== session.user.id) {
       return NextResponse.json(
         { error: "Acesso negado: userId não corresponde ao usuário logado." },
@@ -66,8 +63,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Busca os resgates do usuário
-    const redemptionModel = Redemption as unknown as Model<IRedemption>;
+    const redemptionModel = Redemption as unknown as Model<IRedemptionDocument>;
     const redemptions = await redemptionModel.find({ user: userId }).sort({ createdAt: -1 });
 
     return NextResponse.json(redemptions, { status: 200 });
@@ -87,9 +83,8 @@ export async function POST(request: NextRequest) {
   try {
     await connectToDatabase();
 
-    // Obtém a sessão do usuário
     const session = await getServerSession({ req: request, ...authOptions });
-    console.debug("[redeem:POST] Sessão:", session);
+    // console.debug("[redeem:POST] Sessão:", session);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
@@ -100,7 +95,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Parâmetro userId é obrigatório." }, { status: 400 });
     }
 
-    // Garante que o userId do corpo corresponda ao da sessão
     if (userId !== session.user.id) {
       return NextResponse.json(
         { error: "Acesso negado: userId não corresponde ao usuário logado." },
@@ -108,13 +102,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Busca o usuário
     const user = await User.findById(userId);
     if (!user) {
       return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });
     }
 
-    // Verifica se os dados bancários foram preenchidos
     const { pixKey, bankName, bankAgency, bankAccount } = user.paymentInfo || {};
     const hasPaymentInfo = !!(pixKey || bankName || bankAgency || bankAccount);
     if (!hasPaymentInfo) {
@@ -124,10 +116,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verifica saldo
     const balance = user.affiliateBalance || 0;
-    // <<< ADICIONAR VALOR MÍNIMO DE SAQUE SE NECESSÁRIO >>>
-    const MINIMUM_REDEEM_AMOUNT = 50; // Exemplo: R$ 50,00
+    const MINIMUM_REDEEM_AMOUNT = 50;
     if (balance < MINIMUM_REDEEM_AMOUNT) {
       return NextResponse.json(
         { error: `Saldo insuficiente. O valor mínimo para resgate é R$ ${MINIMUM_REDEEM_AMOUNT.toFixed(2)}.` },
@@ -135,17 +125,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Cria registro do saque
-    const redemptionModel = Redemption as unknown as Model<IRedemption>;
+    const redemptionModel = Redemption as unknown as Model<IRedemptionDocument>;
     const newRedemption = await redemptionModel.create({
       user: user._id,
       amount: balance,
       status: "pending",
       paymentMethod: "", // Pode ser preenchido depois pelo admin ou automaticamente
-      notes: "", // Pode ser preenchido depois pelo admin
+      notes: "", // Inicialmente vazio, pode ser preenchido pelo admin no PATCH
     });
 
-    // Zera o saldo do usuário
     user.affiliateBalance = 0;
     await user.save();
 
@@ -163,65 +151,87 @@ export async function POST(request: NextRequest) {
 
 /**
  * PATCH /api/affiliate/redeem
- * Atualiza o status do saque (apenas admin).
- * Body: { redeemId, newStatus }
- * <<< SEGURANÇA ADICIONADA >>>
+ * Atualiza o status e/ou notas do saque (apenas admin).
+ * Body: { redeemId, newStatus, adminNotes? }
  */
 export async function PATCH(request: NextRequest) {
   try {
     await connectToDatabase();
 
-    // Obtém a sessão do usuário
     const session = await getServerSession({ req: request, ...authOptions });
-    console.debug("[redeem:PATCH] Sessão:", session);
+    // console.debug("[redeem:PATCH] Sessão:", session);
 
-    // 1. Verifica se está autenticado
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
-    // 2. <<< NOVO: Verifica se o usuário tem a role 'admin' >>>
-    const userSession = session.user as SessionUser; // Faz type assertion para acessar a role
+    const userSession = session.user as SessionUser;
     if (userSession.role !== 'admin') {
         return NextResponse.json({ error: "Acesso negado. Permissão de administrador necessária." }, { status: 403 });
     }
 
-    // 3. Processa o corpo da requisição
     const body = await request.json();
-    const { redeemId, newStatus } = body || {};
-    if (!redeemId || !newStatus) {
+    // <<< MODIFICAÇÃO: Extrai adminNotes do corpo >>>
+    const { redeemId, newStatus, adminNotes } = body || {};
+
+    if (!redeemId) { // Apenas redeemId é estritamente obrigatório para buscar
       return NextResponse.json(
-        { error: "Parâmetros redeemId e newStatus são obrigatórios." },
+        { error: "Parâmetro redeemId é obrigatório." },
         { status: 400 }
       );
     }
-
-    // 4. Valida o novo status (opcional, mas recomendado)
-    const validStatuses = ['pending', 'paid', 'canceled']; // Adicione outros se necessário
-    if (!validStatuses.includes(newStatus)) {
-         return NextResponse.json({ error: `Status inválido: ${newStatus}` }, { status: 400 });
+    // newStatus e adminNotes são opcionais; pode-se querer atualizar só um ou outro.
+    // Mas geralmente, ao menos um deles será fornecido para uma ação de PATCH.
+    if (!newStatus && typeof adminNotes === 'undefined') {
+        return NextResponse.json(
+          { error: "É necessário fornecer newStatus ou adminNotes para atualização." },
+          { status: 400 }
+        );
     }
 
-    // 5. Busca e atualiza o resgate
-    const redemptionModel = Redemption as unknown as Model<IRedemption>;
+
+    const redemptionModel = Redemption as unknown as Model<IRedemptionDocument>;
     const redemption = await redemptionModel.findById(redeemId);
     if (!redemption) {
       return NextResponse.json({ error: "Resgate não encontrado." }, { status: 404 });
     }
 
-    // <<< LÓGICA ADICIONAL: Se status for 'paid', talvez adicionar nota/data? >>>
-    // if (newStatus === 'paid') {
-    //     redemption.notes = `Pago por ${userSession.name || userSession.email} em ${new Date().toISOString()}`;
-    // }
+    let hasChanges = false;
 
-    redemption.status = newStatus;
-    await redemption.save();
+    // Atualiza o status se newStatus for fornecido
+    if (newStatus) {
+      const validStatuses = ['pending', 'paid', 'canceled'];
+      if (!validStatuses.includes(newStatus)) {
+           return NextResponse.json({ error: `Status inválido: ${newStatus}` }, { status: 400 });
+      }
+      if (redemption.status !== newStatus) {
+        redemption.status = newStatus;
+        hasChanges = true;
+      }
+    }
 
-    // 6. Retorna sucesso
+    // <<< MODIFICAÇÃO: Atualiza as notas se adminNotes for fornecido >>>
+    // Verifica se adminNotes foi passado (pode ser uma string vazia para limpar notas)
+    if (typeof adminNotes === 'string') {
+      const trimmedAdminNotes = adminNotes.trim();
+      if (redemption.notes !== trimmedAdminNotes) {
+        redemption.notes = trimmedAdminNotes; // Usa o campo 'notes' existente
+        hasChanges = true;
+        // console.debug(`[redeem:PATCH] Notas atualizadas para o resgate ${redeemId}: "${redemption.notes}"`);
+      }
+    }
+
+    if (hasChanges) {
+      await redemption.save();
+    } else {
+      // console.debug(`[redeem:PATCH] Nenhuma alteração detectada para o resgate ${redeemId}.`);
+    }
+    
     return NextResponse.json({
-      message: `Status atualizado para "${newStatus}" com sucesso!`,
+      message: `Resgate atualizado com sucesso!`, // Mensagem genérica se nenhuma alteração específica foi feita
       redemption,
     });
+
   } catch (error: unknown) {
     console.error("[redeem:PATCH] Erro:", error);
     const message = error instanceof Error ? error.message : "Erro desconhecido.";

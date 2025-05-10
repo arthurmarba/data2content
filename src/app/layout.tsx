@@ -1,17 +1,16 @@
-// src/app/layout.tsx (v1.1 - Header Condicional)
-"use client"; // Necessário para usar hooks como usePathname
+// src/app/layout.tsx (v1.1 - Header Condicional - MODIFICADO PARA CAPTURAR REF)
+"use client";
 
-import type { Metadata } from "next"; // Metadata geralmente fica em page.tsx ou layout.tsx server-side
+import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
-import { usePathname } from 'next/navigation'; // Importa o hook para pegar a rota atual
+import { usePathname, useSearchParams } from 'next/navigation'; // <<< useSearchParams ADICIONADO >>>
+import { useEffect } from 'react'; // <<< useEffect ADICIONADO >>>
 import "./globals.css";
 
-// Importe seus componentes Header e Footer
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import { Providers } from "./providers";
 
-// Carrega a fonte Poppins
 const poppins = Poppins({
   weight: ["300", "400", "500", "600", "700", "800"],
   subsets: ["latin"],
@@ -19,10 +18,17 @@ const poppins = Poppins({
   variable: "--font-poppins",
 });
 
-// Metadata pode precisar ser movida para page.tsx se este layout for client-side
+// Chave para armazenar o código de afiliado no localStorage
+const AFFILIATE_REF_KEY = 'affiliateRefCode';
+// Duração em dias que o código de referência ficará armazenado
+const AFFILIATE_REF_EXPIRATION_DAYS = 30;
+
+// Metadata foi comentada no seu original, mantendo assim.
+// Se precisar de metadata dinâmica ou específica por página,
+// ela deve ser exportada de page.tsx ou de um layout Server Component pai.
 // export const metadata: Metadata = {
-//   title: "Data2Content: Gestão de Carreira IA para Criadores",
-//   description: "Impulsione sua carreira de criador com insights de IA via WhatsApp, gestão estratégica e oportunidades exclusivas. Vire afiliado e comece a ganhar.",
+// title: "Data2Content: Gestão de Carreira IA para Criadores",
+// description: "Impulsione sua carreira de criador com insights de IA via WhatsApp, gestão estratégica e oportunidades exclusivas. Vire afiliado e comece a ganhar.",
 // };
 
 export default function RootLayout({
@@ -30,39 +36,56 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const pathname = usePathname(); // Pega a rota atual
+  const pathname = usePathname();
+  const searchParams = useSearchParams(); // <<< Hook para ler query params >>>
 
-  // Define se o header global deve ser mostrado
-  // Não mostra no dashboard, pois ele tem seu próprio header
   const showHeader = pathname !== '/dashboard';
+
+  // --- INÍCIO: Lógica para capturar e armazenar código de afiliado ---
+  useEffect(() => {
+    // Garante que o código só rode no cliente, onde localStorage está disponível
+    if (typeof window !== 'undefined') {
+      const refCode = searchParams.get('ref');
+
+      if (refCode && refCode.trim() !== '') {
+        // console.log(`[Layout] Código de referência da URL detectado: ${refCode}`);
+        const expiresAt = Date.now() + AFFILIATE_REF_EXPIRATION_DAYS * 24 * 60 * 60 * 1000;
+        const refDataToStore = {
+          code: refCode.trim(),
+          expiresAt: expiresAt,
+        };
+        try {
+          localStorage.setItem(AFFILIATE_REF_KEY, JSON.stringify(refDataToStore));
+          // console.log(`[Layout] Código de referência salvo no localStorage:`, refDataToStore);
+        } catch (error) {
+          console.error('[Layout] Erro ao salvar código de referência no localStorage:', error);
+        }
+      }
+    }
+  }, [searchParams]); // O efeito será re-executado se os searchParams mudarem
+  // --- FIM: Lógica para capturar e armazenar código de afiliado ---
 
   return (
     <html lang="pt-BR" className={`${poppins.variable} h-full`}>
-      {/* Head pode ser usado aqui para tags globais, mas title/desc são melhores por página */}
       <head>
          {/* Adicione links globais aqui se necessário (favicon, etc.) */}
       </head>
       <body
         className={`
-          font-sans {/* Usa a fonte definida no tailwind.config.ts */}
+          font-sans
           antialiased
           flex
           flex-col
           min-h-screen
-          bg-brand-light {/* Cor de fundo base do manual */}
-          text-brand-dark {/* Cor de texto base do manual */}
+          bg-brand-light
+          text-brand-dark
         `}
       >
         <Providers>
-          {/* Renderiza o Header global condicionalmente */}
           {showHeader && <Header />}
-
-          {/* Ajusta o padding do main baseado na presença do header */}
           <main className={`flex-grow ${showHeader ? 'pt-16 md:pt-20' : ''}`}>
             {children}
           </main>
-
-          {/* Renderiza o Footer sempre (ou condicionalmente se necessário) */}
           <Footer />
         </Providers>
       </body>

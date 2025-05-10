@@ -12,6 +12,7 @@ import { logger } from '@/app/lib/logger'; // Logger da aplicação
 import User, { IUser } from '@/app/models/User';
 import Metric, { IMetric } from '@/app/models/Metric'; // Modelo Metric é necessário
 import AdDeal, { IAdDeal } from '@/app/models/AdDeal'; // Modelo AdDeal
+import AccountInsightModel, { IAccountInsight } from '@/app/models/AccountInsight'; // <<< ADICIONADO IMPORTAÇÃO >>>
 
 // Funções e tipos de reportHelpers
 import {
@@ -130,7 +131,7 @@ async function getCombinedGrowthData(
 
 export async function lookupUser(fromPhone: string): Promise<IUser> {
     const maskedPhone = fromPhone.slice(0, -4) + '****';
-    logger.debug(`[lookupUser v2.11] Buscando usuário para telefone ${maskedPhone}`); // Versão atualizada no log
+    logger.debug(`[lookupUser v2.11] Buscando usuário para telefone ${maskedPhone}`);
     try {
         const user = await User.findOne({ whatsappPhone: fromPhone }).lean();
         if (!user) {
@@ -147,7 +148,7 @@ export async function lookupUser(fromPhone: string): Promise<IUser> {
 }
 
 export async function lookupUserById(userId: string): Promise<IUser> {
-    logger.debug(`[lookupUserById v2.11] Buscando usuário por ID ${userId}`); // Versão atualizada no log
+    logger.debug(`[lookupUserById v2.11] Buscando usuário por ID ${userId}`);
     if (!mongoose.isValidObjectId(userId)) {
         logger.error(`[lookupUserById v2.11] ID de usuário inválido fornecido: ${userId}`);
         throw new DatabaseError(`ID de usuário inválido: ${userId}`);
@@ -178,19 +179,17 @@ export async function fetchAndPrepareReportData(
     {
         user,
         contentMetricModel,
-        analysisSinceDate // <<< NOVO PARÂMETRO OPCIONAL >>>
+        analysisSinceDate
     }: {
         user: IUser;
         contentMetricModel: Model<IMetric>;
-        analysisSinceDate?: Date; // Data de início para a análise (opcional)
+        analysisSinceDate?: Date;
     }
 ): Promise<PreparedData> {
     const userId = user._id instanceof Types.ObjectId ? user._id : new Types.ObjectId(user._id);
-    const TAG = '[fetchAndPrepareReportData v2.11]'; // ATUALIZADO: Versão
+    const TAG = '[fetchAndPrepareReportData v2.11]';
     
 
-    // Define a data limite para buscar métricas.
-    // Usa a data fornecida em analysisSinceDate ou o padrão de DEFAULT_METRICS_FETCH_DAYS.
     const sinceDate = analysisSinceDate || subDays(new Date(), DEFAULT_METRICS_FETCH_DAYS);
     logger.info(`${TAG} Iniciando para usuário ${userId}. Período de busca: desde ${sinceDate.toISOString()}`);
 
@@ -209,14 +208,13 @@ export async function fetchAndPrepareReportData(
         logger.debug(`${TAG} Gerando relatório agregado (v4.x) para ${userId} desde ${sinceDate.toISOString()}...`);
         aggregatedReport = await buildAggregatedReport(
             userId,
-            sinceDate,          // Passa a sinceDate determinada (seja a customizada ou o padrão)
+            sinceDate,
             contentMetricModel
         );
         logger.info(`${TAG} Relatório agregado gerado com sucesso para ${userId}. Posts no relatório: ${aggregatedReport?.overallStats?.totalPosts ?? 'N/A'}`);
 
-        // Verifica se o relatório tem dados, especialmente overallStats e totalPosts
         if (!aggregatedReport || !aggregatedReport.overallStats || aggregatedReport.overallStats.totalPosts === 0) {
-             const daysAnalyzed = differenceInDays(new Date(), sinceDate); // Calcula o número de dias efetivamente analisados
+             const daysAnalyzed = differenceInDays(new Date(), sinceDate);
              logger.warn(`${TAG} Nenhum dado encontrado nos últimos ${daysAnalyzed} dias para gerar relatório para ${userId}. overallStats: ${JSON.stringify(aggregatedReport?.overallStats)}`);
              throw new MetricsNotFoundError(
                  `Você ainda não tem métricas suficientes nos últimos ${daysAnalyzed} dias para gerar este relatório.`
@@ -250,13 +248,11 @@ export async function fetchAndPrepareReportData(
     return { enrichedReport };
 }
 
-// extractReferenceAndFindPost (mantida como antes)
 export async function extractReferenceAndFindPost(
     text: string,
     userId: Types.ObjectId
 ): Promise<ReferenceSearchResult> {
-    logger.debug(`[extractReferenceAndFindPost v2.11] Buscando referência "${text}" para usuário ${userId}`); // Versão atualizada no log
-    // ... (lógica interna mantida)
+    logger.debug(`[extractReferenceAndFindPost v2.11] Buscando referência "${text}" para usuário ${userId}`);
     const quotedText = text.match(/["“”'](.+?)["“”']/)?.[1];
     const aboutText = text.match(/(?:sobre|referente a)\s+(.+)/i)?.[1]?.trim();
     const reference = quotedText || aboutText || text.trim();
@@ -297,16 +293,16 @@ export async function extractReferenceAndFindPost(
     }
 }
 
-// getLatestAggregatedReport (mantida como antes)
 export async function getLatestAggregatedReport(userId: string): Promise<AggregatedReport | null> {
-    const TAG = '[getLatestAggregatedReport v2.11]'; // Versão atualizada no log
-    // ... (lógica interna mantida)
+    const TAG = '[getLatestAggregatedReport v2.11]';
     logger.debug(`${TAG} Buscando último relatório agregado para usuário ${userId}`);
      if (!mongoose.isValidObjectId(userId)) {
         logger.error(`${TAG} ID de usuário inválido fornecido: ${userId}`);
         throw new DatabaseError(`ID de usuário inválido: ${userId}`);
     }
     try {
+        // TODO: A lógica atual está mockada para retornar null.
+        // Deveria buscar o último relatório agregado do MongoDB se eles forem persistidos.
         const reportDocument: AggregatedReport | null = null; 
         if (reportDocument) {
             logger.info(`${TAG} Último relatório encontrado para ${userId}.`);
@@ -321,28 +317,58 @@ export async function getLatestAggregatedReport(userId: string): Promise<Aggrega
     }
 }
 
-// getAdDealInsights (mantida como antes)
+/**
+ * Busca o registro mais recente de AccountInsight para um usuário.
+ * Este registro contém snapshots dos insights gerais da conta do Instagram e dados demográficos.
+ */
+export async function getLatestAccountInsights(userId: string): Promise<IAccountInsight | null> {
+    const TAG = '[getLatestAccountInsights v2.11]';
+    logger.debug(`${TAG} Buscando últimos insights da conta para usuário ${userId}`);
+
+    if (!mongoose.isValidObjectId(userId)) {
+        logger.error(`${TAG} ID de usuário inválido fornecido: ${userId}`);
+        return null;
+    }
+
+    try {
+        const latestInsight = await AccountInsightModel.findOne({
+            user: new Types.ObjectId(userId)
+        })
+        .sort({ recordedAt: -1 })
+        .lean();
+
+        if (!latestInsight) {
+            logger.info(`${TAG} Nenhum AccountInsight encontrado para o usuário ${userId}.`);
+            return null;
+        }
+
+        logger.info(`${TAG} Último AccountInsight encontrado para ${userId}, registrado em: ${latestInsight.recordedAt}.`);
+        return latestInsight as IAccountInsight;
+    } catch (error: any) {
+        logger.error(`${TAG} Erro de banco de dados ao buscar AccountInsight para ${userId}:`, error);
+        throw new DatabaseError(`Erro ao buscar insights da conta: ${error.message}`);
+    }
+}
+
 export async function getAdDealInsights(
     userId: string,
     period: 'last30d' | 'last90d' | 'all' = 'last90d'
 ): Promise<AdDealInsights | null> {
-    const TAG = '[getAdDealInsights v2.11]'; // Versão atualizada no log
-    // ... (lógica interna mantida) ...
+    const TAG = '[getAdDealInsights v2.11]';
     logger.debug(`${TAG} Calculando insights de AdDeals para User ${userId}, período: ${period}`);
     if (!mongoose.isValidObjectId(userId)) {
         logger.error(`${TAG} ID de usuário inválido: ${userId}`);
         throw new DatabaseError(`ID de usuário inválido: ${userId}`);
     }
     const userIdObj = new Types.ObjectId(userId);
-    let dateFilter: any = {}; // Alterado para any para permitir objeto vazio
+    let dateFilter: any = {};
     const now = new Date();
     if (period === 'last30d') { dateFilter = { $gte: subDays(now, 30) }; }
     else if (period === 'last90d') { dateFilter = { $gte: subDays(now, 90) }; }
-    // Se period === 'all', dateFilter permanece {} (sem filtro de data)
 
     try {
         const baseQuery: any = { userId: userIdObj };
-        if (Object.keys(dateFilter).length > 0) { // Aplica filtro de data apenas se não for 'all'
+        if (Object.keys(dateFilter).length > 0) {
             baseQuery.dealDate = dateFilter;
         }
         
@@ -369,10 +395,10 @@ export async function getAdDealInsights(
         const commonDeliverables = deliverableStats.map(d => d._id).filter(d => d);
         const commonPlatforms = platformStats.map(p => p._id).filter(p => p);
         let dealsFrequency: number | undefined = undefined;
-        if (frequencyStats.length > 0 && frequencyStats[0].periodInDays >= 1 && frequencyStats[0].totalDeals > 1) { // Condição > 1 deal para frequência
+        if (frequencyStats.length > 0 && frequencyStats[0].periodInDays >= 1 && frequencyStats[0].totalDeals > 1) {
             const days = frequencyStats[0].periodInDays; 
             const deals = frequencyStats[0].totalDeals; 
-            dealsFrequency = (deals / days) * 30.44; // Média mensal
+            dealsFrequency = (deals / days) * 30.44;
         }
 
         const insights: AdDealInsights = {

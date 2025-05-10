@@ -1,12 +1,18 @@
 // src/app/api/whatsapp/process-response/route.ts
-// v2.4.0 - Aprimora gerenciamento de estado para ações pendentes e confirmações
+// v2.5.1 - Aprimora planejamento de Stories diário (daily_tip):
+//          - Foco em narrativa de bastidores ao longo do dia.
+//          - Sugestão explícita de recursos de engajamento do Instagram (enquetes, perguntas).
+//          - Mantém base em métricas de conteúdo do feed para temas.
+//          - Justificativas concisas para cada Story.
+//          - Aumenta o número de sugestões de Stories.
+//          - CORRIGIDO: Type error "Object is possibly 'undefined'" ao acessar top3Posts[0].description.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { Receiver } from "@upstash/qstash";
 import { logger } from '@/app/lib/logger';
 import { sendWhatsAppMessage } from '@/app/lib/whatsappService';
 import { askLLMWithEnrichedContext } from '@/app/lib/aiOrchestrator';
-import * as stateService from '@/app/lib/stateService'; // Agora importa o stateService.ts atualizado
+import * as stateService from '@/app/lib/stateService';
 import * as dataService from '@/app/lib/dataService';
 import { IUser } from '@/app/models/User';
 import OpenAI from 'openai';
@@ -17,7 +23,7 @@ import {
     getRandomGreeting,
     IntentResult,
     DeterminedIntent
-} from '@/app/lib/intentService'; // Caminho já corrigido
+} from '@/app/lib/intentService';
 
 export const runtime = 'nodejs';
 
@@ -46,8 +52,9 @@ const GET_PROCESSING_MESSAGES_POOL = (userName: string): string[] => [
 const STREAM_READ_TIMEOUT_MS = Number(process.env.STREAM_READ_TIMEOUT_MS) || 90_000;
 const HISTORY_LIMIT = Number(process.env.LLM_HISTORY_LIMIT) || 10;
 const CACHE_TTL_SECONDS = Number(process.env.CACHE_TTL_SECONDS) || 60 * 5;
-const DAILY_PLAN_TIMEOUT_MS = 30000;
-const DAILY_PLAN_MAX_TOKENS = 350;
+
+const DAILY_PLAN_TIMEOUT_MS = 75000; 
+const DAILY_PLAN_MAX_TOKENS = 1200;  
 
 const currentSigningKey = process.env.QSTASH_CURRENT_SIGNING_KEY;
 const nextSigningKey = process.env.QSTASH_NEXT_SIGNING_KEY;
@@ -58,11 +65,8 @@ if (currentSigningKey && nextSigningKey) {
     logger.error("[QStash Worker Init] Chaves de assinatura QStash não definidas.");
 }
 
-// --- ADICIONADO: Helper para determinar se a resposta da IA sugere uma ação pendente ---
-// Esta é uma heurística e pode precisar de refinamento.
 function aiResponseSuggestsPendingAction(responseText: string): { suggests: boolean; actionType?: stateService.IDialogueState['lastAIQuestionType']; pendingActionContext?: stateService.IDialogueState['pendingActionContext'] } {
     const lowerResponse = responseText.toLowerCase();
-    // Exemplos de frases que o Tuca poderia usar ao sugerir uma ação que requer confirmação
     if (lowerResponse.includes("o que acha?") ||
         lowerResponse.includes("quer que eu verifique?") ||
         lowerResponse.includes("posso buscar esses dados?") ||
@@ -70,21 +74,17 @@ function aiResponseSuggestsPendingAction(responseText: string): { suggests: bool
         lowerResponse.includes("se quiser, posso tentar") ||
         (lowerResponse.includes("posso ") && lowerResponse.endsWith("?"))) {
 
-        // Tenta inferir o tipo de ação com base em keywords na resposta do Tuca
         if (lowerResponse.includes("dia da semana") || lowerResponse.includes("melhores dias") || lowerResponse.includes("desempenho por dia")) {
             return { suggests: true, actionType: 'confirm_fetch_day_stats', pendingActionContext: { originalSuggestion: responseText.slice(0, 150) } };
         }
-        // Adicionar outras lógicas para diferentes tipos de ações que o Tuca pode sugerir
-        // Por enquanto, um genérico para outras confirmações
         return { suggests: true, actionType: 'confirm_another_action', pendingActionContext: { originalSuggestion: responseText.slice(0, 150) } };
     }
     return { suggests: false };
 }
-// --- FIM ADIÇÃO ---
 
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const TAG = '[QStash Worker /process-response v2.4.0]'; // ATUALIZADO: Versão
+  const TAG = '[QStash Worker /process-response v2.5.1]'; 
 
   if (!receiver) {
       logger.error(`${TAG} QStash Receiver não inicializado.`);
@@ -110,43 +110,131 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const { userId, taskType, incomingText, fromPhone } = payload;
 
     if (taskType === "daily_tip") {
-        const planTAG = `${TAG}[DailyPlan]`;
-        logger.info(`${planTAG} Iniciando tarefa de roteiro diário para User ${userId}...`);
+        const planTAG = `${TAG}[DailyStoryPlan v2.5.1]`; 
+        logger.info(`${planTAG} Iniciando tarefa de planejamento de Stories diário para User ${userId}...`);
+        
         let userForTip: IUser;
         let userPhoneForTip: string | null | undefined;
-        let planText: string = "Não foi possível gerar seu roteiro de stories hoje. Tente pedir uma sugestão diretamente!";
+        let planText: string = "Hoje não consegui preparar seu roteiro de Stories detalhado, mas que tal compartilhar algo espontâneo sobre seus bastidores? 😉";
+
         try {
             userForTip = await dataService.lookupUserById(userId);
             userPhoneForTip = userForTip.whatsappPhone;
-            if (!userPhoneForTip || !userForTip.whatsappVerified) { logger.warn(`${planTAG} Usuário ${userId} não tem WhatsApp válido/verificado.`); return NextResponse.json({ success: true, message: "User has no verified WhatsApp number." }, { status: 200 }); }
-            const userGoal = (userForTip as any).goal || 'aumentar o engajamento';
-            const latestReport = await dataService.getLatestAggregatedReport(userId);
-            const bestProposal = latestReport?.proposalStats?.[0]?._id?.proposal || 'Não identificada';
-            const bestContext = latestReport?.contextStats?.[0]?._id?.context || 'Não identificado';
+
+            if (!userPhoneForTip || !userForTip.whatsappVerified) {
+                logger.warn(`${planTAG} Usuário ${userId} não tem WhatsApp válido/verificado.`);
+                return NextResponse.json({ success: true, message: "User has no verified WhatsApp number." }, { status: 200 });
+            }
+
+            const userGoal = (userForTip as any).goal || 'aumentar o engajamento e criar uma conexão mais forte com a audiência';
+            
+            const latestReport = await dataService.getLatestAggregatedReport(userId); 
+            let performanceSummary = "Ainda não tenho dados suficientes sobre o desempenho dos seus posts para identificar os principais interesses da sua audiência neste momento.";
+            let topPerformingThemes: string[] = [];
+
+            if (latestReport) {
+                const topProposals = latestReport.proposalStats?.slice(0, 2).map(p => p._id.proposal).filter(p => p && p !== "Outro") || [];
+                const topContexts = latestReport.contextStats?.slice(0, 2).map(c => c._id.context).filter(c => c && c !== "Geral") || [];
+                
+                let summaryParts = [];
+                if (topProposals.length > 0) {
+                    summaryParts.push(`Suas propostas de conteúdo que mais se destacaram recentemente foram: ${topProposals.join(' e ')}.`);
+                    topPerformingThemes.push(...topProposals);
+                }
+                if (topContexts.length > 0) {
+                    summaryParts.push(`Dentro dessas propostas, os contextos que geraram bom engajamento incluem: ${topContexts.join(' e ')}.`);
+                    topContexts.forEach(c => { if (!topPerformingThemes.includes(c)) topPerformingThemes.push(c); });
+                }
+
+                // <<< CORREÇÃO DA LINHA 148 >>>
+                const firstTopPost = latestReport.top3Posts?.[0];
+                if (firstTopPost && firstTopPost.description) { 
+                    summaryParts.push(`Por exemplo, seu post sobre "${firstTopPost.description.substring(0, 40)}..." foi um dos que mais chamou a atenção.`);
+                }
+                // <<< FIM DA CORREÇÃO >>>
+
+                if (summaryParts.length > 0) {
+                    performanceSummary = summaryParts.join(' ');
+                }
+            }
+            
             const today = new Date().toLocaleDateString('pt-BR', { weekday: 'long' });
-            const promptForDailyTip = `Como consultor de Instagram Tuca, crie um plano de stories conciso e prático para ${userForTip.name || 'o usuário'} postar hoje, ${today}. O objetivo principal é ${userGoal}.\n\nBaseie-se nestas métricas recentes (se disponíveis):\n${JSON.stringify(latestReport?.overallStats || { info: "Sem dados gerais recentes." }, null, 2)}\nProposta com melhor performance recente: ${bestProposal}\nContexto com melhor performance recente: ${bestContext}\n\nEstruture o plano em 3 momentos (Manhã ☀️, Tarde ☕, Noite 🌙) com 1 sugestão específica e criativa para cada. Para cada sugestão, explique brevemente o *porquê* (ligado às métricas, objetivo ou boas práticas de engajamento). Use emojis e um tom motivador. Seja direto ao ponto.`;
+            const userNameForPrompt = userForTip.name || 'você';
+
+            const uniqueTopThemes = Array.from(new Set(topPerformingThemes)).slice(0, 3); 
+            const themesForPrompt = uniqueTopThemes.length > 0 ? uniqueTopThemes.join(', ') : 'temas variados de interesse do seu público';
+
+            const promptForDailyTip = `
+Você é Tuca, consultor de Instagram para ${userNameForPrompt}. Hoje é ${today}.
+O objetivo principal de ${userNameForPrompt} é: ${userGoal}.
+
+**Contexto sobre os Interesses da Audiência (baseado no desempenho de posts recentes):**
+${performanceSummary}
+Principais temas/interesses identificados: ${themesForPrompt}.
+Número atual de seguidores: ${(await dataService.getLatestAccountInsights(userId))?.accountDetails?.followers_count || 'não disponível'}.
+
+**Sua Tarefa:**
+Crie um **PLANEJAMENTO DETALHADO DE STORIES** para ${userNameForPrompt} postar HOJE.
+O plano deve conter uma sequência narrativa de **10 a 12 ideias de Stories** distribuídas ao longo do dia (manhã, tarde, noite).
+Cada Story deve ter uma **ideia de conteúdo clara e criativa**, focada nos bastidores do criador e nos interesses da audiência.
+**Para vários Stories, sugira o uso de RECURSOS DE ENGAJAMENTO do Instagram** (ex: enquetes, caixas de perguntas, quizzes, figurinhas de interação, contagem regressiva, etc.).
+A justificativa para cada Story deve ser MUITO CONCISA (1 frase curta) ou implícita na sugestão do recurso de engajamento.
+
+**Formato para cada Story:**
+Story [Número] ([Manhã/Tarde/Noite]): [Ideia de Conteúdo Criativa, incluindo sugestão de recurso de engajamento se aplicável]
+*✨ Por quê?* [Justificativa muito breve ou o benefício do recurso de engajamento]
+
+**Exemplo de Story:**
+Story 3 (Manhã): Mostre rapidamente a organização da sua mesa de trabalho para o dia e lance uma ENQUETE: "Café ou Chá pra começar o dia?"
+*✨ Por quê?* Enquetes são ótimas para interação rápida e conhecer preferências.
+
+**Diretrizes Adicionais:**
+- Comece com uma saudação calorosa de "Bom dia!".
+- Mantenha um tom motivador, prático e de parceria.
+- Use emojis para tornar o plano visual e agradável.
+- O plano de Stories deve ser o corpo principal da sua resposta.
+- Finalize com uma mensagem de encorajamento.
+`;
+
+            logger.debug(`${planTAG} Prompt para IA (daily_story_plan):\n${promptForDailyTip.substring(0, 500)}...`);
+
             const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
-            const completion = await openaiClient.chat.completions.create({ model: process.env.OPENAI_MODEL || 'gpt-4o-mini', messages: [{ role: "system", content: promptForDailyTip }], temperature: 0.7, max_tokens: DAILY_PLAN_MAX_TOKENS, }, { timeout: DAILY_PLAN_TIMEOUT_MS });
+            const completion = await openaiClient.chat.completions.create({
+                model: process.env.OPENAI_MODEL || 'gpt-4o-mini', 
+                messages: [{ role: "system", content: promptForDailyTip }],
+                temperature: 0.75, 
+                max_tokens: DAILY_PLAN_MAX_TOKENS, 
+            }, { timeout: DAILY_PLAN_TIMEOUT_MS });
+            
             const generatedPlan = completion.choices[0]?.message?.content?.trim();
-            if (generatedPlan) { planText = `Bom dia, ${userForTip.name || 'tudo certo'}! ✨\n\nCom base nas suas métricas e objetivo (${userGoal}), aqui está um roteiro de stories sugerido para hoje (${today}):\n\n${generatedPlan}\n\nLembre-se de adaptar ao seu estilo! 😉`; }
-            else { logger.warn(`${planTAG} IA não retornou conteúdo para o roteiro do User ${userId}.`); }
+
+            if (generatedPlan) {
+                planText = `Bom dia, ${userForTip.name || 'tudo certo'}! ☀️\n\nCom base nos seus resultados e no seu objetivo de ${userGoal}, preparei um planejamento de Stories especial para você postar hoje (${today}). Ele foi pensado para mostrar seus bastidores e engajar sua audiência com os temas que ela mais curte:\n\n${generatedPlan}\n\nLembre-se que estas são sugestões para inspirar sua criatividade. Adapte ao seu estilo e aproveite o dia para se conectar com sua audiência! 😉🚀`;
+            } else {
+                logger.warn(`${planTAG} IA não retornou conteúdo para o planejamento de Stories do User ${userId}.`);
+            }
+            
             await sendWhatsAppMessage(userPhoneForTip, planText);
+            logger.info(`${planTAG} Planejamento de Stories diário enviado para User ${userId}.`);
             return NextResponse.json({ success: true }, { status: 200 });
+
         } catch (error) {
-            logger.error(`${planTAG} Erro ao processar roteiro diário para User ${userId}:`, error);
-            if (userPhoneForTip) { try { await sendWhatsAppMessage(userPhoneForTip, "Desculpe, não consegui gerar seu roteiro de stories hoje devido a um erro interno."); } catch (e) {} }
+            logger.error(`${planTAG} Erro ao processar planejamento de Stories diário para User ${userId}:`, error);
+            if (userPhoneForTip) {
+                try { await sendWhatsAppMessage(userPhoneForTip, "Desculpe, não consegui gerar seu planejamento de Stories hoje devido a um erro interno. Mas estou aqui se precisar de outras análises! 👍"); }
+                catch (e) { logger.error(`${planTAG} Falha ao enviar mensagem de erro para User ${userId}:`, e); }
+            }
             return NextResponse.json({ error: `Failed to process daily story plan: ${error instanceof Error ? error.message : String(error)}` }, { status: 500 });
         }
 
     } else {
-        // --- Processar Mensagem Normal do Utilizador ---
-        const msgTAG = `${TAG}[UserMsg v2.4.0]`; // ATUALIZADO: Versão
+        const msgTAG = `${TAG}[UserMsg v2.5.1]`;
         logger.info(`${msgTAG} Processando mensagem normal para User ${userId}...`);
 
         if (!fromPhone || !incomingText) { return NextResponse.json({ error: 'Invalid payload for user message' }, { status: 400 }); }
 
         let user: IUser;
-        let dialogueState: stateService.IDialogueState = {}; // Usa a interface IDialogueState importada
+        let dialogueState: stateService.IDialogueState = {};
         let historyMessages: ChatCompletionMessageParam[] = [];
         let userName: string;
         let greeting: string;
@@ -154,11 +242,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         try {
             const [userData, stateData, historyData] = await Promise.all([
                 dataService.lookupUserById(userId),
-                stateService.getDialogueState(userId), // Carrega o estado do diálogo
+                stateService.getDialogueState(userId),
                 stateService.getConversationHistory(userId)
             ]);
             user = userData;
-            dialogueState = stateData; // dialogueState é carregado aqui
+            dialogueState = stateData;
             historyMessages = historyData;
             userName = user.name || 'criador';
             greeting = getRandomGreeting(userName);
@@ -183,14 +271,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         let pendingActionContextFromIntent: any = null;
 
         try {
-            // Passa o dialogueState atual para determineIntent
             intentResult = await determineIntent(normText, user, incomingText, dialogueState, greeting, userId);
             
             if (intentResult.type === 'special_handled') {
                 responseTextForSpecialHandled = intentResult.response;
-            } else { // type === 'intent_determined'
+            } else { 
                 currentDeterminedIntent = intentResult.intent;
-                // Se a intenção for de confirmação/negação, pegamos o contexto associado
                 if (intentResult.intent === 'user_confirms_pending_action' || intentResult.intent === 'user_denies_pending_action') {
                     pendingActionContextFromIntent = intentResult.pendingActionContext;
                 }
@@ -198,10 +284,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             logger.info(`${msgTAG} Resultado da intenção: ${JSON.stringify(intentResult)}`);
         } catch (intentError) {
             logger.error(`${msgTAG} Erro ao determinar intenção:`, intentError);
-            currentDeterminedIntent = 'general'; // Default em caso de erro
+            currentDeterminedIntent = 'general';
         }
 
-        // --- ATUALIZADO: Lógica de tratamento de intenção ---
         if (responseTextForSpecialHandled) {
             logger.info(`${msgTAG} Enviando resposta special_handled: "${responseTextForSpecialHandled.slice(0,50)}..."`);
             await sendWhatsAppMessage(fromPhone, responseTextForSpecialHandled);
@@ -211,9 +296,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             const updatedHistory = [...historyMessages, userMessageForHistory, assistantResponseForHistory].slice(-HISTORY_LIMIT);
             
             await stateService.setConversationHistory(userId, updatedHistory);
-            // Limpa qualquer ação pendente, pois esta interação foi resolvida diretamente
             await stateService.clearPendingActionState(userId);
-            await stateService.updateDialogueState(userId, { lastInteraction: Date.now() }); // Apenas atualiza lastInteraction
+            await stateService.updateDialogueState(userId, { lastInteraction: Date.now() });
 
             return NextResponse.json({ success: true }, { status: 200 });
         }
@@ -223,20 +307,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         if (currentDeterminedIntent === 'user_confirms_pending_action') {
             logger.info(`${msgTAG} Usuário confirmou ação pendente. Contexto original: ${JSON.stringify(pendingActionContextFromIntent)}`);
-            // Lógica para transformar a confirmação em uma nova "pergunta" para a IA
-            // Esta é uma parte crucial e pode precisar de mais refinamento baseado nos tipos de pendingActionContext
             if (dialogueState.lastAIQuestionType === 'confirm_fetch_day_stats' && pendingActionContextFromIntent?.originalUserQuery) {
                 effectiveIncomingText = `Sim, por favor, quero saber sobre ${pendingActionContextFromIntent.originalUserQuery}. Mostre-me o desempenho por dia da semana.`;
-                effectiveIntent = 'ASK_BEST_TIME'; // Ou a intenção que realmente busca esses dados
+                effectiveIntent = 'ASK_BEST_TIME';
             } else if (pendingActionContextFromIntent?.originalSuggestion) {
                  effectiveIncomingText = `Sim, pode prosseguir com: "${pendingActionContextFromIntent.originalSuggestion}"`;
-                 effectiveIntent = 'general'; // Deixa a IA reinterpretar no contexto da sugestão confirmada
+                 effectiveIntent = 'general';
             } else {
                 effectiveIncomingText = "Sim, por favor, prossiga.";
-                effectiveIntent = 'general'; // Genérico, a IA usará o histórico para entender
+                effectiveIntent = 'general';
             }
             logger.info(`${msgTAG} Texto efetivo para IA após confirmação: "${effectiveIncomingText.slice(0,50)}...", Intenção efetiva: ${effectiveIntent}`);
-            await stateService.clearPendingActionState(userId); // Limpa o estado após tratar a confirmação
+            await stateService.clearPendingActionState(userId);
         } else if (currentDeterminedIntent === 'user_denies_pending_action') {
             logger.info(`${msgTAG} Usuário negou ação pendente.`);
             await stateService.clearPendingActionState(userId);
@@ -251,16 +333,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
             return NextResponse.json({ success: true }, { status: 200 });
         } else if (dialogueState.lastAIQuestionType) {
-            // Se havia uma ação pendente mas o usuário não confirmou/negou diretamente (mudou de assunto),
-            // limpamos o estado da ação pendente.
             logger.info(`${msgTAG} Usuário não respondeu diretamente à ação pendente (${dialogueState.lastAIQuestionType}). Limpando estado pendente.`);
             await stateService.clearPendingActionState(userId);
-            // A `effectiveIntent` e `effectiveIncomingText` já são as da nova pergunta do usuário.
         }
-        // --- FIM ATUALIZAÇÃO ---
-
+        
         const limitedHistoryMessages = historyMessages.slice(-HISTORY_LIMIT);
-        // Recarrega o estado do diálogo caso tenha sido modificado (ex: por clearPendingActionState)
         const currentDialogueState = await stateService.getDialogueState(userId);
         const enrichedContext = { user, historyMessages: limitedHistoryMessages, dialogueState: currentDialogueState };
 
@@ -328,38 +405,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             if (processingMessageTimer) { clearTimeout(processingMessageTimer); processingMessageTimer = null; }
         }
 
-        // --- ATUALIZADO: Lógica para definir/limpar estado de ação pendente após resposta da IA ---
         if (finalText && !isLightweightQuery && effectiveIntent !== 'user_confirms_pending_action' && effectiveIntent !== 'user_denies_pending_action') {
             const pendingActionInfo = aiResponseSuggestsPendingAction(finalText);
             if (pendingActionInfo.suggests && pendingActionInfo.actionType) {
                 logger.info(`${msgTAG} Resposta da IA sugere uma nova ação pendente: ${pendingActionInfo.actionType}. Contexto: ${JSON.stringify(pendingActionInfo.pendingActionContext)}`);
-                // Atualiza o estado do diálogo com a nova pergunta pendente da IA
                 await stateService.updateDialogueState(userId, {
                     lastAIQuestionType: pendingActionInfo.actionType,
                     pendingActionContext: pendingActionInfo.pendingActionContext
                 });
             } else {
-                // Se a IA não sugeriu uma nova ação pendente, e não estávamos já tratando uma confirmação/negação,
-                // é seguro limpar qualquer estado de ação pendente que possa ter ficado.
                 await stateService.clearPendingActionState(userId);
             }
         } else if (isLightweightQuery || effectiveIntent === 'user_confirms_pending_action' || effectiveIntent === 'user_denies_pending_action') {
-            // Para queries leves ou após uma confirmação/negação já tratada, sempre limpamos o estado pendente
-            // (já foi feito para confirmação/negação, mas é uma boa garantia aqui também).
             await stateService.clearPendingActionState(userId);
         }
-        // --- FIM ATUALIZAÇÃO ---
-
+        
         await sendWhatsAppMessage(fromPhone, finalText);
         logger.info(`${msgTAG} Resposta final enviada com sucesso para ${fromPhone}.`);
         
         let finalHistoryForSaving: ChatCompletionMessageParam[] = [];
         try {
              logger.debug(`${msgTAG} Iniciando persistência no Redis para User ${userId}...`);
-             // O nextState para lastInteraction será atualizado aqui, incluindo o estado potencialmente modificado pela IA
              const finalDialogueStateForSave = await stateService.getDialogueState(userId);
              const nextStateToSave = { ...finalDialogueStateForSave, lastInteraction: Date.now() };
-             
              const cacheKeyForPersistence = `resp:${fromPhone}:${effectiveIncomingText.trim().slice(0, 100)}`; 
 
              if (historyPromise) {
@@ -371,7 +439,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
              } else { logger.warn(`${msgTAG} historyPromise não encontrada para salvar histórico.`); }
              
              const persistencePromises = [
-                 stateService.updateDialogueState(userId, nextStateToSave), // Salva o estado atualizado
+                 stateService.updateDialogueState(userId, nextStateToSave),
                  stateService.setInCache(cacheKeyForPersistence, finalText, CACHE_TTL_SECONDS),
                  stateService.incrementUsageCounter(userId),
              ];

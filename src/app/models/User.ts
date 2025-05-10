@@ -1,11 +1,23 @@
-// @/app/models/User.ts - v1.8.1 (Adicionado Campos Sync Status)
+// @/app/models/User.ts - v1.8.2 (Adicionado commissionLog)
 // - Adiciona lastInstagramSyncAttempt e lastInstagramSyncSuccess ao Schema e Interface.
+// - Adiciona commissionLog para histórico de comissões de afiliados.
 
 import { Schema, model, models, Document, Model, Types } from "mongoose";
 
 /**
+ * Interface para uma entrada no log de comissões.
+ */
+export interface ICommissionLogEntry {
+  date: Date;
+  amount: number;
+  description: string; // Ex: "Comissão referente à assinatura do usuário XYZ"
+  sourcePaymentId?: string; // ID do pagamento do Mercado Pago que originou a comissão
+  referredUserId?: Types.ObjectId; // ID do usuário indicado que gerou a comissão (opcional)
+}
+
+/**
  * Interface que descreve um documento de usuário.
- * ATUALIZADO v1.8.1: Adicionados campos de status de sincronização.
+ * ATUALIZADO v1.8.2: Adicionado commissionLog.
  */
 export interface IUser extends Document {
   _id: Types.ObjectId;
@@ -21,9 +33,8 @@ export interface IUser extends Document {
   instagramAccessToken?: string;
   instagramAccountId?: string;
   isInstagramConnected?: boolean;
-  lastInstagramSyncAttempt?: Date | null;   // <<< ADICIONADO v1.8.1 >>>
-  lastInstagramSyncSuccess?: boolean | null;// <<< ADICIONADO v1.8.1 >>>
-  // Campos básicos da conta IG (obtidos via API)
+  lastInstagramSyncAttempt?: Date | null;
+  lastInstagramSyncSuccess?: boolean | null;
   username?: string;
   biography?: string;
   website?: string;
@@ -52,6 +63,7 @@ export interface IUser extends Document {
   affiliateCode?: string;
   affiliateUsed?: string;
   affiliateBalance?: number;
+  commissionLog?: ICommissionLogEntry[]; // <<< NOVO CAMPO PARA LOG DE COMISSÕES >>>
   paymentInfo?: {
     pixKey?: string;
     bankName?: string;
@@ -71,8 +83,21 @@ function generateAffiliateCode(): string {
 }
 
 /**
+ * Schema para uma entrada no log de comissões.
+ * Não terá um _id próprio por padrão, pois será um subdocumento.
+ */
+const commissionLogEntrySchema = new Schema<ICommissionLogEntry>({
+  date: { type: Date, required: true, default: Date.now },
+  amount: { type: Number, required: true },
+  description: { type: String, required: true },
+  sourcePaymentId: { type: String },
+  referredUserId: { type: Schema.Types.ObjectId, ref: 'User' }
+}, { _id: false });
+
+
+/**
  * Definição do Schema para o User
- * ATUALIZADO v1.8.1: Adicionados campos de status de sincronização.
+ * ATUALIZADO v1.8.2: Adicionado commissionLog.
  */
 const userSchema = new Schema<IUser>(
   {
@@ -94,9 +119,8 @@ const userSchema = new Schema<IUser>(
     instagramAccessToken: { type: String },
     instagramAccountId: { type: String, index: true },
     isInstagramConnected: { type: Boolean, default: false },
-    lastInstagramSyncAttempt: { type: Date, default: null },   // <<< ADICIONADO v1.8.1 >>>
-    lastInstagramSyncSuccess: { type: Boolean, default: null },// <<< ADICIONADO v1.8.1 >>>
-    // Campos básicos da conta IG (opcional adicionar ao schema se quiser salvar)
+    lastInstagramSyncAttempt: { type: Date, default: null },
+    lastInstagramSyncSuccess: { type: Boolean, default: null },
     username: { type: String, sparse: true },
     biography: { type: String },
     website: { type: String },
@@ -125,6 +149,7 @@ const userSchema = new Schema<IUser>(
     affiliateCode: { type: String, unique: true, sparse: true },
     affiliateUsed: { type: String, default: null },
     affiliateBalance: { type: Number, default: 0 },
+    commissionLog: { type: [commissionLogEntrySchema], default: [] }, // <<< NOVO CAMPO ADICIONADO AO SCHEMA >>>
     paymentInfo: {
       pixKey: { type: String, default: "" },
       bankName: { type: String, default: "" },
@@ -145,9 +170,6 @@ userSchema.pre<IUser>("save", function (next) {
   if (this.isNew && !this.affiliateCode) {
     this.affiliateCode = generateAffiliateCode();
   }
-  // Garante que isInstagramConnected reflita o estado de instagramAccountId se não definido
-  // NOTA: A lógica explícita em connectInstagramAccount / clearInstagramConnection provavelmente
-  // tornará esta parte menos crítica, mas é um bom fallback.
   if (this.isInstagramConnected === undefined && this.instagramAccountId !== undefined) {
       this.isInstagramConnected = !!this.instagramAccountId;
   } else if (this.isInstagramConnected === undefined) {
