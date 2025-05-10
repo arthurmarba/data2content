@@ -7,7 +7,7 @@
  import Image from 'next/image';
  import Head from 'next/head';
  // Usando React Icons (Font Awesome)
- import { FaCopy, FaCheckCircle, FaClock, FaTimesCircle, FaLock, FaTrophy, FaGift, FaMoneyBillWave, FaWhatsapp, FaUpload, FaCog, FaQuestionCircle, FaSignOutAlt, FaUserCircle, FaDollarSign, FaEllipsisV, FaBullhorn, FaVideo, FaSpinner, FaExclamationCircle } from 'react-icons/fa'; // FaSpinner, FaExclamationCircle adicionados
+ import { FaCopy, FaCheckCircle, FaClock, FaTimesCircle, FaLock, FaTrophy, FaGift, FaMoneyBillWave, FaWhatsapp, FaUpload, FaCog, FaQuestionCircle, FaSignOutAlt, FaUserCircle, FaDollarSign, FaEllipsisV, FaBullhorn, FaVideo, FaSpinner, FaExclamationCircle, FaInfoCircle, FaHandshake } from 'react-icons/fa';
  // Framer Motion para animações
  import { motion, AnimatePresence } from "framer-motion";
 
@@ -46,11 +46,11 @@
 
  // --- Interface para o Log de Comissão (Frontend) ---
  interface CommissionLogItem {
-  date: string; // Recebido como string da API, convertido para Date para uso
+  date: string;
   amount: number;
   description: string;
-  sourcePaymentId?: string; // Opcional, para referência futura
-  referredUserId?: string; // Opcional, para referência futura
+  sourcePaymentId?: string;
+  referredUserId?: string;
  }
 
 
@@ -61,7 +61,6 @@
 
  // --- COMPONENTE PRINCIPAL DASHBOARD ---
  export default function MainDashboard() {
-  // --- Hooks Chamados no Nível Superior ---
   const { data: session, status, update: updateSession } = useSession();
   const router = useRouter();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -71,13 +70,11 @@
   const swiperRef = useRef<any>(null);
   const [fullAffiliateLink, setFullAffiliateLink] = useState<string | null>(null);
 
-  // --- Estados para o Log de Comissões ---
   const [commissionLog, setCommissionLog] = useState<CommissionLogItem[]>([]);
   const [isLoadingCommissionLog, setIsLoadingCommissionLog] = useState(true);
   const [commissionLogError, setCommissionLogError] = useState<string | null>(null);
 
 
-  // --- useEffect para lidar com status da sessão ---
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push('/');
@@ -99,7 +96,6 @@
   const affiliateCode = user?.affiliateCode ?? null;
   const userId = user?.id ?? "";
 
-  // --- useEffect para gerar o link de afiliado completo ---
   useEffect(() => {
     if (typeof window !== 'undefined' && affiliateCode) {
       const origin = window.location.origin;
@@ -109,15 +105,12 @@
     }
   }, [affiliateCode]);
 
-  // --- useEffect para buscar o log de comissões ---
   useEffect(() => {
-    // Só busca o log se o usuário estiver autenticado e tiver um ID
     if (status === "authenticated" && userId) {
       const fetchLog = async () => {
         setIsLoadingCommissionLog(true);
         setCommissionLogError(null);
         try {
-          // A API /api/affiliate/commission-log usa a sessão para identificar o usuário
           const response = await fetch(`/api/affiliate/commission-log`);
           if (!response.ok) {
             const errorData = await response.json();
@@ -134,20 +127,16 @@
       };
       fetchLog();
     }
-  }, [status, userId]); // Depende do status da sessão e do userId para re-executar
+  }, [status, userId]);
 
 
   const handleRedeemBalance = useCallback(async (userIdFromFunc: string | undefined) => {
      if (!userIdFromFunc) { setRedeemMessage("Erro: ID do usuário não encontrado."); return; }
      setRedeemMessage("Processando...");
      try {
-        // Simulação de chamada à API de resgate
         await new Promise(resolve => setTimeout(resolve, 1500));
         setRedeemMessage("Resgate solicitado com sucesso! Seu saldo será atualizado em breve.");
-        
-        // Força a atualização da sessão para refletir o novo saldo
         await updateSession(); 
-
         setTimeout(() => setRedeemMessage(""), 5000);
     } catch (error) {
         console.error("Erro ao solicitar resgate:", error);
@@ -174,8 +163,9 @@
    }, []);
 
 
+  // --- Renderização Condicional ---
   if (status === "loading" || status === "unauthenticated") {
-    // Skeleton loader JSX (mantido como no seu código original)
+    // <<< CORREÇÃO: JSX do Skeleton Loader restaurado >>>
     return (
         <div className="min-h-screen bg-brand-light p-4 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
@@ -207,11 +197,10 @@
         </div>
      );
   }
-  if (!user) { // Checagem do usuário após o status de loading/unauthenticated
+  if (!user) {
       return ( <div className="min-h-screen flex items-center justify-center bg-brand-light"><p className="text-red-500 font-medium">Erro ao carregar dados do usuário. Tente recarregar a página.</p></div> );
   }
 
-  // Dados do Usuário Autenticado (restante)
   const planStatus = user.planStatus ?? "inactive";
   const userImage = user.image ?? null;
   const userName = user.name ?? 'Usuário';
@@ -238,9 +227,33 @@
     affiliateCode: affiliateCode === null ? undefined : affiliateCode,
   };
 
-  const scrollToSection = (sectionId: string) => { /* ... (mantido) ... */ };
-  const scrollToVideoGuide = (videoId: string) => { /* ... (mantido) ... */ };
-  const videoGuidesData: VideoData[] = [ /* ... (mantido) ... */ ];
+  const scrollToSection = (sectionId: string) => {
+    const section = document.getElementById(sectionId);
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else {
+      console.warn(`Seção #${sectionId} não encontrada para scroll.`);
+    }
+  };
+  const scrollToVideoGuide = (videoId: string) => {
+    const guideSection = document.getElementById('video-guides-section');
+    if (guideSection) {
+        guideSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (swiperRef.current && swiperRef.current.slides) {
+            const slideIndex = videoGuidesData.findIndex(video => video.id === videoId);
+            if (slideIndex !== -1) {
+                setTimeout(() => { swiperRef.current.slideTo(slideIndex); }, 300);
+            } else { console.warn(`Vídeo com ID "${videoId}" não encontrado.`); }
+        } else { console.warn("Referência do Swiper não encontrada."); }
+    } else { console.warn("Seção #video-guides-section não encontrada."); }
+  };
+  const videoGuidesData: VideoData[] = [
+    { id: 'intro-plataforma', title: 'Bem-vindo à Data2Content!', youtubeVideoId: 'BHACKCNDMW8' },
+    { id: 'upload-metrics-guide', title: 'Como Enviar suas Métricas', youtubeVideoId: '_dpB7R6csAE' },
+    { id: 'afiliados-explainer', title: 'Entenda o Programa de Afiliados', youtubeVideoId: 'I7hJJkF00hU' },
+    { id: 'whatsapp-tuca', title: 'Conectando ao Tuca no WhatsApp', youtubeVideoId: 'iG9CE55wbtY' },
+    { id: 'seguranca-dados', title: 'Como Cuidamos dos Seus Dados', youtubeVideoId: 'eX2qFMC8cFo' },
+  ];
 
 
   return (
@@ -250,7 +263,6 @@
 
       <div className="min-h-screen bg-brand-light">
         <header className="bg-white shadow-sm sticky top-0 z-40 border-b border-gray-200">
-            {/* Header JSX mantido como no seu código original */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between items-center h-16">
                     <a href="/dashboard" className="flex-shrink-0 flex items-center gap-2 group">
@@ -288,6 +300,11 @@
                                         </a>
                                     </div>
                                     <div className="py-1 border-t border-gray-100">
+                                         <a href="/afiliados" className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5">
+                                            <FaHandshake className="w-4 h-4 text-gray-400"/> Programa de Afiliados
+                                        </a>
+                                    </div>
+                                    <div className="py-1 border-t border-gray-100">
                                         <button
                                             onClick={() => signOut({ callbackUrl: '/' })}
                                             className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-brand-red transition-colors rounded-md mx-1 my-0.5"
@@ -307,8 +324,7 @@
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 lg:gap-12">
 
             <div className="lg:col-span-2 space-y-12">
-              {/* Card Boas Vindas JSX mantido como no seu código original */}
-              <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={0}>
+               <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={0}>
                  <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg border-t-4 border-brand-pink flex flex-col sm:flex-row items-center gap-6">
                      <div className="flex-shrink-0">
                         {userImage ? ( <Image src={userImage} alt="Avatar" width={88} height={88} className="rounded-full border-4 border-white shadow-md" /> ) : ( <span className="inline-block h-22 w-22 overflow-hidden rounded-full bg-gray-100 border-4 border-white shadow-md"><FaUserCircle className="h-full w-full text-gray-300" /></span> )}
@@ -323,7 +339,6 @@
                      </div>
                  </div>
               </motion.section>
-              {/* Outros cards da coluna principal (Guias, Tuca, Instagram, Métricas, Parcerias, Pagamento) mantidos como no seu código original */}
               <motion.section id="video-guides-section" variants={cardVariants} initial="hidden" animate="visible" custom={0.5}>
                   <div className="flex items-center gap-3 mb-5 ml-1"> <FaVideo className="w-5 h-5 text-brand-pink"/> <h2 className="text-xl font-semibold text-brand-dark">Guias Rápidos da Plataforma</h2> </div>
                    <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg"> <VideoCarousel videos={videoGuidesData} swiperRef={swiperRef} /> </div>
@@ -402,9 +417,13 @@
                             </div>
                          )}
 
-                        {/* --- SEÇÃO HISTÓRICO DE COMISSÕES --- */}
                         <div className="mt-6 pt-4 border-t border-gray-200">
-                            <h3 className="text-sm font-semibold text-gray-700 mb-3">Histórico de Comissões Recebidas</h3>
+                            <div className="flex justify-between items-center mb-3">
+                                <h3 className="text-sm font-semibold text-gray-700">Histórico de Comissões</h3>
+                                <a href="/afiliados" className="text-xs text-brand-pink hover:underline font-medium flex items-center gap-1">
+                                    Saber mais <FaInfoCircle className="w-3 h-3"/>
+                                </a>
+                            </div>
                             {isLoadingCommissionLog && (
                                 <div className="text-xs text-gray-500 text-center py-4 flex items-center justify-center gap-2">
                                 <FaSpinner className="animate-spin w-4 h-4" />
@@ -438,8 +457,6 @@
                                 </div>
                             )}
                         </div>
-                        {/* --- FIM: HISTÓRICO DE COMISSÕES --- */}
-
 
                          <div className="space-y-1.5 mt-6">
                             <div className="flex justify-between text-xs text-gray-500">
