@@ -1,7 +1,6 @@
 // Caminho do arquivo: src/app/auth/complete-signup/page.tsx
-// Versão: v1.1.1 (Corrige Condição de Safeguard)
-// - CORRIGIDO: Condição redundante em if (!session?.user && status !== "loading")
-// - Mantém uso de session.user.isNewUserForOnboarding.
+// Versão: v1.1.2 (Adiciona Logs de Debug Detalhados)
+// - Adicionados console.logs para debugging do fluxo de onboarding.
 
 "use client";
 
@@ -9,9 +8,8 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import TermsAcceptanceStep from '@/app/components/auth/TermsAcceptanceStep'; // Certifique-se que o caminho está correto
-// import { logger } from '@/app/lib/logger'; // Descomente se tiver um logger configurado para o frontend
 
-// Componente de Loader simples (pode ser substituído pelo seu SkeletonLoader ou similar)
+// Componente de Loader simples
 const FullPageLoader: React.FC<{ message?: string }> = ({ message = "A carregar a sua sessão..." }) => (
   <div className="min-h-screen flex flex-col justify-center items-center bg-gray-100">
     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-pink mb-4"></div>
@@ -26,62 +24,66 @@ export default function CompleteSignupPage() {
   const [userNeedsToShowTermsStep, setUserNeedsToShowTermsStep] = useState(false);
   const [isLoadingPage, setIsLoadingPage] = useState(true);
 
+  console.log("[CompleteSignupPage] Componente renderizado. Status inicial da sessão:", status, "Session object:", session);
+
   useEffect(() => {
-    // console.log("[CompleteSignupPage] useEffect disparado. Status da Sessão:", status); 
+    console.log("[CompleteSignupPage] useEffect disparado. Status da Sessão:", status, "Session User:", session?.user?.id, "isNewUser:", session?.user?.isNewUserForOnboarding);
 
     if (status === "loading") {
+      console.log("[CompleteSignupPage] useEffect - Sessão a carregar, definindo isLoadingPage = true.");
       setIsLoadingPage(true); 
       return; 
     }
 
     if (status === "unauthenticated") {
-      console.warn("[CompleteSignupPage] Utilizador não autenticado, redirecionando para login.");
+      console.warn("[CompleteSignupPage] useEffect - Utilizador não autenticado, redirecionando para /login.");
       router.replace('/login'); 
-      setIsLoadingPage(false); // Define isLoadingPage como false após o redirecionamento
+      setIsLoadingPage(false);
       return;
     }
 
     if (status === "authenticated" && session?.user) {
-      console.log(`[CompleteSignupPage] Utilizador ${session.user.id} autenticado. Flag 'isNewUserForOnboarding':`, session.user.isNewUserForOnboarding);
+      console.log(`[CompleteSignupPage] useEffect - Utilizador ${session.user.id} autenticado. Verificando 'isNewUserForOnboarding'... Flag: ${session.user.isNewUserForOnboarding}`);
       
       if (session.user.isNewUserForOnboarding === true) {
-        console.log(`[CompleteSignupPage] 'isNewUserForOnboarding' é true para ${session.user.id}. Exibindo etapa de aceite de termos.`);
+        console.log(`[CompleteSignupPage] useEffect - 'isNewUserForOnboarding' é TRUE. Definindo userNeedsToShowTermsStep = true.`);
         setUserNeedsToShowTermsStep(true);
       } else {
-        console.log(`[CompleteSignupPage] 'isNewUserForOnboarding' é false ou ausente para ${session.user.id}. Redirecionando para dashboard.`);
+        console.log(`[CompleteSignupPage] useEffect - 'isNewUserForOnboarding' é FALSE ou indefinido. Redirecionando para /dashboard.`);
         router.replace('/dashboard');
       }
       setIsLoadingPage(false);
     } else if (status === "authenticated" && !session?.user) {
-        console.error("[CompleteSignupPage] Autenticado mas sem dados de utilizador na sessão. Redirecionando para login.");
+        console.error("[CompleteSignupPage] useEffect - Autenticado mas sem dados de utilizador na sessão. Redirecionando para /login.");
         router.replace('/login');
         setIsLoadingPage(false);
+    } else {
+        // Este caso não deveria ser atingido se status for 'loading', 'unauthenticated', ou 'authenticated' com session.user
+        console.warn(`[CompleteSignupPage] useEffect - Estado de status inesperado: ${status}. Definindo isLoadingPage = false.`);
+        setIsLoadingPage(false);
     }
-    // Se o status não for nenhum dos acima (o que não deve acontecer), 
-    // isLoadingPage pode precisar ser definido como false em algum ponto para evitar loop de loader.
-    // No entanto, os casos acima devem cobrir todos os estados de `status`.
   }, [status, session, router]);
 
   const handleTermsAcceptedAndContinue = async () => {
-    console.log(`[CompleteSignupPage] Termos aceites pelo utilizador ${session?.user?.id}. Redirecionando para dashboard.`);
+    console.log(`[CompleteSignupPage] handleTermsAcceptedAndContinue - Termos aceites pelo utilizador ${session?.user?.id}. Redirecionando para dashboard.`);
     router.push('/dashboard');
   };
 
-  if (isLoadingPage) { // Modificado para apenas isLoadingPage, pois status === "loading" já é coberto
+  console.log(`[CompleteSignupPage] Antes da renderização condicional: isLoadingPage=${isLoadingPage}, userNeedsToShowTermsStep=${userNeedsToShowTermsStep}, sessionUserExists=${!!session?.user}`);
+
+  if (isLoadingPage) {
+    console.log("[CompleteSignupPage] Renderizando FullPageLoader (isLoadingPage=true).");
     return <FullPageLoader message="A verificar o seu estado..." />;
   }
 
-  // Se, após o carregamento, não houver sessão ou utilizador, e não estamos mostrando os termos, redireciona.
-  // O useEffect já deve ter tratado a maioria dos redirecionamentos. Esta é uma salvaguarda.
-  // <<< CORREÇÃO APLICADA AQUI >>>
   if (!session?.user && !userNeedsToShowTermsStep) { 
-    console.warn("[CompleteSignupPage] Sem sessão/utilizador após verificação inicial e não na etapa de termos, redirecionando para login.");
+    console.warn("[CompleteSignupPage] Renderizando FullPageLoader (sem sessão/utilizador e não na etapa de termos), redirecionando para login.");
     if (typeof window !== "undefined") router.replace('/login');
     return <FullPageLoader message="A redirecionar para o login..." />;
   }
-  // <<< FIM DA CORREÇÃO >>>
 
   if (userNeedsToShowTermsStep && session?.user) {
+    console.log("[CompleteSignupPage] Renderizando TermsAcceptanceStep.");
     return (
       <TermsAcceptanceStep
         userName={session.user.name}
@@ -90,9 +92,7 @@ export default function CompleteSignupPage() {
     );
   }
 
-  // Fallback final: Se não está a carregar, não precisa mostrar os termos, e tem sessão/utilizador
-  // mas ainda não foi redirecionado pelo useEffect (o que seria estranho), redireciona para o dashboard.
-  console.warn("[CompleteSignupPage] Estado inesperado no final da renderização, tentando redirecionar para dashboard como fallback.");
+  console.warn("[CompleteSignupPage] Renderizando FullPageLoader (fallback final), tentando redirecionar para dashboard.");
   if (typeof window !== "undefined" && status === "authenticated") {
       router.replace('/dashboard');
   }
