@@ -86,7 +86,8 @@ export default function HomePage() {
                 </nav>
                 {!session ? (
                      <button
-                        onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+                        // <<< ATUALIZAÇÃO APLICADA AQUI >>>
+                        onClick={() => signIn("google", { callbackUrl: "/auth/complete-signup" })}
                         className="px-5 py-2 md:px-6 md:py-2.5 text-xs md:text-sm font-medium text-brand-dark border border-gray-300 rounded-full hover:bg-gray-100 transition-colors duration-150"
                     >
                         Entrar com Google
@@ -128,7 +129,8 @@ export default function HomePage() {
                 <AnimatedSection delay={0.3}>
                     {!session ? (
                         <button
-                            onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+                            // <<< ATUALIZAÇÃO APLICADA AQUI >>>
+                            onClick={() => signIn("google", { callbackUrl: "/auth/complete-signup" })}
                             className="shimmer-button inline-flex items-center gap-3 px-8 py-4 md:px-10 md:py-4 bg-brand-pink text-white rounded-full shadow-lg font-semibold text-base md:text-lg hover:opacity-90 transition-default transform hover:scale-105 relative overflow-hidden"
                         >
                             <FaGoogle className="w-5 h-5" />
@@ -328,7 +330,8 @@ export default function HomePage() {
                   {!session ? (
                     <AnimatedSection delay={0.2}>
                         <button
-                            onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+                            // <<< ATUALIZAÇÃO APLICADA AQUI >>>
+                            onClick={() => signIn("google", { callbackUrl: "/auth/complete-signup" })}
                             className="shimmer-button inline-flex items-center gap-3 px-10 py-4 md:px-12 md:py-5 bg-brand-pink text-white rounded-full shadow-lg font-semibold text-lg md:text-xl hover:opacity-90 transition-default transform hover:scale-105 relative overflow-hidden"
                         >
                            <FaGoogle className="w-6 h-6" />
