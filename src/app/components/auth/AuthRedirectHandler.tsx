@@ -1,12 +1,10 @@
 // src/app/components/auth/AuthRedirectHandler.tsx
-// Versão: v2 - AJUSTADO: Considera a HomePage (pathname === '/') como pública para não autenticados.
+// Versão: v2.1 - AJUSTADO: Considera páginas de termos e política como públicas.
 "use client";
 
 import { useSession } from 'next-auth/react';
 import { useRouter, usePathname } from 'next/navigation';
 import React, { useEffect } from 'react';
-// Certifique-se que o caminho para FullPageLoader está correto
-// (deve ser o que usamos em login/page.tsx, por exemplo)
 import FullPageLoader from '@/app/components/auth/FullPageLoader'; 
 
 const AuthRedirectHandler: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -15,41 +13,43 @@ const AuthRedirectHandler: React.FC<{ children: React.ReactNode }> = ({ children
   const pathname = usePathname();
 
   useEffect(() => {
-    console.log(`[AuthRedirectHandler v2] Status: ${status}, Pathname: ${pathname}, UserID: ${session?.user?.id}, isNewUser: ${session?.user?.isNewUserForOnboarding}`);
+    console.log(`[AuthRedirectHandler v2.1] Status: ${status}, Pathname: ${pathname}, UserID: ${session?.user?.id}, isNewUser: ${session?.user?.isNewUserForOnboarding}`);
 
     if (status === 'loading') {
-      console.log("[AuthRedirectHandler v2] useEffect - Sessão a carregar. Nenhuma ação.");
-      return; // Não faz nada enquanto a sessão está carregando
+      console.log("[AuthRedirectHandler v2.1] useEffect - Sessão a carregar. Nenhuma ação.");
+      return;
     }
 
-    const isStrictlyAuthPage = pathname.startsWith('/login') || pathname.startsWith('/auth/'); // Ex: /login, /auth/complete-signup, /auth/error
-    const isPublicRootPage = pathname === '/'; // A HomePage é considerada pública
+    const isStrictlyAuthPage = pathname.startsWith('/login') || pathname.startsWith('/auth/');
+    const isPublicRootPage = pathname === '/';
+    // <<< NOVA LINHA: Define suas páginas de documentos legais como públicas >>>
+    const isLegalDocPage = pathname === '/termos-e-condicoes' || pathname === '/politica-de-privacidade' || pathname === '/termos-uso'; // Adicionei /termos-uso com base no seu footer
 
     if (status === 'authenticated' && session?.user) {
-      console.log(`[AuthRedirectHandler v2] Autenticado: ${session.user.id}. isNewUser: ${session.user.isNewUserForOnboarding}`);
+      console.log(`[AuthRedirectHandler v2.1] Autenticado: ${session.user.id}. isNewUser: ${session.user.isNewUserForOnboarding}`);
       if (session.user.isNewUserForOnboarding === true) {
-        if (pathname !== '/auth/complete-signup') {
-          console.log("[AuthRedirectHandler v2] Novo usuário. Redirecionando para /auth/complete-signup.");
+        // Se for novo usuário e não estiver na página de signup OU numa página de documento legal, redireciona para signup
+        if (pathname !== '/auth/complete-signup' && !isLegalDocPage) {
+          console.log("[AuthRedirectHandler v2.1] Novo usuário. Redirecionando para /auth/complete-signup.");
           router.replace('/auth/complete-signup');
         } else {
-          console.log("[AuthRedirectHandler v2] Novo usuário. Já em /auth/complete-signup.");
+          console.log(`[AuthRedirectHandler v2.1] Novo usuário. Em ${pathname}. Nenhuma ação de redirecionamento.`);
         }
       } else { // Usuário existente ou onboarding completo
-        if (pathname === '/auth/complete-signup' || pathname === '/login') {
-          // Se estiver em uma página de onboarding/login mas não precisa estar lá
-          console.log("[AuthRedirectHandler v2] Usuário existente em página de auth desnecessária. Redirecionando para /dashboard.");
+        if ((pathname === '/auth/complete-signup' || pathname === '/login') && !isLegalDocPage) {
+          console.log("[AuthRedirectHandler v2.1] Usuário existente em página de auth desnecessária. Redirecionando para /dashboard.");
           router.replace('/dashboard');
         } else {
-            console.log(`[AuthRedirectHandler v2] Usuário existente. Nenhuma ação de redirecionamento de ${pathname}.`);
+            console.log(`[AuthRedirectHandler v2.1] Usuário existente. Nenhuma ação de redirecionamento de ${pathname}.`);
         }
       }
     } else if (status === 'unauthenticated') {
-      // Se não estiver autenticado E não estiver numa página de autenticação E não estiver na HomePage pública
-      if (!isStrictlyAuthPage && !isPublicRootPage) {
-        console.warn("[AuthRedirectHandler v2] Não autenticado e não em página pública/auth. Redirecionando para /login.");
+      // Se não autenticado E não numa página de auth E não na raiz E não numa página de documento legal
+      if (!isStrictlyAuthPage && !isPublicRootPage && !isLegalDocPage) {
+        console.warn("[AuthRedirectHandler v2.1] Não autenticado e não em página pública/auth/legal. Redirecionando para /login.");
         router.replace('/login');
       } else {
-         console.log("[AuthRedirectHandler v2] Não autenticado. Em página pública/auth. Nenhuma ação de redirecionamento.");
+         console.log("[AuthRedirectHandler v2.1] Não autenticado. Em página pública/auth/legal. Nenhuma ação de redirecionamento.");
       }
     }
   }, [status, session, router, pathname]);
@@ -59,23 +59,24 @@ const AuthRedirectHandler: React.FC<{ children: React.ReactNode }> = ({ children
     return <FullPageLoader message="A verificar autenticação..." />;
   }
 
-  if (status === 'authenticated') {
-    if (session?.user?.isNewUserForOnboarding === true && pathname !== '/auth/complete-signup') {
-      // Mostra loader enquanto o useEffect redireciona para o onboarding
+  if (status === 'authenticated' && session?.user?.isNewUserForOnboarding === true) {
+    // Se for novo usuário, não está na página de signup e também não está lendo um doc legal, mostra loader
+    if (pathname !== '/auth/complete-signup' && !(pathname === '/termos-e-condicoes' || pathname === '/politica-de-privacidade' || pathname === '/termos-uso')) {
       return <FullPageLoader message="A preparar o seu primeiro acesso..." />;
     }
-    if (session?.user?.isNewUserForOnboarding === false && (pathname === '/auth/complete-signup' || pathname === '/login')) {
-      // Mostra loader enquanto o useEffect redireciona para o dashboard
+  }
+  
+  if (status === 'authenticated' && session?.user?.isNewUserForOnboarding === false) {
+    if ((pathname === '/auth/complete-signup' || pathname === '/login')) {
       return <FullPageLoader message="A redirecionar para o seu painel..." />;
     }
   } else if (status === 'unauthenticated') {
-    // Se não autenticado e não estiver numa página de login/auth OU na homepage, mostra loader enquanto redireciona
-    if (!(pathname.startsWith('/login') || pathname.startsWith('/auth/') || pathname === '/')) {
+    if (!(pathname.startsWith('/login') || pathname.startsWith('/auth/') || pathname === '/' || pathname === '/termos-e-condicoes' || pathname === '/politica-de-privacidade' || pathname === '/termos-uso')) {
       return <FullPageLoader message="A redirecionar para o login..." />;
     }
   }
 
-  return <>{children}</>; // Renderiza o conteúdo da página se nenhum redirecionamento/loader for necessário
+  return <>{children}</>;
 };
 
 export default AuthRedirectHandler;
