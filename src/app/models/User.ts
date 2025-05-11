@@ -1,6 +1,6 @@
-// @/app/models/User.ts - v1.9.2 (Comunidade - Simplifica Preferência)
-// - REMOVIDO: Campo 'communityInspirationSharingPreference'.
-// - Mantém funcionalidades da v1.9.1 (campo 'goal', etc.).
+// @/app/models/User.ts - v1.9.3 (Onboarding Fields)
+// - ADICIONADO: Campos 'isNewUserForOnboarding' e 'onboardingCompletedAt' para controle do fluxo de aceite de termos.
+// - Mantém funcionalidades da v1.9.2.
 
 import { Schema, model, models, Document, Model, Types } from "mongoose";
 
@@ -10,8 +10,8 @@ import { Schema, model, models, Document, Model, Types } from "mongoose";
 export interface ICommissionLogEntry {
   date: Date;
   amount: number;
-  description: string; 
-  sourcePaymentId?: string; 
+  description: string;
+  sourcePaymentId?: string;
   referredUserId?: Types.ObjectId;
 }
 
@@ -25,7 +25,7 @@ export interface ILastCommunityInspirationShown {
 
 /**
  * Interface que descreve um documento de usuário.
- * ATUALIZADO v1.9.2: Removido 'communityInspirationSharingPreference'.
+ * ATUALIZADO v1.9.3: Adicionado 'isNewUserForOnboarding' e 'onboardingCompletedAt'.
  */
 export interface IUser extends Document {
   _id: Types.ObjectId;
@@ -66,7 +66,7 @@ export interface IUser extends Document {
   whatsappVerified?: boolean;
   profileTone?: string;
   hobbies?: string[];
-  goal?: string; 
+  goal?: string;
   affiliateRank?: number;
   affiliateInvites?: number;
   affiliateCode?: string;
@@ -80,13 +80,16 @@ export interface IUser extends Document {
     bankAccount?: string;
   };
   lastProcessedPaymentId?: string;
-  
-  // --- Campos para Comunidade de Inspiração (ATUALIZADO) ---
+
+  // --- Campos para Comunidade de Inspiração ---
   communityInspirationOptIn?: boolean;
   communityInspirationOptInDate?: Date | null;
   communityInspirationTermsVersion?: string | null;
-  // communityInspirationSharingPreference?: 'credited' | 'anonymous_creator'; // <<< REMOVIDO >>>
   lastCommunityInspirationShown_Daily?: ILastCommunityInspirationShown | null;
+
+  // --- CAMPOS PARA CONTROLE DE ONBOARDING (NOVO) ---
+  isNewUserForOnboarding?: boolean;
+  onboardingCompletedAt?: Date | null;
 
   createdAt?: Date;
   updatedAt?: Date;
@@ -121,7 +124,7 @@ const lastCommunityInspirationShownSchema = new Schema<ILastCommunityInspiration
 
 /**
  * Definição do Schema para o User
- * ATUALIZADO v1.9.2: Removido 'communityInspirationSharingPreference'.
+ * ATUALIZADO v1.9.3: Adicionado 'isNewUserForOnboarding' e 'onboardingCompletedAt'.
  */
 const userSchema = new Schema<IUser>(
   {
@@ -168,7 +171,7 @@ const userSchema = new Schema<IUser>(
     whatsappVerified: { type: Boolean, default: false },
     profileTone: { type: String, default: 'informal e prestativo' },
     hobbies: { type: [String], default: [] },
-    goal: { type: String, default: null }, 
+    goal: { type: String, default: null },
     affiliateRank: { type: Number, default: 1 },
     affiliateInvites: { type: Number, default: 0 },
     affiliateCode: { type: String, unique: true, sparse: true },
@@ -183,16 +186,19 @@ const userSchema = new Schema<IUser>(
     },
     lastProcessedPaymentId: { type: String, default: null, index: true },
 
-    // --- Campos para Comunidade de Inspiração (ATUALIZADO) ---
-    communityInspirationOptIn: { type: Boolean, default: false },
+    // --- Campos para Comunidade de Inspiração ---
+    communityInspirationOptIn: { type: Boolean, default: false }, // O callback signIn do NextAuth define como true para novos usuários
     communityInspirationOptInDate: { type: Date, default: null },
     communityInspirationTermsVersion: { type: String, default: null },
-    // communityInspirationSharingPreference: { type: String, enum: ['credited', 'anonymous_creator'], default: 'anonymous_creator' }, // <<< REMOVIDO >>>
     lastCommunityInspirationShown_Daily: { type: lastCommunityInspirationShownSchema, default: null },
+
+    // --- CAMPOS PARA CONTROLE DE ONBOARDING (ADICIONADO) ---
+    isNewUserForOnboarding: { type: Boolean, default: true }, // Default true; o callback signIn do NextAuth também o define para novos usuários.
+    onboardingCompletedAt: { type: Date, default: null },   // Preenchido pela API /api/user/complete-onboarding
 
   },
   {
-    timestamps: true, 
+    timestamps: true,
   }
 );
 
@@ -200,11 +206,18 @@ userSchema.pre<IUser>("save", function (next) {
   if (this.isNew && !this.affiliateCode) {
     this.affiliateCode = generateAffiliateCode();
   }
-  if (this.isInstagramConnected === undefined && this.instagramAccountId !== undefined) {
-      this.isInstagramConnected = !!this.instagramAccountId;
+  // Lógica para isInstagramConnected mantida, mas não relacionada diretamente ao onboarding
+  if (this.isInstagramConnected === undefined && this.instagramAccountId !== undefined && this.instagramAccountId !== null && this.instagramAccountId !== '') {
+      this.isInstagramConnected = true;
   } else if (this.isInstagramConnected === undefined) {
       this.isInstagramConnected = false;
   }
+  
+  // Garante que se onboardingCompletedAt estiver preenchido, isNewUserForOnboarding seja false
+  if (this.onboardingCompletedAt && this.isNewUserForOnboarding) {
+    this.isNewUserForOnboarding = false;
+  }
+
   next();
 });
 

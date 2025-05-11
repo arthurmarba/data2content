@@ -1,100 +1,104 @@
-// Caminho do arquivo: src/app/auth/complete-signup/page.tsx
-// Versão: v1.1.2 (Adiciona Logs de Debug Detalhados)
-// - Adicionados console.logs para debugging do fluxo de onboarding.
+// src/app/auth/complete-signup/page.tsx
+// Versão: v1.2.1 (Adiciona chamada à API de conclusão de onboarding e atualização de sessão)
 
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react'; // Adicionado useState
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import TermsAcceptanceStep from '@/app/components/auth/TermsAcceptanceStep'; // Certifique-se que o caminho está correto
-
-// Componente de Loader simples
-const FullPageLoader: React.FC<{ message?: string }> = ({ message = "A carregar a sua sessão..." }) => (
-  <div className="min-h-screen flex flex-col justify-center items-center bg-gray-100">
-    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-pink mb-4"></div>
-    <p className="text-gray-600">{message}</p>
-  </div>
-);
+import TermsAcceptanceStep from '@/app/components/auth/TermsAcceptanceStep';
+// Ajuste o caminho do FullPageLoader se necessário.
+import FullPageLoader from '@/app/components/auth/FullPageLoader';
 
 export default function CompleteSignupPage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
-  
-  const [userNeedsToShowTermsStep, setUserNeedsToShowTermsStep] = useState(false);
-  const [isLoadingPage, setIsLoadingPage] = useState(true);
+  const { data: session, status, update: updateSession } = useSession();
 
-  console.log("[CompleteSignupPage] Componente renderizado. Status inicial da sessão:", status, "Session object:", session);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Estado para o processo de submissão
+  const [submitError, setSubmitError] = useState<string | null>(null); // Estado para erros na submissão
+
+  console.log(`[CompleteSignupPage v1.2.1] Renderizado. Status: ${status}. isNewUser: ${session?.user?.isNewUserForOnboarding}. Submitting: ${isSubmitting}`);
 
   useEffect(() => {
-    console.log("[CompleteSignupPage] useEffect disparado. Status da Sessão:", status, "Session User:", session?.user?.id, "isNewUser:", session?.user?.isNewUserForOnboarding);
-
-    if (status === "loading") {
-      console.log("[CompleteSignupPage] useEffect - Sessão a carregar, definindo isLoadingPage = true.");
-      setIsLoadingPage(true); 
-      return; 
-    }
-
-    if (status === "unauthenticated") {
-      console.warn("[CompleteSignupPage] useEffect - Utilizador não autenticado, redirecionando para /login.");
-      router.replace('/login'); 
-      setIsLoadingPage(false);
-      return;
-    }
-
-    if (status === "authenticated" && session?.user) {
-      console.log(`[CompleteSignupPage] useEffect - Utilizador ${session.user.id} autenticado. Verificando 'isNewUserForOnboarding'... Flag: ${session.user.isNewUserForOnboarding}`);
-      
-      if (session.user.isNewUserForOnboarding === true) {
-        console.log(`[CompleteSignupPage] useEffect - 'isNewUserForOnboarding' é TRUE. Definindo userNeedsToShowTermsStep = true.`);
-        setUserNeedsToShowTermsStep(true);
-      } else {
-        console.log(`[CompleteSignupPage] useEffect - 'isNewUserForOnboarding' é FALSE ou indefinido. Redirecionando para /dashboard.`);
+    if (status === "authenticated") {
+      if (!session?.user) {
+        console.error("[CompleteSignupPage v1.2.1] Autenticado mas sem 'session.user'. Redirecionando para /login (segurança).");
+        router.replace('/login');
+      } else if (session.user.isNewUserForOnboarding === false && !isSubmitting) { // Não redirecionar se estiver submetendo
+        console.warn("[CompleteSignupPage v1.2.1] 'isNewUserForOnboarding' é FALSE. Redirecionando para /dashboard (segurança).");
         router.replace('/dashboard');
       }
-      setIsLoadingPage(false);
-    } else if (status === "authenticated" && !session?.user) {
-        console.error("[CompleteSignupPage] useEffect - Autenticado mas sem dados de utilizador na sessão. Redirecionando para /login.");
-        router.replace('/login');
-        setIsLoadingPage(false);
-    } else {
-        // Este caso não deveria ser atingido se status for 'loading', 'unauthenticated', ou 'authenticated' com session.user
-        console.warn(`[CompleteSignupPage] useEffect - Estado de status inesperado: ${status}. Definindo isLoadingPage = false.`);
-        setIsLoadingPage(false);
+    } else if (status === "unauthenticated") {
+      console.warn("[CompleteSignupPage v1.2.1] Não autenticado. Redirecionando para /login (segurança).");
+      router.replace('/login');
     }
-  }, [status, session, router]);
+  }, [status, session, router, isSubmitting]);
 
   const handleTermsAcceptedAndContinue = async () => {
-    console.log(`[CompleteSignupPage] handleTermsAcceptedAndContinue - Termos aceites pelo utilizador ${session?.user?.id}. Redirecionando para dashboard.`);
-    router.push('/dashboard');
+    console.log(`[CompleteSignupPage v1.2.1] Termos aceites pelo utilizador ${session?.user?.id}. Iniciando submissão.`);
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      const response = await fetch('/api/user/complete-onboarding', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        // Não é necessário enviar body se a API apenas usa a sessão para identificar o usuário
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Falha ao completar o onboarding. Resposta não JSON.' }));
+        console.error("[CompleteSignupPage v1.2.1] Falha na API complete-onboarding:", errorData);
+        throw new Error(errorData.message || `Erro ${response.status} ao completar o onboarding.`);
+      }
+
+      console.log("[CompleteSignupPage v1.2.1] Onboarding completado no backend com sucesso. Atualizando sessão do cliente...");
+      
+      // Força a atualização da sessão. Os callbacks jwt e session do NextAuth serão chamados.
+      // É importante que o callback session leia o estado atualizado do usuário do banco de dados
+      // para que 'isNewUserForOnboarding' seja atualizado para false na sessão do cliente.
+      await updateSession(); 
+      
+      console.log("[CompleteSignupPage v1.2.1] Sessão do cliente atualizada. Redirecionando para /dashboard.");
+      router.push('/dashboard');
+
+    } catch (error) {
+      console.error("[CompleteSignupPage v1.2.1] Erro durante handleTermsAcceptedAndContinue:", error);
+      setSubmitError(error instanceof Error ? error.message : 'Ocorreu um erro desconhecido ao processar sua solicitação.');
+      setIsSubmitting(false); // Permite nova tentativa ou mostra erro
+    }
+    // Não definimos setIsSubmitting(false) no bloco try bem-sucedido porque o redirecionamento ocorre.
   };
 
-  console.log(`[CompleteSignupPage] Antes da renderização condicional: isLoadingPage=${isLoadingPage}, userNeedsToShowTermsStep=${userNeedsToShowTermsStep}, sessionUserExists=${!!session?.user}`);
-
-  if (isLoadingPage) {
-    console.log("[CompleteSignupPage] Renderizando FullPageLoader (isLoadingPage=true).");
-    return <FullPageLoader message="A verificar o seu estado..." />;
+  if (status === "loading" || isSubmitting) {
+    const message = isSubmitting ? "A processar sua aceitação..." : "A verificar o seu estado...";
+    console.log(`[CompleteSignupPage v1.2.1] Renderizando FullPageLoader (${message}).`);
+    return <FullPageLoader message={message} />;
   }
 
-  if (!session?.user && !userNeedsToShowTermsStep) { 
-    console.warn("[CompleteSignupPage] Renderizando FullPageLoader (sem sessão/utilizador e não na etapa de termos), redirecionando para login.");
-    if (typeof window !== "undefined") router.replace('/login');
-    return <FullPageLoader message="A redirecionar para o login..." />;
-  }
-
-  if (userNeedsToShowTermsStep && session?.user) {
-    console.log("[CompleteSignupPage] Renderizando TermsAcceptanceStep.");
+  if (status === "authenticated" && session?.user?.isNewUserForOnboarding === true) {
+    console.log("[CompleteSignupPage v1.2.1] Renderizando TermsAcceptanceStep.");
     return (
-      <TermsAcceptanceStep
-        userName={session.user.name}
-        onAcceptAndContinue={handleTermsAcceptedAndContinue}
-      />
+      <>
+        <TermsAcceptanceStep
+          userName={session?.user?.name}
+          onAcceptAndContinue={handleTermsAcceptedAndContinue}
+          // Você pode querer passar 'isSubmitting' para o TermsAcceptanceStep
+          // para desabilitar o botão ou mostrar um indicador de loading nele.
+          // Ex: isSubmitting={isSubmitting}
+        />
+        {submitError && (
+          <div className="fixed bottom-0 left-0 right-0 p-4 bg-red-600 text-white text-center z-50">
+            <p>Erro: {submitError}</p>
+            <button onClick={() => setSubmitError(null)} className="ml-2 underline">Fechar</button>
+          </div>
+        )}
+      </>
     );
   }
 
-  console.warn("[CompleteSignupPage] Renderizando FullPageLoader (fallback final), tentando redirecionar para dashboard.");
-  if (typeof window !== "undefined" && status === "authenticated") {
-      router.replace('/dashboard');
-  }
-  return <FullPageLoader message="A finalizar configuração..." />;
+  console.warn(`[CompleteSignupPage v1.2.1] Estado de renderização de fallback. Status: ${status}, isNewUser: ${session?.user?.isNewUserForOnboarding}. Aguardando redirecionamento.`);
+  return <FullPageLoader message="A finalizar ou a redirecionar..." />;
 }
