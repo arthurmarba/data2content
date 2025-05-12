@@ -1,9 +1,8 @@
 /**
- * @fileoverview Serviço de acesso a dados (Usuários, Métricas, Relatórios, Publicidades, Comunidade).
- * ATUALIZADO v2.12.1 (Comunidade de Inspiração):
- * - Removida função updateCommunitySharingPreference.
- * - Ajustada optInUserToCommunity para não receber sharingPreference.
- * @version 2.12.1
+ * @fileoverview Serviço de acesso a dados (Utilizadores, Métricas, Relatórios, Publicidades, Comunidade).
+ * ATUALIZADO v2.13.0 (Exclusão de Conta):
+ * - Adicionada função deleteUserAccountAndAssociatedData.
+ * @version 2.13.0
  */
 
 import mongoose, { Model, Types } from 'mongoose';
@@ -11,24 +10,27 @@ import { subDays, differenceInDays, startOfDay } from 'date-fns';
 import { logger } from '@/app/lib/logger';
 
 // Modelos do Mongoose
-import User, { IUser } from '@/app/models/User'; // Espera-se IUser v1.9.2+
-import Metric, { IMetric } from '@/app/models/Metric';
-import AdDeal, { IAdDeal } from '@/app/models/AdDeal';
+import User, { IUser } from '@/app/models/User'; // O seu UserModel é exportado como User
+import MetricModel, { IMetric } from '@/app/models/Metric'; // O seu MetricModel é exportado como MetricModel
+import AdDeal, { IAdDeal } from '@/app/models/AdDeal'; // O seu AdDealModel é exportado como AdDeal
 import AccountInsightModel, { IAccountInsight } from '@/app/models/AccountInsight';
-import CommunityInspirationModel, { ICommunityInspiration } from '@/app/models/CommunityInspiration'; // Espera-se ICommunityInspiration v1.0.1+
+import CommunityInspirationModel, { ICommunityInspiration } from '@/app/models/CommunityInspiration';
+// <<< NOVOS IMPORTS PARA EXCLUSÃO >>>
+import DailyMetricSnapshotModel from '@/app/models/DailyMetricSnapshot';
+import StoryMetricModel from '@/app/models/StoryMetric';
 
 
 // Funções e tipos de reportHelpers
 import {
     buildAggregatedReport,
     AggregatedReport,
-    DurationStat, // Adicionado para completar os tipos, se usado por getMultimediaSuggestion
-    OverallStats, // Adicionado para completar os tipos
-    DetailedContentStat, // Adicionado para completar os tipos
-    ProposalStat, // Adicionado para completar os tipos
-    ContextStat, // Adicionado para completar os tipos
-    PerformanceByDayPCO, // Adicionado para completar os tipos
-    ReportAggregationError, // Adicionado para completar os tipos
+    DurationStat,
+    OverallStats,
+    DetailedContentStat,
+    ProposalStat,
+    ContextStat,
+    PerformanceByDayPCO,
+    ReportAggregationError,
     DetailedStatsError
 } from '@/app/lib/reportHelpers';
 
@@ -37,20 +39,31 @@ import {
     UserNotFoundError,
     MetricsNotFoundError,
     DatabaseError,
-    OperationNotPermittedError 
-} from '@/app/lib/errors'; // Espera-se errors v1.1.0+
+    OperationNotPermittedError
+} from '@/app/lib/errors';
+
+// Função de conexão (assumindo que você tem uma)
+// Se não estiver aqui, certifique-se de que é chamada antes das operações de DB
+const connectToDatabase = async () => {
+    if (mongoose.connection.readyState >= 1) {
+        return;
+    }
+    // Adapte esta linha para a sua lógica de conexão real, se diferente
+    return mongoose.connect(process.env.MONGODB_URI || '');
+};
+
 
 /* ------------------------------------------------------------------ *
- * Constantes internas (mantidas)                                     *
+ * Constantes internas                                                *
  * ------------------------------------------------------------------ */
 const DEFAULT_METRICS_FETCH_DAYS = 180;
 const NEW_USER_THRESHOLD_DAYS = 90;
 
 /* ------------------------------------------------------------------ *
- * Tipos públicos exportados (mantidos)                               *
+ * Tipos públicos exportados                                          *
  * ------------------------------------------------------------------ */
 
-export interface IEnrichedReport { 
+export interface IEnrichedReport {
     overallStats?: OverallStats;
     profileSegment: string;
     multimediaSuggestion: string;
@@ -64,22 +77,22 @@ export interface IEnrichedReport {
     longTermComparisons?: IGrowthComparisons;
     performanceByDayPCO?: PerformanceByDayPCO;
 }
-interface PreparedData { 
+interface PreparedData {
     enrichedReport: IEnrichedReport;
 }
 export type ReferenceSearchResult =
     | { status: 'found'; post: { _id: Types.ObjectId; description: string; proposal?: string; context?: string } }
     | { status: 'clarify'; message: string }
     | { status: 'error'; message: string };
-interface IGrowthComparisons { 
+interface IGrowthComparisons {
     weeklyFollowerChange?: number;
     monthlyReachTrend?: 'up' | 'down' | 'stable';
 }
-interface IGrowthDataResult { 
+interface IGrowthDataResult {
     historical?: IGrowthComparisons;
     longTerm?: IGrowthComparisons;
 }
-export interface AdDealInsights { 
+export interface AdDealInsights {
     period: 'last30d' | 'last90d' | 'all';
     totalDeals: number;
     totalRevenueBRL: number;
@@ -102,9 +115,9 @@ export interface CommunityInspirationFilters {
 }
 
 /* ------------------------------------------------------------------ *
- * Funções auxiliares (mantidas)                                      *
+ * Funções auxiliares                                                 *
  * ------------------------------------------------------------------ */
-function getUserProfileSegment(user: IUser): string { 
+function getUserProfileSegment(user: IUser): string {
     if (user.createdAt instanceof Date && !isNaN(+user.createdAt)) {
         const ageInDays = differenceInDays(new Date(), user.createdAt);
         return ageInDays < NEW_USER_THRESHOLD_DAYS ? 'Novo Usuário' : 'Usuário Veterano';
@@ -112,7 +125,7 @@ function getUserProfileSegment(user: IUser): string {
     logger.warn(`[getUserProfileSegment] Data de criação inválida para usuário ${user._id}`);
     return 'Geral';
 }
-function getMultimediaSuggestion(report?: AggregatedReport | null): string { 
+function getMultimediaSuggestion(report?: AggregatedReport | null): string {
     const bestDurationStat = report?.durationStats?.sort((a, b) => (b.avgRetentionRate ?? 0) - (a.avgRetentionRate ?? 0))[0];
     if (!bestDurationStat) {
         return '';
@@ -123,20 +136,21 @@ function getMultimediaSuggestion(report?: AggregatedReport | null): string {
     const retentionPercent = ((bestDurationStat.avgRetentionRate ?? 0) * 100).toFixed(0);
     return `Vídeos na faixa de ${bestDurationStat.range} tiveram um ótimo desempenho recente (${retentionPercent}% retenção média). Teste produzir mais conteúdos nessa duração!`;
 }
-async function getCombinedGrowthData(userId: Types.ObjectId): Promise<IGrowthDataResult> { 
+async function getCombinedGrowthData(userId: Types.ObjectId): Promise<IGrowthDataResult> {
     logger.debug(`[getCombinedGrowthData] Placeholder para usuário ${userId}`);
     return { historical: {}, longTerm: {} };
 }
 
 /* ------------------------------------------------------------------ *
- * Funções públicas Exportadas (existentes - tags de log atualizadas) *
+ * Funções públicas Exportadas (existentes)                           *
  * ------------------------------------------------------------------ */
 
 export async function lookupUser(fromPhone: string): Promise<IUser> {
     const maskedPhone = fromPhone.slice(0, -4) + '****';
-    const fnTag = '[lookupUser v2.12.1]'; 
+    const fnTag = '[lookupUser v2.12.1]';
     logger.debug(`${fnTag} Buscando usuário para telefone ${maskedPhone}`);
     try {
+        await connectToDatabase(); // Garante conexão
         const user = await User.findOne({ whatsappPhone: fromPhone }).lean();
         if (!user) {
             logger.warn(`${fnTag} Usuário não encontrado para telefone ${maskedPhone}`);
@@ -152,13 +166,14 @@ export async function lookupUser(fromPhone: string): Promise<IUser> {
 }
 
 export async function lookupUserById(userId: string): Promise<IUser> {
-    const fnTag = '[lookupUserById v2.12.1]'; 
+    const fnTag = '[lookupUserById v2.12.1]';
     logger.debug(`${fnTag} Buscando usuário por ID ${userId}`);
     if (!mongoose.isValidObjectId(userId)) {
         logger.error(`${fnTag} ID de usuário inválido fornecido: ${userId}`);
         throw new DatabaseError(`ID de usuário inválido: ${userId}`);
     }
     try {
+        await connectToDatabase(); // Garante conexão
         const user = await User.findById(userId).lean();
         if (!user) {
             logger.warn(`${fnTag} Usuário não encontrado para ID ${userId}`);
@@ -177,11 +192,12 @@ export async function fetchAndPrepareReportData(
     { user, contentMetricModel, analysisSinceDate }: { user: IUser; contentMetricModel: Model<IMetric>; analysisSinceDate?: Date; }
 ): Promise<PreparedData> {
     const userId = user._id instanceof Types.ObjectId ? user._id : new Types.ObjectId(user._id);
-    const TAG = '[fetchAndPrepareReportData v2.12.1]'; 
+    const TAG = '[fetchAndPrepareReportData v2.12.1]';
     const sinceDate = analysisSinceDate || subDays(new Date(), DEFAULT_METRICS_FETCH_DAYS);
     logger.info(`${TAG} Iniciando para usuário ${userId}. Período de busca: desde ${sinceDate.toISOString()}`);
     let growthData: IGrowthDataResult;
     try {
+        await connectToDatabase(); // Garante conexão
         growthData = await getCombinedGrowthData(userId);
         logger.debug(`${TAG} Dados de crescimento (placeholder) obtidos.`);
     } catch (error: any) {
@@ -190,6 +206,7 @@ export async function fetchAndPrepareReportData(
     }
     let aggregatedReport: AggregatedReport;
     try {
+        await connectToDatabase(); // Garante conexão
         logger.debug(`${TAG} Gerando relatório agregado (v4.x) para ${userId} desde ${sinceDate.toISOString()}...`);
         aggregatedReport = await buildAggregatedReport(userId,sinceDate,contentMetricModel);
         logger.info(`${TAG} Relatório agregado gerado com sucesso para ${userId}. Posts no relatório: ${aggregatedReport?.overallStats?.totalPosts ?? 'N/A'}`);
@@ -224,7 +241,7 @@ export async function fetchAndPrepareReportData(
 }
 
 export async function extractReferenceAndFindPost( text: string, userId: Types.ObjectId ): Promise<ReferenceSearchResult> {
-    const fnTag = '[extractReferenceAndFindPost v2.12.1]'; 
+    const fnTag = '[extractReferenceAndFindPost v2.12.1]';
     logger.debug(`${fnTag} Buscando referência "${text}" para usuário ${userId}`);
     const quotedText = text.match(/["“”'](.+?)["“”']/)?.[1];
     const aboutText = text.match(/(?:sobre|referente a)\s+(.+)/i)?.[1]?.trim();
@@ -235,9 +252,10 @@ export async function extractReferenceAndFindPost( text: string, userId: Types.O
     }
     logger.debug(`${fnTag} Referência extraída: "${reference}"`);
     try {
+        await connectToDatabase(); // Garante conexão
         const escapedReference = reference.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const regex = new RegExp(escapedReference, 'i');
-        const posts = await Metric.find({ user: userId, description: regex }).select('_id description proposal context').limit(5).lean();
+        const posts = await MetricModel.find({ user: userId, description: regex }).select('_id description proposal context').limit(5).lean();
         if (!posts.length) {
             logger.info(`${fnTag} Nenhum post encontrado para referência "${reference}" e usuário ${userId}`);
             return { status: 'clarify', message: `Não achei nenhum post com a descrição parecida com "${reference}". Pode tentar descrever de outra forma ou me mandar o link?` };
@@ -250,21 +268,22 @@ export async function extractReferenceAndFindPost( text: string, userId: Types.O
         logger.info(`${fnTag} ${posts.length} posts encontrados para referência "${reference}", pedindo clarificação.`);
         const postList = posts.map((p, i) => `${i + 1}. "${(p.description || 'Sem descrição').slice(0, 60)}…"`) .join('\n');
         return { status: 'clarify', message: `Encontrei ${posts.length} posts com descrição parecida:\n${postList}\n\nQual deles você quer analisar? (Digite o número)` };
-    } catch (error: any) { 
+    } catch (error: any) {
         logger.error(`${fnTag} Erro ao buscar post por referência "${reference}" para usuário ${userId}:`, error);
-        return { status: 'error', message: `Ocorreu um erro ao buscar o post. Tente novamente mais tarde. (Detalhe: ${error.message})` }; 
+        return { status: 'error', message: `Ocorreu um erro ao buscar o post. Tente novamente mais tarde. (Detalhe: ${error.message})` };
     }
 }
 
 export async function getLatestAggregatedReport(userId: string): Promise<AggregatedReport | null> {
-    const TAG = '[getLatestAggregatedReport v2.12.1]'; 
+    const TAG = '[getLatestAggregatedReport v2.12.1]';
     logger.debug(`${TAG} Buscando último relatório agregado para usuário ${userId}`);
      if (!mongoose.isValidObjectId(userId)) {
         logger.error(`${TAG} ID de usuário inválido fornecido: ${userId}`);
         throw new DatabaseError(`ID de usuário inválido: ${userId}`);
     }
     try {
-        const reportDocument: AggregatedReport | null = null; 
+        await connectToDatabase(); // Garante conexão
+        const reportDocument: AggregatedReport | null = null; // Simulação, substitua pela sua lógica real
         if (reportDocument) {
             logger.info(`${TAG} Último relatório encontrado para ${userId}.`);
             return reportDocument;
@@ -279,13 +298,14 @@ export async function getLatestAggregatedReport(userId: string): Promise<Aggrega
 }
 
 export async function getLatestAccountInsights(userId: string): Promise<IAccountInsight | null> {
-    const TAG = '[getLatestAccountInsights v2.12.1]'; 
+    const TAG = '[getLatestAccountInsights v2.12.1]';
     logger.debug(`${TAG} Buscando últimos insights da conta para usuário ${userId}`);
     if (!mongoose.isValidObjectId(userId)) {
         logger.error(`${TAG} ID de usuário inválido fornecido: ${userId}`);
-        return null;
+        return null; // Retorna null em vez de lançar erro, conforme original
     }
     try {
+        await connectToDatabase(); // Garante conexão
         const latestInsight = await AccountInsightModel.findOne({
             user: new Types.ObjectId(userId)
         })
@@ -304,19 +324,20 @@ export async function getLatestAccountInsights(userId: string): Promise<IAccount
 }
 
 export async function getAdDealInsights( userId: string, period: 'last30d' | 'last90d' | 'all' = 'last90d' ): Promise<AdDealInsights | null> {
-    const TAG = '[getAdDealInsights v2.12.1]'; 
+    const TAG = '[getAdDealInsights v2.12.1]';
     logger.debug(`${TAG} Calculando insights de AdDeals para User ${userId}, período: ${period}`);
     if (!mongoose.isValidObjectId(userId)) {
         logger.error(`${TAG} ID de usuário inválido: ${userId}`);
         throw new DatabaseError(`ID de usuário inválido: ${userId}`);
     }
-    const userIdObj = new Types.ObjectId(userId); 
-    let dateFilter: any = {}; 
+    const userIdObj = new Types.ObjectId(userId);
+    let dateFilter: any = {};
     const now = new Date();
     if (period === 'last30d') { dateFilter = { $gte: subDays(now, 30) }; }
     else if (period === 'last90d') { dateFilter = { $gte: subDays(now, 90) }; }
     try {
-        const baseQuery: any = { userId: userIdObj };
+        await connectToDatabase(); // Garante conexão
+        const baseQuery: any = { userId: userIdObj }; // Usa 'userId' conforme o modelo AdDeal
         if (Object.keys(dateFilter).length > 0) {
             baseQuery.dealDate = dateFilter;
         }
@@ -342,8 +363,8 @@ export async function getAdDealInsights( userId: string, period: 'last30d' | 'la
        const commonPlatforms = platformStats.map(p => p._id).filter(p => p);
        let dealsFrequency: number | undefined = undefined;
        if (frequencyStats.length > 0 && frequencyStats[0].periodInDays >= 1 && frequencyStats[0].totalDeals > 1) {
-           const days = frequencyStats[0].periodInDays; 
-           const deals = frequencyStats[0].totalDeals; 
+           const days = frequencyStats[0].periodInDays;
+           const deals = frequencyStats[0].totalDeals;
            dealsFrequency = (deals / days) * 30.44;
        }
        const insights: AdDealInsights = {
@@ -352,7 +373,6 @@ export async function getAdDealInsights( userId: string, period: 'last30d' | 'la
            commonDeliverables, commonPlatforms, dealsFrequency
        };
        logger.info(`${TAG} Insights de AdDeals calculados com sucesso para User ${userId}.`);
-       logger.debug(`${TAG} Insights:`, insights);
        return insights;
     } catch (error: any) {
         logger.error(`${TAG} Erro ao calcular insights de AdDeals para User ${userId}:`, error);
@@ -360,16 +380,10 @@ export async function getAdDealInsights( userId: string, period: 'last30d' | 'la
     }
 }
 
-// <<< INÍCIO: Comunidade de Inspiração (ATUALIZADO v2.12.1) >>>
-
-/**
- * Registra o opt-in de um usuário para a funcionalidade Comunidade de Inspiração.
- * Chamado pelo backend de criação de conta após o usuário aceitar os termos gerais.
- */
+// --- Funções da Comunidade de Inspiração (mantidas) ---
 export async function optInUserToCommunity(
     userId: string,
     termsVersion: string
-    // sharingPreference foi removido
 ): Promise<IUser> {
     const TAG = '[dataService][optInUserToCommunity v2.12.1]';
     logger.info(`${TAG} Registrando opt-in para User ${userId}. Termos: ${termsVersion}`);
@@ -379,6 +393,7 @@ export async function optInUserToCommunity(
         throw new DatabaseError(`ID de usuário inválido: ${userId}`);
     }
     try {
+        await connectToDatabase(); // Garante conexão
         const updatedUser = await User.findByIdAndUpdate(
             userId,
             {
@@ -386,7 +401,6 @@ export async function optInUserToCommunity(
                     communityInspirationOptIn: true,
                     communityInspirationOptInDate: new Date(),
                     communityInspirationTermsVersion: termsVersion,
-                    // communityInspirationSharingPreference: sharingPreference, // <<< REMOVIDO >>>
                 },
             },
             { new: true, runValidators: true }
@@ -405,11 +419,6 @@ export async function optInUserToCommunity(
     }
 }
 
-/**
- * Registra o opt-out de um usuário da funcionalidade Comunidade de Inspiração.
- * (Mantido, caso seja necessário no futuro para o usuário explicitamente sair da funcionalidade,
- * mesmo que o opt-in inicial seja via termos gerais).
- */
 export async function optOutUserFromCommunity(userId: string): Promise<IUser> {
     const TAG = '[dataService][optOutUserFromCommunity v2.12.1]';
     logger.info(`${TAG} Registrando opt-out para User ${userId}.`);
@@ -419,13 +428,12 @@ export async function optOutUserFromCommunity(userId: string): Promise<IUser> {
         throw new DatabaseError(`ID de usuário inválido: ${userId}`);
     }
     try {
+        await connectToDatabase(); // Garante conexão
         const updatedUser = await User.findByIdAndUpdate(
             userId,
             {
                 $set: {
                     communityInspirationOptIn: false,
-                    // Poderia limpar outros campos relacionados se necessário, ex: communityInspirationOptInDate: null
-                    // communityInspirationTermsVersion: null, // Se relevante
                 },
             },
             { new: true, runValidators: true }
@@ -444,34 +452,16 @@ export async function optOutUserFromCommunity(userId: string): Promise<IUser> {
     }
 }
 
-// /**
-//  * ATUALIZADO v2.12.1: Esta função não é mais necessária com a abordagem simplificada de consentimento.
-//  * A preferência de compartilhamento não é mais gerenciada individualmente desta forma.
-//  * O link direto para o post do Instagram naturalmente credita o autor.
-//  */
-// export async function updateCommunitySharingPreference(
-//     userId: string,
-//     preference: 'credited' | 'anonymous_creator'
-// ): Promise<IUser> {
-//     const TAG = '[dataService][updateCommunitySharingPreference v2.12.1 - DEPRECATED]';
-//     logger.warn(`${TAG} Esta função foi descontinuada devido à simplificação do consentimento.`);
-//     throw new OperationNotPermittedError("Gerenciamento de preferência de compartilhamento individual foi descontinuado.");
-// }
-
-
-/**
- * Adiciona um novo post ao pool da Comunidade de Inspiração.
- * Chamado pelo CRON job `populate-community-inspirations` após processamento.
- */
 export async function addInspiration(
-    inspirationData: Partial<ICommunityInspiration> // ICommunityInspiration v1.0.1+ (sem anonymityLevel)
+    inspirationData: Partial<ICommunityInspiration>
 ): Promise<ICommunityInspiration> {
     const TAG = '[dataService][addInspiration v2.12.1]';
     logger.info(`${TAG} Adicionando nova inspiração. PostId Instagram: ${inspirationData.postId_Instagram}`);
 
     try {
-        const existingInspiration = await CommunityInspirationModel.findOne({ 
-            postId_Instagram: inspirationData.postId_Instagram 
+        await connectToDatabase(); // Garante conexão
+        const existingInspiration = await CommunityInspirationModel.findOne({
+            postId_Instagram: inspirationData.postId_Instagram
         });
 
         if (existingInspiration) {
@@ -488,7 +478,7 @@ export async function addInspiration(
             logger.info(`${TAG} Inspiração existente ${updatedInspiration._id} atualizada.`);
             return updatedInspiration as ICommunityInspiration;
         }
-        
+
         const newInspiration = await CommunityInspirationModel.create(inspirationData);
         logger.info(`${TAG} Nova inspiração ID: ${newInspiration._id} (PostId Instagram: ${newInspiration.postId_Instagram}) criada com sucesso.`);
         return newInspiration as ICommunityInspiration;
@@ -498,10 +488,6 @@ export async function addInspiration(
     }
 }
 
-/**
- * Busca inspirações da comunidade com base em filtros.
- * Chamado pela AI Function `fetchCommunityInspirations`.
- */
 export async function getInspirations(
     filters: CommunityInspirationFilters,
     limit: number = 3,
@@ -518,58 +504,53 @@ export async function getInspirations(
     if (filters.tags_IA && filters.tags_IA.length > 0) query.tags_IA = { $in: filters.tags_IA };
     if (excludeIds && excludeIds.length > 0) query._id = { $nin: excludeIds.map(id => new Types.ObjectId(id)) };
     try {
+        await connectToDatabase(); // Garante conexão
         const inspirations = await CommunityInspirationModel.find(query)
-            .sort({ addedToCommunityAt: -1 }) 
+            .sort({ addedToCommunityAt: -1 })
             .limit(limit)
-            .select('-internalMetricsSnapshot -updatedAt -status -__v') 
+            .select('-internalMetricsSnapshot -updatedAt -status -__v')
             .lean();
         logger.info(`${TAG} Encontradas ${inspirations.length} inspirações.`);
         return inspirations as ICommunityInspiration[];
-    } catch (error: any) { 
-        logger.error(`${TAG} Erro ao buscar inspirações:`, error); 
-        throw new DatabaseError(`Erro ao buscar inspirações: ${error.message}`); 
+    } catch (error: any) {
+        logger.error(`${TAG} Erro ao buscar inspirações:`, error);
+        throw new DatabaseError(`Erro ao buscar inspirações: ${error.message}`);
     }
 }
 
-/**
- * Registra quais inspirações foram mostradas ao usuário na dica diária.
- */
 export async function recordDailyInspirationShown(
     userId: string,
     inspirationIds: string[]
 ): Promise<void> {
     const TAG = '[dataService][recordDailyInspirationShown v2.12.1]';
-    if (inspirationIds.length === 0) { 
-        logger.debug(`${TAG} Nenhuma ID de inspiração fornecida para User ${userId}. Pulando.`); 
-        return; 
+    if (inspirationIds.length === 0) {
+        logger.debug(`${TAG} Nenhuma ID de inspiração fornecida para User ${userId}. Pulando.`);
+        return;
     }
     logger.info(`${TAG} Registrando inspirações ${inspirationIds.join(',')} como mostradas hoje para User ${userId}.`);
     if (!mongoose.isValidObjectId(userId)) throw new DatabaseError(`ID de usuário inválido: ${userId}`);
     const validInspirationObjectIds = inspirationIds.filter(id => mongoose.isValidObjectId(id)).map(id => new Types.ObjectId(id));
-    if (validInspirationObjectIds.length === 0) { 
-        logger.warn(`${TAG} Nenhuma ID de inspiração válida após filtro para User ${userId}.`); 
-        return; 
+    if (validInspirationObjectIds.length === 0) {
+        logger.warn(`${TAG} Nenhuma ID de inspiração válida após filtro para User ${userId}.`);
+        return;
     }
     try {
-        await User.findByIdAndUpdate(userId, { 
-            $set: { 
-                lastCommunityInspirationShown_Daily: { 
-                    date: startOfDay(new Date()), 
-                    inspirationIds: validInspirationObjectIds, 
-                }, 
-            }, 
+        await connectToDatabase(); // Garante conexão
+        await User.findByIdAndUpdate(userId, {
+            $set: {
+                lastCommunityInspirationShown_Daily: {
+                    date: startOfDay(new Date()),
+                    inspirationIds: validInspirationObjectIds,
+                },
+            },
         });
         logger.info(`${TAG} Registro de inspirações diárias atualizado para User ${userId}.`);
-    } catch (error: any) { 
-        logger.error(`${TAG} Erro ao registrar inspirações diárias para User ${userId}:`, error); 
-        throw new DatabaseError(`Erro ao registrar inspirações diárias: ${error.message}`); 
+    } catch (error: any) {
+        logger.error(`${TAG} Erro ao registrar inspirações diárias para User ${userId}:`, error);
+        throw new DatabaseError(`Erro ao registrar inspirações diárias: ${error.message}`);
     }
 }
 
-/**
- * Busca posts de um usuário que são elegíveis para serem adicionados à Comunidade de Inspiração.
- * Chamado pelo CRON job `populate-community-inspirations`.
- */
 export async function findUserPostsEligibleForCommunity(
     userId: string,
     criteria: { sinceDate: Date; minPerformanceCriteria?: any; }
@@ -578,20 +559,110 @@ export async function findUserPostsEligibleForCommunity(
     logger.info(`${TAG} Buscando posts elegíveis para comunidade para User ${userId} desde ${criteria.sinceDate.toISOString()}`);
     if (!mongoose.isValidObjectId(userId)) throw new DatabaseError(`ID de usuário inválido: ${userId}`);
     const userObjectId = new Types.ObjectId(userId);
-    const query: any = { 
-        user: userObjectId, 
-        postDate: { $gte: criteria.sinceDate }, 
-        classificationStatus: 'completed', 
-        source: 'api', 
+    const query: any = {
+        user: userObjectId, // Usa 'user' conforme o modelo Metric
+        postDate: { $gte: criteria.sinceDate },
+        classificationStatus: 'completed',
+        source: 'api',
     };
-    // Adicionar aqui a lógica para `minPerformanceCriteria` no futuro
     try {
-        const eligiblePosts = await Metric.find(query).sort({ postDate: -1 }).limit(50).lean();
+        await connectToDatabase(); // Garante conexão
+        const eligiblePosts = await MetricModel.find(query).sort({ postDate: -1 }).limit(50).lean();
         logger.info(`${TAG} Encontrados ${eligiblePosts.length} posts elegíveis para User ${userId}.`);
         return eligiblePosts as IMetric[];
-    } catch (error: any) { 
-        logger.error(`${TAG} Erro ao buscar posts elegíveis para User ${userId}:`, error); 
-        throw new DatabaseError(`Erro ao buscar posts elegíveis: ${error.message}`); 
+    } catch (error: any) {
+        logger.error(`${TAG} Erro ao buscar posts elegíveis para User ${userId}:`, error);
+        throw new DatabaseError(`Erro ao buscar posts elegíveis: ${error.message}`);
     }
 }
-// <<< FIM: Comunidade de Inspiração (ATUALIZADO v2.12.1) >>>
+
+
+// <<< NOVA FUNÇÃO PARA EXCLUSÃO DE CONTA >>>
+/**
+ * Exclui uma conta de utilizador e todos os seus dados associados de forma abrangente.
+ * @param userId - O ID do utilizador a ser excluído.
+ * @returns true se todas as operações de exclusão forem bem-sucedidas ou se o utilizador não existir, false caso ocorra algum erro.
+ * @throws {DatabaseError} Se ocorrer um erro durante as operações de base de dados que não seja UserNotFoundError.
+ */
+export async function deleteUserAccountAndAssociatedData(userId: string): Promise<boolean> {
+  const TAG = '[dataService][deleteUserAccountAndAssociatedData v2.13.0]';
+
+  if (!userId || !mongoose.isValidObjectId(userId)) {
+    logger.error(`${TAG} ID de utilizador inválido fornecido para exclusão: ${userId}`);
+    throw new DatabaseError(`ID de utilizador inválido para exclusão: ${userId}`);
+  }
+
+  const userObjectId = new Types.ObjectId(userId);
+  let mongoSession: mongoose.ClientSession | null = null; // Renomeado para evitar conflito com next-auth session
+
+  try {
+    await connectToDatabase(); // Garante que a conexão principal está estabelecida
+    mongoSession = await mongoose.startSession();
+    mongoSession.startTransaction();
+    logger.info(`${TAG} Iniciando transação para exclusão de dados do utilizador: ${userId}`);
+
+    // 1. Coletar IDs de Métricas do utilizador para excluir DailyMetricSnapshots
+    // Usa MetricModel conforme o export do seu Metric.ts
+    const userMetrics = await MetricModel.find({ user: userObjectId }).select('_id').session(mongoSession).lean();
+    const metricIds = userMetrics.map(metric => metric._id);
+    if (metricIds.length > 0) {
+        logger.info(`${TAG} Encontradas ${metricIds.length} métricas para o utilizador ${userId}. IDs: [${metricIds.join(', ')}]`);
+        // 2. Excluir DailyMetricSnapshots associados às métricas do utilizador
+        const snapshotDeletionResult = await DailyMetricSnapshotModel.deleteMany({ metric: { $in: metricIds } }).session(mongoSession);
+        logger.info(`${TAG} ${snapshotDeletionResult.deletedCount} snapshots diários de métricas excluídos para o utilizador ${userId}.`);
+    } else {
+        logger.info(`${TAG} Nenhuma métrica encontrada, portanto, nenhum snapshot diário para excluir para o utilizador ${userId}.`);
+    }
+
+    // 3. Excluir posts da Comunidade de Inspiração originados pelo utilizador
+    const communityDeletionResult = await CommunityInspirationModel.deleteMany({ originalCreatorId: userObjectId }).session(mongoSession);
+    logger.info(`${TAG} ${communityDeletionResult.deletedCount} inspirações da comunidade excluídas para o utilizador ${userId}.`);
+
+    // 4. Excluir Métricas (IMetric) do utilizador
+    // Usa MetricModel conforme o export do seu Metric.ts
+    const metricsDeletionResult = await MetricModel.deleteMany({ user: userObjectId }).session(mongoSession);
+    logger.info(`${TAG} ${metricsDeletionResult.deletedCount} registos de métricas (IMetric) efetivamente excluídos para o utilizador ${userId}.`);
+
+    // 5. Excluir Insights da Conta (IAccountInsight) do utilizador
+    const accountInsightsDeletionResult = await AccountInsightModel.deleteMany({ user: userObjectId }).session(mongoSession);
+    logger.info(`${TAG} ${accountInsightsDeletionResult.deletedCount} insights da conta excluídos para o utilizador ${userId}.`);
+
+    // 6. Excluir AdDeals do utilizador
+    // Usa AdDeal (que é o modelo exportado) conforme o seu AdDeal.ts
+    const adDealsDeletionResult = await AdDeal.deleteMany({ userId: userObjectId }).session(mongoSession);
+    logger.info(`${TAG} ${adDealsDeletionResult.deletedCount} AdDeals excluídos para o utilizador ${userId}.`);
+
+    // 7. Excluir StoryMetrics do utilizador
+    const storyMetricsDeletionResult = await StoryMetricModel.deleteMany({ user: userObjectId }).session(mongoSession);
+    logger.info(`${TAG} ${storyMetricsDeletionResult.deletedCount} métricas de stories excluídas para o utilizador ${userId}.`);
+
+    // 8. Por fim, excluir o próprio utilizador
+    // Usa User (que é o modelo exportado) conforme o seu User.ts
+    const userDeletionResult = await User.findByIdAndDelete(userObjectId).session(mongoSession);
+
+    await mongoSession.commitTransaction();
+    logger.info(`${TAG} Transação commitada com sucesso para exclusão do utilizador ${userId}.`);
+
+    if (!userDeletionResult) {
+      logger.warn(`${TAG} Utilizador ${userId} não encontrado para exclusão final (pode já ter sido excluído ou a transação não o encontrou no momento da exclusão), mas dados associados foram processados.`);
+    } else {
+      logger.info(`${TAG} Utilizador ${userId} excluído com sucesso do banco de dados.`);
+    }
+
+    return true;
+
+  } catch (error) {
+    if (mongoSession) {
+      await mongoSession.abortTransaction();
+      logger.error(`${TAG} Transação abortada devido a erro para o utilizador ${userId}.`);
+    }
+    logger.error(`${TAG} Erro ao excluir conta e dados associados para o utilizador ${userId}:`, error);
+    if (error instanceof DatabaseError || error instanceof UserNotFoundError) throw error;
+    throw new DatabaseError(`Falha crítica durante a exclusão da conta para ${userId}: ${error instanceof Error ? error.message : String(error)}`);
+  } finally {
+    if (mongoSession) {
+      mongoSession.endSession();
+      logger.info(`${TAG} Sessão do MongoDB finalizada para o utilizador ${userId}.`);
+    }
+  }
+}

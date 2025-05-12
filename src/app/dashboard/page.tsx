@@ -6,8 +6,9 @@
  import { useRouter } from "next/navigation";
  import Image from 'next/image';
  import Head from 'next/head';
+ import Link from 'next/link';
  // Usando React Icons (Font Awesome)
- import { FaCopy, FaCheckCircle, FaClock, FaTimesCircle, FaLock, FaTrophy, FaGift, FaMoneyBillWave, FaWhatsapp, FaUpload, FaCog, FaQuestionCircle, FaSignOutAlt, FaUserCircle, FaDollarSign, FaEllipsisV, FaBullhorn, FaVideo, FaSpinner, FaExclamationCircle, FaInfoCircle, FaHandshake } from 'react-icons/fa';
+ import { FaCopy, FaCheckCircle, FaClock, FaTimesCircle, FaLock, FaTrophy, FaGift, FaMoneyBillWave, FaWhatsapp, FaUpload, FaCog, FaQuestionCircle, FaSignOutAlt, FaUserCircle, FaDollarSign, FaEllipsisV, FaBullhorn, FaVideo, FaSpinner, FaExclamationCircle, FaInfoCircle, FaHandshake, FaFileContract, FaShieldAlt, FaTrashAlt, FaEnvelope, FaCreditCard } from 'react-icons/fa'; // Adicionado FaCreditCard
  // Framer Motion para animações
  import { motion, AnimatePresence } from "framer-motion";
 
@@ -77,7 +78,7 @@
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push('/');
+      router.push('/login');
     } else if (status === "authenticated" && (!session || !session.user)) {
       console.error("Erro: Autenticado, mas session ou session.user inválido.", session);
     }
@@ -163,9 +164,7 @@
    }, []);
 
 
-  // --- Renderização Condicional ---
-  if (status === "loading" || status === "unauthenticated") {
-    // <<< CORREÇÃO: JSX do Skeleton Loader restaurado >>>
+  if (status === "loading" || (status === "unauthenticated" && router)) {
     return (
         <div className="min-h-screen bg-brand-light p-4 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
@@ -198,7 +197,7 @@
      );
   }
   if (!user) {
-      return ( <div className="min-h-screen flex items-center justify-center bg-brand-light"><p className="text-red-500 font-medium">Erro ao carregar dados do usuário. Tente recarregar a página.</p></div> );
+      return ( <div className="min-h-screen flex items-center justify-center bg-brand-light"><p className="text-red-500 font-medium">Erro ao carregar dados do usuário. Tente recarregar a página ou fazer login novamente.</p></div> );
   }
 
   const planStatus = user.planStatus ?? "inactive";
@@ -265,9 +264,9 @@
         <header className="bg-white shadow-sm sticky top-0 z-40 border-b border-gray-200">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between items-center h-16">
-                    <a href="/dashboard" className="flex-shrink-0 flex items-center gap-2 group">
+                    <Link href="/dashboard" className="flex-shrink-0 flex items-center gap-2 group">
                         <span className="text-brand-pink text-3xl font-bold group-hover:opacity-80 transition-opacity">[2]</span>
-                    </a>
+                    </Link>
                     <div className="relative">
                         <button
                             onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
@@ -287,29 +286,88 @@
                                     animate={{ opacity: 1, scale: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.95, y: -10 }}
                                     transition={{ duration: 0.15, ease: "easeOut" }}
-                                    className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50"
+                                    className="origin-top-right absolute right-0 mt-2 w-64 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50"
                                     onMouseLeave={() => setIsUserMenuOpen(false)}
                                 >
                                     <div className="px-4 py-3 border-b border-gray-100">
                                         <p className="text-sm font-semibold text-brand-dark truncate">{userName}</p>
                                         <p className="text-xs text-gray-500 truncate">{user.email || 'Sem email'}</p>
                                     </div>
-                                    <div className="py-1">
-                                         <a href="/ajuda" className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5">
-                                            <FaQuestionCircle className="w-4 h-4 text-gray-400"/> Ajuda
-                                        </a>
+                                    {/* Link para Gerir Assinatura */}
+                                    {/* <<< BLOCO NOVO >>> */}
+                                    <div className="py-1 border-t border-gray-100">
+                                        <Link
+                                          href="/dashboard/settings#subscription-management-title" // Link para a secção na página de settings
+                                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
+                                          onClick={() => setIsUserMenuOpen(false)}
+                                        >
+                                            <FaCreditCard className="w-4 h-4 text-gray-400"/> Gerir Assinatura
+                                        </Link>
+                                    </div>
+                                    {/* <<< FIM BLOCO NOVO >>> */}
+                                    {/* Links para Documentos Legais */}
+                                    <div className="py-1 border-t border-gray-100">
+                                        <Link
+                                          href="/termos-e-condicoes"
+                                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
+                                          onClick={() => setIsUserMenuOpen(false)}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                        >
+                                            <FaFileContract className="w-4 h-4 text-gray-400"/> Termos e Condições
+                                        </Link>
                                     </div>
                                     <div className="py-1 border-t border-gray-100">
-                                         <a href="/afiliados" className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5">
+                                        <Link
+                                          href="/politica-de-privacidade"
+                                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
+                                          onClick={() => setIsUserMenuOpen(false)}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                        >
+                                            <FaShieldAlt className="w-4 h-4 text-gray-400"/> Política de Privacidade
+                                        </Link>
+                                    </div>
+                                    {/* Link para Suporte por Email */}
+                                    <div className="py-1 border-t border-gray-100">
+                                         <a 
+                                           href="mailto:arthur@data2content.ai"
+                                           className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
+                                           onClick={() => setIsUserMenuOpen(false)}
+                                         >
+                                            <FaEnvelope className="w-4 h-4 text-gray-400"/> Suporte por Email
+                                        </a>
+                                    </div>
+                                    {/* Link para Programa de Afiliados */}
+                                    <div className="py-1 border-t border-gray-100">
+                                         <a 
+                                           href="/afiliados"
+                                           className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
+                                           onClick={() => setIsUserMenuOpen(false)}
+                                         >
                                             <FaHandshake className="w-4 h-4 text-gray-400"/> Programa de Afiliados
                                         </a>
                                     </div>
+                                    {/* Link para Excluir Conta */}
+                                    <div className="py-1 border-t border-gray-100">
+                                        <Link 
+                                          href="/dashboard/settings" // Link para a página de configurações onde está a opção de excluir
+                                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-brand-red transition-colors rounded-md mx-1 my-0.5"
+                                          onClick={() => setIsUserMenuOpen(false)}
+                                        >
+                                            <FaTrashAlt className="w-4 h-4"/> Excluir Conta
+                                        </Link>
+                                    </div>
+                                    {/* Botão Sair */}
                                     <div className="py-1 border-t border-gray-100">
                                         <button
-                                            onClick={() => signOut({ callbackUrl: '/' })}
-                                            className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-brand-red transition-colors rounded-md mx-1 my-0.5"
+                                            onClick={() => {
+                                                setIsUserMenuOpen(false);
+                                                signOut({ callbackUrl: '/' });
+                                            }}
+                                            className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
                                         >
-                                            <FaSignOutAlt className="w-4 h-4"/> Sair
+                                            <FaSignOutAlt className="w-4 h-4 text-gray-400"/> Sair
                                         </button>
                                     </div>
                                 </motion.div>
@@ -320,9 +378,9 @@
             </div>
         </header>
 
+        {/* Restante do seu componente MainDashboard... */}
         <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 lg:gap-12">
-
             <div className="lg:col-span-2 space-y-12">
                <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={0}>
                  <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg border-t-4 border-brand-pink flex flex-col sm:flex-row items-center gap-6">
@@ -481,14 +539,22 @@
                     </div>
                  </div>
               </motion.section>
+              {/* Secção "Precisa de Ajuda?" atualizada */}
               <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={3}>
                  <div className="bg-brand-light p-6 rounded-xl border border-gray-200 text-center hover:shadow-md transition-shadow flex flex-col items-center">
                     <div className="p-3 bg-brand-pink/10 rounded-full text-brand-pink mb-4">
-                        <FaQuestionCircle className="w-6 h-6"/>
+                        <FaEnvelope className="w-6 h-6"/>
                     </div>
                     <h3 className="font-semibold text-brand-dark mb-2 text-lg">Precisa de Ajuda?</h3>
-                    <p className="text-sm text-gray-600 font-light mb-5 leading-relaxed">Acesse nossa central de ajuda ou entre em contato conosco.</p>
-                    <a href="/ajuda" className="text-sm text-brand-pink hover:underline font-semibold mt-auto pt-2">Acessar Central de Ajuda</a>
+                    <p className="text-sm text-gray-600 font-light mb-5 leading-relaxed">
+                        Entre em contacto connosco por email para qualquer questão ou suporte.
+                    </p>
+                    <a 
+                      href="mailto:arthur@data2content.ai"
+                      className="text-sm text-brand-pink hover:underline font-semibold mt-auto pt-2"
+                    >
+                        Contactar Suporte por Email
+                    </a>
                  </div>
               </motion.section>
             </div>

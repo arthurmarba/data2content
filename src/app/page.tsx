@@ -2,13 +2,12 @@
 
 import React, { useEffect } from "react";
 import Head from "next/head";
-// import Image from "next/image"; // Mantido comentado
+import Link from "next/link"; // Importar Link para navegação interna
 import { useSession, signIn } from "next-auth/react";
-// Importando Framer Motion
 import { motion, useAnimation } from "framer-motion";
 import { useInView } from "react-intersection-observer";
-// Importando React Icons
-import { FaArrowRight, FaDollarSign, FaComments, FaStar, FaUsers, FaGoogle, FaInstagram, FaFileUpload, FaQuestionCircle, FaBrain, FaLock, FaWhatsapp, FaPaperPlane, FaGift } from 'react-icons/fa';
+// Importando React Icons (ajustei para os que parecem ser realmente usados no JSX fornecido)
+import { FaArrowRight, FaGift, FaWhatsapp, FaBrain, FaGoogle, FaStar, FaFileUpload, FaQuestionCircle, FaHandshake, FaVideo } from 'react-icons/fa';
 
 // --- Variantes de Animação (Framer Motion) ---
 const fadeInUp = {
@@ -64,7 +63,6 @@ export default function HomePage() {
   return (
     <>
       <Head>
-        {/* Título mais focado no resultado */}
         <title>Data2Content: Decole seu Instagram com Consultor IA no WhatsApp & Ganhe Indicando</title>
         <meta
           name="description"
@@ -86,24 +84,23 @@ export default function HomePage() {
                 </nav>
                 {!session ? (
                      <button
-                        // <<< ATUALIZAÇÃO APLICADA AQUI >>>
                         onClick={() => signIn("google", { callbackUrl: "/auth/complete-signup" })}
                         className="px-5 py-2 md:px-6 md:py-2.5 text-xs md:text-sm font-medium text-brand-dark border border-gray-300 rounded-full hover:bg-gray-100 transition-colors duration-150"
                     >
                         Entrar com Google
                     </button>
                 ) : (
-                     <a
+                     <Link
                         href="/dashboard"
                         className="px-5 py-2 md:px-6 md:py-2.5 text-xs md:text-sm font-medium text-white bg-brand-pink rounded-full hover:opacity-90 transition-opacity duration-150"
                     >
                         Meu Painel
-                    </a>
+                    </Link>
                 )}
             </div>
         </header>
 
-        {/* Seção Hero: Padding superior ajustado para um espaço MODERADO */}
+        {/* Seção Hero */}
         <section id="hero" className="relative flex flex-col items-center justify-center text-center px-4 min-h-screen pt-20 md:pt-24 pb-16 md:pb-24 bg-brand-light overflow-hidden">
              <div className="absolute -top-20 -left-20 w-72 h-72 md:w-96 md:h-96 bg-brand-pink/5 rounded-full filter blur-3xl opacity-60 md:opacity-70 animate-pulse-slow"></div>
             <div className="absolute -bottom-20 -right-20 w-72 h-72 md:w-96 md:h-96 bg-brand-red/5 rounded-full filter blur-3xl opacity-60 md:opacity-70 animate-pulse-slow animation-delay-2000"></div>
@@ -115,13 +112,11 @@ export default function HomePage() {
                     </span>
                 </AnimatedSection>
                 <AnimatedSection delay={0.1}>
-                    {/* Título mais ativo e focado no resultado */}
                     <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold text-brand-dark mb-8 leading-[1.1] tracking-tighter">
                          Decole seu Instagram com Tuca: <span className="text-brand-pink">Seu Mentor IA no WhatsApp.</span>
                     </h1>
                 </AnimatedSection>
                 <AnimatedSection delay={0.2}>
-                    {/* Texto mais direto sobre os benefícios */}
                     <p className="text-lg md:text-xl lg:text-2xl text-gray-700 mb-12 max-w-3xl mx-auto font-light leading-relaxed md:leading-loose">
                         Receba estratégias personalizadas e dicas diárias do Tuca, sua IA treinada por experts, <strong className="font-semibold text-brand-dark">direto no seu WhatsApp</strong>. Transforme seus resultados e <strong className="font-semibold text-brand-dark">ganhe dinheiro indicando amigos</strong> (eles também ganham desconto!).
                     </p>
@@ -129,7 +124,6 @@ export default function HomePage() {
                 <AnimatedSection delay={0.3}>
                     {!session ? (
                         <button
-                            // <<< ATUALIZAÇÃO APLICADA AQUI >>>
                             onClick={() => signIn("google", { callbackUrl: "/auth/complete-signup" })}
                             className="shimmer-button inline-flex items-center gap-3 px-8 py-4 md:px-10 md:py-4 bg-brand-pink text-white rounded-full shadow-lg font-semibold text-base md:text-lg hover:opacity-90 transition-default transform hover:scale-105 relative overflow-hidden"
                         >
@@ -137,12 +131,12 @@ export default function HomePage() {
                             Começar Grátis e Ganhar Indicando
                         </button>
                      ) : (
-                         <a
+                         <Link
                             href="/dashboard"
                             className="shimmer-button inline-block px-8 py-4 md:px-10 md:py-4 bg-brand-pink text-white rounded-full shadow-lg font-semibold text-base md:text-lg hover:opacity-90 transition-default transform hover:scale-105 relative overflow-hidden"
                          >
                             Acessar meu Painel
-                         </a>
+                         </Link>
                      )}
                     <p className="text-sm text-gray-500 mt-6 font-light">
                         Cadastro rápido e gratuito. Afiliação instantânea.
@@ -159,7 +153,6 @@ export default function HomePage() {
         <section className="py-16 md:py-24 px-4 bg-white">
             <div className="max-w-3xl mx-auto text-center">
                 <AnimatedSection delay={0}>
-                    {/* Título mais direto na dor */}
                     <h2 className="text-3xl md:text-4xl font-bold text-brand-dark mb-6">Posta, posta e nada acontece? Confuso com o algoritmo?</h2>
                     <p className="text-lg text-gray-700 font-light leading-relaxed">
                         Entender o que engaja no Instagram, criar conteúdo que viraliza e transformar seguidores em dinheiro real exige mais que sorte. Precisa de <strong className="font-semibold text-brand-pink">estratégia, análise dos seus próprios resultados e conhecimento de mercado</strong>. O Data2Content te entrega tudo isso com o Tuca, seu consultor inteligente no WhatsApp.
@@ -171,7 +164,6 @@ export default function HomePage() {
         <section id="depoimentos" className="py-16 md:py-24 px-4 bg-brand-light">
               <div className="max-w-5xl mx-auto text-center">
                  <AnimatedSection delay={0}>
-                    {/* Título mais focado no resultado */}
                     <h2 className="text-3xl md:text-4xl font-bold text-brand-dark mb-6">Veja Criadores Decolando com o Data2Content:</h2>
                     <p className="text-lg text-gray-700 mb-16 md:mb-20 max-w-xl mx-auto font-light leading-relaxed">O que eles dizem sobre ter o Tuca como aliado no WhatsApp:</p>
                  </AnimatedSection>
@@ -207,7 +199,6 @@ export default function HomePage() {
                             <FaWhatsapp className="w-11 h-11 md:w-12 md:h-12 text-green-500" />
                             <FaBrain className="w-11 h-11 md:w-12 md:h-12 text-brand-red" />
                          </div>
-                         {/* Título mais focado no benefício direto */}
                         <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-brand-dark mb-6 leading-tight">Desvende seu Instagram com Tuca: Seu Mentor IA no WhatsApp</h2>
                         <p className="text-lg text-gray-700 font-light leading-relaxed mb-4">
                             Chega de complicação! Com Tuca, a estratégia para crescer no Instagram está <strong className="font-semibold text-brand-dark">na palma da sua mão, via WhatsApp</strong>. Ele analisa seus resultados e vai além:
@@ -229,7 +220,6 @@ export default function HomePage() {
                 <div id="monetizacao" className="grid md:grid-cols-2 gap-10 md:gap-16 items-center">
                     <AnimatedSection delay={0}>
                          <div className="mb-4"><FaGift className="w-10 h-10 md:w-11 md:h-11 text-brand-pink" /></div>
-                         {/* Título mais direto */}
                         <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-brand-dark mb-6 leading-tight">Indique Amigos, Ganhe Dinheiro (Todos Saem Ganhando!)</h2>
                         <p className="text-lg text-gray-700 font-light leading-relaxed mb-4">
                             No Data2Content, <strong className="font-semibold text-brand-dark">todo mundo pode lucrar, até no plano grátis!</strong> Ao se cadastrar, você já vira afiliado e recebe seu cupom exclusivo.
@@ -254,7 +244,6 @@ export default function HomePage() {
                     </AnimatedSection>
                     <AnimatedSection delay={0} className="order-first md:order-last">
                          <div className="mb-4"><FaStar className="w-10 h-10 md:w-11 md:h-11 text-yellow-500" /></div>
-                         {/* Título mais direto */}
                         <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-brand-dark mb-6 leading-tight">Conecte-se a Marcas e Oportunidades Reais</h2>
                         <p className="text-lg text-gray-700 font-light leading-relaxed mb-8">Use o Tuca, melhore seus resultados e <strong className="font-semibold text-brand-dark">chame a atenção de marcas parceiras</strong> que buscam criadores para campanhas. Além disso, destaque-se e seja considerado para <strong className="font-semibold text-brand-dark">agenciamento exclusivo</strong> por Arthur Marbá.</p>
                          <a href="#arthur-marba" className="inline-flex items-center font-semibold text-yellow-600 hover:underline text-base md:text-lg">
@@ -268,7 +257,6 @@ export default function HomePage() {
         <section id="como-funciona" className="py-16 md:py-24 px-4 bg-brand-light">
             <div className="max-w-5xl mx-auto text-center">
                 <AnimatedSection delay={0}>
-                    {/* Título mais simples */}
                     <h2 className="text-3xl md:text-4xl font-bold text-brand-dark mb-6">Comece a Usar o Tuca em 4 Passos:</h2>
                     <p className="text-lg text-gray-700 mb-16 md:mb-20 max-w-xl mx-auto font-light leading-relaxed">É rápido e fácil ter seu especialista inteligente no WhatsApp:</p>
                 </AnimatedSection>
@@ -305,7 +293,6 @@ export default function HomePage() {
                      </div>
                 </AnimatedSection>
                 <AnimatedSection delay={0.1} className="md:col-span-3">
-                     {/* Título mais direto */}
                      <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-brand-dark mb-6 leading-tight">A Mente por Trás da Inteligência do Tuca</h2>
                      <p className="text-lg text-gray-700 mb-6 leading-relaxed font-light">
                          O grande diferencial do Data2Content é que o Tuca aprendeu com a <strong className="text-brand-pink">experiência de 40 anos de Arthur Marbá</strong>. Todo o conhecimento dele sobre algoritmos, estratégias de conteúdo, publicidade e imagem no Instagram foi <strong className="font-semibold text-brand-dark">ensinado ao Tuca</strong>.
@@ -321,7 +308,6 @@ export default function HomePage() {
          <section id="cta-final" className="py-20 md:py-32 px-4 bg-brand-dark text-white">
               <div className="max-w-2xl mx-auto text-center">
                  <AnimatedSection delay={0}>
-                    {/* Título mais convidativo */}
                     <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight tracking-tighter">Sua Vez de Decolar no Instagram (e Lucrar com Isso!)</h2>
                  </AnimatedSection>
                  <AnimatedSection delay={0.1}>
@@ -330,8 +316,7 @@ export default function HomePage() {
                   {!session ? (
                     <AnimatedSection delay={0.2}>
                         <button
-                            // <<< ATUALIZAÇÃO APLICADA AQUI >>>
-                            onClick={() => signIn("google", { callbackUrl: "/auth/complete-signup" })}
+                            onClick={() => signIn("google", { callbackUrl: "/auth/complete-signup" })} 
                             className="shimmer-button inline-flex items-center gap-3 px-10 py-4 md:px-12 md:py-5 bg-brand-pink text-white rounded-full shadow-lg font-semibold text-lg md:text-xl hover:opacity-90 transition-default transform hover:scale-105 relative overflow-hidden"
                         >
                            <FaGoogle className="w-6 h-6" />
@@ -340,12 +325,12 @@ export default function HomePage() {
                     </AnimatedSection>
                     ) : (
                          <AnimatedSection delay={0.2}>
-                            <a
+                            <Link 
                                 href="/dashboard"
                                 className="shimmer-button inline-block px-10 py-4 md:px-12 md:py-5 bg-brand-pink text-white rounded-full shadow-lg font-semibold text-lg md:text-xl hover:opacity-90 transition-default transform hover:scale-105 relative overflow-hidden"
                             >
                                 Ir para Meu Painel <FaArrowRight className="inline ml-2.5 w-5 h-5"/>
-                            </a>
+                            </Link>
                         </AnimatedSection>
                     )}
              </div>
@@ -390,8 +375,13 @@ export default function HomePage() {
              <div className="mb-4 text-brand-dark font-bold text-2xl">Data2Content</div>
              <p className="mb-2">© {new Date().getFullYear()} Data2Content. Todos os direitos reservados por Marbá.</p>
              <div className="mt-3 space-x-5">
-                 <a href="/politica-privacidade" className="underline hover:text-brand-pink transition-colors">Política de Privacidade</a>
-                 <a href="/termos-uso" className="underline hover:text-brand-pink transition-colors">Termos de Uso</a>
+                 {/* <<< ATUALIZAÇÃO APLICADA AQUI >>> */}
+                 <Link href="/politica-de-privacidade" className="underline hover:text-brand-pink transition-colors">
+                    Política de Privacidade
+                 </Link>
+                 <Link href="/termos-e-condicoes" className="underline hover:text-brand-pink transition-colors">
+                    Termos e Condições {/* Ajustado para Termos e Condições e caminho correto */}
+                 </Link>
              </div>
          </footer>
 
