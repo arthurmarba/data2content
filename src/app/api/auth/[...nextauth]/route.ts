@@ -1,65 +1,66 @@
 // src/app/api/auth/[...nextauth]/route.ts
-// - Callback 'session' atualizado para buscar 'isNewUserForOnboarding' e 'onboardingCompletedAt'
-//   do banco de dados para garantir que a sessão reflita o estado de onboarding mais recente.
+// - Lógica de signIn para Facebook prioriza linkToken para vinculação, não cria novo utilizador.
+// - Lógica de signIn para Google mantida (cria novo utilizador se necessário).
+// - Callbacks jwt e session robustecidos para consistência de dados.
+// - CORRIGIDO: Tipos dos perfis Google e Facebook.
+// - CORRIGIDO: Configuração do CredentialsProvider restaurada e completa.
+// - CORRIGIDO: Remoção de imports de CredentialsConfig e CredentialInput da importação principal de 'next-auth'.
 
 import NextAuth from "next-auth";
-import type { DefaultSession, DefaultUser, NextAuthOptions, Session, User, Account } from "next-auth";
+// Removido CredentialsConfig e CredentialInput daqui
+import type { DefaultSession, DefaultUser, NextAuthOptions, Session, User as NextAuthUserArg, Account, Profile } from "next-auth"; 
 import GoogleProvider from "next-auth/providers/google";
 import FacebookProvider from "next-auth/providers/facebook";
-import CredentialsProvider from "next-auth/providers/credentials";
+import CredentialsProvider from "next-auth/providers/credentials"; // O tipo para 'credentials' dentro daqui será inferido.
+import type { CredentialInput } from "next-auth/providers/credentials"; // Importação correta se precisar do tipo CredentialInput explicitamente em outro lugar
+
 import { connectToDatabase } from "@/app/lib/mongoose";
-import DbUser, { IUser } from "@/app/models/User"; // IUser precisará incluir onboardingCompletedAt?: Date
+import DbUser, { IUser } from "@/app/models/User"; // Seu UserModel é DbUser
 import { Types } from "mongoose";
 import type { JWT, JWTEncodeParams, JWTDecodeParams } from "next-auth/jwt";
 import { SignJWT, jwtVerify } from "jose";
 import { logger } from "@/app/lib/logger";
-import { cookies } from 'next/headers';
-import {
-    fetchAvailableInstagramAccounts,
-    connectInstagramAccount,
-    AvailableInstagramAccount,
-} from "@/app/lib/instagramService";
 import * as dataService from "@/app/lib/dataService";
+import { cookies } from 'next/headers';
+// import {
+//     fetchAvailableInstagramAccounts,
+//     connectInstagramAccount,
+//     AvailableInstagramAccount,
+// } from "@/app/lib/instagramService";
+
 
 // --- AUGMENT NEXT-AUTH TYPES ---
 declare module "next-auth" {
     interface User extends DefaultUser {
-        id: string;
+        id: string; 
         role?: string | null;
         provider?: string | null;
+        isNewUserForOnboarding?: boolean;
+        onboardingCompletedAt?: Date | null;
+        image?: string | null;
+        isInstagramConnected?: boolean | null; 
         planStatus?: string | null;
         planExpiresAt?: string | null;
         affiliateCode?: string | null;
-        affiliateBalance?: number | null;
-        affiliateRank?: number | null;
-        affiliateInvites?: number | null;
-        instagramConnected?: boolean | null;
         instagramAccountId?: string | null;
         instagramUsername?: string | null;
-        availableIgAccounts?: AvailableInstagramAccount[] | null;
-        igConnectionError?: string | null;
-        image?: string | null;
-        isNewUserForOnboarding?: boolean;
-        onboardingCompletedAt?: Date | null; // Adicionado para melhor rastreamento
     }
     interface Session extends DefaultSession {
-        user?: User;
+        user?: User; 
     }
 }
 declare module "next-auth/jwt" {
      interface JWT {
-         id: string;
-         role?: string | null;
-         provider?: string | null;
-         availableIgAccounts?: AvailableInstagramAccount[] | null;
-         igConnectionError?: string | null;
+         id: string; 
+         sub?: string; 
          name?: string | null;
          email?: string | null;
-         picture?: string | null;
          image?: string | null;
-         sub?: string;
+         role?: string | null;
+         provider?: string | null;
          isNewUserForOnboarding?: boolean;
-         onboardingCompletedAt?: Date | null; // Adicionado para melhor rastreamento
+         onboardingCompletedAt?: Date | null; 
+         isInstagramConnected?: boolean | null; 
      }
 }
 // --- END AUGMENT NEXT-AUTH TYPES ---
@@ -68,22 +69,26 @@ console.log("--- SERVER START --- NEXTAUTH_URL:", process.env.NEXTAUTH_URL);
 export const runtime = "nodejs";
 
 const DEFAULT_TERMS_VERSION = "1.0_community_included";
+const LINK_TOKEN_COOKIE_NAME = "d2c-link-token"; 
 
-// --- Funções customEncode e customDecode (mantidas) ---
-// (código omitido para brevidade, assumindo que é o mesmo da versão anterior)
+// --- Funções customEncode e customDecode ---
 async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise<string> {
     if (!secret) throw new Error("NEXTAUTH_SECRET ausente em customEncode");
     const secretString = typeof secret === "string" ? secret : String(secret);
     const expirationTime = Math.floor(Date.now() / 1000) + (maxAge ?? 30 * 24 * 60 * 60);
-    const cleanToken = Object.entries(token ?? {}).reduce((acc, [key, value]) => {
-        if (value !== undefined) acc[key] = value;
-        return acc;
-    }, {} as Record<string, any>);
+    
+    const cleanToken: Record<string, any> = { ...token };
+    Object.keys(cleanToken).forEach(key => {
+        if (cleanToken[key] === undefined) delete cleanToken[key];
+    });
+
     if (!cleanToken.id) cleanToken.id = '';
-    if (cleanToken.image && !cleanToken.picture) cleanToken.picture = cleanToken.image;
-    if (cleanToken.onboardingCompletedAt instanceof Date) { // Garantir que o Date seja serializável
+    
+    if (cleanToken.onboardingCompletedAt instanceof Date) {
         cleanToken.onboardingCompletedAt = cleanToken.onboardingCompletedAt.toISOString();
     }
+    delete cleanToken.picture; 
+
     return new SignJWT(cleanToken)
         .setProtectedHeader({ alg: "HS256" })
         .setIssuedAt()
@@ -92,28 +97,34 @@ async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise
 }
 
 async function customDecode({ token, secret }: JWTDecodeParams): Promise<JWT | null> {
-    if (!token || !secret) {
-        logger.error("customDecode: Token ou secret não fornecidos.");
-        return null;
+    if (!token || !secret) { 
+        logger.error("[customDecode] Token ou secret não fornecidos."); 
+        return null; 
     }
     const secretString = typeof secret === "string" ? secret : String(secret);
     try {
         const { payload } = await jwtVerify(token, new TextEncoder().encode(secretString), { algorithms: ["HS256"] });
-        if (payload && typeof payload.id !== 'string') payload.id = '';
-        if (payload && payload.picture && !payload.image) payload.image = payload.picture;
-        if (payload && typeof payload.onboardingCompletedAt === 'string') { // Desserializar Date
-            payload.onboardingCompletedAt = new Date(payload.onboardingCompletedAt);
+        const decodedPayload: Partial<JWT> = { ...payload };
+
+        if (decodedPayload.id && typeof decodedPayload.id !== 'string') {
+            decodedPayload.id = String(decodedPayload.id);
+        } else if (!decodedPayload.id) {
+            decodedPayload.id = '';
         }
-        return payload as JWT;
-    } catch (err) {
-        logger.error(`customDecode: Erro ao decodificar token HS256: ${err instanceof Error ? err.message : String(err)}`);
-        return null;
+        
+        if (decodedPayload.onboardingCompletedAt && typeof decodedPayload.onboardingCompletedAt === 'string') {
+            decodedPayload.onboardingCompletedAt = new Date(decodedPayload.onboardingCompletedAt);
+        }
+        
+        return decodedPayload as JWT;
+    } catch (err) { 
+        logger.error(`[customDecode] Erro ao decodificar token: ${err instanceof Error ? err.message : String(err)}`); 
+        return null; 
     }
 }
-
+// --- Fim Funções customEncode e customDecode ---
 
 export const authOptions: NextAuthOptions = {
-    // ... useSecureCookies, cookies, providers, jwt (mantidos, omitidos para brevidade) ...
     useSecureCookies: process.env.NODE_ENV === "production",
     cookies: { 
         sessionToken: {
@@ -134,30 +145,29 @@ export const authOptions: NextAuthOptions = {
             clientId: process.env.GOOGLE_CLIENT_ID!,
             clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
             authorization: { params: { scope: "openid email profile" } },
-            profile(profile) {
+            profile(profile: Profile & { sub?: string; picture?: string }) { 
                 logger.debug("[NextAuth Google Profile DEBUG] Profile recebido do Google:", JSON.stringify(profile));
-                return { id: profile.sub, name: profile.name, email: profile.email, image: profile.picture };
+                return { 
+                    id: profile.sub!, 
+                    name: profile.name, 
+                    email: profile.email, 
+                    image: profile.picture 
+                };
             }
         }),
         FacebookProvider({
             clientId: process.env.FACEBOOK_CLIENT_ID!,
             clientSecret: process.env.FACEBOOK_CLIENT_SECRET!,
-            authorization: {
-                params: {
-                    scope: [
-                        'email', 'public_profile', 'pages_show_list',
-                        'pages_read_engagement', 'instagram_basic',
-                        'instagram_manage_insights', 'instagram_manage_comments'
-                    ].join(','),
-                    auth_type: 'rerequest',
-                    display: 'popup',
-                    config_id: process.env.FACEBOOK_LOGIN_CONFIG_ID!
-                }
+            authorization: { 
+                params: { 
+                    scope: 'email,public_profile,pages_show_list,pages_read_engagement,instagram_basic,instagram_manage_insights', 
+                    auth_type: 'rerequest' 
+                } 
             },
-            profile(profile) {
+            profile(profile: Profile & { id?: string; picture?: { data?: { url?: string }}}) {
                 logger.debug("NextAuth: Facebook profile returned:", profile);
                 return {
-                    id: profile.id,
+                    id: profile.id!, 
                     name: profile.name,
                     email: profile.email,
                     image: profile.picture?.data?.url
@@ -166,286 +176,267 @@ export const authOptions: NextAuthOptions = {
         }),
         CredentialsProvider({
             name: "Demo",
+            // A estrutura de 'credentials' define os campos do formulário
             credentials: {
                 username: { label: "Utilizador", type: "text", placeholder: "demo" },
                 password: { label: "Senha", type: "password", placeholder: "demo" }
             },
-            async authorize(credentials) {
+            // A função 'authorize' recebe os credentials submetidos
+            async authorize(credentials, req) { 
+                // 'credentials' aqui será do tipo Record<string, string | undefined>
+                // baseado nos campos definidos acima.
                 if (credentials?.username === "demo" && credentials?.password === "demo") {
                     logger.debug("[NextAuth Credentials DEBUG] Authorize para Demo User bem-sucedido.");
-                    return { id: "demo-123", name: "Demo User", email: "demo@example.com" };
+                    return { id: "demo-123", name: "Demo User", email: "demo@example.com", image: null };
                 }
                 logger.warn("[NextAuth Credentials DEBUG] Authorize para Demo User falhou.");
                 return null;
             }
         }),
     ],
-    jwt: {
+    jwt: { 
         secret: process.env.NEXTAUTH_SECRET,
         encode: customEncode,
         decode: customDecode
     },
-    callbacks: {
-        async signIn({ user, account, profile }) {
-            // (código do signIn mantido, omitido para brevidade)
-            const TAG_SIGNIN = '[NextAuth signIn Callback vConnectAccount-OnboardingFlag-Fix-Image]';
-            logger.debug(`${TAG_SIGNIN} Iniciado`, { userIdRaw: user.id, provider: account?.provider, userObj: JSON.stringify(user) });
-            let isNewUser = false; 
-            let dbUserForJwt: Partial<IUser> = {}; // Para passar dados para o JWT callback
-
+    callbacks: { 
+        async signIn({ user: authUserFromProvider, account, profile }) {
+            const TAG_SIGNIN = '[NextAuth signIn vFinalMerged]';
+            logger.debug(`${TAG_SIGNIN} Iniciado`, { providerAccountIdReceived: authUserFromProvider.id, provider: account?.provider, authUserFromProviderObj: JSON.stringify(authUserFromProvider) });
+            
             if (account?.provider === 'credentials') {
-                logger.debug(`${TAG_SIGNIN} Permitindo login via Credentials (utilizador: ${user.id}).`);
-                dbUserForJwt = { _id: user.id as any, isNewUserForOnboarding: false, onboardingCompletedAt: new Date() } // Demo user não é novo
-                Object.assign(user, { isNewUserForOnboarding: dbUserForJwt.isNewUserForOnboarding, onboardingCompletedAt: dbUserForJwt.onboardingCompletedAt });
+                logger.debug(`${TAG_SIGNIN} Permitindo login via Credentials (utilizador: ${authUserFromProvider.id}).`);
+                Object.assign(authUserFromProvider, { 
+                    isNewUserForOnboarding: false, 
+                    onboardingCompletedAt: new Date(), 
+                    role: 'user' 
+                });
                 return true;
             }
-            // ... (restante da lógica do signIn como estava, mas garantindo que `user` tenha `isNewUserForOnboarding` e `onboardingCompletedAt` populados se possível)
-            if (!account?.providerAccountId) { logger.error(`${TAG_SIGNIN} providerAccountId ausente para ${account?.provider}.`); return false; }
-            const currentEmail = user.email;
-            if (!currentEmail && account.provider !== 'facebook') { logger.error(`${TAG_SIGNIN} Email ausente para ${account.provider}.`); return false; }
+
+            const providerAccountId = authUserFromProvider.id; 
+            if (!providerAccountId) { 
+                logger.error(`${TAG_SIGNIN} ID do provedor (sub/id) ausente para ${account?.provider}.`);
+                return false;
+            }
+            // account.providerAccountId é o ID único do utilizador no provedor.
+            // Para Google, é o 'sub'. Para Facebook, é o 'id' do Facebook.
+            // authUserFromProvider.id é mapeado a partir disto na função profile de cada provedor.
+            if (!account?.providerAccountId) { 
+                logger.error(`${TAG_SIGNIN} account.providerAccountId ausente para ${account?.provider}.`);
+                return false;
+            }
+            
+            const currentEmailFromProvider = authUserFromProvider.email;
 
             try {
                 await connectToDatabase();
-                let existing: IUser | null = null;
+                let dbUserRecord: IUser | null = null;
 
-                if (account.provider === 'google') {
-                    logger.debug(`${TAG_SIGNIN} [Google Flow DEBUG] Tentando encontrar utilizador existente. ProviderAccountId: ${account.providerAccountId}, Email: ${currentEmail}`);
-                    existing = await DbUser.findOne({ providerAccountId: account.providerAccountId, provider: 'google' }).exec();
-                    if (!existing && currentEmail) {
-                        logger.debug(`${TAG_SIGNIN} [Google Flow DEBUG] Não encontrado por providerAccountId, tentando por email: ${currentEmail}`);
-                        existing = await DbUser.findOne({ email: currentEmail }).exec();
+                if (account.provider === 'facebook') {
+                    const cookieStore = cookies();
+                    const linkTokenFromCookie = cookieStore.get(LINK_TOKEN_COOKIE_NAME)?.value;
+
+                    if (linkTokenFromCookie) {
+                        logger.info(`${TAG_SIGNIN} [Facebook] linkTokenFromCookie encontrado: ${linkTokenFromCookie}`);
+                        dbUserRecord = await DbUser.findOne({ 
+                            linkToken: linkTokenFromCookie, 
+                            linkTokenExpiresAt: { $gt: new Date() } 
+                        });
+
+                        if (dbUserRecord) {
+                            logger.info(`${TAG_SIGNIN} [Facebook] Utilizador Data2Content ${dbUserRecord._id} encontrado por linkToken.`);
+                            dbUserRecord.linkToken = undefined;
+                            dbUserRecord.linkTokenExpiresAt = undefined;
+                            cookieStore.delete(LINK_TOKEN_COOKIE_NAME);
+
+                            logger.info(`${TAG_SIGNIN} [Facebook] Vinculando Facebook (ID: ${account.providerAccountId}) ao utilizador Data2Content: ${dbUserRecord._id}`);
+                            dbUserRecord.facebookProviderAccountId = account.providerAccountId;
+                            // Se o provider principal não for facebook, pode-se manter o provider original ou adicionar a uma lista
+                            // dbUserRecord.provider = account.provider; // Comentado para não sobrescrever o provider original
+                            if (authUserFromProvider.name && authUserFromProvider.name !== dbUserRecord.name) dbUserRecord.name = authUserFromProvider.name;
+                            if (authUserFromProvider.image && authUserFromProvider.image !== dbUserRecord.image) dbUserRecord.image = authUserFromProvider.image;
+                            if (!dbUserRecord.email && currentEmailFromProvider) dbUserRecord.email = currentEmailFromProvider;
+                            
+                            await dbUserRecord.save();
+                            logger.info(`${TAG_SIGNIN} [Facebook] Utilizador Data2Content ${dbUserRecord._id} atualizado com dados do Facebook.`);
+                        } else {
+                            logger.warn(`${TAG_SIGNIN} [Facebook] linkToken (${linkTokenFromCookie}) inválido/expirado. Vinculação falhou.`);
+                            cookieStore.delete(LINK_TOKEN_COOKIE_NAME);
+                            return false; 
+                        }
+                    } else {
+                        logger.warn(`${TAG_SIGNIN} [Facebook] Nenhum linkToken encontrado para vinculação. Vinculação falhou.`);
+                        return false; 
                     }
-
-                    if (existing) {
-                        logger.info(`${TAG_SIGNIN} [Google Flow DEBUG] Utilizador existente ENCONTRADO: _id='${existing._id}'.`);
-                        user.id = existing._id.toString();
-                        dbUserForJwt = { // Popular para JWT
-                            _id: existing._id,
-                            isNewUserForOnboarding: existing.isNewUserForOnboarding,
-                            onboardingCompletedAt: existing.onboardingCompletedAt,
-                            role: existing.role
-                        };
-                        // ... (atualizações no existing como antes) ...
-                        let needsSave = false;
-                        if (user.name && user.name !== existing.name) { existing.name = user.name; needsSave = true; }
-                        if (existing.providerAccountId !== account.providerAccountId) { existing.providerAccountId = account.providerAccountId; needsSave = true;}
-                        if (!existing.provider) { existing.provider = 'google'; needsSave = true; }
-                        const providerImage = user.image;
-                        if (providerImage && providerImage !== existing.image) { existing.image = providerImage; needsSave = true; }
-                        if (needsSave) { await existing.save(); logger.info(`${TAG_SIGNIN} [Google Flow DEBUG] Utilizador existente ${existing._id} atualizado.`);}
-
-                    } else { 
-                        isNewUser = true; 
-                        if (!currentEmail) { logger.error(`${TAG_SIGNIN} [Google Flow DEBUG] Email ausente ao tentar CRIAR utilizador Google.`); return false; }
-                        logger.info(`${TAG_SIGNIN} [Google Flow DEBUG] Criando NOVO utilizador Google para ${currentEmail}...`);
-                        const newUserDocData = { 
-                            name: user.name, 
-                            email: currentEmail, 
-                            image: user.image, 
-                            provider: 'google', 
-                            providerAccountId: account.providerAccountId, 
-                            role: 'user', 
-                            isInstagramConnected: false,
-                            isNewUserForOnboarding: true, // Novo usuário, flag é true
-                            // onboardingCompletedAt não é definido aqui, pois o onboarding não foi feito
-                        };
-                        const newUserDb = new DbUser(newUserDocData);
-                        const saved = await newUserDb.save();
-                        user.id = saved._id.toString(); 
-                        dbUserForJwt = { // Popular para JWT
-                            _id: saved._id,
-                            isNewUserForOnboarding: saved.isNewUserForOnboarding,
-                            onboardingCompletedAt: saved.onboardingCompletedAt, // será undefined
-                            role: saved.role
-                        };
-                        logger.info(`${TAG_SIGNIN} [Google Flow DEBUG] Novo utilizador Google CRIADO com _id: '${saved._id}'.`);
-                        
-                        try {
-                            logger.info(`${TAG_SIGNIN} [Google Flow DEBUG] Registando opt-in na comunidade para novo utilizador ${saved._id}. Versão Termos: ${DEFAULT_TERMS_VERSION}`);
-                            await dataService.optInUserToCommunity(saved._id.toString(), DEFAULT_TERMS_VERSION); // optInUserToCommunity atualiza UserModel, incluindo isNewUserForOnboarding
-                            logger.info(`${TAG_SIGNIN} [Google Flow DEBUG] Opt-in na comunidade registado com sucesso para novo utilizador ${saved._id}.`);
-                        } catch (optInError) {
-                            logger.error(`${TAG_SIGNIN} [Google Flow DEBUG] Falha ao registar opt-in na comunidade para novo utilizador ${saved._id}:`, optInError);
+                } else if (account.provider === 'google') {
+                    dbUserRecord = await DbUser.findOne({ provider: account.provider, providerAccountId: providerAccountId }).exec();
+                    
+                    if (!dbUserRecord && currentEmailFromProvider) {
+                        const userByEmail = await DbUser.findOne({ email: currentEmailFromProvider }).exec();
+                        if (userByEmail) {
+                            logger.info(`${TAG_SIGNIN} [Google] Utilizador Data2Content existente encontrado por email (${currentEmailFromProvider}). Vinculando Google.`);
+                            dbUserRecord = userByEmail;
+                            dbUserRecord.provider = account.provider; 
+                            dbUserRecord.providerAccountId = providerAccountId; 
+                            if (authUserFromProvider.name && authUserFromProvider.name !== dbUserRecord.name) dbUserRecord.name = authUserFromProvider.name;
+                            if (authUserFromProvider.image && authUserFromProvider.image !== dbUserRecord.image) dbUserRecord.image = authUserFromProvider.image;
+                            await dbUserRecord.save();
                         }
                     }
-                    // Passar os dados do DB para o objeto user que vai pro JWT callback
-                    Object.assign(user, { 
-                        isNewUserForOnboarding: dbUserForJwt.isNewUserForOnboarding, 
-                        onboardingCompletedAt: dbUserForJwt.onboardingCompletedAt,
-                        role: dbUserForJwt.role 
-                    });
-                    logger.debug(`${TAG_SIGNIN} [Google Flow DEBUG] FINAL para utilizador: user.id='${user.id}', isNewUserForOnboarding=${user.isNewUserForOnboarding}`);
-                    return true;
-
-                } else if (account.provider === 'facebook') {
-                    // ... (lógica do Facebook similar, garantindo que user.isNewUserForOnboarding e user.onboardingCompletedAt sejam populados) ...
-                    existing = await DbUser.findOne({ facebookProviderAccountId: account.providerAccountId }).exec();
-                     if (existing) {
-                        logger.info(`${TAG_SIGNIN} Utilizador existente encontrado (Facebook): ${existing._id}.`);
-                        user.id = existing._id.toString(); 
-                        Object.assign(user, { 
-                            isNewUserForOnboarding: existing.isNewUserForOnboarding, 
-                            onboardingCompletedAt: existing.onboardingCompletedAt,
-                            role: existing.role 
+                    if (!dbUserRecord) { 
+                        if (!currentEmailFromProvider) { 
+                            logger.error(`${TAG_SIGNIN} [Google] Email ausente ao CRIAR novo utilizador Google.`);
+                            return false; 
+                        }
+                        logger.info(`${TAG_SIGNIN} [Google] Criando NOVO utilizador Data2Content para ${currentEmailFromProvider} via Google...`);
+                        const newUserInDb = new DbUser({
+                            name: authUserFromProvider.name, email: currentEmailFromProvider, image: authUserFromProvider.image,
+                            provider: account.provider, providerAccountId: providerAccountId, 
+                            role: 'user', isNewUserForOnboarding: true, onboardingCompletedAt: null,
+                            communityInspirationOptIn: true, communityInspirationOptInDate: new Date(),
+                            communityInspirationTermsVersion: DEFAULT_TERMS_VERSION, isInstagramConnected: false,
                         });
-                        // ... (atualizações no existing como antes) ...
-                        return true;
+                        dbUserRecord = await newUserInDb.save();
+                        logger.info(`${TAG_SIGNIN} [Google] Novo utilizador Data2Content CRIADO com _id: '${dbUserRecord._id}'.`);
                     }
-                    // ... (se for novo usuário Facebook) ...
-                    // Object.assign(user, { isNewUserForOnboarding: true, onboardingCompletedAt: undefined });
-                    logger.warn(`${TAG_SIGNIN} Utilizador não encontrado para Facebook no signIn. Permitindo fluxo para JWT. (CONSIDERAR CRIAR USUÁRIO FB AQUI E SETAR FLAGS DE ONBOARDING)`);
-                    (user as any).isNewUserForOnboarding = true; // Assumindo que se não existe, é novo e precisa de onboarding
-                    return true; 
                 }
-                logger.error(`${TAG_SIGNIN} Provedor ${account.provider} não resultou em criação ou login.`);
-                return false;
+
+                if (dbUserRecord) {
+                    Object.assign(authUserFromProvider, {
+                        id: dbUserRecord._id.toString(), 
+                        name: dbUserRecord.name,
+                        email: dbUserRecord.email,
+                        image: dbUserRecord.image, 
+                        role: dbUserRecord.role,
+                        isNewUserForOnboarding: dbUserRecord.isNewUserForOnboarding,
+                        onboardingCompletedAt: dbUserRecord.onboardingCompletedAt,
+                        isInstagramConnected: dbUserRecord.isInstagramConnected,
+                        provider: dbUserRecord.provider, 
+                    });
+                    logger.debug(`${TAG_SIGNIN} [${account.provider}] FINAL signIn. authUser.id: '${authUserFromProvider.id}', isNewUser: ${authUserFromProvider.isNewUserForOnboarding}, isInstaConn: ${authUserFromProvider.isInstagramConnected}`);
+                    return true;
+                } else {
+                    logger.error(`${TAG_SIGNIN} [${account.provider}] Não foi possível encontrar, vincular ou criar utilizador Data2Content. Falha no signIn.`);
+                    return false;
+                }
+
             } catch (error) {
-                 logger.error(`${TAG_SIGNIN} Erro no DB durante signIn (${account?.provider}):`, error);
+                 logger.error(`${TAG_SIGNIN} Erro no DB durante signIn para ${account?.provider} (ID: ${account?.providerAccountId}):`, error);
                  return false;
             }
         },
 
-        async jwt({ token, user, account, trigger, session: sessionDataFromUpdate }) { // Adicionado sessionDataFromUpdate
-            const TAG_JWT = '[NextAuth JWT Callback vConnectAccount-OnboardingFlag-Fix-Image]';
-            logger.debug(`${TAG_JWT} Iniciado. Trigger: ${trigger}. UserID (do param user): ${user?.id}. TokenInID (do param token): ${token?.id}. SessionData: ${JSON.stringify(sessionDataFromUpdate)}`);
+        async jwt({ token, user: userFromSignIn, account, trigger }) {
+            const TAG_JWT = '[NextAuth JWT vFinalMerged]';
+            logger.debug(`${TAG_JWT} Iniciado. Trigger: ${trigger}. UserID(signIn): ${userFromSignIn?.id}. TokenInID: ${token?.id}`);
 
-            let currentToken: Partial<JWT> = { ...token }; // Começa com o token existente
-
-            const isSignInOrSignUp = trigger === 'signIn' || trigger === 'signUp';
-
-            if (isSignInOrSignUp && user) { // Popula o token com dados do objeto user (vindo do signIn)
-                currentToken.id = user.id;
-                currentToken.name = user.name;
-                currentToken.email = user.email;
-                currentToken.image = user.image;
-                currentToken.provider = account?.provider;
-                currentToken.role = (user as any).role ?? token?.role ?? 'user';
-                
-                if ((user as any).isNewUserForOnboarding !== undefined) {
-                    currentToken.isNewUserForOnboarding = (user as any).isNewUserForOnboarding;
-                }
-                if ((user as any).onboardingCompletedAt !== undefined) {
-                    currentToken.onboardingCompletedAt = (user as any).onboardingCompletedAt;
-                }
-                logger.info(`${TAG_JWT} [${account?.provider} Flow] Token inicial populado/atualizado. isNewUser: ${currentToken.isNewUserForOnboarding}, onboardingCompletedAt: ${currentToken.onboardingCompletedAt}`);
+            if ((trigger === 'signIn' || trigger === 'signUp') && userFromSignIn) {
+                token.id = userFromSignIn.id; 
+                token.sub = userFromSignIn.id;
+                token.name = userFromSignIn.name;
+                token.email = userFromSignIn.email;
+                token.image = userFromSignIn.image;
+                token.role = (userFromSignIn as any).role ?? 'user';
+                token.provider = account?.provider ?? token.provider;
+                token.isNewUserForOnboarding = (userFromSignIn as any).isNewUserForOnboarding;
+                token.onboardingCompletedAt = (userFromSignIn as any).onboardingCompletedAt;
+                token.isInstagramConnected = (userFromSignIn as any).isInstagramConnected;
+                logger.info(`${TAG_JWT} Token populado de userFromSignIn. ID: ${token.id}, isNewUser: ${token.isNewUserForOnboarding}, isInstaConn: ${token.isInstagramConnected}`);
             }
-            
-            // Se o trigger for 'update' (chamado por updateSession() no cliente)
-            // E se passarmos dados para updateSession({ someData: ... }), eles virão em sessionDataFromUpdate
-            // No nosso caso, não estamos passando dados extras para updateSession(), então ele só reavalia.
-            // A melhor forma de atualizar o token é buscando do DB se o ID existir.
 
-            // Garante que o token sempre tenha o ID e busca dados do DB se necessário para enriquecer/atualizar
-            if (currentToken.id && Types.ObjectId.isValid(currentToken.id)) {
-                currentToken.sub = currentToken.id;
-                try {
-                    await connectToDatabase();
-                    // Busca sempre do DB para garantir dados frescos, especialmente para 'update' trigger
-                    const dbUser = await DbUser.findById(currentToken.id)
-                        .select('name email image role provider isNewUserForOnboarding onboardingCompletedAt') // Adicionado isNewUserForOnboarding e onboardingCompletedAt
-                        .lean();
-                    
-                    if (dbUser) {
-                        currentToken.name = dbUser.name ?? currentToken.name;
-                        currentToken.email = dbUser.email ?? currentToken.email;
-                        currentToken.image = dbUser.image ?? currentToken.image;
-                        currentToken.role = dbUser.role ?? currentToken.role ?? 'user';
-                        currentToken.provider = dbUser.provider ?? currentToken.provider;
-                        // Atualiza as flags de onboarding com base no DB
-                        currentToken.isNewUserForOnboarding = dbUser.isNewUserForOnboarding ?? false;
-                        currentToken.onboardingCompletedAt = dbUser.onboardingCompletedAt ?? null;
-                    } else if (!isSignInOrSignUp) { // Se não for login e não encontrar usuário, invalida o token
-                        logger.warn(`${TAG_JWT} Utilizador ${currentToken.id} não encontrado no DB durante enriquecimento de token. Invalidando token.`);
-                        return {} as JWT;
+            if (token.id && Types.ObjectId.isValid(token.id)) {
+                if (trigger === 'update' || !token.role || typeof token.isNewUserForOnboarding === 'undefined' || typeof token.isInstagramConnected === 'undefined') {
+                    try {
+                        await connectToDatabase();
+                        const dbUser = await DbUser.findById(token.id)
+                            .select('name email image role provider isNewUserForOnboarding onboardingCompletedAt isInstagramConnected')
+                            .lean();
+                        if (dbUser) {
+                            token.name = dbUser.name ?? token.name;
+                            token.email = dbUser.email ?? token.email;
+                            token.image = dbUser.image ?? token.image;
+                            token.role = dbUser.role ?? token.role ?? 'user';
+                            token.provider = dbUser.provider ?? token.provider;
+                            token.isNewUserForOnboarding = dbUser.isNewUserForOnboarding ?? false;
+                            token.onboardingCompletedAt = dbUser.onboardingCompletedAt ?? null;
+                            token.isInstagramConnected = dbUser.isInstagramConnected ?? false;
+                            logger.info(`${TAG_JWT} Token enriquecido do DB. ID: ${token.id}, isNewUser: ${token.isNewUserForOnboarding}, isInstaConn: ${token.isInstagramConnected}`);
+                        } else {
+                            logger.warn(`${TAG_JWT} Utilizador ${token.id} não encontrado no DB. Invalidando token.`);
+                            return {} as JWT; 
+                        }
+                    } catch (error) {
+                        logger.error(`${TAG_JWT} Erro ao buscar dados do DB para token ${token.id}:`, error);
                     }
-                } catch (error) {
-                    logger.error(`${TAG_JWT} Erro ao buscar dados do DB para enriquecer token ${currentToken.id}:`, error);
                 }
-            } else if (!isSignInOrSignUp) { // Se não tem ID válido e não é signIn/signUp
-                logger.warn(`${TAG_JWT} Token sem ID válido fora do fluxo de login. Invalidando token.`);
+            } else {
+                if (!(trigger === 'signIn' || trigger === 'signUp')) {
+                    logger.warn(`${TAG_JWT} Token com ID inválido ('${token.id}') fora do login. Invalidando.`);
+                    return {} as JWT;
+                }
+                logger.error(`${TAG_JWT} Token com ID inválido ('${token.id}') DURANTE login. signIn falhou.`);
                 return {} as JWT;
             }
             
-            // Limpeza final de campos não serializáveis ou redundantes
-            delete (currentToken as any).igConnectionError;
-            delete (currentToken as any).availableIgAccounts;
-            if (currentToken.onboardingCompletedAt instanceof Date) { // Serializa Date para o JWT
-                currentToken.onboardingCompletedAt = currentToken.onboardingCompletedAt.toISOString() as any;
+            if (token.onboardingCompletedAt instanceof Date) {
+                token.onboardingCompletedAt = token.onboardingCompletedAt.toISOString() as any;
             }
+            delete (token as any).picture;
 
-
-            logger.debug(`${TAG_JWT} FINAL do callback jwt. Retornando token com id: '${currentToken.id}', isNewUser: ${currentToken.isNewUserForOnboarding}, onboardingCompletedAt: ${currentToken.onboardingCompletedAt}`);
-            return currentToken as JWT;
+            logger.debug(`${TAG_JWT} FINAL jwt. Token id: '${token.id}', isNewUser: ${token.isNewUserForOnboarding}, isInstaConn: ${token.isInstagramConnected}`);
+            return token;
         },
 
         async session({ session, token }) {
-            const TAG_SESSION = '[NextAuth Session Callback vConnectAccount-OnboardingFlag-Fix-Image-v2]';
-            logger.debug(`${TAG_SESSION} Iniciado. Token ID: ${token?.id}, Token isNewUser: ${token?.isNewUserForOnboarding}, Token onboardingCompletedAt: ${token?.onboardingCompletedAt}`);
+             const TAG_SESSION = '[NextAuth Session vFinalMerged]';
+             logger.debug(`${TAG_SESSION} Iniciado. Token ID: ${token?.id}, Token isNewUser: ${token?.isNewUserForOnboarding}, Token isInstaConn: ${token?.isInstagramConnected}`);
 
-            if (!token?.id || typeof token.id !== 'string' || !Types.ObjectId.isValid(token.id)) {
-                logger.error(`${TAG_SESSION} Token ID inválido ou ausente ('${token?.id}'). Retornando sessão vazia.`);
-                return { ...session, user: undefined, expires: session.expires };
-            }
+             if (!token?.id || !Types.ObjectId.isValid(token.id)) {
+                 logger.error(`${TAG_SESSION} Token ID inválido ('${token?.id}'). Sessão vazia.`);
+                 session.user = undefined; 
+                 return session;
+             }
 
-            // Inicializa session.user com os dados do token (que já devem estar atualizados pelo JWT callback)
-            session.user = {
-                id: token.id,
-                name: token.name ?? undefined,
-                email: token.email ?? undefined,
-                image: token.image ?? token.picture ?? undefined,
-                role: token.role ?? 'user',
-                provider: token.provider,
-                isNewUserForOnboarding: token.isNewUserForOnboarding ?? false, // Primariamente do token
-                onboardingCompletedAt: token.onboardingCompletedAt ? new Date(token.onboardingCompletedAt) : null, // Desserializa se veio como string
-                // Campos default que podem ser sobrescritos pelo DB se necessário
-                instagramConnected: false,
-                instagramAccountId: undefined,
-                instagramUsername: undefined,
-                planStatus: 'inactive',
-                planExpiresAt: null,
-                affiliateCode: undefined,
-                affiliateBalance: 0,
-                affiliateRank: 1,
-                affiliateInvites: 0,
-            };
-            
-            // Opcional: Se precisar de mais dados do DB que não estão no token, pode buscar aqui.
-            // Mas o JWT callback já deve ter enriquecido o token com os dados mais recentes do DB.
-            // Se o JWT callback já busca do DB, esta busca adicional pode ser redundante
-            // a menos que queira buscar campos que não são colocados no JWT por questões de tamanho/segurança.
-            try {
-                await connectToDatabase();
-                const dbUser = await DbUser.findById(token.id)
-                    .select('planStatus planExpiresAt affiliateCode affiliateBalance affiliateRank affiliateInvites isInstagramConnected instagramAccountId username isNewUserForOnboarding onboardingCompletedAt') // Adicionado isNewUserForOnboarding e onboardingCompletedAt
-                    .lean();
+             session.user = {
+                 id: token.id,
+                 name: token.name,
+                 email: token.email,
+                 image: token.image,
+                 role: token.role,
+                 provider: token.provider,
+                 isNewUserForOnboarding: token.isNewUserForOnboarding,
+                 onboardingCompletedAt: token.onboardingCompletedAt ? new Date(token.onboardingCompletedAt) : null,
+                 isInstagramConnected: token.isInstagramConnected,
+                 planStatus: undefined, 
+                 planExpiresAt: undefined,
+                 affiliateCode: undefined,
+                 instagramAccountId: undefined,
+                 instagramUsername: undefined,
+             };
+             
+             try {
+                 await connectToDatabase();
+                 const dbUser = await DbUser.findById(token.id)
+                     .select('planStatus planExpiresAt affiliateCode instagramAccountId username') 
+                     .lean();
+                 if (dbUser && session.user) {
+                     session.user.planStatus = dbUser.planStatus ?? 'inactive';
+                     session.user.planExpiresAt = dbUser.planExpiresAt instanceof Date ? dbUser.planExpiresAt.toISOString() : null;
+                     session.user.affiliateCode = dbUser.affiliateCode ?? undefined;
+                     session.user.instagramAccountId = dbUser.instagramAccountId ?? undefined;
+                     session.user.instagramUsername = dbUser.username ?? undefined;
+                 } else if (!dbUser) {
+                     logger.warn(`${TAG_SESSION} Utilizador ${token.id} não encontrado no DB ao buscar dados para sessão.`);
+                 }
+             } catch (error) {
+                  logger.error(`${TAG_SESSION} Erro ao buscar dados adicionais para sessão ${token.id}:`, error);
+             }
+             logger.debug(`${TAG_SESSION} Finalizado. Session.user ID: ${session.user?.id}, isNewUser: ${session.user?.isNewUserForOnboarding}, isInstaConn: ${session.user?.isInstagramConnected}`);
+             return session;
+         },
 
-                if (dbUser && session.user) {
-                    // Sobrescreve/complementa com dados do DB se necessário ou se mais atualizados
-                    session.user.planStatus = dbUser.planStatus ?? session.user.planStatus;
-                    session.user.planExpiresAt = dbUser.planExpiresAt instanceof Date ? dbUser.planExpiresAt.toISOString() : (dbUser.planExpiresAt ?? session.user.planExpiresAt);
-                    session.user.affiliateCode = dbUser.affiliateCode ?? session.user.affiliateCode;
-                    session.user.affiliateBalance = dbUser.affiliateBalance ?? session.user.affiliateBalance;
-                    session.user.affiliateRank = dbUser.affiliateRank ?? session.user.affiliateRank;
-                    session.user.affiliateInvites = dbUser.affiliateInvites ?? session.user.affiliateInvites;
-                    session.user.instagramConnected = dbUser.isInstagramConnected ?? session.user.instagramConnected;
-                    session.user.instagramAccountId = dbUser.instagramAccountId ?? session.user.instagramAccountId;
-                    session.user.instagramUsername = dbUser.username ?? session.user.instagramUsername; // 'username' do DB
-
-                    // Confirma/atualiza flags de onboarding com base no DB como fonte da verdade
-                    session.user.isNewUserForOnboarding = dbUser.isNewUserForOnboarding ?? token.isNewUserForOnboarding ?? false;
-                    session.user.onboardingCompletedAt = dbUser.onboardingCompletedAt ? new Date(dbUser.onboardingCompletedAt) : (token.onboardingCompletedAt ? new Date(token.onboardingCompletedAt) : null);
-
-                    logger.debug(`${TAG_SESSION} Sessão enriquecida com dados do DB. User ID: ${session.user?.id}, isNewUser: ${session.user.isNewUserForOnboarding}, onboardingCompletedAt: ${session.user.onboardingCompletedAt}`);
-                } else if (session.user) {
-                     logger.warn(`${TAG_SESSION} Utilizador ${token.id} não encontrado no DB ao tentar enriquecer sessão (pode já ter sido tratado no JWT).`);
-                }
-            } catch (error) {
-                 logger.error(`${TAG_SESSION} Erro ao buscar dados adicionais do utilizador ${token.id} para sessão:`, error);
-            }
-            return session;
-        },
         async redirect({ url, baseUrl }) {
-          // (código do redirect mantido, omitido para brevidade)
           const requestedUrl = new URL(url, baseUrl);
           const base = new URL(baseUrl);
           if (requestedUrl.origin === base.origin) {
@@ -462,7 +453,7 @@ export const authOptions: NextAuthOptions = {
     },
     session: {
         strategy: 'jwt',
-        maxAge: 30 * 24 * 60 * 60
+        maxAge: 30 * 24 * 60 * 60 
     }
 };
 
