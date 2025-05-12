@@ -1,9 +1,12 @@
 // src/app/api/auth/[...nextauth]/route.ts
-// MERGED VERSION (Corrected for Facebook Link-Only):
-// - signIn (Facebook): Now STRICTLY requires a valid 'auth-link-token' cookie for linking.
-// - signIn (Facebook): Does NOT create new users or link by email/FB ID if token is missing/invalid.
-// - signIn (Google): Remains unchanged (allows new user creation / linking by email).
-// - jwt: Instagram connection logic for Facebook provider remains, triggered after successful LINKING.
+// MERGED VERSION (FB Link - No Name/Image Update from FB):
+// - signIn (Facebook): STRICTLY requires 'auth-link-token'.
+// - signIn (Facebook): Links to existing user found by token.
+// - signIn (Facebook): Name and Image from Facebook DO NOT update existing DB record.
+// - signIn (Facebook): FB email only populates DB email if DB email is empty. Does NOT overwrite.
+// - signIn (Facebook): Does NOT create new users.
+// - signIn (Google): Remains unchanged.
+// - jwt: Instagram connection logic for Facebook provider remains.
 
 import NextAuth from "next-auth";
 import type { DefaultSession, DefaultUser, NextAuthOptions, Session, User as NextAuthUserArg, Account, Profile } from "next-auth";
@@ -73,8 +76,7 @@ console.log("--- SERVER START --- NEXTAUTH_URL:", process.env.NEXTAUTH_URL);
 export const runtime = "nodejs";
 
 const DEFAULT_TERMS_VERSION = "1.0_community_included";
-// const LINK_TOKEN_COOKIE_NAME = "d2c-link-token"; // This constant is not directly used by FB logic now if API sets 'auth-link-token'
-const FACEBOOK_LINK_COOKIE_NAME = "auth-link-token"; // Explicitly use the cookie name set by the API
+const FACEBOOK_LINK_COOKIE_NAME = "auth-link-token";
 
 // --- Funções customEncode e customDecode ---
 async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise<string> {
@@ -206,7 +208,7 @@ export const authOptions: NextAuthOptions = {
     },
     callbacks: {
         async signIn({ user: authUserFromProvider, account, profile }) {
-            const TAG_SIGNIN = '[NextAuth signIn MERGED CorrectedFB]';
+            const TAG_SIGNIN = '[NextAuth signIn FBLinkNoNameImgUpdate]'; // Nome do TAG atualizado
             logger.debug(`${TAG_SIGNIN} Iniciado`, { providerAccountIdReceived: authUserFromProvider.id, provider: account?.provider, email: authUserFromProvider.email });
 
             if (!account || !account.provider || !authUserFromProvider?.id) {
@@ -223,8 +225,8 @@ export const authOptions: NextAuthOptions = {
             const provider = account.provider;
             const providerAccountId = authUserFromProvider.id;
             const currentEmailFromProvider = authUserFromProvider.email;
-            const nameFromProvider = authUserFromProvider.name;
-            const imageFromProvider = authUserFromProvider.image;
+            const nameFromProvider = authUserFromProvider.name; // Ainda recebemos, mas não usamos para atualizar
+            const imageFromProvider = authUserFromProvider.image; // Ainda recebemos, mas não usamos para atualizar
 
             if (!providerAccountId) {
                 logger.error(`${TAG_SIGNIN} providerAccountId (ID do ${provider}) ausente.`);
@@ -234,9 +236,8 @@ export const authOptions: NextAuthOptions = {
             try {
                 await connectToDatabase();
                 let dbUserRecord: IUser | null = null;
-                let isNewUser = false; // Only relevant for Google new user creation
+                let isNewUser = false;
 
-                // --- Lógica Específica do Facebook (APENAS PARA VINCULAÇÃO) ---
                 if (provider === 'facebook') {
                     const cookieStore = cookies();
                     const linkTokenFromCookie = cookieStore.get(FACEBOOK_LINK_COOKIE_NAME)?.value;
@@ -249,34 +250,44 @@ export const authOptions: NextAuthOptions = {
                         });
 
                         if (dbUserRecord) {
-                            logger.info(`${TAG_SIGNIN} [Facebook] Utilizador Data2Content ${dbUserRecord._id} encontrado por linkToken. Vinculando Facebook ID: ${providerAccountId}`);
+                            logger.info(`${TAG_SIGNIN} [Facebook] Utilizador Data2Content ${dbUserRecord._id} (Email DB: ${dbUserRecord.email || 'N/A'}) encontrado por linkToken.`);
+                            logger.info(`${TAG_SIGNIN} [Facebook] Vinculando Facebook ID: ${providerAccountId}. Email do Facebook Provider: ${currentEmailFromProvider || 'N/A'}.`);
+
                             dbUserRecord.facebookProviderAccountId = providerAccountId;
-                            if (nameFromProvider && nameFromProvider !== dbUserRecord.name) dbUserRecord.name = nameFromProvider;
-                            if (imageFromProvider && imageFromProvider !== dbUserRecord.image) dbUserRecord.image = imageFromProvider;
-                            // Só preenche email do Facebook se o email no DB estiver vazio
+
+                            // NÃO atualiza nome e imagem do DB com os do Facebook
+                            // if (nameFromProvider && nameFromProvider !== dbUserRecord.name) {
+                            //     dbUserRecord.name = nameFromProvider;
+                            // }
+                            // if (imageFromProvider && imageFromProvider !== dbUserRecord.image) {
+                            //     dbUserRecord.image = imageFromProvider;
+                            // }
+                            logger.info(`${TAG_SIGNIN} [Facebook] Nome e Imagem do DB para User ${dbUserRecord._id} serão mantidos (não atualizados pelo Facebook).`);
+
+
                             if (!dbUserRecord.email && currentEmailFromProvider) {
                                 dbUserRecord.email = currentEmailFromProvider;
-                                logger.info(`${TAG_SIGNIN} [Facebook] Email do utilizador ${dbUserRecord._id} preenchido com o email do Facebook: ${currentEmailFromProvider}`);
+                                logger.info(`${TAG_SIGNIN} [Facebook] Email do utilizador ${dbUserRecord._id} preenchido com o email do Facebook: ${currentEmailFromProvider} (estava vazio).`);
+                            } else if (dbUserRecord.email && currentEmailFromProvider && dbUserRecord.email.toLowerCase() !== currentEmailFromProvider.toLowerCase()){
+                                logger.warn(`${TAG_SIGNIN} [Facebook] Email do Facebook ('${currentEmailFromProvider}') é DIFERENTE do email no DB ('${dbUserRecord.email}') para User ${dbUserRecord._id}. O email do DB será mantido.`);
                             }
                             
-                            dbUserRecord.linkToken = undefined; // Limpa o token após o uso
+                            dbUserRecord.linkToken = undefined;
                             dbUserRecord.linkTokenExpiresAt = undefined;
                             await dbUserRecord.save();
                             
-                            cookieStore.delete(FACEBOOK_LINK_COOKIE_NAME); // Remove o cookie
+                            cookieStore.delete(FACEBOOK_LINK_COOKIE_NAME);
                             logger.info(`${TAG_SIGNIN} [Facebook] Vinculação por linkToken bem-sucedida para ${dbUserRecord._id}.`);
-                            // O objeto authUserFromProvider será populado com os detalhes de dbUserRecord mais abaixo.
                         } else {
                             logger.warn(`${TAG_SIGNIN} [Facebook] linkToken ('${FACEBOOK_LINK_COOKIE_NAME}': ${linkTokenFromCookie}) inválido ou expirado. Vinculação falhou.`);
-                            cookieStore.delete(FACEBOOK_LINK_COOKIE_NAME); // Remove o cookie inválido
-                            return false; // FALHA: Token inválido, não permite prosseguir.
+                            cookieStore.delete(FACEBOOK_LINK_COOKIE_NAME);
+                            return false;
                         }
                     } else {
-                        logger.warn(`${TAG_SIGNIN} [Facebook] Nenhum linkToken ('${FACEBOOK_LINK_COOKIE_NAME}') encontrado no cookie. Vinculação requerida. Login/Criação direta via Facebook não permitida.`);
-                        return false; // FALHA: Token de vinculação ausente, não permite prosseguir.
+                        logger.warn(`${TAG_SIGNIN} [Facebook] Nenhum linkToken ('${FACEBOOK_LINK_COOKIE_NAME}') encontrado. Vinculação requerida. Login/Criação direta via Facebook não permitida.`);
+                        return false;
                     }
                 }
-                // --- Lógica Específica do Google (Mantida da vFinalMerged) ---
                 else if (provider === 'google') {
                     logger.debug(`${TAG_SIGNIN} [Google] Tentando encontrar usuário por providerAccountId: ${providerAccountId}`);
                     dbUserRecord = await DbUser.findOne({ provider: provider, providerAccountId: providerAccountId }).exec();
@@ -317,21 +328,19 @@ export const authOptions: NextAuthOptions = {
                             planStatus: 'inactive',
                         });
                         dbUserRecord = await newUserInDb.save();
-                        isNewUser = true; // Flag para Google
+                        isNewUser = true;
                         logger.info(`${TAG_SIGNIN} [Google] Novo utilizador Data2Content CRIADO com _id: '${dbUserRecord._id}'.`);
                     }
                 }
 
-                // --- Finalização e Preparação do Objeto User para JWT ---
                 if (dbUserRecord) {
                     Object.assign(authUserFromProvider, {
                         id: dbUserRecord._id.toString(),
-                        name: dbUserRecord.name ?? nameFromProvider,
+                        name: dbUserRecord.name ?? nameFromProvider, // Para Google, pode usar nameFromProvider se for novo
                         email: dbUserRecord.email ?? currentEmailFromProvider,
-                        image: dbUserRecord.image ?? imageFromProvider,
+                        image: dbUserRecord.image ?? imageFromProvider, // Para Google, pode usar imageFromProvider se for novo
                         role: dbUserRecord.role ?? 'user',
-                        // Para Google, isNewUser é definido acima. Para Facebook, é sempre um usuário existente (isNewUser = false).
-                        isNewUserForOnboarding: (provider === 'google' && isNewUser) || dbUserRecord.isNewUserForOnboarding,
+                        isNewUserForOnboarding: (provider === 'google' && isNewUser) || (dbUserRecord.isNewUserForOnboarding ?? false),
                         onboardingCompletedAt: dbUserRecord.onboardingCompletedAt,
                         isInstagramConnected: dbUserRecord.isInstagramConnected ?? false,
                         provider: dbUserRecord.provider ?? provider,
@@ -350,7 +359,7 @@ export const authOptions: NextAuthOptions = {
         },
 
         async jwt({ token, user: userFromSignIn, account, trigger, session }) {
-            const TAG_JWT = '[NextAuth JWT MERGED CorrectedFB]';
+            const TAG_JWT = '[NextAuth JWT FBLinkNoNameImgUpdate]'; // Nome do TAG atualizado
             logger.debug(`${TAG_JWT} Iniciado. Trigger: ${trigger}. Provider(acc): ${account?.provider}. UserID(signIn): ${userFromSignIn?.id}. TokenInID: ${token?.id}`);
 
             delete token.igConnectionError;
@@ -484,7 +493,7 @@ export const authOptions: NextAuthOptions = {
         },
 
         async session({ session, token }) {
-             const TAG_SESSION = '[NextAuth Session MERGED CorrectedFB]';
+             const TAG_SESSION = '[NextAuth Session FBLinkNoNameImgUpdate]'; // Nome do TAG atualizado
              logger.debug(`${TAG_SESSION} Iniciado. Token ID: ${token?.id}, Token isNewUser: ${token?.isNewUserForOnboarding}, Token isInstaConn: ${token?.isInstagramConnected}, Token ErrIG: ${token?.igConnectionError ? 'Sim' : 'Não'}`);
 
              if (!token?.id || !Types.ObjectId.isValid(token.id)) {
