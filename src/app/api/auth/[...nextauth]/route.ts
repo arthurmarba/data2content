@@ -1,12 +1,11 @@
 // src/app/api/auth/[...nextauth]/route.ts
-// MERGED VERSION (FB Link - No Name/Image Update from FB):
-// - signIn (Facebook): STRICTLY requires 'auth-link-token'.
-// - signIn (Facebook): Links to existing user found by token.
-// - signIn (Facebook): Name and Image from Facebook DO NOT update existing DB record.
-// - signIn (Facebook): FB email only populates DB email if DB email is empty. Does NOT overwrite.
-// - signIn (Facebook): Does NOT create new users.
-// - signIn (Google): Remains unchanged.
-// - jwt: Instagram connection logic for Facebook provider remains.
+// VERSION: FBLinkNoNameImgUpdate + SyncStatus
+// - MODIFICADO (session callback): Adiciona lastInstagramSyncAttempt e lastInstagramSyncSuccess à sessão.
+// - MODIFICADO (User interface): Adiciona os campos de status de sincronização.
+// - Mantém lógica anterior para signIn (Facebook): STRICTLY requires 'auth-link-token', links to existing user,
+//   Name/Image from FB DO NOT update DB, FB email only populates DB email if empty, NO new user creation via FB.
+// - Mantém lógica anterior para signIn (Google).
+// - Mantém lógica anterior para jwt (Instagram connection).
 
 import NextAuth from "next-auth";
 import type { DefaultSession, DefaultUser, NextAuthOptions, Session, User as NextAuthUserArg, Account, Profile } from "next-auth";
@@ -48,9 +47,12 @@ declare module "next-auth" {
         instagramUsername?: string | null;
         availableIgAccounts?: AvailableInstagramAccount[] | null;
         igConnectionError?: string | null;
+        // <<< ADICIONADO: Campos de status da sincronização >>>
+        lastInstagramSyncAttempt?: string | null; // Enviado como string ISO para o cliente
+        lastInstagramSyncSuccess?: boolean | null;
     }
     interface Session extends DefaultSession {
-        user?: User;
+        user?: User; // User aqui já inclui os novos campos
     }
 }
 declare module "next-auth/jwt" {
@@ -64,10 +66,13 @@ declare module "next-auth/jwt" {
          role?: string | null;
          provider?: string | null;
          isNewUserForOnboarding?: boolean;
-         onboardingCompletedAt?: Date | null;
+         onboardingCompletedAt?: Date | null; // Mantido como Date no JWT, convertido para string no encode
          isInstagramConnected?: boolean | null;
          availableIgAccounts?: AvailableInstagramAccount[] | null;
          igConnectionError?: string | null;
+         // <<< ADICIONADO: Campos de status da sincronização (opcional no JWT, mas populado na session) >>>
+         lastInstagramSyncAttempt?: Date | null; // Pode ser Date no JWT
+         lastInstagramSyncSuccess?: boolean | null;
      }
 }
 // --- END AUGMENT NEXT-AUTH TYPES ---
@@ -91,8 +96,12 @@ async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise
     if (cleanToken.onboardingCompletedAt instanceof Date) {
         cleanToken.onboardingCompletedAt = cleanToken.onboardingCompletedAt.toISOString();
     }
+    // <<< ADICIONADO: Serializar lastInstagramSyncAttempt para o JWT se for Date >>>
+    if (cleanToken.lastInstagramSyncAttempt instanceof Date) {
+        cleanToken.lastInstagramSyncAttempt = cleanToken.lastInstagramSyncAttempt.toISOString();
+    }
     if (cleanToken.image) delete cleanToken.picture;
-    delete cleanToken.availableIgAccounts;
+    delete cleanToken.availableIgAccounts; // Não incluir a lista completa no JWT final
     return new SignJWT(cleanToken)
         .setProtectedHeader({ alg: "HS256" })
         .setIssuedAt()
@@ -116,6 +125,10 @@ async function customDecode({ token, secret }: JWTDecodeParams): Promise<JWT | n
         }
         if (decodedPayload.onboardingCompletedAt && typeof decodedPayload.onboardingCompletedAt === 'string') {
             decodedPayload.onboardingCompletedAt = new Date(decodedPayload.onboardingCompletedAt);
+        }
+        // <<< ADICIONADO: Deserializar lastInstagramSyncAttempt do JWT se for string >>>
+        if (decodedPayload.lastInstagramSyncAttempt && typeof decodedPayload.lastInstagramSyncAttempt === 'string') {
+            decodedPayload.lastInstagramSyncAttempt = new Date(decodedPayload.lastInstagramSyncAttempt);
         }
         if (decodedPayload.picture && !decodedPayload.image) decodedPayload.image = decodedPayload.picture;
         return decodedPayload as JWT;
@@ -194,6 +207,7 @@ export const authOptions: NextAuthOptions = {
                         isNewUserForOnboarding: false,
                         onboardingCompletedAt: new Date(),
                         isInstagramConnected: false
+                        // Não precisa adicionar lastInstagramSyncAttempt/Success para demo user
                     };
                 }
                 logger.warn("[NextAuth Credentials DEBUG] Authorize para Demo User falhou.");
@@ -208,7 +222,7 @@ export const authOptions: NextAuthOptions = {
     },
     callbacks: {
         async signIn({ user: authUserFromProvider, account, profile }) {
-            const TAG_SIGNIN = '[NextAuth signIn FBLinkNoNameImgUpdate]'; // Nome do TAG atualizado
+            const TAG_SIGNIN = '[NextAuth signIn FBLinkNoNameImgUpdate+SyncStatus]';
             logger.debug(`${TAG_SIGNIN} Iniciado`, { providerAccountIdReceived: authUserFromProvider.id, provider: account?.provider, email: authUserFromProvider.email });
 
             if (!account || !account.provider || !authUserFromProvider?.id) {
@@ -225,8 +239,8 @@ export const authOptions: NextAuthOptions = {
             const provider = account.provider;
             const providerAccountId = authUserFromProvider.id;
             const currentEmailFromProvider = authUserFromProvider.email;
-            const nameFromProvider = authUserFromProvider.name; // Ainda recebemos, mas não usamos para atualizar
-            const imageFromProvider = authUserFromProvider.image; // Ainda recebemos, mas não usamos para atualizar
+            const nameFromProvider = authUserFromProvider.name;
+            const imageFromProvider = authUserFromProvider.image;
 
             if (!providerAccountId) {
                 logger.error(`${TAG_SIGNIN} providerAccountId (ID do ${provider}) ausente.`);
@@ -252,30 +266,17 @@ export const authOptions: NextAuthOptions = {
                         if (dbUserRecord) {
                             logger.info(`${TAG_SIGNIN} [Facebook] Utilizador Data2Content ${dbUserRecord._id} (Email DB: ${dbUserRecord.email || 'N/A'}) encontrado por linkToken.`);
                             logger.info(`${TAG_SIGNIN} [Facebook] Vinculando Facebook ID: ${providerAccountId}. Email do Facebook Provider: ${currentEmailFromProvider || 'N/A'}.`);
-
                             dbUserRecord.facebookProviderAccountId = providerAccountId;
-
-                            // NÃO atualiza nome e imagem do DB com os do Facebook
-                            // if (nameFromProvider && nameFromProvider !== dbUserRecord.name) {
-                            //     dbUserRecord.name = nameFromProvider;
-                            // }
-                            // if (imageFromProvider && imageFromProvider !== dbUserRecord.image) {
-                            //     dbUserRecord.image = imageFromProvider;
-                            // }
                             logger.info(`${TAG_SIGNIN} [Facebook] Nome e Imagem do DB para User ${dbUserRecord._id} serão mantidos (não atualizados pelo Facebook).`);
-
-
                             if (!dbUserRecord.email && currentEmailFromProvider) {
                                 dbUserRecord.email = currentEmailFromProvider;
                                 logger.info(`${TAG_SIGNIN} [Facebook] Email do utilizador ${dbUserRecord._id} preenchido com o email do Facebook: ${currentEmailFromProvider} (estava vazio).`);
                             } else if (dbUserRecord.email && currentEmailFromProvider && dbUserRecord.email.toLowerCase() !== currentEmailFromProvider.toLowerCase()){
                                 logger.warn(`${TAG_SIGNIN} [Facebook] Email do Facebook ('${currentEmailFromProvider}') é DIFERENTE do email no DB ('${dbUserRecord.email}') para User ${dbUserRecord._id}. O email do DB será mantido.`);
                             }
-                            
                             dbUserRecord.linkToken = undefined;
                             dbUserRecord.linkTokenExpiresAt = undefined;
                             await dbUserRecord.save();
-                            
                             cookieStore.delete(FACEBOOK_LINK_COOKIE_NAME);
                             logger.info(`${TAG_SIGNIN} [Facebook] Vinculação por linkToken bem-sucedida para ${dbUserRecord._id}.`);
                         } else {
@@ -336,14 +337,17 @@ export const authOptions: NextAuthOptions = {
                 if (dbUserRecord) {
                     Object.assign(authUserFromProvider, {
                         id: dbUserRecord._id.toString(),
-                        name: dbUserRecord.name ?? nameFromProvider, // Para Google, pode usar nameFromProvider se for novo
+                        name: dbUserRecord.name ?? nameFromProvider,
                         email: dbUserRecord.email ?? currentEmailFromProvider,
-                        image: dbUserRecord.image ?? imageFromProvider, // Para Google, pode usar imageFromProvider se for novo
+                        image: dbUserRecord.image ?? imageFromProvider,
                         role: dbUserRecord.role ?? 'user',
                         isNewUserForOnboarding: (provider === 'google' && isNewUser) || (dbUserRecord.isNewUserForOnboarding ?? false),
                         onboardingCompletedAt: dbUserRecord.onboardingCompletedAt,
                         isInstagramConnected: dbUserRecord.isInstagramConnected ?? false,
                         provider: dbUserRecord.provider ?? provider,
+                        // <<< ADICIONADO: Passar dados de sincronização para o JWT se disponíveis no DBUserRecord >>>
+                        lastInstagramSyncAttempt: dbUserRecord.lastInstagramSyncAttempt,
+                        lastInstagramSyncSuccess: dbUserRecord.lastInstagramSyncSuccess,
                     });
                     logger.debug(`${TAG_SIGNIN} [${provider}] FINAL signIn. authUser.id (interno): '${authUserFromProvider.id}', isNewUser: ${authUserFromProvider.isNewUserForOnboarding}, isInstaConn: ${authUserFromProvider.isInstagramConnected}`);
                     return true;
@@ -359,7 +363,7 @@ export const authOptions: NextAuthOptions = {
         },
 
         async jwt({ token, user: userFromSignIn, account, trigger, session }) {
-            const TAG_JWT = '[NextAuth JWT FBLinkNoNameImgUpdate]'; // Nome do TAG atualizado
+            const TAG_JWT = '[NextAuth JWT FBLinkNoNameImgUpdate+SyncStatus]';
             logger.debug(`${TAG_JWT} Iniciado. Trigger: ${trigger}. Provider(acc): ${account?.provider}. UserID(signIn): ${userFromSignIn?.id}. TokenInID: ${token?.id}`);
 
             delete token.igConnectionError;
@@ -376,6 +380,10 @@ export const authOptions: NextAuthOptions = {
                 token.isNewUserForOnboarding = (userFromSignIn as any).isNewUserForOnboarding;
                 token.onboardingCompletedAt = (userFromSignIn as any).onboardingCompletedAt;
                 token.isInstagramConnected = (userFromSignIn as any).isInstagramConnected;
+                // <<< ADICIONADO: Popula dados de sincronização no token a partir de userFromSignIn >>>
+                token.lastInstagramSyncAttempt = (userFromSignIn as any).lastInstagramSyncAttempt;
+                token.lastInstagramSyncSuccess = (userFromSignIn as any).lastInstagramSyncSuccess;
+
 
                 logger.info(`${TAG_JWT} Token populado de userFromSignIn. ID: ${token.id}, Provider: ${token.provider}, isNewUser: ${token.isNewUserForOnboarding}, isInstaConn: ${token.isInstagramConnected}`);
 
@@ -402,6 +410,8 @@ export const authOptions: NextAuthOptions = {
                                                     logger.error(`${TAG_JWT} [Facebook] Falha ao chamar connectInstagramAccount (async) para ${userId}: ${connectResult.error}`);
                                                 } else {
                                                     logger.info(`${TAG_JWT} [Facebook] connectInstagramAccount chamado com sucesso (async) para ${userId}.`);
+                                                    // Após a conexão, o status de sincronização será atualizado no DB.
+                                                    // O próximo fetch do DB no JWT (se 'needsDbUpdate') ou na session pegará os valores atualizados.
                                                 }
                                             })
                                             .catch(err => {
@@ -448,6 +458,9 @@ export const authOptions: NextAuthOptions = {
                                       !token.role ||
                                       typeof token.isNewUserForOnboarding === 'undefined' ||
                                       typeof token.isInstagramConnected === 'undefined' ||
+                                      // <<< ADICIONADO: Atualizar dados de sincronização se não estiverem no token >>>
+                                      typeof token.lastInstagramSyncAttempt === 'undefined' ||
+                                      typeof token.lastInstagramSyncSuccess === 'undefined' ||
                                       account?.provider === 'facebook';
 
                 if (needsDbUpdate) {
@@ -455,7 +468,8 @@ export const authOptions: NextAuthOptions = {
                     try {
                         await connectToDatabase();
                         const dbUser = await DbUser.findById(token.id)
-                            .select('name email image role provider isNewUserForOnboarding onboardingCompletedAt isInstagramConnected facebookProviderAccountId providerAccountId')
+                            // <<< ADICIONADO: Selecionar campos de sincronização >>>
+                            .select('name email image role provider isNewUserForOnboarding onboardingCompletedAt isInstagramConnected facebookProviderAccountId providerAccountId lastInstagramSyncAttempt lastInstagramSyncSuccess')
                             .lean();
                         if (dbUser) {
                             token.name = dbUser.name ?? token.name;
@@ -466,6 +480,10 @@ export const authOptions: NextAuthOptions = {
                             token.isNewUserForOnboarding = typeof dbUser.isNewUserForOnboarding === 'boolean' ? dbUser.isNewUserForOnboarding : token.isNewUserForOnboarding ?? false;
                             token.onboardingCompletedAt = dbUser.onboardingCompletedAt ?? token.onboardingCompletedAt ?? null;
                             token.isInstagramConnected = typeof dbUser.isInstagramConnected === 'boolean' ? dbUser.isInstagramConnected : token.isInstagramConnected ?? false;
+                            // <<< ADICIONADO: Popula dados de sincronização no token a partir do DB >>>
+                            token.lastInstagramSyncAttempt = dbUser.lastInstagramSyncAttempt ?? token.lastInstagramSyncAttempt ?? null;
+                            token.lastInstagramSyncSuccess = typeof dbUser.lastInstagramSyncSuccess === 'boolean' ? dbUser.lastInstagramSyncSuccess : token.lastInstagramSyncSuccess ?? null;
+
                             logger.info(`${TAG_JWT} Token enriquecido do DB. ID: ${token.id}, isNewUser: ${token.isNewUserForOnboarding}, isInstaConn: ${token.isInstagramConnected}`);
                             if (token.isInstagramConnected) {
                                 delete token.igConnectionError;
@@ -493,7 +511,7 @@ export const authOptions: NextAuthOptions = {
         },
 
         async session({ session, token }) {
-             const TAG_SESSION = '[NextAuth Session FBLinkNoNameImgUpdate]'; // Nome do TAG atualizado
+             const TAG_SESSION = '[NextAuth Session FBLinkNoNameImgUpdate+SyncStatus]';
              logger.debug(`${TAG_SESSION} Iniciado. Token ID: ${token?.id}, Token isNewUser: ${token?.isNewUserForOnboarding}, Token isInstaConn: ${token?.isInstagramConnected}, Token ErrIG: ${token?.igConnectionError ? 'Sim' : 'Não'}`);
 
              if (!token?.id || !Types.ObjectId.isValid(token.id)) {
@@ -519,13 +537,18 @@ export const authOptions: NextAuthOptions = {
                  affiliateCode: undefined,
                  instagramAccountId: undefined,
                  instagramUsername: undefined,
+                 // <<< ADICIONADO: Campos de status da sincronização na sessão >>>
+                 lastInstagramSyncAttempt: token.lastInstagramSyncAttempt ? new Date(token.lastInstagramSyncAttempt).toISOString() : null,
+                 lastInstagramSyncSuccess: token.lastInstagramSyncSuccess,
              };
 
              try {
                  await connectToDatabase();
                  const dbUser = await DbUser.findById(token.id)
-                     .select('planStatus planExpiresAt affiliateCode instagramAccountId username name email image role isInstagramConnected')
+                     // <<< ADICIONADO: Selecionar campos de sincronização do DB >>>
+                     .select('planStatus planExpiresAt affiliateCode instagramAccountId username name email image role isInstagramConnected lastInstagramSyncAttempt lastInstagramSyncSuccess')
                      .lean();
+
                  if (dbUser && session.user) {
                      session.user.name = dbUser.name ?? session.user.name;
                      session.user.email = dbUser.email ?? session.user.email;
@@ -537,6 +560,10 @@ export const authOptions: NextAuthOptions = {
                      session.user.affiliateCode = dbUser.affiliateCode ?? undefined;
                      session.user.instagramAccountId = dbUser.instagramAccountId ?? undefined;
                      session.user.instagramUsername = dbUser.username ?? undefined;
+                     // <<< ADICIONADO: Popula dados de sincronização na sessão a partir do DB >>>
+                     session.user.lastInstagramSyncAttempt = dbUser.lastInstagramSyncAttempt ? dbUser.lastInstagramSyncAttempt.toISOString() : null;
+                     session.user.lastInstagramSyncSuccess = typeof dbUser.lastInstagramSyncSuccess === 'boolean' ? dbUser.lastInstagramSyncSuccess : null;
+
                      if (session.user.isInstagramConnected) {
                          delete session.user.igConnectionError;
                      }
@@ -575,4 +602,3 @@ export const authOptions: NextAuthOptions = {
 
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };
-
