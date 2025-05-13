@@ -224,7 +224,7 @@
    };
 
   const user = session?.user as ExtendedUser | undefined;
-  const affiliateCode = user?.affiliateCode ?? null; // affiliateCode é string | null
+  const affiliateCode = user?.affiliateCode ?? null;
   const userId = user?.id ?? "";
 
   useEffect(() => {
@@ -260,15 +260,17 @@
     }
   }, [status, userId]);
 
-
+  // --- FUNÇÕES DE HANDLER RESTAURADAS ---
   const handleRedeemBalance = useCallback(async (userIdFromFunc: string | undefined) => {
      if (!userIdFromFunc) { setRedeemMessage("Erro: ID do usuário não encontrado."); return; }
      setRedeemMessage("Processando...");
      try {
+        // Simula chamada à API
         await new Promise(resolve => setTimeout(resolve, 1500));
         setRedeemMessage("Resgate solicitado com sucesso! Seu saldo será atualizado em breve.");
-        await updateSession(); 
-        setTimeout(() => setRedeemMessage(""), 5000);
+        // Idealmente, aqui você invalidaria o cache ou refazeria o fetch do saldo do usuário
+        if (updateSession) await updateSession(); 
+        setTimeout(() => setRedeemMessage(""), 5000); // Limpa mensagem após 5s
     } catch (error) {
         console.error("Erro ao solicitar resgate:", error);
         setRedeemMessage(`Erro ao solicitar resgate: ${error instanceof Error ? error.message : String(error)}`);
@@ -292,13 +294,37 @@
       setTimeout(() => setCopyFeedback(null), 2000);
     });
    }, []);
+  // --- FIM DAS FUNÇÕES DE HANDLER RESTAURADAS ---
 
 
   if (status === "loading" || (status === "unauthenticated" && router)) {
     return (
         <div className="min-h-screen bg-brand-light p-4 sm:p-6 lg:p-8">
              <div className="max-w-7xl mx-auto">
-                {/* ... Skeleton Loader ... */}
+                {status === "loading" && (
+                    <>
+                        <div className="flex justify-between items-center h-16 mb-10">
+                            <SkeletonLoader className="h-8 w-24 rounded-md" />
+                            <SkeletonLoader className="h-10 w-10 rounded-full" />
+                        </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-10">
+                            <div className="lg:col-span-2 space-y-10">
+                                <SkeletonLoader className="h-40 rounded-xl" />
+                                <SkeletonLoader className="h-60 rounded-xl" />
+                                <SkeletonLoader className="h-52 rounded-xl" />
+                            </div>
+                            <div className="lg:col-span-1 space-y-8">
+                                <SkeletonLoader className="h-72 rounded-xl" />
+                                <SkeletonLoader className="h-36 rounded-xl" />
+                            </div>
+                        </div>
+                    </>
+                )}
+                {status === "unauthenticated" && (
+                    <div className="min-h-[calc(100vh-10rem)] flex items-center justify-center">
+                        <p className="text-gray-500 font-medium">Redirecionando para login...</p>
+                    </div>
+                )}
             </div>
         </div>
      );
@@ -323,7 +349,6 @@
     planStatus: user.planStatus,
     planExpiresAt: user.planExpiresAt,
     affiliateBalance: user.affiliateBalance,
-    // --- CORREÇÃO APLICADA AQUI ---
     affiliateCode: affiliateCode === null ? undefined : affiliateCode,
   };
   const canRedeem = (user.affiliateBalance ?? 0) > 0;
@@ -384,9 +409,116 @@
       <PaymentModal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)} userId={userId} />
 
       <div className="min-h-screen bg-brand-light">
+        {/* --- HEADER RESTAURADO --- */}
         <header className="bg-white shadow-sm sticky top-0 z-40 border-b border-gray-200">
-            {/* ... Seu código do Header ... */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex justify-between items-center h-16">
+                    <Link href="/dashboard" className="flex-shrink-0 flex items-center gap-2 group">
+                        <span className="text-brand-pink text-3xl font-bold group-hover:opacity-80 transition-opacity">[2]</span>
+                    </Link>
+                    <div className="relative">
+                        <button
+                            onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                            className="p-2 rounded-full text-gray-500 hover:text-brand-dark hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-pink transition-colors"
+                            aria-expanded={isUserMenuOpen} aria-haspopup="true" aria-label="Menu de ações"
+                        >
+                           {user?.image ? (
+                                <Image src={user.image} alt="Avatar" width={32} height={32} className="rounded-full" />
+                           ) : (
+                                <FaUserCircle className="w-6 h-6" />
+                           )}
+                        </button>
+                        <AnimatePresence>
+                            {isUserMenuOpen && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                                    transition={{ duration: 0.15, ease: "easeOut" }}
+                                    className="origin-top-right absolute right-0 mt-2 w-64 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50"
+                                    onMouseLeave={() => setIsUserMenuOpen(false)}
+                                >
+                                    <div className="px-4 py-3 border-b border-gray-100">
+                                        <p className="text-sm font-semibold text-brand-dark truncate">{user?.name ?? 'Usuário'}</p>
+                                        <p className="text-xs text-gray-500 truncate">{user?.email || 'Sem email'}</p>
+                                    </div>
+                                    <div className="py-1 border-t border-gray-100">
+                                        <Link
+                                          href="/dashboard/settings#subscription-management-title"
+                                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
+                                          onClick={() => setIsUserMenuOpen(false)}
+                                        >
+                                            <FaCreditCard className="w-4 h-4 text-gray-400"/> Gerir Assinatura
+                                        </Link>
+                                    </div>
+                                    <div className="py-1 border-t border-gray-100">
+                                        <Link
+                                          href="/termos-e-condicoes"
+                                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
+                                          onClick={() => setIsUserMenuOpen(false)}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                        >
+                                            <FaFileContract className="w-4 h-4 text-gray-400"/> Termos e Condições
+                                        </Link>
+                                    </div>
+                                    <div className="py-1 border-t border-gray-100">
+                                        <Link
+                                          href="/politica-de-privacidade"
+                                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
+                                          onClick={() => setIsUserMenuOpen(false)}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                        >
+                                            <FaShieldAlt className="w-4 h-4 text-gray-400"/> Política de Privacidade
+                                        </Link>
+                                    </div>
+                                    <div className="py-1 border-t border-gray-100">
+                                         <a 
+                                           href="mailto:arthur@data2content.ai"
+                                           className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
+                                           onClick={() => setIsUserMenuOpen(false)}
+                                         >
+                                            <FaEnvelope className="w-4 h-4 text-gray-400"/> Suporte por Email
+                                        </a>
+                                    </div>
+                                    <div className="py-1 border-t border-gray-100">
+                                         <a 
+                                           href="/afiliados"
+                                           className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
+                                           onClick={() => setIsUserMenuOpen(false)}
+                                         >
+                                            <FaHandshake className="w-4 h-4 text-gray-400"/> Programa de Afiliados
+                                        </a>
+                                    </div>
+                                    <div className="py-1 border-t border-gray-100">
+                                        <Link 
+                                          href="/dashboard/settings" 
+                                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-brand-red transition-colors rounded-md mx-1 my-0.5"
+                                          onClick={() => setIsUserMenuOpen(false)}
+                                        >
+                                            <FaTrashAlt className="w-4 h-4"/> Excluir Conta
+                                        </Link>
+                                    </div>
+                                    <div className="py-1 border-t border-gray-100">
+                                        <button
+                                            onClick={() => {
+                                                setIsUserMenuOpen(false);
+                                                signOut({ callbackUrl: '/' });
+                                            }}
+                                            className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
+                                        >
+                                            <FaSignOutAlt className="w-4 h-4 text-gray-400"/> Sair
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                </div>
+            </div>
         </header>
+        {/* --- FIM DO HEADER RESTAURADO --- */}
 
         <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 lg:gap-12">
