@@ -2,7 +2,9 @@
  * @fileoverview Serviço de acesso a dados (Utilizadores, Métricas, Relatórios, Publicidades, Comunidade).
  * ATUALIZADO v2.13.0 (Exclusão de Conta):
  * - Adicionada função deleteUserAccountAndAssociatedData.
- * @version 2.13.0
+ * ATUALIZADO vX.Y.Z (Inferência de Expertise):
+ * - Adicionada função updateUserExpertiseLevel.
+ * @version X.Y.Z // Você pode atualizar esta versão conforme seu versionamento
  */
 
 import mongoose, { Model, Types } from 'mongoose';
@@ -10,7 +12,8 @@ import { subDays, differenceInDays, startOfDay } from 'date-fns';
 import { logger } from '@/app/lib/logger';
 
 // Modelos do Mongoose
-import User, { IUser } from '@/app/models/User'; // O seu UserModel é exportado como User
+// Adicionar UserExpertiseLevel à importação de User
+import User, { IUser, UserExpertiseLevel } from '@/app/models/User'; // O seu UserModel é exportado como User
 import MetricModel, { IMetric } from '@/app/models/Metric'; // O seu MetricModel é exportado como MetricModel
 import AdDeal, { IAdDeal } from '@/app/models/AdDeal'; // O seu AdDealModel é exportado como AdDeal
 import AccountInsightModel, { IAccountInsight } from '@/app/models/AccountInsight';
@@ -187,6 +190,53 @@ export async function lookupUserById(userId: string): Promise<IUser> {
         throw new DatabaseError(`Erro ao buscar usuário por ID: ${error.message}`);
     }
 }
+
+// <<< INÍCIO: NOVA FUNÇÃO PARA ATUALIZAR NÍVEL DE EXPERTISE >>>
+/**
+ * Atualiza o campo inferredExpertiseLevel de um usuário.
+ * @param userId - O ID do usuário a ser atualizado.
+ * @param newLevel - O novo nível de expertise inferido.
+ * @returns O documento do usuário atualizado ou null se não encontrado.
+ * @throws {DatabaseError} Se ocorrer um erro durante a operação de banco de dados.
+ */
+export async function updateUserExpertiseLevel(
+  userId: string,
+  newLevel: UserExpertiseLevel // Certifique-se que UserExpertiseLevel está importado de models/User
+): Promise<IUser | null> {
+  const TAG = '[dataService][updateUserExpertiseLevel]';
+  if (!mongoose.isValidObjectId(userId)) {
+    logger.error(`${TAG} ID de usuário inválido: ${userId}`);
+    // Lançar um erro aqui é uma opção, mas o relatório original sugere que
+    // o worker pode continuar, então apenas logar pode ser suficiente dependendo
+    // de como o chamador (process-response) trata isso.
+    // Para consistência com lookupUserById, vamos lançar DatabaseError.
+    throw new DatabaseError(`ID de usuário inválido: ${userId}`);
+  }
+  logger.info(`${TAG} Tentando atualizar inferredExpertiseLevel para '${newLevel}' para User ${userId}.`);
+  try {
+    await connectToDatabase();
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $set: { inferredExpertiseLevel: newLevel } },
+      { new: true, runValidators: true } // runValidators é bom se houver validações no schema
+    ).lean();
+
+    if (!updatedUser) {
+      logger.warn(`${TAG} Usuário ${userId} não encontrado para atualizar nível de expertise.`);
+      // Não lançar UserNotFoundError aqui necessariamente, pois o worker pode continuar.
+      // Apenas logar ou tratar conforme a necessidade. O relatório sugere retornar null.
+      return null;
+    }
+    logger.info(`${TAG} Nível de expertise atualizado com sucesso para User ${userId}. Novo nível: ${updatedUser.inferredExpertiseLevel}`);
+    return updatedUser as IUser;
+  } catch (error: any) {
+    logger.error(`${TAG} Erro ao atualizar nível de expertise para User ${userId}:`, error);
+    // Lança um erro mais genérico para não expor detalhes do DB, mas loga o erro original.
+    throw new DatabaseError(`Erro ao atualizar nível de expertise: ${error.message}`);
+  }
+}
+// <<< FIM: NOVA FUNÇÃO PARA ATUALIZAR NÍVEL DE EXPERTISE >>>
+
 
 export async function fetchAndPrepareReportData(
     { user, contentMetricModel, analysisSinceDate }: { user: IUser; contentMetricModel: Model<IMetric>; analysisSinceDate?: Date; }

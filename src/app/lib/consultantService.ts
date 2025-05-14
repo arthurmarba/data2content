@@ -4,14 +4,14 @@
  * - Respostas diretas para interações simples.
  * - Contexto leve para IA em perguntas sociais/meta.
  * - Mensagem de "processando" condicional e variada para queries complexas.
- * @version 4.6.1 (Corrige tipo de dialogueState para IDialogueState)
+ * - Integração de resumo de histórico no contexto da IA.
+ * @version 4.7.0 (Integração de Resumo de Histórico no Contexto da IA)
  */
 
 import { logger } from '@/app/lib/logger';
 import { normalizeText, determineIntent, getRandomGreeting, IntentResult, DeterminedIntent } from './intentService';
 import { askLLMWithEnrichedContext } from './aiOrchestrator';
-// ATUALIZADO: Importa IDialogueState de stateService
-import * as stateService from '@/app/lib/stateService';
+import * as stateService from '@/app/lib/stateService'; // Espera-se stateService v1.7.1+
 import * as dataService from './dataService';
 import { UserNotFoundError } from '@/app/lib/errors';
 import { IUser } from '@/app/models/User';
@@ -24,7 +24,7 @@ const PROCESSING_MESSAGE_DELAY_MS = 1800;
 const pickRandom = <T>(arr: T[]): T => {
   if (arr.length === 0) throw new Error('pickRandom: array vazio');
   const item = arr[Math.floor(Math.random() * arr.length)];
-  if (item === undefined) throw new Error('pickRandom: item indefinido'); // Defesa extra
+  if (item === undefined) throw new Error('pickRandom: item indefinido'); 
   return item;
 };
 const GET_PROCESSING_MESSAGES_POOL = (userName: string): string[] => [
@@ -38,22 +38,20 @@ const GET_PROCESSING_MESSAGES_POOL = (userName: string): string[] => [
 // Configurações existentes
 const CACHE_TTL_SECONDS = Number(process.env.CACHE_TTL_SECONDS) || 60 * 5;
 const STREAM_READ_TIMEOUT_MS = Number(process.env.STREAM_READ_TIMEOUT_MS) || 90_000;
-const HISTORY_LIMIT = Number(process.env.LLM_HISTORY_LIMIT) || 10;
+const HISTORY_LIMIT = Number(process.env.LLM_HISTORY_LIMIT) || 10; // Limite para o histórico recente de mensagens
+const SUMMARY_MAX_HISTORY_FOR_CONTEXT = 6; // <<< NOVO: Quantas mensagens recentes enviar JUNTO com o resumo
 
 interface EnrichedContext {
     user: IUser;
     historyMessages: ChatCompletionMessageParam[];
-    // ***** CORREÇÃO APLICADA AQUI *****
-    dialogueState?: stateService.IDialogueState; // Usa o tipo IDialogueState exportado
-    // ***********************************
-    // determinedIntent?: DeterminedIntent; // Opcional, se o orchestrator precisar
+    dialogueState?: stateService.IDialogueState; 
 }
 
 export async function getConsultantResponse(
     fromPhone: string,
     incoming: string
 ): Promise<string> {
-    const TAG = '[consultantService 4.6.1]'; // ATUALIZADO: Versão
+    const TAG = '[consultantService v4.7.0]'; 
     const start = Date.now();
     const rawText = incoming;
     logger.info(`${TAG} ⇢ ${fromPhone.slice(-4)}… «${rawText.slice(0, 40)}»`);
@@ -90,8 +88,9 @@ export async function getConsultantResponse(
         logger.info(`${TAG} (cache miss)`);
     } catch (cacheError) { logger.error(`${TAG} Erro ao buscar do cache Redis:`, cacheError); }
 
-    let dialogueState: stateService.IDialogueState = {}; // Usa IDialogueState
+    let dialogueState: stateService.IDialogueState = {}; 
     try {
+        // dialogueState agora pode conter conversationSummary e summaryTurnCounter
         dialogueState = await stateService.getDialogueState(uid);
         logger.debug(`${TAG} Estado carregado: ${JSON.stringify(dialogueState)}`);
     } catch (stateError) { logger.error(`${TAG} Erro ao buscar estado do Redis:`, stateError); }
@@ -106,7 +105,7 @@ export async function getConsultantResponse(
         if (intentResult.type === 'special_handled') {
             logger.info(`${TAG} Intenção tratada como caso especial pela intentService.`);
             responseTextForSpecialHandled = intentResult.response;
-        } else { // type === 'intent_determined'
+        } else { 
             determinedIntent = intentResult.intent;
             if (intentResult.intent === 'user_confirms_pending_action' || intentResult.intent === 'user_denies_pending_action') {
                 pendingActionContextFromIntent = intentResult.pendingActionContext;
@@ -119,21 +118,21 @@ export async function getConsultantResponse(
     }
 
     if (responseTextForSpecialHandled) {
-        // Salvar histórico e estado para special_handled
         const userMessageForHistory: ChatCompletionMessageParam = { role: 'user', content: rawText };
         const assistantResponseForHistory: ChatCompletionMessageParam = { role: 'assistant', content: responseTextForSpecialHandled };
         const currentHistory = await stateService.getConversationHistory(uid).catch(() => []);
         const updatedHistory = [...currentHistory, userMessageForHistory, assistantResponseForHistory].slice(-HISTORY_LIMIT);
         
         await stateService.setConversationHistory(uid, updatedHistory);
-        await stateService.clearPendingActionState(uid); // Limpa ação pendente
-        await stateService.updateDialogueState(uid, { lastInteraction: Date.now() });
+        await stateService.clearPendingActionState(uid); 
+        // A lógica de sumarização para special_handled já está no process-response/route.ts
+        // Aqui apenas atualizamos lastInteraction. O process-response cuidará do summaryTurnCounter e do summary.
+        await stateService.updateDialogueState(uid, { lastInteraction: Date.now() }); 
         
         logger.info(`${TAG} ✓ ok (special_handled por intentService) ${Date.now() - start} ms`);
         return responseTextForSpecialHandled;
     }
 
-    // Se chegou aqui, 'determinedIntent' não é null e precisa da IA.
     let effectiveIncomingText = rawText;
     let effectiveIntent = determinedIntent as DeterminedIntent;
 
@@ -142,6 +141,14 @@ export async function getConsultantResponse(
         if (dialogueState.lastAIQuestionType === 'confirm_fetch_day_stats' && pendingActionContextFromIntent?.originalUserQuery) {
             effectiveIncomingText = `Sim, por favor, quero saber sobre ${pendingActionContextFromIntent.originalUserQuery}. Mostre-me o desempenho por dia da semana.`;
             effectiveIntent = 'ASK_BEST_TIME';
+        } else if (dialogueState.lastAIQuestionType === 'clarify_community_inspiration_objective' && pendingActionContextFromIntent) {
+            // Esta lógica de reconstrução do texto para a IA pode ser aprimorada
+            // ou a IA instruída a usar o pendingActionContext diretamente.
+            // Por ora, mantemos a reconstrução se ela funcionar bem.
+            const originalProposal = (pendingActionContextFromIntent as any)?.proposal || "um tema relevante";
+            const originalContext = (pendingActionContextFromIntent as any)?.context || "uma abordagem específica";
+            effectiveIncomingText = `Para a inspiração sobre proposta '${originalProposal}' e contexto '${originalContext}', confirmo que quero focar em '${rawText.trim()}'. Por favor, busque exemplos.`;
+            effectiveIntent = 'ask_community_inspiration';
         } else if (pendingActionContextFromIntent?.originalSuggestion) {
              effectiveIncomingText = `Sim, pode prosseguir com: "${pendingActionContextFromIntent.originalSuggestion}"`;
              effectiveIntent = 'general';
@@ -161,26 +168,44 @@ export async function getConsultantResponse(
         const currentHistory = await stateService.getConversationHistory(uid).catch(() => []);
         const updatedHistory = [...currentHistory, userMessageForHistory, assistantResponseForHistory].slice(-HISTORY_LIMIT);
         await stateService.setConversationHistory(uid, updatedHistory);
+        // A lógica de sumarização para user_denies_pending_action já está no process-response/route.ts
         await stateService.updateDialogueState(uid, { lastInteraction: Date.now() });
         
         return denialResponse;
     } else if (dialogueState.lastAIQuestionType) {
         logger.info(`${TAG} Usuário não respondeu diretamente à ação pendente (${dialogueState.lastAIQuestionType}). Limpando estado pendente.`);
         await stateService.clearPendingActionState(uid);
+        // Recarregar o estado após limpar para garantir que a IA veja o estado limpo
+        dialogueState = await stateService.getDialogueState(uid);
     }
 
+    // --- Montagem do Histórico para a IA com possível Resumo ---
+    let historyForAI: ChatCompletionMessageParam[] = [];
+    const rawHistoryMessages = await stateService.getConversationHistory(uid).catch(() => {
+        logger.error(`${TAG} Erro ao buscar histórico do Redis para montar contexto da IA.`);
+        return [];
+    });
 
-    let historyMessages: ChatCompletionMessageParam[] = [];
-    try {
-        historyMessages = await stateService.getConversationHistory(uid);
-    } catch (histError) { logger.error(`${TAG} Erro ao buscar histórico do Redis:`, histError); }
-    const limitedHistoryMessages = historyMessages.slice(-HISTORY_LIMIT);
+    if (dialogueState.conversationSummary && dialogueState.conversationSummary.trim() !== "") {
+        logger.debug(`${TAG} Utilizando resumo da conversa no contexto da IA: "${dialogueState.conversationSummary.substring(0,100)}..."`);
+        historyForAI.push({ 
+            role: 'system', 
+            content: `Resumo da conversa até este ponto (use para contexto, mas foque nas mensagens mais recentes para a resposta atual): ${dialogueState.conversationSummary}` 
+        });
+        // Adiciona um número menor de mensagens recentes quando há um resumo
+        historyForAI.push(...rawHistoryMessages.slice(-SUMMARY_MAX_HISTORY_FOR_CONTEXT));
+    } else {
+        // Sem resumo, usa o limite padrão de histórico
+        historyForAI.push(...rawHistoryMessages.slice(-HISTORY_LIMIT));
+    }
+    // --- Fim da Montagem do Histórico para a IA ---
 
-    const currentDialogueStateAfterIntent = await stateService.getDialogueState(uid); // Recarrega estado atualizado
+    // O dialogueState passado para enrichedContext deve ser o mais atualizado possível
+    // (após qualquer clearPendingActionState ou recarregamento)
     const enrichedContext: EnrichedContext = { 
         user, 
-        historyMessages: limitedHistoryMessages, 
-        dialogueState: currentDialogueStateAfterIntent 
+        historyMessages: historyForAI, // <<< MODIFICADO: Usa historyForAI que pode conter o resumo
+        dialogueState: dialogueState // dialogueState já foi atualizado se necessário
     };
 
     const isLightweightQuery = effectiveIntent === 'social_query' || effectiveIntent === 'meta_query_personal' || effectiveIntent === 'generate_proactive_alert';
@@ -213,8 +238,8 @@ export async function getConsultantResponse(
     try {
         logger.debug(`${TAG} Chamando askLLMWithEnrichedContext (intenção: ${effectiveIntent}). Texto efetivo: ${effectiveIncomingText.slice(0,50)}`);
         const { stream, historyPromise: hp } = await askLLMWithEnrichedContext(
-            enrichedContext,
-            effectiveIncomingText, // Usa o texto efetivo
+            enrichedContext, // enrichedContext agora contém o histórico com possível resumo
+            effectiveIncomingText, 
             effectiveIntent
         );
         historyPromise = hp;
@@ -227,7 +252,7 @@ export async function getConsultantResponse(
         
         reader = stream.getReader();
         streamTimeout = setTimeout(() => { logger.warn(`${TAG} Timeout stream read...`); streamTimeout = null; reader?.cancel().catch(()=>{/*ignore*/}); }, STREAM_READ_TIMEOUT_MS);
-        // eslint-disable-next-line no-constant-condition
+        
         while (true) {
              let value: string | undefined; let done: boolean | undefined;
              try { const result = await reader.read(); if (streamTimeout === null && !result.done) { continue; } value = result.value; done = result.done; }
@@ -249,16 +274,22 @@ export async function getConsultantResponse(
         if (processingMessageTimer) { clearTimeout(processingMessageTimer); processingMessageTimer = null; }
     }
 
-    // Lógica para definir/limpar estado de ação pendente após resposta da IA
-    // (Esta lógica foi movida para o worker QStash - process-response/route.ts)
+    // A lógica de atualização do estado do diálogo (lastAIQuestionType, pendingActionContext, e AGORA TAMBÉM conversationSummary e summaryTurnCounter)
+    // é primariamente responsabilidade do worker QStash (process-response/route.ts)
+    // para garantir que o estado reflita o que foi efetivamente enviado e como a conversa progrediu.
+    // Aqui, este serviço (consultantService) foca em obter a resposta da IA.
+    // Apenas atualizamos lastInteraction e o histórico/cache básicos.
 
     let finalHistoryForSaving: ChatCompletionMessageParam[] = [];
     try {
-         logger.debug(`${TAG} Iniciando persistência no Redis...`);
-         // O estado do diálogo (lastAIQuestionType) será atualizado pelo worker QStash após esta resposta.
-         // Aqui, apenas atualizamos lastInteraction.
-         const dialogueStateForSave = await stateService.getDialogueState(uid); // Pega o estado mais recente
-         const nextStateToSave = { ...dialogueStateForSave, lastInteraction: Date.now() };
+         logger.debug(`${TAG} Iniciando persistência no Redis (básica)...`);
+         // Pega o estado mais recente, que pode ter sido atualizado pelo process-response se esta chamada for síncrona
+         // ou o estado que este serviço conhece se for o ponto de entrada.
+         const dialogueStateForSave = await stateService.getDialogueState(uid); 
+         const nextStateToSave: Partial<stateService.IDialogueState> = { 
+             ...dialogueStateForSave, // Mantém o que já está lá (incluindo summary e counter se atualizados por outro processo)
+             lastInteraction: Date.now() // Apenas atualiza lastInteraction
+         };
          
          const cacheKeyForPersistence = `resp:${fromPhone}:${effectiveIncomingText.trim().slice(0, 100)}`;
 
@@ -267,22 +298,27 @@ export async function getConsultantResponse(
                  finalHistoryForSaving = await historyPromise;
                  logger.debug(`${TAG} historyPromise resolvida com ${finalHistoryForSaving.length} mensagens.`);
              } catch (historyError) {
-                 logger.error(`${TAG} Erro ao obter histórico final da historyPromise (não será salvo):`, historyError);
-                 finalHistoryForSaving = [];
+                 logger.error(`${TAG} Erro ao obter histórico final da historyPromise. Montando fallback:`, historyError);
+                 // Monta um histórico de fallback se a promise falhar
+                 finalHistoryForSaving = [...rawHistoryMessages.slice(-HISTORY_LIMIT + 2), {role: 'user', content: effectiveIncomingText}, {role: 'assistant', content: finalText}];
              }
-         } else { logger.warn(`${TAG} historyPromise não encontrada para salvar histórico.`); }
+         } else { 
+             logger.warn(`${TAG} historyPromise não encontrada para salvar histórico. Montando fallback.`);
+             finalHistoryForSaving = [...rawHistoryMessages.slice(-HISTORY_LIMIT + 2), {role: 'user', content: effectiveIncomingText}, {role: 'assistant', content: finalText}];
+         }
+
 
          const persistencePromises = [
-             stateService.updateDialogueState(uid, nextStateToSave),
+             stateService.updateDialogueState(uid, nextStateToSave), // Salva o estado com lastInteraction atualizado
              stateService.setInCache(cacheKeyForPersistence, finalText, CACHE_TTL_SECONDS),
              stateService.incrementUsageCounter(uid),
          ];
          if (finalHistoryForSaving.length > 0) {
               persistencePromises.push(stateService.setConversationHistory(uid, finalHistoryForSaving));
-         } else { logger.warn(`${TAG} Pulando salvamento do histórico.`); }
+         } else { logger.warn(`${TAG} Pulando salvamento do histórico (array vazio).`); }
          
          await Promise.allSettled(persistencePromises);
-         logger.debug(`${TAG} Persistência no Redis concluída.`);
+         logger.debug(`${TAG} Persistência no Redis (básica) concluída.`);
     } catch (persistError) { logger.error(`${TAG} Erro persistência Redis (não fatal):`, persistError); }
 
     const duration = Date.now() - start;
@@ -290,13 +326,12 @@ export async function getConsultantResponse(
     return finalText;
 }
 
-// Função de Resumo Semanal (Mantida como estava)
+// Função de Resumo Semanal (Mantida como estava na v4.6.1)
 export async function generateStrategicWeeklySummary(
   userName: string,
   userId: string
 ): Promise<string> {
-    const TAG = '[weeklySummary v4.6.1]'; // ATUALIZADO: Versão
-    // ... (resto da função mantida como na v4.5.0/4.6.0)
+    const TAG = '[weeklySummary v4.6.1]'; 
     let reportData: unknown;
     let overallStatsForPrompt: unknown = null;
     try {

@@ -1,26 +1,33 @@
 // src/app/api/whatsapp/process-response/route.ts
-// v2.6.1 (Comunidade de Inspiração - Corrige Acesso a Goal)
-// - CORRIGIDO: Acesso a userForTip.goal agora é tipado corretamente após adição do campo em IUser.
-// - Mantém funcionalidades da v2.6.0.
+// v2.8.0 (Memória Ativa - Gerenciamento Inicial de currentTask)
+// - ADICIONADO: Lógica para definir e limpar 'currentTask' no IDialogueState.
+// - Mantém funcionalidades da v2.7.0.
+// ATUALIZADO: vX.Y.Z (Inferência de Nível de Expertise) - Adicionada lógica de inferência de expertise.
+// (Lembre-se de atualizar X.Y.Z para sua próxima versão)
 
 import { NextRequest, NextResponse } from 'next/server';
 import { Receiver } from "@upstash/qstash";
 import { logger } from '@/app/lib/logger';
 import { sendWhatsAppMessage } from '@/app/lib/whatsappService';
 import { askLLMWithEnrichedContext } from '@/app/lib/aiOrchestrator';
-import * as stateService from '@/app/lib/stateService'; // stateService v1.7.0+ esperado
-import * as dataService from '@/app/lib/dataService'; // dataService v2.12.0+ esperado
-import { IUser } from '@/app/models/User'; // IUser v1.9.1+ esperado (com goal)
+// !!!!! IMPORTANTE !!!!!
+// CERTIFIQUE-SE que o arquivo 'src/app/lib/stateService.ts' exporta a interface IDialogueState
+// COM o campo 'expertiseInferenceTurnCounter?: number;' DEFINIDO CORRETAMENTE.
+// SALVE O ARQUIVO stateService.ts E REINICIE SEU SERVIDOR DE DESENVOLVIMENTO.
+import * as stateService from '@/app/lib/stateService'; 
+import * as dataService from '@/app/lib/dataService'; 
+import { IUser } from '@/app/models/User'; 
 import OpenAI from 'openai';
-import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+import { ChatCompletionMessageParam } from 'openai/resources/chat/completions'; // Tipo principal
 import {
     determineIntent,
     normalizeText,
     getRandomGreeting,
     IntentResult,
     DeterminedIntent 
-} from '@/app/lib/intentService'; // intentService v2.17.0+ esperado
+} from '@/app/lib/intentService'; 
 import { startOfDay } from 'date-fns';
+import { generateConversationSummary, inferUserExpertiseLevel } from '@/app/lib/aiService'; 
 
 export const runtime = 'nodejs';
 
@@ -47,12 +54,20 @@ const GET_PROCESSING_MESSAGES_POOL = (userName: string): string[] => [
 ];
 
 const STREAM_READ_TIMEOUT_MS = Number(process.env.STREAM_READ_TIMEOUT_MS) || 90_000;
-const HISTORY_LIMIT = Number(process.env.LLM_HISTORY_LIMIT) || 10;
+const HISTORY_LIMIT = Number(process.env.LLM_HISTORY_LIMIT) || 10; 
 const CACHE_TTL_SECONDS = Number(process.env.CACHE_TTL_SECONDS) || 60 * 5;
 
 const DAILY_PLAN_TIMEOUT_MS = 75000; 
 const DAILY_PLAN_MAX_TOKENS = 1200;  
 const DAILY_COMMUNITY_INSPIRATION_COUNT = 1; 
+const SUMMARY_GENERATION_INTERVAL = 3; 
+const EXPERTISE_INFERENCE_INTERVAL = 5; 
+
+const COMPLEX_TASK_INTENTS: DeterminedIntent[] = [
+    'content_plan', 
+    'report', 
+];
+
 
 const currentSigningKey = process.env.QSTASH_CURRENT_SIGNING_KEY;
 const nextSigningKey = process.env.QSTASH_NEXT_SIGNING_KEY;
@@ -101,7 +116,7 @@ function aiResponseSuggestsPendingAction(responseText: string): {
 
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const TAG = '[QStash Worker /process-response v2.6.1]'; // Versão atualizada
+  const TAG = '[QStash Worker /process-response vX.Y.Z]'; // Atualize X.Y.Z para sua versão
 
   if (!receiver) {
       logger.error(`${TAG} QStash Receiver não inicializado.`);
@@ -127,9 +142,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const { userId, taskType, incomingText, fromPhone } = payload;
 
     if (taskType === "daily_tip") {
-        const planTAG = `${TAG}[DailyTip v2.6.1]`; 
-        logger.info(`${planTAG} Iniciando tarefa de Dica Diária (Stories + Inspiração Com.) para User ${userId}...`);
-        
+        const planTAG = `${TAG}[DailyTip vX.Y.Z]`; // Atualize X.Y.Z
+        logger.info(`${planTAG} Iniciando tarefa de Dica Diária para User ${userId}...`);
+        // ... (código da Dica Diária existente) ...
         let userForTip: IUser;
         let userPhoneForTip: string | null | undefined;
         let basePlanText: string = "Hoje não consegui preparar seu roteiro de Stories detalhado, mas que tal compartilhar algo espontâneo sobre seus bastidores? 😉";
@@ -144,11 +159,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 return NextResponse.json({ success: true, message: "User has no verified WhatsApp number." }, { status: 200 });
             }
             
-            // --- 1. Geração do Planejamento de Stories ---
-            // <<< CORREÇÃO: Acesso direto a userForTip.goal >>>
             const userGoal = userForTip.goal || 'aumentar o engajamento e criar uma conexão mais forte com a audiência';
-            // <<< FIM DA CORREÇÃO >>>
-            
             const latestReport = await dataService.getLatestAggregatedReport(userId); 
             let performanceSummary = "Ainda não tenho dados suficientes sobre o desempenho dos seus posts para identificar os principais interesses da sua audiência neste momento.";
             let topPerformingThemes: string[] = [];
@@ -194,7 +205,6 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
             }
             finalMessageText = basePlanText; 
 
-            // --- 2. Busca e Adição da Inspiração da Comunidade ---
             if (userForTip.communityInspirationOptIn) {
                 logger.info(`${planTAG} Usuário ${userId} optou por inspiração da comunidade. Tentando buscar...`);
                 let inspirationText = "";
@@ -258,15 +268,14 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
             }
             return NextResponse.json({ error: `Failed to process daily tip: ${error instanceof Error ? error.message : String(error)}` }, { status: 500 });
         }
-
     } else { 
-        const msgTAG = `${TAG}[UserMsg v2.6.1]`; 
+        const msgTAG = `${TAG}[UserMsg vX.Y.Z]`; // Atualize X.Y.Z
         logger.info(`${msgTAG} Processando mensagem normal para User ${userId}...`);
 
         if (!fromPhone || !incomingText) { return NextResponse.json({ error: 'Invalid payload for user message' }, { status: 400 }); }
 
         let user: IUser;
-        let dialogueState: stateService.IDialogueState = {};
+        let dialogueState: stateService.IDialogueState = {}; 
         let historyMessages: ChatCompletionMessageParam[] = [];
         let userName: string;
         let greeting: string;
@@ -274,11 +283,11 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
         try {
             const [userData, stateData, historyData] = await Promise.all([
                 dataService.lookupUserById(userId),
-                stateService.getDialogueState(userId),
+                stateService.getDialogueState(userId), 
                 stateService.getConversationHistory(userId)
             ]);
             user = userData;
-            dialogueState = stateData;
+            dialogueState = stateData; 
             historyMessages = historyData;
             userName = user.name || 'criador';
             greeting = getRandomGreeting(userName);
@@ -301,13 +310,55 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
         let currentDeterminedIntent: DeterminedIntent | null = null;
         let responseTextForSpecialHandled: string | null = null;
         let pendingActionContextFromIntent: any = null;
+        let dialogueStateUpdateForTaskStart: Partial<stateService.IDialogueState> = {};
 
         try {
             intentResult = await determineIntent(normText, user, incomingText, dialogueState, greeting, userId);
-            if (intentResult.type === 'special_handled') { responseTextForSpecialHandled = intentResult.response; } 
-            else { currentDeterminedIntent = intentResult.intent; if (intentResult.intent === 'user_confirms_pending_action' || intentResult.intent === 'user_denies_pending_action') { pendingActionContextFromIntent = intentResult.pendingActionContext; } }
+            if (intentResult.type === 'special_handled') { 
+                responseTextForSpecialHandled = intentResult.response; 
+                if (dialogueState.currentTask) {
+                    logger.info(`${msgTAG} [SpecialHandled] Limpando currentTask (${dialogueState.currentTask.name}) devido à interação simples.`);
+                    dialogueStateUpdateForTaskStart.currentTask = null;
+                }
+            } else { 
+                currentDeterminedIntent = intentResult.intent; 
+                if (intentResult.intent === 'user_confirms_pending_action' || intentResult.intent === 'user_denies_pending_action') { 
+                    pendingActionContextFromIntent = intentResult.pendingActionContext; 
+                } else if (COMPLEX_TASK_INTENTS.includes(currentDeterminedIntent)) {
+                    if (!dialogueState.currentTask || dialogueState.currentTask.name !== currentDeterminedIntent) {
+                        logger.info(`${msgTAG} Nova tarefa complexa '${currentDeterminedIntent}' detectada. Definindo currentTask.`);
+                        const newCurrentTask: stateService.CurrentTask = {
+                            name: currentDeterminedIntent,
+                            objective: `Processar intenção: ${currentDeterminedIntent}`, 
+                            currentStep: 'inicio', 
+                        };
+                        if (currentDeterminedIntent === 'content_plan' && incomingText.length > 20) { 
+                            newCurrentTask.objective = `Criar plano de conteúdo baseado em: "${incomingText.substring(0, 100)}..."`;
+                        }
+                        dialogueStateUpdateForTaskStart.currentTask = newCurrentTask;
+                    } else {
+                        logger.debug(`${msgTAG} Intenção '${currentDeterminedIntent}' corresponde à currentTask ativa. Mantendo.`);
+                    }
+                } else if (dialogueState.currentTask && !COMPLEX_TASK_INTENTS.includes(currentDeterminedIntent) && currentDeterminedIntent !== 'general') {
+                    logger.info(`${msgTAG} Nova intenção '${currentDeterminedIntent}' não relacionada à currentTask ativa (${dialogueState.currentTask.name}). Limpando currentTask.`);
+                    dialogueStateUpdateForTaskStart.currentTask = null;
+                }
+            }
             logger.info(`${msgTAG} Resultado da intenção: ${JSON.stringify(intentResult)}`);
-        } catch (intentError) { logger.error(`${msgTAG} Erro ao determinar intenção:`, intentError); currentDeterminedIntent = 'general'; }
+        } catch (intentError) { 
+            logger.error(`${msgTAG} Erro ao determinar intenção:`, intentError); 
+            currentDeterminedIntent = 'general'; 
+            if (dialogueState.currentTask) { 
+                dialogueStateUpdateForTaskStart.currentTask = null;
+            }
+        }
+
+        if (Object.keys(dialogueStateUpdateForTaskStart).length > 0) {
+            await stateService.updateDialogueState(userId, dialogueStateUpdateForTaskStart);
+            dialogueState = await stateService.getDialogueState(userId); 
+            logger.debug(`${msgTAG} Estado do diálogo atualizado com informações de currentTask: ${JSON.stringify(dialogueState.currentTask)}`);
+        }
+
 
         if (responseTextForSpecialHandled) { 
             logger.info(`${msgTAG} Enviando resposta special_handled: "${responseTextForSpecialHandled.slice(0,50)}..."`);
@@ -316,8 +367,43 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
             const assistantResponseForHistory: ChatCompletionMessageParam = { role: 'assistant', content: responseTextForSpecialHandled };
             const updatedHistory = [...historyMessages, userMessageForHistory, assistantResponseForHistory].slice(-HISTORY_LIMIT);
             await stateService.setConversationHistory(userId, updatedHistory);
-            await stateService.clearPendingActionState(userId);
-            await stateService.updateDialogueState(userId, { lastInteraction: Date.now() });
+            await stateService.clearPendingActionState(userId); 
+            
+            let dialogueUpdateForSummaryAndExpertise: Partial<stateService.IDialogueState> = { lastInteraction: Date.now() };
+            
+            const currentDialogueStateForCounters = await stateService.getDialogueState(userId);
+
+            const currentSummaryTurnCounter = currentDialogueStateForCounters.summaryTurnCounter || 0;
+            const newSummaryTurnCounter = currentSummaryTurnCounter + 1;
+
+            if (newSummaryTurnCounter >= SUMMARY_GENERATION_INTERVAL) {
+                logger.info(`${msgTAG} [SpecialHandled] Intervalo de sumarização atingido (${newSummaryTurnCounter}). Gerando resumo...`);
+                const summary = await generateConversationSummary(updatedHistory, userName);
+                if (summary) {
+                    dialogueUpdateForSummaryAndExpertise.conversationSummary = summary;
+                    logger.debug(`${msgTAG} [SpecialHandled] Resumo gerado: "${summary.substring(0,100)}..."`);
+                } else {
+                    logger.warn(`${msgTAG} [SpecialHandled] Geração de resumo retornou vazio.`);
+                }
+                dialogueUpdateForSummaryAndExpertise.summaryTurnCounter = 0; 
+            } else {
+                dialogueUpdateForSummaryAndExpertise.summaryTurnCounter = newSummaryTurnCounter;
+            }
+            dialogueUpdateForSummaryAndExpertise.currentTask = currentDialogueStateForCounters.currentTask; 
+            
+            // !!!!! ATENÇÃO: ERRO DE TIPO OCORRE AQUI SE IDialogueState EM stateService.ts NÃO ESTIVER ATUALIZADO !!!!!
+            const currentExpertiseTurnCounter = currentDialogueStateForCounters.expertiseInferenceTurnCounter || 0;
+            const newExpertiseTurnCounter = currentExpertiseTurnCounter + 1;
+            if (newExpertiseTurnCounter >= EXPERTISE_INFERENCE_INTERVAL) {
+                 logger.info(`${msgTAG} [SpecialHandled] Intervalo de inferência de expertise atingido (${newExpertiseTurnCounter}). Resetando contador.`);
+                 dialogueUpdateForSummaryAndExpertise.expertiseInferenceTurnCounter = 0; 
+            } else {
+                dialogueUpdateForSummaryAndExpertise.expertiseInferenceTurnCounter = newExpertiseTurnCounter;
+            }
+            
+            await stateService.updateDialogueState(userId, dialogueUpdateForSummaryAndExpertise);
+            logger.debug(`${msgTAG} [SpecialHandled] Contadores de sumário e expertise atualizados.`);
+            
             return NextResponse.json({ success: true }, { status: 200 });
         }
 
@@ -335,6 +421,20 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
                 effectiveIncomingText = `Para a inspiração sobre proposta '${originalProposal}' e contexto '${originalContext}', confirmo que quero focar em '${incomingText.trim()}'. Por favor, busque exemplos.`;
                 effectiveIntent = 'ask_community_inspiration'; 
                 logger.info(`${msgTAG} Ação 'clarify_community_inspiration_objective' confirmada. Texto efetivo para IA: "${effectiveIncomingText.substring(0,100)}..."`);
+                if (dialogueState.currentTask?.name === 'ask_community_inspiration') {
+                    await stateService.updateDialogueState(userId, { 
+                        currentTask: { 
+                            ...dialogueState.currentTask, 
+                            parameters: { 
+                                ...(dialogueState.currentTask.parameters || {}), 
+                                primaryObjectiveAchieved_Qualitative: incomingText.trim() 
+                            },
+                            currentStep: 'objective_clarified' 
+                        } 
+                    });
+                    dialogueState = await stateService.getDialogueState(userId); 
+                }
+
             } else if (pendingActionContextFromIntent?.originalSuggestion) {
                  effectiveIncomingText = `Sim, pode prosseguir com: "${pendingActionContextFromIntent.originalSuggestion}"`;
                  effectiveIntent = 'general';
@@ -343,26 +443,62 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
                 effectiveIntent = 'general';
             }
             logger.info(`${msgTAG} Texto efetivo para IA (pós-confirmação): "${effectiveIncomingText.slice(0,50)}...", Intenção: ${effectiveIntent}`);
-            await stateService.clearPendingActionState(userId);
+            await stateService.clearPendingActionState(userId); 
         } else if (currentDeterminedIntent === 'user_denies_pending_action') {
             logger.info(`${msgTAG} Usuário negou ação pendente (lastAIQuestionType: ${dialogueState.lastAIQuestionType}).`);
-            await stateService.clearPendingActionState(userId);
+            await stateService.clearPendingActionState(userId); 
+            
+            const currentDialogueStateForDenial = await stateService.getDialogueState(userId);
+            let dialogueUpdateAfterDenial: Partial<stateService.IDialogueState> = { 
+                lastInteraction: Date.now(),
+                currentTask: currentDialogueStateForDenial.currentTask 
+            };
+
+            if (currentDialogueStateForDenial.currentTask && currentDialogueStateForDenial.lastAIQuestionType?.startsWith(`confirm_${currentDialogueStateForDenial.currentTask.name}`)) {
+                logger.info(`${msgTAG} Usuário negou ação relacionada à currentTask '${currentDialogueStateForDenial.currentTask.name}'. Limpando currentTask.`);
+                dialogueUpdateAfterDenial.currentTask = null;
+            }
+
             const denialResponse = pickRandom(["Entendido. Como posso te ajudar então?", "Ok. O que você gostaria de fazer a seguir?", "Sem problemas. Em que mais posso ser útil hoje?"]);
             await sendWhatsAppMessage(fromPhone, denialResponse);
             const userMessageForHistory: ChatCompletionMessageParam = { role: 'user', content: incomingText };
             const assistantResponseForHistory: ChatCompletionMessageParam = { role: 'assistant', content: denialResponse };
             const updatedHistory = [...historyMessages, userMessageForHistory, assistantResponseForHistory].slice(-HISTORY_LIMIT);
+            
+            const currentSummaryTurnCounter = currentDialogueStateForDenial.summaryTurnCounter || 0;
+            const newSummaryTurnCounter = currentSummaryTurnCounter + 1;
+            if (newSummaryTurnCounter >= SUMMARY_GENERATION_INTERVAL) {
+                logger.info(`${msgTAG} [UserDenies] Intervalo de sumarização atingido (${newSummaryTurnCounter}). Gerando resumo...`);
+                const summary = await generateConversationSummary(updatedHistory, userName);
+                if (summary) { dialogueUpdateAfterDenial.conversationSummary = summary; }
+                dialogueUpdateAfterDenial.summaryTurnCounter = 0; 
+            } else {
+                dialogueUpdateAfterDenial.summaryTurnCounter = newSummaryTurnCounter;
+            }
+            
+            // !!!!! ATENÇÃO: ERRO DE TIPO OCORRE AQUI SE IDialogueState EM stateService.ts NÃO ESTIVER ATUALIZADO !!!!!
+            const currentExpertiseTurnCounter = currentDialogueStateForDenial.expertiseInferenceTurnCounter || 0;
+            const newExpertiseTurnCounterForDenial = currentExpertiseTurnCounter + 1;
+            if (newExpertiseTurnCounterForDenial >= EXPERTISE_INFERENCE_INTERVAL) {
+                 logger.info(`${msgTAG} [UserDenies] Intervalo de inferência de expertise atingido (${newExpertiseTurnCounterForDenial}). Resetando contador.`);
+                 dialogueUpdateAfterDenial.expertiseInferenceTurnCounter = 0; 
+            } else {
+                dialogueUpdateAfterDenial.expertiseInferenceTurnCounter = newExpertiseTurnCounterForDenial;
+            }
+
             await stateService.setConversationHistory(userId, updatedHistory);
-            await stateService.updateDialogueState(userId, { lastInteraction: Date.now() });
+            await stateService.updateDialogueState(userId, dialogueUpdateAfterDenial);
+            logger.debug(`${msgTAG} [UserDenies] Contadores de sumário e expertise atualizados.`);
+                        
             return NextResponse.json({ success: true }, { status: 200 });
         } else if (dialogueState.lastAIQuestionType) {
-            logger.info(`${msgTAG} Usuário não respondeu à ação pendente (${dialogueState.lastAIQuestionType}). Limpando estado.`);
+            logger.info(`${msgTAG} Usuário não respondeu diretamente à ação pendente (${dialogueState.lastAIQuestionType}). Limpando estado pendente.`);
             await stateService.clearPendingActionState(userId);
+            dialogueState = await stateService.getDialogueState(userId); 
         }
         
         const limitedHistoryMessages = historyMessages.slice(-HISTORY_LIMIT);
-        const currentDialogueState = await stateService.getDialogueState(userId); 
-        const enrichedContext = { user, historyMessages: limitedHistoryMessages, dialogueState: currentDialogueState };
+        const enrichedContext = { user, historyMessages: limitedHistoryMessages, dialogueState: dialogueState };
 
         const isLightweightQuery = effectiveIntent === 'social_query' || effectiveIntent === 'meta_query_personal';
         let processingMessageTimer: NodeJS.Timeout | null = null;
@@ -388,7 +524,7 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
         let streamTimeout: NodeJS.Timeout | null = null;
 
         try {
-            logger.debug(`${msgTAG} Chamando askLLMWithEnrichedContext com texto: "${effectiveIncomingText.slice(0,50)}...", intenção: ${effectiveIntent}`);
+            logger.debug(`${msgTAG} Chamando askLLMWithEnrichedContext com texto: "${effectiveIncomingText.slice(0,50)}...", intenção: ${effectiveIntent}, currentTask: ${JSON.stringify(dialogueState.currentTask)}`);
             const { stream, historyPromise: hp } = await askLLMWithEnrichedContext(
                 enrichedContext, effectiveIncomingText, effectiveIntent
             );
@@ -415,20 +551,35 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
             if (processingMessageTimer) { clearTimeout(processingMessageTimer); processingMessageTimer = null; }
         }
         
+        let dialogueStateUpdatePayload: Partial<stateService.IDialogueState> = { lastInteraction: Date.now() };
+        const currentTaskBeforeAI = dialogueState.currentTask; 
+
         if (finalText && !isLightweightQuery && effectiveIntent !== 'user_confirms_pending_action' && effectiveIntent !== 'user_denies_pending_action') {
             const pendingActionInfo = aiResponseSuggestsPendingAction(finalText); 
             if (pendingActionInfo.suggests && pendingActionInfo.actionType) {
                 logger.info(`${msgTAG} Resposta IA sugere ação pendente: ${pendingActionInfo.actionType}. Contexto: ${JSON.stringify(pendingActionInfo.pendingActionContext)}`);
-                await stateService.updateDialogueState(userId, {
-                    lastAIQuestionType: pendingActionInfo.actionType, 
-                    pendingActionContext: pendingActionInfo.pendingActionContext
-                });
+                dialogueStateUpdatePayload.lastAIQuestionType = pendingActionInfo.actionType;
+                dialogueStateUpdatePayload.pendingActionContext = pendingActionInfo.pendingActionContext;
+                if (currentTaskBeforeAI) {
+                    dialogueStateUpdatePayload.currentTask = { ...currentTaskBeforeAI, currentStep: `aguardando_confirmacao_sobre_${pendingActionInfo.actionType}` };
+                }
             } else {
-                await stateService.clearPendingActionState(userId);
+                dialogueStateUpdatePayload.lastAIQuestionType = undefined; 
+                dialogueStateUpdatePayload.pendingActionContext = undefined;
+                logger.info(`${msgTAG} Resposta da IA não sugere nova ação pendente. Limpando flags.`);
+                if (currentTaskBeforeAI) {
+                    logger.info(`${msgTAG} IA não sugere nova ação e havia tarefa '${currentTaskBeforeAI.name}'. Considerando tarefa concluída/interrompida.`);
+                    dialogueStateUpdatePayload.currentTask = null; 
+                }
             }
-        } else if (isLightweightQuery || effectiveIntent === 'user_confirms_pending_action' || effectiveIntent === 'user_denies_pending_action') {
-            if (isLightweightQuery && dialogueState.lastAIQuestionType) { 
-                await stateService.clearPendingActionState(userId);
+        } else { 
+            dialogueStateUpdatePayload.lastAIQuestionType = undefined;
+            dialogueStateUpdatePayload.pendingActionContext = undefined;
+            if (currentTaskBeforeAI && (effectiveIntent === 'user_confirms_pending_action' || isLightweightQuery)) {
+                if (isLightweightQuery) {
+                    logger.info(`${msgTAG} Query leve '${effectiveIntent}' recebida. Limpando currentTask '${currentTaskBeforeAI.name}' se existir.`);
+                    dialogueStateUpdatePayload.currentTask = null;
+                }
             }
         }
         
@@ -438,14 +589,99 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
         let finalHistoryForSaving: ChatCompletionMessageParam[] = [];
         try { 
              logger.debug(`${msgTAG} Iniciando persistência no Redis para User ${userId}...`);
-             const finalDialogueStateForSave = await stateService.getDialogueState(userId);
-             const nextStateToSave = { ...finalDialogueStateForSave, lastInteraction: Date.now() };
+             if (historyPromise) { 
+                 try {  
+                    finalHistoryForSaving = await historyPromise; 
+                    logger.debug(`${msgTAG} historyPromise resolvida com ${finalHistoryForSaving.length} mensagens.`); 
+                } catch (historyError) { 
+                    logger.error(`${msgTAG} Erro ao obter histórico final da historyPromise:`, historyError); 
+                    // CORREÇÃO: Tipar explicitamente as mensagens de fallback
+                    const userMessageFallback: ChatCompletionMessageParam = { role: 'user', content: effectiveIncomingText };
+                    const assistantMessageFallback: ChatCompletionMessageParam = { role: 'assistant', content: finalText };
+                    finalHistoryForSaving = [...limitedHistoryMessages, userMessageFallback, assistantMessageFallback].slice(-HISTORY_LIMIT); 
+                } 
+             } else { 
+                 logger.warn(`${msgTAG} historyPromise não encontrada. Montando histórico básico.`); 
+                 // CORREÇÃO: Tipar explicitamente as mensagens de fallback
+                 const userMessageNoPromise: ChatCompletionMessageParam = { role: 'user', content: effectiveIncomingText };
+                 const assistantMessageNoPromise: ChatCompletionMessageParam = { role: 'assistant', content: finalText };
+                 finalHistoryForSaving = [...limitedHistoryMessages, userMessageNoPromise, assistantMessageNoPromise].slice(-HISTORY_LIMIT); 
+             }
+            
+            const dialogueStateForSummary = await stateService.getDialogueState(userId); 
+            const currentSummaryTurnCounterForPersistence = dialogueStateForSummary.summaryTurnCounter || 0;
+            const newSummaryTurnCounterForPersistence = currentSummaryTurnCounterForPersistence + 1;
+
+            if (newSummaryTurnCounterForPersistence >= SUMMARY_GENERATION_INTERVAL) {
+                logger.info(`${msgTAG} Intervalo de sumarização atingido (${newSummaryTurnCounterForPersistence}). Gerando resumo...`);
+                const summary = await generateConversationSummary(finalHistoryForSaving, userName);
+                if (summary) {
+                    dialogueStateUpdatePayload.conversationSummary = summary; 
+                    logger.debug(`${msgTAG} Resumo gerado: "${summary.substring(0,100)}..."`);
+                } else {
+                    logger.warn(`${msgTAG} Geração de resumo retornou vazio.`);
+                }
+                dialogueStateUpdatePayload.summaryTurnCounter = 0; 
+            } else {
+                dialogueStateUpdatePayload.summaryTurnCounter = newSummaryTurnCounterForPersistence; 
+            }
+
              const cacheKeyForPersistence = `resp:${fromPhone}:${effectiveIncomingText.trim().slice(0, 100)}`; 
-             if (historyPromise) { try {  finalHistoryForSaving = await historyPromise;  logger.debug(`${msgTAG} historyPromise resolvida com ${finalHistoryForSaving.length} mensagens.`); } catch (historyError) { logger.error(`${msgTAG} Erro ao obter histórico final:`, historyError); finalHistoryForSaving = []; } } else { logger.warn(`${msgTAG} historyPromise não encontrada.`); }
-             const persistencePromises = [ stateService.updateDialogueState(userId, nextStateToSave), stateService.setInCache(cacheKeyForPersistence, finalText, CACHE_TTL_SECONDS), stateService.incrementUsageCounter(userId), ];
-             if (finalHistoryForSaving.length > 0) { persistencePromises.push(stateService.setConversationHistory(userId, finalHistoryForSaving)); } else { logger.warn(`${msgTAG} Pulando salvamento histórico.`); }
-             await Promise.allSettled(persistencePromises); logger.debug(`${msgTAG} Persistência Redis concluída.`);
-        } catch (persistError) { logger.error(`${msgTAG} Erro persistência Redis (não fatal):`, persistError); }
+             const persistencePromises = [ 
+                 stateService.updateDialogueState(userId, dialogueStateUpdatePayload), 
+                 stateService.setInCache(cacheKeyForPersistence, finalText, CACHE_TTL_SECONDS), 
+                 stateService.incrementUsageCounter(userId), 
+             ];
+             if (finalHistoryForSaving.length > 0) { 
+                 persistencePromises.push(stateService.setConversationHistory(userId, finalHistoryForSaving)); 
+             } else { 
+                 logger.warn(`${msgTAG} Pulando salvamento histórico (array vazio).`); 
+             }
+             await Promise.allSettled(persistencePromises); 
+             logger.debug(`${msgTAG} Persistência Redis (sumário, cache, contador, histórico, estado geral) concluída.`);
+        } catch (persistError) { 
+            logger.error(`${msgTAG} Erro persistência Redis (não fatal):`, persistError); 
+        }
+
+        // <<< INÍCIO: Lógica de Inferência de Nível de Expertise >>>
+        try {
+            const dialogueStateForExpertise = await stateService.getDialogueState(userId);
+            const currentInDbExpertiseLevel = user.inferredExpertiseLevel; 
+
+            // !!!!! ATENÇÃO: ERRO DE TIPO OCORRE AQUI SE IDialogueState EM stateService.ts NÃO ESTIVER ATUALIZADO !!!!!
+            const currentExpertiseTurnCounter = dialogueStateForExpertise.expertiseInferenceTurnCounter || 0;
+            const newExpertiseTurnCounter = currentExpertiseTurnCounter + 1;
+        
+            let updateForExpertiseCounterOnly: Partial<stateService.IDialogueState> = { 
+                expertiseInferenceTurnCounter: newExpertiseTurnCounter 
+            };
+        
+            if (newExpertiseTurnCounter >= EXPERTISE_INFERENCE_INTERVAL) {
+                logger.info(`${msgTAG} Intervalo de inferência de expertise atingido (${newExpertiseTurnCounter}) para User ${userId}. Inferindo nível...`);
+                
+                if (finalHistoryForSaving && finalHistoryForSaving.length > 0) {
+                    const inferredLevel = await inferUserExpertiseLevel(finalHistoryForSaving, userName);
+                    
+                    if (currentInDbExpertiseLevel !== inferredLevel) {
+                        logger.info(`${msgTAG} Nível de expertise inferido: '${inferredLevel}' para User ${userId} (anterior: '${currentInDbExpertiseLevel}'). Atualizando no DB.`);
+                        await dataService.updateUserExpertiseLevel(userId, inferredLevel);
+                        user.inferredExpertiseLevel = inferredLevel; 
+                    } else {
+                        logger.info(`${msgTAG} Nível de expertise inferido ('${inferredLevel}') é o mesmo já registrado para User ${userId}. Nenhuma atualização no DB.`);
+                    }
+                } else {
+                    logger.warn(`${msgTAG} Histórico final para inferência de expertise está vazio ou indisponível. Pulando inferência.`);
+                }
+                updateForExpertiseCounterOnly.expertiseInferenceTurnCounter = 0; 
+            }
+        
+            await stateService.updateDialogueState(userId, updateForExpertiseCounterOnly);
+            logger.debug(`${msgTAG} Contador de turnos para inferência de expertise atualizado para: ${updateForExpertiseCounterOnly.expertiseInferenceTurnCounter} para User ${userId}.`);
+        
+        } catch (expertiseError) {
+            logger.error(`${msgTAG} Erro durante o processo de inferência ou atualização do nível de expertise para User ${userId}:`, expertiseError);
+        }
+        // <<< FIM: Lógica de Inferência de Nível de Expertise >>>
 
         logger.info(`${msgTAG} Tarefa de mensagem normal concluída para User ${userId}.`);
         return NextResponse.json({ success: true }, { status: 200 });

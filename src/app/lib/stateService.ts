@@ -1,4 +1,7 @@
-// @/app/lib/stateService.ts - v1.6.0 (Estado de Diálogo Aprimorado com Ações Pendentes)
+// @/app/lib/stateService.ts - v1.8.0 (Memória Ativa - Adiciona currentTask)
+// - ADICIONADO: Interface CurrentTask e campo 'currentTask?: CurrentTask' à IDialogueState.
+// - Mantém funcionalidades da v1.7.1.
+// ATUALIZADO: v1.8.1 (ou sua próxima versão) - Adicionado expertiseInferenceTurnCounter à IDialogueState.
 
 import { Redis } from '@upstash/redis';
 import { logger } from '@/app/lib/logger';
@@ -61,7 +64,18 @@ export async function setInCache(key: string, value: string, ttlSeconds: number)
 
 // --- Estado do Diálogo (MODIFICADO) ---
 
-// ATUALIZADO: Interface IDialogueState para incluir campos de ação pendente
+/**
+ * NOVO: Interface para definir a estrutura de uma tarefa ativa.
+ */
+export interface CurrentTask {
+  name: string; // Nome da tarefa/intenção principal (ex: 'content_plan', 'detailed_report_analysis')
+  objective?: string; // Objetivo específico fornecido pelo usuário ou inferido para esta tarefa
+  parameters?: Record<string, any>; // Parâmetros coletados ou necessários para a tarefa
+  currentStep?: string; // Etapa atual dentro de uma tarefa de múltiplos passos
+  // Outros campos relevantes para a tarefa podem ser adicionados aqui
+}
+
+// ATUALIZADO v1.8.1 (ou sua próxima versão): Interface IDialogueState para incluir expertiseInferenceTurnCounter
 export interface IDialogueState {
   lastInteraction?: number;
   lastGreetingSent?: number;
@@ -72,32 +86,41 @@ export interface IDialogueState {
     originalSource: any;
     timestamp: number;
   } | null;
-  // ADICIONADO: Para rastrear perguntas da IA que aguardam confirmação do usuário
-  lastAIQuestionType?: 'confirm_fetch_day_stats' | 'confirm_another_action' | string; // Tipo da pergunta/ação pendente
-  pendingActionContext?: Record<string, any> | string | null; // Contexto necessário para executar a ação se confirmada
+  lastAIQuestionType?: 'confirm_fetch_day_stats' | 'confirm_another_action' | 'clarify_community_inspiration_objective' | string; 
+  pendingActionContext?: Record<string, any> | string | null; 
+  conversationSummary?: string; 
+  summaryTurnCounter?: number;  
+  currentTask?: CurrentTask | null; // ADICIONADO na v1.8.0: Para rastrear a tarefa complexa ativa
+  expertiseInferenceTurnCounter?: number; // <<< ADICIONADO: Para inferência de nível de expertise >>>
 }
 
 export async function getDialogueState(userId: string): Promise<IDialogueState> {
-  const TAG = '[stateService][getDialogueState v1.6.0]'; // Versão atualizada
-  const key = `state:${userId}`; // Mantendo o padrão de chave original
+  const TAG = '[stateService][getDialogueState v1.8.1]'; // Versão atualizada
+  const key = `state:${userId}`;
   try {
     const redis = getClient();
     logger.debug(`${TAG} Buscando estado para user: ${userId} (key: ${key})`);
     const data = await redis.get<string>(key);
     if (!data) {
         logger.debug(`${TAG} Nenhum estado encontrado para user: ${userId}`);
-        return {}; // Retorna objeto vazio se não encontrado
+        return {}; 
     }
     logger.debug(`${TAG} Estado encontrado para user: ${userId}, parseando JSON...`);
     try {
-      return JSON.parse(data) as IDialogueState; // Cast para a interface atualizada
+      // Assegura que o objeto retornado está em conformidade com a interface IDialogueState atualizada
+      const parsedData = JSON.parse(data);
+      // Adiciona valores padrão para novos campos se eles não existirem nos dados antigos do Redis
+      return {
+        expertiseInferenceTurnCounter: 0, // Garante que o campo exista com um valor padrão
+        ...parsedData // Sobrescreve com os dados do Redis, se existirem
+      } as IDialogueState;
     } catch (parseError) {
       logger.error(`${TAG} Erro ao parsear JSON do estado para ${userId}:`, parseError);
-      return {}; // Retorna objeto vazio em caso de erro de parse
+      return { expertiseInferenceTurnCounter: 0 }; // Retorna com o campo padrão em caso de erro de parse
     }
   } catch (error) {
      logger.error(`${TAG} Erro ao buscar estado no Redis para user ${userId}:`, error);
-     return {}; // Retorna objeto vazio em caso de erro do Redis
+     return { expertiseInferenceTurnCounter: 0 }; // Retorna com o campo padrão em caso de erro de Redis
   }
 }
 
@@ -105,12 +128,18 @@ export async function getDialogueState(userId: string): Promise<IDialogueState> 
  * Atualiza o estado do diálogo para um usuário, mesclando o novo estado parcial com o existente.
  */
 export async function updateDialogueState(userId: string, newState: Partial<IDialogueState>): Promise<void> {
-   const TAG = '[stateService][updateDialogueState v1.6.0]'; // Versão atualizada
+   const TAG = '[stateService][updateDialogueState v1.8.1]'; // Versão atualizada
    const key = `state:${userId}`;
    try {
     const redis = getClient();
-    const currentState = await getDialogueState(userId); // Busca o estado atual
-    const mergedState = { ...currentState, ...newState }; // Mescla com o novo estado parcial
+    const currentState = await getDialogueState(userId); // getDialogueState agora garante que expertiseInferenceTurnCounter exista
+    const mergedState = { ...currentState, ...newState }; 
+    
+    if (newState.hasOwnProperty('currentTask') && newState.currentTask === null) {
+        mergedState.currentTask = null; 
+        logger.debug(`${TAG} Campo 'currentTask' explicitamente definido como null para user: ${userId}.`);
+    }
+
     const stateJson = JSON.stringify(mergedState);
     logger.debug(`${TAG} Atualizando estado para user: ${userId} (key: ${key}), novo estado parcial: ${JSON.stringify(newState)}, estado mesclado tamanho: ${stateJson.length}`);
     await redis.set(key, stateJson);
@@ -121,22 +150,28 @@ export async function updateDialogueState(userId: string, newState: Partial<IDia
 }
 
 /**
- * ADICIONADO: Limpa os campos de ação pendente do estado do diálogo.
+ * Limpa os campos de ação pendente do estado do diálogo.
+ * Nota: conversationSummary, summaryTurnCounter, currentTask e expertiseInferenceTurnCounter são mantidos.
  */
 export async function clearPendingActionState(userId: string): Promise<void> {
-    const TAG = '[stateService][clearPendingActionState v1.6.0]';
+    const TAG = '[stateService][clearPendingActionState v1.8.1]'; // Versão atualizada
     try {
-        const currentState = await getDialogueState(userId);
+        const currentState = await getDialogueState(userId); // getDialogueState agora garante que expertiseInferenceTurnCounter exista
         // Cria um novo objeto de estado sem as chaves de ação pendente
+        // conversationSummary, summaryTurnCounter, currentTask e expertiseInferenceTurnCounter são mantidos.
         const { lastAIQuestionType, pendingActionContext, ...restOfState } = currentState;
         
-        // Verifica se realmente havia algo para limpar, para evitar reescrita desnecessária
         if (lastAIQuestionType !== undefined || pendingActionContext !== undefined) {
-            const newStateJson = JSON.stringify(restOfState);
+            const newStateToSave: IDialogueState = { 
+                ...restOfState, // restOfState já contém expertiseInferenceTurnCounter de currentState
+                lastAIQuestionType: undefined, 
+                pendingActionContext: undefined 
+            };
+            const newStateJson = JSON.stringify(newStateToSave);
             const key = `state:${userId}`;
             const redis = getClient();
             await redis.set(key, newStateJson);
-            logger.info(`${TAG} Estado de ação pendente limpo para user ${userId}.`);
+            logger.info(`${TAG} Estado de ação pendente limpo para user ${userId}. Outros campos como summary, currentTask e expertiseCounter foram mantidos.`);
         } else {
             logger.debug(`${TAG} Nenhum estado de ação pendente para limpar para user ${userId}.`);
         }
@@ -146,7 +181,7 @@ export async function clearPendingActionState(userId: string): Promise<void> {
 }
 
 
-// --- Histórico de Conversas (sem alterações na lógica, apenas nos comentários de versão se desejar) ---
+// --- Histórico de Conversas (sem alterações na lógica) ---
 
 export async function getConversationHistory(
   userId: string
@@ -202,7 +237,7 @@ export async function setConversationHistory(
 
 export async function incrementUsageCounter(userId: string): Promise<void> {
    const TAG = '[stateService][incrementUsageCounter]';
-   const key = `usage:${userId}`; // Usando um prefixo mais explícito se desejar, ex: `d2c:usage:${userId}`
+   const key = `usage:${userId}`;
    try {
     const redis = getClient();
     logger.debug(`${TAG} Incrementando contador para user: ${userId} (key: ${key})`);

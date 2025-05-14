@@ -1,6 +1,6 @@
-// @/app/models/User.ts - v1.9.3 (Onboarding Fields)
-// - ADICIONADO: Campos 'isNewUserForOnboarding' e 'onboardingCompletedAt' para controle do fluxo de aceite de termos.
-// - Mantém funcionalidades da v1.9.2.
+// @/app/models/User.ts - v1.9.4 (Personalização - Nível de Expertise)
+// - ADICIONADO: Campo 'inferredExpertiseLevel' para personalização da linguagem da IA.
+// - Mantém funcionalidades da v1.9.3.
 
 import { Schema, model, models, Document, Model, Types } from "mongoose";
 
@@ -24,8 +24,13 @@ export interface ILastCommunityInspirationShown {
 }
 
 /**
+ * NOVO: Define os possíveis níveis de expertise do usuário.
+ */
+export type UserExpertiseLevel = 'iniciante' | 'intermediario' | 'avancado';
+
+/**
  * Interface que descreve um documento de usuário.
- * ATUALIZADO v1.9.3: Adicionado 'isNewUserForOnboarding' e 'onboardingCompletedAt'.
+ * ATUALIZADO v1.9.4: Adicionado 'inferredExpertiseLevel'.
  */
 export interface IUser extends Document {
   _id: Types.ObjectId;
@@ -87,9 +92,12 @@ export interface IUser extends Document {
   communityInspirationTermsVersion?: string | null;
   lastCommunityInspirationShown_Daily?: ILastCommunityInspirationShown | null;
 
-  // --- CAMPOS PARA CONTROLE DE ONBOARDING (NOVO) ---
+  // --- CAMPOS PARA CONTROLE DE ONBOARDING ---
   isNewUserForOnboarding?: boolean;
   onboardingCompletedAt?: Date | null;
+
+  // --- CAMPO PARA PERSONALIZAÇÃO DA IA (NOVO) ---
+  inferredExpertiseLevel?: UserExpertiseLevel; // Nível de expertise inferido
 
   createdAt?: Date;
   updatedAt?: Date;
@@ -124,7 +132,7 @@ const lastCommunityInspirationShownSchema = new Schema<ILastCommunityInspiration
 
 /**
  * Definição do Schema para o User
- * ATUALIZADO v1.9.3: Adicionado 'isNewUserForOnboarding' e 'onboardingCompletedAt'.
+ * ATUALIZADO v1.9.4: Adicionado 'inferredExpertiseLevel'.
  */
 const userSchema = new Schema<IUser>(
   {
@@ -187,18 +195,25 @@ const userSchema = new Schema<IUser>(
     lastProcessedPaymentId: { type: String, default: null, index: true },
 
     // --- Campos para Comunidade de Inspiração ---
-    communityInspirationOptIn: { type: Boolean, default: false }, // O callback signIn do NextAuth define como true para novos usuários
+    communityInspirationOptIn: { type: Boolean, default: false },
     communityInspirationOptInDate: { type: Date, default: null },
     communityInspirationTermsVersion: { type: String, default: null },
     lastCommunityInspirationShown_Daily: { type: lastCommunityInspirationShownSchema, default: null },
 
-    // --- CAMPOS PARA CONTROLE DE ONBOARDING (ADICIONADO) ---
-    isNewUserForOnboarding: { type: Boolean, default: true }, // Default true; o callback signIn do NextAuth também o define para novos usuários.
-    onboardingCompletedAt: { type: Date, default: null },   // Preenchido pela API /api/user/complete-onboarding
+    // --- CAMPOS PARA CONTROLE DE ONBOARDING ---
+    isNewUserForOnboarding: { type: Boolean, default: true }, 
+    onboardingCompletedAt: { type: Date, default: null },   
+
+    // --- CAMPO PARA PERSONALIZAÇÃO DA IA (ADICIONADO) ---
+    inferredExpertiseLevel: { 
+        type: String, 
+        enum: ['iniciante', 'intermediario', 'avancado'], 
+        default: 'iniciante' 
+    },
 
   },
   {
-    timestamps: true,
+    timestamps: true, // Adiciona createdAt e updatedAt automaticamente
   }
 );
 
@@ -206,7 +221,7 @@ userSchema.pre<IUser>("save", function (next) {
   if (this.isNew && !this.affiliateCode) {
     this.affiliateCode = generateAffiliateCode();
   }
-  // Lógica para isInstagramConnected mantida, mas não relacionada diretamente ao onboarding
+  // Lógica para isInstagramConnected mantida
   if (this.isInstagramConnected === undefined && this.instagramAccountId !== undefined && this.instagramAccountId !== null && this.instagramAccountId !== '') {
       this.isInstagramConnected = true;
   } else if (this.isInstagramConnected === undefined) {
@@ -221,6 +236,7 @@ userSchema.pre<IUser>("save", function (next) {
   next();
 });
 
+// Utiliza models.User se já existir (importante para Next.js com HMR)
 const UserModel: Model<IUser> = models.User || model<IUser>("User", userSchema);
 
 export default UserModel;
