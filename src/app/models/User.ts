@@ -1,6 +1,6 @@
-// @/app/models/User.ts - v1.9.4 (Personalização - Nível de Expertise)
-// - ADICIONADO: Campo 'inferredExpertiseLevel' para personalização da linguagem da IA.
-// - Mantém funcionalidades da v1.9.3.
+// @/app/models/User.ts - v1.9.5 (Sincronização - Campo de Erro)
+// - ADICIONADO: Campo 'instagramSyncErrorMsg' para armazenar erros de sincronização do Instagram.
+// - Mantém funcionalidades da v1.9.4.
 
 import { Schema, model, models, Document, Model, Types } from "mongoose";
 
@@ -24,13 +24,13 @@ export interface ILastCommunityInspirationShown {
 }
 
 /**
- * NOVO: Define os possíveis níveis de expertise do usuário.
+ * Define os possíveis níveis de expertise do usuário.
  */
 export type UserExpertiseLevel = 'iniciante' | 'intermediario' | 'avancado';
 
 /**
  * Interface que descreve um documento de usuário.
- * ATUALIZADO v1.9.4: Adicionado 'inferredExpertiseLevel'.
+ * ATUALIZADO v1.9.5: Adicionado 'instagramSyncErrorMsg'.
  */
 export interface IUser extends Document {
   _id: Types.ObjectId;
@@ -48,6 +48,7 @@ export interface IUser extends Document {
   isInstagramConnected?: boolean;
   lastInstagramSyncAttempt?: Date | null;
   lastInstagramSyncSuccess?: boolean | null;
+  instagramSyncErrorMsg?: string | null; // << NOVO CAMPO (Tarefa 3.1)
   username?: string;
   biography?: string;
   website?: string;
@@ -96,8 +97,8 @@ export interface IUser extends Document {
   isNewUserForOnboarding?: boolean;
   onboardingCompletedAt?: Date | null;
 
-  // --- CAMPO PARA PERSONALIZAÇÃO DA IA (NOVO) ---
-  inferredExpertiseLevel?: UserExpertiseLevel; // Nível de expertise inferido
+  // --- CAMPO PARA PERSONALIZAÇÃO DA IA ---
+  inferredExpertiseLevel?: UserExpertiseLevel;
 
   createdAt?: Date;
   updatedAt?: Date;
@@ -132,7 +133,7 @@ const lastCommunityInspirationShownSchema = new Schema<ILastCommunityInspiration
 
 /**
  * Definição do Schema para o User
- * ATUALIZADO v1.9.4: Adicionado 'inferredExpertiseLevel'.
+ * ATUALIZADO v1.9.5: Adicionado 'instagramSyncErrorMsg'.
  */
 const userSchema = new Schema<IUser>(
   {
@@ -156,15 +157,16 @@ const userSchema = new Schema<IUser>(
     isInstagramConnected: { type: Boolean, default: false },
     lastInstagramSyncAttempt: { type: Date, default: null },
     lastInstagramSyncSuccess: { type: Boolean, default: null },
-    username: { type: String, sparse: true },
+    instagramSyncErrorMsg: { type: String, default: null }, // << NOVO CAMPO (Tarefa 3.1)
+    username: { type: String, sparse: true }, // Username do Instagram
     biography: { type: String },
     website: { type: String },
     profile_picture_url: { type: String },
     followers_count: { type: Number },
     follows_count: { type: Number },
     media_count: { type: Number },
-    is_published: { type: Boolean },
-    shopping_product_tag_eligibility: { type: Boolean },
+    is_published: { type: Boolean }, // Campo do IG User (se aplicável)
+    shopping_product_tag_eligibility: { type: Boolean }, // Campo do IG User (se aplicável)
 
     // --- CAMPOS DE VINCULAÇÃO TEMPORÁRIA ---
     linkToken: { type: String, index: true, sparse: true },
@@ -201,14 +203,14 @@ const userSchema = new Schema<IUser>(
     lastCommunityInspirationShown_Daily: { type: lastCommunityInspirationShownSchema, default: null },
 
     // --- CAMPOS PARA CONTROLE DE ONBOARDING ---
-    isNewUserForOnboarding: { type: Boolean, default: true }, 
-    onboardingCompletedAt: { type: Date, default: null },   
+    isNewUserForOnboarding: { type: Boolean, default: true },
+    onboardingCompletedAt: { type: Date, default: null },
 
-    // --- CAMPO PARA PERSONALIZAÇÃO DA IA (ADICIONADO) ---
-    inferredExpertiseLevel: { 
-        type: String, 
-        enum: ['iniciante', 'intermediario', 'avancado'], 
-        default: 'iniciante' 
+    // --- CAMPO PARA PERSONALIZAÇÃO DA IA ---
+    inferredExpertiseLevel: {
+        type: String,
+        enum: ['iniciante', 'intermediario', 'avancado'],
+        default: 'iniciante'
     },
 
   },
@@ -227,7 +229,7 @@ userSchema.pre<IUser>("save", function (next) {
   } else if (this.isInstagramConnected === undefined) {
       this.isInstagramConnected = false;
   }
-  
+
   // Garante que se onboardingCompletedAt estiver preenchido, isNewUserForOnboarding seja false
   if (this.onboardingCompletedAt && this.isNewUserForOnboarding) {
     this.isNewUserForOnboarding = false;

@@ -1,7 +1,6 @@
-// src/config/instagram.config.ts - v1.9.10 (Reel Safe General Metrics Added)
-// - Adicionada constante REEL_SAFE_GENERAL_METRICS para métricas gerais compatíveis com Reels.
-// - Adicionada constante REEL_SPECIFIC_INSIGHTS_METRICS para métricas exclusivas de Reels (mantido de v1.9.9).
-// - MEDIA_INSIGHTS_METRICS mantém métricas gerais para compatibilidade com outros formatos (mantido).
+// src/config/instagram.config.ts - v2.1 (Métricas Total Value Adicionadas)
+// - ADICIONADO: Constantes ACCOUNT_INSIGHTS_REQUIRING_TOTAL_VALUE e DEMOGRAPHICS_REQUIRING_TOTAL_VALUE.
+// - Mantém funcionalidades da v1.9.10.
 
 // ATUALIZADO para v22.0 (ou a versão desejada/configurada no painel da Meta)
 export const API_VERSION = 'v22.0';
@@ -36,8 +35,26 @@ export const STORY_INSIGHTS_METRICS = 'views,reach,navigation,replies,shares,pro
 // Métricas para buscar insights de nível de conta (agregados)
 export const ACCOUNT_INSIGHTS_METRICS = 'views,reach,accounts_engaged,total_interactions,profile_links_taps,follows_and_unfollows';
 
+// >>> NOVAS CONSTANTES: MÉTRICAS QUE REQUEREM 'metric_type=total_value' (v2.1) <<<
+// Conforme identificado nos logs de erro (#100) para chamadas com System User Token.
+export const ACCOUNT_INSIGHTS_REQUIRING_TOTAL_VALUE: string[] = [
+  'views',
+  'accounts_engaged',
+  'total_interactions',
+  'profile_links_taps',
+  'follows_and_unfollows'
+  // 'reach' não estava na mensagem de erro original, verificar se precisa ser incluído.
+  // Por enquanto, seguindo estritamente a mensagem de erro dos logs.
+];
+
 // Métricas para buscar dados demográficos
 export const DEMOGRAPHICS_METRICS = 'follower_demographics,engaged_audience_demographics';
+
+// >>> NOVAS CONSTANTES: MÉTRICAS QUE REQUEREM 'metric_type=total_value' (v2.1) <<<
+export const DEMOGRAPHICS_REQUIRING_TOTAL_VALUE: string[] = [
+  'follower_demographics',
+  'engaged_audience_demographics'
+];
 
 
 // --- Breakdowns por Tipo de Chamada ---
