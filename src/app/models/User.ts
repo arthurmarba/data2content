@@ -1,8 +1,9 @@
-// @/app/models/User.ts - v1.9.5 (Sincronização - Campo de Erro)
-// - ADICIONADO: Campo 'instagramSyncErrorMsg' para armazenar erros de sincronização do Instagram.
-// - Mantém funcionalidades da v1.9.4.
+// @/app/models/User.ts - v1.9.6 (Diagnóstico Affiliate Code)
+// - ADICIONADO: Logs detalhados no hook pre('save') para diagnosticar geração do affiliateCode.
+// - Mantém funcionalidades da v1.9.5.
 
 import { Schema, model, models, Document, Model, Types } from "mongoose";
+import { logger } from "@/app/lib/logger"; // Importar o logger
 
 /**
  * Interface para uma entrada no log de comissões.
@@ -48,7 +49,7 @@ export interface IUser extends Document {
   isInstagramConnected?: boolean;
   lastInstagramSyncAttempt?: Date | null;
   lastInstagramSyncSuccess?: boolean | null;
-  instagramSyncErrorMsg?: string | null; // << NOVO CAMPO (Tarefa 3.1)
+  instagramSyncErrorMsg?: string | null;
   username?: string;
   biography?: string;
   website?: string;
@@ -75,7 +76,7 @@ export interface IUser extends Document {
   goal?: string;
   affiliateRank?: number;
   affiliateInvites?: number;
-  affiliateCode?: string;
+  affiliateCode?: string; // Campo para o código de afiliado
   affiliateUsed?: string;
   affiliateBalance?: number;
   commissionLog?: ICommissionLogEntry[];
@@ -133,7 +134,7 @@ const lastCommunityInspirationShownSchema = new Schema<ILastCommunityInspiration
 
 /**
  * Definição do Schema para o User
- * ATUALIZADO v1.9.5: Adicionado 'instagramSyncErrorMsg'.
+ * ATUALIZADO v1.9.6: Logs de diagnóstico para affiliateCode.
  */
 const userSchema = new Schema<IUser>(
   {
@@ -157,16 +158,16 @@ const userSchema = new Schema<IUser>(
     isInstagramConnected: { type: Boolean, default: false },
     lastInstagramSyncAttempt: { type: Date, default: null },
     lastInstagramSyncSuccess: { type: Boolean, default: null },
-    instagramSyncErrorMsg: { type: String, default: null }, // << NOVO CAMPO (Tarefa 3.1)
-    username: { type: String, sparse: true }, // Username do Instagram
+    instagramSyncErrorMsg: { type: String, default: null },
+    username: { type: String, sparse: true },
     biography: { type: String },
     website: { type: String },
     profile_picture_url: { type: String },
     followers_count: { type: Number },
     follows_count: { type: Number },
     media_count: { type: Number },
-    is_published: { type: Boolean }, // Campo do IG User (se aplicável)
-    shopping_product_tag_eligibility: { type: Boolean }, // Campo do IG User (se aplicável)
+    is_published: { type: Boolean },
+    shopping_product_tag_eligibility: { type: Boolean },
 
     // --- CAMPOS DE VINCULAÇÃO TEMPORÁRIA ---
     linkToken: { type: String, index: true, sparse: true },
@@ -184,7 +185,7 @@ const userSchema = new Schema<IUser>(
     goal: { type: String, default: null },
     affiliateRank: { type: Number, default: 1 },
     affiliateInvites: { type: Number, default: 0 },
-    affiliateCode: { type: String, unique: true, sparse: true },
+    affiliateCode: { type: String, unique: true, sparse: true }, // Sem default aqui para o hook funcionar
     affiliateUsed: { type: String, default: null },
     affiliateBalance: { type: Number, default: 0 },
     commissionLog: { type: [commissionLogEntrySchema], default: [] },
@@ -215,14 +216,29 @@ const userSchema = new Schema<IUser>(
 
   },
   {
-    timestamps: true, // Adiciona createdAt e updatedAt automaticamente
+    timestamps: true,
   }
 );
 
 userSchema.pre<IUser>("save", function (next) {
+  const TAG_PRE_SAVE = '[User.ts pre-save]';
+  // Adicionados logs para depuração da geração do affiliateCode
+  logger.debug(`${TAG_PRE_SAVE} Hook acionado. User ID (antes de salvar, pode ser undefined se novo): ${this._id}, Email: ${this.email}`);
+  logger.debug(`${TAG_PRE_SAVE} this.isNew: ${this.isNew}, this.affiliateCode (antes): '${this.affiliateCode}' (tipo: ${typeof this.affiliateCode})`);
+
   if (this.isNew && !this.affiliateCode) {
-    this.affiliateCode = generateAffiliateCode();
+    const newCode = generateAffiliateCode();
+    logger.info(`${TAG_PRE_SAVE} Gerando novo affiliateCode: '${newCode}' para User Email: ${this.email}`);
+    this.affiliateCode = newCode;
+  } else if (this.isNew && this.affiliateCode) {
+    logger.warn(`${TAG_PRE_SAVE} Usuário é novo (isNew=true) mas JÁ POSSUI affiliateCode: '${this.affiliateCode}'. Não será gerado novo código. Email: ${this.email}`);
+  } else if (!this.isNew) {
+    // Este log pode ser muito verboso para cada atualização, então comentei. Descomente se necessário.
+    // logger.debug(`${TAG_PRE_SAVE} Usuário não é novo (isNew=false). Não irá gerar affiliateCode. Email: ${this.email}`);
+  } else {
+     logger.warn(`${TAG_PRE_SAVE} Condição para gerar affiliateCode não atendida, mas usuário é novo e sem código. isNew: ${this.isNew}, affiliateCode: ${this.affiliateCode}. Email: ${this.email}`);
   }
+
   // Lógica para isInstagramConnected mantida
   if (this.isInstagramConnected === undefined && this.instagramAccountId !== undefined && this.instagramAccountId !== null && this.instagramAccountId !== '') {
       this.isInstagramConnected = true;
@@ -232,13 +248,13 @@ userSchema.pre<IUser>("save", function (next) {
 
   // Garante que se onboardingCompletedAt estiver preenchido, isNewUserForOnboarding seja false
   if (this.onboardingCompletedAt && this.isNewUserForOnboarding) {
+    logger.debug(`${TAG_PRE_SAVE} Usuário completou onboarding. Setando isNewUserForOnboarding para false. Email: ${this.email}`);
     this.isNewUserForOnboarding = false;
   }
-
+  logger.debug(`${TAG_PRE_SAVE} affiliateCode (depois da lógica): '${this.affiliateCode}'`);
   next();
 });
 
-// Utiliza models.User se já existir (importante para Next.js com HMR)
 const UserModel: Model<IUser> = models.User || model<IUser>("User", userSchema);
 
 export default UserModel;
