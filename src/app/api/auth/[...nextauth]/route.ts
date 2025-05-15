@@ -1,7 +1,7 @@
 // src/app/api/auth/[...nextauth]/route.ts
-// VERSION: FBLinkNoNameImgUpdate+SyncStatus_ErrorPropagation_v2.1.3_usercastfix
-// - CORREÇÃO DE TIPO: Corrigido cast para (authUserFromProvider as NextAuthUserArg) no callback signIn.
-// - Mantém funcionalidades e correções da v2.1.2.
+// VERSION: FBLinkNoNameImgUpdate+SyncStatus_ErrorPropagation_v2.1.4_planstatusfix
+// - CORREÇÃO: planStatus agora é corretamente selecionado do DB no callback jwt e mapeado para a sessão no callback session.
+// - Mantém funcionalidades e correções da v2.1.3.
 
 import NextAuth from "next-auth";
 import type { DefaultSession, DefaultUser, NextAuthOptions, Session, User as NextAuthUserArg, Account, Profile } from "next-auth";
@@ -25,29 +25,27 @@ import {
 
 // --- AUGMENT NEXT-AUTH TYPES (ALINHADO COM User.ts v1.9.5 e Plano) ---
 declare module "next-auth" {
-    // User interface used in signIn callback and as base for JWT user object
-    interface User extends DefaultUser { // Extends DefaultUser from next-auth
-        id: string; // Internal DB ID
+    interface User extends DefaultUser {
+        id: string;
         role?: string | null;
-        provider?: string | null; // Provider of the current or primary login
+        provider?: string | null;
         isNewUserForOnboarding?: boolean;
         onboardingCompletedAt?: Date | null;
         isInstagramConnected?: boolean | null;
         instagramAccountId?: string | null;
-        instagramUsername?: string | null; // IG username for session/token
-        igConnectionError?: string | null; // For connection or sync errors
-        instagramSyncErrorMsg?: string | null; // DB field for sync errors
-        availableIgAccounts?: AvailableInstagramAccount[] | null; // Transient for linking
+        instagramUsername?: string | null;
+        igConnectionError?: string | null;
+        instagramSyncErrorMsg?: string | null;
+        availableIgAccounts?: AvailableInstagramAccount[] | null;
         lastInstagramSyncAttempt?: Date | null;
         lastInstagramSyncSuccess?: boolean | null;
-        planStatus?: string | null;
+        planStatus?: string | null; // Assegurar que está aqui
         planExpiresAt?: Date | null;
         affiliateCode?: string | null;
-        facebookProviderAccountId?: string | null; // Specific FB provider ID
-        providerAccountId?: string | null; // Generic provider ID from DB
+        facebookProviderAccountId?: string | null;
+        providerAccountId?: string | null;
     }
 
-    // Session interface available to the client
     interface Session {
       user?: {
         id: string;
@@ -56,48 +54,49 @@ declare module "next-auth" {
         image?: string | null;
         provider?: string | null;
         role?: string | null;
-        planStatus?: string | null;
-        planExpiresAt?: string | null; // ISO string for client
+        planStatus?: string | null; // Assegurar que está aqui
+        planExpiresAt?: string | null;
         affiliateCode?: string | null;
         affiliateBalance?: number;
         affiliateRank?: number;
         affiliateInvites?: number;
 
-        instagramConnected?: boolean; // boolean | undefined for client
+        instagramConnected?: boolean;
         instagramAccountId?: string | null;
         instagramUsername?: string | null;
         igConnectionError?: string | null;
-        availableIgAccounts?: AvailableInstagramAccount[] | null; // Should be cleared if connected
-        lastInstagramSyncAttempt?: string | null; // ISO string for client
-        lastInstagramSyncSuccess?: boolean | null; // boolean | null | undefined
+        availableIgAccounts?: AvailableInstagramAccount[] | null;
+        lastInstagramSyncAttempt?: string | null;
+        lastInstagramSyncSuccess?: boolean | null;
 
         isNewUserForOnboarding?: boolean;
-        onboardingCompletedAt?: string | null; // ISO string for client
+        onboardingCompletedAt?: string | null;
 
       } & Omit<DefaultSession["user"], "id" | "name" | "email" | "image">;
     }
 }
 
 declare module "next-auth/jwt" {
-    // JWT interface for token manipulation
-     interface JWT extends DefaultJWT { // Extends DefaultJWT from next-auth/jwt
-         id: string; // Internal DB ID
+     interface JWT extends DefaultJWT {
+         id: string;
          role?: string | null;
          provider?: string | null;
 
          isNewUserForOnboarding?: boolean;
-         onboardingCompletedAt?: Date | string | null; // Date from DB, string after encode
+         onboardingCompletedAt?: Date | string | null;
 
          isInstagramConnected?: boolean | null;
          instagramAccountId?: string | null;
-         instagramUsername?: string | null; // IG username in JWT
-         igConnectionError?: string | null; // For connection or sync errors
-         instagramSyncErrorMsg?: string | null; // Intermediate field from DB, not in final encoded JWT
-         availableIgAccounts?: AvailableInstagramAccount[] | null; // Transient
-         lastInstagramSyncAttempt?: Date | string | null; // Date from DB, string after encode
+         instagramUsername?: string | null;
+         igConnectionError?: string | null;
+         instagramSyncErrorMsg?: string | null;
+         availableIgAccounts?: AvailableInstagramAccount[] | null;
+         lastInstagramSyncAttempt?: Date | string | null;
          lastInstagramSyncSuccess?: boolean | null;
+         planStatus?: string | null; // Assegurar que está aqui
+         planExpiresAt?: Date | string | null; // Adicionado para consistência
 
-         image?: string | null; // Ensure 'image' is used consistently over 'picture'
+         image?: string | null;
      }
 }
 // --- END AUGMENT NEXT-AUTH TYPES ---
@@ -128,6 +127,11 @@ async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise
     if (cleanToken.lastInstagramSyncAttempt instanceof Date) {
         cleanToken.lastInstagramSyncAttempt = cleanToken.lastInstagramSyncAttempt.toISOString();
     }
+    // Adicionado para planExpiresAt
+    if (cleanToken.planExpiresAt instanceof Date) {
+        cleanToken.planExpiresAt = cleanToken.planExpiresAt.toISOString();
+    }
+
 
     if (cleanToken.image && cleanToken.picture) delete cleanToken.picture;
 
@@ -166,6 +170,10 @@ async function customDecode({ token, secret }: JWTDecodeParams): Promise<JWT | n
         }
         if (decodedPayload.lastInstagramSyncAttempt && typeof decodedPayload.lastInstagramSyncAttempt === 'string') {
             decodedPayload.lastInstagramSyncAttempt = new Date(decodedPayload.lastInstagramSyncAttempt);
+        }
+        // Adicionado para planExpiresAt
+        if (decodedPayload.planExpiresAt && typeof decodedPayload.planExpiresAt === 'string') {
+            decodedPayload.planExpiresAt = new Date(decodedPayload.planExpiresAt);
         }
 
         if (decodedPayload.picture && !decodedPayload.image) {
@@ -247,7 +255,7 @@ export const authOptions: NextAuthOptions = {
                         isNewUserForOnboarding: false,
                         onboardingCompletedAt: new Date(),
                         isInstagramConnected: false,
-                        planStatus: 'inactive',
+                        planStatus: 'inactive', // Status do plano para o usuário demo
                     };
                 }
                 logger.warn("[NextAuth Credentials DEBUG] Authorize para Demo User falhou.");
@@ -262,7 +270,7 @@ export const authOptions: NextAuthOptions = {
     },
     callbacks: {
         async signIn({ user: authUserFromProvider, account, profile }) {
-            const TAG_SIGNIN = '[NextAuth signIn v2.1.3]'; // Version bump
+            const TAG_SIGNIN = '[NextAuth signIn v2.1.4]'; // Version bump
             logger.debug(`${TAG_SIGNIN} Iniciado`, { providerAccountIdReceived: authUserFromProvider.id, provider: account?.provider, email: authUserFromProvider.email });
 
             if (!account || !account.provider || !authUserFromProvider?.id) {
@@ -272,6 +280,8 @@ export const authOptions: NextAuthOptions = {
 
             if (account.provider === 'credentials') {
                 logger.debug(`${TAG_SIGNIN} Permitindo login via Credentials (utilizador: ${authUserFromProvider.id}).`);
+                // Para Credentials, authUserFromProvider já contém os campos definidos no 'authorize'
+                // Incluindo planStatus se definido lá.
                 return true;
             }
 
@@ -359,7 +369,7 @@ export const authOptions: NextAuthOptions = {
                             communityInspirationOptInDate: new Date(),
                             communityInspirationTermsVersion: DEFAULT_TERMS_VERSION,
                             isInstagramConnected: false,
-                            planStatus: 'inactive',
+                            planStatus: 'inactive', // Status inicial do plano
                         });
                         dbUserRecord = await newUserInDb.save();
                         isNewUser = true;
@@ -377,7 +387,6 @@ export const authOptions: NextAuthOptions = {
                     const resolvedImage = dbUserRecord.image ?? imageFromProvider;
                     authUserFromProvider.image = resolvedImage === null ? undefined : resolvedImage;
                     
-                    // CORREÇÃO DE TIPO: Usar NextAuthUserArg para o cast ao atribuir propriedades aumentadas.
                     (authUserFromProvider as NextAuthUserArg).role = dbUserRecord.role ?? 'user';
                     (authUserFromProvider as NextAuthUserArg).isNewUserForOnboarding = (provider === 'google' && isNewUser) || (dbUserRecord.isNewUserForOnboarding ?? false);
                     (authUserFromProvider as NextAuthUserArg).onboardingCompletedAt = dbUserRecord.onboardingCompletedAt;
@@ -386,13 +395,13 @@ export const authOptions: NextAuthOptions = {
                     (authUserFromProvider as NextAuthUserArg).lastInstagramSyncAttempt = dbUserRecord.lastInstagramSyncAttempt;
                     (authUserFromProvider as NextAuthUserArg).lastInstagramSyncSuccess = dbUserRecord.lastInstagramSyncSuccess;
                     (authUserFromProvider as NextAuthUserArg).instagramSyncErrorMsg = dbUserRecord.instagramSyncErrorMsg;
-                    (authUserFromProvider as NextAuthUserArg).planStatus = dbUserRecord.planStatus;
-                    (authUserFromProvider as NextAuthUserArg).planExpiresAt = dbUserRecord.planExpiresAt;
+                    (authUserFromProvider as NextAuthUserArg).planStatus = dbUserRecord.planStatus; // << CORREÇÃO: Popular do dbUserRecord
+                    (authUserFromProvider as NextAuthUserArg).planExpiresAt = dbUserRecord.planExpiresAt; // << CORREÇÃO: Popular do dbUserRecord
                     (authUserFromProvider as NextAuthUserArg).affiliateCode = dbUserRecord.affiliateCode;
                     (authUserFromProvider as NextAuthUserArg).instagramAccountId = dbUserRecord.instagramAccountId;
-                    authUserFromProvider.instagramUsername = dbUserRecord.username; // Atribuição direta, pois instagramUsername está em NextAuthUserArg
+                    authUserFromProvider.instagramUsername = dbUserRecord.username; 
 
-                    logger.debug(`${TAG_SIGNIN} [${provider}] FINAL signIn. authUser.id (interno): '${authUserFromProvider.id}', isNewUser: ${(authUserFromProvider as NextAuthUserArg).isNewUserForOnboarding}, isInstaConn: ${(authUserFromProvider as NextAuthUserArg).isInstagramConnected}`);
+                    logger.debug(`${TAG_SIGNIN} [${provider}] FINAL signIn. authUser.id (interno): '${authUserFromProvider.id}', planStatus: ${(authUserFromProvider as NextAuthUserArg).planStatus}`);
                     return true;
                 } else {
                     logger.error(`${TAG_SIGNIN} [${provider}] dbUserRecord não foi definido. Falha no signIn.`);
@@ -406,8 +415,8 @@ export const authOptions: NextAuthOptions = {
         },
 
         async jwt({ token, user: userFromSignIn, account, trigger, session: updateSessionData }) {
-            const TAG_JWT = '[NextAuth JWT v2.1.3]'; // Version bump
-            logger.debug(`${TAG_JWT} Iniciado. Trigger: ${trigger}. Provider(acc): ${account?.provider}. UserID(signIn): ${userFromSignIn?.id}. TokenInID: ${token?.id}. Token.igConnErr(in): ${token.igConnectionError}`);
+            const TAG_JWT = '[NextAuth JWT v2.1.4]'; // Version bump
+            logger.debug(`${TAG_JWT} Iniciado. Trigger: ${trigger}. UserID(signIn): ${userFromSignIn?.id}. TokenInID: ${token?.id}. Token.planStatus(in): ${token.planStatus}`);
 
             if (trigger !== 'update') {
                 delete token.igConnectionError;
@@ -420,7 +429,6 @@ export const authOptions: NextAuthOptions = {
                 token.name = userFromSignIn.name;
                 token.email = userFromSignIn.email;
                 token.image = userFromSignIn.image;
-                // Cast userFromSignIn to NextAuthUserArg to access augmented properties
                 token.role = (userFromSignIn as NextAuthUserArg).role ?? 'user';
                 token.provider = account?.provider ?? (userFromSignIn as NextAuthUserArg).provider;
                 token.isNewUserForOnboarding = (userFromSignIn as NextAuthUserArg).isNewUserForOnboarding;
@@ -431,8 +439,10 @@ export const authOptions: NextAuthOptions = {
                 token.lastInstagramSyncAttempt = (userFromSignIn as NextAuthUserArg).lastInstagramSyncAttempt;
                 token.lastInstagramSyncSuccess = (userFromSignIn as NextAuthUserArg).lastInstagramSyncSuccess;
                 token.igConnectionError = (userFromSignIn as NextAuthUserArg).instagramSyncErrorMsg ?? null;
+                token.planStatus = (userFromSignIn as NextAuthUserArg).planStatus; // << CORREÇÃO: Popular do userFromSignIn
+                token.planExpiresAt = (userFromSignIn as NextAuthUserArg).planExpiresAt; // << CORREÇÃO: Popular do userFromSignIn
 
-                logger.info(`${TAG_JWT} Token populado de userFromSignIn. ID: ${token.id}, Provider: ${token.provider}, isNewUser: ${token.isNewUserForOnboarding}, isInstaConn: ${token.isInstagramConnected}, igErr: ${token.igConnectionError}`);
+                logger.info(`${TAG_JWT} Token populado de userFromSignIn. ID: ${token.id}, planStatus: ${token.planStatus}`);
 
                 if (account?.provider === 'facebook' && token.id && Types.ObjectId.isValid(token.id)) {
                     const userId = token.id;
@@ -489,13 +499,15 @@ export const authOptions: NextAuthOptions = {
             if (token.id && Types.ObjectId.isValid(token.id)) {
                 const needsDbRefresh = trigger === 'update' ||
                                       account?.provider === 'facebook' ||
-                                      !token.role ||
-                                      typeof token.isInstagramConnected === 'undefined';
+                                      !token.role || // Exemplo de dado que pode precisar de refresh
+                                      typeof token.isInstagramConnected === 'undefined' || // Exemplo
+                                      typeof token.planStatus === 'undefined'; // << CORREÇÃO: Adicionar verificação de planStatus
 
                 if (needsDbRefresh) {
-                    logger.debug(`${TAG_JWT} Trigger '${trigger}' ou login FB/dados ausentes. Buscando dados frescos do DB para token ID: ${token.id}`);
+                    logger.debug(`${TAG_JWT} Trigger '${trigger}' ou dados ausentes/login FB. Buscando dados frescos do DB para token ID: ${token.id}`);
                     try {
                         await connectToDatabase();
+                        // << CORREÇÃO: Adicionar planStatus e planExpiresAt ao select >>
                         const dbUser = await DbUser.findById(token.id)
                             .select('name email image role provider providerAccountId facebookProviderAccountId isNewUserForOnboarding onboardingCompletedAt isInstagramConnected instagramAccountId username lastInstagramSyncAttempt lastInstagramSyncSuccess instagramSyncErrorMsg planStatus planExpiresAt affiliateCode')
                             .lean<IUser>();
@@ -519,8 +531,12 @@ export const authOptions: NextAuthOptions = {
                             if (token.isInstagramConnected && !dbUser.instagramSyncErrorMsg) {
                                 delete token.igConnectionError;
                             }
+                            // << CORREÇÃO: Atualizar planStatus e planExpiresAt do DB >>
+                            token.planStatus = dbUser.planStatus ?? token.planStatus ?? 'inactive';
+                            token.planExpiresAt = dbUser.planExpiresAt ?? token.planExpiresAt ?? null;
 
-                            logger.info(`${TAG_JWT} Token enriquecido/atualizado do DB. ID: ${token.id}, isInstaConn: ${token.isInstagramConnected}, SyncErr: ${dbUser.instagramSyncErrorMsg}, Final igConnErr: ${token.igConnectionError}`);
+
+                            logger.info(`${TAG_JWT} Token enriquecido/atualizado do DB. ID: ${token.id}, isInstaConn: ${token.isInstagramConnected}, planStatus: ${token.planStatus}, igConnErr: ${token.igConnectionError}`);
                         } else {
                             logger.warn(`${TAG_JWT} Utilizador ${token.id} não encontrado no DB durante refresh de token. Invalidando token.`);
                             return {} as JWT;
@@ -539,13 +555,13 @@ export const authOptions: NextAuthOptions = {
             }
 
             if (token.image && (token as any).picture) delete (token as any).picture;
-            logger.debug(`${TAG_JWT} FINAL jwt. Token id: '${token.id}', Provider: ${token.provider}, isInstaConn: ${token.isInstagramConnected}, igErr: ${token.igConnectionError ? 'Sim' : 'Não'}`);
+            logger.debug(`${TAG_JWT} FINAL jwt. Token id: '${token.id}', planStatus: ${token.planStatus}, igErr: ${token.igConnectionError ? 'Sim' : 'Não'}`);
             return token;
         },
 
         async session({ session, token }) {
-             const TAG_SESSION = '[NextAuth Session v2.1.3]'; // Version bump
-             logger.debug(`${TAG_SESSION} Iniciado. Token ID: ${token?.id}, Token.isInstaConn: ${token?.isInstagramConnected}, Token.igErr: ${token?.igConnectionError}`);
+             const TAG_SESSION = '[NextAuth Session v2.1.4]'; // Version bump
+             logger.debug(`${TAG_SESSION} Iniciado. Token ID: ${token?.id}, Token.planStatus: ${token?.planStatus}, Token.igErr: ${token?.igConnectionError}`);
 
              if (!token?.id || !Types.ObjectId.isValid(token.id)) {
                  logger.error(`${TAG_SESSION} Token ID inválido ou ausente ('${token?.id}') na sessão. Sessão será retornada vazia/padrão.`);
@@ -570,15 +586,17 @@ export const authOptions: NextAuthOptions = {
                  lastInstagramSyncAttempt: token.lastInstagramSyncAttempt ? (typeof token.lastInstagramSyncAttempt === 'string' ? token.lastInstagramSyncAttempt : new Date(token.lastInstagramSyncAttempt).toISOString()) : null,
                  lastInstagramSyncSuccess: token.lastInstagramSyncSuccess,
 
-                 planStatus: undefined, 
-                 planExpiresAt: null,
-                 affiliateCode: undefined,
+                 // << CORREÇÃO: Mapear planStatus e planExpiresAt do token para a sessão >>
+                 planStatus: token.planStatus ?? 'inactive', // Default para 'inactive' se não estiver no token
+                 planExpiresAt: token.planExpiresAt ? (typeof token.planExpiresAt === 'string' ? token.planExpiresAt : new Date(token.planExpiresAt).toISOString()) : null,
+                 
+                 affiliateCode: undefined, // Estes podem ser populados do token se estiverem lá
                  affiliateBalance: undefined,
                  affiliateRank: undefined,
                  affiliateInvites: undefined,
              };
              
-             logger.debug(`${TAG_SESSION} Finalizado. Session.user ID: ${session.user?.id}, isInstaConn: ${session.user?.instagramConnected}, igErr: ${session.user?.igConnectionError}`);
+             logger.debug(`${TAG_SESSION} Finalizado. Session.user ID: ${session.user?.id}, planStatus: ${session.user?.planStatus}, igErr: ${session.user?.igConnectionError}`);
              return session;
          },
 
