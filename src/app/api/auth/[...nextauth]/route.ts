@@ -1,7 +1,8 @@
 // src/app/api/auth/[...nextauth]/route.ts
-// VERSION: FBLinkNoNameImgUpdate+SyncStatus_ErrorPropagation_v2.1.4_planstatusfix
+// VERSION: FBLinkNoNameImgUpdate+SyncStatus_ErrorPropagation_v2.1.5_affiliatecodefix
 // - CORREÇÃO: planStatus agora é corretamente selecionado do DB no callback jwt e mapeado para a sessão no callback session.
-// - Mantém funcionalidades e correções da v2.1.3.
+// - CORREÇÃO: affiliateCode agora é corretamente populado no token JWT e mapeado para a sessão.
+// - Mantém funcionalidades e correções da v2.1.4.
 
 import NextAuth from "next-auth";
 import type { DefaultSession, DefaultUser, NextAuthOptions, Session, User as NextAuthUserArg, Account, Profile } from "next-auth";
@@ -23,7 +24,7 @@ import {
     clearInstagramConnection
 } from "@/app/lib/instagramService";
 
-// --- AUGMENT NEXT-AUTH TYPES (ALINHADO COM User.ts v1.9.5 e Plano) ---
+// --- AUGMENT NEXT-AUTH TYPES (ALINHADO COM User.ts v1.9.5 e Plano + AffiliateCode) ---
 declare module "next-auth" {
     interface User extends DefaultUser {
         id: string;
@@ -39,9 +40,9 @@ declare module "next-auth" {
         availableIgAccounts?: AvailableInstagramAccount[] | null;
         lastInstagramSyncAttempt?: Date | null;
         lastInstagramSyncSuccess?: boolean | null;
-        planStatus?: string | null; // Assegurar que está aqui
+        planStatus?: string | null;
         planExpiresAt?: Date | null;
-        affiliateCode?: string | null;
+        affiliateCode?: string | null; // <<<< GARANTIDO AQUI
         facebookProviderAccountId?: string | null;
         providerAccountId?: string | null;
     }
@@ -54,9 +55,9 @@ declare module "next-auth" {
         image?: string | null;
         provider?: string | null;
         role?: string | null;
-        planStatus?: string | null; // Assegurar que está aqui
+        planStatus?: string | null;
         planExpiresAt?: string | null;
-        affiliateCode?: string | null;
+        affiliateCode?: string | null; // <<<< GARANTIDO AQUI
         affiliateBalance?: number;
         affiliateRank?: number;
         affiliateInvites?: number;
@@ -93,9 +94,9 @@ declare module "next-auth/jwt" {
          availableIgAccounts?: AvailableInstagramAccount[] | null;
          lastInstagramSyncAttempt?: Date | string | null;
          lastInstagramSyncSuccess?: boolean | null;
-         planStatus?: string | null; // Assegurar que está aqui
-         planExpiresAt?: Date | string | null; // Adicionado para consistência
-
+         planStatus?: string | null;
+         planExpiresAt?: Date | string | null;
+         affiliateCode?: string | null; // <<<< ALTERAÇÃO AFFILIATECODE: Adicionado
          image?: string | null;
      }
 }
@@ -127,17 +128,14 @@ async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise
     if (cleanToken.lastInstagramSyncAttempt instanceof Date) {
         cleanToken.lastInstagramSyncAttempt = cleanToken.lastInstagramSyncAttempt.toISOString();
     }
-    // Adicionado para planExpiresAt
     if (cleanToken.planExpiresAt instanceof Date) {
         cleanToken.planExpiresAt = cleanToken.planExpiresAt.toISOString();
     }
-
 
     if (cleanToken.image && cleanToken.picture) delete cleanToken.picture;
 
     delete cleanToken.availableIgAccounts;
     delete cleanToken.instagramSyncErrorMsg;
-
 
     return new SignJWT(cleanToken)
         .setProtectedHeader({ alg: "HS256" })
@@ -171,7 +169,6 @@ async function customDecode({ token, secret }: JWTDecodeParams): Promise<JWT | n
         if (decodedPayload.lastInstagramSyncAttempt && typeof decodedPayload.lastInstagramSyncAttempt === 'string') {
             decodedPayload.lastInstagramSyncAttempt = new Date(decodedPayload.lastInstagramSyncAttempt);
         }
-        // Adicionado para planExpiresAt
         if (decodedPayload.planExpiresAt && typeof decodedPayload.planExpiresAt === 'string') {
             decodedPayload.planExpiresAt = new Date(decodedPayload.planExpiresAt);
         }
@@ -255,7 +252,8 @@ export const authOptions: NextAuthOptions = {
                         isNewUserForOnboarding: false,
                         onboardingCompletedAt: new Date(),
                         isInstagramConnected: false,
-                        planStatus: 'inactive', // Status do plano para o usuário demo
+                        planStatus: 'inactive',
+                        affiliateCode: 'DEMOCODE123', // <<<< ALTERAÇÃO AFFILIATECODE: Exemplo para demo user
                     };
                 }
                 logger.warn("[NextAuth Credentials DEBUG] Authorize para Demo User falhou.");
@@ -270,7 +268,7 @@ export const authOptions: NextAuthOptions = {
     },
     callbacks: {
         async signIn({ user: authUserFromProvider, account, profile }) {
-            const TAG_SIGNIN = '[NextAuth signIn v2.1.4]'; // Version bump
+            const TAG_SIGNIN = '[NextAuth signIn v2.1.5]'; // Version bump
             logger.debug(`${TAG_SIGNIN} Iniciado`, { providerAccountIdReceived: authUserFromProvider.id, provider: account?.provider, email: authUserFromProvider.email });
 
             if (!account || !account.provider || !authUserFromProvider?.id) {
@@ -280,8 +278,6 @@ export const authOptions: NextAuthOptions = {
 
             if (account.provider === 'credentials') {
                 logger.debug(`${TAG_SIGNIN} Permitindo login via Credentials (utilizador: ${authUserFromProvider.id}).`);
-                // Para Credentials, authUserFromProvider já contém os campos definidos no 'authorize'
-                // Incluindo planStatus se definido lá.
                 return true;
             }
 
@@ -369,11 +365,12 @@ export const authOptions: NextAuthOptions = {
                             communityInspirationOptInDate: new Date(),
                             communityInspirationTermsVersion: DEFAULT_TERMS_VERSION,
                             isInstagramConnected: false,
-                            planStatus: 'inactive', // Status inicial do plano
+                            planStatus: 'inactive',
+                            // affiliateCode será gerado pelo hook pre('save') no modelo User
                         });
                         dbUserRecord = await newUserInDb.save();
                         isNewUser = true;
-                        logger.info(`${TAG_SIGNIN} [Google] Novo utilizador Data2Content CRIADO com _id: '${dbUserRecord._id}'.`);
+                        logger.info(`${TAG_SIGNIN} [Google] Novo utilizador Data2Content CRIADO com _id: '${dbUserRecord._id}'. AffiliateCode gerado: ${dbUserRecord.affiliateCode}`);
                     }
                 }
 
@@ -381,9 +378,7 @@ export const authOptions: NextAuthOptions = {
                     authUserFromProvider.id = dbUserRecord._id.toString();
                     const resolvedName = dbUserRecord.name ?? nameFromProvider;
                     authUserFromProvider.name = resolvedName === null ? undefined : resolvedName;
-
                     authUserFromProvider.email = dbUserRecord.email ?? currentEmailFromProvider;
-
                     const resolvedImage = dbUserRecord.image ?? imageFromProvider;
                     authUserFromProvider.image = resolvedImage === null ? undefined : resolvedImage;
                     
@@ -395,13 +390,13 @@ export const authOptions: NextAuthOptions = {
                     (authUserFromProvider as NextAuthUserArg).lastInstagramSyncAttempt = dbUserRecord.lastInstagramSyncAttempt;
                     (authUserFromProvider as NextAuthUserArg).lastInstagramSyncSuccess = dbUserRecord.lastInstagramSyncSuccess;
                     (authUserFromProvider as NextAuthUserArg).instagramSyncErrorMsg = dbUserRecord.instagramSyncErrorMsg;
-                    (authUserFromProvider as NextAuthUserArg).planStatus = dbUserRecord.planStatus; // << CORREÇÃO: Popular do dbUserRecord
-                    (authUserFromProvider as NextAuthUserArg).planExpiresAt = dbUserRecord.planExpiresAt; // << CORREÇÃO: Popular do dbUserRecord
-                    (authUserFromProvider as NextAuthUserArg).affiliateCode = dbUserRecord.affiliateCode;
+                    (authUserFromProvider as NextAuthUserArg).planStatus = dbUserRecord.planStatus;
+                    (authUserFromProvider as NextAuthUserArg).planExpiresAt = dbUserRecord.planExpiresAt;
+                    (authUserFromProvider as NextAuthUserArg).affiliateCode = dbUserRecord.affiliateCode; // <<<< ALTERAÇÃO AFFILIATECODE: Garantindo que está aqui
                     (authUserFromProvider as NextAuthUserArg).instagramAccountId = dbUserRecord.instagramAccountId;
                     authUserFromProvider.instagramUsername = dbUserRecord.username; 
 
-                    logger.debug(`${TAG_SIGNIN} [${provider}] FINAL signIn. authUser.id (interno): '${authUserFromProvider.id}', planStatus: ${(authUserFromProvider as NextAuthUserArg).planStatus}`);
+                    logger.debug(`${TAG_SIGNIN} [${provider}] FINAL signIn. authUser.id (interno): '${authUserFromProvider.id}', planStatus: ${(authUserFromProvider as NextAuthUserArg).planStatus}, affiliateCode: ${(authUserFromProvider as NextAuthUserArg).affiliateCode}`);
                     return true;
                 } else {
                     logger.error(`${TAG_SIGNIN} [${provider}] dbUserRecord não foi definido. Falha no signIn.`);
@@ -415,8 +410,8 @@ export const authOptions: NextAuthOptions = {
         },
 
         async jwt({ token, user: userFromSignIn, account, trigger, session: updateSessionData }) {
-            const TAG_JWT = '[NextAuth JWT v2.1.4]'; // Version bump
-            logger.debug(`${TAG_JWT} Iniciado. Trigger: ${trigger}. UserID(signIn): ${userFromSignIn?.id}. TokenInID: ${token?.id}. Token.planStatus(in): ${token.planStatus}`);
+            const TAG_JWT = '[NextAuth JWT v2.1.5]'; // Version bump
+            logger.debug(`${TAG_JWT} Iniciado. Trigger: ${trigger}. UserID(signIn): ${userFromSignIn?.id}. TokenInID: ${token?.id}. Token.planStatus(in): ${token.planStatus}, Token.affiliateCode(in): ${token.affiliateCode}`);
 
             if (trigger !== 'update') {
                 delete token.igConnectionError;
@@ -425,7 +420,7 @@ export const authOptions: NextAuthOptions = {
 
             if ((trigger === 'signIn' || trigger === 'signUp') && userFromSignIn) {
                 token.id = userFromSignIn.id;
-                token.sub = userFromSignIn.id;
+                token.sub = userFromSignIn.id; // Geralmente o sub é o id do usuário
                 token.name = userFromSignIn.name;
                 token.email = userFromSignIn.email;
                 token.image = userFromSignIn.image;
@@ -439,10 +434,11 @@ export const authOptions: NextAuthOptions = {
                 token.lastInstagramSyncAttempt = (userFromSignIn as NextAuthUserArg).lastInstagramSyncAttempt;
                 token.lastInstagramSyncSuccess = (userFromSignIn as NextAuthUserArg).lastInstagramSyncSuccess;
                 token.igConnectionError = (userFromSignIn as NextAuthUserArg).instagramSyncErrorMsg ?? null;
-                token.planStatus = (userFromSignIn as NextAuthUserArg).planStatus; // << CORREÇÃO: Popular do userFromSignIn
-                token.planExpiresAt = (userFromSignIn as NextAuthUserArg).planExpiresAt; // << CORREÇÃO: Popular do userFromSignIn
+                token.planStatus = (userFromSignIn as NextAuthUserArg).planStatus;
+                token.planExpiresAt = (userFromSignIn as NextAuthUserArg).planExpiresAt;
+                token.affiliateCode = (userFromSignIn as NextAuthUserArg).affiliateCode; // <<<< ALTERAÇÃO AFFILIATECODE: Adicionado
 
-                logger.info(`${TAG_JWT} Token populado de userFromSignIn. ID: ${token.id}, planStatus: ${token.planStatus}`);
+                logger.info(`${TAG_JWT} Token populado de userFromSignIn. ID: ${token.id}, planStatus: ${token.planStatus}, affiliateCode: ${token.affiliateCode}`);
 
                 if (account?.provider === 'facebook' && token.id && Types.ObjectId.isValid(token.id)) {
                     const userId = token.id;
@@ -498,24 +494,24 @@ export const authOptions: NextAuthOptions = {
 
             if (token.id && Types.ObjectId.isValid(token.id)) {
                 const needsDbRefresh = trigger === 'update' ||
-                                      account?.provider === 'facebook' ||
-                                      !token.role || // Exemplo de dado que pode precisar de refresh
-                                      typeof token.isInstagramConnected === 'undefined' || // Exemplo
-                                      typeof token.planStatus === 'undefined'; // << CORREÇÃO: Adicionar verificação de planStatus
+                                      account?.provider === 'facebook' || // Sempre atualiza após login com Facebook para pegar status da conexão IG
+                                      !token.role || 
+                                      typeof token.isInstagramConnected === 'undefined' ||
+                                      typeof token.planStatus === 'undefined' ||
+                                      typeof token.affiliateCode === 'undefined'; // <<<< ALTERAÇÃO AFFILIATECODE: Adicionada verificação
 
                 if (needsDbRefresh) {
-                    logger.debug(`${TAG_JWT} Trigger '${trigger}' ou dados ausentes/login FB. Buscando dados frescos do DB para token ID: ${token.id}`);
+                    logger.debug(`${TAG_JWT} Trigger '${trigger}' ou dados ausentes/login FB/refresh necessário. Buscando dados frescos do DB para token ID: ${token.id}`);
                     try {
                         await connectToDatabase();
-                        // << CORREÇÃO: Adicionar planStatus e planExpiresAt ao select >>
                         const dbUser = await DbUser.findById(token.id)
-                            .select('name email image role provider providerAccountId facebookProviderAccountId isNewUserForOnboarding onboardingCompletedAt isInstagramConnected instagramAccountId username lastInstagramSyncAttempt lastInstagramSyncSuccess instagramSyncErrorMsg planStatus planExpiresAt affiliateCode')
+                            .select('name email image role provider providerAccountId facebookProviderAccountId isNewUserForOnboarding onboardingCompletedAt isInstagramConnected instagramAccountId username lastInstagramSyncAttempt lastInstagramSyncSuccess instagramSyncErrorMsg planStatus planExpiresAt affiliateCode') // affiliateCode já está no select
                             .lean<IUser>();
 
                         if (dbUser) {
                             token.name = dbUser.name ?? token.name;
                             token.email = dbUser.email ?? token.email;
-                            token.image = dbUser.image ?? token.image;
+                            token.image = dbUser.image ?? token.image; // Manter a imagem do token se a do DB for null e a do token existir
                             token.role = dbUser.role ?? token.role ?? 'user';
                             token.provider = dbUser.provider ?? (dbUser.facebookProviderAccountId ? 'facebook' : token.provider);
                             token.isNewUserForOnboarding = typeof dbUser.isNewUserForOnboarding === 'boolean' ? dbUser.isNewUserForOnboarding : token.isNewUserForOnboarding ?? false;
@@ -523,52 +519,58 @@ export const authOptions: NextAuthOptions = {
 
                             token.isInstagramConnected = dbUser.isInstagramConnected ?? false;
                             token.instagramAccountId = dbUser.instagramAccountId ?? null;
-                            token.instagramUsername = dbUser.username ?? null;
+                            token.instagramUsername = dbUser.username ?? null; // 'username' no IUser é o instagram username
                             token.lastInstagramSyncAttempt = dbUser.lastInstagramSyncAttempt ?? null;
                             token.lastInstagramSyncSuccess = dbUser.lastInstagramSyncSuccess ?? null;
                             
                             token.igConnectionError = dbUser.instagramSyncErrorMsg || token.igConnectionError || null;
-                            if (token.isInstagramConnected && !dbUser.instagramSyncErrorMsg) {
+                            if (token.isInstagramConnected && !dbUser.instagramSyncErrorMsg) { // Se conectado e SEM erro no DB, limpa erro do token
                                 delete token.igConnectionError;
                             }
-                            // << CORREÇÃO: Atualizar planStatus e planExpiresAt do DB >>
+                            
                             token.planStatus = dbUser.planStatus ?? token.planStatus ?? 'inactive';
                             token.planExpiresAt = dbUser.planExpiresAt ?? token.planExpiresAt ?? null;
+                            token.affiliateCode = dbUser.affiliateCode ?? token.affiliateCode ?? null; // <<<< ALTERAÇÃO AFFILIATECODE: Adicionado/Garantido
 
 
-                            logger.info(`${TAG_JWT} Token enriquecido/atualizado do DB. ID: ${token.id}, isInstaConn: ${token.isInstagramConnected}, planStatus: ${token.planStatus}, igConnErr: ${token.igConnectionError}`);
+                            logger.info(`${TAG_JWT} Token enriquecido/atualizado do DB. ID: ${token.id}, isInstaConn: ${token.isInstagramConnected}, planStatus: ${token.planStatus}, affiliateCode: ${token.affiliateCode}, igConnErr: ${token.igConnectionError}`);
                         } else {
                             logger.warn(`${TAG_JWT} Utilizador ${token.id} não encontrado no DB durante refresh de token. Invalidando token.`);
-                            return {} as JWT;
+                            return {} as JWT; // Retorna token vazio para invalidar
                         }
                     } catch (error) {
                         logger.error(`${TAG_JWT} Erro ao buscar dados do DB para enriquecer/atualizar token ${token.id}:`, error);
+                        // Não invalidar o token aqui necessariamente, pode ser um erro temporário de DB
                     }
                 }
             } else {
-                if (trigger !== 'signIn' && trigger !== 'signUp') {
+                 // Se não há token.id (exceto no primeiro signIn/signUp onde userFromSignIn ainda não foi processado para token)
+                if (trigger !== 'signIn' && trigger !== 'signUp') { // Evita warning/erro desnecessário no primeiro fluxo
                     logger.warn(`${TAG_JWT} Token com ID inválido ou ausente ('${token.id}') fora do login/signup. Invalidando.`);
                     return {} as JWT;
                 }
-                logger.error(`${TAG_JWT} Token com ID inválido ou ausente ('${token.id}') DURANTE ${trigger}. Isso não deveria acontecer. Invalidando.`);
-                return {} as JWT;
+                 // Este log pode ser muito verboso se userFromSignIn for avaliado antes de token.id ser setado no primeiro JWT call
+                 // logger.error(`${TAG_JWT} Token com ID inválido ou ausente ('${token.id}') DURANTE ${trigger}. Isso não deveria acontecer. Invalidando.`);
+                 // return {} as JWT;
             }
 
-            if (token.image && (token as any).picture) delete (token as any).picture;
-            logger.debug(`${TAG_JWT} FINAL jwt. Token id: '${token.id}', planStatus: ${token.planStatus}, igErr: ${token.igConnectionError ? 'Sim' : 'Não'}`);
+            // Limpeza final
+            if (token.image && (token as any).picture) delete (token as any).picture; // Remove 'picture' se 'image' já existe e tem valor
+            logger.debug(`${TAG_JWT} FINAL jwt. Token id: '${token.id}', planStatus: ${token.planStatus}, affiliateCode: ${token.affiliateCode}, igErr: ${token.igConnectionError ? 'Sim' : 'Não'}`);
             return token;
         },
 
         async session({ session, token }) {
-             const TAG_SESSION = '[NextAuth Session v2.1.4]'; // Version bump
-             logger.debug(`${TAG_SESSION} Iniciado. Token ID: ${token?.id}, Token.planStatus: ${token?.planStatus}, Token.igErr: ${token?.igConnectionError}`);
+             const TAG_SESSION = '[NextAuth Session v2.1.5]'; // Version bump
+             logger.debug(`${TAG_SESSION} Iniciado. Token ID: ${token?.id}, Token.planStatus: ${token?.planStatus}, Token.affiliateCode: ${token?.affiliateCode}, Token.igErr: ${token?.igConnectionError}`);
 
-             if (!token?.id || !Types.ObjectId.isValid(token.id)) {
+             if (!token?.id || !Types.ObjectId.isValid(token.id)) { // Verifica se token.id existe e é um ObjectId válido
                  logger.error(`${TAG_SESSION} Token ID inválido ou ausente ('${token?.id}') na sessão. Sessão será retornada vazia/padrão.`);
-                 session.user = undefined;
+                 session.user = undefined; // Limpa o usuário da sessão
                  return session;
              }
 
+             // Mapeia os campos do token para session.user
              session.user = {
                  id: token.id,
                  name: token.name,
@@ -579,24 +581,24 @@ export const authOptions: NextAuthOptions = {
                  isNewUserForOnboarding: token.isNewUserForOnboarding,
                  onboardingCompletedAt: token.onboardingCompletedAt ? (typeof token.onboardingCompletedAt === 'string' ? token.onboardingCompletedAt : new Date(token.onboardingCompletedAt).toISOString()) : null,
 
-                 instagramConnected: token.isInstagramConnected === null ? undefined : token.isInstagramConnected,
+                 instagramConnected: token.isInstagramConnected === null ? undefined : token.isInstagramConnected, // Trata null do token para undefined na session se necessário
                  instagramAccountId: token.instagramAccountId,
                  instagramUsername: token.instagramUsername,
-                 igConnectionError: token.igConnectionError,
+                 igConnectionError: token.igConnectionError, // Mantém o erro se existir no token
+                 // availableIgAccounts não é passado para a sessão usualmente, pois pode ser grande e é mais para o momento do login/conexão
                  lastInstagramSyncAttempt: token.lastInstagramSyncAttempt ? (typeof token.lastInstagramSyncAttempt === 'string' ? token.lastInstagramSyncAttempt : new Date(token.lastInstagramSyncAttempt).toISOString()) : null,
                  lastInstagramSyncSuccess: token.lastInstagramSyncSuccess,
 
-                 // << CORREÇÃO: Mapear planStatus e planExpiresAt do token para a sessão >>
-                 planStatus: token.planStatus ?? 'inactive', // Default para 'inactive' se não estiver no token
+                 planStatus: token.planStatus ?? 'inactive', 
                  planExpiresAt: token.planExpiresAt ? (typeof token.planExpiresAt === 'string' ? token.planExpiresAt : new Date(token.planExpiresAt).toISOString()) : null,
                  
-                 affiliateCode: undefined, // Estes podem ser populados do token se estiverem lá
-                 affiliateBalance: undefined,
+                 affiliateCode: token.affiliateCode, // <<<< ALTERAÇÃO AFFILIATECODE: Mapeado do token
+                 affiliateBalance: undefined, // Estes seriam populados se estivessem no token e fossem necessários na sessão
                  affiliateRank: undefined,
                  affiliateInvites: undefined,
              };
              
-             logger.debug(`${TAG_SESSION} Finalizado. Session.user ID: ${session.user?.id}, planStatus: ${session.user?.planStatus}, igErr: ${session.user?.igConnectionError}`);
+             logger.debug(`${TAG_SESSION} Finalizado. Session.user ID: ${session.user?.id}, planStatus: ${session.user?.planStatus}, affiliateCode: ${session.user?.affiliateCode}, igErr: ${session.user?.igConnectionError}`);
              return session;
          },
 
@@ -613,11 +615,11 @@ export const authOptions: NextAuthOptions = {
     },
     pages: {
         signIn: '/login',
-        error: '/auth/error'
+        error: '/auth/error' // Página para exibir erros de autenticação (ex: /auth/error?error=CredentialsSignin)
     },
     session: {
         strategy: 'jwt',
-        maxAge: 30 * 24 * 60 * 60
+        maxAge: 30 * 24 * 60 * 60 // 30 dias
     }
 };
 
