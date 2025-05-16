@@ -1,5 +1,6 @@
 // src/app/api/auth/[...nextauth]/route.ts
-// VERSÃO: Correção para propagar instagramAccessToken para session.user
+// VERSÃO: v2.2.0 - Adicionado 'business_management' ao escopo do FacebookProvider.
+// - Mantém funcionalidades da versão anterior.
 
 import NextAuth from "next-auth";
 import type { DefaultSession, DefaultUser, NextAuthOptions, Session, User as NextAuthUserArg, Account, Profile } from "next-auth";
@@ -33,7 +34,7 @@ declare module "next-auth" {
         igConnectionError?: string | null;
         instagramSyncErrorMsg?: string | null; 
         availableIgAccounts?: ServiceAvailableIgAccount[] | null; 
-        instagramAccessToken?: string | null; // LLAT do IG, vindo do DB/signIn
+        instagramAccessToken?: string | null; 
         lastInstagramSyncAttempt?: Date | null;
         lastInstagramSyncSuccess?: boolean | null;
         planStatus?: string | null;
@@ -63,7 +64,7 @@ declare module "next-auth" {
         instagramUsername?: string | null;
         igConnectionError?: string | null;
         availableIgAccounts?: ServiceAvailableIgAccount[] | null; 
-        instagramAccessToken?: string | null; // <<< ADICIONADO AQUI para ser acessível na sessão do cliente/servidor
+        instagramAccessToken?: string | null; 
         lastInstagramSyncAttempt?: string | null;
         lastInstagramSyncSuccess?: boolean | null;
 
@@ -88,7 +89,7 @@ declare module "next-auth/jwt" {
          instagramUsername?: string | null;
          igConnectionError?: string | null;
          availableIgAccounts?: ServiceAvailableIgAccount[] | null;
-         instagramAccessToken?: string | null; // LLAT do IG, armazenado no token JWT
+         instagramAccessToken?: string | null; 
          lastInstagramSyncAttempt?: Date | string | null;
          lastInstagramSyncSuccess?: boolean | null;
          planStatus?: string | null;
@@ -145,7 +146,6 @@ async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise
         }
     }
     
-    // logger.debug(`${TAG_ENCODE} Payload final do token para SignJWT:`, cleanToken); // Log pode ser muito verboso
     return new SignJWT(cleanToken)
         .setProtectedHeader({ alg: "HS256" })
         .setIssuedAt()
@@ -225,7 +225,8 @@ export const authOptions: NextAuthOptions = {
             clientSecret: process.env.FACEBOOK_CLIENT_SECRET!,
             authorization: {
                 params: {
-                    scope: 'email,public_profile,pages_show_list,pages_read_engagement,instagram_basic,instagram_manage_insights',
+                    // ATUALIZADO: Adicionada a permissão 'business_management'
+                    scope: 'email,public_profile,pages_show_list,pages_read_engagement,instagram_basic,instagram_manage_insights,business_management',
                     auth_type: 'rerequest' 
                 }
             },
@@ -273,7 +274,7 @@ export const authOptions: NextAuthOptions = {
     },
     callbacks: {
         async signIn({ user: authUserFromProvider, account, profile }) {
-            const TAG_SIGNIN = '[NextAuth signIn v2.1.7_ig_selection_flow_FIXED_TYPE_v2]'; 
+            const TAG_SIGNIN = '[NextAuth signIn v2.1.7_ig_selection_flow_FIXED_TYPE_v2]'; // Mantenha a sua versão de log
             logger.debug(`${TAG_SIGNIN} Iniciado`, { providerAccountIdReceived: authUserFromProvider.id, provider: account?.provider, email: authUserFromProvider.email });
 
             if (!account || !account.provider || !authUserFromProvider?.id) {
@@ -326,6 +327,7 @@ export const authOptions: NextAuthOptions = {
                             if (account?.access_token) {
                                 logger.info(`${TAG_SIGNIN} [Facebook] Obtendo contas Instagram e LLAT do IG para User ${dbUserRecord._id} usando o token de acesso do Facebook.`);
                                 try {
+                                    // A função fetchAvailableInstagramAccounts já é a v3.0+ que tenta o Business Manager
                                     const igAccountsResult = await fetchAvailableInstagramAccounts(account.access_token, dbUserRecord._id.toString());
                                     
                                     if (igAccountsResult.success) {
@@ -446,7 +448,7 @@ export const authOptions: NextAuthOptions = {
         },
 
         async jwt({ token, user: userFromSignIn, account, trigger, session: updateSessionData }) {
-            const TAG_JWT = '[NextAuth JWT v2.1.7_ig_selection_flow_FIXED_TYPE_v2]'; 
+            const TAG_JWT = '[NextAuth JWT v2.1.7_ig_selection_flow_FIXED_TYPE_v2]'; // Mantenha a sua versão de log
             logger.debug(`${TAG_JWT} Iniciado. Trigger: ${trigger}. UserID(signIn): ${userFromSignIn?.id}. TokenInID: ${token?.id}. Token.planStatus(in): ${token.planStatus}, Token.affiliateCode(in): ${token.affiliateCode}`);
 
             if ((trigger === 'signIn' || trigger === 'signUp') && userFromSignIn) {
@@ -548,7 +550,7 @@ export const authOptions: NextAuthOptions = {
         },
 
         async session({ session, token }) {
-            const TAG_SESSION = '[NextAuth Session v2.1.7_ig_selection_flow_FIXED_TYPE_v2]'; 
+            const TAG_SESSION = '[NextAuth Session v2.1.7_ig_selection_flow_FIXED_TYPE_v2]'; // Mantenha a sua versão de log
             logger.debug(`${TAG_SESSION} Iniciado. Token ID: ${token?.id}, Token.planStatus (vindo do token JWT): ${token?.planStatus}, Token.affiliateCode: ${token?.affiliateCode}`);
 
             if (!token?.id || !Types.ObjectId.isValid(token.id)) {
@@ -572,7 +574,6 @@ export const authOptions: NextAuthOptions = {
             session.user.instagramUsername = token.instagramUsername;
             session.user.igConnectionError = token.igConnectionError;
             session.user.availableIgAccounts = token.availableIgAccounts; 
-            // <<< CORREÇÃO: Propagar instagramAccessToken do token para session.user >>>
             session.user.instagramAccessToken = token.instagramAccessToken; 
             session.user.lastInstagramSyncAttempt = token.lastInstagramSyncAttempt ? (typeof token.lastInstagramSyncAttempt === 'string' ? token.lastInstagramSyncAttempt : new Date(token.lastInstagramSyncAttempt).toISOString()) : null;
             session.user.lastInstagramSyncSuccess = token.lastInstagramSyncSuccess;
