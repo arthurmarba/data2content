@@ -1,21 +1,22 @@
-// @/app/models/User.ts - v1.9.7 (Adicionado availableIgAccounts)
-// - ADICIONADO: Campo 'availableIgAccounts' para armazenar contas IG disponíveis após vinculação com Facebook.
-// - ADICIONADO: Schema e Interface para 'IAvailableInstagramAccount'.
-// - Mantém funcionalidades da v1.9.6 (logs de diagnóstico para affiliateCode).
+// @/app/models/User.ts - v1.9.8 (Campos adicionais em availableIgAccounts)
+// - ATUALIZADO: Adicionados campos opcionais 'username' e 'profile_picture_url'
+//   à interface 'IAvailableInstagramAccount' e ao 'AvailableInstagramAccountSchema'
+//   para alinhar com os dados retornados por 'fetchAvailableInstagramAccounts v3.0+'.
+// - Mantém funcionalidades da v1.9.7.
 
 import { Schema, model, models, Document, Model, Types } from "mongoose";
 import { logger } from "@/app/lib/logger"; // Importar o logger
 
 /**
  * Interface para uma conta do Instagram disponível.
- * Esta interface deve ser estruturalmente compatível com o tipo
- * 'AvailableInstagramAccount' retornado pela função 'fetchAvailableInstagramAccounts'
- * no seu 'instagramService.ts'.
+ * ATUALIZADO v1.9.8: Adicionados username e profile_picture_url.
  */
 export interface IAvailableInstagramAccount {
   igAccountId: string;
   pageId: string; // ID da Página do Facebook associada
   pageName: string; // Nome da Página do Facebook associada
+  username?: string; // Username da conta IG (opcional)
+  profile_picture_url?: string; // URL da foto de perfil da conta IG (opcional)
 }
 
 /**
@@ -44,7 +45,7 @@ export type UserExpertiseLevel = 'iniciante' | 'intermediario' | 'avancado';
 
 /**
  * Interface que descreve um documento de usuário.
- * ATUALIZADO v1.9.7: Adicionado 'availableIgAccounts'.
+ * ATUALIZADO v1.9.8: Campos em IAvailableInstagramAccount atualizados.
  */
 export interface IUser extends Document {
   _id: Types.ObjectId;
@@ -57,13 +58,13 @@ export interface IUser extends Document {
   facebookProviderAccountId?: string;
 
   // --- CAMPOS DA INTEGRAÇÃO INSTAGRAM ---
-  instagramAccessToken?: string; // Armazena o LLAT do Instagram do usuário
-  instagramAccountId?: string | null; // ID da conta IG específica que foi conectada
+  instagramAccessToken?: string; 
+  instagramAccountId?: string | null; 
   isInstagramConnected?: boolean;
   lastInstagramSyncAttempt?: Date | null;
   lastInstagramSyncSuccess?: boolean | null;
   instagramSyncErrorMsg?: string | null;
-  username?: string | null; // Username da conta IG específica conectada
+  username?: string | null; 
   biography?: string;
   website?: string;
   profile_picture_url?: string;
@@ -73,7 +74,6 @@ export interface IUser extends Document {
   is_published?: boolean;
   shopping_product_tag_eligibility?: boolean;
 
-  // >>> NOVO CAMPO: Lista de contas IG disponíveis após vincular Facebook <<<
   availableIgAccounts?: IAvailableInstagramAccount[] | null;
 
   // --- CAMPOS DE VINCULAÇÃO TEMPORÁRIA ---
@@ -92,7 +92,7 @@ export interface IUser extends Document {
   goal?: string;
   affiliateRank?: number;
   affiliateInvites?: number;
-  affiliateCode?: string; // Campo para o código de afiliado
+  affiliateCode?: string; 
   affiliateUsed?: string;
   affiliateBalance?: number;
   commissionLog?: ICommissionLogEntry[];
@@ -147,17 +147,22 @@ const lastCommunityInspirationShownSchema = new Schema<ILastCommunityInspiration
   inspirationIds: [{ type: Schema.Types.ObjectId, ref: 'CommunityInspiration' }]
 }, { _id: false });
 
-// >>> NOVO SCHEMA PARA O SUBDOCUMENTO DE CONTAS IG DISPONÍVEIS <<<
+/**
+ * Schema para o subdocumento de contas IG disponíveis.
+ * ATUALIZADO v1.9.8: Adicionados username e profile_picture_url.
+ */
 const AvailableInstagramAccountSchema = new Schema<IAvailableInstagramAccount>({
   igAccountId: { type: String, required: true },
   pageId: { type: String, required: true },
   pageName: { type: String, required: true },
-}, { _id: false }); // _id: false porque é um subdocumento em um array
+  username: { type: String }, // Opcional
+  profile_picture_url: { type: String }, // Opcional
+}, { _id: false }); 
 
 
 /**
  * Definição do Schema para o User
- * ATUALIZADO v1.9.7: Adicionado campo e schema para availableIgAccounts.
+ * ATUALIZADO v1.9.8: Campos em AvailableInstagramAccountSchema atualizados.
  */
 const userSchema = new Schema<IUser>(
   {
@@ -176,13 +181,13 @@ const userSchema = new Schema<IUser>(
     facebookProviderAccountId: { type: String, index: true, sparse: true },
 
     // --- CAMPOS DA INTEGRAÇÃO INSTAGRAM ---
-    instagramAccessToken: { type: String }, // LLAT do Instagram do usuário
-    instagramAccountId: { type: String, index: true, default: null }, // ID da conta IG específica conectada
+    instagramAccessToken: { type: String }, 
+    instagramAccountId: { type: String, index: true, default: null }, 
     isInstagramConnected: { type: Boolean, default: false },
     lastInstagramSyncAttempt: { type: Date, default: null },
     lastInstagramSyncSuccess: { type: Boolean, default: null },
     instagramSyncErrorMsg: { type: String, default: null },
-    username: { type: String, sparse: true, default: null }, // Username da conta IG específica conectada
+    username: { type: String, sparse: true, default: null }, 
     biography: { type: String },
     website: { type: String },
     profile_picture_url: { type: String },
@@ -192,8 +197,7 @@ const userSchema = new Schema<IUser>(
     is_published: { type: Boolean },
     shopping_product_tag_eligibility: { type: Boolean },
 
-    // >>> NOVO CAMPO NO SCHEMA <<<
-    availableIgAccounts: { type: [AvailableInstagramAccountSchema], default: null }, // Array de contas disponíveis
+    availableIgAccounts: { type: [AvailableInstagramAccountSchema], default: null }, 
 
     // --- CAMPOS DE VINCULAÇÃO TEMPORÁRIA ---
     linkToken: { type: String, index: true, sparse: true },
@@ -211,7 +215,7 @@ const userSchema = new Schema<IUser>(
     goal: { type: String, default: null },
     affiliateRank: { type: Number, default: 1 },
     affiliateInvites: { type: Number, default: 0 },
-    affiliateCode: { type: String, unique: true, sparse: true }, // Sem default aqui para o hook funcionar
+    affiliateCode: { type: String, unique: true, sparse: true }, 
     affiliateUsed: { type: String, default: null },
     affiliateBalance: { type: Number, default: 0 },
     commissionLog: { type: [commissionLogEntrySchema], default: [] },
@@ -242,13 +246,12 @@ const userSchema = new Schema<IUser>(
 
   },
   {
-    timestamps: true, // Adiciona createdAt e updatedAt automaticamente
+    timestamps: true, 
   }
 );
 
 userSchema.pre<IUser>("save", function (next) {
   const TAG_PRE_SAVE = '[User.ts pre-save]';
-  // Adicionados logs para depuração da geração do affiliateCode
   logger.debug(`${TAG_PRE_SAVE} Hook acionado. User ID (antes de salvar, pode ser undefined se novo): ${this._id}, Email: ${this.email}`);
   logger.debug(`${TAG_PRE_SAVE} this.isNew: ${this.isNew}, this.affiliateCode (antes): '${this.affiliateCode}' (tipo: ${typeof this.affiliateCode})`);
 
@@ -264,16 +267,7 @@ userSchema.pre<IUser>("save", function (next) {
      logger.warn(`${TAG_PRE_SAVE} Condição para gerar affiliateCode não atendida, mas usuário é novo e sem código. isNew: ${this.isNew}, affiliateCode: ${this.affiliateCode}. Email: ${this.email}`);
   }
 
-  // Lógica para isInstagramConnected:
-  // Esta lógica pode precisar ser reavaliada.
-  // Normalmente, isInstagramConnected só deve ser true após a seleção explícita de uma conta IG
-  // e a chamada bem-sucedida a connectInstagramAccount.
-  // O processo de signIn com Facebook agora definirá isInstagramConnected = false inicialmente,
-  // e availableIgAccounts será populado.
-  // Manter esta lógica aqui pode causar isInstagramConnected = true prematuramente se um instagramAccountId
-  // antigo existir, mesmo que o usuário precise selecionar uma conta novamente.
-  // Considere remover ou ajustar esta lógica específica de isInstagramConnected no pre-save.
-  if (this.isModified('instagramAccountId') || this.isNew) { // Apenas se instagramAccountId estiver sendo modificado ou for novo usuário
+  if (this.isModified('instagramAccountId') || this.isNew) { 
     if (this.instagramAccountId && this.instagramAccountId.trim() !== '') {
         // this.isInstagramConnected = true; // Comentado - deve ser definido por connectInstagramAccount
     } else {
@@ -281,8 +275,6 @@ userSchema.pre<IUser>("save", function (next) {
     }
   }
 
-
-  // Garante que se onboardingCompletedAt estiver preenchido, isNewUserForOnboarding seja false
   if (this.onboardingCompletedAt && this.isNewUserForOnboarding) {
     logger.debug(`${TAG_PRE_SAVE} Usuário completou onboarding. Setando isNewUserForOnboarding para false. Email: ${this.email}`);
     this.isNewUserForOnboarding = false;
@@ -291,7 +283,6 @@ userSchema.pre<IUser>("save", function (next) {
   next();
 });
 
-// Tenta obter o modelo existente ou cria um novo se não existir.
 const UserModel: Model<IUser> = models.User || model<IUser>("User", userSchema);
 
 export default UserModel;
