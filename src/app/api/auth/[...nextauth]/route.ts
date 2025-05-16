@@ -1,10 +1,5 @@
 // src/app/api/auth/[...nextauth]/route.ts
-// VERSION: FBLinkNoNameImgUpdate+SyncStatus_ErrorPropagation_v2.1.7_ig_selection_flow_FIXED_TYPE_v2
-// - CORRIGIDO: Type error na atribuição de instagramAccessToken (null vs undefined).
-// - Mantém a lógica de buscar contas Instagram disponíveis e LLAT do IG durante o signIn com Facebook.
-// - ATUALIZADO: Importação do instagramService para a nova estrutura modular.
-// - CORRIGIDO: Erro de clonagem [object Array] em customEncode.
-// - CORRIGIDO: Erro de digitação no log do callback jwt para igLlatSet.
+// VERSÃO: Correção para propagar instagramAccessToken para session.user
 
 import NextAuth from "next-auth";
 import type { DefaultSession, DefaultUser, NextAuthOptions, Session, User as NextAuthUserArg, Account, Profile } from "next-auth";
@@ -38,7 +33,7 @@ declare module "next-auth" {
         igConnectionError?: string | null;
         instagramSyncErrorMsg?: string | null; 
         availableIgAccounts?: ServiceAvailableIgAccount[] | null; 
-        instagramAccessToken?: string | null; 
+        instagramAccessToken?: string | null; // LLAT do IG, vindo do DB/signIn
         lastInstagramSyncAttempt?: Date | null;
         lastInstagramSyncSuccess?: boolean | null;
         planStatus?: string | null;
@@ -68,6 +63,7 @@ declare module "next-auth" {
         instagramUsername?: string | null;
         igConnectionError?: string | null;
         availableIgAccounts?: ServiceAvailableIgAccount[] | null; 
+        instagramAccessToken?: string | null; // <<< ADICIONADO AQUI para ser acessível na sessão do cliente/servidor
         lastInstagramSyncAttempt?: string | null;
         lastInstagramSyncSuccess?: boolean | null;
 
@@ -92,7 +88,7 @@ declare module "next-auth/jwt" {
          instagramUsername?: string | null;
          igConnectionError?: string | null;
          availableIgAccounts?: ServiceAvailableIgAccount[] | null;
-         instagramAccessToken?: string | null; 
+         instagramAccessToken?: string | null; // LLAT do IG, armazenado no token JWT
          lastInstagramSyncAttempt?: Date | string | null;
          lastInstagramSyncSuccess?: boolean | null;
          planStatus?: string | null;
@@ -123,9 +119,8 @@ async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise
     });
 
     if (!cleanToken.id && cleanToken.sub) cleanToken.id = cleanToken.sub;
-    else if (!cleanToken.id) cleanToken.id = ''; // Garante que id sempre exista
+    else if (!cleanToken.id) cleanToken.id = ''; 
 
-    // Serializa datas para strings ISO
     if (cleanToken.onboardingCompletedAt instanceof Date) {
         cleanToken.onboardingCompletedAt = cleanToken.onboardingCompletedAt.toISOString();
     }
@@ -136,27 +131,21 @@ async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise
         cleanToken.planExpiresAt = cleanToken.planExpiresAt.toISOString();
     }
 
-    // Limpa campos redundantes ou não serializáveis
     if (cleanToken.image && cleanToken.picture) delete cleanToken.picture;
-    delete cleanToken.instagramSyncErrorMsg; // Este campo é usado internamente e não deve ir para o token final
+    delete cleanToken.instagramSyncErrorMsg; 
 
-    // CORREÇÃO PARA DataCloneError: [object Array] could not be cloned.
-    // Garante que availableIgAccounts seja um array de POJOs puros.
     if (cleanToken.availableIgAccounts && Array.isArray(cleanToken.availableIgAccounts)) {
         try {
-            // Força a conversão para POJOs puros através de serialização/desserialização JSON
-            // Isso remove quaisquer protótipos ou métodos que possam interferir com structuredClone
             cleanToken.availableIgAccounts = JSON.parse(JSON.stringify(cleanToken.availableIgAccounts));
             logger.debug(`${TAG_ENCODE} availableIgAccounts serializado para JWT.`);
         } catch (e) {
             logger.error(`${TAG_ENCODE} Erro ao serializar/desserializar availableIgAccounts:`, e);
-            // Opção segura: remove o campo se a serialização falhar para não quebrar o login.
             delete cleanToken.availableIgAccounts;
             logger.warn(`${TAG_ENCODE} Campo availableIgAccounts removido do token devido a erro de serialização.`);
         }
     }
     
-    logger.debug(`${TAG_ENCODE} Payload final do token para SignJWT:`, cleanToken);
+    // logger.debug(`${TAG_ENCODE} Payload final do token para SignJWT:`, cleanToken); // Log pode ser muito verboso
     return new SignJWT(cleanToken)
         .setProtectedHeader({ alg: "HS256" })
         .setIssuedAt()
@@ -180,7 +169,6 @@ async function customDecode({ token, secret }: JWTDecodeParams): Promise<JWT | n
         } else if (!decodedPayload.id) {
             decodedPayload.id = '';
         }
-        // Desserializa datas de strings ISO para objetos Date
         if (decodedPayload.onboardingCompletedAt && typeof decodedPayload.onboardingCompletedAt === 'string') {
             decodedPayload.onboardingCompletedAt = new Date(decodedPayload.onboardingCompletedAt);
         }
@@ -190,7 +178,7 @@ async function customDecode({ token, secret }: JWTDecodeParams): Promise<JWT | n
         if (decodedPayload.planExpiresAt && typeof decodedPayload.planExpiresAt === 'string') {
             decodedPayload.planExpiresAt = new Date(decodedPayload.planExpiresAt);
         }
-        if (decodedPayload.picture && !decodedPayload.image) { // Compatibilidade com alguns providers
+        if (decodedPayload.picture && !decodedPayload.image) { 
             decodedPayload.image = decodedPayload.picture;
         }
         return decodedPayload as JWT;
@@ -485,7 +473,6 @@ export const authOptions: NextAuthOptions = {
                 token.planExpiresAt = (userFromSignIn as NextAuthUserArg).planExpiresAt;
                 token.affiliateCode = (userFromSignIn as NextAuthUserArg).affiliateCode;
 
-                // CORREÇÃO DE LOG: Usar template literal corretamente
                 logger.info(`${TAG_JWT} Token populado de userFromSignIn. ID: ${token.id}, planStatus: ${token.planStatus}, igAccounts: ${token.availableIgAccounts?.length}, igLlatSet: ${!!token.instagramAccessToken}`);
             }
 
@@ -585,6 +572,8 @@ export const authOptions: NextAuthOptions = {
             session.user.instagramUsername = token.instagramUsername;
             session.user.igConnectionError = token.igConnectionError;
             session.user.availableIgAccounts = token.availableIgAccounts; 
+            // <<< CORREÇÃO: Propagar instagramAccessToken do token para session.user >>>
+            session.user.instagramAccessToken = token.instagramAccessToken; 
             session.user.lastInstagramSyncAttempt = token.lastInstagramSyncAttempt ? (typeof token.lastInstagramSyncAttempt === 'string' ? token.lastInstagramSyncAttempt : new Date(token.lastInstagramSyncAttempt).toISOString()) : null;
             session.user.lastInstagramSyncSuccess = token.lastInstagramSyncSuccess;
 

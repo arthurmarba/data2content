@@ -6,7 +6,8 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { connectInstagramAccount } from '@/app/lib/instagram'; 
 import { logger } from '@/app/lib/logger';
 import mongoose from 'mongoose';
-import type { JWT } from "next-auth/jwt"; // Importar o tipo JWT estendido
+// Importar o tipo Session estendido para ter acesso aos campos personalizados em session.user
+import type { Session } from "next-auth"; 
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic'; 
@@ -15,28 +16,36 @@ interface RequestBody {
   instagramAccountId?: string;
 }
 
+// Tipo para o usuário da sessão com campos do Instagram (para melhor type-safety)
+type SessionUserWithInstagram = NonNullable<Session['user']> & {
+    instagramAccessToken?: string | null;
+    // Adicione outros campos que você espera em session.user aqui
+};
+
+
 export async function POST(request: NextRequest) {
   const TAG = '[API /instagram/connect-selected-account]';
   logger.info(`${TAG} Recebida requisição POST.`);
 
   try {
-    // 1. Obter a sessão do usuário (que é o token JWT decodificado em API Routes)
-    // Fazemos um cast para o nosso tipo JWT estendido para ter acesso aos campos personalizados.
-    const session = await getServerSession(authOptions) as JWT | null;
+    // 1. Obter a sessão do usuário
+    const sessionObject = await getServerSession(authOptions);
 
-    // Validação robusta da sessão e do ID do usuário (que vem do token.id)
-    if (!session?.id || !mongoose.Types.ObjectId.isValid(session.id)) {
-      logger.warn(`${TAG} Tentativa de conectar conta sem sessão válida ou ID de usuário inválido. Session ID (do token): ${session?.id}`);
+    // Validação robusta da sessão e do ID do usuário
+    if (!sessionObject?.user?.id || !mongoose.Types.ObjectId.isValid(sessionObject.user.id)) {
+      logger.warn(`${TAG} Tentativa de conectar conta sem sessão válida ou ID de usuário inválido. User ID: ${sessionObject?.user?.id}`);
+      logger.debug(`${TAG} Conteúdo completo do objeto sessionObject:`, JSON.stringify(sessionObject, null, 2));
       return NextResponse.json({ error: 'Não autorizado. Sessão ou ID de usuário inválido.' }, { status: 401 });
     }
-    const userId = session.id; // O ID do usuário é o 'id' (ou 'sub') do token JWT
+    const userId = sessionObject.user.id;
+    const userFromSession = sessionObject.user as SessionUserWithInstagram; // Cast para nosso tipo estendido
 
-    // Acessar instagramAccessToken diretamente do objeto session (que é o token JWT)
-    const userInstagramLLAT = session.instagramAccessToken;
+    // Acessar instagramAccessToken de session.user (após correção no callback session)
+    const userInstagramLLAT = userFromSession.instagramAccessToken;
 
     if (!userInstagramLLAT) {
-        logger.error(`${TAG} Token de acesso de longa duração do Instagram (instagramAccessToken) não encontrado no token JWT para User ID: ${userId}.`);
-        logger.debug(`${TAG} Conteúdo do token JWT para depuração:`, JSON.stringify(session, null, 2)); // Log para depuração
+        logger.error(`${TAG} Token de acesso de longa duração do Instagram (instagramAccessToken) não encontrado em session.user para User ID: ${userId}.`);
+        logger.debug(`${TAG} Conteúdo de session.user para depuração:`, JSON.stringify(userFromSession, null, 2));
         return NextResponse.json({ error: 'Token de acesso do Instagram ausente. Por favor, refaça o processo de vinculação com o Facebook.' }, { status: 400 });
     }
 
