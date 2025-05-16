@@ -1,231 +1,221 @@
 // src/app/lib/instagram/types.ts
-import { IUser } from "@/app/models/User"; // Assumindo que IUser está aqui
-import { IMetricStats } from "@/app/models/Metric"; // Assumindo que IMetricStats está aqui
-
-// --- Tipos de Conexão e Conta ---
-
-/**
- * Detalhes da conexão Instagram de um usuário.
- */
-export interface InstagramConnectionDetails {
-  accessToken: string | null;
-  accountId: string | null;
-}
-
-/**
- * Representa uma conta Instagram disponível para conexão, associada a uma Página do Facebook.
- */
-export interface AvailableInstagramAccount {
-  igAccountId: string;
-  pageId: string;
-  pageName: string;
-  // Adicione aqui outros campos que possam vir da API e sejam úteis, como username ou profile_picture_url da conta IG
-  username?: string;
-  profile_picture_url?: string;
-}
-
-/**
- * Resultado de sucesso ao buscar contas Instagram disponíveis.
- */
-export interface FetchInstagramAccountsResult {
-  success: true;
-  accounts: AvailableInstagramAccount[];
-  longLivedAccessToken: string | null; // LLAT do usuário do Instagram/Facebook
-}
-
-/**
- * Resultado de erro ao buscar contas Instagram disponíveis.
- */
-export interface FetchInstagramAccountsError {
-  success: false;
-  error: string;
-  errorCode?: number; // Código de erro da API do Facebook, se aplicável
-}
-
-
-// --- Tipos de Mídia do Instagram ---
-
-/**
- * Representa um item de mídia do Instagram (Post, Reel, Story, etc.).
- */
-export interface InstagramMedia {
-  id: string; // ID da mídia
-  media_type?: 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM' | 'STORY';
-  timestamp?: string; // Data de publicação em formato ISO 8601
-  caption?: string; // Legenda da mídia
-  permalink?: string; // URL permanente da mídia
-  media_url?: string; // URL do conteúdo da mídia (pode expirar)
-  thumbnail_url?: string; // URL da miniatura (para vídeos)
-  username?: string; // Nome de usuário do proprietário da mídia
-  is_published?: boolean; // Se a mídia está publicada
-  // Campos para álbuns/carrosséis
-  children?: {
-    id: string;
-    media_type?: 'IMAGE' | 'VIDEO';
-    media_url?: string;
-    permalink?: string;
-    thumbnail_url?: string;
-  }[];
-  // Outros campos que podem ser úteis
-  owner?: { id: string }; // ID do proprietário da mídia (geralmente a conta IG)
-  like_count?: number; // Contagem de curtidas (disponível em alguns contextos)
-  comments_count?: number; // Contagem de comentários (disponível em alguns contextos)
-  // Adicione quaisquer outros campos relevantes que você busca da API
-}
-
-/**
- * Resultado da busca de mídias do Instagram.
- */
-export interface FetchMediaResult {
-  success: boolean;
-  data?: InstagramMedia[];
-  error?: string;
-  nextPageUrl?: string | null; // URL para a próxima página de resultados, se houver
-}
-
-
-// --- Tipos de Insights da API do Instagram ---
-
-/**
- * Valor individual de um insight da API do Instagram.
- * Pode ser um número ou um objeto (para breakdowns).
- */
-export interface InstagramApiInsightValue {
-  value: number | { [key: string]: number } | { [key: string]: { [key: string]: number } }; // Estendido para demografia
-  end_time: string; // Data final do período do insight
-}
-
-/**
- * Item de insight retornado pela API do Instagram (para métricas de mídia ou conta).
- */
-export interface InstagramApiInsightItem {
-  name: string; // Nome da métrica (ex: "reach", "impressions")
-  period: string; // Período do insight (ex: "day", "lifetime")
-  values: InstagramApiInsightValue[];
-  title: string; // Título descritivo da métrica
-  description: string; // Descrição da métrica
-  id: string; // ID do insight (geralmente no formato <media_id>/insights/<metric_name>/<period>)
-}
-
-/**
- * Item de insight demográfico retornado pela API do Instagram.
- * O campo 'name' é mais específico aqui.
- */
-export interface InstagramApiDemographicItem {
-  name: 'follower_demographics' | 'engaged_audience_demographics' | 'audience_city' | 'audience_country' | 'audience_gender_age'; // Nomes de métricas demográficas
-  period: string; // Geralmente "lifetime" para demografia de seguidores
-  values: InstagramApiInsightValue[]; // O 'value' interno terá a estrutura de breakdown (ex: cidade: {count})
-  title: string;
-  description: string;
-  id: string;
-}
-
-/**
- * Estrutura genérica para respostas da API do Instagram que contêm dados e paginação.
- */
-export interface InstagramApiResponse<T = InstagramApiInsightItem | InstagramMedia> {
-  data: T[];
-  paging?: {
-    next?: string;
-    previous?: string;
-    cursors?: { // Adicionado para consistência com algumas respostas da API
-        before?: string;
-        after?: string;
-    }
-  };
-  error?: FacebookApiErrorStructure; // Incluído para erros no nível da resposta principal
-}
-
+import { IUser } from "@/app/models/User"; 
+import { IMetricStats } from "@/app/models/Metric"; 
 
 // --- Tipos de Erro da API do Facebook/Instagram ---
 
 /**
  * Estrutura detalhada de um erro retornado pela API do Facebook/Instagram.
+ * Esta é a que você já tinha, mantida para consistência interna se usada.
  */
 export interface FacebookApiErrorStructure {
   message: string;
   type: string;
   code: number;
   error_subcode?: number;
-  error_user_title?: string; // Adicionado, às vezes presente
-  error_user_msg?: string;   // Adicionado, às vezes presente
+  error_user_title?: string; 
+  error_user_msg?: string;   
   fbtrace_id: string;
-  is_transient?: boolean;    // Adicionado, indica se o erro é temporário
+  is_transient?: boolean;    
 }
 
 /**
- * Contêiner para um possível erro da API do Facebook/Instagram.
- * Muitas respostas da API podem incluir um campo 'error' no nível raiz.
+ * ADICIONADO: Estrutura comum para erros retornados pela API Graph do Facebook/Instagram.
+ * Esta interface é a que o fetchers.ts estava tentando importar.
+ * Pode ser uma duplicata ou uma versão mais específica de FacebookApiErrorStructure.
+ * Por ora, definimos explicitamente para resolver o erro de importação.
  */
-export interface FacebookApiError {
+export interface InstagramApiErrorDetail {
+  message: string;
+  type: string;
+  code: number;
+  error_subcode?: number;
+  error_user_title?: string;
+  error_user_msg?: string;
+  fbtrace_id: string;
+  is_transient?: boolean;
+  // Outros campos que podem vir no erro
+  [key: string]: any; 
+}
+
+/**
+ * Contêiner para um possível erro da API do Facebook/Instagram no nível raiz da resposta.
+ */
+export interface FacebookApiError { // Este é o seu tipo existente
   error?: FacebookApiErrorStructure;
 }
 
+// --- Tipos para Respostas da API Graph do Instagram ---
+
+/**
+ * Estrutura genérica para uma resposta paginada da API Graph.
+ * ATUALIZADO: Usa InstagramApiErrorDetail para o campo error.
+ */
+export interface InstagramApiResponse<T = InstagramApiInsightItem | InstagramMedia> {
+  data?: T[]; // T pode ser um array ou um único objeto dependendo do endpoint
+  paging?: {
+    cursors?: {
+      before: string;
+      after: string;
+    };
+    next?: string;
+    previous?: string;
+  };
+  error?: InstagramApiErrorDetail; // Usa a interface detalhada para erros
+}
+
+/**
+ * ADICIONADO: Estrutura para um nó individual retornado pela API Graph (não paginado).
+ * Pode ser o próprio objeto de dados ou um objeto de erro.
+ */
+export type InstagramApiNodeResponse<T> = T & {
+  error?: InstagramApiErrorDetail; // Usa a interface detalhada para erros
+};
+
+
+// --- Tipos de Conexão e Conta ---
+
+export interface InstagramConnectionDetails {
+  accessToken: string | null;
+  accountId: string | null;
+}
+
+export interface AvailableInstagramAccount {
+  igAccountId: string;
+  pageId: string;
+  pageName: string;
+  username?: string;
+  profile_picture_url?: string;
+}
+
+export interface FetchInstagramAccountsResult {
+  success: true;
+  accounts: AvailableInstagramAccount[];
+  longLivedAccessToken: string | null; 
+}
+
+export interface FetchInstagramAccountsError {
+  success: false;
+  error: string;
+  errorCode?: number; 
+}
+
+
+// --- Tipos de Mídia do Instagram ---
+
+export interface InstagramMediaChild { 
+  id: string;
+  media_type?: 'IMAGE' | 'VIDEO';
+  media_product_type?: string; // Adicionado para consistência
+  media_url?: string;
+  permalink?: string;
+  thumbnail_url?: string;
+}
+
+/**
+ * Representa um item de mídia do Instagram (Post, Reel, Story, etc.).
+ * ATUALIZADO: Adicionados media_product_type, parent_id e media_product_type em children.
+ */
+export interface InstagramMedia {
+  id: string; 
+  media_type?: 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM' | 'STORY';
+  media_product_type?: 'FEED' | 'STORY' | 'REELS' | 'AD' | 'IGTV'; // IGTV é depreciado
+  timestamp?: string; 
+  caption?: string; 
+  permalink?: string; 
+  media_url?: string; 
+  thumbnail_url?: string; 
+  username?: string; 
+  is_published?: boolean; 
+  children?: { // Presente se media_type for CAROUSEL_ALBUM
+    data: InstagramMediaChild[]; // Usando o tipo definido acima
+  };
+  parent_id?: string; // ID da mídia pai se esta for uma mídia filha
+  owner?: { id: string }; 
+  like_count?: number; 
+  comments_count?: number; 
+}
+
+export interface FetchMediaResult {
+  success: boolean;
+  data?: InstagramMedia[];
+  error?: string;
+  nextPageUrl?: string | null; 
+}
+
+
+// --- Tipos de Insights da API do Instagram ---
+
+export interface InstagramApiInsightValue {
+  value: number | string | { [key: string]: number | { [key: string]: number } }; 
+  end_time?: string; // end_time é opcional em algumas respostas de insight
+}
+
+export interface InstagramApiInsightItem {
+  name: string; 
+  period: string; 
+  values: InstagramApiInsightValue[];
+  title?: string; // title e description são opcionais
+  description?: string; 
+  id?: string; 
+}
+
+// Removido InstagramApiDemographicItem pois InstagramApiInsightItem é genérico o suficiente.
+// A distinção pode ser feita pelo valor de 'name' na métrica.
 
 // --- Tipos de Resultado para Funções de Fetch ---
 
 /**
  * Resultado genérico para funções que buscam insights.
  * @template T O tipo dos dados de insight esperados.
+ * ATUALIZADO: error e errorMessage para string | null e adicionado requestedMetrics.
  */
 export interface FetchInsightsResult<T = Record<string, any>> {
   success: boolean;
   data?: T;
-  error?: string; // Mensagem de erro técnica ou da API
-  errorMessage?: string; // Mensagem de erro mais amigável ou específica (ex: dados insuficientes)
+  error?: string | null; 
+  errorMessage?: string | null; 
+  requestedMetrics?: string; // Para depuração
 }
 
 /**
  * Resultado da busca de dados básicos de uma conta Instagram.
- * Os dados são um subconjunto da interface `IUser`.
  */
 export interface FetchBasicAccountDataResult {
   success: boolean;
-  data?: Partial<IUser>; // Dados básicos do perfil da conta
+  data?: Partial<IUser>; 
   error?: string;
 }
 
 
 // --- Tipos para Processamento Interno de Tarefas de Insight (ex: em triggerDataRefresh) ---
 
-/**
- * Resultado para uma tarefa de busca de insight de mídia que foi pulada.
- */
 export interface InsightTaskSkippedResult {
   mediaId: string;
   status: 'skipped';
   reason: string;
-  media: InstagramMedia; // A mídia original
-  insightsResult: { success: false; error: string; data?: undefined; errorMessage?: undefined };
+  media: InstagramMedia; 
+  insightsResult: { success: false; error: string; data?: undefined; errorMessage?: undefined, requestedMetrics?: string }; // Adicionado requestedMetrics
   insightTokenSource?: undefined;
 }
 
-/**
- * Resultado para uma tarefa de busca de insight de mídia que foi processada.
- */
 export interface InsightTaskProcessedResult {
   mediaId: string;
   status: 'processed';
   reason?: undefined;
-  media: InstagramMedia; // A mídia original
-  insightsResult: FetchInsightsResult<IMetricStats>; // Resultado da busca de insights
-  insightTokenSource: string; // Qual token foi usado (User LLAT, System Token, etc.)
+  media: InstagramMedia; 
+  insightsResult: FetchInsightsResult<IMetricStats>; // Usa IMetricStats
+  insightTokenSource: string; 
 }
 
-/**
- * Tipo unificado para o resultado interno de uma tarefa de busca de insight de mídia.
- */
 export type InsightTaskInternalResult = InsightTaskSkippedResult | InsightTaskProcessedResult;
 
 
 // --- Tipos para Webhooks (Exemplo para Stories, pode ser expandido) ---
-/**
- * Payload esperado para um webhook de insights de Story.
- * Ajuste conforme a estrutura real do payload que você recebe.
- */
 export interface StoryWebhookValue {
-    media_id: string; // ID da mídia do Story
-    impressions?: number;
+    media_id: string; 
+    impressions?: number; // Manter para webhooks se a API ainda enviar, mas 'views' é o novo padrão
+    views?: number;       // Adicionar 'views'
     reach?: number;
     taps_forward?: number;
     taps_back?: number;
@@ -235,13 +225,13 @@ export interface StoryWebhookValue {
 }
 
 export interface InstagramWebhookChange {
-    field: 'story_insights'; // Ou outros campos de webhook que você usa
+    field: 'story_insights'; 
     value: StoryWebhookValue;
 }
 
 export interface InstagramWebhookEntry {
-    id: string; // ID da conta Instagram (ou página) que disparou o webhook
-    time: number; // Timestamp do evento
+    id: string; 
+    time: number; 
     changes: InstagramWebhookChange[];
 }
 
@@ -249,4 +239,3 @@ export interface InstagramWebhookPayload {
     object: 'instagram';
     entry: InstagramWebhookEntry[];
 }
-

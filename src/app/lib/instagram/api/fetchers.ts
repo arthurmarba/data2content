@@ -2,33 +2,40 @@
 import { logger } from '@/app/lib/logger';
 import { IUser } from '@/app/models/User';
 import { IMetricStats } from '@/app/models/Metric';
-import { IAccountInsightsPeriod, IAudienceDemographics, IDemographicBreakdown } from '@/app/models/AccountInsight'; // IDemographicBreakdown is imported here
+// ATUALIZADO: Importa IDemographicBreakdown
+import { IAccountInsightsPeriod, IAudienceDemographics, IDemographicBreakdown } from '@/app/models/AccountInsight';
 import {
   API_VERSION,
   BASE_URL,
   BASIC_ACCOUNT_FIELDS,
-  MEDIA_INSIGHTS_METRICS,
-  REEL_SAFE_GENERAL_METRICS, 
-  REEL_SPECIFIC_INSIGHTS_METRICS, 
-  ACCOUNT_INSIGHTS_METRICS, 
-  DEMOGRAPHICS_METRICS,      
-  DEMOGRAPHICS_BREAKDOWNS, 
+  ACCOUNT_INSIGHTS_METRICS_LIST, 
+  DEMOGRAPHICS_METRICS_LIST,     
+  DEMOGRAPHICS_BREAKDOWNS_LIST,  
   DEMOGRAPHICS_PERIOD,       
   DEMOGRAPHICS_TIMEFRAME_RECENT, 
   DEFAULT_ACCOUNT_INSIGHTS_PERIOD,
   ACCOUNT_INSIGHTS_REQUIRING_TOTAL_VALUE,
   DEMOGRAPHICS_REQUIRING_TOTAL_VALUE,
-  ACCOUNT_BREAKDOWNS, 
+  ACCOUNT_INSIGHTS_BREAKDOWNS, 
 } from '../config/instagramApiConfig';
 import {
   FetchMediaResult,
-  InstagramMedia,
+  InstagramMedia, 
   FetchInsightsResult,
   FetchBasicAccountDataResult,
   InstagramApiInsightItem,
-} from '../types';
+  InstagramApiErrorDetail, 
+} from '../types'; 
 import { graphApiRequest, graphApiNodeRequest } from './client';
 
+/**
+ * Fetches Instagram media for a given account.
+ * ATUALIZADO: Solicita 'media_product_type' e 'parent_id' para cada mídia.
+ * @param accountId - The Instagram account ID.
+ * @param accessToken - The user's access token.
+ * @param pageUrl - Optional URL for pagination.
+ * @returns Promise<FetchMediaResult>
+ */
 export async function fetchInstagramMedia(
   accountId: string,
   accessToken: string,
@@ -47,21 +54,22 @@ export async function fetchInstagramMedia(
         url += (url.includes('?') ? '&' : '?') + `access_token=${accessToken}`;
     }
   } else {
-    const fields = 'id,media_type,timestamp,caption,permalink,username,media_url,thumbnail_url,children{id,media_type,media_url,permalink,thumbnail_url}';
+    const fields = 'id,media_type,media_product_type,timestamp,caption,permalink,username,media_url,thumbnail_url,children{id,media_type,media_product_type,media_url,thumbnail_url},parent_id';
     const limit = 25; 
     url = `${BASE_URL}/${API_VERSION}/${accountId}/media?fields=${fields}&limit=${limit}&access_token=${accessToken}`;
   }
+  logger.debug(`[${logContext}] URL da requisição de mídia: ${url.replace(accessToken, '[TOKEN_OCULTO]')}`);
 
   try {
     const response = await graphApiRequest<InstagramMedia>(url, undefined, logContext, accessToken);
 
     if (response.error) {
       const errorMsg = response.error.message || 'Erro desconhecido ao buscar mídias.';
-      logger.error(`[${logContext}] Erro da API ao buscar mídias para Conta ${accountId}: ${errorMsg} (Code: ${response.error.code})`);
+      logger.error(`[${logContext}] Erro da API ao buscar mídias para Conta ${accountId}: ${errorMsg} (Code: ${response.error.code}, Type: ${response.error.type}, Trace: ${response.error.fbtrace_id})`);
       return { success: false, error: `Falha ao buscar mídias: ${errorMsg}` };
     }
     
-    logger.info(`[${logContext}] Mídias buscadas com sucesso para Conta ${accountId}. ${response.data?.length || 0} itens retornados.`);
+    logger.info(`[${logContext}] Mídias buscadas com sucesso para Conta ${accountId}. ${response.data?.length || 0} itens retornados. Próxima página: ${!!response.paging?.next}`);
     return {
       success: true,
       data: response.data || [], 
@@ -74,18 +82,26 @@ export async function fetchInstagramMedia(
   }
 }
 
+/**
+ * Fetches insights for a specific media item.
+ * @param mediaId - The ID of the media item.
+ * @param accessToken - The user's access token.
+ * @param metricsToFetch - A comma-separated string of metrics to fetch.
+ * @returns Promise<FetchInsightsResult<IMetricStats>>
+ */
 export async function fetchMediaInsights(
   mediaId: string,
   accessToken: string,
   metricsToFetch: string 
 ): Promise<FetchInsightsResult<IMetricStats>> {
   const logContext = 'fetchMediaInsights';
-  logger.debug(`[${logContext}] Buscando insights para Media ID: ${mediaId} com métricas: ${metricsToFetch}...`);
+  logger.debug(`[${logContext}] Buscando insights para Media ID: ${mediaId} (Métricas: ${metricsToFetch.substring(0,50)}... )`);
 
-  if (!mediaId) return { success: false, error: 'ID da mídia não fornecido.' };
-  if (!accessToken) return { success: false, error: 'Token de acesso não fornecido.' };
+  if (!mediaId) return { success: false, error: 'ID da mídia não fornecido.' , requestedMetrics: metricsToFetch};
+  if (!accessToken) return { success: false, error: 'Token de acesso não fornecido.' , requestedMetrics: metricsToFetch};
   if (!metricsToFetch || metricsToFetch.trim() === '') {
-    return { success: false, error: 'Lista de métricas para buscar não fornecida ou vazia.' };
+    logger.warn(`[${logContext}] Lista de métricas para buscar não fornecida ou vazia para Media ID: ${mediaId}.`);
+    return { success: true, data: {} as IMetricStats, error: null, errorMessage: 'Nenhuma métrica solicitada.' , requestedMetrics: metricsToFetch};
   }
 
   const url = `${BASE_URL}/${API_VERSION}/${mediaId}/insights?metric=${metricsToFetch}&access_token=${accessToken}`;
@@ -93,53 +109,78 @@ export async function fetchMediaInsights(
   try {
     const response = await graphApiRequest<InstagramApiInsightItem>(url, undefined, logContext, accessToken);
 
+    const resultWithErrorContext: FetchInsightsResult<IMetricStats> = { 
+        success: false, 
+        error: 'Erro inicial', 
+        requestedMetrics: metricsToFetch 
+    };
+
     if (response.error) {
-      const errorMsg = response.error.message || 'Erro desconhecido ao buscar insights de mídia.';
-      logger.error(`[${logContext}] Erro da API ao buscar insights para Mídia ${mediaId}: ${errorMsg} (Code: ${response.error.code})`);
-       if (response.error.code === 100 && errorMsg.toLowerCase().includes('metric')) {
-         return { success: false, error: `Métrica inválida para mídia ${mediaId} (API ${API_VERSION}): ${errorMsg}. Pedido: ${metricsToFetch}` };
-       }
-       if (response.error.code === 10 || (response.error.code === 200 && errorMsg.toLowerCase().includes('permission'))) {
-         return { success: false, error: `Permissão insuficiente para insights da mídia (${response.error.code}): ${errorMsg}` };
-       }
-      return { success: false, error: `Falha ao buscar insights de mídia: ${errorMsg}` };
+      const errorDetail: InstagramApiErrorDetail = response.error;
+      const errorMsg = errorDetail.message || 'Erro desconhecido ao buscar insights de mídia.';
+      logger.warn(`[${logContext}] Erro da API ao buscar insights para Mídia ${mediaId} (Métricas: ${metricsToFetch}): ${errorMsg} (Code: ${errorDetail.code}, Type: ${errorDetail.type}, Subcode: ${errorDetail.error_subcode}, Trace: ${errorDetail.fbtrace_id})`);
+      
+      resultWithErrorContext.error = `Falha API (${errorDetail.code}): ${errorMsg}`;
+      
+      if (errorDetail.code === 100 && errorMsg.toLowerCase().includes('metric')) {
+         resultWithErrorContext.error = `Métrica inválida para mídia ${mediaId} (API ${API_VERSION}): ${errorMsg}.`;
+      } else if (errorDetail.code === 10 || (errorDetail.code === 200 && errorMsg.toLowerCase().includes('permission'))) {
+         resultWithErrorContext.error = `Permissão insuficiente para insights da mídia (${errorDetail.code}): ${errorMsg}`;
+      } else if (errorDetail.code === 80004 && errorMsg.toLowerCase().includes('not enough data')) {
+         logger.info(`[${logContext}] Dados insuficientes para insights da mídia ${mediaId} (Code: ${errorDetail.code}): ${errorMsg}. Considerado como sem dados.`);
+         return { success: true, data: {} as IMetricStats, error: null, errorMessage: `Dados insuficientes: ${errorMsg}`, requestedMetrics: metricsToFetch };
+      }
+      return resultWithErrorContext;
     }
 
     const insights: Partial<IMetricStats> = {};
     if (response.data) { 
       response.data.forEach(item => {
-        const metricName = item.name as keyof IMetricStats;
+        const metricName = item.name as keyof IMetricStats; 
         if (item.values && item.values.length > 0) {
-          const latestValue = item.values[item.values.length - 1]?.value;
-          if (typeof latestValue === 'number') {
-            insights[metricName] = latestValue;
-          } else if (typeof latestValue === 'object' && latestValue !== null) {
-            insights[metricName] = latestValue as any; 
+          const latestValueEntry = item.values[item.values.length - 1];
+          if (latestValueEntry && latestValueEntry.value !== undefined) {
+            const value = latestValueEntry.value;
+            if (typeof value === 'number') {
+              insights[metricName] = value;
+            } else if (typeof value === 'object' && value !== null) {
+              insights[metricName] = value as any; 
+            } else {
+               logger.warn(`[${logContext}] Valor inesperado para métrica ${metricName} (Mídia ${mediaId}): `, value);
+            }
+          } else {
+             logger.warn(`[${logContext}] Métrica ${metricName} (Mídia ${mediaId}) não continha 'value' em 'values[${item.values.length - 1}]'.`);
           }
+        } else {
+           logger.warn(`[${logContext}] Métrica ${metricName} (Mídia ${mediaId}) não continha 'values' ou 'values' estava vazio.`);
         }
       });
     }
-    logger.debug(`[${logContext}] Insights para mídia ${mediaId} processados.`);
-    return { success: true, data: insights as IMetricStats };
+    return { success: true, data: insights as IMetricStats, requestedMetrics: metricsToFetch };
   } catch (error: any) {
-    logger.error(`[${logContext}] Erro final ao buscar insights para Mídia ${mediaId}:`, error);
+    logger.error(`[${logContext}] Erro final ao buscar insights para Mídia ${mediaId} (Métricas: ${metricsToFetch}):`, error);
     const message = error.message || String(error);
-    const permissionErrorKeywords = ['permissão', 'permission', '(#10)', '(#200)'];
-    const isPermError = permissionErrorKeywords.some(keyword => message.toLowerCase().includes(keyword.toLowerCase()));
-
-    if (isPermError || message.toLowerCase().includes('token') || message.toLowerCase().includes('falha') || message.toLowerCase().includes('inválida')) {
-        return { success: false, error: message };
-    }
-    return { success: false, error: `Erro interno ao buscar insights de mídia: ${message}` };
+    return { 
+        success: false, 
+        error: `Erro interno ao buscar insights de mídia: ${message}`, 
+        requestedMetrics: metricsToFetch 
+    };
   }
 }
 
+/**
+ * Fetches aggregated account insights for a given Instagram account.
+ * @param accountId - The Instagram account ID.
+ * @param accessToken - The access token (User LLAT or System User Token).
+ * @param period - The period for the insights (e.g., 'day', 'week', 'month_28').
+ * @returns Promise<FetchInsightsResult<IAccountInsightsPeriod>>
+ */
 export async function fetchAccountInsights(
   accountId: string,
   accessToken: string,
   period: string = DEFAULT_ACCOUNT_INSIGHTS_PERIOD
 ): Promise<FetchInsightsResult<IAccountInsightsPeriod>> {
-  const logContext = 'fetchAccountInsights v2';
+  const logContext = 'fetchAccountInsights v2.1'; 
   const isSystemToken = accessToken === process.env.FB_SYSTEM_USER_TOKEN;
   const tokenTypeForLog = isSystemToken ? 'System User' : 'User LLAT';
   logger.debug(`[${logContext}] Buscando insights da conta ${accountId} período: ${period}... (Token: ${tokenTypeForLog})`);
@@ -147,23 +188,23 @@ export async function fetchAccountInsights(
   if (!accountId) return { success: false, error: 'ID da conta não fornecido.' };
   if (!accessToken) return { success: false, error: 'Token de acesso não fornecido.' };
 
-  const allRequestedMetrics: string[] = ACCOUNT_INSIGHTS_METRICS.split(',').map(m => m.trim()).filter(m => m);
   const aggregatedInsights: Partial<IAccountInsightsPeriod> = { period: period };
   let overallSuccess = true;
   const errors: string[] = [];
 
-  for (const metric of allRequestedMetrics) {
+  for (const metric of ACCOUNT_INSIGHTS_METRICS_LIST) {
     let url = `${BASE_URL}/${API_VERSION}/${accountId}/insights?metric=${metric}&period=${period}`;
-    const breakdownForMetric = ACCOUNT_BREAKDOWNS[metric];
-
-    if (breakdownForMetric) {
-      url += `&breakdown=${breakdownForMetric}`;
-      logger.debug(`[${logContext}] Adicionando breakdown '${breakdownForMetric}' para métrica '${metric}'.`);
+    
+    const breakdownsForMetric = ACCOUNT_INSIGHTS_BREAKDOWNS[metric]; 
+    if (breakdownsForMetric && breakdownsForMetric.length > 0) {
+      const breakdownQueryParam = breakdownsForMetric.join(',');
+      url += `&breakdown=${breakdownQueryParam}`;
+      logger.debug(`[${logContext}] Adicionando breakdown(s) '${breakdownQueryParam}' para métrica '${metric}'.`);
     }
 
-    if (isSystemToken && ACCOUNT_INSIGHTS_REQUIRING_TOTAL_VALUE.includes(metric)) {
+    if (ACCOUNT_INSIGHTS_REQUIRING_TOTAL_VALUE.includes(metric)) {
       url += `&metric_type=total_value`;
-      logger.debug(`[${logContext}] Adicionado '&metric_type=total_value' para métrica '${metric}' com System Token.`);
+      logger.debug(`[${logContext}] Adicionado '&metric_type=total_value' para métrica '${metric}'.`);
     }
     url += `&access_token=${accessToken}`;
 
@@ -172,9 +213,10 @@ export async function fetchAccountInsights(
       const response = await graphApiRequest<InstagramApiInsightItem>(url, undefined, `${logContext} - ${metric}`, accessToken);
 
       if (response.error) {
-        const errorMsg = response.error.message || `Erro desconhecido ao buscar métrica '${metric}'.`;
-        logger.error(`[${logContext}] Erro da API ao buscar métrica '${metric}' para Conta ${accountId}: ${errorMsg} (Code: ${response.error.code})`);
-        errors.push(`Métrica ${metric}: ${errorMsg} (Code: ${response.error.code})`);
+        const errorDetail: InstagramApiErrorDetail = response.error;
+        const errorMsg = errorDetail.message || `Erro desconhecido ao buscar métrica '${metric}'.`;
+        logger.error(`[${logContext}] Erro da API ao buscar métrica '${metric}' para Conta ${accountId}: ${errorMsg} (Code: ${errorDetail.code}, Type: ${errorDetail.type}, Subcode: ${errorDetail.error_subcode})`);
+        errors.push(`Métrica ${metric}: ${errorMsg} (Code: ${errorDetail.code})`);
         overallSuccess = false; 
         continue; 
       }
@@ -184,11 +226,17 @@ export async function fetchAccountInsights(
           const metricNameInResponse = item.name as keyof IAccountInsightsPeriod;
           if (item.values && item.values.length > 0) {
             const valueData = item.values[0]?.value; 
-            if (typeof valueData === 'number') {
-              aggregatedInsights[metricNameInResponse] = valueData;
-            } else if (typeof valueData === 'object' && valueData !== null) {
-              aggregatedInsights[metricNameInResponse] = valueData as any;
+            if (valueData !== undefined) { 
+              if (typeof valueData === 'number' || typeof valueData === 'string') { 
+                (aggregatedInsights as any)[metricNameInResponse] = valueData;
+              } else if (typeof valueData === 'object' && valueData !== null) {
+                (aggregatedInsights as any)[metricNameInResponse] = valueData;
+              }
+            } else {
+              logger.warn(`[${logContext}] Valor para métrica '${metricNameInResponse}' (Conta ${accountId}) estava undefined.`);
             }
+          } else {
+             logger.warn(`[${logContext}] Métrica '${metricNameInResponse}' (Conta ${accountId}) não continha 'values' ou 'values' estava vazio.`);
           }
         });
       } else {
@@ -202,31 +250,31 @@ export async function fetchAccountInsights(
     }
   } 
 
+  const hasCollectedData = Object.keys(aggregatedInsights).filter(k => k !== 'period').length > 0;
+
   if (!overallSuccess && errors.length > 0) {
     logger.error(`[${logContext}] Finalizado com erros ao buscar insights da conta ${accountId}. Erros: ${errors.join('; ')}`);
-    const hasPartialData = Object.keys(aggregatedInsights).length > 1;
     return { 
-        success: hasPartialData, 
-        data: hasPartialData ? (aggregatedInsights as IAccountInsightsPeriod) : undefined,
+        success: hasCollectedData, 
+        data: hasCollectedData ? (aggregatedInsights as IAccountInsightsPeriod) : undefined,
         error: `Falhas ao buscar algumas métricas de conta: ${errors.join('; ')}` 
     };
   }
   
-  if (Object.keys(aggregatedInsights).length <= 1 && allRequestedMetrics.length > 0) { 
+  if (!hasCollectedData && ACCOUNT_INSIGHTS_METRICS_LIST.length > 0) { 
     logger.warn(`[${logContext}] Nenhum insight de conta foi efetivamente coletado para ${accountId}, apesar de não haver erros críticos diretos nas chamadas.`);
-    return { success: false, error: 'Nenhum dado de insight de conta foi retornado pela API.' };
+    return { success: true, data: aggregatedInsights as IAccountInsightsPeriod, errorMessage: 'Nenhum dado de insight de conta foi retornado pela API (pode ser normal para contas novas/sem atividade).' };
   }
 
   logger.debug(`[${logContext}] Insights da conta ${accountId} (${period}) processados agregadamente.`);
   return { success: true, data: aggregatedInsights as IAccountInsightsPeriod };
 }
 
-// Define an explicit type for the structure we are building for each demographic metric's breakdown data
-type DemographicBreakdownDataType = {
-    city: Array<{ value: string; count: number }>;
-    country: Array<{ value: string; count: number }>;
-    age: Array<{ value: string; count: number }>;
-    gender: Array<{ value: string; count: number }>;
+type ProcessedDemographicValue = {
+    [breakdownKey: string]: Array<{ dimension: string; value: number }>;
+};
+type RawDemographicValue = {
+    [breakdownKey: string]: { [dimensionKey: string]: number };
 };
 
 export async function fetchAudienceDemographics(
@@ -234,7 +282,7 @@ export async function fetchAudienceDemographics(
   accessToken: string,
   timeframe: string = DEMOGRAPHICS_TIMEFRAME_RECENT 
 ): Promise<FetchInsightsResult<IAudienceDemographics>> {
-  const logContext = 'fetchAudienceDemographics v2.1_typefix_any_cast'; // Versioning for log
+  const logContext = 'fetchAudienceDemographics v2.2'; 
   const isSystemToken = accessToken === process.env.FB_SYSTEM_USER_TOKEN;
   const tokenTypeForLog = isSystemToken ? 'System User' : 'User LLAT';
   logger.debug(`[${logContext}] Buscando dados demográficos da conta ${accountId} (Timeframe: ${timeframe})... (Token: ${tokenTypeForLog})`);
@@ -242,21 +290,20 @@ export async function fetchAudienceDemographics(
   if (!accountId) return { success: false, error: 'ID da conta não fornecido.' };
   if (!accessToken) return { success: false, error: 'Token de acesso não fornecido.' };
 
-  const demographicMetricsToFetch = DEMOGRAPHICS_METRICS.split(',').map(m => m.trim()).filter(m => m);
   const aggregatedDemographics: Partial<IAudienceDemographics> = {};
   let overallSuccess = true;
   const errors: string[] = [];
   let anyDataCollected = false;
 
-  for (const demographicMetric of demographicMetricsToFetch) {
+  for (const demographicMetric of DEMOGRAPHICS_METRICS_LIST) { 
     const period = DEMOGRAPHICS_PERIOD; 
-    const breakdown = DEMOGRAPHICS_BREAKDOWNS; 
+    const breakdownQueryParam = DEMOGRAPHICS_BREAKDOWNS_LIST.join(','); 
     
-    let url = `${BASE_URL}/${API_VERSION}/${accountId}/insights?metric=${demographicMetric}&period=${period}&breakdown=${breakdown}&timeframe=${timeframe}`;
+    let url = `${BASE_URL}/${API_VERSION}/${accountId}/insights?metric=${demographicMetric}&period=${period}&breakdown=${breakdownQueryParam}&timeframe=${timeframe}`;
 
-    if (isSystemToken && DEMOGRAPHICS_REQUIRING_TOTAL_VALUE.includes(demographicMetric)) {
+    if (DEMOGRAPHICS_REQUIRING_TOTAL_VALUE.includes(demographicMetric)) {
       url += `&metric_type=total_value`;
-      logger.debug(`[${logContext}] Adicionado '&metric_type=total_value' para System Token (Métrica: ${demographicMetric}).`);
+      logger.debug(`[${logContext}] Adicionado '&metric_type=total_value' para métrica demográfica '${demographicMetric}'.`);
     }
     url += `&access_token=${accessToken}`;
 
@@ -265,12 +312,14 @@ export async function fetchAudienceDemographics(
       const response = await graphApiRequest<InstagramApiInsightItem>(url, undefined, `${logContext} - ${demographicMetric}`, accessToken);
 
       if (response.error) {
-        const errorMsg = response.error.message || `Erro desconhecido ao buscar ${demographicMetric}.`;
-        logger.error(`[${logContext}] Erro da API ao buscar ${demographicMetric} para Conta ${accountId}: ${errorMsg} (Code: ${response.error.code})`);
-        errors.push(`${demographicMetric}: ${errorMsg} (Code: ${response.error.code})`);
+        const errorDetail: InstagramApiErrorDetail = response.error;
+        const errorMsg = errorDetail.message || `Erro desconhecido ao buscar ${demographicMetric}.`;
+        logger.error(`[${logContext}] Erro da API ao buscar ${demographicMetric} para Conta ${accountId}: ${errorMsg} (Code: ${errorDetail.code}, Type: ${errorDetail.type}, Subcode: ${errorDetail.error_subcode})`);
+        errors.push(`${demographicMetric}: ${errorMsg} (Code: ${errorDetail.code})`);
         
-        if (response.error.code === 10 || (response.error.code === 200 && errorMsg.toLowerCase().includes('permission')) || (response.error.code === 80004 && errorMsg.toLowerCase().includes('not enough data'))) {
-          logger.warn(`[${logContext}] Permissão/Dados insuficientes (${response.error.code}) para ${demographicMetric} da conta ${accountId}. Detalhe: ${errorMsg}`);
+        if (errorDetail.code === 10 || (errorDetail.code === 200 && errorMsg.toLowerCase().includes('permission')) || (errorDetail.code === 80004 && errorMsg.toLowerCase().includes('not enough data'))) {
+          logger.warn(`[${logContext}] Permissão/Dados insuficientes (${errorDetail.code}) para ${demographicMetric} da conta ${accountId}. Detalhe: ${errorMsg}`);
+          if (errorDetail.code !== 80004) overallSuccess = false;
         } else {
           overallSuccess = false; 
         }
@@ -287,35 +336,37 @@ export async function fetchAudienceDemographics(
       if (demographicItem && demographicItem.values && demographicItem.values.length > 0) {
           const firstValEntry = demographicItem.values[0];
           if (firstValEntry && typeof firstValEntry.value === 'object' && firstValEntry.value !== null) {
-              const breakdownValues = firstValEntry.value as { [breakdownType: string]: { [key:string]: number }};
-              
-              const currentMetricData: DemographicBreakdownDataType = { city: [], country: [], age: [], gender: [] };
+              const rawBreakdownValues = firstValEntry.value as RawDemographicValue;
+              // Correção: IDemographicBreakdown é uma interface para um *único* item do array,
+              // não para o objeto inteiro que contém city, country, age, gender.
+              // A estrutura de processedMetricData deve ser { city: IDemographicBreakdown[], country: IDemographicBreakdown[], ... }
+              // E isso já está alinhado com IAudienceDemographics.
+              const processedMetricData: {
+                  city?: IDemographicBreakdown[];
+                  country?: IDemographicBreakdown[];
+                  age?: IDemographicBreakdown[];
+                  gender?: IDemographicBreakdown[];
+              } = {};
 
-              if (breakdownValues.city) {
-                  currentMetricData.city = Object.entries(breakdownValues.city).map(([v, c]) => ({ value: v, count: c }));
-              }
-              if (breakdownValues.country) {
-                  currentMetricData.country = Object.entries(breakdownValues.country).map(([v, c]) => ({ value: v, count: c }));
-              }
-              if (breakdownValues.age) { 
-                  currentMetricData.age = Object.entries(breakdownValues.age).map(([v, c]) => ({ value: v, count: c }));
-              }
-              if (breakdownValues.gender) { 
-                  currentMetricData.gender = Object.entries(breakdownValues.gender).map(([v, c]) => ({ value: v, count: c }));
-              }
+              DEMOGRAPHICS_BREAKDOWNS_LIST.forEach(breakdownKey => { 
+                  const keyAsserted = breakdownKey as keyof typeof processedMetricData; // 'city', 'country', 'age', 'gender'
+                  if (rawBreakdownValues[breakdownKey]) {
+                      processedMetricData[keyAsserted] = Object.entries(rawBreakdownValues[breakdownKey])
+                          .map(([dimensionValue, countValue]) => ({ value: dimensionValue, count: countValue }))
+                          .sort((a, b) => b.count - a.count); 
+                      anyDataCollected = true;
+                  } else {
+                      processedMetricData[keyAsserted] = []; 
+                  }
+              });
               
-              // TODO: Review and align the IDemographicBreakdown type in src/app/models/AccountInsight.ts
-              // to match the structure of DemographicBreakdownDataType (i.e., an object with city, country, age, gender arrays).
-              // Using 'as any' here to bypass current type mismatch.
               if (demographicMetric === 'follower_demographics') {
-                aggregatedDemographics.follower_demographics = currentMetricData as any; 
-                anyDataCollected = true;
+                aggregatedDemographics.follower_demographics = processedMetricData; 
               } else if (demographicMetric === 'engaged_audience_demographics') {
-                aggregatedDemographics.engaged_audience_demographics = currentMetricData as any; 
-                anyDataCollected = true;
+                aggregatedDemographics.engaged_audience_demographics = processedMetricData;
               }
           } else {
-               logger.warn(`[${logContext}] Item demográfico '${demographicItem.name}' para conta ${accountId} sem dados válidos (values[0].value não é objeto) ou em formato inesperado.`);
+               logger.warn(`[${logContext}] Item demográfico '${demographicItem.name}' para conta ${accountId} sem dados válidos (values[0].value não é objeto ou nulo) ou em formato inesperado.`);
           }
       } else {
           logger.warn(`[${logContext}] Nenhum item de dados ou valores encontrados na resposta de ${demographicMetric} para conta ${accountId}.`);
@@ -329,9 +380,9 @@ export async function fetchAudienceDemographics(
     }
   } 
 
-  if (!anyDataCollected && errors.length === 0) {
-    logger.warn(`[${logContext}] Nenhuma demografia foi efetivamente coletada para ${accountId}, mas sem erros diretos.`);
-    return { success: true, data: {}, errorMessage: 'Dados demográficos insuficientes ou indisponíveis para esta conta.' };
+  if (!anyDataCollected && errors.length === 0 && DEMOGRAPHICS_METRICS_LIST.length > 0) {
+    logger.warn(`[${logContext}] Nenhuma demografia foi efetivamente coletada para ${accountId}, mas sem erros diretos de API.`);
+    return { success: true, data: aggregatedDemographics as IAudienceDemographics, errorMessage: 'Dados demográficos insuficientes ou indisponíveis para esta conta.' };
   }
 
   if (!overallSuccess && errors.length > 0) {
@@ -352,7 +403,12 @@ export async function fetchAudienceDemographics(
   };
 }
 
-
+/**
+ * Fetches basic account data for a given Instagram account.
+ * @param accountId - The Instagram account ID.
+ * @param accessToken - The user's access token.
+ * @returns Promise<FetchBasicAccountDataResult>
+ */
 export async function fetchBasicAccountData(
   accountId: string,
   accessToken: string
@@ -363,56 +419,42 @@ export async function fetchBasicAccountData(
   if (!accountId) return { success: false, error: 'ID da conta não fornecido.' };
   if (!accessToken) return { success: false, error: 'Token de acesso não fornecido.' };
 
-  const fields = BASIC_ACCOUNT_FIELDS;
+  const fields = BASIC_ACCOUNT_FIELDS; 
   const url = `${BASE_URL}/${API_VERSION}/${accountId}?fields=${fields}&access_token=${accessToken}`;
 
   try {
     const responseNode = await graphApiNodeRequest<Partial<IUser>>(url, undefined, logContext, accessToken);
 
     if (responseNode.error) {
-      const errorMsg = responseNode.error.message || 'Erro desconhecido ao buscar dados básicos da conta.';
-      logger.error(`[${logContext}] Erro da API ao buscar dados básicos para Conta ${accountId}: ${errorMsg} (Code: ${responseNode.error.code})`);
-       if (responseNode.error.code === 10 || (responseNode.error.code === 200 && errorMsg.toLowerCase().includes('permission'))) {
-         return { success: false, error: `Permissão insuficiente para dados básicos (${responseNode.error.code}): ${errorMsg}` };
+      const errorDetail: InstagramApiErrorDetail = responseNode.error;
+      const errorMsg = errorDetail.message || 'Erro desconhecido ao buscar dados básicos da conta.';
+      logger.error(`[${logContext}] Erro da API ao buscar dados básicos para Conta ${accountId}: ${errorMsg} (Code: ${errorDetail.code}, Type: ${errorDetail.type}, Subcode: ${errorDetail.error_subcode})`);
+       if (errorDetail.code === 10 || (errorDetail.code === 200 && errorMsg.toLowerCase().includes('permission'))) {
+         return { success: false, error: `Permissão insuficiente para dados básicos (${errorDetail.code}): ${errorMsg}` };
        }
       return { success: false, error: `Falha ao buscar dados básicos da conta: ${errorMsg}` };
     }
 
     const accountDataFromApi = responseNode; 
     const accountData: Partial<IUser> = {};
-    const requestedFieldsArray = fields.split(',');
-
-    requestedFieldsArray.forEach(field => {
-      const apiFieldValue = (accountDataFromApi as any)[field];
-      if (apiFieldValue !== undefined) {
-        if (field === 'id') {
-          (accountData as any)['instagramAccountId'] = apiFieldValue; 
-        }
-        const knownUserFields: (keyof IUser)[] = ['username', 'name', 'biography', 'website', 'profile_picture_url', 'followers_count', 'follows_count', 'media_count'];
-        if (knownUserFields.includes(field as keyof IUser)) {
-          (accountData as any)[field] = apiFieldValue;
-        } else if (field !== 'id') { 
-            logger.warn(`[${logContext}] Campo '${field}' da API não mapeado diretamente para IUser, mas recebido.`);
-            (accountData as any)[field] = apiFieldValue; 
-        }
-      }
-    });
     
-    if (requestedFieldsArray.includes('id') && accountDataFromApi.id) {
+    if (accountDataFromApi.id) { 
         accountData.instagramAccountId = accountDataFromApi.id;
     }
-
-    logger.debug(`[${logContext}] Dados básicos da conta ${accountId} processados.`, accountData);
+    if (accountDataFromApi.username) accountData.username = accountDataFromApi.username;
+    if (accountDataFromApi.name) accountData.name = accountDataFromApi.name;
+    if (accountDataFromApi.biography) accountData.biography = accountDataFromApi.biography;
+    if (accountDataFromApi.website) accountData.website = accountDataFromApi.website;
+    if (accountDataFromApi.profile_picture_url) accountData.profile_picture_url = accountDataFromApi.profile_picture_url;
+    if (typeof accountDataFromApi.followers_count === 'number') accountData.followers_count = accountDataFromApi.followers_count;
+    if (typeof accountDataFromApi.follows_count === 'number') accountData.follows_count = accountDataFromApi.follows_count; 
+    if (typeof accountDataFromApi.media_count === 'number') accountData.media_count = accountDataFromApi.media_count;
+    
+    logger.debug(`[${logContext}] Dados básicos da conta ${accountId} processados.`);
     return { success: true, data: accountData };
   } catch (error: any) {
     logger.error(`[${logContext}] Erro final ao buscar dados básicos para Conta ${accountId}:`, error);
     const message = error.message || String(error);
-    const permissionErrorKeywords = ['permissão', 'permission', '(#10)', '(#200)'];
-    const isPermError = permissionErrorKeywords.some(keyword => message.toLowerCase().includes(keyword.toLowerCase()));
-
-    if (isPermError || message.toLowerCase().includes('token') || message.toLowerCase().includes('falha') || message.startsWith('Falha dados básicos (Erro 400)')) {
-        return { success: false, error: message };
-    }
     return { success: false, error: `Erro interno ao buscar dados básicos da conta: ${message}` };
   }
 }

@@ -6,14 +6,17 @@ import {
     fetchBasicAccountData,
     fetchInstagramMedia,
     fetchMediaInsights,
-    getInstagramConnectionDetails,
-} from '@/app/lib/instagram'; // ATUALIZADO para o novo módulo
+    // getInstagramConnectionDetails, // Certifique-se de que está corretamente exportado
+} from '@/app/lib/instagram'; 
+// Importação mais específica para getInstagramConnectionDetails, ajuste se necessário
+import { getInstagramConnectionDetails } from '@/app/lib/instagram/db/userActions'; 
 import { logger } from '@/app/lib/logger';
 import mongoose from 'mongoose';
 import UserModel from '@/app/models/User'; 
 import { connectToDatabase } from '@/app/lib/mongoose';
-// ATUALIZADO para o novo local das constantes de configuração da API
-import { BASE_URL, API_VERSION, MEDIA_INSIGHTS_METRICS } from '@/app/lib/instagram/config/instagramApiConfig';
+import { BASE_URL, API_VERSION, FEED_MEDIA_INSIGHTS_METRICS } from '@/app/lib/instagram/config/instagramApiConfig';
+import { FetchInsightsResult } from '@/app/lib/instagram/types'; // Importar para tipagem explícita
+import { IMetricStats } from '@/app/models/Metric'; // Importar para tipagem explícita
 
 const TAG = '[API TestPermissions]';
 
@@ -60,7 +63,14 @@ export async function GET(request: NextRequest) {
     const userIdForTest = session.user.id;
     logger.info(`${TAG} Iniciando testes de permissões para o usuário administrador: ${userIdForTest}`);
 
-    const results: Record<string, { success: boolean; data?: any; error?: string; message?: string }> = {};
+    // Definindo o tipo para cada entrada em results
+    type TestResultEntry = { 
+        success: boolean; 
+        data?: any; 
+        error?: string; // string | undefined
+        message?: string; // string | undefined
+    };
+    const results: Record<string, TestResultEntry> = {};
 
     try {
         if (!mongoose.isValidObjectId(userIdForTest)) {
@@ -69,7 +79,7 @@ export async function GET(request: NextRequest) {
         await connectToDatabase();
 
         logger.debug(`${TAG} Buscando detalhes de conexão para ${userIdForTest}...`);
-        const connectionDetails = await getInstagramConnectionDetails(userIdForTest);
+        const connectionDetails = await getInstagramConnectionDetails(new mongoose.Types.ObjectId(userIdForTest));
 
         if (!connectionDetails?.accountId || !connectionDetails?.accessToken) {
             const errorMsg = `Detalhes de conexão (accountId ou accessToken) não encontrados para o usuário ${userIdForTest}. Verifique se esta conta admin conectou o Instagram.`;
@@ -83,10 +93,14 @@ export async function GET(request: NextRequest) {
 
         logger.debug(`${TAG} Testando permissão: instagram_basic (via fetchBasicAccountData)...`);
         try {
-            const basicData = await fetchBasicAccountData(accountId, accessToken);
-            results['instagram_basic'] = basicData;
-            if (basicData.success) logger.info(`${TAG} instagram_basic: SUCESSO`);
-            else logger.warn(`${TAG} instagram_basic: FALHA - ${basicData.error}`);
+            const basicDataResult = await fetchBasicAccountData(accountId, accessToken);
+            results['instagram_basic'] = {
+                success: basicDataResult.success,
+                data: basicDataResult.data,
+                error: basicDataResult.error ?? undefined, // Converte null/undefined para undefined
+            };
+            if (basicDataResult.success) logger.info(`${TAG} instagram_basic: SUCESSO`);
+            else logger.warn(`${TAG} instagram_basic: FALHA - ${basicDataResult.error}`);
         } catch (e: any) {
             logger.error(`${TAG} instagram_basic: ERRO EXCEÇÃO - ${e.message}`);
             results['instagram_basic'] = { success: false, error: e.message };
@@ -115,13 +129,20 @@ export async function GET(request: NextRequest) {
         try {
             logger.debug(`${TAG} Chamando fetchInstagramMedia para ${accountId}...`);
             const mediaResult = await fetchInstagramMedia(accountId, accessToken);
-            results['fetchInstagramMedia (pages_read_engagement)'] = mediaResult;
+            results['fetchInstagramMedia (pages_read_engagement)'] = {
+                success: mediaResult.success,
+                data: mediaResult.data,
+                error: mediaResult.error ?? undefined, // Converte null/undefined para undefined
+                message: mediaResult.nextPageUrl === null && mediaResult.data?.length === 0 ? "Nenhuma mídia encontrada" : undefined,
+            };
             if (mediaResult.success && mediaResult.data && mediaResult.data.length > 0) {
                 logger.info(`${TAG} fetchInstagramMedia: SUCESSO, ${mediaResult.data.length} mídias encontradas.`);
                 mediaIdForInsightTest = mediaResult.data[0]?.id ?? null;
             } else if (mediaResult.success) {
                 logger.warn(`${TAG} fetchInstagramMedia: SUCESSO, mas nenhuma mídia encontrada na conta ${accountId}.`);
-                results['fetchInstagramMedia (pages_read_engagement)'].message = "Sucesso, mas nenhuma mídia encontrada.";
+                if (results['fetchInstagramMedia (pages_read_engagement)']) { // Verifica se a chave existe
+                    results['fetchInstagramMedia (pages_read_engagement)'].message = "Sucesso, mas nenhuma mídia encontrada.";
+                }
             } else {
                 logger.warn(`${TAG} fetchInstagramMedia: FALHA - ${mediaResult.error}`);
             }
@@ -131,19 +152,25 @@ export async function GET(request: NextRequest) {
         }
 
         if (mediaIdForInsightTest) {
-            logger.debug(`${TAG} Chamando fetchMediaInsights para Media ID: ${mediaIdForInsightTest}...`);
+            logger.debug(`${TAG} Chamando fetchMediaInsights para Media ID: ${mediaIdForInsightTest} usando FEED_MEDIA_INSIGHTS_METRICS...`);
             try {
-                const insightsResult = await fetchMediaInsights(mediaIdForInsightTest, accessToken, MEDIA_INSIGHTS_METRICS);
-                results['fetchMediaInsights (instagram_manage_insights)'] = insightsResult;
+                const insightsResult: FetchInsightsResult<IMetricStats> = await fetchMediaInsights(mediaIdForInsightTest, accessToken, FEED_MEDIA_INSIGHTS_METRICS);
+                // ATUALIZADO: Mapeamento explícito para corresponder ao tipo TestResultEntry
+                results['fetchMediaInsights (instagram_manage_insights)'] = {
+                    success: insightsResult.success,
+                    data: insightsResult.data,
+                    error: insightsResult.error ?? undefined, // Converte null para undefined
+                    message: insightsResult.errorMessage ?? undefined, // Mapeia errorMessage para message
+                };
                 if (insightsResult.success) logger.info(`${TAG} fetchMediaInsights: SUCESSO`);
-                else logger.warn(`${TAG} fetchMediaInsights: FALHA - ${insightsResult.error}`);
+                else logger.warn(`${TAG} fetchMediaInsights: FALHA - ${insightsResult.error} (Msg: ${insightsResult.errorMessage})`);
             } catch (e: any) {
                 logger.error(`${TAG} fetchMediaInsights: ERRO EXCEÇÃO - ${e.message}`);
                 results['fetchMediaInsights (instagram_manage_insights)'] = { success: false, error: e.message };
             }
         } else {
             const msg = "Nenhuma mídia encontrada para testar insights.";
-            results['fetchMediaInsights (instagram_manage_insights)'] = { success: true, message: msg }; // Marcado como sucesso pois o teste não pôde ser executado
+            results['fetchMediaInsights (instagram_manage_insights)'] = { success: true, message: msg }; 
             logger.warn(`${TAG} fetchMediaInsights: PULADO - ${msg}`);
         }
 
