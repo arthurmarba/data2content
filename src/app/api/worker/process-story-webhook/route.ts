@@ -3,7 +3,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Receiver } from "@upstash/qstash"; // Para verificar chamadas do QStash
 import { logger } from '@/app/lib/logger';
-import { processStoryWebhookPayload } from '@/app/lib/instagramService'; // Importa a função de processamento
+// ATUALIZADO para o novo módulo
+import { processStoryWebhookPayload } from '@/app/lib/instagram'; 
+import type { StoryWebhookValue } from '@/app/lib/instagram/types'; // Importando o tipo para clareza
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -48,8 +50,7 @@ export async function POST(request: NextRequest) {
   }
 
   let mediaId: string | null = null;
-  let valuePayload: any = null;
-  // <<< NOVO: Variável para armazenar o accountId extraído >>>
+  let valuePayload: StoryWebhookValue | null = null; // Usar o tipo importado
   let webhookAccountId: string | undefined = undefined;
 
   try {
@@ -76,8 +77,7 @@ export async function POST(request: NextRequest) {
         // O endpoint anterior (/api/webhooks/instagram) deve enviar um payload como:
         // { media_id: "...", value: {...}, account_id: "..." }
         mediaId = parsedBody?.media_id;
-        valuePayload = parsedBody?.value;
-        // <<< Tenta extrair o account_id do payload enviado pelo endpoint anterior >>>
+        valuePayload = parsedBody?.value as StoryWebhookValue; // Cast para o tipo esperado
         webhookAccountId = parsedBody?.account_id;
 
     } catch (parseError) {
@@ -90,20 +90,22 @@ export async function POST(request: NextRequest) {
         logger.error(`${TAG} 'media_id' ausente ou inválido no corpo da requisição: ${mediaId}`);
         return NextResponse.json({ error: 'Missing or invalid media_id in request body' }, { status: 400 });
     }
-     if (!valuePayload || typeof valuePayload !== 'object') {
+     if (!valuePayload || typeof valuePayload !== 'object') { // valuePayload agora é StoryWebhookValue | null
         logger.error(`${TAG} Objeto 'value' ausente ou inválido no corpo da requisição para Media ID ${mediaId}.`);
         return NextResponse.json({ error: 'Missing or invalid value object in request body' }, { status: 400 });
     }
-    // Loga o accountId se ele foi encontrado
     if (webhookAccountId) {
         logger.info(`${TAG} Recebida tarefa para processar webhook do Story Media ID: ${mediaId} para Account ID: ${webhookAccountId}`);
     } else {
-        logger.warn(`${TAG} Recebida tarefa para processar webhook do Story Media ID: ${mediaId}, mas Account ID não foi fornecido no payload.`);
+        // Considerar se webhookAccountId é opcional ou obrigatório. Se obrigatório, retornar erro 400.
+        logger.warn(`${TAG} Recebida tarefa para processar webhook do Story Media ID: ${mediaId}, mas Account ID (webhookAccountId) não foi fornecido no payload do QStash.`);
+        // Se for obrigatório:
+        // return NextResponse.json({ error: 'Missing account_id in request body from QStash' }, { status: 400 });
     }
 
 
     // 3. Chamar a função principal de processamento do webhook
-    // <<< CORRIGIDO: Passa webhookAccountId como segundo argumento >>>
+    // A função processStoryWebhookPayload espera webhookAccountId e valuePayload
     const processResult = await processStoryWebhookPayload(mediaId, webhookAccountId, valuePayload);
 
     // 4. Logar e retornar o resultado
@@ -112,7 +114,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, message: `Webhook for story ${mediaId} processed.` }, { status: 200 });
     } else {
         logger.error(`${TAG} Falha ao processar webhook para Story ${mediaId}. Erro: ${processResult.error}`);
-        // Retorna 200 OK mesmo em falha de lógica de negócio
+        // Retorna 200 OK mesmo em falha de lógica de negócio para que QStash não tente reenviar indefinidamente
+        // a menos que seja um erro que justifique um reenvio (ex: erro de DB temporário, não um erro de dados inválidos).
+        // Se o erro for recuperável, poderia retornar um status 5xx para QStash tentar novamente.
         return NextResponse.json({ success: false, message: `Failed to process webhook for story ${mediaId}: ${processResult.error}` }, { status: 200 });
     }
 

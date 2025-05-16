@@ -1,8 +1,10 @@
+// src/app/api/instagram/disconnect/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'; // Ajuste o caminho se necessário
-// <<< Importa a função para limpar a conexão >>>
-import { clearInstagramConnection } from '@/app/lib/instagramService';
+// ATUALIZADO para o novo módulo
+import { clearInstagramConnection } from '@/app/lib/instagram'; 
 import { logger } from '@/app/lib/logger';
 import mongoose from 'mongoose'; // Para validar ObjectId
 
@@ -23,7 +25,7 @@ export async function POST(request: NextRequest) {
         const session = await getServerSession(authOptions);
 
         if (!session?.user?.id || !mongoose.isValidObjectId(session.user.id)) {
-            logger.warn(`${TAG} Tentativa de acesso não autenticada ou ID inválido.`);
+            logger.warn(`${TAG} Tentativa de acesso não autenticada ou ID inválido. User ID: ${session?.user?.id}`);
             return NextResponse.json({ error: 'Não autenticado ou ID de usuário inválido' }, { status: 401 });
         }
         const userId = session.user.id;
@@ -31,6 +33,7 @@ export async function POST(request: NextRequest) {
 
         // 2. Chamar o Serviço para Limpar a Conexão
         // A função clearInstagramConnection já lida com a conexão ao DB internamente.
+        // E espera um ObjectId ou string que seja um ObjectId válido.
         await clearInstagramConnection(userId);
 
         // 3. Retornar Sucesso

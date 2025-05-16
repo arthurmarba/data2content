@@ -1,19 +1,19 @@
 // src/app/api/dev/test-permissions/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'; // Ajuste o caminho se necessário
+import { authOptions } from '@/app/api/auth/[...nextauth]/route'; 
 import {
     fetchBasicAccountData,
     fetchInstagramMedia,
     fetchMediaInsights,
     getInstagramConnectionDetails,
-} from '@/app/lib/instagramService'; // Ajuste o caminho se necessário
+} from '@/app/lib/instagram'; // ATUALIZADO para o novo módulo
 import { logger } from '@/app/lib/logger';
 import mongoose from 'mongoose';
-import UserModel from '@/app/models/User'; // Removida a importação duplicada de IUser
+import UserModel from '@/app/models/User'; 
 import { connectToDatabase } from '@/app/lib/mongoose';
-// <<< ADICIONADO: Importar MEDIA_INSIGHTS_METRICS e outras constantes necessárias >>>
-import { BASE_URL, API_VERSION, MEDIA_INSIGHTS_METRICS } from '@/config/instagram.config';
+// ATUALIZADO para o novo local das constantes de configuração da API
+import { BASE_URL, API_VERSION, MEDIA_INSIGHTS_METRICS } from '@/app/lib/instagram/config/instagramApiConfig';
 
 const TAG = '[API TestPermissions]';
 
@@ -28,7 +28,7 @@ async function isAdmin(userId: string | undefined): Promise<boolean> {
         return false;
     }
     try {
-        await connectToDatabase(); // Garante que estamos conectados ao DB
+        await connectToDatabase(); 
         const user = await UserModel.findById(userId).select('role').lean();
         if (user && user.role === 'admin') {
             logger.info(`${TAG} isAdmin: Usuário ${userId} é administrador.`);
@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
         try {
             const meAccountsUrl = `${BASE_URL}/${API_VERSION}/me/accounts?fields=id,name,access_token,instagram_business_account{id,username}&access_token=${accessToken}`;
             const fbResponse = await fetch(meAccountsUrl);
-            const fbData = await fbResponse.json() as any; // Adicionado 'as any' para evitar erro de tipo com fbData.error
+            const fbData = await fbResponse.json() as any; 
             if (!fbResponse.ok || fbData.error) {
                 const error = fbData.error || { message: `Erro ${fbResponse.status}`};
                 logger.warn(`${TAG} pages_show_list (/me/accounts): FALHA - ${error.message}`);
@@ -133,7 +133,6 @@ export async function GET(request: NextRequest) {
         if (mediaIdForInsightTest) {
             logger.debug(`${TAG} Chamando fetchMediaInsights para Media ID: ${mediaIdForInsightTest}...`);
             try {
-                // <<< CORRIGIDO: Adicionado MEDIA_INSIGHTS_METRICS como terceiro argumento >>>
                 const insightsResult = await fetchMediaInsights(mediaIdForInsightTest, accessToken, MEDIA_INSIGHTS_METRICS);
                 results['fetchMediaInsights (instagram_manage_insights)'] = insightsResult;
                 if (insightsResult.success) logger.info(`${TAG} fetchMediaInsights: SUCESSO`);
@@ -144,7 +143,7 @@ export async function GET(request: NextRequest) {
             }
         } else {
             const msg = "Nenhuma mídia encontrada para testar insights.";
-            results['fetchMediaInsights (instagram_manage_insights)'] = { success: true, message: msg };
+            results['fetchMediaInsights (instagram_manage_insights)'] = { success: true, message: msg }; // Marcado como sucesso pois o teste não pôde ser executado
             logger.warn(`${TAG} fetchMediaInsights: PULADO - ${msg}`);
         }
 
