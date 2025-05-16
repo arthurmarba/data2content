@@ -1,17 +1,23 @@
 // @/app/lib/aiFunctionSchemas.zod.ts
-// v1.3.0 (Comunidade de Inspiração) - Adicionado FetchCommunityInspirationsArgsSchema.
-// Mantém funcionalidade da v1.2.0.
+// v1.3.1 (Período de Relatório Flexível para getAggregatedReport)
+// - ATUALIZADO: GetAggregatedReportArgsSchema.analysisPeriod para aceitar z.number().
+// - Mantém funcionalidade da v1.3.0 (Comunidade de Inspiração).
 // Arquivo para definir os schemas Zod para validar os argumentos das funções chamadas pela IA.
 
 import { z } from 'zod';
 import { Types } from 'mongoose'; // Importado para validação de ObjectId, se necessário
 
-// Schema para getAggregatedReport (mantido da v1.2.0)
+// Schema para getAggregatedReport (ATUALIZADO v1.3.1)
 export const GetAggregatedReportArgsSchema = z.object({
-  analysisPeriod: z.enum(['last180days', 'last365days', 'allTime'])
+  analysisPeriod: z.number({
+      invalid_type_error: "O período de análise deve ser um número de dias.",
+      description: "O número de dias a serem considerados para a análise do relatório (ex: 7, 30, 40, 90, 180). Use 180 como padrão se nenhum período específico for solicitado. Use 0 para 'todo o período disponível'."
+    })
+    .int({ message: "O período de análise deve ser um número inteiro de dias." })
+    .min(0, { message: "O período de análise não pode ser negativo. Use 0 para 'todo o período'." }) // Permite 0 para "allTime"
     .optional()
-    .default('last180days')
-    .describe("O período a ser considerado para a análise do relatório. 'last180days' para os últimos 180 dias, 'last365days' para o último ano, 'allTime' para todo o histórico disponível."),
+    .default(180) // Default de 180 dias
+    .describe("O número de dias para o qual o relatório de agregação deve ser gerado. Padrão: 180 dias. Use 0 para 'todo o período disponível'."),
 }).strict().describe("Argumentos para buscar o relatório agregado e insights de publicidade.");
 
 // Schema para getTopPosts (mantido da v1.2.0)
@@ -75,8 +81,8 @@ const validKnowledgeTopics = [
   'branding_positioning_by_size', 'branding_monetization',
   'branding_case_studies', 'branding_trends',
   'methodology_shares_retention', 'methodology_format_proficiency', 'methodology_cadence_quality',
-  'best_posting_times'
-  // Futuramente: Adicionar 'community_inspiration_overview' se criarmos um tópico de conhecimento.
+  'best_posting_times',
+  'community_inspiration_overview' // Adicionado conforme promptSystemFC.ts
 ] as const;
 
 export const GetConsultingKnowledgeArgsSchema = z.object({
@@ -90,10 +96,7 @@ export const GetLatestAccountInsightsArgsSchema = z.object({
 }).strict().describe("Busca os insights de conta e dados demográficos mais recentes disponíveis para o usuário.");
 
 
-// <<< NOVO: Comunidade de Inspiração >>>
-/**
- * Schema Zod para os argumentos da função fetchCommunityInspirations.
- */
+// Schema para FetchCommunityInspirationsArgsSchema (mantido da v1.3.0)
 export const FetchCommunityInspirationsArgsSchema = z.object({
   proposal: z.string().min(1, { message: "O campo 'proposal' é obrigatório para buscar inspirações." })
     .describe("A proposta/tema do conteúdo para o qual se busca inspiração."),
@@ -106,16 +109,15 @@ export const FetchCommunityInspirationsArgsSchema = z.object({
   count: z.number().int().min(1).max(3).optional().default(2)
     .describe("Número de exemplos de inspiração a retornar (padrão 2, mínimo 1, máximo 3).")
 }).strict().describe("Argumentos para buscar inspirações na comunidade de criadores IA Tuca.");
-// <<< FIM NOVO: Comunidade de Inspiração >>>
 
 
-// --- Mapa de Validadores (ATUALIZADO v1.3.0) ---
+// --- Mapa de Validadores (ATUALIZADO v1.3.1) ---
 type ValidatorMap = {
   [key: string]: z.ZodType<any, any, any>;
 };
 
 export const functionValidators: ValidatorMap = {
-  getAggregatedReport: GetAggregatedReportArgsSchema,
+  getAggregatedReport: GetAggregatedReportArgsSchema, // Schema atualizado
   getTopPosts: GetTopPostsArgsSchema,
   getDayPCOStats: GetDayPCOStatsArgsSchema,
   getMetricDetailsById: GetMetricDetailsByIdArgsSchema,
@@ -123,7 +125,5 @@ export const functionValidators: ValidatorMap = {
   getDailyMetricHistory: GetDailyMetricHistoryArgsSchema,
   getConsultingKnowledge: GetConsultingKnowledgeArgsSchema,
   getLatestAccountInsights: GetLatestAccountInsightsArgsSchema,
-  // <<< NOVO: Comunidade de Inspiração >>>
   fetchCommunityInspirations: FetchCommunityInspirationsArgsSchema,
-  // <<< FIM NOVO: Comunidade de Inspiração >>>
 };

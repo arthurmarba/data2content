@@ -1,37 +1,33 @@
-// @/app/lib/aiFunctions.ts – v0.10.0 (Comunidade de Inspiração)
-// - Adicionada função fetchCommunityInspirations e seu schema para o LLM.
-// - Importa CommunityInspirationFilters e getInspirations (aliased) de dataService.
-// - Importa startOfDay de date-fns.
-// - Mantém funcionalidade da v0.9.9.
+// @/app/lib/aiFunctions.ts – v0.10.1 (Período de Relatório Flexível)
+// - ATUALIZADO: Schema e executor de `getAggregatedReport` para aceitar `analysisPeriod` como um número de dias.
+// - `analysisPeriod: 0` é tratado como 'allTime' no executor.
+// - Mantém funcionalidade da v0.10.0 (Comunidade de Inspiração).
 
 import { Types, Model } from 'mongoose';
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
 
-// Importa os Schemas Zod (deve ser v1.3.0 ou superior, contendo FetchCommunityInspirationsArgsSchema)
+// Importa os Schemas Zod (deve ser v1.3.0 ou superior)
+// ASSUMINDO que ZodSchemas.GetAggregatedReportArgsSchema será atualizado para analysisPeriod: z.number().optional().default(180)
 import * as ZodSchemas from './aiFunctionSchemas.zod';
 
 import MetricModel, { IMetric, IMetricStats } from '@/app/models/Metric';
 import DailyMetricSnapshotModel, { IDailyMetricSnapshot } from '@/app/models/DailyMetricSnapshot';
 import AccountInsightModel, { IAccountInsight } from '@/app/models/AccountInsight'; 
-import { IUser } from '@/app/models/User'; // IUser já inclui os novos campos da comunidade
+import { IUser } from '@/app/models/User';
 
 import { MetricsNotFoundError } from '@/app/lib/errors'; 
 
-// ATUALIZADO: Importar CommunityInspirationFilters e getInspirations (aliased) de dataService
 import {
   fetchAndPrepareReportData,
   getAdDealInsights,
   AdDealInsights,
   IEnrichedReport,
-  // <<< NOVO: Comunidade de Inspiração >>>
-  getInspirations as getCommunityInspirationsDataService, // Renomeado para evitar conflito de nome
-  CommunityInspirationFilters,                             // Interface para os filtros
-  // <<< FIM NOVO: Comunidade de Inspiração >>>
-} from './dataService'; // Assegure que dataService (v2.12.0+) exporta estes
-import { subDays, subYears, startOfDay } from 'date-fns'; // Adicionado startOfDay
+  getInspirations as getCommunityInspirationsDataService,
+  CommunityInspirationFilters,
+} from './dataService'; 
+import { subDays, subYears, startOfDay } from 'date-fns';
 
-// Imports dos arquivos de conhecimento
 import * as PricingKnowledge from './knowledge/pricingKnowledge';
 import * as AlgorithmKnowledge from './knowledge/algorithmKnowledge';
 import * as MetricsKnowledge from './knowledge/metricsKnowledge';
@@ -40,23 +36,22 @@ import * as MethodologyKnowledge from './knowledge/methodologyDeepDive';
 
 
 /* ------------------------------------------------------------------ *
- * 1.  JSON-schemas expostos ao LLM (ATUALIZADO v0.10.0)              *
+ * 1.  JSON-schemas expostos ao LLM (ATUALIZADO v0.10.1)              *
  * ------------------------------------------------------------------ */
 export const functionSchemas = [
   {
     name: 'getAggregatedReport',
-    description: 'Retorna um relatório completo com métricas agregadas de posts E TAMBÉM os insights sobre parcerias publicitárias recentes do usuário. Use para análises gerais, planos, rankings, perguntas sobre performance e publicidade. **É o ponto de partida OBRIGATÓRIO para a maioria das análises.** Permite especificar o período da análise.',
+    description: 'Retorna um relatório completo com métricas agregadas de posts E TAMBÉM os insights sobre parcerias publicitárias recentes do usuário. Use para análises gerais, planos, rankings, perguntas sobre performance e publicidade. **É o ponto de partida OBRIGATÓRIO para a maioria das análises.** Permite especificar o período da análise em número de dias.',
     parameters: {
       type: 'object',
       properties: {
         analysisPeriod: {
-          type: 'string',
-          enum: ZodSchemas.GetAggregatedReportArgsSchema.shape.analysisPeriod.removeDefault().unwrap()._def.values,
-          default: 'last180days',
-          description: "O período a ser considerado para a análise do relatório. 'last180days' (padrão) para os últimos 180 dias, 'last365days' para o último ano, 'allTime' para todo o histórico disponível.",
+          type: 'number', // MODIFICADO de 'string' para 'number'
+          default: 180,   // MODIFICADO de 'last180days' para 180
+          description: "O número de dias a serem considerados para a análise do relatório (ex: 7, 30, 40, 90, 180). Use 180 como padrão se nenhum período específico for solicitado. Use 0 para 'todo o período disponível'.",
         }
       },
-      required: []
+      required: [] // analysisPeriod é opcional, e o default será usado ou a IA enviará 180.
     }
   },
   {
@@ -68,7 +63,6 @@ export const functionSchemas = [
       required: []
     }
   },
-  // <<< NOVO: Comunidade de Inspiração >>>
   {
     name: 'fetchCommunityInspirations',
     description: "Busca exemplos de posts da Comunidade de Inspiração IA Tuca que tiveram bom desempenho qualitativo. Use quando o usuário pedir explicitamente por inspiração, ou para ilustrar sugestões de planejamento de conteúdo. Baseie-se na proposta e contexto fornecidos, e opcionalmente em um objetivo qualitativo de desempenho (ex: 'gerou_muitos_salvamentos', 'alcancou_nova_audiencia').",
@@ -102,7 +96,6 @@ export const functionSchemas = [
       required: ['proposal', 'context']
     }
   },
-  // <<< FIM NOVO: Comunidade de Inspiração >>>
   {
     name: 'getTopPosts',
     description: 'Retorna os N posts com melhor desempenho em uma métrica específica (shares, saved, likes, comments, reach, views). Use APENAS se o usuário pedir explicitamente por "top posts" e após ter o relatório geral via getAggregatedReport.',
@@ -222,27 +215,44 @@ export const functionSchemas = [
 type ExecutorFn = (args: any, user: IUser) => Promise<unknown>;
 
 /* ---------------------------------------------------------------------- *
- * 2.  Executores das Funções (v0.9.9 - Base para v0.10.0)                *
+ * 2.  Executores das Funções (ATUALIZADO v0.10.1)                        *
  * ---------------------------------------------------------------------- */
 
 /* 2.1 getAggregatedReport */
 const getAggregatedReport: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetAggregatedReportArgsSchema>, loggedUser) => {
-  const fnTag = '[fn:getAggregatedReport v0.9.9]'; // Mantendo versão original do fnTag se a lógica interna não mudou
+  const fnTag = '[fn:getAggregatedReport v0.10.1]'; 
   try {
-    const analysisPeriod = args.analysisPeriod;
-    logger.info(`${fnTag} Executando para usuário ${loggedUser._id} com período de análise: ${analysisPeriod}`);
+    // analysisPeriod agora é esperado como um número de dias.
+    // O ZodSchema (não fornecido aqui) deve ser atualizado para z.number().optional().default(180) ou similar.
+    // Se args.analysisPeriod for undefined (porque a IA não enviou ou Zod não aplicou default), usamos 180.
+    const periodInDays = args.analysisPeriod === undefined ? 180 : args.analysisPeriod;
+    
+    logger.info(`${fnTag} Executando para usuário ${loggedUser._id} com período de análise: ${periodInDays} dias.`);
 
     let sinceDate: Date;
     const now = new Date();
-    if (analysisPeriod === 'last365days') {
-      sinceDate = subYears(now, 1);
-    } else if (analysisPeriod === 'allTime') {
+
+    if (periodInDays === 0) { // 0 dias é interpretado como "allTime"
       sinceDate = new Date('1970-01-01T00:00:00.000Z');
-      logger.info(`${fnTag} Período 'allTime' definido para buscar desde o início dos tempos.`);
-    } else { 
+      logger.info(`${fnTag} Período de ${periodInDays} dias interpretado como 'allTime', buscando desde o início.`);
+    } else if (periodInDays > 0) {
+      sinceDate = subDays(now, periodInDays);
+    } else {
+      // Caso inválido (ex: número negativo), usar padrão de 180 dias para segurança.
+      logger.warn(`${fnTag} Período de análise inválido (${periodInDays} dias) recebido. Usando padrão de 180 dias.`);
       sinceDate = subDays(now, 180);
     }
-    logger.debug(`${fnTag} Data de início da análise calculada: ${sinceDate.toISOString()} para período ${analysisPeriod}`);
+    
+    logger.debug(`${fnTag} Data de início da análise calculada: ${sinceDate.toISOString()} para período de ${periodInDays} dias.`);
+
+    // A lógica para AdDealInsights pode precisar de ajuste se os períodos 'all', 'last90d' não corresponderem mais
+    // diretamente ao periodInDays numérico. Por ora, mantendo a lógica original de adDealResult,
+    // mas isso pode precisar de refinamento para mapear periodInDays para os enums esperados por getAdDealInsights.
+    // Exemplo simplificado: se periodInDays > 90, talvez usar 'all', senão 'last90d'.
+    // Para este exemplo, vamos manter a lógica original de adDealResult, mas é um ponto de atenção.
+    let adDealPeriodString: 'all' | 'last90d' = 'last90d';
+    if (periodInDays === 0) adDealPeriodString = 'all'; // "allTime"
+    // Outras lógicas de mapeamento podem ser adicionadas aqui se necessário para adDealPeriodString
 
     const [reportResult, adDealResult] = await Promise.allSettled([
         fetchAndPrepareReportData({
@@ -250,19 +260,19 @@ const getAggregatedReport: ExecutorFn = async (args: z.infer<typeof ZodSchemas.G
             contentMetricModel: MetricModel,
             analysisSinceDate: sinceDate
         }),
-        getAdDealInsights(loggedUser._id.toString(), analysisPeriod === 'allTime' ? 'all' : (analysisPeriod === 'last365days' ? 'last90d' : 'last90d'))
+        getAdDealInsights(loggedUser._id.toString(), adDealPeriodString)
     ]);
 
     let enrichedReportData: IEnrichedReport | null = null;
     let reportError: string | null = null;
     if (reportResult.status === 'fulfilled') {
         enrichedReportData = reportResult.value.enrichedReport;
-        logger.info(`${fnTag} Relatório agregado de métricas gerado com sucesso para o período ${analysisPeriod}. Posts no relatório: ${enrichedReportData?.overallStats?.totalPosts ?? 'N/A'}`);
+        logger.info(`${fnTag} Relatório agregado de métricas gerado com sucesso para o período de ${periodInDays} dias. Posts no relatório: ${enrichedReportData?.overallStats?.totalPosts ?? 'N/A'}`);
         if (enrichedReportData?.overallStats) {
             logger.debug(`${fnTag} OverallStats contém: totalReels=${enrichedReportData.overallStats.totalReelsInPeriod}, avgReelAvgWatchTimeSecs=${enrichedReportData.overallStats.avgReelAvgWatchTimeSeconds}`);
         }
     } else {
-        reportError = `Falha ao gerar parte do relatório (métricas) para o período ${analysisPeriod}: ${reportResult.reason?.message || 'Erro desconhecido'}`;
+        reportError = `Falha ao gerar parte do relatório (métricas) para o período de ${periodInDays} dias: ${reportResult.reason?.message || 'Erro desconhecido'}`;
         logger.error(`${fnTag} Erro ao gerar relatório agregado de métricas:`, reportResult.reason);
     }
 
@@ -278,12 +288,12 @@ const getAggregatedReport: ExecutorFn = async (args: z.infer<typeof ZodSchemas.G
 
     if (!enrichedReportData && !adDealInsightsData) {
         const primaryError = reportError || adDealError || "Nenhum dado encontrado para o período selecionado.";
-        logger.warn(`${fnTag} Nenhum dado de relatório ou publicidade retornado para ${loggedUser._id} no período ${analysisPeriod}. Erro principal: ${primaryError}`);
+        logger.warn(`${fnTag} Nenhum dado de relatório ou publicidade retornado para ${loggedUser._id} no período de ${periodInDays} dias. Erro principal: ${primaryError}`);
         return { error: primaryError, message: "Não foi possível obter dados para o relatório no período especificado." };
     }
     
     return {
-        analysisPeriodUsed: analysisPeriod,
+        analysisPeriodUsed: periodInDays, // Retorna o número de dias efetivamente usado
         reportData: enrichedReportData,
         adDealInsights: adDealInsightsData,
         reportError: reportError,
@@ -298,7 +308,7 @@ const getAggregatedReport: ExecutorFn = async (args: z.infer<typeof ZodSchemas.G
 
 /* 2.2 getLatestAccountInsights */
 const getLatestAccountInsights: ExecutorFn = async (_args: z.infer<typeof ZodSchemas.GetLatestAccountInsightsArgsSchema>, loggedUser) => {
-    const fnTag = '[fn:getLatestAccountInsights v0.9.9]';
+    const fnTag = '[fn:getLatestAccountInsights v0.9.9]'; // Mantendo versão original se a lógica interna não mudou
     logger.info(`${fnTag} Executando para usuário ${loggedUser._id}`);
 
     try {
@@ -342,10 +352,9 @@ const getLatestAccountInsights: ExecutorFn = async (_args: z.infer<typeof ZodSch
     }
 };
 
-// <<< NOVO: Comunidade de Inspiração >>>
 /* 2.X fetchCommunityInspirations */
 const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSchemas.FetchCommunityInspirationsArgsSchema>, loggedUser) => {
-  const fnTag = '[fn:fetchCommunityInspirations v0.10.0]';
+  const fnTag = '[fn:fetchCommunityInspirations v0.10.0]'; // Mantendo versão original se a lógica interna não mudou
   logger.info(`${fnTag} Executando para User ${loggedUser._id} com args: ${JSON.stringify(args)}`);
 
   try {
@@ -357,7 +366,7 @@ const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSc
         };
     }
 
-    const filters: CommunityInspirationFilters = { // CommunityInspirationFilters importado de dataService
+    const filters: CommunityInspirationFilters = { 
       proposal: args.proposal,
       context: args.context,
     };
@@ -369,12 +378,11 @@ const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSc
     }
     
     let excludeIds: string[] = [];
-    // Verifica se a data da última inspiração mostrada é de hoje e se existem IDs para excluir
     if (loggedUser.lastCommunityInspirationShown_Daily?.date && 
         loggedUser.lastCommunityInspirationShown_Daily.inspirationIds && 
         loggedUser.lastCommunityInspirationShown_Daily.inspirationIds.length > 0) {
         
-        const today = startOfDay(new Date()); // date-fns: startOfDay para normalizar
+        const today = startOfDay(new Date()); 
         const lastShownDate = startOfDay(new Date(loggedUser.lastCommunityInspirationShown_Daily.date));
 
         if (today.getTime() === lastShownDate.getTime()) {
@@ -383,7 +391,6 @@ const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSc
         }
     }
     
-    // Usa o alias getCommunityInspirationsDataService para chamar a função de dataService
     const inspirations = await getCommunityInspirationsDataService(filters, args.count ?? 2, excludeIds);
 
     if (!inspirations || inspirations.length === 0) {
@@ -403,8 +410,6 @@ const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSc
       contentSummary: insp.contentSummary, 
       performanceHighlights_Qualitative: insp.performanceHighlights_Qualitative, 
       primaryObjectiveAchieved_Qualitative: insp.primaryObjectiveAchieved_Qualitative,
-      // anonymityLevel e originalCreatorId (se creditado) podem ser usados pelo Prompt System para a apresentação.
-      // Não incluímos diretamente aqui para manter o retorno desta função mais focado nos dados da inspiração em si.
     }));
 
     logger.info(`${fnTag} ${formattedInspirations.length} inspirações formatadas e seguras retornadas para User ${loggedUser._id}.`);
@@ -415,13 +420,11 @@ const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSc
     return { error: "Desculpe, tive um problema ao buscar as inspirações da comunidade. Poderia tentar novamente em alguns instantes?" };
   }
 };
-// <<< FIM NOVO: Comunidade de Inspiração >>>
 
 
 /* 2.3 getTopPosts */
 const getTopPosts: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetTopPostsArgsSchema>, loggedUser) => {
-  const fnTag = '[fn:getTopPosts v0.9.9]';
-  // ... (código existente mantido) ...
+  const fnTag = '[fn:getTopPosts v0.9.9]'; // Mantendo versão original se a lógica interna não mudou
   try {
     const userId = new Types.ObjectId(loggedUser._id);
     const metric = args.metric;
@@ -466,11 +469,11 @@ const getTopPosts: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetTopPos
 
 /* 2.4 getDayPCOStats */
 const getDayPCOStats: ExecutorFn = async (_args: z.infer<typeof ZodSchemas.GetDayPCOStatsArgsSchema>, loggedUser) => {
-   const fnTag = '[fn:getDayPCOStats v0.9.9]';
-   // ... (código existente mantido) ...
+   const fnTag = '[fn:getDayPCOStats v0.9.9]'; // Mantendo versão original se a lógica interna não mudou
    try {
     logger.info(`${fnTag} Executando para usuário ${loggedUser._id}`);
-    const sinceDate = subDays(new Date(), 180);
+    // Este executor ainda usa um período fixo. Pode precisar de ajuste se a IA precisar passar período.
+    const sinceDate = subDays(new Date(), 180); 
     const { enrichedReport } = await fetchAndPrepareReportData({
         user: loggedUser,
         contentMetricModel: MetricModel,
@@ -496,8 +499,7 @@ const getDayPCOStats: ExecutorFn = async (_args: z.infer<typeof ZodSchemas.GetDa
 
 /* 2.5 getMetricDetailsById */
 const getMetricDetailsById: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetMetricDetailsByIdArgsSchema>, loggedUser) => {
-    const fnTag = '[fn:getMetricDetailsById v0.9.9]';
-    // ... (código existente mantido) ...
+    const fnTag = '[fn:getMetricDetailsById v0.9.9]'; // Mantendo versão original se a lógica interna não mudou
     try {
         const userId = new Types.ObjectId(loggedUser._id);
         const metricId = args.metricId;
@@ -539,8 +541,7 @@ const getMetricDetailsById: ExecutorFn = async (args: z.infer<typeof ZodSchemas.
 
 /* 2.6 findPostsByCriteria */
 const findPostsByCriteria: ExecutorFn = async (args: z.infer<typeof ZodSchemas.FindPostsByCriteriaArgsSchema>, loggedUser) => {
-    const fnTag = '[fn:findPostsByCriteria v0.9.9]';
-    // ... (código existente mantido) ...
+    const fnTag = '[fn:findPostsByCriteria v0.9.9]'; // Mantendo versão original se a lógica interna não mudou
     try {
         const userId = new Types.ObjectId(loggedUser._id);
         const { criteria, limit, sortBy, sortOrder } = args;
@@ -607,8 +608,7 @@ const findPostsByCriteria: ExecutorFn = async (args: z.infer<typeof ZodSchemas.F
 
 /* 2.7 getDailyMetricHistory */
 const getDailyMetricHistory: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetDailyMetricHistoryArgsSchema>, loggedUser) => {
-    const fnTag = '[fn:getDailyMetricHistory v0.9.9]';
-    // ... (código existente mantido) ...
+    const fnTag = '[fn:getDailyMetricHistory v0.9.9]'; // Mantendo versão original se a lógica interna não mudou
     try {
         const userId = new Types.ObjectId(loggedUser._id);
         const metricId = args.metricId;
@@ -650,8 +650,7 @@ const getDailyMetricHistory: ExecutorFn = async (args: z.infer<typeof ZodSchemas
 
 /* 2.8 getConsultingKnowledge */
 const getConsultingKnowledge: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetConsultingKnowledgeArgsSchema>, _loggedUser) => {
-    const fnTag = '[fn:getConsultingKnowledge v0.9.9]';
-    // ... (código existente mantido) ...
+    const fnTag = '[fn:getConsultingKnowledge v0.9.9]'; // Mantendo versão original se a lógica interna não mudou
     const topic = args.topic;
 
     logger.info(`${fnTag} Buscando conhecimento sobre o tópico: ${topic}`);
@@ -682,14 +681,12 @@ const getConsultingKnowledge: ExecutorFn = async (args: z.infer<typeof ZodSchema
 
 
 /* ------------------------------------------------------------------ *
- * 3.  Mapa exportado (ATUALIZADO v0.10.0)                            *
+ * 3.  Mapa exportado (ATUALIZADO v0.10.1)                            *
  * ------------------------------------------------------------------ */
 export const functionExecutors: Record<string, ExecutorFn> = {
   getAggregatedReport,
   getLatestAccountInsights,
-  // <<< NOVO: Comunidade de Inspiração >>>
   fetchCommunityInspirations,
-  // <<< FIM NOVO: Comunidade de Inspiração >>>
   getTopPosts,
   getDayPCOStats,
   getMetricDetailsById,
