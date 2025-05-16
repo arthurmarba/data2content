@@ -3,16 +3,24 @@ import mongoose, { Types } from 'mongoose';
 import { logger } from '@/app/lib/logger';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import DbUser, { IUser } from '@/app/models/User';
-import { Client } from '@upstash/qstash'; // Para enfileirar a tarefa de refresh
+import { Client } from '@upstash/qstash';
 
-// Inicialização do cliente QStash (como no arquivo original)
+// Acessar variáveis de ambiente diretamente
 const qstashToken = process.env.QSTASH_TOKEN;
-const qstashClient = qstashToken ? new Client({ token: qstashToken }) : null;
+const qstashWorkerUrl = process.env.QSTASH_WORKER_URL || process.env.REFRESH_WORKER_URL; // Tenta QSTASH_WORKER_URL primeiro, depois REFRESH_WORKER_URL como fallback
 
-if (!qstashClient && process.env.NODE_ENV === 'production') { // Apenas logue erro em produção se não estiver configurado
-  logger.error("[connectionManagement] QSTASH_TOKEN não definido ou cliente QStash falhou ao inicializar. O refresh automático após conexão não funcionará.");
-} else if (!qstashClient) {
-  logger.warn("[connectionManagement] QSTASH_TOKEN não definido ou cliente QStash falhou ao inicializar. O refresh automático após conexão não funcionará.");
+// Inicialização do cliente QStash
+let qstashClient: Client | null = null;
+
+if (qstashToken) {
+  try {
+    qstashClient = new Client({ token: qstashToken });
+    logger.info('[connectionManagement] Cliente QStash inicializado com sucesso.');
+  } catch (error) {
+    logger.error("[connectionManagement] Falha ao inicializar o cliente QStash:", error);
+  }
+} else {
+  logger.warn("[connectionManagement] QSTASH_TOKEN não definido. O refresh automático após conexão não funcionará.");
 }
 
 
@@ -29,9 +37,9 @@ if (!qstashClient && process.env.NODE_ENV === 'production') { // Apenas logue er
 export async function connectInstagramAccount(
   userId: string | Types.ObjectId,
   instagramAccountId: string,
-  longLivedAccessToken: string | null // Pode ser null se o token não puder ser renovado/obtido mas a conta ainda está sendo conectada
+  longLivedAccessToken: string | null 
 ): Promise<{ success: boolean; error?: string }> {
-  const TAG = '[connectInstagramAccount v2.0]'; // Mantendo tag de versão da lógica original
+  const TAG = '[connectInstagramAccount v2.2_env_fix]'; 
   logger.info(`${TAG} Iniciando processo de conexão da conta IG ${instagramAccountId} para User ${userId}.`);
 
   if (!mongoose.isValidObjectId(userId)) {
@@ -44,8 +52,6 @@ export async function connectInstagramAccount(
     logger.error(`${TAG} ${errorMsg}`);
     return { success: false, error: errorMsg };
   }
-  // O longLivedAccessToken pode ser null se, por exemplo, o usuário já tinha um LLAT e está apenas selecionando uma conta IG
-  // ou se houve uma falha na obtenção do LLAT mas queremos prosseguir com a conexão da conta IG.
 
   try {
     await connectToDatabase();
@@ -53,38 +59,20 @@ export async function connectInstagramAccount(
     const updateData: Partial<IUser> & { $unset?: any } = {
       instagramAccountId: instagramAccountId,
       isInstagramConnected: true,
-      lastInstagramSyncAttempt: new Date(), // Marca a tentativa de conexão/sincronização
-      lastInstagramSyncSuccess: null,      // Reseta o status de sucesso da última sincronização
-      instagramSyncErrorMsg: null,         // Limpa erros anteriores ao (re)conectar
-      // availableIgAccounts: null,        // Limpa a lista de contas disponíveis, pois uma foi selecionada
-                                          // Esta linha foi comentada pois a lógica de limpar availableIgAccounts
-                                          // estava em connectInstagramAccount no original, mas pode ser melhor
-                                          // gerenciada no fluxo de autenticação após a seleção.
-                                          // Se for para limpar aqui, descomente.
+      lastInstagramSyncAttempt: new Date(), 
+      lastInstagramSyncSuccess: null,      
+      instagramSyncErrorMsg: null,         
     };
 
     if (longLivedAccessToken) {
       updateData.instagramAccessToken = longLivedAccessToken;
       logger.info(`${TAG} Token de longa duração fornecido para User ${userId}. Será salvo.`);
     } else {
-      // Se o LLAT for explicitamente null, e você quiser remover um token antigo do DB:
-      // updateData.$unset = { instagramAccessToken: "" };
-      // logger.warn(`${TAG} Token de longa duração (LLAT) NÃO fornecido para User ${userId}. Se um token antigo existir, ele NÃO será removido por esta operação, a menos que $unset seja usado.`);
-      // A lógica original do instagramService.ts não removia o token se longLivedAccessToken fosse null,
-      // apenas não o atualizava. Se a intenção é remover, o $unset é necessário.
-      // Por ora, mantendo a lógica de apenas não atualizar se for null.
        logger.warn(`${TAG} Token de longa duração (LLAT) não fornecido para User ${userId}. O campo instagramAccessToken não será atualizado com um novo token.`);
     }
 
-    // Busca dados básicos da conta IG para popular username e profile_picture_url no DbUser
-    // Esta parte estava implícita no fluxo original (connectInstagramAccount chamava fetchBasicAccountData).
-    // Para manter modular, idealmente, o chamador de connectInstagramAccount forneceria esses dados
-    // ou uma função separada seria chamada após a conexão.
-    // Por enquanto, vamos omitir a chamada direta a fetchBasicAccountData daqui para manter o foco do módulo.
-    // O username e profile_picture_url seriam atualizados durante a primeira sincronização (triggerDataRefresh).
-
     logger.debug(`${TAG} Atualizando usuário ${userId} no DB com dados de conexão da conta IG ${instagramAccountId}. Token ${longLivedAccessToken ? 'presente' : 'ausente/não será atualizado'}.`);
-    const updateResult = await DbUser.findByIdAndUpdate(userId, updateData, { new: true });
+    const updateResult = await DbUser.findByIdAndUpdate(userId, { $set: updateData }, { new: true });
 
     if (!updateResult) {
       const errorMsg = `Falha ao encontrar usuário ${userId} no DB para conectar conta IG.`;
@@ -94,17 +82,14 @@ export async function connectInstagramAccount(
 
     logger.info(`${TAG} Usuário ${userId} atualizado no DB. Conexão com IG ${instagramAccountId} marcada como ativa.`);
 
-    // Agendar a primeira sincronização de dados via QStash
-    const refreshWorkerUrl = process.env.REFRESH_WORKER_URL; // URL do worker que chama triggerDataRefresh
-    logger.info(`${TAG} Verificando QStash para agendar refresh. Cliente inicializado: ${!!qstashClient}. URL do Worker: ${refreshWorkerUrl}`);
+    logger.info(`${TAG} Verificando QStash para agendar refresh. Cliente inicializado: ${!!qstashClient}. URL do Worker: ${qstashWorkerUrl}`);
 
-    if (qstashClient && refreshWorkerUrl) {
+    if (qstashClient && qstashWorkerUrl) {
       logger.info(`${TAG} Cliente QStash e URL do worker configurados. Tentando enfileirar tarefa de refresh para User ${userId}.`);
       try {
         const publishResponse = await qstashClient.publishJSON({
-          url: refreshWorkerUrl,
-          body: { userId: userId.toString() }, // Envia o ID do usuário para o worker
-           // delay: '5s' // Opcional: Adicionar um pequeno atraso para garantir que a transação do DB seja concluída
+          url: qstashWorkerUrl, // Usa a variável obtida do process.env
+          body: { userId: userId.toString() }, 
         });
         logger.info(`${TAG} Tarefa de refresh inicial enviada com sucesso para QStash para User ${userId}. Message ID: ${publishResponse.messageId}`);
       } catch (qstashError: any) {
@@ -112,11 +97,9 @@ export async function connectInstagramAccount(
         if (qstashError.message) {
           logger.error(`${TAG} Mensagem de erro QStash: ${qstashError.message}`);
         }
-        // Não retornar erro aqui, pois a conexão da conta foi bem-sucedida, apenas o agendamento falhou.
-        // O erro já foi logado.
       }
     } else {
-      logger.warn(`${TAG} Cliente QStash ou REFRESH_WORKER_URL não configurado. Pulando agendamento de refresh automático para User ${userId}. A sincronização precisará ser disparada manualmente ou pelo CRON.`);
+      logger.warn(`${TAG} Cliente QStash ou URL do Worker (QSTASH_WORKER_URL/REFRESH_WORKER_URL) não configurado via variáveis de ambiente. Pulando agendamento de refresh automático para User ${userId}.`);
     }
 
     logger.info(`${TAG} Processo de conexão da conta IG ${instagramAccountId} para User ${userId} finalizado com sucesso.`);
@@ -135,11 +118,12 @@ export async function connectInstagramAccount(
  * e define uma mensagem de erro de sincronização apropriada.
  *
  * @param userId - O ID do usuário (string ou ObjectId).
+ * @param reason Opcional. A razão pela qual a conexão está sendo limpa. Será usada na mensagem de erro.
  * @returns Uma promessa que resolve quando a operação é concluída.
  */
-export async function clearInstagramConnection(userId: string | mongoose.Types.ObjectId): Promise<void> {
-  const TAG = '[clearInstagramConnection v2.0]'; // Mantendo tag de versão
-  logger.warn(`${TAG} Limpando dados de conexão Instagram para User ${userId}...`);
+export async function clearInstagramConnection(userId: string | mongoose.Types.ObjectId, reason?: string): Promise<void> {
+  const TAG = '[clearInstagramConnection v2.2_env_fix]'; 
+  logger.warn(`${TAG} Limpando dados de conexão Instagram para User ${userId}. Razão: ${reason || 'Não especificada'}`);
 
   if (!mongoose.isValidObjectId(userId)) {
     logger.error(`${TAG} ID de usuário inválido fornecido: ${userId}`);
@@ -148,34 +132,29 @@ export async function clearInstagramConnection(userId: string | mongoose.Types.O
 
   try {
     await connectToDatabase();
+    const defaultErrorMessage = "Sua conta do Instagram foi desconectada devido a um problema com o token de acesso ou permissões. Por favor, reconecte sua conta.";
+    const finalErrorMessage = reason ? `${reason} Sua conta foi desconectada. Por favor, reconecte.` : defaultErrorMessage;
+
     const updateFields = {
       $set: {
         isInstagramConnected: false,
-        lastInstagramSyncAttempt: new Date(), // Marca a tentativa de limpeza/desconexão
-        lastInstagramSyncSuccess: false,      // Sincronização não é mais bem-sucedida
-        instagramSyncErrorMsg: "A conexão com o Instagram foi desfeita ou o token tornou-se inválido. Por favor, reconecte.",
-        // availableIgAccounts: [], // Opcional: Limpar contas disponíveis se a desconexão for total
+        lastInstagramSyncAttempt: new Date(), 
+        lastInstagramSyncSuccess: false,      
+        instagramSyncErrorMsg: finalErrorMessage,
+        availableIgAccounts: [], 
       },
       $unset: {
-        instagramAccessToken: "",    // Remove o token de acesso
-        instagramAccountId: "",      // Remove o ID da conta conectada
-        username: "",                // Remove o nome de usuário do IG
-        profile_picture_url: "",     // Remove a URL da foto de perfil do IG
-        followers_count: "",         // Remove a contagem de seguidores
-        media_count: "",             // Remove a contagem de mídias
-        biography: "",               // Remove a biografia
-        website: "",                 // Remove o website
-        // Adicione quaisquer outros campos específicos do Instagram armazenados no DbUser que devam ser limpos
+        instagramAccessToken: "",    
+        instagramAccountId: "",      
+        instagramUsername: "",               
       }
     };
 
     await DbUser.findByIdAndUpdate(userId, updateFields);
-    logger.info(`${TAG} Dados de conexão Instagram limpos no DB para User ${userId}. O usuário precisará reconectar.`);
+    logger.info(`${TAG} Dados de conexão Instagram limpos no DB para User ${userId}. Mensagem de erro: "${finalErrorMessage}"`);
 
   } catch (error) {
     logger.error(`${TAG} Erro ao limpar dados de conexão Instagram no DB para User ${userId}:`, error);
-    // Considere relançar o erro se for crítico para o chamador saber
-    // throw error;
   }
 }
 
@@ -190,5 +169,10 @@ export async function finalizeInstagramConnection(
 ): Promise<{ success: boolean; message?: string; error?: string }> {
   const TAG = '[finalizeInstagramConnection - DEPRECATED v2.0]';
   logger.warn(`${TAG} Esta função é obsoleta e será removida em versões futuras. Usando connectInstagramAccount em vez disso.`);
-  return connectInstagramAccount(userId, selectedIgAccountId, longLivedAccessToken);
+  const result = await connectInstagramAccount(userId, selectedIgAccountId, longLivedAccessToken);
+  if (result.success) {
+    return { success: true, message: "Conta conectada (via finalizeInstagramConnection)." };
+  } else {
+    return { success: false, error: result.error };
+  }
 }

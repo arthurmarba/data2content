@@ -12,9 +12,7 @@ import {
   MEDIA_INSIGHTS_METRICS, 
   REEL_SAFE_GENERAL_METRICS, 
   REEL_SPECIFIC_INSIGHTS_METRICS, 
-  DEFAULT_ACCOUNT_INSIGHTS_PERIOD, // Usado para account insights
-  // DEMOGRAPHICS_PERIOD, // 'lifetime' é usado diretamente em fetchAudienceDemographics
-  // DEMOGRAPHICS_TIMEFRAME_RECENT, // Usado como padrão em fetchAudienceDemographics
+  DEFAULT_ACCOUNT_INSIGHTS_PERIOD,
 } from '../config/instagramApiConfig';
 import {
   InstagramMedia,
@@ -44,11 +42,11 @@ const limitInsightsFetch = pLimit(INSIGHTS_CONCURRENCY_LIMIT);
  * Busca dados básicos do perfil, mídias, insights de mídia, insights de conta e demografia.
  * Salva os dados obtidos no banco de dados.
  *
- * @param userId - O ID do usuário no sistema Data2Content (string).
+ * @param userId - O ID do usuário no sistema (string).
  * @returns Uma promessa que resolve para um objeto com status de sucesso, mensagem e detalhes.
  */
 export async function triggerDataRefresh(userId: string): Promise<{ success: boolean; message: string; details?: any }> {
-  const TAG = '[triggerDataRefresh v2.0.5_report_based]'; 
+  const TAG = '[triggerDataRefresh v2.0.9_boolean_undefined_fix]'; // Versionamento do Log
   const startTime = Date.now();
   logger.info(`${TAG} Iniciando atualização de dados para User ${userId}...`);
 
@@ -109,10 +107,10 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
   let collectedAccountInsightsData: IAccountInsightsPeriod | undefined;
   let collectedAudienceDemographicsData: IAudienceDemographics | undefined;
   let collectedBasicAccountData: Partial<IUser> | undefined;
-  let savedAccountSnapshot = false; // Para rastrear se o snapshot da conta foi salvo
+  let savedAccountSnapshot = false; 
 
   const errors: { step: string; message: string; details?: any; tokenUsed?: string }[] = [];
-  let overallSuccess = true;
+  let overallSuccess = true; 
   let criticalTokenErrorOccurred = false; 
 
   const insightCutoffDate = new Date();
@@ -127,7 +125,8 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
   };
 
   try {
-    logger.info(`${TAG} [Passo 1/4] Buscando dados básicos da conta ${accountId}... (Usando token inicial: ${initialTokenTypeForLog})`);
+    // PASSO 1: Buscar dados básicos da conta
+    logger.info(`${TAG} [Passo 1/5] Buscando dados básicos da conta ${accountId}... (Usando token inicial: ${initialTokenTypeForLog})`);
     let basicDataResult: FetchBasicAccountDataResult | undefined;
     let tokenUsedForBasicData = initialTokenTypeForLog;
     let originalErrorFromUserLlatForBasic: string | undefined;
@@ -153,13 +152,13 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
             } else if (userLlatIsCompromised) { 
                 logger.error(`${TAG} User LLAT comprometido e sem System User Token para fallback em dados básicos. Erro original do LLAT: ${originalErrorFromUserLlatForBasic}`);
                 userFacingErrorForTokenProblem = userFacingErrorForTokenProblem || "Seu token de acesso ao Instagram é inválido ou não possui as permissões necessárias.";
-                if(!criticalTokenErrorOccurred) await clearInstagramConnection(userObjectId);
+                if(!criticalTokenErrorOccurred) await clearInstagramConnection(userObjectId, "Token de usuário inválido para dados básicos.");
                 criticalTokenErrorOccurred = true;
             }
         }
 
         if (basicDataResult?.success && basicDataResult.data) {
-            collectedBasicAccountData = basicDataResult.data; // Guarda para o snapshot final da conta
+            collectedBasicAccountData = basicDataResult.data; 
             await updateUserBasicInstagramProfile(userObjectId, accountId!, basicDataResult.data);
             logger.info(`${TAG} Dados básicos da conta obtidos e atualizados com sucesso usando ${tokenUsedForBasicData}.`);
         } else {
@@ -170,7 +169,7 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
             if (userLlatIsCompromised && !criticalTokenErrorOccurred) { 
                  logger.error(`${TAG} Erro crítico com User LLAT (e possível falha de fallback) ao buscar dados básicos: ${errorMsgToShow}. Limpando conexão.`);
                  userFacingErrorForTokenProblem = userFacingErrorForTokenProblem || "Seu token de acesso ao Instagram é inválido ou não possui as permissões necessárias.";
-                 if(!criticalTokenErrorOccurred) await clearInstagramConnection(userObjectId);
+                 if(!criticalTokenErrorOccurred) await clearInstagramConnection(userObjectId, "Token de usuário inválido para dados básicos (fallback falhou ou indisponível).");
                  criticalTokenErrorOccurred = true;
             }
             if (!criticalTokenErrorOccurred) overallSuccess = false;
@@ -189,7 +188,7 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
       errors.push({ step: 'fetchInstagramMediaSetup', message: 'User LLAT não disponível para buscar mídias.', tokenUsed: 'N/A' });
       overallSuccess = false; 
     } else {
-      logger.info(`${TAG} [Passo 2/4] Iniciando busca de mídias e insights (limite ${MAX_PAGES_MEDIA} págs)... (Usando User LLAT)`);
+      logger.info(`${TAG} [Passo 2/5] Iniciando busca de mídias e insights (limite ${MAX_PAGES_MEDIA} págs)... (Usando User LLAT)`);
       let mediaCurrentPage = 0;
       let nextPageMediaUrl: string | null | undefined = undefined;
       let hasMoreMediaPages = true;
@@ -207,7 +206,7 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
           if (isTokenInvalidError(undefined, undefined, mediaResult.error) || mediaResult.error?.includes('(Code: 100, Subcode: 33)')) {
             logger.error(`${TAG} Erro crítico de token User LLAT durante listagem de mídias: ${mediaResult.error}. Limpando conexão.`);
             userFacingErrorForTokenProblem = userFacingErrorForTokenProblem || "Seu token de acesso ao Instagram expirou ou foi revogado durante a busca de mídias. Por favor, reconecte sua conta.";
-            if(!criticalTokenErrorOccurred) await clearInstagramConnection(userObjectId); 
+            if(!criticalTokenErrorOccurred) await clearInstagramConnection(userObjectId, "Token de usuário inválido para buscar mídias."); 
             criticalTokenErrorOccurred = true;
           }
           hasMoreMediaPages = false; 
@@ -225,7 +224,6 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
             const postDate = new Date(m.timestamp);
             if (postDate >= insightCutoffDate) return true;
             skippedOldMedia++;
-            logger.debug(`${TAG} Pulando insights/save para mídia antiga ${m.id} (Data: ${postDate.toISOString().split('T')[0]})`);
             return false;
           });
           totalMediaProcessedForInsights += processableMediaForInsights.length;
@@ -239,14 +237,13 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
               let tokenSourceForMediaInsightLog = 'User LLAT';
               
               let metricsForThisMedia: string;
-              if (mediaItem.media_type === 'VIDEO') { // Reels são 'VIDEO'
-                // Para Reels, usar 'views' e métricas específicas de Reels
+              if (mediaItem.media_type === 'VIDEO') { 
                 const reelMetricsSet = new Set(REEL_SAFE_GENERAL_METRICS.split(',').map(s => s.trim()).filter(s => s));
                 REEL_SPECIFIC_INSIGHTS_METRICS.split(',').map(s => s.trim()).filter(s => s).forEach(metric => reelMetricsSet.add(metric));
-                if (!reelMetricsSet.has('views')) reelMetricsSet.add('views'); // Garante que 'views' está presente
+                if (!reelMetricsSet.has('views')) reelMetricsSet.add('views'); 
                 metricsForThisMedia = Array.from(reelMetricsSet).join(',');
-              } else { // Para IMAGE, CAROUSEL_ALBUM
-                metricsForThisMedia = MEDIA_INSIGHTS_METRICS; // Deve incluir 'views'
+              } else { 
+                metricsForThisMedia = MEDIA_INSIGHTS_METRICS; 
               }
               
               let insightsResult = await fetchMediaInsights(mediaItem.id, tokenForMediaInsight!, metricsForThisMedia);
@@ -262,7 +259,7 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
                 if (isTokenInvalidError(undefined, undefined, insightsResult.error) || insightsResult.error?.includes('(Code: 100, Subcode: 33)')) {
                   logger.error(`${TAG} Erro crítico de token/permissão para insights da mídia ${mediaItem.id} (Token usado: ${tokenSourceForMediaInsightLog}): ${insightsResult.error}. Sinalizando para interromper.`);
                   userFacingErrorForTokenProblem = userFacingErrorForTokenProblem || `Seu token de acesso ao Instagram expirou ou se tornou inválido durante a busca de insights de mídias. Por favor, reconecte. (Mídia: ${mediaItem.id})`;
-                  throw new Error(`Token error on media ${mediaItem.id} with ${tokenSourceForMediaInsightLog}`);
+                  throw new Error(`Token error on media ${mediaItem.id} with ${tokenSourceForMediaInsightLog}: ${insightsResult.error}`);
                 }
               }
               return { mediaId: mediaItem.id, media: mediaItem, insightsResult, insightTokenSource: tokenSourceForMediaInsightLog, status: 'processed' };
@@ -275,7 +272,11 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
                 if (taskValue.status === 'processed') {
                   const { mediaId, media, insightsResult, insightTokenSource } = taskValue;
                   if (insightsResult.success && insightsResult.data) {
-                    logger.info(`${TAG} Insights para mídia ${mediaId} obtidos com sucesso usando: ${insightTokenSource}.`);
+                    if(insightsResult.error){
+                        logger.warn(`${TAG} Insights para mídia ${mediaId} obtidos com sucesso parcial usando: ${insightTokenSource}. Erro menor: ${insightsResult.error}`);
+                    } else {
+                        logger.info(`${TAG} Insights para mídia ${mediaId} obtidos com sucesso usando: ${insightTokenSource}.`);
+                    }
                     try {
                       await saveMetricData(userObjectId, media, insightsResult.data);
                       savedMediaMetrics++;
@@ -293,12 +294,12 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
                   logger.warn(`${TAG} Tarefa de insight para mídia ${taskValue.mediaId} pulada: ${taskValue.reason}`);
                   errors.push({ step: 'fetchMediaInsightsSkipped', message: `Mídia ${taskValue.mediaId} pulada: ${taskValue.reason}` });
                 }
-              } else if (result.status === 'rejected') {
+              } else if (result.status === 'rejected') { 
                 const errorMsg = result.reason instanceof Error ? result.reason.message : String(result.reason);
                 if (errorMsg.includes('Token error on media')) {
                   logger.error(`${TAG} Erro de token irrecuperável detectado nos insights de mídia: ${errorMsg}. Interrompendo sincronização de mídias.`);
                   if (!criticalTokenErrorOccurred) { 
-                     await clearInstagramConnection(userObjectId);
+                     await clearInstagramConnection(userObjectId, "Token de usuário inválido para buscar insights de mídia.");
                   }
                   criticalTokenErrorOccurred = true;
                   hasMoreMediaPages = false; 
@@ -327,14 +328,14 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
         logger.warn(`${TAG} Limite de ${MAX_PAGES_MEDIA} páginas de mídia atingido, mas ainda havia mais páginas.`);
         errors.push({ step: 'fetchInstagramMedia', message: `Limite de ${MAX_PAGES_MEDIA} páginas de mídia atingido.` });
       }
-      logger.info(`${TAG} Processamento de mídias e insights concluído. ${skippedOldMedia} mídias antigas puladas.`);
+      logger.info(`${TAG} Processamento de mídias e insights concluído. ${skippedOldMedia} mídias antigas puladas (fora do cutoff de ${INSIGHT_FETCH_CUTOFF_DAYS} dias).`);
     } 
 
     // PASSO 3: Buscar insights da conta (agregados)
     if (criticalTokenErrorOccurred) {
-        logger.warn(`${TAG} Pulando busca de insights da conta (Passo 3) devido a erro crítico de token anterior.`);
+        logger.warn(`${TAG} Pulando busca de insights da conta (Passo 3/5) devido a erro crítico de token anterior.`);
     } else {
-        logger.info(`${TAG} [Passo 3/4] Buscando insights da conta ${accountId}...`);
+        logger.info(`${TAG} [Passo 3/5] Buscando insights da conta ${accountId}...`);
         let tokenForAccountInsights = (!userLlatIsCompromised && userLlat) ? userLlat : systemUserToken;
         let tokenTypeForAccInsightsLog = (!userLlatIsCompromised && userLlat) ? 'User LLAT' : (systemUserToken ? 'System User Token (fallback/LLAT comprometido)' : 'N/A');
 
@@ -345,28 +346,34 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
         } else {
             const accountInsightsResult = await fetchAccountInsights(accountId!, tokenForAccountInsights, DEFAULT_ACCOUNT_INSIGHTS_PERIOD);
             
-            if (accountInsightsResult.success && accountInsightsResult.data) {
-                collectedAccountInsightsData = accountInsightsResult.data; // Guarda para o snapshot final
-                logger.info(`${TAG} Insights da conta obtidos com sucesso usando ${tokenTypeForAccInsightsLog}.`);
-            } else {
-                logger.error(`${TAG} Falha ao buscar insights da conta (Token usado: ${tokenTypeForAccInsightsLog}): ${accountInsightsResult.error}`);
-                errors.push({ step: 'fetchAccountInsights', message: `Insights conta: ${accountInsightsResult.error ?? 'Erro desconhecido'}`, tokenUsed: tokenTypeForAccInsightsLog });
+            if (accountInsightsResult.data) { 
+                collectedAccountInsightsData = accountInsightsResult.data; 
+                logger.info(`${TAG} Insights da conta parcialmente ou totalmente obtidos usando ${tokenTypeForAccInsightsLog}.`);
+            }
+
+            if (!accountInsightsResult.success) { 
+                const errMsg = accountInsightsResult.error || 'Erro desconhecido ao buscar insights da conta.';
+                logger.error(`${TAG} Falha ao buscar insights da conta (Token usado: ${tokenTypeForAccInsightsLog}): ${errMsg}`);
+                errors.push({ step: 'fetchAccountInsights', message: `Insights conta: ${errMsg}`, tokenUsed: tokenTypeForAccInsightsLog });
                 if (tokenForAccountInsights === userLlat && (isTokenInvalidError(undefined, undefined, accountInsightsResult.error) || accountInsightsResult.error?.includes('(Code: 100, Subcode: 33)'))) {
                     logger.error(`${TAG} Erro crítico de token User LLAT ao buscar insights da conta. Limpando conexão.`);
                     userFacingErrorForTokenProblem = userFacingErrorForTokenProblem || "Seu token de acesso ao Instagram expirou ou foi revogado. Por favor, reconecte sua conta.";
-                    if(!criticalTokenErrorOccurred) await clearInstagramConnection(userObjectId);
+                    if(!criticalTokenErrorOccurred) await clearInstagramConnection(userObjectId, "Token de usuário inválido para insights da conta.");
                     criticalTokenErrorOccurred = true; 
                 }
-                if (!criticalTokenErrorOccurred) overallSuccess = false;
+                if (!criticalTokenErrorOccurred) overallSuccess = false; 
+            } else if (accountInsightsResult.error) { 
+                 logger.warn(`${TAG} Insights da conta obtidos com alguns erros menores (Token: ${tokenTypeForAccInsightsLog}): ${accountInsightsResult.error}`);
+                 errors.push({ step: 'fetchAccountInsightsPartial', message: `Insights conta (parcial): ${accountInsightsResult.error}`, tokenUsed: tokenTypeForAccInsightsLog });
             }
         }
     }
 
     // PASSO 4: Buscar dados demográficos da conta
     if (criticalTokenErrorOccurred) {
-        logger.warn(`${TAG} Pulando busca de demografia (Passo 4) devido a erro crítico de token anterior.`);
+        logger.warn(`${TAG} Pulando busca de demografia (Passo 4/5) devido a erro crítico de token anterior.`);
     } else {
-        logger.info(`${TAG} [Passo 4/4] Buscando dados demográficos da conta ${accountId}...`);
+        logger.info(`${TAG} [Passo 4/5] Buscando dados demográficos da conta ${accountId}...`);
         let tokenForDemographics = (!userLlatIsCompromised && userLlat) ? userLlat : systemUserToken;
         let tokenTypeForDemographicsLog = (!userLlatIsCompromised && userLlat) ? 'User LLAT' : (systemUserToken ? 'System User Token (fallback/LLAT comprometido)' : 'N/A');
 
@@ -375,37 +382,50 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
             errors.push({ step: 'fetchAudienceDemographicsSetup', message: 'Nenhum token disponível.', tokenUsed: 'N/A' });
             overallSuccess = false;
         } else {
-            const demographicsResult = await fetchAudienceDemographics(accountId!, tokenForDemographics); // Usa DEMOGRAPHICS_TIMEFRAME_RECENT por padrão
+            const demographicsResult = await fetchAudienceDemographics(accountId!, tokenForDemographics); 
             
-            if (demographicsResult.success && demographicsResult.data) {
-                collectedAudienceDemographicsData = demographicsResult.data; // Guarda para o snapshot final
-                logger.info(`${TAG} Dados demográficos obtidos com sucesso usando ${tokenTypeForDemographicsLog}.`);
-            } else {
-                const demoErrorMsg = demographicsResult.error || demographicsResult.errorMessage || 'Dados insuficientes/indisponíveis';
-                logger.warn(`${TAG} Falha ou dados insuficientes para demografia (Token usado: ${tokenTypeForDemographicsLog}): ${demoErrorMsg}`);
+            if (demographicsResult.data && (Object.keys(demographicsResult.data.follower_demographics || {}).length > 0 || Object.keys(demographicsResult.data.engaged_audience_demographics || {}).length > 0 )) {
+                collectedAudienceDemographicsData = demographicsResult.data; 
+                logger.info(`${TAG} Dados demográficos parcialmente ou totalmente obtidos usando ${tokenTypeForDemographicsLog}.`);
+            }
+            
+            if (demographicsResult.errorMessage) {
+                 logger.warn(`${TAG} Mensagem da busca de demografia (Token: ${tokenTypeForDemographicsLog}): ${demographicsResult.errorMessage}`);
+                 errors.push({ step: 'fetchAudienceDemographicsInfo', message: `Demografia info: ${demographicsResult.errorMessage}`, tokenUsed: tokenTypeForDemographicsLog });
+            }
+
+            if (!demographicsResult.success) { 
+                const demoErrorMsg = demographicsResult.error || demographicsResult.errorMessage || 'Erro desconhecido em demografia.';
+                logger.error(`${TAG} Falha ao buscar demografia (Token usado: ${tokenTypeForDemographicsLog}): ${demoErrorMsg}`);
                 errors.push({ step: 'fetchAudienceDemographics', message: `Demografia: ${demoErrorMsg}`, tokenUsed: tokenTypeForDemographicsLog });
                 if (tokenForDemographics === userLlat && (isTokenInvalidError(undefined, undefined, demographicsResult.error) || demographicsResult.error?.includes('(Code: 100, Subcode: 33)'))) {
                     logger.error(`${TAG} Erro crítico de token User LLAT ao buscar demografia. Limpando conexão.`);
                     userFacingErrorForTokenProblem = userFacingErrorForTokenProblem || "Seu token de acesso ao Instagram expirou ou foi revogado. Por favor, reconecte sua conta.";
-                    if(!criticalTokenErrorOccurred) await clearInstagramConnection(userObjectId);
+                    if(!criticalTokenErrorOccurred) await clearInstagramConnection(userObjectId, "Token de usuário inválido para demografia.");
                     criticalTokenErrorOccurred = true;
                 }
-                if (!criticalTokenErrorOccurred && demographicsResult.error) overallSuccess = false; 
+                if (!criticalTokenErrorOccurred) overallSuccess = false; 
             }
         }
     }
 
     // PASSO 5: Salvar o snapshot da conta com todos os dados coletados
     if (!criticalTokenErrorOccurred && (collectedAccountInsightsData || collectedAudienceDemographicsData || collectedBasicAccountData)) {
-        logger.info(`${TAG} [Passo 5/4] Salvando snapshot da conta...`); // Ajustado para Passo 5
-        await saveAccountInsightData(userObjectId, accountId!, collectedAccountInsightsData, collectedAudienceDemographicsData, collectedBasicAccountData);
-        savedAccountSnapshot = true;
+        logger.info(`${TAG} [Passo 5/5] Salvando snapshot da conta...`);
+        try {
+            await saveAccountInsightData(userObjectId, accountId!, collectedAccountInsightsData, collectedAudienceDemographicsData, collectedBasicAccountData);
+            savedAccountSnapshot = true;
+            logger.info(`${TAG} Snapshot da conta salvo com sucesso.`);
+        } catch (saveError: any) {
+            logger.error(`${TAG} Erro ao salvar snapshot da conta:`, saveError);
+            errors.push({ step: 'saveAccountInsightData', message: `Salvar snapshot: ${saveError.message}` });
+            overallSuccess = false; 
+        }
     } else if (criticalTokenErrorOccurred) {
         logger.warn(`${TAG} Pulando save snapshot da conta devido a erro crítico de token.`);
     } else {
         logger.warn(`${TAG} Nenhum dado novo de insights, demografia ou básico da conta para salvar no snapshot.`);
     }
-
 
   } catch (error: unknown) { 
     const duration = Date.now() - startTime;
@@ -421,18 +441,40 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
   }
 
   const duration = Date.now() - startTime;
-  const finalEffectiveSuccessStatus = !criticalTokenErrorOccurred && overallSuccess;
+  // Garantir que collectedAnyMeaningfulData é sempre boolean
+  const collectedAnyMeaningfulData = savedMediaMetrics > 0 || 
+                                   savedAccountSnapshot || 
+                                   !!(collectedBasicAccountData && Object.keys(collectedBasicAccountData).length > 0);
+                                   
+  const finalEffectiveSuccessStatus = !criticalTokenErrorOccurred && (overallSuccess || collectedAnyMeaningfulData);
 
   let statusMsg = finalEffectiveSuccessStatus ? 'concluída com sucesso' :
     (criticalTokenErrorOccurred ? 'concluída com erro crítico de token/permissão. Requer reconexão.' :
       (overallSuccess ? 'concluída com alguns erros não fatais' : 'concluída com falhas significativas'));
+  if (finalEffectiveSuccessStatus && errors.length > 0) {
+      statusMsg = 'concluída com sucesso, mas com alguns avisos/erros menores';
+  }
 
-  const summary = `Mídias Recentes Processadas/Salvas: ${savedMediaMetrics}/${totalMediaProcessedForInsights}. Mídias Antigas Puladas: ${skippedOldMedia}. Snapshot Conta: ${savedAccountSnapshot ? 'Salvo' : 'Não'}. Básicos: ${collectedBasicAccountData ? 'OK' : 'Falha'}.`;
-  const errorSummary = errors.length > 0 ? `Erros (${errors.length}): ${errors.map(e => `${e.step} (Token: ${e.tokenUsed || initialTokenTypeForLog}): ${e.message.substring(0, 100)}`).slice(0, 3).join('; ')}...` : 'Nenhum erro específico reportado.';
+  const summary = `Mídias Recentes Processadas/Salvas: ${savedMediaMetrics}/${totalMediaProcessedForInsights}. Mídias Antigas Puladas: ${skippedOldMedia}. Snapshot Conta: ${savedAccountSnapshot ? 'Salvo' : 'Não'}. Básicos: ${collectedBasicAccountData ? 'OK' : 'Falha/Parcial'}. Insights Conta: ${collectedAccountInsightsData ? 'OK/Parcial' : 'Falha'}. Demo: ${collectedAudienceDemographicsData ? 'OK/Parcial' : 'Falha/Indisp.'}`;
   
+  const errorSummaryForUser = errors.filter(e => !e.step.endsWith('Info') && !e.step.endsWith('Partial')); 
+  
+  let errorMsgForDb: string | null = null;
+  if (errorSummaryForUser.length > 0) {
+    const firstUserError = errorSummaryForUser[0];
+    if (firstUserError && firstUserError.step && firstUserError.message) {
+      errorMsgForDb = `A sincronização teve problemas. Detalhe principal: ${firstUserError.step} - ${firstUserError.message.substring(0, 150)}`;
+    }
+  } else if (errors.length > 0) {
+    const firstError = errors[0];
+    if (firstError && firstError.step && firstError.message) {
+      errorMsgForDb = `Sincronização com avisos. Primeiro aviso: ${firstError.step} - ${firstError.message.substring(0,150)}`;
+    }
+  }
+
   let finalUserMessage = `Atualização ${statusMsg} para User ${userId}. ${summary}`;
-  if (errors.length > 0 && !criticalTokenErrorOccurred) { 
-    finalUserMessage += ` ${errorSummary}`;
+  if (errorSummaryForUser.length > 0 && errorSummaryForUser[0] && errorSummaryForUser[0].step && errorSummaryForUser[0].message && !criticalTokenErrorOccurred) { 
+    finalUserMessage += ` Erros (${errorSummaryForUser.length}): ${errorSummaryForUser.map(e => `${e.step}: ${e.message.substring(0, 70)}`).slice(0, 2).join('; ')}...`;
   }
   if (userFacingErrorForTokenProblem) { 
     finalUserMessage = `${userFacingErrorForTokenProblem} Detalhes da tentativa de sincronização: ${finalUserMessage}`;
@@ -440,26 +482,17 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
 
   logger.info(`${TAG} Sincronização finalizada para User: ${userId}. Sucesso Efetivo: ${finalEffectiveSuccessStatus}. Duração: ${duration}ms. ${finalUserMessage}`);
   if (errors.length > 0) {
-    logger.warn(`${TAG} Detalhes completos dos erros da sincronização (${errors.length}):`, JSON.stringify(errors.map(e => ({ step: e.step, message: e.message, token: e.tokenUsed })), null, 2));
+    logger.warn(`${TAG} Detalhes completos dos erros/avisos da sincronização (${errors.length}):`, JSON.stringify(errors.map(e => ({ step: e.step, message: e.message, token: e.tokenUsed })), null, 2));
   }
   
   const finalDbUpdate: any = { $set: { lastInstagramSyncSuccess: finalEffectiveSuccessStatus } };
   if (userFacingErrorForTokenProblem) {
     finalDbUpdate.$set.instagramSyncErrorMsg = userFacingErrorForTokenProblem;
-  } else if (finalEffectiveSuccessStatus) {
+  } else if (finalEffectiveSuccessStatus && !errorMsgForDb) { 
     finalDbUpdate.$set.instagramSyncErrorMsg = null; 
-  } else if (errors.length > 0) { 
-    const firstSignificantError = errors.find(e => !(e.message.toLowerCase().includes("token") || e.message.toLowerCase().includes("permiss")));
-    const errorToReport = firstSignificantError || errors[0]; 
-    
-    if (errorToReport) {
-      finalDbUpdate.$set.instagramSyncErrorMsg = `A sincronização falhou. Detalhe: ${errorToReport.step} - ${errorToReport.message.substring(0, 150)}`;
-    } else { 
-      finalDbUpdate.$set.instagramSyncErrorMsg = `A sincronização falhou com erros não especificados.`;
-      logger.error(`${TAG} errorToReport foi inesperadamente undefined, apesar de errors.length > 0. Errors:`, JSON.stringify(errors));
-    }
-  }
-  else if (!finalEffectiveSuccessStatus && !finalDbUpdate.$set.instagramSyncErrorMsg) { 
+  } else if (errorMsgForDb) { 
+    finalDbUpdate.$set.instagramSyncErrorMsg = errorMsgForDb;
+  } else if (!finalEffectiveSuccessStatus && !finalDbUpdate.$set.instagramSyncErrorMsg) { 
       finalDbUpdate.$set.instagramSyncErrorMsg = "A sincronização falhou por um motivo não detalhado. Verifique os logs do servidor.";
   }
 
@@ -467,7 +500,7 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
     .catch(dbErr => logger.error(`${TAG} Falha ao atualizar status final da sincronização e msg de erro para User ${userId}:`, dbErr));
 
   return {
-    success: finalEffectiveSuccessStatus,
+    success: finalEffectiveSuccessStatus, // Agora é garantido que seja boolean
     message: finalUserMessage,
     details: {
       errorsEncountered: errors,
@@ -476,10 +509,10 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
       mediaProcessedForInsights: totalMediaProcessedForInsights,
       mediaInsightsSaved: savedMediaMetrics,
       oldMediaSkipped: skippedOldMedia,
-      accountInsightsCollected: !!collectedAccountInsightsData, // Booleano
-      accountSnapshotSaved: savedAccountSnapshot, // Booleano
-      demographicsCollected: !!collectedAudienceDemographicsData, // Booleano
-      basicAccountDataCollected: !!collectedBasicAccountData, // Booleano
+      accountInsightsCollected: !!collectedAccountInsightsData, 
+      accountSnapshotSaved: savedAccountSnapshot, 
+      demographicsCollected: !!collectedAudienceDemographicsData, 
+      basicAccountDataCollected: !!collectedBasicAccountData, 
       criticalTokenErrorOccurred: criticalTokenErrorOccurred,
       userLlatWasCompromised: userLlatIsCompromised, 
       initialTokenType: initialTokenTypeForLog,
