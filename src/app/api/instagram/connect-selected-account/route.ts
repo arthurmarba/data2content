@@ -2,13 +2,14 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'; // Ajuste o caminho conforme sua estrutura
-import { connectInstagramAccount } from '@/app/lib/instagram'; // ATUALIZADO para o novo módulo
+import { authOptions } from '@/app/api/auth/[...nextauth]/route'; 
+import { connectInstagramAccount } from '@/app/lib/instagram'; 
 import { logger } from '@/app/lib/logger';
 import mongoose from 'mongoose';
+import type { JWT } from "next-auth/jwt"; // Importar o tipo JWT estendido
 
 export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic'; // Garante que a route seja sempre dinâmica
+export const dynamic = 'force-dynamic'; 
 
 interface RequestBody {
   instagramAccountId?: string;
@@ -19,28 +20,23 @@ export async function POST(request: NextRequest) {
   logger.info(`${TAG} Recebida requisição POST.`);
 
   try {
-    // 1. Obter a sessão do usuário
-    const session = await getServerSession(authOptions);
+    // 1. Obter a sessão do usuário (que é o token JWT decodificado em API Routes)
+    // Fazemos um cast para o nosso tipo JWT estendido para ter acesso aos campos personalizados.
+    const session = await getServerSession(authOptions) as JWT | null;
 
-    // Validação robusta da sessão e do ID do usuário
-    if (!session?.user?.id || typeof session.user.id !== 'string' || !mongoose.Types.ObjectId.isValid(session.user.id)) {
-      logger.warn(`${TAG} Tentativa de conectar conta sem sessão válida ou ID de usuário inválido. User ID: ${session?.user?.id}`);
+    // Validação robusta da sessão e do ID do usuário (que vem do token.id)
+    if (!session?.id || !mongoose.Types.ObjectId.isValid(session.id)) {
+      logger.warn(`${TAG} Tentativa de conectar conta sem sessão válida ou ID de usuário inválido. Session ID (do token): ${session?.id}`);
       return NextResponse.json({ error: 'Não autorizado. Sessão ou ID de usuário inválido.' }, { status: 401 });
     }
-    const userId = session.user.id;
+    const userId = session.id; // O ID do usuário é o 'id' (ou 'sub') do token JWT
 
-    // O token de acesso de longa duração do Instagram do usuário deve estar na sessão (ou token JWT).
-    // No seu [...nextauth]/route.ts, o campo 'instagramAccessToken' do token JWT é populado.
-    // A interface da sessão NextAuth pode precisar ser estendida para incluir 'instagramAccessToken' diretamente,
-    // ou acessamos via casting se soubermos que está no token.
-    // Assumindo que o token JWT (e, por extensão, a sessão via callback) contém 'instagramAccessToken'.
-    const userInstagramLLAT = (session as any)?.token?.instagramAccessToken as string | undefined || (session.user as any)?.instagramAccessToken as string | undefined;
-
+    // Acessar instagramAccessToken diretamente do objeto session (que é o token JWT)
+    const userInstagramLLAT = session.instagramAccessToken;
 
     if (!userInstagramLLAT) {
-        logger.error(`${TAG} Token de acesso de longa duração do Instagram do usuário não encontrado na sessão/token para User ID: ${userId}.`);
-        // Log para depuração - NÃO FAÇA ISSO EM PRODUÇÃO COM DADOS SENSÍVEIS
-        // logger.debug(`${TAG} Conteúdo completo da sessão para depuração:`, JSON.stringify(session, null, 2));
+        logger.error(`${TAG} Token de acesso de longa duração do Instagram (instagramAccessToken) não encontrado no token JWT para User ID: ${userId}.`);
+        logger.debug(`${TAG} Conteúdo do token JWT para depuração:`, JSON.stringify(session, null, 2)); // Log para depuração
         return NextResponse.json({ error: 'Token de acesso do Instagram ausente. Por favor, refaça o processo de vinculação com o Facebook.' }, { status: 400 });
     }
 
@@ -65,7 +61,6 @@ export async function POST(request: NextRequest) {
     logger.info(`${TAG} Tentando conectar User ID: ${userId} com Instagram Account ID: ${instagramAccountId}`);
 
     // 3. Chamar o serviço para conectar a conta
-    // A função connectInstagramAccount espera um ObjectId para userId.
     const userObjectId = new mongoose.Types.ObjectId(userId);
     const result = await connectInstagramAccount(userObjectId, instagramAccountId, userInstagramLLAT);
 
