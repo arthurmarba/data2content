@@ -3,6 +3,8 @@
 // - CORRIGIDO: Type error na atribuição de instagramAccessToken (null vs undefined).
 // - Mantém a lógica de buscar contas Instagram disponíveis e LLAT do IG durante o signIn com Facebook.
 // - ATUALIZADO: Importação do instagramService para a nova estrutura modular.
+// - CORRIGIDO: Erro de clonagem [object Array] em customEncode.
+// - CORRIGIDO: Erro de digitação no log do callback jwt para igLlatSet.
 
 import NextAuth from "next-auth";
 import type { DefaultSession, DefaultUser, NextAuthOptions, Session, User as NextAuthUserArg, Account, Profile } from "next-auth";
@@ -19,7 +21,6 @@ import { SignJWT, jwtVerify } from "jose";
 import { logger } from "@/app/lib/logger";
 import { cookies } from 'next/headers';
 
-// ATUALIZAÇÃO DA IMPORTAÇÃO para a nova estrutura modular
 import { fetchAvailableInstagramAccounts } from "@/app/lib/instagram";
 import type { AvailableInstagramAccount as ServiceAvailableIgAccount } from "@/app/lib/instagram/types";
 
@@ -110,15 +111,21 @@ const FACEBOOK_LINK_COOKIE_NAME = "auth-link-token";
 const MAX_TOKEN_AGE_BEFORE_REFRESH_MINUTES = 60;
 
 async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise<string> {
+    const TAG_ENCODE = '[NextAuth customEncode]';
     if (!secret) throw new Error("NEXTAUTH_SECRET ausente em customEncode");
     const secretString = typeof secret === "string" ? secret : String(secret);
     const expirationTime = Math.floor(Date.now() / 1000) + (maxAge ?? 30 * 24 * 60 * 60);
+    
     const cleanToken: Record<string, any> = { ...token };
+
     Object.keys(cleanToken).forEach(key => {
         if (cleanToken[key] === undefined) delete cleanToken[key];
     });
+
     if (!cleanToken.id && cleanToken.sub) cleanToken.id = cleanToken.sub;
-    else if (!cleanToken.id) cleanToken.id = '';
+    else if (!cleanToken.id) cleanToken.id = ''; // Garante que id sempre exista
+
+    // Serializa datas para strings ISO
     if (cleanToken.onboardingCompletedAt instanceof Date) {
         cleanToken.onboardingCompletedAt = cleanToken.onboardingCompletedAt.toISOString();
     }
@@ -128,8 +135,28 @@ async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise
     if (cleanToken.planExpiresAt instanceof Date) {
         cleanToken.planExpiresAt = cleanToken.planExpiresAt.toISOString();
     }
+
+    // Limpa campos redundantes ou não serializáveis
     if (cleanToken.image && cleanToken.picture) delete cleanToken.picture;
-    delete cleanToken.instagramSyncErrorMsg;
+    delete cleanToken.instagramSyncErrorMsg; // Este campo é usado internamente e não deve ir para o token final
+
+    // CORREÇÃO PARA DataCloneError: [object Array] could not be cloned.
+    // Garante que availableIgAccounts seja um array de POJOs puros.
+    if (cleanToken.availableIgAccounts && Array.isArray(cleanToken.availableIgAccounts)) {
+        try {
+            // Força a conversão para POJOs puros através de serialização/desserialização JSON
+            // Isso remove quaisquer protótipos ou métodos que possam interferir com structuredClone
+            cleanToken.availableIgAccounts = JSON.parse(JSON.stringify(cleanToken.availableIgAccounts));
+            logger.debug(`${TAG_ENCODE} availableIgAccounts serializado para JWT.`);
+        } catch (e) {
+            logger.error(`${TAG_ENCODE} Erro ao serializar/desserializar availableIgAccounts:`, e);
+            // Opção segura: remove o campo se a serialização falhar para não quebrar o login.
+            delete cleanToken.availableIgAccounts;
+            logger.warn(`${TAG_ENCODE} Campo availableIgAccounts removido do token devido a erro de serialização.`);
+        }
+    }
+    
+    logger.debug(`${TAG_ENCODE} Payload final do token para SignJWT:`, cleanToken);
     return new SignJWT(cleanToken)
         .setProtectedHeader({ alg: "HS256" })
         .setIssuedAt()
@@ -153,6 +180,7 @@ async function customDecode({ token, secret }: JWTDecodeParams): Promise<JWT | n
         } else if (!decodedPayload.id) {
             decodedPayload.id = '';
         }
+        // Desserializa datas de strings ISO para objetos Date
         if (decodedPayload.onboardingCompletedAt && typeof decodedPayload.onboardingCompletedAt === 'string') {
             decodedPayload.onboardingCompletedAt = new Date(decodedPayload.onboardingCompletedAt);
         }
@@ -162,7 +190,7 @@ async function customDecode({ token, secret }: JWTDecodeParams): Promise<JWT | n
         if (decodedPayload.planExpiresAt && typeof decodedPayload.planExpiresAt === 'string') {
             decodedPayload.planExpiresAt = new Date(decodedPayload.planExpiresAt);
         }
-        if (decodedPayload.picture && !decodedPayload.image) {
+        if (decodedPayload.picture && !decodedPayload.image) { // Compatibilidade com alguns providers
             decodedPayload.image = decodedPayload.picture;
         }
         return decodedPayload as JWT;
@@ -416,7 +444,7 @@ export const authOptions: NextAuthOptions = {
                     (authUserFromProvider as NextAuthUserArg).planExpiresAt = dbUserRecord.planExpiresAt;
                     (authUserFromProvider as NextAuthUserArg).affiliateCode = dbUserRecord.affiliateCode;
                     
-                    logger.debug(`${TAG_SIGNIN} [${provider}] FINAL signIn. authUser.id (interno): '${authUserFromProvider.id}', planStatus: ${(authUserFromProvider as NextAuthUserArg).planStatus}, igAccountsCount: ${(authUserFromProvider as NextAuthUserArg).availableIgAccounts?.length ?? 0}, igLlatSet: !!${(authUserFromProvider as NextAuthUserArg).instagramAccessToken}`);
+                    logger.debug(`${TAG_SIGNIN} [${provider}] FINAL signIn. authUser.id (interno): '${authUserFromProvider.id}', planStatus: ${(authUserFromProvider as NextAuthUserArg).planStatus}, igAccountsCount: ${(authUserFromProvider as NextAuthUserArg).availableIgAccounts?.length ?? 0}, igLlatSet: ${!!(authUserFromProvider as NextAuthUserArg).instagramAccessToken}`);
                     return true;
                 } else {
                     logger.error(`${TAG_SIGNIN} [${provider}] dbUserRecord não foi definido. Falha no signIn.`);
@@ -457,7 +485,8 @@ export const authOptions: NextAuthOptions = {
                 token.planExpiresAt = (userFromSignIn as NextAuthUserArg).planExpiresAt;
                 token.affiliateCode = (userFromSignIn as NextAuthUserArg).affiliateCode;
 
-                logger.info(`${TAG_JWT} Token populado de userFromSignIn. ID: ${token.id}, planStatus: ${token.planStatus}, igAccounts: ${token.availableIgAccounts?.length}, igLlatSet: !!token.instagramAccessToken}`);
+                // CORREÇÃO DE LOG: Usar template literal corretamente
+                logger.info(`${TAG_JWT} Token populado de userFromSignIn. ID: ${token.id}, planStatus: ${token.planStatus}, igAccounts: ${token.availableIgAccounts?.length}, igLlatSet: ${!!token.instagramAccessToken}`);
             }
 
             if (token.id && Types.ObjectId.isValid(token.id)) {
@@ -510,7 +539,7 @@ export const authOptions: NextAuthOptions = {
                             token.planExpiresAt = dbUser.planExpiresAt ?? token.planExpiresAt ?? null;
                             token.affiliateCode = dbUser.affiliateCode ?? token.affiliateCode ?? null;
 
-                            logger.info(`${TAG_JWT} Token enriquecido/atualizado do DB. ID: ${token.id}, planStatus: ${token.planStatus}, igAccounts: ${token.availableIgAccounts?.length}, igLlatSet: !!token.instagramAccessToken}, igErr: ${token.igConnectionError ? 'Sim ('+String(token.igConnectionError).substring(0,30)+'...)': 'Não'}`);
+                            logger.info(`${TAG_JWT} Token enriquecido/atualizado do DB. ID: ${token.id}, planStatus: ${token.planStatus}, igAccounts: ${token.availableIgAccounts?.length}, igLlatSet: ${!!token.instagramAccessToken}, igErr: ${token.igConnectionError ? 'Sim ('+String(token.igConnectionError).substring(0,30)+'...)': 'Não'}`);
                         } else {
                             logger.warn(`${TAG_JWT} Utilizador ${token.id} não encontrado no DB durante refresh de token. Invalidando token.`);
                             return {} as JWT; 
