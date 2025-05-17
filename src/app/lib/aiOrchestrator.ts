@@ -1,7 +1,8 @@
 /**
  * @fileoverview Orquestrador de chamadas à API OpenAI com Function Calling e Streaming.
  * Otimizado para buscar dados sob demanda via funções e modular comportamento por intenção.
- * @version 0.9.2 (Corrige tipo de dialogueState para IDialogueState)
+ * ATUALIZADO: Adicionada função getQuickAcknowledgementLLMResponse para gerar respostas curtas e rápidas (quebra-gelo).
+ * @version 0.9.3 (Chamada para Quebra-Gelo Rápido)
  */
 
 import OpenAI from 'openai';
@@ -16,7 +17,6 @@ import { logger } from '@/app/lib/logger';
 import { functionSchemas, functionExecutors } from './aiFunctions';
 import { getSystemPrompt } from '@/app/lib/promptSystemFC';
 import { IUser } from '@/app/models/User';
-// ATUALIZADO: Importa IDialogueState de stateService
 import * as stateService from '@/app/lib/stateService';
 import { functionValidators } from './aiFunctionSchemas.zod';
 import { DeterminedIntent } from './intentService';
@@ -24,11 +24,15 @@ import { DeterminedIntent } from './intentService';
 
 // Configuração do cliente OpenAI e constantes
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
-const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini'; // Usado para a resposta principal
+const QUICK_ACK_MODEL = process.env.OPENAI_QUICK_ACK_MODEL || 'gpt-3.5-turbo'; // Modelo potencialmente mais rápido/barato para o quebra-gelo
 const TEMP = Number(process.env.OPENAI_TEMP) || 0.7;
+const QUICK_ACK_TEMP = Number(process.env.OPENAI_QUICK_ACK_TEMP) || 0.8; // Pode ser um pouco mais criativo
 const TOKENS = Number(process.env.OPENAI_MAXTOK) || 900;
+const QUICK_ACK_MAX_TOKENS = Number(process.env.OPENAI_QUICK_ACK_MAX_TOKENS) || 70; // Resposta curta
 const MAX_ITERS = 6;
 const OPENAI_TIMEOUT_MS = Number(process.env.OPENAI_TIMEOUT_MS) || 45_000;
+const QUICK_ACK_TIMEOUT_MS = Number(process.env.OPENAI_QUICK_ACK_TIMEOUT_MS) || 10_000; // Timeout menor para resposta rápida
 
 /**
  * @interface EnrichedContext (Simplificada)
@@ -36,9 +40,7 @@ const OPENAI_TIMEOUT_MS = Number(process.env.OPENAI_TIMEOUT_MS) || 45_000;
 interface EnrichedContext {
     user: IUser;
     historyMessages: ChatCompletionMessageParam[];
-    // ***** CORREÇÃO APLICADA AQUI *****
-    dialogueState?: stateService.IDialogueState; // Usa o tipo IDialogueState exportado
-    // ***********************************
+    dialogueState?: stateService.IDialogueState;
 }
 
 /**
@@ -49,8 +51,63 @@ interface AskLLMResult {
     historyPromise: Promise<ChatCompletionMessageParam[]>;
 }
 
+
 /**
- * Envia uma mensagem ao LLM com Function Calling em modo streaming.
+ * NOVO: Gera uma resposta curta e rápida para reconhecimento inicial (quebra-gelo).
+ * Usa um modelo e configurações potencialmente diferentes para otimizar velocidade e custo.
+ * Não usa streaming nem function calling.
+ *
+ * @param systemPrompt O prompt de sistema específico para o quebra-gelo.
+ * @param userQuery A mensagem do usuário que disparou o quebra-gelo.
+ * @returns A string da resposta gerada pela IA, ou null em caso de erro.
+ */
+export async function getQuickAcknowledgementLLMResponse(
+    systemPrompt: string,
+    userQuery: string,
+    userNameForLog: string = "usuário"
+): Promise<string | null> {
+    const fnTag = '[getQuickAcknowledgementLLMResponse v0.9.3]';
+    logger.info(`${fnTag} Iniciando para ${userNameForLog}. Query: "${userQuery.slice(0, 50)}..." Usando modelo: ${QUICK_ACK_MODEL}`);
+
+    const messages: ChatCompletionMessageParam[] = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userQuery }
+    ];
+
+    const aborter = new AbortController();
+    const timeout = setTimeout(() => { aborter.abort(); logger.warn(`${fnTag} Timeout API OpenAI atingido.`); }, QUICK_ACK_TIMEOUT_MS);
+
+    try {
+        const completion = await openai.chat.completions.create(
+            {
+                model: QUICK_ACK_MODEL,
+                messages: messages,
+                temperature: QUICK_ACK_TEMP,
+                max_tokens: QUICK_ACK_MAX_TOKENS,
+                stream: false, // Não usa streaming para esta chamada rápida
+            },
+            { signal: aborter.signal }
+        );
+        clearTimeout(timeout);
+
+        const responseText = completion.choices[0]?.message?.content;
+        if (responseText && responseText.trim() !== "") {
+            logger.info(`${fnTag} Resposta de quebra-gelo gerada: "${responseText.slice(0, 70)}..."`);
+            return responseText.trim();
+        } else {
+            logger.warn(`${fnTag} API da OpenAI retornou resposta vazia ou nula para o quebra-gelo.`);
+            return null;
+        }
+    } catch (error: any) {
+        clearTimeout(timeout);
+        logger.error(`${fnTag} Falha na chamada à API OpenAI para quebra-gelo: ${error.name === 'AbortError' ? 'Timeout' : error.message}`);
+        return null;
+    }
+}
+
+
+/**
+ * Envia uma mensagem ao LLM com Function Calling em modo streaming para a resposta principal.
  * Modula o uso de functions baseado na intenção do usuário.
  */
 export async function askLLMWithEnrichedContext(
@@ -58,7 +115,7 @@ export async function askLLMWithEnrichedContext(
     incomingText: string,
     intent: DeterminedIntent
 ): Promise<AskLLMResult> {
-    const fnTag = '[askLLMWithEnrichedContext v0.9.2]'; // ATUALIZADO: Versão
+    const fnTag = '[askLLMWithEnrichedContext v0.9.3]'; // ATUALIZADO: Versão
     const { user, historyMessages } = enrichedContext;
     logger.info(`${fnTag} Iniciando para usuário ${user._id}. Intenção: ${intent}. Texto: "${incomingText.slice(0, 50)}..." Usando modelo: ${MODEL}`);
 
@@ -114,7 +171,7 @@ export async function askLLMWithEnrichedContext(
         currentUser: IUser,
         currentIntent: DeterminedIntent
     ): Promise<ChatCompletionMessageParam[]> {
-        const turnTag = `[processTurn iter ${iter} v0.9.2]`; // ATUALIZADO: Versão
+        const turnTag = `[processTurn iter ${iter} v0.9.3]`; // ATUALIZADO: Versão
         logger.debug(`${turnTag} Iniciando. Intenção atual do turno: ${currentIntent}`);
 
         if (iter >= MAX_ITERS) { throw new Error(`Function-call loop excedeu MAX_ITERS (${MAX_ITERS})`); }
@@ -125,7 +182,7 @@ export async function askLLMWithEnrichedContext(
         let functionsForAPI: OpenAI.Chat.Completions.ChatCompletionCreateParams.Function[] | undefined = undefined;
         let functionCallSetting: 'none' | 'auto' | ChatCompletionFunctionCallOption | undefined = undefined;
 
-        const isLightweightIntent = currentIntent === 'social_query' || currentIntent === 'meta_query_personal' || currentIntent === 'generate_proactive_alert'; // Adicionada generate_proactive_alert
+        const isLightweightIntent = currentIntent === 'social_query' || currentIntent === 'meta_query_personal' || currentIntent === 'generate_proactive_alert'; 
 
         if (isLightweightIntent) {
             logger.info(`${turnTag} Intenção '${currentIntent}' é leve. Desabilitando function calling explícito para esta chamada.`);

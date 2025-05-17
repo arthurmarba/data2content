@@ -1,10 +1,16 @@
 /**
  * @fileoverview Serviço de acesso a dados (Utilizadores, Métricas, Relatórios, Publicidades, Comunidade).
+ * ATUALIZADO v2.14.0 (Memória de Longo Prazo):
+ * - Adicionadas funções para gerenciar memória de longo prazo do usuário:
+ * - updateUserPreferences
+ * - addUserLongTermGoal
+ * - addUserKeyFact
+ * - Importadas novas interfaces de User.ts (IUserPreferences, IUserLongTermGoal, IUserKeyFact).
  * ATUALIZADO v2.13.0 (Exclusão de Conta):
  * - Adicionada função deleteUserAccountAndAssociatedData.
  * ATUALIZADO vX.Y.Z (Inferência de Expertise):
  * - Adicionada função updateUserExpertiseLevel.
- * @version X.Y.Z // Você pode atualizar esta versão conforme seu versionamento
+ * @version 2.14.0 
  */
 
 import mongoose, { Model, Types } from 'mongoose';
@@ -12,13 +18,18 @@ import { subDays, differenceInDays, startOfDay } from 'date-fns';
 import { logger } from '@/app/lib/logger';
 
 // Modelos do Mongoose
-// Adicionar UserExpertiseLevel à importação de User
-import User, { IUser, UserExpertiseLevel } from '@/app/models/User'; // O seu UserModel é exportado como User
-import MetricModel, { IMetric } from '@/app/models/Metric'; // O seu MetricModel é exportado como MetricModel
-import AdDeal, { IAdDeal } from '@/app/models/AdDeal'; // O seu AdDealModel é exportado como AdDeal
+// Adicionar UserExpertiseLevel e novas interfaces de memória à importação de User
+import User, { 
+    IUser, 
+    UserExpertiseLevel, 
+    IUserPreferences, // NOVO v2.14.0
+    IUserLongTermGoal, // NOVO v2.14.0
+    IUserKeyFact // NOVO v2.14.0
+} from '@/app/models/User'; 
+import MetricModel, { IMetric } from '@/app/models/Metric';
+import AdDeal, { IAdDeal } from '@/app/models/AdDeal'; 
 import AccountInsightModel, { IAccountInsight } from '@/app/models/AccountInsight';
 import CommunityInspirationModel, { ICommunityInspiration } from '@/app/models/CommunityInspiration';
-// <<< NOVOS IMPORTS PARA EXCLUSÃO >>>
 import DailyMetricSnapshotModel from '@/app/models/DailyMetricSnapshot';
 import StoryMetricModel from '@/app/models/StoryMetric';
 
@@ -46,13 +57,17 @@ import {
 } from '@/app/lib/errors';
 
 // Função de conexão (assumindo que você tem uma)
-// Se não estiver aqui, certifique-se de que é chamada antes das operações de DB
 const connectToDatabase = async () => {
     if (mongoose.connection.readyState >= 1) {
         return;
     }
     // Adapte esta linha para a sua lógica de conexão real, se diferente
-    return mongoose.connect(process.env.MONGODB_URI || '');
+    // Certifique-se que MONGODB_URI está definido nas variáveis de ambiente
+    if (!process.env.MONGODB_URI) {
+        logger.error('[connectToDatabase] MONGODB_URI não está definida.');
+        throw new Error('MONGODB_URI não está definida.');
+    }
+    return mongoose.connect(process.env.MONGODB_URI);
 };
 
 
@@ -141,19 +156,20 @@ function getMultimediaSuggestion(report?: AggregatedReport | null): string {
 }
 async function getCombinedGrowthData(userId: Types.ObjectId): Promise<IGrowthDataResult> {
     logger.debug(`[getCombinedGrowthData] Placeholder para usuário ${userId}`);
+    // Implementação real desta função pode buscar dados de snapshots ou outras fontes
     return { historical: {}, longTerm: {} };
 }
 
 /* ------------------------------------------------------------------ *
- * Funções públicas Exportadas (existentes)                           *
+ * Funções públicas Exportadas (existentes e novas)                   *
  * ------------------------------------------------------------------ */
 
 export async function lookupUser(fromPhone: string): Promise<IUser> {
     const maskedPhone = fromPhone.slice(0, -4) + '****';
-    const fnTag = '[lookupUser v2.12.1]';
+    const fnTag = '[lookupUser v2.12.1]'; // Versão original mantida para esta função específica
     logger.debug(`${fnTag} Buscando usuário para telefone ${maskedPhone}`);
     try {
-        await connectToDatabase(); // Garante conexão
+        await connectToDatabase(); 
         const user = await User.findOne({ whatsappPhone: fromPhone }).lean();
         if (!user) {
             logger.warn(`${fnTag} Usuário não encontrado para telefone ${maskedPhone}`);
@@ -169,14 +185,14 @@ export async function lookupUser(fromPhone: string): Promise<IUser> {
 }
 
 export async function lookupUserById(userId: string): Promise<IUser> {
-    const fnTag = '[lookupUserById v2.12.1]';
+    const fnTag = '[lookupUserById v2.12.1]'; // Versão original mantida
     logger.debug(`${fnTag} Buscando usuário por ID ${userId}`);
     if (!mongoose.isValidObjectId(userId)) {
         logger.error(`${fnTag} ID de usuário inválido fornecido: ${userId}`);
         throw new DatabaseError(`ID de usuário inválido: ${userId}`);
     }
     try {
-        await connectToDatabase(); // Garante conexão
+        await connectToDatabase(); 
         const user = await User.findById(userId).lean();
         if (!user) {
             logger.warn(`${fnTag} Usuário não encontrado para ID ${userId}`);
@@ -191,25 +207,13 @@ export async function lookupUserById(userId: string): Promise<IUser> {
     }
 }
 
-// <<< INÍCIO: NOVA FUNÇÃO PARA ATUALIZAR NÍVEL DE EXPERTISE >>>
-/**
- * Atualiza o campo inferredExpertiseLevel de um usuário.
- * @param userId - O ID do usuário a ser atualizado.
- * @param newLevel - O novo nível de expertise inferido.
- * @returns O documento do usuário atualizado ou null se não encontrado.
- * @throws {DatabaseError} Se ocorrer um erro durante a operação de banco de dados.
- */
 export async function updateUserExpertiseLevel(
   userId: string,
-  newLevel: UserExpertiseLevel // Certifique-se que UserExpertiseLevel está importado de models/User
+  newLevel: UserExpertiseLevel
 ): Promise<IUser | null> {
-  const TAG = '[dataService][updateUserExpertiseLevel]';
+  const TAG = '[dataService][updateUserExpertiseLevel]'; // Versão original mantida
   if (!mongoose.isValidObjectId(userId)) {
     logger.error(`${TAG} ID de usuário inválido: ${userId}`);
-    // Lançar um erro aqui é uma opção, mas o relatório original sugere que
-    // o worker pode continuar, então apenas logar pode ser suficiente dependendo
-    // de como o chamador (process-response) trata isso.
-    // Para consistência com lookupUserById, vamos lançar DatabaseError.
     throw new DatabaseError(`ID de usuário inválido: ${userId}`);
   }
   logger.info(`${TAG} Tentando atualizar inferredExpertiseLevel para '${newLevel}' para User ${userId}.`);
@@ -218,36 +222,208 @@ export async function updateUserExpertiseLevel(
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { $set: { inferredExpertiseLevel: newLevel } },
-      { new: true, runValidators: true } // runValidators é bom se houver validações no schema
+      { new: true, runValidators: true } 
     ).lean();
 
     if (!updatedUser) {
       logger.warn(`${TAG} Usuário ${userId} não encontrado para atualizar nível de expertise.`);
-      // Não lançar UserNotFoundError aqui necessariamente, pois o worker pode continuar.
-      // Apenas logar ou tratar conforme a necessidade. O relatório sugere retornar null.
       return null;
     }
     logger.info(`${TAG} Nível de expertise atualizado com sucesso para User ${userId}. Novo nível: ${updatedUser.inferredExpertiseLevel}`);
     return updatedUser as IUser;
   } catch (error: any) {
     logger.error(`${TAG} Erro ao atualizar nível de expertise para User ${userId}:`, error);
-    // Lança um erro mais genérico para não expor detalhes do DB, mas loga o erro original.
     throw new DatabaseError(`Erro ao atualizar nível de expertise: ${error.message}`);
   }
 }
-// <<< FIM: NOVA FUNÇÃO PARA ATUALIZAR NÍVEL DE EXPERTISE >>>
+
+// --- NOVAS FUNÇÕES PARA MEMÓRIA DE LONGO PRAZO (v2.14.0) ---
+
+/**
+ * Atualiza as preferências de um usuário.
+ * Permite atualização parcial das preferências.
+ * @param userId - O ID do usuário.
+ * @param preferences - Um objeto contendo os campos de IUserPreferences a serem atualizados.
+ * @returns O documento do usuário atualizado ou null se não encontrado.
+ * @throws {DatabaseError} Se ocorrer um erro durante a operação de banco de dados ou ID inválido.
+ */
+export async function updateUserPreferences(
+  userId: string,
+  preferences: Partial<IUserPreferences>
+): Promise<IUser | null> {
+  const TAG = '[dataService][updateUserPreferences]';
+  if (!mongoose.isValidObjectId(userId)) {
+    logger.error(`${TAG} ID de usuário inválido: ${userId}`);
+    throw new DatabaseError(`ID de usuário inválido: ${userId}`);
+  }
+  logger.info(`${TAG} Atualizando userPreferences para User ${userId}: ${JSON.stringify(preferences)}`);
+  try {
+    await connectToDatabase();
+    
+    const updatePayload: Record<string, any> = {};
+    // Mapeia as preferências para o formato de update do MongoDB para subdocumentos
+    // Ex: { 'userPreferences.preferredAiTone': 'novo_tom' }
+    if (preferences.preferredFormats !== undefined) updatePayload['userPreferences.preferredFormats'] = preferences.preferredFormats;
+    if (preferences.dislikedTopics !== undefined) updatePayload['userPreferences.dislikedTopics'] = preferences.dislikedTopics;
+    if (preferences.preferredAiTone !== undefined) updatePayload['userPreferences.preferredAiTone'] = preferences.preferredAiTone;
+    // Adicionar outros campos de IUserPreferences aqui se necessário no futuro
+    // Ex: if (preferences.focusAreas !== undefined) updatePayload['userPreferences.focusAreas'] = preferences.focusAreas;
+
+    if (Object.keys(updatePayload).length === 0) {
+        logger.warn(`${TAG} Nenhum dado de preferência fornecido para atualização para User ${userId}. Retornando usuário sem alteração.`);
+        // Retorna o usuário existente sem fazer uma operação de escrita desnecessária
+        return lookupUserById(userId); 
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $set: updatePayload },
+      { new: true, runValidators: true }
+    ).lean();
+
+    if (!updatedUser) {
+      logger.warn(`${TAG} Usuário ${userId} não encontrado para atualizar preferências.`);
+      return null;
+    }
+    logger.info(`${TAG} userPreferences atualizadas para User ${userId}.`);
+    return updatedUser as IUser;
+  } catch (error: any) {
+    logger.error(`${TAG} Erro ao atualizar userPreferences para User ${userId}:`, error);
+    throw new DatabaseError(`Erro ao atualizar preferências do usuário: ${error.message}`);
+  }
+}
+
+/**
+ * Adiciona um novo objetivo de longo prazo para um usuário.
+ * Evita adicionar objetivos duplicados com base na descrição.
+ * @param userId - O ID do usuário.
+ * @param goalDescription - A descrição do objetivo.
+ * @param status - O status inicial do objetivo (default: 'ativo').
+ * @returns O documento do usuário atualizado ou null se não encontrado.
+ * @throws {DatabaseError} Se ocorrer um erro durante a operação de banco de dados ou ID inválido.
+ */
+export async function addUserLongTermGoal(
+  userId: string,
+  goalDescription: string,
+  status: IUserLongTermGoal['status'] = 'ativo' // Default status 'ativo'
+): Promise<IUser | null> {
+  const TAG = '[dataService][addUserLongTermGoal]';
+  if (!mongoose.isValidObjectId(userId)) { 
+    logger.error(`${TAG} ID de usuário inválido: ${userId}`);
+    throw new DatabaseError(`ID de usuário inválido: ${userId}`);
+  }
+  if (!goalDescription || goalDescription.trim() === '') {
+    logger.error(`${TAG} Descrição do objetivo não pode ser vazia para User ${userId}.`);
+    throw new DatabaseError(`Descrição do objetivo não pode ser vazia.`);
+  }
+
+  logger.info(`${TAG} Adicionando longTermGoal para User ${userId}: "${goalDescription}" com status "${status}"`);
+  try {
+    await connectToDatabase();
+    
+    // Verifica se um objetivo com a mesma descrição já existe para evitar duplicatas simples
+    const userWithExistingGoal = await User.findOne({ _id: userId, 'userLongTermGoals.goal': goalDescription });
+    if (userWithExistingGoal) {
+        logger.warn(`${TAG} Objetivo "${goalDescription}" já existe para User ${userId}. Não adicionando duplicata.`);
+        return userWithExistingGoal as IUser;
+    }
+
+    const newGoal: IUserLongTermGoal = { 
+      goal: goalDescription.trim(), 
+      status, 
+      addedAt: new Date() 
+    };
+    
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      // $addToSet evita duplicatas exatas do objeto inteiro, mas a checagem acima é mais específica para 'goal'
+      { $addToSet: { userLongTermGoals: newGoal } }, 
+      { new: true, runValidators: true }
+    ).lean();
+    
+    if (!updatedUser) { 
+      logger.warn(`${TAG} Usuário ${userId} não encontrado para adicionar longTermGoal.`);
+      return null; 
+    }
+    logger.info(`${TAG} longTermGoal adicionado para User ${userId}.`);
+    return updatedUser as IUser;
+  } catch (error: any) { 
+    logger.error(`${TAG} Erro ao adicionar longTermGoal para User ${userId}:`, error);
+    throw new DatabaseError(`Erro ao adicionar objetivo de longo prazo: ${error.message}`); 
+  }
+}
+
+/**
+ * Adiciona um novo fato chave para um usuário.
+ * Evita adicionar fatos duplicados com base na descrição.
+ * @param userId - O ID do usuário.
+ * @param factDescription - A descrição do fato.
+ * @returns O documento do usuário atualizado ou null se não encontrado.
+ * @throws {DatabaseError} Se ocorrer um erro durante a operação de banco de dados ou ID inválido.
+ */
+export async function addUserKeyFact(
+  userId: string,
+  factDescription: string
+  // category?: string // Opcional, conforme guia, mas não implementado no schema ainda
+): Promise<IUser | null> {
+  const TAG = '[dataService][addUserKeyFact]';
+  if (!mongoose.isValidObjectId(userId)) { 
+    logger.error(`${TAG} ID de usuário inválido: ${userId}`);
+    throw new DatabaseError(`ID de usuário inválido: ${userId}`); 
+  }
+  if (!factDescription || factDescription.trim() === '') {
+    logger.error(`${TAG} Descrição do fato não pode ser vazia para User ${userId}.`);
+    throw new DatabaseError(`Descrição do fato não pode ser vazia.`);
+  }
+
+  logger.info(`${TAG} Adicionando keyFact para User ${userId}: "${factDescription}"`);
+  try {
+    await connectToDatabase();
+
+    // Verifica se um fato com a mesma descrição já existe
+    const userWithExistingFact = await User.findOne({ _id: userId, 'userKeyFacts.fact': factDescription });
+    if (userWithExistingFact) {
+        logger.warn(`${TAG} Fato "${factDescription}" já existe para User ${userId}. Não adicionando duplicata.`);
+        return userWithExistingFact as IUser;
+    }
+
+    const newFact: IUserKeyFact = { 
+      fact: factDescription.trim(), 
+      mentionedAt: new Date() 
+    };
+    // if (category) newFact.category = category; // Para uso futuro se 'category' for adicionado ao schema
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $addToSet: { userKeyFacts: newFact } },
+      { new: true, runValidators: true }
+    ).lean();
+    
+    if (!updatedUser) { 
+      logger.warn(`${TAG} Usuário ${userId} não encontrado para adicionar keyFact.`);
+      return null; 
+    }
+    logger.info(`${TAG} keyFact adicionado para User ${userId}.`);
+    return updatedUser as IUser;
+  } catch (error: any) { 
+    logger.error(`${TAG} Erro ao adicionar keyFact para User ${userId}:`, error);
+    throw new DatabaseError(`Erro ao adicionar fato chave: ${error.message}`);
+  }
+}
+
+// --- FIM DAS NOVAS FUNÇÕES PARA MEMÓRIA DE LONGO PRAZO ---
 
 
 export async function fetchAndPrepareReportData(
     { user, contentMetricModel, analysisSinceDate }: { user: IUser; contentMetricModel: Model<IMetric>; analysisSinceDate?: Date; }
 ): Promise<PreparedData> {
     const userId = user._id instanceof Types.ObjectId ? user._id : new Types.ObjectId(user._id);
-    const TAG = '[fetchAndPrepareReportData v2.12.1]';
+    const TAG = '[fetchAndPrepareReportData v2.12.1]'; // Versão original mantida
     const sinceDate = analysisSinceDate || subDays(new Date(), DEFAULT_METRICS_FETCH_DAYS);
     logger.info(`${TAG} Iniciando para usuário ${userId}. Período de busca: desde ${sinceDate.toISOString()}`);
     let growthData: IGrowthDataResult;
     try {
-        await connectToDatabase(); // Garante conexão
+        await connectToDatabase(); 
         growthData = await getCombinedGrowthData(userId);
         logger.debug(`${TAG} Dados de crescimento (placeholder) obtidos.`);
     } catch (error: any) {
@@ -256,7 +432,7 @@ export async function fetchAndPrepareReportData(
     }
     let aggregatedReport: AggregatedReport;
     try {
-        await connectToDatabase(); // Garante conexão
+        await connectToDatabase(); 
         logger.debug(`${TAG} Gerando relatório agregado (v4.x) para ${userId} desde ${sinceDate.toISOString()}...`);
         aggregatedReport = await buildAggregatedReport(userId,sinceDate,contentMetricModel);
         logger.info(`${TAG} Relatório agregado gerado com sucesso para ${userId}. Posts no relatório: ${aggregatedReport?.overallStats?.totalPosts ?? 'N/A'}`);
@@ -290,6 +466,34 @@ export async function fetchAndPrepareReportData(
     return { enrichedReport };
 }
 
+// ... (restante das funções existentes: extractReferenceAndFindPost, getLatestAggregatedReport, etc. são mantidas como estão)
+// Para brevidade, o restante do arquivo (funções não modificadas) não será repetido aqui,
+// mas elas permanecem no arquivo dataService.ts.
+
+// --- Funções da Comunidade de Inspiração (mantidas) ---
+// ... (código existente)
+
+// <<< NOVA FUNÇÃO PARA EXCLUSÃO DE CONTA >>> (mantida)
+// ... (código existente)
+
+// Certifique-se de que todas as funções existentes que não foram mostradas aqui (para brevidade)
+// sejam mantidas no arquivo final.
+// As funções omitidas para brevidade são:
+// extractReferenceAndFindPost
+// getLatestAggregatedReport
+// getLatestAccountInsights
+// getAdDealInsights
+// optInUserToCommunity
+// optOutUserFromCommunity
+// addInspiration
+// getInspirations
+// recordDailyInspirationShown
+// findUserPostsEligibleForCommunity
+// deleteUserAccountAndAssociatedData
+
+// Cole o restante das funções existentes aqui se estiver substituindo o arquivo inteiro.
+// Se estiver apenas adicionando/modificando seções, esta estrutura é suficiente.
+
 export async function extractReferenceAndFindPost( text: string, userId: Types.ObjectId ): Promise<ReferenceSearchResult> {
     const fnTag = '[extractReferenceAndFindPost v2.12.1]';
     logger.debug(`${fnTag} Buscando referência "${text}" para usuário ${userId}`);
@@ -302,7 +506,7 @@ export async function extractReferenceAndFindPost( text: string, userId: Types.O
     }
     logger.debug(`${fnTag} Referência extraída: "${reference}"`);
     try {
-        await connectToDatabase(); // Garante conexão
+        await connectToDatabase(); 
         const escapedReference = reference.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const regex = new RegExp(escapedReference, 'i');
         const posts = await MetricModel.find({ user: userId, description: regex }).select('_id description proposal context').limit(5).lean();
@@ -332,8 +536,10 @@ export async function getLatestAggregatedReport(userId: string): Promise<Aggrega
         throw new DatabaseError(`ID de usuário inválido: ${userId}`);
     }
     try {
-        await connectToDatabase(); // Garante conexão
-        const reportDocument: AggregatedReport | null = null; // Simulação, substitua pela sua lógica real
+        await connectToDatabase(); 
+        // Simulação - substitua pela sua lógica real de busca do último relatório.
+        // Exemplo: const reportDocument = await AggregatedReportModel.findOne({ userId }).sort({ createdAt: -1 }).lean();
+        const reportDocument: AggregatedReport | null = null; 
         if (reportDocument) {
             logger.info(`${TAG} Último relatório encontrado para ${userId}.`);
             return reportDocument;
@@ -352,10 +558,10 @@ export async function getLatestAccountInsights(userId: string): Promise<IAccount
     logger.debug(`${TAG} Buscando últimos insights da conta para usuário ${userId}`);
     if (!mongoose.isValidObjectId(userId)) {
         logger.error(`${TAG} ID de usuário inválido fornecido: ${userId}`);
-        return null; // Retorna null em vez de lançar erro, conforme original
+        return null; 
     }
     try {
-        await connectToDatabase(); // Garante conexão
+        await connectToDatabase(); 
         const latestInsight = await AccountInsightModel.findOne({
             user: new Types.ObjectId(userId)
         })
@@ -386,8 +592,8 @@ export async function getAdDealInsights( userId: string, period: 'last30d' | 'la
     if (period === 'last30d') { dateFilter = { $gte: subDays(now, 30) }; }
     else if (period === 'last90d') { dateFilter = { $gte: subDays(now, 90) }; }
     try {
-        await connectToDatabase(); // Garante conexão
-        const baseQuery: any = { userId: userIdObj }; // Usa 'userId' conforme o modelo AdDeal
+        await connectToDatabase(); 
+        const baseQuery: any = { userId: userIdObj }; 
         if (Object.keys(dateFilter).length > 0) {
             baseQuery.dealDate = dateFilter;
         }
@@ -430,7 +636,6 @@ export async function getAdDealInsights( userId: string, period: 'last30d' | 'la
     }
 }
 
-// --- Funções da Comunidade de Inspiração (mantidas) ---
 export async function optInUserToCommunity(
     userId: string,
     termsVersion: string
@@ -443,7 +648,7 @@ export async function optInUserToCommunity(
         throw new DatabaseError(`ID de usuário inválido: ${userId}`);
     }
     try {
-        await connectToDatabase(); // Garante conexão
+        await connectToDatabase(); 
         const updatedUser = await User.findByIdAndUpdate(
             userId,
             {
@@ -478,7 +683,7 @@ export async function optOutUserFromCommunity(userId: string): Promise<IUser> {
         throw new DatabaseError(`ID de usuário inválido: ${userId}`);
     }
     try {
-        await connectToDatabase(); // Garante conexão
+        await connectToDatabase(); 
         const updatedUser = await User.findByIdAndUpdate(
             userId,
             {
@@ -509,7 +714,7 @@ export async function addInspiration(
     logger.info(`${TAG} Adicionando nova inspiração. PostId Instagram: ${inspirationData.postId_Instagram}`);
 
     try {
-        await connectToDatabase(); // Garante conexão
+        await connectToDatabase(); 
         const existingInspiration = await CommunityInspirationModel.findOne({
             postId_Instagram: inspirationData.postId_Instagram
         });
@@ -550,15 +755,15 @@ export async function getInspirations(
     if (filters.context) query.context = filters.context;
     if (filters.format) query.format = filters.format;
     if (filters.primaryObjectiveAchieved_Qualitative) query.primaryObjectiveAchieved_Qualitative = filters.primaryObjectiveAchieved_Qualitative;
-    if (filters.performanceHighlights_Qualitative_CONTAINS) query.performanceHighlights_Qualitative = { $in: [filters.performanceHighlights_Qualitative_CONTAINS] };
+    if (filters.performanceHighlights_Qualitative_CONTAINS) query.performanceHighlights_Qualitative = { $in: [filters.performanceHighlights_Qualitative_CONTAINS] }; // Assumindo que é uma string, se for array, usar $all ou $in conforme
     if (filters.tags_IA && filters.tags_IA.length > 0) query.tags_IA = { $in: filters.tags_IA };
     if (excludeIds && excludeIds.length > 0) query._id = { $nin: excludeIds.map(id => new Types.ObjectId(id)) };
     try {
-        await connectToDatabase(); // Garante conexão
+        await connectToDatabase(); 
         const inspirations = await CommunityInspirationModel.find(query)
-            .sort({ addedToCommunityAt: -1 })
+            .sort({ addedToCommunityAt: -1 }) // ou outro critério de ordenação relevante
             .limit(limit)
-            .select('-internalMetricsSnapshot -updatedAt -status -__v')
+            .select('-internalMetricsSnapshot -updatedAt -status -__v') // Exclui campos não necessários
             .lean();
         logger.info(`${TAG} Encontradas ${inspirations.length} inspirações.`);
         return inspirations as ICommunityInspiration[];
@@ -585,11 +790,11 @@ export async function recordDailyInspirationShown(
         return;
     }
     try {
-        await connectToDatabase(); // Garante conexão
+        await connectToDatabase(); 
         await User.findByIdAndUpdate(userId, {
             $set: {
                 lastCommunityInspirationShown_Daily: {
-                    date: startOfDay(new Date()),
+                    date: startOfDay(new Date()), // Garante que é o início do dia
                     inspirationIds: validInspirationObjectIds,
                 },
             },
@@ -603,21 +808,26 @@ export async function recordDailyInspirationShown(
 
 export async function findUserPostsEligibleForCommunity(
     userId: string,
-    criteria: { sinceDate: Date; minPerformanceCriteria?: any; }
+    criteria: { sinceDate: Date; minPerformanceCriteria?: any; } // minPerformanceCriteria pode ser mais elaborado
 ): Promise<IMetric[]> {
     const TAG = '[dataService][findUserPostsEligibleForCommunity v2.12.1]';
     logger.info(`${TAG} Buscando posts elegíveis para comunidade para User ${userId} desde ${criteria.sinceDate.toISOString()}`);
     if (!mongoose.isValidObjectId(userId)) throw new DatabaseError(`ID de usuário inválido: ${userId}`);
     const userObjectId = new Types.ObjectId(userId);
     const query: any = {
-        user: userObjectId, // Usa 'user' conforme o modelo Metric
+        user: userObjectId, 
         postDate: { $gte: criteria.sinceDate },
-        classificationStatus: 'completed',
-        source: 'api',
+        classificationStatus: 'completed', // Exemplo de critério
+        source: 'api', // Exemplo
+        // Adicionar aqui a lógica para minPerformanceCriteria se necessário
     };
+    // Exemplo de como minPerformanceCriteria poderia ser usado:
+    // if (criteria.minPerformanceCriteria?.minLikes) query['stats.likes'] = { $gte: criteria.minPerformanceCriteria.minLikes };
+    // if (criteria.minPerformanceCriteria?.minEngagementRate) query['stats.engagementRate'] = { $gte: criteria.minPerformanceCriteria.minEngagementRate };
+
     try {
-        await connectToDatabase(); // Garante conexão
-        const eligiblePosts = await MetricModel.find(query).sort({ postDate: -1 }).limit(50).lean();
+        await connectToDatabase(); 
+        const eligiblePosts = await MetricModel.find(query).sort({ postDate: -1 }).limit(50).lean(); // Limite para evitar sobrecarga
         logger.info(`${TAG} Encontrados ${eligiblePosts.length} posts elegíveis para User ${userId}.`);
         return eligiblePosts as IMetric[];
     } catch (error: any) {
@@ -626,14 +836,6 @@ export async function findUserPostsEligibleForCommunity(
     }
 }
 
-
-// <<< NOVA FUNÇÃO PARA EXCLUSÃO DE CONTA >>>
-/**
- * Exclui uma conta de utilizador e todos os seus dados associados de forma abrangente.
- * @param userId - O ID do utilizador a ser excluído.
- * @returns true se todas as operações de exclusão forem bem-sucedidas ou se o utilizador não existir, false caso ocorra algum erro.
- * @throws {DatabaseError} Se ocorrer um erro durante as operações de base de dados que não seja UserNotFoundError.
- */
 export async function deleteUserAccountAndAssociatedData(userId: string): Promise<boolean> {
   const TAG = '[dataService][deleteUserAccountAndAssociatedData v2.13.0]';
 
@@ -643,51 +845,39 @@ export async function deleteUserAccountAndAssociatedData(userId: string): Promis
   }
 
   const userObjectId = new Types.ObjectId(userId);
-  let mongoSession: mongoose.ClientSession | null = null; // Renomeado para evitar conflito com next-auth session
+  let mongoSession: mongoose.ClientSession | null = null; 
 
   try {
-    await connectToDatabase(); // Garante que a conexão principal está estabelecida
+    await connectToDatabase(); 
     mongoSession = await mongoose.startSession();
     mongoSession.startTransaction();
     logger.info(`${TAG} Iniciando transação para exclusão de dados do utilizador: ${userId}`);
 
-    // 1. Coletar IDs de Métricas do utilizador para excluir DailyMetricSnapshots
-    // Usa MetricModel conforme o export do seu Metric.ts
     const userMetrics = await MetricModel.find({ user: userObjectId }).select('_id').session(mongoSession).lean();
     const metricIds = userMetrics.map(metric => metric._id);
     if (metricIds.length > 0) {
         logger.info(`${TAG} Encontradas ${metricIds.length} métricas para o utilizador ${userId}. IDs: [${metricIds.join(', ')}]`);
-        // 2. Excluir DailyMetricSnapshots associados às métricas do utilizador
         const snapshotDeletionResult = await DailyMetricSnapshotModel.deleteMany({ metric: { $in: metricIds } }).session(mongoSession);
         logger.info(`${TAG} ${snapshotDeletionResult.deletedCount} snapshots diários de métricas excluídos para o utilizador ${userId}.`);
     } else {
         logger.info(`${TAG} Nenhuma métrica encontrada, portanto, nenhum snapshot diário para excluir para o utilizador ${userId}.`);
     }
 
-    // 3. Excluir posts da Comunidade de Inspiração originados pelo utilizador
     const communityDeletionResult = await CommunityInspirationModel.deleteMany({ originalCreatorId: userObjectId }).session(mongoSession);
     logger.info(`${TAG} ${communityDeletionResult.deletedCount} inspirações da comunidade excluídas para o utilizador ${userId}.`);
 
-    // 4. Excluir Métricas (IMetric) do utilizador
-    // Usa MetricModel conforme o export do seu Metric.ts
     const metricsDeletionResult = await MetricModel.deleteMany({ user: userObjectId }).session(mongoSession);
     logger.info(`${TAG} ${metricsDeletionResult.deletedCount} registos de métricas (IMetric) efetivamente excluídos para o utilizador ${userId}.`);
 
-    // 5. Excluir Insights da Conta (IAccountInsight) do utilizador
     const accountInsightsDeletionResult = await AccountInsightModel.deleteMany({ user: userObjectId }).session(mongoSession);
     logger.info(`${TAG} ${accountInsightsDeletionResult.deletedCount} insights da conta excluídos para o utilizador ${userId}.`);
 
-    // 6. Excluir AdDeals do utilizador
-    // Usa AdDeal (que é o modelo exportado) conforme o seu AdDeal.ts
     const adDealsDeletionResult = await AdDeal.deleteMany({ userId: userObjectId }).session(mongoSession);
     logger.info(`${TAG} ${adDealsDeletionResult.deletedCount} AdDeals excluídos para o utilizador ${userId}.`);
 
-    // 7. Excluir StoryMetrics do utilizador
     const storyMetricsDeletionResult = await StoryMetricModel.deleteMany({ user: userObjectId }).session(mongoSession);
     logger.info(`${TAG} ${storyMetricsDeletionResult.deletedCount} métricas de stories excluídas para o utilizador ${userId}.`);
 
-    // 8. Por fim, excluir o próprio utilizador
-    // Usa User (que é o modelo exportado) conforme o seu User.ts
     const userDeletionResult = await User.findByIdAndDelete(userObjectId).session(mongoSession);
 
     await mongoSession.commitTransaction();
@@ -707,7 +897,7 @@ export async function deleteUserAccountAndAssociatedData(userId: string): Promis
       logger.error(`${TAG} Transação abortada devido a erro para o utilizador ${userId}.`);
     }
     logger.error(`${TAG} Erro ao excluir conta e dados associados para o utilizador ${userId}:`, error);
-    if (error instanceof DatabaseError || error instanceof UserNotFoundError) throw error;
+    if (error instanceof DatabaseError || error instanceof UserNotFoundError) throw error; // Re-throw specific errors
     throw new DatabaseError(`Falha crítica durante a exclusão da conta para ${userId}: ${error instanceof Error ? error.message : String(error)}`);
   } finally {
     if (mongoSession) {

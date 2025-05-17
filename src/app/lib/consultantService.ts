@@ -3,14 +3,16 @@
  * Otimizado para:
  * - Respostas diretas para interações simples.
  * - Contexto leve para IA em perguntas sociais/meta.
- * - ATUALIZADO: Primeira mensagem de reconhecimento (simulada) aprimorada para ser mais humana, divertida, contextual e com tom de "consultor ocupado".
+ * - ATUALIZADO: Primeira mensagem de reconhecimento AGORA é gerada por uma chamada real à IA 
+ * (via nova função em aiOrchestrator) usando um prompt dedicado para "quebra-gelo".
  * - Integração de resumo de histórico no contexto da IA.
- * @version 4.7.4 (Quebra-Gelo Aprimorado)
+ * @version 4.7.6 (Quebra-Gelo Dinâmico via IA Real)
  */
 
 import { logger } from '@/app/lib/logger';
 import { normalizeText, determineIntent, getRandomGreeting, IntentResult, DeterminedIntent } from './intentService';
-import { askLLMWithEnrichedContext } from './aiOrchestrator';
+// ATUALIZADO: Importar getQuickAcknowledgementLLMResponse de aiOrchestrator
+import { askLLMWithEnrichedContext, getQuickAcknowledgementLLMResponse } from './aiOrchestrator';
 import * as stateService from '@/app/lib/stateService'; 
 import * as dataService from './dataService';
 import { IEnrichedReport } from './dataService'; 
@@ -19,6 +21,7 @@ import { IUser } from '@/app/models/User';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { sendWhatsAppMessage } from '@/app/lib/whatsappService';
 import { functionExecutors } from '@/app/lib/aiFunctions';
+import { getFunAcknowledgementPrompt } from './funAcknowledgementPrompt'; // Importa o novo prompt
 
 const pickRandom = <T>(arr: T[]): T => {
   if (arr.length === 0) throw new Error('pickRandom: array vazio');
@@ -40,35 +43,34 @@ interface EnrichedContext {
 }
 
 /**
- * SIMULAÇÃO de uma função que geraria a primeira mensagem de reconhecimento dinâmica e divertida.
- * Em uma implementação real, esta função faria uma chamada a um modelo de linguagem
- * com um prompt específico para esta tarefa.
+ * ATUALIZADO: Gera a primeira mensagem de reconhecimento chamando a IA.
  */
 async function generateDynamicAcknowledgement(
     userName: string,
     userQuery: string,
+    // userId: string // Pode ser útil para logs ou personalização futura
 ): Promise<string | null> {
-    const TAG_ACK = '[generateDynamicAcknowledgement]';
-    logger.info(`${TAG_ACK} Gerando reconhecimento para ${userName} sobre: "${userQuery.substring(0, 30)}..."`);
-    
+    const TAG_ACK = '[generateDynamicAcknowledgement v4.7.6]';
     const queryExcerpt = userQuery.length > 35 ? `${userQuery.substring(0, 32)}...` : userQuery;
-
-    // ATUALIZADO: Respostas simuladas com tom de "consultor ocupado, mas divertido e prestativo"
-    const funResponses = [
-        `Opa, ${userName}! Recebi aqui seu pedido sobre "${queryExcerpt}"! 😅 Tô só finalizando um relatório ultrassecreto aqui, mas já dou um pulo pra te ajudar! Segura aí!`,
-        `E aí, ${userName}! Falando sobre "${queryExcerpt}", hein? Boa! 👍 Deixa eu só espantar uns pombos da minha janela aqui (longa história rsrs) e já vejo isso pra você! 😉`,
-        `Fala, ${userName}! Entendido o recado sobre "${queryExcerpt}"! ✅ Tava aqui no meio de uma call com o Zuck... brincadeirinha! 😂 Mas já te dou atenção total, só um instante!`,
-        `Show, ${userName}! Sobre "${queryExcerpt}", né? Anotadíssimo! 📝 Deixa eu só achar minha varinha mágica aqui... ✨ Brincadeira! Mas já vou preparar sua análise!`,
-        `Beleza, ${userName}! Pedido sobre "${queryExcerpt}" na área! 🚀 Tava aqui pensando na vida, mas agora meu foco é 100% você! Só um segundinho!`,
-        `Ah, ${userName}, você e suas ótimas perguntas sobre "${queryExcerpt}"! Adoro! 😄 Deixa eu só terminar de alinhar meus chakras aqui e já te respondo com toda a energia positiva! ✨`,
-        `Tudo isso sobre "${queryExcerpt}", ${userName}? Uau! 🤩 Isso vai dar um trabalhão... Brincadeira!!! Eu faço tudo por você! 💪 Só um momento que já tô vendo!`,
-    ];
+    logger.info(`${TAG_ACK} Gerando reconhecimento dinâmico via IA para ${userName} sobre: "${queryExcerpt}"`);
     
-    // Para uma reação verdadeiramente específica ao conteúdo (ex: "23 dias"),
-    // esta função precisaria de uma lógica mais complexa ou uma chamada real à IA.
-    // Por ora, a simulação tenta capturar o tom.
-
-    return pickRandom(funResponses); 
+    try {
+        const systemPromptForAck = getFunAcknowledgementPrompt(userName, queryExcerpt);
+        // Chama a nova função em aiOrchestrator
+        const ackMessage = await getQuickAcknowledgementLLMResponse(systemPromptForAck, userQuery, userName); 
+        
+        if (ackMessage) {
+            logger.info(`${TAG_ACK} Reconhecimento dinâmico gerado pela IA: "${ackMessage.substring(0,70)}..."`);
+            return ackMessage;
+        } else {
+            logger.warn(`${TAG_ACK} getQuickAcknowledgementLLMResponse retornou null. Sem quebra-gelo.`);
+            return null;
+        }
+    } catch (error) {
+        logger.error(`${TAG_ACK} Erro ao gerar reconhecimento dinâmico via IA:`, error);
+        // Em caso de erro, não envia o quebra-gelo para não bloquear o fluxo principal.
+        return null; 
+    }
 }
 
 
@@ -76,7 +78,7 @@ export async function getConsultantResponse(
     fromPhone: string,
     incoming: string
 ): Promise<string> {
-    const TAG = '[consultantService v4.7.4]'; // ATUALIZADO: Versão
+    const TAG = '[consultantService v4.7.6]'; // ATUALIZADO: Versão
     const start = Date.now();
     const rawText = incoming;
     logger.info(`${TAG} ⇢ ${fromPhone.slice(-4)}… «${rawText.slice(0, 40)}»`);
@@ -158,13 +160,18 @@ export async function getConsultantResponse(
     const isLightweightQuery = determinedIntent === 'social_query' || determinedIntent === 'meta_query_personal' || determinedIntent === 'generate_proactive_alert';
     if (!isLightweightQuery && determinedIntent !== 'user_confirms_pending_action' && determinedIntent !== 'user_denies_pending_action') {
         try {
-            const dynamicAckMessage = await generateDynamicAcknowledgement(userName, rawText);
+            // ATUALIZADO: Chama a IA para o reconhecimento dinâmico
+            const dynamicAckMessage = await generateDynamicAcknowledgement(userName, rawText /*, uid */);
             if (dynamicAckMessage) {
-                logger.debug(`${TAG} Enviando reconhecimento dinâmico para ${fromPhone}: "${dynamicAckMessage}"`);
+                logger.debug(`${TAG} Enviando reconhecimento dinâmico (gerado por IA) para ${fromPhone}: "${dynamicAckMessage}"`);
                 await sendWhatsAppMessage(fromPhone, dynamicAckMessage);
+                // Opcional: Adicionar dynamicAckMessage ao histórico da IA principal?
+                // Por enquanto, não adicionamos para manter o histórico da IA principal focado na tarefa analítica.
+                // Se for adicionar, seria aqui:
+                // rawHistoryMessages.push({ role: 'assistant', content: dynamicAckMessage });
             }
         } catch (ackError) {
-            logger.error(`${TAG} Falha ao gerar/enviar reconhecimento dinâmico (não fatal):`, ackError);
+            logger.error(`${TAG} Falha ao gerar/enviar reconhecimento dinâmico via IA (não fatal):`, ackError);
         }
     }
 
@@ -314,7 +321,7 @@ export async function generateStrategicWeeklySummary(
   userName: string,
   userId: string
 ): Promise<string> {
-    const TAG = '[weeklySummary v4.7.4]'; // ATUALIZADO: Versão
+    const TAG = '[weeklySummary v4.7.6]'; 
     let reportData: unknown;
     let overallStatsForPrompt: unknown = null;
     try {

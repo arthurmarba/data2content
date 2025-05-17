@@ -1,29 +1,30 @@
 // src/app/api/whatsapp/process-response/route.ts
+// v2.9.0 (Memória de Longo Prazo - Coleta)
+// - ADICIONADO: Lógica para persistir userPreferences, userLongTermGoals, e userKeyFacts
+//   com base nas intenções detectadas por intentService.ts.
+// - ADICIONADO: Imports de dataService para updateUserPreferences, addUserLongTermGoal, addUserKeyFact.
+// - ATUALIZADO: Objeto 'user' é atualizado no escopo se uma operação de memória for bem-sucedida.
 // v2.8.0 (Memória Ativa - Gerenciamento Inicial de currentTask)
 // - ADICIONADO: Lógica para definir e limpar 'currentTask' no IDialogueState.
-// - Mantém funcionalidades da v2.7.0.
 // ATUALIZADO: vX.Y.Z (Inferência de Nível de Expertise) - Adicionada lógica de inferência de expertise.
-// (Lembre-se de atualizar X.Y.Z para sua próxima versão)
+
 
 import { NextRequest, NextResponse } from 'next/server';
 import { Receiver } from "@upstash/qstash";
 import { logger } from '@/app/lib/logger';
 import { sendWhatsAppMessage } from '@/app/lib/whatsappService';
 import { askLLMWithEnrichedContext } from '@/app/lib/aiOrchestrator';
-// !!!!! IMPORTANTE !!!!!
-// CERTIFIQUE-SE que o arquivo 'src/app/lib/stateService.ts' exporta a interface IDialogueState
-// COM o campo 'expertiseInferenceTurnCounter?: number;' DEFINIDO CORRETAMENTE.
-// SALVE O ARQUIVO stateService.ts E REINICIE SEU SERVIDOR DE DESENVOLVIMENTO.
 import * as stateService from '@/app/lib/stateService'; 
 import * as dataService from '@/app/lib/dataService'; 
-import { IUser } from '@/app/models/User'; 
+// Importar novas funções do dataService e IUserPreferences para tipagem
+import { IUser, IUserPreferences } from '@/app/models/User'; 
 import OpenAI from 'openai';
-import { ChatCompletionMessageParam } from 'openai/resources/chat/completions'; // Tipo principal
+import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import {
     determineIntent,
     normalizeText,
     getRandomGreeting,
-    IntentResult,
+    IntentResult, // Certifique-se que IntentResult de intentService tem os campos de memória
     DeterminedIntent 
 } from '@/app/lib/intentService'; 
 import { startOfDay } from 'date-fns';
@@ -78,6 +79,7 @@ if (currentSigningKey && nextSigningKey) {
     logger.error("[QStash Worker Init] Chaves de assinatura QStash não definidas.");
 }
 
+// Função auxiliar para determinar se a resposta da IA sugere uma ação pendente
 function aiResponseSuggestsPendingAction(responseText: string): { 
     suggests: boolean; 
     actionType?: stateService.IDialogueState['lastAIQuestionType']; 
@@ -116,7 +118,7 @@ function aiResponseSuggestsPendingAction(responseText: string): {
 
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const TAG = '[QStash Worker /process-response vX.Y.Z]'; // Atualize X.Y.Z para sua versão
+  const TAG = '[QStash Worker /process-response v2.9.0]'; 
 
   if (!receiver) {
       logger.error(`${TAG} QStash Receiver não inicializado.`);
@@ -141,10 +143,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const { userId, taskType, incomingText, fromPhone } = payload;
 
+    // Bloco para Dica Diária
     if (taskType === "daily_tip") {
-        const planTAG = `${TAG}[DailyTip vX.Y.Z]`; // Atualize X.Y.Z
+        const planTAG = `${TAG}[DailyTip v2.9.0]`; 
         logger.info(`${planTAG} Iniciando tarefa de Dica Diária para User ${userId}...`);
-        // ... (código da Dica Diária existente) ...
+        // ... (código da Dica Diária existente, não modificado para esta tarefa) ...
         let userForTip: IUser;
         let userPhoneForTip: string | null | undefined;
         let basePlanText: string = "Hoje não consegui preparar seu roteiro de Stories detalhado, mas que tal compartilhar algo espontâneo sobre seus bastidores? 😉";
@@ -159,7 +162,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 return NextResponse.json({ success: true, message: "User has no verified WhatsApp number." }, { status: 200 });
             }
             
-            const userGoal = userForTip.goal || 'aumentar o engajamento e criar uma conexão mais forte com a audiência';
+            const userGoal = userForTip.goal || userForTip.userLongTermGoals?.[0]?.goal || 'aumentar o engajamento e criar uma conexão mais forte com a audiência';
             const latestReport = await dataService.getLatestAggregatedReport(userId); 
             let performanceSummary = "Ainda não tenho dados suficientes sobre o desempenho dos seus posts para identificar os principais interesses da sua audiência neste momento.";
             let topPerformingThemes: string[] = [];
@@ -268,8 +271,9 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
             }
             return NextResponse.json({ error: `Failed to process daily tip: ${error instanceof Error ? error.message : String(error)}` }, { status: 500 });
         }
+    // Bloco para mensagens normais do usuário
     } else { 
-        const msgTAG = `${TAG}[UserMsg vX.Y.Z]`; // Atualize X.Y.Z
+        const msgTAG = `${TAG}[UserMsg v2.9.0]`; 
         logger.info(`${msgTAG} Processando mensagem normal para User ${userId}...`);
 
         if (!fromPhone || !incomingText) { return NextResponse.json({ error: 'Invalid payload for user message' }, { status: 400 }); }
@@ -306,7 +310,7 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
             return NextResponse.json({ success: true, message: "Empty normalized text" }, { status: 200 });
         }
 
-        let intentResult: IntentResult;
+        let intentResult: IntentResult | undefined = undefined; // Modificado para undefined inicialmente
         let currentDeterminedIntent: DeterminedIntent | null = null;
         let responseTextForSpecialHandled: string | null = null;
         let pendingActionContextFromIntent: any = null;
@@ -352,6 +356,62 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
                 dialogueStateUpdateForTaskStart.currentTask = null;
             }
         }
+        
+        // --- INÍCIO: LÓGICA DE PERSISTÊNCIA DE MEMÓRIA DE LONGO PRAZO (v2.9.0) ---
+        if (intentResult && intentResult.type === 'intent_determined' && currentDeterminedIntent) {
+            const { extractedPreference, extractedGoal, extractedFact, memoryUpdateRequestContent } = intentResult;
+            let updatedUserFromMemoryOp: IUser | null = null;
+
+            try {
+                if (currentDeterminedIntent === 'user_stated_preference' && extractedPreference) {
+                    logger.info(`${msgTAG} Intenção 'user_stated_preference' detectada. Tentando persistir preferência: ${JSON.stringify(extractedPreference)} para User ${userId}`);
+                    const prefPayload: Partial<IUserPreferences> = {};
+                    const key = extractedPreference.field;
+                    const value = extractedPreference.value;
+                    // Para campos que são arrays no schema (preferredFormats, dislikedTopics),
+                    // o valor extraído (string) será colocado em um array.
+                    // dataService.updateUserPreferences usará $set, então isso definirá o array para este novo valor.
+                    // Para adicionar a um array existente, dataService.updateUserPreferences precisaria ser modificado
+                    // ou a lógica aqui precisaria ler, modificar e então setar.
+                    if (key === 'preferredFormats' || key === 'dislikedTopics') {
+                        (prefPayload as any)[key] = [value]; 
+                    } else {
+                        (prefPayload as any)[key] = value;
+                    }
+                    updatedUserFromMemoryOp = await dataService.updateUserPreferences(userId, prefPayload);
+                    if (updatedUserFromMemoryOp) logger.info(`${msgTAG} Preferência do usuário salva com sucesso: ${key} = ${value}`);
+
+                } else if (currentDeterminedIntent === 'user_shared_goal' && extractedGoal) {
+                    logger.info(`${msgTAG} Intenção 'user_shared_goal' detectada. Tentando persistir objetivo: "${extractedGoal}" para User ${userId}`);
+                    updatedUserFromMemoryOp = await dataService.addUserLongTermGoal(userId, extractedGoal);
+                    if (updatedUserFromMemoryOp) logger.info(`${msgTAG} Objetivo de longo prazo salvo com sucesso: "${extractedGoal}"`);
+
+                } else if (currentDeterminedIntent === 'user_mentioned_key_fact' && extractedFact) {
+                    logger.info(`${msgTAG} Intenção 'user_mentioned_key_fact' detectada. Tentando persistir fato chave: "${extractedFact}" para User ${userId}`);
+                    updatedUserFromMemoryOp = await dataService.addUserKeyFact(userId, extractedFact);
+                    if (updatedUserFromMemoryOp) logger.info(`${msgTAG} Fato chave salvo com sucesso: "${extractedFact}"`);
+
+                } else if (currentDeterminedIntent === 'user_requests_memory_update' && memoryUpdateRequestContent) {
+                    logger.info(`${msgTAG} Intenção 'user_requests_memory_update' detectada. Tentando persistir como fato chave: "${memoryUpdateRequestContent}" para User ${userId}`);
+                    // Tratar o conteúdo da solicitação de memória como um fato chave
+                    updatedUserFromMemoryOp = await dataService.addUserKeyFact(userId, memoryUpdateRequestContent);
+                    if (updatedUserFromMemoryOp) logger.info(`${msgTAG} Conteúdo de solicitação de memória salvo como fato chave: "${memoryUpdateRequestContent}"`);
+                }
+
+                if (updatedUserFromMemoryOp) {
+                    user = updatedUserFromMemoryOp; // Atualiza o objeto 'user' no escopo local
+                    logger.info(`${msgTAG} Objeto User local atualizado após operação de memória bem-sucedida.`);
+                    // Opcional: Enviar uma mensagem de confirmação para o usuário sobre a memória salva.
+                    // Ex: await sendWhatsAppMessage(fromPhone, `Entendido, anotei isso! 😉`);
+                    // Por enquanto, seguindo o guia, apenas logamos. A IA poderá usar a informação no próximo turno.
+                }
+            } catch (memoryError) {
+                logger.error(`${msgTAG} Erro ao persistir informação de memória para User ${userId}:`, memoryError);
+                // Não é um erro fatal para o fluxo principal da conversa, então apenas logamos.
+            }
+        }
+        // --- FIM: LÓGICA DE PERSISTÊNCIA DE MEMÓRIA DE LONGO PRAZO ---
+
 
         if (Object.keys(dialogueStateUpdateForTaskStart).length > 0) {
             await stateService.updateDialogueState(userId, dialogueStateUpdateForTaskStart);
@@ -391,7 +451,6 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
             }
             dialogueUpdateForSummaryAndExpertise.currentTask = currentDialogueStateForCounters.currentTask; 
             
-            // !!!!! ATENÇÃO: ERRO DE TIPO OCORRE AQUI SE IDialogueState EM stateService.ts NÃO ESTIVER ATUALIZADO !!!!!
             const currentExpertiseTurnCounter = currentDialogueStateForCounters.expertiseInferenceTurnCounter || 0;
             const newExpertiseTurnCounter = currentExpertiseTurnCounter + 1;
             if (newExpertiseTurnCounter >= EXPERTISE_INFERENCE_INTERVAL) {
@@ -476,7 +535,6 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
                 dialogueUpdateAfterDenial.summaryTurnCounter = newSummaryTurnCounter;
             }
             
-            // !!!!! ATENÇÃO: ERRO DE TIPO OCORRE AQUI SE IDialogueState EM stateService.ts NÃO ESTIVER ATUALIZADO !!!!!
             const currentExpertiseTurnCounter = currentDialogueStateForDenial.expertiseInferenceTurnCounter || 0;
             const newExpertiseTurnCounterForDenial = currentExpertiseTurnCounter + 1;
             if (newExpertiseTurnCounterForDenial >= EXPERTISE_INFERENCE_INTERVAL) {
@@ -498,6 +556,7 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
         }
         
         const limitedHistoryMessages = historyMessages.slice(-HISTORY_LIMIT);
+        // O objeto 'user' aqui já pode conter as atualizações da memória de longo prazo
         const enrichedContext = { user, historyMessages: limitedHistoryMessages, dialogueState: dialogueState };
 
         const isLightweightQuery = effectiveIntent === 'social_query' || effectiveIntent === 'meta_query_personal';
@@ -595,14 +654,12 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
                     logger.debug(`${msgTAG} historyPromise resolvida com ${finalHistoryForSaving.length} mensagens.`); 
                 } catch (historyError) { 
                     logger.error(`${msgTAG} Erro ao obter histórico final da historyPromise:`, historyError); 
-                    // CORREÇÃO: Tipar explicitamente as mensagens de fallback
                     const userMessageFallback: ChatCompletionMessageParam = { role: 'user', content: effectiveIncomingText };
                     const assistantMessageFallback: ChatCompletionMessageParam = { role: 'assistant', content: finalText };
                     finalHistoryForSaving = [...limitedHistoryMessages, userMessageFallback, assistantMessageFallback].slice(-HISTORY_LIMIT); 
                 } 
              } else { 
                  logger.warn(`${msgTAG} historyPromise não encontrada. Montando histórico básico.`); 
-                 // CORREÇÃO: Tipar explicitamente as mensagens de fallback
                  const userMessageNoPromise: ChatCompletionMessageParam = { role: 'user', content: effectiveIncomingText };
                  const assistantMessageNoPromise: ChatCompletionMessageParam = { role: 'assistant', content: finalText };
                  finalHistoryForSaving = [...limitedHistoryMessages, userMessageNoPromise, assistantMessageNoPromise].slice(-HISTORY_LIMIT); 
@@ -643,12 +700,10 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
             logger.error(`${msgTAG} Erro persistência Redis (não fatal):`, persistError); 
         }
 
-        // <<< INÍCIO: Lógica de Inferência de Nível de Expertise >>>
         try {
             const dialogueStateForExpertise = await stateService.getDialogueState(userId);
             const currentInDbExpertiseLevel = user.inferredExpertiseLevel; 
 
-            // !!!!! ATENÇÃO: ERRO DE TIPO OCORRE AQUI SE IDialogueState EM stateService.ts NÃO ESTIVER ATUALIZADO !!!!!
             const currentExpertiseTurnCounter = dialogueStateForExpertise.expertiseInferenceTurnCounter || 0;
             const newExpertiseTurnCounter = currentExpertiseTurnCounter + 1;
         
@@ -662,12 +717,14 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
                 if (finalHistoryForSaving && finalHistoryForSaving.length > 0) {
                     const inferredLevel = await inferUserExpertiseLevel(finalHistoryForSaving, userName);
                     
-                    if (currentInDbExpertiseLevel !== inferredLevel) {
+                    if (inferredLevel && currentInDbExpertiseLevel !== inferredLevel) { // Checa se inferredLevel não é null
                         logger.info(`${msgTAG} Nível de expertise inferido: '${inferredLevel}' para User ${userId} (anterior: '${currentInDbExpertiseLevel}'). Atualizando no DB.`);
                         await dataService.updateUserExpertiseLevel(userId, inferredLevel);
-                        user.inferredExpertiseLevel = inferredLevel; 
+                        // user.inferredExpertiseLevel = inferredLevel; // O objeto user já foi atualizado se a operação de memória ocorreu
+                    } else if (inferredLevel) {
+                        logger.info(`${msgTAG} Nível de expertise inferido ('${inferredLevel}') é o mesmo já registrado para User ${userId} ou nulo. Nenhuma atualização no DB.`);
                     } else {
-                        logger.info(`${msgTAG} Nível de expertise inferido ('${inferredLevel}') é o mesmo já registrado para User ${userId}. Nenhuma atualização no DB.`);
+                         logger.warn(`${msgTAG} Inferência de nível de expertise retornou nulo para User ${userId}.`);
                     }
                 } else {
                     logger.warn(`${msgTAG} Histórico final para inferência de expertise está vazio ou indisponível. Pulando inferência.`);
@@ -681,7 +738,6 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
         } catch (expertiseError) {
             logger.error(`${msgTAG} Erro durante o processo de inferência ou atualização do nível de expertise para User ${userId}:`, expertiseError);
         }
-        // <<< FIM: Lógica de Inferência de Nível de Expertise >>>
 
         logger.info(`${msgTAG} Tarefa de mensagem normal concluída para User ${userId}.`);
         return NextResponse.json({ success: true }, { status: 200 });

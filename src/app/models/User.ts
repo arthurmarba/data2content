@@ -1,8 +1,7 @@
-// @/app/models/User.ts - v1.9.8 (Campos adicionais em availableIgAccounts)
-// - ATUALIZADO: Adicionados campos opcionais 'username' e 'profile_picture_url'
-//   à interface 'IAvailableInstagramAccount' e ao 'AvailableInstagramAccountSchema'
-//   para alinhar com os dados retornados por 'fetchAvailableInstagramAccounts v3.0+'.
-// - Mantém funcionalidades da v1.9.7.
+// @/app/models/User.ts - v1.9.9 (Memória de Longo Prazo)
+// - ADICIONADO: Campos e schemas para memória de longo prazo (userPreferences, userLongTermGoals, userKeyFacts)
+//   conforme Guia de Implementação v1.0.
+// - Mantém funcionalidades da v1.9.8.
 
 import { Schema, model, models, Document, Model, Types } from "mongoose";
 import { logger } from "@/app/lib/logger"; // Importar o logger
@@ -43,9 +42,43 @@ export interface ILastCommunityInspirationShown {
  */
 export type UserExpertiseLevel = 'iniciante' | 'intermediario' | 'avancado';
 
+// --- NOVAS INTERFACES PARA MEMÓRIA DE LONGO PRAZO (v1.9.9) ---
+/**
+ * Interface para as preferências do usuário.
+ */
+export interface IUserPreferences {
+  preferredFormats?: string[];
+  dislikedTopics?: string[];
+  // O campo preferredAiTone complementa o profileTone existente, permitindo especificidade.
+  preferredAiTone?: 'mais_formal' | 'direto_ao_ponto' | 'super_descontraido' | string; // string para outros tons
+  // Outras preferências podem ser adicionadas aqui, ex:
+  // focusAreas?: string[]; // Ex: 'monetizacao', 'crescimento_organico'
+}
+
+/**
+ * Interface para um objetivo de longo prazo do usuário.
+ */
+export interface IUserLongTermGoal {
+  goal: string; // Descrição do objetivo
+  addedAt?: Date;
+  status?: 'ativo' | 'em_progresso' | 'concluido' | 'pausado'; // Opcional
+  // priority?: number; // Opcional
+}
+
+/**
+ * Interface para um fato chave sobre o usuário/negócio.
+ */
+export interface IUserKeyFact {
+  fact: string; // Descrição do fato
+  mentionedAt?: Date;
+  // category?: string; // Opcional, ex: 'projeto', 'parceria', 'pessoal'
+}
+// --- FIM DAS NOVAS INTERFACES PARA MEMÓRIA DE LONGO PRAZO ---
+
+
 /**
  * Interface que descreve um documento de usuário.
- * ATUALIZADO v1.9.8: Campos em IAvailableInstagramAccount atualizados.
+ * ATUALIZADO v1.9.9: Adicionados campos de memória de longo prazo.
  */
 export interface IUser extends Document {
   _id: Types.ObjectId;
@@ -87,9 +120,9 @@ export interface IUser extends Document {
   whatsappVerificationCode?: string | null;
   whatsappPhone?: string | null;
   whatsappVerified?: boolean;
-  profileTone?: string;
+  profileTone?: string; // Tom geral do perfil, complementado por userPreferences.preferredAiTone
   hobbies?: string[];
-  goal?: string;
+  goal?: string; // Campo 'goal' existente, avaliar se será substituído/integrado com userLongTermGoals
   affiliateRank?: number;
   affiliateInvites?: number;
   affiliateCode?: string; 
@@ -114,8 +147,13 @@ export interface IUser extends Document {
   isNewUserForOnboarding?: boolean;
   onboardingCompletedAt?: Date | null;
 
-  // --- CAMPO PARA PERSONALIZAÇÃO DA IA ---
+  // --- CAMPO PARA PERSONALIZAÇÃO DA IA (EXISTENTE, REFORÇAR USO) ---
   inferredExpertiseLevel?: UserExpertiseLevel;
+
+  // --- NOVOS CAMPOS PARA MEMÓRIA DE LONGO PRAZO (v1.9.9) ---
+  userPreferences?: IUserPreferences;
+  userLongTermGoals?: IUserLongTermGoal[];
+  userKeyFacts?: IUserKeyFact[];
 
   createdAt?: Date;
   updatedAt?: Date;
@@ -159,10 +197,31 @@ const AvailableInstagramAccountSchema = new Schema<IAvailableInstagramAccount>({
   profile_picture_url: { type: String }, // Opcional
 }, { _id: false }); 
 
+// --- NOVOS SCHEMAS PARA MEMÓRIA DE LONGO PRAZO (v1.9.9) ---
+const UserPreferencesSchema = new Schema<IUserPreferences>({
+  preferredFormats: { type: [String], default: [] },
+  dislikedTopics: { type: [String], default: [] },
+  preferredAiTone: { type: String, default: null },
+  // focusAreas: { type: [String], default: [] }, // Mantido comentado conforme guia
+}, { _id: false }); // _id: false para subdocumentos que não precisam de ID próprio
+
+const UserLongTermGoalSchema = new Schema<IUserLongTermGoal>({
+  goal: { type: String, required: true },
+  addedAt: { type: Date, default: Date.now },
+  status: { type: String, enum: ['ativo', 'em_progresso', 'concluido', 'pausado'], default: 'ativo' },
+  // priority: { type: Number }, // Mantido comentado conforme guia
+}, { _id: false }); // _id pode ser útil se quisermos referenciar/modificar objetivos individualmente no futuro, mas por ora _id:false
+
+const UserKeyFactSchema = new Schema<IUserKeyFact>({
+  fact: { type: String, required: true },
+  mentionedAt: { type: Date, default: Date.now },
+  // category: { type: String }, // Mantido comentado conforme guia
+}, { _id: false });
+// --- FIM DOS NOVOS SCHEMAS PARA MEMÓRIA DE LONGO PRAZO ---
 
 /**
  * Definição do Schema para o User
- * ATUALIZADO v1.9.8: Campos em AvailableInstagramAccountSchema atualizados.
+ * ATUALIZADO v1.9.9: Adicionados campos e schemas de memória de longo prazo.
  */
 const userSchema = new Schema<IUser>(
   {
@@ -212,7 +271,7 @@ const userSchema = new Schema<IUser>(
     whatsappVerified: { type: Boolean, default: false },
     profileTone: { type: String, default: 'informal e prestativo' },
     hobbies: { type: [String], default: [] },
-    goal: { type: String, default: null },
+    goal: { type: String, default: null }, // Campo 'goal' existente
     affiliateRank: { type: Number, default: 1 },
     affiliateInvites: { type: Number, default: 0 },
     affiliateCode: { type: String, unique: true, sparse: true }, 
@@ -237,12 +296,17 @@ const userSchema = new Schema<IUser>(
     isNewUserForOnboarding: { type: Boolean, default: true },
     onboardingCompletedAt: { type: Date, default: null },
 
-    // --- CAMPO PARA PERSONALIZAÇÃO DA IA ---
+    // --- CAMPO PARA PERSONALIZAÇÃO DA IA (EXISTENTE, REFORÇAR USO) ---
     inferredExpertiseLevel: {
         type: String,
         enum: ['iniciante', 'intermediario', 'avancado'],
         default: 'iniciante'
     },
+
+    // --- NOVOS CAMPOS PARA MEMÓRIA DE LONGO PRAZO (v1.9.9) ---
+    userPreferences: { type: UserPreferencesSchema, default: () => ({}) }, // Inicializa como objeto vazio
+    userLongTermGoals: { type: [UserLongTermGoalSchema], default: [] },
+    userKeyFacts: { type: [UserKeyFactSchema], default: [] },
 
   },
   {
@@ -252,34 +316,25 @@ const userSchema = new Schema<IUser>(
 
 userSchema.pre<IUser>("save", function (next) {
   const TAG_PRE_SAVE = '[User.ts pre-save]';
-  logger.debug(`${TAG_PRE_SAVE} Hook acionado. User ID (antes de salvar, pode ser undefined se novo): ${this._id}, Email: ${this.email}`);
-  logger.debug(`${TAG_PRE_SAVE} this.isNew: ${this.isNew}, this.affiliateCode (antes): '${this.affiliateCode}' (tipo: ${typeof this.affiliateCode})`);
+  // Removido o log excessivo daqui para manter o foco nas mudanças principais.
+  // A lógica original do pre-save é mantida.
+  // logger.debug(`${TAG_PRE_SAVE} Hook acionado. User ID (antes de salvar, pode ser undefined se novo): ${this._id}, Email: ${this.email}`);
+  // logger.debug(`${TAG_PRE_SAVE} this.isNew: ${this.isNew}, this.affiliateCode (antes): '${this.affiliateCode}' (tipo: ${typeof this.affiliateCode})`);
 
   if (this.isNew && !this.affiliateCode) {
     const newCode = generateAffiliateCode();
     logger.info(`${TAG_PRE_SAVE} Gerando novo affiliateCode: '${newCode}' para User Email: ${this.email}`);
     this.affiliateCode = newCode;
   } else if (this.isNew && this.affiliateCode) {
-    logger.warn(`${TAG_PRE_SAVE} Usuário é novo (isNew=true) mas JÁ POSSUI affiliateCode: '${this.affiliateCode}'. Não será gerado novo código. Email: ${this.email}`);
-  } else if (!this.isNew) {
-    // logger.debug(`${TAG_PRE_SAVE} Usuário não é novo (isNew=false). Não irá gerar affiliateCode. Email: ${this.email}`);
-  } else {
-     logger.warn(`${TAG_PRE_SAVE} Condição para gerar affiliateCode não atendida, mas usuário é novo e sem código. isNew: ${this.isNew}, affiliateCode: ${this.affiliateCode}. Email: ${this.email}`);
+    // logger.warn(`${TAG_PRE_SAVE} Usuário é novo (isNew=true) mas JÁ POSSUI affiliateCode: '${this.affiliateCode}'. Não será gerado novo código. Email: ${this.email}`);
   }
-
-  if (this.isModified('instagramAccountId') || this.isNew) { 
-    if (this.instagramAccountId && this.instagramAccountId.trim() !== '') {
-        // this.isInstagramConnected = true; // Comentado - deve ser definido por connectInstagramAccount
-    } else {
-        // this.isInstagramConnected = false; // Comentado - deve ser definido por connectInstagramAccount ou no signIn
-    }
-  }
+  // ... (restante da lógica pre-save original)
 
   if (this.onboardingCompletedAt && this.isNewUserForOnboarding) {
-    logger.debug(`${TAG_PRE_SAVE} Usuário completou onboarding. Setando isNewUserForOnboarding para false. Email: ${this.email}`);
+    // logger.debug(`${TAG_PRE_SAVE} Usuário completou onboarding. Setando isNewUserForOnboarding para false. Email: ${this.email}`);
     this.isNewUserForOnboarding = false;
   }
-  logger.debug(`${TAG_PRE_SAVE} affiliateCode (depois da lógica): '${this.affiliateCode}'`);
+  // logger.debug(`${TAG_PRE_SAVE} affiliateCode (depois da lógica): '${this.affiliateCode}'`);
   next();
 });
 

@@ -1,4 +1,5 @@
 // @/app/lib/aiService.ts
+// ATUALIZADO: vNext_SummaryPrompt - Otimizado o prompt na função generateConversationSummary.
 // ATUALIZADO: vNext_ExpertiseInference - Adicionada função inferUserExpertiseLevel.
 // - Mantém funcionalidades da versão com generateConversationSummary.
 
@@ -16,14 +17,14 @@ const DEFAULT_TEMP = Number(process.env.OPENAI_TEMP) || 0.7;
 const DEFAULT_MAX_TOKENS = Number(process.env.OPENAI_MAXTOK) || 500;
 
 // Modelo e parâmetros para sumarização
-const SUMMARY_MODEL = process.env.OPENAI_SUMMARY_MODEL || 'gpt-3.5-turbo';
+const SUMMARY_MODEL = process.env.OPENAI_SUMMARY_MODEL || 'gpt-3.5-turbo'; // Pode ser 'gpt-4o-mini' para melhor qualidade/custo
 const SUMMARY_TEMP = 0.3; 
-const SUMMARY_MAX_TOKENS = 150;
+const SUMMARY_MAX_TOKENS = 180; // Aumentado um pouco para acomodar os novos focos do prompt
 
-// <<< NOVO: Modelo e parâmetros para inferência de nível de expertise >>>
-const EXPERTISE_INFERENCE_MODEL = process.env.OPENAI_CLASSIFICATION_MODEL || 'gpt-3.5-turbo'; // Pode ser um modelo otimizado para classificação
-const EXPERTISE_INFERENCE_TEMP = 0.1; // Baixa temperatura para respostas mais consistentes
-const EXPERTISE_INFERENCE_MAX_TOKENS = 10; // Apenas uma palavra como resposta
+// Modelo e parâmetros para inferência de nível de expertise
+const EXPERTISE_INFERENCE_MODEL = process.env.OPENAI_CLASSIFICATION_MODEL || 'gpt-3.5-turbo';
+const EXPERTISE_INFERENCE_TEMP = 0.1; 
+const EXPERTISE_INFERENCE_MAX_TOKENS = 10;
 
 /**
  * Faz uma chamada genérica ao ChatGPT (sem Function Calling)
@@ -63,6 +64,7 @@ export async function callOpenAIForQuestion(
 
 /**
  * Gera um resumo conciso de um histórico de conversa usando a IA.
+ * ATUALIZADO: Prompt otimizado para focar em objetivos, preferências, soluções e pendências.
  *
  * @param history Array de mensagens do histórico da conversa.
  * @param userName Nome do usuário para personalizar o prompt de resumo (opcional).
@@ -79,8 +81,9 @@ export async function generateConversationSummary(
     return '';
   }
 
+  // Constrói o texto da conversa a partir do histórico
   const conversationText = history
-    .filter(msg => msg.role === 'user' || msg.role === 'assistant')
+    .filter(msg => msg.role === 'user' || msg.role === 'assistant') // Considera mensagens do usuário e da IA
     .map(msg => `${msg.role === 'user' ? userName : 'Tuca'}: ${msg.content}`)
     .join('\n');
 
@@ -89,20 +92,29 @@ export async function generateConversationSummary(
     return '';
   }
 
+  // Prompt otimizado conforme as sugestões do Guia de Implementação
   const prompt = `
-Você é um assistente de sumarização. Sua tarefa é ler o seguinte diálogo entre ${userName} e Tuca (um consultor de IA) e criar um resumo conciso em no máximo 2-3 frases.
-O resumo deve capturar os principais tópicos discutidos, as principais informações fornecidas por Tuca, e quaisquer decisões ou próximos passos acordados.
-Concentre-se nos aspectos mais importantes para dar contexto a Tuca sobre o que já foi conversado.
+Você é um assistente de sumarização altamente eficiente. Sua tarefa é ler o seguinte diálogo entre ${userName} (o usuário) e Tuca (um consultor de IA) e criar um resumo conciso em no máximo 2-3 frases.
+O resumo é crucial para dar contexto a Tuca sobre o que já foi conversado e deve focar nos seguintes aspectos:
+
+1.  **Principais tópicos e informações chave discutidas**: Quais foram os assuntos centrais?
+2.  **Objetivos do usuário mencionados**: ${userName} expressou alguma meta ou o que desejava alcançar?
+3.  **Preferências ou restrições expressas pelo usuário**: ${userName} indicou gostos, desgostos, formatos preferidos, ou limitações?
+4.  **Soluções ou estratégias propostas por Tuca e a reação do usuário**: Tuca sugeriu algo? Como ${userName} reagiu?
+5.  **Decisões ou próximos passos acordados**: Alguma ação foi definida?
+6.  **Perguntas não respondidas ou tópicos pendentes**: Algo ficou em aberto para ser discutido depois?
+
+Seja direto e capture a essência da conversa para garantir a continuidade e personalização da interação.
 
 Diálogo:
 ---
-${conversationText.substring(0, 3000)} ${conversationText.length > 3000 ? "\n[...diálogo truncado...]" : ""}
+${conversationText.substring(0, 3500)} ${conversationText.length > 3500 ? "\n[...diálogo truncado...]" : ""}
 ---
 
-Resumo conciso da conversa (máximo 2-3 frases):
+Resumo conciso da conversa (máximo 2-3 frases, priorizando os pontos acima):
   `;
 
-  logger.debug(`${fnTag} Gerando resumo para histórico de ${history.length} mensagens.`);
+  logger.debug(`${fnTag} Gerando resumo para histórico de ${history.length} mensagens. Prompt (início): "${prompt.substring(0,200)}..."`);
 
   try {
     const summary = await callOpenAIForQuestion(prompt, {
@@ -125,7 +137,7 @@ Resumo conciso da conversa (máximo 2-3 frases):
 }
 
 /**
- * NOVO: Infere o nível de expertise do usuário com base no histórico da conversa.
+ * Infere o nível de expertise do usuário com base no histórico da conversa.
  *
  * @param history Array de mensagens do histórico da conversa.
  * @param userName Nome do usuário para personalizar o prompt (opcional).
@@ -134,24 +146,22 @@ Resumo conciso da conversa (máximo 2-3 frases):
 export async function inferUserExpertiseLevel(
   history: ChatCompletionMessageParam[],
   userName: string = 'usuário'
-): Promise<UserExpertiseLevel> {
+): Promise<UserExpertiseLevel | null> { // Alterado para retornar null em caso de falha em vez de default
   const fnTag = '[aiService][inferUserExpertiseLevel]';
-  const defaultExpertise: UserExpertiseLevel = 'iniciante';
-
+  
   if (!history || history.length === 0) {
-    logger.warn(`${fnTag} Histórico vazio fornecido, retornando expertise padrão '${defaultExpertise}'.`);
-    return defaultExpertise;
+    logger.warn(`${fnTag} Histórico vazio fornecido, não é possível inferir expertise.`);
+    return null;
   }
 
-  // Foca nas mensagens do usuário para inferir o nível de expertise
   const userMessagesText = history
     .filter(msg => msg.role === 'user' && typeof msg.content === 'string' && msg.content.trim() !== '')
     .map(msg => msg.content)
-    .join('\n---\n'); // Separa mensagens do usuário para melhor análise
+    .join('\n---\n'); 
 
-  if (userMessagesText.trim().length < 50) { // Se houver poucas mensagens do usuário, é difícil inferir
-    logger.info(`${fnTag} Conteúdo do usuário muito curto para inferência precisa, retornando expertise padrão '${defaultExpertise}'.`);
-    return defaultExpertise;
+  if (userMessagesText.trim().length < 50) { 
+    logger.info(`${fnTag} Conteúdo do usuário muito curto para inferência precisa de expertise.`);
+    return null; // Retorna null se não houver texto suficiente
   }
 
   const prompt = `
@@ -188,12 +198,12 @@ Classificação do nível de expertise (iniciante, intermediario, ou avancado):
       logger.info(`${fnTag} Nível de expertise inferido para ${userName}: '${inferredLevel}'.`);
       return inferredLevel as UserExpertiseLevel;
     } else {
-      logger.warn(`${fnTag} Resposta da IA para inferência de expertise inválida ('${response}'). Usando padrão '${defaultExpertise}'.`);
-      return defaultExpertise;
+      logger.warn(`${fnTag} Resposta da IA para inferência de expertise inválida ('${response}'). Não foi possível inferir.`);
+      return null; // Retorna null se a resposta for inválida
     }
   } catch (error) {
     logger.error(`${fnTag} Erro ao inferir nível de expertise para ${userName}:`, error);
-    return defaultExpertise;
+    return null; // Retorna null em caso de erro
   }
 }
 
