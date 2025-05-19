@@ -1,4 +1,8 @@
-// src/app/api/whatsapp/incoming/route.ts - v2.1 (Corrige tipo DialogueState)
+// src/app/api/whatsapp/incoming/route.ts - v2.2 (Remove Ack Estático da Rota Incoming)
+// - Removida a mensagem de processamento estática que era enviada por esta rota.
+// - A responsabilidade pelo envio da mensagem de reconhecimento (agora dinâmica)
+//   passa a ser exclusivamente do consultantService.ts (v4.7.6+) no worker QStash.
+// - Mantém a lógica de verificação de código e tratamento de erros da v2.1.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { normalizePhoneNumber } from '@/app/lib/helpers';
@@ -11,7 +15,6 @@ import * as dataService from '@/app/lib/dataService';
 import { normalizeText, determineIntent, getRandomGreeting, IntentResult, DeterminedIntent } from '@/app/lib/intentService';
 import { IUser } from '@/app/models/User';
 import User from '@/app/models/User';
-// ATUALIZADO: Importa IDialogueState de stateService
 import * as stateService from '@/app/lib/stateService';
 
 
@@ -23,9 +26,7 @@ if (!process.env.APP_BASE_URL && !process.env.NEXT_PUBLIC_APP_URL) {
     logger.warn("[whatsapp/incoming] Variável de ambiente APP_BASE_URL ou NEXT_PUBLIC_APP_URL não definida! Usando fallback.");
 }
 
-// Inicializa cliente QStash (fora da função para reutilizar)
 const qstashClient = process.env.QSTASH_TOKEN ? new QStashClient({ token: process.env.QSTASH_TOKEN }) : null;
-
 
 /**
  * GET /api/whatsapp/incoming
@@ -82,10 +83,12 @@ function getSenderAndMessage(body: any): { from: string; text: string } | null {
 
 /**
  * POST /api/whatsapp/incoming
- * Receives message, handles verification codes OR sends initial ack & publishes task to QStash, returns immediate 200 OK.
+ * Receives message, handles verification codes OR publishes task to QStash, returns immediate 200 OK.
+ * A mensagem de reconhecimento inicial (acknowledgement) foi removida desta rota na v2.2.
+ * Ela agora é gerenciada pelo consultantService.ts no worker QStash para permitir um "quebra-gelo dinâmico".
  */
 export async function POST(request: NextRequest) {
-  const postTag = '[whatsapp/incoming POST v2.1 QStash]'; // Tag atualizada
+  const postTag = '[whatsapp/incoming POST v2.2 QStash]'; // Tag atualizada para v2.2
   let body: any;
 
   // 1. Parse Body & Basic Validation
@@ -192,11 +195,8 @@ export async function POST(request: NextRequest) {
   const uid = user._id.toString();
   const userName = user.name || 'criador';
   const greeting = getRandomGreeting(userName);
-
-  // 3. Determine Intent & Handle Special Cases (Ex: Greetings, Thanks)
-  // ***** CORREÇÃO APLICADA AQUI *****
-  let dialogueState: stateService.IDialogueState = {}; // Usa IDialogueState
-  // ***********************************
+ 
+  let dialogueState: stateService.IDialogueState = {};
   try {
       dialogueState = await stateService.getDialogueState(uid);
   } catch (stateError) {
@@ -210,15 +210,11 @@ export async function POST(request: NextRequest) {
       if (intentResult.type === 'special_handled') {
           logger.info(`${postTag} Intenção tratada como caso especial para ${uid}: ${intentResult.response.slice(0, 50)}...`);
           await sendWhatsAppMessage(fromPhone, intentResult.response);
-          // ATUALIZADO: Limpar estado de ação pendente após special_handled
           await stateService.clearPendingActionState(uid);
           await stateService.updateDialogueState(uid, { lastInteraction: Date.now() });
           return NextResponse.json({ special_handled: true }, { status: 200 });
       } else {
           determinedIntent = intentResult.intent;
-          // ATUALIZADO: Se a intenção for de confirmação/negação, o worker (process-response) lidará com isso.
-          // Aqui, apenas registramos a intenção. O worker precisará do pendingActionContext.
-          // Se a intenção NÃO for de confirmação/negação, mas havia uma ação pendente, limpamos.
           if (dialogueState.lastAIQuestionType && determinedIntent !== 'user_confirms_pending_action' && determinedIntent !== 'user_denies_pending_action') {
               logger.info(`${postTag} Usuário mudou de assunto enquanto havia ação pendente (${dialogueState.lastAIQuestionType}). Limpando estado pendente.`);
               await stateService.clearPendingActionState(uid);
@@ -228,35 +224,16 @@ export async function POST(request: NextRequest) {
   } catch (intentError) {
       logger.error(`${postTag} Erro ao determinar intenção para ${uid}:`, intentError);
       determinedIntent = 'general';
-      if (dialogueState.lastAIQuestionType) { // Limpa se erro na intenção e havia ação pendente
+      if (dialogueState.lastAIQuestionType) { 
         await stateService.clearPendingActionState(uid);
       }
   }
 
-  // 4. Send Initial Processing Message (APENAS se NÃO for uma confirmação/negação, pois essas serão tratadas no worker)
-  // E APENAS se não for uma query leve (social/meta)
-  const isLightweightQuery = determinedIntent === 'social_query' || determinedIntent === 'meta_query_personal';
-  const isContextualResponse = determinedIntent === 'user_confirms_pending_action' || determinedIntent === 'user_denies_pending_action';
-
-  if (!isLightweightQuery && !isContextualResponse) {
-    try {
-        let processingMessage = `Ok, ${userName}! Recebi seu pedido. 👍\nEstou a analisar as informações e já te trago os insights...`;
-        switch (determinedIntent) {
-            case 'script_request': processingMessage = `Ok, ${userName}! Pedido de roteiro recebido. 👍\nEstou a estruturar as ideias e já te mando o script...`; break;
-            case 'content_plan': processingMessage = `Ok, ${userName}! Recebi seu pedido de plano de conteúdo. 👍\nEstou a organizar a agenda e já te apresento o planejamento...`; break;
-            case 'ranking_request': processingMessage = `Entendido, ${userName}! Você quer um ranking. 👍\nEstou a comparar os dados e já te mostro os resultados ordenados...`; break;
-            case 'report': case 'ASK_BEST_PERFORMER': case 'ASK_BEST_TIME': processingMessage = `Certo, ${userName}! Recebi seu pedido de análise/relatório. 👍\nEstou a compilar os dados e já te apresento os resultados...`; break;
-            case 'content_ideas': processingMessage = `Legal, ${userName}! Buscando ideias de conteúdo para você. 👍\nEstou a verificar as tendências e já te trago algumas sugestões...`; break;
-            case 'general': default: processingMessage = `Ok, ${userName}! Recebi sua mensagem. 👍\nEstou a processar e já te respondo...`; break;
-        }
-        logger.debug(`${postTag} Enviando mensagem de processamento (intenção: ${determinedIntent}) para ${fromPhone}...`);
-        await sendWhatsAppMessage(fromPhone, processingMessage);
-    } catch (sendError) {
-        logger.error(`${postTag} Falha ao enviar mensagem inicial de processamento para ${fromPhone} (não fatal):`, sendError);
-    }
-  } else {
-      logger.debug(`${postTag} Pulando mensagem de processamento para intenção leve/contextual: ${determinedIntent}`);
-  }
+  // ***** INÍCIO DA REMOÇÃO DO BLOCO DE MENSAGEM ESTÁTICA *****
+  // O bloco de código que enviava a mensagem de processamento estática foi removido daqui.
+  // A lógica de reconhecimento dinâmico agora reside no consultantService.ts (worker QStash).
+  logger.debug(`${postTag} Mensagem de processamento estática não é mais enviada desta rota (v2.2).`);
+  // ***** FIM DA REMOÇÃO DO BLOCO DE MENSAGEM ESTÁTICA *****
 
 
   // 5. Publish Task to QStash
@@ -272,16 +249,11 @@ export async function POST(request: NextRequest) {
   }
   const workerUrl = `${appBaseUrl}/api/whatsapp/process-response`;
 
-
-  const qstashPayload = { // Renomeado para evitar conflito com 'payload' da requisição
+  const qstashPayload = { 
       fromPhone: fromPhone,
       incomingText: rawText,
       userId: uid,
-      // ATUALIZADO: Envia a intenção determinada e o contexto da ação pendente para o worker
-      determinedIntent: determinedIntent, // Pode ser null se special_handled, mas já retornamos antes
-      // pendingActionContext: (intentResult.type === 'intent_determined' && (intentResult.intent === 'user_confirms_pending_action' || intentResult.intent === 'user_denies_pending_action')) ? intentResult.pendingActionContext : null,
-      // Simplificando: o worker vai buscar o dialogueState de qualquer forma, que contém o pendingActionContext.
-      // Apenas a intenção já é suficiente para o worker decidir o fluxo.
+      determinedIntent: determinedIntent,
   };
 
   try {
