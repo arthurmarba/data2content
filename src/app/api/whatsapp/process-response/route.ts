@@ -1,13 +1,10 @@
 // src/app/api/whatsapp/process-response/route.ts
+// v2.9.4 (Melhoria na Limpeza de Saudação para Ack Dinâmico)
+// - ATUALIZADO: `stripLeadingGreetings` melhorada para lidar com saudações compostas
+//   e remover pontuação adjacente de forma mais eficaz. Ordenada a lista de saudações.
 // v2.9.3 (Ack Dinâmico com Contexto do Resumo da Conversa)
 // - ATUALIZADO: `generateDynamicAcknowledgementInWorker` agora busca o `conversationSummary`
 //   do `dialogueState` e o passa para `getFunAcknowledgementPrompt`.
-// v2.9.2 (Limpeza de Saudação para Ack Dinâmico)
-// - ADICIONADO: Função `stripLeadingGreetings` para remover saudações comuns.
-// - ATUALIZADO: `generateDynamicAcknowledgementInWorker` usa o texto limpo.
-// v2.9.1 (Dynamic Acknowledgement & Cleanup)
-// - ADICIONADO: Lógica para gerar e enviar uma mensagem de reconhecimento dinâmica ("quebra-gelo").
-// - REMOVIDO: Lógica anterior de envio de mensagem de processamento estática atrasada.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { Receiver } from "@upstash/qstash";
@@ -21,7 +18,7 @@ import OpenAI from 'openai';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import {
     determineIntent,
-    normalizeText, // Usaremos normalizeText para a limpeza de saudações
+    normalizeText,
     getRandomGreeting,
     IntentResult,
     DeterminedIntent 
@@ -62,12 +59,14 @@ const COMPLEX_TASK_INTENTS: DeterminedIntent[] = [
     'report', 
 ];
 
-// Lista de saudações comuns para remoção (pode ser expandida)
-// Inclui variações com e sem pontuação, e algumas mais informais.
+// ATUALIZADO v2.9.4: Lista de saudações ordenada da mais longa para a mais curta
+// para evitar remoções parciais.
 const COMMON_GREETINGS_FOR_STRIPPING: string[] = [
-    'oi', 'olá', 'ola', 'tudo bem', 'tudo bom', 'bom dia', 'boa tarde', 'boa noite',
-    'e aí', 'eae', 'opa', 'fala', 'fala aí', 'fala meu querido', 'fala minha querida',
-    'meu querido', 'minha querida', 'querido tuca', 'querida tuca', 'tuca' // Casos onde "Tuca" precede o pedido
+    'fala meu querido', 'fala minha querida',
+    'querido tuca', 'querida tuca',
+    'tudo bem', 'tudo bom', 'bom dia', 'boa tarde', 'boa noite',
+    'e aí', 'eae', 'fala aí',
+    'oi', 'olá', 'ola', 'opa', 'fala', 'tuca' 
 ];
 
 const currentSigningKey = process.env.QSTASH_CURRENT_SIGNING_KEY;
@@ -116,52 +115,69 @@ function aiResponseSuggestsPendingAction(responseText: string): {
 }
 
 /**
- * Remove saudações comuns do início do texto.
+ * ATUALIZADO v2.9.4: Remove saudações comuns do início do texto de forma mais eficaz.
+ * A lista de saudações é ordenada da mais longa para a mais curta.
+ * Lida melhor com pontuação adjacente.
  */
 function stripLeadingGreetings(text: string): string {
+    let currentText = text;
     const normalizedInput = normalizeText(text); 
-    let strippedText = text; 
 
     for (const greeting of COMMON_GREETINGS_FOR_STRIPPING) {
         const normalizedGreeting = normalizeText(greeting);
+        
+        // Verifica se o texto normalizado começa com a saudação normalizada
         if (normalizedInput.startsWith(normalizedGreeting)) {
-            const potentialGreetingEndIndex = greeting.length; 
-            const charAfterGreeting = text[potentialGreetingEndIndex];
-            
-            if (potentialGreetingEndIndex === text.length || 
-                charAfterGreeting === ' ' || 
-                charAfterGreeting === ',' || 
-                charAfterGreeting === '!' || 
-                charAfterGreeting === '.' ||
-                charAfterGreeting === '?') {
-                
-                let textWithoutGreeting = text.substring(potentialGreetingEndIndex).trim();
-                if (textWithoutGreeting.startsWith(',') || textWithoutGreeting.startsWith('!') || textWithoutGreeting.startsWith('.')) {
-                    textWithoutGreeting = textWithoutGreeting.substring(1).trim();
+            // Calcula o índice final da saudação no texto original (case-sensitive)
+            // Isso é um pouco mais complexo se a saudação original tiver capitalização diferente
+            // da lista, mas para esta lista, a correspondência direta do tamanho deve funcionar.
+            const greetingLengthInOriginalText = greeting.length; 
+
+            if (currentText.toLowerCase().startsWith(greeting.toLowerCase())) { // Checagem case-insensitive no texto original
+                const charAfterGreeting = currentText[greetingLengthInOriginalText];
+
+                // Verifica se após a saudação há um delimitador comum ou se é o fim da string
+                if (greetingLengthInOriginalText === currentText.length || 
+                    !charAfterGreeting || // Chegou ao fim da string
+                    charAfterGreeting === ' ' || 
+                    charAfterGreeting === ',' || 
+                    charAfterGreeting === '!' || 
+                    charAfterGreeting === '.' ||
+                    charAfterGreeting === '?') {
+                    
+                    let textWithoutGreeting = currentText.substring(greetingLengthInOriginalText);
+                    
+                    // Remove pontuação e espaços extras do início da string resultante
+                    textWithoutGreeting = textWithoutGreeting.replace(/^[\s,!.\?¿¡]+/, '').trim();
+                    
+                    // Se a remoção resultou em uma string diferente e mais curta, atualiza e sai
+                    if (textWithoutGreeting.length < currentText.length) {
+                        logger.debug(`[stripLeadingGreetings] Saudação "${greeting}" removida. Original: "${text}", Resultante: "${textWithoutGreeting}"`);
+                        return textWithoutGreeting;
+                    }
                 }
-                strippedText = textWithoutGreeting;
-                break; 
             }
         }
     }
-    return strippedText;
+    // Se nenhuma saudação da lista foi removida, retorna o texto original (pode já estar trimado)
+    return text.trim(); 
 }
 
+
 /**
- * ATUALIZADO v2.9.3: Adicionado parâmetro dialogueState para acessar conversationSummary.
  * Gera a mensagem de reconhecimento dinâmica ("quebra-gelo") chamando a IA.
  */
 async function generateDynamicAcknowledgementInWorker(
     userName: string,
     userQuery: string, 
     userIdForLog: string,
-    dialogueState: stateService.IDialogueState // Passa o estado do diálogo completo
+    dialogueState: stateService.IDialogueState 
 ): Promise<string | null> {
-    const TAG_ACK = '[QStash Worker][generateDynamicAck v2.9.3]'; // Tag de versão atualizada
+    const TAG_ACK = '[QStash Worker][generateDynamicAck v2.9.4]'; // Tag de versão atualizada
     
+    // ATUALIZADO v2.9.4: stripLeadingGreetings foi melhorada
     const cleanedUserQuery = stripLeadingGreetings(userQuery);
     const queryExcerpt = cleanedUserQuery.length > 35 ? `${cleanedUserQuery.substring(0, 32)}...` : cleanedUserQuery;
-    // ATUALIZADO v2.9.3: Pega o resumo do estado do diálogo
     const conversationSummaryForPrompt = dialogueState.conversationSummary; 
     
     logger.info(`${TAG_ACK} User ${userIdForLog}: Gerando reconhecimento. Query Original: "${userQuery.slice(0,50)}...", Query Limpa para Excerto: "${cleanedUserQuery.slice(0,50)}...", Excerto: "${queryExcerpt}"`);
@@ -170,7 +186,6 @@ async function generateDynamicAcknowledgementInWorker(
     }
     
     try {
-        // ATUALIZADO v2.9.3: Passa conversationSummaryForPrompt para getFunAcknowledgementPrompt
         const systemPromptForAck = getFunAcknowledgementPrompt(userName, queryExcerpt, conversationSummaryForPrompt);
         const ackMessage = await getQuickAcknowledgementLLMResponse(systemPromptForAck, userQuery, userName); 
         
@@ -189,7 +204,7 @@ async function generateDynamicAcknowledgementInWorker(
 
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const TAG = '[QStash Worker /process-response v2.9.3]'; // Versão atualizada
+  const TAG = '[QStash Worker /process-response v2.9.4]'; // Versão atualizada
 
   if (!receiver) {
       logger.error(`${TAG} QStash Receiver não inicializado.`);
@@ -216,7 +231,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const { userId, taskType, incomingText, fromPhone, determinedIntent: intentFromPayload } = payload;
 
     if (taskType === "daily_tip") {
-        const planTAG = `${TAG}[DailyTip v2.9.3]`; // Tag de versão atualizada
+        const planTAG = `${TAG}[DailyTip v2.9.4]`; 
         logger.info(`${planTAG} Iniciando tarefa de Dica Diária para User ${userId}...`);
         // ... (código da Dica Diária existente, não modificado para esta funcionalidade) ...
         let userForTip: IUser;
@@ -343,7 +358,7 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
             return NextResponse.json({ error: `Failed to process daily tip: ${error instanceof Error ? error.message : String(error)}` }, { status: 500 });
         }
     } else { 
-        const msgTAG = `${TAG}[UserMsg v2.9.3]`; // Tag de versão atualizada
+        const msgTAG = `${TAG}[UserMsg v2.9.4]`; // Tag de versão atualizada
         logger.info(`${msgTAG} Processando mensagem normal para User ${userId}...`);
 
         if (!fromPhone || !incomingText) { return NextResponse.json({ error: 'Invalid payload for user message' }, { status: 400 }); }
@@ -654,7 +669,6 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
         }
 
         const limitedHistoryMessages = historyMessages.slice(-HISTORY_LIMIT);
-        // O objeto 'user' aqui já pode conter as atualizações da memória de longo prazo
         const enrichedContext = { user, historyMessages: limitedHistoryMessages, dialogueState: dialogueState };
 
         let finalText = '';
