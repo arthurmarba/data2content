@@ -1,8 +1,9 @@
 // src/app/api/whatsapp/process-response/route.ts
+// v2.9.8 (Nome Sempre no Quebra-Gelo e Correção no Log de Minutos)
+// - MODIFICADO: Quebra-gelo dinâmico agora sempre tenta usar o firstName do usuário.
+//   A lógica de GREETING_THRESHOLD_MILLISECONDS foi removida desta decisão específica.
+// - CORRIGIDO: Cálculo para exibição de minutos no log de frequência do quebra-gelo.
 // v2.9.7 (Quebra-Gelo Sempre Enviado, Nome do Usuário Condicional por Frequência)
-// - MODIFICADO: O quebra-gelo dinâmico é agora geralmente enviado, mas o NOME do usuário
-//   nele só é incluído se GREETING_THRESHOLD_MILLISECONDS tiver passado.
-// - MODIFICADO: `generateDynamicAcknowledgementInWorker` agora aceita firstName como string | null.
 // v2.9.6 (Correção de Erro de Atribuição no Bloco Catch Final)
 // v2.9.5 (Lógica de Interrupção no Worker)
 
@@ -25,7 +26,7 @@ import {
 } from '@/app/lib/intentService'; // Deve ser v2.18.6 ou superior
 import { startOfDay } from 'date-fns';
 import { generateConversationSummary, inferUserExpertiseLevel } from '@/app/lib/aiService';
-import { getFunAcknowledgementPrompt } from '@/app/lib/funAcknowledgementPrompt'; // Será ajustado para aceitar nome opcional
+import { getFunAcknowledgementPrompt } from '@/app/lib/funAcknowledgementPrompt'; // v1.3.0 ou superior
 
 export const runtime = 'nodejs';
 
@@ -63,6 +64,8 @@ const DAILY_COMMUNITY_INSPIRATION_COUNT = 1;
 const SUMMARY_GENERATION_INTERVAL = 3;
 const EXPERTISE_INFERENCE_INTERVAL = 5;
 
+// GREETING_THRESHOLD_MILLISECONDS pode ser mantido para outras lógicas de saudação futuras,
+// mas não será usado para decidir se o *nome* vai no quebra-gelo desta rota.
 const GREETING_THRESHOLD_MILLISECONDS = (process.env.GREETING_THRESHOLD_HOURS ? parseInt(process.env.GREETING_THRESHOLD_HOURS) : 3) * 60 * 60 * 1000;
 
 const COMPLEX_TASK_INTENTS: DeterminedIntent[] = [
@@ -84,7 +87,7 @@ let receiver: Receiver | null = null;
 if (currentSigningKey && nextSigningKey) {
     receiver = new Receiver({ currentSigningKey, nextSigningKey });
 } else {
-    logger.error("[QStash Worker Init v2.9.7] Chaves de assinatura QStash não definidas.");
+    logger.error("[QStash Worker Init v2.9.8] Chaves de assinatura QStash não definidas.");
 }
 
 function aiResponseSuggestsPendingAction(responseText: string): {
@@ -148,7 +151,7 @@ function stripLeadingGreetings(text: string): string {
                     textWithoutGreeting = textWithoutGreeting.replace(/^[\s,!.\?¿¡]+/, '').trim();
 
                     if (textWithoutGreeting.length < currentText.length) {
-                        logger.debug(`[stripLeadingGreetings v2.9.7] Saudação "${greeting}" removida. Original: "${text}", Resultante: "${textWithoutGreeting}"`);
+                        logger.debug(`[stripLeadingGreetings v2.9.8] Saudação "${greeting}" removida. Original: "${text}", Resultante: "${textWithoutGreeting}"`);
                         return textWithoutGreeting;
                     }
                 }
@@ -158,31 +161,26 @@ function stripLeadingGreetings(text: string): string {
     return text.trim();
 }
 
-/**
- * MODIFICADO v2.9.7: firstName pode ser null se o nome não deve ser usado no prompt.
- */
 async function generateDynamicAcknowledgementInWorker(
-    firstName: string | null, // MODIFICADO: Aceita string ou null
+    firstName: string | null, 
     userQuery: string,
     userIdForLog: string,
     dialogueState: stateService.IDialogueState
 ): Promise<string | null> {
-    const TAG_ACK = '[QStash Worker][generateDynamicAck v2.9.7]';
+    const TAG_ACK = '[QStash Worker][generateDynamicAck v2.9.8]';
 
     const cleanedUserQuery = stripLeadingGreetings(userQuery);
     const queryExcerpt = extractExcerpt(cleanedUserQuery, 35);
     const conversationSummaryForPrompt = dialogueState.conversationSummary;
 
-    logger.info(`${TAG_ACK} User ${userIdForLog}: Gerando reconhecimento. Nome para prompt: ${firstName || '(sem nome)'}. Query Original: "${userQuery.slice(0,50)}...", Query Limpa para Excerto: "${cleanedUserQuery.slice(0,50)}...", Excerto: "${queryExcerpt}"`);
+    logger.info(`${TAG_ACK} User ${userIdForLog}: Gerando reconhecimento. Nome para prompt: ${firstName || '(sem nome para prompt)'}. Query Original: "${userQuery.slice(0,50)}...", Query Limpa para Excerto: "${cleanedUserQuery.slice(0,50)}...", Excerto: "${queryExcerpt}"`);
     if (conversationSummaryForPrompt) {
         logger.debug(`${TAG_ACK} User ${userIdForLog}: Usando resumo da conversa para prompt do ack: "${conversationSummaryForPrompt.substring(0,100)}..."`);
     }
 
     try {
-        // getFunAcknowledgementPrompt precisará ser ajustado para lidar com firstName como null
         const systemPromptForAck = getFunAcknowledgementPrompt(firstName, queryExcerpt, conversationSummaryForPrompt);
-        // getQuickAcknowledgementLLMResponse também precisará lidar com firstName como null se o usar internamente para algo além de logging
-        const ackMessage = await getQuickAcknowledgementLLMResponse(systemPromptForAck, userQuery, firstName || 'usuário'); // Passa 'usuário' para log se firstName for null
+        const ackMessage = await getQuickAcknowledgementLLMResponse(systemPromptForAck, userQuery, firstName || 'usuário'); 
 
         if (ackMessage) {
             logger.info(`${TAG_ACK} User ${userIdForLog}: Reconhecimento dinâmico gerado: "${ackMessage.substring(0,70)}..."`);
@@ -199,7 +197,7 @@ async function generateDynamicAcknowledgementInWorker(
 
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const TAG = '[QStash Worker /process-response v2.9.7 AckAlwaysNameConditional]';
+  const TAG = '[QStash Worker /process-response v2.9.8 AckNameAlways]';
 
   if (!receiver) {
       logger.error(`${TAG} QStash Receiver não inicializado.`);
@@ -235,7 +233,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (taskType === "daily_tip") {
         // ... (código da Dica Diária existente)
-        const planTAG = `${TAG}[DailyTip v2.9.7]`;
+        const planTAG = `${TAG}[DailyTip v2.9.8]`;
         logger.info(`${planTAG} Iniciando tarefa de Dica Diária para User ${userId}...`);
         let userForTip: IUser;
         let userPhoneForTip: string | null | undefined;
@@ -364,7 +362,7 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
             return NextResponse.json({ error: `Failed to process daily tip: ${error instanceof Error ? error.message : String(error)}` }, { status: 500 });
         }
     } else { // Processamento de mensagem normal do usuário
-        const msgTAG = `${TAG}[UserMsg v2.9.7 AckAlwaysNameConditional]`;
+        const msgTAG = `${TAG}[UserMsg v2.9.8 AckNameAlways]`;
         logger.info(`${msgTAG} Processando mensagem normal (MsgAtual ID: ${messageId_MsgAtual}) para User ${userId}...`);
 
         if (!fromPhone || !incomingText) {
@@ -531,18 +529,17 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
             return NextResponse.json({ success: true }, { status: 200 });
         }
 
-        // MODIFICADO: Lógica do Quebra-Gelo Dinâmico
+        // MODIFICADO: Lógica do Quebra-Gelo Dinâmico - Nome sempre usado, log de minutos corrigido
         const nowForAck = Date.now();
-        let lastInteractionTimeForAck = dialogueState.lastInteraction || 0;
-        let useNameToAck = true; // Por padrão, usa o nome
+        const lastInteractionTimeForAck = dialogueState.lastInteraction || 0;
+        // let useNameToAck = true; // Removido, nome será usado por padrão no quebra-gelo
 
-        if (lastInteractionTimeForAck !== 0 && (nowForAck - lastInteractionTimeForAck) < GREETING_THRESHOLD_MILLISECONDS) {
-            logger.info(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Interação recente (${((nowForAck - lastInteractionTimeForAck) / 1000 / 60).toFixed(1)} min). Quebra-gelo será genérico (sem nome).`);
-            useNameToAck = false; // Não usa o nome se a interação for recente
-        } else if (lastInteractionTimeForAck === 0) {
-            logger.info(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Primeira interação ou estado resetado. Quebra-gelo usará o nome.`);
+        // CORREÇÃO NO LOG:
+        const minutesSinceLastInteraction = (nowForAck - lastInteractionTimeForAck) / (1000 * 60);
+        if (lastInteractionTimeForAck !== 0) {
+             logger.info(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Tempo desde a última interação: ${minutesSinceLastInteraction.toFixed(1)} min.`);
         } else {
-            logger.info(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Tempo suficiente desde a última interação (${((nowForAck - lastInteractionTimeForAck) / 1000 / 60).toFixed(1)} min). Quebra-gelo usará o nome.`);
+            logger.info(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Primeira interação ou estado resetado. Quebra-gelo usará o nome.`);
         }
         
         const isLightweightIntentForDynamicAck = currentDeterminedIntent === 'social_query' ||
@@ -550,16 +547,14 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
                                                  currentDeterminedIntent === 'generate_proactive_alert';
         let quebraGeloEnviado = false;
 
-        // O quebra-gelo é enviado a menos que seja uma intenção leve ou algumas outras condições específicas
         if (!isLightweightIntentForDynamicAck &&
             currentDeterminedIntent !== 'user_confirms_pending_action' &&
             currentDeterminedIntent !== 'user_denies_pending_action' &&
-            currentDeterminedIntent !== 'greeting' // Evita quebra-gelo para uma simples saudação que já teve resposta
+            currentDeterminedIntent !== 'greeting'
             ) {
             try {
-                // Passa firstName se useNameToAck for true, senão passa null
-                const firstNameForAck = useNameToAck ? firstName : null;
-                const dynamicAckMessage = await generateDynamicAcknowledgementInWorker(firstNameForAck, incomingText!, userId, dialogueState);
+                // MODIFICADO: Passa firstName diretamente (ou null se firstName for nulo, o que não deve acontecer aqui)
+                const dynamicAckMessage = await generateDynamicAcknowledgementInWorker(firstName, incomingText!, userId, dialogueState);
                 if (dynamicAckMessage) {
                     await sendWhatsAppMessage(fromPhone!, dynamicAckMessage);
                     quebraGeloEnviado = true;
@@ -577,7 +572,6 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
             }
         }
 
-        // Verificação de Interrupção (já existente)
         const freshDialogueState = await stateService.getDialogueState(userId);
         if (freshDialogueState.interruptSignalForMessageId === messageId_MsgAtual) {
             logger.info(`${msgTAG} User ${userId}: INTERRUPÇÃO DETECTADA para MsgAtual ID: ${messageId_MsgAtual} ("${queryExcerpt_MsgAtual}"). Sinal: ${freshDialogueState.interruptSignalForMessageId}. Pulando resposta principal.`);
@@ -591,7 +585,7 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
                 currentProcessingMessageId: null,
                 currentProcessingQueryExcerpt: null,
                 interruptSignalForMessageId: null, 
-                lastInteraction: Date.now(), // Atualiza lastInteraction aqui também
+                lastInteraction: Date.now(),
                 summaryTurnCounter: freshDialogueState.summaryTurnCounter,
                 expertiseInferenceTurnCounter: freshDialogueState.expertiseInferenceTurnCounter,
                 conversationSummary: freshDialogueState.conversationSummary,
@@ -641,7 +635,6 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
                 lastAIQuestionType: undefined,
                 pendingActionContext: undefined,
             };
-            // ... (contadores de sumário/expertise)
             await stateService.updateDialogueState(userId, stateUpdateAfterDenial);
             return NextResponse.json({ success: true }, { status: 200 });
         } else if (dialogueState.lastAIQuestionType) { 
