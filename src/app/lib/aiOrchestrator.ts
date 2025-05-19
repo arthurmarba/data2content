@@ -2,7 +2,7 @@
  * @fileoverview Orquestrador de chamadas à API OpenAI com Function Calling e Streaming.
  * Otimizado para buscar dados sob demanda via funções e modular comportamento por intenção.
  * ATUALIZADO: Adicionada função getQuickAcknowledgementLLMResponse para gerar respostas curtas e rápidas (quebra-gelo).
- * @version 0.9.3 (Chamada para Quebra-Gelo Rápido)
+ * @version 0.9.4 (Alinhado com firstName no EnrichedContext para prompt principal)
  */
 
 import OpenAI from 'openai';
@@ -15,7 +15,7 @@ import type {
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
 import { functionSchemas, functionExecutors } from './aiFunctions';
-import { getSystemPrompt } from '@/app/lib/promptSystemFC';
+import { getSystemPrompt } from '@/app/lib/promptSystemFC'; // Deve ser v2.32.10 ou superior
 import { IUser } from '@/app/models/User';
 import * as stateService from '@/app/lib/stateService';
 import { functionValidators } from './aiFunctionSchemas.zod';
@@ -35,12 +35,14 @@ const OPENAI_TIMEOUT_MS = Number(process.env.OPENAI_TIMEOUT_MS) || 45_000;
 const QUICK_ACK_TIMEOUT_MS = Number(process.env.OPENAI_QUICK_ACK_TIMEOUT_MS) || 10_000; // Timeout menor para resposta rápida
 
 /**
- * @interface EnrichedContext (Simplificada)
+ * @interface EnrichedContext
+ * MODIFICADO: Adicionado userName (que será o firstName) para uso no prompt principal.
  */
 interface EnrichedContext {
     user: IUser;
     historyMessages: ChatCompletionMessageParam[];
     dialogueState?: stateService.IDialogueState;
+    userName: string; // Espera-se que seja o firstName do usuário
 }
 
 /**
@@ -57,16 +59,18 @@ interface AskLLMResult {
  * Usa um modelo e configurações potencialmente diferentes para otimizar velocidade e custo.
  * Não usa streaming nem function calling.
  *
- * @param systemPrompt O prompt de sistema específico para o quebra-gelo.
+ * @param systemPrompt O prompt de sistema específico para o quebra-gelo (já deve conter o nome do usuário).
  * @param userQuery A mensagem do usuário que disparou o quebra-gelo.
+ * @param userNameForLog O nome do usuário (pode ser primeiro nome ou completo) apenas para fins de logging.
  * @returns A string da resposta gerada pela IA, ou null em caso de erro.
  */
 export async function getQuickAcknowledgementLLMResponse(
     systemPrompt: string,
     userQuery: string,
-    userNameForLog: string = "usuário"
+    userNameForLog: string = "usuário" // Este é o firstName passado de process-response
 ): Promise<string | null> {
-    const fnTag = '[getQuickAcknowledgementLLMResponse v0.9.3]';
+    const fnTag = '[getQuickAcknowledgementLLMResponse v0.9.4]'; // Versão atualizada no log
+    // userNameForLog aqui é o firstName, o que é bom para o log.
     logger.info(`${fnTag} Iniciando para ${userNameForLog}. Query: "${userQuery.slice(0, 50)}..." Usando modelo: ${QUICK_ACK_MODEL}`);
 
     const messages: ChatCompletionMessageParam[] = [
@@ -109,18 +113,25 @@ export async function getQuickAcknowledgementLLMResponse(
 /**
  * Envia uma mensagem ao LLM com Function Calling em modo streaming para a resposta principal.
  * Modula o uso de functions baseado na intenção do usuário.
+ * MODIFICADO: Utiliza enrichedContext.userName (firstName) para getSystemPrompt.
  */
 export async function askLLMWithEnrichedContext(
     enrichedContext: EnrichedContext,
     incomingText: string,
     intent: DeterminedIntent
 ): Promise<AskLLMResult> {
-    const fnTag = '[askLLMWithEnrichedContext v0.9.3]'; // ATUALIZADO: Versão
-    const { user, historyMessages } = enrichedContext;
-    logger.info(`${fnTag} Iniciando para usuário ${user._id}. Intenção: ${intent}. Texto: "${incomingText.slice(0, 50)}..." Usando modelo: ${MODEL}`);
+    const fnTag = '[askLLMWithEnrichedContext v0.9.4]'; // Versão atualizada
+    // MODIFICADO: Desestrutura userName (firstName) do enrichedContext
+    const { user, historyMessages, userName } = enrichedContext;
+    // userName aqui é o firstName, que será passado para getSystemPrompt.
+    // user._id ainda é usado para logging, o que é bom.
+    logger.info(`${fnTag} Iniciando para usuário ${user._id} (Nome para prompt: ${userName}). Intenção: ${intent}. Texto: "${incomingText.slice(0, 50)}..." Usando modelo: ${MODEL}`);
 
     const initialMsgs: ChatCompletionMessageParam[] = [
-        { role: 'system', content: getSystemPrompt(user.name || 'usuário') },
+        // MODIFICADO: Passa o userName (firstName) do enrichedContext para getSystemPrompt.
+        // O fallback 'usuário' ainda existe caso enrichedContext.userName seja undefined/vazio,
+        // mas process-response/route.ts deve sempre fornecê-lo.
+        { role: 'system', content: getSystemPrompt(userName || user.name || 'usuário') },
         ...historyMessages,
         { role: 'user', content: incomingText }
     ];
@@ -168,10 +179,10 @@ export async function askLLMWithEnrichedContext(
         iter: number,
         lastFnName: string | null,
         writer: WritableStreamDefaultWriter<string>,
-        currentUser: IUser,
+        currentUser: IUser, // currentUser ainda é o objeto IUser completo
         currentIntent: DeterminedIntent
     ): Promise<ChatCompletionMessageParam[]> {
-        const turnTag = `[processTurn iter ${iter} v0.9.3]`; // ATUALIZADO: Versão
+        const turnTag = `[processTurn iter ${iter} v0.9.4]`; // Versão atualizada
         logger.debug(`${turnTag} Iniciando. Intenção atual do turno: ${currentIntent}`);
 
         if (iter >= MAX_ITERS) { throw new Error(`Function-call loop excedeu MAX_ITERS (${MAX_ITERS})`); }
@@ -182,7 +193,7 @@ export async function askLLMWithEnrichedContext(
         let functionsForAPI: OpenAI.Chat.Completions.ChatCompletionCreateParams.Function[] | undefined = undefined;
         let functionCallSetting: 'none' | 'auto' | ChatCompletionFunctionCallOption | undefined = undefined;
 
-        const isLightweightIntent = currentIntent === 'social_query' || currentIntent === 'meta_query_personal' || currentIntent === 'generate_proactive_alert'; 
+        const isLightweightIntent = currentIntent === 'social_query' || currentIntent === 'meta_query_personal' || currentIntent === 'generate_proactive_alert';
 
         if (isLightweightIntent) {
             logger.info(`${turnTag} Intenção '${currentIntent}' é leve. Desabilitando function calling explícito para esta chamada.`);
