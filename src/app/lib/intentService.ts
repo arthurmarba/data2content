@@ -220,43 +220,51 @@ function detectUserPreference(normalizedText: string, rawText: string): { isMatc
     let match;
 
     // Preferência de Tom da IA
-    const toneRegex = /(?:(?:prefiro|gosto de|meu)(?: um)? tom(?: é)?|tom da ia(?: é)?)\s+(mais formal|direto ao ponto|super descontra[ií]do|formal|descontra[ií]do|direto)/i;
+    // Regex revisada para garantir espaços (\s+) e capturar variações comuns.
+    const toneRegex = /(?:(?:prefiro|gosto\s+de|meu)(?:\s+um)?\s+tom(?:\s+é)?|tom\s+da\s+ia(?:\s+é)?)\s+(mais\s+formal|direto\s+ao\s+ponto|super\s+descontra[ií]do|formal|descontra[ií]do|direto)/i;
     match = rawText.match(toneRegex);
     logger.debug(`${TAG} Checking tone preference. Regex match result: ${JSON.stringify(match)}`);
-    if (match && match[1]) {
-        const toneValue = normalize(match[1]);
-        let finalTone: IUserPreferences['preferredAiTone'] = toneValue as string; 
-        if (toneValue.includes('formal')) finalTone = 'mais_formal';
-        else if (toneValue.includes('direto')) finalTone = 'direto_ao_ponto';
-        else if (toneValue.includes('descontrai') || toneValue.includes('descontraído')) finalTone = 'super_descontraido';
-        logger.info(`${TAG} Preferência de tom detectada: ${finalTone} (Raw: ${match[1]})`);
+    if (match && match[1]) { // O grupo de captura agora é o valor do tom
+        const toneValueRaw = match[1].trim();
+        const toneValueNormalized = normalize(toneValueRaw);
+        let finalTone: IUserPreferences['preferredAiTone'] = 'direto_ao_ponto'; // Default
+        
+        if (toneValueNormalized.includes('mais formal') || toneValueNormalized === 'formal') finalTone = 'mais_formal';
+        else if (toneValueNormalized.includes('direto ao ponto') || toneValueNormalized === 'direto') finalTone = 'direto_ao_ponto';
+        else if (toneValueNormalized.includes('super descontrai') || toneValueNormalized.includes('descontraido')) finalTone = 'super_descontraido'; // Corrigido para 'super_descontraido'
+
+        logger.info(`${TAG} Preferência de tom detectada: ${finalTone} (Raw: ${toneValueRaw})`);
         return { 
             isMatch: true, 
-            extractedPreference: { field: 'preferredAiTone', value: finalTone, rawValue: match[1] } 
+            extractedPreference: { field: 'preferredAiTone', value: finalTone, rawValue: toneValueRaw } 
         };
     }
 
     // Preferência de Formato
-    const formatRegex = /(?:(?:eu|eu realmente|eu também)\s+)?(?:prefiro|gosto(?:\s+mais)?\s+de|queria|quero|adoro|amo|curto)\s+(reels|vídeos? longos?|vídeos? curtos?|posts? de imagem|carrossel|stories|conteúdo em vídeo|postagens escritas|artigos)/i;
+    // Regex revisada para incluir mais variações e garantir espaços (\s+)
+    const formatRegex = /(?:(?:eu|eu\s+realmente|eu\s+também)\s+)?(?:prefiro|gosto(?:\s+mais)?\s+de|queria|quero|adoro|amo|curto)\s+(reels|vídeos?\s+longos?|vídeos?\s+curtos?|posts?\s+de\s+imagem|carrossel|stories|conteúdo\s+em\s+vídeo|postagens\s+escritas|artigos)/i;
     match = rawText.match(formatRegex);
     logger.debug(`${TAG} Checking format preference. Regex match result: ${JSON.stringify(match)}`);
     if (match && match[1]) { // match[1] é o formato
-        logger.info(`${TAG} Preferência de formato detectada: ${match[1]}`);
+        const formatValue = match[1].trim();
+        logger.info(`${TAG} Preferência de formato detectada: ${formatValue}`);
         return { 
             isMatch: true, 
-            extractedPreference: { field: 'preferredFormats', value: match[1], rawValue: match[1] } 
+            extractedPreference: { field: 'preferredFormats', value: formatValue, rawValue: formatValue } 
         };
     }
     
     // Tópicos Não Gostados
-    const dislikedTopicRegex = /(?:(?:eu\s+)?(?:n(?:ã|a)o gosto\s+de|evito|n(?:ã|a)o quero)\s+(?:falar\s+sobre|abordar|discutir|postar\s+sobre|criar\s+sobre)|detesto)\s+(pol[ií]tica|esportes|futebol|religi[aã]o|finan[cç]as(?: pessoais)?|tecnologia|games|jogos|viagens?)/i;
+    // Regex revisada para garantir espaços (\s+) e cobrir variações
+    const dislikedTopicRegex = /(?:(?:eu\s+)?(?:n(?:ã|a)o\s+gosto\s+de|evito|n(?:ã|a)o\s+quero)\s+(?:falar\s+sobre|abordar|discutir|postar\s+sobre|criar\s+sobre)|detesto|odeio)\s+(pol[ií]tica|esportes|futebol|religi[aã]o|finan[cç]as(?: pessoais)?|tecnologia|games|jogos|viagens?|reality\s+shows?)/i;
     match = rawText.match(dislikedTopicRegex);
     logger.debug(`${TAG} Checking disliked topics. Regex match result: ${JSON.stringify(match)}`);
     if (match && match[1]) { // match[1] é o tópico
-        logger.info(`${TAG} Tópico não gostado detectado: ${match[1]}`);
+        const dislikedValue = match[1].trim();
+        logger.info(`${TAG} Tópico não gostado detectado: ${dislikedValue}`);
         return { 
             isMatch: true, 
-            extractedPreference: { field: 'dislikedTopics', value: match[1], rawValue: match[1] } 
+            extractedPreference: { field: 'dislikedTopics', value: dislikedValue, rawValue: dislikedValue } 
         };
     }
     
@@ -264,55 +272,74 @@ function detectUserPreference(normalizedText: string, rawText: string): { isMatc
     return { isMatch: false };
 }
 
+/**
+ * Tenta extrair um objetivo de longo prazo do usuário.
+ * ATUALIZADO v2.18.3: Melhorada lógica de keywords e regex de fallback. Logging detalhado.
+ * @param normalizedText Texto normalizado.
+ * @param rawText Texto original.
+ * @returns Objeto com `isMatch: true` e `extractedGoal` se detectado, senão `isMatch: false`.
+ */
 function detectUserGoal(normalizedText: string, rawText: string): { isMatch: boolean; extractedGoal?: string } {
-    const TAG = '[intentService][detectUserGoal v2.18.3]'; // Mantido v2.18.2, mas atualizando tag para consistência
-    const lowerRawText = rawText.toLowerCase();
+    const TAG = '[intentService][detectUserGoal v2.18.3]'; 
+    const lowerRawText = rawText.toLowerCase(); // Usar rawText para preservar capitalização original se necessário no futuro
     logger.debug(`${TAG} Checking for user goal. Raw text: "${rawText.substring(0,100)}"`);
     
-    const goalKeywords: string[] = [
-        "meu principal objetivo é", "meu objetivo é", "minha meta é", 
-        "quero alcançar", "pretendo", "almejo", "meu foco é", 
-        "o que eu quero é", "busco", "estou trabalhando para", "planejo"
+    // Keywords mais robustas e ordenadas por especificidade (aproximada)
+    const goalKeywordsAndPhrases: string[] = [
+        "meu objetivo principal é", "meu objetivo principal é de", "meu objetivo é", "meu objetivo de",
+        "minha meta principal é", "minha meta é", "minha meta de",
+        "quero alcançar", "quero atingir", "quero conseguir",
+        "pretendo", "almejo", "meu foco é", "meu foco principal é",
+        "o que eu quero é", "o que eu realmente quero é",
+        "busco", "estou trabalhando para", "planejo", "meu plano é"
+        // Adicionar mais variações conforme observado nos logs
     ];
 
-    for (const keyword of goalKeywords) {
-        if (lowerRawText.startsWith(keyword)) {
-            let potentialGoal = rawText.substring(keyword.length).trim(); 
+    for (const keyword of goalKeywordsAndPhrases) {
+        const normalizedKeyword = normalize(keyword); // Normalizar keyword para comparação
+        if (normalizedText.startsWith(normalizedKeyword + " ")) { // Garantir que é um prefixo de frase
+            let potentialGoal = rawText.substring(keyword.length).trim(); // Extrair do rawText para manter formatação original
             logger.debug(`${TAG} Keyword "${keyword}" matched via startsWith. Potential goal: "${potentialGoal}"`);
-            if (potentialGoal.length > 5 && !potentialGoal.toLowerCase().startsWith("que você") && !potentialGoal.toLowerCase().startsWith("você")) {
+            
+            // Filtros adicionais para evitar falsos positivos
+            if (potentialGoal.length > 5 && 
+                !normalize(potentialGoal).startsWith("que voce") && 
+                !normalize(potentialGoal).startsWith("voce") &&
+                potentialGoal.split(/\s+/).length >= 2) { // Exige pelo menos duas palavras para o objetivo
                 logger.info(`${TAG} Goal detected via startsWith ("${keyword}"): "${potentialGoal}"`);
                 return { isMatch: true, extractedGoal: potentialGoal };
             } else {
-                logger.debug(`${TAG} Potential goal via startsWith ("${keyword}") did not meet criteria (length: ${potentialGoal.length}, startsWithVocê: ${potentialGoal.toLowerCase().startsWith("você")}).`);
+                logger.debug(`${TAG} Potential goal via startsWith ("${keyword}") did not meet criteria (length: ${potentialGoal.length}, startsWithVocê: ${normalize(potentialGoal).startsWith("voce")}, wordCount: ${potentialGoal.split(/\s+/).length}).`);
             }
         }
     }
     
-    const goalRegex = new RegExp(`(?:${goalKeywords.join('|')})\\s+(.+)`, 'i');
-    const match = rawText.match(goalRegex);
-    logger.debug(`${TAG} Checking with regex. Regex match result: ${JSON.stringify(match)}`);
+    // Regex de fallback mais genérica, mas ainda ancorada em intenção de objetivo
+    // Captura o que vem depois da keyword de objetivo.
+    const goalRegexFallback = new RegExp(`(?:${USER_GOAL_HINT_KEYWORDS.join('|')})\\s+([\\w\\sÀ-ÖØ-öø-ÿ.,'-]+)`, 'i');
+    const match = rawText.match(goalRegexFallback);
+    logger.debug(`${TAG} Checking with fallback regex. Regex match result: ${JSON.stringify(match)}`);
 
     if (match && match[1]) {
         const goalDescription = match[1].trim();
-        logger.debug(`${TAG} Regex matched. Group 1: "${match[1]}", Trimmed: "${goalDescription}", Length: ${goalDescription.length}`);
-        if (goalDescription.length > 5) {
-            if (goalDescription.toLowerCase().startsWith("que você") || goalDescription.toLowerCase().startsWith("você")) {
-                logger.debug(`${TAG} Goal description via regex starts with 'você' or 'que você'. Returning false.`);
-                return { isMatch: false };
-            }
-            logger.info(`${TAG} Goal detected via regex: "${goalDescription}"`);
+        logger.debug(`${TAG} Fallback regex matched. Group 1: "${match[1]}", Trimmed: "${goalDescription}", Length: ${goalDescription.length}`);
+        if (goalDescription.length > 5 && 
+            !normalize(goalDescription).startsWith("que voce") && 
+            !normalize(goalDescription).startsWith("voce") &&
+            goalDescription.split(/\s+/).length >= 2) {
+            logger.info(`${TAG} Goal detected via fallback regex: "${goalDescription}"`);
             return { isMatch: true, extractedGoal: goalDescription };
         } else {
-            logger.debug(`${TAG} Goal description via regex too short. Length: ${goalDescription.length}`);
+            logger.debug(`${TAG} Goal description via fallback regex too short or starts with 'você'. Length: ${goalDescription.length}, WordCount: ${goalDescription.split(/\s+/).length}`);
         }
     }
-    logger.debug(`${TAG} No goal detected.`);
+    logger.debug(`${TAG} No goal detected for raw text: "${rawText.substring(0,100)}"`);
     return { isMatch: false };
 }
 
 /**
  * Tenta extrair um fato chave mencionado pelo usuário.
- * ATUALIZADO v2.18.3: Logging detalhado.
+ * ATUALIZADO v2.18.3: Logging detalhado e revisão de regex.
  * @param normalizedText Texto normalizado.
  * @param rawText Texto original.
  * @returns Objeto com `isMatch: true` e `extractedFact` se detectado, senão `isMatch: false`.
@@ -320,25 +347,32 @@ function detectUserGoal(normalizedText: string, rawText: string): { isMatch: boo
 function detectUserKeyFact(normalizedText: string, rawText: string): { isMatch: boolean; extractedFact?: string } {
     const TAG = '[intentService][detectUserKeyFact v2.18.3]';
     logger.debug(`${TAG} Checking for key fact. Raw text: "${rawText.substring(0,100)}"`);
-    const factRegex = /(?:um fato (?:importante )?sobre mim (?:é que)?|só para (?:você|vc) saber,?|para sua informa[cç][aã]o,?|importante dizer que|gostaria de compartilhar que|eu trabalho com|minha especialidade é|sou formado em|moro em)\s+(.+)/i; // Usando .+ para capturar algo
+    // Regex revisada para ser mais flexível e capturar frases comuns.
+    // Inclui variações como "um fato sobre mim", "minha empresa é X", "trabalho com Y", "sou Z"
+    const factRegex = /(?:(?:um\s+)?fato\s+(?:importante\s+)?(?:sobre\s+mim|a\s+meu\s+respeito)\s+(?:é\s+que)?|só\s+para\s+(?:você|vc)\s+saber,?|para\s+sua\s+informa[cç][aã]o,?|gostaria\s+de\s+compartilhar\s+que|é\s+importante\s+dizer\s+que|eu\s+trabalho\s+com|minha\s+especialidade\s+é\s+em|sou\s+(?:formado|especialista)\s+em|moro\s+em|minha\s+empresa\s+(?:é|se\s+chama)|meu\s+nicho\s+é)\s+([\w\sÀ-ÖØ-öø-ÿ.,'"\-À-ÿ]+)/i;
     const match = rawText.match(factRegex);
     logger.debug(`${TAG} Regex match result: ${JSON.stringify(match)}`);
-    if (match && match[1] && match[1].trim().length > 5) {
+
+    if (match && match[1]) {
         const factDescription = match[1].trim();
-        if (factDescription.toLowerCase().startsWith("que você") || factDescription.toLowerCase().startsWith("você")) {
-            logger.debug(`${TAG} Fact description starts with 'você' or 'que você'. Returning false.`);
-            return { isMatch: false };
+        logger.debug(`${TAG} Regex matched. Group 1: "${match[1]}", Trimmed: "${factDescription}", Length: ${factDescription.length}`);
+        if (factDescription.length > 5 && 
+            !normalize(factDescription).startsWith("que voce") && 
+            !normalize(factDescription).startsWith("voce") &&
+            factDescription.split(/\s+/).length >= 2) { // Exige pelo menos duas palavras
+            logger.info(`${TAG} Key fact detected: "${factDescription}"`);
+            return { isMatch: true, extractedFact: factDescription };
+        } else {
+             logger.debug(`${TAG} Fact description via regex too short, starts with 'você', or not enough words. Length: ${factDescription.length}, WordCount: ${factDescription.split(/\s+/).length}`);
         }
-        logger.info(`${TAG} Key fact detected: "${factDescription}"`);
-        return { isMatch: true, extractedFact: factDescription };
     }
-    logger.debug(`${TAG} No key fact detected.`);
+    logger.debug(`${TAG} No key fact detected for raw text: "${rawText.substring(0,100)}"`);
     return { isMatch: false };
 }
 
 /**
  * Detecta se o usuário está explicitamente pedindo para Tuca lembrar/anotar algo.
- * ATUALIZADO v2.18.3: Logging detalhado.
+ * ATUALIZADO v2.18.3: Logging detalhado e revisão de regex.
  * @param normalizedText Texto normalizado.
  * @param rawText Texto original.
  * @returns Objeto com `isMatch: true` e `memoryUpdateRequestContent` se detectado, senão `isMatch: false`.
@@ -346,15 +380,23 @@ function detectUserKeyFact(normalizedText: string, rawText: string): { isMatch: 
 function detectMemoryUpdateRequest(normalizedText: string, rawText: string): { isMatch: boolean; memoryUpdateRequestContent?: string } {
     const TAG = '[intentService][detectMemoryUpdateRequest v2.18.3]';
     logger.debug(`${TAG} Checking for memory update request. Raw text: "${rawText.substring(0,100)}"`);
-    const requestRegex = new RegExp(`(?:tuca,? )?(?:${USER_REQUESTS_MEMORY_UPDATE_KEYWORDS.join('|')})\\s+(.+)`, 'i');
+    // Regex revisada para ser mais abrangente e usar as keywords de N_USER_MEM_UPDATE_KW
+    const requestKeywordsJoined = USER_REQUESTS_MEMORY_UPDATE_KEYWORDS.map(kw => kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+    const requestRegex = new RegExp(`(?:tuca,? )?(?:${requestKeywordsJoined})\\s+([\\w\\sÀ-ÖØ-öø-ÿ.,'"\-À-ÿ]+)`, 'i');
     const match = rawText.match(requestRegex);
     logger.debug(`${TAG} Regex match result: ${JSON.stringify(match)}`);
     
-    if (match && match[1] && match[1].trim().length > 3) {
-        logger.info(`${TAG} Memory update request detected. Content: "${match[1].trim()}"`);
-        return { isMatch: true, memoryUpdateRequestContent: match[1].trim() };
+    if (match && match[1]) {
+        const content = match[1].trim();
+        logger.debug(`${TAG} Regex matched. Group 1: "${match[1]}", Trimmed: "${content}", Length: ${content.length}`);
+        if (content.length > 3 && content.split(/\s+/).length >= 1) { // Permite conteúdo curto mas com pelo menos uma palavra
+            logger.info(`${TAG} Memory update request detected. Content: "${content}"`);
+            return { isMatch: true, memoryUpdateRequestContent: content };
+        } else {
+            logger.debug(`${TAG} Memory update request content too short or no words. Length: ${content.length}, WordCount: ${content.split(/\s+/).length}`);
+        }
     }
-    logger.debug(`${TAG} No memory update request detected.`);
+    logger.debug(`${TAG} No memory update request detected for raw text: "${rawText.substring(0,100)}"`);
     return { isMatch: false };
 }
 
@@ -367,7 +409,9 @@ async function quickSpecialHandle(
   normalized: string,
   greeting: string
 ): Promise<IntentResult | null> {
+  const TAG = '[intentService][quickSpecialHandle v2.18.3]'; // Atualizando tag para consistência
   if (isGreetingOnly(normalized)) {
+    logger.debug(`${TAG} Greeting detected.`);
     return {
       type: 'special_handled',
       response: pickRandom([
@@ -379,8 +423,11 @@ async function quickSpecialHandle(
     };
   }
 
-  const thanksKeywords = ['obrigado','obrigada','valeu','show','thanks','vlw', 'thx', 'agradecido', 'agradecida'];
-  if (thanksKeywords.includes(normalized)) {
+  const thanksKeywords = ['obrigado','obrigada','valeu','show','thanks','vlw', 'thx', 'agradecido', 'agradecida', 'de nada', 'disponha'];
+  const normalizedThanks = thanksKeywords.map(normalize);
+
+  if (normalizedThanks.some(kw => normalized.startsWith(kw) && normalized.split(/\s+/).length <= 3 )) { // Permite frases curtas de agradecimento
+    logger.debug(`${TAG} Thanks detected.`);
     return {
       type: 'special_handled',
       response: pickRandom([
@@ -393,6 +440,7 @@ async function quickSpecialHandle(
   }
 
   if (isFarewellOnly(normalized)) {
+    logger.debug(`${TAG} Farewell detected.`);
     return {
       type: 'special_handled',
       response: pickRandom([
@@ -403,7 +451,7 @@ async function quickSpecialHandle(
       ]),
     };
   }
-
+  logger.debug(`${TAG} No special quick handle matched.`);
   return null;
 }
 
@@ -416,15 +464,17 @@ export async function determineIntent(
   rawText        : string, 
   dialogueState  : IDialogueState,
   greeting       : string,
-  userId         : string
+  userId         : string // Adicionado para logging consistente
 ): Promise<IntentResult> {
-  const tag = '[intentService.determineIntent v2.18.3]'; 
-  logger.debug(`${tag} analisando: "${normalizedText}" (raw: "${rawText.substring(0,100)}") para user ${userId} (${user.name || 'Nome não disponível'}). Estado: ${JSON.stringify(dialogueState)}`);
+  const TAG = '[intentService.determineIntent v2.18.3]'; 
+  logger.info(`${TAG} User ${userId}: Analisando texto (raw: "${rawText.substring(0,100)}...", norm: "${normalizedText.substring(0,100)}...")`);
+  logger.debug(`${TAG} User ${userId}: Estado do diálogo: ${JSON.stringify(dialogueState)}`);
+
 
   if (dialogueState.lastAIQuestionType) {
-    logger.debug(`${tag} Estado de diálogo indica pergunta pendente da IA: ${dialogueState.lastAIQuestionType}`);
+    logger.debug(`${TAG} User ${userId}: Estado de diálogo indica pergunta pendente da IA: ${dialogueState.lastAIQuestionType}`);
     if (isSimpleAffirmative(normalizedText)) {
-      logger.info(`${tag} Usuário confirmou ação pendente: ${dialogueState.lastAIQuestionType} com texto: "${normalizedText}"`);
+      logger.info(`${TAG} User ${userId}: Confirmou ação pendente (${dialogueState.lastAIQuestionType}) com texto: "${normalizedText}"`);
       return {
         type: 'intent_determined',
         intent: 'user_confirms_pending_action',
@@ -432,25 +482,27 @@ export async function determineIntent(
       };
     }
     if (isSimpleNegative(normalizedText)) {
-      logger.info(`${tag} Usuário negou ação pendente: ${dialogueState.lastAIQuestionType} com texto: "${normalizedText}"`);
+      logger.info(`${TAG} User ${userId}: Negou ação pendente (${dialogueState.lastAIQuestionType}) com texto: "${normalizedText}"`);
       return {
         type: 'intent_determined',
         intent: 'user_denies_pending_action',
         pendingActionContext: dialogueState.pendingActionContext
       };
     }
-    logger.debug(`${tag} Resposta "${normalizedText}" não é afirmação/negação simples para pergunta pendente. Prosseguindo para detecção geral.`);
+    logger.debug(`${TAG} User ${userId}: Resposta "${normalizedText}" não é afirmação/negação simples para pergunta pendente. Prosseguindo para detecção geral.`);
   }
 
   const special = await quickSpecialHandle(user, normalizedText, greeting);
   if (special && special.type === 'special_handled') {
-    logger.info(`${tag} intenção especial resolvida: "${special.response.slice(0,50)}..." para user ${userId}`);
+    logger.info(`${TAG} User ${userId}: Intenção especial resolvida: "${special.response.slice(0,50)}..."`);
     return special;
   }
 
   // Detecção de intenções de memória (ordem de prioridade)
+  // 1. Pedido explícito de atualização de memória
   const memoryUpdateRequest = detectMemoryUpdateRequest(normalizedText, rawText);
   if (memoryUpdateRequest.isMatch && memoryUpdateRequest.memoryUpdateRequestContent) {
+    logger.info(`${TAG} User ${userId}: Intenção detectada: user_requests_memory_update. Conteúdo: "${memoryUpdateRequest.memoryUpdateRequestContent}"`);
     return { 
         type: 'intent_determined', 
         intent: 'user_requests_memory_update', 
@@ -458,8 +510,10 @@ export async function determineIntent(
     };
   }
 
+  // 2. Declaração de preferência
   const userPreference = detectUserPreference(normalizedText, rawText);
   if (userPreference.isMatch && userPreference.extractedPreference) {
+    logger.info(`${TAG} User ${userId}: Intenção detectada: user_stated_preference. Preferência: ${JSON.stringify(userPreference.extractedPreference)}`);
     return { 
         type: 'intent_determined', 
         intent: 'user_stated_preference', 
@@ -467,8 +521,10 @@ export async function determineIntent(
     };
   }
   
+  // 3. Compartilhamento de objetivo
   const userGoal = detectUserGoal(normalizedText, rawText);
   if (userGoal.isMatch && userGoal.extractedGoal) {
+    logger.info(`${TAG} User ${userId}: Intenção detectada: user_shared_goal. Objetivo: "${userGoal.extractedGoal}"`);
     return { 
         type: 'intent_determined', 
         intent: 'user_shared_goal', 
@@ -476,8 +532,10 @@ export async function determineIntent(
     };
   }
 
+  // 4. Menção de fato chave
   const userKeyFact = detectUserKeyFact(normalizedText, rawText);
   if (userKeyFact.isMatch && userKeyFact.extractedFact) {
+    logger.info(`${TAG} User ${userId}: Intenção detectada: user_mentioned_key_fact. Fato: "${userKeyFact.extractedFact}"`);
     return { 
         type: 'intent_determined', 
         intent: 'user_mentioned_key_fact', 
@@ -485,7 +543,7 @@ export async function determineIntent(
     };
   }
 
-  // Detecção de intenções existentes
+  // Detecção de intenções existentes (após checagens de memória)
   let intent: DeterminedIntent;
 
   if      (isBestTimeRequest(normalizedText)) intent = 'ASK_BEST_TIME';
@@ -498,27 +556,32 @@ export async function determineIntent(
   else if (isReportRequest(normalizedText))   intent = 'report';
   else if (isSocialQueryRequest(normalizedText)) {
     intent = 'social_query';
+    logger.debug(`${TAG} User ${userId}: Intenção social query detectada.`);
   }
   else if (isMetaQueryRequest(normalizedText)) {
     intent = 'meta_query_personal';
+    logger.debug(`${TAG} User ${userId}: Intenção meta query pessoal detectada.`);
   }
   else {
     intent = 'general'; 
+    logger.debug(`${TAG} User ${userId}: Nenhuma intenção específica detectada, fallback para 'general'.`);
   }
 
-  logger.info(`${tag} intenção final determinada (não-memória ou fallback): ${intent} para user ${userId}`);
+  logger.info(`${TAG} User ${userId}: Intenção final determinada (não-memória ou fallback): ${intent}`);
   return { type: 'intent_determined', intent };
 }
 
 /* -------------------------------------------------- *
  * Helpers expostos (Mantido da v2.18.2)
  * -------------------------------------------------- */
-export const normalizeText = normalize;
-export function getRandomGreeting(userName = 'criador') {
+export const normalizeText = normalize; // Exportando normalize para uso externo se necessário
+
+export function getRandomGreeting(userName?: string) { // userName opcional
+  const namePart = userName ? userName : 'criador(a)'; // Default se nome não fornecido
   return pickRandom([
-    `Oi ${userName}!`,
-    `Olá ${userName}!`,
-    `E aí, ${userName}? Como vai?`,
-    `Fala, ${userName}! Tudo certo?`,
+    `Oi ${namePart}!`,
+    `Olá ${namePart}!`,
+    `E aí, ${namePart}? Como vai?`,
+    `Fala, ${namePart}! Tudo certo?`,
   ]);
 }
