@@ -1,21 +1,17 @@
 /**
  * @fileoverview Serviço de acesso a dados (Utilizadores, Métricas, Relatórios, Publicidades, Comunidade).
+ * ATUALIZADO v2.14.3 (Otimização de Conexão):
+ * - Refinada a lógica de connectToDatabase para reutilizar de forma mais eficaz a conexão mongoose
+ * existente se já estiver conectada ao banco de dados correto.
  * ATUALIZADO v2.14.2 (Correção Nome do Banco de Dados e Logger):
  * - Corrigido uso de logger.fatal para logger.error.
  * - Função connectToDatabase robustecida para garantir conexão com o banco de dados correto (EXPECTED_DB_NAME).
  * - Adicionada verificação do nome do banco de dados conectado.
  * - Passa explicitamente dbName para mongoose.connect().
- * ATUALIZADO v2.14.1 (Conexão MongoDB Robusta):
- * - Implementada função connectToDatabase mais robusta para ambientes serverless,
- * com melhor gerenciamento de estado da conexão e logging detalhado.
- * ATUALIZADO v2.14.0 (Memória de Longo Prazo):
- * - Adicionadas funções para gerenciar memória de longo prazo do usuário.
- * ATUALIZADO v2.13.0 (Exclusão de Conta):
- * - Adicionada função deleteUserAccountAndAssociatedData.
- * @version 2.14.2
+ * @version 2.14.3
  */
 
-import mongoose, { Model, Types, ConnectionStates } from 'mongoose'; // Adicionado ConnectionStates
+import mongoose, { Model, Types, ConnectionStates } from 'mongoose';
 import { subDays, differenceInDays, startOfDay } from 'date-fns';
 import { logger } from '@/app/lib/logger';
 
@@ -61,32 +57,39 @@ import {
 let connectionPromise: Promise<typeof mongoose> | null = null;
 let connectionTimeout: NodeJS.Timeout | null = null;
 
-const MONGODB_CONNECTION_TIMEOUT_MS = 10000; // 10 segundos para timeout da conexão
-
-// Constante para o nome esperado do banco de dados, conforme especificado para v2.14.2
+const MONGODB_CONNECTION_TIMEOUT_MS = 10000; 
 const EXPECTED_DB_NAME = process.env.MONGODB_DB_NAME || 'data2content';
 
 const connectToDatabase = async (): Promise<typeof mongoose> => {
-    const TAG = '[dataService][connectToDatabase v2.14.2]'; // Tag de versão atualizada
+    const TAG = '[dataService][connectToDatabase v2.14.3]'; // Versão atualizada para esta correção
     const currentReadyState = mongoose.connection.readyState;
 
-    // Log do estado atual antes de qualquer ação
-    logger.info(`${TAG} Solicitada conexão. Estado atual do Mongoose: ${ConnectionStates[currentReadyState]} (${currentReadyState}). DB esperado: ${EXPECTED_DB_NAME}`);
+    logger.info(`${TAG} Solicitada conexão. Estado Mongoose: ${ConnectionStates[currentReadyState]} (${currentReadyState}). Conexão existente: ${mongoose.connection.name || 'N/A'}. DB esperado: ${EXPECTED_DB_NAME}`);
 
-    if (connectionPromise && (currentReadyState === ConnectionStates.connected || currentReadyState === ConnectionStates.connecting)) {
-        // Verifica se a conexão ativa está no banco de dados correto
-        if (currentReadyState === ConnectionStates.connected && mongoose.connection.name !== EXPECTED_DB_NAME) {
-            logger.warn(`${TAG} Conexão Mongoose ativa detectada, mas está conectada ao DB '${mongoose.connection.name}' em vez do esperado '${EXPECTED_DB_NAME}'. Tentando reconectar ao DB correto.`);
-            // Forçar uma nova conexão se o nome do banco de dados não for o esperado.
-            connectionPromise = null; // Invalida a promessa para forçar nova conexão abaixo
-            if (connectionTimeout) clearTimeout(connectionTimeout);
-        } else {
-            logger.info(`${TAG} Reutilizando promessa de conexão existente ou conexão já ativa/em progresso para o DB: ${mongoose.connection.name || 'N/A (ainda)'}`);
-            return connectionPromise;
-        }
+    // 1. Se já conectado ao DB CORRETO, reutilizar mongoose diretamente.
+    if (currentReadyState === ConnectionStates.connected && mongoose.connection.name === EXPECTED_DB_NAME) {
+        logger.info(`${TAG} Mongoose já conectado ao DB CORRETO ('${mongoose.connection.name}'). Reutilizando instância mongoose.`);
+        return Promise.resolve(mongoose); // Retorna a instância mongoose existente
+    }
+
+    // 2. Se há uma promessa de conexão em andamento E está no estado 'connecting'
+    if (connectionPromise && currentReadyState === ConnectionStates.connecting) {
+        logger.info(`${TAG} Mongoose está no estado 'connecting'. Reutilizando promessa de conexão existente.`);
+        return connectionPromise;
     }
     
-    // Limpa timeout anterior se houver
+    // Se chegou aqui, é necessário estabelecer uma nova conexão ou promessa.
+    // Isso pode ocorrer se:
+    // - Nenhuma conexão ou promessa existir.
+    // - Uma conexão existir, mas para o DB errado.
+    // - Uma promessa anterior falhou ou resultou em um estado inesperado.
+    logger.info(`${TAG} Necessário estabelecer nova conexão ou promessa de conexão.`);
+    if (currentReadyState === ConnectionStates.connected && mongoose.connection.name !== EXPECTED_DB_NAME) {
+        logger.warn(`${TAG} Mongoose conectado ao DB '${mongoose.connection.name}', mas esperado '${EXPECTED_DB_NAME}'. Será criada uma nova conexão direcionada.`);
+        // mongoose.connect com dbName deve lidar com a troca sem precisar de disconnect explícito.
+        connectionPromise = null; // Invalida a promessa antiga para garantir que uma nova seja criada para o DB correto.
+    }
+    
     if (connectionTimeout) {
         clearTimeout(connectionTimeout);
         connectionTimeout = null;
@@ -100,7 +103,7 @@ const connectToDatabase = async (): Promise<typeof mongoose> => {
     const uriParts = process.env.MONGODB_URI.split('@');
     const uriDisplay = uriParts.length > 1 ? `mongodb+srv://****@${uriParts[1]}` : process.env.MONGODB_URI.substring(0,30) + "...";
     logger.info(`${TAG} MONGODB_URI (segura): ${uriDisplay}`);
-    logger.info(`${TAG} Criando NOVA conexão com MongoDB (ou nova promessa de conexão) para o DB: ${EXPECTED_DB_NAME}.`);
+    logger.info(`${TAG} Criando NOVA promessa de conexão com MongoDB para o DB: ${EXPECTED_DB_NAME}.`);
 
     mongoose.connection.removeAllListeners('connected');
     mongoose.connection.removeAllListeners('error');
@@ -112,7 +115,6 @@ const connectToDatabase = async (): Promise<typeof mongoose> => {
     mongoose.connection.on('connected', () => {
         logger.info(`${TAG} Evento 'connected': Conectado ao MongoDB. DB: ${mongoose.connection.name}, Host: ${mongoose.connection.host}`);
         if (mongoose.connection.name !== EXPECTED_DB_NAME) {
-            // Alterado de logger.fatal para logger.error
             logger.error(`${TAG} ALERTA CRÍTICO: Conectado ao banco de dados '${mongoose.connection.name}' em vez do esperado '${EXPECTED_DB_NAME}'. Verifique a string de conexão e a variável de ambiente MONGODB_DB_NAME.`);
         }
         if (connectionTimeout) clearTimeout(connectionTimeout);
@@ -150,7 +152,6 @@ const connectToDatabase = async (): Promise<typeof mongoose> => {
     }).then(mongooseInstance => {
         logger.info(`${TAG} Conexão MongoDB estabelecida com sucesso (dentro do .then). DB: ${mongooseInstance.connection.name}`);
         if (mongooseInstance.connection.name !== EXPECTED_DB_NAME) {
-            // Alterado de logger.fatal para logger.error
             logger.error(`${TAG} ALERTA CRÍTICO PÓS-CONEXÃO: Conectado ao banco de dados '${mongooseInstance.connection.name}' em vez do esperado '${EXPECTED_DB_NAME}'. Isso não deveria acontecer se dbName foi especificado corretamente.`);
         }
         if (connectionTimeout) clearTimeout(connectionTimeout);
@@ -164,7 +165,9 @@ const connectToDatabase = async (): Promise<typeof mongoose> => {
     
     connectionTimeout = setTimeout(() => {
         logger.error(`${TAG} Timeout de ${MONGODB_CONNECTION_TIMEOUT_MS}ms atingido para conexão com MongoDB (DB: ${EXPECTED_DB_NAME}).`);
-        connectionPromise = null; 
+        if (connectionPromise) { // Só anula se a promessa ainda estiver pendente
+             connectionPromise.catch(() => {}).finally(() => connectionPromise = null); // Garante que a promessa seja resolvida/rejeitada antes de anular
+        }
     }, MONGODB_CONNECTION_TIMEOUT_MS);
 
     return connectionPromise;
@@ -237,7 +240,7 @@ export interface CommunityInspirationFilters {
  * Funções auxiliares                                                 *
  * ------------------------------------------------------------------ */
 function getUserProfileSegment(user: IUser): string {
-    const TAG = '[dataService][getUserProfileSegment v2.14.2]'; 
+    const TAG = '[dataService][getUserProfileSegment v2.14.3]'; 
     if (user.createdAt instanceof Date && !isNaN(+user.createdAt)) {
         const ageInDays = differenceInDays(new Date(), user.createdAt);
         return ageInDays < NEW_USER_THRESHOLD_DAYS ? 'Novo Usuário' : 'Usuário Veterano';
@@ -246,7 +249,7 @@ function getUserProfileSegment(user: IUser): string {
     return 'Geral';
 }
 function getMultimediaSuggestion(report?: AggregatedReport | null): string {
-    const TAG = '[dataService][getMultimediaSuggestion v2.14.2]'; 
+    const TAG = '[dataService][getMultimediaSuggestion v2.14.3]'; 
     const bestDurationStat = report?.durationStats?.sort((a, b) => (b.avgRetentionRate ?? 0) - (a.avgRetentionRate ?? 0))[0];
     if (!bestDurationStat) {
         return '';
@@ -258,7 +261,7 @@ function getMultimediaSuggestion(report?: AggregatedReport | null): string {
     return `Vídeos na faixa de ${bestDurationStat.range} tiveram um ótimo desempenho recente (${retentionPercent}% retenção média). Teste produzir mais conteúdos nessa duração!`;
 }
 async function getCombinedGrowthData(userId: Types.ObjectId): Promise<IGrowthDataResult> {
-    const TAG = '[dataService][getCombinedGrowthData v2.14.2]'; 
+    const TAG = '[dataService][getCombinedGrowthData v2.14.3]'; 
     logger.debug(`${TAG} Placeholder para usuário ${userId}`);
     return { historical: {}, longTerm: {} };
 }
@@ -269,7 +272,7 @@ async function getCombinedGrowthData(userId: Types.ObjectId): Promise<IGrowthDat
 
 export async function lookupUser(fromPhone: string): Promise<IUser> {
     const maskedPhone = fromPhone.slice(0, -4) + '****';
-    const fnTag = '[dataService][lookupUser v2.14.2]';  
+    const fnTag = '[dataService][lookupUser v2.14.3]';  
     logger.debug(`${fnTag} Buscando usuário para telefone ${maskedPhone}`);
     try {
         await connectToDatabase(); 
@@ -288,7 +291,7 @@ export async function lookupUser(fromPhone: string): Promise<IUser> {
 }
 
 export async function lookupUserById(userId: string): Promise<IUser> {
-    const fnTag = '[dataService][lookupUserById v2.14.2]';  
+    const fnTag = '[dataService][lookupUserById v2.14.3]';  
     logger.debug(`${fnTag} Buscando usuário por ID ${userId}`);
     if (!mongoose.isValidObjectId(userId)) {
         logger.error(`${fnTag} ID de usuário inválido fornecido: ${userId}`);
@@ -314,7 +317,7 @@ export async function updateUserExpertiseLevel(
   userId: string,
   newLevel: UserExpertiseLevel
 ): Promise<IUser | null> {
-  const TAG = '[dataService][updateUserExpertiseLevel v2.14.2]';  
+  const TAG = '[dataService][updateUserExpertiseLevel v2.14.3]';  
   if (!mongoose.isValidObjectId(userId)) {
     logger.error(`${TAG} ID de usuário inválido: ${userId}`);
     throw new DatabaseError(`ID de usuário inválido: ${userId}`);
@@ -340,12 +343,12 @@ export async function updateUserExpertiseLevel(
   }
 }
 
-// --- NOVAS FUNÇÕES PARA MEMÓRIA DE LONGO PRAZO (v2.14.0, mantidas em v2.14.2) ---
+// --- NOVAS FUNÇÕES PARA MEMÓRIA DE LONGO PRAZO (v2.14.0, mantidas em v2.14.3) ---
 export async function updateUserPreferences(
   userId: string,
   preferences: Partial<IUserPreferences>
 ): Promise<IUser | null> {
-  const TAG = '[dataService][updateUserPreferences v2.14.2]'; 
+  const TAG = '[dataService][updateUserPreferences v2.14.3]'; 
   if (!mongoose.isValidObjectId(userId)) {
     logger.error(`${TAG} ID de usuário inválido: ${userId}`);
     throw new DatabaseError(`ID de usuário inválido: ${userId}`);
@@ -387,7 +390,7 @@ export async function addUserLongTermGoal(
   goalDescription: string,
   status: IUserLongTermGoal['status'] = 'ativo'
 ): Promise<IUser | null> {
-  const TAG = '[dataService][addUserLongTermGoal v2.14.2]'; 
+  const TAG = '[dataService][addUserLongTermGoal v2.14.3]'; 
   if (!mongoose.isValidObjectId(userId)) { 
     logger.error(`${TAG} ID de usuário inválido: ${userId}`);
     throw new DatabaseError(`ID de usuário inválido: ${userId}`);
@@ -435,7 +438,7 @@ export async function addUserKeyFact(
   userId: string,
   factDescription: string
 ): Promise<IUser | null> {
-  const TAG = '[dataService][addUserKeyFact v2.14.2]'; 
+  const TAG = '[dataService][addUserKeyFact v2.14.3]'; 
   if (!mongoose.isValidObjectId(userId)) { 
     logger.error(`${TAG} ID de usuário inválido: ${userId}`);
     throw new DatabaseError(`ID de usuário inválido: ${userId}`); 
@@ -484,7 +487,7 @@ export async function fetchAndPrepareReportData(
     { user, contentMetricModel, analysisSinceDate }: { user: IUser; contentMetricModel: Model<IMetric>; analysisSinceDate?: Date; }
 ): Promise<PreparedData> {
     const userId = user._id instanceof Types.ObjectId ? user._id : new Types.ObjectId(user._id);
-    const TAG = '[dataService][fetchAndPrepareReportData v2.14.2]';  
+    const TAG = '[dataService][fetchAndPrepareReportData v2.14.3]';  
     const sinceDate = analysisSinceDate || subDays(new Date(), DEFAULT_METRICS_FETCH_DAYS);
     logger.info(`${TAG} Iniciando para usuário ${userId}. Período de busca: desde ${sinceDate.toISOString()}`);
     let growthData: IGrowthDataResult;
@@ -533,7 +536,7 @@ export async function fetchAndPrepareReportData(
 }
 
 export async function extractReferenceAndFindPost( text: string, userId: Types.ObjectId ): Promise<ReferenceSearchResult> {
-    const fnTag = '[dataService][extractReferenceAndFindPost v2.14.2]'; 
+    const fnTag = '[dataService][extractReferenceAndFindPost v2.14.3]'; 
     logger.debug(`${fnTag} Buscando referência "${text}" para usuário ${userId}`);
     const quotedText = text.match(/["“”'](.+?)["“”']/)?.[1];
     const aboutText = text.match(/(?:sobre|referente a)\s+(.+)/i)?.[1]?.trim();
@@ -567,7 +570,7 @@ export async function extractReferenceAndFindPost( text: string, userId: Types.O
 }
 
 export async function getLatestAggregatedReport(userId: string): Promise<AggregatedReport | null> {
-    const TAG = '[dataService][getLatestAggregatedReport v2.14.2]'; 
+    const TAG = '[dataService][getLatestAggregatedReport v2.14.3]'; 
     logger.debug(`${TAG} Buscando último relatório agregado para usuário ${userId}`);
      if (!mongoose.isValidObjectId(userId)) {
         logger.error(`${TAG} ID de usuário inválido fornecido: ${userId}`);
@@ -590,7 +593,7 @@ export async function getLatestAggregatedReport(userId: string): Promise<Aggrega
 }
 
 export async function getLatestAccountInsights(userId: string): Promise<IAccountInsight | null> {
-    const TAG = '[dataService][getLatestAccountInsights v2.14.2]'; 
+    const TAG = '[dataService][getLatestAccountInsights v2.14.3]'; 
     logger.debug(`${TAG} Buscando últimos insights da conta para usuário ${userId}`);
     if (!mongoose.isValidObjectId(userId)) {
         logger.error(`${TAG} ID de usuário inválido fornecido: ${userId}`);
@@ -616,7 +619,7 @@ export async function getLatestAccountInsights(userId: string): Promise<IAccount
 }
 
 export async function getAdDealInsights( userId: string, period: 'last30d' | 'last90d' | 'all' = 'last90d' ): Promise<AdDealInsights | null> {
-    const TAG = '[dataService][getAdDealInsights v2.14.2]'; 
+    const TAG = '[dataService][getAdDealInsights v2.14.3]'; 
     logger.debug(`${TAG} Calculando insights de AdDeals para User ${userId}, período: ${period}`);
     if (!mongoose.isValidObjectId(userId)) {
         logger.error(`${TAG} ID de usuário inválido: ${userId}`);
@@ -676,7 +679,7 @@ export async function optInUserToCommunity(
     userId: string,
     termsVersion: string
 ): Promise<IUser> {
-    const TAG = '[dataService][optInUserToCommunity v2.14.2]'; 
+    const TAG = '[dataService][optInUserToCommunity v2.14.3]'; 
     logger.info(`${TAG} Registrando opt-in para User ${userId}. Termos: ${termsVersion}`);
 
     if (!mongoose.isValidObjectId(userId)) {
@@ -711,7 +714,7 @@ export async function optInUserToCommunity(
 }
 
 export async function optOutUserFromCommunity(userId: string): Promise<IUser> {
-    const TAG = '[dataService][optOutUserFromCommunity v2.14.2]'; 
+    const TAG = '[dataService][optOutUserFromCommunity v2.14.3]'; 
     logger.info(`${TAG} Registrando opt-out para User ${userId}.`);
 
     if (!mongoose.isValidObjectId(userId)) {
@@ -746,7 +749,7 @@ export async function optOutUserFromCommunity(userId: string): Promise<IUser> {
 export async function addInspiration(
     inspirationData: Partial<ICommunityInspiration>
 ): Promise<ICommunityInspiration> {
-    const TAG = '[dataService][addInspiration v2.14.2]'; 
+    const TAG = '[dataService][addInspiration v2.14.3]'; 
     logger.info(`${TAG} Adicionando nova inspiração. PostId Instagram: ${inspirationData.postId_Instagram}`);
 
     try {
@@ -784,7 +787,7 @@ export async function getInspirations(
     limit: number = 3,
     excludeIds?: string[]
 ): Promise<ICommunityInspiration[]> {
-    const TAG = '[dataService][getInspirations v2.14.2]'; 
+    const TAG = '[dataService][getInspirations v2.14.3]'; 
     logger.info(`${TAG} Buscando inspirações com filtros: ${JSON.stringify(filters)}, limite: ${limit}, excluir: ${excludeIds?.join(',')}`);
     const query: any = { status: 'active' };
     if (filters.proposal) query.proposal = filters.proposal;
@@ -818,7 +821,7 @@ export async function recordDailyInspirationShown(
     userId: string,
     inspirationIds: string[]
 ): Promise<void> {
-    const TAG = '[dataService][recordDailyInspirationShown v2.14.2]'; 
+    const TAG = '[dataService][recordDailyInspirationShown v2.14.3]'; 
     if (inspirationIds.length === 0) {
         logger.debug(`${TAG} Nenhuma ID de inspiração fornecida para User ${userId}. Pulando.`);
         return;
@@ -851,7 +854,7 @@ export async function findUserPostsEligibleForCommunity(
     userId: string,
     criteria: { sinceDate: Date; minPerformanceCriteria?: any; } 
 ): Promise<IMetric[]> {
-    const TAG = '[dataService][findUserPostsEligibleForCommunity v2.14.2]'; 
+    const TAG = '[dataService][findUserPostsEligibleForCommunity v2.14.3]'; 
     logger.info(`${TAG} Buscando posts elegíveis para comunidade para User ${userId} desde ${criteria.sinceDate.toISOString()}`);
     if (!mongoose.isValidObjectId(userId)) throw new DatabaseError(`ID de usuário inválido: ${userId}`);
     const userObjectId = new Types.ObjectId(userId);
@@ -875,7 +878,7 @@ export async function findUserPostsEligibleForCommunity(
 
 
 export async function deleteUserAccountAndAssociatedData(userId: string): Promise<boolean> {
-  const TAG = '[dataService][deleteUserAccountAndAssociatedData v2.14.2]'; 
+  const TAG = '[dataService][deleteUserAccountAndAssociatedData v2.14.3]'; 
 
   if (!userId || !mongoose.isValidObjectId(userId)) {
     logger.error(`${TAG} ID de utilizador inválido fornecido para exclusão: ${userId}`);
