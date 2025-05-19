@@ -1,13 +1,10 @@
 // src/app/api/whatsapp/process-response/route.ts
+// v2.9.7 (Quebra-Gelo Sempre Enviado, Nome do Usuário Condicional por Frequência)
+// - MODIFICADO: O quebra-gelo dinâmico é agora geralmente enviado, mas o NOME do usuário
+//   nele só é incluído se GREETING_THRESHOLD_MILLISECONDS tiver passado.
+// - MODIFICADO: `generateDynamicAcknowledgementInWorker` agora aceita firstName como string | null.
 // v2.9.6 (Correção de Erro de Atribuição no Bloco Catch Final)
-// - CORRIGIDO: Declaradas `payload` e `messageId_MsgAtual` com escopo mais amplo e inicializadas como undefined.
-// - CORRIGIDO: Adicionada verificação de existência para `payload` e `messageId_MsgAtual` no bloco catch final antes de usá-los.
 // v2.9.5 (Lógica de Interrupção no Worker)
-// - ADICIONADO: Definição de currentProcessingMessageId e currentProcessingQueryExcerpt no IDialogueState.
-// - ADICIONADO: Verificação de interruptSignalForMessageId antes da chamada principal à LLM.
-// - ADICIONADO: Lógica para pular processamento da resposta principal se interrompido.
-// - ADICIONADO: Limpeza segura dos campos de estado após processamento ou interrupção.
-// - ATUALIZADO: ProcessRequestBody para incluir qstashMessageId (opcional).
 
 import { NextRequest, NextResponse } from 'next/server';
 import { Receiver } from "@upstash/qstash";
@@ -28,7 +25,7 @@ import {
 } from '@/app/lib/intentService'; // Deve ser v2.18.6 ou superior
 import { startOfDay } from 'date-fns';
 import { generateConversationSummary, inferUserExpertiseLevel } from '@/app/lib/aiService';
-import { getFunAcknowledgementPrompt } from '@/app/lib/funAcknowledgementPrompt';
+import { getFunAcknowledgementPrompt } from '@/app/lib/funAcknowledgementPrompt'; // Será ajustado para aceitar nome opcional
 
 export const runtime = 'nodejs';
 
@@ -87,7 +84,7 @@ let receiver: Receiver | null = null;
 if (currentSigningKey && nextSigningKey) {
     receiver = new Receiver({ currentSigningKey, nextSigningKey });
 } else {
-    logger.error("[QStash Worker Init v2.9.6] Chaves de assinatura QStash não definidas.");
+    logger.error("[QStash Worker Init v2.9.7] Chaves de assinatura QStash não definidas.");
 }
 
 function aiResponseSuggestsPendingAction(responseText: string): {
@@ -151,7 +148,7 @@ function stripLeadingGreetings(text: string): string {
                     textWithoutGreeting = textWithoutGreeting.replace(/^[\s,!.\?¿¡]+/, '').trim();
 
                     if (textWithoutGreeting.length < currentText.length) {
-                        logger.debug(`[stripLeadingGreetings v2.9.6] Saudação "${greeting}" removida. Original: "${text}", Resultante: "${textWithoutGreeting}"`);
+                        logger.debug(`[stripLeadingGreetings v2.9.7] Saudação "${greeting}" removida. Original: "${text}", Resultante: "${textWithoutGreeting}"`);
                         return textWithoutGreeting;
                     }
                 }
@@ -161,26 +158,31 @@ function stripLeadingGreetings(text: string): string {
     return text.trim();
 }
 
+/**
+ * MODIFICADO v2.9.7: firstName pode ser null se o nome não deve ser usado no prompt.
+ */
 async function generateDynamicAcknowledgementInWorker(
-    firstName: string,
+    firstName: string | null, // MODIFICADO: Aceita string ou null
     userQuery: string,
     userIdForLog: string,
     dialogueState: stateService.IDialogueState
 ): Promise<string | null> {
-    const TAG_ACK = '[QStash Worker][generateDynamicAck v2.9.6]';
+    const TAG_ACK = '[QStash Worker][generateDynamicAck v2.9.7]';
 
     const cleanedUserQuery = stripLeadingGreetings(userQuery);
     const queryExcerpt = extractExcerpt(cleanedUserQuery, 35);
     const conversationSummaryForPrompt = dialogueState.conversationSummary;
 
-    logger.info(`${TAG_ACK} User ${userIdForLog}: Gerando reconhecimento. Query Original: "${userQuery.slice(0,50)}...", Query Limpa para Excerto: "${cleanedUserQuery.slice(0,50)}...", Excerto: "${queryExcerpt}"`);
+    logger.info(`${TAG_ACK} User ${userIdForLog}: Gerando reconhecimento. Nome para prompt: ${firstName || '(sem nome)'}. Query Original: "${userQuery.slice(0,50)}...", Query Limpa para Excerto: "${cleanedUserQuery.slice(0,50)}...", Excerto: "${queryExcerpt}"`);
     if (conversationSummaryForPrompt) {
         logger.debug(`${TAG_ACK} User ${userIdForLog}: Usando resumo da conversa para prompt do ack: "${conversationSummaryForPrompt.substring(0,100)}..."`);
     }
 
     try {
+        // getFunAcknowledgementPrompt precisará ser ajustado para lidar com firstName como null
         const systemPromptForAck = getFunAcknowledgementPrompt(firstName, queryExcerpt, conversationSummaryForPrompt);
-        const ackMessage = await getQuickAcknowledgementLLMResponse(systemPromptForAck, userQuery, firstName);
+        // getQuickAcknowledgementLLMResponse também precisará lidar com firstName como null se o usar internamente para algo além de logging
+        const ackMessage = await getQuickAcknowledgementLLMResponse(systemPromptForAck, userQuery, firstName || 'usuário'); // Passa 'usuário' para log se firstName for null
 
         if (ackMessage) {
             logger.info(`${TAG_ACK} User ${userIdForLog}: Reconhecimento dinâmico gerado: "${ackMessage.substring(0,70)}..."`);
@@ -197,7 +199,7 @@ async function generateDynamicAcknowledgementInWorker(
 
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const TAG = '[QStash Worker /process-response v2.9.6 CatchFix]';
+  const TAG = '[QStash Worker /process-response v2.9.7 AckAlwaysNameConditional]';
 
   if (!receiver) {
       logger.error(`${TAG} QStash Receiver não inicializado.`);
@@ -205,7 +207,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   let bodyText: string;
-  // CORREÇÃO: Declarar payload e messageId_MsgAtual com escopo mais amplo e inicializar
   let payload: ProcessRequestBody | undefined = undefined;
   let messageId_MsgAtual: string | undefined = undefined;
 
@@ -218,25 +219,23 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     logger.info(`${TAG} Assinatura QStash verificada.`);
 
     try {
-      payload = JSON.parse(bodyText) as ProcessRequestBody; // Atribui aqui
+      payload = JSON.parse(bodyText) as ProcessRequestBody;
       if (!payload.userId) { throw new Error('Payload inválido: userId ausente.'); }
       if (payload.determinedIntent === undefined) { logger.warn(`${TAG} determinedIntent não presente no payload do QStash.`); }
       
-      messageId_MsgAtual = payload.qstashMessageId || `internal_${payload.userId}_${Date.now()}`; // Atribui aqui
+      messageId_MsgAtual = payload.qstashMessageId || `internal_${payload.userId}_${Date.now()}`;
       logger.info(`${TAG} Processando MsgAtual com ID: ${messageId_MsgAtual}`);
 
     } catch (e: any) {
       logger.error(`${TAG} Erro ao parsear payload ou obter messageId: ${e.message}. BodyText (início): ${bodyText.slice(0,200)}`);
-      // payload e messageId_MsgAtual podem não estar definidos aqui.
       return NextResponse.json({ error: 'Invalid request body or missing message ID' }, { status: 400 });
     }
 
-    // A partir daqui, payload e messageId_MsgAtual estão definidos se o try interno não falhou.
     const { userId, taskType, incomingText, fromPhone, determinedIntent: intentFromPayload } = payload;
 
     if (taskType === "daily_tip") {
-        // ... (código da Dica Diária existente, sem alterações para a lógica de interrupção)
-        const planTAG = `${TAG}[DailyTip v2.9.6]`;
+        // ... (código da Dica Diária existente)
+        const planTAG = `${TAG}[DailyTip v2.9.7]`;
         logger.info(`${planTAG} Iniciando tarefa de Dica Diária para User ${userId}...`);
         let userForTip: IUser;
         let userPhoneForTip: string | null | undefined;
@@ -365,8 +364,7 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
             return NextResponse.json({ error: `Failed to process daily tip: ${error instanceof Error ? error.message : String(error)}` }, { status: 500 });
         }
     } else { // Processamento de mensagem normal do usuário
-        const msgTAG = `${TAG}[UserMsg v2.9.6 CatchFix]`;
-        // messageId_MsgAtual já foi definido acima
+        const msgTAG = `${TAG}[UserMsg v2.9.7 AckAlwaysNameConditional]`;
         logger.info(`${msgTAG} Processando mensagem normal (MsgAtual ID: ${messageId_MsgAtual}) para User ${userId}...`);
 
         if (!fromPhone || !incomingText) {
@@ -504,7 +502,7 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
 
         if (responseTextForSpecialHandled) {
             await sendWhatsAppMessage(fromPhone, responseTextForSpecialHandled);
-            const userMsgHist: ChatCompletionMessageParam = { role: 'user', content: incomingText! }; // incomingText é checado no início
+            const userMsgHist: ChatCompletionMessageParam = { role: 'user', content: incomingText! }; 
             const assistantMsgHist: ChatCompletionMessageParam = { role: 'assistant', content: responseTextForSpecialHandled };
             const updatedHistory = [...historyMessages, userMsgHist, assistantMsgHist].slice(-HISTORY_LIMIT);
             await stateService.setConversationHistory(userId, updatedHistory);
@@ -533,50 +531,59 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
             return NextResponse.json({ success: true }, { status: 200 });
         }
 
+        // MODIFICADO: Lógica do Quebra-Gelo Dinâmico
         const nowForAck = Date.now();
         let lastInteractionTimeForAck = dialogueState.lastInteraction || 0;
-        let shouldSendFullDynamicAck = true;
+        let useNameToAck = true; // Por padrão, usa o nome
 
         if (lastInteractionTimeForAck !== 0 && (nowForAck - lastInteractionTimeForAck) < GREETING_THRESHOLD_MILLISECONDS) {
-            logger.info(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Interação recente. Pulando quebra-gelo dinâmico completo.`);
-            shouldSendFullDynamicAck = false;
+            logger.info(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Interação recente (${((nowForAck - lastInteractionTimeForAck) / 1000 / 60).toFixed(1)} min). Quebra-gelo será genérico (sem nome).`);
+            useNameToAck = false; // Não usa o nome se a interação for recente
         } else if (lastInteractionTimeForAck === 0) {
-            logger.info(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Primeira interação ou estado resetado. Enviando quebra-gelo.`);
+            logger.info(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Primeira interação ou estado resetado. Quebra-gelo usará o nome.`);
+        } else {
+            logger.info(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Tempo suficiente desde a última interação (${((nowForAck - lastInteractionTimeForAck) / 1000 / 60).toFixed(1)} min). Quebra-gelo usará o nome.`);
         }
         
         const isLightweightIntentForDynamicAck = currentDeterminedIntent === 'social_query' ||
                                                  currentDeterminedIntent === 'meta_query_personal' ||
                                                  currentDeterminedIntent === 'generate_proactive_alert';
         let quebraGeloEnviado = false;
-        if (shouldSendFullDynamicAck &&
-            !isLightweightIntentForDynamicAck &&
+
+        // O quebra-gelo é enviado a menos que seja uma intenção leve ou algumas outras condições específicas
+        if (!isLightweightIntentForDynamicAck &&
             currentDeterminedIntent !== 'user_confirms_pending_action' &&
             currentDeterminedIntent !== 'user_denies_pending_action' &&
-            currentDeterminedIntent !== 'greeting'
+            currentDeterminedIntent !== 'greeting' // Evita quebra-gelo para uma simples saudação que já teve resposta
             ) {
             try {
-                const dynamicAckMessage = await generateDynamicAcknowledgementInWorker(firstName, incomingText!, userId, dialogueState); // incomingText é checado
+                // Passa firstName se useNameToAck for true, senão passa null
+                const firstNameForAck = useNameToAck ? firstName : null;
+                const dynamicAckMessage = await generateDynamicAcknowledgementInWorker(firstNameForAck, incomingText!, userId, dialogueState);
                 if (dynamicAckMessage) {
-                    await sendWhatsAppMessage(fromPhone!, dynamicAckMessage); // fromPhone é checado
-                    quebraGeloEnviado = true; 
+                    await sendWhatsAppMessage(fromPhone!, dynamicAckMessage);
+                    quebraGeloEnviado = true;
                     historyMessages.push({ role: 'assistant', content: dynamicAckMessage });
                     if (historyMessages.length > HISTORY_LIMIT) historyMessages.shift();
                 }
             } catch (ackError) { logger.error(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Falha ao gerar/enviar quebra-gelo:`, ackError); }
-        } else { 
-            if (!shouldSendFullDynamicAck) {
-                logger.debug(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Pulando quebra-gelo dinâmico (frequência).`);
+        } else {
+            if (isLightweightIntentForDynamicAck) {
+                 logger.debug(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Pulando quebra-gelo dinâmico (intenção leve: ${currentDeterminedIntent}).`);
+            } else if (currentDeterminedIntent === 'greeting') {
+                logger.debug(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Pulando quebra-gelo dinâmico (intenção: greeting, já tratada).`);
             } else {
-                logger.debug(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Pulando quebra-gelo dinâmico (intenção: ${currentDeterminedIntent}).`);
+                logger.debug(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Pulando quebra-gelo dinâmico (outra condição). Intenção: ${currentDeterminedIntent}`);
             }
         }
 
+        // Verificação de Interrupção (já existente)
         const freshDialogueState = await stateService.getDialogueState(userId);
         if (freshDialogueState.interruptSignalForMessageId === messageId_MsgAtual) {
             logger.info(`${msgTAG} User ${userId}: INTERRUPÇÃO DETECTADA para MsgAtual ID: ${messageId_MsgAtual} ("${queryExcerpt_MsgAtual}"). Sinal: ${freshDialogueState.interruptSignalForMessageId}. Pulando resposta principal.`);
             
             const userMsgHist: ChatCompletionMessageParam = { role: 'user', content: incomingText! };
-            const finalHistoryForInterrupted = [...historyMessages, userMsgHist].slice(-HISTORY_LIMIT); // historyMessages já pode conter o quebra-gelo
+            const finalHistoryForInterrupted = [...historyMessages, userMsgHist].slice(-HISTORY_LIMIT);
             
             await stateService.setConversationHistory(userId, finalHistoryForInterrupted);
 
@@ -584,7 +591,7 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
                 currentProcessingMessageId: null,
                 currentProcessingQueryExcerpt: null,
                 interruptSignalForMessageId: null, 
-                lastInteraction: Date.now(),
+                lastInteraction: Date.now(), // Atualiza lastInteraction aqui também
                 summaryTurnCounter: freshDialogueState.summaryTurnCounter,
                 expertiseInferenceTurnCounter: freshDialogueState.expertiseInferenceTurnCounter,
                 conversationSummary: freshDialogueState.conversationSummary,
@@ -595,7 +602,7 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
         }
         logger.debug(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Sem sinal de interrupção. Prosseguindo para resposta principal.`);
 
-        let effectiveIncomingText = incomingText!; // incomingText é checado no início
+        let effectiveIncomingText = incomingText!; 
         let effectiveIntent = currentDeterminedIntent as DeterminedIntent;
 
         if (currentDeterminedIntent === 'user_confirms_pending_action') {
@@ -733,12 +740,9 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
     }
 
   } catch (error: any) {
-    // CORREÇÃO: Usar 'payload' e 'messageId_MsgAtual' que foram inicializados como undefined
     const logMsgId = messageId_MsgAtual || 'N/A';
     logger.error(`${TAG} Erro GERAL não tratado na API worker (MsgAtual ID: ${logMsgId}):`, error);
     
-    // Tenta limpar o currentProcessingMessageId se possível, em caso de erro geral
-    // Verifica se payload e messageId_MsgAtual foram definidos
     if (payload && payload.userId && messageId_MsgAtual) {
         try {
             const errorState = await stateService.getDialogueState(payload.userId);
@@ -755,7 +759,6 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 
-  // Este log não deve ser alcançado se a lógica de retorno estiver correta.
   const finalLogMsgId = messageId_MsgAtual || 'N/A';
   logger.error(`${TAG} Código atingiu o final da função POST inesperadamente (MsgAtual ID: ${finalLogMsgId}).`);
   return NextResponse.json({ error: 'Server ended without an explicit response.' }, { status: 500 });
