@@ -1,15 +1,12 @@
 // src/app/api/whatsapp/process-response/route.ts
-// v2.9.11 (Diretrizes de Geração de Humor para IA)
-// - MODIFICADO: Ao lidar com 'humor_script_request', em vez de buscar um "overview",
-//   concatena múltiplas diretrizes de geração de humor do humorScriptWritingKnowledge.ts v3.0
-//   para injetar como contexto de sistema para a IA principal.
+// v2.9.12 (Skip Quebra-Gelo em Interação Recente)
+// - MODIFICADO: Adicionada lógica para pular o envio do quebra-gelo dinâmico se a última
+//   interação do assistente com o usuário foi muito recente (ACK_SKIP_THRESHOLD_MILLISECONDS),
+//   evitando saudações repetidas em conversas fluidas.
 // - ATUALIZADO: Comentário da versão do humorScriptWritingKnowledge para v3.0.
+// v2.9.11 (Diretrizes de Geração de Humor para IA)
 // v2.9.10 (Humor Script Intent Handling)
 // v2.9.9 (AckNameConditionalByFreq)
-// v2.9.8 (Nome Sempre no Quebra-Gelo e Correção no Log de Minutos)
-// v2.9.7 (Quebra-Gelo Sempre Enviado, Nome do Usuário Condicional por Frequência)
-// v2.9.6 (Correção de Erro de Atribuição no Bloco Catch Final)
-// v2.9.5 (Lógica de Interrupção no Worker)
 
 import { NextRequest, NextResponse } from 'next/server';
 import { Receiver } from "@upstash/qstash";
@@ -31,7 +28,6 @@ import {
 import { startOfDay } from 'date-fns';
 import { generateConversationSummary, inferUserExpertiseLevel } from '@/app/lib/aiService';
 import { getFunAcknowledgementPrompt } from '@/app/lib/funAcknowledgementPrompt'; // v1.3.1 ou superior
-// ATUALIZADO: Importando o conhecimento sobre roteiros de humor (v3.0 - Diretrizes para IA)
 import * as humorKnowledge from '@/app/lib/knowledge/humorScriptWritingKnowledge'; // Deve ser v3.0 ou superior
 
 export const runtime = 'nodejs';
@@ -71,6 +67,8 @@ const SUMMARY_GENERATION_INTERVAL = 3;
 const EXPERTISE_INFERENCE_INTERVAL = 5;
 
 const GREETING_THRESHOLD_MILLISECONDS = (process.env.GREETING_THRESHOLD_HOURS ? parseInt(process.env.GREETING_THRESHOLD_HOURS) : 3) * 60 * 60 * 1000;
+// NOVO: Threshold para pular o quebra-gelo completamente se a interação for muito recente
+const ACK_SKIP_THRESHOLD_MILLISECONDS = (process.env.ACK_SKIP_THRESHOLD_MINUTES ? parseInt(process.env.ACK_SKIP_THRESHOLD_MINUTES) : 2) * 60 * 1000; // Ex: 2 minutos
 
 const COMPLEX_TASK_INTENTS: DeterminedIntent[] = [
     'content_plan',
@@ -91,7 +89,7 @@ let receiver: Receiver | null = null;
 if (currentSigningKey && nextSigningKey) {
     receiver = new Receiver({ currentSigningKey, nextSigningKey });
 } else {
-    logger.error("[QStash Worker Init v2.9.11] Chaves de assinatura QStash não definidas.");
+    logger.error("[QStash Worker Init v2.9.12] Chaves de assinatura QStash não definidas.");
 }
 
 function aiResponseSuggestsPendingAction(responseText: string): {
@@ -155,7 +153,7 @@ function stripLeadingGreetings(text: string): string {
                     textWithoutGreeting = textWithoutGreeting.replace(/^[\s,!.\?¿¡]+/, '').trim();
 
                     if (textWithoutGreeting.length < currentText.length) {
-                        logger.debug(`[stripLeadingGreetings v2.9.11] Saudação "${greeting}" removida. Original: "${text}", Resultante: "${textWithoutGreeting}"`);
+                        logger.debug(`[stripLeadingGreetings v2.9.12] Saudação "${greeting}" removida. Original: "${text}", Resultante: "${textWithoutGreeting}"`);
                         return textWithoutGreeting;
                     }
                 }
@@ -171,7 +169,7 @@ async function generateDynamicAcknowledgementInWorker(
     userIdForLog: string,
     dialogueState: stateService.IDialogueState
 ): Promise<string | null> {
-    const TAG_ACK = '[QStash Worker][generateDynamicAck v2.9.11]';
+    const TAG_ACK = '[QStash Worker][generateDynamicAck v2.9.12]';
 
     const cleanedUserQuery = stripLeadingGreetings(userQuery);
     const queryExcerpt = extractExcerpt(cleanedUserQuery, 35);
@@ -201,7 +199,7 @@ async function generateDynamicAcknowledgementInWorker(
 
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const TAG = '[QStash Worker /process-response v2.9.11 HumorDirectives]';
+  const TAG = '[QStash Worker /process-response v2.9.12 SkipAck]';
 
   if (!receiver) {
       logger.error(`${TAG} QStash Receiver não inicializado.`);
@@ -236,8 +234,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const { userId, taskType, incomingText, fromPhone, determinedIntent: intentFromPayload } = payload;
 
     if (taskType === "daily_tip") {
-        const planTAG = `${TAG}[DailyTip v2.9.11]`;
+        const planTAG = `${TAG}[DailyTip v2.9.12]`;
         logger.info(`${planTAG} Iniciando tarefa de Dica Diária para User ${userId}...`);
+        // ... (código da Dica Diária existente, sem alterações nesta seção, apenas na TAG)
         let userForTip: IUser;
         let userPhoneForTip: string | null | undefined;
         let basePlanText: string = "Hoje não consegui preparar seu roteiro de Stories detalhado, mas que tal compartilhar algo espontâneo sobre seus bastidores? 😉";
@@ -365,7 +364,7 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
             return NextResponse.json({ error: `Failed to process daily tip: ${error instanceof Error ? error.message : String(error)}` }, { status: 500 });
         }
     } else { // Processamento de mensagem normal do usuário
-        const msgTAG = `${TAG}[UserMsg v2.9.11 HumorDirectives]`;
+        const msgTAG = `${TAG}[UserMsg v2.9.12 SkipAck]`;
         logger.info(`${msgTAG} Processando mensagem normal (MsgAtual ID: ${messageId_MsgAtual}) para User ${userId}...`);
 
         if (!fromPhone || !incomingText) {
@@ -388,7 +387,7 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
             ]);
             user = userData;
             dialogueState = initialDialogueState;
-            historyMessages = historyData;
+            historyMessages = historyData; // Histórico ANTES da mensagem atual do usuário
 
             const fullName = user.name || 'criador';
             firstName = fullName.split(' ')[0]!;
@@ -532,19 +531,37 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
             return NextResponse.json({ success: true }, { status: 200 });
         }
 
+        // --- Lógica do Quebra-Gelo Dinâmico ---
         const nowForAck = Date.now();
         const lastInteractionTimeForAck = dialogueState.lastInteraction || 0;
         let useNameToAck = true; 
+        let shouldSkipDynamicAckEntirely = false; // NOVA FLAG
 
         const minutesSinceLastInteraction = (nowForAck - lastInteractionTimeForAck) / (1000 * 60);
+        const secondsSinceLastInteraction = (nowForAck - lastInteractionTimeForAck) / 1000;
 
-        if (lastInteractionTimeForAck !== 0 && (nowForAck - lastInteractionTimeForAck) < GREETING_THRESHOLD_MILLISECONDS) {
-            logger.info(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Interação recente (${minutesSinceLastInteraction.toFixed(1)} min). Quebra-gelo será genérico (sem nome).`);
-            useNameToAck = false;
-        } else if (lastInteractionTimeForAck === 0) {
-            logger.info(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Primeira interação ou estado resetado. Quebra-gelo usará o nome.`);
-        } else {
-            logger.info(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Tempo suficiente desde a última interação (${minutesSinceLastInteraction.toFixed(1)} min). Quebra-gelo usará o nome.`);
+        // Condição para pular o quebra-gelo INTEIRAMENTE
+        if (dialogueState.lastInteraction && 
+            (nowForAck - dialogueState.lastInteraction) < ACK_SKIP_THRESHOLD_MILLISECONDS) {
+            // Verifica se a última mensagem no histórico (antes da atual do usuário) foi do assistente
+            if (historyMessages.length > 0 && historyMessages[historyMessages.length -1]?.role === 'assistant') {
+                logger.info(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Interação MUITO recente com o assistente (${secondsSinceLastInteraction.toFixed(0)}s atrás). Pulando quebra-gelo completamente.`);
+                shouldSkipDynamicAckEntirely = true;
+            } else {
+                logger.info(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Interação recente, mas a última mensagem não foi do assistente. Quebra-gelo será considerado (para nome/genérico).`);
+            }
+        }
+
+        // Condição para usar o nome no quebra-gelo (se ele não for pulado)
+        if (!shouldSkipDynamicAckEntirely) { // Só avalia se o nome vai ser usado se o ack não for pulado
+            if (lastInteractionTimeForAck !== 0 && (nowForAck - lastInteractionTimeForAck) < GREETING_THRESHOLD_MILLISECONDS) {
+                logger.info(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Interação recente (${minutesSinceLastInteraction.toFixed(1)} min). Quebra-gelo será genérico (sem nome).`);
+                useNameToAck = false;
+            } else if (lastInteractionTimeForAck === 0) {
+                logger.info(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Primeira interação ou estado resetado. Quebra-gelo usará o nome.`);
+            } else {
+                logger.info(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Tempo suficiente desde a última interação (${minutesSinceLastInteraction.toFixed(1)} min). Quebra-gelo usará o nome.`);
+            }
         }
         
         const isLightweightIntentForDynamicAck = currentDeterminedIntent === 'social_query' ||
@@ -552,7 +569,8 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
                                                  currentDeterminedIntent === 'generate_proactive_alert';
         let quebraGeloEnviado = false;
 
-        if (!isLightweightIntentForDynamicAck &&
+        if (!shouldSkipDynamicAckEntirely && // Adicionada verificação para pular completamente
+            !isLightweightIntentForDynamicAck &&
             currentDeterminedIntent !== 'user_confirms_pending_action' &&
             currentDeterminedIntent !== 'user_denies_pending_action' &&
             currentDeterminedIntent !== 'greeting'
@@ -578,7 +596,9 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
                 logger.error(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Falha ao gerar/enviar quebra-gelo:`, ackError); 
             }
         } else {
-            if (isLightweightIntentForDynamicAck) {
+            if (shouldSkipDynamicAckEntirely) {
+                // Log já feito acima
+            } else if (isLightweightIntentForDynamicAck) {
                  logger.debug(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Pulando quebra-gelo dinâmico (intenção leve: ${currentDeterminedIntent}).`);
             } else if (currentDeterminedIntent === 'greeting') {
                 logger.debug(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Pulando quebra-gelo dinâmico (intenção: greeting, já tratada).`);
@@ -586,6 +606,7 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
                 logger.debug(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Pulando quebra-gelo dinâmico (outra condição). Intenção: ${currentDeterminedIntent}`);
             }
         }
+        // --- Fim da Lógica do Quebra-Gelo Dinâmico ---
 
         const freshDialogueState = await stateService.getDialogueState(userId);
         if (freshDialogueState.interruptSignalForMessageId === messageId_MsgAtual) {
@@ -614,30 +635,23 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
         let effectiveIncomingText = incomingText!; 
         let effectiveIntent = currentDeterminedIntent as DeterminedIntent;
 
-        // MODIFICADO: Lógica para adicionar DIRETRIZES de humor ao contexto da IA
         if (currentDeterminedIntent === 'humor_script_request') {
             try {
-                // Concatena um conjunto de diretrizes fundamentais para a IA gerar humor.
-                // Estas são diretrizes PARA A IA, não para ensinar o usuário.
                 const humorDirectives = [
                     "**Diretrizes para Geração de Roteiros de Humor (Para a IA Tuca):**",
                     humorKnowledge.getComicDistortionDirectives(),
                     humorKnowledge.getSetupPunchlineStructureDirectives(),
                     humorKnowledge.getJokeGenerationStrategiesForAI(),
                     humorKnowledge.getJokeShapingDirectivesForAI(),
-                    // Considerar adicionar getStandUpComedyStructureDirectives ou getSketchComedyStructureDirectives
-                    // se o pedido do usuário for mais específico quanto ao formato, ou deixar para o promptSystemFC guiar.
-                    // Por agora, focamos nas diretrizes gerais de criação.
                     humorKnowledge.getGeneralHumorQualityDirectives()
                 ].join('\n\n---\n\n');
                 
-                // Adiciona as diretrizes como uma mensagem de sistema para guiar a IA.
                 historyMessages.push({ 
                     role: 'system', 
                     content: humorDirectives 
                 });
                 if (historyMessages.length > HISTORY_LIMIT) {
-                    historyMessages.shift(); // Mantém o limite do histórico
+                    historyMessages.shift();
                 }
                 logger.info(`${msgTAG} User ${userId} (MsgAtual ID: ${messageId_MsgAtual}): Diretrizes de geração de humor adicionadas ao histórico para a IA.`);
             } catch (knowledgeError) {
