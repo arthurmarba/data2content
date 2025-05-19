@@ -1,19 +1,18 @@
 // src/app/api/whatsapp/process-response/route.ts
+// v2.9.3 (Ack Dinâmico com Contexto do Resumo da Conversa)
+// - ATUALIZADO: `generateDynamicAcknowledgementInWorker` agora busca o `conversationSummary`
+//   do `dialogueState` e o passa para `getFunAcknowledgementPrompt`.
+// v2.9.2 (Limpeza de Saudação para Ack Dinâmico)
+// - ADICIONADO: Função `stripLeadingGreetings` para remover saudações comuns.
+// - ATUALIZADO: `generateDynamicAcknowledgementInWorker` usa o texto limpo.
 // v2.9.1 (Dynamic Acknowledgement & Cleanup)
-// - ADICIONADO: Lógica para gerar e enviar uma mensagem de reconhecimento dinâmica ("quebra-gelo")
-//   usando getQuickAcknowledgementLLMResponse e getFunAcknowledgementPrompt.
-// - REMOVIDO: Lógica anterior de envio de mensagem de processamento estática atrasada (GET_PROCESSING_MESSAGES_POOL e processingMessageTimer).
-// - Mantém funcionalidades da v2.9.0 (coleta de memória de longo prazo, etc.).
-// v2.9.0 (Memória de Longo Prazo - Coleta)
-// - ADICIONADO: Lógica para persistir userPreferences, userLongTermGoals, e userKeyFacts.
-// - ADICIONADO: Imports de dataService para updateUserPreferences, addUserLongTermGoal, addUserKeyFact.
-// - ATUALIZADO: Objeto 'user' é atualizado no escopo se uma operação de memória for bem-sucedida.
+// - ADICIONADO: Lógica para gerar e enviar uma mensagem de reconhecimento dinâmica ("quebra-gelo").
+// - REMOVIDO: Lógica anterior de envio de mensagem de processamento estática atrasada.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { Receiver } from "@upstash/qstash";
 import { logger } from '@/app/lib/logger';
 import { sendWhatsAppMessage } from '@/app/lib/whatsappService';
-// ATUALIZADO: Importar getQuickAcknowledgementLLMResponse de aiOrchestrator
 import { askLLMWithEnrichedContext, getQuickAcknowledgementLLMResponse } from '@/app/lib/aiOrchestrator';
 import * as stateService from '@/app/lib/stateService'; 
 import * as dataService from '@/app/lib/dataService'; 
@@ -22,15 +21,14 @@ import OpenAI from 'openai';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import {
     determineIntent,
-    normalizeText,
+    normalizeText, // Usaremos normalizeText para a limpeza de saudações
     getRandomGreeting,
     IntentResult,
     DeterminedIntent 
 } from '@/app/lib/intentService'; 
 import { startOfDay } from 'date-fns';
 import { generateConversationSummary, inferUserExpertiseLevel } from '@/app/lib/aiService'; 
-// ATUALIZADO: Importar getFunAcknowledgementPrompt
-import { getFunAcknowledgementPrompt } from '@/app/lib/funAcknowledgementPrompt';
+import { getFunAcknowledgementPrompt } from '@/app/lib/funAcknowledgementPrompt'; // Deve ser v1.1.0 ou superior
 
 export const runtime = 'nodejs';
 
@@ -39,25 +37,15 @@ interface ProcessRequestBody {
   incomingText?: string;
   userId: string;
   taskType?: string;
-  // ATUALIZADO: determinedIntent é esperado do payload da incoming route
   determinedIntent: DeterminedIntent | null; 
 }
 
-// REMOVIDO: PROCESSING_MESSAGE_DELAY_MS não é mais necessário
-// const PROCESSING_MESSAGE_DELAY_MS = 1800; 
 const pickRandom = <T>(arr: T[]): T => {
   if (arr.length === 0) throw new Error('pickRandom: array vazio');
   const item = arr[Math.floor(Math.random() * arr.length)];
   if (item === undefined) throw new Error('pickRandom: item indefinido');
   return item;
 };
-// REMOVIDO: GET_PROCESSING_MESSAGES_POOL não é mais necessário
-/*
-const GET_PROCESSING_MESSAGES_POOL = (userName: string): string[] => [
-    `Ok, ${userName}! Recebi seu pedido. 👍 Estou verificando e já te respondo...`,
-    // ...
-];
-*/
 
 const STREAM_READ_TIMEOUT_MS = Number(process.env.STREAM_READ_TIMEOUT_MS) || 90_000;
 const HISTORY_LIMIT = Number(process.env.LLM_HISTORY_LIMIT) || 10; 
@@ -74,6 +62,13 @@ const COMPLEX_TASK_INTENTS: DeterminedIntent[] = [
     'report', 
 ];
 
+// Lista de saudações comuns para remoção (pode ser expandida)
+// Inclui variações com e sem pontuação, e algumas mais informais.
+const COMMON_GREETINGS_FOR_STRIPPING: string[] = [
+    'oi', 'olá', 'ola', 'tudo bem', 'tudo bom', 'bom dia', 'boa tarde', 'boa noite',
+    'e aí', 'eae', 'opa', 'fala', 'fala aí', 'fala meu querido', 'fala minha querida',
+    'meu querido', 'minha querida', 'querido tuca', 'querida tuca', 'tuca' // Casos onde "Tuca" precede o pedido
+];
 
 const currentSigningKey = process.env.QSTASH_CURRENT_SIGNING_KEY;
 const nextSigningKey = process.env.QSTASH_NEXT_SIGNING_KEY;
@@ -84,7 +79,6 @@ if (currentSigningKey && nextSigningKey) {
     logger.error("[QStash Worker Init] Chaves de assinatura QStash não definidas.");
 }
 
-// Função auxiliar para determinar se a resposta da IA sugere uma ação pendente
 function aiResponseSuggestsPendingAction(responseText: string): { 
     suggests: boolean; 
     actionType?: stateService.IDialogueState['lastAIQuestionType']; 
@@ -122,20 +116,62 @@ function aiResponseSuggestsPendingAction(responseText: string): {
 }
 
 /**
- * ADICIONADO: Gera a mensagem de reconhecimento dinâmica ("quebra-gelo") chamando a IA.
- * Esta função é adaptada da lógica em consultantService.ts v4.7.6.
+ * Remove saudações comuns do início do texto.
+ */
+function stripLeadingGreetings(text: string): string {
+    const normalizedInput = normalizeText(text); 
+    let strippedText = text; 
+
+    for (const greeting of COMMON_GREETINGS_FOR_STRIPPING) {
+        const normalizedGreeting = normalizeText(greeting);
+        if (normalizedInput.startsWith(normalizedGreeting)) {
+            const potentialGreetingEndIndex = greeting.length; 
+            const charAfterGreeting = text[potentialGreetingEndIndex];
+            
+            if (potentialGreetingEndIndex === text.length || 
+                charAfterGreeting === ' ' || 
+                charAfterGreeting === ',' || 
+                charAfterGreeting === '!' || 
+                charAfterGreeting === '.' ||
+                charAfterGreeting === '?') {
+                
+                let textWithoutGreeting = text.substring(potentialGreetingEndIndex).trim();
+                if (textWithoutGreeting.startsWith(',') || textWithoutGreeting.startsWith('!') || textWithoutGreeting.startsWith('.')) {
+                    textWithoutGreeting = textWithoutGreeting.substring(1).trim();
+                }
+                strippedText = textWithoutGreeting;
+                break; 
+            }
+        }
+    }
+    return strippedText;
+}
+
+/**
+ * ATUALIZADO v2.9.3: Adicionado parâmetro dialogueState para acessar conversationSummary.
+ * Gera a mensagem de reconhecimento dinâmica ("quebra-gelo") chamando a IA.
  */
 async function generateDynamicAcknowledgementInWorker(
     userName: string,
-    userQuery: string,
-    userIdForLog: string // Para logging consistente
+    userQuery: string, 
+    userIdForLog: string,
+    dialogueState: stateService.IDialogueState // Passa o estado do diálogo completo
 ): Promise<string | null> {
-    const TAG_ACK = '[QStash Worker][generateDynamicAck v2.9.1]';
-    const queryExcerpt = userQuery.length > 35 ? `${userQuery.substring(0, 32)}...` : userQuery;
-    logger.info(`${TAG_ACK} User ${userIdForLog}: Gerando reconhecimento dinâmico via IA para ${userName} sobre: "${queryExcerpt}"`);
+    const TAG_ACK = '[QStash Worker][generateDynamicAck v2.9.3]'; // Tag de versão atualizada
+    
+    const cleanedUserQuery = stripLeadingGreetings(userQuery);
+    const queryExcerpt = cleanedUserQuery.length > 35 ? `${cleanedUserQuery.substring(0, 32)}...` : cleanedUserQuery;
+    // ATUALIZADO v2.9.3: Pega o resumo do estado do diálogo
+    const conversationSummaryForPrompt = dialogueState.conversationSummary; 
+    
+    logger.info(`${TAG_ACK} User ${userIdForLog}: Gerando reconhecimento. Query Original: "${userQuery.slice(0,50)}...", Query Limpa para Excerto: "${cleanedUserQuery.slice(0,50)}...", Excerto: "${queryExcerpt}"`);
+    if (conversationSummaryForPrompt) {
+        logger.debug(`${TAG_ACK} User ${userIdForLog}: Usando resumo da conversa para prompt do ack: "${conversationSummaryForPrompt.substring(0,100)}..."`);
+    }
     
     try {
-        const systemPromptForAck = getFunAcknowledgementPrompt(userName, queryExcerpt);
+        // ATUALIZADO v2.9.3: Passa conversationSummaryForPrompt para getFunAcknowledgementPrompt
+        const systemPromptForAck = getFunAcknowledgementPrompt(userName, queryExcerpt, conversationSummaryForPrompt);
         const ackMessage = await getQuickAcknowledgementLLMResponse(systemPromptForAck, userQuery, userName); 
         
         if (ackMessage) {
@@ -153,7 +189,7 @@ async function generateDynamicAcknowledgementInWorker(
 
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const TAG = '[QStash Worker /process-response v2.9.1]'; // Versão atualizada
+  const TAG = '[QStash Worker /process-response v2.9.3]'; // Versão atualizada
 
   if (!receiver) {
       logger.error(`${TAG} QStash Receiver não inicializado.`);
@@ -174,17 +210,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
       payload = JSON.parse(bodyText);
       if (!payload.userId) { throw new Error('Payload inválido: userId ausente.'); }
-      // A intenção agora é esperada do payload da rota de entrada
-      if (payload.determinedIntent === undefined) { logger.warn(`${TAG} determinedIntent não presente no payload do QStash. Fluxo pode precisar de ajustes.`); }
+      if (payload.determinedIntent === undefined) { logger.warn(`${TAG} determinedIntent não presente no payload do QStash.`); }
     } catch (e) { return NextResponse.json({ error: 'Invalid request body' }, { status: 400 }); }
 
     const { userId, taskType, incomingText, fromPhone, determinedIntent: intentFromPayload } = payload;
 
-    // Bloco para Dica Diária (mantido como está)
     if (taskType === "daily_tip") {
-        const planTAG = `${TAG}[DailyTip v2.9.1]`; 
+        const planTAG = `${TAG}[DailyTip v2.9.3]`; // Tag de versão atualizada
         logger.info(`${planTAG} Iniciando tarefa de Dica Diária para User ${userId}...`);
-        // ... (código da Dica Diária existente, não modificado para esta tarefa) ...
+        // ... (código da Dica Diária existente, não modificado para esta funcionalidade) ...
         let userForTip: IUser;
         let userPhoneForTip: string | null | undefined;
         let basePlanText: string = "Hoje não consegui preparar seu roteiro de Stories detalhado, mas que tal compartilhar algo espontâneo sobre seus bastidores? 😉";
@@ -308,9 +342,8 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
             }
             return NextResponse.json({ error: `Failed to process daily tip: ${error instanceof Error ? error.message : String(error)}` }, { status: 500 });
         }
-    // Bloco para mensagens normais do usuário
     } else { 
-        const msgTAG = `${TAG}[UserMsg v2.9.1]`; // Versão atualizada
+        const msgTAG = `${TAG}[UserMsg v2.9.3]`; // Tag de versão atualizada
         logger.info(`${msgTAG} Processando mensagem normal para User ${userId}...`);
 
         if (!fromPhone || !incomingText) { return NextResponse.json({ error: 'Invalid payload for user message' }, { status: 400 }); }
@@ -347,16 +380,12 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
             return NextResponse.json({ success: true, message: "Empty normalized text" }, { status: 200 });
         }
 
-        // A intenção já vem do payload do QStash, mas podemos re-determinar se necessário ou para consistência,
-        // especialmente se o payload do QStash não for confiável para sempre ter a intenção mais atual.
-        // Por agora, vamos usar a intenção do payload se existir, ou determinar novamente.
         let intentResult: IntentResult | undefined = undefined;
-        let currentDeterminedIntent: DeterminedIntent | null = intentFromPayload; // Usa a intenção do payload
+        let currentDeterminedIntent: DeterminedIntent | null = intentFromPayload;
         let responseTextForSpecialHandled: string | null = null;
         let pendingActionContextFromIntent: any = null;
         let dialogueStateUpdateForTaskStart: Partial<stateService.IDialogueState> = {};
 
-        // Se a intenção não veio do payload ou se queremos sempre revalidar:
         if (!currentDeterminedIntent) {
             logger.warn(`${msgTAG} 'determinedIntent' não veio no payload do QStash para User ${userId}. Determinando agora.`);
             try {
@@ -369,7 +398,27 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
                     }
                 } else { 
                     currentDeterminedIntent = intentResult.intent; 
-                    // ... (lógica de currentTask e pendingActionContext como antes) ...
+                    if (intentResult.intent === 'user_confirms_pending_action' || intentResult.intent === 'user_denies_pending_action') { 
+                        pendingActionContextFromIntent = intentResult.pendingActionContext; 
+                    } else if (COMPLEX_TASK_INTENTS.includes(currentDeterminedIntent)) {
+                         if (!dialogueState.currentTask || dialogueState.currentTask.name !== currentDeterminedIntent) {
+                            logger.info(`${msgTAG} Nova tarefa complexa '${currentDeterminedIntent}' detectada. Definindo currentTask.`);
+                            const newCurrentTask: stateService.CurrentTask = {
+                                name: currentDeterminedIntent,
+                                objective: `Processar intenção: ${currentDeterminedIntent}`, 
+                                currentStep: 'inicio', 
+                            };
+                            if (currentDeterminedIntent === 'content_plan' && incomingText.length > 20) { 
+                                newCurrentTask.objective = `Criar plano de conteúdo baseado em: "${incomingText.substring(0, 100)}..."`;
+                            }
+                            dialogueStateUpdateForTaskStart.currentTask = newCurrentTask;
+                        } else {
+                            logger.debug(`${msgTAG} Intenção '${currentDeterminedIntent}' corresponde à currentTask ativa. Mantendo.`);
+                        }
+                    } else if (dialogueState.currentTask && !COMPLEX_TASK_INTENTS.includes(currentDeterminedIntent) && currentDeterminedIntent !== 'general') {
+                        logger.info(`${msgTAG} Nova intenção '${currentDeterminedIntent}' não relacionada à currentTask ativa (${dialogueState.currentTask.name}). Limpando currentTask.`);
+                        dialogueStateUpdateForTaskStart.currentTask = null;
+                    }
                 }
                 logger.info(`${msgTAG} Resultado da re-determinação de intenção: ${JSON.stringify(intentResult)}`);
             } catch (intentError) { 
@@ -381,29 +430,29 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
             }
         } else {
             logger.info(`${msgTAG} Usando 'determinedIntent' ('${currentDeterminedIntent}') do payload QStash para User ${userId}.`);
-            // Precisamos popular o intentResult se a intenção veio do payload para a lógica de memória
-            if (currentDeterminedIntent && currentDeterminedIntent.startsWith('user_')) {
-                 // Chamamos determineIntent novamente para obter os dados extraídos para memória,
-                 // mesmo que a intenção principal já esteja definida.
-                 // Isso é um pouco redundante, mas garante que 'extractedPreference', 'extractedGoal', etc., sejam populados.
-                 // Uma otimização futura poderia ser passar esses campos extraídos no payload do QStash.
+            if (currentDeterminedIntent && (currentDeterminedIntent.startsWith('user_') || COMPLEX_TASK_INTENTS.includes(currentDeterminedIntent))) {
                 try {
                     const tempIntentResult = await determineIntent(normText, user, incomingText, dialogueState, greeting, userId);
                     if (tempIntentResult.type === 'intent_determined') {
-                        intentResult = tempIntentResult; // Usar o resultado completo para ter acesso aos campos extraídos
+                        intentResult = tempIntentResult; 
+                         if (COMPLEX_TASK_INTENTS.includes(currentDeterminedIntent)) {
+                            if (!dialogueState.currentTask || dialogueState.currentTask.name !== currentDeterminedIntent) {
+                                logger.info(`${msgTAG} [Payload] Nova tarefa complexa '${currentDeterminedIntent}' detectada. Definindo currentTask.`);
+                                const newCurrentTask: stateService.CurrentTask = { name: currentDeterminedIntent, objective: `Processar intenção: ${currentDeterminedIntent}`, currentStep: 'inicio' };
+                                if (currentDeterminedIntent === 'content_plan' && incomingText.length > 20) { newCurrentTask.objective = `Criar plano de conteúdo baseado em: "${incomingText.substring(0, 100)}..."`; }
+                                dialogueStateUpdateForTaskStart.currentTask = newCurrentTask;
+                            }
+                         }
                     }
                 } catch (e) {
-                    logger.error(`${msgTAG} Erro ao tentar obter detalhes da intenção de memória do payload:`, e);
+                    logger.error(`${msgTAG} Erro ao tentar obter detalhes da intenção (vinda do payload):`, e);
                 }
             }
         }
         
-        // --- INÍCIO: LÓGICA DE PERSISTÊNCIA DE MEMÓRIA DE LONGO PRAZO (v2.9.0) ---
-        // Esta lógica agora usa 'currentDeterminedIntent' e 'intentResult' (que pode ter sido populado acima)
         if (intentResult && intentResult.type === 'intent_determined' && currentDeterminedIntent) {
             const { extractedPreference, extractedGoal, extractedFact, memoryUpdateRequestContent } = intentResult;
             let updatedUserFromMemoryOp: IUser | null = null;
-
             try {
                 if (currentDeterminedIntent === 'user_stated_preference' && extractedPreference) {
                     logger.info(`${msgTAG} Intenção 'user_stated_preference' detectada. Tentando persistir preferência: ${JSON.stringify(extractedPreference)} para User ${userId}`);
@@ -417,23 +466,19 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
                     }
                     updatedUserFromMemoryOp = await dataService.updateUserPreferences(userId, prefPayload);
                     if (updatedUserFromMemoryOp) logger.info(`${msgTAG} Preferência do usuário salva com sucesso: ${key} = ${value}`);
-
                 } else if (currentDeterminedIntent === 'user_shared_goal' && extractedGoal) {
                     logger.info(`${msgTAG} Intenção 'user_shared_goal' detectada. Tentando persistir objetivo: "${extractedGoal}" para User ${userId}`);
                     updatedUserFromMemoryOp = await dataService.addUserLongTermGoal(userId, extractedGoal);
                     if (updatedUserFromMemoryOp) logger.info(`${msgTAG} Objetivo de longo prazo salvo com sucesso: "${extractedGoal}"`);
-
                 } else if (currentDeterminedIntent === 'user_mentioned_key_fact' && extractedFact) {
                     logger.info(`${msgTAG} Intenção 'user_mentioned_key_fact' detectada. Tentando persistir fato chave: "${extractedFact}" para User ${userId}`);
                     updatedUserFromMemoryOp = await dataService.addUserKeyFact(userId, extractedFact);
                     if (updatedUserFromMemoryOp) logger.info(`${msgTAG} Fato chave salvo com sucesso: "${extractedFact}"`);
-
                 } else if (currentDeterminedIntent === 'user_requests_memory_update' && memoryUpdateRequestContent) {
                     logger.info(`${msgTAG} Intenção 'user_requests_memory_update' detectada. Tentando persistir como fato chave: "${memoryUpdateRequestContent}" para User ${userId}`);
                     updatedUserFromMemoryOp = await dataService.addUserKeyFact(userId, memoryUpdateRequestContent);
                     if (updatedUserFromMemoryOp) logger.info(`${msgTAG} Conteúdo de solicitação de memória salvo como fato chave: "${memoryUpdateRequestContent}"`);
                 }
-
                 if (updatedUserFromMemoryOp) {
                     user = updatedUserFromMemoryOp; 
                     logger.info(`${msgTAG} Objeto User local atualizado após operação de memória bem-sucedida.`);
@@ -442,8 +487,6 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
                 logger.error(`${msgTAG} Erro ao persistir informação de memória para User ${userId}:`, memoryError);
             }
         }
-        // --- FIM: LÓGICA DE PERSISTÊNCIA DE MEMÓRIA DE LONGO PRAZO ---
-
 
         if (Object.keys(dialogueStateUpdateForTaskStart).length > 0) {
             await stateService.updateDialogueState(userId, dialogueStateUpdateForTaskStart);
@@ -451,11 +494,9 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
             logger.debug(`${msgTAG} Estado do diálogo atualizado com informações de currentTask: ${JSON.stringify(dialogueState.currentTask)}`);
         }
 
-
         if (responseTextForSpecialHandled) { 
             logger.info(`${msgTAG} Enviando resposta special_handled: "${responseTextForSpecialHandled.slice(0,50)}..."`);
             await sendWhatsAppMessage(fromPhone, responseTextForSpecialHandled);
-            // ... (lógica de persistência para special_handled mantida) ...
             const userMessageForHistory: ChatCompletionMessageParam = { role: 'user', content: incomingText };
             const assistantResponseForHistory: ChatCompletionMessageParam = { role: 'assistant', content: responseTextForSpecialHandled };
             const updatedHistory = [...historyMessages, userMessageForHistory, assistantResponseForHistory].slice(-HISTORY_LIMIT);
@@ -463,14 +504,21 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
             await stateService.clearPendingActionState(userId); 
             
             let dialogueUpdateForSummaryAndExpertise: Partial<stateService.IDialogueState> = { lastInteraction: Date.now() };
+            
             const currentDialogueStateForCounters = await stateService.getDialogueState(userId);
+
             const currentSummaryTurnCounter = currentDialogueStateForCounters.summaryTurnCounter || 0;
             const newSummaryTurnCounter = currentSummaryTurnCounter + 1;
 
             if (newSummaryTurnCounter >= SUMMARY_GENERATION_INTERVAL) {
                 logger.info(`${msgTAG} [SpecialHandled] Intervalo de sumarização atingido (${newSummaryTurnCounter}). Gerando resumo...`);
                 const summary = await generateConversationSummary(updatedHistory, userName);
-                if (summary) { dialogueUpdateForSummaryAndExpertise.conversationSummary = summary; }
+                if (summary) {
+                    dialogueUpdateForSummaryAndExpertise.conversationSummary = summary;
+                    logger.debug(`${msgTAG} [SpecialHandled] Resumo gerado: "${summary.substring(0,100)}..."`);
+                } else {
+                    logger.warn(`${msgTAG} [SpecialHandled] Geração de resumo retornou vazio.`);
+                }
                 dialogueUpdateForSummaryAndExpertise.summaryTurnCounter = 0; 
             } else {
                 dialogueUpdateForSummaryAndExpertise.summaryTurnCounter = newSummaryTurnCounter;
@@ -488,6 +536,7 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
             
             await stateService.updateDialogueState(userId, dialogueUpdateForSummaryAndExpertise);
             logger.debug(`${msgTAG} [SpecialHandled] Contadores de sumário e expertise atualizados.`);
+            
             return NextResponse.json({ success: true }, { status: 200 });
         }
 
@@ -495,7 +544,6 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
         let effectiveIntent = currentDeterminedIntent as DeterminedIntent; 
 
         if (currentDeterminedIntent === 'user_confirms_pending_action') {
-            // ... (lógica de user_confirms_pending_action mantida) ...
             logger.info(`${msgTAG} Usuário confirmou ação pendente. lastAIQuestionType: ${dialogueState.lastAIQuestionType}, Contexto: ${JSON.stringify(pendingActionContextFromIntent)}`);
             if (dialogueState.lastAIQuestionType === 'confirm_fetch_day_stats' && pendingActionContextFromIntent?.originalUserQuery) {
                 effectiveIncomingText = `Sim, por favor, quero saber sobre ${pendingActionContextFromIntent.originalUserQuery}. Mostre-me o desempenho por dia da semana.`;
@@ -530,7 +578,6 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
             logger.info(`${msgTAG} Texto efetivo para IA (pós-confirmação): "${effectiveIncomingText.slice(0,50)}...", Intenção: ${effectiveIntent}`);
             await stateService.clearPendingActionState(userId); 
         } else if (currentDeterminedIntent === 'user_denies_pending_action') {
-            // ... (lógica de user_denies_pending_action mantida) ...
             logger.info(`${msgTAG} Usuário negou ação pendente (lastAIQuestionType: ${dialogueState.lastAIQuestionType}).`);
             await stateService.clearPendingActionState(userId); 
             
@@ -582,8 +629,6 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
             dialogueState = await stateService.getDialogueState(userId); 
         }
         
-        // ***** INÍCIO: LÓGICA DO QUEBRA-GELO DINÂMICO *****
-        // Condições para enviar o quebra-gelo dinâmico
         const isLightweightIntentForDynamicAck = effectiveIntent === 'social_query' || 
                                                  effectiveIntent === 'meta_query_personal' || 
                                                  effectiveIntent === 'generate_proactive_alert';
@@ -591,14 +636,15 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
         if (!isLightweightIntentForDynamicAck && 
             effectiveIntent !== 'user_confirms_pending_action' && 
             effectiveIntent !== 'user_denies_pending_action' &&
-            effectiveIntent !== 'greeting' // Não enviar para saudações simples já tratadas por special_handled
+            effectiveIntent !== 'greeting' 
             ) {
             try {
-                const dynamicAckMessage = await generateDynamicAcknowledgementInWorker(userName, incomingText, userId);
+                // ATUALIZADO v2.9.3: Passa dialogueState para generateDynamicAcknowledgementInWorker
+                // O dialogueState aqui já foi carregado no início do bloco 'else' de taskType
+                const dynamicAckMessage = await generateDynamicAcknowledgementInWorker(userName, incomingText, userId, dialogueState);
                 if (dynamicAckMessage) {
                     logger.debug(`${msgTAG} Enviando reconhecimento dinâmico (gerado por IA) para ${fromPhone}: "${dynamicAckMessage.substring(0,70)}..."`);
                     await sendWhatsAppMessage(fromPhone, dynamicAckMessage);
-                    // Não adicionamos ao historyMessages aqui, pois é apenas um ack.
                 }
             } catch (ackError) {
                 logger.error(`${msgTAG} Falha ao gerar/enviar reconhecimento dinâmico via IA (não fatal):`, ackError);
@@ -606,13 +652,9 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
         } else {
             logger.debug(`${msgTAG} Pulando quebra-gelo dinâmico para intenção: ${effectiveIntent}`);
         }
-        // ***** FIM: LÓGICA DO QUEBRA-GELO DINÂMICO *****
-
-
-        // REMOVIDO: Lógica do processingMessageTimer e GET_PROCESSING_MESSAGES_POOL
-        // logger.debug(`${msgTAG} Mensagem de processamento estática atrasada removida (v2.9.1).`);
 
         const limitedHistoryMessages = historyMessages.slice(-HISTORY_LIMIT);
+        // O objeto 'user' aqui já pode conter as atualizações da memória de longo prazo
         const enrichedContext = { user, historyMessages: limitedHistoryMessages, dialogueState: dialogueState };
 
         let finalText = '';
@@ -626,7 +668,6 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
                 enrichedContext, effectiveIncomingText, effectiveIntent
             );
             historyPromise = hp;
-            // REMOVIDO: clearTimeout(processingMessageTimer)
             reader = stream.getReader();
             streamTimeout = setTimeout(() => { logger.warn(`${msgTAG} Timeout stream...`); streamTimeout = null; reader?.cancel().catch(()=>{/*ignore*/}); }, STREAM_READ_TIMEOUT_MS);
             while (true) { 
@@ -640,15 +681,12 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
         } catch (err: any) { 
             logger.error(`${msgTAG} Erro durante chamada/leitura LLM:`, err);
             if (streamTimeout) { clearTimeout(streamTimeout); streamTimeout = null; }
-            // REMOVIDO: clearTimeout(processingMessageTimer)
             finalText = 'Ops! Tive uma dificuldade técnica ao gerar sua resposta.';
         } finally { 
             if (reader) { try { await reader.releaseLock(); } catch (e) { logger.error(`${msgTAG} Erro releaseLock:`, e); } }
             if (streamTimeout) { clearTimeout(streamTimeout); streamTimeout = null; }
-            // REMOVIDO: clearTimeout(processingMessageTimer)
         }
         
-        // ... (resto da lógica de persistência e atualização de estado mantida como está) ...
         let dialogueStateUpdatePayload: Partial<stateService.IDialogueState> = { lastInteraction: Date.now() };
         const currentTaskBeforeAI = dialogueState.currentTask; 
 
@@ -695,13 +733,13 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
                     logger.error(`${msgTAG} Erro ao obter histórico final da historyPromise:`, historyError); 
                     const userMessageFallback: ChatCompletionMessageParam = { role: 'user', content: effectiveIncomingText };
                     const assistantMessageFallback: ChatCompletionMessageParam = { role: 'assistant', content: finalText };
-                    finalHistoryForSaving = [...limitedHistoryMessages, userMessageFallback, assistantMessageFallback].slice(-HISTORY_LIMIT); 
+                    finalHistoryForSaving = [...historyMessages, userMessageFallback, assistantMessageFallback].slice(-HISTORY_LIMIT); 
                 } 
              } else { 
                  logger.warn(`${msgTAG} historyPromise não encontrada. Montando histórico básico.`); 
                  const userMessageNoPromise: ChatCompletionMessageParam = { role: 'user', content: effectiveIncomingText };
                  const assistantMessageNoPromise: ChatCompletionMessageParam = { role: 'assistant', content: finalText };
-                 finalHistoryForSaving = [...limitedHistoryMessages, userMessageNoPromise, assistantMessageNoPromise].slice(-HISTORY_LIMIT); 
+                 finalHistoryForSaving = [...historyMessages, userMessageNoPromise, assistantMessageNoPromise].slice(-HISTORY_LIMIT); 
              }
             
             const dialogueStateForSummary = await stateService.getDialogueState(userId); 
@@ -777,6 +815,7 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
             logger.error(`${msgTAG} Erro durante o processo de inferência ou atualização do nível de expertise para User ${userId}:`, expertiseError);
         }
 
+
         logger.info(`${msgTAG} Tarefa de mensagem normal concluída para User ${userId}.`);
         return NextResponse.json({ success: true }, { status: 200 });
     }
@@ -786,7 +825,6 @@ Comece com "Bom dia!", tom motivador. Use emojis. O plano de Stories é o corpo 
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
   
-  // Esta linha não deve ser alcançada se tudo correr bem.
   logger.error(`${TAG} Código atingiu o final da função POST inesperadamente.`);
   return NextResponse.json({ error: 'Server ended without an explicit response.' }, { status: 500 });
 }
