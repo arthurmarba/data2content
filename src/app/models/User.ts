@@ -1,21 +1,159 @@
-// @/app/models/User.ts - v1.9.9 (Memória de Longo Prazo)
-// - ADICIONADO: Campos e schemas para memória de longo prazo (userPreferences, userLongTermGoals, userKeyFacts)
-//   conforme Guia de Implementação v1.0.
-// - Mantém funcionalidades da v1.9.8.
+// @/app/models/User.ts - v1.9.15 (Adiciona INewFormatPerformanceDetails e IMediaTypeComparisonDetails)
+// - ADICIONADO: Interfaces de detalhes específicas para cada tipo de alerta.
+// - ADICIONADO: Union type `AlertDetails` para tipar o campo `details` de forma robusta.
+// - ADICIONADO: Interface `IPostingConsistencyDetails` e `IEvergreenRepurposeDetails`.
+// - ADICIONADO: Interface `INewFormatPerformanceDetails` para o alerta de desempenho de novo formato.
+// - ADICIONADO: Interface `IMediaTypeComparisonDetails` para o alerta de comparação de performance por tipo de mídia.
+// - Mantém funcionalidades da v1.9.14.
 
 import { Schema, model, models, Document, Model, Types } from "mongoose";
-import { logger } from "@/app/lib/logger"; // Importar o logger
+import { logger } from "@/app/lib/logger"; 
+
+// --- INTERFACES DE DETALHES PARA CADA TIPO DE ALERTA DO RADAR TUCA ---
+
+export interface IPeakSharesDetails {
+    postId: string;
+    postDescriptionExcerpt?: string;
+    peakShares: number;
+    peakDay: number;
+    averageSharesFirst3Days: number;
+    format?: string;
+    proposal?: string;
+    context?: string;
+}
+
+export interface IDropWatchTimeDetails {
+    currentAvg: number;
+    historicalAvg: number;
+    reelsAnalyzedIds: string[];
+}
+
+export interface IForgottenFormatDetails {
+    format: string; 
+    avgMetricValue: number;
+    overallAvgPerformance: number;
+    metricUsed: string;
+    daysSinceLastUsed: number;
+    percentageSuperior: number;
+}
+
+export interface IUntappedPotentialTopicDetails {
+    postId: string;
+    postDescriptionExcerpt?: string;
+    performanceMetric: string;
+    performanceValue: number;
+    referenceAverage: number;
+    daysSincePosted: number;
+    postType?: string; 
+    format?: string;   
+    proposal?: string;
+    context?: string;
+}
+
+export interface IEngagementPeakNotCapitalizedDetails {
+    postId: string;
+    postDescriptionExcerpt?: string;
+    comments: number;
+    averageComments: number;
+    postType?: string;
+    format?: string;
+    proposal?: string;
+    context?: string;
+}
+
+export interface INoEventDetails {
+    reason: string;
+}
+
+export interface IFollowerStagnationDetails {
+    currentGrowthRate: number;
+    previousGrowthRate: number;
+    currentGrowthAbs: number;
+    previousGrowthAbs: number;
+    periodAnalyzed: string;
+}
+
+export interface IBestDayFormatDetails {
+    format: string;        
+    dayOfWeek: string;     
+    avgEngRate?: number;    
+    metricUsed: string;    
+    referenceAvgEngRate?: number; 
+    daysSinceLastUsedInSlot: number; 
+}
+
+export interface IPostingConsistencyDetails {
+    previousAverageFrequencyDays?: number; 
+    currentAverageFrequencyDays?: number;  
+    daysSinceLastPost?: number;            
+    breakInPattern?: boolean;              
+}
+
+export interface IEvergreenRepurposeDetails {
+    originalPostId: string;
+    originalPostDate: Date;
+    originalPostDescriptionExcerpt?: string;
+    originalPostMetricValue: number; 
+    originalPostMetricName: string;  
+    suggestionType: 'tbt' | 'new_angle' | 'story_series' | 'other'; 
+}
+
+/**
+ * Interface para os detalhes do alerta de Desempenho Incomum de Novo Formato.
+ */
+export interface INewFormatPerformanceDetails {
+    formatName: string;
+    avgPerformanceNewFormat: number;
+    referenceAvgPerformance: number; // Média de referência (geral ou de formatos estabelecidos)
+    metricUsed: string;
+    numberOfPostsInNewFormat: number;
+    isPositiveAlert: boolean; // true se o desempenho foi bom, false se foi ruim
+}
+
+/**
+ * Interface para os detalhes do alerta de Comparativo de Performance por Tipo de Mídia.
+ */
+export interface IMediaTypePerformance {
+    type: string; // Ex: 'REEL', 'IMAGE'
+    avgMetricValue: number;
+    postCount: number;
+    metricUsed: string; // A métrica usada para a comparação (ex: 'engagementRate', 'reach')
+}
+export interface IMediaTypeComparisonDetails {
+    performanceByMediaType: IMediaTypePerformance[];
+    bestPerformingType?: { type: string; avgMetricValue: number; };
+    worstPerformingType?: { type: string; avgMetricValue: number; }; // Opcional
+    overallAverage?: number; // Média geral para contextualizar
+    metricUsed: string; // A métrica principal usada para a comparação
+}
+
+
+// Union Type para todos os detalhes de alerta
+export type AlertDetails = 
+    | IPeakSharesDetails 
+    | IDropWatchTimeDetails 
+    | IForgottenFormatDetails
+    | IUntappedPotentialTopicDetails
+    | IEngagementPeakNotCapitalizedDetails
+    | INoEventDetails
+    | IFollowerStagnationDetails
+    | IBestDayFormatDetails
+    | IPostingConsistencyDetails
+    | IEvergreenRepurposeDetails
+    | INewFormatPerformanceDetails // <-- ADICIONADO
+    | IMediaTypeComparisonDetails  // <-- ADICIONADO
+    | { [key: string]: any }; 
+
 
 /**
  * Interface para uma conta do Instagram disponível.
- * ATUALIZADO v1.9.8: Adicionados username e profile_picture_url.
  */
 export interface IAvailableInstagramAccount {
   igAccountId: string;
-  pageId: string; // ID da Página do Facebook associada
-  pageName: string; // Nome da Página do Facebook associada
-  username?: string; // Username da conta IG (opcional)
-  profile_picture_url?: string; // URL da foto de perfil da conta IG (opcional)
+  pageId: string; 
+  pageName: string; 
+  username?: string; 
+  profile_picture_url?: string; 
 }
 
 /**
@@ -42,43 +180,53 @@ export interface ILastCommunityInspirationShown {
  */
 export type UserExpertiseLevel = 'iniciante' | 'intermediario' | 'avancado';
 
-// --- NOVAS INTERFACES PARA MEMÓRIA DE LONGO PRAZO (v1.9.9) ---
 /**
  * Interface para as preferências do usuário.
  */
 export interface IUserPreferences {
   preferredFormats?: string[];
   dislikedTopics?: string[];
-  // O campo preferredAiTone complementa o profileTone existente, permitindo especificidade.
-  preferredAiTone?: 'mais_formal' | 'direto_ao_ponto' | 'super_descontraido' | string; // string para outros tons
-  // Outras preferências podem ser adicionadas aqui, ex:
-  // focusAreas?: string[]; // Ex: 'monetizacao', 'crescimento_organico'
+  preferredAiTone?: 'mais_formal' | 'direto_ao_ponto' | 'super_descontraido' | string; 
 }
 
 /**
  * Interface para um objetivo de longo prazo do usuário.
  */
 export interface IUserLongTermGoal {
-  goal: string; // Descrição do objetivo
+  goal: string; 
   addedAt?: Date;
-  status?: 'ativo' | 'em_progresso' | 'concluido' | 'pausado'; // Opcional
-  // priority?: number; // Opcional
+  status?: 'ativo' | 'em_progresso' | 'concluido' | 'pausado'; 
 }
 
 /**
  * Interface para um fato chave sobre o usuário/negócio.
  */
 export interface IUserKeyFact {
-  fact: string; // Descrição do fato
+  fact: string; 
   mentionedAt?: Date;
-  // category?: string; // Opcional, ex: 'projeto', 'parceria', 'pessoal'
 }
-// --- FIM DAS NOVAS INTERFACES PARA MEMÓRIA DE LONGO PRAZO ---
 
+/**
+ * Interface para uma entrada no histórico de alertas do Radar Tuca.
+ * ATUALIZADO v1.9.15: `AlertDetails` agora inclui novas interfaces.
+ */
+export interface IAlertHistoryEntry {
+  _id?: Types.ObjectId; 
+  type: string; 
+  date: Date; 
+  messageForAI: string; 
+  finalUserMessage: string; 
+  details: AlertDetails; 
+  userInteraction?: {
+    type: 'explored_further' | 'dismissed' | 'not_interacted' | 'error_sending' | 'pending_interaction' | 'not_applicable' | 'viewed' | 'clicked_suggestion' | 'provided_feedback';
+    feedback?: string;
+    interactedAt?: Date;
+  };
+}
 
 /**
  * Interface que descreve um documento de usuário.
- * ATUALIZADO v1.9.9: Adicionados campos de memória de longo prazo.
+ * ATUALIZADO v1.9.15: `alertHistory` usa `IAlertHistoryEntry` com `AlertDetails` atualizado.
  */
 export interface IUser extends Document {
   _id: Types.ObjectId;
@@ -89,8 +237,6 @@ export interface IUser extends Document {
   provider?: string;
   providerAccountId?: string;
   facebookProviderAccountId?: string;
-
-  // --- CAMPOS DA INTEGRAÇÃO INSTAGRAM ---
   instagramAccessToken?: string; 
   instagramAccountId?: string | null; 
   isInstagramConnected?: boolean;
@@ -106,23 +252,18 @@ export interface IUser extends Document {
   media_count?: number;
   is_published?: boolean;
   shopping_product_tag_eligibility?: boolean;
-
   availableIgAccounts?: IAvailableInstagramAccount[] | null;
-
-  // --- CAMPOS DE VINCULAÇÃO TEMPORÁRIA ---
   linkToken?: string;
   linkTokenExpiresAt?: Date;
-
-  // --- Outros Campos ---
   role: string;
   planStatus?: string;
   planExpiresAt?: Date | null;
   whatsappVerificationCode?: string | null;
   whatsappPhone?: string | null;
   whatsappVerified?: boolean;
-  profileTone?: string; // Tom geral do perfil, complementado por userPreferences.preferredAiTone
+  profileTone?: string; 
   hobbies?: string[];
-  goal?: string; // Campo 'goal' existente, avaliar se será substituído/integrado com userLongTermGoals
+  goal?: string; 
   affiliateRank?: number;
   affiliateInvites?: number;
   affiliateCode?: string; 
@@ -136,39 +277,25 @@ export interface IUser extends Document {
     bankAccount?: string;
   };
   lastProcessedPaymentId?: string;
-
-  // --- Campos para Comunidade de Inspiração ---
   communityInspirationOptIn?: boolean;
   communityInspirationOptInDate?: Date | null;
   communityInspirationTermsVersion?: string | null;
   lastCommunityInspirationShown_Daily?: ILastCommunityInspirationShown | null;
-
-  // --- CAMPOS PARA CONTROLE DE ONBOARDING ---
   isNewUserForOnboarding?: boolean;
   onboardingCompletedAt?: Date | null;
-
-  // --- CAMPO PARA PERSONALIZAÇÃO DA IA (EXISTENTE, REFORÇAR USO) ---
   inferredExpertiseLevel?: UserExpertiseLevel;
-
-  // --- NOVOS CAMPOS PARA MEMÓRIA DE LONGO PRAZO (v1.9.9) ---
-  userPreferences?: IUserPreferences;
+  userPreferences?: IUserPreferences; 
   userLongTermGoals?: IUserLongTermGoal[];
   userKeyFacts?: IUserKeyFact[];
-
+  alertHistory?: IAlertHistoryEntry[];
   createdAt?: Date;
   updatedAt?: Date;
 }
 
-/**
- * Gera um código de afiliado aleatório (6 caracteres maiúsculos).
- */
 function generateAffiliateCode(): string {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
-/**
- * Schema para uma entrada no log de comissões.
- */
 const commissionLogEntrySchema = new Schema<ICommissionLogEntry>({
   date: { type: Date, required: true, default: Date.now },
   amount: { type: Number, required: true },
@@ -177,52 +304,53 @@ const commissionLogEntrySchema = new Schema<ICommissionLogEntry>({
   referredUserId: { type: Schema.Types.ObjectId, ref: 'User' }
 }, { _id: false });
 
-/**
- * Schema para o subdocumento 'lastCommunityInspirationShown_Daily'.
- */
 const lastCommunityInspirationShownSchema = new Schema<ILastCommunityInspirationShown>({
   date: { type: Date, required: true },
   inspirationIds: [{ type: Schema.Types.ObjectId, ref: 'CommunityInspiration' }]
 }, { _id: false });
 
-/**
- * Schema para o subdocumento de contas IG disponíveis.
- * ATUALIZADO v1.9.8: Adicionados username e profile_picture_url.
- */
 const AvailableInstagramAccountSchema = new Schema<IAvailableInstagramAccount>({
   igAccountId: { type: String, required: true },
   pageId: { type: String, required: true },
   pageName: { type: String, required: true },
-  username: { type: String }, // Opcional
-  profile_picture_url: { type: String }, // Opcional
+  username: { type: String }, 
+  profile_picture_url: { type: String }, 
 }, { _id: false }); 
 
-// --- NOVOS SCHEMAS PARA MEMÓRIA DE LONGO PRAZO (v1.9.9) ---
 const UserPreferencesSchema = new Schema<IUserPreferences>({
   preferredFormats: { type: [String], default: [] },
   dislikedTopics: { type: [String], default: [] },
   preferredAiTone: { type: String, default: null },
-  // focusAreas: { type: [String], default: [] }, // Mantido comentado conforme guia
-}, { _id: false }); // _id: false para subdocumentos que não precisam de ID próprio
+}, { _id: false }); 
 
 const UserLongTermGoalSchema = new Schema<IUserLongTermGoal>({
   goal: { type: String, required: true },
   addedAt: { type: Date, default: Date.now },
   status: { type: String, enum: ['ativo', 'em_progresso', 'concluido', 'pausado'], default: 'ativo' },
-  // priority: { type: Number }, // Mantido comentado conforme guia
-}, { _id: false }); // _id pode ser útil se quisermos referenciar/modificar objetivos individualmente no futuro, mas por ora _id:false
+}, { _id: false }); 
 
 const UserKeyFactSchema = new Schema<IUserKeyFact>({
   fact: { type: String, required: true },
   mentionedAt: { type: Date, default: Date.now },
-  // category: { type: String }, // Mantido comentado conforme guia
 }, { _id: false });
-// --- FIM DOS NOVOS SCHEMAS PARA MEMÓRIA DE LONGO PRAZO ---
 
-/**
- * Definição do Schema para o User
- * ATUALIZADO v1.9.9: Adicionados campos e schemas de memória de longo prazo.
- */
+const AlertHistoryEntrySchema = new Schema<IAlertHistoryEntry>({
+  type: { type: String, required: true },
+  date: { type: Date, required: true, default: Date.now },
+  messageForAI: { type: String, default: "" }, 
+  finalUserMessage: { type: String, default: "" }, 
+  details: { type: Schema.Types.Mixed, required: true }, 
+  userInteraction: { 
+    type: { 
+        type: String, 
+        enum: ['explored_further', 'dismissed', 'not_interacted', 'error_sending', 'pending_interaction', 'not_applicable', 'viewed', 'clicked_suggestion', 'provided_feedback'],
+        default: 'pending_interaction' 
+    },
+    feedback: { type: String },
+    interactedAt: { type: Date }
+  },
+}, { _id: true }); 
+
 const userSchema = new Schema<IUser>(
   {
     name: { type: String },
@@ -238,8 +366,6 @@ const userSchema = new Schema<IUser>(
     provider: { type: String, index: true },
     providerAccountId: { type: String, index: true },
     facebookProviderAccountId: { type: String, index: true, sparse: true },
-
-    // --- CAMPOS DA INTEGRAÇÃO INSTAGRAM ---
     instagramAccessToken: { type: String }, 
     instagramAccountId: { type: String, index: true, default: null }, 
     isInstagramConnected: { type: Boolean, default: false },
@@ -255,14 +381,9 @@ const userSchema = new Schema<IUser>(
     media_count: { type: Number },
     is_published: { type: Boolean },
     shopping_product_tag_eligibility: { type: Boolean },
-
     availableIgAccounts: { type: [AvailableInstagramAccountSchema], default: null }, 
-
-    // --- CAMPOS DE VINCULAÇÃO TEMPORÁRIA ---
     linkToken: { type: String, index: true, sparse: true },
     linkTokenExpiresAt: { type: Date },
-
-    // --- Outros Campos ---
     role: { type: String, default: "user" },
     planStatus: { type: String, default: "inactive" },
     planExpiresAt: { type: Date, default: null },
@@ -271,7 +392,7 @@ const userSchema = new Schema<IUser>(
     whatsappVerified: { type: Boolean, default: false },
     profileTone: { type: String, default: 'informal e prestativo' },
     hobbies: { type: [String], default: [] },
-    goal: { type: String, default: null }, // Campo 'goal' existente
+    goal: { type: String, default: null }, 
     affiliateRank: { type: Number, default: 1 },
     affiliateInvites: { type: Number, default: 0 },
     affiliateCode: { type: String, unique: true, sparse: true }, 
@@ -285,29 +406,21 @@ const userSchema = new Schema<IUser>(
       bankAccount: { type: String, default: "" },
     },
     lastProcessedPaymentId: { type: String, default: null, index: true },
-
-    // --- Campos para Comunidade de Inspiração ---
     communityInspirationOptIn: { type: Boolean, default: false },
     communityInspirationOptInDate: { type: Date, default: null },
     communityInspirationTermsVersion: { type: String, default: null },
     lastCommunityInspirationShown_Daily: { type: lastCommunityInspirationShownSchema, default: null },
-
-    // --- CAMPOS PARA CONTROLE DE ONBOARDING ---
     isNewUserForOnboarding: { type: Boolean, default: true },
     onboardingCompletedAt: { type: Date, default: null },
-
-    // --- CAMPO PARA PERSONALIZAÇÃO DA IA (EXISTENTE, REFORÇAR USO) ---
     inferredExpertiseLevel: {
         type: String,
         enum: ['iniciante', 'intermediario', 'avancado'],
         default: 'iniciante'
     },
-
-    // --- NOVOS CAMPOS PARA MEMÓRIA DE LONGO PRAZO (v1.9.9) ---
-    userPreferences: { type: UserPreferencesSchema, default: () => ({}) }, // Inicializa como objeto vazio
+    userPreferences: { type: UserPreferencesSchema, default: () => ({}) }, 
     userLongTermGoals: { type: [UserLongTermGoalSchema], default: [] },
     userKeyFacts: { type: [UserKeyFactSchema], default: [] },
-
+    alertHistory: { type: [AlertHistoryEntrySchema], default: [] },
   },
   {
     timestamps: true, 
@@ -315,26 +428,17 @@ const userSchema = new Schema<IUser>(
 );
 
 userSchema.pre<IUser>("save", function (next) {
-  const TAG_PRE_SAVE = '[User.ts pre-save]';
-  // Removido o log excessivo daqui para manter o foco nas mudanças principais.
-  // A lógica original do pre-save é mantida.
-  // logger.debug(`${TAG_PRE_SAVE} Hook acionado. User ID (antes de salvar, pode ser undefined se novo): ${this._id}, Email: ${this.email}`);
-  // logger.debug(`${TAG_PRE_SAVE} this.isNew: ${this.isNew}, this.affiliateCode (antes): '${this.affiliateCode}' (tipo: ${typeof this.affiliateCode})`);
-
+  const TAG_PRE_SAVE = '[User.ts pre-save v1.9.15]'; // Atualizada tag de log
+  
   if (this.isNew && !this.affiliateCode) {
     const newCode = generateAffiliateCode();
     logger.info(`${TAG_PRE_SAVE} Gerando novo affiliateCode: '${newCode}' para User Email: ${this.email}`);
     this.affiliateCode = newCode;
-  } else if (this.isNew && this.affiliateCode) {
-    // logger.warn(`${TAG_PRE_SAVE} Usuário é novo (isNew=true) mas JÁ POSSUI affiliateCode: '${this.affiliateCode}'. Não será gerado novo código. Email: ${this.email}`);
-  }
-  // ... (restante da lógica pre-save original)
+  } 
 
   if (this.onboardingCompletedAt && this.isNewUserForOnboarding) {
-    // logger.debug(`${TAG_PRE_SAVE} Usuário completou onboarding. Setando isNewUserForOnboarding para false. Email: ${this.email}`);
     this.isNewUserForOnboarding = false;
   }
-  // logger.debug(`${TAG_PRE_SAVE} affiliateCode (depois da lógica): '${this.affiliateCode}'`);
   next();
 });
 

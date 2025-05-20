@@ -1,79 +1,66 @@
+// src/app/models/Metric.ts - v1.4.1 (Corrige conflito de exportação de IMetricStats)
 import { Schema, model, models, Document, Model, Types } from "mongoose";
 
 // Constantes padrão
 const DEFAULT_FORMAT = 'Desconhecido';
 const DEFAULT_SOURCE = 'manual';
-const DEFAULT_CLASSIFICATION_STATUS = 'pending'; // Default para novos campos
+const DEFAULT_CLASSIFICATION_STATUS = 'pending';
+const DEFAULT_MEDIA_TYPE = 'UNKNOWN'; // Default para o novo campo 'type'
 
 /**
  * Interface para o subdocumento 'stats' dentro de IMetric.
- * ATENÇÃO: Esta estrutura foi ATUALIZADA na v1.2 para refletir as métricas da API v19.0+.
- * Inclui métricas da API e permite flexibilidade para dados manuais/Document AI.
  */
-interface IMetricStats {
-  // --- Métricas da API Instagram v19.0+ (Opcionais) ---
-  views?: number;                     // Visualizações (substitui impressions/video_views)
-  reach?: number;                     // Alcance
-  likes?: number;                     // Curtidas
-  comments?: number;                  // Comentários
-  saved?: number;                     // Posts salvos
-  shares?: number;                    // Compartilhamentos (posts/reels)
-  total_interactions?: number;        // Soma de interações principais (API)
-  profile_visits?: number;            // Visitas ao perfil via mídia
-  follows?: number;                   // Novos seguidores via mídia
-
-  // Métricas Específicas de Reels (API)
-  ig_reels_avg_watch_time?: number;   // Tempo médio de visualização (Reels)
-  ig_reels_video_view_total_time?: number; // Tempo total de visualização (Reels)
-
-  // Métricas com Breakdown (API)
-  profile_activity?: { [action_type: string]: number }; // Ações no perfil (ex: website_clicks)
-
-  // --- Campos Mantidos da v4.0 (Podem ser usados por dados manuais/Document AI) ---
-  impressions?: number;               // Mantido para compatibilidade ou dados manuais
-  video_views?: number;               // Mantido para compatibilidade ou dados manuais
-  engagement?: number;                // Mantido para compatibilidade ou dados manuais
-  // Campo para duração (usado em reportHelpers)
-  video_duration_seconds?: number;    // Duração do vídeo em segundos
-
-  // Permite outros campos não definidos explicitamente (para flexibilidade com Document AI)
+export interface IMetricStats { 
+  views?: number;
+  reach?: number;
+  likes?: number;
+  comments?: number;
+  saved?: number;
+  shares?: number;
+  total_interactions?: number;
+  profile_visits?: number;
+  follows?: number;
+  ig_reels_avg_watch_time?: number;
+  ig_reels_video_view_total_time?: number;
+  profile_activity?: { [action_type: string]: number };
+  impressions?: number;
+  video_views?: number;
+  engagement?: number;
+  video_duration_seconds?: number;
   [key: string]: unknown;
 }
 
 /**
  * Interface que define a estrutura de um documento Metric.
- * ATUALIZADO v1.3: Adiciona campos de status de classificação.
+ * ATUALIZADO v1.4: Adiciona campo 'type' para o tipo de mídia.
  */
 export interface IMetric extends Document {
   user: Types.ObjectId;
   postLink: string;
   description: string;
   postDate: Date;
-  // --- CAMPOS DE CLASSIFICAÇÃO (Mantidos) ---
-  format?: string;
+  
+  type: 'IMAGE' | 'CAROUSEL_ALBUM' | 'VIDEO' | 'REEL' | 'STORY' | 'UNKNOWN' | string; 
+
+  format?: string; 
   proposal?: string;
   context?: string;
-  // --- FIM CAMPOS DE CLASSIFICAÇÃO ---
-
-  // --- CAMPOS PARA API INSTAGRAM / FONTE (Mantidos) ---
-  instagramMediaId?: string;          // ID da API (opcional, usado para source: 'api')
-  source: 'manual' | 'api';           // Origem dos dados
-  // --- FIM CAMPOS API / FONTE ---
-
-  // --- NOVOS CAMPOS DE STATUS DE CLASSIFICAÇÃO (v1.3) ---
-  classificationStatus: 'pending' | 'completed' | 'failed'; // Status do processo de classificação
-  classificationError?: string | null; // Mensagem de erro se a classificação falhar
-  // --- FIM NOVOS CAMPOS ---
-
-  rawData: unknown[];                 // Mantido para dados manuais ou debug
-  stats: IMetricStats;                // <<< USA A INTERFACE ATUALIZADA >>>
+  
+  instagramMediaId?: string;
+  source: 'manual' | 'api';
+  
+  classificationStatus: 'pending' | 'completed' | 'failed';
+  classificationError?: string | null;
+  
+  rawData: unknown[];
+  stats: IMetricStats;
   createdAt: Date;
-  updatedAt: Date; // Adicionado para refletir timestamps
+  updatedAt: Date;
 }
 
 /**
  * Schema para o modelo Metric.
- * ATUALIZADO v1.3: Adiciona campos e índice para status de classificação.
+ * ATUALIZADO v1.4: Adiciona campo 'type' para o tipo de mídia.
  */
 const metricSchema = new Schema<IMetric>(
   {
@@ -95,7 +82,11 @@ const metricSchema = new Schema<IMetric>(
       required: true,
       index: true,
     },
-    // --- CAMPOS DE CLASSIFICAÇÃO (Mantidos) ---
+    type: { 
+      type: String,
+      default: DEFAULT_MEDIA_TYPE,
+      index: true,
+    },
     format: {
       type: String,
       default: DEFAULT_FORMAT,
@@ -114,13 +105,10 @@ const metricSchema = new Schema<IMetric>(
       index: true,
       trim: true,
     },
-    // --- FIM CAMPOS DE CLASSIFICAÇÃO ---
-
-    // --- CAMPOS PARA API INSTAGRAM / FONTE (Mantidos) ---
     instagramMediaId: {
       type: String,
       index: true,
-      sparse: true, // Crucial para o índice único não afetar dados manuais
+      sparse: true,
       default: null,
     },
     source: {
@@ -130,32 +118,23 @@ const metricSchema = new Schema<IMetric>(
       default: DEFAULT_SOURCE,
       index: true,
     },
-    // --- FIM CAMPOS API / FONTE ---
-
-    // --- NOVOS CAMPOS DE STATUS DE CLASSIFICAÇÃO (v1.3) ---
     classificationStatus: {
       type: String,
       enum: ['pending', 'completed', 'failed'],
       default: DEFAULT_CLASSIFICATION_STATUS,
-      index: true, // Índice para buscar posts pendentes/falhos. Monitorar impacto na escrita.
+      index: true,
     },
     classificationError: {
       type: String,
-      default: null, // Armazena a mensagem de erro em caso de falha
+      default: null,
     },
-    // --- FIM NOVOS CAMPOS ---
-
-    rawData: { // Mantido
+    rawData: {
       type: Array,
       default: [],
     },
-    stats: { // Schema para stats
-      type: Schema.Types.Mixed, // Mantém Mixed para flexibilidade máxima com dados manuais/Document AI
+    stats: { 
+      type: Schema.Types.Mixed, 
       default: {},
-      // Define explicitamente os tipos APENAS para os campos da API v19.0+ para clareza
-      // Não removemos os antigos daqui para não quebrar dados existentes,
-      // mas a interface IMetricStats é a referência principal para novos dados da API.
-      // <<< CAMPOS DA API v19.0+ >>>
       views: { type: Number },
       reach: { type: Number },
       likes: { type: Number },
@@ -167,34 +146,24 @@ const metricSchema = new Schema<IMetric>(
       follows: { type: Number },
       ig_reels_avg_watch_time: { type: Number },
       ig_reels_video_view_total_time: { type: Number },
-      profile_activity: { type: Schema.Types.Mixed }, // Objeto chave/valor
-      // Campos antigos (impressions, video_views, engagement) não são explicitamente removidos
-      // do schema Mixed, mas não serão o foco do mapeamento da API v19.0+.
-      // Campo de duração (usado em reportHelpers)
+      profile_activity: { type: Schema.Types.Mixed },
       video_duration_seconds: { type: Number },
     },
-    // createdAt e updatedAt gerenciados pelo Mongoose
   },
   {
-    timestamps: true, // Adiciona createdAt e updatedAt automaticamente
+    timestamps: true,
   }
 );
 
-/**
- * Índices (Mantidos e Adicionados)
- */
-metricSchema.index({ user: 1, createdAt: -1 }); // Mantido
-metricSchema.index({ user: 1, postDate: -1 }); // Mantido (Bom para $match em relatórios)
-metricSchema.index({ user: 1, format: 1, proposal: 1, context: 1, postDate: -1 }); // Mantido
-metricSchema.index({ user: 1, instagramMediaId: 1 }, { unique: true, sparse: true }); // Mantido
-// Índice adicionado em v1.3 (classificationStatus) já definido no campo.
+metricSchema.index({ user: 1, createdAt: -1 });
+metricSchema.index({ user: 1, postDate: -1 });
+metricSchema.index({ user: 1, format: 1, proposal: 1, context: 1, postDate: -1 });
+metricSchema.index({ user: 1, instagramMediaId: 1 }, { unique: true, sparse: true });
+metricSchema.index({ user: 1, type: 1, postDate: -1 }); 
 
-// Adicionar os índices planejados na OPT-03 aqui também para centralizar
-// (Lembre-se de aplicá-los ao banco de dados separadamente)
 metricSchema.index({ user: 1, format: 1, proposal: 1, context: 1, "stats.shares": -1, "stats.saved": -1 }, { name: "idx_enrichStats_sort" });
 metricSchema.index({ user: 1, postDate: -1, "stats.shares": -1 }, { name: "idx_topBottom_shares" });
 metricSchema.index({ user: 1, postDate: -1, "stats.video_duration_seconds": 1 }, { name: "idx_durationStats" });
-// Considerar outros índices de OPT-03 conforme necessidade após monitoramento.
 
 
 const MetricModel = models.Metric
@@ -202,5 +171,5 @@ const MetricModel = models.Metric
   : model<IMetric>("Metric", metricSchema);
 
 export default MetricModel;
-// Exporta a interface de stats para referência externa, se necessário
-export type { IMetricStats };
+// REMOVIDO: Linha redundante que causava conflito de exportação
+// export type { IMetricStats }; 

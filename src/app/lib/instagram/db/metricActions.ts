@@ -2,13 +2,14 @@
 import mongoose, { Types } from 'mongoose';
 import { logger } from '@/app/lib/logger';
 import { connectToDatabase } from '@/app/lib/mongoose';
+// IMetric agora inclui o campo 'type' a partir da v1.4
 import MetricModel, { IMetric, IMetricStats } from '@/app/models/Metric';
 import DailyMetricSnapshotModel, { IDailyMetricSnapshot } from '@/app/models/DailyMetricSnapshot';
-import { InstagramMedia } from '../types'; // Tipos de mídia do Instagram
-import { mapMediaTypeToFormat } from '../utils/helpers'; // Função auxiliar para mapear tipo de mídia
+import { InstagramMedia } from '../types'; 
+import { mapMediaTypeToFormat } from '../utils/helpers';
 import { Client } from '@upstash/qstash';
+import { differenceInDays, startOfDay } from 'date-fns';
 
-// Inicialização do cliente QStash para o worker de classificação
 const qstashToken = process.env.QSTASH_TOKEN;
 const qstashClassificationClient = qstashToken ? new Client({ token: qstashToken }) : null;
 
@@ -21,6 +22,7 @@ if (!qstashClassificationClient && process.env.NODE_ENV === 'production') {
 /**
  * Salva ou atualiza os dados de métrica para uma mídia específica do Instagram.
  * Também agenda uma tarefa de classificação de conteúdo via QStash, se aplicável.
+ * ATUALIZADO v2.2.1: Corrige erro de tipo 'never' para media.media_type.toUpperCase().
  *
  * @param userId - O ObjectId do usuário.
  * @param media - O objeto InstagramMedia contendo os detalhes da mídia.
@@ -33,15 +35,16 @@ export async function saveMetricData(
   media: InstagramMedia,
   insights: IMetricStats
 ): Promise<void> {
-  const TAG = '[saveMetricData v2.0]'; 
+  const TAG = '[saveMetricData v2.2.1]'; // Versão atualizada
   const startTime = Date.now();
-  logger.debug(`${TAG} Iniciando save/update para User: ${userId}, Media IG ID: ${media.id}`);
+  logger.debug(`${TAG} Iniciando save/update para User: ${userId}, Media IG ID: ${media.id}, Media Type: ${media.media_type}`);
 
   if (!media.id) {
     logger.error(`${TAG} Tentativa de salvar métrica sem instagramMediaId para User ${userId}. Mídia:`, media);
     throw new Error("instagramMediaId ausente, não é possível salvar a métrica.");
   }
 
+  // Saída antecipada para STORY, pois são tratados em outro fluxo.
   if (media.media_type === 'STORY') {
     logger.debug(`${TAG} Ignorando salvamento de STORY ${media.id} via saveMetricData (tratado por webhook ou outro fluxo).`);
     return;
@@ -52,7 +55,17 @@ export async function saveMetricData(
     await connectToDatabase();
 
     const filter = { user: userId, instagramMediaId: media.id };
-    const format = mapMediaTypeToFormat(media.media_type);
+    const format = mapMediaTypeToFormat(media.media_type); 
+    
+    let metricType: IMetric['type'] = 'UNKNOWN';
+    if (media.media_product_type === 'REELS') {
+        metricType = 'REEL';
+    } else if (media.media_type === 'IMAGE' || media.media_type === 'CAROUSEL_ALBUM' || media.media_type === 'VIDEO') {
+        metricType = media.media_type;
+    }
+    // O bloco 'else if (media.media_type)' anterior foi removido pois era inalcançável
+    // de forma segura devido à saída antecipada para 'STORY' e à tipagem de media.media_type.
+    // Se media.media_type for undefined aqui, metricType permanecerá 'UNKNOWN', o que é o comportamento desejado.
 
     const statsUpdate: { [key: string]: number | object | null | undefined } = {};
     if (insights) {
@@ -63,19 +76,22 @@ export async function saveMetricData(
       });
     }
 
-    const finalUpdateOperation:any = { 
+    const currentPostDate = media.timestamp ? new Date(media.timestamp) : new Date();
+
+    const finalUpdateOperation:any = {
       $set: {
         user: userId,
         instagramMediaId: media.id,
-        source: 'api', 
+        source: 'api',
         postLink: media.permalink ?? '',
         description: media.caption ?? '',
-        postDate: media.timestamp ? new Date(media.timestamp) : new Date(),
+        postDate: currentPostDate,
+        type: metricType, 
         format: format,
-        updatedAt: new Date(), 
+        updatedAt: new Date(),
         ...(Object.keys(statsUpdate).length > 0 ? statsUpdate : {}),
       },
-      $setOnInsert: { 
+      $setOnInsert: {
         createdAt: new Date(),
         classificationStatus: 'pending',
       }
@@ -91,7 +107,7 @@ export async function saveMetricData(
       logger.error(`${TAG} Falha CRÍTICA ao salvar/atualizar métrica ${media.id} para User ${userId}. Filter:`, filter, 'Update:', finalUpdateOperation);
       throw new Error(`Falha crítica ao salvar/atualizar métrica ${media.id}.`);
     }
-    logger.debug(`${TAG} Métrica ${savedMetric._id} (Media IG: ${media.id}) salva/atualizada com sucesso para User ${userId}. Formato: ${format}.`);
+    logger.debug(`${TAG} Métrica ${savedMetric._id} (Media IG: ${media.id}, Tipo: ${metricType}) salva/atualizada com sucesso para User ${userId}. Formato: ${format}.`);
 
     const classificationWorkerUrl = process.env.CLASSIFICATION_WORKER_URL;
     if (qstashClassificationClient && classificationWorkerUrl) {
@@ -116,7 +132,7 @@ export async function saveMetricData(
 
   } catch (error) {
     logger.error(`${TAG} Erro CRÍTICO durante save/update da métrica ${media.id} (User ${userId}):`, error);
-    throw error; 
+    throw error;
   } finally {
     const duration = Date.now() - startTime;
     logger.debug(`${TAG} Concluído save/update para Media ${media.id}, User ${userId}. Duração: ${duration}ms`);
@@ -126,11 +142,12 @@ export async function saveMetricData(
 /**
  * Cria ou atualiza um snapshot diário para uma métrica de mídia.
  * Snapshots são usados para rastrear o desempenho diário de uma postagem.
+ * ATUALIZADO v2.1: Inclui cálculo e salvamento de dayNumber.
  *
  * @param metric - O objeto IMetric completo que foi salvo/atualizado.
  */
 async function createOrUpdateDailySnapshot(metric: IMetric): Promise<void> {
-  const SNAPSHOT_TAG = '[DailySnapshot v2.0]';
+  const SNAPSHOT_TAG = '[DailySnapshot v2.1]';
   logger.debug(`${SNAPSHOT_TAG} Iniciando criação/atualização de snapshot para Métrica ${metric._id}.`);
 
   if (metric.source !== 'api') {
@@ -143,33 +160,38 @@ async function createOrUpdateDailySnapshot(metric: IMetric): Promise<void> {
   }
 
   try {
-    await connectToDatabase(); 
+    await connectToDatabase();
 
-    const postDate = new Date(metric.postDate);
-    const today = new Date(); 
-    today.setUTCHours(0, 0, 0, 0); 
+    const metricPostDate = startOfDay(new Date(metric.postDate)); 
+    const todayNormalized = startOfDay(new Date()); 
 
-    const cutoffDaysForSnapshot = 30; 
-    const cutoffDateForThisMetric = new Date(postDate);
+    const cutoffDaysForSnapshot = 30;
+    const cutoffDateForThisMetric = new Date(metricPostDate);
     cutoffDateForThisMetric.setUTCDate(cutoffDateForThisMetric.getUTCDate() + cutoffDaysForSnapshot);
-    cutoffDateForThisMetric.setUTCHours(0, 0, 0, 0);
 
-    if (today > cutoffDateForThisMetric) {
-      logger.debug(`${SNAPSHOT_TAG} Métrica ${metric._id} (postada em ${postDate.toISOString().split('T')[0]}) passou da data de corte de ${cutoffDaysForSnapshot} dias para snapshots (hoje é ${today.toISOString().split('T')[0]}). Nenhum snapshot será criado/atualizado.`);
+    if (todayNormalized > cutoffDateForThisMetric) {
+      logger.debug(`${SNAPSHOT_TAG} Métrica ${metric._id} (postada em ${metricPostDate.toISOString().split('T')[0]}) passou da data de corte de ${cutoffDaysForSnapshot} dias para snapshots (hoje é ${todayNormalized.toISOString().split('T')[0]}). Nenhum snapshot será criado/atualizado.`);
       return;
     }
 
-    const snapshotDate = today; 
-    logger.debug(`${SNAPSHOT_TAG} Calculando snapshot para Métrica ${metric._id} na data ${snapshotDate.toISOString().split('T')[0]}.`);
+    const snapshotDateToUse = todayNormalized;
+    logger.debug(`${SNAPSHOT_TAG} Calculando snapshot para Métrica ${metric._id} na data ${snapshotDateToUse.toISOString().split('T')[0]}.`);
+
+    const dayNumber = differenceInDays(snapshotDateToUse, metricPostDate) + 1;
+    if (dayNumber <= 0) {
+        logger.warn(`${SNAPSHOT_TAG} dayNumber calculado é ${dayNumber} (snapshotDate: ${snapshotDateToUse}, postDate: ${metricPostDate}) para Métrica ${metric._id}. Isso não deveria acontecer se o snapshot é para hoje e postDate é no passado. Verifique as datas. Pulando snapshot.`);
+        return;
+    }
+    logger.debug(`${SNAPSHOT_TAG} DayNumber calculado: ${dayNumber} para Métrica ${metric._id}.`);
 
     const lastSnapshot: IDailyMetricSnapshot | null = await DailyMetricSnapshotModel.findOne({
       metric: metric._id,
-      date: { $lt: snapshotDate } 
+      date: { $lt: snapshotDateToUse }
     }).sort({ date: -1 }).lean<IDailyMetricSnapshot>();
 
     const previousCumulativeStats: Partial<Record<keyof IMetricStats | 'reelsVideoViewTotalTime', number>> = {
       views: 0, likes: 0, comments: 0, shares: 0, saved: 0, reach: 0, follows: 0, profile_visits: 0, total_interactions: 0,
-      reelsVideoViewTotalTime: 0, 
+      reelsVideoViewTotalTime: 0,
     };
 
     if (lastSnapshot) {
@@ -187,14 +209,13 @@ async function createOrUpdateDailySnapshot(metric: IMetric): Promise<void> {
       });
     }
 
-    const currentMetricStats = metric.stats as IMetricStats; 
+    const currentMetricStats = metric.stats as IMetricStats;
     if (!currentMetricStats) {
       logger.warn(`${SNAPSHOT_TAG} Métrica ${metric._id} sem 'stats' atuais para criar snapshot. Pulando.`);
       return;
     }
 
     const dailyStats: Partial<Record<keyof IDailyMetricSnapshot, number>> = {};
-    // CORREÇÃO: Removido 'total_interactions' daqui, pois não temos 'dailyTotalInteractions' no schema.
     const metricsToCalculateDelta: (keyof IMetricStats)[] = [
       'views', 'likes', 'comments', 'shares', 'saved', 'reach', 'follows', 'profile_visits'
     ];
@@ -202,34 +223,34 @@ async function createOrUpdateDailySnapshot(metric: IMetric): Promise<void> {
     for (const metricName of metricsToCalculateDelta) {
       const currentVal = Number((currentMetricStats as any)[metricName] ?? 0);
       if (isNaN(currentVal)) {
-        logger.warn(`${SNAPSHOT_TAG} Valor inválido para '${metricName}' na Métrica ${metric._id}. Valor: ${(currentMetricStats as any)[metricName]}`);
-        continue;
+        logger.warn(`${SNAPSHOT_TAG} Valor inválido para '${String(metricName)}' na Métrica ${metric._id}. Valor: ${(currentMetricStats as any)[String(metricName)]}`);
+        continue; 
       }
-      const previousVal = (previousCumulativeStats as any)[metricName] ?? 0;
+      const previousVal = (previousCumulativeStats as any)[String(metricName)] ?? 0;
       const metricNameStr = String(metricName);
       const dailyKey = `daily${metricNameStr.charAt(0).toUpperCase() + metricNameStr.slice(1)}` as keyof IDailyMetricSnapshot;
-      (dailyStats as any)[dailyKey] = Math.max(0, currentVal - previousVal); 
+      (dailyStats as any)[dailyKey] = Math.max(0, currentVal - previousVal);
       if (currentVal < previousVal && previousVal > 0) {
         logger.warn(`${SNAPSHOT_TAG} Valor cumulativo '${metricNameStr}' diminuiu para Métrica ${metric._id}. Atual: ${currentVal}, Anterior Cumulativo: ${previousVal}. Delta diário setado para 0.`);
       }
     }
     
-    const currentReelsVideoViewTotalTime = Number(currentMetricStats.ig_reels_video_view_total_time ?? 0);
-    if (!isNaN(currentReelsVideoViewTotalTime)) {
-      const previousReelsVideoViewTotalTime = previousCumulativeStats.reelsVideoViewTotalTime ?? 0;
-      dailyStats.dailyReelsVideoViewTotalTime = Math.max(0, currentReelsVideoViewTotalTime - previousReelsVideoViewTotalTime);
-      if (currentReelsVideoViewTotalTime < previousReelsVideoViewTotalTime && previousReelsVideoViewTotalTime > 0) {
-        logger.warn(`${SNAPSHOT_TAG} Valor cumulativo 'ig_reels_video_view_total_time' diminuiu para Métrica ${metric._id}. Atual: ${currentReelsVideoViewTotalTime}, Anterior: ${previousReelsVideoViewTotalTime}. Delta diário setado para 0.`);
-      }
-    } else {
-      dailyStats.dailyReelsVideoViewTotalTime = 0;
+    const currentReelsVideoViewTotalTimeRaw = currentMetricStats.ig_reels_video_view_total_time;
+    const currentReelsVideoViewTotalTime = typeof currentReelsVideoViewTotalTimeRaw === 'number' && !isNaN(currentReelsVideoViewTotalTimeRaw) ? currentReelsVideoViewTotalTimeRaw : 0;
+    
+    const previousReelsVideoViewTotalTime = previousCumulativeStats.reelsVideoViewTotalTime ?? 0;
+    dailyStats.dailyReelsVideoViewTotalTime = Math.max(0, currentReelsVideoViewTotalTime - previousReelsVideoViewTotalTime);
+    if (currentReelsVideoViewTotalTime < previousReelsVideoViewTotalTime && previousReelsVideoViewTotalTime > 0) {
+      logger.warn(`${SNAPSHOT_TAG} Valor cumulativo 'ig_reels_video_view_total_time' diminuiu para Métrica ${metric._id}. Atual: ${currentReelsVideoViewTotalTime}, Anterior: ${previousReelsVideoViewTotalTime}. Delta diário setado para 0.`);
     }
 
-    const currentReelsAvgWatchTime = Number(currentMetricStats.ig_reels_avg_watch_time ?? 0);
+    const currentReelsAvgWatchTimeRaw = currentMetricStats.ig_reels_avg_watch_time;
+    const currentReelsAvgWatchTime = typeof currentReelsAvgWatchTimeRaw === 'number' && !isNaN(currentReelsAvgWatchTimeRaw) ? currentReelsAvgWatchTimeRaw : 0;
 
-    const snapshotData: Omit<Partial<IDailyMetricSnapshot>, '_id' | 'metric' | 'date'> & { metric: Types.ObjectId; date: Date; } = {
+    const snapshotData: Omit<Partial<IDailyMetricSnapshot>, '_id' | 'metric' | 'date'> & { metric: Types.ObjectId; date: Date; dayNumber: number; } = {
       metric: metric._id,
-      date: snapshotDate,
+      date: snapshotDateToUse,
+      dayNumber: dayNumber, 
       dailyViews: dailyStats.dailyViews,
       dailyLikes: dailyStats.dailyLikes,
       dailyComments: dailyStats.dailyComments,
@@ -238,7 +259,6 @@ async function createOrUpdateDailySnapshot(metric: IMetric): Promise<void> {
       dailyReach: dailyStats.dailyReach,
       dailyFollows: dailyStats.dailyFollows,
       dailyProfileVisits: dailyStats.dailyProfileVisits,
-      // CORREÇÃO: Removida a linha dailyTotalInteractions
       dailyReelsVideoViewTotalTime: dailyStats.dailyReelsVideoViewTotalTime,
       
       cumulativeViews: Number(currentMetricStats.views ?? 0),
@@ -249,17 +269,17 @@ async function createOrUpdateDailySnapshot(metric: IMetric): Promise<void> {
       cumulativeReach: Number(currentMetricStats.reach ?? 0),
       cumulativeFollows: Number(currentMetricStats.follows ?? 0),
       cumulativeProfileVisits: Number(currentMetricStats.profile_visits ?? 0),
-      cumulativeTotalInteractions: Number(currentMetricStats.total_interactions ?? 0), 
-      cumulativeReelsVideoViewTotalTime: !isNaN(currentReelsVideoViewTotalTime) ? currentReelsVideoViewTotalTime : 0,
-      currentReelsAvgWatchTime: !isNaN(currentReelsAvgWatchTime) ? currentReelsAvgWatchTime : 0,
+      cumulativeTotalInteractions: Number(currentMetricStats.total_interactions ?? 0),
+      cumulativeReelsVideoViewTotalTime: currentReelsVideoViewTotalTime,
+      currentReelsAvgWatchTime: currentReelsAvgWatchTime,
     };
 
     await DailyMetricSnapshotModel.updateOne(
-      { metric: metric._id, date: snapshotDate }, 
-      { $set: snapshotData }, 
-      { upsert: true } 
+      { metric: metric._id, date: snapshotDateToUse },
+      { $set: snapshotData },
+      { upsert: true }
     );
-    logger.debug(`${SNAPSHOT_TAG} Snapshot salvo/atualizado para Métrica ${metric._id} na data ${snapshotDate.toISOString().split('T')[0]}.`);
+    logger.debug(`${SNAPSHOT_TAG} Snapshot salvo/atualizado para Métrica ${metric._id} na data ${snapshotDateToUse.toISOString().split('T')[0]} com DayNumber: ${dayNumber}.`);
 
   } catch (snapError) {
     logger.error(`${SNAPSHOT_TAG} Erro NÃO FATAL ao criar/atualizar snapshot para Métrica ${metric._id}:`, snapError);

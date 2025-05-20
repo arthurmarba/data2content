@@ -1,15 +1,13 @@
-// src/app/models/DailyMetricSnapshot.ts - v1.1.0 (Adiciona Métricas de Reels)
-// - Adicionados campos para métricas específicas de Reels:
-//   - currentReelsAvgWatchTime (valor mais recente do tempo médio de visualização)
-//   - dailyReelsVideoViewTotalTime (delta diário do tempo total de visualização)
-//   - cumulativeReelsVideoViewTotalTime (cumulativo do tempo total de visualização)
+// src/app/models/DailyMetricSnapshot.ts - v1.2.0 (Adiciona dayNumber e Métricas de Reels)
+// - Adicionados campos para métricas específicas de Reels (v1.1.0).
+// - ADICIONADO: Campo `dayNumber` para indicar o dia do snapshot em relação ao post.
 
 import { Schema, model, models, Document, Model, Types } from "mongoose";
 import { IMetric } from "./Metric"; // Importa a interface IMetric para referência
 
 /**
  * Interface que define a estrutura de um snapshot diário de métricas.
- * ATUALIZADO v1.1.0: Adiciona campos para métricas específicas de Reels.
+ * ATUALIZADO v1.2.0: Adicionado dayNumber.
  */
 export interface IDailyMetricSnapshot extends Document {
   /**
@@ -22,6 +20,13 @@ export interface IDailyMetricSnapshot extends Document {
    * A hora, minutos, segundos e milissegundos devem ser zerados (representando o dia inteiro).
    */
   date: Date;
+
+  /**
+   * O número do dia do snapshot em relação à data de criação do post original.
+   * Ex: Dia 1, Dia 2, etc. Começa em 1.
+   * Este campo deve ser calculado e salvo no momento da criação do snapshot.
+   */
+  dayNumber?: number; // NOVO CAMPO
 
   // --- Métricas DELTA (Variação *NAQUELE DIA*) ---
   /** Visualizações ocorridas apenas neste dia. */
@@ -72,21 +77,22 @@ export interface IDailyMetricSnapshot extends Document {
 
 /**
  * Schema Mongoose para o modelo DailyMetricSnapshot.
- * ATUALIZADO v1.1.0: Adiciona campos para métricas de Reels.
+ * ATUALIZADO v1.2.0: Adicionado dayNumber.
  */
 const dailyMetricSnapshotSchema = new Schema<IDailyMetricSnapshot>(
   {
     metric: {
       type: Schema.Types.ObjectId,
-      ref: "Metric", // Referencia o Modelo Metric
+      ref: "Metric",
       required: [true, "A referência à métrica original (metric) é obrigatória."],
-      index: true, // Indexado para buscas por métrica
+      index: true,
     },
     date: {
       type: Date,
       required: [true, "A data do snapshot é obrigatória."],
-      index: true, // Indexado para buscas por data
+      index: true,
     },
+    dayNumber: { type: Number, index: true }, // NOVO CAMPO
     // Deltas Diários
     dailyViews: { type: Number, default: 0 },
     dailyLikes: { type: Number, default: 0 },
@@ -96,7 +102,7 @@ const dailyMetricSnapshotSchema = new Schema<IDailyMetricSnapshot>(
     dailyReach: { type: Number, default: 0 },
     dailyFollows: { type: Number, default: 0 },
     dailyProfileVisits: { type: Number, default: 0 },
-    dailyReelsVideoViewTotalTime: { type: Number, default: 0 }, // Novo
+    dailyReelsVideoViewTotalTime: { type: Number, default: 0 },
 
     // Métricas Cumulativas
     cumulativeViews: { type: Number, default: 0 },
@@ -108,35 +114,32 @@ const dailyMetricSnapshotSchema = new Schema<IDailyMetricSnapshot>(
     cumulativeFollows: { type: Number, default: 0 },
     cumulativeProfileVisits: { type: Number, default: 0 },
     cumulativeTotalInteractions: { type: Number, default: 0 },
-    cumulativeReelsVideoViewTotalTime: { type: Number, default: 0 }, // Novo
+    cumulativeReelsVideoViewTotalTime: { type: Number, default: 0 },
 
     // Métricas Pontuais/Médias
-    currentReelsAvgWatchTime: { type: Number, default: 0 }, // Novo
+    currentReelsAvgWatchTime: { type: Number, default: 0 },
   },
   {
-    timestamps: true, // Adiciona createdAt e updatedAt automaticamente
-    collection: "daily_metric_snapshots", // Define explicitamente o nome da coleção
+    timestamps: true,
+    collection: "daily_metric_snapshots",
   }
 );
 
-/**
- * Índices Essenciais para performance e consistência.
- */
-// Garante que só existe um snapshot por métrica por dia.
 dailyMetricSnapshotSchema.index(
   { metric: 1, date: 1 },
   { unique: true, name: "idx_metric_date_unique" }
 );
-// Otimiza a busca do histórico de um post e a busca pelo último snapshot.
 dailyMetricSnapshotSchema.index(
   { metric: 1, date: -1 },
   { name: "idx_metric_history" }
 );
+// Novo índice para consultas que podem usar dayNumber
+dailyMetricSnapshotSchema.index(
+    { metric: 1, dayNumber: 1 },
+    { name: "idx_metric_dayNumber" }
+);
 
-/**
- * Modelo Mongoose para DailyMetricSnapshot.
- * Utiliza o padrão para evitar recompilação do modelo em ambientes como Next.js.
- */
+
 const DailyMetricSnapshotModel =
   (models.DailyMetricSnapshot as Model<IDailyMetricSnapshot>) ||
   model<IDailyMetricSnapshot>(
