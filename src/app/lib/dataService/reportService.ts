@@ -1,6 +1,6 @@
 /**
  * @fileoverview Serviço para operações relacionadas a relatórios e métricas no dataService.
- * @version 2.14.14 (Garante seleção de dayNumber em getDailySnapshotsForMetric)
+ * @version 2.14.17 (Corrige chave '}' ausente no final da função findMetricsByCriteria)
  */
 import mongoose, { Model, Types } from 'mongoose';
 import { subDays, differenceInDays } from 'date-fns';
@@ -10,7 +10,7 @@ import { logger } from '@/app/lib/logger';
 import { MetricsNotFoundError, DatabaseError, ReportAggregationError, DetailedStatsError, UserNotFoundError, OperationNotPermittedError } from '@/app/lib/errors';
 
 // Modelos Mongoose
-import MetricModel, { IMetric, IMetricStats } from '@/app/models/Metric'; 
+import MetricModel, { IMetric, IMetricStats } from '@/app/models/Metric';
 // IDailyMetricSnapshot agora inclui dayNumber opcional
 import DailyMetricSnapshotModel, { IDailyMetricSnapshot } from '@/app/models/DailyMetricSnapshot';
 
@@ -23,8 +23,15 @@ import {
 
 // Módulos internos do dataService
 import { connectToDatabase } from './connection';
+// Certifique-se de que DEFAULT_METRICS_FETCH_DAYS está sendo importado corretamente.
+// Se ele vem de './constants' dentro de dataService, o caminho pode precisar ser ajustado
+// dependendo da localização deste arquivo reportService.ts.
+// Assumindo que está em dataService/constants.ts e reportService.ts está em dataService/
 import { DEFAULT_METRICS_FETCH_DAYS } from './constants';
-import { IUser, IEnrichedReport, PreparedData, ReferenceSearchResult, IGrowthDataResult, PostObject } from './types'; 
+
+// IUser, IEnrichedReport, etc., já incluem as definições atualizadas de HistoricalGrowth e LongTermGrowth
+// se o arquivo types.ts (dataService_types_v2.14.9) foi aplicado.
+import { IUser, IEnrichedReport, PreparedData, ReferenceSearchResult, IGrowthDataResult, PostObject } from './types';
 import { getUserProfileSegment, getMultimediaSuggestion, getCombinedGrowthData } from './helpers';
 
 /**
@@ -38,7 +45,7 @@ export async function fetchAndPrepareReportData(
     { user, analysisSinceDate }: { user: IUser; analysisSinceDate?: Date; }
 ): Promise<PreparedData> {
     const userId = user._id instanceof Types.ObjectId ? user._id : new Types.ObjectId(user._id);
-    const TAG = '[dataService][reportService][fetchAndPrepareReportData v2.14.9]'; 
+    const TAG = '[dataService][reportService][fetchAndPrepareReportData v2.14.17]'; // Versão atualizada
     const sinceDate = analysisSinceDate || subDays(new Date(), DEFAULT_METRICS_FETCH_DAYS);
 
     logger.info(`${TAG} Iniciando para utilizador ${userId}. Período de busca: desde ${sinceDate.toISOString()}`);
@@ -46,11 +53,26 @@ export async function fetchAndPrepareReportData(
     let growthData: IGrowthDataResult;
     try {
         await connectToDatabase();
-        growthData = await getCombinedGrowthData(userId);
-        logger.debug(`${TAG} Dados de crescimento (placeholder) obtidos para ${userId}.`);
+        // ATUALIZADO: Passar user.createdAt para getCombinedGrowthData
+        growthData = await getCombinedGrowthData(userId, user.createdAt);
+
+        // Log ajustado para refletir a natureza dos dados de crescimento
+        if (growthData.dataIsPlaceholder) {
+            logger.info(`${TAG} Dados de crescimento placeholder obtidos para ${userId}. Motivo: ${growthData.reasonForPlaceholder || 'Não especificado'}`);
+        } else {
+            logger.debug(`${TAG} Dados de crescimento REAIS obtidos para ${userId}.`);
+        }
     } catch (error: any) {
-        logger.error(`${TAG} Erro ao buscar dados de crescimento para ${userId}:`, error);
-        growthData = { historical: {}, longTerm: {} };
+        logger.error(`${TAG} Erro crítico ao buscar dados de crescimento para ${userId}:`, error);
+        // Fallback para estrutura vazia em caso de erro, para não quebrar o restante do relatório.
+        // A função getCombinedGrowthData já deve logar e tratar o erro internamente,
+        // mas um fallback aqui garante que `growthData` esteja definido.
+        growthData = {
+            historical: {},
+            longTerm: {},
+            dataIsPlaceholder: true,
+            reasonForPlaceholder: `Erro ao buscar dados de crescimento: ${error instanceof Error ? error.message : String(error)}`
+        };
     }
 
     let aggregatedReport: AggregatedReport;
@@ -84,8 +106,8 @@ export async function fetchAndPrepareReportData(
         bottom3Posts: aggregatedReport.bottom3Posts,
         durationStats: aggregatedReport.durationStats,
         detailedContentStats: aggregatedReport.detailedContentStats,
-        proposalStats: aggregatedReport.proposalStats, 
-        contextStats: aggregatedReport.contextStats,   
+        proposalStats: aggregatedReport.proposalStats,
+        contextStats: aggregatedReport.contextStats,
         historicalComparisons: growthData.historical,
         longTermComparisons: growthData.longTerm,
         performanceByDayPCO: aggregatedReport.performanceByDayPCO,
@@ -123,7 +145,7 @@ export async function extractReferenceAndFindPost( text: string, userId: Types.O
             user: userId,
             description: regex
         })
-        .select('_id description proposal context format') 
+        .select('_id description proposal context format')
         .limit(5)
         .lean();
 
@@ -135,12 +157,12 @@ export async function extractReferenceAndFindPost( text: string, userId: Types.O
         if (posts.length === 1) {
             const post = posts[0]!;
             logger.info(`${fnTag} Post único encontrado para referência "${reference}" (ID: ${post._id}) para utilizador ${userId}`);
-            return { status: 'found', post: { 
-                _id: post._id.toString(), 
-                description: post.description || '', 
-                proposal: post.proposal, 
+            return { status: 'found', post: {
+                _id: post._id.toString(),
+                description: post.description || '',
+                proposal: post.proposal,
                 context: post.context,
-                format: post.format 
+                format: post.format
             } };
         }
 
@@ -169,7 +191,7 @@ export async function getLatestAggregatedReport(userId: string): Promise<Aggrega
     }
     try {
         await connectToDatabase();
-        const reportDocument: AggregatedReport | null = null; 
+        const reportDocument: AggregatedReport | null = null; // Placeholder
 
         if (reportDocument) {
             logger.info(`${TAG} Último relatório agregado (previamente salvo) encontrado para ${userId}.`);
@@ -196,7 +218,7 @@ export async function getRecentPostObjects(
     daysToLookback: number,
     filters?: { types?: Array<'IMAGE' | 'CAROUSEL' | 'REEL' | 'VIDEO' | 'STORY'>, excludeIds?: string[] }
 ): Promise<PostObject[]> {
-    const TAG = '[dataService][reportService][getRecentPostObjects v2.14.13]'; 
+    const TAG = '[dataService][reportService][getRecentPostObjects v2.14.13]';
     logger.debug(`${TAG} Buscando posts recentes para User ${userId}. Dias: ${daysToLookback}, Filtros: ${JSON.stringify(filters)}`);
 
     if (!mongoose.isValidObjectId(userId)) {
@@ -222,21 +244,21 @@ export async function getRecentPostObjects(
         }
 
         const postsFromMetrics: IMetric[] = await MetricModel.find(query)
-            .select('_id user instagramMediaId type description postDate stats format proposal context') 
+            .select('_id user instagramMediaId type description postDate stats format proposal context')
             .sort({ postDate: -1 })
-            .limit(100) 
+            .limit(100)
             .lean();
 
         logger.info(`${TAG} Encontrados ${postsFromMetrics.length} posts recentes para User ${userId}.`);
 
-        return postsFromMetrics.map((metric): PostObject => ({ 
+        return postsFromMetrics.map((metric): PostObject => ({
             _id: metric._id.toString(),
             userId: metric.user.toString(),
-            platformPostId: metric.instagramMediaId, 
-            type: metric.type as PostObject['type'], 
+            platformPostId: metric.instagramMediaId,
+            type: metric.type as PostObject['type'],
             description: metric.description,
             createdAt: metric.postDate,
-            stats: metric.stats, 
+            stats: metric.stats,
             format: metric.format,
             proposal: metric.proposal,
             context: metric.context,
@@ -257,7 +279,7 @@ export async function getRecentPostObjectsWithAggregatedMetrics(
     userId: string,
     days: number
 ): Promise<PostObject[]> {
-    const TAG = '[dataService][reportService][getRecentPostObjectsWithAggregatedMetrics v2.14.13]'; 
+    const TAG = '[dataService][reportService][getRecentPostObjectsWithAggregatedMetrics v2.14.13]';
     logger.info(`${TAG} Buscando posts com métricas agregadas (incl. comentários, F/P/C) para User ${userId} nos últimos ${days} dias.`);
 
     if (!mongoose.isValidObjectId(userId)) {
@@ -275,7 +297,7 @@ export async function getRecentPostObjectsWithAggregatedMetrics(
         })
         .select('_id user instagramMediaId type description postDate stats format proposal context')
         .sort({ postDate: -1 })
-        .limit(150) 
+        .limit(150)
         .lean();
 
         if (!recentMetrics || recentMetrics.length === 0) {
@@ -283,7 +305,7 @@ export async function getRecentPostObjectsWithAggregatedMetrics(
             return [];
         }
 
-        const results: PostObject[] = recentMetrics.map((metric): PostObject => { 
+        const results: PostObject[] = recentMetrics.map((metric): PostObject => {
             const totalImpressions = metric.stats?.impressions || 0;
             const totalEngagement = metric.stats?.engagement || 0;
             const videoViews = metric.stats?.video_views || 0;
@@ -292,15 +314,15 @@ export async function getRecentPostObjectsWithAggregatedMetrics(
             return {
                 _id: metric._id.toString(),
                 userId: metric.user.toString(),
-                platformPostId: metric.instagramMediaId, 
-                type: metric.type as PostObject['type'], 
+                platformPostId: metric.instagramMediaId,
+                type: metric.type as PostObject['type'],
                 description: metric.description,
                 createdAt: metric.postDate,
                 totalImpressions: totalImpressions,
                 totalEngagement: totalEngagement,
                 videoViews: videoViews,
                 totalComments: totalComments,
-                stats: metric.stats, 
+                stats: metric.stats,
                 format: metric.format,
                 proposal: metric.proposal,
                 context: metric.context,
@@ -326,7 +348,7 @@ export async function getDailySnapshotsForMetric(
     metricId: string,
     userIdForAuth: string
 ): Promise<IDailyMetricSnapshot[]> {
-    const TAG = '[dataService][reportService][getDailySnapshotsForMetric v2.14.14]'; // Versão atualizada
+    const TAG = '[dataService][reportService][getDailySnapshotsForMetric v2.14.14]';
     logger.info(`${TAG} Buscando snapshots diários para Metric ID: ${metricId}, User Auth ID: ${userIdForAuth}`);
 
     if (!mongoose.isValidObjectId(metricId)) {
@@ -352,20 +374,16 @@ export async function getDailySnapshotsForMetric(
                 throw new MetricsNotFoundError("Não encontrei nenhuma métrica com este ID.");
             } else {
                 logger.warn(`${TAG} Métrica ${metricId} encontrada, mas não pertence ao User ${userIdForAuth}. Acesso negado.`);
-                // Alterado para UserNotFoundError para ser mais específico sobre o tipo de erro de acesso
                 throw new UserNotFoundError("Você não tem permissão para acessar o histórico desta métrica.");
             }
         }
 
         const snapshots = await DailyMetricSnapshotModel.find({ metric: objectMetricId })
             .sort({ date: 1 })
-            // ATUALIZADO: Garante que dayNumber seja selecionado, pois agora faz parte do modelo.
             .select('date dayNumber dailyViews dailyLikes dailyComments dailyShares dailySaved dailyReach dailyFollows dailyProfileVisits cumulativeViews cumulativeLikes cumulativeComments cumulativeShares cumulativeSaved cumulativeReach cumulativeFollows cumulativeProfileVisits cumulativeTotalInteractions dailyReelsVideoViewTotalTime cumulativeReelsVideoViewTotalTime currentReelsAvgWatchTime')
             .lean();
 
         logger.info(`${TAG} Encontrados ${snapshots.length} snapshots diários para Metric ${metricId}.`);
-        // O cast para IDailyMetricSnapshot[] é seguro, pois o modelo agora inclui dayNumber (opcional).
-        // Se dayNumber não for preenchido no banco para snapshots antigos, ele será undefined, o que é permitido pela interface.
         return snapshots as IDailyMetricSnapshot[];
 
     } catch (error: any) {
@@ -421,7 +439,7 @@ export async function getTopPostsByMetric(
             postDate: { $exists: true },
             [sortField]: { $exists: true, $ne: null }
         })
-        .select(`_id description postLink instagramMediaId stats.${metric} stats.shares stats.saved stats.likes stats.comments stats.reach stats.video_views format postDate proposal context`) 
+        .select(`_id description postLink instagramMediaId stats.${metric} stats.shares stats.saved stats.likes stats.comments stats.reach stats.video_views format postDate proposal context`)
         .sort({ [sortField]: -1 })
         .limit(limit)
         .lean()
@@ -465,7 +483,7 @@ export async function getMetricDetails(
         await connectToDatabase();
 
         const metricDoc = await MetricModel.findOne({ _id: objectMetricId, user: userObjectId })
-            .select('-rawData -__v') 
+            .select('-rawData -__v') // Exclui rawData e __v
             .lean()
             .exec();
 
@@ -473,10 +491,10 @@ export async function getMetricDetails(
             const metricExistsForOtherUser = await MetricModel.findById(objectMetricId).select('_id').lean();
             if (metricExistsForOtherUser) {
                 logger.warn(`${TAG} Métrica ${metricId} encontrada, mas não pertence ao User ${userId}. Acesso negado.`);
-                return null;
+                return null; // Retorna null para acesso negado
             }
             logger.warn(`${TAG} Métrica com ID ${metricId} não encontrada para User ${userId}.`);
-            return null;
+            return null; // Retorna null se não encontrada
         }
 
         logger.info(`${TAG} Detalhes da Métrica ${metricId} encontrados para User ${userId}.`);
@@ -485,8 +503,9 @@ export async function getMetricDetails(
     } catch (error: any) {
         logger.error(`${TAG} Erro ao buscar detalhes da métrica ${metricId} para User ${userId}:`, error);
         if (error instanceof DatabaseError || error instanceof MetricsNotFoundError || error instanceof UserNotFoundError) {
-            throw error;
+            throw error; // Re-lança erros específicos
         }
+        // Para outros erros, lança um DatabaseError genérico
         throw new DatabaseError(`Ocorreu um erro inesperado ao buscar os detalhes desta métrica: ${error.message}`);
     }
 }
@@ -496,7 +515,7 @@ export async function getMetricDetails(
  */
 export interface FindMetricsCriteriaArgs {
     criteria: {
-        format?: string; 
+        format?: string;
         proposal?: string;
         context?: string;
         dateRange?: {
@@ -549,16 +568,19 @@ export async function findMetricsByCriteria(
             if (criteria.dateRange.end) {
                 const endDate = new Date(criteria.dateRange.end);
                 if (isNaN(endDate.getTime())) throw new Error('Data de fim inválida fornecida para a busca.');
-                endDate.setUTCHours(23, 59, 59, 999);
+                endDate.setUTCHours(23, 59, 59, 999); // Define para o final do dia em UTC
                 filterQuery.postDate.$lte = endDate;
             }
+            // Validação se a data de início é posterior à data de fim
             if (filterQuery.postDate.$gte && filterQuery.postDate.$lte && filterQuery.postDate.$gte > filterQuery.postDate.$lte) {
                 throw new DatabaseError("A data de início não pode ser posterior à data de fim na busca por critérios.");
             }
         } catch (dateErr: any) {
             logger.warn(`${TAG} Erro ao processar dateRange nos critérios: ${JSON.stringify(criteria.dateRange)}`, dateErr);
+            // Lança um erro mais específico ou um DatabaseError
             throw new DatabaseError(`Ocorreu um erro ao processar o intervalo de datas fornecido: ${dateErr.message}`);
         }
+        // Remove postDate do filtro se nenhum $gte ou $lte foi definido (caso raro, mas seguro)
         if (Object.keys(filterQuery.postDate).length === 0) delete filterQuery.postDate;
     }
 
@@ -569,14 +591,14 @@ export async function findMetricsByCriteria(
     const validSortFields = ['postDate', 'stats.likes', 'stats.shares', 'stats.comments', 'stats.reach', 'stats.saved', 'stats.video_views', 'stats.impressions', 'stats.engagement'];
     if (sortBy && validSortFields.includes(sortBy)) {
         sortOptions[sortBy] = sortOrder === 'asc' ? 1 : -1;
-    } else if (sortBy) {
+    } else if (sortBy) { // Se sortBy foi fornecido mas não é válido
         logger.warn(`${TAG} Campo de ordenação '${sortBy}' inválido ou não permitido. Usando 'postDate' descendente como padrão.`);
-        sortOptions['postDate'] = -1;
-    } else {
-        sortOptions['postDate'] = -1;
+        sortOptions['postDate'] = -1; // Default sort
+    } else { // Se sortBy não foi fornecido
+        sortOptions['postDate'] = -1; // Default sort
     }
 
-    const effectiveLimit = Math.max(1, Math.min(limit ?? 5, 20));
+    const effectiveLimit = Math.max(1, Math.min(limit ?? 5, 20)); // Garante que o limite esteja entre 1 e 20
 
     logger.debug(`${TAG} Filtro MQL final para findMetricsByCriteria: ${JSON.stringify(filterQuery)}`);
     logger.debug(`${TAG} Ordenação MQL final para findMetricsByCriteria: ${JSON.stringify(sortOptions)}`);
@@ -584,17 +606,17 @@ export async function findMetricsByCriteria(
     try {
         await connectToDatabase();
         const metrics = await MetricModel.find(filterQuery)
-            .select('_id description postLink instagramMediaId postDate stats format proposal context')
+            .select('_id description postLink instagramMediaId postDate stats format proposal context') // Seleciona os campos desejados
             .sort(sortOptions)
             .limit(effectiveLimit)
-            .lean()
+            .lean() // Para performance, retorna POJOs
             .exec();
 
         logger.info(`${TAG} Encontradas ${metrics.length} métricas para os critérios fornecidos.`);
-        return metrics as IMetric[];
+        return metrics as IMetric[]; // Cast para IMetric[]
 
     } catch (error: any) {
         logger.error(`${TAG} Erro ao buscar métricas por critérios para User ${userId}:`, error);
         throw new DatabaseError(`Erro ao buscar posts por critérios: ${error.message}`);
     }
-}
+} // <- CHAVE FALTANTE ESTAVA AQUI

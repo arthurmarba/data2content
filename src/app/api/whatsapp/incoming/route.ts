@@ -1,9 +1,6 @@
-// src/app/api/whatsapp/incoming/route.ts - v2.3 (Lógica de Interrupção e Ack Estático)
-// - ADICIONADO: Lógica para verificar se uma mensagem anterior está em processamento.
-// - ADICIONADO: Envio de "Ack Estático" para o usuário se uma nova mensagem chegar durante o processamento de outra.
-// - ADICIONADO: Definição de `interruptSignalForMessageId` no IDialogueState.
-// - ADICIONADO: Placeholder para `isSimpleConfirmationOrAcknowledgement` (a ser movido/refinado no intentService).
-// - Mantém funcionalidades da v2.2 (Remoção do Ack Estático original desta rota).
+// src/app/api/whatsapp/incoming/route.ts - v2.3.2 (Adiciona Logging de Performance para getDialogueState)
+// - ADICIONADO: Logging de tempo para a chamada a stateService.getDialogueState.
+// - Mantém funcionalidades da v2.3.1.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { normalizePhoneNumber } from '@/app/lib/helpers';
@@ -13,10 +10,17 @@ import { UserNotFoundError } from '@/app/lib/errors';
 import { logger } from '@/app/lib/logger';
 import { Client as QStashClient } from "@upstash/qstash";
 import * as dataService from '@/app/lib/dataService';
-import { normalizeText, determineIntent, getRandomGreeting, IntentResult, DeterminedIntent } from '@/app/lib/intentService';
+import {
+    normalizeText,
+    determineIntent,
+    getRandomGreeting,
+    IntentResult,
+    DeterminedIntent,
+    isSimpleConfirmationOrAcknowledgement
+} from '@/app/lib/intentService';
 import { IUser } from '@/app/models/User';
 import User from '@/app/models/User';
-import * as stateService from '@/app/lib/stateService'; // Deve ser v1.9.3 ou superior
+import * as stateService from '@/app/lib/stateService';
 
 // Validações de ambiente
 if (!process.env.QSTASH_TOKEN) {
@@ -37,7 +41,7 @@ export async function GET(request: NextRequest) {
   const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
 
   if (!verifyToken) {
-    logger.error('[whatsapp/incoming GET v2.3] Error: WHATSAPP_VERIFY_TOKEN não está definido no .env');
+    logger.error('[whatsapp/incoming GET v2.3.2] Error: WHATSAPP_VERIFY_TOKEN não está definido no .env');
     return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
   }
 
@@ -45,11 +49,11 @@ export async function GET(request: NextRequest) {
     searchParams.get('hub.mode') === 'subscribe' &&
     searchParams.get('hub.verify_token') === verifyToken
   ) {
-    logger.debug('[whatsapp/incoming GET v2.3] Verification succeeded.');
+    logger.debug('[whatsapp/incoming GET v2.3.2] Verification succeeded.');
     return new Response(searchParams.get('hub.challenge') || '', { status: 200 });
   }
 
-  logger.error('[whatsapp/incoming GET v2.3] Verification failed:', {
+  logger.error('[whatsapp/incoming GET v2.3.2] Verification failed:', {
     mode: searchParams.get('hub.mode'),
     token_received: searchParams.get('hub.verify_token') ? '******' : 'NONE',
     expected_defined: !!verifyToken,
@@ -75,33 +79,9 @@ function getSenderAndMessage(body: any): { from: string; text: string } | null {
             }
         }
     } catch (error) {
-        logger.error('[whatsapp/incoming getSenderAndMessage v2.3] Erro ao parsear payload:', error);
+        logger.error('[whatsapp/incoming getSenderAndMessage v2.3.2] Erro ao parsear payload:', error);
     }
     return null;
-}
-
-// Placeholder - Esta função deve ser movida e refinada em @/app/lib/intentService.ts (Fase 4)
-function isSimpleConfirmationOrAcknowledgement(normalizedText: string): boolean {
-    const TAG = '[whatsapp/incoming isSimpleConfirmationPlaceholder v2.3]';
-    const confirmationKeywords = new Set([
-        'ok', 'okay', 'sim', 's', 'entendi', 'entendido', 'certo', 'combinado',
-        'aguardando', 'esperando', 'valeu', 'obrigado', 'obrigada', 'grato', 'grata',
-        'de nada', 'disponha', '👍', '👌', 'blz', 'beleza', 'show', 'perfeito', 'justo', 'pode crer',
-        'recebido', 'anotado'
-    ]);
-    const words = normalizedText.split(/\s+/);
-    if (words.length > 5) { // Um pouco mais flexível que o planejado originalmente (4)
-        logger.debug(`${TAG} Texto "${normalizedText}" tem mais de 5 palavras, não é confirmação simples.`);
-        return false;
-    }
-    // Verifica se a maioria das palavras (ou todas as palavras significativas) são de confirmação
-    const significantWords = words.filter(w => w.length > 1); // Ignora palavras muito curtas
-    if (significantWords.length === 0 && words.length > 0) { // Ex: apenas "ok"
-        return confirmationKeywords.has(words[0]!);
-    }
-    const isConfirm = significantWords.every(word => confirmationKeywords.has(word));
-    logger.debug(`${TAG} Texto "${normalizedText}" é confirmação simples? ${isConfirm}`);
-    return isConfirm;
 }
 
 function extractExcerpt(text: string, maxLength: number = 30): string {
@@ -114,10 +94,9 @@ function extractExcerpt(text: string, maxLength: number = 30): string {
 /**
  * POST /api/whatsapp/incoming
  * Receives message, handles verification codes OR publishes task to QStash, returns immediate 200 OK.
- * ADICIONADO v2.3: Lógica para lidar com mensagens intercaladas, enviando Ack Estático e sinalizando interrupção.
  */
 export async function POST(request: NextRequest) {
-  const postTag = '[whatsapp/incoming POST v2.3 InterruptionLogic]';
+  const postTag = '[whatsapp/incoming POST v2.3.2 InterruptionLogic]';
   let body: any;
 
   try {
@@ -152,15 +131,14 @@ export async function POST(request: NextRequest) {
   }
 
   const fromPhone = normalizePhoneNumber(senderAndMsg.from);
-  const rawText_MsgNova = senderAndMsg.text.trim(); // Mensagem Nova
+  const rawText_MsgNova = senderAndMsg.text.trim();
   const normText_MsgNova = normalizeText(rawText_MsgNova);
   logger.info(`${postTag} Mensagem Nova (MsgNova) recebida de: ${fromPhone}, Texto: "${rawText_MsgNova.slice(0, 50)}..."`);
 
   const codeMatch = rawText_MsgNova.match(/\b([A-Z0-9]{6})\b/);
   if (codeMatch && codeMatch[1]) {
-    // ... (lógica de verificação de código existente, sem alterações necessárias aqui para a interrupção)
     const verificationCode = codeMatch[1];
-    const verifyTag = '[whatsapp/incoming][Verification v2.3]';
+    const verifyTag = '[whatsapp/incoming][Verification v2.3.2]';
     logger.info(`${verifyTag} Código de verificação detectado: ${verificationCode} de ${fromPhone}`);
     try {
         await connectToDatabase();
@@ -201,14 +179,14 @@ export async function POST(request: NextRequest) {
 
   let user: IUser;
   let uid: string;
-  let userFirstName: string; // Usaremos o primeiro nome consistentemente
+  let userFirstName: string;
 
   try {
       await connectToDatabase();
       user = await dataService.lookupUser(fromPhone);
       uid = user._id.toString();
       const fullName = user.name || 'criador';
-      userFirstName = fullName.split(' ')[0]!; // Extrai o primeiro nome
+      userFirstName = fullName.split(' ')[0]!;
       logger.info(`${postTag} Usuário ${uid} (Nome: ${userFirstName}) encontrado para ${fromPhone}.`);
 
   } catch (e) {
@@ -224,16 +202,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to lookup user' }, { status: 500 });
   }
 
-  // Carregar estado do diálogo para lógica de interrupção e intentService
   let currentDialogueState: stateService.IDialogueState = {};
   try {
+      const getDialogueStateStartTime = Date.now(); // Medir tempo
       currentDialogueState = await stateService.getDialogueState(uid);
+      const getDialogueStateDuration = Date.now() - getDialogueStateStartTime;
+      logger.debug(`${postTag} stateService.getDialogueState para User ${uid} levou ${getDialogueStateDuration}ms.`);
   } catch (stateError) {
       logger.error(`${postTag} Erro ao buscar estado do Redis para ${uid} (não fatal, usará estado padrão):`, stateError);
-      currentDialogueState = stateService.getDefaultDialogueState(); // Garante que temos um objeto
+      currentDialogueState = stateService.getDefaultDialogueState();
   }
 
-  // ***** INÍCIO DA LÓGICA DE INTERRUPÇÃO (Passo 2.3) *****
   if (currentDialogueState.currentProcessingMessageId) {
       logger.info(`${postTag} User ${uid}: MsgNova ("${rawText_MsgNova.slice(0,30)}...") chegou durante processamento de MsgAntiga (${currentDialogueState.currentProcessingMessageId}, excerto: "${currentDialogueState.currentProcessingQueryExcerpt || 'N/A'}").`);
       
@@ -241,7 +220,6 @@ export async function POST(request: NextRequest) {
 
       if (isConfirmation) {
           logger.info(`${postTag} User ${uid}: MsgNova é uma confirmação simples. Não interrompendo MsgAntiga.`);
-          // Opcional: Enviar Ack Estático Adaptado
           const ackMsgAdapted = `Entendido, ${userFirstName}! Continuo trabalhando no seu pedido anterior sobre "${currentDialogueState.currentProcessingQueryExcerpt || 'o assunto anterior'}". 👍`;
           try {
               await sendWhatsAppMessage(fromPhone, ackMsgAdapted);
@@ -260,36 +238,37 @@ export async function POST(request: NextRequest) {
           } catch (sendError) {
               logger.error(`${postTag} Falha ao enviar Ack Estático Padrão:`, sendError);
           }
-
-          // Definir o sinal de interrupção
           const stateUpdateForInterrupt: Partial<stateService.IDialogueState> = {
               interruptSignalForMessageId: currentDialogueState.currentProcessingMessageId
           };
+          // Medir tempo para updateDialogueState
+          const updateStateStartTime = Date.now();
           await stateService.updateDialogueState(uid, stateUpdateForInterrupt);
+          logger.debug(`${postTag} stateService.updateDialogueState (interrupt) para User ${uid} levou ${Date.now() - updateStateStartTime}ms.`);
           logger.info(`${postTag} User ${uid}: interruptSignalForMessageId definido para ${currentDialogueState.currentProcessingMessageId}.`);
-          // Recarregar o estado para que a próxima lógica (determineIntent) o veja, se necessário,
-          // embora para esta lógica de interrupção, a principal ação já foi feita.
+          
+          // Recarregar o estado para que a próxima lógica (determineIntent) o veja
+          const getDialogueStateAfterInterruptStartTime = Date.now();
           currentDialogueState = await stateService.getDialogueState(uid);
+          logger.debug(`${postTag} stateService.getDialogueState (após interrupt) para User ${uid} levou ${Date.now() - getDialogueStateAfterInterruptStartTime}ms.`);
       }
   }
-  // ***** FIM DA LÓGICA DE INTERRUPÇÃO *****
 
-  // Determinar intenção da MsgNova
-  const greeting = getRandomGreeting(userFirstName); // greeting agora usa firstName
+  const greeting = getRandomGreeting(userFirstName);
   let intentResult: IntentResult;
   let determinedIntent: DeterminedIntent | null = null;
 
   try {
+      const determineIntentStartTime = Date.now(); // Medir tempo
       intentResult = await determineIntent(normText_MsgNova, user, rawText_MsgNova, currentDialogueState, greeting, uid);
+      logger.debug(`${postTag} determineIntent para User ${uid} levou ${Date.now() - determineIntentStartTime}ms.`);
+
       if (intentResult.type === 'special_handled') {
           logger.info(`${postTag} Intenção da MsgNova tratada como caso especial para ${uid}: ${intentResult.response.slice(0, 50)}...`);
           await sendWhatsAppMessage(fromPhone, intentResult.response);
           
           const stateUpdateAfterSpecial: Partial<stateService.IDialogueState> = { lastInteraction: Date.now() };
-          // Se a special_handled limpou uma ação pendente, o determineIntent já deve ter feito isso
-          // ou o clearPendingActionState pode ser chamado aqui se necessário.
-          // Por ora, só atualizamos lastInteraction.
-          if (currentDialogueState.lastAIQuestionType) { // Se havia pergunta pendente e foi respondida por special_handled
+          if (currentDialogueState.lastAIQuestionType) {
             stateUpdateAfterSpecial.lastAIQuestionType = undefined;
             stateUpdateAfterSpecial.pendingActionContext = undefined;
           }
@@ -297,47 +276,38 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ special_handled: true }, { status: 200 });
       } else {
           determinedIntent = intentResult.intent;
-          // Se a nova mensagem não é uma confirmação/negação de uma ação pendente, mas havia uma ação pendente,
-          // e a nova mensagem não é para interromper, então a ação pendente é limpa.
           if (currentDialogueState.lastAIQuestionType &&
               determinedIntent !== 'user_confirms_pending_action' &&
               determinedIntent !== 'user_denies_pending_action') {
               logger.info(`${postTag} User ${uid} enviou MsgNova ("${determinedIntent}") enquanto havia ação pendente (${currentDialogueState.lastAIQuestionType}). Limpando estado pendente.`);
               await stateService.clearPendingActionState(uid);
-              currentDialogueState = await stateService.getDialogueState(uid); // Recarrega estado após limpar
           }
-          logger.info(`${postTag} Intenção determinada para MsgNova de ${uid}: ${determinedIntent}`);
+          logger.info(`${postTag} Intenção determinada para MsgNova de ${uid} (com contexto): ${determinedIntent}`);
       }
   } catch (intentError) {
       logger.error(`${postTag} Erro ao determinar intenção para MsgNova de ${uid}:`, intentError);
-      determinedIntent = 'general'; // Fallback
+      determinedIntent = 'general';
       if (currentDialogueState.lastAIQuestionType) {
         logger.warn(`${postTag} Erro na determinação de intenção, mas havia ação pendente. Limpando estado pendente para ${uid}.`);
         await stateService.clearPendingActionState(uid);
-        currentDialogueState = await stateService.getDialogueState(uid); // Recarrega
       }
   }
 
-  // Publicar Tarefa no QStash para MsgNova
   if (!qstashClient) {
       logger.error(`${postTag} Cliente QStash não inicializado. Não é possível enfileirar tarefa para User ${uid}.`);
-      // Considerar enviar uma mensagem de erro para o usuário aqui?
       return NextResponse.json({ error: 'QStash client not configured' }, { status: 500 });
   }
-
   const appBaseUrl = process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL;
   if (!appBaseUrl) {
       logger.error(`${postTag} URL base da aplicação não configurada. Não é possível enfileirar tarefa para User ${uid}.`);
       return NextResponse.json({ error: 'App base URL not configured' }, { status: 500 });
   }
   const workerUrl = `${appBaseUrl}/api/whatsapp/process-response`;
-
   const qstashPayload = {
       fromPhone: fromPhone,
       incomingText: rawText_MsgNova,
       userId: uid,
-      determinedIntent: determinedIntent, // Intenção da MsgNova
-      // messageId_MsgNova: // Se você gerar um UUID aqui, pode passá-lo. Senão, o worker usará o ID da tarefa QStash.
+      determinedIntent: determinedIntent,
   };
 
   try {
@@ -345,13 +315,10 @@ export async function POST(request: NextRequest) {
       const publishResponse = await qstashClient.publishJSON({
           url: workerUrl,
           body: qstashPayload,
-          // Opcional: passar um ID de mensagem customizado se gerado antes
-          // headers: { 'Upstash-Message-Id': messageId_MsgNova_custom }
       });
       logger.info(`${postTag} Tarefa para MsgNova publicada no QStash com sucesso. QStash Message ID: ${publishResponse.messageId}`);
   } catch (qstashError) {
       logger.error(`${postTag} Falha ao publicar tarefa no QStash para User ${uid} (MsgNova):`, qstashError);
-      // Considerar enviar uma mensagem de erro para o usuário aqui?
       return NextResponse.json({ error: 'Failed to queue task' }, { status: 500 });
   }
 

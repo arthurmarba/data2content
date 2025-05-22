@@ -1,19 +1,30 @@
-// @/app/lib/intentService.ts – v2.18.7 (Intenção para Roteiro de Humor)
-// - ADICIONADO: Nova intenção `humor_script_request`.
-// - ADICIONADO: Keywords e lógica para detectar pedidos de roteiro de humor.
-// - Mantém funcionalidades da v2.18.6.
+// @/app/lib/intentService.ts – v2.20.0 (Utiliza lastResponseContext para Memória de Curto Prazo)
+// - MODIFICADO: Função determineIntent agora utiliza dialogueState.lastResponseContext para refinar a detecção de intenções contextuais.
+// - ADICIONADO: Lógica para verificar a recência do lastResponseContext.
+// - Baseado na v2.19.3_feature_flag.
 // --------------------------------------------------
 
 import { logger } from '@/app/lib/logger';
 import { IUser, IUserPreferences }  from '@/app/models/User';
-import { IDialogueState } from './stateService'; // Presume que IDialogueState está em stateService.ts
+// IDialogueState importado já deve incluir ILastResponseContext da versão state_service_ts_v_short_term_memory
+import { IDialogueState } from './stateService'; 
+import { SHORT_TERM_CONTEXT_VALIDITY_MINUTES } from '@/app/lib/constants'; // Adicionar esta constante
+
+// --- FEATURE FLAG PARA LÓGICA CONTEXTUAL ---
+const ENABLE_CONTEXTUAL_INTENT_LOGIC = process.env.FEATURE_CONTEXTUAL_INTENT_LOGIC_ENABLED === 'true';
+if (ENABLE_CONTEXTUAL_INTENT_LOGIC) {
+    logger.info('[intentService] Lógica de Intenção Contextual ATIVADA via feature flag.');
+} else {
+    logger.info('[intentService] Lógica de Intenção Contextual DESATIVADA via feature flag.');
+}
+// ---------------------------------------------
 
 /* -------------------------------------------------- *
  * Tipagens internas
  * -------------------------------------------------- */
 export type DeterminedIntent =
   | 'script_request'
-  | 'humor_script_request' // NOVA INTENÇÃO
+  | 'humor_script_request'
   | 'content_plan'
   | 'ranking_request'
   | 'general'
@@ -34,7 +45,11 @@ export type DeterminedIntent =
   | 'user_stated_preference'
   | 'user_shared_goal'
   | 'user_mentioned_key_fact'
-  | 'user_requests_memory_update';
+  | 'user_requests_memory_update'
+  | 'ASK_CLARIFICATION_PREVIOUS_RESPONSE'
+  | 'REQUEST_METRIC_DETAILS_FROM_CONTEXT'
+  | 'EXPLAIN_DATA_SOURCE_FOR_ANALYSIS'
+  | 'CONTINUE_PREVIOUS_TOPIC';
 
 interface ExtractedPreferenceDetail {
   field: keyof IUserPreferences;
@@ -51,6 +66,8 @@ export type IntentResult =
       extractedGoal?: string;
       extractedFact?: string;
       memoryUpdateRequestContent?: string;
+      // Adicionado para passar o contexto resolvido para a LLM, se necessário
+      resolvedContextTopic?: string; 
     }
   | { type: 'special_handled'; response: string };
 
@@ -61,7 +78,6 @@ const SCRIPT_KEYWORDS: string[] = [
   'roteiro','script','estrutura','outline','sequencia',
   'escreve pra mim','como fazer video sobre','estrutura de post','roteiriza'
 ];
-// NOVAS KEYWORDS PARA ROTEIRO DE HUMOR
 const HUMOR_SCRIPT_KEYWORDS: string[] = [
   'roteiro de humor', 'script engraçado', 'escrever comedia', 'cena comica', 'piada',
   'esquete de humor', 'roteiro para rir', 'video de humor', 'conteudo de humor',
@@ -122,7 +138,6 @@ const AFFIRMATIVE_KEYWORDS: string[] = [
 const NEGATIVE_KEYWORDS: string[] = [
   'não', 'nao', 'n', 'agora não', 'deixa pra depois', 'depois', 'outra hora', 'negativo', 'nada', 'nem', 'nunca'
 ];
-
 const USER_REQUESTS_MEMORY_UPDATE_KEYWORDS: string[] = [
     'lembre-se que', 'lembre que', 'anote que', 'anota aí que', 'guarde que', 'salve que', 'memorize que', 'lembrar que',
     'anotar que', 'salvar que', 'não esqueça que', 'quero que voce lembre que'
@@ -130,7 +145,6 @@ const USER_REQUESTS_MEMORY_UPDATE_KEYWORDS: string[] = [
 const USER_PREFERENCE_HINT_KEYWORDS: string[] = ['prefiro', 'gosto de', 'não gosto de', 'odeio', 'meu tom', 'formato', 'evito falar'];
 const USER_GOAL_HINT_KEYWORDS: string[] = ['meu objetivo é', 'minha meta é', 'quero alcançar', 'pretendo', 'almejo', 'meu foco é', 'planejo'];
 const USER_FACT_HINT_KEYWORDS: string[] = ['fato sobre mim', 'importante saber', 'minha empresa', 'trabalho com', 'sou de', 'moro em', 'para que voce saiba mais sobre mim'];
-
 const SIMPLE_CONFIRMATION_ACK_KEYWORDS: string[] = [
     'ok', 'okay', 'sim', 's', 'entendi', 'entendido', 'certo', 'combinado', 'perfeito', 'justo',
     'aguardando', 'esperando', 'no aguardo',
@@ -139,7 +153,22 @@ const SIMPLE_CONFIRMATION_ACK_KEYWORDS: string[] = [
     'recebido', 'anotado', 'confirmado', 'positivo', 'afirmativo', 'isso', 'exato', 'aham', 'uhum',
     'pode ser', 'pode', 'claro', 'com certeza', 'quero', 'manda', 'dale', 'bora', 'tá', 'ta bom'
 ];
-
+const CLARIFICATION_KEYWORDS: string[] = [
+    'como assim', 'explica melhor', 'o que voce quer dizer', 'nao entendi', 'detalha', 'em que sentido',
+    'pode elaborar', 'me explica de novo', 'fiquei com uma duvida sobre', 'sobre o que voce disse', 'o que quis dizer', 'não ficou claro'
+];
+const DATA_SOURCE_KEYWORDS: string[] = [
+    'quais dados', 'se baseou em que', 'de onde tirou isso', 'qual a fonte', 'esses numeros vem de onde',
+    'que dados voce usou', 'qual foi a base', 'como voce chegou nisso', 'quais conteudos voce se baseou'
+];
+const METRIC_DETAILS_KEYWORDS: string[] = [
+    'me da a media', 'e os numeros', 'qual foi o resultado', 'mostra os detalhes disso', 'aprofundar nisso',
+    'quero ver os detalhes', 'quais foram as medias', 'detalha essa metrica', 'me mostre os dados', 'quais os numeros'
+];
+const CONTINUE_TOPIC_KEYWORDS: string[] = [
+    'e sobre isso', 'continuando', 'voltando ao assunto', 'sobre o que falamos', 'mais sobre isso',
+    'me fala mais', 'e o outro ponto', 'alem disso', 'prosseguindo', 'e mais', 'sobre aquilo', 'desenvolve mais', 'continue'
+];
 
 /* -------------------------------------------------- *
  * Utilidades
@@ -150,7 +179,7 @@ const normalize = (s: string) =>
 const toNormSet = (arr: string[]) => new Set(arr.map(normalize));
 
 const N_SCRIPT_KW    = toNormSet(SCRIPT_KEYWORDS);
-const N_HUMOR_SCRIPT_KW = toNormSet(HUMOR_SCRIPT_KEYWORDS); // NOVO SET
+const N_HUMOR_SCRIPT_KW = toNormSet(HUMOR_SCRIPT_KEYWORDS);
 const N_PLAN_KW      = toNormSet(CONTENT_PLAN_KEYWORDS);
 const N_RANK_KW      = toNormSet(RANKING_KEYWORDS);
 const N_REPORT_KW    = toNormSet(REPORT_KEYWORDS);
@@ -166,6 +195,10 @@ const N_AFFIRM_KW    = toNormSet(AFFIRMATIVE_KEYWORDS);
 const N_NEG_KW       = toNormSet(NEGATIVE_KEYWORDS);
 const N_USER_MEM_UPDATE_KW = toNormSet(USER_REQUESTS_MEMORY_UPDATE_KEYWORDS);
 const N_SIMPLE_CONFIRM_ACK_KW = toNormSet(SIMPLE_CONFIRMATION_ACK_KEYWORDS);
+const N_CLARIFICATION_KW = toNormSet(CLARIFICATION_KEYWORDS);
+const N_DATA_SOURCE_KW   = toNormSet(DATA_SOURCE_KEYWORDS);
+const N_METRIC_DETAILS_KW = toNormSet(METRIC_DETAILS_KEYWORDS);
+const N_CONTINUE_TOPIC_KW = toNormSet(CONTINUE_TOPIC_KEYWORDS);
 
 const includesKw = (txt: string, kwSet: Set<string>) =>
   [...kwSet].some((kw) => txt.includes(kw));
@@ -181,10 +214,9 @@ const pickRandom = <T>(arr: T[]): T => {
 /* -------------------------------------------------- *
  * Helpers de intenção
  * -------------------------------------------------- */
-const isHumorScriptRequest = (txt: string) => includesKw(txt, N_HUMOR_SCRIPT_KW); // NOVA FUNÇÃO HELPER
+const isHumorScriptRequest = (txt: string) => includesKw(txt, N_HUMOR_SCRIPT_KW);
 const isPlanRequest     = (txt: string) => includesKw(txt, N_PLAN_KW);
 const isScriptRequest   = (txt: string) => {
-    // Se for um pedido de roteiro de humor, não é um pedido de roteiro genérico.
     if (isHumorScriptRequest(txt)) return false;
     return includesKw(txt, N_SCRIPT_KW);
 }
@@ -202,6 +234,10 @@ const isBestTimeRequest = (txt: string) => {
 };
 const isSocialQueryRequest = (txt: string) => includesKw(txt, N_SOCIAL_KW);
 const isMetaQueryRequest   = (txt: string) => includesKw(txt, N_META_KW);
+const isClarificationRequest = (txt: string) => includesKw(txt, N_CLARIFICATION_KW);
+const isDataSourceRequest    = (txt: string) => includesKw(txt, N_DATA_SOURCE_KW);
+const isMetricDetailsRequest = (txt: string) => includesKw(txt, N_METRIC_DETAILS_KW);
+const isContinueTopicRequest = (txt: string) => includesKw(txt, N_CONTINUE_TOPIC_KW);
 
 function isGreetingOnly(norm: string): boolean {
   if (!includesKw(norm, N_GREET_KW)) return false;
@@ -242,42 +278,35 @@ function isSimpleNegative(norm: string): boolean {
 }
 
 export function isSimpleConfirmationOrAcknowledgement(normalizedText: string): boolean {
-    const TAG = '[intentService][isSimpleConfirmationOrAcknowledgement v2.18.7]'; // Log version updated
+    const TAG = '[intentService][isSimpleConfirmationOrAcknowledgement v2.20.0]';
     if (!normalizedText || normalizedText.trim() === '') {
         return false;
     }
-
     const words = normalizedText.split(/\s+/);
     const wordCount = words.length;
-
     if (wordCount <= 2) {
         if (words.every(word => N_SIMPLE_CONFIRM_ACK_KW.has(word))) {
             logger.debug(`${TAG} Texto "${normalizedText}" identificado como confirmação/ack (curto, todas keywords).`);
             return true;
         }
     }
-
     if (wordCount <= 5) {
         const confirmationWords = words.filter(word => N_SIMPLE_CONFIRM_ACK_KW.has(word));
         const confirmationWordsCount = confirmationWords.length;
-        
-        const nonConfirmationSignificantWords = words.filter(word => 
-            !N_SIMPLE_CONFIRM_ACK_KW.has(word) && 
-            word !== 'tuca' && 
+        const nonConfirmationSignificantWords = words.filter(word =>
+            !N_SIMPLE_CONFIRM_ACK_KW.has(word) &&
+            word !== 'tuca' &&
             word.length > 1
         );
-
         if (confirmationWordsCount > 0 && nonConfirmationSignificantWords.length === 0) {
             logger.debug(`${TAG} Texto "${normalizedText}" identificado como confirmação/ack (keywords + opcionalmente 'tuca' ou palavras insignificantes).`);
             return true;
         }
-
         if (confirmationWordsCount >= Math.ceil(wordCount / 2) && nonConfirmationSignificantWords.length <= 1) {
              logger.debug(`${TAG} Texto "${normalizedText}" identificado como confirmação/ack (maioria keywords, <=1 palavra nova significativa).`);
             return true;
         }
     }
-    
     if (wordCount <= 3 && (normalizedText.startsWith('estou ') || normalizedText.startsWith('to '))) {
         const remainingTextFirstWord = words[1];
         if (remainingTextFirstWord && N_SIMPLE_CONFIRM_ACK_KW.has(remainingTextFirstWord)) {
@@ -285,15 +314,13 @@ export function isSimpleConfirmationOrAcknowledgement(normalizedText: string): b
             return true;
         }
     }
-
     logger.debug(`${TAG} Texto "${normalizedText}" NÃO identificado como confirmação/ack simples.`);
     return false;
 }
 
 function detectUserPreference(normalizedText: string, rawText: string): { isMatch: boolean; extractedPreference?: ExtractedPreferenceDetail } {
-    const TAG = '[intentService][detectUserPreference v2.18.7]';
+    const TAG = '[intentService][detectUserPreference v2.20.0]';
     let match;
-
     const toneRegex = /(?:(?:prefiro|gosto\s+de|meu)(?:\s+um)?\s+tom(?:\s+é)?|tom\s+da\s+ia(?:\s+é)?)\s+(mais\s+formal|direto\s+ao\s+ponto|super\s+descontra[ií]do|formal|descontra[ií]do|direto)/i;
     match = rawText.match(toneRegex);
     if (match && match[1]) {
@@ -306,7 +333,6 @@ function detectUserPreference(normalizedText: string, rawText: string): { isMatc
         logger.info(`${TAG} Preferência de tom detectada: ${finalTone} (Raw: ${toneValueRaw})`);
         return { isMatch: true, extractedPreference: { field: 'preferredAiTone', value: finalTone, rawValue: toneValueRaw } };
     }
-
     const formatRegex = /(?:(?:eu|eu\s+realmente|eu\s+também)\s+)?(?:prefiro|gosto(?:\s+mais)?\s+de|queria|quero|adoro|amo|curto)\s+(reels|vídeos?\s+longos?|vídeos?\s+curtos?|posts?\s+de\s+imagem|carrossel|stories|conteúdo\s+em\s+vídeo|postagens\s+escritas|artigos)/i;
     match = rawText.match(formatRegex);
     if (match && match[1]) {
@@ -314,7 +340,6 @@ function detectUserPreference(normalizedText: string, rawText: string): { isMatc
         logger.info(`${TAG} Preferência de formato detectada: ${formatValue}`);
         return { isMatch: true, extractedPreference: { field: 'preferredFormats', value: formatValue, rawValue: formatValue } };
     }
-
     const dislikedTopicRegex = /(?:(?:eu\s+)?(?:n(?:ã|a)o\s+gosto\s+de|n(?:ã|a)o\s+quero)\s+(?:falar\s+sobre|abordar|discutir|postar\s+sobre|criar\s+sobre)|(?:tuca(?:,\s*)?)?(?:por\s+favor(?:,\s*)?)?evite\s+(?:falar\s+sobre|abordar|discutir|postar\s+sobre|criar\s+sobre)|detesto|odeio)\s+(pol[ií]tica|esportes|futebol|religi[aã]o|finan[cç]as(?: pessoais)?|tecnologia|games|jogos|viagens?|reality\s+shows?)/i;
     match = rawText.match(dislikedTopicRegex);
     if (match && match[1]) {
@@ -326,7 +351,7 @@ function detectUserPreference(normalizedText: string, rawText: string): { isMatc
 }
 
 function detectUserGoal(normalizedText: string, rawText: string): { isMatch: boolean; extractedGoal?: string } {
-    const TAG = '[intentService][detectUserGoal v2.18.7]';
+    const TAG = '[intentService][detectUserGoal v2.20.0]';
     const lowerRawText = rawText.toLowerCase();
     const goalKeywordsAndPhrases: string[] = [
         "meu objetivo principal é", "meu objetivo principal é de", "meu objetivo é", "meu objetivo de",
@@ -336,7 +361,6 @@ function detectUserGoal(normalizedText: string, rawText: string): { isMatch: boo
         "o que eu quero é", "o que eu realmente quero é",
         "busco", "estou trabalhando para", "planejo", "meu plano é"
     ];
-
     for (const keyword of goalKeywordsAndPhrases) {
         const normalizedKeyword = normalize(keyword);
         if (normalizedText.startsWith(normalizedKeyword + " ")) {
@@ -347,10 +371,8 @@ function detectUserGoal(normalizedText: string, rawText: string): { isMatch: boo
             }
         }
     }
-
     const goalRegexFallback = new RegExp(`(?:${USER_GOAL_HINT_KEYWORDS.join('|')})\\s+([\\w\\sÀ-ÖØ-öø-ÿ.,'-]+)`, 'i');
     const match = rawText.match(goalRegexFallback);
-
     if (match && match[1]) {
         const goalDescription = match[1].trim();
         if (goalDescription.length > 5 && !normalize(goalDescription).startsWith("que voce") && !normalize(goalDescription).startsWith("voce") && goalDescription.split(/\s+/).length >= 2) {
@@ -362,10 +384,9 @@ function detectUserGoal(normalizedText: string, rawText: string): { isMatch: boo
 }
 
 function detectUserKeyFact(normalizedText: string, rawText: string): { isMatch: boolean; extractedFact?: string } {
-    const TAG = '[intentService][detectUserKeyFact v2.18.7]';
+    const TAG = '[intentService][detectUserKeyFact v2.20.0]';
     const factRegex = /(?:(?:um\s+)?fato\s+(?:importante\s+)?(?:sobre\s+mim|a\s+meu\s+respeito)\s+(?:é\s+que)?|só\s+para\s+(?:você|vc)\s+saber,?|para\s+sua\s+informa[cç][aã]o,?|para\s+que\s+(?:voc[êe]|vc)\s+saiba\s+(?:mais\s+)?sobre\s+mim,?|gostaria\s+de\s+compartilhar\s+que|é\s+importante\s+dizer\s+que|eu\s+trabalho\s+com|minha\s+especialidade\s+é\s+em|sou\s+(?:formado|formada|especialista)\s+em|moro\s+em|minha\s+empresa\s+(?:é|se\s+chama)|meu\s+nicho\s+é)\s+([\s\S]+)/i;
     const match = rawText.match(factRegex);
-
     if (match && match[1]) {
         const factDescription = match[1].trim();
         if (factDescription.length > 5 && !normalize(factDescription).startsWith("que voce") && !normalize(factDescription).startsWith("voce") && factDescription.split(/\s+/).length >= 2) {
@@ -377,11 +398,10 @@ function detectUserKeyFact(normalizedText: string, rawText: string): { isMatch: 
 }
 
 function detectMemoryUpdateRequest(normalizedText: string, rawText: string): { isMatch: boolean; memoryUpdateRequestContent?: string } {
-    const TAG = '[intentService][detectMemoryUpdateRequest v2.18.7]';
+    const TAG = '[intentService][detectMemoryUpdateRequest v2.20.0]';
     const requestKeywordsJoined = USER_REQUESTS_MEMORY_UPDATE_KEYWORDS.map(kw => kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
     const requestRegex = new RegExp(`(?:tuca(?:,\\s*)?)?(?:${requestKeywordsJoined})\\s+([\\s\\S]+)`, 'i');
     const match = rawText.match(requestRegex);
-
     if (match && match[1]) {
         const content = match[1].trim();
         if (content.length > 3 && content.split(/\s+/).length >= 1) {
@@ -392,18 +412,13 @@ function detectMemoryUpdateRequest(normalizedText: string, rawText: string): { i
     return { isMatch: false };
 }
 
-
-/* -------------------------------------------------- *
- * CASOS ESPECIAIS RÁPIDOS
- * -------------------------------------------------- */
 async function quickSpecialHandle(
   user: IUser,
   normalized: string,
   greeting: string
 ): Promise<IntentResult | null> {
-  const TAG = '[intentService][quickSpecialHandle v2.18.7]';
+  const TAG = '[intentService][quickSpecialHandle v2.20.0]';
   const userFirstName = user.name ? user.name.split(' ')[0]! : 'tudo bem';
-
   if (isGreetingOnly(normalized)) {
     logger.debug(`${TAG} Greeting detected.`);
     return {
@@ -416,10 +431,8 @@ async function quickSpecialHandle(
       ]),
     };
   }
-
   const thanksKeywords = ['obrigado','obrigada','valeu','show','thanks','vlw', 'thx', 'agradecido', 'agradecida', 'de nada', 'disponha'];
   const normalizedThanks = thanksKeywords.map(normalize);
-
   if (normalizedThanks.some(kw => normalized.startsWith(kw) && normalized.split(/\s+/).length <= 3 )) {
     logger.debug(`${TAG} Thanks detected.`);
     return {
@@ -432,7 +445,6 @@ async function quickSpecialHandle(
       ]),
     };
   }
-
   if (isFarewellOnly(normalized)) {
     logger.debug(`${TAG} Farewell detected.`);
     return {
@@ -459,9 +471,8 @@ export async function determineIntent(
   greeting       : string,
   userId         : string
 ): Promise<IntentResult> {
-  const TAG = '[intentService.determineIntent v2.18.7]';
+  const TAG = '[intentService.determineIntent v2.20.0]';
   logger.info(`${TAG} User ${userId}: Analisando texto para intenção... Raw: "${rawText.substring(0, 60)}..."`);
-
 
   if (dialogueState.lastAIQuestionType) {
     logger.debug(`${TAG} User ${userId}: Estado do diálogo indica pergunta pendente: ${dialogueState.lastAIQuestionType}`);
@@ -482,39 +493,117 @@ export async function determineIntent(
     return special;
   }
 
-  // Prioridade para detecção de intenções de memória
   const memoryUpdateRequest = detectMemoryUpdateRequest(normalizedText, rawText);
   if (memoryUpdateRequest.isMatch && memoryUpdateRequest.memoryUpdateRequestContent) {
     logger.info(`${TAG} User ${userId}: Intenção detectada: user_requests_memory_update.`);
     return { type: 'intent_determined', intent: 'user_requests_memory_update', memoryUpdateRequestContent: memoryUpdateRequest.memoryUpdateRequestContent };
   }
-
   const userPreference = detectUserPreference(normalizedText, rawText);
   if (userPreference.isMatch && userPreference.extractedPreference) {
     logger.info(`${TAG} User ${userId}: Intenção detectada: user_stated_preference (Campo: ${userPreference.extractedPreference.field}).`);
     return { type: 'intent_determined', intent: 'user_stated_preference', extractedPreference: userPreference.extractedPreference };
   }
-
   const userGoal = detectUserGoal(normalizedText, rawText);
   if (userGoal.isMatch && userGoal.extractedGoal) {
     logger.info(`${TAG} User ${userId}: Intenção detectada: user_shared_goal.`);
     return { type: 'intent_determined', intent: 'user_shared_goal', extractedGoal: userGoal.extractedGoal };
   }
-
   const userKeyFact = detectUserKeyFact(normalizedText, rawText);
   if (userKeyFact.isMatch && userKeyFact.extractedFact) {
     logger.info(`${TAG} User ${userId}: Intenção detectada: user_mentioned_key_fact.`);
     return { type: 'intent_determined', intent: 'user_mentioned_key_fact', extractedFact: userKeyFact.extractedFact };
   }
 
-  // Lógica de intenção principal
+  // --- INÍCIO DA LÓGICA DE INTENÇÃO CONTEXTUAL (COM MEMÓRIA DE CURTO PRAZO) ---
+  if (ENABLE_CONTEXTUAL_INTENT_LOGIC) {
+    const summaryNorm = dialogueState.conversationSummary ? normalize(dialogueState.conversationSummary) : "";
+    const timeSinceLastInteractionMinutes = dialogueState.lastInteraction ? (Date.now() - dialogueState.lastInteraction) / (1000 * 60) : Infinity;
+    const isRecentInteraction = timeSinceLastInteractionMinutes < (SHORT_TERM_CONTEXT_VALIDITY_MINUTES || 15); // Usar constante ou default
+
+    const lastResponseCtx = dialogueState.lastResponseContext;
+    const timeSinceLastResponseCtxMinutes = lastResponseCtx?.timestamp ? (Date.now() - lastResponseCtx.timestamp) / (1000 * 60) : Infinity;
+    // Usar a mesma constante para validade do contexto de curto prazo e da interação recente para simplificar, ou definir uma específica.
+    const isRecentResponseContext = timeSinceLastResponseCtxMinutes < (SHORT_TERM_CONTEXT_VALIDITY_MINUTES || 5);
+
+    let resolvedContextTopicForLLM: string | undefined = undefined;
+
+    // Priorizar lastResponseContext se disponível e recente
+    if (isRecentResponseContext && lastResponseCtx && (lastResponseCtx.topic || lastResponseCtx.entities?.length)) {
+        logger.debug(`${TAG} User ${userId}: Aplicando lógica contextual de CURTO PRAZO (lastResponseContext). Tópico: "${lastResponseCtx.topic}", Entidades: [${lastResponseCtx.entities?.join(', ')}]`);
+        resolvedContextTopicForLLM = lastResponseCtx.topic; // Potencialmente passar para LLM
+
+        if (isClarificationRequest(normalizedText)) {
+            logger.info(`${TAG} User ${userId}: Intenção (lastResponseContext): ASK_CLARIFICATION_PREVIOUS_RESPONSE.`);
+            return { type: 'intent_determined', intent: 'ASK_CLARIFICATION_PREVIOUS_RESPONSE', resolvedContextTopic: lastResponseCtx.topic };
+        }
+
+        const lastResponseTopicNorm = lastResponseCtx.topic ? normalize(lastResponseCtx.topic) : "";
+        const lastResponseEntitiesNorm = lastResponseCtx.entities?.map(e => normalize(e)) || [];
+        const mentionsMetricsOrAnalysisInLastResp =
+            lastResponseTopicNorm.includes("metric") || lastResponseTopicNorm.includes("analis") ||
+            lastResponseTopicNorm.includes("desempenho") || lastResponseTopicNorm.includes("resultado") ||
+            lastResponseTopicNorm.includes("dados") ||
+            lastResponseEntitiesNorm.some(e => e.includes("metric") || e.includes("analis") || e.includes("desempenho") || e.includes("resultado") || e.includes("dados"));
+
+        if (mentionsMetricsOrAnalysisInLastResp && isMetricDetailsRequest(normalizedText)) {
+            logger.info(`${TAG} User ${userId}: Intenção (lastResponseContext): REQUEST_METRIC_DETAILS_FROM_CONTEXT.`);
+            return { type: 'intent_determined', intent: 'REQUEST_METRIC_DETAILS_FROM_CONTEXT', resolvedContextTopic: lastResponseCtx.topic };
+        }
+
+        if (mentionsMetricsOrAnalysisInLastResp && isDataSourceRequest(normalizedText)) {
+            logger.info(`${TAG} User ${userId}: Intenção (lastResponseContext): EXPLAIN_DATA_SOURCE_FOR_ANALYSIS.`);
+            return { type: 'intent_determined', intent: 'EXPLAIN_DATA_SOURCE_FOR_ANALYSIS', resolvedContextTopic: lastResponseCtx.topic };
+        }
+        
+        const isShortFollowUp = normalizedText.split(/\s+/).length <= 7;
+        if (isShortFollowUp && isContinueTopicRequest(normalizedText)) {
+            logger.info(`${TAG} User ${userId}: Intenção (lastResponseContext): CONTINUE_PREVIOUS_TOPIC.`);
+            return { type: 'intent_determined', intent: 'CONTINUE_PREVIOUS_TOPIC', resolvedContextTopic: lastResponseCtx.topic };
+        }
+        logger.debug(`${TAG} User ${userId}: Lógica de CURTO PRAZO (lastResponseContext) não determinou intenção. Prosseguindo...`);
+    }
+
+    // Fallback para conversationSummary se lastResponseContext não foi usado ou não determinou intenção
+    if (isRecentInteraction && summaryNorm) {
+        logger.debug(`${TAG} User ${userId}: Aplicando lógica contextual de RESUMO (conversationSummary). Resumo: "${summaryNorm.substring(0, 100)}..."`);
+        resolvedContextTopicForLLM = summaryNorm.substring(0, 100) + "..."; // Usar resumo como contexto mais amplo
+
+        if (isClarificationRequest(normalizedText)) {
+            logger.info(`${TAG} User ${userId}: Intenção (conversationSummary): ASK_CLARIFICATION_PREVIOUS_RESPONSE.`);
+            return { type: 'intent_determined', intent: 'ASK_CLARIFICATION_PREVIOUS_RESPONSE', resolvedContextTopic: resolvedContextTopicForLLM };
+        }
+
+        const summaryMentionsMetricsOrAnalysis = (summaryNorm.includes("media") || summaryNorm.includes("desempenho") || summaryNorm.includes("horario") || summaryNorm.includes("resultado") || summaryNorm.includes("analis") || summaryNorm.includes("metricas") || summaryNorm.includes("dados"));
+
+        if (summaryMentionsMetricsOrAnalysis && isMetricDetailsRequest(normalizedText)) {
+            logger.info(`${TAG} User ${userId}: Intenção (conversationSummary): REQUEST_METRIC_DETAILS_FROM_CONTEXT.`);
+            return { type: 'intent_determined', intent: 'REQUEST_METRIC_DETAILS_FROM_CONTEXT', resolvedContextTopic: resolvedContextTopicForLLM };
+        }
+
+        if (summaryMentionsMetricsOrAnalysis && isDataSourceRequest(normalizedText)) {
+            logger.info(`${TAG} User ${userId}: Intenção (conversationSummary): EXPLAIN_DATA_SOURCE_FOR_ANALYSIS.`);
+            return { type: 'intent_determined', intent: 'EXPLAIN_DATA_SOURCE_FOR_ANALYSIS', resolvedContextTopic: resolvedContextTopicForLLM };
+        }
+        
+        const isShortFollowUp = normalizedText.split(/\s+/).length <= 7;
+        if (isShortFollowUp && isContinueTopicRequest(normalizedText)) {
+            logger.info(`${TAG} User ${userId}: Intenção (conversationSummary): CONTINUE_PREVIOUS_TOPIC.`);
+            return { type: 'intent_determined', intent: 'CONTINUE_PREVIOUS_TOPIC', resolvedContextTopic: resolvedContextTopicForLLM };
+        }
+    } else if (ENABLE_CONTEXTUAL_INTENT_LOGIC) {
+        logger.debug(`${TAG} User ${userId}: Nenhuma lógica contextual (curto prazo ou resumo) aplicada. Recente (interação): ${isRecentInteraction}, Recente (resp. contexto): ${isRecentResponseContext}, Resumo: ${!!summaryNorm}, Ctx Resp.: ${!!lastResponseCtx}`);
+    }
+  }
+  // --- FIM DA LÓGICA DE INTENÇÃO CONTEXTUAL ---
+
+
+  // Lógica de intenção principal baseada em keywords
   let intent: DeterminedIntent;
 
-  // A nova intenção de roteiro de humor deve ser verificada ANTES de script_request genérico.
   if      (isHumorScriptRequest(normalizedText)) intent = 'humor_script_request';
   else if (isBestTimeRequest(normalizedText))    intent = 'ASK_BEST_TIME';
   else if (isPlanRequest(normalizedText))        intent = 'content_plan';
-  else if (isScriptRequest(normalizedText))      intent = 'script_request'; // Agora só pega se não for humor_script_request
+  else if (isScriptRequest(normalizedText))      intent = 'script_request';
   else if (isBestPerfRequest(normalizedText))    intent = 'ASK_BEST_PERFORMER';
   else if (isCommunityInspirationRequest(normalizedText)) intent = 'ask_community_inspiration';
   else if (isIdeasRequest(normalizedText))       intent = 'content_ideas';
@@ -522,18 +611,42 @@ export async function determineIntent(
   else if (isReportRequest(normalizedText))      intent = 'report';
   else if (isSocialQueryRequest(normalizedText)) {
     intent = 'social_query';
-    logger.debug(`${TAG} User ${userId}: Intenção social query detectada.`);
   }
   else if (isMetaQueryRequest(normalizedText)) {
     intent = 'meta_query_personal';
-    logger.debug(`${TAG} User ${userId}: Intenção meta query pessoal detectada.`);
   }
   else {
+    // --- INÍCIO DO REFINAMENTO DO FALLBACK ---
+    if (ENABLE_CONTEXTUAL_INTENT_LOGIC) {
+        const summaryNorm = dialogueState.conversationSummary ? normalize(dialogueState.conversationSummary) : "";
+        const timeSinceLastInteractionMinutes = dialogueState.lastInteraction ? (Date.now() - dialogueState.lastInteraction) / (1000 * 60) : Infinity;
+        const isRecentInteraction = timeSinceLastInteractionMinutes < (SHORT_TERM_CONTEXT_VALIDITY_MINUTES || 15);
+        const isShortFollowUp = normalizedText.split(/\s+/).length <= 7;
+
+        const lastResponseCtxFallback = dialogueState.lastResponseContext;
+        const timeSinceLastResponseCtxFallbackMinutes = lastResponseCtxFallback?.timestamp ? (Date.now() - lastResponseCtxFallback.timestamp) / (1000 * 60) : Infinity;
+        const isRecentResponseContextFallback = timeSinceLastResponseCtxFallbackMinutes < (SHORT_TERM_CONTEXT_VALIDITY_MINUTES || 5);
+        
+        let resolvedContextTopicForLLMFallback: string | undefined = undefined;
+
+        if (isRecentResponseContextFallback && lastResponseCtxFallback?.topic && isShortFollowUp && (isClarificationRequest(normalizedText) || isContinueTopicRequest(normalizedText))) {
+            intent = isClarificationRequest(normalizedText) ? 'ASK_CLARIFICATION_PREVIOUS_RESPONSE' : 'CONTINUE_PREVIOUS_TOPIC';
+            resolvedContextTopicForLLMFallback = lastResponseCtxFallback.topic;
+            logger.info(`${TAG} User ${userId}: Intenção contextual de seguimento (fallback, usando lastResponseContext), classificada como ${intent}.`);
+            return { type: 'intent_determined', intent, resolvedContextTopic: resolvedContextTopicForLLMFallback };
+        } else if (summaryNorm && isShortFollowUp && isRecentInteraction && (isClarificationRequest(normalizedText) || isContinueTopicRequest(normalizedText))) {
+            intent = isClarificationRequest(normalizedText) ? 'ASK_CLARIFICATION_PREVIOUS_RESPONSE' : 'CONTINUE_PREVIOUS_TOPIC';
+            resolvedContextTopicForLLMFallback = summaryNorm.substring(0,100) + "...";
+            logger.info(`${TAG} User ${userId}: Intenção contextual de seguimento (fallback, usando summaryNorm), classificada como ${intent}.`);
+            return { type: 'intent_determined', intent, resolvedContextTopic: resolvedContextTopicForLLMFallback };
+        }
+    }
+    // --- FIM DO REFINAMENTO DO FALLBACK ---
     intent = 'general';
-    logger.debug(`${TAG} User ${userId}: Nenhuma intenção específica detectada, fallback para 'general'.`);
+    logger.debug(`${TAG} User ${userId}: Nenhuma intenção específica ou contextual forte detectada, fallback para 'general'.`);
   }
 
-  logger.info(`${TAG} User ${userId}: Intenção final determinada (não-memória ou fallback): ${intent}`);
+  logger.info(`${TAG} User ${userId}: Intenção final determinada: ${intent}`);
   return { type: 'intent_determined', intent };
 }
 
