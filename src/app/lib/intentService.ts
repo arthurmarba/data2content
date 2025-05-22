@@ -1,14 +1,12 @@
-// @/app/lib/intentService.ts – v2.20.0 (Utiliza lastResponseContext para Memória de Curto Prazo)
-// - MODIFICADO: Função determineIntent agora utiliza dialogueState.lastResponseContext para refinar a detecção de intenções contextuais.
-// - ADICIONADO: Lógica para verificar a recência do lastResponseContext.
-// - Baseado na v2.19.3_feature_flag.
+// @/app/lib/intentService.ts – v2.20.2 (Aumenta fallback de validade do contexto para 4 horas)
+// - MODIFICADO: Fallback para validityMinutes alterado de 5 para 240 minutos.
+// - Baseado na v2.20.1.
 // --------------------------------------------------
 
 import { logger } from '@/app/lib/logger';
 import { IUser, IUserPreferences }  from '@/app/models/User';
-// IDialogueState importado já deve incluir ILastResponseContext da versão state_service_ts_v_short_term_memory
-import { IDialogueState } from './stateService'; 
-import { SHORT_TERM_CONTEXT_VALIDITY_MINUTES } from '@/app/lib/constants'; // Adicionar esta constante
+import { IDialogueState, ILastResponseContext } from './stateService'; 
+import { SHORT_TERM_CONTEXT_VALIDITY_MINUTES } from '@/app/lib/constants'; 
 
 // --- FEATURE FLAG PARA LÓGICA CONTEXTUAL ---
 const ENABLE_CONTEXTUAL_INTENT_LOGIC = process.env.FEATURE_CONTEXTUAL_INTENT_LOGIC_ENABLED === 'true';
@@ -66,7 +64,6 @@ export type IntentResult =
       extractedGoal?: string;
       extractedFact?: string;
       memoryUpdateRequestContent?: string;
-      // Adicionado para passar o contexto resolvido para a LLM, se necessário
       resolvedContextTopic?: string; 
     }
   | { type: 'special_handled'; response: string };
@@ -278,7 +275,7 @@ function isSimpleNegative(norm: string): boolean {
 }
 
 export function isSimpleConfirmationOrAcknowledgement(normalizedText: string): boolean {
-    const TAG = '[intentService][isSimpleConfirmationOrAcknowledgement v2.20.0]';
+    const TAG = '[intentService][isSimpleConfirmationOrAcknowledgement v2.20.2]';
     if (!normalizedText || normalizedText.trim() === '') {
         return false;
     }
@@ -319,7 +316,7 @@ export function isSimpleConfirmationOrAcknowledgement(normalizedText: string): b
 }
 
 function detectUserPreference(normalizedText: string, rawText: string): { isMatch: boolean; extractedPreference?: ExtractedPreferenceDetail } {
-    const TAG = '[intentService][detectUserPreference v2.20.0]';
+    const TAG = '[intentService][detectUserPreference v2.20.2]';
     let match;
     const toneRegex = /(?:(?:prefiro|gosto\s+de|meu)(?:\s+um)?\s+tom(?:\s+é)?|tom\s+da\s+ia(?:\s+é)?)\s+(mais\s+formal|direto\s+ao\s+ponto|super\s+descontra[ií]do|formal|descontra[ií]do|direto)/i;
     match = rawText.match(toneRegex);
@@ -351,7 +348,7 @@ function detectUserPreference(normalizedText: string, rawText: string): { isMatc
 }
 
 function detectUserGoal(normalizedText: string, rawText: string): { isMatch: boolean; extractedGoal?: string } {
-    const TAG = '[intentService][detectUserGoal v2.20.0]';
+    const TAG = '[intentService][detectUserGoal v2.20.2]';
     const lowerRawText = rawText.toLowerCase();
     const goalKeywordsAndPhrases: string[] = [
         "meu objetivo principal é", "meu objetivo principal é de", "meu objetivo é", "meu objetivo de",
@@ -384,7 +381,7 @@ function detectUserGoal(normalizedText: string, rawText: string): { isMatch: boo
 }
 
 function detectUserKeyFact(normalizedText: string, rawText: string): { isMatch: boolean; extractedFact?: string } {
-    const TAG = '[intentService][detectUserKeyFact v2.20.0]';
+    const TAG = '[intentService][detectUserKeyFact v2.20.2]';
     const factRegex = /(?:(?:um\s+)?fato\s+(?:importante\s+)?(?:sobre\s+mim|a\s+meu\s+respeito)\s+(?:é\s+que)?|só\s+para\s+(?:você|vc)\s+saber,?|para\s+sua\s+informa[cç][aã]o,?|para\s+que\s+(?:voc[êe]|vc)\s+saiba\s+(?:mais\s+)?sobre\s+mim,?|gostaria\s+de\s+compartilhar\s+que|é\s+importante\s+dizer\s+que|eu\s+trabalho\s+com|minha\s+especialidade\s+é\s+em|sou\s+(?:formado|formada|especialista)\s+em|moro\s+em|minha\s+empresa\s+(?:é|se\s+chama)|meu\s+nicho\s+é)\s+([\s\S]+)/i;
     const match = rawText.match(factRegex);
     if (match && match[1]) {
@@ -398,7 +395,7 @@ function detectUserKeyFact(normalizedText: string, rawText: string): { isMatch: 
 }
 
 function detectMemoryUpdateRequest(normalizedText: string, rawText: string): { isMatch: boolean; memoryUpdateRequestContent?: string } {
-    const TAG = '[intentService][detectMemoryUpdateRequest v2.20.0]';
+    const TAG = '[intentService][detectMemoryUpdateRequest v2.20.2]';
     const requestKeywordsJoined = USER_REQUESTS_MEMORY_UPDATE_KEYWORDS.map(kw => kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
     const requestRegex = new RegExp(`(?:tuca(?:,\\s*)?)?(?:${requestKeywordsJoined})\\s+([\\s\\S]+)`, 'i');
     const match = rawText.match(requestRegex);
@@ -417,7 +414,7 @@ async function quickSpecialHandle(
   normalized: string,
   greeting: string
 ): Promise<IntentResult | null> {
-  const TAG = '[intentService][quickSpecialHandle v2.20.0]';
+  const TAG = '[intentService][quickSpecialHandle v2.20.2]';
   const userFirstName = user.name ? user.name.split(' ')[0]! : 'tudo bem';
   if (isGreetingOnly(normalized)) {
     logger.debug(`${TAG} Greeting detected.`);
@@ -471,8 +468,10 @@ export async function determineIntent(
   greeting       : string,
   userId         : string
 ): Promise<IntentResult> {
-  const TAG = '[intentService.determineIntent v2.20.0]';
+  const TAG = '[intentService.determineIntent v2.20.2]';
   logger.info(`${TAG} User ${userId}: Analisando texto para intenção... Raw: "${rawText.substring(0, 60)}..."`);
+  logger.debug(`${TAG} User ${userId}: Estado do diálogo recebido: lastInteraction: ${dialogueState.lastInteraction}, lastResponseContext: ${JSON.stringify(dialogueState.lastResponseContext)}, summary: ${dialogueState.conversationSummary ? '"' + dialogueState.conversationSummary.substring(0,50) + '"...' : 'N/A'}`);
+
 
   if (dialogueState.lastAIQuestionType) {
     logger.debug(`${TAG} User ${userId}: Estado do diálogo indica pergunta pendente: ${dialogueState.lastAIQuestionType}`);
@@ -517,20 +516,24 @@ export async function determineIntent(
   // --- INÍCIO DA LÓGICA DE INTENÇÃO CONTEXTUAL (COM MEMÓRIA DE CURTO PRAZO) ---
   if (ENABLE_CONTEXTUAL_INTENT_LOGIC) {
     const summaryNorm = dialogueState.conversationSummary ? normalize(dialogueState.conversationSummary) : "";
+    // A constante SHORT_TERM_CONTEXT_VALIDITY_MINUTES deve ser importada de constants.ts
+    // ATUALIZADO: Fallback para 240 minutos (4 horas) se a constante não estiver definida
+    const validityMinutes = typeof SHORT_TERM_CONTEXT_VALIDITY_MINUTES === 'number' ? SHORT_TERM_CONTEXT_VALIDITY_MINUTES : 240; 
+    
     const timeSinceLastInteractionMinutes = dialogueState.lastInteraction ? (Date.now() - dialogueState.lastInteraction) / (1000 * 60) : Infinity;
-    const isRecentInteraction = timeSinceLastInteractionMinutes < (SHORT_TERM_CONTEXT_VALIDITY_MINUTES || 15); // Usar constante ou default
+    const isRecentInteraction = timeSinceLastInteractionMinutes < validityMinutes; 
 
     const lastResponseCtx = dialogueState.lastResponseContext;
     const timeSinceLastResponseCtxMinutes = lastResponseCtx?.timestamp ? (Date.now() - lastResponseCtx.timestamp) / (1000 * 60) : Infinity;
-    // Usar a mesma constante para validade do contexto de curto prazo e da interação recente para simplificar, ou definir uma específica.
-    const isRecentResponseContext = timeSinceLastResponseCtxMinutes < (SHORT_TERM_CONTEXT_VALIDITY_MINUTES || 5);
+    const isRecentResponseContext = timeSinceLastResponseCtxMinutes < validityMinutes;
+
+    logger.debug(`${TAG} User ${userId}: Avaliando lógica contextual. Validade (min): ${validityMinutes}. Recente (Interação): ${isRecentInteraction} (${timeSinceLastInteractionMinutes.toFixed(1)} min), Recente (Ctx Resposta): ${isRecentResponseContext} (${timeSinceLastResponseCtxMinutes.toFixed(1)} min), Summary: ${!!summaryNorm}, Ctx Resp.: ${!!lastResponseCtx}`);
 
     let resolvedContextTopicForLLM: string | undefined = undefined;
 
-    // Priorizar lastResponseContext se disponível e recente
-    if (isRecentResponseContext && lastResponseCtx && (lastResponseCtx.topic || lastResponseCtx.entities?.length)) {
-        logger.debug(`${TAG} User ${userId}: Aplicando lógica contextual de CURTO PRAZO (lastResponseContext). Tópico: "${lastResponseCtx.topic}", Entidades: [${lastResponseCtx.entities?.join(', ')}]`);
-        resolvedContextTopicForLLM = lastResponseCtx.topic; // Potencialmente passar para LLM
+    if (isRecentResponseContext && lastResponseCtx && (lastResponseCtx.topic || (lastResponseCtx.entities && lastResponseCtx.entities.length > 0) )) {
+        logger.info(`${TAG} User ${userId}: Aplicando lógica contextual de CURTO PRAZO (lastResponseContext). Tópico: "${lastResponseCtx.topic}", Entidades: [${lastResponseCtx.entities?.join(', ')}]`);
+        resolvedContextTopicForLLM = lastResponseCtx.topic; 
 
         if (isClarificationRequest(normalizedText)) {
             logger.info(`${TAG} User ${userId}: Intenção (lastResponseContext): ASK_CLARIFICATION_PREVIOUS_RESPONSE.`);
@@ -560,13 +563,12 @@ export async function determineIntent(
             logger.info(`${TAG} User ${userId}: Intenção (lastResponseContext): CONTINUE_PREVIOUS_TOPIC.`);
             return { type: 'intent_determined', intent: 'CONTINUE_PREVIOUS_TOPIC', resolvedContextTopic: lastResponseCtx.topic };
         }
-        logger.debug(`${TAG} User ${userId}: Lógica de CURTO PRAZO (lastResponseContext) não determinou intenção. Prosseguindo...`);
+        logger.debug(`${TAG} User ${userId}: Lógica de CURTO PRAZO (lastResponseContext) não determinou intenção. Prosseguindo para resumo...`);
     }
 
-    // Fallback para conversationSummary se lastResponseContext não foi usado ou não determinou intenção
-    if (isRecentInteraction && summaryNorm) {
-        logger.debug(`${TAG} User ${userId}: Aplicando lógica contextual de RESUMO (conversationSummary). Resumo: "${summaryNorm.substring(0, 100)}..."`);
-        resolvedContextTopicForLLM = summaryNorm.substring(0, 100) + "..."; // Usar resumo como contexto mais amplo
+    if (isRecentInteraction && summaryNorm) { 
+        logger.info(`${TAG} User ${userId}: Aplicando lógica contextual de RESUMO (conversationSummary). Resumo: "${summaryNorm.substring(0, 100)}..."`);
+        resolvedContextTopicForLLM = summaryNorm.substring(0, 100) + "..."; 
 
         if (isClarificationRequest(normalizedText)) {
             logger.info(`${TAG} User ${userId}: Intenção (conversationSummary): ASK_CLARIFICATION_PREVIOUS_RESPONSE.`);
@@ -590,8 +592,9 @@ export async function determineIntent(
             logger.info(`${TAG} User ${userId}: Intenção (conversationSummary): CONTINUE_PREVIOUS_TOPIC.`);
             return { type: 'intent_determined', intent: 'CONTINUE_PREVIOUS_TOPIC', resolvedContextTopic: resolvedContextTopicForLLM };
         }
-    } else if (ENABLE_CONTEXTUAL_INTENT_LOGIC) {
-        logger.debug(`${TAG} User ${userId}: Nenhuma lógica contextual (curto prazo ou resumo) aplicada. Recente (interação): ${isRecentInteraction}, Recente (resp. contexto): ${isRecentResponseContext}, Resumo: ${!!summaryNorm}, Ctx Resp.: ${!!lastResponseCtx}`);
+        logger.debug(`${TAG} User ${userId}: Lógica de RESUMO (conversationSummary) não determinou intenção.`);
+    } else if (ENABLE_CONTEXTUAL_INTENT_LOGIC) { 
+        logger.info(`${TAG} User ${userId}: Nenhuma lógica contextual (curto prazo ou resumo) foi aplicada significativamente. Condições: Recente (Interação): ${isRecentInteraction}, Recente (Ctx Resposta): ${isRecentResponseContext}, Summary: ${!!summaryNorm}, Ctx Resp.: ${!!lastResponseCtx}`);
     }
   }
   // --- FIM DA LÓGICA DE INTENÇÃO CONTEXTUAL ---
@@ -618,14 +621,14 @@ export async function determineIntent(
   else {
     // --- INÍCIO DO REFINAMENTO DO FALLBACK ---
     if (ENABLE_CONTEXTUAL_INTENT_LOGIC) {
-        const summaryNorm = dialogueState.conversationSummary ? normalize(dialogueState.conversationSummary) : "";
+        const validityMinutes = typeof SHORT_TERM_CONTEXT_VALIDITY_MINUTES === 'number' ? SHORT_TERM_CONTEXT_VALIDITY_MINUTES : 240; // Default 4 horas
         const timeSinceLastInteractionMinutes = dialogueState.lastInteraction ? (Date.now() - dialogueState.lastInteraction) / (1000 * 60) : Infinity;
-        const isRecentInteraction = timeSinceLastInteractionMinutes < (SHORT_TERM_CONTEXT_VALIDITY_MINUTES || 15);
+        const isRecentInteraction = timeSinceLastInteractionMinutes < validityMinutes;
         const isShortFollowUp = normalizedText.split(/\s+/).length <= 7;
 
         const lastResponseCtxFallback = dialogueState.lastResponseContext;
         const timeSinceLastResponseCtxFallbackMinutes = lastResponseCtxFallback?.timestamp ? (Date.now() - lastResponseCtxFallback.timestamp) / (1000 * 60) : Infinity;
-        const isRecentResponseContextFallback = timeSinceLastResponseCtxFallbackMinutes < (SHORT_TERM_CONTEXT_VALIDITY_MINUTES || 5);
+        const isRecentResponseContextFallback = timeSinceLastResponseCtxFallbackMinutes < validityMinutes;
         
         let resolvedContextTopicForLLMFallback: string | undefined = undefined;
 
@@ -634,9 +637,9 @@ export async function determineIntent(
             resolvedContextTopicForLLMFallback = lastResponseCtxFallback.topic;
             logger.info(`${TAG} User ${userId}: Intenção contextual de seguimento (fallback, usando lastResponseContext), classificada como ${intent}.`);
             return { type: 'intent_determined', intent, resolvedContextTopic: resolvedContextTopicForLLMFallback };
-        } else if (summaryNorm && isShortFollowUp && isRecentInteraction && (isClarificationRequest(normalizedText) || isContinueTopicRequest(normalizedText))) {
+        } else if (dialogueState.conversationSummary && isShortFollowUp && isRecentInteraction && (isClarificationRequest(normalizedText) || isContinueTopicRequest(normalizedText))) {
             intent = isClarificationRequest(normalizedText) ? 'ASK_CLARIFICATION_PREVIOUS_RESPONSE' : 'CONTINUE_PREVIOUS_TOPIC';
-            resolvedContextTopicForLLMFallback = summaryNorm.substring(0,100) + "...";
+            resolvedContextTopicForLLMFallback = dialogueState.conversationSummary.substring(0,100) + "...";
             logger.info(`${TAG} User ${userId}: Intenção contextual de seguimento (fallback, usando summaryNorm), classificada como ${intent}.`);
             return { type: 'intent_determined', intent, resolvedContextTopic: resolvedContextTopicForLLMFallback };
         }
