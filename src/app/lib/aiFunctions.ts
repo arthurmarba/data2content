@@ -1,13 +1,15 @@
-// @/app/lib/aiFunctions.ts – v0.10.9 (Correção no log de erro de getTopPosts)
-// - CORRIGIDO: Log de erro em getTopPosts para usar loggedUser._id.toString() diretamente,
-//   garantindo que a referência ao ID do usuário esteja sempre disponível.
-// - Mantém funcionalidades da v0.10.8.
+/**
+ * @fileoverview Orquestrador de chamadas à API OpenAI com Function Calling e Streaming.
+ * Otimizado para buscar dados sob demanda via funções e modular comportamento por intenção.
+ * ATUALIZADO: Adicionada função getQuickAcknowledgementLLMResponse para gerar respostas curtas e rápidas (quebra-gelo).
+ * @version 0.10.10 (Melhora descrição de findPostsByCriteria para LLM)
+ */
 
 import { Types, Model } from 'mongoose';
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
 
-import * as ZodSchemas from './aiFunctionSchemas.zod';
+import * as ZodSchemas from './aiFunctionSchemas.zod'; // Este já deve ser a v1.3.2
 
 import { IUser } from '@/app/models/User';
 import { IMetric, IMetricStats } from '@/app/models/Metric';
@@ -24,7 +26,7 @@ import {
   IDailyMetricSnapshot,
   getDailySnapshotsForMetric,
   getLatestAccountInsights as getLatestAccountInsightsFromDataService,
-  getTopPostsByMetric as getTopPostsByMetricFromDataService, // Renomeado para evitar conflito de nome local
+  getTopPostsByMetric as getTopPostsByMetricFromDataService,
   getMetricDetails as getMetricDetailsFromDataService,
   findMetricsByCriteria as findMetricsByCriteriaFromDataService,
   FindMetricsCriteriaArgs,
@@ -160,12 +162,14 @@ export const functionSchemas = [
                         },
                         description: "Intervalo de datas para filtrar os posts."
                     },
-                    minLikes: { type: 'number', description: "Número mínimo de curtidas." },
-                    minShares: { type: 'number', description: "Número mínimo de compartilhamentos." }
+                    // ATUALIZADO: Descrição de minLikes
+                    minLikes: { type: 'number', description: "Número mínimo de curtidas. Use 0 se não houver um mínimo." },
+                    minShares: { type: 'number', description: "Número mínimo de compartilhamentos (deve ser maior que 0 se especificado)." }
                 },
                 description: "Critérios de busca para os posts."
             },
-            limit: { type: 'number', default: 5, minimum: 1, maximum: 20, description: "Número máximo de posts a retornar." },
+            // ATUALIZADO: Descrição de limit
+            limit: { type: 'number', default: 5, minimum: 1, maximum: 20, description: "Número máximo de posts a retornar (entre 1 e 20)." },
             sortBy: {
                 type: 'string',
                 enum: ZodSchemas.FindPostsByCriteriaArgsSchema.shape.sortBy.removeDefault().unwrap()._def.values,
@@ -221,7 +225,7 @@ type ExecutorFn = (args: any, user: IUser) => Promise<unknown>;
 
 /* 2.1 getAggregatedReport */
 const getAggregatedReport: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetAggregatedReportArgsSchema>, loggedUser) => {
-  const fnTag = '[fn:getAggregatedReport v0.10.8]'; 
+  const fnTag = '[fn:getAggregatedReport v0.10.10]'; 
   try {
     const periodInDays = args.analysisPeriod === undefined ? 180 : args.analysisPeriod;
     logger.info(`${fnTag} Executando para usuário ${loggedUser._id} com período de análise: ${periodInDays} dias.`);
@@ -294,7 +298,7 @@ const getAggregatedReport: ExecutorFn = async (args: z.infer<typeof ZodSchemas.G
 
 /* 2.2 getLatestAccountInsights */
 const getLatestAccountInsights: ExecutorFn = async (_args: z.infer<typeof ZodSchemas.GetLatestAccountInsightsArgsSchema>, loggedUser) => {
-    const fnTag = '[fn:getLatestAccountInsights v0.10.3]';
+    const fnTag = '[fn:getLatestAccountInsights v0.10.10]';
     logger.info(`${fnTag} Executando para usuário ${loggedUser._id} via dataService.`);
     try {
         const latestInsight: IAccountInsight | null = await getLatestAccountInsightsFromDataService(loggedUser._id.toString());
@@ -322,7 +326,7 @@ const getLatestAccountInsights: ExecutorFn = async (_args: z.infer<typeof ZodSch
 
 /* 2.X fetchCommunityInspirations */
 const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSchemas.FetchCommunityInspirationsArgsSchema>, loggedUser) => {
-  const fnTag = '[fn:fetchCommunityInspirations v0.10.0]';
+  const fnTag = '[fn:fetchCommunityInspirations v0.10.10]';
   logger.info(`${fnTag} Executando para User ${loggedUser._id} com args: ${JSON.stringify(args)}`);
   try {
     if (!loggedUser.communityInspirationOptIn) {
@@ -382,15 +386,13 @@ const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSc
 
 /* 2.3 getTopPosts */
 const getTopPosts: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetTopPostsArgsSchema>, loggedUser) => {
-  const fnTag = '[fn:getTopPosts v0.10.9]'; // Versão atualizada
-  // A variável userId é definida aqui e deve estar no escopo do catch.
+  const fnTag = '[fn:getTopPosts v0.10.10]'; 
   const userId = loggedUser._id.toString(); 
   try {
     const metricKey = args.metric;
     const limit = args.limit;
     logger.info(`${fnTag} Executando para user ${userId}. Métrica: ${metricKey}, Limite: ${limit} (via dataService)`);
 
-    // Usando o nome importado com alias para evitar conflito
     const topPostsFromDataService: IMetric[] = await getTopPostsByMetricFromDataService(userId, metricKey, limit);
 
     if (topPostsFromDataService.length === 0) {
@@ -420,10 +422,6 @@ const getTopPosts: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetTopPos
     return { metric: metricKey, limit, posts: formattedPosts };
 
   } catch (err: any) {
-    // CORREÇÃO: Usar loggedUser._id.toString() diretamente no log para garantir acesso,
-    // ou certificar-se que 'userId' está corretamente em escopo se a declaração original foi movida/removida.
-    // Dado que `userId` é declarado no início da função, ele DEVERIA estar em escopo.
-    // Esta mudança é uma salvaguarda extra ou para o caso do código local do usuário estar diferente.
     logger.error(`${fnTag} Erro ao buscar top posts para User ${loggedUser._id.toString()} com métrica ${args.metric} (via dataService):`, err);
     return { error: err.message || "Ocorreu um erro inesperado ao buscar os top posts. Por favor, tente novamente." };
   }
@@ -431,7 +429,7 @@ const getTopPosts: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetTopPos
 
 /* 2.4 getDayPCOStats */
 const getDayPCOStats: ExecutorFn = async (_args: z.infer<typeof ZodSchemas.GetDayPCOStatsArgsSchema>, loggedUser) => {
-   const fnTag = '[fn:getDayPCOStats v0.10.7]'; 
+   const fnTag = '[fn:getDayPCOStats v0.10.10]'; 
    try {
     logger.info(`${fnTag} Executando para usuário ${loggedUser._id}`);
     const sinceDate = subDays(new Date(), 180);
@@ -459,7 +457,7 @@ const getDayPCOStats: ExecutorFn = async (_args: z.infer<typeof ZodSchemas.GetDa
 
 /* 2.5 getMetricDetailsById */
 const getMetricDetailsById: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetMetricDetailsByIdArgsSchema>, loggedUser) => {
-    const fnTag = '[fn:getMetricDetailsById v0.10.5]';
+    const fnTag = '[fn:getMetricDetailsById v0.10.10]';
     try {
         const metricId = args.metricId;
         const userId = loggedUser._id.toString();
@@ -491,7 +489,7 @@ const getMetricDetailsById: ExecutorFn = async (args: z.infer<typeof ZodSchemas.
 
 /* 2.6 findPostsByCriteria */
 const findPostsByCriteria: ExecutorFn = async (args: z.infer<typeof ZodSchemas.FindPostsByCriteriaArgsSchema>, loggedUser) => {
-    const fnTag = '[fn:findPostsByCriteria v0.10.6]';
+    const fnTag = '[fn:findPostsByCriteria v0.10.10]';
     try {
         const userId = loggedUser._id.toString();
         const dataServiceArgs: FindMetricsCriteriaArgs = {
@@ -538,7 +536,6 @@ const findPostsByCriteria: ExecutorFn = async (args: z.infer<typeof ZodSchemas.F
         return { count: formattedPosts.length, posts: formattedPosts };
 
     } catch (err: any) {
-        // CORREÇÃO: Usar loggedUser._id.toString() diretamente no log para garantir acesso
         logger.error(`${fnTag} Erro ao buscar posts por critérios para User ${loggedUser._id.toString()} (chamando dataService):`, err);
         return { error: err.message || "Ocorreu um erro inesperado ao buscar posts com esses critérios. Por favor, tente novamente." };
     }
@@ -546,7 +543,7 @@ const findPostsByCriteria: ExecutorFn = async (args: z.infer<typeof ZodSchemas.F
 
 /* 2.7 getDailyMetricHistory */
 const getDailyMetricHistory: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetDailyMetricHistoryArgsSchema>, loggedUser) => {
-    const fnTag = '[fn:getDailyMetricHistory v0.10.2]';
+    const fnTag = '[fn:getDailyMetricHistory v0.10.10]';
     try {
         const metricId = args.metricId;
         const userId = loggedUser._id.toString();
@@ -564,7 +561,6 @@ const getDailyMetricHistory: ExecutorFn = async (args: z.infer<typeof ZodSchemas
         return { history: formattedHistory };
 
     } catch (err: any) {
-        // CORREÇÃO: Usar loggedUser._id.toString() diretamente no log para garantir acesso
         logger.error(`${fnTag} Erro ao buscar histórico diário da métrica ${args?.metricId} para User ${loggedUser._id.toString()} (chamando dataService):`, err);
         return { error: err.message || "Ocorreu um erro inesperado ao buscar o histórico diário deste post. Por favor, tente novamente." };
     }
@@ -572,11 +568,11 @@ const getDailyMetricHistory: ExecutorFn = async (args: z.infer<typeof ZodSchemas
 
 
 /* 2.8 getConsultingKnowledge */
-const getConsultingKnowledge: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetConsultingKnowledgeArgsSchema>, loggedUser) => { // Adicionado loggedUser para consistência, embora não usado diretamente no log de erro.
-    const fnTag = '[fn:getConsultingKnowledge v0.9.9]';
+const getConsultingKnowledge: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetConsultingKnowledgeArgsSchema>, loggedUser) => { 
+    const fnTag = '[fn:getConsultingKnowledge v0.10.10]';
     const topic = args.topic;
 
-    logger.info(`${fnTag} Buscando conhecimento sobre o tópico: ${topic} para User ${loggedUser._id}`); // Adicionado ID do usuário ao log
+    logger.info(`${fnTag} Buscando conhecimento sobre o tópico: ${topic} para User ${loggedUser._id}`); 
     try {
         let knowledge = '';
         switch (topic) {
@@ -587,10 +583,9 @@ const getConsultingKnowledge: ExecutorFn = async (args: z.infer<typeof ZodSchema
             default:
                 logger.warn(`${fnTag} Tópico não mapeado recebido para User ${loggedUser._id}: ${topic}`);
                 const validTopics = ZodSchemas.GetConsultingKnowledgeArgsSchema.shape.topic._def.values;
-                if (!validTopics.includes(topic as any)) { // 'as any' para contornar checagem estrita de enum aqui, já que é um fallback
+                if (!validTopics.includes(topic as any)) { 
                      return { error: `Tópico de conhecimento inválido ou não reconhecido: "${topic}". Por favor, escolha um dos tópicos válidos.` };
                 }
-                // Se o tópico é válido mas não tem case aqui, é um erro de implementação.
                 return { error: `O tópico de conhecimento "${topic}" é reconhecido, mas houve um problema ao buscar a informação. Tente novamente ou contate o suporte se o erro persistir.` };
         }
         logger.info(`${fnTag} Conhecimento sobre "${topic}" encontrado para User ${loggedUser._id}.`);

@@ -1,7 +1,7 @@
 // @/app/lib/aiFunctionSchemas.zod.ts
-// v1.3.1 (Período de Relatório Flexível para getAggregatedReport)
-// - ATUALIZADO: GetAggregatedReportArgsSchema.analysisPeriod para aceitar z.number().
-// - Mantém funcionalidade da v1.3.0 (Comunidade de Inspiração).
+// v1.3.2 (Corrige validação de findPostsByCriteria para minLikes e reafirma limite)
+// - ATUALIZADO: FindPostsByCriteriaArgsSchema.criteria.minLikes para aceitar 0 (não-negativo).
+// - Mantém funcionalidade da v1.3.1.
 // Arquivo para definir os schemas Zod para validar os argumentos das funções chamadas pela IA.
 
 import { z } from 'zod';
@@ -41,7 +41,7 @@ export const GetMetricDetailsByIdArgsSchema = z.object({
   ,
 }).strict();
 
-// Schema para findPostsByCriteria (mantido da v1.2.0)
+// Schema para findPostsByCriteria (ATUALIZADO v1.3.2)
 const dateStringSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Formato de data inválido (esperado YYYY-MM-DD)");
 
 export const FindPostsByCriteriaArgsSchema = z.object({
@@ -53,10 +53,12 @@ export const FindPostsByCriteriaArgsSchema = z.object({
         start: dateStringSchema.optional(),
         end: dateStringSchema.optional(),
       }).optional(),
-    minLikes: z.number().int().positive("minLikes deve ser um inteiro positivo.").optional(),
+    // CORRIGIDO: minLikes agora é .nonnegative() para aceitar 0.
+    minLikes: z.number().int().nonnegative("minLikes deve ser um inteiro não-negativo (0 ou mais).").optional(),
     minShares: z.number().int().positive("minShares deve ser um inteiro positivo.").optional(),
   }).strict("Apenas critérios definidos (format, proposal, etc.) são permitidos."),
-  limit: z.number().int().min(1).max(20).optional().default(5),
+  // Mantido: limit com max(20)
+  limit: z.number().int().min(1).max(20, "O limite máximo de posts a retornar é 20.").optional().default(5),
   sortBy: z.enum(['postDate', 'stats.shares', 'stats.saved', 'stats.likes', 'stats.reach']).optional().default('postDate'),
   sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
 }).strict();
@@ -111,17 +113,17 @@ export const FetchCommunityInspirationsArgsSchema = z.object({
 }).strict().describe("Argumentos para buscar inspirações na comunidade de criadores IA Tuca.");
 
 
-// --- Mapa de Validadores (ATUALIZADO v1.3.1) ---
+// --- Mapa de Validadores (ATUALIZADO v1.3.2) ---
 type ValidatorMap = {
   [key: string]: z.ZodType<any, any, any>;
 };
 
 export const functionValidators: ValidatorMap = {
-  getAggregatedReport: GetAggregatedReportArgsSchema, // Schema atualizado
+  getAggregatedReport: GetAggregatedReportArgsSchema, 
   getTopPosts: GetTopPostsArgsSchema,
   getDayPCOStats: GetDayPCOStatsArgsSchema,
   getMetricDetailsById: GetMetricDetailsByIdArgsSchema,
-  findPostsByCriteria: FindPostsByCriteriaArgsSchema,
+  findPostsByCriteria: FindPostsByCriteriaArgsSchema, // Schema atualizado
   getDailyMetricHistory: GetDailyMetricHistoryArgsSchema,
   getConsultingKnowledge: GetConsultingKnowledgeArgsSchema,
   getLatestAccountInsights: GetLatestAccountInsightsArgsSchema,

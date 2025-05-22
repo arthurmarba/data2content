@@ -2,7 +2,7 @@
  * @fileoverview Orquestrador de chamadas à API OpenAI com Function Calling e Streaming.
  * Otimizado para buscar dados sob demanda via funções e modular comportamento por intenção.
  * ATUALIZADO: Adicionada função getQuickAcknowledgementLLMResponse para gerar respostas curtas e rápidas (quebra-gelo).
- * @version 0.9.4 (Alinhado com firstName no EnrichedContext para prompt principal)
+ * @version 0.9.6 (Refina detecção de loop para permitir uma nova tentativa da mesma função após erro de validação)
  */
 
 import OpenAI from 'openai';
@@ -15,34 +15,33 @@ import type {
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
 import { functionSchemas, functionExecutors } from './aiFunctions';
-import { getSystemPrompt } from '@/app/lib/promptSystemFC'; // Deve ser v2.32.10 ou superior
+import { getSystemPrompt } from '@/app/lib/promptSystemFC'; 
 import { IUser } from '@/app/models/User';
 import * as stateService from '@/app/lib/stateService';
-import { functionValidators } from './aiFunctionSchemas.zod';
+import { functionValidators } from './aiFunctionSchemas.zod'; // Deve ser v1.3.2 com correções para findPostsByCriteria
 import { DeterminedIntent } from './intentService';
 
 
 // Configuração do cliente OpenAI e constantes
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
-const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini'; // Usado para a resposta principal
-const QUICK_ACK_MODEL = process.env.OPENAI_QUICK_ACK_MODEL || 'gpt-3.5-turbo'; // Modelo potencialmente mais rápido/barato para o quebra-gelo
+const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini'; 
+const QUICK_ACK_MODEL = process.env.OPENAI_QUICK_ACK_MODEL || 'gpt-3.5-turbo'; 
 const TEMP = Number(process.env.OPENAI_TEMP) || 0.7;
-const QUICK_ACK_TEMP = Number(process.env.OPENAI_QUICK_ACK_TEMP) || 0.8; // Pode ser um pouco mais criativo
+const QUICK_ACK_TEMP = Number(process.env.OPENAI_QUICK_ACK_TEMP) || 0.8; 
 const TOKENS = Number(process.env.OPENAI_MAXTOK) || 900;
-const QUICK_ACK_MAX_TOKENS = Number(process.env.OPENAI_QUICK_ACK_MAX_TOKENS) || 70; // Resposta curta
-const MAX_ITERS = 6;
+const QUICK_ACK_MAX_TOKENS = Number(process.env.OPENAI_QUICK_ACK_MAX_TOKENS) || 70; 
+const MAX_ITERS = 6; // Máximo de iterações de chamada de função
 const OPENAI_TIMEOUT_MS = Number(process.env.OPENAI_TIMEOUT_MS) || 45_000;
-const QUICK_ACK_TIMEOUT_MS = Number(process.env.OPENAI_QUICK_ACK_TIMEOUT_MS) || 10_000; // Timeout menor para resposta rápida
+const QUICK_ACK_TIMEOUT_MS = Number(process.env.OPENAI_QUICK_ACK_TIMEOUT_MS) || 10_000; 
 
 /**
  * @interface EnrichedContext
- * MODIFICADO: Adicionado userName (que será o firstName) para uso no prompt principal.
  */
 interface EnrichedContext {
     user: IUser;
     historyMessages: ChatCompletionMessageParam[];
     dialogueState?: stateService.IDialogueState;
-    userName: string; // Espera-se que seja o firstName do usuário
+    userName: string; 
 }
 
 /**
@@ -55,22 +54,14 @@ interface AskLLMResult {
 
 
 /**
- * NOVO: Gera uma resposta curta e rápida para reconhecimento inicial (quebra-gelo).
- * Usa um modelo e configurações potencialmente diferentes para otimizar velocidade e custo.
- * Não usa streaming nem function calling.
- *
- * @param systemPrompt O prompt de sistema específico para o quebra-gelo (já deve conter o nome do usuário).
- * @param userQuery A mensagem do usuário que disparou o quebra-gelo.
- * @param userNameForLog O nome do usuário (pode ser primeiro nome ou completo) apenas para fins de logging.
- * @returns A string da resposta gerada pela IA, ou null em caso de erro.
+ * Gera uma resposta curta e rápida para reconhecimento inicial (quebra-gelo).
  */
 export async function getQuickAcknowledgementLLMResponse(
     systemPrompt: string,
     userQuery: string,
-    userNameForLog: string = "usuário" // Este é o firstName passado de process-response
+    userNameForLog: string = "usuário" 
 ): Promise<string | null> {
-    const fnTag = '[getQuickAcknowledgementLLMResponse v0.9.4]'; // Versão atualizada no log
-    // userNameForLog aqui é o firstName, o que é bom para o log.
+    const fnTag = '[getQuickAcknowledgementLLMResponse v0.9.6]'; 
     logger.info(`${fnTag} Iniciando para ${userNameForLog}. Query: "${userQuery.slice(0, 50)}..." Usando modelo: ${QUICK_ACK_MODEL}`);
 
     const messages: ChatCompletionMessageParam[] = [
@@ -88,7 +79,7 @@ export async function getQuickAcknowledgementLLMResponse(
                 messages: messages,
                 temperature: QUICK_ACK_TEMP,
                 max_tokens: QUICK_ACK_MAX_TOKENS,
-                stream: false, // Não usa streaming para esta chamada rápida
+                stream: false, 
             },
             { signal: aborter.signal }
         );
@@ -112,25 +103,17 @@ export async function getQuickAcknowledgementLLMResponse(
 
 /**
  * Envia uma mensagem ao LLM com Function Calling em modo streaming para a resposta principal.
- * Modula o uso de functions baseado na intenção do usuário.
- * MODIFICADO: Utiliza enrichedContext.userName (firstName) para getSystemPrompt.
  */
 export async function askLLMWithEnrichedContext(
     enrichedContext: EnrichedContext,
     incomingText: string,
     intent: DeterminedIntent
 ): Promise<AskLLMResult> {
-    const fnTag = '[askLLMWithEnrichedContext v0.9.4]'; // Versão atualizada
-    // MODIFICADO: Desestrutura userName (firstName) do enrichedContext
+    const fnTag = '[askLLMWithEnrichedContext v0.9.6]'; 
     const { user, historyMessages, userName } = enrichedContext;
-    // userName aqui é o firstName, que será passado para getSystemPrompt.
-    // user._id ainda é usado para logging, o que é bom.
     logger.info(`${fnTag} Iniciando para usuário ${user._id} (Nome para prompt: ${userName}). Intenção: ${intent}. Texto: "${incomingText.slice(0, 50)}..." Usando modelo: ${MODEL}`);
 
     const initialMsgs: ChatCompletionMessageParam[] = [
-        // MODIFICADO: Passa o userName (firstName) do enrichedContext para getSystemPrompt.
-        // O fallback 'usuário' ainda existe caso enrichedContext.userName seja undefined/vazio,
-        // mas process-response/route.ts deve sempre fornecê-lo.
         { role: 'system', content: getSystemPrompt(userName || user.name || 'usuário') },
         ...historyMessages,
         { role: 'user', content: incomingText }
@@ -150,17 +133,20 @@ export async function askLLMWithEnrichedContext(
     processTurn(initialMsgs, 0, null, writer, user, intent)
         .then((finalHistory) => {
             logger.debug(`${fnTag} processTurn concluído com sucesso. Fechando writer.`);
-            writer.close();
+            writer.close(); 
             resolveHistoryPromise(finalHistory);
         })
         .catch(async (error) => {
             logger.error(`${fnTag} Erro durante processTurn:`, error);
-            rejectHistoryPromise(error);
+            rejectHistoryPromise(error); 
             try {
                 if (!writer.closed) {
                     const errorMessage = error instanceof Error ? error.message : String(error);
-                    await writer.write(`\n\n⚠️ Desculpe, ocorreu um erro interno ao processar sua solicitação: ${errorMessage}`);
-                    logger.debug(`${fnTag} Abortando writer após erro.`);
+                    if (!errorMessage.includes("Writer is closed") && !errorMessage.includes("WritableStreamDefaultWriter.close")) {
+                        await writer.write(`\n\n⚠️ Desculpe, ocorreu um erro interno ao processar sua solicitação.`);
+                        logger.info(`${fnTag} Mensagem de erro genérica escrita no stream.`);
+                    }
+                    logger.debug(`${fnTag} Abortando writer após erro em processTurn.`);
                     await writer.abort(error);
                 }
             } catch (abortError) {
@@ -179,13 +165,20 @@ export async function askLLMWithEnrichedContext(
         iter: number,
         lastFnName: string | null,
         writer: WritableStreamDefaultWriter<string>,
-        currentUser: IUser, // currentUser ainda é o objeto IUser completo
+        currentUser: IUser, 
         currentIntent: DeterminedIntent
     ): Promise<ChatCompletionMessageParam[]> {
-        const turnTag = `[processTurn iter ${iter} v0.9.4]`; // Versão atualizada
+        const turnTag = `[processTurn iter ${iter} v0.9.6]`; 
         logger.debug(`${turnTag} Iniciando. Intenção atual do turno: ${currentIntent}`);
 
-        if (iter >= MAX_ITERS) { throw new Error(`Function-call loop excedeu MAX_ITERS (${MAX_ITERS})`); }
+        if (iter >= MAX_ITERS) { 
+            logger.warn(`${turnTag} Function-call loop excedeu MAX_ITERS (${MAX_ITERS}).`);
+            const maxIterMessage = `Desculpe, parece que estou tendo dificuldades em processar sua solicitação após várias tentativas. Poderia tentar de outra forma?`;
+            currentMsgs.push({role: 'assistant', content: maxIterMessage});
+            try { await writer.write(maxIterMessage); }
+            catch(e) { logger.error(`${turnTag} Erro ao escrever msg de MAX_ITERS:`, e); }
+            return currentMsgs; 
+        }
 
         const aborter = new AbortController();
         const timeout = setTimeout(() => { aborter.abort(); logger.warn(`${turnTag} Timeout API OpenAI atingido.`); }, OPENAI_TIMEOUT_MS);
@@ -217,9 +210,16 @@ export async function askLLMWithEnrichedContext(
                 },
                 { signal: aborter.signal }
             );
-        } catch (error: any) { clearTimeout(timeout); throw new Error(`Falha API OpenAI: ${error.name === 'AbortError' ? 'Timeout' : error.message}`); }
-        finally { clearTimeout(timeout); }
-
+        } catch (error: any) { 
+            clearTimeout(timeout); 
+            logger.error(`${turnTag} Falha na chamada à API OpenAI: ${error.name === 'AbortError' ? 'Timeout' : error.message}`);
+            const apiCallFailMessage = "Desculpe, não consegui conectar com o serviço de IA no momento. Tente mais tarde.";
+            currentMsgs.push({role: 'assistant', content: apiCallFailMessage});
+            try { await writer.write(apiCallFailMessage); }
+            catch(e) { logger.error(`${turnTag} Erro ao escrever msg de falha da API:`, e); }
+            return currentMsgs;
+        }
+        
         let pendingAssistantMsg: ChatCompletionAssistantMessageParam | null = null;
         let functionCallName = '';
         let functionCallArgs = '';
@@ -234,7 +234,7 @@ export async function askLLMWithEnrichedContext(
                 const delta = choice.delta;
 
                 if (delta?.function_call) {
-                    streamReceivedContent = true;
+                    streamReceivedContent = true; 
                     if (!pendingAssistantMsg) { pendingAssistantMsg = { role: 'assistant', content: null, function_call: { name: '', arguments: '' } }; }
                     if (delta.function_call.name) functionCallName += delta.function_call.name;
                     if (delta.function_call.arguments) functionCallArgs += delta.function_call.arguments;
@@ -252,28 +252,51 @@ export async function askLLMWithEnrichedContext(
                 if (choice.finish_reason) { lastFinishReason = choice.finish_reason; logger.debug(`${turnTag} Recebido finish_reason: ${lastFinishReason}`); }
             }
             logger.debug(`${turnTag} Fim do consumo do stream da API. Último Finish Reason: ${lastFinishReason}`);
-        } catch (streamError) { logger.error(`${turnTag} Erro durante o consumo do stream:`, streamError); throw streamError; }
-
+        } catch (streamError) { 
+            logger.error(`${turnTag} Erro durante o consumo do stream:`, streamError); 
+            const streamErrMessage = "Desculpe, houve um problema ao receber a resposta da IA. Tente novamente.";
+            if (pendingAssistantMsg && typeof pendingAssistantMsg.content === 'string') {
+                pendingAssistantMsg.content += `\n${streamErrMessage}`;
+            } else {
+                pendingAssistantMsg = {role: 'assistant', content: streamErrMessage};
+            }
+            currentMsgs.push(pendingAssistantMsg);
+            try { await writer.write(`\n${streamErrMessage}`); }
+            catch(e) { logger.error(`${turnTag} Erro ao escrever msg de erro de stream:`, e); }
+            return currentMsgs;
+        } finally {
+            clearTimeout(timeout); 
+        }
 
         if (!streamReceivedContent && lastFinishReason !== 'stop' && lastFinishReason !== 'length' && lastFinishReason !== 'function_call') {
              logger.error(`${turnTag} Stream finalizado sem conteúdo útil e com finish_reason inesperado: ${lastFinishReason}`);
-             throw new Error('API da OpenAI não retornou conteúdo ou chamada de função válida.');
+             const noContentMessage = "A IA não forneceu uma resposta utilizável desta vez. Poderia tentar novamente?";
+             currentMsgs.push({role: 'assistant', content: noContentMessage});
+             try { await writer.write(noContentMessage); }
+             catch(e) { logger.error(`${turnTag} Erro ao escrever msg de 'sem conteúdo útil':`, e); }
+             return currentMsgs;
         }
         if (pendingAssistantMsg) {
             if (functionCallName || functionCallArgs) {
                 if (isLightweightIntent) {
-                    logger.warn(`${turnTag} IA tentou function call (${functionCallName}) para intent leve ('${currentIntent}'), apesar de function_call='none'. Isso não deveria acontecer.`);
+                    logger.warn(`${turnTag} IA tentou function call (${functionCallName}) para intent leve ('${currentIntent}'), apesar de function_call='none'. Isso não deveria acontecer. Ignorando a chamada de função.`);
+                    if (pendingAssistantMsg.content === null || pendingAssistantMsg.content === '') {
+                        pendingAssistantMsg.content = "Entendido."; 
+                        try { await writer.write(pendingAssistantMsg.content); } catch(e) { /* ignore */ }
+                    }
+                } else {
+                    pendingAssistantMsg.function_call = { name: functionCallName, arguments: functionCallArgs };
+                    pendingAssistantMsg.content = null; 
                 }
-                pendingAssistantMsg.function_call = { name: functionCallName, arguments: functionCallArgs };
-                pendingAssistantMsg.content = null;
-            } else if (pendingAssistantMsg.content === '') {
-                 logger.warn(`${turnTag} Mensagem assistente finalizada sem conteúdo/function call. Finish Reason: ${lastFinishReason}. Content=null.`);
-                 pendingAssistantMsg.content = null;
+            } else if (pendingAssistantMsg.content === null || pendingAssistantMsg.content === '') {
+                 if(lastFinishReason !== 'stop' && lastFinishReason !== 'length') {
+                    logger.warn(`${turnTag} Mensagem assistente finalizada sem conteúdo/function call. Finish Reason: ${lastFinishReason}. Content será null/vazio.`);
+                 }
             }
             currentMsgs.push(pendingAssistantMsg as ChatCompletionAssistantMessageParam);
         } else if (lastFinishReason === 'stop' || lastFinishReason === 'length') {
-             logger.warn(`${turnTag} Stream finalizado (${lastFinishReason}) mas sem delta de assistente. Adicionando msg vazia de fallback.`);
-             currentMsgs.push({ role: 'assistant', content: '' });
+             logger.warn(`${turnTag} Stream finalizado (${lastFinishReason}) mas sem delta de assistente. Adicionando msg de assistente vazia de fallback.`);
+             currentMsgs.push({ role: 'assistant', content: '' }); 
         } else if (!functionCallName && lastFinishReason !== 'function_call') {
              logger.error(`${turnTag} Estado inesperado no final do processamento do stream. Finish Reason: ${lastFinishReason}, sem function call name.`);
         }
@@ -282,9 +305,19 @@ export async function askLLMWithEnrichedContext(
             const { name, arguments: rawArgs } = pendingAssistantMsg.function_call;
             logger.info(`${turnTag} API solicitou Function Call: ${name}. Args RAW: ${rawArgs.slice(0, 100)}...`);
 
-            if (name === lastFnName && iter > 0) {
-                logger.warn(`${turnTag} Loop de função detectado e prevenido: ${name} chamada novamente.`);
-                throw new Error(`Loop de chamada de função detectado para: ${name}`);
+            // ATUALIZADO: Detecção de Loop - permite uma nova tentativa (iter === 1) antes de intervir.
+            if (name === lastFnName && iter > 1) { // Só considera loop se for a mesma função E iter > 1
+                logger.warn(`${turnTag} Loop de função (após uma tentativa de correção) detectado e prevenido: ${name} chamada novamente.`);
+                const loopErrorMessage = `Ainda estou tendo dificuldades com a função '${name}' após tentar corrigi-la. Poderia reformular sua solicitação ou focar em outro aspecto?`;
+                currentMsgs.push({ role: 'assistant', content: loopErrorMessage });
+                try { 
+                    const lastMessageInHistory = currentMsgs[currentMsgs.length-2]; 
+                    if(!(lastMessageInHistory?.role === 'assistant' && lastMessageInHistory.content)){
+                         await writer.write(loopErrorMessage);
+                    }
+                }
+                catch (writeError) { logger.error(`${turnTag} Erro ao escrever mensagem de loop detectado no writer:`, writeError); }
+                return currentMsgs; 
             }
 
             let functionResult: unknown;
@@ -316,7 +349,7 @@ export async function askLLMWithEnrichedContext(
                             functionResult = { error: `Erro interno ao executar a função ${name}: ${execError.message || String(execError)}` };
                         }
                     } else {
-                        logger.warn(`${turnTag} Erro de validação Zod para args da função "${name}":`, validationResult.error.errors);
+                        logger.warn(`${turnTag} Erro de validação Zod para args da função "${name}":`, validationResult.error.format()); 
                         const errorMessages = validationResult.error.errors.map(e => `${e.path.join('.') || 'argumento'}: ${e.message}`).join('; ');
                         functionResult = { error: `Argumentos inválidos para a função ${name}. Detalhes: ${errorMessages}` };
                     }
@@ -328,7 +361,8 @@ export async function askLLMWithEnrichedContext(
 
             currentMsgs.push({ role: 'function', name: name, content: JSON.stringify(functionResult) });
             logger.debug(`${turnTag} Histórico antes da recursão (iter ${iter + 1}, ${currentMsgs.length} msgs).`);
-            return processTurn(currentMsgs, iter + 1, name, writer, currentUser, currentIntent);
+            // Passa o nome da função atual como lastFnName para a próxima iteração
+            return processTurn(currentMsgs, iter + 1, name, writer, currentUser, currentIntent); 
         } else if (pendingAssistantMsg?.function_call && isLightweightIntent) {
             logger.warn(`${turnTag} Function call recebida para intent leve '${currentIntent}', mas foi ignorada pois function calling deveria estar desabilitado. FC: ${pendingAssistantMsg.function_call.name}`);
         }

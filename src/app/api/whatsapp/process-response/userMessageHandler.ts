@@ -1,6 +1,6 @@
 // src/app/api/whatsapp/process-response/userMessageHandler.ts
-// Versão: vShortTermMemory_CtxExtract_10 (Reverte para usar constantes importadas para perguntas instigantes)
-// Baseado em: vShortTermMemory_CtxExtract_9_ConstFix
+// Versão: vShortTermMemory_CtxExtract_11 (Corrige logging de performance para getDialogueState)
+// Baseado em: vShortTermMemory_CtxExtract_10
 import { NextResponse } from 'next/server';
 import {
     ChatCompletionMessageParam,
@@ -43,13 +43,12 @@ import {
     CONTEXT_EXTRACTION_MODEL, 
     CONTEXT_EXTRACTION_TEMP,  
     CONTEXT_EXTRACTION_MAX_TOKENS,
-    // RE-ADICIONADO: Importar constantes para perguntas instigantes
     INSTIGATING_QUESTION_MODEL,
     INSTIGATING_QUESTION_TEMP,
     INSTIGATING_QUESTION_MAX_TOKENS
 } from '@/app/lib/constants';
 
-const HANDLER_TAG_BASE = '[UserMsgHandler vShortTermMemory_CtxExtract_10]'; // Tag atualizada
+const HANDLER_TAG_BASE = '[UserMsgHandler vShortTermMemory_CtxExtract_11]'; // Tag atualizada
 
 /**
  * Extrai o tópico principal e entidades chave da resposta de uma IA.
@@ -194,7 +193,6 @@ Pergunta instigante (ou "NO_QUESTION"):
 
     try {
         logger.debug(`${TAG} Solicitando geração de pergunta instigante...`);
-        // Utilizar constantes importadas com fallback para process.env ou defaults
         const model = (typeof INSTIGATING_QUESTION_MODEL !== 'undefined' ? INSTIGATING_QUESTION_MODEL : process.env.INSTIGATING_QUESTION_MODEL) || 'gpt-3.5-turbo';
         const temperature = (typeof INSTIGATING_QUESTION_TEMP !== 'undefined' ? INSTIGATING_QUESTION_TEMP : Number(process.env.INSTIGATING_QUESTION_TEMP)) ?? 0.7;
         const max_tokens = (typeof INSTIGATING_QUESTION_MAX_TOKENS !== 'undefined' ? INSTIGATING_QUESTION_MAX_TOKENS : Number(process.env.INSTIGATING_QUESTION_MAX_TOKENS)) || 80;
@@ -242,10 +240,16 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
     
     let initialDataLoadStartTime: number = 0; 
     let updateState1StartTime: number = 0;
+    let getDialogueState2StartTime: number = 0;
     let determineIntentStartTimeGlobal: number = 0; 
     let updateState2StartTime: number = 0;
+    let getDialogueState3StartTime: number = 0;
     let getDSCountersCallStartTimeGlobal: number = 0;
     let getDSInterruptStartTimeGlobal: number = 0;
+    let getDSConfirmTaskStartTime: number = 0;
+    let getDSClearPendingStartTime: number = 0;
+    let getDSClearPending2StartTime: number = 0;
+    let getDSFinalSaveStartTime: number = 0;
 
 
     try {
@@ -279,7 +283,7 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
         await stateService.updateDialogueState(userId, stateUpdateForProcessingStart);
         logger.debug(`${handlerTAG} stateService.updateDialogueState (início processamento) levou ${Date.now() - updateState1StartTime}ms.`);
         
-        const getDialogueState2StartTime = Date.now();
+        getDialogueState2StartTime = Date.now(); // CORRIGIDO: Definir startTime para esta chamada
         dialogueState = await stateService.getDialogueState(userId); 
         logger.debug(`${handlerTAG} stateService.getDialogueState (após update início) levou ${Date.now() - getDialogueState2StartTime}ms.`);
         logger.info(`${handlerTAG} Estado de processamento atualizado. currentProcessingMessageId setado para ${messageId_MsgAtual}. QueryExcerpt: "${queryExcerpt_MsgAtual}"`);
@@ -392,7 +396,7 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
         await stateService.updateDialogueState(userId, dialogueStateUpdateForTaskStart);
         logger.debug(`${handlerTAG} stateService.updateDialogueState (task start) levou ${Date.now() - updateState2StartTime}ms.`);
         
-        const getDialogueState3StartTime = Date.now();
+        getDialogueState3StartTime = Date.now(); // CORRIGIDO: Definir startTime para esta chamada
         dialogueState = await stateService.getDialogueState(userId); 
         logger.debug(`${handlerTAG} stateService.getDialogueState (após task start) levou ${Date.now() - getDialogueState3StartTime}ms.`); 
     }
@@ -600,7 +604,7 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
             effectiveIntent = 'ask_community_inspiration';
             if (dialogueState.currentTask?.name === 'ask_community_inspiration') {
                 await stateService.updateDialogueState(userId, { currentTask: { ...dialogueState.currentTask, parameters: { ...(dialogueState.currentTask.parameters || {}), primaryObjectiveAchieved_Qualitative: incomingText!.trim() }, currentStep: 'objective_clarified' } });
-                const getDSConfirmTaskStartTime = Date.now();
+                getDSConfirmTaskStartTime = Date.now(); // CORRIGIDO: Definir startTime
                 dialogueState = await stateService.getDialogueState(userId); 
                 logger.debug(`${handlerTAG} stateService.getDialogueState (após confirm task) levou ${Date.now() - getDSConfirmTaskStartTime}ms.`);
             }
@@ -619,7 +623,7 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
             }
         }
         await stateService.clearPendingActionState(userId);
-        const getDSClearPendingStartTime = Date.now();
+        getDSClearPendingStartTime = Date.now(); // CORRIGIDO: Definir startTime
         dialogueState = await stateService.getDialogueState(userId); 
         logger.debug(`${handlerTAG} stateService.getDialogueState (após clear pending) levou ${Date.now() - getDSClearPendingStartTime}ms.`);
     } else if (currentDeterminedIntent === 'user_denies_pending_action') {
@@ -651,7 +655,7 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
     } else if (dialogueState.lastAIQuestionType) {
         logger.info(`${handlerTAG} Havia uma pergunta pendente ('${dialogueState.lastAIQuestionType}'), mas o usuário respondeu com outra intenção ('${currentDeterminedIntent}'). Limpando estado pendente.`);
         await stateService.clearPendingActionState(userId);
-        const getDSClearPending2StartTime = Date.now();
+        getDSClearPending2StartTime = Date.now(); // CORRIGIDO: Definir startTime
         dialogueState = await stateService.getDialogueState(userId); 
         logger.debug(`${handlerTAG} stateService.getDialogueState (após clear pending 2) levou ${Date.now() - getDSClearPending2StartTime}ms.`);
     }
@@ -760,7 +764,7 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
         }
     }
     
-    const getDSFinalSaveStartTime = Date.now();
+    getDSFinalSaveStartTime = Date.now(); // CORRIGIDO: Definir startTime
     const finalDialogueStateBeforeSave = await stateService.getDialogueState(userId); 
     logger.debug(`${handlerTAG} stateService.getDialogueState (antes do save final) levou ${Date.now() - getDSFinalSaveStartTime}ms.`);
 
