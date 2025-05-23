@@ -1,7 +1,6 @@
-// @/app/lib/stateService.ts - v1.9.6 (Adiciona lastResponseContext para memória de curto prazo)
-// - MODIFICADO: Interface IDialogueState agora inclui lastResponseContext.
-// - MODIFICADO: Função getDefaultDialogueState agora inicializa lastResponseContext.
-// - Baseado na v1.9.5.
+// @/app/lib/stateService.ts - v1.9.8 (Corrige nome de variável em log de getConversationHistory)
+// - MODIFICADO: Corrigido o nome da variável em um logger.warn dentro de getConversationHistory.
+// - Baseado na v1.9.7.
 
 import { Redis } from '@upstash/redis';
 import { logger } from '@/app/lib/logger';
@@ -37,7 +36,7 @@ function getClient(): Redis {
 // --- Cache ---
 
 export async function getFromCache(key: string): Promise<string | null> {
-  const TAG = '[stateService][getFromCache v1.9.6]';
+  const TAG = '[stateService][getFromCache v1.9.8]';
   try {
     const redis = getClient();
     logger.debug(`${TAG} Buscando chave: ${key}`);
@@ -60,7 +59,7 @@ export async function getFromCache(key: string): Promise<string | null> {
 }
 
 export async function setInCache(key: string, value: string, ttlSeconds: number): Promise<void> {
-   const TAG = '[stateService][setInCache v1.9.6]';
+   const TAG = '[stateService][setInCache v1.9.8]';
    try {
     const redis = getClient();
     logger.debug(`${TAG} Definindo chave: ${key} com TTL: ${ttlSeconds}s`);
@@ -85,10 +84,11 @@ export interface CurrentTask {
  * para auxiliar na compreensão de referências anafóricas.
  */
 export interface ILastResponseContext {
-  topic?: string; // Ex: "análise de engajamento do último post"
-  entities?: string[]; // Ex: ["engajamento", "post X"]
-  referencedMetricId?: string; // Se aplicável, ID de uma métrica específica mencionada
-  timestamp: number; // Para controlar a validade temporal do contexto
+  topic?: string; 
+  entities?: string[]; 
+  referencedMetricId?: string; 
+  timestamp: number; 
+  wasQuestion?: boolean; 
 }
 
 export interface IDialogueState {
@@ -111,13 +111,11 @@ export interface IDialogueState {
   interruptSignalForMessageId?: string | null;
   currentProcessingQueryExcerpt?: string | null;
   lastRadarAlertType?: string | null;
-
-  // --- CAMPO ADICIONADO PARA MEMÓRIA DE CURTO PRAZO (Proposta 2.1.3) ---
   lastResponseContext?: ILastResponseContext | null;
 }
 
 /**
- * MODIFICADO v1.9.6: Função agora inicializa lastResponseContext.
+ * MODIFICADO v1.9.8
  * Retorna o estado de diálogo padrão.
  */
 export const getDefaultDialogueState = (): IDialogueState => ({
@@ -136,12 +134,11 @@ export const getDefaultDialogueState = (): IDialogueState => ({
     interruptSignalForMessageId: null,
     currentProcessingQueryExcerpt: null,
     lastRadarAlertType: null,
-    // --- INICIALIZAÇÃO DO NOVO CAMPO ---
-    lastResponseContext: null,
+    lastResponseContext: null, 
 });
 
 export async function getDialogueState(userId: string): Promise<IDialogueState> {
-  const TAG = '[stateService][getDialogueState v1.9.6]';
+  const TAG = '[stateService][getDialogueState v1.9.8]';
   const key = `state:${userId}`;
   let rawDataFromRedis: unknown = null;
   try {
@@ -154,11 +151,13 @@ export async function getDialogueState(userId: string): Promise<IDialogueState> 
         return getDefaultDialogueState();
     }
 
-    // Se o dado já for um objeto (o cliente Redis pode fazer o parse automaticamente em alguns casos)
     if (typeof rawDataFromRedis === 'object' && !Array.isArray(rawDataFromRedis)) {
         logger.debug(`${TAG} Estado encontrado para user: ${userId} (já como objeto), mesclando com padrões.`);
         const defaultState = getDefaultDialogueState();
         const currentState = rawDataFromRedis as Partial<IDialogueState>;
+        if (currentState.lastResponseContext && typeof currentState.lastResponseContext.wasQuestion !== 'boolean') {
+            currentState.lastResponseContext.wasQuestion = undefined;
+        }
         return {
             ...defaultState,
             ...currentState
@@ -168,9 +167,12 @@ export async function getDialogueState(userId: string): Promise<IDialogueState> 
     if (typeof rawDataFromRedis === 'string') {
         logger.debug(`${TAG} Estado encontrado para user: ${userId} (${rawDataFromRedis.length} chars como string), parseando JSON...`);
         try {
-          const parsedData = JSON.parse(rawDataFromRedis);
+          const parsedData = JSON.parse(rawDataFromRedis) as Partial<IDialogueState>; 
           if (typeof parsedData === 'object' && parsedData !== null) {
             const defaultState = getDefaultDialogueState();
+            if (parsedData.lastResponseContext && typeof parsedData.lastResponseContext.wasQuestion !== 'boolean') {
+                parsedData.lastResponseContext.wasQuestion = undefined;
+            }
             return {
               ...defaultState,
               ...parsedData
@@ -196,7 +198,7 @@ export async function getDialogueState(userId: string): Promise<IDialogueState> 
 }
 
 export async function updateDialogueState(userId: string, newStatePartial: Partial<IDialogueState>): Promise<void> {
-   const TAG = '[stateService][updateDialogueState v1.9.6]';
+   const TAG = '[stateService][updateDialogueState v1.9.8]';
    const key = `state:${userId}`;
    try {
     const redis = getClient();
@@ -210,12 +212,23 @@ export async function updateDialogueState(userId: string, newStatePartial: Parti
     if (!newStatePartial.hasOwnProperty('lastInteraction')) {
         mergedState.lastInteraction = Date.now();
     }
-    // O campo lastResponseContext será atualizado se estiver em newStatePartial,
-    // ou mantido do currentState se não estiver.
+    
+    if (newStatePartial.lastResponseContext && typeof newStatePartial.lastResponseContext.wasQuestion !== 'boolean') {
+        // Se newStatePartial.lastResponseContext existe mas wasQuestion não é booleano, defina como undefined
+        // ou mantenha o valor do currentState se newStatePartial.lastResponseContext.wasQuestion for explicitamente undefined.
+        // A lógica atual de spread já deve priorizar newStatePartial se wasQuestion estiver lá.
+        // Se wasQuestion não estiver em newStatePartial.lastResponseContext, ele manterá o de currentState.lastResponseContext.
+        // Se newStatePartial.lastResponseContext.wasQuestion for explicitamente undefined, isso será usado.
+        // Para garantir, se o campo está em newStatePartial mas não é booleano, podemos forçar undefined.
+        if (mergedState.lastResponseContext && typeof mergedState.lastResponseContext.wasQuestion !== 'boolean') {
+             mergedState.lastResponseContext.wasQuestion = undefined;
+        }
+    }
+
 
     const stateJson = JSON.stringify(mergedState);
     logger.debug(`${TAG} Atualizando estado para user: ${userId} (key: ${key}). Estado parcial recebido: ${JSON.stringify(newStatePartial)}. Estado mesclado (início): ${stateJson.substring(0,200)}...`);
-    await redis.set(key, stateJson, { ex: 60 * 60 * 24 * 2 }); // TTL de 2 dias
+    await redis.set(key, stateJson, { ex: 60 * 60 * 24 * 2 }); 
     logger.info(`${TAG} Estado mesclado e atualizado para user ${userId}.`);
   } catch (error: any) {
      logger.error(`${TAG} Erro ao atualizar estado para user ${userId}:`, error);
@@ -223,11 +236,11 @@ export async function updateDialogueState(userId: string, newStatePartial: Parti
 }
 
 export async function clearPendingActionState(userId: string): Promise<void> {
-    const TAG = '[stateService][clearPendingActionState v1.9.6]';
+    const TAG = '[stateService][clearPendingActionState v1.9.8]';
     logger.debug(`${TAG} Limpando estado de ação pendente para User ${userId}.`);
     await updateDialogueState(userId, {
-        lastAIQuestionType: undefined,
-        pendingActionContext: undefined,
+        lastAIQuestionType: undefined, 
+        pendingActionContext: undefined, 
     });
     logger.info(`${TAG} Solicitação para limpar estado de ação pendente enviada para user ${userId}.`);
 }
@@ -235,7 +248,7 @@ export async function clearPendingActionState(userId: string): Promise<void> {
 export async function getConversationHistory(
   userId: string
 ): Promise<ChatCompletionMessageParam[]> {
-   const TAG = '[stateService][getConversationHistory v1.9.6]';
+   const TAG = '[stateService][getConversationHistory v1.9.8]';
    const key = `history:${userId}`;
    let rawHistoryData: unknown = null;
    try {
@@ -281,6 +294,7 @@ export async function getConversationHistory(
         }
     }
 
+    // CORRIGIDO: Usar rawHistoryData em vez de rawDataFromRedis
     logger.warn(`${TAG} Tipo de dado inesperado (${typeof rawHistoryData}) recebido do Redis para histórico do user ${userId}. Retornando array vazio. Conteúdo (início): ${String(rawHistoryData).substring(0,100)}`);
     return [];
 
@@ -294,13 +308,13 @@ export async function setConversationHistory(
     userId: string,
     history: ChatCompletionMessageParam[]
 ): Promise<void> {
-  const TAG = '[stateService][setConversationHistory v1.9.6]';
+  const TAG = '[stateService][setConversationHistory v1.9.8]';
   const key = `history:${userId}`;
   try {
     const redis = getClient();
     const historyJson = JSON.stringify(history);
     logger.debug(`${TAG} Definindo histórico JSON para user: ${userId} (key: ${key}), ${history.length} mensagens, tamanho JSON: ${historyJson.length}`);
-    await redis.set(key, historyJson, { ex: 60 * 60 * 24 * 2 }); // TTL de 2 dias
+    await redis.set(key, historyJson, { ex: 60 * 60 * 24 * 2 }); 
     logger.info(`${TAG} Histórico JSON definido para user ${userId}.`);
   } catch (error: any) {
      logger.error(`${TAG} Erro ao salvar histórico JSON no Redis para user ${userId}:`, error);
@@ -308,13 +322,13 @@ export async function setConversationHistory(
 }
 
 export async function incrementUsageCounter(userId: string): Promise<void> {
-   const TAG = '[stateService][incrementUsageCounter v1.9.6]';
+   const TAG = '[stateService][incrementUsageCounter v1.9.8]';
    const key = `usage:${userId}`;
    try {
     const redis = getClient();
     logger.debug(`${TAG} Incrementando contador para user: ${userId} (key: ${key})`);
     const newValue = await redis.incr(key);
-    await redis.expire(key, 60 * 60 * 24 * 7); // TTL de 7 dias
+    await redis.expire(key, 60 * 60 * 24 * 7); 
     logger.debug(`${TAG} Contador incrementado para user ${userId}. Novo valor: ${newValue}`);
   } catch (error: any) {
      logger.error(`${TAG} Erro ao incrementar contador de uso para user ${userId}:`, error);

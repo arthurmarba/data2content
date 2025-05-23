@@ -1,7 +1,7 @@
-// @/app/lib/intentService.ts – v2.20.4 (Melhora detecção de resposta a perguntas da IA no contexto)
-// - MODIFICADO: Se lastResponseContext é recente e a última mensagem da IA foi uma pergunta,
+// @/app/lib/intentService.ts – v2.20.5 (Usa lastResponseContext.wasQuestion para melhor detecção de CONTINUE_PREVIOUS_TOPIC)
+// - MODIFICADO: Se lastResponseContext.wasQuestion é true e o contexto é recente,
 //   a resposta do usuário é mais propensa a ser classificada como CONTINUE_PREVIOUS_TOPIC.
-// - Baseado na v2.20.3.
+// - Baseado na v2.20.4.
 // --------------------------------------------------
 
 import { logger } from '@/app/lib/logger';
@@ -277,7 +277,7 @@ function isSimpleNegative(norm: string): boolean {
 }
 
 export function isSimpleConfirmationOrAcknowledgement(normalizedText: string): boolean {
-    const TAG = '[intentService][isSimpleConfirmationOrAcknowledgement v2.20.4]';
+    const TAG = '[intentService][isSimpleConfirmationOrAcknowledgement v2.20.5]';
     if (!normalizedText || normalizedText.trim() === '') {
         return false;
     }
@@ -318,7 +318,7 @@ export function isSimpleConfirmationOrAcknowledgement(normalizedText: string): b
 }
 
 function detectUserPreference(normalizedText: string, rawText: string): { isMatch: boolean; extractedPreference?: ExtractedPreferenceDetail } {
-    const TAG = '[intentService][detectUserPreference v2.20.4]';
+    const TAG = '[intentService][detectUserPreference v2.20.5]';
     let match;
     const toneRegex = /(?:(?:prefiro|gosto\s+de|meu)(?:\s+um)?\s+tom(?:\s+é)?|tom\s+da\s+ia(?:\s+é)?)\s+(mais\s+formal|direto\s+ao\s+ponto|super\s+descontra[ií]do|formal|descontra[ií]do|direto)/i;
     match = rawText.match(toneRegex);
@@ -350,7 +350,7 @@ function detectUserPreference(normalizedText: string, rawText: string): { isMatc
 }
 
 function detectUserGoal(normalizedText: string, rawText: string): { isMatch: boolean; extractedGoal?: string } {
-    const TAG = '[intentService][detectUserGoal v2.20.4]';
+    const TAG = '[intentService][detectUserGoal v2.20.5]';
     const lowerRawText = rawText.toLowerCase();
     const goalKeywordsAndPhrases: string[] = [
         "meu objetivo principal é", "meu objetivo principal é de", "meu objetivo é", "meu objetivo de",
@@ -383,7 +383,7 @@ function detectUserGoal(normalizedText: string, rawText: string): { isMatch: boo
 }
 
 function detectUserKeyFact(normalizedText: string, rawText: string): { isMatch: boolean; extractedFact?: string } {
-    const TAG = '[intentService][detectUserKeyFact v2.20.4]';
+    const TAG = '[intentService][detectUserKeyFact v2.20.5]';
     const factRegex = /(?:(?:um\s+)?fato\s+(?:importante\s+)?(?:sobre\s+mim|a\s+meu\s+respeito)\s+(?:é\s+que)?|só\s+para\s+(?:você|vc)\s+saber,?|para\s+sua\s+informa[cç][aã]o,?|para\s+que\s+(?:voc[êe]|vc)\s+saiba\s+(?:mais\s+)?sobre\s+mim,?|gostaria\s+de\s+compartilhar\s+que|é\s+importante\s+dizer\s+que|eu\s+trabalho\s+com|minha\s+especialidade\s+é\s+em|sou\s+(?:formado|formada|especialista)\s+em|moro\s+em|minha\s+empresa\s+(?:é|se\s+chama)|meu\s+nicho\s+é)\s+([\s\S]+)/i;
     const match = rawText.match(factRegex);
     if (match && match[1]) {
@@ -397,7 +397,7 @@ function detectUserKeyFact(normalizedText: string, rawText: string): { isMatch: 
 }
 
 function detectMemoryUpdateRequest(normalizedText: string, rawText: string): { isMatch: boolean; memoryUpdateRequestContent?: string } {
-    const TAG = '[intentService][detectMemoryUpdateRequest v2.20.4]';
+    const TAG = '[intentService][detectMemoryUpdateRequest v2.20.5]';
     const requestKeywordsJoined = USER_REQUESTS_MEMORY_UPDATE_KEYWORDS.map(kw => kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
     const requestRegex = new RegExp(`(?:tuca(?:,\\s*)?)?(?:${requestKeywordsJoined})\\s+([\\s\\S]+)`, 'i');
     const match = rawText.match(requestRegex);
@@ -416,7 +416,7 @@ async function quickSpecialHandle(
   normalized: string,
   greeting: string
 ): Promise<IntentResult | null> {
-  const TAG = '[intentService][quickSpecialHandle v2.20.4]';
+  const TAG = '[intentService][quickSpecialHandle v2.20.5]';
   const userFirstName = user.name ? user.name.split(' ')[0]! : 'tudo bem';
   if (isGreetingOnly(normalized)) {
     logger.debug(`${TAG} Greeting detected.`);
@@ -470,7 +470,7 @@ export async function determineIntent(
   greeting       : string,
   userId         : string
 ): Promise<IntentResult> {
-  const TAG = '[intentService.determineIntent v2.20.4]';
+  const TAG = '[intentService.determineIntent v2.20.5]';
   logger.info(`${TAG} User ${userId}: Analisando texto para intenção... Raw: "${rawText.substring(0, 60)}..."`);
   logger.debug(`${TAG} User ${userId}: Estado do diálogo recebido: lastInteraction: ${dialogueState.lastInteraction}, lastAIQuestionType: ${dialogueState.lastAIQuestionType}, lastResponseContext: ${JSON.stringify(dialogueState.lastResponseContext)}, summary: ${dialogueState.conversationSummary ? '"' + dialogueState.conversationSummary.substring(0,50) + '"...' : 'N/A'}`);
 
@@ -525,20 +525,23 @@ export async function determineIntent(
 
     const lastResponseCtx = dialogueState.lastResponseContext;
     const timeSinceLastResponseCtxMinutes = lastResponseCtx?.timestamp ? (Date.now() - lastResponseCtx.timestamp) / (1000 * 60) : Infinity;
-    const isRecentAndRelevantResponseContext = lastResponseCtx && (lastResponseCtx.topic || (lastResponseCtx.entities && lastResponseCtx.entities.length > 0)) && timeSinceLastResponseCtxMinutes < validityMinutes;
+    // ATUALIZADO: isRecentAndRelevantResponseContext agora também verifica lastResponseCtx.wasQuestion
+    const isRecentAndRelevantResponseContext = 
+        lastResponseCtx && 
+        (lastResponseCtx.topic || (lastResponseCtx.entities && lastResponseCtx.entities.length > 0) || typeof lastResponseCtx.wasQuestion === 'boolean') && // Considerar relevante se wasQuestion estiver definido
+        timeSinceLastResponseCtxMinutes < validityMinutes;
 
     logger.debug(`${TAG} User ${userId}: Avaliando lógica contextual. Validade (min): ${validityMinutes}. Recente (Interação Geral): ${isRecentInteractionOverall} (${timeSinceLastInteractionMinutes.toFixed(1)} min), Ctx Resposta Recente e Relevante: ${isRecentAndRelevantResponseContext} (idade: ${timeSinceLastResponseCtxMinutes.toFixed(1)} min), Summary: ${!!summaryNorm}`);
 
     let resolvedContextTopicForLLM: string | undefined = undefined;
 
-    if (isRecentAndRelevantResponseContext && lastResponseCtx) { // lastResponseCtx já foi verificado em isRecentAndRelevantResponseContext
-        logger.info(`${TAG} User ${userId}: Aplicando lógica contextual de CURTO PRAZO (lastResponseContext). Tópico: "${lastResponseCtx.topic}", Entidades: [${lastResponseCtx.entities?.join(', ')}]`);
+    if (isRecentAndRelevantResponseContext && lastResponseCtx) { 
+        logger.info(`${TAG} User ${userId}: Aplicando lógica contextual de CURTO PRAZO (lastResponseContext). Tópico: "${lastResponseCtx.topic}", Entidades: [${lastResponseCtx.entities?.join(', ')}], WasQuestion: ${lastResponseCtx.wasQuestion}`);
         resolvedContextTopicForLLM = lastResponseCtx.topic; 
 
-        // Checar se a última resposta da IA foi uma pergunta (pelo lastAIQuestionType ou se o tópico/entidade sugere uma pergunta)
-        // O lastResponseContext.topic pode conter a própria pergunta instigante.
-        const lastAiMessageWasAQuestion = dialogueState.lastAIQuestionType || (lastResponseCtx.topic && lastResponseCtx.topic.trim().endsWith('?'));
-        logger.debug(`${TAG} User ${userId}: Última msg IA foi pergunta? ${lastAiMessageWasAQuestion}. lastAIQuestionType: ${dialogueState.lastAIQuestionType}. lastResponseCtx.topic: ${lastResponseCtx.topic}`);
+        // ATUALIZADO: Usar lastResponseCtx.wasQuestion
+        const lastAiMessageWasAQuestion = dialogueState.lastAIQuestionType || lastResponseCtx.wasQuestion === true;
+        logger.debug(`${TAG} User ${userId}: Última msg IA foi pergunta? ${lastAiMessageWasAQuestion}. lastAIQuestionType: ${dialogueState.lastAIQuestionType}. lastResponseCtx.wasQuestion: ${lastResponseCtx.wasQuestion}`);
 
         if (isClarificationRequest(normalizedText)) {
             logger.info(`${TAG} User ${userId}: Intenção (lastResponseContext): ASK_CLARIFICATION_PREVIOUS_RESPONSE.`);
@@ -564,11 +567,14 @@ export async function determineIntent(
         }
         
         const wordsInText = normalizedText.split(/\s+/).length;
-        // ATUALIZADO: Se a última mensagem da IA foi uma pergunta, ser mais permissivo com o comprimento e keywords para CONTINUE_PREVIOUS_TOPIC
-        const isDirectResponseToAIQuestion = lastAiMessageWasAQuestion && wordsInText <= 25; // Limite de palavras para uma resposta direta
+        // ATUALIZADO: Se a última mensagem da IA foi uma pergunta (usando lastResponseCtx.wasQuestion), ser mais permissivo
+        const isDirectResponseToAIQuestion = lastAiMessageWasAQuestion && wordsInText <= 25; 
 
         if (isDirectResponseToAIQuestion) {
-             if (isContinueTopicRequest(normalizedText) || wordsInText > 0) { // Se tiver keywords de continuação OU for qualquer resposta não vazia à pergunta
+             // Se for uma resposta a uma pergunta, e não for uma negação/afirmação simples (já tratada antes),
+             // ou uma nova intenção de alta prioridade (já tratada antes), classificar como CONTINUE_PREVIOUS_TOPIC.
+             // A verificação de isContinueTopicRequest(normalizedText) pode ser opcional aqui se lastAiMessageWasAQuestion for forte.
+            if (wordsInText > 0 && !isSimpleAffirmative(normalizedText) && !isSimpleNegative(normalizedText)) { 
                 logger.info(`${TAG} User ${userId}: Intenção (lastResponseContext, resposta à pergunta da IA): CONTINUE_PREVIOUS_TOPIC (comprimento: ${wordsInText} palavras).`);
                 return { type: 'intent_determined', intent: 'CONTINUE_PREVIOUS_TOPIC', resolvedContextTopic: lastResponseCtx.topic };
             }
@@ -644,16 +650,21 @@ export async function determineIntent(
         
         const lastResponseCtxFallback = dialogueState.lastResponseContext;
         const timeSinceLastResponseCtxFallbackMinutes = lastResponseCtxFallback?.timestamp ? (Date.now() - lastResponseCtxFallback.timestamp) / (1000 * 60) : Infinity;
-        const isRecentResponseContextFallback = lastResponseCtxFallback && (lastResponseCtxFallback.topic || (lastResponseCtxFallback.entities && lastResponseCtxFallback.entities.length > 0)) && timeSinceLastResponseCtxFallbackMinutes < validityMinutes;
+        const isRecentResponseContextFallback = lastResponseCtxFallback && 
+                                                (lastResponseCtxFallback.topic || (lastResponseCtxFallback.entities && lastResponseCtxFallback.entities.length > 0) || typeof lastResponseCtxFallback.wasQuestion === 'boolean') &&
+                                                timeSinceLastResponseCtxFallbackMinutes < validityMinutes;
         
         const wordsInTextFallback = normalizedText.split(/\s+/).length;
-        const lastAiMessageWasAQuestionFallback = dialogueState.lastAIQuestionType || (lastResponseCtxFallback?.topic && lastResponseCtxFallback.topic.trim().endsWith('?'));
+        // ATUALIZADO: Usar lastResponseCtxFallback.wasQuestion
+        const lastAiMessageWasAQuestionFallback = dialogueState.lastAIQuestionType || (lastResponseCtxFallback?.wasQuestion === true);
         const isFollowUpLengthFallback = (isRecentResponseContextFallback && lastAiMessageWasAQuestionFallback) ? wordsInTextFallback <= 25 : wordsInTextFallback <= 7;
 
 
         let resolvedContextTopicForLLMFallback: string | undefined = undefined;
 
-        if (isRecentResponseContextFallback && lastResponseCtxFallback?.topic && isFollowUpLengthFallback && (isClarificationRequest(normalizedText) || isContinueTopicRequest(normalizedText) || lastAiMessageWasAQuestionFallback)) {
+        if (isRecentResponseContextFallback && lastResponseCtxFallback?.topic && isFollowUpLengthFallback && 
+            (isClarificationRequest(normalizedText) || isContinueTopicRequest(normalizedText) || (lastAiMessageWasAQuestionFallback && !isSimpleAffirmative(normalizedText) && !isSimpleNegative(normalizedText)  ) )
+           ) {
             intent = isClarificationRequest(normalizedText) ? 'ASK_CLARIFICATION_PREVIOUS_RESPONSE' : 'CONTINUE_PREVIOUS_TOPIC';
             resolvedContextTopicForLLMFallback = lastResponseCtxFallback.topic;
             logger.info(`${TAG} User ${userId}: Intenção contextual de seguimento (fallback tardio, usando lastResponseContext), classificada como ${intent}.`);

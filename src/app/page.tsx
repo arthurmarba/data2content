@@ -208,6 +208,7 @@ export default function HomePage() {
             {/* Comentário: Para o vídeo, considere usar next/image para um placeholder e carregar o player sob demanda (vídeo facade) para otimizar o LCP. */}
             <AnimatedSection delay={0.4} className="mt-12 md:mt-16 w-full max-w-2xl lg:max-w-3xl mx-auto"> {/* Espaçamento e max-width ajustados */}
                  <div className="aspect-video bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700 rounded-xl shadow-xl flex items-center justify-center overflow-hidden p-2">
+                     {/* TODO: Substituir span por componente Image para thumbnail e lógica de carregamento do vídeo */}
                      <span className="text-gray-400 text-center text-sm p-3">[Vídeo de Demonstração do Tuca em Ação]</span>
                  </div>
             </AnimatedSection>
@@ -264,21 +265,14 @@ export default function HomePage() {
                     </AnimatedSection>
 
                     <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
-                         {/* ATENÇÃO: A div pai do Next/Image com layout="fill" precisa de position: relative e dimensões definidas (aspect ratio ou height/width) */}
-                         <AnimatedSection delay={0.1} className="relative aspect-w-4 aspect-h-3 md:aspect-w-1 md:aspect-h-1 bg-gradient-to-br from-red-50 to-purple-50 rounded-2xl shadow-lg flex items-center justify-center p-1 order-last md:order-first overflow-hidden">
-                            {/* Imagem inserida aqui usando Next/Image */}
+                         {/* Contêiner da imagem atualizado para aspect-[3/2] e padding p-1 */}
+                         <AnimatedSection delay={0.1} className="relative aspect-[3/2] bg-gradient-to-br from-red-50 to-purple-50 rounded-2xl shadow-lg flex items-center justify-center p-1 order-last md:order-first overflow-hidden">
                             <Image 
-                               src="/images/tuca-analise-whatsapp.png" // Caminho atualizado para .png
+                               src="/images/tuca-analise-whatsapp.png" 
                                alt="Tuca no WhatsApp exibindo análise de conteúdo categorizado por tema/formato e otimização de horários com gráficos" 
                                layout="fill" 
                                objectFit="contain" 
                                className="rounded-lg"
-                               // Para evitar erro de "Missing width and height", se não usar layout="fill", 
-                               // você precisaria adicionar width e height aqui, ou importar a imagem e usar o objeto dela.
-                               // Ex: import tucaAnaliseImg from '/public/images/tuca-analise-whatsapp.png';
-                               //     src={tucaAnaliseImg}
-                               //     width={tucaAnaliseImg.width}
-                               //     height={tucaAnaliseImg.height}
                             />
                         </AnimatedSection>
                         <AnimatedSection delay={0} className="order-first md:order-last">
@@ -305,10 +299,11 @@ export default function HomePage() {
             </section>
 
             <section id="tuca-proativo" className="px-4 bg-brand-light overflow-hidden">
-                <div className="max-w-5xl mx-auto py-12 md:py-16"> {/* Padding ajustado */}
+                <div className="max-w-5xl mx-auto py-12 md:py-16">
                     <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
-                        <AnimatedSection delay={0.1} className="aspect-w-4 aspect-h-3 md:aspect-w-1 md:aspect-h-1 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl shadow-lg flex items-center justify-center p-4">
-                             {/* Comentário: Substituir por <Image /> do Next.js com alt text apropriado. */}
+                        {/* Contêiner da imagem atualizado para aspect-[3/2] e padding p-1 */}
+                        <AnimatedSection delay={0.1} className="relative aspect-[3/2] bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl shadow-lg flex items-center justify-center p-1 overflow-hidden">
+                             {/* TODO: Substituir span por componente Image com src e alt apropriados */}
                             <span className="text-indigo-700 text-center text-lg p-3">[Ilustração: Alerta do Tuca no WhatsApp]</span>
                         </AnimatedSection>
                         <AnimatedSection delay={0}>
@@ -331,7 +326,7 @@ export default function HomePage() {
             </section>
 
            <section id="comunidade-inspiracao" className="px-4 bg-white overflow-hidden">
-               <div className="max-w-5xl mx-auto py-12 md:py-16"> {/* Padding ajustado */}
+               <div className="max-w-5xl mx-auto py-12 md:py-16">
                    <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
                        <AnimatedSection delay={0} className="order-first md:order-last">
                            <div className="mb-3 flex items-center space-x-2">
@@ -348,8 +343,9 @@ export default function HomePage() {
                                <li><strong className="font-semibold text-brand-pink">Privacidade total:</strong> Métricas de terceiros NUNCA são compartilhadas.</li>
                            </ul>
                        </AnimatedSection>
-                       <AnimatedSection delay={0.1} className="aspect-w-4 aspect-h-3 md:aspect-w-1 md:aspect-h-1 bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl shadow-lg flex items-center justify-center p-4 order-last md:order-first">
-                            {/* Comentário: Substituir por <Image /> do Next.js com alt text apropriado. */}
+                       {/* Contêiner da imagem atualizado para aspect-[3/2] e padding p-1 */}
+                       <AnimatedSection delay={0.1} className="relative aspect-[3/2] bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl shadow-lg flex items-center justify-center p-1 order-last md:order-first overflow-hidden">
+                            {/* TODO: Substituir span por componente Image com src e alt apropriados */}
                            <span className="text-purple-700 text-center text-lg p-3">[Ilustração: Rede de criadores e exemplos de posts]</span>
                        </AnimatedSection>
                    </div>
@@ -357,10 +353,11 @@ export default function HomePage() {
            </section>
 
            <section id="tuca-parcerias" className="px-4 bg-brand-light overflow-hidden">
-               <div className="max-w-5xl mx-auto py-12 md:py-16"> {/* Padding ajustado */}
+               <div className="max-w-5xl mx-auto py-12 md:py-16">
                    <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
-                        <AnimatedSection delay={0.1} className="aspect-w-4 aspect-h-3 md:aspect-w-1 md:aspect-h-1 bg-gradient-to-br from-orange-50 to-yellow-50 rounded-2xl shadow-lg flex items-center justify-center p-4 order-last md:order-first">
-                            {/* Comentário: Substituir por <Image /> do Next.js com alt text apropriado. */}
+                        {/* Contêiner da imagem atualizado para aspect-[3/2] e padding p-1 */}
+                        <AnimatedSection delay={0.1} className="relative aspect-[3/2] bg-gradient-to-br from-orange-50 to-yellow-50 rounded-2xl shadow-lg flex items-center justify-center p-1 order-last md:order-first overflow-hidden">
+                            {/* TODO: Substituir span por componente Image com src e alt apropriados */}
                            <span className="text-orange-700 text-center text-lg p-3">[Ilustração: Tuca ajudando a planejar 'publi']</span>
                        </AnimatedSection>
                        <AnimatedSection delay={0} className="order-first md:order-last">
@@ -403,15 +400,17 @@ export default function HomePage() {
                             Detalhes da afiliação <FaArrowRight aria-hidden="true" className="w-3 h-3 ml-1.5" />
                         </a>
                     </AnimatedSection>
-                    <AnimatedSection delay={0.1} className="aspect-w-16 aspect-h-9 md:aspect-w-1 md:aspect-h-1 bg-gradient-to-br from-pink-50 to-red-50 rounded-2xl shadow-lg flex items-center justify-center p-4">
-                         {/* Comentário: Substituir por <Image /> do Next.js com alt text apropriado. */}
+                    {/* Contêiner da imagem atualizado para aspect-[3/2] e padding p-1 */}
+                    <AnimatedSection delay={0.1} className="relative aspect-[3/2] bg-gradient-to-br from-pink-50 to-red-50 rounded-2xl shadow-lg flex items-center justify-center p-1 overflow-hidden">
+                         {/* TODO: Substituir span por componente Image com src e alt apropriados */}
                         <span className="text-pink-700 text-center text-lg p-3">[Ilustração: Programa de Afiliados]</span>
                     </AnimatedSection>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
-                    <AnimatedSection delay={0.1} className="aspect-w-16 aspect-h-9 md:aspect-w-1 md:aspect-h-1 bg-gradient-to-br from-yellow-50 to-green-50 rounded-2xl shadow-lg flex items-center justify-center p-4 order-last md:order-first">
-                         {/* Comentário: Substituir por <Image /> do Next.js com alt text apropriado. */}
+                    {/* Contêiner da imagem atualizado para aspect-[3/2] e padding p-1 */}
+                    <AnimatedSection delay={0.1} className="relative aspect-[3/2] bg-gradient-to-br from-yellow-50 to-green-50 rounded-2xl shadow-lg flex items-center justify-center p-1 order-last md:order-first overflow-hidden">
+                         {/* TODO: Substituir span por componente Image com src e alt apropriados */}
                          <span className="text-yellow-700 text-center text-lg p-3">[Ilustração: Conexão com Marcas]</span>
                     </AnimatedSection>
                     <AnimatedSection delay={0} className="order-first md:order-last">
@@ -461,8 +460,9 @@ export default function HomePage() {
          <section id="arthur-marba" className="py-16 md:py-24 px-4 bg-white">
               <div className="max-w-4xl mx-auto grid md:grid-cols-3 gap-8 md:gap-12 items-center">
                 <AnimatedSection delay={0} className="md:col-span-1">
-                     <div className="aspect-w-1 aspect-h-1 bg-gray-300 rounded-2xl shadow-lg overflow-hidden flex items-center justify-center">
-                         {/* Comentário: Substituir por <Image /> do Next.js com alt text apropriado. */}
+                     {/* A imagem de Arthur Marbá mantém aspect-w-1 aspect-h-1 (quadrada) por padrão, pois é uma foto de perfil e não uma ilustração de funcionalidade. */}
+                     <div className="relative aspect-w-1 aspect-h-1 bg-gray-300 rounded-2xl shadow-lg overflow-hidden flex items-center justify-center p-1">
+                         {/* TODO: Substituir span por componente Image com src e alt apropriados */}
                          <span className="text-gray-500 text-center text-lg p-3">[Foto de Arthur Marbá]</span>
                      </div>
                 </AnimatedSection>
