@@ -1,5 +1,6 @@
 // src/app/lib/constants.ts
-// ATUALIZADO vNext_AllProjectConstants: Inclui constantes para Análise de Crescimento, Memória de Curto Prazo e Perguntas Instigantes.
+// ATUALIZADO vRadarSensitivity_Tune_V1: Ajusta limiares para regras do Radar Tuca para maior sensibilidade.
+// Baseado em vNext_AllProjectConstants.
 import { DeterminedIntent } from '@/app/lib/intentService';
 import { PostObjectForAverage } from '@/app/lib/utils';
 
@@ -49,7 +50,7 @@ export const GROWTH_ANALYSIS_PERIOD_LONG_TERM_MONTHS = Number(process.env.GROWTH
  * Por quantos minutos o contexto da última resposta da IA (lastResponseContext)
  * e a interação recente são considerados válidos para influenciar a detecção de intenções contextuais.
  */
-export const SHORT_TERM_CONTEXT_VALIDITY_MINUTES = Number(process.env.SHORT_TERM_CONTEXT_VALIDITY_MINUTES) || 5;
+export const SHORT_TERM_CONTEXT_VALIDITY_MINUTES = Number(process.env.SHORT_TERM_CONTEXT_VALIDITY_MINUTES) || 5; // Mantido em 5, pode ser ajustado para 240 se o fallback do intentService for removido.
 
 /**
  * Modelo da OpenAI a ser usado para extrair o tópico e entidades da resposta da IA
@@ -108,20 +109,20 @@ export const REELS_WATCH_TIME_MAX_HISTORICAL_FOR_AVG = 15;
 export const REELS_WATCH_TIME_DROP_THRESHOLD_PERCENTAGE = 0.25;
 export const REELS_WATCH_TIME_MIN_HISTORICAL_FOR_ALERT = 10;
 
-// Regra 3: detectForgottenPromisingFormat
+// Regra 3: detectForgottenPromisingFormat (AJUSTADO PARA MAIOR SENSIBILIDADE)
 export const FORMAT_ANALYSIS_PERIOD_DAYS = 90;
-export const FORMAT_UNUSED_THRESHOLD_DAYS = 21;
-export const FORMAT_MIN_POSTS_FOR_AVG = 3;
+export const FORMAT_UNUSED_THRESHOLD_DAYS = 14; // Original: 21
+export const FORMAT_MIN_POSTS_FOR_AVG = 2; // Original: 3 (Ajustado conforme sugestão opcional)
 export const FORMAT_PERFORMANCE_METRIC_KEY: keyof PostObjectForAverage | string = 'totalImpressions';
-export const FORMAT_PROMISSING_THRESHOLD_MULTIPLIER = 1.2;
+export const FORMAT_PROMISSING_THRESHOLD_MULTIPLIER = 1.1; // Original: 1.2
 
-// Regra 4: detectUntappedPotentialTopic
+// Regra 4: detectUntappedPotentialTopic (AJUSTADO PARA MAIOR SENSIBILIDADE)
 export const UNTAPPED_POTENTIAL_PAST_LOOKBACK_DAYS = 180;
-export const UNTAPPED_POTENTIAL_RECENT_THRESHOLD_DAYS = 30;
-export const UNTAPPED_POTENTIAL_MIN_POSTS_FOR_CATEGORY = 3;
+export const UNTAPPED_POTENTIAL_RECENT_THRESHOLD_DAYS = 45; // Original: 30 (Ajustado conforme sugestão opcional)
+export const UNTAPPED_POTENTIAL_MIN_POSTS_FOR_CATEGORY = 2; // Original: 3 (Ajustado conforme sugestão opcional)
 export const UNTAPPED_POTENTIAL_PERFORMANCE_METRIC: keyof PostObjectForAverage | string = 'totalImpressions';
-export const UNTAPPED_POTENTIAL_TOP_PERCENTILE_THRESHOLD = 0.75;
-export const UNTAPPED_POTENTIAL_SUPERIORITY_MULTIPLIER = 1.3;
+export const UNTAPPED_POTENTIAL_TOP_PERCENTILE_THRESHOLD = 0.60; // Original: 0.75
+export const UNTAPPED_POTENTIAL_SUPERIORITY_MULTIPLIER = 1.15; // Original: 1.3
 
 // Regra 5: detectEngagementPeakNotCapitalized
 export const ENGAGEMENT_PEAK_POST_AGE_MIN_DAYS = 3;
@@ -150,11 +151,11 @@ export const CONSISTENCY_CHECK_PERIOD_DAYS = 7;
 export const CONSISTENCY_ALERT_THRESHOLD_DAYS_INCREASE = 3;
 export const CONSISTENCY_MIN_POSTS_FOR_AVG = 3;
 
-// --- Constantes para EvergreenRepurposeRule ---
-export const EVERGREEN_MIN_POST_AGE_MONTHS = 6;
+// --- Constantes para EvergreenRepurposeRule --- (AJUSTADO PARA MAIOR SENSIBILIDADE)
+export const EVERGREEN_MIN_POST_AGE_MONTHS = 4; // Original: 6
 export const EVERGREEN_MAX_POST_AGE_MONTHS = 18;
-export const EVERGREEN_PERFORMANCE_MULTIPLIER = 1.5;
-export const EVERGREEN_MIN_POSTS_FOR_HISTORICAL_AVG = 10;
+export const EVERGREEN_PERFORMANCE_MULTIPLIER = 1.2; // Original: 1.5
+export const EVERGREEN_MIN_POSTS_FOR_HISTORICAL_AVG = 5; // Original: 10
 export const EVERGREEN_RECENT_REPOST_THRESHOLD_DAYS = 90;
 
 // --- Constantes para NewFormatPerformanceRule ---
