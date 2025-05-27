@@ -227,15 +227,18 @@ export const authOptions: NextAuthOptions = {
             clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
             authorization: { params: { scope: "openid email profile" } },
             profile(profile) { // Profile type is inferred correctly by NextAuth
-                logger.debug("[NextAuth Google Profile DEBUG] Profile recebido do Google:", JSON.stringify(profile));
+                // === INÍCIO DA MODIFICAÇÃO PARA DEBUG ===
+                const profileJsonString = JSON.stringify(profile, null, 2); // null, 2 para formatar o JSON
+                logger.debug(`[NextAuth Google Profile DEBUG - CONTEÚDO COMPLETO] Profile recebido do Google: ${profileJsonString}`);
+                // === FIM DA MODIFICAÇÃO PARA DEBUG ===
+        
                 // Ensure a non-empty name, fallback if necessary
                 const name = profile.name && profile.name.trim() !== "" ? profile.name.trim() : profile.email?.split('@')[0] ?? "User";
                 return {
-                    id: profile.sub!, // 'sub' is the standard field for Google user ID
+                    id: profile.sub!,
                     name: name,
                     email: profile.email,
-                    image: profile.picture, // 'picture' is Google's field for profile image
-                    // Note: Other custom fields are added in callbacks
+                    image: profile.picture,
                 };
             }
         }),
