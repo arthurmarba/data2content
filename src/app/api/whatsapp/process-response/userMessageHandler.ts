@@ -1,6 +1,7 @@
 // src/app/api/whatsapp/process-response/userMessageHandler.ts
-// Versão: vShortTermMemory_CtxExtract_12 (Popula wasQuestion em lastResponseContext)
-// Baseado em: vShortTermMemory_CtxExtract_11
+// Versão: vShortTermMemory_CtxExtract_13_FIXED (Corrige chave de fechamento ausente)
+// - CORRIGIDO: Adicionada chave de fechamento '}' ausente no final da função handleUserMessage.
+// - Baseado em: vShortTermMemory_CtxExtract_13
 import { NextResponse } from 'next/server';
 import {
     ChatCompletionMessageParam,
@@ -12,7 +13,7 @@ import { logger } from '@/app/lib/logger';
 import { sendWhatsAppMessage } from '@/app/lib/whatsappService';
 import { askLLMWithEnrichedContext } from '@/app/lib/aiOrchestrator';
 import * as stateService from '@/app/lib/stateService';
-import type { ILastResponseContext, IDialogueState } from '@/app/lib/stateService'; 
+import type { ILastResponseContext, IDialogueState } from '@/app/lib/stateService';
 import * as dataService from '@/app/lib/dataService';
 import { IUser, IUserPreferences } from '@/app/models/User';
 import {
@@ -24,7 +25,7 @@ import {
 } from '@/app/lib/intentService';
 import { generateConversationSummary, inferUserExpertiseLevel, callOpenAIForQuestion } from '@/app/lib/aiService';
 import * as humorKnowledge from '@/app/lib/knowledge/humorScriptWritingKnowledge';
-import { ProcessRequestBody, EnrichedAIContext } from './types'; 
+import { ProcessRequestBody, EnrichedAIContext } from './types';
 import {
     generateDynamicAcknowledgementInWorker,
     aiResponseSuggestsPendingAction,
@@ -40,15 +41,15 @@ import {
     GREETING_THRESHOLD_MILLISECONDS,
     ACK_SKIP_THRESHOLD_MILLISECONDS,
     COMPLEX_TASK_INTENTS,
-    CONTEXT_EXTRACTION_MODEL, 
-    CONTEXT_EXTRACTION_TEMP,  
+    CONTEXT_EXTRACTION_MODEL,
+    CONTEXT_EXTRACTION_TEMP,
     CONTEXT_EXTRACTION_MAX_TOKENS,
     INSTIGATING_QUESTION_MODEL,
     INSTIGATING_QUESTION_TEMP,
     INSTIGATING_QUESTION_MAX_TOKENS
 } from '@/app/lib/constants';
 
-const HANDLER_TAG_BASE = '[UserMsgHandler vShortTermMemory_CtxExtract_12]'; // Tag atualizada
+const HANDLER_TAG_BASE = '[UserMsgHandler vShortTermMemory_CtxExtract_13]'; // Mantendo a tag da lógica principal
 
 /**
  * Extrai o tópico principal e entidades chave da resposta de uma IA.
@@ -58,16 +59,18 @@ const HANDLER_TAG_BASE = '[UserMsgHandler vShortTermMemory_CtxExtract_12]'; // T
  * @returns Uma promessa que resolve para ILastResponseContext ou null.
  */
 async function extractContextFromAIResponse(
-    aiResponseText: string, 
+    aiResponseText: string,
     userId: string
 ): Promise<ILastResponseContext | null> {
     const TAG = `${HANDLER_TAG_BASE}[extractContextFromAIResponse] User ${userId}:`;
-    const trimmedResponseText = aiResponseText.trim(); 
+    const trimmedResponseText = aiResponseText.trim();
     const wasOriginalResponseAQuestion = trimmedResponseText.endsWith('?');
 
     if (!trimmedResponseText || trimmedResponseText.length < 10) {
         logger.debug(`${TAG} Resposta da IA muito curta para extração de tópico/entidades, mas registrando se era pergunta.`);
-        return { timestamp: Date.now(), wasQuestion: wasOriginalResponseAQuestion };
+        const shortContext: ILastResponseContext = { timestamp: Date.now(), wasQuestion: wasOriginalResponseAQuestion };
+        logger.debug(`${TAG} Contexto retornado para resposta curta - Timestamp: ${shortContext.timestamp}, WasQuestion: ${shortContext.wasQuestion}`);
+        return shortContext;
     }
 
     const prompt = `
@@ -99,35 +102,41 @@ JSON:
 
         if (!extractionResultText) {
             logger.warn(`${TAG} Extração de tópico/entidades retornou texto vazio.`);
-            return { timestamp: Date.now(), wasQuestion: wasOriginalResponseAQuestion };
+            const emptyTextContext: ILastResponseContext = { timestamp: Date.now(), wasQuestion: wasOriginalResponseAQuestion };
+            logger.debug(`${TAG} Contexto retornado (texto de extração vazio) - Timestamp: ${emptyTextContext.timestamp}, WasQuestion: ${emptyTextContext.wasQuestion}`);
+            return emptyTextContext;
         }
 
         const jsonMatch = extractionResultText.match(/\{[\s\S]*\}/);
         if (!jsonMatch || !jsonMatch[0]) {
             logger.warn(`${TAG} Nenhum JSON encontrado na resposta da extração de tópico/entidades. Resposta: ${extractionResultText}`);
-            return { timestamp: Date.now(), wasQuestion: wasOriginalResponseAQuestion };
+            const noJsonContext: ILastResponseContext = { timestamp: Date.now(), wasQuestion: wasOriginalResponseAQuestion };
+            logger.debug(`${TAG} Contexto retornado (sem JSON na extração) - Timestamp: ${noJsonContext.timestamp}, WasQuestion: ${noJsonContext.wasQuestion}`);
+            return noJsonContext;
         }
-        
+
         const parsedJson = JSON.parse(jsonMatch[0]);
 
         const context: ILastResponseContext = {
             topic: (parsedJson && typeof parsedJson.topic === 'string') ? parsedJson.topic.trim() : undefined,
             entities: (parsedJson && Array.isArray(parsedJson.entities)) ? parsedJson.entities.map((e: any) => String(e).trim()).filter((e: string) => e) : [],
             timestamp: Date.now(),
-            wasQuestion: wasOriginalResponseAQuestion, 
+            wasQuestion: wasOriginalResponseAQuestion,
         };
 
         if (!context.topic && (!context.entities || context.entities.length === 0) && !context.wasQuestion) {
-            logger.debug(`${TAG} Extração de contexto não produziu tópico, entidades ou indicativo de pergunta.`);
-            return null; 
+            logger.debug(`${TAG} Extração de contexto não produziu tópico, entidades ou indicativo de pergunta. Retornando null após tentativa de parse.`);
+            if (!context.wasQuestion) return null;
         }
-        
-        logger.info(`${TAG} Contexto extraído da resposta da IA: Topic: "${context.topic}", Entities: [${context.entities?.join(', ')}], WasQuestion: ${context.wasQuestion}`);
+
+        logger.info(`${TAG} Contexto extraído da resposta da IA (FINAL) - Topic: "${context.topic ? context.topic.substring(0,50) + '...' : 'N/A'}", Entities: [${context.entities?.join(', ')}], Timestamp: ${context.timestamp}, WasQuestion: ${context.wasQuestion}`);
         return context;
-        
+
     } catch (error) {
         logger.error(`${TAG} Erro ao extrair tópico/entidades da resposta da IA:`, error);
-        return { timestamp: Date.now(), wasQuestion: wasOriginalResponseAQuestion }; // Retornar ao menos a informação de 'wasQuestion'
+        const errorContext: ILastResponseContext = { timestamp: Date.now(), wasQuestion: wasOriginalResponseAQuestion };
+        logger.debug(`${TAG} Contexto retornado (erro na extração) - Timestamp: ${errorContext.timestamp}, WasQuestion: ${errorContext.wasQuestion}`);
+        return errorContext;
     }
 }
 
@@ -141,7 +150,7 @@ async function generateInstigatingQuestion(
 ): Promise<string | null> {
     const TAG = `${HANDLER_TAG_BASE}[generateInstigatingQuestion] User ${userId}:`;
 
-    if (!aiResponseText || aiResponseText.trim().length < 15) { 
+    if (!aiResponseText || aiResponseText.trim().length < 15) {
         logger.debug(`${TAG} Resposta da IA muito curta para gerar pergunta instigante.`);
         return null;
     }
@@ -224,11 +233,11 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
     let firstName: string;
     let greeting: string;
     const queryExcerpt_MsgAtual = extractExcerpt(incomingText, 30);
-    
-    let initialDataLoadStartTime: number = 0; 
+
+    let initialDataLoadStartTime: number = 0;
     let updateState1StartTime: number = 0;
     let getDialogueState2StartTime: number = 0;
-    let determineIntentStartTimeGlobal: number = 0; 
+    let determineIntentStartTimeGlobal: number = 0;
     let updateState2StartTime: number = 0;
     let getDialogueState3StartTime: number = 0;
     let getDSCountersCallStartTimeGlobal: number = 0;
@@ -240,14 +249,14 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
 
 
     try {
-        initialDataLoadStartTime = Date.now(); 
+        initialDataLoadStartTime = Date.now();
         const [userData, initialDialogueStateResult, historyData] = await Promise.all([
             dataService.lookupUserById(userId),
-            stateService.getDialogueState(userId), 
+            stateService.getDialogueState(userId),
             stateService.getConversationHistory(userId)
         ]);
         logger.debug(`${handlerTAG} Carregamento inicial (lookupUserById, getDialogueState, getConversationHistory) levou ${Date.now() - initialDataLoadStartTime}ms.`);
-        
+
         user = userData;
         dialogueState = initialDialogueStateResult;
         historyMessages = historyData;
@@ -265,13 +274,13 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
         if (dialogueState.interruptSignalForMessageId === messageId_MsgAtual) {
             stateUpdateForProcessingStart.interruptSignalForMessageId = null;
         }
-        
+
         updateState1StartTime = Date.now();
         await stateService.updateDialogueState(userId, stateUpdateForProcessingStart);
         logger.debug(`${handlerTAG} stateService.updateDialogueState (início processamento) levou ${Date.now() - updateState1StartTime}ms.`);
-        
-        getDialogueState2StartTime = Date.now(); 
-        dialogueState = await stateService.getDialogueState(userId); 
+
+        getDialogueState2StartTime = Date.now();
+        dialogueState = await stateService.getDialogueState(userId);
         logger.debug(`${handlerTAG} stateService.getDialogueState (após update início) levou ${Date.now() - getDialogueState2StartTime}ms.`);
         logger.info(`${handlerTAG} Estado de processamento atualizado. currentProcessingMessageId setado para ${messageId_MsgAtual}. QueryExcerpt: "${queryExcerpt_MsgAtual}"`);
 
@@ -382,10 +391,10 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
         updateState2StartTime = Date.now();
         await stateService.updateDialogueState(userId, dialogueStateUpdateForTaskStart);
         logger.debug(`${handlerTAG} stateService.updateDialogueState (task start) levou ${Date.now() - updateState2StartTime}ms.`);
-        
-        getDialogueState3StartTime = Date.now(); 
-        dialogueState = await stateService.getDialogueState(userId); 
-        logger.debug(`${handlerTAG} stateService.getDialogueState (após task start) levou ${Date.now() - getDialogueState3StartTime}ms.`); 
+
+        getDialogueState3StartTime = Date.now();
+        dialogueState = await stateService.getDialogueState(userId);
+        logger.debug(`${handlerTAG} stateService.getDialogueState (após task start) levou ${Date.now() - getDialogueState3StartTime}ms.`);
     }
 
     if (responseTextForSpecialHandled) {
@@ -397,7 +406,7 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
 
         await sendWhatsAppMessage(fromPhone, fullResponseForSpecial);
         const userMsgHist: ChatCompletionUserMessageParam = { role: 'user', content: incomingText! };
-        const assistantMsgHist: ChatCompletionAssistantMessageParam = { role: 'assistant', content: fullResponseForSpecial }; 
+        const assistantMsgHist: ChatCompletionAssistantMessageParam = { role: 'assistant', content: fullResponseForSpecial };
         const updatedHistory = [...historyMessages, userMsgHist, assistantMsgHist].slice(-HISTORY_LIMIT);
         await stateService.setConversationHistory(userId, updatedHistory);
 
@@ -406,11 +415,11 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
             currentProcessingMessageId: null,
             currentProcessingQueryExcerpt: null,
         };
-        
+
         getDSCountersCallStartTimeGlobal = Date.now();
-        const currentDSForCounters = await stateService.getDialogueState(userId); 
-        logger.debug(`${handlerTAG} stateService.getDialogueState (para contadores) levou ${Date.now() - getDSCountersCallStartTimeGlobal}ms.`); 
-        
+        const currentDSForCounters = await stateService.getDialogueState(userId);
+        logger.debug(`${handlerTAG} stateService.getDialogueState (para contadores) levou ${Date.now() - getDSCountersCallStartTimeGlobal}ms.`);
+
         const currentSummaryTurn = (currentDSForCounters.summaryTurnCounter || 0) + 1;
         if (currentSummaryTurn >= SUMMARY_GENERATION_INTERVAL) {
             const summary = await generateConversationSummary(updatedHistory, firstName);
@@ -430,8 +439,8 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
             stateUpdateAfterSpecial.expertiseInferenceTurnCounter = currentExpertiseTurn;
         }
 
-        const extractedContextForSpecial = await extractContextFromAIResponse(fullResponseForSpecial, userId); 
-        stateUpdateAfterSpecial.lastResponseContext = extractedContextForSpecial; 
+        const extractedContextForSpecial = await extractContextFromAIResponse(fullResponseForSpecial, userId);
+        stateUpdateAfterSpecial.lastResponseContext = extractedContextForSpecial;
 
         await stateService.updateDialogueState(userId, stateUpdateAfterSpecial);
         return NextResponse.json({ success: true, message: "Special handled intent processed." }, { status: 200 });
@@ -479,7 +488,7 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
                 firstNameForAck,
                 incomingText!,
                 userId,
-                dialogueState 
+                dialogueState
             );
             if (dynamicAckMessage) {
                 await sendWhatsAppMessage(fromPhone!, dynamicAckMessage);
@@ -500,8 +509,8 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
     }
 
     getDSInterruptStartTimeGlobal = Date.now();
-    const freshDialogueStateForInterrupt = await stateService.getDialogueState(userId); 
-    logger.debug(`${handlerTAG} stateService.getDialogueState (para interrupção) levou ${Date.now() - getDSInterruptStartTimeGlobal}ms.`); 
+    const freshDialogueStateForInterrupt = await stateService.getDialogueState(userId);
+    logger.debug(`${handlerTAG} stateService.getDialogueState (para interrupção) levou ${Date.now() - getDSInterruptStartTimeGlobal}ms.`);
 
     if (freshDialogueStateForInterrupt.interruptSignalForMessageId === messageId_MsgAtual) {
         logger.info(`${handlerTAG} INTERRUPÇÃO DETECTADA para MsgID: ${messageId_MsgAtual} ("${queryExcerpt_MsgAtual}") APÓS ACK. Sinal: ${freshDialogueStateForInterrupt.interruptSignalForMessageId}. Pulando resposta principal da LLM.`);
@@ -516,7 +525,7 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
             expertiseInferenceTurnCounter: freshDialogueStateForInterrupt.expertiseInferenceTurnCounter,
             conversationSummary: freshDialogueStateForInterrupt.conversationSummary,
             currentTask: freshDialogueStateForInterrupt.currentTask,
-            lastResponseContext: null, 
+            lastResponseContext: null,
         });
         logger.info(`${handlerTAG} Estado limpo após interrupção de MsgID: ${messageId_MsgAtual}.`);
         return NextResponse.json({ success: true, message: 'Processing interrupted by newer user message after acknowledgement phase.' }, { status: 200 });
@@ -592,8 +601,8 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
             effectiveIntent = 'ask_community_inspiration';
             if (dialogueState.currentTask?.name === 'ask_community_inspiration') {
                 await stateService.updateDialogueState(userId, { currentTask: { ...dialogueState.currentTask, parameters: { ...(dialogueState.currentTask.parameters || {}), primaryObjectiveAchieved_Qualitative: incomingText!.trim() }, currentStep: 'objective_clarified' } });
-                getDSConfirmTaskStartTime = Date.now(); 
-                dialogueState = await stateService.getDialogueState(userId); 
+                getDSConfirmTaskStartTime = Date.now();
+                dialogueState = await stateService.getDialogueState(userId);
                 logger.debug(`${handlerTAG} stateService.getDialogueState (após confirm task) levou ${Date.now() - getDSConfirmTaskStartTime}ms.`);
             }
         } else if (pendingContext?.originalSuggestion) {
@@ -611,12 +620,12 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
             }
         }
         await stateService.clearPendingActionState(userId);
-        getDSClearPendingStartTime = Date.now(); 
-        dialogueState = await stateService.getDialogueState(userId); 
+        getDSClearPendingStartTime = Date.now();
+        dialogueState = await stateService.getDialogueState(userId);
         logger.debug(`${handlerTAG} stateService.getDialogueState (após clear pending) levou ${Date.now() - getDSClearPendingStartTime}ms.`);
     } else if (currentDeterminedIntent === 'user_denies_pending_action') {
         const denialResponse = pickRandom(["Entendido. Como posso te ajudar então?", "Ok. O que você gostaria de fazer a seguir?", "Sem problemas. Em que mais posso ser útil?"]);
-        
+
         let finalDenialResponse = denialResponse;
         const instigatingQuestionForDenial = await generateInstigatingQuestion(denialResponse, dialogueState, userId);
         if (instigatingQuestionForDenial) {
@@ -630,21 +639,21 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
         const updatedHistoryDeny = [...currentTurnHistory.slice(0,-1), userDenialMsgHist, assistantDenialResponseHist].slice(-HISTORY_LIMIT);
 
         await stateService.setConversationHistory(userId, updatedHistoryDeny);
-        
+
         const extractedContextForDenial = await extractContextFromAIResponse(finalDenialResponse, userId);
 
         await stateService.updateDialogueState(userId, {
             lastInteraction: Date.now(),
             currentProcessingMessageId: null, currentProcessingQueryExcerpt: null,
             lastAIQuestionType: undefined, pendingActionContext: undefined,
-            lastResponseContext: extractedContextForDenial, 
+            lastResponseContext: extractedContextForDenial,
         });
         return NextResponse.json({ success: true, message: "User denied pending action." }, { status: 200 });
     } else if (dialogueState.lastAIQuestionType) {
         logger.info(`${handlerTAG} Havia uma pergunta pendente ('${dialogueState.lastAIQuestionType}'), mas o usuário respondeu com outra intenção ('${currentDeterminedIntent}'). Limpando estado pendente.`);
         await stateService.clearPendingActionState(userId);
-        getDSClearPending2StartTime = Date.now(); 
-        dialogueState = await stateService.getDialogueState(userId); 
+        getDSClearPending2StartTime = Date.now();
+        dialogueState = await stateService.getDialogueState(userId);
         logger.debug(`${handlerTAG} stateService.getDialogueState (após clear pending 2) levou ${Date.now() - getDSClearPending2StartTime}ms.`);
     }
 
@@ -713,11 +722,11 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
     await sendWhatsAppMessage(fromPhone!, fullResponseToUser);
     logger.info(`${handlerTAG} Resposta principal (com pergunta instigante, se houver) enviada ao usuário: "${fullResponseToUser.substring(0,100)}..."`);
 
-    const extractedAIContext = await extractContextFromAIResponse(fullResponseToUser, userId); 
+    const extractedAIContext = await extractContextFromAIResponse(fullResponseToUser, userId);
 
     let finalDialogueStateUpdate: Partial<stateService.IDialogueState> = {
         lastInteraction: Date.now(),
-        lastResponseContext: extractedAIContext, 
+        lastResponseContext: extractedAIContext,
     };
 
     const intentsToAvoidPendingActionSuggestion = [
@@ -726,8 +735,8 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
         'user_confirms_pending_action',
         'user_denies_pending_action'
     ];
-    if (fullResponseToUser && !intentsToAvoidPendingActionSuggestion.includes(effectiveIntent)) { 
-        const pendingActionInfo = aiResponseSuggestsPendingAction(fullResponseToUser); 
+    if (fullResponseToUser && !intentsToAvoidPendingActionSuggestion.includes(effectiveIntent)) {
+        const pendingActionInfo = aiResponseSuggestsPendingAction(fullResponseToUser);
         if (pendingActionInfo.suggests && pendingActionInfo.actionType) {
             finalDialogueStateUpdate.lastAIQuestionType = pendingActionInfo.actionType;
             finalDialogueStateUpdate.pendingActionContext = pendingActionInfo.pendingActionContext;
@@ -751,9 +760,9 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
             }
         }
     }
-    
-    getDSFinalSaveStartTime = Date.now(); 
-    const finalDialogueStateBeforeSave = await stateService.getDialogueState(userId); 
+
+    getDSFinalSaveStartTime = Date.now();
+    const finalDialogueStateBeforeSave = await stateService.getDialogueState(userId);
     logger.debug(`${handlerTAG} stateService.getDialogueState (antes do save final) levou ${Date.now() - getDSFinalSaveStartTime}ms.`);
 
     if (finalDialogueStateBeforeSave.currentProcessingMessageId === messageId_MsgAtual) {
@@ -773,10 +782,10 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
             finalHistoryForSaving = await historyPromise;
             if (finalHistoryForSaving.length > 0 && finalHistoryForSaving[finalHistoryForSaving.length - 1]?.role === 'assistant') {
                 finalHistoryForSaving[finalHistoryForSaving.length - 1]!.content = fullResponseToUser;
-            } else { 
+            } else {
                  finalHistoryForSaving.push(assistantMessageForHistory);
             }
-            
+
             const lastUserMsgIdx = finalHistoryForSaving.map(m => m.role).lastIndexOf('user');
             const lastUserMessageInPromise = lastUserMsgIdx !== -1 ? finalHistoryForSaving[lastUserMsgIdx] : undefined;
             if (lastUserMessageInPromise && lastUserMessageInPromise.content !== effectiveIncomingText) {
@@ -793,7 +802,7 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
         const baseHistory = currentTurnHistory.filter(m => m.role !== 'user' || m.content !== incomingText);
         finalHistoryForSaving = [...baseHistory, userMessageForHistory, assistantMessageForHistory].slice(-HISTORY_LIMIT);
     }
-    
+
     const lastUserMessageIndexInFinalHistory = finalHistoryForSaving.map(m => m.role).lastIndexOf('user');
     const lastUserMessageToAdjust = lastUserMessageIndexInFinalHistory !== -1 ? finalHistoryForSaving[lastUserMessageIndexInFinalHistory] : undefined;
     if (lastUserMessageToAdjust && lastUserMessageToAdjust.content !== effectiveIncomingText) {
@@ -838,9 +847,9 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
         await stateService.setConversationHistory(userId, finalHistoryForSaving);
     }
 
-    await stateService.setInCache(`resp:${fromPhone!}:${effectiveIncomingText.trim().slice(0, 100)}`, fullResponseToUser, CACHE_TTL_SECONDS); 
+    await stateService.setInCache(`resp:${fromPhone!}:${effectiveIncomingText.trim().slice(0, 100)}`, fullResponseToUser, CACHE_TTL_SECONDS);
     await stateService.incrementUsageCounter(userId);
 
     logger.info(`${handlerTAG} Tarefa de mensagem de usuário concluída com sucesso.`);
     return NextResponse.json({ success: true, message: "User message processed." }, { status: 200 });
-}
+} // Adicionada a chave de fechamento aqui

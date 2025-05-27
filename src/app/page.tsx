@@ -255,7 +255,8 @@ export default function HomePage() {
         {/* Container para as próximas seções de funcionalidades com espaçamento maior entre elas */}
         <div className="space-y-12 md:space-y-20"> {/* Espaçamento entre seções de funcionalidades ajustado */}
 
-            <section id="tuca-ia" className="pt-16 md:pt-20 px-4 bg-white overflow-hidden"> {/* Padding top ajustado */}
+            {/* Seção 1: O Poder do Tuca (Imagem Esquerda, Texto Direita - Desktop) */}
+            <section id="tuca-ia" className="pt-16 md:pt-20 px-4 bg-white overflow-hidden">
                   <div className="max-w-5xl mx-auto">
                     <AnimatedSection delay={0} className="text-center mb-10 md:mb-12">
                        <h2 className="text-3xl md:text-4xl font-bold text-brand-dark mb-3 leading-tight">O Poder do Tuca: Sua IA Estratégica e Criativa</h2>
@@ -263,9 +264,7 @@ export default function HomePage() {
                            Seu consultor completo: analisa dados, categoriza conteúdo, otimiza horários, cria roteiros, aprende com você e mais. Tudo no WhatsApp.
                        </p>
                     </AnimatedSection>
-
                     <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
-                         {/* Contêiner da imagem atualizado para aspect-[3/2] e padding p-1 */}
                          <AnimatedSection delay={0.1} className="relative aspect-[3/2] bg-gradient-to-br from-red-50 to-purple-50 rounded-2xl shadow-lg flex items-center justify-center p-1 order-last md:order-first overflow-hidden">
                             <Image 
                                src="/images/tuca-analise-whatsapp.png" 
@@ -298,15 +297,20 @@ export default function HomePage() {
                    </div>
             </section>
 
+            {/* Seção 2: Tuca Proativo (Texto Esquerda, Imagem Direita - Desktop) */}
             <section id="tuca-proativo" className="px-4 bg-brand-light overflow-hidden">
                 <div className="max-w-5xl mx-auto py-12 md:py-16">
                     <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
-                        {/* Contêiner da imagem atualizado para aspect-[3/2] e padding p-1 */}
-                        <AnimatedSection delay={0.1} className="relative aspect-[3/2] bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl shadow-lg flex items-center justify-center p-1 overflow-hidden">
-                             {/* TODO: Substituir span por componente Image com src e alt apropriados */}
-                            <span className="text-indigo-700 text-center text-lg p-3">[Ilustração: Alerta do Tuca no WhatsApp]</span>
+                        <AnimatedSection delay={0.1} className="relative aspect-[3/2] bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl shadow-lg flex items-center justify-center p-1 overflow-hidden order-first md:order-last">
+                            <Image 
+                               src="/images/tuca-nova-analise.png" 
+                               alt="Ilustração do Tuca enviando alertas e insights inteligentes para o WhatsApp" 
+                               layout="fill" 
+                               objectFit="contain" 
+                               className="rounded-lg"
+                            />
                         </AnimatedSection>
-                        <AnimatedSection delay={0}>
+                        <AnimatedSection delay={0} className="order-last md:order-first">
                             <div className="mb-3 flex items-center space-x-2">
                                 <FaBell aria-hidden="true" className="w-7 h-7 text-brand-pink" />
                                 <FaChartLine aria-hidden="true" className="w-6 h-6 text-blue-500" />
@@ -325,10 +329,11 @@ export default function HomePage() {
                 </div>
             </section>
 
+            {/* Seção 3: Comunidade de Inspiração (Imagem Esquerda, Texto Direita - Desktop) */}
            <section id="comunidade-inspiracao" className="px-4 bg-white overflow-hidden">
                <div className="max-w-5xl mx-auto py-12 md:py-16">
                    <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
-                       <AnimatedSection delay={0} className="order-first md:order-last">
+                       <AnimatedSection delay={0} className="order-first md:order-last"> {/* Texto */}
                            <div className="mb-3 flex items-center space-x-2">
                                <FaUsers aria-hidden="true" className="w-7 h-7 text-purple-500" />
                                <FaLightbulb aria-hidden="true" className="w-6 h-6 text-yellow-400" />
@@ -343,8 +348,7 @@ export default function HomePage() {
                                <li><strong className="font-semibold text-brand-pink">Privacidade total:</strong> Métricas de terceiros NUNCA são compartilhadas.</li>
                            </ul>
                        </AnimatedSection>
-                       {/* Contêiner da imagem atualizado para aspect-[3/2] e padding p-1 */}
-                       <AnimatedSection delay={0.1} className="relative aspect-[3/2] bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl shadow-lg flex items-center justify-center p-1 order-last md:order-first overflow-hidden">
+                       <AnimatedSection delay={0.1} className="relative aspect-[3/2] bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl shadow-lg flex items-center justify-center p-1 order-last md:order-first overflow-hidden"> {/* Imagem */}
                             {/* TODO: Substituir span por componente Image com src e alt apropriados */}
                            <span className="text-purple-700 text-center text-lg p-3">[Ilustração: Rede de criadores e exemplos de posts]</span>
                        </AnimatedSection>
@@ -352,15 +356,15 @@ export default function HomePage() {
                </div>
            </section>
 
+            {/* Seção 4: Tuca & Suas Publis (Texto Esquerda, Imagem Direita - Desktop) */}
            <section id="tuca-parcerias" className="px-4 bg-brand-light overflow-hidden">
                <div className="max-w-5xl mx-auto py-12 md:py-16">
                    <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
-                        {/* Contêiner da imagem atualizado para aspect-[3/2] e padding p-1 */}
-                        <AnimatedSection delay={0.1} className="relative aspect-[3/2] bg-gradient-to-br from-orange-50 to-yellow-50 rounded-2xl shadow-lg flex items-center justify-center p-1 order-last md:order-first overflow-hidden">
+                        <AnimatedSection delay={0.1} className="relative aspect-[3/2] bg-gradient-to-br from-orange-50 to-yellow-50 rounded-2xl shadow-lg flex items-center justify-center p-1 order-first md:order-last overflow-hidden"> {/* Imagem */}
                             {/* TODO: Substituir span por componente Image com src e alt apropriados */}
                            <span className="text-orange-700 text-center text-lg p-3">[Ilustração: Tuca ajudando a planejar 'publi']</span>
                        </AnimatedSection>
-                       <AnimatedSection delay={0} className="order-first md:order-last">
+                       <AnimatedSection delay={0} className="order-last md:order-first"> {/* Texto */}
                            <div className="mb-3 flex items-center space-x-2">
                                <FaFileSignature aria-hidden="true" className="w-7 h-7 text-orange-500" />
                                <FaScroll aria-hidden="true" className="w-6 h-6 text-teal-500" />
@@ -385,8 +389,9 @@ export default function HomePage() {
 
         <section id="monetizacao" className="py-16 md:py-20 px-4 bg-white overflow-hidden"> {/* Padding ajustado */}
               <div className="max-w-5xl mx-auto space-y-12 md:space-y-16">
+                 {/* Seção 5: Monetização - Indique Amigos (Imagem Esquerda, Texto Direita - Desktop) */}
                 <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
-                    <AnimatedSection delay={0}>
+                    <AnimatedSection delay={0} className="order-first md:order-last"> {/* Texto */}
                          <div className="mb-3"><FaGift className="w-10 h-10 text-brand-pink" /></div>
                         <h2 className="text-2xl md:text-3xl font-bold text-brand-dark mb-3 leading-tight">Indique Amigos, Ganhe Dinheiro!</h2>
                         <p className="text-md text-gray-700 font-light leading-relaxed mb-4">
@@ -400,20 +405,19 @@ export default function HomePage() {
                             Detalhes da afiliação <FaArrowRight aria-hidden="true" className="w-3 h-3 ml-1.5" />
                         </a>
                     </AnimatedSection>
-                    {/* Contêiner da imagem atualizado para aspect-[3/2] e padding p-1 */}
-                    <AnimatedSection delay={0.1} className="relative aspect-[3/2] bg-gradient-to-br from-pink-50 to-red-50 rounded-2xl shadow-lg flex items-center justify-center p-1 overflow-hidden">
+                    <AnimatedSection delay={0.1} className="relative aspect-[3/2] bg-gradient-to-br from-pink-50 to-red-50 rounded-2xl shadow-lg flex items-center justify-center p-1 order-last md:order-first overflow-hidden"> {/* Imagem */}
                          {/* TODO: Substituir span por componente Image com src e alt apropriados */}
                         <span className="text-pink-700 text-center text-lg p-3">[Ilustração: Programa de Afiliados]</span>
                     </AnimatedSection>
                 </div>
 
+                {/* Seção 6: Monetização - Conecte-se a Marcas (Texto Esquerda, Imagem Direita - Desktop) */}
                 <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
-                    {/* Contêiner da imagem atualizado para aspect-[3/2] e padding p-1 */}
-                    <AnimatedSection delay={0.1} className="relative aspect-[3/2] bg-gradient-to-br from-yellow-50 to-green-50 rounded-2xl shadow-lg flex items-center justify-center p-1 order-last md:order-first overflow-hidden">
+                    <AnimatedSection delay={0.1} className="relative aspect-[3/2] bg-gradient-to-br from-yellow-50 to-green-50 rounded-2xl shadow-lg flex items-center justify-center p-1 order-first md:order-last overflow-hidden"> {/* Imagem */}
                          {/* TODO: Substituir span por componente Image com src e alt apropriados */}
                          <span className="text-yellow-700 text-center text-lg p-3">[Ilustração: Conexão com Marcas]</span>
                     </AnimatedSection>
-                    <AnimatedSection delay={0} className="order-first md:order-last">
+                    <AnimatedSection delay={0} className="order-last md:order-first"> {/* Texto */}
                          <div className="mb-3"><FaStar className="w-10 h-10 text-yellow-500" /></div>
                         <h2 className="text-2xl md:text-3xl font-bold text-brand-dark mb-3 leading-tight">Conecte-se a Marcas e Oportunidades</h2>
                         <p className="text-md text-gray-700 font-light leading-relaxed mb-5">Use o Tuca, melhore seus resultados com dados reais e chame a atenção de marcas parceiras. Destaque-se para possível agenciamento por Arthur Marbá.</p>
@@ -460,7 +464,6 @@ export default function HomePage() {
          <section id="arthur-marba" className="py-16 md:py-24 px-4 bg-white">
               <div className="max-w-4xl mx-auto grid md:grid-cols-3 gap-8 md:gap-12 items-center">
                 <AnimatedSection delay={0} className="md:col-span-1">
-                     {/* A imagem de Arthur Marbá mantém aspect-w-1 aspect-h-1 (quadrada) por padrão, pois é uma foto de perfil e não uma ilustração de funcionalidade. */}
                      <div className="relative aspect-w-1 aspect-h-1 bg-gray-300 rounded-2xl shadow-lg overflow-hidden flex items-center justify-center p-1">
                          {/* TODO: Substituir span por componente Image com src e alt apropriados */}
                          <span className="text-gray-500 text-center text-lg p-3">[Foto de Arthur Marbá]</span>

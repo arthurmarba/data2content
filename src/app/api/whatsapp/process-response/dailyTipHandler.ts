@@ -1,43 +1,51 @@
 // src/app/api/whatsapp/process-response/dailyTipHandler.ts
-// Versão: v1.3.4 (Corrige acesso a s._id.format em extractFallbackInsight)
-// Baseado na v1.3.3
+// Versão: v1.4.1 (Adiciona logging detalhado para fallbackInsightsHistory e console.log de verificação)
+// - Corrigido logging do array fallbackInsightsHistory.
+// - Adicionados logs para Rastrear o estado e o resultado do fallbackInsightsHistory.
+// - Adicionado console.log no início de handleDailyTip para depuração de execução local.
+// Baseado na v1.4.0
 import { NextResponse } from 'next/server';
 import { logger } from '@/app/lib/logger';
 import { sendWhatsAppMessage } from '@/app/lib/whatsappService';
 import { askLLMWithEnrichedContext } from '@/app/lib/aiOrchestrator';
 import * as stateService from '@/app/lib/stateService';
 import type { IDialogueState, ILastResponseContext } from '@/app/lib/stateService'; 
-import * as dataService from '@/app/lib/dataService'; 
-import type { IEnrichedReport, IAccountInsight } from '@/app/lib/dataService'; 
+import * as dataService from '@/app/lib/dataService';
+import type { IEnrichedReport, IAccountInsight } from '@/app/lib/dataService';
 import { IUser, IAlertHistoryEntry, AlertDetails } from '@/app/models/User';
 import { ProcessRequestBody, DetectedEvent, EnrichedAIContext } from './types';
-import ruleEngineInstance from '@/app/lib/ruleEngine'; 
-import { 
+import ruleEngineInstance from '@/app/lib/ruleEngine';
+import {
     DEFAULT_RADAR_STREAM_READ_TIMEOUT_MS,
     INSTIGATING_QUESTION_MODEL,
     INSTIGATING_QUESTION_TEMP,
     INSTIGATING_QUESTION_MAX_TOKENS,
-    CONTEXT_EXTRACTION_MODEL, 
-    CONTEXT_EXTRACTION_TEMP,  
+    CONTEXT_EXTRACTION_MODEL,
+    CONTEXT_EXTRACTION_TEMP,
     CONTEXT_EXTRACTION_MAX_TOKENS,
-    DEFAULT_METRICS_FETCH_DAYS 
+    DEFAULT_METRICS_FETCH_DAYS,
+    FallbackInsightType
 } from '@/app/lib/constants';
-import { callOpenAIForQuestion } from '@/app/lib/aiService'; 
-import { subDays } from 'date-fns'; 
+import { callOpenAIForQuestion } from '@/app/lib/aiService';
+import { subDays } from 'date-fns';
 
-const HANDLER_TAG_BASE = '[DailyTipHandler v1.3.4]'; // Tag de versão atualizada
+import * as fallbackInsightService from '@/app/lib/fallbackInsightService';
 
-async function extractContextFromRadarResponse( 
+const HANDLER_TAG_BASE = '[DailyTipHandler v1.4.1]'; 
+
+async function extractContextFromRadarResponse(
     aiResponseText: string,
     userId: string
 ): Promise<ILastResponseContext | null> {
     const TAG = `${HANDLER_TAG_BASE}[extractContextFromRadarResponse] User ${userId}:`;
-    const trimmedResponseText = aiResponseText.trim(); 
+    const trimmedResponseText = aiResponseText.trim();
     const wasOriginalResponseAQuestion = trimmedResponseText.endsWith('?');
 
     if (!trimmedResponseText || trimmedResponseText.length < 10) {
         logger.debug(`${TAG} Resposta da IA muito curta para extração de tópico/entidades, mas registrando se era pergunta.`);
-        return { timestamp: Date.now(), wasQuestion: wasOriginalResponseAQuestion };
+        const shortContext: ILastResponseContext = { timestamp: Date.now(), wasQuestion: wasOriginalResponseAQuestion };
+        logger.debug(`${TAG} Contexto retornado para resposta curta - Timestamp: ${shortContext.timestamp}, WasQuestion: ${shortContext.wasQuestion}`);
+        return shortContext;
     }
 
     const prompt = `
@@ -60,7 +68,7 @@ JSON:
         const modelForExtraction = (typeof CONTEXT_EXTRACTION_MODEL !== 'undefined' ? CONTEXT_EXTRACTION_MODEL : process.env.CONTEXT_EXTRACTION_MODEL) || 'gpt-3.5-turbo';
         const tempForExtraction = (typeof CONTEXT_EXTRACTION_TEMP !== 'undefined' ? CONTEXT_EXTRACTION_TEMP : Number(process.env.CONTEXT_EXTRACTION_TEMP)) ?? 0.2;
         const maxTokensForExtraction = (typeof CONTEXT_EXTRACTION_MAX_TOKENS !== 'undefined' ? CONTEXT_EXTRACTION_MAX_TOKENS : Number(process.env.CONTEXT_EXTRACTION_MAX_TOKENS)) || 150;
-        
+
         const extractionResultText = await callOpenAIForQuestion(prompt, {
             model: modelForExtraction,
             temperature: tempForExtraction,
@@ -69,40 +77,46 @@ JSON:
 
         if (!extractionResultText) {
             logger.warn(`${TAG} Extração de contexto retornou texto vazio.`);
-            return { timestamp: Date.now(), wasQuestion: wasOriginalResponseAQuestion };
+            const emptyTextContext: ILastResponseContext = { timestamp: Date.now(), wasQuestion: wasOriginalResponseAQuestion };
+            logger.debug(`${TAG} Contexto retornado (texto de extração vazio) - Timestamp: ${emptyTextContext.timestamp}, WasQuestion: ${emptyTextContext.wasQuestion}`);
+            return emptyTextContext;
         }
 
         const jsonMatch = extractionResultText.match(/\{[\s\S]*\}/);
         if (!jsonMatch || !jsonMatch[0]) {
             logger.warn(`${TAG} Nenhum JSON encontrado na resposta da extração de contexto. Resposta: ${extractionResultText}`);
-            return { timestamp: Date.now(), wasQuestion: wasOriginalResponseAQuestion };
+            const noJsonContext: ILastResponseContext = { timestamp: Date.now(), wasQuestion: wasOriginalResponseAQuestion };
+            logger.debug(`${TAG} Contexto retornado (sem JSON na extração) - Timestamp: ${noJsonContext.timestamp}, WasQuestion: ${noJsonContext.wasQuestion}`);
+            return noJsonContext;
         }
-        
+
         const parsedJson = JSON.parse(jsonMatch[0]);
 
         const context: ILastResponseContext = {
             topic: (parsedJson && typeof parsedJson.topic === 'string') ? parsedJson.topic.trim() : undefined,
             entities: (parsedJson && Array.isArray(parsedJson.entities)) ? parsedJson.entities.map((e: any) => String(e).trim()).filter((e: string) => e) : [],
             timestamp: Date.now(),
-            wasQuestion: wasOriginalResponseAQuestion, 
+            wasQuestion: wasOriginalResponseAQuestion,
         };
 
         if (!context.topic && (!context.entities || context.entities.length === 0) && !context.wasQuestion) {
-            logger.debug(`${TAG} Extração de contexto não produziu tópico, entidades ou indicativo de pergunta.`);
-            return null; 
+            logger.debug(`${TAG} Extração de contexto não produziu tópico, entidades ou indicativo de pergunta. Retornando null após tentativa de parse.`);
+            if (!context.wasQuestion) return null;
         }
-        
-        logger.info(`${TAG} Contexto extraído da resposta do Radar: Topic: "${context.topic}", Entities: [${context.entities?.join(', ')}], WasQuestion: ${context.wasQuestion}`);
+
+        logger.info(`${TAG} Contexto extraído da resposta do Radar (FINAL) - Topic: "${context.topic ? context.topic.substring(0,50) + '...' : 'N/A'}", Entities: [${context.entities?.join(', ')}], Timestamp: ${context.timestamp}, WasQuestion: ${context.wasQuestion}`);
         return context;
-        
+
     } catch (error) {
         logger.error(`${TAG} Erro ao extrair contexto da resposta do Radar:`, error);
-        return { timestamp: Date.now(), wasQuestion: wasOriginalResponseAQuestion };
+        const errorContext: ILastResponseContext = { timestamp: Date.now(), wasQuestion: wasOriginalResponseAQuestion };
+        logger.debug(`${TAG} Contexto retornado (erro na extração) - Timestamp: ${errorContext.timestamp}, WasQuestion: ${errorContext.wasQuestion}`);
+        return errorContext;
     }
 }
 
 async function generateInstigatingQuestionForDefaultMessage(
-    baseMessage: string, 
+    baseMessage: string,
     dialogueState: IDialogueState,
     userId: string,
     userName: string
@@ -135,6 +149,7 @@ Se, após um esforço genuíno, não conseguir pensar em uma pergunta instigante
 Contexto adicional:
 - Resumo da conversa até agora: "${conversationSummary.substring(0, 500)}"
 - Tipo do último alerta do radar (se houver): "${lastRadarAlertType}"
+- Histórico recente de insights de fallback (tipos enviados nos últimos dias, se houver): ${JSON.stringify(dialogueState.fallbackInsightsHistory?.slice(-5).map(h => h.type) || [])}
 
 Pergunta instigante (ou "NO_QUESTION"):
 `;
@@ -165,120 +180,10 @@ Pergunta instigante (ou "NO_QUESTION"):
     }
 }
 
-/**
- * Tenta extrair um insight simples dos dados do usuário para usar como mensagem padrão.
- * @param user O objeto do usuário.
- * @param enrichedReport O relatório enriquecido do usuário.
- * @param latestAccountInsights Os insights mais recentes da conta do usuário.
- * @returns Uma string com o insight ou null.
- */
-async function extractFallbackInsight(
-    user: IUser, 
-    enrichedReport: IEnrichedReport | null,
-    latestAccountInsights: IAccountInsight | null
-): Promise<string | null> {
-    const TAG = `${HANDLER_TAG_BASE}[extractFallbackInsight] User ${user._id}:`;
-    
-    if (!enrichedReport && !latestAccountInsights) {
-        logger.info(`${TAG} Sem dados de relatório ou insights da conta para extrair fallback.`);
-        return null;
-    }
-
-    const daysLookback = DEFAULT_METRICS_FETCH_DAYS || 30;
-
-    // 1. Destaque de crescimento, se positivo
-    if (enrichedReport?.historicalComparisons?.followerChangeShortTerm && enrichedReport.historicalComparisons.followerChangeShortTerm > 5) {
-        return `Notei que você ganhou ${enrichedReport.historicalComparisons.followerChangeShortTerm} seguidores recentemente. Bom ritmo! 👍`;
-    }
-
-    // 2. Melhor dia de postagem com base no engajamento médio
-    if (enrichedReport?.performanceByDayPCO) {
-        let bestDay = '';
-        let maxAvgEngagement = 0;
-        let totalPostsOnBestDay = 0;
-        for (const [day, data] of Object.entries(enrichedReport.performanceByDayPCO)) {
-            if (data.avgEngagement && data.avgEngagement > maxAvgEngagement && data.totalPosts > 1) { 
-                maxAvgEngagement = data.avgEngagement;
-                bestDay = day;
-                totalPostsOnBestDay = data.totalPosts;
-            }
-        }
-        if (bestDay) {
-            const dayNames: Record<string, string> = { '0': 'Domingo', '1': 'Segunda-feira', '2': 'Terça-feira', '3': 'Quarta-feira', '4': 'Quinta-feira', '5': 'Sexta-feira', '6': 'Sábado' };
-            return `Analisei seus posts dos últimos ${daysLookback} dias e parece que ${dayNames[bestDay] || bestDay} (com ${totalPostsOnBestDay} posts) tem sido um dia com bom engajamento médio para você.`;
-        }
-    }
-    
-    // 3. Insight sobre o post de melhor desempenho
-    if (enrichedReport?.top3Posts && enrichedReport.top3Posts.length > 0) {
-        const topPost = enrichedReport.top3Posts[0];
-        if (topPost?.description && topPost.stats) {
-            let metricHighlight = '';
-            const overallStats = enrichedReport.overallStats;
-
-            if (overallStats && typeof overallStats.totalPosts === 'number' && overallStats.totalPosts > 0) {
-                const avgLikes = overallStats.avgLikes || 0; 
-                const avgComments = overallStats.avgComments || 0;
-                const avgShares = overallStats.avgShares || 0; 
-
-                if (topPost.stats.likes && topPost.stats.likes > avgLikes * 1.2) {
-                    metricHighlight = `com ${topPost.stats.likes} curtidas (acima da sua média de ${avgLikes.toFixed(1)})`;
-                } else if (topPost.stats.comments && topPost.stats.comments > avgComments * 1.2) {
-                    metricHighlight = `com ${topPost.stats.comments} comentários (acima da sua média de ${avgComments.toFixed(1)})`;
-                } else if (topPost.stats.shares && topPost.stats.shares > avgShares * 1.2) {
-                    metricHighlight = `com ${topPost.stats.shares} compartilhamentos (acima da sua média de ${avgShares.toFixed(1)})`;
-                }
-            } else if (topPost.stats.likes) { 
-                metricHighlight = `com ${topPost.stats.likes} curtidas`;
-            }
-            
-            return `Seu post sobre "${topPost.description.substring(0, 30)}..." ${metricHighlight ? metricHighlight + ' ' : ''}teve um ótimo desempenho recentemente!`;
-        }
-    }
-
-    // 4. Métricas Gerais de Performance
-    if (enrichedReport?.overallStats) {
-        const stats = enrichedReport.overallStats;
-        if (stats.avgLikes && stats.avgLikes > 0) {
-            return `Seus posts tiveram uma média de ${stats.avgLikes.toFixed(0)} curtidas nos últimos ${daysLookback} dias.`;
-        }
-        if (stats.avgReach && stats.avgReach > 0) {
-            return `Em média, seus posts alcançaram ${stats.avgReach.toFixed(0)} pessoas recentemente.`;
-        }
-    }
-
-    // 5. Formato/Proposta/Contexto Mais Utilizado
-    const findMostUsedCategory = (statsArray: Array<{name: string; totalPosts: number}> | undefined) => {
-        if (!statsArray || statsArray.length === 0) return null;
-        return statsArray.reduce((maxItem: {name: string; totalPosts: number}, currentItem: {name: string; totalPosts: number}) => {
-            return currentItem.totalPosts > maxItem.totalPosts ? currentItem : maxItem;
-        }, statsArray[0]!);
-    };
-
-    // CORRIGIDO: Acessar s._id.format em vez de s.format
-    const mostUsedFormat = findMostUsedCategory(enrichedReport?.detailedContentStats?.map(s => ({name: s._id.format, totalPosts: s.totalPosts })));
-    if (mostUsedFormat && mostUsedFormat.totalPosts > 2) { 
-        return `Notei que você tem usado bastante o formato "${mostUsedFormat.name}".`;
-    }
-    
-    // 6. Contagem Atual de Seguidores
-    if (latestAccountInsights?.followersCount && latestAccountInsights.followersCount > 0) {
-        if (!(enrichedReport?.historicalComparisons?.followerChangeShortTerm && enrichedReport.historicalComparisons.followerChangeShortTerm > 0)) { 
-            return `Você está com ${latestAccountInsights.followersCount} seguidores atualmente.`;
-        }
-    }
-    
-    // 7. Total de Posts Recentes
-    if (enrichedReport?.overallStats?.totalPosts && enrichedReport.overallStats.totalPosts > 0) {
-        return `Você publicou ${enrichedReport.overallStats.totalPosts} posts nos últimos ${daysLookback} dias.`;
-    }
-            
-    logger.info(`${TAG} Nenhum insight específico de fallback extraído dos dados do relatório.`);
-    return null; 
-}
-
 
 export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextResponse> {
+    console.log("!!!!!!!!!! EXECUTANDO handleDailyTip LOCALMENTE VIA QSTASH WEBHOOK !!!!!!!!!! USER ID:", payload.userId, new Date().toISOString());
+    
     const { userId } = payload;
     const handlerTAG = `${HANDLER_TAG_BASE} User ${userId}:`;
     logger.info(`${handlerTAG} Iniciando processamento do Radar Tuca com Motor de Regras...`);
@@ -294,8 +199,12 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
             logger.warn(`${handlerTAG} Usuário com ID ${userId} não encontrado. Interrompendo Radar Tuca.`);
             return NextResponse.json({ success: true, message: "User not found for Radar Tuca." }, { status: 200 });
         }
-        
+
         dialogueStateForRadar = await stateService.getDialogueState(userId);
+        // LOG CORRIGIDO: Passa o objeto como segundo argumento para o logger
+        logger.debug(`${handlerTAG} Estado do diálogo ANTES de buscar insight de fallback:`, dialogueStateForRadar);
+        logger.info(`${handlerTAG} Histórico de insights de fallback (fallbackInsightsHistory) ANTES da chamada:`, dialogueStateForRadar.fallbackInsightsHistory || []);
+
 
         userPhoneForRadar = userForRadar.whatsappPhone;
         if (!userPhoneForRadar || !userForRadar.whatsappVerified) {
@@ -309,7 +218,7 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
         let detectedEvent: DetectedEvent | null = null;
 
         logger.info(`${handlerTAG} Executando o motor de regras...`);
-        
+
         try {
             detectedEvent = await ruleEngineInstance.runAllRules(userId, dialogueStateForRadar);
         } catch (engineError) {
@@ -319,7 +228,7 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
 
         if (!detectedEvent) {
             logger.info(`${handlerTAG} Nenhum evento notável detectado pelo motor de regras. Tentando extrair insight de fallback...`);
-            
+
             let baseDefaultMessage = `Olá ${userFirstNameForRadar}, Tuca na área! 👋`;
             let enrichedReportForFallback: IEnrichedReport | null = null;
             let latestAccountInsightsForFallback: IAccountInsight | null = null;
@@ -335,15 +244,30 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
             } catch (dataError) {
                 logger.error(`${handlerTAG} Erro ao buscar dados para insight de fallback:`, dataError);
             }
-
-            const fallbackInsight = await extractFallbackInsight(userForRadar, enrichedReportForFallback, latestAccountInsightsForFallback);
-
-            if (fallbackInsight) {
-                baseDefaultMessage += ` ${fallbackInsight}`;
-            } else {
-                baseDefaultMessage += ` Dei uma olhada geral nos seus dados hoje. Para um insight mais personalizado, que tal me perguntar sobre o desempenho dos seus Reels nos últimos 30 dias ou qual foi seu post com mais salvamentos este mês?`;
-            }
             
+            const fallbackResult = await fallbackInsightService.getFallbackInsight(
+                userForRadar,
+                enrichedReportForFallback,
+                latestAccountInsightsForFallback,
+                dialogueStateForRadar 
+            );
+            // LOG CORRIGIDO: Passa o objeto como segundo argumento para o logger
+            logger.info(`${handlerTAG} Resultado do getFallbackInsight:`, { type: fallbackResult.type, text: fallbackResult.text ? fallbackResult.text.substring(0, 70)+'...' : 'null' });
+
+
+            let fallbackInsightText: string | null = null;
+            let fallbackInsightType: FallbackInsightType | null = null; 
+
+            if (fallbackResult && fallbackResult.text && fallbackResult.type) {
+                fallbackInsightText = fallbackResult.text;
+                fallbackInsightType = fallbackResult.type; 
+                baseDefaultMessage += ` ${fallbackInsightText}`;
+                logger.info(`${handlerTAG} Insight de fallback selecionado (tipo: ${fallbackInsightType}): "${fallbackInsightText}"`);
+            } else {
+                baseDefaultMessage += ` Dei uma olhada geral nos seus dados hoje...`;
+                logger.info(`${handlerTAG} Nenhum insight de fallback específico encontrado, usando mensagem genérica.`);
+            }
+
             const instigatingQuestion = await generateInstigatingQuestionForDefaultMessage(
                 baseDefaultMessage,
                 dialogueStateForRadar,
@@ -354,32 +278,47 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
             let finalDefaultMessageToSend = baseDefaultMessage;
             if (instigatingQuestion) {
                 finalDefaultMessageToSend += `\n\n${instigatingQuestion}`;
-            } else if (!fallbackInsight) { 
+            } else if (!fallbackInsightText) { 
                 finalDefaultMessageToSend += `\n\nEstou por aqui para ajudar com suas análises e ideias! 😉`;
             }
-            
+
             await sendWhatsAppMessage(userPhoneForRadar, finalDefaultMessageToSend);
             logger.info(`${handlerTAG} Mensagem padrão (com insight e/ou pergunta instigante) enviada.`);
+            
+            let updatedFallbackHistory = dialogueStateForRadar.fallbackInsightsHistory || [];
+            if (fallbackInsightType) { 
+                updatedFallbackHistory.push({ type: fallbackInsightType, timestamp: Date.now() });
+                const HISTORY_RETENTION_DAYS = 30; 
+                const cutoffTimestamp = Date.now() - (HISTORY_RETENTION_DAYS * 24 * 60 * 60 * 1000);
+                updatedFallbackHistory = updatedFallbackHistory.filter(entry => entry.timestamp >= cutoffTimestamp);
+            }
+            // LOG CORRIGIDO: Passa o objeto como segundo argumento para o logger
+            logger.info(`${handlerTAG} Histórico de insights de fallback (fallbackInsightsHistory) A SER SALVO:`, updatedFallbackHistory);
 
             const lastResponseContext = await extractContextFromRadarResponse(finalDefaultMessageToSend, userId);
-            await stateService.updateDialogueState(userId, { 
-                lastInteraction: Date.now(), 
+            const stateToUpdate: Partial<IDialogueState> = {
+                lastInteraction: Date.now(),
                 lastRadarAlertType: 'no_event_found_today_with_insight',
-                lastResponseContext: lastResponseContext 
-            });
-            
+                lastResponseContext: lastResponseContext,
+                fallbackInsightsHistory: updatedFallbackHistory
+            };
+             // LOG CORRIGIDO: Passa o objeto como segundo argumento para o logger
+            logger.debug(`${handlerTAG} Estado completo a ser salvo em updateDialogueState:`, stateToUpdate);
+            await stateService.updateDialogueState(userId, stateToUpdate);
+
             try {
-                const noEventDetails: AlertDetails = { 
+                const noEventDetails: AlertDetails = {
                     reason: 'Nenhum evento de regra detectado, insight de fallback fornecido.',
-                    fallbackInsightProvided: fallbackInsight || 'Fallback genérico de engajamento com sugestão de pergunta específica.',
-                }; 
+                    fallbackInsightProvided: fallbackInsightText || 'Fallback genérico de engajamento.',
+                    fallbackInsightType: fallbackInsightType || 'none'
+                };
 
                 await dataService.addAlertToHistory(userId, {
                     type: 'no_event_found_today_with_insight',
                     date: today,
                     messageForAI: baseDefaultMessage, 
-                    finalUserMessage: finalDefaultMessageToSend, 
-                    details: noEventDetails, 
+                    finalUserMessage: finalDefaultMessageToSend,
+                    details: noEventDetails,
                     userInteraction: { type: 'not_applicable', interactedAt: today }
                 });
                 logger.info(`${handlerTAG} Alerta 'no_event_found_today_with_insight' registrado no histórico.`);
@@ -391,16 +330,18 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
 
         logger.info(`${handlerTAG} Alerta tipo '${detectedEvent.type}' detectado pelo motor de regras. Detalhes: ${JSON.stringify(detectedEvent.detailsForLog)}`);
         
-        await stateService.updateDialogueState(userId, { lastRadarAlertType: detectedEvent.type });
-        
+        await stateService.updateDialogueState(userId, {
+             lastRadarAlertType: detectedEvent.type,
+        });
+
         const alertInputForAI = detectedEvent.messageForAI;
         logger.debug(`${handlerTAG} Input para IA (messageForAI): "${alertInputForAI}"`);
 
         const currentDialogueStateForAI = await stateService.getDialogueState(userId);
         const enrichedContextForAI: EnrichedAIContext = {
-            user: userForRadar, 
+            user: userForRadar,
             historyMessages: [], 
-            dialogueState: currentDialogueStateForAI, 
+            dialogueState: currentDialogueStateForAI,
             userName: userFirstNameForRadar
         };
 
@@ -408,25 +349,25 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
         const { stream } = await askLLMWithEnrichedContext(
             enrichedContextForAI,
             alertInputForAI,
-            'generate_proactive_alert' 
+            'generate_proactive_alert'
         );
 
         let finalAIResponse = "";
         const reader = stream.getReader();
         let streamReadTimeout: NodeJS.Timeout | null = setTimeout(() => {
             logger.warn(`${handlerTAG} Timeout (${DEFAULT_RADAR_STREAM_READ_TIMEOUT_MS}ms) lendo stream da IA.`);
-            if (reader && streamReadTimeout) { 
+            if (reader && streamReadTimeout) {
                  reader.cancel().catch(e => logger.error(`${handlerTAG} Erro ao cancelar reader no timeout:`, e));
             }
-            streamReadTimeout = null; 
+            streamReadTimeout = null;
         }, DEFAULT_RADAR_STREAM_READ_TIMEOUT_MS);
 
         try {
             while (true) {
                 const result = await reader.read();
-                if (streamReadTimeout === null && !result.done) { 
+                if (streamReadTimeout === null && !result.done) {
                     logger.warn(`${handlerTAG} Leitura do stream após timeout. Interrompendo.`);
-                    if (!reader.closed) { 
+                    if (!reader.closed) {
                         reader.cancel().catch(e => logger.error(`${handlerTAG} Erro ao cancelar reader pós-timeout:`, e));
                     }
                     break;
@@ -437,7 +378,7 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
                     finalAIResponse += chunk;
                 } else if (chunk instanceof Uint8Array) {
                     finalAIResponse += new TextDecoder().decode(chunk);
-                } else if (chunk !== undefined) { 
+                } else if (chunk !== undefined) {
                     logger.warn(`${handlerTAG} Stream da IA retornou chunk de tipo inesperado: ${typeof chunk}`);
                 }
             }
@@ -450,17 +391,17 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
         } finally {
             if (streamReadTimeout) {
                 clearTimeout(streamReadTimeout);
-                streamReadTimeout = null; 
+                streamReadTimeout = null;
             }
         }
-        
+
         if (!finalAIResponse.trim()) {
             logger.warn(`${handlerTAG} IA não retornou conteúdo para o alerta. Usando fallback.`);
             finalAIResponse = `Olá ${userFirstNameForRadar}! Radar Tuca aqui com uma observação sobre ${detectedEvent.type}: ${alertInputForAI} Que tal explorarmos isso juntos?`;
         }
 
-        const instigatingQuestionForAlert = await generateInstigatingQuestionForDefaultMessage( 
-            finalAIResponse, 
+        const instigatingQuestionForAlert = await generateInstigatingQuestionForDefaultMessage(
+            finalAIResponse,
             currentDialogueStateForAI, 
             userId,
             userFirstNameForRadar
@@ -470,14 +411,14 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
         if (instigatingQuestionForAlert) {
             fullAlertMessageToUser += `\n\n${instigatingQuestionForAlert}`;
         }
-        
+
         try {
             const newAlertEntry: IAlertHistoryEntry = {
                 type: detectedEvent.type,
                 date: today,
                 messageForAI: alertInputForAI,
-                finalUserMessage: fullAlertMessageToUser, 
-                details: detectedEvent.detailsForLog, 
+                finalUserMessage: fullAlertMessageToUser,
+                details: detectedEvent.detailsForLog,
                 userInteraction: { type: 'pending_interaction', interactedAt: today }
             };
             await dataService.addAlertToHistory(userId, newAlertEntry);
@@ -490,31 +431,35 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
         logger.info(`${handlerTAG} Alerta do Radar Tuca enviado para ${userPhoneForRadar}: "${fullAlertMessageToUser.substring(0, 100)}..."`);
 
         const lastResponseContextForAlert = await extractContextFromRadarResponse(fullAlertMessageToUser, userId);
-        await stateService.updateDialogueState(userId, { 
+        await stateService.updateDialogueState(userId, {
             lastInteraction: Date.now(),
-            lastResponseContext: lastResponseContextForAlert 
+            lastResponseContext: lastResponseContextForAlert,
+            lastRadarAlertType: detectedEvent.type, 
+            fallbackInsightsHistory: currentDialogueStateForAI.fallbackInsightsHistory 
         });
 
         return NextResponse.json({ success: true, message: `Radar Tuca alert '${detectedEvent.type}' processed by rule engine.` }, { status: 200 });
 
     } catch (error) {
         logger.error(`${handlerTAG} Erro GERAL ao processar Radar Tuca para User ${userId}:`, error);
-        
-        if (userPhoneForRadar && userForRadar) { 
+
+        if (userPhoneForRadar && userForRadar) {
             try {
                 await sendWhatsAppMessage(userPhoneForRadar, "Desculpe, não consegui gerar seu alerta diário do Radar Tuca hoje devido a um erro interno. Mas estou aqui se precisar de outras análises! 👍");
-            } catch (e: any) { 
+            } catch (e: any) {
                 logger.error(`${handlerTAG} Falha ao enviar mensagem de erro do Radar Tuca para User ${userId}:`, e);
             }
         }
-        if (userId) { 
-            await stateService.updateDialogueState(userId, { 
-                lastRadarAlertType: 'error_processing_radar', 
-                lastInteraction: Date.now(), 
-                lastResponseContext: null 
+        if (userId) {
+            const currentDialogueStateOnError = await stateService.getDialogueState(userId);
+            await stateService.updateDialogueState(userId, {
+                lastRadarAlertType: 'error_processing_radar',
+                lastInteraction: Date.now(),
+                lastResponseContext: null,
+                fallbackInsightsHistory: currentDialogueStateOnError.fallbackInsightsHistory 
             });
         }
-        
+
         return NextResponse.json({ error: `Failed to process Radar Tuca: ${error instanceof Error ? error.message : String(error)}` }, { status: 500 });
     }
 }

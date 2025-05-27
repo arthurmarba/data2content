@@ -1,15 +1,16 @@
 // @/app/lib/aiService.ts
+// ATUALIZADO: vNext_BaseURLFix - Adicionada baseURL explícita na inicialização do OpenAI.
 // ATUALIZADO: vNext_SummaryPrompt - Otimizado o prompt na função generateConversationSummary.
 // ATUALIZADO: vNext_ExpertiseInference - Adicionada função inferUserExpertiseLevel.
-// - Mantém funcionalidades da versão com generateConversationSummary.
 
 import OpenAI from 'openai';
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { logger } from './logger';
-import type { UserExpertiseLevel } from '@/app/models/User'; // Importando o tipo de User.ts
+import type { UserExpertiseLevel } from '@/app/models/User';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
+  baseURL: 'https://api.openai.com/v1', // MODIFICADO: Adicionada esta linha
 });
 
 const DEFAULT_MODEL = process.env.OPENAI_MODEL || 'gpt-3.5-turbo';
@@ -17,9 +18,9 @@ const DEFAULT_TEMP = Number(process.env.OPENAI_TEMP) || 0.7;
 const DEFAULT_MAX_TOKENS = Number(process.env.OPENAI_MAXTOK) || 500;
 
 // Modelo e parâmetros para sumarização
-const SUMMARY_MODEL = process.env.OPENAI_SUMMARY_MODEL || 'gpt-3.5-turbo'; // Pode ser 'gpt-4o-mini' para melhor qualidade/custo
+const SUMMARY_MODEL = process.env.OPENAI_SUMMARY_MODEL || 'gpt-3.5-turbo';
 const SUMMARY_TEMP = 0.3; 
-const SUMMARY_MAX_TOKENS = 180; // Aumentado um pouco para acomodar os novos focos do prompt
+const SUMMARY_MAX_TOKENS = 180;
 
 // Modelo e parâmetros para inferência de nível de expertise
 const EXPERTISE_INFERENCE_MODEL = process.env.OPENAI_CLASSIFICATION_MODEL || 'gpt-3.5-turbo';
@@ -37,7 +38,7 @@ export async function callOpenAIForQuestion(
   prompt: string,
   options?: { temperature?: number; max_tokens?: number; model?: string }
 ): Promise<string> {
-  const fnTag = '[aiService][callOpenAIForQuestion]';
+  const fnTag = '[aiService][callOpenAIForQuestion vBaseURLFix]'; // Adicionada tag de versão
   try {
     const model = options?.model || DEFAULT_MODEL;
     const temperature = options?.temperature ?? DEFAULT_TEMP;
@@ -74,16 +75,15 @@ export async function generateConversationSummary(
   history: ChatCompletionMessageParam[],
   userName: string = 'usuário' 
 ): Promise<string> {
-  const fnTag = '[aiService][generateConversationSummary]';
+  const fnTag = '[aiService][generateConversationSummary vBaseURLFix]';
 
   if (!history || history.length === 0) {
     logger.warn(`${fnTag} Histórico vazio fornecido, retornando resumo vazio.`);
     return '';
   }
 
-  // Constrói o texto da conversa a partir do histórico
   const conversationText = history
-    .filter(msg => msg.role === 'user' || msg.role === 'assistant') // Considera mensagens do usuário e da IA
+    .filter(msg => msg.role === 'user' || msg.role === 'assistant') 
     .map(msg => `${msg.role === 'user' ? userName : 'Tuca'}: ${msg.content}`)
     .join('\n');
 
@@ -92,7 +92,6 @@ export async function generateConversationSummary(
     return '';
   }
 
-  // Prompt otimizado conforme as sugestões do Guia de Implementação
   const prompt = `
 Você é um assistente de sumarização altamente eficiente. Sua tarefa é ler o seguinte diálogo entre ${userName} (o usuário) e Tuca (um consultor de IA) e criar um resumo conciso em no máximo 2-3 frases.
 O resumo é crucial para dar contexto a Tuca sobre o que já foi conversado e deve focar nos seguintes aspectos:
@@ -141,13 +140,13 @@ Resumo conciso da conversa (máximo 2-3 frases, priorizando os pontos acima):
  *
  * @param history Array de mensagens do histórico da conversa.
  * @param userName Nome do usuário para personalizar o prompt (opcional).
- * @returns O nível de expertise inferido ('iniciante', 'intermediario', 'avancado'), ou 'iniciante' como padrão em caso de erro/resposta inválida.
+ * @returns O nível de expertise inferido ('iniciante', 'intermediario', 'avancado'), ou null em caso de falha.
  */
 export async function inferUserExpertiseLevel(
   history: ChatCompletionMessageParam[],
   userName: string = 'usuário'
-): Promise<UserExpertiseLevel | null> { // Alterado para retornar null em caso de falha em vez de default
-  const fnTag = '[aiService][inferUserExpertiseLevel]';
+): Promise<UserExpertiseLevel | null> { 
+  const fnTag = '[aiService][inferUserExpertiseLevel vBaseURLFix]';
   
   if (!history || history.length === 0) {
     logger.warn(`${fnTag} Histórico vazio fornecido, não é possível inferir expertise.`);
@@ -161,7 +160,7 @@ export async function inferUserExpertiseLevel(
 
   if (userMessagesText.trim().length < 50) { 
     logger.info(`${fnTag} Conteúdo do usuário muito curto para inferência precisa de expertise.`);
-    return null; // Retorna null se não houver texto suficiente
+    return null; 
   }
 
   const prompt = `
@@ -199,11 +198,11 @@ Classificação do nível de expertise (iniciante, intermediario, ou avancado):
       return inferredLevel as UserExpertiseLevel;
     } else {
       logger.warn(`${fnTag} Resposta da IA para inferência de expertise inválida ('${response}'). Não foi possível inferir.`);
-      return null; // Retorna null se a resposta for inválida
+      return null; 
     }
   } catch (error) {
     logger.error(`${fnTag} Erro ao inferir nível de expertise para ${userName}:`, error);
-    return null; // Retorna null em caso de erro
+    return null; 
   }
 }
 

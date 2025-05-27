@@ -5,11 +5,11 @@
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
-    "noEmit": true,
+    "noEmit": true, // Mantendo noEmit para o build principal do Next.js
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "module": "esnext",
-    "moduleResolution": "node",
+    "module": "esnext", // Mantendo esnext para o Next.js
+    "moduleResolution": "node", // Mantendo node para o Next.js
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
@@ -27,17 +27,21 @@
       }
     ],
     "forceConsistentCasingInFileNames": true,
-    // Aqui garantimos que o TypeScript busque declarações personalizadas
     "typeRoots": ["./types", "./node_modules/@types"],
-    // Incluir "next" se for necessário
     "types": ["next"],
-
-    // Boas práticas de rigor
     "strictNullChecks": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitAny": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true
+  },
+  "ts-node": { // ADICIONAR ESTE BLOCO
+    "esm": true,
+    "compilerOptions": {
+      // ts-node pode usar suas próprias compilerOptions aqui se necessário.
+      // Para começar, vamos deixar vazio e ver se ele herda e funciona.
+      // Se ainda houver problemas, poderíamos tentar adicionar "module": "NodeNext" aqui.
+    }
   },
   "include": [
     "next-env.d.ts",
@@ -45,7 +49,6 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "src/app/lib/mercadopago.js",
-    // Aqui garantimos que os arquivos .d.ts dentro de /types sejam incluídos
     "types/**/*.d.ts"
   ],
   "exclude": [

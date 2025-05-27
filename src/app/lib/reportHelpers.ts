@@ -1,13 +1,13 @@
-// @/app/lib/reportHelpers.ts - v4.5.1 (Revisão confirma que OverallStats já inclui campos de média como avgLikes, avgComments)
-// - Nenhuma alteração funcional necessária em relação a OverallStats para o erro reportado.
-// - Baseado na v4.5.
+// @/app/lib/reportHelpers.ts - v4.5.6 (Corrige nome de variável em addTopExamplesOnly)
+// Baseado na v4.5.5.
 
 import { Types, Model, PipelineStage } from "mongoose";
 import { subDays } from 'date-fns';
 import { logger } from '@/app/lib/logger';
-import MetricModel, { IMetric, IMetricStats } from "@/app/models/Metric";
+import { IMetric, IMetricStats } from "@/app/models/Metric"; 
 
 const TOP_EXAMPLES_PER_GROUP_LIMIT = 3;
+const REPORT_HELPERS_TAG = '[ReportHelpers v4.5.6]';
 
 // ======================================================================================
 // Erros Customizados
@@ -26,34 +26,87 @@ export class DetailedStatsError extends ReportError { constructor(message: strin
 
 
 // ======================================================================================
-// Interfaces Atualizadas (v4.5.1)
+// Interfaces Atualizadas
 // ======================================================================================
 export interface OverallStats {
-  _id: null; totalPosts: number; avgLikes?: number; avgComments?: number;
-  avgShares?: number; avgSaved?: number; avgReach?: number; avgImpressions?: number;
-  avgViews?: number; avgFollows?: number; avgProfileVisits?: number;
-  avgEngagementRate?: number; avgRetentionRate?: number; 
-  avgFollowerConversionRate?: number; avgPropagationIndex?: number;
+  _id: null; 
+  totalPosts: number; 
+  avgLikes?: number; 
+  avgComments?: number;
+  avgShares?: number; 
+  avgSaved?: number; 
+  avgReach?: number; 
+  avgImpressions?: number;
+  avgViews?: number; 
+  avgFollows?: number; 
+  avgProfileVisits?: number;
+  avgEngagementRate?: number; 
+  avgRetentionRate?: number; 
+  avgFollowerConversionRate?: number; 
+  avgPropagationIndex?: number;
   totalReelsInPeriod?: number; 
   avgReelAvgWatchTimeSeconds?: number; 
   avgReelVideoViewTotalTimeSeconds?: number; 
+  avgTotalInteractions?: number; 
 }
+
 export interface DayOfWeekStat {
-  _id: number; dayName: string; avgShares: number; avgLikes: number;
-  avgReach: number; totalPosts: number;
+  _id: number; 
+  dayName: string; 
+  avgShares?: number; 
+  avgLikes?: number;
+  avgComments?: number; 
+  avgTotalInteractions?: number; 
+  avgReach?: number; 
+  totalPosts: number;
 }
+
 export interface DurationStat {
-  _id: string | number; range: string; avgShares: number; avgSaved: number;
-  avgRetentionRate?: number; totalPosts: number;
+  _id: string | number; 
+  range: string; 
+  avgShares: number; 
+  avgSaved: number;
+  avgRetentionRate?: number; 
+  totalPosts: number;
 }
+
+interface TopPostData {
+    _id: Types.ObjectId;
+    description?: string;
+    postLink?: string;
+    stats?: { 
+        shares?: number;
+        saved?: number;
+    };
+}
+
 export interface BaseStat {
-  _id: object; avgLikes?: number; avgComments?: number; avgShares?: number;
-  avgSaved?: number; avgReach?: number; avgImpressions?: number; avgViews?: number;
-  avgFollows?: number; avgProfileVisits?: number; avgEngagementRate?: number;
-  avgRetentionRate?: number; totalPosts: number; shareDiffPercentage?: number | null;
-  saveDiffPercentage?: number | null; reachDiffPercentage?: number | null;
-  commentDiffPercentage?: number | null; likeDiffPercentage?: number | null;
-  bestPostInGroup?: { _id: Types.ObjectId; description?: string; postLink?: string; shares?: number; saved?: number; };
+  _id: object; 
+  avgLikes?: number; 
+  avgComments?: number; 
+  avgShares?: number;
+  avgSaved?: number; 
+  avgReach?: number; 
+  avgImpressions?: number; 
+  avgViews?: number;
+  avgFollows?: number; 
+  avgProfileVisits?: number; 
+  avgEngagementRate?: number;
+  avgTotalInteractions?: number; 
+  avgRetentionRate?: number; 
+  totalPosts: number; 
+  shareDiffPercentage?: number | null;
+  saveDiffPercentage?: number | null; 
+  reachDiffPercentage?: number | null;
+  commentDiffPercentage?: number | null; 
+  likeDiffPercentage?: number | null;
+  bestPostInGroup?: { 
+    _id: Types.ObjectId; 
+    description?: string; 
+    postLink?: string; 
+    shares?: number; 
+    saved?: number; 
+  };
 }
 export interface DetailedContentStat extends BaseStat {
   _id: { format: string; proposal: string; context: string; };
@@ -61,21 +114,28 @@ export interface DetailedContentStat extends BaseStat {
 }
 export interface ProposalStat extends BaseStat { _id: { proposal: string; }; }
 export interface ContextStat extends BaseStat { _id: { context: string; }; }
+
 export interface DayPCOPerformanceStats {
     avgShares?: number; avgSaved?: number; avgReach?: number; avgComments?: number;
     avgLikes?: number; avgViews?: number; avgImpressions?: number; avgFollows?: number;
     avgProfileVisits?: number; avgEngagementRate?: number; avgRetentionRate?: number;
+    avgTotalInteractions?: number; 
     totalPosts: number;
 }
 export interface PerformanceByContextDay { [context: string]: DayPCOPerformanceStats; }
 export interface PerformanceByProposalDay { [proposal: string]: PerformanceByContextDay; }
 export interface PerformanceByDayPCO { [dayOfWeek: number]: PerformanceByProposalDay; }
+
 export interface AggregatedReport {
     top3Posts?: Pick<IMetric, '_id' | 'description' | 'postLink' | 'stats'>[];
     bottom3Posts?: Pick<IMetric, '_id' | 'description' | 'postLink' | 'stats'>[];
-    overallStats?: OverallStats; dayOfWeekStats?: DayOfWeekStat[]; durationStats?: DurationStat[];
-    detailedContentStats?: DetailedContentStat[]; proposalStats?: ProposalStat[];
-    contextStats?: ContextStat[]; performanceByDayPCO?: PerformanceByDayPCO;
+    overallStats?: OverallStats; 
+    dayOfWeekStats?: DayOfWeekStat[]; 
+    durationStats?: DurationStat[];
+    detailedContentStats?: DetailedContentStat[]; 
+    proposalStats?: ProposalStat[];
+    contextStats?: ContextStat[]; 
+    performanceByDayPCO?: PerformanceByDayPCO;
 }
 
 // ======================================================================================
@@ -99,13 +159,11 @@ function addCommonAveragesToGroupStage(groupStage: any): any {
     groupStage.$group.avgViews = { $avg: { $ifNull: ["$stats.views", 0] } }; 
     groupStage.$group.avgFollows = { $avg: { $ifNull: ["$stats.follows", 0] } };
     groupStage.$group.avgProfileVisits = { $avg: { $ifNull: ["$stats.profile_visits", 0] } };
-    
+    groupStage.$group.avgTotalInteractions = { $avg: { $ifNull: ["$stats.total_interactions", 0] } };
     groupStage.$group.avgRetentionRate = { $avg: { $ifNull: ["$stats.retention_rate", 0] } }; 
-    
     groupStage.$group.avgEngagementRate = { $avg: { $ifNull: ["$stats.engagement_rate_on_reach", "$stats.engagement_rate", 0] } }; 
     groupStage.$group.avgFollowerConversionRate = { $avg: { $ifNull: ["$stats.follower_conversion_rate", 0] } };
     groupStage.$group.avgPropagationIndex = { $avg: { $ifNull: ["$stats.propagation_index", 0] } };
-    
     groupStage.$group.totalPosts = { $sum: 1 };
     return groupStage;
 }
@@ -140,7 +198,7 @@ function mapDurationBucketIdToRange(bucketId: number | string): string {
 // Funções para buscar Stats Detalhados BASE
 // ======================================================================================
 async function getDetailedContentStatsBase(userId: Types.ObjectId, startDate: Date, metricModel: Model<IMetric>): Promise<DetailedContentStat[]> {
-    const fnTag = '[getDetailedContentStatsBase v4.5.1]';
+    const fnTag = `${REPORT_HELPERS_TAG}[getDetailedContentStatsBase]`;
     logger.debug(`${fnTag} Buscando por F/P/C para User ${userId}`);
     const pipeline: PipelineStage[] = [
         { $match: { user: userId, postDate: { $gte: startDate } } },
@@ -153,7 +211,7 @@ async function getDetailedContentStatsBase(userId: Types.ObjectId, startDate: Da
                 },
             }
         }),
-        { $sort: { totalPosts: -1, avgShares: -1 } }
+        { $sort: { totalPosts: -1, "avgShares": -1 } } 
     ];
     try {
         const results: DetailedContentStat[] = await metricModel.aggregate(pipeline).exec();
@@ -167,7 +225,7 @@ async function getDetailedContentStatsBase(userId: Types.ObjectId, startDate: Da
 }
 
 async function getProposalStatsBase(userId: Types.ObjectId, startDate: Date, metricModel: Model<IMetric>): Promise<ProposalStat[]> {
-    const fnTag = '[getProposalStatsBase v4.5.1]';
+    const fnTag = `${REPORT_HELPERS_TAG}[getProposalStatsBase]`;
     logger.debug(`${fnTag} Buscando por Proposta para User ${userId}`);
     const pipeline: PipelineStage[] = [
         { $match: { user: userId, postDate: { $gte: startDate } } },
@@ -176,7 +234,7 @@ async function getProposalStatsBase(userId: Types.ObjectId, startDate: Date, met
                 _id: { proposal: { $ifNull: ["$proposal", "Outro"] } },
             }
         }),
-        { $sort: { totalPosts: -1, avgShares: -1 } }
+        { $sort: { totalPosts: -1, "avgShares": -1 } } 
     ];
     try {
         const results: ProposalStat[] = await metricModel.aggregate(pipeline).exec();
@@ -190,7 +248,7 @@ async function getProposalStatsBase(userId: Types.ObjectId, startDate: Date, met
 }
 
 async function getContextStatsBase(userId: Types.ObjectId, startDate: Date, metricModel: Model<IMetric>): Promise<ContextStat[]> {
-    const fnTag = '[getContextStatsBase v4.5.1]';
+    const fnTag = `${REPORT_HELPERS_TAG}[getContextStatsBase]`;
     logger.debug(`${fnTag} Buscando por Contexto para User ${userId}`);
     const pipeline: PipelineStage[] = [
          { $match: { user: userId, postDate: { $gte: startDate } } },
@@ -199,7 +257,7 @@ async function getContextStatsBase(userId: Types.ObjectId, startDate: Date, metr
                 _id: { context: { $ifNull: ["$context", "Geral"] } },
             }
         }),
-         { $sort: { totalPosts: -1, avgShares: -1 } }
+         { $sort: { totalPosts: -1, "avgShares": -1 } } 
     ];
     try {
         const results: ContextStat[] = await metricModel.aggregate(pipeline).exec();
@@ -213,24 +271,21 @@ async function getContextStatsBase(userId: Types.ObjectId, startDate: Date, metr
 }
 
 // ======================================================================================
-// Agregações Gerais (Overall, Dia da Semana, Duração) - ATUALIZADO v4.5.1
+// Agregações Gerais (Overall, Dia da Semana, Duração)
 // ======================================================================================
-/**
- * Calcula as estatísticas gerais (OverallStats) e as métricas específicas de Reels.
- */
 async function getOverallStatsBase(userId: Types.ObjectId, startDate: Date, metricModel: Model<IMetric>): Promise<OverallStats | undefined> {
-    const fnTag = '[getOverallStatsBase v4.5.1]';
+    const fnTag = `${REPORT_HELPERS_TAG}[getOverallStatsBase]`;
     logger.debug(`${fnTag} Calculando OverallStats para User ${userId}`);
     
     const generalPipeline: PipelineStage[] = [
         { $match: { user: userId, postDate: { $gte: startDate } } },
         addCommonAveragesToGroupStage({
-            $group: { _id: null } // _id: null é crucial para agregar todos os documentos
+            $group: { _id: null } 
         })
     ];
 
     const reelStatsPipeline: PipelineStage[] = [
-        { $match: { user: userId, postDate: { $gte: startDate }, type: "REEL" } }, // Usar 'type' em vez de 'format' para ser mais preciso com a API
+        { $match: { user: userId, postDate: { $gte: startDate }, type: "REEL" } },
         {
             $group: {
                 _id: null,
@@ -247,16 +302,14 @@ async function getOverallStatsBase(userId: Types.ObjectId, startDate: Date, metr
             metricModel.aggregate(reelStatsPipeline).exec()
         ]);
 
-        let overallStats: OverallStats | undefined = undefined;
+        let overallStatsResult: Partial<OverallStats> = { totalPosts: 0 }; 
 
         if (generalResults && generalResults.length > 0 && generalResults[0]) {
-            // Remove _id: null do resultado da agregação antes de fazer o cast para OverallStats
             const { _id, ...statsFromResult } = generalResults[0];
-            overallStats = statsFromResult as OverallStats; 
+            overallStatsResult = { ...overallStatsResult, ...statsFromResult }; 
             logger.debug(`${fnTag} OverallStats gerais calculados com sucesso.`);
         } else {
             logger.warn(`${fnTag} Nenhum dado encontrado para calcular OverallStats gerais para User ${userId}.`);
-            overallStats = { totalPosts: 0 } as OverallStats; // Inicializa com totalPosts: 0
         }
 
         if (reelResults && reelResults.length > 0 && reelResults[0]) {
@@ -266,28 +319,28 @@ async function getOverallStatsBase(userId: Types.ObjectId, startDate: Date, metr
                 sumReelVideoViewTotalTimeMs: number 
             };
             
-            overallStats.totalReelsInPeriod = reelData.totalReelsInPeriod;
+            overallStatsResult.totalReelsInPeriod = reelData.totalReelsInPeriod;
             if (reelData.totalReelsInPeriod > 0) {
-                overallStats.avgReelAvgWatchTimeSeconds = (reelData.sumReelAvgWatchTimeMs / reelData.totalReelsInPeriod) / 1000;
-                overallStats.avgReelVideoViewTotalTimeSeconds = (reelData.sumReelVideoViewTotalTimeMs / reelData.totalReelsInPeriod) / 1000;
+                overallStatsResult.avgReelAvgWatchTimeSeconds = (reelData.sumReelAvgWatchTimeMs / reelData.totalReelsInPeriod) / 1000;
+                overallStatsResult.avgReelVideoViewTotalTimeSeconds = (reelData.sumReelVideoViewTotalTimeMs / reelData.totalReelsInPeriod) / 1000;
             } else {
-                overallStats.avgReelAvgWatchTimeSeconds = 0;
-                overallStats.avgReelVideoViewTotalTimeSeconds = 0;
+                overallStatsResult.avgReelAvgWatchTimeSeconds = 0;
+                overallStatsResult.avgReelVideoViewTotalTimeSeconds = 0;
             }
             logger.debug(`${fnTag} Métricas de Reels adicionadas ao OverallStats. Total Reels: ${reelData.totalReelsInPeriod}`);
         } else {
+            overallStatsResult.totalReelsInPeriod = 0;
+            overallStatsResult.avgReelAvgWatchTimeSeconds = 0;
+            overallStatsResult.avgReelVideoViewTotalTimeSeconds = 0;
             logger.warn(`${fnTag} Nenhum dado de Reel encontrado para calcular estatísticas específicas de Reels para User ${userId}.`);
-            overallStats.totalReelsInPeriod = 0;
-            overallStats.avgReelAvgWatchTimeSeconds = 0;
-            overallStats.avgReelVideoViewTotalTimeSeconds = 0;
         }
         
-        if (overallStats.totalPosts === 0 && overallStats.totalReelsInPeriod === 0 ) {
+        if (overallStatsResult.totalPosts === 0 && (overallStatsResult.totalReelsInPeriod === undefined || overallStatsResult.totalReelsInPeriod === 0) ) {
             logger.warn(`${fnTag} Nenhum post ou Reel encontrado no período para User ${userId}. Retornando undefined para OverallStats.`);
             return undefined;
         }
 
-        return overallStats;
+        return overallStatsResult as OverallStats;
 
     } catch (error) {
         logger.error(`${fnTag} Erro ao calcular OverallStats para User ${userId}.`, error);
@@ -296,15 +349,17 @@ async function getOverallStatsBase(userId: Types.ObjectId, startDate: Date, metr
 }
 
 async function getDayOfWeekStatsBase(userId: Types.ObjectId, startDate: Date, metricModel: Model<IMetric>): Promise<DayOfWeekStat[]> {
-    const fnTag = '[getDayOfWeekStatsBase v4.5.1]';
+    const fnTag = `${REPORT_HELPERS_TAG}[getDayOfWeekStatsBase]`;
     logger.debug(`${fnTag} Calculando DayOfWeekStats para User ${userId}`);
     const pipeline: PipelineStage[] = [
         { $match: { user: userId, postDate: { $gte: startDate } } },
         {
             $group: {
-                _id: { $subtract: [{ $dayOfWeek: "$postDate" }, 1] }, // MongoDB $dayOfWeek: 1 (Sun) - 7 (Sat)
+                _id: { $subtract: [{ $dayOfWeek: "$postDate" }, 1] }, 
                 avgShares: { $avg: { $ifNull: ["$stats.shares", 0] } },
                 avgLikes: { $avg: { $ifNull: ["$stats.likes", 0] } },
+                avgComments: { $avg: { $ifNull: ["$stats.comments", 0] } }, 
+                avgTotalInteractions: { $avg: { $ifNull: ["$stats.total_interactions", 0] } }, 
                 avgReach: { $avg: { $ifNull: ["$stats.reach", 0] } },
                 totalPosts: { $sum: 1 }
             }
@@ -312,9 +367,9 @@ async function getDayOfWeekStatsBase(userId: Types.ObjectId, startDate: Date, me
         { $sort: { _id: 1 } }
     ];
     try {
-        const results: DayOfWeekStat[] = await metricModel.aggregate(pipeline).exec();
+        const results = (await metricModel.aggregate(pipeline).exec()) as unknown as DayOfWeekStat[]; 
         results.forEach(stat => {
-            stat.dayName = mapDayOfWeek(stat._id);
+            stat.dayName = mapDayOfWeek(stat._id); 
         });
         logger.debug(`${fnTag} DayOfWeekStats calculados: ${results.length} dias encontrados para User ${userId}.`);
         return results;
@@ -325,7 +380,7 @@ async function getDayOfWeekStatsBase(userId: Types.ObjectId, startDate: Date, me
 }
 
 async function getDurationStatsBase(userId: Types.ObjectId, startDate: Date, metricModel: Model<IMetric>): Promise<DurationStat[]> {
-    const fnTag = '[getDurationStatsBase v4.5.1]';
+    const fnTag = `${REPORT_HELPERS_TAG}[getDurationStatsBase]`;
     logger.debug(`${fnTag} Calculando DurationStats para User ${userId}`);
     const pipeline: PipelineStage[] = [
         { $match: { user: userId, postDate: { $gte: startDate }, "stats.video_duration_seconds": { $exists: true, $ne: null, $gt: 0 } } },
@@ -358,12 +413,12 @@ async function getDurationStatsBase(userId: Types.ObjectId, startDate: Date, met
 // Agregação Dia/Proposta/Contexto
 // ======================================================================================
 async function getDayPCOStatsBase(userId: Types.ObjectId, startDate: Date, metricModel: Model<IMetric>): Promise<PerformanceByDayPCO> {
-    const fnTag = "[getDayPCOStatsBase v4.5.1]";
+    const fnTag = `${REPORT_HELPERS_TAG}[getDayPCOStatsBase]`;
     logger.debug(`${fnTag} Buscando por Dia/P/C para User ${userId}`);
 
     const pipeline: PipelineStage[] = [
         { $match: { user: userId, postDate: { $gte: startDate } } },
-        { $addFields: { dayOfWeek: { $subtract: [{ $dayOfWeek: "$postDate" }, 1] } } }, // Consistent dayOfWeek 0-6
+        { $addFields: { dayOfWeek: { $subtract: [{ $dayOfWeek: "$postDate" }, 1] } } }, 
         addCommonAveragesToGroupStage({
             $group: {
                 _id: {
@@ -401,6 +456,7 @@ async function getDayPCOStatsBase(userId: Types.ObjectId, startDate: Date, metri
                 avgFollows: result.avgFollows,
                 avgProfileVisits: result.avgProfileVisits,
                 avgEngagementRate: result.avgEngagementRate,
+                avgTotalInteractions: result.avgTotalInteractions, 
                 avgRetentionRate: result.avgRetentionRate,
                 totalPosts: result.totalPosts
             };
@@ -425,7 +481,7 @@ async function enrichStats<T extends BaseStat>(
     metricModel: Model<IMetric>,
     groupingType: 'detailed' | 'proposal' | 'context'
 ): Promise<T[]> {
-    const fnTag = '[enrichStats v4.5.1]';
+    const fnTag = `${REPORT_HELPERS_TAG}[enrichStats]`;
 
     if (!overallStats) {
         logger.warn(`${fnTag} OverallStats não disponíveis para User ${userId}, pulando cálculo de DiffPercentages.`);
@@ -439,8 +495,8 @@ async function enrichStats<T extends BaseStat>(
     logger.debug(`${fnTag} Enriquecendo ${statsBase.length} grupos do tipo ${groupingType} para User ${userId}.`);
 
     const enrichedResults: T[] = [];
-    for (const statBase of statsBase) {
-        const enrichedStat = { ...statBase }; 
+    for (const statBaseItem of statsBase) { 
+        const enrichedStat = { ...statBaseItem }; 
 
         const overallAvgShares = overallStats.avgShares ?? 0;
         const overallAvgSaves = overallStats.avgSaved ?? 0;
@@ -455,10 +511,10 @@ async function enrichStats<T extends BaseStat>(
         enrichedStat.likeDiffPercentage = (overallAvgLikes > 0 && enrichedStat.avgLikes != null) ? ((enrichedStat.avgLikes / overallAvgLikes) - 1) * 100 : null;
 
         if (groupingType === 'detailed') {
-            const detailedStat = enrichedStat as DetailedContentStat;
-            const groupId = detailedStat._id as DetailedContentStat['_id']; // Explicit cast for clarity
+            const detailedStat = enrichedStat as DetailedContentStat; 
+            const groupId = detailedStat._id as DetailedContentStat['_id']; 
             try {
-                const topPosts = await metricModel.find({
+                const topPosts: TopPostData[] = await metricModel.find({ 
                     user: userId,
                     format: groupId.format,
                     proposal: groupId.proposal,
@@ -469,7 +525,7 @@ async function enrichStats<T extends BaseStat>(
                 .limit(TOP_EXAMPLES_PER_GROUP_LIMIT)
                 .lean();
 
-                detailedStat.topExamplesInGroup = topPosts.map(post => ({
+                detailedStat.topExamplesInGroup = topPosts.map((post: TopPostData) => ({
                     _id: post._id,
                     description: post.description ?? undefined,
                     postLink: (post.postLink && post.postLink.startsWith('http')) ? post.postLink : undefined
@@ -503,14 +559,15 @@ async function addTopExamplesOnly(
     userId: Types.ObjectId,
     metricModel: Model<IMetric>
 ): Promise<DetailedContentStat[]> {
-    const fnTag = '[addTopExamplesOnly v4.5.1]';
+    const fnTag = `${REPORT_HELPERS_TAG}[addTopExamplesOnly]`;
+    
     logger.debug(`${fnTag} Adicionando apenas Top N exemplos para User ${userId} pois OverallStats estão ausentes.`);
     const enrichedResults: DetailedContentStat[] = [];
-    for (const statBase of statsBase) {
-        const enrichedStat = { ...statBase };
-        const groupId = enrichedStat._id as DetailedContentStat['_id']; // Explicit cast
+    for (const statBaseItem of statsBase) { 
+        const enrichedStat = { ...statBaseItem }; 
+        const groupId = enrichedStat._id as DetailedContentStat['_id']; 
         try {
-            const topPosts = await metricModel.find({
+            const topPosts: TopPostData[] = await metricModel.find({ 
                 user: userId,
                 format: groupId.format,
                 proposal: groupId.proposal,
@@ -521,7 +578,7 @@ async function addTopExamplesOnly(
             .limit(TOP_EXAMPLES_PER_GROUP_LIMIT)
             .lean();
 
-            enrichedStat.topExamplesInGroup = topPosts.map(post => ({
+            enrichedStat.topExamplesInGroup = topPosts.map((post: TopPostData) => ({
                 _id: post._id,
                 description: post.description ?? undefined,
                 postLink: (post.postLink && post.postLink.startsWith('http')) ? post.postLink : undefined
@@ -532,12 +589,13 @@ async function addTopExamplesOnly(
                 enrichedStat.bestPostInGroup = {
                     _id: bestPost._id,
                     description: bestPost.description ?? undefined,
-                    postLink: (bestPost.postLink && bestPost.postLink.startsWith('http')) ? bestPost.postLink : undefined,
+                    postLink: (bestPost.postLink && bestPost.postLink.startsWith('http')) ? bestPost.postLink : undefined, 
                     shares: bestPost.stats?.shares,
                     saved: bestPost.stats?.saved
                 };
             } else {
-                enrichedStat.bestPostInGroup = undefined;
+                // MODIFICADO: Corrigido para enrichedStat.bestPostInGroup
+                enrichedStat.bestPostInGroup = undefined; 
             }
         } catch(error) {
              logger.error(`${fnTag} Erro ao buscar top posts para grupo ${JSON.stringify(groupId)} User ${userId}:`, error);
@@ -549,19 +607,19 @@ async function addTopExamplesOnly(
     return enrichedResults;
 }
 
-
 // ======================================================================================
-// Função Principal de Agregação e Enriquecimento - ATUALIZADO v4.5.1
+// Função Principal de Agregação e Enriquecimento
 // ======================================================================================
 export async function buildAggregatedReport(
     userId: Types.ObjectId,
     startDate: Date,
-    metricModel: Model<IMetric>
+    metricModel: Model<IMetric> 
 ): Promise<AggregatedReport> {
-    const fnTag = '[buildAggregatedReport v4.5.1]';
+    const fnTag = `${REPORT_HELPERS_TAG}[buildAggregatedReport]`;
     logger.info(`${fnTag} Iniciando para User: ${userId}, desde: ${startDate.toISOString()}`);
-    if (!metricModel?.aggregate || !userId || !startDate) {
-        throw new Error('Input inválido para buildAggregatedReport v4.5.1.');
+    if (!metricModel?.aggregate || !userId || !startDate) { 
+        logger.error(`${fnTag} Input inválido: metricModel, userId ou startDate ausente/inválido.`);
+        throw new ReportAggregationError('Input inválido para buildAggregatedReport.');
     }
 
     let overallStats: OverallStats | undefined,
@@ -579,30 +637,30 @@ export async function buildAggregatedReport(
             getDayOfWeekStatsBase(userId, startDate, metricModel),
             getDurationStatsBase(userId, startDate, metricModel),
             getDetailedContentStatsBase(userId, startDate, metricModel),
-            getProposalStatsBase(userId, startDate, metricModel),
-            getContextStatsBase(userId, startDate, metricModel),
-            getDayPCOStatsBase(userId, startDate, metricModel)
+            getProposalStatsBase(userId, startDate, metricModel),      
+            getContextStatsBase(userId, startDate, metricModel),        
+            getDayPCOStatsBase(userId, startDate, metricModel)          
         ]);
 
-        if (results[0].status === 'fulfilled' && results[0].value) overallStats = results[0].value; // Check for value existence
+        if (results[0].status === 'fulfilled' && results[0].value) overallStats = results[0].value; 
         else logger.error(`${fnTag} Falha ao buscar OverallStats para User ${userId}.`, results[0].status === 'rejected' ? results[0].reason : 'Valor nulo/undefined');
 
-        if (results[1].status === 'fulfilled') dayOfWeekStatsBase = results[1].value;
-        else logger.error(`${fnTag} Falha ao buscar DayOfWeekStats para User ${userId}.`, results[1].reason);
+        if (results[1].status === 'fulfilled' && results[1].value) dayOfWeekStatsBase = results[1].value;
+        else logger.error(`${fnTag} Falha ao buscar DayOfWeekStats para User ${userId}.`, results[1].status === 'rejected' ? results[1].reason : 'Valor nulo/undefined');
 
-        if (results[2].status === 'fulfilled') durationStatsBase = results[2].value;
-        else logger.error(`${fnTag} Falha ao buscar DurationStats para User ${userId}.`, results[2].reason);
+        if (results[2].status === 'fulfilled' && results[2].value) durationStatsBase = results[2].value;
+        else logger.error(`${fnTag} Falha ao buscar DurationStats para User ${userId}.`, results[2].status === 'rejected' ? results[2].reason : 'Valor nulo/undefined');
 
-        if (results[3].status === 'fulfilled') detailedStatsBase = results[3].value;
-        else logger.error(`${fnTag} Falha ao buscar F/P/C Base para User ${userId}.`, results[3].reason);
+        if (results[3].status === 'fulfilled' && results[3].value) detailedStatsBase = results[3].value;
+        else logger.error(`${fnTag} Falha ao buscar F/P/C Base para User ${userId}.`, results[3].status === 'rejected' ? results[3].reason : 'Valor nulo/undefined');
 
-        if (results[4].status === 'fulfilled') proposalStatsBase = results[4].value;
-        else logger.error(`${fnTag} Falha ao buscar Proposta Base para User ${userId}.`, results[4].reason);
+        if (results[4].status === 'fulfilled' && results[4].value) proposalStatsBase = results[4].value;
+        else logger.error(`${fnTag} Falha ao buscar Proposta Base para User ${userId}.`, results[4].status === 'rejected' ? results[4].reason : 'Valor nulo/undefined');
 
-        if (results[5].status === 'fulfilled') contextStatsBase = results[5].value;
-        else logger.error(`${fnTag} Falha ao buscar Contexto Base para User ${userId}.`, results[5].reason);
+        if (results[5].status === 'fulfilled' && results[5].value) contextStatsBase = results[5].value;
+        else logger.error(`${fnTag} Falha ao buscar Contexto Base para User ${userId}.`, results[5].status === 'rejected' ? results[5].reason : 'Valor nulo/undefined');
 
-        if (results[6].status === 'fulfilled' && results[6].value) performanceByDayPCOData = results[6].value; // Check for value existence
+        if (results[6].status === 'fulfilled' && results[6].value) performanceByDayPCOData = results[6].value; 
         else logger.error(`${fnTag} Falha ao buscar Dia/P/C Base para User ${userId}.`, results[6].status === 'rejected' ? results[6].reason : 'Valor nulo/undefined');
 
         logger.debug(`${fnTag} Agregações base e gerais concluídas para User ${userId}.`);
@@ -624,20 +682,20 @@ export async function buildAggregatedReport(
              enrichStats(contextStatsBase, overallStats, userId, metricModel, 'context')
         ]);
 
-        if (enrichPromises[0].status === 'fulfilled') {
+        if (enrichPromises[0].status === 'fulfilled' && enrichPromises[0].value) { 
             detailedContentStatsEnriched = enrichPromises[0].value;
             detailedContentStatsEnriched.sort((a, b) => (b.shareDiffPercentage ?? -Infinity) - (a.shareDiffPercentage ?? -Infinity));
-        } else { logger.error(`${fnTag} Falha ao enriquecer F/P/C para User ${userId}.`, enrichPromises[0].reason); }
+        } else { logger.error(`${fnTag} Falha ao enriquecer F/P/C para User ${userId}.`, enrichPromises[0].status === 'rejected' ? enrichPromises[0].reason : 'Valor nulo/undefined'); }
 
-        if (enrichPromises[1].status === 'fulfilled') {
+        if (enrichPromises[1].status === 'fulfilled' && enrichPromises[1].value) {
             proposalStatsEnriched = enrichPromises[1].value;
             proposalStatsEnriched.sort((a, b) => (b.shareDiffPercentage ?? -Infinity) - (a.shareDiffPercentage ?? -Infinity));
-        } else { logger.error(`${fnTag} Falha ao enriquecer Proposta para User ${userId}.`, enrichPromises[1].reason); }
+        } else { logger.error(`${fnTag} Falha ao enriquecer Proposta para User ${userId}.`, enrichPromises[1].status === 'rejected' ? enrichPromises[1].reason : 'Valor nulo/undefined'); }
 
-        if (enrichPromises[2].status === 'fulfilled') {
+        if (enrichPromises[2].status === 'fulfilled' && enrichPromises[2].value) {
             contextStatsEnriched = enrichPromises[2].value;
             contextStatsEnriched.sort((a, b) => (b.shareDiffPercentage ?? -Infinity) - (a.shareDiffPercentage ?? -Infinity));
-        } else { logger.error(`${fnTag} Falha ao enriquecer Contexto para User ${userId}.`, enrichPromises[2].reason); }
+        } else { logger.error(`${fnTag} Falha ao enriquecer Contexto para User ${userId}.`, enrichPromises[2].status === 'rejected' ? enrichPromises[2].reason : 'Valor nulo/undefined'); }
         logger.debug(`${fnTag} Enriquecimento concluído para User ${userId}.`);
 
     } catch (error) {
@@ -649,18 +707,18 @@ export async function buildAggregatedReport(
     try {
         logger.debug(`${fnTag} Buscando top/bottom 3 posts para User ${userId}...`);
         const sortField = 'stats.shares'; 
-        const posts = await metricModel.find({
+        const posts: TopPostData[] = await metricModel.find({ 
                 user: userId,
                 postDate: { $gte: startDate },
                 [sortField]: { $exists: true }
             })
-            .select(`_id description postLink stats.shares stats.saved stats.likes stats.comments`) // Removido stats.reach, stats.video_views que podem não estar no top3Posts
+            .select(`_id description postLink stats.shares stats.saved stats.likes stats.comments`) 
             .sort({ [sortField]: -1 })
             .lean();
 
         if (posts.length > 0) {
-            top3Posts = posts.slice(0, 3);
-            bottom3Posts = posts.length >= 3 ? posts.slice(-3).reverse() : [...posts].reverse();
+            top3Posts = posts.slice(0, 3) as Pick<IMetric, '_id' | 'description' | 'postLink' | 'stats'>[];
+            bottom3Posts = posts.length >= 3 ? posts.slice(-3).reverse() as Pick<IMetric, '_id' | 'description' | 'postLink' | 'stats'>[] : [...posts].reverse() as Pick<IMetric, '_id' | 'description' | 'postLink' | 'stats'>[];
         }
         logger.debug(`${fnTag} Top 3: ${top3Posts.length} posts. Bottom 3: ${bottom3Posts.length} posts para User ${userId}.`);
 

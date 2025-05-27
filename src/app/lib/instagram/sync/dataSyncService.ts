@@ -21,7 +21,7 @@ import {
   InsightTaskInternalResult,
   FetchBasicAccountDataResult,
 } from '../types';
-import { IMetricStats } from '@/app/models/Metric';
+import { IMetricStats } from '@/app/models/Metric'; // IMetricStats já inclui as métricas calculadas (após Passo 1)
 import { IAccountInsightsPeriod, IAudienceDemographics } from '@/app/models/AccountInsight';
 import {
   fetchBasicAccountData,
@@ -35,6 +35,9 @@ import { clearInstagramConnection } from '../db/connectionManagement';
 import { saveMetricData } from '../db/metricActions';
 import { saveAccountInsightData } from '../db/accountInsightActions';
 import { isTokenInvalidError } from '../utils/tokenUtils';
+// === INÍCIO DA MODIFICAÇÃO ===
+import { calcFormulas } from '@/app/lib/formulas'; // Importar calcFormulas
+// === FIM DA MODIFICAÇÃO ===
 
 const limitInsightsFetch = pLimit(INSIGHTS_CONCURRENCY_LIMIT);
 
@@ -43,9 +46,10 @@ const limitInsightsFetch = pLimit(INSIGHTS_CONCURRENCY_LIMIT);
  * ATUALIZADO:
  * - Corrigida verificação de 'firstUserError' para evitar 'possibly undefined'.
  * - Limite de páginas de mídia agora é tratado como Info e não erro para o usuário.
+ * - Integrada chamada a calcFormulas para enriquecer IMetricStats.
  */
 export async function triggerDataRefresh(userId: string): Promise<{ success: boolean; message: string; details?: any }> {
-  const TAG = '[triggerDataRefresh v2.2.5_page_limit_as_info]';
+  const TAG = '[triggerDataRefresh v2.2.6_calcFormulas_integration]'; // Versão atualizada
   const startTime = Date.now();
   logger.info(`${TAG} Iniciando atualização de dados para User ${userId}...`);
 
@@ -301,10 +305,24 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
                 if (taskValue.status === 'processed') {
                   const { mediaId, media, insightsResult, insightTokenSource } = taskValue;
                   if (insightsResult.success && insightsResult.data) {
+                    // === INÍCIO DA MODIFICAÇÃO ===
+                    logger.debug(`${TAG} Insights brutos para mídia ${mediaId}:`, insightsResult.data);
+
+                    const rawStatsForFormulas: Record<string, unknown> = insightsResult.data as Record<string, unknown>;
+                    const calculatedMetrics = calcFormulas([rawStatsForFormulas]);
+                    logger.debug(`${TAG} Métricas calculadas para mídia ${mediaId}:`, calculatedMetrics);
+
+                    const combinedStats: IMetricStats = {
+                      ...insightsResult.data, // Métricas brutas da API
+                      ...calculatedMetrics    // Métricas calculadas por calcFormulas
+                    };
+                    logger.debug(`${TAG} Stats combinados para mídia ${mediaId}:`, combinedStats);
+                    // === FIM DA MODIFICAÇÃO ===
+
                     if(insightsResult.error){
                         logger.warn(`${TAG} Insights para mídia ${mediaId} obtidos com sucesso parcial usando: ${insightTokenSource}. Erro menor: ${insightsResult.error}`);
                          try {
-                            await saveMetricData(userObjectId, media, insightsResult.data);
+                            await saveMetricData(userObjectId, media, combinedStats); // Usar combinedStats
                             savedMediaMetrics++;
                         } catch (saveError: any) {
                             logger.error(`${TAG} Erro ao salvar métrica ${mediaId} (parcial):`, saveError);
@@ -314,7 +332,7 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
                     } else {
                         logger.info(`${TAG} Insights para mídia ${mediaId} obtidos com sucesso usando: ${insightTokenSource}.`);
                          try {
-                            await saveMetricData(userObjectId, media, insightsResult.data);
+                            await saveMetricData(userObjectId, media, combinedStats); // Usar combinedStats
                             savedMediaMetrics++;
                         } catch (saveError: any) {
                             logger.error(`${TAG} Erro ao salvar métrica ${mediaId}:`, saveError);
@@ -371,9 +389,7 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
 
       if (!criticalTokenErrorOccurred && mediaCurrentPage >= MAX_PAGES_MEDIA && hasMoreMediaPages) {
         logger.warn(`${TAG} Limite de ${MAX_PAGES_MEDIA} páginas de mídia atingido, mas ainda havia mais páginas.`);
-        // MODIFICADO: Tratar como Info, não como erro que afeta overallSuccess ou é mostrado ao usuário como erro principal
         errors.push({ step: 'fetchInstagramMediaLimitReachedInfo', message: `Limite de ${MAX_PAGES_MEDIA} páginas de mídia atingido. A busca parou aqui, mas podem existir mídias mais antigas não processadas.` });
-        // overallSuccess = false; // REMOVIDO - não é um erro fatal para o status geral
       }
       logger.info(`${TAG} Processamento de mídias e insights concluído. ${skippedOldMedia} mídias antigas puladas. ${skippedCarouselChildren} filhos de carrossel pulados.`);
     }
@@ -481,7 +497,7 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
   let statusMsg = finalEffectiveSuccessStatus ? 'concluída com sucesso' :
     (criticalTokenErrorOccurred ? 'concluída com erro crítico de token/permissão. Requer reconexão.' :
       (overallSuccess ? 'concluída com alguns erros não fatais' : 'concluída com falhas significativas'));
-  if (finalEffectiveSuccessStatus && errors.length > 0 && errors.some(e => e.step !== 'fetchInstagramMediaLimitReachedInfo')) { // Considera erro se houver algo além do limite de páginas
+  if (finalEffectiveSuccessStatus && errors.length > 0 && errors.some(e => e.step !== 'fetchInstagramMediaLimitReachedInfo')) {
       statusMsg = 'concluída com sucesso, mas com alguns avisos/erros menores';
   } else if (finalEffectiveSuccessStatus && errors.length > 0 && errors.every(e => e.step === 'fetchInstagramMediaLimitReachedInfo')) {
       statusMsg = 'concluída com sucesso (limite de páginas de mídia atingido, mas dados recentes processados)';
@@ -490,52 +506,44 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
 
   const summary = `Mídias Recentes Processadas/Salvas: ${savedMediaMetrics}/${totalMediaProcessedForInsights}. Mídias Antigas Puladas: ${skippedOldMedia}. Filhos Carrossel Pulados: ${skippedCarouselChildren}. Snapshot Conta: ${savedAccountSnapshot ? 'Salvo' : 'Não'}. Básicos: ${collectedBasicAccountData ? 'OK' : 'Falha/Parcial'}. Insights Conta: ${collectedAccountInsightsData ? 'OK/Parcial' : 'Falha'}. Demo: ${collectedAudienceDemographicsData ? 'OK/Parcial' : 'Falha/Indisp.'}`;
 
-  // MODIFICADO: Lógica para errorMsgForDb para não mostrar limite de páginas como erro principal
   let errorMsgForDb: string | null = null;
   const isPageLimitInfo = (err: { step: string; message: string; }) => err.step === 'fetchInstagramMediaLimitReachedInfo';
 
   if (userFacingErrorForTokenProblem) {
     errorMsgForDb = userFacingErrorForTokenProblem;
   } else {
-    // Erros que devem ser mostrados ao usuário, excluindo o aviso de limite de página e outros 'Info'
     const actualUserErrors = errors.filter(e =>
       !isPageLimitInfo(e) &&
-      !e.step.endsWith('Info') && // Exclui outros 'Info'
+      !e.step.endsWith('Info') &&
       !e.step.endsWith('Partial') &&
       e.step !== 'fetchMediaInsightsSkipped'
     );
 
     if (actualUserErrors.length > 0) {
       const firstUserError = actualUserErrors[0];
-      // Verifica se firstUserError existe antes de acessar suas propriedades
       if (firstUserError) {
           errorMsgForDb = `A sincronização teve problemas. Detalhe principal: ${firstUserError.step} - ${firstUserError.message.substring(0, 150)}`;
       } else {
-           // Este caso não deveria acontecer se actualUserErrors.length > 0, mas é uma salvaguarda
           errorMsgForDb = "A sincronização teve problemas com um erro não especificado.";
       }
     } else {
-      // Se não há erros reais para o usuário, verificamos se há outros avisos menores (que não sejam o limite de página ou infos gerais)
       const otherMinorWarnings = errors.filter(e =>
         !isPageLimitInfo(e) &&
-        !e.step.endsWith('Info') && // Redundante se actualUserErrors já filtrou, mas seguro
+        !e.step.endsWith('Info') &&
         !actualUserErrors.includes(e) &&
         (e.step !== 'fetchMediaInsightsSkipped' || (e.step === 'fetchMediaInsightsSkipped' && e.message !== CAROUSEL_CHILD_NO_MEDIA_INSIGHTS_FLAG))
       );
       if (otherMinorWarnings.length > 0) {
           const firstMinorWarning = otherMinorWarnings[0];
-          if (firstMinorWarning) { // Verifica se firstMinorWarning existe
+          if (firstMinorWarning) {
             errorMsgForDb = `Sincronização com avisos. Primeiro aviso: ${firstMinorWarning.step} - ${firstMinorWarning.message.substring(0,150)}`;
           }
       }
-      // Se errorMsgForDb ainda é null, significa que ou não houve erros/avisos significativos,
-      // ou o único item em 'errors' era o 'fetchInstagramMediaLimitReachedInfo' ou outros 'Info'.
     }
   }
 
 
   let finalUserMessage = `Atualização ${statusMsg} para User ${userId}. ${summary}`;
-  // Adiciona detalhes do primeiro erro real (não info, não limite de página) se houver
   const firstActualErrorForLog = errors.find(e =>
     !isPageLimitInfo(e) &&
     !e.step.endsWith('Info') &&
@@ -545,9 +553,6 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
 
   if (firstActualErrorForLog && !criticalTokenErrorOccurred) {
     finalUserMessage += ` Erros (${errors.filter(e => !isPageLimitInfo(e) && !e.step.endsWith('Info')).length}): ${firstActualErrorForLog.step}: ${firstActualErrorForLog.message.substring(0, 70)}...`;
-  } else if (errors.find(isPageLimitInfo) && !errorMsgForDb && finalEffectiveSuccessStatus) {
-    // Se o único "problema" foi o limite de páginas e foi sucesso, a mensagem de log pode refletir isso.
-    // finalUserMessage já contém o statusMsg que foi ajustado.
   }
 
   if (userFacingErrorForTokenProblem) {
@@ -573,7 +578,7 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
 
   return {
     success: finalEffectiveSuccessStatus,
-    message: finalUserMessage, // Esta é a mensagem para o log do QStash, pode ser detalhada
+    message: finalUserMessage,
     details: {
       errorsEncountered: errors,
       durationMs: duration,
@@ -592,4 +597,3 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
     }
   };
 }
-

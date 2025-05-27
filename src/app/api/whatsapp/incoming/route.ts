@@ -1,6 +1,7 @@
-// src/app/api/whatsapp/incoming/route.ts - v2.3.2 (Adiciona Logging de Performance para getDialogueState)
-// - ADICIONADO: Logging de tempo para a chamada a stateService.getDialogueState.
-// - Mantém funcionalidades da v2.3.1.
+// src/app/api/whatsapp/incoming/route.ts - v2.3.4 (Corrige Type Error para extractContextFromAIResponse)
+// - CORRIGIDO: Comentadas as linhas que tentavam chamar stateService.extractContextFromAIResponse,
+//   pois a função não existe nesse módulo, resolvendo o erro de build.
+// - Baseado na v2.3.3.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { normalizePhoneNumber } from '@/app/lib/helpers';
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
   const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
 
   if (!verifyToken) {
-    logger.error('[whatsapp/incoming GET v2.3.2] Error: WHATSAPP_VERIFY_TOKEN não está definido no .env');
+    logger.error('[whatsapp/incoming GET v2.3.4] Error: WHATSAPP_VERIFY_TOKEN não está definido no .env');
     return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
   }
 
@@ -49,11 +50,11 @@ export async function GET(request: NextRequest) {
     searchParams.get('hub.mode') === 'subscribe' &&
     searchParams.get('hub.verify_token') === verifyToken
   ) {
-    logger.debug('[whatsapp/incoming GET v2.3.2] Verification succeeded.');
+    logger.debug('[whatsapp/incoming GET v2.3.4] Verification succeeded.');
     return new Response(searchParams.get('hub.challenge') || '', { status: 200 });
   }
 
-  logger.error('[whatsapp/incoming GET v2.3.2] Verification failed:', {
+  logger.error('[whatsapp/incoming GET v2.3.4] Verification failed:', {
     mode: searchParams.get('hub.mode'),
     token_received: searchParams.get('hub.verify_token') ? '******' : 'NONE',
     expected_defined: !!verifyToken,
@@ -79,7 +80,7 @@ function getSenderAndMessage(body: any): { from: string; text: string } | null {
             }
         }
     } catch (error) {
-        logger.error('[whatsapp/incoming getSenderAndMessage v2.3.2] Erro ao parsear payload:', error);
+        logger.error('[whatsapp/incoming getSenderAndMessage v2.3.4] Erro ao parsear payload:', error);
     }
     return null;
 }
@@ -96,7 +97,7 @@ function extractExcerpt(text: string, maxLength: number = 30): string {
  * Receives message, handles verification codes OR publishes task to QStash, returns immediate 200 OK.
  */
 export async function POST(request: NextRequest) {
-  const postTag = '[whatsapp/incoming POST v2.3.2 InterruptionLogic]';
+  const postTag = '[whatsapp/incoming POST v2.3.4 InterruptionLogic]'; // Versão atualizada
   let body: any;
 
   try {
@@ -138,7 +139,7 @@ export async function POST(request: NextRequest) {
   const codeMatch = rawText_MsgNova.match(/\b([A-Z0-9]{6})\b/);
   if (codeMatch && codeMatch[1]) {
     const verificationCode = codeMatch[1];
-    const verifyTag = '[whatsapp/incoming][Verification v2.3.2]';
+    const verifyTag = '[whatsapp/incoming][Verification v2.3.4]'; // Versão atualizada
     logger.info(`${verifyTag} Código de verificação detectado: ${verificationCode} de ${fromPhone}`);
     try {
         await connectToDatabase();
@@ -204,10 +205,16 @@ export async function POST(request: NextRequest) {
 
   let currentDialogueState: stateService.IDialogueState = {};
   try {
-      const getDialogueStateStartTime = Date.now(); // Medir tempo
+      const getDialogueStateStartTime = Date.now();
       currentDialogueState = await stateService.getDialogueState(uid);
       const getDialogueStateDuration = Date.now() - getDialogueStateStartTime;
       logger.debug(`${postTag} stateService.getDialogueState para User ${uid} levou ${getDialogueStateDuration}ms.`);
+      if (currentDialogueState.lastResponseContext) {
+          const lrc = currentDialogueState.lastResponseContext;
+          logger.debug(`${postTag} User ${uid}: lastResponseContext inicial lido - Timestamp: ${lrc.timestamp}, Topic: "${lrc.topic ? lrc.topic.substring(0,30) + '...' : 'N/A'}", WasQuestion: ${lrc.wasQuestion}`);
+      } else {
+          logger.debug(`${postTag} User ${uid}: Nenhum lastResponseContext no estado inicial lido.`);
+      }
   } catch (stateError) {
       logger.error(`${postTag} Erro ao buscar estado do Redis para ${uid} (não fatal, usará estado padrão):`, stateError);
       currentDialogueState = stateService.getDefaultDialogueState();
@@ -215,7 +222,7 @@ export async function POST(request: NextRequest) {
 
   if (currentDialogueState.currentProcessingMessageId) {
       logger.info(`${postTag} User ${uid}: MsgNova ("${rawText_MsgNova.slice(0,30)}...") chegou durante processamento de MsgAntiga (${currentDialogueState.currentProcessingMessageId}, excerto: "${currentDialogueState.currentProcessingQueryExcerpt || 'N/A'}").`);
-      
+
       const isConfirmation = isSimpleConfirmationOrAcknowledgement(normText_MsgNova);
 
       if (isConfirmation) {
@@ -231,7 +238,7 @@ export async function POST(request: NextRequest) {
           logger.info(`${postTag} User ${uid}: MsgNova NÃO é confirmação. Sinalizando interrupção para MsgAntiga: ${currentDialogueState.currentProcessingMessageId}.`);
           const queryExcerpt_MsgNova = extractExcerpt(rawText_MsgNova);
           const ackMsgStandard = `Recebi sua nova mensagem sobre "${queryExcerpt_MsgNova}", ${userFirstName}! Só um instante enquanto concluo o raciocínio anterior sobre "${currentDialogueState.currentProcessingQueryExcerpt || 'o assunto anterior'}".`;
-          
+
           try {
               await sendWhatsAppMessage(fromPhone, ackMsgStandard);
               logger.debug(`${postTag} Ack Estático Padrão enviado para ${fromPhone}.`);
@@ -241,16 +248,20 @@ export async function POST(request: NextRequest) {
           const stateUpdateForInterrupt: Partial<stateService.IDialogueState> = {
               interruptSignalForMessageId: currentDialogueState.currentProcessingMessageId
           };
-          // Medir tempo para updateDialogueState
           const updateStateStartTime = Date.now();
           await stateService.updateDialogueState(uid, stateUpdateForInterrupt);
           logger.debug(`${postTag} stateService.updateDialogueState (interrupt) para User ${uid} levou ${Date.now() - updateStateStartTime}ms.`);
           logger.info(`${postTag} User ${uid}: interruptSignalForMessageId definido para ${currentDialogueState.currentProcessingMessageId}.`);
-          
-          // Recarregar o estado para que a próxima lógica (determineIntent) o veja
+
           const getDialogueStateAfterInterruptStartTime = Date.now();
           currentDialogueState = await stateService.getDialogueState(uid);
           logger.debug(`${postTag} stateService.getDialogueState (após interrupt) para User ${uid} levou ${Date.now() - getDialogueStateAfterInterruptStartTime}ms.`);
+          if (currentDialogueState.lastResponseContext) {
+              const lrc = currentDialogueState.lastResponseContext;
+              logger.debug(`${postTag} User ${uid}: lastResponseContext lido (após interrupt) - Timestamp: ${lrc.timestamp}, Topic: "${lrc.topic ? lrc.topic.substring(0,30) + '...' : 'N/A'}", WasQuestion: ${lrc.wasQuestion}`);
+          } else {
+              logger.debug(`${postTag} User ${uid}: Nenhum lastResponseContext no estado lido (após interrupt).`);
+          }
       }
   }
 
@@ -259,19 +270,23 @@ export async function POST(request: NextRequest) {
   let determinedIntent: DeterminedIntent | null = null;
 
   try {
-      const determineIntentStartTime = Date.now(); // Medir tempo
+      const determineIntentStartTime = Date.now();
       intentResult = await determineIntent(normText_MsgNova, user, rawText_MsgNova, currentDialogueState, greeting, uid);
       logger.debug(`${postTag} determineIntent para User ${uid} levou ${Date.now() - determineIntentStartTime}ms.`);
 
       if (intentResult.type === 'special_handled') {
           logger.info(`${postTag} Intenção da MsgNova tratada como caso especial para ${uid}: ${intentResult.response.slice(0, 50)}...`);
           await sendWhatsAppMessage(fromPhone, intentResult.response);
-          
+
           const stateUpdateAfterSpecial: Partial<stateService.IDialogueState> = { lastInteraction: Date.now() };
           if (currentDialogueState.lastAIQuestionType) {
             stateUpdateAfterSpecial.lastAIQuestionType = undefined;
             stateUpdateAfterSpecial.pendingActionContext = undefined;
           }
+          // LINHAS ABAIXO COMENTADAS - extractContextFromAIResponse não está em stateService e não foi importada de outro local.
+          // const contextForSpecial = await stateService.extractContextFromAIResponse(intentResult.response, uid);
+          // if(contextForSpecial) stateUpdateAfterSpecial.lastResponseContext = contextForSpecial;
+
           await stateService.updateDialogueState(uid, stateUpdateAfterSpecial);
           return NextResponse.json({ special_handled: true }, { status: 200 });
       } else {

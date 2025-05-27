@@ -1,12 +1,13 @@
 // src/app/lib/ruleEngine/rules/peakPerformanceSharesRule.ts
+// MODIFICADO: Adicionado log de versão para depuração.
+// MODIFICADO: Atualizado para usar post.postDate em vez de post.createdAt e adicionar tratamento seguro de datas.
 
 import { IRule, RuleContext, RuleConditionResult } from '../types';
-import { DetectedEvent } from '@/app/api/whatsapp/process-response/types'; // Ajuste o caminho se necessário
-// ATUALIZADO: Caminho corrigido para IDailyMetricSnapshot
+import { DetectedEvent } from '@/app/api/whatsapp/process-response/types';
 import { IPeakSharesDetails } from '@/app/models/User'; 
-import { IDailyMetricSnapshot } from '@/app/models/DailyMetricSnapshot'; // <--- CAMINHO CORRIGIDO
+import { IDailyMetricSnapshot } from '@/app/models/DailyMetricSnapshot';
 import { logger } from '@/app/lib/logger';
-import { parseISO, differenceInDays } from 'date-fns';
+import { parseISO, differenceInDays, isValid as isValidDate } from 'date-fns'; 
 import {
     SHARES_MIN_POST_AGE_DAYS_FOR_PICO,
     SHARES_MAX_POST_AGE_DAYS_FOR_PICO,
@@ -15,35 +16,69 @@ import {
     SHARES_PICO_THRESHOLD_MULTIPLIER,
     SHARES_MIN_ABSOLUTE_FOR_PICO
 } from '@/app/lib/constants'; 
-import { PostObjectForAverage } from '@/app/lib/utils';
+import { PostObjectForAverage } from '@/app/lib/utils'; 
 
 const RULE_ID = 'peak_performance_shares_v1'; 
+const RULE_TAG_BASE = `[Rule:${RULE_ID}]`; 
+
+// Função auxiliar para obter um objeto Date válido a partir de um campo Date | string
+function getValidDate(dateInput: Date | string | undefined, postId?: string, tag?: string): Date | null {
+    const logTag = tag || RULE_TAG_BASE;
+    if (!dateInput) {
+        if (postId) logger.warn(`${logTag} Post ${postId} não tem data definida.`);
+        return null;
+    }
+    if (dateInput instanceof Date) {
+        if (isValidDate(dateInput)) return dateInput;
+        if (postId) logger.warn(`${logTag} Post ${postId} tem objeto Date inválido: ${dateInput}`);
+        return null;
+    }
+    if (typeof dateInput === 'string') {
+        try {
+            const parsedDate = parseISO(dateInput);
+            if (isValidDate(parsedDate)) return parsedDate;
+            if (postId) logger.warn(`${logTag} Post ${postId} tem string de data inválida para parseISO: ${dateInput}`);
+            return null;
+        } catch (e) {
+            if (postId) logger.warn(`${logTag} Post ${postId} erro ao parsear string de data: ${dateInput}`, e);
+            return null;
+        }
+    }
+    if (postId) logger.warn(`${logTag} Post ${postId} tem data em formato inesperado: ${typeof dateInput}`);
+    return null;
+}
+
 
 export const peakPerformanceSharesRule: IRule = {
     id: RULE_ID,
     name: 'Pico de Desempenho em Compartilhamentos',
     description: 'Detecta posts recentes com um pico significativo de compartilhamentos.',
     priority: 10, 
-    lookbackDays: Math.max(SHARES_MAX_POST_AGE_DAYS_FOR_PICO, SHARES_COMPARISON_LOOKBACK_DAYS),
+    lookbackDays: Math.max(SHARES_MAX_POST_AGE_DAYS_FOR_PICO + 5, SHARES_COMPARISON_LOOKBACK_DAYS), 
     dataRequirements: ['snapshots'], 
     resendCooldownDays: 7, 
 
     condition: async (context: RuleContext): Promise<RuleConditionResult> => {
         const { user, allUserPosts, today, getSnapshotsForPost } = context;
-        const detectionTAG = `[Rule:${RULE_ID}][condition] User ${user._id}:`;
+        // LOG DE VERSÃO ADICIONADO
+        const currentRuleVersion = "peakPerformanceSharesRule_v_CANVAS_CORRECTED_LOG_25_05_21_10"; 
+        const detectionTAG = `${RULE_TAG_BASE} (${currentRuleVersion})[condition] User ${user._id}:`;
+        logger.info(`${detectionTAG} INICIANDO EXECUÇÃO DA REGRA`);
         logger.debug(`${detectionTAG} Avaliando condição...`);
 
-        const postsToCheckPico = allUserPosts.filter(post => {
-            const postDate = post.createdAt instanceof Date ? post.createdAt : parseISO(post.createdAt as string);
-            const postAgeDays = differenceInDays(today, postDate);
-            return post.type && ['IMAGE', 'CAROUSEL', 'VIDEO'].includes(post.type) && 
-                   postAgeDays >= SHARES_MIN_POST_AGE_DAYS_FOR_PICO && 
-                   postAgeDays <= SHARES_MAX_POST_AGE_DAYS_FOR_PICO;
-        }).sort((a, b) => { 
-            const dateA = a.createdAt instanceof Date ? a.createdAt : parseISO(a.createdAt as string);
-            const dateB = b.createdAt instanceof Date ? b.createdAt : parseISO(b.createdAt as string);
-            return dateB.getTime() - dateA.getTime();
-        });
+        const postsToCheckPico = allUserPosts
+            .map(post => ({ post, postDateObj: getValidDate(post.postDate, post._id, detectionTAG) })) 
+            .filter(item => {
+                if (!item.postDateObj) return false;
+                const postAgeDays = differenceInDays(today, item.postDateObj);
+                return item.post.type && ['IMAGE', 'CAROUSEL', 'VIDEO', 'REELS'].includes(item.post.type) && 
+                       postAgeDays >= SHARES_MIN_POST_AGE_DAYS_FOR_PICO && 
+                       postAgeDays <= SHARES_MAX_POST_AGE_DAYS_FOR_PICO;
+            })
+            .sort((a, b) => { 
+                return b.postDateObj!.getTime() - a.postDateObj!.getTime();
+            })
+            .map(item => item.post); 
 
         if (postsToCheckPico.length === 0) {
             logger.debug(`${detectionTAG} Nenhum post no intervalo de idade para verificação de pico.`);
@@ -52,9 +87,16 @@ export const peakPerformanceSharesRule: IRule = {
         logger.debug(`${detectionTAG} ${postsToCheckPico.length} posts encontrados para análise de pico de shares.`);
 
         for (const post of postsToCheckPico) {
-            const snapshots: IDailyMetricSnapshot[] = await getSnapshotsForPost(post._id);
+            const postId = post._id;
+            const mainPostDateObj = getValidDate(post.postDate, postId, detectionTAG);
+            if(!mainPostDateObj) {
+                logger.warn(`${detectionTAG} Post principal ${postId} com data inválida após filtro inicial. Pulando.`);
+                continue;
+            }
+
+            const snapshots: IDailyMetricSnapshot[] = await getSnapshotsForPost(postId);
             if (!snapshots || snapshots.length === 0) {
-                logger.debug(`${detectionTAG} Post ${post._id} não possui snapshots.`);
+                logger.debug(`${detectionTAG} Post ${postId} não possui snapshots.`);
                 continue;
             }
             
@@ -72,21 +114,24 @@ export const peakPerformanceSharesRule: IRule = {
             }
 
             if (peakSharesValue === undefined || peakSharesDay === undefined) {
-                logger.debug(`${detectionTAG} Post ${post._id} não apresentou pico de shares nos dias 2 ou 3 com dados válidos.`);
+                logger.debug(`${detectionTAG} Post ${postId} não apresentou pico de shares nos dias 2 ou 3 com dados válidos.`);
                 continue;
             }
-            logger.debug(`${detectionTAG} Post ${post._id} teve um pico de ${peakSharesValue} shares no dia ${peakSharesDay}. Calculando média de referência.`);
+            logger.debug(`${detectionTAG} Post ${postId} teve um pico de ${peakSharesValue} shares no dia ${peakSharesDay}. Calculando média de referência.`);
 
             let totalSharesForAvg = 0;
             let countSnapshotsForAvg = 0;
-            const comparisonPosts = allUserPosts.filter(p => {
-                if (p._id === post._id) return false; 
-                const pDate = p.createdAt instanceof Date ? p.createdAt : parseISO(p.createdAt as string);
-                const postDate = post.createdAt instanceof Date ? post.createdAt : parseISO(post.createdAt as string);
-                return pDate < postDate && differenceInDays(today, pDate) <= SHARES_COMPARISON_LOOKBACK_DAYS;
-            }).slice(0, SHARES_MAX_POSTS_FOR_AVG); 
+            
+            const comparisonPosts = allUserPosts
+                .map(p => ({ post: p, postDateObj: getValidDate(p.postDate, p._id, detectionTAG) })) 
+                .filter(item => {
+                    if (!item.postDateObj || item.post._id === postId) return false; 
+                    return item.postDateObj < mainPostDateObj && differenceInDays(today, item.postDateObj) <= SHARES_COMPARISON_LOOKBACK_DAYS;
+                })
+                .slice(0, SHARES_MAX_POSTS_FOR_AVG)
+                .map(item => item.post); 
 
-            logger.debug(`${detectionTAG} Encontrados ${comparisonPosts.length} posts para calcular a média de referência para o post ${post._id}.`);
+            logger.debug(`${detectionTAG} Encontrados ${comparisonPosts.length} posts para calcular a média de referência para o post ${postId}.`);
 
             for (const compPost of comparisonPosts) {
                 const compSnaps = await getSnapshotsForPost(compPost._id);
@@ -100,10 +145,10 @@ export const peakPerformanceSharesRule: IRule = {
                 }
             }
             const averageSharesFirst3Days = countSnapshotsForAvg > 0 ? totalSharesForAvg / countSnapshotsForAvg : 0;
-            logger.debug(`${detectionTAG} Post ${post._id}: Pico Shares = ${peakSharesValue}, Média Referência Shares (primeiros 3 dias) = ${averageSharesFirst3Days.toFixed(1)}`);
+            logger.debug(`${detectionTAG} Post ${postId}: Pico Shares = ${peakSharesValue}, Média Referência Shares (primeiros 3 dias) = ${averageSharesFirst3Days.toFixed(1)}`);
             
             if (peakSharesValue >= SHARES_MIN_ABSOLUTE_FOR_PICO && peakSharesValue > averageSharesFirst3Days * SHARES_PICO_THRESHOLD_MULTIPLIER) {
-                logger.debug(`${detectionTAG} Condição ATENDIDA para post ${post._id}.`);
+                logger.debug(`${detectionTAG} Condição ATENDIDA para post ${postId}.`);
                 return {
                     isMet: true,
                     data: {
@@ -114,7 +159,7 @@ export const peakPerformanceSharesRule: IRule = {
                     }
                 };
             } else {
-                logger.debug(`${detectionTAG} Condição NÃO atendida para post ${post._id} (Pico: ${peakSharesValue}, Média: ${averageSharesFirst3Days.toFixed(1)}, Limiar Multiplicador: ${SHARES_PICO_THRESHOLD_MULTIPLIER}, Mín Absoluto: ${SHARES_MIN_ABSOLUTE_FOR_PICO}).`);
+                logger.debug(`${detectionTAG} Condição NÃO atendida para post ${postId} (Pico: ${peakSharesValue}, Média: ${averageSharesFirst3Days.toFixed(1)}, Limiar Multiplicador: ${SHARES_PICO_THRESHOLD_MULTIPLIER}, Mín Absoluto: ${SHARES_MIN_ABSOLUTE_FOR_PICO}).`);
             }
         }
         logger.debug(`${detectionTAG} Nenhuma condição atendida após verificar todos os posts elegíveis.`);
@@ -123,18 +168,18 @@ export const peakPerformanceSharesRule: IRule = {
 
     action: async (context: RuleContext, conditionData?: any): Promise<DetectedEvent | null> => {
         const { user } = context;
+        const actionTAG = `${RULE_TAG_BASE}[action] User ${user._id}:`; 
         if (!conditionData || !conditionData.post || typeof conditionData.peakSharesValue !== 'number' || typeof conditionData.peakSharesDay !== 'number' || typeof conditionData.averageSharesFirst3Days !== 'number') {
-            logger.error(`[Rule:${RULE_ID}][action] User ${user._id}: conditionData inválido ou incompleto.`);
+            logger.error(`${actionTAG} conditionData inválido ou incompleto.`);
             return null;
         }
 
-        const post = conditionData.post as PostObjectForAverage;
+        const post = conditionData.post as PostObjectForAverage; 
         const peakSharesValue = conditionData.peakSharesValue as number;
         const peakSharesDay = conditionData.peakSharesDay as number;
         const averageSharesFirst3Days = conditionData.averageSharesFirst3Days as number;
 
-        const detectionTAG = `[Rule:${RULE_ID}][action] User ${user._id}:`;
-        logger.info(`${detectionTAG} Gerando evento para post ${post._id}.`);
+        logger.info(`${actionTAG} Gerando evento para post ${post._id}.`);
 
         const postDescriptionExcerptText = post.description ? post.description.substring(0, 50) : undefined;
         const postDescriptionForAI = post.description ? `"${post.description.substring(0, 50)}..."` : "recente";

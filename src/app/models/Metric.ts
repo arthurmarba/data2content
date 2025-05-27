@@ -1,4 +1,4 @@
-// src/app/models/Metric.ts - v1.4.1 (Corrige conflito de exportação de IMetricStats)
+// src/app/models/Metric.ts - v1.4.2 (IMetricStats expandida com métricas calculadas)
 import { Schema, model, models, Document, Model, Types } from "mongoose";
 
 // Constantes padrão
@@ -9,24 +9,43 @@ const DEFAULT_MEDIA_TYPE = 'UNKNOWN'; // Default para o novo campo 'type'
 
 /**
  * Interface para o subdocumento 'stats' dentro de IMetric.
+ * ATUALIZADO: Adicionadas métricas calculadas por formulas.ts
  */
-export interface IMetricStats { 
+export interface IMetricStats {
+  // Métricas Brutas da API (ou já existentes)
   views?: number;
   reach?: number;
   likes?: number;
   comments?: number;
   saved?: number;
   shares?: number;
-  total_interactions?: number;
   profile_visits?: number;
   follows?: number;
-  ig_reels_avg_watch_time?: number;
-  ig_reels_video_view_total_time?: number;
+  ig_reels_avg_watch_time?: number; // Tempo médio de visualização de Reels (segundos)
+  ig_reels_video_view_total_time?: number; // Tempo total de visualização de Reels (segundos)
   profile_activity?: { [action_type: string]: number };
   impressions?: number;
-  video_views?: number;
-  engagement?: number;
-  video_duration_seconds?: number;
+  video_views?: number; // Para vídeos não-Reels e Reels (contagem de visualizações)
+  engagement?: number;  // Métrica 'engagement' se fornecida diretamente pela API
+  video_duration_seconds?: number; // Duração do vídeo (segundos), pode vir da API para vídeos
+
+  // Métricas Calculadas por formulas.ts
+  total_interactions?: number; // Já existia, mas é calculada
+  engagement_rate_on_reach?: number;
+  engagement_rate_on_impressions?: number;
+  retention_rate?: number;
+  follower_conversion_rate?: number;
+  like_comment_ratio?: number;
+  comment_share_ratio?: number;
+  save_like_ratio?: number; // Corresponde a save_like_ratio_corrected em formulas.ts
+  propagation_index?: number;
+  virality_weighted?: number;
+  follow_reach_ratio?: number;
+  engagement_deep_vs_reach?: number;
+  engagement_fast_vs_reach?: number;
+  deep_fast_engagement_ratio?: number;
+
+  // Permite outras chaves dinâmicas, mas o ideal é tipar todas as importantes
   [key: string]: unknown;
 }
 
@@ -39,21 +58,21 @@ export interface IMetric extends Document {
   postLink: string;
   description: string;
   postDate: Date;
-  
-  type: 'IMAGE' | 'CAROUSEL_ALBUM' | 'VIDEO' | 'REEL' | 'STORY' | 'UNKNOWN' | string; 
 
-  format?: string; 
+  type: 'IMAGE' | 'CAROUSEL_ALBUM' | 'VIDEO' | 'REEL' | 'STORY' | 'UNKNOWN' | string;
+
+  format?: string;
   proposal?: string;
   context?: string;
-  
+
   instagramMediaId?: string;
   source: 'manual' | 'api';
-  
+
   classificationStatus: 'pending' | 'completed' | 'failed';
   classificationError?: string | null;
-  
+
   rawData: unknown[];
-  stats: IMetricStats;
+  stats: IMetricStats; // Agora usa a IMetricStats expandida
   createdAt: Date;
   updatedAt: Date;
 }
@@ -82,7 +101,7 @@ const metricSchema = new Schema<IMetric>(
       required: true,
       index: true,
     },
-    type: { 
+    type: {
       type: String,
       default: DEFAULT_MEDIA_TYPE,
       index: true,
@@ -132,9 +151,11 @@ const metricSchema = new Schema<IMetric>(
       type: Array,
       default: [],
     },
-    stats: { 
-      type: Schema.Types.Mixed, 
+    stats: { // A definição do schema para stats continua Mixed, mas a interface IMetricStats é usada para type-hinting
+      type: Schema.Types.Mixed,
       default: {},
+      // Os campos individuais aqui são mais para referência e não são estritamente impostos pelo Mongoose para Mixed.
+      // A interface IMetricStats é a principal fonte de verdade para a estrutura esperada.
       views: { type: Number },
       reach: { type: Number },
       likes: { type: Number },
@@ -148,6 +169,7 @@ const metricSchema = new Schema<IMetric>(
       ig_reels_video_view_total_time: { type: Number },
       profile_activity: { type: Schema.Types.Mixed },
       video_duration_seconds: { type: Number },
+      // As novas métricas calculadas também seriam salvas aqui sob o Mixed type.
     },
   },
   {
@@ -159,7 +181,7 @@ metricSchema.index({ user: 1, createdAt: -1 });
 metricSchema.index({ user: 1, postDate: -1 });
 metricSchema.index({ user: 1, format: 1, proposal: 1, context: 1, postDate: -1 });
 metricSchema.index({ user: 1, instagramMediaId: 1 }, { unique: true, sparse: true });
-metricSchema.index({ user: 1, type: 1, postDate: -1 }); 
+metricSchema.index({ user: 1, type: 1, postDate: -1 });
 
 metricSchema.index({ user: 1, format: 1, proposal: 1, context: 1, "stats.shares": -1, "stats.saved": -1 }, { name: "idx_enrichStats_sort" });
 metricSchema.index({ user: 1, postDate: -1, "stats.shares": -1 }, { name: "idx_topBottom_shares" });
@@ -171,5 +193,3 @@ const MetricModel = models.Metric
   : model<IMetric>("Metric", metricSchema);
 
 export default MetricModel;
-// REMOVIDO: Linha redundante que causava conflito de exportação
-// export type { IMetricStats }; 

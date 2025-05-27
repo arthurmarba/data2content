@@ -1,6 +1,6 @@
 /**
  * @fileoverview Definições de tipos e interfaces para o dataService.
- * @version 2.14.9 (Adiciona HistoricalGrowth, LongTermGrowth e atualiza IGrowthDataResult, IEnrichedReport)
+ * @version 2.14.12 (Adiciona dayOfWeekStats à interface IEnrichedReport)
  */
 import { Types } from 'mongoose';
 
@@ -16,6 +16,7 @@ import type { // Usa 'import type' se reportHelpers só exporta tipos
     ProposalStat,
     ContextStat,
     PerformanceByDayPCO,
+    DayOfWeekStat // MODIFICADO: Adicionado DayOfWeekStat explicitamente à importação
 } from '@/app/lib/reportHelpers'; // Ajuste o caminho se necessário
 
 // --- ATUALIZADO: Adicionar importação direta de IMetric e IMetricStats para uso interno ---
@@ -96,6 +97,7 @@ export interface IGrowthDataResult {
 /**
  * Representa a estrutura de um relatório enriquecido com dados processados.
  * Atualizado para usar HistoricalGrowth e LongTermGrowth.
+ * MODIFICADO v2.14.12: Adicionado dayOfWeekStats à interface IEnrichedReport.
  */
 export interface IEnrichedReport {
     overallStats?: OverallStats;
@@ -107,9 +109,11 @@ export interface IEnrichedReport {
     detailedContentStats?: DetailedContentStat[];
     proposalStats?: ProposalStat[];
     contextStats?: ContextStat[];
-    historicalComparisons?: HistoricalGrowth; // ATUALIZADO para usar a estrutura detalhada
-    longTermComparisons?: LongTermGrowth;     // ATUALIZADO para usar a estrutura detalhada
+    historicalComparisons?: HistoricalGrowth;
+    longTermComparisons?: LongTermGrowth;
     performanceByDayPCO?: PerformanceByDayPCO;
+    recentPosts?: PostObject[];
+    dayOfWeekStats?: DayOfWeekStat[]; // NOVO CAMPO ADICIONADO
 }
 
 /**
@@ -140,23 +144,11 @@ export type ReferenceSearchResult =
 
 /**
  * Comparações de crescimento (histórico e longo prazo) - Estrutura original.
- * NOTA: Para os novos dados de crescimento em IGrowthDataResult e IEnrichedReport,
- * estamos usando as interfaces HistoricalGrowth e LongTermGrowth que são mais detalhadas.
- * Esta interface IGrowthComparisons é mantida por ora para compatibilidade
- * caso seja usada em outras partes do sistema não relacionadas diretamente
- * ao novo cálculo de getCombinedGrowthData.
  */
 export interface IGrowthComparisons {
     weeklyFollowerChange?: number;
     monthlyReachTrend?: 'up' | 'down' | 'stable';
 }
-
-// A interface IGrowthDataResult original usava IGrowthComparisons.
-// A nova IGrowthDataResult (definida acima) usa HistoricalGrowth e LongTermGrowth.
-// Se a antiga IGrowthDataResult ainda for necessária em algum lugar, ela precisaria ser
-// renomeada ou este arquivo precisaria de uma análise mais aprofundada de seu uso.
-// Por agora, a IGrowthDataResult acima é a que será usada pela nova getCombinedGrowthData.
-
 
 /**
  * Insights derivados de AdDeals (negócios de publicidade).
@@ -188,7 +180,7 @@ export interface CommunityInspirationFilters {
 
 /**
  * Representa um objeto de post simplificado, usado internamente
- * para funcionalidades como o Radar Tuca.
+ * para funcionalidades como o Radar Tuca e insights de fallback.
  */
 export interface PostObject {
     _id: string;
@@ -196,7 +188,7 @@ export interface PostObject {
     platformPostId?: string;
     type: 'IMAGE' | 'CAROUSEL' | 'REEL' | 'VIDEO' | 'STORY' | string;
     description?: string;
-    createdAt: Date | string;
+    postDate: Date | string; 
     totalImpressions?: number;
     totalEngagement?: number;
     videoViews?: number;
@@ -204,6 +196,6 @@ export interface PostObject {
     format?: string;
     proposal?: string;
     context?: string;
-    // --- ATUALIZADO: Usa LocalIMetricStats importado ---
     stats?: LocalIMetricStats;
+    tags?: string[]; 
 }

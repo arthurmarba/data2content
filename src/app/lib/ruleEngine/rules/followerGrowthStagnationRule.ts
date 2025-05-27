@@ -1,43 +1,83 @@
 // src/app/lib/ruleEngine/rules/followerGrowthStagnationRule.ts
+// MODIFICADO: Adicionado log de versão para depuração.
+// MODIFICADO: Adicionada função getValidDate para consistência, embora a regra use principalmente recordedAt (Date).
 
 import { IRule, RuleContext, RuleConditionResult } from '../types';
-import { DetectedEvent } from '@/app/api/whatsapp/process-response/types'; // Ajuste o caminho se necessário
-// ATUALIZADO: Caminho corrigido para IAccountInsight
-import { IAccountInsight } from '@/app/models/AccountInsight'; // <--- CAMINHO CORRIGIDO
+import { DetectedEvent } from '@/app/api/whatsapp/process-response/types';
+import { IAccountInsight } from '@/app/models/AccountInsight'; 
+import { IFollowerStagnationDetails } from '@/app/models/User'; // Importa a interface para os detalhes
 import { logger } from '@/app/lib/logger';
-import { subWeeks, differenceInCalendarWeeks, startOfWeek } from 'date-fns';
-import * as dataService from '@/app/lib/dataService'; // Para chamar getAccountInsightHistory
+import { parseISO, subWeeks, differenceInCalendarWeeks, startOfWeek, isValid as isValidDate } from 'date-fns'; // Adicionado isValidDate
+import * as dataService from '@/app/lib/dataService'; 
+// PostObjectForAverage e calculateAverageMetric não são usados diretamente aqui, mas getValidDate é genérico
+// import { PostObjectForAverage, calculateAverageMetric } from '@/app/lib/utils'; 
+import {
+    // Constantes específicas da regra já estão definidas abaixo
+} from '@/app/lib/constants';
+
 
 const RULE_ID = 'follower_growth_stagnation_v1';
+const RULE_TAG_BASE = `[Rule:${RULE_ID}]`;
 
-// Constantes específicas da regra (podem ser movidas para constants.ts se usadas em outros lugares)
-const STAGNATION_LOOKBACK_WEEKS = 8; // Analisar as últimas 8 semanas
-const STAGNATION_COMPARISON_PERIOD_WEEKS = 4; // Comparar períodos de 4 semanas
-const STAGNATION_SIGNIFICANT_DROP_THRESHOLD = 0.75; // Crescimento atual < 75% do crescimento anterior (ou seja, queda de >25%)
-const STAGNATION_MIN_FOLLOWERS_FOR_ANALYSIS = 100; // Mínimo de seguidores para a regra ser relevante
-const STAGNATION_MIN_GROWTH_FOR_SIGNIFICANCE = 5; // Mínimo de crescimento no período anterior para considerar uma queda "significativa"
+// Constantes específicas da regra
+const STAGNATION_LOOKBACK_WEEKS = 8; 
+const STAGNATION_COMPARISON_PERIOD_WEEKS = 4; 
+const STAGNATION_SIGNIFICANT_DROP_THRESHOLD = 0.75; 
+const STAGNATION_MIN_FOLLOWERS_FOR_ANALYSIS = 100; 
+const STAGNATION_MIN_GROWTH_FOR_SIGNIFICANCE = 5; 
 
 interface GrowthRateData {
     periodName: string;
     startFollowers: number;
     endFollowers: number;
     growth: number;
-    growthRate: number; // Percentual
+    growthRate: number; 
     weeks: number;
 }
+
+// Função auxiliar para obter um objeto Date válido (adicionada para consistência, embora menos usada aqui)
+function getValidDate(dateInput: Date | string | undefined, itemId?: string, tag?: string): Date | null {
+    const logTag = tag || RULE_TAG_BASE;
+    if (!dateInput) {
+        if (itemId) logger.warn(`${logTag} Item ${itemId} não tem data definida.`);
+        return null;
+    }
+    if (dateInput instanceof Date) {
+        if (isValidDate(dateInput)) return dateInput;
+        if (itemId) logger.warn(`${logTag} Item ${itemId} tem objeto Date inválido: ${dateInput}`);
+        return null;
+    }
+    if (typeof dateInput === 'string') {
+        try {
+            const parsedDate = parseISO(dateInput);
+            if (isValidDate(parsedDate)) return parsedDate;
+            if (itemId) logger.warn(`${logTag} Item ${itemId} tem string de data inválida para parseISO: ${dateInput}`);
+            return null;
+        } catch (e) {
+            if (itemId) logger.warn(`${logTag} Item ${itemId} erro ao parsear string de data: ${dateInput}`, e);
+            return null;
+        }
+    }
+    if (itemId) logger.warn(`${logTag} Item ${itemId} tem data em formato inesperado: ${typeof dateInput}`);
+    return null;
+}
+
 
 export const followerGrowthStagnationRule: IRule = {
     id: RULE_ID,
     name: 'Estagnação no Crescimento de Seguidores',
     description: 'Alerta se o crescimento de seguidores do usuário desacelerou significativamente ou estagnou nas últimas semanas em comparação com períodos anteriores.',
     priority: 8,
-    lookbackDays: STAGNATION_LOOKBACK_WEEKS * 7, // Convertido para dias
-    dataRequirements: ['accountInsights'], // Indica que pode precisar de dados de insights da conta
+    lookbackDays: STAGNATION_LOOKBACK_WEEKS * 7, 
+    dataRequirements: ['accountInsights'], 
     resendCooldownDays: 30,
 
     condition: async (context: RuleContext): Promise<RuleConditionResult> => {
-        const { user, today } = context; // latestAccountInsights não é usado diretamente, vamos buscar o histórico
-        const detectionTAG = `[Rule:${RULE_ID}][condition] User ${user._id}:`;
+        const { user, today } = context; 
+        // LOG DE VERSÃO ADICIONADO
+        const currentRuleVersion = "followerGrowthStagnationRule_v_CANVAS_LOG_25_05_22_30"; // String de versão única
+        const detectionTAG = `${RULE_TAG_BASE} (${currentRuleVersion})[condition] User ${user._id}:`;
+        logger.info(`${detectionTAG} INICIANDO EXECUÇÃO DA REGRA`);
         logger.debug(`${detectionTAG} Avaliando condição...`);
 
         if (!user.instagramAccountId) {
@@ -45,52 +85,47 @@ export const followerGrowthStagnationRule: IRule = {
             return { isMet: false };
         }
 
-        // Busca o histórico de insights da conta usando a nova função do dataService
-        const accountInsightHistory = await dataService.getAccountInsightHistory(user._id.toString(), STAGNATION_LOOKBACK_WEEKS * 7 + 7); // +7 para garantir que temos o início da primeira semana
+        const accountInsightHistory = await dataService.getAccountInsightHistory(user._id.toString(), STAGNATION_LOOKBACK_WEEKS * 7 + 7); 
         
-        if (accountInsightHistory.length < STAGNATION_COMPARISON_PERIOD_WEEKS) { // Precisa de pelo menos alguns pontos de dados por período
+        if (accountInsightHistory.length < STAGNATION_COMPARISON_PERIOD_WEEKS) { 
             logger.debug(`${detectionTAG} Histórico de insights da conta insuficiente (${accountInsightHistory.length} registros) para análise de estagnação (necessário ~${STAGNATION_COMPARISON_PERIOD_WEEKS} por período).`);
             return { isMet: false };
         }
 
-        // Garante que os insights estão ordenados por data
         accountInsightHistory.sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime());
         
-        const latestFollowers = accountInsightHistory[accountInsightHistory.length -1]?.followersCount ??
-                                accountInsightHistory[accountInsightHistory.length -1]?.accountDetails?.followers_count;
+        const latestFollowersData = accountInsightHistory[accountInsightHistory.length -1];
+        const latestFollowers = latestFollowersData?.followersCount ?? latestFollowersData?.accountDetails?.followers_count;
+
 
         if (typeof latestFollowers !== 'number' || latestFollowers < STAGNATION_MIN_FOLLOWERS_FOR_ANALYSIS) {
             logger.debug(`${detectionTAG} Número de seguidores atual (${latestFollowers}) abaixo do mínimo (${STAGNATION_MIN_FOLLOWERS_FOR_ANALYSIS}) para análise de estagnação.`);
             return { isMet: false };
         }
 
-
-        // Agrupar insights por semana e pegar o último da semana (ou o mais próximo do fim da semana)
         const weeklyInsights: IAccountInsight[] = [];
-        let currentWeekStart = startOfWeek(subWeeks(today, STAGNATION_LOOKBACK_WEEKS -1), { weekStartsOn: 1 }); // -1 porque queremos N semanas completas
+        let currentIterationWeekStart = startOfWeek(subWeeks(today, STAGNATION_LOOKBACK_WEEKS -1), { weekStartsOn: 1 }); 
 
         for (let i = 0; i < STAGNATION_LOOKBACK_WEEKS; i++) {
-            const weekEnd = startOfWeek(subWeeks(today, STAGNATION_LOOKBACK_WEEKS -1 -i -1), { weekStartsOn: 1 });
-            const insightsThisWeek = accountInsightHistory.filter(insight => {
-                const insightDate = new Date(insight.recordedAt);
-                return insightDate >= currentWeekStart && insightDate < weekEnd;
+            const weekEndBoundary = startOfWeek(subWeeks(today, STAGNATION_LOOKBACK_WEEKS -1 -i -1), { weekStartsOn: 1 });
+            const insightsThisIterationWeek = accountInsightHistory.filter(insight => {
+                const insightDate = getValidDate(insight.recordedAt, insight._id?.toString(), detectionTAG); // Usa getValidDate
+                return insightDate && insightDate >= currentIterationWeekStart && insightDate < weekEndBoundary;
             });
 
-            if (insightsThisWeek.length > 0) {
-                // Pega o último insight da semana (o mais próximo do fim da semana)
-                weeklyInsights.push(insightsThisWeek[insightsThisWeek.length - 1]!);
+            if (insightsThisIterationWeek.length > 0) {
+                weeklyInsights.push(insightsThisIterationWeek[insightsThisIterationWeek.length - 1]!);
             }
-            currentWeekStart = weekEnd;
+            currentIterationWeekStart = weekEndBoundary;
         }
         
-        if (weeklyInsights.length < STAGNATION_COMPARISON_PERIOD_WEEKS * 2 -1) { // Precisa de dados suficientes para os dois períodos
+        if (weeklyInsights.length < STAGNATION_COMPARISON_PERIOD_WEEKS * 2 -1 && weeklyInsights.length < 2) { // Precisa de pelo menos 2 pontos para os dois períodos
              logger.debug(`${detectionTAG} Dados semanais insuficientes (${weeklyInsights.length}) para comparar ${STAGNATION_COMPARISON_PERIOD_WEEKS} semanas com as ${STAGNATION_COMPARISON_PERIOD_WEEKS} anteriores.`);
              return { isMet: false };
         }
 
-
         const calculateGrowth = (insightsPeriod: IAccountInsight[], periodName: string): GrowthRateData | null => {
-            if (insightsPeriod.length < 2) return null; // Precisa de pelo menos início e fim
+            if (insightsPeriod.length < 2) return null; 
 
             const firstInsight = insightsPeriod[0]!;
             const lastInsight = insightsPeriod[insightsPeriod.length - 1]!;
@@ -102,15 +137,17 @@ export const followerGrowthStagnationRule: IRule = {
 
             const growth = endFollowers - startFollowers;
             const growthRate = startFollowers > 0 ? (growth / startFollowers) * 100 : (growth > 0 ? Infinity : 0);
-            const weeksInPeriod = differenceInCalendarWeeks(new Date(lastInsight.recordedAt), new Date(firstInsight.recordedAt), { weekStartsOn: 1 }) +1;
-
+            
+            const firstDate = getValidDate(firstInsight.recordedAt, firstInsight._id?.toString(), detectionTAG);
+            const lastDate = getValidDate(lastInsight.recordedAt, lastInsight._id?.toString(), detectionTAG);
+            if (!firstDate || !lastDate) return null; // Datas inválidas
+            
+            const weeksInPeriod = differenceInCalendarWeeks(lastDate, firstDate, { weekStartsOn: 1 }) +1;
 
             return { periodName, startFollowers, endFollowers, growth, growthRate, weeks: weeksInPeriod };
         };
 
-        // Período Recente (últimas N semanas)
         const recentPeriodInsights = weeklyInsights.slice(-STAGNATION_COMPARISON_PERIOD_WEEKS);
-        // Período Anterior (N semanas antes do período recente)
         const previousPeriodInsights = weeklyInsights.slice(-(STAGNATION_COMPARISON_PERIOD_WEEKS * 2), -STAGNATION_COMPARISON_PERIOD_WEEKS);
 
         const recentGrowthData = calculateGrowth(recentPeriodInsights, `Últimas ${STAGNATION_COMPARISON_PERIOD_WEEKS} semanas`);
@@ -123,23 +160,19 @@ export const followerGrowthStagnationRule: IRule = {
         
         logger.info(`${detectionTAG} Crescimento Recente: ${recentGrowthData.growth} seguidores (${recentGrowthData.growthRate.toFixed(1)}%). Anterior: ${previousGrowthData.growth} seguidores (${previousGrowthData.growthRate.toFixed(1)}%).`);
 
-        // Condição Principal:
-        // 1. Houve crescimento significativo no período anterior (para evitar alertas sobre "quedas" de crescimento zero para zero)
-        // 2. O crescimento atual é significativamente menor que o anterior OU o crescimento atual é negativo/estagnado após um período de crescimento.
         const previousPeriodHadSignificantGrowth = previousGrowthData.growth >= STAGNATION_MIN_GROWTH_FOR_SIGNIFICANCE * previousGrowthData.weeks;
 
         let isStagnated = false;
         if (previousPeriodHadSignificantGrowth) {
             if (previousGrowthData.growth > 0 && recentGrowthData.growth < previousGrowthData.growth * STAGNATION_SIGNIFICANT_DROP_THRESHOLD) {
-                isStagnated = true; // Queda significativa em relação ao crescimento anterior
-            } else if (previousGrowthData.growth > 0 && recentGrowthData.growth <= STAGNATION_MIN_GROWTH_FOR_SIGNIFICANCE) { // Se antes crescia e agora quase não cresce
+                isStagnated = true; 
+            } else if (previousGrowthData.growth > 0 && recentGrowthData.growth <= STAGNATION_MIN_GROWTH_FOR_SIGNIFICANCE) { 
                 isStagnated = true;
             }
-        } else if (previousGrowthData.growth <= STAGNATION_MIN_GROWTH_FOR_SIGNIFICANCE && recentGrowthData.growth < 0) {
-            // Se antes não crescia muito ou caía pouco, e agora está caindo mais
+        } else if (previousGrowthData.growth <= STAGNATION_MIN_GROWTH_FOR_SIGNIFICANCE && recentGrowthData.growth < 0 && Math.abs(recentGrowthData.growth) > STAGNATION_MIN_GROWTH_FOR_SIGNIFICANCE) {
+            // Se antes não crescia muito ou caía pouco, e agora está caindo de forma mais notável
             isStagnated = true;
         }
-
 
         if (isStagnated) {
             logger.debug(`${detectionTAG} Condição ATENDIDA.`);
@@ -161,16 +194,17 @@ export const followerGrowthStagnationRule: IRule = {
 
     action: async (context: RuleContext, conditionData?: any): Promise<DetectedEvent | null> => {
         const { user } = context;
+        const actionTAG = `${RULE_TAG_BASE}[action] User ${user._id}:`;
         if (!conditionData || typeof conditionData.currentGrowthRate !== 'number' || typeof conditionData.previousGrowthRate !== 'number') {
-            logger.error(`[Rule:${RULE_ID}][action] User ${user._id}: conditionData inválido ou incompleto.`);
+            logger.error(`${actionTAG} conditionData inválido ou incompleto.`);
             return null;
         }
 
         const { currentGrowthRate, previousGrowthRate, periodAnalyzed, currentGrowth, previousGrowth } = conditionData;
-        const detectionTAG = `[Rule:${RULE_ID}][action] User ${user._id}:`;
-        logger.info(`${detectionTAG} Gerando evento.`);
+        
+        logger.info(`${actionTAG} Gerando evento.`);
 
-        const details = { // Esta estrutura deve corresponder a IFollowerStagnationDetails em User.ts
+        const details: IFollowerStagnationDetails = { 
             currentGrowthRate: parseFloat(currentGrowthRate.toFixed(2)),
             previousGrowthRate: parseFloat(previousGrowthRate.toFixed(2)),
             currentGrowthAbs: currentGrowth,
