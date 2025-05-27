@@ -1,10 +1,11 @@
+// next.config.cjs
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   images: {
     dangerouslyAllowSVG: true,
-    contentDispositionType: 'attachment',
-    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    // contentDispositionType: 'attachment', // <--- COMENTE OU REMOVA
+    // contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;", // <--- COMENTE OU REMOVA
     remotePatterns: [
       {
         protocol: 'https',

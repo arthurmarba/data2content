@@ -1,8 +1,11 @@
 // src/app/lib/constants.ts
 // ATUALIZADO: Métricas de performance para regras relevantes alteradas para 'views'.
+// ATUALIZADO: Adicionado FPC_COMBO_OPPORTUNITY para insights de fallback.
+// ATUALIZADO: Adicionado VIDEO_DURATION_PERFORMANCE para insights de fallback.
+// ATUALIZADO: Adicionados RECENT_ENGAGEMENT_LEVEL, RECENT_REACH_LEVEL, FOLLOWER_GROWTH_RATE_HIGHLIGHT para insights de fallback.
 
 import { DeterminedIntent } from '@/app/lib/intentService';
-import { IMetricStats } from '@/app/models/Metric'; 
+import { IMetricStats } from '@/app/models/Metric';
 import { PostObjectForAverage } from '@/app/lib/utils';
 
 
@@ -66,6 +69,13 @@ export const FALLBACK_INSIGHT_TYPES = {
   TUCA_FEATURE_REMINDER_BEST_TIMES: "tuca_feature_reminder_best_times",
   CONTENT_TYPE_PERFORMANCE_COMPARISON: "content_type_performance_comparison",
   PROPOSAL_SUCCESS_REMINDER: "proposal_success_reminder",
+  FPC_COMBO_OPPORTUNITY: "fpc_combo_opportunity",
+  VIDEO_DURATION_PERFORMANCE: "video_duration_performance",
+  // === INÍCIO DAS NOVAS ADIÇÕES (HISTORICAL COMPARISONS) ===
+  RECENT_ENGAGEMENT_LEVEL: "recent_engagement_level",
+  RECENT_REACH_LEVEL: "recent_reach_level",
+  FOLLOWER_GROWTH_RATE_HIGHLIGHT: "follower_growth_rate_highlight",
+  // === FIM DAS NOVAS ADIÇÕES (HISTORICAL COMPARISONS) ===
 } as const;
 
 export type FallbackInsightType = typeof FALLBACK_INSIGHT_TYPES[keyof typeof FALLBACK_INSIGHT_TYPES];
@@ -85,11 +95,20 @@ export const FALLBACK_INSIGHT_COOLDOWNS_DAYS: Record<FallbackInsightType, number
   [FALLBACK_INSIGHT_TYPES.TUCA_FEATURE_REMINDER_BEST_TIMES]: 15,
   [FALLBACK_INSIGHT_TYPES.CONTENT_TYPE_PERFORMANCE_COMPARISON]: 10,
   [FALLBACK_INSIGHT_TYPES.PROPOSAL_SUCCESS_REMINDER]: 14,
+  [FALLBACK_INSIGHT_TYPES.FPC_COMBO_OPPORTUNITY]: 10,
+  [FALLBACK_INSIGHT_TYPES.VIDEO_DURATION_PERFORMANCE]: 14,
+  // === INÍCIO DAS NOVAS ADIÇÕES (HISTORICAL COMPARISONS) ===
+  [FALLBACK_INSIGHT_TYPES.RECENT_ENGAGEMENT_LEVEL]: 7,
+  [FALLBACK_INSIGHT_TYPES.RECENT_REACH_LEVEL]: 7,
+  [FALLBACK_INSIGHT_TYPES.FOLLOWER_GROWTH_RATE_HIGHLIGHT]: 10,
+  // === FIM DAS NOVAS ADIÇÕES (HISTORICAL COMPARISONS) ===
 };
 // --- FIM da Seção de Insights de Fallback ---
 
 
 // --- Radar Tuca - Configurações Gerais de Detecção de Alertas ---
+// ... (restante do arquivo igual ao que você forneceu) ...
+
 export const SHARES_MIN_POST_AGE_DAYS_FOR_PICO = 2;
 export const SHARES_MAX_POST_AGE_DAYS_FOR_PICO = 5;
 export const SHARES_COMPARISON_LOOKBACK_DAYS = 30;
@@ -105,16 +124,14 @@ export const REELS_WATCH_TIME_DROP_THRESHOLD_PERCENTAGE = 0.25;
 export const REELS_WATCH_TIME_MIN_HISTORICAL_FOR_ALERT = 10;
 
 export const FORMAT_ANALYSIS_PERIOD_DAYS = 90;
-export const FORMAT_UNUSED_THRESHOLD_DAYS = 14; 
-export const FORMAT_MIN_POSTS_FOR_AVG = 2;     
-// MODIFICADO: Tipo e valor atualizados para 'views'
+export const FORMAT_UNUSED_THRESHOLD_DAYS = 14;
+export const FORMAT_MIN_POSTS_FOR_AVG = 2;
 export const FORMAT_PERFORMANCE_METRIC_KEY: keyof IMetricStats = 'views';
-export const FORMAT_PROMISSING_THRESHOLD_MULTIPLIER = 1.1; 
+export const FORMAT_PROMISSING_THRESHOLD_MULTIPLIER = 1.1;
 
 export const UNTAPPED_POTENTIAL_PAST_LOOKBACK_DAYS = 180;
 export const UNTAPPED_POTENTIAL_RECENT_THRESHOLD_DAYS = 45;
 export const UNTAPPED_POTENTIAL_MIN_POSTS_FOR_CATEGORY = 2;
-// MODIFICADO: Tipo e valor atualizados para 'views'
 export const UNTAPPED_POTENTIAL_PERFORMANCE_METRIC: keyof IMetricStats = 'views';
 export const UNTAPPED_POTENTIAL_TOP_PERCENTILE_THRESHOLD = 0.60;
 export const UNTAPPED_POTENTIAL_SUPERIORITY_MULTIPLIER = 1.15;
@@ -124,16 +141,12 @@ export const ENGAGEMENT_PEAK_POST_AGE_MAX_DAYS = 10;
 export const ENGAGEMENT_PEAK_MIN_ABSOLUTE_COMMENTS = 10;
 export const ENGAGEMENT_PEAK_COMMENT_MULTIPLIER = 2.0;
 
-// As constantes abaixo são _GLOBAL mas as regras específicas (bestDayFormatEngagementRule, etc.)
-// foram refatoradas para usar constantes LOCAIS ('METRIC_TO_USE_FOR_PERFORMANCE').
-// Se estas globais não forem usadas por mais nenhuma outra regra/lógica, podem ser removidas.
-// Por ora, mantendo-as alinhadas caso haja outros usos.
-export const BEST_DAY_FORMAT_LOOKBACK_DAYS_GLOBAL = 90; 
+export const BEST_DAY_FORMAT_LOOKBACK_DAYS_GLOBAL = 90;
 export const BEST_DAY_FORMAT_MIN_POSTS_PER_SLOT_GLOBAL = 3;
 export const BEST_DAY_FORMAT_SUPERIORITY_MULTIPLIER_VS_FORMAT_AVG_GLOBAL = 1.3;
 export const BEST_DAY_FORMAT_SUPERIORITY_MULTIPLIER_VS_OVERALL_AVG_GLOBAL = 1.5;
 export const BEST_DAY_FORMAT_RECENT_POST_THRESHOLD_WEEKS_GLOBAL = 2;
-export const BEST_DAY_FORMAT_METRIC_KEY_GLOBAL: keyof IMetricStats = 'total_interactions'; // Esta regra foca em interações
+export const BEST_DAY_FORMAT_METRIC_KEY_GLOBAL: keyof IMetricStats = 'total_interactions';
 
 export const STAGNATION_LOOKBACK_WEEKS = 8;
 export const STAGNATION_COMPARISON_PERIOD_WEEKS = 4;
@@ -157,11 +170,10 @@ export const NEW_FORMAT_MAX_POSTS_CONSIDERED_NEW_GLOBAL = 3;
 export const NEW_FORMAT_MIN_POSTS_FOR_COMPARISON_AVG_GLOBAL = 5;
 export const NEW_FORMAT_PERFORMANCE_THRESHOLD_POSITIVE_GLOBAL = 1.5;
 export const NEW_FORMAT_PERFORMANCE_THRESHOLD_NEGATIVE_GLOBAL = 0.7;
-// A regra newFormatPerformanceRule foi refatorada para usar uma constante local METRIC_TO_USE_FOR_PERFORMANCE='views'
 
 export const MEDIA_TYPE_LOOKBACK_DAYS_GLOBAL = 30;
 export const MEDIA_TYPE_MIN_POSTS_PER_TYPE_GLOBAL = 3;
-export const MEDIA_TYPE_COMPARISON_METRIC_KEY_GLOBAL: keyof IMetricStats = 'total_interactions'; // Esta regra foca em interações
+export const MEDIA_TYPE_COMPARISON_METRIC_KEY_GLOBAL: keyof IMetricStats = 'total_interactions';
 export const MEDIA_TYPE_SIGNIFICANT_DIFFERENCE_THRESHOLD_GLOBAL = 0.25;
 
 export const NEW_USER_THRESHOLD_DAYS = Number(process.env.NEW_USER_THRESHOLD_DAYS) || 90;
