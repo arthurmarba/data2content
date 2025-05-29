@@ -1,10 +1,11 @@
 // src/app/lib/utils.ts
+// MODIFICADO: v3.1 - Adicionado instagramMediaId a PostObjectForAverage
 // MODIFICADO: v3 - Corrigido tipo em calculateAverageMetric ao acessar post.stats com chave.
 // MODIFICADO: v2 - Ajustada PostObjectForAverage e calculateAverageMetric para alinhar com refatoração das regras.
 import { logger } from '@/app/lib/logger';
 import type { IMetricStats } from '@/app/models/Metric';
 
-const UTILS_TAG = '[Utils v3]'; // Versão atualizada
+const UTILS_TAG = '[Utils v3.1]'; // Versão atualizada
 
 /**
  * Define a estrutura esperada de um objeto de post para o cálculo da média.
@@ -13,14 +14,17 @@ const UTILS_TAG = '[Utils v3]'; // Versão atualizada
  * MODIFICADO: Adicionado campo 'stats' obrigatório do tipo IMetricStats.
  * Os campos de métricas de primeiro nível (totalImpressions, etc.) são mantidos por enquanto
  * para retrocompatibilidade, mas o acesso primário deve ser via 'stats'.
+ * MODIFICADO: Adicionado campo opcional 'instagramMediaId'.
  */
 export interface PostObjectForAverage {
-    _id: string;
+    _id: string; // ID interno da métrica/post
+    instagramMediaId?: string; // NOVO: ID da mídia no Instagram (fonte para platformPostId)
     type?: 'IMAGE' | 'CAROUSEL' | 'REEL' | 'VIDEO' | 'STORY' | string;
     postDate: Date | string;
     format?: string;
     proposal?: string;
     context?: string;
+    description?: string; // Adicionando description que pode ser útil para as regras
     
     totalImpressions?: number; 
     totalEngagement?: number;  
@@ -60,11 +64,10 @@ export function calculateAverageMetric(
             value = metricExtractor(post);
         } else if (post.stats) { 
             const potentialValue = post.stats[metricExtractor];
-            // MODIFICADO: Adicionada verificação de tipo para potentialValue
             if (typeof potentialValue === 'number' && !isNaN(potentialValue)) {
                 value = potentialValue;
             } else {
-                value = undefined; // Trata como indefinido se não for um número válido
+                value = undefined; 
             }
         } else {
             value = undefined; 

@@ -3,14 +3,17 @@
  * Agrega e reexporta funcionalidades dos submódulos de serviço
  * (userService, reportService, communityService, etc.),
  * tipos e constantes partilhadas.
- * @version 2.14.4
+ * @version 2.14.12 (Adiciona findMetricsByCriteria à exportação)
  */
+
+import { logger } from '@/app/lib/logger'; // Importado no início para uso abaixo
 
 // ------------------------------------------------------------------
 // Reexportar Tipos e Interfaces Públicos
 // ------------------------------------------------------------------
 // Todos os tipos e interfaces que são usados pela "API pública" do dataService
 // devem ser exportados a partir de './types'.
+// Isto exportará 'FindMetricsCriteriaArgs' de types.ts
 export * from './types';
 
 // ------------------------------------------------------------------
@@ -27,7 +30,24 @@ export * from './constants';
 export * from './userService';
 
 // Funções relacionadas com Relatórios e Métricas
-export * from './reportService';
+// ATUALIZADO: Usar exportações nomeadas para evitar conflito com FindMetricsCriteriaArgs de './types'
+// e para incluir funções que faltavam.
+export {
+    fetchAndPrepareReportData,
+    getRecentPostObjects,
+    getDailySnapshotsForMetric,
+    getRecentPostObjectsWithAggregatedMetrics,
+    getTopPostsByMetric,
+    getMetricDetails,
+    findMetricsByCriteria // ADICIONADO: Exportando a função que faltava agora
+    // Adicione outras exportações de reportService aqui, conforme necessário
+    // CERTIFIQUE-SE DE NÃO REEXPORTAR 'FindMetricsCriteriaArgs' daqui se ele já vem de './types'.
+} from './reportService';
+// Se você tiver certeza que './reportService.ts' não exporta 'FindMetricsCriteriaArgs'
+// (e o erro é mais complexo devido a reexportações aninhadas),
+// pode ser necessário investigar './reportService.ts' também.
+// Se for mais simples e './reportService.ts' não deveria exportar tipos que já estão em './types.ts',
+// a correção seria remover a exportação de FindMetricsCriteriaArgs de dentro de './reportService.ts'.
 
 // Funções relacionadas com a Comunidade de Inspiração
 export * from './communityService';
@@ -51,9 +71,3 @@ export * from './accountInsightService';
 // export { getUserProfileSegment } from './helpers';
 
 logger.info('[dataService][index] Módulos do dataService carregados e prontos para uso.');
-
-// Para que o logger.info acima funcione, o logger precisa estar disponível neste escopo.
-// Se não estiver (porque não é um módulo em si, mas sim um utilitário),
-// pode remover esta linha de log ou importá-lo aqui também.
-// Exemplo:
-import { logger } from '@/app/lib/logger'; // Ajuste o caminho se necessário

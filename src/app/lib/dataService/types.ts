@@ -1,29 +1,34 @@
 /**
  * @fileoverview Definições de tipos e interfaces para o dataService.
- * @version 2.14.12 (Adiciona dayOfWeekStats à interface IEnrichedReport)
+ * @version 2.14.14 (Adiciona instagramMediaId a PostObject)
+ * @version 2.14.13 (Atualiza CommunityInspirationFilters e outros para usar Enums)
  */
 import { Types } from 'mongoose';
 
-// Importar tipos de utilitários ou bibliotecas externas, se necessário
-// Exemplo: import { SomeType } from 'some-library';
-
 // Importar tipos de helpers do seu projeto
-// Certifique-se de que o caminho para reportHelpers está correto.
-import type { // Usa 'import type' se reportHelpers só exporta tipos
+import type {
     OverallStats,
     DurationStat,
     DetailedContentStat,
     ProposalStat,
     ContextStat,
     PerformanceByDayPCO,
-    DayOfWeekStat // MODIFICADO: Adicionado DayOfWeekStat explicitamente à importação
-} from '@/app/lib/reportHelpers'; // Ajuste o caminho se necessário
+    DayOfWeekStat
+} from '@/app/lib/reportHelpers';
 
-// --- ATUALIZADO: Adicionar importação direta de IMetric e IMetricStats para uso interno ---
-import type { IMetric as LocalIMetric, IMetricStats as LocalIMetricStats } from '@/app/models/Metric'; // Importa IMetric e IMetricStats localmente
+// Importar IMetric e IMetricStats localmente para uso interno
+import type { IMetric as LocalIMetric, IMetricStats as LocalIMetricStats } from '@/app/models/Metric';
 
-// Reexportar tipos dos modelos Mongoose que são usados na interface pública do dataService.
-// Ajuste os caminhos para os seus modelos conforme a estrutura do seu projeto.
+// Importar os tipos Enum para a Comunidade de Inspiração
+import type {
+    FormatType,
+    ProposalType,
+    ContextType,
+    QualitativeObjectiveType,
+    PerformanceHighlightType
+} from '@/app/lib/constants/communityInspirations.constants';
+
+// Reexportar tipos dos modelos Mongoose
 export type {
     IUser,
     UserExpertiseLevel,
@@ -35,8 +40,8 @@ export type {
 } from '@/app/models/User';
 
 export type {
-    IMetric, // Continua reexportando IMetric
-    IMetricStats, // Continua reexportando IMetricStats
+    IMetric,
+    IMetricStats,
 } from '@/app/models/Metric';
 
 export type {
@@ -49,62 +54,41 @@ export type {
 
 export type {
     ICommunityInspiration,
+    IInternalMetricsSnapshot,
 } from '@/app/models/CommunityInspiration';
 
 export type {
     IDailyMetricSnapshot,
 } from '@/app/models/DailyMetricSnapshot';
-// export type { IStoryMetric } from '@/app/models/StoryMetric';
-
 
 // --- Tipos para Dados de Crescimento Detalhados ---
-
-/**
- * Métricas de crescimento de curto prazo (histórico recente).
- */
 export interface HistoricalGrowth {
-  followerChangeShortTerm?: number;       // Variação numérica de seguidores no período.
-  followerGrowthRateShortTerm?: number;   // Taxa de crescimento de seguidores em % no período.
-  avgEngagementPerPostShortTerm?: number; // Média de engajamento por post no período.
-  avgReachPerPostShortTerm?: number;      // Média de alcance por post no período.
-  // Adicionar outras métricas de curto prazo relevantes conforme necessário
+  followerChangeShortTerm?: number;
+  followerGrowthRateShortTerm?: number;
+  avgEngagementPerPostShortTerm?: number;
+  avgReachPerPostShortTerm?: number;
 }
 
-/**
- * Métricas de crescimento de longo prazo (tendências).
- */
 export interface LongTermGrowth {
-  monthlyFollowerTrend?: { month: string; followers: number }[];      // Tendência mensal de seguidores.
-  monthlyReachTrend?: { month: string; avgReach: number }[];          // Tendência mensal de alcance médio por post.
-  monthlyEngagementTrend?: { month: string; avgEngagement: number }[];// Tendência mensal de engajamento médio por post.
-  // Adicionar outras tendências de longo prazo relevantes conforme necessário
+  monthlyFollowerTrend?: { month: string; followers: number }[];
+  monthlyReachTrend?: { month: string; avgReach: number }[];
+  monthlyEngagementTrend?: { month: string; avgEngagement: number }[];
 }
 
-/**
- * Resultado dos dados de crescimento combinados, agora usando as estruturas detalhadas.
- * Substitui a definição anterior de IGrowthDataResult que usava IGrowthComparisons.
- */
 export interface IGrowthDataResult {
-  historical: HistoricalGrowth; // Usa a estrutura detalhada
-  longTerm: LongTermGrowth;     // Usa a estrutura detalhada
+  historical: HistoricalGrowth;
+  longTerm: LongTermGrowth;
   dataIsPlaceholder?: boolean;
   reasonForPlaceholder?: string;
 }
 
-
-// --- Tipos e Interfaces Específicos do DataService (Continuação) ---
-
-/**
- * Representa a estrutura de um relatório enriquecido com dados processados.
- * Atualizado para usar HistoricalGrowth e LongTermGrowth.
- * MODIFICADO v2.14.12: Adicionado dayOfWeekStats à interface IEnrichedReport.
- */
+// --- Tipos e Interfaces Específicos do DataService ---
 export interface IEnrichedReport {
     overallStats?: OverallStats;
     profileSegment: string;
     multimediaSuggestion: string;
-    top3Posts?: Pick<LocalIMetric, '_id' | 'description' | 'postLink' | 'stats'>[];
-    bottom3Posts?: Pick<LocalIMetric, '_id' | 'description' | 'postLink' | 'stats'>[];
+    top3Posts?: Pick<LocalIMetric, '_id' | 'description' | 'postLink' | 'stats' | 'type' | 'format' | 'proposal' | 'context' | 'instagramMediaId'>[]; // Adicionado instagramMediaId
+    bottom3Posts?: Pick<LocalIMetric, '_id' | 'description' | 'postLink' | 'stats' | 'type' | 'format' | 'proposal' | 'context' | 'instagramMediaId'>[]; // Adicionado instagramMediaId
     durationStats?: DurationStat[];
     detailedContentStats?: DetailedContentStat[];
     proposalStats?: ProposalStat[];
@@ -113,46 +97,31 @@ export interface IEnrichedReport {
     longTermComparisons?: LongTermGrowth;
     performanceByDayPCO?: PerformanceByDayPCO;
     recentPosts?: PostObject[];
-    dayOfWeekStats?: DayOfWeekStat[]; // NOVO CAMPO ADICIONADO
+    dayOfWeekStats?: DayOfWeekStat[];
 }
 
-/**
- * Estrutura dos dados preparados pela função fetchAndPrepareReportData.
- */
 export interface PreparedData {
     enrichedReport: IEnrichedReport;
 }
 
-/**
- * Estrutura para o objeto post retornado em ReferenceSearchResult quando encontrado.
- */
 export interface ReferenceSearchPostData {
     _id: string;
     description: string;
-    proposal?: string;
-    context?: string;
-    format?: string;
+    proposal?: ProposalType;
+    context?: ContextType;
+    format?: FormatType;
 }
 
-/**
- * Resultado da busca por um post referenciado em texto.
- */
 export type ReferenceSearchResult =
     | { status: 'found'; post: ReferenceSearchPostData }
     | { status: 'clarify'; message: string }
     | { status: 'error'; message: string };
 
-/**
- * Comparações de crescimento (histórico e longo prazo) - Estrutura original.
- */
 export interface IGrowthComparisons {
     weeklyFollowerChange?: number;
     monthlyReachTrend?: 'up' | 'down' | 'stable';
 }
 
-/**
- * Insights derivados de AdDeals (negócios de publicidade).
- */
 export interface AdDealInsights {
     period: 'last30d' | 'last90d' | 'all';
     totalDeals: number;
@@ -167,35 +136,61 @@ export interface AdDealInsights {
 
 /**
  * Filtros para buscar inspirações na comunidade.
+ * ATUALIZADO v2.14.13: Usa tipos Enum para campos categóricos.
  */
 export interface CommunityInspirationFilters {
-  proposal?: string;
-  context?: string;
-  format?: string;
-  primaryObjectiveAchieved_Qualitative?: string;
-  performanceHighlights_Qualitative_CONTAINS?: string;
+  proposal?: ProposalType;
+  context?: ContextType;
+  format?: FormatType;
+  primaryObjectiveAchieved_Qualitative?: QualitativeObjectiveType;
+  performanceHighlights_Qualitative_INCLUDES_ANY?: PerformanceHighlightType[];
+  performanceHighlights_Qualitative_CONTAINS?: string; 
   tags_IA?: string[];
-  limit?: number;
 }
 
 /**
- * Representa um objeto de post simplificado, usado internamente
- * para funcionalidades como o Radar Tuca e insights de fallback.
+ * Representa um objeto de post simplificado.
+ * ATUALIZADO v2.14.14: Adicionado instagramMediaId.
+ * ATUALIZADO v2.14.13: Usa tipos Enum para campos categóricos.
  */
 export interface PostObject {
     _id: string;
     userId: string;
-    platformPostId?: string;
-    type: 'IMAGE' | 'CAROUSEL' | 'REEL' | 'VIDEO' | 'STORY' | string;
+    platformPostId?: string; // Pode coexistir se necessário, ou ser removido se instagramMediaId for o padrão nesta camada
+    instagramMediaId?: string; // <-- ADICIONADO PARA CORRIGIR O ERRO EM reportService.ts
+    type: string; 
     description?: string;
-    postDate: Date | string; 
+    postDate: Date | string;
     totalImpressions?: number;
     totalEngagement?: number;
     videoViews?: number;
     totalComments?: number;
-    format?: string;
-    proposal?: string;
-    context?: string;
+    format?: FormatType;
+    proposal?: ProposalType;
+    context?: ContextType;
     stats?: LocalIMetricStats;
-    tags?: string[]; 
+    tags?: string[];
+}
+
+/**
+ * Critérios para a função findMetricsByCriteria.
+ * ATUALIZADO v2.14.13: Usa tipos Enum para campos categóricos.
+ */
+export interface FindMetricsCriteria {
+    format?: FormatType;
+    proposal?: ProposalType;
+    context?: ContextType;
+    dateRange?: {
+        start?: string; 
+        end?: string;   
+    };
+    minLikes?: number;
+    minShares?: number;
+}
+
+export interface FindMetricsCriteriaArgs {
+    criteria: FindMetricsCriteria;
+    limit?: number;
+    sortBy?: 'postDate' | 'stats.shares' | 'stats.saved' | 'stats.likes' | 'stats.reach';
+    sortOrder?: 'asc' | 'desc';
 }

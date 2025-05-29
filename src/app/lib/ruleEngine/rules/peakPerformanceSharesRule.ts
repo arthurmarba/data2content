@@ -1,4 +1,5 @@
 // src/app/lib/ruleEngine/rules/peakPerformanceSharesRule.ts
+// MODIFICADO: v1.1 - Adicionado platformPostId aos details do evento.
 // MODIFICADO: Adicionado log de versão para depuração.
 // MODIFICADO: Atualizado para usar post.postDate em vez de post.createdAt e adicionar tratamento seguro de datas.
 
@@ -60,8 +61,7 @@ export const peakPerformanceSharesRule: IRule = {
 
     condition: async (context: RuleContext): Promise<RuleConditionResult> => {
         const { user, allUserPosts, today, getSnapshotsForPost } = context;
-        // LOG DE VERSÃO ADICIONADO
-        const currentRuleVersion = "peakPerformanceSharesRule_v_CANVAS_CORRECTED_LOG_25_05_21_10"; 
+        const currentRuleVersion = "peakPerformanceSharesRule_v1.1_CANVAS_PLATFORMPOSTID"; 
         const detectionTAG = `${RULE_TAG_BASE} (${currentRuleVersion})[condition] User ${user._id}:`;
         logger.info(`${detectionTAG} INICIANDO EXECUÇÃO DA REGRA`);
         logger.debug(`${detectionTAG} Avaliando condição...`);
@@ -71,12 +71,17 @@ export const peakPerformanceSharesRule: IRule = {
             .filter(item => {
                 if (!item.postDateObj) return false;
                 const postAgeDays = differenceInDays(today, item.postDateObj);
+                // Garante que post.type existe antes de chamar includes
                 return item.post.type && ['IMAGE', 'CAROUSEL', 'VIDEO', 'REELS'].includes(item.post.type) && 
                        postAgeDays >= SHARES_MIN_POST_AGE_DAYS_FOR_PICO && 
                        postAgeDays <= SHARES_MAX_POST_AGE_DAYS_FOR_PICO;
             })
             .sort((a, b) => { 
-                return b.postDateObj!.getTime() - a.postDateObj!.getTime();
+                // Garante que postDateObj existe antes de chamar getTime
+                if (a.postDateObj && b.postDateObj) {
+                    return b.postDateObj.getTime() - a.postDateObj.getTime();
+                }
+                return 0; // Mantém a ordem se alguma data for nula
             })
             .map(item => item.post); 
 
@@ -126,7 +131,8 @@ export const peakPerformanceSharesRule: IRule = {
                 .map(p => ({ post: p, postDateObj: getValidDate(p.postDate, p._id, detectionTAG) })) 
                 .filter(item => {
                     if (!item.postDateObj || item.post._id === postId) return false; 
-                    return item.postDateObj < mainPostDateObj && differenceInDays(today, item.postDateObj) <= SHARES_COMPARISON_LOOKBACK_DAYS;
+                    // Garante que mainPostDateObj existe antes de comparar
+                    return mainPostDateObj && item.postDateObj < mainPostDateObj && differenceInDays(today, item.postDateObj) <= SHARES_COMPARISON_LOOKBACK_DAYS;
                 })
                 .slice(0, SHARES_MAX_POSTS_FOR_AVG)
                 .map(item => item.post); 
@@ -152,7 +158,7 @@ export const peakPerformanceSharesRule: IRule = {
                 return {
                     isMet: true,
                     data: {
-                        post: post as PostObjectForAverage, 
+                        post: post as PostObjectForAverage, // 'post' já é PostObjectForAverage
                         peakSharesValue,
                         peakSharesDay,
                         averageSharesFirst3Days
@@ -174,18 +180,20 @@ export const peakPerformanceSharesRule: IRule = {
             return null;
         }
 
-        const post = conditionData.post as PostObjectForAverage; 
+        const post = conditionData.post as PostObjectForAverage; // post agora tem instagramMediaId?
         const peakSharesValue = conditionData.peakSharesValue as number;
         const peakSharesDay = conditionData.peakSharesDay as number;
         const averageSharesFirst3Days = conditionData.averageSharesFirst3Days as number;
 
-        logger.info(`${actionTAG} Gerando evento para post ${post._id}.`);
+        logger.info(`${actionTAG} Gerando evento para post ${post._id}. InstagramMediaId: ${post.instagramMediaId}`);
 
+        // Usa post.description que foi adicionado a PostObjectForAverage na última atualização do utils.ts
         const postDescriptionExcerptText = post.description ? post.description.substring(0, 50) : undefined;
         const postDescriptionForAI = post.description ? `"${post.description.substring(0, 50)}..."` : "recente";
         
         const details: IPeakSharesDetails = {
             postId: post._id,
+            platformPostId: post.instagramMediaId, // <-- MODIFICAÇÃO PRINCIPAL AQUI
             postDescriptionExcerpt: postDescriptionExcerptText,
             peakShares: peakSharesValue,
             peakDay: peakSharesDay,
@@ -198,7 +206,7 @@ export const peakPerformanceSharesRule: IRule = {
         return {
             type: RULE_ID, 
             messageForAI: `Radar Tuca detectou: Seu post ${postDescriptionForAI} teve um pico de ${peakSharesValue} compartilhamentos no Dia ${peakSharesDay}, significativamente acima da sua média habitual (${averageSharesFirst3Days.toFixed(1)} shares nos primeiros dias). Isso é um ótimo sinal de que o conteúdo ressoou fortemente!`,
-            detailsForLog: details
+            detailsForLog: details // detailsForLog já aceita IPeakSharesDetails com platformPostId
         };
     }
 };

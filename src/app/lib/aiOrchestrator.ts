@@ -1,8 +1,9 @@
 /**
  * @fileoverview Orquestrador de chamadas à API OpenAI com Function Calling e Streaming.
  * Otimizado para buscar dados sob demanda via funções e modular comportamento por intenção.
+ * ATUALIZADO: v0.9.9 - Inclui currentAlertDetails no contexto para a LLM em alertas proativos.
  * ATUALIZADO: v0.9.8 - Omite 'functions' e 'function_call' para intents leves.
- * @version 0.9.8
+ * @version 0.9.9
  */
 
 import OpenAI from 'openai';
@@ -11,16 +12,18 @@ import type {
     ChatCompletionChunk,
     ChatCompletionAssistantMessageParam,
     ChatCompletionFunctionCallOption,
-    ChatCompletionCreateParamsStreaming // Importar o tipo base para o payload
+    ChatCompletionCreateParamsStreaming 
 } from 'openai/resources/chat/completions';
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
 import { functionSchemas, functionExecutors } from './aiFunctions';
 import { getSystemPrompt } from '@/app/lib/promptSystemFC';
-import { IUser } from '@/app/models/User';
+import { IUser, AlertDetails } from '@/app/models/User'; // AlertDetails importado
 import * as stateService from '@/app/lib/stateService';
 import { functionValidators } from './aiFunctionSchemas.zod';
 import { DeterminedIntent } from './intentService';
+// Importando EnrichedAIContext do local correto
+import { EnrichedAIContext } from '@/app/api/whatsapp/process-response/types';
 
 
 // Configuração do cliente OpenAI e constantes
@@ -35,15 +38,7 @@ const MAX_ITERS = 6; // Máximo de iterações de chamada de função
 const OPENAI_TIMEOUT_MS = Number(process.env.OPENAI_TIMEOUT_MS) || 45_000;
 const QUICK_ACK_TIMEOUT_MS = Number(process.env.OPENAI_QUICK_ACK_TIMEOUT_MS) || 10_000;
 
-/**
- * @interface EnrichedContext
- */
-interface EnrichedContext {
-    user: IUser;
-    historyMessages: ChatCompletionMessageParam[];
-    dialogueState?: stateService.IDialogueState;
-    userName: string;
-}
+// Removida a interface EnrichedContext local, usaremos EnrichedAIContext de types.ts
 
 /**
  * Retorno de askLLMWithEnrichedContext.
@@ -62,7 +57,7 @@ export async function getQuickAcknowledgementLLMResponse(
     userQuery: string,
     userNameForLog: string = "usuário"
 ): Promise<string | null> {
-    const fnTag = '[getQuickAcknowledgementLLMResponse v0.9.7]';
+    const fnTag = '[getQuickAcknowledgementLLMResponse v0.9.7]'; // Mantendo versão se não houver mudança aqui
     logger.info(`${fnTag} Iniciando para ${userNameForLog}. Query: "${userQuery.slice(0, 50)}..." Usando modelo: ${QUICK_ACK_MODEL}`);
 
     const messages: ChatCompletionMessageParam[] = [
@@ -104,18 +99,38 @@ export async function getQuickAcknowledgementLLMResponse(
 
 /**
  * Envia uma mensagem ao LLM com Function Calling em modo streaming para a resposta principal.
+ * MODIFICADO: Agora espera EnrichedAIContext que pode conter currentAlertDetails.
  */
 export async function askLLMWithEnrichedContext(
-    enrichedContext: EnrichedContext,
+    enrichedContext: EnrichedAIContext, // Tipo atualizado para EnrichedAIContext
     incomingText: string,
     intent: DeterminedIntent
 ): Promise<AskLLMResult> {
-    const fnTag = '[askLLMWithEnrichedContext v0.9.8]'; // Versão atualizada
-    const { user, historyMessages, userName } = enrichedContext;
+    const fnTag = '[askLLMWithEnrichedContext v0.9.9]'; // Versão atualizada
+    const { user, historyMessages, userName, dialogueState, currentAlertDetails } = enrichedContext; // currentAlertDetails agora disponível
     logger.info(`${fnTag} Iniciando para usuário ${user._id} (Nome para prompt: ${userName}). Intenção: ${intent}. Texto: "${incomingText.slice(0, 50)}..." Usando modelo: ${MODEL}`);
+
+    // ----- INÍCIO DA MODIFICAÇÃO PARA INCLUIR DETALHES DO ALERTA -----
+    let alertContextSystemMessage: ChatCompletionMessageParam | null = null;
+    if (intent === 'generate_proactive_alert' && currentAlertDetails) {
+        try {
+            // Stringify os detalhes do alerta. O promptSystemFC.ts já instrui a IA
+            // a procurar por platformPostId ou originalPlatformPostId nestes detalhes.
+            const detailsString = JSON.stringify(currentAlertDetails);
+            const messageContent = `Contexto adicional para o alerta do Radar Tuca que você vai apresentar ao usuário:\nDetalhes específicos do alerta (JSON): ${detailsString}\nLembre-se de usar 'platformPostId' ou 'originalPlatformPostId' destes detalhes para criar o link do Instagram, se disponível, conforme suas instruções gerais para alertas.`;
+            alertContextSystemMessage = { role: 'system', content: messageContent };
+            logger.info(`${fnTag} Adicionando contexto de detalhes do alerta para LLM. Tamanho dos detalhes: ${detailsString.length} chars.`);
+        } catch (stringifyError) {
+            logger.error(`${fnTag} Erro ao stringificar currentAlertDetails:`, stringifyError);
+            // Não quebrar, apenas logar. O alerta prosseguirá sem os detalhes específicos no prompt.
+        }
+    }
+    // ----- FIM DA MODIFICAÇÃO -----
 
     const initialMsgs: ChatCompletionMessageParam[] = [
         { role: 'system', content: getSystemPrompt(userName || user.name || 'usuário') },
+        // Adiciona a mensagem de contexto do alerta, se existir
+        ...(alertContextSystemMessage ? [alertContextSystemMessage] : []), 
         ...historyMessages,
         { role: 'user', content: incomingText }
     ];
@@ -131,7 +146,8 @@ export async function askLLMWithEnrichedContext(
         rejectHistoryPromise = reject;
     });
 
-    processTurn(initialMsgs, 0, null, writer, user, intent)
+    // Passando enrichedContext (que agora é EnrichedAIContext) para processTurn
+    processTurn(initialMsgs, 0, null, writer, user, intent, enrichedContext) 
         .then((finalHistory) => {
             logger.debug(`${fnTag} processTurn concluído com sucesso. Fechando writer.`);
             writer.close();
@@ -160,6 +176,7 @@ export async function askLLMWithEnrichedContext(
 
     // ============================================================
     // Função Interna Recursiva para Processar Turnos da Conversa
+    // MODIFICADO: Adicionado enrichedContext como parâmetro para ter acesso a currentAlertDetails se necessário no futuro dentro de processTurn
     // ============================================================
     async function processTurn(
         currentMsgs: ChatCompletionMessageParam[],
@@ -167,10 +184,14 @@ export async function askLLMWithEnrichedContext(
         lastFnName: string | null,
         writer: WritableStreamDefaultWriter<string>,
         currentUser: IUser,
-        currentIntent: DeterminedIntent
+        currentIntent: DeterminedIntent,
+        currentEnrichedContext: EnrichedAIContext // Adicionado para acesso futuro se necessário
     ): Promise<ChatCompletionMessageParam[]> {
-        const turnTag = `[processTurn iter ${iter} v0.9.8]`; // Versão atualizada
+        const turnTag = `[processTurn iter ${iter} v0.9.9]`; // Versão atualizada
+        // O currentEnrichedContext.currentAlertDetails já foi usado para construir initialMsgs
+        // Não há necessidade de usá-lo diretamente aqui novamente, a menos que a lógica de FC precise dele.
         logger.debug(`${turnTag} Iniciando. Intenção atual do turno: ${currentIntent}`);
+
 
         if (iter >= MAX_ITERS) {
             logger.warn(`${turnTag} Function-call loop excedeu MAX_ITERS (${MAX_ITERS}).`);
@@ -184,8 +205,6 @@ export async function askLLMWithEnrichedContext(
         const aborter = new AbortController();
         const timeout = setTimeout(() => { aborter.abort(); logger.warn(`${turnTag} Timeout API OpenAI atingido.`); }, OPENAI_TIMEOUT_MS);
 
-        // === INÍCIO DA MODIFICAÇÃO ===
-        // Construir o payload da requisição dinamicamente
         const requestPayload: ChatCompletionCreateParamsStreaming = {
             model: MODEL,
             temperature: TEMP,
@@ -194,27 +213,23 @@ export async function askLLMWithEnrichedContext(
             messages: currentMsgs,
         };
 
+        // A intenção 'generate_proactive_alert' é leve e não deve usar function calling.
+        // O currentAlertDetails já foi injetado no prompt de sistema.
         const isLightweightIntent = currentIntent === 'social_query' || currentIntent === 'meta_query_personal' || currentIntent === 'generate_proactive_alert';
 
         if (isLightweightIntent) {
-            logger.info(`${turnTag} Intenção '${currentIntent}' é leve. Function calling desabilitado (parâmetros 'functions' e 'function_call' omitidos).`);
-            // Não adiciona 'functions' nem 'function_call' ao requestPayload
-            // Se a API ainda exigir 'function_call: "none"' mesmo sem 'functions',
-            // você poderia adicionar: requestPayload.function_call = 'none';
-            // Mas o ideal para "nenhuma função" é omitir ambos.
+            logger.info(`${turnTag} Intenção '${currentIntent}' é leve. Function calling desabilitado.`);
         } else {
             logger.info(`${turnTag} Intenção '${currentIntent}' permite function calling. Habilitando funções padrão.`);
             requestPayload.functions = [...functionSchemas];
             requestPayload.function_call = 'auto';
         }
-        // === FIM DA MODIFICAÇÃO ===
 
         let completionStream: AsyncIterable<ChatCompletionChunk>;
         try {
-            // Log adaptado para mostrar o que realmente será enviado
             logger.debug(`${turnTag} Chamando OpenAI API (Modelo: ${requestPayload.model}, Histórico: ${requestPayload.messages.length} msgs). Function calling: ${(requestPayload as any).function_call ?? 'omitido'}, Functions count: ${(requestPayload as any).functions?.length ?? 'omitido'}`);
             completionStream = await openai.chat.completions.create(
-                requestPayload, // Passa o payload construído
+                requestPayload, 
                 { signal: aborter.signal }
             );
         } catch (error: any) {
@@ -285,19 +300,14 @@ export async function askLLMWithEnrichedContext(
         }
         if (pendingAssistantMsg) {
             if (functionCallName || functionCallArgs) {
-                // Se for lightweight intent, a IA não deveria tentar chamar função.
-                // Se mesmo assim tentar, registramos um aviso e tratamos como texto normal.
                 if (isLightweightIntent) {
                     logger.warn(`${turnTag} IA tentou function call (${functionCallName}) para intent leve ('${currentIntent}'), mas os parâmetros de função não foram enviados. Ignorando a chamada de função e tratando como texto.`);
                     if (pendingAssistantMsg.content === null || pendingAssistantMsg.content === '') {
-                        // Se a IA só retornou a function_call e nenhum texto, e estamos ignorando a FC,
-                        // precisamos fornecer algum conteúdo de fallback.
-                        pendingAssistantMsg.content = "Entendi."; // Ou uma mensagem mais apropriada
+                        pendingAssistantMsg.content = "Entendi."; 
                         try { await writer.write(pendingAssistantMsg.content); } catch(e) { /* ignore */ }
                     }
-                    // Remove a tentativa de function_call da mensagem do assistente
                     pendingAssistantMsg.function_call = undefined;
-                } else { // Para intents não leves, processa a function call
+                } else { 
                     pendingAssistantMsg.function_call = { name: functionCallName, arguments: functionCallArgs };
                     pendingAssistantMsg.content = null;
                 }
@@ -314,7 +324,7 @@ export async function askLLMWithEnrichedContext(
              logger.error(`${turnTag} Estado inesperado no final do processamento do stream. Finish Reason: ${lastFinishReason}, sem function call name.`);
         }
 
-        if (pendingAssistantMsg?.function_call && !isLightweightIntent) { // Só processa FC se não for lightweight
+        if (pendingAssistantMsg?.function_call && !isLightweightIntent) { 
             const { name, arguments: rawArgs } = pendingAssistantMsg.function_call;
             logger.info(`${turnTag} API solicitou Function Call: ${name}. Args RAW: ${rawArgs.slice(0, 100)}...`);
 
@@ -373,7 +383,8 @@ export async function askLLMWithEnrichedContext(
 
             currentMsgs.push({ role: 'function', name: name, content: JSON.stringify(functionResult) });
             logger.debug(`${turnTag} Histórico antes da recursão (iter ${iter + 1}, ${currentMsgs.length} msgs).`);
-            return processTurn(currentMsgs, iter + 1, name, writer, currentUser, currentIntent);
+            // Passando currentEnrichedContext para a chamada recursiva
+            return processTurn(currentMsgs, iter + 1, name, writer, currentUser, currentIntent, currentEnrichedContext);
         } else if (pendingAssistantMsg?.function_call && isLightweightIntent) {
             logger.warn(`${turnTag} Function call recebida para intent leve '${currentIntent}', mas foi ignorada pois os parâmetros de função não foram enviados à API.`);
         }

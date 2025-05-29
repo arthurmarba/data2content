@@ -1,9 +1,11 @@
 // src/app/api/whatsapp/process-response/types.ts
+// MODIFICADO: v1.2.1 - Confirmada inclusão de instagramMediaId em PostObject para resolver erro de tipo.
+// MODIFICADO: v1.2 - Tornar dialogueState opcional em EnrichedAIContext.
+// MODIFICADO: v1.1 - Adicionado currentAlertDetails a EnrichedAIContext
 
 import { DeterminedIntent } from '@/app/lib/intentService';
-import { IUser, AlertDetails } from '../../../models/User'; // <-- ATUALIZADO: Importado AlertDetails
-// Importe IMetricStats se quiser tipar o campo stats de forma mais precisa
-// import { IMetricStats } from '@/app/models/Metric';
+import { IUser, AlertDetails } from '../../../models/User'; 
+import { IDialogueState } from '@/app/lib/stateService'; 
 
 /**
  * Define a estrutura esperada para o corpo da requisição
@@ -13,7 +15,7 @@ export interface ProcessRequestBody {
     fromPhone?: string;
     incomingText?: string;
     userId: string;
-    taskType?: string; // Ex: "daily_tip" ou indefinido para mensagem de usuário
+    taskType?: string; 
     determinedIntent: DeterminedIntent | null;
     qstashMessageId?: string;
 }
@@ -21,33 +23,27 @@ export interface ProcessRequestBody {
 /**
  * Representa a estrutura de um objeto de post como usado dentro
  * da lógica de detecção de alertas e outras manipulações nesta rota.
- * ATUALIZADO para incluir format, proposal, e context.
+ * O campo instagramMediaId está incluído aqui.
  */
 export interface PostObject {
     _id: string;
     userId: string;
-    platformPostId?: string;
-    type: 'IMAGE' | 'CAROUSEL' | 'REEL' | 'VIDEO' | 'STORY' | string; // string para flexibilidade com DEFAULT_FORMAT
+    platformPostId?: string; 
+    instagramMediaId?: string; // Campo necessário para reportService.ts
+    type: 'IMAGE' | 'CAROUSEL' | 'REEL' | 'VIDEO' | 'STORY' | string; 
     description?: string;
-    /** Data de criação do post. Pode ser string (ISO) ou Date dependendo da origem. */
-    createdAt: Date | string;
+    createdAt: Date | string; 
+    postDate?: Date | string; 
     totalImpressions?: number;
     totalEngagement?: number;
     videoViews?: number;
-    totalComments?: number; // Adicionado anteriormente para detectEngagementPeakNotCapitalized
+    totalComments?: number; 
 
-    // --- CAMPOS ADICIONADOS PARA detectUntappedPotentialTopic ---
     format?: string;
     proposal?: string;
     context?: string;
-    // --- FIM DOS CAMPOS ADICIONADOS ---
-
-    // Opcional: Adicionar o campo stats se ele for consistentemente populado
-    // e usado diretamente pelos detetores.
-    // stats?: IMetricStats; // Descomente e ajuste o tipo se necessário
-
-    // Adicione quaisquer outros campos de métricas ou informações relevantes
-    // que são usados nas lógicas de `alertDetectionService` ou `dailyTipHandler`.
+    
+    tags?: string[]; 
 }
 
 /**
@@ -57,16 +53,17 @@ export interface PostObject {
 export interface DetectedEvent {
     type: string;
     messageForAI: string;
-    detailsForLog: AlertDetails; // <-- ATUALIZADO: de 'any' para 'AlertDetails'
+    detailsForLog: AlertDetails; 
 }
 
 /**
  * Contexto enriquecido passado para as funções da LLM.
- * Pode ser expandido conforme necessário.
+ * MODIFICADO: dialogueState agora é opcional.
  */
 export interface EnrichedAIContext {
     user: IUser;
-    historyMessages: any[];
-    dialogueState: any;
+    historyMessages: any[]; 
+    dialogueState?: IDialogueState; 
     userName: string;
+    currentAlertDetails?: AlertDetails; 
 }

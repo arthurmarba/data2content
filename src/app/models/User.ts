@@ -1,18 +1,15 @@
-// @/app/models/User.ts - v1.9.15 (Adiciona INewFormatPerformanceDetails e IMediaTypeComparisonDetails)
-// - ADICIONADO: Interfaces de detalhes específicas para cada tipo de alerta.
-// - ADICIONADO: Union type `AlertDetails` para tipar o campo `details` de forma robusta.
-// - ADICIONADO: Interface `IPostingConsistencyDetails` e `IEvergreenRepurposeDetails`.
-// - ADICIONADO: Interface `INewFormatPerformanceDetails` para o alerta de desempenho de novo formato.
-// - ADICIONADO: Interface `IMediaTypeComparisonDetails` para o alerta de comparação de performance por tipo de mídia.
-// - Mantém funcionalidades da v1.9.14.
+// @/app/models/User.ts - v1.9.16 (Adiciona platformPostId aos detalhes de alertas relevantes)
+// - ADICIONADO: Campo platformPostId? ou similar às interfaces de detalhes de alerta que se referem a um post específico.
+// - Mantém funcionalidades da v1.9.15.
 
 import { Schema, model, models, Document, Model, Types } from "mongoose";
-import { logger } from "@/app/lib/logger"; 
+import { logger } from "@/app/lib/logger";
 
 // --- INTERFACES DE DETALHES PARA CADA TIPO DE ALERTA DO RADAR TUCA ---
 
 export interface IPeakSharesDetails {
-    postId: string;
+    postId: string; // ID interno da métrica/post
+    platformPostId?: string; // NOVO: ID do post na plataforma (ex: Instagram)
     postDescriptionExcerpt?: string;
     peakShares: number;
     peakDay: number;
@@ -29,7 +26,7 @@ export interface IDropWatchTimeDetails {
 }
 
 export interface IForgottenFormatDetails {
-    format: string; 
+    format: string;
     avgMetricValue: number;
     overallAvgPerformance: number;
     metricUsed: string;
@@ -38,20 +35,22 @@ export interface IForgottenFormatDetails {
 }
 
 export interface IUntappedPotentialTopicDetails {
-    postId: string;
+    postId: string; // ID interno da métrica/post
+    platformPostId?: string; // NOVO: ID do post na plataforma
     postDescriptionExcerpt?: string;
     performanceMetric: string;
     performanceValue: number;
     referenceAverage: number;
     daysSincePosted: number;
-    postType?: string; 
-    format?: string;   
+    postType?: string;
+    format?: string;
     proposal?: string;
     context?: string;
 }
 
 export interface IEngagementPeakNotCapitalizedDetails {
-    postId: string;
+    postId: string; // ID interno da métrica/post
+    platformPostId?: string; // NOVO: ID do post na plataforma
     postDescriptionExcerpt?: string;
     comments: number;
     averageComments: number;
@@ -74,64 +73,59 @@ export interface IFollowerStagnationDetails {
 }
 
 export interface IBestDayFormatDetails {
-    format: string;        
-    dayOfWeek: string;     
-    avgEngRate?: number;    
-    metricUsed: string;    
-    referenceAvgEngRate?: number; 
-    daysSinceLastUsedInSlot: number; 
+    format: string;
+    dayOfWeek: string;
+    avgEngRate?: number;
+    metricUsed: string;
+    referenceAvgEngRate?: number;
+    daysSinceLastUsedInSlot: number;
 }
 
 export interface IPostingConsistencyDetails {
-    previousAverageFrequencyDays?: number; 
-    currentAverageFrequencyDays?: number;  
-    daysSinceLastPost?: number;            
-    breakInPattern?: boolean;              
+    previousAverageFrequencyDays?: number;
+    currentAverageFrequencyDays?: number;
+    daysSinceLastPost?: number;
+    breakInPattern?: boolean;
 }
 
 export interface IEvergreenRepurposeDetails {
-    originalPostId: string;
+    originalPostId: string; // ID interno da métrica/post original
+    originalPlatformPostId?: string; // NOVO: ID do post original na plataforma
     originalPostDate: Date;
     originalPostDescriptionExcerpt?: string;
-    originalPostMetricValue: number; 
-    originalPostMetricName: string;  
-    suggestionType: 'tbt' | 'new_angle' | 'story_series' | 'other'; 
+    originalPostMetricValue: number;
+    originalPostMetricName: string;
+    suggestionType: 'tbt' | 'new_angle' | 'story_series' | 'other';
 }
 
-/**
- * Interface para os detalhes do alerta de Desempenho Incomum de Novo Formato.
- */
 export interface INewFormatPerformanceDetails {
     formatName: string;
     avgPerformanceNewFormat: number;
-    referenceAvgPerformance: number; // Média de referência (geral ou de formatos estabelecidos)
+    referenceAvgPerformance: number;
     metricUsed: string;
     numberOfPostsInNewFormat: number;
-    isPositiveAlert: boolean; // true se o desempenho foi bom, false se foi ruim
+    isPositiveAlert: boolean;
 }
 
-/**
- * Interface para os detalhes do alerta de Comparativo de Performance por Tipo de Mídia.
- */
 export interface IMediaTypePerformance {
-    type: string; // Ex: 'REEL', 'IMAGE'
+    type: string;
     avgMetricValue: number;
     postCount: number;
-    metricUsed: string; // A métrica usada para a comparação (ex: 'engagementRate', 'reach')
+    metricUsed: string;
 }
 export interface IMediaTypeComparisonDetails {
     performanceByMediaType: IMediaTypePerformance[];
     bestPerformingType?: { type: string; avgMetricValue: number; };
-    worstPerformingType?: { type: string; avgMetricValue: number; }; // Opcional
-    overallAverage?: number; // Média geral para contextualizar
-    metricUsed: string; // A métrica principal usada para a comparação
+    worstPerformingType?: { type: string; avgMetricValue: number; };
+    overallAverage?: number;
+    metricUsed: string;
 }
 
-
-// Union Type para todos os detalhes de alerta
-export type AlertDetails = 
-    | IPeakSharesDetails 
-    | IDropWatchTimeDetails 
+// Union Type para todos os detalhes de alerta (não precisa de alteração aqui,
+// pois as interfaces individuais foram atualizadas)
+export type AlertDetails =
+    | IPeakSharesDetails
+    | IDropWatchTimeDetails
     | IForgottenFormatDetails
     | IUntappedPotentialTopicDetails
     | IEngagementPeakNotCapitalizedDetails
@@ -140,9 +134,9 @@ export type AlertDetails =
     | IBestDayFormatDetails
     | IPostingConsistencyDetails
     | IEvergreenRepurposeDetails
-    | INewFormatPerformanceDetails // <-- ADICIONADO
-    | IMediaTypeComparisonDetails  // <-- ADICIONADO
-    | { [key: string]: any }; 
+    | INewFormatPerformanceDetails
+    | IMediaTypeComparisonDetails
+    | { [key: string]: any };
 
 
 /**
@@ -150,10 +144,10 @@ export type AlertDetails =
  */
 export interface IAvailableInstagramAccount {
   igAccountId: string;
-  pageId: string; 
-  pageName: string; 
-  username?: string; 
-  profile_picture_url?: string; 
+  pageId: string;
+  pageName: string;
+  username?: string;
+  profile_picture_url?: string;
 }
 
 /**
@@ -184,39 +178,39 @@ export type UserExpertiseLevel = 'iniciante' | 'intermediario' | 'avancado';
  * Interface para as preferências do usuário.
  */
 export interface IUserPreferences {
-  preferredFormats?: string[];
+  preferredFormats?: string[]; // Poderia usar FormatType[]
   dislikedTopics?: string[];
-  preferredAiTone?: 'mais_formal' | 'direto_ao_ponto' | 'super_descontraido' | string; 
+  preferredAiTone?: 'mais_formal' | 'direto_ao_ponto' | 'super_descontraido' | string;
 }
 
 /**
  * Interface para um objetivo de longo prazo do usuário.
  */
 export interface IUserLongTermGoal {
-  goal: string; 
+  goal: string;
   addedAt?: Date;
-  status?: 'ativo' | 'em_progresso' | 'concluido' | 'pausado'; 
+  status?: 'ativo' | 'em_progresso' | 'concluido' | 'pausado';
 }
 
 /**
  * Interface para um fato chave sobre o usuário/negócio.
  */
 export interface IUserKeyFact {
-  fact: string; 
+  fact: string;
   mentionedAt?: Date;
 }
 
 /**
  * Interface para uma entrada no histórico de alertas do Radar Tuca.
- * ATUALIZADO v1.9.15: `AlertDetails` agora inclui novas interfaces.
+ * ATUALIZADO v1.9.16: `AlertDetails` agora reflete as mudanças internas.
  */
 export interface IAlertHistoryEntry {
-  _id?: Types.ObjectId; 
-  type: string; 
-  date: Date; 
-  messageForAI: string; 
-  finalUserMessage: string; 
-  details: AlertDetails; 
+  _id?: Types.ObjectId;
+  type: string;
+  date: Date;
+  messageForAI: string;
+  finalUserMessage: string;
+  details: AlertDetails;
   userInteraction?: {
     type: 'explored_further' | 'dismissed' | 'not_interacted' | 'error_sending' | 'pending_interaction' | 'not_applicable' | 'viewed' | 'clicked_suggestion' | 'provided_feedback';
     feedback?: string;
@@ -226,7 +220,7 @@ export interface IAlertHistoryEntry {
 
 /**
  * Interface que descreve um documento de usuário.
- * ATUALIZADO v1.9.15: `alertHistory` usa `IAlertHistoryEntry` com `AlertDetails` atualizado.
+ * ATUALIZADO v1.9.16
  */
 export interface IUser extends Document {
   _id: Types.ObjectId;
@@ -237,13 +231,13 @@ export interface IUser extends Document {
   provider?: string;
   providerAccountId?: string;
   facebookProviderAccountId?: string;
-  instagramAccessToken?: string; 
-  instagramAccountId?: string | null; 
+  instagramAccessToken?: string;
+  instagramAccountId?: string | null;
   isInstagramConnected?: boolean;
   lastInstagramSyncAttempt?: Date | null;
   lastInstagramSyncSuccess?: boolean | null;
   instagramSyncErrorMsg?: string | null;
-  username?: string | null; 
+  username?: string | null;
   biography?: string;
   website?: string;
   profile_picture_url?: string;
@@ -261,12 +255,12 @@ export interface IUser extends Document {
   whatsappVerificationCode?: string | null;
   whatsappPhone?: string | null;
   whatsappVerified?: boolean;
-  profileTone?: string; 
+  profileTone?: string;
   hobbies?: string[];
-  goal?: string; 
+  goal?: string;
   affiliateRank?: number;
   affiliateInvites?: number;
-  affiliateCode?: string; 
+  affiliateCode?: string;
   affiliateUsed?: string;
   affiliateBalance?: number;
   commissionLog?: ICommissionLogEntry[];
@@ -284,10 +278,10 @@ export interface IUser extends Document {
   isNewUserForOnboarding?: boolean;
   onboardingCompletedAt?: Date | null;
   inferredExpertiseLevel?: UserExpertiseLevel;
-  userPreferences?: IUserPreferences; 
+  userPreferences?: IUserPreferences;
   userLongTermGoals?: IUserLongTermGoal[];
   userKeyFacts?: IUserKeyFact[];
-  alertHistory?: IAlertHistoryEntry[];
+  alertHistory?: IAlertHistoryEntry[]; // Usa a IAlertHistoryEntry atualizada
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -313,43 +307,45 @@ const AvailableInstagramAccountSchema = new Schema<IAvailableInstagramAccount>({
   igAccountId: { type: String, required: true },
   pageId: { type: String, required: true },
   pageName: { type: String, required: true },
-  username: { type: String }, 
-  profile_picture_url: { type: String }, 
-}, { _id: false }); 
+  username: { type: String },
+  profile_picture_url: { type: String },
+}, { _id: false });
 
 const UserPreferencesSchema = new Schema<IUserPreferences>({
-  preferredFormats: { type: [String], default: [] },
+  preferredFormats: { type: [String], default: [] }, // Considerar usar [FormatType] se alinhado com os enums
   dislikedTopics: { type: [String], default: [] },
   preferredAiTone: { type: String, default: null },
-}, { _id: false }); 
+}, { _id: false });
 
 const UserLongTermGoalSchema = new Schema<IUserLongTermGoal>({
   goal: { type: String, required: true },
   addedAt: { type: Date, default: Date.now },
   status: { type: String, enum: ['ativo', 'em_progresso', 'concluido', 'pausado'], default: 'ativo' },
-}, { _id: false }); 
+}, { _id: false });
 
 const UserKeyFactSchema = new Schema<IUserKeyFact>({
   fact: { type: String, required: true },
   mentionedAt: { type: Date, default: Date.now },
 }, { _id: false });
 
+// O schema AlertHistoryEntrySchema não precisa mudar, pois 'details' é Schema.Types.Mixed.
+// A tipagem via interface AlertDetails já garante a segurança no código TypeScript.
 const AlertHistoryEntrySchema = new Schema<IAlertHistoryEntry>({
   type: { type: String, required: true },
   date: { type: Date, required: true, default: Date.now },
-  messageForAI: { type: String, default: "" }, 
-  finalUserMessage: { type: String, default: "" }, 
-  details: { type: Schema.Types.Mixed, required: true }, 
-  userInteraction: { 
-    type: { 
-        type: String, 
+  messageForAI: { type: String, default: "" },
+  finalUserMessage: { type: String, default: "" },
+  details: { type: Schema.Types.Mixed, required: true },
+  userInteraction: {
+    type: {
+        type: String,
         enum: ['explored_further', 'dismissed', 'not_interacted', 'error_sending', 'pending_interaction', 'not_applicable', 'viewed', 'clicked_suggestion', 'provided_feedback'],
-        default: 'pending_interaction' 
+        default: 'pending_interaction'
     },
     feedback: { type: String },
     interactedAt: { type: Date }
   },
-}, { _id: true }); 
+}, { _id: true });
 
 const userSchema = new Schema<IUser>(
   {
@@ -366,13 +362,13 @@ const userSchema = new Schema<IUser>(
     provider: { type: String, index: true },
     providerAccountId: { type: String, index: true },
     facebookProviderAccountId: { type: String, index: true, sparse: true },
-    instagramAccessToken: { type: String }, 
-    instagramAccountId: { type: String, index: true, default: null }, 
+    instagramAccessToken: { type: String },
+    instagramAccountId: { type: String, index: true, default: null },
     isInstagramConnected: { type: Boolean, default: false },
     lastInstagramSyncAttempt: { type: Date, default: null },
     lastInstagramSyncSuccess: { type: Boolean, default: null },
     instagramSyncErrorMsg: { type: String, default: null },
-    username: { type: String, sparse: true, default: null }, 
+    username: { type: String, sparse: true, default: null },
     biography: { type: String },
     website: { type: String },
     profile_picture_url: { type: String },
@@ -381,7 +377,7 @@ const userSchema = new Schema<IUser>(
     media_count: { type: Number },
     is_published: { type: Boolean },
     shopping_product_tag_eligibility: { type: Boolean },
-    availableIgAccounts: { type: [AvailableInstagramAccountSchema], default: null }, 
+    availableIgAccounts: { type: [AvailableInstagramAccountSchema], default: null },
     linkToken: { type: String, index: true, sparse: true },
     linkTokenExpiresAt: { type: Date },
     role: { type: String, default: "user" },
@@ -392,10 +388,10 @@ const userSchema = new Schema<IUser>(
     whatsappVerified: { type: Boolean, default: false },
     profileTone: { type: String, default: 'informal e prestativo' },
     hobbies: { type: [String], default: [] },
-    goal: { type: String, default: null }, 
+    goal: { type: String, default: null },
     affiliateRank: { type: Number, default: 1 },
     affiliateInvites: { type: Number, default: 0 },
-    affiliateCode: { type: String, unique: true, sparse: true }, 
+    affiliateCode: { type: String, unique: true, sparse: true },
     affiliateUsed: { type: String, default: null },
     affiliateBalance: { type: Number, default: 0 },
     commissionLog: { type: [commissionLogEntrySchema], default: [] },
@@ -417,18 +413,18 @@ const userSchema = new Schema<IUser>(
         enum: ['iniciante', 'intermediario', 'avancado'],
         default: 'iniciante'
     },
-    userPreferences: { type: UserPreferencesSchema, default: () => ({}) }, 
+    userPreferences: { type: UserPreferencesSchema, default: () => ({}) },
     userLongTermGoals: { type: [UserLongTermGoalSchema], default: [] },
     userKeyFacts: { type: [UserKeyFactSchema], default: [] },
     alertHistory: { type: [AlertHistoryEntrySchema], default: [] },
   },
   {
-    timestamps: true, 
+    timestamps: true,
   }
 );
 
 userSchema.pre<IUser>("save", function (next) {
-  const TAG_PRE_SAVE = '[User.ts pre-save v1.9.15]'; // Atualizada tag de log
+  const TAG_PRE_SAVE = '[User.ts pre-save v1.9.16]';
   
   if (this.isNew && !this.affiliateCode) {
     const newCode = generateAffiliateCode();

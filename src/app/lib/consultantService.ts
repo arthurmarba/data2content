@@ -3,25 +3,26 @@
  * Otimizado para:
  * - Respostas diretas para interações simples.
  * - Contexto leve para IA em perguntas sociais/meta.
- * - ATUALIZADO: Primeira mensagem de reconhecimento AGORA é gerada por uma chamada real à IA
- * (via nova função em aiOrchestrator) usando um prompt dedicado para "quebra-gelo".
+ * - Primeira mensagem de reconhecimento AGORA é gerada por uma chamada real à IA.
  * - Integração de resumo de histórico no contexto da IA.
- * @version 4.7.8 (Correção de erro de atribuição da variável 'user')
+ * ATUALIZADO: v4.7.10 - Corrigido erro "Cannot find name 'reader'".
+ * ATUALIZADO: v4.7.9 - Extrai alertDetails de payload de alerta e usa EnrichedAIContext.
+ * @version 4.7.10
  */
 
 import { logger } from '@/app/lib/logger';
 import { normalizeText, determineIntent, getRandomGreeting, IntentResult, DeterminedIntent } from './intentService';
-// ATUALIZADO: Importar getQuickAcknowledgementLLMResponse de aiOrchestrator (v0.9.4 ou superior)
 import { askLLMWithEnrichedContext, getQuickAcknowledgementLLMResponse } from './aiOrchestrator';
 import * as stateService from '@/app/lib/stateService';
 import * as dataService from './dataService';
-import { IEnrichedReport } from './dataService';
+import { IEnrichedReport } from './dataService'; 
 import { UserNotFoundError } from '@/app/lib/errors';
-import { IUser } from '@/app/models/User';
+import { IUser, AlertDetails } from '@/app/models/User'; 
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { sendWhatsAppMessage } from '@/app/lib/whatsappService';
 import { functionExecutors } from '@/app/lib/aiFunctions';
-import { getFunAcknowledgementPrompt } from './funAcknowledgementPrompt'; // Importa o novo prompt (v1.2.0 ou superior)
+import { getFunAcknowledgementPrompt } from './funAcknowledgementPrompt'; 
+import { EnrichedAIContext } from '@/app/api/whatsapp/process-response/types';
 
 const pickRandom = <T>(arr: T[]): T => {
   if (arr.length === 0) throw new Error('pickRandom: array vazio');
@@ -30,27 +31,18 @@ const pickRandom = <T>(arr: T[]): T => {
   return item;
 };
 
-// Configurações existentes
 const CACHE_TTL_SECONDS = Number(process.env.CACHE_TTL_SECONDS) || 60 * 5;
 const STREAM_READ_TIMEOUT_MS = Number(process.env.STREAM_READ_TIMEOUT_MS) || 90_000;
 const HISTORY_LIMIT = Number(process.env.LLM_HISTORY_LIMIT) || 10;
 const SUMMARY_MAX_HISTORY_FOR_CONTEXT = 6;
-const GREETING_THRESHOLD_MILLISECONDS_CONSULTANT = (process.env.GREETING_THRESHOLD_HOURS_CONSULTANT ? parseInt(process.env.GREETING_THRESHOLD_HOURS_CONSULTANT) : 3) * 60 * 60 * 1000; // Exemplo: 3 horas
-
-
-interface EnrichedContext {
-    user: IUser;
-    historyMessages: ChatCompletionMessageParam[];
-    dialogueState?: stateService.IDialogueState;
-    userName: string; // Espera-se que seja o firstName do usuário
-}
+const GREETING_THRESHOLD_MILLISECONDS_CONSULTANT = (process.env.GREETING_THRESHOLD_HOURS_CONSULTANT ? parseInt(process.env.GREETING_THRESHOLD_HOURS_CONSULTANT) : 3) * 60 * 60 * 1000;
 
 async function generateDynamicAcknowledgement(
     firstName: string,
     userQuery: string,
     currentDialogueState: stateService.IDialogueState
 ): Promise<string | null> {
-    const TAG_ACK = '[generateDynamicAcknowledgement v4.7.8]'; // Versão atualizada
+    const TAG_ACK = '[generateDynamicAcknowledgement v4.7.8]'; 
     const queryExcerpt = userQuery.length > 35 ? `${userQuery.substring(0, 32)}...` : userQuery;
     logger.info(`${TAG_ACK} Gerando reconhecimento dinâmico via IA para ${firstName} sobre: "${queryExcerpt}"`);
 
@@ -73,18 +65,12 @@ async function generateDynamicAcknowledgement(
 
 export async function getConsultantResponse(
     fromPhone: string,
-    incoming: string
+    incoming: string 
 ): Promise<string> {
-    const TAG = '[consultantService v4.7.8]'; // ATUALIZADO: Versão
+    const TAG = '[consultantService v4.7.10]'; 
     const start = Date.now();
-    const rawText = incoming;
-    logger.info(`${TAG} ⇢ ${fromPhone.slice(-4)}… «${rawText.slice(0, 40)}»`);
-
-    const norm = normalizeText(rawText.trim());
-    if (!norm) {
-        logger.warn(`${TAG} Mensagem normalizada vazia.`);
-        return `${getRandomGreeting('')} Pode repetir, por favor? Não entendi bem.`;
-    }
+    let rawText = incoming; 
+    logger.info(`${TAG} ⇢ ${fromPhone.slice(-4)}… «${rawText.slice(0, 100)}»`);
 
     let user: IUser;
     let uid: string;
@@ -92,10 +78,9 @@ export async function getConsultantResponse(
     let greeting: string;
     let currentDialogueState: stateService.IDialogueState = {};
 
-    // CORREÇÃO: Separar try/catch para lookupUser e getDialogueState
     try {
         user = await dataService.lookupUser(fromPhone);
-        uid = user._id.toString(); // uid é atribuído aqui
+        uid = user._id.toString(); 
         const fullName = user.name || 'criador';
         firstName = fullName.split(' ')[0]!;
         greeting = getRandomGreeting(firstName);
@@ -105,21 +90,42 @@ export async function getConsultantResponse(
         if (e instanceof UserNotFoundError) {
             return 'Olá! Parece que é nosso primeiro contato por aqui. Para começar, preciso fazer seu cadastro rápido. Pode me confirmar seu nome completo, por favor?';
         }
-        // Para qualquer outro erro no lookupUser, retorna uma mensagem genérica.
         return 'Tive um problema ao buscar seus dados de usuário. Poderia tentar novamente em instantes? Se persistir, fale com o suporte. 🙏';
     }
 
-    // Se chegou aqui, 'user', 'uid', 'firstName', e 'greeting' estão atribuídos.
     try {
         currentDialogueState = await stateService.getDialogueState(uid);
         logger.debug(`${TAG} Estado carregado: ${JSON.stringify(currentDialogueState)}`);
     } catch (e: any) {
         logger.error(`${TAG} Erro ao buscar estado do Redis para User ${uid}:`, e);
-        // Continua com currentDialogueState vazio, pois o usuário já foi carregado.
-        // A ausência do estado do diálogo não é fatal para continuar a interação básica.
+    }
+    
+    let determinedIntent: DeterminedIntent | null = null;
+    let responseTextForSpecialHandled: string | null = null;
+    let pendingActionContextFromIntent: any = null;
+    let parsedAlertDetails: AlertDetails | undefined = undefined;
+    let textForNormalization = rawText; 
+
+    try {
+        const potentialPayload = JSON.parse(rawText);
+        if (potentialPayload && typeof potentialPayload.messageForAI === 'string' && typeof potentialPayload.alertDetails === 'object') {
+            logger.info(`${TAG} 'incoming' parece ser um payload de alerta JSON.`);
+            textForNormalization = potentialPayload.messageForAI; 
+            if (potentialPayload.alertDetails) {
+                 parsedAlertDetails = potentialPayload.alertDetails as AlertDetails;
+            }
+        }
+    } catch (e) {
+        logger.debug(`${TAG} 'incoming' não é um payload de alerta JSON válido, tratando como texto de usuário.`);
     }
 
-    const cacheKey = `resp:${fromPhone}:${norm.slice(0, 100)}`;
+    const norm = normalizeText(textForNormalization.trim()); 
+    if (!norm && !parsedAlertDetails) { 
+        logger.warn(`${TAG} Mensagem normalizada vazia e sem detalhes de alerta parseados.`);
+        return `${getRandomGreeting('')} Pode repetir, por favor? Não entendi bem.`;
+    }
+
+    const cacheKey = `resp:${fromPhone}:${norm.slice(0, 100)}`; 
     try {
         const cached = await stateService.getFromCache(cacheKey);
         if (cached) { logger.info(`${TAG} (cache hit) ${Date.now() - start} ms`); return cached; }
@@ -127,13 +133,8 @@ export async function getConsultantResponse(
     } catch (cacheError) { logger.error(`${TAG} Erro ao buscar do cache Redis:`, cacheError); }
 
     let intentResult: IntentResult;
-    let determinedIntent: DeterminedIntent | null = null;
-    let responseTextForSpecialHandled: string | null = null;
-    let pendingActionContextFromIntent: any = null;
-
     try {
-        // 'user' está garantido como atribuído aqui.
-        intentResult = await determineIntent(norm, user, rawText, currentDialogueState, greeting, uid);
+        intentResult = await determineIntent(norm, user, textForNormalization, currentDialogueState, greeting, uid); 
         if (intentResult.type === 'special_handled') {
             logger.info(`${TAG} Intenção tratada como caso especial pela intentService.`);
             responseTextForSpecialHandled = intentResult.response;
@@ -146,11 +147,15 @@ export async function getConsultantResponse(
         }
     } catch (intentError) {
         logger.error(`${TAG} Erro ao determinar intenção:`, intentError);
-        determinedIntent = 'general';
+        determinedIntent = 'general'; 
     }
+    
+    let effectiveIncomingText = textForNormalization; 
+    let effectiveIntent = determinedIntent as DeterminedIntent;
+
 
     if (responseTextForSpecialHandled) {
-        const userMessageForHistory: ChatCompletionMessageParam = { role: 'user', content: rawText };
+        const userMessageForHistory: ChatCompletionMessageParam = { role: 'user', content: textForNormalization };
         const assistantResponseForHistory: ChatCompletionMessageParam = { role: 'assistant', content: responseTextForSpecialHandled };
         const currentHistory = await stateService.getConversationHistory(uid).catch(() => []);
         const updatedHistory = [...currentHistory, userMessageForHistory, assistantResponseForHistory].slice(-HISTORY_LIMIT);
@@ -168,17 +173,16 @@ export async function getConsultantResponse(
     const lastInteractionTime = currentDialogueState.lastInteraction || 0;
 
     if (lastInteractionTime !== 0 && (now - lastInteractionTime) < GREETING_THRESHOLD_MILLISECONDS_CONSULTANT) {
-        logger.info(`${TAG} Interação recente (${((now - lastInteractionTime) / 1000 / 60).toFixed(1)} min via currentDialogueState). Pulando quebra-gelo dinâmico.`);
+        logger.info(`${TAG} Interação recente. Pulando quebra-gelo dinâmico.`);
         shouldSendDynamicAck = false;
     } else if (lastInteractionTime === 0) {
-        logger.info(`${TAG} currentDialogueState.lastInteraction não definido ou zero. Enviando quebra-gelo.`);
+        logger.info(`${TAG} Primeira interação ou interação antiga. Enviando quebra-gelo.`);
     }
-
 
     const isLightweightQuery = determinedIntent === 'social_query' || determinedIntent === 'meta_query_personal' || determinedIntent === 'generate_proactive_alert';
     if (shouldSendDynamicAck && !isLightweightQuery && determinedIntent !== 'user_confirms_pending_action' && determinedIntent !== 'user_denies_pending_action' && determinedIntent !== 'greeting') {
         try {
-            const dynamicAckMessage = await generateDynamicAcknowledgement(firstName, rawText, currentDialogueState);
+            const dynamicAckMessage = await generateDynamicAcknowledgement(firstName, textForNormalization, currentDialogueState); // Usar textForNormalization
             if (dynamicAckMessage) {
                 logger.debug(`${TAG} Enviando reconhecimento dinâmico (gerado por IA) para ${fromPhone}: "${dynamicAckMessage}"`);
                 await sendWhatsAppMessage(fromPhone, dynamicAckMessage);
@@ -193,11 +197,7 @@ export async function getConsultantResponse(
             logger.debug(`${TAG} Pulando quebra-gelo dinâmico para intenção: ${determinedIntent}`);
         }
     }
-
-
-    let effectiveIncomingText = rawText;
-    let effectiveIntent = determinedIntent as DeterminedIntent;
-
+    
     if (determinedIntent === 'user_confirms_pending_action') {
         logger.info(`${TAG} Usuário confirmou ação pendente. Contexto original: ${JSON.stringify(pendingActionContextFromIntent)}`);
         if (currentDialogueState.lastAIQuestionType === 'confirm_fetch_day_stats' && pendingActionContextFromIntent?.originalUserQuery) {
@@ -206,11 +206,11 @@ export async function getConsultantResponse(
         } else if (currentDialogueState.lastAIQuestionType === 'clarify_community_inspiration_objective' && pendingActionContextFromIntent) {
             const originalProposal = (pendingActionContextFromIntent as any)?.proposal || "um tema relevante";
             const originalContext = (pendingActionContextFromIntent as any)?.context || "uma abordagem específica";
-            effectiveIncomingText = `Para a inspiração sobre proposta '${originalProposal}' e contexto '${originalContext}', confirmo que quero focar em '${rawText.trim()}'. Por favor, busque exemplos.`;
+            effectiveIncomingText = `Para a inspiração sobre proposta '${originalProposal}' e contexto '${originalContext}', confirmo que quero focar em '${textForNormalization.trim()}'. Por favor, busque exemplos.`;
             effectiveIntent = 'ask_community_inspiration';
         } else if (pendingActionContextFromIntent?.originalSuggestion) {
              effectiveIncomingText = `Sim, pode prosseguir com: "${pendingActionContextFromIntent.originalSuggestion}"`;
-             effectiveIntent = 'general';
+             effectiveIntent = 'general'; 
         } else {
             effectiveIncomingText = "Sim, por favor, prossiga.";
             effectiveIntent = 'general';
@@ -222,7 +222,7 @@ export async function getConsultantResponse(
         await stateService.clearPendingActionState(uid);
         const denialResponse = pickRandom(["Entendido. Como posso te ajudar então?", "Ok. O que você gostaria de fazer a seguir?", "Sem problemas. Em que mais posso ser útil hoje?"]);
 
-        const userMessageForHistory: ChatCompletionMessageParam = { role: 'user', content: rawText };
+        const userMessageForHistory: ChatCompletionMessageParam = { role: 'user', content: textForNormalization }; 
         const assistantResponseForHistory: ChatCompletionMessageParam = { role: 'assistant', content: denialResponse };
         const currentHistory = await stateService.getConversationHistory(uid).catch(() => []);
         const updatedHistory = [...currentHistory, userMessageForHistory, assistantResponseForHistory].slice(-HISTORY_LIMIT);
@@ -230,10 +230,10 @@ export async function getConsultantResponse(
         await stateService.updateDialogueState(uid, { lastInteraction: Date.now() });
 
         return denialResponse;
-    } else if (currentDialogueState.lastAIQuestionType) {
+    } else if (currentDialogueState.lastAIQuestionType && determinedIntent !== 'generate_proactive_alert') { 
         logger.info(`${TAG} Usuário não respondeu diretamente à ação pendente (${currentDialogueState.lastAIQuestionType}). Limpando estado pendente.`);
         await stateService.clearPendingActionState(uid);
-        currentDialogueState = await stateService.getDialogueState(uid);
+        currentDialogueState = await stateService.getDialogueState(uid); 
     }
 
     let historyForAI: ChatCompletionMessageParam[] = [];
@@ -243,7 +243,6 @@ export async function getConsultantResponse(
     });
 
     if (currentDialogueState.conversationSummary && currentDialogueState.conversationSummary.trim() !== "") {
-        logger.debug(`${TAG} Utilizando resumo da conversa no contexto da IA: "${currentDialogueState.conversationSummary.substring(0,100)}..."`);
         historyForAI.push({
             role: 'system',
             content: `Resumo da conversa até este ponto (use para contexto, mas foque nas mensagens mais recentes para a resposta atual): ${currentDialogueState.conversationSummary}`
@@ -252,36 +251,57 @@ export async function getConsultantResponse(
     } else {
         historyForAI.push(...rawHistoryMessages.slice(-HISTORY_LIMIT));
     }
-
-    const enrichedContext: EnrichedContext = {
-        user, // 'user' está garantido como atribuído aqui
+    
+    const enrichedContext: EnrichedAIContext = {
+        user,
         historyMessages: historyForAI,
-        dialogueState: currentDialogueState,
-        userName: firstName
+        dialogueState: currentDialogueState, 
+        userName: firstName,
+        currentAlertDetails: parsedAlertDetails 
     };
 
     let finalText = '';
     let historyPromise: Promise<ChatCompletionMessageParam[]> | null = null;
+    // ----- MODIFICAÇÃO PRINCIPAL AQUI: Declaração de reader e streamTimeout -----
     let reader: ReadableStreamDefaultReader<string> | null = null;
     let streamTimeout: NodeJS.Timeout | null = null;
+    // ----- FIM DA MODIFICAÇÃO -----
 
     try {
-        logger.debug(`${TAG} Chamando askLLMWithEnrichedContext (intenção: ${effectiveIntent}). Texto efetivo: ${effectiveIncomingText.slice(0,50)}`);
+        logger.debug(`${TAG} Chamando askLLMWithEnrichedContext (intenção: ${effectiveIntent}). EffectiveIncomingText: "${effectiveIncomingText.slice(0,50)}". CurrentAlertDetails: ${enrichedContext.currentAlertDetails ? 'Presente' : 'Ausente'}`);
         const { stream, historyPromise: hp } = await askLLMWithEnrichedContext(
-            enrichedContext,
-            effectiveIncomingText,
-            effectiveIntent
+            enrichedContext, 
+            effectiveIncomingText, 
+            effectiveIntent! 
         );
         historyPromise = hp;
 
-        reader = stream.getReader();
-        streamTimeout = setTimeout(() => { logger.warn(`${TAG} Timeout stream read...`); streamTimeout = null; reader?.cancel().catch(()=>{/*ignore*/}); }, STREAM_READ_TIMEOUT_MS);
+        reader = stream.getReader(); // Agora reader está declarado
+        streamTimeout = setTimeout(() => { 
+            logger.warn(`${TAG} Timeout stream read...`); 
+            streamTimeout = null; 
+            if (reader) { // Checar se reader existe antes de chamar cancel
+                reader.cancel().catch(()=>{/*ignore*/}); 
+            }
+        }, STREAM_READ_TIMEOUT_MS);
 
         while (true) {
              let value: string | undefined; let done: boolean | undefined;
-             try { const result = await reader.read(); if (streamTimeout === null && !result.done) { continue; } value = result.value; done = result.done; }
-             catch (readError: any) { logger.error(`${TAG} Erro reader.read(): ${readError.message}`); if (streamTimeout) clearTimeout(streamTimeout); streamTimeout = null; throw new Error(`Erro stream read: ${readError.message}`); }
-             if (done) { break; } if (typeof value === 'string') { finalText += value; } else { logger.warn(`${TAG} 'value' undefined mas 'done' false.`); }
+             try { 
+                 const result = await reader.read(); 
+                 if (streamTimeout === null && !result.done) { continue; } 
+                 value = result.value; 
+                 done = result.done; 
+             }
+             catch (readError: any) { 
+                 logger.error(`${TAG} Erro reader.read(): ${readError.message}`); 
+                 if (streamTimeout) clearTimeout(streamTimeout); 
+                 streamTimeout = null; 
+                 throw new Error(`Erro stream read: ${readError.message}`); 
+             }
+             if (done) { break; } 
+             if (typeof value === 'string') { finalText += value; } 
+             else { logger.warn(`${TAG} 'value' undefined mas 'done' false.`); }
         }
         if (streamTimeout) { clearTimeout(streamTimeout); streamTimeout = null; }
         logger.debug(`${TAG} Texto final montado: ${finalText.length} chars.`);
@@ -300,7 +320,7 @@ export async function getConsultantResponse(
     try {
          logger.debug(`${TAG} Iniciando persistência no Redis (básica)...`);
          const nextStateToSave: Partial<stateService.IDialogueState> = {
-             ...currentDialogueState,
+             ...currentDialogueState, 
              lastInteraction: Date.now()
          };
 
@@ -310,6 +330,12 @@ export async function getConsultantResponse(
              try {
                  finalHistoryForSaving = await historyPromise;
                  logger.debug(`${TAG} historyPromise resolvida com ${finalHistoryForSaving.length} mensagens.`);
+                 const lastAiMessage = finalHistoryForSaving[finalHistoryForSaving.length -1];
+                 if (lastAiMessage && lastAiMessage.role === 'assistant' && (lastAiMessage as any).dialogueStateUpdates) {
+                     Object.assign(nextStateToSave, (lastAiMessage as any).dialogueStateUpdates);
+                     logger.debug(`${TAG} Estado do diálogo atualizado a partir da resposta da IA.`);
+                 }
+
              } catch (historyError) {
                  logger.error(`${TAG} Erro ao obter histórico final da historyPromise. Montando fallback:`, historyError);
                  finalHistoryForSaving = [...rawHistoryMessages.slice(-HISTORY_LIMIT + 2), {role: 'user', content: effectiveIncomingText}, {role: 'assistant', content: finalText}];
@@ -318,6 +344,8 @@ export async function getConsultantResponse(
              logger.warn(`${TAG} historyPromise não encontrada para salvar histórico. Montando fallback.`);
              finalHistoryForSaving = [...rawHistoryMessages.slice(-HISTORY_LIMIT + 2), {role: 'user', content: effectiveIncomingText}, {role: 'assistant', content: finalText}];
          }
+         
+        // ... (lógica de atualização de estado e persistência)
 
          const persistencePromises = [
              stateService.updateDialogueState(uid, nextStateToSave),
@@ -341,7 +369,7 @@ export async function generateStrategicWeeklySummary(
   userName: string,
   userId: string
 ): Promise<string> {
-    const TAG = '[weeklySummary v4.7.8]'; // Versão atualizada
+    const TAG = '[weeklySummary v4.7.8]'; 
     let reportData: unknown;
     let overallStatsForPrompt: unknown = null;
     let userFirstNameForPrompt = userName;
@@ -356,7 +384,6 @@ export async function generateStrategicWeeklySummary(
         } else if (!userName && !lookedUpUser.name) {
             userFirstNameForPrompt = 'usuário';
         }
-
 
         const getAggregatedReportExecutor = functionExecutors.getAggregatedReport;
         if (!getAggregatedReportExecutor) {

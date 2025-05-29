@@ -1,12 +1,14 @@
 // @/app/lib/fallbackInsightService/fallbackInsight.types.ts
+// v1.1.1 (Remove tentativa incorreta de importar DailySnapshot de dataService)
 import type { IUser } from '@/app/models/User';
 import type { IMetric, IMetricStats as DirectIMetricStatsOriginal } from '@/app/models/Metric';
-import type { Types } from 'mongoose'; // Import Types for ObjectId
+import type { Types } from 'mongoose';
 import type {
     IEnrichedReport as OriginalEnrichedReport,
     IAccountInsight as OriginalAccountInsight,
-    PostObject as OriginalPostObject,
+    PostObject as OriginalPostObjectFromDataService,
     HistoricalGrowth as OriginalHistoricalGrowth,
+    // DailySnapshot as OriginalDailySnapshotFromDataService, // LINHA REMOVIDA - DailySnapshot é definido localmente
 } from '@/app/lib/dataService';
 import type {
     DayOfWeekStat as OriginalDayOfWeekStat,
@@ -19,24 +21,22 @@ import type {
 } from '@/app/lib/stateService';
 import { FallbackInsightType as OriginalFallbackInsightType } from '@/app/lib/constants';
 
+import type {
+    FormatType as CommunityFormatType,
+    ProposalType as CommunityProposalType,
+    ContextType as CommunityContextType,
+    QualitativeObjectiveType as CommunityQualitativeObjectiveType,
+    PerformanceHighlightType as CommunityPerformanceHighlightType
+} from '@/app/lib/constants/communityInspirations.constants';
+
 /**
- * Define a estrutura esperada para os snapshots diários de métricas,
- * alinhada com IDailyMetricSnapshot de DailyMetricSnapshot.ts.
- * Esta interface é baseada nas propriedades acessadas nas funções geradoras de insight
- * e agora expandida para incluir todas as métricas disponíveis.
+ * Define a estrutura esperada para os snapshots diários de métricas.
+ * Esta interface é baseada nas propriedades acessadas nas funções geradoras de insight.
  */
 export interface DailySnapshot {
-  // Campos de IDailyMetricSnapshot
-  metric?: Types.ObjectId | IMetricModel; // Referência à métrica original
-  date?: Date; // Data do snapshot
-
-  /**
-   * O número do dia do snapshot em relação à data de criação do post original.
-   * Ex: Dia 1, Dia 2, etc. Começa em 1.
-   */
+  metric?: Types.ObjectId | IMetricModel;
+  date?: Date;
   dayNumber?: number;
-
-  // --- Métricas DELTA (Variação *NAQUELE DIA*) ---
   dailyViews?: number;
   dailyLikes?: number;
   dailyComments?: number;
@@ -45,10 +45,8 @@ export interface DailySnapshot {
   dailyReach?: number;
   dailyFollows?: number;
   dailyProfileVisits?: number;
-  dailyReelsVideoViewTotalTime?: number; // Delta diário do tempo total de visualização de Reels
-  dailyImpressions?: number; // Mantido, embora não explicitamente em IDailyMetricSnapshot como delta, mas usado
-
-  // --- Métricas CUMULATIVAS (Total *ATÉ O FINAL* daquele dia) ---
+  dailyReelsVideoViewTotalTime?: number;
+  dailyImpressions?: number;
   cumulativeViews?: number;
   cumulativeLikes?: number;
   cumulativeComments?: number;
@@ -59,24 +57,16 @@ export interface DailySnapshot {
   cumulativeProfileVisits?: number;
   cumulativeTotalInteractions?: number;
   cumulativeReelsVideoViewTotalTime?: number;
-
-  // --- Métricas PONTUAIS/MÉDIAS (Valor do dia) ---
-  currentReelsAvgWatchTime?: number; // Tempo médio de visualização de Reels
-
-  // Adicione outras propriedades de snapshot diário conforme necessário
-  // Se alguma métrica delta do IDailyMetricSnapshot não estiver aqui e for necessária,
-  // ela deve ser adicionada.
+  currentReelsAvgWatchTime?: number;
 }
 
-// Reexportando ou redefinindo tipos para uso interno do serviço de fallback
 export type IUserModel = IUser;
-export type IMetricModel = IMetric; // IMetric é a interface de Metric.ts
+export type IMetricModel = IMetric;
 export type IMetricStats = DirectIMetricStatsOriginal;
 export type IEnrichedReport = OriginalEnrichedReport;
 export type IAccountInsight = OriginalAccountInsight;
-export type PostObject = OriginalPostObject;
+export type PostObject = OriginalPostObjectFromDataService;
 export type HistoricalGrowth = OriginalHistoricalGrowth;
-// DailySnapshot é agora definido localmente acima e otimizado
 export type DayOfWeekStat = OriginalDayOfWeekStat;
 export type DetailedContentStat = OriginalDetailedContentStat;
 export type DurationStat = OriginalDurationStat;
@@ -84,12 +74,13 @@ export type IDialogueState = OriginalDialogueState;
 export type IFallbackInsightHistoryEntry = OriginalHistoryEntry;
 export type FallbackInsightType = OriginalFallbackInsightType;
 
-/**
- * Representa um insight potencial que pode ser gerado.
- */
+export type FormatType = CommunityFormatType;
+export type ProposalType = CommunityProposalType;
+export type ContextType = CommunityContextType;
+export type QualitativeObjectiveType = CommunityQualitativeObjectiveType;
+export type PerformanceHighlightType = CommunityPerformanceHighlightType;
+
 export interface PotentialInsight {
     text: string;
     type: FallbackInsightType;
 }
-
-// Adicione quaisquer outros tipos específicos que possam surgir durante a refatoração.

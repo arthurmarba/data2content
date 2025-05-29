@@ -1,11 +1,12 @@
 // src/app/lib/ruleEngine/rules/engagementPeakNotCapitalizedRule.ts
+// MODIFICADO: v2.1 - Adicionado platformPostId aos details do evento.
 // MODIFICADO: v2 - Corrigida métrica para 'comments' de stats e tratamento de null.
 // MODIFICADO: Adicionado log de versão para depuração.
 // MODIFICADO: Atualizado para usar post.postDate e tratamento seguro de datas.
 
 import { IRule, RuleContext, RuleConditionResult } from '../types';
 import { DetectedEvent } from '@/app/api/whatsapp/process-response/types'; 
-import { IEngagementPeakNotCapitalizedDetails } from '@/app/models/User'; 
+import { IEngagementPeakNotCapitalizedDetails } from '@/app/models/User'; // IEngagementPeakNotCapitalizedDetails já tem platformPostId?
 import { logger } from '@/app/lib/logger';
 import { parseISO, differenceInDays, isValid as isValidDate } from 'date-fns';
 import {
@@ -14,20 +15,17 @@ import {
     ENGAGEMENT_PEAK_MIN_ABSOLUTE_COMMENTS,
     ENGAGEMENT_PEAK_COMMENT_MULTIPLIER,
 } from '@/app/lib/constants';
-// MODIFICADO: IMetricStats importado de @/app/models/Metric
 import { IMetricStats } from '@/app/models/Metric'; 
-import { PostObjectForAverage, calculateAverageMetric } from '@/app/lib/utils';
+import { PostObjectForAverage, calculateAverageMetric } from '@/app/lib/utils'; // PostObjectForAverage agora tem instagramMediaId?
 
 const RULE_ID = 'engagement_peak_not_capitalized_v1';
 const RULE_TAG_BASE = `[Rule:${RULE_ID}]`;
 const HISTORICAL_COMMENT_AVG_LOOKBACK_DAYS = 60;
-// MODIFICADO: Definindo a métrica correta a ser usada de IMetricStats
 const METRIC_FOR_COMMENTS: keyof IMetricStats = 'comments';
 
 function getValidDate(dateInput: Date | string | undefined, postId?: string, tag?: string): Date | null {
     const logTag = tag || RULE_TAG_BASE;
     if (!dateInput) {
-        // Removido log verboso, já que é comum posts não terem data ou a regra pular
         return null;
     }
     if (dateInput instanceof Date) {
@@ -61,7 +59,7 @@ export const engagementPeakNotCapitalizedRule: IRule = {
 
     condition: async (context: RuleContext): Promise<RuleConditionResult> => {
         const { user, allUserPosts, today } = context;
-        const currentRuleVersion = "engagementPeakNotCapitalizedRule_v_CANVAS_METRIC_FIX_26_05_04_30"; // Nova string de versão
+        const currentRuleVersion = "engagementPeakNotCapitalizedRule_v2.1_CANVAS_PLATFORMPOSTID"; 
         const detectionTAG = `${RULE_TAG_BASE} (${currentRuleVersion})[condition] User ${user._id}:`;
         logger.info(`${detectionTAG} INICIANDO EXECUÇÃO DA REGRA`);
         logger.debug(`${detectionTAG} Avaliando condição... Usando métrica: ${METRIC_FOR_COMMENTS}`);
@@ -70,7 +68,6 @@ export const engagementPeakNotCapitalizedRule: IRule = {
             .map(post => ({ post, postDateObj: getValidDate(post.postDate, post._id, detectionTAG) })) 
             .filter(item => {
                 if (!item.postDateObj) return false;
-                // Adicionado cheque de item.post.stats
                 if (!item.post.stats) {
                     logger.warn(`${detectionTAG} Post ${item.post._id} sem 'stats', pulando na filtragem de postsToCheck.`);
                     return false;
@@ -79,7 +76,6 @@ export const engagementPeakNotCapitalizedRule: IRule = {
                 return ageInDays >= ENGAGEMENT_PEAK_POST_AGE_MIN_DAYS && ageInDays <= ENGAGEMENT_PEAK_POST_AGE_MAX_DAYS;
             })
             .sort((a,b) => { 
-                // MODIFICADO: Ordenar por post.stats.comments
                 const commentsA = Number(a.post.stats?.[METRIC_FOR_COMMENTS] || 0);
                 const commentsB = Number(b.post.stats?.[METRIC_FOR_COMMENTS] || 0);
                 return commentsB - commentsA;
@@ -96,7 +92,6 @@ export const engagementPeakNotCapitalizedRule: IRule = {
             .map(post => ({ post, postDateObj: getValidDate(post.postDate, post._id, detectionTAG) })) 
             .filter(item => {
                 if (!item.postDateObj) return false;
-                 // Adicionado cheque de item.post.stats
                 if (!item.post.stats) {
                     logger.warn(`${detectionTAG} Post ${item.post._id} sem 'stats', pulando na filtragem de historicalPostsForAvg.`);
                     return false;
@@ -110,7 +105,6 @@ export const engagementPeakNotCapitalizedRule: IRule = {
             return { isMet: false }; 
         }
         
-        // MODIFICADO: Usar METRIC_FOR_COMMENTS e a função extratora
         const metricExtractor = (p: PostObjectForAverage): number | undefined => {
             const value = p.stats?.[METRIC_FOR_COMMENTS];
             if (typeof value === 'number' && !isNaN(value)) {
@@ -123,17 +117,13 @@ export const engagementPeakNotCapitalizedRule: IRule = {
             metricExtractor 
         );
 
-        // MODIFICADO: Tratamento de null para averageComments
         if (averageComments === null) {
             logger.warn(`${detectionTAG} Média histórica de comentários (${METRIC_FOR_COMMENTS}) não pôde ser calculada (calculateAverageMetric retornou null).`);
             return { isMet: false };
         }
-        // Se averageComments for 0, a lógica subsequente de comparação ainda é válida.
         logger.debug(`${detectionTAG} Média histórica de comentários (${METRIC_FOR_COMMENTS}): ${averageComments.toFixed(1)} (baseado em ${historicalPostsForAvg.length} posts).`);
 
         for (const post of postsToCheck) {
-            // post.stats já foi checado no filter de postsToCheck
-            // MODIFICADO: Usar post.stats.comments
             const postComments = Number(post.stats?.[METRIC_FOR_COMMENTS] || 0);
 
             if (postComments >= ENGAGEMENT_PEAK_MIN_ABSOLUTE_COMMENTS && postComments > averageComments * ENGAGEMENT_PEAK_COMMENT_MULTIPLIER) {
@@ -141,9 +131,9 @@ export const engagementPeakNotCapitalizedRule: IRule = {
                 return {
                     isMet: true,
                     data: {
-                        post: post as PostObjectForAverage,
+                        post: post as PostObjectForAverage, // post é PostObjectForAverage e deve ter instagramMediaId
                         postComments,
-                        averageComments // Já sabemos que não é null aqui
+                        averageComments 
                     }
                 };
             }
@@ -160,17 +150,19 @@ export const engagementPeakNotCapitalizedRule: IRule = {
             return null;
         }
 
-        const post = conditionData.post as PostObjectForAverage;
+        const post = conditionData.post as PostObjectForAverage; // post agora tem instagramMediaId?
         const postComments = conditionData.postComments as number;
         const averageComments = conditionData.averageComments as number;
         
-        logger.info(`${actionTAG} Gerando evento para post ${post._id}.`);
+        logger.info(`${actionTAG} Gerando evento para post ${post._id}. InstagramMediaId: ${post.instagramMediaId}`);
 
+        // Usando post.description que foi adicionado a PostObjectForAverage
         const postDescriptionExcerptText = post.description ? post.description.substring(0, 70) : undefined;
         const postDescriptionForAI = post.description ? `"${post.description.substring(0, 70)}..."` : "um post recente";
 
         const details: IEngagementPeakNotCapitalizedDetails = {
             postId: post._id,
+            platformPostId: post.instagramMediaId, // <-- MODIFICAÇÃO PRINCIPAL AQUI
             postDescriptionExcerpt: postDescriptionExcerptText,
             comments: postComments,
             averageComments: averageComments, 
@@ -185,7 +177,7 @@ export const engagementPeakNotCapitalizedRule: IRule = {
         return {
             type: RULE_ID,
             messageForAI,
-            detailsForLog: details
+            detailsForLog: details // detailsForLog já aceita IEngagementPeakNotCapitalizedDetails com platformPostId
         };
     }
 };

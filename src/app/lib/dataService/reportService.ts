@@ -1,4 +1,5 @@
 // @/app/lib/dataService/reportService.ts
+// MODIFICADO: v2.14.21 - Ajustado nome do campo para instagramMediaId em getRecentPostObjectsWithAggregatedMetrics.
 // MODIFICADO: v2.14.20 (ou superior) - Adicionada atribuição de aggregatedReport.dayOfWeekStats para enrichedReport.dayOfWeekStats.
 // Baseado na v2.14.19 que você tem, com a adição necessária.
 
@@ -14,22 +15,23 @@ import DailyMetricSnapshotModel, { IDailyMetricSnapshot } from '@/app/models/Dai
 import {
     buildAggregatedReport,
     AggregatedReport,
-    DayOfWeekStat // Importar DayOfWeekStat se não estiver já em types.ts ou se IEnrichedReport precisar dele diretamente
+    DayOfWeekStat 
 } from '@/app/lib/reportHelpers';
 
 import { connectToDatabase } from './connection';
 import { DEFAULT_METRICS_FETCH_DAYS } from './constants';
 // Certifique-se que IEnrichedReport em types.ts tem dayOfWeekStats?: DayOfWeekStat[];
+// Assumindo que PostObject aqui virá a ter instagramMediaId ou será compatível com PostObjectForAverage
 import { IUser, IEnrichedReport, PreparedData, ReferenceSearchResult, IGrowthDataResult, PostObject } from './types'; 
 import { getUserProfileSegment, getMultimediaSuggestion, getCombinedGrowthData } from './helpers';
 
-const SERVICE_TAG = '[dataService][reportService]'; // Tag genérica para o serviço
+const SERVICE_TAG = '[dataService][reportService v2.14.21]'; // Tag genérica para o serviço
 
 export async function fetchAndPrepareReportData(
     { user, analysisSinceDate }: { user: IUser; analysisSinceDate?: Date; }
 ): Promise<PreparedData> {
     const userId = user._id instanceof Types.ObjectId ? user._id : new Types.ObjectId(user._id);
-    const currentVersionTag = "v2.14.20"; // Marcar a versão da lógica desta função
+    const currentVersionTag = "v2.14.20"; 
     const TAG = `${SERVICE_TAG}[fetchAndPrepareReportData ${currentVersionTag}]`;
     const sinceDate = analysisSinceDate || subDays(new Date(), DEFAULT_METRICS_FETCH_DAYS);
 
@@ -60,36 +62,27 @@ export async function fetchAndPrepareReportData(
     try {
         await connectToDatabase();
         logger.debug(`${TAG} Gerando relatório agregado (usando buildAggregatedReport) para ${userId} desde ${sinceDate.toISOString()}...`);
-        // Passando MetricModel explicitamente, como feito em reportHelpers
         aggregatedReport = await buildAggregatedReport(userId, sinceDate, MetricModel as Model<IMetric>);
         logger.info(`${TAG} Relatório agregado gerado com sucesso para ${userId}. Posts no relatório: ${aggregatedReport?.overallStats?.totalPosts ?? 'N/A'}`);
 
         if (!aggregatedReport || !aggregatedReport.overallStats || aggregatedReport.overallStats.totalPosts === 0) {
              const daysAnalyzed = differenceInDays(new Date(), sinceDate);
              logger.warn(`${TAG} Nenhum dado encontrado nos últimos ${daysAnalyzed} dias para gerar relatório para ${userId}. overallStats: ${JSON.stringify(aggregatedReport?.overallStats)}`);
-             // Não lançar erro aqui, permitir que o fallback lide com relatório vazio se necessário,
-             // mas o enrichedReport pode ficar parcialmente vazio.
-             // Se for crítico, o erro pode ser relançado.
         }
     } catch (error: any) {
         logger.error(`${TAG} Erro ao gerar relatório agregado para ${userId} desde ${sinceDate.toISOString()}:`, error);
-        // Se o erro for específico de métricas não encontradas, pode ser tratado de forma diferente
-        // Por agora, vamos permitir que um relatório vazio/parcial seja construído.
-        // throw new ReportAggregationError(`Falha ao processar as suas métricas para gerar o relatório: ${error instanceof Error ? error.message : String(error)}`);
-        aggregatedReport = { overallStats: { _id: null, totalPosts: 0 }}; // Fallback para um relatório mínimo
+        aggregatedReport = { overallStats: { _id: null, totalPosts: 0 }}; 
     }
 
     logger.debug(`${TAG} Montando relatório enriquecido final para ${userId}`);
-    // Usar um lookback maior para recentPosts se o período de análise principal for curto, ou usar DEFAULT_METRICS_FETCH_DAYS
     const recentPostsLookback = Math.max(DEFAULT_METRICS_FETCH_DAYS, differenceInDays(new Date(), sinceDate));
-    const recentPostsData = await getRecentPostObjects(userId.toString(), recentPostsLookback);
+    const recentPostsData = await getRecentPostObjects(userId.toString(), recentPostsLookback); // Esta função também precisará de ajuste similar se usada pelas regras
 
     const enrichedReport: IEnrichedReport = {
         overallStats: aggregatedReport.overallStats,
-        // MODIFICADO: Adicionada a atribuição de dayOfWeekStats
         dayOfWeekStats: aggregatedReport.dayOfWeekStats, 
         profileSegment: getUserProfileSegment(user),
-        multimediaSuggestion: getMultimediaSuggestion(aggregatedReport), // Passar o aggregatedReport completo
+        multimediaSuggestion: getMultimediaSuggestion(aggregatedReport), 
         top3Posts: aggregatedReport.top3Posts,
         bottom3Posts: aggregatedReport.bottom3Posts,
         durationStats: aggregatedReport.durationStats,
@@ -105,9 +98,6 @@ export async function fetchAndPrepareReportData(
     return { enrichedReport };
 }
 
-// ... (resto do arquivo reportService.ts: extractReferenceAndFindPost, getLatestAggregatedReport, getRecentPostObjects, getRecentPostObjectsWithAggregatedMetrics, getDailySnapshotsForMetric, getTopPostsByMetric, getMetricDetails, findMetricsByCriteria) ...
-// Nenhuma alteração necessária nas outras funções deste arquivo para esta correção específica.
-// Apenas para garantir que o código completo seja fornecido, vou incluir as outras funções como estavam no seu arquivo original.
 
 export async function extractReferenceAndFindPost( text: string, userId: Types.ObjectId ): Promise<ReferenceSearchResult> {
     const fnTag = `${SERVICE_TAG}[extractReferenceAndFindPost]`;
@@ -193,7 +183,7 @@ export async function getRecentPostObjects(
     daysToLookback: number,
     filters?: { types?: Array<'IMAGE' | 'CAROUSEL' | 'REEL' | 'VIDEO' | 'STORY'>, excludeIds?: string[] }
 ): Promise<PostObject[]> {
-    const TAG = `${SERVICE_TAG}[getRecentPostObjects vUnchanged]`; 
+    const TAG = `${SERVICE_TAG}[getRecentPostObjects]`; 
     logger.debug(`${TAG} Buscando posts recentes para User ${userId}. Dias: ${daysToLookback}, Filtros: ${JSON.stringify(filters)}`);
 
     if (!mongoose.isValidObjectId(userId)) {
@@ -221,11 +211,15 @@ export async function getRecentPostObjects(
         const postsFromMetrics: IMetric[] = await MetricModel.find(query)
             .select('_id user instagramMediaId type description postDate stats format proposal context') 
             .sort({ postDate: -1 })
-            .limit(100) // Limite razoável para posts recentes
+            .limit(100) 
             .lean();
 
         logger.info(`${TAG} Encontrados ${postsFromMetrics.length} posts recentes para User ${userId}.`);
 
+        // Se esta função for usada por regras que precisam do instagramMediaId no formato de PostObjectForAverage,
+        // o campo aqui também deveria ser 'instagramMediaId'.
+        // Por ora, vou manter 'platformPostId' como no código original desta função,
+        // mas idealmente deveria ser padronizado se o tipo de retorno for usado pelas regras.
         return postsFromMetrics.map((metric): PostObject => {
             const potentialTags = [metric.format, metric.proposal, metric.context];
             const tags = potentialTags.filter(tag => 
@@ -236,10 +230,11 @@ export async function getRecentPostObjects(
                 tag.toLowerCase() !== 'desconhecido'
             ) as string[];
 
+            // Certifique-se que a interface PostObject (de ./types) inclui 'platformPostId' ou 'instagramMediaId'
             return {
                 _id: metric._id.toString(),
                 userId: metric.user.toString(),
-                platformPostId: metric.instagramMediaId,
+                platformPostId: metric.instagramMediaId, // Ou instagramMediaId: metric.instagramMediaId se padronizando
                 type: metric.type as PostObject['type'],
                 description: metric.description,
                 postDate: metric.postDate, 
@@ -259,8 +254,8 @@ export async function getRecentPostObjects(
 export async function getRecentPostObjectsWithAggregatedMetrics(
     userId: string,
     days: number
-): Promise<PostObject[]> {
-    const TAG = `${SERVICE_TAG}[getRecentPostObjectsWithAggregatedMetrics vUnchanged]`;
+): Promise<PostObject[]> { // Idealmente, este PostObject[] seria PostObjectForAverage[] de utils.ts
+    const TAG = `${SERVICE_TAG}[getRecentPostObjectsWithAggregatedMetrics]`;
     logger.info(`${TAG} Buscando posts com métricas agregadas para User ${userId} nos últimos ${days} dias.`);
 
     if (!mongoose.isValidObjectId(userId)) {
@@ -276,9 +271,9 @@ export async function getRecentPostObjectsWithAggregatedMetrics(
             user: new Types.ObjectId(userId),
             postDate: { $gte: sinceDate }
         })
-        .select('_id user instagramMediaId type description postDate stats format proposal context')
+        .select('_id user instagramMediaId type description postDate stats format proposal context') // instagramMediaId já está aqui
         .sort({ postDate: -1 })
-        .limit(150) // Limite razoável
+        .limit(150) 
         .lean();
 
         if (!recentMetrics || recentMetrics.length === 0) {
@@ -286,10 +281,7 @@ export async function getRecentPostObjectsWithAggregatedMetrics(
             return [];
         }
 
-        // A transformação para PostObject aqui é crucial.
-        // Os campos de primeiro nível como totalImpressions, totalEngagement
-        // são para conveniência, mas o objeto 'stats' completo também é passado.
-        const results: PostObject[] = recentMetrics.map((metric): PostObject => {
+        const results: PostObject[] = recentMetrics.map((metric): PostObject => { // Certifique-se que PostObject (de ./types) tem instagramMediaId?
             const potentialTags = [metric.format, metric.proposal, metric.context];
             const tags = potentialTags.filter(tag => 
                 typeof tag === 'string' && 
@@ -302,16 +294,14 @@ export async function getRecentPostObjectsWithAggregatedMetrics(
             return {
                 _id: metric._id.toString(),
                 userId: metric.user.toString(),
-                platformPostId: metric.instagramMediaId,
+                instagramMediaId: metric.instagramMediaId, // <-- MODIFICAÇÃO PRINCIPAL AQUI: nome do campo ajustado
                 type: metric.type as PostObject['type'],
                 description: metric.description,
                 postDate: metric.postDate, 
-                // Campos de atalho (podem ser depreciados se as regras usarem sempre 'stats')
                 totalImpressions: metric.stats?.impressions || 0,
-                totalEngagement: metric.stats?.engagement || 0, // Ou metric.stats?.total_interactions se for o padrão
+                totalEngagement: metric.stats?.engagement || 0, 
                 videoViews: metric.stats?.video_views || 0,
                 totalComments: metric.stats?.comments || 0,
-                // Objeto stats completo
                 stats: metric.stats,
                 format: metric.format,
                 proposal: metric.proposal,
@@ -332,7 +322,7 @@ export async function getDailySnapshotsForMetric(
     metricId: string,
     userIdForAuth: string
 ): Promise<IDailyMetricSnapshot[]> {
-    const TAG = `${SERVICE_TAG}[getDailySnapshotsForMetric vUnchanged]`;
+    const TAG = `${SERVICE_TAG}[getDailySnapshotsForMetric]`;
     logger.info(`${TAG} Buscando snapshots diários para Metric ID: ${metricId}, User Auth ID: ${userIdForAuth}`);
 
     if (!mongoose.isValidObjectId(metricId)) {
@@ -358,12 +348,12 @@ export async function getDailySnapshotsForMetric(
                 throw new MetricsNotFoundError("Não encontrei nenhuma métrica com este ID.");
             } else {
                 logger.warn(`${TAG} Métrica ${metricId} encontrada, mas não pertence ao User ${userIdForAuth}. Acesso negado.`);
-                throw new UserNotFoundError("Você não tem permissão para acessar o histórico desta métrica."); // UserNotFoundError pode ser mais apropriado
+                throw new UserNotFoundError("Você não tem permissão para acessar o histórico desta métrica."); 
             }
         }
 
         const snapshots = await DailyMetricSnapshotModel.find({ metric: objectMetricId })
-            .sort({ date: 1 }) // Ordenar por data ascendente
+            .sort({ date: 1 }) 
             .select('date dayNumber dailyViews dailyLikes dailyComments dailyShares dailySaved dailyReach dailyFollows dailyProfileVisits cumulativeViews cumulativeLikes cumulativeComments cumulativeShares cumulativeSaved cumulativeReach cumulativeFollows cumulativeProfileVisits cumulativeTotalInteractions dailyReelsVideoViewTotalTime cumulativeReelsVideoViewTotalTime currentReelsAvgWatchTime')
             .lean();
 
@@ -384,7 +374,7 @@ export async function getTopPostsByMetric(
     metric: keyof IMetricStats | string,
     limit: number
 ): Promise<IMetric[]> {
-    const TAG = `${SERVICE_TAG}[getTopPostsByMetric vUnchanged]`;
+    const TAG = `${SERVICE_TAG}[getTopPostsByMetric]`;
     logger.info(`${TAG} Buscando top ${limit} posts para User ID: ${userId}, Métrica: ${metric}`);
 
     if (!mongoose.isValidObjectId(userId)) {
@@ -434,7 +424,7 @@ export async function getMetricDetails(
     metricId: string,
     userId: string
 ): Promise<IMetric | null> {
-    const TAG = `${SERVICE_TAG}[getMetricDetails vUnchanged]`;
+    const TAG = `${SERVICE_TAG}[getMetricDetails]`;
     logger.info(`${TAG} Buscando detalhes para Metric ID: ${metricId} para User ID: ${userId}`);
 
     if (!mongoose.isValidObjectId(metricId)) {
@@ -500,7 +490,7 @@ export async function findMetricsByCriteria(
     userId: string,
     args: FindMetricsCriteriaArgs
 ): Promise<IMetric[]> {
-    const TAG = `${SERVICE_TAG}[findMetricsByCriteria vUnchanged]`;
+    const TAG = `${SERVICE_TAG}[findMetricsByCriteria]`;
     const { criteria, limit = 5, sortBy = 'postDate', sortOrder = 'desc' } = args;
 
     logger.info(`${TAG} Buscando métricas para User ID: ${userId} com critérios: ${JSON.stringify(criteria)}, limite: ${limit}, sortBy: ${sortBy}, sortOrder: ${sortOrder}`);

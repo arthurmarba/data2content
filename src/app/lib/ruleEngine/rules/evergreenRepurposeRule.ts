@@ -1,28 +1,28 @@
 // src/app/lib/ruleEngine/rules/evergreenRepurposeRule.ts
+// MODIFICADO: v1.1 - Adicionado originalPlatformPostId aos details do evento.
 // MODIFICADO: Adicionado log de versão para depuração.
 // MODIFICADO: Atualizado para usar post.postDate e tratamento seguro de datas.
 
 import { IRule, RuleContext, RuleConditionResult } from '../types';
 import { DetectedEvent } from '@/app/api/whatsapp/process-response/types';
-import { IEvergreenRepurposeDetails } from '@/app/models/User';
+import { IEvergreenRepurposeDetails } from '@/app/models/User'; // IEvergreenRepurposeDetails já tem originalPlatformPostId?
 import { logger } from '@/app/lib/logger';
-import { parseISO, differenceInDays, subMonths, isBefore, isValid as isValidDate } from 'date-fns'; // Adicionado isValidDate
-import { PostObjectForAverage, calculateAverageMetric } from '@/app/lib/utils'; // PostObjectForAverage já usa postDate
+import { parseISO, differenceInDays, subMonths, isBefore, isValid as isValidDate } from 'date-fns'; 
+import { PostObjectForAverage, calculateAverageMetric } from '@/app/lib/utils'; // PostObjectForAverage agora tem instagramMediaId?
 import {
-    UNTAPPED_POTENTIAL_PERFORMANCE_METRIC // Reutilizando uma métrica de performance existente
+    UNTAPPED_POTENTIAL_PERFORMANCE_METRIC 
 } from '@/app/lib/constants';
+import { IMetricStats } from '@/app/models/Metric'; // Import IMetricStats
 
 const RULE_ID = 'evergreen_repurpose_suggestion_v1';
 const RULE_TAG_BASE = `[Rule:${RULE_ID}]`;
 
-// Constantes específicas da regra (podem ser movidas para constants.ts se não estiverem lá)
 const EVERGREEN_MIN_POST_AGE_MONTHS = 6;
 const EVERGREEN_MAX_POST_AGE_MONTHS = 18; 
 const EVERGREEN_PERFORMANCE_MULTIPLIER = 1.5; 
 const EVERGREEN_MIN_POSTS_FOR_HISTORICAL_AVG = 10;
 const EVERGREEN_RECENT_REPOST_THRESHOLD_DAYS = 90; 
 
-// Função auxiliar para obter um objeto Date válido a partir de um campo Date | string
 function getValidDate(dateInput: Date | string | undefined, postId?: string, tag?: string): Date | null {
     const logTag = tag || RULE_TAG_BASE;
     if (!dateInput) {
@@ -60,8 +60,7 @@ export const evergreenRepurposeRule: IRule = {
 
     condition: async (context: RuleContext): Promise<RuleConditionResult> => {
         const { user, allUserPosts, today } = context;
-        // LOG DE VERSÃO ADICIONADO
-        const currentRuleVersion = "evergreenRepurposeRule_v_CANVAS_LOG_25_05_22_10"; // String de versão única
+        const currentRuleVersion = "evergreenRepurposeRule_v1.1_CANVAS_PLATFORMPOSTID"; 
         const detectionTAG = `${RULE_TAG_BASE} (${currentRuleVersion})[condition] User ${user._id}:`;
         logger.info(`${detectionTAG} INICIANDO EXECUÇÃO DA REGRA`);
         logger.debug(`${detectionTAG} Avaliando condição...`);
@@ -70,9 +69,14 @@ export const evergreenRepurposeRule: IRule = {
         const maxDate = subMonths(today, EVERGREEN_MIN_POST_AGE_MONTHS);
 
         const candidatePosts = allUserPosts
-            .map(post => ({ post, postDateObj: getValidDate(post.postDate, post._id, detectionTAG) })) // MODIFICADO: Usa post.postDate
+            .map(post => ({ post, postDateObj: getValidDate(post.postDate, post._id, detectionTAG) })) 
             .filter(item => {
                 if (!item.postDateObj) return false;
+                // Garante que post.stats existe antes de tentar acessá-lo
+                if (!item.post.stats) {
+                    logger.warn(`${detectionTAG} Post ${item.post._id} sem 'stats', pulando na filtragem de candidatePosts.`);
+                    return false;
+                }
                 return isBefore(item.postDateObj, maxDate) && item.postDateObj >= minDate;
             })
             .map(item => item.post);
@@ -83,9 +87,14 @@ export const evergreenRepurposeRule: IRule = {
         }
 
         const historicalPostsForAvg = allUserPosts
-            .map(p => ({ post: p, postDateObj: getValidDate(p.postDate, p._id, detectionTAG) })) // MODIFICADO: Usa post.postDate
+            .map(p => ({ post: p, postDateObj: getValidDate(p.postDate, p._id, detectionTAG) })) 
             .filter(item => {
                 if (!item.postDateObj) return false;
+                 // Garante que post.stats existe
+                if (!item.post.stats) {
+                    logger.warn(`${detectionTAG} Post ${item.post._id} sem 'stats', pulando na filtragem de historicalPostsForAvg.`);
+                    return false;
+                }
                 return item.postDateObj < maxDate; 
             })
             .map(item => item.post);
@@ -95,24 +104,35 @@ export const evergreenRepurposeRule: IRule = {
             return { isMet: false };
         }
         
-        const historicalAvgPerformance = calculateAverageMetric(historicalPostsForAvg, UNTAPPED_POTENTIAL_PERFORMANCE_METRIC as keyof PostObjectForAverage);
-        if (historicalAvgPerformance === null || historicalAvgPerformance === 0) { // Adicionada verificação de null
-             logger.debug(`${detectionTAG} Média histórica de performance é zero ou não pôde ser calculada. Pulando.`);
+        // Usando a constante UNTAPPED_POTENTIAL_PERFORMANCE_METRIC que é uma keyof IMetricStats
+        const metricExtractor = (p: PostObjectForAverage): number | undefined => {
+            const value = p.stats?.[UNTAPPED_POTENTIAL_PERFORMANCE_METRIC];
+            if (typeof value === 'number' && !isNaN(value)) {
+                return value;
+            }
+            return undefined;
+        };
+        const historicalAvgPerformance = calculateAverageMetric(historicalPostsForAvg, metricExtractor);
+
+        if (historicalAvgPerformance === null || historicalAvgPerformance === 0) { 
+             logger.debug(`${detectionTAG} Média histórica de performance (${UNTAPPED_POTENTIAL_PERFORMANCE_METRIC}) é zero ou não pôde ser calculada. Pulando.`);
              return { isMet: false };
         }
 
         candidatePosts.sort((a, b) => { 
-            const perfA = ((a as any)[UNTAPPED_POTENTIAL_PERFORMANCE_METRIC] ?? (a.stats as any)?.[UNTAPPED_POTENTIAL_PERFORMANCE_METRIC] ?? 0) as number;
-            const perfB = ((b as any)[UNTAPPED_POTENTIAL_PERFORMANCE_METRIC] ?? (b.stats as any)?.[UNTAPPED_POTENTIAL_PERFORMANCE_METRIC] ?? 0) as number;
+            // Acessa a métrica via a.stats e b.stats
+            const perfA = Number(a.stats?.[UNTAPPED_POTENTIAL_PERFORMANCE_METRIC] || 0);
+            const perfB = Number(b.stats?.[UNTAPPED_POTENTIAL_PERFORMANCE_METRIC] || 0);
             return perfB - perfA;
         });
 
         for (const oldPost of candidatePosts) {
-            const oldPostPerformance = ((oldPost as any)[UNTAPPED_POTENTIAL_PERFORMANCE_METRIC] ?? (oldPost.stats as any)?.[UNTAPPED_POTENTIAL_PERFORMANCE_METRIC] ?? 0) as number;
+            // Acessa a métrica via oldPost.stats
+            const oldPostPerformance = Number(oldPost.stats?.[UNTAPPED_POTENTIAL_PERFORMANCE_METRIC] || 0);
 
             if (oldPostPerformance > historicalAvgPerformance * EVERGREEN_PERFORMANCE_MULTIPLIER) {
                 const recentPosts = allUserPosts
-                    .map(p => ({ post: p, postDateObj: getValidDate(p.postDate, p._id, detectionTAG) })) // MODIFICADO: Usa post.postDate
+                    .map(p => ({ post: p, postDateObj: getValidDate(p.postDate, p._id, detectionTAG) })) 
                     .filter(item => {
                         if (!item.postDateObj) return false;
                         return differenceInDays(today, item.postDateObj) <= EVERGREEN_RECENT_REPOST_THRESHOLD_DAYS;
@@ -122,7 +142,6 @@ export const evergreenRepurposeRule: IRule = {
                 const isRecentlyReposted = recentPosts.some(rp => 
                     (rp.format && rp.format === oldPost.format) && 
                     (rp.proposal && rp.proposal === oldPost.proposal)
-                    // Poderia adicionar verificação de contexto também se relevante: && (rp.context && rp.context === oldPost.context)
                 );
 
                 if (isRecentlyReposted) {
@@ -134,7 +153,7 @@ export const evergreenRepurposeRule: IRule = {
                 return {
                     isMet: true,
                     data: {
-                        originalPost: oldPost as PostObjectForAverage,
+                        originalPost: oldPost as PostObjectForAverage, // originalPost é PostObjectForAverage e deve ter instagramMediaId
                         originalPostMetricValue: oldPostPerformance,
                         originalPostMetricName: String(UNTAPPED_POTENTIAL_PERFORMANCE_METRIC)
                     }
@@ -154,26 +173,27 @@ export const evergreenRepurposeRule: IRule = {
             return null;
         }
 
-        const originalPost = conditionData.originalPost as PostObjectForAverage;
+        const originalPost = conditionData.originalPost as PostObjectForAverage; // originalPost agora tem instagramMediaId?
         const originalPostMetricValue = conditionData.originalPostMetricValue as number;
         const originalPostMetricName = conditionData.originalPostMetricName as string;
         
-        logger.info(`${actionTAG} Gerando evento para reutilização do post ${originalPost._id}.`);
-
-        // MODIFICADO: Usa getValidDate com originalPost.postDate
+        logger.info(`${actionTAG} Gerando evento para reutilização do post ${originalPost._id}. InstagramMediaId: ${originalPost.instagramMediaId}`);
+        
         const originalPostDateObj = getValidDate(originalPost.postDate, originalPost._id, actionTAG);
         if (!originalPostDateObj) {
             logger.error(`${actionTAG} Data inválida para originalPost ${originalPost._id}. Não é possível gerar alerta.`);
             return null;
         }
 
+        // Usando originalPost.description que foi adicionado a PostObjectForAverage
         const postDescriptionExcerpt = originalPost.description ? originalPost.description.substring(0, 70) : "um post antigo";
         const suggestionTypes: IEvergreenRepurposeDetails['suggestionType'][] = ['tbt', 'new_angle', 'story_series'];
         const randomSuggestionType = suggestionTypes[Math.floor(Math.random() * suggestionTypes.length)]!;
 
         const details: IEvergreenRepurposeDetails = {
             originalPostId: originalPost._id,
-            originalPostDate: originalPostDateObj, // Usa o objeto Date validado
+            originalPlatformPostId: originalPost.instagramMediaId, // <-- MODIFICAÇÃO PRINCIPAL AQUI
+            originalPostDate: originalPostDateObj, 
             originalPostDescriptionExcerpt: postDescriptionExcerpt,
             originalPostMetricValue,
             originalPostMetricName,
@@ -200,7 +220,7 @@ export const evergreenRepurposeRule: IRule = {
         return {
             type: RULE_ID,
             messageForAI,
-            detailsForLog: details
+            detailsForLog: details // detailsForLog já aceita IEvergreenRepurposeDetails com originalPlatformPostId
         };
     }
 };

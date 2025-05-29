@@ -1,9 +1,10 @@
 // src/app/api/whatsapp/process-response/dailyTipHandler.ts
+// Versão: v1.4.2 (Passa alertDetails para EnrichedAIContext)
+// - MODIFICADO: EnrichedAIContext agora inclui currentAlertDetails.
+// - MODIFICADO: Popula currentAlertDetails com detectedEvent.detailsForLog.
 // Versão: v1.4.1 (Adiciona logging detalhado para fallbackInsightsHistory e console.log de verificação)
-// - Corrigido logging do array fallbackInsightsHistory.
-// - Adicionados logs para Rastrear o estado e o resultado do fallbackInsightsHistory.
-// - Adicionado console.log no início de handleDailyTip para depuração de execução local.
 // Baseado na v1.4.0
+
 import { NextResponse } from 'next/server';
 import { logger } from '@/app/lib/logger';
 import { sendWhatsAppMessage } from '@/app/lib/whatsappService';
@@ -12,8 +13,13 @@ import * as stateService from '@/app/lib/stateService';
 import type { IDialogueState, ILastResponseContext } from '@/app/lib/stateService'; 
 import * as dataService from '@/app/lib/dataService';
 import type { IEnrichedReport, IAccountInsight } from '@/app/lib/dataService';
-import { IUser, IAlertHistoryEntry, AlertDetails } from '@/app/models/User';
-import { ProcessRequestBody, DetectedEvent, EnrichedAIContext } from './types';
+import { IUser, IAlertHistoryEntry, AlertDetails } from '@/app/models/User'; // AlertDetails já é importado
+
+// ATENÇÃO: A interface EnrichedAIContext (importada de ./types) precisa ser atualizada
+// em src/app/api/whatsapp/process-response/types.ts para incluir:
+// currentAlertDetails?: AlertDetails;
+import { ProcessRequestBody, DetectedEvent, EnrichedAIContext } from './types'; 
+
 import ruleEngineInstance from '@/app/lib/ruleEngine';
 import {
     DEFAULT_RADAR_STREAM_READ_TIMEOUT_MS,
@@ -31,7 +37,7 @@ import { subDays } from 'date-fns';
 
 import * as fallbackInsightService from '@/app/lib/fallbackInsightService';
 
-const HANDLER_TAG_BASE = '[DailyTipHandler v1.4.1]'; 
+const HANDLER_TAG_BASE = '[DailyTipHandler v1.4.2]'; 
 
 async function extractContextFromRadarResponse(
     aiResponseText: string,
@@ -201,7 +207,6 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
         }
 
         dialogueStateForRadar = await stateService.getDialogueState(userId);
-        // LOG CORRIGIDO: Passa o objeto como segundo argumento para o logger
         logger.debug(`${handlerTAG} Estado do diálogo ANTES de buscar insight de fallback:`, dialogueStateForRadar);
         logger.info(`${handlerTAG} Histórico de insights de fallback (fallbackInsightsHistory) ANTES da chamada:`, dialogueStateForRadar.fallbackInsightsHistory || []);
 
@@ -251,7 +256,6 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
                 latestAccountInsightsForFallback,
                 dialogueStateForRadar 
             );
-            // LOG CORRIGIDO: Passa o objeto como segundo argumento para o logger
             logger.info(`${handlerTAG} Resultado do getFallbackInsight:`, { type: fallbackResult.type, text: fallbackResult.text ? fallbackResult.text.substring(0, 70)+'...' : 'null' });
 
 
@@ -292,7 +296,6 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
                 const cutoffTimestamp = Date.now() - (HISTORY_RETENTION_DAYS * 24 * 60 * 60 * 1000);
                 updatedFallbackHistory = updatedFallbackHistory.filter(entry => entry.timestamp >= cutoffTimestamp);
             }
-            // LOG CORRIGIDO: Passa o objeto como segundo argumento para o logger
             logger.info(`${handlerTAG} Histórico de insights de fallback (fallbackInsightsHistory) A SER SALVO:`, updatedFallbackHistory);
 
             const lastResponseContext = await extractContextFromRadarResponse(finalDefaultMessageToSend, userId);
@@ -302,12 +305,11 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
                 lastResponseContext: lastResponseContext,
                 fallbackInsightsHistory: updatedFallbackHistory
             };
-             // LOG CORRIGIDO: Passa o objeto como segundo argumento para o logger
             logger.debug(`${handlerTAG} Estado completo a ser salvo em updateDialogueState:`, stateToUpdate);
             await stateService.updateDialogueState(userId, stateToUpdate);
 
             try {
-                const noEventDetails: AlertDetails = {
+                const noEventDetails: AlertDetails = { // Type AlertDetails
                     reason: 'Nenhum evento de regra detectado, insight de fallback fornecido.',
                     fallbackInsightProvided: fallbackInsightText || 'Fallback genérico de engajamento.',
                     fallbackInsightType: fallbackInsightType || 'none'
@@ -318,7 +320,7 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
                     date: today,
                     messageForAI: baseDefaultMessage, 
                     finalUserMessage: finalDefaultMessageToSend,
-                    details: noEventDetails,
+                    details: noEventDetails, // noEventDetails é AlertDetails
                     userInteraction: { type: 'not_applicable', interactedAt: today }
                 });
                 logger.info(`${handlerTAG} Alerta 'no_event_found_today_with_insight' registrado no histórico.`);
@@ -328,6 +330,7 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
             return NextResponse.json({ success: true, message: "No rule event, fallback insight message sent." }, { status: 200 });
         }
 
+        // SE UM ALERTA FOI DETECTADO (detectedEvent existe)
         logger.info(`${handlerTAG} Alerta tipo '${detectedEvent.type}' detectado pelo motor de regras. Detalhes: ${JSON.stringify(detectedEvent.detailsForLog)}`);
         
         await stateService.updateDialogueState(userId, {
@@ -338,17 +341,23 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
         logger.debug(`${handlerTAG} Input para IA (messageForAI): "${alertInputForAI}"`);
 
         const currentDialogueStateForAI = await stateService.getDialogueState(userId);
+        
+        // ----- MODIFICAÇÃO PRINCIPAL AQUI -----
+        // Certifique-se que a interface EnrichedAIContext em ./types.ts 
+        // foi atualizada para incluir: currentAlertDetails?: AlertDetails;
         const enrichedContextForAI: EnrichedAIContext = {
             user: userForRadar,
             historyMessages: [], 
             dialogueState: currentDialogueStateForAI,
-            userName: userFirstNameForRadar
+            userName: userFirstNameForRadar,
+            currentAlertDetails: detectedEvent.detailsForLog // Passando os detalhes do alerta para o contexto da IA
         };
+        // ----- FIM DA MODIFICAÇÃO -----
 
-        logger.info(`${handlerTAG} Solicitando à LLM para gerar mensagem final do alerta.`);
+        logger.info(`${handlerTAG} Solicitando à LLM para gerar mensagem final do alerta. Contexto enriquecido preparado com currentAlertDetails.`);
         const { stream } = await askLLMWithEnrichedContext(
-            enrichedContextForAI,
-            alertInputForAI,
+            enrichedContextForAI, // Este contexto agora inclui currentAlertDetails
+            alertInputForAI,       // O texto base para a IA, que ela vai enriquecer com o link usando os details
             'generate_proactive_alert'
         );
 
@@ -418,7 +427,7 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
                 date: today,
                 messageForAI: alertInputForAI,
                 finalUserMessage: fullAlertMessageToUser,
-                details: detectedEvent.detailsForLog,
+                details: detectedEvent.detailsForLog, // detailsForLog já contém platformPostId das regras
                 userInteraction: { type: 'pending_interaction', interactedAt: today }
             };
             await dataService.addAlertToHistory(userId, newAlertEntry);

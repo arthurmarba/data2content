@@ -1,81 +1,112 @@
-// @/app/models/CommunityInspiration.ts - v1.0.1 (Simplifica Preferência)
-// - REMOVIDO: Campo 'anonymityLevel'. A atribuição será via link direto para o post.
-// - Mantém estrutura da v1.0.0.
+// @/app/models/CommunityInspiration.ts - v1.1.0 (Adiciona Enums, Índice Único e Sub-schema para Métricas Internas)
+// - ATUALIZADO: Campos categóricos (proposal, context, format, etc.) usam Enums.
+// - ADICIONADO: Índice único em postId_Instagram.
+// - ATUALIZADO: internalMetricsSnapshot usa um sub-schema definido.
+// - Baseado na v1.0.1.
 
 import { Schema, model, models, Document, Model, Types } from "mongoose";
+import {
+    VALID_FORMATS,
+    VALID_PROPOSALS,
+    VALID_CONTEXTS,
+    VALID_QUALITATIVE_OBJECTIVES,
+    VALID_PERFORMANCE_HIGHLIGHTS,
+    FormatType,
+    ProposalType,
+    ContextType,
+    QualitativeObjectiveType,
+    PerformanceHighlightType
+} from "@/app/lib/constants/communityInspirations.constants"; // Importando os novos enums/constantes
+
+/**
+ * Interface para o subdocumento de métricas internas.
+ */
+export interface IInternalMetricsSnapshot {
+  reachToFollowersRatio?: number;
+  saveRate?: number;
+  shareRate?: number;
+  reelAvgWatchTimeSec?: number;
+  // Adicione outros campos de métricas internas conforme necessário
+}
 
 /**
  * Interface que define a estrutura de um documento CommunityInspiration.
- * ATUALIZADO v1.0.1: Removido 'anonymityLevel'.
+ * ATUALIZADO v1.1.0
  */
 export interface ICommunityInspiration extends Document {
   _id: Types.ObjectId;
-  postId_Instagram: string; // ID do post original do Instagram (media_id)
-  originalInstagramPostUrl: string; // Link direto para o post no Instagram
+  postId_Instagram: string;
+  originalInstagramPostUrl: string;
   originalCreatorId: Types.ObjectId; // Referência ao IUser criador original
   
-  proposal: string; // Proposta do conteúdo (ex: "educar audiência")
-  context: string;  // Contexto do conteúdo (ex: "bastidores")
-  format: string;   // Formato (ex: "Reel", "Carrossel")
+  proposal: ProposalType; // ATUALIZADO PARA USAR ENUM TYPE
+  context: ContextType;   // ATUALIZADO PARA USAR ENUM TYPE
+  format: FormatType;     // ATUALIZADO PARA USAR ENUM TYPE
   
-  contentSummary: string; // Resumo gerado pela IA sobre os aspectos criativos/estratégicos
-  performanceHighlights_Qualitative: string[]; // Destaques qualitativos (ex: ['alto_engajamento_nos_comentarios'])
-  primaryObjectiveAchieved_Qualitative: string; // Principal objetivo qualitativo alcançado (ex: 'gerou_muitos_salvamentos')
+  contentSummary: string;
+  performanceHighlights_Qualitative: PerformanceHighlightType[]; // ATUALIZADO PARA USAR ENUM TYPE
+  primaryObjectiveAchieved_Qualitative: QualitativeObjectiveType; // ATUALIZADO PARA USAR ENUM TYPE
   
-  // anonymityLevel: 'credited' | 'anonymous_creator'; // <<< REMOVIDO >>>
+  tags_IA?: string[];
   
-  tags_IA?: string[]; // Tags adicionais geradas pela IA para busca e categorização
-  
-  addedToCommunityAt: Date; // Data de adição ao pool da comunidade
-  status: 'active' | 'archived' | 'pending_review'; // Status do registro de inspiração
+  addedToCommunityAt: Date;
+  status: 'active' | 'archived' | 'pending_review';
 
-  // Opcional: Para lógica interna de ranqueamento da IA (NÃO EXPOSTO A OUTROS USUÁRIOS)
-  internalMetricsSnapshot?: { 
-    [key: string]: any; 
-  };
+  internalMetricsSnapshot?: IInternalMetricsSnapshot; // ATUALIZADO PARA USAR SUB-INTERFACE
 
   createdAt?: Date;
   updatedAt?: Date;
 }
 
 /**
+ * Schema Mongoose para o subdocumento de métricas internas.
+ */
+const internalMetricsSubSchema = new Schema<IInternalMetricsSnapshot>({
+  reachToFollowersRatio: { type: Number },
+  saveRate: { type: Number },
+  shareRate: { type: Number },
+  reelAvgWatchTimeSec: { type: Number },
+}, { _id: false });
+
+/**
  * Definição do Schema para o CommunityInspiration.
- * ATUALIZADO v1.0.1: Removido 'anonymityLevel'.
+ * ATUALIZADO v1.1.0
  */
 const communityInspirationSchema = new Schema<ICommunityInspiration>(
   {
-    postId_Instagram: { type: String, required: true, index: true },
+    postId_Instagram: { type: String, required: true, index: true /* unique será adicionado abaixo */ },
     originalInstagramPostUrl: { type: String, required: true },
     originalCreatorId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     
-    proposal: { type: String, required: true, index: true, trim: true },
-    context: { type: String, required: true, index: true, trim: true },
-    format: { type: String, required: true, index: true, trim: true },
+    proposal: { type: String, required: true, enum: VALID_PROPOSALS, index: true, trim: true },
+    context: { type: String, required: true, enum: VALID_CONTEXTS, index: true, trim: true },
+    format: { type: String, required: true, enum: VALID_FORMATS, index: true, trim: true },
     
     contentSummary: { type: String, required: true },
-    performanceHighlights_Qualitative: { type: [String], default: [], index: true },
-    primaryObjectiveAchieved_Qualitative: { type: String, required: true, index: true },
-    
-    // anonymityLevel: { type: String, enum: ['credited', 'anonymous_creator'], required: true }, // <<< REMOVIDO >>>
-    
+    performanceHighlights_Qualitative: { type: [String], default: [], enum: VALID_PERFORMANCE_HIGHLIGHTS, index: true },
+    primaryObjectiveAchieved_Qualitative: { type: String, required: true, enum: VALID_QUALITATIVE_OBJECTIVES, index: true },
+        
     tags_IA: { type: [String], default: [], index: true },
     
     addedToCommunityAt: { type: Date, default: Date.now, index: true },
     status: { 
       type: String, 
       enum: ['active', 'archived', 'pending_review'], 
-      default: 'active', 
+      default: 'active', // Manteremos 'active' por enquanto, conforme plano
       index: true 
     },
 
-    internalMetricsSnapshot: { type: Schema.Types.Mixed, default: {} },
+    internalMetricsSnapshot: { type: internalMetricsSubSchema, default: () => ({}) }, // ATUALIZADO
   },
   {
-    timestamps: true, // Adiciona createdAt e updatedAt automaticamente
+    timestamps: true,
   }
 );
 
-// Índices adicionais para otimizar buscas comuns
+// Índice único para postId_Instagram
+communityInspirationSchema.index({ postId_Instagram: 1 }, { unique: true });
+
+// Índices adicionais para otimizar buscas comuns (mantidos)
 communityInspirationSchema.index({ proposal: 1, context: 1, primaryObjectiveAchieved_Qualitative: 1, status: 1 });
 communityInspirationSchema.index({ format: 1, primaryObjectiveAchieved_Qualitative: 1, status: 1 });
 communityInspirationSchema.index({ originalCreatorId: 1, status: 1 }); 

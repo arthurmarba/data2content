@@ -1,35 +1,42 @@
 /**
  * @fileoverview Orquestrador de chamadas à API OpenAI com Function Calling e Streaming.
- * Otimizado para buscar dados sob demanda via funções e modular comportamento por intenção.
- * ATUALIZADO: Adicionada função getQuickAcknowledgementLLMResponse para gerar respostas curtas e rápidas (quebra-gelo).
- * @version 0.10.10 (Melhora descrição de findPostsByCriteria para LLM)
+ * @version 0.10.12 (Atualiza descrições de findPostsByCriteria para LLM com enums)
  */
 
 import { Types, Model } from 'mongoose';
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
 
-import * as ZodSchemas from './aiFunctionSchemas.zod'; // Este já deve ser a v1.3.2
+// Importa os Zod Schemas atualizados (v1.3.5 ou superior que usa enums para findPostsByCriteria)
+import * as ZodSchemas from './aiFunctionSchemas.zod';
+
+// Importa as constantes/enums para a Comunidade de Inspiração e outros usos
+import {
+    VALID_FORMATS,
+    VALID_PROPOSALS,
+    VALID_CONTEXTS,
+    VALID_QUALITATIVE_OBJECTIVES
+} from '@/app/lib/constants/communityInspirations.constants';
 
 import { IUser } from '@/app/models/User';
 import { IMetric, IMetricStats } from '@/app/models/Metric';
 import { MetricsNotFoundError, DatabaseError } from '@/app/lib/errors';
 
 import {
-  fetchAndPrepareReportData, 
+  fetchAndPrepareReportData,
   getAdDealInsights,
   AdDealInsights,
   IEnrichedReport,
   IAccountInsight,
   getInspirations as getCommunityInspirationsDataService,
-  CommunityInspirationFilters,
+  CommunityInspirationFilters, // Esta interface foi atualizada em dataService/types.ts para usar Enums
   IDailyMetricSnapshot,
   getDailySnapshotsForMetric,
   getLatestAccountInsights as getLatestAccountInsightsFromDataService,
   getTopPostsByMetric as getTopPostsByMetricFromDataService,
   getMetricDetails as getMetricDetailsFromDataService,
   findMetricsByCriteria as findMetricsByCriteriaFromDataService,
-  FindMetricsCriteriaArgs,
+  FindMetricsCriteriaArgs, // Esta interface foi atualizada em dataService/types.ts para usar Enums
 } from './dataService';
 import { subDays, subYears, startOfDay } from 'date-fns';
 
@@ -69,25 +76,25 @@ export const functionSchemas = [
   },
   {
     name: 'fetchCommunityInspirations',
-    description: "Busca exemplos de posts da Comunidade de Inspiração IA Tuca que tiveram bom desempenho qualitativo. Use quando o usuário pedir explicitamente por inspiração, ou para ilustrar sugestões de planejamento de conteúdo. Baseie-se na proposta e contexto fornecidos, e opcionalmente em um objetivo qualitativo de desempenho (ex: 'gerou_muitos_salvamentos', 'alcancou_nova_audiencia').",
+    description: "Busca exemplos de posts da Comunidade de Inspiração IA Tuca que tiveram bom desempenho qualitativo. Use quando o usuário pedir explicitamente por inspiração, ou para ilustrar sugestões de planejamento de conteúdo. Baseie-se na proposta e contexto fornecidos, e opcionalmente em um objetivo qualitativo de desempenho.",
     parameters: {
       type: 'object',
       properties: {
         proposal: {
           type: 'string',
-          description: "A proposta/tema do conteúdo para o qual se busca inspiração (obrigatório)."
+          description: `A proposta/tema do conteúdo para o qual se busca inspiração (obrigatório). Valores válidos: ${VALID_PROPOSALS.join(', ')}.`
         },
         context: {
           type: 'string',
-          description: "O contexto específico dentro da proposta (obrigatório)."
+          description: `O contexto específico dentro da proposta (obrigatório). Valores válidos: ${VALID_CONTEXTS.join(', ')}.`
         },
         format: {
           type: 'string',
-          description: "Opcional. Formato do post (ex: Reels, Foto, Carrossel) para refinar a busca."
+          description: `Opcional. Formato do post para refinar a busca. Valores válidos: ${VALID_FORMATS.join(', ')}.`
         },
         primaryObjectiveAchieved_Qualitative: {
           type: 'string',
-          description: "Opcional. O objetivo qualitativo principal que a inspiração deve ter demonstrado (ex: 'gerou_muitos_salvamentos', 'fomentou_discussao_rica')."
+          description: `Opcional. O objetivo qualitativo principal que a inspiração deve ter demonstrado. Valores válidos: ${VALID_QUALITATIVE_OBJECTIVES.join(', ')}.`
         },
         count: {
           type: 'number',
@@ -151,9 +158,9 @@ export const functionSchemas = [
             criteria: {
                 type: 'object',
                 properties: {
-                    format: { type: 'string', description: "Formato do post (ex: Reels, Foto, Carrossel)." },
-                    proposal: { type: 'string', description: "Proposta/tema do post." },
-                    context: { type: 'string', description: "Contexto do post." },
+                    format: { type: 'string', description: `Opcional. Formato do post. Valores válidos: ${VALID_FORMATS.join(', ')}.` },
+                    proposal: { type: 'string', description: `Opcional. Proposta/tema do post. Valores válidos: ${VALID_PROPOSALS.join(', ')}.` },
+                    context: { type: 'string', description: `Opcional. Contexto do post. Valores válidos: ${VALID_CONTEXTS.join(', ')}.` },
                     dateRange: {
                         type: 'object',
                         properties: {
@@ -162,13 +169,11 @@ export const functionSchemas = [
                         },
                         description: "Intervalo de datas para filtrar os posts."
                     },
-                    // ATUALIZADO: Descrição de minLikes
                     minLikes: { type: 'number', description: "Número mínimo de curtidas. Use 0 se não houver um mínimo." },
                     minShares: { type: 'number', description: "Número mínimo de compartilhamentos (deve ser maior que 0 se especificado)." }
                 },
                 description: "Critérios de busca para os posts."
             },
-            // ATUALIZADO: Descrição de limit
             limit: { type: 'number', default: 5, minimum: 1, maximum: 20, description: "Número máximo de posts a retornar (entre 1 e 20)." },
             sortBy: {
                 type: 'string',
@@ -225,7 +230,7 @@ type ExecutorFn = (args: any, user: IUser) => Promise<unknown>;
 
 /* 2.1 getAggregatedReport */
 const getAggregatedReport: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetAggregatedReportArgsSchema>, loggedUser) => {
-  const fnTag = '[fn:getAggregatedReport v0.10.10]'; 
+  const fnTag = '[fn:getAggregatedReport v0.10.12]'; // Version bump
   try {
     const periodInDays = args.analysisPeriod === undefined ? 180 : args.analysisPeriod;
     logger.info(`${fnTag} Executando para usuário ${loggedUser._id} com período de análise: ${periodInDays} dias.`);
@@ -249,7 +254,7 @@ const getAggregatedReport: ExecutorFn = async (args: z.infer<typeof ZodSchemas.G
     else adDealPeriodString = 'all';
 
     const [reportResult, adDealResult] = await Promise.allSettled([
-        fetchAndPrepareReportData({ 
+        fetchAndPrepareReportData({
             user: loggedUser,
             analysisSinceDate: sinceDate
         }),
@@ -262,7 +267,7 @@ const getAggregatedReport: ExecutorFn = async (args: z.infer<typeof ZodSchemas.G
         enrichedReportData = reportResult.value.enrichedReport;
         logger.info(`${fnTag} Relatório agregado de métricas gerado com sucesso para o período de ${periodInDays} dias. Posts no relatório: ${enrichedReportData?.overallStats?.totalPosts ?? 'N/A'}`);
     } else {
-        reportError = `Falha ao gerar parte do relatório (métricas) para o período de ${periodInDays} dias: ${reportResult.reason?.message || 'Erro desconhecido'}`;
+        reportError = `Falha ao gerar parte do relatório (métricas) para o período de ${periodInDays} dias: ${(reportResult.reason as Error)?.message || 'Erro desconhecido'}`;
         logger.error(`${fnTag} Erro ao gerar relatório agregado de métricas:`, reportResult.reason);
     }
 
@@ -272,7 +277,7 @@ const getAggregatedReport: ExecutorFn = async (args: z.infer<typeof ZodSchemas.G
         adDealInsightsData = adDealResult.value;
         logger.info(`${fnTag} Insights de publicidade ${adDealInsightsData ? `encontrados (${adDealInsightsData.totalDeals} deals)` : 'não encontrados'} para o período correspondente.`);
     } else {
-        adDealError = `Falha ao buscar dados de publicidade: ${adDealResult.reason?.message || 'Erro desconhecido'}`;
+        adDealError = `Falha ao buscar dados de publicidade: ${(adDealResult.reason as Error)?.message || 'Erro desconhecido'}`;
         logger.error(`${fnTag} Erro ao buscar insights de publicidade:`, adDealResult.reason);
     }
 
@@ -298,7 +303,7 @@ const getAggregatedReport: ExecutorFn = async (args: z.infer<typeof ZodSchemas.G
 
 /* 2.2 getLatestAccountInsights */
 const getLatestAccountInsights: ExecutorFn = async (_args: z.infer<typeof ZodSchemas.GetLatestAccountInsightsArgsSchema>, loggedUser) => {
-    const fnTag = '[fn:getLatestAccountInsights v0.10.10]';
+    const fnTag = '[fn:getLatestAccountInsights v0.10.12]'; // Version bump
     logger.info(`${fnTag} Executando para usuário ${loggedUser._id} via dataService.`);
     try {
         const latestInsight: IAccountInsight | null = await getLatestAccountInsightsFromDataService(loggedUser._id.toString());
@@ -326,7 +331,7 @@ const getLatestAccountInsights: ExecutorFn = async (_args: z.infer<typeof ZodSch
 
 /* 2.X fetchCommunityInspirations */
 const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSchemas.FetchCommunityInspirationsArgsSchema>, loggedUser) => {
-  const fnTag = '[fn:fetchCommunityInspirations v0.10.10]';
+  const fnTag = '[fn:fetchCommunityInspirations v0.10.12]'; // Version bump
   logger.info(`${fnTag} Executando para User ${loggedUser._id} com args: ${JSON.stringify(args)}`);
   try {
     if (!loggedUser.communityInspirationOptIn) {
@@ -336,16 +341,14 @@ const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSc
             inspirations: []
         };
     }
+
     const filters: CommunityInspirationFilters = {
       proposal: args.proposal,
       context: args.context,
+      format: args.format,
+      primaryObjectiveAchieved_Qualitative: args.primaryObjectiveAchieved_Qualitative,
     };
-    if (args.format) {
-      filters.format = args.format;
-    }
-    if (args.primaryObjectiveAchieved_Qualitative) {
-      filters.primaryObjectiveAchieved_Qualitative = args.primaryObjectiveAchieved_Qualitative;
-    }
+
     let excludeIds: string[] = [];
     if (loggedUser.lastCommunityInspirationShown_Daily?.date &&
         loggedUser.lastCommunityInspirationShown_Daily.inspirationIds &&
@@ -386,8 +389,8 @@ const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSc
 
 /* 2.3 getTopPosts */
 const getTopPosts: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetTopPostsArgsSchema>, loggedUser) => {
-  const fnTag = '[fn:getTopPosts v0.10.10]'; 
-  const userId = loggedUser._id.toString(); 
+  const fnTag = '[fn:getTopPosts v0.10.12]'; // Version bump
+  const userId = loggedUser._id.toString();
   try {
     const metricKey = args.metric;
     const limit = args.limit;
@@ -429,7 +432,7 @@ const getTopPosts: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetTopPos
 
 /* 2.4 getDayPCOStats */
 const getDayPCOStats: ExecutorFn = async (_args: z.infer<typeof ZodSchemas.GetDayPCOStatsArgsSchema>, loggedUser) => {
-   const fnTag = '[fn:getDayPCOStats v0.10.10]'; 
+   const fnTag = '[fn:getDayPCOStats v0.10.12]'; // Version bump
    try {
     logger.info(`${fnTag} Executando para usuário ${loggedUser._id}`);
     const sinceDate = subDays(new Date(), 180);
@@ -457,7 +460,7 @@ const getDayPCOStats: ExecutorFn = async (_args: z.infer<typeof ZodSchemas.GetDa
 
 /* 2.5 getMetricDetailsById */
 const getMetricDetailsById: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetMetricDetailsByIdArgsSchema>, loggedUser) => {
-    const fnTag = '[fn:getMetricDetailsById v0.10.10]';
+    const fnTag = '[fn:getMetricDetailsById v0.10.12]'; // Version bump
     try {
         const metricId = args.metricId;
         const userId = loggedUser._id.toString();
@@ -489,7 +492,7 @@ const getMetricDetailsById: ExecutorFn = async (args: z.infer<typeof ZodSchemas.
 
 /* 2.6 findPostsByCriteria */
 const findPostsByCriteria: ExecutorFn = async (args: z.infer<typeof ZodSchemas.FindPostsByCriteriaArgsSchema>, loggedUser) => {
-    const fnTag = '[fn:findPostsByCriteria v0.10.10]';
+    const fnTag = '[fn:findPostsByCriteria v0.10.12]'; // Version bump
     try {
         const userId = loggedUser._id.toString();
         const dataServiceArgs: FindMetricsCriteriaArgs = {
@@ -543,7 +546,7 @@ const findPostsByCriteria: ExecutorFn = async (args: z.infer<typeof ZodSchemas.F
 
 /* 2.7 getDailyMetricHistory */
 const getDailyMetricHistory: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetDailyMetricHistoryArgsSchema>, loggedUser) => {
-    const fnTag = '[fn:getDailyMetricHistory v0.10.10]';
+    const fnTag = '[fn:getDailyMetricHistory v0.10.12]'; // Version bump
     try {
         const metricId = args.metricId;
         const userId = loggedUser._id.toString();
@@ -568,11 +571,11 @@ const getDailyMetricHistory: ExecutorFn = async (args: z.infer<typeof ZodSchemas
 
 
 /* 2.8 getConsultingKnowledge */
-const getConsultingKnowledge: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetConsultingKnowledgeArgsSchema>, loggedUser) => { 
-    const fnTag = '[fn:getConsultingKnowledge v0.10.10]';
+const getConsultingKnowledge: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetConsultingKnowledgeArgsSchema>, loggedUser) => {
+    const fnTag = '[fn:getConsultingKnowledge v0.10.12]'; // Version bump
     const topic = args.topic;
 
-    logger.info(`${fnTag} Buscando conhecimento sobre o tópico: ${topic} para User ${loggedUser._id}`); 
+    logger.info(`${fnTag} Buscando conhecimento sobre o tópico: ${topic} para User ${loggedUser._id}`);
     try {
         let knowledge = '';
         switch (topic) {
@@ -583,7 +586,7 @@ const getConsultingKnowledge: ExecutorFn = async (args: z.infer<typeof ZodSchema
             default:
                 logger.warn(`${fnTag} Tópico não mapeado recebido para User ${loggedUser._id}: ${topic}`);
                 const validTopics = ZodSchemas.GetConsultingKnowledgeArgsSchema.shape.topic._def.values;
-                if (!validTopics.includes(topic as any)) { 
+                if (!validTopics.includes(topic as any)) {
                      return { error: `Tópico de conhecimento inválido ou não reconhecido: "${topic}". Por favor, escolha um dos tópicos válidos.` };
                 }
                 return { error: `O tópico de conhecimento "${topic}" é reconhecido, mas houve um problema ao buscar a informação. Tente novamente ou contate o suporte se o erro persistir.` };
@@ -591,7 +594,7 @@ const getConsultingKnowledge: ExecutorFn = async (args: z.infer<typeof ZodSchema
         logger.info(`${fnTag} Conhecimento sobre "${topic}" encontrado para User ${loggedUser._id}.`);
         return { knowledge: knowledge };
 
-    } catch (err) {
+    } catch (err: any) {
         logger.error(`${fnTag} Erro ao buscar conhecimento para o tópico "${topic}" para User ${loggedUser._id}:`, err);
         return { error: "Ocorreu um erro interno ao buscar esta informação. Por favor, tente novamente." };
     }
