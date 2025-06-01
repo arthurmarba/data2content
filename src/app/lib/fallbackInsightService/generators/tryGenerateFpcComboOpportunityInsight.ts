@@ -1,4 +1,4 @@
-// @/app/lib/fallbackInsightService/generators/tryGenerateFpcComboOpportunityInsight.ts
+// src/app/lib/fallbackInsightService/generators/tryGenerateFpcComboOpportunityInsight.ts
 import { logger } from '@/app/lib/logger';
 import * as dataService from '@/app/lib/dataService';
 import type { IUserModel, IEnrichedReport, PotentialInsight, DetailedContentStat, PostObject, DailySnapshot, IMetricStats } from '../fallbackInsight.types';
@@ -10,6 +10,15 @@ import {
     FPC_PERFORMANCE_MULTIPLIER,
     FPC_METRIC_KEY
 } from '../fallbackInsight.constants';
+// Importando os valores padrão dos Enums e os próprios tipos se necessário
+import {
+    DEFAULT_FORMAT_ENUM,
+    DEFAULT_PROPOSAL_ENUM,
+    DEFAULT_CONTEXT_ENUM,
+    FormatType,   // Usado para tipar 'format' se necessário
+    ProposalType, // Usado para tipar 'proposal' se necessário
+    ContextType   // Usado para tipar 'context' se necessário
+} from "@/app/lib/constants/communityInspirations.constants";
 
 /**
  * Tenta gerar um insight sobre uma combinação de Formato/Proposta/Contexto (FPC)
@@ -41,13 +50,18 @@ export async function tryGenerateFpcComboOpportunityInsight(
     for (const comboStat of enrichedReport.detailedContentStats) {
         if (!comboStat._id) continue;
 
+        // Assumindo que comboStat._id.format, .proposal, .context já são dos tipos Enum corretos
+        // (FormatType, ProposalType, ContextType) devido à tipagem de DetailedContentStat
+        // que foi atualizada no reportHelpers.ts
         const format = comboStat._id.format;
         const proposal = comboStat._id.proposal;
         const context = comboStat._id.context;
 
-        if (!format || format === 'Desconhecido' || format === 'Outro' ||
-            !proposal || proposal === 'Outro' || proposal === 'Geral' || proposal === 'Desconhecido' ||
-            !context || context === 'Geral' || context === 'Outro' || context === 'Desconhecido') {
+        // CONDIÇÃO CORRIGIDA ABAIXO
+        if (!format || format === DEFAULT_FORMAT_ENUM /* "Desconhecido" */ || format === "Outro Formato" ||
+            !proposal || proposal === DEFAULT_PROPOSAL_ENUM /* "Outro Propósito" */ ||
+            !context || context === DEFAULT_CONTEXT_ENUM /* "Geral" */ || context === "Outro Contexto") {
+            logger.debug(`${TAG} Pulando combinação FPC genérica/desconhecida: F='${format}', P='${proposal}', C='${context}'`);
             continue;
         }
 
@@ -57,7 +71,7 @@ export async function tryGenerateFpcComboOpportunityInsight(
             if (typeof comboAvgPerformance === 'number' && comboAvgPerformance > (overallAvgPerformance * FPC_PERFORMANCE_MULTIPLIER)) {
                 const examplePostForCombo = enrichedReport.recentPosts?.find(p =>
                     p.format === format && p.proposal === proposal && p.context === context
-                ) as PostObject | undefined; // Cast para PostObject
+                ) as PostObject | undefined; 
 
                 potentialOpportunities.push({
                     ...comboStat,
@@ -95,8 +109,9 @@ export async function tryGenerateFpcComboOpportunityInsight(
     let earlyPerformanceParts: string[] = [];
 
     if (bestOpportunity.examplePost && bestOpportunity.examplePost._id) {
-        const examplePost = bestOpportunity.examplePost as PostObject; // Garantir tipo
-        const postLink = examplePost.platformPostId ? `https://www.instagram.com/p/${examplePost.platformPostId}/` : "";
+        const examplePost = bestOpportunity.examplePost as PostObject; 
+        // Usar instagramMediaId para o link, pois é mais provável que esteja disponível e correto
+        const postLink = examplePost.instagramMediaId ? `https://www.instagram.com/p/${examplePost.instagramMediaId}/` : "";
         const postDesc = examplePost.description?.substring(0, 30) || "um desses posts";
         examplePostText = ` (como o post "${postDesc}..." ${postLink ? postLink : ''})`;
 
@@ -129,7 +144,6 @@ export async function tryGenerateFpcComboOpportunityInsight(
                 }
                 if ((examplePost.type === 'REEL' || examplePost.type === 'VIDEO') &&
                     typeof day1Snapshot.currentReelsAvgWatchTime === 'number' && day1Snapshot.currentReelsAvgWatchTime > 0) {
-                    // Adiciona se FPC_METRIC_KEY não for já sobre tempo de visualização, para não ser redundante
                     if (FPC_METRIC_KEY !== 'dailyReelsVideoViewTotalTime' && FPC_METRIC_KEY !== 'cumulativeReelsVideoViewTotalTime') {
                          earlyPerformanceParts.push(`e um tempo médio de visualização de ${(day1Snapshot.currentReelsAvgWatchTime / 1000).toFixed(1)}s`);
                     }

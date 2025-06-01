@@ -203,7 +203,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to lookup user' }, { status: 500 });
   }
 
-  let currentDialogueState: stateService.IDialogueState = {};
+  // CORREÇÃO APLICADA AQUI:
+  let currentDialogueState: stateService.IDialogueState = stateService.getDefaultDialogueState();
   try {
       const getDialogueStateStartTime = Date.now();
       currentDialogueState = await stateService.getDialogueState(uid);
@@ -217,7 +218,7 @@ export async function POST(request: NextRequest) {
       }
   } catch (stateError) {
       logger.error(`${postTag} Erro ao buscar estado do Redis para ${uid} (não fatal, usará estado padrão):`, stateError);
-      currentDialogueState = stateService.getDefaultDialogueState();
+      currentDialogueState = stateService.getDefaultDialogueState(); // Garante que seja o default em caso de erro na busca
   }
 
   if (currentDialogueState.currentProcessingMessageId) {

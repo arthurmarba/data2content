@@ -1,11 +1,12 @@
 // src/app/api/whatsapp/process-response/alertDetectionService.ts
-// MODIFICADO: v3.6 - Refatorado if/else em detectUntappedPotentialTopic para melhor inferência de tipo.
-// MODIFICADO: v3.5 - Corrigido tipo na operação de subtração da função sort.
-// MODIFICADO: v3.4 - Corrigido tipo de atribuição para metricUsed/performanceMetric em detailsForLog.
-// MODIFICADO: v3.3 - Corrigido tipo de retorno da função extratora para calculateAverageMetric.
-// MODIFICADO: v3.2 - Corrigido import de IDailyMetricSnapshot para vir de seu arquivo correto.
-// MODIFICADO: v3.1 - Corrigido import de IMetricStats.
-// MODIFICADO: v3 - Refinamentos finais no tratamento de null de calculateAverageMetric e acesso a post.stats.
+// MODIFICADO: v3.7 - Adicionado platformPostId aos detailsForLog em detectPeakPerformanceShares e detectUntappedPotentialTopic.
+// MODIFICADO: v3.6 - Refatorado if/else em detectUntappedPotentialTopic para melhor inferência de tipo (mantido).
+// MODIFICADO: v3.5 - Corrigido tipo na operação de subtração da função sort (mantido).
+// MODIFICADO: v3.4 - Corrigido tipo de atribuição para metricUsed/performanceMetric em detailsForLog (mantido).
+// MODIFICADO: v3.3 - Corrigido tipo de retorno da função extratora para calculateAverageMetric (mantido).
+// MODIFICADO: v3.2 - Corrigido import de IDailyMetricSnapshot para vir de seu arquivo correto (mantido).
+// MODIFICADO: v3.1 - Corrigido import de IMetricStats (mantido).
+// MODIFICADO: v3 - Refinamentos finais no tratamento de null de calculateAverageMetric e acesso a post.stats (mantido).
 
 import { subDays, differenceInDays, parseISO, isValid as isValidDate } from 'date-fns';
 import { logger } from '@/app/lib/logger';
@@ -20,7 +21,7 @@ import {
     IUntappedPotentialTopicDetails, 
     IEngagementPeakNotCapitalizedDetails, 
     INoEventDetails 
-} from '@/app/models/User';
+} from '@/app/models/User'; // Supondo que estas interfaces podem ser estendidas ou já incluem platformPostId opcional.
 import { IMetricStats } from '@/app/models/Metric'; 
 import { IDailyMetricSnapshot } from '@/app/models/DailyMetricSnapshot';
 import { IDialogueState } from '@/app/lib/stateService';
@@ -54,10 +55,11 @@ import {
     ENGAGEMENT_PEAK_MIN_ABSOLUTE_COMMENTS,
     ENGAGEMENT_PEAK_COMMENT_MULTIPLIER
 } from '@/app/lib/constants';
+// Supondo que PostObjectForAverage inclui instagramMediaId
 import { PostObjectForAverage, calculateAverageMetric } from '@/app/lib/utils'; 
 import { DetectedEvent } from './types';
 
-const SERVICE_TAG = '[AlertDetectionService v3.6]'; // Versão atualizada do serviço
+const SERVICE_TAG = '[AlertDetectionService v3.7]'; // Versão atualizada do serviço
 
 function normalizeString(str?: string): string {
     return (str || '').trim().toLowerCase();
@@ -111,7 +113,8 @@ export async function detectPeakPerformanceShares(
     dialogueState: IDialogueState
 ): Promise<DetectedEvent | null> {
     const alertType = 'peak_performance_shares_v1'; 
-    const detectionTAG = `${SERVICE_TAG}[detectPeakPerformanceShares] User ${userId}:`;
+    const ruleLogicVersion = "v1.1_AlertSvc_3.7_PlatformId"; // Versão da lógica da regra com adição de platformId
+    const detectionTAG = `${SERVICE_TAG}[detectPeakPerformanceShares ${ruleLogicVersion}] User ${userId}:`;
 
     if (dialogueState?.lastRadarAlertType === alertType || wasAlertTypeSentRecently(userAlertHistory, alertType, ALERT_HISTORY_LOOKBACK_DAYS, today)) {
         logger.info(`${detectionTAG} Pulando detecção, '${alertType}' enviado recentemente.`);
@@ -208,8 +211,10 @@ export async function detectPeakPerformanceShares(
             if (peakSharesValue >= SHARES_MIN_ABSOLUTE_FOR_PICO && peakSharesValue > averageSharesFirst3Days * SHARES_PICO_THRESHOLD_MULTIPLIER) {
                 const postDescriptionForAI = post.description ? `"${post.description.substring(0, 50)}..."` : "recente";
                 
-                const detailsForLog: IPeakSharesDetails = {
+                // O tipo IPeakSharesDetails (de User.ts) precisaria ser atualizado para incluir platformPostId?: string;
+                const detailsForLog: IPeakSharesDetails & { platformPostId?: string } = {
                     postId: postId,
+                    platformPostId: post.instagramMediaId, // <-- OTIMIZAÇÃO APLICADA
                     postDescriptionExcerpt: post.description ? post.description.substring(0, 100) : undefined,
                     peakShares: peakSharesValue,
                     peakDay: peakSharesDay,
@@ -242,7 +247,8 @@ export async function detectUnexpectedDropReelsWatchTime(
     dialogueState: IDialogueState
 ): Promise<DetectedEvent | null> {
     const alertType = 'unexpected_drop_reels_watch_time_v1'; 
-    const detectionTAG = `${SERVICE_TAG}[detectUnexpectedDropReelsWatchTime] User ${userId}:`;
+    const ruleLogicVersion = "v1.0_AlertSvc_3.6"; // Mantém versão se não houver mudança de lógica aqui
+    const detectionTAG = `${SERVICE_TAG}[detectUnexpectedDropReelsWatchTime ${ruleLogicVersion}] User ${userId}:`;
 
     if (dialogueState?.lastRadarAlertType === alertType || wasAlertTypeSentRecently(userAlertHistory, alertType, ALERT_HISTORY_LOOKBACK_DAYS, today)) {
         logger.info(`${detectionTAG} Pulando detecção, '${alertType}' enviado recentemente.`);
@@ -327,7 +333,7 @@ export async function detectUnexpectedDropReelsWatchTime(
         
         const historicalAverageReelsWatchTime = countHistoricalReelsWithWatchTime > 0 ?
             sumHistoricalAvgWatchTime / countHistoricalReelsWithWatchTime :
-            (currentAverageReelsWatchTime > 5 ? currentAverageReelsWatchTime * 1.5 : 15); 
+            (currentAverageReelsWatchTime > 5 ? currentAverageReelsWatchTime * 1.5 : 15); // Fallback se não houver dados históricos
 
         logger.debug(`${detectionTAG} Tempo médio de visualização histórico dos Reels: ${historicalAverageReelsWatchTime.toFixed(1)}s (baseado em ${countHistoricalReelsWithWatchTime} reels)`);
 
@@ -361,7 +367,8 @@ export async function detectForgottenPromisingFormat(
     dialogueState: IDialogueState
 ): Promise<DetectedEvent | null> {
     const alertType = 'forgotten_format_promising_v1'; 
-    const detectionTAG = `${SERVICE_TAG}[detectForgottenPromisingFormat] User ${userId}:`;
+    const ruleLogicVersion = "v1.0_AlertSvc_3.6"; // Mantém versão se não houver mudança de lógica aqui
+    const detectionTAG = `${SERVICE_TAG}[detectForgottenPromisingFormat ${ruleLogicVersion}] User ${userId}:`;
     const METRIC_TO_USE: keyof IMetricStats = FORMAT_PERFORMANCE_METRIC_KEY; 
 
     if (dialogueState?.lastRadarAlertType === alertType || wasAlertTypeSentRecently(userAlertHistory, alertType, ALERT_HISTORY_LOOKBACK_DAYS, today)) {
@@ -493,7 +500,8 @@ export async function detectUntappedPotentialTopic(
     dialogueState: IDialogueState
 ): Promise<DetectedEvent | null> {
     const alertType = 'untapped_potential_topic_v2'; 
-    const detectionTAG = `${SERVICE_TAG}[detectUntappedPotentialTopic] User ${userId}:`;
+    const ruleLogicVersion = "v2.1_AlertSvc_3.7_PlatformId"; // Versão da lógica da regra com adição de platformId
+    const detectionTAG = `${SERVICE_TAG}[detectUntappedPotentialTopic ${ruleLogicVersion}] User ${userId}:`;
     const METRIC_TO_USE: keyof IMetricStats = UNTAPPED_POTENTIAL_PERFORMANCE_METRIC; 
 
     if (dialogueState?.lastRadarAlertType === alertType || wasAlertTypeSentRecently(userAlertHistory, alertType, ALERT_HISTORY_LOOKBACK_DAYS, today)) {
@@ -590,11 +598,11 @@ export async function detectUntappedPotentialTopic(
                 referenceAveragePerformance = calculateAverageMetric(recentPosts.filter(p => !!p.stats), extractor); 
             }
             
-            if (referenceAveragePerformance === null) { // MODIFICADO: Verificação de null primeiro
+            if (referenceAveragePerformance === null) { 
                  logger.warn(`${detectionTAG} Média de referência (${METRIC_TO_USE}) para post ${oldPost._id} não pôde ser calculada (calculateAverageMetric retornou null).`);
                 continue; 
-            } else { // Agora referenceAveragePerformance é um número
-                const refAvgPerfNumber: number = referenceAveragePerformance; // Para clareza e melhor inferência de tipo
+            } else { 
+                const refAvgPerfNumber: number = referenceAveragePerformance; 
                 const oldPostMetricValue = Number(oldPost.stats?.[METRIC_TO_USE] || 0);
 
                 if (refAvgPerfNumber <= 0 && oldPostMetricValue <=0) {
@@ -614,12 +622,14 @@ export async function detectUntappedPotentialTopic(
                     }
                     const daysSincePosted = differenceInDays(today, oldPostDateObj);
                     
-                    const detailsForLog: IUntappedPotentialTopicDetails = {
+                    // O tipo IUntappedPotentialTopicDetails (de User.ts) precisaria ser atualizado para incluir platformPostId?: string;
+                    const detailsForLog: IUntappedPotentialTopicDetails & { platformPostId?: string } = {
                         postId: oldPost._id, 
+                        platformPostId: oldPost.instagramMediaId, // <-- OTIMIZAÇÃO APLICADA
                         postDescriptionExcerpt: oldPost.description ? oldPost.description.substring(0,70) : undefined,
                         performanceMetric: METRIC_TO_USE as string,
                         performanceValue: performanceValue, 
-                        referenceAverage: refAvgPerfNumber, // Usa a variável tipada
+                        referenceAverage: refAvgPerfNumber,
                         daysSincePosted: daysSincePosted,
                         postType: oldPost.type, 
                         format: oldPost.format, 
@@ -659,7 +669,8 @@ export async function detectEngagementPeakNotCapitalized(
     dialogueState: IDialogueState
 ): Promise<DetectedEvent | null> {
     const alertType = 'engagement_peak_not_capitalized_v1'; 
-    const detectionTAG = `${SERVICE_TAG}[detectEngagementPeakNotCapitalized] User ${userId}:`;
+    const ruleLogicVersion = "v2.1_AlertSvc_3.7_PlatformId"; // Consistente com a lógica de platformId
+    const detectionTAG = `${SERVICE_TAG}[detectEngagementPeakNotCapitalized ${ruleLogicVersion}] User ${userId}:`;
     const METRIC_FOR_COMMENTS: keyof IMetricStats = 'comments';
 
     if (dialogueState?.lastRadarAlertType === alertType || wasAlertTypeSentRecently(userAlertHistory, alertType, ALERT_HISTORY_LOOKBACK_DAYS, today)) {
@@ -720,8 +731,10 @@ export async function detectEngagementPeakNotCapitalized(
             if (postComments >= ENGAGEMENT_PEAK_MIN_ABSOLUTE_COMMENTS && postComments > averageComments * ENGAGEMENT_PEAK_COMMENT_MULTIPLIER) {
                 const postDescriptionForAI = post.description ? `"${post.description.substring(0, 70)}..."` : "um post recente";
                 const postId = post._id; 
-                const detailsForLog: IEngagementPeakNotCapitalizedDetails = {
+                
+                const detailsForLog: IEngagementPeakNotCapitalizedDetails & { platformPostId?: string } = {
                     postId: postId,
+                    platformPostId: post.instagramMediaId, // Essencial para links
                     postDescriptionExcerpt: post.description ? post.description.substring(0,70) : undefined, 
                     comments: postComments,
                     averageComments: averageComments, 

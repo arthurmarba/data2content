@@ -1,8 +1,6 @@
-// @/app/models/CommunityInspiration.ts - v1.1.0 (Adiciona Enums, Índice Único e Sub-schema para Métricas Internas)
-// - ATUALIZADO: Campos categóricos (proposal, context, format, etc.) usam Enums.
-// - ADICIONADO: Índice único em postId_Instagram.
-// - ATUALIZADO: internalMetricsSnapshot usa um sub-schema definido.
-// - Baseado na v1.0.1.
+// @/app/models/CommunityInspiration.ts - v1.1.1 (Adiciona índice composto para otimizar busca de inspirações)
+// - ADICIONADO: Índice composto em status, addedToCommunityAt e internalMetricsSnapshot.saveRate.
+// - Baseado na v1.1.0 (Enums, Índice Único em postId_Instagram, Sub-schema para Métricas Internas).
 
 import { Schema, model, models, Document, Model, Types } from "mongoose";
 import {
@@ -16,7 +14,7 @@ import {
     ContextType,
     QualitativeObjectiveType,
     PerformanceHighlightType
-} from "@/app/lib/constants/communityInspirations.constants"; // Importando os novos enums/constantes
+} from "@/app/lib/constants/communityInspirations.constants"; 
 
 /**
  * Interface para o subdocumento de métricas internas.
@@ -31,28 +29,28 @@ export interface IInternalMetricsSnapshot {
 
 /**
  * Interface que define a estrutura de um documento CommunityInspiration.
- * ATUALIZADO v1.1.0
+ * ATUALIZADO v1.1.0 (e mantido na v1.1.1)
  */
 export interface ICommunityInspiration extends Document {
   _id: Types.ObjectId;
   postId_Instagram: string;
   originalInstagramPostUrl: string;
-  originalCreatorId: Types.ObjectId; // Referência ao IUser criador original
+  originalCreatorId: Types.ObjectId; 
   
-  proposal: ProposalType; // ATUALIZADO PARA USAR ENUM TYPE
-  context: ContextType;   // ATUALIZADO PARA USAR ENUM TYPE
-  format: FormatType;     // ATUALIZADO PARA USAR ENUM TYPE
+  proposal: ProposalType; 
+  context: ContextType;   
+  format: FormatType;     
   
   contentSummary: string;
-  performanceHighlights_Qualitative: PerformanceHighlightType[]; // ATUALIZADO PARA USAR ENUM TYPE
-  primaryObjectiveAchieved_Qualitative: QualitativeObjectiveType; // ATUALIZADO PARA USAR ENUM TYPE
+  performanceHighlights_Qualitative: PerformanceHighlightType[]; 
+  primaryObjectiveAchieved_Qualitative: QualitativeObjectiveType; 
   
   tags_IA?: string[];
   
   addedToCommunityAt: Date;
   status: 'active' | 'archived' | 'pending_review';
 
-  internalMetricsSnapshot?: IInternalMetricsSnapshot; // ATUALIZADO PARA USAR SUB-INTERFACE
+  internalMetricsSnapshot?: IInternalMetricsSnapshot; 
 
   createdAt?: Date;
   updatedAt?: Date;
@@ -63,18 +61,18 @@ export interface ICommunityInspiration extends Document {
  */
 const internalMetricsSubSchema = new Schema<IInternalMetricsSnapshot>({
   reachToFollowersRatio: { type: Number },
-  saveRate: { type: Number },
+  saveRate: { type: Number, index: true }, // Indexado se for usado para ordenação frequentemente
   shareRate: { type: Number },
   reelAvgWatchTimeSec: { type: Number },
 }, { _id: false });
 
 /**
  * Definição do Schema para o CommunityInspiration.
- * ATUALIZADO v1.1.0
+ * ATUALIZADO v1.1.1: Adicionado novo índice composto.
  */
 const communityInspirationSchema = new Schema<ICommunityInspiration>(
   {
-    postId_Instagram: { type: String, required: true, index: true /* unique será adicionado abaixo */ },
+    postId_Instagram: { type: String, required: true, index: true },
     originalInstagramPostUrl: { type: String, required: true },
     originalCreatorId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     
@@ -92,25 +90,28 @@ const communityInspirationSchema = new Schema<ICommunityInspiration>(
     status: { 
       type: String, 
       enum: ['active', 'archived', 'pending_review'], 
-      default: 'active', // Manteremos 'active' por enquanto, conforme plano
+      default: 'active', 
       index: true 
     },
 
-    internalMetricsSnapshot: { type: internalMetricsSubSchema, default: () => ({}) }, // ATUALIZADO
+    internalMetricsSnapshot: { type: internalMetricsSubSchema, default: () => ({}) },
   },
   {
     timestamps: true,
   }
 );
 
-// Índice único para postId_Instagram
+// Índice único para postId_Instagram (mantido da v1.1.0)
 communityInspirationSchema.index({ postId_Instagram: 1 }, { unique: true });
 
-// Índices adicionais para otimizar buscas comuns (mantidos)
+// Índices adicionais para otimizar buscas comuns (mantidos da v1.1.0)
 communityInspirationSchema.index({ proposal: 1, context: 1, primaryObjectiveAchieved_Qualitative: 1, status: 1 });
 communityInspirationSchema.index({ format: 1, primaryObjectiveAchieved_Qualitative: 1, status: 1 });
 communityInspirationSchema.index({ originalCreatorId: 1, status: 1 }); 
 
+// NOVO ÍNDICE para otimizar a query principal em communityService.getInspirations (v1.1.1)
+// Suporta filtro por status: 'active' e ordenação por addedToCommunityAt e internalMetricsSnapshot.saveRate
+communityInspirationSchema.index({ status: 1, addedToCommunityAt: -1, "internalMetricsSnapshot.saveRate": -1 }); 
 
 /**
  * Exporta o modelo 'CommunityInspiration', evitando recriação em dev/hot reload.

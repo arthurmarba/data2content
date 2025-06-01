@@ -1,5 +1,6 @@
-// @/app/lib/dataService/communityService.ts - v2.14.6 (Melhora ranking em getInspirations)
-// - ATUALIZADO: getInspirations agora usa um critério de ordenação secundário (ex: saveRate).
+// src/app/lib/dataService/communityService.ts - v2.14.7 (Otimiza addInspiration com findOneAndUpdate e upsert)
+// - ATUALIZADO: Função addInspiration refatorada para usar findOneAndUpdate com upsert:true para maior eficiência e atomicidade.
+// - Baseado na v2.14.6.
 
 import mongoose, { Types } from 'mongoose';
 import { startOfDay } from 'date-fns';
@@ -21,6 +22,8 @@ import {
     PerformanceHighlightType
 } from "@/app/lib/constants/communityInspirations.constants";
 
+const SERVICE_TAG = '[dataService][communityService v2.14.7]'; // Versão atualizada
+
 /**
  * Regista o opt-in de um utilizador para a funcionalidade de inspiração da comunidade.
  * @param userId - O ID do utilizador.
@@ -33,7 +36,7 @@ export async function optInUserToCommunity(
     userId: string,
     termsVersion: string
 ): Promise<IUser> {
-    const TAG = '[dataService][communityService][optInUserToCommunity v2.14.6]';
+    const TAG = `${SERVICE_TAG}[optInUserToCommunity]`; // Mantém versão interna da lógica se não alterada
     logger.info(`${TAG} Registando opt-in para User ${userId}. Termos: ${termsVersion}`);
 
     if (!mongoose.isValidObjectId(userId)) {
@@ -80,7 +83,7 @@ export async function optInUserToCommunity(
  * @throws {UserNotFoundError} Se o utilizador não for encontrado.
  */
 export async function optOutUserFromCommunity(userId: string): Promise<IUser> {
-    const TAG = '[dataService][communityService][optOutUserFromCommunity v2.14.6]';
+    const TAG = `${SERVICE_TAG}[optOutUserFromCommunity]`;
     logger.info(`${TAG} Registando opt-out da comunidade para User ${userId}.`);
 
     if (!mongoose.isValidObjectId(userId)) {
@@ -115,6 +118,7 @@ export async function optOutUserFromCommunity(userId: string): Promise<IUser> {
 
 /**
  * Adiciona uma nova inspiração à comunidade ou atualiza uma existente com o mesmo postId_Instagram.
+ * ATUALIZADO v2.14.7: Usa findOneAndUpdate com upsert para maior eficiência.
  * @param inspirationData - Os dados da inspiração a serem adicionados/atualizados.
  * @returns Uma promessa que resolve para o objeto da inspiração criada ou atualizada.
  * @throws {DatabaseError} Se ocorrer um erro de banco de dados.
@@ -122,7 +126,7 @@ export async function optOutUserFromCommunity(userId: string): Promise<IUser> {
 export async function addInspiration(
     inspirationData: Partial<ICommunityInspiration>
 ): Promise<ICommunityInspiration> {
-    const TAG = '[dataService][communityService][addInspiration v2.14.6]';
+    const TAG = `${SERVICE_TAG}[addInspiration v2.14.7]`; // Tag de função atualizada
     logger.info(`${TAG} Adicionando/Atualizando inspiração. PostId Instagram: ${inspirationData.postId_Instagram}`);
 
     if (!inspirationData.postId_Instagram) {
@@ -133,35 +137,35 @@ export async function addInspiration(
     try {
         await connectToDatabase();
 
-        const existingInspiration = await CommunityInspirationModel.findOne({
-            postId_Instagram: inspirationData.postId_Instagram
-        });
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { addedToCommunityAt, _id, ...updateFields } = inspirationData;
 
-        if (existingInspiration) {
-            logger.warn(`${TAG} Inspiração com postId_Instagram ${inspirationData.postId_Instagram} já existe (ID: ${existingInspiration._id}). Atualizando...`);
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const { addedToCommunityAt, _id, ...updateFields } = inspirationData;
-            const updatedInspiration = await CommunityInspirationModel.findByIdAndUpdate(
-                existingInspiration._id,
-                { $set: updateFields, $currentDate: { updatedAt: true } },
-                { new: true, runValidators: true }
-            ).lean();
-
-            if (!updatedInspiration) {
-                 logger.error(`${TAG} Falha ao ATUALIZAR inspiração existente com postId_Instagram ${inspirationData.postId_Instagram}`);
-                 throw new DatabaseError(`Falha ao ATUALIZAR inspiração existente com postId_Instagram ${inspirationData.postId_Instagram}`);
+        const upsertedInspiration = await CommunityInspirationModel.findOneAndUpdate(
+            { postId_Instagram: inspirationData.postId_Instagram }, // Filtro para encontrar o documento
+            { 
+                $set: updateFields, // Campos a serem atualizados se encontrado
+                $setOnInsert: { addedToCommunityAt: inspirationData.addedToCommunityAt || new Date() } // Campo a ser definido apenas na inserção
+            },
+            { 
+                new: true, // Retorna o documento modificado (ou o novo, se criado)
+                upsert: true, // Cria o documento se não for encontrado
+                runValidators: true, // Roda validadores do schema
+                lean: true // Retorna um POJO
             }
-            logger.info(`${TAG} Inspiração existente ${updatedInspiration._id} atualizada.`);
-            return updatedInspiration as ICommunityInspiration;
-        }
+        );
 
-        const newInspirationData = {
-            ...inspirationData,
-            addedToCommunityAt: inspirationData.addedToCommunityAt || new Date(),
-        };
-        const newInspiration = await CommunityInspirationModel.create(newInspirationData);
-        logger.info(`${TAG} Nova inspiração ID: ${newInspiration._id} (PostId Instagram: ${newInspiration.postId_Instagram}) criada com sucesso.`);
-        return newInspiration as ICommunityInspiration;
+        if (!upsertedInspiration) {
+             // Este caso não deveria acontecer com upsert:true, a menos que haja um erro muito específico.
+             logger.error(`${TAG} Falha ao criar/atualizar inspiração com postId_Instagram ${inspirationData.postId_Instagram} usando findOneAndUpdate.`);
+             throw new DatabaseError(`Falha ao criar/atualizar inspiração com postId_Instagram ${inspirationData.postId_Instagram}`);
+        }
+        
+        // Verifica se o documento foi inserido ou atualizado para logar corretamente
+        // (findOneAndUpdate não indica diretamente se foi upsert ou update no retorno padrão,
+        //  mas podemos inferir se o addedToCommunityAt foi setado pelo $setOnInsert,
+        //  ou comparando timestamps se necessário, mas para o log, um genérico é suficiente)
+        logger.info(`${TAG} Inspiração ID: ${upsertedInspiration._id} (PostId Instagram: ${upsertedInspiration.postId_Instagram}) criada/atualizada com sucesso.`);
+        return upsertedInspiration as ICommunityInspiration;
 
     } catch (error: any) {
         logger.error(`${TAG} Erro ao adicionar/atualizar inspiração para PostId Instagram ${inspirationData.postId_Instagram}:`, error);
@@ -183,7 +187,7 @@ export async function getInspirations(
     limit: number = 3,
     excludeIds?: string[]
 ): Promise<ICommunityInspiration[]> {
-    const TAG = '[dataService][communityService][getInspirations v2.14.6]';
+    const TAG = `${SERVICE_TAG}[getInspirations v2.14.6]`; // Lógica da v2.14.6 mantida
     logger.info(`${TAG} Buscando inspirações com filtros: ${JSON.stringify(filters)}, limite: ${limit}, excluir IDs: ${excludeIds?.join(',')}`);
 
     const query: any = { status: 'active' };
@@ -221,16 +225,9 @@ export async function getInspirations(
     try {
         await connectToDatabase();
         const inspirations = await CommunityInspirationModel.find(query)
-            // ATUALIZADO: Ordenação primária por data, secundária por uma métrica de qualidade (ex: saveRate)
-            // Certifique-se de que 'internalMetricsSnapshot.saveRate' existe e está indexado se for usado frequentemente.
             .sort({ addedToCommunityAt: -1, 'internalMetricsSnapshot.saveRate': -1 })
             .limit(limit)
-            .select('-internalMetricsSnapshot -updatedAt -status -__v') // internalMetricsSnapshot é usado para sort, mas pode ser omitido do select final se não for necessário no retorno.
-                                                                    // Se for necessário para alguma lógica cliente, remova-o do select negativo.
-                                                                    // Por agora, vamos mantê-lo selecionado para o caso de a IA precisar dele, mas oculto para o utilizador final.
-                                                                    // A IA não recebe este objeto diretamente, mas sim uma versão formatada.
-                                                                    // Para a função de executor, o select é feito lá.
-                                                                    // Aqui, vamos remover do select para o retorno geral desta função.
+            .select('-internalMetricsSnapshot -updatedAt -status -__v') 
             .lean();
 
         logger.info(`${TAG} Encontradas ${inspirations.length} inspirações.`);
@@ -248,7 +245,7 @@ export async function recordDailyInspirationShown(
     userId: string,
     inspirationIds: string[]
 ): Promise<void> {
-    const TAG = '[dataService][communityService][recordDailyInspirationShown v2.14.6]';
+    const TAG = `${SERVICE_TAG}[recordDailyInspirationShown v2.14.6]`; // Lógica da v2.14.6 mantida
 
     if (!inspirationIds || inspirationIds.length === 0) {
         logger.debug(`${TAG} Nenhuma ID de inspiração fornecida para User ${userId}. Pulando registo.`);
@@ -292,9 +289,9 @@ export async function recordDailyInspirationShown(
  */
 export async function findUserPostsEligibleForCommunity(
     userId: string,
-    criteria: { sinceDate: Date; minPerformanceCriteria?: any; }
+    criteria: { sinceDate: Date; minPerformanceCriteria?: any; } // minPerformanceCriteria ainda como placeholder
 ): Promise<IMetric[]> {
-    const TAG = '[dataService][communityService][findUserPostsEligibleForCommunity v2.14.6]';
+    const TAG = `${SERVICE_TAG}[findUserPostsEligibleForCommunity v2.14.6]`; // Lógica da v2.14.6 mantida
     logger.info(`${TAG} Buscando posts elegíveis para comunidade para User ${userId} desde ${criteria.sinceDate.toISOString()}`);
 
     if (!mongoose.isValidObjectId(userId)) {
@@ -313,6 +310,7 @@ export async function findUserPostsEligibleForCommunity(
 
     // if (criteria.minPerformanceCriteria) {
     //     // Lógica para adicionar critérios de performance à query
+    //     // Ex: query['stats.shares'] = { $gte: criteria.minPerformanceCriteria.minShares };
     // }
 
     try {

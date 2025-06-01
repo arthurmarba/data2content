@@ -76,7 +76,8 @@ export async function getConsultantResponse(
     let uid: string;
     let firstName: string;
     let greeting: string;
-    let currentDialogueState: stateService.IDialogueState = {};
+    // CORREÇÃO APLICADA AQUI:
+    let currentDialogueState: stateService.IDialogueState = stateService.getDefaultDialogueState();
 
     try {
         user = await dataService.lookupUser(fromPhone);
@@ -94,10 +95,12 @@ export async function getConsultantResponse(
     }
 
     try {
-        currentDialogueState = await stateService.getDialogueState(uid);
+        // Tentativa de carregar o estado, mas currentDialogueState já tem um valor padrão seguro.
+        const loadedState = await stateService.getDialogueState(uid);
+        currentDialogueState = loadedState; // Sobrescreve o default se o carregamento for bem-sucedido
         logger.debug(`${TAG} Estado carregado: ${JSON.stringify(currentDialogueState)}`);
     } catch (e: any) {
-        logger.error(`${TAG} Erro ao buscar estado do Redis para User ${uid}:`, e);
+        logger.error(`${TAG} Erro ao buscar estado do Redis para User ${uid} (não fatal, usará o estado padrão já definido):`, e);
     }
     
     let determinedIntent: DeterminedIntent | null = null;
@@ -151,7 +154,7 @@ export async function getConsultantResponse(
     }
     
     let effectiveIncomingText = textForNormalization; 
-    let effectiveIntent = determinedIntent as DeterminedIntent;
+    let effectiveIntent = determinedIntent as DeterminedIntent; // Assumindo que não será null aqui se responseTextForSpecialHandled for null
 
 
     if (responseTextForSpecialHandled) {
@@ -161,7 +164,7 @@ export async function getConsultantResponse(
         const updatedHistory = [...currentHistory, userMessageForHistory, assistantResponseForHistory].slice(-HISTORY_LIMIT);
 
         await stateService.setConversationHistory(uid, updatedHistory);
-        await stateService.clearPendingActionState(uid);
+        await stateService.clearPendingActionState(uid); // Limpa estado pendente após special_handled
         await stateService.updateDialogueState(uid, { lastInteraction: Date.now() });
 
         logger.info(`${TAG} ✓ ok (special_handled por intentService) ${Date.now() - start} ms`);
@@ -193,7 +196,7 @@ export async function getConsultantResponse(
     } else {
          if (!shouldSendDynamicAck) {
             logger.debug(`${TAG} Pulando quebra-gelo dinâmico devido à frequência (interação recente via currentDialogueState).`);
-        } else {
+        } else if (determinedIntent) { // Adicionado para checar se determinedIntent não é null
             logger.debug(`${TAG} Pulando quebra-gelo dinâmico para intenção: ${determinedIntent}`);
         }
     }
@@ -272,7 +275,7 @@ export async function getConsultantResponse(
         const { stream, historyPromise: hp } = await askLLMWithEnrichedContext(
             enrichedContext, 
             effectiveIncomingText, 
-            effectiveIntent! 
+            effectiveIntent! // Adicionado ! para garantir que não é null, pois foi checado antes
         );
         historyPromise = hp;
 

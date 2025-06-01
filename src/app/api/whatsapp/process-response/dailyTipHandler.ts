@@ -1,23 +1,19 @@
 // src/app/api/whatsapp/process-response/dailyTipHandler.ts
-// Versão: v1.4.2 (Passa alertDetails para EnrichedAIContext)
-// - MODIFICADO: EnrichedAIContext agora inclui currentAlertDetails.
-// - MODIFICADO: Popula currentAlertDetails com detectedEvent.detailsForLog.
-// Versão: v1.4.1 (Adiciona logging detalhado para fallbackInsightsHistory e console.log de verificação)
-// Baseado na v1.4.0
+// Versão: v1.4.5 (Corrige erro de tipo 'implicitly has an any type' para 'entry')
+// - ATUALIZADO: Adicionada tipagem explícita para o parâmetro 'entry' no filter de updatedFallbackHistory.
+// - Baseado na v1.4.4 (Corrige erro de tipo 'implicitly has an any type' para 'h').
 
 import { NextResponse } from 'next/server';
 import { logger } from '@/app/lib/logger';
 import { sendWhatsAppMessage } from '@/app/lib/whatsappService';
 import { askLLMWithEnrichedContext } from '@/app/lib/aiOrchestrator';
 import * as stateService from '@/app/lib/stateService';
-import type { IDialogueState, ILastResponseContext } from '@/app/lib/stateService'; 
+// Importar IFallbackInsightHistoryEntry
+import type { IDialogueState, ILastResponseContext, IFallbackInsightHistoryEntry } from '@/app/lib/stateService'; 
 import * as dataService from '@/app/lib/dataService';
 import type { IEnrichedReport, IAccountInsight } from '@/app/lib/dataService';
-import { IUser, IAlertHistoryEntry, AlertDetails } from '@/app/models/User'; // AlertDetails já é importado
+import { IUser, IAlertHistoryEntry, AlertDetails } from '@/app/models/User'; 
 
-// ATENÇÃO: A interface EnrichedAIContext (importada de ./types) precisa ser atualizada
-// em src/app/api/whatsapp/process-response/types.ts para incluir:
-// currentAlertDetails?: AlertDetails;
 import { ProcessRequestBody, DetectedEvent, EnrichedAIContext } from './types'; 
 
 import ruleEngineInstance from '@/app/lib/ruleEngine';
@@ -37,7 +33,7 @@ import { subDays } from 'date-fns';
 
 import * as fallbackInsightService from '@/app/lib/fallbackInsightService';
 
-const HANDLER_TAG_BASE = '[DailyTipHandler v1.4.2]'; 
+const HANDLER_TAG_BASE = '[DailyTipHandler v1.4.5]'; // Tag da versão atualizada
 
 async function extractContextFromRadarResponse(
     aiResponseText: string,
@@ -155,7 +151,7 @@ Se, após um esforço genuíno, não conseguir pensar em uma pergunta instigante
 Contexto adicional:
 - Resumo da conversa até agora: "${conversationSummary.substring(0, 500)}"
 - Tipo do último alerta do radar (se houver): "${lastRadarAlertType}"
-- Histórico recente de insights de fallback (tipos enviados nos últimos dias, se houver): ${JSON.stringify(dialogueState.fallbackInsightsHistory?.slice(-5).map(h => h.type) || [])}
+- Histórico recente de insights de fallback (tipos enviados nos últimos dias, se houver): ${JSON.stringify(dialogueState.fallbackInsightsHistory?.slice(-5).map((h: IFallbackInsightHistoryEntry) => h.type) || [])}
 
 Pergunta instigante (ou "NO_QUESTION"):
 `;
@@ -286,15 +282,26 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
                 finalDefaultMessageToSend += `\n\nEstou por aqui para ajudar com suas análises e ideias! 😉`;
             }
 
-            await sendWhatsAppMessage(userPhoneForRadar, finalDefaultMessageToSend);
-            logger.info(`${handlerTAG} Mensagem padrão (com insight e/ou pergunta instigante) enviada.`);
+            let whatsappMessageIdFallback: string | undefined;
+            let sendStatusFallback: 'sent' | 'failed' = 'failed';
+            let sendErrorFallback: string | undefined;
+
+            try {
+                whatsappMessageIdFallback = await sendWhatsAppMessage(userPhoneForRadar, finalDefaultMessageToSend);
+                sendStatusFallback = 'sent';
+                logger.info(`${handlerTAG} Mensagem padrão (fallback) enviada. UserID: ${userId}, WhatsAppMsgID: ${whatsappMessageIdFallback}, Preview: "${finalDefaultMessageToSend.substring(0,100)}..."`);
+            } catch (sendError: any) {
+                logger.error(`${handlerTAG} FALHA AO ENVIAR mensagem padrão (fallback) para UserID: ${userId}. Erro:`, sendError);
+                sendErrorFallback = (sendError.message || String(sendError)).substring(0, 200);
+            }
             
             let updatedFallbackHistory = dialogueStateForRadar.fallbackInsightsHistory || [];
             if (fallbackInsightType) { 
                 updatedFallbackHistory.push({ type: fallbackInsightType, timestamp: Date.now() });
                 const HISTORY_RETENTION_DAYS = 30; 
                 const cutoffTimestamp = Date.now() - (HISTORY_RETENTION_DAYS * 24 * 60 * 60 * 1000);
-                updatedFallbackHistory = updatedFallbackHistory.filter(entry => entry.timestamp >= cutoffTimestamp);
+                // CORREÇÃO APLICADA AQUI: (entry: IFallbackInsightHistoryEntry)
+                updatedFallbackHistory = updatedFallbackHistory.filter((entry: IFallbackInsightHistoryEntry) => entry.timestamp >= cutoffTimestamp);
             }
             logger.info(`${handlerTAG} Histórico de insights de fallback (fallbackInsightsHistory) A SER SALVO:`, updatedFallbackHistory);
 
@@ -309,10 +316,13 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
             await stateService.updateDialogueState(userId, stateToUpdate);
 
             try {
-                const noEventDetails: AlertDetails = { // Type AlertDetails
+                const noEventDetails: AlertDetails & { whatsappMessageId?: string; sendStatus?: string; sendError?: string; } = {
                     reason: 'Nenhum evento de regra detectado, insight de fallback fornecido.',
                     fallbackInsightProvided: fallbackInsightText || 'Fallback genérico de engajamento.',
-                    fallbackInsightType: fallbackInsightType || 'none'
+                    fallbackInsightType: fallbackInsightType || 'none',
+                    whatsappMessageId: whatsappMessageIdFallback,
+                    sendStatus: sendStatusFallback,
+                    sendError: sendErrorFallback
                 };
 
                 await dataService.addAlertToHistory(userId, {
@@ -320,17 +330,16 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
                     date: today,
                     messageForAI: baseDefaultMessage, 
                     finalUserMessage: finalDefaultMessageToSend,
-                    details: noEventDetails, // noEventDetails é AlertDetails
+                    details: noEventDetails,
                     userInteraction: { type: 'not_applicable', interactedAt: today }
                 });
-                logger.info(`${handlerTAG} Alerta 'no_event_found_today_with_insight' registrado no histórico.`);
+                logger.info(`${handlerTAG} Alerta 'no_event_found_today_with_insight' (status: ${sendStatusFallback}) registrado no histórico.`);
             } catch (historyError) {
                 logger.error(`${handlerTAG} Falha ao registrar 'no_event_found_today_with_insight' no histórico:`, historyError);
             }
             return NextResponse.json({ success: true, message: "No rule event, fallback insight message sent." }, { status: 200 });
         }
 
-        // SE UM ALERTA FOI DETECTADO (detectedEvent existe)
         logger.info(`${handlerTAG} Alerta tipo '${detectedEvent.type}' detectado pelo motor de regras. Detalhes: ${JSON.stringify(detectedEvent.detailsForLog)}`);
         
         await stateService.updateDialogueState(userId, {
@@ -342,22 +351,18 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
 
         const currentDialogueStateForAI = await stateService.getDialogueState(userId);
         
-        // ----- MODIFICAÇÃO PRINCIPAL AQUI -----
-        // Certifique-se que a interface EnrichedAIContext em ./types.ts 
-        // foi atualizada para incluir: currentAlertDetails?: AlertDetails;
         const enrichedContextForAI: EnrichedAIContext = {
             user: userForRadar,
             historyMessages: [], 
             dialogueState: currentDialogueStateForAI,
             userName: userFirstNameForRadar,
-            currentAlertDetails: detectedEvent.detailsForLog // Passando os detalhes do alerta para o contexto da IA
+            currentAlertDetails: detectedEvent.detailsForLog 
         };
-        // ----- FIM DA MODIFICAÇÃO -----
 
         logger.info(`${handlerTAG} Solicitando à LLM para gerar mensagem final do alerta. Contexto enriquecido preparado com currentAlertDetails.`);
         const { stream } = await askLLMWithEnrichedContext(
-            enrichedContextForAI, // Este contexto agora inclui currentAlertDetails
-            alertInputForAI,       // O texto base para a IA, que ela vai enriquecer com o link usando os details
+            enrichedContextForAI,
+            alertInputForAI,
             'generate_proactive_alert'
         );
 
@@ -420,6 +425,21 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
         if (instigatingQuestionForAlert) {
             fullAlertMessageToUser += `\n\n${instigatingQuestionForAlert}`;
         }
+        
+        let alertEntryDetails: AlertDetails & { whatsappMessageId?: string; sendStatus?: string; sendError?: string; } = { 
+            ...detectedEvent.detailsForLog 
+        };
+
+        try {
+            const wamid = await sendWhatsAppMessage(userPhoneForRadar, fullAlertMessageToUser);
+            logger.info(`${handlerTAG} Alerta do Radar Tuca enviado. UserID: ${userId}, WhatsAppMsgID: ${wamid}, Preview: "${fullAlertMessageToUser.substring(0, 100)}..."`);
+            alertEntryDetails.whatsappMessageId = wamid;
+            alertEntryDetails.sendStatus = 'sent';
+        } catch (sendError: any) {
+            logger.error(`${handlerTAG} FALHA AO ENVIAR alerta do Radar Tuca para UserID: ${userId}. Erro:`, sendError);
+            alertEntryDetails.sendStatus = 'failed';
+            alertEntryDetails.sendError = (sendError.message || String(sendError)).substring(0, 200);
+        }
 
         try {
             const newAlertEntry: IAlertHistoryEntry = {
@@ -427,17 +447,14 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
                 date: today,
                 messageForAI: alertInputForAI,
                 finalUserMessage: fullAlertMessageToUser,
-                details: detectedEvent.detailsForLog, // detailsForLog já contém platformPostId das regras
+                details: alertEntryDetails, 
                 userInteraction: { type: 'pending_interaction', interactedAt: today }
             };
             await dataService.addAlertToHistory(userId, newAlertEntry);
-            logger.info(`${handlerTAG} Alerta tipo '${detectedEvent.type}' com mensagem final (e pergunta instigante, se houver) registrado no histórico.`);
+            logger.info(`${handlerTAG} Alerta tipo '${detectedEvent.type}' (status: ${alertEntryDetails.sendStatus}) registrado no histórico.`);
         } catch (historySaveError) {
-            logger.error(`${handlerTAG} Falha ao salvar alerta tipo '${detectedEvent.type}' com mensagem final no histórico:`, historySaveError);
+            logger.error(`${handlerTAG} Falha ao salvar alerta tipo '${detectedEvent.type}' no histórico:`, historySaveError);
         }
-
-        await sendWhatsAppMessage(userPhoneForRadar, fullAlertMessageToUser);
-        logger.info(`${handlerTAG} Alerta do Radar Tuca enviado para ${userPhoneForRadar}: "${fullAlertMessageToUser.substring(0, 100)}..."`);
 
         const lastResponseContextForAlert = await extractContextFromRadarResponse(fullAlertMessageToUser, userId);
         await stateService.updateDialogueState(userId, {
@@ -454,19 +471,21 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
 
         if (userPhoneForRadar && userForRadar) {
             try {
-                await sendWhatsAppMessage(userPhoneForRadar, "Desculpe, não consegui gerar seu alerta diário do Radar Tuca hoje devido a um erro interno. Mas estou aqui se precisar de outras análises! 👍");
+                const errorMessageContent = "Desculpe, não consegui gerar seu alerta diário do Radar Tuca hoje devido a um erro interno. Mas estou aqui se precisar de outras análises! 👍";
+                const wamid = await sendWhatsAppMessage(userPhoneForRadar, errorMessageContent);
+                logger.info(`${handlerTAG} Mensagem de erro (Radar Tuca geral) enviada. UserID: ${userId}, WhatsAppMsgID: ${wamid}`);
             } catch (e: any) {
-                logger.error(`${handlerTAG} Falha ao enviar mensagem de erro do Radar Tuca para User ${userId}:`, e);
+                logger.error(`${handlerTAG} Falha CRÍTICA ao enviar mensagem de erro (Radar Tuca geral) para UserID: ${userId}:`, e);
             }
         }
-        if (userId) {
-            const currentDialogueStateOnError = await stateService.getDialogueState(userId);
+        if (userId) { 
+            const currentDialogueStateOnError = await stateService.getDialogueState(userId).catch(() => null); 
             await stateService.updateDialogueState(userId, {
                 lastRadarAlertType: 'error_processing_radar',
                 lastInteraction: Date.now(),
                 lastResponseContext: null,
-                fallbackInsightsHistory: currentDialogueStateOnError.fallbackInsightsHistory 
-            });
+                fallbackInsightsHistory: currentDialogueStateOnError?.fallbackInsightsHistory || [] 
+            }).catch(stateErr => logger.error(`${handlerTAG} Falha ao atualizar estado após erro geral do Radar Tuca:`, stateErr));
         }
 
         return NextResponse.json({ error: `Failed to process Radar Tuca: ${error instanceof Error ? error.message : String(error)}` }, { status: 500 });

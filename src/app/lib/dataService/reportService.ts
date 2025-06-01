@@ -1,7 +1,8 @@
 // @/app/lib/dataService/reportService.ts
-// MODIFICADO: v2.14.21 - Ajustado nome do campo para instagramMediaId em getRecentPostObjectsWithAggregatedMetrics.
-// MODIFICADO: v2.14.20 (ou superior) - Adicionada atribuição de aggregatedReport.dayOfWeekStats para enrichedReport.dayOfWeekStats.
-// Baseado na v2.14.19 que você tem, com a adição necessária.
+// MODIFICADO: v2.14.22 - Padronizado uso de 'instagramMediaId' em getRecentPostObjects.
+// MODIFICADO: v2.14.21 - Ajustado nome do campo para instagramMediaId em getRecentPostObjectsWithAggregatedMetrics (mantido).
+// MODIFICADO: v2.14.20 (ou superior) - Adicionada atribuição de aggregatedReport.dayOfWeekStats para enrichedReport.dayOfWeekStats (mantido).
+// Baseado na v2.14.19.
 
 import mongoose, { Model, Types } from 'mongoose';
 import { subDays, differenceInDays } from 'date-fns';
@@ -20,18 +21,17 @@ import {
 
 import { connectToDatabase } from './connection';
 import { DEFAULT_METRICS_FETCH_DAYS } from './constants';
-// Certifique-se que IEnrichedReport em types.ts tem dayOfWeekStats?: DayOfWeekStat[];
-// Assumindo que PostObject aqui virá a ter instagramMediaId ou será compatível com PostObjectForAverage
+// Assumindo que PostObject em ./types.ts foi atualizado para usar consistentemente instagramMediaId
 import { IUser, IEnrichedReport, PreparedData, ReferenceSearchResult, IGrowthDataResult, PostObject } from './types'; 
 import { getUserProfileSegment, getMultimediaSuggestion, getCombinedGrowthData } from './helpers';
 
-const SERVICE_TAG = '[dataService][reportService v2.14.21]'; // Tag genérica para o serviço
+const SERVICE_TAG = '[dataService][reportService v2.14.22]'; // Tag de versão atualizada
 
 export async function fetchAndPrepareReportData(
     { user, analysisSinceDate }: { user: IUser; analysisSinceDate?: Date; }
 ): Promise<PreparedData> {
     const userId = user._id instanceof Types.ObjectId ? user._id : new Types.ObjectId(user._id);
-    const currentVersionTag = "v2.14.20"; 
+    const currentVersionTag = "v2.14.20"; // Versão da lógica principal desta função mantida
     const TAG = `${SERVICE_TAG}[fetchAndPrepareReportData ${currentVersionTag}]`;
     const sinceDate = analysisSinceDate || subDays(new Date(), DEFAULT_METRICS_FETCH_DAYS);
 
@@ -76,7 +76,7 @@ export async function fetchAndPrepareReportData(
 
     logger.debug(`${TAG} Montando relatório enriquecido final para ${userId}`);
     const recentPostsLookback = Math.max(DEFAULT_METRICS_FETCH_DAYS, differenceInDays(new Date(), sinceDate));
-    const recentPostsData = await getRecentPostObjects(userId.toString(), recentPostsLookback); // Esta função também precisará de ajuste similar se usada pelas regras
+    const recentPostsData = await getRecentPostObjects(userId.toString(), recentPostsLookback); 
 
     const enrichedReport: IEnrichedReport = {
         overallStats: aggregatedReport.overallStats,
@@ -100,7 +100,7 @@ export async function fetchAndPrepareReportData(
 
 
 export async function extractReferenceAndFindPost( text: string, userId: Types.ObjectId ): Promise<ReferenceSearchResult> {
-    const fnTag = `${SERVICE_TAG}[extractReferenceAndFindPost]`;
+    const fnTag = `${SERVICE_TAG}[extractReferenceAndFindPost]`; // Mantém versão, sem alteração de lógica
     logger.debug(`${fnTag} Buscando referência de post em "${text}" para utilizador ${userId}`);
 
     const quotedText = text.match(/["“”'](.+?)["“”']/)?.[1];
@@ -154,7 +154,7 @@ export async function extractReferenceAndFindPost( text: string, userId: Types.O
 }
 
 export async function getLatestAggregatedReport(userId: string): Promise<AggregatedReport | null> {
-    const TAG = `${SERVICE_TAG}[getLatestAggregatedReport]`;
+    const TAG = `${SERVICE_TAG}[getLatestAggregatedReport]`; // Mantém versão, sem alteração de lógica
     logger.debug(`${TAG} Buscando último relatório agregado para utilizador ${userId}`);
 
      if (!mongoose.isValidObjectId(userId)) {
@@ -163,6 +163,7 @@ export async function getLatestAggregatedReport(userId: string): Promise<Aggrega
     }
     try {
         await connectToDatabase();
+        // Esta função continua como placeholder conforme discussão.
         const reportDocument: AggregatedReport | null = null; 
 
         if (reportDocument) {
@@ -183,7 +184,8 @@ export async function getRecentPostObjects(
     daysToLookback: number,
     filters?: { types?: Array<'IMAGE' | 'CAROUSEL' | 'REEL' | 'VIDEO' | 'STORY'>, excludeIds?: string[] }
 ): Promise<PostObject[]> {
-    const TAG = `${SERVICE_TAG}[getRecentPostObjects]`; 
+    const currentVersionTag = "v2.14.22"; // Versão desta função atualizada
+    const TAG = `${SERVICE_TAG}[getRecentPostObjects ${currentVersionTag}]`; 
     logger.debug(`${TAG} Buscando posts recentes para User ${userId}. Dias: ${daysToLookback}, Filtros: ${JSON.stringify(filters)}`);
 
     if (!mongoose.isValidObjectId(userId)) {
@@ -216,10 +218,6 @@ export async function getRecentPostObjects(
 
         logger.info(`${TAG} Encontrados ${postsFromMetrics.length} posts recentes para User ${userId}.`);
 
-        // Se esta função for usada por regras que precisam do instagramMediaId no formato de PostObjectForAverage,
-        // o campo aqui também deveria ser 'instagramMediaId'.
-        // Por ora, vou manter 'platformPostId' como no código original desta função,
-        // mas idealmente deveria ser padronizado se o tipo de retorno for usado pelas regras.
         return postsFromMetrics.map((metric): PostObject => {
             const potentialTags = [metric.format, metric.proposal, metric.context];
             const tags = potentialTags.filter(tag => 
@@ -230,11 +228,12 @@ export async function getRecentPostObjects(
                 tag.toLowerCase() !== 'desconhecido'
             ) as string[];
 
-            // Certifique-se que a interface PostObject (de ./types) inclui 'platformPostId' ou 'instagramMediaId'
+            // Garantindo consistência: usamos instagramMediaId aqui.
+            // A interface PostObject (em ./types) deve refletir isso.
             return {
                 _id: metric._id.toString(),
                 userId: metric.user.toString(),
-                platformPostId: metric.instagramMediaId, // Ou instagramMediaId: metric.instagramMediaId se padronizando
+                instagramMediaId: metric.instagramMediaId, // PADRONIZADO
                 type: metric.type as PostObject['type'],
                 description: metric.description,
                 postDate: metric.postDate, 
@@ -254,8 +253,9 @@ export async function getRecentPostObjects(
 export async function getRecentPostObjectsWithAggregatedMetrics(
     userId: string,
     days: number
-): Promise<PostObject[]> { // Idealmente, este PostObject[] seria PostObjectForAverage[] de utils.ts
-    const TAG = `${SERVICE_TAG}[getRecentPostObjectsWithAggregatedMetrics]`;
+): Promise<PostObject[]> { 
+    const currentVersionTag = "v2.14.21"; // Versão da lógica principal desta função mantida (já usava instagramMediaId)
+    const TAG = `${SERVICE_TAG}[getRecentPostObjectsWithAggregatedMetrics ${currentVersionTag}]`;
     logger.info(`${TAG} Buscando posts com métricas agregadas para User ${userId} nos últimos ${days} dias.`);
 
     if (!mongoose.isValidObjectId(userId)) {
@@ -271,7 +271,7 @@ export async function getRecentPostObjectsWithAggregatedMetrics(
             user: new Types.ObjectId(userId),
             postDate: { $gte: sinceDate }
         })
-        .select('_id user instagramMediaId type description postDate stats format proposal context') // instagramMediaId já está aqui
+        .select('_id user instagramMediaId type description postDate stats format proposal context')
         .sort({ postDate: -1 })
         .limit(150) 
         .lean();
@@ -281,7 +281,7 @@ export async function getRecentPostObjectsWithAggregatedMetrics(
             return [];
         }
 
-        const results: PostObject[] = recentMetrics.map((metric): PostObject => { // Certifique-se que PostObject (de ./types) tem instagramMediaId?
+        const results: PostObject[] = recentMetrics.map((metric): PostObject => {
             const potentialTags = [metric.format, metric.proposal, metric.context];
             const tags = potentialTags.filter(tag => 
                 typeof tag === 'string' && 
@@ -294,7 +294,7 @@ export async function getRecentPostObjectsWithAggregatedMetrics(
             return {
                 _id: metric._id.toString(),
                 userId: metric.user.toString(),
-                instagramMediaId: metric.instagramMediaId, // <-- MODIFICAÇÃO PRINCIPAL AQUI: nome do campo ajustado
+                instagramMediaId: metric.instagramMediaId, 
                 type: metric.type as PostObject['type'],
                 description: metric.description,
                 postDate: metric.postDate, 
@@ -322,7 +322,7 @@ export async function getDailySnapshotsForMetric(
     metricId: string,
     userIdForAuth: string
 ): Promise<IDailyMetricSnapshot[]> {
-    const TAG = `${SERVICE_TAG}[getDailySnapshotsForMetric]`;
+    const TAG = `${SERVICE_TAG}[getDailySnapshotsForMetric]`; // Mantém versão, sem alteração de lógica
     logger.info(`${TAG} Buscando snapshots diários para Metric ID: ${metricId}, User Auth ID: ${userIdForAuth}`);
 
     if (!mongoose.isValidObjectId(metricId)) {
@@ -374,7 +374,7 @@ export async function getTopPostsByMetric(
     metric: keyof IMetricStats | string,
     limit: number
 ): Promise<IMetric[]> {
-    const TAG = `${SERVICE_TAG}[getTopPostsByMetric]`;
+    const TAG = `${SERVICE_TAG}[getTopPostsByMetric]`; // Mantém versão, sem alteração de lógica
     logger.info(`${TAG} Buscando top ${limit} posts para User ID: ${userId}, Métrica: ${metric}`);
 
     if (!mongoose.isValidObjectId(userId)) {
@@ -424,7 +424,7 @@ export async function getMetricDetails(
     metricId: string,
     userId: string
 ): Promise<IMetric | null> {
-    const TAG = `${SERVICE_TAG}[getMetricDetails]`;
+    const TAG = `${SERVICE_TAG}[getMetricDetails]`; // Mantém versão, sem alteração de lógica
     logger.info(`${TAG} Buscando detalhes para Metric ID: ${metricId} para User ID: ${userId}`);
 
     if (!mongoose.isValidObjectId(metricId)) {
@@ -469,7 +469,7 @@ export async function getMetricDetails(
     }
 }
 
-export interface FindMetricsCriteriaArgs {
+export interface FindMetricsCriteriaArgs { // Mantida aqui pois é específica para esta função dentro do service.
     criteria: {
         format?: string;
         proposal?: string;
@@ -490,7 +490,7 @@ export async function findMetricsByCriteria(
     userId: string,
     args: FindMetricsCriteriaArgs
 ): Promise<IMetric[]> {
-    const TAG = `${SERVICE_TAG}[findMetricsByCriteria]`;
+    const TAG = `${SERVICE_TAG}[findMetricsByCriteria]`; // Mantém versão, sem alteração de lógica
     const { criteria, limit = 5, sortBy = 'postDate', sortOrder = 'desc' } = args;
 
     logger.info(`${TAG} Buscando métricas para User ID: ${userId} com critérios: ${JSON.stringify(criteria)}, limite: ${limit}, sortBy: ${sortBy}, sortOrder: ${sortOrder}`);

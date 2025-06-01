@@ -1,6 +1,6 @@
 /**
  * @fileoverview Orquestrador de chamadas à API OpenAI com Function Calling e Streaming.
- * @version 0.10.12 (Atualiza descrições de findPostsByCriteria para LLM com enums)
+ * @version 0.10.13 (Adiciona validação de ObjectId para metricId e ajusta retorno de getDayPCOStats)
  */
 
 import { Types, Model } from 'mongoose';
@@ -29,14 +29,14 @@ import {
   IEnrichedReport,
   IAccountInsight,
   getInspirations as getCommunityInspirationsDataService,
-  CommunityInspirationFilters, // Esta interface foi atualizada em dataService/types.ts para usar Enums
+  CommunityInspirationFilters, 
   IDailyMetricSnapshot,
   getDailySnapshotsForMetric,
   getLatestAccountInsights as getLatestAccountInsightsFromDataService,
   getTopPostsByMetric as getTopPostsByMetricFromDataService,
   getMetricDetails as getMetricDetailsFromDataService,
   findMetricsByCriteria as findMetricsByCriteriaFromDataService,
-  FindMetricsCriteriaArgs, // Esta interface foi atualizada em dataService/types.ts para usar Enums
+  FindMetricsCriteriaArgs, 
 } from './dataService';
 import { subDays, subYears, startOfDay } from 'date-fns';
 
@@ -137,13 +137,13 @@ export const functionSchemas = [
   },
   {
     name: 'getMetricDetailsById',
-    description: 'Busca e retorna os detalhes completos (incluindo métricas) de um único post específico, dado o seu ID. Use para aprofundar a análise de um post mencionado (ex: um post do top 3, ou um post encontrado por busca).',
+    description: 'Busca e retorna os detalhes completos (incluindo métricas) de um único post específico, dado o seu ID interno do sistema. Use para aprofundar a análise de um post mencionado (ex: um post do top 3, ou um post encontrado por busca).',
     parameters: {
         type: 'object',
         properties: {
             metricId: {
                 type: 'string',
-                description: "O ID do post/métrica a ser detalhado."
+                description: "O ID interno do post/métrica a ser detalhado (deve ser um ObjectId válido)."
             }
         },
         required: ['metricId']
@@ -193,13 +193,13 @@ export const functionSchemas = [
   },
   {
     name: 'getDailyMetricHistory',
-    description: 'Busca o histórico de métricas diárias e cumulativas para um post específico (Metric ID), limitado aos primeiros 30 dias. Use para analisar crescimento, viralização e picos de engajamento, APÓS identificar um post de interesse.',
+    description: 'Busca o histórico de métricas diárias e cumulativas para um post específico (usando seu ID interno do sistema), limitado aos primeiros 30 dias. Use para analisar crescimento, viralização e picos de engajamento, APÓS identificar um post de interesse com seu ID interno.',
     parameters: {
         type: 'object',
         properties: {
             metricId: {
                 type: 'string',
-                description: "O ID do post/métrica para buscar o histórico diário."
+                description: "O ID interno do post/métrica para buscar o histórico diário (deve ser um ObjectId válido)."
             }
         },
         required: ['metricId']
@@ -230,7 +230,7 @@ type ExecutorFn = (args: any, user: IUser) => Promise<unknown>;
 
 /* 2.1 getAggregatedReport */
 const getAggregatedReport: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetAggregatedReportArgsSchema>, loggedUser) => {
-  const fnTag = '[fn:getAggregatedReport v0.10.12]'; // Version bump
+  const fnTag = '[fn:getAggregatedReport v0.10.12]'; // Nenhuma mudança lógica aqui, mantém versão
   try {
     const periodInDays = args.analysisPeriod === undefined ? 180 : args.analysisPeriod;
     logger.info(`${fnTag} Executando para usuário ${loggedUser._id} com período de análise: ${periodInDays} dias.`);
@@ -303,7 +303,7 @@ const getAggregatedReport: ExecutorFn = async (args: z.infer<typeof ZodSchemas.G
 
 /* 2.2 getLatestAccountInsights */
 const getLatestAccountInsights: ExecutorFn = async (_args: z.infer<typeof ZodSchemas.GetLatestAccountInsightsArgsSchema>, loggedUser) => {
-    const fnTag = '[fn:getLatestAccountInsights v0.10.12]'; // Version bump
+    const fnTag = '[fn:getLatestAccountInsights v0.10.12]'; // Nenhuma mudança lógica aqui, mantém versão
     logger.info(`${fnTag} Executando para usuário ${loggedUser._id} via dataService.`);
     try {
         const latestInsight: IAccountInsight | null = await getLatestAccountInsightsFromDataService(loggedUser._id.toString());
@@ -331,7 +331,7 @@ const getLatestAccountInsights: ExecutorFn = async (_args: z.infer<typeof ZodSch
 
 /* 2.X fetchCommunityInspirations */
 const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSchemas.FetchCommunityInspirationsArgsSchema>, loggedUser) => {
-  const fnTag = '[fn:fetchCommunityInspirations v0.10.12]'; // Version bump
+  const fnTag = '[fn:fetchCommunityInspirations v0.10.12]'; // Nenhuma mudança lógica aqui, mantém versão
   logger.info(`${fnTag} Executando para User ${loggedUser._id} com args: ${JSON.stringify(args)}`);
   try {
     if (!loggedUser.communityInspirationOptIn) {
@@ -389,7 +389,7 @@ const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSc
 
 /* 2.3 getTopPosts */
 const getTopPosts: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetTopPostsArgsSchema>, loggedUser) => {
-  const fnTag = '[fn:getTopPosts v0.10.12]'; // Version bump
+  const fnTag = '[fn:getTopPosts v0.10.12]'; // Nenhuma mudança lógica aqui, mantém versão
   const userId = loggedUser._id.toString();
   try {
     const metricKey = args.metric;
@@ -432,10 +432,10 @@ const getTopPosts: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetTopPos
 
 /* 2.4 getDayPCOStats */
 const getDayPCOStats: ExecutorFn = async (_args: z.infer<typeof ZodSchemas.GetDayPCOStatsArgsSchema>, loggedUser) => {
-   const fnTag = '[fn:getDayPCOStats v0.10.12]'; // Version bump
+   const fnTag = '[fn:getDayPCOStats v0.10.13]'; // ATUALIZADO
    try {
     logger.info(`${fnTag} Executando para usuário ${loggedUser._id}`);
-    const sinceDate = subDays(new Date(), 180);
+    const sinceDate = subDays(new Date(), 180); // Período padrão para esta análise
     const { enrichedReport } = await fetchAndPrepareReportData({
         user: loggedUser,
         analysisSinceDate: sinceDate
@@ -444,32 +444,42 @@ const getDayPCOStats: ExecutorFn = async (_args: z.infer<typeof ZodSchemas.GetDa
 
     if (!pcoData || Object.keys(pcoData).length === 0) {
          logger.warn(`${fnTag} Dados Dia/P/C não encontrados ou vazios para ${loggedUser._id} no período padrão.`);
-         return { message: "Não encontrei dados suficientes ou classificados por Dia/Proposta/Contexto para esta análise no período padrão." };
+         return { 
+            message: "Não encontrei dados suficientes ou classificados por Dia/Proposta/Contexto para esta análise no período padrão (últimos 180 dias).",
+            dayPCOStats: {} // Retorno consistente para dados não encontrados
+        };
     }
     logger.info(`${fnTag} Dados Dia/P/C obtidos para o período padrão.`);
-    return pcoData;
+    return { dayPCOStats: pcoData }; // Dados encapsulados em uma chave
 
   } catch (err) {
-    logger.error(`${fnTag} Erro:`, err);
-    if (err instanceof MetricsNotFoundError) {
-        return { error: err.message };
+    logger.error(`${fnTag} Erro ao buscar estatísticas Dia/Proposta/Contexto:`, err);
+    if (err instanceof MetricsNotFoundError) { // Supondo que MetricsNotFoundError seja um erro específico que pode ser lançado por fetchAndPrepareReportData
+        return { error: err.message, dayPCOStats: {} };
     }
-    return { error: "Ocorreu um erro inesperado ao buscar as estatísticas Dia/Proposta/Contexto." };
+    return { error: "Ocorreu um erro inesperado ao buscar as estatísticas Dia/Proposta/Contexto. Por favor, tente novamente.", dayPCOStats: {} };
   }
 };
 
 /* 2.5 getMetricDetailsById */
 const getMetricDetailsById: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetMetricDetailsByIdArgsSchema>, loggedUser) => {
-    const fnTag = '[fn:getMetricDetailsById v0.10.12]'; // Version bump
+    const fnTag = '[fn:getMetricDetailsById v0.10.13]'; // ATUALIZADO
     try {
         const metricId = args.metricId;
         const userId = loggedUser._id.toString();
+
+        // Validação defensiva do metricId
+        if (!Types.ObjectId.isValid(metricId)) {
+            logger.warn(`${fnTag} Metric ID inválido (não é ObjectId) recebido: ${metricId} para User ${userId}`);
+            return { error: "O ID fornecido para detalhar o post parece ser inválido. Ele deveria ser um ID interno do sistema." };
+        }
 
         logger.info(`${fnTag} Buscando detalhes para Metric ID: ${metricId} para User: ${userId} (via dataService)`);
         const metricDoc: IMetric | null = await getMetricDetailsFromDataService(metricId, userId);
 
         if (!metricDoc) {
             logger.warn(`${fnTag} Métrica com ID ${metricId} não encontrada para User ${userId} ou sem permissão (via dataService).`);
+            // Mantém retorno de erro pois a LLM espera um post aqui
             return { error: "Não encontrei nenhuma métrica com este ID que pertença a você ou você não tem permissão para acessá-la." };
         }
 
@@ -480,9 +490,14 @@ const getMetricDetailsById: ExecutorFn = async (args: z.infer<typeof ZodSchemas.
         const result = {
             ...metricDoc,
             _id: metricDoc._id.toString(),
-            user: metricDoc.user.toString()
+            user: metricDoc.user.toString() 
+            // Não serializar o objeto Mongoose completo, mas uma representação em POJO
+            // Se metricDoc for um Mongoose document, usar .toObject() ou construir manualmente
         };
-        return result;
+        // Exemplo se metricDoc for um Mongoose Document:
+        // const plainMetricDoc = metricDoc.toObject();
+        // return { ...plainMetricDoc, _id: plainMetricDoc._id.toString(), user: plainMetricDoc.user.toString() };
+        return result; // Assumindo que getMetricDetailsFromDataService já retorna um objeto simples ou que a serialização ocorre corretamente.
 
     } catch (err: any) {
         logger.error(`${fnTag} Erro ao buscar detalhes da métrica ${args.metricId} (chamando dataService):`, err);
@@ -492,7 +507,7 @@ const getMetricDetailsById: ExecutorFn = async (args: z.infer<typeof ZodSchemas.
 
 /* 2.6 findPostsByCriteria */
 const findPostsByCriteria: ExecutorFn = async (args: z.infer<typeof ZodSchemas.FindPostsByCriteriaArgsSchema>, loggedUser) => {
-    const fnTag = '[fn:findPostsByCriteria v0.10.12]'; // Version bump
+    const fnTag = '[fn:findPostsByCriteria v0.10.12]'; // Nenhuma mudança lógica aqui, mantém versão
     try {
         const userId = loggedUser._id.toString();
         const dataServiceArgs: FindMetricsCriteriaArgs = {
@@ -546,10 +561,16 @@ const findPostsByCriteria: ExecutorFn = async (args: z.infer<typeof ZodSchemas.F
 
 /* 2.7 getDailyMetricHistory */
 const getDailyMetricHistory: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetDailyMetricHistoryArgsSchema>, loggedUser) => {
-    const fnTag = '[fn:getDailyMetricHistory v0.10.12]'; // Version bump
+    const fnTag = '[fn:getDailyMetricHistory v0.10.13]'; // ATUALIZADO
     try {
         const metricId = args.metricId;
         const userId = loggedUser._id.toString();
+
+        // Validação defensiva do metricId
+        if (!Types.ObjectId.isValid(metricId)) {
+            logger.warn(`${fnTag} Metric ID inválido (não é ObjectId) recebido: ${metricId} para User ${userId}`);
+            return { error: "O ID fornecido para o histórico do post parece ser inválido. Ele deveria ser um ID interno do sistema." };
+        }
 
         logger.info(`${fnTag} Buscando histórico diário para Metric ID: ${metricId} para User: ${userId}`);
         const snapshots: IDailyMetricSnapshot[] = await getDailySnapshotsForMetric(metricId, userId);
@@ -572,7 +593,7 @@ const getDailyMetricHistory: ExecutorFn = async (args: z.infer<typeof ZodSchemas
 
 /* 2.8 getConsultingKnowledge */
 const getConsultingKnowledge: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetConsultingKnowledgeArgsSchema>, loggedUser) => {
-    const fnTag = '[fn:getConsultingKnowledge v0.10.12]'; // Version bump
+    const fnTag = '[fn:getConsultingKnowledge v0.10.12]'; // Nenhuma mudança lógica aqui, mantém versão
     const topic = args.topic;
 
     logger.info(`${fnTag} Buscando conhecimento sobre o tópico: ${topic} para User ${loggedUser._id}`);

@@ -1,6 +1,8 @@
 // src/app/api/whatsapp/process-response/userMessageHandler.ts
-// Versão: vShortTermMemory_CtxExtract_13_FIXED (Corrige chave de fechamento ausente)
-// - CORRIGIDO: Adicionada chave de fechamento '}' ausente no final da função handleUserMessage.
+// Versão: vShortTermMemory_CtxExtract_13_FIXED_WamidHandling (Captura WAMID e melhora tratamento de erro no envio)
+// - ATUALIZADO: Captura e loga o WAMID retornado pelo whatsappService.
+// - ATUALIZADO: Melhorado o tratamento de erro para chamadas a sendWhatsAppMessage.
+// - CORRIGIDO: Adicionada chave de fechamento '}' ausente no final da função handleUserMessage (mantido).
 // - Baseado em: vShortTermMemory_CtxExtract_13
 import { NextResponse } from 'next/server';
 import {
@@ -10,7 +12,7 @@ import {
     ChatCompletionSystemMessageParam
 } from 'openai/resources/chat/completions';
 import { logger } from '@/app/lib/logger';
-import { sendWhatsAppMessage } from '@/app/lib/whatsappService';
+import { sendWhatsAppMessage } from '@/app/lib/whatsappService'; // Importa nossa função otimizada
 import { askLLMWithEnrichedContext } from '@/app/lib/aiOrchestrator';
 import * as stateService from '@/app/lib/stateService';
 import type { ILastResponseContext, IDialogueState } from '@/app/lib/stateService';
@@ -49,7 +51,7 @@ import {
     INSTIGATING_QUESTION_MAX_TOKENS
 } from '@/app/lib/constants';
 
-const HANDLER_TAG_BASE = '[UserMsgHandler vShortTermMemory_CtxExtract_13]'; // Mantendo a tag da lógica principal
+const HANDLER_TAG_BASE = '[UserMsgHandler vShortTermMemory_CtxExtract_13_FIXED_WamidHandling]'; // Tag atualizada
 
 /**
  * Extrai o tópico principal e entidades chave da resposta de uma IA.
@@ -286,8 +288,13 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
 
     } catch (err) {
         logger.error(`${handlerTAG} Erro ao carregar dados iniciais ou definir estado de processamento:`, err);
-        try { await sendWhatsAppMessage(fromPhone, "Desculpe, tive um problema ao iniciar o processamento da sua mensagem. Tente novamente em instantes."); }
-        catch (e: any) { logger.error(`${handlerTAG} Falha ao enviar mensagem de erro de carregamento inicial:`, e); }
+        try { 
+            const wamid = await sendWhatsAppMessage(fromPhone, "Desculpe, tive um problema ao iniciar o processamento da sua mensagem. Tente novamente em instantes.");
+            logger.info(`${handlerTAG} Mensagem de erro (carregamento inicial) enviada. UserMsgID: ${messageId_MsgAtual}, WhatsAppMsgID: ${wamid}`);
+        }
+        catch (e: any) { 
+            logger.error(`${handlerTAG} Falha CRÍTICA ao enviar mensagem de erro (carregamento inicial) para UserMsgID: ${messageId_MsgAtual}:`, e);
+        }
         await stateService.updateDialogueState(userId, { currentProcessingMessageId: null, currentProcessingQueryExcerpt: null });
         return NextResponse.json({ error: `Failed to load initial user data or set processing state: ${err instanceof Error ? err.message : String(err)}` }, { status: 500 });
     }
@@ -296,7 +303,12 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
     if (!normText) {
         logger.warn(`${handlerTAG} Mensagem normalizada resultou em texto vazio.`);
         const emptyNormResponse = `${greeting} Não entendi bem o que você disse. Pode repetir, por favor?`;
-        await sendWhatsAppMessage(fromPhone, emptyNormResponse);
+        try {
+            const wamid = await sendWhatsAppMessage(fromPhone, emptyNormResponse);
+            logger.info(`${handlerTAG} Mensagem (texto normalizado vazio) enviada. UserMsgID: ${messageId_MsgAtual}, WhatsAppMsgID: ${wamid}`);
+        } catch (sendError) {
+            logger.error(`${handlerTAG} FALHA AO ENVIAR mensagem (texto normalizado vazio) para UserMsgID: ${messageId_MsgAtual}. Erro:`, sendError);
+        }
         await stateService.updateDialogueState(userId, { currentProcessingMessageId: null, currentProcessingQueryExcerpt: null, lastInteraction: Date.now() });
         return NextResponse.json({ success: true, message: "Empty normalized text, user informed." }, { status: 200 });
     }
@@ -403,8 +415,14 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
         if (instigatingQuestionForSpecial) {
             fullResponseForSpecial += `\n\n${instigatingQuestionForSpecial}`;
         }
+        
+        try {
+            const wamid = await sendWhatsAppMessage(fromPhone, fullResponseForSpecial);
+            logger.info(`${handlerTAG} Mensagem (intenção especial) enviada. UserMsgID: ${messageId_MsgAtual}, WhatsAppMsgID: ${wamid}, Preview: "${fullResponseForSpecial.substring(0,50)}..."`);
+        } catch (sendError) {
+            logger.error(`${handlerTAG} FALHA AO ENVIAR mensagem (intenção especial) para UserMsgID: ${messageId_MsgAtual}. Erro:`, sendError);
+        }
 
-        await sendWhatsAppMessage(fromPhone, fullResponseForSpecial);
         const userMsgHist: ChatCompletionUserMessageParam = { role: 'user', content: incomingText! };
         const assistantMsgHist: ChatCompletionAssistantMessageParam = { role: 'assistant', content: fullResponseForSpecial };
         const updatedHistory = [...historyMessages, userMsgHist, assistantMsgHist].slice(-HISTORY_LIMIT);
@@ -491,12 +509,17 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
                 dialogueState
             );
             if (dynamicAckMessage) {
-                await sendWhatsAppMessage(fromPhone!, dynamicAckMessage);
-                historyMessages.push({ role: 'assistant', content: dynamicAckMessage } as ChatCompletionAssistantMessageParam);
-                if (historyMessages.length > HISTORY_LIMIT) historyMessages.shift();
+                try {
+                    const wamid = await sendWhatsAppMessage(fromPhone!, dynamicAckMessage);
+                    logger.info(`${handlerTAG} Quebra-gelo dinâmico enviado. UserMsgID: ${messageId_MsgAtual}, WhatsAppMsgID: ${wamid}`);
+                    historyMessages.push({ role: 'assistant', content: dynamicAckMessage } as ChatCompletionAssistantMessageParam);
+                    if (historyMessages.length > HISTORY_LIMIT) historyMessages.shift();
+                } catch (sendAckError) {
+                    logger.error(`${handlerTAG} FALHA AO ENVIAR quebra-gelo dinâmico para UserMsgID: ${messageId_MsgAtual}. Erro:`, sendAckError);
+                }
             }
         } catch (ackError) {
-            logger.error(`${handlerTAG} Falha ao gerar/enviar quebra-gelo dinâmico:`, ackError);
+            logger.error(`${handlerTAG} Falha ao gerar quebra-gelo dinâmico:`, ackError);
         }
     } else {
          if (shouldSkipDynamicAckEntirely) {
@@ -631,8 +654,13 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
         if (instigatingQuestionForDenial) {
             finalDenialResponse += `\n\n${instigatingQuestionForDenial}`;
         }
-        await sendWhatsAppMessage(fromPhone!, finalDenialResponse);
-
+        
+        try {
+            const wamid = await sendWhatsAppMessage(fromPhone!, finalDenialResponse);
+            logger.info(`${handlerTAG} Mensagem (negação de ação pendente) enviada. UserMsgID: ${messageId_MsgAtual}, WhatsAppMsgID: ${wamid}`);
+        } catch (sendError) {
+            logger.error(`${handlerTAG} FALHA AO ENVIAR mensagem (negação de ação pendente) para UserMsgID: ${messageId_MsgAtual}. Erro:`, sendError);
+        }
 
         const userDenialMsgHist: ChatCompletionUserMessageParam = { role: 'user', content: incomingText! };
         const assistantDenialResponseHist: ChatCompletionAssistantMessageParam = { role: 'assistant', content: finalDenialResponse };
@@ -719,9 +747,20 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
         fullResponseToUser += `\n\n${instigatingQuestion}`;
     }
 
-    await sendWhatsAppMessage(fromPhone!, fullResponseToUser);
-    logger.info(`${handlerTAG} Resposta principal (com pergunta instigante, se houver) enviada ao usuário: "${fullResponseToUser.substring(0,100)}..."`);
-
+    try {
+        const wamid = await sendWhatsAppMessage(fromPhone!, fullResponseToUser);
+        logger.info(`${handlerTAG} Resposta principal enviada. UserMsgID: ${messageId_MsgAtual}, WhatsAppMsgID: ${wamid}, Preview: "${fullResponseToUser.substring(0,100)}..."`);
+    } catch (sendError: any) { // Captura erros do sendWhatsAppMessage (que já tentou retentativas)
+        logger.error(`${handlerTAG} FALHA CRÍTICA AO ENVIAR resposta principal para UserMsgID: ${messageId_MsgAtual}. Erro: ${sendError.message}`, sendError);
+        // Atualizar o estado para refletir a falha no envio, se apropriado.
+        // Não há como notificar o usuário pelo mesmo canal se o envio falhou.
+        // O erro não será relançado para o QStash aqui, para evitar loops se o problema for persistente com o número/API.
+        // A falha será logada e a tarefa do QStash concluirá.
+        await stateService.updateDialogueState(userId, { 
+            lastResponseError: `send_failed: ${sendError.message.substring(0, 200)}`, // Limita o tamanho da msg de erro
+        }).catch(stateErr => logger.error(`${handlerTAG} Falha ao atualizar estado após erro de envio:`, stateErr));
+    }
+    
     const extractedAIContext = await extractContextFromAIResponse(fullResponseToUser, userId);
 
     let finalDialogueStateUpdate: Partial<stateService.IDialogueState> = {
@@ -852,4 +891,4 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
 
     logger.info(`${handlerTAG} Tarefa de mensagem de usuário concluída com sucesso.`);
     return NextResponse.json({ success: true, message: "User message processed." }, { status: 200 });
-} // Adicionada a chave de fechamento aqui
+}
