@@ -1,26 +1,77 @@
-// src/app/api/metrics/route.ts - v1.2 (Classificação Assíncrona)
+// src/app/api/metrics/route.ts - v1.3.1 (Correção de importação de tipos Enum)
+// - ATUALIZADO: Corrigida importação de FormatType, ProposalType, ContextType.
+// - ATUALIZADO: source definido como 'document_ai'.
+// - ATUALIZADO: Campo 'type' (media_type) populado com base no 'format'.
+// - ATUALIZADO: Uso de valores de 'consolidatedTopLevel' para format, proposal, context com defaults.
+// - ATUALIZADO: rawData populado.
 
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"; // Ajuste o caminho se necessário
-import { connectToDatabase } from "@/app/lib/mongoose"; // Ajuste o caminho se necessário
-import Metric from "@/app/models/Metric"; // Modelo Metric (v1.3 com classificationStatus)
-import { processMultipleImages } from "@/app/lib/parseMetrics"; // Usa a versão atualizada (v3.0)
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { connectToDatabase } from "@/app/lib/mongoose";
+import Metric, { IMetric } from "@/app/models/Metric"; // FormatType, ProposalType, ContextType removidos daqui
+import { processMultipleImages } from "@/app/lib/parseMetrics"; 
 import mongoose from "mongoose";
-// import { classifyContent } from '@/app/lib/classification'; // <<< REMOVIDO: Não chamaremos mais daqui >>>
-import { logger } from '@/app/lib/logger'; // Importa o logger
-import { Client } from "@upstash/qstash"; // <<< ADICIONADO: Cliente QStash >>>
+import { logger } from '@/app/lib/logger';
+import { Client } from "@upstash/qstash";
+import { 
+    VALID_FORMATS, 
+    VALID_PROPOSALS, 
+    VALID_CONTEXTS,
+    DEFAULT_FORMAT_ENUM,
+    DEFAULT_PROPOSAL_ENUM,
+    DEFAULT_CONTEXT_ENUM,
+    FormatType,     // <<< ADICIONADO AQUI
+    ProposalType,   // <<< ADICIONADO AQUI
+    ContextType     // <<< ADICIONADO AQUI
+} from "@/app/lib/constants/communityInspirations.constants";
 
-export const runtime = "nodejs"; // Garante execução no Node.js
+export const runtime = "nodejs"; 
 
-// <<< ADICIONADO: Inicializa cliente QStash >>>
-// Certifique-se de que QSTASH_TOKEN está nas variáveis de ambiente
-const qstashClient = new Client({ token: process.env.QSTASH_TOKEN! });
+const qstashClient = process.env.QSTASH_TOKEN ? new Client({ token: process.env.QSTASH_TOKEN }) : null;
+if (!qstashClient && process.env.NODE_ENV === 'production') {
+    logger.error(`[API Metrics Init] QSTASH_TOKEN não definido! Classificação assíncrona de métricas manuais não funcionará.`);
+}
+
+
+// Função auxiliar para mapear string de formato para o tipo de Mídia do Schema
+function mapFormatToMediaType(formatString?: string): IMetric['type'] {
+    if (!formatString) return 'UNKNOWN';
+    const lowerFormat = formatString.toLowerCase().trim();
+    if (lowerFormat.includes('reel')) return 'REEL';
+    if (lowerFormat.includes('foto') || lowerFormat.includes('imagem') || lowerFormat.includes('feed')) return 'IMAGE';
+    if (lowerFormat.includes('vídeo') || lowerFormat.includes('video')) return 'VIDEO'; // Se for um vídeo que não é Reel
+    if (lowerFormat.includes('carrossel') || lowerFormat.includes('carousel')) return 'CAROUSEL_ALBUM';
+    if (lowerFormat.includes('story')) return 'STORY';
+    return 'UNKNOWN';
+}
+
+// Funções auxiliares para validar e obter valores de Enum
+function getValidFormat(formatValue?: unknown): FormatType {
+    if (typeof formatValue === 'string' && (VALID_FORMATS as readonly string[]).includes(formatValue)) {
+        return formatValue as FormatType;
+    }
+    return DEFAULT_FORMAT_ENUM;
+}
+
+function getValidProposal(proposalValue?: unknown): ProposalType {
+    if (typeof proposalValue === 'string' && (VALID_PROPOSALS as readonly string[]).includes(proposalValue)) {
+        return proposalValue as ProposalType;
+    }
+    return DEFAULT_PROPOSAL_ENUM;
+}
+
+function getValidContext(contextValue?: unknown): ContextType {
+    if (typeof contextValue === 'string' && (VALID_CONTEXTS as readonly string[]).includes(contextValue)) {
+        return contextValue as ContextType;
+    }
+    return DEFAULT_CONTEXT_ENUM;
+}
+
 
 export async function POST(request: NextRequest) {
-  const TAG = '[API Metrics POST v1.2 Async]'; // Tag atualizada
+  const TAG = '[API Metrics POST v1.3.1 DocAI Standardized]'; 
   try {
-    // 1) Verifica autenticação
     const session = await getServerSession({ req: request, ...authOptions });
     if (!session?.user?.id) {
       logger.error(`${TAG} Erro: Usuário não autenticado.`);
@@ -28,126 +79,117 @@ export async function POST(request: NextRequest) {
     }
     const userId = session.user.id;
 
-    // 2) Extrai dados da requisição
     const { images, postLink: initialPostLink, description: initialDescription } = await request.json();
     logger.info(`${TAG} Recebido para User ${userId}: ${images?.length} imagens...`);
 
-    // 3) Valida campos essenciais do request
     if (!images || !Array.isArray(images) || images.length === 0) {
       logger.error(`${TAG} Erro: Nenhuma imagem enviada.`);
       return NextResponse.json({ error: "Nenhuma imagem enviada" }, { status: 400 });
     }
 
-    // 4) Conecta ao BD
     await connectToDatabase();
     logger.debug(`${TAG} Conectado ao BD.`);
 
-    // 5) Processa imagens via parseMetrics (v3.0 - Padronizado)
-    logger.info(`${TAG} Processando imagens...`);
+    logger.info(`${TAG} Processando imagens via processMultipleImages...`);
+    // processMultipleImages retorna a estrutura padronizada com chaves canônicas
     const { consolidatedTopLevel, consolidatedStats, calculatedStats } = await processMultipleImages(images);
     logger.info(`${TAG} Imagens processadas.`);
     logger.debug(`${TAG} TopLevel extraído:`, consolidatedTopLevel);
-    logger.debug(`${TAG} Stats brutos extraídos (canônicos):`, consolidatedStats);
-    logger.debug(`${TAG} Stats calculados (canônicos/descritivos):`, calculatedStats);
+    logger.debug(`${TAG} Stats brutos extraídos (consolidatedStats):`, consolidatedStats);
+    logger.debug(`${TAG} Stats calculados (calculatedStats):`, calculatedStats);
 
-    // 6) Combina stats brutos e calculados num único objeto para Metric.stats
+    // Combina stats diretos do Document AI com os calculados por formulas.ts
     const finalStats = {
         ...consolidatedStats,
         ...calculatedStats
     };
     logger.debug(`${TAG} Stats finais combinados para salvar:`, finalStats);
 
-    // 7) Determina postDate
-    let postDate: Date;
+    let postDateToUse: Date;
     if (consolidatedTopLevel.postDate instanceof Date) {
-        postDate = consolidatedTopLevel.postDate;
-        logger.info(`${TAG} PostDate determinada da imagem: ${postDate.toISOString()}`);
+        postDateToUse = consolidatedTopLevel.postDate;
+        logger.info(`${TAG} PostDate determinada da imagem: ${postDateToUse.toISOString()}`);
+    } else if (typeof consolidatedTopLevel.postDate === 'string' && consolidatedTopLevel.postDate) {
+        const parsed = new Date(consolidatedTopLevel.postDate); // Tenta parsear se for string
+        if (!isNaN(parsed.getTime())) {
+            postDateToUse = parsed;
+            logger.info(`${TAG} PostDate (string) parseada da imagem: ${postDateToUse.toISOString()}`);
+        } else {
+            postDateToUse = new Date();
+            logger.warn(`${TAG} String de PostDate inválida ("${consolidatedTopLevel.postDate}"), usando data atual: ${postDateToUse.toISOString()}`);
+        }
     } else {
-        postDate = new Date();
-        logger.warn(`${TAG} Não foi possível determinar postDate da imagem, usando data atual: ${postDate.toISOString()}`);
+        postDateToUse = new Date();
+        logger.warn(`${TAG} Não foi possível determinar postDate da imagem, usando data atual: ${postDateToUse.toISOString()}`);
     }
 
-    // 8) Determina descrição e link
-    const description = (consolidatedTopLevel.description as string || initialDescription || '').trim();
-    const postLink = (consolidatedTopLevel.postLink as string || initialPostLink || '').trim();
+    const descriptionToUse = (consolidatedTopLevel.description as string || initialDescription || '').trim();
+    const postLinkToUse = (consolidatedTopLevel.postLink as string || initialPostLink || '').trim();
+    
+    // Determina o tipo de mídia com base no formato extraído
+    const mediaType = mapFormatToMediaType(consolidatedTopLevel.format as string | undefined);
 
-    // Validações pós-extração (mantidas)
-    if (!description) {
-        logger.warn(`${TAG} Descrição final está vazia. Classificação pode não ocorrer ou usar defaults no worker.`);
-    } else {
-        logger.info(`${TAG} Descrição final: ${description.substring(0, 50)}...`);
-    }
-     if (!postLink) {
-        logger.warn(`${TAG} PostLink final está vazio.`);
-     } else {
-        logger.info(`${TAG} PostLink final: ${postLink}`);
-     }
+    // Obtém e valida os valores para os campos Enum
+    const formatToUse = getValidFormat(consolidatedTopLevel.format);
+    const proposalToUse = getValidProposal(consolidatedTopLevel.proposal);
+    const contextToUse = getValidContext(consolidatedTopLevel.context);
 
-    // 9) <<< REMOVIDO: Classificação Síncrona >>>
-    logger.info(`${TAG} Classificação síncrona removida. Será feita pelo worker.`);
-
-    // 10) Cria e salva o Metric com status de classificação pendente
-    logger.info(`${TAG} Criando documento Metric com status de classificação pendente...`);
+    logger.info(`${TAG} Criando documento Metric com source 'document_ai'...`);
     const newMetric = new Metric({
       user: new mongoose.Types.ObjectId(userId),
-      postLink: postLink,
-      description: description,
-      format: consolidatedTopLevel.format || 'Desconhecido',
-      // <<< ALTERADO: Define valores padrão e status pendente >>>
-      proposal: "Outro", // Valor padrão inicial
-      context: "Geral",  // Valor padrão inicial
-      classificationStatus: 'pending', // Define como pendente
-      classificationError: null, // Limpa erro anterior (se houver)
-      // --- Fim Alteração ---
+      postLink: postLinkToUse,
+      description: descriptionToUse,
+      postDate: postDateToUse,
+      
+      type: mediaType, 
+      format: formatToUse, 
+      proposal: proposalToUse,
+      context: contextToUse, 
+      
       theme: consolidatedTopLevel.theme,
-      collab: consolidatedTopLevel.collab,
+      collab: consolidatedTopLevel.collab, 
       collabCreator: consolidatedTopLevel.collabCreator,
       coverUrl: consolidatedTopLevel.coverUrl,
-      postDate: postDate,
+      
+      instagramMediaId: null, 
+      source: 'document_ai', 
+      
+      classificationStatus: 'pending', 
+      classificationError: null, 
+      
+      rawData: images.map(img => ({ 
+          originalFileName: (img as any).fileName || 'unknown', 
+          processedAt: new Date()
+      })), 
       stats: finalStats,
-      source: 'manual',
-      // rawData: [], // Omitido
     });
 
     const savedMetric = await newMetric.save();
-    logger.info(`${TAG} Documento Metric salvo com sucesso: ${savedMetric._id} com status: ${savedMetric.classificationStatus}`);
+    logger.info(`${TAG} Documento Metric salvo com sucesso: ${savedMetric._id} com status: ${savedMetric.classificationStatus}, source: ${savedMetric.source}`);
 
-    // 11) <<< ADICIONADO: Envia tarefa para o QStash Worker >>>
-    // Certifique-se de que CLASSIFICATION_WORKER_URL está nas variáveis de ambiente
     const workerUrl = process.env.CLASSIFICATION_WORKER_URL;
-    if (workerUrl && savedMetric?._id) {
+    if (workerUrl && qstashClient && savedMetric?._id) {
         try {
             logger.info(`${TAG} Enviando tarefa de classificação para QStash (Worker: ${workerUrl}) para Metric ID: ${savedMetric._id}`);
             await qstashClient.publishJSON({
                 url: workerUrl,
-                body: { metricId: savedMetric._id.toString() }, // Envia o ID como string
-                // Opcional: adicionar delay, retentativas específicas, etc.
-                // delay: "5s",
-                // retries: 3,
+                body: { metricId: savedMetric._id.toString() }, 
             });
             logger.info(`${TAG} Tarefa enviada com sucesso para QStash.`);
         } catch (qstashError) {
-            // Loga o erro mas não impede a resposta ao usuário, pois a métrica foi salva.
-            // Considere mecanismos de monitoramento/alerta para falhas no QStash.
-            logger.error(`${TAG} ERRO ao enviar tarefa para QStash para Metric ID: ${savedMetric._id}. O worker não será chamado automaticamente.`, qstashError);
+            logger.error(`${TAG} ERRO ao enviar tarefa para QStash para Metric ID: ${savedMetric._id}.`, qstashError);
         }
     } else {
-         logger.warn(`${TAG} CLASSIFICATION_WORKER_URL não definida ou Metric ID inválido. Tarefa QStash não enviada.`);
+         logger.warn(`${TAG} CLASSIFICATION_WORKER_URL não definida ou QStash client não inicializado ou Metric ID inválido. Tarefa QStash não enviada.`);
     }
-    // <<< FIM ADIÇÃO >>>
 
-    // 12) <<< REMOVIDO: Criação do DailyMetric >>>
-    // logger.info(`${TAG} Criação de DailyMetric removida desta rota.`); // Já removido antes
-
-    // 13) Retorna sucesso com o Metric salvo (resposta mais rápida agora)
     logger.info(`${TAG} Processo concluído com sucesso (classificação pendente).`);
     return NextResponse.json(
-      { message: "Métricas manuais salvas. Classificação pendente.", metricId: savedMetric._id }, // Mensagem atualizada
+      { message: "Métricas manuais salvas. Classificação pendente.", metricId: savedMetric._id }, 
       { status: 200 }
     );
 
   } catch (error: unknown) {
-    // Tratamento de erro geral (mantido)
     logger.error(`${TAG} Erro GERAL no processamento:`, error);
     const errorMessage = error instanceof Error ? error.message : String(error);
     if (error instanceof mongoose.Error.ValidationError) {

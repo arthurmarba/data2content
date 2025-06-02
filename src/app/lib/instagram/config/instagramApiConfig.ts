@@ -1,6 +1,9 @@
 // src/app/lib/instagram/config/instagramApiConfig.ts
 // ATUALIZADO E OTIMIZADO CONFORME RELATÓRIO DE PESQUISA PARA API v22.0
 // E SUGESTÕES PARA MÉTRICAS GRANULARES.
+// CORREÇÃO: Ajustado breakdown para a métrica 'views' em ACCOUNT_INSIGHTS_BREAKDOWNS.
+// ATUALIZADO: DEFAULT_ACCOUNT_INSIGHTS_PERIOD revertido para 'day'.
+// ATUALIZADO: Breakdown de 'views' para [] (sem breakdown) para teste.
 
 /**
  * Base URL for the Facebook Graph API.
@@ -96,7 +99,7 @@ export const DEMOGRAPHICS_METRICS_LIST = [ // Transformado em array
 
 export const DEFAULT_ACCOUNT_INSIGHTS_PERIOD = 'day'; 
 export const DEMOGRAPHICS_PERIOD = 'lifetime';
-export const DEMOGRAPHICS_TIMEFRAME_RECENT = 'last_30_days'; // Ex: para engaged_audience_demographics
+export const DEMOGRAPHICS_TIMEFRAME_RECENT = 'this_month'; // Mantido como 'this_month'
 
 // --- Breakdowns ---
 
@@ -116,10 +119,14 @@ export const MEDIA_INSIGHTS_BREAKDOWNS: { [metric: string]: string } = {
  * Tabela 3.6 do relatório também é relevante.
  */
 export const ACCOUNT_INSIGHTS_BREAKDOWNS: { [metric: string]: string[] } = { // Permitindo múltiplos breakdowns
-  profile_links_taps: ['contact_button_type'], // Assumindo que é um único valor, mas pode ser array
+  profile_links_taps: ['contact_button_type'], 
   reach: ['media_product_type', 'follow_type'], 
   total_interactions: ['media_product_type'], 
-  views: ['follower_type', 'media_product_type'], 
+  // === INÍCIO DA MODIFICAÇÃO ===
+  // Alterado para testar sem breakdown para 'views'.
+  // Anteriormente: ['follower_type']
+  views: [], 
+  // === FIM DA MODIFICAÇÃO ===
   // 'accounts_engaged' não possui breakdowns listados na documentação para /insights de usuário.
 };
 
@@ -160,4 +167,4 @@ export const MAX_PAGES_MEDIA = 10;
 export const DELAY_MS = 250; 
 export const MAX_ACCOUNT_FETCH_PAGES = 30; 
 export const ACCOUNT_FETCH_DELAY_MS = 100; 
-export const INSIGHT_FETCH_CUTOFF_DAYS = 180; 
+export const INSIGHT_FETCH_CUTOFF_DAYS = 180;

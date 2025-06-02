@@ -280,12 +280,13 @@ type RawDemographicValue = {
 export async function fetchAudienceDemographics(
   accountId: string,
   accessToken: string,
-  timeframe: string = DEMOGRAPHICS_TIMEFRAME_RECENT 
+  defaultTimeframeConfig: string = DEMOGRAPHICS_TIMEFRAME_RECENT 
 ): Promise<FetchInsightsResult<IAudienceDemographics>> {
-  const logContext = 'fetchAudienceDemographics v2.2'; 
+  const logContext = 'fetchAudienceDemographics v2.3'; // Versão atualizada para refletir a correção
   const isSystemToken = accessToken === process.env.FB_SYSTEM_USER_TOKEN;
   const tokenTypeForLog = isSystemToken ? 'System User' : 'User LLAT';
-  logger.debug(`[${logContext}] Buscando dados demográficos da conta ${accountId} (Timeframe: ${timeframe})... (Token: ${tokenTypeForLog})`);
+  // Não usamos mais o parâmetro timeframe diretamente, pois ele será determinado por métrica.
+  logger.debug(`[${logContext}] Buscando dados demográficos da conta ${accountId}... (Token: ${tokenTypeForLog})`);
 
   if (!accountId) return { success: false, error: 'ID da conta não fornecido.' };
   if (!accessToken) return { success: false, error: 'Token de acesso não fornecido.' };
@@ -299,7 +300,29 @@ export async function fetchAudienceDemographics(
     const period = DEMOGRAPHICS_PERIOD; 
     const breakdownQueryParam = DEMOGRAPHICS_BREAKDOWNS_LIST.join(','); 
     
-    let url = `${BASE_URL}/${API_VERSION}/${accountId}/insights?metric=${demographicMetric}&period=${period}&breakdown=${breakdownQueryParam}&timeframe=${timeframe}`;
+    // === INÍCIO DA MODIFICAÇÃO PARA TIMEFRAME ===
+    let effectiveTimeframe: string | null = defaultTimeframeConfig; // Começa com o padrão da config
+
+    if (demographicMetric === 'engaged_audience_demographics') {
+        effectiveTimeframe = 'this_month'; // Usa 'this_month' que cobre os últimos 30 dias
+        logger.info(`[${logContext}] Usando timeframe específico '${effectiveTimeframe}' para a métrica '${demographicMetric}'.`);
+    } else if (demographicMetric === 'follower_demographics') {
+        // Para follower_demographics, vamos manter o timeframe da config por enquanto,
+        // pois o erro era 500 (problema no servidor da Meta) e não de parâmetro inválido.
+        // Se a investigação futura mostrar que 'last_30_days' (ou o que estiver em DEMOGRAPHICS_TIMEFRAME_RECENT)
+        // também é inválido para follower_demographics, ajustaremos aqui.
+        // Poderia ser que 'lifetime' (o period) seja suficiente e timeframe não seja necessário.
+        // Por ora, se defaultTimeframeConfig for 'last_30_days' e isso for um problema para follower_demographics,
+        // a API retornará um erro que será capturado.
+        logger.info(`[${logContext}] Usando timeframe da configuração ('${effectiveTimeframe}') para a métrica '${demographicMetric}'.`);
+    }
+    // === FIM DA MODIFICAÇÃO PARA TIMEFRAME ===
+    
+    let url = `${BASE_URL}/${API_VERSION}/${accountId}/insights?metric=${demographicMetric}&period=${period}&breakdown=${breakdownQueryParam}`;
+
+    if (effectiveTimeframe) { // Adiciona timeframe apenas se definido
+        url += `&timeframe=${effectiveTimeframe}`;
+    }
 
     if (DEMOGRAPHICS_REQUIRING_TOTAL_VALUE.includes(demographicMetric)) {
       url += `&metric_type=total_value`;
@@ -337,10 +360,6 @@ export async function fetchAudienceDemographics(
           const firstValEntry = demographicItem.values[0];
           if (firstValEntry && typeof firstValEntry.value === 'object' && firstValEntry.value !== null) {
               const rawBreakdownValues = firstValEntry.value as RawDemographicValue;
-              // Correção: IDemographicBreakdown é uma interface para um *único* item do array,
-              // não para o objeto inteiro que contém city, country, age, gender.
-              // A estrutura de processedMetricData deve ser { city: IDemographicBreakdown[], country: IDemographicBreakdown[], ... }
-              // E isso já está alinhado com IAudienceDemographics.
               const processedMetricData: {
                   city?: IDemographicBreakdown[];
                   country?: IDemographicBreakdown[];
@@ -349,7 +368,7 @@ export async function fetchAudienceDemographics(
               } = {};
 
               DEMOGRAPHICS_BREAKDOWNS_LIST.forEach(breakdownKey => { 
-                  const keyAsserted = breakdownKey as keyof typeof processedMetricData; // 'city', 'country', 'age', 'gender'
+                  const keyAsserted = breakdownKey as keyof typeof processedMetricData; 
                   if (rawBreakdownValues[breakdownKey]) {
                       processedMetricData[keyAsserted] = Object.entries(rawBreakdownValues[breakdownKey])
                           .map(([dimensionValue, countValue]) => ({ value: dimensionValue, count: countValue }))

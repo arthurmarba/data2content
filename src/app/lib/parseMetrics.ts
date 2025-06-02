@@ -1,4 +1,9 @@
-// src/app/lib/parseMetrics.ts - v3.2 (Função processImageFile Definida)
+// src/app/lib/parseMetrics.ts - v3.3.1 (Revisado para alinhamento com MetricModel v1.5.2)
+// - Objetivo: Padronizar a saída para facilitar a integração com MetricModel,
+//   garantindo que as chaves canônicas e a estrutura (topLevel, stats)
+//   estejam alinhadas com IMetric e IMetricStats (conforme MetricModel v1.5.2).
+// - O código que chama 'processMultipleImages' será responsável pela construção final
+//   do objeto MetricModel, incluindo a mesclagem de 'consolidatedStats' e 'calculatedStats'.
 
 // Importa dependências externas e internas necessárias
 import fetch from "node-fetch"; // Para fazer chamadas HTTP (ex: Document AI)
@@ -15,8 +20,9 @@ const MAX_RETRIES = 3;
 // Credenciais da conta de serviço do Google Cloud (ler da variável de ambiente)
 const GOOGLE_CREDENTIALS_JSON = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
 
-// Mapeamento dos nomes extraídos do Document AI (Português) para as chaves canônicas/descritivas (Inglês)
+// Mapeamento dos nomes extraídos do Document AI (Português) para as chaves canônicas/descritivas
 // Usado para padronizar a estrutura de dados antes de salvar no MetricModel
+// As chaves resultantes devem corresponder aos campos em IMetric (para top-level) ou IMetricStats (para stats).
 const MANUAL_TO_CANONICAL_MAP: { [key: string]: string } = {
     // Métricas Primárias -> Chaves correspondentes à interface IMetricStats
     "curtidas": "likes",
@@ -25,39 +31,44 @@ const MANUAL_TO_CANONICAL_MAP: { [key: string]: string } = {
     "salvamentos": "saved",
     "contas alcançadas": "reach",
     "impressões": "impressions",
-    "reproduções": "views", // Mapeia 'Reproduções' e 'Visualizações' para 'views'
-    "visualizações": "views", // Alias
-    "visitas ao perfil": "profile_visits", // Chave da API v19+
-    "começaram a seguir": "follows", // Chave da API v19+
-    // Métricas Manuais/Calculadas -> Chaves descritivas (armazenadas em Metric.stats via Mixed type)
+    "reproduções": "views", 
+    "visualizações": "views", 
+    "visitas ao perfil": "profile_visits", 
+    "começaram a seguir": "follows", 
+    
     "reproduções iniciais": "initial_plays",
     "repetições": "repeats",
     "interações do reel": "reel_interactions",
     "contas com engajamento": "engaged_accounts",
-    "duração": "video_duration_seconds", // Em segundos
-    "tempo médio de visualização": "average_video_watch_time_seconds", // Em segundos
-    "tempo de visualização": "total_watch_time_seconds", // Em segundos
-    "contas alcançadas de seguidores": "reach_followers_ratio", // Como ratio (0-1)
-    "contas alcançadas de não seguidores": "reach_non_followers_ratio", // Como ratio (0-1)
-    // Métricas auxiliares (podem não ir para o stats final se não forem necessárias)
+    "duração": "video_duration_seconds", // Em segundos (para IMetricStats)
+    // Nota: Se "tempo médio de visualização" do DocAI for o mesmo que ig_reels_avg_watch_time da API,
+    // mapear para ig_reels_avg_watch_time para consistência. Caso contrário, manter separado.
+    "tempo médio de visualização": "average_video_watch_time_seconds", 
+    // Nota: Se "tempo de visualização" do DocAI for o mesmo que ig_reels_video_view_total_time da API,
+    // mapear para ig_reels_video_view_total_time. Caso contrário, manter separado.
+    "tempo de visualização": "total_watch_time_seconds", 
+    "contas alcançadas de seguidores": "reach_followers_ratio", 
+    "contas alcançadas de não seguidores": "reach_non_followers_ratio", 
+    
     "reproduções totais": "total_plays_manual",
     "interações totais": "total_interactions_manual",
-    // Campos Textuais -> Mapeados para campos de nível superior do MetricModel
-    "data de publicação": "postDate", // Chave temporária para parse -> Metric.postDate (Date)
-    "caption": "description", // -> Metric.description (String)
-    "formato": "format", // -> Metric.format (String)
-    "proposta do conteúdo": "proposal", // -> Metric.proposal (String)
-    "contexto do conteúdo": "context", // -> Metric.context (String)
-    "link do conteúdo": "postLink", // -> Metric.postLink (String)
-    "tema do conteúdo": "theme", // -> Metric.theme (String, adicionar ao Schema)
-    "collab": "collab", // -> Metric.collab (Boolean, adicionar ao Schema)
-    "creator da collab": "collabCreator", // -> Metric.collabCreator (String, adicionar ao Schema)
-    "capa do conteúdo": "coverUrl" // -> Metric.coverUrl (String, adicionar ao Schema)
+    
+    // Campos Textuais -> Mapeados para campos de nível superior do MetricModel (IMetric)
+    "data de publicação": "postDate", 
+    "caption": "description", 
+    "formato": "format", 
+    "proposta do conteúdo": "proposal", 
+    "contexto do conteúdo": "context", 
+    "link do conteúdo": "postLink", 
+    "tema do conteúdo": "theme", 
+    "collab": "collab", 
+    "creator da collab": "collabCreator", 
+    "capa do conteúdo": "coverUrl" 
 };
 
-// Conjunto de chaves canônicas que correspondem a campos de NÍVEL SUPERIOR no MetricModel
+// Conjunto de chaves canônicas que correspondem a campos de NÍVEL SUPERIOR no MetricModel (IMetric)
 const TOP_LEVEL_FIELDS = new Set([
-    "postDate", // Tratamento especial para converter em Date
+    "postDate", 
     "description",
     "format",
     "proposal",
@@ -121,8 +132,7 @@ async function callDocumentAI(
   fileBuffer: Buffer,
   mimeType: string
 ): Promise<DocumentAIResponse> {
-  const TAG = '[callDocumentAI v3.2]'; // Atualiza tag
-  // Valida configuração das variáveis de ambiente
+  const TAG = '[callDocumentAI v3.2]'; 
   if (!DOCUMENT_AI_ENDPOINT) {
     logger.error(`${TAG} Erro: DOCUMENT_AI_ENDPOINT não definido.`);
     throw new Error("DOCUMENT_AI_ENDPOINT não definido.");
@@ -132,70 +142,56 @@ async function callDocumentAI(
     throw new Error("Credenciais do Google Cloud não configuradas.");
   }
 
-  // Processa as credenciais JSON (incluindo correção da chave privada)
   let googleCredentials;
   try {
     const parsedJson = JSON.parse(GOOGLE_CREDENTIALS_JSON);
     if (parsedJson.private_key && typeof parsedJson.private_key === 'string') {
-        // Substitui literais '\n' por newlines reais na chave privada
         parsedJson.private_key = parsedJson.private_key.replace(/\\n/g, '\n');
     } else {
-        throw new Error('private_key ausente ou inválido.');
+        throw new Error('private_key ausente ou inválido nas credenciais JSON.');
     }
     googleCredentials = parsedJson;
-  } catch (e) {
-    logger.error(`${TAG} Erro ao processar credenciais JSON:`, e);
+  } catch (e: any) {
+    logger.error(`${TAG} Erro ao processar credenciais JSON: ${e.message}`);
     throw new Error("Erro ao processar credenciais Google Cloud.");
   }
 
-  // Configura autenticação Google
   const authOptions: GoogleAuthOptions = { credentials: googleCredentials, scopes: ["https://www.googleapis.com/auth/cloud-platform"] };
   const auth = new GoogleAuth(authOptions);
 
-  // Obtém token de acesso
   const accessToken = await auth.getAccessToken();
   if (!accessToken || typeof accessToken !== "string") {
     throw new Error("Token de acesso Google vazio ou inválido.");
   }
 
-  // Monta o payload para a API do Document AI
   const payload = { rawDocument: { content: fileBuffer.toString("base64"), mimeType } };
 
-  // Lógica de retentativas para a chamada da API
   let attempt = 0;
   let response;
   while (attempt < MAX_RETRIES) {
     attempt++;
-    logger.debug(`${TAG} Tentativa ${attempt}/${MAX_RETRIES}...`);
+    logger.debug(`${TAG} Tentativa ${attempt}/${MAX_RETRIES} para chamar Document AI...`);
     try {
-      // Faz a chamada fetch para o endpoint do Document AI
       response = await fetch(DOCUMENT_AI_ENDPOINT, {
         method: "POST",
         headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      // Se a resposta for OK (status 2xx), sai do loop de retentativas
       if (response.ok) break;
-      // Loga o erro se a resposta não for OK
       const errorText = await response.text();
       logger.warn(`${TAG} Tentativa ${attempt} falhou (${response.status}): ${errorText.substring(0, 200)}...`);
-    } catch (err) {
-      // Loga erro de rede ou fetch
-      logger.error(`${TAG} Tentativa ${attempt} falhou (fetch):`, err);
-      // Se for a última tentativa, relança o erro
+    } catch (err: any) {
+      logger.error(`${TAG} Tentativa ${attempt} falhou (fetch): ${err.message}`);
       if (attempt === MAX_RETRIES) throw err;
     }
-    // Espera exponencial antes da próxima tentativa (1s, 2s, 3s)
     await new Promise((res) => setTimeout(res, 1000 * attempt));
   }
 
-  // Verifica se a chamada foi bem-sucedida após todas as tentativas
   if (!response || !response.ok) {
     const text = response ? await response.text().catch(() => "N/A") : "N/A";
     throw new Error(`Erro Document AI (${response?.status}): ${text.substring(0, 200)}...`);
   }
 
-  // Parseia a resposta JSON e retorna
   const json = (await response.json()) as DocumentAIResponse;
   logger.debug(`${TAG} Resposta DocAI recebida.`);
   return json;
@@ -212,58 +208,53 @@ async function callDocumentAI(
 export function extractAndMapMetricsFromDocAI(
   response: DocumentAIResponse
 ): { topLevel: Record<string, unknown>, stats: Record<string, unknown> } {
-  const TAG = '[extractAndMapMetrics v3.2]'; // Atualiza tag
+  const TAG = '[extractAndMapMetrics v3.2]'; 
   const document = response.document || {};
-  const entities = document.entities || []; // Array de entidades (label: value) extraídas
-  const extractedTopLevel: Record<string, unknown> = {}; // Para campos como description, format, etc.
-  const extractedStats: Record<string, unknown> = {}; // Para métricas numéricas (likes, reach, etc.)
+  const entities = document.entities || []; 
+  const extractedTopLevel: Record<string, unknown> = {}; 
+  const extractedStats: Record<string, unknown> = {}; 
 
   logger.debug(`${TAG} Mapeando ${entities.length} entidades...`);
-  // Itera sobre cada entidade encontrada pelo Document AI
   for (const entity of entities) {
-    const originalType = entity.type ?? ""; // Nome original da métrica (ex: "Curtidas")
-    const normalizedType = normalize(originalType); // Normaliza o nome (minúsculo, sem acentos)
-    const canonicalKey = MANUAL_TO_CANONICAL_MAP[normalizedType]; // Busca a chave canônica no mapa
+    const originalType = entity.type ?? ""; 
+    const normalizedType = normalize(originalType); 
+    const canonicalKey = MANUAL_TO_CANONICAL_MAP[normalizedType]; 
 
-    // Se não encontrou mapeamento, ignora esta entidade
     if (!canonicalKey) continue;
 
-    // Valor textual extraído pelo Document AI
     const metricValue = entity.mentionText ? entity.mentionText.trim() : "";
-    let parsedValue: unknown = ""; // Variável para guardar o valor após parsing
+    let parsedValue: unknown = ""; 
 
-    // Aplica a função de parsing correta baseada no NOME ORIGINAL da métrica
     try {
         if (originalType === "Duração") parsedValue = parseDuration(metricValue);
-        else if (TIME_HEADERS_REF.has(originalType)) parsedValue = parseTempoVisualizacao(metricValue); // Tempo de Vis e Tempo Médio
-        else if (originalType === "Data de Publicação") parsedValue = parseDocAIDate(metricValue); // Retorna Date ou null
+        else if (TIME_HEADERS_REF.has(originalType)) parsedValue = parseTempoVisualizacao(metricValue); 
+        else if (originalType === "Data de Publicação") parsedValue = parseDocAIDate(metricValue); 
         else if (TEXT_HEADERS_REF.has(originalType)) {
-            parsedValue = metricValue; // Usa o valor como string
-            if (canonicalKey === 'collab' && typeof parsedValue === 'string') { // Converte 'collab' para boolean
+            parsedValue = metricValue; 
+            if (canonicalKey === 'collab' && typeof parsedValue === 'string') { 
                 parsedValue = ['sim', 'yes', 'true', '1'].includes(parsedValue.toLowerCase());
             }
-        } else parsedValue = parseNumericValuePercent(metricValue, originalType); // Assume numérico/percentual
-    } catch (parseError) {
-        logger.error(`${TAG} Erro parse metric "${originalType}":`, parseError);
-        parsedValue = ""; // Define como vazio em caso de erro
+        } else parsedValue = parseNumericValuePercent(metricValue, originalType); 
+    } catch (parseError: any) {
+        logger.error(`${TAG} Erro ao parsear métrica "${originalType}" com valor "${metricValue}": ${parseError.message}`);
+        parsedValue = ""; 
     }
 
-    // Armazena o valor parseado no objeto correto (topLevel ou stats),
-    // apenas se o valor for válido e a chave ainda não existir (preserva o primeiro)
     if (parsedValue !== "" && parsedValue !== undefined && parsedValue !== null) {
         if (TOP_LEVEL_FIELDS.has(canonicalKey)) {
             if (canonicalKey === 'postDate') {
+                // Garante que postDate seja Date ou null
                 if (parsedValue instanceof Date && !extractedTopLevel['postDate']) extractedTopLevel['postDate'] = parsedValue;
+                else if (parsedValue === null && !extractedTopLevel['postDate']) extractedTopLevel['postDate'] = null;
             } else if (!extractedTopLevel[canonicalKey]) extractedTopLevel[canonicalKey] = parsedValue;
         } else {
             if (!extractedStats[canonicalKey]) extractedStats[canonicalKey] = parsedValue;
         }
     } else if (canonicalKey === 'postDate' && parsedValue === null && !extractedTopLevel['postDate']) {
-        extractedTopLevel['postDate'] = null; // Permite postDate ser null
+        extractedTopLevel['postDate'] = null; 
     }
   }
-  logger.debug(`${TAG} Mapeamento concluído.`);
-  // Retorna os dois objetos separados
+  logger.debug(`${TAG} Mapeamento concluído. TopLevel:`, extractedTopLevel, "Stats:", extractedStats);
   return { topLevel: extractedTopLevel, stats: extractedStats };
 }
 
@@ -284,54 +275,60 @@ function consolidateMetrics(
   globalConsolidated: { topLevel: Record<string, unknown>, stats: Record<string, unknown> },
   extracted: { topLevel: Record<string, unknown>, stats: Record<string, unknown> }
 ): { topLevel: Record<string, unknown>, stats: Record<string, unknown> } {
-    // Consolida campos de nível superior
     Object.keys(extracted.topLevel).forEach((key) => {
         const value = extracted.topLevel[key];
-        // Adiciona se for válido e chave não existir ou for null
         if (value !== undefined && value !== "" && (globalConsolidated.topLevel[key] === undefined || globalConsolidated.topLevel[key] === null)) {
              globalConsolidated.topLevel[key] = value;
         }
     });
-    // Consolida campos de stats
     Object.keys(extracted.stats).forEach((key) => {
         const value = extracted.stats[key];
-         // Adiciona se for válido e chave não existir
          if (value !== undefined && value !== "" && globalConsolidated.stats[key] === undefined) {
             globalConsolidated.stats[key] = value;
         }
     });
-  return globalConsolidated; // Retorna o objeto acumulador modificado
+  return globalConsolidated; 
 }
 
 // --- Funções Auxiliares de Parsing ---
 
 /**
  * Converte um valor textual (com K, M, %, vírgula/ponto) em número.
+ * Retorna o número ou string vazia se não puder parsear.
  */
-function parseNumericValuePercent(value: string | number | undefined | null, metricNameOriginal: string): number | string {
-    if (value === undefined || value === null || value === "") return "";
+function parseNumericValuePercent(value: string | number | undefined | null, metricNameOriginal: string): number | "" {
+    if (value === undefined || value === null || String(value).trim() === "") return "";
     if (typeof value === 'number') return value;
-    let multiplier = 1; let str = value.toLowerCase().trim();
+    let multiplier = 1; let str = String(value).toLowerCase().trim();
+    
     if (str.endsWith("k")) { multiplier = 1000; str = str.slice(0, -1).trim(); }
     else if (str.endsWith("m")) { multiplier = 1000000; str = str.slice(0, -1).trim(); }
     else if (str.includes("mil")) { multiplier = 1000; str = str.replace("mil", "").trim(); }
     else if (str.includes("mi")) { multiplier = 1000000; str = str.replace("mi", "").trim(); }
-    str = str.replace(/[^\d.,]/g, "").trim();
-    let isPercent = false; if (str.endsWith("%")) { isPercent = true; str = str.slice(0, -1).trim(); }
+    
+    str = str.replace(/[^\d.,]/g, "").trim(); 
+    
+    if (str.endsWith("%")) { str = str.slice(0, -1).trim(); } 
+
     const hasDot = str.includes('.'); const hasComma = str.includes(',');
-    if (hasDot && hasComma) { if (str.lastIndexOf(',') > str.lastIndexOf('.')) { str = str.replace(/\./g, "").replace(",", "."); } else { str = str.replace(/,/g, ""); } }
-    else if (hasComma) { str = str.replace(",", "."); }
-    const num = parseFloat(str); if (isNaN(num)) return "";
-    let result = num * multiplier; return result; // Retorna número (ex: 15 para 15%)
+    if (hasDot && hasComma) { 
+        if (str.lastIndexOf(',') > str.lastIndexOf('.')) { str = str.replace(/\./g, "").replace(",", "."); } 
+        else { str = str.replace(/,/g, ""); } 
+    } else if (hasComma) { str = str.replace(",", "."); }
+    
+    const num = parseFloat(str); 
+    if (isNaN(num)) return "";
+    
+    return num * multiplier; 
 }
 
 /**
  * Converte uma string de tempo (ex: "1 d 2 h 30 min 15 s") em segundos.
  */
 function parseTempoVisualizacao(tempoStr: string | number | undefined | null): number {
-  if (tempoStr === undefined || tempoStr === null || tempoStr === "") return 0;
+  if (tempoStr === undefined || tempoStr === null || String(tempoStr).trim() === "") return 0;
   if (typeof tempoStr === 'number') return tempoStr;
-  const str = tempoStr.toLowerCase().trim(); const regex = /(\d+)\s*(a|d|h|min|m|s)/gi;
+  const str = String(tempoStr).toLowerCase().trim(); const regex = /(\d+)\s*(a|d|h|min|m|s)/gi;
   let match: RegExpExecArray | null; let anos = 0, dias = 0, horas = 0, minutos = 0, segundos = 0;
   while ((match = regex.exec(str)) !== null) {
     const valor = parseInt(match[1]!, 10); if (isNaN(valor)) continue;
@@ -347,7 +344,7 @@ function parseTempoVisualizacao(tempoStr: string | number | undefined | null): n
  * Converte uma string de duração (ex: "01:30:15", "2m 10s") em segundos.
  */
 function parseDuration(durationStr: string | number | undefined | null): number {
-  if (durationStr === undefined || durationStr === null || durationStr === "") return 0;
+  if (durationStr === undefined || durationStr === null || String(durationStr).trim() === "") return 0;
   if (typeof durationStr === 'number') return durationStr;
   const str = String(durationStr).trim();
   if (str.includes(":")) {
@@ -414,25 +411,20 @@ function parseDocAIDate(dateStr: string | undefined | null): Date | null {
  * @returns Objeto com campos topLevel e stats (chaves canônicas).
  * @throws Erro se o processamento falhar.
  */
-async function processImageFile( // <<< FUNÇÃO DEFINIDA AQUI >>>
+async function processImageFile( 
   base64File: string,
   mimeType: string
 ): Promise<{ topLevel: Record<string, unknown>, stats: Record<string, unknown> }> {
-  const TAG = '[processImageFile v3.2]'; // Atualiza tag
+  const TAG = '[processImageFile v3.2]'; 
   try {
     logger.debug(`${TAG} Processando imagem (mime: ${mimeType})...`);
-    // Converte base64 para Buffer
     const buffer = Buffer.from(base64File, "base64");
-    // Chama a API do Document AI
     const docAIResponse = await callDocumentAI(buffer, mimeType);
-    // Extrai e mapeia as métricas da resposta
     const extractedMetrics = extractAndMapMetricsFromDocAI(docAIResponse);
     logger.debug(`${TAG} Métricas extraídas e mapeadas da imagem.`);
-    // Retorna o resultado separado em topLevel e stats
     return extractedMetrics;
   } catch (error) {
       logger.error(`${TAG} Erro ao processar imagem individual:`, error);
-      // Relança o erro para ser tratado pela função chamadora (processMultipleImages)
       throw error;
   }
 }
@@ -452,48 +444,46 @@ export async function processMultipleImages(
   images: { base64File: string; mimeType: string }[]
 ): Promise<{
   consolidatedTopLevel: Record<string, unknown>;
-  consolidatedStats: Record<string, unknown>;
-  calculatedStats: Record<string, unknown>;
+  consolidatedStats: Record<string, unknown>; // Métricas diretas do DocAI, mapeadas para chaves canônicas
+  calculatedStats: Record<string, unknown>;    // Métricas calculadas por formulas.ts
 }> {
-  const TAG = '[processMultipleImages v3.2]'; // Atualiza tag
+  const TAG = '[processMultipleImages v3.3.1]'; // Versão atualizada
   logger.info(`${TAG} Iniciando processamento de ${images.length} imagens...`);
-  // Inicializa o objeto que acumulará os dados consolidados
   let globalConsolidated = initializeConsolidatedMetrics();
 
-  // Itera sobre cada imagem fornecida
   for (let i = 0; i < images.length; i++) {
     const img = images[i];
-    // Valida se os dados da imagem são válidos
     if (!img?.base64File || !img.mimeType) {
         logger.warn(`${TAG} Imagem ${i+1} inválida ou faltando dados, pulando.`);
-        continue; // Pula para a próxima imagem
+        continue; 
     }
     try {
         logger.debug(`${TAG} Processando imagem ${i + 1}/${images.length}...`);
-        // <<< CHAMA A FUNÇÃO processImageFile AGORA DEFINIDA >>>
         const extracted = await processImageFile(img.base64File, img.mimeType);
-        // Consolida os resultados extraídos no objeto global
         globalConsolidated = consolidateMetrics(globalConsolidated, extracted);
         logger.debug(`${TAG} Imagem ${i + 1} processada e consolidada.`);
     } catch (error) {
-        // Loga erro no processamento da imagem, mas continua com as outras
         logger.error(`${TAG} Erro ao processar imagem ${i + 1}. Continuando...`, error);
-        // Poderia adicionar uma estratégia aqui, como parar se muitas imagens falharem
     }
   }
 
-  // Loga os resultados consolidados finais
   logger.debug(`${TAG} Consolidação global finalizada. TopLevel:`, globalConsolidated.topLevel);
-  logger.debug(`${TAG} Consolidação global finalizada. Stats Brutos:`, globalConsolidated.stats);
+  logger.debug(`${TAG} Consolidação global finalizada. Stats Brutos (consolidatedStats):`, globalConsolidated.stats);
 
-  // Calcula as métricas derivadas usando APENAS os stats consolidados
-  logger.debug(`${TAG} Calculando estatísticas finais...`);
-  // Passa um array contendo apenas o objeto de stats consolidados para calcFormulas
-  // calcFormulas deve retornar um objeto com chaves canônicas/descritivas
-  const calculatedStats = calcFormulas([globalConsolidated.stats]);
+  // Calcula as métricas derivadas usando APENAS os stats consolidados (que já têm chaves canônicas)
+  logger.debug(`${TAG} Calculando estatísticas derivadas (calculatedStats)...`);
+  const calculatedStats = calcFormulas([globalConsolidated.stats]); // calcFormulas espera um array
   logger.info(`${TAG} Processamento de imagens concluído.`);
 
-  // Retorna os três objetos separados: topLevel, stats brutos, stats calculados
+  // A função que chama processMultipleImages será responsável por:
+  // 1. Criar uma instância do MetricModel.
+  // 2. Popular os campos de nível superior do MetricModel com os dados de 'consolidatedTopLevel'.
+  // 3. Definir 'source' como 'document_ai'.
+  // 4. Determinar e definir o 'type' (IMAGE, REEL, etc.) com base em 'consolidatedTopLevel.format' ou similar.
+  // 5. Criar o objeto final 'stats' para o MetricModel, mesclando 'consolidatedStats' e 'calculatedStats'.
+  //    Ex: const finalStatsForDB = { ...globalConsolidated.stats, ...calculatedStats };
+  // 6. Salvar a instância do MetricModel.
+
   return {
       consolidatedTopLevel: globalConsolidated.topLevel,
       consolidatedStats: globalConsolidated.stats,

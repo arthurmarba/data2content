@@ -349,8 +349,13 @@ export default function HomePage() {
                            </ul>
                        </AnimatedSection>
                        <AnimatedSection delay={0.1} className="relative aspect-[3/2] bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl shadow-lg flex items-center justify-center p-1 order-last md:order-first overflow-hidden"> {/* Imagem */}
-                            {/* TODO: Substituir span por componente Image com src e alt apropriados */}
-                           <span className="text-purple-700 text-center text-lg p-3">[Ilustração: Rede de criadores e exemplos de posts]</span>
+                           <Image 
+                               src="/images/Tuca-comunidade.png" 
+                               alt="Ilustração da comunidade de inspiração Tuca com exemplos de posts e interações" 
+                               layout="fill" 
+                               objectFit="contain" 
+                               className="rounded-lg"
+                           />
                        </AnimatedSection>
                    </div>
                </div>
@@ -361,8 +366,13 @@ export default function HomePage() {
                <div className="max-w-5xl mx-auto py-12 md:py-16">
                    <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
                         <AnimatedSection delay={0.1} className="relative aspect-[3/2] bg-gradient-to-br from-orange-50 to-yellow-50 rounded-2xl shadow-lg flex items-center justify-center p-1 order-first md:order-last overflow-hidden"> {/* Imagem */}
-                            {/* TODO: Substituir span por componente Image com src e alt apropriados */}
-                           <span className="text-orange-700 text-center text-lg p-3">[Ilustração: Tuca ajudando a planejar 'publi']</span>
+                           <Image 
+                               src="/images/Tuca-publi.png" 
+                               alt="Ilustração do Tuca ajudando a planejar e otimizar posts de publicidade (publis)" 
+                               layout="fill" 
+                               objectFit="contain" 
+                               className="rounded-lg"
+                           />
                        </AnimatedSection>
                        <AnimatedSection delay={0} className="order-last md:order-first"> {/* Texto */}
                            <div className="mb-3 flex items-center space-x-2">
@@ -406,16 +416,27 @@ export default function HomePage() {
                         </a>
                     </AnimatedSection>
                     <AnimatedSection delay={0.1} className="relative aspect-[3/2] bg-gradient-to-br from-pink-50 to-red-50 rounded-2xl shadow-lg flex items-center justify-center p-1 order-last md:order-first overflow-hidden"> {/* Imagem */}
-                         {/* TODO: Substituir span por componente Image com src e alt apropriados */}
-                        <span className="text-pink-700 text-center text-lg p-3">[Ilustração: Programa de Afiliados]</span>
+                        <Image 
+                           src="/images/Tuca-comissao.png" 
+                           alt="Ilustração do programa de afiliados do Tuca mostrando como ganhar comissões" 
+                           layout="fill" 
+                           objectFit="contain" 
+                           className="rounded-lg"
+                       />
                     </AnimatedSection>
                 </div>
 
                 {/* Seção 6: Monetização - Conecte-se a Marcas (Texto Esquerda, Imagem Direita - Desktop) */}
                 <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
                     <AnimatedSection delay={0.1} className="relative aspect-[3/2] bg-gradient-to-br from-yellow-50 to-green-50 rounded-2xl shadow-lg flex items-center justify-center p-1 order-first md:order-last overflow-hidden"> {/* Imagem */}
-                         {/* TODO: Substituir span por componente Image com src e alt apropriados */}
-                         <span className="text-yellow-700 text-center text-lg p-3">[Ilustração: Conexão com Marcas]</span>
+                         {/* Imagem inserida aqui */}
+                         <Image 
+                           src="/images/Tuca-agente.png" 
+                           alt="Ilustração do Tuca conectando criadores a marcas e oportunidades de agenciamento" 
+                           layout="fill" 
+                           objectFit="contain" 
+                           className="rounded-lg"
+                       />
                     </AnimatedSection>
                     <AnimatedSection delay={0} className="order-last md:order-first"> {/* Texto */}
                          <div className="mb-3"><FaStar className="w-10 h-10 text-yellow-500" /></div>
