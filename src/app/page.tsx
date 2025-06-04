@@ -8,7 +8,7 @@ import { useSession, signIn } from "next-auth/react";
 import { motion, useAnimation, Variants } from "framer-motion";
 import { useInView } from "react-intersection-observer";
 // Importando React Icons
-import { FaArrowRight, FaGift, FaWhatsapp, FaBrain, FaGoogle, FaStar, FaFileUpload, FaQuestionCircle, FaBell, FaLink, FaLightbulb, FaComments, FaBullseye, FaChartLine, FaUsers, FaFileSignature, FaScroll, FaTags, FaClock } from 'react-icons/fa';
+import { FaArrowRight, FaGift, FaWhatsapp, FaBrain, FaGoogle, FaStar, FaFileUpload, FaQuestionCircle, FaBell, FaLink, FaLightbulb, FaComments, FaBullseye, FaChartLine, FaUsers, FaFileSignature, FaScroll, FaTags, FaClock, FaInstagram } from 'react-icons/fa';
 
 // --- Variantes de Animação (Framer Motion) ---
 const fadeInUp: Variants = {
@@ -269,9 +269,9 @@ export default function HomePage() {
                             <Image 
                                src="/images/tuca-analise-whatsapp.png" 
                                alt="Tuca no WhatsApp exibindo análise de conteúdo categorizado por tema/formato e otimização de horários com gráficos" 
-                               layout="fill" 
-                               objectFit="contain" 
-                               className="rounded-lg"
+                               fill // Substituído layout="fill"
+                               className="object-cover" // Substituído objectFit="contain" e removido rounded-lg
+                               sizes="(max-width: 768px) 100vw, 50vw" // Adicionado para otimização
                             />
                         </AnimatedSection>
                         <AnimatedSection delay={0} className="order-first md:order-last">
@@ -301,16 +301,16 @@ export default function HomePage() {
             <section id="tuca-proativo" className="px-4 bg-brand-light overflow-hidden">
                 <div className="max-w-5xl mx-auto py-12 md:py-16">
                     <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
-                        <AnimatedSection delay={0.1} className="relative aspect-[3/2] bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl shadow-lg flex items-center justify-center p-1 overflow-hidden order-first md:order-last">
+                        <AnimatedSection delay={0.1} className="relative aspect-[3/2] bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl shadow-lg flex items-center justify-center p-1 overflow-hidden order-last md:order-last">
                             <Image 
                                src="/images/tuca-nova-analise.png" 
                                alt="Ilustração do Tuca enviando alertas e insights inteligentes para o WhatsApp" 
-                               layout="fill" 
-                               objectFit="contain" 
-                               className="rounded-lg"
+                               fill // Substituído layout="fill"
+                               className="object-cover" // Substituído objectFit="contain" e removido rounded-lg
+                               sizes="(max-width: 768px) 100vw, 50vw" // Adicionado para otimização
                             />
                         </AnimatedSection>
-                        <AnimatedSection delay={0} className="order-last md:order-first">
+                        <AnimatedSection delay={0} className="order-first md:order-first">
                             <div className="mb-3 flex items-center space-x-2">
                                 <FaBell aria-hidden="true" className="w-7 h-7 text-brand-pink" />
                                 <FaChartLine aria-hidden="true" className="w-6 h-6 text-blue-500" />
@@ -352,9 +352,9 @@ export default function HomePage() {
                            <Image 
                                src="/images/Tuca-comunidade.png" 
                                alt="Ilustração da comunidade de inspiração Tuca com exemplos de posts e interações" 
-                               layout="fill" 
-                               objectFit="contain" 
-                               className="rounded-lg"
+                               fill // Substituído layout="fill"
+                               className="object-cover" // Substituído objectFit="contain" e removido rounded-lg
+                               sizes="(max-width: 768px) 100vw, 50vw" // Adicionado para otimização
                            />
                        </AnimatedSection>
                    </div>
@@ -365,16 +365,16 @@ export default function HomePage() {
            <section id="tuca-parcerias" className="px-4 bg-brand-light overflow-hidden">
                <div className="max-w-5xl mx-auto py-12 md:py-16">
                    <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
-                        <AnimatedSection delay={0.1} className="relative aspect-[3/2] bg-gradient-to-br from-orange-50 to-yellow-50 rounded-2xl shadow-lg flex items-center justify-center p-1 order-first md:order-last overflow-hidden"> {/* Imagem */}
+                        <AnimatedSection delay={0.1} className="relative aspect-[3/2] bg-gradient-to-br from-orange-50 to-yellow-50 rounded-2xl shadow-lg flex items-center justify-center p-1 order-last md:order-last overflow-hidden"> {/* Imagem */}
                            <Image 
                                src="/images/Tuca-publi.png" 
                                alt="Ilustração do Tuca ajudando a planejar e otimizar posts de publicidade (publis)" 
-                               layout="fill" 
-                               objectFit="contain" 
-                               className="rounded-lg"
+                               fill // Substituído layout="fill"
+                               className="object-cover" // Substituído objectFit="contain" e removido rounded-lg
+                               sizes="(max-width: 768px) 100vw, 50vw" // Adicionado para otimização
                            />
                        </AnimatedSection>
-                       <AnimatedSection delay={0} className="order-last md:order-first"> {/* Texto */}
+                       <AnimatedSection delay={0} className="order-first md:order-first"> {/* Texto */}
                            <div className="mb-3 flex items-center space-x-2">
                                <FaFileSignature aria-hidden="true" className="w-7 h-7 text-orange-500" />
                                <FaScroll aria-hidden="true" className="w-6 h-6 text-teal-500" />
@@ -419,26 +419,25 @@ export default function HomePage() {
                         <Image 
                            src="/images/Tuca-comissao.png" 
                            alt="Ilustração do programa de afiliados do Tuca mostrando como ganhar comissões" 
-                           layout="fill" 
-                           objectFit="contain" 
-                           className="rounded-lg"
+                           fill // Substituído layout="fill"
+                           className="object-cover" // Substituído objectFit="contain" e removido rounded-lg
+                           sizes="(max-width: 768px) 100vw, 50vw" // Adicionado para otimização
                        />
                     </AnimatedSection>
                 </div>
 
                 {/* Seção 6: Monetização - Conecte-se a Marcas (Texto Esquerda, Imagem Direita - Desktop) */}
                 <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
-                    <AnimatedSection delay={0.1} className="relative aspect-[3/2] bg-gradient-to-br from-yellow-50 to-green-50 rounded-2xl shadow-lg flex items-center justify-center p-1 order-first md:order-last overflow-hidden"> {/* Imagem */}
-                         {/* Imagem inserida aqui */}
+                    <AnimatedSection delay={0.1} className="relative aspect-[3/2] bg-gradient-to-br from-yellow-50 to-green-50 rounded-2xl shadow-lg flex items-center justify-center p-1 order-last md:order-last overflow-hidden"> {/* Imagem */}
                          <Image 
                            src="/images/Tuca-agente.png" 
                            alt="Ilustração do Tuca conectando criadores a marcas e oportunidades de agenciamento" 
-                           layout="fill" 
-                           objectFit="contain" 
-                           className="rounded-lg"
+                           fill // Substituído layout="fill"
+                           className="object-cover" // Substituído objectFit="contain" e removido rounded-lg
+                           sizes="(max-width: 768px) 100vw, 50vw" // Adicionado para otimização
                        />
                     </AnimatedSection>
-                    <AnimatedSection delay={0} className="order-last md:order-first"> {/* Texto */}
+                    <AnimatedSection delay={0} className="order-first md:order-first"> {/* Texto */}
                          <div className="mb-3"><FaStar className="w-10 h-10 text-yellow-500" /></div>
                         <h2 className="text-2xl md:text-3xl font-bold text-brand-dark mb-3 leading-tight">Conecte-se a Marcas e Oportunidades</h2>
                         <p className="text-md text-gray-700 font-light leading-relaxed mb-5">Use o Tuca, melhore seus resultados com dados reais e chame a atenção de marcas parceiras. Destaque-se para possível agenciamento por Arthur Marbá.</p>
@@ -486,18 +485,27 @@ export default function HomePage() {
               <div className="max-w-4xl mx-auto grid md:grid-cols-3 gap-8 md:gap-12 items-center">
                 <AnimatedSection delay={0} className="md:col-span-1">
                      <div className="relative aspect-w-1 aspect-h-1 bg-gray-300 rounded-2xl shadow-lg overflow-hidden flex items-center justify-center p-1">
-                         {/* TODO: Substituir span por componente Image com src e alt apropriados */}
+                         {/* Imagem de Arthur Marbá - exemplo de como ficaria atualizada */}
+                         {/* <Image 
+                            src="/images/arthur-marba.jpg" // Substitua pelo caminho real da imagem
+                            alt="Foto de Arthur Marbá" 
+                            fill
+                            className="object-cover" // object-cover é geralmente melhor para retratos
+                            sizes="(max-width: 768px) 100vw, 33vw"
+                         /> */}
                          <span className="text-gray-500 text-center text-lg p-3">[Foto de Arthur Marbá]</span>
                      </div>
                 </AnimatedSection>
                 <AnimatedSection delay={0.1} className="md:col-span-2">
                      <h2 className="text-2xl md:text-3xl font-bold text-brand-dark mb-4 leading-tight">A Mente por Trás da Inteligência Completa do Tuca</h2>
                      <p className="text-md text-gray-700 mb-5 leading-relaxed font-light">
-                         O Tuca combina os <strong className="text-brand-pink">40 anos de experiência de Arthur Marbá</strong> com IA de ponta. Ele analisa seu conteúdo, horários, aprende com você e aplica essa sabedoria aos seus dados, de forma proativa e personalizada.
+                         Arthur Marbá, Fundador da Data2Content, traz <strong className="font-semibold">10 anos de experiência dedicada ao marketing digital para criadores de conteúdo</strong>, somados a uma herança familiar de <strong className="font-semibold">40 anos no agenciamento de grandes talentos</strong>. Essa bagagem o levou a uma percepção crucial: as plataformas digitais, hoje, funcionam como a nova televisão, onde a compreensão profunda da audiência é a chave para o engajamento. Contudo, assim como um artista na TV se concentra na performance, o criador de conteúdo moderno precisa de um especialista para traduzir dados em direcionamento.
+                         <br/><br/>
+                         A Data2Content nasce dessa visão, com a paixão por <strong className="font-semibold text-brand-pink">buscar soluções inovadoras</strong> – muitas vezes inspiradas em nossos próprios usuários – para ser essa 'equipe de inteligência' essencial. Nosso objetivo é ser a <strong className="font-semibold text-brand-pink">parceira ideal no dia a dia da creator economy</strong>, atuando 'dos dados ao conteúdo'. Utilizamos inteligência artificial de ponta para mapear, interpretar e transformar métricas em estratégias claras e acionáveis. Essa conexão se manifesta ao fornecer dados precisos para parcerias com marcas, ao capacitar criadores com o entendimento de suas próprias métricas para conteúdo relevante, e ao facilitar colaborações sinérgicas. O Tuca, sua IA estratégica no WhatsApp, é a personificação dessa filosofia, analisando seu conteúdo, otimizando horários e aprendendo com você para entregar resultados de forma proativa e personalizada.
                      </p>
                      <blockquote className="mt-6 pl-4 border-l-4 border-brand-pink italic text-gray-700 font-light text-md md:text-lg leading-relaxed">
                          "Com o Tuca, democratizamos a consultoria estratégica, tornando-a acessível, personalizada, proativa e capaz de evoluir com cada criador, tudo via WhatsApp."
-                         <cite className="mt-3 block text-sm font-semibold text-brand-dark not-italic">- Arthur Marbá, Fundador e Mentor da IA Tuca</cite>
+                         <cite className="mt-3 block text-sm font-semibold text-brand-dark not-italic">- Arthur Marbá, Fundador da Data2Content e Mentor da IA Tuca</cite>
                      </blockquote>
                 </AnimatedSection>
             </div>
@@ -561,13 +569,22 @@ export default function HomePage() {
          <footer className="text-center py-8 md:py-10 bg-brand-light text-xs text-gray-600 font-light">
              <div className="mb-3 text-brand-dark font-bold text-xl">Data2Content</div>
              <p className="mb-1.5">© {new Date().getFullYear()} Data2Content. Todos os direitos reservados por Marbá.</p>
-             <div className="mt-2 space-x-4">
+             <div className="mt-2 space-x-4 flex flex-wrap justify-center items-center">
                  <Link href="/politica-de-privacidade" className="underline hover:text-brand-pink transition-colors">
                     Política de Privacidade
                  </Link>
                  <Link href="/termos-e-condicoes" className="underline hover:text-brand-pink transition-colors">
                     Termos e Condições
                  </Link>
+                 <a 
+                    href="https://www.instagram.com/data2content/" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="underline hover:text-brand-pink transition-colors inline-flex items-center"
+                 >
+                    <FaInstagram aria-hidden="true" className="w-3 h-3 mr-1" />
+                    Instagram
+                 </a>
              </div>
          </footer>
 

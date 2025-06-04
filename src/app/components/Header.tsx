@@ -1,13 +1,15 @@
+// src/app/components/Header.tsx
 "use client";
 
 import React from "react";
 import { useSession, signOut, signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation"; // ✅ Importado usePathname
 import Link from "next/link";
 
 const Header: React.FC = () => {
   const { data: session } = useSession();
   const router = useRouter();
+  const pathname = usePathname(); // ✅ Obtém o pathname atual
 
   // Função para deslogar e redirecionar para "/"
   const handleSignOut = async () => {
@@ -15,6 +17,12 @@ const Header: React.FC = () => {
     router.push("/");
   };
 
+  // ✅ Se o pathname for '/dashboard', o Header não renderiza nada (retorna null)
+  if (pathname === "/dashboard") {
+    return null;
+  }
+
+  // Se não for '/dashboard', renderiza o Header normalmente
   return (
     <header className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-sm shadow-sm font-poppins">
       <div className="max-w-6xl mx-auto flex items-center justify-between py-3 px-4">
