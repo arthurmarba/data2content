@@ -1,4 +1,5 @@
 // @/app/lib/fallbackInsightService/generators/tryGenerateVideoDurationPerformanceInsight.ts
+// MODIFICADO: v1.1 - Alterado para usar o campo postLink diretamente, em vez de construir a URL manualmente.
 import { logger } from '@/app/lib/logger';
 import * as dataService from '@/app/lib/dataService';
 import type { IUserModel, IEnrichedReport, PotentialInsight, DurationStat, PostObject, DailySnapshot } from '../fallbackInsight.types';
@@ -13,15 +14,12 @@ import {
 
 /**
  * Tenta gerar um insight sobre o desempenho de vídeos com base na sua duração.
- * Destaca a faixa de duração com melhor taxa de retenção.
- * Inclui um exemplo de vídeo e métricas granulares de seu desempenho inicial.
- * OTIMIZADO: Adiciona dailyFollows, dailyProfileVisits e dailyReelsVideoViewTotalTime ao detalhe do vídeo de exemplo.
  */
 export async function tryGenerateVideoDurationPerformanceInsight(
     user: IUserModel,
     enrichedReport: IEnrichedReport | null
 ): Promise<PotentialInsight | null> {
-    const TAG = `${BASE_SERVICE_TAG}[tryGenerateVideoDurationPerformanceInsight_Optimized] User ${user._id}:`;
+    const TAG = `${BASE_SERVICE_TAG}[tryGenerateVideoDurationPerformanceInsight_v1.1] User ${user._id}:`;
     const userNameForMsg = user.name?.split(' ')[0] || 'você';
 
     if (!enrichedReport?.durationStats || enrichedReport.durationStats.length === 0) {
@@ -63,10 +61,11 @@ export async function tryGenerateVideoDurationPerformanceInsight(
                 if (retentionB !== retentionA) return retentionB - retentionA;
                 return (Number(b.stats?.views || b.stats?.video_views || 0)) - (Number(a.stats?.views || a.stats?.video_views || 0));
             });
-            const exampleVideo = videosInBestRange[0] as PostObject; // Cast para PostObject
+            const exampleVideo = videosInBestRange[0] as PostObject;
 
             if (exampleVideo?._id) {
-                const videoLink = exampleVideo.platformPostId ? `https://www.instagram.com/p/${exampleVideo.platformPostId}/` : "";
+                // --- CORREÇÃO AQUI ---
+                const videoLink = (exampleVideo as any).postLink || "";
                 const videoDesc = exampleVideo.description?.substring(0, 30) || "um de seus vídeos";
                 exampleVideoText = ` Por exemplo, seu vídeo "${videoDesc}..." ${videoLink ? `(${videoLink})` : ''}`;
 
@@ -81,9 +80,8 @@ export async function tryGenerateVideoDurationPerformanceInsight(
                             granularVideoMetricParts.push(`um tempo médio de visualização de ${(day1Snapshot.currentReelsAvgWatchTime / 1000).toFixed(1)}s`);
                         }
                         if (exampleVideo.type === 'REEL' && typeof day1Snapshot.dailyReelsVideoViewTotalTime === 'number' && day1Snapshot.dailyReelsVideoViewTotalTime > 0) {
-                             // Converter para minutos se for muito grande, ou segundos
                             const totalTimeSeconds = day1Snapshot.dailyReelsVideoViewTotalTime / 1000;
-                            if (totalTimeSeconds > 120) { // mais de 2 minutos
+                            if (totalTimeSeconds > 120) {
                                 granularVideoMetricParts.push(`com um tempo total de visualização de ${(totalTimeSeconds / 60).toFixed(1)} minutos`);
                             } else if (totalTimeSeconds > 0) {
                                 granularVideoMetricParts.push(`com um tempo total de visualização de ${totalTimeSeconds.toFixed(0)} segundos`);

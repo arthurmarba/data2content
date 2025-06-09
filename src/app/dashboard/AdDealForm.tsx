@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, ChangeEvent, FormEvent, FocusEvent, MouseEvent } from 'react'; // Adicionado FocusEvent, MouseEvent
+import React, { useState, ChangeEvent, FormEvent, FocusEvent, MouseEvent } from 'react';
 import { FaPaperPlane, FaSpinner, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -20,12 +20,11 @@ interface AdDealFormData {
   relatedPostId: string;
 }
 
-// Props atualizadas
 interface AdDealFormProps {
     userId: string;
-    canAccessFeatures: boolean; // Nova prop
-    onActionRedirect: () => void; // Nova prop
-    showToast: (message: string, type?: 'info' | 'warning' | 'success' | 'error') => void; // Nova prop
+    canAccessFeatures: boolean;
+    onActionRedirect: () => void;
+    showToast: (message: string, type?: 'info' | 'warning' | 'success' | 'error') => void;
     onDealAdded?: () => void;
 }
 
@@ -56,26 +55,23 @@ const AdDealForm: React.FC<AdDealFormProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [submitStatus, setSubmitStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // Função unificada para lidar com interações bloqueadas para não assinantes
   const handleBlockedInteraction = (event?: React.SyntheticEvent): boolean => {
     if (!canAccessFeatures) {
       if (event) {
-        event.preventDefault(); // Previne a ação padrão (foco, clique, mudança, submissão)
+        event.preventDefault();
         if (event.currentTarget && typeof (event.currentTarget as HTMLElement).blur === 'function') {
-          (event.currentTarget as HTMLElement).blur(); // Tenta remover o foco
+          (event.currentTarget as HTMLElement).blur();
         }
       }
       showToast("Para registrar e analisar suas parcerias, um plano premium é necessário.", 'info');
       onActionRedirect();
-      return true; // Interação bloqueada
+      return true;
     }
-    return false; // Interação permitida
+    return false;
   };
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    // O bloqueio da digitação em si será tratado por onFocus/onClick nos campos.
-    // Esta função apenas atualiza o estado se a interação for permitida.
-    if (!canAccessFeatures) return; // Segurança adicional, mas o foco principal é bloquear antes
+    if (!canAccessFeatures) return;
 
     const { name, value } = e.target;
     setFormData(prevState => ({
@@ -85,10 +81,9 @@ const AdDealForm: React.FC<AdDealFormProps> = ({
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault(); // Previne submissão padrão primeiro
-    if (handleBlockedInteraction(e)) return; // Se bloqueado, não continua
+    e.preventDefault();
+    if (handleBlockedInteraction(e)) return;
 
-    // Lógica de submissão para assinantes
     setIsLoading(true);
     setSubmitStatus(null);
 
@@ -138,91 +133,62 @@ const AdDealForm: React.FC<AdDealFormProps> = ({
   };
 
   const inputClasses = "mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm shadow-sm placeholder-gray-400 focus:outline-none focus:border-brand-pink focus:ring-1 focus:ring-brand-pink";
-  // Removido: disabled:bg-gray-50 disabled:text-gray-500 disabled:border-gray-200 disabled:shadow-none
-  // A prop `disabled` nos inputs será condicional apenas para `isLoading` em assinantes.
   const labelClasses = "block text-sm font-medium text-gray-700";
 
-  // Função para aplicar aos eventos de campos que devem ser bloqueados
   const fieldEventHandlers = {
     onClick: (e: MouseEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => handleBlockedInteraction(e),
     onFocus: (e: FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => handleBlockedInteraction(e),
   };
 
   return (
-    // O formulário em si não precisa de onClick/onFocus para bloqueio, o onSubmit já trata.
-    <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 rounded-lg shadow">
-      {/* Linha 1: Nome da Marca e Segmento */}
-      <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
-        <div>
-          <label htmlFor="adFormBrandName" className={labelClasses}> {/* ID Atualizado */}
-            Nome da Marca <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text" name="brandName" id="adFormBrandName" value={formData.brandName}
-            {...fieldEventHandlers} // Aplica bloqueio
-            onChange={handleChange}
-            className={inputClasses} required placeholder="Ex: Marca Incrível"
-            disabled={canAccessFeatures && isLoading} // Só desabilita para assinante durante loading
-          />
-        </div>
-        <div>
-          <label htmlFor="adFormBrandSegment" className={labelClasses}> {/* ID Atualizado */}
-            Segmento da Marca (Opcional)
-          </label>
-          <input
-            type="text" name="brandSegment" id="adFormBrandSegment" value={formData.brandSegment}
-            {...fieldEventHandlers}
-            onChange={handleChange}
-            className={inputClasses} placeholder="Ex: Moda, Beleza, Tecnologia"
-            disabled={canAccessFeatures && isLoading}
-          />
-        </div>
+    <form onSubmit={handleSubmit} className="space-y-8 bg-white p-6 rounded-lg shadow">
+      {/* --- NOVO CABEÇALHO COM TÍTULO E DESCRIÇÃO --- */}
+      <div className="border-b border-gray-200 pb-5">
+          <h2 className="text-lg font-bold leading-6 text-gray-900">
+              Registre suas Parcerias
+          </h2>
+          <p className="mt-1 text-sm text-gray-500">
+              Se você faz 'publis', este é o seu cantinho! Registre os detalhes dos seus acordos aqui e deixe o Tuca precificar suas entregas.
+          </p>
       </div>
 
-      {/* Linha 2: Datas */}
-      <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-3">
-        <div>
-           <label htmlFor="adFormDealDate" className={labelClasses}> {/* ID Atualizado */}
-             Data do Acordo <span className="text-red-500">*</span>
-           </label>
-           <input
-             type="date" name="dealDate" id="adFormDealDate" value={formData.dealDate}
-             {...fieldEventHandlers}
-             onChange={handleChange}
-             className={inputClasses} required
-             disabled={canAccessFeatures && isLoading}
-           />
-         </div>
-         <div>
-           <label htmlFor="adFormCampaignStartDate" className={labelClasses}> {/* ID Atualizado */}
-             Início da Campanha (Opcional)
-           </label>
-           <input
-             type="date" name="campaignStartDate" id="adFormCampaignStartDate" value={formData.campaignStartDate}
-             {...fieldEventHandlers}
-             onChange={handleChange}
-             className={inputClasses}
-             disabled={canAccessFeatures && isLoading}
-           />
-         </div>
-         <div>
-           <label htmlFor="adFormCampaignEndDate" className={labelClasses}> {/* ID Atualizado */}
-             Fim da Campanha (Opcional)
-           </label>
-           <input
-             type="date" name="campaignEndDate" id="adFormCampaignEndDate" value={formData.campaignEndDate}
-             {...fieldEventHandlers}
-             onChange={handleChange}
-             className={inputClasses}
-             disabled={canAccessFeatures && isLoading}
-           />
-         </div>
+      {/* --- SEÇÃO 1: SOBRE A PARCERIA --- */}
+      <div className="space-y-4">
+        <h3 className="text-md font-medium text-gray-800">Sobre a Parceria</h3>
+        <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="adFormBrandName" className={labelClasses}>
+              Nome da Marca <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text" name="brandName" id="adFormBrandName" value={formData.brandName}
+              {...fieldEventHandlers}
+              onChange={handleChange}
+              className={inputClasses} required placeholder="Ex: Marca Incrível"
+              disabled={canAccessFeatures && isLoading}
+            />
+          </div>
+          <div>
+            <label htmlFor="adFormBrandSegment" className={labelClasses}>
+              Segmento da Marca (Opcional)
+            </label>
+            <input
+              type="text" name="brandSegment" id="adFormBrandSegment" value={formData.brandSegment}
+              {...fieldEventHandlers}
+              onChange={handleChange}
+              className={inputClasses} placeholder="Ex: Moda, Beleza, Tecnologia"
+              disabled={canAccessFeatures && isLoading}
+            />
+          </div>
+        </div>
       </div>
-
-       {/* Linha 3: Entregas e Plataforma */}
-       <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-3">
+      
+      {/* --- SEÇÃO 2: O QUE SERÁ ENTREGUE? --- */}
+      <div className="space-y-4">
+        <h3 className="text-md font-medium text-gray-800">O que será entregue?</h3>
+        <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-3">
             <div className="sm:col-span-2">
-                <label htmlFor="adFormDeliverables" className={labelClasses}> {/* ID Atualizado */}
+                <label htmlFor="adFormDeliverables" className={labelClasses}>
                     Entregas (uma por linha) <span className="text-red-500">*</span>
                 </label>
                 <textarea
@@ -236,12 +202,12 @@ const AdDealForm: React.FC<AdDealFormProps> = ({
                  <p className="mt-1 text-xs text-gray-500">Liste cada entrega numa linha separada.</p>
             </div>
             <div>
-                <label htmlFor="adFormPlatform" className={labelClasses}> {/* ID Atualizado */}
+                <label htmlFor="adFormPlatform" className={labelClasses}>
                     Plataforma Principal
                 </label>
                 <select
                     id="adFormPlatform" name="platform" value={formData.platform}
-                    {...fieldEventHandlers} // Select também precisa
+                    {...fieldEventHandlers}
                     onChange={handleChange}
                     className={inputClasses}
                     disabled={canAccessFeatures && isLoading}
@@ -255,11 +221,14 @@ const AdDealForm: React.FC<AdDealFormProps> = ({
                 </select>
             </div>
        </div>
+      </div>
 
-        {/* Linha 4: Compensação */}
+      {/* --- SEÇÃO 3: VALORES E PAGAMENTO --- */}
+      <div className="space-y-4">
+        <h3 className="text-md font-medium text-gray-800">Valores e Pagamento</h3>
         <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
             <div className="sm:col-span-2">
-                <label htmlFor="adFormCompensationType" className={labelClasses}> {/* ID Atualizado */}
+                <label htmlFor="adFormCompensationType" className={labelClasses}>
                     Tipo de Compensação <span className="text-red-500">*</span>
                 </label>
                 <select
@@ -277,7 +246,7 @@ const AdDealForm: React.FC<AdDealFormProps> = ({
                 </select>
             </div>
             <div className="sm:col-span-2">
-                <label htmlFor="adFormCompensationValue" className={labelClasses}> {/* ID Atualizado */}
+                <label htmlFor="adFormCompensationValue" className={labelClasses}>
                     Valor Monetário (Opcional)
                 </label>
                 <div className="relative mt-1 rounded-md shadow-sm">
@@ -296,7 +265,7 @@ const AdDealForm: React.FC<AdDealFormProps> = ({
                  </div>
             </div>
              <div className="sm:col-span-2">
-                <label htmlFor="adFormProductValue" className={labelClasses}> {/* ID Atualizado */}
+                <label htmlFor="adFormProductValue" className={labelClasses}>
                     Valor Produto/Permuta (Opcional)
                 </label>
                  <div className="relative mt-1 rounded-md shadow-sm">
@@ -315,11 +284,52 @@ const AdDealForm: React.FC<AdDealFormProps> = ({
                  </div>
             </div>
         </div>
+      </div>
 
-        {/* Linha 5: Notas e Post Relacionado */}
-        <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
+      {/* --- SEÇÃO 4: PRAZOS E DETALHES ADICIONAIS --- */}
+      <div className="space-y-4">
+        <h3 className="text-md font-medium text-gray-800">Prazos e Detalhes Adicionais</h3>
+        <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-3">
+          <div>
+            <label htmlFor="adFormDealDate" className={labelClasses}>
+              Data do Acordo <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="date" name="dealDate" id="adFormDealDate" value={formData.dealDate}
+              {...fieldEventHandlers}
+              onChange={handleChange}
+              className={inputClasses} required
+              disabled={canAccessFeatures && isLoading}
+            />
+          </div>
+          <div>
+            <label htmlFor="adFormCampaignStartDate" className={labelClasses}>
+              Início da Campanha (Opcional)
+            </label>
+            <input
+              type="date" name="campaignStartDate" id="adFormCampaignStartDate" value={formData.campaignStartDate}
+              {...fieldEventHandlers}
+              onChange={handleChange}
+              className={inputClasses}
+              disabled={canAccessFeatures && isLoading}
+            />
+          </div>
+          <div>
+            <label htmlFor="adFormCampaignEndDate" className={labelClasses}>
+              Fim da Campanha (Opcional)
+            </label>
+            <input
+              type="date" name="campaignEndDate" id="adFormCampaignEndDate" value={formData.campaignEndDate}
+              {...fieldEventHandlers}
+              onChange={handleChange}
+              className={inputClasses}
+              disabled={canAccessFeatures && isLoading}
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2 pt-4">
             <div>
-                <label htmlFor="adFormNotes" className={labelClasses}> {/* ID Atualizado */}
+                <label htmlFor="adFormNotes" className={labelClasses}>
                     Notas Adicionais (Opcional)
                 </label>
                 <textarea
@@ -332,7 +342,7 @@ const AdDealForm: React.FC<AdDealFormProps> = ({
                 />
             </div>
              <div>
-                <label htmlFor="adFormRelatedPostId" className={labelClasses}> {/* ID Atualizado */}
+                <label htmlFor="adFormRelatedPostId" className={labelClasses}>
                     ID do Post Relacionado (Opcional)
                 </label>
                 <input
@@ -346,12 +356,12 @@ const AdDealForm: React.FC<AdDealFormProps> = ({
                  <p className="mt-1 text-xs text-gray-500">Se esta publi corresponde a um post específico já registado.</p>
             </div>
         </div>
+      </div>
 
       {/* Botão de Submissão e Mensagens de Status */}
       <div className="pt-5">
         <div className="flex justify-end items-center gap-4">
           <AnimatePresence>
-            {/* Mostra status de submissão apenas para assinantes */}
             {canAccessFeatures && submitStatus && (
               <motion.div
                 initial={{ opacity: 0, y: 5 }}
@@ -368,11 +378,9 @@ const AdDealForm: React.FC<AdDealFormProps> = ({
           </AnimatePresence>
 
           <button
-            type="submit" // O onSubmit do form já chama handleBlockedInteraction
-            // `disabled` só se aplica a assinantes durante o loading
+            type="submit"
             disabled={canAccessFeatures && isLoading}
             className="inline-flex justify-center items-center gap-2 py-2.5 px-6 border border-transparent shadow-sm text-sm font-semibold rounded-full text-white bg-pink-600 hover:bg-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 transition duration-150 ease-in-out"
-            // Estilo visual de "desabilitado" não será aplicado para não assinantes aqui.
           >
             {(canAccessFeatures && isLoading) ? (
               <>

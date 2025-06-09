@@ -1,4 +1,5 @@
 // src/app/lib/ruleEngine/rules/engagementPeakNotCapitalizedRule.ts
+// MODIFICADO: v2.2 - Adicionado postLink na messageForAI para corrigir links quebrados.
 // MODIFICADO: v2.1 - Adicionado platformPostId aos details do evento.
 // MODIFICADO: v2 - Corrigida métrica para 'comments' de stats e tratamento de null.
 // MODIFICADO: Adicionado log de versão para depuração.
@@ -6,7 +7,7 @@
 
 import { IRule, RuleContext, RuleConditionResult } from '../types';
 import { DetectedEvent } from '@/app/api/whatsapp/process-response/types'; 
-import { IEngagementPeakNotCapitalizedDetails } from '@/app/models/User'; // IEngagementPeakNotCapitalizedDetails já tem platformPostId?
+import { IEngagementPeakNotCapitalizedDetails } from '@/app/models/User';
 import { logger } from '@/app/lib/logger';
 import { parseISO, differenceInDays, isValid as isValidDate } from 'date-fns';
 import {
@@ -16,7 +17,7 @@ import {
     ENGAGEMENT_PEAK_COMMENT_MULTIPLIER,
 } from '@/app/lib/constants';
 import { IMetricStats } from '@/app/models/Metric'; 
-import { PostObjectForAverage, calculateAverageMetric } from '@/app/lib/utils'; // PostObjectForAverage agora tem instagramMediaId?
+import { PostObjectForAverage, calculateAverageMetric } from '@/app/lib/utils';
 
 const RULE_ID = 'engagement_peak_not_capitalized_v1';
 const RULE_TAG_BASE = `[Rule:${RULE_ID}]`;
@@ -59,7 +60,7 @@ export const engagementPeakNotCapitalizedRule: IRule = {
 
     condition: async (context: RuleContext): Promise<RuleConditionResult> => {
         const { user, allUserPosts, today } = context;
-        const currentRuleVersion = "engagementPeakNotCapitalizedRule_v2.1_CANVAS_PLATFORMPOSTID"; 
+        const currentRuleVersion = "engagementPeakNotCapitalizedRule_v2.2"; 
         const detectionTAG = `${RULE_TAG_BASE} (${currentRuleVersion})[condition] User ${user._id}:`;
         logger.info(`${detectionTAG} INICIANDO EXECUÇÃO DA REGRA`);
         logger.debug(`${detectionTAG} Avaliando condição... Usando métrica: ${METRIC_FOR_COMMENTS}`);
@@ -131,7 +132,7 @@ export const engagementPeakNotCapitalizedRule: IRule = {
                 return {
                     isMet: true,
                     data: {
-                        post: post as PostObjectForAverage, // post é PostObjectForAverage e deve ter instagramMediaId
+                        post: post as PostObjectForAverage,
                         postComments,
                         averageComments 
                     }
@@ -150,19 +151,18 @@ export const engagementPeakNotCapitalizedRule: IRule = {
             return null;
         }
 
-        const post = conditionData.post as PostObjectForAverage; // post agora tem instagramMediaId?
+        const post = conditionData.post as PostObjectForAverage;
         const postComments = conditionData.postComments as number;
         const averageComments = conditionData.averageComments as number;
         
         logger.info(`${actionTAG} Gerando evento para post ${post._id}. InstagramMediaId: ${post.instagramMediaId}`);
 
-        // Usando post.description que foi adicionado a PostObjectForAverage
         const postDescriptionExcerptText = post.description ? post.description.substring(0, 70) : undefined;
         const postDescriptionForAI = post.description ? `"${post.description.substring(0, 70)}..."` : "um post recente";
 
         const details: IEngagementPeakNotCapitalizedDetails = {
             postId: post._id,
-            platformPostId: post.instagramMediaId, // <-- MODIFICAÇÃO PRINCIPAL AQUI
+            platformPostId: post.instagramMediaId,
             postDescriptionExcerpt: postDescriptionExcerptText,
             comments: postComments,
             averageComments: averageComments, 
@@ -172,12 +172,14 @@ export const engagementPeakNotCapitalizedRule: IRule = {
             context: post.context,
         };
 
-        const messageForAI = `Radar Tuca detectou: Seu post ${postDescriptionForAI} gerou bastante conversa, com ${postComments} comentários! Isso é bem acima da sua média de ${averageComments.toFixed(1)}. Parece que sua audiência tem perguntas ou muito interesse no tema. Já considerou fazer um conteúdo de follow-up ou responder mais diretamente aos comentários para manter essa chama acesa?`;
+        // --- CORREÇÃO AQUI ---
+        // Incluído o 'post.postLink' para garantir que a IA tenha o link correto para incluir na mensagem final.
+        const messageForAI = `Radar Tuca detectou: Seu post (${post.postLink}) sobre ${postDescriptionForAI} gerou bastante conversa, com ${postComments} comentários! Isso é bem acima da sua média de ${averageComments.toFixed(1)}. Parece que sua audiência tem perguntas ou muito interesse no tema. Já considerou fazer um conteúdo de follow-up ou responder mais diretamente aos comentários para manter essa chama acesa?`;
 
         return {
             type: RULE_ID,
             messageForAI,
-            detailsForLog: details // detailsForLog já aceita IEngagementPeakNotCapitalizedDetails com platformPostId
+            detailsForLog: details
         };
     }
 };

@@ -1,4 +1,5 @@
 // @/app/lib/fallbackInsightService/generators/tryGenerateAvgReachInsight.ts
+// MODIFICADO: v1.1 - Alterado para usar o campo postLink diretamente, em vez de construir a URL manualmente.
 import { parseISO, subDays } from 'date-fns';
 import { logger } from '@/app/lib/logger';
 import * as dataService from '@/app/lib/dataService';
@@ -21,7 +22,7 @@ export async function tryGenerateAvgReachInsight(
     enrichedReport: IEnrichedReport | null,
     daysLookback: number
 ): Promise<PotentialInsight | null> {
-    const TAG = `${BASE_SERVICE_TAG}[tryGenerateAvgReachInsight_Optimized] User ${user._id}:`;
+    const TAG = `${BASE_SERVICE_TAG}[tryGenerateAvgReachInsight_v1.1] User ${user._id}:`;
     const userNameForMsg = user.name?.split(' ')[0] || 'você';
 
     const postsToConsider = enrichedReport?.recentPosts?.filter(p => {
@@ -41,14 +42,14 @@ export async function tryGenerateAvgReachInsight(
 
     if (avgReach !== null && avgReach > AVG_REACH_MIN_FOR_INSIGHT) {
         let granularDetailText = "";
-        let additionalImpactText = ""; // Para dailyFollows, etc.
-        let reelSpecificText = ""; // Para métricas de Reels
+        let additionalImpactText = ""; 
+        let reelSpecificText = ""; 
 
         const sortedPosts = [...postsToConsider].sort((a, b) =>
             (b.postDate instanceof Date ? b.postDate.getTime() : parseISO(b.postDate as string).getTime()) -
             (a.postDate instanceof Date ? a.postDate.getTime() : parseISO(a.postDate as string).getTime())
         );
-        const mostRecentPostWithReach = sortedPosts[0] as PostObject; // Cast para PostObject para acessar 'type'
+        const mostRecentPostWithReach = sortedPosts[0] as PostObject;
 
         if (mostRecentPostWithReach?._id) {
             try {
@@ -57,15 +58,17 @@ export async function tryGenerateAvgReachInsight(
                 if (day1Snapshot) {
                     if (typeof day1Snapshot.dailyReach === 'number' && day1Snapshot.dailyReach >= AVG_REACH_MIN_DAY1_REACH_FOR_MENTION) {
                         const postDesc = mostRecentPostWithReach.description?.substring(0, 30) || "seu post mais recente";
-                        const postLink = mostRecentPostWithReach.platformPostId ? `https://www.instagram.com/p/${mostRecentPostWithReach.platformPostId}/` : "";
+                        
+                        // --- CORREÇÃO AQUI ---
+                        // Usa o campo 'postLink' diretamente, que já contém a URL completa.
+                        const postLink = (mostRecentPostWithReach as any).postLink || "";
+
                         granularDetailText = ` Seu post mais recente, "${postDesc}..." ${postLink ? `(${postLink})` : ''}, por exemplo, já alcançou ${day1Snapshot.dailyReach.toFixed(0)} pessoas só no primeiro dia!`;
 
-                        // Otimização: Adicionar menção a novos seguidores
                         if (typeof day1Snapshot.dailyFollows === 'number' && day1Snapshot.dailyFollows > 0) {
                             additionalImpactText = ` Além disso, gerou ${day1Snapshot.dailyFollows} novo(s) seguidor(es) nesse dia.`;
                         }
 
-                        // Otimização: Se for um Reel, adicionar tempo médio de visualização
                         if ((mostRecentPostWithReach.type === 'REEL' || mostRecentPostWithReach.type === 'VIDEO') &&
                             typeof day1Snapshot.currentReelsAvgWatchTime === 'number' && day1Snapshot.currentReelsAvgWatchTime > 0) {
                             reelSpecificText = ` E quem viu, assistiu em média por ${(day1Snapshot.currentReelsAvgWatchTime / 1000).toFixed(1)} segundos.`;

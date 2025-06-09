@@ -26,8 +26,8 @@ const TermsAcceptanceStep: React.FC<TermsAcceptanceStepProps> = ({
   };
 
   // URLs para seus documentos legais
-  const termsAndConditionsUrl = "https://data2content.vercel.app/termos-e-condicoes";
-  const privacyPolicyUrl = "https://data2content.vercel.app/politica-de-privacidade"; 
+  const termsAndConditionsUrl = "https://data2content.ai/termos-e-condicoes";
+  const privacyPolicyUrl = "https://data2content.ai/politica-de-privacidade"; 
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">

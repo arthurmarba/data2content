@@ -1,4 +1,6 @@
 // @/app/lib/fallbackInsightService/generators/tryGenerateAvgLikesInsight.ts
+// MODIFICADO: v1.2 - Corrigido erro de tipo para acessar postLink.
+// MODIFICADO: v1.1 - Alterado para usar o campo postLink diretamente, em vez de construir a URL manualmente.
 import { parseISO, subDays } from 'date-fns';
 import { logger } from '@/app/lib/logger';
 import * as dataService from '@/app/lib/dataService';
@@ -21,7 +23,7 @@ export async function tryGenerateAvgLikesInsight(
     enrichedReport: IEnrichedReport | null,
     daysLookback: number
 ): Promise<PotentialInsight | null> {
-    const TAG = `${BASE_SERVICE_TAG}[tryGenerateAvgLikesInsight_Optimized] User ${user._id}:`;
+    const TAG = `${BASE_SERVICE_TAG}[tryGenerateAvgLikesInsight_v1.2] User ${user._id}:`;
     const userNameForMsg = user.name?.split(' ')[0] || 'você';
 
     const postsToConsider = enrichedReport?.recentPosts?.filter(p => {
@@ -41,7 +43,7 @@ export async function tryGenerateAvgLikesInsight(
 
     if (avgLikes !== null && avgLikes > AVG_LIKES_MIN_FOR_INSIGHT) {
         let granularDetailText = "";
-        let additionalImpactText = ""; // Para dailyFollows, etc.
+        let additionalImpactText = "";
 
         const sortedPosts = [...postsToConsider].sort((a, b) =>
             (b.postDate instanceof Date ? b.postDate.getTime() : parseISO(b.postDate as string).getTime()) -
@@ -56,10 +58,14 @@ export async function tryGenerateAvgLikesInsight(
                 if (day1Snapshot) {
                     if (typeof day1Snapshot.dailyLikes === 'number' && day1Snapshot.dailyLikes >= AVG_LIKES_MIN_DAY1_LIKES_FOR_MENTION) {
                         const postDesc = mostRecentPostWithLikes.description?.substring(0, 30) || "seu post mais recente";
-                        const postLink = mostRecentPostWithLikes.platformPostId ? `https://www.instagram.com/p/${mostRecentPostWithLikes.platformPostId}/` : "";
+                        
+                        // --- CORREÇÃO AQUI ---
+                        // Usa o campo 'postLink' diretamente, que já contém a URL completa.
+                        // É feito um type cast para 'any' para contornar uma definição de tipo desatualizada.
+                        const postLink = (mostRecentPostWithLikes as any).postLink || ""; 
+                        
                         granularDetailText = ` Por exemplo, seu post "${postDesc}..." ${postLink ? `(${postLink})` : ''} já começou bem, conquistando ${day1Snapshot.dailyLikes} curtidas logo no primeiro dia!`;
 
-                        // Otimização: Adicionar menção a novos seguidores
                         if (typeof day1Snapshot.dailyFollows === 'number' && day1Snapshot.dailyFollows > 0) {
                             additionalImpactText = ` Ele também trouxe ${day1Snapshot.dailyFollows} novo(s) seguidor(es) nesse dia.`;
                         }

@@ -1,4 +1,5 @@
 // src/app/lib/ruleEngine/rules/peakPerformanceSharesRule.ts
+// MODIFICADO: v1.2 - Adicionado postLink na messageForAI para corrigir links quebrados.
 // MODIFICADO: v1.1 - Adicionado platformPostId aos details do evento.
 // MODIFICADO: Adicionado log de versão para depuração.
 // MODIFICADO: Atualizado para usar post.postDate em vez de post.createdAt e adicionar tratamento seguro de datas.
@@ -61,7 +62,7 @@ export const peakPerformanceSharesRule: IRule = {
 
     condition: async (context: RuleContext): Promise<RuleConditionResult> => {
         const { user, allUserPosts, today, getSnapshotsForPost } = context;
-        const currentRuleVersion = "peakPerformanceSharesRule_v1.1_CANVAS_PLATFORMPOSTID"; 
+        const currentRuleVersion = "peakPerformanceSharesRule_v1.2"; 
         const detectionTAG = `${RULE_TAG_BASE} (${currentRuleVersion})[condition] User ${user._id}:`;
         logger.info(`${detectionTAG} INICIANDO EXECUÇÃO DA REGRA`);
         logger.debug(`${detectionTAG} Avaliando condição...`);
@@ -158,7 +159,7 @@ export const peakPerformanceSharesRule: IRule = {
                 return {
                     isMet: true,
                     data: {
-                        post: post as PostObjectForAverage, // 'post' já é PostObjectForAverage
+                        post: post as PostObjectForAverage,
                         peakSharesValue,
                         peakSharesDay,
                         averageSharesFirst3Days
@@ -180,20 +181,19 @@ export const peakPerformanceSharesRule: IRule = {
             return null;
         }
 
-        const post = conditionData.post as PostObjectForAverage; // post agora tem instagramMediaId?
+        const post = conditionData.post as PostObjectForAverage;
         const peakSharesValue = conditionData.peakSharesValue as number;
         const peakSharesDay = conditionData.peakSharesDay as number;
         const averageSharesFirst3Days = conditionData.averageSharesFirst3Days as number;
 
         logger.info(`${actionTAG} Gerando evento para post ${post._id}. InstagramMediaId: ${post.instagramMediaId}`);
-
-        // Usa post.description que foi adicionado a PostObjectForAverage na última atualização do utils.ts
+        
         const postDescriptionExcerptText = post.description ? post.description.substring(0, 50) : undefined;
         const postDescriptionForAI = post.description ? `"${post.description.substring(0, 50)}..."` : "recente";
         
         const details: IPeakSharesDetails = {
             postId: post._id,
-            platformPostId: post.instagramMediaId, // <-- MODIFICAÇÃO PRINCIPAL AQUI
+            platformPostId: post.instagramMediaId,
             postDescriptionExcerpt: postDescriptionExcerptText,
             peakShares: peakSharesValue,
             peakDay: peakSharesDay,
@@ -203,10 +203,14 @@ export const peakPerformanceSharesRule: IRule = {
             context: post.context,
         };
 
+        // --- CORREÇÃO AQUI ---
+        // Incluído o 'post.postLink' para garantir que a IA tenha o link correto para incluir na mensagem final.
+        const messageForAI = `Radar Tuca detectou: Seu post ${postDescriptionForAI} (${post.postLink}) teve um pico de ${peakSharesValue} compartilhamentos no Dia ${peakSharesDay}, significativamente acima da sua média habitual (${averageSharesFirst3Days.toFixed(1)} shares nos primeiros dias). Isso é um ótimo sinal de que o conteúdo ressoou fortemente!`;
+
         return {
             type: RULE_ID, 
-            messageForAI: `Radar Tuca detectou: Seu post ${postDescriptionForAI} teve um pico de ${peakSharesValue} compartilhamentos no Dia ${peakSharesDay}, significativamente acima da sua média habitual (${averageSharesFirst3Days.toFixed(1)} shares nos primeiros dias). Isso é um ótimo sinal de que o conteúdo ressoou fortemente!`,
-            detailsForLog: details // detailsForLog já aceita IPeakSharesDetails com platformPostId
+            messageForAI,
+            detailsForLog: details
         };
     }
 };

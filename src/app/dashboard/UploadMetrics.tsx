@@ -168,8 +168,9 @@ export default function UploadMetrics({
             <h3 className="text-base font-semibold text-brand-dark">
             Enviar Print das Métricas
             </h3>
+            {/* --- TEXTO ATUALIZADO --- */}
             <p className="text-xs text-gray-500 font-light">
-                Carregue até 4 prints, informe o link e descrição.
+                Ficou faltando algum post antigo? Cadastre as métricas dele por aqui.
             </p>
         </div>
       </div>

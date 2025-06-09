@@ -1,4 +1,5 @@
-// src/app/lib/fallbackInsightService/generators/tryGenerateFpcComboOpportunityInsight.ts
+// @/app/lib/fallbackInsightService/generators/tryGenerateFpcComboOpportunityInsight.ts
+// MODIFICADO: v1.1 - Alterado para usar o campo postLink diretamente, em vez de construir a URL manualmente.
 import { logger } from '@/app/lib/logger';
 import * as dataService from '@/app/lib/dataService';
 import type { IUserModel, IEnrichedReport, PotentialInsight, DetailedContentStat, PostObject, DailySnapshot, IMetricStats } from '../fallbackInsight.types';
@@ -15,22 +16,20 @@ import {
     DEFAULT_FORMAT_ENUM,
     DEFAULT_PROPOSAL_ENUM,
     DEFAULT_CONTEXT_ENUM,
-    FormatType,   // Usado para tipar 'format' se necessário
-    ProposalType, // Usado para tipar 'proposal' se necessário
-    ContextType   // Usado para tipar 'context' se necessário
+    FormatType,
+    ProposalType,
+    ContextType
 } from "@/app/lib/constants/communityInspirations.constants";
 
 /**
  * Tenta gerar um insight sobre uma combinação de Formato/Proposta/Contexto (FPC)
  * que é pouco utilizada mas tem alto desempenho.
- * Inclui um exemplo de post e métricas granulares de seu desempenho inicial.
- * OTIMIZADO: Adiciona dailyFollows, dailyProfileVisits e métricas de Reels ao detalhe do post de exemplo.
  */
 export async function tryGenerateFpcComboOpportunityInsight(
     user: IUserModel,
     enrichedReport: IEnrichedReport | null
 ): Promise<PotentialInsight | null> {
-    const TAG = `${BASE_SERVICE_TAG}[tryGenerateFpcComboOpportunityInsight_Optimized] User ${user._id}:`;
+    const TAG = `${BASE_SERVICE_TAG}[tryGenerateFpcComboOpportunityInsight_v1.1] User ${user._id}:`;
     const userNameForMsg = user.name?.split(' ')[0] || 'você';
 
     if (!enrichedReport?.detailedContentStats || enrichedReport.detailedContentStats.length === 0 || !enrichedReport.overallStats) {
@@ -50,17 +49,13 @@ export async function tryGenerateFpcComboOpportunityInsight(
     for (const comboStat of enrichedReport.detailedContentStats) {
         if (!comboStat._id) continue;
 
-        // Assumindo que comboStat._id.format, .proposal, .context já são dos tipos Enum corretos
-        // (FormatType, ProposalType, ContextType) devido à tipagem de DetailedContentStat
-        // que foi atualizada no reportHelpers.ts
         const format = comboStat._id.format;
         const proposal = comboStat._id.proposal;
         const context = comboStat._id.context;
 
-        // CONDIÇÃO CORRIGIDA ABAIXO
-        if (!format || format === DEFAULT_FORMAT_ENUM /* "Desconhecido" */ || format === "Outro Formato" ||
-            !proposal || proposal === DEFAULT_PROPOSAL_ENUM /* "Outro Propósito" */ ||
-            !context || context === DEFAULT_CONTEXT_ENUM /* "Geral" */ || context === "Outro Contexto") {
+        if (!format || format === DEFAULT_FORMAT_ENUM || format === "Outro Formato" ||
+            !proposal || proposal === DEFAULT_PROPOSAL_ENUM ||
+            !context || context === DEFAULT_CONTEXT_ENUM || context === "Outro Contexto") {
             logger.debug(`${TAG} Pulando combinação FPC genérica/desconhecida: F='${format}', P='${proposal}', C='${context}'`);
             continue;
         }
@@ -109,9 +104,11 @@ export async function tryGenerateFpcComboOpportunityInsight(
     let earlyPerformanceParts: string[] = [];
 
     if (bestOpportunity.examplePost && bestOpportunity.examplePost._id) {
-        const examplePost = bestOpportunity.examplePost as PostObject; 
-        // Usar instagramMediaId para o link, pois é mais provável que esteja disponível e correto
-        const postLink = examplePost.instagramMediaId ? `https://www.instagram.com/p/${examplePost.instagramMediaId}/` : "";
+        const examplePost = bestOpportunity.examplePost as PostObject;
+        
+        // --- CORREÇÃO AQUI ---
+        // Usa o campo 'postLink' diretamente para evitar erros e inconsistências.
+        const postLink = (examplePost as any).postLink || "";
         const postDesc = examplePost.description?.substring(0, 30) || "um desses posts";
         examplePostText = ` (como o post "${postDesc}..." ${postLink ? postLink : ''})`;
 

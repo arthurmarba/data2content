@@ -1,12 +1,12 @@
 // @/app/lib/fallbackInsightService/generators/tryGenerateProposalSuccessReminderInsight.ts
-// v1.1.1 (Corrige comparação de proposal com valor de Enum)
-// - ATUALIZADO: Filtro de posts com proposta usa o valor de Enum DEFAULT_PROPOSAL_ENUM.
-// - Baseado na v1.1.0 (versão otimizada).
+// v1.2.0 (Corrige a geração de link do post)
+// - ATUALIZADO: Usa o campo postLink diretamente para o post de exemplo, em vez de construir a URL manualmente.
+// - Baseado na v1.1.1.
 
 import { parseISO, subDays } from 'date-fns';
 import { logger } from '@/app/lib/logger';
 import * as dataService from '@/app/lib/dataService';
-import type { IUserModel, IEnrichedReport, IAccountInsight, PotentialInsight, PostObject, DailySnapshot, ProposalType } from '../fallbackInsight.types'; // Adicionado ProposalType
+import type { IUserModel, IEnrichedReport, IAccountInsight, PotentialInsight, PostObject, DailySnapshot, ProposalType } from '../fallbackInsight.types';
 import { calculateAverageMetricFromPosts } from '../utils/calculateAverageMetricFromPosts';
 import { FALLBACK_INSIGHT_TYPES } from '@/app/lib/constants';
 import {
@@ -16,13 +16,11 @@ import {
     PROPOSAL_RECENT_POST_THRESHOLD_DAYS,
     PROPOSAL_EXAMPLE_POST_MIN_DAY1_INTERACTIONS
 } from '../fallbackInsight.constants';
-import { DEFAULT_PROPOSAL_ENUM } from '@/app/lib/constants/communityInspirations.constants'; // Importa o default do Enum
+import { DEFAULT_PROPOSAL_ENUM } from '@/app/lib/constants/communityInspirations.constants';
 
 /**
  * Tenta gerar um lembrete sobre propostas de conteúdo que tiveram sucesso no passado
  * mas não foram usadas recentemente.
- * Inclui um exemplo de post e métricas de seu desempenho inicial.
- * ATUALIZADO v1.1.1: Corrige comparação de proposal com valor de Enum.
  */
 export async function tryGenerateProposalSuccessReminderInsight(
     user: IUserModel,
@@ -30,7 +28,7 @@ export async function tryGenerateProposalSuccessReminderInsight(
     latestAccountInsights: IAccountInsight | null,
     daysLookback: number
 ): Promise<PotentialInsight | null> {
-    const TAG = `${BASE_SERVICE_TAG}[tryGenerateProposalSuccessReminderInsight_FixedEnum] User ${user._id}:`;
+    const TAG = `${BASE_SERVICE_TAG}[tryGenerateProposalSuccessReminderInsight_v1.2.0] User ${user._id}:`;
     const userNameForMsg = user.name?.split(' ')[0] || 'você';
 
     if (!enrichedReport?.recentPosts || enrichedReport.recentPosts.length === 0) {
@@ -57,10 +55,9 @@ export async function tryGenerateProposalSuccessReminderInsight(
     const cutoffDate = subDays(new Date(), daysLookback);
     const recentPostsWithProposal = (enrichedReport.recentPosts as PostObject[]).filter(p => {
         const postTimestamp = p.postDate instanceof Date ? p.postDate : parseISO(p.postDate as string);
-        // CORRIGIDO: Compara com o valor de fallback do Enum ProposalType
         return postTimestamp >= cutoffDate &&
-            p.proposal && // Verifica se proposal existe
-            p.proposal !== DEFAULT_PROPOSAL_ENUM && // Filtra propostas genéricas/fallback
+            p.proposal &&
+            p.proposal !== DEFAULT_PROPOSAL_ENUM &&
             p.stats && typeof p.stats.total_interactions === 'number';
     });
 
@@ -68,20 +65,18 @@ export async function tryGenerateProposalSuccessReminderInsight(
         logger.debug(`${TAG} Posts recentes com propostas válidas e não genéricas (${recentPostsWithProposal.length}) insuficientes para o limiar de ${PROPOSAL_MIN_POSTS_WITH_TAG}.`);
         return null;
     }
-
-    // Tipagem explícita para proposalPerformance
+    
     const proposalPerformance: Record<string, {
         totalInteractionValue: number;
         count: number;
         lastPostDate: Date;
         posts: PostObject[];
-        proposalEnumValue: ProposalType; // Para manter o valor do enum
+        proposalEnumValue: ProposalType;
     }> = {};
 
     for (const post of recentPostsWithProposal) {
-        // post.proposal aqui já deve ser do tipo ProposalType devido às atualizações no IMetric e PostObject
-        const cleanProposal = post.proposal as ProposalType; // Cast para garantir, mas idealmente já é ProposalType
-        if (!cleanProposal) continue; // Deve ser redundante se o filtro acima funcionar
+        const cleanProposal = post.proposal as ProposalType;
+        if (!cleanProposal) continue;
 
         if (!proposalPerformance[cleanProposal]) {
             proposalPerformance[cleanProposal] = {
@@ -106,7 +101,7 @@ export async function tryGenerateProposalSuccessReminderInsight(
         text: string; type: typeof FALLBACK_INSIGHT_TYPES.PROPOSAL_SUCCESS_REMINDER; avgInteractionValue: number; proposalName: ProposalType; examplePost?: PostObject
     }> = [];
 
-    for (const proposalKey in proposalPerformance) { // proposalKey é uma string, mas representa uma ProposalType
+    for (const proposalKey in proposalPerformance) {
         const data = proposalPerformance[proposalKey];
         if (data && data.count >= PROPOSAL_MIN_POSTS_WITH_TAG) {
             const avgInteractionValueForProposal = data.totalInteractionValue / data.count;
@@ -114,18 +109,14 @@ export async function tryGenerateProposalSuccessReminderInsight(
 
             if (avgInteractionValueForProposal > overallAvgAbsoluteEngagement * PROPOSAL_ENGAGEMENT_SUPERIORITY_MULTIPLIER &&
                 daysSinceLastPostForProposal > PROPOSAL_RECENT_POST_THRESHOLD_DAYS) {
-
-                // data.proposalEnumValue já é do tipo ProposalType
-                // A capitalização pode ser feita apenas para exibição, se necessário, mas o valor do enum é o que importa.
-                // const displayProposal = data.proposalEnumValue.charAt(0).toUpperCase() + data.proposalEnumValue.slice(1);
-
+                
                 const examplePost = data.posts.sort((a, b) => (b.stats?.total_interactions ?? 0) - (a.stats?.total_interactions ?? 0))[0] as PostObject;
 
                 successfulProposals.push({
                     text: "",
                     type: FALLBACK_INSIGHT_TYPES.PROPOSAL_SUCCESS_REMINDER,
                     avgInteractionValue: avgInteractionValueForProposal,
-                    proposalName: data.proposalEnumValue, // Usa o valor do enum
+                    proposalName: data.proposalEnumValue,
                     examplePost: examplePost
                 });
             }
@@ -137,7 +128,10 @@ export async function tryGenerateProposalSuccessReminderInsight(
 
         if (bestProposalData?.examplePost?._id) {
             const examplePost = bestProposalData.examplePost as PostObject;
-            const postLink = examplePost.platformPostId ? `https://www.instagram.com/p/${examplePost.platformPostId}/` : "";
+            
+            // --- CORREÇÃO AQUI ---
+            // Usa o campo 'postLink' diretamente para evitar erros e garantir a URL correta.
+            const postLink = (examplePost as any).postLink || "";
             const postDesc = examplePost.description?.substring(0, 40) || "um de seus posts anteriores com essa proposta";
             let earlyPerformanceParts: string[] = [];
 
@@ -156,7 +150,7 @@ export async function tryGenerateProposalSuccessReminderInsight(
                     if (typeof day1Snapshot.dailyProfileVisits === 'number' && day1Snapshot.dailyProfileVisits > 1) {
                         earlyPerformanceParts.push(`gerou ${day1Snapshot.dailyProfileVisits} visitas ao perfil`);
                     }
-                    if ((examplePost.type === 'REEL' || examplePost.type === 'VIDEO') && // IMetric.type
+                    if ((examplePost.type === 'REEL' || examplePost.type === 'VIDEO') &&
                         typeof day1Snapshot.currentReelsAvgWatchTime === 'number' && day1Snapshot.currentReelsAvgWatchTime > 0) {
                         earlyPerformanceParts.push(`e um tempo médio de visualização de ${(day1Snapshot.currentReelsAvgWatchTime / 1000).toFixed(1)}s`);
                     }
@@ -169,8 +163,7 @@ export async function tryGenerateProposalSuccessReminderInsight(
             if (earlyPerformanceParts.length > 0) {
                 earlyPerformanceText = ` Aliás, ${earlyPerformanceParts.join(', e ')}!`;
             }
-
-            // bestProposalData.proposalName já é do tipo ProposalType
+            
             const finalText = `Lembrei de uma coisa importante, ${userNameForMsg}! Seus posts com a proposta de "${bestProposalData.proposalName}" (como aquele sobre "${postDesc}..." ${postLink ? postLink : ''}) costumam gerar um engajamento excelente, com uma média de ${bestProposalData.avgInteractionValue.toFixed(0)} interações, bem acima da sua média geral de ${overallAvgAbsoluteEngagement.toFixed(0)}.${earlyPerformanceText} Já faz um tempinho que você não explora essa linha... Seria uma boa revisitar esse tipo de conteúdo, não acha? 😉`;
             logger.info(`${TAG} Lembrete de proposta de sucesso gerado: "${bestProposalData.proposalName}"`);
             return { text: finalText, type: bestProposalData.type };
@@ -180,4 +173,3 @@ export async function tryGenerateProposalSuccessReminderInsight(
     logger.debug(`${TAG} Nenhuma proposta de sucesso encontrada para lembrete.`);
     return null;
 }
-

@@ -1,7 +1,6 @@
 // InstagramConnectCard.tsx
-// VERSÃO CORRIGIDA v2: Corrigido erro de tipo "Object is possibly 'undefined'" na linha 113.
-// Mantém a lógica de seleção de conta IG pós-vinculação com Facebook.
-// ATUALIZADO: Importação do tipo AvailableInstagramAccount para a nova estrutura modular.
+// VERSÃO CORRIGIDA v4: Atualizado o texto descritivo para ser mais amigável e focado na automação.
+// Mantém a lógica de conexão e a supressão de erro de "audience demographics".
 
 "use client";
 
@@ -156,6 +155,12 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
     
     if (user?.igConnectionError) {
       const errorMsg = user.igConnectionError;
+
+      // Se o erro for sobre "audience demographics", não exibe nenhuma mensagem.
+      if (errorMsg.toLowerCase().includes('fetch audience demographics')) {
+        return null;
+      }
+
       if (errorMsg.includes('Nenhuma conta IG Business/Creator vinculada encontrada') || errorMsg.includes('Nenhuma conta profissional do Instagram foi encontrada'))
         return { message: 'Nenhuma conta Instagram profissional (Comercial ou Criador de Conteúdo) foi encontrada vinculada à sua conta do Facebook.', type: 'no_ig_account', icon: FaExclamationTriangle, colorClasses: 'text-yellow-700 bg-yellow-50 border-yellow-300' };
       if (errorMsg.includes('Permissão') || errorMsg.includes('ausente') || errorMsg.includes('(#10)') || errorMsg.includes('(#200)'))
@@ -164,6 +169,7 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
         return { message: 'Sua sessão com o Facebook/Instagram expirou ou é inválida. Por favor, conecte novamente.', type: 'token', icon: FaKey, colorClasses: 'text-orange-600 bg-orange-50 border-orange-300' };
       if (errorMsg.includes('Usuário não identificado')) // Este erro vem do seu backend /api/auth/iniciar-vinculacao-fb
         return { message: 'Você precisa estar logado na plataforma antes de conectar o Instagram.', type: 'local_linking', icon: FaExclamationCircle, colorClasses: 'text-red-600 bg-red-50 border-red-200' };
+      
       // Erro genérico da sincronização ou conexão
       return { message: `Erro na conexão/sincronização: ${errorMsg}`, type: 'general_backend', icon: FaExclamationTriangle, colorClasses: 'text-red-600 bg-red-50 border-red-200' };
     }
@@ -192,9 +198,7 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
         throw new Error(errData.message || 'Falha ao preparar vinculação com Facebook.');
       }
       logger.info("/api/auth/iniciar-vinculacao-fb OK. Iniciando signIn('facebook').");
-      // O NextAuth redirecionará para o Facebook e depois para o callbackUrl
       signIn('facebook', { callbackUrl: '/dashboard?instagramLinked=true' });
-      // setIsLinking(false) não será chamado aqui, pois há um redirecionamento.
     } catch (e: any) {
       logger.error('Erro ao iniciar vinculação:', e);
       setLinkError(e.message || 'Erro inesperado ao tentar conectar com Facebook.');
@@ -222,7 +226,7 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
         throw new Error(errData.message || 'Falha ao desconectar Instagram.');
       }
       logger.info("/api/instagram/disconnect OK. Forçando atualização da sessão.");
-      await update(); // Atualiza a sessão para refletir a desconexão
+      await update();
       setShowSuccessToastFromCard("Instagram desconectado com sucesso!");
     } catch (e: any) {
       logger.error('Erro ao desconectar:', e);
@@ -241,7 +245,6 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
     
     setIsConnectingSelectedAccount(true);
     setAccountSelectionError(null);
-    // setShowAccountSelectorModal(false); // Fechar o modal é opcional aqui, pode ser melhor fechar no sucesso
 
     logger.info(`Tentando conectar conta IG selecionada: ${igAccountId} via API.`);
 
@@ -256,13 +259,12 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
 
       if (response.ok && result.success) {
         logger.info("Conta IG conectada com sucesso via API. Atualizando sessão para refletir o novo estado...");
-        await update(); // Atualiza a sessão para obter os novos dados de conexão
-        setShowAccountSelectorModal(false); // Fecha o modal no sucesso
+        await update();
+        setShowAccountSelectorModal(false);
         showToast("Conta Instagram conectada com sucesso!", "success");
       } else {
         logger.error("Erro ao conectar conta IG via API:", result);
         setAccountSelectionError(result.error || result.message || 'Falha ao conectar a conta do Instagram selecionada.');
-        // Não fechar o modal em caso de erro, para o usuário tentar novamente ou ver o erro.
       }
     } catch (error: any) {
       logger.error("Erro de rede ou exceção ao conectar conta IG:", error);
@@ -280,7 +282,6 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
   let mainButtonText = "Conectar com Facebook";
   let mainButtonIcon = <FaFacebook className="w-5 h-5" />;
   let mainButtonStyles = "bg-blue-600 hover:bg-blue-700 text-white";
-  // Desabilitar se não puder acessar features OU se já estiver em processo de link/conexão OU se a sessão estiver carregando (sem dados de usuário ainda)
   let mainButtonDisabled = !canAccessFeatures || isLinking || isConnectingSelectedAccount || (isLoadingSession && !user);
 
 
@@ -288,7 +289,6 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
     mainButtonText = isLinking ? "Iniciando Facebook..." : "Conectando Instagram...";
     mainButtonIcon = <FaSpinner className="animate-spin w-5 h-5" />;
   } else if (canAccessFeatures && currentDisplayError && currentDisplayError.type !== 'sync_failed' && currentDisplayError.type !== 'no_ig_account') {
-    // Só muda para "Tentar Novamente" se o erro não for sobre sincronização ou ausência de conta (que não são resolvidos por reconectar o FB)
     mainButtonText = "Tentar Novamente com Facebook";
     mainButtonStyles = "bg-yellow-500 hover:bg-yellow-600 text-white";
   }
@@ -493,10 +493,11 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
             </motion.div>
           )}
 
+          {/* --- TEXTO ATUALIZADO --- */}
           <p className={`text-xs text-gray-500 mt-4 ${isEffectivelyInstagramConnected ? '' : 'border-t pt-3'}`}>
             {isEffectivelyInstagramConnected
-            ? 'A coleta automática de métricas está ativa para sua conta conectada.'
-            : 'Conecte sua conta profissional do Instagram para habilitar a automação de métricas e receber análises detalhadas com um plano premium.'
+            ? 'Piloto automático ativado! Seus novos posts serão cadastrados e analisados pelo Tuca sem esforço.'
+            : 'Conecte seu Instagram e ative o piloto automático! O Tuca passa a cadastrar e analisar seus posts para você, sem esforço.'
           }
           </p>
         </div>

@@ -1,4 +1,5 @@
 // src/app/lib/ruleEngine/rules/untappedPotentialTopicRule.ts
+// MODIFICADO: v5.2 - Adicionado postLink na messageForAI para corrigir links quebrados.
 // MODIFICADO: v5.1 - Adicionado platformPostId aos details do evento.
 // MODIFICADO: v5 - Alterada métrica de performance para 'views' (via constants) e atualizada messageForAI.
 // MODIFICADO: v4 - Corrigido tipo de retorno da função extratora e import de IMetricStats.
@@ -7,7 +8,7 @@
 
 import { IRule, RuleContext, RuleConditionResult } from '../types';
 import { DetectedEvent } from '@/app/api/whatsapp/process-response/types';
-import { IUntappedPotentialTopicDetails } from '@/app/models/User'; // IUntappedPotentialTopicDetails já tem platformPostId?
+import { IUntappedPotentialTopicDetails } from '@/app/models/User';
 import { logger } from '@/app/lib/logger';
 import { parseISO, differenceInDays, isValid as isValidDate } from 'date-fns';
 import {
@@ -19,7 +20,7 @@ import {
     UNTAPPED_POTENTIAL_SUPERIORITY_MULTIPLIER
 } from '@/app/lib/constants';
 import { IMetricStats } from '@/app/models/Metric'; 
-import { PostObjectForAverage, calculateAverageMetric } from '@/app/lib/utils'; // PostObjectForAverage agora tem instagramMediaId?
+import { PostObjectForAverage, calculateAverageMetric } from '@/app/lib/utils';
 
 const RULE_ID = 'untapped_potential_topic_v2';
 const RULE_TAG_BASE = `[Rule:${RULE_ID}]`;
@@ -66,7 +67,7 @@ export const untappedPotentialTopicRule: IRule = {
 
     condition: async (context: RuleContext): Promise<RuleConditionResult> => {
         const { user, allUserPosts, today } = context;
-        const currentRuleVersion = "untappedPotentialTopicRule_v5.1_CANVAS_PLATFORMPOSTID"; 
+        const currentRuleVersion = "untappedPotentialTopicRule_v5.2"; 
         const detectionTAG = `${RULE_TAG_BASE} (${currentRuleVersion})[condition] User ${user._id}:`;
         logger.info(`${detectionTAG} INICIANDO EXECUÇÃO DA REGRA`);
         logger.debug(`${detectionTAG} Avaliando condição... Usando métrica: ${METRIC_TO_USE_FOR_PERFORMANCE}`);
@@ -176,7 +177,7 @@ export const untappedPotentialTopicRule: IRule = {
                     return {
                         isMet: true,
                         data: {
-                            oldPost: oldPost, // oldPost é PostObjectForAverage e deve ter instagramMediaId
+                            oldPost: oldPost,
                             referenceAveragePerformance: refAvgPerfNumber, 
                         }
                     };
@@ -197,7 +198,7 @@ export const untappedPotentialTopicRule: IRule = {
             return null;
         }
 
-        const oldPost = conditionData.oldPost as PostObjectForAverage; // oldPost agora tem instagramMediaId?
+        const oldPost = conditionData.oldPost as PostObjectForAverage;
         const referenceAveragePerformance = conditionData.referenceAveragePerformance as number;
         
         logger.info(`${actionTAG} Gerando evento para post ${oldPost._id}. InstagramMediaId: ${oldPost.instagramMediaId}`);
@@ -211,13 +212,12 @@ export const untappedPotentialTopicRule: IRule = {
         }
         const daysSincePosted = differenceInDays(today, oldPostDateObj);
         
-        // Usando oldPost.description que foi adicionado a PostObjectForAverage
         const postDescriptionExcerptText = oldPost.description ? oldPost.description.substring(0, 70) : undefined;
         const postDescriptionForAI = oldPost.description ? `"${oldPost.description.substring(0, 70)}..."` : "um post anterior";
 
         const details: IUntappedPotentialTopicDetails = {
             postId: oldPost._id,
-            platformPostId: oldPost.instagramMediaId, // <-- MODIFICAÇÃO PRINCIPAL AQUI
+            platformPostId: oldPost.instagramMediaId,
             postDescriptionExcerpt: postDescriptionExcerptText,
             performanceMetric: METRIC_TO_USE_FOR_PERFORMANCE as string,
             performanceValue,
@@ -238,12 +238,14 @@ export const untappedPotentialTopicRule: IRule = {
             metricDisplayName = 'visualizações';
         }
 
-        const messageForAI = `Radar Tuca detectou: Lembra do seu post ${postDescriptionForAI} (classificado como ${oldPost.format || 'N/D'})? Ele teve um ótimo desempenho (${performanceValue.toFixed(0)} ${metricDisplayName}) há cerca de ${daysSincePosted} dias, superando a média recente de posts similares (${referenceAveragePerformance.toFixed(1)})! Parece que o tema/formato (Proposta: ${oldPost.proposal || 'N/D'} / Contexto: ${oldPost.context || 'N/D'}) ressoou bem e não foi revisitado. Que tal explorar essa ideia novamente?`;
+        // --- CORREÇÃO AQUI ---
+        // Incluído o 'oldPost.postLink' para garantir que a IA tenha o link correto para incluir na mensagem final.
+        const messageForAI = `Radar Tuca detectou: Lembra do seu post ${postDescriptionForAI} (${oldPost.postLink}) (classificado como ${oldPost.format || 'N/D'})? Ele teve um ótimo desempenho (${performanceValue.toFixed(0)} ${metricDisplayName}) há cerca de ${daysSincePosted} dias, superando a média recente de posts similares (${referenceAveragePerformance.toFixed(1)})! Parece que o tema/formato (Proposta: ${oldPost.proposal || 'N/D'} / Contexto: ${oldPost.context || 'N/D'}) ressoou bem e não foi revisitado. Que tal explorar essa ideia novamente?`;
 
         return {
             type: RULE_ID,
             messageForAI,
-            detailsForLog: details // detailsForLog já aceita IUntappedPotentialTopicDetails com platformPostId
+            detailsForLog: details
         };
     }
 };

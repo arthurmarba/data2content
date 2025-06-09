@@ -1,4 +1,5 @@
 // @/app/lib/fallbackInsightService/generators/tryGeneratePostingConsistencyPositiveInsight.ts
+// MODIFICADO: v1.1 - Alterado para usar o campo postLink diretamente, em vez de construir a URL manualmente.
 import { parseISO, subDays } from 'date-fns';
 import { logger } from '@/app/lib/logger';
 import * as dataService from '@/app/lib/dataService';
@@ -14,15 +15,14 @@ import {
 /**
  * Tenta gerar um insight positivo sobre a consistência de postagem do usuário.
  * Inclui um detalhe granular sobre o desempenho inicial do post mais recente no período.
- * OTIMIZADO: Adiciona dailyFollows, dailyProfileVisits e métricas de Reels ao detalhe granular.
  */
 export async function tryGeneratePostingConsistencyPositiveInsight(
     user: IUserModel,
     enrichedReport: IEnrichedReport | null,
-    latestAccountInsights: IAccountInsight | null, // Mantido para consistência da assinatura, não usado aqui.
-    daysLookbackInput: number // Mantido para consistência da assinatura, CONSISTENCY_LOOKBACK_DAYS é usado.
+    latestAccountInsights: IAccountInsight | null, 
+    daysLookbackInput: number
 ): Promise<PotentialInsight | null> {
-    const TAG = `${BASE_SERVICE_TAG}[tryGeneratePostingConsistencyPositiveInsight_Optimized] User ${user._id}:`;
+    const TAG = `${BASE_SERVICE_TAG}[tryGeneratePostingConsistencyPositiveInsight_v1.1] User ${user._id}:`;
     const userNameForMsg = user.name?.split(' ')[0] || 'você';
 
     if (!enrichedReport?.recentPosts) {
@@ -47,7 +47,7 @@ export async function tryGeneratePostingConsistencyPositiveInsight(
                 (b.postDate instanceof Date ? b.postDate.getTime() : parseISO(b.postDate as string).getTime()) -
                 (a.postDate instanceof Date ? a.postDate.getTime() : parseISO(a.postDate as string).getTime())
             );
-            const mostRecentPostInPeriod = postsInLastPeriod[0] as PostObject; // Cast para PostObject
+            const mostRecentPostInPeriod = postsInLastPeriod[0] as PostObject;
 
             if (mostRecentPostInPeriod?._id) {
                 try {
@@ -56,13 +56,14 @@ export async function tryGeneratePostingConsistencyPositiveInsight(
                     if (day1Snapshot) {
                         const day1Interactions = (day1Snapshot.dailyLikes || 0) + (day1Snapshot.dailyComments || 0) + (day1Snapshot.dailyShares || 0) + (day1Snapshot.dailySaved || 0);
                         const postDesc = mostRecentPostInPeriod.description?.substring(0, 30) || "seu post mais recente";
-                        const postLink = mostRecentPostInPeriod.platformPostId ? `https://www.instagram.com/p/${mostRecentPostInPeriod.platformPostId}/` : "";
+                        
+                        // --- CORREÇÃO AQUI ---
+                        const postLink = (mostRecentPostInPeriod as any).postLink || "";
 
                         if (day1Interactions >= CONSISTENCY_RECENT_POST_MIN_INTERACTIONS) {
                             additionalDetailParts.push(`seu post "${postDesc}..." ${postLink ? `(${postLink})` : ''} já começou bem esta semana, com ${day1Interactions} interações logo no primeiro dia`);
                         }
 
-                        // Otimização: Adicionar outras métricas de impacto do Dia 1
                         if (typeof day1Snapshot.dailyFollows === 'number' && day1Snapshot.dailyFollows > 0) {
                             additionalDetailParts.push(`trouxe ${day1Snapshot.dailyFollows} novo(s) seguidor(es)`);
                         }
@@ -70,7 +71,6 @@ export async function tryGeneratePostingConsistencyPositiveInsight(
                             additionalDetailParts.push(`gerou ${day1Snapshot.dailyProfileVisits} visitas ao perfil`);
                         }
 
-                        // Se for Reel, adicionar métricas específicas
                         if ((mostRecentPostInPeriod.type === 'REEL' || mostRecentPostInPeriod.type === 'VIDEO') &&
                             typeof day1Snapshot.currentReelsAvgWatchTime === 'number' && day1Snapshot.currentReelsAvgWatchTime > 0) {
                             additionalDetailParts.push(`teve um tempo médio de visualização de ${(day1Snapshot.currentReelsAvgWatchTime / 1000).toFixed(1)}s`);

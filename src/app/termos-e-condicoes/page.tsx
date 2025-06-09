@@ -28,7 +28,7 @@ export default function TermsAndConditionsPage() {
               <strong>Última Atualização:</strong> 10 de Maio de 2025
             </p>
             <p className="mb-4">
-              Bem-vindo(a) ao Data2Content! Estes Termos e Condições de Uso ("Termos") regem o seu acesso e uso da plataforma Data2Content ("Serviço", "Plataforma"), oferecida por <strong>Mobi Media Produtores de Conteudo LTDA</strong> ("nós", "nosso", "nossos"). Ao aceder ou utilizar o nosso Serviço, você ("utilizador", "você", "criador") concorda em cumprir e estar vinculado a estes Termos e à nossa <a href="https://data2content.vercel.app/politica-de-privacidade" target="_blank" rel="noopener noreferrer" className="text-brand-pink hover:underline">Política de Privacidade</a>, que é parte integrante deste acordo. Se você não concordar com qualquer parte destes Termos, não deverá aceder ou utilizar o Serviço.
+              Bem-vindo(a) ao Data2Content! Estes Termos e Condições de Uso ("Termos") regem o seu acesso e uso da plataforma Data2Content ("Serviço", "Plataforma"), oferecida por <strong>Mobi Media Produtores de Conteudo LTDA</strong> ("nós", "nosso", "nossos"). Ao aceder ou utilizar o nosso Serviço, você ("utilizador", "você", "criador") concorda em cumprir e estar vinculado a estes Termos e à nossa <a href="https://data2content.ai/politica-de-privacidade" target="_blank" rel="noopener noreferrer" className="text-brand-pink hover:underline">Política de Privacidade</a>, que é parte integrante deste acordo. Se você não concordar com qualquer parte destes Termos, não deverá aceder ou utilizar o Serviço.
             </p>
 
             <h2 className="text-2xl font-semibold text-gray-800 mt-10 mb-5 border-t border-gray-200 pt-6">
@@ -69,7 +69,7 @@ export default function TermsAndConditionsPage() {
               4. Uso de Dados e Permissões da Meta (Instagram/Facebook)
             </h2>
             <p className="mb-2">
-              Ao conectar a sua conta do Instagram à Data2Content, você concede-nos permissão para aceder, coletar, armazenar e processar os dados da sua conta do Instagram e, se aplicável, da Página do Facebook associada. Este processo é realizado em estrita conformidade com a nossa <a href="https://data2content.vercel.app/politica-de-privacidade" target="_blank" rel="noopener noreferrer" className="text-brand-pink hover:underline">Política de Privacidade</a> e com os Termos da Plataforma Meta e Políticas do Desenvolvedor. Os dados incluem, mas não se limitam a:
+              Ao conectar a sua conta do Instagram à Data2Content, você concede-nos permissão para aceder, coletar, armazenar e processar os dados da sua conta do Instagram e, se aplicável, da Página do Facebook associada. Este processo é realizado em estrita conformidade com a nossa <a href="https://data2content.ai/politica-de-privacidade" target="_blank" rel="noopener noreferrer" className="text-brand-pink hover:underline">Política de Privacidade</a> e com os Termos da Plataforma Meta e Políticas do Desenvolvedor. Os dados incluem, mas não se limitam a:
             </p>
             <ul className="list-disc list-inside mb-4 space-y-2 pl-2">
                 <li>Informações básicas do seu perfil público.</li>

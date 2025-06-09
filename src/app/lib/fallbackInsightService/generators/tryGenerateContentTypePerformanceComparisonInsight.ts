@@ -1,4 +1,5 @@
 // @/app/lib/fallbackInsightService/generators/tryGenerateContentTypePerformanceComparisonInsight.ts
+// MODIFICADO: v1.1 - Alterado para usar o campo postLink diretamente, em vez de construir a URL manualmente.
 import { parseISO, subDays } from 'date-fns';
 import { logger } from '@/app/lib/logger';
 import * as dataService from '@/app/lib/dataService';
@@ -15,15 +16,13 @@ import {
 /**
  * Tenta gerar um insight comparando o desempenho de Reels vs. Imagens/Carrosséis.
  * Inclui exemplos de posts e métricas granulares de desempenho inicial.
- * OTIMIZADO: Adiciona dailyFollows, dailyProfileVisits e métricas de Reels aos detalhes dos posts de exemplo.
- * CORRIGIDO: Erro de tipo na atribuição de day1Snapshot a day1SnapshotOfBestImage.
  */
 export async function tryGenerateContentTypePerformanceComparisonInsight(
     user: IUserModel,
     enrichedReport: IEnrichedReport | null,
     daysLookbackInput: number
 ): Promise<PotentialInsight | null> {
-    const TAG = `${BASE_SERVICE_TAG}[tryGenerateContentTypePerformanceComparisonInsight_Optimized_Fixed] User ${user._id}:`;
+    const TAG = `${BASE_SERVICE_TAG}[tryGenerateContentTypePerformanceComparisonInsight_v1.1] User ${user._id}:`;
     const userNameForMsg = user.name?.split(' ')[0] || 'você';
     const COMPARISON_LOOKBACK_PERIOD_DAYS = daysLookbackInput;
 
@@ -72,14 +71,17 @@ export async function tryGenerateContentTypePerformanceComparisonInsight(
                     if (day1Snapshot && typeof day1Snapshot.dailyViews === 'number' && day1Snapshot.dailyViews > bestReelDay1Views) {
                         bestReelDay1Views = day1Snapshot.dailyViews;
                         bestReelExample = reel as PostObject;
-                        day1SnapshotOfBestReel = day1Snapshot; // day1Snapshot aqui é DailySnapshot ou undefined. Se undefined, day1SnapshotOfBestReel será null.
+                        day1SnapshotOfBestReel = day1Snapshot;
                     }
                 } catch (e: any) { logger.warn(`${TAG} Erro ao buscar snapshot para Reel ${reel._id}: ${e.message}`); }
             }
         }
         if (bestReelExample && day1SnapshotOfBestReel && bestReelDay1Views >= COMPARISON_MIN_DAY1_METRIC_FOR_MENTION) {
             const reelDesc = bestReelExample.description?.substring(0, 30) || "um de seus Reels";
-            const reelLink = bestReelExample.platformPostId ? `https://www.instagram.com/p/${bestReelExample.platformPostId}/` : "";
+            
+            // --- CORREÇÃO AQUI ---
+            const reelLink = (bestReelExample as any).postLink || "";
+
             exampleDetailParts.push(`seu Reel "${reelDesc}..." ${reelLink ? `(${reelLink})` : ''} teve um início fantástico com ${bestReelDay1Views.toFixed(0)} visualizações logo no primeiro dia`);
 
             if (typeof day1SnapshotOfBestReel.currentReelsAvgWatchTime === 'number' && day1SnapshotOfBestReel.currentReelsAvgWatchTime > 0) {
@@ -118,14 +120,17 @@ export async function tryGenerateContentTypePerformanceComparisonInsight(
                     if (currentDay1Metric > bestImageDay1MetricValue) {
                         bestImageDay1MetricValue = currentDay1Metric;
                         bestImageExample = imgPost as PostObject;
-                        day1SnapshotOfBestImage = day1Snapshot || null; // CORREÇÃO APLICADA AQUI
+                        day1SnapshotOfBestImage = day1Snapshot || null;
                     }
                 } catch (e: any) { logger.warn(`${TAG} Erro ao buscar snapshot para Imagem/Carrossel ${imgPost._id}: ${e.message}`); }
             }
         }
         if (bestImageExample && day1SnapshotOfBestImage && bestImageDay1MetricValue >= COMPARISON_MIN_DAY1_METRIC_FOR_MENTION) {
             const imgDesc = bestImageExample.description?.substring(0, 30) || "um de seus posts";
-            const imgLink = bestImageExample.platformPostId ? `https://www.instagram.com/p/${bestImageExample.platformPostId}/` : "";
+            
+            // --- CORREÇÃO AQUI ---
+            const imgLink = (bestImageExample as any).postLink || "";
+
             exampleDetailParts.push(`seu post "${imgDesc}..." ${imgLink ? `(${imgLink})` : ''} obteve ${bestImageDay1MetricValue.toFixed(0)} ${day1MetricName} já no primeiro dia`);
 
             if (typeof day1SnapshotOfBestImage.dailyFollows === 'number' && day1SnapshotOfBestImage.dailyFollows > 0) {

@@ -1,4 +1,5 @@
 // @/app/lib/fallbackInsightService/generators/tryGenerateReachMetricHighlightInsight.ts
+// MODIFICADO: v1.1 - Alterado para usar o campo postLink diretamente, em vez de construir a URL manualmente.
 import { parseISO, subDays } from 'date-fns';
 import { logger } from '@/app/lib/logger';
 import * as dataService from '@/app/lib/dataService';
@@ -16,13 +17,12 @@ import {
 /**
  * Tenta gerar um insight destacando o bom alcance médio recente.
  * Inclui um detalhe granular sobre o post com maior alcance no primeiro dia.
- * OTIMIZADO: Adiciona dailyFollows, dailyProfileVisits e métricas de Reels ao detalhe do post de destaque.
  */
 export async function tryGenerateReachMetricHighlightInsight(
     user: IUserModel,
     enrichedReport: IEnrichedReport | null
 ): Promise<PotentialInsight | null> {
-    const TAG = `${BASE_SERVICE_TAG}[tryGenerateReachMetricHighlightInsight_Optimized] User ${user._id}:`;
+    const TAG = `${BASE_SERVICE_TAG}[tryGenerateReachMetricHighlightInsight_v1.1] User ${user._id}:`;
     const userNameForMsg = user.name?.split(' ')[0] || 'você';
 
     if (!enrichedReport?.recentPosts) {
@@ -58,8 +58,8 @@ export async function tryGenerateReachMetricHighlightInsight(
                     const day1Snapshot = snapshots.find(s => s.dayNumber === 1);
                     if (day1Snapshot && typeof day1Snapshot.dailyReach === 'number' && day1Snapshot.dailyReach > highestDay1ReachValue) {
                         highestDay1ReachValue = day1Snapshot.dailyReach;
-                        highestDay1ReachPost = post as PostObject; // Cast para PostObject
-                        day1SnapshotOfHighestPost = day1Snapshot; // Salva o snapshot do post com maior alcance no Dia 1
+                        highestDay1ReachPost = post as PostObject;
+                        day1SnapshotOfHighestPost = day1Snapshot;
                     }
                 } catch (e: any) {
                     logger.warn(`${TAG} Erro ao buscar snapshot para o post ${post._id} no destaque de alcance: ${e.message}`);
@@ -69,10 +69,12 @@ export async function tryGenerateReachMetricHighlightInsight(
 
         if (highestDay1ReachPost && day1SnapshotOfHighestPost && highestDay1ReachValue >= REACH_HIGHLIGHT_MIN_DAY1_REACH_FOR_MENTION) {
             const postDesc = highestDay1ReachPost.description?.substring(0, 30) || "um de seus posts recentes";
-            const postLink = highestDay1ReachPost.platformPostId ? `https://www.instagram.com/p/${highestDay1ReachPost.platformPostId}/` : "";
+            
+            // --- CORREÇÃO AQUI ---
+            const postLink = (highestDay1ReachPost as any).postLink || "";
+
             additionalDetailParts.push(`o post "${postDesc}..." ${postLink ? `(${postLink})` : ''}, que alcançou ${highestDay1ReachValue.toFixed(0)} pessoas só no primeiro dia`);
 
-            // Otimização: Adicionar outras métricas de impacto do Dia 1 para o post de maior alcance
             if (typeof day1SnapshotOfHighestPost.dailyFollows === 'number' && day1SnapshotOfHighestPost.dailyFollows > 0) {
                 additionalDetailParts.push(`trouxe ${day1SnapshotOfHighestPost.dailyFollows} novo(s) seguidor(es)`);
             }
@@ -80,7 +82,6 @@ export async function tryGenerateReachMetricHighlightInsight(
                 additionalDetailParts.push(`gerou ${day1SnapshotOfHighestPost.dailyProfileVisits} visitas ao perfil`);
             }
 
-            // Se for Reel, adicionar métricas específicas
             if ((highestDay1ReachPost.type === 'REEL' || highestDay1ReachPost.type === 'VIDEO') &&
                 typeof day1SnapshotOfHighestPost.currentReelsAvgWatchTime === 'number' && day1SnapshotOfHighestPost.currentReelsAvgWatchTime > 0) {
                 additionalDetailParts.push(`teve um tempo médio de visualização de ${(day1SnapshotOfHighestPost.currentReelsAvgWatchTime / 1000).toFixed(1)}s`);

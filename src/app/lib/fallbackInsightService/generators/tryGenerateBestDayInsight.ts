@@ -1,9 +1,10 @@
 // @/app/lib/fallbackInsightService/generators/tryGenerateBestDayInsight.ts
+// MODIFICADO: v1.1 - Alterado para usar o campo postLink diretamente, em vez de construir a URL manualmente.
 import { parseISO } from 'date-fns';
 import { logger } from '@/app/lib/logger';
 import * as dataService from '@/app/lib/dataService';
 import type { IUserModel, IEnrichedReport, PotentialInsight, DayOfWeekStat, PostObject, DailySnapshot } from '../fallbackInsight.types';
-import { mapDayNumberToText } from '../utils/mapDayNumberToText'; // mapDayNumberToText é usado para o exemplo
+import { mapDayNumberToText } from '../utils/mapDayNumberToText';
 import { FALLBACK_INSIGHT_TYPES } from '@/app/lib/constants';
 import {
     BASE_SERVICE_TAG,
@@ -14,15 +15,13 @@ import {
 /**
  * Tenta gerar um insight sobre o melhor dia da semana para postar, com base no engajamento.
  * Inclui um exemplo de post e métricas granulares de seu desempenho inicial.
- * OTIMIZADO: Adiciona dailyFollows, dailyProfileVisits e métricas de Reels ao detalhe do post de exemplo.
- * CORRIGIDO: Erro de tipo em postDesc na construção de examplePostText.
  */
 export async function tryGenerateBestDayInsight(
     user: IUserModel,
     enrichedReport: IEnrichedReport | null,
     daysLookback: number
 ): Promise<PotentialInsight | null> {
-    const TAG = `${BASE_SERVICE_TAG}[tryGenerateBestDayInsight_Optimized_Fixed] User ${user._id}:`;
+    const TAG = `${BASE_SERVICE_TAG}[tryGenerateBestDayInsight_v1.1] User ${user._id}:`;
     const userNameForMsg = user.name?.split(' ')[0] || 'você';
 
     logger.debug({
@@ -74,7 +73,7 @@ export async function tryGenerateBestDayInsight(
     if (bestDayStat && maxEngagementValue >= BEST_DAY_MIN_ENGAGEMENT_VALUE) {
         let examplePostText = "";
         let examplePostDetailParts: string[] = [];
-        let mainInteractionDetailAdded = false; // Flag para controlar o detalhe principal
+        let mainInteractionDetailAdded = false;
 
         if (enrichedReport.recentPosts && enrichedReport.recentPosts.length > 0 && bestDayStat._id !== undefined) {
             const examplePostOnBestDay = enrichedReport.recentPosts.find(p => {
@@ -84,7 +83,10 @@ export async function tryGenerateBestDayInsight(
 
             if (examplePostOnBestDay?._id) {
                 const postDesc = examplePostOnBestDay.description?.substring(0, 30) || "um post recente";
-                const postLink = examplePostOnBestDay.platformPostId ? `https://www.instagram.com/p/${examplePostOnBestDay.platformPostId}/` : ((examplePostOnBestDay as any).postLink || "");
+                
+                // --- CORREÇÃO AQUI ---
+                // Usa o campo 'postLink' diretamente para evitar erros e inconsistências.
+                const postLink = (examplePostOnBestDay as any).postLink || "";
 
                 try {
                     const snapshots: DailySnapshot[] = await dataService.getDailySnapshotsForMetric(examplePostOnBestDay._id.toString(), user._id.toString());
@@ -94,7 +96,7 @@ export async function tryGenerateBestDayInsight(
                         const interactions = (day1Snapshot.dailyLikes || 0) + (day1Snapshot.dailyComments || 0) + (day1Snapshot.dailyShares || 0) + (day1Snapshot.dailySaved || 0);
                         if (interactions > 2) {
                             examplePostDetailParts.push(`seu post "${postDesc}..." ${postLink ? `(${postLink})` : ''} publicado em uma ${bestDayStat.dayName}, teve ${interactions} interações logo no dia do lançamento`);
-                            mainInteractionDetailAdded = true; // Detalhe principal foi adicionado
+                            mainInteractionDetailAdded = true;
                         }
 
                         if (typeof day1Snapshot.dailyFollows === 'number' && day1Snapshot.dailyFollows > 0) {
@@ -113,11 +115,9 @@ export async function tryGenerateBestDayInsight(
                 }
 
                 if (examplePostDetailParts.length > 0) {
-                    // Constrói a frase de exemplo usando a flag
                     if (examplePostDetailParts.length === 1 && mainInteractionDetailAdded) {
-                        // Se só tiver a primeira parte (interações), não precisa de "Por exemplo,"
                         examplePostText = ` ${examplePostDetailParts[0]}!`;
-                    } else { // Se houver múltiplos detalhes ou apenas detalhes secundários
+                    } else { 
                         examplePostText = ` Por exemplo, ${examplePostDetailParts.join(', e ')}!`;
                     }
                 }

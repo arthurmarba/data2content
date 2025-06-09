@@ -190,7 +190,7 @@ export default function HomePage() {
                             className="shimmer-button inline-flex items-center gap-2 px-6 py-3 bg-brand-pink text-white rounded-full shadow-lg font-semibold text-sm md:text-base hover:opacity-90 transition-default transform hover:scale-105 relative overflow-hidden"
                         >
                             <FaLink aria-hidden="true" className="w-4 h-4 md:w-5 md:h-5" />
-                            Conectar Instagram Grátis e Decolar
+                            Entrar com Google e Ser Afiliado Grátis
                         </button>
                      ) : (
                          <Link

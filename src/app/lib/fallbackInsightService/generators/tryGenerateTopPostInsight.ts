@@ -1,4 +1,5 @@
 // @/app/lib/fallbackInsightService/generators/tryGenerateTopPostInsight.ts
+// MODIFICADO: v1.1 - Alterado para usar o campo postLink diretamente, em vez de construir a URL manualmente.
 import { logger } from '@/app/lib/logger';
 import * as dataService from '@/app/lib/dataService';
 import type { IUserModel, IEnrichedReport, PotentialInsight, IMetricModel, DailySnapshot, PostObject } from '../fallbackInsight.types';
@@ -13,19 +14,15 @@ import {
 
 /**
  * Tenta gerar um insight sobre o post de melhor desempenho recente.
- * Inclui métricas granulares e um detalhe sobre o desempenho inicial do post.
- * OTIMIZADO: Adiciona dailyFollows, dailyProfileVisits e métricas de Reels ao detalhe granular.
- * CORRIGIDO: Erro de tipo ao acessar topPost.type.
  */
 export async function tryGenerateTopPostInsight(
     user: IUserModel,
     enrichedReport: IEnrichedReport | null
 ): Promise<PotentialInsight | null> {
-    const TAG = `${BASE_SERVICE_TAG}[tryGenerateTopPostInsight_Optimized_Fixed] User ${user._id}:`;
+    const TAG = `${BASE_SERVICE_TAG}[tryGenerateTopPostInsight_v1.1] User ${user._id}:`;
     const userNameForMsg = user.name?.split(' ')[0] || 'você';
 
     if (enrichedReport?.top3Posts && enrichedReport.top3Posts.length > 0) {
-        // topPost é IMetricModel com propriedades adicionais, incluindo 'type'
         const topPost = enrichedReport.top3Posts[0] as (IMetricModel & { postLink?: string; platformPostId?: string; type?: string });
 
         if (topPost?._id && topPost.description && topPost.stats) {
@@ -82,9 +79,8 @@ export async function tryGenerateTopPostInsight(
                         if (typeof day1Snapshot.dailyProfileVisits === 'number' && day1Snapshot.dailyProfileVisits > 1) {
                             granularDetailParts.push(`gerou ${day1Snapshot.dailyProfileVisits} visitas ao perfil`);
                         }
-
-                        // Se for Reel, adicionar métricas específicas
-                        const postType = topPost.type; // CORREÇÃO APLICADA AQUI: Acessar topPost.type diretamente
+                        
+                        const postType = topPost.type;
                         if ((postType === 'REEL' || postType === 'VIDEO') &&
                             typeof day1Snapshot.currentReelsAvgWatchTime === 'number' && day1Snapshot.currentReelsAvgWatchTime > 0) {
                             granularDetailParts.push(`teve um tempo médio de visualização de ${(day1Snapshot.currentReelsAvgWatchTime / 1000).toFixed(1)}s`);
@@ -99,7 +95,8 @@ export async function tryGenerateTopPostInsight(
                     granularDetailString = ` Para você ter uma ideia, ${granularDetailParts.join(', e ')}. Isso mostra um engajamento inicial muito forte.`;
                 }
 
-                const postLinkText = topPost.platformPostId ? `(https://www.instagram.com/p/${topPost.platformPostId}/)` : (topPost.postLink ? `(${topPost.postLink})` : "");
+                // --- CORREÇÃO AQUI ---
+                const postLinkText = (topPost as any).postLink ? `(${(topPost as any).postLink})` : "";
                 const descriptionExcerpt = topPost.description.substring(0, 40);
 
                 logger.info(`${TAG} Insight de top post gerado para "${descriptionExcerpt}...".`);
