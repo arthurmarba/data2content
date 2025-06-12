@@ -31,6 +31,8 @@ const querySchema = z.object({
     message: "expertiseLevel must be a comma-separated list of non-empty strings if provided.",
   }),
   minTotalPosts: z.coerce.number().int().min(0).optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
 });
 
 // Simulated Admin Session Validation (to be replaced with actual session logic)
@@ -89,6 +91,8 @@ export async function GET(req: NextRequest) {
         planStatus: validationResult.data.planStatus,
         expertiseLevel: validationResult.data.expertiseLevel,
         minTotalPosts: validationResult.data.minTotalPosts,
+        startDate: validationResult.data.startDate,
+        endDate: validationResult.data.endDate,
         // minFollowers is not included here as it's not in querySchema yet
       },
     };

@@ -122,6 +122,12 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
     if (expertiseLevelFilter) {
         queryParams.append('expertiseLevel', expertiseLevelFilter);
     }
+    if (dateRangeFilter?.startDate) {
+        queryParams.append('startDate', dateRangeFilter.startDate);
+    }
+    if (dateRangeFilter?.endDate) {
+        queryParams.append('endDate', dateRangeFilter.endDate);
+    }
 
     const url = `/api/admin/dashboard/creators?${queryParams.toString()}`;
 
@@ -141,7 +147,7 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, limit, sortConfig, debouncedNameSearch, planStatusFilter, expertiseLevelFilter]); // Added filters to dependency array
+  }, [currentPage, limit, sortConfig, debouncedNameSearch, planStatusFilter, expertiseLevelFilter, dateRangeFilter]); // Added filters to dependency array
 
   useEffect(() => {
     fetchData();

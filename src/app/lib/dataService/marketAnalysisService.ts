@@ -116,6 +116,8 @@ export interface IFetchDashboardCreatorsListParams {
     expertiseLevel?: string[]; // MODIFIED: Already an array, ensure logic handles it as such.
     minTotalPosts?: number;
     minFollowers?: number; // Supondo que 'followers' é um campo em User
+    startDate?: string;
+    endDate?: string;
   };
 }
 
@@ -344,6 +346,8 @@ export async function fetchDashboardCreatorsList(
       filters = {},
     } = params;
 
+    const { startDate, endDate } = filters; // Destructure startDate and endDate
+
     const skip = (page - 1) * limit;
     const sortDirection = sortOrder === 'asc' ? 1 : -1;
 
@@ -378,6 +382,23 @@ export async function fetchDashboardCreatorsList(
           localField: '_id',
           foreignField: 'user',
           as: 'metrics',
+          pipeline: (() => { // IIFE to build pipeline conditionally
+            const metricsPipeline: PipelineStage[] = [];
+            const metricsMatchStage: PipelineStage.Match['$match'] = {};
+            if (startDate) {
+              metricsMatchStage.postDate = { ...metricsMatchStage.postDate, $gte: new Date(startDate) };
+            }
+            if (endDate) {
+              // Adjust endDate to include the whole day
+              const endOfDay = new Date(endDate);
+              endOfDay.setUTCHours(23, 59, 59, 999);
+              metricsMatchStage.postDate = { ...metricsMatchStage.postDate, $lte: endOfDay };
+            }
+            if (Object.keys(metricsMatchStage).length > 0) {
+              metricsPipeline.push({ $match: metricsMatchStage });
+            }
+            return metricsPipeline;
+          })(),
         },
       },
       // Calcular métricas agregadas
