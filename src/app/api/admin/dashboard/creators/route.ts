@@ -17,8 +17,19 @@ const querySchema = z.object({
   sortBy: z.string().optional().default('totalPosts'),
   sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
   nameSearch: z.string().optional(),
-  planStatus: z.string().optional().transform(val => val ? val.split(',') : undefined),
-  expertiseLevel: z.string().optional().transform(val => val ? val.split(',') : undefined),
+  planStatus: z.string().optional().transform(val => {
+    if (!val) return undefined;
+    return val.split(',').map(s => s.trim()).filter(s => s.length > 0);
+  }).refine(val => val === undefined || (Array.isArray(val) && val.length > 0) ? true : false, {
+    message: "planStatus must be a comma-separated list of non-empty strings if provided.",
+    // Path is not strictly needed here as it's on planStatus itself, but good for clarity
+  }),
+  expertiseLevel: z.string().optional().transform(val => {
+    if (!val) return undefined;
+    return val.split(',').map(s => s.trim()).filter(s => s.length > 0);
+  }).refine(val => val === undefined || (Array.isArray(val) && val.length > 0) ? true : false, {
+    message: "expertiseLevel must be a comma-separated list of non-empty strings if provided.",
+  }),
   minTotalPosts: z.coerce.number().int().min(0).optional(),
 });
 

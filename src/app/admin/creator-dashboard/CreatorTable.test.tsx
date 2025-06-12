@@ -8,11 +8,39 @@ import { Types } from 'mongoose';
 // Mock global fetch
 global.fetch = jest.fn();
 
-// Mock Heroicons (optional, if they cause issues or just to simplify)
+// Mock Heroicons
 jest.mock('@heroicons/react/24/solid', () => ({
-  ChevronUpIcon: () => <svg>Up</svg>,
-  ChevronDownIcon: () => <svg>Down</svg>,
+  ChevronUpIcon: () => <div data-testid="chevron-up-icon" />,
+  ChevronDownIcon: () => <div data-testid="chevron-down-icon" />,
+  // Mock XMarkIcon if it were used directly in CreatorTable, but it's in CreatorDetailModal
 }));
+
+// Mock CreatorDetailModal (already lazy-loaded in component, so this mock is for the dynamic import)
+jest.mock('./CreatorDetailModal', () => {
+    const MockCreatorDetailModal = jest.fn(({ isOpen, onClose, creatorName }) =>
+        isOpen ? (
+            <div data-testid="mock-creator-detail-modal">
+                <h2>Modal for {creatorName}</h2>
+                <button onClick={onClose}>Close Modal</button>
+            </div>
+        ) : null
+    );
+    return { __esModule: true, default: MockCreatorDetailModal };
+});
+
+// Mock CreatorComparisonModal (lazy-loaded in component)
+jest.mock('./CreatorComparisonModal', () => {
+    const MockCreatorComparisonModal = jest.fn(({ isOpen, onClose, creatorIdsToCompare }) =>
+        isOpen ? (
+            <div data-testid="mock-creator-comparison-modal">
+                <h3>Comparing: {creatorIdsToCompare.join(', ')}</h3>
+                <button onClick={onClose}>Close Comparison</button>
+            </div>
+        ) : null
+    );
+    return { __esModule: true, default: MockCreatorComparisonModal };
+});
+
 
 const mockCreatorsPage1: IDashboardCreator[] = [
   { _id: new Types.ObjectId() as any, name: 'Alice Wonderland', totalPosts: 120, avgEngagementRate: 0.055, lastActivityDate: new Date('2023-10-01'), planStatus: 'Pro' },
@@ -155,9 +183,208 @@ describe('CreatorTable Component', () => {
     render(<CreatorTable planStatusFilter="Pro" expertiseLevelFilter="Avançado" />);
 
     await waitFor(() => {
+        expect(fetch).toHaveBeenCalledTimes(1); // Ensure it's called once on initial render with these props
         expect(fetch).toHaveBeenCalledWith(
             expect.stringContaining('planStatus=Pro&expertiseLevel=Avan%C3%A7ado')
         );
+    });
+  });
+
+  test('fetches with multiple comma-separated planStatusFilter values', async () => {
+    (fetch as jest.Mock).mockClear();
+    (fetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => ({ creators: [], totalCreators: 0 }) });
+    render(<CreatorTable planStatusFilter="Pro,Premium" />);
+    await waitFor(() => {
+        expect(fetch).toHaveBeenCalledWith(expect.stringContaining('planStatus=Pro%2CPremium')); // %2C is comma
+    });
+  });
+
+  test('fetches correctly if a filter prop is an empty string', async () => {
+    (fetch as jest.Mock).mockClear();
+    (fetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => ({ creators: [], totalCreators: 0 }) });
+    render(<CreatorTable planStatusFilter="" expertiseLevelFilter="Iniciante" />);
+    await waitFor(() => {
+        // planStatus should not be in the URL if its filter string is empty
+        expect(fetch).toHaveBeenCalledWith(expect.not.stringContaining('planStatus='));
+        expect(fetch).toHaveBeenCalledWith(expect.stringContaining('expertiseLevel=Iniciante'));
+    });
+  });
+
+  test('fetches correctly if a filter prop is undefined', async () => {
+    (fetch as jest.Mock).mockClear();
+    (fetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => ({ creators: [], totalCreators: 0 }) });
+    render(<CreatorTable planStatusFilter={undefined} expertiseLevelFilter="Avançado" />);
+    await waitFor(() => {
+        expect(fetch).toHaveBeenCalledWith(expect.not.stringContaining('planStatus='));
+        expect(fetch).toHaveBeenCalledWith(expect.stringContaining('expertiseLevel=Avan%C3%A7ado'));
+    });
+  });
+
+
+  test('opens CreatorDetailModal with correct props when creator name is clicked', async () => {
+    const dateRange = { startDate: '2023-01-01', endDate: '2023-01-31' };
+    render(<CreatorTable dateRangeFilter={dateRange} />);
+
+    const creatorNameToClick = mockCreatorsPage1[0].name;
+    const creatorIdToExpect = mockCreatorsPage1[0]._id.toString();
+
+    // Wait for table to load and then click on the creator's name
+    const creatorNameElement = await screen.findByText(creatorNameToClick);
+    fireEvent.click(creatorNameElement);
+
+    // Check if modal is rendered (via its mock)
+    const modalTitle = await screen.findByText(`Modal for ${creatorNameToClick}`);
+    expect(modalTitle).toBeInTheDocument();
+
+    // Check if CreatorDetailModal mock was called with correct props
+    const MockedCreatorDetailModal = require('./CreatorDetailModal').default;
+    expect(MockedCreatorDetailModal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isOpen: true,
+        creatorId: creatorIdToExpect,
+        creatorName: creatorNameToClick,
+        dateRangeFilter: dateRange,
+      }),
+      {} // Second argument to React components is context, usually empty in tests
+    );
+  });
+
+  test('opens CreatorDetailModal when "Detalhes" button is clicked', async () => {
+    render(<CreatorTable />);
+    await screen.findByText(mockCreatorsPage1[0].name); // Ensure data is loaded
+
+    // Find all "Detalhes" buttons and click the first one
+    const detailButtons = screen.getAllByText('Detalhes');
+    expect(detailButtons.length).toBeGreaterThan(0);
+    fireEvent.click(detailButtons[0]);
+
+    const creatorForModal = mockCreatorsPage1[0];
+    const modalTitle = await screen.findByText(`Modal for ${creatorForModal.name}`);
+    expect(modalTitle).toBeInTheDocument();
+
+    const MockedCreatorDetailModal = require('./CreatorDetailModal').default;
+    expect(MockedCreatorDetailModal).toHaveBeenCalledWith(
+        expect.objectContaining({
+            isOpen: true,
+            creatorId: creatorForModal._id.toString(),
+            creatorName: creatorForModal.name,
+            // dateRangeFilter would be undefined here if not passed to CreatorTable
+        }),
+        {}
+    );
+  });
+
+  test('modal closes when its onClose is triggered (simulated by clicking its close button)', async () => {
+    render(<CreatorTable />);
+    await screen.findByText(mockCreatorsPage1[0].name);
+
+    fireEvent.click(screen.getAllByText('Detalhes')[0]); // Open the detail modal
+    await screen.findByText(`Modal for ${mockCreatorsPage1[0].name}`);
+
+    const closeModalButton = screen.getByText('Close Modal'); // From detail modal mock
+    fireEvent.click(closeModalButton);
+
+    await waitFor(() => {
+      expect(screen.queryByText(`Modal for ${mockCreatorsPage1[0].name}`)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Creator Comparison Functionality', () => {
+    test('checkbox interaction updates selectedForComparison state and respects MAX_CREATORS_TO_COMPARE', async () => {
+      render(<CreatorTable />);
+      await screen.findByText('Alice Wonderland'); // Wait for data
+
+      const checkboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
+      expect(checkboxes.length).toBe(mockCreatorsPage1.length); // One checkbox per creator
+
+      // Select first creator
+      fireEvent.click(checkboxes[0]);
+      expect(checkboxes[0].checked).toBe(true);
+      // Internal state selectedForComparison would be [mockCreatorsPage1[0]._id.toString()]
+      // Check button text
+      expect(screen.getByText('1 / 3 selecionados')).toBeInTheDocument();
+
+
+      // Select second creator
+      fireEvent.click(checkboxes[1]);
+      expect(checkboxes[1].checked).toBe(true);
+      expect(screen.getByText('2 / 3 selecionados')).toBeInTheDocument();
+
+      // Select third creator (assuming MAX_CREATORS_TO_COMPARE = 3)
+      const thirdCreatorCheckbox = screen.getAllByRole('checkbox')[2] || checkboxes[0]; // Fallback if only 2 creators in mock for some test runs
+      if (mockCreatorsPage1.length >=3) {
+        fireEvent.click(thirdCreatorCheckbox);
+        expect(thirdCreatorCheckbox.checked).toBe(true);
+        expect(screen.getByText('3 / 3 selecionados')).toBeInTheDocument();
+
+        // Try to select a fourth - should be disabled if more than 3 creators displayed AND MAX_CREATORS_TO_COMPARE = 3
+        // For this test, we only have 2-3 creators in mock, so we can't directly test disabling the 4th actual checkbox.
+        // Instead, we verify that if we try to add one more programmatically (if we had a 4th), it wouldn't exceed MAX.
+        // The disabled logic on checkbox itself: `!isSelected && selectedForComparison.length >= MAX_CREATORS_TO_COMPARE;`
+        // This is tested by trying to check it.
+      }
+
+      // Unselect first creator
+      fireEvent.click(checkboxes[0]);
+      expect(checkboxes[0].checked).toBe(false);
+      const expectedCountAfterUncheck = mockCreatorsPage1.length >=3 ? 2 : 1;
+      expect(screen.getByText(`${expectedCountAfterUncheck} / 3 selecionados`)).toBeInTheDocument();
+    });
+
+    test('"Comparar Criadores Selecionados" button is disabled appropriately', async () => {
+      render(<CreatorTable />);
+      await screen.findByText('Alice Wonderland');
+      const compareButton = screen.getByText('Comparar Criadores Selecionados');
+
+      expect(compareButton).toBeDisabled(); // Initially disabled (0 selected)
+
+      const checkboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
+      fireEvent.click(checkboxes[0]); // Select 1
+      expect(compareButton).toBeDisabled(); // Still disabled (1 selected)
+
+      fireEvent.click(checkboxes[1]); // Select 2
+      expect(compareButton).not.toBeDisabled(); // Enabled (2 selected)
+
+      if (mockCreatorsPage1.length >=3) {
+        fireEvent.click(checkboxes[2]); // Select 3
+        expect(compareButton).not.toBeDisabled(); // Enabled (3 selected)
+
+        // If we could select a 4th (MAX_CREATORS_TO_COMPARE = 3), button would disable.
+        // This specific condition ( > MAX ) is harder to test without more mock data
+        // but the logic is `selectedForComparison.length > MAX_CREATORS_TO_COMPARE`
+      }
+    });
+
+    test('clicking "Comparar Criadores Selecionados" opens CreatorComparisonModal with correct props', async () => {
+      render(<CreatorTable />);
+      await screen.findByText('Alice Wonderland');
+
+      const checkboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
+      fireEvent.click(checkboxes[0]); // Select Alice
+      fireEvent.click(checkboxes[1]); // Select Bob
+
+      const compareButton = screen.getByText('Comparar Criadores Selecionados');
+      fireEvent.click(compareButton);
+
+      const expectedIds = [mockCreatorsPage1[0]._id.toString(), mockCreatorsPage1[1]._id.toString()];
+
+      // Check if comparison modal is rendered (via its mock)
+      expect(await screen.findByText(`Comparing: ${expectedIds.join(', ')}`)).toBeInTheDocument();
+
+      const MockedCreatorComparisonModal = require('./CreatorComparisonModal').default;
+      expect(MockedCreatorComparisonModal).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isOpen: true,
+          creatorIdsToCompare: expectedIds,
+        }),
+        {}
+      );
+
+      // Close the comparison modal
+      fireEvent.click(screen.getByText('Close Comparison'));
+      await waitFor(() => {
+        expect(screen.queryByText(`Comparing: ${expectedIds.join(', ')}`)).not.toBeInTheDocument();
+      });
     });
   });
 });

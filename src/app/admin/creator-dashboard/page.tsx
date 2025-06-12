@@ -1,10 +1,44 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
+import dynamic from 'next/dynamic'; // Import dynamic
 import CreatorTable from './CreatorTable';
 import ContentStatsWidgets from './ContentStatsWidgets';
-import StandaloneChatInterface from './StandaloneChatInterface'; // Import the new chat interface
-import { XMarkIcon } from '@heroicons/react/24/solid'; // For modal close button
+// import StandaloneChatInterface from './StandaloneChatInterface'; // Remove direct import
+import GlobalPostsExplorer from './GlobalPostsExplorer';
+import { XMarkIcon } from '@heroicons/react/24/solid';
+
+// Lazy load StandaloneChatInterface
+const DynamicAIChatInterface = dynamic(() => import('./StandaloneChatInterface'), {
+  ssr: false,
+  loading: () => <div className="flex items-center justify-center h-full"><p className="text-gray-500 dark:text-gray-400">Carregando Chat IA...</p></div>,
+});
+
+// Lazy load ContentSegmentComparison
+const DynamicContentSegmentComparison = dynamic(
+  () => import('./ContentSegmentComparison'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="bg-white dark:bg-gray-800/50 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 min-h-[300px] flex items-center justify-center mt-8">
+        <p className="text-gray-500 dark:text-gray-400">Carregando Comparador de Segmentos...</p>
+      </div>
+    ),
+  }
+);
+
+// Lazy load TopMoversWidget
+const DynamicTopMoversWidget = dynamic(
+  () => import('./TopMoversWidget'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="bg-white dark:bg-gray-800/50 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 min-h-[400px] flex items-center justify-center mt-8">
+        <p className="text-gray-500 dark:text-gray-400">Carregando Widget Top Movers...</p>
+      </div>
+    ),
+  }
+);
 
 /**
  * @page CreatorDashboardPage
@@ -21,24 +55,40 @@ export interface GlobalFiltersState {
     startDate: string;
     endDate: string;
   };
-  planStatus: string; // 'all', 'Free', 'Pro', 'Premium' etc.
-  expertiseLevel: string; // 'all', 'Iniciante', 'Intermediário', 'Avançado' etc.
+  planStatus: string[]; // MODIFIED: Now an array of strings
+  expertiseLevel: string[]; // MODIFIED: Now an array of strings
 }
+
+// Define options for checkboxes
+const PLAN_STATUS_OPTIONS = ['Free', 'Pro', 'Premium', 'Trial', 'Active', 'Inactive']; // Adjusted example values
+const EXPERTISE_LEVEL_OPTIONS = ['Iniciante', 'Intermediário', 'Avançado', 'Especialista']; // Adjusted example values
+
 
 export default function CreatorDashboardPage() {
   const [filters, setFilters] = useState<GlobalFiltersState>({
     dateRange: { startDate: '', endDate: '' },
-    planStatus: 'all',
-    expertiseLevel: 'all',
+    planStatus: [], // Initialize as empty array
+    expertiseLevel: [], // Initialize as empty array
   });
 
   // This key will be changed to trigger re-fetch in child components
   const [refreshKey, setRefreshKey] = useState(0);
   const [isAiChatVisible, setIsAiChatVisible] = useState(false);
 
-  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    if (name === 'startDate' || name === 'endDate') {
+  const handleFilterChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+
+    if (type === 'checkbox') {
+      const { checked } = e.target as HTMLInputElement;
+      setFilters(prevFilters => {
+        const currentValues = prevFilters[name as keyof Pick<GlobalFiltersState, 'planStatus' | 'expertiseLevel'>] as string[];
+        if (checked) {
+          return { ...prevFilters, [name]: [...currentValues, value] };
+        } else {
+          return { ...prevFilters, [name]: currentValues.filter(item => item !== value) };
+        }
+      });
+    } else if (name === 'startDate' || name === 'endDate') {
       setFilters(prev => ({
         ...prev,
         dateRange: { ...prev.dateRange, [name]: value },
@@ -46,32 +96,29 @@ export default function CreatorDashboardPage() {
     } else {
       setFilters(prev => ({ ...prev, [name]: value }));
     }
-  };
+  }, []); // No dependencies needed as it only uses event target and setState
 
-  const handleApplyFilters = () => {
-    // Validate dates if needed (e.g., startDate <= endDate)
+  const handleApplyFilters = useCallback(() => {
     if (filters.dateRange.startDate && filters.dateRange.endDate && filters.dateRange.startDate > filters.dateRange.endDate) {
         alert("A data de início não pode ser posterior à data de término.");
         return;
     }
-    setRefreshKey(prev => prev + 1); // Increment key to trigger useEffect in children
-  };
+    setRefreshKey(prev => prev + 1);
+  }, [filters.dateRange]); // Depends on dateRange for validation before refreshing
 
-  // Define available options for select dropdowns
-  // In a real app, these might come from an API or be more dynamic
-  const planStatusOptions = [
-    { value: 'all', label: 'Todos os Planos' },
-    { value: 'Free', label: 'Free' },
-    { value: 'Pro', label: 'Pro' },
-    { value: 'Premium', label: 'Premium' }, // Example
-  ];
+  // Memoize derived filter strings for props
+  const planStatusFilterString = useMemo(() => {
+    return filters.planStatus.length > 0 ? filters.planStatus.join(',') : undefined;
+  }, [filters.planStatus]);
 
-  const expertiseLevelOptions = [
-    { value: 'all', label: 'Todos os Níveis' },
-    { value: 'Iniciante', label: 'Iniciante' },
-    { value: 'Intermediário', label: 'Intermediário' },
-    { value: 'Avançado', label: 'Avançado' },
-  ];
+  const expertiseLevelFilterString = useMemo(() => {
+    return filters.expertiseLevel.length > 0 ? filters.expertiseLevel.join(',') : undefined;
+  }, [filters.expertiseLevel]);
+
+  const dateRangeFilterProp = useMemo(() => {
+    return filters.dateRange.startDate && filters.dateRange.endDate ? filters.dateRange : undefined;
+  }, [filters.dateRange]);
+
 
 
   return (
@@ -115,37 +162,55 @@ export default function CreatorDashboardPage() {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               />
             </div>
-            <div>
-              <label htmlFor="planStatus" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status do Plano</label>
-              <select
-                name="planStatus"
-                id="planStatus"
-                value={filters.planStatus}
-                onChange={handleFilterChange}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-              >
-                {planStatusOptions.map(option => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
+            {/* Plan Status Checkboxes */}
+            <div className="lg:col-span-2"> {/* Allow more space for checkboxes */}
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status do Plano</label>
+              <div className="mt-1 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700/30 max-h-32 overflow-y-auto">
+                {PLAN_STATUS_OPTIONS.map(option => (
+                  <div key={option} className="flex items-center">
+                    <input
+                      id={`planStatus-${option}`}
+                      name="planStatus"
+                      type="checkbox"
+                      value={option}
+                      checked={filters.planStatus.includes(option)}
+                      onChange={handleFilterChange}
+                      className="h-4 w-4 text-indigo-600 border-gray-300 dark:border-gray-500 rounded focus:ring-indigo-500 dark:bg-gray-600 dark:checked:bg-indigo-500"
+                    />
+                    <label htmlFor={`planStatus-${option}`} className="ml-2 text-xs text-gray-700 dark:text-gray-200">
+                      {option}
+                    </label>
+                  </div>
                 ))}
-              </select>
+              </div>
             </div>
-            <div>
-              <label htmlFor="expertiseLevel" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nível de Expertise</label>
-              <select
-                name="expertiseLevel"
-                id="expertiseLevel"
-                value={filters.expertiseLevel}
-                onChange={handleFilterChange}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-              >
-                {expertiseLevelOptions.map(option => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
+
+            {/* Expertise Level Checkboxes */}
+            <div className="lg:col-span-2"> {/* Allow more space for checkboxes */}
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nível de Expertise</label>
+              <div className="mt-1 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700/30 max-h-32 overflow-y-auto">
+                {EXPERTISE_LEVEL_OPTIONS.map(option => (
+                  <div key={option} className="flex items-center">
+                    <input
+                      id={`expertiseLevel-${option}`}
+                      name="expertiseLevel"
+                      type="checkbox"
+                      value={option}
+                      checked={filters.expertiseLevel.includes(option)}
+                      onChange={handleFilterChange}
+                      className="h-4 w-4 text-indigo-600 border-gray-300 dark:border-gray-500 rounded focus:ring-indigo-500 dark:bg-gray-600 dark:checked:bg-indigo-500"
+                    />
+                    <label htmlFor={`expertiseLevel-${option}`} className="ml-2 text-xs text-gray-700 dark:text-gray-200">
+                      {option}
+                    </label>
+                  </div>
                 ))}
-              </select>
+              </div>
             </div>
+
             <button
               onClick={handleApplyFilters}
-              className="w-full lg:w-auto px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800 h-[42px]"
+              className="w-full lg:self-end px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800 h-[42px]"
             >
               Aplicar Filtros
             </button>
@@ -160,8 +225,9 @@ export default function CreatorDashboardPage() {
             <div className="lg:col-span-2">
               <CreatorTable
                 key={`creatorTable-${refreshKey}`}
-                planStatusFilter={filters.planStatus === 'all' ? undefined : filters.planStatus}
-                expertiseLevelFilter={filters.expertiseLevel === 'all' ? undefined : filters.expertiseLevel}
+                planStatusFilter={planStatusFilterString}
+                expertiseLevelFilter={expertiseLevelFilterString}
+                dateRangeFilter={dateRangeFilterProp}
               />
             </div>
 
@@ -169,21 +235,24 @@ export default function CreatorDashboardPage() {
             <div className="lg:col-span-1">
               <ContentStatsWidgets
                 key={`contentStats-${refreshKey}`}
-                dateRangeFilter={filters.dateRange.startDate && filters.dateRange.endDate ? filters.dateRange : undefined}
+                dateRangeFilter={dateRangeFilterProp}
               />
             </div>
           </div>
 
           {/* Row 2 of Widgets (Example: Posts Feed) */}
           <div className="grid grid-cols-1 gap-8">
-            <div className="p-6 bg-white dark:bg-gray-800/50 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 min-h-[300px]">
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
-                Explorador de Posts Globais (Widget)
-              </h3>
-              <p className="text-center text-gray-500 dark:text-gray-400 mt-16">
-                (Placeholder para feed de posts com filtros)
-              </p>
-            </div>
+            <GlobalPostsExplorer dateRangeFilter={dateRangeFilterProp} />
+          </div>
+
+          {/* Content Segment Comparison Widget */}
+          <div className="mt-8">
+            <DynamicContentSegmentComparison dateRangeFilter={dateRangeFilterProp} />
+          </div>
+
+          {/* Top Movers Widget */}
+          <div className="mt-8">
+            <DynamicTopMoversWidget />
           </div>
         </main>
 
@@ -216,8 +285,8 @@ export default function CreatorDashboardPage() {
                   <XMarkIcon className="w-6 h-6" />
                 </button>
               </header>
-              <div className="flex-grow overflow-y-auto"> {/* This div will handle the internal scrolling of the chat */}
-                <StandaloneChatInterface />
+              <div className="flex-grow overflow-y-auto">
+                <DynamicAIChatInterface />
               </div>
             </div>
           </div>

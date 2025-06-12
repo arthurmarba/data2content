@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { IDashboardOverallStats, IFetchDashboardOverallContentStatsFilters } from '@/app/lib/dataService/marketAnalysisService'; // Assuming this path
 
@@ -26,7 +26,7 @@ interface ContentStatsWidgetsProps {
   // key prop (refreshKey from parent) will implicitly handle refresh
 }
 
-export default function ContentStatsWidgets({ dateRangeFilter }: ContentStatsWidgetsProps) {
+const ContentStatsWidgets = memo(function ContentStatsWidgets({ dateRangeFilter }: ContentStatsWidgetsProps) {
   const [stats, setStats] = useState<IDashboardOverallStats | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +78,15 @@ export default function ContentStatsWidgets({ dateRangeFilter }: ContentStatsWid
     fetchData();
   }, [fetchData]); // fetchData itself is memoized with dateRangeFilter as dependency
 
+  const kpis = useMemo(() => {
+    if (!stats) return [];
+    return [
+        { title: 'Total de Posts na Plataforma', value: formatKpiValue(stats.totalPlatformPosts) },
+        { title: 'Média de Engajamento', value: formatPercentage(stats.averagePlatformEngagementRate) },
+        { title: 'Total de Criadores de Conteúdo', value: formatKpiValue(stats.totalContentCreators) },
+    ];
+  }, [stats]);
+
   if (isLoading) {
     return (
       <div className="p-6 bg-white dark:bg-gray-800/50 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 min-h-[400px] flex justify-center items-center">
@@ -92,7 +101,7 @@ export default function ContentStatsWidgets({ dateRangeFilter }: ContentStatsWid
       <div className="p-6 bg-white dark:bg-gray-800/50 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 min-h-[400px] flex flex-col justify-center items-center">
         <p className="text-red-500 dark:text-red-400 text-center mb-4">Erro ao carregar dados: {error}</p>
         <button
-            onClick={fetchData}
+            onClick={fetchData} // fetchData is stable due to useCallback
             className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
         >
             Tentar Novamente
@@ -101,19 +110,13 @@ export default function ContentStatsWidgets({ dateRangeFilter }: ContentStatsWid
     );
   }
 
-  if (!stats) {
+  if (!stats) { // This check might be redundant if kpis derived from stats is used for main content visibility
     return (
       <div className="p-6 bg-white dark:bg-gray-800/50 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 min-h-[400px] flex justify-center items-center">
         <p className="text-gray-500 dark:text-gray-400">Nenhuma estatística de conteúdo disponível.</p>
       </div>
     );
   }
-
-  const kpis = [
-      { title: 'Total de Posts na Plataforma', value: formatKpiValue(stats.totalPlatformPosts) },
-      { title: 'Média de Engajamento', value: formatPercentage(stats.averagePlatformEngagementRate) },
-      { title: 'Total de Criadores de Conteúdo', value: formatKpiValue(stats.totalContentCreators) },
-  ];
 
   return (
     <div className="space-y-6">
@@ -201,4 +204,6 @@ export default function ContentStatsWidgets({ dateRangeFilter }: ContentStatsWid
         </div>
     </div>
   );
-}
+});
+
+export default ContentStatsWidgets;

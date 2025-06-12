@@ -100,11 +100,63 @@ describe('API Route: /api/admin/dashboard/creators', () => {
       sortOrder: 'asc',
       filters: {
         nameSearch: 'Specific Creator',
-        planStatus: ['Pro'], // Zod schema in route transforms string to array
-        expertiseLevel: ['Avançado'], // Zod schema in route transforms string to array
+        planStatus: ['Pro'],
+        expertiseLevel: ['Avançado'],
         minTotalPosts: 50,
       },
     });
+  });
+
+  it('should correctly transform comma-separated planStatus and expertiseLevel to arrays', async () => {
+    mockFetchDashboardCreatorsList.mockResolvedValue({ creators: [], totalCreators: 0 });
+    const query = {
+        planStatus: 'Pro,Premium,Trial',
+        expertiseLevel: 'Iniciante, Intermediário',
+    };
+    const req = createMockRequest(query);
+    await GET(req);
+
+    expect(fetchDashboardCreatorsList).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filters: expect.objectContaining({
+          planStatus: ['Pro', 'Premium', 'Trial'],
+          expertiseLevel: ['Iniciante', 'Intermediário'],
+        }),
+      })
+    );
+  });
+
+  it('should handle empty string for planStatus (transformed to undefined by Zod refine)', async () => {
+    mockFetchDashboardCreatorsList.mockResolvedValue({ creators: [], totalCreators: 0 });
+    const query = { planStatus: '' }; // Empty string
+    const req = createMockRequest(query);
+    await GET(req);
+
+    // The Zod .refine combined with .transform might result in `undefined` if the array would be empty
+    // or if the initial string is empty leading to an empty array from split, then refine kicks in.
+    // The service function expects undefined or a non-empty array.
+    expect(fetchDashboardCreatorsList).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filters: expect.objectContaining({
+          planStatus: undefined,
+        }),
+      })
+    );
+  });
+
+  it('should handle planStatus with spaces and extra commas (e.g. "Pro, , Free")', async () => {
+    mockFetchDashboardCreatorsList.mockResolvedValue({ creators: [], totalCreators: 0 });
+    const query = { planStatus: 'Pro, , Free ' }; // Note the extra comma and trailing space
+    const req = createMockRequest(query);
+    await GET(req);
+
+    expect(fetchDashboardCreatorsList).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filters: expect.objectContaining({
+          planStatus: ['Pro', 'Free'], // Zod transform should trim and filter empty strings
+        }),
+      })
+    );
   });
 
   it('should return 400 on invalid query parameters (e.g., page not a number)', async () => {

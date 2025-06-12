@@ -1,0 +1,322 @@
+'use client';
+
+import React, { useState, useEffect, useCallback, memo } from 'react';
+import { IGlobalPostResult } from '@/app/lib/dataService/marketAnalysisService'; // Assuming path
+import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/solid'; // Example icons
+
+
+interface GlobalPostsExplorerProps {
+  dateRangeFilter?: { // From parent page (CreatorDashboardPage)
+    startDate: string;
+    endDate: string;
+  };
+  // key prop (refreshKey from parent) will implicitly handle refresh if needed for dateRangeFilter
+}
+
+interface SortConfig {
+  sortBy: string;
+  sortOrder: 'asc' | 'desc';
+}
+
+interface ActiveFilters {
+  context?: string;
+  proposal?: string;
+  format?: string;
+  minInteractions?: number;
+}
+
+/**
+ * @component GlobalPostsExplorer
+ * @description Widget for exploring global posts with filters and pagination.
+ * This component will allow administrators to search, filter, and view posts
+ * from across the platform based on various criteria.
+ *
+ * @version 1.1.0 - Data fetching, display, sort, pagination
+ */
+const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter }: GlobalPostsExplorerProps) {
+  // States for local filters UI
+  const [selectedContext, setSelectedContext] = useState<string>('all');
+  const [selectedProposal, setSelectedProposal] = useState<string>('all');
+  const [selectedFormat, setSelectedFormat] = useState<string>('all');
+  const [minInteractionsValue, setMinInteractionsValue] = useState<string>('');
+
+  // States for data, loading, error, pagination, sorting
+  const [posts, setPosts] = useState<IGlobalPostResult[]>([]);
+  const [totalPosts, setTotalPosts] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [limit, setLimit] = useState(10); // Or make this configurable
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ sortBy: 'postDate', sortOrder: 'desc' });
+
+  // State to hold the filters that are actively applied to the data fetching
+  const [activeFilters, setActiveFilters] = useState<ActiveFilters>({});
+
+  // Predefined options for dropdowns
+  const contextOptions = ["all", "Finanças", "Tecnologia", "Moda", "Saúde", "Educação", "Entretenimento"];
+  const proposalOptions = ["all", "Educativo", "Humor", "Notícia", "Review", "Tutorial"];
+  const formatOptions = ["all", "Reel", "Post Estático", "Carrossel", "Story"];
+
+
+  const fetchPosts = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    const params = new URLSearchParams({
+      page: String(currentPage),
+      limit: String(limit),
+      sortBy: sortConfig.sortBy,
+      sortOrder: sortConfig.sortOrder,
+    });
+
+    if (activeFilters.context && activeFilters.context !== 'all') params.append('context', activeFilters.context);
+    if (activeFilters.proposal && activeFilters.proposal !== 'all') params.append('proposal', activeFilters.proposal);
+    if (activeFilters.format && activeFilters.format !== 'all') params.append('format', activeFilters.format);
+    if (activeFilters.minInteractions) params.append('minInteractions', String(activeFilters.minInteractions));
+
+    if (dateRangeFilter?.startDate) params.append('startDate', dateRangeFilter.startDate);
+    if (dateRangeFilter?.endDate) params.append('endDate', dateRangeFilter.endDate);
+
+    try {
+      const response = await fetch(`/api/admin/dashboard/posts?${params.toString()}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to fetch posts: ${response.statusText}`);
+      }
+      const data = await response.json();
+      setPosts(data.posts || []);
+      setTotalPosts(data.totalPosts || 0);
+    } catch (e: any) {
+      setError(e.message);
+      setPosts([]);
+      setTotalPosts(0);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentPage, limit, sortConfig, activeFilters, dateRangeFilter]);
+
+  useEffect(() => {
+    fetchPosts();
+  }, [fetchPosts]); // fetchPosts is memoized and includes all its dependencies
+
+  const handleApplyLocalFilters = useCallback(() => {
+    setCurrentPage(1); // Reset to first page when filters change
+    setActiveFilters({
+      context: selectedContext === 'all' ? undefined : selectedContext,
+      proposal: selectedProposal === 'all' ? undefined : selectedProposal,
+      format: selectedFormat === 'all' ? undefined : selectedFormat,
+      minInteractions: minInteractionsValue ? parseInt(minInteractionsValue) : undefined,
+    });
+    // fetchPosts will be called by useEffect due to activeFilters changing
+  }, [selectedContext, selectedProposal, selectedFormat, minInteractionsValue]); // Dependencies are the local filter states
+
+  const handleSort = useCallback((columnKey: string) => {
+    let newSortOrder: 'asc' | 'desc' = 'asc';
+    if (sortConfig.sortBy === columnKey && sortConfig.sortOrder === 'asc') {
+      newSortOrder = 'desc';
+    }
+    setSortConfig({ sortBy: columnKey, sortOrder: newSortOrder });
+    setCurrentPage(1); // Reset to first page on sort
+  }, [sortConfig]); // Depends on sortConfig
+
+  const renderSortIcon = useCallback((columnKey: string) => {
+    if (sortConfig.sortBy !== columnKey) {
+      return <ChevronDownIcon className="w-3 h-3 inline text-gray-400 ml-1" />;
+    }
+    return sortConfig.sortOrder === 'asc' ? (
+      <ChevronUpIcon className="w-3 h-3 inline text-indigo-500 ml-1" />
+    ) : (
+      <ChevronDownIcon className="w-3 h-3 inline text-indigo-500 ml-1" />
+    );
+  }, [sortConfig]); // Depends on sortConfig
+
+  const totalPages = Math.ceil(totalPosts / limit);
+
+  const handlePageChange = useCallback((newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages && newPage !== currentPage) { // Avoid re-fetch if page hasn't changed
+      setCurrentPage(newPage);
+    }
+  }, [totalPages, currentPage]); // Depends on totalPages and currentPage
+
+  const formatDate = (dateString?: Date | string): string => {
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleDateString('pt-BR', {
+        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+      });
+    } catch (e) { return 'Data Inválida'; }
+  };
+
+  const columns = [
+    { key: 'text_content', label: 'Conteúdo', sortable: false, getVal: (post: IGlobalPostResult) => post.text_content || post.description || 'N/A' },
+    { key: 'creatorName', label: 'Criador', sortable: true, getVal: (post: IGlobalPostResult) => post.creatorName || 'N/A' },
+    { key: 'postDate', label: 'Data', sortable: true, getVal: (post: IGlobalPostResult) => formatDate(post.postDate) },
+    { key: 'format', label: 'Formato', sortable: true, getVal: (post: IGlobalPostResult) => post.format || 'N/A' },
+    { key: 'proposal', label: 'Proposta', sortable: true, getVal: (post: IGlobalPostResult) => post.proposal || 'N/A' },
+    { key: 'context', label: 'Contexto', sortable: true, getVal: (post: IGlobalPostResult) => post.context || 'N/A' },
+    { key: 'stats.total_interactions', label: 'Interações', sortable: true, getVal: (post: IGlobalPostResult) => getNestedValue(post, 'stats.total_interactions', 0) },
+    { key: 'stats.likes', label: 'Likes', sortable: true, getVal: (post: IGlobalPostResult) => getNestedValue(post, 'stats.likes', 0) },
+    { key: 'stats.shares', label: 'Shares', sortable: true, getVal: (post: IGlobalPostResult) => getNestedValue(post, 'stats.shares', 0) },
+  ];
+
+  // Helper to get nested stats safely
+  const getNestedValue = (obj: any, path: string, defaultValue: any = 'N/A') => {
+    const value = path.split('.').reduce((acc, part) => acc && acc[part], obj);
+    return value === undefined || value === null ? defaultValue : value;
+  };
+
+  return (
+    <div className="bg-white dark:bg-gray-800/50 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+        Explorador de Posts Globais
+      </h2>
+      <div className="space-y-4">
+        {/* Filters Section */}
+        <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-800">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 items-end">
+            {/* Context Dropdown */}
+            <div>
+              <label htmlFor="gpe-context" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Contexto</label>
+              <select
+                id="gpe-context"
+                name="context"
+                value={selectedContext}
+                onChange={(e) => setSelectedContext(e.target.value)}
+                className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 h-[38px]"
+              >
+                {contextOptions.map(opt => <option key={opt} value={opt}>{opt === 'all' ? 'Todos os Contextos' : opt}</option>)}
+              </select>
+            </div>
+
+            {/* Proposal Dropdown */}
+            <div>
+              <label htmlFor="gpe-proposal" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Proposta</label>
+              <select
+                id="gpe-proposal"
+                name="proposal"
+                value={selectedProposal}
+                onChange={(e) => setSelectedProposal(e.target.value)}
+                className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 h-[38px]"
+              >
+                {proposalOptions.map(opt => <option key={opt} value={opt}>{opt === 'all' ? 'Todas as Propostas' : opt}</option>)}
+              </select>
+            </div>
+
+            {/* Format Dropdown */}
+            <div>
+              <label htmlFor="gpe-format" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Formato</label>
+              <select
+                id="gpe-format"
+                name="format"
+                value={selectedFormat}
+                onChange={(e) => setSelectedFormat(e.target.value)}
+                className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 h-[38px]"
+              >
+                {formatOptions.map(opt => <option key={opt} value={opt}>{opt === 'all' ? 'Todos os Formatos' : opt}</option>)}
+              </select>
+            </div>
+
+            {/* Min Interactions Input */}
+            <div>
+              <label htmlFor="gpe-minInteractions" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Min. Interações</label>
+              <input
+                type="number"
+                id="gpe-minInteractions"
+                name="minInteractions"
+                value={minInteractionsValue}
+                onChange={(e) => setMinInteractionsValue(e.target.value)}
+                placeholder="Ex: 100"
+                min="0"
+                className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 h-[38px]"
+              />
+            </div>
+
+            {/* Apply Filters Button */}
+            <button
+              onClick={handleApplyLocalFilters}
+              className="w-full lg:w-auto px-4 py-2 bg-blue-600 text-white font-semibold rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 h-[38px] text-sm"
+              disabled={isLoading}
+            >
+              {isLoading ? 'Buscando...' : 'Filtrar Posts'}
+            </button>
+          </div>
+        </div>
+
+        {/* Posts Display Area */}
+        {isLoading && (
+            <div className="text-center py-10"><p className="text-gray-500 dark:text-gray-400">Carregando posts...</p></div>
+        )}
+        {error && (
+            <div className="text-center py-10"><p className="text-red-500 dark:text-red-400">Erro ao carregar posts: {error}</p></div>
+        )}
+        {!isLoading && !error && posts.length === 0 && (
+            <div className="text-center py-10"><p className="text-gray-500 dark:text-gray-400">Nenhum post encontrado com os filtros atuais.</p></div>
+        )}
+        {!isLoading && !error && posts.length > 0 && (
+          <div className="overflow-x-auto mt-4">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+              <thead className="bg-gray-100 dark:bg-gray-700/50">
+                <tr>
+                  {columns.map((col) => (
+                    <th
+                      key={col.key}
+                      scope="col"
+                      className={`px-4 py-2.5 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap ${col.sortable ? 'cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700' : ''}`}
+                      onClick={() => col.sortable && handleSort(col.key)}
+                    >
+                      {col.label} {col.sortable && renderSortIcon(col.key)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {posts.map((post) => (
+                  <tr key={post._id?.toString()} className="hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors">
+                    {columns.map(col => (
+                         <td key={col.key} className="px-4 py-3 whitespace-nowrap text-gray-600 dark:text-gray-400">
+                            {col.key === 'text_content' ? (
+                                <span title={col.getVal(post)} className="block max-w-[200px] lg:max-w-[300px] truncate">
+                                    {col.getVal(post)}
+                                </span>
+                            ) : (
+                                col.getVal(post)
+                            )}
+                        </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {!isLoading && !error && totalPosts > 0 && (
+           <div className="py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 mt-4 text-sm">
+                <p className="text-gray-700 dark:text-gray-300">
+                Página <span className="font-medium">{currentPage}</span> de <span className="font-medium">{totalPages}</span> ({totalPosts} posts)
+                </p>
+                <div className="flex-1 flex justify-end space-x-2">
+                <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1 || isLoading}
+                    className="relative inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 text-xs"
+                >
+                    Anterior
+                </button>
+                <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages || isLoading || totalPosts === 0}
+                    className="ml-2 relative inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 text-xs"
+                >
+                    Próxima
+                </button>
+                </div>
+            </div>
+        )}
+      </div>
+    </div>
+  );
+});
+
+export default GlobalPostsExplorer;

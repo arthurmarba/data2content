@@ -53,7 +53,15 @@ export interface ICreatorProfile {
     avgShares: number;
     avgEngagementRate: number;
     topPerformingContext: string;
+    profilePictureUrl?: string; // Added
 }
+
+// --- Interface for fetchMultipleCreatorProfiles ---
+export interface IFetchMultipleCreatorProfilesArgs {
+  creatorIds: string[];
+}
+
+
 export interface FindGlobalPostsArgs {
     context?: string;
     proposal?: string;
@@ -68,7 +76,23 @@ export interface FindGlobalPostsArgs {
         endDate?: Date;
     };
 }
-export interface IGlobalPostResult extends IMetric { creatorName?: string; }
+// MODIFIED: IGlobalPostResult to reflect projected fields
+export interface IGlobalPostResult {
+  _id: Types.ObjectId; // Or string, depending on how it's used post-aggregation
+  text_content?: string;
+  description?: string;
+  creatorName?: string;
+  postDate?: Date;
+  format?: string;
+  proposal?: string;
+  context?: string;
+  stats?: { // Only include the stats we project
+    total_interactions?: number;
+    likes?: number;
+    shares?: number;
+  };
+  // Other fields from IMetric like 'user', 'source', 'specificMetricMeta', 'raw_data' are excluded
+}
 // Adicionar uma interface para o retorno paginado
 export interface IGlobalPostsPaginatedResult {
     posts: IGlobalPostResult[];
@@ -87,8 +111,8 @@ export interface IFetchDashboardCreatorsListParams {
   sortOrder?: 'asc' | 'desc';
   filters?: {
     nameSearch?: string;
-    planStatus?: string[]; // Array de status, ex: ['Free', 'Pro']
-    expertiseLevel?: string[]; // Array de níveis, ex: ['Iniciante', 'Avançado']
+    planStatus?: string[]; // MODIFIED: Already an array, ensure logic handles it as such. Kept as string[] for consistency with previous state, will ensure API sends array.
+    expertiseLevel?: string[]; // MODIFIED: Already an array, ensure logic handles it as such.
     minTotalPosts?: number;
     minFollowers?: number; // Supondo que 'followers' é um campo em User
   };
@@ -97,16 +121,16 @@ export interface IFetchDashboardCreatorsListParams {
 export interface IDashboardCreator {
   _id: Types.ObjectId; // ID do usuário
   name: string;
-  email?: string; // Opcional, dependendo da necessidade de exposição
+  // email?: string; // Removed by projection
   planStatus?: string;
   inferredExpertiseLevel?: string;
   totalPosts: number;
   lastActivityDate?: Date;
   avgEngagementRate: number;
-  avgLikes: number;
-  avgShares: number;
+  // avgLikes: number; // Removed by projection
+  // avgShares: number; // Removed by projection
   // Campos adicionais conforme necessário
-  followers?: number; // Exemplo se tivermos contagem de seguidores
+  // followers?: number; // Removed by projection
   profilePictureUrl?: string; // URL da foto de perfil
 }
 
@@ -182,10 +206,10 @@ export async function fetchDashboardOverallContentStats(
             $group: {
               _id: '$format',
               count: { $sum: 1 },
-              avgEngagement: { $avg: '$stats.engagement_rate_on_reach' },
+              // avgEngagement: { $avg: '$stats.engagement_rate_on_reach' }, // Removed
             },
           },
-          { $project: { _id: 0, format: '$_id', count: 1, avgEngagement: { $ifNull: ['$avgEngagement', 0] } } },
+          { $project: { _id: 0, format: '$_id', count: 1 /* avgEngagement: 0 */ } }, // Removed avgEngagement
           { $sort: { count: -1 } },
         ],
         // Breakdown por proposta
@@ -195,10 +219,10 @@ export async function fetchDashboardOverallContentStats(
             $group: {
               _id: '$proposal',
               count: { $sum: 1 },
-              avgEngagement: { $avg: '$stats.engagement_rate_on_reach' },
+              // avgEngagement: { $avg: '$stats.engagement_rate_on_reach' }, // Removed
             },
           },
-          { $project: { _id: 0, proposal: '$_id', count: 1, avgEngagement: { $ifNull: ['$avgEngagement', 0] } } },
+          { $project: { _id: 0, proposal: '$_id', count: 1 /* avgEngagement: 0 */ } }, // Removed avgEngagement
           { $sort: { count: -1 } },
         ],
         // Breakdown por contexto
@@ -208,10 +232,10 @@ export async function fetchDashboardOverallContentStats(
             $group: {
               _id: '$context',
               count: { $sum: 1 },
-              avgEngagement: { $avg: '$stats.engagement_rate_on_reach' },
+              // avgEngagement: { $avg: '$stats.engagement_rate_on_reach' }, // Removed
             },
           },
-          { $project: { _id: 0, context: '$_id', count: 1, avgEngagement: { $ifNull: ['$avgEngagement', 0] } } },
+          { $project: { _id: 0, context: '$_id', count: 1 /* avgEngagement: 0 */ } }, // Removed avgEngagement
           { $sort: { count: -1 } },
         ],
       },
@@ -253,9 +277,9 @@ export interface IDashboardOverallStats {
   totalPlatformPosts: number;
   averagePlatformEngagementRate: number;
   totalContentCreators: number;
-  breakdownByFormat: { format: string; count: number; avgEngagement: number }[];
-  breakdownByProposal: { proposal: string; count: number; avgEngagement: number }[];
-  breakdownByContext: { context: string; count: number; avgEngagement: number }[];
+  breakdownByFormat: { format: string; count: number }[]; // avgEngagement removed
+  breakdownByProposal: { proposal: string; count: number }[]; // avgEngagement removed
+  breakdownByContext: { context: string; count: number }[]; // avgEngagement removed
   // Adicionar mais breakdowns conforme necessário (ex: por tema, sentimento)
 }
 
@@ -330,10 +354,11 @@ export async function fetchDashboardCreatorsList(
     if (filters.nameSearch) {
       userMatchStage.name = { $regex: filters.nameSearch, $options: 'i' };
     }
-    if (filters.planStatus && filters.planStatus.length > 0) {
+    // Updated logic for planStatus and expertiseLevel
+    if (filters.planStatus && Array.isArray(filters.planStatus) && filters.planStatus.length > 0) {
       userMatchStage.planStatus = { $in: filters.planStatus };
     }
-    if (filters.expertiseLevel && filters.expertiseLevel.length > 0) {
+    if (filters.expertiseLevel && Array.isArray(filters.expertiseLevel) && filters.expertiseLevel.length > 0) {
       userMatchStage.inferredExpertiseLevel = { $in: filters.expertiseLevel };
     }
     // TODO: Adicionar filtro minFollowers se o campo existir em UserModel
@@ -389,21 +414,23 @@ export async function fetchDashboardCreatorsList(
     aggregationPipeline.push({ $skip: skip });
     aggregationPipeline.push({ $limit: limit });
 
-    // Projeção final para formatar a saída
+    // Projeção final para formatar a saída - Optimized
     aggregationPipeline.push({
       $project: {
+        // _id is implicitly included, but we map it to creatorId if needed by interface, or ensure it's just _id
+        // The IDashboardCreator interface expects _id, so we keep it.
         _id: 1,
         name: 1,
-        email: 1, // Expor email se necessário e permitido
+        // email: 0, // Removed as not used in CreatorTable
         planStatus: 1,
-        inferredExpertiseLevel: 1,
+        inferredExpertiseLevel: 1, // Kept for potential filtering/future use
         totalPosts: 1,
         lastActivityDate: 1,
         avgEngagementRate: { $ifNull: ['$avgEngagementRate', 0] },
-        avgLikes: { $ifNull: ['$avgLikes', 0] },
-        avgShares: { $ifNull: ['$avgShares', 0] },
-        // followers: 1, // Incluir se o campo existir e for filtrado/sorteado
-        // profilePictureUrl: 1, // Incluir se existir
+        // avgLikes: 0, // Removed as not used in CreatorTable
+        // avgShares: 0, // Removed as not used in CreatorTable
+        profilePictureUrl: '$profilePictureUrl', // Assuming it's available from $addFields or UserModel directly
+        // followers: 0, // Removed
       },
     });
 
@@ -412,6 +439,11 @@ export async function fetchDashboardCreatorsList(
     const creators = await UserModel.aggregate(aggregationPipeline);
 
     logger.info(`${TAG} Busca de criadores para dashboard concluída. Encontrados: ${creators.length}, Total: ${totalCreators}`);
+    // Ensure the returned data matches IDashboardCreator, especially if fields were removed
+    // The current IDashboardCreator includes avgLikes, avgShares. This might need adjustment
+    // or we cast carefully. For now, we assume the projection shapes it for the table.
+    // If IDashboardCreator is strict, this projection needs to align or the interface needs an update.
+    // Let's assume the projection is the source of truth for what's returned.
     return { creators: creators as IDashboardCreator[], totalCreators };
 
   } catch (error: any) {
@@ -590,13 +622,33 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
         postsPipeline.push({ $skip: skip });
         postsPipeline.push({ $limit: limit });
 
+        // Add projection stage to select only necessary fields
+        postsPipeline.push({
+            $project: {
+                _id: 1,
+                text_content: 1, // Or 'description' if that's the preferred field
+                description: 1, // Include both if either could be used
+                creatorName: 1, // Added in baseAggregation
+                postDate: 1,
+                format: 1,
+                proposal: 1,
+                context: 1,
+                'stats.total_interactions': '$stats.total_interactions',
+                'stats.likes': '$stats.likes',
+                'stats.shares': '$stats.shares',
+                // Explicitly exclude other fields from stats if necessary, though projecting specific paths usually suffices
+                // user: 0, // Example if user field from MetricModel was populated and not needed
+                // raw_data: 0, // Example
+            }
+        });
+
         logger.debug(`${TAG} Pipeline de agregação para posts: ${JSON.stringify(postsPipeline)}`);
         const posts = await MetricModel.aggregate(postsPipeline);
 
         logger.info(`${TAG} Busca global encontrou ${posts.length} posts de um total de ${totalPosts}. Página: ${page}, Limite: ${limit}`);
 
         return {
-            posts: posts as IGlobalPostResult[],
+            posts: posts as IGlobalPostResult[], // IGlobalPostResult might need update if it's strict about all MetricModel fields
             totalPosts,
             page,
             limit,
@@ -714,4 +766,524 @@ export async function fetchCohortComparison(args: IFetchCohortComparisonArgs): P
         logger.error(`${TAG} Erro ao comparar coortes:`, error);
         throw new DatabaseError(`Falha ao comparar coortes de usuários: ${error.message}`);
     }
+}
+
+
+// --- Interfaces for Creator Time Series Data ---
+export interface IFetchCreatorTimeSeriesArgs {
+  creatorId: string; // Should be Types.ObjectId compatible string
+  metric: 'post_count' | 'avg_engagement_rate' | 'avg_likes' | 'avg_shares' | 'total_interactions'; // Extendable
+  period: 'monthly' | 'weekly';
+  dateRange: { startDate: Date; endDate: Date };
+}
+
+export interface ICreatorTimeSeriesDataPoint {
+  date: Date; // Represents the start of the period
+  value: number;
+}
+
+/**
+ * @function fetchCreatorTimeSeriesData
+ * @description Fetches time series data for a specific creator and metric.
+ * @param {IFetchCreatorTimeSeriesArgs} args - Arguments for fetching time series data.
+ * @returns {Promise<ICreatorTimeSeriesDataPoint[]>} - Array of time series data points.
+ */
+export async function fetchCreatorTimeSeriesData(
+  args: IFetchCreatorTimeSeriesArgs
+): Promise<ICreatorTimeSeriesDataPoint[]> {
+  const TAG = `${SERVICE_TAG}[fetchCreatorTimeSeriesData]`;
+  logger.info(`${TAG} Fetching time series data for creator ${args.creatorId}, metric: ${args.metric}, period: ${args.period}`);
+
+  try {
+    await connectToDatabase();
+
+    if (!Types.ObjectId.isValid(args.creatorId)) {
+      logger.warn(`${TAG} Invalid creatorId: ${args.creatorId}`);
+      throw new Error('Invalid creatorId format.'); // Or return empty array, depending on desired strictness
+    }
+    const creatorObjectId = new Types.ObjectId(args.creatorId);
+
+    let metricFieldPath: string | null = null;
+    let accumulator: string | null = null;
+    let needsNonNullCheck = true; // Most metrics require the field to exist and not be null
+
+    switch (args.metric) {
+      case 'post_count':
+        accumulator = '$sum';
+        metricFieldPath = null; // For $sum: 1
+        needsNonNullCheck = false; // post_count does not depend on a specific field value being non-null
+        break;
+      case 'avg_engagement_rate':
+        accumulator = '$avg';
+        metricFieldPath = '$stats.engagement_rate_on_reach';
+        break;
+      case 'avg_likes':
+        accumulator = '$avg';
+        metricFieldPath = '$stats.likes';
+        break;
+      case 'avg_shares':
+        accumulator = '$avg';
+        metricFieldPath = '$stats.shares';
+        break;
+      case 'total_interactions':
+        accumulator = '$sum';
+        metricFieldPath = '$stats.total_interactions';
+        break;
+      default:
+        logger.warn(`${TAG} Unsupported metric: ${args.metric}`);
+        throw new Error(`Unsupported metric: ${args.metric}`);
+    }
+
+    const matchStage: PipelineStage.Match = {
+      $match: {
+        user: creatorObjectId,
+        postDate: {
+          $gte: args.dateRange.startDate,
+          $lte: args.dateRange.endDate,
+        },
+      },
+    };
+    // Add non-null check for averageable metrics
+    if (needsNonNullCheck && metricFieldPath && metricFieldPath.startsWith('$')) {
+        // Remove '$' for field path in $match
+        matchStage.$match[metricFieldPath.substring(1)] = { $exists: true, $ne: null };
+    }
+
+
+    let groupId: any;
+    let dateProjection: any;
+
+    if (args.period === 'monthly') {
+      groupId = {
+        year: { $year: '$postDate' },
+        month: { $month: '$postDate' },
+      };
+      dateProjection = {
+        $dateFromParts: {
+          year: '$_id.year',
+          month: '$_id.month',
+          day: 1,
+        },
+      };
+    } else { // weekly
+      groupId = {
+        year: { $isoWeekYear: '$postDate' },
+        week: { $isoWeek: '$postDate' },
+      };
+      dateProjection = {
+        $dateFromParts: {
+          isoWeekYear: '$_id.year',
+          isoWeek: '$_id.week',
+          isoDayOfWeek: 1, // Monday
+        },
+      };
+    }
+
+    const groupStage: PipelineStage.Group = {
+      $group: {
+        _id: groupId,
+        rawValue: accumulator === '$sum' && !metricFieldPath
+            ? { $sum: 1 }
+            : { [accumulator!]: metricFieldPath } ,
+      },
+    };
+
+    const sortKey = args.period === 'monthly' ? { '_id.year': 1, '_id.month': 1 } : { '_id.year': 1, '_id.week': 1 };
+    const sortStage: PipelineStage.Sort = { $sort: sortKey };
+
+    const projectStage: PipelineStage.Project = {
+      $project: {
+        _id: 0,
+        date: dateProjection,
+        value: '$rawValue',
+      },
+    };
+
+    // For metrics like engagement rate, we might want to round the value
+    if (args.metric === 'avg_engagement_rate') {
+        projectStage.$project.value = { $round: ['$rawValue', 4] }; // Example: round to 4 decimal places
+    } else if (args.metric !== 'post_count' && accumulator === '$avg') { // Other averages
+        projectStage.$project.value = { $round: ['$rawValue', 2] }; // Example: round to 2 decimal places for likes/shares avg
+    }
+
+
+    const pipeline: PipelineStage[] = [matchStage, groupStage, sortStage, projectStage];
+    logger.debug(`${TAG} Aggregation pipeline: ${JSON.stringify(pipeline)}`);
+
+    const results = await MetricModel.aggregate(pipeline);
+    return results as ICreatorTimeSeriesDataPoint[];
+
+  } catch (error: any) {
+    logger.error(`${TAG} Error fetching time series data:`, error);
+    throw new DatabaseError(`Failed to fetch time series data: ${error.message}`);
+  }
+}
+
+
+// --- Helper function to map TopMoverMetric to actual DB field names ---
+// This assumes DailyMetricSnapshotModel stores fields like 'cumulative_likes', etc.
+// Adjust if field names in the model are different (e.g. camelCase or with 'stats.' prefix)
+function mapMetricToDbField(metric: TopMoverMetric): string {
+    // Example: if your TopMoverMetric is 'cumulativeLikes' but DB field is 'cumulative_likes'
+    // if (metric === 'cumulativeLikes') return 'cumulative_likes';
+    // For now, assuming they are the same or direct mapping:
+    return metric;
+}
+
+
+// --- Interfaces for Segment Performance Data ---
+export interface ISegmentDefinition { // Also used by Top Movers for contentFilters
+  format?: string;
+  proposal?: string;
+  context?: string;
+}
+
+export interface IFetchSegmentPerformanceArgs {
+  criteria: ISegmentDefinition;
+  dateRange: { startDate: Date; endDate: Date };
+}
+
+export interface ISegmentPerformanceResult {
+  postCount: number;
+  avgEngagementRate: number;
+  avgLikes: number;
+  avgShares: number;
+  avgComments: number;
+  // avgViews?: number; // Optional, or default to 0 if always included
+}
+
+
+// --- Interfaces for Top Movers Data ---
+export interface IPeriod {
+  startDate: Date;
+  endDate: Date;
+}
+
+export type TopMoverEntityType = 'content' | 'creator';
+
+// Assuming these are fields directly available in DailyMetricSnapshotModel or can be derived/mapped
+// These should align with fields in DailyMetricSnapshotModel. For this example, using direct field names.
+export type TopMoverMetric =
+  | 'cumulative_views'
+  | 'cumulative_likes'
+  | 'cumulative_shares'
+  | 'cumulative_comments'
+  | 'cumulative_saves' // Assuming 'saves' exists
+  | 'cumulative_reach' // Assuming 'reach' exists
+  | 'cumulative_impressions' // Assuming 'impressions' exists
+  | 'cumulative_total_interactions';
+  // Note: 'engagement_rate' itself is often not cumulative but calculated per post.
+  // If a cumulative or average engagement for a period is needed for a creator, it's a different calculation.
+  // For 'content' movers based on engagement, it might be about change in a post's own rate if snapshots store that.
+  // This interface currently focuses on cumulative metrics from DailyMetricSnapshotModel.
+
+export type TopMoverSortBy =
+  | 'absoluteChange_increase'
+  | 'absoluteChange_decrease'
+  | 'percentageChange_increase'
+  | 'percentageChange_decrease';
+
+// Minimal filters for creators for now, can be expanded
+export interface ITopMoverCreatorFilters {
+    planStatus?: string[];
+    inferredExpertiseLevel?: string[];
+}
+
+export interface IFetchTopMoversArgs {
+  entityType: TopMoverEntityType;
+  metric: TopMoverMetric;
+  currentPeriod: IPeriod;
+  previousPeriod: IPeriod; // For comparison
+  topN?: number;
+  sortBy?: TopMoverSortBy;
+  creatorFilters?: ITopMoverCreatorFilters; // Filters for entityType 'creator'
+  contentFilters?: ISegmentDefinition;   // Filters for entityType 'content'
+}
+
+export interface ITopMoverResult {
+  entityId: string; // ObjectId as string (contentId or creatorId)
+  entityName: string; // Post description/title or Creator name
+  profilePictureUrl?: string; // For creators
+  metricName: TopMoverMetric; // The metric that was analyzed
+  previousValue: number;
+  currentValue: number;
+  absoluteChange: number;
+  percentageChange: number | null; // Null if previousValue was 0
+}
+
+
+/**
+ * @function fetchTopMoversData
+ * @description Fetches top moving content or creators based on metric changes between two periods.
+ * @param {IFetchTopMoversArgs} args - Arguments defining the entity, metric, periods, and filters.
+ * @returns {Promise<ITopMoverResult[]>} - An array of top mover results.
+ */
+export async function fetchTopMoversData(
+  args: IFetchTopMoversArgs
+): Promise<ITopMoverResult[]> {
+  const TAG = `${SERVICE_TAG}[fetchTopMoversData]`;
+  logger.info(`${TAG} Fetching top movers for entity: ${args.entityType}, metric: ${args.metric}`);
+
+  try {
+    await connectToDatabase();
+
+    const {
+      entityType,
+      metric,
+      currentPeriod,
+      previousPeriod,
+      topN = 10,
+      sortBy = 'absoluteChange_decrease', // Default sort: biggest decreases
+      creatorFilters,
+      contentFilters,
+    } = args;
+
+    const mappedMetricField = mapMetricToDbField(metric);
+
+    let results: ITopMoverResult[] = [];
+
+    if (entityType === 'content') {
+      // --- Logic for Content Top Movers ---
+      let preFilteredPostIds: Types.ObjectId[] | null = null;
+
+      if (contentFilters && Object.keys(contentFilters).length > 0) {
+        const filterQuery: any = {};
+        if (contentFilters.format) filterQuery.format = contentFilters.format;
+        if (contentFilters.proposal) filterQuery.proposal = contentFilters.proposal;
+        if (contentFilters.context) filterQuery.context = contentFilters.context;
+        // Add date range to pre-filter if it makes sense, though snapshots are primary date filter
+        // filterQuery.postDate = { $gte: previousPeriod.startDate, $lte: currentPeriod.endDate };
+
+
+        logger.debug(`${TAG} Pre-filtering posts with criteria: ${JSON.stringify(filterQuery)}`);
+        const matchingMetrics = await MetricModel.find(filterQuery).select('_id').lean();
+        preFilteredPostIds = matchingMetrics.map(m => m._id);
+        if (preFilteredPostIds.length === 0) {
+          logger.info(`${TAG} No posts found matching contentFilters. Returning empty.`);
+          return [];
+        }
+        logger.info(`${TAG} Found ${preFilteredPostIds.length} posts after pre-filtering.`);
+      }
+
+      const snapshotMatch: PipelineStage.Match['$match'] = {
+        date: { $in: [previousPeriod.endDate, currentPeriod.endDate] },
+        [mappedMetricField]: { $exists: true, $ne: null }
+      };
+      if (preFilteredPostIds) {
+        snapshotMatch.metric = { $in: preFilteredPostIds }; // 'metric' field in DailyMetricSnapshot links to MetricModel's _id
+      }
+
+      const contentPipeline: PipelineStage[] = [
+        { $match: snapshotMatch },
+        { $sort: { metric: 1, date: 1 } }, // Sort by metric (postId) then date
+        {
+          $group: {
+            _id: "$metric", // Group by postId (which is 'metric' field in DailyMetricSnapshotModel)
+            values: { $push: { date: "$date", val: `$${mappedMetricField}` } }
+          }
+        },
+        {
+          $addFields: {
+            previousValueData: {
+              $let: {
+                vars: { prevDateData: { $filter: { input: "$values", as: "item", cond: { $eq: ["$$item.date", previousPeriod.endDate] } }}},
+                in: { $arrayElemAt: ["$$prevDateData", 0] }
+              }
+            },
+            currentValueData: {
+               $let: {
+                vars: { currDateData: { $filter: { input: "$values", as: "item", cond: { $eq: ["$$item.date", currentPeriod.endDate] } }}},
+                in: { $arrayElemAt: ["$$currDateData", 0] }
+              }
+            }
+          }
+        },
+        {
+          $addFields: {
+            previousValue: { $ifNull: ["$previousValueData.val", 0] },
+            currentValue: { $ifNull: ["$currentValueData.val", 0] }
+          }
+        },
+        // Filter out items that don't have data for both periods, or where values are identical (no change)
+        // Or items where both values are 0, unless 0 to X or X to 0 is a valid "mover"
+         {
+            $match: {
+                $or: [ // Keep if there's a change
+                    { $ne: ["$previousValue", "$currentValue"] }
+                ]
+                // Potentially add: $and: [ { $ne: ["$previousValue", null] }, { $ne: ["$currentValue", null] } ]
+                // if $ifNull was not used, but it is.
+            }
+        },
+        {
+          $addFields: {
+            absoluteChange: { $subtract: ["$currentValue", "$previousValue"] },
+            percentageChange: {
+              $cond: {
+                if: { $eq: ["$previousValue", 0] },
+                then: null, // Or a very large number if currentValue is > 0, or 0 if both are 0
+                else: { $divide: [{ $subtract: ["$currentValue", "$previousValue"] }, "$previousValue"] }
+              }
+            }
+          }
+        }
+      ];
+
+      // Sorting - apply based on sortBy
+      let sortStage: PipelineStage.Sort | null = null;
+      switch(sortBy) {
+          case 'absoluteChange_increase': sortStage = { $sort: { absoluteChange: -1 } }; break;
+          case 'absoluteChange_decrease': sortStage = { $sort: { absoluteChange: 1 } }; break;
+          case 'percentageChange_increase': sortStage = { $sort: { percentageChange: -1 } }; break;
+          case 'percentageChange_decrease': sortStage = { $sort: { percentageChange: 1 } }; break;
+      }
+      if (sortStage) contentPipeline.push(sortStage);
+
+      contentPipeline.push({ $limit: topN });
+
+      // Lookup for entityName (post description/title)
+      contentPipeline.push(
+        {
+          $lookup: {
+            from: 'metrics', // Collection name for MetricModel
+            localField: '_id', // which is metric (postId) from DailyMetricSnapshot
+            foreignField: '_id',
+            as: 'metricInfo'
+          }
+        },
+        { $unwind: { path: '$metricInfo', preserveNullAndEmptyArrays: true } }
+      );
+      // TODO: Could add another $lookup to users collection from metricInfo.user if creatorName needed for content
+
+      logger.debug(`${TAG} Content Top Movers Pipeline: ${JSON.stringify(contentPipeline)}`);
+      const aggregatedMovers = await DailyMetricSnapshotModel.aggregate(contentPipeline);
+
+      results = aggregatedMovers.map(mover => ({
+        entityId: mover._id.toString(),
+        entityName: mover.metricInfo?.description || mover.metricInfo?.text_content || 'Conteúdo Desconhecido',
+        // profilePictureUrl: undefined, // Not applicable for content directly
+        metricName: metric,
+        previousValue: mover.previousValue,
+        currentValue: mover.currentValue,
+        absoluteChange: mover.absoluteChange,
+        percentageChange: mover.percentageChange,
+      }));
+
+    } else { // entityType === 'creator'
+      // --- Logic for Creator Top Movers ---
+      logger.warn(`${TAG} Creator top movers not fully implemented yet.`);
+      // This part is significantly more complex due to needing to sum snapshots per creator first,
+      // then diff those sums. This requires careful pipeline design.
+
+      // Placeholder:
+      // 1. Pre-filter creators using UserModel if creatorFilters are provided.
+      // 2. Aggregate DailyMetricSnapshotModel:
+      //    - $match for dates and pre-filtered creator IDs (via lookup to metrics then users, or if creatorId is on snapshot)
+      //    - $group by { creatorId, date } to sum the mappedMetricField for all posts of a creator on a given snapshot date.
+      //    - $group again by { creatorId } to pivot, pushing {date, totalValueForDate} into an array.
+      //    - $addFields to extract previousValue and currentValue from this array for the two period end dates.
+      //    - $addFields to calculate absoluteChange and percentageChange.
+      //    - $sort and $limit.
+      //    - $lookup to UserModel to populate entityName and profilePictureUrl.
+      //    - Map to ITopMoverResult.
+      results = []; // Placeholder
+    }
+
+    return results;
+
+  } catch (error: any) {
+    logger.error(`${TAG} Error fetching top movers data:`, error);
+    throw new DatabaseError(`Failed to fetch top movers data: ${error.message}`);
+  }
+}
+
+
+/**
+ * @function fetchSegmentPerformanceData
+ * @description Fetches aggregated performance metrics for a specific content segment.
+ * @param {IFetchSegmentPerformanceArgs} args - Arguments defining the segment and date range.
+ * @returns {Promise<ISegmentPerformanceResult>} - Aggregated performance data for the segment.
+ */
+export async function fetchSegmentPerformanceData(
+  args: IFetchSegmentPerformanceArgs
+): Promise<ISegmentPerformanceResult> {
+  const TAG = `${SERVICE_TAG}[fetchSegmentPerformanceData]`;
+  logger.info(`${TAG} Fetching performance data for segment: ${JSON.stringify(args.criteria)} within date range: ${args.dateRange.startDate} - ${args.dateRange.endDate}`);
+
+  try {
+    await connectToDatabase();
+
+    const { criteria, dateRange } = args;
+    const matchQuery: PipelineStage.Match['$match'] = {
+      postDate: {
+        $gte: dateRange.startDate,
+        $lte: dateRange.endDate,
+      },
+      // Ensure fields for averaging exist and are not null to prevent errors/skewed results
+      'stats.engagement_rate_on_reach': { $exists: true, $ne: null },
+      'stats.likes': { $exists: true, $ne: null },
+      'stats.shares': { $exists: true, $ne: null },
+      'stats.comments': { $exists: true, $ne: null },
+      // 'stats.views': { $exists: true, $ne: null }, // If avgViews is included
+    };
+
+    if (criteria.format && criteria.format.trim() !== '') {
+      matchQuery.format = criteria.format;
+    }
+    if (criteria.proposal && criteria.proposal.trim() !== '') {
+      matchQuery.proposal = criteria.proposal;
+    }
+    if (criteria.context && criteria.context.trim() !== '') {
+      matchQuery.context = criteria.context;
+    }
+
+    const aggregationPipeline: PipelineStage[] = [
+      { $match: matchQuery },
+      {
+        $group: {
+          _id: null, // Group all matched documents into a single result
+          postCount: { $sum: 1 },
+          avgEngagementRate: { $avg: "$stats.engagement_rate_on_reach" },
+          avgLikes: { $avg: "$stats.likes" },
+          avgShares: { $avg: "$stats.shares" },
+          avgComments: { $avg: "$stats.comments" },
+          // avgViews: { $avg: "$stats.views" }, // If avgViews is included
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          postCount: { $ifNull: ["$postCount", 0] }, // Ensure postCount is 0 if group stage yields no doc
+          avgEngagementRate: { $ifNull: ["$avgEngagementRate", 0] },
+          avgLikes: { $ifNull: ["$avgLikes", 0] },
+          avgShares: { $ifNull: ["$avgShares", 0] },
+          avgComments: { $ifNull: ["$avgComments", 0] },
+          // avgViews: { $ifNull: ["$avgViews", 0] }, // If avgViews is included
+        }
+      }
+    ];
+
+    logger.debug(`${TAG} Aggregation pipeline: ${JSON.stringify(aggregationPipeline)}`);
+    const results = await MetricModel.aggregate(aggregationPipeline);
+
+    if (results.length > 0) {
+      logger.info(`${TAG} Successfully fetched segment performance data.`);
+      return results[0] as ISegmentPerformanceResult; // The $project stage ensures fields match
+    } else {
+      logger.info(`${TAG} No data found for the specified segment. Returning default zeroed values.`);
+      // Return default zeroed result if no documents matched the criteria
+      return {
+        postCount: 0,
+        avgEngagementRate: 0,
+        avgLikes: 0,
+        avgShares: 0,
+        avgComments: 0,
+        // avgViews: 0, // If avgViews is included
+      };
+    }
+
+  } catch (error: any) {
+    logger.error(`${TAG} Error fetching segment performance data:`, error);
+    throw new DatabaseError(`Failed to fetch segment performance data: ${error.message}`);
+  }
 }
