@@ -8,11 +8,13 @@ import { ITopMoverResult } from '@/app/lib/dataService/marketAnalysisService';
 global.fetch = jest.fn();
 
 // Mock Heroicons
+const React = require('react'); // Import React for creating elements if needed in mocks
+
 jest.mock('@heroicons/react/24/outline', () => ({
-  ArrowUpIcon: () => <svg data-testid="arrow-up" />,
-  ArrowDownIcon: () => <svg data-testid="arrow-down" />,
-  ExclamationTriangleIcon: () => <svg data-testid="exclamation-icon" />,
-  ChartBarIcon: () => <svg data-testid="chartbar-icon" />,
+  ArrowUpIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'arrow-up-icon' }),
+  ArrowDownIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'arrow-down-icon' }),
+  ExclamationTriangleIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'exclamation-icon' }),
+  ChartBarIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'chartbar-icon' }),
 }));
 
 const mockTopMoversData: ITopMoverResult[] = [

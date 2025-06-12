@@ -9,20 +9,21 @@ import { Types } from 'mongoose';
 global.fetch = jest.fn();
 
 // Mock Heroicons
+// For Jest to transform JSX in the mock factory, the factory itself needs to be a module or use React.createElement
+// A simpler way for icons if they don't have complex logic is to mock them as simple components.
+const React = require('react'); // Import React for creating elements if needed in mocks
+
 jest.mock('@heroicons/react/24/solid', () => ({
-  ChevronUpIcon: () => <div data-testid="chevron-up-icon" />,
-  ChevronDownIcon: () => <div data-testid="chevron-down-icon" />,
-  // Mock XMarkIcon if it were used directly in CreatorTable, but it's in CreatorDetailModal
+  ChevronUpIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'chevron-up-icon' }),
+  ChevronDownIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'chevron-down-icon' }),
 }));
 
 // Mock CreatorDetailModal (already lazy-loaded in component, so this mock is for the dynamic import)
 jest.mock('./CreatorDetailModal', () => {
     const MockCreatorDetailModal = jest.fn(({ isOpen, onClose, creatorName }) =>
-        isOpen ? (
-            <div data-testid="mock-creator-detail-modal">
-                <h2>Modal for {creatorName}</h2>
-                <button onClick={onClose}>Close Modal</button>
-            </div>
+        isOpen ? React.createElement('div', { 'data-testid': 'mock-creator-detail-modal' },
+            React.createElement('h2', null, `Modal for ${creatorName}`),
+            React.createElement('button', { onClick: onClose }, 'Close Modal')
         ) : null
     );
     return { __esModule: true, default: MockCreatorDetailModal };
@@ -31,11 +32,9 @@ jest.mock('./CreatorDetailModal', () => {
 // Mock CreatorComparisonModal (lazy-loaded in component)
 jest.mock('./CreatorComparisonModal', () => {
     const MockCreatorComparisonModal = jest.fn(({ isOpen, onClose, creatorIdsToCompare }) =>
-        isOpen ? (
-            <div data-testid="mock-creator-comparison-modal">
-                <h3>Comparing: {creatorIdsToCompare.join(', ')}</h3>
-                <button onClick={onClose}>Close Comparison</button>
-            </div>
+        isOpen ? React.createElement('div', { 'data-testid': 'mock-creator-comparison-modal' },
+            React.createElement('h3', null, `Comparing: ${creatorIdsToCompare.join(', ')}`),
+            React.createElement('button', { onClick: onClose }, 'Close Comparison')
         ) : null
     );
     return { __esModule: true, default: MockCreatorComparisonModal };

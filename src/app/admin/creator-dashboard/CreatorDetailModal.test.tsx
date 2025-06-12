@@ -6,18 +6,23 @@ import CreatorDetailModal from './CreatorDetailModal';
 // Mock global fetch
 global.fetch = jest.fn();
 
+import React from 'react'; // Standard import for React at the top
+
 // Mock CreatorTimeSeriesChart
-jest.mock('./CreatorTimeSeriesChart', () => ({
-  __esModule: true,
-  default: jest.fn(({ isLoading, error, data, metricLabel }) => (
+jest.mock('./CreatorTimeSeriesChart', () => jest.fn(({ isLoading, error, data, metricLabel }) => (
     <div data-testid="mock-chart">
       {isLoading && <p>Chart Loading...</p>}
       {error && <p>Chart Error: {error}</p>}
-      {data && data.length > 0 && <p>Chart Data for: {metricLabel} ({data.length} points)</p>}
-      {data && data.length === 0 && <p>No Chart Data for: {metricLabel}</p>}
+      {data && data.length > 0 && <p>{`Chart Data for: ${metricLabel} (${data.length} points)`}</p>}
+      {data && data.length === 0 && <p>{`No Chart Data for: ${metricLabel}`}</p>}
     </div>
-  )),
+)));
+
+// Mock XMarkIcon from Heroicons
+jest.mock('@heroicons/react/24/solid', () => ({
+  XMarkIcon: jest.fn(() => <div data-testid="x-mark-icon" />),
 }));
+
 
 const mockCreatorTimeSeriesChart = require('./CreatorTimeSeriesChart').default;
 
@@ -33,7 +38,7 @@ const defaultProps = {
 describe('CreatorDetailModal Component', () => {
   beforeEach(() => {
     (fetch as jest.Mock).mockClear();
-    mockCreatorTimeSeriesChart.mockClear();
+    mockCreatorTimeSeriesChart.mockClear(); // Clear mock calls
     defaultProps.onClose.mockClear();
 
     // Default successful fetch for initial load

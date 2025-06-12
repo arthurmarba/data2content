@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server';
 import { Types } from 'mongoose';
 import { fetchMultipleCreatorProfiles } from '@/app/lib/dataService/marketAnalysisService';
 import { logger } from '@/app/lib/logger';
+import { DatabaseError } from '@/app/lib/errors'; // Import DatabaseError
 
 // Mock logger
 jest.mock('@/app/lib/logger', () => ({

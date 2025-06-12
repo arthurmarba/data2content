@@ -4,24 +4,24 @@ import '@testing-library/jest-dom';
 import CreatorTimeSeriesChart, { ICreatorTimeSeriesDataPoint } from './CreatorTimeSeriesChart';
 
 // Mock recharts (as done in previous similar tests)
+const React = require('react'); // For mocks
+
 jest.mock('recharts', () => {
   const OriginalRecharts = jest.requireActual('recharts');
   return {
     ...OriginalRecharts,
-    ResponsiveContainer: ({ children }: { children: React.ReactNode }) => (
-      <div className="recharts-responsive-container" data-testid="responsive-container">
-        {children}
-      </div>
-    ),
-    LineChart: ({ children }: { children: React.ReactNode }) => <div data-testid="line-chart">{children}</div>,
-    BarChart: ({ children }: { children: React.ReactNode }) => <div data-testid="bar-chart">{children}</div>,
-    XAxis: () => <div data-testid="xaxis">XAxis</div>,
-    YAxis: () => <div data-testid="yaxis">YAxis</div>,
-    CartesianGrid: () => <div data-testid="grid">CartesianGrid</div>,
-    Tooltip: () => <div data-testid="tooltip">Tooltip</div>,
-    Legend: () => <div data-testid="legend">Legend</div>,
-    Line: ({ name }: { name: string }) => <div data-testid="line-element" data-name={name}>Line: {name}</div>,
-    Bar: ({ name }: { name: string }) => <div data-testid="bar-element" data-name={name}>Bar: {name}</div>,
+    ResponsiveContainer: (props) => React.createElement('div', { ...props, "data-testid": "responsive-container" }),
+    LineChart: (props) => React.createElement('div', { ...props, "data-testid": "line-chart" }),
+    BarChart: (props) => React.createElement('div', { ...props, "data-testid": "bar-chart" }),
+    XAxis: (props) => React.createElement('div', { ...props, "data-testid": "xaxis" }, "XAxis"),
+    YAxis: (props) => React.createElement('div', { ...props, "data-testid": "yaxis" }, "YAxis"),
+    CartesianGrid: (props) => React.createElement('div', { ...props, "data-testid": "grid" }, "CartesianGrid"),
+    Tooltip: (props) => React.createElement('div', { ...props, "data-testid": "tooltip" }, "Tooltip"),
+    Legend: (props) => React.createElement('div', { ...props, "data-testid": "legend" }, "Legend"),
+    Line: (props) => React.createElement('div', { ...props, "data-testid": "line-element", "data-name": props.name }, `Line: ${props.name}`),
+    Bar: (props) => React.createElement('div', { ...props, "data-testid": "bar-element", "data-name": props.name }, `Bar: ${props.name}`),
+    // Cell is often used internally by Pie, ensure it's a valid component if Pie is deeply mocked
+    Cell: (props) => React.createElement('div', { ...props, "data-testid": "cell-element" }, "Cell"),
   };
 });
 

@@ -8,10 +8,12 @@ import { SegmentComparisonResultItem } from '@/app/api/admin/dashboard/content-s
 global.fetch = jest.fn();
 
 // Mock Heroicons
+const React = require('react'); // Import React for creating elements if needed in mocks
+
 jest.mock('@heroicons/react/24/outline', () => ({
-  PlusIcon: () => <div data-testid="plus-icon" />,
-  TrashIcon: () => <div data-testid="trash-icon" />,
-  ExclamationTriangleIcon: () => <div data-testid="exclamation-icon" />,
+  PlusIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'plus-icon' }),
+  TrashIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'trash-icon' }),
+  ExclamationTriangleIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'exclamation-icon' }),
 }));
 
 // Mock next/image (if used for anything else, not directly by this component from props)

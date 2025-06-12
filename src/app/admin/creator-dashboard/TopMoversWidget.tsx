@@ -29,7 +29,7 @@ const initialPeriodState: PeriodState = { startDate: '', endDate: '' };
 
 const ENTITY_TYPE_OPTIONS: { value: TopMoverEntityType; label: string; disabled?: boolean }[] = [
     { value: 'content', label: 'Conteúdo' },
-    { value: 'creator', label: 'Criador (Em Breve)', disabled: true },
+    { value: 'creator', label: 'Criador' }, // Removed disabled: true
 ];
 
 const METRIC_OPTIONS: { value: TopMoverMetric; label: string }[] = [
@@ -75,8 +75,8 @@ export default function TopMoversWidget() {
   const [topN, setTopN] = useState<number>(10);
   const [sortBy, setSortBy] = useState<TopMoverSortBy>('absoluteChange_decrease');
 
-  // Simplified content filters for this pass
   const [contentFilters, setContentFilters] = useState<ISegmentDefinition>({});
+  // creatorFilters state can be added here if UI is built for them. For now, it's passed as undefined.
 
   const [results, setResults] = useState<ITopMoverResult[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -117,17 +117,18 @@ export default function TopMoversWidget() {
     if (!validatePeriods()) {
       return;
     }
-    if (entityType === 'creator') {
-        setError("A análise de Top Movers para 'Criador' ainda não está implementada.");
-        setResults(null);
-        return;
-    }
+    // Removed client-side block for entityType === 'creator'
+    // if (entityType === 'creator') {
+    //     setError("A análise de Top Movers para 'Criador' ainda não está implementada.");
+    //     setResults(null);
+    //     return;
+    // }
 
     setIsLoading(true);
     setError(null);
     setResults(null);
 
-    const payload = {
+    const apiPayload: any = { // Using 'any' temporarily for flexibility before stricter typing
       entityType,
       metric,
       previousPeriod: {
@@ -140,9 +141,15 @@ export default function TopMoversWidget() {
       },
       topN,
       sortBy,
-      contentFilters: Object.keys(contentFilters).length > 0 ? contentFilters : undefined,
-      // creatorFilters: undefined, // Placeholder if needed later
     };
+
+    if (entityType === 'content' && Object.keys(contentFilters).length > 0) {
+      apiPayload.contentFilters = contentFilters;
+    } else if (entityType === 'creator') {
+      // apiPayload.creatorFilters = {}; // Send empty object or undefined if no UI for these yet
+      apiPayload.creatorFilters = undefined;
+    }
+
 
     try {
       const response = await fetch('/api/admin/dashboard/top-movers', {
@@ -291,10 +298,10 @@ export default function TopMoversWidget() {
       <div className="mt-4 flex flex-col items-start">
         <button
             onClick={handleFetchTopMovers}
-            disabled={isLoading || entityType === 'creator' || !!validationError}
+            disabled={isLoading || !!validationError} // Removed entityType === 'creator' from disabled condition
             className="px-5 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed text-sm"
         >
-            {isLoading ? 'Analisando...' : 'Analisar Top Movers'}
+            {isLoading ? 'Analisando...' : `Analisar Top ${entityType === 'content' ? 'Conteúdos' : 'Criadores'}`}
         </button>
         {validationError && (
             <p className="text-xs text-red-500 dark:text-red-400 mt-2 flex items-center">
@@ -322,7 +329,7 @@ export default function TopMoversWidget() {
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
               <thead className="bg-gray-50 dark:bg-gray-700/50">
                 <tr>
-                  <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Entidade</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{entityType === 'content' ? 'Conteúdo' : 'Criador'}</th>
                   <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Valor Anterior ({METRIC_OPTIONS.find(m=>m.value === metric)?.label})</th>
                   <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Valor Atual</th>
                   <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Mudança Absoluta</th>
@@ -332,7 +339,19 @@ export default function TopMoversWidget() {
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {results.map((item) => (
                   <tr key={item.entityId} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                    <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-800 dark:text-gray-100 max-w-[200px] truncate" title={item.entityName}>{item.entityName}</td>
+                    <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-800 dark:text-gray-100">
+                      <div className="flex items-center">
+                        {entityType === 'creator' && item.profilePictureUrl && (
+                          <Image src={item.profilePictureUrl} alt={item.entityName} width={24} height={24} className="h-6 w-6 rounded-full mr-2 object-cover" />
+                        )}
+                        {entityType === 'creator' && !item.profilePictureUrl && (
+                           <div className="h-6 w-6 rounded-full bg-gray-200 dark:bg-gray-600 mr-2 flex items-center justify-center text-xs">
+                                {item.entityName?.substring(0,1).toUpperCase()}
+                           </div>
+                        )}
+                        <span className="max-w-[150px] truncate" title={item.entityName}>{item.entityName}</span>
+                      </div>
+                    </td>
                     <td className="px-3 py-2 whitespace-nowrap text-right text-gray-500 dark:text-gray-400">{formatDisplayNumberTM(item.previousValue)}</td>
                     <td className="px-3 py-2 whitespace-nowrap text-right text-gray-500 dark:text-gray-400">{formatDisplayNumberTM(item.currentValue)}</td>
                     <td className={`px-3 py-2 whitespace-nowrap text-right font-semibold ${item.absoluteChange > 0 ? 'text-green-600 dark:text-green-400' : item.absoluteChange < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>

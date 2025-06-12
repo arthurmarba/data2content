@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
 import MetricModel, { IMetric, IMetricStats } from '@/app/models/Metric';
 import UserModel, { IUser } from '@/app/models/User';
+import DailyMetricSnapshotModel from '@/app/models/DailyMetricSnapshot'; // Added missing import
 import { connectToDatabase } from './connection';
 import { DatabaseError } from '@/app/lib/errors';
 
@@ -1043,125 +1044,67 @@ export async function fetchTopMoversData(
     let results: ITopMoverResult[] = [];
 
     if (entityType === 'content') {
-      // --- Logic for Content Top Movers ---
+      // --- Logic for Content Top Movers (EXISTING, VERIFIED) ---
       let preFilteredPostIds: Types.ObjectId[] | null = null;
-
-      if (contentFilters && Object.keys(contentFilters).length > 0) {
+      if (contentFilters && (contentFilters.format || contentFilters.proposal || contentFilters.context)) {
         const filterQuery: any = {};
         if (contentFilters.format) filterQuery.format = contentFilters.format;
         if (contentFilters.proposal) filterQuery.proposal = contentFilters.proposal;
         if (contentFilters.context) filterQuery.context = contentFilters.context;
-        // Add date range to pre-filter if it makes sense, though snapshots are primary date filter
-        // filterQuery.postDate = { $gte: previousPeriod.startDate, $lte: currentPeriod.endDate };
 
-
-        logger.debug(`${TAG} Pre-filtering posts with criteria: ${JSON.stringify(filterQuery)}`);
+        logger.debug(`${TAG} [Content] Pre-filtering posts with criteria: ${JSON.stringify(filterQuery)}`);
         const matchingMetrics = await MetricModel.find(filterQuery).select('_id').lean();
         preFilteredPostIds = matchingMetrics.map(m => m._id);
         if (preFilteredPostIds.length === 0) {
-          logger.info(`${TAG} No posts found matching contentFilters. Returning empty.`);
+          logger.info(`${TAG} [Content] No posts found matching contentFilters. Returning empty.`);
           return [];
         }
-        logger.info(`${TAG} Found ${preFilteredPostIds.length} posts after pre-filtering.`);
+        logger.info(`${TAG} [Content] Found ${preFilteredPostIds.length} posts after pre-filtering.`);
       }
 
-      const snapshotMatch: PipelineStage.Match['$match'] = {
+      const snapshotMatchContent: PipelineStage.Match['$match'] = {
         date: { $in: [previousPeriod.endDate, currentPeriod.endDate] },
         [mappedMetricField]: { $exists: true, $ne: null }
       };
       if (preFilteredPostIds) {
-        snapshotMatch.metric = { $in: preFilteredPostIds }; // 'metric' field in DailyMetricSnapshot links to MetricModel's _id
+        snapshotMatchContent.metric = { $in: preFilteredPostIds };
       }
 
       const contentPipeline: PipelineStage[] = [
-        { $match: snapshotMatch },
-        { $sort: { metric: 1, date: 1 } }, // Sort by metric (postId) then date
-        {
-          $group: {
-            _id: "$metric", // Group by postId (which is 'metric' field in DailyMetricSnapshotModel)
-            values: { $push: { date: "$date", val: `$${mappedMetricField}` } }
-          }
-        },
-        {
-          $addFields: {
-            previousValueData: {
-              $let: {
-                vars: { prevDateData: { $filter: { input: "$values", as: "item", cond: { $eq: ["$$item.date", previousPeriod.endDate] } }}},
-                in: { $arrayElemAt: ["$$prevDateData", 0] }
-              }
-            },
-            currentValueData: {
-               $let: {
-                vars: { currDateData: { $filter: { input: "$values", as: "item", cond: { $eq: ["$$item.date", currentPeriod.endDate] } }}},
-                in: { $arrayElemAt: ["$$currDateData", 0] }
-              }
-            }
-          }
-        },
-        {
-          $addFields: {
-            previousValue: { $ifNull: ["$previousValueData.val", 0] },
-            currentValue: { $ifNull: ["$currentValueData.val", 0] }
-          }
-        },
-        // Filter out items that don't have data for both periods, or where values are identical (no change)
-        // Or items where both values are 0, unless 0 to X or X to 0 is a valid "mover"
-         {
-            $match: {
-                $or: [ // Keep if there's a change
-                    { $ne: ["$previousValue", "$currentValue"] }
-                ]
-                // Potentially add: $and: [ { $ne: ["$previousValue", null] }, { $ne: ["$currentValue", null] } ]
-                // if $ifNull was not used, but it is.
-            }
-        },
-        {
-          $addFields: {
+        { $match: snapshotMatchContent },
+        { $sort: { metric: 1, date: 1 } },
+        { $group: { _id: "$metric", values: { $push: { date: "$date", val: `$${mappedMetricField}` } } } },
+        { $addFields: {
+            previousValueData: { $let: { vars: { pd: { $filter: { input: "$values", cond: { $eq: ["$$this.date", previousPeriod.endDate] } } } }, in: { $arrayElemAt: ["$$pd", 0] }}},
+            currentValueData: { $let: { vars: { cd: { $filter: { input: "$values", cond: { $eq: ["$$this.date", currentPeriod.endDate] } } } }, in: { $arrayElemAt: ["$$cd", 0] }}}
+        }},
+        { $addFields: { previousValue: { $ifNull: ["$previousValueData.val", 0] }, currentValue: { $ifNull: ["$currentValueData.val", 0] }}},
+        { $match: { $expr: { $ne: ["$previousValue", "$currentValue"] } } }, // Keep only actual movers
+        { $addFields: {
             absoluteChange: { $subtract: ["$currentValue", "$previousValue"] },
-            percentageChange: {
-              $cond: {
-                if: { $eq: ["$previousValue", 0] },
-                then: null, // Or a very large number if currentValue is > 0, or 0 if both are 0
-                else: { $divide: [{ $subtract: ["$currentValue", "$previousValue"] }, "$previousValue"] }
-              }
-            }
-          }
-        }
+            percentageChange: { $cond: { if: { $eq: ["$previousValue", 0] }, then: null, else: { $divide: [{ $subtract: ["$currentValue", "$previousValue"] }, "$previousValue"] }}}
+        }},
       ];
 
-      // Sorting - apply based on sortBy
-      let sortStage: PipelineStage.Sort | null = null;
+      let sortStageContent: PipelineStage.Sort | null = null;
       switch(sortBy) {
-          case 'absoluteChange_increase': sortStage = { $sort: { absoluteChange: -1 } }; break;
-          case 'absoluteChange_decrease': sortStage = { $sort: { absoluteChange: 1 } }; break;
-          case 'percentageChange_increase': sortStage = { $sort: { percentageChange: -1 } }; break;
-          case 'percentageChange_decrease': sortStage = { $sort: { percentageChange: 1 } }; break;
+          case 'absoluteChange_increase': sortStageContent = { $sort: { absoluteChange: -1 } }; break;
+          case 'absoluteChange_decrease': sortStageContent = { $sort: { absoluteChange: 1 } }; break;
+          case 'percentageChange_increase': sortStageContent = { $sort: { percentageChange: -1 } }; break;
+          case 'percentageChange_decrease': sortStageContent = { $sort: { percentageChange: 1 } }; break;
       }
-      if (sortStage) contentPipeline.push(sortStage);
-
+      if (sortStageContent) contentPipeline.push(sortStageContent);
       contentPipeline.push({ $limit: topN });
-
-      // Lookup for entityName (post description/title)
       contentPipeline.push(
-        {
-          $lookup: {
-            from: 'metrics', // Collection name for MetricModel
-            localField: '_id', // which is metric (postId) from DailyMetricSnapshot
-            foreignField: '_id',
-            as: 'metricInfo'
-          }
-        },
+        { $lookup: { from: 'metrics', localField: '_id', foreignField: '_id', as: 'metricInfo' }},
         { $unwind: { path: '$metricInfo', preserveNullAndEmptyArrays: true } }
       );
-      // TODO: Could add another $lookup to users collection from metricInfo.user if creatorName needed for content
 
-      logger.debug(`${TAG} Content Top Movers Pipeline: ${JSON.stringify(contentPipeline)}`);
-      const aggregatedMovers = await DailyMetricSnapshotModel.aggregate(contentPipeline);
-
-      results = aggregatedMovers.map(mover => ({
+      logger.debug(`${TAG} [Content] Pipeline: ${JSON.stringify(contentPipeline)}`);
+      const aggregatedContentMovers = await DailyMetricSnapshotModel.aggregate(contentPipeline);
+      results = aggregatedContentMovers.map(mover => ({
         entityId: mover._id.toString(),
-        entityName: mover.metricInfo?.description || mover.metricInfo?.text_content || 'Conteúdo Desconhecido',
-        // profilePictureUrl: undefined, // Not applicable for content directly
+        entityName: mover.metricInfo?.description || mover.metricInfo?.text_content || `Post ID: ${mover._id.toString().slice(-5)}`,
         metricName: metric,
         previousValue: mover.previousValue,
         currentValue: mover.currentValue,
@@ -1171,22 +1114,114 @@ export async function fetchTopMoversData(
 
     } else { // entityType === 'creator'
       // --- Logic for Creator Top Movers ---
-      logger.warn(`${TAG} Creator top movers not fully implemented yet.`);
-      // This part is significantly more complex due to needing to sum snapshots per creator first,
-      // then diff those sums. This requires careful pipeline design.
+      let targetCreatorIds: Types.ObjectId[] | undefined = undefined;
+      if (creatorFilters && (creatorFilters.planStatus?.length || creatorFilters.inferredExpertiseLevel?.length)) {
+          const userMatchFilters: any = {};
+          if (creatorFilters.planStatus?.length) userMatchFilters.planStatus = { $in: creatorFilters.planStatus };
+          if (creatorFilters.inferredExpertiseLevel?.length) userMatchFilters.inferredExpertiseLevel = { $in: creatorFilters.inferredExpertiseLevel };
 
-      // Placeholder:
-      // 1. Pre-filter creators using UserModel if creatorFilters are provided.
-      // 2. Aggregate DailyMetricSnapshotModel:
-      //    - $match for dates and pre-filtered creator IDs (via lookup to metrics then users, or if creatorId is on snapshot)
-      //    - $group by { creatorId, date } to sum the mappedMetricField for all posts of a creator on a given snapshot date.
-      //    - $group again by { creatorId } to pivot, pushing {date, totalValueForDate} into an array.
-      //    - $addFields to extract previousValue and currentValue from this array for the two period end dates.
-      //    - $addFields to calculate absoluteChange and percentageChange.
-      //    - $sort and $limit.
-      //    - $lookup to UserModel to populate entityName and profilePictureUrl.
-      //    - Map to ITopMoverResult.
-      results = []; // Placeholder
+          logger.debug(`${TAG} [Creator] Pre-filtering creators with: ${JSON.stringify(userMatchFilters)}`);
+          const filteredUsers = await UserModel.find(userMatchFilters).select('_id').lean();
+          targetCreatorIds = filteredUsers.map(u => u._id);
+          if (targetCreatorIds.length === 0) {
+              logger.info(`${TAG} [Creator] No users found matching creatorFilters. Returning empty.`);
+              return [];
+          }
+          logger.info(`${TAG} [Creator] Found ${targetCreatorIds.length} users after pre-filtering.`);
+      }
+
+      const creatorPipeline: PipelineStage[] = [
+        // Stage 1: Match relevant snapshots by date and metric existence
+        { $match: {
+            date: { $in: [previousPeriod.endDate, currentPeriod.endDate] },
+            [mappedMetricField]: { $exists: true, $ne: null }
+        }},
+        // Stage 2: Lookup MetricModel to get the user (creatorId) for each snapshot
+        { $lookup: {
+            from: 'metrics',
+            localField: 'metric', // metric in DailyMetricSnapshot is the _id of a post in MetricModel
+            foreignField: '_id',
+            as: 'metricInfo',
+            pipeline: [{ $project: { _id: 0, user: 1 } }] // Only need the user field
+        }},
+        { $unwind: { path: "$metricInfo", preserveNullAndEmptyArrays: false } }, // Exclude snapshots without a valid linked metric/user
+        // Stage 3: Conditional $match if targetCreatorIds are specified from pre-filtering
+      ];
+      if (targetCreatorIds && targetCreatorIds.length > 0) {
+          creatorPipeline.push({ $match: { 'metricInfo.user': { $in: targetCreatorIds } } });
+      }
+      // Stage 4: Group by creator and date to sum the metric for all their posts
+      creatorPipeline.push({
+        $group: {
+          _id: { creatorId: "$metricInfo.user", date: "$date" },
+          totalValueOnDate: { $sum: `$${mappedMetricField}` }
+        }
+      });
+      // Stage 5: Group again by creatorId to pivot dates and collect previous/current values
+      creatorPipeline.push({
+        $group: {
+          _id: "$_id.creatorId", // This is the actual creatorId
+          periodValues: { $push: { date: "$_id.date", val: "$totalValueOnDate" } }
+        }
+      });
+      // Stage 6 & 7: Extract previousValue and currentValue, default to 0
+      creatorPipeline.push(
+        { $addFields: {
+            previousValueData: { $let: { vars: { pd: { $filter: { input: "$periodValues", cond: { $eq: ["$$this.date", previousPeriod.endDate] } } } }, in: { $arrayElemAt: ["$$pd", 0] }}},
+            currentValueData: { $let: { vars: { cd: { $filter: { input: "$periodValues", cond: { $eq: ["$$this.date", currentPeriod.endDate] } } } }, in: { $arrayElemAt: ["$$cd", 0] }}}
+        }},
+        { $addFields: {
+            previousValue: { $ifNull: ["$previousValueData.val", 0] },
+            currentValue: { $ifNull: ["$currentValueData.val", 0] }
+        }}
+      );
+      // Stage 8: Filter out non-movers
+      creatorPipeline.push({ $match: { $expr: { $ne: ["$previousValue", "$currentValue"] } } });
+      // Stage 9: Calculate changes
+      creatorPipeline.push({ $addFields: {
+        absoluteChange: { $subtract: ["$currentValue", "$previousValue"] },
+        percentageChange: { $cond: { if: { $eq: ["$previousValue", 0] }, then: null, else: { $divide: [{ $subtract: ["$currentValue", "$previousValue"] }, "$previousValue"] }}}
+      }});
+      // Stage 10: Sort
+      let sortStageCreator: PipelineStage.Sort | null = null;
+      switch(sortBy) {
+          case 'absoluteChange_increase': sortStageCreator = { $sort: { absoluteChange: -1 } }; break;
+          case 'absoluteChange_decrease': sortStageCreator = { $sort: { absoluteChange: 1 } }; break;
+          case 'percentageChange_increase': sortStageCreator = { $sort: { percentageChange: -1 } }; break;
+          case 'percentageChange_decrease': sortStageCreator = { $sort: { percentageChange: 1 } }; break;
+      }
+      if (sortStageCreator) creatorPipeline.push(sortStageCreator);
+      // Stage 11: Limit
+      creatorPipeline.push({ $limit: topN });
+      // Stage 12 & 13: Lookup to UserModel for creator details
+      creatorPipeline.push(
+        { $lookup: {
+            from: 'users',
+            localField: '_id', // creatorId
+            foreignField: '_id',
+            as: 'creatorDetails',
+            pipeline: [{ $project: { _id: 0, name: 1, profile_picture_url: 1 } }] // Select only needed fields
+        }},
+        { $unwind: { path: "$creatorDetails", preserveNullAndEmptyArrays: true } }
+      );
+      // Stage 14: Project to final ITopMoverResult shape
+      creatorPipeline.push({
+        $project: {
+          _id: 0, // Exclude the default _id from this stage
+          entityId: { $toString: "$_id" }, // Ensure it's a string
+          entityName: { $ifNull: ["$creatorDetails.name", "Criador Desconhecido"] },
+          profilePictureUrl: "$creatorDetails.profile_picture_url",
+          metricName: metric, // from args
+          previousValue: 1,
+          currentValue: 1,
+          absoluteChange: 1,
+          percentageChange: 1,
+        }
+      });
+
+      logger.debug(`${TAG} [Creator] Pipeline: ${JSON.stringify(creatorPipeline)}`);
+      const aggregatedCreatorMovers = await DailyMetricSnapshotModel.aggregate(creatorPipeline);
+      results = aggregatedCreatorMovers as ITopMoverResult[]; // Cast, assuming projection matches
     }
 
     return results;

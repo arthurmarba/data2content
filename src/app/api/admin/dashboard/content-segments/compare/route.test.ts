@@ -2,6 +2,7 @@ import { POST } from './route'; // Adjust path as necessary
 import { NextRequest } from 'next/server';
 import { fetchSegmentPerformanceData } from '@/app/lib/dataService/marketAnalysisService';
 import { logger } from '@/app/lib/logger';
+import { DatabaseError } from '@/app/lib/errors'; // Import DatabaseError
 
 // Mock logger
 jest.mock('@/app/lib/logger', () => ({
@@ -16,7 +17,6 @@ jest.mock('@/app/lib/logger', () => ({
 // Mock marketAnalysisService
 jest.mock('@/app/lib/dataService/marketAnalysisService', () => ({
   fetchSegmentPerformanceData: jest.fn(),
-  // Ensure other exports from the service are also mocked if they are somehow used by the route, though not expected for this specific route.
 }));
 
 const mockFetchSegmentPerformanceData = fetchSegmentPerformanceData as jest.Mock;
@@ -30,9 +30,6 @@ describe('API Route: /api/admin/dashboard/content-segments/compare', () => {
       headers: { 'Content-Type': 'application/json' },
     });
   };
-
-  // Session mocking: getAdminSession is hardcoded in the route.
-  // Assuming happy path for session validation for these tests.
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -155,7 +152,7 @@ describe('API Route: /api/admin/dashboard/content-segments/compare', () => {
     const response = await POST(req);
     const body = await response.json();
     expect(response.status).toBe(400);
-    expect(body.error).toContain('dateRange.startDate: Invalid datetime string.');
+    expect(body.error).toContain('dateRange.startDate: Invalid startDate format. Expected ISO datetime string.');
   });
 
   // --- Error Handling & Session Tests ---

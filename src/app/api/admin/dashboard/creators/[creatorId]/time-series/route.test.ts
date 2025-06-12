@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server';
 import { Types } from 'mongoose';
 import { fetchCreatorTimeSeriesData } from '@/app/lib/dataService/marketAnalysisService';
 import { logger } from '@/app/lib/logger';
+import { DatabaseError } from '@/app/lib/errors'; // Import DatabaseError
 
 // Mock logger
 jest.mock('@/app/lib/logger', () => ({
@@ -96,7 +97,7 @@ describe('API Route: /api/admin/dashboard/creators/[creatorId]/time-series', () 
     const response = await GET(req, { params: { creatorId: validCreatorId } });
     const body = await response.json();
     expect(response.status).toBe(400);
-    expect(body.error).toContain('startDate: Invalid datetime string');
+    expect(body.error).toContain('startDate: Invalid datetime'); // Zod's default message for .datetime()
   });
 
   it('should return 400 if endDate is missing', async () => {

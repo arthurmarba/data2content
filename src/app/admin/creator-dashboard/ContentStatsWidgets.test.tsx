@@ -8,26 +8,23 @@ import { IDashboardOverallStats } from '@/app/lib/dataService/marketAnalysisServ
 global.fetch = jest.fn();
 
 // Mock recharts
+const React = require('react'); // Import React for creating elements if needed in mocks
+
 jest.mock('recharts', () => {
   const OriginalRecharts = jest.requireActual('recharts');
   return {
     ...OriginalRecharts,
-    ResponsiveContainer: ({ children }: { children: React.ReactNode }) => (
-      <div className="recharts-responsive-container" style={{ width: '100%', height: '100%' }}>
-        {children}
-      </div>
-    ),
-    // Mock other specific charts if they cause issues, though often not needed for basic rendering tests
-    BarChart: ({ children }: { children: React.ReactNode }) => <div data-testid="bar-chart">{children}</div>,
-    PieChart: ({ children }: { children: React.ReactNode }) => <div data-testid="pie-chart">{children}</div>,
-    Bar: () => <div data-testid="bar-element">Bar</div>,
-    Pie: () => <div data-testid="pie-element">Pie</div>,
-    XAxis: () => <div data-testid="xaxis-element">XAxis</div>,
-    YAxis: () => <div data-testid="yaxis-element">YAxis</div>,
-    Tooltip: () => <div data-testid="tooltip-element">Tooltip</div>,
-    Legend: () => <div data-testid="legend-element">Legend</div>,
-    CartesianGrid: () => <div data-testid="grid-element">Grid</div>,
-    Cell: () => <div data-testid="cell-element">Cell</div>,
+    ResponsiveContainer: (props) => React.createElement('div', { ...props, className: "recharts-responsive-container", style: { width: '100%', height: '100%' } }),
+    BarChart: (props) => React.createElement('div', { ...props, "data-testid": "bar-chart" }),
+    PieChart: (props) => React.createElement('div', { ...props, "data-testid": "pie-chart" }),
+    Bar: (props) => React.createElement('div', { ...props, "data-testid": "bar-element" }, "Bar"),
+    Pie: (props) => React.createElement('div', { ...props, "data-testid": "pie-element" }, "Pie"),
+    XAxis: (props) => React.createElement('div', { ...props, "data-testid": "xaxis-element" }, "XAxis"),
+    YAxis: (props) => React.createElement('div', { ...props, "data-testid": "yaxis-element" }, "YAxis"),
+    Tooltip: (props) => React.createElement('div', { ...props, "data-testid": "tooltip-element" }, "Tooltip"),
+    Legend: (props) => React.createElement('div', { ...props, "data-testid": "legend-element" }, "Legend"),
+    CartesianGrid: (props) => React.createElement('div', { ...props, "data-testid": "grid-element" }, "Grid"),
+    Cell: (props) => React.createElement('div', { ...props, "data-testid": "cell-element" }, "Cell"),
   };
 });
 

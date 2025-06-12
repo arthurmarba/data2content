@@ -50,7 +50,7 @@ const formatTooltipDate = (date: Date | string, period?: 'monthly' | 'weekly'): 
     if (period === 'monthly') {
       return format(d, 'MMMM yyyy');
     }
-    return format(d, 'PPP'); 
+    return format(d, 'PPP');
   } catch (e) {
     return String(date);
   }
@@ -74,16 +74,16 @@ const CustomTooltipContent = memo(({ active, payload, label, metricLabel, period
 });
 CustomTooltipContent.displayName = 'CustomTooltipContent'; // Good practice for memoized components
 
-
-const CreatorTimeSeriesChart = memo(function CreatorTimeSeriesChart({
+// 1. Define the internal component with explicit return type
+const CreatorTimeSeriesChartInternal = ({
   data,
   metricLabel,
   isLoading,
   error,
   chartType = 'line',
   period = 'monthly',
-}: CreatorTimeSeriesChartProps) {
-  
+}: CreatorTimeSeriesChartProps): JSX.Element => { // Explicit return type JSX.Element
+
   const processedData = useMemo(() => {
     if (!data) return [];
     return data.map(item => ({
@@ -116,8 +116,9 @@ const CreatorTimeSeriesChart = memo(function CreatorTimeSeriesChart({
       </div>
     );
   }
-  
+
   const ChartComponent = chartType === 'line' ? LineChart : BarChart;
+  const ChartElement = chartType === 'line' ? Line : Bar;
 
   return (
     <div className="h-72 md:h-80 w-full"> {/* Fixed height for chart container */}
@@ -143,8 +144,8 @@ const CreatorTimeSeriesChart = memo(function CreatorTimeSeriesChart({
             // angle={period === 'weekly' ? -30 : 0} // Optional: angle ticks for weekly if too dense
             // textAnchor={period === 'weekly' ? "end" : "middle"}
           />
-          <YAxis 
-            fontSize={10} 
+          <YAxis
+            fontSize={10}
             className="dark:fill-gray-400"
             tickLine={{ stroke: 'transparent' }}
             axisLine={{ stroke: 'transparent' }}
@@ -152,29 +153,29 @@ const CreatorTimeSeriesChart = memo(function CreatorTimeSeriesChart({
           />
           <Tooltip content={<CustomTooltipContent metricLabel={metricLabel} period={period} />} />
           {/* <Legend verticalAlign="top" height={36} iconSize={10} wrapperStyle={{fontSize: "12px"}}/> */}
-          {chartType === 'line' ? (
-            <Line
-              type="monotone"
-              dataKey="value"
-              name={metricLabel}
-              stroke="#4f46e5"
-              strokeWidth={2}
-              dot={{ r: 3, strokeWidth: 1, fill: '#fff' }}
-              activeDot={{ r: 5, stroke: '#4f46e5', fill: '#4f46e5' }}
-            />
-          ) : (
-            <Bar
-              dataKey="value"
-              name={metricLabel}
-              fill="#4f46e5"
-              barSize={period === 'monthly' ? 30 : 20}
-              radius={[4, 4, 0, 0]}
-            />
-          )}
+          <ChartElement
+            type="monotone" // For LineChart
+            dataKey="value"
+            name={metricLabel}
+            stroke={chartType === 'line' ? '#4f46e5' : undefined} // Indigo for line
+            fill={chartType === 'bar' ? '#4f46e5' : undefined} // Indigo for bar
+            strokeWidth={2} // For LineChart
+            dot={{ r: 3, strokeWidth: 1, fill: '#fff' }} // For LineChart points
+            activeDot={{ r: 5, stroke: '#4f46e5', fill: '#4f46e5' }} // For LineChart active point
+            barSize={period === 'monthly' ? 30 : 20} // For BarChart
+            radius={chartType === 'bar' ? [4, 4, 0, 0] : undefined} // For BarChart rounded top
+          />
         </ChartComponent>
       </ResponsiveContainer>
     </div>
   );
-});
+};
 
+// 2. Wrap with memo and assign to the desired export name
+const CreatorTimeSeriesChart = memo(CreatorTimeSeriesChartInternal);
+
+// 3. Set displayName (good practice)
+CreatorTimeSeriesChart.displayName = 'CreatorTimeSeriesChart';
+
+// 4. Export default
 export default CreatorTimeSeriesChart;

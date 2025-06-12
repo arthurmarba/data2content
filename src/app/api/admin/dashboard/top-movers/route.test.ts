@@ -2,6 +2,7 @@ import { POST } from './route'; // Adjust path as necessary
 import { NextRequest } from 'next/server';
 import { fetchTopMoversData } from '@/app/lib/dataService/marketAnalysisService';
 import { logger } from '@/app/lib/logger';
+import { DatabaseError } from '@/app/lib/errors'; // Import DatabaseError
 
 // Mock logger
 jest.mock('@/app/lib/logger', () => ({
