@@ -1,104 +1,117 @@
 /**
  * @fileoverview Endpoint da API para a Central de Inteligência.
- * Recebe as perguntas do administrador, valida a sessão, chama o orquestrador da IA
- * e retorna a resposta em streaming.
- * @version 1.3.0
+ * @version 5.0.0
+ * @description
+ * ## Principais Melhorias na Versão 5.0.0:
+ * - **Compatibilidade Modular:** Atualizadas as importações para utilizar a nova
+ * estrutura modular (orchestrator, types).
+ * - **Schema Simplificado:** A validação de mensagens foi simplificada, pois
+ * o cliente agora envia apenas os papéis 'user' e 'assistant'.
+ * - **Robustez:** Mantida a validação de schema com Zod e o tratamento
+ * de erros estruturado.
  */
-
-import { logger } from '@/app/lib/logger';
-import { askAdminLLM, AdminAIContext } from '@/app/lib/adminAiOrchestrator';
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 
-// --- Tipo de Mensagem do Cliente ---
-// Define a estrutura que esperamos do cliente (compatível com Vercel AI SDK)
-interface ClientMessage {
-  id: string;
-  role: 'user' | 'assistant' | 'system' | 'function';
-  content: string;
-  name?: string; // Usado para role 'function'
+// --- Importações da Nova Arquitetura Modular ---
+import { logger } from '@/app/lib/logger';
+import { askAdminLLM } from '@/app/lib/admin-ai/orchestrator';
+import { AdminAIContext } from '@/app/lib/admin-ai/types';
+
+const SERVICE_TAG = '[api/admin/intelligence-query v5.0.0]';
+
+// ============================================================================
+// --- Validação de Schema com Zod ---
+// ============================================================================
+
+// O cliente só enviará mensagens de 'user' e 'assistant'.
+// As roles 'system' e 'tool' são gerenciadas no backend.
+const messageSchema = z.object({
+  role: z.enum(['user', 'assistant']),
+  content: z.string(),
+});
+
+const requestBodySchema = z.object({
+  messages: z.array(messageSchema).min(1, 'A lista de mensagens não pode estar vazia.'),
+});
+
+type ClientMessage = z.infer<typeof messageSchema>;
+
+// ============================================================================
+// --- Funções Helper ---
+// ============================================================================
+
+function apiError(message: string, status: number): NextResponse {
+  logger.warn(`${SERVICE_TAG} Erro ${status}: ${message}`);
+  return NextResponse.json({ error: message }, { status });
 }
 
-// --- Placeholder para sua lógica de autenticação e sessão ---
-async function getAdminSession() {
-  // SIMULAÇÃO: Verifique se o usuário está logado e tem a role 'admin'.
+async function getAdminSession(req: NextRequest): Promise<{ user: { name: string } } | null> {
+  // SIMULAÇÃO: Substitua pela sua lógica real de sessão (ex: next-auth)
+  const session = { user: { name: 'Admin User' } };
   const isAdmin = true;
-  if (!isAdmin) {
-    return null;
-  }
-  return { user: { name: 'Admin User' } };
+  if (!session || !isAdmin) return null;
+  return session;
 }
-// --- Fim do Placeholder ---
 
-const SERVICE_TAG = '[api/admin/intelligence-query v1.3.0]';
+// Mapeia as mensagens do cliente para o formato esperado pela OpenAI.
+function mapToOpenAIMessages(messages: ClientMessage[]): ChatCompletionMessageParam[] {
+    return messages.map((msg): ChatCompletionMessageParam => {
+        return { role: msg.role, content: msg.content };
+    });
+}
 
-/**
- * Handler para requisições POST.
- */
-export async function POST(req: Request) {
+// ============================================================================
+// --- Handler da API (POST) ---
+// ============================================================================
+
+export async function POST(req: NextRequest) {
   const TAG = `${SERVICE_TAG}[POST]`;
   logger.info(`${TAG} Requisição recebida.`);
 
   try {
-    const session = await getAdminSession();
+    const session = await getAdminSession(req);
     if (!session) {
-      logger.warn(`${TAG} Acesso não autorizado.`);
-      return new Response(JSON.stringify({ error: 'Não autorizado' }), { status: 401 });
+      return apiError('Acesso não autorizado.', 401);
     }
 
-    const { messages } = (await req.json()) as { messages: ClientMessage[] };
-    if (!messages || messages.length === 0) {
-      logger.warn(`${TAG} Requisição inválida: sem mensagens.`);
-      return new Response(JSON.stringify({ error: 'Corpo da requisição inválido' }), { status: 400 });
+    const body = await req.json();
+    const validationResult = requestBodySchema.safeParse(body);
+
+    if (!validationResult.success) {
+      const errorMessage = validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+      return apiError(`Corpo da requisição inválido: ${errorMessage}`, 400);
     }
 
+    const { messages } = validationResult.data;
     const lastMessage = messages[messages.length - 1];
-    if (lastMessage?.role !== 'user') {
-      logger.warn(`${TAG} Requisição inválida: última mensagem não é do usuário.`);
-        return new Response(JSON.stringify({ error: 'A última mensagem deve ser do usuário' }), { status: 400 });
+    
+    if (!lastMessage || lastMessage.role !== 'user') {
+        return apiError('A última mensagem da conversa deve ser do tipo "user".', 400);
     }
 
     const userQuery = lastMessage.content;
     const history = messages.slice(0, -1);
-
-    const openAIHistory: ChatCompletionMessageParam[] = history.map((msg): ChatCompletionMessageParam => {
-        switch (msg.role) {
-            case 'function':
-                if (!msg.name) {
-                    logger.error(`${TAG} Mensagem com role 'function' recebida sem a propriedade 'name'.`);
-                    return { role: 'user', content: `Resultado da função (nome não especificado): ${msg.content}`};
-                }
-                return { role: 'function', name: msg.name, content: msg.content };
-            case 'assistant':
-                 return { role: 'assistant', content: msg.content };
-            case 'system':
-                return { role: 'system', content: msg.content };
-            case 'user':
-                return { role: 'user', content: msg.content };
-            default:
-                const exhaustiveCheck: never = msg.role;
-                throw new Error(`Role não suportado: ${exhaustiveCheck}`);
-        }
-    });
+    const openAIHistory = mapToOpenAIMessages(history);
 
     const adminContext: AdminAIContext = {
       adminName: session.user.name || 'Administrador',
     };
-
-    const { stream, historyPromise } = await askAdminLLM(adminContext, userQuery, openAIHistory);
     
-    historyPromise.then(finalHistory => {
-        logger.info(`${TAG} Conversa processada. Histórico final: ${finalHistory.length} mensagens.`);
-    }).catch(err => {
-        logger.error(`${TAG} Erro na promessa do histórico:`, err);
-    });
-
-    logger.info(`${TAG} Retornando stream de resposta para o cliente.`);
+    logger.info(`${TAG} Chamando o orquestrador com a nova arquitetura.`);
+    const { stream } = askAdminLLM(adminContext, userQuery, openAIHistory);
+    
     return new Response(stream, {
-        headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+        headers: { 
+            'Content-Type': 'text/plain; charset=utf-8',
+            'X-Content-Type-Options': 'nosniff',
+            'Cache-Control': 'no-cache',
+        }
     });
 
   } catch (error: any) {
     logger.error(`${TAG} Erro inesperado no endpoint:`, error);
-    return new Response(JSON.stringify({ error: `Erro interno no servidor: ${error.message}` }), { status: 500 });
+    return apiError('Ocorreu um erro interno no servidor.', 500);
   }
 }
