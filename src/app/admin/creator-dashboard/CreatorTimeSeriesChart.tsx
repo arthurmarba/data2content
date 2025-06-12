@@ -170,3 +170,5 @@ const CreatorTimeSeriesChart = memo(function CreatorTimeSeriesChart({
     </div>
   );
 }
+
+export default CreatorTimeSeriesChart;
