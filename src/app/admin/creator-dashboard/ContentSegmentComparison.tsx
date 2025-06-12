@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { PlusIcon, TrashIcon, ExclamationTriangleIcon, TableCellsIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, TrashIcon, ExclamationTriangleIcon, TableCellsIcon, ArrowsRightLeftIcon } from '@heroicons/react/24/outline';
 import EmptyState from './EmptyState'; // Import EmptyState
 import {
     ISegmentDefinition,
@@ -259,7 +259,7 @@ export default function ContentSegmentComparison({ dateRangeFilter }: ContentSeg
           disabled={segmentsToCompare.length >= MAX_SEGMENTS}
             className="flex items-center bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-500 font-medium py-1.5 px-3 rounded-md shadow-sm text-sm hover:bg-indigo-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 dark:focus:ring-offset-gray-900 disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-300 disabled:cursor-not-allowed dark:disabled:bg-gray-800 dark:disabled:text-gray-500"
         >
-          <PlusCircleIcon className="w-5 h-5 mr-1.5" aria-hidden="true" /> {/* Changed from PlusIcon */}
+          <PlusIcon className="w-5 h-5 mr-1.5" aria-hidden="true" />
           Adicionar Segmento
         </button>
         <button

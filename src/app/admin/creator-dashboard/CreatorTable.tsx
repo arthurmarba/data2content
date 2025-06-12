@@ -110,12 +110,7 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
     };
 
     // Build URL query string carefully
-    const queryParams = new URLSearchParams({
-        page: String(params.page), // `page` from `params` is used, not `currentPage` directly here
-        limit: String(params.limit), // `limit` from `params` is used
-        sortBy: params.sortBy,
-        sortOrder: params.sortOrder,
-    });
+    const queryParams = new URLSearchParams();
 
     if (debouncedNameSearch) { // Directly use debouncedNameSearch for the query
         queryParams.append('nameSearch', debouncedNameSearch);
@@ -201,6 +196,11 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
   const formatEngagement = (rate?: number): string => {
     if (rate === null || typeof rate === 'undefined') return 'N/A';
     return `${(rate * 100).toFixed(2)}%`;
+  };
+
+  const formatNumber = (num?: number): string => {
+    if (num === null || typeof num === 'undefined') return 'N/A';
+    return num.toLocaleString();
   };
 
 
