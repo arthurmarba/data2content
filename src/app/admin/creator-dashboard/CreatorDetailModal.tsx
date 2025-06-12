@@ -106,7 +106,7 @@ export default function CreatorDetailModal({
           </h2>
           <button
             onClick={onClose}
-            className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+            className="p-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400" // Icon Button Style
             title="Fechar modal"
           >
             <XMarkIcon className="w-6 h-6" />

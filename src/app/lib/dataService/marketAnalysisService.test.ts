@@ -307,4 +307,133 @@ describe('MarketAnalysisService', () => {
       await expect(marketAnalysisService.fetchTopMoversData(baseArgs)).rejects.toThrow('Failed to fetch top movers data: Snapshot Aggregation failed');
     });
   });
+
+  describe('fetchTopMoversData - entityType: creator', () => {
+    const creatorId1 = new Types.ObjectId();
+    const creatorId2 = new Types.ObjectId();
+    const metricIdForCreator1Post1 = new Types.ObjectId();
+    const metricIdForCreator1Post2 = new Types.ObjectId();
+    const metricIdForCreator2Post1 = new Types.ObjectId();
+
+    const previousPeriod = { startDate: new Date('2023-03-01T00:00:00Z'), endDate: new Date('2023-03-31T23:59:59Z') };
+    const currentPeriod = { startDate: new Date('2023-04-01T00:00:00Z'), endDate: new Date('2023-04-30T23:59:59Z') };
+
+    const baseCreatorArgs: IFetchTopMoversArgs = {
+      entityType: 'creator',
+      metric: 'cumulative_total_interactions',
+      previousPeriod,
+      currentPeriod,
+      topN: 3,
+    };
+
+    // Mock data that would result from the complex aggregation pipeline for creators
+    // This data is what DailyMetricSnapshotModel.aggregate would return *after* all grouping and lookups.
+    const mockAggregatedCreatorMovers = [
+      { // Creator 1: Significant increase
+        _id: creatorId1, // This _id is creatorId
+        previousValue: 500,
+        currentValue: 1500,
+        absoluteChange: 1000,
+        percentageChange: 1.0, // (1500-500)/500 = 2.0, error in example, should be 2.0
+        creatorDetails: { name: 'Creator Alpha', profile_picture_url: 'alpha.jpg' }
+      },
+      { // Creator 2: Moderate decrease
+        _id: creatorId2,
+        previousValue: 1000,
+        currentValue: 800,
+        absoluteChange: -200,
+        percentageChange: -0.2,
+        creatorDetails: { name: 'Creator Beta', profile_picture_url: 'beta.jpg' }
+      }
+    ];
+     // Corrected percentage for Creator 1
+    mockAggregatedCreatorMovers[0].percentageChange = 2.0;
+
+
+    beforeEach(() => {
+      // Default mock for UserModel.find (used for pre-filtering)
+      (UserModel.find as jest.Mock).mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        lean: jest.fn().mockResolvedValue([{ _id: creatorId1 }, { _id: creatorId2 }]), // Default to finding these two
+      });
+      // Default mock for DailyMetricSnapshotModel.aggregate for creator logic
+      (DailyMetricSnapshotModel.aggregate as jest.Mock).mockResolvedValue(mockAggregatedCreatorMovers);
+    });
+
+    it('should fetch top moving creators successfully with absoluteChange_increase', async () => {
+      // Simulate sorting within the mock if the actual sort stage is complex to verify directly
+      const sortedMockData = [...mockAggregatedCreatorMovers].sort((a,b) => b.absoluteChange - a.absoluteChange);
+      (DailyMetricSnapshotModel.aggregate as jest.Mock).mockResolvedValueOnce(sortedMockData);
+
+      const result = await marketAnalysisService.fetchTopMoversData({ ...baseCreatorArgs, sortBy: 'absoluteChange_increase' });
+
+      expect(connectToDatabase).toHaveBeenCalledTimes(1);
+      expect(DailyMetricSnapshotModel.aggregate).toHaveBeenCalledTimes(1);
+      const pipeline = (DailyMetricSnapshotModel.aggregate as jest.Mock).mock.calls[0][0];
+
+      // Check some key stages of the creator pipeline
+      expect(pipeline.find(stage => stage.$lookup && stage.$lookup.from === 'metrics')).toBeDefined();
+      expect(pipeline.find(stage => stage.$group && stage.$group._id && stage.$group._id.creatorId === '$metricInfo.user')).toBeDefined(); // Group by creator & date
+      expect(pipeline.find(stage => stage.$group && stage.$group._id === '$_id.creatorId' && stage.$group.periodValues)).toBeDefined(); // Group by creator to pivot
+      expect(pipeline.find(stage => stage.$lookup && stage.$lookup.from === 'users')).toBeDefined(); // Final lookup for user details
+
+      const sortStage = pipeline.find((p: any) => p.$sort && p.$sort.absoluteChange);
+      expect(sortStage).toBeDefined();
+      expect(sortStage!.$sort.absoluteChange).toBe(-1);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].entityId).toBe(creatorId1.toString());
+      expect(result[0].entityName).toBe('Creator Alpha');
+      expect(result[0].profilePictureUrl).toBe('alpha.jpg');
+      expect(result[0].absoluteChange).toBe(1000);
+      expect(result[1].entityId).toBe(creatorId2.toString());
+      expect(result[1].absoluteChange).toBe(-200);
+    });
+
+    it('should apply creatorFilters (e.g., planStatus)', async () => {
+      const specificPlanStatus = ['Pro'];
+      // UserModel.find mock for pre-filtering
+      (UserModel.find as jest.Mock).mockReturnValueOnce({
+        select: jest.fn().mockReturnThis(),
+        lean: jest.fn().mockResolvedValue([{ _id: creatorId1 }]), // Only Creator 1 is 'Pro'
+      });
+      // DailyMetricSnapshotModel.aggregate mock for the main aggregation
+      (DailyMetricSnapshotModel.aggregate as jest.Mock).mockResolvedValueOnce([mockAggregatedCreatorMovers[0]]); // Only Creator 1 data
+
+      await marketAnalysisService.fetchTopMoversData({
+        ...baseCreatorArgs,
+        creatorFilters: { planStatus: specificPlanStatus }
+      });
+
+      expect(UserModel.find).toHaveBeenCalledWith({ planStatus: { $in: specificPlanStatus } });
+      const pipeline = (DailyMetricSnapshotModel.aggregate as jest.Mock).mock.calls[0][0];
+      const creatorMatchStage = pipeline.find((p: any) => p.$match && p.$match['metricInfo.user']);
+      expect(creatorMatchStage).toBeDefined();
+      expect(creatorMatchStage!.$match['metricInfo.user'].$in).toEqual([creatorId1]);
+    });
+
+    it('should return empty array if creatorFilters yield no users', async () => {
+      (UserModel.find as jest.Mock).mockReturnValueOnce({
+        select: jest.fn().mockReturnThis(),
+        lean: jest.fn().mockResolvedValue([]), // No users match filter
+      });
+      const result = await marketAnalysisService.fetchTopMoversData({ ...baseCreatorArgs, creatorFilters: { planStatus: ['NonExistentPlan'] } });
+      expect(result).toEqual([]);
+      expect(DailyMetricSnapshotModel.aggregate).not.toHaveBeenCalled();
+    });
+
+    it('should correctly project final results to ITopMoverResult structure', async () => {
+      (DailyMetricSnapshotModel.aggregate as jest.Mock).mockResolvedValueOnce([mockAggregatedCreatorMovers[0]]);
+      const result = await marketAnalysisService.fetchTopMoversData(baseCreatorArgs);
+      expect(result[0]).toHaveProperty('entityId');
+      expect(result[0]).toHaveProperty('entityName');
+      expect(result[0]).toHaveProperty('profilePictureUrl');
+      expect(result[0]).toHaveProperty('metricName', baseCreatorArgs.metric);
+      expect(result[0]).toHaveProperty('previousValue');
+      expect(result[0]).toHaveProperty('currentValue');
+      expect(result[0]).toHaveProperty('absoluteChange');
+      expect(result[0]).toHaveProperty('percentageChange');
+    });
+
+  });
 });

@@ -1,8 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, memo } from 'react';
-import { IGlobalPostResult } from '@/app/lib/dataService/marketAnalysisService'; // Assuming path
-import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/solid'; // Example icons
+import { IGlobalPostResult } from '@/app/lib/dataService/marketAnalysisService';
+import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
+import { MagnifyingGlassIcon, DocumentMagnifyingGlassIcon } from '@heroicons/react/24/outline'; // Added MagnifyingGlassIcon
+import SkeletonBlock from './SkeletonBlock';
+import EmptyState from './EmptyState';
 
 
 interface GlobalPostsExplorerProps {
@@ -160,19 +163,28 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
   ];
 
   // Helper to get nested stats safely
-  const getNestedValue = (obj: any, path: string, defaultValue: any = 'N/A') => {
+  const getNestedValue = (obj: any, path: string, defaultValue: any = 'N/A'): string | number => {
     const value = path.split('.').reduce((acc, part) => acc && acc[part], obj);
     return value === undefined || value === null ? defaultValue : value;
   };
 
+  const formatNumberStd = (val: any) => {
+    const num = parseFloat(String(val));
+    if (isNaN(num)) return 'N/A';
+    return num.toLocaleString('pt-BR');
+  };
+
   return (
     <div className="bg-white dark:bg-gray-800/50 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+      <h3 className="text-lg font-semibold text-gray-800 dark:text-white"> {/* Changed from h2 to h3 for consistency if used under page's h2 */}
         Explorador de Posts Globais
-      </h2>
+      </h3>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 mb-4">
+        Filtre e explore todos os posts da plataforma com base em diversos critérios.
+      </p>
       <div className="space-y-4">
         {/* Filters Section */}
-        <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-800">
+        <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-800/60"> {/* Slightly adjusted dark bg for filter panel */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 items-end">
             {/* Context Dropdown */}
             <div>
@@ -234,9 +246,10 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
             {/* Apply Filters Button */}
             <button
               onClick={handleApplyLocalFilters}
-              className="w-full lg:w-auto px-4 py-2 bg-blue-600 text-white font-semibold rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 h-[38px] text-sm"
+              className="w-full lg:w-auto h-[38px] flex items-center justify-center px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-900 text-sm disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed dark:disabled:bg-gray-600 dark:disabled:text-gray-400"
               disabled={isLoading}
             >
+              <MagnifyingGlassIcon className="w-5 h-5 mr-2" aria-hidden="true" />
               {isLoading ? 'Buscando...' : 'Filtrar Posts'}
             </button>
           </div>
@@ -244,13 +257,42 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
 
         {/* Posts Display Area */}
         {isLoading && (
-            <div className="text-center py-10"><p className="text-gray-500 dark:text-gray-400">Carregando posts...</p></div>
+          <div className="overflow-x-auto mt-4">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+              <thead className="bg-gray-100 dark:bg-gray-700/50">
+                <tr>
+                  {columns.map((col) => (
+                    <th key={`skel-header-${col.key}`} scope="col" className={`px-4 py-2.5 text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider whitespace-nowrap ${col.key.startsWith('stats.') || ['postDate'].includes(col.key) ? 'text-center' : 'text-left'}`}>
+                      <SkeletonBlock width="w-24" height="h-3" className={col.key.startsWith('stats.') || ['postDate'].includes(col.key) ? 'mx-auto' : ''} />
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {Array.from({ length: limit }).map((_, index) => (
+                  <tr key={`skel-row-${index}`}>
+                    {columns.map(col => (
+                      <td key={`skel-cell-${index}-${col.key}`} className={`px-4 py-3 whitespace-nowrap ${col.key.startsWith('stats.') || ['postDate'].includes(col.key) ? 'text-center' : 'text-left'}`}>
+                        <SkeletonBlock width={col.key === 'text_content' ? "w-full" : "w-20"} height="h-4" className={col.key.startsWith('stats.') || ['postDate'].includes(col.key) ? 'mx-auto' : ''}/>
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
         {error && (
             <div className="text-center py-10"><p className="text-red-500 dark:text-red-400">Erro ao carregar posts: {error}</p></div>
         )}
         {!isLoading && !error && posts.length === 0 && (
-            <div className="text-center py-10"><p className="text-gray-500 dark:text-gray-400">Nenhum post encontrado com os filtros atuais.</p></div>
+          <div className="py-10">
+            <EmptyState
+                icon={<DocumentMagnifyingGlassIcon className="w-12 h-12"/>}
+                title="Nenhum Post Encontrado"
+                message="Experimente alterar os filtros de data, formato, proposta, contexto ou o mínimo de interações."
+            />
+          </div>
         )}
         {!isLoading && !error && posts.length > 0 && (
           <div className="overflow-x-auto mt-4">
@@ -261,7 +303,7 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
                     <th
                       key={col.key}
                       scope="col"
-                      className={`px-4 py-2.5 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap ${col.sortable ? 'cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700' : ''}`}
+                      className={`px-4 py-2.5 text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap ${col.key.startsWith('stats.') || ['postDate'].includes(col.key) ? 'text-center' : 'text-left'} ${col.sortable ? 'cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700' : ''}`}
                       onClick={() => col.sortable && handleSort(col.key)}
                     >
                       {col.label} {col.sortable && renderSortIcon(col.key)}
@@ -272,17 +314,24 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {posts.map((post) => (
                   <tr key={post._id?.toString()} className="hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors">
-                    {columns.map(col => (
-                         <td key={col.key} className="px-4 py-3 whitespace-nowrap text-gray-600 dark:text-gray-400">
-                            {col.key === 'text_content' ? (
-                                <span title={col.getVal(post)} className="block max-w-[200px] lg:max-w-[300px] truncate">
-                                    {col.getVal(post)}
-                                </span>
-                            ) : (
-                                col.getVal(post)
-                            )}
-                        </td>
-                    ))}
+                    {columns.map(col => {
+                        const rawValue = col.getVal(post);
+                        let displayValue = rawValue;
+                        if (col.key.startsWith('stats.')) {
+                            displayValue = formatNumberStd(rawValue);
+                        }
+                        return (
+                            <td key={col.key} className={`px-4 py-3 whitespace-nowrap text-gray-600 dark:text-gray-400 ${col.key.startsWith('stats.') || ['postDate'].includes(col.key) ? 'text-center' : 'text-left'}`}>
+                                {col.key === 'text_content' ? (
+                                    <span title={String(rawValue)} className="block max-w-[200px] lg:max-w-[300px] truncate">
+                                        {displayValue}
+                                    </span>
+                                ) : (
+                                    displayValue
+                                )}
+                            </td>
+                        );
+                    })}
                   </tr>
                 ))}
               </tbody>

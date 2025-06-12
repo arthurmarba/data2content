@@ -56,6 +56,9 @@ const formatTooltipDate = (date: Date | string, period?: 'monthly' | 'weekly'): 
   }
 };
 
+import EmptyState from './EmptyState'; // Import EmptyState
+import { ChartPieIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'; // Example icons for chart empty/error states
+
 // CustomTooltipContent is a functional component, can be memoized if complex or if props change frequently
 const CustomTooltipContent = memo(({ active, payload, label, metricLabel, period }: any) => {
   if (active && payload && payload.length) {
@@ -82,38 +85,47 @@ const CreatorTimeSeriesChartInternal = ({
   error,
   chartType = 'line',
   period = 'monthly',
-}: CreatorTimeSeriesChartProps): JSX.Element => { // Explicit return type JSX.Element
+}: CreatorTimeSeriesChartProps): JSX.Element => {
 
   const processedData = useMemo(() => {
     if (!data) return [];
     return data.map(item => ({
       ...item,
-      // Ensure date is a Date object for Recharts, if it's a string, parse it.
       date: typeof item.date === 'string' ? parseISO(item.date) : item.date,
     }));
   }, [data]);
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64 w-full bg-gray-50 dark:bg-gray-800/30 rounded-md">
-        <p className="text-gray-500 dark:text-gray-400">Carregando dados do gráfico...</p>
+      <div className="h-72 md:h-80 w-full animate-pulse bg-gray-200 dark:bg-gray-700 rounded-md flex items-center justify-center">
+        {/* Optional: text inside skeleton area */}
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-64 w-full bg-red-50 dark:bg-red-900/30 rounded-md p-4">
-        <p className="text-red-600 dark:text-red-300 text-center">Erro ao carregar dados: {error}</p>
-      </div>
+       <div className="h-72 md:h-80 w-full flex items-center justify-center bg-red-50 dark:bg-red-900/20 rounded-md p-4">
+            <EmptyState
+                icon={<ExclamationTriangleIcon className="w-10 h-10 text-red-500 dark:text-red-400" />}
+                title="Erro ao Carregar Gráfico"
+                message={error}
+                smallText={true}
+            />
+        </div>
     );
   }
 
-  if (processedData.length === 0) { // Check processedData instead of raw data
+  if (processedData.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64 w-full bg-gray-50 dark:bg-gray-800/30 rounded-md">
-        <p className="text-gray-500 dark:text-gray-400">Nenhum dado disponível para exibir no gráfico.</p>
-      </div>
+        <div className="h-72 md:h-80 w-full flex items-center justify-center bg-gray-50 dark:bg-gray-800/20 rounded-md">
+            <EmptyState
+                icon={<ChartPieIcon className="w-10 h-10" />}
+                title="Sem Dados para o Gráfico"
+                message={`Este criador não possui dados para a métrica "${metricLabel}" no período selecionado.`}
+                smallText={true}
+            />
+        </div>
     );
   }
 

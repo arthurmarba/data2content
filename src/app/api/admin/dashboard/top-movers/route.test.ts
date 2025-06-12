@@ -107,6 +107,28 @@ describe('API Route: /api/admin/dashboard/top-movers', () => {
     expect(fetchTopMoversData).toHaveBeenCalledWith(expect.objectContaining({ entityType: 'creator' }));
   });
 
+  it('should pass valid creatorFilters to service for entityType "creator"', async () => {
+    mockFetchTopMoversData.mockResolvedValue([]);
+    const creatorFiltersPayload = {
+      ...validPayloadBase,
+      entityType: 'creator',
+      creatorFilters: {
+        planStatus: ['Pro', 'Active'],
+        inferredExpertiseLevel: ['Avançado']
+      }
+    };
+    const req = createMockRequest(creatorFiltersPayload);
+    await POST(req);
+
+    expect(fetchTopMoversData).toHaveBeenCalledWith(expect.objectContaining({
+      entityType: 'creator',
+      creatorFilters: {
+        planStatus: ['Pro', 'Active'],
+        inferredExpertiseLevel: ['Avançado']
+      }
+    }));
+  });
+
 
   // --- Zod Validation Error Tests ---
   it('should return 400 if entityType is missing', async () => {

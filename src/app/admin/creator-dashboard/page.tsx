@@ -1,12 +1,19 @@
 'use client';
 
 import React, { useState, useCallback, useMemo } from 'react';
-import dynamic from 'next/dynamic'; // Import dynamic
+import dynamic from 'next/dynamic';
 import CreatorTable from './CreatorTable';
 import ContentStatsWidgets from './ContentStatsWidgets';
-// import StandaloneChatInterface from './StandaloneChatInterface'; // Remove direct import
 import GlobalPostsExplorer from './GlobalPostsExplorer';
-import { XMarkIcon } from '@heroicons/react/24/solid';
+import {
+  XMarkIcon,
+  FunnelIcon,
+  ChartBarSquareIcon,
+  UserGroupIcon,
+  GlobeAltIcon,
+  WrenchScrewdriverIcon,
+  SparklesIcon, // Alternative for Advanced Tools
+} from '@heroicons/react/24/outline'; // Changed to outline for consistency
 
 // Lazy load StandaloneChatInterface
 const DynamicAIChatInterface = dynamic(() => import('./StandaloneChatInterface'), {
@@ -210,58 +217,72 @@ export default function CreatorDashboardPage() {
 
             <button
               onClick={handleApplyFilters}
-              className="w-full lg:self-end px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800 h-[42px]"
+              className="w-full lg:self-end h-[42px] flex items-center justify-center px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-900 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed dark:disabled:bg-gray-600 dark:disabled:text-gray-400"
             >
+              <FunnelIcon className="w-5 h-5 mr-2" aria-hidden="true" />
               Aplicar Filtros
             </button>
           </div>
         </section>
 
         {/* Main Content Area - Dashboard Widgets */}
-        <main className="space-y-8">
-          {/* Row 1 of Widgets */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Creator List Widget */}
-            <div className="lg:col-span-2">
-              <CreatorTable
-                key={`creatorTable-${refreshKey}`}
-                planStatusFilter={planStatusFilterString}
-                expertiseLevelFilter={expertiseLevelFilterString}
-                dateRangeFilter={dateRangeFilterProp}
-              />
-            </div>
+        <main className="space-y-12">
 
-            {/* Content Stats Widget */}
-            <div className="lg:col-span-1">
-              <ContentStatsWidgets
-                key={`contentStats-${refreshKey}`}
-                dateRangeFilter={dateRangeFilterProp}
-              />
-            </div>
-          </div>
+          {/* Section: Visão Geral */}
+          <section>
+            <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center">
+              <ChartBarSquareIcon className="w-7 h-7 mr-3 text-gray-500 dark:text-gray-400" aria-hidden="true" />
+              Visão Geral
+            </h2>
+            <ContentStatsWidgets
+              key={`contentStats-${refreshKey}`}
+              dateRangeFilter={dateRangeFilterProp}
+            />
+          </section>
 
-          {/* Row 2 of Widgets (Example: Posts Feed) */}
-          <div className="grid grid-cols-1 gap-8">
+          {/* Section: Análise de Criadores */}
+          <section className="mt-8">
+            <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center">
+              <UserGroupIcon className="w-7 h-7 mr-3 text-gray-500 dark:text-gray-400" aria-hidden="true" />
+              Análise de Criadores
+            </h2>
+            <CreatorTable
+              key={`creatorTable-${refreshKey}`}
+              planStatusFilter={planStatusFilterString}
+              expertiseLevelFilter={expertiseLevelFilterString}
+              dateRangeFilter={dateRangeFilterProp}
+            />
+          </section>
+
+          {/* Section: Exploração de Conteúdo Global */}
+          <section className="mt-8">
+            <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center">
+              <GlobeAltIcon className="w-7 h-7 mr-3 text-gray-500 dark:text-gray-400" aria-hidden="true" />
+              Exploração de Conteúdo Global
+            </h2>
             <GlobalPostsExplorer dateRangeFilter={dateRangeFilterProp} />
-          </div>
+          </section>
 
-          {/* Content Segment Comparison Widget */}
-          <div className="mt-8">
-            <DynamicContentSegmentComparison dateRangeFilter={dateRangeFilterProp} />
-          </div>
+          {/* Section: Ferramentas de Análise Avançada */}
+          <section className="mt-8">
+            <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center">
+              <SparklesIcon className="w-7 h-7 mr-3 text-gray-500 dark:text-gray-400" aria-hidden="true" /> {/* Using SparklesIcon */}
+              Ferramentas de Análise Avançada
+            </h2>
+            <div className="space-y-8">
+              <DynamicContentSegmentComparison dateRangeFilter={dateRangeFilterProp} />
+              <DynamicTopMoversWidget />
+            </div>
+          </section>
 
-          {/* Top Movers Widget */}
-          <div className="mt-8">
-            <DynamicTopMoversWidget />
-          </div>
         </main>
 
         {/* AI Chat Integration Section - Floating Button Example */}
-        <div className="fixed bottom-8 right-8 z-50"> {/* Ensure button is above modal backdrop if any part overlaps */}
+        <div className="fixed bottom-8 right-8 z-50">
           <button
             type="button"
             onClick={() => setIsAiChatVisible(true)}
-            className="px-6 py-3 bg-indigo-600 text-white rounded-full text-lg font-semibold shadow-xl hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-900 transition-colors"
+            className="px-6 py-3 bg-indigo-600 text-white rounded-full text-lg font-semibold shadow-xl hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-4 focus:ring-indigo-500 dark:focus:ring-offset-gray-900 transition-all ease-in-out duration-150 hover:scale-105 active:scale-95"
             title="Abrir Chat IA"
           >
             Chat IA
@@ -270,7 +291,7 @@ export default function CreatorDashboardPage() {
 
         {/* AI Chat Modal */}
         {isAiChatVisible && (
-          <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4" onClick={(e) => { if(e.target === e.currentTarget) setIsAiChatVisible(false);}}> {/* Click outside to close */}
             {/* Modal Content */}
             <div className="bg-gray-100 dark:bg-gray-800 w-full max-w-2xl h-[80vh] max-h-[700px] rounded-xl shadow-2xl flex flex-col overflow-hidden border border-gray-300 dark:border-gray-700">
               <header className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
@@ -279,7 +300,7 @@ export default function CreatorDashboardPage() {
                 </h2>
                 <button
                   onClick={() => setIsAiChatVisible(false)}
-                  className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="p-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400" // Icon button style
                   title="Fechar chat"
                 >
                   <XMarkIcon className="w-6 h-6" />

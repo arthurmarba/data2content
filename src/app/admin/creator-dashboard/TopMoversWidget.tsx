@@ -5,8 +5,13 @@ import {
     ArrowUpIcon,
     ArrowDownIcon,
     ExclamationTriangleIcon,
-    ChartBarIcon, // Example for title
+    ChartBarIcon,
+    ArrowsUpDownIcon,
+    ChartTrendingUpIcon // For Analyze button
 } from '@heroicons/react/24/outline';
+
+import EmptyState from './EmptyState';
+import SkeletonBlock from './SkeletonBlock';
 
 import {
     TopMoverEntityType,
@@ -67,7 +72,7 @@ const formatDisplayPercentageTM = (num?: number | null): string => {
 };
 
 
-export default function TopMoversWidget() {
+export default function TopMoversWidget() { // Already memoized in a previous step, no React.memo needed here directly
   const [entityType, setEntityType] = useState<TopMoverEntityType>('content');
   const [metric, setMetric] = useState<TopMoverMetric>('cumulative_views');
   const [previousPeriod, setPreviousPeriod] = useState<PeriodState>(initialPeriodState);
@@ -181,11 +186,16 @@ export default function TopMoversWidget() {
 
   return (
     <div className="bg-white dark:bg-gray-800/50 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-6">
-      <div className="flex items-center space-x-2">
-        <ChartBarIcon className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-          Top Movers ({ENTITY_TYPE_OPTIONS.find(e=>e.value === entityType)?.label})
-        </h2>
+      <div> {/* Wrapper for title and subtitle */}
+        <div className="flex items-center space-x-2">
+          <ChartBarIcon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" /> {/* Slightly smaller icon */}
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white"> {/* Changed from h2 to h3 */}
+            Top Movers ({ENTITY_TYPE_OPTIONS.find(e=>e.value === entityType)?.label})
+          </h3>
+        </div>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 ml-7"> {/* Aligned with title text */}
+          Identifique conteúdos ou criadores com as maiores variações de performance entre dois períodos.
+        </p>
       </div>
 
       {/* --- Parameter Selection UI --- */}
@@ -298,9 +308,10 @@ export default function TopMoversWidget() {
       <div className="mt-4 flex flex-col items-start">
         <button
             onClick={handleFetchTopMovers}
-            disabled={isLoading || !!validationError} // Removed entityType === 'creator' from disabled condition
-            className="px-5 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed text-sm"
+            disabled={isLoading || !!validationError}
+            className="flex items-center justify-center px-5 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-900 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed dark:disabled:bg-gray-600 dark:disabled:text-gray-400 text-sm"
         >
+            <ChartTrendingUpIcon className="w-5 h-5 mr-2" aria-hidden="true" />
             {isLoading ? 'Analisando...' : `Analisar Top ${entityType === 'content' ? 'Conteúdos' : 'Criadores'}`}
         </button>
         {validationError && (
@@ -313,16 +324,57 @@ export default function TopMoversWidget() {
       {/* --- Results Display Area --- */}
       <div className="mt-6">
         {isLoading && (
-          <div className="text-center py-8"><p className="text-gray-500 dark:text-gray-400">Buscando Top Movers...</p></div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+              <thead className="bg-gray-50 dark:bg-gray-700/50">
+                <tr>
+                  {/* Skeleton Headers */}
+                  <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider"><SkeletonBlock width="w-24" height="h-3"/></th>
+                  <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider"><SkeletonBlock width="w-20" height="h-3" className="ml-auto"/></th>
+                  <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider"><SkeletonBlock width="w-20" height="h-3" className="ml-auto"/></th>
+                  <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider"><SkeletonBlock width="w-24" height="h-3" className="ml-auto"/></th>
+                  <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider"><SkeletonBlock width="w-20" height="h-3" className="ml-auto"/></th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {Array.from({ length: Math.min(topN, 5) }).map((_, index) => ( // Show up to 5 skeleton rows or topN
+                  <tr key={`skel-mover-${index}`}>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <SkeletonBlock variant="circle" width="w-6" height="h-6" />
+                        <SkeletonBlock width="w-32" height="h-3" className="ml-2" />
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-right"><SkeletonBlock width="w-16" height="h-3" className="ml-auto"/></td>
+                    <td className="px-3 py-2 whitespace-nowrap text-right"><SkeletonBlock width="w-16" height="h-3" className="ml-auto"/></td>
+                    <td className="px-3 py-2 whitespace-nowrap text-right"><SkeletonBlock width="w-12" height="h-3" className="ml-auto"/></td>
+                    <td className="px-3 py-2 whitespace-nowrap text-right"><SkeletonBlock width="w-12" height="h-3" className="ml-auto"/></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
         {error && (
           <div className="text-center py-8"><p className="text-red-600 dark:text-red-400">Erro ao buscar dados: {error}</p></div>
         )}
         {!isLoading && !error && results === null && !validationError && (
-             <div className="text-center py-8"><p className="text-gray-500 dark:text-gray-400">Configure os parâmetros e clique em "Analisar Top Movers".</p></div>
+             <div className="text-center py-8"> {/* Keep initial prompt simple, or use EmptyState if preferred */}
+                <EmptyState
+                    icon={<ChartBarIcon className="w-12 h-12"/>}
+                    title="Analisar Top Movers"
+                    message="Configure os parâmetros acima e clique em 'Analisar' para ver os conteúdos ou criadores com maiores variações de performance."
+                />
+             </div>
         )}
         {!isLoading && !error && results && results.length === 0 && (
-          <div className="text-center py-8"><p className="text-gray-500 dark:text-gray-400">Nenhum "mover" encontrado para os critérios e períodos selecionados.</p></div>
+          <div className="text-center py-8">
+            <EmptyState
+                icon={<ArrowsUpDownIcon className="w-12 h-12"/>}
+                title="Nenhum 'Mover' Encontrado"
+                message={`Não foram encontrados ${entityType === 'content' ? 'conteúdos' : 'criadores'} com variações significativas nos períodos e com os filtros selecionados. Tente ajustar os parâmetros.`}
+            />
+          </div>
         )}
         {!isLoading && !error && results && results.length > 0 && (
           <div className="overflow-x-auto">
@@ -330,10 +382,10 @@ export default function TopMoversWidget() {
               <thead className="bg-gray-50 dark:bg-gray-700/50">
                 <tr>
                   <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{entityType === 'content' ? 'Conteúdo' : 'Criador'}</th>
-                  <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Valor Anterior ({METRIC_OPTIONS.find(m=>m.value === metric)?.label})</th>
-                  <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Valor Atual</th>
-                  <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Mudança Absoluta</th>
-                  <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Mudança (%)</th>
+                  <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider truncate" title={`Valor Anterior (${METRIC_OPTIONS.find(m=>m.value === metric)?.label})`}>Val. Anterior</th>
+                  <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Val. Atual</th>
+                  <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Mud. Absoluta</th>
+                  <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Mud. (%)</th>
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -349,7 +401,7 @@ export default function TopMoversWidget() {
                                 {item.entityName?.substring(0,1).toUpperCase()}
                            </div>
                         )}
-                        <span className="max-w-[150px] truncate" title={item.entityName}>{item.entityName}</span>
+                        <span className="truncate max-w-[150px] sm:max-w-[200px]" title={item.entityName}>{item.entityName}</span>
                       </div>
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap text-right text-gray-500 dark:text-gray-400">{formatDisplayNumberTM(item.previousValue)}</td>

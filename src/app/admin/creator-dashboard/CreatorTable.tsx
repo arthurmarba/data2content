@@ -1,21 +1,26 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, memo } from 'react';
-import { IDashboardCreator, IFetchDashboardCreatorsListParams } from '@/app/lib/dataService/marketAnalysisService'; // Assuming this path is correct
-import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/solid'; // Example icons
+import { IDashboardCreator, IFetchDashboardCreatorsListParams } from '@/app/lib/dataService/marketAnalysisService';
+import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/solid'; // Keep solid for sort indicators
+import { UserGroupIcon, InformationCircleIcon } from '@heroicons/react/24/outline'; // Outline for buttons
 import dynamic from 'next/dynamic';
 
 // Lazy load CreatorDetailModal
 const DynamicCreatorDetailModal = dynamic(() => import('./CreatorDetailModal'), {
   ssr: false,
-  loading: () => <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center"><p className="text-white text-lg">Carregando detalhes do criador...</p></div>,
+  loading: () => <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center"><div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl"><p className="text-gray-700 dark:text-gray-300">Carregando Detalhes...</p></div></div>,
 });
 
 // Lazy load CreatorComparisonModal
 const DynamicCreatorComparisonModal = dynamic(() => import('./CreatorComparisonModal'), {
   ssr: false,
-  loading: () => <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center"><p className="text-white text-lg">Carregando comparativo...</p></div>,
+  loading: () => <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center"><div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl"><p className="text-gray-700 dark:text-gray-300">Carregando Comparativo...</p></div></div>,
 });
+
+import SkeletonBlock from './SkeletonBlock';
+import EmptyState from './EmptyState'; // Import EmptyState
+import { UsersIcon } from '@heroicons/react/24/outline'; // Example Icon
 
 const DEBOUNCE_DELAY = 500; // ms for search input debounce
 
@@ -218,8 +223,8 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
             Lista de Criadores
           </h3>
-           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Selecione até {MAX_CREATORS_TO_COMPARE} criadores para comparar.
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Visão geral dos criadores da plataforma. Clique no nome para detalhes ou selecione para comparar.
           </p>
         </div>
         <input
@@ -236,8 +241,9 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
         <button
           onClick={handleInitiateComparison}
           disabled={selectedForComparison.length < 2 || selectedForComparison.length > MAX_CREATORS_TO_COMPARE}
-          className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center justify-center px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-900 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed dark:disabled:bg-gray-600 dark:disabled:text-gray-400 text-sm"
         >
+          <UserGroupIcon className="w-5 h-5 mr-2" aria-hidden="true" />
           Comparar Criadores Selecionados
         </button>
         <p className="text-sm text-gray-600 dark:text-gray-300">
@@ -247,9 +253,51 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
 
 
       {isLoading && (
-        <div className="flex justify-center items-center h-64">
-          <p className="text-gray-500 dark:text-gray-400">Carregando criadores...</p>
-          {/* TODO: Add a spinner component */}
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-700/50">
+              <tr>
+                {columns.map((col) => (
+                  <th key={`skel-header-${col.key}`} scope="col" className={`px-6 py-3 ${col.headerClassName || ''} ${col.key === 'actions' || col.key === 'select' ? 'text-center' : 'text-left'} text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider`}>
+                    {/* For select column, keep it empty or a very small skeleton if preferred */}
+                    {col.key === 'select' ? <SkeletonBlock width="w-4" height="h-4" className="opacity-50"/> : <SkeletonBlock width="w-20" height="h-3" />}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              {Array.from({ length: limit }).map((_, index) => ( // Use 'limit' for number of skeleton rows
+                <tr key={`skel-row-${index}`}>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <SkeletonBlock variant="rectangle" width="w-4" height="h-4" className="mx-auto" />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div className="flex items-center">
+                      <SkeletonBlock variant="circle" width="w-10" height="h-10" />
+                      <div className="ml-3 space-y-1">
+                        <SkeletonBlock width="w-32" height="h-3" />
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                    <SkeletonBlock width="w-12" height="h-3" className="ml-auto"/>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                    <SkeletonBlock width="w-16" height="h-3" className="ml-auto"/>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                    <SkeletonBlock width="w-20" height="h-3" className="mx-auto"/>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                    <SkeletonBlock width="w-16" height="h-5" className="mx-auto" />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                    <SkeletonBlock width="w-20" height="h-6" className="mx-auto" />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
@@ -260,8 +308,13 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
       )}
 
       {!isLoading && !error && creators.length === 0 && (
-        <div className="text-center py-10">
-          <p className="text-gray-500 dark:text-gray-400">Nenhum criador encontrado com os filtros atuais.</p>
+        <div className="py-10"> {/* Added padding to allow EmptyState to center better */}
+          <EmptyState
+            icon={<UsersIcon className="w-12 h-12" />}
+            title="Nenhum Criador Encontrado"
+            message="Tente ajustar os filtros globais ou a busca por nome para encontrar criadores."
+            // Optional: Add actionButton to clear filters or search if such functionality exists/is passed
+          />
         </div>
       )}
 
@@ -275,7 +328,7 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
                     <th
                       key={col.key}
                       scope="col"
-                      className={`px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider ${col.sortable ? 'cursor-pointer' : ''} ${col.headerClassName || ''}`}
+                      className={`px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider ${col.key === 'actions' || col.key === 'select' ? 'text-center' : 'text-left'} ${col.sortable ? 'cursor-pointer' : ''} ${col.headerClassName || ''}`}
                       onClick={() => col.sortable && handleSort(col.key)}
                     >
                       {col.label} {col.sortable && renderSortIcon(col.key)}
@@ -306,26 +359,27 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
                               {creator.name?.substring(0,2).toUpperCase()}
                           </div>
                           <span
-                              className="hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer font-medium"
+                              className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-200 cursor-pointer font-medium truncate max-w-xs hover:underline" // Added hover:underline
                               onClick={() => handleOpenCreatorModal(creator)}
-                              title={`Ver detalhes de ${creator.name}`}
+                              title={getSafeString(creator.name)}
                           >
                               {getSafeString(creator.name)}
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        {creator.totalPosts}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 text-right">
+                        {formatNumber(creator.totalPosts)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 text-right">
                         {formatEngagement(creator.avgEngagementRate)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 text-center">
                         {formatDate(creator.lastActivityDate)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 text-center">
                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                              creator.planStatus === 'Pro' ? 'bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-100'
+                             : creator.planStatus === 'Premium' ? 'bg-purple-100 text-purple-800 dark:bg-purple-700 dark:text-purple-100'
                              : creator.planStatus === 'Free' ? 'bg-blue-100 text-blue-800 dark:bg-blue-700 dark:text-blue-100'
                              : 'bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-100'}`}>
                           {getSafeString(creator.planStatus)}
@@ -334,10 +388,11 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 text-center">
                           <button
                               onClick={() => handleOpenCreatorModal(creator)}
-                              className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-200 text-xs py-1 px-2 rounded-md hover:bg-indigo-50 dark:hover:bg-gray-700 transition-colors"
-                              title="Ver gráfico de performance"
+                              className="flex items-center justify-center w-full sm:w-auto bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-500 font-medium py-1 px-2.5 rounded-md shadow-sm text-xs hover:bg-indigo-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 dark:focus:ring-offset-gray-900 disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-300 disabled:cursor-not-allowed dark:disabled:bg-gray-800 dark:disabled:text-gray-500"
+                              title="Ver detalhes e performance"
                           >
-                              Detalhes
+                              <InformationCircleIcon className="w-4 h-4 sm:mr-1.5" aria-hidden="true" />
+                              <span className="hidden sm:inline">Detalhes</span> {/* Show text on sm screens and up */}
                           </button>
                       </td>
                     </tr>

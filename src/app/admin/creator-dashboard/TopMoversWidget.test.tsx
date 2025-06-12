@@ -55,15 +55,35 @@ describe('TopMoversWidget Component', () => {
     expect(topNInput.value).toBe('5');
   });
 
-  test('"Analisar" button is disabled if entityType is "creator"', () => {
+  test('"Analisar" button text changes and is enabled when "creator" entityType is selected and dates are valid', () => {
     render(<TopMoversWidget />);
     const entitySelect = screen.getByLabelText('Entidade');
+    fireEvent.change(entitySelect, { target: { value: 'creator' } });
+
+    // Set valid dates to enable the button
+    fireEvent.change(screen.getByLabelText('Início', { selector: '#tm-prevStart' }), { target: { value: '2023-01-01' } });
+    fireEvent.change(screen.getByLabelText('Fim', { selector: '#tm-prevEnd' }), { target: { value: '2023-01-15' } });
+    fireEvent.change(screen.getByLabelText('Início', { selector: '#tm-currStart' }), { target: { value: '2023-01-16' } });
+    fireEvent.change(screen.getByLabelText('Fim', { selector: '#tm-currEnd' }), { target: { value: '2023-01-31' } });
+
+    const analyzeButton = screen.getByText('Analisar Top Criadores'); // Text should change
+    expect(analyzeButton).not.toBeDisabled();
+  });
+
+  test('contentFilters UI is hidden when entityType is "creator"', () => {
+    render(<TopMoversWidget />);
+    const entitySelect = screen.getByLabelText('Entidade');
+
+    // Initially, content filters should be visible
+    expect(screen.getByLabelText('Formato (Conteúdo)')).toBeVisible();
+    expect(screen.getByLabelText('Contexto (Conteúdo)')).toBeVisible();
+
     fireEvent.change(entitySelect, { target: { value: 'creator' } }); // Switch to creator
 
-    const analyzeButton = screen.getByText('Analisar Top Movers');
-    expect(analyzeButton).toBeDisabled();
-    // Also check if error message about creator not implemented is shown upon trying to analyze (covered in fetch test)
+    expect(screen.queryByLabelText('Formato (Conteúdo)')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Contexto (Conteúdo)')).not.toBeInTheDocument();
   });
+
 
   test('date validation: shows error if previous period ends after current period starts', () => {
     render(<TopMoversWidget />);
@@ -121,14 +141,36 @@ describe('TopMoversWidget Component', () => {
       body: JSON.stringify({
         entityType: 'content',
         metric: 'cumulative_shares',
-        previousPeriod: { startDate: new Date('2023-01-01T00:00:00.000Z'), endDate: new Date('2023-01-15T00:00:00.000Z') }, // Dates will be full Date objects
+        previousPeriod: { startDate: new Date('2023-01-01T00:00:00.000Z'), endDate: new Date('2023-01-15T00:00:00.000Z') },
         currentPeriod: { startDate: new Date('2023-01-16T00:00:00.000Z'), endDate: new Date('2023-01-31T00:00:00.000Z') },
-        topN: 10, // Default
-        sortBy: 'absoluteChange_decrease', // Default
-        contentFilters: { format: 'Reel' }, // Context would be undefined
+        topN: 10,
+        sortBy: 'absoluteChange_decrease',
+        contentFilters: { format: 'Reel' },
       }),
     });
   });
+
+  test('calls fetch with entityType "creator" and undefined contentFilters/creatorFilters (as no UI for them)', async () => {
+    render(<TopMoversWidget />);
+    fireEvent.change(screen.getByLabelText('Entidade'), { target: { value: 'creator' } });
+    fireEvent.change(screen.getByLabelText('Início', { selector: '#tm-prevStart' }), { target: { value: '2023-01-01' } });
+    fireEvent.change(screen.getByLabelText('Fim', { selector: '#tm-prevEnd' }), { target: { value: '2023-01-15' } });
+    fireEvent.change(screen.getByLabelText('Início', { selector: '#tm-currStart' }), { target: { value: '2023-01-16' } });
+    fireEvent.change(screen.getByLabelText('Fim', { selector: '#tm-currEnd' }), { target: { value: '2023-01-31' } });
+
+    fireEvent.click(screen.getByText('Analisar Top Criadores'));
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    expect(fetch).toHaveBeenCalledWith('/api/admin/dashboard/top-movers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(expect.objectContaining({
+        entityType: 'creator',
+        contentFilters: undefined, // Explicitly check it's not sent or is undefined
+        creatorFilters: undefined, // Explicitly check it's not sent or is undefined
+      })),
+    });
+  });
+
 
   describe('Results Display', () => {
     const setupAndFetch = async () => {
@@ -172,26 +214,50 @@ describe('TopMoversWidget Component', () => {
 
       // Check values for Alice (increase)
       const aliceRow = screen.getByText('Amazing Post Alpha').closest('tr');
-      expect(aliceRow).toHaveTextContent('100'); // Prev
-      expect(aliceRow).toHaveTextContent('150'); // Curr
-      expect(aliceRow).toHaveTextContent('50');  // Abs Change
-      expect(aliceRow).toHaveTextContent('50,0%'); // Pct Change
-      expect(aliceRow?.querySelector('[data-testid="arrow-up"]')).toBeInTheDocument();
-      expect(aliceRow?.querySelector('[data-testid="arrow-down"]')).not.toBeInTheDocument();
+      expect(aliceRow).toHaveTextContent('100');
+      expect(aliceRow).toHaveTextContent('150');
+      expect(aliceRow).toHaveTextContent('50');
+      expect(aliceRow).toHaveTextContent('50,0%');
+      expect(aliceRow?.querySelector('[data-testid="arrow-up-icon"]')).toBeInTheDocument();
+      expect(aliceRow?.querySelector('[data-testid="arrow-down-icon"]')).not.toBeInTheDocument();
       const absChangeCellAlice = Array.from(aliceRow!.querySelectorAll('td')).find(td => td.textContent?.includes('50') && !td.textContent.includes('%'));
       expect(absChangeCellAlice).toHaveClass('text-green-600');
 
 
       // Check values for Bob (decrease)
       const bobRow = screen.getByText('Brilliant Post Beta').closest('tr');
-      expect(bobRow).toHaveTextContent('200'); // Prev
-      expect(bobRow).toHaveTextContent('50');  // Curr
-      expect(bobRow).toHaveTextContent('-150'); // Abs Change
-      expect(bobRow).toHaveTextContent('-75,0%'); // Pct Change
-      expect(bobRow?.querySelector('[data-testid="arrow-down"]')).toBeInTheDocument();
-      expect(bobRow?.querySelector('[data-testid="arrow-up"]')).not.toBeInTheDocument();
+      expect(bobRow).toHaveTextContent('200');
+      expect(bobRow).toHaveTextContent('50');
+      expect(bobRow).toHaveTextContent('-150');
+      expect(bobRow).toHaveTextContent('-75,0%');
+      expect(bobRow?.querySelector('[data-testid="arrow-down-icon"]')).toBeInTheDocument();
+      expect(bobRow?.querySelector('[data-testid="arrow-up-icon"]')).not.toBeInTheDocument();
       const absChangeCellBob = Array.from(bobRow!.querySelectorAll('td')).find(td => td.textContent?.includes('-150'));
       expect(absChangeCellBob).toHaveClass('text-red-600');
+    });
+
+    test('renders creator results with profile picture placeholder', async () => {
+        const creatorMockData: ITopMoverResult[] = [
+            { entityId: 'creator1', entityName: 'Creator Gamma', metricName: 'cumulative_views', previousValue: 1000, currentValue: 2000, absoluteChange: 1000, percentageChange: 1, profilePictureUrl: undefined },
+            { entityId: 'creator2', entityName: 'Creator Delta', metricName: 'cumulative_views', previousValue: 500, currentValue: 1500, absoluteChange: 1000, percentageChange: 2, profilePictureUrl: 'delta.jpg' },
+        ];
+        (fetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => creatorMockData });
+
+        render(<TopMoversWidget />);
+        fireEvent.change(screen.getByLabelText('Entidade'), { target: { value: 'creator' } });
+        fireEvent.change(screen.getByLabelText('Início', { selector: '#tm-prevStart' }), { target: { value: '2023-01-01' } });
+        fireEvent.change(screen.getByLabelText('Fim', { selector: '#tm-prevEnd' }), { target: { value: '2023-01-15' } });
+        fireEvent.change(screen.getByLabelText('Início', { selector: '#tm-currStart' }), { target: { value: '2023-01-16' } });
+        fireEvent.change(screen.getByLabelText('Fim', { selector: '#tm-currEnd' }), { target: { value: '2023-01-31' } });
+        fireEvent.click(screen.getByText('Analisar Top Criadores'));
+
+        await waitFor(() => expect(screen.getByText('Creator Gamma')).toBeInTheDocument());
+        const gammaRow = screen.getByText('Creator Gamma').closest('tr');
+        expect(gammaRow?.querySelector('.bg-gray-200')).toHaveTextContent('C'); // Placeholder initial
+
+        expect(screen.getByText('Creator Delta')).toBeInTheDocument();
+        const deltaRow = screen.getByText('Creator Delta').closest('tr');
+        expect(deltaRow?.querySelector('img[alt="Creator Delta"]')).toBeInTheDocument();
     });
 
     test('shows initial prompt before any analysis', () => {

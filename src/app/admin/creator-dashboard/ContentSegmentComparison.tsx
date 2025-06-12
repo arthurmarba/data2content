@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { PlusIcon, TrashIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, TrashIcon, ExclamationTriangleIcon, TableCellsIcon } from '@heroicons/react/24/outline';
+import EmptyState from './EmptyState'; // Import EmptyState
 import {
     ISegmentDefinition,
     ISegmentPerformanceResult,
-    // IFetchSegmentPerformanceArgs, // Not directly used here, but types are related
-} from '@/app/lib/dataService/marketAnalysisService'; // Assuming path
-import { SegmentComparisonResultItem } from '@/app/api/admin/dashboard/content-segments/compare/route'; // For type from API
+} from '@/app/lib/dataService/marketAnalysisService';
+import { SegmentComparisonResultItem } from '@/app/api/admin/dashboard/content-segments/compare/route';
 
 // --- Constants & Types ---
 const MAX_SEGMENTS = 5;
@@ -160,7 +160,7 @@ export default function ContentSegmentComparison({ dateRangeFilter }: ContentSeg
         {segmentsToCompare.length > MIN_SEGMENTS && (
           <button
             onClick={() => removeSegment(segment.id)}
-            className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-800/50"
+            className="p-1.5 rounded-md text-red-500 hover:bg-red-100 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-800/50 dark:hover:text-red-300 focus:outline-none focus:ring-2 focus:ring-red-400" // Icon Button Style (adjusted for red color)
             title="Remover Segmento"
           >
             <TrashIcon className="w-4 h-4" />
@@ -241,9 +241,14 @@ export default function ContentSegmentComparison({ dateRangeFilter }: ContentSeg
 
   return (
     <div className="bg-white dark:bg-gray-800/50 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-6">
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-        Comparador de Performance de Segmentos de Conteúdo
-      </h2>
+      <div> {/* Added a div to group title and subtitle */}
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-white"> {/* Changed from h2 to h3 for consistency under page's h2 */}
+          Comparador de Performance de Segmentos de Conteúdo
+        </h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          Defina até {MAX_SEGMENTS} segmentos de conteúdo (usando formato, proposta ou contexto) e compare suas métricas de performance lado a lado.
+        </p>
+      </div>
 
       {/* Segment Definition Area */}
       <div className="space-y-3">{segmentDefinitionForms}</div>
@@ -252,16 +257,17 @@ export default function ContentSegmentComparison({ dateRangeFilter }: ContentSeg
         <button
           onClick={addSegment}
           disabled={segmentsToCompare.length >= MAX_SEGMENTS}
-          className="flex items-center px-3 py-1.5 border border-dashed border-gray-400 dark:border-gray-500 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-500 font-medium py-1.5 px-3 rounded-md shadow-sm text-sm hover:bg-indigo-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 dark:focus:ring-offset-gray-900 disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-300 disabled:cursor-not-allowed dark:disabled:bg-gray-800 dark:disabled:text-gray-500"
         >
-          <PlusIcon className="w-4 h-4 mr-1.5" />
+          <PlusCircleIcon className="w-5 h-5 mr-1.5" aria-hidden="true" /> {/* Changed from PlusIcon */}
           Adicionar Segmento
         </button>
         <button
           onClick={handleFetchComparisonData}
           disabled={!canCompare || isLoading}
-          className="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed text-sm"
+          className="flex items-center justify-center px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-900 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed dark:disabled:bg-gray-600 dark:disabled:text-gray-400 text-sm"
         >
+          <ArrowsRightLeftIcon className="w-5 h-5 mr-2" aria-hidden="true" /> {/* Added ArrowsRightLeftIcon */}
           {isLoading ? 'Comparando...' : 'Comparar Segmentos'}
         </button>
       </div>
@@ -282,10 +288,22 @@ export default function ContentSegmentComparison({ dateRangeFilter }: ContentSeg
           <div className="text-center py-8"><p className="text-red-500 dark:text-red-400">Erro ao comparar segmentos: {error}</p></div>
         )}
         {!isLoading && !error && comparisonResults === null && !canCompare && segmentsToCompare.some(s => isSegmentCriteriaEmpty(s.criteria)) && (
-             <div className="text-center py-8"><p className="text-gray-500 dark:text-gray-400">Defina critérios para todos os segmentos e clique em "Comparar Segmentos".</p></div>
+             <div className="text-center py-8">
+                <EmptyState
+                    icon={<ExclamationTriangleIcon className="w-12 h-12" />}
+                    title="Pronto para Comparar?"
+                    message="Defina critérios para cada segmento que deseja analisar e clique em 'Comparar Segmentos'."
+                />
+             </div>
         )}
         {!isLoading && !error && comparisonResults && comparisonResults.length === 0 && (
-          <div className="text-center py-8"><p className="text-gray-500 dark:text-gray-400">Nenhum dado encontrado para os segmentos definidos.</p></div>
+          <div className="text-center py-8">
+            <EmptyState
+                icon={<TableCellsIcon className="w-12 h-12" />}
+                title="Sem Dados para Comparação"
+                message="Nenhum dos segmentos definidos retornou dados para o período selecionado. Verifique os critérios e o intervalo de datas."
+            />
+          </div>
         )}
         {!isLoading && !error && comparisonResults && comparisonResults.length > 0 && (
           <div className="overflow-x-auto">
@@ -294,9 +312,9 @@ export default function ContentSegmentComparison({ dateRangeFilter }: ContentSeg
                 <tr>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider border border-gray-300 dark:border-gray-600 sticky left-0 bg-gray-100 dark:bg-gray-700/50 z-10">Métrica</th>
                   {comparisonResults.map(result => (
-                    <th key={result.name} className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider border border-gray-300 dark:border-gray-600 whitespace-normal break-words max-w-[200px]">
-                      {result.name}
-                      <div className="text-xxs font-normal text-gray-400 dark:text-gray-500 normal-case">
+                    <th key={result.name} className="px-3 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider border border-gray-300 dark:border-gray-600 whitespace-normal break-words max-w-[150px]" title={result.name}>
+                      <span className="block truncate">{result.name}</span>
+                      <div className="text-xxs font-normal text-gray-400 dark:text-gray-500 normal-case truncate" title={generateSegmentNameFromCriteria(result.criteria)}>
                         {`(${generateSegmentNameFromCriteria(result.criteria)})`}
                       </div>
                     </th>
@@ -312,9 +330,9 @@ export default function ContentSegmentComparison({ dateRangeFilter }: ContentSeg
                       {comparisonResults.map(result => {
                         const rawVal = result.performance[metric.key];
                         const displayVal = metric.format(rawVal);
-                        const isBest = metric.isNumeric && typeof rawVal === 'number' && rawVal === bestVal && bestVal !== 0;
+                        const isBest = metric.isNumeric && typeof rawVal === 'number' && rawVal === bestVal && bestVal !== 0; // Highlight non-zero bests
                         return (
-                          <td key={`${result.name}-${metric.key}`} className={`px-3 py-2.5 text-sm text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 text-center whitespace-nowrap ${isBest ? 'font-bold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-800/20' : ''}`}>
+                          <td key={`${result.name}-${metric.key}`} className={`px-3 py-2.5 text-sm text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 text-right whitespace-nowrap ${isBest ? 'font-bold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-800/20' : ''}`}>
                             {displayVal}
                           </td>
                         );
