@@ -885,12 +885,12 @@ export async function fetchCreatorTimeSeriesData(
         _id: groupId,
         rawValue: accumulator === '$sum' && !metricFieldPath
             ? { $sum: 1 }
-            : { [accumulator!]: metricFieldPath } ,
+            : ({ [accumulator!]: metricFieldPath } as any) ,
       },
     };
 
     const sortKey = args.period === 'monthly' ? { '_id.year': 1, '_id.month': 1 } : { '_id.year': 1, '_id.week': 1 };
-    const sortStage: PipelineStage.Sort = { $sort: sortKey };
+    const sortStage: PipelineStage.Sort = { $sort: sortKey as unknown as Record<string, 1 | -1> };
 
     const projectStage: PipelineStage.Project = {
       $project: {

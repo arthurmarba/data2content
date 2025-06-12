@@ -46,7 +46,7 @@ export function askAdminLLM(
         },
         get closed() { return false as unknown as Promise<undefined>; },
         get desiredSize() { return controller.desiredSize; },
-        get ready() { return Promise.resolve(); },
+        get ready() { return Promise.resolve(undefined); },
         releaseLock: () => {},
       };
 

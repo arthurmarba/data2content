@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState, useCallback, useEffect } from 'react';
+import Image from 'next/image';
 import {
     ArrowUpIcon,
     ArrowDownIcon,
     ExclamationTriangleIcon,
     ChartBarIcon,
     ArrowsUpDownIcon,
-    ChartTrendingUpIcon // For Analyze button
+    ArrowTrendingUpIcon // For Analyze button
 } from '@heroicons/react/24/outline';
 
 import EmptyState from './EmptyState';
@@ -160,7 +161,7 @@ export default function TopMoversWidget() { // Already memoized in a previous st
       const response = await fetch('/api/admin/dashboard/top-movers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(apiPayload),
       });
 
       if (!response.ok) {
@@ -311,7 +312,7 @@ export default function TopMoversWidget() { // Already memoized in a previous st
             disabled={isLoading || !!validationError}
             className="flex items-center justify-center px-5 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-900 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed dark:disabled:bg-gray-600 dark:disabled:text-gray-400 text-sm"
         >
-            <ChartTrendingUpIcon className="w-5 h-5 mr-2" aria-hidden="true" />
+            <ArrowTrendingUpIcon className="w-5 h-5 mr-2" aria-hidden="true" />
             {isLoading ? 'Analisando...' : `Analisar Top ${entityType === 'content' ? 'Conteúdos' : 'Criadores'}`}
         </button>
         {validationError && (

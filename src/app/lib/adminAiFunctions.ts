@@ -190,16 +190,17 @@ const tools = {
       limit: z.number().max(20).default(5).describe("Número de posts a retornar. Padrão: 5."),
     }),
     async (args) => {
-        const result: IGlobalPostResult[] = await findGlobalPostsByCriteria(args);
-        if (result.length === 0) return { summary: 'Nenhum post encontrado com os critérios especificados.' };
+        const paginatedResult = await findGlobalPostsByCriteria(args);
+        const posts: IGlobalPostResult[] = paginatedResult.posts;
+        if (posts.length === 0) return { summary: 'Nenhum post encontrado com os critérios especificados.' };
         return {
-            summary: `Encontramos ${result.length} posts. O destaque é: "${(result[0]?.description || '').slice(0, 50)}..." de ${result[0]?.creatorName || 'Desconhecido'}.`,
+            summary: `Encontramos ${posts.length} posts. O destaque é: "${(posts[0]?.description || '').slice(0, 50)}..." de ${posts[0]?.creatorName || 'Desconhecido'}.`,
             visualizations: [{
                 type: 'list',
-                title: `Top ${result.length} Posts Encontrados`,
-                items: result.map((post) => `"${(post.description || '').slice(0, 60)}..." (Criador: ${post.creatorName || 'Desconhecido'}, Interações: ${(post.stats?.total_interactions ?? 0).toLocaleString('pt-BR')})`)
+                title: `Top ${posts.length} Posts Encontrados`,
+                items: posts.map((post) => `"${(post.description || '').slice(0, 60)}..." (Criador: ${post.creatorName || 'Desconhecido'}, Interações: ${(post.stats?.total_interactions ?? 0).toLocaleString('pt-BR')})`)
             }],
-            suggestions: [`Analisar a performance média de posts sobre '${args.context || args.proposal}'`, `Ver o perfil do criador ${result[0]?.creatorName}`]
+            suggestions: [`Analisar a performance média de posts sobre '${args.context || args.proposal}'`, `Ver o perfil do criador ${posts[0]?.creatorName}`]
         };
     }
   ),

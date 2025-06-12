@@ -130,7 +130,6 @@ const CreatorTimeSeriesChartInternal = ({
   }
 
   const ChartComponent = chartType === 'line' ? LineChart : BarChart;
-  const ChartElement = chartType === 'line' ? Line : Bar;
 
   return (
     <div className="h-72 md:h-80 w-full"> {/* Fixed height for chart container */}
@@ -165,18 +164,24 @@ const CreatorTimeSeriesChartInternal = ({
           />
           <Tooltip content={<CustomTooltipContent metricLabel={metricLabel} period={period} />} />
           {/* <Legend verticalAlign="top" height={36} iconSize={10} wrapperStyle={{fontSize: "12px"}}/> */}
-          <ChartElement
+          {chartType === 'line' ? (
+            <Line
             type="monotone" // For LineChart
             dataKey="value"
             name={metricLabel}
-            stroke={chartType === 'line' ? '#4f46e5' : undefined} // Indigo for line
-            fill={chartType === 'bar' ? '#4f46e5' : undefined} // Indigo for bar
-            strokeWidth={2} // For LineChart
-            dot={{ r: 3, strokeWidth: 1, fill: '#fff' }} // For LineChart points
-            activeDot={{ r: 5, stroke: '#4f46e5', fill: '#4f46e5' }} // For LineChart active point
-            barSize={period === 'monthly' ? 30 : 20} // For BarChart
-            radius={chartType === 'bar' ? [4, 4, 0, 0] : undefined} // For BarChart rounded top
-          />
+            stroke="#4f46e5"
+            strokeWidth={2}
+            dot={{ r: 3, strokeWidth: 1, fill: '#fff' }}
+            activeDot={{ r: 5, stroke: '#4f46e5', fill: '#4f46e5' }}
+          />) : (
+            <Bar
+              dataKey="value"
+              name={metricLabel}
+              fill="#4f46e5"
+              barSize={period === 'monthly' ? 30 : 20}
+              radius={[4, 4, 0, 0]}
+            />
+          )}
         </ChartComponent>
       </ResponsiveContainer>
     </div>
