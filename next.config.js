@@ -16,6 +16,18 @@ const nextConfig = {
         hostname: 'placehold.co',
         // pathname: '/**', // Pode adicionar depois
       },
+      {
+        protocol: 'https',
+        hostname: 'scontent-iad3-2.xx.fbcdn.net', // Hostname específico do erro
+      },
+      {
+        protocol: 'https',
+        hostname: '**.fbcdn.net', // Padrão genérico para outros domínios fbcdn
+      },
+      {
+        protocol: 'https',
+        hostname: '**.xx.fbcdn.net', // Padrão genérico para outros domínios xx.fbcdn.net
+      },
     ],
     // Remova estas linhas por enquanto, elas eram do seu config antigo e podem causar problemas de exibição
     // dangerouslyAllowSVG: true,
