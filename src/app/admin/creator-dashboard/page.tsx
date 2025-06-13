@@ -13,7 +13,9 @@ import {
   GlobeAltIcon,
   WrenchScrewdriverIcon,
   SparklesIcon, // Alternative for Advanced Tools
+  TrophyIcon,
 } from '@heroicons/react/24/outline'; // Changed to outline for consistency
+import CreatorRankingCard from './CreatorRankingCard'; // Adjust path if necessary
 
 // Lazy load StandaloneChatInterface
 const DynamicAIChatInterface = dynamic(() => import('./StandaloneChatInterface'), {
@@ -140,6 +142,49 @@ export default function CreatorDashboardPage() {
             Monitorize, analise e obtenha insights sobre criadores e conteúdo da plataforma.
           </p>
         </header>
+
+        {/* Section: Destaques de Criadores */}
+        <section className="mb-10">
+          <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center">
+            <TrophyIcon className="w-7 h-7 mr-3 text-gray-500 dark:text-gray-400" aria-hidden="true" />
+            Destaques de Criadores
+            {dateRangeFilterProp?.startDate && dateRangeFilterProp?.endDate && (
+              <span className="text-sm font-normal text-gray-400 dark:text-gray-500 ml-2">
+                (Período: {new Date(dateRangeFilterProp.startDate + 'T00:00:00').toLocaleDateString('pt-BR')} - {new Date(dateRangeFilterProp.endDate + 'T00:00:00').toLocaleDateString('pt-BR')})
+              </span>
+            )}
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+            <CreatorRankingCard
+              title="Maiores Engajadores"
+              apiEndpoint="/api/admin/dashboard/rankings/creators/top-engaging"
+              dateRangeFilter={dateRangeFilterProp}
+              metricLabel="%"
+              limit={5}
+            />
+            <CreatorRankingCard
+              title="Mais Prolíficos"
+              apiEndpoint="/api/admin/dashboard/rankings/creators/most-prolific"
+              dateRangeFilter={dateRangeFilterProp}
+              metricLabel="posts"
+              limit={5}
+            />
+            <CreatorRankingCard
+              title="Campeões de Interação"
+              apiEndpoint="/api/admin/dashboard/rankings/creators/top-interactions"
+              dateRangeFilter={dateRangeFilterProp}
+              metricLabel="interações"
+              limit={5}
+            />
+            <CreatorRankingCard
+              title="Mestres do Compartilhamento"
+              apiEndpoint="/api/admin/dashboard/rankings/creators/top-sharing"
+              dateRangeFilter={dateRangeFilterProp}
+              metricLabel="compart."
+              limit={5}
+            />
+          </div>
+        </section>
 
         {/* Global Filters Section */}
         <section className="mb-8 p-6 bg-white dark:bg-gray-800/50 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">

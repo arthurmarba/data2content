@@ -267,6 +267,282 @@ export async function fetchDashboardOverallContentStats(
   }
 }
 
+// --- Interfaces for Creator Rankings ---
+export interface IRankingCreatorInfo {
+  creatorId: Types.ObjectId;
+  creatorName: string;
+  profilePictureUrl?: string;
+}
+
+export interface ICreatorMetricRankItem extends IRankingCreatorInfo {
+  metricValue: number;
+  // Optional: add raw components if needed by UI, e.g., totalInteractions, totalReach for engagement
+  // rawInteractions?: number;
+  // rawReach?: number;
+}
+
+export interface IFetchCreatorRankingParams {
+  dateRange: {
+    startDate: Date;
+    endDate: Date;
+  };
+  limit?: number; // Default to 5 or 10
+}
+
+// --- Service Functions for Creator Rankings ---
+
+/**
+ * @function fetchTopEngagingCreators
+ * @description Fetches creators ranked by engagement rate ((Total Interactions / Total Reach) * 100) within a date range.
+ * @param {IFetchCreatorRankingParams} params - Parameters including dateRange and limit.
+ * @returns {Promise<ICreatorMetricRankItem[]>} - List of top engaging creators.
+ */
+export async function fetchTopEngagingCreators(
+  params: IFetchCreatorRankingParams
+): Promise<ICreatorMetricRankItem[]> {
+  const TAG = `${SERVICE_TAG}[fetchTopEngagingCreators]`;
+  const { dateRange, limit = 5 } = params;
+  logger.info(`${TAG} Fetching top engaging creators for period: ${dateRange.startDate} - ${dateRange.endDate}`);
+
+  try {
+    await connectToDatabase();
+    const pipeline: PipelineStage[] = [
+      {
+        $match: {
+          postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
+          'stats.reach': { $exists: true, $ne: null, $gt: 0 }, // Ensure reach is positive and exists
+          'stats.total_interactions': { $exists: true, $ne: null } // Ensure interactions exist
+        }
+      },
+      {
+        $group: {
+          _id: '$user', // Group by creator
+          totalInteractions: { $sum: '$stats.total_interactions' },
+          totalReach: { $sum: '$stats.reach' }
+        }
+      },
+      {
+        $match: { // Ensure totalReach is still positive after sum
+          totalReach: { $gt: 0 }
+        }
+      },
+      {
+        $addFields: {
+          // Calculate engagement rate, multiply by 100 for percentage
+          metricValue: {
+            $multiply: [{ $divide: ['$totalInteractions', '$totalReach'] }, 100]
+          }
+        }
+      },
+      { $sort: { metricValue: -1 } },
+      { $limit: limit },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'creatorDetails',
+          pipeline: [{ $project: { name: 1, profilePictureUrl: 1 } }] // Project only necessary fields
+        }
+      },
+      { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } }, // Use true if a creator might not exist in users table
+      {
+        $project: {
+          _id: 0,
+          creatorId: '$_id',
+          creatorName: { $ifNull: ['$creatorDetails.name', 'Unknown Creator'] },
+          profilePictureUrl: '$creatorDetails.profilePictureUrl', // Assumes 'profilePictureUrl' is the field name
+          metricValue: { $round: ['$metricValue', 2] } // Round to 2 decimal places
+          // rawInteractions: '$totalInteractions', // Optional: if UI needs to show raw numbers
+          // rawReach: '$totalReach' // Optional
+        }
+      }
+    ];
+    const results = await MetricModel.aggregate(pipeline);
+    logger.info(`${TAG} Found ${results.length} top engaging creators.`);
+    return results as ICreatorMetricRankItem[];
+  } catch (error: any) {
+    logger.error(`${TAG} Error fetching top engaging creators:`, error);
+    throw new DatabaseError(`Failed to fetch top engaging creators: ${error.message}`);
+  }
+}
+
+/**
+ * @function fetchMostProlificCreators
+ * @description Fetches creators ranked by the total number of posts within a date range.
+ * @param {IFetchCreatorRankingParams} params - Parameters including dateRange and limit.
+ * @returns {Promise<ICreatorMetricRankItem[]>} - List of most prolific creators.
+ */
+export async function fetchMostProlificCreators(
+  params: IFetchCreatorRankingParams
+): Promise<ICreatorMetricRankItem[]> {
+  const TAG = `${SERVICE_TAG}[fetchMostProlificCreators]`;
+  const { dateRange, limit = 5 } = params;
+  logger.info(`${TAG} Fetching most prolific creators for period: ${dateRange.startDate} - ${dateRange.endDate}`);
+
+  try {
+    await connectToDatabase();
+    const pipeline: PipelineStage[] = [
+      {
+        $match: {
+          postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate }
+        }
+      },
+      {
+        $group: {
+          _id: '$user',
+          metricValue: { $sum: 1 } // Count of posts
+        }
+      },
+      { $sort: { metricValue: -1 } },
+      { $limit: limit },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'creatorDetails',
+          pipeline: [{ $project: { name: 1, profilePictureUrl: 1 } }]
+        }
+      },
+      { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 0,
+          creatorId: '$_id',
+          creatorName: { $ifNull: ['$creatorDetails.name', 'Unknown Creator'] },
+          profilePictureUrl: '$creatorDetails.profilePictureUrl',
+          metricValue: 1
+        }
+      }
+    ];
+    const results = await MetricModel.aggregate(pipeline);
+    logger.info(`${TAG} Found ${results.length} most prolific creators.`);
+    return results as ICreatorMetricRankItem[];
+  } catch (error: any) {
+    logger.error(`${TAG} Error fetching most prolific creators:`, error);
+    throw new DatabaseError(`Failed to fetch most prolific creators: ${error.message}`);
+  }
+}
+
+/**
+ * @function fetchTopInteractionCreators
+ * @description Fetches creators ranked by the total sum of interactions on their posts within a date range.
+ * @param {IFetchCreatorRankingParams} params - Parameters including dateRange and limit.
+ * @returns {Promise<ICreatorMetricRankItem[]>} - List of top interaction creators.
+ */
+export async function fetchTopInteractionCreators(
+  params: IFetchCreatorRankingParams
+): Promise<ICreatorMetricRankItem[]> {
+  const TAG = `${SERVICE_TAG}[fetchTopInteractionCreators]`;
+  const { dateRange, limit = 5 } = params;
+  logger.info(`${TAG} Fetching top interaction creators for period: ${dateRange.startDate} - ${dateRange.endDate}`);
+
+  try {
+    await connectToDatabase();
+    const pipeline: PipelineStage[] = [
+      {
+        $match: {
+          postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
+          'stats.total_interactions': { $exists: true, $ne: null }
+        }
+      },
+      {
+        $group: {
+          _id: '$user',
+          metricValue: { $sum: '$stats.total_interactions' }
+        }
+      },
+      { $sort: { metricValue: -1 } },
+      { $limit: limit },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'creatorDetails',
+          pipeline: [{ $project: { name: 1, profilePictureUrl: 1 } }]
+        }
+      },
+      { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 0,
+          creatorId: '$_id',
+          creatorName: { $ifNull: ['$creatorDetails.name', 'Unknown Creator'] },
+          profilePictureUrl: '$creatorDetails.profilePictureUrl',
+          metricValue: 1
+        }
+      }
+    ];
+    const results = await MetricModel.aggregate(pipeline);
+    logger.info(`${TAG} Found ${results.length} top interaction creators.`);
+    return results as ICreatorMetricRankItem[];
+  } catch (error: any) {
+    logger.error(`${TAG} Error fetching top interaction creators:`, error);
+    throw new DatabaseError(`Failed to fetch top interaction creators: ${error.message}`);
+  }
+}
+
+/**
+ * @function fetchTopSharingCreators
+ * @description Fetches creators ranked by the total sum of shares on their posts within a date range.
+ * @param {IFetchCreatorRankingParams} params - Parameters including dateRange and limit.
+ * @returns {Promise<ICreatorMetricRankItem[]>} - List of top sharing creators.
+ */
+export async function fetchTopSharingCreators(
+  params: IFetchCreatorRankingParams
+): Promise<ICreatorMetricRankItem[]> {
+  const TAG = `${SERVICE_TAG}[fetchTopSharingCreators]`;
+  const { dateRange, limit = 5 } = params;
+  logger.info(`${TAG} Fetching top sharing creators for period: ${dateRange.startDate} - ${dateRange.endDate}`);
+
+  try {
+    await connectToDatabase();
+    const pipeline: PipelineStage[] = [
+      {
+        $match: {
+          postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
+          'stats.shares': { $exists: true, $ne: null }
+        }
+      },
+      {
+        $group: {
+          _id: '$user',
+          metricValue: { $sum: '$stats.shares' }
+        }
+      },
+      { $sort: { metricValue: -1 } },
+      { $limit: limit },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'creatorDetails',
+          pipeline: [{ $project: { name: 1, profilePictureUrl: 1 } }]
+        }
+      },
+      { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 0,
+          creatorId: '$_id',
+          creatorName: { $ifNull: ['$creatorDetails.name', 'Unknown Creator'] },
+          profilePictureUrl: '$creatorDetails.profilePictureUrl',
+          metricValue: 1
+        }
+      }
+    ];
+    const results = await MetricModel.aggregate(pipeline);
+    logger.info(`${TAG} Found ${results.length} top sharing creators.`);
+    return results as ICreatorMetricRankItem[];
+  } catch (error: any) {
+    logger.error(`${TAG} Error fetching top sharing creators:`, error);
+    throw new DatabaseError(`Failed to fetch top sharing creators: ${error.message}`);
+  }
+}
+
 
 // Interfaces para fetchDashboardOverallContentStats
 export interface IFetchDashboardOverallContentStatsFilters {
