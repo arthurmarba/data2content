@@ -9,13 +9,13 @@ import dynamic from 'next/dynamic';
 // Lazy load CreatorDetailModal
 const DynamicCreatorDetailModal = dynamic(() => import('./CreatorDetailModal'), {
   ssr: false,
-  loading: () => <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center"><div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl"><p className="text-gray-700 dark:text-gray-300">Carregando Detalhes...</p></div></div>,
+  loading: () => <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center"><div className="bg-white p-6 rounded-lg shadow-xl"><p className="text-gray-700">Carregando Detalhes...</p></div></div>,
 });
 
 // Lazy load CreatorComparisonModal
 const DynamicCreatorComparisonModal = dynamic(() => import('./CreatorComparisonModal'), {
   ssr: false,
-  loading: () => <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center"><div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl"><p className="text-gray-700 dark:text-gray-300">Carregando Comparativo...</p></div></div>,
+  loading: () => <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center"><div className="bg-white p-6 rounded-lg shadow-xl"><p className="text-gray-700">Carregando Comparativo...</p></div></div>,
 });
 
 import SkeletonBlock from './SkeletonBlock';
@@ -228,13 +228,13 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
 
   return (
     <> {/* Fragment to wrap table and modal */}
-    <div className="bg-white dark:bg-gray-800/50 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
       <div className="flex justify-between items-center mb-4">
         <div className="flex-1">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
+          <h3 className="text-lg font-semibold text-gray-800">
             Lista de Criadores
           </h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-sm text-gray-500 mt-1">
             Visão geral dos criadores da plataforma. Clique no nome para detalhes ou selecione para comparar.
           </p>
         </div>
@@ -243,7 +243,7 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
             placeholder="Buscar por nome..."
             value={nameSearch}
             onChange={(e) => setNameSearch(e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-indigo-500 focus:border-indigo-500"
+            className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 focus:ring-indigo-500 focus:border-indigo-500"
         />
       </div>
 
@@ -252,12 +252,12 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
         <button
           onClick={handleInitiateComparison}
           disabled={selectedForComparison.length < 2 || selectedForComparison.length > MAX_CREATORS_TO_COMPARE}
-          className="flex items-center justify-center px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-900 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed dark:disabled:bg-gray-600 dark:disabled:text-gray-400 text-sm"
+          className="flex items-center justify-center px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed text-sm"
         >
           <UserGroupIcon className="w-5 h-5 mr-2" aria-hidden="true" />
           Comparar Criadores Selecionados
         </button>
-        <p className="text-sm text-gray-600 dark:text-gray-300">
+        <p className="text-sm text-gray-600">
           {selectedForComparison.length} / {MAX_CREATORS_TO_COMPARE} selecionados
         </p>
       </div>
@@ -265,18 +265,18 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
 
       {isLoading && (
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-700/50">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
               <tr>
                 {columns.map((col) => (
-                  <th key={`skel-header-${col.key}`} scope="col" className={`px-6 py-3 ${col.headerClassName || ''} ${col.key === 'actions' || col.key === 'select' ? 'text-center' : 'text-left'} text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider`}>
+                  <th key={`skel-header-${col.key}`} scope="col" className={`px-6 py-3 ${col.headerClassName || ''} ${col.key === 'actions' || col.key === 'select' ? 'text-center' : 'text-left'} text-xs font-medium text-gray-400 uppercase tracking-wider`}>
                     {/* For select column, keep it empty or a very small skeleton if preferred */}
                     {col.key === 'select' ? <SkeletonBlock width="w-4" height="h-4" className="opacity-50"/> : <SkeletonBlock width="w-20" height="h-3" />}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="bg-white divide-y divide-gray-200">
               {Array.from({ length: limit }).map((_, index) => ( // Use 'limit' for number of skeleton rows
                 <tr key={`skel-row-${index}`}>
                   <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -314,7 +314,7 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
 
       {error && (
         <div className="text-center py-4">
-          <p className="text-red-500 dark:text-red-400">Erro ao carregar dados: {error}</p>
+          <p className="text-red-500">Erro ao carregar dados: {error}</p>
         </div>
       )}
 
@@ -332,14 +332,14 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
       {!isLoading && !error && creators.length > 0 && (
         <>
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-700/50">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
                 <tr>
                   {columns.map((col) => (
                     <th
                       key={col.key}
                       scope="col"
-                      className={`px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider ${col.key === 'actions' || col.key === 'select' ? 'text-center' : 'text-left'} ${col.sortable ? 'cursor-pointer' : ''} ${col.headerClassName || ''}`}
+                      className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${col.key === 'actions' || col.key === 'select' ? 'text-center' : 'text-left'} ${col.sortable ? 'cursor-pointer' : ''} ${col.headerClassName || ''}`}
                       onClick={() => col.sortable && handleSort(col.key)}
                     >
                       {col.label} {col.sortable && renderSortIcon(col.key)}
@@ -347,30 +347,30 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
                   ))}
                 </tr>
               </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="bg-white divide-y divide-gray-200">
                 {creators.map((creator) => {
                   const creatorIdStr = creator._id.toString();
                   const isSelected = selectedForComparison.includes(creatorIdStr);
                   const isDisabled = !isSelected && selectedForComparison.length >= MAX_CREATORS_TO_COMPARE;
                   return (
-                    <tr key={creatorIdStr} className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/30' : ''}`}>
+                    <tr key={creatorIdStr} className={`hover:bg-gray-50 transition-colors ${isSelected ? 'bg-indigo-50' : ''}`}>
                        <td className="px-6 py-4 whitespace-nowrap text-center">
                         <input
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => handleCompareSelectChange(creatorIdStr)}
                           disabled={isDisabled}
-                          className={`h-4 w-4 text-indigo-600 border-gray-300 dark:border-gray-500 rounded focus:ring-indigo-500 dark:bg-gray-700 dark:checked:bg-indigo-500 ${isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+                          className={`h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 ${isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
                           aria-label={`Selecionar ${creator.name} para comparação`}
                         />
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-600 mr-3 flex items-center justify-center text-xs">
+                          <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 mr-3 flex items-center justify-center text-xs">
                               {creator.name?.substring(0,2).toUpperCase()}
                           </div>
                           <span
-                              className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-200 cursor-pointer font-medium truncate max-w-xs hover:underline" // Added hover:underline
+                              className="text-indigo-600 hover:text-indigo-800 cursor-pointer font-medium truncate max-w-xs hover:underline" // Added hover:underline
                               onClick={() => handleOpenCreatorModal(creator)}
                               title={getSafeString(creator.name)}
                           >
@@ -378,28 +378,28 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 text-right">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
                         {formatNumber(creator.totalPosts)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 text-right">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">
                         {formatEngagement(creator.avgEngagementRate)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 text-center">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
                         {formatDate(creator.lastActivityDate)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 text-center">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                             creator.planStatus === 'Pro' ? 'bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-100'
-                             : creator.planStatus === 'Premium' ? 'bg-purple-100 text-purple-800 dark:bg-purple-700 dark:text-purple-100'
-                             : creator.planStatus === 'Free' ? 'bg-blue-100 text-blue-800 dark:bg-blue-700 dark:text-blue-100'
-                             : 'bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-100'}`}>
+                             creator.planStatus === 'Pro' ? 'bg-green-100 text-green-800'
+                             : creator.planStatus === 'Premium' ? 'bg-purple-100 text-purple-800'
+                             : creator.planStatus === 'Free' ? 'bg-blue-100 text-blue-800'
+                             : 'bg-gray-100 text-gray-800'}`}>
                           {getSafeString(creator.planStatus)}
                          </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 text-center">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
                           <button
                               onClick={() => handleOpenCreatorModal(creator)}
-                              className="flex items-center justify-center w-full sm:w-auto bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-500 font-medium py-1 px-2.5 rounded-md shadow-sm text-xs hover:bg-indigo-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 dark:focus:ring-offset-gray-900 disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-300 disabled:cursor-not-allowed dark:disabled:bg-gray-800 dark:disabled:text-gray-500"
+                              className="flex items-center justify-center w-full sm:w-auto bg-white text-indigo-600 border border-indigo-300 font-medium py-1 px-2.5 rounded-md shadow-sm text-xs hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-300 disabled:cursor-not-allowed"
                               title="Ver detalhes e performance"
                           >
                               <InformationCircleIcon className="w-4 h-4 sm:mr-1.5" aria-hidden="true" />
@@ -414,22 +414,22 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
           </div>
 
           {/* Pagination Controls */}
-          <div className="py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 mt-4">
-            <p className="text-sm text-gray-700 dark:text-gray-300">
+          <div className="py-3 flex items-center justify-between border-t border-gray-200 mt-4">
+            <p className="text-sm text-gray-700">
               Página <span className="font-medium">{currentPage}</span> de <span className="font-medium">{totalPages}</span> ({totalCreators} criadores)
             </p>
             <div className="flex-1 flex justify-end space-x-2">
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1 || isLoading}
-                className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
               >
                 Anterior
               </button>
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === totalPages || isLoading || totalCreators === 0}
-                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
               >
                 Próxima
               </button>

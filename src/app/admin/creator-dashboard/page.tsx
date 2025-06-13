@@ -20,7 +20,7 @@ import CreatorRankingCard from './CreatorRankingCard'; // Adjust path if necessa
 // Lazy load StandaloneChatInterface
 const DynamicAIChatInterface = dynamic(() => import('./StandaloneChatInterface'), {
   ssr: false,
-  loading: () => <div className="flex items-center justify-center h-full"><p className="text-gray-500 dark:text-gray-400">Carregando Chat IA...</p></div>,
+  loading: () => <div className="flex items-center justify-center h-full"><p className="text-gray-500">Carregando Chat IA...</p></div>,
 });
 
 // Lazy load ContentSegmentComparison
@@ -29,8 +29,8 @@ const DynamicContentSegmentComparison = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="bg-white dark:bg-gray-800/50 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 min-h-[300px] flex items-center justify-center mt-8">
-        <p className="text-gray-500 dark:text-gray-400">Carregando Comparador de Segmentos...</p>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 min-h-[300px] flex items-center justify-center mt-8">
+        <p className="text-gray-500">Carregando Comparador de Segmentos...</p>
       </div>
     ),
   }
@@ -42,8 +42,8 @@ const DynamicTopMoversWidget = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="bg-white dark:bg-gray-800/50 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 min-h-[400px] flex items-center justify-center mt-8">
-        <p className="text-gray-500 dark:text-gray-400">Carregando Widget Top Movers...</p>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 min-h-[400px] flex items-center justify-center mt-8">
+        <p className="text-gray-500">Carregando Widget Top Movers...</p>
       </div>
     ),
   }
@@ -131,25 +131,25 @@ export default function CreatorDashboardPage() {
 
 
   return (
-    <div className="bg-slate-50 dark:bg-slate-900 min-h-screen relative"> {/* Added relative for modal positioning context */}
+    <div className="bg-brand-light min-h-screen relative"> {/* Added relative for modal positioning context */}
       <div className="max-w-7xl mx-auto p-4 md:p-8">
         {/* Header */}
         <header className="mb-10">
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">
             Creator & Content Dashboard
           </h1>
-          <p className="text-md text-gray-600 dark:text-gray-400 mt-2">
+          <p className="text-md text-gray-600 mt-2">
             Monitorize, analise e obtenha insights sobre criadores e conteúdo da plataforma.
           </p>
         </header>
 
         {/* Section: Destaques de Criadores */}
         <section className="mb-10">
-          <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center">
-            <TrophyIcon className="w-7 h-7 mr-3 text-gray-500 dark:text-gray-400" aria-hidden="true" />
+          <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
+            <TrophyIcon className="w-7 h-7 mr-3 text-gray-500" aria-hidden="true" />
             Destaques de Criadores
             {dateRangeFilterProp?.startDate && dateRangeFilterProp?.endDate && (
-              <span className="text-sm font-normal text-gray-400 dark:text-gray-500 ml-2">
+              <span className="text-sm font-normal text-gray-400 ml-2">
                 (Período: {new Date(dateRangeFilterProp.startDate + 'T00:00:00').toLocaleDateString('pt-BR')} - {new Date(dateRangeFilterProp.endDate + 'T00:00:00').toLocaleDateString('pt-BR')})
               </span>
             )}
@@ -187,37 +187,37 @@ export default function CreatorDashboardPage() {
         </section>
 
         {/* Global Filters Section */}
-        <section className="mb-8 p-6 bg-white dark:bg-gray-800/50 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
+        <section className="mb-8 p-6 bg-white rounded-xl shadow-sm border border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">
             Filtros Globais
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
             <div>
-              <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data Início</label>
+              <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">Data Início</label>
               <input
                 type="date"
                 name="startDate"
                 id="startDate"
                 value={filters.dateRange.startDate}
                 onChange={handleFilterChange}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white text-gray-900"
               />
             </div>
             <div>
-              <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data Fim</label>
+              <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">Data Fim</label>
               <input
                 type="date"
                 name="endDate"
                 id="endDate"
                 value={filters.dateRange.endDate}
                 onChange={handleFilterChange}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white text-gray-900"
               />
             </div>
             {/* Plan Status Checkboxes */}
             <div className="lg:col-span-2"> {/* Allow more space for checkboxes */}
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status do Plano</label>
-              <div className="mt-1 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700/30 max-h-32 overflow-y-auto">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Status do Plano</label>
+              <div className="mt-1 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 p-2 border border-gray-300 rounded-md bg-white max-h-32 overflow-y-auto">
                 {PLAN_STATUS_OPTIONS.map(option => (
                   <div key={option} className="flex items-center">
                     <input
@@ -227,9 +227,9 @@ export default function CreatorDashboardPage() {
                       value={option}
                       checked={filters.planStatus.includes(option)}
                       onChange={handleFilterChange}
-                      className="h-4 w-4 text-indigo-600 border-gray-300 dark:border-gray-500 rounded focus:ring-indigo-500 dark:bg-gray-600 dark:checked:bg-indigo-500"
+                      className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                     />
-                    <label htmlFor={`planStatus-${option}`} className="ml-2 text-xs text-gray-700 dark:text-gray-200">
+                    <label htmlFor={`planStatus-${option}`} className="ml-2 text-xs text-gray-700">
                       {option}
                     </label>
                   </div>
@@ -239,8 +239,8 @@ export default function CreatorDashboardPage() {
 
             {/* Expertise Level Checkboxes */}
             <div className="lg:col-span-2"> {/* Allow more space for checkboxes */}
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nível de Expertise</label>
-              <div className="mt-1 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700/30 max-h-32 overflow-y-auto">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nível de Expertise</label>
+              <div className="mt-1 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 p-2 border border-gray-300 rounded-md bg-white max-h-32 overflow-y-auto">
                 {EXPERTISE_LEVEL_OPTIONS.map(option => (
                   <div key={option} className="flex items-center">
                     <input
@@ -250,9 +250,9 @@ export default function CreatorDashboardPage() {
                       value={option}
                       checked={filters.expertiseLevel.includes(option)}
                       onChange={handleFilterChange}
-                      className="h-4 w-4 text-indigo-600 border-gray-300 dark:border-gray-500 rounded focus:ring-indigo-500 dark:bg-gray-600 dark:checked:bg-indigo-500"
+                      className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                     />
-                    <label htmlFor={`expertiseLevel-${option}`} className="ml-2 text-xs text-gray-700 dark:text-gray-200">
+                    <label htmlFor={`expertiseLevel-${option}`} className="ml-2 text-xs text-gray-700">
                       {option}
                     </label>
                   </div>
@@ -262,7 +262,7 @@ export default function CreatorDashboardPage() {
 
             <button
               onClick={handleApplyFilters}
-              className="w-full lg:self-end h-[42px] flex items-center justify-center px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-900 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed dark:disabled:bg-gray-600 dark:disabled:text-gray-400"
+              className="w-full lg:self-end h-[42px] flex items-center justify-center px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
             >
               <FunnelIcon className="w-5 h-5 mr-2" aria-hidden="true" />
               Aplicar Filtros
@@ -275,8 +275,8 @@ export default function CreatorDashboardPage() {
 
           {/* Section: Visão Geral */}
           <section>
-            <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center">
-              <ChartBarSquareIcon className="w-7 h-7 mr-3 text-gray-500 dark:text-gray-400" aria-hidden="true" />
+            <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
+              <ChartBarSquareIcon className="w-7 h-7 mr-3 text-gray-500" aria-hidden="true" />
               Visão Geral
             </h2>
             <ContentStatsWidgets
@@ -287,8 +287,8 @@ export default function CreatorDashboardPage() {
 
           {/* Section: Análise de Criadores */}
           <section className="mt-8">
-            <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center">
-              <UserGroupIcon className="w-7 h-7 mr-3 text-gray-500 dark:text-gray-400" aria-hidden="true" />
+            <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
+              <UserGroupIcon className="w-7 h-7 mr-3 text-gray-500" aria-hidden="true" />
               Análise de Criadores
             </h2>
             <CreatorTable
@@ -301,8 +301,8 @@ export default function CreatorDashboardPage() {
 
           {/* Section: Exploração de Conteúdo Global */}
           <section className="mt-8">
-            <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center">
-              <GlobeAltIcon className="w-7 h-7 mr-3 text-gray-500 dark:text-gray-400" aria-hidden="true" />
+            <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
+              <GlobeAltIcon className="w-7 h-7 mr-3 text-gray-500" aria-hidden="true" />
               Exploração de Conteúdo Global
             </h2>
             <GlobalPostsExplorer dateRangeFilter={dateRangeFilterProp} />
@@ -310,8 +310,8 @@ export default function CreatorDashboardPage() {
 
           {/* Section: Ferramentas de Análise Avançada */}
           <section className="mt-8">
-            <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center">
-              <SparklesIcon className="w-7 h-7 mr-3 text-gray-500 dark:text-gray-400" aria-hidden="true" /> {/* Using SparklesIcon */}
+            <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
+              <SparklesIcon className="w-7 h-7 mr-3 text-gray-500" aria-hidden="true" /> {/* Using SparklesIcon */}
               Ferramentas de Análise Avançada
             </h2>
             <div className="space-y-8">
@@ -327,7 +327,7 @@ export default function CreatorDashboardPage() {
           <button
             type="button"
             onClick={() => setIsAiChatVisible(true)}
-            className="px-6 py-3 bg-indigo-600 text-white rounded-full text-lg font-semibold shadow-xl hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-4 focus:ring-indigo-500 dark:focus:ring-offset-gray-900 transition-all ease-in-out duration-150 hover:scale-105 active:scale-95"
+            className="px-6 py-3 bg-indigo-600 text-white rounded-full text-lg font-semibold shadow-xl hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-4 focus:ring-indigo-500 transition-all ease-in-out duration-150 hover:scale-105 active:scale-95"
             title="Abrir Chat IA"
           >
             Chat IA
@@ -338,14 +338,14 @@ export default function CreatorDashboardPage() {
         {isAiChatVisible && (
           <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4" onClick={(e) => { if(e.target === e.currentTarget) setIsAiChatVisible(false);}}> {/* Click outside to close */}
             {/* Modal Content */}
-            <div className="bg-gray-100 dark:bg-gray-800 w-full max-w-2xl h-[80vh] max-h-[700px] rounded-xl shadow-2xl flex flex-col overflow-hidden border border-gray-300 dark:border-gray-700">
-              <header className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
+            <div className="bg-gray-100 w-full max-w-2xl h-[80vh] max-h-[700px] rounded-xl shadow-2xl flex flex-col overflow-hidden border border-gray-300">
+              <header className="flex items-center justify-between p-3 border-b border-gray-200 bg-gray-50">
+                <h2 className="text-lg font-semibold text-gray-800">
                   Assistente IA
                 </h2>
                 <button
                   onClick={() => setIsAiChatVisible(false)}
-                  className="p-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400" // Icon button style
+                  className="p-1.5 rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400" // Icon button style
                   title="Fechar chat"
                 >
                   <XMarkIcon className="w-6 h-6" />
@@ -359,7 +359,7 @@ export default function CreatorDashboardPage() {
         )}
 
         {/* Footer (Optional) */}
-        <footer className="mt-12 text-center text-sm text-gray-500 dark:text-gray-400">
+        <footer className="mt-12 text-center text-sm text-gray-500">
           <p>&copy; {new Date().getFullYear()} Creator Platform. Todos os direitos reservados.</p>
         </footer>
       </div>

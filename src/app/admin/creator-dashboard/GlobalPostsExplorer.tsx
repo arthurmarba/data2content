@@ -186,26 +186,26 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800/50 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-      <h3 className="text-lg font-semibold text-gray-800 dark:text-white"> {/* Changed from h2 to h3 for consistency if used under page's h2 */}
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <h3 className="text-lg font-semibold text-gray-800"> {/* Changed from h2 to h3 for consistency if used under page's h2 */}
         Explorador de Posts Globais
       </h3>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 mb-4">
+      <p className="text-sm text-gray-500 mt-1 mb-4">
         Filtre e explore todos os posts da plataforma com base em diversos critérios.
       </p>
       <div className="space-y-4">
         {/* Filters Section */}
-        <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-800/60"> {/* Slightly adjusted dark bg for filter panel */}
+        <div className="p-4 border border-gray-200 rounded-md bg-gray-50"> {/* Slightly adjusted dark bg for filter panel */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 items-end">
             {/* Context Dropdown */}
             <div>
-              <label htmlFor="gpe-context" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Contexto</label>
+              <label htmlFor="gpe-context" className="block text-xs font-medium text-gray-600 mb-1">Contexto</label>
               <select
                 id="gpe-context"
                 name="context"
                 value={selectedContext}
                 onChange={(e) => setSelectedContext(e.target.value)}
-                className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 h-[38px]"
+                className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white text-gray-900 h-[38px]"
               >
                 {contextOptions.map(opt => <option key={opt} value={opt}>{opt === 'all' ? 'Todos os Contextos' : opt}</option>)}
               </select>
@@ -213,13 +213,13 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
 
             {/* Proposal Dropdown */}
             <div>
-              <label htmlFor="gpe-proposal" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Proposta</label>
+              <label htmlFor="gpe-proposal" className="block text-xs font-medium text-gray-600 mb-1">Proposta</label>
               <select
                 id="gpe-proposal"
                 name="proposal"
                 value={selectedProposal}
                 onChange={(e) => setSelectedProposal(e.target.value)}
-                className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 h-[38px]"
+                className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white text-gray-900 h-[38px]"
               >
                 {proposalOptions.map(opt => <option key={opt} value={opt}>{opt === 'all' ? 'Todas as Propostas' : opt}</option>)}
               </select>
@@ -227,13 +227,13 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
 
             {/* Format Dropdown */}
             <div>
-              <label htmlFor="gpe-format" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Formato</label>
+              <label htmlFor="gpe-format" className="block text-xs font-medium text-gray-600 mb-1">Formato</label>
               <select
                 id="gpe-format"
                 name="format"
                 value={selectedFormat}
                 onChange={(e) => setSelectedFormat(e.target.value)}
-                className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 h-[38px]"
+                className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white text-gray-900 h-[38px]"
               >
                 {formatOptions.map(opt => <option key={opt} value={opt}>{opt === 'all' ? 'Todos os Formatos' : opt}</option>)}
               </select>
@@ -241,7 +241,7 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
 
             {/* Min Interactions Input */}
             <div>
-              <label htmlFor="gpe-minInteractions" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Min. Interações</label>
+              <label htmlFor="gpe-minInteractions" className="block text-xs font-medium text-gray-600 mb-1">Min. Interações</label>
               <input
                 type="number"
                 id="gpe-minInteractions"
@@ -250,14 +250,14 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
                 onChange={(e) => setMinInteractionsValue(e.target.value)}
                 placeholder="Ex: 100"
                 min="0"
-                className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 h-[38px]"
+                className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white text-gray-900 h-[38px]"
               />
             </div>
 
             {/* Apply Filters Button */}
             <button
               onClick={handleApplyLocalFilters}
-              className="w-full lg:w-auto h-[38px] flex items-center justify-center px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-900 text-sm disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed dark:disabled:bg-gray-600 dark:disabled:text-gray-400"
+              className="w-full lg:w-auto h-[38px] flex items-center justify-center px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 text-sm disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
               disabled={isLoading}
             >
               <MagnifyingGlassIcon className="w-5 h-5 mr-2" aria-hidden="true" />
@@ -269,17 +269,17 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
         {/* Posts Display Area */}
         {isLoading && (
           <div className="overflow-x-auto mt-4">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
-              <thead className="bg-gray-100 dark:bg-gray-700/50">
+            <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <thead className="bg-gray-100">
                 <tr>
                   {columns.map((col) => (
-                    <th key={`skel-header-${col.key}`} scope="col" className={`px-4 py-2.5 text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider whitespace-nowrap ${col.key.startsWith('stats.') || ['postDate'].includes(col.key) ? 'text-center' : 'text-left'}`}>
+                    <th key={`skel-header-${col.key}`} scope="col" className={`px-4 py-2.5 text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap ${col.key.startsWith('stats.') || ['postDate'].includes(col.key) ? 'text-center' : 'text-left'}`}>
                       <SkeletonBlock width="w-24" height="h-3" className={col.key.startsWith('stats.') || ['postDate'].includes(col.key) ? 'mx-auto' : ''} />
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="bg-white divide-y divide-gray-200">
                 {Array.from({ length: limit }).map((_, index) => (
                   <tr key={`skel-row-${index}`}>
                     {columns.map(col => (
@@ -294,7 +294,7 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
           </div>
         )}
         {error && (
-            <div className="text-center py-10"><p className="text-red-500 dark:text-red-400">Erro ao carregar posts: {error}</p></div>
+            <div className="text-center py-10"><p className="text-red-500">Erro ao carregar posts: {error}</p></div>
         )}
         {!isLoading && !error && posts.length === 0 && (
           <div className="py-10">
@@ -307,14 +307,14 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
         )}
         {!isLoading && !error && posts.length > 0 && (
           <div className="overflow-x-auto mt-4">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
-              <thead className="bg-gray-100 dark:bg-gray-700/50">
+            <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <thead className="bg-gray-100">
                 <tr>
                   {columns.map((col) => (
                     <th
                       key={col.key}
                       scope="col"
-                      className={`px-4 py-2.5 text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap ${col.key.startsWith('stats.') || ['postDate'].includes(col.key) ? 'text-center' : 'text-left'} ${col.sortable ? 'cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700' : ''}`}
+                      className={`px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap ${col.key.startsWith('stats.') || ['postDate'].includes(col.key) ? 'text-center' : 'text-left'} ${col.sortable ? 'cursor-pointer hover:bg-gray-200' : ''}`}
                       onClick={() => col.sortable && handleSort(col.key)}
                     >
                       {col.label} {col.sortable && renderSortIcon(col.key)}
@@ -322,9 +322,9 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
                   ))}
                 </tr>
               </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="bg-white divide-y divide-gray-200">
                 {posts.map((post) => (
-                  <tr key={post._id?.toString()} className="hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors">
+                  <tr key={post._id?.toString()} className="hover:bg-gray-50 transition-colors">
                     {columns.map(col => {
                         const rawValue = col.getVal(post);
                         let displayValue = rawValue;
@@ -332,7 +332,7 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
                             displayValue = formatNumberStd(rawValue);
                         }
                         return (
-                            <td key={col.key} className={`px-4 py-3 whitespace-nowrap text-gray-600 dark:text-gray-400 ${col.key.startsWith('stats.') || ['postDate'].includes(col.key) ? 'text-center' : 'text-left'}`}>
+                            <td key={col.key} className={`px-4 py-3 whitespace-nowrap text-gray-600 ${col.key.startsWith('stats.') || ['postDate'].includes(col.key) ? 'text-center' : 'text-left'}`}>
                                 {col.key === 'text_content' ? (
                                     <span title={String(rawValue)} className="block max-w-[200px] lg:max-w-[300px] truncate">
                                         {displayValue}
@@ -352,22 +352,22 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
 
         {/* Pagination Controls */}
         {!isLoading && !error && totalPosts > 0 && (
-           <div className="py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 mt-4 text-sm">
-                <p className="text-gray-700 dark:text-gray-300">
+           <div className="py-3 flex items-center justify-between border-t border-gray-200 mt-4 text-sm">
+                <p className="text-gray-700">
                 Página <span className="font-medium">{currentPage}</span> de <span className="font-medium">{totalPages}</span> ({totalPosts} posts)
                 </p>
                 <div className="flex-1 flex justify-end space-x-2">
                 <button
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1 || isLoading}
-                    className="relative inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 text-xs"
+                    className="relative inline-flex items-center px-3 py-1.5 border border-gray-300 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 text-xs"
                 >
                     Anterior
                 </button>
                 <button
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages || isLoading || totalPosts === 0}
-                    className="ml-2 relative inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 text-xs"
+                    className="ml-2 relative inline-flex items-center px-3 py-1.5 border border-gray-300 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 text-xs"
                 >
                     Próxima
                 </button>

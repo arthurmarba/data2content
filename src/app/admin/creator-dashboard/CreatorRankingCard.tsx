@@ -101,17 +101,17 @@ const CreatorRankingCard: React.FC<CreatorRankingCardProps> = ({
   );
 
   return (
-    <div className="bg-white dark:bg-gray-800/50 p-4 rounded-lg shadow border border-gray-200 dark:border-gray-700 h-full flex flex-col">
-      <h4 className="text-md font-semibold text-gray-700 dark:text-white mb-3 truncate" title={title}>
+    <div className="bg-white p-4 rounded-lg shadow border border-gray-200 h-full flex flex-col">
+      <h4 className="text-md font-semibold text-gray-700 mb-3 truncate" title={title}>
         {title}
       </h4>
       {isLoading && renderSkeleton()}
       {!isLoading && error && (
         <div className="text-center py-4 flex-grow flex flex-col justify-center items-center">
-          <p className="text-xs text-red-500 dark:text-red-400 px-2">Erro: {error}</p>
+          <p className="text-xs text-red-500 px-2">Erro: {error}</p>
           <button
             onClick={fetchData}
-            className="mt-2 px-3 py-1 text-xs bg-indigo-100 text-indigo-700 dark:bg-indigo-700 dark:text-indigo-100 rounded hover:bg-indigo-200 dark:hover:bg-indigo-600"
+            className="mt-2 px-3 py-1 text-xs bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200"
           >
             Tentar Novamente
           </button>
@@ -121,7 +121,7 @@ const CreatorRankingCard: React.FC<CreatorRankingCardProps> = ({
         <ol className="space-y-2 text-sm flex-grow">
           {rankingData.map((item, index) => (
             <li key={item.creatorId.toString()} className="flex items-center space-x-2.5 py-1">
-              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-5 text-center">{index + 1}.</span>
+              <span className="text-xs font-medium text-gray-500 w-5 text-center">{index + 1}.</span>
               {item.profilePictureUrl ? (
                 <Image
                   src={item.profilePictureUrl}
@@ -131,16 +131,16 @@ const CreatorRankingCard: React.FC<CreatorRankingCardProps> = ({
                   className="w-8 h-8 rounded-full object-cover"
                 />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center text-xs font-semibold text-gray-500 dark:text-gray-300">
+                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-semibold text-gray-500">
                   {item.creatorName?.substring(0, 1).toUpperCase() || '?'}
                 </div>
               )}
               <div className="flex-1 truncate">
-                <p className="text-gray-800 dark:text-gray-100 font-medium truncate" title={item.creatorName}>
+                <p className="text-gray-800 font-medium truncate" title={item.creatorName}>
                   {item.creatorName || 'Desconhecido'}
                 </p>
               </div>
-              <span className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold whitespace-nowrap">
+              <span className="text-xs text-indigo-600 font-semibold whitespace-nowrap">
                 {formatMetricValue(item.metricValue)}
                 {metricLabel && ` ${metricLabel}`}
               </span>
@@ -149,7 +149,7 @@ const CreatorRankingCard: React.FC<CreatorRankingCardProps> = ({
         </ol>
       )}
       {!isLoading && !error && (!rankingData || rankingData.length === 0) && (
-         <div className="text-center py-4 text-xs text-gray-400 dark:text-gray-500 flex-grow flex flex-col justify-center items-center">
+         <div className="text-center py-4 text-xs text-gray-400 flex-grow flex flex-col justify-center items-center">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 mb-1">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h7.5M8.25 12h7.5m-7.5 5.25h7.5M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
             </svg>
