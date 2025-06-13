@@ -77,8 +77,19 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
     if (activeFilters.format && activeFilters.format !== 'all') params.append('format', activeFilters.format);
     if (activeFilters.minInteractions) params.append('minInteractions', String(activeFilters.minInteractions));
 
-    if (dateRangeFilter?.startDate) params.append('startDate', dateRangeFilter.startDate);
-    if (dateRangeFilter?.endDate) params.append('endDate', dateRangeFilter.endDate);
+    if (dateRangeFilter?.startDate) {
+      // Ensure we are treating the date as local and converting to UTC start of day
+      const localStartDate = new Date(dateRangeFilter.startDate);
+      const utcStartDate = new Date(Date.UTC(localStartDate.getFullYear(), localStartDate.getMonth(), localStartDate.getDate(), 0, 0, 0, 0));
+      params.append('startDate', utcStartDate.toISOString());
+    }
+
+    if (dateRangeFilter?.endDate) {
+      // Ensure we are treating the date as local and converting to UTC end of day
+      const localEndDate = new Date(dateRangeFilter.endDate);
+      const utcEndDate = new Date(Date.UTC(localEndDate.getFullYear(), localEndDate.getMonth(), localEndDate.getDate(), 23, 59, 59, 999));
+      params.append('endDate', utcEndDate.toISOString());
+    }
 
     try {
       const response = await fetch(`/api/admin/dashboard/posts?${params.toString()}`);

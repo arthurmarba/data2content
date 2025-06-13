@@ -31,9 +31,14 @@ const querySchema = z.object({
     message: "expertiseLevel must be a comma-separated list of non-empty strings if provided.",
   }),
   minTotalPosts: z.coerce.number().int().min(0).optional(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
-});
+  startDate: z.string().datetime({ offset: true, message: "Invalid startDate format." }).optional().transform(val => val ? new Date(val) : undefined),
+  endDate: z.string().datetime({ offset: true, message: "Invalid endDate format." }).optional().transform(val => val ? new Date(val) : undefined),
+}).refine(data => {
+  if (data.startDate && data.endDate && data.startDate > data.endDate) {
+    return false;
+  }
+  return true;
+}, { message: "startDate cannot be after endDate", path: ["endDate"] });
 
 // Simulated Admin Session Validation (to be replaced with actual session logic)
 async function getAdminSession(req: NextRequest): Promise<{ user: { name: string } } | null> {

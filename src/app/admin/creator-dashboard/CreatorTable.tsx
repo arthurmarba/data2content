@@ -122,11 +122,16 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
     if (expertiseLevelFilter) {
         queryParams.append('expertiseLevel', expertiseLevelFilter);
     }
+    // Format dates to UTC ISO strings
     if (dateRangeFilter?.startDate) {
-        queryParams.append('startDate', dateRangeFilter.startDate);
+      const localStartDate = new Date(dateRangeFilter.startDate);
+      const utcStartDate = new Date(Date.UTC(localStartDate.getFullYear(), localStartDate.getMonth(), localStartDate.getDate(), 0, 0, 0, 0));
+      queryParams.append('startDate', utcStartDate.toISOString());
     }
     if (dateRangeFilter?.endDate) {
-        queryParams.append('endDate', dateRangeFilter.endDate);
+      const localEndDate = new Date(dateRangeFilter.endDate);
+      const utcEndDate = new Date(Date.UTC(localEndDate.getFullYear(), localEndDate.getMonth(), localEndDate.getDate(), 23, 59, 59, 999));
+      queryParams.append('endDate', utcEndDate.toISOString());
     }
 
     const url = `/api/admin/dashboard/creators?${queryParams.toString()}`;
