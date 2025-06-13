@@ -342,7 +342,7 @@ export async function fetchTopEngagingCreators(
           localField: '_id',
           foreignField: '_id',
           as: 'creatorDetails',
-          pipeline: [{ $project: { name: 1, profilePictureUrl: 1 } }] // Project only necessary fields
+          pipeline: [{ $project: { name: 1, profile_picture_url: 1 } }] // Project only necessary fields
         }
       },
       { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } }, // Use true if a creator might not exist in users table
@@ -351,7 +351,7 @@ export async function fetchTopEngagingCreators(
           _id: 0,
           creatorId: '$_id',
           creatorName: { $ifNull: ['$creatorDetails.name', 'Unknown Creator'] },
-          profilePictureUrl: '$creatorDetails.profilePictureUrl', // Assumes 'profilePictureUrl' is the field name
+          profilePictureUrl: '$creatorDetails.profile_picture_url', // Corrected field name
           metricValue: { $round: ['$metricValue', 2] } // Round to 2 decimal places
           // rawInteractions: '$totalInteractions', // Optional: if UI needs to show raw numbers
           // rawReach: '$totalReach' // Optional
@@ -402,7 +402,7 @@ export async function fetchMostProlificCreators(
           localField: '_id',
           foreignField: '_id',
           as: 'creatorDetails',
-          pipeline: [{ $project: { name: 1, profilePictureUrl: 1 } }]
+          pipeline: [{ $project: { name: 1, profile_picture_url: 1 } }]
         }
       },
       { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } },
@@ -411,7 +411,7 @@ export async function fetchMostProlificCreators(
           _id: 0,
           creatorId: '$_id',
           creatorName: { $ifNull: ['$creatorDetails.name', 'Unknown Creator'] },
-          profilePictureUrl: '$creatorDetails.profilePictureUrl',
+          profilePictureUrl: '$creatorDetails.profile_picture_url', // Corrected field name
           metricValue: 1
         }
       }
@@ -461,7 +461,7 @@ export async function fetchTopInteractionCreators(
           localField: '_id',
           foreignField: '_id',
           as: 'creatorDetails',
-          pipeline: [{ $project: { name: 1, profilePictureUrl: 1 } }]
+          pipeline: [{ $project: { name: 1, profile_picture_url: 1 } }]
         }
       },
       { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } },
@@ -470,7 +470,7 @@ export async function fetchTopInteractionCreators(
           _id: 0,
           creatorId: '$_id',
           creatorName: { $ifNull: ['$creatorDetails.name', 'Unknown Creator'] },
-          profilePictureUrl: '$creatorDetails.profilePictureUrl',
+          profilePictureUrl: '$creatorDetails.profile_picture_url', // Corrected field name
           metricValue: 1
         }
       }
@@ -520,7 +520,7 @@ export async function fetchTopSharingCreators(
           localField: '_id',
           foreignField: '_id',
           as: 'creatorDetails',
-          pipeline: [{ $project: { name: 1, profilePictureUrl: 1 } }]
+          pipeline: [{ $project: { name: 1, profile_picture_url: 1 } }]
         }
       },
       { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } },
@@ -529,7 +529,7 @@ export async function fetchTopSharingCreators(
           _id: 0,
           creatorId: '$_id',
           creatorName: { $ifNull: ['$creatorDetails.name', 'Unknown Creator'] },
-          profilePictureUrl: '$creatorDetails.profilePictureUrl',
+          profilePictureUrl: '$creatorDetails.profile_picture_url', // Corrected field name
           metricValue: 1
         }
       }
