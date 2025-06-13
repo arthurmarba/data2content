@@ -145,3 +145,38 @@ export async function updateCreatorStatus(
     throw new Error(`Failed to update creator status: ${error.message}`);
   }
 }
+
+/**
+ * Fetches the total count of all creators.
+ */
+export async function getTotalCreatorsCount(): Promise<number> {
+  const TAG = `${SERVICE_TAG}[getTotalCreatorsCount]`;
+  await connectToDatabase();
+  try {
+    logger.info(`${TAG} Fetching total creators count.`);
+    const count = await UserModel.countDocuments({});
+    logger.info(`${TAG} Total creators count: ${count}.`);
+    return count;
+  } catch (error: any) {
+    logger.error(`${TAG} Error fetching total creators count:`, error);
+    throw new Error(`Failed to fetch total creators count: ${error.message}`);
+  }
+}
+
+/**
+ * Fetches the count of creators with a 'pending' adminStatus.
+ */
+export async function getPendingCreatorsCount(): Promise<number> {
+  const TAG = `${SERVICE_TAG}[getPendingCreatorsCount]`;
+  await connectToDatabase();
+  try {
+    logger.info(`${TAG} Fetching pending creators count.`);
+    // Assumes UserModel has an 'adminStatus' field of type AdminCreatorStatus
+    const count = await UserModel.countDocuments({ adminStatus: 'pending' as AdminCreatorStatus });
+    logger.info(`${TAG} Pending creators count: ${count}.`);
+    return count;
+  } catch (error: any) {
+    logger.error(`${TAG} Error fetching pending creators count:`, error);
+    throw new Error(`Failed to fetch pending creators count: ${error.message}`);
+  }
+}

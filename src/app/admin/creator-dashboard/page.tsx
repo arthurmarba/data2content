@@ -14,8 +14,13 @@ import {
   WrenchScrewdriverIcon,
   SparklesIcon, // Alternative for Advanced Tools
   TrophyIcon,
+  UsersIcon,
+  UserPlusIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline'; // Changed to outline for consistency
 import CreatorRankingCard from './CreatorRankingCard'; // Adjust path if necessary
+import KpiCard from '../components/KpiCard'; // Ajuste se o caminho for diferente
+import { AdminDashboardSummaryData } from '@/types/admin/dashboard'; // Ajuste o caminho
 
 // Lazy load StandaloneChatInterface
 const DynamicAIChatInterface = dynamic(() => import('./StandaloneChatInterface'), {
@@ -128,6 +133,33 @@ export default function CreatorDashboardPage() {
     return filters.dateRange.startDate && filters.dateRange.endDate ? filters.dateRange : undefined;
   }, [filters.dateRange]);
 
+  // State and useEffect for KPIs
+  const [summaryKpis, setSummaryKpis] = useState<AdminDashboardSummaryData | null>(null);
+  const [kpisLoading, setKpisLoading] = useState(true);
+  const [kpisError, setKpisError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchKpis = async () => {
+      setKpisLoading(true);
+      setKpisError(null);
+      try {
+        const response = await fetch('/api/admin/dashboard-summary');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Falha ao buscar KPIs do dashboard');
+        }
+        const data: AdminDashboardSummaryData = await response.json();
+        setSummaryKpis(data);
+      } catch (e: any) {
+        setKpisError(e.message);
+        setSummaryKpis(null);
+      } finally {
+        setKpisLoading(false);
+      }
+    };
+    fetchKpis();
+  }, []); // Executa uma vez ao montar o componente
+
 
 
   return (
@@ -142,6 +174,34 @@ export default function CreatorDashboardPage() {
             Monitorize, analise e obtenha insights sobre criadores e conteúdo da plataforma.
           </p>
         </header>
+
+        {/* Section: Resumo da Plataforma (KPIs) */}
+        <section className="mb-10">
+          <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
+            Resumo da Plataforma
+          </h2>
+          {kpisError && (
+            <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg" role="alert">
+              <ExclamationTriangleIcon className="w-5 h-5 inline mr-2"/>
+              <span className="font-medium">Erro ao carregar resumo:</span> {kpisError}
+            </div>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <KpiCard
+              label={summaryKpis?.totalCreators?.label || 'Total de Criadores'}
+              value={kpisLoading ? undefined : summaryKpis?.totalCreators?.value}
+              icon={UsersIcon}
+              isLoading={kpisLoading}
+            />
+            <KpiCard
+              label={summaryKpis?.pendingCreators?.label || 'Criadores Pendentes'}
+              value={kpisLoading ? undefined : summaryKpis?.pendingCreators?.value}
+              icon={UserPlusIcon}
+              isLoading={kpisLoading}
+            />
+            {/* Add more KpiCard instances here as needed */}
+          </div>
+        </section>
 
         {/* Section: Destaques de Criadores */}
         <section className="mb-10">

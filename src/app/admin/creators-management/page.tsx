@@ -19,6 +19,9 @@ import {
     PencilIcon,
     NoSymbolIcon
 } from '@heroicons/react/24/outline';
+import StatusBadge from '../components/StatusBadge'; // Ajuste o caminho se necessário
+import ModalConfirm from '../components/ModalConfirm'; // Ajuste o caminho se necessário
+import toast from 'react-hot-toast';
 
 // Definição de ADMIN_CREATOR_STATUS_OPTIONS se não estiver em types/admin/creators.ts
 const STATUS_OPTIONS: AdminCreatorStatus[] = ['pending', 'approved', 'rejected', 'active'];
@@ -28,26 +31,6 @@ interface SortConfig {
   sortBy: keyof AdminCreatorListItem | string;
   sortOrder: 'asc' | 'desc';
 }
-
-// Simples Modal de Confirmação (pode ser extraído/melhorado)
-const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, isLoading }: { isOpen: boolean, onClose: () => void, onConfirm: () => void, title: string, message: string, isLoading?: boolean }) => {
-  if (!isOpen) return null;
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
-        <h3 className="text-lg font-semibold mb-4">{title}</h3>
-        <p className="text-sm text-gray-600 mb-6">{message}</p>
-        <div className="flex justify-end space-x-3">
-          <button onClick={onClose} disabled={isLoading} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md disabled:opacity-50">Cancelar</button>
-          <button onClick={onConfirm} disabled={isLoading} className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md disabled:opacity-50 disabled:bg-red-400">
-            {isLoading ? 'Confirmando...' : 'Confirmar'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 
 export default function CreatorsManagementPage() {
   const [creators, setCreators] = useState<AdminCreatorListItem[]>([]);
@@ -150,7 +133,9 @@ export default function CreatorsManagementPage() {
   const handleConfirmStatusChange = async () => {
     if (!selectedCreatorForStatusChange || !newStatusForCreator) return;
     setIsUpdatingStatus(true);
-    setError(null); // Clear previous errors
+    // setError(null); // Opcional: pode remover o estado de erro local se os toasts forem suficientes
+
+    const loadingToastId = toast.loading('Atualizando status...'); // Mostra toast de carregamento
 
     try {
       const response = await fetch(`/api/admin/creators/${selectedCreatorForStatusChange._id}/status`, {
@@ -158,20 +143,25 @@ export default function CreatorsManagementPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatusForCreator }),
       });
+
+      // Remove o toast de carregamento
+      toast.dismiss(loadingToastId);
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Falha ao atualizar status');
       }
-      // Atualizar a lista ou o item específico
-      // fetchCreatorData(); // Re-fetch a lista inteira (mais simples, mas pode perder a página atual se não for cuidadoso)
-      // Ou atualizar localmente para resposta mais rápida:
+
+      toast.success(`Status de "${selectedCreatorForStatusChange.name}" atualizado para "${newStatusForCreator.charAt(0).toUpperCase() + newStatusForCreator.slice(1)}" com sucesso!`);
+
       setCreators(prev => prev.map(c =>
         c._id === selectedCreatorForStatusChange._id ? { ...c, adminStatus: newStatusForCreator } : c
       ));
-      // Consider adding a success notification here
+
     } catch (e: any) {
-      setError(e.message); // Mostrar erro para o usuário
-      // Consider adding an error notification here
+      toast.dismiss(loadingToastId); // Remove o toast de carregamento em caso de erro também
+      toast.error(e.message || 'Ocorreu um erro ao atualizar o status.');
+      setError(e.message); // Manter o estado de erro local pode ser útil para debug ou UI alternativa
     } finally {
       setIsUpdatingStatus(false);
       setIsModalOpen(false);
@@ -179,28 +169,6 @@ export default function CreatorsManagementPage() {
       setNewStatusForCreator(null);
     }
   };
-
-  const getStatusColor = (status: AdminCreatorStatus) => {
-    switch (status) {
-      case 'approved':
-      case 'active':
-        return 'bg-green-100 text-green-700';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-700';
-      case 'rejected':
-        return 'bg-red-100 text-red-700';
-      default:
-        return 'bg-gray-100 text-gray-700';
-    }
-  };
-
-  const statusIcons: Record<AdminCreatorStatus, React.ElementType> = {
-    approved: CheckCircleIcon,
-    active: CheckCircleIcon,
-    pending: ClockIcon,
-    rejected: XCircleIcon,
-  };
-
 
   const columns = useMemo(() => [
     { key: 'name', label: 'Nome', sortable: true },
@@ -214,13 +182,26 @@ export default function CreatorsManagementPage() {
 
   return (
     <div className="space-y-6">
-      <ConfirmationModal
+      <ModalConfirm
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          if (isUpdatingStatus) return; // Previne fechar enquanto está confirmando
+          setIsModalOpen(false);
+        }}
         onConfirm={handleConfirmStatusChange}
-        title={`Confirmar Mudança de Status para "${newStatusForCreator}"`}
-        message={`Você tem certeza que deseja alterar o status de "${selectedCreatorForStatusChange?.name}" para "${newStatusForCreator}"?`}
-        isLoading={isUpdatingStatus}
+        title={`Confirmar Mudança de Status`}
+        message={
+          selectedCreatorForStatusChange && newStatusForCreator
+            ? `Você tem certeza que deseja alterar o status de "${selectedCreatorForStatusChange.name}" para "${newStatusForCreator.charAt(0).toUpperCase() + newStatusForCreator.slice(1)}"?`
+            : 'Aguarde...' // Mensagem de fallback se o estado não estiver pronto
+        }
+        confirmButtonText={isUpdatingStatus ? 'Atualizando...' : 'Confirmar Mudança'}
+        confirmButtonColorClass={
+          newStatusForCreator === 'approved' || newStatusForCreator === 'active'
+            ? 'bg-green-600 hover:bg-green-700 focus-visible:ring-green-500'
+            : 'bg-red-600 hover:bg-red-700 focus-visible:ring-red-500' // Default
+        }
+        isConfirming={isUpdatingStatus}
       />
 
       <header>
@@ -306,9 +287,8 @@ export default function CreatorsManagementPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {creators.map((creator) => {
-                const StatusIcon = statusIcons[creator.adminStatus] || NoSymbolIcon;
-                return (
+              {creators.map((creator) => (
+                // const StatusIcon = statusIcons[creator.adminStatus] || NoSymbolIcon; // Removido
                 <tr key={creator._id} className="hover:bg-gray-50 transition-colors duration-150">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -332,10 +312,7 @@ export default function CreatorsManagementPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{creator.planStatus || 'N/A'}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2.5 py-0.5 inline-flex items-center text-xs leading-5 font-semibold rounded-full ${getStatusColor(creator.adminStatus)}`}>
-                      <StatusIcon className="w-3.5 h-3.5 mr-1.5 -ml-0.5" />
-                      {creator.adminStatus.charAt(0).toUpperCase() + creator.adminStatus.slice(1)}
-                    </span>
+                    <StatusBadge status={creator.adminStatus} size="sm" />
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
                     {/* Ações: Aprovar, Rejeitar, etc. */}
@@ -370,18 +347,36 @@ export default function CreatorsManagementPage() {
           </p>
           <div className="flex-1 flex justify-end space-x-2">
             <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1 || isLoading}
+              className="relative inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+              title="Primeira Página"
+            >
+              &laquo; Primeira
+            </button>
+            <button
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1 || isLoading}
-              className="relative inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-100 disabled:opacity-50"
+              className="relative inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+              title="Página Anterior"
             >
-              Anterior
+              &lsaquo; Anterior
             </button>
             <button
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages || isLoading}
-              className="ml-2 relative inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-100 disabled:opacity-50"
+              className="relative inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+              title="Próxima Página"
             >
-              Próxima
+              Próxima &rsaquo;
+            </button>
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages || isLoading}
+              className="relative inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+              title="Última Página"
+            >
+              Última &raquo;
             </button>
           </div>
         </div>

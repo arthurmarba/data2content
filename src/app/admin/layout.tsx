@@ -1,7 +1,8 @@
 // src/app/admin/layout.tsx
 import React from 'react';
 import Sidebar from './components/Sidebar';
-import AdminAuthGuard from './components/AdminAuthGuard'; // Nova importação
+import AdminAuthGuard from './components/AdminAuthGuard';
+import { Toaster } from 'react-hot-toast'; // Nova importação
 
 // Definição do SidebarPlaceholder PODE SER REMOVIDA se não for mais usada em nenhum outro lugar.
 
@@ -12,6 +13,26 @@ export default function AdminLayout({
 }) {
   return (
     <AdminAuthGuard> {/* Envolve o conteúdo com o AuthGuard */}
+      <Toaster
+        position="top-right" // Posição comum para toasts
+        toastOptions={{
+          duration: 5000, // Duração padrão de 5 segundos
+          // Estilos podem ser adicionados aqui se necessário, ou via CSS global
+          // Exemplo de estilos para toasts de sucesso e erro:
+          // success: {
+          //   style: {
+          //     background: 'green',
+          //     color: 'white',
+          //   },
+          // },
+          // error: {
+          //   style: {
+          //     background: 'red',
+          //     color: 'white',
+          //   },
+          // },
+        }}
+      />
       <div className="flex h-screen bg-brand-light">
         <Sidebar /> {/* Substituição feita aqui */}
 
