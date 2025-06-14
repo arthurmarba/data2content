@@ -26,6 +26,22 @@ const bodySchema = z.object({
   transactionId: z.string().optional(),
 });
 
+/**
+ * @async
+ * @function PATCH
+ * @description Handles PATCH requests to update the status of a specific redemption request.
+ * Admin access is required. The request body should conform to AdminRedemptionUpdateStatusPayload.
+ * @param {NextRequest} req - The incoming Next.js request object.
+ * @param {{ params: { redemptionId: string } }} context - The context object containing route parameters.
+ * @returns {Promise<NextResponse>} A JSON response containing the updated redemption object or an error response.
+ *
+ * @example Request Body:
+ * {
+ *   "status": "approved",
+ *   "adminNotes": "User provided all necessary documents.",
+ *   "transactionId": "txn_123abc"
+ * }
+ */
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { redemptionId: string } }

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import CreatorTable from './CreatorTable';
 import ContentStatsWidgets from './ContentStatsWidgets';
