@@ -172,7 +172,7 @@ export default function CreatorsManagementPage() {
       setSelectedCreatorForStatusChange(null);
       setNewStatusForCreator(null);
     }
-  };
+  }; // Added semicolon
 
   const columns: ColumnConfig<AdminCreatorListItem>[] = useMemo(() => [
     { key: 'name', label: 'Nome', sortable: true },
@@ -181,7 +181,7 @@ export default function CreatorsManagementPage() {
     { key: 'planStatus', label: 'Plano', sortable: true }, // Assuming planStatus is sortable on the backend
     { key: 'adminStatus', label: 'Status Admin', sortable: true },
     { key: 'actions', label: 'Ações', sortable: false, headerClassName: 'text-right', className: 'text-right' }, // Example of custom class
-  ], []);
+  ], []); // Added semicolon
 
 
   return (
