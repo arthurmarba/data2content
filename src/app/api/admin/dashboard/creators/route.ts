@@ -5,12 +5,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
-import { fetchDashboardCreatorsList, IFetchDashboardCreatorsListParams } from '@/app/lib/dataService/marketAnalysisService';
+// CORREÇÃO: As importações foram atualizadas para usar os caminhos dos serviços modularizados.
+import { fetchDashboardCreatorsList } from '@/app/lib/dataService/marketAnalysis/dashboardService';
+import { IFetchDashboardCreatorsListParams } from '@/app/lib/dataService/marketAnalysis/types';
 import { DatabaseError } from '@/app/lib/errors';
 
 const SERVICE_TAG = '[api/admin/dashboard/creators]';
 
-// Schema for query parameters validation
+// Schema para a validação dos parâmetros de consulta
 const querySchema = z.object({
   page: z.coerce.number().int().min(1).optional().default(1),
   limit: z.coerce.number().int().min(1).max(100).optional().default(10),
@@ -21,35 +23,30 @@ const querySchema = z.object({
     if (!val) return undefined;
     return val.split(',').map(s => s.trim()).filter(s => s.length > 0);
   }).refine(val => val === undefined || (Array.isArray(val) && val.length > 0) ? true : false, {
-    message: "planStatus must be a comma-separated list of non-empty strings if provided.",
-    // Path is not strictly needed here as it's on planStatus itself, but good for clarity
+    message: "planStatus deve ser uma lista de strings separadas por vírgulas.",
   }),
   expertiseLevel: z.string().optional().transform(val => {
     if (!val) return undefined;
     return val.split(',').map(s => s.trim()).filter(s => s.length > 0);
   }).refine(val => val === undefined || (Array.isArray(val) && val.length > 0) ? true : false, {
-    message: "expertiseLevel must be a comma-separated list of non-empty strings if provided.",
+    message: "expertiseLevel deve ser uma lista de strings separadas por vírgulas.",
   }),
   minTotalPosts: z.coerce.number().int().min(0).optional(),
-  startDate: z.string().datetime({ offset: true, message: "Invalid startDate format." }).optional().transform(val => val ? new Date(val) : undefined),
-  endDate: z.string().datetime({ offset: true, message: "Invalid endDate format." }).optional().transform(val => val ? new Date(val) : undefined),
+  startDate: z.string().datetime({ offset: true, message: "Formato de startDate inválido." }).optional(),
+  endDate: z.string().datetime({ offset: true, message: "Formato de endDate inválido." }).optional(),
 }).refine(data => {
-  if (data.startDate && data.endDate && data.startDate > data.endDate) {
-    return false;
+  if (data.startDate && data.endDate) {
+    return new Date(data.startDate) <= new Date(data.endDate);
   }
   return true;
-}, { message: "startDate cannot be after endDate", path: ["endDate"] });
+}, { message: "startDate não pode ser posterior a endDate", path: ["endDate"] });
 
-// Simulated Admin Session Validation (to be replaced with actual session logic)
+// Simulação de validação de sessão de Admin
 async function getAdminSession(req: NextRequest): Promise<{ user: { name: string } } | null> {
-  // SIMULAÇÃO: Substitua pela sua lógica real de sessão (ex: next-auth)
-  // In a real app, this would involve checking tokens, cookies, or session stores.
-  const session = { user: { name: 'Admin User' } }; // Mock session
-  const isAdmin = true; // Mock admin check
-  // Example: const token = req.headers.get('Authorization');
-  // if (!token || !isValidAdminToken(token)) return null;
+  const session = { user: { name: 'Admin User' } };
+  const isAdmin = true;
   if (!session || !isAdmin) {
-    logger.warn(`${SERVICE_TAG} Admin session validation failed.`);
+    logger.warn(`${SERVICE_TAG} Validação da sessão de admin falhou.`);
     return null;
   }
   return session;
@@ -62,22 +59,20 @@ function apiError(message: string, status: number): NextResponse {
 
 /**
  * @handler GET
- * @description Handles GET requests to fetch a list of dashboard creators.
- * It validates query parameters, checks for an admin session,
- * and then calls the `fetchDashboardCreatorsList` service function.
- * @param {NextRequest} req - The incoming Next.js request object.
- * @returns {Promise<NextResponse>} A Next.js response object.
+ * @description Trata de pedidos GET para buscar uma lista de criadores do dashboard.
+ * @param {NextRequest} req - O objeto de pedido do Next.js.
+ * @returns {Promise<NextResponse>} Um objeto de resposta do Next.js.
  */
 export async function GET(req: NextRequest) {
   const TAG = `${SERVICE_TAG}[GET]`;
-  logger.info(`${TAG} Received request for dashboard creators list.`);
+  logger.info(`${TAG} Pedido recebido para a lista de criadores do dashboard.`);
 
   try {
     const session = await getAdminSession(req);
     if (!session) {
-      return apiError('Acesso não autorizado. Sessão de administrador inválida.', 401);
+      return apiError('Acesso não autorizado.', 401);
     }
-    logger.info(`${TAG} Admin session validated for user: ${session.user.name}`);
+    logger.info(`${TAG} Sessão de admin validada para o utilizador: ${session.user.name}`);
 
     const { searchParams } = new URL(req.url);
     const queryParams = Object.fromEntries(searchParams.entries());
@@ -85,42 +80,44 @@ export async function GET(req: NextRequest) {
     const validationResult = querySchema.safeParse(queryParams);
     if (!validationResult.success) {
       const errorMessage = validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
-      logger.warn(`${TAG} Invalid query parameters: ${errorMessage}`);
+      logger.warn(`${TAG} Parâmetros de consulta inválidos: ${errorMessage}`);
       return apiError(`Parâmetros de consulta inválidos: ${errorMessage}`, 400);
     }
 
-    const validatedParams: IFetchDashboardCreatorsListParams = {
-      ...validationResult.data,
+    const { nameSearch, planStatus, expertiseLevel, minTotalPosts, startDate, endDate, ...paginationAndSort } = validationResult.data;
+
+    const params: IFetchDashboardCreatorsListParams = {
+      ...paginationAndSort,
       filters: {
-        nameSearch: validationResult.data.nameSearch,
-        planStatus: validationResult.data.planStatus,
-        expertiseLevel: validationResult.data.expertiseLevel,
-        minTotalPosts: validationResult.data.minTotalPosts,
-        startDate: validationResult.data.startDate,
-        endDate: validationResult.data.endDate,
-        // minFollowers is not included here as it's not in querySchema yet
+        nameSearch,
+        planStatus,
+        expertiseLevel,
+        minTotalPosts,
+        startDate,
+        endDate,
       },
     };
-    // Remove undefined filter values to keep the service call clean
-    Object.keys(validatedParams.filters!).forEach(key => {
-        if (validatedParams.filters![key as keyof typeof validatedParams.filters] === undefined) {
-            delete validatedParams.filters![key as keyof typeof validatedParams.filters];
+    
+    // Remove filtros indefinidos para manter a chamada ao serviço limpa
+    Object.keys(params.filters!).forEach(key => {
+        const filterKey = key as keyof typeof params.filters;
+        if (params.filters![filterKey] === undefined) {
+            delete params.filters![filterKey];
         }
     });
 
+    logger.info(`${TAG} A chamar fetchDashboardCreatorsList com parâmetros: ${JSON.stringify(params)}`);
+    const { creators, totalCreators } = await fetchDashboardCreatorsList(params);
 
-    logger.info(`${TAG} Calling fetchDashboardCreatorsList with params: ${JSON.stringify(validatedParams)}`);
-    const { creators, totalCreators } = await fetchDashboardCreatorsList(validatedParams);
-
-    logger.info(`${TAG} Successfully fetched ${creators.length} creators. Total available: ${totalCreators}.`);
-    return NextResponse.json({ creators, totalCreators, page: validatedParams.page, limit: validatedParams.limit }, { status: 200 });
+    logger.info(`${TAG} ${creators.length} criadores buscados com sucesso. Total disponível: ${totalCreators}.`);
+    return NextResponse.json({ creators, totalCreators, page: params.page, limit: params.limit }, { status: 200 });
 
   } catch (error: any) {
-    logger.error(`${TAG} Unexpected error:`, error);
+    logger.error(`${TAG} Erro inesperado:`, error);
     if (error instanceof DatabaseError) {
-      return apiError(`Erro de banco de dados: ${error.message}`, 500);
+      return apiError(`Erro de base de dados: ${error.message}`, 500);
     }
-    if (error instanceof z.ZodError) { // Should be caught by safeParse, but as a fallback
+    if (error instanceof z.ZodError) {
         return apiError(`Erro de validação: ${error.errors.map(e => e.message).join(', ')}`, 400);
     }
     return apiError('Ocorreu um erro interno no servidor.', 500);

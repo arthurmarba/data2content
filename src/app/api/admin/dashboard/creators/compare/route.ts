@@ -6,28 +6,31 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { Types } from 'mongoose';
 import { logger } from '@/app/lib/logger';
-import { fetchMultipleCreatorProfiles, ICreatorProfile } from '@/app/lib/dataService/marketAnalysisService';
+// CORREÇÃO: As importações foram atualizadas para usar os caminhos dos serviços modularizados.
+import { getCreatorProfile } from '@/app/lib/dataService/marketAnalysis/profilesService';
+import { ICreatorProfile } from '@/app/lib/dataService/marketAnalysis/types';
 import { DatabaseError } from '@/app/lib/errors';
+import UserModel from '@/app/models/User';
 
 const SERVICE_TAG = '[api/admin/dashboard/creators/compare]';
-const MAX_CREATORS_TO_COMPARE_API = 5; // Align with or inform Zod schema
+const MAX_CREATORS_TO_COMPARE_API = 5;
 
-// Schema for request body validation
+// Schema para a validação do corpo do pedido
 const requestBodySchema = z.object({
   creatorIds: z.array(z.string().refine((val) => Types.ObjectId.isValid(val), {
-    message: "Invalid Creator ID format provided in the array.",
+    message: "Formato de Creator ID inválido.",
   }))
-  .min(1, { message: "creatorIds array cannot be empty." })
-  .max(MAX_CREATORS_TO_COMPARE_API, { message: `Cannot compare more than ${MAX_CREATORS_TO_COMPARE_API} creators at a time.` })
+  .min(1, { message: "O array creatorIds não pode estar vazio." })
+  .max(MAX_CREATORS_TO_COMPARE_API, { message: `Não é possível comparar mais de ${MAX_CREATORS_TO_COMPARE_API} criadores de uma vez.` })
 });
 
-// Simulated Admin Session Validation (reuse from other dashboard routes)
+// Simulação de validação de sessão de Admin
 async function getAdminSession(req: NextRequest): Promise<{ user: { name: string } } | null> {
   // SIMULAÇÃO: Substitua pela sua lógica real de sessão (ex: next-auth)
   const session = { user: { name: 'Admin User' } };
   const isAdmin = true;
   if (!session || !isAdmin) {
-    logger.warn(`${SERVICE_TAG} Admin session validation failed.`);
+    logger.warn(`${SERVICE_TAG} Validação da sessão de admin falhou.`);
     return null;
   }
   return session;
@@ -40,48 +43,54 @@ function apiError(message: string, status: number): NextResponse {
 
 /**
  * @handler POST
- * @description Handles POST requests to fetch profile data for multiple creators for comparison.
- * Validates admin session and the list of creator IDs in the request body.
- * Calls the `fetchMultipleCreatorProfiles` service function.
- * @param {NextRequest} req - The incoming Next.js request object.
- * @returns {Promise<NextResponse>} A Next.js response object containing an array of ICreatorProfile or an error.
+ * @description Trata de pedidos POST para buscar dados de perfil de múltiplos criadores para comparação.
+ * @param {NextRequest} req - O objeto de pedido do Next.js.
+ * @returns {Promise<NextResponse>} Um objeto de resposta do Next.js com um array de ICreatorProfile ou um erro.
  */
 export async function POST(req: NextRequest) {
   const TAG = `${SERVICE_TAG}[POST]`;
-  logger.info(`${TAG} Received request for creator comparison data.`);
+  logger.info(`${TAG} Pedido recebido para dados de comparação de criadores.`);
 
   try {
     const session = await getAdminSession(req);
     if (!session) {
-      return apiError('Acesso não autorizado. Sessão de administrador inválida.', 401);
+      return apiError('Acesso não autorizado.', 401);
     }
-    logger.info(`${TAG} Admin session validated for user: ${session.user.name}`);
+    logger.info(`${TAG} Sessão de admin validada para o utilizador: ${session.user.name}`);
 
     const body = await req.json();
     const validationResult = requestBodySchema.safeParse(body);
 
     if (!validationResult.success) {
       const errorMessage = validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
-      logger.warn(`${TAG} Invalid request body: ${errorMessage}`);
-      return apiError(`Corpo da requisição inválido: ${errorMessage}`, 400);
+      logger.warn(`${TAG} Corpo do pedido inválido: ${errorMessage}`);
+      return apiError(`Corpo do pedido inválido: ${errorMessage}`, 400);
     }
 
     const { creatorIds } = validationResult.data;
+    logger.info(`${TAG} A buscar perfis para ${creatorIds.length} criadores.`);
+    
+    // Como getCreatorProfile busca por nome, primeiro precisamos de buscar os nomes a partir dos IDs.
+    const users = await UserModel.find({ '_id': { $in: creatorIds } }).select('name').lean();
+    
+    if (users.length !== creatorIds.length) {
+        logger.warn(`${TAG} Alguns IDs de criadores não foram encontrados.`);
+    }
+    
+    const userNames = users.map(user => user.name).filter((name): name is string => typeof name === 'string');
 
-    logger.info(`${TAG} Calling fetchMultipleCreatorProfiles for ${creatorIds.length} creators.`);
-    const profiles: ICreatorProfile[] = await fetchMultipleCreatorProfiles({ creatorIds });
+    // Agora, buscamos os perfis em paralelo usando os nomes.
+    const profilePromises = userNames.map(name => getCreatorProfile({ name }));
+    const profiles = (await Promise.all(profilePromises)).filter((p): p is ICreatorProfile => p !== null);
 
-    logger.info(`${TAG} Successfully fetched ${profiles.length} profiles for comparison.`);
+    logger.info(`${TAG} ${profiles.length} perfis buscados com sucesso para comparação.`);
     return NextResponse.json(profiles, { status: 200 });
 
   } catch (error: any) {
-    logger.error(`${TAG} Unexpected error:`, error);
+    logger.error(`${TAG} Erro inesperado:`, error);
     if (error instanceof DatabaseError) {
-      return apiError(`Erro de banco de dados: ${error.message}`, 500);
+      return apiError(`Erro de base de dados: ${error.message}`, 500);
     }
-    // Handle cases where fetchMultipleCreatorProfiles might throw specific errors not caught by Zod initially
-    // e.g., if it threw an error for "No valid ObjectIds" instead of returning empty array internally.
-    // For now, assuming service function handles empty/invalid lists gracefully or DatabaseError covers it.
     return apiError('Ocorreu um erro interno no servidor.', 500);
   }
 }

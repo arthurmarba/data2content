@@ -1,22 +1,22 @@
 /**
  * @fileoverview Define as funções (ferramentas) que a IA da Central de Inteligência
  * pode executar, com uma arquitetura robusta e autocontida.
- * @version 14.8.0
+ * @version 14.8.1
  * @description
- * ## Principais Melhorias na Versão 14.8.0:
- * - **Correção de Erro de Tipo (Executor):** Refatorada a criação do objeto
- * `adminFunctionExecutors` para ser explícita em vez de dinâmica. Isso resolve
- * um erro complexo de tipo genérico do TypeScript, garantindo que cada
- * executor de ferramenta seja validado corretamente.
+ * ## Principais Melhorias na Versão 14.8.1:
+ * - **Correção de Caminho de Importação:** Atualizado o caminho de importação do
+ * `marketAnalysisService` para usar um alias absoluto (`@/app/lib/...`),
+ * garantindo a resolução correta dos módulos após a refatoração.
  */
 
 import { z } from 'zod';
 import type { ChatCompletionTool } from 'openai/resources/chat/completions';
 import type { FunctionParameters } from 'openai/resources/shared';
 
-// --- Importações Reais do Projeto ---
 import { logger } from './logger';
 import { convertZodToJsonSchema } from './utils/zodUtils';
+
+// CORREÇÃO: O caminho de importação foi atualizado para usar o alias do projeto, garantindo consistência.
 import {
     fetchMarketPerformance, 
     fetchTopCreators,
@@ -30,9 +30,9 @@ import {
     type ITopCreatorResult,
     type ICreatorProfile,
     type ITucaRadarEffectivenessResult
-} from './dataService/marketAnalysisService';
+} from '@/app/lib/dataService/marketAnalysisService';
 
-// CORREÇÃO: Importando todos os módulos de conhecimento
+// Importando todos os módulos de conhecimento
 import * as AlgorithmKnowledge from './knowledge/algorithmKnowledge';
 import * as HumorKnowledge from './knowledge/humorScriptWritingKnowledge';
 import * as MethodologyKnowledge from './knowledge/methodologyDeepDive';
@@ -40,9 +40,9 @@ import * as MetricsKnowledge from './knowledge/metricsKnowledge';
 import * as PersonalBrandingKnowledge from './knowledge/personalBrandingKnowledge';
 import * as PricingKnowledge from './knowledge/pricingKnowledge';
 
-const SERVICE_TAG = '[adminAiFunctions v14.8.0]';
+const SERVICE_TAG = '[adminAiFunctions v14.8.1]';
 
-// --- Objeto Agregador para Conhecimento ---
+// Objeto Agregador para Conhecimento
 const AllKnowledge = {
     ...AlgorithmKnowledge,
     ...HumorKnowledge,
@@ -65,9 +65,8 @@ const Knowledge = {
     }
 };
 
-
 // ============================================================================
-// --- ARQUITETURA DE DEFINIÇÃO DE FERRAMENTAS (APRIMORADA) ---
+// ARQUITETURA DE DEFINIÇÃO DE FERRAMENTAS
 // ============================================================================
 
 interface IAdminTool<T extends z.ZodType<any, any>> {
@@ -99,11 +98,10 @@ function defineAdminTool<T extends z.ZodObject<any, any>>(
 const knowledgeTopics = z.enum(Knowledge.getAvailableKnowledgeTopics() as [string, ...string[]]);
 
 // ============================================================================
-// --- IMPLEMENTAÇÃO DAS FERRAMENTAS ---
+// IMPLEMENTAÇÃO DAS FERRAMENTAS
 // ============================================================================
 
 const tools = {
-  // FERRAMENTAS EXISTENTES (ATUALIZADAS PARA O NOVO PADRÃO)
   getAvailableContexts: defineAdminTool(
     'getAvailableContexts',
     'Use para descobrir quais nichos de mercado (contextos) existem na base de dados.',
@@ -218,8 +216,6 @@ const tools = {
     }
   ),
   
-  // === NOVAS FERRAMENTAS DA FASE 1 ===
-
   getTucaRadarEffectiveness: defineAdminTool(
     'getTucaRadarEffectiveness',
     'Mede a eficácia dos alertas do Radar Tuca, analisando as interações dos usuários com eles.',
@@ -273,7 +269,7 @@ const tools = {
 };
 
 // ============================================================================
-// --- EXPORTAÇÕES AUTOMATIZADAS ---
+// EXPORTAÇÕES AUTOMATIZADAS
 // ============================================================================
 
 type AdminExecutorFn = (args: any) => Promise<unknown>;
@@ -297,7 +293,6 @@ const createValidatedExecutor = <T extends z.ZodObject<any, any>>(tool: IAdminTo
   };
 };
 
-// CORREÇÃO: Criação explícita do objeto para evitar o erro de tipo do TypeScript.
 export const adminFunctionExecutors: Record<string, AdminExecutorFn> = {
     getAvailableContexts: createValidatedExecutor(tools.getAvailableContexts),
     getMarketPerformance: createValidatedExecutor(tools.getMarketPerformance),

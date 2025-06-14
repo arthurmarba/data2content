@@ -7,14 +7,13 @@ import {
   AdminCreatorListItem,
   AdminCreatorListParams,
   AdminCreatorStatus,
-  // ADMIN_CREATOR_STATUS_OPTIONS // Supondo que você adicionou isso em types
 } from '@/types/admin/creators'; // Ajuste o caminho se necessário
-import {
-    MagnifyingGlassIcon,
-    ChevronDownIcon,
-    ChevronUpIcon,
-    CheckCircleIcon,
-    XCircleIcon,
+import { 
+    MagnifyingGlassIcon, 
+    ChevronDownIcon, 
+    ChevronUpIcon, 
+    CheckCircleIcon, 
+    XCircleIcon, 
     ClockIcon,
     PencilIcon,
     NoSymbolIcon
@@ -27,12 +26,8 @@ import TableHeader, { ColumnConfig, SortConfig as TableSortConfig } from '../com
 // Definição de ADMIN_CREATOR_STATUS_OPTIONS se não estiver em types/admin/creators.ts
 const STATUS_OPTIONS: AdminCreatorStatus[] = ['pending', 'approved', 'rejected', 'active'];
 
-// Interface SortConfig local pode ser renomeada ou removida se TableSortConfig for usada diretamente.
-// Para manter a lógica existente sem grandes refatorações no estado, podemos manter a local
-// e garantir compatibilidade, ou ajustar o estado para usar TableSortConfig.
-// Por ora, vamos assumir que a estrutura de SortConfig local é compatível com TableSortConfig.
 interface SortConfig {
-  sortBy: keyof AdminCreatorListItem | string; // Ou apenas string se TableHeader.SortConfig.sortBy for string
+  sortBy: keyof AdminCreatorListItem | string;
   sortOrder: 'asc' | 'desc';
 }
 
@@ -45,11 +40,11 @@ export default function CreatorsManagementPage() {
 
   // Filtros e Paginação
   const [currentPage, setCurrentPage] = useState(1);
-  const [limit, setLimit] = useState(10); // Pode ser configurável
+  const [limit, setLimit] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<AdminCreatorStatus | ''>('');
-  const [planFilter, setPlanFilter] = useState<string>(''); // Exemplo, pode ser mais complexo
+  const [planFilter, setPlanFilter] = useState<string>('');
 
   const [sortConfig, setSortConfig] = useState<SortConfig>({ sortBy: 'registrationDate', sortOrder: 'desc' });
 
@@ -59,12 +54,11 @@ export default function CreatorsManagementPage() {
   const [newStatusForCreator, setNewStatusForCreator] = useState<AdminCreatorStatus | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
-
-  // Debounce search term
+  // Debounce do termo de busca
   useEffect(() => {
     const timerId = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
-      setCurrentPage(1); // Reset page on new search
+      setCurrentPage(1); // Reseta a página em nova busca
     }, 500);
     return () => clearTimeout(timerId);
   }, [searchTerm]);
@@ -82,7 +76,7 @@ export default function CreatorsManagementPage() {
 
     if (debouncedSearchTerm) params.append('search', debouncedSearchTerm);
     if (statusFilter) params.append('status', statusFilter);
-    if (planFilter) params.append('planStatus', planFilter); // A API precisa suportar isso
+    if (planFilter) params.append('planStatus', planFilter);
 
     try {
       const response = await fetch(`/api/admin/creators?${params.toString()}`);
@@ -116,18 +110,7 @@ export default function CreatorsManagementPage() {
     setSortConfig({ sortBy: columnKey, sortOrder: newSortOrder });
     setCurrentPage(1);
   };
-
-  // const renderSortIcon = (columnKey: keyof AdminCreatorListItem | string) => { // REMOVIDO
-  //   if (sortConfig.sortBy !== columnKey) {
-  //     return <ChevronDownIcon className="w-3 h-3 inline text-gray-400 ml-1 opacity-50" />;
-  //   }
-  //   return sortConfig.sortOrder === 'asc' ? (
-  //     <ChevronUpIcon className="w-4 h-4 inline text-indigo-600 ml-1" />
-  //   ) : (
-  //     <ChevronDownIcon className="w-4 h-4 inline text-indigo-600 ml-1" />
-  //   );
-  // };
-
+  
   const openChangeStatusModal = (creator: AdminCreatorListItem, newStatus: AdminCreatorStatus) => {
     setSelectedCreatorForStatusChange(creator);
     setNewStatusForCreator(newStatus);
@@ -137,9 +120,8 @@ export default function CreatorsManagementPage() {
   const handleConfirmStatusChange = async () => {
     if (!selectedCreatorForStatusChange || !newStatusForCreator) return;
     setIsUpdatingStatus(true);
-    // setError(null); // Opcional: pode remover o estado de erro local se os toasts forem suficientes
-
-    const loadingToastId = toast.loading('Atualizando status...'); // Mostra toast de carregamento
+    
+    const loadingToastId = toast.loading('Atualizando status...');
 
     try {
       const response = await fetch(`/api/admin/creators/${selectedCreatorForStatusChange._id}/status`, {
@@ -148,46 +130,46 @@ export default function CreatorsManagementPage() {
         body: JSON.stringify({ status: newStatusForCreator }),
       });
 
-      // Remove o toast de carregamento
       toast.dismiss(loadingToastId);
 
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Falha ao atualizar status');
       }
-
-      toast.success(`Status de "${selectedCreatorForStatusChange.name}" atualizado para "${newStatusForCreator.charAt(0).toUpperCase() + newStatusForCreator.slice(1)}" com sucesso!`);
-
-      setCreators(prev => prev.map(c =>
+      
+      toast.success(`Status de "${selectedCreatorForStatusChange.name}" atualizado com sucesso!`);
+      
+      setCreators(prev => prev.map(c => 
         c._id === selectedCreatorForStatusChange._id ? { ...c, adminStatus: newStatusForCreator } : c
       ));
 
     } catch (e: any) {
-      toast.dismiss(loadingToastId); // Remove o toast de carregamento em caso de erro também
+      toast.dismiss(loadingToastId);
       toast.error(e.message || 'Ocorreu um erro ao atualizar o status.');
-      setError(e.message); // Manter o estado de erro local pode ser útil para debug ou UI alternativa
+      setError(e.message);
     } finally {
       setIsUpdatingStatus(false);
       setIsModalOpen(false);
       setSelectedCreatorForStatusChange(null);
       setNewStatusForCreator(null);
     }
-  }; // Added semicolon
+  };
 
   const columns: ColumnConfig<AdminCreatorListItem>[] = useMemo(() => [
     { key: 'name', label: 'Nome', sortable: true },
     { key: 'email', label: 'Email', sortable: true },
     { key: 'registrationDate', label: 'Data Registro', sortable: true },
-    { key: 'planStatus', label: 'Plano', sortable: true }, // Assuming planStatus is sortable on the backend
+    { key: 'planStatus', label: 'Plano', sortable: true },
     { key: 'adminStatus', label: 'Status Admin', sortable: true },
-    { key: 'actions', label: 'Ações', sortable: false, headerClassName: 'text-right', className: 'text-right' }, // Example of custom class
-  ], []); // Added semicolon
+    { key: 'actions', label: 'Ações', sortable: false, headerClassName: 'text-right', className: 'text-right' },
+  ], []);
+
   return (
     <div className="space-y-6">
       <ModalConfirm
         isOpen={isModalOpen}
         onClose={() => {
-          if (isUpdatingStatus) return; // Previne fechar enquanto está confirmando
+          if (isUpdatingStatus) return;
           setIsModalOpen(false);
         }}
         onConfirm={handleConfirmStatusChange}
@@ -195,13 +177,13 @@ export default function CreatorsManagementPage() {
         message={
           selectedCreatorForStatusChange && newStatusForCreator
             ? `Você tem certeza que deseja alterar o status de "${selectedCreatorForStatusChange.name}" para "${newStatusForCreator.charAt(0).toUpperCase() + newStatusForCreator.slice(1)}"?`
-            : 'Aguarde...' // Mensagem de fallback se o estado não estiver pronto
+            : 'Aguarde...'
         }
         confirmButtonText={isUpdatingStatus ? 'Atualizando...' : 'Confirmar Mudança'}
         confirmButtonColorClass={
           newStatusForCreator === 'approved' || newStatusForCreator === 'active'
             ? 'bg-green-600 hover:bg-green-700 focus-visible:ring-green-500'
-            : 'bg-red-600 hover:bg-red-700 focus-visible:ring-red-500' // Default
+            : 'bg-red-600 hover:bg-red-700 focus-visible:ring-red-500'
         }
         isConfirming={isUpdatingStatus}
       />
@@ -212,8 +194,8 @@ export default function CreatorsManagementPage() {
 
       {/* Filtros */}
       <div className="p-4 bg-white shadow rounded-lg">
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 items-end"> {/* Adjusted grid for more filters */}
-          <div className="md:col-span-2 lg:col-span-2"> {/* Search input takes more space */}
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 items-end">
+          <div className="md:col-span-2 lg:col-span-2">
             <label htmlFor="search" className="block text-sm font-medium text-gray-700">Buscar</label>
             <div className="mt-1 relative rounded-md shadow-sm">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -245,7 +227,7 @@ export default function CreatorsManagementPage() {
           </div>
           <div>
             <label htmlFor="planFilter" className="block text-sm font-medium text-gray-700">Plano</label>
-             <input // Placeholder for plan filter - can be a select
+             <input
               type="text"
               id="planFilter"
               name="planFilter"
@@ -260,7 +242,7 @@ export default function CreatorsManagementPage() {
 
       {isLoading && <div className="text-center py-10"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div><p className="mt-2 text-gray-500">Carregando criadores...</p></div>}
       {error && <p className="text-center py-4 text-red-600 bg-red-100 p-3 rounded-md">Erro ao carregar dados: {error}</p>}
-
+      
       {!isLoading && !error && creators.length === 0 && (
         <div className="text-center py-10 text-gray-500 bg-white shadow rounded-lg p-6">
             <NoSymbolIcon className="w-12 h-12 mx-auto text-gray-400 mb-2"/>
@@ -274,7 +256,6 @@ export default function CreatorsManagementPage() {
             <TableHeader columns={columns} sortConfig={sortConfig} onSort={handleSort} />
             <tbody className="bg-white divide-y divide-gray-200">
               {creators.map((creator) => (
-                // const StatusIcon = statusIcons[creator.adminStatus] || NoSymbolIcon; // Removido
                 <tr key={creator._id} className="hover:bg-gray-50 transition-colors duration-150">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -301,7 +282,6 @@ export default function CreatorsManagementPage() {
                     <StatusBadge status={creator.adminStatus} size="sm" />
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
-                    {/* Ações: Aprovar, Rejeitar, etc. */}
                     {['pending', 'rejected'].includes(creator.adminStatus) && (
                         <button onClick={() => openChangeStatusModal(creator, 'approved')} className="text-green-600 hover:text-green-800 disabled:opacity-30 disabled:cursor-not-allowed p-1 rounded-full hover:bg-green-100" disabled={isUpdatingStatus} title="Aprovar">
                             <CheckCircleIcon className="w-5 h-5"/>
@@ -312,14 +292,14 @@ export default function CreatorsManagementPage() {
                             <XCircleIcon className="w-5 h-5"/>
                         </button>
                     )}
-                    {/* Adicionar botão de editar (PencilIcon) para outras edições se necessário
+                    {/* Exemplo de botão de editar
                     <button className="text-indigo-600 hover:text-indigo-900 p-1 rounded-full hover:bg-indigo-100" title="Editar">
                         <PencilIcon className="w-5 h-5"/>
                     </button>
                     */}
                   </td>
                 </tr>
-              )})}
+              ))}
             </tbody>
           </table>
         </div>

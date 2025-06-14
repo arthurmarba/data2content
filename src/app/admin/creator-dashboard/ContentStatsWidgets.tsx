@@ -1,16 +1,26 @@
 'use client';
 
-import SkeletonBlock from './SkeletonBlock';
 import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-import { IDashboardOverallStats, IFetchDashboardOverallContentStatsFilters } from '@/app/lib/dataService/marketAnalysisService'; // Assuming this path
+// CORREÇÃO: O caminho da importação foi atualizado para apontar para o ficheiro de tipos modularizado.
+import { IDashboardOverallStats, IFetchDashboardOverallContentStatsFilters } from '@/app/lib/dataService/marketAnalysis/types';
+
+// --- Componentes de Apoio (para o código ser autónomo) ---
+
+const SkeletonBlock = ({ width = 'w-full', height = 'h-4', className = '', variant = 'rectangle' }: { width?: string; height?: string; className?: string; variant?: 'rectangle' | 'circle' }) => {
+  const baseClasses = "bg-gray-200 animate-pulse";
+  const shapeClass = variant === 'circle' ? 'rounded-full' : 'rounded';
+  return <div className={`${baseClasses} ${width} ${height} ${shapeClass} ${className}`}></div>;
+};
+
+
+// --- Constantes e Funções Utilitárias ---
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82Ca9D'];
 
-// Helper to format large numbers for KPIs
 const formatKpiValue = (value?: number | string): string => {
   if (value === null || typeof value === 'undefined') return 'N/A';
-  if (typeof value === 'string') return value; // Already formatted or a string value
+  if (typeof value === 'string') return value;
   return value.toLocaleString('pt-BR');
 };
 
@@ -24,8 +34,9 @@ interface ContentStatsWidgetsProps {
     startDate: string;
     endDate: string;
   };
-  // key prop (refreshKey from parent) will implicitly handle refresh
 }
+
+// --- Componente Principal ---
 
 const ContentStatsWidgets = memo(function ContentStatsWidgets({ dateRangeFilter }: ContentStatsWidgetsProps) {
   const [stats, setStats] = useState<IDashboardOverallStats | null>(null);
@@ -39,7 +50,7 @@ const ContentStatsWidgets = memo(function ContentStatsWidgets({ dateRangeFilter 
     const params: IFetchDashboardOverallContentStatsFilters = {};
     if (dateRangeFilter?.startDate && dateRangeFilter?.endDate) {
         params.dateRange = {
-            startDate: new Date(dateRangeFilter.startDate), // API might expect Date objects
+            startDate: new Date(dateRangeFilter.startDate),
             endDate: new Date(dateRangeFilter.endDate),
         };
     }
@@ -73,11 +84,11 @@ const ContentStatsWidgets = memo(function ContentStatsWidgets({ dateRangeFilter 
     } finally {
       setIsLoading(false);
     }
-  }, [dateRangeFilter]); // Dependency: re-fetch if dateRangeFilter changes
+  }, [dateRangeFilter]);
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]); // fetchData itself is memoized with dateRangeFilter as dependency
+  }, [fetchData]);
 
   const kpis = useMemo(() => {
     if (!stats) return [];
@@ -91,7 +102,6 @@ const ContentStatsWidgets = memo(function ContentStatsWidgets({ dateRangeFilter 
   if (isLoading) {
     return (
       <div className="space-y-6">
-        {/* KPI Skeletons */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {Array.from({ length: 3 }).map((_, index) => (
             <div key={`kpi-skel-${index}`} className="bg-white p-5 rounded-lg shadow border border-gray-200">
@@ -100,16 +110,15 @@ const ContentStatsWidgets = memo(function ContentStatsWidgets({ dateRangeFilter 
             </div>
           ))}
         </div>
-        {/* Chart Skeletons */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {Array.from({ length: 2 }).map((_, index) => ( // For Format and Proposal charts
+          {Array.from({ length: 2 }).map((_, index) => (
              <div key={`chart-skel-rect-${index}`} className="p-4 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[300px]">
                 <SkeletonBlock width="w-1/3" height="h-4 mb-3" />
                 <SkeletonBlock variant="rectangle" width="w-full" height="h-64" />
              </div>
           ))}
         </div>
-        <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[300px]"> {/* For Context chart */}
+        <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[300px]">
             <SkeletonBlock width="w-1/3" height="h-4 mb-3" />
             <SkeletonBlock variant="rectangle" width="w-full" height="h-64" />
         </div>
@@ -131,7 +140,7 @@ const ContentStatsWidgets = memo(function ContentStatsWidgets({ dateRangeFilter 
     );
   }
 
-  if (!stats || kpis.length === 0) { // Check kpis length as it's derived from stats
+  if (!stats || kpis.length === 0) {
     return (
       <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[400px] flex justify-center items-center">
         <p className="text-gray-500">Nenhuma estatística de conteúdo disponível.</p>
@@ -141,7 +150,6 @@ const ContentStatsWidgets = memo(function ContentStatsWidgets({ dateRangeFilter 
 
   return (
     <div className="space-y-6">
-      {/* KPIs Section already uses formatted values from kpis array */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {kpis.map(kpi => (
              <div key={kpi.title} className="bg-white p-5 rounded-lg shadow border border-gray-200">
@@ -151,9 +159,7 @@ const ContentStatsWidgets = memo(function ContentStatsWidgets({ dateRangeFilter 
         ))}
       </div>
 
-      {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Breakdown by Format */}
         <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[300px]">
           <h4 className="text-md font-semibold text-gray-800 mb-1">Posts por Formato</h4>
           <p className="text-xs text-gray-400 mb-3">Distribuição de conteúdo por formato.</p>
@@ -165,13 +171,11 @@ const ContentStatsWidgets = memo(function ContentStatsWidgets({ dateRangeFilter 
                 <YAxis dataKey="format" type="category" fontSize={10} width={70} tickLine={false} axisLine={false} />
                 <Tooltip formatter={(value: number) => [value.toLocaleString('pt-BR'), "Posts"]} cursor={{ fill: 'rgba(79, 70, 229, 0.05)' }} />
                 <Bar dataKey="count" fill="#8884d8" radius={[0, 4, 4, 0]} barSize={15} />
-                {/* Removed Legend as it's redundant for a single series bar chart */}
               </BarChart>
             </ResponsiveContainer>
           ) : <p className="text-sm text-gray-400 text-center pt-10">Dados não disponíveis.</p>}
         </div>
 
-        {/* Breakdown by Proposal - Pie Chart */}
         <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[300px]">
           <h4 className="text-md font-semibold text-gray-800 mb-1">Posts por Proposta</h4>
           <p className="text-xs text-gray-400 mb-3">Distribuição de conteúdo por tipo de proposta.</p>
@@ -189,7 +193,8 @@ const ContentStatsWidgets = memo(function ContentStatsWidgets({ dateRangeFilter 
                   nameKey="proposal"
                   label={({ name, percent }) => `${name} (${(percent! * 100).toFixed(0)}%)`}
                 >
-                  {stats.breakdownByProposal.map((entry, index) => (
+                  {/* CORREÇÃO: Adicionados tipos explícitos para os parâmetros do map para evitar erros. */}
+                  {stats.breakdownByProposal.map((entry: { proposal: string; count: number }, index: number) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
@@ -201,19 +206,17 @@ const ContentStatsWidgets = memo(function ContentStatsWidgets({ dateRangeFilter 
         </div>
       </div>
 
-      {/* Breakdown by Context - Could be another Bar Chart or different visualization */}
        <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[300px]">
           <h4 className="text-md font-semibold text-gray-800 mb-1">Posts por Contexto</h4>
           <p className="text-xs text-gray-400 mb-3">Distribuição de conteúdo por contexto principal.</p>
           {stats.breakdownByContext && stats.breakdownByContext.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={stats.breakdownByContext} margin={{ top: 5, right: 30, left: 20, bottom: 50 }}> {/* Increased bottom margin for angled labels */}
+              <BarChart data={stats.breakdownByContext} margin={{ top: 5, right: 30, left: 20, bottom: 50 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" />
                 <XAxis dataKey="context" angle={-35} textAnchor="end" interval={0} fontSize={10} height={60} />
                 <YAxis fontSize={10} tickFormatter={(value) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(value as number)} />
                 <Tooltip formatter={(value: number) => [value.toLocaleString('pt-BR'), "Posts"]} cursor={{ fill: 'rgba(79, 70, 229, 0.05)' }} />
                 <Bar dataKey="count" fill="#00C49F" radius={[4, 4, 0, 0]} barSize={20} />
-                {/* Removed Legend as it's redundant for a single series bar chart */}
               </BarChart>
             </ResponsiveContainer>
           ) : <p className="text-sm text-gray-400 text-center pt-10">Dados não disponíveis.</p>}
