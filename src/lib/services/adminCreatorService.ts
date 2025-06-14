@@ -8,9 +8,15 @@ import {
   AdminCreatorStatus,
   AdminCreatorUpdateStatusPayload,
 } from '@/types/admin/creators'; // Ajuste o caminho se necessário
+import {
+  AdminAffiliateListItem,
+  AdminAffiliateListParams,
+  AdminAffiliateStatus,
+  AdminAffiliateUpdateStatusPayload
+} from '@/types/admin/affiliates'; // Ajuste o caminho se necessário
 import { logger } from '@/app/lib/logger';
 
-const SERVICE_TAG = '[adminCreatorService]';
+const SERVICE_TAG = '[adminCreatorService]'; // Ou '[adminService]' se renomeado
 
 /**
  * Fetches a paginated list of creators for admin management.
@@ -178,5 +184,142 @@ export async function getPendingCreatorsCount(): Promise<number> {
   } catch (error: any) {
     logger.error(`${TAG} Error fetching pending creators count:`, error);
     throw new Error(`Failed to fetch pending creators count: ${error.message}`);
+  }
+}
+
+/**
+ * Fetches a paginated list of affiliates for admin management.
+ * Assumes affiliate data is part of UserModel.
+ */
+export async function fetchAffiliates(
+  params: AdminAffiliateListParams
+): Promise<{ affiliates: AdminAffiliateListItem[]; totalAffiliates: number; totalPages: number }> {
+  const TAG = `${SERVICE_TAG}[fetchAffiliates]`; // Usar o SERVICE_TAG do arquivo
+  await connectToDatabase();
+
+  const {
+    page = 1,
+    limit = 10,
+    search,
+    status,
+    sortBy = 'registrationDate', // Default sort, pode ser 'affiliateSince' se existir
+    sortOrder = 'desc',
+  } = params;
+
+  const skip = (page - 1) * limit;
+  const sortDirection = sortOrder === 'asc' ? 1 : -1;
+
+  const query: any = {
+    // Filtrar apenas usuários que são afiliados (ex: têm um affiliateCode ou um affiliateStatus definido)
+    // Esta condição depende de como você identifica um afiliado no UserModel.
+    // Exemplo: affiliateCode: { $exists: true, $ne: null } OU affiliateStatus: { $exists: true }
+    // Por agora, vamos assumir que qualquer usuário pode ser listado aqui, e o filtro de status fará o trabalho.
+  };
+
+  if (search) {
+    query.$or = [
+      { name: { $regex: search, $options: 'i' } },
+      { email: { $regex: search, $options: 'i' } },
+      { affiliateCode: { $regex: search, $options: 'i' } }, // Busca por código de afiliado
+    ];
+  }
+
+  if (status) {
+    query.affiliateStatus = status; // Assumindo que UserModel tem 'affiliateStatus'
+  }
+
+  // Adicionar um filtro base para garantir que estamos lidando com usuários que são afiliados
+  // Se não houver um campo `isAffiliate: true` ou similar, podemos filtrar por existência de `affiliateCode`
+  // ou `affiliateStatus`. Vamos assumir que `affiliateStatus` existe para todos os afiliados.
+  query.affiliateStatus = { $exists: true };
+
+
+  try {
+    logger.info(`${TAG} Fetching affiliates with query: ${JSON.stringify(query)}`);
+    const affiliatesData = await UserModel.find(query)
+      .sort({ [sortBy]: sortDirection })
+      .skip(skip)
+      .limit(limit)
+      .lean()
+      .exec();
+
+    const totalAffiliates = await UserModel.countDocuments(query);
+    const totalPages = Math.ceil(totalAffiliates / limit);
+
+    const affiliates: AdminAffiliateListItem[] = affiliatesData.map((userDoc) => {
+      const user = userDoc as IUser & {
+        _id: Types.ObjectId;
+        affiliateCode?: string;
+        affiliateStatus?: AdminAffiliateStatus;
+        registrationDate?: Date;
+        affiliateSince?: Date | string;
+        affiliateInvites?: number;
+        affiliateTotalEarnings?: number;
+        affiliateBalance?: number;
+        profile_picture_url?: string; // Garante que este campo é esperado do IUser
+      };
+      return {
+        userId: user._id.toString(),
+        name: user.name || 'N/A',
+        email: user.email || 'N/A',
+        profilePictureUrl: user.profile_picture_url,
+        affiliateCode: user.affiliateCode,
+        affiliateStatus: user.affiliateStatus || 'inactive', // Default
+        registrationDate: user.registrationDate || user._id.getTimestamp(),
+        affiliateSince: user.affiliateSince, // Assumindo que UserModel tem affiliateSince
+        totalInvites: user.affiliateInvites, // Assumindo UserModel.affiliateInvites
+        totalEarnings: user.affiliateTotalEarnings, // Assumindo UserModel.affiliateTotalEarnings
+        currentBalance: user.affiliateBalance, // Assumindo UserModel.affiliateBalance
+      };
+    });
+
+    logger.info(`${TAG} Successfully fetched ${affiliates.length} affiliates. Total: ${totalAffiliates}.`);
+    return { affiliates, totalAffiliates, totalPages };
+
+  } catch (error: any) {
+    logger.error(`${TAG} Error fetching affiliates:`, error);
+    throw new Error(`Failed to fetch affiliates: ${error.message}`);
+  }
+}
+
+/**
+ * Updates the status of an affiliate.
+ * Assumes affiliateStatus is part of UserModel.
+ */
+export async function updateAffiliateStatus(
+  userId: string, // userId, pois o afiliado é um usuário
+  payload: AdminAffiliateUpdateStatusPayload
+): Promise<IUser> { // Retorna o IUser atualizado
+  const TAG = `${SERVICE_TAG}[updateAffiliateStatus]`;
+  await connectToDatabase();
+
+  if (!Types.ObjectId.isValid(userId)) {
+    logger.warn(`${TAG} Invalid userId format: ${userId}`);
+    throw new Error('Invalid userId format.');
+  }
+
+  const { status, reason } = payload; // Reason não está sendo usado ainda no UserModel (suposição)
+
+  try {
+    logger.info(`${TAG} Updating affiliate status for user ${userId} to ${status}.`);
+    // Assumindo que UserModel tem um campo 'affiliateStatus'.
+    // Se houver um campo para reason (ex: 'affiliateStatusReason'), adicionar ao $set.
+    const updatedUserAffiliate = await UserModel.findByIdAndUpdate(
+      userId,
+      { $set: { affiliateStatus: status } }, // Adicionar affiliateStatusReason: reason se existir
+      { new: true, runValidators: true }
+    ).exec();
+
+    if (!updatedUserAffiliate) {
+      logger.warn(`${TAG} User (affiliate) not found for ID: ${userId}`);
+      throw new Error('User (affiliate) not found.');
+    }
+
+    logger.info(`${TAG} Successfully updated affiliate status for user ${userId}.`);
+    return updatedUserAffiliate as IUser;
+
+  } catch (error: any) {
+    logger.error(`${TAG} Error updating affiliate status for user ID ${userId}:`, error);
+    throw new Error(`Failed to update affiliate status: ${error.message}`);
   }
 }

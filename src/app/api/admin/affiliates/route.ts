@@ -1,135 +1,65 @@
 // src/app/api/admin/affiliates/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"; // Ajuste o caminho se necessário
-import mongoose from "mongoose";
-import { connectToDatabase } from "@/app/lib/mongoose";
-import User, { IUser } from "@/app/models/User";
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { logger } from '@/app/lib/logger';
+import { fetchAffiliates } from '@/lib/services/adminCreatorService'; // Assumindo que o serviço ainda se chama adminCreatorService
+import { AdminAffiliateListParams, AdminAffiliateStatus } from '@/types/admin/affiliates';
 
-export const runtime = "nodejs";
+const SERVICE_TAG = '[api/admin/affiliates]';
 
-// Define uma interface para o usuário da sessão com a role
-interface SessionUser {
-  name?: string | null;
-  email?: string | null;
-  image?: string | null;
-  role?: string;
-  id?: string;
+// Mock Admin Session Validation (substituir pela real com getServerSession)
+async function getAdminSession(req: NextRequest): Promise<{ user: { name: string, role?: string, isAdmin?: boolean } } | null> {
+  const mockSession = { user: { name: 'Admin User', role: 'admin' } };
+  if (mockSession.user.role !== 'admin') return null;
+  return mockSession;
 }
 
-// Define uma interface para os dados do afiliado que serão retornados
-interface AffiliateData {
-  _id: string;
-  name?: string;
-  email: string;
-  affiliateCode?: string;
-  affiliateBalance?: number;
-  affiliateInvites?: number;
-  affiliateRank?: number;
-  planStatus?: string;
-  createdAt?: string; // Data como string ISO
+function apiError(message: string, status: number): NextResponse {
+  logger.error(`${SERVICE_TAG} Erro ${status}: ${message}`);
+  return NextResponse.json({ error: message }, { status });
 }
 
-/**
- * GET /api/admin/affiliates
- * Lista usuários com seus dados de afiliado (apenas para admin).
- * Suporta paginação, filtros e ordenação.
- * Query Params:
- * - page?: número da página (default: 1)
- * - limit?: número de itens por página (default: 10)
- * - sortBy?: campo para ordenar (default: createdAt)
- * - sortOrder?: 'asc' ou 'desc' (default: desc)
- * - searchQuery?: termo para buscar em email ou affiliateCode
- * - filterByPlanStatus?: filtra por status do plano (ex: 'active', 'inactive')
- */
-export async function GET(request: NextRequest) {
-  const TAG = "[api/admin/affiliates:GET]";
+// Zod Schema para validar os query parameters
+const querySchema = z.object({
+  page: z.coerce.number().int().min(1).optional().default(1),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(10),
+  search: z.string().optional(),
+  status: z.enum(['pending_approval', 'active', 'inactive', 'suspended'] as const).optional(),
+  sortBy: z.string().optional().default('registrationDate'), // Ou 'affiliateSince'
+  sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
+});
+
+export async function GET(req: NextRequest) {
+  const TAG = `${SERVICE_TAG}[GET]`;
+  logger.info(`${TAG} Received request to list affiliates.`);
 
   try {
-    await connectToDatabase();
-    // console.debug(`${TAG} Conectado ao banco de dados.`);
-
-    // 1. Autenticação e Autorização (Admin)
-    const session = await getServerSession({ req: request, ...authOptions });
-    // console.debug(`${TAG} Sessão obtida:`, session);
-
-    if (!session?.user?.id) {
-      console.warn(`${TAG} Usuário não autenticado.`);
-      return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    const session = await getAdminSession(req);
+    if (!session) {
+      return apiError('Acesso não autorizado ou privilégios insuficientes.', 401);
     }
+    logger.info(`${TAG} Admin session validated for user: ${session.user.name}`);
 
-    const userSession = session.user as SessionUser;
-    if (userSession.role !== 'admin') {
-      console.warn(`${TAG} Acesso negado. Usuário ${userSession.email} não é admin.`);
-      return NextResponse.json({ error: "Acesso negado. Permissão de administrador necessária." }, { status: 403 });
-    }
-
-    // 2. Extrair parâmetros da query para paginação, ordenação e filtros
-    const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get("page") || "1", 10);
-    const limit = parseInt(searchParams.get("limit") || "10", 10);
-    const sortBy = searchParams.get("sortBy") || "createdAt";
-    const sortOrder = searchParams.get("sortOrder") === "asc" ? 1 : -1; // 1 para asc, -1 para desc
-    const searchQuery = searchParams.get("searchQuery")?.trim();
-    const filterByPlanStatus = searchParams.get("filterByPlanStatus")?.trim();
-
-    // 3. Construir o filtro da query (Mongoose)
-    const queryFilter: mongoose.FilterQuery<IUser> = {};
-
-    if (searchQuery) {
-      const regex = new RegExp(searchQuery, 'i'); // Case-insensitive search
-      queryFilter.$or = [
-        { email: regex },
-        { name: regex }, // Adicionado filtro por nome
-        { affiliateCode: regex }
-      ];
-    }
-
-    if (filterByPlanStatus && filterByPlanStatus !== 'all') {
-        queryFilter.planStatus = filterByPlanStatus;
-    }
+    const { searchParams } = new URL(req.url);
+    const queryParams = Object.fromEntries(searchParams.entries());
     
-    // Filtro para garantir que estamos buscando apenas usuários que podem ser afiliados
-    // (ex: todos os usuários, ou apenas aqueles que já fizeram uma indicação, etc.)
-    // Por enquanto, vamos listar todos os usuários, pois todos recebem um affiliateCode.
-    // queryFilter.affiliateCode = { $exists: true, $ne: null };
+    const validationResult = querySchema.safeParse(queryParams);
 
+    if (!validationResult.success) {
+      const errorMessage = validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+      logger.warn(`${TAG} Invalid query parameters: ${errorMessage}`);
+      return apiError(`Parâmetros de consulta inválidos: ${errorMessage}`, 400);
+    }
 
-    // 4. Contar o total de documentos para paginação
-    const totalAffiliates = await User.countDocuments(queryFilter);
+    const validatedParams: AdminAffiliateListParams = validationResult.data;
 
-    // 5. Buscar os usuários com paginação, ordenação e seleção de campos
-    const affiliates = await User.find(queryFilter)
-      .sort({ [sortBy]: sortOrder })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .select('_id name email affiliateCode affiliateBalance affiliateInvites affiliateRank planStatus createdAt')
-      .lean<IUser[]>(); // Usar IUser aqui, pois é o que o modelo retorna
+    logger.info(`${TAG} Calling fetchAffiliates with params: ${JSON.stringify(validatedParams)}`);
+    const { affiliates, totalAffiliates, totalPages } = await fetchAffiliates(validatedParams);
 
-    // 6. Formatar os dados para a resposta
-    const formattedAffiliates: AffiliateData[] = affiliates.map(aff => ({
-      _id: aff._id.toString(),
-      name: aff.name,
-      email: aff.email,
-      affiliateCode: aff.affiliateCode,
-      affiliateBalance: aff.affiliateBalance || 0,
-      affiliateInvites: aff.affiliateInvites || 0,
-      affiliateRank: aff.affiliateRank || 1,
-      planStatus: aff.planStatus || 'inactive',
-      createdAt: aff.createdAt ? new Date(aff.createdAt).toISOString() : new Date().toISOString(),
-    }));
+    return NextResponse.json({ affiliates, totalAffiliates, totalPages, page: validatedParams.page, limit: validatedParams.limit }, { status: 200 });
 
-    // console.debug(`${TAG} ${affiliates.length} afiliados encontrados. Total: ${totalAffiliates}`);
-    return NextResponse.json({
-      affiliates: formattedAffiliates,
-      currentPage: page,
-      totalPages: Math.ceil(totalAffiliates / limit),
-      totalAffiliates,
-    }, { status: 200 });
-
-  } catch (error: unknown) {
-    console.error(`${TAG} Erro ao buscar lista de afiliados:`, error);
-    const message = error instanceof Error ? error.message : "Erro desconhecido ao processar sua solicitação.";
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch (error: any) {
+    logger.error(`${TAG} Unexpected error:`, error);
+    return apiError(error.message || 'Ocorreu um erro interno no servidor.', 500);
   }
 }

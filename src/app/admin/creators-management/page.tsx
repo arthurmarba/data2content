@@ -22,13 +22,17 @@ import {
 import StatusBadge from '../components/StatusBadge'; // Ajuste o caminho se necessário
 import ModalConfirm from '../components/ModalConfirm'; // Ajuste o caminho se necessário
 import toast from 'react-hot-toast';
+import TableHeader, { ColumnConfig, SortConfig as TableSortConfig } from '../components/TableHeader'; // Verifique o caminho
 
 // Definição de ADMIN_CREATOR_STATUS_OPTIONS se não estiver em types/admin/creators.ts
 const STATUS_OPTIONS: AdminCreatorStatus[] = ['pending', 'approved', 'rejected', 'active'];
 
-
+// Interface SortConfig local pode ser renomeada ou removida se TableSortConfig for usada diretamente.
+// Para manter a lógica existente sem grandes refatorações no estado, podemos manter a local
+// e garantir compatibilidade, ou ajustar o estado para usar TableSortConfig.
+// Por ora, vamos assumir que a estrutura de SortConfig local é compatível com TableSortConfig.
 interface SortConfig {
-  sortBy: keyof AdminCreatorListItem | string;
+  sortBy: keyof AdminCreatorListItem | string; // Ou apenas string se TableHeader.SortConfig.sortBy for string
   sortOrder: 'asc' | 'desc';
 }
 
@@ -113,16 +117,16 @@ export default function CreatorsManagementPage() {
     setCurrentPage(1);
   };
 
-  const renderSortIcon = (columnKey: keyof AdminCreatorListItem | string) => {
-    if (sortConfig.sortBy !== columnKey) {
-      return <ChevronDownIcon className="w-3 h-3 inline text-gray-400 ml-1 opacity-50" />;
-    }
-    return sortConfig.sortOrder === 'asc' ? (
-      <ChevronUpIcon className="w-4 h-4 inline text-indigo-600 ml-1" />
-    ) : (
-      <ChevronDownIcon className="w-4 h-4 inline text-indigo-600 ml-1" />
-    );
-  };
+  // const renderSortIcon = (columnKey: keyof AdminCreatorListItem | string) => { // REMOVIDO
+  //   if (sortConfig.sortBy !== columnKey) {
+  //     return <ChevronDownIcon className="w-3 h-3 inline text-gray-400 ml-1 opacity-50" />;
+  //   }
+  //   return sortConfig.sortOrder === 'asc' ? (
+  //     <ChevronUpIcon className="w-4 h-4 inline text-indigo-600 ml-1" />
+  //   ) : (
+  //     <ChevronDownIcon className="w-4 h-4 inline text-indigo-600 ml-1" />
+  //   );
+  // };
 
   const openChangeStatusModal = (creator: AdminCreatorListItem, newStatus: AdminCreatorStatus) => {
     setSelectedCreatorForStatusChange(creator);
@@ -170,13 +174,13 @@ export default function CreatorsManagementPage() {
     }
   };
 
-  const columns = useMemo(() => [
+  const columns: ColumnConfig<AdminCreatorListItem>[] = useMemo(() => [
     { key: 'name', label: 'Nome', sortable: true },
     { key: 'email', label: 'Email', sortable: true },
     { key: 'registrationDate', label: 'Data Registro', sortable: true },
     { key: 'planStatus', label: 'Plano', sortable: true }, // Assuming planStatus is sortable on the backend
     { key: 'adminStatus', label: 'Status Admin', sortable: true },
-    { key: 'actions', label: 'Ações', sortable: false },
+    { key: 'actions', label: 'Ações', sortable: false, headerClassName: 'text-right', className: 'text-right' }, // Example of custom class
   ], []);
 
 
@@ -269,23 +273,7 @@ export default function CreatorsManagementPage() {
       {!isLoading && !error && creators.length > 0 && (
         <div className="bg-white shadow overflow-x-auto rounded-lg">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                {columns.map(col => (
-                  <th
-                    key={col.key}
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"
-                    onClick={() => col.sortable && handleSort(col.key)}
-                  >
-                    <span className="flex items-center">
-                        {col.label}
-                        {col.sortable && renderSortIcon(col.key)}
-                    </span>
-                  </th>
-                ))}
-              </tr>
-            </thead>
+            <TableHeader columns={columns} sortConfig={sortConfig} onSort={handleSort} />
             <tbody className="bg-white divide-y divide-gray-200">
               {creators.map((creator) => (
                 // const StatusIcon = statusIcons[creator.adminStatus] || NoSymbolIcon; // Removido

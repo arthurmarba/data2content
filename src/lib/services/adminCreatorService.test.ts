@@ -1,8 +1,9 @@
 // src/lib/services/adminCreatorService.test.ts
-import { fetchCreators, updateCreatorStatus } from './adminCreatorService';
+import { fetchCreators, updateCreatorStatus, fetchAffiliates, updateAffiliateStatus } from './adminCreatorService'; // Added new functions
 import UserModel from '@/app/models/User';
 import { connectToDatabase } from '@/app/lib/dataService/connection'; // Reutilize a conexão existente
 import { AdminCreatorListParams } from '@/types/admin/creators';
+import { AdminAffiliateListParams, AdminAffiliateUpdateStatusPayload } from '@/types/admin/affiliates'; // Added affiliate types
 import { Types } from 'mongoose';
 
 // Mock UserModel
@@ -173,5 +174,47 @@ describe('AdminCreatorService', () => {
     it('should throw error for invalid creatorId format', async () => {
         await expect(updateCreatorStatus('invalidId', { status: 'approved' })).rejects.toThrow('Invalid creatorId format.');
     });
+  });
+
+  describe('fetchAffiliates', () => {
+    it('should call UserModel.find with correct query for default affiliate params (placeholder)', async () => {
+      // Mockear UserModel.exec e UserModel.countDocuments
+      (UserModel.exec as jest.Mock).mockResolvedValueOnce([]);
+      (UserModel.countDocuments as jest.Mock).mockResolvedValueOnce(0);
+
+      const params: AdminAffiliateListParams = {}; // Usar AdminAffiliateListParams importado
+      await fetchAffiliates(params); // Usar fetchAffiliates importado
+
+      // Verificar se connectToDatabase foi chamado
+      expect(connectToDatabase).toHaveBeenCalled();
+      // Verificar a query base para afiliados (ex: { affiliateStatus: { $exists: true } })
+      // e os defaults de paginação/ordenação
+      expect(UserModel.find).toHaveBeenCalledWith(expect.objectContaining({
+        affiliateStatus: { $exists: true }
+      }));
+      expect(UserModel.sort).toHaveBeenCalledWith({ registrationDate: -1 }); // Ou 'affiliateSince'
+      // ... mais asserções
+    });
+    // Adicionar mais testes para filtros, busca, paginação, ordenação e mapeamento de dados
+  });
+
+  describe('updateAffiliateStatus', () => {
+    it('should call findByIdAndUpdate for affiliate status (placeholder)', async () => {
+      const mockUpdatedUser = { _id: 'affiliate1', affiliateStatus: 'active' };
+      (UserModel.exec as jest.Mock).mockResolvedValueOnce(mockUpdatedUser);
+      // ou (UserModel.findByIdAndUpdate as jest.Mock).mockResolvedValueOnce(mockUpdatedUser);
+
+
+      const userId = 'affiliate1';
+      const payload: AdminAffiliateUpdateStatusPayload = { status: 'active' as const }; // Usar AdminAffiliateUpdateStatusPayload
+      await updateAffiliateStatus(userId, payload); // Usar updateAffiliateStatus importado
+
+      expect(UserModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        userId,
+        { $set: { affiliateStatus: 'active' } },
+        { new: true, runValidators: true }
+      );
+    });
+    // Adicionar mais testes para ID não encontrado, ID inválido
   });
 });
