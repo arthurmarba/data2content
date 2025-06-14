@@ -14,9 +14,49 @@ import {
   AdminAffiliateStatus,
   AdminAffiliateUpdateStatusPayload
 } from '@/types/admin/affiliates'; // Ajuste o caminho se necessário
+import {
+  AdminRedemptionListItem,
+  AdminRedemptionListParams,
+  RedemptionStatus,
+  AdminRedemptionUpdateStatusPayload as AdminRedemptionUpdatePayload // Alias to avoid name clash if imported directly
+} from '@/types/admin/redemptions';
+import mongoose, { Document } from 'mongoose'; // Necessário para o placeholder do modelo
 import { logger } from '@/app/lib/logger';
 
 const SERVICE_TAG = '[adminCreatorService]'; // Ou '[adminService]' se renomeado
+
+
+// Placeholder para RedemptionModel - SUBSTITUA PELO SEU MODELO REAL
+// Interface básica para o documento de Resgate no DB
+interface IRedemption extends Document {
+  _id: Types.ObjectId;
+  userId: Types.ObjectId; // Referência ao UserModel
+  amount: number;
+  currency: string;
+  status: RedemptionStatus;
+  requestedAt: Date;
+  updatedAt?: Date;
+  paymentMethod?: string;
+  paymentDetails?: Record<string, any>;
+  adminNotes?: string;
+  transactionId?: string;
+}
+// Mock do Modelo Mongoose - SUBSTITUA PELO SEU MODELO REAL
+const RedemptionModel = (global as any).RedemptionModel ||
+  mongoose.model<IRedemption>('Redemption', new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    amount: { type: Number, required: true },
+    currency: { type: String, required: true, default: 'BRL' },
+    status: { type: String, enum: ['pending', 'approved', 'rejected', 'processing', 'paid', 'failed', 'cancelled'], required: true, default: 'pending' },
+    // requestedAt: { type: Date, default: Date.now }, // Provided by timestamps: true
+    // updatedAt: { type: Date }, // Provided by timestamps: true
+    paymentMethod: String,
+    paymentDetails: mongoose.Schema.Types.Mixed,
+    adminNotes: String,
+    transactionId: String,
+  }, { timestamps: { createdAt: 'requestedAt', updatedAt: 'updatedAt' } }));
+(global as any).RedemptionModel = RedemptionModel;
+// FIM DO PLACEHOLDER
 
 /**
  * Fetches a paginated list of creators for admin management.
@@ -321,5 +361,192 @@ export async function updateAffiliateStatus(
   } catch (error: any) {
     logger.error(`${TAG} Error updating affiliate status for user ID ${userId}:`, error);
     throw new Error(`Failed to update affiliate status: ${error.message}`);
+  }
+}
+
+/**
+ * Fetches a paginated list of redemptions for admin management.
+ */
+export async function fetchRedemptions(
+  params: AdminRedemptionListParams
+): Promise<{ redemptions: AdminRedemptionListItem[]; totalRedemptions: number; totalPages: number }> {
+  const TAG = `${SERVICE_TAG}[fetchRedemptions]`;
+  await connectToDatabase();
+
+  const {
+    page = 1,
+    limit = 10,
+    search,
+    status,
+    userId,
+    minAmount,
+    maxAmount,
+    dateFrom,
+    dateTo,
+    sortBy = 'requestedAt',
+    sortOrder = 'desc',
+  } = params;
+
+  const skip = (page - 1) * limit;
+  const sortDirection = sortOrder === 'asc' ? 1 : -1;
+
+  const query: any = {};
+
+  if (status) {
+    query.status = status;
+  }
+  if (userId) {
+    if (Types.ObjectId.isValid(userId)) {
+      query.userId = new Types.ObjectId(userId);
+    } else {
+      logger.warn(`${TAG} Invalid userId format for filtering: ${userId}`);
+      query.userId = null;
+    }
+  }
+  if (typeof minAmount === 'number') {
+    query.amount = { ...query.amount, $gte: minAmount };
+  }
+  if (typeof maxAmount === 'number') {
+    query.amount = { ...query.amount, $lte: maxAmount };
+  }
+  if (dateFrom) {
+    query.requestedAt = { ...query.requestedAt, $gte: new Date(dateFrom) };
+  }
+  if (dateTo) {
+    const endDate = new Date(dateTo);
+    endDate.setHours(23, 59, 59, 999);
+    query.requestedAt = { ...query.requestedAt, $lte: endDate };
+  }
+
+  if (search && Types.ObjectId.isValid(search)) {
+     query._id = new Types.ObjectId(search);
+  } else if (search) {
+     logger.info(`${TAG} Search term "${search}" is not a valid ObjectId for redemption ID search. User search not yet implemented in this version.`);
+     // For user name/email search, we need to use it in the aggregation pipeline after $lookup
+  }
+
+
+  try {
+    logger.info(`${TAG} Fetching redemptions with query: ${JSON.stringify(query)}`);
+
+    const aggregationPipeline: mongoose.PipelineStage[] = [];
+
+    // Add $match stage for main query filters on RedemptionModel fields
+    if (Object.keys(query).length > 0) {
+        aggregationPipeline.push({ $match: query });
+    }
+
+    // $lookup to join with users collection
+    aggregationPipeline.push({
+      $lookup: {
+        from: 'users',
+        localField: 'userId',
+        foreignField: '_id',
+        as: 'userDetails'
+      }
+    });
+    aggregationPipeline.push({ $unwind: { path: '$userDetails', preserveNullAndEmptyArrays: true } });
+
+    // Add $match stage for search term if it's not an ObjectId (i.e., search by user name/email)
+    if (search && !Types.ObjectId.isValid(search)) {
+        aggregationPipeline.push({
+            $match: {
+                $or: [
+                    { 'userDetails.name': { $regex: search, $options: 'i' } },
+                    { 'userDetails.email': { $regex: search, $options: 'i' } },
+                ]
+            }
+        });
+    }
+
+    const countPipeline = [...aggregationPipeline, { $count: 'totalCount' }];
+
+    aggregationPipeline.push(
+      { $sort: { [sortBy]: sortDirection } },
+      { $skip: skip },
+      { $limit: limit }
+    );
+
+    const [redemptionsData, totalCountResult] = await Promise.all([
+        RedemptionModel.aggregate(aggregationPipeline).exec(),
+        RedemptionModel.aggregate(countPipeline).exec()
+    ]);
+
+    const totalRedemptions = totalCountResult[0]?.totalCount || 0;
+    const totalPages = Math.ceil(totalRedemptions / limit);
+
+    const redemptions: AdminRedemptionListItem[] = redemptionsData.map((doc: any) => ({
+      _id: doc._id.toString(),
+      userId: doc.userId.toString(),
+      userName: doc.userDetails?.name || 'Usuário Desconhecido',
+      userEmail: doc.userDetails?.email || 'N/A',
+      amount: doc.amount,
+      currency: doc.currency,
+      status: doc.status,
+      requestedAt: doc.requestedAt,
+      updatedAt: doc.updatedAt,
+      paymentMethod: doc.paymentMethod,
+      paymentDetails: doc.paymentDetails,
+      adminNotes: doc.adminNotes,
+    }));
+
+    logger.info(`${TAG} Successfully fetched ${redemptions.length} redemptions. Total: ${totalRedemptions}.`);
+    return { redemptions, totalRedemptions, totalPages };
+
+  } catch (error: any) {
+    logger.error(`${TAG} Error fetching redemptions:`, error);
+    throw new Error(`Failed to fetch redemptions: ${error.message}`);
+  }
+}
+
+/**
+ * Updates the status of a redemption request.
+ */
+export async function updateRedemptionStatus(
+  redemptionId: string,
+  payload: AdminRedemptionUpdatePayload
+): Promise<IRedemption> {
+  const TAG = `${SERVICE_TAG}[updateRedemptionStatus]`;
+  await connectToDatabase();
+
+  if (!Types.ObjectId.isValid(redemptionId)) {
+    logger.warn(`${TAG} Invalid redemptionId format: ${redemptionId}`);
+    throw new Error('Invalid redemptionId format.');
+  }
+
+  const { status, adminNotes, transactionId } = payload;
+
+  const updateData: Partial<IRedemption> = {
+    status,
+    // updatedAt will be handled by timestamps:true in schema
+  };
+  if (adminNotes !== undefined) {
+    updateData.adminNotes = adminNotes;
+  }
+  if (transactionId !== undefined) {
+    updateData.transactionId = transactionId;
+  }
+
+
+  try {
+    logger.info(`${TAG} Updating status for redemption ${redemptionId} to ${status}.`);
+
+    const updatedRedemption = await RedemptionModel.findByIdAndUpdate(
+      redemptionId,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    ).exec();
+
+    if (!updatedRedemption) {
+      logger.warn(`${TAG} Redemption not found for ID: ${redemptionId}`);
+      throw new Error('Redemption not found.');
+    }
+
+    logger.info(`${TAG} Successfully updated status for redemption ${redemptionId}.`);
+    return updatedRedemption as IRedemption;
+
+  } catch (error: any) {
+    logger.error(`${TAG} Error updating redemption status for ID ${redemptionId}:`, error);
+    throw new Error(`Failed to update redemption status: ${error.message}`);
   }
 }
