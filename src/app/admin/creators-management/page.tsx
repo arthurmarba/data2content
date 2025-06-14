@@ -182,8 +182,6 @@ export default function CreatorsManagementPage() {
     { key: 'adminStatus', label: 'Status Admin', sortable: true },
     { key: 'actions', label: 'Ações', sortable: false, headerClassName: 'text-right', className: 'text-right' }, // Example of custom class
   ], []); // Added semicolon
-
-
   return (
     <div className="space-y-6">
       <ModalConfirm
