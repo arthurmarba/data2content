@@ -2,25 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { Types } from 'mongoose';
 import { logger } from '@/app/lib/logger';
-import { fetchPostDetails, IPostDetailsData } from '@/app/lib/dataService/marketAnalysis/postsService';
+import { fetchPostDetails, IPostDetailsData } from '@/app/lib/dataService/marketAnalysis/postsService'; // Assuming IPostDetailsData is exported
 import { DatabaseError } from '@/app/lib/errors';
-// Removed: import { getAdminSession } from '@/app/lib/auth/auth';
+import { getAdminSession } from '@lib/auth/auth'; // CORRIGIDO
 
 const TAG = '/api/admin/dashboard/posts/[postId]/details';
-
-// Simulação de validação de sessão de Admin (ou use a real implementação se disponível)
-async function getAdminSession(req?: NextRequest): Promise<{ user: { name: string; userId: string; role: string; } } | null> {
-  // TODO: Replace with actual session validation logic (e.g., using NextAuth.js getServerSession)
-  const session = { user: { name: 'Admin User', userId: 'admin123', role: 'ADMIN' } }; // Placeholder session
-  const isAdmin = session.user.role === 'ADMIN';
-
-  if (!session || !isAdmin) {
-    logger.warn(`${TAG} Admin session validation failed (placeholder). User role: ${session?.user?.role}`);
-    return null;
-  }
-  logger.info(`${TAG} Admin session validated (placeholder) for user: ${session.user.name}`);
-  return session;
-}
 
 // Zod schema for path parameter
 const pathParamsSchema = z.object({

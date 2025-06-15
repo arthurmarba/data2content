@@ -1,15 +1,44 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { XMarkIcon, InformationCircleIcon, ChartBarIcon, CalendarDaysIcon, LinkIcon, TagIcon, ChatBubbleBottomCenterTextIcon, EyeIcon, HeartIcon, ChatBubbleOvalLeftEllipsisIcon, ShareIcon, ArrowTrendingUpIcon, PresentationChartLineIcon, UsersIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline'; // Added UsersIcon, ExclamationCircleIcon from previous context if needed
-import SkeletonBlock from '../components/SkeletonBlock';
+import { 
+  XMarkIcon, 
+  InformationCircleIcon, 
+  ChartBarIcon, 
+  CalendarDaysIcon, 
+  LinkIcon, 
+  TagIcon, 
+  ChatBubbleBottomCenterTextIcon, 
+  EyeIcon, 
+  HeartIcon, 
+  ChatBubbleOvalLeftEllipsisIcon, 
+  ShareIcon, 
+  ArrowTrendingUpIcon, 
+  PresentationChartLineIcon, 
+  UsersIcon, 
+  ExclamationCircleIcon 
+} from '@heroicons/react/24/outline';
+// Removed: import SkeletonBlock from '../components/SkeletonBlock';
 import {
-  ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-} from 'recharts'; // Added Recharts imports
+  ResponsiveContainer, 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend,
+} from 'recharts';
 
-// --- Interfaces (aligning with service layer IPostDetailsData) ---
-// It's assumed that the actual IMetricStats and IDailyMetricSnapshot would be imported
-// from a central types definition in a real application.
+// --- Helper Component for Loading State ---
+// The SkeletonBlock component is now defined directly in this file
+// to resolve the import error and make the component self-contained.
+const SkeletonBlock = ({ width = 'w-full', height = 'h-4' }: { width?: string; height?: string }) => (
+  <div className={`${width} ${height} bg-gray-200 rounded-md animate-pulse`}></div>
+);
+
+
+// --- Interfaces ---
 interface ISimplifiedMetricStats {
   views?: number;
   likes?: number;
@@ -34,8 +63,8 @@ interface ISimplifiedDailySnapshot {
   cumulativeLikes?: number;
 }
 
-export interface IPostDetailsData { // Renamed from IPostDetail to match service conceptual name
-  _id: string; // Assuming it will be string after fetch, or Types.ObjectId if handled
+export interface IPostDetailsData {
+  _id: string;
   user?: any;
   postLink?: string;
   description?: string;
@@ -46,7 +75,7 @@ export interface IPostDetailsData { // Renamed from IPostDetail to match service
   context?: string;
   theme?: string;
   collab?: boolean;
-  collabCreator?: string; // Assuming string ID
+  collabCreator?: string;
   coverUrl?: string;
   instagramMediaId?: string;
   source?: string;
@@ -72,7 +101,7 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
 
       setIsLoading(true);
       setError(null);
-      setPostData(null); // Clear previous data
+      setPostData(null);
 
       const apiUrl = `/api/admin/dashboard/posts/${postId}/details`;
 
@@ -88,8 +117,6 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
         }
         const fetchedData: IPostDetailsData = await response.json();
 
-        // API sends dates as strings, so we need to convert them back to Date objects
-        // for postDate and dates within dailySnapshots
         if (fetchedData.postDate) {
             fetchedData.postDate = new Date(fetchedData.postDate);
         }
@@ -112,7 +139,6 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
     if (isOpen && postId) {
       fetchPostData();
     } else if (!isOpen) {
-      // Optionally reset states when modal is closed, though initial check in effect handles it
       setPostData(null);
       setIsLoading(false);
       setError(null);
@@ -169,13 +195,11 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
             value={typeof postData.stats.engagement_rate_on_reach === 'number' ? `${(postData.stats.engagement_rate_on_reach * 100).toFixed(2)}%` : 'N/A'}
           />
           {typeof postData.stats.total_interactions === 'number' && <MetricItem icon={ArrowTrendingUpIcon} label="Interações Totais" value={postData.stats.total_interactions.toLocaleString('pt-BR')} />}
-          {/* Add other stats as needed, e.g., saves, video_avg_watch_time */}
         </div>
       )}
     </div>
   );
 
-  // Helper for individual metric items
   const MetricItem = ({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value: string | number }) => (
     <div className="bg-gray-50 p-3 rounded-md">
       <div className="flex items-center text-gray-500 mb-1">
@@ -191,7 +215,7 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
       <h4 className="text-md font-semibold text-gray-700 mb-2 flex items-center"><ChartBarIcon className="w-5 h-5 mr-2 text-indigo-500" />Desempenho Diário</h4>
       {isLoading ? (
         <SkeletonBlock width="w-full" height="h-24" />
-      ) : postData && postData.dailySnapshots && ( // Ensure dailySnapshots exists
+      ) : postData && postData.dailySnapshots && (
         <>
           {postData.dailySnapshots.length >= 2 ? (
             <div style={{ width: '100%', height: 300 }} className="my-3">
@@ -233,11 +257,6 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
                     activeDot={{ r: 6 }}
                     dot={{ r: 3 }}
                   />
-                  {/* Optional: Add dailyComments if data is available and desired
-                  {postData.dailySnapshots.some(s => typeof s.dailyComments === 'number') && (
-                    <Line type="monotone" dataKey="dailyComments" name="Comentários Diários" stroke="#ffc658" activeDot={{ r: 6 }} dot={{ r: 3 }} />
-                  )}
-                  */}
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -246,32 +265,28 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
               <p className="text-gray-500">Dados diários insuficientes para exibir o gráfico.</p>
             </div>
           )}
-          {/* Keep the textual list of snapshots for now */}
           {postData.dailySnapshots.length > 0 && (
             <div className="max-h-48 overflow-y-auto text-sm border border-gray-200 rounded-md mt-4">
               <table className="min-w-full divide-y divide-gray-200">
-  =======
-            <div className="max-h-48 overflow-y-auto text-sm border border-gray-200 rounded-md mt-4">
-              <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50 sticky top-0">
-                <tr>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Visualizações</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Curtidas</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {postData.dailySnapshots.map((snapshot, index) => (
-                  // Using index in key as a fallback if date isn't unique enough or string conversion is an issue
-                  <tr key={snapshot.date ? snapshot.date.toISOString() : index}>
-                    <td className="px-3 py-2 whitespace-nowrap">{snapshot.date ? new Date(snapshot.date).toLocaleDateString('pt-BR') : 'N/A'}</td>
-                    <td className="px-3 py-2 text-right whitespace-nowrap">{snapshot.dailyViews?.toLocaleString('pt-BR') ?? 'N/A'}</td>
-                    <td className="px-3 py-2 text-right whitespace-nowrap">{snapshot.dailyLikes?.toLocaleString('pt-BR') ?? 'N/A'}</td>
+                <thead className="bg-gray-50 sticky top-0">
+                  <tr>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
+                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Visualizações</th>
+                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Curtidas</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {postData.dailySnapshots.map((snapshot, index) => (
+                    <tr key={snapshot.date ? snapshot.date.toISOString() : index}>
+                      <td className="px-3 py-2 whitespace-nowrap">{snapshot.date ? new Date(snapshot.date).toLocaleDateString('pt-BR') : 'N/A'}</td>
+                      <td className="px-3 py-2 text-right whitespace-nowrap">{snapshot.dailyViews?.toLocaleString('pt-BR') ?? 'N/A'}</td>
+                      <td className="px-3 py-2 text-right whitespace-nowrap">{snapshot.dailyLikes?.toLocaleString('pt-BR') ?? 'N/A'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
       )}
     </div>
@@ -317,11 +332,3 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
 };
 
 export default PostDetailModal;
-
-// Re-imported UsersIcon as it was used in MetricItem, but not directly imported.
-// This can happen if copying blocks of code. Let's ensure all icons are listed at the top.
-// Actually, UsersIcon was not used in MetricItem, it was EyeIcon, HeartIcon etc.
-// Ah, I see UsersIcon in renderMainMetrics -> MetricItem for Alcance. So it should be imported.
-// Added: LinkIcon, TagIcon, ChatBubbleBottomCenterTextIcon, EyeIcon, HeartIcon, ChatBubbleOvalLeftEllipsisIcon, ShareIcon, ArrowTrendingUpIcon, PresentationChartLineIcon, UsersIcon (re-check if needed)
-// Added CalendarDaysIcon to the import list, though not used yet, it's common for dates.
-// Corrected: UsersIcon is indeed used for Alcance.
