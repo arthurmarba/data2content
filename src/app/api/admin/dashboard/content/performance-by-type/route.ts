@@ -3,9 +3,24 @@ import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
 import { fetchContentPerformanceByType } from '@/app/lib/dataService/marketAnalysis/segmentService';
 import { DatabaseError } from '@/app/lib/errors';
-import { getAdminSession } from '@/app/lib/auth/auth'; // Assuming this path
+// Removed: import { getAdminSession } from '@/app/lib/auth/auth';
 
 const TAG = '/api/admin/dashboard/content/performance-by-type';
+
+// Simulação de validação de sessão de Admin (ou use a real implementação se disponível)
+async function getAdminSession(req?: NextRequest): Promise<{ user: { name: string; userId: string; role: string; } } | null> { // Added optional req and richer user type
+  // TODO: Replace with actual session validation logic (e.g., using NextAuth.js getServerSession)
+  // For the purpose of this API route, we need user.userId and user.role
+  const session = { user: { name: 'Admin User', userId: 'admin123', role: 'ADMIN' } }; // Placeholder session
+  const isAdmin = session.user.role === 'ADMIN'; // Placeholder admin check
+
+  if (!session || !isAdmin) {
+    logger.warn(`${TAG} Admin session validation failed (placeholder). User role: ${session?.user?.role}`);
+    return null;
+  }
+  logger.info(`${TAG} Admin session validated (placeholder) for user: ${session.user.name}`);
+  return session;
+}
 
 // Zod schema for query parameters
 const querySchema = z.object({

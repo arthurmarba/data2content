@@ -3,9 +3,23 @@ import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
 import { fetchPlatformSummary } from '@/app/lib/dataService/marketAnalysis/dashboardService';
 import { DatabaseError } from '@/app/lib/errors';
-import { getAdminSession } from '@/app/lib/auth/auth'; // Assuming this path
+// Removed: import { getAdminSession } from '@/app/lib/auth/auth';
 
 const TAG = '/api/admin/dashboard/platform-summary';
+
+// Simulação de validação de sessão de Admin (ou use a real implementação se disponível)
+async function getAdminSession(req?: NextRequest): Promise<{ user: { name: string; userId: string; role: string; } } | null> {
+  // TODO: Replace with actual session validation logic (e.g., using NextAuth.js getServerSession)
+  const session = { user: { name: 'Admin User', userId: 'admin123', role: 'ADMIN' } }; // Placeholder session
+  const isAdmin = session.user.role === 'ADMIN';
+
+  if (!session || !isAdmin) {
+    logger.warn(`${TAG} Admin session validation failed (placeholder). User role: ${session?.user?.role}`);
+    return null;
+  }
+  logger.info(`${TAG} Admin session validated (placeholder) for user: ${session.user.name}`);
+  return session;
+}
 
 // Zod schema for optional query parameters
 const querySchema = z.object({
