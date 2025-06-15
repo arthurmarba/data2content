@@ -32,9 +32,9 @@ interface KpiData {
 interface AdminDashboardSummaryData {
     totalCreators?: KpiData;
     pendingCreators?: KpiData;
-    activeCreators?: KpiData;
-    avgEngagementRate?: KpiData;
-    avgReach?: KpiData;
+    activeCreatorsInPeriod?: KpiData; // Renamed from activeCreators
+    averageEngagementRateInPeriod?: KpiData; // Renamed from avgEngagementRate
+    averageReachInPeriod?: KpiData; // Renamed from avgReach
 }
 
 // Carregamento dinâmico para componentes pesados
@@ -172,26 +172,58 @@ export default function CreatorDashboardPage() {
     const fetchKpis = async () => {
       setKpisLoading(true);
       setKpisError(null);
-      try {
-        await new Promise(res => setTimeout(res, 500));
-        const data: AdminDashboardSummaryData = {
-            totalCreators: { label: 'Total de Criadores', value: 1250 },
-            pendingCreators: { label: 'Criadores Pendentes', value: 75 },
-            activeCreators: { label: 'Criadores Ativos (Período)', value: 480 },
-            avgEngagementRate: { label: 'Taxa de Engajamento Média', value: 5.75 }, // Simulated percentage
-            avgReach: { label: 'Alcance Médio por Post', value: 12500 } // Simulated number
-        };
+      // Initialize with static labels and default/loading values
+      setSummaryKpis({
+          totalCreators: { label: 'Total de Criadores', value: 0 },
+          pendingCreators: { label: 'Criadores Pendentes', value: 0 },
+          activeCreatorsInPeriod: { label: 'Criadores Ativos (Período)', value: 0 },
+          averageEngagementRateInPeriod: { label: 'Taxa de Engajamento Média', value: 0 },
+          averageReachInPeriod: { label: 'Alcance Médio por Post', value: 0 },
+      });
 
-        setSummaryKpis(data);
+      let apiUrl = '/api/admin/dashboard/platform-summary';
+      const queryParams = new URLSearchParams();
+
+      if (dateRangeFilterProp?.startDate && dateRangeFilterProp?.endDate) {
+        queryParams.append('startDate', new Date(dateRangeFilterProp.startDate).toISOString());
+        queryParams.append('endDate', new Date(dateRangeFilterProp.endDate).toISOString());
+        apiUrl += `?${queryParams.toString()}`;
+      }
+      // If no date range, API will return non-period specific data for period fields (e.g. 0 or all-time)
+
+      try {
+        const response = await fetch(apiUrl);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || errorData.message || `Erro HTTP: ${response.status}`);
+        }
+        const apiData = await response.json();
+
+        setSummaryKpis({
+          totalCreators: { label: 'Total de Criadores', value: apiData.totalCreators },
+          pendingCreators: { label: 'Criadores Pendentes', value: apiData.pendingCreators },
+          activeCreatorsInPeriod: { label: 'Criadores Ativos (Período)', value: apiData.activeCreatorsInPeriod },
+          averageEngagementRateInPeriod: { label: 'Taxa de Engajamento Média', value: apiData.averageEngagementRateInPeriod },
+          averageReachInPeriod: { label: 'Alcance Médio por Post', value: apiData.averageReachInPeriod },
+        });
+
       } catch (e: any) {
-        setKpisError(e.message);
+        console.error("Falha ao buscar resumo da plataforma:", e);
+        setKpisError(e.message || 'Falha ao buscar resumo da plataforma.');
+        // Reset to default labels and 0 values on error
+        setSummaryKpis({
+            totalCreators: { label: 'Total de Criadores', value: 0 },
+            pendingCreators: { label: 'Criadores Pendentes', value: 0 },
+            activeCreatorsInPeriod: { label: 'Criadores Ativos (Período)', value: 0 },
+            averageEngagementRateInPeriod: { label: 'Taxa de Engajamento Média', value: 0 },
+            averageReachInPeriod: { label: 'Alcance Médio por Post', value: 0 },
+        });
       } finally {
         setKpisLoading(false);
       }
     };
     fetchKpis();
-  }, [refreshKey]);
-
+  }, [refreshKey, dateRangeFilterProp]);
 
 
   return (
@@ -220,7 +252,7 @@ export default function CreatorDashboardPage() {
               onAskAi={() => handleAskAi("O que significa o KPI 'Total de Criadores' e qual a sua tendência recente?")}
             />
             <KpiCard
-              label={summaryKpis?.pendingCreators?.label || 'Criadores Pendentes'}
+              label={summaryKpis?.pendingCreators?.label || 'Criadores Pendentes'} // Label fallback for initial render
               value={kpisLoading ? undefined : summaryKpis?.pendingCreators?.value}
               icon={UserPlusIcon}
               isLoading={kpisLoading}
@@ -228,16 +260,16 @@ export default function CreatorDashboardPage() {
               onAskAi={() => handleAskAi("Mostra-me uma lista dos criadores pendentes há mais tempo.")}
             />
             <KpiCard
-              label={summaryKpis?.activeCreators?.label || 'Criadores Ativos'}
-              value={kpisLoading ? undefined : summaryKpis?.activeCreators?.value}
+              label={summaryKpis?.activeCreatorsInPeriod?.label || 'Criadores Ativos (Período)'}
+              value={kpisLoading ? undefined : summaryKpis?.activeCreatorsInPeriod?.value}
               icon={BoltIcon}
               isLoading={kpisLoading}
               tooltip="Número de criadores que publicaram conteúdo no período selecionado."
               onAskAi={() => handleAskAi("Compara o número de criadores ativos este mês com o mês passado.")}
             />
             <KpiCard
-              label={summaryKpis?.avgEngagementRate?.label || 'Taxa de Engajamento Média'}
-              value={kpisLoading ? undefined : summaryKpis?.avgEngagementRate?.value}
+              label={summaryKpis?.averageEngagementRateInPeriod?.label || 'Taxa de Engajamento Média'}
+              value={kpisLoading ? undefined : summaryKpis?.averageEngagementRateInPeriod?.value}
               formatAs="percentage"
               icon={SparklesIcon}
               isLoading={kpisLoading}
@@ -245,8 +277,8 @@ export default function CreatorDashboardPage() {
               onAskAi={() => handleAskAi("Qual é a tendência da taxa de engajamento média nos últimos 3 meses?")}
             />
             <KpiCard
-              label={summaryKpis?.avgReach?.label || 'Alcance Médio por Post'}
-              value={kpisLoading ? undefined : summaryKpis?.avgReach?.value}
+              label={summaryKpis?.averageReachInPeriod?.label || 'Alcance Médio por Post'}
+              value={kpisLoading ? undefined : summaryKpis?.averageReachInPeriod?.value}
               formatAs="number"
               icon={GlobeAltIcon}
               isLoading={kpisLoading}

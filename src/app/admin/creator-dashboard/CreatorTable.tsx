@@ -338,54 +338,38 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
     }
 
     try {
-      // Simulação da chamada fetch. Substitua pela sua URL real da API.
-      // const response = await fetch(`/api/admin/dashboard/creators?${queryParams.toString()}`);
-      // if (!response.ok) { ... }
-      // const data = await response.json();
+      const response = await fetch(`/api/admin/dashboard/creators?${queryParams.toString()}`);
 
-      // --- Início da Simulação de Dados ---
-      // A real API call would be:
-      // const response = await fetch(`/api/admin/dashboard/creators?${queryParams.toString()}`);
-      // if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
-      // const data = await response.json(); // This data should now include recentAlertsSummary
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({})); // Try to parse error, fallback if not JSON
+        throw new Error(errorData.error || errorData.message || `Falha na API: ${response.statusText} (status: ${response.status})`);
+      }
 
-      console.log("A simular chamada à API com os parâmetros:", queryParams.toString());
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simular atraso da rede
-
-      // Mock data that would come from an API, now including recentAlertsSummary
-      const mockCreators: IDashboardCreator[] = Array.from({ length: limit }).map((_, i) => {
-          const id = currentPage * 100 + i;
-          const alertTypes = ['PeakShares', 'DropWatchTime', 'ForgottenFormat'];
-          const numTotalAlerts = Math.floor(Math.random() * 5); // Total alerts for this creator
-          const summaryAlerts = Array.from({ length: Math.min(numTotalAlerts, 3) }).map((_, k) => ({ // Max 3 for summary display
-            type: alertTypes[Math.floor(Math.random() * alertTypes.length)],
-            date: new Date(Date.now() - (Math.random() * 7 + k*2) * 24 * 60 * 60 * 1000),
-            message: `Mensagem de alerta tipo ${alertTypes[k % alertTypes.length]} para criador ${id}`,
-          })).sort((a,b) => b.date.getTime() - a.date.getTime()); // Ensure they are recent by sorting
-
-          return {
-              _id: { toString: () => `60d5f9d4e9b9f8a2d8f9c9${id}` },
-              name: `Criador ${id} ${debouncedNameSearch}`,
-              totalPosts: Math.floor(Math.random() * 200),
-              avgEngagementRate: Math.random() * 0.1,
-              lastActivityDate: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000),
-              planStatus: ['Free', 'Pro', 'Premium'][id % 3],
-              followers_count: Math.floor(Math.random() * 100000) + 500, // Add mock followers_count
-              recentAlertsSummary: {
-                count: numTotalAlerts,
-                alerts: summaryAlerts,
-              }
-          }
-      });
-      const data = { creators: mockCreators, totalCreators: 100 }; // Assume totalCreators is also part of API response
-      // --- Fim da Simulação de Dados ---
+      const data = await response.json();
       
-      setCreators(data.creators);
+      // Convert date strings from API to Date objects if necessary
+      // Assuming lastActivityDate is a string that needs conversion.
+      // recentAlertsSummary.alerts[].date should also be converted if it's string.
+      const processedCreators = data.creators.map((creator: any) => ({
+        ...creator,
+        lastActivityDate: creator.lastActivityDate ? new Date(creator.lastActivityDate) : undefined,
+        recentAlertsSummary: creator.recentAlertsSummary ? {
+          ...creator.recentAlertsSummary,
+          alerts: creator.recentAlertsSummary.alerts.map((alert: any) => ({
+            ...alert,
+            date: new Date(alert.date),
+          })),
+        } : undefined,
+      }));
+
+      setCreators(processedCreators);
       setTotalCreators(data.totalCreators);
+
     } catch (e: any) {
-      setError(e.message);
-      setCreators([]);
-      setTotalCreators(0);
+      console.error("Erro ao buscar criadores:", e); // Log the actual error
+      setError(e.message || "Ocorreu um erro desconhecido ao buscar os dados.");
+      setCreators([]); // Clear creators on error
+      setTotalCreators(0); // Reset total
     } finally {
       setIsLoading(false);
     }

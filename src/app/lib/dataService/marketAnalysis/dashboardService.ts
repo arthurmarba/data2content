@@ -270,3 +270,98 @@ export async function fetchDashboardOverallContentStats(
     throw new DatabaseError(`Falha ao buscar estatísticas gerais: ${error.message}`);
   }
 }
+
+// --- Platform Summary KPI Service ---
+
+export interface IPlatformSummaryArgs {
+  dateRange?: {
+    startDate: Date;
+    endDate: Date;
+  };
+}
+
+export interface IPlatformSummaryData {
+  totalCreators: number;
+  pendingCreators: number;
+  activeCreatorsInPeriod: number;
+  averageEngagementRateInPeriod: number; // Store as decimal, e.g., 0.0575 for 5.75%
+  averageReachInPeriod: number;
+}
+
+const PLATFORM_SUMMARY_TAG = `${SERVICE_TAG}[fetchPlatformSummary]`;
+
+export async function fetchPlatformSummary(args: IPlatformSummaryArgs = {}): Promise<IPlatformSummaryData> {
+  logger.info(`${PLATFORM_SUMMARY_TAG} Iniciando busca de resumo da plataforma com args: ${JSON.stringify(args)}`);
+
+  try {
+    await connectToDatabase();
+    const { dateRange } = args;
+
+    // 1. Total Creators
+    const totalCreators = await UserModel.countDocuments({});
+    logger.info(`${PLATFORM_SUMMARY_TAG} Total de criadores: ${totalCreators}`);
+
+    // 2. Pending Creators (Example: role 'pending_user')
+    // IMPORTANT: Adjust { role: 'pending_user' } to the actual field and value in your UserModel
+    const pendingCreators = await UserModel.countDocuments({ status: 'PENDING_APPROVAL' }); // Adjusted assumption
+    logger.info(`${PLATFORM_SUMMARY_TAG} Criadores pendentes: ${pendingCreators}`);
+
+    // 3. Period-specific metrics
+    let activeCreatorsInPeriod = 0;
+    let averageEngagementRateInPeriod = 0;
+    let averageReachInPeriod = 0;
+
+    const dateMatchCriteria: PipelineStage.Match['$match'] = {};
+    if (dateRange?.startDate && dateRange?.endDate) {
+      const endOfDay = new Date(dateRange.endDate);
+      endOfDay.setUTCHours(23, 59, 59, 999);
+      dateMatchCriteria.postDate = {
+        $gte: new Date(dateRange.startDate),
+        $lte: endOfDay
+      };
+      logger.info(`${PLATFORM_SUMMARY_TAG} Critério de data para métricas de período: ${JSON.stringify(dateMatchCriteria.postDate)}`);
+
+      // Active Creators in Period
+      const distinctUsers = await MetricModel.distinct('user', dateMatchCriteria);
+      activeCreatorsInPeriod = distinctUsers.length;
+      logger.info(`${PLATFORM_SUMMARY_TAG} Criadores ativos no período: ${activeCreatorsInPeriod}`);
+
+      // Average Engagement Rate in Period
+      const engagementPipeline: PipelineStage[] = [
+        { $match: { ...dateMatchCriteria, 'stats.engagement_rate_on_reach': { $exists: true, $ne: null, $type: "number" } } },
+        { $group: { _id: null, avgEngagement: { $avg: '$stats.engagement_rate_on_reach' } } },
+        { $project: { _id: 0, avgEngagement: { $ifNull: ['$avgEngagement', 0] } } }
+      ];
+      const engagementResult = await MetricModel.aggregate(engagementPipeline);
+      averageEngagementRateInPeriod = engagementResult[0]?.avgEngagement || 0;
+      averageEngagementRateInPeriod = parseFloat(averageEngagementRateInPeriod.toFixed(4)); // Round to 4 decimal places
+      logger.info(`${PLATFORM_SUMMARY_TAG} Taxa de engajamento média no período: ${averageEngagementRateInPeriod}`);
+
+      // Average Reach in Period
+      const reachPipeline: PipelineStage[] = [
+        { $match: { ...dateMatchCriteria, 'stats.reach': { $exists: true, $ne: null, $type: "number" } } },
+        { $group: { _id: null, avgReach: { $avg: '$stats.reach' } } },
+        { $project: { _id: 0, avgReach: { $ifNull: ['$avgReach', 0] } } }
+      ];
+      const reachResult = await MetricModel.aggregate(reachPipeline);
+      averageReachInPeriod = reachResult[0]?.avgReach || 0;
+      averageReachInPeriod = parseFloat(averageReachInPeriod.toFixed(0)); // Round to 0 decimal places (whole number)
+      logger.info(`${PLATFORM_SUMMARY_TAG} Alcance médio no período: ${averageReachInPeriod}`);
+
+    } else {
+      logger.info(`${PLATFORM_SUMMARY_TAG} Nenhum intervalo de datas fornecido; métricas de período serão 0.`);
+    }
+
+    return {
+      totalCreators,
+      pendingCreators,
+      activeCreatorsInPeriod,
+      averageEngagementRateInPeriod,
+      averageReachInPeriod,
+    };
+
+  } catch (error: any) {
+    logger.error(`${PLATFORM_SUMMARY_TAG} Erro ao buscar resumo da plataforma:`, error);
+    throw new DatabaseError(`Falha ao buscar resumo da plataforma: ${error.message}`);
+  }
+}
