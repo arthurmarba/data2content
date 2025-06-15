@@ -134,15 +134,48 @@ export async function fetchDashboardCreatorsList(
         lastActivityDate: 1,
         avgEngagementRate: { $ifNull: ['$avgEngagementRate', 0] },
         profilePictureUrl: '$profilePictureUrl',
+        alertHistory: 1, // Ensure alertHistory is passed through
         metrics: 0 // Remove o array de métricas para uma resposta mais leve
       },
     });
 
     logger.debug(`${TAG} Pipeline: ${JSON.stringify(aggregationPipeline)}`);
-    const creators = await UserModel.aggregate(aggregationPipeline);
+    let fetchedCreators: any[] = await UserModel.aggregate(aggregationPipeline);
 
-    logger.info(`${TAG} Busca concluída. Encontrados: ${creators.length}, Total: ${totalCreators}`);
-    return { creators: creators as IDashboardCreator[], totalCreators };
+    // Process alertHistory for each creator
+    const creatorsWithAlertsSummary = fetchedCreators.map(creator => {
+      const recentAlertsSummary: IDashboardCreator['recentAlertsSummary'] = {
+        count: 0,
+        alerts: [],
+      };
+
+      if (creator.alertHistory && Array.isArray(creator.alertHistory) && creator.alertHistory.length > 0) {
+        // Sort alerts by date descending to get the most recent
+        const sortedAlerts = [...creator.alertHistory].sort((a, b) =>
+          (b.date instanceof Date ? b.date.getTime() : new Date(b.date).getTime()) -
+          (a.date instanceof Date ? a.date.getTime() : new Date(a.date).getTime())
+        );
+
+        const mostRecentAlerts = sortedAlerts.slice(0, 3); // Get top 3
+
+        recentAlertsSummary.count = sortedAlerts.length; // Total count of alerts
+        recentAlertsSummary.alerts = mostRecentAlerts.map(alert => ({
+          type: alert.type || 'Unknown',
+          date: alert.date instanceof Date ? alert.date : new Date(alert.date),
+          message: alert.finalUserMessage || alert.message || undefined, // Adapt based on actual field name
+        }));
+      }
+
+      // Remove original alertHistory to avoid sending large data to client
+      const { alertHistory, ...creatorFields } = creator;
+      return {
+        ...creatorFields,
+        recentAlertsSummary,
+      };
+    });
+
+    logger.info(`${TAG} Busca concluída e alertas processados. Encontrados: ${creatorsWithAlertsSummary.length}, Total: ${totalCreators}`);
+    return { creators: creatorsWithAlertsSummary as IDashboardCreator[], totalCreators };
 
   } catch (error: any) {
     logger.error(`${TAG} Erro ao buscar lista de criadores:`, error);

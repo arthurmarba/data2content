@@ -112,6 +112,10 @@ export interface IDashboardCreator {
   lastActivityDate?: Date;
   avgEngagementRate: number;
   profilePictureUrl?: string;
+  recentAlertsSummary?: {
+    count: number;
+    alerts: Array<{ type: string; date: Date; message?: string }>;
+  };
 }
 
 export interface IFetchDashboardOverallContentStatsFilters {

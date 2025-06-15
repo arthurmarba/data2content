@@ -105,3 +105,105 @@ export async function fetchMarketPerformance(args: { format: string, proposal: s
     throw new DatabaseError(`Falha ao buscar performance de mercado: ${error.message}`);
   }
 }
+
+// --- Performance by Content Type ---
+
+export interface IContentPerformanceByTypeArgs {
+  dateRange: {
+    startDate: Date;
+    endDate: Date;
+  };
+}
+
+export interface IContentPerformanceByTypeDataPoint {
+  type: string;
+  averageInteractions: number;
+}
+
+const SERVICE_TAG_CONTENT_PERF = '[dataService][segmentService][ContentPerformanceByType]';
+
+/**
+ * @function fetchContentPerformanceByType
+ * @description Fetches aggregated average interactions for each content type within a date range.
+ * @param {IContentPerformanceByTypeArgs} args - Arguments defining the date range.
+ * @returns {Promise<IContentPerformanceByTypeDataPoint[]>} - Aggregated performance data by type.
+ */
+export async function fetchContentPerformanceByType(
+  args: IContentPerformanceByTypeArgs
+): Promise<IContentPerformanceByTypeDataPoint[]> {
+  const TAG = `${SERVICE_TAG_CONTENT_PERF}[fetchContentPerformanceByType]`;
+  logger.info(`${TAG} Fetching performance by type for date range: ${args.dateRange.startDate?.toISOString()} - ${args.dateRange.endDate?.toISOString()}`);
+
+  try {
+    await connectToDatabase();
+    const { dateRange } = args;
+
+    if (!dateRange || !dateRange.startDate || !dateRange.endDate) {
+      throw new Error('Date range with startDate and endDate must be provided.');
+    }
+
+    // Ensure dates are proper Date objects
+    const startDate = new Date(dateRange.startDate);
+    const endDate = new Date(dateRange.endDate);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        throw new Error('Invalid date format provided.');
+    }
+
+    // To include the whole endDate, set time to end of day
+    endDate.setUTCHours(23, 59, 59, 999);
+
+
+    const pipeline: PipelineStage[] = [
+      {
+        $match: {
+          postDate: {
+            $gte: startDate,
+            $lte: endDate,
+          },
+          'stats.total_interactions': { $exists: true, $ne: null, $type: "number" }, // Ensure it's a number
+          type: { $exists: true, $ne: null, $ne: "" } // Ensure type is useful
+        }
+      },
+      {
+        $group: {
+          _id: "$type",
+          avgInteractions: { $avg: "$stats.total_interactions" }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          type: "$_id",
+          // Round averageInteractions to 2 decimal places
+          averageInteractions: { $round: ["$avgInteractions", 2] }
+        }
+      },
+      {
+        $sort: { averageInteractions: -1 } // Optional: sort by highest interactions
+      }
+    ];
+
+    logger.debug(`${TAG} Aggregation pipeline: ${JSON.stringify(pipeline)}`);
+    const results: IContentPerformanceByTypeDataPoint[] = await MetricModel.aggregate(pipeline);
+
+    if (!results) {
+        logger.warn(`${TAG} Aggregation returned null or undefined.`);
+        return [];
+    }
+
+    logger.info(`${TAG} Successfully fetched ${results.length} data points.`);
+    return results;
+
+  } catch (error: any) {
+    logger.error(`${TAG} Error fetching content performance by type:`, {
+      message: error.message,
+      stack: error.stack,
+      args
+    });
+    if (error instanceof DatabaseError) {
+        throw error;
+    }
+    throw new DatabaseError(`Failed to fetch content performance by type: ${error.message}`);
+  }
+}

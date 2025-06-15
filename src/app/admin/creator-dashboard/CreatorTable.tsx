@@ -6,6 +6,9 @@ import React, { useState, useEffect, useCallback, memo } from 'react';
 // import { IDashboardCreator, IFetchDashboardCreatorsListParams } from '@/app/lib/dataService/marketAnalysisService';
 import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
 import { UserGroupIcon, InformationCircleIcon, UsersIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import {
+  ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+} from 'recharts'; // Added Recharts imports
 
 // --- Definições de Componentes em Falta ---
 // Para resolver os erros de importação, estou a criar versões simples
@@ -29,36 +32,66 @@ const EmptyState = ({ icon, title, message }: { icon: React.ReactNode; title: st
   );
 };
 
+interface ITimeSeriesDataPoint {
+  date: Date;
+  value: number;
+}
+
 // Modal de Detalhes do Criador (Versão Simples)
-const CreatorDetailModal = ({ isOpen, onClose, creatorId, creatorName, dateRangeFilter }: any) => {
-  const [growthData, setGrowthData] = useState<IUserGrowthDataPoint[]>([]);
+const CreatorDetailModal = ({ isOpen, onClose, creator, dateRangeFilter }: { isOpen: boolean; onClose: () => void; creator: IDashboardCreator | null; dateRangeFilter: any }) => {
+  const [engagementRateData, setEngagementRateData] = useState<ITimeSeriesDataPoint[] | null>(null);
+  const [isEngagementLoading, setIsEngagementLoading] = useState(false);
+  const [engagementError, setEngagementError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isOpen && creatorId) {
-      // Simular a obtenção de dados de crescimento
-      const today = new Date();
-      const sampleData: IUserGrowthDataPoint[] = Array.from({ length: 30 }).map((_, i) => {
-        const date = new Date(today);
-        date.setDate(today.getDate() - (29 - i)); // Dados dos últimos 30 dias
-        return {
-          date,
-          // Simular alguma variação, mas com tendência de crescimento para seguidores
-          followers: 1000 + (i * 10) + Math.floor(Math.random() * 100) - 50,
-          // Simular alguma variação para a taxa de engajamento entre 0.5% e 5%
-          engagementRate: parseFloat((0.005 + Math.random() * 0.045).toFixed(4)),
-        };
-      });
-      setGrowthData(sampleData);
-    }
-  }, [isOpen, creatorId]);
+    if (isOpen && creator && creator._id && dateRangeFilter?.startDate && dateRangeFilter?.endDate) {
+      const fetchEngagementData = async () => {
+        setIsEngagementLoading(true);
+        setEngagementError(null);
+        setEngagementRateData(null);
 
-  if (!isOpen) return null;
+        const params = new URLSearchParams({
+          metric: 'avg_engagement_rate',
+          period: 'weekly', // Or 'monthly' as decided
+          startDate: new Date(dateRangeFilter.startDate).toISOString(),
+          endDate: new Date(dateRangeFilter.endDate).toISOString(),
+        });
+
+        const apiUrl = `/api/admin/dashboard/creators/${creator._id.toString()}/time-series?${params.toString()}`;
+
+        try {
+          const response = await fetch(apiUrl);
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Erro HTTP: ${response.status}`);
+          }
+          const fetchedData: ITimeSeriesDataPoint[] = await response.json();
+
+          // Convert date strings to Date objects
+          const processedData = fetchedData.map(point => ({
+            ...point,
+            date: new Date(point.date),
+          }));
+          setEngagementRateData(processedData);
+
+        } catch (e: any) {
+          console.error('Falha ao buscar dados de engajamento:', e);
+          setEngagementError(e.message || 'Falha ao buscar dados de engajamento.');
+        } finally {
+          setIsEngagementLoading(false);
+        }
+      };
+      fetchEngagementData();
+    }
+  }, [isOpen, creator, dateRangeFilter]);
+
+  if (!isOpen || !creator) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center">
       <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl m-4 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-gray-800">Detalhes de {creatorName}</h2>
+          <h2 className="text-xl font-bold text-gray-800">Detalhes de {creator.name}</h2>
           <button onClick={onClose} className="p-1 rounded-full text-gray-400 hover:bg-gray-100">
             <XMarkIcon className="w-6 h-6" />
           </button>
@@ -66,36 +99,74 @@ const CreatorDetailModal = ({ isOpen, onClose, creatorId, creatorName, dateRange
         <div className="text-gray-700 space-y-6">
           <div>
             <h3 className="text-lg font-semibold text-gray-700 mb-1">Informações Gerais</h3>
-            <p><span className="font-medium">ID do Criador:</span> {creatorId}</p>
+            <p><span className="font-medium">ID do Criador:</span> {creator._id.toString()}</p>
+            <p><span className="font-medium">Plano:</span> {creator.planStatus || 'N/A'}</p>
+            <p><span className="font-medium">Nível de Expertise:</span> {creator.inferredExpertiseLevel || 'N/A'}</p>
             <p><span className="font-medium">Período de Análise:</span> {new Date(dateRangeFilter.startDate).toLocaleDateString()} - {new Date(dateRangeFilter.endDate).toLocaleDateString()}</p>
           </div>
 
           <hr />
 
           <div>
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">Crescimento de Seguidores</h3>
-            <div className="bg-gray-50 p-4 rounded-md text-center">
-              <p className="text-gray-500">[Follower Growth Chart Placeholder]</p>
-              {/* Exemplo de como os dados poderiam ser mostrados se não houvesse gráfico:
-              {growthData.length > 0 && (
-                <ul className="text-xs text-left mt-2">
-                  {growthData.slice(0, 5).map(d => ( // Mostrar apenas os 5 primeiros para brevidade
-                    <li key={d.date.toISOString()}>{d.date.toLocaleDateString()}: {d.followers} seguidores</li>
-                  ))}
-                </ul>
-              )}
-              */}
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">Métricas de Seguidores</h3>
+            <div className="bg-gray-50 p-4 rounded-md text-left">
+              <p className="text-gray-700"><span className="font-medium">Seguidores Atuais:</span> {typeof creator.followers_count === 'number' ? creator.followers_count.toLocaleString('pt-BR') : 'N/A'}</p>
             </div>
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">Taxa de Engajamento ao Longo do Tempo</h3>
-            <div className="bg-gray-50 p-4 rounded-md text-center">
-              <p className="text-gray-500">[Engagement Rate Chart Placeholder]</p>
-            </div>
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">Taxa de Engajamento ao Longo do Tempo (Semanal)</h3>
+            {isEngagementLoading && <p className="text-gray-500 text-center py-4">A carregar dados de engajamento...</p>}
+            {engagementError && <p className="text-red-500 text-center py-4">Erro: {engagementError}</p>}
+            {!isEngagementLoading && !engagementError && (
+              engagementRateData && engagementRateData.length >= 2 ? (
+                <div style={{ width: '100%', height: 300 }} className="mt-4">
+                  <ResponsiveContainer>
+                    <LineChart data={engagementRateData} margin={{ top: 5, right: 20, left: -20, bottom: 5 }}> {/* Adjusted left margin */}
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                      <XAxis
+                        dataKey="date"
+                        tickFormatter={(tickItem) => new Date(tickItem).toLocaleDateString('pt-BR', { month: 'short', day: 'numeric' })}
+                        fontSize={12}
+                        stroke="#666"
+                      />
+                      <YAxis
+                        tickFormatter={(tickItem) => `${(tickItem * 100).toFixed(1)}%`}
+                        fontSize={12}
+                        stroke="#666"
+                        domain={[0, 'auto']} // Or custom domain e.g. [0, maxVal => Math.max(0.1, maxVal)]
+                      />
+                      <Tooltip
+                        formatter={(value: number, name: string) => [`${(value * 100).toFixed(2)}%`, "Engajamento"]}
+                        labelFormatter={(label: Date) => new Date(label).toLocaleDateString('pt-BR')}
+                        contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}
+                      />
+                      <Legend wrapperStyle={{ fontSize: '14px' }} />
+                      <Line
+                        type="monotone"
+                        dataKey="value"
+                        name="Taxa de Engajamento"
+                        stroke="#8884d8"
+                        strokeWidth={2}
+                        activeDot={{ r: 6 }}
+                        dot={{ r: 3 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="bg-gray-50 p-4 rounded-md text-center">
+                  <p className="text-gray-500">
+                    {engagementRateData && engagementRateData.length < 2
+                      ? "Dados insuficientes para exibir o gráfico de engajamento."
+                      : "Nenhum dado de engajamento encontrado para o período."}
+                  </p>
+                </div>
+              )
+            )}
           </div>
 
-          <p className="mt-6 text-sm text-gray-600"><i>(Aqui seriam carregados outros dados de performance detalhados...)</i></p>
+          <p className="mt-6 text-sm text-gray-600"><i>(Outros dados de performance detalhados podem ser adicionados aqui...)</i></p>
         </div>
       </div>
     </div>
@@ -144,7 +215,11 @@ interface IDashboardCreator {
   lastActivityDate?: Date;
   avgEngagementRate: number;
   profilePictureUrl?: string;
-  recentAlerts?: { type: string; date: Date }[];
+  followers_count?: number; // Added followers_count
+  recentAlertsSummary?: {
+    count: number;
+    alerts: Array<{ type: string; date: Date; message?: string }>;
+  };
 }
 
 interface IFetchDashboardCreatorsListParams {
@@ -194,17 +269,20 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
   const [debouncedNameSearch, setDebouncedNameSearch] = useState('');
 
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [selectedCreatorForModal, setSelectedCreatorForModal] = useState<{ id: string; name: string; } | null>(null);
+  const [selectedCreatorForModal, setSelectedCreatorForModal] = useState<IDashboardCreator | null>(null); // Changed type
 
   const [selectedForComparison, setSelectedForComparison] = useState<string[]>([]);
   const [isComparisonModalOpen, setIsComparisonModalOpen] = useState(false);
   const MAX_CREATORS_TO_COMPARE = 3;
 
-  const handleCloseDetailModal = useCallback(() => setIsDetailModalOpen(false), []);
+  const handleCloseDetailModal = useCallback(() => {
+    setIsDetailModalOpen(false);
+    setSelectedCreatorForModal(null); // Clear selected creator
+  }, []);
   const handleCloseComparisonModal = useCallback(() => setIsComparisonModalOpen(false), []);
 
   const handleOpenCreatorModal = useCallback((creator: IDashboardCreator) => {
-    setSelectedCreatorForModal({ id: creator._id.toString(), name: creator.name });
+    setSelectedCreatorForModal(creator); // Pass full creator object
     setIsDetailModalOpen(true);
   }, []);
 
@@ -266,16 +344,25 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
       // const data = await response.json();
 
       // --- Início da Simulação de Dados ---
+      // A real API call would be:
+      // const response = await fetch(`/api/admin/dashboard/creators?${queryParams.toString()}`);
+      // if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+      // const data = await response.json(); // This data should now include recentAlertsSummary
+
       console.log("A simular chamada à API com os parâmetros:", queryParams.toString());
       await new Promise(resolve => setTimeout(resolve, 1000)); // Simular atraso da rede
-      const alertTypes = ['PeakShares', 'DropWatchTime', 'ForgottenFormat'];
+
+      // Mock data that would come from an API, now including recentAlertsSummary
       const mockCreators: IDashboardCreator[] = Array.from({ length: limit }).map((_, i) => {
           const id = currentPage * 100 + i;
-          const numAlerts = Math.floor(Math.random() * 3) + 1; // 1 to 3 alerts
-          const recentAlerts = Array.from({ length: numAlerts }).map(() => ({
+          const alertTypes = ['PeakShares', 'DropWatchTime', 'ForgottenFormat'];
+          const numTotalAlerts = Math.floor(Math.random() * 5); // Total alerts for this creator
+          const summaryAlerts = Array.from({ length: Math.min(numTotalAlerts, 3) }).map((_, k) => ({ // Max 3 for summary display
             type: alertTypes[Math.floor(Math.random() * alertTypes.length)],
-            date: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000), // Alerts from the last 7 days
-          }));
+            date: new Date(Date.now() - (Math.random() * 7 + k*2) * 24 * 60 * 60 * 1000),
+            message: `Mensagem de alerta tipo ${alertTypes[k % alertTypes.length]} para criador ${id}`,
+          })).sort((a,b) => b.date.getTime() - a.date.getTime()); // Ensure they are recent by sorting
+
           return {
               _id: { toString: () => `60d5f9d4e9b9f8a2d8f9c9${id}` },
               name: `Criador ${id} ${debouncedNameSearch}`,
@@ -283,10 +370,14 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
               avgEngagementRate: Math.random() * 0.1,
               lastActivityDate: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000),
               planStatus: ['Free', 'Pro', 'Premium'][id % 3],
-              recentAlerts,
+              followers_count: Math.floor(Math.random() * 100000) + 500, // Add mock followers_count
+              recentAlertsSummary: {
+                count: numTotalAlerts,
+                alerts: summaryAlerts,
+              }
           }
       });
-      const data = { creators: mockCreators, totalCreators: 100 };
+      const data = { creators: mockCreators, totalCreators: 100 }; // Assume totalCreators is also part of API response
       // --- Fim da Simulação de Dados ---
       
       setCreators(data.creators);
@@ -394,11 +485,14 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
                   const creatorIdStr = creator._id.toString();
                   const isSelected = selectedForComparison.includes(creatorIdStr);
                   const isDisabled = !isSelected && selectedForComparison.length >= MAX_CREATORS_TO_COMPARE;
-                  const alertIcons: { [key: string]: string } = {
-                    'PeakShares': '[PS]',
-                    'DropWatchTime': '[DWT]',
-                    'ForgottenFormat': '[FF]',
+
+                  const getAlertIcon = (type: string): string => {
+                    // Example: 'PeakShares' -> '[PS]', 'DropWatchTime' -> '[DWT]'
+                    // Takes first letter of each uppercase part of the type.
+                    const parts = type.match(/[A-Z][a-z]*/g) || [type];
+                    return `[${parts.map(p => p.charAt(0)).join('')}]`;
                   };
+
                   return (
                     <tr key={creatorIdStr} className={`hover:bg-gray-50 ${isSelected ? 'bg-indigo-50' : ''}`}>
                       <td className="px-6 py-4 text-center">
@@ -410,16 +504,22 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
                       <td className="px-6 py-4 text-center">{formatDate(creator.lastActivityDate)}</td>
                       <td className="px-6 py-4 text-center"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${creator.planStatus === 'Pro' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{getSafeString(creator.planStatus)}</span></td>
                       <td className="px-6 py-4 text-center text-xs">
-                        {creator.recentAlerts && creator.recentAlerts.length > 0 ? (
+                        {creator.recentAlertsSummary && creator.recentAlertsSummary.count > 0 ? (
                           <div className="flex flex-col items-center">
-                            <span>{creator.recentAlerts.length} Alerta(s)</span>
-                            <div className="flex mt-1 space-x-1">
-                              {creator.recentAlerts.map((alert, index) => (
-                                <span key={index} title={`${alert.type} em ${new Date(alert.date).toLocaleDateString()}`} className="cursor-default">
-                                  {alertIcons[alert.type] || '[UKN]'} {/* UKN for Unknown type */}
-                                </span>
-                              ))}
-                            </div>
+                            <span>{creator.recentAlertsSummary.count} Alerta(s)</span>
+                            {creator.recentAlertsSummary.alerts && creator.recentAlertsSummary.alerts.length > 0 && (
+                              <div className="flex mt-1 space-x-1">
+                                {creator.recentAlertsSummary.alerts.map((alert, index) => (
+                                  <span
+                                    key={index}
+                                    title={`${alert.type} em ${new Date(alert.date).toLocaleDateString()}${alert.message ? `: ${alert.message}` : ''}`}
+                                    className="cursor-default"
+                                  >
+                                    {getAlertIcon(alert.type)}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <span className="text-gray-500">Nenhum</span>
@@ -449,12 +549,12 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
         )}
       </div>
 
-      {isDetailModalOpen && selectedCreatorForModal && (
+      {isDetailModalOpen && selectedCreatorForModal && ( // selectedCreatorForModal is now the full object
           <CreatorDetailModal
               isOpen={isDetailModalOpen}
               onClose={handleCloseDetailModal}
-              creatorId={selectedCreatorForModal.id}
-              creatorName={selectedCreatorForModal.name}
+              // Pass the full creator object to the modal
+              creator={selectedCreatorForModal}
               dateRangeFilter={dateRangeFilter}
           />
       )}

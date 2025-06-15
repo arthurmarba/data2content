@@ -2,35 +2,54 @@
 
 import React, { useState, useEffect } from 'react';
 import { XMarkIcon, InformationCircleIcon, ChartBarIcon, CalendarDaysIcon, LinkIcon, TagIcon, ChatBubbleBottomCenterTextIcon, EyeIcon, HeartIcon, ChatBubbleOvalLeftEllipsisIcon, ShareIcon, ArrowTrendingUpIcon, PresentationChartLineIcon } from '@heroicons/react/24/outline';
-import SkeletonBlock from '../components/SkeletonBlock'; // Assuming SkeletonBlock is in ../components
+import SkeletonBlock from '../components/SkeletonBlock';
 
-// --- Interfaces ---
-interface IPostStats {
-  views: number;
-  likes: number;
-  comments: number;
-  shares: number;
-  reach: number;
-  engagement_rate_on_reach: number; // e.g., 0.05 for 5%
+// --- Interfaces (aligning with service layer IPostDetailsData) ---
+// It's assumed that the actual IMetricStats and IDailyMetricSnapshot would be imported
+// from a central types definition in a real application.
+interface ISimplifiedMetricStats {
+  views?: number;
+  likes?: number;
+  comments?: number;
+  shares?: number;
+  reach?: number;
+  engagement_rate_on_reach?: number;
+  total_interactions?: number;
+  saves?: number;
+  video_avg_watch_time?: number;
+  impressions?: number;
 }
 
-interface IDailySnapshot {
+interface ISimplifiedDailySnapshot {
   date: Date;
-  dailyViews: number;
-  dailyLikes: number;
+  dayNumber?: number;
+  dailyViews?: number;
+  dailyLikes?: number;
+  dailyComments?: number;
+  dailyShares?: number;
+  cumulativeViews?: number;
+  cumulativeLikes?: number;
 }
 
-interface IPostDetail {
-  _id: string;
-  postLink: string;
-  description: string;
-  postDate: Date;
-  type: string; // e.g., 'REEL', 'IMAGE', 'VIDEO'
-  format: string; // e.g., 'Tutorial', 'Review', 'Behind the Scenes'
-  proposal: string; // e.g., 'Educativo', 'Entretenimento', 'Inspiracional'
-  context: string; // e.g., 'Tecnologia', 'Viagem', 'Lifestyle'
-  stats: IPostStats;
-  dailySnapshots: IDailySnapshot[];
+export interface IPostDetailsData { // Renamed from IPostDetail to match service conceptual name
+  _id: string; // Assuming it will be string after fetch, or Types.ObjectId if handled
+  user?: any;
+  postLink?: string;
+  description?: string;
+  postDate?: Date;
+  type?: string;
+  format?: string;
+  proposal?: string;
+  context?: string;
+  theme?: string;
+  collab?: boolean;
+  collabCreator?: string; // Assuming string ID
+  coverUrl?: string;
+  instagramMediaId?: string;
+  source?: string;
+  classificationStatus?: string;
+  stats?: ISimplifiedMetricStats;
+  dailySnapshots: ISimplifiedDailySnapshot[];
 }
 
 interface PostDetailModalProps {
@@ -40,57 +59,60 @@ interface PostDetailModalProps {
 }
 
 const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, postId }) => {
-  const [postData, setPostData] = useState<IPostDetail | null>(null);
+  const [postData, setPostData] = useState<IPostDetailsData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isOpen && postId) {
+    const fetchPostData = async () => {
+      if (!postId) return;
+
       setIsLoading(true);
       setError(null);
-      setPostData(null);
+      setPostData(null); // Clear previous data
 
-      // Simulate API call
-      setTimeout(() => {
-        try {
-          // Simulate finding post data
-          const newPostId = postId; // In a real scenario, you'd fetch based on this ID
-          const today = new Date();
-          const generatedPostData: IPostDetail = {
-            _id: newPostId,
-            postLink: `https://example.com/post/${newPostId}`,
-            description: `Esta é uma descrição detalhada para o post ${newPostId}. O conteúdo explora vários aspectos interessantes e busca engajar a audiência com informações relevantes e visuais atraentes.`,
-            postDate: new Date(today.setDate(today.getDate() - Math.floor(Math.random() * 30))), // Random post date in last 30 days
-            type: ['REEL', 'IMAGE', 'VIDEO', 'CAROUSEL_ALBUM'][Math.floor(Math.random() * 4)],
-            format: ['Tutorial', 'Review', 'Behind the Scenes', 'News'][Math.floor(Math.random() * 4)],
-            proposal: ['Educativo', 'Entretenimento', 'Inspiracional', 'Comercial'][Math.floor(Math.random() * 4)],
-            context: ['Tecnologia', 'Viagem', 'Lifestyle', 'Gastronomia', 'Moda'][Math.floor(Math.random() * 5)],
-            stats: {
-              views: Math.floor(Math.random() * 100000) + 1000,
-              likes: Math.floor(Math.random() * 5000) + 100,
-              comments: Math.floor(Math.random() * 500) + 10,
-              shares: Math.floor(Math.random() * 200) + 5,
-              reach: Math.floor(Math.random() * 200000) + 2000,
-              engagement_rate_on_reach: Math.random() * 0.1, // 0% to 10%
-            },
-            dailySnapshots: Array.from({ length: Math.floor(Math.random() * 3) + 5 }).map((_, i) => { // 5 to 7 days
-              const date = new Date();
-              date.setDate(date.getDate() - i);
-              return {
-                date,
-                dailyViews: Math.floor(Math.random() * 15000) + 500,
-                dailyLikes: Math.floor(Math.random() * 700) + 20,
-              };
-            }).sort((a,b) => a.date.getTime() - b.date.getTime()), // Sort by date ascending
-          };
-          setPostData(generatedPostData);
-        } catch (e) {
-          console.error("Failed to generate post data:", e);
-          setError('Falha ao carregar os detalhes do post.');
-        } finally {
-          setIsLoading(false);
+      const apiUrl = `/api/admin/dashboard/posts/${postId}/details`;
+
+      try {
+        const response = await fetch(apiUrl);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ message: `Erro HTTP: ${response.status}` }));
+          let errorMessage = errorData.message || errorData.error || `Erro HTTP: ${response.status}`;
+          if (response.status === 404) {
+            errorMessage = 'Post não encontrado.';
+          }
+          throw new Error(errorMessage);
         }
-      }, 1000); // Simulate 1 second delay
+        const fetchedData: IPostDetailsData = await response.json();
+
+        // API sends dates as strings, so we need to convert them back to Date objects
+        // for postDate and dates within dailySnapshots
+        if (fetchedData.postDate) {
+            fetchedData.postDate = new Date(fetchedData.postDate);
+        }
+        if (fetchedData.dailySnapshots) {
+            fetchedData.dailySnapshots = fetchedData.dailySnapshots.map(snapshot => ({
+                ...snapshot,
+                date: new Date(snapshot.date),
+            }));
+        }
+        setPostData(fetchedData);
+
+      } catch (e: any) {
+        console.error(`Falha ao buscar detalhes do post ${postId}:`, e);
+        setError(e.message || 'Falha ao carregar os detalhes do post.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (isOpen && postId) {
+      fetchPostData();
+    } else if (!isOpen) {
+      // Optionally reset states when modal is closed, though initial check in effect handles it
+      setPostData(null);
+      setIsLoading(false);
+      setError(null);
     }
   }, [isOpen, postId]);
 
@@ -111,12 +133,14 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
       ) : postData && (
         <div className="text-sm space-y-1 text-gray-600">
           <p><strong className="font-medium text-gray-700">Link:</strong> <a href={postData.postLink} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline break-all">{postData.postLink}</a></p>
-          <p><strong className="font-medium text-gray-700">Data:</strong> {new Date(postData.postDate).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-          <p><strong className="font-medium text-gray-700">Tipo:</strong> {postData.type}</p>
-          <p><strong className="font-medium text-gray-700">Formato:</strong> {postData.format}</p>
-          <p><strong className="font-medium text-gray-700">Proposta:</strong> {postData.proposal}</p>
-          <p><strong className="font-medium text-gray-700">Contexto:</strong> {postData.context}</p>
-          <p className="mt-2 pt-2 border-t border-gray-200"><strong className="font-medium text-gray-700">Descrição:</strong> {postData.description}</p>
+          <p><strong className="font-medium text-gray-700">Data:</strong> {postData.postDate ? new Date(postData.postDate).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}</p>
+          <p><strong className="font-medium text-gray-700">Tipo:</strong> {postData.type || 'N/A'}</p>
+          <p><strong className="font-medium text-gray-700">Formato:</strong> {postData.format || 'N/A'}</p>
+          <p><strong className="font-medium text-gray-700">Proposta:</strong> {postData.proposal || 'N/A'}</p>
+          <p><strong className="font-medium text-gray-700">Contexto:</strong> {postData.context || 'N/A'}</p>
+          {postData.theme && <p><strong className="font-medium text-gray-700">Tema:</strong> {postData.theme}</p>}
+          {postData.coverUrl && <p><strong className="font-medium text-gray-700">Capa:</strong> <a href={postData.coverUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline break-all">{postData.coverUrl}</a></p>}
+          <p className="mt-2 pt-2 border-t border-gray-200"><strong className="font-medium text-gray-700">Descrição:</strong> {postData.description || 'N/A'}</p>
         </div>
       )}
     </div>
@@ -129,14 +153,20 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {Array.from({ length: 6 }).map((_, i) => <SkeletonBlock key={i} width="w-full" height="h-12" />)}
         </div>
-      ) : postData && (
+      ) : postData && postData.stats && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
-          <MetricItem icon={EyeIcon} label="Visualizações" value={postData.stats.views.toLocaleString('pt-BR')} />
-          <MetricItem icon={HeartIcon} label="Curtidas" value={postData.stats.likes.toLocaleString('pt-BR')} />
-          <MetricItem icon={ChatBubbleOvalLeftEllipsisIcon} label="Comentários" value={postData.stats.comments.toLocaleString('pt-BR')} />
-          <MetricItem icon={ShareIcon} label="Compart." value={postData.stats.shares.toLocaleString('pt-BR')} />
-          <MetricItem icon={UsersIcon} label="Alcance" value={postData.stats.reach.toLocaleString('pt-BR')} />
-          <MetricItem icon={PresentationChartLineIcon} label="Engaj./Alcance" value={`${(postData.stats.engagement_rate_on_reach * 100).toFixed(2)}%`} />
+          <MetricItem icon={EyeIcon} label="Visualizações" value={postData.stats.views?.toLocaleString('pt-BR') ?? 'N/A'} />
+          <MetricItem icon={HeartIcon} label="Curtidas" value={postData.stats.likes?.toLocaleString('pt-BR') ?? 'N/A'} />
+          <MetricItem icon={ChatBubbleOvalLeftEllipsisIcon} label="Comentários" value={postData.stats.comments?.toLocaleString('pt-BR') ?? 'N/A'} />
+          <MetricItem icon={ShareIcon} label="Compart." value={postData.stats.shares?.toLocaleString('pt-BR') ?? 'N/A'} />
+          <MetricItem icon={UsersIcon} label="Alcance" value={postData.stats.reach?.toLocaleString('pt-BR') ?? 'N/A'} />
+          <MetricItem
+            icon={PresentationChartLineIcon}
+            label="Engaj./Alcance"
+            value={typeof postData.stats.engagement_rate_on_reach === 'number' ? `${(postData.stats.engagement_rate_on_reach * 100).toFixed(2)}%` : 'N/A'}
+          />
+          {typeof postData.stats.total_interactions === 'number' && <MetricItem icon={ArrowTrendingUpIcon} label="Interações Totais" value={postData.stats.total_interactions.toLocaleString('pt-BR')} />}
+          {/* Add other stats as needed, e.g., saves, video_avg_watch_time */}
         </div>
       )}
     </div>
@@ -174,11 +204,12 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {postData.dailySnapshots.map(snapshot => (
-                  <tr key={snapshot.date.toISOString()}>
-                    <td className="px-3 py-2 whitespace-nowrap">{new Date(snapshot.date).toLocaleDateString('pt-BR')}</td>
-                    <td className="px-3 py-2 text-right whitespace-nowrap">{snapshot.dailyViews.toLocaleString('pt-BR')}</td>
-                    <td className="px-3 py-2 text-right whitespace-nowrap">{snapshot.dailyLikes.toLocaleString('pt-BR')}</td>
+                {postData.dailySnapshots.map((snapshot, index) => (
+                  // Using index in key as a fallback if date isn't unique enough or string conversion is an issue
+                  <tr key={snapshot.date ? snapshot.date.toISOString() : index}>
+                    <td className="px-3 py-2 whitespace-nowrap">{snapshot.date ? new Date(snapshot.date).toLocaleDateString('pt-BR') : 'N/A'}</td>
+                    <td className="px-3 py-2 text-right whitespace-nowrap">{snapshot.dailyViews?.toLocaleString('pt-BR') ?? 'N/A'}</td>
+                    <td className="px-3 py-2 text-right whitespace-nowrap">{snapshot.dailyLikes?.toLocaleString('pt-BR') ?? 'N/A'}</td>
                   </tr>
                 ))}
               </tbody>
