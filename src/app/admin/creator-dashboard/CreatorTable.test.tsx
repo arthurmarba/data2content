@@ -20,13 +20,12 @@ jest.mock('@heroicons/react/24/solid', () => ({
 
 // Mock CreatorDetailModal
 jest.mock('./CreatorDetailModal', () => {
-    const MockCreatorDetailModal = jest.fn(({ isOpen, onClose, creatorName, creatorId }) => {
-        if (!isOpen) return null;
+    const MockCreatorDetailModal = jest.fn(({ isOpen, onClose, creator }) => { // Changed props to 'creator'
+        if (!isOpen || !creator) return null;
         return React.createElement('div', { 'data-testid': 'mock-creator-detail-modal' },
-            React.createElement('h2', null, `Modal for ${creatorName} (ID: ${creatorId})`),
-            // Adding placeholders as per test requirements
-            React.createElement('p', null, '[Follower Growth Chart Placeholder]'),
-            React.createElement('p', null, '[Engagement Rate Chart Placeholder]'),
+            React.createElement('h2', null, `Modal for ${creator.name} (ID: ${creator._id.toString()})`),
+            React.createElement('p', null, `Seguidores Atuais: ${creator.followers_count?.toLocaleString('pt-BR') || 'N/A'}`),
+            React.createElement('p', null, '[Engagement Rate Chart Placeholder]'), // Keep this as per previous tests
             React.createElement('button', { onClick: onClose }, 'Close Modal')
         );
     });
@@ -44,14 +43,49 @@ jest.mock('./CreatorComparisonModal', () => {
     return { __esModule: true, default: MockCreatorComparisonModal };
 });
 
-
+// Updated Mock Data to include followers_count and use recentAlertsSummary
 const mockCreatorsPage1: IDashboardCreator[] = [
-  { _id: new Types.ObjectId() as any, name: 'Alice Wonderland', totalPosts: 120, avgEngagementRate: 0.055, lastActivityDate: new Date('2023-10-01'), planStatus: 'Pro', recentAlerts: [{ type: 'PeakShares', date: new Date() }, { type: 'ForgottenFormat', date: new Date() }] },
-  { _id: new Types.ObjectId() as any, name: 'Bob The Builder', totalPosts: 200, avgEngagementRate: 0.040, lastActivityDate: new Date('2023-09-15'), planStatus: 'Free', recentAlerts: [] },
+  {
+    _id: new Types.ObjectId() as any,
+    name: 'Alice Wonderland',
+    totalPosts: 120,
+    avgEngagementRate: 0.055,
+    lastActivityDate: new Date('2023-10-01'),
+    planStatus: 'Pro',
+    followers_count: 25000,
+    recentAlertsSummary: { count: 2, alerts: [{ type: 'PeakShares', date: new Date() }, { type: 'ForgottenFormat', date: new Date() }] }
+  },
+  {
+    _id: new Types.ObjectId() as any,
+    name: 'Bob The Builder',
+    totalPosts: 200,
+    avgEngagementRate: 0.040,
+    lastActivityDate: new Date('2023-09-15'),
+    planStatus: 'Free',
+    followers_count: 10000,
+    recentAlertsSummary: { count: 0, alerts: [] }
+  },
 ];
 const mockCreatorsPage2: IDashboardCreator[] = [
-  { _id: new Types.ObjectId() as any, name: 'Charlie Brown', totalPosts: 80, avgEngagementRate: 0.060, lastActivityDate: new Date('2023-10-05'), planStatus: 'Premium', recentAlerts: [{ type: 'DropWatchTime', date: new Date() }] },
+  {
+    _id: new Types.ObjectId() as any,
+    name: 'Charlie Brown',
+    totalPosts: 80,
+    avgEngagementRate: 0.060,
+    lastActivityDate: new Date('2023-10-05'),
+    planStatus: 'Premium',
+    followers_count: 50000,
+    recentAlertsSummary: { count: 1, alerts: [{ type: 'DropWatchTime', date: new Date() }] }
+  },
 ];
+
+// Helper to get the mock creator by name, ensures _id is stringified for some comparisons if needed
+const getMockCreatorByName = (name: string) => {
+    const found = [...mockCreatorsPage1, ...mockCreatorsPage2].find(c => c.name === name);
+    if (found) return { ...found, _id: found._id.toString() }; // Ensure _id is string for prop comparisons if modal stringifies it
+    return undefined;
+}
+
 
 describe('CreatorTable Component', () => {
   beforeEach(() => {
@@ -59,7 +93,7 @@ describe('CreatorTable Component', () => {
     // Default successful fetch for initial load
     (fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ creators: mockCreatorsPage1, totalCreators: 3, page: 1, limit: 2 }), // Assume total 3 for 2 pages
+      json: async () => ({ creators: mockCreatorsPage1, totalCreators: 3, page: 1, limit: 2 }),
     });
   });
 
@@ -228,50 +262,45 @@ describe('CreatorTable Component', () => {
     const dateRange = { startDate: '2023-01-01', endDate: '2023-01-31' };
     render(<CreatorTable dateRangeFilter={dateRange} />);
 
-    const creatorNameToClick = mockCreatorsPage1[0].name;
-    const creatorIdToExpect = mockCreatorsPage1[0]._id.toString();
+    const creatorToClick = mockCreatorsPage1[0];
 
-    // Wait for table to load and then click on the creator's name
-    const creatorNameElement = await screen.findByText(creatorNameToClick);
+    const creatorNameElement = await screen.findByText(creatorToClick.name);
     fireEvent.click(creatorNameElement);
 
-    // Check if modal is rendered (via its mock)
-    const modalTitle = await screen.findByText(`Modal for ${creatorNameToClick}`);
+    const modalTitle = await screen.findByText(`Modal for ${creatorToClick.name} (ID: ${creatorToClick._id.toString()})`);
     expect(modalTitle).toBeInTheDocument();
 
-    // Check if CreatorDetailModal mock was called with correct props
     const MockedCreatorDetailModal = require('./CreatorDetailModal').default;
     expect(MockedCreatorDetailModal).toHaveBeenCalledWith(
       expect.objectContaining({
         isOpen: true,
-        creatorId: creatorIdToExpect,
-        creatorName: creatorNameToClick,
+        creator: expect.objectContaining({ // Check for the creator object
+            _id: creatorToClick._id, // ObjectId comparison might be tricky, ensure it's handled or compare string version
+            name: creatorToClick.name,
+            followers_count: creatorToClick.followers_count
+        }),
         dateRangeFilter: dateRange,
       }),
-      {} // Second argument to React components is context, usually empty in tests
+      {}
     );
   });
 
   test('opens CreatorDetailModal when "Detalhes" button is clicked', async () => {
     render(<CreatorTable />);
-    await screen.findByText(mockCreatorsPage1[0].name); // Ensure data is loaded
+    const creatorForModal = mockCreatorsPage1[0]; // Alice
+    await screen.findByText(creatorForModal.name);
 
-    // Find all "Detalhes" buttons and click the first one
-    const detailButtons = screen.getAllByText('Detalhes');
-    expect(detailButtons.length).toBeGreaterThan(0);
-    fireEvent.click(detailButtons[0]);
+    const detailButtons = screen.getAllByRole('button', { name: /detalhes/i });
+    fireEvent.click(detailButtons[0]); // Click first details button
 
-    const creatorForModal = mockCreatorsPage1[0];
-    const modalTitle = await screen.findByText(`Modal for ${creatorForModal.name}`);
+    const modalTitle = await screen.findByText(`Modal for ${creatorForModal.name} (ID: ${creatorForModal._id.toString()})`);
     expect(modalTitle).toBeInTheDocument();
 
     const MockedCreatorDetailModal = require('./CreatorDetailModal').default;
     expect(MockedCreatorDetailModal).toHaveBeenCalledWith(
         expect.objectContaining({
             isOpen: true,
-            creatorId: creatorForModal._id.toString(),
-            creatorName: creatorForModal.name,
-            // dateRangeFilter would be undefined here if not passed to CreatorTable
+            creator: expect.objectContaining({ name: creatorForModal.name, _id: creatorForModal._id }),
         }),
         {}
     );
@@ -418,21 +447,22 @@ describe('CreatorTable Component', () => {
   });
 
   describe('CreatorDetailModal Integration', () => {
-    test('CreatorDetailModal (mock) shows chart placeholders when opened', async () => {
+    test('CreatorDetailModal (mock) shows follower count and engagement placeholder', async () => {
       render(<CreatorTable />);
-      await screen.findByText('Alice Wonderland'); // Ensure data loaded
+      const creatorToOpen = mockCreatorsPage1[0]; // Alice, 25000 followers
+      await screen.findByText(creatorToOpen.name);
 
-      // Click on Alice's name to open modal
-      fireEvent.click(screen.getByText('Alice Wonderland'));
+      fireEvent.click(screen.getByText(creatorToOpen.name)); // Open modal for Alice
 
-      // Verify modal content (from the enhanced mock)
       const modalElement = await screen.findByTestId('mock-creator-detail-modal');
       expect(modalElement).toBeInTheDocument();
-      expect(modalElement).toHaveTextContent('Modal for Alice Wonderland');
-      expect(modalElement).toHaveTextContent('[Follower Growth Chart Placeholder]');
-      expect(modalElement).toHaveTextContent('[Engagement Rate Chart Placeholder]');
+      expect(modalElement).toHaveTextContent(`Modal for ${creatorToOpen.name}`);
+      expect(modalElement).toHaveTextContent(`Seguidores Atuais: ${creatorToOpen.followers_count!.toLocaleString('pt-BR')}`); // Check for follower count
+      expect(modalElement).toHaveTextContent('[Engagement Rate Chart Placeholder]'); // Check for engagement placeholder
 
-      // Close the modal
+      // Ensure the old follower growth placeholder is NOT there
+      expect(modalElement).not.toHaveTextContent('[Follower Growth Chart Placeholder]');
+
       fireEvent.click(screen.getByText('Close Modal'));
       await waitFor(() => {
         expect(screen.queryByTestId('mock-creator-detail-modal')).not.toBeInTheDocument();

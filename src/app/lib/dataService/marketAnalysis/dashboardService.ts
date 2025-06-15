@@ -134,7 +134,8 @@ export async function fetchDashboardCreatorsList(
         lastActivityDate: 1,
         avgEngagementRate: { $ifNull: ['$avgEngagementRate', 0] },
         profilePictureUrl: '$profilePictureUrl',
-        alertHistory: 1, // Ensure alertHistory is passed through
+        followers_count: 1, // Added followers_count
+        alertHistory: 1,
         metrics: 0 // Remove o array de métricas para uma resposta mais leve
       },
     });
