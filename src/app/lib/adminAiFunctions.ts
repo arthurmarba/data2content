@@ -1,12 +1,12 @@
 /**
  * @fileoverview Define as funções (ferramentas) que a IA da Central de Inteligência
  * pode executar, com uma arquitetura robusta e autocontida.
- * @version 14.8.1
+ * @version 14.9.0
  * @description
- * ## Principais Melhorias na Versão 14.8.1:
- * - **Correção de Caminho de Importação:** Atualizado o caminho de importação do
- * `marketAnalysisService` para usar um alias absoluto (`@/app/lib/...`),
- * garantindo a resolução correta dos módulos após a refatoração.
+ * ## Principais Melhorias na Versão 14.9.0:
+ * - **Nova Ferramenta de IA:** Adicionada a função `getSuggestedQuestions` para
+ * melhorar a usabilidade do chat, fornecendo ao utilizador perguntas iniciais
+ * sugeridas, com base numa das sugestões de otimização.
  */
 
 import { z } from 'zod';
@@ -40,7 +40,7 @@ import * as MetricsKnowledge from './knowledge/metricsKnowledge';
 import * as PersonalBrandingKnowledge from './knowledge/personalBrandingKnowledge';
 import * as PricingKnowledge from './knowledge/pricingKnowledge';
 
-const SERVICE_TAG = '[adminAiFunctions v14.8.1]';
+const SERVICE_TAG = '[adminAiFunctions v14.9.0]';
 
 // Objeto Agregador para Conhecimento
 const AllKnowledge = {
@@ -266,6 +266,33 @@ const tools = {
         };
     }
   ),
+
+  // NOVA FERRAMENTA: Baseada na sua sugestão de otimização.
+  getSuggestedQuestions: defineAdminTool(
+    'getSuggestedQuestions',
+    'Gera uma lista de perguntas iniciais ou contextuais para sugerir ao administrador, ajudando a guiar a conversa com a IA.',
+    z.object({
+        context: z.string().optional().describe("Opcional. O contexto atual da UI, como 'dashboard_geral' ou 'perfil_criador', para gerar perguntas mais relevantes.")
+    }),
+    async ({ context }) => {
+        const generalQuestions = [
+            "Quem foram os top 5 criadores com maior engajamento na última semana?",
+            "Qual o formato de conteúdo com melhor performance este mês?",
+            "Compare o desempenho do nicho 'Finanças' com 'Tecnologia'.",
+            "Mostre-me exemplos de posts de 'Humor' que tiveram muitas partilhas."
+        ];
+        if (context === 'perfil_criador') {
+            return {
+                suggestions: [
+                    "Quais são os posts de maior sucesso deste criador?",
+                    "Como a performance deste criador se compara à média do seu nicho?",
+                    "Qual a evolução do número de posts deste criador nos últimos 3 meses?"
+                ]
+            };
+        }
+        return { suggestions: generalQuestions };
+    }
+  ),
 };
 
 // ============================================================================
@@ -302,4 +329,6 @@ export const adminFunctionExecutors: Record<string, AdminExecutorFn> = {
     getConsultingKnowledge: createValidatedExecutor(tools.getConsultingKnowledge),
     getTucaRadarEffectiveness: createValidatedExecutor(tools.getTucaRadarEffectiveness),
     compareUserCohorts: createValidatedExecutor(tools.compareUserCohorts),
+    // Adicionando o executor da nova ferramenta
+    getSuggestedQuestions: createValidatedExecutor(tools.getSuggestedQuestions),
 };
