@@ -16,9 +16,28 @@ interface KpiCardProps {
   isLoading: boolean;
   tooltip?: string;
   onAskAi?: () => void;
+  formatAs?: 'number' | 'percentage' | 'currency'; // Added formatAs
 }
 
-export default function KpiCard({ label, value, icon: Icon, isLoading, tooltip, onAskAi }: KpiCardProps) {
+export default function KpiCard({ label, value, icon: Icon, isLoading, tooltip, onAskAi, formatAs = 'number' }: KpiCardProps) { // Added formatAs with default
+
+  const formatValue = (val: number | string | undefined) => {
+    if (val === undefined || val === null) return 'N/A';
+
+    const num = Number(val);
+    if (isNaN(num)) return val.toString(); // Return as string if not a valid number after conversion attempt
+
+    switch (formatAs) {
+      case 'percentage':
+        return `${num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+      case 'currency': // Assuming BRL, can be made more dynamic
+        return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+      case 'number':
+      default:
+        return num.toLocaleString('pt-BR');
+    }
+  };
+
   return (
     <div className="relative bg-white p-5 rounded-lg shadow-sm border border-gray-200 group">
       {isLoading ? (
@@ -42,7 +61,7 @@ export default function KpiCard({ label, value, icon: Icon, isLoading, tooltip, 
                 </div>
             )}
           </div>
-          <p className="text-3xl font-bold text-gray-900 mt-2">{value?.toLocaleString('pt-BR') ?? 'N/A'}</p>
+          <p className="text-3xl font-bold text-gray-900 mt-2">{formatValue(value)}</p>
         </>
       )}
       {onAskAi && !isLoading && (

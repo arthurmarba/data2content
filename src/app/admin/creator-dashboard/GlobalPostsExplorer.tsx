@@ -3,9 +3,10 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import { IGlobalPostResult } from '@/app/lib/dataService/marketAnalysisService';
 import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
-import { MagnifyingGlassIcon, DocumentMagnifyingGlassIcon } from '@heroicons/react/24/outline'; // Added MagnifyingGlassIcon
-import SkeletonBlock from './SkeletonBlock';
-import EmptyState from './EmptyState';
+import { MagnifyingGlassIcon, DocumentMagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import SkeletonBlock from './SkeletonBlock'; // Assuming this path is correct or it's defined/imported below
+import EmptyState from './EmptyState'; // Assuming this path is correct
+import PostDetailModal from './PostDetailModal'; // Import the new modal
 
 
 interface GlobalPostsExplorerProps {
@@ -55,10 +56,25 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
   // State to hold the filters that are actively applied to the data fetching
   const [activeFilters, setActiveFilters] = useState<ActiveFilters>({});
 
+  // State for PostDetailModal
+  const [isPostDetailModalOpen, setIsPostDetailModalOpen] = useState(false);
+  const [selectedPostIdForModal, setSelectedPostIdForModal] = useState<string | null>(null);
+
   // Predefined options for dropdowns
   const contextOptions = ["all", "Finanças", "Tecnologia", "Moda", "Saúde", "Educação", "Entretenimento"];
   const proposalOptions = ["all", "Educativo", "Humor", "Notícia", "Review", "Tutorial"];
   const formatOptions = ["all", "Reel", "Post Estático", "Carrossel", "Story"];
+
+  // Modal Handlers
+  const handleOpenPostDetailModal = useCallback((postId: string) => {
+    setSelectedPostIdForModal(postId);
+    setIsPostDetailModalOpen(true);
+  }, []);
+
+  const handleClosePostDetailModal = useCallback(() => {
+    setIsPostDetailModalOpen(false);
+    setSelectedPostIdForModal(null);
+  }, []);
 
 
   const fetchPosts = useCallback(async () => {
@@ -171,6 +187,7 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
     { key: 'stats.total_interactions', label: 'Interações', sortable: true, getVal: (post: IGlobalPostResult) => getNestedValue(post, 'stats.total_interactions', 0) },
     { key: 'stats.likes', label: 'Likes', sortable: true, getVal: (post: IGlobalPostResult) => getNestedValue(post, 'stats.likes', 0) },
     { key: 'stats.shares', label: 'Shares', sortable: true, getVal: (post: IGlobalPostResult) => getNestedValue(post, 'stats.shares', 0) },
+    { key: 'actions', label: 'Ações', sortable: false, headerClassName: 'text-center', getVal: () => null }, // getVal is a placeholder
   ];
 
   // Helper to get nested stats safely
@@ -273,8 +290,8 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
               <thead className="bg-gray-100">
                 <tr>
                   {columns.map((col) => (
-                    <th key={`skel-header-${col.key}`} scope="col" className={`px-4 py-2.5 text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap ${col.key.startsWith('stats.') || ['postDate'].includes(col.key) ? 'text-center' : 'text-left'}`}>
-                      <SkeletonBlock width="w-24" height="h-3" className={col.key.startsWith('stats.') || ['postDate'].includes(col.key) ? 'mx-auto' : ''} />
+                    <th key={`skel-header-${col.key}`} scope="col" className={`px-4 py-2.5 text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap ${col.headerClassName || (col.key.startsWith('stats.') || ['postDate'].includes(col.key) ? 'text-center' : 'text-left')}`}>
+                      <SkeletonBlock width="w-24" height="h-3" className={col.headerClassName === 'text-center' || col.key.startsWith('stats.') || ['postDate'].includes(col.key) ? 'mx-auto' : ''} />
                     </th>
                   ))}
                 </tr>
@@ -283,8 +300,8 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
                 {Array.from({ length: limit }).map((_, index) => (
                   <tr key={`skel-row-${index}`}>
                     {columns.map(col => (
-                      <td key={`skel-cell-${index}-${col.key}`} className={`px-4 py-3 whitespace-nowrap ${col.key.startsWith('stats.') || ['postDate'].includes(col.key) ? 'text-center' : 'text-left'}`}>
-                        <SkeletonBlock width={col.key === 'text_content' ? "w-full" : "w-20"} height="h-4" className={col.key.startsWith('stats.') || ['postDate'].includes(col.key) ? 'mx-auto' : ''}/>
+                      <td key={`skel-cell-${index}-${col.key}`} className={`px-4 py-3 whitespace-nowrap ${col.headerClassName || (col.key.startsWith('stats.') || ['postDate'].includes(col.key) ? 'text-center' : 'text-left')}`}>
+                        <SkeletonBlock width={col.key === 'text_content' ? "w-full" : (col.key === 'actions' ? "w-24" : "w-20")} height="h-4" className={col.headerClassName === 'text-center' ||col.key.startsWith('stats.') || ['postDate'].includes(col.key) ? 'mx-auto' : ''}/>
                       </td>
                     ))}
                   </tr>
@@ -331,6 +348,20 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
                         if (col.key.startsWith('stats.')) {
                             displayValue = formatNumberStd(rawValue);
                         }
+                        if (col.key === 'actions') {
+                          return (
+                            <td key={col.key} className={`px-4 py-3 whitespace-nowrap text-gray-600 ${col.headerClassName || 'text-center'}`}>
+                              <button
+                                onClick={() => handleOpenPostDetailModal(post._id!.toString())}
+                                className="flex items-center justify-center text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 py-1 px-2.5 rounded-md text-xs border border-indigo-300 transition-colors duration-150"
+                                title="Ver detalhes do post"
+                              >
+                                <DocumentMagnifyingGlassIcon className="w-4 h-4 sm:mr-1.5" />
+                                <span className="hidden sm:inline">Detalhes</span>
+                              </button>
+                            </td>
+                          );
+                        }
                         return (
                             <td key={col.key} className={`px-4 py-3 whitespace-nowrap text-gray-600 ${col.key.startsWith('stats.') || ['postDate'].includes(col.key) ? 'text-center' : 'text-left'}`}>
                                 {col.key === 'text_content' ? (
@@ -375,6 +406,11 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
             </div>
         )}
       </div>
+      <PostDetailModal
+        isOpen={isPostDetailModalOpen}
+        onClose={handleClosePostDetailModal}
+        postId={selectedPostIdForModal}
+      />
     </div>
   );
 });

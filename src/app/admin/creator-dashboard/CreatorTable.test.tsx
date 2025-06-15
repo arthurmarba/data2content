@@ -18,18 +18,22 @@ jest.mock('@heroicons/react/24/solid', () => ({
   ChevronDownIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'chevron-down-icon' }),
 }));
 
-// Mock CreatorDetailModal (already lazy-loaded in component, so this mock is for the dynamic import)
+// Mock CreatorDetailModal
 jest.mock('./CreatorDetailModal', () => {
-    const MockCreatorDetailModal = jest.fn(({ isOpen, onClose, creatorName }) =>
-        isOpen ? React.createElement('div', { 'data-testid': 'mock-creator-detail-modal' },
-            React.createElement('h2', null, `Modal for ${creatorName}`),
+    const MockCreatorDetailModal = jest.fn(({ isOpen, onClose, creatorName, creatorId }) => {
+        if (!isOpen) return null;
+        return React.createElement('div', { 'data-testid': 'mock-creator-detail-modal' },
+            React.createElement('h2', null, `Modal for ${creatorName} (ID: ${creatorId})`),
+            // Adding placeholders as per test requirements
+            React.createElement('p', null, '[Follower Growth Chart Placeholder]'),
+            React.createElement('p', null, '[Engagement Rate Chart Placeholder]'),
             React.createElement('button', { onClick: onClose }, 'Close Modal')
-        ) : null
-    );
+        );
+    });
     return { __esModule: true, default: MockCreatorDetailModal };
 });
 
-// Mock CreatorComparisonModal (lazy-loaded in component)
+// Mock CreatorComparisonModal
 jest.mock('./CreatorComparisonModal', () => {
     const MockCreatorComparisonModal = jest.fn(({ isOpen, onClose, creatorIdsToCompare }) =>
         isOpen ? React.createElement('div', { 'data-testid': 'mock-creator-comparison-modal' },
@@ -42,11 +46,11 @@ jest.mock('./CreatorComparisonModal', () => {
 
 
 const mockCreatorsPage1: IDashboardCreator[] = [
-  { _id: new Types.ObjectId() as any, name: 'Alice Wonderland', totalPosts: 120, avgEngagementRate: 0.055, lastActivityDate: new Date('2023-10-01'), planStatus: 'Pro' },
-  { _id: new Types.ObjectId() as any, name: 'Bob The Builder', totalPosts: 200, avgEngagementRate: 0.040, lastActivityDate: new Date('2023-09-15'), planStatus: 'Free' },
+  { _id: new Types.ObjectId() as any, name: 'Alice Wonderland', totalPosts: 120, avgEngagementRate: 0.055, lastActivityDate: new Date('2023-10-01'), planStatus: 'Pro', recentAlerts: [{ type: 'PeakShares', date: new Date() }, { type: 'ForgottenFormat', date: new Date() }] },
+  { _id: new Types.ObjectId() as any, name: 'Bob The Builder', totalPosts: 200, avgEngagementRate: 0.040, lastActivityDate: new Date('2023-09-15'), planStatus: 'Free', recentAlerts: [] },
 ];
 const mockCreatorsPage2: IDashboardCreator[] = [
-  { _id: new Types.ObjectId() as any, name: 'Charlie Brown', totalPosts: 80, avgEngagementRate: 0.060, lastActivityDate: new Date('2023-10-05'), planStatus: 'Premium' },
+  { _id: new Types.ObjectId() as any, name: 'Charlie Brown', totalPosts: 80, avgEngagementRate: 0.060, lastActivityDate: new Date('2023-10-05'), planStatus: 'Premium', recentAlerts: [{ type: 'DropWatchTime', date: new Date() }] },
 ];
 
 describe('CreatorTable Component', () => {
@@ -386,4 +390,54 @@ describe('CreatorTable Component', () => {
       });
     });
   });
+
+  describe('Recent Alerts Column', () => {
+    test('renders "Alertas Recentes" column header', async () => {
+      render(<CreatorTable />);
+      await screen.findByText('Alice Wonderland'); // Wait for data to load
+      expect(screen.getByText('Alertas Recentes')).toBeInTheDocument();
+    });
+
+    test('displays alert count and icons for a creator with alerts', async () => {
+      render(<CreatorTable />);
+      // Alice has 2 alerts: PeakShares, ForgottenFormat
+      const aliceRow = await screen.findByText('Alice Wonderland');
+      const parentRow = aliceRow.closest('tr');
+      expect(parentRow).toHaveTextContent('2 Alerta(s)');
+      expect(parentRow).toHaveTextContent('[PS]');
+      expect(parentRow).toHaveTextContent('[FF]');
+    });
+
+    test('displays "Nenhum" for a creator with no alerts', async () => {
+      render(<CreatorTable />);
+      // Bob has no alerts
+      const bobRow = await screen.findByText('Bob The Builder');
+      const parentRow = bobRow.closest('tr');
+      expect(parentRow).toHaveTextContent('Nenhum');
+    });
+  });
+
+  describe('CreatorDetailModal Integration', () => {
+    test('CreatorDetailModal (mock) shows chart placeholders when opened', async () => {
+      render(<CreatorTable />);
+      await screen.findByText('Alice Wonderland'); // Ensure data loaded
+
+      // Click on Alice's name to open modal
+      fireEvent.click(screen.getByText('Alice Wonderland'));
+
+      // Verify modal content (from the enhanced mock)
+      const modalElement = await screen.findByTestId('mock-creator-detail-modal');
+      expect(modalElement).toBeInTheDocument();
+      expect(modalElement).toHaveTextContent('Modal for Alice Wonderland');
+      expect(modalElement).toHaveTextContent('[Follower Growth Chart Placeholder]');
+      expect(modalElement).toHaveTextContent('[Engagement Rate Chart Placeholder]');
+
+      // Close the modal
+      fireEvent.click(screen.getByText('Close Modal'));
+      await waitFor(() => {
+        expect(screen.queryByTestId('mock-creator-detail-modal')).not.toBeInTheDocument();
+      });
+    });
+  });
+
 });

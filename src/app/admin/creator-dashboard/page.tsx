@@ -6,6 +6,7 @@ import { subDays, format } from 'date-fns';
 import CreatorTable from './CreatorTable';
 import ContentStatsWidgets from './ContentStatsWidgets';
 import GlobalPostsExplorer from './GlobalPostsExplorer';
+import ContentPerformanceByTypeChart from './ContentPerformanceByTypeChart'; // Import the new component
 import {
   XMarkIcon,
   FunnelIcon,
@@ -32,6 +33,8 @@ interface AdminDashboardSummaryData {
     totalCreators?: KpiData;
     pendingCreators?: KpiData;
     activeCreators?: KpiData;
+    avgEngagementRate?: KpiData;
+    avgReach?: KpiData;
 }
 
 // Carregamento dinâmico para componentes pesados
@@ -174,7 +177,9 @@ export default function CreatorDashboardPage() {
         const data: AdminDashboardSummaryData = {
             totalCreators: { label: 'Total de Criadores', value: 1250 },
             pendingCreators: { label: 'Criadores Pendentes', value: 75 },
-            activeCreators: { label: 'Criadores Ativos (Período)', value: 480 }
+            activeCreators: { label: 'Criadores Ativos (Período)', value: 480 },
+            avgEngagementRate: { label: 'Taxa de Engajamento Média', value: 5.75 }, // Simulated percentage
+            avgReach: { label: 'Alcance Médio por Post', value: 12500 } // Simulated number
         };
 
         setSummaryKpis(data);
@@ -229,6 +234,24 @@ export default function CreatorDashboardPage() {
               isLoading={kpisLoading}
               tooltip="Número de criadores que publicaram conteúdo no período selecionado."
               onAskAi={() => handleAskAi("Compara o número de criadores ativos este mês com o mês passado.")}
+            />
+            <KpiCard
+              label={summaryKpis?.avgEngagementRate?.label || 'Taxa de Engajamento Média'}
+              value={kpisLoading ? undefined : summaryKpis?.avgEngagementRate?.value}
+              formatAs="percentage"
+              icon={SparklesIcon}
+              isLoading={kpisLoading}
+              tooltip="Taxa de engajamento média de todos os posts no período selecionado."
+              onAskAi={() => handleAskAi("Qual é a tendência da taxa de engajamento média nos últimos 3 meses?")}
+            />
+            <KpiCard
+              label={summaryKpis?.avgReach?.label || 'Alcance Médio por Post'}
+              value={kpisLoading ? undefined : summaryKpis?.avgReach?.value}
+              formatAs="number"
+              icon={GlobeAltIcon}
+              isLoading={kpisLoading}
+              tooltip="Número médio de contas únicas alcançadas por post no período selecionado."
+              onAskAi={() => handleAskAi("Quais tipos de conteúdo têm maior alcance médio?")}
             />
           </div>
         </section>
@@ -314,6 +337,10 @@ export default function CreatorDashboardPage() {
           <section>
             <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center"><ChartBarSquareIcon className="w-7 h-7 mr-3 text-gray-500" /> Visão Geral</h2>
             <ContentStatsWidgets key={`contentStats-${refreshKey}`} dateRangeFilter={dateRangeFilterProp} />
+          </section>
+          <section className="mt-8">
+            <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center"><ChartBarSquareIcon className="w-7 h-7 mr-3 text-gray-500" /> Desempenho de Conteúdo por Tipo</h2>
+            <ContentPerformanceByTypeChart dateRangeFilter={dateRangeFilterProp} />
           </section>
           <section className="mt-8">
             <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center"><UserGroupIcon className="w-7 h-7 mr-3 text-gray-500" /> Análise de Criadores</h2>

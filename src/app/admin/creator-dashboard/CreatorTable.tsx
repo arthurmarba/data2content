@@ -31,20 +31,71 @@ const EmptyState = ({ icon, title, message }: { icon: React.ReactNode; title: st
 
 // Modal de Detalhes do Criador (Versão Simples)
 const CreatorDetailModal = ({ isOpen, onClose, creatorId, creatorName, dateRangeFilter }: any) => {
+  const [growthData, setGrowthData] = useState<IUserGrowthDataPoint[]>([]);
+
+  useEffect(() => {
+    if (isOpen && creatorId) {
+      // Simular a obtenção de dados de crescimento
+      const today = new Date();
+      const sampleData: IUserGrowthDataPoint[] = Array.from({ length: 30 }).map((_, i) => {
+        const date = new Date(today);
+        date.setDate(today.getDate() - (29 - i)); // Dados dos últimos 30 dias
+        return {
+          date,
+          // Simular alguma variação, mas com tendência de crescimento para seguidores
+          followers: 1000 + (i * 10) + Math.floor(Math.random() * 100) - 50,
+          // Simular alguma variação para a taxa de engajamento entre 0.5% e 5%
+          engagementRate: parseFloat((0.005 + Math.random() * 0.045).toFixed(4)),
+        };
+      });
+      setGrowthData(sampleData);
+    }
+  }, [isOpen, creatorId]);
+
   if (!isOpen) return null;
+
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg m-4">
+      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl m-4 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold text-gray-800">Detalhes de {creatorName}</h2>
           <button onClick={onClose} className="p-1 rounded-full text-gray-400 hover:bg-gray-100">
             <XMarkIcon className="w-6 h-6" />
           </button>
         </div>
-        <div className="text-gray-700">
-          <p>ID do Criador: {creatorId}</p>
-          <p>Período de Análise: {new Date(dateRangeFilter.startDate).toLocaleDateString()} - {new Date(dateRangeFilter.endDate).toLocaleDateString()}</p>
-          <p className="mt-4"><i>(Aqui seriam carregados os gráficos e dados de performance detalhados...)</i></p>
+        <div className="text-gray-700 space-y-6">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-700 mb-1">Informações Gerais</h3>
+            <p><span className="font-medium">ID do Criador:</span> {creatorId}</p>
+            <p><span className="font-medium">Período de Análise:</span> {new Date(dateRangeFilter.startDate).toLocaleDateString()} - {new Date(dateRangeFilter.endDate).toLocaleDateString()}</p>
+          </div>
+
+          <hr />
+
+          <div>
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">Crescimento de Seguidores</h3>
+            <div className="bg-gray-50 p-4 rounded-md text-center">
+              <p className="text-gray-500">[Follower Growth Chart Placeholder]</p>
+              {/* Exemplo de como os dados poderiam ser mostrados se não houvesse gráfico:
+              {growthData.length > 0 && (
+                <ul className="text-xs text-left mt-2">
+                  {growthData.slice(0, 5).map(d => ( // Mostrar apenas os 5 primeiros para brevidade
+                    <li key={d.date.toISOString()}>{d.date.toLocaleDateString()}: {d.followers} seguidores</li>
+                  ))}
+                </ul>
+              )}
+              */}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">Taxa de Engajamento ao Longo do Tempo</h3>
+            <div className="bg-gray-50 p-4 rounded-md text-center">
+              <p className="text-gray-500">[Engagement Rate Chart Placeholder]</p>
+            </div>
+          </div>
+
+          <p className="mt-6 text-sm text-gray-600"><i>(Aqui seriam carregados outros dados de performance detalhados...)</i></p>
         </div>
       </div>
     </div>
@@ -78,6 +129,12 @@ const CreatorComparisonModal = ({ isOpen, onClose, creatorIdsToCompare }: any) =
 
 // --- Definições de Tipos Locais (Substituir por importações reais) ---
 
+interface IUserGrowthDataPoint {
+  date: Date;
+  followers: number;
+  engagementRate: number;
+}
+
 interface IDashboardCreator {
   _id: { toString: () => string };
   name: string;
@@ -87,6 +144,7 @@ interface IDashboardCreator {
   lastActivityDate?: Date;
   avgEngagementRate: number;
   profilePictureUrl?: string;
+  recentAlerts?: { type: string; date: Date }[];
 }
 
 interface IFetchDashboardCreatorsListParams {
@@ -210,8 +268,14 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
       // --- Início da Simulação de Dados ---
       console.log("A simular chamada à API com os parâmetros:", queryParams.toString());
       await new Promise(resolve => setTimeout(resolve, 1000)); // Simular atraso da rede
+      const alertTypes = ['PeakShares', 'DropWatchTime', 'ForgottenFormat'];
       const mockCreators: IDashboardCreator[] = Array.from({ length: limit }).map((_, i) => {
           const id = currentPage * 100 + i;
+          const numAlerts = Math.floor(Math.random() * 3) + 1; // 1 to 3 alerts
+          const recentAlerts = Array.from({ length: numAlerts }).map(() => ({
+            type: alertTypes[Math.floor(Math.random() * alertTypes.length)],
+            date: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000), // Alerts from the last 7 days
+          }));
           return {
               _id: { toString: () => `60d5f9d4e9b9f8a2d8f9c9${id}` },
               name: `Criador ${id} ${debouncedNameSearch}`,
@@ -219,6 +283,7 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
               avgEngagementRate: Math.random() * 0.1,
               lastActivityDate: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000),
               planStatus: ['Free', 'Pro', 'Premium'][id % 3],
+              recentAlerts,
           }
       });
       const data = { creators: mockCreators, totalCreators: 100 };
@@ -272,6 +337,7 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
     { key: 'avgEngagementRate', label: 'Engaj. Médio', sortable: true, headerClassName: 'text-right' },
     { key: 'lastActivityDate', label: 'Última Atividade', sortable: true, headerClassName: 'text-center' },
     { key: 'planStatus', label: 'Plano', sortable: true, headerClassName: 'text-center' },
+    { key: 'recentAlerts', label: 'Alertas Recentes', sortable: false, headerClassName: 'text-center' },
     { key: 'actions', label: 'Ações', sortable: false, headerClassName: 'text-center' }
   ];
 
@@ -315,6 +381,7 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
                     <td className="px-6 py-4 text-right"><SkeletonBlock width="w-16" height="h-3" /></td>
                     <td className="px-6 py-4 text-center"><SkeletonBlock width="w-20" height="h-3" /></td>
                     <td className="px-6 py-4 text-center"><SkeletonBlock width="w-16" height="h-5" /></td>
+                    <td className="px-6 py-4 text-center"><SkeletonBlock width="w-20" height="h-3" /></td> {/* Skeleton for recent alerts */}
                     <td className="px-6 py-4 text-center"><SkeletonBlock width="w-20" height="h-6" /></td>
                   </tr>
                 ))
@@ -327,6 +394,11 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
                   const creatorIdStr = creator._id.toString();
                   const isSelected = selectedForComparison.includes(creatorIdStr);
                   const isDisabled = !isSelected && selectedForComparison.length >= MAX_CREATORS_TO_COMPARE;
+                  const alertIcons: { [key: string]: string } = {
+                    'PeakShares': '[PS]',
+                    'DropWatchTime': '[DWT]',
+                    'ForgottenFormat': '[FF]',
+                  };
                   return (
                     <tr key={creatorIdStr} className={`hover:bg-gray-50 ${isSelected ? 'bg-indigo-50' : ''}`}>
                       <td className="px-6 py-4 text-center">
@@ -337,6 +409,22 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
                       <td className="px-6 py-4 text-right">{formatEngagement(creator.avgEngagementRate)}</td>
                       <td className="px-6 py-4 text-center">{formatDate(creator.lastActivityDate)}</td>
                       <td className="px-6 py-4 text-center"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${creator.planStatus === 'Pro' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{getSafeString(creator.planStatus)}</span></td>
+                      <td className="px-6 py-4 text-center text-xs">
+                        {creator.recentAlerts && creator.recentAlerts.length > 0 ? (
+                          <div className="flex flex-col items-center">
+                            <span>{creator.recentAlerts.length} Alerta(s)</span>
+                            <div className="flex mt-1 space-x-1">
+                              {creator.recentAlerts.map((alert, index) => (
+                                <span key={index} title={`${alert.type} em ${new Date(alert.date).toLocaleDateString()}`} className="cursor-default">
+                                  {alertIcons[alert.type] || '[UKN]'} {/* UKN for Unknown type */}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-gray-500">Nenhum</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4 text-center">
                         <button onClick={() => handleOpenCreatorModal(creator)} className="flex items-center justify-center w-full bg-white text-indigo-600 border border-indigo-300 py-1 px-2.5 rounded-md text-xs hover:bg-indigo-50">
                           <InformationCircleIcon className="w-4 h-4 sm:mr-1.5" /> <span className="hidden sm:inline">Detalhes</span>
