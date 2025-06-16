@@ -1,422 +1,158 @@
-'use client';
+"use client";
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import dynamic from 'next/dynamic';
-import { subDays, format } from 'date-fns';
-import CreatorTable from './CreatorTable';
-import ContentStatsWidgets from './ContentStatsWidgets';
-import GlobalPostsExplorer from './GlobalPostsExplorer';
-import ContentPerformanceByTypeChart from './ContentPerformanceByTypeChart'; // Import the new component
-import {
-  XMarkIcon,
-  FunnelIcon,
-  ChartBarSquareIcon,
-  UserGroupIcon,
-  GlobeAltIcon,
-  SparklesIcon,
-  TrophyIcon,
-  UsersIcon,
-  UserPlusIcon,
-  ExclamationTriangleIcon,
-  BoltIcon,
-  ChatBubbleLeftRightIcon // Ícone para "Perguntar à IA"
-} from '@heroicons/react/24/outline';
-import CreatorRankingCard from './CreatorRankingCard';
-import KpiCard from '../components/KpiCard';
+import React, { useState } from 'react'; // Importado useState
 
-// Tipos locais para o exemplo
-interface KpiData {
-    label: string;
-    value: number;
-}
-interface AdminDashboardSummaryData {
-    totalCreators?: KpiData;
-    pendingCreators?: KpiData;
-    activeCreatorsInPeriod?: KpiData; // Renamed from activeCreators
-    averageEngagementRateInPeriod?: KpiData; // Renamed from avgEngagementRate
-    averageReachInPeriod?: KpiData; // Renamed from avgReach
-}
+// Importando os componentes do Módulo 1 (Visão Geral da Plataforma)
+import PlatformFollowerTrendChart from './components/PlatformFollowerTrendChart';
+import PlatformReachEngagementTrendChart from './components/PlatformReachEngagementTrendChart';
+import PlatformMovingAverageEngagementChart from './components/PlatformMovingAverageEngagementChart';
+import TotalActiveCreatorsKpi from './components/kpis/TotalActiveCreatorsKpi';
+import PlatformComparativeKpi from './components/kpis/PlatformComparativeKpi';
 
-// Carregamento dinâmico para componentes pesados
-const DynamicAIChatInterface = dynamic(() => import('./StandaloneChatInterface'), {
-  ssr: false,
-  loading: () => <div className="flex items-center justify-center h-full"><p className="text-gray-500">A carregar Chat IA...</p></div>,
-});
+// Importando os componentes do Módulo 2 (Análise de Conteúdo da Plataforma)
+import PlatformAverageEngagementChart from './components/PlatformAverageEngagementChart';
+import PlatformPostDistributionChart from './components/PlatformPostDistributionChart';
 
-const DynamicContentSegmentComparison = dynamic(
-  () => import('./ContentSegmentComparison'),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 min-h-[300px] flex items-center justify-center mt-8">
-        <p className="text-gray-500">A carregar Comparador de Segmentos...</p>
-      </div>
-    ),
-  }
-);
-
-const DynamicTopMoversWidget = dynamic(
-  () => import('./TopMoversWidget'),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 min-h-[400px] flex items-center justify-center mt-8">
-        <p className="text-gray-500">A carregar Widget Top Movers...</p>
-      </div>
-    ),
-  }
-);
+// Importando a view de Detalhe do Criador (Módulo 3)
+import UserDetailView from './components/views/UserDetailView';
 
 
-export interface GlobalFiltersState {
-  dateRange: {
-    startDate: string;
-    endDate: string;
+const AdminCreatorDashboardPage: React.FC = () => {
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  // const [selectedUserName, setSelectedUserName] = useState<string | null>(null); // Opcional
+
+  // Mock User IDs para simular seleção
+  const MOCK_USER_ID_1 = "60c72b9f9b1d8e001f8e4f5b"; // Exemplo de ObjectId válido
+  const MOCK_USER_ID_2 = "60c72b9f9b1d8e001f8e4f5c"; // Exemplo de ObjectId válido
+  // const MOCK_USER_NAME_1 = "Criador Alpha";
+  // const MOCK_USER_NAME_2 = "Criador Beta";
+
+
+  // const [globalTimePeriod, setGlobalTimePeriod] = useState<string>("last_30_days");
+  // const [globalComparisonPeriod, setGlobalComparisonPeriod] = useState<string>("month_vs_previous");
+  const selectedComparisonPeriodForKPIs = "month_vs_previous";
+
+
+  const handleUserSelect = (userId: string, userName?: string) => {
+    setSelectedUserId(userId);
+    // if (userName) setSelectedUserName(userName);
+    // Em uma app real, rolaria para a seção UserDetailView ou focaria nela.
+    const userDetailSection = document.getElementById("user-detail-view-container");
+    if (userDetailSection) {
+        userDetailSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   };
-  planStatus: string[];
-  expertiseLevel: string[];
-}
-
-const PLAN_STATUS_OPTIONS = ['Free', 'Pro', 'Premium', 'Trial', 'Active', 'Inactive'];
-const EXPERTISE_LEVEL_OPTIONS = ['Iniciante', 'Intermediário', 'Avançado', 'Especialista'];
-
-// Função utilitária para formatar data para o input
-const formatDateForInput = (date: Date): string => format(date, 'yyyy-MM-dd');
-
-export default function CreatorDashboardPage() {
-  const [filters, setFilters] = useState<GlobalFiltersState>({
-    dateRange: { 
-        startDate: formatDateForInput(subDays(new Date(), 29)),
-        endDate: formatDateForInput(new Date()) 
-    },
-    planStatus: [],
-    expertiseLevel: [],
-  });
-
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [isAiChatVisible, setIsAiChatVisible] = useState(false);
-  // OTIMIZAÇÃO: Estado para passar uma pergunta inicial para o chat de IA
-  const [aiInitialPrompt, setAiInitialPrompt] = useState<string | undefined>(undefined);
-
-
-  const handleFilterChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-
-    if (type === 'checkbox') {
-      const { checked } = e.target as HTMLInputElement;
-      setFilters(prevFilters => {
-        const currentValues = prevFilters[name as keyof Pick<GlobalFiltersState, 'planStatus' | 'expertiseLevel'>] as string[];
-        if (checked) {
-          return { ...prevFilters, [name]: [...currentValues, value] };
-        } else {
-          return { ...prevFilters, [name]: currentValues.filter(item => item !== value) };
-        }
-      });
-    } else if (name === 'startDate' || name === 'endDate') {
-      setFilters(prev => ({
-        ...prev,
-        dateRange: { ...prev.dateRange, [name]: value },
-      }));
-    } else {
-      setFilters(prev => ({ ...prev, [name]: value }));
-    }
-  }, []);
-
-  const handleApplyFilters = useCallback(() => {
-    if (filters.dateRange.startDate && filters.dateRange.endDate && filters.dateRange.startDate > filters.dateRange.endDate) {
-        alert("A data de início não pode ser posterior à data de término.");
-        return;
-    }
-    setRefreshKey(prev => prev + 1);
-  }, [filters.dateRange]);
-  
-  const handleRemoveFilter = useCallback((filterKey: 'planStatus' | 'expertiseLevel', value: string) => {
-    setFilters(prev => ({
-        ...prev,
-        [filterKey]: prev[filterKey].filter(item => item !== value)
-    }));
-  }, []);
-
-  const handleClearAllFilters = useCallback(() => {
-    setFilters(prev => ({
-        ...prev,
-        planStatus: [],
-        expertiseLevel: []
-    }));
-  }, []);
-
-  // OTIMIZAÇÃO: Função para abrir o chat de IA com um prompt contextual
-  const handleAskAi = useCallback((prompt: string) => {
-    setAiInitialPrompt(prompt);
-    setIsAiChatVisible(true);
-  }, []);
-
-  // Limpa o prompt inicial quando o chat é fechado
-  const handleCloseAiChat = useCallback(() => {
-    setIsAiChatVisible(false);
-    setAiInitialPrompt(undefined);
-  }, []);
-
-
-  const planStatusFilterString = useMemo(() => filters.planStatus.join(','), [filters.planStatus]);
-  const expertiseLevelFilterString = useMemo(() => filters.expertiseLevel.join(','), [filters.expertiseLevel]);
-  const dateRangeFilterProp = useMemo(() => {
-    return filters.dateRange.startDate && filters.dateRange.endDate ? filters.dateRange : undefined;
-  }, [filters.dateRange]);
-
-  const [summaryKpis, setSummaryKpis] = useState<AdminDashboardSummaryData | null>(null);
-  const [kpisLoading, setKpisLoading] = useState(true);
-  const [kpisError, setKpisError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchKpis = async () => {
-      setKpisLoading(true);
-      setKpisError(null);
-      // Initialize with static labels and default/loading values
-      setSummaryKpis({
-          totalCreators: { label: 'Total de Criadores', value: 0 },
-          pendingCreators: { label: 'Criadores Pendentes', value: 0 },
-          activeCreatorsInPeriod: { label: 'Criadores Ativos (Período)', value: 0 },
-          averageEngagementRateInPeriod: { label: 'Taxa de Engajamento Média', value: 0 },
-          averageReachInPeriod: { label: 'Alcance Médio por Post', value: 0 },
-      });
-
-      let apiUrl = '/api/admin/dashboard/platform-summary';
-      const queryParams = new URLSearchParams();
-
-      if (dateRangeFilterProp?.startDate && dateRangeFilterProp?.endDate) {
-        queryParams.append('startDate', new Date(dateRangeFilterProp.startDate).toISOString());
-        queryParams.append('endDate', new Date(dateRangeFilterProp.endDate).toISOString());
-        apiUrl += `?${queryParams.toString()}`;
-      }
-      // If no date range, API will return non-period specific data for period fields (e.g. 0 or all-time)
-
-      try {
-        const response = await fetch(apiUrl);
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || errorData.message || `Erro HTTP: ${response.status}`);
-        }
-        const apiData = await response.json();
-
-        setSummaryKpis({
-          totalCreators: { label: 'Total de Criadores', value: apiData.totalCreators },
-          pendingCreators: { label: 'Criadores Pendentes', value: apiData.pendingCreators },
-          activeCreatorsInPeriod: { label: 'Criadores Ativos (Período)', value: apiData.activeCreatorsInPeriod },
-          averageEngagementRateInPeriod: { label: 'Taxa de Engajamento Média', value: apiData.averageEngagementRateInPeriod },
-          averageReachInPeriod: { label: 'Alcance Médio por Post', value: apiData.averageReachInPeriod },
-        });
-
-      } catch (e: any) {
-        console.error("Falha ao buscar resumo da plataforma:", e);
-        setKpisError(e.message || 'Falha ao buscar resumo da plataforma.');
-        // Reset to default labels and 0 values on error
-        setSummaryKpis({
-            totalCreators: { label: 'Total de Criadores', value: 0 },
-            pendingCreators: { label: 'Criadores Pendentes', value: 0 },
-            activeCreatorsInPeriod: { label: 'Criadores Ativos (Período)', value: 0 },
-            averageEngagementRateInPeriod: { label: 'Taxa de Engajamento Média', value: 0 },
-            averageReachInPeriod: { label: 'Alcance Médio por Post', value: 0 },
-        });
-      } finally {
-        setKpisLoading(false);
-      }
-    };
-    fetchKpis();
-  }, [refreshKey, dateRangeFilterProp]);
-
 
   return (
-    <div className="bg-gray-50 min-h-screen relative">
-      <div className="max-w-7xl mx-auto p-4 md:p-8">
-        <header className="mb-10">
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Creator & Content Dashboard</h1>
-          <p className="text-md text-gray-600 mt-2">Monitorize, analise e obtenha insights sobre criadores e conteúdo da plataforma.</p>
-        </header>
+    <div className="p-4 md:p-6 lg:p-8 bg-gray-100 min-h-screen">
+      <header className="mb-8">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Dashboard Administrativo de Criadores</h1>
+        {/* Placeholder para Filtros Globais */}
+      </header>
 
-        <section className="mb-10">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center">Resumo da Plataforma</h2>
-          {kpisError && (
-            <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg" role="alert">
-              <ExclamationTriangleIcon className="w-5 h-5 inline mr-2"/>
-              <span className="font-medium">Erro ao carregar resumo:</span> {kpisError}
-            </div>
-          )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <KpiCard
-              label={summaryKpis?.totalCreators?.label || 'Total de Criadores'}
-              value={kpisLoading ? undefined : summaryKpis?.totalCreators?.value}
-              icon={UsersIcon}
-              isLoading={kpisLoading}
-              tooltip="Número total de criadores registados na plataforma."
-              onAskAi={() => handleAskAi("O que significa o KPI 'Total de Criadores' e qual a sua tendência recente?")}
-            />
-            <KpiCard
-              label={summaryKpis?.pendingCreators?.label || 'Criadores Pendentes'} // Label fallback for initial render
-              value={kpisLoading ? undefined : summaryKpis?.pendingCreators?.value}
-              icon={UserPlusIcon}
-              isLoading={kpisLoading}
-              tooltip="Criadores que aguardam aprovação para entrar na plataforma."
-              onAskAi={() => handleAskAi("Mostra-me uma lista dos criadores pendentes há mais tempo.")}
-            />
-            <KpiCard
-              label={summaryKpis?.activeCreatorsInPeriod?.label || 'Criadores Ativos (Período)'}
-              value={kpisLoading ? undefined : summaryKpis?.activeCreatorsInPeriod?.value}
-              icon={BoltIcon}
-              isLoading={kpisLoading}
-              tooltip="Número de criadores que publicaram conteúdo no período selecionado."
-              onAskAi={() => handleAskAi("Compara o número de criadores ativos este mês com o mês passado.")}
-            />
-            <KpiCard
-              label={summaryKpis?.averageEngagementRateInPeriod?.label || 'Taxa de Engajamento Média'}
-              value={kpisLoading ? undefined : summaryKpis?.averageEngagementRateInPeriod?.value}
-              formatAs="percentage"
-              icon={SparklesIcon}
-              isLoading={kpisLoading}
-              tooltip="Taxa de engajamento média de todos os posts no período selecionado."
-              onAskAi={() => handleAskAi("Qual é a tendência da taxa de engajamento média nos últimos 3 meses?")}
-            />
-            <KpiCard
-              label={summaryKpis?.averageReachInPeriod?.label || 'Alcance Médio por Post'}
-              value={kpisLoading ? undefined : summaryKpis?.averageReachInPeriod?.value}
-              formatAs="number"
-              icon={GlobeAltIcon}
-              isLoading={kpisLoading}
-              tooltip="Número médio de contas únicas alcançadas por post no período selecionado."
-              onAskAi={() => handleAskAi("Quais tipos de conteúdo têm maior alcance médio?")}
-            />
-          </div>
-        </section>
-
-        <section className="mb-10">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
-            <TrophyIcon className="w-7 h-7 mr-3 text-gray-500" />
-            Destaques de Criadores
-            {dateRangeFilterProp && (
-              <span className="text-sm font-normal text-gray-400 ml-2">
-                (Período: {new Date(dateRangeFilterProp.startDate + 'T00:00:00').toLocaleDateString('pt-BR')} - {new Date(dateRangeFilterProp.endDate + 'T00:00:00').toLocaleDateString('pt-BR')})
-              </span>
-            )}
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-            <CreatorRankingCard title="Maiores Engajadores" apiEndpoint="/api/admin/dashboard/rankings/creators/top-engaging" dateRangeFilter={dateRangeFilterProp} metricLabel="%" limit={5} />
-            <CreatorRankingCard title="Mais Prolíficos" apiEndpoint="/api/admin/dashboard/rankings/creators/most-prolific" dateRangeFilter={dateRangeFilterProp} metricLabel="posts" limit={5} />
-            <CreatorRankingCard title="Campeões de Interação" apiEndpoint="/api/admin/dashboard/rankings/creators/top-interactions" dateRangeFilter={dateRangeFilterProp} metricLabel="interações" limit={5} />
-            <CreatorRankingCard title="Mestres do Compartilhamento" apiEndpoint="/api/admin/dashboard/rankings/creators/top-sharing" dateRangeFilter={dateRangeFilterProp} metricLabel="compart." limit={5} />
-          </div>
-        </section>
-
-        <section className="mb-8 p-6 bg-white rounded-xl shadow-sm border border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Filtros Globais</h2>
-          {(filters.planStatus.length > 0 || filters.expertiseLevel.length > 0) && (
-            <div className="mb-4 pb-4 border-b border-gray-200">
-                <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-medium text-gray-700">Filtros Ativos:</span>
-                    {filters.planStatus.map(plan => (
-                        <span key={plan} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                            {plan}
-                            <button onClick={() => handleRemoveFilter('planStatus', plan)} className="ml-1 flex-shrink-0 text-indigo-500 hover:text-indigo-700"><XMarkIcon className="h-3 w-3" /></button>
-                        </span>
-                    ))}
-                    {filters.expertiseLevel.map(level => (
-                        <span key={level} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            {level}
-                            <button onClick={() => handleRemoveFilter('expertiseLevel', level)} className="ml-1 flex-shrink-0 text-blue-500 hover:text-blue-700"><XMarkIcon className="h-3 w-3" /></button>
-                        </span>
-                    ))}
-                     <button onClick={handleClearAllFilters} className="text-xs text-gray-500 hover:text-gray-800 hover:underline">Limpar filtros</button>
-                </div>
-            </div>
-          )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
-            <div>
-              <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">Data Início</label>
-              <input type="date" name="startDate" id="startDate" value={filters.dateRange.startDate} onChange={handleFilterChange} className="w-full px-3 py-2 border border-gray-300 rounded-md"/>
-            </div>
-            <div>
-              <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">Data Fim</label>
-              <input type="date" name="endDate" id="endDate" value={filters.dateRange.endDate} onChange={handleFilterChange} className="w-full px-3 py-2 border border-gray-300 rounded-md"/>
-            </div>
-            <div className="lg:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status do Plano</label>
-              <div className="mt-1 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 p-2 border border-gray-300 rounded-md max-h-32 overflow-y-auto">
-                {PLAN_STATUS_OPTIONS.map(option => (
-                  <div key={option} className="flex items-center">
-                    <input id={`planStatus-${option}`} name="planStatus" type="checkbox" value={option} checked={filters.planStatus.includes(option)} onChange={handleFilterChange} className="h-4 w-4 text-indigo-600 border-gray-300 rounded"/>
-                    <label htmlFor={`planStatus-${option}`} className="ml-2 text-xs text-gray-700">{option}</label>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="lg:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nível de Expertise</label>
-              <div className="mt-1 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 p-2 border border-gray-300 rounded-md max-h-32 overflow-y-auto">
-                {EXPERTISE_LEVEL_OPTIONS.map(option => (
-                  <div key={option} className="flex items-center">
-                    <input id={`expertiseLevel-${option}`} name="expertiseLevel" type="checkbox" value={option} checked={filters.expertiseLevel.includes(option)} onChange={handleFilterChange} className="h-4 w-4 text-indigo-600 border-gray-300 rounded"/>
-                    <label htmlFor={`expertiseLevel-${option}`} className="ml-2 text-xs text-gray-700">{option}</label>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <button onClick={handleApplyFilters} className="w-full lg:self-end h-[42px] flex items-center justify-center px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700">
-              <FunnelIcon className="w-5 h-5 mr-2" /> Aplicar Filtros
-            </button>
-          </div>
-        </section>
-
-        <main className="space-y-12">
-          <section>
-            <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center"><ChartBarSquareIcon className="w-7 h-7 mr-3 text-gray-500" /> Visão Geral</h2>
-            <ContentStatsWidgets key={`contentStats-${refreshKey}`} dateRangeFilter={dateRangeFilterProp} />
-          </section>
-          <section className="mt-8">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center"><ChartBarSquareIcon className="w-7 h-7 mr-3 text-gray-500" /> Desempenho de Conteúdo por Tipo</h2>
-            <ContentPerformanceByTypeChart dateRangeFilter={dateRangeFilterProp} />
-          </section>
-          <section className="mt-8">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center"><UserGroupIcon className="w-7 h-7 mr-3 text-gray-500" /> Análise de Criadores</h2>
-            <CreatorTable key={`creatorTable-${refreshKey}`} planStatusFilter={planStatusFilterString} expertiseLevelFilter={expertiseLevelFilterString} dateRangeFilter={dateRangeFilterProp} />
-          </section>
-          <section className="mt-8">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center"><GlobeAltIcon className="w-7 h-7 mr-3 text-gray-500" /> Exploração de Conteúdo Global</h2>
-            <GlobalPostsExplorer dateRangeFilter={dateRangeFilterProp} />
-          </section>
-          <section className="mt-8">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center"><SparklesIcon className="w-7 h-7 mr-3 text-gray-500" /> Ferramentas de Análise Avançada</h2>
-            <div className="space-y-8">
-              <DynamicContentSegmentComparison dateRangeFilter={dateRangeFilterProp} />
-              <DynamicTopMoversWidget />
-            </div>
-          </section>
-        </main>
-
-        <div className="fixed bottom-8 right-8 z-50">
-          <button type="button" onClick={() => setIsAiChatVisible(true)} className="px-6 py-3 bg-indigo-600 text-white rounded-full text-lg font-semibold shadow-xl hover:bg-indigo-700" title="Abrir Chat IA">
-            Chat IA
+      {/* Seção de Seleção de Criador (Simulada) */}
+      <section id="creator-selection-simulation" className="mb-8 p-4 bg-white rounded-lg shadow">
+        <h2 className="text-lg font-semibold text-gray-700 mb-3">Simular Seleção de Criador Detalhado:</h2>
+        <div className="flex gap-4">
+          <button
+            onClick={() => handleUserSelect(MOCK_USER_ID_1 /*, MOCK_USER_NAME_1 */)}
+            className={`p-2 rounded-md text-sm ${selectedUserId === MOCK_USER_ID_1 ? 'bg-indigo-600 text-white' : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'}`}
+          >
+            Ver Detalhes Criador Alpha (ID: ...4f5b)
           </button>
+          <button
+            onClick={() => handleUserSelect(MOCK_USER_ID_2 /*, MOCK_USER_NAME_2 */)}
+            className={`p-2 rounded-md text-sm ${selectedUserId === MOCK_USER_ID_2 ? 'bg-indigo-600 text-white' : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'}`}
+          >
+            Ver Detalhes Criador Beta (ID: ...4f5c)
+          </button>
+          {selectedUserId && (
+            <button
+              onClick={() => {setSelectedUserId(null); /* setSelectedUserName(null); */}}
+              className="p-2 rounded-md text-sm bg-gray-200 text-gray-700 hover:bg-gray-300"
+            >
+              Limpar Seleção
+            </button>
+          )}
         </div>
+      </section>
 
-        {isAiChatVisible && (
-          <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4" onClick={(e) => { if(e.target === e.currentTarget) handleCloseAiChat();}}>
-            <div className="bg-gray-100 w-full max-w-2xl h-[80vh] max-h-[700px] rounded-xl shadow-2xl flex flex-col overflow-hidden border border-gray-300">
-              <header className="flex items-center justify-between p-3 border-b border-gray-200 bg-gray-50">
-                <h2 className="text-lg font-semibold text-gray-800">Assistente IA</h2>
-                <button onClick={handleCloseAiChat} className="p-1.5 rounded-md text-gray-500 hover:bg-gray-200" title="Fechar chat">
-                  <XMarkIcon className="w-6 h-6" />
-                </button>
-              </header>
-              <div className="flex-grow overflow-y-auto">
-                <DynamicAIChatInterface initialPrompt={aiInitialPrompt} />
-              </div>
+
+      {!selectedUserId && ( // Mostrar seções da plataforma apenas se nenhum usuário estiver selecionado para detalhe
+        <>
+          <section id="platform-overview" className="mb-10">
+            <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
+              Visão Geral da Plataforma
+            </h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
+              <TotalActiveCreatorsKpi />
+              <PlatformComparativeKpi
+                kpiName="platformFollowerGrowth"
+                title="Crescimento de Seguidores"
+                comparisonPeriod={selectedComparisonPeriodForKPIs}
+                tooltip="Crescimento total de seguidores na plataforma comparado ao período anterior selecionado."
+              />
+              <PlatformComparativeKpi
+                kpiName="platformTotalEngagement"
+                title="Engajamento Total"
+                comparisonPeriod={selectedComparisonPeriodForKPIs}
+                tooltip="Soma total de interações em todos os posts da plataforma comparado ao período anterior selecionado."
+              />
             </div>
-          </div>
-        )}
 
-        <footer className="mt-12 text-center text-sm text-gray-500">
-          <p>&copy; {new Date().getFullYear()} Creator Platform. Todos os direitos reservados.</p>
-        </footer>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 md:mb-8">
+              <PlatformFollowerTrendChart />
+              <PlatformReachEngagementTrendChart />
+            </div>
+            <div className="grid grid-cols-1 gap-6">
+              <PlatformMovingAverageEngagementChart />
+            </div>
+          </section>
+
+          <section id="platform-content-analysis" className="mb-10">
+            <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
+              Análise de Conteúdo da Plataforma
+            </h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 md:mb-8">
+              <PlatformAverageEngagementChart
+                initialGroupBy="format"
+                chartTitle="Engajamento Médio por Formato (Plataforma)"
+              />
+              <PlatformAverageEngagementChart
+                initialGroupBy="context"
+                chartTitle="Engajamento Médio por Contexto (Plataforma)"
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-6">
+              <PlatformPostDistributionChart />
+            </div>
+          </section>
+
+          <section id="creator-highlights" className="mb-10">
+            <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
+              Destaques de Criadores
+            </h2>
+            <p className="text-gray-500 italic">
+              (Em breve: Componentes como Tabelas de Criadores e Scatter Plot)
+            </p>
+          </section>
+        </>
+      )}
+
+      {/* Container para a Visão Detalhada do Criador */}
+      <div id="user-detail-view-container">
+        {selectedUserId && (
+          <UserDetailView
+            userId={selectedUserId}
+            // userName={selectedUserName} // Passar nome se o estado for gerenciado
+          />
+        )}
       </div>
+
     </div>
   );
-}
+};
+
+export default AdminCreatorDashboardPage;
+```
