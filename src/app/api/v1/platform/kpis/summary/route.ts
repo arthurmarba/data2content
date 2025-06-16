@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-// import UserModel from '@/app/models/User'; // Descomente se for fazer uma contagem real
+import UserModel from '@/app/models/User'; // Descomentado para contagem real
 
 // Interface para a resposta do endpoint
 interface PlatformKpisSummaryResponse {
@@ -13,29 +13,36 @@ interface PlatformKpisSummaryResponse {
 export async function GET(
   request: Request
 ) {
-  // Em uma implementação real, você buscaria e calcularia esses dados.
-  // Exemplo: Contar usuários ativos do UserModel
-  // try {
-  //   const activeCreatorsCount = await UserModel.countDocuments({ isActive: true, planStatus: { $ne: 'FreeInactive' } });
-  //   // A query exata dependeria da definição de "ativo"
+  try {
+    // Definição de "criador ativo" - pode ser ajustada conforme as regras de negócio
+    // Exemplo: status não é 'inactive' ou 'suspended', e teve atividade recente (não implementado aqui)
+    const activeCreatorCriteria = {
+      // status: { $nin: ['inactive', 'suspended', 'pending_approval'] }, // Exemplo
+      // lastActivityAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } // Ex: ativo nos últimos 30 dias
+      // Para este exemplo, vamos apenas contar todos os usuários como "ativos" para simplificar,
+      // já que não temos campos como 'status' ou 'lastActivityAt' definidos no UserModel mockado.
+      // Em um sistema real, estes critérios seriam importantes.
+    };
 
-  //   const response: PlatformKpisSummaryResponse = {
-  //     totalActiveCreators: activeCreatorsCount,
-  //     insightSummary: `Total de ${activeCreatorsCount.toLocaleString()} criadores ativos na plataforma.`
-  //   };
-  //   return NextResponse.json(response, { status: 200 });
+    const activeCreatorsCount = await UserModel.countDocuments(activeCreatorCriteria);
 
-  // } catch (error) {
-  //   console.error("[API PLATFORM/KPIS/SUMMARY] Error fetching platform summary KPIs:", error);
-  //   const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
-  //   return NextResponse.json({ error: "Erro ao processar sua solicitação de KPIs da plataforma.", details: errorMessage }, { status: 500 });
-  // }
+    const response: PlatformKpisSummaryResponse = {
+      totalActiveCreators: activeCreatorsCount,
+      insightSummary: `Total de ${activeCreatorsCount.toLocaleString()} criadores na plataforma.`
+                       // Poderia adicionar "ativos" se os critérios fossem mais específicos.
+    };
+    return NextResponse.json(response, { status: 200 });
 
-  // Por agora, vamos retornar um valor hardcoded para demonstração e teste do componente de UI.
-  const hardcodedResponse: PlatformKpisSummaryResponse = {
-    totalActiveCreators: 12345, // Valor de exemplo
-    insightSummary: "Total de 12,345 criadores ativos na plataforma (dado de exemplo)."
-  };
-  return NextResponse.json(hardcodedResponse, { status: 200 });
+  } catch (error) {
+    console.error("[API PLATFORM/KPIS/SUMMARY] Error fetching platform summary KPIs:", error);
+    const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
+    // Retornar um valor padrão ou um erro claro se a contagem falhar
+    return NextResponse.json({
+        error: "Erro ao buscar KPIs da plataforma.",
+        details: errorMessage,
+        totalActiveCreators: null, // Indicar que o valor não pôde ser obtido
+        insightSummary: "Não foi possível obter o número total de criadores."
+    }, { status: 500 });
+  }
 }
 ```

@@ -1,51 +1,67 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, Sector, LabelProps } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-interface ApiPostDistributionDataPoint {
+interface ApiPostDistributionDataPoint { // Renomeado para evitar conflito se usado em outros lugares
   name: string;
   value: number;
   percentage: number;
 }
 
-interface PlatformPostDistributionResponse {
+interface PlatformEngagementDistributionResponse { // Renomeado para refletir que é engajamento
   chartData: ApiPostDistributionDataPoint[];
   insightSummary?: string;
+  // Poderia incluir metricUsed e timePeriod na resposta da API para clareza
 }
 
-const TIME_PERIOD_OPTIONS = [
-  { value: "all_time", label: "Todo o período" },
-  { value: "last_7_days", label: "Últimos 7 dias" },
-  { value: "last_30_days", label: "Últimos 30 dias" },
-  { value: "last_90_days", label: "Últimos 90 dias" },
-  { value: "last_6_months", label: "Últimos 6 meses" },
-  { value: "last_12_months", label: "Últimos 12 meses" },
+// TIME_PERIOD_OPTIONS não é mais necessário aqui
+// const TIME_PERIOD_OPTIONS = [ ... ];
+
+// ENGAGEMENT_METRIC_OPTIONS pode ser necessário se adicionarmos um seletor para ele
+const ENGAGEMENT_METRIC_OPTIONS = [
+  { value: "stats.total_interactions", label: "Total de Interações" },
+  { value: "stats.views", label: "Visualizações" },
+  // Adicionar mais conforme a API de distribuição de engajamento suportar
 ];
 
-// Cores para os slices da pizza (pode ser expandido ou gerado dinamicamente)
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#A230ED', '#D930ED', '#ED308C'];
 
-const PlatformPostDistributionChart: React.FC = () => {
-  const [data, setData] = useState<PlatformPostDistributionResponse['chartData']>([]);
+// Cores para os slices da pizza
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#A230ED', '#D930ED', '#ED308C', '#F28E2B', '#E15759', '#76B7B2', '#59A14F', '#EDC948'];
+
+
+interface PlatformPostDistributionChartProps {
+  timePeriod: string; // Recebido do pai (page.tsx)
+  initialEngagementMetric?: string; // Opcional, se quisermos torná-lo selecionável
+  chartTitle?: string;
+}
+
+const PlatformPostDistributionChart: React.FC<PlatformPostDistributionChartProps> = ({
+  timePeriod,
+  initialEngagementMetric = ENGAGEMENT_METRIC_OPTIONS[0].value,
+  chartTitle = "Distribuição de Engajamento por Formato (Plataforma)"
+}) => {
+  const [data, setData] = useState<PlatformEngagementDistributionResponse['chartData']>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [timePeriod, setTimePeriod] = useState<string>(TIME_PERIOD_OPTIONS[3].value); // Default: last_90_days
+
+  // timePeriod é prop
+  const [engagementMetric, setEngagementMetric] = useState<string>(initialEngagementMetric);
+  const maxSlices = 7; // Pode ser uma prop se necessário mais flexibilidade
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // O parâmetro maxSlices pode ser adicionado aqui se houver um seletor na UI para ele.
-      // Por enquanto, o default da API será usado.
-      const apiUrl = `/api/v1/platform/performance/post-distribution-format?timePeriod=${timePeriod}`;
+      // Usa timePeriod da prop e engagementMetric do estado local
+      const apiUrl = `/api/v1/platform/performance/engagement-distribution-format?timePeriod=${timePeriod}&engagementMetricField=${engagementMetric}&maxSlices=${maxSlices}`;
       const response = await fetch(apiUrl);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(`Erro HTTP: ${response.status} - ${errorData.error || response.statusText}`);
       }
-      const result: PlatformPostDistributionResponse = await response.json();
+      const result: PlatformEngagementDistributionResponse = await response.json();
       setData(result.chartData);
       setInsightSummary(result.insightSummary);
     } catch (err) {
@@ -55,56 +71,50 @@ const PlatformPostDistributionChart: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [timePeriod]);
+  }, [timePeriod, engagementMetric, maxSlices]); // Adicionado timePeriod e engagementMetric
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  const handleTimePeriodChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setTimePeriod(e.target.value);
-  };
-
-  const RADIAN = Math.PI / 180;
-  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, name, value }: any) => {
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-    const y = cy + radius * Math.sin(-midAngle * RADIAN);
-
-    // Só mostrar label se o percentual for significativo para evitar poluição
+  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }: any) => {
     if ((percent * 100) < 5) return null;
-
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.6;
+    const x = cx + radius * Math.cos(-midAngle * Math.PI / 180);
+    const y = cy + radius * Math.sin(-midAngle * Math.PI / 180);
     return (
-      <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={10}>
-        {`${name} (${(percent * 100).toFixed(0)}%)`}
+      <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={10} fontWeight="bold">
+        {/* {name} - Já está na legenda */} {(percent * 100).toFixed(0)}%
       </text>
     );
   };
 
   const tooltipFormatter = (value: number, name: string, props: { payload: ApiPostDistributionDataPoint } ) => {
-      return [`${value.toLocaleString()} posts (${props.payload.percentage.toFixed(1)}%)`, name];
+      // O 'value' já é a soma do engajamento para o formato
+      return [`${value.toLocaleString()} (${props.payload.percentage.toFixed(1)}%)`, name];
   };
 
-
   return (
-    <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6">
-      <h2 className="text-lg md:text-xl font-semibold mb-4 text-gray-700">Distribuição de Posts por Formato (Plataforma)</h2>
-
-      <div className="flex gap-4 mb-6">
-        <div>
-          <label htmlFor="timePeriodPostDistro" className="block text-sm font-medium text-gray-600 mb-1">Período:</label>
-          <select
-            id="timePeriodPostDistro"
-            value={timePeriod}
-            onChange={handleTimePeriodChange}
-            className="w-full sm:w-auto p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-          >
-            {TIME_PERIOD_OPTIONS.map(option => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
+    <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6 md:mt-0">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4">
+        <h2 className="text-lg md:text-xl font-semibold text-gray-700 mb-2 sm:mb-0">{chartTitle}</h2>
+        <div className="flex gap-4">
+            {/* Seletor de timePeriod removido */}
+            <div>
+                <label htmlFor="engagementMetricPostDistroPlatform" className="sr-only">Métrica de Engajamento:</label>
+                <select
+                    id="engagementMetricPostDistroPlatform"
+                    value={engagementMetric}
+                    onChange={(e) => setEngagementMetric(e.target.value)}
+                    disabled={loading}
+                    className="w-full sm:w-auto p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                >
+                    {ENGAGEMENT_METRIC_OPTIONS.map(option => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                </select>
+            </div>
         </div>
-        {/* Adicionar seletor para engagementMetricField se este gráfico for generalizado no futuro */}
       </div>
 
       <div style={{ width: '100%', height: 300 }}>
@@ -121,7 +131,7 @@ const PlatformPostDistributionChart: React.FC = () => {
                 label={renderCustomizedLabel}
                 outerRadius={100}
                 fill="#8884d8"
-                dataKey="value"
+                dataKey="value" // 'value' é a soma do engajamento para o formato
                 nameKey="name"
               >
                 {data.map((entry, index) => (
@@ -129,12 +139,18 @@ const PlatformPostDistributionChart: React.FC = () => {
                 ))}
               </Pie>
               <Tooltip formatter={tooltipFormatter} />
-              <Legend wrapperStyle={{ fontSize: 12 }} layout="vertical" align="right" verticalAlign="middle" />
+              <Legend
+                wrapperStyle={{ fontSize: 12, marginLeft: '10px' }}
+                layout="vertical"
+                align="right"
+                verticalAlign="middle"
+                iconSize={10}
+              />
             </PieChart>
           </ResponsiveContainer>
         )}
         {!loading && !error && data.length === 0 && (
-          <div className="flex justify-center items-center h-full"><p className="text-gray-500">Nenhum dado disponível para o período selecionado.</p></div>
+          <div className="flex justify-center items-center h-full"><p className="text-gray-500">Nenhum dado disponível para os filtros selecionados.</p></div>
         )}
       </div>
       {insightSummary && !loading && !error && (

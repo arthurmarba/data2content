@@ -16,25 +16,29 @@ interface PlatformReachEngagementTrendResponse {
   insightSummary?: string;
 }
 
-const TIME_PERIOD_OPTIONS = [
-  { value: "last_7_days", label: "Últimos 7 dias" },
-  { value: "last_30_days", label: "Últimos 30 dias" },
-  { value: "last_90_days", label: "Últimos 90 dias" },
-  // Adicionar "last_6_months", "last_12_months" se fizer sentido para a granularidade semanal
-];
+// TIME_PERIOD_OPTIONS não é mais necessário aqui
+// const TIME_PERIOD_OPTIONS = [ ... ];
 
 const GRANULARITY_OPTIONS = [
   { value: "daily", label: "Diário" },
   { value: "weekly", label: "Semanal" },
 ];
 
-const PlatformReachEngagementTrendChart: React.FC = () => {
+interface PlatformReachEngagementTrendChartProps {
+  timePeriod: string; // Recebido do pai (page.tsx)
+  initialGranularity?: string;
+}
+
+const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendChartProps> = ({
+  timePeriod,
+  initialGranularity = GRANULARITY_OPTIONS[0].value
+}) => {
   const [data, setData] = useState<PlatformReachEngagementTrendResponse['chartData']>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [timePeriod, setTimePeriod] = useState<string>(TIME_PERIOD_OPTIONS[1].value);
-  const [granularity, setGranularity] = useState<string>(GRANULARITY_OPTIONS[0].value);
+  // timePeriod não é mais um estado local
+  const [granularity, setGranularity] = useState<string>(initialGranularity);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -56,15 +60,13 @@ const PlatformReachEngagementTrendChart: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [timePeriod, granularity]);
+  }, [timePeriod, granularity]); // Adicionado timePeriod às dependências
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  const handleTimePeriodChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setTimePeriod(e.target.value);
-  };
+  // handleTimePeriodChange não é mais necessário aqui
 
   const handleGranularityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setGranularity(e.target.value);
@@ -80,36 +82,32 @@ const PlatformReachEngagementTrendChart: React.FC = () => {
       return [value !== null ? value.toLocaleString() : 'N/A', name];
   };
 
-  return (
-    <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6">
-      <h2 className="text-lg md:text-xl font-semibold mb-4 text-gray-700">Evolução de Alcance e Contas Engajadas (Plataforma)</h2>
+  const xAxisTickFormatter = (tick: string) => {
+    if (granularity === 'weekly' && tick.includes('-')) {
+        return `S${tick.split('-')[1]}`;
+    }
+    return tick;
+  };
 
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+  return (
+    <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6 md:mt-0"> {/* Removido mt-6 se for o segundo na linha */}
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4">
+        <h2 className="text-lg md:text-xl font-semibold text-gray-700 mb-2 sm:mb-0">
+            Evolução de Alcance e Contas Engajadas (Plataforma)
+        </h2>
         <div>
-          <label htmlFor="timePeriodReachEng" className="block text-sm font-medium text-gray-600 mb-1">Período:</label>
-          <select
-            id="timePeriodReachEng"
-            value={timePeriod}
-            onChange={handleTimePeriodChange}
-            className="w-full sm:w-auto p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-          >
-            {TIME_PERIOD_OPTIONS.map(option => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="granularityReachEng" className="block text-sm font-medium text-gray-600 mb-1">Granularidade:</label>
-          <select
-            id="granularityReachEng"
-            value={granularity}
-            onChange={handleGranularityChange}
-            className="w-full sm:w-auto p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-          >
-            {GRANULARITY_OPTIONS.map(option => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
+            <label htmlFor="granularityReachEngPlatform" className="sr-only">Granularidade:</label>
+            <select
+                id="granularityReachEngPlatform"
+                value={granularity}
+                onChange={handleGranularityChange}
+                disabled={loading}
+                className="w-full sm:w-auto p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+            >
+                {GRANULARITY_OPTIONS.map(option => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+            </select>
         </div>
       </div>
 
@@ -124,29 +122,18 @@ const PlatformReachEngagementTrendChart: React.FC = () => {
                 dataKey="date"
                 stroke="#666"
                 tick={{ fontSize: 12 }}
-                // Adaptação do tickFormatter pode ser necessária dependendo do formato de data semanal (YYYY-WW)
-                tickFormatter={(tick) => {
-                    if (granularity === 'weekly' && tick.includes('-')) {
-                        // Ex: "2023-45" -> "S45" ou "Sem 45"
-                        return `S${tick.split('-')[1]}`;
-                    }
-                    // Adicionar mais formatações para diário se necessário
-                    return tick;
-                }}
+                tickFormatter={xAxisTickFormatter}
               />
               <YAxis
                 stroke="#666"
                 tick={{ fontSize: 12 }}
                 tickFormatter={yAxisFormatter}
-                yAxisId="left" // Para o caso de eixos Y separados no futuro
+                yAxisId="left"
               />
-              {/* Se as escalas de reach e engagedUsers forem muito diferentes, pode-se usar um segundo YAxis:
-              <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" tick={{ fontSize: 12 }} tickFormatter={yAxisFormatter} />
-              */}
               <Tooltip formatter={tooltipFormatter} labelStyle={{ color: '#333' }} />
               <Legend wrapperStyle={{ fontSize: 14 }} />
               <Line
-                yAxisId="left" // Associar ao YAxis da esquerda
+                yAxisId="left"
                 type="monotone"
                 dataKey="reach"
                 name="Alcance"
@@ -156,7 +143,7 @@ const PlatformReachEngagementTrendChart: React.FC = () => {
                 activeDot={{ r: 6 }}
               />
               <Line
-                yAxisId="left" // Associar ao YAxis da esquerda (ou "right" se usar dois eixos)
+                yAxisId="left"
                 type="monotone"
                 dataKey="engagedUsers"
                 name="Contas Engajadas"

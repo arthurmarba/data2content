@@ -17,11 +17,8 @@ interface PlatformMovingAverageResponse {
   insightSummary?: string;
 }
 
-const DATA_WINDOW_OPTIONS = [
-  { value: "30", label: "Últimos 30 dias" },
-  { value: "60", label: "Últimos 60 dias" },
-  { value: "90", label: "Últimos 90 dias" },
-];
+// DATA_WINDOW_OPTIONS não é mais necessário aqui, pois será controlado pelo pai (timePeriod)
+// const DATA_WINDOW_OPTIONS = [ ... ];
 
 const MOVING_AVERAGE_WINDOW_OPTIONS = [
   { value: "7", label: "7 dias (Média Semanal)" },
@@ -29,30 +26,51 @@ const MOVING_AVERAGE_WINDOW_OPTIONS = [
   { value: "30", label: "30 dias (Média Mensal)" },
 ];
 
-const PlatformMovingAverageEngagementChart: React.FC = () => {
+// Helper para converter timePeriod string para número de dias
+const timePeriodToDataWindowDays = (timePeriod: string): number => {
+  switch (timePeriod) {
+    case "last_7_days": return 7;
+    case "last_30_days": return 30;
+    case "last_60_days": return 60; // Adicionado para exemplo
+    case "last_90_days": return 90;
+    // Adicionar mais casos se o GlobalTimePeriodFilter tiver outras opções que se aplicam aqui
+    default: return 30; // Default se a string não corresponder
+  }
+};
+
+interface PlatformMovingAverageEngagementChartProps {
+  timePeriod: string; // Recebido do pai (page.tsx), ex: "last_30_days"
+  initialAvgWindow?: string;
+}
+
+const PlatformMovingAverageEngagementChart: React.FC<PlatformMovingAverageEngagementChartProps> = ({
+  timePeriod,
+  initialAvgWindow = MOVING_AVERAGE_WINDOW_OPTIONS[0].value
+}) => {
   const [data, setData] = useState<PlatformMovingAverageResponse['series']>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [dataWindow, setDataWindow] = useState<string>(DATA_WINDOW_OPTIONS[0].value);
-  const [avgWindow, setAvgWindow] = useState<string>(MOVING_AVERAGE_WINDOW_OPTIONS[0].value);
+  // dataWindow (número de dias) é agora derivado da prop timePeriod
+  const dataWindowInDays = timePeriodToDataWindowDays(timePeriod);
+  const [avgWindow, setAvgWindow] = useState<string>(initialAvgWindow);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
 
-    // Validação para garantir que avgWindow não é maior que dataWindow
-    if (parseInt(avgWindow, 10) > parseInt(dataWindow, 10)) {
+    const currentAvgWindowDays = parseInt(avgWindow, 10);
+    if (currentAvgWindowDays > dataWindowInDays) {
       setError("A janela da média móvel não pode ser maior que a janela de dados.");
       setLoading(false);
-      setData([]); // Limpar dados se os params são inválidos
+      setData([]);
       setInsightSummary(undefined);
       return;
     }
 
     try {
-      const apiUrl = `/api/v1/platform/trends/moving-average-engagement?dataWindowInDays=${dataWindow}&movingAverageWindowInDays=${avgWindow}`;
+      const apiUrl = `/api/v1/platform/trends/moving-average-engagement?dataWindowInDays=${dataWindowInDays}&movingAverageWindowInDays=${currentAvgWindowDays}`;
       const response = await fetch(apiUrl);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -68,7 +86,7 @@ const PlatformMovingAverageEngagementChart: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [dataWindow, avgWindow]);
+  }, [dataWindowInDays, avgWindow]); // Depende de dataWindowInDays (derivado de timePeriod) e avgWindow
 
   useEffect(() => {
     fetchData();
@@ -85,29 +103,19 @@ const PlatformMovingAverageEngagementChart: React.FC = () => {
   };
 
   return (
-    <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6">
-      <h2 className="text-lg md:text-xl font-semibold mb-4 text-gray-700">Média Móvel de Engajamento Diário (Plataforma)</h2>
-
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+    <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6 md:mt-0">
+       <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4">
+        <h2 className="text-lg md:text-xl font-semibold text-gray-700 mb-2 sm:mb-0">
+            Média Móvel de Engajamento Diário (Plataforma)
+        </h2>
+        {/* Seletor de dataWindow (timePeriod) foi removido */}
         <div>
-          <label htmlFor="dataWindowMovingAvg" className="block text-sm font-medium text-gray-600 mb-1">Janela de Dados:</label>
+          <label htmlFor="avgWindowMovingAvgPlatform" className="sr-only">Janela da Média Móvel:</label>
           <select
-            id="dataWindowMovingAvg"
-            value={dataWindow}
-            onChange={(e) => setDataWindow(e.target.value)}
-            className="w-full sm:w-auto p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-          >
-            {DATA_WINDOW_OPTIONS.map(option => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="avgWindowMovingAvg" className="block text-sm font-medium text-gray-600 mb-1">Janela da Média Móvel:</label>
-          <select
-            id="avgWindowMovingAvg"
+            id="avgWindowMovingAvgPlatform"
             value={avgWindow}
             onChange={(e) => setAvgWindow(e.target.value)}
+            disabled={loading}
             className="w-full sm:w-auto p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
           >
             {MOVING_AVERAGE_WINDOW_OPTIONS.map(option => (
@@ -136,7 +144,7 @@ const PlatformMovingAverageEngagementChart: React.FC = () => {
                 strokeWidth={2}
                 dot={{ r: 2 }}
                 activeDot={{ r: 5 }}
-                connectNulls={false} // Para mostrar gaps se houver nulls (ex: no início)
+                connectNulls={false}
               />
             </LineChart>
           </ResponsiveContainer>

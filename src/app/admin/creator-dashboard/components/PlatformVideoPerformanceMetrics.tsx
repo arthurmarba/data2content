@@ -2,9 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 
-// Reutilizar as interfaces e componentes auxiliares de UserVideoPerformanceMetrics
-// Em um projeto maior, MetricDisplay e InfoIcon poderiam estar em seus próprios arquivos de utils/ui.
-
+// Reutilizar as interfaces e componentes auxiliares
 interface VideoMetricsData {
   averageRetentionRate: number | null;
   averageWatchTimeSeconds: number | null;
@@ -15,13 +13,8 @@ interface VideoMetricsResponse extends VideoMetricsData {
   insightSummary?: string;
 }
 
-const TIME_PERIOD_OPTIONS = [
-  { value: "last_30_days", label: "Últimos 30 dias" },
-  { value: "last_90_days", label: "Últimos 90 dias" },
-  { value: "last_6_months", label: "Últimos 6 meses" },
-  { value: "last_12_months", label: "Últimos 12 meses" },
-  { value: "all_time", label: "Todo o período" },
-];
+// TIME_PERIOD_OPTIONS não é mais necessário aqui
+// const TIME_PERIOD_OPTIONS = [ ... ];
 
 // Sub-componente para exibir cada métrica individualmente
 const MetricDisplay: React.FC<{label: string, value: string | number | null, unit?: string, tooltip?: string}> = ({ label, value, unit, tooltip }) => (
@@ -51,24 +44,25 @@ const InfoIcon: React.FC<{className?: string}> = ({className}) => (
 );
 
 interface PlatformVideoPerformanceMetricsProps {
-  initialTimePeriod?: string;
+  timePeriod: string; // Recebido do pai (page.tsx)
   chartTitle?: string;
 }
 
 const PlatformVideoPerformanceMetrics: React.FC<PlatformVideoPerformanceMetricsProps> = ({
-  initialTimePeriod = TIME_PERIOD_OPTIONS[1].value, // Default last_90_days
+  timePeriod, // Prop vinda da página principal
   chartTitle = "Performance de Vídeos da Plataforma"
 }) => {
   const [metrics, setMetrics] = useState<VideoMetricsData | null>(null);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
-  const [loading, setLoading] = useState<boolean>(true); // Inicia como true pois busca ao montar
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [timePeriod, setTimePeriod] = useState<string>(initialTimePeriod);
+  // timePeriod não é mais um estado local
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
+      // Usa timePeriod da prop na URL da API
       const apiUrl = `/api/v1/platform/performance/video-metrics?timePeriod=${timePeriod}`;
       const response = await fetch(apiUrl);
       if (!response.ok) {
@@ -89,33 +83,17 @@ const PlatformVideoPerformanceMetrics: React.FC<PlatformVideoPerformanceMetricsP
     } finally {
       setLoading(false);
     }
-  }, [timePeriod]);
+  }, [timePeriod]); // Adicionado timePeriod às dependências
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]); // fetchData já tem timePeriod como dependência
-
-  const handleTimePeriodChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setTimePeriod(e.target.value);
-  };
+  }, [fetchData]); // fetchData já inclui timePeriod
 
   return (
-    <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-md font-semibold text-gray-700">{chartTitle}</h3>
-        <div>
-          <label htmlFor="timePeriodPlatformVideo" className="sr-only">Período</label>
-          <select
-            id="timePeriodPlatformVideo"
-            value={timePeriod}
-            onChange={handleTimePeriodChange}
-            className="p-1.5 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs"
-          >
-            {TIME_PERIOD_OPTIONS.map(option => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        </div>
+    <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6 md:mt-0">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4">
+        <h3 className="text-md font-semibold text-gray-700 mb-2 sm:mb-0">{chartTitle}</h3>
+        {/* Seletor de timePeriod removido */}
       </div>
 
       {loading && <div className="text-center py-5"><p className="text-gray-500">Carregando métricas de vídeo...</p></div>}

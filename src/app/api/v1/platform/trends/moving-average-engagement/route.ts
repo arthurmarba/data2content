@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
-// import { calculateMovingAverageEngagement } from '@/utils/calculateMovingAverageEngagement'; // Para implementação real
-// import { getPlatformUserIds } from '@/utils/platformDataHelpers'; // Para implementação real
+import DailyMetricSnapshotModel from '@/app/models/DailyMetricSnapshot'; // Para implementação real
+import {
+    addDays,
+    formatDateYYYYMMDD,
+    // getStartDateFromTimePeriod // Não diretamente usado, pois as janelas são calculadas de forma diferente
+} from '@/utils/dateHelpers';
 
-// Tipos de dados para a resposta (espelhando MovingAverageEngagementResult)
+// Tipos de dados para a resposta
 interface MovingAverageDataPoint {
   date: string; // YYYY-MM-DD
   movingAverageEngagement: number | null;
@@ -10,15 +14,15 @@ interface MovingAverageDataPoint {
 
 interface PlatformMovingAverageResponse {
   series: MovingAverageDataPoint[];
-  dataStartDate?: string; // YYYY-MM-DD
-  dataEndDate?: string;   // YYYY-MM-DD
+  dataStartDate?: string; // YYYY-MM-DD (Início da dataWindowInDays para exibição)
+  dataEndDate?: string;   // YYYY-MM-DD (Fim da dataWindowInDays, geralmente hoje)
   insightSummary?: string;
 }
 
 // Constantes para validação e defaults
 const DEFAULT_DATA_WINDOW_DAYS = 30;
 const DEFAULT_MOVING_AVERAGE_WINDOW_DAYS = 7;
-const MAX_DATA_WINDOW_DAYS = 365; // Limite máximo para evitar queries muito longas
+const MAX_DATA_WINDOW_DAYS = 365;
 const MAX_MOVING_AVERAGE_WINDOW_DAYS = 90;
 
 
@@ -53,53 +57,169 @@ export async function GET(
     return NextResponse.json({ error: "movingAverageWindowInDays não pode ser maior que dataWindowInDays." }, { status: 400 });
   }
 
-  // --- Simulação de Lógica de Backend para Dados Agregados da Plataforma ---
-  // Em uma implementação real, esta API faria:
-  // 1. Obter todos os userIds da plataforma (ou de um segmento).
-  // 2. Para cada userId, ou de forma agregada, buscar DailyMetricSnapshots.
-  // 3. Calcular o total de engajamento diário para a plataforma.
-  // 4. Aplicar a lógica de média móvel nesses totais diários da plataforma.
-  // (Isso seria uma nova função utilitária, ex: calculatePlatformMovingAverageEngagement)
-
-  // Por agora, dados hardcoded para demonstração:
+  // 1. Determinar o Período Total de Busca para os dados brutos diários
   const today = new Date();
-  const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const startDate = new Date(endDate);
-  startDate.setDate(endDate.getDate() - dataWindowInDays + 1);
+  const dataEndDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
 
-  const hardcodedSeries: MovingAverageDataPoint[] = [];
-  let currentVal = 5000 + Math.random() * 1000; // Valor inicial aleatório
-  for (let i = 0; i < dataWindowInDays; i++) {
-    const date = new Date(startDate);
-    date.setDate(startDate.getDate() + i);
+  const dataStartDateForDisplay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  dataStartDateForDisplay.setDate(dataStartDateForDisplay.getDate() - dataWindowInDays + 1);
+  dataStartDateForDisplay.setHours(0, 0, 0, 0);
 
-    // Simular alguma variação e tendência
-    currentVal += (Math.random() * 200 - 100) - (i / dataWindowInDays) * 50 ; // Leve tendência de queda
-    if (i < movingAverageWindowInDays -1) { // Simular não ter dados suficientes no início
-        hardcodedSeries.push({ date: date.toISOString().split('T')[0], movingAverageEngagement: null });
-    } else {
-        hardcodedSeries.push({ date: date.toISOString().split('T')[0], movingAverageEngagement: Math.max(0, Math.round(currentVal)) });
-    }
-  }
+  const dataFullStartDateForQuery = new Date(dataStartDateForDisplay);
+  dataFullStartDateForQuery.setDate(dataFullStartDateForQuery.getDate() - movingAverageWindowInDays + 1);
+  // dataFullStartDateForQuery já está com horas zeradas por herdar de dataStartDateForDisplay
 
-  const response: PlatformMovingAverageResponse = {
-    series: hardcodedSeries,
-    dataStartDate: startDate.toISOString().split('T')[0],
-    dataEndDate: endDate.toISOString().split('T')[0],
-    insightSummary: `Média móvel de ${movingAverageWindowInDays} dias do engajamento diário da plataforma nos últimos ${dataWindowInDays} dias.`
+  const resultSeries: MovingAverageDataPoint[] = [];
+  const initialResponse: PlatformMovingAverageResponse = {
+    series: [],
+    dataStartDate: formatDateYYYYMMDD(dataStartDateForDisplay),
+    dataEndDate: formatDateYYYYMMDD(dataEndDate),
+    insightSummary: "Nenhum dado de engajamento encontrado para calcular a média móvel da plataforma.",
   };
-  if (hardcodedSeries.some(p => p.movingAverageEngagement === null)) {
-      response.insightSummary += " Alguns pontos iniciais podem não ter média devido à janela."
+
+
+  try {
+    // 2. Buscar e Agregar DailyMetricSnapshot para obter o total de engajamento da plataforma por dia
+    const platformDailyTotalsAggregation = await DailyMetricSnapshotModel.aggregate([
+      {
+        $match: {
+          date: { $gte: dataFullStartDateForQuery, $lte: dataEndDate },
+          // TODO: Adicionar filtro para apenas usuários ativos da plataforma, se necessário.
+          // Isso exigiria um $lookup com a coleção de Users ou uma lista de userIds ativos.
+          // Ex: { user: { $in: activeUserIds } }
+        }
+      },
+      {
+        $project: {
+          day: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
+          dailyEngagement: {
+            $add: [
+              { $ifNull: ["$dailyLikes", 0] },
+              { $ifNull: ["$dailyComments", 0] },
+              { $ifNull: ["$dailyShares", 0] },
+              // Adicionar outras métricas de engajamento se necessário
+            ]
+          }
+        }
+      },
+      {
+        $group: {
+          _id: "$day", // Agrupa por dia (YYYY-MM-DD)
+          platformTotalDailyEngagement: { $sum: "$dailyEngagement" }
+        }
+      },
+      { $sort: { _id: 1 } } // Ordena por data
+    ]);
+
+    if (!platformDailyTotalsAggregation || platformDailyTotalsAggregation.length === 0) {
+      // Preencher com nulls se não houver dados agregados, para manter a linha do tempo
+      let iterDate = new Date(dataStartDateForDisplay);
+      while (iterDate <= dataEndDate) {
+          resultSeries.push({ date: formatDateYYYYMMDD(iterDate), movingAverageEngagement: null });
+          iterDate = addDays(iterDate, 1);
+      }
+      initialResponse.series = resultSeries;
+      return NextResponse.json(initialResponse, { status: 200 });
+    }
+
+    // Mapear resultados da agregação para um Map para fácil acesso
+    const dailyEngagementsMap = new Map<string, number>();
+    platformDailyTotalsAggregation.forEach(item => {
+      dailyEngagementsMap.set(item._id, item.platformTotalDailyEngagement);
+    });
+
+    // 3. Preenchimento de Dias Ausentes na série de totais da plataforma
+    const completePlatformDailyEngagements: { date: string; totalDailyEngagement: number }[] = [];
+    let currentDateInLoop = new Date(dataFullStartDateForQuery);
+    while (currentDateInLoop <= dataEndDate) {
+      const dayKey = formatDateYYYYMMDD(currentDateInLoop);
+      completePlatformDailyEngagements.push({
+        date: dayKey,
+        totalDailyEngagement: dailyEngagementsMap.get(dayKey) || 0,
+      });
+      currentDateInLoop = addDays(currentDateInLoop, 1);
+    }
+
+    // 4. Cálculo da Média Móvel
+    if (completePlatformDailyEngagements.length < movingAverageWindowInDays) {
+        let iterDate = new Date(dataStartDateForDisplay);
+        while (iterDate <= dataEndDate) {
+            resultSeries.push({ date: formatDateYYYYMMDD(iterDate), movingAverageEngagement: null });
+            iterDate = addDays(iterDate, 1);
+        }
+        initialResponse.series = resultSeries;
+        initialResponse.insightSummary = "Dados insuficientes para calcular a média móvel completa.";
+        return NextResponse.json(initialResponse, { status: 200 });
+    }
+
+    let currentWindowSum = 0;
+    for (let i = 0; i < movingAverageWindowInDays; i++) {
+      currentWindowSum += completePlatformDailyEngagements[i].totalDailyEngagement;
+    }
+
+    // Adicionar o primeiro ponto da média móvel se estiver dentro da dataWindowInDays para display
+    const firstSeriesPointDate = new Date(completePlatformDailyEngagements[movingAverageWindowInDays - 1].date + "T00:00:00Z"); // Assegurar UTC para comparação de data
+    if (firstSeriesPointDate >= dataStartDateForDisplay) {
+         resultSeries.push({
+            date: completePlatformDailyEngagements[movingAverageWindowInDays - 1].date,
+            movingAverageEngagement: currentWindowSum / movingAverageWindowInDays,
+        });
+    }
+
+    for (let i = movingAverageWindowInDays; i < completePlatformDailyEngagements.length; i++) {
+      currentWindowSum -= completePlatformDailyEngagements[i - movingAverageWindowInDays].totalDailyEngagement;
+      currentWindowSum += completePlatformDailyEngagements[i].totalDailyEngagement;
+
+      const currentDateForSeries = new Date(completePlatformDailyEngagements[i].date + "T00:00:00Z");
+      if (currentDateForSeries >= dataStartDateForDisplay) {
+           resultSeries.push({
+            date: completePlatformDailyEngagements[i].date,
+            movingAverageEngagement: currentWindowSum / movingAverageWindowInDays,
+          });
+      }
+    }
+
+    // Garantir que a saída final cubra exatamente dataWindowInDays com nulls se necessário
+    const finalOutputSeries: MovingAverageDataPoint[] = [];
+    let iterDateForOutput = new Date(dataStartDateForDisplay);
+    while(iterDateForOutput <= dataEndDate) {
+        const dayKey = formatDateYYYYMMDD(iterDateForOutput);
+        const foundDataPoint = resultSeries.find(p => p.date === dayKey);
+        if (foundDataPoint) {
+            finalOutputSeries.push(foundDataPoint);
+        } else {
+            finalOutputSeries.push({ date: dayKey, movingAverageEngagement: null });
+        }
+        iterDateForOutput = addDays(iterDateForOutput, 1);
+    }
+    initialResponse.series = finalOutputSeries;
+
+    if (finalOutputSeries.filter(p => p.movingAverageEngagement !== null).length > 0) {
+        initialResponse.insightSummary = `Média móvel de ${movingAverageWindowInDays} dias do engajamento diário da plataforma nos últimos ${dataWindowInDays} dias.`;
+        if (finalOutputSeries.some(p => p.movingAverageEngagement === null)) {
+            initialResponse.insightSummary += " Alguns pontos iniciais podem não ter média devido à janela."
+        }
+    } else {
+        initialResponse.insightSummary = "Nenhum dado de média móvel de engajamento para a plataforma no período."
+    }
+
+    return NextResponse.json(initialResponse, { status: 200 });
+
+  } catch (error) {
+    console.error("[API PLATFORM/TRENDS/MOVING-AVERAGE-ENGAGEMENT] Error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
+    // Preenche a série com nulls para todos os dias da janela de dados em caso de erro
+    let iterDate = new Date(dataStartDateForDisplay); // Use dataStartDateForDisplay
+    const tempErrorSeries: MovingAverageDataPoint[] = [];
+    while (iterDate <= dataEndDate) { // Use dataEndDate
+        tempErrorSeries.push({ date: formatDateYYYYMMDD(iterDate), movingAverageEngagement: null });
+        iterDate = addDays(iterDate, 1);
+    }
+    initialResponse.series = tempErrorSeries;
+    initialResponse.insightSummary = "Erro ao calcular a média móvel de engajamento da plataforma.";
+    // Anexar detalhes do erro pode ser útil para depuração, mas não para o cliente final
+    // return NextResponse.json({ ...initialResponse, errorDetails: errorMessage }, { status: 500 });
+    return NextResponse.json(initialResponse, { status: 500 }); // Retorna 500, mas com a estrutura esperada de "sem dados"
   }
-
-
-  return NextResponse.json(response, { status: 200 });
-
-  // Exemplo de tratamento de erro (se fosse uma busca real)
-  // catch (error) {
-  //   console.error("[API PLATFORM/TRENDS/MOVING-AVERAGE-ENGAGEMENT] Error:", error);
-  //   const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
-  //   return NextResponse.json({ error: "Erro ao processar sua solicitação.", details: errorMessage }, { status: 500 });
-  // }
 }
 ```
