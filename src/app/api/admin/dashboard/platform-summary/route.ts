@@ -3,7 +3,9 @@ import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
 import { fetchPlatformSummary } from '@/app/lib/dataService/marketAnalysis/dashboardService';
 import { DatabaseError } from '@/app/lib/errors';
-import { getAdminSession } from '@lib/auth/auth'; // CORRIGIDO
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+
 
 const TAG = '/api/admin/dashboard/platform-summary';
 
@@ -39,12 +41,14 @@ export async function GET(req: NextRequest) {
   logger.info(`${TAG} Request received`);
 
   // 1. Admin Session Validation
-  const session = await getAdminSession();
-  if (!session || session.user.role !== 'ADMIN') {
+  const session = await getServerSession(authOptions);
+  
+  if (!session || !session.user || session.user.role !== 'admin') {
     logger.warn(`${TAG} Unauthorized access attempt.`);
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  logger.info(`${TAG} Admin session validated for user: ${session.user.userId}`);
+  logger.info(`${TAG} Admin session validated for user: ${session.user.id}`);
+
 
   // 2. Validate Query Parameters
   const { searchParams } = new URL(req.url);
@@ -85,11 +89,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(summaryData, { status: 200 });
 
   } catch (error: any) {
+    // --- INÍCIO DA CORREÇÃO ---
+    // A propriedade 'details' foi removida do objeto de log para corresponder à definição do tipo 'DatabaseError'.
     logger.error(`${TAG} Error in request handler:`, {
       message: error.message,
       stack: error.stack,
-      details: error instanceof DatabaseError ? error.details : undefined,
     });
+    // --- FIM DA CORREÇÃO ---
 
     if (error instanceof DatabaseError) {
       return NextResponse.json({ error: 'Database error', details: error.message }, { status: 500 });

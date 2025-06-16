@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
 import { fetchContentPerformanceByType } from '@/app/lib/dataService/marketAnalysis/segmentService';
 import { DatabaseError } from '@/app/lib/errors';
-import { getAdminSession } from 'app/auth/auth'; // CORRIGIDO: Caminho absoluto a partir de "baseUrl": "src"
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 const TAG = '/api/admin/dashboard/content/performance-by-type';
 
@@ -20,12 +21,16 @@ export async function GET(req: NextRequest) {
   logger.info(`${TAG} Request received`);
 
   // 1. Admin Session Validation
-  const session = await getAdminSession(); // Or your actual session validation logic
-  if (!session || session.user.role !== 'ADMIN') {
+  const session = await getServerSession(authOptions);
+  
+  // Verificação mais robusta da sessão e do papel do usuário
+  if (!session || !session.user || session.user.role !== 'admin') {
     logger.warn(`${TAG} Unauthorized access attempt.`);
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  logger.info(`${TAG} Admin session validated for user: ${session.user.userId}`);
+  // Ajustado para usar 'id' que está definido no seu tipo de sessão
+  logger.info(`${TAG} Admin session validated for user: ${session.user.id}`);
+
 
   // 2. Validate Query Parameters
   const { searchParams } = new URL(req.url);
@@ -59,11 +64,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(performanceData, { status: 200 });
 
   } catch (error: any) {
+    // --- INÍCIO DA CORREÇÃO ---
+    // A propriedade 'details' foi removida do objeto de log porque ela não existe no tipo 'DatabaseError'.
     logger.error(`${TAG} Error in request handler:`, {
       message: error.message,
       stack: error.stack,
-      details: error instanceof DatabaseError ? error.details : undefined,
     });
+    // --- FIM DA CORREÇÃO ---
 
     if (error instanceof DatabaseError) {
       return NextResponse.json({ error: 'Database error', details: error.message }, { status: 500 });

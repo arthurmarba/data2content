@@ -97,17 +97,24 @@ const CreatorTable = memo(function CreatorTable({
     }
 
     try {
+      // Simula um delay de rede
       await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // --- INÍCIO DA CORREÇÃO ---
+      // O objeto _id foi convertido para 'any' para satisfazer o tipo 'ObjectId' durante a simulação de dados.
+      // Isso resolve o erro de tipagem sem afetar a lógica de renderização que usa `_id.toString()`.
       const mockCreators: IDashboardCreator[] = Array.from({ length: limit }).map((_, i) => ({
-        _id: { toString: () => `id_${currentPage}_${i}` },
+        _id: { toString: () => `id_${currentPage}_${i}` } as any,
         name: `Criador da Tabela ${currentPage}-${i}`,
         totalPosts: Math.floor(Math.random() * 250),
         avgEngagementRate: Math.random() * 0.12,
         lastActivityDate: new Date(Date.now() - Math.random() * 45 * 24 * 60 * 60 * 1000),
         planStatus: ['Free', 'Pro', 'Premium'][i % 3],
       }));
+      // --- FIM DA CORREÇÃO ---
+
       setCreators(mockCreators);
-      setTotalCreators(50);
+      setTotalCreators(50); // Total de mocks
     } catch (e: any) {
       setError(e.message);
     } finally {

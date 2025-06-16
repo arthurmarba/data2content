@@ -1,6 +1,6 @@
 /**
  * @fileoverview Serviço para buscar dados de performance de segmentos de conteúdo.
- * @version 1.0.0
+ * @version 1.0.1
  */
 
 import { PipelineStage } from 'mongoose';
@@ -162,7 +162,10 @@ export async function fetchContentPerformanceByType(
             $lte: endDate,
           },
           'stats.total_interactions': { $exists: true, $ne: null, $type: "number" }, // Ensure it's a number
-          type: { $exists: true, $ne: null, $ne: "" } // Ensure type is useful
+          // --- INÍCIO DA CORREÇÃO ---
+          // Substituído o uso duplicado de '$ne' por '$nin' (not in) para verificar múltiplos valores.
+          type: { $exists: true, $nin: [null, ""] }
+          // --- FIM DA CORREÇÃO ---
         }
       },
       {

@@ -51,6 +51,7 @@
     "@tailwindcss/typography": "^0.5.16",
     "@types/async-retry": "^1.4.9",
     "@types/jest": "^29.5.14",
+    "@types/lodash": "^4.17.17",
     "@types/node": "^20",
     "@types/node-fetch": "^2.6.12",
     "@types/opossum": "^8.1.8",

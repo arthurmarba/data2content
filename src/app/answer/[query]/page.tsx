@@ -3,45 +3,53 @@
 import { useState, useEffect } from "react";
 import Head from "next/head";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import SearchBar from "../../components/SearchBar";
+import { useParams, useRouter } from "next/navigation";
+import { SearchBar } from "../../components/SearchBar"; // Corrigido para importação nomeada
 import VideoCarousel from "../../components/VideoCarousel";
 
 export default function AnswerPage() {
-  // useParams() pode retornar string, string[] ou undefined
   const params = useParams();
-  const rawQuery = params.query; // "query" => string | string[] | undefined
+  const router = useRouter(); // Adicionado para navegação
+  const rawQuery = params.query; 
 
-  // Converte para string, garantindo que safeQuery seja sempre uma string
   const safeQuery = Array.isArray(rawQuery) ? rawQuery[0] ?? "" : rawQuery ?? "";
 
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(true);
 
+  // Função para lidar com uma nova busca
+  const handleSearch = (newQuery: string) => {
+    if (newQuery.trim()) {
+      router.push(`/answer/${encodeURIComponent(newQuery.trim())}`);
+    }
+  };
+
   useEffect(() => {
     async function fetchData() {
+      if (!safeQuery) {
+          setAnswer("Por favor, faça uma pergunta.");
+          setLoading(false);
+          return;
+      }
+      setLoading(true);
       try {
-        // Requisição para a resposta da IA, enviando safeQuery como string
         const answerRes = await fetch("/api/ask", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          credentials: "include", // Envia cookie de sessão
+          credentials: "include",
           body: JSON.stringify({ query: safeQuery }),
         });
 
         if (!answerRes.ok) {
-          // Se não estiver ok, checamos status
           if (answerRes.status === 401) {
             setAnswer("Não autenticado. Faça login novamente.");
           } else if (answerRes.status === 403) {
             setAnswer("Acesso negado ou plano inativo.");
           } else {
-            // Tenta ler a mensagem de erro do JSON, se existir
             const errData = await answerRes.json();
             setAnswer(errData.error || "Não foi possível obter resposta.");
           }
         } else {
-          // Se estiver ok, parseia normalmente
           const answerData = await answerRes.json();
           setAnswer(answerData.answer || "Resposta vazia.");
         }
@@ -53,7 +61,6 @@ export default function AnswerPage() {
       }
     }
 
-    // Chama a API mesmo que safeQuery esteja vazio (ajuste conforme sua necessidade)
     fetchData();
   }, [safeQuery]);
 
@@ -68,7 +75,6 @@ export default function AnswerPage() {
       </Head>
 
       <main className="px-8 py-16 pt-24 space-y-8">
-        {/* Cabeçalho e Área de Apresentação */}
         <div className="text-center">
           <h1 className="text-4xl font-bold mb-2 font-poppins">
             data2content
@@ -80,12 +86,14 @@ export default function AnswerPage() {
           </div>
         </div>
 
-        {/* Campo de Busca */}
         <div className="w-full max-w-lg mx-auto">
-          <SearchBar placeholder="Pergunte para d2c AI" />
+          {/* Adicionada a prop onSearchChange */}
+          <SearchBar 
+            onSearchChange={handleSearch}
+            placeholder="Pergunte para d2c AI" 
+          />
         </div>
 
-        {/* Contêiner de Resposta */}
         <div className="w-full max-w-lg mx-auto border border-gray-200 rounded p-6">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Resposta</h2>
           {loading ? (
@@ -102,8 +110,6 @@ export default function AnswerPage() {
           </div>
         </div>
 
-        {/* Carrossel de Vídeos Relacionados */}
-        {/* Passa safeQuery (garantido como string) para o prop "query" */}
         <VideoCarousel
           title="Vídeos Relacionados"
           query={safeQuery}

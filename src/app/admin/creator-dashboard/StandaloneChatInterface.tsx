@@ -7,7 +7,7 @@ import type { ChatCompletionMessageParam } from 'openai/resources/chat/completio
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 
-// --- TYPES AND INTERFACES (Copied from IntelligenceHubPage) ---
+// --- TYPES AND INTERFACES ---
 interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -25,7 +25,7 @@ interface KpiVisualization {
 
 interface BarChartVisualization {
   type: 'bar_chart';
-  title: string;
+  title:string;
   data: {
     name: string;
     value: number;
@@ -49,11 +49,17 @@ interface FinalPayload {
   suggestions: string[];
 }
 
-// --- CONSTANTS (Copied from IntelligenceHubPage) ---
+// --- INÍCIO DA CORREÇÃO 1: Adicionar a interface de props ---
+interface StandaloneChatInterfaceProps {
+  initialPrompt?: string;
+}
+// --- FIM DA CORREÇÃO 1 ---
+
+// --- CONSTANTS ---
 const DATA_DELIMITER = '---JSON_DATA_PAYLOAD---';
 const STATUS_DELIMITER = '---STATUS_UPDATE---';
 
-// --- HOOK: useIntelligenceChat (Copied and adapted from IntelligenceHubPage) ---
+// --- HOOK: useIntelligenceChat ---
 const useIntelligenceChat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -171,7 +177,7 @@ const useIntelligenceChat = () => {
 };
 
 
-// --- UI COMPONENTS (Copied and adapted from IntelligenceHubPage) ---
+// --- UI COMPONENTS ---
 
 const SimpleMarkdown: FC<{ text: string }> = React.memo(({ text }) => {
   const parts = text.split(/(\*\*.*?\*\*)/g);
@@ -247,7 +253,6 @@ const VisualizationCard: FC<{ visualization: Visualization }> = React.memo(({ vi
                </ul>
             );
             default:
-                // const exhaustiveCheck: never = type; // This will cause type error if new types are not handled
                 return <p>Tipo de visualização não suportado.</p>;
         }
     };
@@ -330,10 +335,22 @@ const ChatInput: FC<{
 };
 
 // --- MAIN CHAT INTERFACE COMPONENT ---
-export default function StandaloneChatInterface() {
+// --- INÍCIO DA CORREÇÃO 2: Alterar a assinatura do componente para aceitar props ---
+const StandaloneChatInterface: React.FC<StandaloneChatInterfaceProps> = ({ initialPrompt }) => {
+// --- FIM DA CORREÇÃO 2 ---
   const { messages, isLoading, error, visualizations, suggestions, startConversation } = useIntelligenceChat();
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // --- INÍCIO DA CORREÇÃO 3: Adicionar useEffect para lidar com o initialPrompt ---
+  useEffect(() => {
+    // Inicia a conversa automaticamente se um prompt inicial for fornecido e não houver mensagens
+    if (initialPrompt && messages.length === 0 && !isLoading) {
+      startConversation(initialPrompt);
+    }
+    // A dependência de 'startConversation' garante que a função mais recente seja usada.
+  }, [initialPrompt, messages.length, isLoading, startConversation]);
+  // --- FIM DA CORREÇÃO 3 ---
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -345,7 +362,7 @@ export default function StandaloneChatInterface() {
   };
 
   const handleSuggestionClick = (question: string) => {
-    startConversation(question); // No need to setInput if startConversation clears it or handles it
+    startConversation(question); 
   };
 
   return (
@@ -361,7 +378,6 @@ export default function StandaloneChatInterface() {
         )}
         {messages.map((m) => <MessageBubble key={m.id} message={m} />)}
 
-        {/* Visualizations can be rendered here, below messages, or in a separate togglable area within the modal */}
         {visualizations.length > 0 && !isLoading && (
           <div className="my-4 space-y-4 border-t border-gray-200 dark:border-gray-700 pt-4">
             <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400">Visualizações:</h4>
@@ -393,3 +409,5 @@ export default function StandaloneChatInterface() {
     </div>
   );
 }
+
+export default StandaloneChatInterface;
