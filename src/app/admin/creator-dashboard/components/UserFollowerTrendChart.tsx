@@ -5,25 +5,25 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 
-// Tipos para os dados da API (idêntico ao PlatformFollowerTrendChart)
+// Tipos para os dados da API
 interface ApiChartDataPoint {
   date: string;
   value: number | null;
 }
 
-interface UserFollowerTrendResponse { // Nome da interface pode ser genérico se a estrutura for a mesma
+interface UserFollowerTrendResponse {
   chartData: ApiChartDataPoint[];
   insightSummary?: string;
 }
 
-// Lista de opções para os seletores (pode ser importada de um local compartilhado)
+// Lista de opções para os seletores
 const TIME_PERIOD_OPTIONS = [
   { value: "last_7_days", label: "Últimos 7 dias" },
   { value: "last_30_days", label: "Últimos 30 dias" },
   { value: "last_90_days", label: "Últimos 90 dias" },
   { value: "last_6_months", label: "Últimos 6 meses" },
   { value: "last_12_months", label: "Últimos 12 meses" },
-  { value: "all_time", label: "Todo o período" }, // Adicionado "all_time"
+  { value: "all_time", label: "Todo o período" },
 ];
 
 const GRANULARITY_OPTIONS = [
@@ -32,8 +32,7 @@ const GRANULARITY_OPTIONS = [
 ];
 
 interface UserFollowerTrendChartProps {
-  userId: string | null; // userId pode ser null inicialmente ou se não selecionado
-  // Título pode ser passado como prop ou definido internamente
+  userId: string | null;
   chartTitle?: string;
 }
 
@@ -43,16 +42,18 @@ const UserFollowerTrendChart: React.FC<UserFollowerTrendChartProps> = ({
 }) => {
   const [data, setData] = useState<UserFollowerTrendResponse['chartData']>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
-  const [loading, setLoading] = useState<boolean>(false); // Inicia como false até que userId esteja disponível
+  const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [timePeriod, setTimePeriod] = useState<string>(TIME_PERIOD_OPTIONS[1].value);
-  const [granularity, setGranularity] = useState<string>(GRANULARITY_OPTIONS[0].value);
+
+  // Corrigido: Adicionado optional chaining e fallback para segurança
+  const [timePeriod, setTimePeriod] = useState<string>(TIME_PERIOD_OPTIONS?.[1]?.value || 'last_30_days');
+  const [granularity, setGranularity] = useState<string>(GRANULARITY_OPTIONS?.[0]?.value || 'daily');
 
   const fetchData = useCallback(async () => {
     if (!userId) {
       setData([]);
       setLoading(false);
-      setError("User ID não fornecido."); // Ou apenas não mostra nada
+      setError("User ID não fornecido.");
       return;
     }
 
@@ -78,13 +79,13 @@ const UserFollowerTrendChart: React.FC<UserFollowerTrendChartProps> = ({
   }, [userId, timePeriod, granularity]);
 
   useEffect(() => {
-    if (userId) { // Só busca dados se userId estiver presente
+    if (userId) {
       fetchData();
     } else {
-      setData([]); // Limpa dados se userId se tornar null
+      setData([]);
       setLoading(false);
     }
-  }, [userId, fetchData]); // fetchData já inclui timePeriod e granularity como dependências
+  }, [userId, fetchData]);
 
   const handleTimePeriodChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setTimePeriod(e.target.value);
@@ -108,7 +109,7 @@ const UserFollowerTrendChart: React.FC<UserFollowerTrendChartProps> = ({
     return (
       <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6">
         <h2 className="text-lg md:text-xl font-semibold mb-4 text-gray-700">{chartTitle}</h2>
-        <div className="flex justify-center items-center h-[300px]"> {/* Altura correspondente ao gráfico */}
+        <div className="flex justify-center items-center h-[300px]">
           <p className="text-gray-500">Selecione um criador para ver a evolução de seguidores.</p>
         </div>
       </div>
@@ -123,7 +124,7 @@ const UserFollowerTrendChart: React.FC<UserFollowerTrendChartProps> = ({
         <div>
           <label htmlFor={`timePeriodUserFollowers-${userId}`} className="block text-sm font-medium text-gray-600 mb-1">Período:</label>
           <select
-            id={`timePeriodUserFollowers-${userId}`} // ID único se houver múltiplos gráficos na página
+            id={`timePeriodUserFollowers-${userId}`}
             value={timePeriod}
             onChange={handleTimePeriodChange}
             className="w-full sm:w-auto p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
@@ -167,7 +168,7 @@ const UserFollowerTrendChart: React.FC<UserFollowerTrendChartProps> = ({
                 strokeWidth={2}
                 dot={{ r: 3 }}
                 activeDot={{ r: 6 }}
-                connectNulls={true} // Para métricas cumulativas como seguidores, conectar nulos pode ser ok
+                connectNulls={true}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -184,4 +185,3 @@ const UserFollowerTrendChart: React.FC<UserFollowerTrendChartProps> = ({
 };
 
 export default UserFollowerTrendChart;
-```

@@ -22,4 +22,3 @@ export function getNestedValue(obj: any, path: string): number | null {
 }
 
 // Outras funções auxiliares de acesso a dados ou manipulação podem ser adicionadas aqui no futuro.
-```

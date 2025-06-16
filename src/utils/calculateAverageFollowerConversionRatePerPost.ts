@@ -77,4 +77,3 @@ async function calculateAverageFollowerConversionRatePerPost(
 }
 
 export default calculateAverageFollowerConversionRatePerPost;
-```

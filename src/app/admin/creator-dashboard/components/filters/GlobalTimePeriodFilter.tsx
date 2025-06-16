@@ -48,4 +48,3 @@ const GlobalTimePeriodFilter: React.FC<GlobalTimePeriodFilterProps> = ({
 };
 
 export default GlobalTimePeriodFilter;
-```

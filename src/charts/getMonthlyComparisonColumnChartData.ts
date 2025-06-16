@@ -147,4 +147,3 @@ async function getMonthlyComparisonColumnChartData(
 }
 
 export default getMonthlyComparisonColumnChartData;
-```

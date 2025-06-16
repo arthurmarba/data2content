@@ -1,17 +1,26 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
-import calculateAverageVideoMetrics, { AverageVideoMetricsData } from '@/utils/calculateAverageVideoMetrics'; // Ajuste o caminho
-// import { FormatType } from '@/app/models/Metric'; // Se precisar passar videoFormats customizados
+import calculateAverageVideoMetrics from '@/utils/calculateAverageVideoMetrics'; // Ajuste o caminho
+
+// --- Interface definida localmente para resolver o erro de importação ---
+// Removido startDate e endDate para corresponder à assinatura da função de cálculo sem causar conflito de tipo.
+interface AverageVideoMetricsData {
+    averageRetentionRate: number | null;
+    averageWatchTimeSeconds: number | null;
+    numberOfVideoPosts: number;
+}
+
 
 const ALLOWED_TIME_PERIODS: string[] = ["last_7_days", "last_30_days", "last_90_days", "last_6_months", "last_12_months", "all_time"];
 
-interface UserVideoMetricsResponse extends Omit<AverageVideoMetricsData, 'startDate' | 'endDate'> {
+// A resposta estende a interface base e adiciona o insight.
+interface UserVideoMetricsResponse extends AverageVideoMetricsData {
   insightSummary?: string;
 }
 
 export async function GET(
   request: Request,
-  { params }: { params: { userId: string } }
+  { params }: { params: { userId:string } }
 ) {
   const { userId } = params;
 
@@ -30,17 +39,7 @@ export async function GET(
     return NextResponse.json({ error: `Time period inválido. Permitidos: ${ALLOWED_TIME_PERIODS.join(', ')}` }, { status: 400 });
   }
 
-  // Opcional: permitir que videoFormats seja passado como query param se necessário
-  // const videoFormatsParam = searchParams.getAll('videoFormats') as FormatType[];
-  // const videoFormats = videoFormatsParam.length > 0 ? videoFormatsParam : undefined; // Passa undefined para usar o default da função
-
   try {
-    // A função calculateAverageVideoMetrics espera periodInDays como número.
-    // Precisamos converter a string timePeriod para um número de dias.
-    // Ou refatorar calculateAverageVideoMetrics para aceitar string ou {startDate, endDate}
-    // Por agora, vamos fazer uma conversão simples ou assumir que a função de cálculo lida com isso.
-    // A função calculateAverageVideoMetrics já espera um número de dias, não uma string de período.
-    // Vamos criar um mapeamento simples aqui.
     let periodInDaysValue: number;
     switch (timePeriod) {
         case "last_7_days": periodInDaysValue = 7; break;
@@ -48,29 +47,27 @@ export async function GET(
         case "last_90_days": periodInDaysValue = 90; break;
         case "last_6_months": periodInDaysValue = 180; break;
         case "last_12_months": periodInDaysValue = 365; break;
-        case "all_time": periodInDaysValue = 0; break; // calculateAverageVideoMetrics precisaria tratar 0 como "all_time"
+        case "all_time": periodInDaysValue = 365 * 5; break; // 5 anos como "all_time"
         default: periodInDaysValue = 90;
     }
-    // Nota: A lógica de "all_time" em calculateAverageVideoMetrics não foi implementada
-    // e a função espera periodInDays > 0. Para "all_time", um período muito grande seria usado ou a query adaptada.
-    // Para este exemplo, se "all_time", usaremos um período grande.
-    if (timePeriod === "all_time") periodInDaysValue = 365 * 5; // 5 anos como "all_time"
-
 
     const videoMetrics: AverageVideoMetricsData = await calculateAverageVideoMetrics(
       userId,
       periodInDaysValue
-      // ,videoFormats // Passar se o parâmetro for aceito pela API
     );
 
     const responsePayload: UserVideoMetricsResponse = {
       averageRetentionRate: videoMetrics.averageRetentionRate,
       averageWatchTimeSeconds: videoMetrics.averageWatchTimeSeconds,
       numberOfVideoPosts: videoMetrics.numberOfVideoPosts,
-      insightSummary: `Nos ${timePeriod.replace("last_","").replace("_"," ")}, a retenção média dos seus vídeos é de ${videoMetrics.averageRetentionRate.toFixed(1)}% e o tempo médio de visualização é de ${videoMetrics.averageWatchTimeSeconds.toFixed(0)}s, baseado em ${videoMetrics.numberOfVideoPosts} vídeos.`
     };
+
     if (videoMetrics.numberOfVideoPosts === 0) {
         responsePayload.insightSummary = `Nenhum post de vídeo encontrado para o período selecionado (${timePeriod.replace("last_","").replace("_"," ")}).`;
+    } else {
+        const retentionText = videoMetrics.averageRetentionRate !== null ? `${videoMetrics.averageRetentionRate.toFixed(1)}%` : 'N/A';
+        const watchTimeText = videoMetrics.averageWatchTimeSeconds !== null ? `${videoMetrics.averageWatchTimeSeconds.toFixed(0)}s` : 'N/A';
+        responsePayload.insightSummary = `Nos ${timePeriod.replace("last_","").replace("_"," ")}, a retenção média dos seus vídeos é de ${retentionText} e o tempo médio de visualização é de ${watchTimeText}, baseado em ${videoMetrics.numberOfVideoPosts} vídeos.`;
     }
 
 
@@ -82,4 +79,3 @@ export async function GET(
     return NextResponse.json({ error: "Erro ao processar sua solicitação de métricas de vídeo.", details: errorMessage }, { status: 500 });
   }
 }
-```

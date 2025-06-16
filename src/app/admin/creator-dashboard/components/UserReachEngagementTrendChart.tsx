@@ -40,14 +40,15 @@ const UserReachEngagementTrendChart: React.FC<UserReachEngagementTrendChartProps
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [timePeriod, setTimePeriod] = useState<string>(TIME_PERIOD_OPTIONS[1].value);
-  const [granularity, setGranularity] = useState<string>(GRANULARITY_OPTIONS[0].value);
+  
+  // Corrigido: Adicionado optional chaining e fallback para segurança
+  const [timePeriod, setTimePeriod] = useState<string>(TIME_PERIOD_OPTIONS?.[1]?.value || "last_30_days");
+  const [granularity, setGranularity] = useState<string>(GRANULARITY_OPTIONS?.[0]?.value || "daily");
 
   const fetchData = useCallback(async () => {
     if (!userId) {
       setData([]);
       setLoading(false);
-      // setError("User ID não fornecido."); // Não é um erro, apenas estado inicial
       return;
     }
 
@@ -101,9 +102,10 @@ const UserReachEngagementTrendChart: React.FC<UserReachEngagementTrendChartProps
 
   const xAxisTickFormatter = (tick: string) => {
     if (granularity === 'weekly' && tick.includes('-')) {
-        return `S${tick.split('-')[1]}`;
+        const parts = tick.split('-');
+        return `S${parts[1]}`;
     }
-    return tick; // Pode ser adaptado para formatar datas diárias se necessário
+    return tick;
   };
 
   if (!userId) {
@@ -170,7 +172,7 @@ const UserReachEngagementTrendChart: React.FC<UserReachEngagementTrendChartProps
                 strokeWidth={2}
                 dot={{ r: 3 }}
                 activeDot={{ r: 6 }}
-                connectNulls={false} // Gaps para dados não contínuos
+                connectNulls={false}
               />
               <Line
                 yAxisId="left"
@@ -198,4 +200,3 @@ const UserReachEngagementTrendChart: React.FC<UserReachEngagementTrendChartProps
 };
 
 export default UserReachEngagementTrendChart;
-```

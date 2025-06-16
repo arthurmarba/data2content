@@ -152,4 +152,3 @@ const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps
 };
 
 export default PlatformPerformanceHighlights;
-```

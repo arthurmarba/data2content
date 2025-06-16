@@ -4,6 +4,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
+import { TooltipProps } from 'recharts';
+// Adicionando a importação do tipo Payload
+import { ValueType, NameType, Payload } from 'recharts/types/component/DefaultTooltipContent';
 
 type GroupingType = "format" | "context";
 
@@ -20,21 +23,19 @@ interface PlatformAverageEngagementResponse {
   insightSummary?: string;
 }
 
-// TIME_PERIOD_OPTIONS não é mais necessário aqui
-// ENGAGEMENT_METRIC_OPTIONS e GROUP_BY_OPTIONS podem ser mantidos ou movidos para um local compartilhado se usados por mais componentes
 const ENGAGEMENT_METRIC_OPTIONS = [
   { value: "stats.total_interactions", label: "Total de Interações" },
   { value: "stats.views", label: "Visualizações" },
   { value: "stats.likes", label: "Curtidas" },
 ];
 
-const GROUP_BY_OPTIONS = [ // Usado apenas se o seletor de groupBy fosse habilitado
+const GROUP_BY_OPTIONS = [ 
   { value: "format", label: "Formato" },
   { value: "context", label: "Contexto" },
 ];
 
 interface PlatformAverageEngagementChartProps {
-  timePeriod: string; // Recebido do pai (page.tsx)
+  timePeriod: string;
   initialGroupBy: GroupingType;
   chartTitle: string;
   initialEngagementMetric?: string;
@@ -44,23 +45,20 @@ const PlatformAverageEngagementChart: React.FC<PlatformAverageEngagementChartPro
   timePeriod,
   initialGroupBy,
   chartTitle,
-  initialEngagementMetric = ENGAGEMENT_METRIC_OPTIONS[0].value
+  initialEngagementMetric = ENGAGEMENT_METRIC_OPTIONS?.[0]?.value || 'stats.total_interactions'
 }) => {
   const [data, setData] = useState<ApiAverageEngagementDataPoint[]>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // timePeriod é agora uma prop
   const [engagementMetric, setEngagementMetric] = useState<string>(initialEngagementMetric);
-  // groupBy é controlado por initialGroupBy, não muda internamente por seletor neste componente
   const groupBy = initialGroupBy;
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // Usa timePeriod da prop
       const apiUrl = `/api/v1/platform/performance/average-engagement?timePeriod=${timePeriod}&engagementMetricField=${engagementMetric}&groupBy=${groupBy}`;
       const response = await fetch(apiUrl);
       if (!response.ok) {
@@ -77,7 +75,7 @@ const PlatformAverageEngagementChart: React.FC<PlatformAverageEngagementChartPro
     } finally {
       setLoading(false);
     }
-  }, [timePeriod, engagementMetric, groupBy]); // Adicionado timePeriod às dependências
+  }, [timePeriod, engagementMetric, groupBy]);
 
   useEffect(() => {
     fetchData();
@@ -90,10 +88,18 @@ const PlatformAverageEngagementChart: React.FC<PlatformAverageEngagementChartPro
     return value.toString();
   };
 
-  const tooltipFormatter = (value: number, name: string, props: {payload: ApiAverageEngagementDataPoint}) => {
-      const { postsCount } = props.payload;
-      return [`${value.toLocaleString()} (de ${postsCount} posts)`, name];
+  // Corrigido: A assinatura da função agora usa o tipo correto para o terceiro parâmetro.
+  const tooltipFormatter = (value: ValueType, name: NameType, entry: Payload<ValueType, NameType>) => {
+      // O 'payload' dentro do objeto 'entry' contém os dados completos do ponto.
+      const postsCount = entry.payload?.postsCount;
+      const formattedValue = typeof value === 'number' ? value.toLocaleString() : value;
+
+      if (postsCount !== undefined) {
+        return [`${formattedValue} (de ${postsCount} posts)`, name];
+      }
+      return [formattedValue, name];
   };
+
   const xAxisTickFormatter = (value: string) => {
     if (value && value.length > 15) {
         return `${value.substring(0, 13)}...`;
@@ -105,8 +111,7 @@ const PlatformAverageEngagementChart: React.FC<PlatformAverageEngagementChartPro
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6 md:mt-0">
       <h2 className="text-lg md:text-xl font-semibold mb-4 text-gray-700">{chartTitle}</h2>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6"> {/* Removido o terceiro slot do grid */}
-        {/* Seletor de timePeriod removido */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <div>
           <label htmlFor={`metricAvgEngPlatform-${groupBy}`} className="block text-sm font-medium text-gray-600 mb-1">Métrica:</label>
           <select
@@ -168,4 +173,3 @@ const PlatformAverageEngagementChart: React.FC<PlatformAverageEngagementChartPro
 };
 
 export default PlatformAverageEngagementChart;
-```

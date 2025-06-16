@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import UserModel from '@/app/models/User'; // Importar UserModel
-import getFollowerTrendChartData, { FollowerTrendChartResponse } from '@/charts/getFollowerTrendChartData'; // Ajuste o caminho
+import getFollowerTrendChartData from '@/charts/getFollowerTrendChartData'; // Ajuste o caminho
 import { Types } from 'mongoose'; // Para ObjectId, se necessário para UserModel
 
 // Tipos para os dados da API (reutilizar do chart individual)
@@ -8,6 +8,13 @@ interface ApiChartDataPoint {
   date: string;
   value: number | null;
 }
+
+// Interface para a resposta, definida localmente para resolver o erro de importação.
+interface FollowerTrendChartResponse {
+  chartData: ApiChartDataPoint[];
+  insightSummary: string;
+}
+
 
 // Definir aqui os tipos permitidos para timePeriod e granularity se quiser validação estrita
 const ALLOWED_TIME_PERIODS: string[] = ["last_7_days", "last_30_days", "last_90_days", "last_6_months", "last_12_months", "all_time"];
@@ -65,7 +72,7 @@ export async function GET(
 
     userTrendResults.forEach(result => {
       if (result.status === 'fulfilled' && result.value.chartData) {
-        result.value.chartData.forEach(dataPoint => {
+        result.value.chartData.forEach((dataPoint: ApiChartDataPoint) => {
           if (dataPoint.value !== null && dataPoint.date) { // Checar se dataPoint.date é válido
             const currentTotal = aggregatedFollowersByDate.get(dataPoint.date) || 0;
             aggregatedFollowersByDate.set(dataPoint.date, currentTotal + dataPoint.value);
@@ -102,7 +109,7 @@ export async function GET(
       const firstDataPoint = platformChartData[0];
       const lastDataPoint = platformChartData[platformChartData.length - 1];
 
-      if (firstDataPoint.value !== null && lastDataPoint.value !== null) {
+      if (firstDataPoint?.value !== null && lastDataPoint?.value !== null && firstDataPoint && lastDataPoint) {
           const platformAbsoluteGrowth = lastDataPoint.value - firstDataPoint.value;
           const periodText = timePeriod.replace("last_", "últimos ").replace("_days", " dias").replace("_months", " meses");
           // Corrigir para "all_time"
@@ -116,7 +123,7 @@ export async function GET(
           } else {
             platformInsightSummary = `Sem mudança no total de seguidores da plataforma ${displayTimePeriod}.`;
           }
-      } else if (lastDataPoint.value !== null) {
+      } else if (lastDataPoint?.value !== null && lastDataPoint) {
           platformInsightSummary = `Total de ${lastDataPoint.value.toLocaleString()} seguidores na plataforma no final do período.`;
       }
     } else {
@@ -137,4 +144,3 @@ export async function GET(
     return NextResponse.json({ error: "Erro ao processar sua solicitação.", details: errorMessage }, { status: 500 });
   }
 }
-```

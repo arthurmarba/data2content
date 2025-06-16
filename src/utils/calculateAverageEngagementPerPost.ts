@@ -101,4 +101,3 @@ async function calculateAverageEngagementPerPost(
 }
 
 export default calculateAverageEngagementPerPost;
-```

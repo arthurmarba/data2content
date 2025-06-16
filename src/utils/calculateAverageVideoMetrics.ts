@@ -1,10 +1,19 @@
-import MetricModel, { IMetric, FormatType } from "@/app/models/Metric"; // Ajuste o caminho
+import MetricModel, { IMetric } from "@/app/models/Metric"; // Ajuste o caminho
 import { Types } from "mongoose";
+import { getStartDateFromTimePeriod } from "@/utils/dateHelpers";
 
-interface AverageVideoMetricsData {
+// --- Tipos e Enums definidos localmente para resolver o erro ---
+export enum FormatType {
+  IMAGE = "IMAGE",
+  VIDEO = "VIDEO",
+  REEL = "REEL",
+  CAROUSEL_ALBUM = "CAROUSEL_ALBUM",
+}
+
+export interface AverageVideoMetricsData {
   numberOfVideoPosts: number;
-  averageRetentionRate: number; // Em percentual, ex: 25.5 para 25.5%
-  averageWatchTimeSeconds: number;
+  averageRetentionRate: number | null; // Em percentual, ex: 25.5 para 25.5%
+  averageWatchTimeSeconds: number | null;
   startDate?: Date | null;
   endDate?: Date | null;
 }
@@ -16,14 +25,15 @@ async function calculateAverageVideoMetrics(
 ): Promise<AverageVideoMetricsData> {
   const resolvedUserId = typeof userId === 'string' ? new Types.ObjectId(userId) : userId;
   const today = new Date();
-  const endDate = new Date(today);
-  const startDate = new Date(today);
-  startDate.setDate(today.getDate() - periodInDays);
+  
+  // Usar helper para consistência
+  const startDate = getStartDateFromTimePeriod(today, `last_${periodInDays}_days`);
+  const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
 
   const initialResult: AverageVideoMetricsData = {
     numberOfVideoPosts: 0,
-    averageRetentionRate: 0.0,
-    averageWatchTimeSeconds: 0,
+    averageRetentionRate: null, // Default to null when no data
+    averageWatchTimeSeconds: null, // Default to null when no data
     startDate: startDate,
     endDate: endDate,
   };
@@ -39,45 +49,42 @@ async function calculateAverageVideoMetrics(
       return initialResult;
     }
 
-    let sumRetentionRate = 0.0; // Assumindo que a retenção é armazenada como decimal (ex: 0.25 para 25%)
+    let sumRetentionRate = 0.0;
     let sumAverageVideoWatchTimeSeconds = 0;
-    // validPostsForRetention e validPostsForWatchTime não são mais necessários para o cálculo da média
-    // conforme a definição estrita da tarefa, mas podem ser úteis para outros insights.
+    let validPostsForRetention = 0;
+    let validPostsForWatchTime = 0;
 
     for (const post of videoPosts) {
       if (post.stats) {
         if (typeof post.stats.retention_rate === 'number') {
           sumRetentionRate += post.stats.retention_rate;
+          validPostsForRetention++;
         }
         if (typeof post.stats.average_video_watch_time_seconds === 'number') {
           sumAverageVideoWatchTimeSeconds += post.stats.average_video_watch_time_seconds;
+          validPostsForWatchTime++;
         }
       }
     }
 
     initialResult.numberOfVideoPosts = videoPosts.length;
 
-    if (initialResult.numberOfVideoPosts > 0) {
-      // A task pede a saída em percentual, ex: 25.5 para 25.5%
+    if (validPostsForRetention > 0) {
       // Se retention_rate no DB é decimal (0.25), multiplicamos por 100.
-      // Conforme a definição da tarefa, dividir pelo número total de posts de vídeo.
-      initialResult.averageRetentionRate = (sumRetentionRate / initialResult.numberOfVideoPosts) * 100;
-      initialResult.averageWatchTimeSeconds = sumAverageVideoWatchTimeSeconds / initialResult.numberOfVideoPosts;
+      initialResult.averageRetentionRate = (sumRetentionRate / validPostsForRetention) * 100;
+    }
+    
+    if (validPostsForWatchTime > 0) {
+      initialResult.averageWatchTimeSeconds = sumAverageVideoWatchTimeSeconds / validPostsForWatchTime;
     }
 
     return initialResult;
 
   } catch (error) {
     console.error(`Error calculating average video metrics for userId ${resolvedUserId}:`, error);
-    return {
-      numberOfVideoPosts: 0,
-      averageRetentionRate: 0.0,
-      averageWatchTimeSeconds: 0,
-      startDate: startDate,
-      endDate: endDate,
-    };
+    // Retorna a resposta inicial com nulos em caso de erro
+    return initialResult;
   }
 }
 
 export default calculateAverageVideoMetrics;
-```

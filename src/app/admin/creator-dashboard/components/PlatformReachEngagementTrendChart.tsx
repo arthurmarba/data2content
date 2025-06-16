@@ -16,28 +16,25 @@ interface PlatformReachEngagementTrendResponse {
   insightSummary?: string;
 }
 
-// TIME_PERIOD_OPTIONS não é mais necessário aqui
-// const TIME_PERIOD_OPTIONS = [ ... ];
-
 const GRANULARITY_OPTIONS = [
   { value: "daily", label: "Diário" },
   { value: "weekly", label: "Semanal" },
 ];
 
 interface PlatformReachEngagementTrendChartProps {
-  timePeriod: string; // Recebido do pai (page.tsx)
+  timePeriod: string; 
   initialGranularity?: string;
 }
 
 const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendChartProps> = ({
   timePeriod,
-  initialGranularity = GRANULARITY_OPTIONS[0].value
+  // Corrigido: Usa optional chaining e um fallback para segurança
+  initialGranularity = GRANULARITY_OPTIONS?.[0]?.value || 'daily'
 }) => {
   const [data, setData] = useState<PlatformReachEngagementTrendResponse['chartData']>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  // timePeriod não é mais um estado local
   const [granularity, setGranularity] = useState<string>(initialGranularity);
 
   const fetchData = useCallback(async () => {
@@ -60,13 +57,11 @@ const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendCh
     } finally {
       setLoading(false);
     }
-  }, [timePeriod, granularity]); // Adicionado timePeriod às dependências
+  }, [timePeriod, granularity]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
-  // handleTimePeriodChange não é mais necessário aqui
 
   const handleGranularityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setGranularity(e.target.value);
@@ -90,7 +85,7 @@ const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendCh
   };
 
   return (
-    <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6 md:mt-0"> {/* Removido mt-6 se for o segundo na linha */}
+    <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6 md:mt-0">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4">
         <h2 className="text-lg md:text-xl font-semibold text-gray-700 mb-2 sm:mb-0">
             Evolução de Alcance e Contas Engajadas (Plataforma)
@@ -167,4 +162,3 @@ const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendCh
 };
 
 export default PlatformReachEngagementTrendChart;
-```

@@ -4,6 +4,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
+// Adicionando as importações de tipos necessárias do recharts
+import { ValueType, NameType, Payload } from 'recharts/types/component/DefaultTooltipContent';
+
 
 // Tipos de dados da API (espelhando a resposta do endpoint de usuário)
 type GroupingType = "format" | "context";
@@ -35,12 +38,6 @@ const ENGAGEMENT_METRIC_OPTIONS = [
   { value: "stats.likes", label: "Curtidas" },
 ];
 
-// GROUP_BY_OPTIONS não é necessário como seletor se o gráfico é fixo por prop
-// const GROUP_BY_OPTIONS = [
-//   { value: "format", label: "Formato" },
-//   { value: "context", label: "Contexto" },
-// ];
-
 interface UserAverageEngagementChartProps {
   userId: string | null;
   groupBy: GroupingType; // "format" ou "context", para determinar qual gráfico mostrar
@@ -49,7 +46,7 @@ interface UserAverageEngagementChartProps {
 
 const UserAverageEngagementChart: React.FC<UserAverageEngagementChartProps> = ({
   userId,
-  groupBy, // Este prop determinará a chamada API e o título, etc.
+  groupBy,
   chartTitle,
 }) => {
   const [data, setData] = useState<ApiUserAverageEngagementDataPoint[]>([]);
@@ -57,9 +54,8 @@ const UserAverageEngagementChart: React.FC<UserAverageEngagementChartProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [timePeriod, setTimePeriod] = useState<string>(TIME_PERIOD_OPTIONS[2].value); // Default: last_30_days
-  const [engagementMetric, setEngagementMetric] = useState<string>(ENGAGEMENT_METRIC_OPTIONS[0].value);
-  // groupBy é agora uma prop, não um estado interno mutável pelo seletor neste componente específico.
+  const [timePeriod, setTimePeriod] = useState<string>(TIME_PERIOD_OPTIONS?.[2]?.value || "last_30_days");
+  const [engagementMetric, setEngagementMetric] = useState<string>(ENGAGEMENT_METRIC_OPTIONS?.[0]?.value || "stats.total_interactions");
 
   const fetchData = useCallback(async () => {
     if (!userId) {
@@ -95,7 +91,7 @@ const UserAverageEngagementChart: React.FC<UserAverageEngagementChartProps> = ({
       setData([]);
       setLoading(false);
     }
-  }, [userId, fetchData]); // fetchData já tem as dependências corretas
+  }, [userId, fetchData]);
 
   const yAxisFormatter = (value: number) => {
     if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
@@ -103,10 +99,17 @@ const UserAverageEngagementChart: React.FC<UserAverageEngagementChartProps> = ({
     return value.toString();
   };
 
-  const tooltipFormatter = (value: number, name: string, props: {payload: ApiUserAverageEngagementDataPoint}) => {
-      const { postsCount } = props.payload;
-      return [`${value.toLocaleString()} (de ${postsCount} posts)`, name];
+  // Corrigido: A assinatura da função agora usa o tipo correto para o terceiro parâmetro.
+  const tooltipFormatter = (value: ValueType, name: NameType, entry: Payload<ValueType, NameType>) => {
+      const postsCount = entry.payload?.postsCount;
+      const formattedValue = typeof value === 'number' ? value.toLocaleString() : value;
+      
+      if (postsCount !== undefined) {
+          return [`${formattedValue} (de ${postsCount} posts)`, name];
+      }
+      return [formattedValue, name];
   };
+  
    const xAxisTickFormatter = (value: string) => {
     if (value && value.length > 12) {
         return `${value.substring(0, 10)}...`;
@@ -157,7 +160,6 @@ const UserAverageEngagementChart: React.FC<UserAverageEngagementChartProps> = ({
             ))}
           </select>
         </div>
-        {/* O seletor de groupBy não é incluído aqui, pois é uma prop que define o gráfico */}
       </div>
 
       <div style={{ width: '100%', height: 350 }}>
@@ -165,7 +167,7 @@ const UserAverageEngagementChart: React.FC<UserAverageEngagementChartProps> = ({
         {error && <div className="flex justify-center items-center h-full"><p className="text-red-500">Erro: {error}</p></div>}
         {!loading && !error && data.length > 0 && (
           <ResponsiveContainer>
-            <BarChart data={data} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}> {/* Aumentada margem esquerda */}
+            <BarChart data={data} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
               <XAxis type="number" stroke="#666" tick={{ fontSize: 12 }} tickFormatter={yAxisFormatter} />
               <YAxis
@@ -173,7 +175,7 @@ const UserAverageEngagementChart: React.FC<UserAverageEngagementChartProps> = ({
                 dataKey="name"
                 stroke="#666"
                 tick={{ fontSize: 12 }}
-                width={120} // Aumentar largura para nomes de formato/contexto
+                width={120}
                 interval={0}
                 tickFormatter={xAxisTickFormatter}
               />
@@ -195,4 +197,3 @@ const UserAverageEngagementChart: React.FC<UserAverageEngagementChartProps> = ({
 };
 
 export default UserAverageEngagementChart;
-```

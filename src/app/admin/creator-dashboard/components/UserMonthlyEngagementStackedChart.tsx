@@ -33,7 +33,8 @@ interface UserMonthlyEngagementStackedChartProps {
 
 const UserMonthlyEngagementStackedChart: React.FC<UserMonthlyEngagementStackedChartProps> = ({
   userId,
-  initialTimePeriod = TIME_PERIOD_OPTIONS[1].value, // Default last_6_months
+  // Corrigido: Adicionado optional chaining e fallback para segurança
+  initialTimePeriod = TIME_PERIOD_OPTIONS?.[1]?.value || "last_6_months",
   chartTitle = "Engajamento Mensal Detalhado do Criador"
 }) => {
   const [data, setData] = useState<MonthlyEngagementResponse['chartData']>([]);
@@ -127,7 +128,7 @@ const UserMonthlyEngagementStackedChart: React.FC<UserMonthlyEngagementStackedCh
         {error && <div className="flex justify-center items-center h-full"><p className="text-red-500">Erro: {error}</p></div>}
         {!loading && !error && data.length > 0 && (
           <ResponsiveContainer>
-            <BarChart data={data} margin={{ top: 5, right: 5, left: -25, bottom: 5 }}> {/* Ajuste de margem esquerda */}
+            <BarChart data={data} margin={{ top: 5, right: 5, left: -25, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
               <XAxis dataKey="month" stroke="#666" tick={{ fontSize: 12 }} />
               <YAxis stroke="#666" tick={{ fontSize: 12 }} tickFormatter={yAxisFormatter} />
@@ -152,4 +153,3 @@ const UserMonthlyEngagementStackedChart: React.FC<UserMonthlyEngagementStackedCh
 };
 
 export default UserMonthlyEngagementStackedChart;
-```

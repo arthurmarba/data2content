@@ -1,33 +1,41 @@
 import { Types } from "mongoose";
 // Importar todas as funções de cálculo de indicador necessárias
-// (Similar ao getRadarChartData, mas apenas para as métricas X e Y)
-import calculateFollowerGrowthRate, { FollowerGrowthData } from "@/utils/calculateFollowerGrowthRate";
-import calculateAverageEngagementPerPost, { AverageEngagementData } from "@/utils/calculateAverageEngagementPerPost";
+import calculateFollowerGrowthRate from "@/utils/calculateFollowerGrowthRate";
+import calculateAverageEngagementPerPost from "@/utils/calculateAverageEngagementPerPost";
+import { getStartDateFromTimePeriod } from "@/utils/dateHelpers";
 // Adicionar outros imports se outras métricas puderem ser usadas para X/Y
 
+// --- Interfaces definidas localmente para resolver erros de importação ---
+interface FollowerGrowthData {
+    currentFollowers: number | null;
+    previousFollowers?: number | null; // Opcional, dependendo da função
+}
+
+interface AverageEngagementData {
+    averageEngagementPerPost: number | null;
+    totalEngagement?: number; // Opcional
+}
+
 // Tipos para configuração e saída
-// Reutilizar RadarMetricConfig para definir como calcular as métricas X e Y
-// Pode ser simplificado se não precisar de todos os campos de RadarMetricConfig
 export interface ScatterPlotMetricConfig {
   id: string;    // Identificador único (ex: "totalFollowers")
   label?: string; // Nome da métrica para o eixo (opcional se não for exibido diretamente)
   calculationLogic:
     | "getFollowersCount_current"
-    | "getAverageEngagementPerPost_avgPerPost"
+    | "getAverageEngagementPerPost_avgPerPost";
     // Adicionar outras lógicas de cálculo conforme necessário para os eixos
-    | string; // Permitir outras strings se houver mais funções
   params?: any[];
   valueKey?: keyof FollowerGrowthData | keyof AverageEngagementData | string;
 }
 
-interface ScatterPlotDataPoint {
+export interface ScatterPlotDataPoint {
   id: string; // userId
   label: string; // Nome/identificador do criador
   x: number | null;
   y: number | null;
 }
 
-interface ScatterPlotResponse {
+export interface ScatterPlotResponse {
   plotData: ScatterPlotDataPoint[];
   xAxisMetricLabel?: string;
   yAxisMetricLabel?: string;
@@ -55,6 +63,8 @@ async function getCreatorsScatterPlotData(
     insightSummary: "Comparativo de criadores."
   };
 
+  const today = new Date();
+
   try {
     for (const id of userIds) {
       const resolvedUserId = typeof id === 'string' ? new Types.ObjectId(id) : id;
@@ -70,7 +80,9 @@ async function getCreatorsScatterPlotData(
           xValue = growthDataX.currentFollowers;
           break;
         case "getAverageEngagementPerPost_avgPerPost":
-          const aepX = await calculateAverageEngagementPerPost(resolvedUserId, xParams.periodInDays || 30);
+          const periodX = xParams.periodInDays || 30;
+          const startDateX = getStartDateFromTimePeriod(today, `last_${periodX}_days`);
+          const aepX = await calculateAverageEngagementPerPost(resolvedUserId, { startDate: startDateX, endDate: today });
           xValue = aepX.averageEngagementPerPost;
           break;
         // Adicionar mais casos conforme necessário para outras métricas do eixo X
@@ -87,7 +99,9 @@ async function getCreatorsScatterPlotData(
           yValue = growthDataY.currentFollowers;
           break;
         case "getAverageEngagementPerPost_avgPerPost":
-          const aepY = await calculateAverageEngagementPerPost(resolvedUserId, yParams.periodInDays || 30);
+          const periodY = yParams.periodInDays || 30;
+          const startDateY = getStartDateFromTimePeriod(today, `last_${periodY}_days`);
+          const aepY = await calculateAverageEngagementPerPost(resolvedUserId, { startDate: startDateY, endDate: today });
           yValue = aepY.averageEngagementPerPost;
           break;
         // Adicionar mais casos conforme necessário para outras métricas do eixo Y
@@ -96,8 +110,6 @@ async function getCreatorsScatterPlotData(
           yValue = null;
       }
 
-      // Adicionar ao plotData apenas se ambas as métricas forem válidas
-      // A task original dizia: "esse criador pode ser omitido do gráfico ou plotado com um valor padrão... omissão é mais comum"
       if (xValue !== null && typeof xValue === 'number' && yValue !== null && typeof yValue === 'number') {
         plotData.push({
           id: resolvedUserId.toString(),
@@ -117,7 +129,6 @@ async function getCreatorsScatterPlotData(
         initialResponse.insightSummary = `Comparando ${plotData.length} criador(es) por ${initialResponse.xAxisMetricLabel} vs ${initialResponse.yAxisMetricLabel}.`;
     }
 
-
     return initialResponse;
 
   } catch (error) {
@@ -129,4 +140,3 @@ async function getCreatorsScatterPlotData(
 }
 
 export default getCreatorsScatterPlotData;
-```

@@ -1,13 +1,19 @@
 import { NextResponse } from 'next/server';
 import UserModel from '@/app/models/User'; // Importar UserModel
-import getReachEngagementTrendChartData, { ReachEngagementChartResponse } from '@/charts/getReachEngagementTrendChartData'; // Ajuste
+import getReachEngagementTrendChartData from '@/charts/getReachEngagementTrendChartData'; // Ajuste
 import { Types } from 'mongoose';
 
-// Tipos para os dados da API (reutilizar do chart individual)
+// Tipos para os dados da API
 interface ApiReachEngagementDataPoint {
   date: string;
   reach: number | null;
   engagedUsers: number | null;
+}
+
+// Interface para a resposta, definida localmente para resolver o erro de importação.
+interface ReachEngagementChartResponse {
+  chartData: ApiReachEngagementDataPoint[];
+  insightSummary: string;
 }
 
 const ALLOWED_TIME_PERIODS: string[] = ["last_7_days", "last_30_days", "last_90_days", "last_6_months", "last_12_months", "all_time"];
@@ -60,7 +66,7 @@ export async function GET(
 
     userTrendResults.forEach(result => {
       if (result.status === 'fulfilled' && result.value.chartData) {
-        result.value.chartData.forEach(dataPoint => {
+        result.value.chartData.forEach((dataPoint: ApiReachEngagementDataPoint) => {
           if (dataPoint.date) { // Checar se dataPoint.date é válido
             const currentData = aggregatedDataByDate.get(dataPoint.date) || { reach: 0, engagedUsers: 0 };
             currentData.reach += dataPoint.reach || 0; // Somar, tratando null como 0
@@ -84,8 +90,8 @@ export async function GET(
     const platformChartData: ApiReachEngagementDataPoint[] = Array.from(aggregatedDataByDate.entries())
       .map(([date, data]) => ({
         date: date,
-        reach: data.reach,
-        engagedUsers: data.engagedUsers
+        reach: data.reach > 0 ? data.reach : null,
+        engagedUsers: data.engagedUsers > 0 ? data.engagedUsers : null
       }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
@@ -125,4 +131,3 @@ export async function GET(
     return NextResponse.json({ error: "Erro ao processar sua solicitação.", details: errorMessage }, { status: 500 });
   }
 }
-```

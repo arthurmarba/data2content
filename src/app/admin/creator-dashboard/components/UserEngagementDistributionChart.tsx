@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { ValueType, NameType, Payload } from 'recharts/types/component/DefaultTooltipContent';
+
 
 interface ApiEngagementDistributionDataPoint {
   name: string;
@@ -12,7 +14,6 @@ interface ApiEngagementDistributionDataPoint {
 interface UserEngagementDistributionResponse {
   chartData: ApiEngagementDistributionDataPoint[];
   insightSummary?: string;
-  // A API de user pode não ter `metricUsed` ou `timePeriod` na raiz, mas sim implícito
 }
 
 const TIME_PERIOD_OPTIONS = [
@@ -28,9 +29,8 @@ const ENGAGEMENT_METRIC_OPTIONS = [
   { value: "stats.likes", label: "Curtidas" },
 ];
 
-// Cores para os slices da pizza (pode ser importado/compartilhado)
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#A230ED', '#D930ED', '#ED308C'];
-const DEFAULT_MAX_SLICES = 7; // Para agrupar em "Outros"
+const DEFAULT_MAX_SLICES = 7;
 
 interface UserEngagementDistributionChartProps {
   userId: string | null;
@@ -46,9 +46,9 @@ const UserEngagementDistributionChart: React.FC<UserEngagementDistributionChartP
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [timePeriod, setTimePeriod] = useState<string>(TIME_PERIOD_OPTIONS[2].value); // Default: last_30_days
-  const [engagementMetric, setEngagementMetric] = useState<string>(ENGAGEMENT_METRIC_OPTIONS[0].value);
-  // maxSlices pode ser uma prop se quisermos configurabilidade por instância
+  // Corrigido: Adicionado optional chaining e fallback para segurança
+  const [timePeriod, setTimePeriod] = useState<string>(TIME_PERIOD_OPTIONS?.[2]?.value || "last_30_days");
+  const [engagementMetric, setEngagementMetric] = useState<string>(ENGAGEMENT_METRIC_OPTIONS?.[0]?.value || "stats.total_interactions");
   const maxSlices = DEFAULT_MAX_SLICES;
 
 
@@ -90,7 +90,7 @@ const UserEngagementDistributionChart: React.FC<UserEngagementDistributionChartP
 
   const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }: any) => {
     if ((percent * 100) < 5) return null;
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.6; // Posição do label
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.6;
     const x = cx + radius * Math.cos(-midAngle * Math.PI / 180);
     const y = cy + radius * Math.sin(-midAngle * Math.PI / 180);
     return (
@@ -100,8 +100,13 @@ const UserEngagementDistributionChart: React.FC<UserEngagementDistributionChartP
     );
   };
 
-  const tooltipFormatter = (value: number, name: string, props: { payload: ApiEngagementDistributionDataPoint } ) => {
-      return [`${value.toLocaleString()} (${props.payload.percentage.toFixed(1)}%)`, name];
+  const tooltipFormatter = (value: ValueType, name: NameType, entry: Payload<ValueType, NameType>) => {
+      const percentage = entry.payload?.percentage;
+      const formattedValue = typeof value === 'number' ? value.toLocaleString() : value;
+      if (percentage !== undefined) {
+          return [`${formattedValue} (${percentage.toFixed(1)}%)`, name];
+      }
+      return [formattedValue, name];
   };
 
   if (!userId) {
@@ -186,4 +191,3 @@ const UserEngagementDistributionChart: React.FC<UserEngagementDistributionChartP
 };
 
 export default UserEngagementDistributionChart;
-```

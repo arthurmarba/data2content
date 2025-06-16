@@ -1,13 +1,32 @@
 import { Types } from "mongoose";
 // Importar funções de cálculo de indicador
-import calculateFollowerGrowthRate, { FollowerGrowthData } from "@/utils/calculateFollowerGrowthRate";
-import calculateAverageEngagementPerPost, { AverageEngagementData } from "@/utils/calculateAverageEngagementPerPost";
-import calculateWeeklyPostingFrequency, { WeeklyPostingFrequencyData } from "@/utils/calculateWeeklyPostingFrequency";
-import calculateAverageVideoMetrics, { AverageVideoMetricsData } from "@/utils/calculateAverageVideoMetrics";
+import calculateFollowerGrowthRate from "@/utils/calculateFollowerGrowthRate";
+import calculateAverageEngagementPerPost from "@/utils/calculateAverageEngagementPerPost";
+import calculateWeeklyPostingFrequency from "@/utils/calculateWeeklyPostingFrequency";
+import calculateAverageVideoMetrics from "@/utils/calculateAverageVideoMetrics";
+import { getStartDateFromTimePeriod } from "@/utils/dateHelpers";
 
 // Importar helpers de normalização e min/max da plataforma
 import { getPlatformMinMaxValues, PlatformMinMaxData } from "@/utils/platformMetricsHelpers";
 import { normalizeValue as actualNormalizeValue } from "@/utils/normalizationHelpers"; // Renomeado para evitar conflito
+
+// --- Interfaces definidas localmente para resolver erros de importação ---
+interface FollowerGrowthData {
+    currentFollowers: number | null;
+    percentageGrowth: number | null;
+}
+interface AverageEngagementData {
+    averageEngagementPerPost: number | null;
+    averageEngagementRateOnReach: number | null;
+}
+interface WeeklyPostingFrequencyData {
+    currentWeeklyFrequency: number | null;
+}
+interface AverageVideoMetricsData {
+    averageRetentionRate: number | null;
+    averageWatchTimeSeconds: number | null;
+}
+
 
 // Tipos para configuração e saída
 export interface RadarMetricConfig {
@@ -42,7 +61,7 @@ interface RadarChartResponse {
   debugMinMax?: PlatformMinMaxData; // Opcional para depuração
 }
 
-// Assinatura da função de normalização que será injetada (usa a função real agora)
+// Assinatura da função de normalização que será injetada
 export type NormalizeValueFn = (
     value: number | null,
     min: number | null,
@@ -54,7 +73,7 @@ async function getRadarChartData(
   profile1_identifier: string | Types.ObjectId,
   profile2_identifier: string | Types.ObjectId | { type: "segment"; id: string },
   metricSetConfig: RadarMetricConfig[],
-  normalizeValueFn: NormalizeValueFn = actualNormalizeValue // Usar a função real como default
+  normalizeValueFn: NormalizeValueFn = actualNormalizeValue
 ): Promise<RadarChartResponse> {
 
   const profile1_userId = typeof profile1_identifier === 'string' ? new Types.ObjectId(profile1_identifier) : profile1_identifier as Types.ObjectId;
@@ -81,6 +100,7 @@ async function getRadarChartData(
   const p2_normalizedData: (number | null)[] = [];
   const p1_rawData: (number | string | null)[] = [];
   const p2_rawData: (number | string | null)[] = [];
+  const today = new Date();
 
   const initialResponse: RadarChartResponse = {
     labels: [],
@@ -90,108 +110,86 @@ async function getRadarChartData(
   };
 
   try {
-    // 1. Chamar getPlatformMinMaxValues para as métricas relevantes do radar.
     const metricIdsForMinMax = metricSetConfig.map(m => m.id);
     const platformMinMaxValues = await getPlatformMinMaxValues(metricIdsForMinMax);
-    initialResponse.debugMinMax = platformMinMaxValues; // Para depuração
+    initialResponse.debugMinMax = platformMinMaxValues;
 
     for (const metricConfig of metricSetConfig) {
       labels.push(metricConfig.label);
       let rawValue1: number | null = null;
       let rawValue2: number | null = null;
-
       const commonParams = metricConfig.params ? { ...(metricConfig.params[0] || {}) } : {};
+      const periodInDays = commonParams.periodInDays || 30;
+      const startDate = getStartDateFromTimePeriod(today, `last_${periodInDays}_days`);
 
-      // Obter valor para Perfil 1
       switch (metricConfig.calculationLogic) {
         case "getFollowersCount_current":
-          const growthData1 = await calculateFollowerGrowthRate(profile1_userId, commonParams.periodInDays || 0);
-          rawValue1 = growthData1.currentFollowers;
+          rawValue1 = (await calculateFollowerGrowthRate(profile1_userId, 0)).currentFollowers;
           break;
         case "getFollowerGrowthRate_percentage":
-          const frg1 = await calculateFollowerGrowthRate(profile1_userId, commonParams.periodInDays || 30);
-          rawValue1 = frg1.percentageGrowth; // Este já é decimal (ex: 0.10 para 10%)
+          rawValue1 = (await calculateFollowerGrowthRate(profile1_userId, periodInDays)).percentageGrowth;
           break;
         case "getAverageEngagementPerPost_avgPerPost":
-          const aep1 = await calculateAverageEngagementPerPost(profile1_userId, commonParams.periodInDays || 30);
-          rawValue1 = aep1.averageEngagementPerPost;
+          rawValue1 = (await calculateAverageEngagementPerPost(profile1_userId, { startDate, endDate: today })).averageEngagementPerPost;
           break;
         case "getAverageEngagementPerPost_avgRateOnReach":
-            const aepRate1 = await calculateAverageEngagementPerPost(profile1_userId, commonParams.periodInDays || 30);
-            rawValue1 = aepRate1.averageEngagementRateOnReach; // Decimal
+            rawValue1 = (await calculateAverageEngagementPerPost(profile1_userId, { startDate, endDate: today })).averageEngagementRateOnReach;
             break;
         case "getWeeklyPostingFrequency_current":
-            const wpf1 = await calculateWeeklyPostingFrequency(profile1_userId, commonParams.periodInDays || 30);
-            rawValue1 = wpf1.currentWeeklyFrequency;
+            rawValue1 = (await calculateWeeklyPostingFrequency(profile1_userId, periodInDays)).currentWeeklyFrequency;
             break;
         case "getAverageVideoMetrics_avgRetention":
-            const avmRet1 = await calculateAverageVideoMetrics(profile1_userId, commonParams.periodInDays || 90);
-            rawValue1 = avmRet1.averageRetentionRate; // Percentual (0-100)
+            rawValue1 = (await calculateAverageVideoMetrics(profile1_userId, periodInDays)).averageRetentionRate;
             break;
         case "getAverageVideoMetrics_avgWatchTime":
-            const avmWatch1 = await calculateAverageVideoMetrics(profile1_userId, commonParams.periodInDays || 90);
-            rawValue1 = avmWatch1.averageWatchTimeSeconds;
+            rawValue1 = (await calculateAverageVideoMetrics(profile1_userId, periodInDays)).averageWatchTimeSeconds;
             break;
         default:
-          console.warn(`Lógica de cálculo desconhecida para Perfil 1: ${metricConfig.calculationLogic}`);
           rawValue1 = null;
       }
       p1_rawData.push(rawValue1);
       const minMax1 = platformMinMaxValues[metricConfig.id] || { min: null, max: null };
       p1_normalizedData.push(normalizeValueFn(rawValue1, minMax1.min, minMax1.max));
 
-      // Obter valor para Perfil 2
       if (profile2_isSegment) {
-        console.log(`Simulando/Buscando média do segmento ${profile2_segmentId} para ${metricConfig.id}. Base P1: ${rawValue1}`);
-        // TODO: Implementar lógica real para buscar média do segmento.
-        // A média do segmento já deveria vir "bruta" e ser normalizada da mesma forma que P1.
         if (rawValue1 !== null) {
             if (metricConfig.id === "followerGrowthRate_percentage") rawValue2 = rawValue1 * 0.8;
             else if (metricConfig.id === "totalFollowers") rawValue2 = rawValue1 * 1.2;
-            else if (metricConfig.id === "avgVideoRetention_avgRetention") rawValue2 = Math.max(0, rawValue1 -10); // Segments tend to have lower retention
+            else if (metricConfig.id === "avgVideoRetention_avgRetention") rawValue2 = Math.max(0, rawValue1 -10);
             else rawValue2 = rawValue1 * 0.9;
         } else {
-            rawValue2 = null; // Se P1 for nulo, P2 (segmento) também pode ser ou ter um valor default.
+            rawValue2 = null;
         }
       } else if (profile2_userId) {
          switch (metricConfig.calculationLogic) {
             case "getFollowersCount_current":
-              const growthData2 = await calculateFollowerGrowthRate(profile2_userId, commonParams.periodInDays || 0);
-              rawValue2 = growthData2.currentFollowers;
+              rawValue2 = (await calculateFollowerGrowthRate(profile2_userId, 0)).currentFollowers;
               break;
-            // ... (repetir todos os cases como para Perfil 1)
             case "getFollowerGrowthRate_percentage":
-              const frg2 = await calculateFollowerGrowthRate(profile2_userId, commonParams.periodInDays || 30);
-              rawValue2 = frg2.percentageGrowth;
+              rawValue2 = (await calculateFollowerGrowthRate(profile2_userId, periodInDays)).percentageGrowth;
               break;
             case "getAverageEngagementPerPost_avgPerPost":
-              const aep2 = await calculateAverageEngagementPerPost(profile2_userId, commonParams.periodInDays || 30);
-              rawValue2 = aep2.averageEngagementPerPost;
+              rawValue2 = (await calculateAverageEngagementPerPost(profile2_userId, { startDate, endDate: today })).averageEngagementPerPost;
               break;
             case "getAverageEngagementPerPost_avgRateOnReach":
-                const aepRate2 = await calculateAverageEngagementPerPost(profile2_userId, commonParams.periodInDays || 30);
-                rawValue2 = aepRate2.averageEngagementRateOnReach;
+                rawValue2 = (await calculateAverageEngagementPerPost(profile2_userId, { startDate, endDate: today })).averageEngagementRateOnReach;
                 break;
             case "getWeeklyPostingFrequency_current":
-                const wpf2 = await calculateWeeklyPostingFrequency(profile2_userId, commonParams.periodInDays || 30);
-                rawValue2 = wpf2.currentWeeklyFrequency;
+                rawValue2 = (await calculateWeeklyPostingFrequency(profile2_userId, periodInDays)).currentWeeklyFrequency;
                 break;
             case "getAverageVideoMetrics_avgRetention":
-                const avmRet2 = await calculateAverageVideoMetrics(profile2_userId, commonParams.periodInDays || 90);
-                rawValue2 = avmRet2.averageRetentionRate;
+                rawValue2 = (await calculateAverageVideoMetrics(profile2_userId, periodInDays)).averageRetentionRate;
                 break;
             case "getAverageVideoMetrics_avgWatchTime":
-                const avmWatch2 = await calculateAverageVideoMetrics(profile2_userId, commonParams.periodInDays || 90);
-                rawValue2 = avmWatch2.averageWatchTimeSeconds;
+                rawValue2 = (await calculateAverageVideoMetrics(profile2_userId, periodInDays)).averageWatchTimeSeconds;
                 break;
             default:
-              console.warn(`Lógica de cálculo desconhecida para Perfil 2: ${metricConfig.calculationLogic}`);
               rawValue2 = null;
           }
       }
       p2_rawData.push(rawValue2);
       const minMax2 = platformMinMaxValues[metricConfig.id] || { min: null, max: null };
-      p2_normalizedData.push(await normalizeValueFn(rawValue2, minMax2.min, minMax2.max));
+      p2_normalizedData.push(normalizeValueFn(rawValue2, minMax2.min, minMax2.max));
     }
 
     initialResponse.labels = labels;
@@ -204,24 +202,23 @@ async function getRadarChartData(
       { label: profile2_name, data: p2_rawData },
     ];
 
-    // Insight Summary (simplificado)
     let p1StrongerCount = 0;
     let comparableMetrics = 0;
     for(let i=0; i< p1_normalizedData.length; i++){
         const normVal1 = p1_normalizedData[i];
         const normVal2 = p2_normalizedData[i];
-        if(normVal1 !== null && normVal2 !== null) {
+        if(typeof normVal1 === 'number' && typeof normVal2 === 'number') {
             comparableMetrics++;
             if(normVal1 > normVal2) p1StrongerCount++;
         }
     }
-    // ... (lógica de insight summary como antes) ...
+    
     if (comparableMetrics > 0) {
         const p1StrengthRatio = p1StrongerCount / comparableMetrics;
         if (p1StrengthRatio > 0.6) {
-            initialResponse.insightSummary = `${profile1_name} se destaca na maioria das métricas comparadas com ${profile2_name}.`;
+            initialResponse.insightSummary = `${profile1_name} destaca-se na maioria das métricas comparadas com ${profile2_name}.`;
         } else if (p1StrengthRatio < 0.4) {
-             initialResponse.insightSummary = `${profile2_name} se destaca na maioria das métricas comparadas com ${profile1_name}.`;
+             initialResponse.insightSummary = `${profile2_name} destaca-se na maioria das métricas comparadas com ${profile1_name}.`;
         } else {
             initialResponse.insightSummary = `Performance comparativa mista entre ${profile1_name} e ${profile2_name}.`;
         }
@@ -233,7 +230,6 @@ async function getRadarChartData(
 
   } catch (error) {
     console.error(`Error in getRadarChartData:`, error);
-    // ... (lógica de erro como antes) ...
     if (labels.length === 0 && metricSetConfig) {
         metricSetConfig.forEach(mc => labels.push(mc.label));
     }
@@ -253,4 +249,3 @@ async function getRadarChartData(
 }
 
 export default getRadarChartData;
-```

@@ -53,12 +53,18 @@ export async function GET(
   const { searchParams } = new URL(request.url);
   const comparisonPeriodParam = searchParams.get('comparisonPeriod');
 
-  const comparisonConfig = comparisonPeriodParam && ALLOWED_COMPARISON_PERIODS[comparisonPeriodParam]
-    ? ALLOWED_COMPARISON_PERIODS[comparisonPeriodParam]
-    : ALLOWED_COMPARISON_PERIODS["last_30d_vs_previous_30d"];
+  let comparisonConfig: { currentPeriodDays: number, periodNameCurrent: string, periodNamePrevious: string };
 
-  if (comparisonPeriodParam && !ALLOWED_COMPARISON_PERIODS[comparisonPeriodParam]) {
-     return NextResponse.json({ error: `Comparison period inválido. Permitidos: ${Object.keys(ALLOWED_COMPARISON_PERIODS).join(', ')}` }, { status: 400 });
+  if (comparisonPeriodParam) {
+    const potentialConfig = ALLOWED_COMPARISON_PERIODS[comparisonPeriodParam];
+    if (potentialConfig) {
+      comparisonConfig = potentialConfig;
+    } else {
+      return NextResponse.json({ error: `Comparison period inválido. Permitidos: ${Object.keys(ALLOWED_COMPARISON_PERIODS).join(', ')}` }, { status: 400 });
+    }
+  } else {
+    // We add a '!' to assert that this key definitely exists, satisfying the strict type check.
+    comparisonConfig = ALLOWED_COMPARISON_PERIODS["last_30d_vs_previous_30d"]!;
   }
 
   const { currentPeriodDays, periodNameCurrent, periodNamePrevious } = comparisonConfig;
@@ -149,4 +155,3 @@ export async function GET(
     return NextResponse.json({ error: "Erro ao processar sua solicitação de KPIs.", details: errorMessage }, { status: 500 });
   }
 }
-```

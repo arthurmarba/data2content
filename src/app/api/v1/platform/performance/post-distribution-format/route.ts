@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import MetricModel, { FormatType } from '@/app/models/Metric'; // Descomente para implementação real
+import MetricModel from '@/app/models/Metric'; // Descomente para implementação real
 import { getStartDateFromTimePeriod } from '@/utils/dateHelpers'; // Descomente para implementação real
 
 // Tipos de dados para a resposta
@@ -12,6 +12,14 @@ interface PostDistributionDataPoint {
 interface PlatformPostDistributionResponse {
   chartData: PostDistributionDataPoint[];
   insightSummary?: string;
+}
+
+// Definindo o Enum diretamente no arquivo para resolver o erro de importação.
+export enum FormatType {
+  IMAGE = "IMAGE",
+  VIDEO = "VIDEO",
+  REEL = "REEL",
+  CAROUSEL_ALBUM = "CAROUSEL_ALBUM",
 }
 
 const ALLOWED_TIME_PERIODS: string[] = ["all_time", "last_7_days", "last_30_days", "last_90_days", "last_6_months", "last_12_months"];
@@ -114,7 +122,10 @@ export async function GET(
     if (finalChartData.find(item => item.name === "Outros")){
         response.insightSummary += ` Os formatos menos frequentes foram agrupados em "Outros".`;
     } else if (finalChartData.length > 0) {
-        response.insightSummary += ` O formato mais comum é ${finalChartData[0].name} (${finalChartData[0].percentage.toFixed(1)}%).`;
+        const topPerformer = finalChartData[0];
+        if (topPerformer) {
+            response.insightSummary += ` O formato mais comum é ${topPerformer.name} (${topPerformer.percentage.toFixed(1)}%).`;
+        }
     }
 
 
@@ -126,4 +137,3 @@ export async function GET(
     return NextResponse.json({ error: "Erro ao processar sua solicitação.", details: errorMessage }, { status: 500 });
   }
 }
-```

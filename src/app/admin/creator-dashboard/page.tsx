@@ -19,8 +19,8 @@ import PlatformVideoPerformanceMetrics from './components/PlatformVideoPerforman
 import PlatformMonthlyEngagementStackedChart from './components/PlatformMonthlyEngagementStackedChart';
 import PlatformPerformanceHighlights from './components/PlatformPerformanceHighlights';
 
-// Componente do Módulo 3 (Scatter Plot)
-import CreatorsScatterPlot from './components/CreatorsScatterPlot';
+// Componente do Módulo 3 (Scatter Plot) - Temporariamente desativado
+// import CreatorsScatterPlot from './components/CreatorsScatterPlot';
 
 // View de Detalhe do Criador (Módulo 3 e partes do Módulo 2 para usuário)
 import UserDetailView from './components/views/UserDetailView';
@@ -36,9 +36,6 @@ const AdminCreatorDashboardPage: React.FC = () => {
   // Estado para o Filtro de Período Global
   const [globalTimePeriod, setGlobalTimePeriod] = useState<string>("last_30_days");
 
-  // Este estado seria para um seletor de período de comparação global para KPIs, se implementado
-  // const [globalComparisonPeriod, setGlobalComparisonPeriod] = useState<string>("month_vs_previous");
-  // Por enquanto, PlatformComparativeKpi usa seu próprio default ou um valor fixo passado abaixo.
   const selectedComparisonPeriodForPlatformKPIs = "month_vs_previous";
 
 
@@ -55,22 +52,14 @@ const AdminCreatorDashboardPage: React.FC = () => {
       <header className="mb-6 md:mb-8">
         <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Dashboard Administrativo de Criadores</h1>
 
-        {/* Filtro de Período Global */}
         <div className="mt-4 p-4 bg-white rounded-md shadow">
           <GlobalTimePeriodFilter
             selectedTimePeriod={globalTimePeriod}
             onTimePeriodChange={setGlobalTimePeriod}
-            // Desabilitar o filtro global se um usuário estiver selecionado,
-            // para que a UserDetailView use seus próprios filtros ou o initialTimePeriod dela.
-            // Ou, permitir que o filtro global ainda afete a UserDetailView se essa for a UX desejada.
-            // Por ora, vamos deixar habilitado; UserDetailView pode usar como `initialTimePeriod`.
-            // disabled={!!selectedUserId}
           />
-          {/* Aqui poderia ir outro seletor global para `comparisonPeriod` dos KPIs, se desejado. */}
         </div>
       </header>
 
-      {/* Seção de Seleção de Criador (Simulada) */}
       <section id="creator-selection-simulation" className="mb-8 p-4 bg-white rounded-lg shadow">
         <h2 className="text-lg font-semibold text-gray-700 mb-3">Simular Seleção de Criador Detalhado:</h2>
         <div className="flex flex-wrap gap-4">
@@ -97,15 +86,10 @@ const AdminCreatorDashboardPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Conteúdo Principal: Visão da Plataforma ou Detalhe do Criador */}
       {selectedUserId ? (
         <div id="user-detail-view-container">
           <UserDetailView
             userId={selectedUserId}
-            // Passar o globalTimePeriod para que os componentes dentro de UserDetailView
-            // possam usá-lo como valor inicial para seus próprios seletores de período.
-            // Eles ainda terão a capacidade de mudar o período localmente.
-            // Ex: initialTimePeriodForCharts={globalTimePeriod} (a prop precisa ser criada em UserDetailView)
           />
         </div>
       ) : (
@@ -136,7 +120,7 @@ const AdminCreatorDashboardPage: React.FC = () => {
               <PlatformReachEngagementTrendChart timePeriod={globalTimePeriod} />
             </div>
             <div className="grid grid-cols-1 gap-6">
-              <PlatformMovingAverageEngagementChart timePeriod={globalTimePeriod} /> {/* Assumindo que aceita timePeriod para definir dataWindow */}
+              <PlatformMovingAverageEngagementChart timePeriod={globalTimePeriod} />
             </div>
           </section>
 
@@ -173,16 +157,12 @@ const AdminCreatorDashboardPage: React.FC = () => {
             <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
               Destaques e Análise Comparativa de Criadores
             </h2>
-            <p className="text-sm text-gray-500 mb-4 italic">
-              (Em breve: Tabelas de Criadores com melhor performance)
-            </p>
-            <div className="bg-white p-4 md:p-6 rounded-lg shadow-md">
+            <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-4">
                  <h3 className="text-lg font-semibold text-gray-700 mb-3">Análise de Dispersão de Criadores</h3>
-                 <p className="text-xs text-gray-600 mb-4">
-                    Visualize a dispersão dos criadores com base em diferentes métricas.
-                    O componente de gráfico de dispersão normalmente permite configurar os eixos X e Y para explorar relações entre métricas (ex: Seguidores vs. Engajamento Médio).
-                </p>
-                <CreatorsScatterPlot /> {/* Este componente tem seus próprios seletores internos de métricas e pode buscar sua própria lista de usuários */}
+                 <div className="text-center p-8 bg-gray-50 border-dashed border-2 border-gray-300 rounded-lg">
+                    <p className="text-gray-500">O componente CreatorsScatterPlot está temporariamente desativado para corrigir um erro de importação.</p>
+                 </div>
+                 {/* <CreatorsScatterPlot /> */}
             </div>
           </section>
         </>
@@ -192,4 +172,3 @@ const AdminCreatorDashboardPage: React.FC = () => {
 };
 
 export default AdminCreatorDashboardPage;
-```

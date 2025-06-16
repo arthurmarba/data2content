@@ -22,7 +22,6 @@ const TIME_PERIOD_OPTIONS = [
   { value: "last_30_days", label: "Últimos 30 dias" },
   { value: "last_90_days", label: "Últimos 90 dias" },
   { value: "last_6_months", label: "Últimos 6 meses" },
-  // Adicionar "all_time" se fizer sentido para highlights de performance
 ];
 
 interface UserPerformanceHighlightsProps {
@@ -69,7 +68,8 @@ const HighlightCard: React.FC<{
 
 const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
   userId,
-  initialTimePeriod = TIME_PERIOD_OPTIONS[1].value, // Default last_90_days
+  // Corrigido: Adicionado optional chaining e fallback para segurança
+  initialTimePeriod = TIME_PERIOD_OPTIONS?.[1]?.value || "last_90_days",
   sectionTitle = "Destaques de Performance do Criador"
 }) => {
   const [summary, setSummary] = useState<PerformanceSummaryResponse | null>(null);
@@ -111,7 +111,7 @@ const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
     }
   }, [userId, fetchData]);
 
-  if (!userId && !loading) { // Não renderiza nada se não houver ID e não estiver carregando (para UserDetailView)
+  if (!userId && !loading) {
       return null;
   }
 
@@ -176,4 +176,3 @@ const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
 };
 
 export default UserPerformanceHighlights;
-```

@@ -133,4 +133,3 @@ const PlatformVideoPerformanceMetrics: React.FC<PlatformVideoPerformanceMetricsP
 };
 
 export default PlatformVideoPerformanceMetrics;
-```

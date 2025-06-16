@@ -2,43 +2,35 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { ValueType, NameType, Payload } from 'recharts/types/component/DefaultTooltipContent';
 
-interface ApiPostDistributionDataPoint { // Renomeado para evitar conflito se usado em outros lugares
+interface ApiPostDistributionDataPoint {
   name: string;
   value: number;
   percentage: number;
 }
 
-interface PlatformEngagementDistributionResponse { // Renomeado para refletir que é engajamento
+interface PlatformEngagementDistributionResponse {
   chartData: ApiPostDistributionDataPoint[];
   insightSummary?: string;
-  // Poderia incluir metricUsed e timePeriod na resposta da API para clareza
 }
 
-// TIME_PERIOD_OPTIONS não é mais necessário aqui
-// const TIME_PERIOD_OPTIONS = [ ... ];
-
-// ENGAGEMENT_METRIC_OPTIONS pode ser necessário se adicionarmos um seletor para ele
 const ENGAGEMENT_METRIC_OPTIONS = [
   { value: "stats.total_interactions", label: "Total de Interações" },
   { value: "stats.views", label: "Visualizações" },
-  // Adicionar mais conforme a API de distribuição de engajamento suportar
 ];
 
-
-// Cores para os slices da pizza
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#A230ED', '#D930ED', '#ED308C', '#F28E2B', '#E15759', '#76B7B2', '#59A14F', '#EDC948'];
 
-
 interface PlatformPostDistributionChartProps {
-  timePeriod: string; // Recebido do pai (page.tsx)
-  initialEngagementMetric?: string; // Opcional, se quisermos torná-lo selecionável
+  timePeriod: string;
+  initialEngagementMetric?: string;
   chartTitle?: string;
 }
 
 const PlatformPostDistributionChart: React.FC<PlatformPostDistributionChartProps> = ({
   timePeriod,
-  initialEngagementMetric = ENGAGEMENT_METRIC_OPTIONS[0].value,
+  initialEngagementMetric = ENGAGEMENT_METRIC_OPTIONS?.[0]?.value || "stats.total_interactions",
   chartTitle = "Distribuição de Engajamento por Formato (Plataforma)"
 }) => {
   const [data, setData] = useState<PlatformEngagementDistributionResponse['chartData']>([]);
@@ -46,15 +38,13 @@ const PlatformPostDistributionChart: React.FC<PlatformPostDistributionChartProps
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // timePeriod é prop
   const [engagementMetric, setEngagementMetric] = useState<string>(initialEngagementMetric);
-  const maxSlices = 7; // Pode ser uma prop se necessário mais flexibilidade
+  const maxSlices = 7;
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // Usa timePeriod da prop e engagementMetric do estado local
       const apiUrl = `/api/v1/platform/performance/engagement-distribution-format?timePeriod=${timePeriod}&engagementMetricField=${engagementMetric}&maxSlices=${maxSlices}`;
       const response = await fetch(apiUrl);
       if (!response.ok) {
@@ -71,7 +61,7 @@ const PlatformPostDistributionChart: React.FC<PlatformPostDistributionChartProps
     } finally {
       setLoading(false);
     }
-  }, [timePeriod, engagementMetric, maxSlices]); // Adicionado timePeriod e engagementMetric
+  }, [timePeriod, engagementMetric, maxSlices]);
 
   useEffect(() => {
     fetchData();
@@ -84,14 +74,18 @@ const PlatformPostDistributionChart: React.FC<PlatformPostDistributionChartProps
     const y = cy + radius * Math.sin(-midAngle * Math.PI / 180);
     return (
       <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={10} fontWeight="bold">
-        {/* {name} - Já está na legenda */} {(percent * 100).toFixed(0)}%
+        {(percent * 100).toFixed(0)}%
       </text>
     );
   };
 
-  const tooltipFormatter = (value: number, name: string, props: { payload: ApiPostDistributionDataPoint } ) => {
-      // O 'value' já é a soma do engajamento para o formato
-      return [`${value.toLocaleString()} (${props.payload.percentage.toFixed(1)}%)`, name];
+  const tooltipFormatter = (value: ValueType, name: NameType, props: { payload?: Payload<ValueType, NameType> & { payload: ApiPostDistributionDataPoint } } ) => {
+      const percentage = props.payload?.payload.percentage;
+      const formattedValue = typeof value === 'number' ? value.toLocaleString() : value;
+      if (percentage !== undefined) {
+          return [`${formattedValue} (${percentage.toFixed(1)}%)`, name];
+      }
+      return [formattedValue, name];
   };
 
   return (
@@ -99,7 +93,6 @@ const PlatformPostDistributionChart: React.FC<PlatformPostDistributionChartProps
       <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4">
         <h2 className="text-lg md:text-xl font-semibold text-gray-700 mb-2 sm:mb-0">{chartTitle}</h2>
         <div className="flex gap-4">
-            {/* Seletor de timePeriod removido */}
             <div>
                 <label htmlFor="engagementMetricPostDistroPlatform" className="sr-only">Métrica de Engajamento:</label>
                 <select
@@ -131,7 +124,7 @@ const PlatformPostDistributionChart: React.FC<PlatformPostDistributionChartProps
                 label={renderCustomizedLabel}
                 outerRadius={100}
                 fill="#8884d8"
-                dataKey="value" // 'value' é a soma do engajamento para o formato
+                dataKey="value"
                 nameKey="name"
               >
                 {data.map((entry, index) => (
@@ -161,4 +154,3 @@ const PlatformPostDistributionChart: React.FC<PlatformPostDistributionChartProps
 };
 
 export default PlatformPostDistributionChart;
-```

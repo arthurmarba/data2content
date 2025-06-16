@@ -35,9 +35,10 @@ const KPI_COMPARISON_PERIOD_OPTIONS = [
 const UserDetailView: React.FC<UserDetailViewProps> = ({
     userId,
     userName,
-    initialChartsTimePeriod // Usar este para os componentes filhos
+    initialChartsTimePeriod
 }) => {
-  const [kpiComparisonPeriod, setKpiComparisonPeriod] = useState<string>(KPI_COMPARISON_PERIOD_OPTIONS[0].value);
+  // Corrigido: Adicionado optional chaining e fallback para segurança
+  const [kpiComparisonPeriod, setKpiComparisonPeriod] = useState<string>(KPI_COMPARISON_PERIOD_OPTIONS?.[0]?.value || "month_vs_previous");
 
   if (!userId) {
     return (
@@ -49,25 +50,14 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
 
   const displayName = userName || `Criador ID: ${userId.substring(0,8)}...`;
 
-  // Se initialChartsTimePeriod não for fornecido, os componentes filhos usarão seus próprios defaults.
-  // Se fornecido, será usado como o valor inicial para os seletores de período dos componentes filhos.
-
   return (
     <div className="p-1 md:p-2 mt-8 border-t-2 border-indigo-500 pt-6">
       <header className="mb-6">
         <h2 className="text-2xl md:text-3xl font-bold text-indigo-700">
           Análise Detalhada: {displayName}
         </h2>
-        {/*
-          Aqui poderia ir um seletor de período GERAL para TODOS os componentes dentro de UserDetailView,
-          similar ao GlobalTimePeriodFilter da página principal. Se implementado, ele controlaria
-          o `initialChartsTimePeriod` passado para os filhos, ou diretamente uma prop `timePeriod` para eles.
-          Por enquanto, cada componente filho (gráficos de tendência, etc.) tem seu próprio seletor
-          e usará `initialChartsTimePeriod` para seu estado inicial.
-        */}
       </header>
 
-      {/* Seção de KPIs Comparativos do Criador */}
       <section id={`user-kpis-${userId}`} className="mb-10">
         <div className="flex justify-between items-center mb-4">
             <h3 className="text-xl font-semibold text-gray-700 pb-2">
@@ -113,11 +103,10 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
           Tendências da Conta
         </h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <UserFollowerTrendChart userId={userId} chartTitle="Evolução de Seguidores" initialTimePeriod={initialChartsTimePeriod} />
-          <UserReachEngagementTrendChart userId={userId} chartTitle="Alcance e Contas Engajadas" initialTimePeriod={initialChartsTimePeriod} />
+          <UserFollowerTrendChart userId={userId} chartTitle="Evolução de Seguidores" />
+          <UserReachEngagementTrendChart userId={userId} chartTitle="Alcance e Contas Engajadas" />
         </div>
         <div className="grid grid-cols-1 gap-6">
-          {/* UserMovingAverageEngagementChart precisa de initialDataWindow e initialAvgWindow */}
           <UserMovingAverageEngagementChart userId={userId} chartTitle="Média Móvel de Engajamento Diário" initialTimePeriod={initialChartsTimePeriod} />
         </div>
       </section>
@@ -127,15 +116,15 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
           Performance de Conteúdo
         </h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <UserAverageEngagementChart userId={userId} groupBy="format" chartTitle="Engajamento Médio por Formato" initialTimePeriod={initialChartsTimePeriod} />
-          <UserAverageEngagementChart userId={userId} groupBy="context" chartTitle="Engajamento Médio por Contexto" initialTimePeriod={initialChartsTimePeriod} />
+          <UserAverageEngagementChart userId={userId} groupBy="format" chartTitle="Engajamento Médio por Formato" />
+          <UserAverageEngagementChart userId={userId} groupBy="context" chartTitle="Engajamento Médio por Contexto" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <UserEngagementDistributionChart userId={userId} chartTitle="Distribuição de Engajamento por Formato" initialTimePeriod={initialChartsTimePeriod} />
-            <UserVideoPerformanceMetrics userId={userId} chartTitle="Performance de Vídeos" initialTimePeriod={initialChartsTimePeriod} />
+            <UserEngagementDistributionChart userId={userId} chartTitle="Distribuição de Engajamento por Formato" />
+            <UserVideoPerformanceMetrics userId={userId} chartTitle="Performance de Vídeos" />
         </div>
          <div className="grid grid-cols-1 gap-6">
-            <UserMonthlyEngagementStackedChart userId={userId} chartTitle="Engajamento Mensal Detalhado" initialTimePeriod={initialChartsTimePeriod} />
+            <UserMonthlyEngagementStackedChart userId={userId} chartTitle="Engajamento Mensal Detalhado" />
         </div>
       </section>
 
@@ -144,4 +133,3 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
 };
 
 export default UserDetailView;
-```

@@ -23,8 +23,14 @@ const TIME_PERIOD_OPTIONS = [
 interface UserVideoPerformanceMetricsProps {
   userId: string | null;
   initialTimePeriod?: string;
-  chartTitle?: string; // Opcional, se quisermos um título mais específico
+  chartTitle?: string;
 }
+
+const InfoIcon: React.FC<{className?: string}> = ({className}) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className || "h-4 w-4"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+);
 
 const MetricDisplay: React.FC<{label: string, value: string | number | null, unit?: string, tooltip?: string}> = ({ label, value, unit, tooltip }) => (
   <div className="p-3 bg-gray-50 rounded-lg text-center">
@@ -45,16 +51,11 @@ const MetricDisplay: React.FC<{label: string, value: string | number | null, uni
   </div>
 );
 
-const InfoIcon: React.FC<{className?: string}> = ({className}) => (
-    <svg xmlns="http://www.w3.org/2000/svg" className={className || "h-4 w-4"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-);
-
 
 const UserVideoPerformanceMetrics: React.FC<UserVideoPerformanceMetricsProps> = ({
   userId,
-  initialTimePeriod = TIME_PERIOD_OPTIONS[1].value, // Default last_90_days
+  // Corrigido: Adicionado optional chaining e fallback para segurança
+  initialTimePeriod = TIME_PERIOD_OPTIONS?.[1]?.value || 'last_90_days',
   chartTitle = "Performance de Vídeos do Criador"
 }) => {
   const [metrics, setMetrics] = useState<VideoMetricsData | null>(null);
@@ -67,7 +68,6 @@ const UserVideoPerformanceMetrics: React.FC<UserVideoPerformanceMetricsProps> = 
     if (!userId) {
       setMetrics(null);
       setLoading(false);
-      // setError("User ID não fornecido para métricas de vídeo."); // Opcional: mostrar erro ou apenas nada
       return;
     }
 
@@ -100,7 +100,7 @@ const UserVideoPerformanceMetrics: React.FC<UserVideoPerformanceMetricsProps> = 
     if (userId) {
       fetchData();
     } else {
-      setMetrics(null); // Limpa dados se userId se tornar null
+      setMetrics(null);
       setLoading(false);
     }
   }, [userId, fetchData]);
@@ -175,4 +175,3 @@ const UserVideoPerformanceMetrics: React.FC<UserVideoPerformanceMetricsProps> = 
 };
 
 export default UserVideoPerformanceMetrics;
-```

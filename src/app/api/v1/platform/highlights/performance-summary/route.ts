@@ -133,4 +133,3 @@ export async function GET(
   //   return NextResponse.json({ error: "Erro ao processar sua solicitação de destaques de performance da plataforma.", details: errorMessage }, { status: 500 });
   // }
 }
-```

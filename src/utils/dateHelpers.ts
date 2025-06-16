@@ -18,18 +18,19 @@ export function addMonths(date: Date, months: number): Date {
 }
 
 export function formatDateYYYYMMDD(date: Date): string {
-  return date.toISOString().split('T')[0];
+  // Added a non-null assertion '!' to assure TypeScript the result is a string.
+  return date.toISOString().split('T')[0]!;
 }
 
 export function formatDateYYYYMM(date: Date): string {
-  return date.toISOString().substring(0, 7); // YYYY-MM
+  // .substring(0, 7) is safe and doesn't need assertion.
+  return date.toISOString().substring(0, 7); // yyyy-MM
 }
 
 export function getStartDateFromTimePeriod(endDate: Date, timePeriod: string): Date {
   const startDate = new Date(endDate); // Create a new instance to avoid modifying the original endDate
   startDate.setHours(0, 0, 0, 0); // Set to start of the day
 
-  // Adjust endDate to be end of its day for consistent period length calculation
   const adjustedEndDate = new Date(endDate);
   adjustedEndDate.setHours(23,59,59,999);
 
@@ -47,37 +48,42 @@ export function getStartDateFromTimePeriod(endDate: Date, timePeriod: string): D
       startDate.setDate(adjustedEndDate.getDate() - 90 + 1);
       break;
     case "last_6_months":
-      startDate.setMonth(adjustedEndDate.getMonth() - 6 + 1); // +1 because we setDate(1) later
-      startDate.setDate(1); // Start from the first day of that month
+      startDate.setMonth(adjustedEndDate.getMonth() - 5); 
+      startDate.setDate(1);
       break;
     case "last_12_months":
-      startDate.setFullYear(adjustedEndDate.getFullYear() - 1 + 0); // +1 because we setDate(1) later
-      startDate.setMonth(adjustedEndDate.getMonth() +1); // ajuste de mes
+      startDate.setFullYear(adjustedEndDate.getFullYear() - 1);
+      startDate.setMonth(adjustedEndDate.getMonth() + 1);
       startDate.setDate(1);
       break;
     default:
       if (timePeriod.startsWith("last_") && timePeriod.endsWith("_days")) {
-        const days = parseInt(timePeriod.split("_")[1]);
-        if (!isNaN(days) && days > 0) {
-          startDate.setDate(adjustedEndDate.getDate() - days + 1);
-        } else {
-          startDate.setDate(adjustedEndDate.getDate() - 90 + 1); // Default (ex: 90 days)
+        const daysStr = timePeriod.split("_")[1];
+        if (daysStr) { // Safety check
+            const days = parseInt(daysStr);
+            if (!isNaN(days) && days > 0) {
+              startDate.setDate(adjustedEndDate.getDate() - days + 1);
+            } else {
+              startDate.setDate(adjustedEndDate.getDate() - 90 + 1); // Default
+            }
         }
       } else if (timePeriod.startsWith("last_") && timePeriod.endsWith("_months")) {
-        const months = parseInt(timePeriod.split("_")[1]);
-        if (!isNaN(months) && months > 0) {
-          startDate.setMonth(adjustedEndDate.getMonth() - months +1);
-          startDate.setDate(1);
-        } else {
-          startDate.setMonth(adjustedEndDate.getMonth() - 6 +1); // Default (ex: 6 months)
-          startDate.setDate(1);
+        const monthsStr = timePeriod.split("_")[1];
+        if (monthsStr) { // Safety check
+            const months = parseInt(monthsStr);
+            if (!isNaN(months) && months > 0) {
+              startDate.setMonth(adjustedEndDate.getMonth() - (months - 1));
+              startDate.setDate(1);
+            } else {
+              startDate.setMonth(adjustedEndDate.getMonth() - 5); // Default
+              startDate.setDate(1);
+            }
         }
       } else {
         startDate.setDate(adjustedEndDate.getDate() - 90 + 1); // Default overall
       }
       break;
   }
-  // Ensure startDate is set to the beginning of its day
   startDate.setHours(0,0,0,0);
   return startDate;
 }
@@ -85,13 +91,13 @@ export function getStartDateFromTimePeriod(endDate: Date, timePeriod: string): D
 
 // Specifically for monthly aggregation where we want the start of the first month.
 export function getStartDateFromTimePeriodMonthly(endDate: Date, timePeriod: string): Date {
-  const startDate = new Date(endDate); // Start with a copy of endDate
-  startDate.setDate(1); // Set to the first day of the endDate's month initially
+  const startDate = new Date(endDate);
+  startDate.setDate(1);
   startDate.setHours(0, 0, 0, 0);
 
   switch (timePeriod) {
     case "last_3_months":
-      startDate.setMonth(startDate.getMonth() - 2); // endDate month is one, so -2 for 3 months total
+      startDate.setMonth(startDate.getMonth() - 2);
       break;
     case "last_6_months":
       startDate.setMonth(startDate.getMonth() - 5);
@@ -101,14 +107,17 @@ export function getStartDateFromTimePeriodMonthly(endDate: Date, timePeriod: str
       break;
     default:
       if (timePeriod.startsWith("last_") && timePeriod.endsWith("_months")) {
-        const months = parseInt(timePeriod.split("_")[1]);
-        if (!isNaN(months) && months > 0) {
-          startDate.setMonth(startDate.getMonth() - (months - 1));
-        } else {
-          startDate.setMonth(startDate.getMonth() - 5); // Default (ex: 6 months)
+        const monthsStr = timePeriod.split("_")[1];
+        if (monthsStr) { // Safety check
+            const months = parseInt(monthsStr);
+            if (!isNaN(months) && months > 0) {
+              startDate.setMonth(startDate.getMonth() - (months - 1));
+            } else {
+              startDate.setMonth(startDate.getMonth() - 5); // Default
+            }
         }
       } else {
-        startDate.setMonth(startDate.getMonth() - 5); // Default overall (ex: 6 months)
+        startDate.setMonth(startDate.getMonth() - 5); // Default overall
       }
       break;
   }
@@ -117,13 +126,8 @@ export function getStartDateFromTimePeriodMonthly(endDate: Date, timePeriod: str
 
 export function getYearWeek(date: Date): string {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  // Set to nearest Thursday: current date + 4 - current day number
-  // Sunday = 0, Monday = 1, etc. Day 0 needs to be 7 for this logic.
   d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-  // Get first day of year
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  // Calculate full weeks to nearest Thursday
   const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
   return d.getUTCFullYear() + '-' + String(weekNo).padStart(2, '0');
 }
-```

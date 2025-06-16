@@ -1,8 +1,17 @@
-import MetricModel, { IMetric, FormatType } from "@/app/models/Metric"; // Ajuste o caminho
+import MetricModel, { IMetric } from "@/app/models/Metric"; // Ajuste o caminho
 import { Types } from "mongoose";
 import { getNestedValue } from "./dataAccessHelpers"; // Importar a função compartilhada
+import { getStartDateFromTimePeriod } from "./dateHelpers";
 
-interface FormatPerformanceData {
+// --- Tipos e Enums definidos localmente para resolver o erro ---
+export enum FormatType {
+  IMAGE = "IMAGE",
+  VIDEO = "VIDEO",
+  REEL = "REEL",
+  CAROUSEL_ALBUM = "CAROUSEL_ALBUM",
+}
+
+export interface FormatPerformanceData {
   format: FormatType | string | null;
   averagePerformance: number;
   postsCount: number;
@@ -16,9 +25,8 @@ async function getTopPerformingFormat(
 ): Promise<FormatPerformanceData | null> {
   const resolvedUserId = typeof userId === 'string' ? new Types.ObjectId(userId) : userId;
   const today = new Date();
-  const endDate = new Date(today);
-  const startDate = new Date(today);
-  startDate.setDate(today.getDate() - periodInDays);
+  const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+  const startDate = getStartDateFromTimePeriod(today, `last_${periodInDays}_days`);
 
   try {
     const posts: IMetric[] = await MetricModel.find({
@@ -35,15 +43,18 @@ async function getTopPerformingFormat(
     } = {};
 
     for (const post of posts) {
-      const format = post.format as string;
+      const format = (post.format as string) || "UNKNOWN";
       const performanceValue = getNestedValue(post, performanceMetricField);
 
-      if (format && performanceValue !== null) {
+      if (format && typeof performanceValue === 'number') {
         if (!performanceByFormat[format]) {
           performanceByFormat[format] = { sumPerformance: 0, count: 0 };
         }
-        performanceByFormat[format].sumPerformance += performanceValue;
-        performanceByFormat[format].count += 1;
+        const formatData = performanceByFormat[format];
+        if(formatData) {
+            formatData.sumPerformance += performanceValue;
+            formatData.count += 1;
+        }
       }
     }
 
@@ -57,7 +68,7 @@ async function getTopPerformingFormat(
 
     for (const formatKey in performanceByFormat) {
       const data = performanceByFormat[formatKey];
-      if (data.count > 0) {
+      if (data && data.count > 0) {
         const average = data.sumPerformance / data.count;
         if (average > maxAveragePerformance) {
           maxAveragePerformance = average;
@@ -85,4 +96,3 @@ async function getTopPerformingFormat(
 }
 
 export default getTopPerformingFormat;
-```

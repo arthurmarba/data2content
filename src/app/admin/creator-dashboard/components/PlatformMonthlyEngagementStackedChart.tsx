@@ -113,4 +113,3 @@ const PlatformMonthlyEngagementStackedChart: React.FC<PlatformMonthlyEngagementS
 };
 
 export default PlatformMonthlyEngagementStackedChart;
-```

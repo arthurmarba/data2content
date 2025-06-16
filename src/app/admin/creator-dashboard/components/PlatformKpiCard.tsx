@@ -81,4 +81,3 @@ const PlatformKpiCard: React.FC<PlatformKpiCardProps> = ({
 };
 
 export default PlatformKpiCard;
-```

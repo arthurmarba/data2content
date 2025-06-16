@@ -1,6 +1,19 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
-import calculateMovingAverageEngagement, { MovingAverageEngagementResult } from '@/utils/calculateMovingAverageEngagement'; // Ajuste o caminho
+import calculateMovingAverageEngagement from '@/utils/calculateMovingAverageEngagement'; // Ajuste o caminho
+
+// --- Interfaces definidas localmente para resolver o erro de importação ---
+interface MovingAverageDataPoint {
+  date: string;
+  movingAverageEngagement: number | null;
+}
+
+interface MovingAverageEngagementResult {
+  series: MovingAverageDataPoint[];
+  dataStartDate?: Date;
+  dataEndDate?: Date;
+  dataFullStartDate?: Date;
+}
 
 // Constantes para validação e defaults (podem ser compartilhadas)
 const DEFAULT_DATA_WINDOW_DAYS = 30;
@@ -75,4 +88,3 @@ export async function GET(
     return NextResponse.json({ error: "Erro ao processar sua solicitação.", details: errorMessage }, { status: 500 });
   }
 }
-```

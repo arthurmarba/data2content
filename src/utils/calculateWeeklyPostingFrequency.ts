@@ -108,4 +108,3 @@ async function calculateWeeklyPostingFrequency(
 }
 
 export default calculateWeeklyPostingFrequency;
-```

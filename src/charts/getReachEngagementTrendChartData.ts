@@ -1,4 +1,4 @@
-import AccountInsightModel, { IAccountInsight, IAccountInsightsPeriod, PeriodEnum } from "@/app/models/AccountInsight"; // Ajuste
+import AccountInsightModel, { IAccountInsight, IAccountInsightsPeriod } from "@/app/models/AccountInsight"; // Ajuste
 import { Types } from "mongoose";
 import {
     addDays,
@@ -6,6 +6,13 @@ import {
     getStartDateFromTimePeriod,
     getYearWeek
 } from "@/utils/dateHelpers"; // Importar helpers compartilhados
+
+// --- Tipos e Enums definidos localmente para resolver o erro ---
+export enum PeriodEnum {
+    DAY = "day",
+    WEEK = "week",
+    DAYS_28 = "days_28"
+}
 
 interface ReachEngagementChartDataPoint {
   date: string; // Formato 'YYYY-MM-DD' ou 'YYYY-WW' (para semana)
@@ -62,12 +69,15 @@ async function getReachEngagementTrendChartData(
                     periodTypeMatchesGranularity = true;
                 }
 
-                if (dateKey && periodTypeMatchesGranularity) {
+                if (dateKey && periodTypeMatchesGranularity && periodData) {
                     const reach = typeof periodData.reach === 'number' ? periodData.reach : 0;
                     const engaged = typeof periodData.accounts_engaged === 'number' ? periodData.accounts_engaged : 0;
-
-                    // Sobrescreve com o mais recente processado para esse dia/semana (devido ao sort da query inicial)
-                    dataMap.set(dateKey, { reach, engagedUsers: engaged });
+                    const existingData = dataMap.get(dateKey) || { reach: 0, engagedUsers: 0 };
+                    
+                    dataMap.set(dateKey, { 
+                        reach: existingData.reach + reach, 
+                        engagedUsers: existingData.engagedUsers + engaged 
+                    });
                 }
             }
         }
@@ -85,23 +95,16 @@ async function getReachEngagementTrendChartData(
         nextLoopDate = addDays(currentDateInLoop, 1);
       } else { // weekly
         dateKey = getYearWeek(currentDateInLoop);
-        // Avança para o início da próxima semana para evitar duplicatas na chave da semana
-        // e para garantir que cada semana seja representada uma vez.
-        const dayOfWeek = currentDateInLoop.getDay(); // 0 (Sun) - 6 (Sat)
-        const daysToAdd = (dayOfWeek === 0) ? 1 : (8 - dayOfWeek); // Ir para a próxima segunda-feira ou pular 7 dias
+        const dayOfWeek = currentDateInLoop.getDay();
+        const daysToAdd = (dayOfWeek === 0) ? 1 : (8 - dayOfWeek);
         nextLoopDate = addDays(currentDateInLoop, daysToAdd);
-        // Ou, mais simples, se o loop principal só precisa garantir a cobertura:
-        // nextLoopDate = addDays(currentDateInLoop, 7);
-        // A lógica de prevenção de duplicatas abaixo é importante se as iterações não caírem perfeitamente no início da semana.
       }
 
-      // Prevenir duplicatas para a mesma chave de semana se o loop não pular uma semana inteira
-      // Esta verificação só é necessária se nextLoopDate não for estritamente +7 dias para weekly
       if (granularity === 'weekly' &&
           initialResponse.chartData.length > 0 &&
-          initialResponse.chartData[initialResponse.chartData.length -1].date === dateKey) {
-          currentDateInLoop = nextLoopDate; // apenas avança
-          if (nextLoopDate <= currentDateInLoop && granularity === 'weekly') { // Safety break for weekly if date not advancing
+          initialResponse.chartData[initialResponse.chartData.length -1]?.date === dateKey) {
+          currentDateInLoop = nextLoopDate;
+          if (nextLoopDate <= currentDateInLoop && granularity === 'weekly') {
               console.warn("Weekly loop date not advancing, breaking.", currentDateInLoop, nextLoopDate);
               break;
           }
@@ -126,7 +129,7 @@ async function getReachEngagementTrendChartData(
       let periodText = timePeriod.replace("last_", "últimos ").replace("_days", " dias");
        if (timePeriod === "all_time") periodText = "todo o período";
 
-      initialResponse.insightSummary = `Média de alcance: ${avgReach.toFixed(0).toLocaleString()}, Média de usuários engajados: ${avgEngaged.toFixed(0).toLocaleString()} por ${granularity === 'daily' ? 'dia' : 'semana'} nos ${periodText}.`;
+      initialResponse.insightSummary = `Média de alcance: ${avgReach.toLocaleString(undefined, {maximumFractionDigits: 0})}, Média de usuários engajados: ${avgEngaged.toLocaleString(undefined, {maximumFractionDigits: 0})} por ${granularity === 'daily' ? 'dia' : 'semana'} ${periodText}.`;
       if (validPoints.length < initialResponse.chartData.length) {
         initialResponse.insightSummary += " (Alguns períodos sem dados)."
       }
@@ -151,7 +154,7 @@ async function getReachEngagementTrendChartData(
               const daysToAdd = (dayOfWeek === 0) ? 1 : (8 - dayOfWeek);
               nextLoopDate = addDays(currentDateInLoop, daysToAdd);
           }
-           if (initialResponse.chartData.length === 0 || initialResponse.chartData[initialResponse.chartData.length -1].date !== dateKey) {
+           if (initialResponse.chartData.length === 0 || initialResponse.chartData[initialResponse.chartData.length -1]?.date !== dateKey) {
              initialResponse.chartData.push({ date: dateKey, reach: null, engagedUsers: null });
           }
           currentDateInLoop = nextLoopDate;
@@ -163,4 +166,3 @@ async function getReachEngagementTrendChartData(
 }
 
 export default getReachEngagementTrendChartData;
-```

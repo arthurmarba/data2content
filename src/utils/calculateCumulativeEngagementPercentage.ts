@@ -57,7 +57,7 @@ async function calculateCumulativeEngagementPercentage(
       })
       .sort({ dayNumber: -1 }) // O maior dayNumber é o mais recente
       .lean();
-      if (snapshotAtFinalDay) {
+      if (snapshotAtFinalDay && typeof snapshotAtFinalDay.dayNumber === 'number') {
         initialResult.finalDayNumberUsed = snapshotAtFinalDay.dayNumber;
       }
     }
@@ -65,7 +65,7 @@ async function calculateCumulativeEngagementPercentage(
     if (snapshotAtFinalDay && typeof snapshotAtFinalDay[cumulativeMetricName] === 'number') {
       initialResult.cumulativeValueAtFinalDay = snapshotAtFinalDay[cumulativeMetricName] as number;
       // Ensure finalDayNumberUsed is set if 'latest' was successful
-      if (finalDayNumberInput === "latest" && snapshotAtFinalDay.dayNumber) {
+      if (finalDayNumberInput === "latest" && typeof snapshotAtFinalDay.dayNumber === 'number') {
          initialResult.finalDayNumberUsed = snapshotAtFinalDay.dayNumber;
       }
     } else if (snapshotAtFinalDay && typeof snapshotAtFinalDay[cumulativeMetricName] !== 'number') {
@@ -110,4 +110,3 @@ async function calculateCumulativeEngagementPercentage(
 }
 
 export default calculateCumulativeEngagementPercentage;
-```

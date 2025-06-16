@@ -36,13 +36,10 @@ export async function GET(
 
   try {
     const today = new Date();
-    // endDate for query should be end of today to include all of today's posts if relevant
     const endDateQuery = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
-    // getStartDateFromTimePeriodMonthly ensures startDate is the first day of the first month in the period.
     const startDateQuery = getStartDateFromTimePeriodMonthly(today, timePeriod);
 
     const queryConditions: any = {
-        // TODO: Adicionar filtro para apenas usuários ativos da plataforma, se necessário
         postDate: { $gte: startDateQuery, $lte: endDateQuery }
     };
 
@@ -50,41 +47,34 @@ export async function GET(
       { $match: queryConditions },
       {
         $project: {
-          // Extrai o ano e mês do postDate para agrupar
           month: { $dateToString: { format: "%Y-%m", date: "$postDate" } },
           likes: { $ifNull: ["$stats.likes", 0] },
           comments: { $ifNull: ["$stats.comments", 0] },
           shares: { $ifNull: ["$stats.shares", 0] },
-          // saved: { $ifNull: ["$stats.saved", 0] }, // Descomente se 'saved' for usado
         }
       },
       {
         $group: {
-          _id: "$month", // Agrupa por YYYY-MM
+          _id: "$month",
           likes: { $sum: "$likes" },
           comments: { $sum: "$comments" },
           shares: { $sum: "$shares" },
-          // saved: { $sum: "$saved" },
-          // Calcula o total aqui para cada grupo
-          total: { $sum: { $add: ["$likes", "$comments", "$shares" /*, "$saved"*/] } }
+          total: { $sum: { $add: ["$likes", "$comments", "$shares"] } }
         }
       },
-      { $sort: { _id: 1 } }, // Ordena por mês (YYYY-MM)
-      // Mapeia os campos para a estrutura de MonthlyEngagementDataPoint
+      { $sort: { _id: 1 } },
       {
         $project: {
           month: "$_id",
           likes: 1,
           comments: 1,
           shares: 1,
-          // saved:1,
           total: 1,
-          _id: 0 // Remove o _id do grupo
+          _id: 0
         }
       }
     ]);
 
-    // Preencher meses ausentes com zeros se necessário para o gráfico
     const finalChartData: MonthlyEngagementDataPoint[] = [];
     let currentLoopMonth = new Date(startDateQuery.getFullYear(), startDateQuery.getMonth(), 1);
     const endLoopMonth = new Date(endDateQuery.getFullYear(), endDateQuery.getMonth(), 1);
@@ -92,8 +82,11 @@ export async function GET(
     let resultIndex = 0;
     while(currentLoopMonth <= endLoopMonth) {
         const monthKey = formatDateYYYYMM(currentLoopMonth);
-        if (aggregationResult[resultIndex] && aggregationResult[resultIndex].month === monthKey) {
-            finalChartData.push(aggregationResult[resultIndex]);
+        // Corrigido: Atribui a uma variável primeiro para ajudar na análise de tipo do TypeScript.
+        const currentResult = aggregationResult[resultIndex];
+        
+        if (currentResult && currentResult.month === monthKey) {
+            finalChartData.push(currentResult);
             resultIndex++;
         } else {
             finalChartData.push({
@@ -101,7 +94,6 @@ export async function GET(
                 likes: 0,
                 comments: 0,
                 shares: 0,
-                // saved: 0,
                 total: 0
             });
         }
@@ -112,21 +104,21 @@ export async function GET(
     let platformInsightSummary = `Engajamento mensal agregado da plataforma (${timePeriod.replace("last_","").replace("_"," ")}).`;
     if (finalChartData.length > 0) {
       const lastMonthData = finalChartData[finalChartData.length - 1];
-      platformInsightSummary += ` O mês de ${lastMonthData.month} teve ${lastMonthData.total.toLocaleString()} interações totais.`;
-      // Encontrar o tipo de interação predominante no último mês
-      let topInteractionType = "curtidas";
-      let topInteractionValue = lastMonthData.likes;
-      if (lastMonthData.comments > topInteractionValue) {
-          topInteractionType = "comentários";
-          topInteractionValue = lastMonthData.comments;
+      if(lastMonthData) {
+        platformInsightSummary += ` O mês de ${lastMonthData.month} teve ${lastMonthData.total.toLocaleString()} interações totais.`;
+        let topInteractionType = "curtidas";
+        let topInteractionValue = lastMonthData.likes;
+        if (lastMonthData.comments > topInteractionValue) {
+            topInteractionType = "comentários";
+            topInteractionValue = lastMonthData.comments;
+        }
+        if (lastMonthData.shares > topInteractionValue) {
+            topInteractionType = "compartilhamentos";
+        }
+        if (lastMonthData.total > 0 && topInteractionValue > 0) {
+          platformInsightSummary += ` ${topInteractionType.charAt(0).toUpperCase() + topInteractionType.slice(1)} foram a principal forma de interação.`;
+        }
       }
-      if (lastMonthData.shares > topInteractionValue) {
-          topInteractionType = "compartilhamentos";
-      }
-      if (lastMonthData.total > 0 && topInteractionValue > 0) { // Apenas se houver alguma interação
-        platformInsightSummary += ` ${topInteractionType.charAt(0).toUpperCase() + topInteractionType.slice(1)} foram a principal forma de interação.`;
-      }
-
     } else {
       platformInsightSummary = "Nenhum dado de engajamento mensal encontrado para a plataforma.";
     }
@@ -144,4 +136,3 @@ export async function GET(
     return NextResponse.json({ error: "Erro ao processar sua solicitação.", details: errorMessage }, { status: 500 });
   }
 }
-```

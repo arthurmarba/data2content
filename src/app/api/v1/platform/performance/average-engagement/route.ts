@@ -118,8 +118,9 @@ export async function GET(
 
     // 5. Gerar insightSummary
     let platformInsightSummary = `Engajamento médio da plataforma por ${groupBy} (${engagementMetricField.replace("stats.","")}, ${timePeriod.replace("_"," ")}).`;
-    if (platformChartData.length > 0) {
-      platformInsightSummary += ` O destaque é ${platformChartData[0].name} com média de ${platformChartData[0].value.toLocaleString(undefined, {maximumFractionDigits:0})}.`;
+    const topPerformer = platformChartData[0];
+    if (topPerformer) {
+      platformInsightSummary += ` O destaque é ${topPerformer.name} com média de ${topPerformer.value.toLocaleString(undefined, {maximumFractionDigits:0})}.`;
     } else {
       platformInsightSummary = `Nenhum dado encontrado para ${groupBy} na plataforma.`;
     }
@@ -139,4 +140,3 @@ export async function GET(
     return NextResponse.json({ error: "Erro ao processar sua solicitação.", details: errorMessage }, { status: 500 });
   }
 }
-```

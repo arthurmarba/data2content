@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import UserModel from '@/app/models/User'; // Importar UserModel
-import AccountInsightModel from '@/app/models/AccountInsight'; // Para buscar seguidores diretamente
+import { Types } from 'mongoose';
+import UserModel from '@/app/models/User';
+import AccountInsightModel from '@/app/models/AccountInsight';
 import calculateAverageEngagementPerPost from '@/utils/calculateAverageEngagementPerPost';
 import { addDays, getStartDateFromTimePeriod as getStartDateFromTimePeriodGeneric } from '@/utils/dateHelpers';
 
@@ -9,13 +10,11 @@ interface KPIComparisonData {
   currentValue: number | null;
   previousValue: number | null;
   percentageChange: number | null;
-  // chartData para mini-gráficos (omitido por agora)
 }
 
 interface PlatformPeriodicComparisonResponse {
   platformFollowerGrowth: KPIComparisonData;
   platformTotalEngagement: KPIComparisonData;
-  // platformPostingFrequency?: KPIComparisonData; // Omitido por simplicidade nesta etapa
   insightSummary?: {
     platformFollowerGrowth?: string;
     platformTotalEngagement?: string;
@@ -36,9 +35,7 @@ function calculatePercentageChange(current: number | null, previous: number | nu
   return (current - previous) / previous;
 }
 
-// Função auxiliar para buscar o total de seguidores da plataforma em uma data específica
 async function getPlatformTotalFollowersAtDate(date: Date, userIds: Types.ObjectId[]): Promise<number> {
-    // Para cada usuário, encontrar o snapshot mais recente ATÉ essa data
     const userFollowerPromises = userIds.map(async (userId) => {
         const snapshot = await AccountInsightModel.findOne({
             user: userId,
@@ -57,31 +54,39 @@ export async function GET(
   const { searchParams } = new URL(request.url);
   const comparisonPeriodParam = searchParams.get('comparisonPeriod');
 
-  const comparisonConfig = comparisonPeriodParam && ALLOWED_COMPARISON_PERIODS[comparisonPeriodParam]
-    ? ALLOWED_COMPARISON_PERIODS[comparisonPeriodParam]
-    : ALLOWED_COMPARISON_PERIODS["last_30d_vs_previous_30d"];
+  // Define the variable that will hold the configuration.
+  let comparisonConfig: { currentPeriodDays: number, periodNameCurrent: string, periodNamePrevious: string };
 
-  if (comparisonPeriodParam && !ALLOWED_COMPARISON_PERIODS[comparisonPeriodParam]) {
-     return NextResponse.json({ error: `Comparison period inválido. Permitidos: ${Object.keys(ALLOWED_COMPARISON_PERIODS).join(', ')}` }, { status: 400 });
+  if (comparisonPeriodParam) {
+    const potentialConfig = ALLOWED_COMPARISON_PERIODS[comparisonPeriodParam];
+    if (potentialConfig) {
+      // If a valid comparison period is provided via URL parameter, use it.
+      comparisonConfig = potentialConfig;
+    } else {
+      // If the parameter is provided but is not a valid key, return an error response.
+      return NextResponse.json({ error: `Comparison period inválido. Permitidos: ${Object.keys(ALLOWED_COMPARISON_PERIODS).join(', ')}` }, { status: 400 });
+    }
+  } else {
+    // If no parameter is provided, use the default configuration.
+    // We add a '!' to assert that this key definitely exists, satisfying the strict type check.
+    comparisonConfig = ALLOWED_COMPARISON_PERIODS["last_30d_vs_previous_30d"]!;
   }
-
+  
+  // At this point, TypeScript's control-flow analysis knows that 'comparisonConfig' is definitely assigned.
   const { currentPeriodDays } = comparisonConfig;
   const today = new Date();
 
-  // Definir datas para o período ATUAL
   const currentEndDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
   const currentStartDate = getStartDateFromTimePeriodGeneric(today, `last_${currentPeriodDays}_days`);
 
-  // Definir datas para o período ANTERIOR
   const previousEndDate = addDays(new Date(currentStartDate), -1);
   previousEndDate.setHours(23,59,59,999);
   const previousStartDate = addDays(new Date(previousEndDate), -(currentPeriodDays -1));
   previousStartDate.setHours(0,0,0,0);
 
   try {
-    // 1. Buscar Usuários da Plataforma
     const platformUsers = await UserModel.find({
-        // TODO: Adicionar critérios para usuários ativos
+        // Critérios para usuários ativos podem ser adicionados aqui
     }).select('_id').limit(10).lean(); // Limitar para teste
 
     if (!platformUsers || platformUsers.length === 0) {
@@ -93,18 +98,9 @@ export async function GET(
     }
     const userIds = platformUsers.map(user => user._id as Types.ObjectId);
 
-
-    // --- Platform Follower Growth ---
-    // T0 = Fim do período atual (currentEndDate)
-    // T1 = Fim do período anterior (previousEndDate) / Início do período atual
-    // T2 = Início do período anterior (previousStartDate)
-
     const followersT0 = await getPlatformTotalFollowersAtDate(currentEndDate, userIds);
     const followersT1 = await getPlatformTotalFollowersAtDate(previousEndDate, userIds);
 
-    // Para T2, precisamos do valor no *início* do previousStartDate.
-    // A data passada para getPlatformTotalFollowersAtDate é $lte.
-    // Para pegar o valor no "início" do previousStartDate, precisamos do valor do dia anterior a previousStartDate.
     const dayBeforePreviousStartDate = addDays(new Date(previousStartDate), -1);
     dayBeforePreviousStartDate.setHours(23,59,59,999);
     const followersT2 = await getPlatformTotalFollowersAtDate(dayBeforePreviousStartDate, userIds);
@@ -118,7 +114,6 @@ export async function GET(
       percentageChange: calculatePercentageChange(currentFollowerGainPlatform, previousFollowerGainPlatform),
     };
 
-    // --- Platform Total Engagement ---
     let currentPlatformTotalEngagement = 0;
     let previousPlatformTotalEngagement = 0;
 
@@ -163,4 +158,3 @@ export async function GET(
     return NextResponse.json({ error: "Erro ao processar sua solicitação de KPIs da plataforma.", details: errorMessage }, { status: 500 });
   }
 }
-```
