@@ -1,42 +1,39 @@
 "use client";
 
-import React, { useState } from 'react'; // Importado useState
+import React, { useState } from 'react';
 
-// Importando os componentes do Módulo 1 (Visão Geral da Plataforma)
+// Plataforma - Módulo 1 (Visão Geral)
 import PlatformFollowerTrendChart from './components/PlatformFollowerTrendChart';
 import PlatformReachEngagementTrendChart from './components/PlatformReachEngagementTrendChart';
 import PlatformMovingAverageEngagementChart from './components/PlatformMovingAverageEngagementChart';
 import TotalActiveCreatorsKpi from './components/kpis/TotalActiveCreatorsKpi';
 import PlatformComparativeKpi from './components/kpis/PlatformComparativeKpi';
 
-// Importando os componentes do Módulo 2 (Análise de Conteúdo da Plataforma)
+// Plataforma - Módulo 2 (Análise de Conteúdo)
 import PlatformAverageEngagementChart from './components/PlatformAverageEngagementChart';
 import PlatformPostDistributionChart from './components/PlatformPostDistributionChart';
+import PlatformVideoPerformanceMetrics from './components/PlatformVideoPerformanceMetrics';
 
-// Importando a view de Detalhe do Criador (Módulo 3)
+
+// View de Detalhe do Criador (Módulo 3 e partes do Módulo 2 para usuário)
 import UserDetailView from './components/views/UserDetailView';
 
 
 const AdminCreatorDashboardPage: React.FC = () => {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  // const [selectedUserName, setSelectedUserName] = useState<string | null>(null); // Opcional
+  // const [selectedUserName, setSelectedUserName] = useState<string | null>(null);
 
-  // Mock User IDs para simular seleção
-  const MOCK_USER_ID_1 = "60c72b9f9b1d8e001f8e4f5b"; // Exemplo de ObjectId válido
-  const MOCK_USER_ID_2 = "60c72b9f9b1d8e001f8e4f5c"; // Exemplo de ObjectId válido
+  const MOCK_USER_ID_1 = "60c72b9f9b1d8e001f8e4f5b";
+  const MOCK_USER_ID_2 = "60c72b9f9b1d8e001f8e4f5c";
   // const MOCK_USER_NAME_1 = "Criador Alpha";
   // const MOCK_USER_NAME_2 = "Criador Beta";
 
-
-  // const [globalTimePeriod, setGlobalTimePeriod] = useState<string>("last_30_days");
-  // const [globalComparisonPeriod, setGlobalComparisonPeriod] = useState<string>("month_vs_previous");
   const selectedComparisonPeriodForKPIs = "month_vs_previous";
 
 
-  const handleUserSelect = (userId: string, userName?: string) => {
+  const handleUserSelect = (userId: string /*, userName?: string */) => {
     setSelectedUserId(userId);
     // if (userName) setSelectedUserName(userName);
-    // Em uma app real, rolaria para a seção UserDetailView ou focaria nela.
     const userDetailSection = document.getElementById("user-detail-view-container");
     if (userDetailSection) {
         userDetailSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -50,35 +47,34 @@ const AdminCreatorDashboardPage: React.FC = () => {
         {/* Placeholder para Filtros Globais */}
       </header>
 
-      {/* Seção de Seleção de Criador (Simulada) */}
       <section id="creator-selection-simulation" className="mb-8 p-4 bg-white rounded-lg shadow">
         <h2 className="text-lg font-semibold text-gray-700 mb-3">Simular Seleção de Criador Detalhado:</h2>
-        <div className="flex gap-4">
+        <div className="flex flex-wrap gap-4">
           <button
-            onClick={() => handleUserSelect(MOCK_USER_ID_1 /*, MOCK_USER_NAME_1 */)}
+            onClick={() => handleUserSelect(MOCK_USER_ID_1)}
             className={`p-2 rounded-md text-sm ${selectedUserId === MOCK_USER_ID_1 ? 'bg-indigo-600 text-white' : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'}`}
           >
             Ver Detalhes Criador Alpha (ID: ...4f5b)
           </button>
           <button
-            onClick={() => handleUserSelect(MOCK_USER_ID_2 /*, MOCK_USER_NAME_2 */)}
+            onClick={() => handleUserSelect(MOCK_USER_ID_2)}
             className={`p-2 rounded-md text-sm ${selectedUserId === MOCK_USER_ID_2 ? 'bg-indigo-600 text-white' : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'}`}
           >
             Ver Detalhes Criador Beta (ID: ...4f5c)
           </button>
           {selectedUserId && (
             <button
-              onClick={() => {setSelectedUserId(null); /* setSelectedUserName(null); */}}
+              onClick={() => setSelectedUserId(null)}
               className="p-2 rounded-md text-sm bg-gray-200 text-gray-700 hover:bg-gray-300"
             >
-              Limpar Seleção
+              Limpar Seleção (Ver Visão Geral da Plataforma)
             </button>
           )}
         </div>
       </section>
 
 
-      {!selectedUserId && ( // Mostrar seções da plataforma apenas se nenhum usuário estiver selecionado para detalhe
+      {!selectedUserId && (
         <>
           <section id="platform-overview" className="mb-10">
             <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
@@ -124,8 +120,9 @@ const AdminCreatorDashboardPage: React.FC = () => {
                 chartTitle="Engajamento Médio por Contexto (Plataforma)"
               />
             </div>
-            <div className="grid grid-cols-1 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> {/* Ajustado para 2 colunas */}
               <PlatformPostDistributionChart />
+              <PlatformVideoPerformanceMetrics /> {/* Adicionado aqui */}
             </div>
           </section>
 
@@ -140,12 +137,11 @@ const AdminCreatorDashboardPage: React.FC = () => {
         </>
       )}
 
-      {/* Container para a Visão Detalhada do Criador */}
       <div id="user-detail-view-container">
         {selectedUserId && (
           <UserDetailView
             userId={selectedUserId}
-            // userName={selectedUserName} // Passar nome se o estado for gerenciado
+            // userName={selectedUserName}
           />
         )}
       </div>
