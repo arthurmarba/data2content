@@ -44,13 +44,10 @@ export async function GET(
   }
 
   try {
-    // 1. Buscar Usuários da Plataforma (simplificado - pegar todos ou um limite para teste)
+    // 1. Buscar apenas os usuários da plataforma que estejam ativos
     const platformUsers = await UserModel.find({
-        // TODO: Adicionar critérios para usuários ativos, ex: { status: "active" }
-        // Para este exemplo, vamos buscar um número limitado para não sobrecarregar.
-    }).select('_id').limit(10).lean(); // Pegar apenas IDs, limitar para teste (ex: 10 usuários)
-        // TODO: PERFORMANCE - The limit(10) is for development. For production, remove limit and implement robust criteria for active users.
-        // TODO: PERFORMANCE - Consider batching data fetching for user trends to avoid N+1 queries if getFollowerTrendChartData makes DB calls per user.
+        planStatus: 'active',
+    }).select('_id').lean(); // Pegar apenas IDs dos usuários ativos
 
     if (!platformUsers || platformUsers.length === 0) {
       return NextResponse.json({
@@ -62,11 +59,17 @@ export async function GET(
     const userIds = platformUsers.map(user => user._id);
 
     // 2. Buscar Dados Individuais em Paralelo
-    const userTrendPromises = userIds.map(userId =>
-      getFollowerTrendChartData(userId.toString(), timePeriod, granularity)
-    );
+    const BATCH_SIZE = 50;
+    const userTrendResults: PromiseSettledResult<FollowerTrendChartResponse>[] = [];
 
-    const userTrendResults = await Promise.allSettled(userTrendPromises);
+    for (let i = 0; i < userIds.length; i += BATCH_SIZE) {
+      const batchIds = userIds.slice(i, i + BATCH_SIZE);
+      const batchPromises = batchIds.map(userId =>
+        getFollowerTrendChartData(userId.toString(), timePeriod, granularity)
+      );
+      const batchResults = await Promise.allSettled(batchPromises);
+      userTrendResults.push(...batchResults);
+    }
 
     // 3. Agregar os Resultados
     const aggregatedFollowersByDate = new Map<string, number>();
