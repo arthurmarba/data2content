@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import MetricModel from '@/app/models/Metric';
+import { connectToDatabase } from '@/app/lib/mongoose'; // Added
+import { logger } from '@/app/lib/logger'; // Added
 import {
     getStartDateFromTimePeriod, // Usar a função genérica para definir o range geral
     formatDateYYYYMM,
@@ -60,6 +62,8 @@ export async function GET(
   }
 
   try {
+    await connectToDatabase(); // Moved to top
+
     const today = new Date();
     const endDateQuery = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
     // Usar getStartDateFromTimePeriod para definir o range geral de busca de posts
@@ -109,30 +113,35 @@ export async function GET(
 
     // Preencher meses ausentes com zeros para uma linha do tempo contínua no gráfico
     const finalChartData: MonthlyEngagementDataPoint[] = [];
-    // O primeiro mês do loop deve ser o primeiro dia do mês de startDateQuery
-    const firstMonthOfPeriod = new Date(startDateQuery.getFullYear(), startDateQuery.getMonth(), 1);
-    // O último mês do loop deve ser o primeiro dia do mês de endDateQuery
-    const lastMonthOfPeriod = new Date(endDateQuery.getFullYear(), endDateQuery.getMonth(), 1);
-
-    let currentLoopMonth = new Date(firstMonthOfPeriod);
     let resultIndex = 0;
 
-    // Se 'all_time' e não houver resultados, não há como definir um range de meses para preencher.
-    // Se houver resultados, o primeiro e último mês dos resultados definem o range.
+    // Determine loop start and end dates
+    let loopStartDate = new Date(startDateQuery.getFullYear(), startDateQuery.getMonth(), 1);
+    let loopEndDate = new Date(endDateQuery.getFullYear(), endDateQuery.getMonth(), 1);
+
     if (timePeriod === "all_time" && aggregationResult.length > 0) {
-        currentLoopMonth = new Date(aggregationResult[0].month + "-01T00:00:00Z"); // Início do primeiro mês com dados
-        const lastMonthWithData = aggregationResult[aggregationResult.length -1].month;
-        // Ajustar endLoopMonth para ser o início do último mês com dados para iteração correta
-        // A data precisa ser UTC para evitar problemas de fuso ao criar a partir de YYYY-MM string
-        const [year, month] = lastMonthWithData.split('-').map(Number);
-        endLoopMonth.setTime(Date.UTC(year, month - 1, 1)); // Mês é 0-indexado
+        const firstMonthStr = aggregationResult[0].month;
+        const [firstYear, firstMth] = firstMonthStr.split('-').map(Number);
+        loopStartDate = new Date(Date.UTC(firstYear, firstMth - 1, 1));
+
+        const lastMonthStr = aggregationResult[aggregationResult.length - 1].month;
+        const [lastYear, lastMth] = lastMonthStr.split('-').map(Number);
+        loopEndDate = new Date(Date.UTC(lastYear, lastMth - 1, 1));
+    } else if (timePeriod === "all_time" && aggregationResult.length === 0) {
+        // Handle case for all_time with no data: loop won't run, finalChartData remains empty.
+        // This is acceptable as there's no data to display or fill.
+        // Alternatively, one might decide to return an empty chartData immediately.
     }
 
+    let currentLoopMonth = new Date(loopStartDate);
 
-    while(currentLoopMonth <= lastMonthOfPeriod) {
+    // Loop to fill in missing months
+    while(currentLoopMonth <= loopEndDate) {
         const monthKey = formatDateYYYYMM(currentLoopMonth);
-        if (aggregationResult[resultIndex] && aggregationResult[resultIndex].month === monthKey) {
-            finalChartData.push(aggregationResult[resultIndex]);
+        const monthData = aggregationResult[resultIndex];
+
+        if (monthData && monthData.month === monthKey) {
+            finalChartData.push(monthData);
             resultIndex++;
         } else {
             finalChartData.push({
@@ -181,7 +190,7 @@ export async function GET(
     return NextResponse.json(response, { status: 200 });
 
   } catch (error) {
-    console.error("[API PLATFORM/CHARTS/MONTHLY-ENGAGEMENT-STACKED] Error:", error);
+    logger.error("[API PLATFORM/CHARTS/MONTHLY-ENGAGEMENT-STACKED] Error:", error); // Replaced console.error
     const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
     return NextResponse.json({ error: "Erro ao processar sua solicitação.", details: errorMessage }, { status: 500 });
   }

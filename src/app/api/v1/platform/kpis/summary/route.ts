@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import UserModel from '@/app/models/User'; // Descomentado para contagem real
+import { connectToDatabase } from '@/app/lib/mongoose'; // Added
+import { logger } from '@/app/lib/logger'; // Added
 
 // Interface para a resposta do endpoint
 interface PlatformKpisSummaryResponse {
@@ -14,6 +16,8 @@ export async function GET(
   request: Request
 ) {
   try {
+    await connectToDatabase(); // Added
+
     // Definição de "criador ativo" - pode ser ajustada conforme as regras de negócio
     // Exemplo: status não é 'inactive' ou 'suspended', e teve atividade recente (não implementado aqui)
     const activeCreatorCriteria = {
@@ -34,7 +38,7 @@ export async function GET(
     return NextResponse.json(response, { status: 200 });
 
   } catch (error) {
-    console.error("[API PLATFORM/KPIS/SUMMARY] Error fetching platform summary KPIs:", error);
+    logger.error("[API PLATFORM/KPIS/SUMMARY] Error fetching platform summary KPIs:", error); // Replaced console.error
     const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
     // Retornar um valor padrão ou um erro claro se a contagem falhar
     return NextResponse.json({

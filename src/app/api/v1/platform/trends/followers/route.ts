@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import UserModel from '@/app/models/User'; // Importar UserModel
 import getFollowerTrendChartData, { FollowerTrendChartResponse } from '@/charts/getFollowerTrendChartData'; // Ajuste o caminho
+import { connectToDatabase } from '@/app/lib/mongoose'; // Added
+import { logger } from '@/app/lib/logger'; // Added
 import { Types } from 'mongoose'; // Para ObjectId, se necessário para UserModel
 
 // Tipos para os dados da API (reutilizar do chart individual)
@@ -41,6 +43,8 @@ export async function GET(
         // TODO: Adicionar critérios para usuários ativos, ex: { status: "active" }
         // Para este exemplo, vamos buscar um número limitado para não sobrecarregar.
     }).select('_id').limit(10).lean(); // Pegar apenas IDs, limitar para teste (ex: 10 usuários)
+        // TODO: PERFORMANCE - The limit(10) is for development. For production, remove limit and implement robust criteria for active users.
+        // TODO: PERFORMANCE - Consider batching data fetching for user trends to avoid N+1 queries if getFollowerTrendChartData makes DB calls per user.
 
     if (!platformUsers || platformUsers.length === 0) {
       return NextResponse.json({
@@ -75,7 +79,7 @@ export async function GET(
           }
         });
       } else if (result.status === 'rejected') {
-        console.error(`Erro ao buscar dados de tendência para um usuário durante agregação da plataforma:`, result.reason);
+        logger.error(`Erro ao buscar dados de tendência para um usuário durante agregação da plataforma:`, result.reason); // Replaced console.error
       }
     });
 
@@ -132,7 +136,7 @@ export async function GET(
     return NextResponse.json(response, { status: 200 });
 
   } catch (error) {
-    console.error(`[API PLATFORM/TRENDS/FOLLOWERS] Error aggregating platform follower trend:`, error);
+    logger.error(`[API PLATFORM/TRENDS/FOLLOWERS] Error aggregating platform follower trend:`, error); // Replaced console.error
     const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
     return NextResponse.json({ error: "Erro ao processar sua solicitação.", details: errorMessage }, { status: 500 });
   }
