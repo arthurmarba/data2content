@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
@@ -143,5 +143,5 @@ const PlatformFollowerTrendChart: React.FC<PlatformFollowerTrendChartProps> = ({
   );
 };
 
-export default PlatformFollowerTrendChart;
+export default memo(PlatformFollowerTrendChart);
 ```

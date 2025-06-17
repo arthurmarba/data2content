@@ -47,5 +47,5 @@ const GlobalTimePeriodFilter: React.FC<GlobalTimePeriodFilterProps> = ({
   );
 };
 
-export default GlobalTimePeriodFilter;
+export default React.memo(GlobalTimePeriodFilter);
 ```

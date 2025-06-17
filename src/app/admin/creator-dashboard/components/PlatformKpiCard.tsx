@@ -105,5 +105,5 @@ const PlatformKpiCard: React.FC<PlatformKpiCardProps> = ({
   );
 };
 
-export default PlatformKpiCard;
+export default React.memo(PlatformKpiCard);
 ```

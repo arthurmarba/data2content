@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import PlatformKpiCard from '../PlatformKpiCard';
 
 // Tipos de dados da API (espelhando a resposta do endpoint)
@@ -125,5 +125,5 @@ const PlatformComparativeKpi: React.FC<PlatformComparativeKpiProps> = ({
   );
 };
 
-export default PlatformComparativeKpi;
+export default memo(PlatformComparativeKpi);
 ```

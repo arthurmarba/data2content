@@ -202,5 +202,5 @@ const UserAverageEngagementChart: React.FC<UserAverageEngagementChartProps> = ({
   );
 };
 
-export default UserAverageEngagementChart;
+export default React.memo(UserAverageEngagementChart);
 ```

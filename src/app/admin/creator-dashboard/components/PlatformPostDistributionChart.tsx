@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface ApiPostDistributionDataPoint {
@@ -144,5 +144,5 @@ const PlatformPostDistributionChart: React.FC<PlatformPostDistributionChartProps
   );
 };
 
-export default PlatformPostDistributionChart;
+export default memo(PlatformPostDistributionChart);
 ```

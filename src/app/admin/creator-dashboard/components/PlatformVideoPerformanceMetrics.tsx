@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 
 // Reutilizar as interfaces e componentes auxiliares
 interface VideoMetricsData {
@@ -132,5 +132,5 @@ const PlatformVideoPerformanceMetrics: React.FC<PlatformVideoPerformanceMetricsP
   );
 };
 
-export default PlatformVideoPerformanceMetrics;
+export default memo(PlatformVideoPerformanceMetrics);
 ```

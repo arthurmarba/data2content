@@ -218,5 +218,5 @@ const UserReachEngagementTrendChart: React.FC<UserReachEngagementTrendChartProps
   );
 };
 
-export default UserReachEngagementTrendChart;
+export default React.memo(UserReachEngagementTrendChart);
 ```

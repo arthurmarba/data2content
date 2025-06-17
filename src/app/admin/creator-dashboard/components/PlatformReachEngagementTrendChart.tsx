@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
@@ -166,5 +166,5 @@ const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendCh
   );
 };
 
-export default PlatformReachEngagementTrendChart;
+export default memo(PlatformReachEngagementTrendChart);
 ```

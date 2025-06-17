@@ -182,5 +182,5 @@ const UserVideoPerformanceMetrics: React.FC<UserVideoPerformanceMetricsProps> = 
   );
 };
 
-export default UserVideoPerformanceMetrics;
+export default React.memo(UserVideoPerformanceMetrics);
 ```

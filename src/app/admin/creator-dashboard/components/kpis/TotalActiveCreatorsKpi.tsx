@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import PlatformKpiCard from '../PlatformKpiCard'; // Ajuste o caminho se o KpiCard estiver em outro local
 
 interface PlatformKpisSummaryResponse {
@@ -55,5 +55,5 @@ const TotalActiveCreatorsKpi: React.FC = () => {
   );
 };
 
-export default TotalActiveCreatorsKpi;
+export default memo(TotalActiveCreatorsKpi);
 ```

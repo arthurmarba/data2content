@@ -20,9 +20,6 @@ import PlatformVideoPerformanceMetrics from './components/PlatformVideoPerforman
 import PlatformMonthlyEngagementStackedChart from './components/PlatformMonthlyEngagementStackedChart';
 import PlatformPerformanceHighlights from './components/PlatformPerformanceHighlights';
 
-// Componente do Módulo 3 (Scatter Plot)
-import CreatorsScatterPlot from './components/CreatorsScatterPlot';
-
 // View de Detalhe do Criador (Módulo 3 e partes do Módulo 2 para usuário)
 import UserDetailView from './components/views/UserDetailView';
 
@@ -159,11 +156,7 @@ const AdminCreatorDashboardPage: React.FC = () => {
               (Em breve: Tabelas de Criadores com melhor performance)
             </p>
             <div className="bg-white p-4 md:p-6 rounded-lg shadow-md">
-                 <h3 className="text-lg font-semibold text-gray-700 mb-3">Análise de Dispersão de Criadores</h3>
-                 <p className="text-xs text-gray-600 mb-4">
-                    Visualize a dispersão dos criadores com base em diferentes métricas...
-                </p>
-                <CreatorsScatterPlot />
+                 {/* CreatorsScatterPlot was removed here */}
             </div>
           </section>
         </>

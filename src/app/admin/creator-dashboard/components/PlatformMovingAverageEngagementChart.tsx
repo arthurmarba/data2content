@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
@@ -160,5 +160,5 @@ const PlatformMovingAverageEngagementChart: React.FC<PlatformMovingAverageEngage
   );
 };
 
-export default PlatformMovingAverageEngagementChart;
+export default memo(PlatformMovingAverageEngagementChart);
 ```

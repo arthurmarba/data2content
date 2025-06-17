@@ -233,5 +233,5 @@ const UserRadarChartComparison: React.FC<UserRadarChartComparisonProps> = ({
   );
 };
 
-export default UserRadarChartComparison;
+export default React.memo(UserRadarChartComparison);
 ```

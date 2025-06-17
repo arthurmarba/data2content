@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface ApiEngagementDistributionDataPoint {
@@ -163,5 +163,5 @@ const PlatformEngagementDistributionByFormatChart: React.FC<PlatformEngagementDi
   );
 };
 
-export default PlatformEngagementDistributionByFormatChart;
+export default memo(PlatformEngagementDistributionByFormatChart);
 ```

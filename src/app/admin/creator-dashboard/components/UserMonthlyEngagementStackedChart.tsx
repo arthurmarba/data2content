@@ -159,5 +159,5 @@ const UserMonthlyEngagementStackedChart: React.FC<UserMonthlyEngagementStackedCh
   );
 };
 
-export default UserMonthlyEngagementStackedChart;
+export default React.memo(UserMonthlyEngagementStackedChart);
 ```

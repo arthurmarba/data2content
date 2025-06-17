@@ -194,5 +194,5 @@ const UserEngagementDistributionChart: React.FC<UserEngagementDistributionChartP
   );
 };
 
-export default UserEngagementDistributionChart;
+export default React.memo(UserEngagementDistributionChart);
 ```

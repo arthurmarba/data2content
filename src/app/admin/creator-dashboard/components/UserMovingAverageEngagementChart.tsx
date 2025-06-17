@@ -218,5 +218,5 @@ const UserMovingAverageEngagementChart: React.FC<UserMovingAverageEngagementChar
   );
 };
 
-export default UserMovingAverageEngagementChart;
+export default React.memo(UserMovingAverageEngagementChart);
 ```

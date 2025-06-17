@@ -173,5 +173,5 @@ const UserAlertsWidget: React.FC<UserAlertsWidgetProps> = ({
   );
 };
 
-export default UserAlertsWidget;
+export default React.memo(UserAlertsWidget);
 ```

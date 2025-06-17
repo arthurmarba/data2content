@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { TrendingUp, TrendingDown, Sparkles, Info } from 'lucide-react'; // Ícones
 
 // Reutilizar as interfaces e componentes auxiliares
@@ -151,5 +151,5 @@ const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps
   );
 };
 
-export default PlatformPerformanceHighlights;
+export default memo(PlatformPerformanceHighlights);
 ```

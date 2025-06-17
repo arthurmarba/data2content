@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
@@ -112,5 +112,5 @@ const PlatformMonthlyEngagementStackedChart: React.FC<PlatformMonthlyEngagementS
   );
 };
 
-export default PlatformMonthlyEngagementStackedChart;
+export default memo(PlatformMonthlyEngagementStackedChart);
 ```

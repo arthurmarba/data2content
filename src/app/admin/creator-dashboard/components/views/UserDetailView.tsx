@@ -143,5 +143,5 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
   );
 };
 
-export default UserDetailView;
+export default React.memo(UserDetailView);
 ```

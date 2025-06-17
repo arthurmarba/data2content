@@ -202,5 +202,5 @@ const UserFollowerTrendChart: React.FC<UserFollowerTrendChartProps> = ({
   );
 };
 
-export default UserFollowerTrendChart;
+export default React.memo(UserFollowerTrendChart);
 ```

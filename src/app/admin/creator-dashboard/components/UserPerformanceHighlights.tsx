@@ -189,5 +189,5 @@ const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
   );
 };
 
-export default UserPerformanceHighlights;
+export default React.memo(UserPerformanceHighlights);
 ```
