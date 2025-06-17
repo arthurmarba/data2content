@@ -78,3 +78,4 @@ export async function GET(
     return NextResponse.json({ error: "Erro ao processar sua solicitação.", details: errorMessage }, { status: 500 });
   }
 }
+```

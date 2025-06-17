@@ -3,14 +3,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-interface ApiPostDistributionDataPoint {
+interface ApiEngagementDistributionDataPoint {
   name: string;
-  value: number; // Agora representa contagem de posts
+  value: number;
   percentage: number;
 }
 
-interface PlatformPostDistributionResponse {
-  chartData: ApiPostDistributionDataPoint[];
+interface PlatformEngagementDistributionApiResponse {
+  chartData: ApiEngagementDistributionDataPoint[];
+  metricUsed: string;
   insightSummary?: string;
 }
 
@@ -19,46 +20,53 @@ const TIME_PERIOD_OPTIONS = [
   { value: "last_7_days", label: "Últimos 7 dias" },
   { value: "last_30_days", label: "Últimos 30 dias" },
   { value: "last_90_days", label: "Últimos 90 dias" },
-  { value: "last_6_months", label: "Últimos 6 meses" },
-  { value: "last_12_months", label: "Últimos 12 meses" },
+];
+
+const ENGAGEMENT_METRIC_OPTIONS = [
+  { value: "stats.total_interactions", label: "Total de Interações" },
+  { value: "stats.views", label: "Visualizações" },
+  { value: "stats.likes", label: "Curtidas" },
+  { value: "stats.comments", label: "Comentários" },
+  { value: "stats.shares", label: "Compartilhamentos" },
 ];
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#A230ED', '#D930ED', '#ED308C', '#F28E2B', '#E15759', '#76B7B2', '#59A14F', '#EDC948'];
 const DEFAULT_MAX_SLICES = 7;
 
-interface PlatformPostDistributionChartProps {
+interface PlatformEngagementDistributionByFormatChartProps {
   timePeriod: string; // Recebido do pai (page.tsx)
   chartTitle?: string;
-  // initialEngagementMetric foi removido, pois este gráfico agora é fixo para contagem de posts
+  initialEngagementMetric?: string;
 }
 
-const PlatformPostDistributionChart: React.FC<PlatformPostDistributionChartProps> = ({
-  timePeriod, // Prop vinda da página principal
-  chartTitle = "Distribuição de Posts por Formato (Plataforma)"
+const PlatformEngagementDistributionByFormatChart: React.FC<PlatformEngagementDistributionByFormatChartProps> = ({
+  timePeriod,
+  chartTitle = "Distribuição de Engajamento por Formato (Plataforma)",
+  initialEngagementMetric = ENGAGEMENT_METRIC_OPTIONS[0].value,
 }) => {
-  const [data, setData] = useState<PlatformPostDistributionResponse['chartData']>([]);
+  const [data, setData] = useState<PlatformEngagementDistributionApiResponse['chartData']>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
+  const [metricUsed, setMetricUsed] = useState<string>(initialEngagementMetric);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // timePeriod é prop, não mais um estado local.
-  // engagementMetric não é mais necessário.
-  const maxSlices = DEFAULT_MAX_SLICES; // Pode ser uma prop se necessário
+  const [currentEngagementMetric, setCurrentEngagementMetric] = useState<string>(initialEngagementMetric);
+  const maxSlices = DEFAULT_MAX_SLICES;
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // Alterada a URL da API e removido engagementMetricField
-      const apiUrl = `/api/v1/platform/performance/post-distribution-format?timePeriod=${timePeriod}&maxSlices=${maxSlices}`;
+      const apiUrl = `/api/v1/platform/performance/engagement-distribution-format?timePeriod=${timePeriod}&engagementMetricField=${currentEngagementMetric}&maxSlices=${maxSlices}`;
       const response = await fetch(apiUrl);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(`Erro HTTP: ${response.status} - ${errorData.error || response.statusText}`);
       }
-      const result: PlatformPostDistributionResponse = await response.json();
+      const result: PlatformEngagementDistributionApiResponse = await response.json();
       setData(result.chartData);
       setInsightSummary(result.insightSummary);
+      setMetricUsed(result.metricUsed); // Atualiza a métrica usada com base na resposta da API
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ocorreu um erro desconhecido ao buscar dados.');
       setData([]);
@@ -66,14 +74,11 @@ const PlatformPostDistributionChart: React.FC<PlatformPostDistributionChartProps
     } finally {
       setLoading(false);
     }
-  }, [timePeriod, maxSlices]); // Removido engagementMetric das dependências
+  }, [timePeriod, currentEngagementMetric, maxSlices]);
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]); // fetchData agora depende de timePeriod (prop) e maxSlices (constante)
-
-  // handleTimePeriodChange não é mais necessário aqui, pois é controlado pelo pai
-  // handleEngagementMetricChange não é mais necessário
+  }, [fetchData]);
 
   const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }: any) => {
     if ((percent * 100) < 5) return null;
@@ -82,23 +87,37 @@ const PlatformPostDistributionChart: React.FC<PlatformPostDistributionChartProps
     const y = cy + radius * Math.sin(-midAngle * Math.PI / 180);
     return (
       <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={10} fontWeight="bold">
-        {/* O nome do formato já está na legenda, mostrar apenas o percentual */}
         {(percent * 100).toFixed(0)}%
       </text>
     );
   };
 
-  const tooltipFormatter = (value: number, name: string, props: { payload: ApiPostDistributionDataPoint } ) => {
-      // 'value' agora é a contagem de posts
-      return [`${value.toLocaleString()} posts (${props.payload.percentage.toFixed(1)}%)`, name];
+  const tooltipFormatter = (value: number, name: string, props: { payload: ApiEngagementDistributionDataPoint } ) => {
+      const metricLabel = ENGAGEMENT_METRIC_OPTIONS.find(m => m.value === metricUsed)?.label || metricUsed.replace("stats.","");
+      return [`${value.toLocaleString()} ${metricLabel.toLowerCase()} (${props.payload.percentage.toFixed(1)}%)`, name];
   };
 
   return (
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6 md:mt-0">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4">
         <h2 className="text-lg md:text-xl font-semibold text-gray-700 mb-2 sm:mb-0">{chartTitle}</h2>
-        {/* Seletores de timePeriod e engagementMetric removidos. TimePeriod é controlado pelo pai. */}
-        {/* Seletor de maxSlices poderia ser adicionado aqui se desejado */}
+        <div className="flex gap-4">
+            {/* Seletor de timePeriod é controlado pelo pai (page.tsx) */}
+            <div>
+                <label htmlFor="engagementMetricPlatformEngDistro" className="sr-only">Métrica de Engajamento:</label>
+                <select
+                    id="engagementMetricPlatformEngDistro"
+                    value={currentEngagementMetric}
+                    onChange={(e) => setCurrentEngagementMetric(e.target.value)}
+                    disabled={loading}
+                    className="w-full sm:w-auto p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                >
+                    {ENGAGEMENT_METRIC_OPTIONS.map(option => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                </select>
+            </div>
+        </div>
       </div>
 
       <div style={{ width: '100%', height: 300 }}>
@@ -134,7 +153,7 @@ const PlatformPostDistributionChart: React.FC<PlatformPostDistributionChartProps
           </ResponsiveContainer>
         )}
         {!loading && !error && data.length === 0 && (
-          <div className="flex justify-center items-center h-full"><p className="text-gray-500">Nenhum dado disponível para o período selecionado.</p></div>
+          <div className="flex justify-center items-center h-full"><p className="text-gray-500">Nenhum dado disponível para os filtros selecionados.</p></div>
         )}
       </div>
       {insightSummary && !loading && !error && (
@@ -144,5 +163,5 @@ const PlatformPostDistributionChart: React.FC<PlatformPostDistributionChartProps
   );
 };
 
-export default PlatformPostDistributionChart;
+export default PlatformEngagementDistributionByFormatChart;
 ```

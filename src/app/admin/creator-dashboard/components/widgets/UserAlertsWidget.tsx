@@ -174,3 +174,4 @@ const UserAlertsWidget: React.FC<UserAlertsWidgetProps> = ({
 };
 
 export default UserAlertsWidget;
+```

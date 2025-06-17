@@ -14,7 +14,7 @@ enum AlertTypeEnum {
 interface AlertResponseItem {
   alertId: string;
   type: string;
-  date: string; // yyyy-MM-dd
+  date: string; // YYYY-MM-DD
   title: string;
   summary: string;
   details: any; // Conteúdo de IAlertHistoryEntry.details
@@ -71,17 +71,17 @@ export async function GET(
   // const formattedAlerts: AlertResponseItem[] = paginatedAlerts.map(alert => ({
   //    alertId: alert._id?.toString() || new Types.ObjectId().toString(),
   //    type: alert.type,
-  //    date: alert.checkedAt.toISOString().split('T')[0]!,
+  //    date: alert.checkedAt.toISOString().split('T')[0],
   //    title: generateAlertTitle(alert),
   //    summary: alert.finalUserMessage || generateAlertSummary(alert),
   //    details: alert.details
   // }));
 
-  const todayFormatted = new Date().toISOString().split('T')[0]!;
+  const todayFormatted = new Date().toISOString().split('T')[0];
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() -1); // Deve usar addDays para consistência, mas ok para mock
-  const yesterdayFormatted = yesterday.toISOString().split('T')[0]!;
-  const fiveDaysAgoFormatted = addDays(new Date(), -5).toISOString().split('T')[0]!;
+  const yesterdayFormatted = yesterday.toISOString().split('T')[0];
+  const fiveDaysAgoFormatted = addDays(new Date(), -5).toISOString().split('T')[0];
 
 
   const allMockAlerts: AlertResponseItem[] = [
@@ -112,7 +112,7 @@ export async function GET(
      {
       alertId: new Types.ObjectId().toString(),
       type: AlertTypeEnum.FOLLOWER_STAGNATION,
-      date: addDays(new Date(), -10).toISOString().split('T')[0]!,
+      date: addDays(new Date(), -10).toISOString().split('T')[0],
       title: "Estagnação de Seguidores (Antigo)",
       summary: "Seu crescimento de seguidores desacelerou (alerta mais antigo).",
       details: { currentGrowthRate: 0.008, previousGrowthRate: 0.03, periodDays: 14 }
@@ -144,3 +144,4 @@ export async function GET(
   //   return NextResponse.json({ error: "Erro ao processar sua solicitação de alertas.", details: errorMessage }, { status: 500 });
   // }
 }
+```

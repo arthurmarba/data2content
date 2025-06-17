@@ -1,18 +1,6 @@
 import { NextResponse } from 'next/server';
-import getFollowerTrendChartData from '@/charts/getFollowerTrendChartData'; // Ajuste o caminho
+import getFollowerTrendChartData, { FollowerTrendChartResponse } from '@/charts/getFollowerTrendChartData'; // Ajuste o caminho
 import { Types } from 'mongoose';
-
-// --- Interfaces definidas localmente para resolver erros de importação ---
-interface FollowerDataPoint {
-    date: string;
-    value: number | null;
-}
-
-interface FollowerTrendChartResponse {
-    chartData: FollowerDataPoint[];
-    insightSummary?: string;
-}
-
 
 const ALLOWED_TIME_PERIODS: string[] = ["last_7_days", "last_30_days", "last_90_days", "last_6_months", "last_12_months", "all_time"];
 const ALLOWED_GRANULARITIES: string[] = ["daily", "monthly"];
@@ -66,3 +54,17 @@ export async function GET(
     return NextResponse.json({ error: "Erro ao processar sua solicitação.", details: errorMessage }, { status: 500 });
   }
 }
+
+// Adicionar um handler para OPTIONS se necessário para CORS em alguns ambientes,
+// embora para App Router geralmente não seja preciso configurar manualmente para same-origin.
+// export async function OPTIONS(request: Request) {
+//   return new NextResponse(null, {
+//     status: 204,
+//     headers: {
+//       'Access-Control-Allow-Origin': '*', // Ou seu domínio específico
+//       'Access-Control-Allow-Methods': 'GET, OPTIONS',
+//       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+//     },
+//   });
+// }
+```

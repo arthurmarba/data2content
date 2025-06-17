@@ -6,15 +6,19 @@ import calculateAverageEngagementPerPost from '@/utils/calculateAverageEngagemen
 import calculateWeeklyPostingFrequency from '@/utils/calculateWeeklyPostingFrequency';
 import { addDays, getStartDateFromTimePeriod as getStartDateFromTimePeriodGeneric } from '@/utils/dateHelpers';
 
-
+// Tipos de dados para a resposta
+interface MiniChartDataPoint {
+  name: string; // Ex: "Anterior", "Atual"
+  value: number;
+}
 interface KPIComparisonData {
   currentValue: number | null;
   previousValue: number | null;
   percentageChange: number | null;
-  chartData?: { comparisonPair: string; periodName: string; value: number; periodKey: string }[];
+  chartData?: MiniChartDataPoint[]; // Adicionado para mini-gráficos
 }
 
-interface PeriodicComparisonResponse {
+interface UserPeriodicComparisonResponse {
   followerGrowth: KPIComparisonData;
   totalEngagement: KPIComparisonData;
   postingFrequency: KPIComparisonData;
@@ -53,46 +57,33 @@ export async function GET(
   const { searchParams } = new URL(request.url);
   const comparisonPeriodParam = searchParams.get('comparisonPeriod');
 
-  let comparisonConfig: { currentPeriodDays: number, periodNameCurrent: string, periodNamePrevious: string };
+  const comparisonConfig = comparisonPeriodParam && ALLOWED_COMPARISON_PERIODS[comparisonPeriodParam]
+    ? ALLOWED_COMPARISON_PERIODS[comparisonPeriodParam]
+    : ALLOWED_COMPARISON_PERIODS["last_30d_vs_previous_30d"];
 
-  if (comparisonPeriodParam) {
-    const potentialConfig = ALLOWED_COMPARISON_PERIODS[comparisonPeriodParam];
-    if (potentialConfig) {
-      comparisonConfig = potentialConfig;
-    } else {
-      return NextResponse.json({ error: `Comparison period inválido. Permitidos: ${Object.keys(ALLOWED_COMPARISON_PERIODS).join(', ')}` }, { status: 400 });
-    }
-  } else {
-    // We add a '!' to assert that this key definitely exists, satisfying the strict type check.
-    comparisonConfig = ALLOWED_COMPARISON_PERIODS["last_30d_vs_previous_30d"]!;
+  if (comparisonPeriodParam && !ALLOWED_COMPARISON_PERIODS[comparisonPeriodParam]) {
+     return NextResponse.json({ error: `Comparison period inválido. Permitidos: ${Object.keys(ALLOWED_COMPARISON_PERIODS).join(', ')}` }, { status: 400 });
   }
 
   const { currentPeriodDays, periodNameCurrent, periodNamePrevious } = comparisonConfig;
+  const today = new Date();
+
+  const currentEndDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+  const currentStartDate = getStartDateFromTimePeriodGeneric(today, `last_${currentPeriodDays}_days`);
+
+  const previousEndDate = addDays(new Date(currentStartDate), -1);
+  previousEndDate.setHours(23,59,59,999);
+  const previousStartDate = addDays(new Date(previousEndDate), -(currentPeriodDays -1));
+  previousStartDate.setHours(0,0,0,0);
 
   try {
     const resolvedUserId = new Types.ObjectId(userId);
-    const today = new Date();
-
-    // Definir datas para o período ATUAL
-    const currentEndDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
-    // Usar o helper genérico para startDate do período atual, que já considera "last_X_days" a partir de 'today'
-    // e inclui 'today' no período.
-    const currentStartDate = getStartDateFromTimePeriodGeneric(today, `last_${currentPeriodDays}_days`);
-
-    // Definir datas para o período ANTERIOR
-    // O período anterior termina no dia antes do início do período atual.
-    const previousEndDate = addDays(new Date(currentStartDate), -1); // Dia anterior ao currentStartDate
-    previousEndDate.setHours(23,59,59,999);
-    const previousStartDate = addDays(new Date(previousEndDate), -(currentPeriodDays -1)); // Subtrai (periodDays-1) para ter um período de 'currentPeriodDays'
-    previousStartDate.setHours(0,0,0,0);
-
 
     // --- 1. Follower Growth (Absolute Growth) ---
-    const fgT0Data = await calculateFollowerGrowthRate(resolvedUserId, currentPeriodDays); // Crescimento nos últimos currentPeriodDays
-    const fgT1 = fgT0Data.previousFollowers; // Seguidores no início do período atual
-    const fgT0 = fgT0Data.currentFollowers;   // Seguidores no fim do período atual
+    const fgT0Data = await calculateFollowerGrowthRate(resolvedUserId, currentPeriodDays);
+    const fgT1 = fgT0Data.previousFollowers;
+    const fgT0 = fgT0Data.currentFollowers;
 
-    // Para obter seguidores no início do período anterior (T2)
     const fgOverall = await calculateFollowerGrowthRate(resolvedUserId, currentPeriodDays * 2);
     const fgT2 = fgOverall.previousFollowers;
 
@@ -103,9 +94,9 @@ export async function GET(
       currentValue: currentFollowerGain,
       previousValue: previousFollowerGain,
       percentageChange: calculatePercentageChange(currentFollowerGain, previousFollowerGain),
-      chartData: [
-        { comparisonPair: `${periodNameCurrent} vs ${periodNamePrevious}`, periodName: periodNamePrevious, value: previousFollowerGain ?? 0, periodKey: "P0" },
-        { comparisonPair: `${periodNameCurrent} vs ${periodNamePrevious}`, periodName: periodNameCurrent, value: currentFollowerGain ?? 0, periodKey: "P1" },
+      chartData: [ // Adicionado chartData
+        { name: periodNamePrevious, value: previousFollowerGain ?? 0 },
+        { name: periodNameCurrent, value: currentFollowerGain ?? 0 }
       ]
     };
 
@@ -117,41 +108,48 @@ export async function GET(
       currentValue: engCurrent.totalEngagement,
       previousValue: engPrevious.totalEngagement,
       percentageChange: calculatePercentageChange(engCurrent.totalEngagement, engPrevious.totalEngagement),
-      chartData: [
-        { comparisonPair: `${periodNameCurrent} vs ${periodNamePrevious}`, periodName: periodNamePrevious, value: engPrevious.totalEngagement ?? 0, periodKey: "P0" },
-        { comparisonPair: `${periodNameCurrent} vs ${periodNamePrevious}`, periodName: periodNameCurrent, value: engCurrent.totalEngagement ?? 0, periodKey: "P1" },
+      chartData: [ // Adicionado chartData
+        { name: periodNamePrevious, value: engPrevious.totalEngagement ?? 0 },
+        { name: periodNameCurrent, value: engCurrent.totalEngagement ?? 0 }
       ]
     };
 
     // --- 3. Posting Frequency ---
-    // calculateWeeklyPostingFrequency usa periodInDays para definir AMBOS os seus sub-períodos (atual e anterior)
     const freqData = await calculateWeeklyPostingFrequency(resolvedUserId, currentPeriodDays);
     const postingFrequencyData: KPIComparisonData = {
       currentValue: freqData.currentWeeklyFrequency,
       previousValue: freqData.previousWeeklyFrequency,
       percentageChange: calculatePercentageChange(freqData.currentWeeklyFrequency, freqData.previousWeeklyFrequency),
-      chartData: [
-        { comparisonPair: `${periodNameCurrent} vs ${periodNamePrevious}`, periodName: periodNamePrevious, value: freqData.previousWeeklyFrequency ?? 0, periodKey: "P0" },
-        { comparisonPair: `${periodNameCurrent} vs ${periodNamePrevious}`, periodName: periodNameCurrent, value: freqData.currentWeeklyFrequency ?? 0, periodKey: "P1" },
+      chartData: [ // Adicionado chartData
+        { name: periodNamePrevious, value: freqData.previousWeeklyFrequency ? parseFloat(freqData.previousWeeklyFrequency.toFixed(1)) : 0 },
+        { name: periodNameCurrent, value: freqData.currentWeeklyFrequency ? parseFloat(freqData.currentWeeklyFrequency.toFixed(1)) : 0 }
       ]
     };
 
-    const response: PeriodicComparisonResponse = {
+    const response: UserPeriodicComparisonResponse = {
       followerGrowth: followerGrowthData,
       totalEngagement: totalEngagementData,
       postingFrequency: postingFrequencyData,
       insightSummary: {
-        followerGrowth: `Ganhos de seguidores: ${followerGrowthData.currentValue?.toLocaleString() ?? 'N/A'} vs ${followerGrowthData.previousValue?.toLocaleString() ?? 'N/A'} no período anterior.`,
-        totalEngagement: `Engajamento total: ${totalEngagementData.currentValue?.toLocaleString() ?? 'N/A'} vs ${totalEngagementData.previousValue?.toLocaleString() ?? 'N/A'} no período anterior.`,
-        postingFrequency: `Frequência de posts: ${postingFrequencyData.currentValue?.toFixed(1) ?? 'N/A'} posts/sem vs ${postingFrequencyData.previousValue?.toFixed(1) ?? 'N/A'} no período anterior.`
+        followerGrowth: `Seu ganho de seguidores: ${followerGrowthData.currentValue?.toLocaleString() ?? 'N/A'} vs ${followerGrowthData.previousValue?.toLocaleString() ?? 'N/A'} no período anterior.`,
+        totalEngagement: `Seu engajamento total: ${totalEngagementData.currentValue?.toLocaleString() ?? 'N/A'} vs ${totalEngagementData.previousValue?.toLocaleString() ?? 'N/A'} no período anterior.`,
+        postingFrequency: `Sua frequência de posts: ${postingFrequencyData.currentValue?.toFixed(1) ?? 'N/A'} posts/sem vs ${postingFrequencyData.previousValue?.toFixed(1) ?? 'N/A'} no período anterior.`
       }
     };
 
     return NextResponse.json(response, { status: 200 });
 
   } catch (error) {
-    console.error(`[API KPIS/PERIODIC] Error for userId ${userId}:`, error);
+    console.error(`[API USER KPIS/PERIODIC] Error for userId ${userId}:`, error);
     const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
-    return NextResponse.json({ error: "Erro ao processar sua solicitação de KPIs.", details: errorMessage }, { status: 500 });
+    const errorKpi: KPIComparisonData = { currentValue: null, previousValue: null, percentageChange: null, chartData: [{name: periodNamePrevious, value:0}, {name: periodNameCurrent, value:0}]};
+    return NextResponse.json({
+        error: "Erro ao processar sua solicitação de KPIs.",
+        details: errorMessage,
+        followerGrowth: errorKpi,
+        totalEngagement: errorKpi,
+        postingFrequency: errorKpi,
+    }, { status: 500 });
   }
 }
+```

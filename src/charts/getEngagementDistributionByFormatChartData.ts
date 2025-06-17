@@ -1,15 +1,8 @@
-import MetricModel, { IMetric } from "@/app/models/Metric"; // Ajuste o caminho
+import MetricModel, { IMetric, FormatType } from "@/app/models/Metric"; // Ajuste o caminho
 import { Types } from "mongoose";
 import { getNestedValue } from "@/utils/dataAccessHelpers";
 import { getStartDateFromTimePeriod } from "@/utils/dateHelpers"; // Importar helper compartilhado
 
-// --- Tipos definidos localmente para resolver o erro ---
-export enum FormatType {
-  IMAGE = "IMAGE",
-  VIDEO = "VIDEO",
-  REEL = "REEL",
-  CAROUSEL_ALBUM = "CAROUSEL_ALBUM",
-}
 
 interface EngagementDistributionDataPoint {
   name: string;
@@ -63,7 +56,7 @@ async function getEngagementDistributionByFormatChartData(
     let grandTotalEngagement = 0;
 
     for (const post of posts) {
-      const formatKey = (post.format as string) || "UNKNOWN";
+      const formatKey = post.format as string;
       const engagementValue = getNestedValue(post, engagementMetricField) || 0;
 
       if (engagementValue > 0) {
@@ -79,7 +72,7 @@ async function getEngagementDistributionByFormatChartData(
     let tempChartData: EngagementDistributionDataPoint[] = [];
     for (const [formatKey, sumEngagementForFormat] of engagementByFormat.entries()) {
       const formatName = (formatMapping && formatMapping[formatKey])
-        ? formatMapping[formatKey]!
+        ? formatMapping[formatKey]
         : formatKey.toString().replace(/_/g, ' ').toLocaleLowerCase().replace(/\b\w/g, l => l.toUpperCase());
 
       tempChartData.push({
@@ -110,17 +103,15 @@ async function getEngagementDistributionByFormatChartData(
 
     if (initialResponse.chartData.length > 0) {
         const topSlice = initialResponse.chartData[0];
-        if (topSlice) {
-            if (topSlice.name !== "Outros" && initialResponse.chartData.length > 1) {
-                initialResponse.insightSummary = `${topSlice.name} é o formato com maior engajamento, representando ${topSlice.percentage.toFixed(1)}% do total.`;
-            } else if (topSlice.name !== "Outros") { // Only one slice, not "Outros"
-                 initialResponse.insightSummary = `${topSlice.name} representa todo o engajamento (${topSlice.percentage.toFixed(1)}%).`;
-            } else if (initialResponse.chartData.length === 1 && topSlice.name === "Outros"){ // Only "Outros" slice
-                initialResponse.insightSummary = `Engajamento distribuído entre diversos formatos menores.`;
-            }
-             else { // Multiple slices, but top one is "Outros"
-                initialResponse.insightSummary = `Engajamento distribuído entre diversos formatos.`;
-            }
+        if (topSlice.name !== "Outros" && initialResponse.chartData.length > 1) {
+            initialResponse.insightSummary = `${topSlice.name} é o formato com maior engajamento, representando ${topSlice.percentage.toFixed(1)}% do total.`;
+        } else if (topSlice.name !== "Outros") { // Only one slice, not "Outros"
+             initialResponse.insightSummary = `${topSlice.name} representa todo o engajamento (${topSlice.percentage.toFixed(1)}%).`;
+        } else if (initialResponse.chartData.length === 1 && topSlice.name === "Outros"){ // Only "Outros" slice
+            initialResponse.insightSummary = `Engajamento distribuído entre diversos formatos menores.`;
+        }
+         else { // Multiple slices, but top one is "Outros"
+            initialResponse.insightSummary = `Engajamento distribuído entre diversos formatos.`;
         }
     }
 
@@ -135,3 +126,4 @@ async function getEngagementDistributionByFormatChartData(
 }
 
 export default getEngagementDistributionByFormatChartData;
+```

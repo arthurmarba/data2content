@@ -1,14 +1,6 @@
 import { NextResponse } from 'next/server';
-import MetricModel from '@/app/models/Metric'; // Para implementação real
+import MetricModel, { FormatType } from '@/app/models/Metric'; // Para implementação real
 import { getStartDateFromTimePeriod } from '@/utils/dateHelpers'; // Para implementação real
-
-// Definindo o Enum diretamente no arquivo para resolver o erro de importação.
-export enum FormatType {
-  IMAGE = "IMAGE",
-  VIDEO = "VIDEO",
-  REEL = "REEL",
-  CAROUSEL_ALBUM = "CAROUSEL_ALBUM",
-}
 
 const ALLOWED_TIME_PERIODS: string[] = ["last_7_days", "last_30_days", "last_90_days", "last_6_months", "last_12_months", "all_time"];
 const DEFAULT_VIDEO_FORMATS: FormatType[] = [FormatType.REEL, FormatType.VIDEO];
@@ -127,3 +119,4 @@ export async function GET(
     }, { status: 500 });
   }
 }
+```

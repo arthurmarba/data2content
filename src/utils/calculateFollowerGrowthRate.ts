@@ -184,3 +184,4 @@ async function testGrowthRate() {
 // Ou, integrar em um arquivo de teste Jest.
 // testGrowthRate(); // Descomente para rodar localmente com ts-node (requer setup de jest.fn ou similar)
 */
+```

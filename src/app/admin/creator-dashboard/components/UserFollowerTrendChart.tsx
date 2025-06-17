@@ -5,7 +5,6 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 
-// Tipos para os dados da API
 interface ApiChartDataPoint {
   date: string;
   value: number | null;
@@ -16,7 +15,6 @@ interface UserFollowerTrendResponse {
   insightSummary?: string;
 }
 
-// Lista de opções para os seletores
 const TIME_PERIOD_OPTIONS = [
   { value: "last_7_days", label: "Últimos 7 dias" },
   { value: "last_30_days", label: "Últimos 30 dias" },
@@ -34,26 +32,44 @@ const GRANULARITY_OPTIONS = [
 interface UserFollowerTrendChartProps {
   userId: string | null;
   chartTitle?: string;
+  initialTimePeriod?: string; // Prop para o período inicial
+  initialGranularity?: string;
 }
 
 const UserFollowerTrendChart: React.FC<UserFollowerTrendChartProps> = ({
   userId,
-  chartTitle = "Evolução de Seguidores do Criador"
+  chartTitle = "Evolução de Seguidores do Criador",
+  initialTimePeriod, // Usar esta prop
+  initialGranularity = GRANULARITY_OPTIONS[0].value
 }) => {
   const [data, setData] = useState<UserFollowerTrendResponse['chartData']>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Corrigido: Adicionado optional chaining e fallback para segurança
-  const [timePeriod, setTimePeriod] = useState<string>(TIME_PERIOD_OPTIONS?.[1]?.value || 'last_30_days');
-  const [granularity, setGranularity] = useState<string>(GRANULARITY_OPTIONS?.[0]?.value || 'daily');
+  // Estado 'timePeriod' é inicializado com initialTimePeriod ou um default
+  const [timePeriod, setTimePeriod] = useState<string>(initialTimePeriod || TIME_PERIOD_OPTIONS[1].value);
+  const [granularity, setGranularity] = useState<string>(initialGranularity);
+
+  // Efeito para atualizar timePeriod se initialTimePeriod (prop) mudar
+  useEffect(() => {
+    if (initialTimePeriod) {
+      setTimePeriod(initialTimePeriod);
+    }
+  }, [initialTimePeriod]);
+
+  // Efeito para atualizar granularity se initialGranularity (prop) mudar (menos comum, mas para consistência)
+   useEffect(() => {
+    if (initialGranularity) {
+      setGranularity(initialGranularity);
+    }
+  }, [initialGranularity]);
+
 
   const fetchData = useCallback(async () => {
     if (!userId) {
       setData([]);
       setLoading(false);
-      setError("User ID não fornecido.");
       return;
     }
 
@@ -122,11 +138,12 @@ const UserFollowerTrendChart: React.FC<UserFollowerTrendChartProps> = ({
 
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
         <div>
-          <label htmlFor={`timePeriodUserFollowers-${userId}`} className="block text-sm font-medium text-gray-600 mb-1">Período:</label>
+          <label htmlFor={`timePeriodUserFollowers-${userId || 'default'}`} className="block text-sm font-medium text-gray-600 mb-1">Período:</label>
           <select
-            id={`timePeriodUserFollowers-${userId}`}
+            id={`timePeriodUserFollowers-${userId || 'default'}`}
             value={timePeriod}
             onChange={handleTimePeriodChange}
+            disabled={loading}
             className="w-full sm:w-auto p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
           >
             {TIME_PERIOD_OPTIONS.map(option => (
@@ -135,11 +152,12 @@ const UserFollowerTrendChart: React.FC<UserFollowerTrendChartProps> = ({
           </select>
         </div>
         <div>
-          <label htmlFor={`granularityUserFollowers-${userId}`} className="block text-sm font-medium text-gray-600 mb-1">Granularidade:</label>
+          <label htmlFor={`granularityUserFollowers-${userId || 'default'}`} className="block text-sm font-medium text-gray-600 mb-1">Granularidade:</label>
           <select
-            id={`granularityUserFollowers-${userId}`}
+            id={`granularityUserFollowers-${userId || 'default'}`}
             value={granularity}
             onChange={handleGranularityChange}
+            disabled={loading}
             className="w-full sm:w-auto p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
           >
             {GRANULARITY_OPTIONS.map(option => (
@@ -185,3 +203,4 @@ const UserFollowerTrendChart: React.FC<UserFollowerTrendChartProps> = ({
 };
 
 export default UserFollowerTrendChart;
+```

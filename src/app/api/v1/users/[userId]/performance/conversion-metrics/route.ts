@@ -1,20 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
-import calculateAverageFollowerConversionRatePerPost from '@/utils/calculateAverageFollowerConversionRatePerPost'; // Ajuste
-import calculateAccountFollowerConversionRate from '@/utils/calculateAccountFollowerConversionRate'; // Ajuste
-
-// --- Interfaces definidas localmente para resolver erros de importação ---
-interface AverageFollowerConversionRatePerPostData {
-  averageFollowerConversionRatePerPost: number | null;
-  numberOfPostsConsideredForRate: number;
-}
-
-interface AccountFollowerConversionRateData {
-  accountFollowerConversionRate: number | null;
-  accountsEngagedInPeriod: number | null;
-  followersGainedInPeriod: number | null;
-}
-
+import calculateAverageFollowerConversionRatePerPost, { AverageFollowerConversionRatePerPostData } from '@/utils/calculateAverageFollowerConversionRatePerPost'; // Ajuste
+import calculateAccountFollowerConversionRate, { AccountFollowerConversionRateData } from '@/utils/calculateAccountFollowerConversionRate'; // Ajuste
 
 const ALLOWED_TIME_PERIODS: string[] = ["last_7_days", "last_30_days", "last_90_days", "last_6_months", "last_12_months", "all_time"];
 
@@ -75,16 +62,11 @@ export async function GET(
       accountFollowerConversionRate: accountData.accountFollowerConversionRate,
       accountsEngagedInPeriod: accountData.accountsEngagedInPeriod,
       followersGainedInPeriod: accountData.followersGainedInPeriod,
-      insightSummary: "" // Será construído abaixo
+      insightSummary: `No período de ${timePeriod.replace("last_","").replace("_"," ")}, a taxa de conversão média por post foi de ${perPostData.averageFollowerConversionRatePerPost.toFixed(1)}% (baseado em ${perPostData.numberOfPostsConsideredForRate} posts). A taxa de conversão da conta (audiência engajada para seguidores) foi de ${accountData.accountFollowerConversionRate.toFixed(1)}%, com ${accountData.followersGainedInPeriod?.toLocaleString() || 0} novos seguidores de ${accountData.accountsEngagedInPeriod?.toLocaleString() || 'N/A'} contas engajadas.`
     };
-
-    const perPostRateText = perPostData.averageFollowerConversionRatePerPost !== null ? perPostData.averageFollowerConversionRatePerPost.toFixed(1) + '%' : 'N/A';
-    const accountRateText = accountData.accountFollowerConversionRate !== null ? accountData.accountFollowerConversionRate.toFixed(1) + '%' : 'N/A';
 
     if(perPostData.numberOfPostsConsideredForRate === 0 && accountData.accountsEngagedInPeriod === null) {
         responsePayload.insightSummary = `Nenhum dado encontrado para calcular métricas de conversão no período de ${timePeriod.replace("last_","").replace("_"," ")}.`;
-    } else {
-         responsePayload.insightSummary = `No período de ${timePeriod.replace("last_","").replace("_"," ")}, a taxa de conversão média por post foi de ${perPostRateText} (baseado em ${perPostData.numberOfPostsConsideredForRate} posts). A taxa de conversão da conta (audiência engajada para seguidores) foi de ${accountRateText}, com ${accountData.followersGainedInPeriod?.toLocaleString() || 0} novos seguidores de ${accountData.accountsEngagedInPeriod?.toLocaleString() || 'N/A'} contas engajadas.`;
     }
 
 
@@ -96,3 +78,4 @@ export async function GET(
     return NextResponse.json({ error: "Erro ao processar sua solicitação de métricas de conversão.", details: errorMessage }, { status: 500 });
   }
 }
+```

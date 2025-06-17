@@ -1,19 +1,6 @@
 import { NextResponse } from 'next/server';
-import getReachEngagementTrendChartData from '@/charts/getReachEngagementTrendChartData'; // Ajuste o caminho
+import getReachEngagementTrendChartData, { ReachEngagementChartResponse } from '@/charts/getReachEngagementTrendChartData'; // Ajuste o caminho
 import { Types } from 'mongoose';
-
-// --- Interfaces definidas localmente para resolver o erro de importação ---
-interface ReachEngagementDataPoint {
-  date: string;
-  reach: number | null;
-  engagedUsers: number | null;
-}
-
-interface ReachEngagementChartResponse {
-  chartData: ReachEngagementDataPoint[];
-  insightSummary?: string;
-}
-
 
 // Reutilizar as constantes de validação ou definir específicas se necessário
 const ALLOWED_TIME_PERIODS: string[] = ["last_7_days", "last_30_days", "last_90_days", "last_6_months", "last_12_months", "all_time"]; // all_time pode não ser ideal para reach/engaged diário/semanal
@@ -64,3 +51,4 @@ export async function GET(
     return NextResponse.json({ error: "Erro ao processar sua solicitação.", details: errorMessage }, { status: 500 });
   }
 }
+```

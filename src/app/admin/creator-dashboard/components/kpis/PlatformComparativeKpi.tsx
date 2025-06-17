@@ -1,14 +1,19 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import PlatformKpiCard from '../PlatformKpiCard'; // Ajuste o caminho
+import PlatformKpiCard from '../PlatformKpiCard';
 
 // Tipos de dados da API (espelhando a resposta do endpoint)
+interface MiniChartDataPoint { // Adicionado para corresponder ao PlatformKpiCard
+  name: string;
+  value: number;
+}
+
 interface KPIComparisonData {
   currentValue: number | null;
   previousValue: number | null;
   percentageChange: number | null;
-  // chartData?: any[]; // Para futuros mini-gráficos
+  chartData?: MiniChartDataPoint[]; // Agora espera receber chartData
 }
 
 interface PlatformPeriodicComparisonResponse {
@@ -26,8 +31,8 @@ type KpiName = "platformFollowerGrowth" | "platformTotalEngagement" | "platformP
 
 interface PlatformComparativeKpiProps {
   kpiName: KpiName;
-  title: string; // Título para o card, ex: "Crescimento de Seguidores (Plataforma)"
-  comparisonPeriod: string; // Ex: "month_vs_previous", "last_7d_vs_previous_7d"
+  title: string;
+  comparisonPeriod: string;
   tooltip?: string;
 }
 
@@ -40,7 +45,7 @@ const PlatformComparativeKpi: React.FC<PlatformComparativeKpiProps> = ({
   const [kpiData, setKpiData] = useState<KPIComparisonData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  // const [insight, setInsight] = useState<string | undefined>(undefined);
+  // const [insight, setInsight] = useState<string | undefined>(undefined); // Insight específico do KPI não usado por enquanto
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -56,12 +61,18 @@ const PlatformComparativeKpi: React.FC<PlatformComparativeKpiProps> = ({
       const result: PlatformPeriodicComparisonResponse = await response.json();
 
       if (result && result[kpiName]) {
-        setKpiData(result[kpiName]);
+        setKpiData(result[kpiName] as KPIComparisonData); // Cast para garantir que kpiData é do tipo esperado
         // if (result.insightSummary && result.insightSummary[kpiName]) {
         //   setInsight(result.insightSummary[kpiName]);
         // }
       } else {
-        throw new Error(`KPI '${kpiName}' não encontrado na resposta da API.`);
+        // Se kpiName for opcional (como platformPostingFrequency), não lançar erro se ausente
+        if (kpiName === "platformPostingFrequency" && !result[kpiName]) {
+            setKpiData(null); // Tratar como dados não disponíveis para este KPI opcional
+            console.warn(`KPI '${kpiName}' não encontrado na resposta da API, mas é opcional.`);
+        } else {
+            throw new Error(`KPI '${kpiName}' não encontrado na resposta da API.`);
+        }
       }
 
     } catch (err) {
@@ -81,13 +92,14 @@ const PlatformComparativeKpi: React.FC<PlatformComparativeKpiProps> = ({
 
   if (kpiData && kpiData.percentageChange !== null) {
     const pc = kpiData.percentageChange * 100;
-    changeString = `${pc.toFixed(1)}% vs período anterior`;
-    if (pc > 0) changeType = 'positive';
-    else if (pc < 0) changeType = 'negative';
+    changeString = `${pc > 0 ? '+' : ''}${pc.toFixed(1)}% vs período anterior`;
+    if (pc > 0.01) changeType = 'positive';
+    else if (pc < -0.01) changeType = 'negative';
+    else changeType = 'neutral';
+
   } else if (kpiData && kpiData.currentValue !== null && kpiData.previousValue !== null) {
-    // Caso onde percentageChange é null, mas temos valores (ex: previousValue era 0)
     if (kpiData.currentValue > kpiData.previousValue) {
-        changeString = "Aumento vs período anterior (anterior era 0)";
+        changeString = "Aumento vs período anterior"; // Fallback se % não calculado
         changeType = 'positive';
     } else if (kpiData.currentValue < kpiData.previousValue) {
         changeString = "Redução vs período anterior";
@@ -102,15 +114,16 @@ const PlatformComparativeKpi: React.FC<PlatformComparativeKpiProps> = ({
   return (
     <PlatformKpiCard
       title={title}
-      value={kpiData?.currentValue ?? (loading ? null : 0)} // Mostrar 0 se não estiver carregando e for null
+      value={kpiData?.currentValue ?? (loading ? null : 0)}
       isLoading={loading}
       error={error}
       tooltip={tooltip}
       change={changeString}
       changeType={changeType}
-      // chartData={kpiData?.chartData} // Para quando os mini-gráficos forem implementados
+      chartData={kpiData?.chartData} // Passar chartData para o PlatformKpiCard
     />
   );
 };
 
 export default PlatformComparativeKpi;
+```

@@ -28,6 +28,8 @@ async function getMonthlyEngagementStackedBarChartData(
 
   const today = new Date();
   const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+  // getStartDateFromTimePeriodMonthly expects endDate to be the reference for "today" or the end of the full period.
+  // It then calculates the start of the first month in the range.
   const startDate = getStartDateFromTimePeriodMonthly(today, timePeriod);
 
 
@@ -71,6 +73,7 @@ async function getMonthlyEngagementStackedBarChartData(
     let currentMonthInLoop = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
     const finalChartData: MonthlyEngagementDataPoint[] = [];
 
+    // Determine the loop end date: the first day of the month of the overall endDate
     const loopEndDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
 
 
@@ -91,32 +94,28 @@ async function getMonthlyEngagementStackedBarChartData(
 
     if (finalChartData.length > 0) {
         const totalInteractionsOverall = finalChartData.reduce((sum, data) => sum + data.total, 0);
-        
-        // Safely determine the period text for the summary
-        const timePeriodParts = timePeriod.split('_');
-        let periodText: string;
-        if(timePeriodParts.length === 3 && timePeriodParts[0] === 'last' && timePeriodParts[2] === 'months' && timePeriodParts[1]) {
-            periodText = `nos últimos ${timePeriodParts[1]} meses`;
+        let periodText = timePeriod.replace("last_", "últimos ").replace("_months", " meses");
+        if (timePeriod.split("_")[1] === "3" || timePeriod.split("_")[1] === "6" || timePeriod.split("_")[1] === "12"){
+            // Format for known periods
+        } else if (timePeriod.startsWith("last_") && timePeriod.endsWith("_months")) {
+            periodText = `nos últimos ${timePeriod.split("_")[1]} meses`;
         } else {
-            periodText = `no período de ${timePeriod.replace(/_/g, ' ')}`; // Fallback
+            periodText = `no período de ${timePeriod}`; // Fallback for custom string
         }
+
 
         initialResponse.insightSummary = `Total de ${totalInteractionsOverall.toLocaleString()} interações agregadas ${periodText}.`;
 
+        const dateForMonthCount = new Date(today);
+        dateForMonthCount.setDate(1); // Start from current month
         let expectedMonthCount = 0;
-        // Safely calculate expected months based on timePeriod string
-        if (timePeriod === "last_3_months") {
-            expectedMonthCount = 3;
-        } else if (timePeriod === "last_6_months") {
-            expectedMonthCount = 6;
-        } else if (timePeriod === "last_12_months") {
-            expectedMonthCount = 12;
-        } else if (timePeriod.startsWith("last_") && timePeriod.endsWith("_months")) {
-            const numStr = timePeriod.split("_")[1];
-            if (numStr) { // Check if the number string exists
-                const num = parseInt(numStr);
-                if (!isNaN(num)) expectedMonthCount = num;
-            }
+        // Calculate expected months based on timePeriod string
+        if (timePeriod === "last_3_months") expectedMonthCount = 3;
+        else if (timePeriod === "last_6_months") expectedMonthCount = 6;
+        else if (timePeriod === "last_12_months") expectedMonthCount = 12;
+        else if (timePeriod.startsWith("last_") && timePeriod.endsWith("_months")) {
+            const num = parseInt(timePeriod.split("_")[1]);
+            if (!isNaN(num)) expectedMonthCount = num;
         }
 
         if (expectedMonthCount > 0 && finalChartData.length < expectedMonthCount) {
@@ -135,3 +134,4 @@ async function getMonthlyEngagementStackedBarChartData(
 }
 
 export default getMonthlyEngagementStackedBarChartData;
+```

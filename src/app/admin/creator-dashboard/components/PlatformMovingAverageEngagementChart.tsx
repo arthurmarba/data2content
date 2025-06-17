@@ -17,6 +17,9 @@ interface PlatformMovingAverageResponse {
   insightSummary?: string;
 }
 
+// DATA_WINDOW_OPTIONS não é mais necessário aqui, pois será controlado pelo pai (timePeriod)
+// const DATA_WINDOW_OPTIONS = [ ... ];
+
 const MOVING_AVERAGE_WINDOW_OPTIONS = [
   { value: "7", label: "7 dias (Média Semanal)" },
   { value: "14", label: "14 dias" },
@@ -28,27 +31,28 @@ const timePeriodToDataWindowDays = (timePeriod: string): number => {
   switch (timePeriod) {
     case "last_7_days": return 7;
     case "last_30_days": return 30;
-    case "last_60_days": return 60;
+    case "last_60_days": return 60; // Adicionado para exemplo
     case "last_90_days": return 90;
+    // Adicionar mais casos se o GlobalTimePeriodFilter tiver outras opções que se aplicam aqui
     default: return 30; // Default se a string não corresponder
   }
 };
 
 interface PlatformMovingAverageEngagementChartProps {
-  timePeriod: string; 
+  timePeriod: string; // Recebido do pai (page.tsx), ex: "last_30_days"
   initialAvgWindow?: string;
 }
 
 const PlatformMovingAverageEngagementChart: React.FC<PlatformMovingAverageEngagementChartProps> = ({
   timePeriod,
-  // Corrigido: Usa optional chaining e um fallback para segurança
-  initialAvgWindow = MOVING_AVERAGE_WINDOW_OPTIONS?.[0]?.value || '7'
+  initialAvgWindow = MOVING_AVERAGE_WINDOW_OPTIONS[0].value
 }) => {
   const [data, setData] = useState<PlatformMovingAverageResponse['series']>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // dataWindow (número de dias) é agora derivado da prop timePeriod
   const dataWindowInDays = timePeriodToDataWindowDays(timePeriod);
   const [avgWindow, setAvgWindow] = useState<string>(initialAvgWindow);
 
@@ -82,7 +86,7 @@ const PlatformMovingAverageEngagementChart: React.FC<PlatformMovingAverageEngage
     } finally {
       setLoading(false);
     }
-  }, [dataWindowInDays, avgWindow]);
+  }, [dataWindowInDays, avgWindow]); // Depende de dataWindowInDays (derivado de timePeriod) e avgWindow
 
   useEffect(() => {
     fetchData();
@@ -104,6 +108,7 @@ const PlatformMovingAverageEngagementChart: React.FC<PlatformMovingAverageEngage
         <h2 className="text-lg md:text-xl font-semibold text-gray-700 mb-2 sm:mb-0">
             Média Móvel de Engajamento Diário (Plataforma)
         </h2>
+        {/* Seletor de dataWindow (timePeriod) foi removido */}
         <div>
           <label htmlFor="avgWindowMovingAvgPlatform" className="sr-only">Janela da Média Móvel:</label>
           <select
@@ -156,3 +161,4 @@ const PlatformMovingAverageEngagementChart: React.FC<PlatformMovingAverageEngage
 };
 
 export default PlatformMovingAverageEngagementChart;
+```

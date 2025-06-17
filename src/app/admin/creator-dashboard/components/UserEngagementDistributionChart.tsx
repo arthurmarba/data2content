@@ -2,8 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { ValueType, NameType, Payload } from 'recharts/types/component/DefaultTooltipContent';
-
 
 interface ApiEngagementDistributionDataPoint {
   name: string;
@@ -29,27 +27,36 @@ const ENGAGEMENT_METRIC_OPTIONS = [
   { value: "stats.likes", label: "Curtidas" },
 ];
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#A230ED', '#D930ED', '#ED308C'];
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#A230ED', '#D930ED', '#ED308C', '#F28E2B', '#E15759', '#76B7B2', '#59A14F', '#EDC948'];
 const DEFAULT_MAX_SLICES = 7;
 
 interface UserEngagementDistributionChartProps {
   userId: string | null;
   chartTitle?: string;
+  initialTimePeriod?: string; // Recebido de UserDetailView
 }
 
 const UserEngagementDistributionChart: React.FC<UserEngagementDistributionChartProps> = ({
   userId,
-  chartTitle = "Distribuição de Engajamento por Formato"
+  chartTitle = "Distribuição de Engajamento por Formato",
+  initialTimePeriod // Usar para o estado inicial do seletor de período
 }) => {
   const [data, setData] = useState<UserEngagementDistributionResponse['chartData']>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Corrigido: Adicionado optional chaining e fallback para segurança
-  const [timePeriod, setTimePeriod] = useState<string>(TIME_PERIOD_OPTIONS?.[2]?.value || "last_30_days");
-  const [engagementMetric, setEngagementMetric] = useState<string>(ENGAGEMENT_METRIC_OPTIONS?.[0]?.value || "stats.total_interactions");
+  // Estado 'timePeriod' é inicializado com initialTimePeriod ou um default
+  const [timePeriod, setTimePeriod] = useState<string>(initialTimePeriod || TIME_PERIOD_OPTIONS[2].value);
+  const [engagementMetric, setEngagementMetric] = useState<string>(ENGAGEMENT_METRIC_OPTIONS[0].value);
   const maxSlices = DEFAULT_MAX_SLICES;
+
+  // Efeito para atualizar timePeriod se initialTimePeriod (prop) mudar
+  useEffect(() => {
+    if (initialTimePeriod) {
+      setTimePeriod(initialTimePeriod);
+    }
+  }, [initialTimePeriod]);
 
 
   const fetchData = useCallback(async () => {
@@ -94,19 +101,14 @@ const UserEngagementDistributionChart: React.FC<UserEngagementDistributionChartP
     const x = cx + radius * Math.cos(-midAngle * Math.PI / 180);
     const y = cy + radius * Math.sin(-midAngle * Math.PI / 180);
     return (
-      <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={10}>
-        {name} ({(percent * 100).toFixed(0)}%)
+      <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={10} fontWeight="bold">
+        {(percent * 100).toFixed(0)}%
       </text>
     );
   };
 
-  const tooltipFormatter = (value: ValueType, name: NameType, entry: Payload<ValueType, NameType>) => {
-      const percentage = entry.payload?.percentage;
-      const formattedValue = typeof value === 'number' ? value.toLocaleString() : value;
-      if (percentage !== undefined) {
-          return [`${formattedValue} (${percentage.toFixed(1)}%)`, name];
-      }
-      return [formattedValue, name];
+  const tooltipFormatter = (value: number, name: string, props: { payload: ApiEngagementDistributionDataPoint } ) => {
+      return [`${value.toLocaleString()} (${props.payload.percentage.toFixed(1)}%)`, name];
   };
 
   if (!userId) {
@@ -126,11 +128,12 @@ const UserEngagementDistributionChart: React.FC<UserEngagementDistributionChartP
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <div>
-          <label htmlFor={`timePeriodUserEngDistro-${userId}`} className="block text-sm font-medium text-gray-600 mb-1">Período:</label>
+          <label htmlFor={`timePeriodUserEngDistro-${userId || 'default'}`} className="block text-sm font-medium text-gray-600 mb-1">Período:</label>
           <select
-            id={`timePeriodUserEngDistro-${userId}`}
+            id={`timePeriodUserEngDistro-${userId || 'default'}`}
             value={timePeriod}
             onChange={(e) => setTimePeriod(e.target.value)}
+            disabled={loading}
             className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
           >
             {TIME_PERIOD_OPTIONS.map(option => (
@@ -139,11 +142,12 @@ const UserEngagementDistributionChart: React.FC<UserEngagementDistributionChartP
           </select>
         </div>
         <div>
-          <label htmlFor={`metricUserEngDistro-${userId}`} className="block text-sm font-medium text-gray-600 mb-1">Métrica de Engajamento:</label>
+          <label htmlFor={`metricUserEngDistro-${userId || 'default'}`} className="block text-sm font-medium text-gray-600 mb-1">Métrica de Engajamento:</label>
           <select
-            id={`metricUserEngDistro-${userId}`}
+            id={`metricUserEngDistro-${userId || 'default'}`}
             value={engagementMetric}
             onChange={(e) => setEngagementMetric(e.target.value)}
+            disabled={loading}
             className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
           >
             {ENGAGEMENT_METRIC_OPTIONS.map(option => (
@@ -191,3 +195,4 @@ const UserEngagementDistributionChart: React.FC<UserEngagementDistributionChartP
 };
 
 export default UserEngagementDistributionChart;
+```

@@ -26,6 +26,8 @@ interface UserVideoPerformanceMetricsProps {
   chartTitle?: string;
 }
 
+// Sub-componente MetricDisplay e InfoIcon (assumindo que estão definidos em outro lugar ou copiados aqui se necessário)
+// Para este exemplo, vou copiá-los para manter o componente autocontido, mas em um projeto real seriam importados.
 const InfoIcon: React.FC<{className?: string}> = ({className}) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className || "h-4 w-4"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
         <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -54,15 +56,21 @@ const MetricDisplay: React.FC<{label: string, value: string | number | null, uni
 
 const UserVideoPerformanceMetrics: React.FC<UserVideoPerformanceMetricsProps> = ({
   userId,
-  // Corrigido: Adicionado optional chaining e fallback para segurança
-  initialTimePeriod = TIME_PERIOD_OPTIONS?.[1]?.value || 'last_90_days',
+  initialTimePeriod,
   chartTitle = "Performance de Vídeos do Criador"
 }) => {
   const [metrics, setMetrics] = useState<VideoMetricsData | null>(null);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [timePeriod, setTimePeriod] = useState<string>(initialTimePeriod);
+
+  const [timePeriod, setTimePeriod] = useState<string>(initialTimePeriod || TIME_PERIOD_OPTIONS[1].value); // Default last_90_days
+
+  useEffect(() => {
+    if (initialTimePeriod) {
+      setTimePeriod(initialTimePeriod);
+    }
+  }, [initialTimePeriod]);
 
   const fetchData = useCallback(async () => {
     if (!userId) {
@@ -118,17 +126,17 @@ const UserVideoPerformanceMetrics: React.FC<UserVideoPerformanceMetricsProps> = 
     );
   }
 
-
   return (
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-md font-semibold text-gray-700">{chartTitle}</h3>
         <div>
-          <label htmlFor={`timePeriodUserVideo-${userId}`} className="sr-only">Período</label>
+          <label htmlFor={`timePeriodUserVideo-${userId || 'default'}`} className="sr-only">Período</label>
           <select
-            id={`timePeriodUserVideo-${userId}`}
+            id={`timePeriodUserVideo-${userId || 'default'}`}
             value={timePeriod}
             onChange={handleTimePeriodChange}
+            disabled={loading}
             className="p-1.5 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs"
           >
             {TIME_PERIOD_OPTIONS.map(option => (
@@ -175,3 +183,4 @@ const UserVideoPerformanceMetrics: React.FC<UserVideoPerformanceMetricsProps> = 
 };
 
 export default UserVideoPerformanceMetrics;
+```

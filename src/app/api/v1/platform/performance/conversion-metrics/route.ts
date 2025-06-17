@@ -92,3 +92,4 @@ export async function GET(
   //   return NextResponse.json({ error: "Erro ao processar sua solicitação de métricas de conversão da plataforma.", details: errorMessage }, { status: 500 });
   // }
 }
+```

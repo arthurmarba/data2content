@@ -1,15 +1,7 @@
-import MetricModel, { IMetric } from "@/app/models/Metric"; // Ajuste o caminho
+import MetricModel, { IMetric, FormatType } from "@/app/models/Metric"; // Ajuste o caminho
 import { Types } from "mongoose";
 import { getNestedValue } from "./dataAccessHelpers";
 import { getStartDateFromTimePeriod } from "./dateHelpers";
-
-// --- Tipos e Enums definidos localmente para resolver o erro ---
-export enum FormatType {
-  IMAGE = "IMAGE",
-  VIDEO = "VIDEO",
-  REEL = "REEL",
-  CAROUSEL_ALBUM = "CAROUSEL_ALBUM",
-}
 
 export type GroupingType = "format" | "context";
 
@@ -26,7 +18,6 @@ const DEFAULT_FORMAT_MAPPING: { [key: string]: string } = {
   [FormatType.REEL]: "Reel",
   [FormatType.CAROUSEL_ALBUM]: "Carrossel",
   // Adicionar outros formatos conforme necessário
-  "UNKNOWN": "Desconhecido"
 };
 
 
@@ -65,47 +56,46 @@ async function getAverageEngagementByGrouping(
       let groupKey: string | undefined | null = null;
 
       if (groupBy === "format") {
-        groupKey = (post.format as string) || "UNKNOWN";
+        groupKey = post.format as string;
       } else if (groupBy === "context") {
-        groupKey = post.context;
+        groupKey = post.context; // Assumindo que context é uma string ou pode ser convertida
       }
 
       const performanceValue = getNestedValue(post, performanceMetricField);
 
-      if (groupKey && typeof performanceValue === 'number') {
+      if (groupKey && performanceValue !== null) {
         const keyString = groupKey.toString();
         if (!performanceByGroup[keyString]) {
           performanceByGroup[keyString] = { sumPerformance: 0, count: 0 };
         }
-        const groupData = performanceByGroup[keyString];
-        if(groupData) {
-            groupData.sumPerformance += performanceValue;
-            groupData.count += 1;
-        }
+        performanceByGroup[keyString].sumPerformance += performanceValue;
+        performanceByGroup[keyString].count += 1;
       }
     }
 
     if (Object.keys(performanceByGroup).length === 0) {
-      return results;
+      return results; // Nenhum grupo com dados de performance válidos
     }
 
     for (const key in performanceByGroup) {
       const data = performanceByGroup[key];
-      if (data && data.count > 0) {
+      if (data.count > 0) {
         let displayName = key;
         if (groupBy === "format") {
             const mappingToUse = formatMapping || DEFAULT_FORMAT_MAPPING;
             displayName = mappingToUse[key] || key.toString().replace(/_/g, ' ').toLocaleLowerCase().replace(/\b\w/g, l => l.toUpperCase());
         }
+        // Para 'context', o 'key' já é o nome do contexto. Poderia ter um mapping similar se necessário.
 
         results.push({
           name: displayName,
-          value: data.sumPerformance / data.count,
+          value: data.sumPerformance / data.count, // Média
           postsCount: data.count,
         });
       }
     }
 
+    // Ordenar por valor descendente para o gráfico
     results.sort((a, b) => b.value - a.value);
 
     return results;
@@ -117,3 +107,4 @@ async function getAverageEngagementByGrouping(
 }
 
 export default getAverageEngagementByGrouping;
+```

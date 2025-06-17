@@ -15,31 +15,35 @@ interface PlatformFollowerTrendResponse {
   insightSummary?: string;
 }
 
+// TIME_PERIOD_OPTIONS não é mais necessário aqui, pois será controlado pelo pai.
+// const TIME_PERIOD_OPTIONS = [ ... ];
+
 const GRANULARITY_OPTIONS = [
   { value: "daily", label: "Diário" },
   { value: "monthly", label: "Mensal" },
 ];
 
 interface PlatformFollowerTrendChartProps {
-  timePeriod: string; 
+  timePeriod: string; // Recebido do pai (page.tsx)
   initialGranularity?: string;
 }
 
 const PlatformFollowerTrendChart: React.FC<PlatformFollowerTrendChartProps> = ({
-  timePeriod,
-  // Corrigido: Usa optional chaining e um fallback para segurança
-  initialGranularity = GRANULARITY_OPTIONS?.[0]?.value || 'daily'
+  timePeriod, // Prop vinda da página principal
+  initialGranularity = GRANULARITY_OPTIONS[0].value
 }) => {
   const [data, setData] = useState<PlatformFollowerTrendResponse['chartData']>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  // timePeriod não é mais um estado local
   const [granularity, setGranularity] = useState<string>(initialGranularity);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
+      // Usa timePeriod da prop e granularity do estado local
       const apiUrl = `/api/v1/platform/trends/followers?timePeriod=${timePeriod}&granularity=${granularity}`;
       const response = await fetch(apiUrl);
       if (!response.ok) {
@@ -56,11 +60,13 @@ const PlatformFollowerTrendChart: React.FC<PlatformFollowerTrendChartProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [timePeriod, granularity]); 
+  }, [timePeriod, granularity]); // Adicionado timePeriod às dependências
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+  }, [fetchData]); // fetchData já inclui timePeriod e granularity
+
+  // handleTimePeriodChange não é mais necessário aqui
 
   const handleGranularityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setGranularity(e.target.value);
@@ -82,6 +88,7 @@ const PlatformFollowerTrendChart: React.FC<PlatformFollowerTrendChartProps> = ({
         <h2 className="text-lg md:text-xl font-semibold text-gray-700 mb-2 sm:mb-0">
           Evolução de Seguidores da Plataforma
         </h2>
+        {/* Seletor de timePeriod removido */}
         <div>
           <label htmlFor="granularityFollowersPlatform" className="block text-sm font-medium text-gray-600 mb-1 sr-only">Granularidade:</label>
           <select
@@ -137,3 +144,4 @@ const PlatformFollowerTrendChart: React.FC<PlatformFollowerTrendChartProps> = ({
 };
 
 export default PlatformFollowerTrendChart;
+```

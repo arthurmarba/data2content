@@ -1,17 +1,8 @@
-import MetricModel, { IMetric } from "@/app/models/Metric"; // Ajuste o caminho
+import MetricModel, { IMetric, FormatType } from "@/app/models/Metric"; // Ajuste o caminho
 import { Types } from "mongoose";
 import { getNestedValue } from "./dataAccessHelpers"; // Importar a função compartilhada
-import { getStartDateFromTimePeriod } from "./dateHelpers";
 
-// --- Tipos e Enums definidos localmente para resolver o erro ---
-export enum FormatType {
-  IMAGE = "IMAGE",
-  VIDEO = "VIDEO",
-  REEL = "REEL",
-  CAROUSEL_ALBUM = "CAROUSEL_ALBUM",
-}
-
-export interface FormatPerformanceData {
+interface FormatPerformanceData {
   format: FormatType | string | null;
   averagePerformance: number;
   postsCount: number;
@@ -26,8 +17,9 @@ async function getLowPerformingFormat(
 ): Promise<FormatPerformanceData | null> {
   const resolvedUserId = typeof userId === 'string' ? new Types.ObjectId(userId) : userId;
   const today = new Date();
-  const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
-  const startDate = getStartDateFromTimePeriod(today, `last_${periodInDays}_days`);
+  const endDate = new Date(today);
+  const startDate = new Date(today);
+  startDate.setDate(today.getDate() - periodInDays);
 
   try {
     const posts: IMetric[] = await MetricModel.find({
@@ -44,18 +36,15 @@ async function getLowPerformingFormat(
     } = {};
 
     for (const post of posts) {
-      const format = (post.format as string) || "UNKNOWN";
+      const format = post.format as string;
       const performanceValue = getNestedValue(post, performanceMetricField);
 
-      if (format && typeof performanceValue === 'number') {
+      if (format && performanceValue !== null) {
         if (!performanceByFormat[format]) {
           performanceByFormat[format] = { sumPerformance: 0, count: 0 };
         }
-        const formatData = performanceByFormat[format];
-        if (formatData) {
-            formatData.sumPerformance += performanceValue;
-            formatData.count += 1;
-        }
+        performanceByFormat[format].sumPerformance += performanceValue;
+        performanceByFormat[format].count += 1;
       }
     }
 
@@ -69,7 +58,8 @@ async function getLowPerformingFormat(
 
     for (const formatKey in performanceByFormat) {
       const data = performanceByFormat[formatKey];
-      if (data && data.count > 0 && data.count >= minPostsForConsideration) {
+      // Considerar apenas formatos com um número mínimo de posts
+      if (data.count > 0 && data.count >= minPostsForConsideration) {
         const average = data.sumPerformance / data.count;
         if (average < minAveragePerformance) {
           minAveragePerformance = average;
@@ -80,6 +70,7 @@ async function getLowPerformingFormat(
     }
 
     if (lowFormat === null) {
+      // Pode acontecer se nenhum formato atender ao minPostsForConsideration
       return null;
     }
 
@@ -97,3 +88,4 @@ async function getLowPerformingFormat(
 }
 
 export default getLowPerformingFormat;
+```

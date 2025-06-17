@@ -1,30 +1,7 @@
 import { NextResponse } from 'next/server';
-import getEngagementDistributionByFormatChartData from '@/charts/getEngagementDistributionByFormatChartData'; // Ajuste
+import getEngagementDistributionByFormatChartData, { EngagementDistributionChartResponse } from '@/charts/getEngagementDistributionByFormatChartData'; // Ajuste
 import { Types } from 'mongoose';
-
-// --- Interfaces e Enums definidos localmente para resolver erros de importação ---
-
-// Definindo o Enum diretamente no arquivo.
-export enum FormatType {
-  IMAGE = "IMAGE",
-  VIDEO = "VIDEO",
-  REEL = "REEL",
-  CAROUSEL_ALBUM = "CAROUSEL_ALBUM",
-}
-
-// Interface para um ponto de dado no gráfico de pizza/donut.
-interface EngagementDataPoint {
-  name: string;
-  value: number;
-  percentage: number;
-}
-
-// Interface para a resposta da API.
-interface EngagementDistributionChartResponse {
-  chartData: EngagementDataPoint[];
-  insightSummary?: string;
-}
-
+import { FormatType } from '@/app/models/Metric'; // Ajuste se necessário para formatMapping
 
 // Constantes para validação e defaults
 const ALLOWED_TIME_PERIODS: string[] = ["all_time", "last_7_days", "last_30_days", "last_90_days", "last_6_months", "last_12_months"];
@@ -99,3 +76,4 @@ export async function GET(
     return NextResponse.json({ error: "Erro ao processar sua solicitação.", details: errorMessage }, { status: 500 });
   }
 }
+```

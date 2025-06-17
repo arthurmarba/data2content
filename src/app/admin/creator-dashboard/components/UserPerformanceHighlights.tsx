@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { TrendingUp, TrendingDown, Sparkles, AlertCircle, Info } from 'lucide-react'; // Ícones
+import { TrendingUp, TrendingDown, Sparkles, Info } from 'lucide-react';
 
 interface PerformanceHighlightItem {
   name: string;
@@ -30,6 +30,7 @@ interface UserPerformanceHighlightsProps {
   sectionTitle?: string;
 }
 
+// Sub-componente HighlightCard (mantido como estava)
 const HighlightCard: React.FC<{
   title: string;
   highlight: PerformanceHighlightItem | null | undefined;
@@ -65,17 +66,30 @@ const HighlightCard: React.FC<{
   );
 };
 
+// Ícone de Informação (mantido como estava)
+const InfoIcon: React.FC<{className?: string}> = ({className}) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className || "h-4 w-4"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+);
+
 
 const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
   userId,
-  // Corrigido: Adicionado optional chaining e fallback para segurança
-  initialTimePeriod = TIME_PERIOD_OPTIONS?.[1]?.value || "last_90_days",
+  initialTimePeriod,
   sectionTitle = "Destaques de Performance do Criador"
 }) => {
   const [summary, setSummary] = useState<PerformanceSummaryResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [timePeriod, setTimePeriod] = useState<string>(initialTimePeriod);
+
+  const [timePeriod, setTimePeriod] = useState<string>(initialTimePeriod || TIME_PERIOD_OPTIONS[1].value); // Default last_90_days
+
+  useEffect(() => {
+    if (initialTimePeriod) {
+      setTimePeriod(initialTimePeriod);
+    }
+  }, [initialTimePeriod]);
 
   const fetchData = useCallback(async () => {
     if (!userId) {
@@ -120,13 +134,13 @@ const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
       <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4">
         <h3 className="text-md font-semibold text-gray-700 mb-2 sm:mb-0">{sectionTitle}</h3>
         <div>
-          <label htmlFor={`timePeriodUserHighlights-${userId}`} className="sr-only">Período</label>
+          <label htmlFor={`timePeriodUserHighlights-${userId || 'default'}`} className="sr-only">Período</label>
           <select
-            id={`timePeriodUserHighlights-${userId}`}
+            id={`timePeriodUserHighlights-${userId || 'default'}`}
             value={timePeriod}
             onChange={(e) => setTimePeriod(e.target.value)}
-            className="p-1.5 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs"
             disabled={loading}
+            className="p-1.5 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs"
           >
             {TIME_PERIOD_OPTIONS.map(option => (
               <option key={option.value} value={option.value}>{option.label}</option>
@@ -176,3 +190,4 @@ const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
 };
 
 export default UserPerformanceHighlights;
+```

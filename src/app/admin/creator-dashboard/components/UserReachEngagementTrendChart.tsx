@@ -30,20 +30,35 @@ const GRANULARITY_OPTIONS = [
 interface UserReachEngagementTrendChartProps {
   userId: string | null;
   chartTitle?: string;
+  initialTimePeriod?: string;
+  initialGranularity?: string;
 }
 
 const UserReachEngagementTrendChart: React.FC<UserReachEngagementTrendChartProps> = ({
   userId,
-  chartTitle = "Evolução de Alcance e Contas Engajadas do Criador"
+  chartTitle = "Evolução de Alcance e Contas Engajadas do Criador",
+  initialTimePeriod,
+  initialGranularity
 }) => {
   const [data, setData] = useState<UserReachEngagementTrendResponse['chartData']>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  
-  // Corrigido: Adicionado optional chaining e fallback para segurança
-  const [timePeriod, setTimePeriod] = useState<string>(TIME_PERIOD_OPTIONS?.[1]?.value || "last_30_days");
-  const [granularity, setGranularity] = useState<string>(GRANULARITY_OPTIONS?.[0]?.value || "daily");
+
+  const [timePeriod, setTimePeriod] = useState<string>(initialTimePeriod || TIME_PERIOD_OPTIONS[1].value);
+  const [granularity, setGranularity] = useState<string>(initialGranularity || GRANULARITY_OPTIONS[0].value);
+
+  useEffect(() => {
+    if (initialTimePeriod) {
+      setTimePeriod(initialTimePeriod);
+    }
+  }, [initialTimePeriod]);
+
+  useEffect(() => {
+    if (initialGranularity) {
+      setGranularity(initialGranularity);
+    }
+  }, [initialGranularity]);
 
   const fetchData = useCallback(async () => {
     if (!userId) {
@@ -102,9 +117,11 @@ const UserReachEngagementTrendChart: React.FC<UserReachEngagementTrendChartProps
 
   const xAxisTickFormatter = (tick: string) => {
     if (granularity === 'weekly' && tick.includes('-')) {
-        const parts = tick.split('-');
-        return `S${parts[1]}`;
+        return `S${tick.split('-')[1]}`;
     }
+    // Para diário, poderia formatar YYYY-MM-DD para DD/MM
+    // const d = new Date(tick + "T00:00:00Z"); // Assume tick é YYYY-MM-DD
+    // return `${String(d.getUTCDate()).padStart(2,'0')}/${String(d.getUTCMonth()+1).padStart(2,'0')}`;
     return tick;
   };
 
@@ -125,11 +142,12 @@ const UserReachEngagementTrendChart: React.FC<UserReachEngagementTrendChartProps
 
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
         <div>
-          <label htmlFor={`timePeriodUserReachEng-${userId}`} className="block text-sm font-medium text-gray-600 mb-1">Período:</label>
+          <label htmlFor={`timePeriodUserReachEng-${userId || 'default'}`} className="block text-sm font-medium text-gray-600 mb-1">Período:</label>
           <select
-            id={`timePeriodUserReachEng-${userId}`}
+            id={`timePeriodUserReachEng-${userId || 'default'}`}
             value={timePeriod}
             onChange={handleTimePeriodChange}
+            disabled={loading}
             className="w-full sm:w-auto p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
           >
             {TIME_PERIOD_OPTIONS.map(option => (
@@ -138,11 +156,12 @@ const UserReachEngagementTrendChart: React.FC<UserReachEngagementTrendChartProps
           </select>
         </div>
         <div>
-          <label htmlFor={`granularityUserReachEng-${userId}`} className="block text-sm font-medium text-gray-600 mb-1">Granularidade:</label>
+          <label htmlFor={`granularityUserReachEng-${userId || 'default'}`} className="block text-sm font-medium text-gray-600 mb-1">Granularidade:</label>
           <select
-            id={`granularityUserReachEng-${userId}`}
+            id={`granularityUserReachEng-${userId || 'default'}`}
             value={granularity}
             onChange={handleGranularityChange}
+            disabled={loading}
             className="w-full sm:w-auto p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
           >
             {GRANULARITY_OPTIONS.map(option => (
@@ -200,3 +219,4 @@ const UserReachEngagementTrendChart: React.FC<UserReachEngagementTrendChartProps
 };
 
 export default UserReachEngagementTrendChart;
+```

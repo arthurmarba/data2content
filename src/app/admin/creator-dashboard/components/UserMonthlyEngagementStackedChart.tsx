@@ -10,7 +10,7 @@ interface MonthlyEngagementDataPoint {
   likes: number;
   comments: number;
   shares: number;
-  saved?: number; // Opcional, dependendo da API
+  saved?: number;
   total: number;
 }
 
@@ -33,15 +33,21 @@ interface UserMonthlyEngagementStackedChartProps {
 
 const UserMonthlyEngagementStackedChart: React.FC<UserMonthlyEngagementStackedChartProps> = ({
   userId,
-  // Corrigido: Adicionado optional chaining e fallback para segurança
-  initialTimePeriod = TIME_PERIOD_OPTIONS?.[1]?.value || "last_6_months",
+  initialTimePeriod,
   chartTitle = "Engajamento Mensal Detalhado do Criador"
 }) => {
   const [data, setData] = useState<MonthlyEngagementResponse['chartData']>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [timePeriod, setTimePeriod] = useState<string>(initialTimePeriod);
+
+  const [timePeriod, setTimePeriod] = useState<string>(initialTimePeriod || TIME_PERIOD_OPTIONS[1].value); // Default last_6_months
+
+  useEffect(() => {
+    if (initialTimePeriod) {
+      setTimePeriod(initialTimePeriod);
+    }
+  }, [initialTimePeriod]);
 
   const fetchData = useCallback(async () => {
     if (!userId) {
@@ -109,11 +115,12 @@ const UserMonthlyEngagementStackedChart: React.FC<UserMonthlyEngagementStackedCh
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-md font-semibold text-gray-700">{chartTitle}</h3>
         <div>
-          <label htmlFor={`timePeriodUserStackedEng-${userId}`} className="sr-only">Período</label>
+          <label htmlFor={`timePeriodUserStackedEng-${userId || 'default'}`} className="sr-only">Período</label>
           <select
-            id={`timePeriodUserStackedEng-${userId}`}
+            id={`timePeriodUserStackedEng-${userId || 'default'}`}
             value={timePeriod}
             onChange={(e) => setTimePeriod(e.target.value)}
+            disabled={loading}
             className="p-1.5 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs"
           >
             {TIME_PERIOD_OPTIONS.map(option => (
@@ -153,3 +160,4 @@ const UserMonthlyEngagementStackedChart: React.FC<UserMonthlyEngagementStackedCh
 };
 
 export default UserMonthlyEngagementStackedChart;
+```

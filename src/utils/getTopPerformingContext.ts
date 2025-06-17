@@ -1,7 +1,6 @@
 import MetricModel, { IMetric } from "@/app/models/Metric"; // Ajuste o caminho
 import { Types } from "mongoose";
 import { getNestedValue } from "./dataAccessHelpers"; // Importar a função compartilhada
-import { getStartDateFromTimePeriod } from "./dateHelpers";
 
 interface ContextPerformanceData {
   context: string | null;
@@ -17,8 +16,9 @@ async function getTopPerformingContext(
 ): Promise<ContextPerformanceData | null> {
   const resolvedUserId = typeof userId === 'string' ? new Types.ObjectId(userId) : userId;
   const today = new Date();
-  const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
-  const startDate = getStartDateFromTimePeriod(today, `last_${periodInDays}_days`);
+  const endDate = new Date(today);
+  const startDate = new Date(today);
+  startDate.setDate(today.getDate() - periodInDays);
 
   try {
     const posts: IMetric[] = await MetricModel.find({
@@ -38,16 +38,13 @@ async function getTopPerformingContext(
       const context = post.context;
       const performanceValue = getNestedValue(post, performanceMetricField);
 
-      if (context && typeof performanceValue === 'number') {
+      if (context && performanceValue !== null) {
         const contextKey = context.toString();
         if (!performanceByContext[contextKey]) {
           performanceByContext[contextKey] = { sumPerformance: 0, count: 0 };
         }
-        const contextData = performanceByContext[contextKey];
-        if (contextData) {
-            contextData.sumPerformance += performanceValue;
-            contextData.count += 1;
-        }
+        performanceByContext[contextKey].sumPerformance += performanceValue;
+        performanceByContext[contextKey].count += 1;
       }
     }
 
@@ -61,8 +58,7 @@ async function getTopPerformingContext(
 
     for (const contextKey in performanceByContext) {
       const data = performanceByContext[contextKey];
-      // Adicionado um check para garantir que 'data' não seja undefined.
-      if (data && data.count > 0) {
+      if (data.count > 0) {
         const average = data.sumPerformance / data.count;
         if (average > maxAveragePerformance) {
           maxAveragePerformance = average;
@@ -90,3 +86,4 @@ async function getTopPerformingContext(
 }
 
 export default getTopPerformingContext;
+```

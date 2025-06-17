@@ -124,3 +124,4 @@ export async function getPlatformMinMaxValues(
   }
   return results;
 }
+```

@@ -27,7 +27,7 @@ function addDays(date: Date, days: number): Date {
 
 // Helper para formatar data como YYYY-MM-DD
 function formatDateYYYYMMDD(date: Date): string {
-  return date.toISOString().split('T')[0]!;
+  return date.toISOString().split('T')[0];
 }
 
 async function calculateMovingAverageEngagement(
@@ -61,7 +61,14 @@ async function calculateMovingAverageEngagement(
 
   try {
     // 1b. Buscar e Agregar DailyMetricSnapshot
+    // A task original sugeria um aggregate complexo no DB.
+    // Para simplificar esta função e focar na lógica da média móvel,
+    // vamos buscar os snapshots e agregar na aplicação.
+    // Em um cenário de produção com muitos snapshots, a agregação no DB seria mais performática.
     const snapshots: IDailyMetricSnapshot[] = await DailyMetricSnapshotModel.find({
+      // Assumindo que DailyMetricSnapshot tem uma referência direta 'user' ou 'metric.user'
+      // Se for via 'metric', um $lookup ou busca prévia de metric IDs seria necessário.
+      // Para esta implementação, vamos assumir que DailyMetricSnapshot tem 'user'.
       user: resolvedUserId,
       date: { $gte: dataFullStartDate, $lte: dataEndDate },
     })
@@ -71,13 +78,13 @@ async function calculateMovingAverageEngagement(
     // Agrupar por dia e somar engajamentos
     const dailyEngagementsMap = new Map<string, number>();
     for (const snapshot of snapshots) {
-      if (!snapshot.date) continue; // Pular se a data for inválida
       const dayKey = formatDateYYYYMMDD(snapshot.date);
       const currentEngagement = dailyEngagementsMap.get(dayKey) || 0;
       let engagementForSnapshot = 0;
       if (typeof snapshot.dailyLikes === 'number') engagementForSnapshot += snapshot.dailyLikes;
       if (typeof snapshot.dailyComments === 'number') engagementForSnapshot += snapshot.dailyComments;
       if (typeof snapshot.dailyShares === 'number') engagementForSnapshot += snapshot.dailyShares;
+      // Adicionar outras métricas de engajamento se necessário (ex: dailySaves)
       dailyEngagementsMap.set(dayKey, currentEngagement + engagementForSnapshot);
     }
 
@@ -95,6 +102,7 @@ async function calculateMovingAverageEngagement(
 
     // 3. Cálculo da Média Móvel (usando soma deslizante para eficiência)
     if (completeDailyEngagementsSeries.length < movingAverageWindowInDays) {
+        // Não há dados suficientes nem para uma janela completa, preencher com nulls
         let iterDate = new Date(dataStartDate);
         while (iterDate <= dataEndDate) {
             resultSeries.push({ date: formatDateYYYYMMDD(iterDate), movingAverageEngagement: null });
@@ -105,55 +113,55 @@ async function calculateMovingAverageEngagement(
     }
 
     let currentWindowSum = 0;
-    
+    const windowValues: number[] = [];
+
     // Preencher a primeira janela
     for (let i = 0; i < movingAverageWindowInDays; i++) {
-      const point = completeDailyEngagementsSeries[i];
-      if(point) {
-        currentWindowSum += point.totalDailyEngagement;
-      }
+      currentWindowSum += completeDailyEngagementsSeries[i].totalDailyEngagement;
+      windowValues.push(completeDailyEngagementsSeries[i].totalDailyEngagement);
     }
 
     // Adicionar o primeiro ponto da média móvel se estiver dentro da dataWindowInDays
-    const firstPoint = completeDailyEngagementsSeries[movingAverageWindowInDays - 1];
-    if (firstPoint) {
-        const firstSeriesPointDate = new Date(firstPoint.date);
-        if (firstSeriesPointDate >= dataStartDate) {
-             resultSeries.push({
-                date: firstPoint.date,
-                movingAverageEngagement: currentWindowSum / movingAverageWindowInDays,
-            });
-        }
+    const firstSeriesPointDate = new Date(completeDailyEngagementsSeries[movingAverageWindowInDays - 1].date);
+    if (firstSeriesPointDate >= dataStartDate) {
+         resultSeries.push({
+            date: completeDailyEngagementsSeries[movingAverageWindowInDays - 1].date,
+            movingAverageEngagement: currentWindowSum / movingAverageWindowInDays,
+        });
     }
 
 
     // Calcular o restante com janela deslizante
     for (let i = movingAverageWindowInDays; i < completeDailyEngagementsSeries.length; i++) {
-      const outgoingPoint = completeDailyEngagementsSeries[i - movingAverageWindowInDays];
-      const incomingPoint = completeDailyEngagementsSeries[i];
-      
-      if(outgoingPoint && incomingPoint) {
-        currentWindowSum -= outgoingPoint.totalDailyEngagement;
-        currentWindowSum += incomingPoint.totalDailyEngagement;
+      currentWindowSum -= completeDailyEngagementsSeries[i - movingAverageWindowInDays].totalDailyEngagement;
+      currentWindowSum += completeDailyEngagementsSeries[i].totalDailyEngagement;
 
-        const currentDateForSeries = new Date(incomingPoint.date);
-        if (currentDateForSeries >= dataStartDate) {
-             resultSeries.push({
-              date: incomingPoint.date,
-              movingAverageEngagement: currentWindowSum / movingAverageWindowInDays,
-            });
-        }
+      const currentDateForSeries = new Date(completeDailyEngagementsSeries[i].date);
+      if (currentDateForSeries >= dataStartDate) { // Só adiciona se estiver dentro da janela de exibição
+           resultSeries.push({
+            date: completeDailyEngagementsSeries[i].date,
+            movingAverageEngagement: currentWindowSum / movingAverageWindowInDays,
+          });
       }
     }
 
+    // Se a dataWindowInDays for maior que os dados disponíveis, precisamos preencher
+    // os pontos iniciais da dataWindowInDays que não tiveram média calculada com null.
+    // A lógica atual já começa a adicionar pontos à resultSeries apenas quando a janela está "cheia"
+    // e o ponto está dentro da dataWindowInDays.
+    // Precisamos garantir que todos os dias da dataWindowInDays tenham uma entrada em resultSeries.
+
     const finalSeriesOutput: MovingAverageDataPoint[] = [];
     let iterDateForOutput = new Date(dataStartDate);
+    let resultSeriesIdx = 0;
     while(iterDateForOutput <= dataEndDate) {
         const dayKey = formatDateYYYYMMDD(iterDateForOutput);
         const foundDataPoint = resultSeries.find(p => p.date === dayKey);
         if (foundDataPoint) {
             finalSeriesOutput.push(foundDataPoint);
         } else {
+            // Isso acontece se a janela da média móvel não estava cheia o suficiente
+            // no início da dataWindowInDays.
             finalSeriesOutput.push({ date: dayKey, movingAverageEngagement: null });
         }
         iterDateForOutput = addDays(iterDateForOutput, 1);
@@ -165,15 +173,16 @@ async function calculateMovingAverageEngagement(
 
   } catch (error) {
     console.error(`Error calculating moving average engagement for userId ${resolvedUserId}:`, error);
+    // Preenche a série com nulls para todos os dias da janela de dados em caso de erro
     let iterDate = new Date(dataStartDate);
-    const errorSeries: MovingAverageDataPoint[] = [];
     while (iterDate <= dataEndDate) {
-        errorSeries.push({ date: formatDateYYYYMMDD(iterDate), movingAverageEngagement: null });
+        resultSeries.push({ date: formatDateYYYYMMDD(iterDate), movingAverageEngagement: null });
         iterDate = addDays(iterDate, 1);
     }
-    initialResult.series = errorSeries;
+    initialResult.series = resultSeries;
     return initialResult;
   }
 }
 
 export default calculateMovingAverageEngagement;
+```

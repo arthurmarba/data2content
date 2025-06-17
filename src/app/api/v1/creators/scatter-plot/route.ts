@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import getCreatorsScatterPlotData, { ScatterPlotMetricConfig } from '@/charts/getCreatorsScatterPlotData'; // Ajuste
+import getCreatorsScatterPlotData, { ScatterPlotResponse, ScatterPlotMetricConfig } from '@/charts/getCreatorsScatterPlotData'; // Ajuste
 import { Types } from 'mongoose';
 
 // Definir quais lógicas de cálculo são permitidas para os eixos do scatter plot
@@ -64,11 +64,11 @@ export async function POST(
 
   try {
     // A função getCreatorsScatterPlotData já lida com a conversão de string para ObjectId internamente se necessário.
-    const data = await getCreatorsScatterPlotData(
-          userIds,
-          xAxisMetricConfig,
-          yAxisMetricConfig
-        );
+    const data: ScatterPlotResponse = await getCreatorsScatterPlotData(
+      userIds,
+      xAxisMetricConfig,
+      yAxisMetricConfig
+    );
 
     return NextResponse.json(data, { status: 200 });
 
@@ -78,3 +78,4 @@ export async function POST(
     return NextResponse.json({ error: "Erro ao processar sua solicitação para o gráfico de dispersão.", details: errorMessage }, { status: 500 });
   }
 }
+```

@@ -4,17 +4,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
-// Adicionando as importações de tipos necessárias do recharts
-import { ValueType, NameType, Payload } from 'recharts/types/component/DefaultTooltipContent';
 
-
-// Tipos de dados da API (espelhando a resposta do endpoint de usuário)
 type GroupingType = "format" | "context";
 
 interface ApiUserAverageEngagementDataPoint {
-  name: string; // Nome do formato ou contexto
-  value: number; // Média da métrica de performance
-  postsCount: number; // Número de posts nesse grupo
+  name: string;
+  value: number;
+  postsCount: number;
 }
 
 interface UserAverageEngagementResponse {
@@ -24,7 +20,6 @@ interface UserAverageEngagementResponse {
   insightSummary?: string;
 }
 
-// Constantes para seletores (podem ser importadas)
 const TIME_PERIOD_OPTIONS = [
   { value: "all_time", label: "Todo o período" },
   { value: "last_7_days", label: "Últimos 7 dias" },
@@ -40,22 +35,38 @@ const ENGAGEMENT_METRIC_OPTIONS = [
 
 interface UserAverageEngagementChartProps {
   userId: string | null;
-  groupBy: GroupingType; // "format" ou "context", para determinar qual gráfico mostrar
+  groupBy: GroupingType;
   chartTitle: string;
+  initialTimePeriod?: string;
+  initialEngagementMetric?: string;
 }
 
 const UserAverageEngagementChart: React.FC<UserAverageEngagementChartProps> = ({
   userId,
   groupBy,
   chartTitle,
+  initialTimePeriod,
+  initialEngagementMetric = ENGAGEMENT_METRIC_OPTIONS[0].value
 }) => {
   const [data, setData] = useState<ApiUserAverageEngagementDataPoint[]>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [timePeriod, setTimePeriod] = useState<string>(TIME_PERIOD_OPTIONS?.[2]?.value || "last_30_days");
-  const [engagementMetric, setEngagementMetric] = useState<string>(ENGAGEMENT_METRIC_OPTIONS?.[0]?.value || "stats.total_interactions");
+  const [timePeriod, setTimePeriod] = useState<string>(initialTimePeriod || TIME_PERIOD_OPTIONS[2].value);
+  const [engagementMetric, setEngagementMetric] = useState<string>(initialEngagementMetric);
+
+  useEffect(() => {
+    if (initialTimePeriod) {
+      setTimePeriod(initialTimePeriod);
+    }
+  }, [initialTimePeriod]);
+
+  useEffect(() => {
+    // Se uma métrica inicial diferente for passada como prop e mudar
+    setEngagementMetric(initialEngagementMetric);
+  }, [initialEngagementMetric]);
+
 
   const fetchData = useCallback(async () => {
     if (!userId) {
@@ -99,17 +110,10 @@ const UserAverageEngagementChart: React.FC<UserAverageEngagementChartProps> = ({
     return value.toString();
   };
 
-  // Corrigido: A assinatura da função agora usa o tipo correto para o terceiro parâmetro.
-  const tooltipFormatter = (value: ValueType, name: NameType, entry: Payload<ValueType, NameType>) => {
-      const postsCount = entry.payload?.postsCount;
-      const formattedValue = typeof value === 'number' ? value.toLocaleString() : value;
-      
-      if (postsCount !== undefined) {
-          return [`${formattedValue} (de ${postsCount} posts)`, name];
-      }
-      return [formattedValue, name];
+  const tooltipFormatter = (value: number, name: string, props: {payload: ApiUserAverageEngagementDataPoint}) => {
+      const { postsCount } = props.payload;
+      return [`${value.toLocaleString()} (de ${postsCount} posts)`, name];
   };
-  
    const xAxisTickFormatter = (value: string) => {
     if (value && value.length > 12) {
         return `${value.substring(0, 10)}...`;
@@ -135,11 +139,12 @@ const UserAverageEngagementChart: React.FC<UserAverageEngagementChartProps> = ({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <div>
-          <label htmlFor={`timePeriodUserAvgEng-${groupBy}-${userId}`} className="block text-sm font-medium text-gray-600 mb-1">Período:</label>
+          <label htmlFor={`timePeriodUserAvgEng-${groupBy}-${userId || 'default'}`} className="block text-sm font-medium text-gray-600 mb-1">Período:</label>
           <select
-            id={`timePeriodUserAvgEng-${groupBy}-${userId}`}
+            id={`timePeriodUserAvgEng-${groupBy}-${userId || 'default'}`}
             value={timePeriod}
             onChange={(e) => setTimePeriod(e.target.value)}
+            disabled={loading}
             className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
           >
             {TIME_PERIOD_OPTIONS.map(option => (
@@ -148,11 +153,12 @@ const UserAverageEngagementChart: React.FC<UserAverageEngagementChartProps> = ({
           </select>
         </div>
         <div>
-          <label htmlFor={`metricUserAvgEng-${groupBy}-${userId}`} className="block text-sm font-medium text-gray-600 mb-1">Métrica:</label>
+          <label htmlFor={`metricUserAvgEng-${groupBy}-${userId || 'default'}`} className="block text-sm font-medium text-gray-600 mb-1">Métrica:</label>
           <select
-            id={`metricUserAvgEng-${groupBy}-${userId}`}
+            id={`metricUserAvgEng-${groupBy}-${userId || 'default'}`}
             value={engagementMetric}
             onChange={(e) => setEngagementMetric(e.target.value)}
+            disabled={loading}
             className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
           >
             {ENGAGEMENT_METRIC_OPTIONS.map(option => (
@@ -197,3 +203,4 @@ const UserAverageEngagementChart: React.FC<UserAverageEngagementChartProps> = ({
 };
 
 export default UserAverageEngagementChart;
+```
