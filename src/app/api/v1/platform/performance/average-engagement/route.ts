@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 import UserModel from '@/app/models/User';
-import getAverageEngagementByGrouping from '@/utils/getAverageEngagementByGrouping';
+import MetricModel, { IMetric } from '@/app/models/Metric';
+import { connectToDatabase } from '@/app/lib/mongoose';
+import { logger } from '@/app/lib/logger';
+import { getNestedValue } from '@/utils/dataAccessHelpers';
+import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
 
 // Tipo local para agrupamento
 type GroupingType = 'format' | 'context';
-import { Types } from 'mongoose';
 
 // Constantes para validação e defaults
 const ALLOWED_TIME_PERIODS = ['all_time', 'last_7_days', 'last_30_days', 'last_90_days', 'last_6_months', 'last_12_months'] as const;
@@ -17,16 +20,9 @@ const ALLOWED_GROUPINGS: GroupingType[] = ['format', 'context'];
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const userIdParam = searchParams.get('userId');
   const timePeriodParam = searchParams.get('timePeriod') as TimePeriod | null;
   const engagementMetricParam = searchParams.get('engagementMetricField') as EngagementMetricField | null;
   const groupByParam = searchParams.get('groupBy') as GroupingType | null;
-
-  // Validar userId
-  if (!userIdParam || !Types.ObjectId.isValid(userIdParam)) {
-    return NextResponse.json({ error: 'userId inválido ou ausente.' }, { status: 400 });
-  }
-  const userId = new Types.ObjectId(userIdParam);
 
   // Validar timePeriod
   const timePeriod: TimePeriod = timePeriodParam && ALLOWED_TIME_PERIODS.includes(timePeriodParam)
@@ -53,24 +49,49 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Verifica se usuário existe
-    const exists = await UserModel.exists({ _id: userId });
-    if (!exists) {
-      return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 });
+    await connectToDatabase();
+
+    const activeUsers = await UserModel.find({ planStatus: 'active' }).select('_id').lean();
+    const activeIds = activeUsers.map(u => u._id);
+
+    const today = new Date();
+    const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+    const startDate = getStartDateFromTimePeriod(today, timePeriod);
+
+    const query: any = {};
+    if (activeIds.length > 0) {
+      query.user = { $in: activeIds };
+    }
+    if (timePeriod !== 'all_time') {
+      query.postDate = { $gte: startDate, $lte: endDate };
     }
 
-    // Chama util com 4 argumentos conforme assinatura
-        // Chama util sem o parâmetro groupBy (util aceita 3 args)
-    const results = await getAverageEngagementByGrouping(
-      userId,
-      Number(timePeriod),
-      [engagementMetric]
-    );
+    const posts: IMetric[] = await MetricModel.find(query).lean();
+
+    const performanceByGroup: Record<string, { sumPerformance: number; count: number }> = {};
+    for (const post of posts) {
+      const groupKey = groupBy === 'format' ? post.format : post.context;
+      const metricValue = getNestedValue(post, engagementMetric);
+      if (groupKey && metricValue !== null) {
+        const key = groupKey.toString();
+        if (!performanceByGroup[key]) {
+          performanceByGroup[key] = { sumPerformance: 0, count: 0 };
+        }
+        performanceByGroup[key].sumPerformance += metricValue;
+        performanceByGroup[key].count += 1;
+      }
+    }
+
+    const results = Object.entries(performanceByGroup).map(([key, data]) => ({
+      name: key,
+      value: data.sumPerformance / data.count,
+      postsCount: data.count,
+    })).sort((a, b) => b.value - a.value);
 
     // Retorna dados
     return NextResponse.json({ chartData: results, metricUsed: engagementMetric, groupBy }, { status: 200 });
   } catch (error) {
-    console.error('[API PLATFORM/PERFORMANCE/AVERAGE-ENGAGEMENT] Error:', error);
+    logger.error('[API PLATFORM/PERFORMANCE/AVERAGE-ENGAGEMENT] Error:', error);
     return NextResponse.json({ error: 'Erro ao processar engajamento médio agrupado.', details: (error as Error).message }, { status: 500 });
   }
 }
