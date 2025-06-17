@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import CreatorSelector from './components/CreatorSelector';
 
 // Filtro Global
 import GlobalTimePeriodFilter from './components/filters/GlobalTimePeriodFilter';
@@ -28,9 +29,8 @@ const AdminCreatorDashboardPage: React.FC = () => {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [globalTimePeriod, setGlobalTimePeriod] = useState<string>("last_90_days"); // Default para 90 dias
 
-  const MOCK_USER_ID_1 = "60c72b9f9b1d8e001f8e4f5b";
-  const MOCK_USER_ID_2 = "60c72b9f9b1d8e001f8e4f5c";
   const selectedComparisonPeriodForPlatformKPIs = "month_vs_previous";
+  const [isSelectorOpen, setIsSelectorOpen] = useState(false);
 
 
   const handleUserSelect = (userId: string) => {
@@ -67,16 +67,10 @@ const AdminCreatorDashboardPage: React.FC = () => {
         <h2 className="text-lg font-semibold text-gray-700 mb-3">Simular Seleção de Criador Detalhado:</h2>
         <div className="flex flex-wrap gap-4">
           <button
-            onClick={() => handleUserSelect(MOCK_USER_ID_1)}
-            className={`p-2 rounded-md text-sm ${selectedUserId === MOCK_USER_ID_1 ? 'bg-indigo-600 text-white' : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'}`}
+            onClick={() => setIsSelectorOpen(true)}
+            className="p-2 rounded-md text-sm bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
           >
-            Ver Detalhes Criador Alpha (ID: ...4f5b)
-          </button>
-          <button
-            onClick={() => handleUserSelect(MOCK_USER_ID_2)}
-            className={`p-2 rounded-md text-sm ${selectedUserId === MOCK_USER_ID_2 ? 'bg-indigo-600 text-white' : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'}`}
-          >
-            Ver Detalhes Criador Beta (ID: ...4f5c)
+            Buscar Criador
           </button>
           {selectedUserId && (
             <button
@@ -171,6 +165,11 @@ const AdminCreatorDashboardPage: React.FC = () => {
         )}
       </div>
 
+      <CreatorSelector
+        isOpen={isSelectorOpen}
+        onClose={() => setIsSelectorOpen(false)}
+        onSelect={(creator) => handleUserSelect(creator.id)}
+      />
     </div>
   );
 };
