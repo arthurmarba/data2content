@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import UserModel from '@/app/models/User'; // Importar UserModel
 import getFollowerTrendChartData from '@/charts/getFollowerTrendChartData'; // Ajuste o caminho
-import { connectToDatabase } from '@/app/lib/mongoose'; // Added
+import { connectToDatabase } from '@/app/lib/mongoose';
 import { logger } from '@/app/lib/logger'; // Added
 import { Types } from 'mongoose'; // Para ObjectId, se necessário para UserModel
 
@@ -44,6 +44,7 @@ export async function GET(
   }
 
   try {
+    await connectToDatabase();
     // 1. Buscar apenas os usuários da plataforma que estejam ativos
     const platformUsers = await UserModel.find({
         planStatus: 'active',
