@@ -47,13 +47,24 @@ export function getStartDateFromTimePeriod(endDate: Date, timePeriod: string): D
       startDate.setDate(adjustedEndDate.getDate() - 90 + 1);
       break;
     case "last_6_months":
-      startDate.setMonth(adjustedEndDate.getMonth() - 6 + 1); // +1 because we setDate(1) later
-      startDate.setDate(1); // Start from the first day of that month
+      // Example: If endDate (today) is Nov 15th (month 10):
+      // adjustedEndDate.getMonth() is 10.
+      // (10 - 6 + 1) = month 5 (June, as months are 0-indexed).
+      // So, startDate becomes June 1st of the current year.
+      // This includes the current partial month plus 5 full preceding months.
+      startDate.setMonth(adjustedEndDate.getMonth() - 6 + 1);
+      startDate.setDate(1); // Start from the first day of that target month
       break;
     case "last_12_months":
-      startDate.setFullYear(adjustedEndDate.getFullYear() - 1 + 0); // +1 because we setDate(1) later
-      startDate.setMonth(adjustedEndDate.getMonth() +1); // ajuste de mes
-      startDate.setDate(1);
+      // Example: If endDate (today) is Nov 15th, 2023 (month 10):
+      // adjustedEndDate.getFullYear() - 1 results in 2022.
+      // adjustedEndDate.getMonth() + 1 results in 10 + 1 = 11 (December).
+      // So, startDate becomes December 1st, 2022.
+      // The period is effectively Dec 1, 2022 - Nov 15, 2023.
+      // This covers the current partial month and 11 full preceding months.
+      startDate.setFullYear(adjustedEndDate.getFullYear() - 1);
+      startDate.setMonth(adjustedEndDate.getMonth() + 1);
+      startDate.setDate(1); // Start from the first day of that target month
       break;
     default:
       if (timePeriod.startsWith("last_") && timePeriod.endsWith("_days")) {
@@ -61,19 +72,27 @@ export function getStartDateFromTimePeriod(endDate: Date, timePeriod: string): D
         if (!isNaN(days) && days > 0) {
           startDate.setDate(adjustedEndDate.getDate() - days + 1);
         } else {
-          startDate.setDate(adjustedEndDate.getDate() - 90 + 1); // Default (ex: 90 days)
+          // Default for unrecognized "last_X_days" format
+          startDate.setDate(adjustedEndDate.getDate() - 90 + 1);
         }
       } else if (timePeriod.startsWith("last_") && timePeriod.endsWith("_months")) {
         const months = parseInt(timePeriod.split("_")[1]);
         if (!isNaN(months) && months > 0) {
-          startDate.setMonth(adjustedEndDate.getMonth() - months +1);
+          // Similar logic to "last_6_months": includes current partial month + (N-1) full preceding months.
+          // Example: "last_3_months" on Nov 15th:
+          // adjustedEndDate.getMonth() is 10.
+          // (10 - 3 + 1) = month 8 (September). Sets to Sep 1st.
+          // Covers Sep, Oct, and partial Nov.
+          startDate.setMonth(adjustedEndDate.getMonth() - months + 1);
           startDate.setDate(1);
         } else {
-          startDate.setMonth(adjustedEndDate.getMonth() - 6 +1); // Default (ex: 6 months)
+          // Default for unrecognized "last_X_months" format
+          startDate.setMonth(adjustedEndDate.getMonth() - 6 + 1);
           startDate.setDate(1);
         }
       } else {
-        startDate.setDate(adjustedEndDate.getDate() - 90 + 1); // Default overall
+        // Default for any other unrecognized timePeriod string
+        startDate.setDate(adjustedEndDate.getDate() - 90 + 1);
       }
       break;
   }

@@ -1,4 +1,5 @@
 // src/utils/normalizationHelpers.ts
+import { logger } from "@/app/lib/logger"; // Added
 
 /**
  * Normalizes a given value to a scale of 0-100 using Min-Max normalization.
@@ -26,16 +27,14 @@ export function normalizeValue(
   if (numMin === null || numMax === null) {
     // If min or max is not a valid number, cannot perform robust normalization.
     // Return 0, or consider other fallback strategies (e.g., a fixed scale if appropriate).
-    // console.warn(`Normalization skipped: min (${min}) or max (${max}) is not a valid number. Value: ${value}`);
+    logger.warn(`Normalization skipped: min (${min}) or max (${max}) is not a valid number. Value: ${value}`); // Replaced console.warn
     return 0; // Or perhaps 50 if we want to indicate 'average' for unknown scale
   }
 
   if (numMin === numMax) {
-    // If min and max are the same, all non-null values on this "scale" are effectively the same.
-    // If value is also equal to this min/max, it's "average" in this context.
-    // If value is different, it's an anomaly but hard to place on a 0-100 scale.
-    // A common approach is to return 50 for any value if min=max,
-    // unless the value itself is 0, then it's 0.
+    // If min and max are the same, the scale is a single point.
+    // Any value at this point that isn't zero is treated as 'average' (50) on the 0-100 scale.
+    // If the value is zero (and min/max are also zero), it's 0.
     return value !== 0 ? 50 : 0;
   }
 

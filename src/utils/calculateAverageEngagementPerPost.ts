@@ -1,5 +1,7 @@
 import MetricModel, { IMetric } from "@/app/models/Metric"; // Ajuste o caminho conforme necessário
 import { Types } from "mongoose";
+import { connectToDatabase } from "@/app/lib/mongoose"; // Added
+import { logger } from "@/app/lib/logger"; // Added
 import { getStartDateFromTimePeriod as getStartDateFromTimePeriodGeneric } from "./dateHelpers"; // Para fallback
 
 interface AverageEngagementData {
@@ -45,6 +47,8 @@ async function calculateAverageEngagementPerPost(
   };
 
   try {
+    await connectToDatabase(); // Added
+
     const posts: IMetric[] = await MetricModel.find({
       user: resolvedUserId,
       postDate: { $gte: effectiveStartDate, $lte: effectiveEndDate },
@@ -87,7 +91,7 @@ async function calculateAverageEngagementPerPost(
     return initialResult;
 
   } catch (error) {
-    console.error(`Error calculating average engagement for userId ${resolvedUserId} between ${effectiveStartDate} and ${effectiveEndDate}:`, error);
+    logger.error(`Error calculating average engagement for userId ${resolvedUserId} between ${effectiveStartDate.toISOString()} and ${effectiveEndDate.toISOString()}:`, error); // Replaced console.error
     // Retorna o resultado inicial com datas usadas, mas métricas zeradas
     return {
       ...initialResult, // Mantém startDateUsed e endDateUsed

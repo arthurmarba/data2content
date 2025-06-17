@@ -1,5 +1,7 @@
 import AccountInsightModel, { IAccountInsight } from "@/app/models/AccountInsight"; // Ajuste o caminho
 import { Types } from "mongoose";
+import { connectToDatabase } from "@/app/lib/mongoose"; // Added
+import { logger } from "@/app/lib/logger"; // Added
 import calculateFollowerGrowthRate from "./calculateFollowerGrowthRate"; // Para fallback
 
 interface AccountFollowerConversionRateData {
@@ -36,6 +38,8 @@ async function calculateAccountFollowerConversionRate(
   };
 
   try {
+    await connectToDatabase(); // Added
+
     // Buscar o AccountInsight mais recente.
     // A lógica para escolher o 'accountInsightsPeriod' mais alinhado com periodInDays
     // pode ser complexa. Para esta implementação, vamos pegar o mais recente
@@ -104,7 +108,7 @@ async function calculateAccountFollowerConversionRate(
     return initialResult;
 
   } catch (error) {
-    console.error(`Error calculating account follower conversion rate for userId ${resolvedUserId}:`, error);
+    logger.error(`Error calculating account follower conversion rate for userId ${resolvedUserId}:`, error); // Replaced console.error
     return {
       accountFollowerConversionRate: 0.0,
       accountsEngagedInPeriod: null,

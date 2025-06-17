@@ -1,5 +1,8 @@
 import MetricModel, { IMetric, FormatType } from "@/app/models/Metric"; // Ajuste o caminho
 import { Types } from "mongoose";
+import { connectToDatabase } from "@/app/lib/mongoose"; // Added
+import { logger } from "@/app/lib/logger"; // Added
+import { getStartDateFromTimePeriod } from "./dateHelpers"; // Added
 
 interface AverageVideoMetricsData {
   numberOfVideoPosts: number;
@@ -16,9 +19,10 @@ async function calculateAverageVideoMetrics(
 ): Promise<AverageVideoMetricsData> {
   const resolvedUserId = typeof userId === 'string' ? new Types.ObjectId(userId) : userId;
   const today = new Date();
-  const endDate = new Date(today);
-  const startDate = new Date(today);
-  startDate.setDate(today.getDate() - periodInDays);
+  // endDate for query should be end of today
+  const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+  // startDate for query should be start of the first day of the period
+  const startDate = getStartDateFromTimePeriod(today, `last_${periodInDays}_days`); // Standardized
 
   const initialResult: AverageVideoMetricsData = {
     numberOfVideoPosts: 0,
@@ -29,6 +33,8 @@ async function calculateAverageVideoMetrics(
   };
 
   try {
+    await connectToDatabase(); // Added
+
     const videoPosts: IMetric[] = await MetricModel.find({
       user: resolvedUserId,
       postDate: { $gte: startDate, $lte: endDate },
@@ -68,7 +74,7 @@ async function calculateAverageVideoMetrics(
     return initialResult;
 
   } catch (error) {
-    console.error(`Error calculating average video metrics for userId ${resolvedUserId}:`, error);
+    logger.error(`Error calculating average video metrics for userId ${resolvedUserId}, period ${periodInDays} days:`, error); // Replaced console.error
     return {
       numberOfVideoPosts: 0,
       averageRetentionRate: 0.0,

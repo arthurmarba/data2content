@@ -1,5 +1,7 @@
 import MetricModel, { IMetric } from "@/app/models/Metric"; // Ajuste o caminho conforme necessário
 import { Types } from "mongoose";
+import { connectToDatabase } from "@/app/lib/mongoose"; // Added
+import { logger } from "@/app/lib/logger"; // Added
 
 interface WeeklyPostingFrequencyData {
   currentWeeklyFrequency: number;
@@ -20,7 +22,7 @@ async function calculateWeeklyPostingFrequency(
   const resolvedUserId = typeof userId === 'string' ? new Types.ObjectId(userId) : userId;
 
   if (periodInDays <= 0) {
-    console.warn(`periodInDays must be greater than 0. Received: ${periodInDays}`);
+    logger.warn(`periodInDays must be greater than 0 for calculateWeeklyPostingFrequency. Received: ${periodInDays} for userId: ${resolvedUserId}`); // Replaced console.warn
     // Retornar valores padrão ou lançar um erro, conforme política
     const now = new Date();
     return {
@@ -62,6 +64,8 @@ async function calculateWeeklyPostingFrequency(
   };
 
   try {
+    await connectToDatabase(); // Added
+
     // Contar posts no período atual
     const postsInCurrentPeriod = await MetricModel.countDocuments({
       user: resolvedUserId,
@@ -91,7 +95,7 @@ async function calculateWeeklyPostingFrequency(
     return initialResult;
 
   } catch (error) {
-    console.error(`Error calculating weekly posting frequency for userId ${resolvedUserId}:`, error);
+    logger.error(`Error calculating weekly posting frequency for userId ${resolvedUserId}, period ${periodInDays} days:`, error); // Replaced console.error
     // Retorna o objeto com valores padrão em caso de erro, mas com as datas preenchidas
     return {
         currentWeeklyFrequency: 0,

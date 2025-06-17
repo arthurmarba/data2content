@@ -1,5 +1,7 @@
 import DailyMetricSnapshotModel, { IDailyMetricSnapshot } from "@/app/models/DailyMetricSnapshot"; // Ajuste o caminho
 import { Types } from "mongoose";
+import { connectToDatabase } from "@/app/lib/mongoose"; // Added
+import { logger } from "@/app/lib/logger"; // Added
 
 interface DailyEngagementPoint {
   date: string; // YYYY-MM-DD
@@ -19,6 +21,7 @@ interface MovingAverageEngagementResult {
 }
 
 // Helper para adicionar dias a uma data
+// TODO: CONSOLIDATE - Consider moving addDays to central dateHelpers.ts if identical.
 function addDays(date: Date, days: number): Date {
   const result = new Date(date);
   result.setDate(result.getDate() + days);
@@ -26,6 +29,7 @@ function addDays(date: Date, days: number): Date {
 }
 
 // Helper para formatar data como YYYY-MM-DD
+// TODO: CONSOLIDATE - Consider moving formatDateYYYYMMDD to central dateHelpers.ts if identical.
 function formatDateYYYYMMDD(date: Date): string {
   return date.toISOString().split('T')[0];
 }
@@ -64,7 +68,8 @@ async function calculateMovingAverageEngagement(
     // A task original sugeria um aggregate complexo no DB.
     // Para simplificar esta função e focar na lógica da média móvel,
     // vamos buscar os snapshots e agregar na aplicação.
-    // Em um cenário de produção com muitos snapshots, a agregação no DB seria mais performática.
+    // TODO: PERFORMANCE - Em um cenário de produção com muitos snapshots, a agregação no DB seria mais performática.
+    // Consider using a MongoDB aggregation pipeline for summing daily engagements directly in the database.
     const snapshots: IDailyMetricSnapshot[] = await DailyMetricSnapshotModel.find({
       // Assumindo que DailyMetricSnapshot tem uma referência direta 'user' ou 'metric.user'
       // Se for via 'metric', um $lookup ou busca prévia de metric IDs seria necessário.
@@ -74,6 +79,11 @@ async function calculateMovingAverageEngagement(
     })
     .sort({ date: 1 }) // Ordenar por data ascendente
     .lean();
+
+    if (snapshots.length === 0) {
+        logger.warn(`No DailyMetricSnapshots found for userId ${resolvedUserId} in range ${dataFullStartDate.toISOString()} to ${dataEndDate.toISOString()}. Check if 'user' field exists directly on DailyMetricSnapshot or if query needs adjustment (e.g., for 'metric.user').`);
+        // Proceeding will result in an empty/null series, which is the correct behavior.
+    }
 
     // Agrupar por dia e somar engajamentos
     const dailyEngagementsMap = new Map<string, number>();
@@ -172,7 +182,7 @@ async function calculateMovingAverageEngagement(
     return initialResult;
 
   } catch (error) {
-    console.error(`Error calculating moving average engagement for userId ${resolvedUserId}:`, error);
+    logger.error(`Error calculating moving average engagement for userId ${resolvedUserId} from ${dataFullStartDate.toISOString()} to ${dataEndDate.toISOString()}:`, error); // Replaced console.error
     // Preenche a série com nulls para todos os dias da janela de dados em caso de erro
     let iterDate = new Date(dataStartDate);
     while (iterDate <= dataEndDate) {

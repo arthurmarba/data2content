@@ -1,5 +1,7 @@
 import DailyMetricSnapshotModel, { IDailyMetricSnapshot } from "@/app/models/DailyMetricSnapshot"; // Ajuste
 import { Types } from "mongoose";
+import { connectToDatabase } from "@/app/lib/mongoose"; // Added
+import { logger } from "@/app/lib/logger"; // Added
 
 interface CumulativeEngagementPercentageData {
   metricId: string | Types.ObjectId;
@@ -30,48 +32,52 @@ async function calculateCumulativeEngagementPercentage(
   };
 
   try {
-    // 1. Buscar snapshot para targetDayNumber
-    const snapshotAtTargetDay: IDailyMetricSnapshot | null = await DailyMetricSnapshotModel.findOne({
+    await connectToDatabase(); // Added
+
+    // Setup queries for parallel execution
+    const targetDayQuery = DailyMetricSnapshotModel.findOne({
       metric: resolvedMetricId,
       dayNumber: targetDayNumber,
     }).lean();
 
+    let finalDayQueryBuilder = DailyMetricSnapshotModel.findOne({
+        metric: resolvedMetricId,
+        ...(typeof finalDayNumberInput === 'number' ? { dayNumber: finalDayNumberInput } : {}),
+    });
+
+    if (finalDayNumberInput === "latest") {
+        finalDayQueryBuilder = finalDayQueryBuilder.sort({ dayNumber: -1 });
+    }
+    const finalDayQuery = finalDayQueryBuilder.lean();
+
+    // Execute queries in parallel
+    const [snapshotAtTargetDay, snapshotAtFinalDay] = await Promise.all([
+        targetDayQuery,
+        finalDayQuery
+    ]);
+
+    // Process snapshotAtTargetDay
     if (snapshotAtTargetDay && typeof snapshotAtTargetDay[cumulativeMetricName] === 'number') {
       initialResult.cumulativeValueAtTargetDay = snapshotAtTargetDay[cumulativeMetricName] as number;
     } else if (snapshotAtTargetDay && typeof snapshotAtTargetDay[cumulativeMetricName] !== 'number') {
-        console.warn(`Metric ${cumulativeMetricName} is not a number or is missing in targetDay snapshot for metricId ${resolvedMetricId}, dayNumber ${targetDayNumber}`);
+        logger.warn(`Metric ${cumulativeMetricName} is not a number or is missing in targetDay snapshot for metricId ${resolvedMetricId}, dayNumber ${targetDayNumber}`);
+    } else if (!snapshotAtTargetDay) {
+        logger.warn(`No snapshot found for targetDay for metricId ${resolvedMetricId}, dayNumber ${targetDayNumber}`);
     }
 
-
-    // 2. Buscar snapshot para finalDayNumberInput
-    let snapshotAtFinalDay: IDailyMetricSnapshot | null = null;
-    if (typeof finalDayNumberInput === 'number') {
-      snapshotAtFinalDay = await DailyMetricSnapshotModel.findOne({
-        metric: resolvedMetricId,
-        dayNumber: finalDayNumberInput,
-      }).lean();
-      initialResult.finalDayNumberUsed = finalDayNumberInput; // Confirm or set if numeric
-    } else if (finalDayNumberInput === "latest") {
-      snapshotAtFinalDay = await DailyMetricSnapshotModel.findOne({
-        metric: resolvedMetricId,
-      })
-      .sort({ dayNumber: -1 }) // O maior dayNumber é o mais recente
-      .lean();
-      if (snapshotAtFinalDay) {
-        initialResult.finalDayNumberUsed = snapshotAtFinalDay.dayNumber;
-      }
+    // Process snapshotAtFinalDay
+    if (finalDayNumberInput === "latest" && snapshotAtFinalDay) {
+      initialResult.finalDayNumberUsed = snapshotAtFinalDay.dayNumber; // Update based on 'latest' query result
     }
+    // If finalDayNumberInput was numeric, finalDayNumberUsed is already set in initialResult.
 
     if (snapshotAtFinalDay && typeof snapshotAtFinalDay[cumulativeMetricName] === 'number') {
       initialResult.cumulativeValueAtFinalDay = snapshotAtFinalDay[cumulativeMetricName] as number;
-      // Ensure finalDayNumberUsed is set if 'latest' was successful
-      if (finalDayNumberInput === "latest" && snapshotAtFinalDay.dayNumber) {
-         initialResult.finalDayNumberUsed = snapshotAtFinalDay.dayNumber;
-      }
     } else if (snapshotAtFinalDay && typeof snapshotAtFinalDay[cumulativeMetricName] !== 'number') {
-        console.warn(`Metric ${cumulativeMetricName} is not a number or is missing in finalDay snapshot for metricId ${resolvedMetricId}, dayNumber ${initialResult.finalDayNumberUsed}`);
+        logger.warn(`Metric ${cumulativeMetricName} is not a number or is missing in finalDay snapshot for metricId ${resolvedMetricId}, dayNumber ${initialResult.finalDayNumberUsed}`);
+    } else if (!snapshotAtFinalDay) {
+        logger.warn(`No snapshot found for finalDay for metricId ${resolvedMetricId}, dayNumber/input ${finalDayNumberInput === "latest" ? "latest" : initialResult.finalDayNumberUsed}`);
     }
-
 
     // 3. Calcular Percentual
     if (initialResult.cumulativeValueAtTargetDay !== null && initialResult.cumulativeValueAtFinalDay !== null) {
@@ -95,7 +101,7 @@ async function calculateCumulativeEngagementPercentage(
     return initialResult;
 
   } catch (error) {
-    console.error(`Error calculating cumulative engagement percentage for metricId ${resolvedMetricId}:`, error);
+    logger.error(`Error calculating cumulative engagement percentage for metricId ${resolvedMetricId}, targetDay ${targetDayNumber}, finalDayInput ${finalDayNumberInput}:`, error); // Replaced console.error
     // Retorna o objeto com valores nulos em caso de erro, mas com os inputs preenchidos
     return {
         metricId: resolvedMetricId,

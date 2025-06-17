@@ -1,6 +1,9 @@
 import MetricModel, { IMetric, FormatType } from "@/app/models/Metric"; // Ajuste o caminho
 import { Types } from "mongoose";
+import { connectToDatabase } from "@/app/lib/mongoose"; // Added
+import { logger } from "@/app/lib/logger"; // Added
 import { getNestedValue } from "./dataAccessHelpers"; // Importar a função compartilhada
+import { getStartDateFromTimePeriod } from "./dateHelpers"; // Added
 
 interface FormatPerformanceData {
   format: FormatType | string | null;
@@ -16,15 +19,24 @@ async function getTopPerformingFormat(
 ): Promise<FormatPerformanceData | null> {
   const resolvedUserId = typeof userId === 'string' ? new Types.ObjectId(userId) : userId;
   const today = new Date();
-  const endDate = new Date(today);
-  const startDate = new Date(today);
-  startDate.setDate(today.getDate() - periodInDays);
+  // endDate for query should be end of today
+  const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+  // startDate for query should be start of the first day of the period
+  const startDate = getStartDateFromTimePeriod(today, `last_${periodInDays}_days`); // Standardized
 
   try {
+    await connectToDatabase(); // Added
+
     const posts: IMetric[] = await MetricModel.find({
       user: resolvedUserId,
       postDate: { $gte: startDate, $lte: endDate },
     }).lean();
+    // TODO: PERFORMANCE - For large datasets, this function would be more performant using a
+    // MongoDB aggregation pipeline. This would involve:
+    // 1. $match stage for user, date range, valid format, and valid performanceMetricField.
+    // 2. $group stage by 'format' to calculate $avg of 'performanceMetricField' and count.
+    // 3. $sort stage by average performance descending.
+    // 4. $limit stage to 1.
 
     if (!posts || posts.length === 0) {
       return null;
@@ -79,7 +91,7 @@ async function getTopPerformingFormat(
     };
 
   } catch (error) {
-    console.error(`Error calculating top performing format for userId ${resolvedUserId}:`, error);
+    logger.error(`Error calculating top performing format for userId ${resolvedUserId}, period ${periodInDays} days, metric ${performanceMetricField}:`, error); // Replaced console.error
     return null;
   }
 }

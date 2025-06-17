@@ -1,5 +1,7 @@
 import MetricModel, { IMetric, FormatType } from "@/app/models/Metric"; // Ajuste o caminho
 import { Types } from "mongoose";
+import { connectToDatabase } from "@/app/lib/mongoose"; // Added
+import { logger } from "@/app/lib/logger"; // Added
 import { getNestedValue } from "./dataAccessHelpers";
 import { getStartDateFromTimePeriod } from "./dateHelpers";
 
@@ -37,12 +39,20 @@ async function getAverageEngagementByGrouping(
   const results: AverageEngagementByGroupingData[] = [];
 
   try {
+    await connectToDatabase(); // Added
+
     const queryConditions: any = { user: resolvedUserId };
     if (timePeriod !== "all_time") {
       queryConditions.postDate = { $gte: startDate, $lte: endDate };
     }
 
     const posts: IMetric[] = await MetricModel.find(queryConditions).lean();
+    // TODO: PERFORMANCE - For large datasets, this function would be more performant by using a
+    // MongoDB aggregation pipeline. This would involve:
+    // 1. $match stage for user and date range.
+    // 2. $group stage to group by 'format' or 'context' and calculate $avg for 'performanceMetricField'
+    //    and $sum: 1 for 'postsCount'.
+    // 3. $project stage to reshape the output.
 
     if (!posts || posts.length === 0) {
       return results; // Retorna array vazio se não houver posts
@@ -101,7 +111,7 @@ async function getAverageEngagementByGrouping(
     return results;
 
   } catch (error) {
-    console.error(`Error in getAverageEngagementByGrouping for userId ${resolvedUserId}, groupBy ${groupBy}:`, error);
+    logger.error(`Error in getAverageEngagementByGrouping for userId ${resolvedUserId}, groupBy ${groupBy}, metric ${performanceMetricField}:`, error); // Replaced console.error
     return []; // Retorna array vazio em caso de erro
   }
 }
