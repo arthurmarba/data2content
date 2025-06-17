@@ -1,5 +1,7 @@
 import AccountInsightModel, { IAccountInsight, IAccountInsightsPeriod, PeriodEnum } from "@/app/models/AccountInsight"; // Ajuste
 import { Types } from "mongoose";
+import { connectToDatabase } from "@/app/lib/mongoose"; // Added
+import { logger } from "@/app/lib/logger"; // Added
 import {
     addDays,
     formatDateYYYYMMDD,
@@ -35,6 +37,8 @@ async function getReachEngagementTrendChartData(
   };
 
   try {
+    await connectToDatabase(); // Added
+
     const snapshots: IAccountInsight[] = await AccountInsightModel.find({
       user: resolvedUserId,
       recordedAt: { $gte: startDate, $lte: endDate },
@@ -97,12 +101,15 @@ async function getReachEngagementTrendChartData(
 
       // Prevenir duplicatas para a mesma chave de semana se o loop não pular uma semana inteira
       // Esta verificação só é necessária se nextLoopDate não for estritamente +7 dias para weekly
+      // TODO: REVIEW - The weekly loop date advancement and duplicate prevention logic here might be overly complex
+      // and could potentially be simplified, or the getYearWeek might need adjustment to ensure loop termination
+      // under all edge cases (e.g. if recordedAt dates are inconsistent).
       if (granularity === 'weekly' &&
           initialResponse.chartData.length > 0 &&
           initialResponse.chartData[initialResponse.chartData.length -1].date === dateKey) {
           currentDateInLoop = nextLoopDate; // apenas avança
           if (nextLoopDate <= currentDateInLoop && granularity === 'weekly') { // Safety break for weekly if date not advancing
-              console.warn("Weekly loop date not advancing, breaking.", currentDateInLoop, nextLoopDate);
+              logger.warn(`Weekly loop date for userId ${resolvedUserId} not advancing, breaking. Current: ${currentDateInLoop}, Next: ${nextLoopDate}`); // Replaced console.warn
               break;
           }
           continue;
@@ -135,29 +142,15 @@ async function getReachEngagementTrendChartData(
     return initialResponse;
 
   } catch (error) {
-    console.error(`Error in getReachEngagementTrendChartData for userId ${resolvedUserId}:`, error);
-     initialResponse.chartData = [];
-     let currentDateInLoop = new Date(startDate);
-     const loopEndDate = new Date(endDate);
-      while (currentDateInLoop <= loopEndDate) {
-          let dateKey: string;
-          let nextLoopDate: Date;
-          if (granularity === 'daily') {
-              dateKey = formatDateYYYYMMDD(currentDateInLoop);
-              nextLoopDate = addDays(currentDateInLoop, 1);
-          } else {
-              dateKey = getYearWeek(currentDateInLoop);
-              const dayOfWeek = currentDateInLoop.getDay();
-              const daysToAdd = (dayOfWeek === 0) ? 1 : (8 - dayOfWeek);
-              nextLoopDate = addDays(currentDateInLoop, daysToAdd);
-          }
-           if (initialResponse.chartData.length === 0 || initialResponse.chartData[initialResponse.chartData.length -1].date !== dateKey) {
-             initialResponse.chartData.push({ date: dateKey, reach: null, engagedUsers: null });
-          }
-          currentDateInLoop = nextLoopDate;
-           if (nextLoopDate <= currentDateInLoop && granularity === 'weekly') break;
-      }
+    logger.error(`Error in getReachEngagementTrendChartData for userId ${resolvedUserId}:`, error); // Replaced console.error
+    // The main loop already populates initialResponse.chartData with nulls for missing dates.
+    // If an error occurs, initialResponse.chartData will contain what was processed so far,
+    // or be empty if the error was before the loop. This is acceptable.
     initialResponse.insightSummary = "Erro ao buscar dados de alcance e engajamento.";
+    // Ensure chartData is at least an empty array if it's null/undefined due to very early error
+    if (!initialResponse.chartData) {
+        initialResponse.chartData = [];
+    }
     return initialResponse;
   }
 }

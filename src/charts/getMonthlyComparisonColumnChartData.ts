@@ -1,5 +1,7 @@
 import MetricModel, { IMetric } from "@/app/models/Metric"; // Ajuste o caminho
 import { Types } from "mongoose";
+import { connectToDatabase } from "@/app/lib/mongoose"; // Added
+import { logger } from "@/app/lib/logger"; // Added
 import { getNestedValue } from "@/utils/dataAccessHelpers";
 import { addMonths, formatDateYYYYMM } from "@/utils/dateHelpers";
 
@@ -63,25 +65,45 @@ async function getMonthlyComparisonColumnChartData(
   };
 
   try {
+    await connectToDatabase(); // Added
+
     const values: { [key in "M1" | "M0" | "M-1"]: number } = { "M1": 0, "M0": 0, "M-1": 0 };
 
-    for (const key of ["M1", "M0", "M-1"] as const) {
-      const periodInfo = periods[key];
-      const postsInMonth: IMetric[] = await MetricModel.find({
-        user: resolvedUserId,
-        postDate: { $gte: periodInfo.startDate, $lte: periodInfo.endDate },
-      }).lean();
+    // Determine overall date range for a single query
+    const overallStartDate = M_minus_1_details.startDate;
+    const overallEndDate = M1_details.endDate;
+
+    const allPostsInRange: IMetric[] = await MetricModel.find({
+      user: resolvedUserId,
+      postDate: { $gte: overallStartDate, $lte: overallEndDate },
+    }).lean();
+
+    let valueM_minus_1 = 0;
+    let valueM0 = 0;
+    let valueM1 = 0;
+
+    for (const post of allPostsInRange) {
+      const postDate = post.postDate; // Assuming postDate is a Date object
+      let valueToAdd = 0;
 
       if (metricToCompare === "totalPosts") {
-        values[key] = postsInMonth.length;
+        valueToAdd = 1;
       } else {
-        let sumForMetric = 0;
-        for (const post of postsInMonth) {
-          sumForMetric += getNestedValue(post, metricToCompare) || 0;
-        }
-        values[key] = sumForMetric;
+        valueToAdd = getNestedValue(post, metricToCompare) || 0;
+      }
+
+      if (postDate >= M_minus_1_details.startDate && postDate <= M_minus_1_details.endDate) {
+        valueM_minus_1 += valueToAdd;
+      } else if (postDate >= M0_details.startDate && postDate <= M0_details.endDate) {
+        valueM0 += valueToAdd;
+      } else if (postDate >= M1_details.startDate && postDate <= M1_details.endDate) {
+        valueM1 += valueToAdd;
       }
     }
+
+    values["M-1"] = valueM_minus_1;
+    values["M0"] = valueM0;
+    values["M1"] = valueM1;
 
     const chartData: ComparisonChartDataPoint[] = [];
 
@@ -137,7 +159,7 @@ async function getMonthlyComparisonColumnChartData(
     return initialResponse;
 
   } catch (error) {
-    console.error(`Error in getMonthlyComparisonColumnChartData for userId ${resolvedUserId}, metric ${metricToCompare}:`, error);
+    logger.error(`Error in getMonthlyComparisonColumnChartData for userId ${resolvedUserId}, metric ${metricToCompare}:`, error); // Replaced console.error
     return {
         chartData: [],
         metricCompared: metricToCompare,

@@ -1,4 +1,6 @@
 import { Types } from "mongoose";
+import { connectToDatabase } from "@/app/lib/mongoose"; // Added
+import { logger } from "@/app/lib/logger"; // Added
 // Importar funções de cálculo de indicador
 import calculateFollowerGrowthRate, { FollowerGrowthData } from "@/utils/calculateFollowerGrowthRate";
 import calculateAverageEngagementPerPost, { AverageEngagementData } from "@/utils/calculateAverageEngagementPerPost";
@@ -95,6 +97,9 @@ async function getRadarChartData(
     const platformMinMaxValues = await getPlatformMinMaxValues(metricIdsForMinMax);
     initialResponse.debugMinMax = platformMinMaxValues; // Para depuração
 
+    // TODO: PERFORMANCE - Consider parallelizing metric calculations for profile1 and profile2
+    // e.g., by collecting all promises for a profile's metrics and then using Promise.all(),
+    // if the underlying calculation functions are independent and I/O bound.
     for (const metricConfig of metricSetConfig) {
       labels.push(metricConfig.label);
       let rawValue1: number | null = null;
@@ -133,7 +138,7 @@ async function getRadarChartData(
             rawValue1 = avmWatch1.averageWatchTimeSeconds;
             break;
         default:
-          console.warn(`Lógica de cálculo desconhecida para Perfil 1: ${metricConfig.calculationLogic}`);
+          logger.warn(`Lógica de cálculo desconhecida para Perfil 1: ${metricConfig.calculationLogic}`); // Replaced console.warn
           rawValue1 = null;
       }
       p1_rawData.push(rawValue1);
@@ -142,7 +147,8 @@ async function getRadarChartData(
 
       // Obter valor para Perfil 2
       if (profile2_isSegment) {
-        console.log(`Simulando/Buscando média do segmento ${profile2_segmentId} para ${metricConfig.id}. Base P1: ${rawValue1}`);
+        // console.log(`Simulando/Buscando média do segmento ${profile2_segmentId} para ${metricConfig.id}. Base P1: ${rawValue1}`); // Replaced by logger.warn
+        logger.warn(`Using simulated data for segment ${profile2_segmentId} for metric ${metricConfig.id}`); // Added logger.warn
         // TODO: Implementar lógica real para buscar média do segmento.
         // A média do segmento já deveria vir "bruta" e ser normalizada da mesma forma que P1.
         if (rawValue1 !== null) {
@@ -185,7 +191,7 @@ async function getRadarChartData(
                 rawValue2 = avmWatch2.averageWatchTimeSeconds;
                 break;
             default:
-              console.warn(`Lógica de cálculo desconhecida para Perfil 2: ${metricConfig.calculationLogic}`);
+              logger.warn(`Lógica de cálculo desconhecida para Perfil 2: ${metricConfig.calculationLogic}`); // Replaced console.warn
               rawValue2 = null;
           }
       }
@@ -232,7 +238,7 @@ async function getRadarChartData(
     return initialResponse;
 
   } catch (error) {
-    console.error(`Error in getRadarChartData:`, error);
+    logger.error(`Error in getRadarChartData for P1:${profile1_userId} P2:${profile2_isSegment ? profile2_segmentId : profile2_userId}:`, error); // Replaced console.error and added context
     // ... (lógica de erro como antes) ...
     if (labels.length === 0 && metricSetConfig) {
         metricSetConfig.forEach(mc => labels.push(mc.label));

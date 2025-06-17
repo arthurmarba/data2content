@@ -1,4 +1,6 @@
 import { Types } from "mongoose";
+import { connectToDatabase } from "@/app/lib/mongoose"; // Added
+import { logger } from "@/app/lib/logger"; // Added
 // Importar todas as funções de cálculo de indicador necessárias
 // (Similar ao getRadarChartData, mas apenas para as métricas X e Y)
 import calculateFollowerGrowthRate, { FollowerGrowthData } from "@/utils/calculateFollowerGrowthRate";
@@ -36,6 +38,7 @@ interface ScatterPlotResponse {
 
 // Função para obter nome/label do criador (simulada)
 async function getCreatorLabel(userId: string | Types.ObjectId): Promise<string> {
+  logger.warn('Using simulated getCreatorLabel function.'); // Added logger
   // Em uma app real, buscaria o nome do usuário no DB
   return `Criador ${userId.toString().substring(0, 6)}...`;
 }
@@ -55,49 +58,44 @@ async function getCreatorsScatterPlotData(
     insightSummary: "Comparativo de criadores."
   };
 
+  // Local helper function for metric calculation
+  async function calculateMetricValue(
+    userId: Types.ObjectId,
+    config: ScatterPlotMetricConfig,
+    defaultPeriodInDays = 30
+  ): Promise<number | null> {
+    const params = config.params ? { ...(config.params[0] || {}) } : {};
+    const period = params.periodInDays || defaultPeriodInDays;
+
+    switch (config.calculationLogic) {
+      case "getFollowersCount_current":
+        const growthData = await calculateFollowerGrowthRate(userId, 0); // periodInDays 0 for current
+        return growthData.currentFollowers;
+      case "getAverageEngagementPerPost_avgPerPost":
+        const aep = await calculateAverageEngagementPerPost(userId, period);
+        return aep.averageEngagementPerPost;
+      // Add more cases as needed
+      default:
+        logger.warn(`Lógica de cálculo desconhecida para métrica ${config.id}: ${config.calculationLogic} para userId: ${userId}`);
+        return null;
+    }
+  }
+
   try {
+    await connectToDatabase(); // Added
+
+    // TODO: PERFORMANCE - For a large number of userIds, consider modifying underlying
+    // calculation functions to accept arrays of userIds for batch processing,
+    // or implement a batching mechanism here to reduce total DB queries.
     for (const id of userIds) {
       const resolvedUserId = typeof id === 'string' ? new Types.ObjectId(id) : id;
       const creatorLabel = await getCreatorLabel(resolvedUserId);
-      let xValue: number | null = null;
-      let yValue: number | null = null;
 
-      // --- Calcular Métrica X ---
-      const xParams = xAxisMetricConfig.params ? { ...(xAxisMetricConfig.params[0] || {}) } : {};
-      switch (xAxisMetricConfig.calculationLogic) {
-        case "getFollowersCount_current":
-          const growthDataX = await calculateFollowerGrowthRate(resolvedUserId, xParams.periodInDays || 0);
-          xValue = growthDataX.currentFollowers;
-          break;
-        case "getAverageEngagementPerPost_avgPerPost":
-          const aepX = await calculateAverageEngagementPerPost(resolvedUserId, xParams.periodInDays || 30);
-          xValue = aepX.averageEngagementPerPost;
-          break;
-        // Adicionar mais casos conforme necessário para outras métricas do eixo X
-        default:
-          console.warn(`Lógica de cálculo desconhecida para Eixo X: ${xAxisMetricConfig.calculationLogic}`);
-          xValue = null;
-      }
+      const [xValue, yValue] = await Promise.all([
+        calculateMetricValue(resolvedUserId, xAxisMetricConfig),
+        calculateMetricValue(resolvedUserId, yAxisMetricConfig)
+      ]);
 
-      // --- Calcular Métrica Y ---
-      const yParams = yAxisMetricConfig.params ? { ...(yAxisMetricConfig.params[0] || {}) } : {};
-      switch (yAxisMetricConfig.calculationLogic) {
-        case "getFollowersCount_current":
-          const growthDataY = await calculateFollowerGrowthRate(resolvedUserId, yParams.periodInDays || 0);
-          yValue = growthDataY.currentFollowers;
-          break;
-        case "getAverageEngagementPerPost_avgPerPost":
-          const aepY = await calculateAverageEngagementPerPost(resolvedUserId, yParams.periodInDays || 30);
-          yValue = aepY.averageEngagementPerPost;
-          break;
-        // Adicionar mais casos conforme necessário para outras métricas do eixo Y
-        default:
-          console.warn(`Lógica de cálculo desconhecida para Eixo Y: ${yAxisMetricConfig.calculationLogic}`);
-          yValue = null;
-      }
-
-      // Adicionar ao plotData apenas se ambas as métricas forem válidas
-      // A task original dizia: "esse criador pode ser omitido do gráfico ou plotado com um valor padrão... omissão é mais comum"
       if (xValue !== null && typeof xValue === 'number' && yValue !== null && typeof yValue === 'number') {
         plotData.push({
           id: resolvedUserId.toString(),
@@ -106,7 +104,7 @@ async function getCreatorsScatterPlotData(
           y: yValue,
         });
       } else {
-        console.log(`Omitindo criador ${resolvedUserId} do scatter plot devido a dados ausentes (X: ${xValue}, Y: ${yValue})`);
+        logger.info(`Omitindo criador ${resolvedUserId} do scatter plot devido a dados ausentes (X: ${xValue}, Y: ${yValue})`); // Replaced console.log
       }
     }
 
@@ -121,7 +119,7 @@ async function getCreatorsScatterPlotData(
     return initialResponse;
 
   } catch (error) {
-    console.error(`Error in getCreatorsScatterPlotData:`, error);
+    logger.error(`Error in getCreatorsScatterPlotData:`, error); // Replaced console.error
     initialResponse.plotData = []; // Retornar vazio em caso de erro maior
     initialResponse.insightSummary = "Erro ao buscar dados para o gráfico de dispersão.";
     return initialResponse;

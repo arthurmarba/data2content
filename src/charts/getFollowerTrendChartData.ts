@@ -1,5 +1,7 @@
 import AccountInsightModel, { IAccountInsight } from "@/app/models/AccountInsight"; // Ajuste o caminho
 import { Types } from "mongoose";
+import { connectToDatabase } from "@/app/lib/mongoose"; // Added
+import { logger } from "@/app/lib/logger"; // Added
 import {
     addDays,
     addMonths,
@@ -35,6 +37,8 @@ async function getFollowerTrendChartData(
   };
 
   try {
+    await connectToDatabase(); // Added
+
     const snapshots: IAccountInsight[] = await AccountInsightModel.find({
       user: resolvedUserId,
       recordedAt: { $gte: startDate, $lte: endDate },
@@ -141,7 +145,7 @@ async function getFollowerTrendChartData(
     return initialResponse;
 
   } catch (error) {
-    console.error(`Error in getFollowerTrendChartData for userId ${resolvedUserId}:`, error);
+    logger.error(`Error in getFollowerTrendChartData for userId ${resolvedUserId}:`, error); // Replaced console.error
     return {
         chartData: [],
         insightSummary: "Erro ao buscar dados de tendência de seguidores."

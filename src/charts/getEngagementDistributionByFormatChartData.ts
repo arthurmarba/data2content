@@ -1,5 +1,7 @@
 import MetricModel, { IMetric, FormatType } from "@/app/models/Metric"; // Ajuste o caminho
 import { Types } from "mongoose";
+import { connectToDatabase } from "@/app/lib/mongoose"; // Added
+import { logger } from "@/app/lib/logger"; // Added
 import { getNestedValue } from "@/utils/dataAccessHelpers";
 import { getStartDateFromTimePeriod } from "@/utils/dateHelpers"; // Importar helper compartilhado
 
@@ -39,6 +41,8 @@ async function getEngagementDistributionByFormatChartData(
   };
 
   try {
+    await connectToDatabase(); // Added
+
     const queryConditions: any = { user: resolvedUserId };
     if (timePeriod !== "all_time") {
       // Ensure startDate from getStartDateFromTimePeriod is correctly used
@@ -47,6 +51,10 @@ async function getEngagementDistributionByFormatChartData(
     }
 
     const posts: IMetric[] = await MetricModel.find(queryConditions).lean();
+    // TODO: PERFORMANCE - For large datasets, consider refactoring to use a MongoDB aggregation pipeline
+    // to perform the grouping by 'format' and summation of 'engagementMetricField' directly
+    // in the database. This would be more efficient than fetching all documents and aggregating in JS.
+    // Example pipeline stages: $match, $group (by format, sum engagementMetricField), $project.
 
     if (!posts || posts.length === 0) {
       return initialResponse;
@@ -118,7 +126,7 @@ async function getEngagementDistributionByFormatChartData(
     return initialResponse;
 
   } catch (error) {
-    console.error(`Error in getEngagementDistributionByFormatChartData for userId ${resolvedUserId}:`, error);
+    logger.error(`Error in getEngagementDistributionByFormatChartData for userId ${resolvedUserId}, metric ${engagementMetricField}:`, error); // Replaced console.error
     initialResponse.chartData = [];
     initialResponse.insightSummary = "Erro ao buscar dados de distribuição de engajamento.";
     return initialResponse;

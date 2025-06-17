@@ -1,5 +1,7 @@
 import MetricModel, { IMetric } from "@/app/models/Metric"; // Ajuste o caminho
 import { Types } from "mongoose";
+import { connectToDatabase } from "@/app/lib/mongoose"; // Added
+import { logger } from "@/app/lib/logger"; // Added
 import {
     addMonths,
     formatDateYYYYMM,
@@ -39,6 +41,8 @@ async function getMonthlyEngagementStackedBarChartData(
   };
 
   try {
+    await connectToDatabase(); // Added
+
     const posts: IMetric[] = await MetricModel.find({
       user: resolvedUserId,
       postDate: { $gte: startDate, $lte: endDate },
@@ -76,12 +80,15 @@ async function getMonthlyEngagementStackedBarChartData(
     // Determine the loop end date: the first day of the month of the overall endDate
     const loopEndDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
 
-
+    // Note: Months within the period that have no posts (and thus no aggregated data)
+    // will be omitted from finalChartData.
+    // If all months (even with zeros) are desired, the 'if (aggregatedData)' block
+    // would need an 'else' to push a zero-filled entry.
     while (currentMonthInLoop <= loopEndDate) {
       const monthKey = formatDateYYYYMM(currentMonthInLoop);
       const aggregatedData = monthlyAggregations.get(monthKey);
 
-      if (aggregatedData) {
+      if (aggregatedData) { // This condition means months with no data are skipped
         finalChartData.push({
           month: monthKey,
           ...aggregatedData,
@@ -126,7 +133,7 @@ async function getMonthlyEngagementStackedBarChartData(
     return initialResponse;
 
   } catch (error) {
-    console.error(`Error in getMonthlyEngagementStackedBarChartData for userId ${resolvedUserId}:`, error);
+    logger.error(`Error in getMonthlyEngagementStackedBarChartData for userId ${resolvedUserId}:`, error); // Replaced console.error
     initialResponse.chartData = [];
     initialResponse.insightSummary = "Erro ao buscar dados de engajamento mensal.";
     return initialResponse;
