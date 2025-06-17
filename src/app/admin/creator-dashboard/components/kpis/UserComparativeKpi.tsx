@@ -136,4 +136,4 @@ const UserComparativeKpi: React.FC<UserComparativeKpiProps> = ({
 };
 
 export default React.memo(UserComparativeKpi);
-```
+

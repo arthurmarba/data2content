@@ -126,4 +126,4 @@ const PlatformComparativeKpi: React.FC<PlatformComparativeKpiProps> = ({
 };
 
 export default memo(PlatformComparativeKpi);
-```
+

@@ -15,42 +15,45 @@ interface PlatformEngagementDistributionApiResponse {
   insightSummary?: string;
 }
 
-const TIME_PERIOD_OPTIONS = [
-  { value: "all_time", label: "Todo o período" },
-  { value: "last_7_days", label: "Últimos 7 dias" },
-  { value: "last_30_days", label: "Últimos 30 dias" },
-  { value: "last_90_days", label: "Últimos 90 dias" },
-];
-
 const ENGAGEMENT_METRIC_OPTIONS = [
-  { value: "stats.total_interactions", label: "Total de Interações" },
-  { value: "stats.views", label: "Visualizações" },
-  { value: "stats.likes", label: "Curtidas" },
-  { value: "stats.comments", label: "Comentários" },
-  { value: "stats.shares", label: "Compartilhamentos" },
-];
+  { value: 'stats.total_interactions', label: 'Total de Interações' },
+  { value: 'stats.views', label: 'Visualizações' },
+  { value: 'stats.likes', label: 'Curtidas' },
+  { value: 'stats.comments', label: 'Comentários' },
+  { value: 'stats.shares', label: 'Compartilhamentos' },
+] as const;
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#A230ED', '#D930ED', '#ED308C', '#F28E2B', '#E15759', '#76B7B2', '#59A14F', '#EDC948'];
+type EngagementMetricValue = typeof ENGAGEMENT_METRIC_OPTIONS[number]['value'];
+
+const COLORS = [
+  '#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#A230ED',
+  '#D930ED', '#ED308C', '#F28E2B', '#E15759', '#76B7B2',
+  '#59A14F', '#EDC948'
+];
 const DEFAULT_MAX_SLICES = 7;
 
 interface PlatformEngagementDistributionByFormatChartProps {
-  timePeriod: string; // Recebido do pai (page.tsx)
+  timePeriod: string;
   chartTitle?: string;
-  initialEngagementMetric?: string;
+  initialEngagementMetric?: EngagementMetricValue;
 }
 
 const PlatformEngagementDistributionByFormatChart: React.FC<PlatformEngagementDistributionByFormatChartProps> = ({
   timePeriod,
-  chartTitle = "Distribuição de Engajamento por Formato (Plataforma)",
-  initialEngagementMetric = ENGAGEMENT_METRIC_OPTIONS[0].value,
+  chartTitle = 'Distribuição de Engajamento por Formato (Plataforma)',
+  initialEngagementMetric,
 }) => {
-  const [data, setData] = useState<PlatformEngagementDistributionApiResponse['chartData']>([]);
-  const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
-  const [metricUsed, setMetricUsed] = useState<string>(initialEngagementMetric);
+  // Garantir valor padrão não indefinido
+  const defaultMetric = ENGAGEMENT_METRIC_OPTIONS[0].value;
+  const initMetric = initialEngagementMetric ?? defaultMetric;
+
+  const [data, setData] = useState<ApiEngagementDistributionDataPoint[]>([]);
+  const [insightSummary, setInsightSummary] = useState<string>();
+  const [metricUsed, setMetricUsed] = useState<string>(initMetric);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [currentEngagementMetric, setCurrentEngagementMetric] = useState<string>(initialEngagementMetric);
+  const [currentEngagementMetric, setCurrentEngagementMetric] = useState<string>(initMetric);
   const maxSlices = DEFAULT_MAX_SLICES;
 
   const fetchData = useCallback(async () => {
@@ -66,7 +69,7 @@ const PlatformEngagementDistributionByFormatChart: React.FC<PlatformEngagementDi
       const result: PlatformEngagementDistributionApiResponse = await response.json();
       setData(result.chartData);
       setInsightSummary(result.insightSummary);
-      setMetricUsed(result.metricUsed); // Atualiza a métrica usada com base na resposta da API
+      setMetricUsed(result.metricUsed);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ocorreu um erro desconhecido ao buscar dados.');
       setData([]);
@@ -80,21 +83,37 @@ const PlatformEngagementDistributionByFormatChart: React.FC<PlatformEngagementDi
     fetchData();
   }, [fetchData]);
 
-  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }: any) => {
+  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
     if ((percent * 100) < 5) return null;
     const radius = innerRadius + (outerRadius - innerRadius) * 0.6;
     const x = cx + radius * Math.cos(-midAngle * Math.PI / 180);
     const y = cy + radius * Math.sin(-midAngle * Math.PI / 180);
     return (
-      <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={10} fontWeight="bold">
+      <text
+        x={x}
+        y={y}
+        fill="white"
+        textAnchor={x > cx ? 'start' : 'end'}
+        dominantBaseline="central"
+        fontSize={10}
+        fontWeight="bold"
+      >
         {(percent * 100).toFixed(0)}%
       </text>
     );
   };
 
-  const tooltipFormatter = (value: number, name: string, props: { payload: ApiEngagementDistributionDataPoint } ) => {
-      const metricLabel = ENGAGEMENT_METRIC_OPTIONS.find(m => m.value === metricUsed)?.label || metricUsed.replace("stats.","");
-      return [`${value.toLocaleString()} ${metricLabel.toLowerCase()} (${props.payload.percentage.toFixed(1)}%)`, name];
+  const tooltipFormatter = (
+    value: number,
+    name: string,
+    entry: any
+  ): [string, string] => {
+    const metricLabel = ENGAGEMENT_METRIC_OPTIONS.find(m => m.value === metricUsed)?.label || metricUsed.replace('stats.', '');
+    const payload: ApiEngagementDistributionDataPoint = entry.payload;
+    return [
+      `${value.toLocaleString()} ${metricLabel.toLowerCase()} (${payload.percentage.toFixed(1)}%)`,
+      name
+    ];
   };
 
   return (
@@ -102,21 +121,20 @@ const PlatformEngagementDistributionByFormatChart: React.FC<PlatformEngagementDi
       <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4">
         <h2 className="text-lg md:text-xl font-semibold text-gray-700 mb-2 sm:mb-0">{chartTitle}</h2>
         <div className="flex gap-4">
-            {/* Seletor de timePeriod é controlado pelo pai (page.tsx) */}
-            <div>
-                <label htmlFor="engagementMetricPlatformEngDistro" className="sr-only">Métrica de Engajamento:</label>
-                <select
-                    id="engagementMetricPlatformEngDistro"
-                    value={currentEngagementMetric}
-                    onChange={(e) => setCurrentEngagementMetric(e.target.value)}
-                    disabled={loading}
-                    className="w-full sm:w-auto p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                >
-                    {ENGAGEMENT_METRIC_OPTIONS.map(option => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                </select>
-            </div>
+          <div>
+            <label htmlFor="engagementMetricPlatformEngDistro" className="sr-only">Métrica de Engajamento:</label>
+            <select
+              id="engagementMetricPlatformEngDistro"
+              value={currentEngagementMetric}
+              onChange={(e) => setCurrentEngagementMetric(e.target.value as EngagementMetricValue)}
+              disabled={loading}
+              className="w-full sm:w-auto p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+            >
+              {ENGAGEMENT_METRIC_OPTIONS.map(option => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -164,4 +182,3 @@ const PlatformEngagementDistributionByFormatChart: React.FC<PlatformEngagementDi
 };
 
 export default memo(PlatformEngagementDistributionByFormatChart);
-```

@@ -3,8 +3,9 @@ import { connectToDatabase } from "@/app/lib/mongoose"; // Added
 import { logger } from "@/app/lib/logger"; // Added
 // Importar todas as funções de cálculo de indicador necessárias
 // (Similar ao getRadarChartData, mas apenas para as métricas X e Y)
-import calculateFollowerGrowthRate, { FollowerGrowthData } from "@/utils/calculateFollowerGrowthRate";
-import calculateAverageEngagementPerPost, { AverageEngagementData } from "@/utils/calculateAverageEngagementPerPost";
+import calculateFollowerGrowthRate from "@/utils/calculateFollowerGrowthRate";
+import type FollowerGrowthData from "@/utils/calculateFollowerGrowthRate";
+import calculateAverageEngagementPerPost from "@/utils/calculateAverageEngagementPerPost";
 // Adicionar outros imports se outras métricas puderem ser usadas para X/Y
 
 // Tipos para configuração e saída
@@ -19,7 +20,7 @@ export interface ScatterPlotMetricConfig {
     // Adicionar outras lógicas de cálculo conforme necessário para os eixos
     | string; // Permitir outras strings se houver mais funções
   params?: any[];
-  valueKey?: keyof FollowerGrowthData | keyof AverageEngagementData | string;
+  valueKey?: keyof (typeof FollowerGrowthData) | string;
 }
 
 interface ScatterPlotDataPoint {
@@ -127,4 +128,4 @@ async function getCreatorsScatterPlotData(
 }
 
 export default getCreatorsScatterPlotData;
-```
+

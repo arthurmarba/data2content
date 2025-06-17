@@ -30,7 +30,7 @@ interface PlatformFollowerTrendChartProps {
 
 const PlatformFollowerTrendChart: React.FC<PlatformFollowerTrendChartProps> = ({
   timePeriod, // Prop vinda da página principal
-  initialGranularity = GRANULARITY_OPTIONS[0].value
+  initialGranularity = GRANULARITY_OPTIONS[0]?.value || "daily"
 }) => {
   const [data, setData] = useState<PlatformFollowerTrendResponse['chartData']>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
@@ -144,4 +144,4 @@ const PlatformFollowerTrendChart: React.FC<PlatformFollowerTrendChartProps> = ({
 };
 
 export default memo(PlatformFollowerTrendChart);
-```
+

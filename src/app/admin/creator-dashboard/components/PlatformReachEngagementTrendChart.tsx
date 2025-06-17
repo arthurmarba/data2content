@@ -31,7 +31,7 @@ interface PlatformReachEngagementTrendChartProps {
 
 const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendChartProps> = ({
   timePeriod,
-  initialGranularity = GRANULARITY_OPTIONS[0].value
+  initialGranularity = GRANULARITY_OPTIONS[0]!.value
 }) => {
   const [data, setData] = useState<PlatformReachEngagementTrendResponse['chartData']>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
@@ -167,4 +167,4 @@ const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendCh
 };
 
 export default memo(PlatformReachEngagementTrendChart);
-```
+

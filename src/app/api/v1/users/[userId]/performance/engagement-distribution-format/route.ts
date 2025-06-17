@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import getEngagementDistributionByFormatChartData, { EngagementDistributionChartResponse } from '@/charts/getEngagementDistributionByFormatChartData'; // Ajuste
+import getEngagementDistributionByFormatChartData from '@/charts/getEngagementDistributionByFormatChartData'; // Ajuste
 import { Types } from 'mongoose';
-import { FormatType } from '@/app/models/Metric'; // Ajuste se necessário para formatMapping
+import FormatType from '@/app/models/Metric'; // Ajuste se necessário para formatMapping
 
 // Constantes para validação e defaults
 const ALLOWED_TIME_PERIODS: string[] = ["all_time", "last_7_days", "last_30_days", "last_90_days", "last_6_months", "last_12_months"];
@@ -10,10 +10,10 @@ const ALLOWED_ENGAGEMENT_METRICS: string[] = ["stats.total_interactions", "stats
 
 // Exemplo de mapeamento de formato (pode vir de uma config)
 const DEFAULT_FORMAT_MAPPING: { [key: string]: string } = {
-  [FormatType.IMAGE]: "Imagem",
-  [FormatType.VIDEO]: "Vídeo",
-  [FormatType.REEL]: "Reel",
-  [FormatType.CAROUSEL_ALBUM]: "Carrossel",
+  "IMAGE": "Imagem",
+  "VIDEO": "Vídeo",
+  "REEL": "Reel",
+  "CAROUSEL_ALBUM": "Carrossel",
   // Adicionar outros formatos conforme necessário
 };
 
@@ -60,7 +60,7 @@ export async function GET(
   }
 
   try {
-    const data: EngagementDistributionChartResponse = await getEngagementDistributionByFormatChartData(
+    const data = await getEngagementDistributionByFormatChartData(
       userId,
       timePeriod,
       engagementMetricField,
@@ -76,4 +76,4 @@ export async function GET(
     return NextResponse.json({ error: "Erro ao processar sua solicitação.", details: errorMessage }, { status: 500 });
   }
 }
-```
+

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
-import getRadarChartData, { RadarChartResponse, RadarMetricConfig, NormalizeValueFn } from '@/charts/getRadarChartData'; // Ajuste
+import getRadarChartData, { RadarMetricConfig, NormalizeValueFn } from '@/charts/getRadarChartData'; // Ajuste
 
 // --- Configuração das Métricas para o Radar Chart ---
 // Esta configuração define quais métricas aparecem no radar, como são calculadas,
@@ -97,7 +97,7 @@ export async function GET(
     // Por enquanto, usaremos o DEFAULT_RADAR_METRIC_SET.
     // A função de normalização padrão está dentro de getRadarChartData.ts.
     // Se quiséssemos usar uma específica aqui, passaríamos como quarto argumento.
-    const data: RadarChartResponse = await getRadarChartData(
+    const data = await getRadarChartData(
       profile1UserId,
       profile2Identifier,
       DEFAULT_RADAR_METRIC_SET
@@ -116,4 +116,4 @@ export async function GET(
     return NextResponse.json({ error: "Erro ao processar sua solicitação para o gráfico de radar.", details: errorMessage }, { status: 500 });
   }
 }
-```
+

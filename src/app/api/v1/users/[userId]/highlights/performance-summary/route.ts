@@ -128,7 +128,7 @@ export async function GET(
       insights.push(`O formato ${response.lowPerformingFormat.name} tem apresentado uma performance mais baixa (${response.lowPerformingFormat.valueFormatted}).`);
     }
     response.insightSummary = insights.join(" ");
-    if (insights.length === 0 || (insights.length === 1 && insights[0].startsWith("Não foi"))) {
+    if (insights.length === 0 || (insights.length === 1 && insights[0]?.startsWith("Não foi"))) {
         response.insightSummary = `Análise de performance por formato e contexto para ${performanceMetricLabel} no período de ${timePeriod.replace("last_","").replace("_"," ")}.`;
     }
 
@@ -141,4 +141,4 @@ export async function GET(
     return NextResponse.json({ error: "Erro ao processar sua solicitação de destaques de performance.", details: errorMessage }, { status: 500 });
   }
 }
-```
+

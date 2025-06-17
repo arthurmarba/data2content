@@ -40,7 +40,7 @@ const UserFollowerTrendChart: React.FC<UserFollowerTrendChartProps> = ({
   userId,
   chartTitle = "Evolução de Seguidores do Criador",
   initialTimePeriod, // Usar esta prop
-  initialGranularity = GRANULARITY_OPTIONS[0].value
+  initialGranularity = GRANULARITY_OPTIONS[0]?.value || "daily"
 }) => {
   const [data, setData] = useState<UserFollowerTrendResponse['chartData']>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
@@ -48,7 +48,12 @@ const UserFollowerTrendChart: React.FC<UserFollowerTrendChartProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   // Estado 'timePeriod' é inicializado com initialTimePeriod ou um default
-  const [timePeriod, setTimePeriod] = useState<string>(initialTimePeriod || TIME_PERIOD_OPTIONS[1].value);
+  const [timePeriod, setTimePeriod] = useState<string>(
+    initialTimePeriod ||
+    (TIME_PERIOD_OPTIONS[1] && TIME_PERIOD_OPTIONS[1].value) ||
+    (TIME_PERIOD_OPTIONS[0] && TIME_PERIOD_OPTIONS[0].value) ||
+    "last_7_days"
+  );
   const [granularity, setGranularity] = useState<string>(initialGranularity);
 
   // Efeito para atualizar timePeriod se initialTimePeriod (prop) mudar
@@ -203,4 +208,4 @@ const UserFollowerTrendChart: React.FC<UserFollowerTrendChartProps> = ({
 };
 
 export default React.memo(UserFollowerTrendChart);
-```
+

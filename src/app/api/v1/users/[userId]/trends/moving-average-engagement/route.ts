@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
-import calculateMovingAverageEngagement, { MovingAverageEngagementResult } from '@/utils/calculateMovingAverageEngagement'; // Ajuste o caminho
+import calculateMovingAverageEngagement from '@/utils/calculateMovingAverageEngagement'; // Ajuste o caminho
 
 // Constantes para validação e defaults (podem ser compartilhadas)
 const DEFAULT_DATA_WINDOW_DAYS = 30;
@@ -48,7 +48,7 @@ export async function GET(
 
   try {
     // A função calculateMovingAverageEngagement já lida com a conversão de string para ObjectId se necessário.
-    const data: MovingAverageEngagementResult = await calculateMovingAverageEngagement(
+    const data = await calculateMovingAverageEngagement(
       userId,
       dataWindowInDays,
       movingAverageWindowInDays
@@ -75,4 +75,4 @@ export async function GET(
     return NextResponse.json({ error: "Erro ao processar sua solicitação.", details: errorMessage }, { status: 500 });
   }
 }
-```
+

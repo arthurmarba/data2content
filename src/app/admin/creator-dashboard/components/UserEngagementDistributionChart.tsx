@@ -2,6 +2,9 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import type { TooltipProps } from 'recharts';
+
+// Remove custom Payload type, use recharts' Payload type directly in formatter
 
 interface ApiEngagementDistributionDataPoint {
   name: string;
@@ -47,8 +50,10 @@ const UserEngagementDistributionChart: React.FC<UserEngagementDistributionChartP
   const [error, setError] = useState<string | null>(null);
 
   // Estado 'timePeriod' é inicializado com initialTimePeriod ou um default
-  const [timePeriod, setTimePeriod] = useState<string>(initialTimePeriod || TIME_PERIOD_OPTIONS[2].value);
-  const [engagementMetric, setEngagementMetric] = useState<string>(ENGAGEMENT_METRIC_OPTIONS[0].value);
+  const [timePeriod, setTimePeriod] = useState<string>(
+    initialTimePeriod ?? TIME_PERIOD_OPTIONS[2]?.value ?? ""
+  );
+  const [engagementMetric, setEngagementMetric] = useState<string>(ENGAGEMENT_METRIC_OPTIONS[0]?.value ?? "");
   const maxSlices = DEFAULT_MAX_SLICES;
 
   // Efeito para atualizar timePeriod se initialTimePeriod (prop) mudar
@@ -107,20 +112,18 @@ const UserEngagementDistributionChart: React.FC<UserEngagementDistributionChartP
     );
   };
 
-  const tooltipFormatter = (value: number, name: string, props: { payload: ApiEngagementDistributionDataPoint } ) => {
-      return [`${value.toLocaleString()} (${props.payload.percentage.toFixed(1)}%)`, name];
+  // Remove broken/duplicate tooltipFormatter and import
+  const tooltipFormatter = (
+    value: number,
+    name: string,
+    item?: any
+  ): [string, string] => {
+    const percentage =
+      item && item.payload && typeof item.payload.percentage === 'number'
+        ? item.payload.percentage
+        : 0;
+    return [`${value.toLocaleString()} (${percentage.toFixed(1)}%)`, name];
   };
-
-  if (!userId) {
-    return (
-      <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6">
-        <h2 className="text-lg md:text-xl font-semibold mb-4 text-gray-700">{chartTitle}</h2>
-        <div className="flex justify-center items-center h-[300px]">
-          <p className="text-gray-500">Selecione um criador para ver os dados.</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6">
@@ -195,4 +198,4 @@ const UserEngagementDistributionChart: React.FC<UserEngagementDistributionChartP
 };
 
 export default React.memo(UserEngagementDistributionChart);
-```
+

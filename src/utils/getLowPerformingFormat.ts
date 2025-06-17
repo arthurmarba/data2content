@@ -1,12 +1,17 @@
-import MetricModel, { IMetric, FormatType } from "@/app/models/Metric"; // Ajuste o caminho
+// src/utils/getLowPerformingFormat.ts
+
+import MetricModel, { IMetric } from "@/app/models/Metric";
 import { Types } from "mongoose";
-import { connectToDatabase } from "@/app/lib/mongoose"; // Added
-import { logger } from "@/app/lib/logger"; // Added
-import { getNestedValue } from "./dataAccessHelpers"; // Importar a função compartilhada
-import { getStartDateFromTimePeriod } from "./dateHelpers"; // Added
+import { connectToDatabase } from "@/app/lib/mongoose";
+import { logger } from "@/app/lib/logger";
+import { getNestedValue } from "./dataAccessHelpers";
+import { getStartDateFromTimePeriod } from "./dateHelpers";
+
+// Definindo o tipo de formato se existir, senão string genérico
+export type FormatType = string;
 
 interface FormatPerformanceData {
-  format: FormatType | string | null;
+  format: FormatType | null;
   averagePerformance: number;
   postsCount: number;
   metricUsed: string;
@@ -15,90 +20,67 @@ interface FormatPerformanceData {
 async function getLowPerformingFormat(
   userId: string | Types.ObjectId,
   periodInDays: number,
-  performanceMetricField: string, // Ex: "stats.total_interactions", "stats.views"
-  minPostsForConsideration: number = 3 // Mínimo de posts para um formato ser considerado "low"
+  performanceMetricField: string,
+  minPostsForConsideration: number = 3
 ): Promise<FormatPerformanceData | null> {
   const resolvedUserId = typeof userId === 'string' ? new Types.ObjectId(userId) : userId;
   const today = new Date();
-  // endDate for query should be end of today
   const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
-  // startDate for query should be start of the first day of the period
-  const startDate = getStartDateFromTimePeriod(today, `last_${periodInDays}_days`); // Standardized
+  const startDate = getStartDateFromTimePeriod(today, `last_${periodInDays}_days`);
 
   try {
-    await connectToDatabase(); // Added
+    await connectToDatabase();
 
     const posts: IMetric[] = await MetricModel.find({
       user: resolvedUserId,
       postDate: { $gte: startDate, $lte: endDate },
     }).lean();
-    // TODO: PERFORMANCE - For large datasets, this function would be more performant using a
-    // MongoDB aggregation pipeline. This would involve:
-    // 1. $match stage for user and date range.
-    // 2. $group stage by 'format' to calculate $avg of 'performanceMetricField' and count.
-    // 3. $match stage to filter groups where count is >= minPostsForConsideration.
-    // 4. $sort stage by average performance ascending.
-    // 5. $limit stage to 1.
 
-    if (!posts || posts.length === 0) {
-      return null;
-    }
+    if (!posts.length) return null;
 
-    const performanceByFormat: {
-      [key: string]: { sumPerformance: number; count: number }
-    } = {};
+    const performanceByFormat: Record<string, { sumPerformance: number; count: number }> = {};
 
     for (const post of posts) {
-      const format = post.format as string;
+      const format = (post.format ?? 'unknown') as FormatType;
       const performanceValue = getNestedValue(post, performanceMetricField);
+      if (performanceValue == null) continue;
 
-      if (format && performanceValue !== null) {
-        if (!performanceByFormat[format]) {
-          performanceByFormat[format] = { sumPerformance: 0, count: 0 };
-        }
-        performanceByFormat[format].sumPerformance += performanceValue;
-        performanceByFormat[format].count += 1;
+      if (!performanceByFormat[format]) {
+        performanceByFormat[format] = { sumPerformance: 0, count: 0 };
+      }
+      performanceByFormat[format].sumPerformance += performanceValue;
+      performanceByFormat[format].count += 1;
+    }
+
+    let lowFormat: FormatType | null = null;
+    let minAvgPerformance = Infinity;
+    let lowPostsCount = 0;
+
+    for (const [fmt, data] of Object.entries(performanceByFormat)) {
+      if (data.count < minPostsForConsideration) continue;
+      const avg = data.sumPerformance / data.count;
+      if (avg < minAvgPerformance) {
+        minAvgPerformance = avg;
+        lowFormat = fmt;
+        lowPostsCount = data.count;
       }
     }
 
-    if (Object.keys(performanceByFormat).length === 0) {
-      return null;
-    }
-
-    let lowFormat: FormatType | string | null = null;
-    let minAveragePerformance = Infinity;
-    let lowFormatPostsCount = 0;
-
-    for (const formatKey in performanceByFormat) {
-      const data = performanceByFormat[formatKey];
-      // Considerar apenas formatos com um número mínimo de posts
-      if (data.count >= minPostsForConsideration) { // Simplified condition
-        const average = data.sumPerformance / data.count;
-        if (average < minAveragePerformance) {
-          minAveragePerformance = average;
-          lowFormat = formatKey as FormatType;
-          lowFormatPostsCount = data.count;
-        }
-      }
-    }
-
-    if (lowFormat === null) {
-      // Pode acontecer se nenhum formato atender ao minPostsForConsideration
-      return null;
-    }
+    if (lowFormat == null) return null;
 
     return {
       format: lowFormat,
-      averagePerformance: minAveragePerformance,
-      postsCount: lowFormatPostsCount,
+      averagePerformance: minAvgPerformance,
+      postsCount: lowPostsCount,
       metricUsed: performanceMetricField,
     };
-
   } catch (error) {
-    logger.error(`Error calculating low performing format for userId ${resolvedUserId}, period ${periodInDays} days, metric ${performanceMetricField}:`, error); // Replaced console.error
+    logger.error(
+      `Error calculating low performing format for user ${resolvedUserId}, period ${periodInDays}d, metric ${performanceMetricField}:`,
+      error
+    );
     return null;
   }
 }
 
 export default getLowPerformingFormat;
-```

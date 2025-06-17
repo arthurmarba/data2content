@@ -45,8 +45,17 @@ const UserReachEngagementTrendChart: React.FC<UserReachEngagementTrendChartProps
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [timePeriod, setTimePeriod] = useState<string>(initialTimePeriod || TIME_PERIOD_OPTIONS[1].value);
-  const [granularity, setGranularity] = useState<string>(initialGranularity || GRANULARITY_OPTIONS[0].value);
+  const [timePeriod, setTimePeriod] = useState<string>(
+    initialTimePeriod ||
+    TIME_PERIOD_OPTIONS[1]?.value ||
+    TIME_PERIOD_OPTIONS[0]?.value ||
+    "last_30_days"
+  );
+  const [granularity, setGranularity] = useState<string>(
+    initialGranularity ||
+    GRANULARITY_OPTIONS[0]?.value ||
+    "daily"
+  );
 
   useEffect(() => {
     if (initialTimePeriod) {
@@ -219,4 +228,4 @@ const UserReachEngagementTrendChart: React.FC<UserReachEngagementTrendChartProps
 };
 
 export default React.memo(UserReachEngagementTrendChart);
-```
+

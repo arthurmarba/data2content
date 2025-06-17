@@ -27,7 +27,7 @@ const timePeriodToDataWindowDays = (timePeriod: string | undefined, defaultValue
     // Adicionar mais casos se o GlobalTimePeriodFilter tiver outras opções que se aplicam aqui
     default:
       if (timePeriod.startsWith("last_") && timePeriod.endsWith("_days")) {
-        const days = parseInt(timePeriod.split("_")[1]);
+        const days = parseInt(timePeriod.split("_")[1] ?? '0');
         return !isNaN(days) && days > 0 ? days : defaultValue;
       }
       return defaultValue;
@@ -58,12 +58,12 @@ const UserMovingAverageEngagementChart: React.FC<UserMovingAverageEngagementChar
   userId,
   chartTitle = "Média Móvel de Engajamento Diário",
   initialTimePeriod, // Usado para definir o dataWindow inicial
-  initialAvgWindow = MOVING_AVERAGE_WINDOW_OPTIONS[0].value
+  initialAvgWindow = MOVING_AVERAGE_WINDOW_OPTIONS[0]?.value ?? "7"
 }) => {
 
   // dataWindow (número de dias) é agora derivado de initialTimePeriod ou default
   const [dataWindow, setDataWindow] = useState<string>(
-    initialTimePeriod ? timePeriodToDataWindowDays(initialTimePeriod).toString() : DATA_WINDOW_OPTIONS[0].value
+    initialTimePeriod ? timePeriodToDataWindowDays(initialTimePeriod).toString() : (DATA_WINDOW_OPTIONS[0]?.value ?? "30")
   );
   const [avgWindow, setAvgWindow] = useState<string>(initialAvgWindow);
 
@@ -74,7 +74,7 @@ const UserMovingAverageEngagementChart: React.FC<UserMovingAverageEngagementChar
 
   // Atualizar dataWindow se initialTimePeriod mudar (ex: filtro global na UserDetailView)
   useEffect(() => {
-    setDataWindow(initialTimePeriod ? timePeriodToDataWindowDays(initialTimePeriod).toString() : DATA_WINDOW_OPTIONS[0].value);
+    setDataWindow(initialTimePeriod ? timePeriodToDataWindowDays(initialTimePeriod).toString() : (DATA_WINDOW_OPTIONS[0]?.value ?? "30"));
   }, [initialTimePeriod]);
 
 
@@ -219,4 +219,4 @@ const UserMovingAverageEngagementChart: React.FC<UserMovingAverageEngagementChar
 };
 
 export default React.memo(UserMovingAverageEngagementChart);
-```
+

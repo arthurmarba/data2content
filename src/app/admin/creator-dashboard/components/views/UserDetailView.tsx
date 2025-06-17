@@ -37,7 +37,7 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
     userName,
     initialChartsTimePeriod // Usar este para os componentes filhos
 }) => {
-  const [kpiComparisonPeriod, setKpiComparisonPeriod] = useState<string>(KPI_COMPARISON_PERIOD_OPTIONS[0].value);
+  const [kpiComparisonPeriod, setKpiComparisonPeriod] = useState<string>(KPI_COMPARISON_PERIOD_OPTIONS[0]!.value);
 
   if (!userId) {
     return (
@@ -144,4 +144,4 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
 };
 
 export default React.memo(UserDetailView);
-```
+

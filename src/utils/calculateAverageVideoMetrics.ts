@@ -1,89 +1,74 @@
-import MetricModel, { IMetric, FormatType } from "@/app/models/Metric"; // Ajuste o caminho
-import { Types } from "mongoose";
-import { connectToDatabase } from "@/app/lib/mongoose"; // Added
-import { logger } from "@/app/lib/logger"; // Added
-import { getStartDateFromTimePeriod } from "./dateHelpers"; // Added
+import { Types } from 'mongoose';
+import { connectToDatabase } from '@/app/lib/mongoose';
+import { logger } from '@/app/lib/logger';
+import MetricModel, { IMetric } from '@/app/models/Metric';
+import { getStartDateFromTimePeriod } from './dateHelpers';
 
 interface AverageVideoMetricsData {
   numberOfVideoPosts: number;
-  averageRetentionRate: number; // Em percentual, ex: 25.5 para 25.5%
+  averageRetentionRate: number; // percentual, ex: 25.5 para 25.5%
   averageWatchTimeSeconds: number;
-  startDate?: Date | null;
-  endDate?: Date | null;
+  startDate: Date;
+  endDate: Date;
 }
 
+/**
+ * Calcula métricas médias de vídeos de um usuário em um período.
+ * videoFormats deve corresponder ao campo `format` do Metric.
+ */
 async function calculateAverageVideoMetrics(
   userId: string | Types.ObjectId,
   periodInDays: number,
-  videoFormats: FormatType[] = [FormatType.REEL, FormatType.VIDEO] // Default video formats
+  videoFormats: string[] = ['REEL', 'VIDEO']
 ): Promise<AverageVideoMetricsData> {
   const resolvedUserId = typeof userId === 'string' ? new Types.ObjectId(userId) : userId;
   const today = new Date();
-  // endDate for query should be end of today
-  const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
-  // startDate for query should be start of the first day of the period
-  const startDate = getStartDateFromTimePeriod(today, `last_${periodInDays}_days`); // Standardized
+  const endDate = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+    23, 59, 59, 999
+  );
+  const startDate = getStartDateFromTimePeriod(today, `last_${periodInDays}_days`);
 
-  const initialResult: AverageVideoMetricsData = {
+  const result: AverageVideoMetricsData = {
     numberOfVideoPosts: 0,
-    averageRetentionRate: 0.0,
+    averageRetentionRate: 0,
     averageWatchTimeSeconds: 0,
-    startDate: startDate,
-    endDate: endDate,
+    startDate,
+    endDate,
   };
 
   try {
-    await connectToDatabase(); // Added
-
+    await connectToDatabase();
+    // Buscar posts do usuário filtrando formatos de vídeo
     const videoPosts: IMetric[] = await MetricModel.find({
       user: resolvedUserId,
       postDate: { $gte: startDate, $lte: endDate },
-      format: { $in: videoFormats }, // Filtrar por tipos de vídeo
+      format: { $in: videoFormats },
     }).lean();
 
-    if (!videoPosts || videoPosts.length === 0) {
-      return initialResult;
-    }
+    const count = videoPosts.length;
+    if (count === 0) return result;
 
-    let sumRetentionRate = 0.0; // Assumindo que a retenção é armazenada como decimal (ex: 0.25 para 25%)
-    let sumAverageVideoWatchTimeSeconds = 0;
-    // validPostsForRetention e validPostsForWatchTime não são mais necessários para o cálculo da média
-    // conforme a definição estrita da tarefa, mas podem ser úteis para outros insights.
+    let sumRetention = 0;
+    let sumWatchTime = 0;
 
     for (const post of videoPosts) {
-      if (post.stats) {
-        if (typeof post.stats.retention_rate === 'number') {
-          sumRetentionRate += post.stats.retention_rate;
-        }
-        if (typeof post.stats.average_video_watch_time_seconds === 'number') {
-          sumAverageVideoWatchTimeSeconds += post.stats.average_video_watch_time_seconds;
-        }
-      }
+      const stats = post.stats as any;
+      if (typeof stats.retention_rate === 'number') sumRetention += stats.retention_rate;
+      if (typeof stats.average_video_watch_time_seconds === 'number') sumWatchTime += stats.average_video_watch_time_seconds;
     }
 
-    initialResult.numberOfVideoPosts = videoPosts.length;
+    result.numberOfVideoPosts = count;
+    result.averageRetentionRate = (sumRetention / count) * 100;
+    result.averageWatchTimeSeconds = sumWatchTime / count;
 
-    if (initialResult.numberOfVideoPosts > 0) {
-      // A task pede a saída em percentual, ex: 25.5 para 25.5%
-      // Se retention_rate no DB é decimal (0.25), multiplicamos por 100.
-      // Conforme a definição da tarefa, dividir pelo número total de posts de vídeo.
-      initialResult.averageRetentionRate = (sumRetentionRate / initialResult.numberOfVideoPosts) * 100;
-      initialResult.averageWatchTimeSeconds = sumAverageVideoWatchTimeSeconds / initialResult.numberOfVideoPosts;
-    }
-
-    return initialResult;
-
-  } catch (error) {
-    logger.error(`Error calculating average video metrics for userId ${resolvedUserId}, period ${periodInDays} days:`, error); // Replaced console.error
-    return {
-      numberOfVideoPosts: 0,
-      averageRetentionRate: 0.0,
-      averageWatchTimeSeconds: 0,
-      startDate: startDate,
-      endDate: endDate,
-    };
+    return result;
+  } catch (err) {
+    logger.error(`Erro ao calcular métricas de vídeo (${resolvedUserId}):`, err);
+    return result;
   }
 }
 
 export default calculateAverageVideoMetrics;
-```

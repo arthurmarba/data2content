@@ -46,14 +46,14 @@ const UserAverageEngagementChart: React.FC<UserAverageEngagementChartProps> = ({
   groupBy,
   chartTitle,
   initialTimePeriod,
-  initialEngagementMetric = ENGAGEMENT_METRIC_OPTIONS[0].value
+  initialEngagementMetric = ENGAGEMENT_METRIC_OPTIONS[0]!.value
 }) => {
   const [data, setData] = useState<ApiUserAverageEngagementDataPoint[]>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [timePeriod, setTimePeriod] = useState<string>(initialTimePeriod || TIME_PERIOD_OPTIONS[2].value);
+  const [timePeriod, setTimePeriod] = useState<string>(initialTimePeriod || (TIME_PERIOD_OPTIONS[2]?.value || ""));
   const [engagementMetric, setEngagementMetric] = useState<string>(initialEngagementMetric);
 
   useEffect(() => {
@@ -110,8 +110,8 @@ const UserAverageEngagementChart: React.FC<UserAverageEngagementChartProps> = ({
     return value.toString();
   };
 
-  const tooltipFormatter = (value: number, name: string, props: {payload: ApiUserAverageEngagementDataPoint}) => {
-      const { postsCount } = props.payload;
+  const tooltipFormatter = (value: number, name: string, props?: { payload?: ApiUserAverageEngagementDataPoint }) => {
+      const postsCount = props?.payload?.postsCount ?? 0;
       return [`${value.toLocaleString()} (de ${postsCount} posts)`, name];
   };
    const xAxisTickFormatter = (value: string) => {
@@ -203,4 +203,4 @@ const UserAverageEngagementChart: React.FC<UserAverageEngagementChartProps> = ({
 };
 
 export default React.memo(UserAverageEngagementChart);
-```
+

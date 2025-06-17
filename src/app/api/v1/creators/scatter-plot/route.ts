@@ -1,40 +1,35 @@
 import { NextResponse } from 'next/server';
-import getCreatorsScatterPlotData, { ScatterPlotResponse, ScatterPlotMetricConfig } from '@/charts/getCreatorsScatterPlotData'; // Ajuste
+import getCreatorsScatterPlotData, { ScatterPlotMetricConfig } from '@/charts/getCreatorsScatterPlotData';
 import { Types } from 'mongoose';
 
-// Definir quais lógicas de cálculo são permitidas para os eixos do scatter plot
-// Isso ajuda na validação e segurança, para não permitir chamadas a funções arbitrárias.
+// Lógicas permitidas para os eixos do scatter plot
 const ALLOWED_SCATTER_PLOT_CALCULATION_LOGICS = [
-  "getFollowersCount_current",
-  "getAverageEngagementPerPost_avgPerPost",
-  // Adicionar outras calculationLogics permitidas aqui, ex:
-  // "getFollowerGrowthRate_percentage",
-  // "getWeeklyPostingFrequency_current",
-  // "getAverageVideoMetrics_avgRetention",
-  // "getAverageVideoMetrics_avgWatchTime"
-];
+  'getFollowersCount_current',
+  'getAverageEngagementPerPost_avgPerPost',
+  // outras calculationLogics...
+] as const;
+
+type CalculationLogic = typeof ALLOWED_SCATTER_PLOT_CALCULATION_LOGICS[number];
 
 interface ScatterPlotRequestBody {
-  userIds?: (string | Types.ObjectId)[];
-  xAxisMetricConfig?: ScatterPlotMetricConfig;
-  yAxisMetricConfig?: ScatterPlotMetricConfig;
+  userIds: (string | Types.ObjectId)[];
+  xAxisMetricConfig: ScatterPlotMetricConfig;
+  yAxisMetricConfig: ScatterPlotMetricConfig;
 }
 
-export async function POST(
-  request: Request
-) {
+export async function POST(request: Request) {
   let body: ScatterPlotRequestBody;
   try {
     body = await request.json();
-  } catch (error) {
-    return NextResponse.json({ error: "Corpo da requisição JSON inválido." }, { status: 400 });
+  } catch {
+    return NextResponse.json({ error: 'Corpo da requisição JSON inválido.' }, { status: 400 });
   }
 
   const { userIds, xAxisMetricConfig, yAxisMetricConfig } = body;
 
-  // Validar userIds
-  if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
-    return NextResponse.json({ error: "A lista de userIds é obrigatória e não pode ser vazia." }, { status: 400 });
+  // Validações iniciais
+  if (!Array.isArray(userIds) || userIds.length === 0) {
+    return NextResponse.json({ error: 'A lista de userIds é obrigatória e não pode ser vazia.' }, { status: 400 });
   }
   for (const id of userIds) {
     if (!Types.ObjectId.isValid(id.toString())) {
@@ -42,40 +37,34 @@ export async function POST(
     }
   }
 
-  // Validar xAxisMetricConfig
-  if (!xAxisMetricConfig || typeof xAxisMetricConfig !== 'object' || !xAxisMetricConfig.id || !xAxisMetricConfig.calculationLogic) {
-    return NextResponse.json({ error: "xAxisMetricConfig inválido ou ausente." }, { status: 400 });
-  }
-  if (!ALLOWED_SCATTER_PLOT_CALCULATION_LOGICS.includes(xAxisMetricConfig.calculationLogic)) {
-    return NextResponse.json({ error: `calculationLogic inválido para xAxis: ${xAxisMetricConfig.calculationLogic}` }, { status: 400 });
-  }
-    // Validação adicional para params pode ser adicionada aqui se necessário (ex: periodInDays é número)
+  const validateConfig = (config: any, axis: 'xAxis' | 'yAxis'): string | null => {
+    if (!config || typeof config !== 'object' || !config.id || !config.calculationLogic) {
+      return `${axis}MetricConfig inválido ou ausente.`;
+    }
+    if (!ALLOWED_SCATTER_PLOT_CALCULATION_LOGICS.includes(config.calculationLogic as CalculationLogic)) {
+      return `calculationLogic inválido para ${axis}: ${config.calculationLogic}`;
+    }
+    return null;
+  };
 
-
-  // Validar yAxisMetricConfig
-  if (!yAxisMetricConfig || typeof yAxisMetricConfig !== 'object' || !yAxisMetricConfig.id || !yAxisMetricConfig.calculationLogic) {
-    return NextResponse.json({ error: "yAxisMetricConfig inválido ou ausente." }, { status: 400 });
-  }
-  if (!ALLOWED_SCATTER_PLOT_CALCULATION_LOGICS.includes(yAxisMetricConfig.calculationLogic)) {
-    return NextResponse.json({ error: `calculationLogic inválido para yAxis: ${yAxisMetricConfig.calculationLogic}` }, { status: 400 });
-  }
-    // Validação adicional para params pode ser adicionada aqui se necessário
-
+  const xError = validateConfig(xAxisMetricConfig, 'xAxis');
+  if (xError) return NextResponse.json({ error: xError }, { status: 400 });
+  const yError = validateConfig(yAxisMetricConfig, 'yAxis');
+  if (yError) return NextResponse.json({ error: yError }, { status: 400 });
 
   try {
-    // A função getCreatorsScatterPlotData já lida com a conversão de string para ObjectId internamente se necessário.
-    const data: ScatterPlotResponse = await getCreatorsScatterPlotData(
+    const data = await getCreatorsScatterPlotData(
       userIds,
       xAxisMetricConfig,
       yAxisMetricConfig
     );
-
     return NextResponse.json(data, { status: 200 });
-
   } catch (error) {
-    console.error(`[API CREATORS/SCATTER-PLOT] Error processing scatter plot request:`, error);
-    const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
-    return NextResponse.json({ error: "Erro ao processar sua solicitação para o gráfico de dispersão.", details: errorMessage }, { status: 500 });
+    console.error('[API CREATORS/SCATTER-PLOT] Error:', error);
+    const msg = error instanceof Error ? error.message : 'Erro desconhecido';
+    return NextResponse.json(
+      { error: 'Falha ao processar gráfico de dispersão.', details: msg },
+      { status: 500 }
+    );
   }
 }
-```

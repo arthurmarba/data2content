@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import UserModel from '@/app/models/User'; // Importar UserModel
-import getReachEngagementTrendChartData, { ReachEngagementChartResponse } from '@/charts/getReachEngagementTrendChartData'; // Ajuste
+import getReachEngagementTrendChartData from '@/charts/getReachEngagementTrendChartData';
+
+interface ReachEngagementChartResponse {
+  chartData: ApiReachEngagementDataPoint[];
+  insightSummary: string;
+}
 import { Types } from 'mongoose';
 
 // Tipos para os dados da API (reutilizar do chart individual)
@@ -125,4 +130,4 @@ export async function GET(
     return NextResponse.json({ error: "Erro ao processar sua solicitação.", details: errorMessage }, { status: 500 });
   }
 }
-```
+

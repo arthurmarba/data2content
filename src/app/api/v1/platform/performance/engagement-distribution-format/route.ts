@@ -1,5 +1,12 @@
 import { NextResponse } from 'next/server';
-import MetricModel, { FormatType } from '@/app/models/Metric';
+import MetricModel from '@/app/models/Metric';
+// Define FormatType enum locally if the import is not available
+enum FormatType {
+  IMAGE = "IMAGE",
+  VIDEO = "VIDEO",
+  REEL = "REEL",
+  CAROUSEL_ALBUM = "CAROUSEL_ALBUM"
+}
 import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
 // getNestedValuePath não é necessário aqui pois usamos o caminho direto no aggregate
 // import { getNestedValuePath } from '@/utils/dataAccessHelpers';
@@ -148,13 +155,16 @@ export async function GET(
       metricUsed: engagementMetricField,
       insightSummary: `Distribuição de ${engagementMetricField.replace("stats.","")} da plataforma por formato (${timePeriod.replace("_", " ").replace("_days"," dias").replace("_months"," meses")}).`
     };
-    if (finalChartData.length > 0 && finalChartData[0].name !== "Outros") {
-        response.insightSummary += ` O formato com maior contribuição é ${finalChartData[0].name} (${finalChartData[0].percentage.toFixed(1)}%).`;
-    } else if (finalChartData.find(item => item.name === "Outros") && finalChartData.length === 1 && finalChartData[0].name === "Outros") {
-        // Caso onde SÓ existe a fatia "Outros" (significa que todos os formatos individuais eram pequenos demais)
-        response.insightSummary += ` O engajamento está distribuído entre diversos formatos menores.`;
-    } else if (finalChartData.length > 0 && finalChartData[0].name === "Outros") {
-         response.insightSummary += ` O engajamento está distribuído, com formatos menores agrupados em "Outros".`;
+    if (finalChartData.length > 0) {
+        const firstData = finalChartData[0];
+        if (firstData && firstData.name !== "Outros") {
+            response.insightSummary += ` O formato com maior contribuição é ${firstData.name} (${firstData.percentage.toFixed(1)}%).`;
+        } else if (finalChartData.find(item => item.name === "Outros") && finalChartData.length === 1 && firstData && firstData.name === "Outros") {
+            // Caso onde SÓ existe a fatia "Outros" (significa que todos os formatos individuais eram pequenos demais)
+            response.insightSummary += ` O engajamento está distribuído entre diversos formatos menores.`;
+        } else if (firstData && firstData.name === "Outros") {
+             response.insightSummary += ` O engajamento está distribuído, com formatos menores agrupados em "Outros".`;
+        }
     } else if (finalChartData.length === 0 && grandTotalEngagement > 0) {
         // Caso raro: houve engajamento total, mas nenhum formato individual teve engajamento > 0 (improvável com a lógica atual)
         response.insightSummary += ` Engajamento presente mas não pode ser atribuído a formatos específicos.`;
@@ -175,4 +185,3 @@ export async function GET(
     }, { status: 500 });
   }
 }
-```

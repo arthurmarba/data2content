@@ -88,10 +88,11 @@ const PlatformPostDistributionChart: React.FC<PlatformPostDistributionChartProps
     );
   };
 
-  const tooltipFormatter = (value: number, name: string, props: { payload: ApiPostDistributionDataPoint } ) => {
-      // 'value' agora é a contagem de posts
-      return [`${value.toLocaleString()} posts (${props.payload.percentage.toFixed(1)}%)`, name];
-  };
+  const tooltipFormatter = (value: number, name: string, props: { payload?: ApiPostDistributionDataPoint } ) => {
+        // 'value' agora é a contagem de posts
+        const percentage = props.payload?.percentage !== undefined ? props.payload.percentage.toFixed(1) : '0';
+        return [`${value.toLocaleString()} posts (${percentage}%)`, name];
+    };
 
   return (
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6 md:mt-0">
@@ -145,4 +146,4 @@ const PlatformPostDistributionChart: React.FC<PlatformPostDistributionChartProps
 };
 
 export default memo(PlatformPostDistributionChart);
-```
+

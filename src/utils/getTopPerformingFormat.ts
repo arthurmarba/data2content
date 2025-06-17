@@ -1,12 +1,17 @@
-import MetricModel, { IMetric, FormatType } from "@/app/models/Metric"; // Ajuste o caminho
+// src/utils/getLowPerformingFormat.ts
+
+import MetricModel, { IMetric } from "@/app/models/Metric";
 import { Types } from "mongoose";
-import { connectToDatabase } from "@/app/lib/mongoose"; // Added
-import { logger } from "@/app/lib/logger"; // Added
-import { getNestedValue } from "./dataAccessHelpers"; // Importar a função compartilhada
-import { getStartDateFromTimePeriod } from "./dateHelpers"; // Added
+import { connectToDatabase } from "@/app/lib/mongoose";
+import { logger } from "@/app/lib/logger";
+import { getNestedValue } from "./dataAccessHelpers";
+import { getStartDateFromTimePeriod } from "./dateHelpers";
+
+// Definição local de FormatType
+export type FormatType = string;
 
 interface FormatPerformanceData {
-  format: FormatType | string | null;
+  format: FormatType | null;
   averagePerformance: number;
   postsCount: number;
   metricUsed: string;
@@ -17,65 +22,63 @@ async function getTopPerformingFormat(
   periodInDays: number,
   performanceMetricField: string // Ex: "stats.total_interactions", "stats.views"
 ): Promise<FormatPerformanceData | null> {
-  const resolvedUserId = typeof userId === 'string' ? new Types.ObjectId(userId) : userId;
+  const resolvedUserId =
+    typeof userId === "string" ? new Types.ObjectId(userId) : userId;
   const today = new Date();
-  // endDate for query should be end of today
-  const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
-  // startDate for query should be start of the first day of the period
-  const startDate = getStartDateFromTimePeriod(today, `last_${periodInDays}_days`); // Standardized
+  const endDate = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+    23,
+    59,
+    59,
+    999
+  );
+  const startDate = getStartDateFromTimePeriod(
+    today,
+    `last_${periodInDays}_days`
+  );
 
   try {
-    await connectToDatabase(); // Added
+    await connectToDatabase();
 
     const posts: IMetric[] = await MetricModel.find({
       user: resolvedUserId,
       postDate: { $gte: startDate, $lte: endDate },
     }).lean();
-    // TODO: PERFORMANCE - For large datasets, this function would be more performant using a
-    // MongoDB aggregation pipeline. This would involve:
-    // 1. $match stage for user, date range, valid format, and valid performanceMetricField.
-    // 2. $group stage by 'format' to calculate $avg of 'performanceMetricField' and count.
-    // 3. $sort stage by average performance descending.
-    // 4. $limit stage to 1.
 
-    if (!posts || posts.length === 0) {
+    if (!posts.length) {
       return null;
     }
 
-    const performanceByFormat: {
-      [key: string]: { sumPerformance: number; count: number }
-    } = {};
+    const performanceByFormat: Record<
+      string,
+      { sumPerformance: number; count: number }
+    > = {};
 
     for (const post of posts) {
-      const format = post.format as string;
-      const performanceValue = getNestedValue(post, performanceMetricField);
+      const format = (post.format ?? "unknown") as FormatType;
+      const perf = getNestedValue(post, performanceMetricField);
+      if (perf == null) continue;
 
-      if (format && performanceValue !== null) {
-        if (!performanceByFormat[format]) {
-          performanceByFormat[format] = { sumPerformance: 0, count: 0 };
-        }
-        performanceByFormat[format].sumPerformance += performanceValue;
-        performanceByFormat[format].count += 1;
+      if (!performanceByFormat[format]) {
+        performanceByFormat[format] = { sumPerformance: 0, count: 0 };
       }
+      performanceByFormat[format].sumPerformance += perf;
+      performanceByFormat[format].count += 1;
     }
 
-    if (Object.keys(performanceByFormat).length === 0) {
-      return null;
-    }
+    let topFormat: FormatType | null = null;
+    let maxAvg = -Infinity;
+    let topCount = 0;
 
-    let topFormat: FormatType | string | null = null;
-    let maxAveragePerformance = -Infinity;
-    let topFormatPostsCount = 0;
-
-    for (const formatKey in performanceByFormat) {
-      const data = performanceByFormat[formatKey];
-      if (data.count > 0) {
-        const average = data.sumPerformance / data.count;
-        if (average > maxAveragePerformance) {
-          maxAveragePerformance = average;
-          topFormat = formatKey as FormatType;
-          topFormatPostsCount = data.count;
-        }
+    for (const [fmt, data] of Object.entries(performanceByFormat)) {
+      if (data.count <= 0) continue;
+      const avg = data.sumPerformance / data.count;
+      if (avg > maxAvg) {
+        maxAvg = avg;
+        topFormat = fmt as FormatType;
+        topCount = data.count;
       }
     }
 
@@ -85,16 +88,17 @@ async function getTopPerformingFormat(
 
     return {
       format: topFormat,
-      averagePerformance: maxAveragePerformance,
-      postsCount: topFormatPostsCount,
+      averagePerformance: maxAvg,
+      postsCount: topCount,
       metricUsed: performanceMetricField,
     };
-
   } catch (error) {
-    logger.error(`Error calculating top performing format for userId ${resolvedUserId}, period ${periodInDays} days, metric ${performanceMetricField}:`, error); // Replaced console.error
+    logger.error(
+      `Error calculating top performing format for user ${resolvedUserId}, period ${periodInDays} days, metric ${performanceMetricField}:`,
+      error
+    );
     return null;
   }
 }
 
 export default getTopPerformingFormat;
-```

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import UserModel from '@/app/models/User'; // Importar UserModel
-import getFollowerTrendChartData, { FollowerTrendChartResponse } from '@/charts/getFollowerTrendChartData'; // Ajuste o caminho
+import getFollowerTrendChartData from '@/charts/getFollowerTrendChartData'; // Ajuste o caminho
 import { connectToDatabase } from '@/app/lib/mongoose'; // Added
 import { logger } from '@/app/lib/logger'; // Added
 import { Types } from 'mongoose'; // Para ObjectId, se necessário para UserModel
@@ -9,6 +9,12 @@ import { Types } from 'mongoose'; // Para ObjectId, se necessário para UserMode
 interface ApiChartDataPoint {
   date: string;
   value: number | null;
+}
+
+// Defina a interface FollowerTrendChartResponse conforme esperado pela resposta
+interface FollowerTrendChartResponse {
+  chartData: ApiChartDataPoint[];
+  insightSummary: string;
 }
 
 // Definir aqui os tipos permitidos para timePeriod e granularity se quiser validação estrita
@@ -106,7 +112,12 @@ export async function GET(
       const firstDataPoint = platformChartData[0];
       const lastDataPoint = platformChartData[platformChartData.length - 1];
 
-      if (firstDataPoint.value !== null && lastDataPoint.value !== null) {
+      if (
+        firstDataPoint !== undefined &&
+        lastDataPoint !== undefined &&
+        firstDataPoint.value !== null &&
+        lastDataPoint.value !== null
+      ) {
           const platformAbsoluteGrowth = lastDataPoint.value - firstDataPoint.value;
           const periodText = timePeriod.replace("last_", "últimos ").replace("_days", " dias").replace("_months", " meses");
           // Corrigir para "all_time"
@@ -120,7 +131,7 @@ export async function GET(
           } else {
             platformInsightSummary = `Sem mudança no total de seguidores da plataforma ${displayTimePeriod}.`;
           }
-      } else if (lastDataPoint.value !== null) {
+      } else if (lastDataPoint !== undefined && lastDataPoint.value !== null) {
           platformInsightSummary = `Total de ${lastDataPoint.value.toLocaleString()} seguidores na plataforma no final do período.`;
       }
     } else {
@@ -141,4 +152,4 @@ export async function GET(
     return NextResponse.json({ error: "Erro ao processar sua solicitação.", details: errorMessage }, { status: 500 });
   }
 }
-```
+

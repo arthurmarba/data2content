@@ -192,11 +192,11 @@ const UserRadarChartComparison: React.FC<UserRadarChartComparisonProps> = ({
               // Precisamos transformar nossos dados para este formato.
               chartData.labels.map((label, index) => ({
                 subject: label,
-                [chartData.datasets[0].label]: chartData.datasets[0].data[index],
-                [chartData.datasets[1].label]: chartData.datasets[1].data[index],
+                [chartData.datasets[0]?.label ?? '']: chartData.datasets[0]?.data[index] ?? 0,
+                [chartData.datasets[1]?.label ?? '']: chartData.datasets[1]?.data[index] ?? 0,
                 // Opcional: passar valores brutos para tooltip se necessário
-                [`${chartData.datasets[0].label}_raw`]: chartData.rawValues?.[0]?.data[index],
-                [`${chartData.datasets[1].label}_raw`]: chartData.rawValues?.[1]?.data[index],
+                [`${chartData.datasets[0]?.label}_raw`]: chartData.rawValues?.[0]?.data[index],
+                [`${chartData.datasets[1]?.label}_raw`]: chartData.rawValues?.[1]?.data[index],
               }))
             }>
               <PolarGrid />
@@ -234,4 +234,4 @@ const UserRadarChartComparison: React.FC<UserRadarChartComparisonProps> = ({
 };
 
 export default React.memo(UserRadarChartComparison);
-```
+

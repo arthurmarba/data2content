@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
-import getMonthlyEngagementStackedBarChartData, { MonthlyEngagementChartResponse } from '@/charts/getMonthlyEngagementStackedBarChartData'; // Ajuste
+import getMonthlyEngagementStackedBarChartData from '@/charts/getMonthlyEngagementStackedBarChartData'; // Ajuste
+
+type MonthlyEngagementChartResponse = Awaited<ReturnType<typeof getMonthlyEngagementStackedBarChartData>>;
 
 // Lista de períodos permitidos para este endpoint específico
 const ALLOWED_TIME_PERIODS: string[] = ["last_3_months", "last_6_months", "last_12_months"];
@@ -61,4 +63,4 @@ export async function GET(
     return NextResponse.json({ error: "Erro ao processar sua solicitação para o gráfico de engajamento mensal.", details: errorMessage }, { status: 500 });
   }
 }
-```
+

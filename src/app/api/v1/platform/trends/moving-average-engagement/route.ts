@@ -154,28 +154,40 @@ export async function GET(
 
     let currentWindowSum = 0;
     for (let i = 0; i < movingAverageWindowInDays; i++) {
-      currentWindowSum += completePlatformDailyEngagements[i].totalDailyEngagement;
+      if (completePlatformDailyEngagements[i]) {
+        currentWindowSum += completePlatformDailyEngagements[i]?.totalDailyEngagement ?? 0;
+      }
     }
 
     // Adicionar o primeiro ponto da média móvel se estiver dentro da dataWindowInDays para display
-    const firstSeriesPointDate = new Date(completePlatformDailyEngagements[movingAverageWindowInDays - 1].date + "T00:00:00Z"); // Assegurar UTC para comparação de data
-    if (firstSeriesPointDate >= dataStartDateForDisplay) {
-         resultSeries.push({
-            date: completePlatformDailyEngagements[movingAverageWindowInDays - 1].date,
-            movingAverageEngagement: currentWindowSum / movingAverageWindowInDays,
-        });
+    const firstSeriesPoint = completePlatformDailyEngagements[movingAverageWindowInDays - 1];
+    if (firstSeriesPoint) {
+      const firstSeriesPointDate = new Date(firstSeriesPoint.date + "T00:00:00Z"); // Assegurar UTC para comparação de data
+      if (firstSeriesPointDate >= dataStartDateForDisplay) {
+          resultSeries.push({
+              date: firstSeriesPoint.date,
+              movingAverageEngagement: currentWindowSum / movingAverageWindowInDays,
+          });
+      }
     }
 
     for (let i = movingAverageWindowInDays; i < completePlatformDailyEngagements.length; i++) {
-      currentWindowSum -= completePlatformDailyEngagements[i - movingAverageWindowInDays].totalDailyEngagement;
-      currentWindowSum += completePlatformDailyEngagements[i].totalDailyEngagement;
+      if (
+        completePlatformDailyEngagements[i - movingAverageWindowInDays] !== undefined &&
+        completePlatformDailyEngagements[i] !== undefined
+      ) {
+        currentWindowSum -= completePlatformDailyEngagements[i - movingAverageWindowInDays]?.totalDailyEngagement ?? 0;
+        currentWindowSum += completePlatformDailyEngagements[i]?.totalDailyEngagement ?? 0;
 
-      const currentDateForSeries = new Date(completePlatformDailyEngagements[i].date + "T00:00:00Z");
-      if (currentDateForSeries >= dataStartDateForDisplay) {
-           resultSeries.push({
-            date: completePlatformDailyEngagements[i].date,
+        const currentDateForSeries = completePlatformDailyEngagements[i]
+          ? new Date(completePlatformDailyEngagements[i]!.date + "T00:00:00Z")
+          : null;
+        if (currentDateForSeries && currentDateForSeries >= dataStartDateForDisplay) {
+          resultSeries.push({
+            date: completePlatformDailyEngagements[i]!.date,
             movingAverageEngagement: currentWindowSum / movingAverageWindowInDays,
           });
+        }
       }
     }
 
@@ -222,4 +234,4 @@ export async function GET(
     return NextResponse.json(initialResponse, { status: 500 }); // Retorna 500, mas com a estrutura esperada de "sem dados"
   }
 }
-```
+

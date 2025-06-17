@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
-import calculateAverageVideoMetrics, { AverageVideoMetricsData } from '@/utils/calculateAverageVideoMetrics'; // Ajuste o caminho
+import calculateAverageVideoMetrics from '@/utils/calculateAverageVideoMetrics'; // Ajuste o caminho
+
+interface AverageVideoMetricsData {
+  averageRetentionRate: number;
+  averageWatchTimeSeconds: number;
+  numberOfVideoPosts: number;
+}
 // import { FormatType } from '@/app/models/Metric'; // Se precisar passar videoFormats customizados
 
 const ALLOWED_TIME_PERIODS: string[] = ["last_7_days", "last_30_days", "last_90_days", "last_6_months", "last_12_months", "all_time"];
 
-interface UserVideoMetricsResponse extends Omit<AverageVideoMetricsData, 'startDate' | 'endDate'> {
+interface UserVideoMetricsResponse extends Omit<Awaited<ReturnType<typeof calculateAverageVideoMetrics>>, 'startDate' | 'endDate'> {
   insightSummary?: string;
 }
 
@@ -82,4 +88,4 @@ export async function GET(
     return NextResponse.json({ error: "Erro ao processar sua solicitação de métricas de vídeo.", details: errorMessage }, { status: 500 });
   }
 }
-```
+

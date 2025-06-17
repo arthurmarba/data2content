@@ -44,7 +44,7 @@ const PlatformAverageEngagementChart: React.FC<PlatformAverageEngagementChartPro
   timePeriod,
   initialGroupBy,
   chartTitle,
-  initialEngagementMetric = ENGAGEMENT_METRIC_OPTIONS[0].value
+  initialEngagementMetric = ENGAGEMENT_METRIC_OPTIONS[0]!.value
 }) => {
   const [data, setData] = useState<ApiAverageEngagementDataPoint[]>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
@@ -90,8 +90,8 @@ const PlatformAverageEngagementChart: React.FC<PlatformAverageEngagementChartPro
     return value.toString();
   };
 
-  const tooltipFormatter = (value: number, name: string, props: {payload: ApiAverageEngagementDataPoint}) => {
-      const { postsCount } = props.payload;
+  const tooltipFormatter = (value: number, name: string, props: {payload?: ApiAverageEngagementDataPoint}) => {
+      const { postsCount } = props.payload || { postsCount: 0 };
       return [`${value.toLocaleString()} (de ${postsCount} posts)`, name];
   };
   const xAxisTickFormatter = (value: string) => {
@@ -168,4 +168,4 @@ const PlatformAverageEngagementChart: React.FC<PlatformAverageEngagementChartPro
 };
 
 export default memo(PlatformAverageEngagementChart);
-```
+

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import getFollowerTrendChartData, { FollowerTrendChartResponse } from '@/charts/getFollowerTrendChartData'; // Ajuste o caminho
+import getFollowerTrendChartData from '@/charts/getFollowerTrendChartData'; // Ajuste o caminho
 import { Types } from 'mongoose';
 
 const ALLOWED_TIME_PERIODS: string[] = ["last_7_days", "last_30_days", "last_90_days", "last_6_months", "last_12_months", "all_time"];
@@ -39,7 +39,7 @@ export async function GET(
   try {
     // A conversão para ObjectId é feita dentro de getFollowerTrendChartData se necessário,
     // mas já validamos o formato do userId aqui.
-    const data: FollowerTrendChartResponse = await getFollowerTrendChartData(
+    const data = await getFollowerTrendChartData(
       userId,
       timePeriod,
       granularity
@@ -67,4 +67,4 @@ export async function GET(
 //     },
 //   });
 // }
-```
+

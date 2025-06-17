@@ -64,7 +64,12 @@ const UserVideoPerformanceMetrics: React.FC<UserVideoPerformanceMetricsProps> = 
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [timePeriod, setTimePeriod] = useState<string>(initialTimePeriod || TIME_PERIOD_OPTIONS[1].value); // Default last_90_days
+  const [timePeriod, setTimePeriod] = useState<string>(
+    initialTimePeriod ||
+    TIME_PERIOD_OPTIONS[1]?.value ||
+    TIME_PERIOD_OPTIONS[0]?.value ||
+    "last_90_days"
+  ); // Default last_90_days
 
   useEffect(() => {
     if (initialTimePeriod) {
@@ -183,4 +188,4 @@ const UserVideoPerformanceMetrics: React.FC<UserVideoPerformanceMetricsProps> = 
 };
 
 export default React.memo(UserVideoPerformanceMetrics);
-```
+

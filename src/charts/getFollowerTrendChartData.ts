@@ -154,4 +154,4 @@ async function getFollowerTrendChartData(
 }
 
 export default getFollowerTrendChartData;
-```
+

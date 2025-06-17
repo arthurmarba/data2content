@@ -65,7 +65,7 @@ export async function GET(
      return NextResponse.json({ error: `Comparison period inválido. Permitidos: ${Object.keys(ALLOWED_COMPARISON_PERIODS).join(', ')}` }, { status: 400 });
   }
 
-  const { currentPeriodDays, periodNameCurrent, periodNamePrevious } = comparisonConfig;
+  const { currentPeriodDays, periodNameCurrent, periodNamePrevious } = comparisonConfig!;
   const today = new Date();
 
   const currentEndDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
@@ -152,4 +152,4 @@ export async function GET(
     }, { status: 500 });
   }
 }
-```
+

@@ -106,4 +106,4 @@ const PlatformKpiCard: React.FC<PlatformKpiCardProps> = ({
 };
 
 export default React.memo(PlatformKpiCard);
-```
+

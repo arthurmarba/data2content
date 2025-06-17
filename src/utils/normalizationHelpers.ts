@@ -48,4 +48,4 @@ export function normalizeValue(
   // return parseFloat(normalized.toFixed(1));
   return Math.round(normalized); // Arredondar para inteiro
 }
-```
+

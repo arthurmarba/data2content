@@ -1,4 +1,5 @@
-import MetricModel, { IMetric, FormatType } from "@/app/models/Metric"; // Ajuste o caminho
+import MetricModel, { IMetric } from "@/app/models/Metric"; // Ajuste o caminho
+import FormatType from "@/app/models/Metric"; // Ajuste o caminho
 import { Types } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose"; // Added
 import { logger } from "@/app/lib/logger"; // Added
@@ -23,7 +24,7 @@ async function getEngagementDistributionByFormatChartData(
   userId: string | Types.ObjectId,
   timePeriod: "all_time" | "last_30_days" | "last_90_days" | "last_6_months" | "last_12_months" | string,
   engagementMetricField: string,
-  formatMapping?: { [key in FormatType | string]?: string },
+  formatMapping?: { [key: string]: string },
   maxSlices: number = DEFAULT_MAX_SLICES
 ): Promise<EngagementDistributionChartResponse> {
   const resolvedUserId = typeof userId === 'string' ? new Types.ObjectId(userId) : userId;
@@ -110,7 +111,7 @@ async function getEngagementDistributionByFormatChartData(
     }
 
     if (initialResponse.chartData.length > 0) {
-        const topSlice = initialResponse.chartData[0];
+        const topSlice = initialResponse.chartData[0]!;
         if (topSlice.name !== "Outros" && initialResponse.chartData.length > 1) {
             initialResponse.insightSummary = `${topSlice.name} é o formato com maior engajamento, representando ${topSlice.percentage.toFixed(1)}% do total.`;
         } else if (topSlice.name !== "Outros") { // Only one slice, not "Outros"
@@ -134,4 +135,4 @@ async function getEngagementDistributionByFormatChartData(
 }
 
 export default getEngagementDistributionByFormatChartData;
-```
+

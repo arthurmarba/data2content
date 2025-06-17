@@ -83,7 +83,8 @@ const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [timePeriod, setTimePeriod] = useState<string>(initialTimePeriod || TIME_PERIOD_OPTIONS[1].value); // Default last_90_days
+  const defaultTimePeriod = TIME_PERIOD_OPTIONS[1]?.value || TIME_PERIOD_OPTIONS[0]?.value || "last_30_days";
+  const [timePeriod, setTimePeriod] = useState<string>(initialTimePeriod || defaultTimePeriod); // Default last_90_days
 
   useEffect(() => {
     if (initialTimePeriod) {
@@ -190,4 +191,4 @@ const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
 };
 
 export default React.memo(UserPerformanceHighlights);
-```
+

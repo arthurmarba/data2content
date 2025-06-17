@@ -1,5 +1,14 @@
 import { NextResponse } from 'next/server';
-import MetricModel, { FormatType } from '@/app/models/Metric'; // Descomente para implementação real
+import MetricModel from '@/app/models/Metric'; // Descomente para implementação real
+// Defina FormatType localmente se o módulo não existir
+export enum FormatType {
+  IMAGE = "IMAGE",
+  VIDEO = "VIDEO",
+  REEL = "REEL",
+  CAROUSEL_ALBUM = "CAROUSEL_ALBUM",
+  // Adicione outros tipos conforme necessário
+}
+// import { FormatType } from '@/app/models/FormatType'; // Corrija o caminho e a forma de importação conforme sua definição real
 import { getStartDateFromTimePeriod } from '@/utils/dateHelpers'; // Descomente para implementação real
 
 // Tipos de dados para a resposta
@@ -113,7 +122,7 @@ export async function GET(
     };
     if (finalChartData.find(item => item.name === "Outros")){
         response.insightSummary += ` Os formatos menos frequentes foram agrupados em "Outros".`;
-    } else if (finalChartData.length > 0) {
+    } else if (finalChartData.length > 0 && finalChartData[0]) {
         response.insightSummary += ` O formato mais comum é ${finalChartData[0].name} (${finalChartData[0].percentage.toFixed(1)}%).`;
     }
 
@@ -126,4 +135,4 @@ export async function GET(
     return NextResponse.json({ error: "Erro ao processar sua solicitação.", details: errorMessage }, { status: 500 });
   }
 }
-```
+

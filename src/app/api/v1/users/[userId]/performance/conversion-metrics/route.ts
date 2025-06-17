@@ -1,30 +1,45 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
-import calculateAverageFollowerConversionRatePerPost, { AverageFollowerConversionRatePerPostData } from '@/utils/calculateAverageFollowerConversionRatePerPost'; // Ajuste
-import calculateAccountFollowerConversionRate, { AccountFollowerConversionRateData } from '@/utils/calculateAccountFollowerConversionRate'; // Ajuste
+import calculateAverageFollowerConversionRatePerPost from '@/utils/calculateAverageFollowerConversionRatePerPost';
+import calculateAccountFollowerConversionRate from '@/utils/calculateAccountFollowerConversionRate';
 
-const ALLOWED_TIME_PERIODS: string[] = ["last_7_days", "last_30_days", "last_90_days", "last_6_months", "last_12_months", "all_time"];
+// Tipos de período
+type TimePeriod =
+  | 'last_7_days'
+  | 'last_30_days'
+  | 'last_90_days'
+  | 'last_6_months'
+  | 'last_12_months'
+  | 'all_time';
+const ALLOWED_TIME_PERIODS: TimePeriod[] = [
+  'last_7_days',
+  'last_30_days',
+  'last_90_days',
+  'last_6_months',
+  'last_12_months',
+  'all_time',
+];
 
 interface UserConversionMetricsResponse {
-  averageFollowerConversionRatePerPost: number | null; // Já em percentual na função de cálculo
-  accountFollowerConversionRate: number | null;      // Já em percentual na função de cálculo
+  averageFollowerConversionRatePerPost: number | null;
+  accountFollowerConversionRate: number | null;
   numberOfPostsConsideredForRate: number | null;
   accountsEngagedInPeriod: number | null;
   followersGainedInPeriod: number | null;
   insightSummary?: string;
 }
 
-// Helper para converter timePeriod string para periodInDays number
-function timePeriodToDays(timePeriod: string): number {
-    switch (timePeriod) {
-        case "last_7_days": return 7;
-        case "last_30_days": return 30;
-        case "last_90_days": return 90;
-        case "last_6_months": return 180;
-        case "last_12_months": return 365;
-        case "all_time": return 365 * 5; // Representa "all_time" como um período longo
-        default: return 90; // Default
-    }
+// Converte timePeriod em dias
+function timePeriodToDays(tp: TimePeriod): number {
+  switch (tp) {
+    case 'last_7_days': return 7;
+    case 'last_30_days': return 30;
+    case 'last_90_days': return 90;
+    case 'last_6_months': return 180;
+    case 'last_12_months': return 365;
+    case 'all_time': return 365 * 5;
+    default: return 90;
+  }
 }
 
 export async function GET(
@@ -32,28 +47,32 @@ export async function GET(
   { params }: { params: { userId: string } }
 ) {
   const { userId } = params;
-
   if (!userId || !Types.ObjectId.isValid(userId)) {
-    return NextResponse.json({ error: "User ID inválido ou ausente." }, { status: 400 });
+    return NextResponse.json({ error: 'User ID inválido ou ausente.' }, { status: 400 });
   }
 
   const { searchParams } = new URL(request.url);
-  const timePeriodParam = searchParams.get('timePeriod');
+  const timePeriodParam = searchParams.get('timePeriod') as TimePeriod | null;
 
-  const timePeriod = timePeriodParam && ALLOWED_TIME_PERIODS.includes(timePeriodParam)
-    ? timePeriodParam
-    : "last_90_days"; // Default
-
+  // Validar e definir período
+  const timePeriod: TimePeriod =
+    timePeriodParam && ALLOWED_TIME_PERIODS.includes(timePeriodParam)
+      ? timePeriodParam
+      : 'last_90_days';
   if (timePeriodParam && !ALLOWED_TIME_PERIODS.includes(timePeriodParam)) {
-    return NextResponse.json({ error: `Time period inválido. Permitidos: ${ALLOWED_TIME_PERIODS.join(', ')}` }, { status: 400 });
+    return NextResponse.json(
+      { error: `Time period inválido. Permitidos: ${ALLOWED_TIME_PERIODS.join(', ')}` },
+      { status: 400 }
+    );
   }
 
-  const periodInDaysValue = timePeriodToDays(timePeriod);
+  const periodInDays = timePeriodToDays(timePeriod);
 
   try {
+    // Executa as duas funções de cálculo
     const [perPostData, accountData] = await Promise.all([
-      calculateAverageFollowerConversionRatePerPost(userId, periodInDaysValue),
-      calculateAccountFollowerConversionRate(userId, periodInDaysValue)
+      calculateAverageFollowerConversionRatePerPost(userId, periodInDays),
+      calculateAccountFollowerConversionRate(userId, periodInDays)
     ]);
 
     const responsePayload: UserConversionMetricsResponse = {
@@ -62,20 +81,18 @@ export async function GET(
       accountFollowerConversionRate: accountData.accountFollowerConversionRate,
       accountsEngagedInPeriod: accountData.accountsEngagedInPeriod,
       followersGainedInPeriod: accountData.followersGainedInPeriod,
-      insightSummary: `No período de ${timePeriod.replace("last_","").replace("_"," ")}, a taxa de conversão média por post foi de ${perPostData.averageFollowerConversionRatePerPost.toFixed(1)}% (baseado em ${perPostData.numberOfPostsConsideredForRate} posts). A taxa de conversão da conta (audiência engajada para seguidores) foi de ${accountData.accountFollowerConversionRate.toFixed(1)}%, com ${accountData.followersGainedInPeriod?.toLocaleString() || 0} novos seguidores de ${accountData.accountsEngagedInPeriod?.toLocaleString() || 'N/A'} contas engajadas.`
+      insightSummary: perPostData.numberOfPostsConsideredForRate && accountData.accountsEngagedInPeriod !== null
+        ? `No período de ${timePeriod.replace('last_','').replace('_',' ')}, a taxa média por post foi de ${perPostData.averageFollowerConversionRatePerPost.toFixed(1)}% baseado em ${perPostData.numberOfPostsConsideredForRate} posts; ` +
+          `a taxa global é de ${accountData.accountFollowerConversionRate.toFixed(1)}% com ${accountData.followersGainedInPeriod?.toLocaleString()} seguidores de ${accountData.accountsEngagedInPeriod.toLocaleString()} contas engajadas.`
+        : `Nenhum dado de conversão disponível para o período de ${timePeriod.replace('last_','').replace('_',' ')}.`
     };
 
-    if(perPostData.numberOfPostsConsideredForRate === 0 && accountData.accountsEngagedInPeriod === null) {
-        responsePayload.insightSummary = `Nenhum dado encontrado para calcular métricas de conversão no período de ${timePeriod.replace("last_","").replace("_"," ")}.`;
-    }
-
-
     return NextResponse.json(responsePayload, { status: 200 });
-
   } catch (error) {
-    console.error(`[API USER/PERFORMANCE/CONVERSION-METRICS] Error for userId ${userId}:`, error);
-    const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
-    return NextResponse.json({ error: "Erro ao processar sua solicitação de métricas de conversão.", details: errorMessage }, { status: 500 });
+    console.error('[API USER/PERFORMANCE/CONVERSION-METRICS] Error:', error);
+    return NextResponse.json(
+      { error: 'Erro ao processar métricas de conversão.', details: (error as Error).message },
+      { status: 500 }
+    );
   }
 }
-```

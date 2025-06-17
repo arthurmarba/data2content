@@ -2,10 +2,12 @@ import { Types } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose"; // Added
 import { logger } from "@/app/lib/logger"; // Added
 // Importar funções de cálculo de indicador
-import calculateFollowerGrowthRate, { FollowerGrowthData } from "@/utils/calculateFollowerGrowthRate";
-import calculateAverageEngagementPerPost, { AverageEngagementData } from "@/utils/calculateAverageEngagementPerPost";
-import calculateWeeklyPostingFrequency, { WeeklyPostingFrequencyData } from "@/utils/calculateWeeklyPostingFrequency";
-import calculateAverageVideoMetrics, { AverageVideoMetricsData } from "@/utils/calculateAverageVideoMetrics";
+import calculateFollowerGrowthRate from "@/utils/calculateFollowerGrowthRate";
+import type FollowerGrowthData from "@/utils/calculateFollowerGrowthRate";
+import calculateAverageEngagementPerPost from "@/utils/calculateAverageEngagementPerPost";
+import calculateWeeklyPostingFrequency from "@/utils/calculateWeeklyPostingFrequency";
+import type WeeklyPostingFrequencyData from "@/utils/calculateWeeklyPostingFrequency";
+import calculateAverageVideoMetrics from "@/utils/calculateAverageVideoMetrics";
 
 // Importar helpers de normalização e min/max da plataforma
 import { getPlatformMinMaxValues, PlatformMinMaxData } from "@/utils/platformMetricsHelpers";
@@ -24,7 +26,7 @@ export interface RadarMetricConfig {
     | "getAverageVideoMetrics_avgRetention"
     | "getAverageVideoMetrics_avgWatchTime";
   params?: any[];
-  valueKey?: keyof FollowerGrowthData | keyof AverageEngagementData | keyof WeeklyPostingFrequencyData | keyof AverageVideoMetricsData | string;
+  valueKey?: keyof (typeof FollowerGrowthData) | keyof (typeof WeeklyPostingFrequencyData) | string;
 }
 
 interface RadarChartDataset {
@@ -216,7 +218,7 @@ async function getRadarChartData(
     for(let i=0; i< p1_normalizedData.length; i++){
         const normVal1 = p1_normalizedData[i];
         const normVal2 = p2_normalizedData[i];
-        if(normVal1 !== null && normVal2 !== null) {
+        if(typeof normVal1 === "number" && typeof normVal2 === "number") {
             comparableMetrics++;
             if(normVal1 > normVal2) p1StrongerCount++;
         }
@@ -259,4 +261,4 @@ async function getRadarChartData(
 }
 
 export default getRadarChartData;
-```
+

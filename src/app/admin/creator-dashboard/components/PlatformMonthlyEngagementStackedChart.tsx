@@ -113,4 +113,4 @@ const PlatformMonthlyEngagementStackedChart: React.FC<PlatformMonthlyEngagementS
 };
 
 export default memo(PlatformMonthlyEngagementStackedChart);
-```
+

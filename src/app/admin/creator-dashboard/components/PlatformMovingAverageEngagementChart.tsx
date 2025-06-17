@@ -45,7 +45,7 @@ interface PlatformMovingAverageEngagementChartProps {
 
 const PlatformMovingAverageEngagementChart: React.FC<PlatformMovingAverageEngagementChartProps> = ({
   timePeriod,
-  initialAvgWindow = MOVING_AVERAGE_WINDOW_OPTIONS[0].value
+  initialAvgWindow = MOVING_AVERAGE_WINDOW_OPTIONS[0]?.value ?? "7"
 }) => {
   const [data, setData] = useState<PlatformMovingAverageResponse['series']>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
@@ -161,4 +161,4 @@ const PlatformMovingAverageEngagementChart: React.FC<PlatformMovingAverageEngage
 };
 
 export default memo(PlatformMovingAverageEngagementChart);
-```
+

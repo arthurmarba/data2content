@@ -41,7 +41,9 @@ const UserMonthlyEngagementStackedChart: React.FC<UserMonthlyEngagementStackedCh
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [timePeriod, setTimePeriod] = useState<string>(initialTimePeriod || TIME_PERIOD_OPTIONS[1].value); // Default last_6_months
+  const [timePeriod, setTimePeriod] = useState<string>(
+    initialTimePeriod ?? (TIME_PERIOD_OPTIONS[1] ? TIME_PERIOD_OPTIONS[1].value : TIME_PERIOD_OPTIONS[0]?.value ?? "last_6_months")
+  ); // Default last_6_months
 
   useEffect(() => {
     if (initialTimePeriod) {
@@ -160,4 +162,4 @@ const UserMonthlyEngagementStackedChart: React.FC<UserMonthlyEngagementStackedCh
 };
 
 export default React.memo(UserMonthlyEngagementStackedChart);
-```
+

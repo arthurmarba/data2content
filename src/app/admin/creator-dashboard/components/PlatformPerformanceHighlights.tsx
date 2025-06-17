@@ -152,4 +152,4 @@ const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps
 };
 
 export default memo(PlatformPerformanceHighlights);
-```
+
