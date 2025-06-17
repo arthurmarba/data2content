@@ -1,33 +1,27 @@
-import { Types } from 'mongoose';
+import MetricModel, { IMetric } from '@/app/models/Metric';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import { logger } from '@/app/lib/logger';
-import MetricModel, { IMetric } from '@/app/models/Metric';
+import { Types } from 'mongoose';
+import { getNestedValue } from './dataAccessHelpers';
 import { getStartDateFromTimePeriod } from './dateHelpers';
 
-interface AverageVideoMetricsData {
-  numberOfVideoPosts: number;
-  averageRetentionRate: number; // percentual, ex: 25.5 para 25.5%
-  averageWatchTimeSeconds: number;
-  startDate: Date;
-  endDate: Date;
+export type GroupingType = 'format' | 'context';
+
+interface AverageResult {
+  name: string;
+  value: number;
+  postsCount: number;
 }
 
-/**
- * Calcula métricas médias de vídeos de um usuário em um período.
- * @param userId ID do usuário ou ObjectId
- * @param periodInDays Número de dias para o período (ex: 30)
- * @param videoFormats Array de formatos de vídeo a considerar (ex: ['REEL', 'VIDEO'])
- * @returns Objetos com contagem de posts, retenção média (%) e tempo médio de visualização (s)
- */
-async function calculateAverageVideoMetrics(
+async function getAverageEngagementByGrouping(
   userId: string | Types.ObjectId,
-  periodInDays: number,
-  videoFormats: string[] = ['REEL', 'VIDEO']
-): Promise<AverageVideoMetricsData> {
-  const resolvedUserId = typeof userId === 'string'
-    ? new Types.ObjectId(userId)
-    : userId;
-
+  timePeriod: string,
+  performanceMetricField: string,
+  groupBy: GroupingType,
+  formatMapping?: Record<string, string>
+): Promise<AverageResult[]> {
+  const resolvedUserId =
+    typeof userId === 'string' ? new Types.ObjectId(userId) : userId;
   const today = new Date();
   const endDate = new Date(
     today.getFullYear(),
@@ -35,51 +29,72 @@ async function calculateAverageVideoMetrics(
     today.getDate(),
     23, 59, 59, 999
   );
-  const startDate = getStartDateFromTimePeriod(today, `last_${periodInDays}_days`);
-
-  const result: AverageVideoMetricsData = {
-    numberOfVideoPosts: 0,
-    averageRetentionRate: 0,
-    averageWatchTimeSeconds: 0,
-    startDate,
-    endDate,
-  };
+  const startDate = getStartDateFromTimePeriod(today, timePeriod);
 
   try {
     await connectToDatabase();
 
-    // Buscar posts do usuário filtrando formatos de vídeo
-    const videoPosts: IMetric[] = await MetricModel.find({
-      user: resolvedUserId,
-      postDate: { $gte: startDate, $lte: endDate },
-      format: { $in: videoFormats },
-    }).lean();
-
-    const count = videoPosts.length;
-    if (count === 0) return result;
-
-    let sumRetention = 0;
-    let sumWatchTime = 0;
-
-    for (const post of videoPosts) {
-      const stats = post.stats as any;
-      if (typeof stats.retention_rate === 'number') {
-        sumRetention += stats.retention_rate;
-      }
-      if (typeof stats.average_video_watch_time_seconds === 'number') {
-        sumWatchTime += stats.average_video_watch_time_seconds;
-      }
+    const query: any = { user: resolvedUserId };
+    if (timePeriod !== 'all_time') {
+      query.postDate = { $gte: startDate, $lte: endDate };
     }
 
-    result.numberOfVideoPosts = count;
-    result.averageRetentionRate = (sumRetention / count) * 100;          // Converter decimal para percentual
-    result.averageWatchTimeSeconds = sumWatchTime / count;
+    const posts: IMetric[] = await MetricModel.find(query).lean();
+    if (!posts.length) {
+      return [];
+    }
 
-    return result;
-  } catch (err) {
-    logger.error(`Erro ao calcular métricas de vídeo (${resolvedUserId}):`, err);
-    return result;
+    const aggregation: Record<string, { sum: number; count: number }> = {};
+
+    for (const post of posts) {
+      const metricValue = getNestedValue(post, performanceMetricField);
+      if (typeof metricValue !== 'number') continue;
+
+      const key =
+        groupBy === 'format'
+          ? (post.format || '').toString()
+          : post.context ?? null;
+
+      if (groupBy === 'format') {
+        if (!key) continue;
+      } else {
+        if (key === null) continue;
+      }
+
+      if (!aggregation[key]) {
+        aggregation[key] = { sum: 0, count: 0 };
+      }
+      aggregation[key].sum += metricValue;
+      aggregation[key].count += 1;
+    }
+
+    const results: AverageResult[] = [];
+    for (const [key, data] of Object.entries(aggregation)) {
+      if (data.count === 0) continue;
+      const name =
+        groupBy === 'format'
+          ? formatMapping?.[key] ||
+            key
+              .replace(/_/g, ' ')
+              .toLocaleLowerCase()
+              .replace(/\b\w/g, (l) => l.toUpperCase())
+          : key;
+      results.push({
+        name,
+        value: data.sum / data.count,
+        postsCount: data.count,
+      });
+    }
+
+    results.sort((a, b) => b.value - a.value);
+    return results;
+  } catch (error) {
+    logger.error(
+      `Error in getAverageEngagementByGrouping for userId ${resolvedUserId}:`,
+      error
+    );
+    return [];
   }
 }
 
-export default calculateAverageVideoMetrics;
+export default getAverageEngagementByGrouping;
