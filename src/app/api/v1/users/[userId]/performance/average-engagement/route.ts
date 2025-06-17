@@ -78,25 +78,25 @@ export async function GET(
   }
 
   // Determinar groupBy (padrão format)
+  const ALLOWED_GROUPINGS: GroupingType[] = ['format', 'context'];
   const groupBy: GroupingType =
-    groupByParam === 'context' ? 'context' : 'format';
+    groupByParam && ALLOWED_GROUPINGS.includes(groupByParam)
+      ? groupByParam
+      : 'format';
+  if (groupByParam && !ALLOWED_GROUPINGS.includes(groupByParam)) {
+    return NextResponse.json(
+      { error: `groupBy inválido. Permitidos: ${ALLOWED_GROUPINGS.join(', ')}` },
+      { status: 400 }
+    );
+  }
 
   try {
-    // Mapear timePeriod para número de dias
-    const timePeriodToDays: Record<TimePeriod, number> = {
-      last_7_days: 7,
-      last_30_days: 30,
-      last_90_days: 90,
-      last_6_months: 180,
-      last_12_months: 365,
-      all_time: 0 // ou outro valor que represente "todos os tempos"
-    };
-
-    // Chama utilitário com 3 parâmetros
+    // Chama utilitário com 4 parâmetros conforme assinatura
     const results = await getAverageEngagementByGrouping(
       userId,
-      timePeriodToDays[timePeriod],
-      [engagementMetric]
+      timePeriod,
+      engagementMetric,
+      groupBy
     );
 
     return NextResponse.json(
