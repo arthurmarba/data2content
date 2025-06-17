@@ -44,6 +44,7 @@ export async function GET(
   }
 
   try {
+    await connectToDatabase();
     // 1. Buscar apenas os usuários da plataforma que estejam ativos
     const platformUsers = await UserModel.find({
         planStatus: 'active',
