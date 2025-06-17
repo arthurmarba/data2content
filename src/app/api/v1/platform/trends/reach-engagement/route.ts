@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import UserModel from '@/app/models/User'; // Importar UserModel
 import getReachEngagementTrendChartData from '@/charts/getReachEngagementTrendChartData';
+import { connectToDatabase } from '@/app/lib/mongoose';
 
 interface ReachEngagementChartResponse {
   chartData: ApiReachEngagementDataPoint[];
@@ -41,6 +42,7 @@ export async function GET(
   }
 
   try {
+    await connectToDatabase();
     // 1. Buscar Usuários da Plataforma
     const platformUsers = await UserModel.find({
       // TODO: Adicionar critérios para usuários ativos
