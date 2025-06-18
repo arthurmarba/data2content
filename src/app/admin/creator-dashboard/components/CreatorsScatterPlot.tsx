@@ -97,8 +97,17 @@ export default function CreatorsScatterPlot() {
       return;
     }
 
-    const xConfig = buildMetricConfig(METRIC_OPTIONS[xMetricIndex], xPeriod);
-    const yConfig = buildMetricConfig(METRIC_OPTIONS[yMetricIndex], yPeriod);
+    const xOption = METRIC_OPTIONS[xMetricIndex];
+    const yOption = METRIC_OPTIONS[yMetricIndex];
+
+    if (!xOption || !yOption) {
+      setError('Métrica selecionada inválida.');
+      setData(null);
+      return;
+    }
+
+    const xConfig = buildMetricConfig(xOption, xPeriod);
+    const yConfig = buildMetricConfig(yOption, yPeriod);
 
     setLoading(true);
     setError(null);
@@ -182,7 +191,7 @@ export default function CreatorsScatterPlot() {
               </option>
             ))}
           </select>
-          {METRIC_OPTIONS[xMetricIndex].requiresPeriod && (
+          {METRIC_OPTIONS[xMetricIndex]?.requiresPeriod && (
             <input
               type="number"
               className="mt-2 p-2 border border-gray-300 rounded-md text-sm w-full"
@@ -208,7 +217,7 @@ export default function CreatorsScatterPlot() {
               </option>
             ))}
           </select>
-          {METRIC_OPTIONS[yMetricIndex].requiresPeriod && (
+          {METRIC_OPTIONS[yMetricIndex]?.requiresPeriod && (
             <input
               type="number"
               className="mt-2 p-2 border border-gray-300 rounded-md text-sm w-full"
