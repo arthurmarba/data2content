@@ -3,7 +3,6 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import '@testing-library/jest-dom';
 import CreatorTable from './CreatorTable';
 import { IDashboardCreator } from '@/app/lib/dataService/marketAnalysisService'; // Adjust path as necessary
-import { Types } from 'mongoose';
 
 // Mock global fetch
 global.fetch = jest.fn();
@@ -41,7 +40,7 @@ jest.mock('./CreatorComparisonModal', () => {
 // Updated Mock Data to include followers_count and use recentAlertsSummary
 const mockCreatorsPage1: IDashboardCreator[] = [
   {
-    _id: new Types.ObjectId() as any,
+    _id: 'id1' as any,
     name: 'Alice Wonderland',
     totalPosts: 120,
     avgEngagementRate: 0.055,
@@ -51,7 +50,7 @@ const mockCreatorsPage1: IDashboardCreator[] = [
     recentAlertsSummary: { count: 2, alerts: [{ type: 'PeakShares', date: new Date() }, { type: 'ForgottenFormat', date: new Date() }] }
   },
   {
-    _id: new Types.ObjectId() as any,
+    _id: 'id2' as any,
     name: 'Bob The Builder',
     totalPosts: 200,
     avgEngagementRate: 0.040,
@@ -63,7 +62,7 @@ const mockCreatorsPage1: IDashboardCreator[] = [
 ];
 const mockCreatorsPage2: IDashboardCreator[] = [
   {
-    _id: new Types.ObjectId() as any,
+    _id: 'id3' as any,
     name: 'Charlie Brown',
     totalPosts: 80,
     avgEngagementRate: 0.060,

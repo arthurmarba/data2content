@@ -1,7 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { AlertTriangle, Info, Zap, ChevronDown, ChevronUp } from 'lucide-react'; // Usando lucide-react para ícones
+const AlertTriangle = ({className = ''}) => <span className={className}>⚠️</span>;
+const Info = ({className = ''}) => <span className={className}>i</span>;
+const Zap = ({className = ''}) => <span className={className}>⚡</span>;
+const ChevronDown = ({className = ''}) => <span className={className}>▼</span>;
+const ChevronUp = ({className = ''}) => <span className={className}>▲</span>;
 
 // Tipos espelhando a resposta da API
 enum AlertTypeEnum {
