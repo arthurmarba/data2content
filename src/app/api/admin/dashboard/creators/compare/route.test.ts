@@ -4,6 +4,15 @@ import { Types } from 'mongoose';
 import { fetchMultipleCreatorProfiles } from '@/app/lib/dataService/marketAnalysisService';
 import { logger } from '@/app/lib/logger';
 import { DatabaseError } from '@/app/lib/errors'; // Import DatabaseError
+import { getServerSession } from 'next-auth/next';
+
+jest.mock('next-auth/next', () => ({
+  getServerSession: jest.fn(),
+}));
+
+jest.mock('@/app/api/auth/[...nextauth]/route', () => ({
+  authOptions: {},
+}));
 
 // Mock logger
 jest.mock('@/app/lib/logger', () => ({
@@ -19,6 +28,8 @@ jest.mock('@/app/lib/logger', () => ({
 jest.mock('@/app/lib/dataService/marketAnalysisService', () => ({
   fetchMultipleCreatorProfiles: jest.fn(),
 }));
+
+const mockGetServerSession = getServerSession as jest.Mock;
 
 const mockFetchMultipleCreatorProfiles = fetchMultipleCreatorProfiles as jest.Mock;
 
@@ -38,6 +49,7 @@ describe('API Route: /api/admin/dashboard/creators/compare', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetServerSession.mockResolvedValue({ user: { role: 'admin' } });
   });
 
   it('should return 200 with comparison data on a valid request', async () => {
@@ -95,21 +107,13 @@ describe('API Route: /api/admin/dashboard/creators/compare', () => {
     expect(body.error).toContain('creatorIds.1: Invalid Creator ID format provided in the array.');
   });
 
-  // 401 Test (conceptual, due to hardcoded getAdminSession in route)
-  /*
   it('should return 401 if admin session is invalid', async () => {
-    console.warn("Skipping 401 test for compare route due to getAdminSession hardcoding.");
-    // This would require modifying the route's getAdminSession to be mockable or conditional for tests.
-    // Example: If getAdminSession could be influenced by a header or a special mock setup.
-    // const reqWithoutSession = new NextRequest('http://localhost/api/admin/dashboard/creators/compare', {
-    //   method: 'POST',
-    //   body: JSON.stringify({ creatorIds: [new Types.ObjectId().toString()] }),
-    //   headers: { 'Content-Type': 'application/json', 'X-No-Session-For-Test': 'true' }, // Hypothetical
-    // });
-    // const response = await POST(reqWithoutSession);
-    // expect(response.status).toBe(401);
+    mockGetServerSession.mockResolvedValueOnce({ user: { role: 'user' } });
+    const validBody = { creatorIds: [new Types.ObjectId().toString()] };
+    const req = createMockRequest(validBody);
+    const response = await POST(req);
+    expect(response.status).toBe(401);
   });
-  */
 
   it('should return 500 if service function throws a DatabaseError', async () => {
     mockFetchMultipleCreatorProfiles.mockRejectedValue(new DatabaseError('DB query failed'));

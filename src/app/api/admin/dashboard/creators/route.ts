@@ -5,6 +5,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 // CORREÇÃO: As importações foram atualizadas para usar os caminhos dos serviços modularizados.
 import { fetchDashboardCreatorsList } from '@/app/lib/dataService/marketAnalysis/dashboardService';
 import { IFetchDashboardCreatorsListParams } from '@/app/lib/dataService/marketAnalysis/types';
@@ -41,11 +43,10 @@ const querySchema = z.object({
   return true;
 }, { message: "startDate não pode ser posterior a endDate", path: ["endDate"] });
 
-// Simulação de validação de sessão de Admin
-async function getAdminSession(req: NextRequest): Promise<{ user: { name: string } } | null> {
-  const session = { user: { name: 'Admin User' } };
-  const isAdmin = true;
-  if (!session || !isAdmin) {
+// Real Admin Session Validation
+async function getAdminSession(_req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session || session.user?.role !== 'admin') {
     logger.warn(`${SERVICE_TAG} Validação da sessão de admin falhou.`);
     return null;
   }

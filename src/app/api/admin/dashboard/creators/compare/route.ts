@@ -6,6 +6,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { Types } from 'mongoose';
 import { logger } from '@/app/lib/logger';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 // CORREÇÃO: As importações foram atualizadas para usar os caminhos dos serviços modularizados.
 import { getCreatorProfile } from '@/app/lib/dataService/marketAnalysis/profilesService';
 import { ICreatorProfile } from '@/app/lib/dataService/marketAnalysis/types';
@@ -24,12 +26,10 @@ const requestBodySchema = z.object({
   .max(MAX_CREATORS_TO_COMPARE_API, { message: `Não é possível comparar mais de ${MAX_CREATORS_TO_COMPARE_API} criadores de uma vez.` })
 });
 
-// Simulação de validação de sessão de Admin
-async function getAdminSession(req: NextRequest): Promise<{ user: { name: string } } | null> {
-  // SIMULAÇÃO: Substitua pela sua lógica real de sessão (ex: next-auth)
-  const session = { user: { name: 'Admin User' } };
-  const isAdmin = true;
-  if (!session || !isAdmin) {
+// Real Admin Session Validation
+async function getAdminSession(_req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session || session.user?.role !== 'admin') {
     logger.warn(`${SERVICE_TAG} Validação da sessão de admin falhou.`);
     return null;
   }

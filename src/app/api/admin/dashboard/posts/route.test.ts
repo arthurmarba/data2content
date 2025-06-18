@@ -2,6 +2,15 @@ import { GET } from './route'; // Adjust path as necessary
 import { NextRequest } from 'next/server';
 import { findGlobalPostsByCriteria } from '@/app/lib/dataService/marketAnalysisService';
 import { logger } from '@/app/lib/logger';
+import { getServerSession } from 'next-auth/next';
+
+jest.mock('next-auth/next', () => ({
+  getServerSession: jest.fn(),
+}));
+
+jest.mock('@/app/api/auth/[...nextauth]/route', () => ({
+  authOptions: {},
+}));
 
 // Mock logger
 jest.mock('@/app/lib/logger', () => ({
@@ -18,6 +27,8 @@ jest.mock('@/app/lib/dataService/marketAnalysisService', () => ({
   findGlobalPostsByCriteria: jest.fn(),
 }));
 
+const mockGetServerSession = getServerSession as jest.Mock;
+
 const mockFindGlobalPostsByCriteria = findGlobalPostsByCriteria as jest.Mock;
 
 describe('API Route: /api/admin/dashboard/posts', () => {
@@ -30,6 +41,7 @@ describe('API Route: /api/admin/dashboard/posts', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetServerSession.mockResolvedValue({ user: { role: 'admin' } });
   });
 
   it('should return 200 with posts on a valid request with default params', async () => {
@@ -108,15 +120,12 @@ describe('API Route: /api/admin/dashboard/posts', () => {
     expect(body.error).toContain('startDate cannot be after endDate');
   });
 
-  // 401 Test (conceptual, as with other routes)
-  /*
   it('should return 401 if admin session is invalid', async () => {
-    console.warn("Skipping 401 test for posts route due to getAdminSession hardcoding.");
-    // const req = createMockRequest({}, false);
-    // const response = await GET(req);
-    // expect(response.status).toBe(401);
+    mockGetServerSession.mockResolvedValueOnce({ user: { role: 'user' } });
+    const req = createMockRequest();
+    const response = await GET(req);
+    expect(response.status).toBe(401);
   });
-  */
 
   it('should return 500 if service function throws an error', async () => {
     mockFindGlobalPostsByCriteria.mockRejectedValue(new Error('Service error Posts'));

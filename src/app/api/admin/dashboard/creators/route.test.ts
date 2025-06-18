@@ -2,6 +2,15 @@ import { GET } from './route'; // Adjust path as necessary
 import { NextRequest } from 'next/server';
 import { fetchDashboardCreatorsList } from '@/app/lib/dataService/marketAnalysisService';
 import { logger } from '@/app/lib/logger';
+import { getServerSession } from 'next-auth/next';
+
+jest.mock('next-auth/next', () => ({
+  getServerSession: jest.fn(),
+}));
+
+jest.mock('@/app/api/auth/[...nextauth]/route', () => ({
+  authOptions: {},
+}));
 
 // Mock logger
 jest.mock('@/app/lib/logger', () => ({
@@ -17,6 +26,8 @@ jest.mock('@/app/lib/logger', () => ({
 jest.mock('@/app/lib/dataService/marketAnalysisService', () => ({
   fetchDashboardCreatorsList: jest.fn(),
 }));
+
+const mockGetServerSession = getServerSession as jest.Mock;
 
 // Mock getAdminSession - we'll define its behavior in tests
 // The actual implementation is in the route file, so we mock its behavior via req object or by directly mocking it if it were importable
@@ -56,7 +67,8 @@ describe('API Route: /api/admin/dashboard/creators', () => {
     jest.clearAllMocks();
     mockAdminSession = { user: { name: 'Admin User' } }; // Reset admin session mock
     // Default mock for successful session
-    // (Actual getAdminSession in route is hardcoded to success, so this mainly tests other logic)
+    // (Actual getAdminSession in route is now based on getServerSession)
+    mockGetServerSession.mockResolvedValue({ user: { role: 'admin' } });
   });
 
   it('should return 200 with creators list on valid request', async () => {
@@ -184,37 +196,12 @@ describe('API Route: /api/admin/dashboard/creators', () => {
     expect(body.error).toContain('limit: Number must be less than or equal to 100');
   });
 
-  // To properly test the 401 Unauthorized scenario, getAdminSession needs to be mockable.
-  // If we assume it's mockable (e.g., if it was imported):
-  // jest.mock('../route', () => ({ // Path to the actual route.ts file
-  //   ...jest.requireActual('../route'), // Import and retain default behavior
-  //   getAdminSession: jest.fn().mockResolvedValue(null) // Mock specific function
-  // }));
-  // Then a test like this would work:
-  /*
   it('should return 401 if admin session is invalid', async () => {
-    // This requires getAdminSession within route.ts to be mockable.
-    // For now, this test is more conceptual for the current route structure.
-    // If getAdminSession was imported: jest.spyOn(authModule, 'getAdminSession').mockResolvedValue(null);
-
-    // Simulate getAdminSession returning null by a conventional flag (if route was designed for it)
-    const req = createMockRequest({}, false); // Assuming isAdmin=false makes getAdminSession return null
-
-    // IF getAdminSession is hardcoded as in the provided route file, then this test
-    // cannot make getAdminSession return null without modifying the route file for testability
-    // or using a more complex mocking setup.
-
-    // For the sake of example, if it WERE mockable and returned null:
-    // const response = await GET(req);
-    // expect(response.status).toBe(401);
-    // const body = await response.json();
-    // expect(body.error).toBe('Acesso não autorizado. Sessão de administrador inválida.');
-
-    // Since it is hardcoded to success, this test case will pass through session check.
-    // We'll note this limitation.
-    console.warn("Skipping 401 test for creators route due to getAdminSession hardcoding in route file. Manual/integration testing recommended for this specific case or refactor for testability.");
+    mockGetServerSession.mockResolvedValueOnce({ user: { role: 'user' } });
+    const req = createMockRequest();
+    const response = await GET(req);
+    expect(response.status).toBe(401);
   });
-  */
 
   it('should return 500 if service function throws an error', async () => {
     mockFetchDashboardCreatorsList.mockRejectedValue(new Error('Service layer error'));
