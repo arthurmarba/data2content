@@ -24,6 +24,7 @@ import PlatformPerformanceHighlights from './components/PlatformPerformanceHighl
 import ProposalRankingCard from './ProposalRankingCard';
 import CreatorRankingCard from './CreatorRankingCard';
 import TopCreatorsWidget from './TopCreatorsWidget';
+import CreatorsScatterPlot from './components/CreatorsScatterPlot';
 import { getStartDateFromTimePeriod, formatDateYYYYMMDD } from '@/utils/dateHelpers';
 import CohortComparisonChart from './components/CohortComparisonChart';
 
@@ -231,7 +232,7 @@ const AdminCreatorDashboardPage: React.FC = () => {
               (Em breve: Tabelas de Criadores com melhor performance)
             </p>
             <div className="bg-white p-4 md:p-6 rounded-lg shadow-md">
-                 {/* CreatorsScatterPlot was removed here */}
+              <CreatorsScatterPlot />
             </div>
           </section>
         </>
