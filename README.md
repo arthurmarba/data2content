@@ -69,6 +69,18 @@ db.metrics.insertOne({
 
 Crie alguns documentos com datas diferentes para que os gráficos possam calcular tendências e médias.
 
+## API Response Conventions
+
+All endpoints under `src/app/api` return JSON using **camelCase** keys. For example,
+the metric history routes (`/api/metricsHistory` and `/api/metrics/[metricId]/daily`)
+expose fields like `engagementRate`, `likes` and `comments`. Highlight endpoints
+such as `/api/v1/users/{userId}/highlights/performance-summary` also follow this
+convention with keys like `topPerformingFormat` and `valueFormatted`.
+
+Front‑end components should rely on camelCase when accessing response data. The
+API serialization layer automatically converts snake\_case keys to camelCase via
+the `camelizeKeys` utility.
+
 
 ## Learn More
 
