@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import MetricModel from '@/app/models/Metric';
+import { logger } from '@/app/lib/logger';
 // Define FormatType enum locally if the import is not available
 enum FormatType {
   IMAGE = "IMAGE",
@@ -164,7 +165,7 @@ export async function GET(
     return NextResponse.json(response, { status: 200 });
 
   } catch (error) {
-    console.error(`[API PLATFORM/PERFORMANCE/ENGAGEMENT-DISTRIBUTION-FORMAT] Error:`, error);
+    logger.error(`[API PLATFORM/PERFORMANCE/ENGAGEMENT-DISTRIBUTION-FORMAT] Error:`, error);
     const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
     return NextResponse.json({
         error: "Erro ao processar sua solicitação.",

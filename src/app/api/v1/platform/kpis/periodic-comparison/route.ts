@@ -3,6 +3,7 @@ import UserModel from '@/app/models/User';
 import AccountInsightModel from '@/app/models/AccountInsight';
 import MetricModel from '@/app/models/Metric'; // Importar MetricModel
 import calculateAverageEngagementPerPost from '@/utils/calculateAverageEngagementPerPost'; // Usado para engajamento
+import { logger } from '@/app/lib/logger';
 import { addDays, getStartDateFromTimePeriod as getStartDateFromTimePeriodGeneric } from '@/utils/dateHelpers';
 import { Types } from 'mongoose';
 
@@ -143,7 +144,7 @@ export async function GET(
     const engagementResultsCurrent = await Promise.allSettled(engagementPromisesCurrent);
     engagementResultsCurrent.forEach(result => {
         if (result.status === 'fulfilled') currentPlatformTotalEngagement += result.value.totalEngagement;
-        else console.error("Error fetching current engagement for a user:", result.reason);
+        else logger.error("Error fetching current engagement for a user:", result.reason);
     });
 
     const engagementPromisesPrevious = userIds.map(uid =>
@@ -152,7 +153,7 @@ export async function GET(
     const engagementResultsPrevious = await Promise.allSettled(engagementPromisesPrevious);
     engagementResultsPrevious.forEach(result => {
         if (result.status === 'fulfilled') previousPlatformTotalEngagement += result.value.totalEngagement;
-        else console.error("Error fetching previous engagement for a user:", result.reason);
+        else logger.error("Error fetching previous engagement for a user:", result.reason);
     });
 
     const totalEngagementData: KPIComparisonData = {
@@ -200,7 +201,7 @@ export async function GET(
     return NextResponse.json(response, { status: 200 });
 
   } catch (error) {
-    console.error("[API PLATFORM/KPIS/PERIODIC] Error fetching platform periodic comparison KPIs:", error);
+    logger.error("[API PLATFORM/KPIS/PERIODIC] Error fetching platform periodic comparison KPIs:", error);
     const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
     const errorKpi: KPIComparisonData = { currentValue: null, previousValue: null, percentageChange: null, chartData: [{name: periodNamePrevious, value:0}, {name: periodNameCurrent, value:0}]};
     return NextResponse.json({

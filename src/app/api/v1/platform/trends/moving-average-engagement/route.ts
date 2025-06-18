@@ -5,6 +5,7 @@ import {
     formatDateYYYYMMDD,
     // getStartDateFromTimePeriod // Não diretamente usado, pois as janelas são calculadas de forma diferente
 } from '@/utils/dateHelpers';
+import { logger } from '@/app/lib/logger';
 
 // Tipos de dados para a resposta
 interface MovingAverageDataPoint {
@@ -218,7 +219,7 @@ export async function GET(
     return NextResponse.json(initialResponse, { status: 200 });
 
   } catch (error) {
-    console.error("[API PLATFORM/TRENDS/MOVING-AVERAGE-ENGAGEMENT] Error:", error);
+    logger.error("[API PLATFORM/TRENDS/MOVING-AVERAGE-ENGAGEMENT] Error:", error);
     const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
     // Preenche a série com nulls para todos os dias da janela de dados em caso de erro
     let iterDate = new Date(dataStartDateForDisplay); // Use dataStartDateForDisplay

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import MetricModel from '@/app/models/Metric'; // Descomente para implementação real
+import { logger } from '@/app/lib/logger';
 // Defina FormatType localmente se o módulo não existir
 export enum FormatType {
   IMAGE = "IMAGE",
@@ -130,7 +131,7 @@ export async function GET(
     return NextResponse.json(response, { status: 200 });
 
   } catch (error) {
-    console.error("[API PLATFORM/PERFORMANCE/POST-DISTRO-FORMAT] Error:", error);
+    logger.error("[API PLATFORM/PERFORMANCE/POST-DISTRO-FORMAT] Error:", error);
     const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
     return NextResponse.json({ error: "Erro ao processar sua solicitação.", details: errorMessage }, { status: 500 });
   }

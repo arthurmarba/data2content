@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import MetricModel from '@/app/models/Metric';
 import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
+import { logger } from '@/app/lib/logger';
 
 // Periodos permitidos para o filtro de tempo
 const ALLOWED_TIME_PERIODS = [
@@ -128,7 +129,7 @@ export async function GET(request: Request) {
       insightSummary: summary,
     });
   } catch (error) {
-    console.error('[API PLATFORM/VIDEO-METRICS]', error);
+    logger.error('[API PLATFORM/VIDEO-METRICS]', error);
     return NextResponse.json(
       {
         error: 'Erro ao processar métricas de vídeo.',

@@ -3,6 +3,7 @@ import UserModel from '@/app/models/User'; // Importar UserModel
 import getReachEngagementTrendChartData from '@/charts/getReachEngagementTrendChartData';
 import getReachInteractionTrendChartData from '@/charts/getReachInteractionTrendChartData';
 import { connectToDatabase } from '@/app/lib/mongoose';
+import { logger } from '@/app/lib/logger';
 
 interface ReachEngagementChartResponse {
   chartData: ApiReachEngagementDataPoint[];
@@ -84,7 +85,7 @@ export async function GET(
           }
         });
       } else if (result.status === 'rejected') {
-        console.error(`Erro ao buscar dados de alcance/engajamento para um usuário durante agregação:`, result.reason);
+        logger.error(`Erro ao buscar dados de alcance/engajamento para um usuário durante agregação:`, result.reason);
       }
     });
 
@@ -135,7 +136,7 @@ export async function GET(
     return NextResponse.json(response, { status: 200 });
 
   } catch (error) {
-    console.error(`[API PLATFORM/TRENDS/REACH-ENGAGEMENT] Error aggregating platform data:`, error);
+    logger.error(`[API PLATFORM/TRENDS/REACH-ENGAGEMENT] Error aggregating platform data:`, error);
     const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
     return NextResponse.json({ error: "Erro ao processar sua solicitação.", details: errorMessage }, { status: 500 });
   }
