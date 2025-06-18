@@ -39,7 +39,7 @@ interface ScatterPlotResponse {
 
 // Função para obter nome/label do criador (simulada)
 async function getCreatorLabel(userId: string | Types.ObjectId): Promise<string> {
-  logger.warn('Using simulated getCreatorLabel function.'); // Added logger
+  logger.debug('Using simulated getCreatorLabel function.');
   // Em uma app real, buscaria o nome do usuário no DB
   return `Criador ${userId.toString().substring(0, 6)}...`;
 }
@@ -77,7 +77,7 @@ async function getCreatorsScatterPlotData(
         return aep.averageEngagementPerPost;
       // Add more cases as needed
       default:
-        logger.warn(`Lógica de cálculo desconhecida para métrica ${config.id}: ${config.calculationLogic} para userId: ${userId}`);
+        logger.debug(`Lógica de cálculo desconhecida para métrica ${config.id}: ${config.calculationLogic} para userId: ${userId}`);
         return null;
     }
   }
