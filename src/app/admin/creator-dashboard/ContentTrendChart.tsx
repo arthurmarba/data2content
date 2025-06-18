@@ -56,7 +56,7 @@ const ContentTrendChart: React.FC<ContentTrendChartProps> = ({ postId }) => {
       }
       const json: PostDetailResponse = await res.json();
       setMeta({ format: json.format, proposal: json.proposal, context: json.context });
-      const snapshots = (json.dailySnapshots || []).map((s, idx) => ({
+      const snapshots: DailySnapshot[] = (json.dailySnapshots || []).map((s, idx) => ({
         ...s,
         date: s.date ? new Date(s.date) : undefined,
         dayNumber: typeof s.dayNumber === 'number' ? s.dayNumber : idx + 1,
