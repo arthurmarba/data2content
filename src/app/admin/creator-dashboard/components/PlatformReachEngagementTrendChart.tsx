@@ -156,7 +156,7 @@ const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendCh
           </ResponsiveContainer>
         )}
         {!loading && !error && data.length === 0 && (
-          <div className="flex justify-center items-center h-full"><p className="text-gray-500">Nenhum dado disponível para o período selecionado.</p></div>
+          <div className="flex justify-center items-center h-full"><p className="text-gray-500">Sem dados no período selecionado.</p></div>
         )}
       </div>
       {insightSummary && !loading && !error && (

@@ -102,7 +102,7 @@ const PlatformMonthlyEngagementStackedChart: React.FC<PlatformMonthlyEngagementS
           </ResponsiveContainer>
         )}
         {!loading && !error && data.length === 0 && (
-          <div className="flex justify-center items-center h-full"><p className="text-gray-500">Nenhum dado de engajamento disponível para o período.</p></div>
+          <div className="flex justify-center items-center h-full"><p className="text-gray-500">Sem dados de engajamento no período selecionado.</p></div>
         )}
       </div>
       {insightSummary && !loading && !error && (
