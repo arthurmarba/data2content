@@ -53,13 +53,10 @@ export async function GET(
   const performanceMetricLabel = DEFAULT_PERFORMANCE_METRIC_LABEL;
 
 
-  // --- Simulação de Lógica de Backend para Dados Agregados da Plataforma ---
-  // TODO: Implementar lógica de agregação real da plataforma.
-  // Isso envolveria:
-  // 1. Chamar funções como `getAverageEngagementByGrouping` para toda a plataforma.
-  // 2. A partir desses resultados (médias por formato/contexto), identificar o top/low.
-  //    - Top: Simplesmente o maior valor médio.
-  //    - Low: O menor valor médio, talvez com um threshold mínimo de posts na plataforma para esse grupo.
+// --- Simulação de Lógica de Backend para Dados Agregados da Plataforma ---
+// TODO: Quando houver dados reais da plataforma, reutilizar
+// `aggregatePerformanceHighlights` para calcular top/low formatos e contextos
+// em nível global. Abaixo permanecem valores mockados para demonstração.
 
   // Por agora, dados hardcoded para demonstração:
   let topFormatName = "Reel";

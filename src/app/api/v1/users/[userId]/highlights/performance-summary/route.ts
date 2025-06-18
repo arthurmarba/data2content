@@ -2,12 +2,7 @@ import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
 import { ALLOWED_TIME_PERIODS } from '@/app/lib/constants/timePeriods';
 
-import getTopPerformingFormat from '@/utils/getTopPerformingFormat';
-import getLowPerformingFormat from '@/utils/getLowPerformingFormat';
-import getTopPerformingContext from '@/utils/getTopPerformingContext';
-// Supondo que FormatPerformanceData e ContextPerformanceData são exportados ou podemos redefinir aqui
-// import { FormatPerformanceData } from '@/utils/getTopPerformingFormat'; (se exportado)
-// import { ContextPerformanceData } from '@/utils/getTopPerformingContext'; (se exportado)
+import aggregatePerformanceHighlights from '@/utils/aggregatePerformanceHighlights';
 
 // Helper para converter timePeriod string para periodInDays number
 function timePeriodToDays(timePeriod: string): number {
@@ -79,37 +74,33 @@ export async function GET(
 
 
   try {
-    const [
-      topFormatResult,
-      lowFormatResult,
-      topContextResult
-    ] = await Promise.all([
-      getTopPerformingFormat(userId, periodInDaysValue, performanceMetricField),
-      getLowPerformingFormat(userId, periodInDaysValue, performanceMetricField), // minPosts default é 3
-      getTopPerformingContext(userId, periodInDaysValue, performanceMetricField)
-    ]);
+    const aggResult = await aggregatePerformanceHighlights(
+      userId,
+      periodInDaysValue,
+      performanceMetricField
+    );
 
     const response: PerformanceSummaryResponse = {
-      topPerformingFormat: topFormatResult ? {
-        name: topFormatResult.format as string, // Assumindo que format é string ou FormatType
+      topPerformingFormat: aggResult.topFormat ? {
+        name: aggResult.topFormat.name as string,
         metricName: performanceMetricLabel,
-        value: topFormatResult.averagePerformance,
-        valueFormatted: formatPerformanceValue(topFormatResult.averagePerformance, performanceMetricField),
-        postsCount: topFormatResult.postsCount
+        value: aggResult.topFormat.average,
+        valueFormatted: formatPerformanceValue(aggResult.topFormat.average, performanceMetricField),
+        postsCount: aggResult.topFormat.count
       } : null,
-      lowPerformingFormat: lowFormatResult ? {
-        name: lowFormatResult.format as string,
+      lowPerformingFormat: aggResult.lowFormat ? {
+        name: aggResult.lowFormat.name as string,
         metricName: performanceMetricLabel,
-        value: lowFormatResult.averagePerformance,
-        valueFormatted: formatPerformanceValue(lowFormatResult.averagePerformance, performanceMetricField),
-        postsCount: lowFormatResult.postsCount
+        value: aggResult.lowFormat.average,
+        valueFormatted: formatPerformanceValue(aggResult.lowFormat.average, performanceMetricField),
+        postsCount: aggResult.lowFormat.count
       } : null,
-      topPerformingContext: topContextResult ? {
-        name: topContextResult.context as string,
+      topPerformingContext: aggResult.topContext ? {
+        name: aggResult.topContext.name as string,
         metricName: performanceMetricLabel,
-        value: topContextResult.averagePerformance,
-        valueFormatted: formatPerformanceValue(topContextResult.averagePerformance, performanceMetricField),
-        postsCount: topContextResult.postsCount
+        value: aggResult.topContext.average,
+        valueFormatted: formatPerformanceValue(aggResult.topContext.average, performanceMetricField),
+        postsCount: aggResult.topContext.count
       } : null,
       insightSummary: "" // Será construído abaixo
     };
