@@ -128,9 +128,25 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
         <h3 className="text-xl font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-300">
           Performance de Conteúdo
         </h3>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <UserAverageEngagementChart userId={userId} groupBy="format" chartTitle="Engajamento Médio por Formato" initialTimePeriod={initialChartsTimePeriod} />
-          <UserAverageEngagementChart userId={userId} groupBy="context" chartTitle="Engajamento Médio por Contexto" initialTimePeriod={initialChartsTimePeriod} />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          <UserAverageEngagementChart
+            userId={userId}
+            groupBy="format"
+            chartTitle="Engajamento Médio por Formato"
+            initialTimePeriod={initialChartsTimePeriod}
+          />
+          <UserAverageEngagementChart
+            userId={userId}
+            groupBy="context"
+            chartTitle="Engajamento Médio por Contexto"
+            initialTimePeriod={initialChartsTimePeriod}
+          />
+          <UserAverageEngagementChart
+            userId={userId}
+            groupBy="proposal"
+            chartTitle="Engajamento Médio por Proposta"
+            initialTimePeriod={initialChartsTimePeriod}
+          />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <UserEngagementDistributionChart userId={userId} chartTitle="Distribuição de Engajamento por Formato" initialTimePeriod={initialChartsTimePeriod} />
