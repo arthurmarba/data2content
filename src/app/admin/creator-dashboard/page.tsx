@@ -21,6 +21,7 @@ import PlatformEngagementDistributionByFormatChart from './components/PlatformEn
 import PlatformVideoPerformanceMetrics from './components/PlatformVideoPerformanceMetrics';
 import PlatformMonthlyEngagementStackedChart from './components/PlatformMonthlyEngagementStackedChart';
 import PlatformPerformanceHighlights from './components/PlatformPerformanceHighlights';
+import ContentPerformanceByTypeChart from './ContentPerformanceByTypeChart';
 import ProposalRankingCard from './ProposalRankingCard';
 import CreatorRankingCard from './CreatorRankingCard';
 import TopCreatorsWidget from './TopCreatorsWidget';
@@ -162,6 +163,9 @@ const AdminCreatorDashboardPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> {/* Nova linha ou ajuste no grid */}
                 <PlatformMonthlyEngagementStackedChart timePeriod={globalTimePeriod} />
                 <PlatformEngagementDistributionByFormatChart timePeriod={globalTimePeriod} /> {/* Adicionado aqui */}
+            </div>
+            <div className="mt-6">
+              <ContentPerformanceByTypeChart dateRangeFilter={{ startDate, endDate }} />
             </div>
           </section>
 
