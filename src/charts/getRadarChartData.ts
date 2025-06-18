@@ -53,6 +53,48 @@ export type NormalizeValueFn = (
     max: number | null
 ) => number;
 
+// Local helper to calculate a metric value for a single user
+async function calculateMetricValueForUser(
+  userId: Types.ObjectId,
+  metricConfig: RadarMetricConfig
+): Promise<number | null> {
+  const params = metricConfig.params ? { ...(metricConfig.params[0] || {}) } : {};
+
+  switch (metricConfig.calculationLogic) {
+    case "getFollowersCount_current": {
+      const growthData = await calculateFollowerGrowthRate(userId, params.periodInDays || 0);
+      return growthData.currentFollowers;
+    }
+    case "getFollowerGrowthRate_percentage": {
+      const frg = await calculateFollowerGrowthRate(userId, params.periodInDays || 30);
+      return frg.percentageGrowth;
+    }
+    case "getAverageEngagementPerPost_avgPerPost": {
+      const aep = await calculateAverageEngagementPerPost(userId, params.periodInDays || 30);
+      return aep.averageEngagementPerPost;
+    }
+    case "getAverageEngagementPerPost_avgRateOnReach": {
+      const aepRate = await calculateAverageEngagementPerPost(userId, params.periodInDays || 30);
+      return aepRate.averageEngagementRateOnReach;
+    }
+    case "getWeeklyPostingFrequency_current": {
+      const wpf = await calculateWeeklyPostingFrequency(userId, params.periodInDays || 30);
+      return wpf.currentWeeklyFrequency;
+    }
+    case "getAverageVideoMetrics_avgRetention": {
+      const avmRet = await calculateAverageVideoMetrics(userId, params.periodInDays || 90);
+      return avmRet.averageRetentionRate;
+    }
+    case "getAverageVideoMetrics_avgWatchTime": {
+      const avmWatch = await calculateAverageVideoMetrics(userId, params.periodInDays || 90);
+      return avmWatch.averageWatchTimeSeconds;
+    }
+    default:
+      logger.warn(`Lógica de cálculo desconhecida para userId ${userId}: ${metricConfig.calculationLogic}`);
+      return null;
+  }
+}
+
 
 async function getRadarChartData(
   profile1_identifier: string | Types.ObjectId,
@@ -99,108 +141,44 @@ async function getRadarChartData(
     const platformMinMaxValues = await getPlatformMinMaxValues(metricIdsForMinMax);
     initialResponse.debugMinMax = platformMinMaxValues; // Para depuração
 
-    // TODO: PERFORMANCE - Consider parallelizing metric calculations for profile1 and profile2
-    // e.g., by collecting all promises for a profile's metrics and then using Promise.all(),
-    // if the underlying calculation functions are independent and I/O bound.
-    for (const metricConfig of metricSetConfig) {
-      labels.push(metricConfig.label);
-      let rawValue1: number | null = null;
-      let rawValue2: number | null = null;
+    // Coletar promessas para cálculo de métricas de cada perfil
+    labels.push(...metricSetConfig.map(m => m.label));
 
-      const commonParams = metricConfig.params ? { ...(metricConfig.params[0] || {}) } : {};
+    const p1Promises = metricSetConfig.map(cfg => calculateMetricValueForUser(profile1_userId, cfg));
+    const p2Promises = !profile2_isSegment && profile2_userId
+      ? metricSetConfig.map(cfg => calculateMetricValueForUser(profile2_userId as Types.ObjectId, cfg))
+      : [];
 
-      // Obter valor para Perfil 1
-      switch (metricConfig.calculationLogic) {
-        case "getFollowersCount_current":
-          const growthData1 = await calculateFollowerGrowthRate(profile1_userId, commonParams.periodInDays || 0);
-          rawValue1 = growthData1.currentFollowers;
-          break;
-        case "getFollowerGrowthRate_percentage":
-          const frg1 = await calculateFollowerGrowthRate(profile1_userId, commonParams.periodInDays || 30);
-          rawValue1 = frg1.percentageGrowth; // Este já é decimal (ex: 0.10 para 10%)
-          break;
-        case "getAverageEngagementPerPost_avgPerPost":
-          const aep1 = await calculateAverageEngagementPerPost(profile1_userId, commonParams.periodInDays || 30);
-          rawValue1 = aep1.averageEngagementPerPost;
-          break;
-        case "getAverageEngagementPerPost_avgRateOnReach":
-            const aepRate1 = await calculateAverageEngagementPerPost(profile1_userId, commonParams.periodInDays || 30);
-            rawValue1 = aepRate1.averageEngagementRateOnReach; // Decimal
-            break;
-        case "getWeeklyPostingFrequency_current":
-            const wpf1 = await calculateWeeklyPostingFrequency(profile1_userId, commonParams.periodInDays || 30);
-            rawValue1 = wpf1.currentWeeklyFrequency;
-            break;
-        case "getAverageVideoMetrics_avgRetention":
-            const avmRet1 = await calculateAverageVideoMetrics(profile1_userId, commonParams.periodInDays || 90);
-            rawValue1 = avmRet1.averageRetentionRate; // Percentual (0-100)
-            break;
-        case "getAverageVideoMetrics_avgWatchTime":
-            const avmWatch1 = await calculateAverageVideoMetrics(profile1_userId, commonParams.periodInDays || 90);
-            rawValue1 = avmWatch1.averageWatchTimeSeconds;
-            break;
-        default:
-          logger.warn(`Lógica de cálculo desconhecida para Perfil 1: ${metricConfig.calculationLogic}`); // Replaced console.warn
-          rawValue1 = null;
-      }
-      p1_rawData.push(rawValue1);
-      const minMax1 = platformMinMaxValues[metricConfig.id] || { min: null, max: null };
-      p1_normalizedData.push(normalizeValueFn(rawValue1, minMax1.min, minMax1.max));
+    const [p1Values, p2UserValues] = await Promise.all([
+      Promise.all(p1Promises),
+      profile2_isSegment || !profile2_userId ? Promise.resolve([]) : Promise.all(p2Promises)
+    ]);
 
-      // Obter valor para Perfil 2
-      if (profile2_isSegment) {
-        // console.log(`Simulando/Buscando média do segmento ${profile2_segmentId} para ${metricConfig.id}. Base P1: ${rawValue1}`); // Replaced by logger.warn
-        logger.warn(`Using simulated data for segment ${profile2_segmentId} for metric ${metricConfig.id}`); // Added logger.warn
-        // TODO: Implementar lógica real para buscar média do segmento.
-        // A média do segmento já deveria vir "bruta" e ser normalizada da mesma forma que P1.
-        if (rawValue1 !== null) {
-            if (metricConfig.id === "followerGrowthRate_percentage") rawValue2 = rawValue1 * 0.8;
-            else if (metricConfig.id === "totalFollowers") rawValue2 = rawValue1 * 1.2;
-            else if (metricConfig.id === "avgVideoRetention_avgRetention") rawValue2 = Math.max(0, rawValue1 -10); // Segments tend to have lower retention
-            else rawValue2 = rawValue1 * 0.9;
-        } else {
-            rawValue2 = null; // Se P1 for nulo, P2 (segmento) também pode ser ou ter um valor default.
-        }
-      } else if (profile2_userId) {
-         switch (metricConfig.calculationLogic) {
-            case "getFollowersCount_current":
-              const growthData2 = await calculateFollowerGrowthRate(profile2_userId, commonParams.periodInDays || 0);
-              rawValue2 = growthData2.currentFollowers;
-              break;
-            // ... (repetir todos os cases como para Perfil 1)
-            case "getFollowerGrowthRate_percentage":
-              const frg2 = await calculateFollowerGrowthRate(profile2_userId, commonParams.periodInDays || 30);
-              rawValue2 = frg2.percentageGrowth;
-              break;
-            case "getAverageEngagementPerPost_avgPerPost":
-              const aep2 = await calculateAverageEngagementPerPost(profile2_userId, commonParams.periodInDays || 30);
-              rawValue2 = aep2.averageEngagementPerPost;
-              break;
-            case "getAverageEngagementPerPost_avgRateOnReach":
-                const aepRate2 = await calculateAverageEngagementPerPost(profile2_userId, commonParams.periodInDays || 30);
-                rawValue2 = aepRate2.averageEngagementRateOnReach;
-                break;
-            case "getWeeklyPostingFrequency_current":
-                const wpf2 = await calculateWeeklyPostingFrequency(profile2_userId, commonParams.periodInDays || 30);
-                rawValue2 = wpf2.currentWeeklyFrequency;
-                break;
-            case "getAverageVideoMetrics_avgRetention":
-                const avmRet2 = await calculateAverageVideoMetrics(profile2_userId, commonParams.periodInDays || 90);
-                rawValue2 = avmRet2.averageRetentionRate;
-                break;
-            case "getAverageVideoMetrics_avgWatchTime":
-                const avmWatch2 = await calculateAverageVideoMetrics(profile2_userId, commonParams.periodInDays || 90);
-                rawValue2 = avmWatch2.averageWatchTimeSeconds;
-                break;
-            default:
-              logger.warn(`Lógica de cálculo desconhecida para Perfil 2: ${metricConfig.calculationLogic}`); // Replaced console.warn
-              rawValue2 = null;
+    const p2Values = profile2_isSegment
+      ? metricSetConfig.map((metricConfig, idx) => {
+          const base = p1Values[idx];
+          logger.warn(`Using simulated data for segment ${profile2_segmentId} for metric ${metricConfig.id}`);
+          if (base !== null) {
+            if (metricConfig.id === "followerGrowthRate_percentage") return base * 0.8;
+            else if (metricConfig.id === "totalFollowers") return base * 1.2;
+            else if (metricConfig.id === "avgVideoRetention_avgRetention") return Math.max(0, base - 10);
+            return base * 0.9;
           }
-      }
-      p2_rawData.push(rawValue2);
-      const minMax2 = platformMinMaxValues[metricConfig.id] || { min: null, max: null };
-      p2_normalizedData.push(await normalizeValueFn(rawValue2, minMax2.min, minMax2.max));
-    }
+          return null;
+        })
+      : p2UserValues;
+
+    metricSetConfig.forEach((metricConfig, idx) => {
+      const minMax = platformMinMaxValues[metricConfig.id] || { min: null, max: null };
+      const raw1 = p1Values[idx];
+      const raw2 = p2Values[idx] as number | null;
+
+      p1_rawData.push(raw1);
+      p2_rawData.push(raw2);
+
+      p1_normalizedData.push(normalizeValueFn(raw1, minMax.min, minMax.max));
+      p2_normalizedData.push(normalizeValueFn(raw2, minMax.min, minMax.max));
+    });
 
     initialResponse.labels = labels;
     initialResponse.datasets = [
