@@ -1,40 +1,17 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
 import getAverageEngagementByGrouping from '@/utils/getAverageEngagementByGrouping';
+import {
+  ALLOWED_TIME_PERIODS,
+  ALLOWED_ENGAGEMENT_METRICS,
+  TimePeriod,
+  EngagementMetricField,
+} from '@/app/lib/constants/timePeriods';
 
 // Tipo de agrupamento local (usado apenas na resposta)
 type GroupingType = 'format' | 'context' | 'proposal';
 
 // Constantes para validação de parâmetros
-type TimePeriod =
-  | 'last_7_days'
-  | 'last_30_days'
-  | 'last_90_days'
-  | 'last_6_months'
-  | 'last_12_months'
-  | 'all_time';
-const ALLOWED_TIME_PERIODS: TimePeriod[] = [
-  'last_7_days',
-  'last_30_days',
-  'last_90_days',
-  'last_6_months',
-  'last_12_months',
-  'all_time'
-];
-
-type EngagementMetricField =
-  | 'stats.total_interactions'
-  | 'stats.views'
-  | 'stats.likes'
-  | 'stats.comments'
-  | 'stats.shares';
-const ALLOWED_ENGAGEMENT_METRICS: EngagementMetricField[] = [
-  'stats.total_interactions',
-  'stats.views',
-  'stats.likes',
-  'stats.comments',
-  'stats.shares'
-];
 
 export async function GET(
   request: Request,

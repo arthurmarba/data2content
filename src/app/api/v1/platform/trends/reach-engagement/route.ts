@@ -3,6 +3,7 @@ import UserModel from '@/app/models/User'; // Importar UserModel
 import getReachEngagementTrendChartData from '@/charts/getReachEngagementTrendChartData';
 import getReachInteractionTrendChartData from '@/charts/getReachInteractionTrendChartData';
 import { connectToDatabase } from '@/app/lib/mongoose';
+import { ALLOWED_TIME_PERIODS } from '@/app/lib/constants/timePeriods';
 
 interface ReachEngagementChartResponse {
   chartData: ApiReachEngagementDataPoint[];
@@ -17,7 +18,6 @@ interface ApiReachEngagementDataPoint {
   engagedUsers: number | null;
 }
 
-const ALLOWED_TIME_PERIODS: string[] = ["last_7_days", "last_30_days", "last_90_days", "last_6_months", "last_12_months", "all_time"];
 const ALLOWED_GRANULARITIES: string[] = ["daily", "weekly"];
 
 export async function GET(

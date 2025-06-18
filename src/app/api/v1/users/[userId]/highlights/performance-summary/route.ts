@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
+import { ALLOWED_TIME_PERIODS } from '@/app/lib/constants/timePeriods';
 
 import getTopPerformingFormat from '@/utils/getTopPerformingFormat';
 import getLowPerformingFormat from '@/utils/getLowPerformingFormat';
@@ -45,7 +46,6 @@ interface PerformanceSummaryResponse {
   insightSummary: string;
 }
 
-const ALLOWED_TIME_PERIODS: string[] = ["last_7_days", "last_30_days", "last_90_days", "last_6_months", "last_12_months", "all_time"];
 const DEFAULT_PERFORMANCE_METRIC = "stats.total_interactions";
 const DEFAULT_PERFORMANCE_METRIC_LABEL = "Interações Totais"; // Para o insightSummary
 

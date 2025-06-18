@@ -3,15 +3,8 @@ import UserModel from '@/app/models/User';
 import getFollowerDailyChangeData from '@/charts/getFollowerDailyChangeData';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import { logger } from '@/app/lib/logger';
+import { ALLOWED_TIME_PERIODS } from '@/app/lib/constants/timePeriods';
 
-const ALLOWED_TIME_PERIODS = [
-  'last_7_days',
-  'last_30_days',
-  'last_90_days',
-  'last_6_months',
-  'last_12_months',
-  'all_time'
-];
 
 interface ApiChangePoint {
   date: string;

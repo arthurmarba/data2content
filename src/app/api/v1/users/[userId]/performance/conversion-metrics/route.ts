@@ -2,23 +2,9 @@ import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
 import calculateAverageFollowerConversionRatePerPost from '@/utils/calculateAverageFollowerConversionRatePerPost';
 import calculateAccountFollowerConversionRate from '@/utils/calculateAccountFollowerConversionRate';
+import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 
 // Tipos de período
-type TimePeriod =
-  | 'last_7_days'
-  | 'last_30_days'
-  | 'last_90_days'
-  | 'last_6_months'
-  | 'last_12_months'
-  | 'all_time';
-const ALLOWED_TIME_PERIODS: TimePeriod[] = [
-  'last_7_days',
-  'last_30_days',
-  'last_90_days',
-  'last_6_months',
-  'last_12_months',
-  'all_time',
-];
 
 interface UserConversionMetricsResponse {
   averageFollowerConversionRatePerPost: number | null;

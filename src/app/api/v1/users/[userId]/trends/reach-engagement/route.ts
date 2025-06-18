@@ -2,11 +2,11 @@ import { NextResponse } from 'next/server';
 import getReachEngagementTrendChartData from '@/charts/getReachEngagementTrendChartData';
 import getReachInteractionTrendChartData from '@/charts/getReachInteractionTrendChartData';
 import { Types } from 'mongoose';
+import { ALLOWED_TIME_PERIODS } from '@/app/lib/constants/timePeriods';
 
 type ReachEngagementChartResponse = any;
 
 // Reutilizar as constantes de validação ou definir específicas se necessário
-const ALLOWED_TIME_PERIODS: string[] = ["last_7_days", "last_30_days", "last_90_days", "last_6_months", "last_12_months", "all_time"]; // all_time pode não ser ideal para reach/engaged diário/semanal
 const ALLOWED_GRANULARITIES: string[] = ["daily", "weekly"];
 
 export async function GET(

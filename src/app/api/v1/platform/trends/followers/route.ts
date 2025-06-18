@@ -4,6 +4,7 @@ import getFollowerTrendChartData from '@/charts/getFollowerTrendChartData'; // A
 import { connectToDatabase } from '@/app/lib/mongoose';
 import { logger } from '@/app/lib/logger'; // Added
 import { Types } from 'mongoose'; // Para ObjectId, se necessário para UserModel
+import { ALLOWED_TIME_PERIODS } from '@/app/lib/constants/timePeriods';
 
 // Tipos para os dados da API (reutilizar do chart individual)
 interface ApiChartDataPoint {
@@ -18,7 +19,6 @@ interface FollowerTrendChartResponse {
 }
 
 // Definir aqui os tipos permitidos para timePeriod e granularity se quiser validação estrita
-const ALLOWED_TIME_PERIODS: string[] = ["last_7_days", "last_30_days", "last_90_days", "last_6_months", "last_12_months", "all_time"];
 const ALLOWED_GRANULARITIES: string[] = ["daily", "monthly"];
 
 export async function GET(

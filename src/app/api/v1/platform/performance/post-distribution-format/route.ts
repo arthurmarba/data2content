@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import MetricModel from '@/app/models/Metric'; // Descomente para implementação real
+import { ALLOWED_TIME_PERIODS } from '@/app/lib/constants/timePeriods';
 // Defina FormatType localmente se o módulo não existir
 export enum FormatType {
   IMAGE = "IMAGE",
@@ -23,7 +24,6 @@ interface PlatformPostDistributionResponse {
   insightSummary?: string;
 }
 
-const ALLOWED_TIME_PERIODS: string[] = ["all_time", "last_7_days", "last_30_days", "last_90_days", "last_6_months", "last_12_months"];
 
 // Mapeamento de formato (pode vir de uma config ou ser mais elaborado)
 const DEFAULT_FORMAT_MAPPING: { [key: string]: string } = {
