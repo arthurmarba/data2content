@@ -74,7 +74,7 @@ const PlatformFollowerChangeChart: React.FC<PlatformFollowerChangeChartProps> = 
               <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
               <XAxis dataKey="date" stroke="#666" tick={{ fontSize: 12 }} />
               <YAxis stroke="#666" tick={{ fontSize: 12 }} />
-              <Tooltip<number | null, string> formatter={tooltipFormatter} labelStyle={{ color: '#333' }} itemStyle={{ color: '#8884d8' }} />
+              <Tooltip<number, string> formatter={tooltipFormatter} labelStyle={{ color: '#333' }} itemStyle={{ color: '#8884d8' }} />
               <Bar dataKey="change" name="Variação" fill="#8884d8" />
             </BarChart>
           </ResponsiveContainer>
