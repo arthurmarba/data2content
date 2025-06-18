@@ -38,6 +38,7 @@ import UserDetailView from './components/views/UserDetailView';
 
 const AdminCreatorDashboardPage: React.FC = () => {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedUserName, setSelectedUserName] = useState<string | null>(null);
   const [globalTimePeriod, setGlobalTimePeriod] = useState<string>("last_90_days"); // Default para 90 dias
 
   const selectedComparisonPeriodForPlatformKPIs = "month_vs_previous";
@@ -55,8 +56,9 @@ const AdminCreatorDashboardPage: React.FC = () => {
   const rankingDateRange = { startDate, endDate };
 
 
-  const handleUserSelect = (userId: string) => {
+  const handleUserSelect = (userId: string, userName: string) => {
     setSelectedUserId(userId);
+    setSelectedUserName(userName);
     const userDetailSection = document.getElementById("user-detail-view-container");
     if (userDetailSection) {
         userDetailSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -91,16 +93,21 @@ const AdminCreatorDashboardPage: React.FC = () => {
 
       <section id="creator-selection-simulation" className="mb-8 p-4 bg-white rounded-lg shadow">
         <h2 className="text-lg font-semibold text-gray-700 mb-3">Simular Seleção de Criador Detalhado:</h2>
-        <div className="flex flex-wrap gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           <button
             onClick={() => setIsSelectorOpen(true)}
             className="p-2 rounded-md text-sm bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
           >
             Buscar Criador
           </button>
+          {selectedUserName && (
+            <span className="px-2 py-1 text-sm bg-indigo-50 text-indigo-700 rounded">
+              {selectedUserName}
+            </span>
+          )}
           {selectedUserId && (
             <button
-              onClick={() => setSelectedUserId(null)}
+              onClick={() => { setSelectedUserId(null); setSelectedUserName(null); }}
               className="p-2 rounded-md text-sm bg-gray-200 text-gray-700 hover:bg-gray-300"
             >
               Limpar Seleção (Ver Visão Geral da Plataforma)
@@ -302,6 +309,7 @@ const AdminCreatorDashboardPage: React.FC = () => {
         {selectedUserId && (
           <UserDetailView
             userId={selectedUserId}
+            userName={selectedUserName ?? undefined}
             initialChartsTimePeriod={globalTimePeriod} // Passar o período global
           />
         )}
@@ -310,7 +318,7 @@ const AdminCreatorDashboardPage: React.FC = () => {
       <CreatorSelector
         isOpen={isSelectorOpen}
         onClose={() => setIsSelectorOpen(false)}
-        onSelect={(creator) => handleUserSelect(creator.id)}
+        onSelect={(creator) => handleUserSelect(creator.id, creator.name)}
       />
     </div>
   );
