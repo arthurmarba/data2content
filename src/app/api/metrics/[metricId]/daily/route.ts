@@ -6,27 +6,21 @@ import DailyMetricSnapshotModel from '@/app/models/DailyMetricSnapshot';
 import MetricModel from '@/app/models/Metric'; // Importar MetricModel para verificar propriedade
 import mongoose, { Types } from 'mongoose'; // <<< CORRIGIDO: Importa mongoose e Types
 import { logger } from '@/app/lib/logger';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
-// --- Placeholder para sua função de autenticação ---
-// Substitua pela sua lógica real para obter o ID do usuário logado a partir da requisição
-// Exemplo: pode vir de uma sessão, token JWT, etc.
 async function getUserIdFromRequest(request: Request): Promise<Types.ObjectId | null> {
-  // LÓGICA DE AUTENTICAÇÃO AQUI
-  // Exemplo (simulado):
-  // const session = await getServerSession(authOptions); // Exemplo com NextAuth
-  // if (!session?.user?.id) return null;
-  // return new Types.ObjectId(session.user.id);
-
-  // Retornando um ID fixo para fins de exemplo - SUBSTITUA PELA SUA LÓGICA REAL
-  const EXAMPLE_USER_ID = "609cdd9f9d6a8c001f8e1z99"; // <<< SUBSTITUIR
-  // Agora mongoose.isValidObjectId está disponível
-  if (mongoose.isValidObjectId(EXAMPLE_USER_ID)) {
-    return new Types.ObjectId(EXAMPLE_USER_ID);
+  const session = await getServerSession({ req: request, ...authOptions });
+  const sessionId = session?.user?.id;
+  if (!sessionId) {
+    return null;
   }
-  logger.error("[getUserIdFromRequest] EXAMPLE_USER_ID não é um ObjectId válido.");
+  if (mongoose.isValidObjectId(sessionId)) {
+    return new Types.ObjectId(sessionId);
+  }
+  logger.warn(`[getUserIdFromRequest] ID da sessão inválido: ${sessionId}`);
   return null;
 }
-// --- Fim do Placeholder ---
 
 
 /**
