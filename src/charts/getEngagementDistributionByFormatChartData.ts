@@ -1,5 +1,5 @@
 import MetricModel from "@/app/models/Metric";
-import { Types } from "mongoose";
+import { Types, PipelineStage } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose"; // Added
 import { logger } from "@/app/lib/logger"; // Added
 import { getStartDateFromTimePeriod } from "@/utils/dateHelpers"; // Importar helper compartilhado
@@ -47,7 +47,7 @@ async function getEngagementDistributionByFormatChartData(
       matchStage.postDate = { $gte: startDate, $lte: endDate };
     }
 
-    const pipeline = [
+    const pipeline: PipelineStage[] = [
       { $match: matchStage },
       {
         $project: {
