@@ -45,6 +45,11 @@ export async function GET(
       granularity
     );
 
+    if (!data.chartData || data.chartData.length === 0) {
+      data.insightSummary =
+        data.insightSummary || 'Sem dados no período selecionado.';
+    }
+
     return NextResponse.json(data, { status: 200 });
 
   } catch (error) {

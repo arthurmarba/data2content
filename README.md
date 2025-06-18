@@ -42,7 +42,32 @@ Selecione múltiplos criadores e defina as métricas dos eixos X e Y para gerar 
 
 O componente **UserMonthlyComparisonChart** exibe a evolução de uma métrica entre os três últimos meses para um criador específico.
 Ele consome o endpoint `/api/v1/users/{userId}/charts/monthly-comparison` e permite escolher a métrica a ser comparada (total de posts ou total de interações).
+
 Basta fornecer o `userId` ao componente e ele renderizará um gráfico de colunas com as diferenças mensais.
+
+### Populando o Banco para Testes
+
+Os gráficos dependem das coleções **AccountInsight** e **Metric**. Caso seu banco esteja vazio, os componentes exibirão a mensagem "Sem dados no período selecionado". Para experimentar localmente, insira alguns registros manualmente no MongoDB:
+
+```javascript
+use data2content
+db.accountinsights.insertOne({
+  user: ObjectId("<id do usuário>"),
+  instagramAccountId: "123",
+  recordedAt: new Date(),
+  followersCount: 1000
+})
+
+db.metrics.insertOne({
+  user: ObjectId("<id do usuário>"),
+  postDate: new Date(),
+  type: "REEL",
+  source: "manual",
+  stats: { reach: 500, likes: 70, comments: 5 }
+})
+```
+
+Crie alguns documentos com datas diferentes para que os gráficos possam calcular tendências e médias.
 
 
 ## Learn More
