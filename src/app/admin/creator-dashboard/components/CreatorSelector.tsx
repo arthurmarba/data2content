@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { SearchBar } from '@/app/components/SearchBar';
 import { UserAvatar } from '@/app/components/UserAvatar';
@@ -17,6 +17,13 @@ export default function CreatorSelector({ isOpen, onClose, onSelect }: CreatorSe
   const [creators, setCreators] = useState<AdminCreatorListItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -64,9 +71,11 @@ export default function CreatorSelector({ isOpen, onClose, onSelect }: CreatorSe
         </div>
         <div className="p-4 space-y-4">
           <SearchBar
+            ref={searchInputRef}
             initialValue={searchTerm}
             onSearchChange={(val) => setSearchTerm(val)}
             placeholder="Buscar por nome ou email..."
+            autoFocus={isOpen}
           />
           <div className="max-h-60 overflow-y-auto divide-y">
             {isLoading && <p className="text-sm text-gray-500 p-2">Carregando...</p>}
