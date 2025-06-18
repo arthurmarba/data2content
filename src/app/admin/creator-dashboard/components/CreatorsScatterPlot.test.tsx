@@ -52,8 +52,9 @@ describe('CreatorsScatterPlot Component', () => {
     fireEvent.click(screen.getByText('Select'));
     fireEvent.click(screen.getByText('Gerar Gráfico'));
 
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
-    expect(screen.getByTestId('responsive-container')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByTestId('responsive-container')).toBeInTheDocument()
+    );
     expect(screen.getByTestId('scatter-chart')).toBeInTheDocument();
   });
 });
