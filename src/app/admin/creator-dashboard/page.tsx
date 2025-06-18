@@ -32,6 +32,7 @@ import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
 import CohortComparisonChart from './components/CohortComparisonChart';
 import MarketPerformanceChart from './components/MarketPerformanceChart';
 import CreatorsScatterPlot from './components/CreatorsScatterPlot';
+import ScrollToTopButton from '@/app/components/ScrollToTopButton';
 
 // View de Detalhe do Criador (Módulo 3 e partes do Módulo 2 para usuário)
 import UserDetailView from './components/views/UserDetailView';
@@ -68,7 +69,7 @@ const AdminCreatorDashboardPage: React.FC = () => {
 
   return (
     <div className="p-4 md:p-6 lg:p-8 bg-gray-100 min-h-screen">
-      <header className="mb-8">
+      <header className="mb-8 sticky top-0 z-20 bg-gray-100 pb-4 border-b border-gray-200">
         <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Dashboard Administrativo de Criadores</h1>
 
         <div className="mt-4 p-4 bg-white rounded-md shadow">
@@ -327,6 +328,7 @@ const AdminCreatorDashboardPage: React.FC = () => {
         onClose={() => setIsSelectorOpen(false)}
         onSelect={(creator) => handleUserSelect(creator.id, creator.name)}
       />
+      <ScrollToTopButton />
     </div>
   );
 };
