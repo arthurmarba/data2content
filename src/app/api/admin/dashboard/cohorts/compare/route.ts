@@ -74,9 +74,9 @@ export async function POST(req: NextRequest) {
       return apiError(`Corpo da requisição inválido: ${errorMessage}`, 400);
     }
 
-    const { metric, cohorts } = validationResult.data;
+    const { metric, cohorts, dateRange } = validationResult.data;
 
-    const comparisonResults = await fetchCohortComparison({ metric, cohorts });
+    const comparisonResults = await fetchCohortComparison({ metric, cohorts, dateRange });
 
     logger.info(`${TAG} Successfully fetched cohort comparison results.`);
     return NextResponse.json(comparisonResults, { status: 200 });

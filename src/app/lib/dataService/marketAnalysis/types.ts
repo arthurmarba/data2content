@@ -155,6 +155,10 @@ export interface ITucaRadarEffectivenessResult {
 export interface IFetchCohortComparisonArgs {
     metric: string;
     cohorts: { filterBy: 'planStatus' | 'inferredExpertiseLevel'; value: string }[];
+    dateRange?: {
+        startDate: Date;
+        endDate: Date;
+    };
 }
 
 export interface ICohortComparisonResult {
