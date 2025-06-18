@@ -114,17 +114,7 @@ export async function GET(
 
     const grandTotalEngagement = aggregationResult.reduce((sum, item) => sum + item.totalEngagementValue, 0);
 
-    if (grandTotalEngagement === 0) {
-      // Isso pode acontecer se todos os posts tiverem 0 para a métrica de engajamento selecionada.
-      return NextResponse.json({
-            chartData: [],
-            metricUsed: engagementMetricField,
-            insightSummary: `Nenhum ${engagementMetricField.replace("stats.","")} encontrado para os formatos no período.`
-        }, { status: 200 });
-    }
-
     let tempChartData: EngagementDistributionDataPoint[] = aggregationResult
-      .filter(item => item.totalEngagementValue > 0) // Apenas considerar se o valor for positivo
       .map(item => {
         const formatKey = item._id as string; // _id do $group é o format
         const formatName = DEFAULT_FORMAT_MAPPING[formatKey] || formatKey.toString().replace(/_/g, ' ').toLocaleLowerCase().replace(/\b\w/g, l => l.toUpperCase());
@@ -155,7 +145,7 @@ export async function GET(
       metricUsed: engagementMetricField,
       insightSummary: `Distribuição de ${engagementMetricField.replace("stats.","")} da plataforma por formato (${timePeriod.replace("_", " ").replace("_days"," dias").replace("_months"," meses")}).`
     };
-    if (finalChartData.length > 0) {
+    if (grandTotalEngagement > 0 && finalChartData.length > 0) {
         const firstData = finalChartData[0];
         if (firstData && firstData.name !== "Outros") {
             response.insightSummary += ` O formato com maior contribuição é ${firstData.name} (${firstData.percentage.toFixed(1)}%).`;

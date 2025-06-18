@@ -112,14 +112,20 @@ describe('getEngagementDistributionByFormatChartData', () => {
     expect(result.insightSummary).toBe('Nenhum dado de engajamento encontrado para o período.');
   });
 
-  test('Posts sem engajamento relevante retornam array vazio', async () => {
+  test('Posts sem engajamento relevante retornam valores zero', async () => {
     const agg = [
       { _id: FormatType.REEL, totalEngagement: 0 },
       { _id: FormatType.IMAGE, totalEngagement: 0 },
     ];
     (MetricModel.aggregate as jest.Mock).mockResolvedValue(agg);
     const result = await getEngagementDistributionByFormatChartData(userId, 'last_30_days', engagementMetricField);
-    expect(result.chartData).toEqual([]);
+    expect(result.chartData.length).toBe(2);
+    expect(result.chartData).toEqual(
+      expect.arrayContaining([
+        { name: 'Reel', value: 0, percentage: 0 },
+        { name: 'Image', value: 0, percentage: 0 },
+      ])
+    );
     expect(result.insightSummary).toBe('Nenhum dado de engajamento encontrado para o período.');
   });
 
