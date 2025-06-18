@@ -5,6 +5,7 @@ import InstagramProfile from "./InstagramProfile";
 import StrategicPanel from "./StrategicPanel";
 import CourseVideos from "../curso/CourseVideos";
 import IndicatorsGrid from "./IndicatorsGrid";
+import RadarEffectivenessWidget from "./RadarEffectivenessWidget";
 import { useDashboard } from "./DashboardContext";
 
 /**
@@ -69,6 +70,11 @@ export default function MegaCard() {
          * - Senão, mostra IndicatorCard
          */}
         <IndicatorsGrid indicators={indicators} />
+      </div>
+
+      {/* Eficácia do Radar Tuca */}
+      <div>
+        <RadarEffectivenessWidget />
       </div>
 
       {/* Seção de Vídeos */}
