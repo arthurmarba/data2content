@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Info } from 'lucide-react';
+const Info = ({className = ''}) => <span className={className}>i</span>;
 
 export interface PerformanceHighlightItem {
   name: string;

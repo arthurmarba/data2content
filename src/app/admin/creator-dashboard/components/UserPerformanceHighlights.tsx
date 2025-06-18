@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { TrendingUp, TrendingDown, Sparkles } from 'lucide-react';
+const TrendingUp = ({className = ''}) => <span className={className}>↑</span>;
+const TrendingDown = ({className = ''}) => <span className={className}>↓</span>;
+const Sparkles = ({className = ''}) => <span className={className}>✨</span>;
 import HighlightCard from './HighlightCard';
 
 interface PerformanceHighlightItem {

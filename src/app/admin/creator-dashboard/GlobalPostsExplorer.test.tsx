@@ -27,19 +27,19 @@ jest.mock('./EmptyState', () => ({ icon, title, message }) => (
 ));
 
 // Mock PostDetailModal
-const MockPostDetailModal = jest.fn(({ isOpen, onClose, postId }) => {
-  if (!isOpen) return null;
-  return (
-    <div data-testid="mock-post-detail-modal">
-      <h3>Post Detail for ID: {postId}</h3>
-      <button onClick={onClose}>Close Post Modal</button>
-    </div>
-  );
+jest.mock('./PostDetailModal', () => {
+  const MockPostDetailModal = jest.fn(({ isOpen, onClose, postId }) => {
+    if (!isOpen) return null;
+    return (
+      <div data-testid="mock-post-detail-modal">
+        <h3>Post Detail for ID: {postId}</h3>
+        <button onClick={onClose}>Close Post Modal</button>
+      </div>
+    );
+  });
+  return { __esModule: true, default: MockPostDetailModal };
 });
-jest.mock('./PostDetailModal', () => ({
-    __esModule: true,
-    default: MockPostDetailModal,
-}));
+import MockPostDetailModal from './PostDetailModal';
 
 const MockContentTrendChart = jest.fn(({ postId }) => (
   <div data-testid="mock-content-trend-chart">Chart for {postId}</div>
