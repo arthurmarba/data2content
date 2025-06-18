@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import type { TooltipProps } from 'recharts';
+import { formatNullableNumberTooltip } from '@/utils/chartFormatters';
 
 interface ApiChangePoint {
   date: string;
@@ -51,9 +53,10 @@ const PlatformFollowerChangeChart: React.FC<PlatformFollowerChangeChartProps> = 
     fetchData();
   }, [fetchData]);
 
-  const tooltipFormatter = (value: number | null, name: string) => {
-    return [value !== null ? value.toLocaleString() : 'N/A', name];
-  };
+  const tooltipFormatter: TooltipProps<number | null, string>["formatter"] = (
+    value,
+    name
+  ) => formatNullableNumberTooltip(value, name);
 
   return (
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md">
@@ -71,7 +74,7 @@ const PlatformFollowerChangeChart: React.FC<PlatformFollowerChangeChartProps> = 
               <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
               <XAxis dataKey="date" stroke="#666" tick={{ fontSize: 12 }} />
               <YAxis stroke="#666" tick={{ fontSize: 12 }} />
-              <Tooltip formatter={tooltipFormatter} labelStyle={{ color: '#333' }} itemStyle={{ color: '#8884d8' }} />
+              <Tooltip<number | null, string> formatter={tooltipFormatter} labelStyle={{ color: '#333' }} itemStyle={{ color: '#8884d8' }} />
               <Bar dataKey="change" name="Variação" fill="#8884d8" />
             </BarChart>
           </ResponsiveContainer>
