@@ -56,14 +56,14 @@ const ENTITY_TYPE_OPTIONS: { value: TopMoverEntityType; label: string; disabled?
 ];
 
 const METRIC_OPTIONS: { value: TopMoverMetric; label: string }[] = [
-    { value: 'cumulative_views', label: 'Visualizações Acumuladas' },
-    { value: 'cumulative_likes', label: 'Likes Acumulados' },
-    { value: 'cumulative_shares', label: 'Compartilhamentos Acumulados' },
-    { value: 'cumulative_comments', label: 'Comentários Acumulados' },
-    { value: 'cumulative_saves', label: 'Salvamentos Acumulados' },
-    { value: 'cumulative_reach', label: 'Alcance Acumulado' },
-    { value: 'cumulative_impressions', label: 'Impressões Acumuladas' },
-    { value: 'cumulative_total_interactions', label: 'Interações Totais Acumuladas' },
+    { value: 'cumulativeViews', label: 'Visualizações Acumuladas' },
+    { value: 'cumulativeLikes', label: 'Likes Acumulados' },
+    { value: 'cumulativeShares', label: 'Compartilhamentos Acumulados' },
+    { value: 'cumulativeComments', label: 'Comentários Acumulados' },
+    { value: 'cumulativeSaved', label: 'Salvamentos Acumulados' },
+    { value: 'cumulativeReach', label: 'Alcance Acumulado' },
+    { value: 'cumulativeImpressions', label: 'Impressões Acumuladas' },
+    { value: 'cumulativeTotalInteractions', label: 'Interações Totais Acumuladas' },
 ];
 
 const SORT_BY_OPTIONS: { value: TopMoverSortBy; label: string }[] = [
@@ -93,7 +93,7 @@ const formatDisplayPercentageTM = (num?: number | null): string => {
 
 export default function TopMoversWidget() {
   const [entityType, setEntityType] = useState<TopMoverEntityType>('content');
-  const [metric, setMetric] = useState<TopMoverMetric>('cumulative_views');
+  const [metric, setMetric] = useState<TopMoverMetric>('cumulativeViews');
   const [previousPeriod, setPreviousPeriod] = useState<PeriodState>(initialPeriodState);
   const [currentPeriod, setCurrentPeriod] = useState<PeriodState>(initialPeriodState);
   const [topN, setTopN] = useState<number>(10);

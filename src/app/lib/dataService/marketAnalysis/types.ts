@@ -229,14 +229,14 @@ export interface IPeriod {
 export type TopMoverEntityType = 'content' | 'creator';
 
 export type TopMoverMetric =
-  | 'cumulative_views'
-  | 'cumulative_likes'
-  | 'cumulative_shares'
-  | 'cumulative_comments'
-  | 'cumulative_saves'
-  | 'cumulative_reach'
-  | 'cumulative_impressions'
-  | 'cumulative_total_interactions';
+  | 'cumulativeViews'
+  | 'cumulativeLikes'
+  | 'cumulativeShares'
+  | 'cumulativeComments'
+  | 'cumulativeSaved'
+  | 'cumulativeReach'
+  | 'cumulativeImpressions'
+  | 'cumulativeTotalInteractions';
 
 export type TopMoverSortBy =
   | 'absoluteChange_increase'

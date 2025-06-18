@@ -288,7 +288,7 @@ describe('MarketAnalysisService', () => {
     const previousPeriod = { startDate: new Date('2023-01-01Z'), endDate: new Date('2023-01-31Z') };
     const currentPeriod = { startDate: new Date('2023-02-01Z'), endDate: new Date('2023-02-28Z') };
     const baseArgs: IFetchTopMoversArgs = {
-      entityType: 'content', metric: 'cumulative_likes', previousPeriod, currentPeriod, topN: 5,
+      entityType: 'content', metric: 'cumulativeLikes', previousPeriod, currentPeriod, topN: 5,
     };
     const mockMetricDetails = [{ _id: metricId1, description: 'Post about Cats' }];
 
@@ -320,7 +320,7 @@ describe('MarketAnalysisService', () => {
 
     const baseCreatorArgs: IFetchTopMoversArgs = {
       entityType: 'creator',
-      metric: 'cumulative_total_interactions',
+      metric: 'cumulativeTotalInteractions',
       previousPeriod,
       currentPeriod,
       topN: 3,

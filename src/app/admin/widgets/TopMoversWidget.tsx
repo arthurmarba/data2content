@@ -65,10 +65,10 @@ const ENTITY_TYPE_OPTIONS: { value: TopMoverEntityType; label: string; }[] = [
 ];
 
 const METRIC_OPTIONS: { value: TopMoverMetric; label: string }[] = [
-    { value: 'cumulative_views', label: 'Visualizações' },
-    { value: 'cumulative_likes', label: 'Likes' },
-    { value: 'cumulative_shares', label: 'Partilhas' },
-    { value: 'cumulative_total_interactions', label: 'Interações' },
+    { value: 'cumulativeViews', label: 'Visualizações' },
+    { value: 'cumulativeLikes', label: 'Likes' },
+    { value: 'cumulativeShares', label: 'Partilhas' },
+    { value: 'cumulativeTotalInteractions', label: 'Interações' },
 ];
 
 const SORT_BY_OPTIONS: { value: TopMoverSortBy; label: string }[] = [
@@ -87,7 +87,7 @@ const formatDisplayPercentageTM = (num?: number | null) => num ? `${(num * 100).
 
 const TopMoversWidget = memo(function TopMoversWidget() {
   const [entityType, setEntityType] = useState<TopMoverEntityType>('content');
-  const [metric, setMetric] = useState<TopMoverMetric>('cumulative_views');
+  const [metric, setMetric] = useState<TopMoverMetric>('cumulativeViews');
   const [previousPeriod, setPreviousPeriod] = useState<PeriodState>(initialPeriodState);
   const [currentPeriod, setCurrentPeriod] = useState<PeriodState>(initialPeriodState);
   const [topN, setTopN] = useState<number>(5);

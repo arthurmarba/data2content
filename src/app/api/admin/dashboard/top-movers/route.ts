@@ -44,8 +44,8 @@ const creatorFiltersSchema = z.object({
 
 // Manually list out string literals for Zod enums from types
 const topMoverMetricLiterals: [TopMoverMetric, ...TopMoverMetric[]] = [
-  'cumulative_views', 'cumulative_likes', 'cumulative_shares', 'cumulative_comments',
-  'cumulative_saves', 'cumulative_reach', 'cumulative_impressions', 'cumulative_total_interactions'
+  'cumulativeViews', 'cumulativeLikes', 'cumulativeShares', 'cumulativeComments',
+  'cumulativeSaved', 'cumulativeReach', 'cumulativeImpressions', 'cumulativeTotalInteractions'
 ];
 const topMoverMetricEnum = z.enum(topMoverMetricLiterals);
 

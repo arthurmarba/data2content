@@ -96,7 +96,7 @@ export async function GET(
       .select( // Seleciona os campos desejados para a resposta
         'date ' +
         'dailyViews dailyLikes dailyComments dailyShares dailySaved dailyReach dailyFollows dailyProfileVisits ' +
-        'cumulativeViews cumulativeLikes cumulativeComments cumulativeShares cumulativeSaved cumulativeReach cumulativeFollows cumulativeProfileVisits cumulativeTotalInteractions ' +
+        'cumulativeViews cumulativeLikes cumulativeComments cumulativeShares cumulativeSaved cumulativeReach cumulativeImpressions cumulativeFollows cumulativeProfileVisits cumulativeTotalInteractions ' +
         '-_id' // Exclui o _id de cada snapshot
       )
       .lean(); // Retorna objetos JS puros

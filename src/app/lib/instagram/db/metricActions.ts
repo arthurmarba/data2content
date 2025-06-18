@@ -190,7 +190,8 @@ async function createOrUpdateDailySnapshot(metric: IMetric): Promise<void> {
     }).sort({ date: -1 }).lean<IDailyMetricSnapshot>();
 
     const previousCumulativeStats: Partial<Record<keyof IMetricStats | 'reelsVideoViewTotalTime', number>> = {
-      views: 0, likes: 0, comments: 0, shares: 0, saved: 0, reach: 0, follows: 0, profile_visits: 0, total_interactions: 0,
+      views: 0, likes: 0, comments: 0, shares: 0, saved: 0, reach: 0, impressions: 0, follows: 0,
+      profile_visits: 0, total_interactions: 0,
       reelsVideoViewTotalTime: 0,
     };
 
@@ -202,6 +203,7 @@ async function createOrUpdateDailySnapshot(metric: IMetric): Promise<void> {
         shares: lastSnapshot.cumulativeShares ?? 0,
         saved: lastSnapshot.cumulativeSaved ?? 0,
         reach: lastSnapshot.cumulativeReach ?? 0,
+        impressions: lastSnapshot.cumulativeImpressions ?? 0,
         follows: lastSnapshot.cumulativeFollows ?? 0,
         profile_visits: lastSnapshot.cumulativeProfileVisits ?? 0,
         total_interactions: lastSnapshot.cumulativeTotalInteractions ?? 0,
@@ -217,7 +219,7 @@ async function createOrUpdateDailySnapshot(metric: IMetric): Promise<void> {
 
     const dailyStats: Partial<Record<keyof IDailyMetricSnapshot, number>> = {};
     const metricsToCalculateDelta: (keyof IMetricStats)[] = [
-      'views', 'likes', 'comments', 'shares', 'saved', 'reach', 'follows', 'profile_visits'
+      'views', 'likes', 'comments', 'shares', 'saved', 'reach', 'impressions', 'follows', 'profile_visits'
     ];
 
     for (const metricName of metricsToCalculateDelta) {
@@ -260,6 +262,7 @@ async function createOrUpdateDailySnapshot(metric: IMetric): Promise<void> {
       dailyFollows: dailyStats.dailyFollows,
       dailyProfileVisits: dailyStats.dailyProfileVisits,
       dailyReelsVideoViewTotalTime: dailyStats.dailyReelsVideoViewTotalTime,
+      dailyImpressions: dailyStats.dailyImpressions,
       
       cumulativeViews: Number(currentMetricStats.views ?? 0),
       cumulativeLikes: Number(currentMetricStats.likes ?? 0),
@@ -267,6 +270,7 @@ async function createOrUpdateDailySnapshot(metric: IMetric): Promise<void> {
       cumulativeShares: Number(currentMetricStats.shares ?? 0),
       cumulativeSaved: Number(currentMetricStats.saved ?? 0),
       cumulativeReach: Number(currentMetricStats.reach ?? 0),
+      cumulativeImpressions: Number(currentMetricStats.impressions ?? 0),
       cumulativeFollows: Number(currentMetricStats.follows ?? 0),
       cumulativeProfileVisits: Number(currentMetricStats.profile_visits ?? 0),
       cumulativeTotalInteractions: Number(currentMetricStats.total_interactions ?? 0),
