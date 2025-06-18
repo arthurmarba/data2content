@@ -1,7 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import React from 'react'; // Standard import for React at the top
 import CreatorDashboardPage, { GlobalFiltersState } from './page';
 
 // Mocks for child components - simplified to not return JSX directly from factory

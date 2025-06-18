@@ -6,7 +6,6 @@ import CreatorDetailModal from './CreatorDetailModal';
 // Mock global fetch
 global.fetch = jest.fn();
 
-import React from 'react'; // Standard import for React at the top
 
 // Mock CreatorTimeSeriesChart
 jest.mock('./CreatorTimeSeriesChart', () => jest.fn(({ isLoading, error, data, metricLabel }) => (
