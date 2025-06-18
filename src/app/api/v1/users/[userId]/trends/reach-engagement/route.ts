@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import getReachEngagementTrendChartData from '@/charts/getReachEngagementTrendChartData'; // Ajuste o caminho
+import getReachEngagementTrendChartData from '@/charts/getReachEngagementTrendChartData';
+import getReachInteractionTrendChartData from '@/charts/getReachInteractionTrendChartData';
 import { Types } from 'mongoose';
 
 type ReachEngagementChartResponse = any;
@@ -39,11 +40,18 @@ export async function GET(
   }
 
   try {
-    const data: ReachEngagementChartResponse = await getReachEngagementTrendChartData(
+    let data: ReachEngagementChartResponse = await getReachEngagementTrendChartData(
       userId,
       timePeriod,
       granularity
     );
+
+    const noInsightData =
+      !data.chartData || data.chartData.every(p => p.reach === null && p.engagedUsers === null);
+
+    if (noInsightData) {
+      data = await getReachInteractionTrendChartData(userId, timePeriod, granularity);
+    }
 
     if (!data.chartData || data.chartData.length === 0) {
       data.insightSummary =

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import UserModel from '@/app/models/User'; // Importar UserModel
 import getReachEngagementTrendChartData from '@/charts/getReachEngagementTrendChartData';
+import getReachInteractionTrendChartData from '@/charts/getReachInteractionTrendChartData';
 import { connectToDatabase } from '@/app/lib/mongoose';
 
 interface ReachEngagementChartResponse {
@@ -57,9 +58,16 @@ export async function GET(
     const userIds = platformUsers.map(user => user._id);
 
     // 2. Buscar Dados Individuais em Paralelo
-    const userTrendPromises = userIds.map(userId =>
-      getReachEngagementTrendChartData(userId.toString(), timePeriod, granularity)
-    );
+    const fetchWithFallback = async (uid: Types.ObjectId) => {
+      let res = await getReachEngagementTrendChartData(uid.toString(), timePeriod, granularity);
+      const noData = !res.chartData || res.chartData.every(p => p.reach === null && p.engagedUsers === null);
+      if (noData) {
+        res = await getReachInteractionTrendChartData(uid.toString(), timePeriod, granularity);
+      }
+      return res;
+    };
+
+    const userTrendPromises = userIds.map(userId => fetchWithFallback(userId));
     const userTrendResults = await Promise.allSettled(userTrendPromises);
 
     // 3. Agregar os Resultados
