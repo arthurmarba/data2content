@@ -53,10 +53,10 @@ const PlatformFollowerChangeChart: React.FC<PlatformFollowerChangeChartProps> = 
     fetchData();
   }, [fetchData]);
 
-  const tooltipFormatter: TooltipProps<number | null, string>["formatter"] = (
+  const tooltipFormatter: TooltipProps<number, string>["formatter"] = (
     value,
     name
-  ) => formatNullableNumberTooltip(value, name);
+  ) => formatNullableNumberTooltip(value as number | null, name);
 
   return (
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md">
