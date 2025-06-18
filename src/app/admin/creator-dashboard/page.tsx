@@ -30,6 +30,7 @@ import RadarEffectivenessWidget from './components/widgets/RadarEffectivenessWid
 import { getStartDateFromTimePeriod, formatDateYYYYMMDD } from '@/utils/dateHelpers';
 import CohortComparisonChart from './components/CohortComparisonChart';
 import MarketPerformanceChart from './components/MarketPerformanceChart';
+import CreatorsScatterPlot from './components/CreatorsScatterPlot';
 
 // View de Detalhe do Criador (Módulo 3 e partes do Módulo 2 para usuário)
 import UserDetailView from './components/views/UserDetailView';
@@ -291,9 +292,7 @@ const AdminCreatorDashboardPage: React.FC = () => {
             <p className="text-sm text-gray-500 mb-4 italic">
               (Em breve: Tabelas de Criadores com melhor performance)
             </p>
-            <div className="bg-white p-4 md:p-6 rounded-lg shadow-md">
-                 {/* CreatorsScatterPlot was removed here */}
-            </div>
+            <CreatorsScatterPlot />
           </section>
         </>
       )}

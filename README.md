@@ -33,6 +33,11 @@ Install dependencies if you haven't already and then run:
 npm test
 ```
 
+### Creators Scatter Plot
+
+Na dashboard administrativa, utilize o componente **CreatorsScatterPlot** para comparar métricas de diferentes criadores em um gráfico de dispersão.
+Selecione múltiplos criadores e defina as métricas dos eixos X e Y para gerar o gráfico.
+
 
 ## Learn More
 
