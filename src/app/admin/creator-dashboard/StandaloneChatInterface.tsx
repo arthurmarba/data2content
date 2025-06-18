@@ -173,7 +173,17 @@ const useIntelligenceChat = () => {
     }
   }, [isLoading, messages, processStream]);
 
-  return { messages, isLoading, error, visualizations, suggestions, startConversation, setMessages };
+  const askRadarEffectiveness = useCallback(
+    (alertType?: string, periodDays: number = 30) => {
+      const query = alertType
+        ? `Qual a eficácia do Radar Tuca para alertas do tipo '${alertType}' nos últimos ${periodDays} dias?`
+        : `Qual a eficácia do Radar Tuca nos últimos ${periodDays} dias?`;
+      startConversation(query);
+    },
+    [startConversation]
+  );
+
+  return { messages, isLoading, error, visualizations, suggestions, startConversation, askRadarEffectiveness, setMessages };
 };
 
 
@@ -338,7 +348,7 @@ const ChatInput: FC<{
 // --- INÍCIO DA CORREÇÃO 2: Alterar a assinatura do componente para aceitar props ---
 const StandaloneChatInterface: React.FC<StandaloneChatInterfaceProps> = ({ initialPrompt }) => {
 // --- FIM DA CORREÇÃO 2 ---
-  const { messages, isLoading, error, visualizations, suggestions, startConversation } = useIntelligenceChat();
+  const { messages, isLoading, error, visualizations, suggestions, startConversation, askRadarEffectiveness } = useIntelligenceChat();
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -374,6 +384,12 @@ const StandaloneChatInterface: React.FC<StandaloneChatInterfaceProps> = ({ initi
             <div className="mx-auto bg-white dark:bg-gray-700 border dark:border-gray-600 w-12 h-12 rounded-full flex items-center justify-center text-2xl mb-3">💡</div>
             <p className="text-md font-semibold text-gray-700 dark:text-gray-300">Como posso ajudar?</p>
             <p className="text-xs mt-1">Faça perguntas sobre criadores, conteúdo ou tendências.</p>
+            <button
+              onClick={() => askRadarEffectiveness()}
+              className="mt-4 inline-flex items-center px-3 py-1.5 rounded-md bg-indigo-600 text-white text-xs font-medium hover:bg-indigo-700"
+            >
+              Radar Tuca
+            </button>
           </div>
         )}
         {messages.map((m) => <MessageBubble key={m.id} message={m} />)}

@@ -169,7 +169,17 @@ const useIntelligenceChat = () => {
     }
   }, [isLoading, messages, processStream]);
 
-  return { messages, isLoading, error, visualizations, suggestions, startConversation, setMessages };
+  const askRadarEffectiveness = useCallback(
+    (alertType?: string, periodDays: number = 30) => {
+      const query = alertType
+        ? `Qual a eficácia do Radar Tuca para alertas do tipo '${alertType}' nos últimos ${periodDays} dias?`
+        : `Qual a eficácia do Radar Tuca nos últimos ${periodDays} dias?`;
+      startConversation(query);
+    },
+    [startConversation]
+  );
+
+  return { messages, isLoading, error, visualizations, suggestions, startConversation, askRadarEffectiveness, setMessages };
 };
 
 // ============================================================================
@@ -335,7 +345,7 @@ const ChatInput: FC<{
 // ============================================================================
 
 export default function IntelligenceHubPage() {
-  const { messages, isLoading, error, visualizations, suggestions, startConversation } = useIntelligenceChat();
+  const { messages, isLoading, error, visualizations, suggestions, startConversation, askRadarEffectiveness } = useIntelligenceChat();
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -358,6 +368,12 @@ export default function IntelligenceHubPage() {
         <header className="mb-10">
           <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Central de Inteligência</h1>
           <p className="text-md text-gray-600 dark:text-gray-400 mt-2">Pergunte, analise e obtenha insights estratégicos sobre o seu mercado.</p>
+          <button
+            onClick={() => askRadarEffectiveness()}
+            className="mt-4 inline-flex items-center px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            Ver eficácia do Radar
+          </button>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 lg:gap-12">
