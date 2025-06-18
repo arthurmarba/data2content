@@ -85,7 +85,9 @@ const UserFollowerChangeChart: React.FC<UserFollowerChangeChartProps> = ({
     setTimePeriod(e.target.value);
   };
 
-  const tooltipFormatter = (value: number | null) => (value !== null ? value.toLocaleString() : 'N/A');
+  const tooltipFormatter = (value: number | null, name: string) => {
+    return [value !== null ? value.toLocaleString() : 'N/A', name];
+  };
 
   return (
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6">
