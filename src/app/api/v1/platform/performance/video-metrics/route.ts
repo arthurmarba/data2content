@@ -13,8 +13,8 @@ const ALLOWED_TIME_PERIODS = [
 ] as const;
 type TimePeriod = typeof ALLOWED_TIME_PERIODS[number];
 
-// Formatos de vídeo definidos como literais para corresponder ao campo `format` do Metric
-const DEFAULT_VIDEO_FORMATS: string[] = ['REEL', 'VIDEO'];
+// Tipos de vídeo usados para filtrar métricas pelo campo `type` do Metric
+const DEFAULT_VIDEO_TYPES: string[] = ['REEL', 'VIDEO'];
 
 interface PlatformVideoMetricsResponse {
   averageRetentionRate: number | null;
@@ -51,7 +51,8 @@ export async function GET(request: Request) {
     );
     const startDate = getStartDateFromTimePeriod(today, timePeriod);
 
-    const queryConditions: any = { format: { $in: DEFAULT_VIDEO_FORMATS } };
+    // Filtra posts de vídeo usando o campo `type`
+    const queryConditions: any = { type: { $in: DEFAULT_VIDEO_TYPES } };
     if (timePeriod !== 'all_time') {
       queryConditions.postDate = { $gte: startDate, $lte: endDate };
     }
