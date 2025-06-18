@@ -38,7 +38,11 @@ describe('CreatorsScatterPlot Component', () => {
     (fetch as jest.Mock).mockClear();
     (fetch as jest.Mock).mockResolvedValue({
       ok: true,
-      json: async () => ({ plotData: [], xAxisMetricLabel: 'X', yAxisMetricLabel: 'Y' }),
+      json: async () => ({
+        plotData: [{ id: '1', label: 'A', x: 1, y: 1 }],
+        xAxisMetricLabel: 'X',
+        yAxisMetricLabel: 'Y',
+      }),
     });
   });
 
