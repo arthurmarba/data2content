@@ -117,4 +117,3 @@ describe('getTopPerformingContext', () => {
     expect(result?.postsCount).toBe(1);
   });
 });
-```

@@ -162,4 +162,3 @@ describe('calculateCumulativeEngagementPercentage', () => {
     consoleErrorSpy.mockRestore();
   });
 });
-```
