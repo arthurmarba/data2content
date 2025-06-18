@@ -17,6 +17,16 @@ describe('getTopPerformingContext', () => {
     (MetricModel.find as jest.Mock).mockReset();
   });
 
+  const setupFindMock = (result: any, isError = false) => {
+    (MetricModel.find as jest.Mock).mockReturnValue({
+      select: jest.fn().mockReturnValue({
+        lean: isError
+          ? () => Promise.reject(result)
+          : () => Promise.resolve(result),
+      }),
+    });
+  };
+
   const mockPostWithContext = (id: string, context: string | null | undefined, interactions: number | null): Partial<IMetric> => {
     const stats: Partial<IMetricStats> = {};
     if (interactions !== null) {
@@ -44,7 +54,7 @@ describe('getTopPerformingContext', () => {
       mockPostWithContext('p4', "Entertainment", 250),  // Avg Entertainment = 225 (Top)
       mockPostWithContext('p5', "Inspirational", 50),   // Avg Inspirational = 50
     ];
-    (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
+    setupFindMock(posts);
     const result = await getTopPerformingContext(userId, periodInDays, performanceMetricField);
     expect(result).not.toBeNull();
     expect(result?.context).toBe("Entertainment");
@@ -54,7 +64,7 @@ describe('getTopPerformingContext', () => {
   });
 
   test('Retorna null se não houver posts', async () => {
-    (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve([]) });
+    setupFindMock([]);
     const result = await getTopPerformingContext(userId, periodInDays, performanceMetricField);
     expect(result).toBeNull();
   });
@@ -64,7 +74,7 @@ describe('getTopPerformingContext', () => {
       mockPostWithContext('p1', "Educational", null),
       mockPostWithContext('p2', "Entertainment", null),
     ];
-    (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
+    setupFindMock(posts);
     const result = await getTopPerformingContext(userId, periodInDays, performanceMetricField);
     expect(result).toBeNull();
   });
@@ -74,7 +84,7 @@ describe('getTopPerformingContext', () => {
       mockPostWithContext('p1', null, 100),
       mockPostWithContext('p2', undefined, 150),
     ];
-    (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
+    setupFindMock(posts);
     const result = await getTopPerformingContext(userId, periodInDays, performanceMetricField);
     expect(result).toBeNull();
   });
@@ -84,14 +94,14 @@ describe('getTopPerformingContext', () => {
       mockPostWithContext('p1', "Educational", 100),
       mockPostWithContext('p2', "Educational", 150), // Avg Educational = 125
     ];
-    (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
+    setupFindMock(posts);
     const result = await getTopPerformingContext(userId, periodInDays, performanceMetricField);
     expect(result?.context).toBe("Educational");
     expect(result?.averagePerformance).toBe(125);
   });
 
    test('Erro no DB retorna null', async () => {
-    (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.reject(new Error("DB Error")) });
+    setupFindMock(new Error("DB Error"), true);
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     const result = await getTopPerformingContext(userId, periodInDays, performanceMetricField);
     expect(result).toBeNull();
@@ -107,7 +117,7 @@ describe('getTopPerformingContext', () => {
       mockPostWithContext('p4', undefined, 600), // Este também
       mockPostWithContext('p5', "Entertainment", 200), // Avg Entertainment = 200
     ];
-    (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
+    setupFindMock(posts);
     const result = await getTopPerformingContext(userId, periodInDays, performanceMetricField);
     expect(result).not.toBeNull();
     // Esperado que Entertainment seja o top, pois Educational tem média 125 e Entertainment 200.
