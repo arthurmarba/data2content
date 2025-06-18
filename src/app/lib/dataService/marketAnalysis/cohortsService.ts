@@ -20,7 +20,7 @@ const SERVICE_TAG = '[dataService][cohortsService]';
  */
 export async function fetchCohortComparison(args: IFetchCohortComparisonArgs): Promise<ICohortComparisonResult[]> {
     const TAG = `${SERVICE_TAG}[fetchCohortComparison]`;
-    const { metric, cohorts } = args;
+    const { metric, cohorts, dateRange } = args;
     try {
         await connectToDatabase();
         const metricPath = `stats.${metric}`;
@@ -28,13 +28,20 @@ export async function fetchCohortComparison(args: IFetchCohortComparisonArgs): P
         const facetPipelines: Record<string, PipelineStage.FacetPipelineStage[]> = {};
         for (const cohort of cohorts) {
             const cohortKey = `${cohort.filterBy}_${cohort.value}`.replace(/\s/g, '_');
-            facetPipelines[cohortKey] = [
+            const pipeline: PipelineStage.FacetPipelineStage[] = [
                 { $match: { [cohort.filterBy]: cohort.value } },
                 { $lookup: { from: 'metrics', localField: '_id', foreignField: 'user', as: 'metrics' } },
                 { $unwind: '$metrics' },
                 { $replaceRoot: { newRoot: '$metrics' } },
+            ];
+
+            if (dateRange) {
+                pipeline.push({ $match: { postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate } } });
+            }
+
+            pipeline.push(
                 { $match: { [metricPath]: { $exists: true, $ne: null } } },
-                { 
+                {
                     $group: {
                         _id: null,
                         avgMetricValue: { $avg: `$${metricPath}` },
@@ -49,7 +56,9 @@ export async function fetchCohortComparison(args: IFetchCohortComparisonArgs): P
                         userCount: { $size: '$userCount' }
                     }
                 }
-            ];
+            );
+
+            facetPipelines[cohortKey] = pipeline;
         }
 
         const aggregationPipeline: PipelineStage[] = [{ $facet: facetPipelines }];
