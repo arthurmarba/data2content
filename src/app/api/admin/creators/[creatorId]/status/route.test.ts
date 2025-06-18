@@ -1,5 +1,5 @@
 // src/app/api/admin/creators/[creatorId]/status/route.test.ts
-import { PATCH } from './route'; // Ajuste se o nome do arquivo for diferente
+import { PATCH, PUT } from './route'; // Ajuste se o nome do arquivo for diferente
 import { updateCreatorStatus } from '@/lib/services/adminCreatorService'; // Ajuste o caminho
 import { NextRequest } from 'next/server';
 
@@ -17,6 +17,15 @@ async function createMockPatchRequest(body: any): Promise<NextRequest> {
   return new NextRequest(url, {
     method: 'PATCH',
     body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+async function createMockPutRequest(body?: any): Promise<NextRequest> {
+  const url = `http://localhost/api/admin/creators/someId/status`;
+  return new NextRequest(url, {
+    method: 'PUT',
+    body: body ? JSON.stringify(body) : undefined,
     headers: { 'Content-Type': 'application/json' },
   });
 }
@@ -88,6 +97,69 @@ describe('API Route: PATCH /api/admin/creators/[creatorId]/status', () => {
     mockUpdateCreatorStatus.mockRejectedValueOnce(new Error('Some database failure'));
     const req = await createMockPatchRequest({ status: 'approved' });
     const response = await PATCH(req, { params: { creatorId: mockCreatorId } });
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body.error).toBe('Some database failure');
+  });
+});
+
+describe('API Route: PUT /api/admin/creators/[creatorId]/status', () => {
+  const mockUpdateCreatorStatus = updateCreatorStatus as jest.Mock;
+  const mockCreatorId = 'creatorPutId';
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should approve creator without body', async () => {
+    const mockUpdatedCreator = { _id: mockCreatorId, adminStatus: 'approved' };
+    mockUpdateCreatorStatus.mockResolvedValueOnce(mockUpdatedCreator);
+
+    const req = await createMockPutRequest();
+    const response = await PUT(req, { params: { creatorId: mockCreatorId } });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual(mockUpdatedCreator);
+    expect(updateCreatorStatus).toHaveBeenCalledWith(mockCreatorId, { status: 'approved' });
+  });
+
+  it('should forward feedback when provided', async () => {
+    const mockUpdatedCreator = { _id: mockCreatorId, adminStatus: 'approved' };
+    mockUpdateCreatorStatus.mockResolvedValueOnce(mockUpdatedCreator);
+
+    const req = await createMockPutRequest({ feedback: 'ok' });
+    const response = await PUT(req, { params: { creatorId: mockCreatorId } });
+    await response.json();
+
+    expect(updateCreatorStatus).toHaveBeenCalledWith(mockCreatorId, { status: 'approved', feedback: 'ok' });
+  });
+
+  it('should return 404 if creator not found by service', async () => {
+    mockUpdateCreatorStatus.mockRejectedValueOnce(new Error('Creator not found.'));
+    const req = await createMockPutRequest();
+    const response = await PUT(req, { params: { creatorId: 'nonExistentId' } });
+    const body = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(body.error).toBe('Creator not found.');
+  });
+
+  it('should return 404 for invalid creatorId format by service', async () => {
+    mockUpdateCreatorStatus.mockRejectedValueOnce(new Error('Invalid creatorId format.'));
+    const req = await createMockPutRequest();
+    const response = await PUT(req, { params: { creatorId: 'invalidIdFormat' } });
+    const body = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(body.error).toBe('Invalid creatorId format.');
+  });
+
+  it('should return 500 if service throws an unexpected error', async () => {
+    mockUpdateCreatorStatus.mockRejectedValueOnce(new Error('Some database failure'));
+    const req = await createMockPutRequest();
+    const response = await PUT(req, { params: { creatorId: mockCreatorId } });
     const body = await response.json();
 
     expect(response.status).toBe(500);

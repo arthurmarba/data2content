@@ -66,3 +66,45 @@ export async function PATCH(
     return apiError(error.message || 'Ocorreu um erro interno no servidor.', 500);
   }
 }
+
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: { creatorId: string } }
+) {
+  const TAG = `${SERVICE_TAG}[PUT]`;
+  const { creatorId } = params;
+  logger.info(`${TAG} Received request to approve creatorId: ${creatorId}`);
+
+  try {
+    const session = await getAdminSession(req);
+    if (!session) {
+      return apiError('Acesso não autorizado ou privilégios insuficientes.', 401);
+    }
+    logger.info(`${TAG} Admin session validated for user: ${session.user.name}`);
+
+    let feedback: string | undefined;
+    try {
+      const body = await req.json();
+      if (typeof body?.feedback === 'string') {
+        feedback = body.feedback;
+      }
+    } catch (_) {
+      // Sem corpo ou corpo inválido
+    }
+
+    const payload: AdminCreatorUpdateStatusPayload = feedback
+      ? { status: 'approved', feedback }
+      : { status: 'approved' };
+
+    logger.info(`${TAG} Calling updateCreatorStatus for creatorId ${creatorId} with payload: ${JSON.stringify(payload)}`);
+    const updatedCreator = await updateCreatorStatus(creatorId, payload);
+
+    return NextResponse.json(updatedCreator, { status: 200 });
+  } catch (error: any) {
+    logger.error(`${TAG} Unexpected error for creatorId ${creatorId}:`, error);
+    if (error.message === 'Invalid creatorId format.' || error.message === 'Creator not found.') {
+        return apiError(error.message, 404);
+    }
+    return apiError(error.message || 'Ocorreu um erro interno no servidor.', 500);
+  }
+}

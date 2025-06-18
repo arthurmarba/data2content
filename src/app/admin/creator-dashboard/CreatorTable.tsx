@@ -229,9 +229,17 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
   const handleUpdateCreatorStatus = async (creatorId: string, newStatus: 'approved') => {
       setUpdateStatus(prev => ({ ...prev, [creatorId]: 'approving' }));
       try {
-          // A API para esta ação precisaria ser criada. Ex: /api/admin/creators/[id]/status
-          // await fetch(`/api/admin/creators/${creatorId}/status`, { ... });
-          await new Promise(resolve => setTimeout(resolve, 1000)); // Simula delay da API
+          const response = await fetch(`/api/admin/creators/${creatorId}/status`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: newStatus }),
+          });
+
+          if (!response.ok) {
+              const data = await response.json().catch(() => ({}));
+              throw new Error(data.error || 'Erro ao atualizar status do criador.');
+          }
+
           toast.success('Criador aprovado com sucesso!');
           fetchData();
       } catch (error: any) {
