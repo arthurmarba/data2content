@@ -270,3 +270,18 @@ export interface ITopMoverResult {
   absoluteChange: number;
   percentageChange: number | null;
 }
+
+export interface IFetchPlatformConversionMetricsArgs {
+  dateRange: {
+    startDate: Date;
+    endDate: Date;
+  };
+}
+
+export interface IPlatformConversionMetrics {
+  averageFollowerConversionRatePerPost: number;
+  accountFollowerConversionRate: number;
+  numberOfPostsConsideredForRate: number;
+  accountsEngagedInPeriod: number;
+  followersGainedInPeriod: number;
+}
