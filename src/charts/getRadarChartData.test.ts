@@ -6,6 +6,7 @@ import calculateFollowerGrowthRate from '@/utils/calculateFollowerGrowthRate';
 import calculateAverageEngagementPerPost from '@/utils/calculateAverageEngagementPerPost';
 import calculateWeeklyPostingFrequency from '@/utils/calculateWeeklyPostingFrequency';
 import calculateAverageVideoMetrics from '@/utils/calculateAverageVideoMetrics';
+import { fetchSegmentRadarStats } from "@/lib/services/segmentRadarService";
 
 // Mock helper para min/max da plataforma
 import { getPlatformMinMaxValues, PlatformMinMaxData } from '@/utils/platformMetricsHelpers';
@@ -26,6 +27,7 @@ jest.mock('@/utils/platformMetricsHelpers');
 // Por ora, vamos testar com a `actualNormalizeValue` importada, mas controlando seus inputs.
 
 const mockActualNormalizeValue = actualNormalizeValue; // Para referência, não é um jest.fn() a menos que queiramos espiar
+const mockFetchSegmentRadarStats = fetchSegmentRadarStats as jest.Mock;
 
 describe('getRadarChartData', () => {
   const userId1 = new Types.ObjectId().toString();
@@ -52,6 +54,7 @@ describe('getRadarChartData', () => {
   beforeEach(() => {
     (calculateFollowerGrowthRate as jest.Mock).mockReset();
     (calculateAverageEngagementPerPost as jest.Mock).mockReset();
+    (fetchSegmentRadarStats as jest.Mock).mockReset();
     (calculateWeeklyPostingFrequency as jest.Mock).mockReset();
     (calculateAverageVideoMetrics as jest.Mock).mockReset();
     (getPlatformMinMaxValues as jest.Mock).mockReset(); // Resetar mock do min/max
@@ -105,6 +108,7 @@ describe('getRadarChartData', () => {
     const result = await getRadarChartData(userId1, userId2, mockMetricSetConfig, actualNormalizeValue);
 
     expect(getPlatformMinMaxValues).toHaveBeenCalledWith(mockMetricSetConfig.map(m => m.id));
+    expect(fetchSegmentRadarStats).not.toHaveBeenCalled();
     expect(result.labels).toEqual(mockMetricSetConfig.map(m => m.label));
     expect(result.datasets.length).toBe(2);
 
@@ -132,16 +136,25 @@ describe('getRadarChartData', () => {
     (calculateWeeklyPostingFrequency as jest.Mock).mockResolvedValueOnce({ currentWeeklyFrequency: 4.0 });
     (calculateAverageVideoMetrics as jest.Mock).mockResolvedValueOnce({ averageRetentionRate: 60.0 });
 
-    // Valores brutos simulados para o segmento (gerados pela lógica interna de getRadarChartData)
-    const seg_followers = p1_followers * 1.2; // 72000
-    const seg_growth = 0.15 * 0.8; // 0.12
-    const seg_avgEng = 1800 * 0.9; // 1620
-    const seg_freq = 4.0 * 0.9; // 3.6
-    const seg_retention = 60.0 * 0.9; // 54.0
+    // Valores brutos simulados para o segmento retornados pelo serviço
+    const seg_followers = 72000;
+    const seg_growth = 0.12;
+    const seg_avgEng = 1620;
+    const seg_freq = 3.6;
+    const seg_retention = 54.0;
+
+    mockFetchSegmentRadarStats.mockResolvedValue({
+      totalFollowers: seg_followers,
+      followerGrowthRate_percentage: seg_growth,
+      avgEngagementPerPost30d: seg_avgEng,
+      avgWeeklyPostingFrequency30d: seg_freq,
+      avgVideoRetentionRate90d: seg_retention,
+    });
 
     const result = await getRadarChartData(userId1, { type: "segment", id: segmentId }, mockMetricSetConfig, actualNormalizeValue);
 
     expect(getPlatformMinMaxValues).toHaveBeenCalled();
+    expect(fetchSegmentRadarStats).toHaveBeenCalledWith(segmentId);
     expect(result.datasets[1].label).toContain(`Média Segmento ${segmentId}`);
 
     expect(result.rawValues?.[0].data).toEqual([60000, 0.15, 1800, 4.0, 60.0]);
