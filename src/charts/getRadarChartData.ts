@@ -1,5 +1,4 @@
 import { Types } from "mongoose";
-import { connectToDatabase } from "@/app/lib/mongoose"; // Added
 import { logger } from "@/app/lib/logger"; // Added
 // Importar funções de cálculo de indicador
 import calculateFollowerGrowthRate from "@/utils/calculateFollowerGrowthRate";
@@ -8,6 +7,7 @@ import calculateAverageEngagementPerPost from "@/utils/calculateAverageEngagemen
 import calculateWeeklyPostingFrequency from "@/utils/calculateWeeklyPostingFrequency";
 import type WeeklyPostingFrequencyData from "@/utils/calculateWeeklyPostingFrequency";
 import calculateAverageVideoMetrics from "@/utils/calculateAverageVideoMetrics";
+import { fetchSegmentRadarStats } from "@/lib/services/segmentRadarService";
 
 // Importar helpers de normalização e min/max da plataforma
 import { getPlatformMinMaxValues, PlatformMinMaxData } from "@/utils/platformMetricsHelpers";
@@ -154,18 +154,10 @@ async function getRadarChartData(
       profile2_isSegment || !profile2_userId ? Promise.resolve([]) : Promise.all(p2Promises)
     ]);
 
+    let segmentStats: Record<string, number | null> = {};
     const p2Values = profile2_isSegment
-      ? metricSetConfig.map((metricConfig, idx) => {
-          const base: number | null = p1Values[idx];
-          logger.warn(`Using simulated data for segment ${profile2_segmentId} for metric ${metricConfig.id}`);
-          if (base !== null) {
-            if (metricConfig.id === "followerGrowthRate_percentage") return base * 0.8;
-            else if (metricConfig.id === "totalFollowers") return base * 1.2;
-            else if (metricConfig.id === "avgVideoRetention_avgRetention") return Math.max(0, base - 10);
-            return base * 0.9;
-          }
-          return null;
-        })
+      ? (segmentStats = await fetchSegmentRadarStats(profile2_segmentId as string),
+         metricSetConfig.map(cfg => segmentStats[cfg.id] ?? null))
       : p2UserValues;
 
     metricSetConfig.forEach((metricConfig, idx) => {
