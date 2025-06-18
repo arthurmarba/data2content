@@ -8,6 +8,7 @@ import GlobalTimePeriodFilter from './components/filters/GlobalTimePeriodFilter'
 
 // Componentes da Plataforma - Módulo 1 (Visão Geral)
 import PlatformFollowerTrendChart from './components/PlatformFollowerTrendChart';
+import PlatformFollowerChangeChart from './components/PlatformFollowerChangeChart';
 import PlatformReachEngagementTrendChart from './components/PlatformReachEngagementTrendChart';
 import PlatformMovingAverageEngagementChart from './components/PlatformMovingAverageEngagementChart';
 import TotalActiveCreatorsKpi from './components/kpis/TotalActiveCreatorsKpi';
@@ -139,9 +140,10 @@ const AdminCreatorDashboardPage: React.FC = () => {
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 md:mb-8">
               <PlatformFollowerTrendChart timePeriod={globalTimePeriod} />
-              <PlatformReachEngagementTrendChart timePeriod={globalTimePeriod} />
+              <PlatformFollowerChangeChart timePeriod={globalTimePeriod} />
             </div>
-            <div className="grid grid-cols-1 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 md:mb-8">
+              <PlatformReachEngagementTrendChart timePeriod={globalTimePeriod} />
               <PlatformMovingAverageEngagementChart timePeriod={globalTimePeriod} />
             </div>
           </section>

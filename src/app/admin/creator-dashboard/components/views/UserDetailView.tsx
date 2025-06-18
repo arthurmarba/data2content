@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 
 // User-specific charts & metrics
 import UserFollowerTrendChart from '../UserFollowerTrendChart';
+import UserFollowerChangeChart from '../UserFollowerChangeChart';
 import UserReachEngagementTrendChart from '../UserReachEngagementTrendChart';
 import UserMovingAverageEngagementChart from '../UserMovingAverageEngagementChart';
 import UserAverageEngagementChart from '../UserAverageEngagementChart';
@@ -115,10 +116,10 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
         </h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <UserFollowerTrendChart userId={userId} chartTitle="Evolução de Seguidores" initialTimePeriod={initialChartsTimePeriod} />
-          <UserReachEngagementTrendChart userId={userId} chartTitle="Alcance e Contas Engajadas" initialTimePeriod={initialChartsTimePeriod} />
+          <UserFollowerChangeChart userId={userId} chartTitle="Variação Diária de Seguidores" initialTimePeriod={initialChartsTimePeriod} />
         </div>
-        <div className="grid grid-cols-1 gap-6">
-          {/* UserMovingAverageEngagementChart precisa de initialDataWindow e initialAvgWindow */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <UserReachEngagementTrendChart userId={userId} chartTitle="Alcance e Contas Engajadas" initialTimePeriod={initialChartsTimePeriod} />
           <UserMovingAverageEngagementChart userId={userId} chartTitle="Média Móvel de Engajamento Diário" initialTimePeriod={initialChartsTimePeriod} />
         </div>
       </section>
