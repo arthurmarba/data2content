@@ -10,6 +10,7 @@ import UserAverageEngagementChart from '../UserAverageEngagementChart';
 import UserEngagementDistributionChart from '../UserEngagementDistributionChart';
 import UserVideoPerformanceMetrics from '../UserVideoPerformanceMetrics';
 import UserMonthlyEngagementStackedChart from '../UserMonthlyEngagementStackedChart';
+import UserMonthlyComparisonChart from '../UserMonthlyComparisonChart';
 import UserPerformanceHighlights from '../UserPerformanceHighlights';
 
 // User-specific components from Módulo 3 (Creator Detail)
@@ -134,8 +135,9 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
             <UserEngagementDistributionChart userId={userId} chartTitle="Distribuição de Engajamento por Formato" initialTimePeriod={initialChartsTimePeriod} />
             <UserVideoPerformanceMetrics userId={userId} chartTitle="Performance de Vídeos" initialTimePeriod={initialChartsTimePeriod} />
         </div>
-         <div className="grid grid-cols-1 gap-6">
+        <div className="grid grid-cols-1 gap-6">
             <UserMonthlyEngagementStackedChart userId={userId} chartTitle="Engajamento Mensal Detalhado" initialTimePeriod={initialChartsTimePeriod} />
+            <UserMonthlyComparisonChart userId={userId} chartTitle="Comparação Mensal" />
         </div>
       </section>
 

@@ -38,6 +38,12 @@ npm test
 Na dashboard administrativa, utilize o componente **CreatorsScatterPlot** para comparar métricas de diferentes criadores em um gráfico de dispersão.
 Selecione múltiplos criadores e defina as métricas dos eixos X e Y para gerar o gráfico.
 
+### User Monthly Comparison Chart
+
+O componente **UserMonthlyComparisonChart** exibe a evolução de uma métrica entre os três últimos meses para um criador específico.
+Ele consome o endpoint `/api/v1/users/{userId}/charts/monthly-comparison` e permite escolher a métrica a ser comparada (total de posts ou total de interações).
+Basta fornecer o `userId` ao componente e ele renderizará um gráfico de colunas com as diferenças mensais.
+
 
 ## Learn More
 
