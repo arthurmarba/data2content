@@ -45,8 +45,8 @@ const AdminCreatorDashboardPage: React.FC = () => {
 
   const formatOptions = ["Reel", "Post Estático", "Carrossel", "Story"];
   const proposalOptions = ["Educativo", "Humor", "Notícia", "Review", "Tutorial"];
-  const [marketFormat, setMarketFormat] = useState<string>(formatOptions[0]);
-  const [marketProposal, setMarketProposal] = useState<string>(proposalOptions[0]);
+  const [marketFormat, setMarketFormat] = useState<string>(formatOptions[0]!);
+  const [marketProposal, setMarketProposal] = useState<string>(proposalOptions[0]!);
 
   const today = new Date();
   const startDate = formatDateYYYYMMDD(getStartDateFromTimePeriod(today, globalTimePeriod));
