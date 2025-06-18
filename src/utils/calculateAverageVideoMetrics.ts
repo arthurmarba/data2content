@@ -14,12 +14,12 @@ interface AverageVideoMetricsData {
 
 /**
  * Calcula métricas médias de vídeos de um usuário em um período.
- * videoFormats deve corresponder ao campo `format` do Metric.
+ * videoTypes deve corresponder ao campo `type` do Metric.
  */
 async function calculateAverageVideoMetrics(
   userId: string | Types.ObjectId,
   periodInDays: number,
-  videoFormats: string[] = ['REEL', 'VIDEO']
+  videoTypes: string[] = ['REEL', 'VIDEO']
 ): Promise<AverageVideoMetricsData> {
   const resolvedUserId = typeof userId === 'string' ? new Types.ObjectId(userId) : userId;
   const today = new Date();
@@ -41,11 +41,11 @@ async function calculateAverageVideoMetrics(
 
   try {
     await connectToDatabase();
-    // Buscar posts do usuário filtrando formatos de vídeo
+    // Buscar posts do usuário filtrando pelo campo `type`
     const videoPosts: IMetric[] = await MetricModel.find({
       user: resolvedUserId,
       postDate: { $gte: startDate, $lte: endDate },
-      format: { $in: videoFormats },
+      type: { $in: videoTypes },
     }).lean();
 
     const count = videoPosts.length;

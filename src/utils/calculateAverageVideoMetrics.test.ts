@@ -9,7 +9,7 @@ jest.mock('@/app/models/Metric', () => ({
 describe('calculateAverageVideoMetrics', () => {
   const userId = new Types.ObjectId().toString();
   const periodInDays = 30;
-  const videoFormats = [FormatType.REEL, FormatType.VIDEO];
+  const videoTypes = [FormatType.REEL, FormatType.VIDEO];
   let expectedStartDate: Date;
   let expectedEndDate: Date;
 
@@ -51,7 +51,7 @@ describe('calculateAverageVideoMetrics', () => {
     ];
     (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
 
-    const result = await calculateAverageVideoMetrics(userId, periodInDays, videoFormats);
+    const result = await calculateAverageVideoMetrics(userId, periodInDays, videoTypes);
 
     expect(result.numberOfVideoPosts).toBe(3);
     // sumRetentionRate = 0.5 + 0.3 + 0.7 = 1.5
@@ -66,7 +66,7 @@ describe('calculateAverageVideoMetrics', () => {
 
   test('Zero posts de vídeo', async () => {
     (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve([]) });
-    const result = await calculateAverageVideoMetrics(userId, periodInDays, videoFormats);
+    const result = await calculateAverageVideoMetrics(userId, periodInDays, videoTypes);
     expect(result.numberOfVideoPosts).toBe(0);
     expect(result.averageRetentionRate).toBe(0.0);
     expect(result.averageWatchTimeSeconds).toBe(0);
@@ -86,7 +86,7 @@ describe('calculateAverageVideoMetrics', () => {
       } as any,
     ];
     (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
-    const result = await calculateAverageVideoMetrics(userId, periodInDays, videoFormats);
+    const result = await calculateAverageVideoMetrics(userId, periodInDays, videoTypes);
 
     expect(result.numberOfVideoPosts).toBe(5);
     // sumRetentionRate = 0.6 + 0 (de null) + 0.4 + 0 (de null) + 0 (de stats ausente) = 1.0
@@ -103,34 +103,34 @@ describe('calculateAverageVideoMetrics', () => {
       mockVideoPost('post2', null, null),
     ];
     (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
-    const result = await calculateAverageVideoMetrics(userId, periodInDays, videoFormats);
+    const result = await calculateAverageVideoMetrics(userId, periodInDays, videoTypes);
     expect(result.numberOfVideoPosts).toBe(2);
     expect(result.averageRetentionRate).toBe(0.0);
     expect(result.averageWatchTimeSeconds).toBe(0);
   });
 
-  test('Nenhum post corresponde aos videoFormats especificados', async () => {
+  test('Nenhum post corresponde aos videoTypes especificados', async () => {
     const posts = [ // Estes não são os formatos de vídeo padrão
       mockVideoPost('post1', 0.5, 30, FormatType.IMAGE),
       mockVideoPost('post2', 0.3, 15, FormatType.CAROUSEL_ALBUM),
     ];
      // A query no DB não retornaria nada por causa do filtro de format
     (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve([]) });
-    const result = await calculateAverageVideoMetrics(userId, periodInDays, videoFormats); // Usando videoFormats padrão
+    const result = await calculateAverageVideoMetrics(userId, periodInDays, videoTypes); // Usando videoTypes padrão
 
     expect(result.numberOfVideoPosts).toBe(0);
     expect(result.averageRetentionRate).toBe(0.0);
     expect(result.averageWatchTimeSeconds).toBe(0);
   });
 
-  test('Usando videoFormats customizados', async () => {
+  test('Usando videoTypes customizados', async () => {
     const posts = [ // Apenas VIDEO é o formato customizado
       mockVideoPost('post1', 0.5, 30, FormatType.VIDEO),
       mockVideoPost('post2', 0.3, 15, FormatType.REEL), // Este será ignorado
     ];
-    // Simular que a query só retorna o post FormatType.VIDEO
+    // Simular que a query só retorna o post do tipo VIDEO
     (MetricModel.find as jest.Mock).mockImplementation(query => {
-        if(query.format.$in.includes(FormatType.VIDEO) && query.format.$in.length === 1) {
+        if(query.type.$in.includes(FormatType.VIDEO) && query.type.$in.length === 1) {
             return { lean: () => Promise.resolve([posts[0]]) };
         }
         return { lean: () => Promise.resolve([]) };
@@ -148,7 +148,7 @@ describe('calculateAverageVideoMetrics', () => {
     (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.reject(new Error("DB query failed")) });
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-    const result = await calculateAverageVideoMetrics(userId, periodInDays, videoFormats);
+    const result = await calculateAverageVideoMetrics(userId, periodInDays, videoTypes);
     expect(result.numberOfVideoPosts).toBe(0);
     expect(result.averageRetentionRate).toBe(0.0);
     expect(result.averageWatchTimeSeconds).toBe(0);

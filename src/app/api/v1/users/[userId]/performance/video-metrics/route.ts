@@ -7,7 +7,7 @@ interface AverageVideoMetricsData {
   averageWatchTimeSeconds: number;
   numberOfVideoPosts: number;
 }
-// import { FormatType } from '@/app/models/Metric'; // Se precisar passar videoFormats customizados
+// import { FormatType } from '@/app/models/Metric'; // Se precisar passar videoTypes customizados
 
 const ALLOWED_TIME_PERIODS: string[] = ["last_7_days", "last_30_days", "last_90_days", "last_6_months", "last_12_months", "all_time"];
 
@@ -36,9 +36,9 @@ export async function GET(
     return NextResponse.json({ error: `Time period inválido. Permitidos: ${ALLOWED_TIME_PERIODS.join(', ')}` }, { status: 400 });
   }
 
-  // Opcional: permitir que videoFormats seja passado como query param se necessário
-  // const videoFormatsParam = searchParams.getAll('videoFormats') as FormatType[];
-  // const videoFormats = videoFormatsParam.length > 0 ? videoFormatsParam : undefined; // Passa undefined para usar o default da função
+  // Opcional: permitir que videoTypes seja passado como query param se necessário
+  // const videoTypesParam = searchParams.getAll('videoTypes') as FormatType[];
+  // const videoTypes = videoTypesParam.length > 0 ? videoTypesParam : undefined; // Passa undefined para usar o default da função
 
   try {
     // A função calculateAverageVideoMetrics espera periodInDays como número.
@@ -66,7 +66,7 @@ export async function GET(
     const videoMetrics: AverageVideoMetricsData = await calculateAverageVideoMetrics(
       userId,
       periodInDaysValue
-      // ,videoFormats // Passar se o parâmetro for aceito pela API
+      // ,videoTypes // Passar se o parâmetro for aceito pela API
     );
 
     const responsePayload: UserVideoMetricsResponse = {
