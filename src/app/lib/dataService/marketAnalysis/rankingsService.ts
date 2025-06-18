@@ -8,7 +8,14 @@ import { logger } from '@/app/lib/logger';
 import MetricModel from '@/app/models/Metric';
 import { connectToDatabase } from '../connection';
 import { DatabaseError } from '@/app/lib/errors';
-import { IFetchCreatorRankingParams, ICreatorMetricRankItem } from './types';
+import {
+  IFetchCreatorRankingParams,
+  ICreatorMetricRankItem,
+  ICreatorMetricRankItemWithFollowers,
+  IFetchCreatorRankingWithFilters,
+  IProposalMetricRankItem,
+  ProposalRankingMetric,
+} from './types';
 
 const SERVICE_TAG = '[dataService][rankingsService]';
 
@@ -233,6 +240,43 @@ export async function fetchTopSharingCreators(
   } catch (error: any) {
     logger.error(`${TAG} Error:`, error);
     throw new DatabaseError(`Failed to fetch top sharing creators: ${error.message}`);
+  }
+}
+
+export async function fetchTopProposals(params: {
+  dateRange: { startDate: Date; endDate: Date };
+  metric: ProposalRankingMetric;
+  limit?: number;
+}): Promise<IProposalMetricRankItem[]> {
+  const TAG = `${SERVICE_TAG}[fetchTopProposals]`;
+  const { dateRange, metric, limit = 5 } = params;
+  logger.info(`${TAG} Fetching metric ${metric} for period: ${dateRange.startDate} - ${dateRange.endDate}`);
+
+  try {
+    await connectToDatabase();
+    const metricField = metric === 'avg_views' ? '$stats.views' : '$stats.total_interactions';
+    const accumulator = metric === 'avg_views' ? '$avg' : '$sum';
+
+    const matchStage: PipelineStage.Match['$match'] = {
+      postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
+      proposal: { $exists: true, $ne: null },
+    };
+    matchStage[metricField.substring(1)] = { $exists: true, $ne: null };
+
+    const pipeline: PipelineStage[] = [
+      { $match: matchStage },
+      { $group: { _id: '$proposal', metricValue: { [accumulator]: metricField } } },
+      { $sort: { metricValue: -1 } },
+      { $limit: limit },
+      { $project: { _id: 0, proposal: '$_id', metricValue: metric === 'avg_views' ? { $round: ['$metricValue', 2] } : '$metricValue' } }
+    ];
+
+    const results = await MetricModel.aggregate(pipeline);
+    logger.info(`${TAG} Found ${results.length} proposals.`);
+    return results as IProposalMetricRankItem[];
+  } catch (error: any) {
+    logger.error(`${TAG} Error:`, error);
+    throw new DatabaseError(`Failed to fetch top proposals: ${error.message}`);
   }
 }
 

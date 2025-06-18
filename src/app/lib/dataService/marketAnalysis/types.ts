@@ -17,6 +17,12 @@ export const TopCreatorMetricEnum = z.enum([
 ]);
 export type TopCreatorMetric = z.infer<typeof TopCreatorMetricEnum>;
 
+export const ProposalRankingMetricEnum = z.enum([
+  'avg_views',
+  'total_interactions'
+]);
+export type ProposalRankingMetric = z.infer<typeof ProposalRankingMetricEnum>;
+
 // --- Interfaces de Contrato ---
 
 export interface IMarketPerformanceResult {
@@ -164,6 +170,11 @@ export interface IRankingCreatorInfo {
 }
 
 export interface ICreatorMetricRankItem extends IRankingCreatorInfo {
+  metricValue: number;
+}
+
+export interface IProposalMetricRankItem {
+  proposal: string;
   metricValue: number;
 }
 
