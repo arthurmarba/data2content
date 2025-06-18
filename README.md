@@ -33,6 +33,10 @@ Install dependencies if you haven't already and then run:
 npm test
 ```
 
+## Banco de Dados
+
+Esta aplicação utiliza MongoDB. Configure as variáveis de ambiente `MONGODB_URI` e `MONGODB_DB_NAME` (ou `DB_NAME`) no arquivo `.env.local` apontando para sua instância. Certifique‑se de que o banco especificado exista antes de iniciar o servidor.
+
 ### Creators Scatter Plot
 
 Na dashboard administrativa, utilize o componente **CreatorsScatterPlot** para comparar métricas de diferentes criadores em um gráfico de dispersão.
@@ -45,9 +49,9 @@ Ele consome o endpoint `/api/v1/users/{userId}/charts/monthly-comparison` e perm
 
 Basta fornecer o `userId` ao componente e ele renderizará um gráfico de colunas com as diferenças mensais.
 
-### Populando o Banco para Testes
+### Populando o Banco para Desenvolvimento
 
-Os gráficos dependem das coleções **AccountInsight** e **Metric**. Caso seu banco esteja vazio, os componentes exibirão a mensagem "Sem dados no período selecionado". Para experimentar localmente, insira alguns registros manualmente no MongoDB:
+Os gráficos dependem das coleções **AccountInsight** e **Metric**. Caso seu banco esteja vazio, os componentes exibirão a mensagem "Sem dados no período selecionado". Para experimentar localmente ou em ambiente de teste, insira alguns registros manualmente no MongoDB:
 
 ```javascript
 use data2content
