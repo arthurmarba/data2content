@@ -49,7 +49,7 @@ async function calculateFollowerGrowthRate(
     ]);
 
     if (!latestSnapshot || typeof latestSnapshot.followersCount !== 'number') {
-      logger.warn(`No recent AccountInsight or valid followersCount for userId: ${resolvedUserId} up to ${endDate.toISOString()}`);
+      logger.debug(`No recent AccountInsight or valid followersCount for userId: ${resolvedUserId} up to ${endDate.toISOString()}`);
       return initialResult;
     }
     initialResult.currentFollowers = latestSnapshot.followersCount;
