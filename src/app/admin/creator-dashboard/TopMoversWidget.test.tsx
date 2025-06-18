@@ -7,9 +7,6 @@ import { ITopMoverResult } from '@/app/lib/dataService/marketAnalysisService';
 // Mock global fetch
 global.fetch = jest.fn();
 
-// Mock Heroicons
-const React = require('react'); // Import React for creating elements if needed in mocks
-
 jest.mock('@heroicons/react/24/outline', () => ({
   ArrowUpIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'arrow-up-icon' }),
   ArrowDownIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'arrow-down-icon' }),

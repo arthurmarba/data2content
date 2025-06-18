@@ -7,9 +7,6 @@ import { IDashboardOverallStats } from '@/app/lib/dataService/marketAnalysisServ
 // Mock global fetch
 global.fetch = jest.fn();
 
-// Mock recharts
-const React = require('react'); // Import React for creating elements if needed in mocks
-
 jest.mock('recharts', () => {
   const OriginalRecharts = jest.requireActual('recharts');
   return {

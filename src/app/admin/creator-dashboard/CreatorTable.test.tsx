@@ -8,11 +8,6 @@ import { Types } from 'mongoose';
 // Mock global fetch
 global.fetch = jest.fn();
 
-// Mock Heroicons
-// For Jest to transform JSX in the mock factory, the factory itself needs to be a module or use React.createElement
-// A simpler way for icons if they don't have complex logic is to mock them as simple components.
-const React = require('react'); // Import React for creating elements if needed in mocks
-
 jest.mock('@heroicons/react/24/solid', () => ({
   ChevronUpIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'chevron-up-icon' }),
   ChevronDownIcon: (props) => React.createElement('div', { ...props, 'data-testid': 'chevron-down-icon' }),

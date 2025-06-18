@@ -3,9 +3,6 @@ import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import CreatorTimeSeriesChart, { ICreatorTimeSeriesDataPoint } from './CreatorTimeSeriesChart';
 
-// Mock recharts (as done in previous similar tests)
-const React = require('react'); // For mocks
-
 jest.mock('recharts', () => {
   const OriginalRecharts = jest.requireActual('recharts');
   return {
