@@ -27,6 +27,7 @@ import TopCreatorsWidget from './TopCreatorsWidget';
 import TopMoversWidget from './TopMoversWidget';
 import { getStartDateFromTimePeriod, formatDateYYYYMMDD } from '@/utils/dateHelpers';
 import CohortComparisonChart from './components/CohortComparisonChart';
+import MarketPerformanceChart from './components/MarketPerformanceChart';
 
 // View de Detalhe do Criador (Módulo 3 e partes do Módulo 2 para usuário)
 import UserDetailView from './components/views/UserDetailView';
@@ -38,6 +39,11 @@ const AdminCreatorDashboardPage: React.FC = () => {
 
   const selectedComparisonPeriodForPlatformKPIs = "month_vs_previous";
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+
+  const formatOptions = ["Reel", "Post Estático", "Carrossel", "Story"];
+  const proposalOptions = ["Educativo", "Humor", "Notícia", "Review", "Tutorial"];
+  const [marketFormat, setMarketFormat] = useState<string>(formatOptions[0]);
+  const [marketProposal, setMarketProposal] = useState<string>(proposalOptions[0]);
 
   const today = new Date();
   const startDate = formatDateYYYYMMDD(getStartDateFromTimePeriod(today, globalTimePeriod));
@@ -231,7 +237,42 @@ const AdminCreatorDashboardPage: React.FC = () => {
           />
         </section>
 
-          <section id="creator-highlights-and-scatter-plot" className="mb-10">
+        <section id="market-performance" className="mb-10">
+          <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
+            Desempenho do Mercado
+          </h2>
+          <div className="flex flex-col md:flex-row gap-4 mb-4">
+            <div>
+              <label htmlFor="mp-format" className="block text-sm font-medium text-gray-700 mb-1">Formato</label>
+              <select
+                id="mp-format"
+                value={marketFormat}
+                onChange={(e) => setMarketFormat(e.target.value)}
+                className="p-2 border border-gray-300 rounded-md text-sm"
+              >
+                {formatOptions.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="mp-proposal" className="block text-sm font-medium text-gray-700 mb-1">Proposta</label>
+              <select
+                id="mp-proposal"
+                value={marketProposal}
+                onChange={(e) => setMarketProposal(e.target.value)}
+                className="p-2 border border-gray-300 rounded-md text-sm"
+              >
+                {proposalOptions.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <MarketPerformanceChart format={marketFormat} proposal={marketProposal} />
+        </section>
+
+        <section id="creator-highlights-and-scatter-plot" className="mb-10">
             <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
               Destaques e Análise Comparativa de Criadores
             </h2>
