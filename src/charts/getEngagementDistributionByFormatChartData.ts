@@ -1,9 +1,7 @@
-import MetricModel, { IMetric } from "@/app/models/Metric"; // Ajuste o caminho
-import FormatType from "@/app/models/Metric"; // Ajuste o caminho
+import MetricModel from "@/app/models/Metric";
 import { Types } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose"; // Added
 import { logger } from "@/app/lib/logger"; // Added
-import { getNestedValue } from "@/utils/dataAccessHelpers";
 import { getStartDateFromTimePeriod } from "@/utils/dateHelpers"; // Importar helper compartilhado
 
 
@@ -44,54 +42,54 @@ async function getEngagementDistributionByFormatChartData(
   try {
     await connectToDatabase(); // Added
 
-    const queryConditions: any = { user: resolvedUserId };
+    const matchStage: any = { user: resolvedUserId };
     if (timePeriod !== "all_time") {
-      // Ensure startDate from getStartDateFromTimePeriod is correctly used
-      // The helper already sets its time to 00:00:00
-      queryConditions.postDate = { $gte: startDate, $lte: endDate };
+      matchStage.postDate = { $gte: startDate, $lte: endDate };
     }
 
-    const posts: IMetric[] = await MetricModel.find(queryConditions).lean();
-    // TODO: PERFORMANCE - For large datasets, consider refactoring to use a MongoDB aggregation pipeline
-    // to perform the grouping by 'format' and summation of 'engagementMetricField' directly
-    // in the database. This would be more efficient than fetching all documents and aggregating in JS.
-    // Example pipeline stages: $match, $group (by format, sum engagementMetricField), $project.
+    const pipeline = [
+      { $match: matchStage },
+      {
+        $project: {
+          format: { $ifNull: ["$format", "UNKNOWN"] },
+          metricValue: { $ifNull: [ `$${engagementMetricField}`, 0 ] }
+        }
+      },
+      {
+        $group: {
+          _id: "$format",
+          totalEngagement: { $sum: "$metricValue" }
+        }
+      },
+      { $sort: { totalEngagement: -1 } }
+    ];
 
-    if (!posts || posts.length === 0) {
+    const aggregationResult = await MetricModel.aggregate(pipeline);
+
+    if (!aggregationResult || aggregationResult.length === 0) {
       return initialResponse;
     }
 
-    const engagementByFormat = new Map<string, number>();
-    let grandTotalEngagement = 0;
-
-    for (const post of posts) {
-      const formatKey = post.format as string;
-      const engagementValue = getNestedValue(post, engagementMetricField) || 0;
-
-      if (engagementValue > 0) {
-        engagementByFormat.set(formatKey, (engagementByFormat.get(formatKey) || 0) + engagementValue);
-        grandTotalEngagement += engagementValue;
-      }
-    }
+    const grandTotalEngagement = aggregationResult.reduce((sum, item) => sum + item.totalEngagement, 0);
 
     if (grandTotalEngagement === 0) {
       return initialResponse;
     }
 
-    let tempChartData: EngagementDistributionDataPoint[] = [];
-    for (const [formatKey, sumEngagementForFormat] of engagementByFormat.entries()) {
-      const formatName = (formatMapping && formatMapping[formatKey])
-        ? formatMapping[formatKey]
-        : formatKey.toString().replace(/_/g, ' ').toLocaleLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+    let tempChartData: EngagementDistributionDataPoint[] = aggregationResult
+      .filter(item => item.totalEngagement > 0)
+      .map(item => {
+        const formatKey = item._id as string;
+        const formatName = (formatMapping && formatMapping[formatKey])
+          ? formatMapping[formatKey]
+          : formatKey.toString().replace(/_/g, ' ').toLocaleLowerCase().replace(/\b\w/g, l => l.toUpperCase());
 
-      tempChartData.push({
-        name: formatName,
-        value: sumEngagementForFormat,
-        percentage: (sumEngagementForFormat / grandTotalEngagement) * 100,
+        return {
+          name: formatName,
+          value: item.totalEngagement,
+          percentage: (item.totalEngagement / grandTotalEngagement) * 100,
+        } as EngagementDistributionDataPoint;
       });
-    }
-
-    tempChartData.sort((a, b) => b.value - a.value);
 
     if (tempChartData.length > maxSlices) {
       const visibleSlices = tempChartData.slice(0, maxSlices - 1);
