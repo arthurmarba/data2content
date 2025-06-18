@@ -20,6 +20,8 @@ import PlatformEngagementDistributionByFormatChart from './components/PlatformEn
 import PlatformVideoPerformanceMetrics from './components/PlatformVideoPerformanceMetrics';
 import PlatformMonthlyEngagementStackedChart from './components/PlatformMonthlyEngagementStackedChart';
 import PlatformPerformanceHighlights from './components/PlatformPerformanceHighlights';
+import ProposalRankingCard from './ProposalRankingCard';
+import { getStartDateFromTimePeriod, formatDateYYYYMMDD } from '@/utils/dateHelpers';
 
 // View de Detalhe do Criador (Módulo 3 e partes do Módulo 2 para usuário)
 import UserDetailView from './components/views/UserDetailView';
@@ -31,6 +33,11 @@ const AdminCreatorDashboardPage: React.FC = () => {
 
   const selectedComparisonPeriodForPlatformKPIs = "month_vs_previous";
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+
+  const today = new Date();
+  const startDate = formatDateYYYYMMDD(getStartDateFromTimePeriod(today, globalTimePeriod));
+  const endDate = formatDateYYYYMMDD(today);
+  const proposalDateRange = { startDate, endDate };
 
 
   const handleUserSelect = (userId: string) => {
@@ -140,6 +147,18 @@ const AdminCreatorDashboardPage: React.FC = () => {
                 <PlatformMonthlyEngagementStackedChart timePeriod={globalTimePeriod} />
                 <PlatformEngagementDistributionByFormatChart timePeriod={globalTimePeriod} /> {/* Adicionado aqui */}
             </div>
+          </section>
+
+          <section id="proposal-ranking" className="mb-10">
+            <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
+              Ranking por Proposta
+            </h2>
+            <ProposalRankingCard
+              title="Propostas com Mais Interações"
+              apiEndpoint="/api/admin/dashboard/rankings/proposals?metric=total_interactions"
+              dateRangeFilter={proposalDateRange}
+              limit={5}
+            />
           </section>
 
           <section id="creator-highlights-and-scatter-plot" className="mb-10">
