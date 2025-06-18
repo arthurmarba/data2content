@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { fetchMarketPerformance } from '@/app/lib/dataService/marketAnalysis/segmentService';
 import { DatabaseError } from '@/app/lib/errors';
 
@@ -12,11 +14,10 @@ const querySchema = z.object({
   days: z.coerce.number().int().positive().optional().default(30),
 });
 
-// Simulated Admin Session Validation (replace with real session check)
-async function getAdminSession(req: NextRequest): Promise<{ user: { name: string } } | null> {
-  const session = { user: { name: 'Admin User' } };
-  const isAdmin = true;
-  if (!session || !isAdmin) {
+// Real Admin Session Validation
+async function getAdminSession(_req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session || session.user?.role !== 'admin') {
     logger.warn(`${SERVICE_TAG} Admin session validation failed.`);
     return null;
   }

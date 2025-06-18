@@ -7,6 +7,8 @@ import { z } from 'zod';
 import { Types } from 'mongoose';
 import { logger } from '@/app/lib/logger';
 import { fetchCreatorTimeSeriesData, IFetchCreatorTimeSeriesArgs } from '@/app/lib/dataService/marketAnalysisService';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { DatabaseError } from '@/app/lib/errors';
 
 const SERVICE_TAG = '[api/admin/dashboard/creators/[creatorId]/time-series]';
@@ -29,12 +31,10 @@ const requestSchema = z.object({
 });
 
 
-// Simulated Admin Session Validation (reuse from other dashboard routes)
-async function getAdminSession(req: NextRequest): Promise<{ user: { name: string } } | null> {
-  // SIMULAÇÃO: Substitua pela sua lógica real de sessão (ex: next-auth)
-  const session = { user: { name: 'Admin User' } };
-  const isAdmin = true;
-  if (!session || !isAdmin) {
+// Real Admin Session Validation
+async function getAdminSession(_req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session || session.user?.role !== 'admin') {
     logger.warn(`${SERVICE_TAG} Admin session validation failed.`);
     return null;
   }

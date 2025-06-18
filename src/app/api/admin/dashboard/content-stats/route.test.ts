@@ -2,6 +2,15 @@ import { GET } from './route'; // Adjust path as necessary
 import { NextRequest } from 'next/server';
 import { fetchDashboardOverallContentStats } from '@/app/lib/dataService/marketAnalysisService';
 import { logger } from '@/app/lib/logger';
+import { getServerSession } from 'next-auth/next';
+
+jest.mock('next-auth/next', () => ({
+  getServerSession: jest.fn(),
+}));
+
+jest.mock('@/app/api/auth/[...nextauth]/route', () => ({
+  authOptions: {},
+}));
 
 // Mock logger
 jest.mock('@/app/lib/logger', () => ({
@@ -18,6 +27,8 @@ jest.mock('@/app/lib/dataService/marketAnalysisService', () => ({
   fetchDashboardOverallContentStats: jest.fn(),
 }));
 
+const mockGetServerSession = getServerSession as jest.Mock;
+
 const mockFetchDashboardOverallContentStats = fetchDashboardOverallContentStats as jest.Mock;
 
 describe('API Route: /api/admin/dashboard/content-stats', () => {
@@ -31,6 +42,7 @@ describe('API Route: /api/admin/dashboard/content-stats', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetServerSession.mockResolvedValue({ user: { role: 'admin' } });
   });
 
   it('should return 200 with content stats on a valid request without filters', async () => {
@@ -87,16 +99,12 @@ describe('API Route: /api/admin/dashboard/content-stats', () => {
     expect(body.error).toContain('startDate cannot be after endDate');
   });
 
-  // As with creators route, 401 test is noted as dependent on mockable getAdminSession
-  /*
   it('should return 401 if admin session is invalid', async () => {
-    // Conceptual: requires getAdminSession in route.ts to be mockable
-    console.warn("Skipping 401 test for content-stats route due to getAdminSession hardcoding. Manual/integration testing or refactor needed.");
-    // const req = createMockRequest({}, false); // if isAdmin flag worked
-    // const response = await GET(req);
-    // expect(response.status).toBe(401);
+    mockGetServerSession.mockResolvedValueOnce({ user: { role: 'user' } });
+    const req = createMockRequest();
+    const response = await GET(req);
+    expect(response.status).toBe(401);
   });
-  */
 
   it('should return 500 if service function throws an error', async () => {
     mockFetchDashboardOverallContentStats.mockRejectedValue(new Error('Service error'));

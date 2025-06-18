@@ -4,6 +4,15 @@ import { Types } from 'mongoose';
 import { fetchCreatorTimeSeriesData } from '@/app/lib/dataService/marketAnalysisService';
 import { logger } from '@/app/lib/logger';
 import { DatabaseError } from '@/app/lib/errors'; // Import DatabaseError
+import { getServerSession } from 'next-auth/next';
+
+jest.mock('next-auth/next', () => ({
+  getServerSession: jest.fn(),
+}));
+
+jest.mock('@/app/api/auth/[...nextauth]/route', () => ({
+  authOptions: {},
+}));
 
 // Mock logger
 jest.mock('@/app/lib/logger', () => ({
@@ -19,6 +28,8 @@ jest.mock('@/app/lib/logger', () => ({
 jest.mock('@/app/lib/dataService/marketAnalysisService', () => ({
   fetchCreatorTimeSeriesData: jest.fn(),
 }));
+
+const mockGetServerSession = getServerSession as jest.Mock;
 
 const mockFetchCreatorTimeSeriesData = fetchCreatorTimeSeriesData as jest.Mock;
 const validCreatorId = new Types.ObjectId().toString();
@@ -37,6 +48,7 @@ describe('API Route: /api/admin/dashboard/creators/[creatorId]/time-series', () 
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetServerSession.mockResolvedValue({ user: { role: 'admin' } });
   });
 
   it('should return 200 with time series data on a valid request', async () => {
@@ -121,15 +133,13 @@ describe('API Route: /api/admin/dashboard/creators/[creatorId]/time-series', () 
     expect(body.error).toContain('endDate: startDate cannot be after endDate.'); // Zod refine path
   });
 
-  // 401 Test (conceptual, due to hardcoded getAdminSession in route)
-  /*
   it('should return 401 if admin session is invalid', async () => {
-    console.warn("Skipping 401 test for time-series route due to getAdminSession hardcoding.");
-    // const req = createMockRequest(validCreatorId, {}, false); // if isAdmin flag worked
-    // const response = await GET(req, { params: { creatorId: validCreatorId } });
-    // expect(response.status).toBe(401);
+    mockGetServerSession.mockResolvedValueOnce({ user: { role: 'user' } });
+    const query = { metric: 'post_count', period: 'monthly', startDate: '2023-01-01T00:00:00Z', endDate: '2023-01-31T00:00:00Z' };
+    const req = createMockRequest(validCreatorId, query);
+    const response = await GET(req, { params: { creatorId: validCreatorId } });
+    expect(response.status).toBe(401);
   });
-  */
 
   it('should return 500 if service function throws a DatabaseError', async () => {
     mockFetchCreatorTimeSeriesData.mockRejectedValue(new DatabaseError('DB connection failed'));

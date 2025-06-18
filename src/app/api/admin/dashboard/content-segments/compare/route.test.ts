@@ -2,6 +2,15 @@ import { POST } from './route'; // Adjust path as necessary
 import { NextRequest } from 'next/server';
 import { fetchSegmentPerformanceData } from '@/app/lib/dataService/marketAnalysisService';
 import { logger } from '@/app/lib/logger';
+import { getServerSession } from 'next-auth/next';
+
+jest.mock('next-auth/next', () => ({
+  getServerSession: jest.fn(),
+}));
+
+jest.mock('@/app/api/auth/[...nextauth]/route', () => ({
+  authOptions: {},
+}));
 import { DatabaseError } from '@/app/lib/errors'; // Import DatabaseError
 
 // Mock logger
@@ -19,6 +28,8 @@ jest.mock('@/app/lib/dataService/marketAnalysisService', () => ({
   fetchSegmentPerformanceData: jest.fn(),
 }));
 
+const mockGetServerSession = getServerSession as jest.Mock;
+
 const mockFetchSegmentPerformanceData = fetchSegmentPerformanceData as jest.Mock;
 
 describe('API Route: /api/admin/dashboard/content-segments/compare', () => {
@@ -33,6 +44,7 @@ describe('API Route: /api/admin/dashboard/content-segments/compare', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetServerSession.mockResolvedValue({ user: { role: 'admin' } });
   });
 
   const validDateRange = {
@@ -156,12 +168,13 @@ describe('API Route: /api/admin/dashboard/content-segments/compare', () => {
   });
 
   // --- Error Handling & Session Tests ---
-  // 401 Test (conceptual, due to hardcoded getAdminSession)
-  /*
   it('should return 401 if admin session is invalid', async () => {
-    console.warn("Skipping 401 test for content-segments/compare route due to getAdminSession hardcoding.");
+    mockGetServerSession.mockResolvedValueOnce({ user: { role: 'user' } });
+    const requestBody = { dateRange: validDateRange, segments: [{ criteria: validSegmentCriteria1 }] };
+    const req = createMockRequest(requestBody);
+    const response = await POST(req);
+    expect(response.status).toBe(401);
   });
-  */
 
   it('should return 500 if fetchSegmentPerformanceData throws a DatabaseError', async () => {
     mockFetchSegmentPerformanceData.mockRejectedValue(new DatabaseError('DB query failed for segment'));
