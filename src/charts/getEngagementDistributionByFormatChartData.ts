@@ -72,12 +72,7 @@ async function getEngagementDistributionByFormatChartData(
 
     const grandTotalEngagement = aggregationResult.reduce((sum, item) => sum + item.totalEngagement, 0);
 
-    if (grandTotalEngagement === 0) {
-      return initialResponse;
-    }
-
     let tempChartData: EngagementDistributionDataPoint[] = aggregationResult
-      .filter(item => item.totalEngagement > 0)
       .map(item => {
         const formatKey = item._id as string;
         const formatName = (formatMapping && formatMapping[formatKey])
@@ -87,7 +82,7 @@ async function getEngagementDistributionByFormatChartData(
         return {
           name: formatName,
           value: item.totalEngagement,
-          percentage: (item.totalEngagement / grandTotalEngagement) * 100,
+          percentage: grandTotalEngagement > 0 ? (item.totalEngagement / grandTotalEngagement) * 100 : 0,
         } as EngagementDistributionDataPoint;
       });
 
@@ -101,14 +96,14 @@ async function getEngagementDistributionByFormatChartData(
         {
           name: "Outros",
           value: sumValueOthers,
-          percentage: (sumValueOthers / grandTotalEngagement) * 100,
+          percentage: grandTotalEngagement > 0 ? (sumValueOthers / grandTotalEngagement) * 100 : 0,
         },
       ];
     } else {
       initialResponse.chartData = tempChartData;
     }
 
-    if (initialResponse.chartData.length > 0) {
+    if (grandTotalEngagement > 0 && initialResponse.chartData.length > 0) {
         const topSlice = initialResponse.chartData[0]!;
         if (topSlice.name !== "Outros" && initialResponse.chartData.length > 1) {
             initialResponse.insightSummary = `${topSlice.name} é o formato com maior engajamento, representando ${topSlice.percentage.toFixed(1)}% do total.`;
