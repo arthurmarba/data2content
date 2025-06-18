@@ -10,6 +10,7 @@ jest.mock('./ContentStatsWidgets', () => jest.fn(() => <div data-testid="content
 jest.mock('./GlobalPostsExplorer', () => jest.fn(() => <div data-testid="global-posts-mock">GlobalPostsExplorer</div>));
 jest.mock('./StandaloneChatInterface', () => jest.fn(() => <div data-testid="chat-interface-mock">StandaloneChatInterface</div>));
 jest.mock('./ProposalRankingCard', () => jest.fn(() => <div data-testid="proposal-ranking-mock">ProposalRankingCard</div>));
+jest.mock('./CreatorRankingCard', () => jest.fn(() => <div data-testid="creator-ranking-mock">CreatorRankingCard</div>));
 
 // Mock Heroicons
 jest.mock('@heroicons/react/24/solid', () => ({

@@ -21,6 +21,7 @@ import PlatformVideoPerformanceMetrics from './components/PlatformVideoPerforman
 import PlatformMonthlyEngagementStackedChart from './components/PlatformMonthlyEngagementStackedChart';
 import PlatformPerformanceHighlights from './components/PlatformPerformanceHighlights';
 import ProposalRankingCard from './ProposalRankingCard';
+import CreatorRankingCard from './CreatorRankingCard';
 import { getStartDateFromTimePeriod, formatDateYYYYMMDD } from '@/utils/dateHelpers';
 
 // View de Detalhe do Criador (Módulo 3 e partes do Módulo 2 para usuário)
@@ -37,7 +38,7 @@ const AdminCreatorDashboardPage: React.FC = () => {
   const today = new Date();
   const startDate = formatDateYYYYMMDD(getStartDateFromTimePeriod(today, globalTimePeriod));
   const endDate = formatDateYYYYMMDD(today);
-  const proposalDateRange = { startDate, endDate };
+  const rankingDateRange = { startDate, endDate };
 
 
   const handleUserSelect = (userId: string) => {
@@ -156,10 +157,43 @@ const AdminCreatorDashboardPage: React.FC = () => {
             <ProposalRankingCard
               title="Propostas com Mais Interações"
               apiEndpoint="/api/admin/dashboard/rankings/proposals?metric=total_interactions"
-              dateRangeFilter={proposalDateRange}
+              dateRangeFilter={rankingDateRange}
               limit={5}
             />
-          </section>
+        </section>
+
+        <section id="creator-rankings" className="mb-10">
+          <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
+            Rankings de Criadores
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <CreatorRankingCard
+              title="Maior Engajamento"
+              apiEndpoint="/api/admin/dashboard/rankings/creators/top-engaging"
+              dateRangeFilter={rankingDateRange}
+              metricLabel="%"
+              limit={5}
+            />
+            <CreatorRankingCard
+              title="Mais Interações"
+              apiEndpoint="/api/admin/dashboard/rankings/creators/top-interactions"
+              dateRangeFilter={rankingDateRange}
+              limit={5}
+            />
+            <CreatorRankingCard
+              title="Mais Posts"
+              apiEndpoint="/api/admin/dashboard/rankings/creators/most-prolific"
+              dateRangeFilter={rankingDateRange}
+              limit={5}
+            />
+            <CreatorRankingCard
+              title="Mais Compartilhamentos"
+              apiEndpoint="/api/admin/dashboard/rankings/creators/top-sharing"
+              dateRangeFilter={rankingDateRange}
+              limit={5}
+            />
+          </div>
+        </section>
 
           <section id="creator-highlights-and-scatter-plot" className="mb-10">
             <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
