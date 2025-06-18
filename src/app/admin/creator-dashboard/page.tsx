@@ -12,6 +12,7 @@ import PlatformReachEngagementTrendChart from './components/PlatformReachEngagem
 import PlatformMovingAverageEngagementChart from './components/PlatformMovingAverageEngagementChart';
 import TotalActiveCreatorsKpi from './components/kpis/TotalActiveCreatorsKpi';
 import PlatformComparativeKpi from './components/kpis/PlatformComparativeKpi';
+import PlatformSummaryKpis from './components/kpis/PlatformSummaryKpis';
 
 // Componentes da Plataforma - Módulo 2 (Análise de Conteúdo)
 import PlatformAverageEngagementChart from './components/PlatformAverageEngagementChart';
@@ -69,6 +70,10 @@ const AdminCreatorDashboardPage: React.FC = () => {
           />
         </div>
       </header>
+
+      <section id="platform-summary" className="mb-8">
+        <PlatformSummaryKpis />
+      </section>
 
       <section id="creator-selection-simulation" className="mb-8 p-4 bg-white rounded-lg shadow">
         <h2 className="text-lg font-semibold text-gray-700 mb-3">Simular Seleção de Criador Detalhado:</h2>
