@@ -5,7 +5,7 @@ import { Types } from 'mongoose';
 import { getNestedValue } from './dataAccessHelpers';
 import { getStartDateFromTimePeriod } from './dateHelpers';
 
-export type GroupingType = 'format' | 'context';
+export type GroupingType = 'format' | 'context' | 'proposal';
 
 interface AverageResult {
   name: string;
@@ -53,7 +53,9 @@ async function getAverageEngagementByGrouping(
       const key =
         groupBy === 'format'
           ? (post.format || '').toString()
-          : post.context ?? null;
+          : groupBy === 'context'
+            ? post.context ?? null
+            : post.proposal ?? null;
 
       if (groupBy === 'format') {
         if (!key) continue;

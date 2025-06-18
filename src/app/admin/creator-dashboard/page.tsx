@@ -153,7 +153,7 @@ const AdminCreatorDashboardPage: React.FC = () => {
             <div className="mb-6 md:mb-8">
                 <PlatformPerformanceHighlights timePeriod={globalTimePeriod}/>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 md:mb-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 md:mb-8">
               <PlatformAverageEngagementChart
                 initialGroupBy="format"
                 chartTitle="Engajamento Médio por Formato (Plataforma)"
@@ -162,6 +162,11 @@ const AdminCreatorDashboardPage: React.FC = () => {
               <PlatformAverageEngagementChart
                 initialGroupBy="context"
                 chartTitle="Engajamento Médio por Contexto (Plataforma)"
+                timePeriod={globalTimePeriod}
+              />
+              <PlatformAverageEngagementChart
+                initialGroupBy="proposal"
+                chartTitle="Engajamento Médio por Proposta (Plataforma)"
                 timePeriod={globalTimePeriod}
               />
             </div>

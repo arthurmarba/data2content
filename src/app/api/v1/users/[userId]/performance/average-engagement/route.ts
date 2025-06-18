@@ -3,7 +3,7 @@ import { Types } from 'mongoose';
 import getAverageEngagementByGrouping from '@/utils/getAverageEngagementByGrouping';
 
 // Tipo de agrupamento local (usado apenas na resposta)
-type GroupingType = 'format' | 'context';
+type GroupingType = 'format' | 'context' | 'proposal';
 
 // Constantes para validação de parâmetros
 type TimePeriod =
@@ -78,7 +78,7 @@ export async function GET(
   }
 
   // Determinar groupBy (padrão format)
-  const ALLOWED_GROUPINGS: GroupingType[] = ['format', 'context'];
+  const ALLOWED_GROUPINGS: GroupingType[] = ['format', 'context', 'proposal'];
   const groupBy: GroupingType =
     groupByParam && ALLOWED_GROUPINGS.includes(groupByParam)
       ? groupByParam

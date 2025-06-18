@@ -32,7 +32,8 @@ describe('getAverageEngagementByGrouping', () => {
     format: FormatType | string,
     context: string | null,
     interactions: number | null,
-    postDate?: Date
+    postDate?: Date,
+    proposal?: string | null
   ): Partial<IMetric> => {
     const stats: Partial<IMetricStats> = {};
     if (interactions !== null) {
@@ -44,6 +45,7 @@ describe('getAverageEngagementByGrouping', () => {
       postDate: postDate || new Date(),
       format: format as FormatType, // Cast para o tipo esperado
       context: context,
+      proposal: proposal ?? undefined,
       stats: Object.keys(stats).length > 0 ? stats : undefined,
     };
   };
@@ -117,6 +119,25 @@ describe('getAverageEngagementByGrouping', () => {
       expect(result[1].name).toBe("Entertainment");
       expect(result[1].value).toBe(200);
       expect(result[1].postsCount).toBe(1);
+    });
+  });
+
+  describe('groupBy="proposal"', () => {
+    const groupBy: GroupingType = 'proposal';
+    test('Agrega e calcula médias corretamente por proposta', async () => {
+      const posts = [
+        mockMetric('p1', FormatType.REEL, 'Educational', 100, new Date(), 'News'),
+        mockMetric('p2', FormatType.REEL, 'Educational', 200, undefined, 'Review'),
+        mockMetric('p3', FormatType.IMAGE, 'Entertainment', 50, undefined, 'Review'),
+      ];
+      (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
+      (getNestedValue as jest.Mock).mockImplementation((obj, path) => obj.stats?.total_interactions);
+
+      const result = await getAverageEngagementByGrouping(userId, timePeriod, performanceMetricField, groupBy);
+      expect(result.length).toBeGreaterThan(0);
+      // Order for test determinism
+      result.sort((a,b) => a.name.localeCompare(b.name));
+      expect(result[0].postsCount).toBeGreaterThan(0);
     });
   });
 

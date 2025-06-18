@@ -5,7 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 
-type GroupingType = "format" | "context";
+type GroupingType = "format" | "context" | "proposal";
 
 interface ApiUserAverageEngagementDataPoint {
   name: string;
