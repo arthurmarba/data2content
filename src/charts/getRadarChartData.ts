@@ -156,7 +156,7 @@ async function getRadarChartData(
 
     const p2Values = profile2_isSegment
       ? metricSetConfig.map((metricConfig, idx) => {
-          const base = p1Values[idx];
+          const base: number | null = p1Values[idx];
           logger.warn(`Using simulated data for segment ${profile2_segmentId} for metric ${metricConfig.id}`);
           if (base !== null) {
             if (metricConfig.id === "followerGrowthRate_percentage") return base * 0.8;
@@ -170,8 +170,8 @@ async function getRadarChartData(
 
     metricSetConfig.forEach((metricConfig, idx) => {
       const minMax = platformMinMaxValues[metricConfig.id] || { min: null, max: null };
-      const raw1 = p1Values[idx];
-      const raw2 = p2Values[idx] as number | null;
+      const raw1: number | null = p1Values[idx];
+      const raw2: number | null = p2Values[idx] as number | null;
 
       p1_rawData.push(raw1);
       p2_rawData.push(raw2);
