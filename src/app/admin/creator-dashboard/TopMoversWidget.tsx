@@ -343,6 +343,9 @@ export default function TopMoversWidget() {
                   <tr key={item.entityId}>
                     <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-800 dark:text-gray-100">
                       <div className="flex items-center">
+                        {entityType === 'creator' && item.profilePictureUrl && (
+                           <img src={item.profilePictureUrl} alt={item.entityName} className="h-6 w-6 rounded-full mr-2 object-cover" width={24} height={24} />
+                        )}
                         {entityType === 'creator' && !item.profilePictureUrl && (
                            <div className="h-6 w-6 rounded-full bg-gray-200 mr-2 flex items-center justify-center text-xs">{item.entityName?.substring(0,1).toUpperCase()}</div>
                         )}
