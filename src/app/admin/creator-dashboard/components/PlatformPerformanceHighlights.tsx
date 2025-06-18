@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, memo } from 'react';
-import { TrendingUp, TrendingDown, Sparkles, Info } from 'lucide-react'; // Ícones
+import { TrendingUp, TrendingDown, Sparkles } from 'lucide-react'; // Ícones
+import HighlightCard from './HighlightCard';
 
 // Reutilizar as interfaces e componentes auxiliares
 interface PerformanceHighlightItem {
@@ -22,41 +23,6 @@ interface PerformanceSummaryResponse {
 // TIME_PERIOD_OPTIONS não é mais necessário aqui, será controlado pelo pai
 // const TIME_PERIOD_OPTIONS = [ ... ];
 
-// Sub-componente para exibir cada card de destaque (mantido como estava)
-const HighlightCard: React.FC<{
-  title: string;
-  highlight: PerformanceHighlightItem | null | undefined;
-  icon?: React.ReactNode;
-  bgColorClass?: string;
-  textColorClass?: string;
-}> = ({ title, highlight, icon, bgColorClass = "bg-gray-50", textColorClass="text-indigo-600" }) => {
-  if (!highlight) {
-    return (
-      <div className={`p-4 rounded-lg shadow ${bgColorClass} min-h-[100px]`}>
-        <div className="flex items-center text-gray-500">
-          {icon || <Info size={18} className="mr-2"/>}
-          <h4 className="text-sm font-medium">{title}</h4>
-        </div>
-        <p className="text-sm text-gray-400 mt-2">N/A</p>
-      </div>
-    );
-  }
-  return (
-    <div className={`p-4 rounded-lg shadow ${bgColorClass} min-h-[100px]`}>
-      <div className="flex items-center text-gray-600">
-        {icon || <Info size={18} className="mr-2"/>}
-        <h4 className="text-sm font-medium ">{title}</h4>
-      </div>
-      <p className={`text-xl font-bold ${textColorClass} mt-1 truncate`} title={highlight.name}>
-        {highlight.name}
-      </p>
-      <p className="text-xs text-gray-500">
-        {highlight.valueFormatted} {highlight.metricName}
-        {highlight.postsCount && <span className="ml-1">({highlight.postsCount} posts)</span>}
-      </p>
-    </div>
-  );
-};
 
 // Ícone de Informação (mantido como estava)
 const InfoIcon: React.FC<{className?: string}> = ({className}) => (
