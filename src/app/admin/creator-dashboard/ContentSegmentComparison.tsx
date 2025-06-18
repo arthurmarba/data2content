@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { PlusIcon, TrashIcon, ExclamationTriangleIcon, TableCellsIcon, ArrowsRightLeftIcon } from '@heroicons/react/24/outline';
 
 // --- Tipos e Componentes ---
@@ -77,7 +78,7 @@ function generateSegmentNameFromCriteria(criteria: ISegmentDefinition): string {
 // --- Componente Principal ---
 export default function ContentSegmentComparison({ dateRangeFilter }: ContentSegmentComparisonProps) {
   const [segmentsToCompare, setSegmentsToCompare] = useState<SegmentToCompare[]>([
-    { id: crypto.randomUUID(), criteria: {} },
+    { id: uuidv4(), criteria: {} },
   ]);
   const [comparisonResults, setComparisonResults] = useState<SegmentComparisonResultItem[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -121,7 +122,7 @@ export default function ContentSegmentComparison({ dateRangeFilter }: ContentSeg
 
   const addSegment = () => {
     if (segmentsToCompare.length < MAX_SEGMENTS) {
-      setSegmentsToCompare(prev => [...prev, { id: crypto.randomUUID(), criteria: {} }]);
+      setSegmentsToCompare(prev => [...prev, { id: uuidv4(), criteria: {} }]);
     }
   };
 
