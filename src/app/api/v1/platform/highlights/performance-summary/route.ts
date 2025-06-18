@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { camelizeKeys } from '@/utils/camelizeKeys';
 import { ALLOWED_TIME_PERIODS } from '@/app/lib/constants/timePeriods';
 // Para implementação real, seriam necessárias funções de agregação da plataforma
 // que determinariam o top/low formato/contexto em nível de plataforma.
@@ -121,7 +122,7 @@ export async function GET(
     }
 
 
-  return NextResponse.json(response, { status: 200 });
+  return NextResponse.json(camelizeKeys(response), { status: 200 });
 
   // Exemplo de tratamento de erro (se fosse uma busca real)
   // catch (error) {

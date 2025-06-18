@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
 import { ALLOWED_TIME_PERIODS } from '@/app/lib/constants/timePeriods';
+import { camelizeKeys } from '@/utils/camelizeKeys';
 
 import aggregatePerformanceHighlights from '@/utils/aggregatePerformanceHighlights';
 
@@ -124,7 +125,7 @@ export async function GET(
     }
 
 
-    return NextResponse.json(response, { status: 200 });
+    return NextResponse.json(camelizeKeys(response), { status: 200 });
 
   } catch (error) {
     console.error(`[API USER/HIGHLIGHTS/PERFORMANCE-SUMMARY] Error for userId ${userId}:`, error);

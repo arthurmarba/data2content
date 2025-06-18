@@ -8,6 +8,7 @@ import { connectToDatabase } from "@/app/lib/mongoose"; // Ajuste o caminho
 import Metric from "@/app/models/Metric"; // <<< USA MetricModel >>>
 import type { Session } from "next-auth";
 import { logger } from '@/app/lib/logger'; // Ajuste o caminho
+import { camelizeKeys } from '@/utils/camelizeKeys';
 
 // <<< ADICIONADO: Força a rota a ser dinâmica >>>
 export const dynamic = 'force-dynamic';
@@ -200,7 +201,8 @@ export async function GET(request: NextRequest) { // Usa NextRequest
     // Ex: borderColor: "rgba(75,192,192,1)", backgroundColor: "rgba(75,192,192,0.2)"
 
     logger.info(`${TAG} Histórico de métricas preparado para User ${userId}.`);
-    return NextResponse.json({ history }, { status: 200 });
+    const camelHistory = camelizeKeys(history);
+    return NextResponse.json({ history: camelHistory }, { status: 200 });
 
   } catch (error: unknown) {
     logger.error(`${TAG} Erro:`, error);
