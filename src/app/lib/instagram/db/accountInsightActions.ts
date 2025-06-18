@@ -46,7 +46,7 @@ export async function saveAccountInsightData(
         snapshot.accountDetails = {
             // CORREÇÃO APLICADA AQUI: Usar '?? undefined' para converter null em undefined
             username: detailsToSave.username ?? undefined,
-            name: detailsToSave.name ?? undefined, 
+            name: detailsToSave.name ?? undefined,
             biography: detailsToSave.biography ?? undefined,
             website: detailsToSave.website ?? undefined,
             profile_picture_url: detailsToSave.profile_picture_url ?? undefined,
@@ -54,6 +54,17 @@ export async function saveAccountInsightData(
             follows_count: detailsToSave.follows_count ?? undefined,   // Para números, ?? 0 ou ?? undefined
             media_count: detailsToSave.media_count ?? undefined,       // Para números, ?? 0 ou ?? undefined
         };
+
+        // Atualiza também os campos de nível superior se disponíveis
+        if (typeof detailsToSave.followers_count === 'number') {
+          snapshot.followersCount = detailsToSave.followers_count;
+        }
+        if (typeof detailsToSave.follows_count === 'number') {
+          snapshot.followsCount = detailsToSave.follows_count;
+        }
+        if (typeof detailsToSave.media_count === 'number') {
+          snapshot.mediaCount = detailsToSave.media_count;
+        }
         // Limpar chaves que ficaram 'undefined' se a intenção for não as incluir no objeto salvo
         // No entanto, Mongoose geralmente lida bem com 'undefined' e não salva o campo.
         // Se o tipo for `number | undefined`, `?? undefined` é seguro. Se for apenas `number`, `?? 0` seria mais apropriado.
