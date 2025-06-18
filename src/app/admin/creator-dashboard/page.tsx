@@ -25,6 +25,7 @@ import ProposalRankingCard from './ProposalRankingCard';
 import CreatorRankingCard from './CreatorRankingCard';
 import TopCreatorsWidget from './TopCreatorsWidget';
 import TopMoversWidget from './TopMoversWidget';
+import RadarEffectivenessWidget from './components/widgets/RadarEffectivenessWidget';
 import { getStartDateFromTimePeriod, formatDateYYYYMMDD } from '@/utils/dateHelpers';
 import CohortComparisonChart from './components/CohortComparisonChart';
 import MarketPerformanceChart from './components/MarketPerformanceChart';
@@ -270,6 +271,13 @@ const AdminCreatorDashboardPage: React.FC = () => {
             </div>
           </div>
           <MarketPerformanceChart format={marketFormat} proposal={marketProposal} />
+        </section>
+
+        <section id="advanced-analysis" className="mb-10">
+          <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
+            Análise Avançada
+          </h2>
+          <RadarEffectivenessWidget />
         </section>
 
         <section id="creator-highlights-and-scatter-plot" className="mb-10">
