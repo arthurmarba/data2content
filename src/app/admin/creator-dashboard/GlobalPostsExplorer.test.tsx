@@ -41,6 +41,14 @@ jest.mock('./PostDetailModal', () => ({
     default: MockPostDetailModal,
 }));
 
+const MockContentTrendChart = jest.fn(({ postId }) => (
+  <div data-testid="mock-content-trend-chart">Chart for {postId}</div>
+));
+jest.mock('./ContentTrendChart', () => ({
+  __esModule: true,
+  default: MockContentTrendChart,
+}));
+
 
 const mockPosts: IGlobalPostResult[] = [
   { _id: 'post1', text_content: 'First amazing post content', creatorName: 'Creator Alpha', postDate: new Date('2023-11-01T10:00:00Z'), format: 'Reel', proposal: 'Educativo', context: 'Tecnologia', stats: { total_interactions: 150, likes: 100, shares: 20, comments: 30, views: 1000, reach: 800, engagement_rate_on_reach: 0.125 } },
@@ -59,7 +67,7 @@ describe('GlobalPostsExplorer Component', () => {
     });
   });
 
-  test('renders "Ações" column header and "Detalhes" button for each post', async () => {
+  test('renders "Ações" column header and action buttons for each post', async () => {
     render(<GlobalPostsExplorer dateRangeFilter={{ startDate: '2023-01-01', endDate: '2023-01-31' }} />);
 
     await waitFor(() => {
@@ -69,12 +77,11 @@ describe('GlobalPostsExplorer Component', () => {
     // Check for "Ações" header
     expect(screen.getByText('Ações')).toBeInTheDocument();
 
-    // Check for "Detalhes" buttons
+    // Check for action buttons
     const detailButtons = screen.getAllByText('Detalhes');
+    const trendButtons = screen.getAllByText('Tendência');
     expect(detailButtons.length).toBe(mockPosts.length);
-    detailButtons.forEach(button => {
-      expect(button.closest('button')).toBeInTheDocument(); // Ensure it's part of a button
-    });
+    expect(trendButtons.length).toBe(mockPosts.length);
   });
 
   test('opens PostDetailModal with correct postId when "Detalhes" button is clicked', async () => {
@@ -102,6 +109,36 @@ describe('GlobalPostsExplorer Component', () => {
     // Check if modal content is rendered (simplified)
     expect(screen.getByTestId('mock-post-detail-modal')).toBeInTheDocument();
     expect(screen.getByText(`Post Detail for ID: ${mockPosts[0]._id}`)).toBeInTheDocument();
+  });
+
+  test('opens ContentTrendChart when "Tendência" button is clicked', async () => {
+    render(<GlobalPostsExplorer dateRangeFilter={{ startDate: '2023-01-01', endDate: '2023-01-31' }} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('First amazing post content')).toBeInTheDocument();
+    });
+
+    const trendButtons = screen.getAllByText('Tendência');
+    fireEvent.click(trendButtons[0].closest('button')!);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('mock-content-trend-chart')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Chart for post1')).toBeInTheDocument();
+  });
+
+  test('closes ContentTrendChart when close button is clicked', async () => {
+    render(<GlobalPostsExplorer dateRangeFilter={{ startDate: '2023-01-01', endDate: '2023-01-31' }} />);
+
+    await waitFor(() => screen.getByText('First amazing post content'));
+    fireEvent.click(screen.getAllByText('Tendência')[0].closest('button')!);
+
+    await waitFor(() => screen.getByTestId('mock-content-trend-chart'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar' }));
+    await waitFor(() => {
+      expect(screen.queryByTestId('mock-content-trend-chart')).not.toBeInTheDocument();
+    });
   });
 
   test('closes PostDetailModal when its onClose is triggered', async () => {

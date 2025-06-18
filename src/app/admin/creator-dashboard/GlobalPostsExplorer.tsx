@@ -3,10 +3,11 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import { IGlobalPostResult } from '@/app/lib/dataService/marketAnalysisService';
 import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
-import { MagnifyingGlassIcon, DocumentMagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, DocumentMagnifyingGlassIcon, ChartBarIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import SkeletonBlock from './SkeletonBlock'; // Assuming this path is correct or it's defined/imported below
 import EmptyState from './EmptyState'; // Assuming this path is correct
 import PostDetailModal from './PostDetailModal'; // Import the new modal
+import ContentTrendChart from './ContentTrendChart';
 
 
 interface GlobalPostsExplorerProps {
@@ -60,6 +61,10 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
   const [isPostDetailModalOpen, setIsPostDetailModalOpen] = useState(false);
   const [selectedPostIdForModal, setSelectedPostIdForModal] = useState<string | null>(null);
 
+  // State for ContentTrendChart modal
+  const [isTrendChartOpen, setIsTrendChartOpen] = useState(false);
+  const [selectedPostIdForTrend, setSelectedPostIdForTrend] = useState<string | null>(null);
+
   // Predefined options for dropdowns
   const contextOptions = ["all", "Finanças", "Tecnologia", "Moda", "Saúde", "Educação", "Entretenimento"];
   const proposalOptions = ["all", "Educativo", "Humor", "Notícia", "Review", "Tutorial"];
@@ -74,6 +79,16 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
   const handleClosePostDetailModal = useCallback(() => {
     setIsPostDetailModalOpen(false);
     setSelectedPostIdForModal(null);
+  }, []);
+
+  const handleOpenTrendChart = useCallback((postId: string) => {
+    setSelectedPostIdForTrend(postId);
+    setIsTrendChartOpen(true);
+  }, []);
+
+  const handleCloseTrendChart = useCallback(() => {
+    setIsTrendChartOpen(false);
+    setSelectedPostIdForTrend(null);
   }, []);
 
 
@@ -353,11 +368,19 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
                             <td key={col.key} className={`px-4 py-3 whitespace-nowrap text-gray-600 ${col.headerClassName || 'text-center'}`}>
                               <button
                                 onClick={() => handleOpenPostDetailModal(post._id!.toString())}
-                                className="flex items-center justify-center text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 py-1 px-2.5 rounded-md text-xs border border-indigo-300 transition-colors duration-150"
+                                className="flex items-center justify-center text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 py-1 px-2.5 rounded-md text-xs border border-indigo-300 transition-colors duration-150 mr-1"
                                 title="Ver detalhes do post"
                               >
                                 <DocumentMagnifyingGlassIcon className="w-4 h-4 sm:mr-1.5" />
                                 <span className="hidden sm:inline">Detalhes</span>
+                              </button>
+                              <button
+                                onClick={() => handleOpenTrendChart(post._id!.toString())}
+                                className="flex items-center justify-center text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 py-1 px-2.5 rounded-md text-xs border border-indigo-300 transition-colors duration-150"
+                                title="Ver tendência"
+                              >
+                                <ChartBarIcon className="w-4 h-4 sm:mr-1.5" />
+                                <span className="hidden sm:inline">Tendência</span>
                               </button>
                             </td>
                           );
@@ -411,6 +434,20 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
         onClose={handleClosePostDetailModal}
         postId={selectedPostIdForModal}
       />
+      {isTrendChartOpen && selectedPostIdForTrend && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-3xl rounded-xl shadow-2xl relative">
+            <button
+              onClick={handleCloseTrendChart}
+              aria-label="Fechar"
+              className="absolute top-2 right-2 p-1.5 text-gray-500 hover:bg-gray-100 rounded-full"
+            >
+              <XMarkIcon className="w-5 h-5" />
+            </button>
+            <ContentTrendChart postId={selectedPostIdForTrend} />
+          </div>
+        </div>
+      )}
     </div>
   );
 });
