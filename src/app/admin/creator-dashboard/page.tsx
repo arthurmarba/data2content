@@ -20,6 +20,7 @@ import PlatformEngagementDistributionByFormatChart from './components/PlatformEn
 import PlatformVideoPerformanceMetrics from './components/PlatformVideoPerformanceMetrics';
 import PlatformMonthlyEngagementStackedChart from './components/PlatformMonthlyEngagementStackedChart';
 import PlatformPerformanceHighlights from './components/PlatformPerformanceHighlights';
+import FilteredCreatorRankingCard from './FilteredCreatorRankingCard';
 
 // View de Detalhe do Criador (Módulo 3 e partes do Módulo 2 para usuário)
 import UserDetailView from './components/views/UserDetailView';
@@ -152,6 +153,13 @@ const AdminCreatorDashboardPage: React.FC = () => {
             <div className="bg-white p-4 md:p-6 rounded-lg shadow-md">
                  {/* CreatorsScatterPlot was removed here */}
             </div>
+          </section>
+
+          <section id="filtered-ranking" className="mb-10">
+            <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
+              Ranking de Criadores Filtrado
+            </h2>
+            <FilteredCreatorRankingCard timePeriod={globalTimePeriod} />
           </section>
         </>
       )}

@@ -235,3 +235,93 @@ export async function fetchTopSharingCreators(
     throw new DatabaseError(`Failed to fetch top sharing creators: ${error.message}`);
   }
 }
+
+export async function fetchCreatorsWithFilters(
+  args: IFetchCreatorRankingWithFilters
+): Promise<ICreatorMetricRankItemWithFollowers[]> {
+  const TAG = `${SERVICE_TAG}[fetchCreatorsWithFilters]`;
+  const {
+    metric,
+    minFollowers,
+    maxFollowers,
+    minAvgViews,
+    maxAvgViews,
+    dateRange,
+    limit = 5,
+  } = args;
+
+  logger.info(`${TAG} Fetching creators with metric ${metric}`);
+
+  try {
+    await connectToDatabase();
+
+    const pipeline: PipelineStage[] = [
+      { $match: { postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate } } },
+      {
+        $group: {
+          _id: '$user',
+          avg_views: { $avg: '$stats.views' },
+          avg_likes: { $avg: '$stats.likes' },
+          avg_shares: { $avg: '$stats.shares' },
+          total_interactions: { $sum: '$stats.total_interactions' },
+          post_count: { $sum: 1 },
+        },
+      },
+      { $addFields: { metricValue: `$${metric}` } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'creatorDetails',
+          pipeline: [
+            { $project: { name: 1, profile_picture_url: 1, followers_count: 1 } },
+          ],
+        },
+      },
+      { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } },
+      { $addFields: { followersCount: '$creatorDetails.followers_count' } },
+    ];
+
+    const filterStage: any = {};
+    if (typeof minFollowers === 'number') {
+      filterStage.followersCount = { $gte: minFollowers };
+    }
+    if (typeof maxFollowers === 'number') {
+      filterStage.followersCount = filterStage.followersCount || {};
+      filterStage.followersCount.$lte = maxFollowers;
+    }
+    if (typeof minAvgViews === 'number') {
+      filterStage.avg_views = { $gte: minAvgViews };
+    }
+    if (typeof maxAvgViews === 'number') {
+      filterStage.avg_views = filterStage.avg_views || {};
+      filterStage.avg_views.$lte = maxAvgViews;
+    }
+    if (Object.keys(filterStage).length > 0) {
+      pipeline.push({ $match: filterStage });
+    }
+
+    pipeline.push(
+      { $sort: { metricValue: -1 } },
+      { $limit: limit },
+      {
+        $project: {
+          _id: 0,
+          creatorId: '$_id',
+          creatorName: { $ifNull: ['$creatorDetails.name', 'Unknown Creator'] },
+          profilePictureUrl: '$creatorDetails.profile_picture_url',
+          metricValue: { $ifNull: ['$metricValue', 0] },
+          followersCount: { $ifNull: ['$followersCount', 0] },
+        },
+      }
+    );
+
+    const results = await MetricModel.aggregate(pipeline);
+    logger.info(`${TAG} Found ${results.length} creators.`);
+    return results as ICreatorMetricRankItemWithFollowers[];
+  } catch (error: any) {
+    logger.error(`${TAG} Error:`, error);
+    throw new DatabaseError(`Failed to fetch creators with filters: ${error.message}`);
+  }
+}

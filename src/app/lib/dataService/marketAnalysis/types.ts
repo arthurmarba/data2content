@@ -167,6 +167,23 @@ export interface ICreatorMetricRankItem extends IRankingCreatorInfo {
   metricValue: number;
 }
 
+export interface ICreatorMetricRankItemWithFollowers extends ICreatorMetricRankItem {
+  followersCount: number;
+}
+
+export interface IFetchCreatorRankingWithFilters {
+  metric: string;
+  minFollowers: number;
+  maxFollowers?: number;
+  minAvgViews?: number;
+  maxAvgViews?: number;
+  dateRange: {
+    startDate: Date;
+    endDate: Date;
+  };
+  limit?: number;
+}
+
 export interface IFetchCreatorRankingParams {
   dateRange: {
     startDate: Date;
