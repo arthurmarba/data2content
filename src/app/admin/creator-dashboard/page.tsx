@@ -27,7 +27,7 @@ import CreatorRankingCard from './CreatorRankingCard';
 import TopCreatorsWidget from './TopCreatorsWidget';
 import TopMoversWidget from './TopMoversWidget';
 import RadarEffectivenessWidget from './components/widgets/RadarEffectivenessWidget';
-import { getStartDateFromTimePeriod, formatDateYYYYMMDD } from '@/utils/dateHelpers';
+import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
 import CohortComparisonChart from './components/CohortComparisonChart';
 import MarketPerformanceChart from './components/MarketPerformanceChart';
 import CreatorsScatterPlot from './components/CreatorsScatterPlot';
