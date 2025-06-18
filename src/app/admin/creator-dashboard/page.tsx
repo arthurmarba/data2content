@@ -23,6 +23,7 @@ import PlatformMonthlyEngagementStackedChart from './components/PlatformMonthlyE
 import PlatformPerformanceHighlights from './components/PlatformPerformanceHighlights';
 import ProposalRankingCard from './ProposalRankingCard';
 import CreatorRankingCard from './CreatorRankingCard';
+import TopCreatorsWidget from './TopCreatorsWidget';
 import { getStartDateFromTimePeriod, formatDateYYYYMMDD } from '@/utils/dateHelpers';
 
 // View de Detalhe do Criador (Módulo 3 e partes do Módulo 2 para usuário)
@@ -171,7 +172,7 @@ const AdminCreatorDashboardPage: React.FC = () => {
           <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
             Rankings de Criadores
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <CreatorRankingCard
               title="Maior Engajamento"
               apiEndpoint="/api/admin/dashboard/rankings/creators/top-engaging"
@@ -191,14 +192,20 @@ const AdminCreatorDashboardPage: React.FC = () => {
               dateRangeFilter={rankingDateRange}
               limit={5}
             />
-            <CreatorRankingCard
-              title="Mais Compartilhamentos"
-              apiEndpoint="/api/admin/dashboard/rankings/creators/top-sharing"
-              dateRangeFilter={rankingDateRange}
-              limit={5}
-            />
-          </div>
-        </section>
+              <CreatorRankingCard
+                title="Mais Compartilhamentos"
+                apiEndpoint="/api/admin/dashboard/rankings/creators/top-sharing"
+                dateRangeFilter={rankingDateRange}
+                limit={5}
+              />
+              <TopCreatorsWidget
+                title="Top Criadores"
+                metric="total_interactions"
+                days={30}
+                limit={5}
+              />
+            </div>
+          </section>
 
           <section id="creator-highlights-and-scatter-plot" className="mb-10">
             <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
