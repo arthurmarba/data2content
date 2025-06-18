@@ -20,12 +20,14 @@ export interface IDailyMetricSnapshot extends Document {
   dailyFollows?: number;
   dailyProfileVisits?: number;
   dailyReelsVideoViewTotalTime?: number;
+  dailyImpressions?: number;
   cumulativeViews?: number;
   cumulativeLikes?: number;
   cumulativeComments?: number;
   cumulativeShares?: number;
   cumulativeSaved?: number;
   cumulativeReach?: number;
+  cumulativeImpressions?: number;
   cumulativeFollows?: number;
   cumulativeProfileVisits?: number;
   cumulativeTotalInteractions?: number;
@@ -55,12 +57,14 @@ const dailyMetricSnapshotSchema = new Schema<IDailyMetricSnapshot>(
     dailyFollows: { type: Number, default: 0 },
     dailyProfileVisits: { type: Number, default: 0 },
     dailyReelsVideoViewTotalTime: { type: Number, default: 0 },
+    dailyImpressions: { type: Number, default: 0 },
     cumulativeViews: { type: Number, default: 0 },
     cumulativeLikes: { type: Number, default: 0 },
     cumulativeComments: { type: Number, default: 0 },
     cumulativeShares: { type: Number, default: 0 },
     cumulativeSaved: { type: Number, default: 0 },
     cumulativeReach: { type: Number, default: 0 },
+    cumulativeImpressions: { type: Number, default: 0 },
     cumulativeFollows: { type: Number, default: 0 },
     cumulativeProfileVisits: { type: Number, default: 0 },
     cumulativeTotalInteractions: { type: Number, default: 0 },

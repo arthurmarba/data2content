@@ -18,8 +18,8 @@ jest.mock('@heroicons/react/24/outline', () => ({
 }));
 
 const mockTopMoversData: ITopMoverResult[] = [
-  { entityId: 'post1', entityName: 'Amazing Post Alpha', metricName: 'cumulative_likes', previousValue: 100, currentValue: 150, absoluteChange: 50, percentageChange: 0.5 },
-  { entityId: 'post2', entityName: 'Brilliant Post Beta', metricName: 'cumulative_likes', previousValue: 200, currentValue: 50, absoluteChange: -150, percentageChange: -0.75 },
+  { entityId: 'post1', entityName: 'Amazing Post Alpha', metricName: 'cumulativeLikes', previousValue: 100, currentValue: 150, absoluteChange: 50, percentageChange: 0.5 },
+  { entityId: 'post2', entityName: 'Brilliant Post Beta', metricName: 'cumulativeLikes', previousValue: 200, currentValue: 50, absoluteChange: -150, percentageChange: -0.75 },
 ];
 
 describe('TopMoversWidget Component', () => {
@@ -37,7 +37,7 @@ describe('TopMoversWidget Component', () => {
 
     // Check default values of some select elements
     expect(screen.getByLabelText('Entidade')).toHaveValue('content');
-    expect(screen.getByLabelText('Métrica')).toHaveValue('cumulative_views');
+    expect(screen.getByLabelText('Métrica')).toHaveValue('cumulativeViews');
     expect(screen.getByLabelText('Ordenar Por')).toHaveValue('absoluteChange_decrease');
     expect(screen.getByLabelText('Top N')).toHaveValue(10);
 
@@ -47,8 +47,8 @@ describe('TopMoversWidget Component', () => {
   test('updates internal state on parameter change', () => {
     render(<TopMoversWidget />);
     const metricSelect = screen.getByLabelText('Métrica') as HTMLSelectElement;
-    fireEvent.change(metricSelect, { target: { value: 'cumulative_shares' } });
-    expect(metricSelect.value).toBe('cumulative_shares');
+    fireEvent.change(metricSelect, { target: { value: 'cumulativeShares' } });
+    expect(metricSelect.value).toBe('cumulativeShares');
 
     const topNInput = screen.getByLabelText('Top N') as HTMLInputElement;
     fireEvent.change(topNInput, { target: { value: '5' } });
@@ -128,7 +128,7 @@ describe('TopMoversWidget Component', () => {
     fireEvent.change(screen.getByLabelText('Fim', { selector: '#tm-currEnd' }), { target: { value: '2023-01-31' } });
 
     // Select metric and other params
-    fireEvent.change(screen.getByLabelText('Métrica'), { target: { value: 'cumulative_shares' } });
+    fireEvent.change(screen.getByLabelText('Métrica'), { target: { value: 'cumulativeShares' } });
     fireEvent.change(screen.getByLabelText('Formato (Conteúdo)'), { target: { value: 'Reel' } });
 
     fireEvent.click(screen.getByText('Analisar Top Movers'));
@@ -140,7 +140,7 @@ describe('TopMoversWidget Component', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         entityType: 'content',
-        metric: 'cumulative_shares',
+        metric: 'cumulativeShares',
         previousPeriod: { startDate: new Date('2023-01-01T00:00:00.000Z'), endDate: new Date('2023-01-15T00:00:00.000Z') },
         currentPeriod: { startDate: new Date('2023-01-16T00:00:00.000Z'), endDate: new Date('2023-01-31T00:00:00.000Z') },
         topN: 10,
@@ -238,8 +238,8 @@ describe('TopMoversWidget Component', () => {
 
     test('renders creator results with profile picture placeholder', async () => {
         const creatorMockData: ITopMoverResult[] = [
-            { entityId: 'creator1', entityName: 'Creator Gamma', metricName: 'cumulative_views', previousValue: 1000, currentValue: 2000, absoluteChange: 1000, percentageChange: 1, profilePictureUrl: undefined },
-            { entityId: 'creator2', entityName: 'Creator Delta', metricName: 'cumulative_views', previousValue: 500, currentValue: 1500, absoluteChange: 1000, percentageChange: 2, profilePictureUrl: 'delta.jpg' },
+            { entityId: 'creator1', entityName: 'Creator Gamma', metricName: 'cumulativeViews', previousValue: 1000, currentValue: 2000, absoluteChange: 1000, percentageChange: 1, profilePictureUrl: undefined },
+            { entityId: 'creator2', entityName: 'Creator Delta', metricName: 'cumulativeViews', previousValue: 500, currentValue: 1500, absoluteChange: 1000, percentageChange: 2, profilePictureUrl: 'delta.jpg' },
         ];
         (fetch as jest.Mock).mockResolvedValueOnce({ ok: true, json: async () => creatorMockData });
 

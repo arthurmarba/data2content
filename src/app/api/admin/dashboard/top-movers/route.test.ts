@@ -50,7 +50,7 @@ describe('API Route: /api/admin/dashboard/top-movers', () => {
 
   const validPayloadBase = {
     entityType: 'content',
-    metric: 'cumulative_likes',
+    metric: 'cumulativeLikes',
     ...validPeriods,
   };
 
@@ -66,7 +66,7 @@ describe('API Route: /api/admin/dashboard/top-movers', () => {
     expect(body).toEqual(mockResults);
     expect(fetchTopMoversData).toHaveBeenCalledWith(expect.objectContaining({
       entityType: 'content',
-      metric: 'cumulative_likes',
+      metric: 'cumulativeLikes',
       previousPeriod: {
         startDate: new Date(validPeriods.previousPeriod.startDate),
         endDate: new Date(validPeriods.previousPeriod.endDate),
