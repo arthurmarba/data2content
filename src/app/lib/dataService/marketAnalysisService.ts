@@ -35,3 +35,6 @@ export * from './marketAnalysis/radarService';
 
 // Exporta as funções de comparação de coortes
 export * from './marketAnalysis/cohortsService';
+
+// Exporta as funções de destaques de performance
+export * from './marketAnalysis/performanceHighlightsService';

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { camelizeKeys } from '@/utils/camelizeKeys';
 import { ALLOWED_TIME_PERIODS } from '@/app/lib/constants/timePeriods';
+import { aggregatePerformanceHighlights } from '@/app/lib/dataService/marketAnalysisService';
 // Para implementação real, seriam necessárias funções de agregação da plataforma
 // que determinariam o top/low formato/contexto em nível de plataforma.
 // Ex: import { getPlatformTopPerformingFormat, ... } from '@/utils/platformMetricsHelpers';
@@ -50,59 +51,52 @@ export async function GET(
   }
 
   // const performanceMetricField = performanceMetricFieldParam || "stats.total_interactions";
-  const performanceMetricField = "stats.total_interactions"; // Hardcoded por enquanto
+  const performanceMetricField = "stats.total_interactions";
   const performanceMetricLabel = DEFAULT_PERFORMANCE_METRIC_LABEL;
 
-
-// --- Simulação de Lógica de Backend para Dados Agregados da Plataforma ---
-// TODO: Quando houver dados reais da plataforma, reutilizar
-// `aggregatePerformanceHighlights` para calcular top/low formatos e contextos
-// em nível global. Abaixo permanecem valores mockados para demonstração.
-
-  // Por agora, dados hardcoded para demonstração:
-  let topFormatName = "Reel";
-  let topFormatValue = 2350.75;
-  let topFormatPosts = 1200;
-
-  let lowFormatName = "Texto";
-  let lowFormatValue = 350.10;
-  let lowFormatPosts = 150;
-
-  let topContextName = "Entretenimento";
-  let topContextValue = 1980.50;
-  let topContextPosts = 2500;
-
-  // Ajustar dados hardcoded com base no período para parecer dinâmico
-  if (timePeriod === "last_30_days") {
-    topFormatValue *= 0.8; lowFormatValue *= 0.85; topContextValue *= 0.82;
-  } else if (timePeriod === "last_7_days") {
-    topFormatValue *= 0.5; lowFormatValue *= 0.6; topContextValue *= 0.55;
-  }
-
+  const aggResult = await aggregatePerformanceHighlights({
+    timePeriod,
+    metricField: performanceMetricField,
+  });
 
   const response: PlatformPerformanceSummaryResponse = {
-    topPerformingFormat: {
-      name: topFormatName,
-      metricName: performanceMetricLabel,
-      value: topFormatValue,
-      valueFormatted: formatPerformanceValue(topFormatValue, performanceMetricField),
-      postsCount: topFormatPosts
-    },
-    lowPerformingFormat: {
-      name: lowFormatName,
-      metricName: performanceMetricLabel,
-      value: lowFormatValue,
-      valueFormatted: formatPerformanceValue(lowFormatValue, performanceMetricField),
-      postsCount: lowFormatPosts
-    },
-    topPerformingContext: {
-      name: topContextName,
-      metricName: performanceMetricLabel,
-      value: topContextValue,
-      valueFormatted: formatPerformanceValue(topContextValue, performanceMetricField),
-      postsCount: topContextPosts
-    },
-    insightSummary: "" // Será construído abaixo
+    topPerformingFormat: aggResult.topFormat
+      ? {
+          name: aggResult.topFormat.name as string,
+          metricName: performanceMetricLabel,
+          value: aggResult.topFormat.average,
+          valueFormatted: formatPerformanceValue(
+            aggResult.topFormat.average,
+            performanceMetricField
+          ),
+          postsCount: aggResult.topFormat.count,
+        }
+      : null,
+    lowPerformingFormat: aggResult.lowFormat
+      ? {
+          name: aggResult.lowFormat.name as string,
+          metricName: performanceMetricLabel,
+          value: aggResult.lowFormat.average,
+          valueFormatted: formatPerformanceValue(
+            aggResult.lowFormat.average,
+            performanceMetricField
+          ),
+          postsCount: aggResult.lowFormat.count,
+        }
+      : null,
+    topPerformingContext: aggResult.topContext
+      ? {
+          name: aggResult.topContext.name as string,
+          metricName: performanceMetricLabel,
+          value: aggResult.topContext.average,
+          valueFormatted: formatPerformanceValue(
+            aggResult.topContext.average,
+            performanceMetricField
+          ),
+          postsCount: aggResult.topContext.count,
+        }
+      : null,
+    insightSummary: "", // Será construído abaixo
   };
 
   // Construir Insight Summary
