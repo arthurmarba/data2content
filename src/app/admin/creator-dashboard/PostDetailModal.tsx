@@ -47,7 +47,7 @@ interface ISimplifiedMetricStats {
   reach?: number;
   engagement_rate_on_reach?: number;
   total_interactions?: number;
-  saves?: number;
+  saved?: number;
   video_avg_watch_time?: number;
   impressions?: number;
 }

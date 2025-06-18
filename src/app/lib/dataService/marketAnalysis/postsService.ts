@@ -130,7 +130,7 @@ interface ISimplifiedMetricStats { // Based on IMetricStats from prompt
   engagement_rate_on_reach?: number;
   // Add other stats fields as needed from the actual IMetricStats
   total_interactions?: number;
-  saves?: number;
+  saved?: number;
   video_avg_watch_time?: number;
   impressions?: number;
 }
