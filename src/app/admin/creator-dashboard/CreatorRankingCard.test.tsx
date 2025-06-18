@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import CreatorRankingCard from './CreatorRankingCard';
 import { ICreatorMetricRankItem } from '@/app/lib/dataService/marketAnalysisService';
@@ -138,7 +138,11 @@ describe('CreatorRankingCard', () => {
     );
     expect(fetch).not.toHaveBeenCalled();
     // Current behavior is to render "No data" state, as rankingData remains null
-    expect(screen.getByText('Nenhum dado disponível para o período selecionado.')).toBeInTheDocument();
+    expect(
+      screen.getAllByText('Nenhum dado disponível para o período selecionado.')
+    ).toHaveLength(1);
+
+    cleanup();
 
     render(
         <CreatorRankingCard
@@ -148,7 +152,9 @@ describe('CreatorRankingCard', () => {
         />
       );
       expect(fetch).not.toHaveBeenCalled();
-      expect(screen.getByText('Nenhum dado disponível para o período selecionado.')).toBeInTheDocument();
+      expect(
+        screen.getAllByText('Nenhum dado disponível para o período selecionado.')
+      ).toHaveLength(1);
   });
 
    it('displays correct metric formatting for very small numbers', async () => {
