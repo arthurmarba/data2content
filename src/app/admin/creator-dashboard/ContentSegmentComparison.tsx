@@ -51,7 +51,7 @@ interface ContentSegmentComparisonProps {
 
 const FORMAT_OPTIONS = ["", "Reel", "Post Estático", "Carrossel", "Story", "Video Longo"];
 const PROPOSAL_OPTIONS = ["", "Educativo", "Humor", "Notícia", "Review", "Tutorial", "Desafio", "Vlog"];
-const CONTEXT_OPTIONS = ["", "Finanças", "Tecnologia", "Moda", "Saúde", "Educação", "Entretenimento", "Viagem", "Gastronomia"];
+const DEFAULT_CONTEXTS = [""];
 
 // --- Funções Utilitárias ---
 const formatDisplayNumber = (num?: number): string => {
@@ -82,6 +82,22 @@ export default function ContentSegmentComparison({ dateRangeFilter }: ContentSeg
   const [comparisonResults, setComparisonResults] = useState<SegmentComparisonResultItem[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [contextOptions, setContextOptions] = useState<string[]>(DEFAULT_CONTEXTS);
+
+  useEffect(() => {
+    async function loadContexts() {
+      try {
+        const res = await fetch('/api/admin/dashboard/contexts');
+        if (res.ok) {
+          const data = await res.json();
+          setContextOptions(['', ...data.contexts]);
+        }
+      } catch (e) {
+        console.error('Failed to load contexts', e);
+      }
+    }
+    loadContexts();
+  }, []);
 
   const handleSegmentChange = (id: string, field: 'name' | keyof ISegmentDefinition, value: string) => {
     setSegmentsToCompare(prevSegments =>
@@ -243,7 +259,7 @@ export default function ContentSegmentComparison({ dateRangeFilter }: ContentSeg
                     onChange={(e) => handleSegmentChange(segment.id, 'context', e.target.value)}
                     className="mt-0.5 w-full px-2.5 py-1.5 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 >
-                    {CONTEXT_OPTIONS.map(opt => <option key={opt} value={opt}>{opt === "" ? "Qualquer Contexto" : opt}</option>)}
+                    {contextOptions.map(opt => <option key={opt} value={opt}>{opt === "" ? "Qualquer Contexto" : opt}</option>)}
                 </select>
                 </div>
             </div>
