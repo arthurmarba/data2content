@@ -25,9 +25,12 @@ const formatKpiValue = (value?: number | string): string => {
 };
 
 const formatPercentage = (value?: number): string => {
-    if (value === null || typeof value === 'undefined') return 'N/A';
-    return `${(value * 100).toFixed(1)}%`;
-}
+  if (value === null || typeof value === 'undefined') return 'N/A';
+  return `${(value * 100).toLocaleString('pt-BR', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  })}%`;
+};
 
 interface ContentStatsWidgetsProps {
   dateRangeFilter?: {
@@ -102,6 +105,7 @@ const ContentStatsWidgets = memo(function ContentStatsWidgets({ dateRangeFilter 
   if (isLoading) {
     return (
       <div className="space-y-6">
+        <p className="sr-only">Carregando estatísticas...</p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {Array.from({ length: 3 }).map((_, index) => (
             <div key={`kpi-skel-${index}`} className="bg-white p-5 rounded-lg shadow border border-gray-200">
@@ -129,7 +133,7 @@ const ContentStatsWidgets = memo(function ContentStatsWidgets({ dateRangeFilter 
   if (error) {
     return (
       <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[400px] flex flex-col justify-center items-center">
-        <p className="text-red-500 text-center mb-4">Erro ao carregar dados: {error}</p>
+        <p className="text-red-500 text-center mb-4">{`Erro ao carregar dados: ${error}`}</p>
         <button
             onClick={fetchData}
             className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"

@@ -36,7 +36,7 @@ const mockStats: IDashboardOverallStats = {
 
 describe('ContentStatsWidgets Component', () => {
   beforeEach(() => {
-    (fetch as jest.Mock).mockClear();
+    (fetch as jest.Mock).mockReset();
     (fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,
       json: async () => mockStats,
@@ -67,12 +67,14 @@ describe('ContentStatsWidgets Component', () => {
   });
 
   test('displays loading state initially', () => {
+    (fetch as jest.Mock).mockReset();
     (fetch as jest.Mock).mockImplementationOnce(() => new Promise(() => {})); // Keep it loading
     render(<ContentStatsWidgets />);
     expect(screen.getByText('Carregando estatísticas...')).toBeInTheDocument();
   });
 
   test('displays error state and retry button if fetch fails', async () => {
+    (fetch as jest.Mock).mockReset();
     (fetch as jest.Mock).mockRejectedValueOnce(new Error('API Error Stats'));
     render(<ContentStatsWidgets />);
     expect(await screen.findByText(/Erro ao carregar dados: API Error Stats/)).toBeInTheDocument();
@@ -80,6 +82,7 @@ describe('ContentStatsWidgets Component', () => {
   });
 
   test('retry button calls fetchData again', async () => {
+    (fetch as jest.Mock).mockReset();
     (fetch as jest.Mock).mockRejectedValueOnce(new Error('Initial API Error'));
     render(<ContentStatsWidgets />);
 
@@ -98,6 +101,7 @@ describe('ContentStatsWidgets Component', () => {
   });
 
   test('displays "no stats available" message when data is null or empty', async () => {
+    (fetch as jest.Mock).mockReset();
     (fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,
       json: async () => null, // Simulate API returning null
@@ -111,6 +115,7 @@ describe('ContentStatsWidgets Component', () => {
         ...mockStats,
         breakdownByFormat: [], // Empty data for this chart
     };
+    (fetch as jest.Mock).mockReset();
     (fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => partialMockStats,
@@ -138,9 +143,8 @@ describe('ContentStatsWidgets Component', () => {
     render(<ContentStatsWidgets dateRangeFilter={dateRange} />);
 
     await waitFor(() => {
-        expect(fetch).toHaveBeenCalledWith(
-            `/api/admin/dashboard/content-stats?startDate=${new Date(dateRange.startDate).toISOString()}&endDate=${new Date(dateRange.endDate).toISOString()}`
-        );
+        const expectedUrl = `/api/admin/dashboard/content-stats?startDate=${encodeURIComponent(new Date(dateRange.startDate).toISOString())}&endDate=${encodeURIComponent(new Date(dateRange.endDate).toISOString())}`;
+        expect(fetch).toHaveBeenCalledWith(expectedUrl);
     });
   });
 
@@ -159,9 +163,8 @@ describe('ContentStatsWidgets Component', () => {
 
     await waitFor(() => {
         expect(fetch).toHaveBeenCalledTimes(2); // Should fetch again
-        expect(fetch).toHaveBeenLastCalledWith(
-             `/api/admin/dashboard/content-stats?startDate=${new Date(newDateRange.startDate).toISOString()}&endDate=${new Date(newDateRange.endDate).toISOString()}`
-        );
+        const expectedUrl = `/api/admin/dashboard/content-stats?startDate=${encodeURIComponent(new Date(newDateRange.startDate).toISOString())}&endDate=${encodeURIComponent(new Date(newDateRange.endDate).toISOString())}`;
+        expect(fetch).toHaveBeenLastCalledWith(expectedUrl);
     });
     expect(await screen.findByText('500')).toBeInTheDocument(); // Check if new data is rendered
   });
