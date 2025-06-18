@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
 import getMonthlyEngagementStackedBarChartData from '@/charts/getMonthlyEngagementStackedBarChartData'; // Ajuste
+import { ALLOWED_TIME_PERIODS as BASE_ALLOWED_TIME_PERIODS } from '@/app/lib/constants/timePeriods';
 
 type MonthlyEngagementChartResponse = Awaited<ReturnType<typeof getMonthlyEngagementStackedBarChartData>>;
 
 // Lista de períodos permitidos para este endpoint específico
-const ALLOWED_TIME_PERIODS: string[] = ["last_3_months", "last_6_months", "last_12_months"];
+const ALLOWED_TIME_PERIODS: string[] = ["last_3_months", ...BASE_ALLOWED_TIME_PERIODS.filter(p => p !== 'all_time')];
 
 export async function GET(
   request: Request,

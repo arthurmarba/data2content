@@ -1,17 +1,9 @@
 import { NextResponse } from 'next/server';
 import MetricModel from '@/app/models/Metric';
 import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
+import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 
 // Periodos permitidos para o filtro de tempo
-const ALLOWED_TIME_PERIODS = [
-  'last_7_days',
-  'last_30_days',
-  'last_90_days',
-  'last_6_months',
-  'last_12_months',
-  'all_time',
-] as const;
-type TimePeriod = typeof ALLOWED_TIME_PERIODS[number];
 
 // Tipos de vídeo usados para filtrar métricas pelo campo `type` do Metric
 const DEFAULT_VIDEO_TYPES: string[] = ['REEL', 'VIDEO'];

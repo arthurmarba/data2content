@@ -5,6 +5,7 @@ import MetricModel from '@/app/models/Metric';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import { logger } from '@/app/lib/logger';
 import dateHelpers from '@/utils/dateHelpers';
+import { ALLOWED_TIME_PERIODS as BASE_ALLOWED_TIME_PERIODS } from '@/app/lib/constants/timePeriods';
 
 interface MonthlyEngagementDataPoint {
   month: string;
@@ -21,13 +22,8 @@ interface PlatformMonthlyEngagementResponse {
 }
 
 const ALLOWED_TIME_PERIODS = [
-  'all_time',
-  'last_7_days',
-  'last_30_days',
-  'last_90_days',
+  ...BASE_ALLOWED_TIME_PERIODS,
   'last_3_months',
-  'last_6_months',
-  'last_12_months',
 ];
 
 export async function GET(request: Request) {

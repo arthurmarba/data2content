@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server';
 import getEngagementDistributionByFormatChartData from '@/charts/getEngagementDistributionByFormatChartData'; // Ajuste
 import { Types } from 'mongoose';
 import FormatType from '@/app/models/Metric'; // Ajuste se necessário para formatMapping
+import {
+  ALLOWED_TIME_PERIODS,
+  ALLOWED_ENGAGEMENT_METRICS,
+} from '@/app/lib/constants/timePeriods';
 
 // Constantes para validação e defaults
-const ALLOWED_TIME_PERIODS: string[] = ["all_time", "last_7_days", "last_30_days", "last_90_days", "last_6_months", "last_12_months"];
-// Exemplo de métricas de engajamento permitidas
-const ALLOWED_ENGAGEMENT_METRICS: string[] = ["stats.total_interactions", "stats.views", "stats.likes", "stats.comments", "stats.shares"];
 
 // Exemplo de mapeamento de formato (pode vir de uma config)
 const DEFAULT_FORMAT_MAPPING: { [key: string]: string } = {

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ALLOWED_TIME_PERIODS } from '@/app/lib/constants/timePeriods';
 // Para implementação real, seriam necessárias funções de agregação da plataforma
 // que determinariam o top/low formato/contexto em nível de plataforma.
 // Ex: import { getPlatformTopPerformingFormat, ... } from '@/utils/platformMetricsHelpers';
@@ -18,7 +19,6 @@ interface PlatformPerformanceSummaryResponse {
   insightSummary: string;
 }
 
-const ALLOWED_TIME_PERIODS: string[] = ["last_7_days", "last_30_days", "last_90_days", "last_6_months", "last_12_months", "all_time"];
 const DEFAULT_PERFORMANCE_METRIC_LABEL = "Interações Totais"; // Consistente com o endpoint de usuário
 
 // Helper para formatar valor (simplificado - pode ser compartilhado)

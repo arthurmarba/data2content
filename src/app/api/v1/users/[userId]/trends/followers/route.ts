@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import getFollowerTrendChartData from '@/charts/getFollowerTrendChartData'; // Ajuste o caminho
 import { Types } from 'mongoose';
+import { ALLOWED_TIME_PERIODS } from '@/app/lib/constants/timePeriods';
 
-const ALLOWED_TIME_PERIODS: string[] = ["last_7_days", "last_30_days", "last_90_days", "last_6_months", "last_12_months", "all_time"];
 const ALLOWED_GRANULARITIES: string[] = ["daily", "monthly"];
 
 export async function GET(

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
 import calculateAverageVideoMetrics from '@/utils/calculateAverageVideoMetrics'; // Ajuste o caminho
+import { ALLOWED_TIME_PERIODS } from '@/app/lib/constants/timePeriods';
 
 interface AverageVideoMetricsData {
   averageRetentionRate: number;
@@ -9,7 +10,6 @@ interface AverageVideoMetricsData {
 }
 // import { FormatType } from '@/app/models/Metric'; // Se precisar passar videoTypes customizados
 
-const ALLOWED_TIME_PERIODS: string[] = ["last_7_days", "last_30_days", "last_90_days", "last_6_months", "last_12_months", "all_time"];
 
 interface UserVideoMetricsResponse extends Omit<Awaited<ReturnType<typeof calculateAverageVideoMetrics>>, 'startDate' | 'endDate'> {
   insightSummary?: string;

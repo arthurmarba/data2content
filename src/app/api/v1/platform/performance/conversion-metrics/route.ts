@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
+import { ALLOWED_TIME_PERIODS } from '@/app/lib/constants/timePeriods';
 // Para implementação real, seriam necessárias funções de agregação da plataforma
 // import { calculatePlatformAverageFollowerConversionRatePerPost } from '@/utils/platformMetrics';
 // import { calculatePlatformAccountFollowerConversionRate } from '@/utils/platformMetrics';
 
-const ALLOWED_TIME_PERIODS: string[] = ["last_7_days", "last_30_days", "last_90_days", "last_6_months", "last_12_months", "all_time"];
 
 interface PlatformConversionMetricsResponse {
   averageFollowerConversionRatePerPost: number | null;

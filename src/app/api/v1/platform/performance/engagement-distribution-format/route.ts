@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 import MetricModel from '@/app/models/Metric';
+import {
+  ALLOWED_TIME_PERIODS,
+  ALLOWED_ENGAGEMENT_METRICS,
+} from '@/app/lib/constants/timePeriods';
 // Define FormatType enum locally if the import is not available
 enum FormatType {
   IMAGE = "IMAGE",
@@ -25,8 +29,6 @@ interface PlatformEngagementDistributionResponse {
 }
 
 // Constantes para validação e defaults
-const ALLOWED_TIME_PERIODS: string[] = ["all_time", "last_7_days", "last_30_days", "last_90_days", "last_6_months", "last_12_months"];
-const ALLOWED_ENGAGEMENT_METRICS: string[] = ["stats.total_interactions", "stats.views", "stats.likes", "stats.comments", "stats.shares"];
 const DEFAULT_ENGAGEMENT_METRIC = "stats.total_interactions";
 
 const DEFAULT_FORMAT_MAPPING: { [key: string]: string } = {
