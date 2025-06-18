@@ -221,4 +221,4 @@ describe('getFollowerTrendChartData', () => {
       expect(result.insightSummary).toContain("Ganho de 5 seguidores");
   });
 });
-```
+
