@@ -2,11 +2,13 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-const PlusIcon = ({className = ''}) => <span className={className}>+</span>;
-const TrashIcon = ({className = ''}) => <span className={className}>🗑️</span>;
-const ExclamationTriangleIcon = ({className = ''}) => <span className={className}>⚠️</span>;
-const TableCellsIcon = ({className = ''}) => <span className={className}>☰</span>;
-const ArrowsRightLeftIcon = ({className = ''}) => <span className={className}>⇄</span>;
+import {
+  PlusIcon,
+  TrashIcon,
+  ExclamationTriangleIcon,
+  TableCellsIcon,
+  ArrowsRightLeftIcon,
+} from '@heroicons/react/24/outline';
 
 // --- Tipos e Componentes ---
 
