@@ -58,6 +58,28 @@ describe('GET /api/v1/platform/performance/average-engagement', () => {
     expect(body.chartData[0].postsCount).toBe(1);
   });
 
+  it('aggregates engagement metrics by proposal', async () => {
+    const users = [{ _id: 'u1' }];
+    const userLean = jest.fn().mockResolvedValue(users);
+    const userSelect = jest.fn().mockReturnValue({ lean: userLean });
+    mockUserFind.mockReturnValue({ select: userSelect });
+
+    const posts = [
+      { proposal: 'Review', stats: { total_interactions: 100 } },
+      { proposal: 'Review', stats: { total_interactions: 50 } },
+      { proposal: 'News', stats: { total_interactions: 200 } },
+    ];
+    const metricLean = jest.fn().mockResolvedValue(posts);
+    mockMetricFind.mockReturnValue({ lean: metricLean });
+
+    const res = await GET(createRequest('?groupBy=proposal'));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.groupBy).toBe('proposal');
+    expect(body.chartData.length).toBe(2);
+  });
+
   it('returns 400 for invalid groupBy', async () => {
     const res = await GET(createRequest('?groupBy=invalid'));
     expect(res.status).toBe(400);

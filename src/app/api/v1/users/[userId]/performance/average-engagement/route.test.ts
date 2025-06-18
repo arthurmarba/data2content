@@ -38,6 +38,19 @@ describe('GET /api/v1/users/[userId]/performance/average-engagement', () => {
     expect(res.status).toBe(200);
   });
 
+  it('handles groupBy proposal', async () => {
+    mockGetAverage.mockResolvedValueOnce([]);
+    const req = createRequest(userId, '?groupBy=proposal');
+    const res = await GET(req, { params: { userId } });
+    expect(mockGetAverage).toHaveBeenCalledWith(
+      userId,
+      'last_90_days',
+      'stats.total_interactions',
+      'proposal'
+    );
+    expect(res.status).toBe(200);
+  });
+
   it('returns 400 for invalid groupBy', async () => {
     const req = createRequest(userId, '?groupBy=invalid');
     const res = await GET(req, { params: { userId } });

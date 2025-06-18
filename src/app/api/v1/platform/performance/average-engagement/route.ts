@@ -7,7 +7,7 @@ import { getNestedValue } from '@/utils/dataAccessHelpers';
 import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
 
 // Tipo local para agrupamento
-type GroupingType = 'format' | 'context';
+type GroupingType = 'format' | 'context' | 'proposal';
 
 // Constantes para validação e defaults
 const ALLOWED_TIME_PERIODS = ['all_time', 'last_7_days', 'last_30_days', 'last_90_days', 'last_6_months', 'last_12_months'] as const;
@@ -16,7 +16,7 @@ type TimePeriod = typeof ALLOWED_TIME_PERIODS[number];
 const ALLOWED_ENGAGEMENT_METRICS = ['stats.total_interactions', 'stats.views', 'stats.likes', 'stats.comments', 'stats.shares'] as const;
 type EngagementMetricField = typeof ALLOWED_ENGAGEMENT_METRICS[number];
 
-const ALLOWED_GROUPINGS: GroupingType[] = ['format', 'context'];
+const ALLOWED_GROUPINGS: GroupingType[] = ['format', 'context', 'proposal'];
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -70,7 +70,7 @@ export async function GET(request: Request) {
 
     const performanceByGroup: Record<string, { sumPerformance: number; count: number }> = {};
     for (const post of posts) {
-      const groupKey = groupBy === 'format' ? post.format : post.context;
+      const groupKey = groupBy === 'format' ? post.format : groupBy === 'context' ? post.context : post.proposal;
       const metricValue = getNestedValue(post, engagementMetric);
       if (groupKey && metricValue !== null) {
         const key = groupKey.toString();

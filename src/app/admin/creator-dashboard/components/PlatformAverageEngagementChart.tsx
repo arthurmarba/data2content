@@ -5,7 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 
-type GroupingType = "format" | "context";
+type GroupingType = "format" | "context" | "proposal";
 
 interface ApiAverageEngagementDataPoint {
   name: string;
@@ -31,6 +31,7 @@ const ENGAGEMENT_METRIC_OPTIONS = [
 const GROUP_BY_OPTIONS = [ // Usado apenas se o seletor de groupBy fosse habilitado
   { value: "format", label: "Formato" },
   { value: "context", label: "Contexto" },
+  { value: "proposal", label: "Proposta" },
 ];
 
 interface PlatformAverageEngagementChartProps {
