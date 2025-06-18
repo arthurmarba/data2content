@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
-import { UserGroupIcon, InformationCircleIcon, UsersIcon, XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { UserGroupIcon, InformationCircleIcon, UsersIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { FaSpinner, FaCheckCircle } from 'react-icons/fa';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -15,6 +15,8 @@ import { SkeletonTable } from '../../components/SkeletonTable';
 import { UserAvatar } from '../../components/UserAvatar';
 import { StatusBadge } from '../../components/StatusBadge';
 import { SearchBar } from '../../components/SearchBar';
+import CreatorDetailModal from './CreatorDetailModal';
+import CreatorComparisonModal from './CreatorComparisonModal';
 
 
 // --- Definições de Componentes em Falta ---
@@ -65,47 +67,6 @@ const CREATOR_STATUS_MAPPINGS = {
 
 type UpdateStatusState = {
     [key: string]: 'approving' | 'idle';
-};
-
-
-// Modal de Detalhes do Criador (Versão Simples)
-const CreatorDetailModal = ({ isOpen, onClose, creator, dateRangeFilter }: { isOpen: boolean; onClose: () => void; creator: IDashboardCreator | null; dateRangeFilter: any }) => {
-  if (!isOpen || !creator) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl m-4 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-gray-800">Detalhes de {creator.name}</h2>
-          <button onClick={onClose} className="p-1 rounded-full text-gray-400 hover:bg-gray-100">
-            <XMarkIcon className="w-6 h-6" />
-          </button>
-        </div>
-        {/* Conteúdo do modal mantido como antes */}
-      </div>
-    </div>
-  );
-};
-
-// Modal de Comparação de Criadores (Versão Simples)
-const CreatorComparisonModal = ({ isOpen, onClose, creatorIdsToCompare }: any) => {
-    if (!isOpen) return null;
-    return (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center">
-            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl m-4">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold text-gray-800">Comparando Criadores</h2>
-                    <button onClick={onClose} className="p-1 rounded-full text-gray-400 hover:bg-gray-100">
-                      <XMarkIcon className="w-6 h-6" />
-                    </button>
-                </div>
-                <div className="text-gray-700">
-                    <p>IDs a serem comparados: {creatorIdsToCompare.join(', ')}</p>
-                    <p className="mt-4"><i>(Gráficos de comparação viriam aqui)</i></p>
-                </div>
-            </div>
-        </div>
-    );
 };
 
 
@@ -388,7 +349,14 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
       </div>
 
       {isDetailModalOpen && <CreatorDetailModal isOpen={isDetailModalOpen} onClose={() => setIsDetailModalOpen(false)} creator={selectedCreatorForModal} dateRangeFilter={dateRangeFilter} />}
-      {isComparisonModalOpen && <CreatorComparisonModal isOpen={isComparisonModalOpen} onClose={() => setIsComparisonModalOpen(false)} creatorIdsToCompare={selectedForComparison} />}
+      {isComparisonModalOpen && (
+        <CreatorComparisonModal
+          isOpen={isComparisonModalOpen}
+          onClose={() => setIsComparisonModalOpen(false)}
+          creatorIdsToCompare={selectedForComparison}
+          dateRangeFilter={dateRangeFilter}
+        />
+      )}
     </>
   );
 });

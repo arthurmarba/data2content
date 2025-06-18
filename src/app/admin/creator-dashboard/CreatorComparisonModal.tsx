@@ -9,6 +9,10 @@ interface CreatorComparisonModalProps {
   isOpen: boolean;
   onClose: () => void;
   creatorIdsToCompare: string[];
+  dateRangeFilter?: {
+    startDate?: string;
+    endDate?: string;
+  };
 }
 
 // Helper to format numbers - can be expanded
@@ -32,6 +36,7 @@ export default function CreatorComparisonModal({
   isOpen,
   onClose,
   creatorIdsToCompare,
+  dateRangeFilter,
 }: CreatorComparisonModalProps) {
   const [comparisonData, setComparisonData] = useState<ICreatorProfile[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -47,7 +52,12 @@ export default function CreatorComparisonModal({
     setError(null);
 
     try {
-      const response = await fetch('/api/admin/dashboard/creators/compare', {
+      const params = new URLSearchParams();
+      if (dateRangeFilter?.startDate) params.append('startDate', dateRangeFilter.startDate);
+      if (dateRangeFilter?.endDate) params.append('endDate', dateRangeFilter.endDate);
+      const url = `/api/admin/dashboard/creators/compare${params.toString() ? `?${params.toString()}` : ''}`;
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ creatorIds: creatorIdsToCompare }),
@@ -68,7 +78,7 @@ export default function CreatorComparisonModal({
     } finally {
       setIsLoading(false);
     }
-  }, [isOpen, creatorIdsToCompare]);
+  }, [isOpen, creatorIdsToCompare, dateRangeFilter]);
 
   useEffect(() => {
     if (isOpen) {
@@ -79,7 +89,7 @@ export default function CreatorComparisonModal({
       setError(null);
       setIsLoading(false);
     }
-  }, [isOpen, fetchComparisonData]); // fetchComparisonData depends on creatorIdsToCompare
+  }, [isOpen, fetchComparisonData]); // fetchComparisonData depends on creatorIdsToCompare and dateRangeFilter
 
   if (!isOpen) {
     return null;

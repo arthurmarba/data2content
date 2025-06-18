@@ -323,7 +323,8 @@ describe('CreatorTable Component', () => {
 
   describe('Creator Comparison Functionality', () => {
     test('checkbox interaction updates selectedForComparison state and respects MAX_CREATORS_TO_COMPARE', async () => {
-      render(<CreatorTable />);
+      const dateRange = { startDate: '2023-01-01', endDate: '2023-01-31' };
+      render(<CreatorTable dateRangeFilter={dateRange} />);
       await screen.findByText('Alice Wonderland'); // Wait for data
 
       const checkboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
@@ -408,6 +409,7 @@ describe('CreatorTable Component', () => {
         expect.objectContaining({
           isOpen: true,
           creatorIdsToCompare: expectedIds,
+          dateRangeFilter: dateRange,
         }),
         {}
       );

@@ -29,6 +29,7 @@ const defaultProps = {
   isOpen: true,
   onClose: jest.fn(),
   creatorIdsToCompare: ['id1', 'id2', 'id3'],
+  dateRangeFilter: { startDate: '2023-01-01', endDate: '2023-01-31' },
 };
 
 describe('CreatorComparisonModal Component', () => {
@@ -61,11 +62,14 @@ describe('CreatorComparisonModal Component', () => {
   test('fetches comparison data on mount if isOpen and creatorIds are provided', async () => {
     render(<CreatorComparisonModal {...defaultProps} />);
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
-    expect(fetch).toHaveBeenCalledWith('/api/admin/dashboard/creators/compare', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ creatorIds: defaultProps.creatorIdsToCompare }),
-    });
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/admin/dashboard/creators/compare?startDate=2023-01-01&endDate=2023-01-31',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ creatorIds: defaultProps.creatorIdsToCompare }),
+      }
+    );
   });
 
   test('does not fetch if creatorIdsToCompare has less than 2 IDs', () => {
@@ -150,9 +154,12 @@ describe('CreatorComparisonModal Component', () => {
     rerender(<CreatorComparisonModal {...defaultProps} creatorIdsToCompare={newIds} />);
 
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
-    expect(fetch).toHaveBeenLastCalledWith('/api/admin/dashboard/creators/compare', expect.objectContaining({
-      body: JSON.stringify({ creatorIds: newIds }),
-    }));
+    expect(fetch).toHaveBeenLastCalledWith(
+      '/api/admin/dashboard/creators/compare?startDate=2023-01-01&endDate=2023-01-31',
+      expect.objectContaining({
+        body: JSON.stringify({ creatorIds: newIds }),
+      })
+    );
     expect(await screen.findByText('Dave')).toBeInTheDocument();
     expect(screen.getByText('Eve')).toBeInTheDocument();
   });

@@ -25,6 +25,7 @@ import ProposalRankingCard from './ProposalRankingCard';
 import CreatorRankingCard from './CreatorRankingCard';
 import TopCreatorsWidget from './TopCreatorsWidget';
 import TopMoversWidget from './TopMoversWidget';
+import CreatorTable from './CreatorTable';
 import { getStartDateFromTimePeriod, formatDateYYYYMMDD } from '@/utils/dateHelpers';
 import CohortComparisonChart from './components/CohortComparisonChart';
 import MarketPerformanceChart from './components/MarketPerformanceChart';
@@ -272,17 +273,12 @@ const AdminCreatorDashboardPage: React.FC = () => {
           <MarketPerformanceChart format={marketFormat} proposal={marketProposal} />
         </section>
 
-        <section id="creator-highlights-and-scatter-plot" className="mb-10">
-            <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
-              Destaques e Análise Comparativa de Criadores
-            </h2>
-            <p className="text-sm text-gray-500 mb-4 italic">
-              (Em breve: Tabelas de Criadores com melhor performance)
-            </p>
-            <div className="bg-white p-4 md:p-6 rounded-lg shadow-md">
-                 {/* CreatorsScatterPlot was removed here */}
-            </div>
-          </section>
+        <section id="creator-list" className="mb-10">
+          <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
+            Lista de Criadores
+          </h2>
+          <CreatorTable dateRangeFilter={rankingDateRange} />
+        </section>
         </>
       )}
 
