@@ -105,4 +105,3 @@ describe('calculateAverageFollowerConversionRatePerPost', () => {
     consoleErrorSpy.mockRestore();
   });
 });
-```

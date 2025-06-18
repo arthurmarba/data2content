@@ -192,4 +192,3 @@ describe('getAverageEngagementByGrouping', () => {
     expect(console.error).toHaveBeenCalled();
   });
 });
-```
