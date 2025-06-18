@@ -17,6 +17,16 @@ describe('Format PerformanceCalculations', () => {
     (MetricModel.find as jest.Mock).mockReset();
   });
 
+  const setupFindMock = (result: any, isError = false) => {
+    (MetricModel.find as jest.Mock).mockReturnValue({
+      select: jest.fn().mockReturnValue({
+        lean: isError
+          ? () => Promise.reject(result)
+          : () => Promise.resolve(result),
+      }),
+    });
+  };
+
   const mockPost = (id: string, format: FormatType, interactions: number | null): Partial<IMetric> => {
     const stats: Partial<IMetricStats> = {};
     if (interactions !== null) {
@@ -47,7 +57,7 @@ describe('Format PerformanceCalculations', () => {
         mockPost('p4', FormatType.REEL, 250),  // Avg REEL = 225 (Top)
         mockPost('p5', FormatType.VIDEO, 50),   // Avg VIDEO = 50
       ];
-      (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
+      setupFindMock(posts);
       const result = await getTopPerformingFormat(userId, periodInDays, performanceMetricField);
       expect(result).not.toBeNull();
       expect(result?.format).toBe(FormatType.REEL);
@@ -57,7 +67,7 @@ describe('Format PerformanceCalculations', () => {
     });
 
     test('Retorna null se não houver posts', async () => {
-      (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve([]) });
+      setupFindMock([]);
       const result = await getTopPerformingFormat(userId, periodInDays, performanceMetricField);
       expect(result).toBeNull();
     });
@@ -67,7 +77,7 @@ describe('Format PerformanceCalculations', () => {
         mockPost('p1', FormatType.IMAGE, null),
         mockPost('p2', FormatType.REEL, null),
       ];
-      (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
+      setupFindMock(posts);
       const result = await getTopPerformingFormat(userId, periodInDays, performanceMetricField);
       expect(result).toBeNull();
     });
@@ -77,13 +87,13 @@ describe('Format PerformanceCalculations', () => {
         mockPost('p1', FormatType.IMAGE, 100),
         mockPost('p2', FormatType.IMAGE, 150), // Avg IMAGE = 125
       ];
-      (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
+      setupFindMock(posts);
       const result = await getTopPerformingFormat(userId, periodInDays, performanceMetricField);
       expect(result?.format).toBe(FormatType.IMAGE);
       expect(result?.averagePerformance).toBe(125);
     });
      test('Erro no DB retorna null', async () => {
-      (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.reject(new Error("DB Error")) });
+      setupFindMock(new Error("DB Error"), true);
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
       const result = await getTopPerformingFormat(userId, periodInDays, performanceMetricField);
       expect(result).toBeNull();
@@ -102,7 +112,7 @@ describe('Format PerformanceCalculations', () => {
         mockPost('p4', FormatType.VIDEO, 50),
         mockPost('p5', FormatType.VIDEO, 70),   // Avg VIDEO = 60 (Low)
       ];
-      (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
+      setupFindMock(posts);
       const result = await getLowPerformingFormat(userId, periodInDays, performanceMetricField, minPosts);
       expect(result).not.toBeNull();
       expect(result?.format).toBe(FormatType.VIDEO);
@@ -115,13 +125,13 @@ describe('Format PerformanceCalculations', () => {
         mockPost('p1', FormatType.IMAGE, 100), // Count = 1
         mockPost('p2', FormatType.REEL, 200),  // Count = 1
       ];
-      (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
+      setupFindMock(posts);
       const result = await getLowPerformingFormat(userId, periodInDays, performanceMetricField, minPosts);
       expect(result).toBeNull();
     });
 
     test('Retorna null se não houver posts', async () => {
-      (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve([]) });
+      setupFindMock([]);
       const result = await getLowPerformingFormat(userId, periodInDays, performanceMetricField, minPosts);
       expect(result).toBeNull();
     });
@@ -131,14 +141,14 @@ describe('Format PerformanceCalculations', () => {
         mockPost('p1', FormatType.REEL, 100),
         mockPost('p2', FormatType.REEL, 150), // Avg REEL = 125
       ];
-      (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
+      setupFindMock(posts);
       const result = await getLowPerformingFormat(userId, periodInDays, performanceMetricField, minPosts);
       expect(result?.format).toBe(FormatType.REEL);
       expect(result?.averagePerformance).toBe(125);
     });
 
     test('Erro no DB retorna null', async () => {
-      (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.reject(new Error("DB Error")) });
+      setupFindMock(new Error("DB Error"), true);
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
       const result = await getLowPerformingFormat(userId, periodInDays, performanceMetricField, minPosts);
       expect(result).toBeNull();

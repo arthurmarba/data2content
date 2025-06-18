@@ -35,7 +35,9 @@ async function getTopPerformingContext(
     const posts: IMetric[] = await MetricModel.find({
       user: resolvedUserId,
       postDate: { $gte: startDate, $lte: endDate },
-    }).lean();
+    })
+      .select({ format: 1, context: 1, stats: 1, postDate: 1 })
+      .lean();
 
     if (!posts || posts.length === 0) {
       return null;

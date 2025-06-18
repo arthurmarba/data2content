@@ -34,7 +34,9 @@ async function getLowPerformingFormat(
     const posts: IMetric[] = await MetricModel.find({
       user: resolvedUserId,
       postDate: { $gte: startDate, $lte: endDate },
-    }).lean();
+    })
+      .select({ format: 1, context: 1, stats: 1, postDate: 1 })
+      .lean();
 
     if (!posts.length) return null;
 
