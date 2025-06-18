@@ -93,8 +93,8 @@ const AdminCreatorDashboardPage: React.FC = () => {
         <PlatformSummaryKpis startDate={startDate} endDate={endDate} />
       </section>
 
-      <section id="creator-selection-simulation" className="mb-8 p-4 bg-white rounded-lg shadow">
-        <h2 className="text-lg font-semibold text-gray-700 mb-3">Simular Seleção de Criador Detalhado:</h2>
+      <section id="creator-selection" className="mb-8 p-4 bg-white rounded-lg shadow">
+        <h2 className="text-lg font-semibold text-gray-700 mb-3">Selecionar Criador para Detalhar</h2>
         <div className="flex flex-wrap items-center gap-4">
           <button
             onClick={() => setIsSelectorOpen(true)}
@@ -112,7 +112,7 @@ const AdminCreatorDashboardPage: React.FC = () => {
               onClick={() => { setSelectedUserId(null); setSelectedUserName(null); }}
               className="p-2 rounded-md text-sm bg-gray-200 text-gray-700 hover:bg-gray-300"
             >
-              Limpar Seleção (Ver Visão Geral da Plataforma)
+              Limpar seleção e voltar à visão geral
             </button>
           )}
         </div>
