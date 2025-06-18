@@ -123,11 +123,6 @@ export async function POST(req: NextRequest) {
 
     const validatedArgs = validationResult.data as IFetchTopMoversArgs; // Cast after successful validation
 
-    // Removed logger.warn as creator entity type logic is now implemented in the service.
-    // if (validatedArgs.entityType === 'creator') {
-    //   logger.warn(`${TAG} Processing request for 'creator' entity type...`);
-    // }
-
     logger.info(`${TAG} Calling fetchTopMoversData with validated args: ${JSON.stringify(validatedArgs)}`);
     const results: ITopMoverResult[] = await fetchTopMoversData(validatedArgs);
 

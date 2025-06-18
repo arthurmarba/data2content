@@ -100,8 +100,67 @@ export async function fetchTopMoversData(
       }));
 
     } else { // entityType === 'creator'
-      // ... A lógica para criadores seria implementada aqui de forma similar ...
-      logger.warn(`${TAG} Creator top movers logic is not yet fully implemented.`);
+      let preFilteredCreatorIds: Types.ObjectId[] | null = null;
+      if (creatorFilters && (creatorFilters.planStatus || creatorFilters.inferredExpertiseLevel)) {
+        const userQuery: any = {};
+        if (creatorFilters.planStatus) userQuery.planStatus = { $in: creatorFilters.planStatus };
+        if (creatorFilters.inferredExpertiseLevel) userQuery.inferredExpertiseLevel = { $in: creatorFilters.inferredExpertiseLevel };
+        const matchingUsers = await UserModel.find(userQuery).select('_id').lean();
+        preFilteredCreatorIds = matchingUsers.map(u => u._id);
+        if (preFilteredCreatorIds.length === 0) return [];
+      }
+
+      const snapshotMatch: PipelineStage.Match['$match'] = {
+        date: { $in: [previousPeriod.endDate, currentPeriod.endDate] },
+        [mappedMetricField]: { $exists: true, $ne: null }
+      };
+
+      const pipeline: PipelineStage[] = [
+        { $match: snapshotMatch },
+        { $lookup: { from: 'metrics', localField: 'metric', foreignField: '_id', as: 'metricInfo' } },
+        { $unwind: { path: '$metricInfo', preserveNullAndEmptyArrays: false } }
+      ];
+
+      if (preFilteredCreatorIds) {
+        pipeline.push({ $match: { 'metricInfo.user': { $in: preFilteredCreatorIds } } });
+      }
+
+      pipeline.push(
+        { $group: { _id: { creatorId: '$metricInfo.user', date: '$date' }, value: { $sum: `$${mappedMetricField}` } } },
+        { $group: { _id: '$_id.creatorId', periodValues: { $push: { date: '$_id.date', val: '$value' } } } },
+        { $addFields: {
+            previousValueData: { $arrayElemAt: [{ $filter: { input: '$periodValues', cond: { $eq: ['$$this.date', previousPeriod.endDate] } } }, 0] },
+            currentValueData: { $arrayElemAt: [{ $filter: { input: '$periodValues', cond: { $eq: ['$$this.date', currentPeriod.endDate] } } }, 0] }
+        }},
+        { $addFields: { previousValue: { $ifNull: ['$previousValueData.val', 0] }, currentValue: { $ifNull: ['$currentValueData.val', 0] } } },
+        { $match: { $expr: { $ne: ['$previousValue', '$currentValue'] } } },
+        { $addFields: {
+            absoluteChange: { $subtract: ['$currentValue', '$previousValue'] },
+            percentageChange: { $cond: [{ $eq: ['$previousValue', 0] }, null, { $divide: [{ $subtract: ['$currentValue', '$previousValue'] }, '$previousValue'] }] }
+        } }
+      );
+
+      const sortOrder = sortBy.includes('_increase') ? -1 : 1;
+      const sortField = sortBy.startsWith('absolute') ? 'absoluteChange' : 'percentageChange';
+      pipeline.push({ $sort: { [sortField]: sortOrder } });
+
+      pipeline.push(
+        { $limit: topN },
+        { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'creatorDetails' } },
+        { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } }
+      );
+
+      const aggregatedMovers = await DailyMetricSnapshotModel.aggregate(pipeline);
+      results = aggregatedMovers.map(mover => ({
+        entityId: mover._id.toString(),
+        entityName: mover.creatorDetails?.name || `Creator ID: ${mover._id.toString().slice(-5)}`,
+        profilePictureUrl: mover.creatorDetails?.profile_picture_url,
+        metricName: metric,
+        previousValue: mover.previousValue,
+        currentValue: mover.currentValue,
+        absoluteChange: mover.absoluteChange,
+        percentageChange: mover.percentageChange,
+      }));
     }
 
     return results;

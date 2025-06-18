@@ -96,14 +96,14 @@ describe('API Route: /api/admin/dashboard/top-movers', () => {
     }));
   });
 
-  it('should log a warning but proceed for entityType "creator"', async () => {
-    mockFetchTopMoversData.mockResolvedValue([]); // Service will return [] for creator
+  it('should handle entityType "creator" without warning', async () => {
+    mockFetchTopMoversData.mockResolvedValue([]);
     const creatorPayload = { ...validPayloadBase, entityType: 'creator' };
     const req = createMockRequest(creatorPayload);
     const response = await POST(req);
 
-    expect(response.status).toBe(200); // API should still succeed
-    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining("Processing request for 'creator' entity type, which is not fully implemented"));
+    expect(response.status).toBe(200);
+    expect(logger.warn).not.toHaveBeenCalled();
     expect(fetchTopMoversData).toHaveBeenCalledWith(expect.objectContaining({ entityType: 'creator' }));
   });
 
