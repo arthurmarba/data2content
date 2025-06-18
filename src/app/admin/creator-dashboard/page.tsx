@@ -49,8 +49,9 @@ const AdminCreatorDashboardPage: React.FC = () => {
   const [marketProposal, setMarketProposal] = useState<string>(proposalOptions[0]!);
 
   const today = new Date();
-  const startDate = formatDateYYYYMMDD(getStartDateFromTimePeriod(today, globalTimePeriod));
-  const endDate = formatDateYYYYMMDD(today);
+  const startDateObj = getStartDateFromTimePeriod(today, globalTimePeriod);
+  const startDate = startDateObj.toISOString();
+  const endDate = today.toISOString();
   const rankingDateRange = { startDate, endDate };
 
 
@@ -85,7 +86,7 @@ const AdminCreatorDashboardPage: React.FC = () => {
       </header>
 
       <section id="platform-summary" className="mb-8">
-        <PlatformSummaryKpis />
+        <PlatformSummaryKpis startDate={startDate} endDate={endDate} />
       </section>
 
       <section id="creator-selection-simulation" className="mb-8 p-4 bg-white rounded-lg shadow">

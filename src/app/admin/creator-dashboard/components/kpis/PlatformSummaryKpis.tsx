@@ -11,7 +11,12 @@ interface PlatformSummaryData {
   averageReachInPeriod: number;
 }
 
-const PlatformSummaryKpis: React.FC = () => {
+interface PlatformSummaryKpisProps {
+  startDate: string;
+  endDate: string;
+}
+
+const PlatformSummaryKpis: React.FC<PlatformSummaryKpisProps> = ({ startDate, endDate }) => {
   const [data, setData] = useState<PlatformSummaryData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +26,8 @@ const PlatformSummaryKpis: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch('/api/admin/dashboard/platform-summary');
+        const params = new URLSearchParams({ startDate, endDate });
+        const response = await fetch(`/api/admin/dashboard/platform-summary?${params.toString()}`);
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(`Erro HTTP: ${response.status} - ${errorData.error || response.statusText}`);
@@ -37,7 +43,7 @@ const PlatformSummaryKpis: React.FC = () => {
     };
 
     fetchData();
-  }, []);
+  }, [startDate, endDate]);
 
   const formatPercentage = (num?: number | null) => {
     if (num === null || typeof num === 'undefined') return null;
