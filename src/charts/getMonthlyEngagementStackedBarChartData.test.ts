@@ -155,4 +155,4 @@ describe('getMonthlyEngagementStackedBarChartData', () => {
     expect(console.error).toHaveBeenCalled();
   });
 });
-```
+

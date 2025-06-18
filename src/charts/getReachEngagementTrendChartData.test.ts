@@ -173,4 +173,4 @@ describe('getReachEngagementTrendChartData', () => {
     expect(console.error).toHaveBeenCalled();
   });
 });
-```
+

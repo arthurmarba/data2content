@@ -159,4 +159,4 @@ describe('getCreatorsScatterPlotData', () => {
     expect(console.error).toHaveBeenCalledWith("Error in getCreatorsScatterPlotData:", expect.any(Error));
   });
 });
-```
+

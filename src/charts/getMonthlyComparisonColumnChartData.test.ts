@@ -198,4 +198,4 @@ describe('getMonthlyComparisonColumnChartData', () => {
     expect(console.error).toHaveBeenCalled();
   });
 });
-```
+

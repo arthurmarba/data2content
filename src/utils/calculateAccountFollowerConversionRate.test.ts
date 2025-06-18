@@ -194,4 +194,4 @@ describe('calculateAccountFollowerConversionRate', () => {
   });
 
 });
-```
+

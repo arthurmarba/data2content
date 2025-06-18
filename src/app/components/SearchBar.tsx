@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useMemo, forwardRef } from 'react';
-import { debounce } from 'lodash';
-import { FaSearch } from 'react-icons/fa'; // Usando react-icons para o ícone
+import React, { useState, useEffect, useMemo, forwardRef } from "react";
+import { debounce } from "lodash";
+import { FaSearch } from "react-icons/fa"; // Usando react-icons para o ícone
 
 interface SearchBarProps {
   initialValue?: string;
@@ -23,50 +23,56 @@ interface SearchBarProps {
  * @param {number} debounceMs - O tempo de espera em milissegundos. Padrão: 500.
  * @param {string} className - Classes CSS adicionais para o container.
  */
-export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(function SearchBar({
-  initialValue = '',
-  onSearchChange,
-  placeholder = 'Buscar...',
-  debounceMs = 500,
-  className = '',
-  autoFocus = false,
-}: SearchBarProps, ref) {
-  const [inputValue, setInputValue] = useState(initialValue);
+export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
+  function SearchBar(
+    {
+      initialValue = "",
+      onSearchChange,
+      placeholder = "Buscar...",
+      debounceMs = 500,
+      className = "",
+      autoFocus = false,
+    }: SearchBarProps,
+    ref,
+  ) {
+    const [inputValue, setInputValue] = useState(initialValue);
 
-  // useMemo garante que a função debounced seja criada apenas uma vez
-  const debouncedOnChange = useMemo(
-    () => debounce((value: string) => {
-      onSearchChange(value);
-    }, debounceMs),
-    [onSearchChange, debounceMs]
-  );
+    // useMemo garante que a função debounced seja criada apenas uma vez
+    const debouncedOnChange = useMemo(
+      () =>
+        debounce((value: string) => {
+          onSearchChange(value);
+        }, debounceMs),
+      [onSearchChange, debounceMs],
+    );
 
-  // Efeito que chama a função debounced quando o valor do input muda
-  useEffect(() => {
-    debouncedOnChange(inputValue);
+    // Efeito que chama a função debounced quando o valor do input muda
+    useEffect(() => {
+      debouncedOnChange(inputValue);
 
-    // Função de limpeza para cancelar qualquer chamada pendente quando o componente é desmontado
-    return () => {
-      debouncedOnChange.cancel();
-    };
-  }, [inputValue, debouncedOnChange]);
+      // Função de limpeza para cancelar qualquer chamada pendente quando o componente é desmontado
+      return () => {
+        debouncedOnChange.cancel();
+      };
+    }, [inputValue, debouncedOnChange]);
 
-  return (
-    <div className={`relative flex items-center ${className}`}>
-      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-        <FaSearch className="h-4 w-4 text-gray-400" />
-      </div>
-      <input
-        type="text"
-        value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
-        placeholder={placeholder}
-        ref={ref}
-        autoFocus={autoFocus}
-        className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm
+    return (
+      <div className={`relative flex items-center ${className}`}>
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <FaSearch className="h-4 w-4 text-gray-400" />
+        </div>
+        <input
+          type="text"
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          placeholder={placeholder}
+          ref={ref}
+          autoFocus={autoFocus}
+          className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm
                    focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm
                    dark:bg-gray-800 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
-      />
-    </div>
-  );
-}
+        />
+      </div>
+    );
+  },
+);
