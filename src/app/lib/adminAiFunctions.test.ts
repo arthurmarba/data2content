@@ -36,15 +36,17 @@ jest.mock('./logger', () => ({
   // --- Importações ---
   import { adminFunctionExecutors } from './adminAiFunctions';
   import {
-      fetchMarketPerformance, 
+      fetchMarketPerformance,
       fetchTopCreators,
-      getCreatorProfile
+      getCreatorProfile,
+      fetchTucaRadarEffectiveness
   } from './dataService/marketAnalysisService';
   
   // Tipando os mocks para facilitar o uso nos testes
   const mockedFetchTopCreators = fetchTopCreators as jest.Mock;
   const mockedFetchMarketPerformance = fetchMarketPerformance as jest.Mock;
   const mockedGetCreatorProfile = getCreatorProfile as jest.Mock;
+  const mockedFetchTucaRadarEffectiveness = fetchTucaRadarEffectiveness as jest.Mock;
   
   describe('Admin AI Function Executors', () => {
   
@@ -131,7 +133,24 @@ jest.mock('./logger', () => ({
           });
           expect(response.summary).toContain('Análise de 100 posts');
           expect(response.visualizations[0].type).toBe('kpi');
-          expect(response.visualizations[0].data.value).toBe('4.75');
+       expect(response.visualizations[0].data.value).toBe('4.75');
+       });
+    });
+
+    // --- Testes para getTucaRadarEffectiveness ---
+    describe('getTucaRadarEffectiveness', () => {
+       it('deve estar exportada como função', () => {
+          expect(typeof adminFunctionExecutors.getTucaRadarEffectiveness).toBe('function');
+       });
+
+       it('deve retornar sumário apropriado quando não há dados', async () => {
+          mockedFetchTucaRadarEffectiveness.mockResolvedValue([]);
+
+          const args = { periodDays: 30 };
+          const response = await adminFunctionExecutors.getTucaRadarEffectiveness(args) as any;
+
+          expect(mockedFetchTucaRadarEffectiveness).toHaveBeenCalledWith(args);
+          expect(response.summary).toContain('Não foram encontrados dados');
        });
     });
   });
