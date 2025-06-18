@@ -24,6 +24,7 @@ import PlatformPerformanceHighlights from './components/PlatformPerformanceHighl
 import ProposalRankingCard from './ProposalRankingCard';
 import CreatorRankingCard from './CreatorRankingCard';
 import TopCreatorsWidget from './TopCreatorsWidget';
+import TopMoversWidget from './TopMoversWidget';
 import { getStartDateFromTimePeriod, formatDateYYYYMMDD } from '@/utils/dateHelpers';
 import CohortComparisonChart from './components/CohortComparisonChart';
 
@@ -205,8 +206,15 @@ const AdminCreatorDashboardPage: React.FC = () => {
                 days={30}
                 limit={5}
               />
-            </div>
-          </section>
+          </div>
+        </section>
+
+        <section id="top-movers" className="mb-10">
+          <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
+            Top Movers
+          </h2>
+          <TopMoversWidget />
+        </section>
 
         <section id="cohort-comparison" className="mb-10">
           <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
