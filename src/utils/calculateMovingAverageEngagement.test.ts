@@ -1,8 +1,12 @@
 import { Types } from 'mongoose';
 import calculateMovingAverageEngagement, { MovingAverageDataPoint } from './calculateMovingAverageEngagement'; // Ajuste
 import DailyMetricSnapshotModel, { IDailyMetricSnapshot } from '@/app/models/DailyMetricSnapshot'; // Ajuste
+import MetricModel from '@/app/models/Metric';
 
 jest.mock('@/app/models/DailyMetricSnapshot', () => ({
+  find: jest.fn(),
+}));
+jest.mock('@/app/models/Metric', () => ({
   find: jest.fn(),
 }));
 
@@ -18,6 +22,12 @@ function createDate(daysAgo: number, baseDate?: Date): Date {
   return date;
 }
 
+const mockMetricIds = (ids: string[] = [new Types.ObjectId().toString()]) => {
+  (MetricModel.find as jest.Mock).mockReturnValue({
+    distinct: jest.fn().mockResolvedValue(ids.map(id => new Types.ObjectId(id)))
+  });
+};
+
 
 describe('calculateMovingAverageEngagement', () => {
   const userId = new Types.ObjectId().toString();
@@ -25,6 +35,8 @@ describe('calculateMovingAverageEngagement', () => {
 
   beforeEach(() => {
     (DailyMetricSnapshotModel.find as jest.Mock).mockReset();
+    (MetricModel.find as jest.Mock).mockReset();
+    mockMetricIds();
     baseTestEndDate = new Date(2023, 10, 15); // Ex: 15 de Novembro de 2023
   });
 

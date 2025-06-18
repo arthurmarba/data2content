@@ -1,4 +1,5 @@
 import DailyMetricSnapshotModel, { IDailyMetricSnapshot } from "@/app/models/DailyMetricSnapshot";
+import MetricModel from "@/app/models/Metric";
 import { Types } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { logger } from "@/app/lib/logger";
@@ -60,8 +61,10 @@ async function calculateMovingAverageEngagement(
   try {
     await connectToDatabase();
 
+    const metricIds: Types.ObjectId[] = await MetricModel.find({ user: resolvedUserId }).distinct('_id');
+
     const snapshots: IDailyMetricSnapshot[] = await DailyMetricSnapshotModel.find({
-      user: resolvedUserId,
+      metric: { $in: metricIds },
       date: { $gte: dataFullStartDate, $lte: dataEndDate },
     })
       .sort({ date: 1 })
