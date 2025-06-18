@@ -65,10 +65,25 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
   const [isTrendChartOpen, setIsTrendChartOpen] = useState(false);
   const [selectedPostIdForTrend, setSelectedPostIdForTrend] = useState<string | null>(null);
 
-  // Predefined options for dropdowns
-  const contextOptions = ["all", "Finanças", "Tecnologia", "Moda", "Saúde", "Educação", "Entretenimento"];
+  // Options for dropdowns loaded from API
+  const [contextOptions, setContextOptions] = useState<string[]>(["all"]);
   const proposalOptions = ["all", "Educativo", "Humor", "Notícia", "Review", "Tutorial"];
   const formatOptions = ["all", "Reel", "Post Estático", "Carrossel", "Story"];
+
+  useEffect(() => {
+    async function loadContexts() {
+      try {
+        const res = await fetch('/api/admin/dashboard/contexts');
+        if (res.ok) {
+          const data = await res.json();
+          setContextOptions(['all', ...data.contexts]);
+        }
+      } catch (e) {
+        console.error('Failed to load contexts', e);
+      }
+    }
+    loadContexts();
+  }, []);
 
   // Modal Handlers
   const handleOpenPostDetailModal = useCallback((postId: string) => {

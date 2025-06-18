@@ -74,7 +74,9 @@ const SORT_BY_OPTIONS: { value: TopMoverSortBy; label: string }[] = [
 ];
 
 const FORMAT_OPTIONS_TOP_MOVERS = ["", "Reel", "Post Estático", "Carrossel", "Story", "Video Longo"];
-const CONTEXT_OPTIONS_TOP_MOVERS = ["", "Finanças", "Tecnologia", "Moda", "Saúde", "Educação", "Entretenimento"];
+
+// Context options loaded from API
+const DEFAULT_CONTEXTS = [""];
 
 
 // --- Funções Utilitárias ---
@@ -98,11 +100,27 @@ export default function TopMoversWidget() {
   const [sortBy, setSortBy] = useState<TopMoverSortBy>('absoluteChange_decrease');
 
   const [contentFilters, setContentFilters] = useState<ISegmentDefinition>({});
+  const [contextOptions, setContextOptions] = useState<string[]>(DEFAULT_CONTEXTS);
   
   const [results, setResults] = useState<ITopMoverResult[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadContexts() {
+      try {
+        const res = await fetch('/api/admin/dashboard/contexts');
+        if (res.ok) {
+          const data = await res.json();
+          setContextOptions(['', ...data.contexts]);
+        }
+      } catch (e) {
+        console.error('Failed to load contexts', e);
+      }
+    }
+    loadContexts();
+  }, []);
 
   const handleContentFilterChange = (field: keyof ISegmentDefinition, value: string) => {
     // CORREÇÃO: A atualização do estado com `prev` está correta, mas clarificamos que o valor vazio se torna `undefined`.
@@ -283,7 +301,7 @@ export default function TopMoversWidget() {
             <div>
               <label htmlFor="tm-contentContext" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Contexto (Conteúdo)</label>
               <select id="tm-contentContext" value={contentFilters.context || ""} onChange={e => handleContentFilterChange('context', e.target.value)} className="w-full px-3 py-1.5 border-gray-300 dark:border-gray-500 rounded-md h-[38px] sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
-                {CONTEXT_OPTIONS_TOP_MOVERS.map(c => <option key={c} value={c}>{c === "" ? "Todos Contextos" : c}</option>)}
+                {contextOptions.map(c => <option key={c} value={c}>{c === "" ? "Todos Contextos" : c}</option>)}
               </select>
             </div>
           </>
