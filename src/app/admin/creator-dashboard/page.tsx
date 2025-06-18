@@ -24,6 +24,7 @@ import PlatformPerformanceHighlights from './components/PlatformPerformanceHighl
 import ProposalRankingCard from './ProposalRankingCard';
 import CreatorRankingCard from './CreatorRankingCard';
 import { getStartDateFromTimePeriod, formatDateYYYYMMDD } from '@/utils/dateHelpers';
+import CohortComparisonChart from './components/CohortComparisonChart';
 
 // View de Detalhe do Criador (Módulo 3 e partes do Módulo 2 para usuário)
 import UserDetailView from './components/views/UserDetailView';
@@ -198,6 +199,21 @@ const AdminCreatorDashboardPage: React.FC = () => {
               limit={5}
             />
           </div>
+        </section>
+
+        <section id="cohort-comparison" className="mb-10">
+          <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
+            Comparação de Coortes
+          </h2>
+          <CohortComparisonChart
+            metric="engagement_rate_on_reach"
+            startDate={startDate}
+            endDate={endDate}
+            cohorts={[
+              { filterBy: 'planStatus', value: 'Pro', name: 'Plano Pro' },
+              { filterBy: 'planStatus', value: 'Free', name: 'Plano Free' }
+            ]}
+          />
         </section>
 
           <section id="creator-highlights-and-scatter-plot" className="mb-10">
