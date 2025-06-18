@@ -16,6 +16,9 @@ const customJestConfig = {
       '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
       '\\.(gif|ttf|eot|svg|png)$': '<rootDir>/__mocks__/fileMock.js',
       '^@/app/(.*)$': '<rootDir>/src/app/$1',
+      // Alguns ícones são importados a partir dos módulos ESM individuais,
+      // mapeamos esses caminhos diretamente para os mocks genéricos
+      '^@heroicons/react/24/(solid|outline)/esm/.*$': '<rootDir>/__mocks__/heroicons/24/$1.js',
       '^@heroicons/react/(.*)$': '<rootDir>/__mocks__/heroicons/$1.js',
     },
   };
