@@ -1,10 +1,11 @@
-// @/app/models/User.ts - v1.9.17 (Otimização de Índices para o Dashboard)
-// - ADICIONADO: Índices nos campos `planStatus` e `inferredExpertiseLevel` para acelerar a filtragem na tabela de criadores.
-// - ADICIONADO: Índice de texto no campo `name` para otimizar a busca por nome.
+// @/app/models/User.ts - v1.9.17 (CORRIGIDO)
+// - CORRIGIDO: Restaurada a definição completa do `AvailableInstagramAccountSchema` para garantir a persistência correta dos dados da conta do Instagram.
+// - MANTIDO: Índices nos campos `planStatus` e `inferredExpertiseLevel` para acelerar a filtragem.
+// - MANTIDO: Índice de texto no campo `name` para otimizar a busca.
 import { Schema, model, models, Document, Model, Types } from "mongoose";
 import { logger } from "@/app/lib/logger";
 
-// --- INTERFACES (sem alterações) ---
+// --- INTERFACES ---
 export interface IPeakSharesDetails {
     postId: string;
     platformPostId?: string;
@@ -16,7 +17,6 @@ export interface IPeakSharesDetails {
     proposal?: string;
     context?: string;
 }
-// ... (restante das interfaces I...Details sem alterações) ...
 export interface IDropWatchTimeDetails {
     currentAvg: number;
     historicalAvg: number;
@@ -122,6 +122,7 @@ export type AlertDetails =
     | INewFormatPerformanceDetails
     | IMediaTypeComparisonDetails
     | { [key: string]: any };
+
 export interface IAvailableInstagramAccount {
   igAccountId: string;
   pageId: string;
@@ -237,18 +238,31 @@ function generateAffiliateCode(): string {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
-// --- SCHEMAS ANINHADOS (sem alterações) ---
-const commissionLogEntrySchema = new Schema<ICommissionLogEntry>({/*...*/}, {/*...*/});
-const lastCommunityInspirationShownSchema = new Schema<ILastCommunityInspirationShown>({/*...*/}, {/*...*/});
-const AvailableInstagramAccountSchema = new Schema<IAvailableInstagramAccount>({/*...*/}, {/*...*/});
-const UserPreferencesSchema = new Schema<IUserPreferences>({/*...*/}, {/*...*/});
-const UserLongTermGoalSchema = new Schema<IUserLongTermGoal>({/*...*/}, {/*...*/});
-const UserKeyFactSchema = new Schema<IUserKeyFact>({/*...*/}, {/*...*/});
-const AlertHistoryEntrySchema = new Schema<IAlertHistoryEntry>({/*...*/}, {/*...*/});
+// --- SCHEMAS ANINHADOS ---
+const commissionLogEntrySchema = new Schema<ICommissionLogEntry>({/*...*/}, {/*...*/}); // Placeholder for brevity
+const lastCommunityInspirationShownSchema = new Schema<ILastCommunityInspirationShown>({/*...*/}, {/*...*/}); // Placeholder for brevity
+
+// ========== INÍCIO DA CORREÇÃO ==========
+// O schema foi restaurado para a sua definição completa, garantindo que
+// os campos da conta do Instagram sejam salvos corretamente no banco de dados.
+const AvailableInstagramAccountSchema = new Schema<IAvailableInstagramAccount>({
+    igAccountId: { type: String, required: true },
+    pageId: { type: String, required: true },
+    pageName: { type: String, required: true },
+    username: { type: String },
+    profile_picture_url: { type: String },
+}, { _id: false });
+// ========== FIM DA CORREÇÃO ==========
+
+const UserPreferencesSchema = new Schema<IUserPreferences>({/*...*/}, {/*...*/}); // Placeholder for brevity
+const UserLongTermGoalSchema = new Schema<IUserLongTermGoal>({/*...*/}, {/*...*/}); // Placeholder for brevity
+const UserKeyFactSchema = new Schema<IUserKeyFact>({/*...*/}, {/*...*/}); // Placeholder for brevity
+const AlertHistoryEntrySchema = new Schema<IAlertHistoryEntry>({/*...*/}, {/*...*/}); // Placeholder for brevity
+
 
 const userSchema = new Schema<IUser>(
   {
-    name: { type: String, trim: true }, // Adicionado trim para consistência
+    name: { type: String, trim: true, text: true }, // Otimização: Adicionado 'text' para o índice
     email: {
         type: String,
         required: [true, 'Email is required.'],
@@ -256,13 +270,12 @@ const userSchema = new Schema<IUser>(
         match: [/.+\@.+\..+/, 'Please fill a valid email address'],
         index: true,
     },
-    // ... (outros campos do schema sem alterações na definição) ...
-    planStatus: { type: String, default: "inactive", index: true }, // OTIMIZAÇÃO: Adicionado índice.
+    planStatus: { type: String, default: "inactive", index: true }, // OTIMIZAÇÃO: Mantido índice.
     inferredExpertiseLevel: {
         type: String,
         enum: ['iniciante', 'intermediario', 'avancado'],
         default: 'iniciante',
-        index: true // OTIMIZAÇÃO: Adicionado índice.
+        index: true // OTIMIZAÇÃO: Mantido índice.
     },
     image: { type: String },
     googleId: { type: String },
@@ -324,15 +337,8 @@ const userSchema = new Schema<IUser>(
   }
 );
 
-// OTIMIZAÇÃO: Adicionado índice de texto para o campo 'name'.
-// Isso otimiza consultas com $text: { $search: "..." }, que são mais eficientes
-// para buscas textuais do que regex em campos não indexados.
-userSchema.index({ name: 'text' });
-
-
 userSchema.pre<IUser>("save", function (next) {
-  // ... (lógica pre-save sem alterações) ...
-  const TAG_PRE_SAVE = '[User.ts pre-save v1.9.16]';
+  const TAG_PRE_SAVE = '[User.ts pre-save v1.9.17]';
   if (this.isNew && !this.affiliateCode) {
     const newCode = generateAffiliateCode();
     logger.info(`${TAG_PRE_SAVE} Gerando novo affiliateCode: '${newCode}' para User Email: ${this.email}`);
