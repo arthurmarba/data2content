@@ -113,7 +113,7 @@ export default function WhatsAppPanel({
 
     const encodedText = encodeURIComponent(text);
     // Sugestão: Mover para uma variável de ambiente, ex: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER
-    const whatsAppNumber = "15551767209";
+    const whatsAppNumber = "552120380975";
     const link = `https://wa.me/${whatsAppNumber}?text=${encodedText}`;
     window.open(link, "_blank");
   }
