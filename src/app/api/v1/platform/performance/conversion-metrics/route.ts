@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { ALLOWED_TIME_PERIODS } from '@/app/lib/constants/timePeriods';
+import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
 import { fetchPlatformConversionMetrics } from '@/app/lib/dataService/marketAnalysisService';
 
@@ -12,15 +12,11 @@ interface PlatformConversionMetricsResponse {
   followersGainedInPeriod: number;
 }
 
-// Helper para converter timePeriod string para periodInDays number (pode ser compartilhado)
-// function timePeriodToDays(timePeriod: string): number {
-//     switch (timePeriod) {
-//         case "last_7_days": return 7;
-//         case "last_30_days": return 30;
-//         // ... etc.
-//         default: return 90;
-//     }
-// }
+// CORREÇÃO: Função de verificação de tipo (type guard) para validar o parâmetro
+function isAllowedTimePeriod(period: any): period is TimePeriod {
+    return ALLOWED_TIME_PERIODS.includes(period);
+}
+
 
 export async function GET(
   request: Request
@@ -28,11 +24,12 @@ export async function GET(
   const { searchParams } = new URL(request.url);
   const timePeriodParam = searchParams.get('timePeriod');
 
-  const timePeriod = timePeriodParam && ALLOWED_TIME_PERIODS.includes(timePeriodParam)
+  // CORREÇÃO: Usa a função de verificação de tipo para validar e inferir o tipo correto.
+  const timePeriod: TimePeriod = isAllowedTimePeriod(timePeriodParam)
     ? timePeriodParam
     : "last_90_days"; // Default
 
-  if (timePeriodParam && !ALLOWED_TIME_PERIODS.includes(timePeriodParam)) {
+  if (timePeriodParam && !isAllowedTimePeriod(timePeriodParam)) {
     return NextResponse.json({ error: `Time period inválido. Permitidos: ${ALLOWED_TIME_PERIODS.join(', ')}` }, { status: 400 });
   }
 
@@ -49,4 +46,3 @@ export async function GET(
     return NextResponse.json({ error: 'Erro ao processar sua solicitação de métricas de conversão da plataforma.', details: errorMessage }, { status: 500 });
   }
 }
-

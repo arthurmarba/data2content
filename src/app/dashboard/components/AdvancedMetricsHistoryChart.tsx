@@ -11,6 +11,7 @@ import {
   Tooltip,
   Legend,
   ChartData,
+  ChartDataset,
 } from "chart.js";
 import { useSession } from "next-auth/react";
 
@@ -86,10 +87,18 @@ const AdvancedMetricsHistoryChart: React.FC<AdvancedMetricsHistoryChartProps> = 
 
   const labels = Object.values(history)[0]?.labels || [];
 
-  const datasets = selectedMetrics.flatMap((metricKey, idx) => {
+  const datasets: ChartDataset<"line", number[]>[] = selectedMetrics.flatMap((metricKey, idx) => {
     const entry = history[metricKey];
-    if (!entry || entry.datasets.length === 0) return [];
+    if (!entry || !entry.datasets || entry.datasets.length === 0) {
+        return [];
+    }
+    
+    // CORREÇÃO: Adicionada uma verificação para garantir que 'ds' não é indefinido.
     const ds = entry.datasets[0];
+    if (!ds) {
+        return [];
+    }
+
     return [
       {
         ...ds,
@@ -146,4 +155,3 @@ const AdvancedMetricsHistoryChart: React.FC<AdvancedMetricsHistoryChartProps> = 
 };
 
 export default AdvancedMetricsHistoryChart;
-

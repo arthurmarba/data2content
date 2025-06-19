@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import MetricModel from '@/app/models/Metric'; // Descomente para implementação real
-import { ALLOWED_TIME_PERIODS } from '@/app/lib/constants/timePeriods';
+import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 // Defina FormatType localmente se o módulo não existir
 export enum FormatType {
   IMAGE = "IMAGE",
@@ -9,8 +9,7 @@ export enum FormatType {
   CAROUSEL_ALBUM = "CAROUSEL_ALBUM",
   // Adicione outros tipos conforme necessário
 }
-// import { FormatType } from '@/app/models/FormatType'; // Corrija o caminho e a forma de importação conforme sua definição real
-import { getStartDateFromTimePeriod } from '@/utils/dateHelpers'; // Descomente para implementação real
+import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
 
 // Tipos de dados para a resposta
 interface PostDistributionDataPoint {
@@ -31,11 +30,15 @@ const DEFAULT_FORMAT_MAPPING: { [key: string]: string } = {
   [FormatType.VIDEO]: "Vídeo",
   [FormatType.REEL]: "Reel",
   [FormatType.CAROUSEL_ALBUM]: "Carrossel",
-  // Adicionar outros FormatType aqui se existirem
-  "TEXT": "Texto", // Exemplo se houver um formato 'TEXT'
+  "TEXT": "Texto",
   "UNKNOWN": "Desconhecido"
 };
 const DEFAULT_MAX_SLICES = 7; // Default para o gráfico de pizza/donut
+
+// --- Função de verificação de tipo (Type Guard) ---
+function isAllowedTimePeriod(period: any): period is TimePeriod {
+    return ALLOWED_TIME_PERIODS.includes(period);
+}
 
 
 export async function GET(
@@ -45,7 +48,8 @@ export async function GET(
   const timePeriodParam = searchParams.get('timePeriod');
   const maxSlicesParam = searchParams.get('maxSlices');
 
-  const timePeriod = timePeriodParam && ALLOWED_TIME_PERIODS.includes(timePeriodParam)
+  // CORREÇÃO: Usa a função de verificação de tipo para validar e inferir o tipo correto.
+  const timePeriod: TimePeriod = isAllowedTimePeriod(timePeriodParam)
     ? timePeriodParam
     : "last_90_days";
 
@@ -59,7 +63,7 @@ export async function GET(
     }
   }
 
-  if (timePeriodParam && !ALLOWED_TIME_PERIODS.includes(timePeriodParam)) {
+  if (timePeriodParam && !isAllowedTimePeriod(timePeriodParam)) {
     return NextResponse.json({ error: `Time period inválido. Permitidos: ${ALLOWED_TIME_PERIODS.join(', ')}` }, { status: 400 });
   }
 
@@ -68,9 +72,7 @@ export async function GET(
     const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
     const startDate = getStartDateFromTimePeriod(today, timePeriod);
 
-    const queryConditions: any = {
-        // TODO: Adicionar filtro para apenas usuários ativos da plataforma, se necessário
-    };
+    const queryConditions: any = {};
     if (timePeriod !== "all_time") {
       queryConditions.postDate = { $gte: startDate, $lte: endDate };
     }
@@ -92,7 +94,7 @@ export async function GET(
     const grandTotalPosts = aggregationResult.reduce((sum, item) => sum + item.count, 0);
 
     let tempChartData: PostDistributionDataPoint[] = aggregationResult.map(item => {
-      const formatKey = item._id as string || "UNKNOWN"; // Lidar com formatos nulos/undefined do DB
+      const formatKey = item._id as string || "UNKNOWN";
       const formatName = DEFAULT_FORMAT_MAPPING[formatKey] || formatKey.toString().replace(/_/g, ' ').toLocaleLowerCase().replace(/\b\w/g, l => l.toUpperCase());
       return {
         name: formatName,
@@ -135,4 +137,3 @@ export async function GET(
     return NextResponse.json({ error: "Erro ao processar sua solicitação.", details: errorMessage }, { status: 500 });
   }
 }
-

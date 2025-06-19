@@ -1,25 +1,29 @@
 import { NextResponse } from 'next/server';
-import UserModel from '@/app/models/User'; // Importar UserModel
-import getFollowerTrendChartData from '@/charts/getFollowerTrendChartData'; // Ajuste o caminho
+import UserModel from '@/app/models/User';
+import getFollowerTrendChartData from '@/charts/getFollowerTrendChartData';
 import { connectToDatabase } from '@/app/lib/mongoose';
-import { logger } from '@/app/lib/logger'; // Added
-import { Types } from 'mongoose'; // Para ObjectId, se necessário para UserModel
-import { ALLOWED_TIME_PERIODS } from '@/app/lib/constants/timePeriods';
+import { logger } from '@/app/lib/logger';
+import { Types } from 'mongoose';
+import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 
-// Tipos para os dados da API (reutilizar do chart individual)
+// Tipos para os dados da API
 interface ApiChartDataPoint {
   date: string;
   value: number | null;
 }
 
-// Defina a interface FollowerTrendChartResponse conforme esperado pela resposta
+// CORREÇÃO: A propriedade insightSummary foi tornada opcional.
 interface FollowerTrendChartResponse {
   chartData: ApiChartDataPoint[];
-  insightSummary: string;
+  insightSummary?: string;
 }
 
-// Definir aqui os tipos permitidos para timePeriod e granularity se quiser validação estrita
 const ALLOWED_GRANULARITIES: string[] = ["daily", "monthly"];
+
+// --- Função de verificação de tipo (Type Guard) ---
+function isAllowedTimePeriod(period: any): period is TimePeriod {
+    return ALLOWED_TIME_PERIODS.includes(period);
+}
 
 export async function GET(
   request: Request,
@@ -28,7 +32,7 @@ export async function GET(
   const timePeriodParam = searchParams.get('timePeriod');
   const granularityParam = searchParams.get('granularity');
 
-  const timePeriod = timePeriodParam && ALLOWED_TIME_PERIODS.includes(timePeriodParam)
+  const timePeriod: TimePeriod = isAllowedTimePeriod(timePeriodParam)
     ? timePeriodParam
     : "last_30_days";
 
@@ -36,7 +40,7 @@ export async function GET(
     ? granularityParam as "daily" | "monthly"
     : "daily";
 
-  if (timePeriodParam && !ALLOWED_TIME_PERIODS.includes(timePeriodParam)) {
+  if (timePeriodParam && !isAllowedTimePeriod(timePeriodParam)) {
     return NextResponse.json({ error: `Time period inválido. Permitidos: ${ALLOWED_TIME_PERIODS.join(', ')}` }, { status: 400 });
   }
   if (granularityParam && !ALLOWED_GRANULARITIES.includes(granularityParam)) {
@@ -48,7 +52,7 @@ export async function GET(
     // 1. Buscar apenas os usuários da plataforma que estejam ativos
     const platformUsers = await UserModel.find({
         planStatus: 'active',
-    }).select('_id').lean(); // Pegar apenas IDs dos usuários ativos
+    }).select('_id').lean();
 
     if (!platformUsers || platformUsers.length === 0) {
       return NextResponse.json({
@@ -74,22 +78,18 @@ export async function GET(
 
     // 3. Agregar os Resultados
     const aggregatedFollowersByDate = new Map<string, number>();
-    // let minDateFound: string | null = null; // Para normalizar o eixo X se necessário
-    // let maxDateFound: string | null = null;
 
     userTrendResults.forEach(result => {
-      if (result.status === 'fulfilled' && result.value.chartData) {
+      // CORREÇÃO: Adicionada verificação para a existência de `result.value`
+      if (result.status === 'fulfilled' && result.value && result.value.chartData) {
         result.value.chartData.forEach(dataPoint => {
-          if (dataPoint.value !== null && dataPoint.date) { // Checar se dataPoint.date é válido
+          if (dataPoint.value !== null && dataPoint.date) {
             const currentTotal = aggregatedFollowersByDate.get(dataPoint.date) || 0;
             aggregatedFollowersByDate.set(dataPoint.date, currentTotal + dataPoint.value);
-
-            // if (minDateFound === null || dataPoint.date < minDateFound) minDateFound = dataPoint.date;
-            // if (maxDateFound === null || dataPoint.date > maxDateFound) maxDateFound = dataPoint.date;
           }
         });
       } else if (result.status === 'rejected') {
-        logger.error(`Erro ao buscar dados de tendência para um usuário durante agregação da plataforma:`, result.reason); // Replaced console.error
+        logger.error(`Erro ao buscar dados de tendência para um usuário durante agregação da plataforma:`, result.reason);
       }
     });
 
@@ -101,13 +101,9 @@ export async function GET(
     }
 
     // 4. Formatar Dados Agregados para Resposta
-    // A função getFollowerTrendChartData já preenche os dias/meses para cada usuário.
-    // A agregação aqui vai somar os valores para cada data/mês que tiver dados de pelo menos um usuário.
-    // Se todos os usuários tiverem séries completas, a série agregada também será completa.
-    // Se alguns usuários não tiverem dados em certos pontos, esses pontos terão a soma dos que têm.
     const platformChartData: ApiChartDataPoint[] = Array.from(aggregatedFollowersByDate.entries())
         .map(([date, totalFollowers]) => ({ date: date, value: totalFollowers }))
-        .sort((a, b) => a.date.localeCompare(b.date)); // Ordenar por data
+        .sort((a, b) => a.date.localeCompare(b.date));
 
 
     // 5. Gerar insightSummary para a Plataforma
@@ -124,7 +120,6 @@ export async function GET(
       ) {
           const platformAbsoluteGrowth = lastDataPoint.value - firstDataPoint.value;
           const periodText = timePeriod.replace("last_", "últimos ").replace("_days", " dias").replace("_months", " meses");
-          // Corrigir para "all_time"
           const displayTimePeriod = (timePeriod === "all_time") ? "todo o período" : `nos ${periodText}`;
 
 
@@ -143,7 +138,7 @@ export async function GET(
     }
 
 
-    const response: FollowerTrendChartResponse = { // Usando a mesma interface do individual
+    const response: FollowerTrendChartResponse = {
       chartData: platformChartData,
       insightSummary: platformInsightSummary,
     };
@@ -151,9 +146,8 @@ export async function GET(
     return NextResponse.json(response, { status: 200 });
 
   } catch (error) {
-    logger.error(`[API PLATFORM/TRENDS/FOLLOWERS] Error aggregating platform follower trend:`, error); // Replaced console.error
+    logger.error(`[API PLATFORM/TRENDS/FOLLOWERS] Error aggregating platform follower trend:`, error);
     const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
     return NextResponse.json({ error: "Erro ao processar sua solicitação.", details: errorMessage }, { status: 500 });
   }
 }
-

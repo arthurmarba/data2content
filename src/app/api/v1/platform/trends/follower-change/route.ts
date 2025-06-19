@@ -3,7 +3,7 @@ import UserModel from '@/app/models/User';
 import getFollowerDailyChangeData from '@/charts/getFollowerDailyChangeData';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import { logger } from '@/app/lib/logger';
-import { ALLOWED_TIME_PERIODS } from '@/app/lib/constants/timePeriods';
+import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 
 
 interface ApiChangePoint {
@@ -11,19 +11,26 @@ interface ApiChangePoint {
   change: number | null;
 }
 
+// CORREÇÃO: A propriedade insightSummary foi tornada opcional para corresponder ao tipo de retorno de getFollowerDailyChangeData.
 interface FollowerChangeResponse {
   chartData: ApiChangePoint[];
-  insightSummary: string;
+  insightSummary?: string;
+}
+
+// --- Função de verificação de tipo (Type Guard) ---
+function isAllowedTimePeriod(period: any): period is TimePeriod {
+    return ALLOWED_TIME_PERIODS.includes(period);
 }
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const timePeriodParam = searchParams.get('timePeriod');
-  const timePeriod = timePeriodParam && ALLOWED_TIME_PERIODS.includes(timePeriodParam)
+
+  const timePeriod: TimePeriod = isAllowedTimePeriod(timePeriodParam)
     ? timePeriodParam
     : 'last_30_days';
 
-  if (timePeriodParam && !ALLOWED_TIME_PERIODS.includes(timePeriodParam)) {
+  if (timePeriodParam && !isAllowedTimePeriod(timePeriodParam)) {
     return NextResponse.json({ error: `Time period inválido. Permitidos: ${ALLOWED_TIME_PERIODS.join(', ')}` }, { status: 400 });
   }
 
@@ -47,14 +54,14 @@ export async function GET(request: Request) {
 
     const aggregatedByDate = new Map<string, number>();
     results.forEach(r => {
-      if (r.status === 'fulfilled') {
+      if (r.status === 'fulfilled' && r.value) { // Garante que r.value existe
         r.value.chartData.forEach(p => {
           if (p.change !== null) {
             const curr = aggregatedByDate.get(p.date) || 0;
             aggregatedByDate.set(p.date, curr + p.change);
           }
         });
-      } else {
+      } else if (r.status === 'rejected') {
         logger.error('Erro ao buscar mudança de seguidores para um usuário:', r.reason);
       }
     });

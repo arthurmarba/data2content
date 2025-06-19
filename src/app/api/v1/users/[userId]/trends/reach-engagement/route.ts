@@ -2,12 +2,27 @@ import { NextResponse } from 'next/server';
 import getReachEngagementTrendChartData from '@/charts/getReachEngagementTrendChartData';
 import getReachInteractionTrendChartData from '@/charts/getReachInteractionTrendChartData';
 import { Types } from 'mongoose';
-import { ALLOWED_TIME_PERIODS } from '@/app/lib/constants/timePeriods';
+import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 
-type ReachEngagementChartResponse = any;
+// CORREÇÃO: Tipos específicos foram definidos para a resposta da API.
+interface ApiReachEngagementDataPoint {
+  date: string;
+  reach: number | null;
+  engagedUsers: number | null;
+}
 
-// Reutilizar as constantes de validação ou definir específicas se necessário
+interface ReachEngagementChartResponse {
+  chartData: ApiReachEngagementDataPoint[];
+  insightSummary?: string;
+}
+
+
 const ALLOWED_GRANULARITIES: string[] = ["daily", "weekly"];
+
+// --- Função de verificação de tipo (Type Guard) ---
+function isAllowedTimePeriod(period: any): period is TimePeriod {
+    return ALLOWED_TIME_PERIODS.includes(period);
+}
 
 export async function GET(
   request: Request,
@@ -23,16 +38,15 @@ export async function GET(
   const timePeriodParam = searchParams.get('timePeriod');
   const granularityParam = searchParams.get('granularity');
 
-  // Fornecer valores padrão e validar
-  const timePeriod = timePeriodParam && ALLOWED_TIME_PERIODS.includes(timePeriodParam)
+  const timePeriod: TimePeriod = isAllowedTimePeriod(timePeriodParam)
     ? timePeriodParam
-    : "last_30_days"; // Default time period
+    : "last_30_days";
 
   const granularity = granularityParam && ALLOWED_GRANULARITIES.includes(granularityParam)
     ? granularityParam as "daily" | "weekly"
-    : "daily"; // Default granularity
+    : "daily";
 
-  if (timePeriodParam && !ALLOWED_TIME_PERIODS.includes(timePeriodParam)) {
+  if (timePeriodParam && !isAllowedTimePeriod(timePeriodParam)) {
     return NextResponse.json({ error: `Time period inválido. Permitidos: ${ALLOWED_TIME_PERIODS.join(', ')}` }, { status: 400 });
   }
   if (granularityParam && !ALLOWED_GRANULARITIES.includes(granularityParam)) {
@@ -66,4 +80,3 @@ export async function GET(
     return NextResponse.json({ error: "Erro ao processar sua solicitação.", details: errorMessage }, { status: 500 });
   }
 }
-

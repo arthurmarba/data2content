@@ -1,24 +1,29 @@
 import { NextResponse } from 'next/server';
-import UserModel from '@/app/models/User'; // Importar UserModel
+import UserModel from '@/app/models/User';
 import getReachEngagementTrendChartData from '@/charts/getReachEngagementTrendChartData';
 import getReachInteractionTrendChartData from '@/charts/getReachInteractionTrendChartData';
 import { connectToDatabase } from '@/app/lib/mongoose';
-import { ALLOWED_TIME_PERIODS } from '@/app/lib/constants/timePeriods';
-
-interface ReachEngagementChartResponse {
-  chartData: ApiReachEngagementDataPoint[];
-  insightSummary: string;
-}
+import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 import { Types } from 'mongoose';
 
-// Tipos para os dados da API (reutilizar do chart individual)
+// Tipos para os dados da API
 interface ApiReachEngagementDataPoint {
   date: string;
   reach: number | null;
   engagedUsers: number | null;
 }
 
+interface ReachEngagementChartResponse {
+  chartData: ApiReachEngagementDataPoint[];
+  insightSummary: string;
+}
+
 const ALLOWED_GRANULARITIES: string[] = ["daily", "weekly"];
+
+// --- Função de verificação de tipo (Type Guard) ---
+function isAllowedTimePeriod(period: any): period is TimePeriod {
+    return ALLOWED_TIME_PERIODS.includes(period);
+}
 
 export async function GET(
   request: Request,
@@ -27,7 +32,8 @@ export async function GET(
   const timePeriodParam = searchParams.get('timePeriod');
   const granularityParam = searchParams.get('granularity');
 
-  const timePeriod = timePeriodParam && ALLOWED_TIME_PERIODS.includes(timePeriodParam)
+  // CORREÇÃO: Usa a função de verificação de tipo para validar e inferir o tipo correto.
+  const timePeriod: TimePeriod = isAllowedTimePeriod(timePeriodParam)
     ? timePeriodParam
     : "last_30_days";
 
@@ -35,7 +41,7 @@ export async function GET(
     ? granularityParam as "daily" | "weekly"
     : "daily";
 
-  if (timePeriodParam && !ALLOWED_TIME_PERIODS.includes(timePeriodParam)) {
+  if (timePeriodParam && !isAllowedTimePeriod(timePeriodParam)) {
     return NextResponse.json({ error: `Time period inválido. Permitidos: ${ALLOWED_TIME_PERIODS.join(', ')}` }, { status: 400 });
   }
   if (granularityParam && !ALLOWED_GRANULARITIES.includes(granularityParam)) {
@@ -46,7 +52,7 @@ export async function GET(
     await connectToDatabase();
     // 1. Buscar Usuários da Plataforma
     const platformUsers = await UserModel.find({
-      // TODO: Adicionar critérios para usuários ativos
+      planStatus: 'active'
     }).select('_id').limit(10).lean(); // Limitar para teste
 
     if (!platformUsers || platformUsers.length === 0) {
@@ -76,9 +82,9 @@ export async function GET(
     userTrendResults.forEach(result => {
       if (result.status === 'fulfilled' && result.value.chartData) {
         result.value.chartData.forEach(dataPoint => {
-          if (dataPoint.date) { // Checar se dataPoint.date é válido
+          if (dataPoint.date) {
             const currentData = aggregatedDataByDate.get(dataPoint.date) || { reach: 0, engagedUsers: 0 };
-            currentData.reach += dataPoint.reach || 0; // Somar, tratando null como 0
+            currentData.reach += dataPoint.reach || 0;
             currentData.engagedUsers += dataPoint.engagedUsers || 0;
             aggregatedDataByDate.set(dataPoint.date, currentData);
           }
@@ -109,7 +115,6 @@ export async function GET(
     if (platformChartData.length > 0) {
       const totalReach = platformChartData.reduce((sum, p) => sum + (p.reach || 0), 0);
       const totalEngaged = platformChartData.reduce((sum, p) => sum + (p.engagedUsers || 0), 0);
-      // Calcular média apenas com pontos que têm dados pode ser mais representativo
       const validPointsForAvg = platformChartData.filter(p => p.reach !== null || p.engagedUsers !== null);
       const avgReach = validPointsForAvg.length > 0 ? platformChartData.reduce((sum, p) => sum + (p.reach || 0), 0) / validPointsForAvg.length : 0;
       const avgEngaged = validPointsForAvg.length > 0 ? platformChartData.reduce((sum, p) => sum + (p.engagedUsers || 0), 0) / validPointsForAvg.length : 0;
@@ -140,4 +145,3 @@ export async function GET(
     return NextResponse.json({ error: "Erro ao processar sua solicitação.", details: errorMessage }, { status: 500 });
   }
 }
-

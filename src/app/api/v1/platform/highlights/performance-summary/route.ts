@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { camelizeKeys } from '@/utils/camelizeKeys';
-import { ALLOWED_TIME_PERIODS } from '@/app/lib/constants/timePeriods';
+import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 // Para implementação real, seriam necessárias funções de agregação da plataforma
 // que determinariam o top/low formato/contexto em nível de plataforma.
 // Ex: import { getPlatformTopPerformingFormat, ... } from '@/utils/platformMetricsHelpers';
@@ -33,6 +33,11 @@ function formatPerformanceValue(value: number, metricFieldId: string): string {
     return value.toFixed(0);
 }
 
+// CORREÇÃO: Função de verificação de tipo (type guard) para validar o parâmetro
+function isAllowedTimePeriod(period: any): period is TimePeriod {
+    return ALLOWED_TIME_PERIODS.includes(period);
+}
+
 
 export async function GET(
   request: Request
@@ -41,11 +46,12 @@ export async function GET(
   const timePeriodParam = searchParams.get('timePeriod');
   // const performanceMetricFieldParam = searchParams.get('performanceMetricField'); // Opcional
 
-  const timePeriod = timePeriodParam && ALLOWED_TIME_PERIODS.includes(timePeriodParam)
+  // CORREÇÃO: Usa a função de verificação de tipo para validar e inferir o tipo correto.
+  const timePeriod: TimePeriod = isAllowedTimePeriod(timePeriodParam)
     ? timePeriodParam
     : "last_90_days"; // Default
 
-  if (timePeriodParam && !ALLOWED_TIME_PERIODS.includes(timePeriodParam)) {
+  if (timePeriodParam && !isAllowedTimePeriod(timePeriodParam)) {
     return NextResponse.json({ error: `Time period inválido. Permitidos: ${ALLOWED_TIME_PERIODS.join(', ')}` }, { status: 400 });
   }
 
@@ -131,4 +137,3 @@ export async function GET(
   //   return NextResponse.json({ error: "Erro ao processar sua solicitação de destaques de performance da plataforma.", details: errorMessage }, { status: 500 });
   // }
 }
-

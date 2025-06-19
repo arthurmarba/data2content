@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
 import getFollowerTrendChartData from '@/charts/getFollowerTrendChartData'; // Ajuste o caminho
 import { Types } from 'mongoose';
-import { ALLOWED_TIME_PERIODS } from '@/app/lib/constants/timePeriods';
+import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 
 const ALLOWED_GRANULARITIES: string[] = ["daily", "monthly"];
+
+// --- Função de verificação de tipo (Type Guard) ---
+function isAllowedTimePeriod(period: any): period is TimePeriod {
+    return ALLOWED_TIME_PERIODS.includes(period);
+}
 
 export async function GET(
   request: Request,
@@ -19,8 +24,8 @@ export async function GET(
   const timePeriodParam = searchParams.get('timePeriod');
   const granularityParam = searchParams.get('granularity');
 
-  // Fornecer valores padrão e validar
-  const timePeriod = timePeriodParam && ALLOWED_TIME_PERIODS.includes(timePeriodParam)
+  // CORREÇÃO: Usa a função de verificação de tipo para validar e inferir o tipo correto.
+  const timePeriod: TimePeriod = isAllowedTimePeriod(timePeriodParam)
     ? timePeriodParam
     : "last_30_days";
 
@@ -28,8 +33,8 @@ export async function GET(
     ? granularityParam as "daily" | "monthly"
     : "daily";
 
-  // Validação explícita dos parâmetros após default (opcional, mas bom para clareza se o default não for um valor permitido)
-  if (timePeriodParam && !ALLOWED_TIME_PERIODS.includes(timePeriodParam)) {
+  // Validação explícita dos parâmetros
+  if (timePeriodParam && !isAllowedTimePeriod(timePeriodParam)) {
     return NextResponse.json({ error: `Time period inválido. Permitidos: ${ALLOWED_TIME_PERIODS.join(', ')}` }, { status: 400 });
   }
   if (granularityParam && !ALLOWED_GRANULARITIES.includes(granularityParam)) {
@@ -37,8 +42,6 @@ export async function GET(
   }
 
   try {
-    // A conversão para ObjectId é feita dentro de getFollowerTrendChartData se necessário,
-    // mas já validamos o formato do userId aqui.
     const data = await getFollowerTrendChartData(
       userId,
       timePeriod,
@@ -54,22 +57,7 @@ export async function GET(
 
   } catch (error) {
     console.error(`[API TRENDS/FOLLOWERS] Error fetching follower trend data for userId ${userId}:`, error);
-    // Verificar se o erro é do tipo Error para acessar error.message
     const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
     return NextResponse.json({ error: "Erro ao processar sua solicitação.", details: errorMessage }, { status: 500 });
   }
 }
-
-// Adicionar um handler para OPTIONS se necessário para CORS em alguns ambientes,
-// embora para App Router geralmente não seja preciso configurar manualmente para same-origin.
-// export async function OPTIONS(request: Request) {
-//   return new NextResponse(null, {
-//     status: 204,
-//     headers: {
-//       'Access-Control-Allow-Origin': '*', // Ou seu domínio específico
-//       'Access-Control-Allow-Methods': 'GET, OPTIONS',
-//       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-//     },
-//   });
-// }
-

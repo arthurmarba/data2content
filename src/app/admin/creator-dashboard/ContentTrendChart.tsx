@@ -56,11 +56,16 @@ const ContentTrendChart: React.FC<ContentTrendChartProps> = ({ postId }) => {
       }
       const json: PostDetailResponse = await res.json();
       setMeta({ format: json.format, proposal: json.proposal, context: json.context });
-      const snapshots: DailySnapshot[] = (json.dailySnapshots || []).map((s, idx) => ({
-        ...s,
-        date: s.date ? new Date(s.date) : undefined,
-        dayNumber: typeof s.dayNumber === 'number' ? s.dayNumber : idx + 1,
+
+      // CORREÇÃO: Filtra snapshots sem data e garante que a data seja um objeto Date.
+      const snapshots: DailySnapshot[] = (json.dailySnapshots || [])
+        .filter(s => s.date) // Garante que apenas snapshots com uma data prossigam
+        .map((s, idx) => ({
+          ...s,
+          date: new Date(s.date), // Agora s.date tem a garantia de existir
+          dayNumber: typeof s.dayNumber === 'number' ? s.dayNumber : idx + 1,
       }));
+
       setData(snapshots);
     } catch (e: any) {
       setError(e.message);

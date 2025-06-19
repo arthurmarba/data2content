@@ -1,4 +1,3 @@
-// jest.config.js
 const nextJest = require('next/jest');
 
 const createJestConfig = nextJest({
@@ -9,19 +8,19 @@ const createJestConfig = nextJest({
 // Adicione qualquer configuração personalizada que deseja passar para o Jest
 const customJestConfig = {
   testEnvironment: 'jsdom',
-  // Se você estiver usando @testing-library/jest-dom, descomente a linha abaixo
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
     moduleNameMapper: {
-      // Mapeamentos para mocks e alias (mantemos o que já tínhamos)
+      // --- CORREÇÃO APLICADA AQUI ---
+      // Adicionado para lidar com a importação otimizada de lucide-react pelo Next.js
+      '^modularize-import-loader\\?name=([a-zA-Z0-9_-]+)&from=default&as=default&join=../esm/icons/([a-zA-Z0-9_-]+)!lucide-react$': '<rootDir>/__mocks__/lucide-react.js',
+      
+      // Mapeamentos existentes
       '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
       '\\.(gif|ttf|eot|svg|png)$': '<rootDir>/__mocks__/fileMock.js',
       '^@/app/(.*)$': '<rootDir>/src/app/$1',
-      // Alguns ícones são importados a partir dos módulos ESM individuais,
-      // mapeamos esses caminhos diretamente para os mocks genéricos
       '^@heroicons/react/24/(solid|outline)/esm/.*$': '<rootDir>/__mocks__/heroicons/24/$1.js',
       '^@heroicons/react/(.*)$': '<rootDir>/__mocks__/heroicons/$1.js',
     },
   };
 
-// createJestConfig é exportado desta forma para garantir que o next/jest possa carregar a configuração do Next.js, que é assíncrona
 module.exports = createJestConfig(customJestConfig);

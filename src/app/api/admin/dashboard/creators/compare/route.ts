@@ -53,7 +53,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const session = await getAdminSession(req);
-    if (!session) {
+    // CORREÇÃO: Adicionada verificação explícita para session.user.
+    if (!session || !session.user) {
       return apiError('Acesso não autorizado.', 401);
     }
     logger.info(`${TAG} Sessão de admin validada para o utilizador: ${session.user.name}`);

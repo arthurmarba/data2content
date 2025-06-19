@@ -61,7 +61,8 @@ export async function GET(req: NextRequest, { params }: { params: { creatorId: s
 
   try {
     const session = await getAdminSession(req);
-    if (!session) {
+    // CORREÇÃO: Adicionada verificação explícita para session.user.
+    if (!session || !session.user) {
       return apiError('Acesso não autorizado. Sessão de administrador inválida.', 401);
     }
     logger.info(`${TAG} Admin session validated for user: ${session.user.name}`);

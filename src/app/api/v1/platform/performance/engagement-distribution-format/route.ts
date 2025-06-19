@@ -3,6 +3,8 @@ import MetricModel from '@/app/models/Metric';
 import {
   ALLOWED_TIME_PERIODS,
   ALLOWED_ENGAGEMENT_METRICS,
+  TimePeriod,
+  EngagementMetricField, // CORREÇÃO: O tipo foi corrigido de EngagementMetric para EngagementMetricField
 } from '@/app/lib/constants/timePeriods';
 // Define FormatType enum locally if the import is not available
 enum FormatType {
@@ -12,8 +14,6 @@ enum FormatType {
   CAROUSEL_ALBUM = "CAROUSEL_ALBUM"
 }
 import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
-// getNestedValuePath não é necessário aqui pois usamos o caminho direto no aggregate
-// import { getNestedValuePath } from '@/utils/dataAccessHelpers';
 
 // Tipos de dados para a resposta
 interface EngagementDistributionDataPoint {
@@ -29,7 +29,7 @@ interface PlatformEngagementDistributionResponse {
 }
 
 // Constantes para validação e defaults
-const DEFAULT_ENGAGEMENT_METRIC = "stats.total_interactions";
+const DEFAULT_ENGAGEMENT_METRIC: EngagementMetricField = "stats.total_interactions";
 
 const DEFAULT_FORMAT_MAPPING: { [key: string]: string } = {
   [FormatType.IMAGE]: "Imagem",
@@ -41,6 +41,16 @@ const DEFAULT_FORMAT_MAPPING: { [key: string]: string } = {
 };
 const DEFAULT_MAX_SLICES = 7;
 
+// --- Funções de verificação de tipo (Type Guards) ---
+function isAllowedTimePeriod(period: any): period is TimePeriod {
+    return ALLOWED_TIME_PERIODS.includes(period);
+}
+
+// CORREÇÃO: O tipo foi corrigido de EngagementMetric para EngagementMetricField
+function isAllowedEngagementMetric(metric: any): metric is EngagementMetricField {
+    return ALLOWED_ENGAGEMENT_METRICS.includes(metric);
+}
+
 
 export async function GET(
   request: Request
@@ -50,11 +60,12 @@ export async function GET(
   const engagementMetricFieldParam = searchParams.get('engagementMetricField');
   const maxSlicesParam = searchParams.get('maxSlices');
 
-  const timePeriod = timePeriodParam && ALLOWED_TIME_PERIODS.includes(timePeriodParam)
+  const timePeriod: TimePeriod = isAllowedTimePeriod(timePeriodParam)
     ? timePeriodParam
     : "last_90_days";
 
-  const engagementMetricField = engagementMetricFieldParam && ALLOWED_ENGAGEMENT_METRICS.includes(engagementMetricFieldParam)
+  // CORREÇÃO: O tipo foi corrigido de EngagementMetric para EngagementMetricField
+  const engagementMetricField: EngagementMetricField = isAllowedEngagementMetric(engagementMetricFieldParam)
     ? engagementMetricFieldParam
     : DEFAULT_ENGAGEMENT_METRIC;
 
@@ -68,10 +79,11 @@ export async function GET(
     }
   }
 
-  if (timePeriodParam && !ALLOWED_TIME_PERIODS.includes(timePeriodParam)) {
+  // Validação de erro com os type guards
+  if (timePeriodParam && !isAllowedTimePeriod(timePeriodParam)) {
     return NextResponse.json({ error: `Time period inválido. Permitidos: ${ALLOWED_TIME_PERIODS.join(', ')}` }, { status: 400 });
   }
-  if (engagementMetricFieldParam && !ALLOWED_ENGAGEMENT_METRICS.includes(engagementMetricFieldParam)) {
+  if (engagementMetricFieldParam && !isAllowedEngagementMetric(engagementMetricFieldParam)) {
     return NextResponse.json({ error: `Engagement metric field inválido. Permitidos: ${ALLOWED_ENGAGEMENT_METRICS.join(', ')}` }, { status: 400 });
   }
 
@@ -80,9 +92,7 @@ export async function GET(
     const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
     const startDate = getStartDateFromTimePeriod(today, timePeriod);
 
-    const queryConditions: any = {
-        // TODO: Adicionar filtro para apenas usuários ativos da plataforma, se necessário
-    };
+    const queryConditions: any = {};
     if (timePeriod !== "all_time") {
       queryConditions.postDate = { $gte: startDate, $lte: endDate };
     }
@@ -118,7 +128,7 @@ export async function GET(
 
     let tempChartData: EngagementDistributionDataPoint[] = aggregationResult
       .map(item => {
-        const formatKey = item._id as string; // _id do $group é o format
+        const formatKey = item._id as string;
         const formatName = DEFAULT_FORMAT_MAPPING[formatKey] || formatKey.toString().replace(/_/g, ' ').toLocaleLowerCase().replace(/\b\w/g, l => l.toUpperCase());
         return {
           name: formatName,
@@ -152,13 +162,11 @@ export async function GET(
         if (firstData && firstData.name !== "Outros") {
             response.insightSummary += ` O formato com maior contribuição é ${firstData.name} (${firstData.percentage.toFixed(1)}%).`;
         } else if (finalChartData.find(item => item.name === "Outros") && finalChartData.length === 1 && firstData && firstData.name === "Outros") {
-            // Caso onde SÓ existe a fatia "Outros" (significa que todos os formatos individuais eram pequenos demais)
             response.insightSummary += ` O engajamento está distribuído entre diversos formatos menores.`;
         } else if (firstData && firstData.name === "Outros") {
              response.insightSummary += ` O engajamento está distribuído, com formatos menores agrupados em "Outros".`;
         }
     } else if (finalChartData.length === 0 && grandTotalEngagement > 0) {
-        // Caso raro: houve engajamento total, mas nenhum formato individual teve engajamento > 0 (improvável com a lógica atual)
         response.insightSummary += ` Engajamento presente mas não pode ser atribuído a formatos específicos.`;
     }
 

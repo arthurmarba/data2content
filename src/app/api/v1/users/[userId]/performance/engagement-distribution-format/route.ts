@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
-import getEngagementDistributionByFormatChartData from '@/charts/getEngagementDistributionByFormatChartData'; // Ajuste
+import getEngagementDistributionByFormatChartData from '@/charts/getEngagementDistributionByFormatChartData';
 import { Types } from 'mongoose';
-import FormatType from '@/app/models/Metric'; // Ajuste se necessário para formatMapping
+import FormatType from '@/app/models/Metric';
 import {
   ALLOWED_TIME_PERIODS,
   ALLOWED_ENGAGEMENT_METRICS,
+  TimePeriod,
+  EngagementMetricField
 } from '@/app/lib/constants/timePeriods';
-
-// Constantes para validação e defaults
 
 // Exemplo de mapeamento de formato (pode vir de uma config)
 const DEFAULT_FORMAT_MAPPING: { [key: string]: string } = {
@@ -15,8 +15,17 @@ const DEFAULT_FORMAT_MAPPING: { [key: string]: string } = {
   "VIDEO": "Vídeo",
   "REEL": "Reel",
   "CAROUSEL_ALBUM": "Carrossel",
-  // Adicionar outros formatos conforme necessário
 };
+
+// --- Funções de verificação de tipo (Type Guards) ---
+function isAllowedTimePeriod(period: any): period is TimePeriod {
+    return ALLOWED_TIME_PERIODS.includes(period);
+}
+
+function isAllowedEngagementMetric(metric: any): metric is EngagementMetricField {
+    return ALLOWED_ENGAGEMENT_METRICS.includes(metric);
+}
+
 
 export async function GET(
   request: Request,
@@ -34,15 +43,16 @@ export async function GET(
   const engagementMetricFieldParam = searchParams.get('engagementMetricField');
   const maxSlicesParam = searchParams.get('maxSlices');
 
-  const timePeriod = timePeriodParam && ALLOWED_TIME_PERIODS.includes(timePeriodParam)
+  // CORREÇÃO: Usa type guards para validar e inferir os tipos corretos.
+  const timePeriod: TimePeriod = isAllowedTimePeriod(timePeriodParam)
     ? timePeriodParam
-    : "last_90_days"; // Default
+    : "last_90_days";
 
-  const engagementMetricField = engagementMetricFieldParam && ALLOWED_ENGAGEMENT_METRICS.includes(engagementMetricFieldParam)
+  const engagementMetricField: EngagementMetricField = isAllowedEngagementMetric(engagementMetricFieldParam)
     ? engagementMetricFieldParam
-    : "stats.total_interactions"; // Default
+    : "stats.total_interactions";
 
-  let maxSlices = 7; // Default maxSlices
+  let maxSlices = 7;
   if (maxSlicesParam) {
     const parsedMaxSlices = parseInt(maxSlicesParam, 10);
     if (!isNaN(parsedMaxSlices) && parsedMaxSlices > 0) {
@@ -53,10 +63,10 @@ export async function GET(
   }
 
   // Validações explícitas
-  if (timePeriodParam && !ALLOWED_TIME_PERIODS.includes(timePeriodParam)) {
+  if (timePeriodParam && !isAllowedTimePeriod(timePeriodParam)) {
     return NextResponse.json({ error: `Time period inválido. Permitidos: ${ALLOWED_TIME_PERIODS.join(', ')}` }, { status: 400 });
   }
-  if (engagementMetricFieldParam && !ALLOWED_ENGAGEMENT_METRICS.includes(engagementMetricFieldParam)) {
+  if (engagementMetricFieldParam && !isAllowedEngagementMetric(engagementMetricFieldParam)) {
     return NextResponse.json({ error: `Engagement metric field inválido. Permitidos: ${ALLOWED_ENGAGEMENT_METRICS.join(', ')}` }, { status: 400 });
   }
 
@@ -65,7 +75,7 @@ export async function GET(
       userId,
       timePeriod,
       engagementMetricField,
-      DEFAULT_FORMAT_MAPPING, // Passar o mapeamento de formato
+      DEFAULT_FORMAT_MAPPING,
       maxSlices
     );
 
@@ -77,4 +87,3 @@ export async function GET(
     return NextResponse.json({ error: "Erro ao processar sua solicitação.", details: errorMessage }, { status: 500 });
   }
 }
-

@@ -248,7 +248,11 @@ export async function fetchTopProposals(params: {
   try {
     await connectToDatabase();
     const metricField = metric === 'avg_views' ? '$stats.views' : '$stats.total_interactions';
-    const accumulator = metric === 'avg_views' ? '$avg' : '$sum';
+    
+    // CORREÇÃO: Constrói o operador de agregação separadamente para ajudar o TypeScript a inferir o tipo correto.
+    const groupOperator = metric === 'avg_views'
+      ? { $avg: metricField }
+      : { $sum: metricField };
 
     const matchStage: PipelineStage.Match['$match'] = {
       postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
@@ -258,7 +262,8 @@ export async function fetchTopProposals(params: {
 
     const pipeline: PipelineStage[] = [
       { $match: matchStage },
-      { $group: { _id: '$proposal', metricValue: { [accumulator]: metricField } } },
+      // Usa o operador de grupo construído corretamente
+      { $group: { _id: '$proposal', metricValue: groupOperator } },
       { $sort: { metricValue: -1 } },
       { $limit: limit },
       { $project: { _id: 0, proposal: '$_id', metricValue: metric === 'avg_views' ? { $round: ['$metricValue', 2] } : '$metricValue' } }

@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
-import { ALLOWED_TIME_PERIODS } from '@/app/lib/constants/timePeriods';
+import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 import { camelizeKeys } from '@/utils/camelizeKeys';
 
 import aggregatePerformanceHighlights from '@/utils/aggregatePerformanceHighlights';
 
 // Helper para converter timePeriod string para periodInDays number
-function timePeriodToDays(timePeriod: string): number {
+function timePeriodToDays(timePeriod: TimePeriod): number {
     switch (timePeriod) {
         case "last_7_days": return 7;
         case "last_30_days": return 30;
@@ -45,6 +45,11 @@ interface PerformanceSummaryResponse {
 const DEFAULT_PERFORMANCE_METRIC = "stats.total_interactions";
 const DEFAULT_PERFORMANCE_METRIC_LABEL = "Interações Totais"; // Para o insightSummary
 
+// --- Função de verificação de tipo (Type Guard) ---
+function isAllowedTimePeriod(period: any): period is TimePeriod {
+    return ALLOWED_TIME_PERIODS.includes(period);
+}
+
 export async function GET(
   request: Request,
   { params }: { params: { userId: string } }
@@ -57,19 +62,18 @@ export async function GET(
 
   const { searchParams } = new URL(request.url);
   const timePeriodParam = searchParams.get('timePeriod');
-  // Opcional: permitir performanceMetricField via query param
   // const performanceMetricFieldParam = searchParams.get('performanceMetricField');
 
-  const timePeriod = timePeriodParam && ALLOWED_TIME_PERIODS.includes(timePeriodParam)
+  // CORREÇÃO: Usa a função de verificação de tipo para validar e inferir o tipo correto.
+  const timePeriod: TimePeriod = isAllowedTimePeriod(timePeriodParam)
     ? timePeriodParam
     : "last_90_days"; // Default
 
-  if (timePeriodParam && !ALLOWED_TIME_PERIODS.includes(timePeriodParam)) {
+  if (timePeriodParam && !isAllowedTimePeriod(timePeriodParam)) {
     return NextResponse.json({ error: `Time period inválido. Permitidos: ${ALLOWED_TIME_PERIODS.join(', ')}` }, { status: 400 });
   }
 
   const periodInDaysValue = timePeriodToDays(timePeriod);
-  // Por agora, métrica de performance é fixa. Poderia ser um query param validado.
   const performanceMetricField = DEFAULT_PERFORMANCE_METRIC;
   const performanceMetricLabel = DEFAULT_PERFORMANCE_METRIC_LABEL;
 
@@ -133,4 +137,3 @@ export async function GET(
     return NextResponse.json({ error: "Erro ao processar sua solicitação de destaques de performance.", details: errorMessage }, { status: 500 });
   }
 }
-

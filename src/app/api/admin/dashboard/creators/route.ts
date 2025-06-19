@@ -7,7 +7,6 @@ import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-// CORREÇÃO: As importações foram atualizadas para usar os caminhos dos serviços modularizados.
 import { fetchDashboardCreatorsList } from '@/app/lib/dataService/marketAnalysis/dashboardService';
 import { IFetchDashboardCreatorsListParams } from '@/app/lib/dataService/marketAnalysis/types';
 import { DatabaseError } from '@/app/lib/errors';
@@ -70,7 +69,8 @@ export async function GET(req: NextRequest) {
 
   try {
     const session = await getAdminSession(req);
-    if (!session) {
+    // CORREÇÃO: Adicionada verificação explícita para session.user.
+    if (!session || !session.user) {
       return apiError('Acesso não autorizado.', 401);
     }
     logger.info(`${TAG} Sessão de admin validada para o utilizador: ${session.user.name}`);

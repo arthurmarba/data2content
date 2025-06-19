@@ -12,8 +12,6 @@ import {
   TopMoverEntityType, // For Zod enum
   TopMoverMetric,     // For Zod enum
   TopMoverSortBy,     // For Zod enum
-  // ISegmentDefinition is implicitly used by contentFiltersSchema
-  // ITopMoverCreatorFilters is implicitly used by creatorFiltersSchema
 } from '@/app/lib/dataService/marketAnalysisService';
 import { DatabaseError } from '@/app/lib/errors';
 import { getServerSession } from 'next-auth/next';
@@ -31,20 +29,17 @@ const periodSchema = z.object({
     path: ["endDate"],
 });
 
-// Reusing ISegmentDefinition structure for contentFilters
 const contentFiltersSchema = z.object({
   format: z.string().optional(),
   proposal: z.string().optional(),
   context: z.string().optional()
 }).optional();
 
-// Reusing ITopMoverCreatorFilters structure
 const creatorFiltersSchema = z.object({
   planStatus: z.array(z.string()).optional(),
-  inferredExpertiseLevel: z.array(z.string()).optional() // Corrected field name based on typical User model
+  inferredExpertiseLevel: z.array(z.string()).optional()
 }).optional();
 
-// Manually list out string literals for Zod enums from types
 const topMoverMetricLiterals: [TopMoverMetric, ...TopMoverMetric[]] = [
   'cumulativeViews', 'cumulativeLikes', 'cumulativeShares', 'cumulativeComments',
   'cumulativeSaved', 'cumulativeReach', 'cumulativeImpressions', 'cumulativeTotalInteractions'
@@ -66,19 +61,18 @@ const requestBodySchema = z.object({
   metric: topMoverMetricEnum,
   currentPeriod: periodSchema,
   previousPeriod: periodSchema,
-  topN: z.number().int().positive().min(1).max(50).optional(), // Example: Max 50
+  topN: z.number().int().positive().min(1).max(50).optional(),
   sortBy: topMoverSortByEnum.optional(),
   contentFilters: contentFiltersSchema,
   creatorFilters: creatorFiltersSchema
 }).refine(data => data.previousPeriod.endDate < data.currentPeriod.startDate, {
   message: "Previous period must end before the current period starts.",
-  path: ["currentPeriod", "startDate"], // Path to highlight for the error
+  path: ["currentPeriod", "startDate"],
 });
 
 
 // --- Helper Functions ---
 
-// Real Admin Session Validation
 async function getAdminSession(_req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session || session.user?.role !== 'admin') {
@@ -108,7 +102,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const session = await getAdminSession(req);
-    if (!session) {
+    // CORREÇÃO: Adicionada verificação explícita para session.user.
+    if (!session || !session.user) {
       return apiError('Acesso não autorizado. Sessão de administrador inválida.', 401);
     }
     logger.info(`${TAG} Admin session validated for user: ${session.user.name}`);
@@ -122,7 +117,7 @@ export async function POST(req: NextRequest) {
       return apiError(`Corpo da requisição inválido: ${errorMessage}`, 400);
     }
 
-    const validatedArgs = validationResult.data as IFetchTopMoversArgs; // Cast after successful validation
+    const validatedArgs = validationResult.data as IFetchTopMoversArgs;
 
     logger.info(`${TAG} Calling fetchTopMoversData with validated args: ${JSON.stringify(validatedArgs)}`);
     const results: ITopMoverResult[] = await fetchTopMoversData(validatedArgs);
@@ -135,7 +130,6 @@ export async function POST(req: NextRequest) {
     if (error instanceof DatabaseError) {
       return apiError(`Erro de banco de dados: ${error.message}`, 500);
     } else if (error instanceof z.ZodError) {
-        // This case should ideally be caught by safeParse, but as a fallback
         return apiError(`Erro de validação Zod inesperado: ${error.message}`, 400);
     }
     return apiError('Ocorreu um erro interno no servidor.', 500);

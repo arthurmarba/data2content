@@ -1,5 +1,5 @@
 import { Types } from "mongoose";
-import { logger } from "@/app/lib/logger"; // Added
+import { logger } from "@/app/lib/logger";
 // Importar funções de cálculo de indicador
 import calculateFollowerGrowthRate from "@/utils/calculateFollowerGrowthRate";
 import type FollowerGrowthData from "@/utils/calculateFollowerGrowthRate";
@@ -11,7 +11,7 @@ import { fetchSegmentRadarStats } from "@/lib/services/segmentRadarService";
 
 // Importar helpers de normalização e min/max da plataforma
 import { getPlatformMinMaxValues, PlatformMinMaxData } from "@/utils/platformMetricsHelpers";
-import { normalizeValue as actualNormalizeValue } from "@/utils/normalizationHelpers"; // Renomeado para evitar conflito
+import { normalizeValue as actualNormalizeValue } from "@/utils/normalizationHelpers";
 
 // Tipos para configuração e saída
 export interface RadarMetricConfig {
@@ -46,7 +46,7 @@ interface RadarChartResponse {
   debugMinMax?: PlatformMinMaxData; // Opcional para depuração
 }
 
-// Assinatura da função de normalização que será injetada (usa a função real agora)
+// Assinatura da função de normalização que será injetada
 export type NormalizeValueFn = (
     value: number | null,
     min: number | null,
@@ -100,7 +100,7 @@ async function getRadarChartData(
   profile1_identifier: string | Types.ObjectId,
   profile2_identifier: string | Types.ObjectId | { type: "segment"; id: string },
   metricSetConfig: RadarMetricConfig[],
-  normalizeValueFn: NormalizeValueFn = actualNormalizeValue // Usar a função real como default
+  normalizeValueFn: NormalizeValueFn = actualNormalizeValue
 ): Promise<RadarChartResponse> {
 
   const profile1_userId = typeof profile1_identifier === 'string' ? new Types.ObjectId(profile1_identifier) : profile1_identifier as Types.ObjectId;
@@ -136,12 +136,10 @@ async function getRadarChartData(
   };
 
   try {
-    // 1. Chamar getPlatformMinMaxValues para as métricas relevantes do radar.
     const metricIdsForMinMax = metricSetConfig.map(m => m.id);
     const platformMinMaxValues = await getPlatformMinMaxValues(metricIdsForMinMax);
-    initialResponse.debugMinMax = platformMinMaxValues; // Para depuração
+    initialResponse.debugMinMax = platformMinMaxValues;
 
-    // Coletar promessas para cálculo de métricas de cada perfil
     labels.push(...metricSetConfig.map(m => m.label));
 
     const p1Promises = metricSetConfig.map(cfg => calculateMetricValueForUser(profile1_userId, cfg));
@@ -162,8 +160,10 @@ async function getRadarChartData(
 
     metricSetConfig.forEach((metricConfig, idx) => {
       const minMax = platformMinMaxValues[metricConfig.id] || { min: null, max: null };
-      const raw1: number | null = p1Values[idx];
-      const raw2: number | null = p2Values[idx] as number | null;
+      
+      // CORREÇÃO: Usa o operador de coalescência nula (??) para garantir que 'undefined' se torne 'null'.
+      const raw1: number | null = p1Values[idx] ?? null;
+      const raw2: number | null = p2Values[idx] ?? null;
 
       p1_rawData.push(raw1);
       p2_rawData.push(raw2);
@@ -182,7 +182,6 @@ async function getRadarChartData(
       { label: profile2_name, data: p2_rawData },
     ];
 
-    // Insight Summary (simplificado)
     let p1StrongerCount = 0;
     let comparableMetrics = 0;
     for(let i=0; i< p1_normalizedData.length; i++){
@@ -193,7 +192,7 @@ async function getRadarChartData(
             if(normVal1 > normVal2) p1StrongerCount++;
         }
     }
-    // ... (lógica de insight summary como antes) ...
+    
     if (comparableMetrics > 0) {
         const p1StrengthRatio = p1StrongerCount / comparableMetrics;
         if (p1StrengthRatio > 0.6) {
@@ -210,8 +209,8 @@ async function getRadarChartData(
     return initialResponse;
 
   } catch (error) {
-    logger.error(`Error in getRadarChartData for P1:${profile1_userId} P2:${profile2_isSegment ? profile2_segmentId : profile2_userId}:`, error); // Replaced console.error and added context
-    // ... (lógica de erro como antes) ...
+    logger.error(`Error in getRadarChartData for P1:${profile1_userId} P2:${profile2_isSegment ? profile2_segmentId : profile2_userId}:`, error);
+    
     if (labels.length === 0 && metricSetConfig) {
         metricSetConfig.forEach(mc => labels.push(mc.label));
     }
@@ -231,4 +230,3 @@ async function getRadarChartData(
 }
 
 export default getRadarChartData;
-

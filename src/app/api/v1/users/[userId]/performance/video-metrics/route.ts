@@ -1,18 +1,34 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
-import calculateAverageVideoMetrics from '@/utils/calculateAverageVideoMetrics'; // Ajuste o caminho
-import { ALLOWED_TIME_PERIODS } from '@/app/lib/constants/timePeriods';
+import calculateAverageVideoMetrics from '@/utils/calculateAverageVideoMetrics';
+import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 
 interface AverageVideoMetricsData {
   averageRetentionRate: number;
   averageWatchTimeSeconds: number;
   numberOfVideoPosts: number;
 }
-// import { FormatType } from '@/app/models/Metric'; // Se precisar passar videoTypes customizados
-
 
 interface UserVideoMetricsResponse extends Omit<Awaited<ReturnType<typeof calculateAverageVideoMetrics>>, 'startDate' | 'endDate'> {
   insightSummary?: string;
+}
+
+// --- Função de verificação de tipo (Type Guard) ---
+function isAllowedTimePeriod(period: any): period is TimePeriod {
+    return ALLOWED_TIME_PERIODS.includes(period);
+}
+
+// Helper para converter timePeriod string para periodInDays number
+function timePeriodToDays(timePeriod: TimePeriod): number {
+    switch (timePeriod) {
+        case "last_7_days": return 7;
+        case "last_30_days": return 30;
+        case "last_90_days": return 90;
+        case "last_6_months": return 180;
+        case "last_12_months": return 365;
+        case "all_time": return 365 * 5; // Representa "all_time" como um período longo
+        default: return 90; // Default
+    }
 }
 
 export async function GET(
@@ -28,45 +44,21 @@ export async function GET(
   const { searchParams } = new URL(request.url);
   const timePeriodParam = searchParams.get('timePeriod');
 
-  const timePeriod = timePeriodParam && ALLOWED_TIME_PERIODS.includes(timePeriodParam)
+  // CORREÇÃO: Usa a função de verificação de tipo para validar e inferir o tipo correto.
+  const timePeriod: TimePeriod = isAllowedTimePeriod(timePeriodParam)
     ? timePeriodParam
-    : "last_90_days"; // Default para métricas de vídeo pode ser um período mais longo
+    : "last_90_days";
 
-  if (timePeriodParam && !ALLOWED_TIME_PERIODS.includes(timePeriodParam)) {
+  if (timePeriodParam && !isAllowedTimePeriod(timePeriodParam)) {
     return NextResponse.json({ error: `Time period inválido. Permitidos: ${ALLOWED_TIME_PERIODS.join(', ')}` }, { status: 400 });
   }
 
-  // Opcional: permitir que videoTypes seja passado como query param se necessário
-  // const videoTypesParam = searchParams.getAll('videoTypes') as FormatType[];
-  // const videoTypes = videoTypesParam.length > 0 ? videoTypesParam : undefined; // Passa undefined para usar o default da função
-
   try {
-    // A função calculateAverageVideoMetrics espera periodInDays como número.
-    // Precisamos converter a string timePeriod para um número de dias.
-    // Ou refatorar calculateAverageVideoMetrics para aceitar string ou {startDate, endDate}
-    // Por agora, vamos fazer uma conversão simples ou assumir que a função de cálculo lida com isso.
-    // A função calculateAverageVideoMetrics já espera um número de dias, não uma string de período.
-    // Vamos criar um mapeamento simples aqui.
-    let periodInDaysValue: number;
-    switch (timePeriod) {
-        case "last_7_days": periodInDaysValue = 7; break;
-        case "last_30_days": periodInDaysValue = 30; break;
-        case "last_90_days": periodInDaysValue = 90; break;
-        case "last_6_months": periodInDaysValue = 180; break;
-        case "last_12_months": periodInDaysValue = 365; break;
-        case "all_time": periodInDaysValue = 0; break; // calculateAverageVideoMetrics precisaria tratar 0 como "all_time"
-        default: periodInDaysValue = 90;
-    }
-    // Nota: A lógica de "all_time" em calculateAverageVideoMetrics não foi implementada
-    // e a função espera periodInDays > 0. Para "all_time", um período muito grande seria usado ou a query adaptada.
-    // Para este exemplo, se "all_time", usaremos um período grande.
-    if (timePeriod === "all_time") periodInDaysValue = 365 * 5; // 5 anos como "all_time"
-
+    const periodInDaysValue = timePeriodToDays(timePeriod);
 
     const videoMetrics: AverageVideoMetricsData = await calculateAverageVideoMetrics(
       userId,
       periodInDaysValue
-      // ,videoTypes // Passar se o parâmetro for aceito pela API
     );
 
     const responsePayload: UserVideoMetricsResponse = {
@@ -88,4 +80,3 @@ export async function GET(
     return NextResponse.json({ error: "Erro ao processar sua solicitação de métricas de vídeo.", details: errorMessage }, { status: 500 });
   }
 }
-
