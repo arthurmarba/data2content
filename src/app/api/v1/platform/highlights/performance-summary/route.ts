@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { camelizeKeys } from '@/utils/camelizeKeys';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 import aggregatePlatformPerformanceHighlights from '@/utils/aggregatePlatformPerformanceHighlights';
+import { timePeriodToDays } from '@/utils/timePeriodHelpers';
 
 // Reutilizar tipos e helpers se possível, ou definir específicos da plataforma
 interface PerformanceHighlight {
@@ -34,19 +35,6 @@ function formatPerformanceValue(value: number, metricFieldId: string): string {
 // CORREÇÃO: Função de verificação de tipo (type guard) para validar o parâmetro
 function isAllowedTimePeriod(period: any): period is TimePeriod {
     return ALLOWED_TIME_PERIODS.includes(period);
-}
-
-// Converte timePeriod em número de dias
-function timePeriodToDays(timePeriod: TimePeriod): number {
-    switch (timePeriod) {
-        case "last_7_days": return 7;
-        case "last_30_days": return 30;
-        case "last_90_days": return 90;
-        case "last_6_months": return 180;
-        case "last_12_months": return 365;
-        case "all_time": return 365 * 5;
-        default: return 90;
-    }
 }
 
 
