@@ -13,7 +13,7 @@ interface AlertResponseItem {
   type: string;
   date: string;
   title: string;
-  summary: string;
+  finalUserMessage: string;
   details: any;
 }
 
@@ -59,7 +59,7 @@ export async function GET(
       type: a.type,
       date: (a.date instanceof Date ? a.date : new Date(a.date)).toISOString().split('T')[0]!,
       title: a.type,
-      summary: a.finalUserMessage,
+      finalUserMessage: a.finalUserMessage,
       details: a.details,
     }));
 
