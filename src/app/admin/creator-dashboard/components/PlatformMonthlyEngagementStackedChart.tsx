@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, memo } from 'react';
+import { useGlobalTimePeriod } from './filters/GlobalTimePeriodContext';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
@@ -23,25 +24,24 @@ interface MonthlyEngagementResponse {
 // const TIME_PERIOD_OPTIONS = [ ... ];
 
 interface PlatformMonthlyEngagementStackedChartProps {
-  timePeriod: string; // Recebido do pai (page.tsx)
   chartTitle?: string;
 }
 
 const PlatformMonthlyEngagementStackedChart: React.FC<PlatformMonthlyEngagementStackedChartProps> = ({
-  timePeriod, // Prop vinda da página principal
   chartTitle = "Engajamento Mensal Detalhado da Plataforma"
 }) => {
+  const { timePeriod } = useGlobalTimePeriod();
   const [data, setData] = useState<MonthlyEngagementResponse['chartData']>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  // timePeriod não é mais um estado local
+  // timePeriod vem do contexto global
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // Usa timePeriod da prop na URL da API
+      // Usa timePeriod do contexto na URL da API
       const apiUrl = `/api/v1/platform/charts/monthly-engagement-stacked?timePeriod=${timePeriod}`;
       const response = await fetch(apiUrl);
       if (!response.ok) {

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, memo } from 'react';
+import { useGlobalTimePeriod } from './filters/GlobalTimePeriodContext';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
@@ -25,19 +26,18 @@ const GRANULARITY_OPTIONS = [
 ];
 
 interface PlatformReachEngagementTrendChartProps {
-  timePeriod: string; // Recebido do pai (page.tsx)
   initialGranularity?: string;
 }
 
 const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendChartProps> = ({
-  timePeriod,
   initialGranularity = GRANULARITY_OPTIONS[0]!.value
 }) => {
+  const { timePeriod } = useGlobalTimePeriod();
   const [data, setData] = useState<PlatformReachEngagementTrendResponse['chartData']>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  // timePeriod não é mais um estado local
+  // timePeriod vem do contexto global
   const [granularity, setGranularity] = useState<string>(initialGranularity);
 
   const fetchData = useCallback(async () => {

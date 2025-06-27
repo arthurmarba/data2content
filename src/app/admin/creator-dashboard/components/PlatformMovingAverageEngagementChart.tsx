@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, memo } from 'react';
+import { useGlobalTimePeriod } from './filters/GlobalTimePeriodContext';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
@@ -39,20 +40,19 @@ const timePeriodToDataWindowDays = (timePeriod: string): number => {
 };
 
 interface PlatformMovingAverageEngagementChartProps {
-  timePeriod: string; // Recebido do pai (page.tsx), ex: "last_30_days"
   initialAvgWindow?: string;
 }
 
 const PlatformMovingAverageEngagementChart: React.FC<PlatformMovingAverageEngagementChartProps> = ({
-  timePeriod,
   initialAvgWindow = MOVING_AVERAGE_WINDOW_OPTIONS[0]?.value ?? "7"
 }) => {
+  const { timePeriod } = useGlobalTimePeriod();
   const [data, setData] = useState<PlatformMovingAverageResponse['series']>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // dataWindow (número de dias) é agora derivado da prop timePeriod
+  // dataWindow (número de dias) é derivado do timePeriod do contexto
   const dataWindowInDays = timePeriodToDataWindowDays(timePeriod);
   const [avgWindow, setAvgWindow] = useState<string>(initialAvgWindow);
 

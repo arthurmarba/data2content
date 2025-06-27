@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, memo } from 'react';
+import { useGlobalTimePeriod } from './filters/GlobalTimePeriodContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { TooltipProps } from 'recharts';
 import { formatNullableNumberTooltip } from '@/utils/chartFormatters';
@@ -15,13 +16,10 @@ interface PlatformFollowerChangeResponse {
   insightSummary?: string;
 }
 
-interface PlatformFollowerChangeChartProps {
-  timePeriod: string;
-}
+interface PlatformFollowerChangeChartProps {}
 
-const PlatformFollowerChangeChart: React.FC<PlatformFollowerChangeChartProps> = ({
-  timePeriod
-}) => {
+const PlatformFollowerChangeChart: React.FC<PlatformFollowerChangeChartProps> = () => {
+  const { timePeriod } = useGlobalTimePeriod();
   const [data, setData] = useState<PlatformFollowerChangeResponse['chartData']>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(true);

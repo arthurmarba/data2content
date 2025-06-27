@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, memo } from 'react';
+import { useGlobalTimePeriod } from './filters/GlobalTimePeriodContext';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
@@ -35,24 +36,23 @@ const GROUP_BY_OPTIONS = [ // Usado apenas se o seletor de groupBy fosse habilit
 ];
 
 interface PlatformAverageEngagementChartProps {
-  timePeriod: string; // Recebido do pai (page.tsx)
   initialGroupBy: GroupingType;
   chartTitle: string;
   initialEngagementMetric?: string;
 }
 
 const PlatformAverageEngagementChart: React.FC<PlatformAverageEngagementChartProps> = ({
-  timePeriod,
   initialGroupBy,
   chartTitle,
   initialEngagementMetric = ENGAGEMENT_METRIC_OPTIONS[0]!.value
 }) => {
+  const { timePeriod } = useGlobalTimePeriod();
   const [data, setData] = useState<ApiAverageEngagementDataPoint[]>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // timePeriod é agora uma prop
+  // timePeriod vem do contexto global
   const [engagementMetric, setEngagementMetric] = useState<string>(initialEngagementMetric);
   // groupBy é controlado por initialGroupBy, não muda internamente por seletor neste componente
   const groupBy = initialGroupBy;
@@ -61,7 +61,7 @@ const PlatformAverageEngagementChart: React.FC<PlatformAverageEngagementChartPro
     setLoading(true);
     setError(null);
     try {
-      // Usa timePeriod da prop
+      // Usa timePeriod do contexto
       const apiUrl = `/api/v1/platform/performance/average-engagement?timePeriod=${timePeriod}&engagementMetricField=${engagementMetric}&groupBy=${groupBy}`;
       const response = await fetch(apiUrl);
       if (!response.ok) {

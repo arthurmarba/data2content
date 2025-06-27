@@ -7,6 +7,7 @@ import CreatorSelector from './components/CreatorSelector';
 
 // Filtro Global
 import GlobalTimePeriodFilter from './components/filters/GlobalTimePeriodFilter';
+import { GlobalTimePeriodProvider, useGlobalTimePeriod } from './components/filters/GlobalTimePeriodContext';
 
 // Componentes da Plataforma - Módulo 1 (Visão Geral)
 import PlatformFollowerTrendChart from './components/PlatformFollowerTrendChart';
@@ -40,10 +41,10 @@ import ScrollToTopButton from '@/app/components/ScrollToTopButton';
 import UserDetailView from './components/views/UserDetailView';
 
 
-const AdminCreatorDashboardPage: React.FC = () => {
+const AdminCreatorDashboardContent: React.FC = () => {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedUserName, setSelectedUserName] = useState<string | null>(null);
-  const [globalTimePeriod, setGlobalTimePeriod] = useState<string>("last_90_days"); // Default para 90 dias
+  const { timePeriod: globalTimePeriod, setTimePeriod: setGlobalTimePeriod } = useGlobalTimePeriod();
 
   const selectedComparisonPeriodForPlatformKPIs = "month_vs_previous";
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
@@ -143,12 +144,12 @@ const AdminCreatorDashboardPage: React.FC = () => {
               />
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 md:mb-8">
-              <PlatformFollowerTrendChart timePeriod={globalTimePeriod} />
-              <PlatformFollowerChangeChart timePeriod={globalTimePeriod} />
+              <PlatformFollowerTrendChart />
+              <PlatformFollowerChangeChart />
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 md:mb-8">
-              <PlatformReachEngagementTrendChart timePeriod={globalTimePeriod} />
-              <PlatformMovingAverageEngagementChart timePeriod={globalTimePeriod} />
+              <PlatformReachEngagementTrendChart />
+              <PlatformMovingAverageEngagementChart />
             </div>
           </section>
 
@@ -157,32 +158,29 @@ const AdminCreatorDashboardPage: React.FC = () => {
               Análise de Conteúdo da Plataforma <GlobalPeriodIndicator />
             </h2>
             <div className="mb-6 md:mb-8">
-                <PlatformPerformanceHighlights timePeriod={globalTimePeriod}/>
+                <PlatformPerformanceHighlights />
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 md:mb-8">
               <PlatformAverageEngagementChart
                 initialGroupBy="format"
                 chartTitle="Engajamento Médio por Formato (Plataforma)"
-                timePeriod={globalTimePeriod}
               />
               <PlatformAverageEngagementChart
                 initialGroupBy="context"
                 chartTitle="Engajamento Médio por Contexto (Plataforma)"
-                timePeriod={globalTimePeriod}
               />
               <PlatformAverageEngagementChart
                 initialGroupBy="proposal"
                 chartTitle="Engajamento Médio por Proposta (Plataforma)"
-                timePeriod={globalTimePeriod}
               />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 md:mb-8">
-              <PlatformPostDistributionChart timePeriod={globalTimePeriod} chartTitle="Distribuição de Posts por Formato (Plataforma)" />
-              <PlatformVideoPerformanceMetrics timePeriod={globalTimePeriod} />
+              <PlatformPostDistributionChart chartTitle="Distribuição de Posts por Formato (Plataforma)" />
+              <PlatformVideoPerformanceMetrics />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> {/* Nova linha ou ajuste no grid */}
-                <PlatformMonthlyEngagementStackedChart timePeriod={globalTimePeriod} />
-                <PlatformEngagementDistributionByFormatChart timePeriod={globalTimePeriod} /> {/* Adicionado aqui */}
+                <PlatformMonthlyEngagementStackedChart />
+                <PlatformEngagementDistributionByFormatChart /> {/* Adicionado aqui */}
             </div>
             <div className="mt-6">
               <ContentPerformanceByTypeChart dateRangeFilter={{ startDate, endDate }} />
@@ -336,6 +334,12 @@ const AdminCreatorDashboardPage: React.FC = () => {
     </GlobalTimePeriodProvider>
   );
 };
+
+const AdminCreatorDashboardPage: React.FC = () => (
+  <GlobalTimePeriodProvider>
+    <AdminCreatorDashboardContent />
+  </GlobalTimePeriodProvider>
+);
 
 export default AdminCreatorDashboardPage;
 

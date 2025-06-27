@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, memo } from 'react';
+import { useGlobalTimePeriod } from './filters/GlobalTimePeriodContext';
 import { TrendingUp, TrendingDown, Sparkles } from 'lucide-react'; // Ícones
 import HighlightCard from './HighlightCard';
 
@@ -32,24 +33,23 @@ const InfoIcon: React.FC<{className?: string}> = ({className}) => (
 );
 
 interface PlatformPerformanceHighlightsProps {
-  timePeriod: string; // Recebido do pai (page.tsx)
   sectionTitle?: string;
 }
 
 const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps> = ({
-  timePeriod, // Prop vinda da página principal
   sectionTitle = "Destaques de Performance da Plataforma"
 }) => {
+  const { timePeriod } = useGlobalTimePeriod();
   const [summary, setSummary] = useState<PerformanceSummaryResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  // timePeriod não é mais um estado local
+  // timePeriod vem do contexto global
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // Usa timePeriod da prop na URL da API
+      // Usa timePeriod do contexto na URL da API
       const apiUrl = `/api/v1/platform/highlights/performance-summary?timePeriod=${timePeriod}`;
       const response = await fetch(apiUrl);
       if (!response.ok) {
