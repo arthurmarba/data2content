@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, memo } from 'react';
+import { useGlobalTimePeriod } from './filters/GlobalTimePeriodContext';
 
 // Reutilizar as interfaces e componentes auxiliares
 interface VideoMetricsData {
@@ -44,14 +45,13 @@ const InfoIcon: React.FC<{className?: string}> = ({className}) => (
 );
 
 interface PlatformVideoPerformanceMetricsProps {
-  timePeriod: string; // Recebido do pai (page.tsx)
   chartTitle?: string;
 }
 
 const PlatformVideoPerformanceMetrics: React.FC<PlatformVideoPerformanceMetricsProps> = ({
-  timePeriod, // Prop vinda da página principal
   chartTitle = "Performance de Vídeos da Plataforma"
 }) => {
+  const { timePeriod } = useGlobalTimePeriod();
   const [metrics, setMetrics] = useState<VideoMetricsData | null>(null);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(true);
@@ -62,7 +62,7 @@ const PlatformVideoPerformanceMetrics: React.FC<PlatformVideoPerformanceMetricsP
     setLoading(true);
     setError(null);
     try {
-      // Usa timePeriod da prop na URL da API
+      // Usa timePeriod do contexto na URL da API
       const apiUrl = `/api/v1/platform/performance/video-metrics?timePeriod=${timePeriod}`;
       const response = await fetch(apiUrl);
       if (!response.ok) {

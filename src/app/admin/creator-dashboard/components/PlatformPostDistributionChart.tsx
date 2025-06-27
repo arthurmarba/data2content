@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, memo } from 'react';
+import { useGlobalTimePeriod } from './filters/GlobalTimePeriodContext';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface ApiPostDistributionDataPoint {
@@ -27,21 +28,20 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#A230ED', '#D930ED'
 const DEFAULT_MAX_SLICES = 7;
 
 interface PlatformPostDistributionChartProps {
-  timePeriod: string; // Recebido do pai (page.tsx)
   chartTitle?: string;
   // initialEngagementMetric foi removido, pois este gráfico agora é fixo para contagem de posts
 }
 
 const PlatformPostDistributionChart: React.FC<PlatformPostDistributionChartProps> = ({
-  timePeriod, // Prop vinda da página principal
   chartTitle = "Distribuição de Posts por Formato (Plataforma)"
 }) => {
+  const { timePeriod } = useGlobalTimePeriod();
   const [data, setData] = useState<PlatformPostDistributionResponse['chartData']>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // timePeriod é prop, não mais um estado local.
+  // timePeriod vem do contexto global.
   // engagementMetric não é mais necessário.
   const maxSlices = DEFAULT_MAX_SLICES; // Pode ser uma prop se necessário
 
@@ -70,9 +70,9 @@ const PlatformPostDistributionChart: React.FC<PlatformPostDistributionChartProps
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]); // fetchData agora depende de timePeriod (prop) e maxSlices (constante)
+  }, [fetchData]); // fetchData agora depende de timePeriod (contexto) e maxSlices (constante)
 
-  // handleTimePeriodChange não é mais necessário aqui, pois é controlado pelo pai
+  // handleTimePeriodChange não é mais necessário aqui, pois o período vem do contexto
   // handleEngagementMetricChange não é mais necessário
 
   const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }: any) => {
@@ -98,7 +98,7 @@ const PlatformPostDistributionChart: React.FC<PlatformPostDistributionChartProps
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6 md:mt-0">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4">
         <h2 className="text-lg md:text-xl font-semibold text-gray-700 mb-2 sm:mb-0">{chartTitle}</h2>
-        {/* Seletores de timePeriod e engagementMetric removidos. TimePeriod é controlado pelo pai. */}
+        {/* Seletores de timePeriod e engagementMetric removidos. TimePeriod é fornecido pelo contexto. */}
         {/* Seletor de maxSlices poderia ser adicionado aqui se desejado */}
       </div>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, memo } from 'react';
+import { useGlobalTimePeriod } from './filters/GlobalTimePeriodContext';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
@@ -24,26 +25,25 @@ const GRANULARITY_OPTIONS = [
 ];
 
 interface PlatformFollowerTrendChartProps {
-  timePeriod: string; // Recebido do pai (page.tsx)
   initialGranularity?: string;
 }
 
 const PlatformFollowerTrendChart: React.FC<PlatformFollowerTrendChartProps> = ({
-  timePeriod, // Prop vinda da página principal
   initialGranularity = GRANULARITY_OPTIONS[0]?.value || "daily"
 }) => {
+  const { timePeriod } = useGlobalTimePeriod();
   const [data, setData] = useState<PlatformFollowerTrendResponse['chartData']>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  // timePeriod não é mais um estado local
+  // timePeriod vem do contexto global
   const [granularity, setGranularity] = useState<string>(initialGranularity);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // Usa timePeriod da prop e granularity do estado local
+      // Usa timePeriod do contexto e granularity do estado local
       const apiUrl = `/api/v1/platform/trends/followers?timePeriod=${timePeriod}&granularity=${granularity}`;
       const response = await fetch(apiUrl);
       if (!response.ok) {

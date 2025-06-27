@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, memo } from 'react';
+import { useGlobalTimePeriod } from './filters/GlobalTimePeriodContext';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface ApiEngagementDistributionDataPoint {
@@ -33,16 +34,15 @@ const COLORS = [
 const DEFAULT_MAX_SLICES = 7;
 
 interface PlatformEngagementDistributionByFormatChartProps {
-  timePeriod: string;
   chartTitle?: string;
   initialEngagementMetric?: EngagementMetricValue;
 }
 
 const PlatformEngagementDistributionByFormatChart: React.FC<PlatformEngagementDistributionByFormatChartProps> = ({
-  timePeriod,
   chartTitle = 'Distribuição de Engajamento por Formato (Plataforma)',
   initialEngagementMetric,
 }) => {
+  const { timePeriod } = useGlobalTimePeriod();
   // Garantir valor padrão não indefinido
   const defaultMetric = ENGAGEMENT_METRIC_OPTIONS[0].value;
   const initMetric = initialEngagementMetric ?? defaultMetric;
