@@ -245,6 +245,17 @@ const UserVideoPerformanceMetrics: React.FC<
               />
             </div>
           </div>
+          <div className="mt-4">
+            <button
+              onClick={() => {
+                setDrillDownMetric('views');
+                setIsModalOpen(true);
+              }}
+              className="px-3 py-1.5 rounded-md bg-indigo-600 text-white text-sm hover:bg-indigo-700"
+            >
+              Ver Todos os Vídeos
+            </button>
+          </div>
           {insightSummary && (
             <p className="text-xs text-gray-600 mt-3 pt-2 border-t border-gray-100">
               {insightSummary}

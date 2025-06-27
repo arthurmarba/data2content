@@ -66,4 +66,15 @@ describe('UserVideoPerformanceMetrics', () => {
     );
     expect(screen.getByTestId('drilldown-modal')).toHaveTextContent('views');
   });
+
+  it('opens drill down modal with "views" when "Ver Todos os Vídeos" button is clicked', async () => {
+    render(<UserVideoPerformanceMetrics userId="u1" />);
+    await waitFor(() => expect(screen.getByText('50.0%')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('Ver Todos os Vídeos'));
+    expect(MockVideoDrillDownModal).toHaveBeenLastCalledWith(
+      expect.objectContaining({ isOpen: true, drillDownMetric: 'views' }),
+      {}
+    );
+    expect(screen.getByTestId('drilldown-modal')).toHaveTextContent('views');
+  });
 });
