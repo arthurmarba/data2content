@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import VideoDrillDownModal from "../VideoDrillDownModal";
 import { useGlobalTimePeriod } from "./filters/GlobalTimePeriodContext";
 
 interface VideoMetricsData {
@@ -80,6 +81,8 @@ const UserVideoPerformanceMetrics: React.FC<
   );
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [drillDownMetric, setDrillDownMetric] = useState<string | null>(null);
 
   const { timePeriod: globalTimePeriod } = useGlobalTimePeriod();
   const [timePeriod, setTimePeriod] = useState<string>(
@@ -142,6 +145,11 @@ const UserVideoPerformanceMetrics: React.FC<
     setTimePeriod(e.target.value);
   };
 
+  const handleMetricClick = (metric: string) => {
+    setDrillDownMetric(metric);
+    setIsModalOpen(true);
+  };
+
   if (!userId) {
     return (
       <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6">
@@ -196,31 +204,46 @@ const UserVideoPerformanceMetrics: React.FC<
       {!loading && !error && metrics && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <MetricDisplay
-              label="Retenção Média"
-              value={
-                metrics.averageRetentionRate !== null
-                  ? metrics.averageRetentionRate.toFixed(1)
-                  : null
-              }
-              unit="%"
-              tooltip="Média da porcentagem de vídeo que os espectadores assistem."
-            />
-            <MetricDisplay
-              label="Tempo Médio de Visualização"
-              value={
-                metrics.averageWatchTimeSeconds !== null
-                  ? metrics.averageWatchTimeSeconds.toFixed(0)
-                  : null
-              }
-              unit="s"
-              tooltip="Tempo médio que os espectadores passam assistindo a cada vídeo."
-            />
-            <MetricDisplay
-              label="Total de Vídeos Analisados"
-              value={metrics.numberOfVideoPosts}
-              tooltip="Número de posts de vídeo considerados para estas métricas no período."
-            />
+            <div
+              className="cursor-pointer"
+              onClick={() => handleMetricClick("averageRetentionRate")}
+            >
+              <MetricDisplay
+                label="Retenção Média"
+                value={
+                  metrics.averageRetentionRate !== null
+                    ? metrics.averageRetentionRate.toFixed(1)
+                    : null
+                }
+                unit="%"
+                tooltip="Média da porcentagem de vídeo que os espectadores assistem."
+              />
+            </div>
+            <div
+              className="cursor-pointer"
+              onClick={() => handleMetricClick("averageWatchTimeSeconds")}
+            >
+              <MetricDisplay
+                label="Tempo Médio de Visualização"
+                value={
+                  metrics.averageWatchTimeSeconds !== null
+                    ? metrics.averageWatchTimeSeconds.toFixed(0)
+                    : null
+                }
+                unit="s"
+                tooltip="Tempo médio que os espectadores passam assistindo a cada vídeo."
+              />
+            </div>
+            <div
+              className="cursor-pointer"
+              onClick={() => handleMetricClick("numberOfVideoPosts")}
+            >
+              <MetricDisplay
+                label="Total de Vídeos Analisados"
+                value={metrics.numberOfVideoPosts}
+                tooltip="Número de posts de vídeo considerados para estas métricas no período."
+              />
+            </div>
           </div>
           {insightSummary && (
             <p className="text-xs text-gray-600 mt-3 pt-2 border-t border-gray-100">
@@ -234,6 +257,13 @@ const UserVideoPerformanceMetrics: React.FC<
           <p className="text-gray-500">Nenhuma métrica de vídeo encontrada.</p>
         </div>
       )}
+      <VideoDrillDownModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        userId={userId!}
+        timePeriod={timePeriod}
+        drillDownMetric={drillDownMetric}
+      />
     </div>
   );
 };
