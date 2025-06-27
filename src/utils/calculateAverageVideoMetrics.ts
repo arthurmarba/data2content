@@ -1,7 +1,7 @@
 import { Types } from 'mongoose';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import { logger } from '@/app/lib/logger';
-import MetricModel, { IMetric } from '@/app/models/Metric';
+import MetricModel from '@/app/models/Metric'; // IMetric não é mais necessário aqui
 import { getStartDateFromTimePeriod } from './dateHelpers';
 
 interface AverageVideoMetricsData {
@@ -13,8 +13,8 @@ interface AverageVideoMetricsData {
 }
 
 /**
- * Calcula métricas médias de vídeos de um usuário em um período.
- * videoTypes deve corresponder ao campo `type` do Metric.
+ * Calcula métricas médias de vídeos de um usuário em um período usando agregação.
+ * Esta versão é mais eficiente e corrige o problema de nomenclatura na leitura.
  */
 async function calculateAverageVideoMetrics(
   userId: string | Types.ObjectId,
@@ -29,9 +29,11 @@ async function calculateAverageVideoMetrics(
     today.getDate(),
     23, 59, 59, 999
   );
-  const startDate = getStartDateFromTimePeriod(today, `last_${periodInDays}_days`);
+  // Garante que o timePeriod passado para a função de data seja o formato esperado, ex: "last_90_days"
+  const timePeriodString = `last_${periodInDays}_days` as const;
+  const startDate = getStartDateFromTimePeriod(today, timePeriodString);
 
-  const result: AverageVideoMetricsData = {
+  const defaultResult: AverageVideoMetricsData = {
     numberOfVideoPosts: 0,
     averageRetentionRate: 0,
     averageWatchTimeSeconds: 0,
@@ -41,33 +43,82 @@ async function calculateAverageVideoMetrics(
 
   try {
     await connectToDatabase();
-    // Buscar posts do usuário filtrando pelo campo `type`
-    const videoPosts: IMetric[] = await MetricModel.find({
-      user: resolvedUserId,
-      postDate: { $gte: startDate, $lte: endDate },
-      type: { $in: videoTypes },
-    }).lean();
 
-    const count = videoPosts.length;
-    if (count === 0) return result;
+    // MUDANÇA 1: Substituição de .find() e loop manual por .aggregate()
+    // Isso é mais performático e nos permite calcular os campos corretos na hora.
+    const [aggregationResult] = await MetricModel.aggregate([
+      // Passo 1: Filtrar documentos relevantes
+      {
+        $match: {
+          user: resolvedUserId,
+          postDate: { $gte: startDate, $lte: endDate },
+          type: { $in: videoTypes },
+        }
+      },
+      // Passo 2: Criar os campos corretos para cada documento em tempo de execução
+      {
+        $project: {
+          // Calcula o tempo médio de visualização em segundos a partir do dado bruto em milissegundos
+          watchTimeInSeconds: {
+            $cond: {
+              if: { $gt: [{ $ifNull: ['$stats.ig_reels_avg_watch_time', 0] }, 0] },
+              then: { $divide: ['$stats.ig_reels_avg_watch_time', 1000] },
+              else: null
+            }
+          },
+          // Calcula a taxa de retenção na hora
+          retentionRate: {
+            $cond: {
+              if: { $and: [
+                { $gt: [{ $ifNull: ['$stats.ig_reels_avg_watch_time', 0] }, 0] },
+                { $gt: [{ $ifNull: ['$stats.video_duration_seconds', 0] }, 0] }
+              ]},
+              then: {
+                $divide: [
+                  { $divide: ['$stats.ig_reels_avg_watch_time', 1000] },
+                  '$stats.video_duration_seconds'
+                ]
+              },
+              else: null
+            }
+          }
+        }
+      },
+      // Passo 3: Agrupar tudo para calcular as médias finais
+      {
+        $group: {
+          _id: null,
+          totalVideoPosts: { $sum: 1 },
+          sumWatchTime: { $sum: { $ifNull: ['$watchTimeInSeconds', 0] } },
+          countValidWatchTime: { $sum: { $cond: [{ $ne: ['$watchTimeInSeconds', null] }, 1, 0] } },
+          sumRetention: { $sum: { $ifNull: ['$retentionRate', 0] } },
+          countValidRetention: { $sum: { $cond: [{ $ne: ['$retentionRate', null] }, 1, 0] } },
+        }
+      }
+    ]);
 
-    let sumRetention = 0;
-    let sumWatchTime = 0;
-
-    for (const post of videoPosts) {
-      const stats = post.stats as any;
-      if (typeof stats.retention_rate === 'number') sumRetention += stats.retention_rate;
-      if (typeof stats.average_video_watch_time_seconds === 'number') sumWatchTime += stats.average_video_watch_time_seconds;
+    // MUDANÇA 2: Processar o resultado da agregação
+    if (!aggregationResult) {
+      return defaultResult;
     }
 
-    result.numberOfVideoPosts = count;
-    result.averageRetentionRate = (sumRetention / count) * 100;
-    result.averageWatchTimeSeconds = sumWatchTime / count;
+    const finalResult: AverageVideoMetricsData = {
+      numberOfVideoPosts: aggregationResult.totalVideoPosts,
+      averageWatchTimeSeconds: aggregationResult.countValidWatchTime > 0
+        ? aggregationResult.sumWatchTime / aggregationResult.countValidWatchTime
+        : 0,
+      averageRetentionRate: aggregationResult.countValidRetention > 0
+        ? (aggregationResult.sumRetention / aggregationResult.countValidRetention) * 100 // Multiplica por 100 para ser porcentagem
+        : 0,
+      startDate,
+      endDate,
+    };
 
-    return result;
+    return finalResult;
+
   } catch (err) {
-    logger.error(`Erro ao calcular métricas de vídeo (${resolvedUserId}):`, err);
-    return result;
+    logger.error(`Erro ao calcular métricas de vídeo com agregação (${resolvedUserId}):`, err);
+    return defaultResult; // Retorna o padrão em caso de erro
   }
 }
 
