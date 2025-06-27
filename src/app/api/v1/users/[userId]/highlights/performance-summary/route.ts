@@ -4,6 +4,7 @@ import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriod
 import { camelizeKeys } from '@/utils/camelizeKeys';
 
 import aggregatePerformanceHighlights from '@/utils/aggregatePerformanceHighlights';
+import calculatePlatformAverageMetric from '@/utils/calculatePlatformAverageMetric';
 
 // Helper para converter timePeriod string para periodInDays number
 function timePeriodToDays(timePeriod: TimePeriod): number {
@@ -34,6 +35,9 @@ interface PerformanceHighlight {
   value: number;
   valueFormatted: string;
   postsCount?: number; // Opcional, vindo das funções utilitárias
+  platformAverage?: number;
+  platformAverageFormatted?: string;
+  changePercentage?: number;
 }
 interface PerformanceSummaryResponse {
   topPerformingFormat: PerformanceHighlight | null;
@@ -79,35 +83,97 @@ export async function GET(
 
 
   try {
+    const today = new Date();
     const aggResult = await aggregatePerformanceHighlights(
       userId,
       periodInDaysValue,
-      performanceMetricField
+      performanceMetricField,
+      today
+    );
+
+    const prevReference = new Date(today);
+    prevReference.setDate(prevReference.getDate() - periodInDaysValue);
+    const prevAgg = await aggregatePerformanceHighlights(
+      userId,
+      periodInDaysValue,
+      performanceMetricField,
+      prevReference
+    );
+
+    const platformAverage = await calculatePlatformAverageMetric(
+      periodInDaysValue,
+      performanceMetricField,
+      today
     );
 
     const response: PerformanceSummaryResponse = {
-      topPerformingFormat: aggResult.topFormat ? {
-        name: aggResult.topFormat.name as string,
-        metricName: performanceMetricLabel,
-        value: aggResult.topFormat.average,
-        valueFormatted: formatPerformanceValue(aggResult.topFormat.average, performanceMetricField),
-        postsCount: aggResult.topFormat.count
-      } : null,
-      lowPerformingFormat: aggResult.lowFormat ? {
-        name: aggResult.lowFormat.name as string,
-        metricName: performanceMetricLabel,
-        value: aggResult.lowFormat.average,
-        valueFormatted: formatPerformanceValue(aggResult.lowFormat.average, performanceMetricField),
-        postsCount: aggResult.lowFormat.count
-      } : null,
-      topPerformingContext: aggResult.topContext ? {
-        name: aggResult.topContext.name as string,
-        metricName: performanceMetricLabel,
-        value: aggResult.topContext.average,
-        valueFormatted: formatPerformanceValue(aggResult.topContext.average, performanceMetricField),
-        postsCount: aggResult.topContext.count
-      } : null,
-      insightSummary: "" // Será construído abaixo
+      topPerformingFormat: aggResult.topFormat
+        ? {
+            name: aggResult.topFormat.name as string,
+            metricName: performanceMetricLabel,
+            value: aggResult.topFormat.average,
+            valueFormatted: formatPerformanceValue(
+              aggResult.topFormat.average,
+              performanceMetricField
+            ),
+            postsCount: aggResult.topFormat.count,
+            platformAverage: platformAverage,
+            platformAverageFormatted: formatPerformanceValue(
+              platformAverage,
+              performanceMetricField
+            ),
+            changePercentage:
+              prevAgg.topFormat && prevAgg.topFormat.average !== 0
+                ? ((aggResult.topFormat.average - prevAgg.topFormat.average) /
+                    prevAgg.topFormat.average) * 100
+                : undefined,
+          }
+        : null,
+      lowPerformingFormat: aggResult.lowFormat
+        ? {
+            name: aggResult.lowFormat.name as string,
+            metricName: performanceMetricLabel,
+            value: aggResult.lowFormat.average,
+            valueFormatted: formatPerformanceValue(
+              aggResult.lowFormat.average,
+              performanceMetricField
+            ),
+            postsCount: aggResult.lowFormat.count,
+            platformAverage: platformAverage,
+            platformAverageFormatted: formatPerformanceValue(
+              platformAverage,
+              performanceMetricField
+            ),
+            changePercentage:
+              prevAgg.lowFormat && prevAgg.lowFormat.average !== 0
+                ? ((aggResult.lowFormat.average - prevAgg.lowFormat.average) /
+                    prevAgg.lowFormat.average) * 100
+                : undefined,
+          }
+        : null,
+      topPerformingContext: aggResult.topContext
+        ? {
+            name: aggResult.topContext.name as string,
+            metricName: performanceMetricLabel,
+            value: aggResult.topContext.average,
+            valueFormatted: formatPerformanceValue(
+              aggResult.topContext.average,
+              performanceMetricField
+            ),
+            postsCount: aggResult.topContext.count,
+            platformAverage: platformAverage,
+            platformAverageFormatted: formatPerformanceValue(
+              platformAverage,
+              performanceMetricField
+            ),
+            changePercentage:
+              prevAgg.topContext && prevAgg.topContext.average !== 0
+                ? ((aggResult.topContext.average - prevAgg.topContext.average) /
+                    prevAgg.topContext.average) * 100
+                : undefined,
+          }
+        : null,
+      insightSummary: "", // Será construído abaixo
     };
 
     // Construir Insight Summary
