@@ -136,6 +136,8 @@ describe('postsService', () => {
       expect(matchStage.postDate).toBeUndefined();
 
       const videosPipeline = (MetricModel.aggregate as jest.Mock).mock.calls[1][0];
+      const addFields = videosPipeline.find((s: any) => s.$addFields);
+      expect(addFields).toBeDefined();
       const sortStage = videosPipeline.find((s: any) => s.$sort);
       expect(sortStage).toEqual({ $sort: { 'stats.total_interactions': -1 } });
       expect(videosPipeline).toContainEqual({ $limit: 10 });
