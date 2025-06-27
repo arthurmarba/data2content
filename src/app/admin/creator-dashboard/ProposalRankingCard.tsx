@@ -11,6 +11,8 @@ interface ProposalRankingCardProps {
     startDate?: string;
     endDate?: string;
   };
+  /** Label describing the formatted date range for display */
+  dateRangeLabel?: string;
   metricLabel?: string;
   limit?: number;
 }
@@ -19,6 +21,7 @@ const ProposalRankingCard: React.FC<ProposalRankingCardProps> = ({
   title,
   apiEndpoint,
   dateRangeFilter,
+  dateRangeLabel,
   metricLabel = '',
   limit = 5,
 }) => {
@@ -87,7 +90,10 @@ const ProposalRankingCard: React.FC<ProposalRankingCardProps> = ({
 
   return (
     <div className="bg-white p-4 rounded-lg shadow border border-gray-200 h-full flex flex-col">
-      <h4 className="text-md font-semibold text-gray-700 mb-3 truncate" title={title}>{title}</h4>
+      <h4 className="text-md font-semibold text-gray-700 truncate" title={title}>{title}</h4>
+      {dateRangeLabel && (
+        <p className="text-xs text-gray-500 mb-3">{dateRangeLabel}</p>
+      )}
       {isLoading && renderSkeleton()}
       {!isLoading && error && (
         <div className="text-center py-4 flex-grow flex flex-col justify-center items-center">

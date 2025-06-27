@@ -59,6 +59,17 @@ const AdminCreatorDashboardContent: React.FC = () => {
   const startDate = startDateObj.toISOString();
   const endDate = today.toISOString();
   const rankingDateRange = { startDate, endDate };
+  const startDateLabel = startDateObj.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+  const endDateLabel = today.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+  const rankingDateLabel = `${startDateLabel} - ${endDateLabel}`;
 
 
   const handleUserSelect = (userId: string, userName: string) => {
@@ -195,6 +206,7 @@ const AdminCreatorDashboardContent: React.FC = () => {
               title="Propostas com Mais Interações"
               apiEndpoint="/api/admin/dashboard/rankings/proposals?metric=total_interactions"
               dateRangeFilter={rankingDateRange}
+              dateRangeLabel={rankingDateLabel}
               limit={5}
             />
         </section>
@@ -208,6 +220,7 @@ const AdminCreatorDashboardContent: React.FC = () => {
               title="Maior Engajamento"
               apiEndpoint="/api/admin/dashboard/rankings/creators/top-engaging"
               dateRangeFilter={rankingDateRange}
+              dateRangeLabel={rankingDateLabel}
               metricLabel="%"
               limit={5}
             />
@@ -215,18 +228,21 @@ const AdminCreatorDashboardContent: React.FC = () => {
               title="Mais Interações"
               apiEndpoint="/api/admin/dashboard/rankings/creators/top-interactions"
               dateRangeFilter={rankingDateRange}
+              dateRangeLabel={rankingDateLabel}
               limit={5}
             />
             <CreatorRankingCard
               title="Mais Posts"
               apiEndpoint="/api/admin/dashboard/rankings/creators/most-prolific"
               dateRangeFilter={rankingDateRange}
+              dateRangeLabel={rankingDateLabel}
               limit={5}
             />
               <CreatorRankingCard
                 title="Mais Compartilhamentos"
                 apiEndpoint="/api/admin/dashboard/rankings/creators/top-sharing"
                 dateRangeFilter={rankingDateRange}
+                dateRangeLabel={rankingDateLabel}
                 limit={5}
               />
               <TopCreatorsWidget
