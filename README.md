@@ -85,6 +85,17 @@ Front‑end components should rely on camelCase when accessing response data. Th
 API serialization layer automatically converts snake\_case keys to camelCase via
 the `camelizeKeys` utility.
 
+## Video Drill-Down API
+
+The endpoint `/api/v1/users/{userId}/videos/list` returns a paginated list of video posts for a creator. Query parameters allow filtering by `timePeriod`, sorting by any metric, and pagination:
+
+```http
+GET /api/v1/users/123/videos/list?timePeriod=last_90_days&sortBy=views&sortOrder=desc&page=1&limit=10
+```
+
+Responses include computed `retentionRate` and `averageVideoWatchTimeSeconds` along with pagination details.
+
+
 
 ## Learn More
 
