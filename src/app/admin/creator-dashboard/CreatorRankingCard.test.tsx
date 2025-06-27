@@ -18,6 +18,7 @@ const mockEmptyData: ICreatorMetricRankItem[] = [];
 global.fetch = jest.fn();
 
 const mockDateRange = { startDate: '2023-01-01', endDate: '2023-01-31' };
+const mockDateLabel = '01/01/2023 - 31/01/2023';
 
 describe('CreatorRankingCard', () => {
   beforeEach(() => {
@@ -59,6 +60,7 @@ describe('CreatorRankingCard', () => {
         title="Engaging Users"
         apiEndpoint="/api/engaging"
         dateRangeFilter={mockDateRange}
+        dateRangeLabel={mockDateLabel}
         metricLabel="%"
         limit={3}
       />
@@ -68,6 +70,7 @@ describe('CreatorRankingCard', () => {
     expect(screen.getByText('Engaging Users')).toBeInTheDocument();
     expect(screen.getByText('Bob The Builder')).toBeInTheDocument();
     expect(screen.getByText('Charlie Brown')).toBeInTheDocument();
+    expect(screen.getByText(mockDateLabel)).toBeInTheDocument();
 
     // Check formatted metric values and labels
     expect(screen.getByText('95,50 %')).toBeInTheDocument(); // Alice
