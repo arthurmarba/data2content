@@ -173,6 +173,14 @@ const VideosTable: React.FC<VideosTableProps> = ({ videos, sortConfig, onSort, p
               key={video._id}
               className="hover:bg-gray-50 transition-colors cursor-pointer"
               onClick={() => onRowClick && onRowClick(video._id)}
+              tabIndex={0}
+              role="button"
+              onKeyDown={(e) => {
+                if ((e.key === 'Enter' || e.key === ' ') && onRowClick) {
+                  e.preventDefault();
+                  onRowClick(video._id);
+                }
+              }}
             >
               {columns.map((col) => (
                 <td
