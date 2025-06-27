@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/solid';
 import VideosTable, { VideoListItem, metricLabels } from './VideosTable';
+import PostDetailModal from '../PostDetailModal';
 
 interface VideoDrillDownModalProps {
   isOpen: boolean;
@@ -34,6 +35,7 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
     sortBy: drillDownMetric || 'postDate',
     sortOrder: 'desc',
   });
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
 
   const fetchVideos = useCallback(async () => {
     if (!isOpen || !userId) return;
@@ -92,6 +94,10 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
     setCurrentPage(1);
   };
 
+  const handleRowClick = (postId: string) => {
+    setSelectedPostId(postId);
+  };
+
   const handlePageChange = (newPage: number) => {
     const totalPages = Math.ceil(totalVideos / limit);
     if (newPage >= 1 && newPage <= totalPages && newPage !== currentPage) {
@@ -129,6 +135,7 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
               sortConfig={sortConfig}
               onSort={handleSort}
               primaryMetric={sortConfig.sortBy}
+              onRowClick={handleRowClick}
             />
           )}
         </div>
@@ -157,6 +164,11 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
           </div>
         )}
       </div>
+      <PostDetailModal
+        isOpen={selectedPostId !== null}
+        onClose={() => setSelectedPostId(null)}
+        postId={selectedPostId}
+      />
     </div>
   );
 };

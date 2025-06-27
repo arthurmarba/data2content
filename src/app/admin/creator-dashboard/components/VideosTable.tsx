@@ -31,6 +31,7 @@ interface VideosTableProps {
   sortConfig: SortConfig;
   onSort: (column: string) => void;
   primaryMetric: string;
+  onRowClick?: (postId: string) => void;
 }
 
 export const metricLabels: Record<string, string> = {
@@ -43,7 +44,7 @@ export const metricLabels: Record<string, string> = {
   video_duration_seconds: 'Duração (s)',
 };
 
-const VideosTable: React.FC<VideosTableProps> = ({ videos, sortConfig, onSort, primaryMetric }) => {
+const VideosTable: React.FC<VideosTableProps> = ({ videos, sortConfig, onSort, primaryMetric, onRowClick }) => {
   const renderSortIcon = (key: string) => {
     if (sortConfig.sortBy !== key) {
       return <ChevronDownIcon className="w-3 h-3 inline text-gray-400 ml-1" />;
@@ -168,7 +169,11 @@ const VideosTable: React.FC<VideosTableProps> = ({ videos, sortConfig, onSort, p
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {videos.map((video) => (
-            <tr key={video._id} className="hover:bg-gray-50 transition-colors">
+            <tr
+              key={video._id}
+              className="hover:bg-gray-50 transition-colors cursor-pointer"
+              onClick={() => onRowClick && onRowClick(video._id)}
+            >
               {columns.map((col) => (
                 <td
                   key={col.key}
