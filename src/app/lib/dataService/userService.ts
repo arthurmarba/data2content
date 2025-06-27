@@ -333,6 +333,66 @@ export async function addAlertToHistory(
   }
 }
 
+export interface FetchUserAlertsOptions {
+  limit?: number;
+  types?: string[];
+}
+
+export interface FetchUserAlertsResult {
+  alerts: IAlertHistoryEntry[];
+  totalAlerts: number;
+}
+
+export async function fetchUserAlerts(
+  userId: string,
+  { limit = 5, types = [] }: FetchUserAlertsOptions = {}
+): Promise<FetchUserAlertsResult> {
+  const TAG = '[dataService][userService][fetchUserAlerts]';
+
+  if (!mongoose.isValidObjectId(userId)) {
+    logger.error(`${TAG} ID de utilizador inválido: ${userId}`);
+    throw new DatabaseError(`ID de utilizador inválido: ${userId}`);
+  }
+
+  try {
+    await connectToDatabase();
+    const userObjectId = new Types.ObjectId(userId);
+
+    const pipeline: any[] = [
+      { $match: { _id: userObjectId } },
+      { $unwind: '$alertHistory' },
+    ];
+
+    if (types.length > 0) {
+      pipeline.push({ $match: { 'alertHistory.type': { $in: types } } });
+    }
+
+    pipeline.push({
+      $facet: {
+        alerts: [
+          { $sort: { 'alertHistory.date': -1 } },
+          { $limit: limit },
+          { $replaceRoot: { newRoot: '$alertHistory' } },
+        ],
+        totalCount: [
+          { $count: 'count' },
+        ],
+      },
+    });
+
+    const results = await User.aggregate(pipeline);
+    const first = results[0] || { alerts: [], totalCount: [] };
+
+    const alerts = (first.alerts || []) as IAlertHistoryEntry[];
+    const totalAlerts = first.totalCount[0]?.count || 0;
+
+    return { alerts, totalAlerts };
+  } catch (error: any) {
+    logger.error(`${TAG} Erro ao buscar alertas para o utilizador ${userId}:`, error);
+    throw new DatabaseError(`Erro ao buscar alertas: ${error.message}`);
+  }
+}
+
 /**
  * Busca o histórico de alertas de um utilizador.
  * @param userId - O ID do utilizador.
