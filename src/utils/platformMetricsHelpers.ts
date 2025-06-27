@@ -3,6 +3,10 @@ import UserModel from "@/app/models/User"; // Necessário para buscar userIds
 import { Types } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { logger } from "@/app/lib/logger";
+import calculateAverageEngagementPerPost from "./calculateAverageEngagementPerPost";
+import calculateFollowerGrowthRate from "./calculateFollowerGrowthRate";
+import calculateWeeklyPostingFrequency from "./calculateWeeklyPostingFrequency";
+import calculateAverageVideoMetrics from "./calculateAverageVideoMetrics";
 
 // Importar funções de cálculo de indicador individuais para as métricas mais complexas
 // (Estas seriam chamadas para cada usuário para determinar o min/max da plataforma)
@@ -84,30 +88,105 @@ export async function getPlatformMinMaxValues(
           }
           break;
 
-        case "avgEngagementPerPost30d":
-          // TODO: PERFORMANCE - Implementar cálculo real de min/max da plataforma para avgEngagementPerPost30d.
-          // Isso envolveria chamar calculateAverageEngagementPerPost para muitos/todos os usuários ativos.
-          logger.warn(`Usando benchmarks fixos para ${metricId} min/max. Retornando placeholder.`);
-          results[metricId] = { min: 0, max: 5000 }; // Ex: 0 a 5000 interações médias
+        case "avgEngagementPerPost30d": {
+          try {
+            const ids = await getAllUserIds();
+            const values = await Promise.allSettled(
+              ids.map((id) => calculateAverageEngagementPerPost(id, 30))
+            );
+            const numbers = values
+              .filter((r): r is PromiseFulfilledResult<ReturnType<typeof calculateAverageEngagementPerPost>> => r.status === 'fulfilled')
+              .map((r) => (r.value as any).averageEngagementPerPost)
+              .filter((v: any) => typeof v === 'number');
+            if (numbers.length > 0) {
+              results[metricId] = {
+                min: Math.min(...numbers),
+                max: Math.max(...numbers),
+              };
+            } else {
+              results[metricId] = { min: 0, max: 0 };
+            }
+          } catch (e) {
+            logger.error(`Erro ao calcular min/max para ${metricId}:`, e);
+            results[metricId] = { min: 0, max: 0 };
+          }
           break;
+        }
 
-        case "followerGrowthRatePercent30d":
-          // TODO: PERFORMANCE - Implementar cálculo real de min/max da plataforma para followerGrowthRatePercent30d.
-          logger.warn(`Usando benchmarks fixos para ${metricId} min/max. Retornando placeholder.`);
-          results[metricId] = { min: -0.50, max: 1.00 }; // Ex: -50% a 100% de crescimento (decimal)
+        case "followerGrowthRatePercent30d": {
+          try {
+            const ids = await getAllUserIds();
+            const values = await Promise.allSettled(
+              ids.map((id) => calculateFollowerGrowthRate(id, 30))
+            );
+            const numbers = values
+              .filter((r): r is PromiseFulfilledResult<ReturnType<typeof calculateFollowerGrowthRate>> => r.status === 'fulfilled')
+              .map((r) => (r.value as any).percentageGrowth)
+              .filter((v: any) => typeof v === 'number');
+            if (numbers.length > 0) {
+              results[metricId] = {
+                min: Math.min(...numbers),
+                max: Math.max(...numbers),
+              };
+            } else {
+              results[metricId] = { min: 0, max: 0 };
+            }
+          } catch (e) {
+            logger.error(`Erro ao calcular min/max para ${metricId}:`, e);
+            results[metricId] = { min: 0, max: 0 };
+          }
           break;
+        }
 
-        case "avgWeeklyPostingFrequency30d":
-          // TODO: PERFORMANCE - Implementar cálculo real de min/max da plataforma para avgWeeklyPostingFrequency30d.
-          logger.warn(`Usando benchmarks fixos para ${metricId} min/max. Retornando placeholder.`);
-          results[metricId] = { min: 0, max: 21 }; // Ex: 0 a 21 posts por semana
+        case "avgWeeklyPostingFrequency30d": {
+          try {
+            const ids = await getAllUserIds();
+            const values = await Promise.allSettled(
+              ids.map((id) => calculateWeeklyPostingFrequency(id, 30))
+            );
+            const numbers = values
+              .filter((r): r is PromiseFulfilledResult<ReturnType<typeof calculateWeeklyPostingFrequency>> => r.status === 'fulfilled')
+              .map((r) => (r.value as any).currentWeeklyFrequency)
+              .filter((v: any) => typeof v === 'number');
+            if (numbers.length > 0) {
+              results[metricId] = {
+                min: Math.min(...numbers),
+                max: Math.max(...numbers),
+              };
+            } else {
+              results[metricId] = { min: 0, max: 0 };
+            }
+          } catch (e) {
+            logger.error(`Erro ao calcular min/max para ${metricId}:`, e);
+            results[metricId] = { min: 0, max: 0 };
+          }
           break;
+        }
 
-        case "avgVideoRetentionRate90d": // A métrica já é em % (0-100)
-          // TODO: PERFORMANCE - Implementar cálculo real de min/max da plataforma para avgVideoRetentionRate90d.
-          logger.warn(`Usando benchmarks fixos para ${metricId} min/max. Retornando placeholder.`);
-          results[metricId] = { min: 0, max: 100 }; // Ex: 0% a 100%
+        case "avgVideoRetentionRate90d": {
+          try {
+            const ids = await getAllUserIds();
+            const values = await Promise.allSettled(
+              ids.map((id) => calculateAverageVideoMetrics(id, 90))
+            );
+            const numbers = values
+              .filter((r): r is PromiseFulfilledResult<ReturnType<typeof calculateAverageVideoMetrics>> => r.status === 'fulfilled')
+              .map((r) => (r.value as any).averageRetentionRate)
+              .filter((v: any) => typeof v === 'number');
+            if (numbers.length > 0) {
+              results[metricId] = {
+                min: Math.min(...numbers),
+                max: Math.max(...numbers),
+              };
+            } else {
+              results[metricId] = { min: 0, max: 0 };
+            }
+          } catch (e) {
+            logger.error(`Erro ao calcular min/max para ${metricId}:`, e);
+            results[metricId] = { min: 0, max: 0 };
+          }
           break;
+        }
 
         default:
           logger.warn(`Min/Max não implementado para a métrica da plataforma: ${metricId}. Usando fallback.`);
