@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
 import calculateAverageVideoMetrics from '@/utils/calculateAverageVideoMetrics';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
+import { timePeriodToDays } from '@/utils/timePeriodHelpers';
 
 interface AverageVideoMetricsData {
   averageRetentionRate: number;
@@ -19,17 +20,6 @@ function isAllowedTimePeriod(period: any): period is TimePeriod {
 }
 
 // Helper para converter timePeriod string para periodInDays number
-function timePeriodToDays(timePeriod: TimePeriod): number {
-    switch (timePeriod) {
-        case "last_7_days": return 7;
-        case "last_30_days": return 30;
-        case "last_90_days": return 90;
-        case "last_6_months": return 180;
-        case "last_12_months": return 365;
-        case "all_time": return 365 * 5; // Representa "all_time" como um período longo
-        default: return 90; // Default
-    }
-}
 
 export async function GET(
   request: Request,

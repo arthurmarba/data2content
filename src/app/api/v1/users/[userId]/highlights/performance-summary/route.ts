@@ -5,19 +5,7 @@ import { camelizeKeys } from '@/utils/camelizeKeys';
 
 import aggregatePerformanceHighlights from '@/utils/aggregatePerformanceHighlights';
 import calculatePlatformAverageMetric from '@/utils/calculatePlatformAverageMetric';
-
-// Helper para converter timePeriod string para periodInDays number
-function timePeriodToDays(timePeriod: TimePeriod): number {
-    switch (timePeriod) {
-        case "last_7_days": return 7;
-        case "last_30_days": return 30;
-        case "last_90_days": return 90;
-        case "last_6_months": return 180;
-        case "last_12_months": return 365;
-        case "all_time": return 365 * 5; // Representa "all_time" como um período longo
-        default: return 90; // Default
-    }
-}
+import { timePeriodToDays } from '@/utils/timePeriodHelpers';
 
 // Helper para formatar valor (simplificado)
 function formatPerformanceValue(value: number, metricField: string): string {
