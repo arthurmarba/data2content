@@ -8,6 +8,8 @@ interface VideoDrillDownModalProps {
   isOpen: boolean;
   onClose: () => void;
   userId: string | null;
+  timePeriod: string;
+  drillDownMetric: string | null;
 }
 
 interface SortConfig {
@@ -15,14 +17,23 @@ interface SortConfig {
   sortOrder: 'asc' | 'desc';
 }
 
-const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({ isOpen, onClose, userId }) => {
+const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
+  isOpen,
+  onClose,
+  userId,
+  timePeriod,
+  drillDownMetric,
+}) => {
   const [videos, setVideos] = useState<VideoListItem[]>([]);
   const [totalVideos, setTotalVideos] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [limit] = useState(10);
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ sortBy: 'postDate', sortOrder: 'desc' });
+  const [sortConfig, setSortConfig] = useState<SortConfig>({
+    sortBy: drillDownMetric || 'postDate',
+    sortOrder: 'desc',
+  });
 
   const fetchVideos = useCallback(async () => {
     if (!isOpen || !userId) return;
@@ -33,6 +44,7 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({ isOpen, onClo
       limit: String(limit),
       sortBy: sortConfig.sortBy,
       sortOrder: sortConfig.sortOrder,
+      timePeriod,
     });
     try {
       const response = await fetch(`/api/v1/users/${userId}/videos/list?${params.toString()}`);
@@ -42,7 +54,7 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({ isOpen, onClo
       }
       const data = await response.json();
       setVideos(data.videos || []);
-      setTotalVideos(data.totalVideos || 0);
+      setTotalVideos(data.pagination?.totalVideos || 0);
     } catch (e: any) {
       setError(e.message);
       setVideos([]);
@@ -50,7 +62,14 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({ isOpen, onClo
     } finally {
       setIsLoading(false);
     }
-  }, [isOpen, userId, currentPage, limit, sortConfig]);
+  }, [isOpen, userId, currentPage, limit, sortConfig, timePeriod]);
+
+  useEffect(() => {
+    if (drillDownMetric) {
+      setSortConfig({ sortBy: drillDownMetric, sortOrder: 'desc' });
+      setCurrentPage(1);
+    }
+  }, [drillDownMetric]);
 
   useEffect(() => {
     if (isOpen && userId) {
