@@ -9,6 +9,9 @@ export interface PerformanceHighlightItem {
   value: number;
   valueFormatted: string;
   postsCount?: number;
+  platformAverage?: number;
+  platformAverageFormatted?: string;
+  changePercentage?: number;
 }
 
 export interface HighlightCardProps {
@@ -51,7 +54,15 @@ const HighlightCard: React.FC<HighlightCardProps> = ({
         {highlight.postsCount && (
           <span className="ml-1">({highlight.postsCount} posts)</span>
         )}
+        {highlight.platformAverageFormatted && (
+          <span className="ml-1 text-[10px] text-gray-400">(Média plataforma: {highlight.platformAverageFormatted})</span>
+        )}
       </p>
+      {typeof highlight.changePercentage === 'number' && (
+        <p className={`text-xs mt-1 ${highlight.changePercentage >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+          {highlight.changePercentage >= 0 ? '▲' : '▼'} {Math.abs(highlight.changePercentage).toFixed(1)}% vs. período anterior
+        </p>
+      )}
     </div>
   );
 };

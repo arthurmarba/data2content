@@ -12,6 +12,9 @@ interface PerformanceHighlightItem {
   value: number;
   valueFormatted: string;
   postsCount?: number;
+  platformAverage?: number;
+  platformAverageFormatted?: string;
+  changePercentage?: number;
 }
 
 interface PerformanceSummaryResponse {

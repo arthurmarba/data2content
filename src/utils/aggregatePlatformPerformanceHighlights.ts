@@ -18,9 +18,10 @@ export interface PlatformPerformanceHighlightsAggregation {
 
 async function aggregatePlatformPerformanceHighlights(
   periodInDays: number,
-  metricField: string
+  metricField: string,
+  referenceDate: Date = new Date()
 ): Promise<PlatformPerformanceHighlightsAggregation> {
-  const today = new Date();
+  const today = new Date(referenceDate);
   const endDate = new Date(
     today.getFullYear(),
     today.getMonth(),

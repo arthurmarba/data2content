@@ -19,11 +19,12 @@ export interface PerformanceHighlightsAggregation {
 async function aggregatePerformanceHighlights(
   userId: string | Types.ObjectId,
   periodInDays: number,
-  metricField: string
+  metricField: string,
+  referenceDate: Date = new Date()
 ): Promise<PerformanceHighlightsAggregation> {
   const resolvedUserId =
     typeof userId === "string" ? new Types.ObjectId(userId) : userId;
-  const today = new Date();
+  const today = new Date(referenceDate);
   const endDate = new Date(
     today.getFullYear(),
     today.getMonth(),
