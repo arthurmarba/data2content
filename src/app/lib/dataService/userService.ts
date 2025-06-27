@@ -392,59 +392,6 @@ export async function fetchUserAlerts(
     throw new DatabaseError(`Erro ao buscar alertas: ${error.message}`);
   }
 }
-
-/**
- * Busca o histórico de alertas de um utilizador.
- * @param userId - O ID do utilizador.
- * @param options - Opcionalmente, tipos para filtrar e limite de resultados.
- * @returns Um objeto contendo o array de alertas e o total encontrado.
- * @throws {DatabaseError} Se o ID for inválido ou ocorrer erro de banco.
- * @throws {UserNotFoundError} Se o utilizador não existir.
- */
-export async function fetchUserAlerts(
-  userId: string,
-  options?: { types?: string[]; limit?: number }
-): Promise<{ alerts: IAlertHistoryEntry[]; totalAlerts: number }> {
-  const TAG = '[dataService][userService][fetchUserAlerts]';
-
-  if (!mongoose.isValidObjectId(userId)) {
-    logger.error(`${TAG} ID de utilizador inválido: ${userId}`);
-    throw new DatabaseError(`ID de utilizador inválido: ${userId}`);
-  }
-
-  try {
-    await connectToDatabase();
-
-    const userDoc = await User.findById(userId)
-      .select('alertHistory')
-      .lean<{ alertHistory?: IAlertHistoryEntry[] }>();
-
-    if (!userDoc) {
-      logger.warn(`${TAG} Utilizador ${userId} não encontrado ao buscar alertas.`);
-      throw new UserNotFoundError(`Utilizador não encontrado para ID: ${userId}`);
-    }
-
-    let alerts: IAlertHistoryEntry[] = userDoc.alertHistory || [];
-    const totalAlerts = alerts.length;
-
-    if (options?.types && Array.isArray(options.types) && options.types.length > 0) {
-      alerts = alerts.filter((a) => options.types!.includes(a.type));
-    }
-
-    alerts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-    if (options?.limit && typeof options.limit === 'number' && options.limit > 0) {
-      alerts = alerts.slice(0, options.limit);
-    }
-
-    return { alerts, totalAlerts };
-  } catch (error: any) {
-    if (error instanceof UserNotFoundError) throw error;
-    logger.error(`${TAG} Erro ao buscar alertas para User ${userId}:`, error);
-    throw new DatabaseError(`Erro ao buscar histórico de alertas: ${error.message}`);
-  }
-}
-
 /**
  * Exclui a conta de um utilizador e todos os dados associados de forma transacional.
  * @param userId - O ID do utilizador a ser excluído.
