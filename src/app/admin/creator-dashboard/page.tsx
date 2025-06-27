@@ -177,7 +177,6 @@ const AdminCreatorDashboardContent: React.FC = () => {
           <UserDetailView
             userId={selectedUserId}
             userName={selectedUserName ?? undefined}
-            initialChartsTimePeriod={globalTimePeriod} // Passar o período global
           />
         )}
       </div>
