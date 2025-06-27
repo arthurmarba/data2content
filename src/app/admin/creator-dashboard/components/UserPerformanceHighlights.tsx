@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { TrendingUp, TrendingDown, Sparkles } from 'lucide-react';
-import HighlightCard from './HighlightCard';
+import React, { useState, useEffect, useCallback } from "react";
+import { useGlobalTimePeriod } from "./filters/GlobalTimePeriodContext";
+import { TrendingUp, TrendingDown, Sparkles } from "lucide-react";
+import HighlightCard from "./HighlightCard";
 
 interface PerformanceHighlightItem {
   name: string;
@@ -27,35 +28,49 @@ const TIME_PERIOD_OPTIONS = [
 
 interface UserPerformanceHighlightsProps {
   userId: string | null;
-  initialTimePeriod?: string;
   sectionTitle?: string;
 }
 
 // Ícone de Informação (mantido como estava)
-const InfoIcon: React.FC<{className?: string}> = ({className}) => (
-    <svg xmlns="http://www.w3.org/2000/svg" className={className || "h-4 w-4"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
+const InfoIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className={className || "h-4 w-4"}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+    />
+  </svg>
 );
-
 
 const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
   userId,
-  initialTimePeriod,
-  sectionTitle = "Destaques de Performance do Criador"
+  sectionTitle = "Destaques de Performance do Criador",
 }) => {
-  const [summary, setSummary] = useState<PerformanceSummaryResponse | null>(null);
+  const [summary, setSummary] = useState<PerformanceSummaryResponse | null>(
+    null,
+  );
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const defaultTimePeriod = TIME_PERIOD_OPTIONS[1]?.value || TIME_PERIOD_OPTIONS[0]?.value || "last_30_days";
-  const [timePeriod, setTimePeriod] = useState<string>(initialTimePeriod || defaultTimePeriod); // Default last_90_days
+  const { timePeriod: globalTimePeriod } = useGlobalTimePeriod();
+  const defaultTimePeriod =
+    TIME_PERIOD_OPTIONS[1]?.value ||
+    TIME_PERIOD_OPTIONS[0]?.value ||
+    "last_30_days";
+  const [timePeriod, setTimePeriod] = useState<string>(
+    globalTimePeriod || defaultTimePeriod,
+  );
 
   useEffect(() => {
-    if (initialTimePeriod) {
-      setTimePeriod(initialTimePeriod);
-    }
-  }, [initialTimePeriod]);
+    setTimePeriod(globalTimePeriod);
+  }, [globalTimePeriod]);
 
   const fetchData = useCallback(async () => {
     if (!userId) {
@@ -70,12 +85,16 @@ const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
       const response = await fetch(apiUrl);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Erro HTTP: ${response.status} - ${errorData.error || response.statusText}`);
+        throw new Error(
+          `Erro HTTP: ${response.status} - ${errorData.error || response.statusText}`,
+        );
       }
       const result: PerformanceSummaryResponse = await response.json();
       setSummary(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ocorreu um erro desconhecido.');
+      setError(
+        err instanceof Error ? err.message : "Ocorreu um erro desconhecido.",
+      );
       setSummary(null);
     } finally {
       setLoading(false);
@@ -92,31 +111,48 @@ const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
   }, [userId, fetchData]);
 
   if (!userId && !loading) {
-      return null;
+    return null;
   }
 
   return (
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4">
-        <h3 className="text-md font-semibold text-gray-700 mb-2 sm:mb-0">{sectionTitle}</h3>
+        <h3 className="text-md font-semibold text-gray-700 mb-2 sm:mb-0">
+          {sectionTitle}
+        </h3>
         <div>
-          <label htmlFor={`timePeriodUserHighlights-${userId || 'default'}`} className="sr-only">Período</label>
+          <label
+            htmlFor={`timePeriodUserHighlights-${userId || "default"}`}
+            className="sr-only"
+          >
+            Período
+          </label>
           <select
-            id={`timePeriodUserHighlights-${userId || 'default'}`}
+            id={`timePeriodUserHighlights-${userId || "default"}`}
             value={timePeriod}
             onChange={(e) => setTimePeriod(e.target.value)}
             disabled={loading}
             className="p-1.5 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs"
           >
-            {TIME_PERIOD_OPTIONS.map(option => (
-              <option key={option.value} value={option.value}>{option.label}</option>
+            {TIME_PERIOD_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
             ))}
           </select>
         </div>
       </div>
 
-      {loading && <div className="text-center py-5"><p className="text-gray-500">Carregando destaques...</p></div>}
-      {error && <div className="text-center py-5"><p className="text-red-500">Erro: {error}</p></div>}
+      {loading && (
+        <div className="text-center py-5">
+          <p className="text-gray-500">Carregando destaques...</p>
+        </div>
+      )}
+      {error && (
+        <div className="text-center py-5">
+          <p className="text-red-500">Erro: {error}</p>
+        </div>
+      )}
 
       {!loading && !error && summary && (
         <>
@@ -124,36 +160,41 @@ const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
             <HighlightCard
               title="Melhor Formato"
               highlight={summary.topPerformingFormat}
-              icon={<TrendingUp size={18} className="mr-2 text-green-500"/>}
+              icon={<TrendingUp size={18} className="mr-2 text-green-500" />}
               bgColorClass="bg-green-50"
               textColorClass="text-green-600"
             />
             <HighlightCard
               title="Contexto Principal"
               highlight={summary.topPerformingContext}
-              icon={<Sparkles size={18} className="mr-2 text-blue-500"/>}
+              icon={<Sparkles size={18} className="mr-2 text-blue-500" />}
               bgColorClass="bg-blue-50"
               textColorClass="text-blue-600"
             />
             <HighlightCard
               title="Menor Performance (Formato)"
               highlight={summary.lowPerformingFormat}
-              icon={<TrendingDown size={18} className="mr-2 text-red-500"/>}
+              icon={<TrendingDown size={18} className="mr-2 text-red-500" />}
               bgColorClass="bg-red-50"
               textColorClass="text-red-600"
             />
           </div>
           {summary.insightSummary && (
-            <p className="text-xs text-gray-600 mt-4 pt-3 border-t border-gray-200">{summary.insightSummary}</p>
+            <p className="text-xs text-gray-600 mt-4 pt-3 border-t border-gray-200">
+              {summary.insightSummary}
+            </p>
           )}
         </>
       )}
-       {!loading && !error && !summary && (
-         <div className="text-center py-5"><p className="text-gray-500">Nenhum destaque de performance encontrado.</p></div>
+      {!loading && !error && !summary && (
+        <div className="text-center py-5">
+          <p className="text-gray-500">
+            Nenhum destaque de performance encontrado.
+          </p>
+        </div>
       )}
     </div>
   );
 };
 
 export default React.memo(UserPerformanceHighlights);
-

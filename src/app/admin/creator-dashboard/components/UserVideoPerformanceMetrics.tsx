@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
+import { useGlobalTimePeriod } from "./filters/GlobalTimePeriodContext";
 
 interface VideoMetricsData {
   averageRetentionRate: number | null;
@@ -22,19 +23,34 @@ const TIME_PERIOD_OPTIONS = [
 
 interface UserVideoPerformanceMetricsProps {
   userId: string | null;
-  initialTimePeriod?: string;
   chartTitle?: string;
 }
 
 // Sub-componente MetricDisplay e InfoIcon (assumindo que estão definidos em outro lugar ou copiados aqui se necessário)
 // Para este exemplo, vou copiá-los para manter o componente autocontido, mas em um projeto real seriam importados.
-const InfoIcon: React.FC<{className?: string}> = ({className}) => (
-    <svg xmlns="http://www.w3.org/2000/svg" className={className || "h-4 w-4"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
+const InfoIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className={className || "h-4 w-4"}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+    />
+  </svg>
 );
 
-const MetricDisplay: React.FC<{label: string, value: string | number | null, unit?: string, tooltip?: string}> = ({ label, value, unit, tooltip }) => (
+const MetricDisplay: React.FC<{
+  label: string;
+  value: string | number | null;
+  unit?: string;
+  tooltip?: string;
+}> = ({ label, value, unit, tooltip }) => (
   <div className="p-3 bg-gray-50 rounded-lg text-center">
     <div className="text-xs text-gray-500 mb-1 relative group">
       {label}
@@ -48,34 +64,34 @@ const MetricDisplay: React.FC<{label: string, value: string | number | null, uni
       )}
     </div>
     <div className="text-xl font-bold text-indigo-600">
-      {value !== null && value !== undefined ? `${value.toLocaleString()}${unit || ''}` : '-'}
+      {value !== null && value !== undefined
+        ? `${value.toLocaleString()}${unit || ""}`
+        : "-"}
     </div>
   </div>
 );
 
-
-const UserVideoPerformanceMetrics: React.FC<UserVideoPerformanceMetricsProps> = ({
-  userId,
-  initialTimePeriod,
-  chartTitle = "Performance de Vídeos do Criador"
-}) => {
+const UserVideoPerformanceMetrics: React.FC<
+  UserVideoPerformanceMetricsProps
+> = ({ userId, chartTitle = "Performance de Vídeos do Criador" }) => {
   const [metrics, setMetrics] = useState<VideoMetricsData | null>(null);
-  const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
+  const [insightSummary, setInsightSummary] = useState<string | undefined>(
+    undefined,
+  );
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  const { timePeriod: globalTimePeriod } = useGlobalTimePeriod();
   const [timePeriod, setTimePeriod] = useState<string>(
-    initialTimePeriod ||
-    TIME_PERIOD_OPTIONS[1]?.value ||
-    TIME_PERIOD_OPTIONS[0]?.value ||
-    "last_90_days"
-  ); // Default last_90_days
+    globalTimePeriod ||
+      TIME_PERIOD_OPTIONS[1]?.value ||
+      TIME_PERIOD_OPTIONS[0]?.value ||
+      "last_90_days",
+  );
 
   useEffect(() => {
-    if (initialTimePeriod) {
-      setTimePeriod(initialTimePeriod);
-    }
-  }, [initialTimePeriod]);
+    setTimePeriod(globalTimePeriod);
+  }, [globalTimePeriod]);
 
   const fetchData = useCallback(async () => {
     if (!userId) {
@@ -91,7 +107,9 @@ const UserVideoPerformanceMetrics: React.FC<UserVideoPerformanceMetricsProps> = 
       const response = await fetch(apiUrl);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Erro HTTP: ${response.status} - ${errorData.error || response.statusText}`);
+        throw new Error(
+          `Erro HTTP: ${response.status} - ${errorData.error || response.statusText}`,
+        );
       }
       const result: VideoMetricsResponse = await response.json();
       setMetrics({
@@ -101,7 +119,9 @@ const UserVideoPerformanceMetrics: React.FC<UserVideoPerformanceMetricsProps> = 
       });
       setInsightSummary(result.insightSummary);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ocorreu um erro desconhecido.');
+      setError(
+        err instanceof Error ? err.message : "Ocorreu um erro desconhecido.",
+      );
       setMetrics(null);
       setInsightSummary(undefined);
     } finally {
@@ -125,8 +145,12 @@ const UserVideoPerformanceMetrics: React.FC<UserVideoPerformanceMetricsProps> = 
   if (!userId) {
     return (
       <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6">
-        <h3 className="text-md font-semibold text-gray-700 mb-3">{chartTitle}</h3>
-        <div className="text-center py-5 text-gray-500">Selecione um criador.</div>
+        <h3 className="text-md font-semibold text-gray-700 mb-3">
+          {chartTitle}
+        </h3>
+        <div className="text-center py-5 text-gray-500">
+          Selecione um criador.
+        </div>
       </div>
     );
   }
@@ -136,56 +160,82 @@ const UserVideoPerformanceMetrics: React.FC<UserVideoPerformanceMetricsProps> = 
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-md font-semibold text-gray-700">{chartTitle}</h3>
         <div>
-          <label htmlFor={`timePeriodUserVideo-${userId || 'default'}`} className="sr-only">Período</label>
+          <label
+            htmlFor={`timePeriodUserVideo-${userId || "default"}`}
+            className="sr-only"
+          >
+            Período
+          </label>
           <select
-            id={`timePeriodUserVideo-${userId || 'default'}`}
+            id={`timePeriodUserVideo-${userId || "default"}`}
             value={timePeriod}
             onChange={handleTimePeriodChange}
             disabled={loading}
             className="p-1.5 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs"
           >
-            {TIME_PERIOD_OPTIONS.map(option => (
-              <option key={option.value} value={option.value}>{option.label}</option>
+            {TIME_PERIOD_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
             ))}
           </select>
         </div>
       </div>
 
-      {loading && <div className="text-center py-5"><p className="text-gray-500">Carregando métricas de vídeo...</p></div>}
-      {error && <div className="text-center py-5"><p className="text-red-500">Erro: {error}</p></div>}
+      {loading && (
+        <div className="text-center py-5">
+          <p className="text-gray-500">Carregando métricas de vídeo...</p>
+        </div>
+      )}
+      {error && (
+        <div className="text-center py-5">
+          <p className="text-red-500">Erro: {error}</p>
+        </div>
+      )}
 
       {!loading && !error && metrics && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <MetricDisplay
-                label="Retenção Média"
-                value={metrics.averageRetentionRate !== null ? (metrics.averageRetentionRate).toFixed(1) : null}
-                unit="%"
-                tooltip="Média da porcentagem de vídeo que os espectadores assistem."
+              label="Retenção Média"
+              value={
+                metrics.averageRetentionRate !== null
+                  ? metrics.averageRetentionRate.toFixed(1)
+                  : null
+              }
+              unit="%"
+              tooltip="Média da porcentagem de vídeo que os espectadores assistem."
             />
             <MetricDisplay
-                label="Tempo Médio de Visualização"
-                value={metrics.averageWatchTimeSeconds !== null ? metrics.averageWatchTimeSeconds.toFixed(0) : null}
-                unit="s"
-                tooltip="Tempo médio que os espectadores passam assistindo a cada vídeo."
+              label="Tempo Médio de Visualização"
+              value={
+                metrics.averageWatchTimeSeconds !== null
+                  ? metrics.averageWatchTimeSeconds.toFixed(0)
+                  : null
+              }
+              unit="s"
+              tooltip="Tempo médio que os espectadores passam assistindo a cada vídeo."
             />
             <MetricDisplay
-                label="Total de Vídeos Analisados"
-                value={metrics.numberOfVideoPosts}
-                tooltip="Número de posts de vídeo considerados para estas métricas no período."
+              label="Total de Vídeos Analisados"
+              value={metrics.numberOfVideoPosts}
+              tooltip="Número de posts de vídeo considerados para estas métricas no período."
             />
           </div>
           {insightSummary && (
-            <p className="text-xs text-gray-600 mt-3 pt-2 border-t border-gray-100">{insightSummary}</p>
+            <p className="text-xs text-gray-600 mt-3 pt-2 border-t border-gray-100">
+              {insightSummary}
+            </p>
           )}
         </>
       )}
-       {!loading && !error && !metrics && (
-         <div className="text-center py-5"><p className="text-gray-500">Nenhuma métrica de vídeo encontrada.</p></div>
+      {!loading && !error && !metrics && (
+        <div className="text-center py-5">
+          <p className="text-gray-500">Nenhuma métrica de vídeo encontrada.</p>
+        </div>
       )}
     </div>
   );
 };
 
 export default React.memo(UserVideoPerformanceMetrics);
-
