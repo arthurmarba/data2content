@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server';
 import { camelizeKeys } from '@/utils/camelizeKeys';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
-// Para implementação real, seriam necessárias funções de agregação da plataforma
-// que determinariam o top/low formato/contexto em nível de plataforma.
-// Ex: import { getPlatformTopPerformingFormat, ... } from '@/utils/platformMetricsHelpers';
+import aggregatePlatformPerformanceHighlights from '@/utils/aggregatePlatformPerformanceHighlights';
 
 // Reutilizar tipos e helpers se possível, ou definir específicos da plataforma
 interface PerformanceHighlight {
@@ -38,6 +36,19 @@ function isAllowedTimePeriod(period: any): period is TimePeriod {
     return ALLOWED_TIME_PERIODS.includes(period);
 }
 
+// Converte timePeriod em número de dias
+function timePeriodToDays(timePeriod: TimePeriod): number {
+    switch (timePeriod) {
+        case "last_7_days": return 7;
+        case "last_30_days": return 30;
+        case "last_90_days": return 90;
+        case "last_6_months": return 180;
+        case "last_12_months": return 365;
+        case "all_time": return 365 * 5;
+        default: return 90;
+    }
+}
+
 
 export async function GET(
   request: Request
@@ -55,77 +66,87 @@ export async function GET(
     return NextResponse.json({ error: `Time period inválido. Permitidos: ${ALLOWED_TIME_PERIODS.join(', ')}` }, { status: 400 });
   }
 
-  // const performanceMetricField = performanceMetricFieldParam || "stats.total_interactions";
-  const performanceMetricField = "stats.total_interactions"; // Hardcoded por enquanto
+  const performanceMetricField = "stats.total_interactions";
   const performanceMetricLabel = DEFAULT_PERFORMANCE_METRIC_LABEL;
 
+  const periodInDaysValue = timePeriodToDays(timePeriod);
 
-// --- Simulação de Lógica de Backend para Dados Agregados da Plataforma ---
-// TODO: Quando houver dados reais da plataforma, reutilizar
-// `aggregatePerformanceHighlights` para calcular top/low formatos e contextos
-// em nível global. Abaixo permanecem valores mockados para demonstração.
-
-  // Por agora, dados hardcoded para demonstração:
-  let topFormatName = "Reel";
-  let topFormatValue = 2350.75;
-  let topFormatPosts = 1200;
-
-  let lowFormatName = "Texto";
-  let lowFormatValue = 350.10;
-  let lowFormatPosts = 150;
-
-  let topContextName = "Entretenimento";
-  let topContextValue = 1980.50;
-  let topContextPosts = 2500;
-
-  // Ajustar dados hardcoded com base no período para parecer dinâmico
-  if (timePeriod === "last_30_days") {
-    topFormatValue *= 0.8; lowFormatValue *= 0.85; topContextValue *= 0.82;
-  } else if (timePeriod === "last_7_days") {
-    topFormatValue *= 0.5; lowFormatValue *= 0.6; topContextValue *= 0.55;
-  }
-
+  const aggResult = await aggregatePlatformPerformanceHighlights(
+    periodInDaysValue,
+    performanceMetricField
+  );
 
   const response: PlatformPerformanceSummaryResponse = {
-    topPerformingFormat: {
-      name: topFormatName,
-      metricName: performanceMetricLabel,
-      value: topFormatValue,
-      valueFormatted: formatPerformanceValue(topFormatValue, performanceMetricField),
-      postsCount: topFormatPosts
-    },
-    lowPerformingFormat: {
-      name: lowFormatName,
-      metricName: performanceMetricLabel,
-      value: lowFormatValue,
-      valueFormatted: formatPerformanceValue(lowFormatValue, performanceMetricField),
-      postsCount: lowFormatPosts
-    },
-    topPerformingContext: {
-      name: topContextName,
-      metricName: performanceMetricLabel,
-      value: topContextValue,
-      valueFormatted: formatPerformanceValue(topContextValue, performanceMetricField),
-      postsCount: topContextPosts
-    },
-    insightSummary: "" // Será construído abaixo
+    topPerformingFormat: aggResult.topFormat
+      ? {
+          name: aggResult.topFormat.name as string,
+          metricName: performanceMetricLabel,
+          value: aggResult.topFormat.average,
+          valueFormatted: formatPerformanceValue(
+            aggResult.topFormat.average,
+            performanceMetricField
+          ),
+          postsCount: aggResult.topFormat.count,
+        }
+      : null,
+    lowPerformingFormat: aggResult.lowFormat
+      ? {
+          name: aggResult.lowFormat.name as string,
+          metricName: performanceMetricLabel,
+          value: aggResult.lowFormat.average,
+          valueFormatted: formatPerformanceValue(
+            aggResult.lowFormat.average,
+            performanceMetricField
+          ),
+          postsCount: aggResult.lowFormat.count,
+        }
+      : null,
+    topPerformingContext: aggResult.topContext
+      ? {
+          name: aggResult.topContext.name as string,
+          metricName: performanceMetricLabel,
+          value: aggResult.topContext.average,
+          valueFormatted: formatPerformanceValue(
+            aggResult.topContext.average,
+            performanceMetricField
+          ),
+          postsCount: aggResult.topContext.count,
+        }
+      : null,
+    insightSummary: "",
   };
 
   // Construir Insight Summary
-  let insights: string[] = [];
+  const insights: string[] = [];
   if (response.topPerformingFormat) {
-    insights.push(`O formato de melhor performance na plataforma é ${response.topPerformingFormat.name} (${response.topPerformingFormat.valueFormatted} de ${performanceMetricLabel} em média).`);
+    insights.push(
+      `O formato de melhor performance na plataforma é ${response.topPerformingFormat.name} (${response.topPerformingFormat.valueFormatted} de ${performanceMetricLabel} em média).`
+    );
+  } else {
+    insights.push(
+      `Não foi possível identificar um formato de melhor performance com base em ${performanceMetricLabel}.`
+    );
   }
   if (response.topPerformingContext) {
-    insights.push(`${response.topPerformingContext.name} é o contexto de melhor performance (${response.topPerformingContext.valueFormatted} de ${performanceMetricLabel} em média).`);
+    insights.push(
+      `${response.topPerformingContext.name} é o contexto de melhor performance (${response.topPerformingContext.valueFormatted} de ${performanceMetricLabel} em média).`
+    );
   }
-  if (response.lowPerformingFormat && response.lowPerformingFormat.name !== response.topPerformingFormat?.name) {
-    insights.push(`O formato ${response.lowPerformingFormat.name} tem apresentado uma performance mais baixa na plataforma (${response.lowPerformingFormat.valueFormatted}).`);
+  if (
+    response.lowPerformingFormat &&
+    response.lowPerformingFormat.name !== response.topPerformingFormat?.name
+  ) {
+    insights.push(
+      `O formato ${response.lowPerformingFormat.name} tem apresentado uma performance mais baixa na plataforma (${response.lowPerformingFormat.valueFormatted}).`
+    );
   }
   response.insightSummary = insights.join(" ");
-   if (insights.length === 0) {
-        response.insightSummary = `Análise de performance da plataforma por formato e contexto para ${performanceMetricLabel} (${timePeriod.replace("last_","").replace("_"," ")}).`;
-    }
+  if (
+    insights.length === 0 ||
+    (insights.length === 1 && insights[0]?.startsWith("Não foi"))
+  ) {
+    response.insightSummary = `Análise de performance da plataforma por formato e contexto para ${performanceMetricLabel} (${timePeriod.replace("last_", "").replace("_", " ")}).`;
+  }
 
 
   return NextResponse.json(camelizeKeys(response), { status: 200 });
