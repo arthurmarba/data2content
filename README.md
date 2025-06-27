@@ -95,6 +95,16 @@ GET /api/v1/users/123/videos/list?timePeriod=last_90_days&sortBy=views&sortOrder
 
 Responses include computed `retentionRate` and `averageVideoWatchTimeSeconds` along with pagination details.
 
+### Video Drill-Down in the Dashboard
+
+On the dashboard, clicking any of the video metrics or the **Ver Todos os Vídeos** button opens a table listing all posts for that creator. The table can be sorted by any column and includes pagination controls. Thumbnails and captions link directly to the original Instagram post.
+
+Example:
+
+| Thumbnail & Caption | Views | Likes | Comments |
+|---------------------|------:|------:|---------:|
+| ![thumb](public/images/default-profile.png) [Primeiro Reels](https://instagram.com/p/abc123) | 10k | 520 | 30 |
+
 
 
 ## Learn More
