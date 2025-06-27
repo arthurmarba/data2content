@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import VideoDrillDownModal from "../VideoDrillDownModal";
+import VideoDrillDownModal from "./VideoDrillDownModal";
 import { useGlobalTimePeriod } from "./filters/GlobalTimePeriodContext";
 
 interface VideoMetricsData {
