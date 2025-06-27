@@ -108,10 +108,15 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
   const totalPages = Math.ceil(totalVideos / limit);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="video-drilldown-title"
+      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+    >
       <div className="bg-white w-full max-w-3xl rounded-xl shadow-2xl flex flex-col max-h-[90vh]">
         <header className="flex items-center justify-between p-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-800">
+          <h3 id="video-drilldown-title" className="text-lg font-semibold text-gray-800">
             Vídeos do Criador
             {drillDownMetric && (
               <span className="ml-2 text-sm font-normal text-gray-500">
