@@ -15,7 +15,7 @@ interface AlertResponseItem {
   type: AlertTypeEnum | string; // string para flexibilidade se novos tipos surgirem
   date: string; // YYYY-MM-DD
   title: string;
-  summary: string;
+  finalUserMessage: string;
   details: any;
 }
 
@@ -139,12 +139,12 @@ const UserAlertsWidget: React.FC<UserAlertsWidgetProps> = ({
                     {expandedAlerts.has(alert.alertId) ? <ChevronUp size={18} className="text-gray-500"/> : <ChevronDown size={18} className="text-gray-500"/>}
                 </div>
                 {!expandedAlerts.has(alert.alertId) && (
-                     <p className="text-xs text-gray-600 mt-1 ml-8 truncate">{alert.summary}</p>
+                     <p className="text-xs text-gray-600 mt-1 ml-8 truncate">{alert.finalUserMessage}</p>
                 )}
               </button>
               {expandedAlerts.has(alert.alertId) && (
                 <div className="p-3 border-t border-gray-200 bg-gray-50">
-                  <p className="text-sm text-gray-700 mb-2">{alert.summary}</p>
+                  <p className="text-sm text-gray-700 mb-2">{alert.finalUserMessage}</p>
                   <div className="text-xs text-gray-600 bg-white p-2 rounded border border-gray-300">
                     <pre className="whitespace-pre-wrap break-all">{JSON.stringify(alert.details, null, 2)}</pre>
                   </div>

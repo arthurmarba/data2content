@@ -13,7 +13,7 @@ interface AlertResponseItem {
   type: string;
   date: string;
   title: string;
-  summary: string;
+  finalUserMessage: string;
   details: any;
 }
 
@@ -63,7 +63,7 @@ export async function GET(
       type: AlertTypeEnum.FOLLOWER_STAGNATION,
       date: todayFormatted,
       title: "Estagnação de Seguidores",
-      summary: "Seu crescimento de seguidores desacelerou significativamente nos últimos 14 dias.",
+      finalUserMessage: "Seu crescimento de seguidores desacelerou significativamente nos últimos 14 dias.",
       details: { currentGrowthRate: 0.005, previousGrowthRate: 0.02, periodDays: 14 }
     },
     {
@@ -71,7 +71,7 @@ export async function GET(
       type: AlertTypeEnum.FORGOTTEN_FORMAT,
       date: yesterdayFormatted,
       title: "Formato Esquecido: Reels",
-      summary: "Você não posta Reels há 25 dias. Este formato costumava ter bom engajamento.",
+      finalUserMessage: "Você não posta Reels há 25 dias. Este formato costumava ter bom engajamento.",
       details: { format: "REEL", daysSinceLastUsed: 25, avgMetricValue: 1500, metricName: "total_interactions" }
     },
     {
@@ -79,7 +79,7 @@ export async function GET(
       type: AlertTypeEnum.CONTENT_PERFORMANCE_DROP,
       date: fiveDaysAgoFormatted,
       title: "Queda de Performance em Conteúdo",
-      summary: "O engajamento médio dos seus últimos 5 posts de Imagem caiu 30% comparado à média anterior.",
+      finalUserMessage: "O engajamento médio dos seus últimos 5 posts de Imagem caiu 30% comparado à média anterior.",
       details: { contentType: "IMAGE", dropPercentage: -30, lastPostsCount: 5, currentAvg: 500, previousAvg: 714 }
     },
     {
@@ -87,7 +87,7 @@ export async function GET(
       type: AlertTypeEnum.FOLLOWER_STAGNATION,
       date: addDays(new Date(), -10).toISOString().split('T')[0]!,
       title: "Estagnação de Seguidores (Antigo)",
-      summary: "Seu crescimento de seguidores desacelerou (alerta mais antigo).",
+      finalUserMessage: "Seu crescimento de seguidores desacelerou (alerta mais antigo).",
       details: { currentGrowthRate: 0.008, previousGrowthRate: 0.03, periodDays: 14 }
     }
   ];
