@@ -34,6 +34,13 @@ export const createBasePipeline = (): PipelineStage[] => [
  * @returns {string} O nome do campo no banco de dados.
  */
 export function mapMetricToDbField(metric: string): string {
-    // Atualmente, assume uma correspondência direta. Expanda se os nomes divergirem.
-    return metric;
+    const metricMap: Record<string, string> = {
+        views: 'stats.views',
+        likes: 'stats.likes',
+        comments: 'stats.comments',
+        shares: 'stats.shares',
+        total_interactions: 'stats.total_interactions',
+    };
+
+    return metricMap[metric] || metric;
 }
