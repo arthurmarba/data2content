@@ -206,7 +206,7 @@ const UserVideoPerformanceMetrics: React.FC<
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div
               className="cursor-pointer"
-              onClick={() => handleMetricClick("averageRetentionRate")}
+              onClick={() => handleMetricClick("retention_rate")}
             >
               <MetricDisplay
                 label="Retenção Média"
@@ -221,7 +221,7 @@ const UserVideoPerformanceMetrics: React.FC<
             </div>
             <div
               className="cursor-pointer"
-              onClick={() => handleMetricClick("averageWatchTimeSeconds")}
+              onClick={() => handleMetricClick("average_video_watch_time_seconds")}
             >
               <MetricDisplay
                 label="Tempo Médio de Visualização"
@@ -236,7 +236,7 @@ const UserVideoPerformanceMetrics: React.FC<
             </div>
             <div
               className="cursor-pointer"
-              onClick={() => handleMetricClick("numberOfVideoPosts")}
+              onClick={() => handleMetricClick("views")}
             >
               <MetricDisplay
                 label="Total de Vídeos Analisados"
