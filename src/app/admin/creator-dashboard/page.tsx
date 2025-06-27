@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState } from 'react';
+import { GlobalTimePeriodProvider } from './components/GlobalTimePeriodContext';
+import GlobalPeriodIndicator from './components/GlobalPeriodIndicator';
 import CreatorSelector from './components/CreatorSelector';
 
 // Filtro Global
@@ -68,6 +70,7 @@ const AdminCreatorDashboardPage: React.FC = () => {
   };
 
   return (
+    <GlobalTimePeriodProvider value={{ globalTimePeriod, setGlobalTimePeriod }}>
     <div className="p-4 md:p-6 lg:p-8 bg-gray-100 min-h-screen">
       <header className="mb-8 sticky top-0 z-20 bg-gray-100 pb-4 border-b border-gray-200">
         <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Dashboard Administrativo de Criadores</h1>
@@ -122,7 +125,7 @@ const AdminCreatorDashboardPage: React.FC = () => {
         <>
           <section id="platform-overview" className="mb-10">
             <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
-              Visão Geral da Plataforma
+              Visão Geral da Plataforma <GlobalPeriodIndicator />
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
               <TotalActiveCreatorsKpi />
@@ -151,7 +154,7 @@ const AdminCreatorDashboardPage: React.FC = () => {
 
           <section id="platform-content-analysis" className="mb-10">
             <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
-              Análise de Conteúdo da Plataforma
+              Análise de Conteúdo da Plataforma <GlobalPeriodIndicator />
             </h2>
             <div className="mb-6 md:mb-8">
                 <PlatformPerformanceHighlights timePeriod={globalTimePeriod}/>
@@ -188,7 +191,7 @@ const AdminCreatorDashboardPage: React.FC = () => {
 
           <section id="proposal-ranking" className="mb-10">
             <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
-              Ranking por Proposta
+              Ranking por Proposta <GlobalPeriodIndicator />
             </h2>
             <ProposalRankingCard
               title="Propostas com Mais Interações"
@@ -200,7 +203,7 @@ const AdminCreatorDashboardPage: React.FC = () => {
 
         <section id="creator-rankings" className="mb-10">
           <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
-            Rankings de Criadores
+            Rankings de Criadores <GlobalPeriodIndicator />
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <CreatorRankingCard
@@ -239,14 +242,14 @@ const AdminCreatorDashboardPage: React.FC = () => {
 
         <section id="top-movers" className="mb-10">
           <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
-            Top Movers
+            Top Movers <GlobalPeriodIndicator />
           </h2>
           <TopMoversWidget />
         </section>
 
         <section id="cohort-comparison" className="mb-10">
           <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
-            Comparação de Coortes
+            Comparação de Coortes <GlobalPeriodIndicator />
           </h2>
           <CohortComparisonChart
             metric="engagement_rate_on_reach"
@@ -261,7 +264,7 @@ const AdminCreatorDashboardPage: React.FC = () => {
 
         <section id="market-performance" className="mb-10">
           <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
-            Desempenho do Mercado
+            Desempenho do Mercado <GlobalPeriodIndicator />
           </h2>
           <div className="flex flex-col md:flex-row gap-4 mb-4">
             <div>
@@ -296,14 +299,14 @@ const AdminCreatorDashboardPage: React.FC = () => {
 
         <section id="advanced-analysis" className="mb-10">
           <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
-            Análise Avançada
+            Análise Avançada <GlobalPeriodIndicator />
           </h2>
           <RadarEffectivenessWidget />
         </section>
 
         <section id="creator-highlights-and-scatter-plot" className="mb-10">
             <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
-              Destaques e Análise Comparativa de Criadores
+              Destaques e Análise Comparativa de Criadores <GlobalPeriodIndicator />
             </h2>
             <p className="text-sm text-gray-500 mb-4 italic">
               (Em breve: Tabelas de Criadores com melhor performance)
@@ -330,6 +333,7 @@ const AdminCreatorDashboardPage: React.FC = () => {
       />
       <ScrollToTopButton />
     </div>
+    </GlobalTimePeriodProvider>
   );
 };
 
