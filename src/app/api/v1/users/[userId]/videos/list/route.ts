@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
-import MetricModel from '@/app/models/Metric';
-import { connectToDatabase } from '@/app/lib/mongoose';
-import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
+import { findUserVideoPosts } from '@/app/lib/dataService/marketAnalysis/postsService';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 
-const DEFAULT_VIDEO_TYPES = ['REEL', 'VIDEO'];
+// Default sorting when none is provided via query params
+const DEFAULT_SORT_BY = 'postDate';
 
 export async function GET(
   request: Request,
@@ -19,7 +18,7 @@ export async function GET(
 
   const { searchParams } = new URL(request.url);
   const timePeriodParam = searchParams.get('timePeriod') as TimePeriod | null;
-  const sortBy = searchParams.get('sortBy') || 'postDate';
+  const sortBy = searchParams.get('sortBy') || DEFAULT_SORT_BY;
   const sortOrder = searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc';
   const page = parseInt(searchParams.get('page') || '1', 10);
   const limit = parseInt(searchParams.get('limit') || '10', 10);
@@ -36,75 +35,31 @@ export async function GET(
   }
 
   try {
-    await connectToDatabase();
-    const userObjectId = new Types.ObjectId(userId);
-    const today = new Date();
-    const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
-    const startDate = getStartDateFromTimePeriod(today, timePeriod);
+    const result = await findUserVideoPosts({
+      userId,
+      timePeriod,
+      sortBy,
+      sortOrder,
+      page,
+      limit,
+    });
 
-    const matchStage: any = { user: userObjectId, type: { $in: DEFAULT_VIDEO_TYPES } };
-    if (timePeriod !== 'all_time') {
-      matchStage.postDate = { $gte: startDate, $lte: endDate };
-    }
-
-    const skip = (page - 1) * limit;
-    const sortDirection = sortOrder === 'asc' ? 1 : -1;
-
-    const pipeline = [
-      { $match: matchStage },
-      {
-        $addFields: {
-          average_video_watch_time_seconds: {
-            $cond: {
-              if: { $gt: [{ $ifNull: ['$stats.ig_reels_avg_watch_time', 0] }, 0] },
-              then: { $divide: ['$stats.ig_reels_avg_watch_time', 1000] },
-              else: null
-            }
-          },
-          retention_rate: {
-            $cond: {
-              if: {
-                $and: [
-                  { $gt: [{ $ifNull: ['$stats.ig_reels_avg_watch_time', 0] }, 0] },
-                  { $gt: [{ $ifNull: ['$stats.video_duration_seconds', 0] }, 0] }
-                ]
-              },
-              then: {
-                $divide: [
-                  { $divide: ['$stats.ig_reels_avg_watch_time', 1000] },
-                  '$stats.video_duration_seconds'
-                ]
-              },
-              else: null
-            }
-          }
-        }
-      },
-      { $sort: { [sortBy]: sortDirection } },
-      {
-        $facet: {
-          videos: [ { $skip: skip }, { $limit: limit } ],
-          totalCount: [ { $count: 'count' } ]
-        }
-      }
-    ];
-
-    const [agg] = await MetricModel.aggregate(pipeline);
-    const videos = agg?.videos || [];
-    const totalVideos = agg?.totalCount?.[0]?.count || 0;
-    const totalPages = Math.ceil(totalVideos / limit) || 1;
+    const totalPages = Math.ceil(result.totalVideos / result.limit) || 1;
 
     return NextResponse.json({
-      videos,
+      videos: result.videos,
       pagination: {
-        currentPage: page,
+        currentPage: result.page,
         totalPages,
-        totalVideos
-      }
+        totalVideos: result.totalVideos,
+      },
     });
   } catch (error) {
     console.error('[API USER/VIDEOS/LIST] Error:', error);
     const message = error instanceof Error ? error.message : 'Erro desconhecido';
-    return NextResponse.json({ error: 'Erro ao buscar vídeos.', details: message }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Erro ao buscar vídeos.', details: message },
+      { status: 500 },
+    );
   }
 }
