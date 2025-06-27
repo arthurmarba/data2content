@@ -255,8 +255,10 @@ export interface IFindUserVideoPostsArgs {
 
 export interface IUserVideoPostResult {
   _id: Types.ObjectId;
-  description?: string;
+  caption?: string;
   postDate?: Date;
+  thumbnailUrl?: string | null;
+  permalink?: string | null;
   format?: string;
   type?: string;
   stats?: {
@@ -265,7 +267,10 @@ export interface IUserVideoPostResult {
     shares?: number;
     comments?: number;
     views?: number;
+    video_duration_seconds?: number;
   };
+  average_video_watch_time_seconds?: number | null;
+  retention_rate?: number | null;
 }
 
 export interface IUserVideoPostsPaginatedResult {
@@ -313,6 +318,34 @@ export async function findUserVideoPosts({
     const baseAggregation: PipelineStage[] = [
       ...createBasePipeline(),
       { $match: matchStage },
+      {
+        $addFields: {
+          average_video_watch_time_seconds: {
+            $cond: {
+              if: { $gt: [{ $ifNull: ['$stats.ig_reels_avg_watch_time', 0] }, 0] },
+              then: { $divide: ['$stats.ig_reels_avg_watch_time', 1000] },
+              else: null,
+            },
+          },
+          retention_rate: {
+            $cond: {
+              if: {
+                $and: [
+                  { $gt: [{ $ifNull: ['$stats.ig_reels_avg_watch_time', 0] }, 0] },
+                  { $gt: [{ $ifNull: ['$stats.video_duration_seconds', 0] }, 0] },
+                ],
+              },
+              then: {
+                $divide: [
+                  { $divide: ['$stats.ig_reels_avg_watch_time', 1000] },
+                  '$stats.video_duration_seconds',
+                ],
+              },
+              else: null,
+            },
+          },
+        },
+      },
     ];
 
     const countPipeline: PipelineStage[] = [
@@ -334,12 +367,21 @@ export async function findUserVideoPosts({
       {
         $project: {
           creatorInfo: 0,
-          description: 1,
+          caption: '$description',
           postDate: 1,
+          thumbnailUrl: '$coverUrl',
+          permalink: '$postLink',
           format: 1,
           type: 1,
-          postLink: 1,
-          stats: 1,
+          stats: {
+            views: '$stats.views',
+            likes: '$stats.likes',
+            comments: '$stats.comments',
+            shares: '$stats.shares',
+            video_duration_seconds: '$stats.video_duration_seconds',
+          },
+          average_video_watch_time_seconds: 1,
+          retention_rate: 1,
         },
       },
     ];
