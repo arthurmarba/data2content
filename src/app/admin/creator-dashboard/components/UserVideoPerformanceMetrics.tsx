@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import VideoDrillDownModal from "../VideoDrillDownModal";
+import VideoDrillDownModal from "./VideoDrillDownModal";
 import { useGlobalTimePeriod } from "./filters/GlobalTimePeriodContext";
 
 interface VideoMetricsData {
@@ -205,7 +205,7 @@ const UserVideoPerformanceMetrics: React.FC<
         <>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div
-              className="cursor-pointer"
+              className="cursor-pointer rounded-md hover:bg-gray-100 transition"
               onClick={() => handleMetricClick("averageRetentionRate")}
             >
               <MetricDisplay
@@ -220,7 +220,7 @@ const UserVideoPerformanceMetrics: React.FC<
               />
             </div>
             <div
-              className="cursor-pointer"
+              className="cursor-pointer rounded-md hover:bg-gray-100 transition"
               onClick={() => handleMetricClick("averageWatchTimeSeconds")}
             >
               <MetricDisplay
@@ -235,7 +235,7 @@ const UserVideoPerformanceMetrics: React.FC<
               />
             </div>
             <div
-              className="cursor-pointer"
+              className="cursor-pointer rounded-md hover:bg-gray-100 transition"
               onClick={() => handleMetricClick("numberOfVideoPosts")}
             >
               <MetricDisplay

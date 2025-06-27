@@ -2,12 +2,14 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/solid';
-import VideosTable, { VideoListItem } from './VideosTable';
+import VideosTable, { VideoListItem, metricLabels } from './VideosTable';
 
 interface VideoDrillDownModalProps {
   isOpen: boolean;
   onClose: () => void;
   userId: string | null;
+  timePeriod: string;
+  drillDownMetric: string | null;
 }
 
 interface SortConfig {
@@ -15,14 +17,23 @@ interface SortConfig {
   sortOrder: 'asc' | 'desc';
 }
 
-const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({ isOpen, onClose, userId }) => {
+const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
+  isOpen,
+  onClose,
+  userId,
+  timePeriod,
+  drillDownMetric,
+}) => {
   const [videos, setVideos] = useState<VideoListItem[]>([]);
   const [totalVideos, setTotalVideos] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [limit] = useState(10);
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ sortBy: 'postDate', sortOrder: 'desc' });
+  const [sortConfig, setSortConfig] = useState<SortConfig>({
+    sortBy: drillDownMetric || 'postDate',
+    sortOrder: 'desc',
+  });
 
   const fetchVideos = useCallback(async () => {
     if (!isOpen || !userId) return;
@@ -33,6 +44,7 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({ isOpen, onClo
       limit: String(limit),
       sortBy: sortConfig.sortBy,
       sortOrder: sortConfig.sortOrder,
+      timePeriod,
     });
     try {
       const response = await fetch(`/api/v1/users/${userId}/videos/list?${params.toString()}`);
@@ -42,7 +54,7 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({ isOpen, onClo
       }
       const data = await response.json();
       setVideos(data.videos || []);
-      setTotalVideos(data.totalVideos || 0);
+      setTotalVideos(data.pagination?.totalVideos || 0);
     } catch (e: any) {
       setError(e.message);
       setVideos([]);
@@ -50,7 +62,14 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({ isOpen, onClo
     } finally {
       setIsLoading(false);
     }
-  }, [isOpen, userId, currentPage, limit, sortConfig]);
+  }, [isOpen, userId, currentPage, limit, sortConfig, timePeriod]);
+
+  useEffect(() => {
+    if (drillDownMetric) {
+      setSortConfig({ sortBy: drillDownMetric, sortOrder: 'desc' });
+      setCurrentPage(1);
+    }
+  }, [drillDownMetric]);
 
   useEffect(() => {
     if (isOpen && userId) {
@@ -86,19 +105,36 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({ isOpen, onClo
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-3xl rounded-xl shadow-2xl flex flex-col max-h-[90vh]">
         <header className="flex items-center justify-between p-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-800">Vídeos do Criador</h3>
+          <h3 className="text-lg font-semibold text-gray-800">
+            Vídeos do Criador
+            {drillDownMetric && (
+              <span className="ml-2 text-sm font-normal text-gray-500">
+                – ordenado por {metricLabels[drillDownMetric] || drillDownMetric}
+              </span>
+            )}
+          </h3>
           <button onClick={onClose} className="p-1.5 rounded-full text-gray-400 hover:bg-gray-100">
             <XMarkIcon className="w-6 h-6" />
           </button>
         </header>
         <div className="p-4 overflow-y-auto flex-grow">
-          {isLoading && <p className="text-center text-gray-500">Carregando vídeos...</p>}
+          {isLoading && (
+            <div className="flex flex-col items-center py-6">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mb-3" />
+              <p className="text-gray-500">Carregando vídeos...</p>
+            </div>
+          )}
           {error && <p className="text-center text-red-500">Erro: {error}</p>}
           {!isLoading && !error && videos.length === 0 && (
             <p className="text-center text-gray-500">Nenhum vídeo encontrado.</p>
           )}
           {!isLoading && !error && videos.length > 0 && (
-            <VideosTable videos={videos} sortConfig={sortConfig} onSort={handleSort} />
+            <VideosTable
+              videos={videos}
+              sortConfig={sortConfig}
+              onSort={handleSort}
+              primaryMetric={sortConfig.sortBy}
+            />
           )}
         </div>
         {!isLoading && !error && totalVideos > 0 && (
