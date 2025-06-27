@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from 'react';
-import { GlobalTimePeriodProvider } from './components/GlobalTimePeriodContext';
 import GlobalPeriodIndicator from './components/GlobalPeriodIndicator';
 import CreatorSelector from './components/CreatorSelector';
 
@@ -82,7 +81,6 @@ const AdminCreatorDashboardContent: React.FC = () => {
   };
 
   return (
-    <GlobalTimePeriodProvider value={{ globalTimePeriod, setGlobalTimePeriod }}>
     <div className="p-4 md:p-6 lg:p-8 bg-gray-100 min-h-screen">
       <header className="mb-8 sticky top-0 z-20 bg-gray-100 pb-4 border-b border-gray-200">
         <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Dashboard Administrativo de Criadores</h1>
@@ -347,7 +345,6 @@ const AdminCreatorDashboardContent: React.FC = () => {
       />
       <ScrollToTopButton />
     </div>
-    </GlobalTimePeriodProvider>
   );
 };
 

@@ -1,6 +1,6 @@
 "use client";
 import React from 'react';
-import { useGlobalTimePeriod } from './GlobalTimePeriodContext';
+import { useGlobalTimePeriod } from './filters/GlobalTimePeriodContext';
 
 interface Props {
   timePeriod?: string;
@@ -17,7 +17,7 @@ const LABELS: Record<string, string> = {
 
 const GlobalPeriodIndicator: React.FC<Props> = ({ timePeriod }) => {
   const context = useGlobalTimePeriod();
-  const period = timePeriod || context.globalTimePeriod;
+  const period = timePeriod || context.timePeriod;
   const label = LABELS[period] || 'Período Personalizado';
 
   return (
