@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
 import { findUserVideoPosts } from '@/app/lib/dataService/marketAnalysis/postsService';
+import { mapMetricToDbField } from '@/app/lib/dataService/marketAnalysis/helpers';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 
 // Default sorting when none is provided via query params
@@ -18,7 +19,8 @@ export async function GET(
 
   const { searchParams } = new URL(request.url);
   const timePeriodParam = searchParams.get('timePeriod') as TimePeriod | null;
-  const sortBy = searchParams.get('sortBy') || DEFAULT_SORT_BY;
+  const sortByParam = searchParams.get('sortBy') || DEFAULT_SORT_BY;
+  const sortBy = mapMetricToDbField(sortByParam);
   const sortOrder = searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc';
   const page = parseInt(searchParams.get('page') || '1', 10);
   const limit = parseInt(searchParams.get('limit') || '10', 10);

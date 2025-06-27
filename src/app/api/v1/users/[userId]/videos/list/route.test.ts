@@ -46,6 +46,27 @@ describe('GET /api/v1/users/[userId]/videos/list', () => {
     });
   });
 
+  it('maps sortBy params using helper', async () => {
+    mockFindUserVideoPosts.mockResolvedValueOnce({
+      videos: [],
+      totalVideos: 0,
+      page: 1,
+      limit: 10,
+    });
+
+    const req = createRequest(userId, '?sortBy=views');
+    await GET(req, { params: { userId } });
+
+    expect(mockFindUserVideoPosts).toHaveBeenCalledWith({
+      userId,
+      timePeriod: 'last_90_days',
+      sortBy: 'stats.views',
+      sortOrder: 'desc',
+      page: 1,
+      limit: 10,
+    });
+  });
+
   it('returns 400 for invalid timePeriod', async () => {
     const req = createRequest(userId, '?timePeriod=bad');
     const res = await GET(req, { params: { userId } });
