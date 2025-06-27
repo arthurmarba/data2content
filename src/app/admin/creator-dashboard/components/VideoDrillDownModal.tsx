@@ -105,7 +105,14 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-3xl rounded-xl shadow-2xl flex flex-col max-h-[90vh]">
         <header className="flex items-center justify-between p-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-800">Vídeos do Criador</h3>
+          <h3 className="text-lg font-semibold text-gray-800">
+            Vídeos do Criador
+            {drillDownMetric && (
+              <span className="ml-2 text-sm font-normal text-gray-500">
+                – ordenado por {drillDownMetric}
+              </span>
+            )}
+          </h3>
           <button onClick={onClose} className="p-1.5 rounded-full text-gray-400 hover:bg-gray-100">
             <XMarkIcon className="w-6 h-6" />
           </button>
@@ -117,7 +124,12 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
             <p className="text-center text-gray-500">Nenhum vídeo encontrado.</p>
           )}
           {!isLoading && !error && videos.length > 0 && (
-            <VideosTable videos={videos} sortConfig={sortConfig} onSort={handleSort} />
+            <VideosTable
+              videos={videos}
+              sortConfig={sortConfig}
+              onSort={handleSort}
+              primaryMetric={sortConfig.sortBy}
+            />
           )}
         </div>
         {!isLoading && !error && totalVideos > 0 && (
