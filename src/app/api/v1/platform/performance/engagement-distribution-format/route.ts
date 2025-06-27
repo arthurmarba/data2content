@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import MetricModel from '@/app/models/Metric';
+import { connectToDatabase } from '@/app/lib/mongoose';
 import {
   ALLOWED_TIME_PERIODS,
   ALLOWED_ENGAGEMENT_METRICS,
@@ -88,6 +89,7 @@ export async function GET(
   }
 
   try {
+    await connectToDatabase();
     const today = new Date();
     const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
     const startDate = getStartDateFromTimePeriod(today, timePeriod);
