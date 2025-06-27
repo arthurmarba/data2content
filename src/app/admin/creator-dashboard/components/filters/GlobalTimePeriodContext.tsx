@@ -7,9 +7,13 @@ export interface GlobalTimePeriodContextValue {
   setTimePeriod: (tp: string) => void;
 }
 
-const GlobalTimePeriodContext = createContext<GlobalTimePeriodContextValue | undefined>(undefined);
+const GlobalTimePeriodContext = createContext<
+  GlobalTimePeriodContextValue | undefined
+>(undefined);
 
-export const GlobalTimePeriodProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
+export const GlobalTimePeriodProvider: React.FC<{
+  children: React.ReactNode;
+}> = ({ children }) => {
   const [timePeriod, setTimePeriod] = useState<string>("last_90_days");
   return (
     <GlobalTimePeriodContext.Provider value={{ timePeriod, setTimePeriod }}>
@@ -21,7 +25,9 @@ export const GlobalTimePeriodProvider: React.FC<{children: React.ReactNode}> = (
 export const useGlobalTimePeriod = (): GlobalTimePeriodContextValue => {
   const context = useContext(GlobalTimePeriodContext);
   if (!context) {
-    throw new Error("useGlobalTimePeriod must be used within a GlobalTimePeriodProvider");
+    throw new Error(
+      "useGlobalTimePeriod must be used within a GlobalTimePeriodProvider",
+    );
   }
   return context;
 };
