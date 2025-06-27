@@ -11,6 +11,8 @@ import { connectToDatabase } from '../connection';
 import { DatabaseError } from '@/app/lib/errors';
 import { FindGlobalPostsArgs, IGlobalPostsPaginatedResult, IGlobalPostResult } from './types';
 import { createBasePipeline } from './helpers';
+import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
+import { TimePeriod } from '@/app/lib/constants/timePeriods';
 
 const SERVICE_TAG = '[dataService][postsService]';
 
@@ -237,5 +239,122 @@ export async function fetchPostDetails(args: IPostDetailsArgs): Promise<IPostDet
   } catch (error: any) {
     logger.error(`${TAG} Error fetching post details for ID ${postId}:`, error);
     throw new DatabaseError(`Failed to fetch post details: ${error.message}`);
+  }
+}
+
+// --- Find User Video Posts ---
+
+export interface IFindUserVideoPostsArgs {
+  userId: string;
+  timePeriod: TimePeriod;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  page?: number;
+  limit?: number;
+}
+
+export interface IUserVideoPostResult {
+  _id: Types.ObjectId;
+  description?: string;
+  postDate?: Date;
+  format?: string;
+  type?: string;
+  stats?: {
+    total_interactions?: number;
+    likes?: number;
+    shares?: number;
+    comments?: number;
+    views?: number;
+  };
+}
+
+export interface IUserVideoPostsPaginatedResult {
+  videos: IUserVideoPostResult[];
+  totalVideos: number;
+  page: number;
+  limit: number;
+}
+
+export async function findUserVideoPosts({
+  userId,
+  timePeriod,
+  sortBy = 'stats.total_interactions',
+  sortOrder = 'desc',
+  page = 1,
+  limit = 10,
+}: IFindUserVideoPostsArgs): Promise<IUserVideoPostsPaginatedResult> {
+  const TAG = `${SERVICE_TAG}[findUserVideoPosts]`;
+
+  logger.info(`${TAG} Fetching video posts for user ${userId}`);
+
+  try {
+    await connectToDatabase();
+
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new DatabaseError('Invalid userId');
+    }
+
+    const userObjectId = new Types.ObjectId(userId);
+    const today = new Date();
+    const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+    const startDate = timePeriod === 'all_time'
+      ? new Date(0)
+      : getStartDateFromTimePeriod(today, timePeriod);
+
+    const matchStage: PipelineStage.Match['$match'] = {
+      user: userObjectId,
+      type: { $in: ['REEL', 'VIDEO'] },
+    };
+
+    if (timePeriod !== 'all_time') {
+      matchStage.postDate = { $gte: startDate, $lte: endDate };
+    }
+
+    const baseAggregation: PipelineStage[] = [
+      ...createBasePipeline(),
+      { $match: matchStage },
+    ];
+
+    const countPipeline: PipelineStage[] = [
+      ...baseAggregation,
+      { $count: 'total' },
+    ];
+
+    const countResult = await MetricModel.aggregate(countPipeline);
+    const totalVideos = countResult.length > 0 ? countResult[0].total : 0;
+
+    const sortDirection = sortOrder === 'asc' ? 1 : -1;
+    const skip = (page - 1) * limit;
+
+    const videosPipeline: PipelineStage[] = [
+      ...baseAggregation,
+      { $sort: { [sortBy]: sortDirection } },
+      { $skip: skip },
+      { $limit: limit },
+      {
+        $project: {
+          creatorInfo: 0,
+          description: 1,
+          postDate: 1,
+          format: 1,
+          type: 1,
+          postLink: 1,
+          stats: 1,
+        },
+      },
+    ];
+
+    logger.debug(`${TAG} Aggregation pipeline: ${JSON.stringify(videosPipeline)}`);
+    const videos = await MetricModel.aggregate(videosPipeline);
+
+    return {
+      videos: videos as IUserVideoPostResult[],
+      totalVideos,
+      page,
+      limit,
+    };
+  } catch (error: any) {
+    logger.error(`${TAG} Error fetching user video posts:`, error);
+    throw new DatabaseError(`Failed to fetch user video posts: ${error.message}`);
   }
 }

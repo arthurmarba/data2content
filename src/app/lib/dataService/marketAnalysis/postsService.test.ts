@@ -1,5 +1,5 @@
 import { Types } from 'mongoose';
-import { fetchPostDetails, IPostDetailsData } from './postsService'; // Assuming interfaces are exported or defined here
+import { fetchPostDetails, findUserVideoPosts, IPostDetailsData } from './postsService';
 import MetricModel from '@/app/models/Metric';
 import DailyMetricSnapshotModel, { IDailyMetricSnapshot } from '@/app/models/DailyMetricSnapshot';
 import { connectToDatabase } from '../connection';
@@ -98,7 +98,7 @@ describe('postsService', () => {
       expect(logger.error).toHaveBeenCalledWith(expect.stringContaining(`Error fetching post details for ID ${mockPostId}`), error);
     });
 
-    test('should throw DatabaseError if DailyMetricSnapshotModel.find fails', async () => {
+  test('should throw DatabaseError if DailyMetricSnapshotModel.find fails', async () => {
       const error = new Error('DailyMetricSnapshotModel.find failed');
       (DailyMetricSnapshotModel.find as jest.Mock).mockReturnValue({
         sort: jest.fn().mockReturnThis(),
@@ -107,6 +107,56 @@ describe('postsService', () => {
 
       await expect(fetchPostDetails({ postId: mockPostId })).rejects.toThrow(DatabaseError);
       expect(logger.error).toHaveBeenCalledWith(expect.stringContaining(`Error fetching post details for ID ${mockPostId}`), error);
+    });
+  });
+
+  describe('findUserVideoPosts', () => {
+    const mockUserId = new Types.ObjectId().toString();
+    const mockVideos = [
+      { _id: new Types.ObjectId(), description: 'v1' },
+      { _id: new Types.ObjectId(), description: 'v2' },
+    ];
+
+    beforeEach(() => {
+      (MetricModel.aggregate as jest.Mock)
+        .mockResolvedValueOnce([{ total: mockVideos.length }])
+        .mockResolvedValueOnce(mockVideos);
+    });
+
+    test('builds pipeline with defaults and returns paginated videos', async () => {
+      const result = await findUserVideoPosts({ userId: mockUserId, timePeriod: 'all_time' });
+
+      expect(connectToDatabase).toHaveBeenCalled();
+      expect(MetricModel.aggregate).toHaveBeenCalledTimes(2);
+
+      const countPipeline = (MetricModel.aggregate as jest.Mock).mock.calls[0][0];
+      const matchStage = countPipeline.find((s: any) => s.$match).$match;
+      expect(matchStage.user).toEqual(new Types.ObjectId(mockUserId));
+      expect(matchStage.type).toEqual({ $in: ['REEL', 'VIDEO'] });
+      expect(matchStage.postDate).toBeUndefined();
+
+      const videosPipeline = (MetricModel.aggregate as jest.Mock).mock.calls[1][0];
+      const sortStage = videosPipeline.find((s: any) => s.$sort);
+      expect(sortStage).toEqual({ $sort: { 'stats.total_interactions': -1 } });
+      expect(videosPipeline).toContainEqual({ $limit: 10 });
+
+      expect(result.totalVideos).toBe(mockVideos.length);
+      expect(result.videos).toEqual(mockVideos);
+    });
+
+    test('applies pagination and sorting params', async () => {
+      (MetricModel.aggregate as jest.Mock)
+        .mockClear()
+        .mockResolvedValueOnce([{ total: 1 }])
+        .mockResolvedValueOnce(mockVideos);
+
+      await findUserVideoPosts({ userId: mockUserId, timePeriod: 'all_time', page: 2, limit: 5, sortBy: 'stats.views', sortOrder: 'asc' });
+
+      const pipeline = (MetricModel.aggregate as jest.Mock).mock.calls[1][0];
+      expect(pipeline).toContainEqual({ $skip: 5 });
+      expect(pipeline).toContainEqual({ $limit: 5 });
+      const sortStage = pipeline.find((s: any) => s.$sort);
+      expect(sortStage).toEqual({ $sort: { 'stats.views': 1 } });
     });
   });
 });
