@@ -1,89 +1,90 @@
 "use client";
 
-import React, { useState } from 'react';
-import GlobalPeriodIndicator from './components/GlobalPeriodIndicator';
-import CreatorSelector from './components/CreatorSelector';
+import React, { useState } from "react";
+import CreatorSelector from "./components/CreatorSelector";
 
 // Filtro Global
-import GlobalTimePeriodFilter from './components/filters/GlobalTimePeriodFilter';
-import { GlobalTimePeriodProvider, useGlobalTimePeriod } from './components/filters/GlobalTimePeriodContext';
+import GlobalTimePeriodFilter from "./components/filters/GlobalTimePeriodFilter";
+import {
+  GlobalTimePeriodProvider,
+  useGlobalTimePeriod,
+} from "./components/filters/GlobalTimePeriodContext";
 
 // Componentes da Plataforma - Módulo 1 (Visão Geral)
-import PlatformFollowerTrendChart from './components/PlatformFollowerTrendChart';
-import PlatformFollowerChangeChart from './components/PlatformFollowerChangeChart';
-import PlatformReachEngagementTrendChart from './components/PlatformReachEngagementTrendChart';
-import PlatformMovingAverageEngagementChart from './components/PlatformMovingAverageEngagementChart';
-import TotalActiveCreatorsKpi from './components/kpis/TotalActiveCreatorsKpi';
-import PlatformComparativeKpi from './components/kpis/PlatformComparativeKpi';
-import PlatformSummaryKpis from './components/kpis/PlatformSummaryKpis';
+import PlatformSummaryKpis from "./components/kpis/PlatformSummaryKpis";
+import PlatformOverviewSection from "./components/views/PlatformOverviewSection";
+import PlatformContentAnalysisSection from "./components/views/PlatformContentAnalysisSection";
+import ProposalRankingSection from "./components/views/ProposalRankingSection";
+import CreatorRankingSection from "./components/views/CreatorRankingSection";
+import TopMoversSection from "./components/views/TopMoversSection";
+import CohortComparisonSection from "./components/views/CohortComparisonSection";
+import MarketPerformanceSection from "./components/views/MarketPerformanceSection";
+import AdvancedAnalysisSection from "./components/views/AdvancedAnalysisSection";
+import CreatorHighlightsSection from "./components/views/CreatorHighlightsSection";
 
 // Componentes da Plataforma - Módulo 2 (Análise de Conteúdo)
-import PlatformAverageEngagementChart from './components/PlatformAverageEngagementChart';
-import PlatformPostDistributionChart from './components/PlatformPostDistributionChart'; // Contagem de Posts por Formato
-import PlatformEngagementDistributionByFormatChart from './components/PlatformEngagementDistributionByFormatChart'; // Engajamento por Formato
-import PlatformVideoPerformanceMetrics from './components/PlatformVideoPerformanceMetrics';
-import PlatformMonthlyEngagementStackedChart from './components/PlatformMonthlyEngagementStackedChart';
-import PlatformPerformanceHighlights from './components/PlatformPerformanceHighlights';
-import ContentPerformanceByTypeChart from './ContentPerformanceByTypeChart';
-import ProposalRankingCard from './ProposalRankingCard';
-import CreatorRankingCard from './CreatorRankingCard';
-import TopCreatorsWidget from './TopCreatorsWidget';
-import TopMoversWidget from './TopMoversWidget';
-import RadarEffectivenessWidget from './components/widgets/RadarEffectivenessWidget';
-import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
-import CohortComparisonChart from './components/CohortComparisonChart';
-import MarketPerformanceChart from './components/MarketPerformanceChart';
-import CreatorsScatterPlot from './components/CreatorsScatterPlot';
-import ScrollToTopButton from '@/app/components/ScrollToTopButton';
+import { getStartDateFromTimePeriod } from "@/utils/dateHelpers";
+import ScrollToTopButton from "@/app/components/ScrollToTopButton";
 
 // View de Detalhe do Criador (Módulo 3 e partes do Módulo 2 para usuário)
-import UserDetailView from './components/views/UserDetailView';
-
+import UserDetailView from "./components/views/UserDetailView";
 
 const AdminCreatorDashboardContent: React.FC = () => {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedUserName, setSelectedUserName] = useState<string | null>(null);
-  const { timePeriod: globalTimePeriod, setTimePeriod: setGlobalTimePeriod } = useGlobalTimePeriod();
+  const { timePeriod: globalTimePeriod, setTimePeriod: setGlobalTimePeriod } =
+    useGlobalTimePeriod();
 
   const selectedComparisonPeriodForPlatformKPIs = "month_vs_previous";
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
 
   const formatOptions = ["Reel", "Post Estático", "Carrossel", "Story"];
-  const proposalOptions = ["Educativo", "Humor", "Notícia", "Review", "Tutorial"];
+  const proposalOptions = [
+    "Educativo",
+    "Humor",
+    "Notícia",
+    "Review",
+    "Tutorial",
+  ];
   const [marketFormat, setMarketFormat] = useState<string>(formatOptions[0]!);
-  const [marketProposal, setMarketProposal] = useState<string>(proposalOptions[0]!);
+  const [marketProposal, setMarketProposal] = useState<string>(
+    proposalOptions[0]!,
+  );
 
   const today = new Date();
   const startDateObj = getStartDateFromTimePeriod(today, globalTimePeriod);
   const startDate = startDateObj.toISOString();
   const endDate = today.toISOString();
   const rankingDateRange = { startDate, endDate };
-  const startDateLabel = startDateObj.toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
+  const startDateLabel = startDateObj.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
   });
-  const endDateLabel = today.toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
+  const endDateLabel = today.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
   });
   const rankingDateLabel = `${startDateLabel} - ${endDateLabel}`;
-
 
   const handleUserSelect = (userId: string, userName: string) => {
     setSelectedUserId(userId);
     setSelectedUserName(userName);
-    const userDetailSection = document.getElementById("user-detail-view-container");
+    const userDetailSection = document.getElementById(
+      "user-detail-view-container",
+    );
     if (userDetailSection) {
-        userDetailSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      userDetailSection.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
 
   return (
     <div className="p-4 md:p-6 lg:p-8 bg-gray-100 min-h-screen">
       <header className="mb-8 sticky top-0 z-20 bg-gray-100 pb-4 border-b border-gray-200">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Dashboard Administrativo de Criadores</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
+          Dashboard Administrativo de Criadores
+        </h1>
 
         <div className="mt-4 p-4 bg-white rounded-md shadow">
           <GlobalTimePeriodFilter
@@ -91,12 +92,12 @@ const AdminCreatorDashboardContent: React.FC = () => {
             onTimePeriodChange={setGlobalTimePeriod}
             // Opções de período para o filtro global podem ser diferentes das opções dos componentes individuais
             options={[
-                { value: "last_7_days", label: "Últimos 7 dias" },
-                { value: "last_30_days", label: "Últimos 30 dias" },
-                { value: "last_90_days", label: "Últimos 90 dias" },
-                { value: "last_6_months", label: "Últimos 6 meses" },
-                { value: "last_12_months", label: "Últimos 12 meses" },
-                { value: "all_time", label: "Todo o período" },
+              { value: "last_7_days", label: "Últimos 7 dias" },
+              { value: "last_30_days", label: "Últimos 30 dias" },
+              { value: "last_90_days", label: "Últimos 90 dias" },
+              { value: "last_6_months", label: "Últimos 6 meses" },
+              { value: "last_12_months", label: "Últimos 12 meses" },
+              { value: "all_time", label: "Todo o período" },
             ]}
           />
         </div>
@@ -106,8 +107,13 @@ const AdminCreatorDashboardContent: React.FC = () => {
         <PlatformSummaryKpis startDate={startDate} endDate={endDate} />
       </section>
 
-      <section id="creator-selection" className="mb-8 p-4 bg-white rounded-lg shadow">
-        <h2 className="text-lg font-semibold text-gray-700 mb-3">Selecionar Criador para Detalhar</h2>
+      <section
+        id="creator-selection"
+        className="mb-8 p-4 bg-white rounded-lg shadow"
+      >
+        <h2 className="text-lg font-semibold text-gray-700 mb-3">
+          Selecionar Criador para Detalhar
+        </h2>
         <div className="flex flex-wrap items-center gap-4">
           <button
             onClick={() => setIsSelectorOpen(true)}
@@ -122,7 +128,10 @@ const AdminCreatorDashboardContent: React.FC = () => {
           )}
           {selectedUserId && (
             <button
-              onClick={() => { setSelectedUserId(null); setSelectedUserName(null); }}
+              onClick={() => {
+                setSelectedUserId(null);
+                setSelectedUserName(null);
+              }}
               className="p-2 rounded-md text-sm bg-gray-200 text-gray-700 hover:bg-gray-300"
             >
               Limpar seleção e voltar à visão geral
@@ -133,198 +142,33 @@ const AdminCreatorDashboardContent: React.FC = () => {
 
       {!selectedUserId && (
         <>
-          <section id="platform-overview" className="mb-10">
-            <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
-              Visão Geral da Plataforma <GlobalPeriodIndicator />
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
-              <TotalActiveCreatorsKpi />
-              <PlatformComparativeKpi
-                kpiName="platformFollowerGrowth"
-                title="Crescimento de Seguidores"
-                comparisonPeriod={selectedComparisonPeriodForPlatformKPIs}
-                tooltip="Crescimento total de seguidores na plataforma comparado ao período anterior selecionado."
-              />
-              <PlatformComparativeKpi
-                kpiName="platformTotalEngagement"
-                title="Engajamento Total"
-                comparisonPeriod={selectedComparisonPeriodForPlatformKPIs}
-                tooltip="Soma total de interações em todos os posts da plataforma comparado ao período anterior selecionado."
-              />
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 md:mb-8">
-              <PlatformFollowerTrendChart />
-              <PlatformFollowerChangeChart />
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 md:mb-8">
-              <PlatformReachEngagementTrendChart />
-              <PlatformMovingAverageEngagementChart />
-            </div>
-          </section>
-
-          <section id="platform-content-analysis" className="mb-10">
-            <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
-              Análise de Conteúdo da Plataforma <GlobalPeriodIndicator />
-            </h2>
-            <div className="mb-6 md:mb-8">
-                <PlatformPerformanceHighlights />
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 md:mb-8">
-              <PlatformAverageEngagementChart
-                initialGroupBy="format"
-                chartTitle="Engajamento Médio por Formato (Plataforma)"
-              />
-              <PlatformAverageEngagementChart
-                initialGroupBy="context"
-                chartTitle="Engajamento Médio por Contexto (Plataforma)"
-              />
-              <PlatformAverageEngagementChart
-                initialGroupBy="proposal"
-                chartTitle="Engajamento Médio por Proposta (Plataforma)"
-              />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 md:mb-8">
-              <PlatformPostDistributionChart chartTitle="Distribuição de Posts por Formato (Plataforma)" />
-              <PlatformVideoPerformanceMetrics />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> {/* Nova linha ou ajuste no grid */}
-                <PlatformMonthlyEngagementStackedChart />
-                <PlatformEngagementDistributionByFormatChart /> {/* Adicionado aqui */}
-            </div>
-            <div className="mt-6">
-              <ContentPerformanceByTypeChart dateRangeFilter={{ startDate, endDate }} />
-            </div>
-          </section>
-
-          <section id="proposal-ranking" className="mb-10">
-            <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
-              Ranking por Proposta <GlobalPeriodIndicator />
-            </h2>
-            <ProposalRankingCard
-              title="Propostas com Mais Interações"
-              apiEndpoint="/api/admin/dashboard/rankings/proposals?metric=total_interactions"
-              dateRangeFilter={rankingDateRange}
-              dateRangeLabel={rankingDateLabel}
-              limit={5}
-            />
-        </section>
-
-        <section id="creator-rankings" className="mb-10">
-          <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
-            Rankings de Criadores <GlobalPeriodIndicator />
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <CreatorRankingCard
-              title="Maior Engajamento"
-              apiEndpoint="/api/admin/dashboard/rankings/creators/top-engaging"
-              dateRangeFilter={rankingDateRange}
-              dateRangeLabel={rankingDateLabel}
-              metricLabel="%"
-              limit={5}
-            />
-            <CreatorRankingCard
-              title="Mais Interações"
-              apiEndpoint="/api/admin/dashboard/rankings/creators/top-interactions"
-              dateRangeFilter={rankingDateRange}
-              dateRangeLabel={rankingDateLabel}
-              limit={5}
-            />
-            <CreatorRankingCard
-              title="Mais Posts"
-              apiEndpoint="/api/admin/dashboard/rankings/creators/most-prolific"
-              dateRangeFilter={rankingDateRange}
-              dateRangeLabel={rankingDateLabel}
-              limit={5}
-            />
-              <CreatorRankingCard
-                title="Mais Compartilhamentos"
-                apiEndpoint="/api/admin/dashboard/rankings/creators/top-sharing"
-                dateRangeFilter={rankingDateRange}
-                dateRangeLabel={rankingDateLabel}
-                limit={5}
-              />
-              <TopCreatorsWidget
-                title="Top Criadores"
-                metric="total_interactions"
-                days={30}
-                limit={5}
-              />
-          </div>
-        </section>
-
-        <section id="top-movers" className="mb-10">
-          <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
-            Top Movers <GlobalPeriodIndicator />
-          </h2>
-          <TopMoversWidget />
-        </section>
-
-        <section id="cohort-comparison" className="mb-10">
-          <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
-            Comparação de Coortes <GlobalPeriodIndicator />
-          </h2>
-          <CohortComparisonChart
-            metric="engagement_rate_on_reach"
+          <PlatformOverviewSection
+            comparisonPeriod={selectedComparisonPeriodForPlatformKPIs}
+          />
+          <PlatformContentAnalysisSection
             startDate={startDate}
             endDate={endDate}
-            cohorts={[
-              { filterBy: 'planStatus', value: 'Pro', name: 'Plano Pro' },
-              { filterBy: 'planStatus', value: 'Free', name: 'Plano Free' }
-            ]}
           />
-        </section>
-
-        <section id="market-performance" className="mb-10">
-          <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
-            Desempenho do Mercado <GlobalPeriodIndicator />
-          </h2>
-          <div className="flex flex-col md:flex-row gap-4 mb-4">
-            <div>
-              <label htmlFor="mp-format" className="block text-sm font-medium text-gray-700 mb-1">Formato</label>
-              <select
-                id="mp-format"
-                value={marketFormat}
-                onChange={(e) => setMarketFormat(e.target.value)}
-                className="p-2 border border-gray-300 rounded-md text-sm"
-              >
-                {formatOptions.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="mp-proposal" className="block text-sm font-medium text-gray-700 mb-1">Proposta</label>
-              <select
-                id="mp-proposal"
-                value={marketProposal}
-                onChange={(e) => setMarketProposal(e.target.value)}
-                className="p-2 border border-gray-300 rounded-md text-sm"
-              >
-                {proposalOptions.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <MarketPerformanceChart format={marketFormat} proposal={marketProposal} />
-        </section>
-
-        <section id="advanced-analysis" className="mb-10">
-          <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
-            Análise Avançada <GlobalPeriodIndicator />
-          </h2>
-          <RadarEffectivenessWidget />
-        </section>
-
-        <section id="creator-highlights-and-scatter-plot" className="mb-10">
-            <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
-              Destaques e Análise Comparativa de Criadores <GlobalPeriodIndicator />
-            </h2>
-            <p className="text-sm text-gray-500 mb-4 italic">
-              (Em breve: Tabelas de Criadores com melhor performance)
-            </p>
-            <CreatorsScatterPlot />
-          </section>
+          <ProposalRankingSection
+            rankingDateRange={rankingDateRange}
+            rankingDateLabel={rankingDateLabel}
+          />
+          <CreatorRankingSection
+            rankingDateRange={rankingDateRange}
+            rankingDateLabel={rankingDateLabel}
+          />
+          <TopMoversSection />
+          <CohortComparisonSection startDate={startDate} endDate={endDate} />
+          <MarketPerformanceSection
+            formatOptions={formatOptions}
+            proposalOptions={proposalOptions}
+            marketFormat={marketFormat}
+            marketProposal={marketProposal}
+            setMarketFormat={setMarketFormat}
+            setMarketProposal={setMarketProposal}
+          />
+          <AdvancedAnalysisSection />
+          <CreatorHighlightsSection />
         </>
       )}
 
@@ -333,7 +177,6 @@ const AdminCreatorDashboardContent: React.FC = () => {
           <UserDetailView
             userId={selectedUserId}
             userName={selectedUserName ?? undefined}
-            initialChartsTimePeriod={globalTimePeriod} // Passar o período global
           />
         )}
       </div>
@@ -355,4 +198,3 @@ const AdminCreatorDashboardPage: React.FC = () => (
 );
 
 export default AdminCreatorDashboardPage;
-

@@ -1,9 +1,17 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
+import { useGlobalTimePeriod } from "./filters/GlobalTimePeriodContext";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
-} from 'recharts';
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
 interface ApiChartDataPoint {
   date: string;
@@ -32,44 +40,40 @@ const GRANULARITY_OPTIONS = [
 interface UserFollowerTrendChartProps {
   userId: string | null;
   chartTitle?: string;
-  initialTimePeriod?: string; // Prop para o período inicial
   initialGranularity?: string;
 }
 
 const UserFollowerTrendChart: React.FC<UserFollowerTrendChartProps> = ({
   userId,
   chartTitle = "Evolução de Seguidores do Criador",
-  initialTimePeriod, // Usar esta prop
-  initialGranularity = GRANULARITY_OPTIONS[0]?.value || "daily"
+  initialGranularity = GRANULARITY_OPTIONS[0]?.value || "daily",
 }) => {
-  const [data, setData] = useState<UserFollowerTrendResponse['chartData']>([]);
-  const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
+  const [data, setData] = useState<UserFollowerTrendResponse["chartData"]>([]);
+  const [insightSummary, setInsightSummary] = useState<string | undefined>(
+    undefined,
+  );
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Estado 'timePeriod' é inicializado com initialTimePeriod ou um default
+  const { timePeriod: globalTimePeriod } = useGlobalTimePeriod();
   const [timePeriod, setTimePeriod] = useState<string>(
-    initialTimePeriod ||
-    (TIME_PERIOD_OPTIONS[1] && TIME_PERIOD_OPTIONS[1].value) ||
-    (TIME_PERIOD_OPTIONS[0] && TIME_PERIOD_OPTIONS[0].value) ||
-    "last_7_days"
+    globalTimePeriod ||
+      (TIME_PERIOD_OPTIONS[1] && TIME_PERIOD_OPTIONS[1].value) ||
+      (TIME_PERIOD_OPTIONS[0] && TIME_PERIOD_OPTIONS[0].value) ||
+      "last_7_days",
   );
   const [granularity, setGranularity] = useState<string>(initialGranularity);
 
-  // Efeito para atualizar timePeriod se initialTimePeriod (prop) mudar
   useEffect(() => {
-    if (initialTimePeriod) {
-      setTimePeriod(initialTimePeriod);
-    }
-  }, [initialTimePeriod]);
+    setTimePeriod(globalTimePeriod);
+  }, [globalTimePeriod]);
 
   // Efeito para atualizar granularity se initialGranularity (prop) mudar (menos comum, mas para consistência)
-   useEffect(() => {
+  useEffect(() => {
     if (initialGranularity) {
       setGranularity(initialGranularity);
     }
   }, [initialGranularity]);
-
 
   const fetchData = useCallback(async () => {
     if (!userId) {
@@ -85,13 +89,19 @@ const UserFollowerTrendChart: React.FC<UserFollowerTrendChartProps> = ({
       const response = await fetch(apiUrl);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Erro HTTP: ${response.status} - ${errorData.error || response.statusText}`);
+        throw new Error(
+          `Erro HTTP: ${response.status} - ${errorData.error || response.statusText}`,
+        );
       }
       const result: UserFollowerTrendResponse = await response.json();
       setData(result.chartData);
       setInsightSummary(result.insightSummary);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ocorreu um erro desconhecido ao buscar dados.');
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Ocorreu um erro desconhecido ao buscar dados.",
+      );
       setData([]);
       setInsightSummary(undefined);
     } finally {
@@ -123,15 +133,19 @@ const UserFollowerTrendChart: React.FC<UserFollowerTrendChartProps> = ({
   };
 
   const tooltipFormatter = (value: number, name: string) => {
-      return [value !== null ? value.toLocaleString() : 'N/A', name];
+    return [value !== null ? value.toLocaleString() : "N/A", name];
   };
 
   if (!userId) {
     return (
       <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6">
-        <h2 className="text-lg md:text-xl font-semibold mb-4 text-gray-700">{chartTitle}</h2>
+        <h2 className="text-lg md:text-xl font-semibold mb-4 text-gray-700">
+          {chartTitle}
+        </h2>
         <div className="flex justify-center items-center h-[300px]">
-          <p className="text-gray-500">Selecione um criador para ver a evolução de seguidores.</p>
+          <p className="text-gray-500">
+            Selecione um criador para ver a evolução de seguidores.
+          </p>
         </div>
       </div>
     );
@@ -139,49 +153,84 @@ const UserFollowerTrendChart: React.FC<UserFollowerTrendChartProps> = ({
 
   return (
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6">
-      <h2 className="text-lg md:text-xl font-semibold mb-4 text-gray-700">{chartTitle}</h2>
+      <h2 className="text-lg md:text-xl font-semibold mb-4 text-gray-700">
+        {chartTitle}
+      </h2>
 
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
         <div>
-          <label htmlFor={`timePeriodUserFollowers-${userId || 'default'}`} className="block text-sm font-medium text-gray-600 mb-1">Período:</label>
+          <label
+            htmlFor={`timePeriodUserFollowers-${userId || "default"}`}
+            className="block text-sm font-medium text-gray-600 mb-1"
+          >
+            Período:
+          </label>
           <select
-            id={`timePeriodUserFollowers-${userId || 'default'}`}
+            id={`timePeriodUserFollowers-${userId || "default"}`}
             value={timePeriod}
             onChange={handleTimePeriodChange}
             disabled={loading}
             className="w-full sm:w-auto p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
           >
-            {TIME_PERIOD_OPTIONS.map(option => (
-              <option key={option.value} value={option.value}>{option.label}</option>
+            {TIME_PERIOD_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
             ))}
           </select>
         </div>
         <div>
-          <label htmlFor={`granularityUserFollowers-${userId || 'default'}`} className="block text-sm font-medium text-gray-600 mb-1">Granularidade:</label>
+          <label
+            htmlFor={`granularityUserFollowers-${userId || "default"}`}
+            className="block text-sm font-medium text-gray-600 mb-1"
+          >
+            Granularidade:
+          </label>
           <select
-            id={`granularityUserFollowers-${userId || 'default'}`}
+            id={`granularityUserFollowers-${userId || "default"}`}
             value={granularity}
             onChange={handleGranularityChange}
             disabled={loading}
             className="w-full sm:w-auto p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
           >
-            {GRANULARITY_OPTIONS.map(option => (
-              <option key={option.value} value={option.value}>{option.label}</option>
+            {GRANULARITY_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
             ))}
           </select>
         </div>
       </div>
 
-      <div style={{ width: '100%', height: 300 }}>
-        {loading && <div className="flex justify-center items-center h-full"><p className="text-gray-500">Carregando dados...</p></div>}
-        {error && <div className="flex justify-center items-center h-full"><p className="text-red-500">Erro: {error}</p></div>}
+      <div style={{ width: "100%", height: 300 }}>
+        {loading && (
+          <div className="flex justify-center items-center h-full">
+            <p className="text-gray-500">Carregando dados...</p>
+          </div>
+        )}
+        {error && (
+          <div className="flex justify-center items-center h-full">
+            <p className="text-red-500">Erro: {error}</p>
+          </div>
+        )}
         {!loading && !error && data.length > 0 && (
           <ResponsiveContainer>
-            <LineChart data={data} margin={{ top: 5, right: 20, left: -20, bottom: 5 }}>
+            <LineChart
+              data={data}
+              margin={{ top: 5, right: 20, left: -20, bottom: 5 }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
               <XAxis dataKey="date" stroke="#666" tick={{ fontSize: 12 }} />
-              <YAxis stroke="#666" tick={{ fontSize: 12 }} tickFormatter={yAxisFormatter} />
-              <Tooltip formatter={tooltipFormatter} labelStyle={{ color: '#333' }} itemStyle={{ color: '#8884d8' }} />
+              <YAxis
+                stroke="#666"
+                tick={{ fontSize: 12 }}
+                tickFormatter={yAxisFormatter}
+              />
+              <Tooltip
+                formatter={tooltipFormatter}
+                labelStyle={{ color: "#333" }}
+                itemStyle={{ color: "#8884d8" }}
+              />
               <Legend wrapperStyle={{ fontSize: 14 }} />
               <Line
                 type="monotone"
@@ -197,15 +246,18 @@ const UserFollowerTrendChart: React.FC<UserFollowerTrendChartProps> = ({
           </ResponsiveContainer>
         )}
         {!loading && !error && data.length === 0 && (
-          <div className="flex justify-center items-center h-full"><p className="text-gray-500">Sem dados no período selecionado.</p></div>
+          <div className="flex justify-center items-center h-full">
+            <p className="text-gray-500">Sem dados no período selecionado.</p>
+          </div>
         )}
       </div>
       {insightSummary && !loading && !error && (
-        <p className="text-xs md:text-sm text-gray-600 mt-4 pt-2 border-t border-gray-200">{insightSummary}</p>
+        <p className="text-xs md:text-sm text-gray-600 mt-4 pt-2 border-t border-gray-200">
+          {insightSummary}
+        </p>
       )}
     </div>
   );
 };
 
 export default React.memo(UserFollowerTrendChart);
-
