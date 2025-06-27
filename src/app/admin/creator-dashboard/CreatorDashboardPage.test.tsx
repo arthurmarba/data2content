@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import CreatorDashboardPage, { GlobalFiltersState } from './page';
+import CreatorDashboardPage from './page';
 
 // Mocks for child components - simplified to not return JSX directly from factory
 jest.mock('./CreatorTable', () => jest.fn(() => <div data-testid="creator-table-mock">CreatorTable</div>));
