@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import DailyMetricSnapshotModel from '@/app/models/DailyMetricSnapshot'; // Para implementação real
+import { connectToDatabase } from '@/app/lib/mongoose';
 import {
     addDays,
     formatDateYYYYMMDD,
@@ -30,6 +31,8 @@ export async function GET(
   request: Request
 ) {
   const { searchParams } = new URL(request.url);
+
+  await connectToDatabase();
 
   let dataWindowInDays = DEFAULT_DATA_WINDOW_DAYS;
   const dataWindowParam = searchParams.get('dataWindowInDays');
