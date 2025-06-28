@@ -1,6 +1,6 @@
 /**
  * @fileoverview Serviço para buscar e gerenciar posts.
- * @version 1.4.2 - Adicionada busca de thumbnail em tempo real e verificação de segurança.
+ * @version 1.5.1 - Corrigidas definições de interface para resolver erros de tipo.
  */
 
 import { PipelineStage, Types } from 'mongoose';
@@ -13,29 +13,17 @@ import { FindGlobalPostsArgs, IGlobalPostsPaginatedResult, IGlobalPostResult } f
 import { createBasePipeline } from './helpers';
 import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
 import { TimePeriod } from '@/app/lib/constants/timePeriods';
-// Imports necessários para a busca de thumbnails
 import { getInstagramConnectionDetails } from '@/app/lib/instagram/db/userActions';
 import fetch from 'node-fetch';
 
-
 const SERVICE_TAG = '[dataService][postsService]';
 
-// A implementação de findGlobalPostsByCriteria e fetchPostDetails foi mantida como no seu arquivo.
 export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Promise<IGlobalPostsPaginatedResult> {
     const TAG = `${SERVICE_TAG}[findGlobalPostsByCriteria]`;
     const {
-        context,
-        proposal,
-        format,
-        minInteractions = 0,
-        page = 1,
-        limit = 10,
-        sortBy = 'stats.total_interactions',
-        sortOrder = 'desc',
-        dateRange,
+        context, proposal, format, minInteractions = 0, page = 1, limit = 10,
+        sortBy = 'stats.total_interactions', sortOrder = 'desc', dateRange,
     } = args;
-
-    logger.info(`${TAG} Buscando posts com critérios: ${JSON.stringify(args)}`);
 
     try {
         await connectToDatabase();
@@ -44,15 +32,9 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
         if (context) matchStage.context = { $regex: context, $options: 'i' };
         if (proposal) matchStage.proposal = { $regex: proposal, $options: 'i' };
         if (format) matchStage.format = { $regex: format, $options: 'i' };
-        if (minInteractions > 0) {
-            matchStage['stats.total_interactions'] = { $gte: minInteractions };
-        }
-        if (dateRange?.startDate) {
-            matchStage.postDate = { ...matchStage.postDate, $gte: dateRange.startDate };
-        }
-        if (dateRange?.endDate) {
-            matchStage.postDate = { ...matchStage.postDate, $lte: dateRange.endDate };
-        }
+        if (minInteractions > 0) matchStage['stats.total_interactions'] = { $gte: minInteractions };
+        if (dateRange?.startDate) matchStage.postDate = { ...matchStage.postDate, $gte: dateRange.startDate };
+        if (dateRange?.endDate) matchStage.postDate = { ...matchStage.postDate, $lte: dateRange.endDate };
 
         const baseAggregation: PipelineStage[] = [
             ...createBasePipeline(),
@@ -61,48 +43,26 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
             { $match: matchStage },
         ];
 
-        const countPipeline: PipelineStage[] = [
-            ...baseAggregation,
-            { $count: 'totalPosts' },
-        ];
-
+        const countPipeline: PipelineStage[] = [...baseAggregation, { $count: 'totalPosts' }];
         const totalPostsResult = await MetricModel.aggregate(countPipeline);
         const totalPosts = totalPostsResult.length > 0 ? totalPostsResult[0].totalPosts : 0;
 
         const postsPipeline: PipelineStage[] = [...baseAggregation];
-
         const sortDirection = sortOrder === 'asc' ? 1 : -1;
         postsPipeline.push({ $sort: { [sortBy]: sortDirection } });
-
         const skip = (page - 1) * limit;
         postsPipeline.push({ $skip: skip });
         postsPipeline.push({ $limit: limit });
-
         postsPipeline.push({
             $project: {
-                _id: 1,
-                text_content: 1,
-                description: 1,
-                creatorName: 1,
-                postDate: 1,
-                format: 1,
-                proposal: 1,
-                context: 1,
-                'stats.total_interactions': '$stats.total_interactions',
-                'stats.likes': '$stats.likes',
-                'stats.shares': '$stats.shares',
+                _id: 1, text_content: 1, description: 1, creatorName: 1, postDate: 1,
+                format: 1, proposal: 1, context: 1, 'stats.total_interactions': '$stats.total_interactions',
+                'stats.likes': '$stats.likes', 'stats.shares': '$stats.shares',
             }
         });
-
+        
         const posts = await MetricModel.aggregate(postsPipeline);
-
-        return {
-            posts: posts as IGlobalPostResult[],
-            totalPosts,
-            page,
-            limit,
-        };
-
+        return { posts: posts as IGlobalPostResult[], totalPosts, page, limit };
     } catch (error: any) {
         logger.error(`${TAG} Erro ao executar busca global:`, error);
         throw new DatabaseError(`Falha ao buscar posts globais: ${error.message}`);
@@ -111,24 +71,10 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
 
 export interface IPostDetailsArgs { postId: string; }
 export interface IPostDetailsData {
-  _id: Types.ObjectId;
-  user?: any;
-  postLink?: string;
-  description?: string;
-  postDate?: Date;
-  type?: string;
-  format?: string;
-  proposal?: string;
-  context?: string;
-  theme?: string;
-  collab?: boolean;
-  collabCreator?: Types.ObjectId;
-  coverUrl?: string;
-  instagramMediaId?: string;
-  source?: string;
-  classificationStatus?: string;
-  stats?: any;
-  dailySnapshots: IDailyMetricSnapshot[];
+  _id: Types.ObjectId; user?: any; postLink?: string; description?: string; postDate?: Date;
+  type?: string; format?: string; proposal?: string; context?: string; theme?: string;
+  collab?: boolean; collabCreator?: Types.ObjectId; coverUrl?: string; instagramMediaId?: string;
+  source?: string; classificationStatus?: string; stats?: any; dailySnapshots: IDailyMetricSnapshot[];
 }
 
 export async function fetchPostDetails(args: IPostDetailsArgs): Promise<IPostDetailsData | null> {
@@ -162,8 +108,8 @@ export async function fetchPostDetails(args: IPostDetailsArgs): Promise<IPostDet
     }
 }
 
-
-// --- Find User Video Posts (FUNÇÃO ATUALIZADA) ---
+// ==================== INÍCIO DA CORREÇÃO ====================
+// As definições de interface foram preenchidas para corresponder aos dados retornados.
 
 export interface IFindUserVideoPostsArgs {
   userId: string;
@@ -209,15 +155,15 @@ export interface IUserVideoPostsPaginatedResult {
   page: number;
   limit: number;
 }
+// ==================== FIM DA CORREÇÃO ======================
+
 
 async function fetchMediaThumbnail(mediaId: string, accessToken: string): Promise<string | null> {
     const fields = 'thumbnail_url';
     const url = `https://graph.facebook.com/v20.0/${mediaId}?fields=${fields}&access_token=${accessToken}`;
     try {
         const response = await fetch(url);
-        if (!response.ok) {
-            return null;
-        }
+        if (!response.ok) return null;
         const data: any = await response.json();
         return data.thumbnail_url || null;
     } catch (error) {
@@ -225,15 +171,14 @@ async function fetchMediaThumbnail(mediaId: string, accessToken: string): Promis
     }
 }
 
-
 export async function findUserVideoPosts({
-  userId,
-  timePeriod,
-  sortBy = 'postDate',
-  sortOrder = 'desc',
-  page = 1,
-  limit = 10,
-  filters = {},
+    userId,
+    timePeriod,
+    sortBy = 'postDate',
+    sortOrder = 'desc',
+    page = 1,
+    limit = 10,
+    filters = {},
 }: IFindUserVideoPostsArgs): Promise<IUserVideoPostsPaginatedResult> {
   const TAG = `${SERVICE_TAG}[findUserVideoPosts]`;
   logger.info(`${TAG} Fetching video posts for user ${userId} with filters: ${JSON.stringify(filters)}`);
