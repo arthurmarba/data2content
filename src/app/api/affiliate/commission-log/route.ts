@@ -7,6 +7,7 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import User, { IUser, ICommissionLogEntry } from "@/app/models/User"; // Importa IUser e ICommissionLogEntry
 
 export const runtime = "nodejs";
+export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/affiliate/commission-log

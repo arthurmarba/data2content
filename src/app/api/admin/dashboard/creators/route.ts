@@ -1,6 +1,6 @@
 /**
  * @fileoverview API Endpoint for fetching dashboard creators.
- * @version 1.0.0
+ * @version 1.1.0
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -10,6 +10,13 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { fetchDashboardCreatorsList } from '@/app/lib/dataService/marketAnalysis/dashboardService';
 import { IFetchDashboardCreatorsListParams } from '@/app/lib/dataService/marketAnalysis/types';
 import { DatabaseError } from '@/app/lib/errors';
+
+// ==================== INÍCIO DA CORREÇÃO ====================
+// Força a rota a ser sempre renderizada dinamicamente no servidor.
+// Isso é necessário porque a rota utiliza `req.url` para ler parâmetros de busca
+// e `getServerSession` para validação, o que impede a geração estática.
+export const dynamic = 'force-dynamic';
+// ==================== FIM DA CORREÇÃO ======================
 
 const SERVICE_TAG = '[api/admin/dashboard/creators]';
 

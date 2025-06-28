@@ -7,6 +7,7 @@ import { DailyMetric } from "@/app/models/DailyMetric";
 import type { Session } from "next-auth";
 
 export const runtime = "nodejs";
+export const dynamic = 'force-dynamic';
 
 /**
  * Interface auxiliar para o usuário na sessão.

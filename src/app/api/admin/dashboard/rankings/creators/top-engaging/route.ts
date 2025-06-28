@@ -8,6 +8,7 @@ import { fetchTopEngagingCreators, IFetchCreatorRankingParams } from '@/app/lib/
 import { DatabaseError } from '@/app/lib/errors';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+export const dynamic = 'force-dynamic';
 
 const SERVICE_TAG = '[api/admin/dashboard/rankings/creators/top-engaging]';
 

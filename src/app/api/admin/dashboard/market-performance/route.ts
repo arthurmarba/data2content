@@ -5,6 +5,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { fetchMarketPerformance } from '@/app/lib/dataService/marketAnalysis/segmentService';
 import { DatabaseError } from '@/app/lib/errors';
+export const dynamic = 'force-dynamic';
 
 const SERVICE_TAG = '[api/admin/dashboard/market-performance]';
 

@@ -7,6 +7,7 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 
 export const runtime = "nodejs";
+export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/plan/status?userId=...

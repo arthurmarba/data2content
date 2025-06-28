@@ -1,4 +1,5 @@
-// src/app/api/admin/dashboard-summary/route.ts
+// src/app/api/admin/dashboard-summary/route.ts (Corrigido)
+
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/app/lib/logger';
 import {
@@ -6,6 +7,13 @@ import {
   getPendingCreatorsCount,
 } from '@/lib/services/adminCreatorService'; // Ajuste o caminho se necessário
 import { AdminDashboardSummaryData, AdminDashboardKpi } from '@/types/admin/dashboard'; // Ajuste o caminho
+
+// ==================== INÍCIO DA CORREÇÃO ====================
+// Força a rota a ser sempre renderizada dinamicamente no servidor.
+// Isso é necessário porque a rota provavelmente usa headers/cookies para
+// validação de sessão, o que impede a geração estática.
+export const dynamic = 'force-dynamic';
+// ==================== FIM DA CORREÇÃO ======================
 
 const SERVICE_TAG = '[api/admin/dashboard-summary]';
 

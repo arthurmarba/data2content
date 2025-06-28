@@ -1,9 +1,17 @@
-// src/app/api/admin/affiliates/route.ts
+// src/app/api/admin/affiliates/route.ts (Corrigido)
+
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
 import { fetchAffiliates } from '@/lib/services/adminCreatorService'; // Assumindo que o serviço ainda se chama adminCreatorService
 import { AdminAffiliateListParams, AdminAffiliateStatus } from '@/types/admin/affiliates';
+
+// ==================== INÍCIO DA CORREÇÃO ====================
+// Força a rota a ser sempre renderizada dinamicamente no servidor.
+// Isso é necessário porque a rota utiliza `req.url` para ler parâmetros de busca,
+// o que impede a geração estática durante o build.
+export const dynamic = 'force-dynamic';
+// ==================== FIM DA CORREÇÃO ======================
 
 const SERVICE_TAG = '[api/admin/affiliates]';
 

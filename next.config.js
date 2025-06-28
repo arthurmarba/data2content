@@ -3,36 +3,39 @@ console.log("--- NOVO TESTE: Lendo next.config.js (ESM) ---", new Date().toISOSt
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true, // Você pode manter ou remover para o teste inicial
+  reactStrictMode: true, // Mantida sua configuração
   images: {
     remotePatterns: [
       {
         protocol: 'https',
         hostname: 'lh3.googleusercontent.com',
-        // pathname: '/**', // Pode adicionar depois se a imagem funcionar
       },
       {
         protocol: 'https',
         hostname: 'placehold.co',
-        // pathname: '/**', // Pode adicionar depois
       },
       {
         protocol: 'https',
-        hostname: 'scontent-iad3-2.xx.fbcdn.net', // Hostname específico do erro
+        hostname: 'scontent-iad3-2.xx.fbcdn.net',
       },
       {
         protocol: 'https',
-        hostname: '**.fbcdn.net', // Padrão genérico para outros domínios fbcdn
+        hostname: '**.fbcdn.net',
       },
       {
         protocol: 'https',
-        hostname: '**.xx.fbcdn.net', // Padrão genérico para outros domínios xx.fbcdn.net
+        hostname: '**.xx.fbcdn.net',
       },
+      // ==================== INÍCIO DA CORREÇÃO ====================
+      // Adiciona o novo padrão para a CDN do Instagram.
+      // O uso de '**' como wildcard (curinga) permite carregar imagens
+      // de qualquer subdomínio como 'scontent.cdninstagram.com'.
+      {
+        protocol: 'https',
+        hostname: '**.cdninstagram.com',
+      },
+      // ==================== FIM DA CORREÇÃO ======================
     ],
-    // Remova estas linhas por enquanto, elas eram do seu config antigo e podem causar problemas de exibição
-    // dangerouslyAllowSVG: true,
-    // contentDispositionType: 'attachment',
-    // contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
 };
 

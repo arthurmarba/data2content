@@ -8,6 +8,7 @@ import Redemption from "@/app/models/Redemption";
 import { Model, Document, Types } from "mongoose";
 
 export const runtime = "nodejs";
+export const dynamic = 'force-dynamic';
 
 // Interface para o usuário populado, mais específica
 interface IPopulatedUserForRedemption {

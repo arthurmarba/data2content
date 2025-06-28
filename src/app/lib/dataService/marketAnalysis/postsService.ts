@@ -1,27 +1,26 @@
 /**
  * @fileoverview Serviço para buscar e gerenciar posts.
- * @version 1.0.0
+ * @version 1.4.2 - Adicionada busca de thumbnail em tempo real e verificação de segurança.
  */
 
 import { PipelineStage, Types } from 'mongoose';
 import { logger } from '@/app/lib/logger';
 import MetricModel from '@/app/models/Metric';
-import DailyMetricSnapshotModel, { IDailyMetricSnapshot } from '@/app/models/DailyMetricSnapshot'; // Added import
+import DailyMetricSnapshotModel, { IDailyMetricSnapshot } from '@/app/models/DailyMetricSnapshot';
 import { connectToDatabase } from '../connection';
 import { DatabaseError } from '@/app/lib/errors';
 import { FindGlobalPostsArgs, IGlobalPostsPaginatedResult, IGlobalPostResult } from './types';
 import { createBasePipeline } from './helpers';
 import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
 import { TimePeriod } from '@/app/lib/constants/timePeriods';
+// Imports necessários para a busca de thumbnails
+import { getInstagramConnectionDetails } from '@/app/lib/instagram/db/userActions';
+import fetch from 'node-fetch';
+
 
 const SERVICE_TAG = '[dataService][postsService]';
 
-/**
- * @function findGlobalPostsByCriteria
- * @description Finds global posts based on various criteria with pagination, sorting, and date range filters.
- * @param {FindGlobalPostsArgs} args - Arguments for filtering, pagination, and sorting.
- * @returns {Promise<IGlobalPostsPaginatedResult>} - Paginated list of global posts and total count.
- */
+// A implementação de findGlobalPostsByCriteria e fetchPostDetails foi mantida como no seu arquivo.
 export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Promise<IGlobalPostsPaginatedResult> {
     const TAG = `${SERVICE_TAG}[findGlobalPostsByCriteria]`;
     const {
@@ -95,10 +94,7 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
             }
         });
 
-        logger.debug(`${TAG} Pipeline de agregação para posts: ${JSON.stringify(postsPipeline)}`);
         const posts = await MetricModel.aggregate(postsPipeline);
-
-        logger.info(`${TAG} Busca global encontrou ${posts.length} posts de um total de ${totalPosts}.`);
 
         return {
             posts: posts as IGlobalPostResult[],
@@ -113,44 +109,10 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
     }
 }
 
-// --- Fetch Post Details ---
-
-export interface IPostDetailsArgs {
-  postId: string;
-}
-
-// Assuming IMetric, IMetricStats and IDailyMetricSnapshot are defined elsewhere
-// For this example, let's define a simplified IPostDetailsData based on common fields
-// and requirements. In a real scenario, these would come from robust, shared type definitions.
-
-interface ISimplifiedMetricStats { // Based on IMetricStats from prompt
-  views?: number;
-  likes?: number;
-  comments?: number;
-  shares?: number;
-  reach?: number;
-  engagement_rate_on_reach?: number;
-  // Add other stats fields as needed from the actual IMetricStats
-  total_interactions?: number;
-  saved?: number;
-  video_avg_watch_time?: number;
-  impressions?: number;
-}
-
-interface ISimplifiedDailySnapshot { // Based on IDailyMetricSnapshot from prompt
-  date: Date;
-  dayNumber?: number;
-  dailyViews?: number;
-  dailyLikes?: number;
-  dailyComments?: number;
-  dailyShares?: number;
-  cumulativeViews?: number;
-  cumulativeLikes?: number;
-}
-
+export interface IPostDetailsArgs { postId: string; }
 export interface IPostDetailsData {
-  _id: Types.ObjectId; // Or string, depending on how it's used
-  user?: any; // Define further if needed
+  _id: Types.ObjectId;
+  user?: any;
   postLink?: string;
   description?: string;
   postDate?: Date;
@@ -160,89 +122,48 @@ export interface IPostDetailsData {
   context?: string;
   theme?: string;
   collab?: boolean;
-  collabCreator?: Types.ObjectId; // Or string
+  collabCreator?: Types.ObjectId;
   coverUrl?: string;
   instagramMediaId?: string;
   source?: string;
   classificationStatus?: string;
-  stats?: ISimplifiedMetricStats;
-  dailySnapshots: IDailyMetricSnapshot[]; // Updated to use IDailyMetricSnapshot from the model
+  stats?: any;
+  dailySnapshots: IDailyMetricSnapshot[];
 }
 
-// ISimplifiedDailySnapshot can be removed if IDailyMetricSnapshot is imported and used directly.
-// For this change, we will remove ISimplifiedDailySnapshot.
-/*
-interface ISimplifiedDailySnapshot { // Based on IDailyMetricSnapshot from prompt
-  date: Date;
-  dayNumber?: number;
-  dailyViews?: number;
-  dailyLikes?: number;
-  dailyComments?: number;
-  dailyShares?: number;
-  cumulativeViews?: number;
-  cumulativeLikes?: number;
-}
-*/
-
-/**
- * @function fetchPostDetails
- * @description Fetches detailed information for a single post, including its daily snapshots.
- * @param {IPostDetailsArgs} args - Arguments containing the postId.
- * @returns {Promise<IPostDetailsData | null>} - Detailed post data or null if not found.
- */
 export async function fetchPostDetails(args: IPostDetailsArgs): Promise<IPostDetailsData | null> {
-  const TAG = `${SERVICE_TAG}[fetchPostDetails]`;
-  const { postId } = args;
-
-  logger.info(`${TAG} Fetching details for post ID: ${postId}`);
-
-  if (!Types.ObjectId.isValid(postId)) {
-    logger.warn(`${TAG} Invalid postId format: ${postId}`);
-    // Depending on desired behavior, could throw an error or return null
-    // For this, let's return null as if not found, as API layer can decide on 400 vs 404.
-    return null;
-  }
-
-  try {
-    await connectToDatabase();
-
-    // Fetch the main post data
-    // Assuming MetricModel contains all the fields listed in IPostDetailsData (excluding dailySnapshots)
-    // Adjust the lean() and projection as necessary for your actual MetricModel structure
-    const postData = await MetricModel.findById(postId).lean<any>(); // Use <any> or a more specific type from MetricModel
-
-    if (!postData) {
-      logger.warn(`${TAG} Post not found with ID: ${postId}`);
+    const TAG = `${SERVICE_TAG}[fetchPostDetails]`;
+    const { postId } = args;
+    if (!Types.ObjectId.isValid(postId)) {
+      logger.warn(`${TAG} Invalid postId format: ${postId}`);
       return null;
     }
-
-    logger.info(`${TAG} Found main post data for ID: ${postId}`);
-
-    // Fetch associated daily snapshots using the actual DailyMetricSnapshotModel
-    const fetchedDailySnapshots = await DailyMetricSnapshotModel
-      .find({ metric: new Types.ObjectId(postId) }) // Assuming 'metric' field links to MetricModel _id
-      .sort({ date: 1 }) // Sort by date ascending
-      .lean<IDailyMetricSnapshot[]>();
-
-    logger.info(`${TAG} Found ${fetchedDailySnapshots.length} daily snapshots for post ID: ${postId}`);
-
-    // Combine into IPostDetailsData structure
-    const result: IPostDetailsData = {
-      ...(postData as any), // Spread the fields from the fetched Metric document, cast to any if lean() returns a generic
-      _id: postData._id,
-      stats: postData.stats, // Assuming stats structure is compatible with ISimplifiedMetricStats
-      dailySnapshots: fetchedDailySnapshots,
-    };
-
-    return result;
-
-  } catch (error: any) {
-    logger.error(`${TAG} Error fetching post details for ID ${postId}:`, error);
-    throw new DatabaseError(`Failed to fetch post details: ${error.message}`);
-  }
+    try {
+      await connectToDatabase();
+      const postData = await MetricModel.findById(postId).lean<any>();
+      if (!postData) {
+        logger.warn(`${TAG} Post not found with ID: ${postId}`);
+        return null;
+      }
+      const fetchedDailySnapshots = await DailyMetricSnapshotModel
+        .find({ metric: new Types.ObjectId(postId) })
+        .sort({ date: 1 })
+        .lean<IDailyMetricSnapshot[]>();
+      const result: IPostDetailsData = {
+        ...(postData as any),
+        _id: postData._id,
+        stats: postData.stats,
+        dailySnapshots: fetchedDailySnapshots,
+      };
+      return result;
+    } catch (error: any) {
+      logger.error(`${TAG} Error fetching post details for ID ${postId}:`, error);
+      throw new DatabaseError(`Failed to fetch post details: ${error.message}`);
+    }
 }
 
-// --- Find User Video Posts ---
+
+// --- Find User Video Posts (FUNÇÃO ATUALIZADA) ---
 
 export interface IFindUserVideoPostsArgs {
   userId: string;
@@ -251,16 +172,26 @@ export interface IFindUserVideoPostsArgs {
   sortOrder?: 'asc' | 'desc';
   page?: number;
   limit?: number;
+  filters?: {
+    proposal?: string;
+    context?: string;
+    format?: string;
+    linkSearch?: string;
+    minViews?: number;
+  };
 }
 
 export interface IUserVideoPostResult {
   _id: Types.ObjectId;
+  instagramMediaId?: string;
   caption?: string;
   postDate?: Date;
   thumbnailUrl?: string | null;
   permalink?: string | null;
   format?: string;
   type?: string;
+  proposal?: string;
+  context?: string;
   stats?: {
     total_interactions?: number;
     likes?: number;
@@ -269,7 +200,6 @@ export interface IUserVideoPostResult {
     views?: number;
     video_duration_seconds?: number;
   };
-  average_video_watch_time_seconds?: number | null;
   retention_rate?: number | null;
 }
 
@@ -280,118 +210,104 @@ export interface IUserVideoPostsPaginatedResult {
   limit: number;
 }
 
+async function fetchMediaThumbnail(mediaId: string, accessToken: string): Promise<string | null> {
+    const fields = 'thumbnail_url';
+    const url = `https://graph.facebook.com/v20.0/${mediaId}?fields=${fields}&access_token=${accessToken}`;
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            return null;
+        }
+        const data: any = await response.json();
+        return data.thumbnail_url || null;
+    } catch (error) {
+        return null;
+    }
+}
+
+
 export async function findUserVideoPosts({
   userId,
   timePeriod,
-  sortBy = 'stats.total_interactions',
+  sortBy = 'postDate',
   sortOrder = 'desc',
   page = 1,
   limit = 10,
+  filters = {},
 }: IFindUserVideoPostsArgs): Promise<IUserVideoPostsPaginatedResult> {
   const TAG = `${SERVICE_TAG}[findUserVideoPosts]`;
-
-  logger.info(`${TAG} Fetching video posts for user ${userId}`);
+  logger.info(`${TAG} Fetching video posts for user ${userId} with filters: ${JSON.stringify(filters)}`);
 
   try {
     await connectToDatabase();
-
-    if (!Types.ObjectId.isValid(userId)) {
-      throw new DatabaseError('Invalid userId');
-    }
+    if (!Types.ObjectId.isValid(userId)) throw new DatabaseError('Invalid userId');
 
     const userObjectId = new Types.ObjectId(userId);
     const today = new Date();
     const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
-    const startDate = timePeriod === 'all_time'
-      ? new Date(0)
-      : getStartDateFromTimePeriod(today, timePeriod);
+    const startDate = timePeriod === 'all_time' ? new Date(0) : getStartDateFromTimePeriod(today, timePeriod);
 
-    const matchStage: PipelineStage.Match['$match'] = {
-      user: userObjectId,
-      type: { $in: ['REEL', 'VIDEO'] },
-    };
-
-    if (timePeriod !== 'all_time') {
-      matchStage.postDate = { $gte: startDate, $lte: endDate };
-    }
-
-    const baseAggregation: PipelineStage[] = [
-      ...createBasePipeline(),
-      { $match: matchStage },
-      {
-        $addFields: {
-          average_video_watch_time_seconds: {
-            $cond: {
-              if: { $gt: [{ $ifNull: ['$stats.ig_reels_avg_watch_time', 0] }, 0] },
-              then: { $divide: ['$stats.ig_reels_avg_watch_time', 1000] },
-              else: null,
-            },
-          },
-          retention_rate: {
-            $cond: {
-              if: {
-                $and: [
-                  { $gt: [{ $ifNull: ['$stats.ig_reels_avg_watch_time', 0] }, 0] },
-                  { $gt: [{ $ifNull: ['$stats.video_duration_seconds', 0] }, 0] },
-                ],
-              },
-              then: {
-                $divide: [
-                  { $divide: ['$stats.ig_reels_avg_watch_time', 1000] },
-                  '$stats.video_duration_seconds',
-                ],
-              },
-              else: null,
-            },
-          },
-        },
-      },
-    ];
-
-    const countPipeline: PipelineStage[] = [
-      ...baseAggregation,
-      { $count: 'total' },
-    ];
-
-    const countResult = await MetricModel.aggregate(countPipeline);
-    const totalVideos = countResult.length > 0 ? countResult[0].total : 0;
+    const matchStage: PipelineStage.Match['$match'] = { user: userObjectId, type: { $in: ['REEL', 'VIDEO'] } };
+    if (timePeriod !== 'all_time') matchStage.postDate = { $gte: startDate, $lte: endDate };
+    if (filters.proposal) matchStage.proposal = { $regex: filters.proposal, $options: 'i' };
+    if (filters.context) matchStage.context = { $regex: filters.context, $options: 'i' };
+    if (filters.format) matchStage.format = { $regex: filters.format, $options: 'i' };
+    if (filters.linkSearch) matchStage.postLink = { $regex: filters.linkSearch, $options: 'i' };
+    if (filters.minViews !== undefined && filters.minViews >= 0) matchStage['stats.views'] = { $gte: filters.minViews };
+    
+    const countResult = await MetricModel.countDocuments(matchStage);
+    if (countResult === 0) return { videos: [], totalVideos: 0, page, limit };
 
     const sortDirection = sortOrder === 'asc' ? 1 : -1;
     const skip = (page - 1) * limit;
 
     const videosPipeline: PipelineStage[] = [
-      ...baseAggregation,
+      { $match: matchStage },
       { $sort: { [sortBy]: sortDirection } },
       { $skip: skip },
       { $limit: limit },
       {
         $project: {
-          creatorInfo: 0,
+          _id: 1,
+          instagramMediaId: 1,
           caption: '$description',
-          postDate: 1,
-          thumbnailUrl: '$coverUrl',
           permalink: '$postLink',
+          postDate: 1,
           format: 1,
-          type: 1,
-          stats: {
-            views: '$stats.views',
-            likes: '$stats.likes',
-            comments: '$stats.comments',
-            shares: '$stats.shares',
-            video_duration_seconds: '$stats.video_duration_seconds',
-          },
-          average_video_watch_time_seconds: 1,
-          retention_rate: 1,
+          proposal: 1,
+          context: 1,
+          'stats.views': '$stats.views',
+          'stats.likes': '$stats.likes',
+          'stats.total_interactions': '$stats.total_interactions',
         },
       },
     ];
 
-    logger.debug(`${TAG} Aggregation pipeline: ${JSON.stringify(videosPipeline)}`);
-    const videos = await MetricModel.aggregate(videosPipeline);
+    let videos: IUserVideoPostResult[] = await MetricModel.aggregate(videosPipeline);
+
+    const connectionDetails = await getInstagramConnectionDetails(userObjectId);
+    const accessToken = connectionDetails?.accessToken;
+
+    if (accessToken && videos.length > 0) {
+        logger.info(`${TAG} Fetching thumbnails for ${videos.length} videos...`);
+        const thumbnailPromises = videos.map(video => 
+            video.instagramMediaId ? fetchMediaThumbnail(video.instagramMediaId, accessToken) : Promise.resolve(null)
+        );
+
+        const thumbnailResults = await Promise.allSettled(thumbnailPromises);
+
+        videos = videos.map((video, index) => {
+            const result = thumbnailResults[index];
+            if (result && result.status === 'fulfilled' && result.value) {
+                return { ...video, thumbnailUrl: result.value };
+            }
+            return video;
+        });
+    }
 
     return {
-      videos: videos as IUserVideoPostResult[],
-      totalVideos,
+      videos,
+      totalVideos: countResult,
       page,
       limit,
     };

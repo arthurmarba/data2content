@@ -4,20 +4,24 @@ import React from 'react';
 import Image from 'next/image';
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/solid';
 
+// A interface já está pronta para receber a URL da thumbnail.
 export interface VideoListItem {
   _id: string;
   thumbnailUrl?: string | null;
   caption?: string;
   permalink?: string | null;
   postDate?: string | Date;
+  proposal?: string;
+  context?: string;
+  format?: string;
   stats?: {
     views?: number;
     likes?: number;
     comments?: number;
     shares?: number;
     video_duration_seconds?: number;
+    total_interactions?: number;
   };
-  average_video_watch_time_seconds?: number | null;
   retention_rate?: number | null;
 }
 
@@ -35,134 +39,75 @@ interface VideosTableProps {
 }
 
 export const metricLabels: Record<string, string> = {
+  postDate: 'Data',
+  caption: 'Legenda',
+  proposal: 'Proposta',
+  context: 'Contexto',
+  format: 'Formato',
+  'stats.views': 'Views',
+  'stats.likes': 'Likes',
+  'stats.comments': 'Comentários',
+  'stats.shares': 'Compartilhamentos',
+  'stats.total_interactions': 'Interações',
   retention_rate: 'Retenção',
-  average_video_watch_time_seconds: 'Watch Time (s)',
-  views: 'Views',
-  likes: 'Likes',
-  comments: 'Comments',
-  shares: 'Shares',
-  video_duration_seconds: 'Duração (s)',
 };
 
-const VideosTable: React.FC<VideosTableProps> = ({ videos, sortConfig, onSort, primaryMetric, onRowClick }) => {
+const VideosTable: React.FC<VideosTableProps> = ({ videos, sortConfig, onSort, onRowClick }) => {
   const renderSortIcon = (key: string) => {
     if (sortConfig.sortBy !== key) {
-      return <ChevronDownIcon className="w-3 h-3 inline text-gray-400 ml-1" />;
+      return <ChevronDownIcon className="w-3 h-3 inline text-gray-400 opacity-50 ml-1" />;
     }
     return sortConfig.sortOrder === 'asc' ? (
-      <ChevronUpIcon className="w-3 h-3 inline text-indigo-500 ml-1" />
+      <ChevronUpIcon className="w-4 h-4 inline text-indigo-600 ml-1" />
     ) : (
-      <ChevronDownIcon className="w-3 h-3 inline text-indigo-500 ml-1" />
+      <ChevronDownIcon className="w-4 h-4 inline text-indigo-600 ml-1" />
     );
   };
 
   const formatDate = (d?: string | Date) => {
     if (!d) return 'N/A';
     try {
-      return new Date(d).toLocaleDateString('pt-BR');
+      return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
     } catch {
-      return 'N/A';
+      return 'Data Inválida';
     }
   };
 
   const formatNumber = (n?: number) => {
-    if (n === null || n === undefined) return '0';
+    if (n === null || n === undefined) return '-';
     return n.toLocaleString('pt-BR');
   };
-
-  const renderCell = (video: VideoListItem, key: string) => {
-    switch (key) {
-      case 'thumbnail':
-        return video.thumbnailUrl ? (
-          video.permalink ? (
-            <a href={video.permalink} target="_blank" rel="noopener noreferrer">
-              <Image
-                src={video.thumbnailUrl}
-                alt=""
-                width={60}
-                height={34}
-                className="rounded-md object-cover"
-              />
-            </a>
-          ) : (
-            <Image
-              src={video.thumbnailUrl}
-              alt=""
-              width={60}
-              height={34}
-              className="rounded-md object-cover"
-            />
-          )
-        ) : (
-          <div className="w-15 h-9 bg-gray-200 rounded-md" />
-        );
-      case 'caption':
-        return video.permalink ? (
-          <a
-            href={video.permalink}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={video.caption ?? ''}
-            className="block truncate text-indigo-600 hover:underline"
-          >
-            {video.caption || 'N/A'}
-          </a>
-        ) : (
-          <span title={video.caption ?? ''} className="block truncate">
-            {video.caption || 'N/A'}
-          </span>
-        );
-      case 'postDate':
-        return formatDate(video.postDate);
-      case 'views':
-        return formatNumber(video.stats?.views);
-      case 'likes':
-        return formatNumber(video.stats?.likes);
-      case 'comments':
-        return formatNumber(video.stats?.comments);
-      case 'shares':
-        return formatNumber(video.stats?.shares);
-      case 'average_video_watch_time_seconds':
-        return formatNumber(video.average_video_watch_time_seconds ?? undefined);
-      case 'video_duration_seconds':
-        return formatNumber(video.stats?.video_duration_seconds);
-      case 'retention_rate':
-        return video.retention_rate != null ? `${(video.retention_rate * 100).toFixed(1)}%` : 'N/A';
-      default:
-        // fallback for unknown keys
-        return (video as any)[key] ?? 'N/A';
-    }
-  };
-
+  
+  // MUDANÇA: Adicionada a coluna 'thumbnail' no início.
   const columns = [
-    { key: 'thumbnail', label: 'Thumb', sortable: false },
-    { key: 'caption', label: 'Legenda', sortable: true },
-    { key: 'postDate', label: 'Data', sortable: true },
-    { key: primaryMetric, label: metricLabels[primaryMetric] || primaryMetric, sortable: true },
-    ...(primaryMetric !== 'views' ? [{ key: 'views', label: 'Views', sortable: true }] : []),
-    ...(primaryMetric !== 'average_video_watch_time_seconds'
-      ? [{ key: 'average_video_watch_time_seconds', label: metricLabels['average_video_watch_time_seconds'], sortable: true }]
-      : []),
-    ...(primaryMetric !== 'video_duration_seconds'
-      ? [{ key: 'video_duration_seconds', label: metricLabels['video_duration_seconds'], sortable: true }]
-      : []),
+    { key: 'thumbnail', label: '', sortable: false, align: 'center' }, // Coluna para a imagem
+    { key: 'caption', label: 'Legenda', sortable: true, align: 'left' },
+    { key: 'postDate', label: 'Data', sortable: true, align: 'center' },
+    { key: 'proposal', label: 'Proposta', sortable: true, align: 'left' },
+    { key: 'context', label: 'Contexto', sortable: true, align: 'left' },
+    { key: 'format', label: 'Formato', sortable: true, align: 'left' },
+    { key: 'stats.views', label: 'Views', sortable: true, align: 'center' },
+    { key: 'stats.likes', label: 'Likes', sortable: true, align: 'center' },
   ];
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto border border-gray-200 rounded-lg">
       <table className="min-w-full divide-y divide-gray-200 text-sm">
-        <thead className="bg-gray-100">
+        <thead className="bg-gray-50">
           <tr>
             {columns.map((col) => (
               <th
                 key={col.key}
-                className={`px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wider ${
-                  col.sortable ? 'cursor-pointer hover:bg-gray-200' : ''
-                } ${['views', 'likes', 'comments', 'shares', 'postDate'].includes(col.key) ? 'text-center' : 'text-left'}`}
+                scope="col"
+                className={`px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-${col.align} ${
+                  col.sortable ? 'cursor-pointer hover:bg-gray-200 transition-colors' : ''
+                }`}
                 onClick={() => col.sortable && onSort(col.key)}
               >
-                {col.label}
-                {col.sortable && renderSortIcon(col.key)}
+                <div className={`flex items-center ${col.align === 'center' ? 'justify-center' : ''}`}>
+                  {col.label}
+                  {col.sortable && renderSortIcon(col.key)}
+                </div>
               </th>
             ))}
           </tr>
@@ -171,29 +116,45 @@ const VideosTable: React.FC<VideosTableProps> = ({ videos, sortConfig, onSort, p
           {videos.map((video) => (
             <tr
               key={video._id}
-              className="hover:bg-gray-50 transition-colors cursor-pointer"
+              className="hover:bg-indigo-50 transition-colors"
               onClick={() => onRowClick && onRowClick(video._id)}
               tabIndex={0}
               role="button"
-              onKeyDown={(e) => {
-                if ((e.key === 'Enter' || e.key === ' ') && onRowClick) {
-                  e.preventDefault();
-                  onRowClick(video._id);
-                }
-              }}
             >
-              {columns.map((col) => (
-                <td
-                  key={col.key}
-                  className={`px-4 py-2 whitespace-nowrap ${
-                    ['views', 'likes', 'comments', 'shares', 'postDate', 'average_video_watch_time_seconds', 'video_duration_seconds', primaryMetric].includes(col.key)
-                      ? 'text-center'
-                      : ''
-                  }`}
+              {/* MUDANÇA: Adicionada célula para renderizar a thumbnail */}
+              <td className="px-4 py-2">
+                {video.thumbnailUrl ? (
+                  <Image
+                    src={video.thumbnailUrl}
+                    alt={`Thumbnail para ${video.caption || 'post'}`}
+                    width={80}
+                    height={45}
+                    className="rounded object-cover"
+                    // Fallback para caso a imagem quebre
+                    onError={(e) => { e.currentTarget.src = 'https://placehold.co/80x45/e2e8f0/a0aec0?text=Img'; }}
+                  />
+                ) : (
+                  <div className="w-20 h-[45px] bg-gray-200 rounded flex items-center justify-center text-xs text-gray-400">Sem Imagem</div>
+                )}
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap max-w-xs">
+                <a
+                  href={video.permalink ?? '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={video.caption ?? ''}
+                  className="block truncate font-medium text-indigo-700 hover:text-indigo-900"
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  {renderCell(video, col.key)}
-                </td>
-              ))}
+                  {video.caption || 'Sem legenda'}
+                </a>
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap text-center text-gray-600">{formatDate(video.postDate)}</td>
+              <td className="px-4 py-3 whitespace-nowrap text-gray-600">{video.proposal || '-'}</td>
+              <td className="px-4 py-3 whitespace-nowrap text-gray-600">{video.context || '-'}</td>
+              <td className="px-4 py-3 whitespace-nowrap text-gray-600">{video.format || '-'}</td>
+              <td className="px-4 py-3 whitespace-nowrap text-center text-gray-800 font-medium">{formatNumber(video.stats?.views)}</td>
+              <td className="px-4 py-3 whitespace-nowrap text-center text-gray-600">{formatNumber(video.stats?.likes)}</td>
             </tr>
           ))}
         </tbody>

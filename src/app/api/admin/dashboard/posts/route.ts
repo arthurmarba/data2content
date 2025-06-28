@@ -1,6 +1,6 @@
 /**
  * @fileoverview API Endpoint for fetching dashboard posts for content exploration.
- * @version 1.0.0
+ * @version 1.1.0
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -9,6 +9,13 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { findGlobalPostsByCriteria, FindGlobalPostsArgs } from '@/app/lib/dataService/marketAnalysisService';
 import { DatabaseError } from '@/app/lib/errors';
+
+// ==================== INÍCIO DA CORREÇÃO ====================
+// Força a rota a ser sempre renderizada dinamicamente no servidor.
+// Isso é necessário porque a rota utiliza `getServerSession` para validação,
+// o que depende dos headers da requisição e impede a geração estática.
+export const dynamic = 'force-dynamic';
+// ==================== FIM DA CORREÇÃO ======================
 
 const SERVICE_TAG = '[api/admin/dashboard/posts]';
 

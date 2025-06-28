@@ -1,4 +1,5 @@
-// src/app/api/admin/creators/route.ts
+// src/app/api/admin/creators/route.ts (Corrigido)
+
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
@@ -6,6 +7,12 @@ import { fetchCreators } from '@/lib/services/adminCreatorService'; // Ajuste o 
 import { AdminCreatorStatus, AdminCreatorListParams } from '@/types/admin/creators'; // Ajuste o caminho se necessário
 // import { getServerSession } from "next-auth/next" // Para auth real
 // import { authOptions } from "@/app/api/auth/[...nextauth]/route"; // Para auth real
+
+// ==================== INÍCIO DA CORREÇÃO ====================
+// Força a rota a ser sempre renderizada dinamicamente no servidor,
+// pois ela utiliza `req.url` para ler parâmetros de busca.
+export const dynamic = 'force-dynamic';
+// ==================== FIM DA CORREÇÃO ======================
 
 const SERVICE_TAG = '[api/admin/creators]';
 

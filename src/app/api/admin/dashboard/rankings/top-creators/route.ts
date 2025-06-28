@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
 import { fetchTopCreators, TopCreatorMetricEnum } from '@/app/lib/dataService/marketAnalysisService';
 import { DatabaseError } from '@/app/lib/errors';
+export const dynamic = 'force-dynamic';
 
 const SERVICE_TAG = '[api/admin/dashboard/rankings/top-creators]';
 
