@@ -196,6 +196,7 @@ export interface IUser extends Document {
   availableIgAccounts?: IAvailableInstagramAccount[] | null;
   linkToken?: string;
   linkTokenExpiresAt?: Date;
+  mediaKitToken?: string | null;
   role: string;
   planStatus?: string;
   planExpiresAt?: Date | null;
@@ -315,6 +316,7 @@ const userSchema = new Schema<IUser>(
     availableIgAccounts: { type: [AvailableInstagramAccountSchema], default: null },
     linkToken: { type: String, index: true, sparse: true },
     linkTokenExpiresAt: { type: Date },
+    mediaKitToken: { type: String, default: null, index: true, sparse: true },
     role: { type: String, default: "user" },
     planExpiresAt: { type: Date, default: null },
     whatsappVerificationCode: { type: String, default: null, index: true },
