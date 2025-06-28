@@ -257,7 +257,22 @@ const AvailableInstagramAccountSchema = new Schema<IAvailableInstagramAccount>({
 const UserPreferencesSchema = new Schema<IUserPreferences>({/*...*/}, {/*...*/}); // Placeholder for brevity
 const UserLongTermGoalSchema = new Schema<IUserLongTermGoal>({/*...*/}, {/*...*/}); // Placeholder for brevity
 const UserKeyFactSchema = new Schema<IUserKeyFact>({/*...*/}, {/*...*/}); // Placeholder for brevity
-const AlertHistoryEntrySchema = new Schema<IAlertHistoryEntry>({/*...*/}, {/*...*/}); // Placeholder for brevity
+const AlertHistoryEntrySchema = new Schema<IAlertHistoryEntry>({
+  type: { type: String, required: true },
+  date: { type: Date, required: true, default: Date.now },
+  messageForAI: { type: String, default: "" },
+  finalUserMessage: { type: String, default: "" },
+  details: { type: Schema.Types.Mixed, required: true },
+  userInteraction: {
+    type: {
+        type: String,
+        enum: ['explored_further', 'dismissed', 'not_interacted', 'error_sending', 'pending_interaction', 'not_applicable', 'viewed', 'clicked_suggestion', 'provided_feedback'],
+        default: 'pending_interaction'
+    },
+    feedback: { type: String },
+    interactedAt: { type: Date }
+  },
+}, { _id: true });
 
 
 const userSchema = new Schema<IUser>(
