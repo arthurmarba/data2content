@@ -196,6 +196,7 @@ export interface IUser extends Document {
   availableIgAccounts?: IAvailableInstagramAccount[] | null;
   linkToken?: string;
   linkTokenExpiresAt?: Date;
+  mediaKitToken?: string;
   role: string;
   planStatus?: string;
   planExpiresAt?: Date | null;
@@ -315,6 +316,7 @@ const userSchema = new Schema<IUser>(
     availableIgAccounts: { type: [AvailableInstagramAccountSchema], default: null },
     linkToken: { type: String, index: true, sparse: true },
     linkTokenExpiresAt: { type: Date },
+    mediaKitToken: { type: String, unique: true, sparse: true },
     role: { type: String, default: "user" },
     planExpiresAt: { type: Date, default: null },
     whatsappVerificationCode: { type: String, default: null, index: true },
@@ -366,5 +368,12 @@ userSchema.pre<IUser>("save", function (next) {
 });
 
 const UserModel: Model<IUser> = models.User || model<IUser>("User", userSchema);
+
+// Garantir que os índices sejam criados quando o modelo é inicializado
+if (!models.User) {
+  UserModel.createIndexes().catch((err) => {
+    logger.error(`[User.ts] Erro ao criar índices: ${err}`);
+  });
+}
 
 export default UserModel;
