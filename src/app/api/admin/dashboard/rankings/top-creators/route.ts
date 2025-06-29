@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
 import { fetchTopCreators, TopCreatorMetricEnum } from '@/app/lib/dataService/marketAnalysisService';
 import { DatabaseError } from '@/app/lib/errors';
+import { getAdminSession } from "@/lib/getAdminSession";
 export const dynamic = 'force-dynamic';
 
 const SERVICE_TAG = '[api/admin/dashboard/rankings/top-creators]';
@@ -14,15 +15,6 @@ const querySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).optional().default(5),
 });
 
-async function getAdminSession(req: NextRequest): Promise<{ user: { name: string } } | null> {
-  const session = { user: { name: 'Admin User' } }; // Mock session
-  const isAdmin = true; // Mock admin check
-  if (!session || !isAdmin) {
-    logger.warn(`${SERVICE_TAG} Admin session validation failed.`);
-    return null;
-  }
-  return session;
-}
 
 function apiError(message: string, status: number): NextResponse {
   logger.error(`${SERVICE_TAG} Erro ${status}: ${message}`);

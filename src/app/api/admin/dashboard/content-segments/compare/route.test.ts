@@ -2,10 +2,10 @@ import { POST } from './route'; // Adjust path as necessary
 import { NextRequest } from 'next/server';
 import { fetchSegmentPerformanceData } from '@/app/lib/dataService/marketAnalysisService';
 import { logger } from '@/app/lib/logger';
-import { getServerSession } from 'next-auth/next';
+import { getAdminSession } from '@/lib/getAdminSession';
 
-jest.mock('next-auth/next', () => ({
-  getServerSession: jest.fn(),
+jest.mock('@/lib/getAdminSession', () => ({
+  getAdminSession: jest.fn(),
 }));
 
 jest.mock('@/app/api/auth/[...nextauth]/route', () => ({
@@ -28,7 +28,7 @@ jest.mock('@/app/lib/dataService/marketAnalysisService', () => ({
   fetchSegmentPerformanceData: jest.fn(),
 }));
 
-const mockGetServerSession = getServerSession as jest.Mock;
+const mockGetAdminSession = getAdminSession as jest.Mock;
 
 const mockFetchSegmentPerformanceData = fetchSegmentPerformanceData as jest.Mock;
 
@@ -44,7 +44,7 @@ describe('API Route: /api/admin/dashboard/content-segments/compare', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGetServerSession.mockResolvedValue({ user: { role: 'admin' } });
+    mockGetAdminSession.mockResolvedValue({ user: { role: 'admin' } });
   });
 
   const validDateRange = {
@@ -169,7 +169,7 @@ describe('API Route: /api/admin/dashboard/content-segments/compare', () => {
 
   // --- Error Handling & Session Tests ---
   it('should return 401 if admin session is invalid', async () => {
-    mockGetServerSession.mockResolvedValueOnce({ user: { role: 'user' } });
+    mockGetAdminSession.mockResolvedValueOnce({ user: { role: 'user' } });
     const requestBody = { dateRange: validDateRange, segments: [{ criteria: validSegmentCriteria1 }] };
     const req = createMockRequest(requestBody);
     const response = await POST(req);

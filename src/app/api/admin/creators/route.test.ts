@@ -2,12 +2,22 @@
 import { GET } from './route'; // Ajuste se o nome do arquivo for diferente
 import { fetchCreators } from '@/lib/services/adminCreatorService'; // Ajuste o caminho
 import { NextRequest } from 'next/server';
-// import { mockAdminSession } from '@/utils/tests/mocks/authMocks'; // Supondo um mock de sessão compartilhado
+import { getAdminSession } from '@/lib/getAdminSession';
+
+jest.mock('@/lib/getAdminSession', () => ({
+  getAdminSession: jest.fn(),
+}));
+
+jest.mock('@/app/api/auth/[...nextauth]/route', () => ({
+  authOptions: {},
+}));
 
 // Mock o serviço
 jest.mock('@/lib/services/adminCreatorService', () => ({
   fetchCreators: jest.fn(),
 }));
+
+const mockGetAdminSession = getAdminSession as jest.Mock;
 
 // Mock a sessão de admin (se não estiver usando um helper compartilhado)
 // jest.mock('./route', () => { // Cuidado ao mockar o próprio arquivo
@@ -33,10 +43,7 @@ describe('API Route: GET /api/admin/creators', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // Mock para getAdminSession (se não for mockado globalmente)
-    // (require('./route') as any).getAdminSession.mockResolvedValue(mockAdminSession.authenticatedAdmin);
-    // Como getAdminSession é definido localmente e é um mock simples, não precisamos mocká-lo aqui
-    // a menos que queiramos testar o cenário de não admin, o que exigiria mock do módulo ou da função.
+    mockGetAdminSession.mockResolvedValue({ user: { role: 'admin' } });
   });
 
   it('should return 200 and data on successful fetch', async () => {
@@ -74,17 +81,12 @@ describe('API Route: GET /api/admin/creators', () => {
     expect(body.error).toContain("status: Invalid enum value. Expected 'pending' | 'approved' | 'rejected' | 'active'");
   });
 
-  // Teste para não autorizado (requer mock de getAdminSession para retornar null)
-  // Para este teste funcionar, getAdminSession precisaria ser mockável.
-  // Se getAdminSession está hardcoded como mock na rota, este teste não pode forçar o cenário não-admin
-  // a menos que o mock da rota inteira seja feito, o que é mais complexo.
-  // it('should return 401 if user is not an admin', async () => {
-  //   // Supondo que podemos mockar getAdminSession para retornar null
-  //   // jest.spyOn(require('./route'), 'getAdminSession').mockResolvedValueOnce(null); // Exemplo de como poderia ser
-  //   const req = createMockRequest();
-  //   const response = await GET(req);
-  //   expect(response.status).toBe(401);
-  // });
+  it('should return 401 if user is not an admin', async () => {
+    mockGetAdminSession.mockResolvedValueOnce(null);
+    const req = createMockRequest();
+    const response = await GET(req);
+    expect(response.status).toBe(401);
+  });
 
   it('should return 500 if service throws an error', async () => {
     mockFetchCreators.mockRejectedValueOnce(new Error('Database error'));

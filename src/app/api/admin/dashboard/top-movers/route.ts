@@ -14,8 +14,7 @@ import {
   TopMoverSortBy,     // For Zod enum
 } from '@/app/lib/dataService/marketAnalysisService';
 import { DatabaseError } from '@/app/lib/errors';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { getAdminSession } from "@/lib/getAdminSession";
 
 const SERVICE_TAG = '[api/admin/dashboard/top-movers]';
 
@@ -73,14 +72,6 @@ const requestBodySchema = z.object({
 
 // --- Helper Functions ---
 
-async function getAdminSession(_req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user?.role !== 'admin') {
-    logger.warn(`${SERVICE_TAG} Admin session validation failed.`);
-    return null;
-  }
-  return session;
-}
 
 function apiError(message: string, status: number): NextResponse {
   logger.error(`${SERVICE_TAG} Erro ${status}: ${message}`);

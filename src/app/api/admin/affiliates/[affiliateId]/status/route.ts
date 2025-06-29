@@ -4,15 +4,10 @@ import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
 import { updateAffiliateStatus } from '@/lib/services/adminCreatorService'; // Assumindo que o serviço ainda se chama adminCreatorService
 import { AdminAffiliateStatus, AdminAffiliateUpdateStatusPayload } from '@/types/admin/affiliates';
+import { getAdminSession } from '@/lib/getAdminSession';
 
 const SERVICE_TAG = '[api/admin/affiliates/[affiliateId]/status]';
 
-// Mock Admin Session Validation
-async function getAdminSession(req: NextRequest): Promise<{ user: { name: string, role?: string, isAdmin?: boolean } } | null> {
-  const mockSession = { user: { name: 'Admin User', role: 'admin' } };
-  if (mockSession.user.role !== 'admin') return null;
-  return mockSession;
-}
 
 function apiError(message: string, status: number): NextResponse {
   logger.error(`${SERVICE_TAG} Erro ${status}: ${message}`);

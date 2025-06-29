@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
 import { fetchTopProposals, ProposalRankingMetric } from '@/app/lib/dataService/marketAnalysisService';
 import { DatabaseError } from '@/app/lib/errors';
+import { getAdminSession } from "@/lib/getAdminSession";
 export const dynamic = 'force-dynamic';
 
 const SERVICE_TAG = '[api/admin/dashboard/rankings/proposals]';
@@ -20,15 +21,6 @@ const querySchema = z.object({
   path: ['endDate'],
 });
 
-async function getAdminSession(req: NextRequest): Promise<{ user: { name: string } } | null> {
-  const session = { user: { name: 'Admin User' } };
-  const isAdmin = true;
-  if (!session || !isAdmin) {
-    logger.warn(`${SERVICE_TAG} Admin session validation failed.`);
-    return null;
-  }
-  return session;
-}
 
 function apiError(message: string, status: number): NextResponse {
   logger.error(`${SERVICE_TAG} Erro ${status}: ${message}`);

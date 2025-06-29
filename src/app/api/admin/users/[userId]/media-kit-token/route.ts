@@ -3,13 +3,10 @@ import { Types } from 'mongoose';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import UserModel from '@/app/models/User';
 import { logger } from '@/app/lib/logger';
+import { getAdminSession } from '@/lib/getAdminSession';
 
 export const dynamic = 'force-dynamic';
 
-async function getAdminSession(_req: NextRequest): Promise<{ user: { name: string; role?: string } } | null> {
-  const mockSession = { user: { name: 'Admin User', role: 'admin' } };
-  return mockSession.user.role === 'admin' ? mockSession : null;
-}
 
 function apiError(message: string, status: number) {
   logger.warn(`[media-kit-token] ${message}`);

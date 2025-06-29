@@ -1,10 +1,10 @@
 import { GET } from './route';
 import { NextRequest } from 'next/server';
-import { getServerSession } from 'next-auth/next';
+import { getAdminSession } from '@/lib/getAdminSession';
 import { fetchPlatformSummary } from '@/app/lib/dataService/marketAnalysis/dashboardService';
 
-jest.mock('next-auth/next', () => ({
-  getServerSession: jest.fn(),
+jest.mock('@/lib/getAdminSession', () => ({
+  getAdminSession: jest.fn(),
 }));
 
 jest.mock('@/app/api/auth/[...nextauth]/route', () => ({
@@ -15,7 +15,7 @@ jest.mock('@/app/lib/dataService/marketAnalysis/dashboardService', () => ({
   fetchPlatformSummary: jest.fn(),
 }));
 
-const mockGetServerSession = getServerSession as jest.Mock;
+const mockGetAdminSession = getAdminSession as jest.Mock;
 const mockFetchSummary = fetchPlatformSummary as jest.Mock;
 
 const makeRequest = (params: Record<string, string> = {}) => {
@@ -29,13 +29,13 @@ beforeEach(() => {
 
 describe('GET /api/admin/dashboard/platform-summary', () => {
   it('returns 401 when user is not authenticated', async () => {
-    mockGetServerSession.mockResolvedValue(null);
+    mockGetAdminSession.mockResolvedValue(null);
     const res = await GET(makeRequest());
     expect(res.status).toBe(401);
   });
 
   it('returns summary data when authenticated as admin', async () => {
-    mockGetServerSession.mockResolvedValue({ user: { id: '1', role: 'admin' } });
+    mockGetAdminSession.mockResolvedValue({ user: { id: '1', role: 'admin' } });
     const data = { totalCreators: 10 };
     mockFetchSummary.mockResolvedValue(data);
 

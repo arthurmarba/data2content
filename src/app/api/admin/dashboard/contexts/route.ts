@@ -2,18 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/app/lib/logger';
 import { getAvailableContexts } from '@/app/lib/dataService/marketAnalysis/cohortsService';
 import { DatabaseError } from '@/app/lib/errors';
+import { getAdminSession } from "@/lib/getAdminSession";
 
 const SERVICE_TAG = '[api/admin/dashboard/contexts]';
 
-async function getAdminSession(req: NextRequest): Promise<{ user: { name: string } } | null> {
-  const session = { user: { name: 'Admin User' } };
-  const isAdmin = true;
-  if (!session || !isAdmin) {
-    logger.warn(`${SERVICE_TAG} Admin session validation failed.`);
-    return null;
-  }
-  return session;
-}
 
 function apiError(message: string, status: number): NextResponse {
   logger.error(`${SERVICE_TAG} Erro ${status}: ${message}`);

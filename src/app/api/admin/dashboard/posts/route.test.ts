@@ -2,10 +2,10 @@ import { GET } from './route'; // Adjust path as necessary
 import { NextRequest } from 'next/server';
 import { findGlobalPostsByCriteria } from '@/app/lib/dataService/marketAnalysisService';
 import { logger } from '@/app/lib/logger';
-import { getServerSession } from 'next-auth/next';
+import { getAdminSession } from '@/lib/getAdminSession';
 
-jest.mock('next-auth/next', () => ({
-  getServerSession: jest.fn(),
+jest.mock('@/lib/getAdminSession', () => ({
+  getAdminSession: jest.fn(),
 }));
 
 jest.mock('@/app/api/auth/[...nextauth]/route', () => ({
@@ -27,7 +27,7 @@ jest.mock('@/app/lib/dataService/marketAnalysisService', () => ({
   findGlobalPostsByCriteria: jest.fn(),
 }));
 
-const mockGetServerSession = getServerSession as jest.Mock;
+const mockGetAdminSession = getAdminSession as jest.Mock;
 
 const mockFindGlobalPostsByCriteria = findGlobalPostsByCriteria as jest.Mock;
 
@@ -41,7 +41,7 @@ describe('API Route: /api/admin/dashboard/posts', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGetServerSession.mockResolvedValue({ user: { role: 'admin' } });
+    mockGetAdminSession.mockResolvedValue({ user: { role: 'admin' } });
   });
 
   it('should return 200 with posts on a valid request with default params', async () => {
@@ -121,7 +121,7 @@ describe('API Route: /api/admin/dashboard/posts', () => {
   });
 
   it('should return 401 if admin session is invalid', async () => {
-    mockGetServerSession.mockResolvedValueOnce({ user: { role: 'user' } });
+    mockGetAdminSession.mockResolvedValueOnce({ user: { role: 'user' } });
     const req = createMockRequest();
     const response = await GET(req);
     expect(response.status).toBe(401);

@@ -4,10 +4,10 @@ import { Types } from 'mongoose';
 import { fetchCreatorTimeSeriesData } from '@/app/lib/dataService/marketAnalysisService';
 import { logger } from '@/app/lib/logger';
 import { DatabaseError } from '@/app/lib/errors'; // Import DatabaseError
-import { getServerSession } from 'next-auth/next';
+import { getAdminSession } from '@/lib/getAdminSession';
 
-jest.mock('next-auth/next', () => ({
-  getServerSession: jest.fn(),
+jest.mock('@/lib/getAdminSession', () => ({
+  getAdminSession: jest.fn(),
 }));
 
 jest.mock('@/app/api/auth/[...nextauth]/route', () => ({
@@ -29,7 +29,7 @@ jest.mock('@/app/lib/dataService/marketAnalysisService', () => ({
   fetchCreatorTimeSeriesData: jest.fn(),
 }));
 
-const mockGetServerSession = getServerSession as jest.Mock;
+const mockGetAdminSession = getAdminSession as jest.Mock;
 
 const mockFetchCreatorTimeSeriesData = fetchCreatorTimeSeriesData as jest.Mock;
 const validCreatorId = new Types.ObjectId().toString();
@@ -48,7 +48,7 @@ describe('API Route: /api/admin/dashboard/creators/[creatorId]/time-series', () 
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGetServerSession.mockResolvedValue({ user: { role: 'admin' } });
+    mockGetAdminSession.mockResolvedValue({ user: { role: 'admin' } });
   });
 
   it('should return 200 with time series data on a valid request', async () => {
@@ -134,7 +134,7 @@ describe('API Route: /api/admin/dashboard/creators/[creatorId]/time-series', () 
   });
 
   it('should return 401 if admin session is invalid', async () => {
-    mockGetServerSession.mockResolvedValueOnce({ user: { role: 'user' } });
+    mockGetAdminSession.mockResolvedValueOnce({ user: { role: 'user' } });
     const query = { metric: 'post_count', period: 'monthly', startDate: '2023-01-01T00:00:00Z', endDate: '2023-01-31T00:00:00Z' };
     const req = createMockRequest(validCreatorId, query);
     const response = await GET(req, { params: { creatorId: validCreatorId } });

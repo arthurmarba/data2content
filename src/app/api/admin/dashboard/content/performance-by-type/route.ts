@@ -3,8 +3,7 @@ import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
 import { fetchContentPerformanceByType } from '@/app/lib/dataService/marketAnalysis/segmentService';
 import { DatabaseError } from '@/app/lib/errors';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { getAdminSession } from "@/lib/getAdminSession";
 
 const TAG = '/api/admin/dashboard/content/performance-by-type';
 
@@ -21,7 +20,7 @@ export async function GET(req: NextRequest) {
   logger.info(`${TAG} Request received`);
 
   // 1. Admin Session Validation
-  const session = await getServerSession(authOptions);
+  const session = await getAdminSession(req);
   
   // Verificação mais robusta da sessão e do papel do usuário
   if (!session || !session.user || session.user.role !== 'admin') {
