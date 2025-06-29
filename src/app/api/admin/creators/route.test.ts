@@ -2,12 +2,22 @@
 import { GET } from './route'; // Ajuste se o nome do arquivo for diferente
 import { fetchCreators } from '@/lib/services/adminCreatorService'; // Ajuste o caminho
 import { NextRequest } from 'next/server';
-// import { mockAdminSession } from '@/utils/tests/mocks/authMocks'; // Supondo um mock de sessão compartilhado
+import { getServerSession } from 'next-auth/next';
+
+jest.mock('next-auth/next', () => ({
+  getServerSession: jest.fn(),
+}));
+
+jest.mock('@/app/api/auth/[...nextauth]/route', () => ({
+  authOptions: {},
+}));
 
 // Mock o serviço
 jest.mock('@/lib/services/adminCreatorService', () => ({
   fetchCreators: jest.fn(),
 }));
+
+const mockGetServerSession = getServerSession as jest.Mock;
 
 // Mock a sessão de admin (se não estiver usando um helper compartilhado)
 // jest.mock('./route', () => { // Cuidado ao mockar o próprio arquivo
@@ -33,10 +43,7 @@ describe('API Route: GET /api/admin/creators', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // Mock para getAdminSession (se não for mockado globalmente)
-    // (require('./route') as any).getAdminSession.mockResolvedValue(mockAdminSession.authenticatedAdmin);
-    // Como getAdminSession é definido localmente e é um mock simples, não precisamos mocká-lo aqui
-    // a menos que queiramos testar o cenário de não admin, o que exigiria mock do módulo ou da função.
+    mockGetServerSession.mockResolvedValue({ user: { role: 'admin' } });
   });
 
   it('should return 200 and data on successful fetch', async () => {

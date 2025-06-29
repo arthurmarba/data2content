@@ -2,6 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/app/lib/logger';
+import { getAdminSession } from '@/lib/getAdminSession';
 import {
   getTotalCreatorsCount,
   getPendingCreatorsCount,
@@ -17,12 +18,6 @@ export const dynamic = 'force-dynamic';
 
 const SERVICE_TAG = '[api/admin/dashboard-summary]';
 
-// Mock Admin Session Validation (substituir pela real com getServerSession)
-async function getAdminSession(req: NextRequest): Promise<{ user: { name: string, role?: string, isAdmin?: boolean } } | null> {
-  const mockSession = { user: { name: 'Admin User', role: 'admin' } }; // Simula um admin
-  if (mockSession.user.role !== 'admin') return null;
-  return mockSession;
-}
 
 function apiError(message: string, status: number): NextResponse {
   logger.error(`${SERVICE_TAG} Erro ${status}: ${message}`);
