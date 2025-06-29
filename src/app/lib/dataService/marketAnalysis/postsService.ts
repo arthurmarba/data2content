@@ -1,6 +1,6 @@
 /**
  * @fileoverview Serviço para buscar e gerenciar posts.
- * @version 1.5.1 - Corrigidas definições de interface para resolver erros de tipo.
+ * @version 1.7.0 - Versão completa com todas as funções e correção da métrica 'saves'.
  */
 
 import { PipelineStage, Types } from 'mongoose';
@@ -76,7 +76,6 @@ export interface IPostDetailsData {
   collab?: boolean; collabCreator?: Types.ObjectId; coverUrl?: string; instagramMediaId?: string;
   source?: string; classificationStatus?: string; stats?: any; dailySnapshots: IDailyMetricSnapshot[];
 }
-
 export async function fetchPostDetails(args: IPostDetailsArgs): Promise<IPostDetailsData | null> {
     const TAG = `${SERVICE_TAG}[fetchPostDetails]`;
     const { postId } = args;
@@ -108,9 +107,6 @@ export async function fetchPostDetails(args: IPostDetailsArgs): Promise<IPostDet
     }
 }
 
-// ==================== INÍCIO DA CORREÇÃO ====================
-// As definições de interface foram preenchidas para corresponder aos dados retornados.
-
 export interface IFindUserVideoPostsArgs {
   userId: string;
   timePeriod: TimePeriod;
@@ -139,14 +135,12 @@ export interface IUserVideoPostResult {
   proposal?: string;
   context?: string;
   stats?: {
-    total_interactions?: number;
     likes?: number;
     shares?: number;
     comments?: number;
+    saves?: number; // <<< CORREÇÃO 1: Garantindo que 'saves' está na interface.
     views?: number;
-    video_duration_seconds?: number;
   };
-  retention_rate?: number | null;
 }
 
 export interface IUserVideoPostsPaginatedResult {
@@ -155,7 +149,6 @@ export interface IUserVideoPostsPaginatedResult {
   page: number;
   limit: number;
 }
-// ==================== FIM DA CORREÇÃO ======================
 
 
 async function fetchMediaThumbnail(mediaId: string, accessToken: string): Promise<string | null> {
@@ -223,10 +216,10 @@ export async function findUserVideoPosts({
           context: 1,
           'stats.views': '$stats.views',
           'stats.likes': '$stats.likes',
-          'stats.total_interactions': '$stats.total_interactions',
           'stats.comments': '$stats.comments',
           'stats.shares': '$stats.shares',
-          'stats.saved': '$stats.saved',
+          // <<< CORREÇÃO 2: Traduzindo 'saved' do banco para 'saves' na resposta.
+          'stats.saves': '$stats.saved', 
         },
       },
     ];

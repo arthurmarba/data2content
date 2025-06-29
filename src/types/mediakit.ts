@@ -1,3 +1,5 @@
+// src/types/mediakit.ts
+
 // Tipos compartilhados para o Mídia Kit
 
 // Para a tabela de vídeos
@@ -7,6 +9,13 @@ export interface VideoListItem {
     caption?: string;
     permalink?: string | null;
     postDate?: string | Date;
+    // <<< INÍCIO DA CORREÇÃO: Campos de estratégia adicionados >>>
+    // Adicionando os campos que o componente VideosTable.tsx espera.
+    // Eles são opcionais ('?') porque nem todo vídeo pode ter essas tags.
+    proposal?: string;
+    context?: string;
+    format?: string;
+    // <<< FIM DA CORREÇÃO >>>
     stats?: {
       views?: number;
       likes?: number;
@@ -41,7 +50,6 @@ export interface VideoListItem {
     avgCommentsPerPost: KPIComparisonData;
     avgSharesPerPost: KPIComparisonData;
     avgSavesPerPost: KPIComparisonData;
-    // NOVO: Métrica de alcance médio adicionada
     avgReachPerPost: KPIComparisonData;
     insightSummary?: {
       followerGrowth?: string;
@@ -51,7 +59,6 @@ export interface VideoListItem {
       avgCommentsPerPost?: string;
       avgSharesPerPost?: string;
       avgSavesPerPost?: string;
-      // NOVO: Insight de alcance médio adicionado
       avgReachPerPost?: string;
     };
   }
