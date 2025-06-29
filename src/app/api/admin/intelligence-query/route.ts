@@ -13,6 +13,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 // --- Importações da Nova Arquitetura Modular ---
 import { logger } from '@/app/lib/logger';
@@ -47,14 +49,6 @@ function apiError(message: string, status: number): NextResponse {
   return NextResponse.json({ error: message }, { status });
 }
 
-async function getAdminSession(req: NextRequest): Promise<{ user: { name: string } } | null> {
-  // SIMULAÇÃO: Substitua pela sua lógica real de sessão (ex: next-auth)
-  const session = { user: { name: 'Admin User' } };
-  const isAdmin = true;
-  if (!session || !isAdmin) return null;
-  return session;
-}
-
 // Mapeia as mensagens do cliente para o formato esperado pela OpenAI.
 function mapToOpenAIMessages(messages: ClientMessage[]): ChatCompletionMessageParam[] {
     return messages.map((msg): ChatCompletionMessageParam => {
@@ -71,8 +65,8 @@ export async function POST(req: NextRequest) {
   logger.info(`${TAG} Requisição recebida.`);
 
   try {
-    const session = await getAdminSession(req);
-    if (!session) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.isAdmin) {
       return apiError('Acesso não autorizado.', 401);
     }
 

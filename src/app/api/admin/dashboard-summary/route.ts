@@ -2,6 +2,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/app/lib/logger';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import {
   getTotalCreatorsCount,
   getPendingCreatorsCount,
@@ -17,13 +19,6 @@ export const dynamic = 'force-dynamic';
 
 const SERVICE_TAG = '[api/admin/dashboard-summary]';
 
-// Mock Admin Session Validation (substituir pela real com getServerSession)
-async function getAdminSession(req: NextRequest): Promise<{ user: { name: string, role?: string, isAdmin?: boolean } } | null> {
-  const mockSession = { user: { name: 'Admin User', role: 'admin' } }; // Simula um admin
-  if (mockSession.user.role !== 'admin') return null;
-  return mockSession;
-}
-
 function apiError(message: string, status: number): NextResponse {
   logger.error(`${SERVICE_TAG} Erro ${status}: ${message}`);
   return NextResponse.json({ error: message }, { status });
@@ -34,9 +29,9 @@ export async function GET(req: NextRequest) {
   logger.info(`${TAG} Received request for dashboard summary KPIs.`);
 
   try {
-    const session = await getAdminSession(req);
-    if (!session) {
-      return apiError('Acesso não autorizado ou privilégios insuficientes.', 401);
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.isAdmin) {
+      return apiError('Acesso não autorizado.', 401);
     }
     logger.info(`${TAG} Admin session validated for user: ${session.user.name}`);
 

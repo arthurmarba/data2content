@@ -7,6 +7,8 @@ import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
 import { fetchCohortComparison } from '@/app/lib/dataService/marketAnalysis/cohortsService';
 import { DatabaseError } from '@/app/lib/errors';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 const SERVICE_TAG = '[api/admin/dashboard/cohorts/compare]';
 const MAX_COHORTS_TO_COMPARE_API = 5;
@@ -34,15 +36,6 @@ const requestBodySchema = z.object({
 });
 
 // --- Helper Functions ---
-async function getAdminSession(req: NextRequest): Promise<{ user: { name: string } } | null> {
-  const session = { user: { name: 'Admin User' } };
-  const isAdmin = true;
-  if (!session || !isAdmin) {
-    logger.warn(`${SERVICE_TAG} Admin session validation failed.`);
-    return null;
-  }
-  return session;
-}
 
 function apiError(message: string, status: number): NextResponse {
   logger.error(`${SERVICE_TAG} Erro ${status}: ${message}`);
@@ -60,8 +53,8 @@ export async function POST(req: NextRequest) {
   const TAG = `${SERVICE_TAG}[POST]`;
   logger.info(`${TAG} Received request for cohort comparison.`);
   try {
-    const session = await getAdminSession(req);
-    if (!session) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.isAdmin) {
       return apiError('Acesso não autorizado.', 401);
     }
     logger.info(`${TAG} Admin session validated for user: ${session.user.name}`);

@@ -4,15 +4,10 @@ import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
 import { updateRedemptionStatus } from '@/lib/services/adminCreatorService'; // Assumindo nome do serviço
 import { RedemptionStatus, AdminRedemptionUpdateStatusPayload } from '@/types/admin/redemptions';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 const SERVICE_TAG = '[api/admin/redemptions/[redemptionId]/status]';
-
-// Mock Admin Session Validation
-async function getAdminSession(req: NextRequest): Promise<{ user: { name: string, role?: string, isAdmin?: boolean } } | null> {
-  const mockSession = { user: { name: 'Admin User', role: 'admin' } };
-  if (mockSession.user.role !== 'admin') return null;
-  return mockSession;
-}
 
 function apiError(message: string, status: number): NextResponse {
   logger.error(`${SERVICE_TAG} Erro ${status}: ${message}`);
@@ -51,9 +46,9 @@ export async function PATCH(
   logger.info(`${TAG} Received request to update status for redemptionId: ${redemptionId}`);
 
   try {
-    const session = await getAdminSession(req);
-    if (!session) {
-      return apiError('Acesso não autorizado ou privilégios insuficientes.', 401);
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.isAdmin) {
+      return apiError('Acesso não autorizado.', 401);
     }
     logger.info(`${TAG} Admin session validated for user: ${session.user.name}`);
 

@@ -4,13 +4,10 @@ import crypto from 'crypto';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import UserModel from '@/app/models/User';
 import { logger } from '@/app/lib/logger';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 export const dynamic = 'force-dynamic';
-
-async function getAdminSession(_req: NextRequest): Promise<{ user: { name: string; role?: string } } | null> {
-  const mockSession = { user: { name: 'Admin User', role: 'admin' } };
-  return mockSession.user.role === 'admin' ? mockSession : null;
-}
 
 function apiError(message: string, status: number) {
   logger.warn(`[generate-media-kit-token] ${message}`);
@@ -25,8 +22,8 @@ export async function POST(
   const TAG = '[api/admin/users/[userId]/generate-media-kit-token]';
   logger.info(`${TAG} Generating media kit token for user ${userId}`);
 
-  const session = await getAdminSession(req);
-  if (!session) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.isAdmin) {
     return apiError('Acesso não autorizado.', 401);
   }
 
@@ -61,8 +58,8 @@ export async function GET(
   const TAG = '[api/admin/users/[userId]/generate-media-kit-token:GET]';
   logger.info(`${TAG} Fetching media kit token for user ${userId}`);
 
-  const session = await getAdminSession(req);
-  if (!session) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.isAdmin) {
     return apiError('Acesso não autorizado.', 401);
   }
 
