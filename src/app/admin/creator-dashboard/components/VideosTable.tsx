@@ -36,6 +36,10 @@ interface VideosTableProps {
   onSort: (column: string) => void;
   primaryMetric: string;
   onRowClick?: (postId: string) => void;
+  /**
+   * When true the table becomes read only: sorting and row clicks are disabled.
+   */
+  readOnly?: boolean;
 }
 
 export const metricLabels: Record<string, string> = {
@@ -52,7 +56,7 @@ export const metricLabels: Record<string, string> = {
   retention_rate: 'Retenção',
 };
 
-const VideosTable: React.FC<VideosTableProps> = ({ videos, sortConfig, onSort, onRowClick }) => {
+const VideosTable: React.FC<VideosTableProps> = ({ videos, sortConfig, onSort, onRowClick, readOnly = false }) => {
   const renderSortIcon = (key: string) => {
     if (sortConfig.sortBy !== key) {
       return <ChevronDownIcon className="w-3 h-3 inline text-gray-400 opacity-50 ml-1" />;
@@ -100,13 +104,13 @@ const VideosTable: React.FC<VideosTableProps> = ({ videos, sortConfig, onSort, o
                 key={col.key}
                 scope="col"
                 className={`px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-${col.align} ${
-                  col.sortable ? 'cursor-pointer hover:bg-gray-200 transition-colors' : ''
+                  col.sortable && !readOnly ? 'cursor-pointer hover:bg-gray-200 transition-colors' : ''
                 }`}
-                onClick={() => col.sortable && onSort(col.key)}
+                onClick={() => !readOnly && col.sortable && onSort(col.key)}
               >
                 <div className={`flex items-center ${col.align === 'center' ? 'justify-center' : ''}`}>
                   {col.label}
-                  {col.sortable && renderSortIcon(col.key)}
+                  {col.sortable && !readOnly && renderSortIcon(col.key)}
                 </div>
               </th>
             ))}
@@ -117,9 +121,9 @@ const VideosTable: React.FC<VideosTableProps> = ({ videos, sortConfig, onSort, o
             <tr
               key={video._id}
               className="hover:bg-indigo-50 transition-colors"
-              onClick={() => onRowClick && onRowClick(video._id)}
-              tabIndex={0}
-              role="button"
+              {...(!readOnly && onRowClick
+                ? { onClick: () => onRowClick(video._id), tabIndex: 0, role: 'button' }
+                : {})}
             >
               {/* MUDANÇA: Adicionada célula para renderizar a thumbnail */}
               <td className="px-4 py-2">
