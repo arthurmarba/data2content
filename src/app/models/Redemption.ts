@@ -1,57 +1,71 @@
-import { Schema, model, models, Document, Model, Types } from "mongoose";
+// src/app/models/Redemption.ts
+
+import mongoose, { Schema, model, models, Document, Model, Types } from "mongoose";
+
+// A 'type' RedemptionStatus é importada apenas para verificação de tipos em tempo de compilação.
+import { RedemptionStatus } from '@/types/admin/redemptions';
 
 /**
  * Interface que descreve um documento de Redemption (saque).
+ * Esta interface usa a 'type' e garante que seu código TypeScript esteja correto.
  */
 export interface IRedemption extends Document {
-  user: Types.ObjectId;
+  _id: Types.ObjectId;
+  userId: Types.ObjectId;
   amount: number;
-  status: "pending" | "paid" | "canceled";
-  paymentMethod?: string;
-  notes?: string;
-  createdAt: Date;
+  currency: string;
+  status: RedemptionStatus; // <-- Uso correto da 'type' para tipagem
+  requestedAt: Date;
   updatedAt: Date;
+  paymentMethod?: string;
+  paymentDetails?: Record<string, any>;
+  adminNotes?: string;
+  transactionId?: string;
 }
 
+/**
+ * Schema do Mongoose.
+ * Define a estrutura e as validações que existem em tempo de execução no banco de dados.
+ */
 const redemptionSchema = new Schema<IRedemption>(
   {
-    user: {
+    userId: {
       type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      index: true, // facilita busca por usuário
+      index: true,
     },
     amount: {
       type: Number,
-      required: true, // valor do saque
-      min: 0,         // não pode ser negativo
+      required: true,
+      min: 0,
+    },
+    currency: {
+      type: String,
+      required: true,
+      default: 'BRL',
     },
     status: {
       type: String,
-      enum: ["pending", "paid", "canceled"],
-      default: "pending",
+      // CORRIGIDO: Array de strings para a validação do Mongoose em tempo de execução.
+      enum: ['pending', 'approved', 'rejected', 'processing', 'paid', 'failed', 'cancelled'],
+      required: true,
+      // CORRIGIDO: String literal para o valor default.
+      default: 'pending',
     },
-    paymentMethod: {
-      type: String,
-      default: "",
-      // Ex.: "pix", "transferencia", "paypal" etc.
-    },
-    notes: {
-      type: String,
-      default: "",
-      // Espaço para anotações do admin ou do usuário
-    },
+    paymentMethod: String,
+    paymentDetails: Schema.Types.Mixed,
+    adminNotes: String,
+    transactionId: String,
   },
   {
-    timestamps: true, // cria automaticamente createdAt e updatedAt
+    timestamps: { createdAt: 'requestedAt', updatedAt: 'updatedAt' },
   }
 );
 
 /**
- * Exporta o modelo 'Redemption', evitando recriação em dev/hot reload
+ * Exporta o modelo 'Redemption' usando o padrão para evitar recriação.
  */
-const Redemption = models.Redemption
-  ? (models.Redemption as Model<IRedemption>)
-  : model<IRedemption>("Redemption", redemptionSchema);
+const RedemptionModel = models.Redemption as Model<IRedemption> || model<IRedemption>("Redemption", redemptionSchema);
 
-export default Redemption;
+export default RedemptionModel;

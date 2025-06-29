@@ -1,6 +1,6 @@
-// src/types/mediakit.ts
+// Tipos compartilhados para o Mídia Kit
 
-// Tipo para os itens da tabela de vídeos
+// Para a tabela de vídeos
 export interface VideoListItem {
     _id: string;
     thumbnailUrl?: string | null;
@@ -12,17 +12,18 @@ export interface VideoListItem {
       likes?: number;
       comments?: number;
       shares?: number;
+      saves?: number;
+      reach?: number; // NOVO: Adicionado para o cálculo de alcance
     };
   }
   
-  // Tipo para o resumo de performance (cards de destaque)
+  // Para os cards de destaque
   export interface PerformanceSummary {
     topPerformingFormat?: { name: string; metricName: string; valueFormatted: string } | null;
     topPerformingContext?: { name: string; metricName: string; valueFormatted: string } | null;
-    // O lowPerformingFormat foi removido intencionalmente
   }
   
-  // Tipo para os dados de cada KPI individual
+  // Para cada KPI individual
   export interface KPIComparisonData {
     currentValue: number | null;
     previousValue: number | null;
@@ -30,15 +31,18 @@ export interface VideoListItem {
     chartData?: { name: string; value: number }[];
   }
   
-  // Tipo para o objeto completo de KPIs que vem da API
+  // Para o objeto completo de KPIs da API
   export interface KpiComparison {
+    comparisonPeriod?: string;
     followerGrowth: KPIComparisonData;
-    engagementRate: KPIComparisonData; // <- A definição correta
+    engagementRate: KPIComparisonData;
     postingFrequency: KPIComparisonData;
     avgViewsPerPost: KPIComparisonData;
     avgCommentsPerPost: KPIComparisonData;
     avgSharesPerPost: KPIComparisonData;
     avgSavesPerPost: KPIComparisonData;
+    // NOVO: Métrica de alcance médio adicionada
+    avgReachPerPost: KPIComparisonData;
     insightSummary?: {
       followerGrowth?: string;
       engagementRate?: string;
@@ -47,13 +51,15 @@ export interface VideoListItem {
       avgCommentsPerPost?: string;
       avgSharesPerPost?: string;
       avgSavesPerPost?: string;
+      // NOVO: Insight de alcance médio adicionado
+      avgReachPerPost?: string;
     };
   }
   
-  // Props para o componente MediaKitView
+  // Para as props do componente MediaKitView
   export interface MediaKitViewProps {
-    user: any; // Idealmente, crie uma interface IUser e importe aqui
+    user: any;
     summary: PerformanceSummary | null;
     videos: VideoListItem[];
-    kpis: KpiComparison | null;
+    kpis: KpiComparison | null; // Dados iniciais
   }

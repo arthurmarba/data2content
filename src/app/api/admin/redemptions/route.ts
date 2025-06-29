@@ -3,14 +3,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
-import User, { IUser } from "@/app/models/User";
-import Redemption from "@/app/models/Redemption";
-import { Model, Document, Types } from "mongoose";
+import User from "@/app/models/User";
+// <<< ALTERAÇÃO 1: Importamos o modelo E a interface correta que criamos.
+import Redemption, { IRedemption } from "@/app/models/Redemption";
+import { Types } from "mongoose";
 
 export const runtime = "nodejs";
 export const dynamic = 'force-dynamic';
 
-// Interface para o usuário populado, mais específica
+// Interface para o usuário populado (pode ser mantida, pois é útil)
 interface IPopulatedUserForRedemption {
   _id: Types.ObjectId;
   name?: string;
@@ -23,18 +24,9 @@ interface IPopulatedUserForRedemption {
   };
 }
 
-// Interface IRedemption atualizada para usar o tipo de usuário populado
-interface IRedemptionDocument extends Document {
-  _id: Types.ObjectId;
-  user: IPopulatedUserForRedemption | Types.ObjectId;
-  amount: number;
-  status: "pending" | "paid" | "canceled";
-  paymentMethod: string;
-  notes: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
+// <<< ALTERAÇÃO 2: A interface local e obsoleta IRedemptionDocument foi REMOVIDA.
 
+// Interface para a sessão (pode ser mantida)
 interface SessionUser {
   name?: string | null;
   email?: string | null;
@@ -59,13 +51,7 @@ function escapeCsvValue(value: any, delimiter = ';'): string {
 
 /**
  * GET /api/admin/redemptions
- * Lista os pedidos de resgate com paginação e busca (apenas para admin).
- * Aceita query params:
- * - `status` (pending, paid, canceled, all). Default: 'pending'.
- * - `searchQuery` (busca por nome ou e-mail do afiliado).
- * - `page` (número da página). Default: 1.
- * - `limit` (itens por página). Default: 20.
- * - `export=csv` para exportar todos os dados filtrados.
+ * ... (descrição da rota)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -86,15 +72,13 @@ export async function GET(request: NextRequest) {
     const searchQuery = searchParams.get("searchQuery");
     const exportType = searchParams.get("export");
 
-    // --- Lógica de Filtro Aprimorada ---
     const filter: any = {};
     if (statusFilter !== 'all') {
       filter.status = statusFilter;
     }
 
-    // Se houver uma busca, primeiro encontramos os usuários correspondentes
     if (searchQuery) {
-      const userSearchRegex = new RegExp(searchQuery, 'i'); // 'i' para case-insensitive
+      const userSearchRegex = new RegExp(searchQuery, 'i');
       const matchingUsers = await User.find({
         $or: [
           { name: { $regex: userSearchRegex } },
@@ -103,47 +87,57 @@ export async function GET(request: NextRequest) {
       }).select('_id');
 
       const userIds = matchingUsers.map(user => user._id);
-
-      // Se a busca por usuários não retornou resultados, nenhum resgate será encontrado.
+      
       if (userIds.length === 0) {
         return NextResponse.json({ items: [], totalItems: 0, totalPages: 0, currentPage: 1, perPage: 20 });
       }
 
-      filter.user = { $in: userIds };
+      // <<< ALTERAÇÃO 3: Usando o nome de campo correto 'userId' do novo modelo.
+      filter.userId = { $in: userIds };
     }
-    // --- Fim da Lógica de Filtro ---
-
-    const redemptionModel = Redemption as Model<IRedemptionDocument>;
+    
+    // <<< ALTERAÇÃO 4: A linha com o casting (as Model<...>) foi REMOVIDA. Usamos 'Redemption' diretamente.
 
     if (exportType === 'csv') {
-      const redemptions = await redemptionModel
+      // Definimos um tipo para o documento após o populate para melhor type safety
+      type PopulatedRedemption = Omit<IRedemption, 'userId'> & { userId: IPopulatedUserForRedemption };
+
+      const redemptions = await Redemption
         .find(filter)
-        .populate<{ user: IPopulatedUserForRedemption }>({
-          path: 'user', model: User, select: 'name email paymentInfo',
+        // <<< ALTERAÇÃO 5: Populando 'userId' em vez de 'user'.
+        .populate<{ userId: IPopulatedUserForRedemption }>({
+          path: 'userId', model: User, select: 'name email paymentInfo',
         })
-        .sort({ createdAt: -1 });
+        // <<< ALTERAÇÃO 6: Ordenando por 'requestedAt' em vez de 'createdAt'.
+        .sort({ requestedAt: -1 })
+        .lean(); // Adicionado .lean() para melhor performance em leituras
 
       const csvDelimiter = ';';
       const csvHeaders = [
         "ID Resgate", "Data Solicitacao", "Status", "Nome Afiliado", "Email Afiliado",
-        "Valor (BRL)", "Chave PIX", "Banco", "Agencia", "Conta", "Notas Admin"
+        "Valor (BRL)", "Moeda", "Chave PIX", "Banco", "Agencia", "Conta", "Notas Admin"
       ];
       let csvContent = csvHeaders.join(csvDelimiter) + "\r\n";
+      
       redemptions.forEach(r => {
-        const user = r.user as IPopulatedUserForRedemption;
+        // Agora 'r' é um objeto simples e já tem o tipo correto inferido pelo .lean() e populate
+        const user = r.userId as IPopulatedUserForRedemption;
         const paymentInfo = user.paymentInfo || {};
         const row = [
           escapeCsvValue(r._id.toString(), csvDelimiter),
-          escapeCsvValue(new Date(r.createdAt).toLocaleString('pt-BR'), csvDelimiter),
+          // <<< ALTERAÇÃO 7: Usando 'requestedAt'
+          escapeCsvValue(new Date(r.requestedAt).toLocaleString('pt-BR'), csvDelimiter),
           escapeCsvValue(r.status, csvDelimiter),
           escapeCsvValue(user.name || '', csvDelimiter),
           escapeCsvValue(user.email || '', csvDelimiter),
           escapeCsvValue(r.amount.toFixed(2).replace('.', ','), csvDelimiter),
+          escapeCsvValue(r.currency, csvDelimiter), // Campo adicionado
           escapeCsvValue(paymentInfo.pixKey || '', csvDelimiter),
           escapeCsvValue(paymentInfo.bankName || '', csvDelimiter),
           escapeCsvValue(paymentInfo.bankAgency || '', csvDelimiter),
           escapeCsvValue(paymentInfo.bankAccount || '', csvDelimiter),
-          escapeCsvValue(r.notes || '', csvDelimiter)
+          // <<< ALTERAÇÃO 8: Usando 'adminNotes'
+          escapeCsvValue(r.adminNotes || '', csvDelimiter)
         ];
         csvContent += row.join(csvDelimiter) + "\r\n";
       });
@@ -162,15 +156,18 @@ export async function GET(request: NextRequest) {
       const skip = (page - 1) * limit;
 
       const [totalItems, items] = await Promise.all([
-        redemptionModel.countDocuments(filter),
-        redemptionModel
+        Redemption.countDocuments(filter),
+        Redemption
           .find(filter)
-          .populate<{ user: IPopulatedUserForRedemption }>({
-            path: 'user', model: User, select: 'name email paymentInfo profilePictureUrl',
+          // <<< ALTERAÇÃO 9: Populando 'userId'
+          .populate<{ userId: IPopulatedUserForRedemption }>({
+            path: 'userId', model: User, select: 'name email paymentInfo profilePictureUrl',
           })
-          .sort({ createdAt: -1 })
+          // <<< ALTERAÇÃO 10: Ordenando por 'requestedAt'
+          .sort({ requestedAt: -1 })
           .skip(skip)
           .limit(limit)
+          .lean() // Adicionado .lean() para melhor performance
       ]);
 
       const totalPages = Math.ceil(totalItems / limit);

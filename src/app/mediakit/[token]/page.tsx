@@ -1,58 +1,98 @@
-// src/app/mediakit/[token]/page.tsx (CORRIGIDO)
 import { notFound } from 'next/navigation';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import UserModel from '@/app/models/User';
 import MediaKitView from './MediaKitView';
+
+// Tipos centralizados para garantir consistência em todo o fluxo de dados.
 import { VideoListItem, PerformanceSummary, KpiComparison } from '@/types/mediakit';
 
-export const revalidate = 300;
+// A revalidação garante que os dados do Mídia Kit sejam atualizados periodicamente.
+export const revalidate = 300; // 5 minutos
 
-// Funções de fetch (sem alterações)
+// --- MÓDULO DE BUSCA DE DADOS (DATA FETCHING) ---
+
+/**
+ * Busca o resumo de performance (melhores formatos e contextos).
+ */
 async function fetchSummary(baseUrl: string, userId: string): Promise<PerformanceSummary | null> {
   try {
     const res = await fetch(`${baseUrl}/api/v1/users/${userId}/highlights/performance-summary`, { next: { revalidate: 300 } });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error(`[MediaKitPage] Falha ao buscar summary: ${res.status}`);
+      return null;
+    }
     return await res.json();
-  } catch { return null; }
+  } catch (error) {
+    console.error('[MediaKitPage] Erro de rede ao buscar summary:', error);
+    return null;
+  }
 }
+
+/**
+ * Busca os vídeos de melhor performance (Top 5 por views).
+ */
 async function fetchTopVideos(baseUrl: string, userId: string): Promise<VideoListItem[]> {
   try {
     const res = await fetch(`${baseUrl}/api/v1/users/${userId}/videos/list?sortBy=views&limit=5`, { next: { revalidate: 300 } });
-    if (!res.ok) return [];
+    if (!res.ok) {
+      console.error(`[MediaKitPage] Falha ao buscar top videos: ${res.status}`);
+      return [];
+    }
     const data = await res.json();
-    return data.videos;
-  } catch { return []; }
+    return data.videos || [];
+  } catch (error) {
+    console.error('[MediaKitPage] Erro de rede ao buscar top videos:', error);
+    return [];
+  }
 }
-async function fetchKpis(baseUrl: string, userId:string): Promise<KpiComparison | null> {
+
+/**
+ * Busca os dados de KPI para o período padrão (inicial).
+ */
+async function fetchKpis(baseUrl: string, userId: string): Promise<KpiComparison | null> {
   try {
+    // A API usará o período padrão (ex: 30 dias) nesta busca inicial no servidor.
     const res = await fetch(`${baseUrl}/api/v1/users/${userId}/kpis/periodic-comparison`, { next: { revalidate: 300 } });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error(`[MediaKitPage] Falha ao buscar kpis: ${res.status}`);
+      return null;
+    }
     return await res.json();
-  } catch { return null; }
+  } catch (error) {
+    console.error('[MediaKitPage] Erro de rede ao buscar kpis:', error);
+    return null;
+  }
 }
+
+// --- COMPONENTE DE PÁGINA (SERVER COMPONENT) ---
 
 export default async function MediaKitPage({ params }: { params: { token: string } }) {
   await connectToDatabase();
   
+  // Busca o usuário pelo token. `.lean()` é essencial para performance e para passar para o cliente.
   const user = await UserModel.findOne({ mediaKitToken: params.token }).lean();
+  
   if (!user) {
-    notFound();
+    notFound(); // Se o token for inválido, exibe a página 404.
   }
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || '';
   
+  // Otimização: Busca todos os dados necessários em paralelo.
   const [summary, videos, kpis] = await Promise.all([
     fetchSummary(baseUrl, user._id.toString()),
     fetchTopVideos(baseUrl, user._id.toString()),
     fetchKpis(baseUrl, user._id.toString())
   ]);
 
-  // CORREÇÃO: Converte o objeto do Mongoose para um objeto 100% simples e serializável
+  // Otimização: Garante que o objeto passado para o cliente seja 100% serializável,
+  // convertendo tipos do Mongoose (como ObjectId) para strings.
   const plainUser = JSON.parse(JSON.stringify(user));
 
+  // Delega toda a renderização para o Componente de Cliente, passando os dados já buscados.
   return (
     <MediaKitView
-      user={plainUser} // Passa o objeto simples
+      user={plainUser}
       summary={summary}
       videos={videos}
       kpis={kpis}
