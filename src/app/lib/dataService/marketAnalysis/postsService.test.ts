@@ -140,6 +140,14 @@ describe('postsService', () => {
       expect(addFields).toBeDefined();
       const sortStage = videosPipeline.find((s: any) => s.$sort);
       expect(sortStage).toEqual({ $sort: { 'stats.total_interactions': -1 } });
+      const projectStage = videosPipeline.find((s: any) => s.$project).$project;
+      expect(projectStage).toEqual(
+        expect.objectContaining({
+          'stats.comments': '$stats.comments',
+          'stats.shares': '$stats.shares',
+          'stats.saved': '$stats.saved',
+        })
+      );
       expect(videosPipeline).toContainEqual({ $limit: 10 });
 
       expect(result.totalVideos).toBe(mockVideos.length);
