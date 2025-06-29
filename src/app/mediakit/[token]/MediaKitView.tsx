@@ -1,7 +1,7 @@
 // src/app/mediakit/[token]/MediaKitView.tsx (CORRIGIDO)
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FaChartLine, FaTrophy, FaStar, FaChartBar, FaEnvelope, FaArrowUp, FaArrowDown } from 'react-icons/fa';
 
@@ -34,6 +34,30 @@ export default function MediaKitView({ user, summary, videos, kpis }: MediaKitVi
     })
   };
 
+  const PERIOD_OPTIONS = [
+    { value: 'month_vs_previous', label: 'Mês vs. Anterior' },
+    { value: 'last_7d_vs_previous_7d', label: '7d vs. 7d Anteriores' },
+    { value: 'last_30d_vs_previous_30d', label: '30d vs. 30d Anteriores' }
+  ];
+  const [comparisonPeriod, setComparisonPeriod] = useState<string>(PERIOD_OPTIONS[2].value);
+  const [kpiData, setKpiData] = useState<typeof kpis>(kpis);
+
+  useEffect(() => {
+    async function fetchData() {
+      if (!user?._id) return;
+      try {
+        const res = await fetch(`/api/v1/users/${user._id}/kpis/periodic-comparison?comparisonPeriod=${comparisonPeriod}`);
+        if (res.ok) {
+          const data = await res.json();
+          setKpiData(data);
+        }
+      } catch (err) {
+        console.error('Erro ao buscar KPIs', err);
+      }
+    }
+    fetchData();
+  }, [comparisonPeriod, user?._id]);
+
   return (
     <div className="bg-slate-50 min-h-screen font-sans">
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
@@ -51,33 +75,48 @@ export default function MediaKitView({ user, summary, videos, kpis }: MediaKitVi
                 {user.biography && <p className="text-gray-600 mt-5 text-center whitespace-pre-line font-light">{user.biography}</p>}
               </div>
             </motion.div>
-            {(summary || kpis) && (
+            {(summary || kpiData) && (
               <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={1}>
                 <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg border-t-4 border-pink-500 space-y-6">
                   <div className="flex items-center gap-3">
                     <FaChartLine className="w-6 h-6 text-pink-500" />
-                    <h2 className="text-xl font-bold text-gray-800">Performance e Destaques</h2>
+                    <h2 className="text-xl font-bold text-gray-800 flex-grow">Performance e Destaques</h2>
+                    <select
+                      className="text-sm border-gray-300 rounded-md"
+                      value={comparisonPeriod}
+                      onChange={(e) => setComparisonPeriod(e.target.value)}
+                    >
+                      {PERIOD_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  {kpis && (
+                  {kpiData && (
                     <div className="space-y-4">
                        <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
                            <h3 className="text-sm font-semibold text-gray-700 flex items-center">
                                Pulso do Crescimento
-                               <TrendIndicator value={kpis.followerGrowth?.percentageChange} />
+                               <TrendIndicator value={kpiData.followerGrowth?.percentageChange} />
                            </h3>
-                           <p className="text-3xl font-bold text-gray-900 mt-1">+{kpis.followerGrowth?.currentValue?.toLocaleString() ?? 'N/A'}</p>
-                           <p className="text-xs text-gray-500 mt-1">{kpis.insightSummary?.followerGrowth}</p>
+                           <p className="text-3xl font-bold text-gray-900 mt-1">+{kpiData.followerGrowth?.currentValue?.toLocaleString() ?? 'N/A'}</p>
+                           <p className="text-xs text-gray-500 mt-1">{kpiData.insightSummary?.followerGrowth}</p>
                        </div>
                        <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
                            <h3 className="text-sm font-semibold text-gray-700 flex items-center">
                                Conexão com a Audiência
                                {/* CORREÇÃO: Adicionado '?' para evitar o erro caso engagementRate não exista */}
-                               <TrendIndicator value={kpis.engagementRate?.percentageChange} />
+                               <TrendIndicator value={kpiData.engagementRate?.percentageChange} />
                            </h3>
-                           <p className="text-3xl font-bold text-gray-900 mt-1">{kpis.engagementRate?.currentValue?.toFixed(2) ?? 'N/A'}%</p>
-                           <p className="text-xs text-gray-500 mt-1">{kpis.insightSummary?.engagementRate}</p>
+                           <p className="text-3xl font-bold text-gray-900 mt-1">{kpiData.engagementRate?.currentValue?.toFixed(2) ?? 'N/A'}%</p>
+                           <p className="text-xs text-gray-500 mt-1">{kpiData.insightSummary?.engagementRate}</p>
                        </div>
-                      <MetricCardWithTrend label="Consistência e Alcance" value={kpis.postingFrequency?.currentValue?.toFixed(1)} trendData={kpis.postingFrequency?.chartData?.map(c => c.value)} recommendation={kpis.insightSummary?.postingFrequency || ''}/>
+                     <MetricCardWithTrend label="Consistência e Alcance" value={kpiData.postingFrequency?.currentValue?.toFixed(1)} trendData={kpiData.postingFrequency?.chartData?.map(c => c.value)} recommendation={kpiData.insightSummary?.postingFrequency || ''}/>
+                     <MetricCardWithTrend label="Média de Visualizações" value={kpiData.avgViewsPerPost?.currentValue?.toFixed(0)} trendData={kpiData.avgViewsPerPost?.chartData?.map(c => c.value)} recommendation=""/>
+                     <MetricCardWithTrend label="Média de Comentários" value={kpiData.avgCommentsPerPost?.currentValue?.toFixed(0)} trendData={kpiData.avgCommentsPerPost?.chartData?.map(c => c.value)} recommendation=""/>
+                     <MetricCardWithTrend label="Média de Compartilhamentos" value={kpiData.avgSharesPerPost?.currentValue?.toFixed(0)} trendData={kpiData.avgSharesPerPost?.chartData?.map(c => c.value)} recommendation=""/>
+                     <MetricCardWithTrend label="Média de Salvamentos" value={kpiData.avgSavesPerPost?.currentValue?.toFixed(0)} trendData={kpiData.avgSavesPerPost?.chartData?.map(c => c.value)} recommendation=""/>
                     </div>
                   )}
                   {summary && (
