@@ -3,6 +3,7 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import UserModel from '@/app/models/User';
 import VideosTable, { VideoListItem } from '@/app/admin/creator-dashboard/components/VideosTable';
 import IndicatorCard from '@/app/dashboard/components/IndicatorCard';
+import MetricCardWithTrend from '@/app/dashboard/components/MetricCardWithTrend';
 import { UserAvatar } from '@/app/components/UserAvatar';
 
 export const revalidate = 300;
@@ -12,6 +13,32 @@ interface PerformanceSummary {
   lowPerformingFormat?: { name: string; metricName: string; valueFormatted: string } | null;
   topPerformingContext?: { name: string; metricName: string; valueFormatted: string } | null;
   insightSummary?: string;
+}
+
+interface KpiComparison {
+  followerGrowth: {
+    currentValue: number | null;
+    previousValue: number | null;
+    percentageChange: number | null;
+    chartData?: { name: string; value: number }[];
+  };
+  totalEngagement: {
+    currentValue: number | null;
+    previousValue: number | null;
+    percentageChange: number | null;
+    chartData?: { name: string; value: number }[];
+  };
+  postingFrequency: {
+    currentValue: number | null;
+    previousValue: number | null;
+    percentageChange: number | null;
+    chartData?: { name: string; value: number }[];
+  };
+  insightSummary?: {
+    followerGrowth?: string;
+    totalEngagement?: string;
+    postingFrequency?: string;
+  };
 }
 
 async function fetchSummary(baseUrl: string, userId: string): Promise<PerformanceSummary | null> {
@@ -35,6 +62,16 @@ async function fetchTopVideos(baseUrl: string, userId: string): Promise<VideoLis
   }
 }
 
+async function fetchKpis(baseUrl: string, userId: string): Promise<KpiComparison | null> {
+  try {
+    const res = await fetch(`${baseUrl}/api/v1/users/${userId}/kpis/periodic-comparison`, { next: { revalidate: 300 } });
+    if (!res.ok) return null;
+    return (await res.json()) as KpiComparison;
+  } catch {
+    return null;
+  }
+}
+
 export default async function MediaKitPage({ params }: { params: { token: string } }) {
   await connectToDatabase();
   const user = await UserModel.findOne({ mediaKitToken: params.token }).lean();
@@ -43,6 +80,7 @@ export default async function MediaKitPage({ params }: { params: { token: string
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || '';
   const summary = await fetchSummary(baseUrl, user._id.toString());
   const videos = await fetchTopVideos(baseUrl, user._id.toString());
+  const kpis = await fetchKpis(baseUrl, user._id.toString());
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-8">
@@ -78,6 +116,29 @@ export default async function MediaKitPage({ params }: { params: { token: string
               description={`Média de ${summary.lowPerformingFormat.metricName}`}
             />
           )}
+        </div>
+      )}
+
+      {kpis && (
+        <div className="grid sm:grid-cols-3 gap-4">
+          <MetricCardWithTrend
+            label="Crescimento de Seguidores"
+            value={kpis.followerGrowth.currentValue ?? undefined}
+            trendData={kpis.followerGrowth.chartData?.map(c => c.value)}
+            recommendation={kpis.insightSummary?.followerGrowth || ''}
+          />
+          <MetricCardWithTrend
+            label="Engajamento Médio"
+            value={kpis.totalEngagement.currentValue ?? undefined}
+            trendData={kpis.totalEngagement.chartData?.map(c => c.value)}
+            recommendation={kpis.insightSummary?.totalEngagement || ''}
+          />
+          <MetricCardWithTrend
+            label="Frequência de Posts (/sem)"
+            value={kpis.postingFrequency.currentValue ?? undefined}
+            trendData={kpis.postingFrequency.chartData?.map(c => c.value)}
+            recommendation={kpis.insightSummary?.postingFrequency || ''}
+          />
         </div>
       )}
 
