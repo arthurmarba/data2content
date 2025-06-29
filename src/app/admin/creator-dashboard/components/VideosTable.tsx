@@ -3,24 +3,9 @@
 import React from 'react';
 import Image from 'next/image';
 import { FireIcon } from '@heroicons/react/24/solid';
-import { FaEye, FaHeart, FaComment, FaShare, FaInstagram, FaChartBar } from 'react-icons/fa';
+import { FaEye, FaHeart, FaComment, FaShare, FaInstagram, FaChartBar, FaBookmark } from 'react-icons/fa';
 
-export interface VideoListItem {
-  _id: string;
-  thumbnailUrl?: string | null;
-  caption?: string;
-  permalink?: string | null;
-  postDate?: string | Date;
-  proposal?: string;
-  context?: string;
-  format?: string;
-  stats?: {
-    views?: number;
-    likes?: number;
-    comments?: number;
-    shares?: number;
-  };
-}
+import type { VideoListItem } from '@/types/mediakit';
 
 // Props simplificadas para o novo componente
 interface VideosTableProps {
@@ -89,6 +74,7 @@ const VideoCard: React.FC<{ video: VideoListItem; index: number; readOnly?: bool
             <span className="flex items-center gap-2 text-gray-700"><FaHeart className="text-gray-400 w-3.5"/> {formatNumber(video.stats?.likes)}</span>
             <span className="flex items-center gap-2 text-gray-700"><FaComment className="text-gray-400 w-3.5"/> {formatNumber(video.stats?.comments)}</span>
             <span className="flex items-center gap-2 text-gray-700"><FaShare className="text-gray-400 w-3.5"/> {formatNumber(video.stats?.shares)}</span>
+            <span className="flex items-center gap-2 text-gray-700"><FaBookmark className="text-gray-400 w-3.5"/> {formatNumber(video.stats?.saves)}</span>
           </div>
         </div>
 
