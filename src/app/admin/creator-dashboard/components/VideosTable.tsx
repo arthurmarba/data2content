@@ -1,8 +1,9 @@
+// src/app/admin/creator-dashboard/components/VideosTable.tsx (CORRIGIDO)
 'use client';
 
 import React from 'react';
 import Image from 'next/image';
-import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/solid';
+import { ChevronDownIcon, ChevronUpIcon, FireIcon } from '@heroicons/react/24/solid';
 
 // A interface já está pronta para receber a URL da thumbnail.
 export interface VideoListItem {
@@ -33,12 +34,9 @@ interface SortConfig {
 interface VideosTableProps {
   videos: VideoListItem[];
   sortConfig: SortConfig;
-  onSort: (column: string) => void;
+  onSort?: (column: string) => void;
   primaryMetric: string;
   onRowClick?: (postId: string) => void;
-  /**
-   * When true the table becomes read only: sorting and row clicks are disabled.
-   */
   readOnly?: boolean;
 }
 
@@ -51,7 +49,7 @@ export const metricLabels: Record<string, string> = {
   'stats.views': 'Views',
   'stats.likes': 'Likes',
   'stats.comments': 'Comentários',
-  'stats.shares': 'Compartilhamentos',
+  'stats.shares': 'Compart.',
   'stats.total_interactions': 'Interações',
   retention_rate: 'Retenção',
 };
@@ -82,16 +80,15 @@ const VideosTable: React.FC<VideosTableProps> = ({ videos, sortConfig, onSort, o
     return n.toLocaleString('pt-BR');
   };
   
-  // MUDANÇA: Adicionada a coluna 'thumbnail' no início.
+  // Otimização: Adicionadas colunas de Comentários e Compartilhamentos
   const columns = [
-    { key: 'thumbnail', label: '', sortable: false, align: 'center' }, // Coluna para a imagem
+    { key: 'thumbnail', label: '', sortable: false, align: 'center' },
     { key: 'caption', label: 'Legenda', sortable: true, align: 'left' },
     { key: 'postDate', label: 'Data', sortable: true, align: 'center' },
-    { key: 'proposal', label: 'Proposta', sortable: true, align: 'left' },
-    { key: 'context', label: 'Contexto', sortable: true, align: 'left' },
-    { key: 'format', label: 'Formato', sortable: true, align: 'left' },
     { key: 'stats.views', label: 'Views', sortable: true, align: 'center' },
     { key: 'stats.likes', label: 'Likes', sortable: true, align: 'center' },
+    { key: 'stats.comments', label: 'Comentários', sortable: true, align: 'center' },
+    { key: 'stats.shares', label: 'Compart.', sortable: true, align: 'center' },
   ];
 
   return (
@@ -106,7 +103,7 @@ const VideosTable: React.FC<VideosTableProps> = ({ videos, sortConfig, onSort, o
                 className={`px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider text-${col.align} ${
                   col.sortable && !readOnly ? 'cursor-pointer hover:bg-gray-200 transition-colors' : ''
                 }`}
-                onClick={() => !readOnly && col.sortable && onSort(col.key)}
+                onClick={() => !readOnly && col.sortable && onSort && onSort(col.key)}
               >
                 <div className={`flex items-center ${col.align === 'center' ? 'justify-center' : ''}`}>
                   {col.label}
@@ -117,48 +114,54 @@ const VideosTable: React.FC<VideosTableProps> = ({ videos, sortConfig, onSort, o
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
-          {videos.map((video) => (
+          {videos.map((video, index) => (
             <tr
               key={video._id}
-              className="hover:bg-indigo-50 transition-colors"
+              className={`transition-colors ${readOnly && index === 0 ? 'bg-orange-50' : 'hover:bg-indigo-50'}`}
               {...(!readOnly && onRowClick
                 ? { onClick: () => onRowClick(video._id), tabIndex: 0, role: 'button' }
                 : {})}
             >
-              {/* MUDANÇA: Adicionada célula para renderizar a thumbnail */}
               <td className="px-4 py-2">
                 {video.thumbnailUrl ? (
                   <Image
                     src={video.thumbnailUrl}
                     alt={`Thumbnail para ${video.caption || 'post'}`}
-                    width={80}
-                    height={45}
+                    width={96} // Aumentado para melhor visualização
+                    height={54}
                     className="rounded object-cover"
-                    // Fallback para caso a imagem quebre
-                    onError={(e) => { e.currentTarget.src = 'https://placehold.co/80x45/e2e8f0/a0aec0?text=Img'; }}
+                    onError={(e) => { e.currentTarget.src = 'https://placehold.co/96x54/e2e8f0/a0aec0?text=Img'; }}
                   />
                 ) : (
-                  <div className="w-20 h-[45px] bg-gray-200 rounded flex items-center justify-center text-xs text-gray-400">Sem Imagem</div>
+                  <div className="w-24 h-[54px] bg-gray-200 rounded flex items-center justify-center text-xs text-gray-400">Sem Imagem</div>
                 )}
               </td>
               <td className="px-4 py-3 whitespace-nowrap max-w-xs">
-                <a
-                  href={video.permalink ?? '#'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={video.caption ?? ''}
-                  className="block truncate font-medium text-indigo-700 hover:text-indigo-900"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {video.caption || 'Sem legenda'}
-                </a>
+                <div className="flex items-center">
+                  {readOnly && index === 0 && (
+                     <span className="mr-3 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-800">
+                        <FireIcon className="w-4 h-4 mr-1 text-orange-500"/>
+                        Top Performance
+                     </span>
+                  )}
+                  <a
+                    href={video.permalink ?? '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={video.caption ?? ''}
+                    className="block truncate font-medium text-indigo-700 hover:text-indigo-900"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {video.caption || 'Sem legenda'}
+                  </a>
+                </div>
               </td>
               <td className="px-4 py-3 whitespace-nowrap text-center text-gray-600">{formatDate(video.postDate)}</td>
-              <td className="px-4 py-3 whitespace-nowrap text-gray-600">{video.proposal || '-'}</td>
-              <td className="px-4 py-3 whitespace-nowrap text-gray-600">{video.context || '-'}</td>
-              <td className="px-4 py-3 whitespace-nowrap text-gray-600">{video.format || '-'}</td>
               <td className="px-4 py-3 whitespace-nowrap text-center text-gray-800 font-medium">{formatNumber(video.stats?.views)}</td>
               <td className="px-4 py-3 whitespace-nowrap text-center text-gray-600">{formatNumber(video.stats?.likes)}</td>
+              {/* Otimização: Células para as novas colunas */}
+              <td className="px-4 py-3 whitespace-nowrap text-center text-gray-600">{formatNumber(video.stats?.comments)}</td>
+              <td className="px-4 py-3 whitespace-nowrap text-center text-gray-600">{formatNumber(video.stats?.shares)}</td>
             </tr>
           ))}
         </tbody>

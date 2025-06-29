@@ -1,3 +1,5 @@
+// /api/v1/users/[userId]/kpis/periodic-comparison/route.ts (CORRIGIDO)
+
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
 
@@ -8,23 +10,24 @@ import { addDays, getStartDateFromTimePeriod as getStartDateFromTimePeriodGeneri
 
 // Tipos de dados para a resposta
 interface MiniChartDataPoint {
-  name: string; // Ex: "Anterior", "Atual"
+  name: string;
   value: number;
 }
 interface KPIComparisonData {
   currentValue: number | null;
   previousValue: number | null;
   percentageChange: number | null;
-  chartData?: MiniChartDataPoint[]; // Adicionado para mini-gráficos
+  chartData?: MiniChartDataPoint[];
 }
 
+// Otimização: A interface de resposta agora espera 'engagementRate'
 interface UserPeriodicComparisonResponse {
   followerGrowth: KPIComparisonData;
-  totalEngagement: KPIComparisonData;
+  engagementRate: KPIComparisonData; // Alterado de totalEngagement
   postingFrequency: KPIComparisonData;
   insightSummary?: {
     followerGrowth?: string;
-    totalEngagement?: string;
+    engagementRate?: string; // Alterado de totalEngagement
     postingFrequency?: string;
   };
 }
@@ -79,13 +82,14 @@ export async function GET(
   try {
     const resolvedUserId = new Types.ObjectId(userId);
 
-    // --- 1. Follower Growth (Absolute Growth) ---
+    // --- 1. Follower Growth ---
+    // Esses valores agora são usados também no cálculo da taxa de engajamento
     const fgT0Data = await calculateFollowerGrowthRate(resolvedUserId, currentPeriodDays);
-    const fgT1 = fgT0Data.previousFollowers;
-    const fgT0 = fgT0Data.currentFollowers;
+    const fgT1 = fgT0Data.previousFollowers; // Seguidores no início do período atual
+    const fgT0 = fgT0Data.currentFollowers;   // Seguidores no final do período atual
 
     const fgOverall = await calculateFollowerGrowthRate(resolvedUserId, currentPeriodDays * 2);
-    const fgT2 = fgOverall.previousFollowers;
+    const fgT2 = fgOverall.previousFollowers; // Seguidores no início do período anterior
 
     const currentFollowerGain = (fgT0 !== null && fgT1 !== null) ? fgT0 - fgT1 : null;
     const previousFollowerGain = (fgT1 !== null && fgT2 !== null) ? fgT1 - fgT2 : null;
@@ -94,23 +98,33 @@ export async function GET(
       currentValue: currentFollowerGain,
       previousValue: previousFollowerGain,
       percentageChange: calculatePercentageChange(currentFollowerGain, previousFollowerGain),
-      chartData: [ // Adicionado chartData
+      chartData: [
         { name: periodNamePrevious, value: previousFollowerGain ?? 0 },
         { name: periodNameCurrent, value: currentFollowerGain ?? 0 }
       ]
     };
 
-    // --- 2. Total Engagement ---
-    const engCurrent = await calculateAverageEngagementPerPost(resolvedUserId, {startDate: currentStartDate, endDate: currentEndDate});
-    const engPrevious = await calculateAverageEngagementPerPost(resolvedUserId, {startDate: previousStartDate, endDate: previousEndDate});
+    // --- 2. Engagement Rate ---
+    const engCurrentResult = await calculateAverageEngagementPerPost(resolvedUserId, {startDate: currentStartDate, endDate: currentEndDate});
+    const engPreviousResult = await calculateAverageEngagementPerPost(resolvedUserId, {startDate: previousStartDate, endDate: previousEndDate});
 
-    const totalEngagementData: KPIComparisonData = {
-      currentValue: engCurrent.totalEngagement,
-      previousValue: engPrevious.totalEngagement,
-      percentageChange: calculatePercentageChange(engCurrent.totalEngagement, engPrevious.totalEngagement),
-      chartData: [ // Adicionado chartData
-        { name: periodNamePrevious, value: engPrevious.totalEngagement ?? 0 },
-        { name: periodNameCurrent, value: engCurrent.totalEngagement ?? 0 }
+    // Otimização: Cálculo da taxa de engajamento
+    const currentEngagementRate = (engCurrentResult.totalEngagement !== null && fgT0 !== null && fgT0 > 0)
+      ? (engCurrentResult.totalEngagement / fgT0) * 100
+      : null;
+    
+    // Usamos fgT1 (seguidores no início do período atual) como uma aproximação para os seguidores do período anterior
+    const previousEngagementRate = (engPreviousResult.totalEngagement !== null && fgT1 !== null && fgT1 > 0)
+      ? (engPreviousResult.totalEngagement / fgT1) * 100
+      : null;
+
+    const engagementRateData: KPIComparisonData = {
+      currentValue: currentEngagementRate,
+      previousValue: previousEngagementRate,
+      percentageChange: calculatePercentageChange(currentEngagementRate, previousEngagementRate),
+      chartData: [
+        { name: periodNamePrevious, value: previousEngagementRate ? parseFloat(previousEngagementRate.toFixed(2)) : 0 },
+        { name: periodNameCurrent, value: currentEngagementRate ? parseFloat(currentEngagementRate.toFixed(2)) : 0 }
       ]
     };
 
@@ -120,7 +134,7 @@ export async function GET(
       currentValue: freqData.currentWeeklyFrequency,
       previousValue: freqData.previousWeeklyFrequency,
       percentageChange: calculatePercentageChange(freqData.currentWeeklyFrequency, freqData.previousWeeklyFrequency),
-      chartData: [ // Adicionado chartData
+      chartData: [
         { name: periodNamePrevious, value: freqData.previousWeeklyFrequency ? parseFloat(freqData.previousWeeklyFrequency.toFixed(1)) : 0 },
         { name: periodNameCurrent, value: freqData.currentWeeklyFrequency ? parseFloat(freqData.currentWeeklyFrequency.toFixed(1)) : 0 }
       ]
@@ -128,12 +142,12 @@ export async function GET(
 
     const response: UserPeriodicComparisonResponse = {
       followerGrowth: followerGrowthData,
-      totalEngagement: totalEngagementData,
+      engagementRate: engagementRateData, // Otimização: Retornando a nova métrica
       postingFrequency: postingFrequencyData,
       insightSummary: {
-        followerGrowth: `Seu ganho de seguidores: ${followerGrowthData.currentValue?.toLocaleString() ?? 'N/A'} vs ${followerGrowthData.previousValue?.toLocaleString() ?? 'N/A'} no período anterior.`,
-        totalEngagement: `Seu engajamento total: ${totalEngagementData.currentValue?.toLocaleString() ?? 'N/A'} vs ${totalEngagementData.previousValue?.toLocaleString() ?? 'N/A'} no período anterior.`,
-        postingFrequency: `Sua frequência de posts: ${postingFrequencyData.currentValue?.toFixed(1) ?? 'N/A'} posts/sem vs ${postingFrequencyData.previousValue?.toFixed(1) ?? 'N/A'} no período anterior.`
+        followerGrowth: `Ganho de ${followerGrowthData.currentValue?.toLocaleString() ?? 'N/A'} seguidores no período.`,
+        engagementRate: `Taxa de engajamento média de ${engagementRateData.currentValue?.toFixed(2) ?? 'N/A'}%.`, // Otimização: Novo insight
+        postingFrequency: `Média de ${postingFrequencyData.currentValue?.toFixed(1) ?? 'N/A'} posts por semana.`
       }
     };
 
@@ -147,9 +161,8 @@ export async function GET(
         error: "Erro ao processar sua solicitação de KPIs.",
         details: errorMessage,
         followerGrowth: errorKpi,
-        totalEngagement: errorKpi,
+        engagementRate: errorKpi, // Alterado
         postingFrequency: errorKpi,
     }, { status: 500 });
   }
 }
-
