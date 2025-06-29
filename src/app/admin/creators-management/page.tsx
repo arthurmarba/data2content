@@ -155,11 +155,30 @@ export default function CreatorsManagementPage() {
     }
   };
 
+  const handleGenerateMediaKit = async (creatorId: string) => {
+    const loadingId = toast.loading('Gerando link...');
+    try {
+      const res = await fetch(`/api/admin/users/${creatorId}/generate-media-kit-token`, { method: 'POST' });
+      toast.dismiss(loadingId);
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Falha ao gerar link');
+      }
+      const data = await res.json();
+      setCreators(prev => prev.map(c => c._id === creatorId ? { ...c, mediaKitToken: data.token } : c));
+      toast.success('Link gerado!');
+    } catch (e: any) {
+      toast.dismiss(loadingId);
+      toast.error(e.message);
+    }
+  };
+
   const columns: ColumnConfig<AdminCreatorListItem>[] = useMemo(() => [
     { key: 'name', label: 'Nome', sortable: true },
     { key: 'email', label: 'Email', sortable: true },
     { key: 'registrationDate', label: 'Data Registro', sortable: true },
     { key: 'planStatus', label: 'Plano', sortable: true },
+    { key: 'mediaKit', label: 'Mídia Kit', sortable: false },
     { key: 'adminStatus', label: 'Status Admin', sortable: true },
     { key: 'actions', label: 'Ações', sortable: false, headerClassName: 'text-right', className: 'text-right' },
   ], []);
@@ -278,6 +297,25 @@ export default function CreatorsManagementPage() {
                     {creator.registrationDate ? new Date(creator.registrationDate).toLocaleDateString('pt-BR') : 'N/A'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{creator.planStatus || 'N/A'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    {creator.mediaKitToken ? (
+                      <a
+                        href={`/mediakit/${creator.mediaKitToken}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-indigo-600 hover:underline"
+                      >
+                        Abrir
+                      </a>
+                    ) : (
+                      <button
+                        onClick={() => handleGenerateMediaKit(creator._id)}
+                        className="text-indigo-600 hover:underline"
+                      >
+                        Gerar
+                      </button>
+                    )}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <StatusBadge status={creator.adminStatus} size="sm" />
                   </td>

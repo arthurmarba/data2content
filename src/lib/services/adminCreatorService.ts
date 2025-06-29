@@ -120,7 +120,17 @@ export async function fetchCreators(
     // Assumindo que IUser tem campos como adminStatus e registrationDate (ou _id para inferir registrationDate)
     // e que profile_picture_url é o nome do campo no UserModel
     const creators: AdminCreatorListItem[] = creatorsData.map((userDoc) => {
-      const user = userDoc as IUser & { _id: Types.ObjectId; registrationDate?: Date; adminStatus?: AdminCreatorStatus; profile_picture_url?: string; planStatus?: string; inferredExpertiseLevel?: string; name?: string; email?: string };
+      const user = userDoc as IUser & {
+        _id: Types.ObjectId;
+        registrationDate?: Date;
+        adminStatus?: AdminCreatorStatus;
+        profile_picture_url?: string;
+        planStatus?: string;
+        inferredExpertiseLevel?: string;
+        mediaKitToken?: string;
+        name?: string;
+        email?: string;
+      };
       return {
         _id: user._id.toString(),
         name: user.name || 'N/A',
@@ -128,6 +138,7 @@ export async function fetchCreators(
         planStatus: user.planStatus,
         inferredExpertiseLevel: user.inferredExpertiseLevel,
         profilePictureUrl: user.profile_picture_url,
+        mediaKitToken: user.mediaKitToken,
         adminStatus: user.adminStatus || 'pending', // Default se não existir
         registrationDate: user.registrationDate || user._id.getTimestamp(), // Usa _id se registrationDate não existir
         // totalPostsInPeriod e lastActivityDate seriam calculados separadamente se necessário via $lookup ou outra query
