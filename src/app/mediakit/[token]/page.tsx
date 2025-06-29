@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import UserModel from '@/app/models/User';
 import MediaKitView from './MediaKitView';
+import { logMediaKitAccess } from '@/app/lib/logger';
 
 // Tipos centralizados para garantir consistência em todo o fluxo de dados.
 import { VideoListItem, PerformanceSummary, KpiComparison } from '@/types/mediakit';
@@ -71,10 +72,12 @@ export default async function MediaKitPage({ params }: { params: { token: string
   
   // Busca o usuário pelo token. `.lean()` é essencial para performance e para passar para o cliente.
   const user = await UserModel.findOne({ mediaKitToken: params.token }).lean();
-  
+
   if (!user) {
     notFound(); // Se o token for inválido, exibe a página 404.
   }
+
+  logMediaKitAccess(params.token);
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || '';
   

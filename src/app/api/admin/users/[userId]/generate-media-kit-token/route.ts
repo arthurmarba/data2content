@@ -4,12 +4,33 @@ import crypto from 'crypto';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import UserModel from '@/app/models/User';
 import { logger } from '@/app/lib/logger';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 export const dynamic = 'force-dynamic';
 
-async function getAdminSession(_req: NextRequest): Promise<{ user: { name: string; role?: string } } | null> {
-  const mockSession = { user: { name: 'Admin User', role: 'admin' } };
-  return mockSession.user.role === 'admin' ? mockSession : null;
+async function getAdminSession(req: NextRequest): Promise<{ user: { name: string; role?: string } } | null> {
+  const session = await getServerSession(authOptions, req);
+  if (!session || session.user?.role !== 'admin') return null;
+  return session as any;
+}
+
+const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
+const RATE_LIMIT_MAX = 3;
+const rateLimitMap = new Map<string, { count: number; expires: number }>();
+
+function checkRateLimit(key: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(key);
+  if (!entry || entry.expires < now) {
+    rateLimitMap.set(key, { count: 1, expires: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= RATE_LIMIT_MAX) {
+    return false;
+  }
+  entry.count += 1;
+  return true;
 }
 
 function apiError(message: string, status: number) {
@@ -28,6 +49,10 @@ export async function POST(
   const session = await getAdminSession(req);
   if (!session) {
     return apiError('Acesso não autorizado.', 401);
+  }
+
+  if (!checkRateLimit(userId)) {
+    return apiError('Limite de requisições excedido.', 429);
   }
 
   if (!Types.ObjectId.isValid(userId)) {

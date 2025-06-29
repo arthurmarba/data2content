@@ -13,3 +13,7 @@ export const logger = winston.createLogger({
     })
   ]
 });
+
+export function logMediaKitAccess(token: string) {
+  logger.info(`[media-kit] token accessed: ${token}`);
+}
