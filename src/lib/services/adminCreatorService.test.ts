@@ -122,7 +122,8 @@ describe('AdminCreatorService', () => {
           email: 'one@example.com',
           planStatus: 'Pro',
           adminStatus: 'approved',
-          profile_picture_url: 'url1'
+          profile_picture_url: 'url1',
+          mediaKitToken: 'token1',
           // registrationDate é omitido para testar fallback para _id.getTimestamp()
         },
         {
@@ -131,7 +132,8 @@ describe('AdminCreatorService', () => {
           email: 'two@example.com',
           adminStatus: 'pending',
           registrationDate: date2,
-          profile_picture_url: 'url2'
+          profile_picture_url: 'url2',
+          mediaKitToken: undefined,
         },
       ];
       (UserModel.exec as jest.Mock).mockResolvedValueOnce(mockUserData.map(u => ({...u, _id: u._id.toString() }))); // lean() returns plain objects
@@ -147,6 +149,7 @@ describe('AdminCreatorService', () => {
         planStatus: 'Pro',
         adminStatus: 'approved',
         profilePictureUrl: 'url1',
+        mediaKitToken: 'token1',
         registrationDate: date1, // from _id.getTimestamp()
       }));
        expect(creators[1]).toEqual(expect.objectContaining({
@@ -155,6 +158,7 @@ describe('AdminCreatorService', () => {
         email: 'two@example.com',
         adminStatus: 'pending',
         profilePictureUrl: 'url2',
+        mediaKitToken: undefined,
         registrationDate: date2,
       }));
     });

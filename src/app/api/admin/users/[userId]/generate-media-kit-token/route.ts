@@ -52,3 +52,33 @@ export async function POST(
 
   return NextResponse.json({ token, url });
 }
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { userId: string } }
+) {
+  const { userId } = params;
+  const TAG = '[api/admin/users/[userId]/generate-media-kit-token:GET]';
+  logger.info(`${TAG} Fetching media kit token for user ${userId}`);
+
+  const session = await getAdminSession(req);
+  if (!session) {
+    return apiError('Acesso não autorizado.', 401);
+  }
+
+  if (!Types.ObjectId.isValid(userId)) {
+    return apiError('User ID inválido.', 400);
+  }
+
+  await connectToDatabase();
+
+  const user = await UserModel.findById(userId).select('mediaKitToken').lean();
+  if (!user) {
+    return apiError('Usuário não encontrado.', 404);
+  }
+
+  const token = user.mediaKitToken;
+  const url = token ? `${req.nextUrl.origin}/mediakit/${token}` : null;
+  logger.info(`${TAG} Returning token for user ${userId}`);
+  return NextResponse.json({ token, url });
+}
