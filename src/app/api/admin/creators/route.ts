@@ -5,8 +5,7 @@ import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
 import { fetchCreators } from '@/lib/services/adminCreatorService'; // Ajuste o caminho se necessário
 import { AdminCreatorStatus, AdminCreatorListParams } from '@/types/admin/creators'; // Ajuste o caminho se necessário
-// import { getServerSession } from "next-auth/next" // Para auth real
-// import { authOptions } from "@/app/api/auth/[...nextauth]/route"; // Para auth real
+import { getAdminSession } from '@/lib/getAdminSession';
 
 // ==================== INÍCIO DA CORREÇÃO ====================
 // Força a rota a ser sempre renderizada dinamicamente no servidor,
@@ -16,19 +15,6 @@ export const dynamic = 'force-dynamic';
 
 const SERVICE_TAG = '[api/admin/creators]';
 
-// Mock de validação de sessão de Admin (substituir pela real com getServerSession)
-async function getAdminSession(req: NextRequest): Promise<{ user: { name: string, role?: string, isAdmin?: boolean } } | null> {
-  // const session = await getServerSession(authOptions);
-  // if (!session || !(session.user.role === 'admin' || session.user.isAdmin)) {
-  //   logger.warn(`${SERVICE_TAG} Admin session validation failed or user is not admin.`);
-  //   return null;
-  // }
-  // return session;
-  // Mock para desenvolvimento:
-  const mockSession = { user: { name: 'Admin User', role: 'admin' } }; // Simula um admin
-  if (mockSession.user.role !== 'admin') return null;
-  return mockSession;
-}
 
 function apiError(message: string, status: number): NextResponse {
   logger.error(`${SERVICE_TAG} Erro ${status}: ${message}`);
