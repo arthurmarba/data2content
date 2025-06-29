@@ -224,6 +224,9 @@ export async function findUserVideoPosts({
           'stats.views': '$stats.views',
           'stats.likes': '$stats.likes',
           'stats.total_interactions': '$stats.total_interactions',
+          'stats.comments': '$stats.comments',
+          'stats.shares': '$stats.shares',
+          'stats.saved': '$stats.saved',
         },
       },
     ];
