@@ -1,3 +1,5 @@
+// src/app/api/admin/users/[userId]/generate-media-kit-token/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import { Types } from 'mongoose';
 import crypto from 'crypto';
@@ -25,7 +27,8 @@ export async function POST(
   logger.info(`${TAG} Generating media kit token for user ${userId}`);
 
   const session = await getAdminSession(req);
-  if (!session) {
+  // <<< BÔNUS: Corrigindo a verificação de sessão que tinha erro de tipo >>>
+  if (!session || !session.user) {
     return apiError('Acesso não autorizado.', 401);
   }
 
@@ -79,7 +82,8 @@ export async function GET(
   logger.info(`${TAG} Fetching media kit token for user ${userId}`);
 
   const session = await getAdminSession(req);
-  if (!session) {
+  // <<< BÔNUS: Corrigindo a verificação de sessão que tinha erro de tipo >>>
+  if (!session || !session.user) {
     return apiError('Acesso não autorizado.', 401);
   }
 
