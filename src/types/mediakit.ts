@@ -35,10 +35,18 @@ export interface VideoListItem {
     followerGrowth: KPIComparisonData;
     engagementRate: KPIComparisonData; // <- A definição correta
     postingFrequency: KPIComparisonData;
+    avgViewsPerPost: KPIComparisonData;
+    avgCommentsPerPost: KPIComparisonData;
+    avgSharesPerPost: KPIComparisonData;
+    avgSavesPerPost: KPIComparisonData;
     insightSummary?: {
       followerGrowth?: string;
       engagementRate?: string;
       postingFrequency?: string;
+      avgViewsPerPost?: string;
+      avgCommentsPerPost?: string;
+      avgSharesPerPost?: string;
+      avgSavesPerPost?: string;
     };
   }
   
