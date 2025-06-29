@@ -165,7 +165,7 @@ export default function CreatorsManagementPage() {
         throw new Error(data.error || 'Falha ao gerar link');
       }
       const data = await res.json();
-      setCreators(prev => prev.map(c => c._id === creatorId ? { ...c, mediaKitToken: data.token } : c));
+      setCreators(prev => prev.map(c => c._id === creatorId ? { ...c, mediaKitSlug: data.slug } : c));
       toast.success('Link gerado!');
     } catch (e: any) {
       toast.dismiss(loadingId);
@@ -182,7 +182,7 @@ export default function CreatorsManagementPage() {
         const data = await res.json();
         throw new Error(data.error || 'Falha ao revogar link');
       }
-      setCreators(prev => prev.map(c => c._id === creatorId ? { ...c, mediaKitToken: undefined } : c));
+      setCreators(prev => prev.map(c => c._id === creatorId ? { ...c, mediaKitSlug: undefined } : c));
       toast.success('Link revogado!');
     } catch (e: any) {
       toast.dismiss(loadingId);
@@ -315,10 +315,10 @@ export default function CreatorsManagementPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{creator.planStatus || 'N/A'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {creator.mediaKitToken ? (
+                    {creator.mediaKitSlug ? (
                       <div className="space-x-2">
                         <a
-                          href={`/mediakit/${creator.mediaKitToken}`}
+                          href={`/mediakit/${creator.mediaKitSlug}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-indigo-600 hover:underline"

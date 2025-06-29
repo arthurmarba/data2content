@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Types } from 'mongoose';
 import crypto from 'crypto';
+import slugify from '@/utils/slugify';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import UserModel from '@/app/models/User';
 import { logger } from '@/app/lib/logger';
@@ -41,10 +42,21 @@ export async function POST(
 
   await connectToDatabase();
 
-  const token = crypto.randomBytes(16).toString('hex');
+  const user = await UserModel.findById(userId).select('name').lean();
+  if (!user) {
+    return apiError('Usuário não encontrado.', 404);
+  }
+
+  const baseSlug = slugify(user.name || 'usuario');
+  let slug = baseSlug;
+  const existing = await UserModel.findOne({ mediaKitSlug: slug });
+  if (existing && existing._id.toString() !== userId) {
+    slug = `${baseSlug}-${crypto.randomBytes(2).toString('hex')}`;
+  }
+
   const updated = await UserModel.findByIdAndUpdate(
     userId,
-    { mediaKitToken: token },
+    { mediaKitSlug: slug },
     { new: true }
   );
 
@@ -52,10 +64,10 @@ export async function POST(
     return apiError('Usuário não encontrado.', 404);
   }
 
-  const url = `${req.nextUrl.origin}/mediakit/${token}`;
-  logger.info(`${TAG} Token generated for user ${userId}`);
+  const url = `${req.nextUrl.origin}/mediakit/${slug}`;
+  logger.info(`${TAG} Slug generated for user ${userId}`);
 
-  return NextResponse.json({ token, url });
+  return NextResponse.json({ slug, url });
 }
 
 export async function GET(
@@ -77,13 +89,13 @@ export async function GET(
 
   await connectToDatabase();
 
-  const user = await UserModel.findById(userId).select('mediaKitToken').lean();
+  const user = await UserModel.findById(userId).select('mediaKitSlug').lean();
   if (!user) {
     return apiError('Usuário não encontrado.', 404);
   }
 
-  const token = user.mediaKitToken;
-  const url = token ? `${req.nextUrl.origin}/mediakit/${token}` : null;
-  logger.info(`${TAG} Returning token for user ${userId}`);
-  return NextResponse.json({ token, url });
+  const slug = user.mediaKitSlug;
+  const url = slug ? `${req.nextUrl.origin}/mediakit/${slug}` : null;
+  logger.info(`${TAG} Returning slug for user ${userId}`);
+  return NextResponse.json({ slug, url });
 }

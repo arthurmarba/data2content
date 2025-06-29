@@ -34,7 +34,7 @@ export async function DELETE(
 
   const updated = await UserModel.findByIdAndUpdate(
     userId,
-    { $unset: { mediaKitToken: '' } },
+    { $unset: { mediaKitSlug: '' } },
     { new: true }
   );
 
