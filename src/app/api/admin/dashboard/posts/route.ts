@@ -5,10 +5,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { findGlobalPostsByCriteria, FindGlobalPostsArgs } from '@/app/lib/dataService/marketAnalysisService';
 import { DatabaseError } from '@/app/lib/errors';
+import { getAdminSession } from "@/lib/getAdminSession";
 
 // ==================== INÍCIO DA CORREÇÃO ====================
 // Força a rota a ser sempre renderizada dinamicamente no servidor.
@@ -39,14 +38,6 @@ const querySchema = z.object({
 }, { message: "startDate cannot be after endDate" });
 
 // Real Admin Session Validation
-async function getAdminSession(_req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user?.role !== 'admin') {
-    logger.warn(`${SERVICE_TAG} Admin session validation failed.`);
-    return null;
-  }
-  return session;
-}
 
 function apiError(message: string, status: number): NextResponse {
   logger.error(`${SERVICE_TAG} Erro ${status}: ${message}`);

@@ -4,8 +4,7 @@ import { Types } from 'mongoose';
 import { logger } from '@/app/lib/logger';
 import { fetchPostDetails, IPostDetailsData } from '@/app/lib/dataService/marketAnalysis/postsService'; // Assuming IPostDetailsData is exported
 import { DatabaseError } from '@/app/lib/errors';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { getAdminSession } from "@/lib/getAdminSession";
 
 const TAG = '/api/admin/dashboard/posts/[postId]/details';
 
@@ -23,7 +22,7 @@ export async function GET(
   logger.info(`${TAG} Request received for postId: ${params.postId}`);
 
   // 1. Admin Session Validation
-  const session = await getServerSession(authOptions);
+  const session = await getAdminSession(req);
   
   if (!session || !session.user || session.user.role !== 'admin') {
     logger.warn(`${TAG} Unauthorized access attempt for postId: ${params.postId}`);

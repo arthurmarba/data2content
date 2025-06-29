@@ -6,13 +6,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { Types } from 'mongoose';
 import { logger } from '@/app/lib/logger';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 // CORREÇÃO: As importações foram atualizadas para usar os caminhos dos serviços modularizados.
 import { getCreatorProfile } from '@/app/lib/dataService/marketAnalysis/profilesService';
 import { ICreatorProfile } from '@/app/lib/dataService/marketAnalysis/types';
 import { DatabaseError } from '@/app/lib/errors';
 import UserModel from '@/app/models/User';
+import { getAdminSession } from "@/lib/getAdminSession";
 
 const SERVICE_TAG = '[api/admin/dashboard/creators/compare]';
 const MAX_CREATORS_TO_COMPARE_API = 5;
@@ -27,14 +26,6 @@ const requestBodySchema = z.object({
 });
 
 // Real Admin Session Validation
-async function getAdminSession(_req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user?.role !== 'admin') {
-    logger.warn(`${SERVICE_TAG} Validação da sessão de admin falhou.`);
-    return null;
-  }
-  return session;
-}
 
 function apiError(message: string, status: number): NextResponse {
   logger.error(`${SERVICE_TAG} Erro ${status}: ${message}`);

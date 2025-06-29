@@ -6,8 +6,7 @@ import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
 import { fetchMostProlificCreators, IFetchCreatorRankingParams } from '@/app/lib/dataService/marketAnalysisService';
 import { DatabaseError } from '@/app/lib/errors';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { getAdminSession } from "@/lib/getAdminSession";
 export const dynamic = 'force-dynamic';
 
 const SERVICE_TAG = '[api/admin/dashboard/rankings/creators/most-prolific]';
@@ -23,14 +22,6 @@ const querySchema = z.object({
 });
 
 // Real Admin Session Validation
-async function getAdminSession(_req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user?.role !== 'admin') {
-    logger.warn(`${SERVICE_TAG} Admin session validation failed.`);
-    return null;
-  }
-  return session;
-}
 
 function apiError(message: string, status: number): NextResponse {
   logger.error(`${SERVICE_TAG} Erro ${status}: ${message}`);

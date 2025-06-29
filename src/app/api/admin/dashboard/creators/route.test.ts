@@ -2,10 +2,10 @@ import { GET } from './route'; // Adjust path as necessary
 import { NextRequest } from 'next/server';
 import { fetchDashboardCreatorsList } from '@/app/lib/dataService/marketAnalysisService';
 import { logger } from '@/app/lib/logger';
-import { getServerSession } from 'next-auth/next';
+import { getAdminSession } from '@/lib/getAdminSession';
 
-jest.mock('next-auth/next', () => ({
-  getServerSession: jest.fn(),
+jest.mock('@/lib/getAdminSession', () => ({
+  getAdminSession: jest.fn(),
 }));
 
 jest.mock('@/app/api/auth/[...nextauth]/route', () => ({
@@ -27,7 +27,7 @@ jest.mock('@/app/lib/dataService/marketAnalysisService', () => ({
   fetchDashboardCreatorsList: jest.fn(),
 }));
 
-const mockGetServerSession = getServerSession as jest.Mock;
+const mockGetAdminSession = getAdminSession as jest.Mock;
 
 // Mock getAdminSession - we'll define its behavior in tests
 // The actual implementation is in the route file, so we mock its behavior via req object or by directly mocking it if it were importable
@@ -48,7 +48,7 @@ describe('API Route: /api/admin/dashboard/creators', () => {
     const req = new NextRequest(url.toString());
     // Simulate admin session by attaching a property that getAdminSession in route might check
     // This is a simplified way to control the session for testing.
-    // In a real scenario with next-auth, you'd mock `getServerSession`.
+    // In a real scenario with next-auth, you'd mock `getAdminSession`.
     (req as any).isAdmin = isAdmin; // This is a conceptual way getAdminSession might be influenced
                                    // The actual getAdminSession in route.ts uses a hardcoded session.
                                    // To test the 401, we'd need to modify getAdminSession or mock it differently.
@@ -67,8 +67,8 @@ describe('API Route: /api/admin/dashboard/creators', () => {
     jest.clearAllMocks();
     mockAdminSession = { user: { name: 'Admin User' } }; // Reset admin session mock
     // Default mock for successful session
-    // (Actual getAdminSession in route is now based on getServerSession)
-    mockGetServerSession.mockResolvedValue({ user: { role: 'admin' } });
+    // (Actual getAdminSession in route is now based on getAdminSession)
+    mockGetAdminSession.mockResolvedValue({ user: { role: 'admin' } });
   });
 
   it('should return 200 with creators list on valid request', async () => {
@@ -197,7 +197,7 @@ describe('API Route: /api/admin/dashboard/creators', () => {
   });
 
   it('should return 401 if admin session is invalid', async () => {
-    mockGetServerSession.mockResolvedValueOnce({ user: { role: 'user' } });
+    mockGetAdminSession.mockResolvedValueOnce({ user: { role: 'user' } });
     const req = createMockRequest();
     const response = await GET(req);
     expect(response.status).toBe(401);

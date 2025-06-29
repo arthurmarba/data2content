@@ -3,10 +3,10 @@ import { NextRequest } from 'next/server';
 import { fetchTopMoversData } from '@/app/lib/dataService/marketAnalysisService';
 import { logger } from '@/app/lib/logger';
 import { DatabaseError } from '@/app/lib/errors'; // Import DatabaseError
-import { getServerSession } from 'next-auth/next';
+import { getAdminSession } from '@/lib/getAdminSession';
 
-jest.mock('next-auth/next', () => ({
-  getServerSession: jest.fn(),
+jest.mock('@/lib/getAdminSession', () => ({
+  getAdminSession: jest.fn(),
 }));
 
 jest.mock('@/app/api/auth/[...nextauth]/route', () => ({
@@ -30,7 +30,7 @@ jest.mock('@/app/lib/dataService/marketAnalysisService', () => ({
   // For this test, we'll re-declare minimal versions or trust Zod to handle enum values.
 }));
 
-const mockGetServerSession = getServerSession as jest.Mock;
+const mockGetAdminSession = getAdminSession as jest.Mock;
 
 const mockFetchTopMoversData = fetchTopMoversData as jest.Mock;
 
@@ -46,7 +46,7 @@ describe('API Route: /api/admin/dashboard/top-movers', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGetServerSession.mockResolvedValue({ user: { role: 'admin' } });
+    mockGetAdminSession.mockResolvedValue({ user: { role: 'admin' } });
   });
 
   const validPeriods = {
@@ -211,7 +211,7 @@ describe('API Route: /api/admin/dashboard/top-movers', () => {
   });
 
   it('should return 401 if admin session is invalid', async () => {
-    mockGetServerSession.mockResolvedValueOnce({ user: { role: 'user' } });
+    mockGetAdminSession.mockResolvedValueOnce({ user: { role: 'user' } });
     const req = createMockRequest(validPayloadBase);
     const response = await POST(req);
     expect(response.status).toBe(401);

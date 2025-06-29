@@ -1,12 +1,11 @@
 // src/app/api/admin/redemptions/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 // <<< ALTERAÇÃO 1: Importamos o modelo E a interface correta que criamos.
 import Redemption, { IRedemption } from "@/app/models/Redemption";
 import { Types } from "mongoose";
+import { getAdminSession } from "@/lib/getAdminSession";
 
 export const runtime = "nodejs";
 export const dynamic = 'force-dynamic';
@@ -57,7 +56,7 @@ export async function GET(request: NextRequest) {
   try {
     await connectToDatabase();
 
-    const session = await getServerSession({ req: request, ...authOptions });
+    const session = await getAdminSession(request);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }

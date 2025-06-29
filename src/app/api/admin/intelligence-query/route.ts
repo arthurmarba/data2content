@@ -18,6 +18,7 @@ import type { ChatCompletionMessageParam } from 'openai/resources/chat/completio
 import { logger } from '@/app/lib/logger';
 import { askAdminLLM } from '@/app/lib/admin-ai/orchestrator';
 import { AdminAIContext } from '@/app/lib/admin-ai/types';
+import { getAdminSession } from "@/lib/getAdminSession";
 
 const SERVICE_TAG = '[api/admin/intelligence-query v5.0.0]';
 
@@ -47,13 +48,6 @@ function apiError(message: string, status: number): NextResponse {
   return NextResponse.json({ error: message }, { status });
 }
 
-async function getAdminSession(req: NextRequest): Promise<{ user: { name: string } } | null> {
-  // SIMULAÇÃO: Substitua pela sua lógica real de sessão (ex: next-auth)
-  const session = { user: { name: 'Admin User' } };
-  const isAdmin = true;
-  if (!session || !isAdmin) return null;
-  return session;
-}
 
 // Mapeia as mensagens do cliente para o formato esperado pela OpenAI.
 function mapToOpenAIMessages(messages: ClientMessage[]): ChatCompletionMessageParam[] {
