@@ -98,7 +98,7 @@ export async function fetchCreators(
         profile_picture_url?: string;
         planStatus?: string;
         inferredExpertiseLevel?: string;
-        mediaKitToken?: string;
+        mediaKitSlug?: string;
         name?: string;
         email?: string;
       };
@@ -109,7 +109,7 @@ export async function fetchCreators(
         planStatus: user.planStatus,
         inferredExpertiseLevel: user.inferredExpertiseLevel,
         profilePictureUrl: user.profile_picture_url,
-        mediaKitToken: user.mediaKitToken,
+        mediaKitSlug: user.mediaKitSlug,
         adminStatus: user.adminStatus || 'pending',
         registrationDate: user.registrationDate || user._id.getTimestamp(),
       };

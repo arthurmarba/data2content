@@ -71,8 +71,8 @@ async function fetchKpis(baseUrl: string, userId: string): Promise<KpiComparison
 export default async function MediaKitPage({ params }: { params: { token: string } }) {
   await connectToDatabase();
   
-  // Busca o usuário pelo token. `.lean()` é essencial para performance e para passar para o cliente.
-  const user = await UserModel.findOne({ mediaKitToken: params.token }).lean();
+  // Busca o usuário pelo slug. `.lean()` é essencial para performance e para passar para o cliente.
+  const user = await UserModel.findOne({ mediaKitSlug: params.token }).lean();
   
   if (!user) {
     notFound(); // Se o token for inválido, exibe a página 404.

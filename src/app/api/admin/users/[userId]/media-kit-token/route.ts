@@ -5,6 +5,7 @@ import UserModel from '@/app/models/User';
 import { logger } from '@/app/lib/logger';
 import { getAdminSession } from '@/lib/getAdminSession';
 
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 
@@ -34,7 +35,7 @@ export async function DELETE(
 
   const updated = await UserModel.findByIdAndUpdate(
     userId,
-    { $unset: { mediaKitToken: '' } },
+    { $unset: { mediaKitSlug: '' } },
     { new: true }
   );
 

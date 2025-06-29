@@ -105,6 +105,12 @@ Example:
 |---------------------|------:|------:|---------:|
 | ![thumb](public/images/default-profile.png) [Primeiro Reels](https://instagram.com/p/abc123) | 10k | 520 | 30 |
 
+### Media Kit Slugs
+
+Media kit links are now created using a slug based on the creator's name.
+Admin users can generate or revoke this slug from the creators management page, and
+the public URL becomes `/mediakit/<slug>`.
+
 
 
 ## Learn More
