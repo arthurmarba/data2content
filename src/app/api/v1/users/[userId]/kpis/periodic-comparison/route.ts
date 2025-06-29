@@ -6,6 +6,7 @@ import { Types } from 'mongoose';
 import calculateFollowerGrowthRate from '@/utils/calculateFollowerGrowthRate';
 import calculateAverageEngagementPerPost from '@/utils/calculateAverageEngagementPerPost';
 import calculateWeeklyPostingFrequency from '@/utils/calculateWeeklyPostingFrequency';
+import MetricModel from '@/app/models/Metric';
 import { addDays, getStartDateFromTimePeriod as getStartDateFromTimePeriodGeneric } from '@/utils/dateHelpers';
 
 // Tipos de dados para a resposta
@@ -25,10 +26,18 @@ interface UserPeriodicComparisonResponse {
   followerGrowth: KPIComparisonData;
   engagementRate: KPIComparisonData; // Alterado de totalEngagement
   postingFrequency: KPIComparisonData;
+  avgViewsPerPost: KPIComparisonData;
+  avgCommentsPerPost: KPIComparisonData;
+  avgSharesPerPost: KPIComparisonData;
+  avgSavesPerPost: KPIComparisonData;
   insightSummary?: {
     followerGrowth?: string;
     engagementRate?: string; // Alterado de totalEngagement
     postingFrequency?: string;
+    avgViewsPerPost?: string;
+    avgCommentsPerPost?: string;
+    avgSharesPerPost?: string;
+    avgSavesPerPost?: string;
   };
 }
 
@@ -140,10 +149,72 @@ export async function GET(
       ]
     };
 
+    async function getAverage(field: string, start: Date, end: Date): Promise<number | null> {
+      const [agg] = await MetricModel.aggregate([
+        { $match: { user: resolvedUserId, postDate: { $gte: start, $lte: end } } },
+        { $project: { value: `$${field}` } },
+        { $match: { value: { $ne: null } } },
+        { $group: { _id: null, avg: { $avg: '$value' } } }
+      ]);
+      return agg?.avg ?? null;
+    }
+
+    const [currViews, prevViews, currComments, prevComments, currShares, prevShares, currSaves, prevSaves] = await Promise.all([
+      getAverage('stats.views', currentStartDate, currentEndDate),
+      getAverage('stats.views', previousStartDate, previousEndDate),
+      getAverage('stats.comments', currentStartDate, currentEndDate),
+      getAverage('stats.comments', previousStartDate, previousEndDate),
+      getAverage('stats.shares', currentStartDate, currentEndDate),
+      getAverage('stats.shares', previousStartDate, previousEndDate),
+      getAverage('stats.saved', currentStartDate, currentEndDate),
+      getAverage('stats.saved', previousStartDate, previousEndDate),
+    ]);
+
+    const avgViewsPerPostData: KPIComparisonData = {
+      currentValue: currViews,
+      previousValue: prevViews,
+      percentageChange: calculatePercentageChange(currViews, prevViews),
+      chartData: [
+        { name: periodNamePrevious, value: prevViews ?? 0 },
+        { name: periodNameCurrent, value: currViews ?? 0 }
+      ]
+    };
+    const avgCommentsPerPostData: KPIComparisonData = {
+      currentValue: currComments,
+      previousValue: prevComments,
+      percentageChange: calculatePercentageChange(currComments, prevComments),
+      chartData: [
+        { name: periodNamePrevious, value: prevComments ?? 0 },
+        { name: periodNameCurrent, value: currComments ?? 0 }
+      ]
+    };
+    const avgSharesPerPostData: KPIComparisonData = {
+      currentValue: currShares,
+      previousValue: prevShares,
+      percentageChange: calculatePercentageChange(currShares, prevShares),
+      chartData: [
+        { name: periodNamePrevious, value: prevShares ?? 0 },
+        { name: periodNameCurrent, value: currShares ?? 0 }
+      ]
+    };
+    const avgSavesPerPostData: KPIComparisonData = {
+      currentValue: currSaves,
+      previousValue: prevSaves,
+      percentageChange: calculatePercentageChange(currSaves, prevSaves),
+      chartData: [
+        { name: periodNamePrevious, value: prevSaves ?? 0 },
+        { name: periodNameCurrent, value: currSaves ?? 0 }
+      ]
+    };
+
     const response: UserPeriodicComparisonResponse = {
       followerGrowth: followerGrowthData,
       engagementRate: engagementRateData, // Otimização: Retornando a nova métrica
       postingFrequency: postingFrequencyData,
+      avgViewsPerPost: avgViewsPerPostData,
+      avgCommentsPerPost: avgCommentsPerPostData,
+      avgSharesPerPost: avgSharesPerPostData,
+      avgSavesPerPost: avgSavesPerPostData,
       insightSummary: {
         followerGrowth: `Ganho de ${followerGrowthData.currentValue?.toLocaleString() ?? 'N/A'} seguidores no período.`,
         engagementRate: `Taxa de engajamento média de ${engagementRateData.currentValue?.toFixed(2) ?? 'N/A'}%.`, // Otimização: Novo insight
@@ -163,6 +234,10 @@ export async function GET(
         followerGrowth: errorKpi,
         engagementRate: errorKpi, // Alterado
         postingFrequency: errorKpi,
+        avgViewsPerPost: errorKpi,
+        avgCommentsPerPost: errorKpi,
+        avgSharesPerPost: errorKpi,
+        avgSavesPerPost: errorKpi,
     }, { status: 500 });
   }
 }
