@@ -173,6 +173,23 @@ export default function CreatorsManagementPage() {
     }
   };
 
+  const handleRevokeMediaKit = async (creatorId: string) => {
+    const loadingId = toast.loading('Revogando link...');
+    try {
+      const res = await fetch(`/api/admin/users/${creatorId}/media-kit-token`, { method: 'DELETE' });
+      toast.dismiss(loadingId);
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Falha ao revogar link');
+      }
+      setCreators(prev => prev.map(c => c._id === creatorId ? { ...c, mediaKitToken: undefined } : c));
+      toast.success('Link revogado!');
+    } catch (e: any) {
+      toast.dismiss(loadingId);
+      toast.error(e.message);
+    }
+  };
+
   const columns: ColumnConfig<AdminCreatorListItem>[] = useMemo(() => [
     { key: 'name', label: 'Nome', sortable: true },
     { key: 'email', label: 'Email', sortable: true },
@@ -299,14 +316,22 @@ export default function CreatorsManagementPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{creator.planStatus || 'N/A'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     {creator.mediaKitToken ? (
-                      <a
-                        href={`/mediakit/${creator.mediaKitToken}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-indigo-600 hover:underline"
-                      >
-                        Abrir
-                      </a>
+                      <div className="space-x-2">
+                        <a
+                          href={`/mediakit/${creator.mediaKitToken}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-indigo-600 hover:underline"
+                        >
+                          Abrir
+                        </a>
+                        <button
+                          onClick={() => handleRevokeMediaKit(creator._id)}
+                          className="text-red-600 hover:underline"
+                        >
+                          Revogar
+                        </button>
+                      </div>
                     ) : (
                       <button
                         onClick={() => handleGenerateMediaKit(creator._id)}
