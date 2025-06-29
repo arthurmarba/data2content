@@ -1,6 +1,8 @@
 import { notFound } from 'next/navigation';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import UserModel from '@/app/models/User';
+import { headers } from 'next/headers';
+import { logMediaKitAccess } from '@/lib/logMediaKitAccess';
 import MediaKitView from './MediaKitView';
 
 // Tipos centralizados para garantir consistência em todo o fluxo de dados.
@@ -75,6 +77,12 @@ export default async function MediaKitPage({ params }: { params: { token: string
   if (!user) {
     notFound(); // Se o token for inválido, exibe a página 404.
   }
+
+  // Registra o acesso ao Mídia Kit para fins de auditoria
+  const reqHeaders = headers();
+  const ip = reqHeaders.get('x-real-ip') || reqHeaders.get('x-forwarded-for') || '';
+  const referer = reqHeaders.get('referer') || undefined;
+  await logMediaKitAccess(user._id.toString(), ip, referer);
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || '';
   
