@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import UserModel from '@/app/models/User';
 import { logger } from '@/app/lib/logger';
+import { checkRateLimit } from '@/utils/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,6 +33,13 @@ export async function POST(
 
   if (!Types.ObjectId.isValid(userId)) {
     return apiError('User ID inválido.', 400);
+  }
+
+  const identifier = req.ip || userId;
+  const { allowed } = await checkRateLimit(`generate-media-kit:${identifier}`, 5, 3600);
+  if (!allowed) {
+    logger.warn(`${TAG} Rate limit exceeded for ${identifier}`);
+    return apiError('Limite de requisições excedido.', 429);
   }
 
   await connectToDatabase();
