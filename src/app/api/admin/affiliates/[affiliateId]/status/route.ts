@@ -1,9 +1,10 @@
 // src/app/api/admin/affiliates/[affiliateId]/status/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
-import { updateAffiliateStatus } from '@/lib/services/adminCreatorService'; // Assumindo que o serviço ainda se chama adminCreatorService
-import { AdminAffiliateStatus, AdminAffiliateUpdateStatusPayload } from '@/types/admin/affiliates';
+import { updateAffiliateStatus } from '@/lib/services/adminCreatorService';
+import { AdminAffiliateUpdateStatusPayload } from '@/types/admin/affiliates';
 import { getAdminSession } from '@/lib/getAdminSession';
 
 const SERVICE_TAG = '[api/admin/affiliates/[affiliateId]/status]';
@@ -30,9 +31,11 @@ export async function PATCH(
 
   try {
     const session = await getAdminSession(req);
-    if (!session) {
+    // <<< CORREÇÃO AQUI: A verificação agora inclui !session.user >>>
+    if (!session || !session.user) {
       return apiError('Acesso não autorizado ou privilégios insuficientes.', 401);
     }
+    // Após a verificação acima, o TypeScript sabe que session.user é seguro de usar.
     logger.info(`${TAG} Admin session validated for user: ${session.user.name}`);
 
     const body = await req.json();

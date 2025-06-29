@@ -1,17 +1,15 @@
-// src/app/api/admin/creators/route.ts (Corrigido)
+// src/app/api/admin/creators/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
-import { fetchCreators } from '@/lib/services/adminCreatorService'; // Ajuste o caminho se necessário
-import { AdminCreatorStatus, AdminCreatorListParams } from '@/types/admin/creators'; // Ajuste o caminho se necessário
+import { fetchCreators } from '@/lib/services/adminCreatorService';
+import { AdminCreatorListParams } from '@/types/admin/creators';
 import { getAdminSession } from '@/lib/getAdminSession';
 
-// ==================== INÍCIO DA CORREÇÃO ====================
-// Força a rota a ser sempre renderizada dinamicamente no servidor,
-// pois ela utiliza `req.url` para ler parâmetros de busca.
+
 export const dynamic = 'force-dynamic';
-// ==================== FIM DA CORREÇÃO ======================
+
 
 const SERVICE_TAG = '[api/admin/creators]';
 
@@ -37,16 +35,16 @@ export async function GET(req: NextRequest) {
 
   try {
     const session = await getAdminSession(req);
-    if (!session) {
+    // <<< CORREÇÃO AQUI: A verificação agora inclui !session.user >>>
+    if (!session || !session.user) {
       return apiError('Acesso não autorizado ou privilégios insuficientes.', 401);
     }
+    // Após a verificação acima, o TypeScript sabe que session.user é seguro de usar.
     logger.info(`${TAG} Admin session validated for user: ${session.user.name}`);
 
     const { searchParams } = new URL(req.url);
     const queryParams = Object.fromEntries(searchParams.entries());
 
-    // Para o tipo `type AdminCreatorStatus = 'pending' | 'approved' | 'rejected' | 'active';`
-    // usamos z.enum:
     const actualQuerySchema = querySchema.extend({
         status: z.enum(['pending', 'approved', 'rejected', 'active'] as const).optional()
     });

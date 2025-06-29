@@ -1,4 +1,4 @@
-// src/app/api/admin/dashboard-summary/route.ts (Corrigido)
+// src/app/api/admin/dashboard-summary/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/app/lib/logger';
@@ -6,15 +6,12 @@ import { getAdminSession } from '@/lib/getAdminSession';
 import {
   getTotalCreatorsCount,
   getPendingCreatorsCount,
-} from '@/lib/services/adminCreatorService'; // Ajuste o caminho se necessário
-import { AdminDashboardSummaryData, AdminDashboardKpi } from '@/types/admin/dashboard'; // Ajuste o caminho
+} from '@/lib/services/adminCreatorService';
+import { AdminDashboardSummaryData } from '@/types/admin/dashboard';
 
-// ==================== INÍCIO DA CORREÇÃO ====================
-// Força a rota a ser sempre renderizada dinamicamente no servidor.
-// Isso é necessário porque a rota provavelmente usa headers/cookies para
-// validação de sessão, o que impede a geração estática.
+
 export const dynamic = 'force-dynamic';
-// ==================== FIM DA CORREÇÃO ======================
+
 
 const SERVICE_TAG = '[api/admin/dashboard-summary]';
 
@@ -30,9 +27,11 @@ export async function GET(req: NextRequest) {
 
   try {
     const session = await getAdminSession(req);
-    if (!session) {
+    // <<< CORREÇÃO AQUI: A verificação agora inclui !session.user >>>
+    if (!session || !session.user) {
       return apiError('Acesso não autorizado ou privilégios insuficientes.', 401);
     }
+    // Após a verificação acima, o TypeScript sabe que session.user é seguro de usar.
     logger.info(`${TAG} Admin session validated for user: ${session.user.name}`);
 
     // Chamar as funções de serviço em paralelo para eficiência

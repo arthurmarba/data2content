@@ -2,8 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
-import { updateRedemptionStatus } from '@/lib/services/adminCreatorService'; // Assumindo nome do serviço
-import { RedemptionStatus, AdminRedemptionUpdateStatusPayload } from '@/types/admin/redemptions';
+import { updateRedemptionStatus } from '@/lib/services/adminCreatorService';
+import { AdminRedemptionUpdateStatusPayload } from '@/types/admin/redemptions';
 import { getAdminSession } from '@/lib/getAdminSession';
 
 const SERVICE_TAG = '[api/admin/redemptions/[redemptionId]/status]';
@@ -29,13 +29,6 @@ const bodySchema = z.object({
  * @param {NextRequest} req - The incoming Next.js request object.
  * @param {{ params: { redemptionId: string } }} context - The context object containing route parameters.
  * @returns {Promise<NextResponse>} A JSON response containing the updated redemption object or an error response.
- *
- * @example Request Body:
- * {
- *   "status": "approved",
- *   "adminNotes": "User provided all necessary documents.",
- *   "transactionId": "txn_123abc"
- * }
  */
 export async function PATCH(
   req: NextRequest,
@@ -47,9 +40,11 @@ export async function PATCH(
 
   try {
     const session = await getAdminSession(req);
-    if (!session) {
+    // <<< CORREÇÃO AQUI: A verificação agora inclui !session.user >>>
+    if (!session || !session.user) {
       return apiError('Acesso não autorizado ou privilégios insuficientes.', 401);
     }
+    // Após a verificação acima, o TypeScript sabe que session.user é seguro de usar.
     logger.info(`${TAG} Admin session validated for user: ${session.user.name}`);
 
     const body = await req.json();

@@ -2,8 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
-import { updateCreatorStatus } from '@/lib/services/adminCreatorService'; // Ajuste o caminho
-import { AdminCreatorStatus, AdminCreatorUpdateStatusPayload } from '@/types/admin/creators'; // Ajuste o caminho
+import { updateCreatorStatus } from '@/lib/services/adminCreatorService';
+import { AdminCreatorUpdateStatusPayload } from '@/types/admin/creators';
 import { getAdminSession } from '@/lib/getAdminSession';
 
 const SERVICE_TAG = '[api/admin/creators/[creatorId]/status]';
@@ -16,7 +16,7 @@ function apiError(message: string, status: number): NextResponse {
 
 // Zod Schema para validar o corpo da requisição PATCH
 const bodySchema = z.object({
-  status: z.enum(['pending', 'approved', 'rejected', 'active'] as const), // Garante que status é um dos valores de AdminCreatorStatus
+  status: z.enum(['pending', 'approved', 'rejected', 'active'] as const),
   feedback: z.string().optional(),
 });
 
@@ -30,7 +30,8 @@ export async function PATCH(
 
   try {
     const session = await getAdminSession(req);
-    if (!session) {
+    // <<< CORREÇÃO 1: A verificação agora inclui !session.user >>>
+    if (!session || !session.user) {
       return apiError('Acesso não autorizado ou privilégios insuficientes.', 401);
     }
     logger.info(`${TAG} Admin session validated for user: ${session.user.name}`);
@@ -70,7 +71,8 @@ export async function PUT(
 
   try {
     const session = await getAdminSession(req);
-    if (!session) {
+    // <<< CORREÇÃO 2: A mesma verificação rigorosa é aplicada aqui >>>
+    if (!session || !session.user) {
       return apiError('Acesso não autorizado ou privilégios insuficientes.', 401);
     }
     logger.info(`${TAG} Admin session validated for user: ${session.user.name}`);

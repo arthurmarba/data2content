@@ -1,18 +1,13 @@
-// src/app/api/admin/affiliates/route.ts (Corrigido)
+// src/app/api/admin/affiliates/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
-import { fetchAffiliates } from '@/lib/services/adminCreatorService'; // Assumindo que o serviço ainda se chama adminCreatorService
-import { AdminAffiliateListParams, AdminAffiliateStatus } from '@/types/admin/affiliates';
+import { fetchAffiliates } from '@/lib/services/adminCreatorService';
+import { AdminAffiliateListParams } from '@/types/admin/affiliates';
 import { getAdminSession } from '@/lib/getAdminSession';
 
-// ==================== INÍCIO DA CORREÇÃO ====================
-// Força a rota a ser sempre renderizada dinamicamente no servidor.
-// Isso é necessário porque a rota utiliza `req.url` para ler parâmetros de busca,
-// o que impede a geração estática durante o build.
 export const dynamic = 'force-dynamic';
-// ==================== FIM DA CORREÇÃO ======================
 
 const SERVICE_TAG = '[api/admin/affiliates]';
 
@@ -28,7 +23,7 @@ const querySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional().default(10),
   search: z.string().optional(),
   status: z.enum(['pending_approval', 'active', 'inactive', 'suspended'] as const).optional(),
-  sortBy: z.string().optional().default('registrationDate'), // Ou 'affiliateSince'
+  sortBy: z.string().optional().default('registrationDate'),
   sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
 });
 
@@ -38,9 +33,11 @@ export async function GET(req: NextRequest) {
 
   try {
     const session = await getAdminSession(req);
-    if (!session) {
+    // <<< CORREÇÃO AQUI: A verificação agora inclui !session.user >>>
+    if (!session || !session.user) {
       return apiError('Acesso não autorizado ou privilégios insuficientes.', 401);
     }
+    // Após a verificação acima, o TypeScript sabe que session.user é seguro de usar.
     logger.info(`${TAG} Admin session validated for user: ${session.user.name}`);
 
     const { searchParams } = new URL(req.url);
