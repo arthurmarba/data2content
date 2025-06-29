@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/solid';
-import VideosTable, { VideoListItem, metricLabels } from './VideosTable';
+import VideosTable, { metricLabels } from './VideosTable';
+import type { VideoListItem } from '@/types/mediakit';
 import PostDetailModal from '../PostDetailModal';
 
 interface VideoDrillDownModalProps {
