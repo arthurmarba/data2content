@@ -197,6 +197,7 @@ export interface IUser extends Document {
   linkToken?: string;
   linkTokenExpiresAt?: Date;
   mediaKitToken?: string;
+  mediaKitSlug?: string;
   role: string;
   planStatus?: string;
   planExpiresAt?: Date | null;
@@ -317,6 +318,7 @@ const userSchema = new Schema<IUser>(
     linkToken: { type: String, index: true, sparse: true },
     linkTokenExpiresAt: { type: Date },
     mediaKitToken: { type: String, unique: true, sparse: true },
+    mediaKitSlug: { type: String, unique: true, sparse: true },
     role: { type: String, default: "user" },
     planExpiresAt: { type: Date, default: null },
     whatsappVerificationCode: { type: String, default: null, index: true },

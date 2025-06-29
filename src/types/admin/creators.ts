@@ -11,7 +11,7 @@ export interface AdminCreatorListItem {
   planStatus?: string; // Status do plano (ex: 'Free', 'Pro', 'Trial') - vindo do UserModel
   inferredExpertiseLevel?: string; // Nível de expertise inferido - vindo do UserModel
   profilePictureUrl?: string; // URL da foto de perfil
-  mediaKitToken?: string; // Token do mídia kit, se já gerado
+  mediaKitSlug?: string; // Slug do mídia kit, se já gerado
 
   totalPostsInPeriod?: number; // Número de posts no período filtrado (se aplicável ao contexto da lista)
   lastActivityDate?: Date | string; // Data da última atividade (post)

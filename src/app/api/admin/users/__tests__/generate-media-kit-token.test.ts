@@ -38,14 +38,14 @@ describe('POST /api/admin/users/[userId]/generate-media-kit-token', () => {
     jest.clearAllMocks();
     mockGetAdminSession.mockResolvedValue({ user: { role: 'admin' } });
     mockCheckRateLimit.mockResolvedValue({ allowed: true, remaining: 4 });
-    mockFindByIdAndUpdate.mockResolvedValue({ _id: '1', mediaKitToken: 'tok' });
+    mockFindByIdAndUpdate.mockResolvedValue({ _id: '1', mediaKitSlug: 'slug' });
   });
 
-  it('returns 200 and token on success', async () => {
+  it('returns 200 and slug on success', async () => {
     const res = await POST(createRequest('1'), { params: { userId: '1' } });
     const body = await res.json();
     expect(res.status).toBe(200);
-    expect(body.token).toBeDefined();
+    expect(body.slug).toBeDefined();
   });
 
   it('returns 401 when session is invalid', async () => {
