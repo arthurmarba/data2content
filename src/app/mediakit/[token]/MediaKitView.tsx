@@ -190,7 +190,7 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis 
             <FaEnvelope className="w-10 h-10 mx-auto mb-4 text-pink-500"/>
             <h3 className="text-3xl lg:text-4xl font-bold mb-3">Pronto para Criar um Impacto Juntos?</h3>
             <p className="mb-8 text-gray-300 max-w-2xl mx-auto font-light">Disponível para parcerias e projetos de publicidade. Entre em contato para discutirmos como podemos colaborar.</p>
-            <a href={`mailto:${user.email}`} className="inline-block bg-pink-500 text-white px-10 py-4 rounded-lg font-semibold text-lg hover:bg-pink-600 transform hover:scale-105 transition-all duration-300 shadow-lg">
+            <a href="mailto:arthur@data2content.ai" className="inline-block bg-pink-500 text-white px-10 py-4 rounded-lg font-semibold text-lg hover:bg-pink-600 transform hover:scale-105 transition-all duration-300 shadow-lg">
               Enviar Proposta por E-mail
             </a>
           </div>
