@@ -175,7 +175,6 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis 
               </div>
               <p className="text-gray-600 mb-6 font-light">Uma amostra do conteúdo de maior impacto. <span className="font-medium text-gray-700">Clique em um post para ver a análise detalhada.</span></p>
               
-              {/* CORREÇÃO: Removidas as props 'sortConfig' e 'primaryMetric' que não são mais usadas */}
               <VideosTable 
                 videos={videos} 
                 readOnly 
@@ -185,16 +184,29 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis 
           </main>
         </div>
         
+        {/* ========= INÍCIO DA SEÇÃO ATUALIZADA ========= */}
         <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={2}>
           <div className="mt-12 bg-gray-800 text-white text-center p-8 lg:p-12 rounded-xl shadow-2xl">
             <FaEnvelope className="w-10 h-10 mx-auto mb-4 text-pink-500"/>
-            <h3 className="text-3xl lg:text-4xl font-bold mb-3">Pronto para Criar um Impacto Juntos?</h3>
-            <p className="mb-8 text-gray-300 max-w-2xl mx-auto font-light">Disponível para parcerias e projetos de publicidade. Entre em contato para discutirmos como podemos colaborar.</p>
-            <a href="mailto:arthur@data2content.ai" className="inline-block bg-pink-500 text-white px-10 py-4 rounded-lg font-semibold text-lg hover:bg-pink-600 transform hover:scale-105 transition-all duration-300 shadow-lg">
-              Enviar Proposta por E-mail
+            
+            <h3 className="text-3xl lg:text-4xl font-bold mb-3">
+              Inteligência Criativa: A Fórmula da Alta Performance.
+            </h3>
+            
+            <p className="mb-8 text-gray-300 max-w-2xl mx-auto font-light">
+              Nós decodificamos o DNA da audiência de cada criador. Com dados exclusivos, guiamos a narrativa da sua campanha, definindo o formato, contexto e horário ideais para gerar o máximo de engajamento e compartilhamentos.
+            </p>
+
+            <a 
+              href="mailto:arthur@data2content.ai?subject=Desenho de Campanha Inteligente para [Nome da Marca]" 
+              className="inline-block bg-pink-500 text-white px-10 py-4 rounded-lg font-semibold text-lg hover:bg-pink-600 transform hover:scale-105 transition-all duration-300 shadow-lg"
+            >
+              Desenhar Campanha Inteligente
             </a>
           </div>
         </motion.div>
+        {/* ========= FIM DA SEÇÃO ATUALIZADA ========= */}
+
       </div>
 
       <PostDetailModal
