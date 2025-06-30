@@ -1,14 +1,15 @@
 // src/app/api/whatsapp/process-response/dailyTipHandler.ts
-// Versão: v1.4.5 (Corrige erro de tipo 'implicitly has an any type' para 'entry')
-// - ATUALIZADO: Adicionada tipagem explícita para o parâmetro 'entry' no filter de updatedFallbackHistory.
-// - Baseado na v1.4.4 (Corrige erro de tipo 'implicitly has an any type' para 'h').
+// Versão: v1.5.1 (Fix: Corrige erro de importação de constantes de template)
+// - ATUALIZADO: Constantes de template agora são lidas diretamente das variáveis de ambiente.
+// - ATUALIZADO: Removida a importação das constantes de template do arquivo constants.ts.
+// - Baseado na v1.5.0
 
 import { NextResponse } from 'next/server';
 import { logger } from '@/app/lib/logger';
-import { sendWhatsAppMessage } from '@/app/lib/whatsappService';
+// ATUALIZADO: Importa a nova função e os tipos de template.
+import { sendTemplateMessage, ITemplateComponent, sendWhatsAppMessage } from '@/app/lib/whatsappService';
 import { askLLMWithEnrichedContext } from '@/app/lib/aiOrchestrator';
 import * as stateService from '@/app/lib/stateService';
-// Importar IFallbackInsightHistoryEntry
 import type { IDialogueState, ILastResponseContext, IFallbackInsightHistoryEntry } from '@/app/lib/stateService'; 
 import * as dataService from '@/app/lib/dataService';
 import type { IEnrichedReport, IAccountInsight } from '@/app/lib/dataService';
@@ -33,7 +34,12 @@ import { subDays } from 'date-fns';
 
 import * as fallbackInsightService from '@/app/lib/fallbackInsightService';
 
-const HANDLER_TAG_BASE = '[DailyTipHandler v1.4.5]'; // Tag da versão atualizada
+const HANDLER_TAG_BASE = '[DailyTipHandler v1.5.1]'; // Tag da versão atualizada
+
+// CORREÇÃO: Define as constantes de template a partir das variáveis de ambiente.
+const PROACTIVE_ALERT_TEMPLATE_NAME = process.env.PROACTIVE_ALERT_TEMPLATE_NAME;
+const GENERIC_ERROR_TEMPLATE_NAME = process.env.GENERIC_ERROR_TEMPLATE_NAME;
+
 
 async function extractContextFromRadarResponse(
     aiResponseText: string,
@@ -182,54 +188,47 @@ Pergunta instigante (ou "NO_QUESTION"):
     }
 }
 
-
 export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextResponse> {
-    console.log("!!!!!!!!!! EXECUTANDO handleDailyTip LOCALMENTE VIA QSTASH WEBHOOK !!!!!!!!!! USER ID:", payload.userId, new Date().toISOString());
+    console.log("!!!!!!!!!! EXECUTANDO handleDailyTip (v1.5.1) !!!!!!!!!! USER ID:", payload.userId, new Date().toISOString());
     
     const { userId } = payload;
     const handlerTAG = `${HANDLER_TAG_BASE} User ${userId}:`;
-    logger.info(`${handlerTAG} Iniciando processamento do Radar Tuca com Motor de Regras...`);
+    logger.info(`${handlerTAG} Iniciando processamento do Radar Tuca com Templates...`);
 
     let userForRadar: IUser | null = null;
     let userPhoneForRadar: string | null | undefined;
-    let dialogueStateForRadar: stateService.IDialogueState;
+    
+    if (!PROACTIVE_ALERT_TEMPLATE_NAME || !GENERIC_ERROR_TEMPLATE_NAME) {
+        logger.error(`${handlerTAG} Nomes de template (PROACTIVE_ALERT_TEMPLATE_NAME, GENERIC_ERROR_TEMPLATE_NAME) não configurados nas variáveis de ambiente. Interrompendo.`);
+        return NextResponse.json({ error: "Server configuration missing template names." }, { status: 500 });
+    }
 
     try {
         userForRadar = await dataService.lookupUserById(userId);
 
         if (!userForRadar) {
-            logger.warn(`${handlerTAG} Usuário com ID ${userId} não encontrado. Interrompendo Radar Tuca.`);
-            return NextResponse.json({ success: true, message: "User not found for Radar Tuca." }, { status: 200 });
+            logger.warn(`${handlerTAG} Usuário com ID ${userId} não encontrado.`);
+            return NextResponse.json({ success: true, message: "User not found." }, { status: 200 });
         }
-
-        dialogueStateForRadar = await stateService.getDialogueState(userId);
-        logger.debug(`${handlerTAG} Estado do diálogo ANTES de buscar insight de fallback:`, dialogueStateForRadar);
-        logger.info(`${handlerTAG} Histórico de insights de fallback (fallbackInsightsHistory) ANTES da chamada:`, dialogueStateForRadar.fallbackInsightsHistory || []);
-
 
         userPhoneForRadar = userForRadar.whatsappPhone;
         if (!userPhoneForRadar || !userForRadar.whatsappVerified) {
-            logger.warn(`${handlerTAG} Usuário ${userId} sem WhatsApp válido/verificado. Interrompendo Radar Tuca.`);
-            return NextResponse.json({ success: true, message: "User has no verified WhatsApp number for Radar Tuca." }, { status: 200 });
+            logger.warn(`${handlerTAG} Usuário ${userId} sem WhatsApp válido/verificado.`);
+            return NextResponse.json({ success: true, message: "User has no verified WhatsApp number." }, { status: 200 });
         }
-
+        
+        const dialogueStateForRadar = await stateService.getDialogueState(userId);
         const userNameForRadar = userForRadar.name || 'você';
         const userFirstNameForRadar = userNameForRadar.split(' ')[0]!;
         const today = new Date();
-        let detectedEvent: DetectedEvent | null = null;
-
+        
         logger.info(`${handlerTAG} Executando o motor de regras...`);
+        const detectedEvent = await ruleEngineInstance.runAllRules(userId, dialogueStateForRadar);
 
-        try {
-            detectedEvent = await ruleEngineInstance.runAllRules(userId, dialogueStateForRadar);
-        } catch (engineError) {
-            logger.error(`${handlerTAG} Erro ao executar o motor de regras:`, engineError);
-            throw engineError; 
-        }
-
+        // --- Bloco de Fallback (Nenhum evento detectado) ---
         if (!detectedEvent) {
-            logger.info(`${handlerTAG} Nenhum evento notável detectado pelo motor de regras. Tentando extrair insight de fallback...`);
-
+            logger.info(`${handlerTAG} Nenhum evento detectado. Gerando insight de fallback...`);
+            
             let baseDefaultMessage = `Olá ${userFirstNameForRadar}, Tuca na área! 👋`;
             let enrichedReportForFallback: IEnrichedReport | null = null;
             let latestAccountInsightsForFallback: IAccountInsight | null = null;
@@ -252,9 +251,7 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
                 latestAccountInsightsForFallback,
                 dialogueStateForRadar 
             );
-            logger.info(`${handlerTAG} Resultado do getFallbackInsight:`, { type: fallbackResult.type, text: fallbackResult.text ? fallbackResult.text.substring(0, 70)+'...' : 'null' });
-
-
+            
             let fallbackInsightText: string | null = null;
             let fallbackInsightType: FallbackInsightType | null = null; 
 
@@ -262,24 +259,18 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
                 fallbackInsightText = fallbackResult.text;
                 fallbackInsightType = fallbackResult.type; 
                 baseDefaultMessage += ` ${fallbackInsightText}`;
-                logger.info(`${handlerTAG} Insight de fallback selecionado (tipo: ${fallbackInsightType}): "${fallbackInsightText}"`);
             } else {
                 baseDefaultMessage += ` Dei uma olhada geral nos seus dados hoje...`;
-                logger.info(`${handlerTAG} Nenhum insight de fallback específico encontrado, usando mensagem genérica.`);
             }
-
             const instigatingQuestion = await generateInstigatingQuestionForDefaultMessage(
                 baseDefaultMessage,
                 dialogueStateForRadar,
                 userId,
                 userFirstNameForRadar
             );
-
             let finalDefaultMessageToSend = baseDefaultMessage;
             if (instigatingQuestion) {
                 finalDefaultMessageToSend += `\n\n${instigatingQuestion}`;
-            } else if (!fallbackInsightText) { 
-                finalDefaultMessageToSend += `\n\nEstou por aqui para ajudar com suas análises e ideias! 😉`;
             }
 
             let whatsappMessageIdFallback: string | undefined;
@@ -287,11 +278,19 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
             let sendErrorFallback: string | undefined;
 
             try {
-                whatsappMessageIdFallback = await sendWhatsAppMessage(userPhoneForRadar, finalDefaultMessageToSend);
+                const templateComponents: ITemplateComponent[] = [{
+                    type: 'body',
+                    parameters: [{
+                        type: 'text',
+                        text: finalDefaultMessageToSend 
+                    }]
+                }];
+
+                whatsappMessageIdFallback = await sendTemplateMessage(userPhoneForRadar, PROACTIVE_ALERT_TEMPLATE_NAME, templateComponents);
                 sendStatusFallback = 'sent';
-                logger.info(`${handlerTAG} Mensagem padrão (fallback) enviada. UserID: ${userId}, WhatsAppMsgID: ${whatsappMessageIdFallback}, Preview: "${finalDefaultMessageToSend.substring(0,100)}..."`);
+                logger.info(`${handlerTAG} Mensagem de fallback (template) enviada. WhatsAppMsgID: ${whatsappMessageIdFallback}`);
             } catch (sendError: any) {
-                logger.error(`${handlerTAG} FALHA AO ENVIAR mensagem padrão (fallback) para UserID: ${userId}. Erro:`, sendError);
+                logger.error(`${handlerTAG} FALHA AO ENVIAR mensagem de fallback (template). Erro:`, sendError);
                 sendErrorFallback = (sendError.message || String(sendError)).substring(0, 200);
             }
             
@@ -300,10 +299,8 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
                 updatedFallbackHistory.push({ type: fallbackInsightType, timestamp: Date.now() });
                 const HISTORY_RETENTION_DAYS = 30; 
                 const cutoffTimestamp = Date.now() - (HISTORY_RETENTION_DAYS * 24 * 60 * 60 * 1000);
-                // CORREÇÃO APLICADA AQUI: (entry: IFallbackInsightHistoryEntry)
                 updatedFallbackHistory = updatedFallbackHistory.filter((entry: IFallbackInsightHistoryEntry) => entry.timestamp >= cutoffTimestamp);
             }
-            logger.info(`${handlerTAG} Histórico de insights de fallback (fallbackInsightsHistory) A SER SALVO:`, updatedFallbackHistory);
 
             const lastResponseContext = await extractContextFromRadarResponse(finalDefaultMessageToSend, userId);
             const stateToUpdate: Partial<IDialogueState> = {
@@ -312,7 +309,6 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
                 lastResponseContext: lastResponseContext,
                 fallbackInsightsHistory: updatedFallbackHistory
             };
-            logger.debug(`${handlerTAG} Estado completo a ser salvo em updateDialogueState:`, stateToUpdate);
             await stateService.updateDialogueState(userId, stateToUpdate);
 
             try {
@@ -337,18 +333,13 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
             } catch (historyError) {
                 logger.error(`${handlerTAG} Falha ao registrar 'no_event_found_today_with_insight' no histórico:`, historyError);
             }
-            return NextResponse.json({ success: true, message: "No rule event, fallback insight message sent." }, { status: 200 });
+            return NextResponse.json({ success: true, message: "No rule event, fallback insight message sent via template." }, { status: 200 });
         }
 
-        logger.info(`${handlerTAG} Alerta tipo '${detectedEvent.type}' detectado pelo motor de regras. Detalhes: ${JSON.stringify(detectedEvent.detailsForLog)}`);
+        // --- Bloco de Alerta (Evento detectado) ---
+        logger.info(`${handlerTAG} Alerta tipo '${detectedEvent.type}' detectado. Gerando mensagem...`);
         
-        await stateService.updateDialogueState(userId, {
-             lastRadarAlertType: detectedEvent.type,
-        });
-
         const alertInputForAI = detectedEvent.messageForAI;
-        logger.debug(`${handlerTAG} Input para IA (messageForAI): "${alertInputForAI}"`);
-
         const currentDialogueStateForAI = await stateService.getDialogueState(userId);
         
         const enrichedContextForAI: EnrichedAIContext = {
@@ -359,7 +350,6 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
             currentAlertDetails: detectedEvent.detailsForLog 
         };
 
-        logger.info(`${handlerTAG} Solicitando à LLM para gerar mensagem final do alerta. Contexto enriquecido preparado com currentAlertDetails.`);
         const { stream } = await askLLMWithEnrichedContext(
             enrichedContextForAI,
             alertInputForAI,
@@ -410,7 +400,6 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
         }
 
         if (!finalAIResponse.trim()) {
-            logger.warn(`${handlerTAG} IA não retornou conteúdo para o alerta. Usando fallback.`);
             finalAIResponse = `Olá ${userFirstNameForRadar}! Radar Tuca aqui com uma observação sobre ${detectedEvent.type}: ${alertInputForAI} Que tal explorarmos isso juntos?`;
         }
 
@@ -426,17 +415,23 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
             fullAlertMessageToUser += `\n\n${instigatingQuestionForAlert}`;
         }
         
-        let alertEntryDetails: AlertDetails & { whatsappMessageId?: string; sendStatus?: string; sendError?: string; } = { 
-            ...detectedEvent.detailsForLog 
-        };
+        let alertEntryDetails: AlertDetails & { whatsappMessageId?: string; sendStatus?: string; sendError?: string; } = { ...detectedEvent.detailsForLog };
 
         try {
-            const wamid = await sendWhatsAppMessage(userPhoneForRadar, fullAlertMessageToUser);
-            logger.info(`${handlerTAG} Alerta do Radar Tuca enviado. UserID: ${userId}, WhatsAppMsgID: ${wamid}, Preview: "${fullAlertMessageToUser.substring(0, 100)}..."`);
+            const templateComponents: ITemplateComponent[] = [{
+                type: 'body',
+                parameters: [{
+                    type: 'text',
+                    text: fullAlertMessageToUser
+                }]
+            }];
+
+            const wamid = await sendTemplateMessage(userPhoneForRadar, PROACTIVE_ALERT_TEMPLATE_NAME, templateComponents);
+            logger.info(`${handlerTAG} Alerta do Radar (template) enviado. WhatsAppMsgID: ${wamid}`);
             alertEntryDetails.whatsappMessageId = wamid;
             alertEntryDetails.sendStatus = 'sent';
         } catch (sendError: any) {
-            logger.error(`${handlerTAG} FALHA AO ENVIAR alerta do Radar Tuca para UserID: ${userId}. Erro:`, sendError);
+            logger.error(`${handlerTAG} FALHA AO ENVIAR alerta do Radar (template). Erro:`, sendError);
             alertEntryDetails.sendStatus = 'failed';
             alertEntryDetails.sendError = (sendError.message || String(sendError)).substring(0, 200);
         }
@@ -451,7 +446,6 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
                 userInteraction: { type: 'pending_interaction', interactedAt: today }
             };
             await dataService.addAlertToHistory(userId, newAlertEntry);
-            logger.info(`${handlerTAG} Alerta tipo '${detectedEvent.type}' (status: ${alertEntryDetails.sendStatus}) registrado no histórico.`);
         } catch (historySaveError) {
             logger.error(`${handlerTAG} Falha ao salvar alerta tipo '${detectedEvent.type}' no histórico:`, historySaveError);
         }
@@ -464,18 +458,22 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
             fallbackInsightsHistory: currentDialogueStateForAI.fallbackInsightsHistory 
         });
 
-        return NextResponse.json({ success: true, message: `Radar Tuca alert '${detectedEvent.type}' processed by rule engine.` }, { status: 200 });
+        return NextResponse.json({ success: true, message: `Radar alert '${detectedEvent.type}' processed via template.` }, { status: 200 });
 
     } catch (error) {
         logger.error(`${handlerTAG} Erro GERAL ao processar Radar Tuca para User ${userId}:`, error);
 
-        if (userPhoneForRadar && userForRadar) {
+        if (userPhoneForRadar) {
             try {
                 const errorMessageContent = "Desculpe, não consegui gerar seu alerta diário do Radar Tuca hoje devido a um erro interno. Mas estou aqui se precisar de outras análises! 👍";
-                const wamid = await sendWhatsAppMessage(userPhoneForRadar, errorMessageContent);
-                logger.info(`${handlerTAG} Mensagem de erro (Radar Tuca geral) enviada. UserID: ${userId}, WhatsAppMsgID: ${wamid}`);
+                const templateComponents: ITemplateComponent[] = [{
+                    type: 'body',
+                    parameters: [{ type: 'text', text: errorMessageContent }]
+                }];
+                const wamid = await sendTemplateMessage(userPhoneForRadar, GENERIC_ERROR_TEMPLATE_NAME, templateComponents);
+                logger.info(`${handlerTAG} Mensagem de erro (template) enviada. WhatsAppMsgID: ${wamid}`);
             } catch (e: any) {
-                logger.error(`${handlerTAG} Falha CRÍTICA ao enviar mensagem de erro (Radar Tuca geral) para UserID: ${userId}:`, e);
+                logger.error(`${handlerTAG} Falha CRÍTICA ao enviar mensagem de erro (template) para UserID: ${userId}:`, e);
             }
         }
         if (userId) { 
