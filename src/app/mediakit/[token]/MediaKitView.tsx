@@ -213,6 +213,7 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis 
         isOpen={selectedPostId !== null}
         onClose={handleCloseModal}
         postId={selectedPostId}
+        publicMode
       />
     </div>
   );
