@@ -1,12 +1,10 @@
 // src/app/api/whatsapp/process-response/dailyTipHandler.ts
-// Versão: v1.5.1 (Fix: Corrige erro de importação de constantes de template)
-// - ATUALIZADO: Constantes de template agora são lidas diretamente das variáveis de ambiente.
-// - ATUALIZADO: Removida a importação das constantes de template do arquivo constants.ts.
-// - Baseado na v1.5.0
+// Versão: v1.5.2 (Fix: Simplifica o envio do template de erro)
+// - ATUALIZADO: O template de erro agora é enviado sem parâmetros, pois o texto é estático.
+// - Baseado na v1.5.1
 
 import { NextResponse } from 'next/server';
 import { logger } from '@/app/lib/logger';
-// ATUALIZADO: Importa a nova função e os tipos de template.
 import { sendTemplateMessage, ITemplateComponent, sendWhatsAppMessage } from '@/app/lib/whatsappService';
 import { askLLMWithEnrichedContext } from '@/app/lib/aiOrchestrator';
 import * as stateService from '@/app/lib/stateService';
@@ -34,9 +32,8 @@ import { subDays } from 'date-fns';
 
 import * as fallbackInsightService from '@/app/lib/fallbackInsightService';
 
-const HANDLER_TAG_BASE = '[DailyTipHandler v1.5.1]'; // Tag da versão atualizada
+const HANDLER_TAG_BASE = '[DailyTipHandler v1.5.2]'; // Tag da versão atualizada
 
-// CORREÇÃO: Define as constantes de template a partir das variáveis de ambiente.
 const PROACTIVE_ALERT_TEMPLATE_NAME = process.env.PROACTIVE_ALERT_TEMPLATE_NAME;
 const GENERIC_ERROR_TEMPLATE_NAME = process.env.GENERIC_ERROR_TEMPLATE_NAME;
 
@@ -189,7 +186,7 @@ Pergunta instigante (ou "NO_QUESTION"):
 }
 
 export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextResponse> {
-    console.log("!!!!!!!!!! EXECUTANDO handleDailyTip (v1.5.1) !!!!!!!!!! USER ID:", payload.userId, new Date().toISOString());
+    console.log("!!!!!!!!!! EXECUTANDO handleDailyTip (v1.5.2) !!!!!!!!!! USER ID:", payload.userId, new Date().toISOString());
     
     const { userId } = payload;
     const handlerTAG = `${HANDLER_TAG_BASE} User ${userId}:`;
@@ -465,13 +462,11 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
 
         if (userPhoneForRadar) {
             try {
-                const errorMessageContent = "Desculpe, não consegui gerar seu alerta diário do Radar Tuca hoje devido a um erro interno. Mas estou aqui se precisar de outras análises! 👍";
-                const templateComponents: ITemplateComponent[] = [{
-                    type: 'body',
-                    parameters: [{ type: 'text', text: errorMessageContent }]
-                }];
+                // ATUALIZADO: O template de erro agora é estático e não precisa de parâmetros.
+                // A mensagem completa está no próprio template aprovado na plataforma da Meta.
+                const templateComponents: ITemplateComponent[] = []; // Envia um array vazio
                 const wamid = await sendTemplateMessage(userPhoneForRadar, GENERIC_ERROR_TEMPLATE_NAME, templateComponents);
-                logger.info(`${handlerTAG} Mensagem de erro (template) enviada. WhatsAppMsgID: ${wamid}`);
+                logger.info(`${handlerTAG} Mensagem de erro (template estático) enviada. WhatsAppMsgID: ${wamid}`);
             } catch (e: any) {
                 logger.error(`${handlerTAG} Falha CRÍTICA ao enviar mensagem de erro (template) para UserID: ${userId}:`, e);
             }
