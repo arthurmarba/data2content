@@ -1,7 +1,8 @@
 // src/app/api/whatsapp/process-response/dailyTipHandler.ts
-// Versão: v1.5.2 (Fix: Simplifica o envio do template de erro)
-// - ATUALIZADO: O template de erro agora é enviado sem parâmetros, pois o texto é estático.
-// - Baseado na v1.5.1
+// Versão: v1.5.3 (Fix: Remove quebras de linha do texto do template)
+// - ATUALIZADO: Adicionada sanitização para remover `\n` do texto enviado como variável do template,
+//   para cumprir com as regras da API do WhatsApp.
+// - Baseado na v1.5.2
 
 import { NextResponse } from 'next/server';
 import { logger } from '@/app/lib/logger';
@@ -32,7 +33,7 @@ import { subDays } from 'date-fns';
 
 import * as fallbackInsightService from '@/app/lib/fallbackInsightService';
 
-const HANDLER_TAG_BASE = '[DailyTipHandler v1.5.2]'; // Tag da versão atualizada
+const HANDLER_TAG_BASE = '[DailyTipHandler v1.5.3]'; // Tag da versão atualizada
 
 const PROACTIVE_ALERT_TEMPLATE_NAME = process.env.PROACTIVE_ALERT_TEMPLATE_NAME;
 const GENERIC_ERROR_TEMPLATE_NAME = process.env.GENERIC_ERROR_TEMPLATE_NAME;
@@ -186,7 +187,7 @@ Pergunta instigante (ou "NO_QUESTION"):
 }
 
 export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextResponse> {
-    console.log("!!!!!!!!!! EXECUTANDO handleDailyTip (v1.5.2) !!!!!!!!!! USER ID:", payload.userId, new Date().toISOString());
+    console.log("!!!!!!!!!! EXECUTANDO handleDailyTip (v1.5.3) !!!!!!!!!! USER ID:", payload.userId, new Date().toISOString());
     
     const { userId } = payload;
     const handlerTAG = `${HANDLER_TAG_BASE} User ${userId}:`;
@@ -279,7 +280,8 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
                     type: 'body',
                     parameters: [{
                         type: 'text',
-                        text: finalDefaultMessageToSend 
+                        // CORREÇÃO: Remove quebras de linha antes de enviar
+                        text: finalDefaultMessageToSend.replace(/\n/g, ' ')
                     }]
                 }];
 
@@ -419,7 +421,8 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
                 type: 'body',
                 parameters: [{
                     type: 'text',
-                    text: fullAlertMessageToUser
+                    // CORREÇÃO: Remove quebras de linha antes de enviar
+                    text: fullAlertMessageToUser.replace(/\n/g, ' ')
                 }]
             }];
 
