@@ -146,7 +146,7 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
       setIsLoading(false);
       setError(null);
     }
-  }, [isOpen, postId]);
+  }, [isOpen, postId, publicMode]);
 
   if (!isOpen || !postId) {
     return null;

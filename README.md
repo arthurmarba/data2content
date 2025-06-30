@@ -105,6 +105,18 @@ Example:
 |---------------------|------:|------:|---------:|
 | ![thumb](public/images/default-profile.png) [Primeiro Reels](https://instagram.com/p/abc123) | 10k | 520 | 30 |
 
+### Public Post Details Endpoint
+
+The Media Kit uses a public API route to fetch information about a single post
+without requiring authentication. The endpoint is:
+
+```http
+GET /api/v1/posts/{postId}/details
+```
+
+Only non-sensitive fields are returned, making it safe for unauthenticated
+requests.
+
 ### Media Kit Slugs
 
 Media kit links are now created using a slug based on the creator's name.
