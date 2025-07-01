@@ -1,6 +1,6 @@
 /**
  * @fileoverview API Endpoint (Worker) for classifying content based on its description.
- * @version 3.0.0 - Implemented full 5-dimension classification using an LLM.
+ * @version 5.0.1 - Fixed a code path that did not return a value.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -28,9 +28,9 @@ const receiver = new Receiver({
 });
 
 /**
- * Interface para o resultado da classificação, esperando 5 arrays de strings.
+ * Interface para o resultado da classificação.
  */
-interface ClassificationResultFromService {
+interface ClassificationResult {
   format: string[];
   proposal: string[];
   context: string[];
@@ -38,13 +38,10 @@ interface ClassificationResultFromService {
   references: string[];
 }
 
-// --- Nova Função de Classificação com IA ---
+// --- Função de Classificação Otimizada com OpenAI ---
 
-/**
- * Constrói uma string de descrição para uma lista de categorias para ser usada no prompt da IA.
- * @param categories - Array de categorias a serem formatadas.
- * @returns Uma string formatada descrevendo as categorias.
- */
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 const buildCategoryDescriptions = (categories: Category[]): string => {
   return categories.map(cat => {
     let desc = `- **${cat.id} (${cat.label}):** ${cat.description}`;
@@ -58,106 +55,124 @@ const buildCategoryDescriptions = (categories: Category[]): string => {
   }).join('\n');
 };
 
-/**
- * Classifica o conteúdo de uma descrição usando um modelo de linguagem generativo.
- * @param description - A descrição do post a ser classificada.
- * @returns Uma promessa que resolve para o resultado da classificação.
- */
-async function classifyContent(description: string): Promise<ClassificationResultFromService> {
-    const TAG = '[classifyContent v3.0.0]';
-    logger.info(`${TAG} Iniciando classificação para descrição: "${description.substring(0, 50)}..."`);
+function normalizeClassification(rawResult: any): ClassificationResult {
+    const normalized: ClassificationResult = {
+        format: [], proposal: [], context: [], tone: [], references: [],
+    };
+    const keyMapping: { [K in keyof ClassificationResult]: string[] } = {
+        format: ['format', 'formato do conteúdo', 'formato'],
+        proposal: ['proposal', 'proposta'],
+        context: ['context', 'contexto'],
+        tone: ['tone', 'tom'],
+        references: ['references', 'referências', 'referencias'],
+    };
 
-    const prompt = `
-      Analise a seguinte descrição de um post de mídia social e classifique-a em CINCO dimensões: Formato, Proposta, Contexto, Tom e Referências.
-      Para cada dimensão, retorne um array com os IDs das categorias mais relevantes. Você PODE retornar múltiplos IDs para cada dimensão se aplicável.
+    const flattenValue = (value: any): string[] => {
+        if (Array.isArray(value)) {
+            return value.flatMap(flattenValue);
+        }
+        if (typeof value === 'object' && value !== null) {
+            return flattenValue(Object.values(value));
+        }
+        if (typeof value === 'string') {
+            return [value];
+        }
+        return [];
+    };
 
-      **Descrição do Post para Análise:**
-      "${description}"
+    for (const rawKey in rawResult) {
+        const cleanedKey = rawKey.toLowerCase().replace(/[\d.]/g, '').trim();
+        const standardKey = Object.keys(keyMapping).find(k => 
+            keyMapping[k as keyof ClassificationResult].includes(cleanedKey)
+        ) as keyof ClassificationResult | undefined;
 
-      ---
+        if (standardKey) {
+            const value = rawResult[rawKey];
+            const flatValues = flattenValue(value);
+            normalized[standardKey].push(...flatValues);
+        }
+    }
+    
+    for (const key in normalized) {
+        const typedKey = key as keyof ClassificationResult;
+        normalized[typedKey] = [...new Set(normalized[typedKey])].filter(v => typeof v === 'string' && v.length > 0);
+    }
+    return normalized;
+}
 
-      **Dimensões e Categorias Disponíveis (use os IDs):**
+async function classifyContent(description: string): Promise<ClassificationResult> {
+    const TAG = '[classifyContent_Final_Optimized]';
+    if (!description || description.trim() === '') {
+        return { format: [], proposal: [], context: [], tone: [], references: [] };
+    }
 
-      **1. Formato do Conteúdo:**
-      ${buildCategoryDescriptions(formatCategories)}
+    const systemPrompt = `
+      Você é um especialista em análise de conteúdo de mídias sociais. Sua tarefa é analisar a descrição de um post, incluindo as hashtags, e classificá-lo em CINCO dimensões.
 
-      **2. Proposta (O objetivo principal do post):**
-      ${buildCategoryDescriptions(proposalCategories)}
-
-      **3. Contexto (O tópico ou área de interesse principal):**
-      ${buildCategoryDescriptions(contextCategories)}
-
-      **4. Tom (A abordagem emocional ou sentimento):**
-      ${buildCategoryDescriptions(toneCategories)}
-
-      **5. Referências (Elementos culturais, geográficos ou sociais específicos mencionados):**
-      ${buildCategoryDescriptions(referenceCategories)}
-
-      ---
-
-      **Instruções de Saída:**
-      - Forneça sua resposta em formato JSON.
-      - Para cada dimensão (format, proposal, context, tone, references), retorne um array de strings contendo os IDs das categorias que você identificou.
-      - Se nenhuma categoria de uma dimensão se aplicar, retorne um array vazio para essa dimensão.
+      **REGRAS CRÍTICAS PARA SEGUIR:**
+      1.  **USE APENAS IDs:** Sua resposta DEVE conter apenas os IDs das categorias fornecidas. NUNCA use os rótulos em texto (ex: use 'humor_scene', não 'Humor/Cena').
+      2.  **NÃO INVENTE CATEGORIAS:** Use EXCLUSIVAMENTE os IDs da lista. Se uma categoria não se encaixar perfeitamente, escolha a mais próxima ou retorne um array vazio.
+      3.  **HASHTAGS SÃO A CHAVE:** Analise as hashtags (#) com muita atenção. Elas são a pista principal para definir o 'Contexto' e também podem indicar a 'Proposta' (ex: #humor indica a proposta 'humor_scene').
+      4.  **PREFIRA A ESPECIFICIDADE:** Ao classificar 'Contexto' e 'Referências', se uma subcategoria se aplicar, prefira sempre o ID da subcategoria em vez do ID da categoria principal.
+      5.  **DETECTE O TOM:** Preste atenção em palavras e emojis. Risadas (haha, kkk) indicam o tom 'humorous'. Emojis de coração (💖) ou palavras de encorajamento indicam 'inspirational'.
+      6.  **SAÍDA JSON:** Sua resposta final deve ser APENAS o objeto JSON, sem nenhum texto adicional antes ou depois.
     `;
 
+    const userPrompt = `**Descrição:**\n"${description}"\n\n**Categorias:**\nFormato: ${buildCategoryDescriptions(formatCategories)}\nProposta: ${buildCategoryDescriptions(proposalCategories)}\nContexto: ${buildCategoryDescriptions(contextCategories)}\nTom: ${buildCategoryDescriptions(toneCategories)}\nReferências: ${buildCategoryDescriptions(referenceCategories)}`;
+
     const payload = {
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "OBJECT",
-          properties: {
-            "format": { "type": "ARRAY", "items": { "type": "STRING" } },
-            "proposal": { "type": "ARRAY", "items": { "type": "STRING" } },
-            "context": { "type": "ARRAY", "items": { "type": "STRING" } },
-            "tone": { "type": "ARRAY", "items": { "type": "STRING" } },
-            "references": { "type": "ARRAY", "items": { "type": "STRING" } }
-          }
-        }
-      }
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+      ],
+      response_format: { type: "json_object" }
     };
     
-    const apiKey = process.env.GEMINI_API_KEY || ""; 
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const apiKey = process.env.OPENAI_API_KEY; 
+    if (!apiKey) throw new Error("A variável de ambiente OPENAI_API_KEY não está definida.");
+    
+    const apiUrl = 'https://api.openai.com/v1/chat/completions';
 
-    try {
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
+    const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        body: JSON.stringify(payload)
+    });
 
-        if (!response.ok) {
-            const errorBody = await response.text();
-            logger.error(`${TAG} Erro na API da IA: ${response.status} ${response.statusText}`, errorBody);
-            throw new Error(`A API de classificação retornou um erro: ${response.statusText}`);
+    if (!response.ok) {
+        if (response.status === 429) {
+            const errorBody = await response.json();
+            const customError = new Error(errorBody.error.message);
+            customError.name = 'RateLimitError';
+            throw customError;
         }
+        const errorBody = await response.text();
+        throw new Error(`A API da OpenAI retornou um erro: ${response.status} ${response.statusText} - ${errorBody}`);
+    }
 
-        const result = await response.json();
-        
-        if (result.candidates && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts[0].text) {
-            const text = result.candidates[0].content.parts[0].text;
-            const parsedJson = JSON.parse(text);
-            logger.info(`${TAG} Classificação recebida da IA: ${text}`);
-            return parsedJson;
-        } else {
-            logger.error(`${TAG} Resposta da IA em formato inesperado.`, result);
-            throw new Error("A resposta da IA não continha os dados de classificação esperados.");
-        }
-    } catch (error) {
-        logger.error(`${TAG} Falha ao executar a chamada de classificação.`, error);
-        throw error;
+    const result = await response.json();
+    
+    if (result.choices?.[0]?.message?.content) {
+        const content = result.choices[0].message.content;
+        const parsedJson = JSON.parse(content);
+        const normalizedResult = normalizeClassification(parsedJson);
+        logger.info(`${TAG} Classificação recebida e normalizada: ${JSON.stringify(normalizedResult)}`);
+        return normalizedResult;
+    } else {
+        throw new Error("A resposta da OpenAI não continha os dados de classificação esperados.");
     }
 }
 
 
-async function handlerLogic(request: NextRequest) {
-    const TAG = '[Worker Classify Content v3.0.0]';
+async function handlerLogic(request: NextRequest): Promise<NextResponse> { // Adicionado tipo de retorno explícito
+    const TAG = '[Worker Classify Content v5.0.1]';
+
+    let metricId: string | undefined;
 
     try {
         const body = await request.json();
-        const { metricId } = body;
+        metricId = body.metricId;
         logger.info(`${TAG} Assinatura verificada. Recebida tarefa para Metric ID: ${metricId}`);
 
         if (!metricId || !mongoose.isValidObjectId(metricId)) {
@@ -190,51 +205,63 @@ async function handlerLogic(request: NextRequest) {
 
         logger.debug(`${TAG} Chamando classifyContent para Metric ${metricId}...`);
         
-        let classification: ClassificationResultFromService;
-        try {
-            classification = await classifyContent(metricDoc.description);
-            logger.info(`${TAG} Classificação completa recebida para Metric ${metricId}: ${JSON.stringify(classification)}`);
+        let retries = 3;
+        while (retries > 0) {
+            try {
+                const classification = await classifyContent(metricDoc.description);
+                logger.info(`${TAG} Classificação completa recebida para Metric ${metricId}: ${JSON.stringify(classification)}`);
 
-            const updateData: Partial<IMetric> = {
-                format: classification.format,
-                proposal: classification.proposal,
-                context: classification.context,
-                tone: classification.tone,
-                references: classification.references,
-                classificationStatus: 'completed',
-                classificationError: null,
-            };
+                const updateData: Partial<IMetric> = {
+                    format: classification.format,
+                    proposal: classification.proposal,
+                    context: classification.context,
+                    tone: classification.tone,
+                    references: classification.references,
+                    classificationStatus: 'completed',
+                    classificationError: null,
+                };
 
-            const updateResult = await Metric.updateOne({ _id: metricDoc._id }, { $set: updateData });
-
-            if (updateResult.modifiedCount > 0) {
+                await Metric.updateOne({ _id: metricDoc._id }, { $set: updateData });
                 logger.info(`${TAG} Metric ${metricId} atualizado com sucesso no DB com 5 dimensões (status: completed).`);
-            } else {
-                logger.warn(`${TAG} Nenhum documento foi modificado para Metric ${metricId} na atualização.`);
-            }
-            return NextResponse.json({ message: "Classificação concluída e métrica atualizada." }, { status: 200 });
+                
+                return NextResponse.json({ message: "Classificação concluída e métrica atualizada." }, { status: 200 });
 
-        } catch (classError: unknown) {
-            const errorMessage = classError instanceof Error ? classError.message : "Erro desconhecido na classificação";
-            logger.error(`${TAG} Erro ao chamar classifyContent para Metric ${metricId}: ${errorMessage}`, classError);
-            
-            await Metric.updateOne(
-                { _id: metricDoc._id },
-                { $set: { classificationStatus: 'failed', classificationError: `Erro na IA: ${errorMessage}` } }
-            );
-            
-            return NextResponse.json({ error: `Falha ao classificar conteúdo: ${errorMessage}` }, { status: 500 });
+            } catch (classError: any) {
+                if (classError.name === 'RateLimitError') {
+                    const waitMatch = classError.message.match(/Please try again in ([\d.]+)s/);
+                    const waitTime = waitMatch ? (parseFloat(waitMatch[1]) + 0.5) * 1000 : 60000;
+                    logger.warn(`${TAG} Rate limit atingido para Metric ${metricId}. Aguardando ${waitTime / 1000} segundos para tentar novamente...`);
+                    await sleep(waitTime);
+                    retries--;
+                } else {
+                    throw classError; // Lança outros erros para o catch principal
+                }
+            }
         }
+        
+        // CORREÇÃO: Se o loop terminar após todas as retentativas falharem, lança um erro.
+        // Isso garante que este caminho também seja tratado pelo bloco catch principal,
+        // cobrindo todos os caminhos de código e resolvendo o erro do TypeScript.
+        throw new Error(`Não foi possível classificar o post ${metricId} após múltiplas tentativas de rate limit.`);
 
     } catch (error: unknown) {
-        logger.error(`${TAG} Erro GERAL inesperado no worker:`, error);
         const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
-        return NextResponse.json({ error: `Erro interno do worker: ${errorMessage}` }, { status: 500 });
+        const finalMetricId = metricId || 'ID_DESCONHECIDO';
+        logger.error(`${TAG} Falha final ao processar Metric ${finalMetricId}: ${errorMessage}`, error);
+        
+        if (mongoose.isValidObjectId(finalMetricId)) {
+            await Metric.updateOne(
+                { _id: finalMetricId },
+                { $set: { classificationStatus: 'failed', classificationError: `Erro na IA: ${errorMessage}` } }
+            );
+        }
+        
+        return NextResponse.json({ error: `Falha ao classificar conteúdo: ${errorMessage}` }, { status: 500 });
     }
 }
 
 export const POST = async (request: NextRequest) => {
-    const TAG_POST = '[Worker Classify POST v3.0.0]';
+    const TAG_POST = '[Worker Classify POST v5.0.1]';
     try {
         const signature = request.headers.get("upstash-signature");
         if (!signature) {
@@ -265,5 +292,5 @@ export const POST = async (request: NextRequest) => {
 };
 
 export async function GET() {
-    return NextResponse.json({ message: "Worker de classificação v3.0.0 ativo." });
+    return NextResponse.json({ message: "Worker de classificação v5.0.1 ativo." });
 }

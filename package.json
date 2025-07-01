@@ -8,7 +8,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "jest --watchAll=false"
+    "test": "jest --watchAll=false",
+    "reclassify": "tsx --env-file=.env.local ./scripts/reclassifyAll.ts",
+    "reset-classification": "tsx --env-file=.env.local ./scripts/resetClassificationStatus.ts",
+    "ensure-indexes": "tsx --env-file=.env.local ./scripts/ensureIndexes.ts",
+    "force-clean-indexes": "tsx --env-file=.env.local ./scripts/forceCleanIndexes.ts"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.2",
