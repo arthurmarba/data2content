@@ -484,7 +484,10 @@ const getMetricDetailsById: ExecutorFn = async (args: z.infer<typeof ZodSchemas.
         }
 
         logger.info(`${fnTag} Detalhes da Métrica ${metricId} encontrados (via dataService).`);
-        if (metricDoc.format === 'Reel' && metricDoc.stats) {
+        
+        // CORREÇÃO: A propriedade `format` é um array de strings. A verificação foi alterada de `===` para `?.includes()`.
+        // Isso verifica se a string 'Reel' está presente no array `format`, o que é a intenção correta.
+        if (metricDoc.format?.includes('Reel') && metricDoc.stats) {
             logger.debug(`${fnTag} Detalhes do Reel ${metricId}: avgWatchTime(ms)=${(metricDoc.stats as IMetricStats).ig_reels_avg_watch_time}, totalWatchTime(ms)=${(metricDoc.stats as IMetricStats).ig_reels_video_view_total_time}`);
         }
         const result = {

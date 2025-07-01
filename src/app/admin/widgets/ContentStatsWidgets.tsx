@@ -4,16 +4,49 @@ import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { ChartBarIcon } from '@heroicons/react/24/outline';
 
-// CORREÇÃO: Importa os componentes centralizados
-import SkeletonBlock from '../components/SkeletonBlock';
-import EmptyState from '../components/EmptyState';
+// --- (CORREÇÃO) Componentes de Apoio (Definidos localmente) ---
+// Para resolver o erro de importação, os componentes agora estão definidos diretamente neste arquivo.
 
-// Importa os tipos do serviço modularizado
-import { IDashboardOverallStats, IFetchDashboardOverallContentStatsFilters } from '@/app/lib/dataService/marketAnalysis/types';
+const SkeletonBlock = ({ width = 'w-full', height = 'h-4', className = '', variant = 'rectangle' }: { width?: string; height?: string; className?: string; variant?: 'rectangle' | 'circle' }) => {
+  const baseClasses = "bg-gray-200 animate-pulse";
+  const shapeClass = variant === 'circle' ? 'rounded-full' : 'rounded';
+  return <div className={`${baseClasses} ${width} ${height} ${shapeClass} ${className}`}></div>;
+};
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82Ca9D'];
+const EmptyState = ({ icon, title, message }: { icon: React.ReactNode; title: string; message: string; }) => (
+  <div className="text-center py-8">
+    <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-gray-100">{icon}</div>
+    <h3 className="mt-2 text-sm font-semibold text-gray-900">{title}</h3>
+    <p className="mt-1 text-sm text-gray-500">{message}</p>
+  </div>
+);
 
-// Funções utilitárias
+
+// --- Tipos e Interfaces ---
+
+// ATUALIZADO: A interface de estatísticas agora inclui os breakdowns para as 5 dimensões.
+// A API que fornece estes dados (`/api/admin/dashboard/content-stats`) deve ser atualizada para retornar estes campos.
+interface IDashboardOverallStats {
+  totalPlatformPosts?: number;
+  averagePlatformEngagementRate?: number;
+  totalContentCreators?: number;
+  breakdownByFormat?: { format: string; count: number }[];
+  breakdownByProposal?: { proposal: string; count: number }[];
+  breakdownByContext?: { context: string; count: number }[];
+  breakdownByTone?: { tone: string; count: number }[];
+  breakdownByReferences?: { reference: string; count: number }[];
+}
+
+interface IFetchDashboardOverallContentStatsFilters {
+  dateRange?: {
+    startDate: Date;
+    endDate: Date;
+  };
+}
+
+
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82Ca9D', '#FF5733', '#C70039'];
+
 const formatKpiValue = (value?: number | string): string => {
   if (value === null || typeof value === 'undefined') return 'N/A';
   if (typeof value === 'string') return value;
@@ -105,16 +138,12 @@ const ContentStatsWidgets = memo(function ContentStatsWidgets({ dateRangeFilter 
           ))}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {Array.from({ length: 2 }).map((_, index) => (
+          {Array.from({ length: 4 }).map((_, index) => (
              <div key={`chart-skel-rect-${index}`} className="p-4 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[300px]">
-                <SkeletonBlock width="w-1/3" height="h-4 mb-3" />
-                <SkeletonBlock variant="rectangle" width="w-full" height="h-64" />
+                <SkeletonBlock width="w-1/3" height="h-4" className="mb-3" />
+                <SkeletonBlock width="w-full" height="h-64" />
              </div>
           ))}
-        </div>
-        <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[300px]">
-            <SkeletonBlock width="w-1/3" height="h-4 mb-3" />
-            <SkeletonBlock variant="rectangle" width="w-full" height="h-64" />
         </div>
       </div>
     );
@@ -135,7 +164,6 @@ const ContentStatsWidgets = memo(function ContentStatsWidgets({ dateRangeFilter 
   }
 
   if (!stats || kpis.length === 0) {
-    // CORREÇÃO: Usa o componente EmptyState centralizado.
     return (
       <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[400px] flex justify-center items-center">
         <EmptyState 
@@ -202,9 +230,8 @@ const ContentStatsWidgets = memo(function ContentStatsWidgets({ dateRangeFilter 
             </ResponsiveContainer>
           ) : <p className="text-sm text-gray-400 text-center pt-10">Dados não disponíveis.</p>}
         </div>
-      </div>
 
-       <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[300px]">
+        <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[300px]">
           <h4 className="text-md font-semibold text-gray-800 mb-1">Posts por Contexto</h4>
           <p className="text-xs text-gray-400 mb-3">Distribuição de conteúdo por contexto principal.</p>
           {stats.breakdownByContext && stats.breakdownByContext.length > 0 ? (
@@ -219,6 +246,53 @@ const ContentStatsWidgets = memo(function ContentStatsWidgets({ dateRangeFilter 
             </ResponsiveContainer>
           ) : <p className="text-sm text-gray-400 text-center pt-10">Dados não disponíveis.</p>}
         </div>
+        
+        {/* NOVO: Gráfico de Tom */}
+        <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[300px]">
+          <h4 className="text-md font-semibold text-gray-800 mb-1">Posts por Tom</h4>
+          <p className="text-xs text-gray-400 mb-3">Distribuição de conteúdo pelo tom emocional.</p>
+           {stats.breakdownByTone && stats.breakdownByTone.length > 0 ? (
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie
+                  data={stats.breakdownByTone}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  outerRadius={80}
+                  fill="#FFBB28"
+                  dataKey="count"
+                  nameKey="tone"
+                  label={({ name, percent }) => `${name} (${(percent! * 100).toFixed(0)}%)`}
+                >
+                  {stats.breakdownByTone.map((entry: { tone: string; count: number }, index: number) => (
+                    <Cell key={`cell-tone-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value: number, name: string) => [value.toLocaleString('pt-BR'), name]} />
+                <Legend formatter={(value) => <span className="text-gray-600 text-xs truncate max-w-[100px]" title={value}>{value}</span>} wrapperStyle={{ fontSize: "10px", marginTop: "10px" }}/>
+              </PieChart>
+            </ResponsiveContainer>
+          ) : <p className="text-sm text-gray-400 text-center pt-10">Dados não disponíveis.</p>}
+        </div>
+
+        {/* NOVO: Gráfico de Referências */}
+        <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[300px] col-span-1 lg:col-span-2">
+          <h4 className="text-md font-semibold text-gray-800 mb-1">Posts por Referência</h4>
+          <p className="text-xs text-gray-400 mb-3">Distribuição de conteúdo por tipo de referência.</p>
+          {stats.breakdownByReferences && stats.breakdownByReferences.length > 0 ? (
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={stats.breakdownByReferences} margin={{ top: 5, right: 30, left: 20, bottom: 50 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" />
+                <XAxis dataKey="reference" angle={-35} textAnchor="end" interval={0} fontSize={10} height={60} />
+                <YAxis fontSize={10} tickFormatter={(value) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(value as number)} />
+                <Tooltip formatter={(value: number) => [value.toLocaleString('pt-BR'), "Posts"]} cursor={{ fill: 'rgba(79, 70, 229, 0.05)' }} />
+                <Bar dataKey="count" fill="#FF8042" radius={[4, 4, 0, 0]} barSize={20} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : <p className="text-sm text-gray-400 text-center pt-10">Dados não disponíveis.</p>}
+        </div>
+      </div>
     </div>
   );
 });

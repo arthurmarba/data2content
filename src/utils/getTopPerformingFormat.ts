@@ -1,4 +1,4 @@
-// src/utils/getLowPerformingFormat.ts
+// src/utils/getTopPerformingFormat.ts
 
 import MetricModel, { IMetric } from "@/app/models/Metric";
 import { Types } from "mongoose";
@@ -59,15 +59,25 @@ async function getTopPerformingFormat(
     > = {};
 
     for (const post of posts) {
-      const format = (post.format ?? "unknown") as FormatType;
+      // CORREÇÃO: O erro ocorre porque 'post.format' é um array de strings (string[]),
+      // não uma única string. A lógica foi ajustada para iterar sobre cada formato
+      // dentro do array. Isso garante que cada formato seja processado individualmente,
+      // resolvendo o erro de tipo.
+      const formats = post.format;
       const perf = getNestedValue(post, performanceMetricField);
-      if (perf == null) continue;
+      if (perf == null || typeof perf !== 'number') continue;
 
-      if (!performanceByFormat[format]) {
-        performanceByFormat[format] = { sumPerformance: 0, count: 0 };
+      if (Array.isArray(formats)) {
+        for (const format of formats) {
+            if (!format) continue; // Pula valores vazios no array
+
+            if (!performanceByFormat[format]) {
+                performanceByFormat[format] = { sumPerformance: 0, count: 0 };
+            }
+            performanceByFormat[format].sumPerformance += perf;
+            performanceByFormat[format].count += 1;
+        }
       }
-      performanceByFormat[format].sumPerformance += perf;
-      performanceByFormat[format].count += 1;
     }
 
     let topFormat: FormatType | null = null;

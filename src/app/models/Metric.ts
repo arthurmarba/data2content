@@ -1,23 +1,14 @@
-// @/app/models/Metric.ts - v1.5.2
-// OTTIMIZAÇÃO: A análise confirmou que este modelo já possui uma estratégia de
-// indexação muito robusta e abrangente. Os índices compostos existentes, como
-// `{ user: 1, format: 1, proposal: 1, context: 1, postDate: -1 }`, são
-// perfeitamente adequados para as consultas complexas de filtragem e ranking
-// do dashboard. Nenhuma alteração é necessária.
+// @/app/models/Metric.ts - v2.0
+// OTIMIZAÇÃO: Modelo atualizado para suportar a nova estrutura de classificação de 5 dimensões.
+// Os campos de classificação agora são arrays de strings para permitir múltiplos rótulos.
+// Novos campos 'tone' e 'references' foram adicionados com indexação para otimizar consultas.
 
 import { Schema, model, models, Document, Model, Types } from "mongoose";
-import {
-    VALID_FORMATS,
-    VALID_PROPOSALS,
-    VALID_CONTEXTS,
-    FormatType,
-    ProposalType,
-    ContextType
-} from "@/app/lib/constants/communityInspirations.constants";
 
-const DEFAULT_FORMAT_ENUM: FormatType = "Desconhecido"; 
-const DEFAULT_PROPOSAL_ENUM: ProposalType = "Outro Propósito"; 
-const DEFAULT_CONTEXT_ENUM: ContextType = "Geral"; 
+// NOTA: As importações de constantes (VALID_FORMATS, etc.) foram removidas.
+// A validação agora deve ser feita na camada de serviço, usando os dados
+// do arquivo 'classification.ts' como única fonte da verdade. Isso torna o sistema mais coeso.
+
 const DEFAULT_MEDIA_TYPE = 'UNKNOWN';
 
 export interface IMetricStats {
@@ -64,22 +55,24 @@ export interface IMetricStats {
   [key: string]: unknown;
 }
 
+// ATUALIZADO: Interface IMetric com os novos campos e tipos de dados
 export interface IMetric extends Document {
-  // ... (interface IMetric sem alterações) ...
   user: Types.ObjectId;
   postLink: string;
   description: string;
   postDate: Date;
-  type: 'IMAGE' | 'CAROUSEL_ALBUM' | 'VIDEO' | 'REEL' | 'STORY' | 'UNKNOWN' | string;
-  format?: FormatType;
-  proposal?: ProposalType;
-  context?: ContextType;
+  type: string; // Simplificado para string, a validação ocorre na lógica de negócio
+  format: string[]; // Alterado para array de strings
+  proposal: string[]; // Alterado para array de strings
+  context: string[]; // Alterado para array de strings
+  tone: string[]; // NOVO: Campo para Tom/Sentimento
+  references: string[]; // NOVO: Campo para Referências
   theme?: string;
   collab?: boolean;
   collabCreator?: string;
   coverUrl?: string;
   instagramMediaId?: string;
-  source: 'manual' | 'api' | 'document_ai'; 
+  source: 'manual' | 'api' | 'document_ai';
   classificationStatus: 'pending' | 'completed' | 'failed';
   classificationError?: string | null;
   rawData: unknown[];
@@ -88,23 +81,25 @@ export interface IMetric extends Document {
   updatedAt: Date;
 }
 
+// ATUALIZADO: Schema do Mongoose alinhado com a nova interface
 const metricSchema = new Schema<IMetric>(
   {
-    // ... (definições de schema sem alterações) ...
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     postLink: { type: String, default: "" },
     description: { type: String, default: "" },
     postDate: { type: Date, required: true, index: true },
     type: { type: String, default: DEFAULT_MEDIA_TYPE, index: true },
-    format: { type: String, enum: VALID_FORMATS, default: DEFAULT_FORMAT_ENUM, index: true, trim: true },
-    proposal: { type: String, enum: VALID_PROPOSALS, default: DEFAULT_PROPOSAL_ENUM, index: true, trim: true },
-    context: { type: String, enum: VALID_CONTEXTS, default: DEFAULT_CONTEXT_ENUM, index: true, trim: true },
+    format: { type: [String], default: [], index: true }, // Alterado para array
+    proposal: { type: [String], default: [], index: true }, // Alterado para array
+    context: { type: [String], default: [], index: true }, // Alterado para array
+    tone: { type: [String], default: [], index: true }, // NOVO
+    references: { type: [String], default: [], index: true }, // NOVO
     theme: { type: String, trim: true, default: null },
     collab: { type: Boolean, default: false },
     collabCreator: { type: String, trim: true, default: null },
     coverUrl: { type: String, trim: true, default: null },
     instagramMediaId: { type: String, index: true, sparse: true, default: null },
-    source: { type: String, enum: ['manual', 'api', 'document_ai'], required: [true, 'A fonte do dado (source) é obrigatória.'], default: 'manual', index: true },
+    source: { type: String, enum: ['manual', 'api', 'document_ai'], required: true, default: 'manual', index: true },
     classificationStatus: { type: String, enum: ['pending', 'completed', 'failed'], default: 'pending', index: true },
     classificationError: { type: String, default: null },
     rawData: { type: Array, default: [] },
@@ -115,15 +110,27 @@ const metricSchema = new Schema<IMetric>(
   }
 );
 
-// Índices existentes já são ótimos.
-metricSchema.index({ user: 1, createdAt: -1 });
+// --- ESTRATÉGIA DE INDEXAÇÃO ATUALIZADA ---
+// Mantém os índices essenciais e adiciona um novo índice composto abrangente.
 metricSchema.index({ user: 1, postDate: -1 });
-metricSchema.index({ user: 1, format: 1, proposal: 1, context: 1, postDate: -1 }); 
 metricSchema.index({ user: 1, instagramMediaId: 1 }, { unique: true, sparse: true });
-metricSchema.index({ user: 1, type: 1, postDate: -1 });
-metricSchema.index({ user: 1, format: 1, proposal: 1, context: 1, "stats.shares": -1, "stats.saved": -1 }, { name: "idx_enrichStats_sort" });
+
+// NOVO ÍNDICE COMPOSTO: Otimizado para consultas complexas de dashboard
+// envolvendo todas as dimensões da classificação.
+metricSchema.index({
+  user: 1,
+  format: 1,
+  proposal: 1,
+  context: 1,
+  tone: 1,
+  references: 1,
+  postDate: -1
+}, { name: "idx_full_classification_filter" });
+
+
+// Índices para ordenações específicas podem ser mantidos se necessário
 metricSchema.index({ user: 1, postDate: -1, "stats.shares": -1 }, { name: "idx_topBottom_shares" });
-metricSchema.index({ user: 1, postDate: -1, "stats.video_duration_seconds": 1 }, { name: "idx_durationStats" });
+
 
 const MetricModel = models.Metric
   ? (models.Metric as Model<IMetric>)

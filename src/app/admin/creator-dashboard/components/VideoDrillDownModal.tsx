@@ -1,10 +1,195 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { XMarkIcon } from '@heroicons/react/24/solid';
-import VideosTable, { metricLabels } from './VideosTable';
-import type { VideoListItem } from '@/types/mediakit';
-import PostDetailModal from '../PostDetailModal';
+import React, { useState, useEffect, useCallback, memo } from 'react';
+import { 
+    XMarkIcon, 
+    FireIcon,
+    EyeIcon, 
+    HeartIcon, 
+    ChatBubbleOvalLeftEllipsisIcon,
+    ShareIcon, 
+    ChartBarIcon, 
+    BookmarkIcon 
+} from '@heroicons/react/24/solid';
+
+// --- (INCLUSÃO) Definições de Categoria para consistência ---
+export interface Category {
+  id: string;
+  label: string;
+  description: string;
+  subcategories?: Category[];
+}
+
+export const formatCategories: Category[] = [ { id: 'reel', label: 'Reel', description: 'Vídeo curto e vertical.' }, { id: 'photo', label: 'Foto', description: 'Uma única imagem estática.' }, { id: 'carousel', label: 'Carrossel', description: 'Post com múltiplas imagens ou vídeos.' }, { id: 'story', label: 'Story', description: 'Conteúdo efêmero, vertical.' }, { id: 'live', label: 'Live', description: 'Transmissão de vídeo ao vivo.' }, { id: 'long_video', label: 'Vídeo Longo', description: 'Vídeo mais longo que não se encaixa no formato Reel.' }, ];
+export const proposalCategories: Category[] = [ { id: 'educational', label: 'Educativo', description: 'Conteúdo que visa ensinar algo.' }, { id: 'humor_scene', label: 'Humor', description: 'Conteúdo cômico, esquete ou cena engraçada.'}, { id: 'news', label: 'Notícia', description: 'Informa sobre um acontecimento relevante.' }, { id: 'review', label: 'Review', description: 'Análise ou avaliação de um produto.'}, { id: 'tips', label: 'Tutorial', description: 'Fornece conselhos práticos ou tutoriais.'}, ];
+export const contextCategories: Category[] = [ { id: 'lifestyle_and_wellbeing', label: 'Estilo de Vida e Bem-Estar', description: 'Tópicos sobre vida pessoal, saúde e aparência.', subcategories: [ { id: 'fashion_style', label: 'Moda/Estilo', description: 'Looks, tendências de moda.' }, { id: 'fitness_sports', label: 'Fitness/Esporte', description: 'Exercícios, treinos, esportes.' }, ] }, { id: 'personal_and_professional', label: 'Pessoal e Profissional', description: 'Tópicos sobre relacionamentos, carreira e desenvolvimento.', subcategories: [ { id: 'relationships_family', label: 'Relacionamentos/Família', description: 'Família, amizades, relacionamentos.' }, { id: 'career_work', label: 'Carreira/Trabalho', description: 'Desenvolvimento profissional.' }, ] }, ];
+export const toneCategories: Category[] = [ { id: 'humorous', label: 'Humorístico', description: 'Intenção de ser engraçado.' }, { id: 'inspirational', label: 'Inspirador', description: 'Busca inspirar ou motivar.' }, { id: 'educational', label: 'Educacional', description: 'Objetivo de ensinar ou informar.' }, { id: 'critical', label: 'Crítico', description: 'Faz uma análise crítica ou opina.' }, { id: 'promotional', label: 'Promocional', description: 'Objetivo de vender ou promover.' }, { id: 'neutral', label: 'Neutro', description: 'Descreve fatos sem carga emocional.' }, ];
+export const referenceCategories: Category[] = [ { id: 'pop_culture', label: 'Cultura Pop', description: 'Referências a obras de ficção, celebridades ou memes.', subcategories: [ { id: 'pop_culture_movies_series', label: 'Filmes e Séries', description: 'Referências a filmes e séries.' }, { id: 'pop_culture_books', label: 'Livros', description: 'Referências a livros e universos literários.' }, ] }, { id: 'people_and_groups', label: 'Pessoas e Grupos', description: 'Referências a grupos sociais, profissões ou estereótipos.', subcategories: [ { id: 'regional_stereotypes', label: 'Estereótipos Regionais', description: 'Imitações ou referências a sotaques e costumes.' }, ] }, ];
+
+
+// --- Componentes de Apoio e Tipos ---
+
+// CORREÇÃO: Ícone do Instagram como um componente SVG inline
+const InstagramIcon = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
+        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919A118.663 118.663 0 0112 2.163zm0 1.441c-3.141 0-3.503.012-4.72.068-2.759.127-3.945 1.313-4.073 4.073-.056 1.217-.067 1.575-.067 4.72s.011 3.503.067 4.72c.127 2.759 1.313 3.945 4.073 4.073 1.217.056 1.575.067 4.72.067s3.503-.011 4.72-.067c2.759-.127 3.945-1.313 4.073-4.073.056-1.217.067-1.575.067-4.72s-.011-3.503-.067-4.72c-.128-2.76-1.314-3.945-4.073-4.073-.91-.042-1.28-.055-3.626-.055zm0 2.882a4.512 4.512 0 100 9.024 4.512 4.512 0 000-9.024zM12 15a3 3 0 110-6 3 3 0 010 6zm6.406-7.875a1.125 1.125 0 100-2.25 1.125 1.125 0 000 2.25z" />
+    </svg>
+);
+
+interface VideoListItem {
+  _id: string;
+  postLink: string;
+  permalink?: string;
+  description: string;
+  thumbnailUrl?: string;
+  format?: string[];
+  proposal?: string[];
+  context?: string[];
+  tone?: string[];
+  references?: string[];
+  stats: {
+    views?: number;
+    likes?: number;
+    comments?: number;
+    shares?: number;
+    saves?: number;
+  };
+  postDate: string;
+}
+
+interface FilterState {
+  proposal: string;
+  context: string;
+  format: string;
+  tone: string;
+  references: string;
+  linkSearch: string;
+  minViews: string;
+}
+
+const PostDetailModal = ({ isOpen, onClose, postId }: { isOpen: boolean; onClose: () => void; postId: string | null; }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
+      <div className="bg-white p-8 rounded-lg shadow-xl relative">
+        <h2 className="text-lg font-bold mb-4">Detalhes do Post</h2>
+        <p>ID do Post: {postId}</p>
+        <button onClick={onClose} className="absolute top-2 right-2 p-2">
+          <XMarkIcon className="w-6 h-6" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+
+interface VideosTableProps {
+  videos: VideoListItem[];
+  onRowClick?: (postId: string) => void;
+  readOnly?: boolean;
+}
+
+const VideoCard: React.FC<{ video: VideoListItem; index: number; readOnly?: boolean; onRowClick?: (postId: string) => void; }> = ({ video, index, readOnly, onRowClick }) => {
+  
+  const formatDate = (d?: string | Date) => {
+    if (!d) return 'N/A';
+    return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+
+  const formatNumber = (n?: number) => {
+    if (n === null || n === undefined) return '-';
+    return n.toLocaleString('pt-BR', { notation: 'compact', maximumFractionDigits: 1 });
+  };
+
+  const calculateEngagementRate = (stats: VideoListItem['stats']) => {
+    const views = stats?.views ?? 0;
+    const likes = stats?.likes ?? 0;
+    const comments = stats?.comments ?? 0;
+    if (views === 0) return '0.00%';
+    const rate = ((likes + comments) / views) * 100;
+    return `${rate.toFixed(2)}%`;
+  };
+
+  return (
+    <div className={`p-4 bg-white rounded-lg shadow-sm border border-gray-100 transition-colors ${readOnly && index === 0 ? 'bg-pink-50 border-pink-200' : ''}`}>
+      <div className="grid grid-cols-12 gap-x-4 gap-y-2 items-start">
+        
+        <div className="col-span-12 md:col-span-5 flex items-start gap-4">
+          {/* CORREÇÃO: `Image` de next/image substituído por `img` padrão */}
+          <img src={video.thumbnailUrl || 'https://placehold.co/96x54/e2e8f0/a0aec0?text=Img'} alt={`Thumbnail para ${video.description || 'post'}`} width={96} height={54} className="rounded-md object-cover flex-shrink-0" />
+          <div className="flex-grow">
+            <p className="font-semibold text-sm text-gray-800 line-clamp-3">
+              {readOnly && index === 0 && <FireIcon className="w-4 h-4 text-orange-400 inline-block mr-1.5 align-text-bottom" title="Top Performance"/>}
+              {video.description || 'Sem legenda'}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">{formatDate(video.postDate)}</p>
+          </div>
+        </div>
+
+        <div className="col-span-12 md:col-span-2 flex flex-wrap gap-1.5 items-center">
+          {video.proposal?.map(p => <span key={p} className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-blue-100 text-blue-800">{p}</span>)}
+          {video.context?.map(c => <span key={c} className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-purple-100 text-purple-800">{c}</span>)}
+          {video.format?.map(f => <span key={f} className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-700">{f}</span>)}
+        </div>
+
+        <div className="col-span-12 md:col-span-1 text-left md:text-center">
+          <div className="font-bold text-base text-pink-600">{calculateEngagementRate(video.stats)}</div>
+        </div>
+
+        {/* CORREÇÃO: Ícones de react-icons/fa substituídos por Heroicons */}
+        <div className="col-span-12 md:col-span-2">
+          <div className="flex flex-col space-y-1.5 text-xs">
+            <span className="flex items-center gap-2 text-gray-700"><EyeIcon className="text-gray-400 w-3.5 h-3.5"/> {formatNumber(video.stats?.views)}</span>
+            <span className="flex items-center gap-2 text-gray-700"><HeartIcon className="text-gray-400 w-3.5 h-3.5"/> {formatNumber(video.stats?.likes)}</span>
+            <span className="flex items-center gap-2 text-gray-700"><ChatBubbleOvalLeftEllipsisIcon className="text-gray-400 w-3.5 h-3.5"/> {formatNumber(video.stats?.comments)}</span>
+            <span className="flex items-center gap-2 text-gray-700"><ShareIcon className="text-gray-400 w-3.5 h-3.5"/> {formatNumber(video.stats?.shares)}</span>
+            <span className="flex items-center gap-2 text-gray-700"><BookmarkIcon className="text-gray-400 w-3.5 h-3.5"/> {formatNumber(video.stats?.saves)}</span>
+          </div>
+        </div>
+
+        <div className="col-span-12 md:col-span-2 flex flex-row sm:flex-col items-center justify-start sm:justify-center gap-2">
+          {onRowClick && (
+            <button onClick={() => onRowClick(video._id)} title="Analisar Detalhes" className="flex items-center justify-center gap-2 w-full px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 transition-colors">
+              <ChartBarIcon className="w-3.5 h-3.5" />
+              <span>Analisar</span>
+            </button>
+          )}
+          <a href={video.permalink ?? '#'} target="_blank" rel="noopener noreferrer" title="Ver na Rede Social" className="flex items-center justify-center gap-2 w-full px-3 py-1.5 text-xs font-semibold text-white bg-gray-800 rounded-md shadow-sm hover:bg-gray-700 transition-colors">
+            <InstagramIcon className="w-3.5 h-3.5" />
+            <span>Ver Post</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const VideosTable: React.FC<VideosTableProps> = ({ videos, ...props }) => {
+  return (
+    <div className="space-y-3">
+      <div className="hidden md:grid md:grid-cols-12 md:gap-x-4 px-4 py-2 border-b border-gray-200">
+        <h4 className="md:col-span-5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Conteúdo</h4>
+        <h4 className="md:col-span-2 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Estratégia</h4>
+        <h4 className="md:col-span-1 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">Engaj.</h4>
+        <h4 className="md:col-span-2 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Performance</h4>
+        <h4 className="md:col-span-2 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">Ações</h4>
+      </div>
+      
+      {videos.map((video, index) => (
+        <VideoCard key={video._id} video={video} index={index} {...props} />
+      ))}
+    </div>
+  );
+};
+
+
+const SORT_OPTIONS = [
+  { value: 'postDate-desc', label: 'Mais Recentes' },
+  { value: 'stats.views-desc', label: 'Mais Vistos' },
+  { value: 'stats.likes-desc', label: 'Mais Curtidos' },
+  { value: 'stats.comments-desc', label: 'Mais Comentados' },
+  { value: 'stats.shares-desc', label: 'Mais Compartilhados' },
+];
 
 interface VideoDrillDownModalProps {
   isOpen: boolean;
@@ -13,28 +198,6 @@ interface VideoDrillDownModalProps {
   timePeriod: string;
   drillDownMetric: string | null;
 }
-
-interface SortConfig {
-  sortBy: string;
-  sortOrder: 'asc' | 'desc';
-}
-
-interface FilterState {
-  proposal: string;
-  context: string;
-  format: string;
-  linkSearch: string;
-  minViews: string;
-}
-
-// NOVO: Opções para o novo seletor de ordenação
-const SORT_OPTIONS = [
-  { value: 'postDate-desc', label: 'Mais Recentes' },
-  { value: 'stats.views-desc', label: 'Mais Vistos' },
-  { value: 'stats.likes-desc', label: 'Mais Curtidos' },
-  { value: 'stats.comments-desc', label: 'Mais Comentados' },
-  { value: 'stats.shares-desc', label: 'Mais Compartilhados' },
-];
 
 const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
   isOpen,
@@ -49,16 +212,37 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [limit] = useState(10);
-  const [sortConfig, setSortConfig] = useState<SortConfig>({
+  const [sortConfig, setSortConfig] = useState({
     sortBy: drillDownMetric || 'postDate',
     sortOrder: 'desc',
   });
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
 
   const [filters, setFilters] = useState<FilterState>({
-    proposal: '', context: '', format: '', linkSearch: '', minViews: '',
+    proposal: '', context: '', format: '', tone: '', references: '', linkSearch: '', minViews: '',
   });
   const [debouncedFilters, setDebouncedFilters] = useState(filters);
+
+  const createOptionsFromCategories = (categories: Category[]) => {
+      const options: { value: string; label: string }[] = [];
+      const traverse = (cats: Category[], prefix = '') => {
+          cats.forEach(cat => {
+              const label = prefix ? `${prefix} > ${cat.label}` : cat.label;
+              options.push({ value: cat.id, label });
+              if (cat.subcategories && cat.subcategories.length > 0) {
+                  traverse(cat.subcategories, label);
+              }
+          });
+      };
+      traverse(categories);
+      return options;
+  };
+
+  const formatOptions = createOptionsFromCategories(formatCategories);
+  const proposalOptions = createOptionsFromCategories(proposalCategories);
+  const contextOptions = createOptionsFromCategories(contextCategories);
+  const toneOptions = createOptionsFromCategories(toneCategories);
+  const referenceOptions = createOptionsFromCategories(referenceCategories);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -115,18 +299,17 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
       setVideos([]);
       setError(null);
       setIsLoading(false);
-      setFilters({ proposal: '', context: '', format: '', linkSearch: '', minViews: '' });
+      setFilters({ proposal: '', context: '', format: '', tone: '', references: '', linkSearch: '', minViews: '' });
     }
   }, [isOpen, userId, fetchVideos]);
 
   if (!isOpen) return null;
 
-  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFilters(prev => ({ ...prev, [name]: value }));
   };
 
-  // NOVO: Handler para o seletor de ordenação
   const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const [sortBy, sortOrder] = e.target.value.split('-') as [string, 'asc' | 'desc'];
     setSortConfig({ sortBy, sortOrder });
@@ -137,8 +320,12 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
     setSelectedPostId(postId);
   };
 
-  const handlePageChange = (newPage: number) => { /* ...código inalterado... */ };
   const totalPages = Math.ceil(totalVideos / limit);
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
 
   return (
     <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
@@ -152,15 +339,14 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
           </button>
         </header>
 
-        {/* Seção de Filtros agora inclui o seletor de ordenação */}
         <div className="p-4 border-b border-gray-200 bg-gray-50">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            <input name="proposal" type="text" placeholder="Proposta" value={filters.proposal} onChange={handleFilterChange} className="p-2 border rounded-md text-sm" />
-            <input name="context" type="text" placeholder="Contexto" value={filters.context} onChange={handleFilterChange} className="p-2 border rounded-md text-sm" />
-            <input name="format" type="text" placeholder="Formato" value={filters.format} onChange={handleFilterChange} className="p-2 border rounded-md text-sm" />
-            <input name="linkSearch" type="text" placeholder="Buscar no link" value={filters.linkSearch} onChange={handleFilterChange} className="p-2 border rounded-md text-sm" />
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+            <select name="format" value={filters.format} onChange={handleFilterChange} className="p-2 border rounded-md text-sm bg-white"><option value="">Formato</option>{formatOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
+            <select name="proposal" value={filters.proposal} onChange={handleFilterChange} className="p-2 border rounded-md text-sm bg-white"><option value="">Proposta</option>{proposalOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
+            <select name="context" value={filters.context} onChange={handleFilterChange} className="p-2 border rounded-md text-sm bg-white"><option value="">Contexto</option>{contextOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
+            <select name="tone" value={filters.tone} onChange={handleFilterChange} className="p-2 border rounded-md text-sm bg-white"><option value="">Tom</option>{toneOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
+            <select name="references" value={filters.references} onChange={handleFilterChange} className="p-2 border rounded-md text-sm bg-white"><option value="">Referências</option>{referenceOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
             <input name="minViews" type="number" placeholder="Mínimo de views" value={filters.minViews} onChange={handleFilterChange} className="p-2 border rounded-md text-sm" />
-            {/* NOVO: Seletor de ordenação */}
             <select
               aria-label="Ordenar por"
               className="p-2 border rounded-md text-sm w-full bg-white"
@@ -181,7 +367,6 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
             <p className="text-center text-gray-500">Nenhum vídeo encontrado com os filtros aplicados.</p>
           )}
           {!isLoading && !error && videos.length > 0 && (
-            // CORREÇÃO: Removidas as props 'sortConfig', 'onSort' e 'primaryMetric'
             <VideosTable
               videos={videos}
               onRowClick={handleRowClick}
@@ -189,7 +374,16 @@ const VideoDrillDownModal: React.FC<VideoDrillDownModalProps> = ({
           )}
         </div>
         
-        {/* ... Paginação (inalterada) ... */}
+        {totalVideos > 0 && (
+          <div className="p-4 border-t border-gray-200 flex justify-between items-center text-sm">
+            <span>Total: {totalVideos} vídeos</span>
+            <div className="flex items-center space-x-2">
+              <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="px-3 py-1 border rounded-md disabled:opacity-50">Anterior</button>
+              <span>Página {currentPage} de {totalPages}</span>
+              <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="px-3 py-1 border rounded-md disabled:opacity-50">Próxima</button>
+            </div>
+          </div>
+        )}
 
       </div>
       {selectedPostId && (

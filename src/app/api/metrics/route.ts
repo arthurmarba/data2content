@@ -1,30 +1,16 @@
-// src/app/api/metrics/route.ts - v1.3.1 (Correção de importação de tipos Enum)
-// - ATUALIZADO: Corrigida importação de FormatType, ProposalType, ContextType.
-// - ATUALIZADO: source definido como 'document_ai'.
-// - ATUALIZADO: Campo 'type' (media_type) populado com base no 'format'.
-// - ATUALIZADO: Uso de valores de 'consolidatedTopLevel' para format, proposal, context com defaults.
-// - ATUALIZADO: rawData populado.
-
+/**
+ * @fileoverview API Endpoint for creating new metrics from Document AI processing.
+ * @version 2.0.0 - Aligned with 5-dimension classification model.
+ */
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
-import Metric, { IMetric } from "@/app/models/Metric"; // FormatType, ProposalType, ContextType removidos daqui
+import Metric, { IMetric } from "@/app/models/Metric";
 import { processMultipleImages } from "@/app/lib/parseMetrics"; 
 import mongoose from "mongoose";
 import { logger } from '@/app/lib/logger';
 import { Client } from "@upstash/qstash";
-import { 
-    VALID_FORMATS, 
-    VALID_PROPOSALS, 
-    VALID_CONTEXTS,
-    DEFAULT_FORMAT_ENUM,
-    DEFAULT_PROPOSAL_ENUM,
-    DEFAULT_CONTEXT_ENUM,
-    FormatType,     // <<< ADICIONADO AQUI
-    ProposalType,   // <<< ADICIONADO AQUI
-    ContextType     // <<< ADICIONADO AQUI
-} from "@/app/lib/constants/communityInspirations.constants";
 
 export const runtime = "nodejs"; 
 
@@ -33,44 +19,45 @@ if (!qstashClient && process.env.NODE_ENV === 'production') {
     logger.error(`[API Metrics Init] QSTASH_TOKEN não definido! Classificação assíncrona de métricas manuais não funcionará.`);
 }
 
+// --- Funções Auxiliares ---
 
-// Função auxiliar para mapear string de formato para o tipo de Mídia do Schema
-function mapFormatToMediaType(formatString?: string): IMetric['type'] {
-    if (!formatString) return 'UNKNOWN';
-    const lowerFormat = formatString.toLowerCase().trim();
+/**
+ * Mapeia o primeiro formato encontrado para o tipo de mídia principal do post.
+ * @param formatValue O valor do formato, que pode ser uma string ou um array.
+ * @returns O tipo de mídia correspondente.
+ */
+function mapFormatToMediaType(formatValue?: string | string[]): IMetric['type'] {
+    if (!formatValue) return 'UNKNOWN';
+    const primaryFormat = Array.isArray(formatValue) ? formatValue[0] : formatValue;
+    if (!primaryFormat) return 'UNKNOWN';
+
+    const lowerFormat = primaryFormat.toLowerCase().trim();
     if (lowerFormat.includes('reel')) return 'REEL';
     if (lowerFormat.includes('foto') || lowerFormat.includes('imagem') || lowerFormat.includes('feed')) return 'IMAGE';
-    if (lowerFormat.includes('vídeo') || lowerFormat.includes('video')) return 'VIDEO'; // Se for um vídeo que não é Reel
+    if (lowerFormat.includes('vídeo') || lowerFormat.includes('video')) return 'VIDEO';
     if (lowerFormat.includes('carrossel') || lowerFormat.includes('carousel')) return 'CAROUSEL_ALBUM';
     if (lowerFormat.includes('story')) return 'STORY';
     return 'UNKNOWN';
 }
 
-// Funções auxiliares para validar e obter valores de Enum
-function getValidFormat(formatValue?: unknown): FormatType {
-    if (typeof formatValue === 'string' && (VALID_FORMATS as readonly string[]).includes(formatValue)) {
-        return formatValue as FormatType;
+/**
+ * Garante que o valor de entrada seja um array de strings, limpando valores inválidos.
+ * @param value O valor de entrada, que pode ser uma string, um array ou indefinido.
+ * @returns Um array de strings.
+ */
+const ensureStringArray = (value: unknown): string[] => {
+    if (Array.isArray(value)) {
+        return value.filter((item): item is string => typeof item === 'string' && item.length > 0);
     }
-    return DEFAULT_FORMAT_ENUM;
-}
-
-function getValidProposal(proposalValue?: unknown): ProposalType {
-    if (typeof proposalValue === 'string' && (VALID_PROPOSALS as readonly string[]).includes(proposalValue)) {
-        return proposalValue as ProposalType;
+    if (typeof value === 'string' && value.length > 0) {
+        return [value];
     }
-    return DEFAULT_PROPOSAL_ENUM;
-}
-
-function getValidContext(contextValue?: unknown): ContextType {
-    if (typeof contextValue === 'string' && (VALID_CONTEXTS as readonly string[]).includes(contextValue)) {
-        return contextValue as ContextType;
-    }
-    return DEFAULT_CONTEXT_ENUM;
-}
+    return [];
+};
 
 
 export async function POST(request: NextRequest) {
-  const TAG = '[API Metrics POST v1.3.1 DocAI Standardized]'; 
+  const TAG = '[API Metrics POST v2.0.0]'; 
   try {
     const session = await getServerSession({ req: request, ...authOptions });
     if (!session?.user?.id) {
@@ -91,48 +78,25 @@ export async function POST(request: NextRequest) {
     logger.debug(`${TAG} Conectado ao BD.`);
 
     logger.info(`${TAG} Processando imagens via processMultipleImages...`);
-    // processMultipleImages retorna a estrutura padronizada com chaves canônicas
     const { consolidatedTopLevel, consolidatedStats, calculatedStats } = await processMultipleImages(images);
     logger.info(`${TAG} Imagens processadas.`);
-    logger.debug(`${TAG} TopLevel extraído:`, consolidatedTopLevel);
-    logger.debug(`${TAG} Stats brutos extraídos (consolidatedStats):`, consolidatedStats);
-    logger.debug(`${TAG} Stats calculados (calculatedStats):`, calculatedStats);
-
-    // Combina stats diretos do Document AI com os calculados por formulas.ts
-    const finalStats = {
-        ...consolidatedStats,
-        ...calculatedStats
-    };
-    logger.debug(`${TAG} Stats finais combinados para salvar:`, finalStats);
-
+    
+    const finalStats = { ...consolidatedStats, ...calculatedStats };
+    
     let postDateToUse: Date;
     if (consolidatedTopLevel.postDate instanceof Date) {
         postDateToUse = consolidatedTopLevel.postDate;
-        logger.info(`${TAG} PostDate determinada da imagem: ${postDateToUse.toISOString()}`);
     } else if (typeof consolidatedTopLevel.postDate === 'string' && consolidatedTopLevel.postDate) {
-        const parsed = new Date(consolidatedTopLevel.postDate); // Tenta parsear se for string
-        if (!isNaN(parsed.getTime())) {
-            postDateToUse = parsed;
-            logger.info(`${TAG} PostDate (string) parseada da imagem: ${postDateToUse.toISOString()}`);
-        } else {
-            postDateToUse = new Date();
-            logger.warn(`${TAG} String de PostDate inválida ("${consolidatedTopLevel.postDate}"), usando data atual: ${postDateToUse.toISOString()}`);
-        }
+        const parsed = new Date(consolidatedTopLevel.postDate);
+        postDateToUse = !isNaN(parsed.getTime()) ? parsed : new Date();
     } else {
         postDateToUse = new Date();
-        logger.warn(`${TAG} Não foi possível determinar postDate da imagem, usando data atual: ${postDateToUse.toISOString()}`);
     }
 
     const descriptionToUse = (consolidatedTopLevel.description as string || initialDescription || '').trim();
     const postLinkToUse = (consolidatedTopLevel.postLink as string || initialPostLink || '').trim();
     
-    // Determina o tipo de mídia com base no formato extraído
-    const mediaType = mapFormatToMediaType(consolidatedTopLevel.format as string | undefined);
-
-    // Obtém e valida os valores para os campos Enum
-    const formatToUse = getValidFormat(consolidatedTopLevel.format);
-    const proposalToUse = getValidProposal(consolidatedTopLevel.proposal);
-    const contextToUse = getValidContext(consolidatedTopLevel.context);
+    const mediaType = mapFormatToMediaType(consolidatedTopLevel.format as string | string[] | undefined);
 
     logger.info(`${TAG} Criando documento Metric com source 'document_ai'...`);
     const newMetric = new Metric({
@@ -141,10 +105,13 @@ export async function POST(request: NextRequest) {
       description: descriptionToUse,
       postDate: postDateToUse,
       
+      // ATUALIZADO: Campos de classificação salvos como arrays de strings
       type: mediaType, 
-      format: formatToUse, 
-      proposal: proposalToUse,
-      context: contextToUse, 
+      format: ensureStringArray(consolidatedTopLevel.format),
+      proposal: ensureStringArray(consolidatedTopLevel.proposal),
+      context: ensureStringArray(consolidatedTopLevel.context),
+      tone: ensureStringArray(consolidatedTopLevel.tone),
+      references: ensureStringArray(consolidatedTopLevel.references),
       
       theme: consolidatedTopLevel.theme,
       collab: consolidatedTopLevel.collab, 
@@ -153,7 +120,6 @@ export async function POST(request: NextRequest) {
       
       instagramMediaId: null, 
       source: 'document_ai', 
-      
       classificationStatus: 'pending', 
       classificationError: null, 
       
@@ -165,12 +131,12 @@ export async function POST(request: NextRequest) {
     });
 
     const savedMetric = await newMetric.save();
-    logger.info(`${TAG} Documento Metric salvo com sucesso: ${savedMetric._id} com status: ${savedMetric.classificationStatus}, source: ${savedMetric.source}`);
+    logger.info(`${TAG} Documento Metric salvo com sucesso: ${savedMetric._id}`);
 
     const workerUrl = process.env.CLASSIFICATION_WORKER_URL;
     if (workerUrl && qstashClient && savedMetric?._id) {
         try {
-            logger.info(`${TAG} Enviando tarefa de classificação para QStash (Worker: ${workerUrl}) para Metric ID: ${savedMetric._id}`);
+            logger.info(`${TAG} Enviando tarefa de classificação para QStash para Metric ID: ${savedMetric._id}`);
             await qstashClient.publishJSON({
                 url: workerUrl,
                 body: { metricId: savedMetric._id.toString() }, 
@@ -180,7 +146,7 @@ export async function POST(request: NextRequest) {
             logger.error(`${TAG} ERRO ao enviar tarefa para QStash para Metric ID: ${savedMetric._id}.`, qstashError);
         }
     } else {
-         logger.warn(`${TAG} CLASSIFICATION_WORKER_URL não definida ou QStash client não inicializado ou Metric ID inválido. Tarefa QStash não enviada.`);
+         logger.warn(`${TAG} CLASSIFICATION_WORKER_URL ou QStash client não configurado. Tarefa de classificação não enviada.`);
     }
 
     logger.info(`${TAG} Processo concluído com sucesso (classificação pendente).`);

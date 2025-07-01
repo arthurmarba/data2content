@@ -2,10 +2,19 @@
 
 import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-// CORREÇÃO: O caminho da importação foi atualizado para apontar para o ficheiro de tipos modularizado.
-import { IDashboardOverallStats, IFetchDashboardOverallContentStatsFilters } from '@/app/lib/dataService/marketAnalysis/types';
+// O caminho da importação foi mantido. O backend deve ser atualizado para incluir os novos campos.
+import { IDashboardOverallStats as BaseStats, IFetchDashboardOverallContentStatsFilters } from '@/app/lib/dataService/marketAnalysis/types';
 
-// --- Componentes de Apoio (para o código ser autónomo) ---
+// --- CORREÇÃO: Interface estendida ---
+// Estendemos a interface base para incluir os novos campos 'breakdownByTone' e 'breakdownByReferences'.
+// Isso resolve o erro do TypeScript e alinha os tipos com o JSX que renderiza os novos gráficos.
+interface IDashboardOverallStats extends BaseStats {
+  breakdownByTone?: Array<{ tone: string; count: number }>;
+  breakdownByReferences?: Array<{ reference: string; count: number }>;
+}
+
+
+// --- Componentes de Apoio ---
 
 const SkeletonBlock = ({ width = 'w-full', height = 'h-4', className = '', variant = 'rectangle' }: { width?: string; height?: string; className?: string; variant?: 'rectangle' | 'circle' }) => {
   const baseClasses = "bg-gray-200 animate-pulse";
@@ -16,7 +25,7 @@ const SkeletonBlock = ({ width = 'w-full', height = 'h-4', className = '', varia
 
 // --- Constantes e Funções Utilitárias ---
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82Ca9D'];
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82Ca9D', '#FF5733', '#C70039'];
 
 const formatKpiValue = (value?: number | string): string => {
   if (value === null || typeof value === 'undefined') return 'N/A';
@@ -42,6 +51,7 @@ interface ContentStatsWidgetsProps {
 // --- Componente Principal ---
 
 const ContentStatsWidgets = memo(function ContentStatsWidgets({ dateRangeFilter }: ContentStatsWidgetsProps) {
+  // Usamos a nova interface estendida para o estado.
   const [stats, setStats] = useState<IDashboardOverallStats | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,6 +89,8 @@ const ContentStatsWidgets = memo(function ContentStatsWidgets({ dateRangeFilter 
         const errorData = await response.json();
         throw new Error(errorData.error || `Failed to fetch content stats: ${response.statusText}`);
       }
+      // NOTA: A API deve ser atualizada para retornar os campos `breakdownByTone` e `breakdownByReferences`.
+      // Fazemos o cast do resultado para a nossa nova interface estendida.
       const data: IDashboardOverallStats = await response.json();
       setStats(data);
     } catch (e: any) {
@@ -115,16 +127,12 @@ const ContentStatsWidgets = memo(function ContentStatsWidgets({ dateRangeFilter 
           ))}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {Array.from({ length: 2 }).map((_, index) => (
+          {Array.from({ length: 4 }).map((_, index) => (
              <div key={`chart-skel-rect-${index}`} className="p-4 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[300px]">
                 <SkeletonBlock width="w-1/3" height="h-4 mb-3" />
                 <SkeletonBlock variant="rectangle" width="w-full" height="h-64" />
              </div>
           ))}
-        </div>
-        <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[300px]">
-            <SkeletonBlock width="w-1/3" height="h-4 mb-3" />
-            <SkeletonBlock variant="rectangle" width="w-full" height="h-64" />
         </div>
       </div>
     );
@@ -154,6 +162,7 @@ const ContentStatsWidgets = memo(function ContentStatsWidgets({ dateRangeFilter 
 
   return (
     <div className="space-y-6">
+      {/* --- KPIs --- */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {kpis.map(kpi => (
              <div key={kpi.title} className="bg-white p-5 rounded-lg shadow border border-gray-200">
@@ -163,7 +172,9 @@ const ContentStatsWidgets = memo(function ContentStatsWidgets({ dateRangeFilter 
         ))}
       </div>
 
+      {/* --- Grid unificado para todos os gráficos --- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Gráfico de Formato */}
         <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[300px]">
           <h4 className="text-md font-semibold text-gray-800 mb-1">Posts por Formato</h4>
           <p className="text-xs text-gray-400 mb-3">Distribuição de conteúdo por formato.</p>
@@ -180,6 +191,7 @@ const ContentStatsWidgets = memo(function ContentStatsWidgets({ dateRangeFilter 
           ) : <p className="text-sm text-gray-400 text-center pt-10">Dados não disponíveis.</p>}
         </div>
 
+        {/* Gráfico de Proposta */}
         <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[300px]">
           <h4 className="text-md font-semibold text-gray-800 mb-1">Posts por Proposta</h4>
           <p className="text-xs text-gray-400 mb-3">Distribuição de conteúdo por tipo de proposta.</p>
@@ -197,7 +209,6 @@ const ContentStatsWidgets = memo(function ContentStatsWidgets({ dateRangeFilter 
                   nameKey="proposal"
                   label={({ name, percent }) => `${name} (${(percent! * 100).toFixed(0)}%)`}
                 >
-                  {/* CORREÇÃO: Adicionados tipos explícitos para os parâmetros do map para evitar erros. */}
                   {stats.breakdownByProposal.map((entry: { proposal: string; count: number }, index: number) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
@@ -208,9 +219,9 @@ const ContentStatsWidgets = memo(function ContentStatsWidgets({ dateRangeFilter 
             </ResponsiveContainer>
           ) : <p className="text-sm text-gray-400 text-center pt-10">Dados não disponíveis.</p>}
         </div>
-      </div>
-
-       <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[300px]">
+        
+        {/* Gráfico de Contexto */}
+        <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[300px]">
           <h4 className="text-md font-semibold text-gray-800 mb-1">Posts por Contexto</h4>
           <p className="text-xs text-gray-400 mb-3">Distribuição de conteúdo por contexto principal.</p>
           {stats.breakdownByContext && stats.breakdownByContext.length > 0 ? (
@@ -225,6 +236,53 @@ const ContentStatsWidgets = memo(function ContentStatsWidgets({ dateRangeFilter 
             </ResponsiveContainer>
           ) : <p className="text-sm text-gray-400 text-center pt-10">Dados não disponíveis.</p>}
         </div>
+        
+        {/* NOVO: Gráfico de Tom */}
+        <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[300px]">
+          <h4 className="text-md font-semibold text-gray-800 mb-1">Posts por Tom</h4>
+          <p className="text-xs text-gray-400 mb-3">Distribuição de conteúdo pelo tom emocional.</p>
+           {stats.breakdownByTone && stats.breakdownByTone.length > 0 ? (
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie
+                  data={stats.breakdownByTone}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  outerRadius={80}
+                  fill="#FFBB28"
+                  dataKey="count"
+                  nameKey="tone"
+                  label={({ name, percent }) => `${name} (${(percent! * 100).toFixed(0)}%)`}
+                >
+                  {stats.breakdownByTone.map((entry: { tone: string; count: number }, index: number) => (
+                    <Cell key={`cell-tone-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value: number, name: string) => [value.toLocaleString('pt-BR'), name]} />
+                <Legend formatter={(value) => <span className="text-gray-600 text-xs truncate max-w-[100px]" title={value}>{value}</span>} wrapperStyle={{ fontSize: "10px", marginTop: "10px" }}/>
+              </PieChart>
+            </ResponsiveContainer>
+          ) : <p className="text-sm text-gray-400 text-center pt-10">Dados não disponíveis.</p>}
+        </div>
+
+        {/* NOVO: Gráfico de Referências */}
+        <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[300px]">
+          <h4 className="text-md font-semibold text-gray-800 mb-1">Posts por Referência</h4>
+          <p className="text-xs text-gray-400 mb-3">Distribuição de conteúdo por tipo de referência.</p>
+          {stats.breakdownByReferences && stats.breakdownByReferences.length > 0 ? (
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={stats.breakdownByReferences} layout="vertical" margin={{ top: 5, right: 30, left: 80, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" />
+                <XAxis type="number" fontSize={10} tickFormatter={(value) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(value as number)} />
+                <YAxis dataKey="reference" type="category" fontSize={10} width={100} tickLine={false} axisLine={false} />
+                <Tooltip formatter={(value: number) => [value.toLocaleString('pt-BR'), "Posts"]} cursor={{ fill: 'rgba(79, 70, 229, 0.05)' }} />
+                <Bar dataKey="count" fill="#FF8042" radius={[0, 4, 4, 0]} barSize={15} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : <p className="text-sm text-gray-400 text-center pt-10">Dados não disponíveis.</p>}
+        </div>
+      </div>
     </div>
   );
 });

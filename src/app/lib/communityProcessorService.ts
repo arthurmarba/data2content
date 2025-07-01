@@ -1,6 +1,7 @@
-// @/app/lib/communityProcessorService.ts - v1.1.1 (Corrige tipo na checagem de formato/tipo de vídeo)
-// - CORRIGIDO: Condição para reelAvgWatchTimeSec usa metric.format === 'Reel' OU metric.type === 'VIDEO'.
-// - Baseado na v1.1.0.
+// @/app/lib/communityProcessorService.ts - v1.1.2 (Corrige o manuseio de tipos de array para classificação)
+// - CORRIGIDO: `mapToEnum` agora usa o primeiro elemento dos arrays de classificação (format, proposal, context).
+// - CORRIGIDO: Condição para `reelAvgWatchTimeSec` agora usa `includes('Reel')` no array de formato.
+// - Baseado na v1.1.1.
 
 import { logger } from '@/app/lib/logger';
 import { IMetric, IMetricStats } from '@/app/models/Metric'; // Assegure que IMetric.format usa FormatType
@@ -221,20 +222,21 @@ function deriveQualitativePerformance(
 
 /**
  * Transforma um IMetric em um objeto parcial ICommunityInspiration.
- * ATUALIZADO v1.1.1
+ * ATUALIZADO v1.1.2
  */
 export async function processMetricForCommunity(
     metric: IMetric, // Assegure-se que IMetric.format é FormatType, .proposal é ProposalType, etc.
     user: IUser
 ): Promise<Partial<ICommunityInspiration>> {
-    const fnTag = '[communityProcessorService][processMetricForCommunity v1.1.1]';
+    const fnTag = '[communityProcessorService][processMetricForCommunity v1.1.2]';
     logger.info(`${fnTag} Processando Metric ${metric._id} para User ${user._id}`);
 
     // Mapeamento para os enums com fallbacks
     // Usa os valores DEFAULT_..._ENUM do arquivo de constantes, que são membros dos enums.
-    const mappedFormat = mapToEnum(metric.format, VALID_FORMATS, DEFAULT_FORMAT_ENUM);
-    const mappedProposal = mapToEnum(metric.proposal, VALID_PROPOSALS, DEFAULT_PROPOSAL_ENUM);
-    const mappedContext = mapToEnum(metric.context, VALID_CONTEXTS, DEFAULT_CONTEXT_ENUM);
+    // CORREÇÃO: As propriedades format, proposal e context agora são arrays. Usamos o primeiro elemento [0] para o mapeamento.
+    const mappedFormat = mapToEnum(metric.format?.[0], VALID_FORMATS, DEFAULT_FORMAT_ENUM);
+    const mappedProposal = mapToEnum(metric.proposal?.[0], VALID_PROPOSALS, DEFAULT_PROPOSAL_ENUM);
+    const mappedContext = mapToEnum(metric.context?.[0], VALID_CONTEXTS, DEFAULT_CONTEXT_ENUM);
 
 
     if (!metric.stats) {
@@ -285,9 +287,9 @@ export async function processMetricForCommunity(
         internalSnapshot.shareRate = parseFloat((metric.stats.shares / metric.stats.reach).toFixed(4));
     }
 
-    // CORRIGIDO: Checa metric.format para 'Reel' (que é um FormatType)
-    // E checa metric.type para 'VIDEO' (que é um valor do campo IMetric.type)
-    if ((metric.format === 'Reel' || metric.type === 'VIDEO' || metric.type === 'REEL') && metric.stats.ig_reels_avg_watch_time) {
+    // CORREÇÃO: Checa se 'Reel' está incluído no array `metric.format`.
+    // E checa metric.type para 'VIDEO' ou 'REEL' (que é um valor do campo IMetric.type)
+    if ((metric.format?.includes('Reel') || metric.type === 'VIDEO' || metric.type === 'REEL') && metric.stats.ig_reels_avg_watch_time) {
         internalSnapshot.reelAvgWatchTimeSec = parseFloat((metric.stats.ig_reels_avg_watch_time / 1000).toFixed(1));
     }
 

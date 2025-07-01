@@ -4,14 +4,84 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { PlusIcon, TrashIcon, ExclamationTriangleIcon, TableCellsIcon, ArrowsRightLeftIcon } from '@heroicons/react/24/outline';
 
+// --- (CORREÇÃO) Definições de Categoria ---
+// O import foi removido e as definições foram movidas para cá para resolver o erro de compilação.
+// Isso torna o componente autocontido.
+
+export interface Category {
+  id: string;
+  label: string;
+  description:string;
+  keywords?: string[];
+  subcategories?: Category[];
+  examples?: string[];
+  conflictsWith?: string[];
+}
+
+export const formatCategories: Category[] = [
+  { id: 'reel', label: 'Reel', description: 'Vídeo curto e vertical.' },
+  { id: 'photo', label: 'Foto', description: 'Uma única imagem estática.' },
+  { id: 'carousel', label: 'Carrossel', description: 'Post com múltiplas imagens ou vídeos.' },
+  { id: 'story', label: 'Story', description: 'Conteúdo efêmero, vertical.' },
+  { id: 'live', label: 'Live', description: 'Transmissão de vídeo ao vivo.' },
+  { id: 'long_video', label: 'Vídeo Longo', description: 'Vídeo mais longo que não se encaixa no formato Reel.' },
+];
+export const proposalCategories: Category[] = [
+    { id: 'announcement', label: 'Anúncio', description: 'Comunica uma novidade importante.' },
+    { id: 'behind_the_scenes', label: 'Bastidores', description: 'Mostra os bastidores de um projeto.' },
+    { id: 'call_to_action', label: 'Chamada', description: 'Incentiva o usuário a realizar uma ação.' },
+    { id: 'comparison', label: 'Comparação', description: 'Compara dois ou mais produtos/serviços.' },
+    { id: 'humor_scene', label: 'Humor/Cena', description: 'Conteúdo cômico, esquete ou cena engraçada.'},
+    { id: 'tips', label: 'Dicas', description: 'Fornece conselhos práticos ou tutoriais.'},
+];
+export const contextCategories: Category[] = [
+  {
+    id: 'lifestyle_and_wellbeing', label: 'Estilo de Vida e Bem-Estar', description: 'Tópicos sobre vida pessoal, saúde e aparência.',
+    subcategories: [
+      { id: 'fashion_style', label: 'Moda/Estilo', description: 'Looks, tendências de moda, dicas de estilo.' },
+      { id: 'fitness_sports', label: 'Fitness/Esporte', description: 'Exercícios, treinos, esportes, vida saudável.' },
+    ]
+  },
+  {
+    id: 'personal_and_professional', label: 'Pessoal e Profissional', description: 'Tópicos sobre relacionamentos, carreira e desenvolvimento.',
+    subcategories: [
+      { id: 'relationships_family', label: 'Relacionamentos/Família', description: 'Família, amizades, relacionamentos amorosos.' },
+      { id: 'career_work', label: 'Carreira/Trabalho', description: 'Desenvolvimento profissional, vida corporativa.' },
+    ]
+  },
+];
+export const toneCategories: Category[] = [
+  { id: 'humorous', label: 'Humorístico', description: 'Intenção de ser engraçado.' },
+  { id: 'inspirational', label: 'Inspirador', description: 'Busca inspirar ou motivar.' },
+  { id: 'educational', label: 'Educacional', description: 'Objetivo de ensinar ou informar.' },
+  { id: 'critical', label: 'Crítico', description: 'Faz uma análise crítica ou opina.' },
+  { id: 'promotional', label: 'Promocional', description: 'Objetivo de vender ou promover.' },
+  { id: 'neutral', label: 'Neutro', description: 'Descreve fatos sem carga emocional.' },
+];
+export const referenceCategories: Category[] = [
+  {
+    id: 'pop_culture', label: 'Cultura Pop', description: 'Referências a obras de ficção, celebridades ou memes.',
+    subcategories: [
+      { id: 'pop_culture_movies_series', label: 'Filmes e Séries', description: 'Referências a filmes e séries.' },
+      { id: 'pop_culture_books', label: 'Livros', description: 'Referências a livros e universos literários.' },
+    ]
+  },
+  {
+    id: 'people_and_groups', label: 'Pessoas e Grupos', description: 'Referências a grupos sociais, profissões ou estereótipos.',
+    subcategories: [
+      { id: 'regional_stereotypes', label: 'Estereótipos Regionais', description: 'Imitações ou referências a sotaques e costumes.' },
+    ]
+  },
+];
+
 // --- Tipos e Componentes ---
 
-// Estas interfaces viriam do seu serviço de dados.
-// Estão aqui para garantir que o componente seja autónomo para o exemplo.
 export interface ISegmentDefinition {
   format?: string;
   proposal?: string;
   context?: string;
+  tone?: string;
+  references?: string;
 }
 
 export interface ISegmentPerformanceResult {
@@ -40,8 +110,6 @@ const EmptyState = ({ icon, title, message }: { icon: React.ReactNode; title: st
   );
 };
 
-
-// --- Constantes e Tipos Locais ---
 const MAX_SEGMENTS = 5;
 const MIN_SEGMENTS = 1;
 
@@ -58,11 +126,6 @@ interface ContentSegmentComparisonProps {
   };
 }
 
-const FORMAT_OPTIONS = ["", "Reel", "Post Estático", "Carrossel", "Story", "Video Longo"];
-const PROPOSAL_OPTIONS = ["", "Educativo", "Humor", "Notícia", "Review", "Tutorial", "Desafio", "Vlog"];
-const DEFAULT_CONTEXTS = [""];
-
-// --- Funções Utilitárias ---
 const formatDisplayNumber = (num?: number): string => {
   if (num === null || typeof num === 'undefined') return 'N/A';
   return num.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2});
@@ -78,12 +141,28 @@ function generateSegmentNameFromCriteria(criteria: ISegmentDefinition): string {
     if (criteria.format) parts.push(criteria.format);
     if (criteria.proposal) parts.push(criteria.proposal);
     if (criteria.context) parts.push(criteria.context);
+    if (criteria.tone) parts.push(criteria.tone);
+    if (criteria.references) parts.push(criteria.references);
     if (parts.length === 0) return 'Geral';
     return parts.join(' / ');
 }
 
+const createOptionsFromCategories = (categories: Category[]) => {
+    const options: { value: string; label: string }[] = [];
+    const traverse = (cats: Category[], prefix = '') => {
+        cats.forEach(cat => {
+            const label = prefix ? `${prefix} > ${cat.label}` : cat.label;
+            options.push({ value: cat.id, label });
+            if (cat.subcategories && cat.subcategories.length > 0) {
+                traverse(cat.subcategories, label);
+            }
+        });
+    };
+    traverse(categories);
+    return options;
+};
 
-// --- Componente Principal ---
+
 export default function ContentSegmentComparison({ dateRangeFilter }: ContentSegmentComparisonProps) {
   const [segmentsToCompare, setSegmentsToCompare] = useState<SegmentToCompare[]>([
     { id: uuidv4(), criteria: {} },
@@ -91,22 +170,12 @@ export default function ContentSegmentComparison({ dateRangeFilter }: ContentSeg
   const [comparisonResults, setComparisonResults] = useState<SegmentComparisonResultItem[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [contextOptions, setContextOptions] = useState<string[]>(DEFAULT_CONTEXTS);
 
-  useEffect(() => {
-    async function loadContexts() {
-      try {
-        const res = await fetch('/api/admin/dashboard/contexts');
-        if (res.ok) {
-          const data = await res.json();
-          setContextOptions(['', ...data.contexts]);
-        }
-      } catch (e) {
-        console.error('Failed to load contexts', e);
-      }
-    }
-    loadContexts();
-  }, []);
+  const formatOptions = createOptionsFromCategories(formatCategories);
+  const proposalOptions = createOptionsFromCategories(proposalCategories);
+  const contextOptions = createOptionsFromCategories(contextCategories);
+  const toneOptions = createOptionsFromCategories(toneCategories);
+  const referenceOptions = createOptionsFromCategories(referenceCategories);
 
   const handleSegmentChange = (id: string, field: 'name' | keyof ISegmentDefinition, value: string) => {
     setSegmentsToCompare(prevSegments =>
@@ -141,7 +210,7 @@ export default function ContentSegmentComparison({ dateRangeFilter }: ContentSeg
   };
 
   const isSegmentCriteriaEmpty = (criteria: ISegmentDefinition): boolean => {
-    return !criteria.format && !criteria.proposal && !criteria.context;
+    return !criteria.format && !criteria.proposal && !criteria.context && !criteria.tone && !criteria.references;
   };
 
   const canCompare =
@@ -211,7 +280,7 @@ export default function ContentSegmentComparison({ dateRangeFilter }: ContentSeg
     <div className="bg-white dark:bg-gray-800/50 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-6">
       <div>
         <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Comparador de Performance de Segmentos de Conteúdo</h3>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Defina e compare métricas de diferentes segmentos de conteúdo.</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Defina e compare métricas de diferentes segmentos de conteúdo com base em 5 dimensões.</p>
       </div>
 
       <div className="space-y-3">
@@ -235,42 +304,44 @@ export default function ContentSegmentComparison({ dateRangeFilter }: ContentSeg
                 id={`segmentName-${segment.id}`}
                 value={segment.name || ''}
                 onChange={(e) => handleSegmentChange(segment.id, 'name', e.target.value)}
-                placeholder={`Ex: Reels de Finanças`}
+                placeholder={`Ex: Reels de Humor sobre Finanças`}
                 className="mt-0.5 w-full px-2.5 py-1.5 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
                 <div>
                 <label htmlFor={`format-${segment.id}`} className="block text-xs font-medium text-gray-500 dark:text-gray-400">Formato</label>
-                <select
-                    id={`format-${segment.id}`}
-                    value={segment.criteria.format || ""}
-                    onChange={(e) => handleSegmentChange(segment.id, 'format', e.target.value)}
-                    className="mt-0.5 w-full px-2.5 py-1.5 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                >
-                    {FORMAT_OPTIONS.map(opt => <option key={opt} value={opt}>{opt === "" ? "Qualquer Formato" : opt}</option>)}
+                <select id={`format-${segment.id}`} value={segment.criteria.format || ""} onChange={(e) => handleSegmentChange(segment.id, 'format', e.target.value)} className="mt-0.5 w-full px-2.5 py-1.5 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                    <option value="">Qualquer Formato</option>
+                    {formatOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
                 </div>
                 <div>
                 <label htmlFor={`proposal-${segment.id}`} className="block text-xs font-medium text-gray-500 dark:text-gray-400">Proposta</label>
-                <select
-                    id={`proposal-${segment.id}`}
-                    value={segment.criteria.proposal || ""}
-                    onChange={(e) => handleSegmentChange(segment.id, 'proposal', e.target.value)}
-                    className="mt-0.5 w-full px-2.5 py-1.5 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                >
-                    {PROPOSAL_OPTIONS.map(opt => <option key={opt} value={opt}>{opt === "" ? "Qualquer Proposta" : opt}</option>)}
+                <select id={`proposal-${segment.id}`} value={segment.criteria.proposal || ""} onChange={(e) => handleSegmentChange(segment.id, 'proposal', e.target.value)} className="mt-0.5 w-full px-2.5 py-1.5 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                    <option value="">Qualquer Proposta</option>
+                    {proposalOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
                 </div>
                 <div>
                 <label htmlFor={`context-${segment.id}`} className="block text-xs font-medium text-gray-500 dark:text-gray-400">Contexto</label>
-                <select
-                    id={`context-${segment.id}`}
-                    value={segment.criteria.context || ""}
-                    onChange={(e) => handleSegmentChange(segment.id, 'context', e.target.value)}
-                    className="mt-0.5 w-full px-2.5 py-1.5 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                >
-                    {contextOptions.map(opt => <option key={opt} value={opt}>{opt === "" ? "Qualquer Contexto" : opt}</option>)}
+                <select id={`context-${segment.id}`} value={segment.criteria.context || ""} onChange={(e) => handleSegmentChange(segment.id, 'context', e.target.value)} className="mt-0.5 w-full px-2.5 py-1.5 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                    <option value="">Qualquer Contexto</option>
+                    {contextOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                </select>
+                </div>
+                <div>
+                <label htmlFor={`tone-${segment.id}`} className="block text-xs font-medium text-gray-500 dark:text-gray-400">Tom</label>
+                <select id={`tone-${segment.id}`} value={segment.criteria.tone || ""} onChange={(e) => handleSegmentChange(segment.id, 'tone', e.target.value)} className="mt-0.5 w-full px-2.5 py-1.5 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                    <option value="">Qualquer Tom</option>
+                    {toneOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                </select>
+                </div>
+                <div>
+                <label htmlFor={`references-${segment.id}`} className="block text-xs font-medium text-gray-500 dark:text-gray-400">Referências</label>
+                <select id={`references-${segment.id}`} value={segment.criteria.references || ""} onChange={(e) => handleSegmentChange(segment.id, 'references', e.target.value)} className="mt-0.5 w-full px-2.5 py-1.5 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                    <option value="">Qualquer Referência</option>
+                    {referenceOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
                 </div>
             </div>

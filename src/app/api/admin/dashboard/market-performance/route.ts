@@ -1,3 +1,7 @@
+/**
+ * @fileoverview API Endpoint for fetching market performance for a specific content segment.
+ * @version 2.0.0 - Updated to support 5-dimension classification (format, proposal, context, tone, references).
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
@@ -7,15 +11,30 @@ import { fetchMarketPerformance } from '@/app/lib/dataService/marketAnalysis/seg
 import { DatabaseError } from '@/app/lib/errors';
 export const dynamic = 'force-dynamic';
 
-const SERVICE_TAG = '[api/admin/dashboard/market-performance]';
+const SERVICE_TAG = '[api/admin/dashboard/market-performance v2.0.0]';
 
-const querySchema = z.object({
-  format: z.string(),
-  proposal: z.string(),
-  days: z.coerce.number().int().positive().optional().default(30),
+// --- Zod Schemas and Type Definitions ---
+
+// Schema para os critérios de classificação.
+const criteriaSchema = z.object({
+  format: z.string().optional(),
+  proposal: z.string().optional(),
+  context: z.string().optional(),
+  tone: z.string().optional(),
+  references: z.string().optional(),
 });
 
-// Real Admin Session Validation
+// Schema completo para os parâmetros da query, combinando critérios e dias.
+const querySchema = criteriaSchema.extend({
+  days: z.coerce.number().int().positive().optional().default(30),
+}).refine(data => 
+    data.format || data.proposal || data.context || data.tone || data.references, {
+  message: "At least one classification criterion (format, proposal, context, tone, or references) must be provided."
+});
+
+
+// --- Helper Functions ---
+
 async function getAdminSession(_req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session || session.user?.role !== 'admin') {
@@ -30,6 +49,12 @@ function apiError(message: string, status: number): NextResponse {
   return NextResponse.json({ error: message }, { status });
 }
 
+/**
+ * @handler GET
+ * @description Handles GET requests to fetch market performance for a single, specific content segment.
+ * @param {NextRequest} req - The incoming Next.js request object.
+ * @returns {Promise<NextResponse>} A Next.js response object containing the market performance data or an error.
+ */
 export async function GET(req: NextRequest) {
   const TAG = `${SERVICE_TAG}[GET]`;
   logger.info(`${TAG} Received request.`);
@@ -50,10 +75,23 @@ export async function GET(req: NextRequest) {
       return apiError(`Parâmetros inválidos: ${errMsg}`, 400);
     }
 
-    const { format, proposal, days } = validationResult.data;
+    // A desestruturação separa 'days' dos outros campos, que formam o objeto 'criteria'.
+    const { days, ...criteria } = validationResult.data;
 
-    logger.info(`${TAG} Calling fetchMarketPerformance for ${format}/${proposal} (${days} days)`);
-    const result = await fetchMarketPerformance({ format, proposal, days });
+    // CORREÇÃO: O erro indica que 'fetchMarketPerformance' espera que 'format' e 'proposal'
+    // sejam do tipo 'string', mas o schema os define como 'string | undefined'.
+    // Para resolver isso, fornecemos um valor padrão (string vazia) usando o operador '??'
+    // caso os valores sejam nulos ou indefinidos. Isso garante que os tipos correspondam
+    // à assinatura da função, permitindo que a chamada prossiga sem erros de tipo.
+    const serviceArgs = {
+        ...criteria,
+        format: criteria.format ?? '',
+        proposal: criteria.proposal ?? '',
+        days,
+    };
+
+    logger.info(`${TAG} Calling fetchMarketPerformance for criteria: ${JSON.stringify(criteria)} (${days} days)`);
+    const result = await fetchMarketPerformance(serviceArgs);
     logger.info(`${TAG} Successfully fetched market performance.`);
 
     return NextResponse.json(result, { status: 200 });

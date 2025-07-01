@@ -12,6 +12,8 @@ import {
   Legend,
 } from 'recharts';
 
+// --- Tipos e Interfaces ---
+
 interface DailySnapshot {
   date: string | Date;
   dayNumber?: number;
@@ -20,10 +22,13 @@ interface DailySnapshot {
   dailyShares?: number;
 }
 
+// ATUALIZADO: Interface de resposta para incluir as 5 dimensões como arrays
 interface PostDetailResponse {
-  format?: string;
-  proposal?: string;
-  context?: string;
+  format?: string[];
+  proposal?: string[];
+  context?: string[];
+  tone?: string[];
+  references?: string[];
   dailySnapshots: DailySnapshot[];
 }
 
@@ -37,9 +42,18 @@ const metricOptions: { key: keyof DailySnapshot; label: string; color: string }[
   { key: 'dailyShares', label: 'Compart.', color: '#ff7300' },
 ];
 
+// --- Componente Principal ---
+
 const ContentTrendChart: React.FC<ContentTrendChartProps> = ({ postId }) => {
   const [data, setData] = useState<DailySnapshot[]>([]);
-  const [meta, setMeta] = useState<{ format?: string; proposal?: string; context?: string }>({});
+  // ATUALIZADO: Estado de metadados para armazenar as 5 dimensões
+  const [meta, setMeta] = useState<{
+    format?: string[];
+    proposal?: string[];
+    context?: string[];
+    tone?: string[];
+    references?: string[];
+  }>({});
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedMetrics, setSelectedMetrics] = useState<(keyof DailySnapshot)[]>(['dailyViews']);
@@ -55,14 +69,20 @@ const ContentTrendChart: React.FC<ContentTrendChartProps> = ({ postId }) => {
         throw new Error(err.error || 'Erro ao buscar dados');
       }
       const json: PostDetailResponse = await res.json();
-      setMeta({ format: json.format, proposal: json.proposal, context: json.context });
+      // ATUALIZADO: Armazena todas as 5 dimensões no estado
+      setMeta({
+        format: json.format,
+        proposal: json.proposal,
+        context: json.context,
+        tone: json.tone,
+        references: json.references,
+      });
 
-      // CORREÇÃO: Filtra snapshots sem data e garante que a data seja um objeto Date.
       const snapshots: DailySnapshot[] = (json.dailySnapshots || [])
-        .filter(s => s.date) // Garante que apenas snapshots com uma data prossigam
+        .filter(s => s.date)
         .map((s, idx) => ({
           ...s,
-          date: new Date(s.date), // Agora s.date tem a garantia de existir
+          date: new Date(s.date),
           dayNumber: typeof s.dayNumber === 'number' ? s.dayNumber : idx + 1,
       }));
 
@@ -86,6 +106,12 @@ const ContentTrendChart: React.FC<ContentTrendChartProps> = ({ postId }) => {
   };
 
   const filteredData = data.slice(0, dayLimit);
+
+  // Função auxiliar para renderizar os arrays de metadados
+  const renderMetaList = (items?: string[]) => {
+    if (!items || items.length === 0) return 'N/A';
+    return items.join(', ');
+  };
 
   return (
     <div className="p-4 bg-white rounded-md shadow-md space-y-4">
@@ -151,11 +177,14 @@ const ContentTrendChart: React.FC<ContentTrendChartProps> = ({ postId }) => {
             </label>
           </div>
         </div>
+        {/* ATUALIZADO: Aside para exibir as 5 dimensões */}
         <aside className="w-full md:w-48 mt-4 md:mt-0 text-sm space-y-1">
-          <h4 className="text-md font-semibold text-gray-700 mb-1">Informações</h4>
-          <p><strong>Formato:</strong> {meta.format || 'N/A'}</p>
-          <p><strong>Proposta:</strong> {meta.proposal || 'N/A'}</p>
-          <p><strong>Contexto:</strong> {meta.context || 'N/A'}</p>
+          <h4 className="text-md font-semibold text-gray-700 mb-1">Classificação</h4>
+          <p><strong>Formato:</strong> {renderMetaList(meta.format)}</p>
+          <p><strong>Proposta:</strong> {renderMetaList(meta.proposal)}</p>
+          <p><strong>Contexto:</strong> {renderMetaList(meta.context)}</p>
+          <p><strong>Tom:</strong> {renderMetaList(meta.tone)}</p>
+          <p><strong>Referências:</strong> {renderMetaList(meta.references)}</p>
         </aside>
       </div>
     </div>

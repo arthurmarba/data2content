@@ -50,24 +50,23 @@ async function getAverageEngagementByGrouping(
       const metricValue = getNestedValue(post, performanceMetricField);
       if (typeof metricValue !== 'number') continue;
 
-      const key =
-        groupBy === 'format'
-          ? (post.format || '').toString()
-          : groupBy === 'context'
-            ? post.context ?? null
-            : post.proposal ?? null;
+      // CORREÇÃO: O erro 'Type 'string[]' cannot be used as an index type' ocorre porque as
+      // propriedades de classificação (format, context, proposal) são arrays. A lógica foi
+      // ajustada para iterar sobre cada item do array de classificação. Cada item (ex: 'Reel', 'Humor')
+      // é então usado como uma chave para o objeto de agregação, resolvendo o erro de tipo.
+      const keys = post[groupBy];
 
-      if (groupBy === 'format') {
-        if (!key) continue;
-      } else {
-        if (key === null) continue;
-      }
+      if (Array.isArray(keys)) {
+        for (const key of keys) {
+          if (!key) continue; // Pula chaves nulas ou vazias dentro do array
 
-      if (!aggregation[key]) {
-        aggregation[key] = { sum: 0, count: 0 };
+          if (!aggregation[key]) {
+            aggregation[key] = { sum: 0, count: 0 };
+          }
+          aggregation[key].sum += metricValue;
+          aggregation[key].count += 1;
+        }
       }
-      aggregation[key].sum += metricValue;
-      aggregation[key].count += 1;
     }
 
     const results: AverageResult[] = [];

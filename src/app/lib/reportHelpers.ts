@@ -1,6 +1,6 @@
-// @/app/lib/reportHelpers.ts - v4.5.8 (Aplica tipos Enum para F/P/C em interfaces e lógica)
-// - ATUALIZADO: Interfaces e lógica interna para usar FormatType, ProposalType, ContextType onde aplicável.
-// - Baseado na v4.5.7.
+// @/app/lib/reportHelpers.ts - v4.5.9 (Corrige o manuseio de tipos de array na criação de exemplos)
+// - CORRIGIDO: `enrichStats` e `addTopExamplesOnly` agora usam o primeiro elemento dos arrays de classificação e fazem o cast para o tipo Enum esperado.
+// - Baseado na v4.5.8.
 
 import { Types, Model, PipelineStage } from "mongoose";
 import { subDays } from 'date-fns';
@@ -10,7 +10,7 @@ import { IMetric, IMetricStats } from "@/app/models/Metric";
 import { FormatType, ProposalType, ContextType, DEFAULT_FORMAT_ENUM, DEFAULT_PROPOSAL_ENUM, DEFAULT_CONTEXT_ENUM } from "@/app/lib/constants/communityInspirations.constants";
 
 const TOP_EXAMPLES_PER_GROUP_LIMIT = 3;
-const REPORT_HELPERS_TAG = '[ReportHelpers v4.5.8]'; // Versão atualizada
+const REPORT_HELPERS_TAG = '[ReportHelpers v4.5.9]'; // Versão atualizada
 
 // ======================================================================================
 // Erros Customizados
@@ -217,17 +217,15 @@ async function getDetailedContentStatsBase(userId: Types.ObjectId, startDate: Da
         addCommonAveragesToGroupStage({
             $group: {
                 _id: {
-                    format: { $ifNull: ["$format", DEFAULT_FORMAT_ENUM] },
-                    proposal: { $ifNull: ["$proposal", DEFAULT_PROPOSAL_ENUM] },
-                    context: { $ifNull: ["$context", DEFAULT_CONTEXT_ENUM] }
+                    format: { $ifNull: [{ $first: "$format" }, DEFAULT_FORMAT_ENUM] },
+                    proposal: { $ifNull: [{ $first: "$proposal" }, DEFAULT_PROPOSAL_ENUM] },
+                    context: { $ifNull: [{ $first: "$context" }, DEFAULT_CONTEXT_ENUM] }
                 },
             }
         }),
         { $sort: { totalPosts: -1, "avgShares": -1 } }
     ];
     try {
-        // O resultado da agregação já deve ter os tipos Enum corretos para format, proposal, context
-        // devido aos defaults e validação no MetricModel.
         const results = await metricModel.aggregate(pipeline).exec() as DetailedContentStat[];
         logger.debug(`${fnTag} F/P/C retornou ${results.length} grupos.`);
         return results;
@@ -245,7 +243,7 @@ async function getProposalStatsBase(userId: Types.ObjectId, startDate: Date, met
         { $match: { user: userId, postDate: { $gte: startDate } } },
         addCommonAveragesToGroupStage({
             $group: {
-                _id: { proposal: { $ifNull: ["$proposal", DEFAULT_PROPOSAL_ENUM] } },
+                _id: { proposal: { $ifNull: [{ $first: "$proposal" }, DEFAULT_PROPOSAL_ENUM] } },
             }
         }),
         { $sort: { totalPosts: -1, "avgShares": -1 } }
@@ -268,7 +266,7 @@ async function getContextStatsBase(userId: Types.ObjectId, startDate: Date, metr
          { $match: { user: userId, postDate: { $gte: startDate } } },
          addCommonAveragesToGroupStage({
             $group: {
-                _id: { context: { $ifNull: ["$context", DEFAULT_CONTEXT_ENUM] } },
+                _id: { context: { $ifNull: [{ $first: "$context" }, DEFAULT_CONTEXT_ENUM] } },
             }
         }),
          { $sort: { totalPosts: -1, "avgShares": -1 } }
@@ -437,16 +435,14 @@ async function getDayPCOStatsBase(userId: Types.ObjectId, startDate: Date, metri
             $group: {
                 _id: {
                   dayOfWeek: "$dayOfWeek",
-                  proposal: { $ifNull: ["$proposal", DEFAULT_PROPOSAL_ENUM] },
-                  context: { $ifNull: ["$context", DEFAULT_CONTEXT_ENUM] }
+                  proposal: { $ifNull: [{ $first: "$proposal" }, DEFAULT_PROPOSAL_ENUM] },
+                  context: { $ifNull: [{ $first: "$context" }, DEFAULT_CONTEXT_ENUM] }
                 },
             }
         })
     ];
 
     try {
-        // O resultado da agregação já terá os tipos Enum corretos para proposal e context
-        // devido aos defaults e validação no MetricModel.
         const aggregationResults: (BaseStat & { _id: { dayOfWeek: number; proposal: ProposalType; context: ContextType; } })[] = await metricModel.aggregate(pipeline).exec();
         logger.debug(`${fnTag} Agregação Dia/P/C retornou ${aggregationResults.length} resultados brutos para User ${userId}.`);
 
@@ -511,7 +507,6 @@ async function enrichStats<T extends BaseStat>(
 
     logger.debug(`${fnTag} Enriquecendo ${statsBase.length} grupos do tipo ${groupingType} para User ${userId}.`);
 
-    // Tipo para os posts retornados pela busca de exemplos (incluindo F/P/C com Enums)
     type ExamplePost = Pick<IMetric, '_id' | 'description' | 'postLink' | 'stats' | 'type' | 'format' | 'proposal' | 'context'>;
 
 
@@ -532,32 +527,34 @@ async function enrichStats<T extends BaseStat>(
         enrichedStat.likeDiffPercentage = (overallAvgLikes > 0 && enrichedStat.avgLikes != null) ? ((enrichedStat.avgLikes / overallAvgLikes) - 1) * 100 : null;
 
         if (groupingType === 'detailed') {
-            const detailedStat = enrichedStat as DetailedContentStat; // DetailedContentStat já tem _id com Enums
-            const groupId = detailedStat._id; // groupId é { format: FormatType; proposal: ProposalType; context: ContextType; }
+            const detailedStat = enrichedStat as DetailedContentStat; 
+            const groupId = detailedStat._id;
             try {
                 const topPostsFromDb: ExamplePost[] = await metricModel.find({
                     user: userId,
-                    format: groupId.format,     // Usa FormatType
-                    proposal: groupId.proposal, // Usa ProposalType
-                    context: groupId.context    // Usa ContextType
+                    format: groupId.format,
+                    proposal: groupId.proposal,
+                    context: groupId.context
                 })
                 .select('_id description postLink stats.shares stats.saved type format proposal context')
                 .sort({ 'stats.shares': -1, 'stats.saved': -1 })
                 .limit(TOP_EXAMPLES_PER_GROUP_LIMIT)
                 .lean();
 
+                // CORREÇÃO: Mapeia o primeiro elemento do array e faz o cast para o tipo Enum esperado.
                 detailedStat.topExamplesInGroup = topPostsFromDb.map(post => ({
                     _id: post._id,
                     description: post.description ?? undefined,
                     postLink: (post.postLink && post.postLink.startsWith('http')) ? post.postLink : undefined,
                     type: post.type,
-                    format: post.format,     // Retorna FormatType
-                    proposal: post.proposal, // Retorna ProposalType
-                    context: post.context,   // Retorna ContextType
+                    format: post.format?.[0] as FormatType,
+                    proposal: post.proposal?.[0] as ProposalType,
+                    context: post.context?.[0] as ContextType,
                 }));
 
                 const bestPost = topPostsFromDb[0];
                 if (bestPost) {
+                    // CORREÇÃO: Mapeia o primeiro elemento do array e faz o cast para o tipo Enum esperado.
                     detailedStat.bestPostInGroup = {
                         _id: bestPost._id,
                         description: bestPost.description ?? undefined,
@@ -565,9 +562,9 @@ async function enrichStats<T extends BaseStat>(
                         shares: bestPost.stats?.shares,
                         saved: bestPost.stats?.saved,
                         type: bestPost.type,
-                        format: bestPost.format,     // Retorna FormatType
-                        proposal: bestPost.proposal, // Retorna ProposalType
-                        context: bestPost.context,   // Retorna ContextType
+                        format: bestPost.format?.[0] as FormatType,
+                        proposal: bestPost.proposal?.[0] as ProposalType,
+                        context: bestPost.context?.[0] as ContextType,
                     };
                 } else {
                     detailedStat.bestPostInGroup = undefined;
@@ -596,7 +593,7 @@ async function addTopExamplesOnly(
     const enrichedResults: DetailedContentStat[] = [];
     for (const statBaseItem of statsBase) {
         const enrichedStat = { ...statBaseItem };
-        const groupId = enrichedStat._id; // groupId é { format: FormatType; proposal: ProposalType; context: ContextType; }
+        const groupId = enrichedStat._id;
         try {
             const topPostsFromDb: ExamplePost[] = await metricModel.find({
                 user: userId,
@@ -609,18 +606,20 @@ async function addTopExamplesOnly(
             .limit(TOP_EXAMPLES_PER_GROUP_LIMIT)
             .lean();
 
+            // CORREÇÃO: Mapeia o primeiro elemento do array e faz o cast para o tipo Enum esperado.
             enrichedStat.topExamplesInGroup = topPostsFromDb.map(post => ({
                 _id: post._id,
                 description: post.description ?? undefined,
                 postLink: (post.postLink && post.postLink.startsWith('http')) ? post.postLink : undefined,
                 type: post.type,
-                format: post.format,
-                proposal: post.proposal,
-                context: post.context,
+                format: post.format?.[0] as FormatType,
+                proposal: post.proposal?.[0] as ProposalType,
+                context: post.context?.[0] as ContextType,
             }));
 
             const bestPost = topPostsFromDb[0];
             if (bestPost) {
+                // CORREÇÃO: Mapeia o primeiro elemento do array e faz o cast para o tipo Enum esperado.
                 enrichedStat.bestPostInGroup = {
                     _id: bestPost._id,
                     description: bestPost.description ?? undefined,
@@ -628,9 +627,9 @@ async function addTopExamplesOnly(
                     shares: bestPost.stats?.shares,
                     saved: bestPost.stats?.saved,
                     type: bestPost.type,
-                    format: bestPost.format,
-                    proposal: bestPost.proposal,
-                    context: bestPost.context,
+                    format: bestPost.format?.[0] as FormatType,
+                    proposal: bestPost.proposal?.[0] as ProposalType,
+                    context: bestPost.context?.[0] as ContextType,
                 };
             } else {
                 enrichedStat.bestPostInGroup = undefined;
@@ -663,10 +662,10 @@ export async function buildAggregatedReport(
     let overallStats: OverallStats | undefined,
         dayOfWeekStatsBase: DayOfWeekStat[] = [],
         durationStatsBase: DurationStat[] = [],
-        detailedStatsBase: DetailedContentStat[] = [], // Tipagem atualizada
-        proposalStatsBase: ProposalStat[] = [],       // Tipagem atualizada
-        contextStatsBase: ContextStat[] = [],         // Tipagem atualizada
-        performanceByDayPCOData: PerformanceByDayPCO | undefined; // Tipagem atualizada
+        detailedStatsBase: DetailedContentStat[] = [],
+        proposalStatsBase: ProposalStat[] = [],
+        contextStatsBase: ContextStat[] = [],
+        performanceByDayPCOData: PerformanceByDayPCO | undefined;
 
     try {
         logger.debug(`${fnTag} Buscando agregações para User ${userId}...`);
@@ -674,10 +673,10 @@ export async function buildAggregatedReport(
             getOverallStatsBase(userId, startDate, metricModel),
             getDayOfWeekStatsBase(userId, startDate, metricModel),
             getDurationStatsBase(userId, startDate, metricModel),
-            getDetailedContentStatsBase(userId, startDate, metricModel), // Retorna DetailedContentStat[]
-            getProposalStatsBase(userId, startDate, metricModel),       // Retorna ProposalStat[]
-            getContextStatsBase(userId, startDate, metricModel),         // Retorna ContextStat[]
-            getDayPCOStatsBase(userId, startDate, metricModel)         // Retorna PerformanceByDayPCO
+            getDetailedContentStatsBase(userId, startDate, metricModel),
+            getProposalStatsBase(userId, startDate, metricModel),
+            getContextStatsBase(userId, startDate, metricModel),
+            getDayPCOStatsBase(userId, startDate, metricModel)
         ]);
 
         // Atribuições com verificação de status e valor
@@ -741,7 +740,6 @@ export async function buildAggregatedReport(
          logger.error(`${fnTag} Erro crítico durante enriquecimento de stats para User ${userId}.`, error);
     }
 
-    // Tipo para os posts buscados do banco de dados, incluindo os novos campos com Enums
     type FetchedPostForReport = Pick<IMetric, '_id' | 'description' | 'postLink' | 'stats' | 'type' | 'format' | 'proposal' | 'context'>;
 
     let top3Posts: FetchedPostForReport[] = [],
@@ -754,13 +752,12 @@ export async function buildAggregatedReport(
                 postDate: { $gte: startDate },
                 [sortField]: { $exists: true }
             })
-            .select('_id description postLink stats type format proposal context') // Campos já estão alinhados com FetchedPostForReport
+            .select('_id description postLink stats type format proposal context')
             .sort({ [sortField]: -1 })
             .lean() as FetchedPostForReport[]; 
 
         if (posts.length > 0) {
             top3Posts = posts.slice(0, 3);
-            // Garante que bottom3Posts tenha os tipos Enum corretos
             bottom3Posts = posts.length >= 3 ? posts.slice(-3).reverse() : [...posts].reverse();
         }
         logger.debug(`${fnTag} Top 3: ${top3Posts.length} posts. Bottom 3: ${bottom3Posts.length} posts para User ${userId}.`);
@@ -784,4 +781,3 @@ export async function buildAggregatedReport(
 
     return finalReport;
 }
-

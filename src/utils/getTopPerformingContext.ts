@@ -46,16 +46,25 @@ async function getTopPerformingContext(
     const performanceByContext: Record<string, { sumPerformance: number; count: number }> = {};
 
     for (const post of posts) {
-      const context = post.context as ContextType | undefined;
+      // CORREÇÃO: O erro ocorre porque 'post.context' é um array de strings (string[]),
+      // não uma única string. A lógica foi ajustada para iterar sobre cada contexto
+      // dentro do array. Isso garante que cada contexto seja processado individualmente,
+      // resolvendo o erro de tipo.
+      const contexts = post.context;
       const perf = getNestedValue(post, performanceMetricField);
-      if (!context || perf == null) continue;
+      if (perf == null || typeof perf !== 'number') continue;
 
-      const key = context.toString();
-      if (!performanceByContext[key]) {
-        performanceByContext[key] = { sumPerformance: 0, count: 0 };
+      if (Array.isArray(contexts)) {
+        for (const context of contexts) {
+            if (!context) continue; // Pula valores vazios no array
+
+            if (!performanceByContext[context]) {
+                performanceByContext[context] = { sumPerformance: 0, count: 0 };
+            }
+            performanceByContext[context].sumPerformance += perf;
+            performanceByContext[context].count += 1;
+        }
       }
-      performanceByContext[key].sumPerformance += perf;
-      performanceByContext[key].count += 1;
     }
 
     const entries = Object.entries(performanceByContext);

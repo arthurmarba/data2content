@@ -1,6 +1,6 @@
 /**
  * @fileoverview API Endpoint for fetching Top Movers data (content or creators).
- * @version 1.0.0
+ * @version 2.0.0 - Updated to support 5-dimension classification.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -17,7 +17,7 @@ import { DatabaseError } from '@/app/lib/errors';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
-const SERVICE_TAG = '[api/admin/dashboard/top-movers]';
+const SERVICE_TAG = '[api/admin/dashboard/top-movers v2.0.0]';
 
 // --- Zod Schemas for Validation ---
 
@@ -29,10 +29,13 @@ const periodSchema = z.object({
     path: ["endDate"],
 });
 
+// ATUALIZADO: Filtros de conteúdo agora incluem as 5 dimensões
 const contentFiltersSchema = z.object({
   format: z.string().optional(),
   proposal: z.string().optional(),
-  context: z.string().optional()
+  context: z.string().optional(),
+  tone: z.string().optional(),
+  references: z.string().optional(),
 }).optional();
 
 const creatorFiltersSchema = z.object({
@@ -91,10 +94,6 @@ function apiError(message: string, status: number): NextResponse {
 /**
  * @handler POST
  * @description Handles POST requests to fetch Top Movers data.
- * Validates admin session and the complex request body.
- * Calls the `fetchTopMoversData` service function.
- * @param {NextRequest} req - The incoming Next.js request object.
- * @returns {Promise<NextResponse>} A Next.js response object containing an array of ITopMoverResult or an error.
  */
 export async function POST(req: NextRequest) {
   const TAG = `${SERVICE_TAG}[POST]`;
@@ -102,7 +101,6 @@ export async function POST(req: NextRequest) {
 
   try {
     const session = await getAdminSession(req);
-    // CORREÇÃO: Adicionada verificação explícita para session.user.
     if (!session || !session.user) {
       return apiError('Acesso não autorizado. Sessão de administrador inválida.', 401);
     }

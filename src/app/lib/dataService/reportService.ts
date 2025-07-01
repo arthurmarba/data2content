@@ -1,8 +1,7 @@
 // @/app/lib/dataService/reportService.ts
-// MODIFICADO: v2.14.22 - Padronizado uso de 'instagramMediaId' em getRecentPostObjects.
-// MODIFICADO: v2.14.21 - Ajustado nome do campo para instagramMediaId em getRecentPostObjectsWithAggregatedMetrics (mantido).
-// MODIFICADO: v2.14.20 (ou superior) - Adicionada atribuição de aggregatedReport.dayOfWeekStats para enrichedReport.dayOfWeekStats (mantido).
-// Baseado na v2.14.19.
+// MODIFICADO: v2.14.24 - Adiciona asserções de tipo para garantir a compatibilidade com os enums de PostObject.
+// - CORRIGIDO: `extractReferenceAndFindPost`, `getRecentPostObjects`, `getRecentPostObjectsWithAggregatedMetrics` agora fazem o cast do primeiro elemento dos arrays para o tipo esperado.
+// Baseado na v2.14.23.
 
 import mongoose, { Model, Types } from 'mongoose';
 import { subDays, differenceInDays } from 'date-fns';
@@ -25,7 +24,7 @@ import { DEFAULT_METRICS_FETCH_DAYS } from './constants';
 import { IUser, IEnrichedReport, PreparedData, ReferenceSearchResult, IGrowthDataResult, PostObject } from './types'; 
 import { getUserProfileSegment, getMultimediaSuggestion, getCombinedGrowthData } from './helpers';
 
-const SERVICE_TAG = '[dataService][reportService v2.14.22]'; // Tag de versão atualizada
+const SERVICE_TAG = '[dataService][reportService v2.14.24]'; // Tag de versão atualizada
 
 export async function fetchAndPrepareReportData(
     { user, analysisSinceDate }: { user: IUser; analysisSinceDate?: Date; }
@@ -134,12 +133,13 @@ export async function extractReferenceAndFindPost( text: string, userId: Types.O
         if (posts.length === 1) {
             const post = posts[0]!;
             logger.info(`${fnTag} Post único encontrado para referência "${reference}" (ID: ${post._id}) para utilizador ${userId}`);
+            // CORREÇÃO: Adicionada asserção de tipo para garantir que a string seja compatível com o enum de PostObject.
             return { status: 'found', post: {
                 _id: post._id.toString(),
                 description: post.description || '',
-                proposal: post.proposal,
-                context: post.context,
-                format: post.format
+                proposal: post.proposal?.[0] as PostObject['proposal'],
+                context: post.context?.[0] as PostObject['context'],
+                format: post.format?.[0] as PostObject['format']
             } };
         }
 
@@ -184,7 +184,7 @@ export async function getRecentPostObjects(
     daysToLookback: number,
     filters?: { types?: Array<'IMAGE' | 'CAROUSEL' | 'REEL' | 'VIDEO' | 'STORY'>, excludeIds?: string[] }
 ): Promise<PostObject[]> {
-    const currentVersionTag = "v2.14.22"; // Versão desta função atualizada
+    const currentVersionTag = "v2.14.24"; // Versão desta função atualizada
     const TAG = `${SERVICE_TAG}[getRecentPostObjects ${currentVersionTag}]`; 
     logger.debug(`${TAG} Buscando posts recentes para User ${userId}. Dias: ${daysToLookback}, Filtros: ${JSON.stringify(filters)}`);
 
@@ -219,14 +219,19 @@ export async function getRecentPostObjects(
         logger.info(`${TAG} Encontrados ${postsFromMetrics.length} posts recentes para User ${userId}.`);
 
         return postsFromMetrics.map((metric): PostObject => {
-            const potentialTags = [metric.format, metric.proposal, metric.context];
+            // A lógica de tags agora mescla os arrays de classificação corretamente.
+            const potentialTags = [
+                ...(metric.format || []),
+                ...(metric.proposal || []),
+                ...(metric.context || [])
+            ];
             const tags = potentialTags.filter(tag => 
                 typeof tag === 'string' && 
                 tag.trim() !== '' && 
                 tag.toLowerCase() !== 'outro' && 
                 tag.toLowerCase() !== 'geral' &&
                 tag.toLowerCase() !== 'desconhecido'
-            ) as string[];
+            );
 
             // Garantindo consistência: usamos instagramMediaId aqui.
             // A interface PostObject (em ./types) deve refletir isso.
@@ -238,9 +243,10 @@ export async function getRecentPostObjects(
                 description: metric.description,
                 postDate: metric.postDate, 
                 stats: metric.stats,
-                format: metric.format,
-                proposal: metric.proposal,
-                context: metric.context,
+                // CORREÇÃO: Adicionada asserção de tipo para garantir que a string seja compatível com o enum de PostObject.
+                format: metric.format?.[0] as PostObject['format'],
+                proposal: metric.proposal?.[0] as PostObject['proposal'],
+                context: metric.context?.[0] as PostObject['context'],
                 tags: tags,
             };
         });
@@ -254,7 +260,7 @@ export async function getRecentPostObjectsWithAggregatedMetrics(
     userId: string,
     days: number
 ): Promise<PostObject[]> { 
-    const currentVersionTag = "v2.14.21"; // Versão da lógica principal desta função mantida (já usava instagramMediaId)
+    const currentVersionTag = "v2.14.24"; // Versão desta função atualizada
     const TAG = `${SERVICE_TAG}[getRecentPostObjectsWithAggregatedMetrics ${currentVersionTag}]`;
     logger.info(`${TAG} Buscando posts com métricas agregadas para User ${userId} nos últimos ${days} dias.`);
 
@@ -282,14 +288,19 @@ export async function getRecentPostObjectsWithAggregatedMetrics(
         }
 
         const results: PostObject[] = recentMetrics.map((metric): PostObject => {
-            const potentialTags = [metric.format, metric.proposal, metric.context];
+            // A lógica de tags agora mescla os arrays de classificação corretamente.
+            const potentialTags = [
+                ...(metric.format || []),
+                ...(metric.proposal || []),
+                ...(metric.context || [])
+            ];
             const tags = potentialTags.filter(tag => 
                 typeof tag === 'string' && 
                 tag.trim() !== '' && 
                 tag.toLowerCase() !== 'outro' && 
                 tag.toLowerCase() !== 'geral' &&
                 tag.toLowerCase() !== 'desconhecido'
-            ) as string[];
+            );
 
             return {
                 _id: metric._id.toString(),
@@ -303,9 +314,10 @@ export async function getRecentPostObjectsWithAggregatedMetrics(
                 videoViews: metric.stats?.video_views || 0,
                 totalComments: metric.stats?.comments || 0,
                 stats: metric.stats,
-                format: metric.format,
-                proposal: metric.proposal,
-                context: metric.context,
+                // CORREÇÃO: Adicionada asserção de tipo para garantir que a string seja compatível com o enum de PostObject.
+                format: metric.format?.[0] as PostObject['format'],
+                proposal: metric.proposal?.[0] as PostObject['proposal'],
+                context: metric.context?.[0] as PostObject['context'],
                 tags: tags,
             };
         });

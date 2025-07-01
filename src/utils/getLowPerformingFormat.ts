@@ -43,15 +43,25 @@ async function getLowPerformingFormat(
     const performanceByFormat: Record<string, { sumPerformance: number; count: number }> = {};
 
     for (const post of posts) {
-      const format = (post.format ?? 'unknown') as FormatType;
+      // CORREÇÃO: O erro ocorre porque 'post.format' é um array de strings (string[]),
+      // não uma única string. A lógica foi ajustada para iterar sobre cada formato
+      // dentro do array 'post.format'. Isso garante que cada formato seja processado
+      // individualmente, resolvendo o erro de tipo.
+      const formats = post.format;
       const performanceValue = getNestedValue(post, performanceMetricField);
-      if (performanceValue == null) continue;
+      if (performanceValue == null || typeof performanceValue !== 'number') continue;
 
-      if (!performanceByFormat[format]) {
-        performanceByFormat[format] = { sumPerformance: 0, count: 0 };
+      if (Array.isArray(formats)) {
+        for (const format of formats) {
+            if (!format) continue; // Pula valores vazios no array
+
+            if (!performanceByFormat[format]) {
+                performanceByFormat[format] = { sumPerformance: 0, count: 0 };
+            }
+            performanceByFormat[format].sumPerformance += performanceValue;
+            performanceByFormat[format].count += 1;
+        }
       }
-      performanceByFormat[format].sumPerformance += performanceValue;
-      performanceByFormat[format].count += 1;
     }
 
     let lowFormat: FormatType | null = null;

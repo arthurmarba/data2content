@@ -18,7 +18,6 @@ import {
   UsersIcon, 
   ExclamationCircleIcon 
 } from '@heroicons/react/24/outline';
-// Removed: import SkeletonBlock from '../components/SkeletonBlock';
 import {
   ResponsiveContainer, 
   LineChart, 
@@ -31,8 +30,6 @@ import {
 } from 'recharts';
 
 // --- Helper Component for Loading State ---
-// The SkeletonBlock component is now defined directly in this file
-// to resolve the import error and make the component self-contained.
 const SkeletonBlock = ({ width = 'w-full', height = 'h-4' }: { width?: string; height?: string }) => (
   <div className={`${width} ${height} bg-gray-200 rounded-md animate-pulse`}></div>
 );
@@ -63,6 +60,7 @@ interface ISimplifiedDailySnapshot {
   cumulativeLikes?: number;
 }
 
+// ATUALIZADO: Interface para incluir as 5 dimensões de classificação como arrays
 export interface IPostDetailsData {
   _id: string;
   user?: any;
@@ -70,9 +68,11 @@ export interface IPostDetailsData {
   description?: string;
   postDate?: Date;
   type?: string;
-  format?: string;
-  proposal?: string;
-  context?: string;
+  format?: string[];
+  proposal?: string[];
+  context?: string[];
+  tone?: string[];
+  references?: string[];
   theme?: string;
   collab?: boolean;
   collabCreator?: string;
@@ -146,11 +146,17 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
       setIsLoading(false);
       setError(null);
     }
-  }, [isOpen, postId]);
+  }, [isOpen, postId, publicMode]); // Adicionado publicMode às dependências
 
   if (!isOpen || !postId) {
     return null;
   }
+
+  // ATUALIZADO: Função para renderizar os arrays de classificação
+  const renderMetaList = (items?: string[]) => {
+    if (!items || items.length === 0) return 'N/A';
+    return items.join(', ');
+  };
 
   const renderGeneralInfo = () => (
     <div>
@@ -167,9 +173,12 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
           <p><strong className="font-medium text-gray-700">Link:</strong> <a href={postData.postLink} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline break-all">{postData.postLink}</a></p>
           <p><strong className="font-medium text-gray-700">Data:</strong> {postData.postDate ? new Date(postData.postDate).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}</p>
           <p><strong className="font-medium text-gray-700">Tipo:</strong> {postData.type || 'N/A'}</p>
-          <p><strong className="font-medium text-gray-700">Formato:</strong> {postData.format || 'N/A'}</p>
-          <p><strong className="font-medium text-gray-700">Proposta:</strong> {postData.proposal || 'N/A'}</p>
-          <p><strong className="font-medium text-gray-700">Contexto:</strong> {postData.context || 'N/A'}</p>
+          {/* ATUALIZADO: Renderização para as 5 dimensões */}
+          <p><strong className="font-medium text-gray-700">Formato:</strong> {renderMetaList(postData.format)}</p>
+          <p><strong className="font-medium text-gray-700">Proposta:</strong> {renderMetaList(postData.proposal)}</p>
+          <p><strong className="font-medium text-gray-700">Contexto:</strong> {renderMetaList(postData.context)}</p>
+          <p><strong className="font-medium text-gray-700">Tom:</strong> {renderMetaList(postData.tone)}</p>
+          <p><strong className="font-medium text-gray-700">Referências:</strong> {renderMetaList(postData.references)}</p>
           {postData.theme && <p><strong className="font-medium text-gray-700">Tema:</strong> {postData.theme}</p>}
           {postData.coverUrl && <p><strong className="font-medium text-gray-700">Capa:</strong> <a href={postData.coverUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline break-all">{postData.coverUrl}</a></p>}
           <p className="mt-2 pt-2 border-t border-gray-200"><strong className="font-medium text-gray-700">Descrição:</strong> {postData.description || 'N/A'}</p>

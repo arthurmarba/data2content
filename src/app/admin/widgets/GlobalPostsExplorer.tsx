@@ -1,14 +1,23 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { DocumentMagnifyingGlassIcon, InboxIcon } from '@heroicons/react/24/outline';
 
-// CORREÇÃO: Importa os componentes centralizados
-import SkeletonBlock from '../components/SkeletonBlock';
-import EmptyState from '../components/EmptyState';
+// --- (CORREÇÃO) Componentes de Apoio (Definidos localmente) ---
+const SkeletonBlock = ({ width = 'w-full', height = 'h-4', className = '' }: { width?: string; height?: string; className?: string; }) => (
+  <div className={`${width} ${height} bg-gray-200 rounded-md animate-pulse ${className}`}></div>
+);
 
-// Tipos importados do serviço (assumindo que existem)
-// Para este exemplo, definimos tipos locais simplificados.
+const EmptyState = ({ icon, title, message }: { icon: React.ReactNode; title: string; message: string; }) => (
+  <div className="text-center py-8">
+    <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-gray-100">{icon}</div>
+    <h3 className="mt-2 text-sm font-semibold text-gray-900">{title}</h3>
+    <p className="mt-1 text-sm text-gray-500">{message}</p>
+  </div>
+);
+
+
+// --- Tipos e Interfaces ---
 interface IGlobalPostResult {
   _id: string;
   description?: string;
@@ -34,7 +43,6 @@ const GlobalPostsExplorer = ({ dateRangeFilter }: GlobalPostsExplorerProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Filtros internos do explorador
   const [filters, setFilters] = useState({
     context: '',
     proposal: '',
