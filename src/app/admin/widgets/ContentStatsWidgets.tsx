@@ -4,9 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { ChartBarIcon } from '@heroicons/react/24/outline';
 
-// --- (CORREÇÃO) Componentes de Apoio (Definidos localmente) ---
-// Para resolver o erro de importação, os componentes agora estão definidos diretamente neste arquivo.
-
+// --- Componentes de Apoio (Definidos localmente) ---
 const SkeletonBlock = ({ width = 'w-full', height = 'h-4', className = '', variant = 'rectangle' }: { width?: string; height?: string; className?: string; variant?: 'rectangle' | 'circle' }) => {
   const baseClasses = "bg-gray-200 animate-pulse";
   const shapeClass = variant === 'circle' ? 'rounded-full' : 'rounded';
@@ -23,9 +21,6 @@ const EmptyState = ({ icon, title, message }: { icon: React.ReactNode; title: st
 
 
 // --- Tipos e Interfaces ---
-
-// ATUALIZADO: A interface de estatísticas agora inclui os breakdowns para as 5 dimensões.
-// A API que fornece estes dados (`/api/admin/dashboard/content-stats`) deve ser atualizada para retornar estes campos.
 interface IDashboardOverallStats {
   totalPlatformPosts?: number;
   averagePlatformEngagementRate?: number;
@@ -247,7 +242,6 @@ const ContentStatsWidgets = memo(function ContentStatsWidgets({ dateRangeFilter 
           ) : <p className="text-sm text-gray-400 text-center pt-10">Dados não disponíveis.</p>}
         </div>
         
-        {/* NOVO: Gráfico de Tom */}
         <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[300px]">
           <h4 className="text-md font-semibold text-gray-800 mb-1">Posts por Tom</h4>
           <p className="text-xs text-gray-400 mb-3">Distribuição de conteúdo pelo tom emocional.</p>
@@ -276,18 +270,18 @@ const ContentStatsWidgets = memo(function ContentStatsWidgets({ dateRangeFilter 
           ) : <p className="text-sm text-gray-400 text-center pt-10">Dados não disponíveis.</p>}
         </div>
 
-        {/* NOVO: Gráfico de Referências */}
-        <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[300px] col-span-1 lg:col-span-2">
+        {/* ATUALIZAÇÃO: O gráfico de referências foi alterado para um gráfico de barras horizontais para melhor legibilidade e o layout foi ajustado para um grid mais balanceado. */}
+        <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[300px]">
           <h4 className="text-md font-semibold text-gray-800 mb-1">Posts por Referência</h4>
           <p className="text-xs text-gray-400 mb-3">Distribuição de conteúdo por tipo de referência.</p>
           {stats.breakdownByReferences && stats.breakdownByReferences.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={stats.breakdownByReferences} margin={{ top: 5, right: 30, left: 20, bottom: 50 }}>
+              <BarChart data={stats.breakdownByReferences} layout="vertical" margin={{ top: 5, right: 30, left: 80, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" />
-                <XAxis dataKey="reference" angle={-35} textAnchor="end" interval={0} fontSize={10} height={60} />
-                <YAxis fontSize={10} tickFormatter={(value) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(value as number)} />
+                <XAxis type="number" fontSize={10} tickFormatter={(value) => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(value as number)} />
+                <YAxis dataKey="reference" type="category" fontSize={10} width={100} tickLine={false} axisLine={false} />
                 <Tooltip formatter={(value: number) => [value.toLocaleString('pt-BR'), "Posts"]} cursor={{ fill: 'rgba(79, 70, 229, 0.05)' }} />
-                <Bar dataKey="count" fill="#FF8042" radius={[4, 4, 0, 0]} barSize={20} />
+                <Bar dataKey="count" fill="#FF8042" radius={[0, 4, 4, 0]} barSize={15} />
               </BarChart>
             </ResponsiveContainer>
           ) : <p className="text-sm text-gray-400 text-center pt-10">Dados não disponíveis.</p>}

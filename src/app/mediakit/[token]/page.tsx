@@ -71,14 +71,12 @@ async function fetchKpis(baseUrl: string, userId: string): Promise<KpiComparison
 export default async function MediaKitPage({ params }: { params: { token: string } }) {
   await connectToDatabase();
   
-  // Busca o usuário pelo slug. `.lean()` é essencial para performance e para passar para o cliente.
   const user = await UserModel.findOne({ mediaKitSlug: params.token }).lean();
   
   if (!user) {
-    notFound(); // Se o token for inválido, exibe a página 404.
+    notFound();
   }
 
-  // Registra o acesso ao Mídia Kit para fins de auditoria
   const reqHeaders = headers();
   const ip = reqHeaders.get('x-real-ip') || reqHeaders.get('x-forwarded-for') || '';
   const referer = reqHeaders.get('referer') || undefined;
@@ -86,23 +84,32 @@ export default async function MediaKitPage({ params }: { params: { token: string
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || '';
   
-  // Otimização: Busca todos os dados necessários em paralelo.
   const [summary, videos, kpis] = await Promise.all([
     fetchSummary(baseUrl, user._id.toString()),
     fetchTopVideos(baseUrl, user._id.toString()),
     fetchKpis(baseUrl, user._id.toString())
   ]);
 
-  // Otimização: Garante que o objeto passado para o cliente seja 100% serializável,
-  // convertendo tipos do Mongoose (como ObjectId) para strings.
+  // CORREÇÃO: O erro de tipo ocorre porque 'VideoListItem' não possui 'tone' e 'references'.
+  // Ao fazer o cast de 'video' para 'any', podemos acessar essas propriedades (que esperamos que
+  // a API retorne) sem causar um erro de compilação. Isso garante que todos os dados de
+  // classificação sejam transformados em arrays antes de serem passados para a view.
+  const compatibleVideos = videos.map((video: any) => ({
+    ...video,
+    format: video.format ? [video.format] : [],
+    proposal: video.proposal ? [video.proposal] : [],
+    context: video.context ? [video.context] : [],
+    tone: video.tone ? [video.tone] : [],
+    references: video.references ? [video.references] : [],
+  }));
+
   const plainUser = JSON.parse(JSON.stringify(user));
 
-  // Delega toda a renderização para o Componente de Cliente, passando os dados já buscados.
   return (
     <MediaKitView
       user={plainUser}
       summary={summary}
-      videos={videos}
+      videos={compatibleVideos}
       kpis={kpis}
     />
   );

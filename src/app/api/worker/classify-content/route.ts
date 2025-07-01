@@ -1,15 +1,24 @@
 /**
  * @fileoverview API Endpoint (Worker) for classifying content based on its description.
- * @version 2.0.0 - Aligned with the 5-dimension classification model.
+ * @version 3.0.0 - Implemented full 5-dimension classification using an LLM.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { Receiver } from "@upstash/qstash";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import Metric, { IMetric } from "@/app/models/Metric";
-// import { classifyContent } from "@/app/lib/classification"; // Assumes this service is updated
 import { logger } from "@/app/lib/logger";
-import mongoose, { ClientSession } from "mongoose";
+import mongoose from "mongoose";
+
+// Importando as categorias definitivas para construir o prompt da IA
+import {
+  formatCategories,
+  proposalCategories,
+  contextCategories,
+  toneCategories,
+  referenceCategories,
+  Category
+} from "@/app/lib/classification";
 
 export const runtime = "nodejs";
 
@@ -19,8 +28,7 @@ const receiver = new Receiver({
 });
 
 /**
- * ATUALIZADO: Interface para o resultado da classificação, esperando 5 arrays de strings.
- * Esta interface deve corresponder ao retorno atualizado de classifyContent.
+ * Interface para o resultado da classificação, esperando 5 arrays de strings.
  */
 interface ClassificationResultFromService {
   format: string[];
@@ -30,28 +38,122 @@ interface ClassificationResultFromService {
   references: string[];
 }
 
-// --- CORREÇÃO: Placeholder da função de classificação ---
-// Como a função 'classifyContent' não está sendo exportada do módulo de classificação,
-// uma implementação de placeholder é adicionada aqui para resolver o erro de importação.
-// Esta função simula o comportamento esperado, retornando uma estrutura de dados válida.
+// --- Nova Função de Classificação com IA ---
+
+/**
+ * Constrói uma string de descrição para uma lista de categorias para ser usada no prompt da IA.
+ * @param categories - Array de categorias a serem formatadas.
+ * @returns Uma string formatada descrevendo as categorias.
+ */
+const buildCategoryDescriptions = (categories: Category[]): string => {
+  return categories.map(cat => {
+    let desc = `- **${cat.id} (${cat.label}):** ${cat.description}`;
+    if (cat.examples && cat.examples.length > 0) {
+      desc += ` (Ex: "${cat.examples.join('", "')}")`;
+    }
+    if (cat.subcategories && cat.subcategories.length > 0) {
+      desc += `\n  Subcategorias:\n` + cat.subcategories.map(sub => `    - **${sub.id} (${sub.label}):** ${sub.description}`).join('\n');
+    }
+    return desc;
+  }).join('\n');
+};
+
+/**
+ * Classifica o conteúdo de uma descrição usando um modelo de linguagem generativo.
+ * @param description - A descrição do post a ser classificada.
+ * @returns Uma promessa que resolve para o resultado da classificação.
+ */
 async function classifyContent(description: string): Promise<ClassificationResultFromService> {
-    logger.info(`[Placeholder] Classificando descrição: "${description.substring(0, 50)}..."`);
-    // Simula uma chamada de API ou um processamento de IA
-    await new Promise(resolve => setTimeout(resolve, 500)); 
-    
-    // Retorna dados de exemplo que correspondem à interface 'ClassificationResultFromService'
-    return {
-        format: ['photo'],
-        proposal: ['educational'],
-        context: ['lifestyle_and_wellbeing'],
-        tone: ['inspirational'],
-        references: ['pop_culture_movies_series']
+    const TAG = '[classifyContent v3.0.0]';
+    logger.info(`${TAG} Iniciando classificação para descrição: "${description.substring(0, 50)}..."`);
+
+    const prompt = `
+      Analise a seguinte descrição de um post de mídia social e classifique-a em CINCO dimensões: Formato, Proposta, Contexto, Tom e Referências.
+      Para cada dimensão, retorne um array com os IDs das categorias mais relevantes. Você PODE retornar múltiplos IDs para cada dimensão se aplicável.
+
+      **Descrição do Post para Análise:**
+      "${description}"
+
+      ---
+
+      **Dimensões e Categorias Disponíveis (use os IDs):**
+
+      **1. Formato do Conteúdo:**
+      ${buildCategoryDescriptions(formatCategories)}
+
+      **2. Proposta (O objetivo principal do post):**
+      ${buildCategoryDescriptions(proposalCategories)}
+
+      **3. Contexto (O tópico ou área de interesse principal):**
+      ${buildCategoryDescriptions(contextCategories)}
+
+      **4. Tom (A abordagem emocional ou sentimento):**
+      ${buildCategoryDescriptions(toneCategories)}
+
+      **5. Referências (Elementos culturais, geográficos ou sociais específicos mencionados):**
+      ${buildCategoryDescriptions(referenceCategories)}
+
+      ---
+
+      **Instruções de Saída:**
+      - Forneça sua resposta em formato JSON.
+      - Para cada dimensão (format, proposal, context, tone, references), retorne um array de strings contendo os IDs das categorias que você identificou.
+      - Se nenhuma categoria de uma dimensão se aplicar, retorne um array vazio para essa dimensão.
+    `;
+
+    const payload = {
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "OBJECT",
+          properties: {
+            "format": { "type": "ARRAY", "items": { "type": "STRING" } },
+            "proposal": { "type": "ARRAY", "items": { "type": "STRING" } },
+            "context": { "type": "ARRAY", "items": { "type": "STRING" } },
+            "tone": { "type": "ARRAY", "items": { "type": "STRING" } },
+            "references": { "type": "ARRAY", "items": { "type": "STRING" } }
+          }
+        }
+      }
     };
+    
+    const apiKey = process.env.GEMINI_API_KEY || ""; 
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+    try {
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.text();
+            logger.error(`${TAG} Erro na API da IA: ${response.status} ${response.statusText}`, errorBody);
+            throw new Error(`A API de classificação retornou um erro: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        
+        if (result.candidates && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts[0].text) {
+            const text = result.candidates[0].content.parts[0].text;
+            const parsedJson = JSON.parse(text);
+            logger.info(`${TAG} Classificação recebida da IA: ${text}`);
+            return parsedJson;
+        } else {
+            logger.error(`${TAG} Resposta da IA em formato inesperado.`, result);
+            throw new Error("A resposta da IA não continha os dados de classificação esperados.");
+        }
+    } catch (error) {
+        logger.error(`${TAG} Falha ao executar a chamada de classificação.`, error);
+        throw error;
+    }
 }
 
 
 async function handlerLogic(request: NextRequest) {
-    const TAG = '[Worker Classify Content v2.0.0]';
+    const TAG = '[Worker Classify Content v3.0.0]';
 
     try {
         const body = await request.json();
@@ -73,7 +175,6 @@ async function handlerLogic(request: NextRequest) {
             return NextResponse.json({ message: "Métrica não encontrada." }, { status: 200 });
         }
 
-        // Validações de status e de dados
         if (metricDoc.classificationStatus === 'completed') {
             logger.info(`${TAG} Métrica ${metricId} já classificada. Tarefa ignorada.`);
             return NextResponse.json({ message: "Métrica já classificada." }, { status: 200 });
@@ -91,11 +192,9 @@ async function handlerLogic(request: NextRequest) {
         
         let classification: ClassificationResultFromService;
         try {
-            // A função `classifyContent` agora deve retornar a estrutura com 5 arrays
             classification = await classifyContent(metricDoc.description);
-            logger.info(`${TAG} Classificação recebida para Metric ${metricId}: ${JSON.stringify(classification)}`);
+            logger.info(`${TAG} Classificação completa recebida para Metric ${metricId}: ${JSON.stringify(classification)}`);
 
-            // ATUALIZADO: Prepara o objeto de atualização com as 5 dimensões
             const updateData: Partial<IMetric> = {
                 format: classification.format,
                 proposal: classification.proposal,
@@ -109,7 +208,7 @@ async function handlerLogic(request: NextRequest) {
             const updateResult = await Metric.updateOne({ _id: metricDoc._id }, { $set: updateData });
 
             if (updateResult.modifiedCount > 0) {
-                logger.info(`${TAG} Metric ${metricId} atualizado com sucesso no DB (status: completed).`);
+                logger.info(`${TAG} Metric ${metricId} atualizado com sucesso no DB com 5 dimensões (status: completed).`);
             } else {
                 logger.warn(`${TAG} Nenhum documento foi modificado para Metric ${metricId} na atualização.`);
             }
@@ -119,14 +218,11 @@ async function handlerLogic(request: NextRequest) {
             const errorMessage = classError instanceof Error ? classError.message : "Erro desconhecido na classificação";
             logger.error(`${TAG} Erro ao chamar classifyContent para Metric ${metricId}: ${errorMessage}`, classError);
             
-            // Atualiza o documento para 'failed' para evitar retentativas infinitas
             await Metric.updateOne(
                 { _id: metricDoc._id },
                 { $set: { classificationStatus: 'failed', classificationError: `Erro na IA: ${errorMessage}` } }
             );
             
-            // Retorna 500 para que QStash possa, opcionalmente, tentar novamente se configurado,
-            // mas o status 'failed' impede o reprocessamento na lógica de negócio.
             return NextResponse.json({ error: `Falha ao classificar conteúdo: ${errorMessage}` }, { status: 500 });
         }
 
@@ -138,7 +234,7 @@ async function handlerLogic(request: NextRequest) {
 }
 
 export const POST = async (request: NextRequest) => {
-    const TAG_POST = '[Worker Classify POST v2.0.0]';
+    const TAG_POST = '[Worker Classify POST v3.0.0]';
     try {
         const signature = request.headers.get("upstash-signature");
         if (!signature) {
@@ -169,5 +265,5 @@ export const POST = async (request: NextRequest) => {
 };
 
 export async function GET() {
-    return NextResponse.json({ message: "Worker de classificação v2.0.0 ativo." });
+    return NextResponse.json({ message: "Worker de classificação v3.0.0 ativo." });
 }

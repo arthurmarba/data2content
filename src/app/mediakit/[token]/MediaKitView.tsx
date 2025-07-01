@@ -3,10 +3,7 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 
-// --- CORREÇÃO: Definições de Tipos e Componentes Placeholder ---
-// Os erros de "Could not resolve" indicam que o ambiente de compilação não consegue encontrar
-// os componentes e módulos importados. Para resolver isso, definimos placeholders funcionais para
-// cada dependência ausente e removemos as importações que não podem ser resolvidas.
+// --- Definições de Tipos e Componentes Placeholder ---
 
 // Tipos (definidos localmente para autonomia)
 interface VideoListItem {
@@ -14,11 +11,16 @@ interface VideoListItem {
   description?: string;
   views?: number;
   engagementRate?: number;
+  format?: string[];
+  proposal?: string[];
+  context?: string[];
+  tone?: string[];
+  references?: string[];
   [key: string]: any;
 }
 
 interface KpiComparison {
-  comparisonPeriod?: string; // CORREÇÃO: Tornada opcional para corresponder ao tipo de dado de entrada.
+  comparisonPeriod?: string;
   avgReachPerPost?: { currentValue: number | null; percentageChange: number | null; };
   engagementRate?: { currentValue: number | null; percentageChange: number | null; };
   postingFrequency?: { currentValue: number | null; percentageChange: number | null; };
@@ -42,7 +44,7 @@ interface MediaKitViewProps {
   kpis: KpiComparison | null;
 }
 
-// Placeholder para Ícones (substituindo react-icons/fa)
+// Placeholder para Ícones
 const FaIcon = ({ path, className = "w-5 h-5" }: { path: string, className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" className={className} fill="currentColor">
     <path d={path} />
@@ -64,23 +66,29 @@ const ICONS = {
   calendar: "M448 64H352V32c0-17.7-14.3-32-32-32s-32 14.3-32 32v32H160V32c0-17.7-14.3-32-32-32s-32 14.3-32 32v32H48C21.5 64 0 85.5 0 112v352c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48zm-64 352H128V224h256v192z",
 };
 
-// Placeholder para VideosTable
-const VideosTable: React.FC<{ videos: (VideoListItem & { description: string })[]; readOnly: boolean; onRowClick: (id: string) => void; }> = ({ videos, onRowClick }) => (
-  <div className="overflow-x-auto rounded-lg border border-gray-200">
-    <table className="min-w-full bg-white">
+// ATUALIZAÇÃO: Placeholder para VideosTable agora inclui colunas para todas as 5 dimensões.
+const VideosTable: React.FC<{ videos: VideoListItem[]; readOnly: boolean; onRowClick: (id: string) => void; }> = ({ videos, onRowClick }) => (
+  <div className="overflow-x-auto rounded-lg border border-gray-200 text-sm">
+    <table className="min-w-full bg-white divide-y divide-gray-200">
       <thead className="bg-gray-50">
         <tr>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vídeo</th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visualizações</th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Engajamento</th>
+          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Conteúdo</th>
+          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Formato</th>
+          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proposta</th>
+          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contexto</th>
+          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tom</th>
+          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Referências</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-gray-200">
         {videos.map((video) => (
-          <tr key={video._id} onClick={() => onRowClick(video._id)} className="hover:bg-gray-100 cursor-pointer">
-            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{video.description?.substring(0, 50)}...</td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{video.views?.toLocaleString('pt-BR') ?? 'N/A'}</td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{video.engagementRate?.toFixed(2) ?? 'N/A'}%</td>
+          <tr key={video._id} onClick={() => onRowClick(video._id)} className="hover:bg-gray-50 cursor-pointer">
+            <td className="px-4 py-4 whitespace-nowrap font-medium text-gray-800" title={video.description}>{video.description?.substring(0, 40) ?? 'N/A'}...</td>
+            <td className="px-4 py-4 whitespace-nowrap text-gray-600">{video.format?.join(', ') || 'N/A'}</td>
+            <td className="px-4 py-4 whitespace-nowrap text-gray-600">{video.proposal?.join(', ') || 'N/A'}</td>
+            <td className="px-4 py-4 whitespace-nowrap text-gray-600">{video.context?.join(', ') || 'N/A'}</td>
+            <td className="px-4 py-4 whitespace-nowrap text-gray-600">{video.tone?.join(', ') || 'N/A'}</td>
+            <td className="px-4 py-4 whitespace-nowrap text-gray-600">{video.references?.join(', ') || 'N/A'}</td>
           </tr>
         ))}
       </tbody>
@@ -172,14 +180,6 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis 
   const [isLoading, setIsLoading] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const isFirstRender = useRef(true);
-
-  const compatibleVideos = useMemo(() => {
-    return videos.map(video => ({
-      ...video,
-      description: video.description ?? '',
-    }));
-  }, [videos]);
-
 
   useEffect(() => {
     if (isFirstRender.current) {
@@ -278,10 +278,10 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis 
                 <FaIcon path={ICONS.trophy} className="w-6 h-6 text-pink-500" />
                 <h2 className="text-2xl font-bold text-gray-800">Top Posts em Performance</h2>
               </div>
-              <p className="text-gray-600 mb-6 font-light">Uma amostra do conteúdo de maior impacto. <span className="font-medium text-gray-700">Clique em um post para ver a análise detalhada.</span></p>
+              <p className="text-gray-600 mb-6 font-light">Uma amostra do conteúdo de maior impacto, agora com a classificação completa. <span className="font-medium text-gray-700">Clique em um post para ver a análise detalhada.</span></p>
               
               <VideosTable 
-                videos={compatibleVideos} 
+                videos={videos} 
                 readOnly 
                 onRowClick={handleVideoClick}
               />

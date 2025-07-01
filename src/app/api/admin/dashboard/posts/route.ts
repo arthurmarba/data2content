@@ -1,6 +1,6 @@
 /**
  * @fileoverview API Endpoint for fetching dashboard posts for content exploration.
- * @version 1.1.0
+ * @version 1.2.0 - Added support for 'tone' and 'references' filters.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -10,24 +10,21 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { findGlobalPostsByCriteria, FindGlobalPostsArgs } from '@/app/lib/dataService/marketAnalysisService';
 import { DatabaseError } from '@/app/lib/errors';
 
-// ==================== INÍCIO DA CORREÇÃO ====================
-// Força a rota a ser sempre renderizada dinamicamente no servidor.
-// Isso é necessário porque a rota utiliza `getServerSession` para validação,
-// o que depende dos headers da requisição e impede a geração estática.
 export const dynamic = 'force-dynamic';
-// ==================== FIM DA CORREÇÃO ======================
 
-const SERVICE_TAG = '[api/admin/dashboard/posts]';
+const SERVICE_TAG = '[api/admin/dashboard/posts v1.2.0]';
 
-// Schema for query parameters validation
+// ATUALIZADO: Schema de validação para incluir os novos filtros de 'tone' e 'references'.
 const querySchema = z.object({
   page: z.coerce.number().int().min(1).optional().default(1),
   limit: z.coerce.number().int().min(1).max(100).optional().default(10),
-  sortBy: z.string().optional().default('stats.total_interactions'), // Default sort field from service
+  sortBy: z.string().optional().default('stats.total_interactions'),
   sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
   context: z.string().optional(),
   proposal: z.string().optional(),
   format: z.string().optional(),
+  tone: z.string().optional(), // NOVO: Filtro por tom
+  references: z.string().optional(), // NOVO: Filtro por referências
   minInteractions: z.coerce.number().int().min(0).optional(),
   startDate: z.string().datetime({ offset: true }).optional().transform(val => val ? new Date(val) : undefined),
   endDate: z.string().datetime({ offset: true }).optional().transform(val => val ? new Date(val) : undefined),
@@ -66,7 +63,6 @@ export async function GET(req: NextRequest) {
 
   try {
     const session = await getAdminSession(req);
-    // CORREÇÃO: Adicionada verificação explícita para session.user.
     if (!session || !session.user) {
       return apiError('Acesso não autorizado. Sessão de administrador inválida.', 401);
     }
@@ -84,13 +80,15 @@ export async function GET(req: NextRequest) {
 
     const { startDate, endDate, ...otherParams } = validationResult.data;
 
+    // Os novos parâmetros 'tone' e 'references' serão incluídos automaticamente em 'otherParams'
+    // e passados para o serviço de busca.
     const serviceArgs: FindGlobalPostsArgs = { ...otherParams };
     if (startDate || endDate) {
         serviceArgs.dateRange = {};
         if (startDate) serviceArgs.dateRange.startDate = startDate;
         if (endDate) serviceArgs.dateRange.endDate = endDate;
     }
-    // Clean out undefined optional values explicitly, though Zod default/optional handles most cases
+    
     Object.keys(serviceArgs).forEach(key => {
         if (serviceArgs[key as keyof FindGlobalPostsArgs] === undefined) {
             delete serviceArgs[key as keyof FindGlobalPostsArgs];
@@ -99,6 +97,8 @@ export async function GET(req: NextRequest) {
 
 
     logger.info(`${TAG} Calling findGlobalPostsByCriteria with args: ${JSON.stringify(serviceArgs)}`);
+    // NOTA: O serviço 'findGlobalPostsByCriteria' também precisa ser atualizado
+    // para aplicar os novos filtros na consulta ao banco de dados.
     const result = await findGlobalPostsByCriteria(serviceArgs);
 
     logger.info(`${TAG} Successfully fetched ${result.posts.length} posts. Total available: ${result.totalPosts}.`);

@@ -7,7 +7,7 @@ import {
 import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
 import { MagnifyingGlassIcon, DocumentMagnifyingGlassIcon, ChartBarIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
-// --- (INCLUSÃO) Definições de Categoria para consistência ---
+// --- Definições de Categoria para consistência ---
 export interface Category {
   id: string;
   label: string;
@@ -22,8 +22,7 @@ export const toneCategories: Category[] = [ { id: 'humorous', label: 'Humorísti
 export const referenceCategories: Category[] = [ { id: 'pop_culture', label: 'Cultura Pop', description: 'Referências a obras de ficção, celebridades ou memes.', subcategories: [ { id: 'pop_culture_movies_series', label: 'Filmes e Séries', description: 'Referências a filmes e séries.' }, { id: 'pop_culture_books', label: 'Livros', description: 'Referências a livros e universos literários.' }, ] }, { id: 'people_and_groups', label: 'Pessoas e Grupos', description: 'Referências a grupos sociais, profissões ou estereótipos.', subcategories: [ { id: 'regional_stereotypes', label: 'Estereótipos Regionais', description: 'Imitações ou referências a sotaques e costumes.' }, ] }, ];
 
 
-// --- (CORREÇÃO) Contexto, Provider e Hook para o Filtro de Tempo Global ---
-// A definição do contexto, provider e hook `useGlobalTimePeriod` é adicionada para resolver o erro de "Cannot find name".
+// --- Contexto, Provider e Hook para o Filtro de Tempo Global ---
 type TimePeriod = "last_7_days" | "last_30_days" | "last_90_days" | "last_6_months" | "last_12_months" | "all_time";
 
 interface GlobalTimePeriodContextType {
@@ -51,7 +50,7 @@ const useGlobalTimePeriod = () => {
   return context;
 };
 
-// --- (CORREÇÃO) Função auxiliar de data ---
+// --- Função auxiliar de data ---
 const getStartDateFromTimePeriod = (endDate: Date, timePeriod: TimePeriod): Date => {
     const startDate = new Date(endDate);
     switch (timePeriod) {
@@ -76,8 +75,7 @@ const getStartDateFromTimePeriod = (endDate: Date, timePeriod: TimePeriod): Date
     return startDate;
 };
 
-// --- (CORREÇÃO) Placeholders para componentes não definidos ---
-// Stubs básicos são adicionados para evitar erros de "component not found".
+// --- Placeholders para componentes não definidos ---
 const GlobalTimePeriodFilter: React.FC<any> = ({ selectedTimePeriod, onTimePeriodChange, options }) => (
     <div className="p-2 border rounded-md bg-gray-50">
         <label htmlFor="time-period-filter" className="text-sm font-medium text-gray-700 mr-2">Período:</label>
@@ -101,7 +99,7 @@ const CreatorSelector: React.FC<any> = ({ isOpen, onClose, onSelect }) => { if (
 const ScrollToTopButton: React.FC = () => <button className="fixed bottom-4 right-4 bg-indigo-600 text-white p-2 rounded-full shadow-lg">^</button>;
 
 
-// --- Componentes de Apoio (Definidos localmente para autonomia) ---
+// --- Componentes de Apoio ---
 
 const SkeletonBlock = ({ width = 'w-full', height = 'h-4', className = '', variant = 'rectangle' }: { width?: string; height?: string; className?: string; variant?: 'rectangle' | 'circle' }) => {
   const baseClasses = "bg-gray-200 animate-pulse";
@@ -141,7 +139,7 @@ const ContentTrendChart: React.FC<ContentTrendChartProps> = ({ postId }) => { re
 const PostDetailModal = ({ isOpen, onClose, postId }: { isOpen: boolean; onClose: () => void; postId: string | null }) => { if (!isOpen) return null; return <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"><div className="bg-white p-8 rounded-lg">Detalhes do Post ID: {postId} <button onClick={onClose}>Fechar</button></div></div>; };
 
 
-// --- Definição do Componente GlobalPostsExplorer ---
+// --- Componente GlobalPostsExplorer ---
 interface GlobalPostsExplorerProps {
   dateRangeFilter?: {
     startDate: string;
@@ -164,6 +162,7 @@ interface ActiveFilters {
 }
 
 const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter }: GlobalPostsExplorerProps) {
+  // ATUALIZAÇÃO: Adicionados estados para os novos filtros de Tom e Referências
   const [selectedContext, setSelectedContext] = useState<string>('all');
   const [selectedProposal, setSelectedProposal] = useState<string>('all');
   const [selectedFormat, setSelectedFormat] = useState<string>('all');
@@ -222,6 +221,7 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
       sortOrder: sortConfig.sortOrder,
     });
 
+    // ATUALIZAÇÃO: Novos filtros são adicionados aos parâmetros da requisição
     if (activeFilters.context && activeFilters.context !== 'all') params.append('context', activeFilters.context);
     if (activeFilters.proposal && activeFilters.proposal !== 'all') params.append('proposal', activeFilters.proposal);
     if (activeFilters.format && activeFilters.format !== 'all') params.append('format', activeFilters.format);
@@ -252,6 +252,7 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
 
   const handleApplyLocalFilters = useCallback(() => {
     setCurrentPage(1);
+    // ATUALIZAÇÃO: Novos filtros são incluídos no objeto de filtros ativos
     setActiveFilters({
       context: selectedContext === 'all' ? undefined : selectedContext,
       proposal: selectedProposal === 'all' ? undefined : selectedProposal,
@@ -278,6 +279,7 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
   const getNestedValue = (obj: any, path: string, defaultValue: any = 'N/A') => path.split('.').reduce((acc, part) => acc && acc[part], obj) ?? defaultValue;
   const formatNumberStd = (val: any) => !isNaN(parseFloat(String(val))) ? parseFloat(String(val)).toLocaleString('pt-BR') : 'N/A';
   
+  // ATUALIZAÇÃO: Adicionadas colunas para Tom e Referências na tabela
   const columns = [
     { key: 'text_content', label: 'Conteúdo', sortable: false, getVal: (p: IGlobalPostResult) => p.text_content || p.description || 'N/A' },
     { key: 'creatorName', label: 'Criador', sortable: true, getVal: (p: IGlobalPostResult) => p.creatorName || 'N/A' },
@@ -297,7 +299,8 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
       <p className="text-sm text-gray-500 mt-1 mb-4">Filtre e explore todos os posts da plataforma com base em diversos critérios.</p>
       
       <div className="p-4 border border-gray-200 rounded-md bg-gray-50">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        {/* ATUALIZAÇÃO: Adicionados dropdowns para os novos filtros de Tom e Referências */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           <div><label htmlFor="gpe-format" className="block text-xs font-medium text-gray-600 mb-1">Formato</label><select id="gpe-format" value={selectedFormat} onChange={(e) => setSelectedFormat(e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm bg-white h-[38px]"><option value="all">Todos os Formatos</option>{formatOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></div>
           <div><label htmlFor="gpe-proposal" className="block text-xs font-medium text-gray-600 mb-1">Proposta</label><select id="gpe-proposal" value={selectedProposal} onChange={(e) => setSelectedProposal(e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm bg-white h-[38px]"><option value="all">Todas as Propostas</option>{proposalOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></div>
           <div><label htmlFor="gpe-context" className="block text-xs font-medium text-gray-600 mb-1">Contexto</label><select id="gpe-context" value={selectedContext} onChange={(e) => setSelectedContext(e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm bg-white h-[38px]"><option value="all">Todos os Contextos</option>{contextOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></div>
@@ -372,7 +375,6 @@ const AdminCreatorDashboardContent: React.FC = () => {
 
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
 
-  // As opções de filtro agora são derivadas das categorias no início do arquivo
   const formatOptions = formatCategories.map(c => c.label);
   const proposalOptions = proposalCategories.map(c => c.label);
 

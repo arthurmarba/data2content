@@ -1,6 +1,6 @@
 /**
  * @fileoverview API Endpoint for fetching market performance for a specific content segment.
- * @version 2.0.0 - Updated to support 5-dimension classification (format, proposal, context, tone, references).
+ * @version 2.1.0 - Ensures all optional criteria have default values to prevent type errors.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -11,7 +11,7 @@ import { fetchMarketPerformance } from '@/app/lib/dataService/marketAnalysis/seg
 import { DatabaseError } from '@/app/lib/errors';
 export const dynamic = 'force-dynamic';
 
-const SERVICE_TAG = '[api/admin/dashboard/market-performance v2.0.0]';
+const SERVICE_TAG = '[api/admin/dashboard/market-performance v2.1.0]';
 
 // --- Zod Schemas and Type Definitions ---
 
@@ -75,18 +75,18 @@ export async function GET(req: NextRequest) {
       return apiError(`Parâmetros inválidos: ${errMsg}`, 400);
     }
 
-    // A desestruturação separa 'days' dos outros campos, que formam o objeto 'criteria'.
     const { days, ...criteria } = validationResult.data;
 
-    // CORREÇÃO: O erro indica que 'fetchMarketPerformance' espera que 'format' e 'proposal'
-    // sejam do tipo 'string', mas o schema os define como 'string | undefined'.
-    // Para resolver isso, fornecemos um valor padrão (string vazia) usando o operador '??'
-    // caso os valores sejam nulos ou indefinidos. Isso garante que os tipos correspondam
-    // à assinatura da função, permitindo que a chamada prossiga sem erros de tipo.
+    // ATUALIZAÇÃO FINAL: Garante que todos os critérios de classificação opcionais
+    // sejam passados como strings vazias se não forem fornecidos. Isso evita erros de tipo
+    // na camada de serviço, que pode esperar 'string' em vez de 'string | undefined'.
     const serviceArgs = {
         ...criteria,
         format: criteria.format ?? '',
         proposal: criteria.proposal ?? '',
+        context: criteria.context ?? '',
+        tone: criteria.tone ?? '',
+        references: criteria.references ?? '',
         days,
     };
 
