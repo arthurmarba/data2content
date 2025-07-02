@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useState, useCallback, useEffect } from 'react';
+import { useGlobalTimePeriod } from './components/filters/GlobalTimePeriodContext';
+import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
 import {
     ArrowUpIcon,
     ArrowDownIcon,
-    ExclamationTriangleIcon,
     ChartBarIcon,
-    ArrowsUpDownIcon,
-    ArrowTrendingUpIcon
+    ArrowsUpDownIcon
 } from '@heroicons/react/24/outline';
 
 // CORREÇÃO: Os tipos agora são importados do ficheiro de tipos modularizado.
@@ -105,7 +105,8 @@ export default function TopMoversWidget() {
   const [results, setResults] = useState<ITopMoverResult[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [validationError, setValidationError] = useState<string | null>(null);
+  // Periods are auto-calculated from the global time range, so no manual validation
+  const { timePeriod: globalTimePeriod } = useGlobalTimePeriod();
 
   useEffect(() => {
     async function loadContexts() {
@@ -122,41 +123,28 @@ export default function TopMoversWidget() {
     loadContexts();
   }, []);
 
+  useEffect(() => {
+    const today = new Date();
+    const currStart = getStartDateFromTimePeriod(today, globalTimePeriod);
+    const prevEnd = new Date(currStart);
+    prevEnd.setDate(prevEnd.getDate() - 1);
+    const prevStart = getStartDateFromTimePeriod(prevEnd, globalTimePeriod);
+    setCurrentPeriod({
+      startDate: currStart.toISOString().slice(0, 10),
+      endDate: today.toISOString().slice(0, 10),
+    });
+    setPreviousPeriod({
+      startDate: prevStart.toISOString().slice(0, 10),
+      endDate: prevEnd.toISOString().slice(0, 10),
+    });
+  }, [globalTimePeriod]);
+
   const handleContentFilterChange = (field: keyof ISegmentDefinition, value: string) => {
     // CORREÇÃO: A atualização do estado com `prev` está correta, mas clarificamos que o valor vazio se torna `undefined`.
     setContentFilters(prev => ({ ...prev, [field]: value === "" ? undefined : value }));
   };
 
-  const validatePeriods = useCallback((): boolean => {
-    if (!previousPeriod.startDate || !previousPeriod.endDate || !currentPeriod.startDate || !currentPeriod.endDate) {
-      setValidationError("Todos os campos de data são obrigatórios.");
-      return false;
-    }
-    const prevStart = new Date(previousPeriod.startDate);
-    const prevEnd = new Date(previousPeriod.endDate);
-    const currStart = new Date(currentPeriod.startDate);
-    const currEnd = new Date(currentPeriod.endDate);
-
-    if (prevStart > prevEnd) {
-      setValidationError("Período Anterior: Data de início não pode ser posterior à data de fim.");
-      return false;
-    }
-    if (currStart > currEnd) {
-      setValidationError("Período Atual: Data de início não pode ser posterior à data de fim.");
-      return false;
-    }
-    if (prevEnd >= currStart) {
-      setValidationError("O período anterior deve terminar antes do início do período atual.");
-      return false;
-    }
-    setValidationError(null);
-    return true;
-  }, [previousPeriod, currentPeriod]);
-
   const handleFetchTopMovers = useCallback(async () => {
-    if (!validatePeriods()) {
-      return;
-    }
 
     setIsLoading(true);
     setError(null);
@@ -215,15 +203,16 @@ export default function TopMoversWidget() {
     } finally {
       setIsLoading(false);
     }
-  }, [entityType, metric, previousPeriod, currentPeriod, topN, sortBy, contentFilters, validatePeriods]);
+  }, [entityType, metric, previousPeriod, currentPeriod, topN, sortBy, contentFilters]);
 
   useEffect(() => {
-    validatePeriods();
-  }, [validatePeriods]);
+    if (!previousPeriod.startDate || !currentPeriod.startDate) return;
+    handleFetchTopMovers();
+  }, [entityType, metric, sortBy, topN, contentFilters, previousPeriod, currentPeriod, handleFetchTopMovers]);
 
 
   return (
-    <div className="bg-white dark:bg-gray-800/50 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-6">
+    <div className="bg-white p-4 md:p-6 rounded-lg shadow border border-gray-200 space-y-6">
       <div>
         <div className="flex items-center space-x-2">
           <ChartBarIcon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
@@ -262,33 +251,6 @@ export default function TopMoversWidget() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
-        <fieldset className="border p-2 rounded-md border-gray-300 dark:border-gray-600">
-            <legend className="text-xs font-medium text-gray-500 dark:text-gray-400 px-1">Período Anterior</legend>
-            <div className="space-y-2">
-                <div>
-                    <label htmlFor="tm-prevStart" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-0.5">Início</label>
-                    <input type="date" id="tm-prevStart" value={previousPeriod.startDate} onChange={e => setPreviousPeriod(p => ({...p, startDate: e.target.value}))} className="w-full text-xs p-1.5 border-gray-300 dark:border-gray-500 rounded-md h-[34px] bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"/>
-                </div>
-                <div>
-                    <label htmlFor="tm-prevEnd" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-0.5">Fim</label>
-                    <input type="date" id="tm-prevEnd" value={previousPeriod.endDate} onChange={e => setPreviousPeriod(p => ({...p, endDate: e.target.value}))} className="w-full text-xs p-1.5 border-gray-300 dark:border-gray-500 rounded-md h-[34px] bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"/>
-                </div>
-            </div>
-        </fieldset>
-        <fieldset className="border p-2 rounded-md border-gray-300 dark:border-gray-600">
-            <legend className="text-xs font-medium text-gray-500 dark:text-gray-400 px-1">Período Atual</legend>
-            <div className="space-y-2">
-                <div>
-                    <label htmlFor="tm-currStart" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-0.5">Início</label>
-                    <input type="date" id="tm-currStart" value={currentPeriod.startDate} onChange={e => setCurrentPeriod(p => ({...p, startDate: e.target.value}))} className="w-full text-xs p-1.5 border-gray-300 dark:border-gray-500 rounded-md h-[34px] bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"/>
-                </div>
-                <div>
-                    <label htmlFor="tm-currEnd" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-0.5">Fim</label>
-                    <input type="date" id="tm-currEnd" value={currentPeriod.endDate} onChange={e => setCurrentPeriod(p => ({...p, endDate: e.target.value}))} className="w-full text-xs p-1.5 border-gray-300 dark:border-gray-500 rounded-md h-[34px] bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"/>
-                </div>
-            </div>
-        </fieldset>
 
         {entityType === 'content' && (
           <>
@@ -308,20 +270,14 @@ export default function TopMoversWidget() {
         )}
       </div>
       
-      <div className="mt-4 flex flex-col items-start">
-        <button onClick={handleFetchTopMovers} disabled={isLoading || !!validationError} className="flex items-center justify-center px-5 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm">
-            <ArrowTrendingUpIcon className="w-5 h-5 mr-2" />
-            {isLoading ? 'Analisando...' : `Analisar Top ${entityType === 'content' ? 'Conteúdos' : 'Criadores'}`}
-        </button>
-        {validationError && <p className="text-xs text-red-500 mt-2 flex items-center"><ExclamationTriangleIcon className="w-4 h-4 mr-1.5"/> {validationError}</p>}
-      </div>
+      <div className="mt-4" />
 
       {/* --- Área de Resultados --- */}
       <div className="mt-6">
         {isLoading && ( <div className="text-center py-4">Carregando...</div> )}
         {error && ( <div className="text-center py-4 text-red-500">Erro: {error}</div> )}
         {!isLoading && !error && results === null && (
-            <EmptyState icon={<ChartBarIcon className="w-12 h-12"/>} title="Analisar Top Movers" message="Configure os parâmetros e clique em 'Analisar'." />
+            <EmptyState icon={<ChartBarIcon className="w-12 h-12"/>} title="Analisar Top Movers" message="Configure os parâmetros e aguarde a atualização automática." />
         )}
         {!isLoading && !error && results?.length === 0 && (
             <EmptyState icon={<ArrowsUpDownIcon className="w-12 h-12"/>} title="Nenhum 'Mover' Encontrado" message="Não foram encontradas variações com os filtros selecionados." />
