@@ -41,7 +41,8 @@ import {
   fetchTopCategories, // (NOVO)
   getMetricsHistory as getMetricsHistoryFromDataService,
   getFollowerTrend,
-  getReachEngagementTrend
+  getReachEngagementTrend,
+  getFpcTrend
 } from './dataService';
 import { subDays, subYears, startOfDay } from 'date-fns';
 
@@ -194,6 +195,29 @@ export const functionSchemas = [
         }
       },
       required: ['trendType']
+    }
+  },
+  {
+    name: 'getFpcTrendHistory',
+    description: 'Retorna a média de interações por semana ou mês para uma combinação específica de formato, proposta e contexto.',
+    parameters: {
+      type: 'object',
+      properties: {
+        format: { type: 'string', enum: VALID_FORMATS },
+        proposal: { type: 'string', enum: VALID_PROPOSALS },
+        context: { type: 'string', enum: VALID_CONTEXTS },
+        timePeriod: {
+          type: 'string',
+          enum: ZodSchemas.GetFpcTrendHistoryArgsSchema.shape.timePeriod._def.values,
+          default: 'last_90_days'
+        },
+        granularity: {
+          type: 'string',
+          enum: ['weekly','monthly'],
+          default: 'weekly'
+        }
+      },
+      required: ['format','proposal','context']
     }
   },
   // --- FIM DO NOVO SCHEMA ---
@@ -583,6 +607,27 @@ const getUserTrend: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetUserT
   }
 };
 
+const getFpcTrendHistory: ExecutorFn = async (
+  args: z.infer<typeof ZodSchemas.GetFpcTrendHistoryArgsSchema>,
+  loggedUser
+) => {
+  const fnTag = '[fn:getFpcTrendHistory v1.0.0]';
+  const userId = loggedUser._id.toString();
+  try {
+    return await getFpcTrend(
+      userId,
+      args.format,
+      args.proposal,
+      args.context,
+      args.timePeriod,
+      args.granularity as 'weekly' | 'monthly'
+    );
+  } catch (err) {
+    logger.error(`${fnTag} Erro ao buscar histórico FPC`, err);
+    return { error: 'Não foi possível obter o histórico solicitado.' };
+  }
+};
+
 
 /* 2.4 getDayPCOStats */
 const getDayPCOStats: ExecutorFn = async (_args: z.infer<typeof ZodSchemas.GetDayPCOStatsArgsSchema>, loggedUser) => {
@@ -807,6 +852,7 @@ export const functionExecutors: Record<string, ExecutorFn> = {
   getTopPosts,
   getCategoryRanking, // (NOVO) Garantir que esta linha está aqui
   getUserTrend,
+  getFpcTrendHistory,
   getDayPCOStats,
   getMetricDetailsById,
   findPostsByCriteria,

@@ -10,6 +10,7 @@ export function getSystemPrompt(userName: string = 'usuário'): string { // user
     const GET_TOP_POSTS_FUNC_NAME = 'getTopPosts';
     const GET_CATEGORY_RANKING_FUNC_NAME = 'getCategoryRanking'; // (NOVO)
     const GET_USER_TREND_FUNC_NAME = 'getUserTrend';
+    const GET_FPC_TREND_HISTORY_FUNC_NAME = 'getFpcTrendHistory';
     const GET_DAY_PCO_STATS_FUNC_NAME = 'getDayPCOStats';
     const GET_METRIC_DETAILS_BY_ID_FUNC_NAME = 'getMetricDetailsById';
     const FIND_POSTS_BY_CRITERIA_FUNC_NAME = 'findPostsByCriteria';
@@ -71,6 +72,7 @@ Regras Gerais de Operação
 
     * **(NOVO) RANKING DE CATEGORIAS (\`${GET_CATEGORY_RANKING_FUNC_NAME}\`):** Use esta ferramenta para fornecer ao usuário uma visão clara de quais dos *seus* próprios formatos, propostas ou contextos de conteúdo estão performando melhor com base em uma métrica (curtidas, compartilhamentos, etc.) ou quais são os mais publicados. É uma excelente ferramenta para identificar padrões de sucesso e pontos de melhoria no conteúdo do usuário e para ser usada de forma proativa.
     * **(NOVO) TENDÊNCIAS DO USUÁRIO (\`${GET_USER_TREND_FUNC_NAME}\`):** Use para gerar gráficos de evolução de seguidores ou de alcance/engajamento ao longo do tempo.
+    * **(NOVO) HISTÓRICO F/P/C (\`${GET_FPC_TREND_HISTORY_FUNC_NAME}\`):** Analise a média de interações por semana ou mês para uma combinação específica de formato, proposta e contexto.
 
     * **REGRA DE OURO: IDENTIFICAÇÃO CORRETA DE IDs DE POSTS (ATUALIZADO - v2.33.4)**
         * ... (seção existente) ...

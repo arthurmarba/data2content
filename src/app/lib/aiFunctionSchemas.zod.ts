@@ -108,6 +108,14 @@ export const GetUserTrendArgsSchema = z.object({
   granularity: z.enum(['daily', 'weekly', 'monthly']).default('daily')
 }).strict();
 
+export const GetFpcTrendHistoryArgsSchema = z.object({
+  format: z.enum(VALID_FORMATS),
+  proposal: z.enum(VALID_PROPOSALS),
+  context: z.enum(VALID_CONTEXTS),
+  timePeriod: z.enum(ALLOWED_TIME_PERIODS).default('last_90_days'),
+  granularity: z.enum(['weekly','monthly']).default('weekly')
+}).strict();
+
 // Schema para getConsultingKnowledge
 const validKnowledgeTopics = [
   'algorithm_overview', 'algorithm_feed', 'algorithm_stories', 'algorithm_reels',
@@ -178,6 +186,7 @@ export const functionValidators: ValidatorMap = {
   getDailyMetricHistory: GetDailyMetricHistoryArgsSchema,
   getMetricsHistory: GetMetricsHistoryArgsSchema,
   getUserTrend: GetUserTrendArgsSchema,
+  getFpcTrendHistory: GetFpcTrendHistoryArgsSchema,
   getConsultingKnowledge: GetConsultingKnowledgeArgsSchema,
   getLatestAccountInsights: GetLatestAccountInsightsArgsSchema,
   fetchCommunityInspirations: FetchCommunityInspirationsArgsSchema,
