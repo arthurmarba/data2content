@@ -136,3 +136,38 @@ O Alcance Total nos diz quantas pessoas diferentes viram seu post. Mas uma anál
 // Adicione mais funções aqui para outras análises específicas
 // Ex: export function analyzeFollowerGrowth(): string { ... }
 // Ex: export function explainPropagationIndex(): string { ... } // Para métricas calculadas
+
+/**
+ * Explica como analisar o crescimento de seguidores ao longo do tempo (Didático e Guiado).
+ */
+export function analyzeFollowerGrowth(): string {
+    return `
+**Crescimento de Seguidores: Como Ler a Evolução ao Longo do Tempo?**
+
+Acompanhar o total de seguidores é simples, mas a interpretação correta exige observar a **tendência** e os **picos** que aparecem no caminho.
+
+* **Registre marcos periódicos:** Anote quantos seguidores você tinha no início e no fim de cada semana ou mês. Assim, fica fácil ver se a curva está subindo de forma constante ou se ficou estagnada.
+* **Compare a variação em porcentagem:** Ganhar 300 seguidores quando você tem 3 mil é um crescimento de 10%. Essa taxa é mais informativa do que olhar apenas números absolutos, principalmente para contas de tamanhos diferentes.
+* **Relacione picos a ações específicas:** Grandes saltos normalmente coincidem com um post que viralizou, uma campanha paga ou uma parceria com outro criador. Já quedas acentuadas podem indicar polêmicas ou mudanças de algoritmo. Marcar essas datas ajuda a entender o que influenciou a curva.
+* **Analise o ritmo mês a mês:** Se o crescimento percentual vem diminuindo, talvez seja hora de testar novos formatos ou investir em conteúdos que já renderam bons resultados no passado.
+
+*Conclusão:* Monitorar o ganho de seguidores em janelas regulares (7, 30 ou 90 dias) e relacionar os picos às suas iniciativas permite descobrir o que realmente atrai novas pessoas para o seu perfil.
+`;
+}
+
+/**
+ * Explica o significado do Índice de Propagação (propagation_index) e quando monitorá-lo (Didático e Guiado).
+ */
+export function explainPropagationIndex(): string {
+    return `
+**Índice de Propagação: Medindo o Potencial de Viralização**
+
+O Índice de Propagação é calculado dividindo o número de **compartilhamentos** de um post pelo seu **alcance**. Ele mostra qual parte das pessoas alcançadas achou o conteúdo bom o bastante para enviar adiante.
+
+* **Por que isso é relevante?** Um valor alto indica que o post está se espalhando além da sua audiência atual, pois cada compartilhamento expõe o conteúdo a novos perfis. É um forte sinal de viralidade potencial.
+* **Quando acompanhar:** Fique de olho nessa métrica em posts que você criou pensando em engajamento e repercussão (memes, tutoriais muito úteis, notícias). Se o índice ficar acima da média, esse tipo de conteúdo merece ser repetido ou impulsionado.
+* **Use junto com o alcance de não seguidores:** Se o Índice de Propagação estiver alto e o alcance de não seguidores crescer junto, é sinal de que os compartilhamentos realmente estão trazendo gente nova para seu perfil.
+
+*Resumindo:* O Índice de Propagação ajuda a entender quanto seu conteúdo "viaja" de pessoa para pessoa. Monitorá-lo permite ajustar temas e formatos para maximizar a chance de viralizar.
+`;
+}
