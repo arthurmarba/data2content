@@ -563,7 +563,7 @@ const getCategoryRanking: ExecutorFn = async (args, loggedUser) => {
 
   try {
       const endDate = new Date();
-      const startDate = subDays(endDate, periodDays);
+      const startDate = periodDays === 0 ? new Date(0) : subDays(endDate, periodDays);
 
       const results = await fetchTopCategories({
           userId,
@@ -575,15 +575,18 @@ const getCategoryRanking: ExecutorFn = async (args, loggedUser) => {
 
       if (results.length === 0) {
           logger.info(`${fnTag} Nenhum resultado encontrado para User ${userId}.`);
-          return { message: `Não encontrei dados suficientes sobre seus posts para criar um ranking de '${category}' por '${metric}' nos últimos ${periodDays} dias.` };
+          const periodText = periodDays === 0 ? 'todo o período disponível' : `nos últimos ${periodDays} dias`;
+          return { message: `Não encontrei dados suficientes sobre seus posts para criar um ranking de '${category}' por '${metric}' ${periodText}.` };
       }
 
       logger.info(`${fnTag} Ranking gerado com sucesso para User ${userId}. Itens: ${results.length}`);
       const leader = results[0];
       const rankingList = results.map((item, index) => `${index + 1}. ${item.category}: ${item.value.toLocaleString('pt-BR')}`).join('\n');
 
+      const periodText = periodDays === 0 ? 'todo o período disponível' : `nos últimos ${periodDays} dias`;
       return {
-        summary: `Aqui está o ranking das suas categorias de '${category}' por '${metric}' nos últimos ${periodDays} dias, ${loggedUser.name || 'usuário'}:\n${rankingList}`,          ranking: results
+        summary: `Aqui está o ranking das suas categorias de '${category}' por '${metric}' ${periodText}, ${loggedUser.name || 'usuário'}:\n${rankingList}`,
+        ranking: results
       };
 
   } catch (err: any) {
