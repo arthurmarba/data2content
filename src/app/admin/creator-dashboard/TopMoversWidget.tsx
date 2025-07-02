@@ -249,8 +249,6 @@ export default function TopMoversWidget() {
           <label htmlFor="tm-topN" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Top N</label>
           <input type="number" id="tm-topN" value={topN} onChange={(e) => setTopN(Math.max(1, parseInt(e.target.value, 10) || 1))} min="1" max="50" className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 h-[38px]" />
         </div>
-      </div>
-
 
         {entityType === 'content' && (
           <>
@@ -269,7 +267,7 @@ export default function TopMoversWidget() {
           </>
         )}
       </div>
-      
+
       <div className="mt-4" />
 
       {/* --- Área de Resultados --- */}
