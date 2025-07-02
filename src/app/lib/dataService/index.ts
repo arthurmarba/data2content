@@ -31,7 +31,8 @@ export {
     getRecentPostObjectsWithAggregatedMetrics,
     getTopPostsByMetric,
     getMetricDetails,
-    findMetricsByCriteria
+    findMetricsByCriteria,
+    getMetricsHistory
 } from './reportService';
 
 // Funções relacionadas com a Comunidade de Inspiração

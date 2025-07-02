@@ -96,6 +96,11 @@ export const GetDailyMetricHistoryArgsSchema = z.object({
   metricId: z.string().min(1, { message: "O ID da métrica não pode ser vazio." }),
 }).strict();
 
+export const GetMetricsHistoryArgsSchema = z.object({
+  days: z.number().int().positive().default(360)
+    .describe('Quantidade de dias a considerar no histórico (padrão: 360).')
+}).strict();
+
 // Schema para getConsultingKnowledge
 const validKnowledgeTopics = [
   'algorithm_overview', 'algorithm_feed', 'algorithm_stories', 'algorithm_reels',
@@ -164,6 +169,7 @@ export const functionValidators: ValidatorMap = {
   getMetricDetailsById: GetMetricDetailsByIdArgsSchema,
   findPostsByCriteria: FindPostsByCriteriaArgsSchema,
   getDailyMetricHistory: GetDailyMetricHistoryArgsSchema,
+  getMetricsHistory: GetMetricsHistoryArgsSchema,
   getConsultingKnowledge: GetConsultingKnowledgeArgsSchema,
   getLatestAccountInsights: GetLatestAccountInsightsArgsSchema,
   fetchCommunityInspirations: FetchCommunityInspirationsArgsSchema,

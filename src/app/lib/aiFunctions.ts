@@ -38,7 +38,8 @@ import {
   getMetricDetails as getMetricDetailsFromDataService,
   findMetricsByCriteria as findMetricsByCriteriaFromDataService,
   FindMetricsCriteriaArgs,
-  fetchTopCategories // (NOVO)
+  fetchTopCategories, // (NOVO)
+  getMetricsHistory as getMetricsHistoryFromDataService
 } from './dataService';
 import { subDays, subYears, startOfDay } from 'date-fns';
 
@@ -239,6 +240,21 @@ export const functionSchemas = [
             }
         },
         required: ['metricId']
+    }
+  },
+  {
+    name: 'getMetricsHistory',
+    description: 'Retorna séries históricas agregadas por dia para diversas métricas do usuário, permitindo analisar tendências ao longo do tempo.',
+    parameters: {
+        type: 'object',
+        properties: {
+            days: {
+                type: 'number',
+                default: 360,
+                description: 'Quantidade de dias no histórico a retornar (padrão 360).'
+            }
+        },
+        required: []
     }
   },
   {
@@ -686,6 +702,22 @@ const getDailyMetricHistory: ExecutorFn = async (args: z.infer<typeof ZodSchemas
     }
 };
 
+/* 2.8 getMetricsHistory */
+const getMetricsHistory: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetMetricsHistoryArgsSchema>, loggedUser) => {
+    const fnTag = '[fn:getMetricsHistory v0.1.0]';
+    try {
+        const userId = loggedUser._id.toString();
+        const days = args.days ?? 360;
+        logger.info(`${fnTag} Buscando histórico para User ${userId} - últimos ${days} dias`);
+        const history = await getMetricsHistoryFromDataService(userId, days);
+        return { history };
+    } catch (err: any) {
+        logger.error(`${fnTag} Erro ao buscar histórico para User ${loggedUser._id.toString()}:`, err);
+        return { error: err.message || 'Erro ao buscar histórico de métricas.' };
+    }
+};
+
+
 
 /* 2.8 getConsultingKnowledge */
 const getConsultingKnowledge: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetConsultingKnowledgeArgsSchema>, loggedUser) => {
@@ -731,5 +763,6 @@ export const functionExecutors: Record<string, ExecutorFn> = {
   getMetricDetailsById,
   findPostsByCriteria,
   getDailyMetricHistory,
+  getMetricsHistory,
   getConsultingKnowledge,
 };

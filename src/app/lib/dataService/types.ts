@@ -194,3 +194,26 @@ export interface FindMetricsCriteriaArgs {
     sortBy?: 'postDate' | 'stats.shares' | 'stats.saved' | 'stats.likes' | 'stats.reach';
     sortOrder?: 'asc' | 'desc';
 }
+
+export interface MetricsHistoryDataset {
+    label: string;
+    data: number[];
+}
+
+export interface MetricsHistoryEntry {
+    labels: string[];
+    datasets: MetricsHistoryDataset[];
+}
+
+export interface MetricsHistory {
+    engagementRate: MetricsHistoryEntry;
+    propagationIndex: MetricsHistoryEntry;
+    likeCommentRatio: MetricsHistoryEntry;
+    saveRateOnReach: MetricsHistoryEntry;
+    followerConversionRate: MetricsHistoryEntry;
+    retentionRate: MetricsHistoryEntry;
+    engagementDeepVsReach: MetricsHistoryEntry;
+    engagementFastVsReach: MetricsHistoryEntry;
+    likes: MetricsHistoryEntry;
+    comments: MetricsHistoryEntry;
+}

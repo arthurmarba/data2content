@@ -579,3 +579,102 @@ export async function findMetricsByCriteria(
         throw new DatabaseError(`Erro ao buscar posts por critérios: ${error.message}`);
     }
 }
+
+export async function getMetricsHistory(
+    userId: string,
+    days: number = 360
+): Promise<MetricsHistory> {
+    const TAG = `${SERVICE_TAG}[getMetricsHistory]`;
+    logger.info(`${TAG} Buscando histórico para User ${userId}, últimos ${days} dias.`);
+
+    if (!mongoose.isValidObjectId(userId)) {
+        logger.error(`${TAG} ID de usuário inválido: ${userId}`);
+        throw new DatabaseError(`ID de usuário inválido: ${userId}`);
+    }
+    if (typeof days !== 'number' || days <= 0) {
+        logger.warn(`${TAG} Valor de days inválido (${days}). Usando 360.`);
+        days = 360;
+    }
+
+    await connectToDatabase();
+    const objectId = new Types.ObjectId(userId);
+
+    const fromDate = new Date();
+    fromDate.setHours(0, 0, 0, 0);
+    fromDate.setDate(fromDate.getDate() - days);
+
+    const sortSpec: Record<string, 1 | -1> = { '_id.year': 1, '_id.month': 1, '_id.day': 1 };
+
+    const pipeline: mongoose.PipelineStage[] = [
+        { $match: { user: objectId, postDate: { $gte: fromDate } } },
+        {
+            $group: {
+                _id: { year: { $year: '$postDate' }, month: { $month: '$postDate' }, day: { $dayOfMonth: '$postDate' } },
+                avgEngagementRate: { $avg: '$stats.engagement_rate' },
+                avgPropagationIndex: { $avg: '$stats.propagation_index' },
+                avgLikeCommentRatio: { $avg: '$stats.like_comment_ratio' },
+                avgSaveRateOnReach: { $avg: '$stats.save_rate_on_reach' },
+                avgFollowerConversionRate: { $avg: '$stats.follower_conversion_rate' },
+                avgRetentionRate: { $avg: '$stats.retention_rate' },
+                avgEngagementDeepVsReach: { $avg: '$stats.engagement_deep_vs_reach' },
+                avgEngagementFastVsReach: { $avg: '$stats.engagement_fast_vs_reach' },
+                avgLikes: { $avg: '$stats.likes' },
+                avgComments: { $avg: '$stats.comments' },
+                count: { $sum: 1 }
+            }
+        },
+        { $sort: sortSpec }
+    ];
+
+    const results = await MetricModel.aggregate(pipeline);
+
+    const labels: string[] = [];
+    const arrEngagementRate: number[] = [];
+    const arrPropagationIndex: number[] = [];
+    const arrLikeCommentRatio: number[] = [];
+    const arrSaveRate: number[] = [];
+    const arrFollowerConversion: number[] = [];
+    const arrRetentionRate: number[] = [];
+    const arrEngajDeep: number[] = [];
+    const arrEngajFast: number[] = [];
+    const arrLikes: number[] = [];
+    const arrComments: number[] = [];
+
+    const parseAvg = (value: any): number => {
+        const num = parseFloat(String(value ?? '0').replace(',', '.'));
+        return isNaN(num) || !isFinite(num) ? 0 : num;
+    };
+
+    results.forEach(doc => {
+        const { year, month, day } = doc._id as { year: number; month: number; day: number };
+        const label = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        labels.push(label);
+
+        arrEngagementRate.push(parseAvg(doc.avgEngagementRate));
+        arrPropagationIndex.push(parseAvg(doc.avgPropagationIndex));
+        arrLikeCommentRatio.push(parseAvg(doc.avgLikeCommentRatio));
+        arrSaveRate.push(parseAvg(doc.avgSaveRateOnReach));
+        arrFollowerConversion.push(parseAvg(doc.avgFollowerConversionRate));
+        arrRetentionRate.push(parseAvg(doc.avgRetentionRate));
+        arrEngajDeep.push(parseAvg(doc.avgEngagementDeepVsReach));
+        arrEngajFast.push(parseAvg(doc.avgEngagementFastVsReach));
+        arrLikes.push(parseAvg(doc.avgLikes));
+        arrComments.push(parseAvg(doc.avgComments));
+    });
+
+    const history: MetricsHistory = {
+        engagementRate: { labels, datasets: [{ label: 'Taxa Engajamento / Alcance (%)', data: arrEngagementRate.map(v => v * 100) }] },
+        propagationIndex: { labels, datasets: [{ label: 'Índice de Propagação (%)', data: arrPropagationIndex.map(v => v * 100) }] },
+        likeCommentRatio: { labels, datasets: [{ label: 'Razão Like/Comentário', data: arrLikeCommentRatio }] },
+        saveRateOnReach: { labels, datasets: [{ label: 'Taxa Salvamento / Alcance (%)', data: arrSaveRate.map(v => v * 100) }] },
+        followerConversionRate: { labels, datasets: [{ label: 'Taxa Conversão Seg. (%)', data: arrFollowerConversion.map(v => v * 100) }] },
+        retentionRate: { labels, datasets: [{ label: 'Taxa Retenção Média (%)', data: arrRetentionRate.map(v => v * 100) }] },
+        engagementDeepVsReach: { labels, datasets: [{ label: 'Engaj. Profundo / Alcance (%)', data: arrEngajDeep.map(v => v * 100) }] },
+        engagementFastVsReach: { labels, datasets: [{ label: 'Engaj. Rápido / Alcance (%)', data: arrEngajFast.map(v => v * 100) }] },
+        likes: { labels, datasets: [{ label: 'Curtidas (média diária)', data: arrLikes }] },
+        comments: { labels, datasets: [{ label: 'Comentários (média diária)', data: arrComments }] },
+    };
+
+    logger.info(`${TAG} Histórico de métricas preparado para User ${userId}.`);
+    return history;
+}
