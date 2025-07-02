@@ -7,6 +7,11 @@ export interface VideoListItem {
     _id: string;
     thumbnailUrl?: string | null;
     caption?: string;
+    /**
+     * Texto do post utilizado nas tabelas e modais. Mantido para
+     * compatibilidade com componentes do dashboard.
+     */
+    description?: string;
     permalink?: string | null;
     postDate?: string | Date;
     // Classificação de conteúdo

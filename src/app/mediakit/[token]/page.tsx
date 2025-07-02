@@ -96,11 +96,32 @@ export default async function MediaKitPage({ params }: { params: { token: string
   // classificação sejam transformados em arrays antes de serem passados para a view.
   const compatibleVideos = videos.map((video: any) => ({
     ...video,
-    format: video.format ? [video.format] : [],
-    proposal: video.proposal ? [video.proposal] : [],
-    context: video.context ? [video.context] : [],
-    tone: video.tone ? [video.tone] : [],
-    references: video.references ? [video.references] : [],
+    description: video.description ?? video.caption ?? '',
+    format: Array.isArray(video.format)
+      ? video.format
+      : video.format
+      ? [video.format]
+      : [],
+    proposal: Array.isArray(video.proposal)
+      ? video.proposal
+      : video.proposal
+      ? [video.proposal]
+      : [],
+    context: Array.isArray(video.context)
+      ? video.context
+      : video.context
+      ? [video.context]
+      : [],
+    tone: Array.isArray(video.tone)
+      ? video.tone
+      : video.tone
+      ? [video.tone]
+      : [],
+    references: Array.isArray(video.references)
+      ? video.references
+      : video.references
+      ? [video.references]
+      : [],
   }));
 
   const plainUser = JSON.parse(JSON.stringify(user));
