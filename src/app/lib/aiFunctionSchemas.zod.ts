@@ -101,6 +101,13 @@ export const GetMetricsHistoryArgsSchema = z.object({
     .describe('Quantidade de dias a considerar no histórico (padrão: 360).')
 }).strict();
 
+// Schema para getUserTrend
+export const GetUserTrendArgsSchema = z.object({
+  trendType: z.enum(['followers', 'reach_engagement']),
+  timePeriod: z.enum(ALLOWED_TIME_PERIODS).default('last_30_days'),
+  granularity: z.enum(['daily', 'weekly', 'monthly']).default('daily')
+}).strict();
+
 // Schema para getConsultingKnowledge
 const validKnowledgeTopics = [
   'algorithm_overview', 'algorithm_feed', 'algorithm_stories', 'algorithm_reels',
@@ -170,6 +177,7 @@ export const functionValidators: ValidatorMap = {
   findPostsByCriteria: FindPostsByCriteriaArgsSchema,
   getDailyMetricHistory: GetDailyMetricHistoryArgsSchema,
   getMetricsHistory: GetMetricsHistoryArgsSchema,
+  getUserTrend: GetUserTrendArgsSchema,
   getConsultingKnowledge: GetConsultingKnowledgeArgsSchema,
   getLatestAccountInsights: GetLatestAccountInsightsArgsSchema,
   fetchCommunityInspirations: FetchCommunityInspirationsArgsSchema,

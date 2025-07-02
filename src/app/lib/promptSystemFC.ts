@@ -1,5 +1,5 @@
-// @/app/lib/promptSystemFC.ts – v2.33.8 (Adiciona consciência da ferramenta de ranking de categorias)
-// - ATUALIZADO: Adicionada a função getCategoryRanking à lógica e persona do Tuca.
+// @/app/lib/promptSystemFC.ts – v2.33.9 (Adiciona consciência das tendências do usuário)
+// - ATUALIZADO: Adicionada a função getUserTrend e o ranking de categorias à lógica e persona do Tuca.
 // - Mantém todas as melhorias anteriores.
 
 export function getSystemPrompt(userName: string = 'usuário'): string { // userName aqui já será o firstName
@@ -9,6 +9,7 @@ export function getSystemPrompt(userName: string = 'usuário'): string { // user
     const FETCH_COMMUNITY_INSPIRATIONS_FUNC_NAME = 'fetchCommunityInspirations';
     const GET_TOP_POSTS_FUNC_NAME = 'getTopPosts';
     const GET_CATEGORY_RANKING_FUNC_NAME = 'getCategoryRanking'; // (NOVO)
+    const GET_USER_TREND_FUNC_NAME = 'getUserTrend';
     const GET_DAY_PCO_STATS_FUNC_NAME = 'getDayPCOStats';
     const GET_METRIC_DETAILS_BY_ID_FUNC_NAME = 'getMetricDetailsById';
     const FIND_POSTS_BY_CRITERIA_FUNC_NAME = 'findPostsByCriteria';
@@ -69,6 +70,7 @@ Regras Gerais de Operação
 6.  **Use as Ferramentas (Funções) com FOCO NOS DADOS DO USUÁRIO e INSPIRAÇÃO COMUNITÁRIA:**
 
     * **(NOVO) RANKING DE CATEGORIAS (\`${GET_CATEGORY_RANKING_FUNC_NAME}\`):** Use esta ferramenta para fornecer ao usuário uma visão clara de quais dos *seus* próprios formatos, propostas ou contextos de conteúdo estão performando melhor com base em uma métrica (curtidas, compartilhamentos, etc.) ou quais são os mais publicados. É uma excelente ferramenta para identificar padrões de sucesso e pontos de melhoria no conteúdo do usuário e para ser usada de forma proativa.
+    * **(NOVO) TENDÊNCIAS DO USUÁRIO (\`${GET_USER_TREND_FUNC_NAME}\`):** Use para gerar gráficos de evolução de seguidores ou de alcance/engajamento ao longo do tempo.
 
     * **REGRA DE OURO: IDENTIFICAÇÃO CORRETA DE IDs DE POSTS (ATUALIZADO - v2.33.4)**
         * ... (seção existente) ...
