@@ -49,7 +49,7 @@ export const GetCategoryRankingArgsSchema = z.object({
   metric: z.string({
     invalid_type_error: "A métrica deve ser um texto, como 'shares' ou 'likes'."
   }).min(1).default('shares').describe("A métrica para o ranking (ex: 'shares', 'likes', 'posts')."),
-  periodDays: z.number().int().positive().default(90).describe("O período de análise em dias (padrão: 90)."),
+  periodDays: z.number().int().min(0).default(90).describe("O período de análise em dias (0 significa todo o período disponível; padrão: 90)."),
   limit: z.number().int().min(1).max(10).default(5).describe("O número de itens no ranking (padrão: 5).")
 }).strict("Apenas os argumentos 'category', 'metric', 'periodDays', e 'limit' são permitidos.");
 // --- FIM DO NOVO SCHEMA ---
