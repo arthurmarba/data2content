@@ -32,4 +32,11 @@ describe('getCategoryRanking', () => {
     expect(call.dateRange.startDate.getTime()).toBe(0);
     expect(result.summary).toContain('todo o período disponível');
   });
+
+  it('rejects invalid metrics early', async () => {
+    const args = { category: 'format', metric: 'invalid', periodDays: 30, limit: 5 };
+    const result = await functionExecutors.getCategoryRanking(args, user) as any;
+    expect(result.error).toBeDefined();
+    expect(mockedFetch).not.toHaveBeenCalled();
+  });
 });

@@ -9,11 +9,12 @@ import { logger } from '@/app/lib/logger';
 import MetricModel from '@/app/models/Metric';
 import { connectToDatabase } from '../connection';
 import { DatabaseError } from '@/app/lib/errors';
-import { 
-  IFetchCreatorRankingParams, 
-  ICreatorMetricRankItem, 
+import {
+  IFetchCreatorRankingParams,
+  ICreatorMetricRankItem,
   ICategoryMetricRankItem,
-  RankableCategory
+  RankableCategory,
+  CategoryRankingMetric
 } from './types';
 
 const SERVICE_TAG = '[dataService][rankingsService]';
@@ -257,7 +258,7 @@ export async function fetchTopCategories(params: {
   userId?: string; // (ALTERADO) userId agora é opcional
   dateRange: { startDate: Date; endDate: Date };
   category: RankableCategory;
-  metric: string; 
+  metric: CategoryRankingMetric;
   limit?: number;
 }): Promise<ICategoryMetricRankItem[]> {
   const TAG = `${SERVICE_TAG}[fetchTopCategories]`;

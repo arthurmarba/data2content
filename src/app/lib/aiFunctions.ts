@@ -44,6 +44,7 @@ import {
   getReachEngagementTrend,
   getFpcTrend
 } from './dataService';
+import { CategoryRankingMetricEnum } from './dataService/marketAnalysis/types';
 import { subDays, subYears, startOfDay } from 'date-fns';
 
 import * as PricingKnowledge from './knowledge/pricingKnowledge';
@@ -546,8 +547,8 @@ const getCategoryRanking: ExecutorFn = async (args, loggedUser) => {
   // Validação interna dos argumentos com Zod
   const validationSchema = z.object({
       category: z.enum(['proposal', 'format', 'context']),
-      metric: z.string().default('shares'),
-      periodDays: z.number().default(90),
+      metric: CategoryRankingMetricEnum.default('shares'),
+      periodDays: z.number().min(0).default(90),
       limit: z.number().min(1).max(10).default(5)
   });
 

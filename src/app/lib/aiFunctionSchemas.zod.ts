@@ -5,6 +5,7 @@
 
 import { z } from 'zod';
 import { Types } from 'mongoose';
+import { CategoryRankingMetricEnum } from '@/app/lib/dataService/marketAnalysis/types';
 import {
     VALID_FORMATS,
     VALID_PROPOSALS,
@@ -46,9 +47,7 @@ export const GetCategoryRankingArgsSchema = z.object({
     required_error: "A categoria (proposal, format, ou context) é obrigatória.",
     invalid_type_error: "Categoria inválida. Use 'proposal', 'format' ou 'context'."
   }).describe("A dimensão do conteúdo a ser ranqueada."),
-  metric: z.string({
-    invalid_type_error: "A métrica deve ser um texto, como 'shares' ou 'likes'."
-  }).min(1).default('shares').describe("A métrica para o ranking (ex: 'shares', 'likes', 'posts')."),
+  metric: CategoryRankingMetricEnum.default('shares').describe("A métrica para o ranking."),
   periodDays: z.number().int().min(0).default(90).describe("O período de análise em dias (0 significa todo o período disponível; padrão: 90)."),
   limit: z.number().int().min(1).max(10).default(5).describe("O número de itens no ranking (padrão: 5).")
 }).strict("Apenas os argumentos 'category', 'metric', 'periodDays', e 'limit' são permitidos.");
