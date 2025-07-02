@@ -27,6 +27,17 @@ export const TopCreatorMetricEnum = z.enum([
 ]);
 export type TopCreatorMetric = z.infer<typeof TopCreatorMetricEnum>;
 
+// --- Allowed metrics for category ranking ---
+export const CategoryRankingMetricEnum = z.enum([
+  'shares',
+  'likes',
+  'comments',
+  'reach',
+  'views',
+  'posts'
+]);
+export type CategoryRankingMetric = z.infer<typeof CategoryRankingMetricEnum>;
+
 // --- (REMOVIDO) O Enum e o Tipo abaixo foram substituídos pela nova abordagem genérica ---
 // export const ProposalRankingMetricEnum = z.enum([
 //   'avg_views',
