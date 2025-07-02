@@ -15,6 +15,7 @@ import {
     ContextType,
     QualitativeObjectiveType
 } from '@/app/lib/constants/communityInspirations.constants';
+import { CategoryRankingMetricEnum } from '@/app/lib/dataService/marketAnalysis/types';
 
 // Schema para getAggregatedReport
 export const GetAggregatedReportArgsSchema = z.object({
@@ -46,9 +47,9 @@ export const GetCategoryRankingArgsSchema = z.object({
     required_error: "A categoria (proposal, format, ou context) é obrigatória.",
     invalid_type_error: "Categoria inválida. Use 'proposal', 'format' ou 'context'."
   }).describe("A dimensão do conteúdo a ser ranqueada."),
-  metric: z.string({
-    invalid_type_error: "A métrica deve ser um texto, como 'shares' ou 'likes'."
-  }).min(1).default('shares').describe("A métrica para o ranking (ex: 'shares', 'likes', 'posts')."),
+  metric: CategoryRankingMetricEnum
+    .default('shares')
+    .describe("A métrica para o ranking (ex: 'shares', 'likes', 'posts')."),
   periodDays: z.number().int().positive().default(90).describe("O período de análise em dias (padrão: 90)."),
   limit: z.number().int().min(1).max(10).default(5).describe("O número de itens no ranking (padrão: 5).")
 }).strict("Apenas os argumentos 'category', 'metric', 'periodDays', e 'limit' são permitidos.");
