@@ -268,7 +268,6 @@ export default function TopMoversWidget() {
             </div>
           </>
         )}
-      </div>
       
       <div className="mt-4" />
 
