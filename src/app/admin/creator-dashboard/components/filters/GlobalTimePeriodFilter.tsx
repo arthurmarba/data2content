@@ -37,7 +37,7 @@ const GlobalTimePeriodFilter: React.FC<GlobalTimePeriodFilterProps> = ({
         value={selectedTimePeriod}
         onChange={(e) => onTimePeriodChange(e.target.value)}
         disabled={disabled}
-        className="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+        className="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm text-gray-700 disabled:bg-gray-100 disabled:cursor-not-allowed"
       >
         {options.map(option => (
           <option key={option.value} value={option.value}>{option.label}</option>
