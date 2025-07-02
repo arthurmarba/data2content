@@ -217,3 +217,24 @@ export interface MetricsHistory {
     likes: MetricsHistoryEntry;
     comments: MetricsHistoryEntry;
 }
+
+export interface FollowerTrendPoint {
+    date: string;
+    value: number | null;
+}
+
+export interface FollowerTrendData {
+    chartData: FollowerTrendPoint[];
+    insightSummary?: string;
+}
+
+export interface ReachEngagementTrendPoint {
+    date: string;
+    reach: number | null;
+    engagedUsers: number | null;
+}
+
+export interface ReachEngagementTrendData {
+    chartData: ReachEngagementTrendPoint[];
+    insightSummary?: string;
+}

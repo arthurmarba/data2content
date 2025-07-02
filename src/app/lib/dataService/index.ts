@@ -51,4 +51,11 @@ export {
 } from './marketAnalysis/rankingsService';
 // -------------------------------------------------------------
 
+// Funções de tendências (followers, alcance e engajamento)
+export {
+    getFollowerTrend,
+    getReachEngagementTrend
+} from './trendService';
+// -------------------------------------------------------------
+
 logger.info('[dataService][index] Módulos do dataService carregados e prontos para uso.');

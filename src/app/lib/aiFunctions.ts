@@ -39,7 +39,9 @@ import {
   findMetricsByCriteria as findMetricsByCriteriaFromDataService,
   FindMetricsCriteriaArgs,
   fetchTopCategories, // (NOVO)
-  getMetricsHistory as getMetricsHistoryFromDataService
+  getMetricsHistory as getMetricsHistoryFromDataService,
+  getFollowerTrend,
+  getReachEngagementTrend
 } from './dataService';
 import { subDays, subYears, startOfDay } from 'date-fns';
 
@@ -164,6 +166,34 @@ export const functionSchemas = [
             }
         },
         required: ['category', 'metric']
+    }
+  },
+  // --- Schema para consultar tendências do usuário ---
+  {
+    name: 'getUserTrend',
+    description: 'Retorna séries temporais do crescimento de seguidores ou do alcance/engajamento do usuário para geração de gráficos.',
+    parameters: {
+      type: 'object',
+      properties: {
+        trendType: {
+          type: 'string',
+          enum: ['followers', 'reach_engagement'],
+          description: 'Tipo de tendência a buscar: seguidores ou alcance/engajamento.'
+        },
+        timePeriod: {
+          type: 'string',
+          enum: ZodSchemas.GetUserTrendArgsSchema.shape.timePeriod._def.values,
+          default: 'last_30_days',
+          description: 'Período de tempo para a análise.'
+        },
+        granularity: {
+          type: 'string',
+          enum: ['daily', 'weekly', 'monthly'],
+          default: 'daily',
+          description: 'Granularidade dos pontos da série.'
+        }
+      },
+      required: ['trendType']
     }
   },
   // --- FIM DO NOVO SCHEMA ---
@@ -538,6 +568,21 @@ const getCategoryRanking: ExecutorFn = async (args, loggedUser) => {
 };
 // --- FIM DO NOVO EXECUTOR ---
 
+// Executor para obter tendências de seguidores ou alcance/engajamento
+const getUserTrend: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetUserTrendArgsSchema>, loggedUser) => {
+  const fnTag = '[fn:getUserTrend v1.0.0]';
+  const userId = loggedUser._id.toString();
+  try {
+    if (args.trendType === 'followers') {
+      return await getFollowerTrend(userId, args.timePeriod, args.granularity as 'daily' | 'monthly');
+    }
+    return await getReachEngagementTrend(userId, args.timePeriod, args.granularity as 'daily' | 'weekly');
+  } catch (err) {
+    logger.error(`${fnTag} Erro ao buscar tendência`, err);
+    return { error: 'Não foi possível obter a tendência solicitada.' };
+  }
+};
+
 
 /* 2.4 getDayPCOStats */
 const getDayPCOStats: ExecutorFn = async (_args: z.infer<typeof ZodSchemas.GetDayPCOStatsArgsSchema>, loggedUser) => {
@@ -761,6 +806,7 @@ export const functionExecutors: Record<string, ExecutorFn> = {
   fetchCommunityInspirations,
   getTopPosts,
   getCategoryRanking, // (NOVO) Garantir que esta linha está aqui
+  getUserTrend,
   getDayPCOStats,
   getMetricDetailsById,
   findPostsByCriteria,
