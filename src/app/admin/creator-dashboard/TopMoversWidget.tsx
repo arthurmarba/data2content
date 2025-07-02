@@ -20,25 +20,9 @@ import {
     IPeriod
 } from '@/app/lib/dataService/marketAnalysis/types';
 
-// --- Componentes de Apoio (para o código ser autónomo) ---
-
-const SkeletonBlock = ({ width = 'w-full', height = 'h-4', className = '', variant = 'rectangle' }: { width?: string; height?: string; className?: string; variant?: 'rectangle' | 'circle' }) => {
-  const baseClasses = "bg-gray-200 dark:bg-gray-700 animate-pulse";
-  const shapeClass = variant === 'circle' ? 'rounded-full' : 'rounded';
-  return <div className={`${baseClasses} ${width} ${height} ${shapeClass} ${className}`}></div>;
-};
-
-const EmptyState = ({ icon, title, message }: { icon: React.ReactNode; title: string; message: string; }) => {
-  return (
-    <div className="text-center py-8">
-      <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-400">
-        {icon}
-      </div>
-      <h3 className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">{title}</h3>
-      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{message}</p>
-    </div>
-  );
-};
+// Componentes de Apoio reutilizados no dashboard
+import SkeletonBlock from './SkeletonBlock';
+import EmptyState from './EmptyState';
 
 
 // --- Tipos e Opções para a UI ---
@@ -212,7 +196,7 @@ export default function TopMoversWidget() {
 
 
   return (
-    <div className="bg-white p-4 md:p-6 rounded-lg shadow border border-gray-200 space-y-6">
+    <div className="bg-white dark:bg-gray-800/50 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-6">
       <div>
         <div className="flex items-center space-x-2">
           <ChartBarIcon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
@@ -273,7 +257,7 @@ export default function TopMoversWidget() {
 
       {/* --- Área de Resultados --- */}
       <div className="mt-6">
-        {isLoading && ( <div className="text-center py-4">Carregando...</div> )}
+        {isLoading && (<SkeletonBlock height="h-48" />)}
         {error && ( <div className="text-center py-4 text-red-500">Erro: {error}</div> )}
         {!isLoading && !error && results === null && (
             <EmptyState icon={<ChartBarIcon className="w-12 h-12"/>} title="Analisar Top Movers" message="Configure os parâmetros e aguarde a atualização automática." />
@@ -295,7 +279,7 @@ export default function TopMoversWidget() {
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {results.map((item) => (
-                  <tr key={item.entityId}>
+                  <tr key={item.entityId} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                     <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-800 dark:text-gray-100">
                       <div className="flex items-center">
                         {entityType === 'creator' && item.profilePictureUrl && (
