@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
 import { MagnifyingGlassIcon, DocumentMagnifyingGlassIcon, ChartBarIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import Head from 'next/head';
+import Link from 'next/link';
 
 import GlobalTimePeriodFilter from './components/filters/GlobalTimePeriodFilter';
 import { GlobalTimePeriodProvider, useGlobalTimePeriod } from './components/filters/GlobalTimePeriodContext';
@@ -268,12 +270,12 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
       <div className="p-4 border border-gray-200 rounded-md bg-gray-50">
         {/* ATUALIZAÇÃO: Adicionados dropdowns para os novos filtros de Tom e Referências */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          <div><label htmlFor="gpe-format" className="block text-xs font-medium text-gray-600 mb-1">Formato</label><select id="gpe-format" value={selectedFormat} onChange={(e) => setSelectedFormat(e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm bg-white h-[38px]"><option value="all">Todos os Formatos</option>{formatOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></div>
-          <div><label htmlFor="gpe-proposal" className="block text-xs font-medium text-gray-600 mb-1">Proposta</label><select id="gpe-proposal" value={selectedProposal} onChange={(e) => setSelectedProposal(e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm bg-white h-[38px]"><option value="all">Todas as Propostas</option>{proposalOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></div>
-          <div><label htmlFor="gpe-context" className="block text-xs font-medium text-gray-600 mb-1">Contexto</label><select id="gpe-context" value={selectedContext} onChange={(e) => setSelectedContext(e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm bg-white h-[38px]"><option value="all">Todos os Contextos</option>{contextOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></div>
-          <div><label htmlFor="gpe-tone" className="block text-xs font-medium text-gray-600 mb-1">Tom</label><select id="gpe-tone" value={selectedTone} onChange={(e) => setSelectedTone(e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm bg-white h-[38px]"><option value="all">Todos os Tons</option>{toneOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></div>
-          <div><label htmlFor="gpe-references" className="block text-xs font-medium text-gray-600 mb-1">Referências</label><select id="gpe-references" value={selectedReferences} onChange={(e) => setSelectedReferences(e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm bg-white h-[38px]"><option value="all">Todas as Referências</option>{referenceOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></div>
-          <div><label htmlFor="gpe-minInteractions" className="block text-xs font-medium text-gray-600 mb-1">Min. Interações</label><input type="number" id="gpe-minInteractions" value={minInteractionsValue} onChange={(e) => setMinInteractionsValue(e.target.value)} placeholder="Ex: 100" min="0" className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm bg-white h-[38px]"/></div>
+          <div><label htmlFor="gpe-format" className="block text-xs font-medium text-gray-600 mb-1">Formato</label><select id="gpe-format" value={selectedFormat} onChange={(e) => setSelectedFormat(e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm text-gray-700 bg-white h-[38px]"><option value="all">Todos os Formatos</option>{formatOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></div>
+          <div><label htmlFor="gpe-proposal" className="block text-xs font-medium text-gray-600 mb-1">Proposta</label><select id="gpe-proposal" value={selectedProposal} onChange={(e) => setSelectedProposal(e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm text-gray-700 bg-white h-[38px]"><option value="all">Todas as Propostas</option>{proposalOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></div>
+          <div><label htmlFor="gpe-context" className="block text-xs font-medium text-gray-600 mb-1">Contexto</label><select id="gpe-context" value={selectedContext} onChange={(e) => setSelectedContext(e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm text-gray-700 bg-white h-[38px]"><option value="all">Todos os Contextos</option>{contextOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></div>
+          <div><label htmlFor="gpe-tone" className="block text-xs font-medium text-gray-600 mb-1">Tom</label><select id="gpe-tone" value={selectedTone} onChange={(e) => setSelectedTone(e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm text-gray-700 bg-white h-[38px]"><option value="all">Todos os Tons</option>{toneOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></div>
+          <div><label htmlFor="gpe-references" className="block text-xs font-medium text-gray-600 mb-1">Referências</label><select id="gpe-references" value={selectedReferences} onChange={(e) => setSelectedReferences(e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm text-gray-700 bg-white h-[38px]"><option value="all">Todas as Referências</option>{referenceOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></div>
+          <div><label htmlFor="gpe-minInteractions" className="block text-xs font-medium text-gray-600 mb-1">Min. Interações</label><input type="number" id="gpe-minInteractions" value={minInteractionsValue} onChange={(e) => setMinInteractionsValue(e.target.value)} placeholder="Ex: 100" min="0" className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm text-gray-700 bg-white h-[38px]"/></div>
         </div>
         <div className="mt-4 flex justify-end">
           <button onClick={handleApplyLocalFilters} className="h-[38px] flex items-center justify-center px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700 text-sm disabled:bg-gray-300" disabled={isLoading}><MagnifyingGlassIcon className="w-5 h-5 mr-2" />{isLoading ? 'Buscando...' : 'Filtrar Posts'}</button>
@@ -367,31 +369,46 @@ const AdminCreatorDashboardContent: React.FC = () => {
   };
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 bg-gray-100 min-h-screen">
-      <header className="mb-8 sticky top-0 z-20 bg-gray-100 pb-4 border-b border-gray-200">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
-          Dashboard Administrativo de Criadores
-        </h1>
+    <>
+      <Head>
+        <title>Dashboard Admin - Data2Content</title>
+      </Head>
+      <div className="min-h-screen bg-brand-light">
+        <header className="bg-white shadow-sm sticky top-0 z-40 border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <Link href="/admin/creator-dashboard" className="flex-shrink-0 flex items-center gap-2 group">
+                <span className="text-brand-pink text-3xl font-bold group-hover:opacity-80 transition-opacity">[2]</span>
+              </Link>
+            </div>
+          </div>
+        </header>
 
-        <div className="mt-4 p-4 bg-white rounded-md shadow">
-          <GlobalTimePeriodFilter
-            selectedTimePeriod={globalTimePeriod}
-            onTimePeriodChange={setGlobalTimePeriod}
-            options={[
-              { value: "last_7_days", label: "Últimos 7 dias" },
-              { value: "last_30_days", label: "Últimos 30 dias" },
-              { value: "last_90_days", label: "Últimos 90 dias" },
-              { value: "last_6_months", label: "Últimos 6 meses" },
-              { value: "last_12_months", label: "Últimos 12 meses" },
-              { value: "all_time", label: "Todo o período" },
-            ]}
-          />
-        </div>
-      </header>
+        <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+          <h1 className="text-2xl md:text-3xl font-bold text-brand-dark mb-6">
+            Dashboard Administrativo de Criadores
+          </h1>
 
-      <section id="platform-summary" className="mb-8">
-        <PlatformSummaryKpis startDate={startDate} endDate={endDate} />
-      </section>
+          <div className="mb-8">
+            <div className="p-4 bg-white rounded-md shadow">
+              <GlobalTimePeriodFilter
+                selectedTimePeriod={globalTimePeriod}
+                onTimePeriodChange={setGlobalTimePeriod}
+                options={[
+                  { value: "last_7_days", label: "Últimos 7 dias" },
+                  { value: "last_30_days", label: "Últimos 30 dias" },
+                  { value: "last_90_days", label: "Últimos 90 dias" },
+                  { value: "last_6_months", label: "Últimos 6 meses" },
+                  { value: "last_12_months", label: "Últimos 12 meses" },
+                  { value: "all_time", label: "Todo o período" },
+                ]}
+              />
+            </div>
+          </div>
+
+          <section id="platform-summary" className="mb-8">
+            <PlatformSummaryKpis startDate={startDate} endDate={endDate} />
+          </section>
 
       <section
         id="creator-selection"
@@ -462,22 +479,28 @@ const AdminCreatorDashboardContent: React.FC = () => {
         </>
       )}
 
-      <div id="user-detail-view-container">
-        {selectedUserId && (
-          <UserDetailView
-            userId={selectedUserId}
-            userName={selectedUserName ?? undefined}
-          />
-        )}
-      </div>
+          <div id="user-detail-view-container">
+            {selectedUserId && (
+              <UserDetailView
+                userId={selectedUserId}
+                userName={selectedUserName ?? undefined}
+              />
+            )}
+          </div>
 
-      <CreatorSelector
-        isOpen={isSelectorOpen}
-        onClose={() => setIsSelectorOpen(false)}
-        onSelect={(creator: {id: string, name: string}) => handleUserSelect(creator.id, creator.name)}
-      />
-      <ScrollToTopButton />
-    </div>
+          <CreatorSelector
+            isOpen={isSelectorOpen}
+            onClose={() => setIsSelectorOpen(false)}
+            onSelect={(creator: {id: string, name: string}) => handleUserSelect(creator.id, creator.name)}
+          />
+          <ScrollToTopButton />
+        </main>
+
+        <footer className="text-center mt-20 py-10 border-t border-gray-200 text-xs text-gray-500 font-light">
+          © {new Date().getFullYear()} Data2Content. Todos os direitos reservados.
+        </footer>
+      </div>
+    </>
   );
 };
 
