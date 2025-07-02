@@ -50,6 +50,7 @@ import * as AlgorithmKnowledge from './knowledge/algorithmKnowledge';
 import * as MetricsKnowledge from './knowledge/metricsKnowledge';
 import * as BrandingKnowledge from './knowledge/personalBrandingKnowledge';
 import * as MethodologyKnowledge from './knowledge/methodologyDeepDive';
+import * as ExtraKnowledge from './knowledge/extraKnowledge';
 
 /* ------------------------------------------------------------------ *
  * 1.  JSON-schemas expostos ao LLM                                   *
@@ -773,12 +774,117 @@ const getConsultingKnowledge: ExecutorFn = async (args: z.infer<typeof ZodSchema
     try {
         let knowledge = '';
         switch (topic) {
-             case 'algorithm_overview': knowledge = AlgorithmKnowledge.getAlgorithmOverview(); break;
-             case 'algorithm_feed': knowledge = AlgorithmKnowledge.explainFeedAlgorithm(); break;
-             case 'methodology_cadence_quality': knowledge = MethodologyKnowledge.explainCadenceQuality(); break;
-             case 'metrics_follower_growth': knowledge = MetricsKnowledge.analyzeFollowerGrowth(); break;
-             case 'metrics_propagation_index': knowledge = MetricsKnowledge.explainPropagationIndex(); break;
-            // Adicione mais casos aqui conforme necessário
+            // --- Algorithm knowledge ---
+            case 'algorithm_overview':
+                knowledge = AlgorithmKnowledge.getAlgorithmOverview();
+                break;
+            case 'algorithm_feed':
+                knowledge = AlgorithmKnowledge.explainFeedAlgorithm();
+                break;
+            case 'algorithm_stories':
+                knowledge = AlgorithmKnowledge.explainStoriesAlgorithm();
+                break;
+            case 'algorithm_reels':
+                knowledge = AlgorithmKnowledge.explainReelsAlgorithm();
+                break;
+            case 'algorithm_explore':
+                knowledge = AlgorithmKnowledge.explainExploreAlgorithm();
+                break;
+            case 'engagement_signals':
+                knowledge = AlgorithmKnowledge.listEngagementSignals();
+                break;
+            case 'account_type_differences':
+                knowledge = AlgorithmKnowledge.explainAccountTypeDifferences();
+                break;
+            case 'format_treatment':
+                knowledge = AlgorithmKnowledge.explainFormatTreatment();
+                break;
+            case 'ai_ml_role':
+                knowledge = AlgorithmKnowledge.explainAI_ML_Role();
+                break;
+            case 'recent_updates':
+                knowledge = AlgorithmKnowledge.getRecentAlgorithmUpdates();
+                break;
+            case 'best_practices':
+                knowledge = AlgorithmKnowledge.getBestPractices();
+                break;
+
+            // --- Pricing knowledge ---
+            case 'pricing_overview_instagram':
+                knowledge = PricingKnowledge.getInstagramPricingRanges();
+                break;
+            case 'pricing_overview_tiktok':
+                knowledge = PricingKnowledge.getTikTokPricingRanges();
+                break;
+            case 'pricing_benchmarks_sector':
+                knowledge = PricingKnowledge.getSectorBenchmarks();
+                break;
+            case 'pricing_negotiation_contracts':
+                knowledge = PricingKnowledge.getNegotiationStructureInfo();
+                break;
+            case 'pricing_trends':
+                knowledge = PricingKnowledge.getPricingTrends();
+                break;
+
+            // --- Metrics knowledge ---
+            case 'metrics_analysis':
+                knowledge = MetricsKnowledge.getCoreMetricsAnalysis();
+                break;
+            case 'metrics_retention_rate':
+                knowledge = MetricsKnowledge.explainRetentionRate();
+                break;
+            case 'metrics_avg_watch_time':
+                knowledge = MetricsKnowledge.explainAvgWatchTimeVsDuration();
+                break;
+            case 'metrics_reach_ratio':
+                knowledge = MetricsKnowledge.explainFollowerVsNonFollowerReach();
+                break;
+            case 'metrics_follower_growth':
+                knowledge = MetricsKnowledge.analyzeFollowerGrowth();
+                break;
+            case 'metrics_propagation_index':
+                knowledge = MetricsKnowledge.explainPropagationIndex();
+                break;
+
+            // --- Branding knowledge ---
+            case 'personal_branding_principles':
+                knowledge = BrandingKnowledge.getPersonalBrandingPrinciples();
+                break;
+            case 'branding_aesthetics':
+                knowledge = BrandingKnowledge.explainAestheticsAndVisualStorytelling();
+                break;
+            case 'branding_positioning_by_size':
+                knowledge = BrandingKnowledge.explainPositioningBySize();
+                break;
+            case 'branding_monetization':
+                knowledge = BrandingKnowledge.explainImageAndMonetization();
+                break;
+            case 'branding_case_studies':
+                knowledge = BrandingKnowledge.getBrandingCaseStudies();
+                break;
+            case 'branding_trends':
+                knowledge = BrandingKnowledge.getEmergingBrandingTrends();
+                break;
+
+            // --- Methodology knowledge ---
+            case 'methodology_shares_retention':
+                knowledge = MethodologyKnowledge.explainSharesRetentionImpact();
+                break;
+            case 'methodology_format_proficiency':
+                knowledge = MethodologyKnowledge.explainFormatProficiency();
+                break;
+            case 'methodology_cadence_quality':
+                knowledge = MethodologyKnowledge.explainCadenceQuality();
+                break;
+
+            // --- Misc knowledge ---
+            case 'best_posting_times':
+                knowledge = ExtraKnowledge.getBestPostingTimes();
+                break;
+            case 'community_inspiration_overview':
+                knowledge = ExtraKnowledge.getCommunityInspirationOverview();
+                break;
+
             default:
                 logger.warn(`${fnTag} Tópico não mapeado recebido para User ${loggedUser._id}: ${topic}`);
                 const validTopics = ZodSchemas.GetConsultingKnowledgeArgsSchema.shape.topic._def.values;
