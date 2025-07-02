@@ -23,6 +23,19 @@ export interface IMetricStats {
   engagement?: number;
   video_duration_seconds?: number;
   total_interactions?: number;
+  engagement_rate_on_reach?: number;
+  engagement_rate_on_impressions?: number;
+  retention_rate?: number;
+  follower_conversion_rate?: number;
+  propagation_index?: number;
+  like_comment_ratio?: number;
+  comment_share_ratio?: number;
+  save_like_ratio?: number;
+  virality_weighted?: number;
+  follow_reach_ratio?: number;
+  engagement_deep_vs_reach?: number;
+  engagement_fast_vs_reach?: number;
+  deep_fast_engagement_ratio?: number;
   // ... e todos os outros campos de stats
   [key: string]: unknown;
 }
