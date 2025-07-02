@@ -731,6 +731,8 @@ const getConsultingKnowledge: ExecutorFn = async (args: z.infer<typeof ZodSchema
              case 'algorithm_overview': knowledge = AlgorithmKnowledge.getAlgorithmOverview(); break;
              case 'algorithm_feed': knowledge = AlgorithmKnowledge.explainFeedAlgorithm(); break;
              case 'methodology_cadence_quality': knowledge = MethodologyKnowledge.explainCadenceQuality(); break;
+             case 'metrics_follower_growth': knowledge = MetricsKnowledge.analyzeFollowerGrowth(); break;
+             case 'metrics_propagation_index': knowledge = MetricsKnowledge.explainPropagationIndex(); break;
             // Adicione mais casos aqui conforme necessário
             default:
                 logger.warn(`${fnTag} Tópico não mapeado recebido para User ${loggedUser._id}: ${topic}`);

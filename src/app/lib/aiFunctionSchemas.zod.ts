@@ -109,7 +109,7 @@ const validKnowledgeTopics = [
   'pricing_overview_instagram', 'pricing_overview_tiktok',
   'pricing_benchmarks_sector', 'pricing_negotiation_contracts', 'pricing_trends',
   'metrics_analysis', 'metrics_retention_rate',
-  'metrics_avg_watch_time', 'metrics_reach_ratio',
+  'metrics_avg_watch_time', 'metrics_reach_ratio', 'metrics_follower_growth', 'metrics_propagation_index',
   'personal_branding_principles', 'branding_aesthetics',
   'branding_positioning_by_size', 'branding_monetization',
   'branding_case_studies', 'branding_trends',
