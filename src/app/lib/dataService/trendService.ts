@@ -44,3 +44,26 @@ export async function getReachEngagementTrend(
     throw new Error('Falha ao buscar tendência de alcance/engajamento');
   }
 }
+
+export async function getFpcTrend(
+  userId: string,
+  format: string,
+  proposal: string,
+  context: string,
+  timePeriod: TimePeriod = 'last_90_days',
+  granularity: 'weekly' | 'monthly' = 'weekly'
+) {
+  const TAG = `${SERVICE_TAG}[getFpcTrend]`;
+  const url = `${BASE_URL}/api/v1/users/${userId}/trends/fpc-history?format=${encodeURIComponent(format)}&proposal=${encodeURIComponent(proposal)}&context=${encodeURIComponent(context)}&timePeriod=${timePeriod}&granularity=${granularity}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      logger.error(`${TAG} HTTP ${res.status} ao buscar FPC trend.`);
+      throw new Error(`Request failed with status ${res.status}`);
+    }
+    return await res.json();
+  } catch (err) {
+    logger.error(`${TAG} Erro ao chamar API`, err);
+    throw new Error('Falha ao buscar tendência FPC');
+  }
+}

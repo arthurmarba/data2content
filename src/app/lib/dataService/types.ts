@@ -238,3 +238,13 @@ export interface ReachEngagementTrendData {
     chartData: ReachEngagementTrendPoint[];
     insightSummary?: string;
 }
+
+export interface FpcTrendPoint {
+    date: string;
+    avgInteractions: number | null;
+}
+
+export interface FpcTrendData {
+    chartData: FpcTrendPoint[];
+    insightSummary?: string;
+}
