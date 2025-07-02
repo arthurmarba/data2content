@@ -1,10 +1,20 @@
 /**
  * @fileoverview Tipos e interfaces compartilhados para o marketAnalysisService.
- * @version 1.0.0
+ * @version 1.1.0
+ * @description Adicionados tipos para ranking de categoria genérico e removidos os tipos específicos de proposta que se tornaram obsoletos.
  */
 
 import { Types } from 'mongoose';
 import { z } from 'zod';
+
+// --- (NOVO) Tipos para Ranking de Categoria Genérico ---
+export type RankableCategory = 'proposal' | 'format' | 'context';
+
+export interface ICategoryMetricRankItem {
+  category: string;
+  value: number;
+}
+// --- FIM DA SEÇÃO NOVA ---
 
 // --- Validação de Schema e Tipos de Contrato ---
 
@@ -17,11 +27,13 @@ export const TopCreatorMetricEnum = z.enum([
 ]);
 export type TopCreatorMetric = z.infer<typeof TopCreatorMetricEnum>;
 
-export const ProposalRankingMetricEnum = z.enum([
-  'avg_views',
-  'total_interactions'
-]);
-export type ProposalRankingMetric = z.infer<typeof ProposalRankingMetricEnum>;
+// --- (REMOVIDO) O Enum e o Tipo abaixo foram substituídos pela nova abordagem genérica ---
+// export const ProposalRankingMetricEnum = z.enum([
+//   'avg_views',
+//   'total_interactions'
+// ]);
+// export type ProposalRankingMetric = z.infer<typeof ProposalRankingMetricEnum>;
+// -----------------------------------------------------------------------------------------
 
 // --- Interfaces de Contrato ---
 
@@ -177,10 +189,12 @@ export interface ICreatorMetricRankItem extends IRankingCreatorInfo {
   metricValue: number;
 }
 
-export interface IProposalMetricRankItem {
-  proposal: string;
-  metricValue: number;
-}
+// --- (REMOVIDO) Substituído por ICategoryMetricRankItem para ser genérico ---
+// export interface IProposalMetricRankItem {
+//   proposal: string;
+//   metricValue: number;
+// }
+// --------------------------------------------------------------------------
 
 export interface IFetchCreatorRankingParams {
   dateRange: {
@@ -195,11 +209,6 @@ export interface IFetchCreatorTimeSeriesArgs {
   metric: 'post_count' | 'avg_engagement_rate' | 'avg_likes' | 'avg_shares' | 'total_interactions';
   period: 'monthly' | 'weekly';
   dateRange: { startDate: Date; endDate: Date };
-}
-
-export interface ICreatorTimeSeriesDataPoint {
-  date: Date;
-  value: number;
 }
 
 export interface ISegmentDefinition {
@@ -276,6 +285,11 @@ export interface IFetchPlatformConversionMetricsArgs {
     startDate: Date;
     endDate: Date;
   };
+}
+
+export interface ICreatorTimeSeriesDataPoint {
+  date: Date;
+  value: number;
 }
 
 export interface IPlatformConversionMetrics {

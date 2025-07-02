@@ -1,16 +1,16 @@
 /**
  * @fileoverview Orquestrador de chamadas à API OpenAI com Function Calling e Streaming.
- * @version 0.10.13 (Adiciona validação de ObjectId para metricId e ajusta retorno de getDayPCOStats)
+ * @version 0.11.0 (Adiciona a função getCategoryRanking para o usuário)
  */
 
 import { Types, Model } from 'mongoose';
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
 
-// Importa os Zod Schemas atualizados (v1.3.5 ou superior que usa enums para findPostsByCriteria)
+// Importa os Zod Schemas atualizados
 import * as ZodSchemas from './aiFunctionSchemas.zod';
 
-// Importa as constantes/enums para a Comunidade de Inspiração e outros usos
+// Importa as constantes/enums
 import {
     VALID_FORMATS,
     VALID_PROPOSALS,
@@ -22,6 +22,7 @@ import { IUser } from '@/app/models/User';
 import { IMetric, IMetricStats } from '@/app/models/Metric';
 import { MetricsNotFoundError, DatabaseError } from '@/app/lib/errors';
 
+// --- (ATUALIZADO) Importando a nova função do dataService ---
 import {
   fetchAndPrepareReportData,
   getAdDealInsights,
@@ -36,7 +37,8 @@ import {
   getTopPostsByMetric as getTopPostsByMetricFromDataService,
   getMetricDetails as getMetricDetailsFromDataService,
   findMetricsByCriteria as findMetricsByCriteriaFromDataService,
-  FindMetricsCriteriaArgs, 
+  FindMetricsCriteriaArgs,
+  fetchTopCategories // (NOVO)
 } from './dataService';
 import { subDays, subYears, startOfDay } from 'date-fns';
 
@@ -117,7 +119,7 @@ export const functionSchemas = [
                 type: 'string',
                 enum: ZodSchemas.GetTopPostsArgsSchema.shape.metric.removeDefault().unwrap()._def.values,
                 default: 'shares',
-                description: "Métrica para ordenar os posts (compartilhamentos, salvamentos, curtidas, comentários, alcance ou visualizações)."
+                description: "Métrica para ordenar os seus posts (compartilhamentos, salvamentos, curtidas, comentários, alcance ou visualizações)."
             },
             limit: {
                 type: 'number',
@@ -130,6 +132,40 @@ export const functionSchemas = [
         required: []
     }
   },
+  // --- (NOVO) Schema da função de Ranking de Categorias ---
+  {
+    name: 'getCategoryRanking',
+    description: 'Cria um ranking das SUAS categorias de conteúdo (formato, proposta ou contexto) com base em uma métrica de performance específica. Use para responder perguntas como "qual o ranking das minhas propostas com mais compartilhamentos?" ou "quais os formatos que eu mais uso?".',
+    parameters: {
+        type: 'object',
+        properties: {
+            category: {
+                type: 'string',
+                enum: ['proposal', 'format', 'context'],
+                description: "A dimensão do conteúdo a ser ranqueada: 'proposal', 'format' ou 'context'."
+            },
+            metric: {
+                type: 'string',
+                default: 'shares',
+                description: "A métrica para ordenar o ranking (ex: 'shares', 'likes', 'views', 'comments', ou 'posts' para contar o número de publicações)."
+            },
+            periodDays: {
+                type: 'number',
+                default: 90,
+                description: "O período de análise em dias (padrão: 90)."
+            },
+            limit: {
+                type: 'number',
+                minimum: 1,
+                maximum: 10,
+                default: 5,
+                description: "Número de itens no ranking a retornar (padrão: 5)."
+            }
+        },
+        required: ['category', 'metric']
+    }
+  },
+  // --- FIM DO NOVO SCHEMA ---
   {
     name: 'getDayPCOStats',
     description: 'Retorna dados de desempenho médio agrupados por Dia da Semana, Proposta e Contexto (usando nomes padronizados). Use APENAS se o usuário perguntar sobre melhor dia/horário para nichos específicos e após ter o relatório geral via getAggregatedReport.',
@@ -228,6 +264,7 @@ type ExecutorFn = (args: any, user: IUser) => Promise<unknown>;
  * 2.  Executores das Funções                                             *
  * ---------------------------------------------------------------------- */
 
+/* ... (as funções getAggregatedReport, getLatestAccountInsights, fetchCommunityInspirations, getTopPosts permanecem inalteradas) ... */
 /* 2.1 getAggregatedReport */
 const getAggregatedReport: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetAggregatedReportArgsSchema>, loggedUser) => {
   const fnTag = '[fn:getAggregatedReport v0.10.12]'; // Nenhuma mudança lógica aqui, mantém versão
@@ -429,6 +466,62 @@ const getTopPosts: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetTopPos
     return { error: err.message || "Ocorreu um erro inesperado ao buscar os top posts. Por favor, tente novamente." };
   }
 };
+
+
+// --- (NOVO) Executor da função de Ranking de Categorias ---
+const getCategoryRanking: ExecutorFn = async (args, loggedUser) => {
+  const fnTag = '[fn:getCategoryRanking v1.0.0]';
+
+  // Validação interna dos argumentos com Zod
+  const validationSchema = z.object({
+      category: z.enum(['proposal', 'format', 'context']),
+      metric: z.string().default('shares'),
+      periodDays: z.number().default(90),
+      limit: z.number().min(1).max(10).default(5)
+  });
+
+  const validation = validationSchema.safeParse(args);
+  if (!validation.success) {
+      logger.warn(`${fnTag} Argumentos inválidos recebidos:`, validation.error);
+      return { error: 'Recebi parâmetros inválidos para criar o ranking. Por favor, tente reformular a pergunta.' };
+  }
+  
+  const { category, metric, periodDays, limit } = validation.data;
+  const userId = loggedUser._id.toString();
+  logger.info(`${fnTag} Executando para User ${userId} com args:`, { category, metric, periodDays, limit });
+
+  try {
+      const endDate = new Date();
+      const startDate = subDays(endDate, periodDays);
+
+      const results = await fetchTopCategories({
+          userId,
+          dateRange: { startDate, endDate },
+          category,
+          metric,
+          limit,
+      });
+
+      if (results.length === 0) {
+          logger.info(`${fnTag} Nenhum resultado encontrado para User ${userId}.`);
+          return { message: `Não encontrei dados suficientes sobre seus posts para criar um ranking de '${category}' por '${metric}' nos últimos ${periodDays} dias.` };
+      }
+
+      logger.info(`${fnTag} Ranking gerado com sucesso para User ${userId}. Itens: ${results.length}`);
+      const leader = results[0];
+      const rankingList = results.map((item, index) => `${index + 1}. ${item.category}: ${item.value.toLocaleString('pt-BR')}`).join('\n');
+
+      return {
+        summary: `Aqui está o ranking das suas categorias de '${category}' por '${metric}' nos últimos ${periodDays} dias, ${loggedUser.name || 'usuário'}:\n${rankingList}`,          ranking: results
+      };
+
+  } catch (err: any) {
+      logger.error(`${fnTag} Erro ao executar getCategoryRanking para User ${userId}:`, err);
+      return { error: 'Desculpe, tive um problema ao gerar o ranking. Poderia tentar novamente?' };
+  }
+};
+// --- FIM DO NOVO EXECUTOR ---
+
 
 /* 2.4 getDayPCOStats */
 const getDayPCOStats: ExecutorFn = async (_args: z.infer<typeof ZodSchemas.GetDayPCOStatsArgsSchema>, loggedUser) => {
@@ -633,6 +726,7 @@ export const functionExecutors: Record<string, ExecutorFn> = {
   getLatestAccountInsights,
   fetchCommunityInspirations,
   getTopPosts,
+  getCategoryRanking, // (NOVO) Garantir que esta linha está aqui
   getDayPCOStats,
   getMetricDetailsById,
   findPostsByCriteria,

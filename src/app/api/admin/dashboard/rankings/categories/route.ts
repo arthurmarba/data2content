@@ -1,0 +1,87 @@
+/**
+ * @fileoverview API Endpoint para buscar rankings de categorias de forma genérica.
+ * @version 1.0.0
+ * @description Esta rota permite rankear 'format', 'proposal', ou 'context' por diversas métricas.
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { logger } from '@/app/lib/logger';
+import { fetchTopCategories } from '@/app/lib/dataService/marketAnalysis/rankingsService';
+import { DatabaseError } from '@/app/lib/errors';
+export const dynamic = 'force-dynamic';
+
+const SERVICE_TAG = '[api/admin/dashboard/rankings/categories]';
+
+// Schema para validar os parâmetros da URL da requisição
+const querySchema = z.object({
+  category: z.enum(['proposal', 'format', 'context'], {
+    errorMap: () => ({ message: "A categoria deve ser 'proposal', 'format' ou 'context'." })
+  }),
+  metric: z.string().min(1, { message: 'A métrica não pode estar vazia.' }),
+  startDate: z.string().datetime({ message: 'Formato de data inválido para startDate.' }).transform(val => new Date(val)),
+  endDate: z.string().datetime({ message: 'Formato de data inválido para endDate.' }).transform(val => new Date(val)),
+  limit: z.coerce.number().int().min(1).max(50).optional().default(5),
+}).refine(data => data.startDate <= data.endDate, {
+  message: 'A data de início não pode ser posterior à data de término.',
+  path: ['endDate'],
+});
+
+// Função de apoio para tratamento de erros da API
+function apiError(message: string, status: number): NextResponse {
+  logger.error(`${SERVICE_TAG} Erro ${status}: ${message}`);
+  return NextResponse.json({ error: message }, { status });
+}
+
+// Lógica de validação de sessão (pode ser substituída pela sua implementação real)
+async function getAdminSession(req: NextRequest): Promise<{ user: { name: string } } | null> {
+  // ATENÇÃO: Substitua pela sua lógica real de autenticação e autorização
+  const isAdmin = true; 
+  if (isAdmin) {
+    return { user: { name: 'Admin User' } };
+  }
+  return null;
+}
+
+export async function GET(req: NextRequest) {
+  const TAG = `${SERVICE_TAG}[GET]`;
+  logger.info(`${TAG} Requisição recebida.`);
+
+  try {
+    // 1. Validação da sessão de administrador
+    const session = await getAdminSession(req);
+    if (!session) {
+      return apiError('Acesso não autorizado.', 401);
+    }
+
+    // 2. Validação dos parâmetros da requisição
+    const { searchParams } = new URL(req.url);
+    const validationResult = querySchema.safeParse(Object.fromEntries(searchParams));
+    
+    if (!validationResult.success) {
+      const errorMessage = validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+      return apiError(`Parâmetros de consulta inválidos: ${errorMessage}`, 400);
+    }
+
+    const { category, metric, startDate, endDate, limit } = validationResult.data;
+
+    // 3. Chamada ao serviço com os parâmetros validados
+    const results = await fetchTopCategories({
+      dateRange: { startDate, endDate },
+      category,
+      metric,
+      limit,
+    });
+
+    // 4. Retorno dos resultados com sucesso
+    return NextResponse.json(results, { status: 200 });
+
+  } catch (error: any) {
+    // 5. Tratamento de erros inesperados
+    logger.error(`${TAG} Erro inesperado:`, error);
+    if (error instanceof DatabaseError) {
+      return apiError(error.message, 500);
+    }
+    return apiError('Ocorreu um erro interno no servidor.', 500);
+  }
+}

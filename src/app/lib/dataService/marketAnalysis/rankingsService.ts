@@ -1,16 +1,24 @@
 /**
- * @fileoverview Serviço para buscar rankings de criadores.
- * @version 1.0.0
+ * @fileoverview Serviço para buscar rankings de criadores e categorias.
+ * @version 1.3.0
+ * @description Tornada a função fetchTopCategories flexível para aceitar userId opcional (visão global vs. individual).
  */
 
-import { PipelineStage } from 'mongoose';
+import { PipelineStage, Types } from 'mongoose';
 import { logger } from '@/app/lib/logger';
 import MetricModel from '@/app/models/Metric';
 import { connectToDatabase } from '../connection';
 import { DatabaseError } from '@/app/lib/errors';
-import { IFetchCreatorRankingParams, ICreatorMetricRankItem, IProposalMetricRankItem, ProposalRankingMetric } from './types';
+import { 
+  IFetchCreatorRankingParams, 
+  ICreatorMetricRankItem, 
+  ICategoryMetricRankItem,
+  RankableCategory
+} from './types';
 
 const SERVICE_TAG = '[dataService][rankingsService]';
+
+// ... (as outras funções de ranking de criadores permanecem inalteradas) ...
 
 /**
  * @function fetchTopEngagingCreators
@@ -236,44 +244,78 @@ export async function fetchTopSharingCreators(
   }
 }
 
-export async function fetchTopProposals(params: {
+
+
+// --- (ATUALIZADO E FINALIZADO) Função genérica para ranking de categorias ---
+/**
+ * @function fetchTopCategories
+ * @description Fetches a ranking for a given category. Can be global or for a specific user.
+ * @param params - Parameters including dateRange, category, metric, limit, and an optional userId.
+ * @returns {Promise<ICategoryMetricRankItem[]>} - List of top-ranking categories.
+ */
+export async function fetchTopCategories(params: {
+  userId?: string; // (ALTERADO) userId agora é opcional
   dateRange: { startDate: Date; endDate: Date };
-  metric: ProposalRankingMetric;
+  category: RankableCategory;
+  metric: string; 
   limit?: number;
-}): Promise<IProposalMetricRankItem[]> {
-  const TAG = `${SERVICE_TAG}[fetchTopProposals]`;
-  const { dateRange, metric, limit = 5 } = params;
-  logger.info(`${TAG} Fetching metric ${metric} for period: ${dateRange.startDate} - ${dateRange.endDate}`);
+}): Promise<ICategoryMetricRankItem[]> {
+  const TAG = `${SERVICE_TAG}[fetchTopCategories]`;
+  const { userId, dateRange, category, metric, limit = 5 } = params;
+  logger.info(`${TAG} Fetching top ${limit} for category '${category}' by metric '${metric}'. User filter: ${userId || 'Global'}`);
 
   try {
     await connectToDatabase();
-    const metricField = metric === 'avg_views' ? '$stats.views' : '$stats.total_interactions';
-    
-    // CORREÇÃO: Constrói o operador de agregação separadamente para ajudar o TypeScript a inferir o tipo correto.
-    const groupOperator = metric === 'avg_views'
-      ? { $avg: metricField }
-      : { $sum: metricField };
 
-    const matchStage: PipelineStage.Match['$match'] = {
+    const metricField = metric === 'posts' ? null : `$stats.${metric}`;
+    const categoryField = `$${category}`;
+
+    // (ALTERADO) Construção do filtro de forma dinâmica
+    const matchFilter: any = {
       postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
-      proposal: { $exists: true, $ne: null },
+      [category]: { $exists: true, $ne: [] },
     };
-    matchStage[metricField.substring(1)] = { $exists: true, $ne: null };
+
+    // Adiciona o filtro de usuário apenas se um userId for fornecido
+    if (userId) {
+      matchFilter.user = new Types.ObjectId(userId);
+    }
 
     const pipeline: PipelineStage[] = [
-      { $match: matchStage },
-      // Usa o operador de grupo construído corretamente
-      { $group: { _id: '$proposal', metricValue: groupOperator } },
-      { $sort: { metricValue: -1 } },
-      { $limit: limit },
-      { $project: { _id: 0, proposal: '$_id', metricValue: metric === 'avg_views' ? { $round: ['$metricValue', 2] } : '$metricValue' } }
+      {
+        $match: matchFilter
+      },
+      {
+        $unwind: categoryField
+      },
+      {
+        $group: {
+          _id: categoryField,
+          metricValue: metricField ? { $sum: metricField } : { $sum: 1 }
+        }
+      },
+      {
+        $sort: {
+          metricValue: -1
+        }
+      },
+      {
+        $limit: limit
+      },
+      {
+        $project: {
+          _id: 0,
+          category: '$_id',
+          value: { $round: ['$metricValue', 0] }
+        }
+      }
     ];
 
     const results = await MetricModel.aggregate(pipeline);
-    logger.info(`${TAG} Found ${results.length} proposals.`);
-    return results as IProposalMetricRankItem[];
+    logger.info(`${TAG} Found ${results.length} results. User filter: ${userId || 'Global'}`);
+    return results as ICategoryMetricRankItem[];
   } catch (error: any) {
     logger.error(`${TAG} Error:`, error);
-    throw new DatabaseError(`Failed to fetch top proposals: ${error.message}`);
+    throw new DatabaseError(`Failed to fetch top categories: ${error.message}`);
   }
 }

@@ -1,17 +1,21 @@
 /**
  * @fileoverview API Endpoint for fetching proposal rankings.
+ * @version 2.0.0
+ * @description Modernizado para usar o serviço genérico fetchTopCategories.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
-import { fetchTopProposals, ProposalRankingMetric } from '@/app/lib/dataService/marketAnalysisService';
+// (ALTERADO) Importando a nova função genérica
+import { fetchTopCategories } from '@/app/lib/dataService/marketAnalysisService';
 import { DatabaseError } from '@/app/lib/errors';
 export const dynamic = 'force-dynamic';
 
 const SERVICE_TAG = '[api/admin/dashboard/rankings/proposals]';
 
+// (ALTERADO) Schema atualizado para ser mais flexível, aceitando qualquer métrica como string.
 const querySchema = z.object({
-  metric: z.enum(['avg_views', 'total_interactions']).transform(val => val as ProposalRankingMetric),
+  metric: z.string().min(1, { message: "A métrica não pode estar vazia." }),
   startDate: z.string().datetime({ message: 'Invalid startDate format.' }).transform(val => new Date(val)),
   endDate: z.string().datetime({ message: 'Invalid endDate format.' }).transform(val => new Date(val)),
   limit: z.coerce.number().int().min(1).max(50).optional().default(5),
@@ -56,8 +60,10 @@ export async function GET(req: NextRequest) {
 
     const { metric, startDate, endDate, limit } = validationResult.data;
 
-    const results = await fetchTopProposals({
+    // (ALTERADO) Chamando a nova função 'fetchTopCategories' com a categoria 'proposal' fixada.
+    const results = await fetchTopCategories({
       dateRange: { startDate, endDate },
+      category: 'proposal', // Hardcoded para esta rota específica de propostas
       metric,
       limit,
     });

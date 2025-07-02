@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { IProposalMetricRankItem } from '@/app/lib/dataService/marketAnalysisService';
+import { ICategoryMetricRankItem } from '@/app/lib/dataService/marketAnalysisService';
 import SkeletonBlock from './SkeletonBlock';
 
 interface ProposalRankingCardProps {
@@ -25,7 +25,7 @@ const ProposalRankingCard: React.FC<ProposalRankingCardProps> = ({
   metricLabel = '',
   limit = 5,
 }) => {
-  const [rankingData, setRankingData] = useState<IProposalMetricRankItem[] | null>(null);
+  const [rankingData, setRankingData] = useState<ICategoryMetricRankItem[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,9 +57,9 @@ const ProposalRankingCard: React.FC<ProposalRankingCardProps> = ({
         const errorData = await response.json();
         throw new Error(errorData.error || `Failed to fetch ${title}`);
       }
-      const data: IProposalMetricRankItem[] = await response.json();
+      const data: ICategoryMetricRankItem[] = await response.json();
       setRankingData(data);
-    } catch (e: any) {
+    } catch (e: any) { // (CORRIGIDO) Adicionadas as chaves {} que faltavam
       setError(e.message);
       setRankingData(null);
     } finally {
@@ -106,11 +106,11 @@ const ProposalRankingCard: React.FC<ProposalRankingCardProps> = ({
       {!isLoading && !error && rankingData && rankingData.length > 0 && (
         <ol className="space-y-2 text-sm flex-grow">
           {rankingData.map((item, index) => (
-            <li key={item.proposal + index} className="flex items-center justify-between py-1">
+            <li key={item.category + index} className="flex items-center justify-between py-1">
               <span className="text-xs font-medium text-gray-500 w-5 text-center">{index + 1}.</span>
-              <span className="flex-1 truncate text-gray-800" title={item.proposal}>{item.proposal}</span>
+              <span className="flex-1 truncate text-gray-800" title={item.category}>{item.category}</span>
               <span className="text-xs text-indigo-600 font-semibold whitespace-nowrap">
-                {formatMetricValue(item.metricValue)}{metricLabel && ` ${metricLabel}`}
+                {formatMetricValue(item.value)}{metricLabel && ` ${metricLabel}`}
               </span>
             </li>
           ))}
