@@ -11,13 +11,8 @@ import { GlobalTimePeriodProvider, useGlobalTimePeriod } from './components/filt
 import PlatformSummaryKpis from './components/kpis/PlatformSummaryKpis';
 import PlatformOverviewSection from './components/views/PlatformOverviewSection';
 import PlatformContentAnalysisSection from './components/views/PlatformContentAnalysisSection';
-import ProposalRankingSection from './components/views/ProposalRankingSection';
 import CreatorRankingSection from './components/views/CreatorRankingSection';
 import TopMoversSection from './components/views/TopMoversSection';
-import CohortComparisonSection from './components/views/CohortComparisonSection';
-import MarketPerformanceSection from './components/views/MarketPerformanceSection';
-import AdvancedAnalysisSection from './components/views/AdvancedAnalysisSection';
-import CreatorHighlightsSection from './components/views/CreatorHighlightsSection';
 import UserDetailView from './components/views/UserDetailView';
 import CreatorSelector from './components/CreatorSelector';
 import ContentTrendChart from './ContentTrendChart';
@@ -450,26 +445,11 @@ const AdminCreatorDashboardContent: React.FC = () => {
             startDate={startDate}
             endDate={endDate}
           />
-          <ProposalRankingSection
-            rankingDateRange={rankingDateRange}
-            rankingDateLabel={rankingDateLabel}
-          />
           <CreatorRankingSection
             rankingDateRange={rankingDateRange}
             rankingDateLabel={rankingDateLabel}
           />
           <TopMoversSection />
-          <CohortComparisonSection startDate={startDate} endDate={endDate} />
-          <MarketPerformanceSection
-            formatOptions={formatOptions}
-            proposalOptions={proposalOptions}
-            marketFormat={marketFormat}
-            marketProposal={marketProposal}
-            setMarketFormat={setMarketFormat}
-            setMarketProposal={setMarketProposal}
-          />
-          <AdvancedAnalysisSection />
-          <CreatorHighlightsSection />
 
           <section id="global-posts-explorer" className="mt-8">
             <GlobalPostsExplorer dateRangeFilter={{ startDate, endDate }} />
