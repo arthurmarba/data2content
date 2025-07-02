@@ -1,11 +1,26 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line
-} from 'recharts';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
 import { MagnifyingGlassIcon, DocumentMagnifyingGlassIcon, ChartBarIcon, XMarkIcon } from '@heroicons/react/24/outline';
+
+import GlobalTimePeriodFilter from './components/filters/GlobalTimePeriodFilter';
+import { GlobalTimePeriodProvider, useGlobalTimePeriod } from './components/filters/GlobalTimePeriodContext';
+import PlatformSummaryKpis from './components/kpis/PlatformSummaryKpis';
+import PlatformOverviewSection from './components/views/PlatformOverviewSection';
+import PlatformContentAnalysisSection from './components/views/PlatformContentAnalysisSection';
+import ProposalRankingSection from './components/views/ProposalRankingSection';
+import CreatorRankingSection from './components/views/CreatorRankingSection';
+import TopMoversSection from './components/views/TopMoversSection';
+import CohortComparisonSection from './components/views/CohortComparisonSection';
+import MarketPerformanceSection from './components/views/MarketPerformanceSection';
+import AdvancedAnalysisSection from './components/views/AdvancedAnalysisSection';
+import CreatorHighlightsSection from './components/views/CreatorHighlightsSection';
+import UserDetailView from './components/views/UserDetailView';
+import CreatorSelector from './components/CreatorSelector';
+import ContentTrendChart from './ContentTrendChart';
+import PostDetailModal from './PostDetailModal';
+import ScrollToTopButton from '@/app/components/ScrollToTopButton';
 
 // --- Definições de Categoria para consistência ---
 export interface Category {
@@ -23,32 +38,13 @@ export const referenceCategories: Category[] = [ { id: 'pop_culture', label: 'Cu
 
 
 // --- Contexto, Provider e Hook para o Filtro de Tempo Global ---
-type TimePeriod = "last_7_days" | "last_30_days" | "last_90_days" | "last_6_months" | "last_12_months" | "all_time";
-
-interface GlobalTimePeriodContextType {
-  timePeriod: TimePeriod;
-  setTimePeriod: (period: TimePeriod) => void;
-}
-
-const GlobalTimePeriodContext = React.createContext<GlobalTimePeriodContextType | undefined>(undefined);
-
-const GlobalTimePeriodProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [timePeriod, setTimePeriod] = useState<TimePeriod>('last_30_days');
-  const value = { timePeriod, setTimePeriod };
-  return (
-    <GlobalTimePeriodContext.Provider value={value}>
-      {children}
-    </GlobalTimePeriodContext.Provider>
-  );
-};
-
-const useGlobalTimePeriod = () => {
-  const context = React.useContext(GlobalTimePeriodContext);
-  if (context === undefined) {
-    throw new Error('useGlobalTimePeriod must be used within a GlobalTimePeriodProvider');
-  }
-  return context;
-};
+type TimePeriod =
+  | 'last_7_days'
+  | 'last_30_days'
+  | 'last_90_days'
+  | 'last_6_months'
+  | 'last_12_months'
+  | 'all_time';
 
 // --- Função auxiliar de data ---
 const getStartDateFromTimePeriod = (endDate: Date, timePeriod: TimePeriod): Date => {
@@ -74,30 +70,6 @@ const getStartDateFromTimePeriod = (endDate: Date, timePeriod: TimePeriod): Date
     }
     return startDate;
 };
-
-// --- Placeholders para componentes não definidos ---
-const GlobalTimePeriodFilter: React.FC<any> = ({ selectedTimePeriod, onTimePeriodChange, options }) => (
-    <div className="p-2 border rounded-md bg-gray-50">
-        <label htmlFor="time-period-filter" className="text-sm font-medium text-gray-700 mr-2">Período:</label>
-        <select id="time-period-filter" value={selectedTimePeriod} onChange={(e) => onTimePeriodChange(e.target.value)} className="rounded-md border-gray-300">
-            {options.map((opt: any) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-        </select>
-    </div>
-);
-const PlatformSummaryKpis: React.FC<any> = ({ startDate, endDate }) => <div className="p-4 bg-blue-50 rounded-lg">PlatformSummaryKpis ({new Date(startDate).toLocaleDateString()} - {new Date(endDate).toLocaleDateString()})</div>;
-const PlatformOverviewSection: React.FC<any> = (props) => <div className="p-4 bg-green-50 rounded-lg">PlatformOverviewSection</div>;
-const PlatformContentAnalysisSection: React.FC<any> = (props) => <div className="p-4 bg-yellow-50 rounded-lg">PlatformContentAnalysisSection</div>;
-const ProposalRankingSection: React.FC<any> = (props) => <div className="p-4 bg-purple-50 rounded-lg">ProposalRankingSection</div>;
-const CreatorRankingSection: React.FC<any> = (props) => <div className="p-4 bg-pink-50 rounded-lg">CreatorRankingSection</div>;
-const TopMoversSection: React.FC<any> = (props) => <div className="p-4 bg-red-50 rounded-lg">TopMoversSection</div>;
-const CohortComparisonSection: React.FC<any> = (props) => <div className="p-4 bg-indigo-50 rounded-lg">CohortComparisonSection</div>;
-const MarketPerformanceSection: React.FC<any> = (props) => <div className="p-4 bg-teal-50 rounded-lg">MarketPerformanceSection</div>;
-const AdvancedAnalysisSection: React.FC<any> = (props) => <div className="p-4 bg-gray-200 rounded-lg">AdvancedAnalysisSection</div>;
-const CreatorHighlightsSection: React.FC<any> = (props) => <div className="p-4 bg-orange-50 rounded-lg">CreatorHighlightsSection</div>;
-const UserDetailView: React.FC<any> = ({ userId, userName }) => <div className="p-4 bg-cyan-50 rounded-lg mt-4">UserDetailView for {userName} ({userId})</div>;
-const CreatorSelector: React.FC<any> = ({ isOpen, onClose, onSelect }) => { if (!isOpen) return null; return <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"><div className="bg-white p-8 rounded-lg">Creator Selector <button onClick={onClose}>Fechar</button></div></div>; };
-const ScrollToTopButton: React.FC = () => <button className="fixed bottom-4 right-4 bg-indigo-600 text-white p-2 rounded-full shadow-lg">^</button>;
-
 
 // --- Componentes de Apoio ---
 
@@ -133,11 +105,6 @@ interface IGlobalPostResult {
     shares?: number;
   };
 }
-
-interface ContentTrendChartProps { postId: string; }
-const ContentTrendChart: React.FC<ContentTrendChartProps> = ({ postId }) => { return <div className="p-4">Gráfico de Tendência para o Post ID: {postId}</div>; };
-const PostDetailModal = ({ isOpen, onClose, postId }: { isOpen: boolean; onClose: () => void; postId: string | null }) => { if (!isOpen) return null; return <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"><div className="bg-white p-8 rounded-lg">Detalhes do Post ID: {postId} <button onClick={onClose}>Fechar</button></div></div>; };
-
 
 // --- Componente GlobalPostsExplorer ---
 interface GlobalPostsExplorerProps {
