@@ -2,47 +2,11 @@
 
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
-
-// --- Definições de Tipos e Componentes Placeholder ---
-
-// Tipos (definidos localmente para autonomia)
-interface VideoListItem {
-  _id: string;
-  description?: string;
-  views?: number;
-  engagementRate?: number;
-  format?: string[];
-  proposal?: string[];
-  context?: string[];
-  tone?: string[];
-  references?: string[];
-  [key: string]: any;
-}
-
-interface KpiComparison {
-  comparisonPeriod?: string;
-  avgReachPerPost?: { currentValue: number | null; percentageChange: number | null; };
-  engagementRate?: { currentValue: number | null; percentageChange: number | null; };
-  postingFrequency?: { currentValue: number | null; percentageChange: number | null; };
-  avgViewsPerPost?: { currentValue: number | null; percentageChange: number | null; };
-  avgCommentsPerPost?: { currentValue: number | null; percentageChange: number | null; };
-  avgSharesPerPost?: { currentValue: number | null; percentageChange: number | null; };
-  avgSavesPerPost?: { currentValue: number | null; percentageChange: number | null; };
-  followerGrowth?: { currentValue: number | null; percentageChange: number | null; };
-}
-
-interface MediaKitViewProps {
-  user: {
-    _id: string;
-    name?: string;
-    username?: string;
-    profile_picture_url?: string;
-    biography?: string;
-  };
-  summary: any;
-  videos: VideoListItem[];
-  kpis: KpiComparison | null;
-}
+import VideosTable from '@/app/admin/creator-dashboard/components/VideosTable';
+import { UserAvatar } from '@/app/components/UserAvatar';
+import AverageMetricRow from '@/app/dashboard/components/AverageMetricRow';
+import PostDetailModal from '@/app/admin/creator-dashboard/PostDetailModal';
+import { MediaKitViewProps, VideoListItem, KpiComparison } from '@/types/mediakit';
 
 // Placeholder para Ícones
 const FaIcon = ({ path, className = "w-5 h-5" }: { path: string, className?: string }) => (
@@ -66,66 +30,7 @@ const ICONS = {
   calendar: "M448 64H352V32c0-17.7-14.3-32-32-32s-32 14.3-32 32v32H160V32c0-17.7-14.3-32-32-32s-32 14.3-32 32v32H48C21.5 64 0 85.5 0 112v352c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48zm-64 352H128V224h256v192z",
 };
 
-// ATUALIZAÇÃO: Placeholder para VideosTable agora inclui colunas para todas as 5 dimensões.
-const VideosTable: React.FC<{ videos: VideoListItem[]; readOnly: boolean; onRowClick: (id: string) => void; }> = ({ videos, onRowClick }) => (
-  <div className="overflow-x-auto rounded-lg border border-gray-200 text-sm">
-    <table className="min-w-full bg-white divide-y divide-gray-200">
-      <thead className="bg-gray-50">
-        <tr>
-          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Conteúdo</th>
-          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Formato</th>
-          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proposta</th>
-          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contexto</th>
-          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tom</th>
-          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Referências</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-gray-200">
-        {videos.map((video) => (
-          <tr key={video._id} onClick={() => onRowClick(video._id)} className="hover:bg-gray-50 cursor-pointer">
-            <td className="px-4 py-4 whitespace-nowrap font-medium text-gray-800" title={video.description}>{video.description?.substring(0, 40) ?? 'N/A'}...</td>
-            <td className="px-4 py-4 whitespace-nowrap text-gray-600">{video.format?.join(', ') || 'N/A'}</td>
-            <td className="px-4 py-4 whitespace-nowrap text-gray-600">{video.proposal?.join(', ') || 'N/A'}</td>
-            <td className="px-4 py-4 whitespace-nowrap text-gray-600">{video.context?.join(', ') || 'N/A'}</td>
-            <td className="px-4 py-4 whitespace-nowrap text-gray-600">{video.tone?.join(', ') || 'N/A'}</td>
-            <td className="px-4 py-4 whitespace-nowrap text-gray-600">{video.references?.join(', ') || 'N/A'}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-);
-
-// Placeholder para UserAvatar
-const UserAvatar: React.FC<{ name: string; src?: string; size: number; }> = ({ name, src, size }) => (
-  <div style={{ width: size, height: size }} className="rounded-full bg-pink-100 flex items-center justify-center overflow-hidden border-2 border-pink-200">
-    {src ? <img src={src} alt={name} className="w-full h-full object-cover" /> : <span className="text-xl font-bold text-pink-600">{name.charAt(0)}</span>}
-  </div>
-);
-
-// Placeholder para AverageMetricRow
-const AverageMetricRow: React.FC<{ icon: React.ReactNode; label: string; value: number | null | undefined; }> = ({ icon, label, value }) => (
-  <div className="flex justify-between items-center text-sm py-1">
-    <div className="flex items-center gap-2 text-gray-600">{icon}<span>{label}</span></div>
-    <span className="font-semibold text-gray-800">{value?.toLocaleString('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }) ?? 'N/A'}</span>
-  </div>
-);
-
-// Placeholder para PostDetailModal
-const PostDetailModal: React.FC<{ isOpen: boolean; onClose: () => void; postId: string | null; publicMode?: boolean; }> = ({ isOpen, onClose, postId }) => {
-  if (!isOpen) return null;
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
-      <div className="bg-white p-6 rounded-lg max-w-lg w-full shadow-2xl">
-        <h2 className="text-xl font-bold mb-4">Detalhes do Post</h2>
-        <p>Exibindo detalhes para o Post ID: {postId}</p>
-        <button onClick={onClose} className="mt-6 px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-opacity-50">Fechar</button>
-      </div>
-    </div>
-  );
-};
-
-
+// Components imported from the admin dashboard
 // --- Micro-Componentes Internos ---
 
 const KeyMetric: React.FC<{ icon: React.ReactNode; value: string; label: string }> = ({ icon, value, label }) => (

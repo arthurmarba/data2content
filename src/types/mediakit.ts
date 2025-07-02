@@ -9,13 +9,13 @@ export interface VideoListItem {
     caption?: string;
     permalink?: string | null;
     postDate?: string | Date;
-    // <<< INÍCIO DA CORREÇÃO: Campos de estratégia adicionados >>>
-    // Adicionando os campos que o componente VideosTable.tsx espera.
-    // Eles são opcionais ('?') porque nem todo vídeo pode ter essas tags.
-    proposal?: string;
-    context?: string;
-    format?: string;
-    // <<< FIM DA CORREÇÃO >>>
+    // Classificação de conteúdo
+    // Todos os campos são arrays para acomodar múltiplas tags
+    format?: string[];
+    proposal?: string[];
+    context?: string[];
+    tone?: string[];
+    references?: string[];
     stats?: {
       views?: number;
       likes?: number;
