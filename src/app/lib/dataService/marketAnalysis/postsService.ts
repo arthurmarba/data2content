@@ -1,6 +1,6 @@
 /**
  * @fileoverview Serviço para buscar e gerenciar posts.
- * @version 1.7.0 - Versão completa com todas as funções e correção da métrica 'saves'.
+ * @version 1.9.0 - Adicionada a função de backfill para capas (Fase 2).
  */
 
 import { PipelineStage, Types } from 'mongoose';
@@ -15,6 +15,7 @@ import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
 import { TimePeriod } from '@/app/lib/constants/timePeriods';
 import { getInstagramConnectionDetails } from '@/app/lib/instagram/db/userActions';
 import fetch from 'node-fetch';
+import User from '@/app/models/User'; // Importação necessária para a nova função
 
 const SERVICE_TAG = '[dataService][postsService]';
 
@@ -58,6 +59,9 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
                 _id: 1, text_content: 1, description: 1, creatorName: 1, postDate: 1,
                 format: 1, proposal: 1, context: 1, 'stats.total_interactions': '$stats.total_interactions',
                 'stats.likes': '$stats.likes', 'stats.shares': '$stats.shares',
+                // MODIFICAÇÃO (FASE 1): Adicionados coverUrl e instagramMediaId para a feature de capas.
+                coverUrl: 1,
+                instagramMediaId: 1,
             }
         });
         
@@ -138,7 +142,7 @@ export interface IUserVideoPostResult {
     likes?: number;
     shares?: number;
     comments?: number;
-    saves?: number; // <<< CORREÇÃO 1: Garantindo que 'saves' está na interface.
+    saves?: number;
     views?: number;
   };
 }
@@ -218,7 +222,6 @@ export async function findUserVideoPosts({
           'stats.likes': '$stats.likes',
           'stats.comments': '$stats.comments',
           'stats.shares': '$stats.shares',
-          // <<< CORREÇÃO 2: Traduzindo 'saved' do banco para 'saves' na resposta.
           'stats.saves': '$stats.saved', 
         },
       },
@@ -257,3 +260,75 @@ export async function findUserVideoPosts({
     throw new DatabaseError(`Failed to fetch user video posts: ${error.message}`);
   }
 }
+
+// --- INÍCIO DA NOVA FUNÇÃO (FASE 2) ---
+
+/**
+ * Busca a URL da capa de um post no Instagram e a salva no banco de dados.
+ * @param postId - O ID do post (Metric) a ser processado.
+ * @returns Um objeto indicando sucesso ou falha.
+ */
+export async function backfillPostCover(postId: string): Promise<{ success: boolean; message: string; }> {
+    const TAG = `${SERVICE_TAG}[backfillPostCover]`;
+    logger.info(`${TAG} Iniciando backfill para postId: ${postId}`);
+
+    if (!Types.ObjectId.isValid(postId)) {
+        logger.warn(`${TAG} ID do post inválido: ${postId}`);
+        return { success: false, message: 'Invalid Post ID format.' };
+    }
+
+    try {
+        await connectToDatabase();
+
+        const post = await MetricModel.findById(postId).select('user instagramMediaId coverUrl').lean();
+
+        if (!post) {
+            logger.warn(`${TAG} Post com ID ${postId} não encontrado.`);
+            return { success: false, message: 'Post not found.' };
+        }
+
+        if (post.coverUrl) {
+            logger.info(`${TAG} Post ${postId} já possui uma coverUrl. Ignorando.`);
+            return { success: true, message: 'Cover URL already exists.' };
+        }
+
+        if (!post.instagramMediaId) {
+            logger.warn(`${TAG} Post ${postId} não possui instagramMediaId. Não é possível continuar.`);
+            return { success: false, message: 'Post does not have an instagramMediaId.' };
+        }
+        
+        if (!post.user) {
+            logger.warn(`${TAG} Post ${postId} não possui um usuário associado. Não é possível obter o token.`);
+            return { success: false, message: 'Post does not have an associated user.' };
+        }
+
+        // Buscar o token de acesso do usuário associado ao post
+        const connectionDetails = await getInstagramConnectionDetails(post.user as Types.ObjectId);
+        const accessToken = connectionDetails?.accessToken;
+
+        if (!accessToken) {
+            logger.warn(`${TAG} Não foi possível encontrar um accessToken para o usuário do post ${postId}.`);
+            return { success: false, message: 'Access token not found for the post\'s user.' };
+        }
+
+        // Chamar a função existente para buscar a miniatura
+        const thumbnailUrl = await fetchMediaThumbnail(post.instagramMediaId, accessToken);
+
+        if (thumbnailUrl) {
+            await MetricModel.updateOne({ _id: post._id }, { $set: { coverUrl: thumbnailUrl } });
+            logger.info(`${TAG} Sucesso! Capa para o post ${postId} foi atualizada.`);
+            return { success: true, message: 'Cover URL successfully fetched and saved.' };
+        } else {
+            logger.warn(`${TAG} Não foi possível obter a thumbnail para o post ${postId} via API.`);
+            // Opcional: Você pode querer salvar um valor especial, como 'fetch_failed',
+            // para não tentar novamente. Por enquanto, deixamos nulo.
+            return { success: false, message: 'Failed to fetch thumbnail from Instagram API.' };
+        }
+
+    } catch (error: any) {
+        logger.error(`${TAG} Erro no processo de backfill para o post ${postId}:`, error);
+        return { success: false, message: `An unexpected error occurred: ${error.message}` };
+    }
+}
+
+// --- FIM DA NOVA FUNÇÃO ---

@@ -1,6 +1,6 @@
 /**
  * @fileoverview Orquestrador de chamadas à API OpenAI com Function Calling e Streaming.
- * @version 0.11.0 (Adiciona a função getCategoryRanking para o usuário)
+ * @version 0.11.3 (Ajuste fino na extração de enums Zod para cada caso específico)
  */
 
 import { Types, Model } from 'mongoose';
@@ -22,7 +22,7 @@ import { IUser } from '@/app/models/User';
 import { IMetric, IMetricStats } from '@/app/models/Metric';
 import { MetricsNotFoundError, DatabaseError } from '@/app/lib/errors';
 
-// --- (ATUALIZADO) Importando a nova função do dataService ---
+// --- Importando a nova função do dataService ---
 import {
   fetchAndPrepareReportData,
   getAdDealInsights,
@@ -38,7 +38,7 @@ import {
   getMetricDetails as getMetricDetailsFromDataService,
   findMetricsByCriteria as findMetricsByCriteriaFromDataService,
   FindMetricsCriteriaArgs,
-  fetchTopCategories, // (NOVO)
+  fetchTopCategories,
   getMetricsHistory as getMetricsHistoryFromDataService,
   getFollowerTrend,
   getReachEngagementTrend,
@@ -123,6 +123,7 @@ export const functionSchemas = [
         properties: {
             metric: {
                 type: 'string',
+                // Este schema É opcional, então precisa do .unwrap()
                 enum: ZodSchemas.GetTopPostsArgsSchema.shape.metric.removeDefault().unwrap()._def.values,
                 default: 'shares',
                 description: "Métrica para ordenar os seus posts (compartilhamentos, salvamentos, curtidas, comentários, alcance ou visualizações)."
@@ -138,7 +139,6 @@ export const functionSchemas = [
         required: []
     }
   },
-  // --- (NOVO) Schema da função de Ranking de Categorias ---
   {
     name: 'getCategoryRanking',
     description: 'Cria um ranking das SUAS categorias de conteúdo (formato, proposta ou contexto) com base em uma métrica de performance específica. Use para responder perguntas como "qual o ranking das minhas propostas com mais compartilhamentos?" ou "quais os formatos que eu mais uso?".',
@@ -171,7 +171,6 @@ export const functionSchemas = [
         required: ['category', 'metric']
     }
   },
-  // --- Schema para consultar tendências do usuário ---
   {
     name: 'getUserTrend',
     description: 'Retorna séries temporais do crescimento de seguidores ou do alcance/engajamento do usuário para geração de gráficos.',
@@ -185,7 +184,8 @@ export const functionSchemas = [
         },
         timePeriod: {
           type: 'string',
-          enum: ZodSchemas.GetUserTrendArgsSchema.shape.timePeriod._def.values,
+          // CORREÇÃO: Este schema NÃO é opcional, então o .unwrap() é removido.
+          enum: ZodSchemas.GetUserTrendArgsSchema.shape.timePeriod.removeDefault()._def.values,
           default: 'last_30_days',
           description: 'Período de tempo para a análise.'
         },
@@ -210,7 +210,8 @@ export const functionSchemas = [
         context: { type: 'string', enum: VALID_CONTEXTS },
         timePeriod: {
           type: 'string',
-          enum: ZodSchemas.GetFpcTrendHistoryArgsSchema.shape.timePeriod._def.values,
+          // CORREÇÃO: Este schema também NÃO é opcional.
+          enum: ZodSchemas.GetFpcTrendHistoryArgsSchema.shape.timePeriod.removeDefault()._def.values,
           default: 'last_90_days'
         },
         granularity: {
@@ -222,7 +223,6 @@ export const functionSchemas = [
       required: ['format','proposal','context']
     }
   },
-  // --- FIM DO NOVO SCHEMA ---
   {
     name: 'getDayPCOStats',
     description: 'Retorna dados de desempenho médio agrupados por Dia da Semana, Proposta e Contexto (usando nomes padronizados). Use APENAS se o usuário perguntar sobre melhor dia/horário para nichos específicos e após ter o relatório geral via getAggregatedReport.',
@@ -270,12 +270,14 @@ export const functionSchemas = [
             limit: { type: 'number', default: 5, minimum: 1, maximum: 20, description: "Número máximo de posts a retornar (entre 1 e 20)." },
             sortBy: {
                 type: 'string',
+                // Este é opcional e precisa do .unwrap()
                 enum: ZodSchemas.FindPostsByCriteriaArgsSchema.shape.sortBy.removeDefault().unwrap()._def.values,
                 default: 'postDate',
                 description: "Campo para ordenar os resultados."
             },
             sortOrder: {
                 type: 'string',
+                // Este é opcional e precisa do .unwrap()
                 enum: ZodSchemas.FindPostsByCriteriaArgsSchema.shape.sortOrder.removeDefault().unwrap()._def.values,
                 default: 'desc',
                 description: "Ordem da classificação (ascendente ou descendente)."
@@ -321,6 +323,7 @@ export const functionSchemas = [
         properties: {
             topic: {
                 type: 'string',
+                // Este não é nem opcional nem com default, acessamos diretamente.
                 enum: ZodSchemas.GetConsultingKnowledgeArgsSchema.shape.topic._def.values,
                 description: `Tópico sobre o qual buscar conhecimento. Tópicos válidos: ${ZodSchemas.GetConsultingKnowledgeArgsSchema.shape.topic._def.values.join(', ')}`
             }
@@ -598,14 +601,28 @@ const getCategoryRanking: ExecutorFn = async (args, loggedUser) => {
 // --- FIM DO NOVO EXECUTOR ---
 
 // Executor para obter tendências de seguidores ou alcance/engajamento
-const getUserTrend: ExecutorFn = async (args: z.infer<typeof ZodSchemas.GetUserTrendArgsSchema>, loggedUser) => {
-  const fnTag = '[fn:getUserTrend v1.0.0]';
+const getUserTrend: ExecutorFn = async (args, loggedUser) => {
+  const fnTag = '[fn:getUserTrend v1.0.1]';
   const userId = loggedUser._id.toString();
+
+  // --- CORREÇÃO: Validar os argumentos recebidos com o schema Zod ---
+  const validation = ZodSchemas.GetUserTrendArgsSchema.safeParse(args);
+  if (!validation.success) {
+    logger.warn(`${fnTag} Argumentos inválidos recebidos para getUserTrend:`, validation.error.flatten());
+    return { error: 'Recebi parâmetros inválidos para a busca de tendência.' };
+  }
+  
+  // CORREÇÃO: Adiciona uma anotação de tipo explícita na desestruturação.
+  // Isso garante que `timePeriod` e `granularity` tenham seus tipos corretamente inferidos
+  // do schema Zod, resolvendo o erro 'unknown'.
+  const { trendType, timePeriod, granularity }: z.infer<typeof ZodSchemas.GetUserTrendArgsSchema> = validation.data;
+
   try {
-    if (args.trendType === 'followers') {
-      return await getFollowerTrend(userId, args.timePeriod, args.granularity as 'daily' | 'monthly');
+    if (trendType === 'followers') {
+      // Agora 'timePeriod' e 'granularity' têm os tipos corretos
+      return await getFollowerTrend(userId, timePeriod, granularity as 'daily' | 'monthly');
     }
-    return await getReachEngagementTrend(userId, args.timePeriod, args.granularity as 'daily' | 'weekly');
+    return await getReachEngagementTrend(userId, timePeriod, granularity as 'daily' | 'weekly');
   } catch (err) {
     logger.error(`${fnTag} Erro ao buscar tendência`, err);
     return { error: 'Não foi possível obter a tendência solicitada.' };
@@ -936,6 +953,7 @@ const getConsultingKnowledge: ExecutorFn = async (args: z.infer<typeof ZodSchema
 
             default:
                 logger.warn(`${fnTag} Tópico não mapeado recebido para User ${loggedUser._id}: ${topic}`);
+                // CORREÇÃO: Acessando os valores do enum de forma segura.
                 const validTopics = ZodSchemas.GetConsultingKnowledgeArgsSchema.shape.topic._def.values;
                 if (!validTopics.includes(topic as any)) {
                      return { error: `Tópico de conhecimento inválido ou não reconhecido: "${topic}". Por favor, escolha um dos tópicos válidos.` };

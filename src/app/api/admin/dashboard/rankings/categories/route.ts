@@ -1,24 +1,32 @@
 /**
  * @fileoverview API Endpoint para buscar rankings de categorias de forma genérica.
- * @version 1.0.0
- * @description Esta rota permite rankear 'format', 'proposal', ou 'context' por diversas métricas.
+ * @version 1.2.0
+ * @description Rota corrigida para não importar tipos inexistentes.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
+// CORREÇÃO: Removido 'RankingMetric' da importação, pois ele não é exportado.
 import { fetchTopCategories } from '@/app/lib/dataService/marketAnalysis/rankingsService';
 import { DatabaseError } from '@/app/lib/errors';
 export const dynamic = 'force-dynamic';
 
 const SERVICE_TAG = '[api/admin/dashboard/rankings/categories]';
 
+// CORREÇÃO: Definindo a constante sem depender de um tipo importado.
+// O 'as const' garante que o TypeScript entenda estes como os únicos valores possíveis.
+const ALLOWED_METRICS = ['views', 'reach', 'likes', 'comments', 'shares', 'posts'] as const;
+
 // Schema para validar os parâmetros da URL da requisição
 const querySchema = z.object({
   category: z.enum(['proposal', 'format', 'context'], {
     errorMap: () => ({ message: "A categoria deve ser 'proposal', 'format' ou 'context'." })
   }),
-  metric: z.string().min(1, { message: 'A métrica não pode estar vazia.' }),
+  // O z.enum agora usa a constante local, o que resolve o problema de tipo.
+  metric: z.enum(ALLOWED_METRICS, {
+    errorMap: () => ({ message: `Métrica inválida. Use uma de: ${ALLOWED_METRICS.join(', ')}` })
+  }),
   startDate: z.string().datetime({ message: 'Formato de data inválido para startDate.' }).transform(val => new Date(val)),
   endDate: z.string().datetime({ message: 'Formato de data inválido para endDate.' }).transform(val => new Date(val)),
   limit: z.coerce.number().int().min(1).max(50).optional().default(5),

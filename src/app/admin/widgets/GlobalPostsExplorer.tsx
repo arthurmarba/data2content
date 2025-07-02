@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
-import { DocumentMagnifyingGlassIcon, InboxIcon } from '@heroicons/react/24/outline';
+import React, { useState, useEffect, useCallback } from 'react';
+import { InboxIcon } from '@heroicons/react/24/outline';
 
-// --- (CORREÇÃO) Componentes de Apoio (Definidos localmente) ---
+// --- Componentes de Apoio (Definidos localmente) ---
 const SkeletonBlock = ({ width = 'w-full', height = 'h-4', className = '' }: { width?: string; height?: string; className?: string; }) => (
   <div className={`${width} ${height} bg-gray-200 rounded-md animate-pulse ${className}`}></div>
 );
@@ -18,11 +18,13 @@ const EmptyState = ({ icon, title, message }: { icon: React.ReactNode; title: st
 
 
 // --- Tipos e Interfaces ---
+// MODIFICAÇÃO: Adicionada a propriedade opcional 'coverUrl'.
 interface IGlobalPostResult {
   _id: string;
   description?: string;
   creatorName?: string;
   postDate?: string;
+  coverUrl?: string; // <-- NOVO CAMPO
   stats?: {
     total_interactions?: number;
     likes?: number;
@@ -37,7 +39,7 @@ interface GlobalPostsExplorerProps {
   };
 }
 
-const GlobalPostsExplorer = ({ dateRangeFilter }: GlobalPostsExplorerProps) => {
+export default function GlobalPostsExplorer({ dateRangeFilter }: GlobalPostsExplorerProps) {
   const [posts, setPosts] = useState<IGlobalPostResult[]>([]);
   const [totalPosts, setTotalPosts] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -79,21 +81,24 @@ const GlobalPostsExplorer = ({ dateRangeFilter }: GlobalPostsExplorerProps) => {
     try {
       // Simulação da chamada à API
       await new Promise(res => setTimeout(res, 1200));
-      // const response = await fetch(`/api/admin/dashboard/posts?${queryParams.toString()}`);
-      // const data = await response.json();
-
+      
       // Dados mock para demonstração
-      const mockPosts: IGlobalPostResult[] = Array.from({ length: 7 }).map((_, i) => ({
-        _id: `post_${currentPage}_${i}`,
-        description: `Este é um exemplo de post sobre ${filters.context || 'tópicos gerais'} no formato ${filters.format || 'qualquer'}. O conteúdo foca em ${filters.proposal || 'propostas diversas'}.`,
-        creatorName: `Criador ${i + 1}`,
-        postDate: new Date().toISOString(),
-        stats: {
-          total_interactions: Math.floor(Math.random() * 5000) + (filters.minInteractions || 0),
-          likes: Math.floor(Math.random() * 3000),
-          shares: Math.floor(Math.random() * 500),
+      const mockPosts: IGlobalPostResult[] = Array.from({ length: 7 }).map((_, i) => {
+        const postId = `post_${currentPage}_${i}`;
+        return {
+          _id: postId,
+          // MODIFICAÇÃO: Adicionada coverUrl aos dados mock.
+          coverUrl: `https://picsum.photos/seed/${postId}/50/50`,
+          description: `Este é um exemplo de post sobre ${filters.context || 'tópicos gerais'} no formato ${filters.format || 'qualquer'}. O conteúdo foca em ${filters.proposal || 'propostas diversas'}.`,
+          creatorName: `Criador ${i + 1}`,
+          postDate: new Date().toISOString(),
+          stats: {
+            total_interactions: Math.floor(Math.random() * 5000) + (filters.minInteractions || 0),
+            likes: Math.floor(Math.random() * 3000),
+            shares: Math.floor(Math.random() * 500),
+          }
         }
-      }));
+      });
       
       setPosts(mockPosts);
       setTotalPosts(25); // Valor mock
@@ -147,7 +152,12 @@ const GlobalPostsExplorer = ({ dateRangeFilter }: GlobalPostsExplorerProps) => {
             {isLoading ? (
               Array.from({ length: 5 }).map((_, index) => (
                 <tr key={`skel_post_${index}`}>
-                  <td className="px-6 py-4"><SkeletonBlock height="h-3" width="w-full" /></td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center">
+                        <SkeletonBlock height="h-8" width="w-8" className="mr-3"/>
+                        <SkeletonBlock height="h-3" width="w-full" />
+                    </div>
+                  </td>
                   <td className="px-6 py-4"><SkeletonBlock height="h-3" width="w-24" /></td>
                   <td className="px-6 py-4"><SkeletonBlock height="h-3" width="w-20" /></td>
                   <td className="px-6 py-4"><SkeletonBlock height="h-3" width="w-12" className="ml-auto" /></td>
@@ -160,7 +170,21 @@ const GlobalPostsExplorer = ({ dateRangeFilter }: GlobalPostsExplorerProps) => {
             ) : (
               posts.map(post => (
                 <tr key={post._id}>
-                  <td className="px-6 py-4 max-w-sm"><p className="text-sm text-gray-700 truncate" title={post.description}>{post.description}</p></td>
+                  {/* MODIFICAÇÃO: Lógica para exibir a imagem da capa */}
+                  <td className="px-6 py-4 max-w-sm">
+                    <div className="flex items-center">
+                      {post.coverUrl && (
+                        <img 
+                          src={post.coverUrl} 
+                          alt="Capa do post" 
+                          className="h-8 w-8 object-cover rounded-md mr-3 flex-shrink-0" 
+                        />
+                      )}
+                      <p className="text-sm text-gray-700 truncate" title={post.description}>
+                        {post.description}
+                      </p>
+                    </div>
+                  </td>
                   <td className="px-6 py-4 text-sm text-gray-500">{post.creatorName}</td>
                   <td className="px-6 py-4 text-sm text-gray-500">{new Date(post.postDate!).toLocaleDateString('pt-BR')}</td>
                   <td className="px-6 py-4 text-sm text-gray-800 text-right font-medium">{post.stats?.total_interactions?.toLocaleString('pt-BR')}</td>

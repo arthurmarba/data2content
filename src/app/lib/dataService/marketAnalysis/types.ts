@@ -284,6 +284,7 @@ export interface ITopMoverResult {
   entityId: string;
   entityName: string;
   profilePictureUrl?: string;
+  coverUrl?: string; // <<< ADICIONE ESTA LINHA
   metricName: TopMoverMetric;
   previousValue: number;
   currentValue: number;

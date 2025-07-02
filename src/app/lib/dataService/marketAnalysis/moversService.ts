@@ -1,6 +1,6 @@
 /**
  * @fileoverview Serviço para buscar os "top movers" (conteúdos ou criadores com maiores mudanças).
- * @version 1.0.0
+ * @version 1.1.0 - Adicionada coverUrl nos resultados para entidade 'content'.
  */
 
 import { PipelineStage, Types } from 'mongoose';
@@ -89,9 +89,12 @@ export async function fetchTopMoversData(
       );
 
       const aggregatedMovers = await DailyMetricSnapshotModel.aggregate(pipeline);
+      
+      // MODIFICAÇÃO: Adicionado 'coverUrl' ao mapeamento.
       results = aggregatedMovers.map(mover => ({
         entityId: mover._id.toString(),
         entityName: mover.metricInfo?.description || mover.metricInfo?.text_content || `Post ID: ${mover._id.toString().slice(-5)}`,
+        coverUrl: mover.metricInfo?.coverUrl,
         metricName: metric,
         previousValue: mover.previousValue,
         currentValue: mover.currentValue,

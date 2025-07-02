@@ -1,7 +1,7 @@
 /**
  * @fileoverview API Endpoint for fetching proposal rankings.
- * @version 2.0.0
- * @description Modernizado para usar o serviço genérico fetchTopCategories.
+ * @version 2.1.0
+ * @description Corrigido o tipo de métrica para corresponder ao serviço genérico.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -13,9 +13,16 @@ export const dynamic = 'force-dynamic';
 
 const SERVICE_TAG = '[api/admin/dashboard/rankings/proposals]';
 
-// (ALTERADO) Schema atualizado para ser mais flexível, aceitando qualquer métrica como string.
+// --- CORREÇÃO ---
+// Definindo as métricas permitidas para a validação, assim como no arquivo anterior.
+const ALLOWED_METRICS = ['views', 'reach', 'likes', 'comments', 'shares', 'posts'] as const;
+
+// Schema atualizado com validação de métrica específica.
 const querySchema = z.object({
-  metric: z.string().min(1, { message: "A métrica não pode estar vazia." }),
+  // CORREÇÃO: Trocado z.string() por z.enum()
+  metric: z.enum(ALLOWED_METRICS, {
+    errorMap: () => ({ message: `Métrica inválida. Use uma de: ${ALLOWED_METRICS.join(', ')}` })
+  }),
   startDate: z.string().datetime({ message: 'Invalid startDate format.' }).transform(val => new Date(val)),
   endDate: z.string().datetime({ message: 'Invalid endDate format.' }).transform(val => new Date(val)),
   limit: z.coerce.number().int().min(1).max(50).optional().default(5),
@@ -24,7 +31,7 @@ const querySchema = z.object({
   path: ['endDate'],
 });
 
-async function getAdminSession(req: NextRequest): Promise<{ user: { name: string } } | null> {
+async function getAdminSession(req: NextRequest): Promise<{ user: { name:string } } | null> {
   const session = { user: { name: 'Admin User' } };
   const isAdmin = true;
   if (!session || !isAdmin) {
@@ -60,7 +67,7 @@ export async function GET(req: NextRequest) {
 
     const { metric, startDate, endDate, limit } = validationResult.data;
 
-    // (ALTERADO) Chamando a nova função 'fetchTopCategories' com a categoria 'proposal' fixada.
+    // A chamada agora é segura em tipo, pois 'metric' tem o tipo correto.
     const results = await fetchTopCategories({
       dateRange: { startDate, endDate },
       category: 'proposal', // Hardcoded para esta rota específica de propostas

@@ -1,6 +1,7 @@
 // @/app/lib/dataService/reportService.ts
 // MODIFICADO: v2.14.24 - Adiciona asserções de tipo para garantir a compatibilidade com os enums de PostObject.
 // - CORRIGIDO: `extractReferenceAndFindPost`, `getRecentPostObjects`, `getRecentPostObjectsWithAggregatedMetrics` agora fazem o cast do primeiro elemento dos arrays para o tipo esperado.
+// - CORRIGIDO: Adicionada a definição do tipo MetricsHistory.
 // Baseado na v2.14.23.
 
 import mongoose, { Model, Types } from 'mongoose';
@@ -15,13 +16,13 @@ import DailyMetricSnapshotModel, { IDailyMetricSnapshot } from '@/app/models/Dai
 import {
     buildAggregatedReport,
     AggregatedReport,
-    DayOfWeekStat 
+    DayOfWeekStat
 } from '@/app/lib/reportHelpers';
 
 import { connectToDatabase } from './connection';
 import { DEFAULT_METRICS_FETCH_DAYS } from './constants';
 // Assumindo que PostObject em ./types.ts foi atualizado para usar consistentemente instagramMediaId
-import { IUser, IEnrichedReport, PreparedData, ReferenceSearchResult, IGrowthDataResult, PostObject } from './types'; 
+import { IUser, IEnrichedReport, PreparedData, ReferenceSearchResult, IGrowthDataResult, PostObject } from './types';
 import { getUserProfileSegment, getMultimediaSuggestion, getCombinedGrowthData } from './helpers';
 
 const SERVICE_TAG = '[dataService][reportService v2.14.24]'; // Tag de versão atualizada
@@ -70,18 +71,18 @@ export async function fetchAndPrepareReportData(
         }
     } catch (error: any) {
         logger.error(`${TAG} Erro ao gerar relatório agregado para ${userId} desde ${sinceDate.toISOString()}:`, error);
-        aggregatedReport = { overallStats: { _id: null, totalPosts: 0 }}; 
+        aggregatedReport = { overallStats: { _id: null, totalPosts: 0 }};
     }
 
     logger.debug(`${TAG} Montando relatório enriquecido final para ${userId}`);
     const recentPostsLookback = Math.max(DEFAULT_METRICS_FETCH_DAYS, differenceInDays(new Date(), sinceDate));
-    const recentPostsData = await getRecentPostObjects(userId.toString(), recentPostsLookback); 
+    const recentPostsData = await getRecentPostObjects(userId.toString(), recentPostsLookback);
 
     const enrichedReport: IEnrichedReport = {
         overallStats: aggregatedReport.overallStats,
-        dayOfWeekStats: aggregatedReport.dayOfWeekStats, 
+        dayOfWeekStats: aggregatedReport.dayOfWeekStats,
         profileSegment: getUserProfileSegment(user),
-        multimediaSuggestion: getMultimediaSuggestion(aggregatedReport), 
+        multimediaSuggestion: getMultimediaSuggestion(aggregatedReport),
         top3Posts: aggregatedReport.top3Posts,
         bottom3Posts: aggregatedReport.bottom3Posts,
         durationStats: aggregatedReport.durationStats,
@@ -91,7 +92,7 @@ export async function fetchAndPrepareReportData(
         historicalComparisons: growthData.historical,
         longTermComparisons: growthData.longTerm,
         performanceByDayPCO: aggregatedReport.performanceByDayPCO,
-        recentPosts: recentPostsData, 
+        recentPosts: recentPostsData,
     };
 
     return { enrichedReport };
@@ -121,7 +122,7 @@ export async function extractReferenceAndFindPost( text: string, userId: Types.O
             user: userId,
             description: regex
         })
-        .select('_id description proposal context format') 
+        .select('_id description proposal context format')
         .limit(5)
         .lean();
 
@@ -164,7 +165,7 @@ export async function getLatestAggregatedReport(userId: string): Promise<Aggrega
     try {
         await connectToDatabase();
         // Esta função continua como placeholder conforme discussão.
-        const reportDocument: AggregatedReport | null = null; 
+        const reportDocument: AggregatedReport | null = null;
 
         if (reportDocument) {
             logger.info(`${TAG} Último relatório agregado (previamente salvo) encontrado para ${userId}.`);
@@ -185,7 +186,7 @@ export async function getRecentPostObjects(
     filters?: { types?: Array<'IMAGE' | 'CAROUSEL' | 'REEL' | 'VIDEO' | 'STORY'>, excludeIds?: string[] }
 ): Promise<PostObject[]> {
     const currentVersionTag = "v2.14.24"; // Versão desta função atualizada
-    const TAG = `${SERVICE_TAG}[getRecentPostObjects ${currentVersionTag}]`; 
+    const TAG = `${SERVICE_TAG}[getRecentPostObjects ${currentVersionTag}]`;
     logger.debug(`${TAG} Buscando posts recentes para User ${userId}. Dias: ${daysToLookback}, Filtros: ${JSON.stringify(filters)}`);
 
     if (!mongoose.isValidObjectId(userId)) {
@@ -209,11 +210,11 @@ export async function getRecentPostObjects(
                 query._id = { $nin: validExcludeObjectIds };
             }
         }
-        
+
         const postsFromMetrics: IMetric[] = await MetricModel.find(query)
-            .select('_id user instagramMediaId type description postDate stats format proposal context') 
+            .select('_id user instagramMediaId type description postDate stats format proposal context')
             .sort({ postDate: -1 })
-            .limit(100) 
+            .limit(100)
             .lean();
 
         logger.info(`${TAG} Encontrados ${postsFromMetrics.length} posts recentes para User ${userId}.`);
@@ -225,10 +226,10 @@ export async function getRecentPostObjects(
                 ...(metric.proposal || []),
                 ...(metric.context || [])
             ];
-            const tags = potentialTags.filter(tag => 
-                typeof tag === 'string' && 
-                tag.trim() !== '' && 
-                tag.toLowerCase() !== 'outro' && 
+            const tags = potentialTags.filter(tag =>
+                typeof tag === 'string' &&
+                tag.trim() !== '' &&
+                tag.toLowerCase() !== 'outro' &&
                 tag.toLowerCase() !== 'geral' &&
                 tag.toLowerCase() !== 'desconhecido'
             );
@@ -241,7 +242,7 @@ export async function getRecentPostObjects(
                 instagramMediaId: metric.instagramMediaId, // PADRONIZADO
                 type: metric.type as PostObject['type'],
                 description: metric.description,
-                postDate: metric.postDate, 
+                postDate: metric.postDate,
                 stats: metric.stats,
                 // CORREÇÃO: Adicionada asserção de tipo para garantir que a string seja compatível com o enum de PostObject.
                 format: metric.format?.[0] as PostObject['format'],
@@ -259,7 +260,7 @@ export async function getRecentPostObjects(
 export async function getRecentPostObjectsWithAggregatedMetrics(
     userId: string,
     days: number
-): Promise<PostObject[]> { 
+): Promise<PostObject[]> {
     const currentVersionTag = "v2.14.24"; // Versão desta função atualizada
     const TAG = `${SERVICE_TAG}[getRecentPostObjectsWithAggregatedMetrics ${currentVersionTag}]`;
     logger.info(`${TAG} Buscando posts com métricas agregadas para User ${userId} nos últimos ${days} dias.`);
@@ -272,14 +273,14 @@ export async function getRecentPostObjectsWithAggregatedMetrics(
     try {
         await connectToDatabase();
         const sinceDate = subDays(new Date(), days);
-        
+
         const recentMetrics: IMetric[] = await MetricModel.find({
             user: new Types.ObjectId(userId),
             postDate: { $gte: sinceDate }
         })
         .select('_id user instagramMediaId type description postDate stats format proposal context')
         .sort({ postDate: -1 })
-        .limit(150) 
+        .limit(150)
         .lean();
 
         if (!recentMetrics || recentMetrics.length === 0) {
@@ -294,10 +295,10 @@ export async function getRecentPostObjectsWithAggregatedMetrics(
                 ...(metric.proposal || []),
                 ...(metric.context || [])
             ];
-            const tags = potentialTags.filter(tag => 
-                typeof tag === 'string' && 
-                tag.trim() !== '' && 
-                tag.toLowerCase() !== 'outro' && 
+            const tags = potentialTags.filter(tag =>
+                typeof tag === 'string' &&
+                tag.trim() !== '' &&
+                tag.toLowerCase() !== 'outro' &&
                 tag.toLowerCase() !== 'geral' &&
                 tag.toLowerCase() !== 'desconhecido'
             );
@@ -305,12 +306,12 @@ export async function getRecentPostObjectsWithAggregatedMetrics(
             return {
                 _id: metric._id.toString(),
                 userId: metric.user.toString(),
-                instagramMediaId: metric.instagramMediaId, 
+                instagramMediaId: metric.instagramMediaId,
                 type: metric.type as PostObject['type'],
                 description: metric.description,
-                postDate: metric.postDate, 
+                postDate: metric.postDate,
                 totalImpressions: metric.stats?.impressions || 0,
-                totalEngagement: metric.stats?.engagement || 0, 
+                totalEngagement: metric.stats?.engagement || 0,
                 videoViews: metric.stats?.video_views || 0,
                 totalComments: metric.stats?.comments || 0,
                 stats: metric.stats,
@@ -360,12 +361,12 @@ export async function getDailySnapshotsForMetric(
                 throw new MetricsNotFoundError("Não encontrei nenhuma métrica com este ID.");
             } else {
                 logger.warn(`${TAG} Métrica ${metricId} encontrada, mas não pertence ao User ${userIdForAuth}. Acesso negado.`);
-                throw new UserNotFoundError("Você não tem permissão para acessar o histórico desta métrica."); 
+                throw new UserNotFoundError("Você não tem permissão para acessar o histórico desta métrica.");
             }
         }
 
         const snapshots = await DailyMetricSnapshotModel.find({ metric: objectMetricId })
-            .sort({ date: 1 }) 
+            .sort({ date: 1 })
             .select('date dayNumber dailyViews dailyLikes dailyComments dailyShares dailySaved dailyReach dailyFollows dailyProfileVisits cumulativeViews cumulativeLikes cumulativeComments cumulativeShares cumulativeSaved cumulativeReach cumulativeFollows cumulativeProfileVisits cumulativeTotalInteractions dailyReelsVideoViewTotalTime cumulativeReelsVideoViewTotalTime currentReelsAvgWatchTime')
             .lean();
 
@@ -375,7 +376,7 @@ export async function getDailySnapshotsForMetric(
     } catch (error: any) {
         logger.error(`${TAG} Erro ao buscar histórico diário da métrica ${metricId} para User ${userIdForAuth}:`, error);
         if (error instanceof DatabaseError || error instanceof MetricsNotFoundError || error instanceof UserNotFoundError) {
-            throw error; 
+            throw error;
         }
         throw new DatabaseError(`Ocorreu um erro inesperado ao buscar o histórico diário do post: ${error.message}`);
     }
@@ -417,7 +418,7 @@ export async function getTopPostsByMetric(
             postDate: { $exists: true },
             [sortField]: { $exists: true, $ne: null }
         })
-        .select(`_id description postLink instagramMediaId stats.${metric} stats.shares stats.saved stats.likes stats.comments stats.reach stats.video_views format postDate proposal context type`) 
+        .select(`_id description postLink instagramMediaId stats.${metric} stats.shares stats.saved stats.likes stats.comments stats.reach stats.video_views format postDate proposal context type`)
         .sort({ [sortField]: -1 })
         .limit(limit)
         .lean()
@@ -455,7 +456,7 @@ export async function getMetricDetails(
         await connectToDatabase();
 
         const metricDoc = await MetricModel.findOne({ _id: objectMetricId, user: userObjectId })
-            .select('-rawData -__v') 
+            .select('-rawData -__v')
             .lean()
             .exec();
 
@@ -463,10 +464,10 @@ export async function getMetricDetails(
             const metricExistsForOtherUser = await MetricModel.findById(objectMetricId).select('_id').lean();
             if (metricExistsForOtherUser) {
                 logger.warn(`${TAG} Métrica ${metricId} encontrada, mas não pertence ao User ${userId}. Acesso negado.`);
-                return null; 
+                return null;
             }
             logger.warn(`${TAG} Métrica com ID ${metricId} não encontrada para User ${userId}.`);
-            return null; 
+            return null;
         }
 
         logger.info(`${TAG} Detalhes da Métrica ${metricId} encontrados para User ${userId}.`);
@@ -475,7 +476,7 @@ export async function getMetricDetails(
     } catch (error: any) {
         logger.error(`${TAG} Erro ao buscar detalhes da métrica ${metricId} para User ${userId}:`, error);
         if (error instanceof DatabaseError || error instanceof MetricsNotFoundError || error instanceof UserNotFoundError) {
-            throw error; 
+            throw error;
         }
         throw new DatabaseError(`Ocorreu um erro inesperado ao buscar os detalhes desta métrica: ${error.message}`);
     }
@@ -530,7 +531,7 @@ export async function findMetricsByCriteria(
             if (criteria.dateRange.end) {
                 const endDate = new Date(criteria.dateRange.end);
                 if (isNaN(endDate.getTime())) throw new Error('Data de fim inválida fornecida para a busca.');
-                endDate.setUTCHours(23, 59, 59, 999); 
+                endDate.setUTCHours(23, 59, 59, 999);
                 filterQuery.postDate.$lte = endDate;
             }
             if (filterQuery.postDate.$gte && filterQuery.postDate.$lte && filterQuery.postDate.$gte > filterQuery.postDate.$lte) {
@@ -550,14 +551,14 @@ export async function findMetricsByCriteria(
     const validSortFields = ['postDate', 'stats.likes', 'stats.shares', 'stats.comments', 'stats.reach', 'stats.saved', 'stats.video_views', 'stats.impressions', 'stats.engagement', 'stats.total_interactions'];
     if (sortBy && validSortFields.includes(sortBy)) {
         sortOptions[sortBy] = sortOrder === 'asc' ? 1 : -1;
-    } else if (sortBy) { 
+    } else if (sortBy) {
         logger.warn(`${TAG} Campo de ordenação '${sortBy}' inválido ou não permitido. Usando 'postDate' descendente como padrão.`);
-        sortOptions['postDate'] = -1; 
-    } else { 
-        sortOptions['postDate'] = -1; 
+        sortOptions['postDate'] = -1;
+    } else {
+        sortOptions['postDate'] = -1;
     }
 
-    const effectiveLimit = Math.max(1, Math.min(limit ?? 5, 20)); 
+    const effectiveLimit = Math.max(1, Math.min(limit ?? 5, 20));
 
     logger.debug(`${TAG} Filtro MQL final para findMetricsByCriteria: ${JSON.stringify(filterQuery)}`);
     logger.debug(`${TAG} Ordenação MQL final para findMetricsByCriteria: ${JSON.stringify(sortOptions)}`);
@@ -565,19 +566,52 @@ export async function findMetricsByCriteria(
     try {
         await connectToDatabase();
         const metrics = await MetricModel.find(filterQuery)
-            .select('_id description postLink instagramMediaId postDate stats format proposal context type') 
+            .select('_id description postLink instagramMediaId postDate stats format proposal context type')
             .sort(sortOptions)
             .limit(effectiveLimit)
-            .lean() 
+            .lean()
             .exec();
 
         logger.info(`${TAG} Encontradas ${metrics.length} métricas para os critérios fornecidos.`);
-        return metrics as IMetric[]; 
+        return metrics as IMetric[];
 
     } catch (error: any) {
         logger.error(`${TAG} Erro ao buscar métricas por critérios para User ${userId}:`, error);
         throw new DatabaseError(`Erro ao buscar posts por critérios: ${error.message}`);
     }
+}
+
+/**
+ * Define a estrutura de dados para um único conjunto de dados de gráfico.
+ */
+interface ChartDataset {
+    label: string;
+    data: number[];
+}
+
+/**
+ * Define a estrutura completa para os dados de um gráfico, incluindo eixos e múltiplos conjuntos de dados.
+ */
+interface ChartData {
+    labels: string[];
+    datasets: ChartDataset[];
+}
+
+/**
+ * Define a estrutura do objeto de histórico de métricas retornado pela função.
+ * Cada propriedade representa uma métrica diferente formatada para exibição em gráfico.
+ */
+export interface MetricsHistory {
+    engagementRate: ChartData;
+    propagationIndex: ChartData;
+    likeCommentRatio: ChartData;
+    saveRateOnReach: ChartData;
+    followerConversionRate: ChartData;
+    retentionRate: ChartData;
+    engagementDeepVsReach: ChartData;
+    engagementFastVsReach: ChartData;
+    likes: ChartData;
+    comments: ChartData;
 }
 
 export async function getMetricsHistory(

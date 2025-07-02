@@ -282,11 +282,21 @@ export default function TopMoversWidget() {
                   <tr key={item.entityId} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                     <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-800 dark:text-gray-100">
                       <div className="flex items-center">
+                        {/* Lógica para avatar de Criador (existente) */}
                         {entityType === 'creator' && item.profilePictureUrl && (
                            <img src={item.profilePictureUrl} alt={item.entityName} className="h-6 w-6 rounded-full mr-2 object-cover" width={24} height={24} />
                         )}
                         {entityType === 'creator' && !item.profilePictureUrl && (
                            <div className="h-6 w-6 rounded-full bg-gray-200 mr-2 flex items-center justify-center text-xs">{item.entityName?.substring(0,1).toUpperCase()}</div>
+                        )}
+                        {/* MODIFICAÇÃO: Lógica para capa de Conteúdo */}
+                        {entityType === 'content' && item.coverUrl && (
+                          <img src={item.coverUrl} alt={item.entityName} className="h-6 w-6 object-cover rounded mr-2" />
+                        )}
+                        {entityType === 'content' && !item.coverUrl && (
+                          <div className="h-6 w-6 rounded bg-gray-200 dark:bg-gray-600 mr-2 flex items-center justify-center text-gray-400">
+                            <ChartBarIcon className="h-4 w-4" />
+                          </div>
                         )}
                         <span className="truncate max-w-[200px]" title={item.entityName}>{item.entityName}</span>
                       </div>
@@ -309,4 +319,3 @@ export default function TopMoversWidget() {
     </div>
   );
 }
-

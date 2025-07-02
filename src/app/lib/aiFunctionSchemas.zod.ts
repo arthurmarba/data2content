@@ -1,7 +1,5 @@
 // @/app/lib/aiFunctionSchemas.zod.ts
-// v1.3.6 (Adiciona schema para getCategoryRanking)
-// - ADICIONADO: Schema e validador para a nova função getCategoryRanking.
-// - Mantém todas as melhorias anteriores.
+// v1.3.6 (Corrigido com a definição de ALLOWED_TIME_PERIODS)
 
 import { z } from 'zod';
 import { Types } from 'mongoose';
@@ -16,6 +14,17 @@ import {
     ContextType,
     QualitativeObjectiveType
 } from '@/app/lib/constants/communityInspirations.constants';
+
+// --- CORREÇÃO: DEFINIR A CONSTANTE FALTANTE ---
+const ALLOWED_TIME_PERIODS = [
+    "all_time",
+    "last_7_days",
+    "last_30_days",
+    "last_90_days",
+    "last_6_months",
+    "last_12_months"
+] as const;
+// ---------------------------------------------
 
 // Schema para getAggregatedReport
 export const GetAggregatedReportArgsSchema = z.object({

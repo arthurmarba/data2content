@@ -351,7 +351,7 @@ const AdminCreatorDashboardContent: React.FC = () => {
   const [marketProposal, setMarketProposal] = useState<string>(proposalOptions[0]!);
 
   const today = new Date();
-  const startDateObj = getStartDateFromTimePeriod(today, globalTimePeriod);
+  const startDateObj = getStartDateFromTimePeriod(today, globalTimePeriod as TimePeriod);
   const startDate = startDateObj.toISOString();
   const endDate = today.toISOString();
   const rankingDateRange = { startDate, endDate };

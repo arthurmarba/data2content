@@ -71,7 +71,10 @@ export default async function getFpcTrendChartData(
         : getYearWeek(cursor);
       const entry = map.get(key);
       const avg = entry ? entry.sum / entry.count : null;
-      response.chartData.push({ date: key, avgInteractions: entry ? Math.round(avg) : null });
+      // CORREÇÃO: Verifica se 'avg' não é nulo antes de passá-lo para Math.round.
+      // Isso satisfaz o type checker do TypeScript, garantindo que a função
+      // sempre receberá um número.
+      response.chartData.push({ date: key, avgInteractions: avg !== null ? Math.round(avg) : null });
       if (granularity === 'monthly') {
         cursor = addMonths(cursor, 1);
       } else {
