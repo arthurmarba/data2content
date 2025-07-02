@@ -27,9 +27,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // Componente interno para o conteúdo da sidebar, evitando repetição de código
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
-        <div className="p-4 mb-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-xl font-bold text-gray-800 dark:text-white">Admin</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Dashboard</p>
+        <div className="p-4 mb-4 border-b border-gray-200">
+            <h2 className="text-xl font-bold text-brand-dark">Admin</h2>
+            <p className="text-sm text-gray-600">Dashboard</p>
         </div>
         <nav className="flex-1 px-4 space-y-2">
         {menuItems.map(item => {
@@ -39,13 +39,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Link
                 key={item.href}
                 href={item.href}
-                onClick={() => setIsSidebarOpen(false)} // Fecha o menu ao clicar em um item no mobile
+                onClick={() => setIsSidebarOpen(false)}
                 className={`
                 flex items-center gap-3 px-3 py-2 rounded-lg
                 transition-colors duration-150
                 ${isActive
-                    ? 'bg-indigo-100 text-indigo-700 font-semibold dark:bg-indigo-900/50 dark:text-indigo-300'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white'}
+                    ? 'bg-indigo-100 text-indigo-700 font-semibold'
+                    : 'text-brand-dark hover:bg-brand-light hover:text-brand-dark'}
                 `}
             >
                 <Icon className="w-5 h-5" />
@@ -63,9 +63,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         position="top-right"
         toastOptions={{ duration: 5000 }}
       />
-      <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
+      <div className="flex min-h-screen bg-brand-light">
         {/* Sidebar para Desktop */}
-        <aside className="hidden md:flex md:flex-col w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex-shrink-0">
+        <aside className="hidden md:flex md:flex-col w-64 bg-brand-light border-r border-gray-200 flex-shrink-0">
           <SidebarContent />
         </aside>
 
@@ -77,7 +77,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 className="fixed inset-0 bg-black/60"
                 aria-hidden="true"
             ></div>
-            <aside className="relative w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+            <aside className="relative w-64 bg-brand-light border-r border-gray-200 flex flex-col">
               <SidebarContent />
             </aside>
           </div>
@@ -86,15 +86,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Conteúdo Principal */}
         <div className="flex-1 flex flex-col w-full">
           {/* Topbar com botão hamburger (apenas em mobile) */}
-          <header className="flex items-center justify-between bg-white dark:bg-gray-800 p-4 border-b border-gray-200 dark:border-gray-700 md:hidden sticky top-0 z-30">
+          <header className="flex items-center justify-between bg-brand-light p-4 border-b border-gray-200 md:hidden sticky top-0 z-30">
             <button
               onClick={() => setIsSidebarOpen(prev => !prev)}
-              className="p-2 rounded-md text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700"
+              className="p-2 rounded-md text-gray-500 hover:bg-gray-200"
               aria-label="Abrir menu"
             >
               <Bars3Icon className="w-6 h-6" />
             </button>
-            <h1 className="text-lg font-bold text-gray-800 dark:text-white">Admin</h1>
+            <h1 className="text-lg font-bold text-brand-dark">Admin</h1>
             <div className="w-8 h-8" /> {/* Espaço para alinhar o título ao centro */}
           </header>
 
