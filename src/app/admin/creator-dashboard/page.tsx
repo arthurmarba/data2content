@@ -445,9 +445,7 @@ const AdminCreatorDashboardContent: React.FC = () => {
 
       {!selectedUserId && (
         <>
-          <PlatformOverviewSection
-            comparisonPeriod={"month_vs_previous"}
-          />
+          <PlatformOverviewSection />
           <PlatformContentAnalysisSection
             startDate={startDate}
             endDate={endDate}
