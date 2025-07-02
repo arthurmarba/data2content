@@ -1,7 +1,7 @@
 // @/app/lib/aiFunctionSchemas.zod.ts
-// v1.3.5 (Corrige extensão de importação)
-// - CORRIGIDO: Removida extensão .ts da importação de communityInspirations.constants.
-// - Baseado na v1.3.4.
+// v1.3.6 (Adiciona schema para getCategoryRanking)
+// - ADICIONADO: Schema e validador para a nova função getCategoryRanking.
+// - Mantém todas as melhorias anteriores.
 
 import { z } from 'zod';
 import { Types } from 'mongoose';
@@ -10,13 +10,13 @@ import {
     VALID_PROPOSALS,
     VALID_CONTEXTS,
     VALID_QUALITATIVE_OBJECTIVES,
-    FormatType, // Importando os tipos para possível uso futuro, embora z.enum use os arrays diretamente
+    FormatType,
     ProposalType,
     ContextType,
     QualitativeObjectiveType
-} from '@/app/lib/constants/communityInspirations.constants'; // CORRIGIDO: Removido .ts
+} from '@/app/lib/constants/communityInspirations.constants';
 
-// Schema para getAggregatedReport (Mantido)
+// Schema para getAggregatedReport
 export const GetAggregatedReportArgsSchema = z.object({
   analysisPeriod: z.number({
       invalid_type_error: "O período de análise deve ser um número de dias.",
@@ -29,7 +29,7 @@ export const GetAggregatedReportArgsSchema = z.object({
     .describe("O número de dias para o qual o relatório de agregação deve ser gerado. Padrão: 180 dias. Use 0 para 'todo o período disponível'."),
 }).strict().describe("Argumentos para buscar o relatório agregado e insights de publicidade.");
 
-// Schema para getTopPosts (Mantido)
+// Schema para getTopPosts
 export const GetTopPostsArgsSchema = z.object({
   metric: z.enum(['shares', 'saved', 'likes', 'comments', 'reach', 'views'])
             .optional()
@@ -40,15 +40,29 @@ export const GetTopPostsArgsSchema = z.object({
            .default(3),
 }).strict();
 
-// Schema para getDayPCOStats (Mantido)
+// --- (NOVO) Schema para a função getCategoryRanking ---
+export const GetCategoryRankingArgsSchema = z.object({
+  category: z.enum(['proposal', 'format', 'context'], {
+    required_error: "A categoria (proposal, format, ou context) é obrigatória.",
+    invalid_type_error: "Categoria inválida. Use 'proposal', 'format' ou 'context'."
+  }).describe("A dimensão do conteúdo a ser ranqueada."),
+  metric: z.string({
+    invalid_type_error: "A métrica deve ser um texto, como 'shares' ou 'likes'."
+  }).min(1).default('shares').describe("A métrica para o ranking (ex: 'shares', 'likes', 'posts')."),
+  periodDays: z.number().int().positive().default(90).describe("O período de análise em dias (padrão: 90)."),
+  limit: z.number().int().min(1).max(10).default(5).describe("O número de itens no ranking (padrão: 5).")
+}).strict("Apenas os argumentos 'category', 'metric', 'periodDays', e 'limit' são permitidos.");
+// --- FIM DO NOVO SCHEMA ---
+
+// Schema para getDayPCOStats
 export const GetDayPCOStatsArgsSchema = z.object({}).strict();
 
-// Schema para getMetricDetailsById (Mantido)
+// Schema para getMetricDetailsById
 export const GetMetricDetailsByIdArgsSchema = z.object({
   metricId: z.string().min(1, { message: "O ID da métrica não pode ser vazio." }),
 }).strict();
 
-// Schema para findPostsByCriteria (ATUALIZADO v1.3.4)
+// Schema para findPostsByCriteria
 const dateStringSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Formato de data inválido (esperado YYYY-MM-DD)");
 
 export const FindPostsByCriteriaArgsSchema = z.object({
@@ -77,12 +91,12 @@ export const FindPostsByCriteriaArgsSchema = z.object({
   sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
 }).strict();
 
-// Schema para getDailyMetricHistory (Mantido)
+// Schema para getDailyMetricHistory
 export const GetDailyMetricHistoryArgsSchema = z.object({
   metricId: z.string().min(1, { message: "O ID da métrica não pode ser vazio." }),
 }).strict();
 
-// Schema para getConsultingKnowledge (Mantido)
+// Schema para getConsultingKnowledge
 const validKnowledgeTopics = [
   'algorithm_overview', 'algorithm_feed', 'algorithm_stories', 'algorithm_reels',
   'algorithm_explore', 'engagement_signals', 'account_type_differences',
@@ -105,12 +119,12 @@ export const GetConsultingKnowledgeArgsSchema = z.object({
   }),
 }).strict();
 
-// Schema para getLatestAccountInsights (Mantido)
+// Schema para getLatestAccountInsights
 export const GetLatestAccountInsightsArgsSchema = z.object({
 }).strict().describe("Busca os insights de conta e dados demográficos mais recentes disponíveis para o usuário.");
 
 
-// Schema para FetchCommunityInspirationsArgsSchema (Mantido da v1.3.3)
+// Schema para FetchCommunityInspirationsArgsSchema
 export const FetchCommunityInspirationsArgsSchema = z.object({
   proposal: z.enum(VALID_PROPOSALS, {
       invalid_type_error: "Proposta inválida. Por favor, use um dos valores de proposta conhecidos.",
@@ -137,7 +151,7 @@ export const FetchCommunityInspirationsArgsSchema = z.object({
 }).strict().describe("Argumentos para buscar inspirações na comunidade de criadores IA Tuca.");
 
 
-// --- Mapa de Validadores (ATUALIZADO v1.3.5) ---
+// --- Mapa de Validadores ---
 type ValidatorMap = {
   [key: string]: z.ZodType<any, any, any>;
 };
@@ -145,6 +159,7 @@ type ValidatorMap = {
 export const functionValidators: ValidatorMap = {
   getAggregatedReport: GetAggregatedReportArgsSchema,
   getTopPosts: GetTopPostsArgsSchema,
+  getCategoryRanking: GetCategoryRankingArgsSchema, // (NOVO) Registrando o validador
   getDayPCOStats: GetDayPCOStatsArgsSchema,
   getMetricDetailsById: GetMetricDetailsByIdArgsSchema,
   findPostsByCriteria: FindPostsByCriteriaArgsSchema,
