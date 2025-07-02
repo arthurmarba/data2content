@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
 import { MagnifyingGlassIcon, DocumentMagnifyingGlassIcon, ChartBarIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import Head from 'next/head';
+import Link from 'next/link';
 
 import GlobalTimePeriodFilter from './components/filters/GlobalTimePeriodFilter';
 import { GlobalTimePeriodProvider, useGlobalTimePeriod } from './components/filters/GlobalTimePeriodContext';
@@ -367,31 +369,46 @@ const AdminCreatorDashboardContent: React.FC = () => {
   };
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 bg-gray-100 min-h-screen">
-      <header className="mb-8 sticky top-0 z-20 bg-gray-100 pb-4 border-b border-gray-200">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
-          Dashboard Administrativo de Criadores
-        </h1>
+    <>
+      <Head>
+        <title>Dashboard Admin - Data2Content</title>
+      </Head>
+      <div className="min-h-screen bg-brand-light">
+        <header className="bg-white shadow-sm sticky top-0 z-40 border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <Link href="/admin/creator-dashboard" className="flex-shrink-0 flex items-center gap-2 group">
+                <span className="text-brand-pink text-3xl font-bold group-hover:opacity-80 transition-opacity">[2]</span>
+              </Link>
+            </div>
+          </div>
+        </header>
 
-        <div className="mt-4 p-4 bg-white rounded-md shadow">
-          <GlobalTimePeriodFilter
-            selectedTimePeriod={globalTimePeriod}
-            onTimePeriodChange={setGlobalTimePeriod}
-            options={[
-              { value: "last_7_days", label: "Últimos 7 dias" },
-              { value: "last_30_days", label: "Últimos 30 dias" },
-              { value: "last_90_days", label: "Últimos 90 dias" },
-              { value: "last_6_months", label: "Últimos 6 meses" },
-              { value: "last_12_months", label: "Últimos 12 meses" },
-              { value: "all_time", label: "Todo o período" },
-            ]}
-          />
-        </div>
-      </header>
+        <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+          <h1 className="text-2xl md:text-3xl font-bold text-brand-dark mb-6">
+            Dashboard Administrativo de Criadores
+          </h1>
 
-      <section id="platform-summary" className="mb-8">
-        <PlatformSummaryKpis startDate={startDate} endDate={endDate} />
-      </section>
+          <div className="mb-8">
+            <div className="p-4 bg-white rounded-md shadow">
+              <GlobalTimePeriodFilter
+                selectedTimePeriod={globalTimePeriod}
+                onTimePeriodChange={setGlobalTimePeriod}
+                options={[
+                  { value: "last_7_days", label: "Últimos 7 dias" },
+                  { value: "last_30_days", label: "Últimos 30 dias" },
+                  { value: "last_90_days", label: "Últimos 90 dias" },
+                  { value: "last_6_months", label: "Últimos 6 meses" },
+                  { value: "last_12_months", label: "Últimos 12 meses" },
+                  { value: "all_time", label: "Todo o período" },
+                ]}
+              />
+            </div>
+          </div>
+
+          <section id="platform-summary" className="mb-8">
+            <PlatformSummaryKpis startDate={startDate} endDate={endDate} />
+          </section>
 
       <section
         id="creator-selection"
@@ -462,22 +479,28 @@ const AdminCreatorDashboardContent: React.FC = () => {
         </>
       )}
 
-      <div id="user-detail-view-container">
-        {selectedUserId && (
-          <UserDetailView
-            userId={selectedUserId}
-            userName={selectedUserName ?? undefined}
-          />
-        )}
-      </div>
+          <div id="user-detail-view-container">
+            {selectedUserId && (
+              <UserDetailView
+                userId={selectedUserId}
+                userName={selectedUserName ?? undefined}
+              />
+            )}
+          </div>
 
-      <CreatorSelector
-        isOpen={isSelectorOpen}
-        onClose={() => setIsSelectorOpen(false)}
-        onSelect={(creator: {id: string, name: string}) => handleUserSelect(creator.id, creator.name)}
-      />
-      <ScrollToTopButton />
-    </div>
+          <CreatorSelector
+            isOpen={isSelectorOpen}
+            onClose={() => setIsSelectorOpen(false)}
+            onSelect={(creator: {id: string, name: string}) => handleUserSelect(creator.id, creator.name)}
+          />
+          <ScrollToTopButton />
+        </main>
+
+        <footer className="text-center mt-20 py-10 border-t border-gray-200 text-xs text-gray-500 font-light">
+          © {new Date().getFullYear()} Data2Content. Todos os direitos reservados.
+        </footer>
+      </div>
+    </>
   );
 };
 
