@@ -78,6 +78,23 @@ export async function saveMetricData(
 
     const currentPostDate = media.timestamp ? new Date(media.timestamp) : new Date();
 
+    // Determine the best cover URL based on media type
+    let coverUrl: string | null = null;
+    if (media.media_type === 'CAROUSEL_ALBUM') {
+        const firstChild = media.children?.data?.[0];
+        if (firstChild) {
+            if (firstChild.media_type === 'VIDEO') {
+                coverUrl = firstChild.thumbnail_url || firstChild.media_url || null;
+            } else {
+                coverUrl = firstChild.media_url || null;
+            }
+        }
+    } else if (media.media_type === 'VIDEO') {
+        coverUrl = media.thumbnail_url || media.media_url || null;
+    } else {
+        coverUrl = media.media_url || null;
+    }
+
     const finalUpdateOperation:any = {
       $set: {
         user: userId,
@@ -86,10 +103,11 @@ export async function saveMetricData(
         postLink: media.permalink ?? '',
         description: media.caption ?? '',
         postDate: currentPostDate,
-        type: metricType, 
+        type: metricType,
         format: format,
         updatedAt: new Date(),
         ...(Object.keys(statsUpdate).length > 0 ? statsUpdate : {}),
+        ...(coverUrl ? { coverUrl } : {}),
       },
       $setOnInsert: {
         createdAt: new Date(),
