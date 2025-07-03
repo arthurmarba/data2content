@@ -12,7 +12,8 @@
     "reclassify": "tsx --env-file=.env.local ./scripts/reclassifyAll.ts",
     "reset-classification": "tsx --env-file=.env.local ./scripts/resetClassificationStatus.ts",
     "ensure-indexes": "tsx --env-file=.env.local ./scripts/ensureIndexes.ts",
-    "force-clean-indexes": "tsx --env-file=.env.local ./scripts/forceCleanIndexes.ts"
+    "force-clean-indexes": "tsx --env-file=.env.local ./scripts/forceCleanIndexes.ts",
+    "fix-formats": "tsx --env-file=.env.local ./scripts/fixFormatLabels.ts"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.2",
