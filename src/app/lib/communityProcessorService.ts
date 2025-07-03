@@ -287,9 +287,8 @@ export async function processMetricForCommunity(
         internalSnapshot.shareRate = parseFloat((metric.stats.shares / metric.stats.reach).toFixed(4));
     }
 
-    // CORREÇÃO: Checa se 'Reel' está incluído no array `metric.format`.
-    // E checa metric.type para 'VIDEO' ou 'REEL' (que é um valor do campo IMetric.type)
-    if ((metric.format?.includes('Reel') || metric.type === 'VIDEO' || metric.type === 'REEL') && metric.stats.ig_reels_avg_watch_time) {
+    // CORREÇÃO: Checa apenas o campo `format` padronizado para determinar se é Reel
+    if (metric.format?.some(f => f.toLowerCase() === 'reel') && metric.stats.ig_reels_avg_watch_time) {
         internalSnapshot.reelAvgWatchTimeSec = parseFloat((metric.stats.ig_reels_avg_watch_time / 1000).toFixed(1));
     }
 
