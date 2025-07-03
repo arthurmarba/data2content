@@ -4,26 +4,15 @@ import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from 'recharts';
 import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
 import { MagnifyingGlassIcon, DocumentMagnifyingGlassIcon, ChartBarIcon, XMarkIcon } from '@heroicons/react/24/outline';
-
-// --- (INCLUSÃO) Definições de Categoria para tornar o componente autocontido ---
-// Em um projeto real, estas seriam importadas de um arquivo central como `classification.ts`.
-
-export interface Category {
-  id: string;
-  label: string;
-  description:string;
-  keywords?: string[];
-  subcategories?: Category[];
-  examples?: string[];
-  conflictsWith?: string[];
-}
-
-// Definições completas das 5 dimensões
-export const formatCategories: Category[] = [ { id: 'reel', label: 'Reel', description: 'Vídeo curto e vertical.' }, { id: 'photo', label: 'Foto', description: 'Uma única imagem estática.' }, { id: 'carousel', label: 'Carrossel', description: 'Post com múltiplas imagens ou vídeos.' }, { id: 'story', label: 'Story', description: 'Conteúdo efêmero, vertical.' }, { id: 'live', label: 'Live', description: 'Transmissão de vídeo ao vivo.' }, { id: 'long_video', label: 'Vídeo Longo', description: 'Vídeo mais longo que não se encaixa no formato Reel.' }, ];
-export const proposalCategories: Category[] = [ { id: 'announcement', label: 'Anúncio', description: 'Comunica uma novidade importante.' }, { id: 'behind_the_scenes', label: 'Bastidores', description: 'Mostra os bastidores de um projeto.' }, { id: 'call_to_action', label: 'Chamada', description: 'Incentiva o usuário a realizar uma ação.' }, { id: 'comparison', label: 'Comparação', description: 'Compara dois ou mais produtos/serviços.' }, { id: 'humor_scene', label: 'Humor/Cena', description: 'Conteúdo cômico, esquete ou cena engraçada.'}, { id: 'tips', label: 'Dicas', description: 'Fornece conselhos práticos ou tutoriais.'}, { id: 'review', label: 'Review', description: 'Análise ou avaliação de um produto.'}, { id: 'trend', label: 'Trend', description: 'Participação em um desafio ou meme viral.'}, ];
-export const contextCategories: Category[] = [ { id: 'lifestyle_and_wellbeing', label: 'Estilo de Vida e Bem-Estar', description: 'Tópicos sobre vida pessoal, saúde e aparência.', subcategories: [ { id: 'fashion_style', label: 'Moda/Estilo', description: 'Looks, tendências de moda.' }, { id: 'fitness_sports', label: 'Fitness/Esporte', description: 'Exercícios, treinos, esportes.' }, ] }, { id: 'personal_and_professional', label: 'Pessoal e Profissional', description: 'Tópicos sobre relacionamentos, carreira e desenvolvimento.', subcategories: [ { id: 'relationships_family', label: 'Relacionamentos/Família', description: 'Família, amizades, relacionamentos.' }, { id: 'career_work', label: 'Carreira/Trabalho', description: 'Desenvolvimento profissional.' }, ] }, ];
-export const toneCategories: Category[] = [ { id: 'humorous', label: 'Humorístico', description: 'Intenção de ser engraçado.' }, { id: 'inspirational', label: 'Inspirador', description: 'Busca inspirar ou motivar.' }, { id: 'educational', label: 'Educacional', description: 'Objetivo de ensinar ou informar.' }, { id: 'critical', label: 'Crítico', description: 'Faz uma análise crítica ou opina.' }, { id: 'promotional', label: 'Promocional', description: 'Objetivo de vender ou promover.' }, { id: 'neutral', label: 'Neutro', description: 'Descreve fatos sem carga emocional.' }, ];
-export const referenceCategories: Category[] = [ { id: 'pop_culture', label: 'Cultura Pop', description: 'Referências a obras de ficção, celebridades ou memes.', subcategories: [ { id: 'pop_culture_movies_series', label: 'Filmes e Séries', description: 'Referências a filmes e séries.' }, { id: 'pop_culture_books', label: 'Livros', description: 'Referências a livros e universos literários.' }, ] }, { id: 'people_and_groups', label: 'Pessoas e Grupos', description: 'Referências a grupos sociais, profissões ou estereótipos.', subcategories: [ { id: 'regional_stereotypes', label: 'Estereótipos Regionais', description: 'Imitações ou referências a sotaques e costumes.' }, ] }, ];
+import {
+  Category,
+  formatCategories,
+  proposalCategories,
+  contextCategories,
+  toneCategories,
+  referenceCategories,
+  idsToLabels,
+} from '../../lib/classification';
 
 
 // --- Componentes de Apoio (Definidos localmente para autonomia) ---
@@ -217,11 +206,51 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
     { key: 'text_content', label: 'Conteúdo', sortable: false, getVal: (p: IGlobalPostResult) => p.text_content || p.description || 'N/A' },
     { key: 'creatorName', label: 'Criador', sortable: true, getVal: (p: IGlobalPostResult) => p.creatorName || 'N/A' },
     { key: 'postDate', label: 'Data', sortable: true, getVal: (p: IGlobalPostResult) => formatDate(p.postDate) },
-    { key: 'format', label: 'Formato', sortable: true, getVal: (p: IGlobalPostResult) => p.format?.join(', ') || 'N/A' },
-    { key: 'proposal', label: 'Proposta', sortable: true, getVal: (p: IGlobalPostResult) => p.proposal?.join(', ') || 'N/A' },
-    { key: 'context', label: 'Contexto', sortable: true, getVal: (p: IGlobalPostResult) => p.context?.join(', ') || 'N/A' },
-    { key: 'tone', label: 'Tom', sortable: true, getVal: (p: IGlobalPostResult) => p.tone?.join(', ') || 'N/A' },
-    { key: 'references', label: 'Referências', sortable: true, getVal: (p: IGlobalPostResult) => p.references?.join(', ') || 'N/A' },
+    {
+      key: 'format',
+      label: 'Formato',
+      sortable: true,
+      getVal: (p: IGlobalPostResult) => {
+        const labels = idsToLabels(p.format, 'format');
+        return labels.length > 0 ? labels.join(', ') : 'N/A';
+      },
+    },
+    {
+      key: 'proposal',
+      label: 'Proposta',
+      sortable: true,
+      getVal: (p: IGlobalPostResult) => {
+        const labels = idsToLabels(p.proposal, 'proposal');
+        return labels.length > 0 ? labels.join(', ') : 'N/A';
+      },
+    },
+    {
+      key: 'context',
+      label: 'Contexto',
+      sortable: true,
+      getVal: (p: IGlobalPostResult) => {
+        const labels = idsToLabels(p.context, 'context');
+        return labels.length > 0 ? labels.join(', ') : 'N/A';
+      },
+    },
+    {
+      key: 'tone',
+      label: 'Tom',
+      sortable: true,
+      getVal: (p: IGlobalPostResult) => {
+        const labels = idsToLabels(p.tone, 'tone');
+        return labels.length > 0 ? labels.join(', ') : 'N/A';
+      },
+    },
+    {
+      key: 'references',
+      label: 'Referências',
+      sortable: true,
+      getVal: (p: IGlobalPostResult) => {
+        const labels = idsToLabels(p.references, 'reference');
+        return labels.length > 0 ? labels.join(', ') : 'N/A';
+      },
+    },
     { key: 'stats.total_interactions', label: 'Interações', sortable: true, getVal: (p: IGlobalPostResult) => getNestedValue(p, 'stats.total_interactions', 0) },
     { key: 'actions', label: 'Ações', sortable: false, headerClassName: 'text-center', getVal: () => null },
   ];

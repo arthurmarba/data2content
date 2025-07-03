@@ -11,6 +11,7 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
+import { idsToLabels } from '../../lib/classification';
 
 // --- Tipos e Interfaces ---
 
@@ -108,9 +109,12 @@ const ContentTrendChart: React.FC<ContentTrendChartProps> = ({ postId }) => {
   const filteredData = data.slice(0, dayLimit);
 
   // Função auxiliar para renderizar os arrays de metadados
-  const renderMetaList = (items?: string[]) => {
-    if (!items || items.length === 0) return 'N/A';
-    return items.join(', ');
+  const renderMetaList = (
+    items: string[] | undefined,
+    type: 'format' | 'proposal' | 'context' | 'tone' | 'reference'
+  ) => {
+    const labels = idsToLabels(items, type);
+    return labels.length > 0 ? labels.join(', ') : 'N/A';
   };
 
   return (
@@ -180,11 +184,11 @@ const ContentTrendChart: React.FC<ContentTrendChartProps> = ({ postId }) => {
         {/* ATUALIZADO: Aside para exibir as 5 dimensões */}
         <aside className="w-full md:w-48 mt-4 md:mt-0 text-sm space-y-1">
           <h4 className="text-md font-semibold text-gray-700 mb-1">Classificação</h4>
-          <p><strong>Formato:</strong> {renderMetaList(meta.format)}</p>
-          <p><strong>Proposta:</strong> {renderMetaList(meta.proposal)}</p>
-          <p><strong>Contexto:</strong> {renderMetaList(meta.context)}</p>
-          <p><strong>Tom:</strong> {renderMetaList(meta.tone)}</p>
-          <p><strong>Referências:</strong> {renderMetaList(meta.references)}</p>
+          <p><strong>Formato:</strong> {renderMetaList(meta.format, 'format')}</p>
+          <p><strong>Proposta:</strong> {renderMetaList(meta.proposal, 'proposal')}</p>
+          <p><strong>Contexto:</strong> {renderMetaList(meta.context, 'context')}</p>
+          <p><strong>Tom:</strong> {renderMetaList(meta.tone, 'tone')}</p>
+          <p><strong>Referências:</strong> {renderMetaList(meta.references, 'reference')}</p>
         </aside>
       </div>
     </div>
