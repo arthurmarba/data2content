@@ -192,3 +192,14 @@ export const getCategoryById = (id: string, type: 'format' | 'proposal' | 'conte
 export function idsToLabels(ids: string[] | undefined, type: 'format'|'proposal'|'context'|'tone'|'reference'): string[] {
   return (ids ?? []).map(id => getCategoryById(id, type)?.label ?? id);
 }
+
+// Novo helper para traduzir strings com IDs separados por vírgula
+export function commaSeparatedIdsToLabels(ids: string | undefined, type: 'format'|'proposal'|'context'|'tone'|'reference'): string {
+  if (!ids) return '';
+  return ids
+    .split(',')
+    .map(id => id.trim())
+    .filter(id => id.length > 0)
+    .map(id => getCategoryById(id, type)?.label ?? id)
+    .join(', ');
+}
