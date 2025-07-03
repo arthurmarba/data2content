@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import type { TooltipProps } from "recharts";
+import { idsStringToLabelsString } from "../../../lib/classification";
 
 // Remove custom Payload type, use recharts' Payload type directly in formatter
 
@@ -103,7 +104,11 @@ const UserEngagementDistributionChart: React.FC<
         );
       }
       const result: UserEngagementDistributionResponse = await response.json();
-      setData(result.chartData);
+      const mapped = result.chartData.map(d => ({
+        ...d,
+        name: idsStringToLabelsString(d.name, 'format'),
+      }));
+      setData(mapped);
       setInsightSummary(result.insightSummary);
     } catch (err) {
       setError(

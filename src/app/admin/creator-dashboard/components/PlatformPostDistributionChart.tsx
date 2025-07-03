@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import { useGlobalTimePeriod } from './filters/GlobalTimePeriodContext';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { idsStringToLabelsString } from "../../../lib/classification";
 
 interface ApiPostDistributionDataPoint {
   name: string;
@@ -57,7 +58,11 @@ const PlatformPostDistributionChart: React.FC<PlatformPostDistributionChartProps
         throw new Error(`Erro HTTP: ${response.status} - ${errorData.error || response.statusText}`);
       }
       const result: PlatformPostDistributionResponse = await response.json();
-      setData(result.chartData);
+      const mapped = result.chartData.map(d => ({
+        ...d,
+        name: idsStringToLabelsString(d.name, 'format'),
+      }));
+      setData(mapped);
       setInsightSummary(result.insightSummary);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ocorreu um erro desconhecido ao buscar dados.');
