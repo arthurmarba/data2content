@@ -12,7 +12,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { getCategoryById } from "../../../lib/classification";
+import { idsStringToLabelsString } from "../../../lib/classification";
 
 type GroupingType = "format" | "context" | "proposal";
 
@@ -97,7 +97,7 @@ const UserAverageEngagementChart: React.FC<UserAverageEngagementChartProps> = ({
       const result: UserAverageEngagementResponse = await response.json();
       const mapped = result.chartData.map(d => ({
         ...d,
-        name: getCategoryById(d.name, groupBy as any)?.label ?? d.name,
+        name: idsStringToLabelsString(d.name, groupBy as any),
       }));
       setData(mapped);
       setInsightSummary(result.insightSummary);

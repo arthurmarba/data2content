@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import { useGlobalTimePeriod } from './filters/GlobalTimePeriodContext';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { getCategoryById } from "../../../lib/classification";
+import { idsStringToLabelsString } from "../../../lib/classification";
 
 interface ApiPostDistributionDataPoint {
   name: string;
@@ -60,7 +60,7 @@ const PlatformPostDistributionChart: React.FC<PlatformPostDistributionChartProps
       const result: PlatformPostDistributionResponse = await response.json();
       const mapped = result.chartData.map(d => ({
         ...d,
-        name: getCategoryById(d.name, 'format')?.label ?? d.name,
+        name: idsStringToLabelsString(d.name, 'format'),
       }));
       setData(mapped);
       setInsightSummary(result.insightSummary);

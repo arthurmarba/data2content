@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, memo } from 'react';
-import { getCategoryById } from '../../../lib/classification';
+import { idsStringToLabelsString } from '../../../lib/classification';
 import { useGlobalTimePeriod } from './filters/GlobalTimePeriodContext';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -72,7 +72,7 @@ const PlatformAverageEngagementChart: React.FC<PlatformAverageEngagementChartPro
       const result: PlatformAverageEngagementResponse = await response.json();
       const mapped = result.chartData.map((d) => ({
         ...d,
-        name: getCategoryById(d.name, groupBy as any)?.label ?? d.name,
+        name: idsStringToLabelsString(d.name, groupBy as any),
       }));
       setData(mapped);
       setInsightSummary(result.insightSummary);

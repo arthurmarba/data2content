@@ -192,3 +192,9 @@ export const getCategoryById = (id: string, type: 'format' | 'proposal' | 'conte
 export function idsToLabels(ids: string[] | undefined, type: 'format'|'proposal'|'context'|'tone'|'reference'): string[] {
   return (ids ?? []).map(id => getCategoryById(id, type)?.label ?? id);
 }
+
+export function idsStringToLabelsString(idsString: string, type: 'format'|'proposal'|'context'|'tone'|'reference'): string {
+  if (!idsString) return idsString;
+  const ids = idsString.split(',').map(id => id.trim()).filter(Boolean);
+  return idsToLabels(ids, type).join(', ');
+}
