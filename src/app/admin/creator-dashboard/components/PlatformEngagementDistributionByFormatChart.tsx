@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import { useGlobalTimePeriod } from './filters/GlobalTimePeriodContext';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { getCategoryById } from "../../../lib/classification";
+import { getCategoryById, commaSeparatedIdsToLabels } from "../../../lib/classification";
 
 interface ApiEngagementDistributionDataPoint {
   name: string;
@@ -70,7 +70,7 @@ const PlatformEngagementDistributionByFormatChart: React.FC<PlatformEngagementDi
       const result: PlatformEngagementDistributionApiResponse = await response.json();
       const mapped = result.chartData.map(d => ({
         ...d,
-        name: getCategoryById(d.name, 'format')?.label ?? d.name,
+        name: commaSeparatedIdsToLabels(d.name, 'format') || d.name,
       }));
       setData(mapped);
       setInsightSummary(result.insightSummary);
