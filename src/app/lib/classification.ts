@@ -188,3 +188,7 @@ export const getCategoryById = (id: string, type: 'format' | 'proposal' | 'conte
   }
   return list.find(cat => cat.id === id);
 };
+
+export function idsToLabels(ids: string[] | undefined, type: 'format'|'proposal'|'context'|'tone'|'reference'): string[] {
+  return (ids ?? []).map(id => getCategoryById(id, type)?.label ?? id);
+}

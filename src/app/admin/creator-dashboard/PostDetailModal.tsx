@@ -28,6 +28,7 @@ import {
   Tooltip, 
   Legend,
 } from 'recharts';
+import { idsToLabels } from '../../lib/classification';
 
 // --- Helper Component for Loading State ---
 const SkeletonBlock = ({ width = 'w-full', height = 'h-4' }: { width?: string; height?: string }) => (
@@ -153,9 +154,12 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
   }
 
   // ATUALIZADO: Função para renderizar os arrays de classificação
-  const renderMetaList = (items?: string[]) => {
-    if (!items || items.length === 0) return 'N/A';
-    return items.join(', ');
+  const renderMetaList = (
+    items: string[] | undefined,
+    type: 'format' | 'proposal' | 'context' | 'tone' | 'reference'
+  ) => {
+    const labels = idsToLabels(items, type);
+    return labels.length > 0 ? labels.join(', ') : 'N/A';
   };
 
   const renderGeneralInfo = () => (
@@ -174,11 +178,11 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
           <p><strong className="font-medium text-gray-700">Data:</strong> {postData.postDate ? new Date(postData.postDate).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}</p>
           <p><strong className="font-medium text-gray-700">Tipo:</strong> {postData.type || 'N/A'}</p>
           {/* ATUALIZADO: Renderização para as 5 dimensões */}
-          <p><strong className="font-medium text-gray-700">Formato:</strong> {renderMetaList(postData.format)}</p>
-          <p><strong className="font-medium text-gray-700">Proposta:</strong> {renderMetaList(postData.proposal)}</p>
-          <p><strong className="font-medium text-gray-700">Contexto:</strong> {renderMetaList(postData.context)}</p>
-          <p><strong className="font-medium text-gray-700">Tom:</strong> {renderMetaList(postData.tone)}</p>
-          <p><strong className="font-medium text-gray-700">Referências:</strong> {renderMetaList(postData.references)}</p>
+          <p><strong className="font-medium text-gray-700">Formato:</strong> {renderMetaList(postData.format, 'format')}</p>
+          <p><strong className="font-medium text-gray-700">Proposta:</strong> {renderMetaList(postData.proposal, 'proposal')}</p>
+          <p><strong className="font-medium text-gray-700">Contexto:</strong> {renderMetaList(postData.context, 'context')}</p>
+          <p><strong className="font-medium text-gray-700">Tom:</strong> {renderMetaList(postData.tone, 'tone')}</p>
+          <p><strong className="font-medium text-gray-700">Referências:</strong> {renderMetaList(postData.references, 'reference')}</p>
           {postData.theme && <p><strong className="font-medium text-gray-700">Tema:</strong> {postData.theme}</p>}
           {postData.coverUrl && <p><strong className="font-medium text-gray-700">Capa:</strong> <a href={postData.coverUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline break-all">{postData.coverUrl}</a></p>}
           <p className="mt-2 pt-2 border-t border-gray-200"><strong className="font-medium text-gray-700">Descrição:</strong> {postData.description || 'N/A'}</p>
