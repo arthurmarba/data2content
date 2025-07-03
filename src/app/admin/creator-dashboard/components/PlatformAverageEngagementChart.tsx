@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, memo } from 'react';
+import { getCategoryById } from '../../../lib/classification';
 import { useGlobalTimePeriod } from './filters/GlobalTimePeriodContext';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -69,7 +70,11 @@ const PlatformAverageEngagementChart: React.FC<PlatformAverageEngagementChartPro
         throw new Error(`Erro HTTP: ${response.status} - ${errorData.error || response.statusText}`);
       }
       const result: PlatformAverageEngagementResponse = await response.json();
-      setData(result.chartData);
+      const mapped = result.chartData.map((d) => ({
+        ...d,
+        name: getCategoryById(d.name, groupBy as any)?.label ?? d.name,
+      }));
+      setData(mapped);
       setInsightSummary(result.insightSummary);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ocorreu um erro desconhecido.');

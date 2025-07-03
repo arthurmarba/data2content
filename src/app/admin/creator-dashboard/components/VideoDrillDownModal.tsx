@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { idsToLabels } from '../../../lib/classification';
 import { 
     XMarkIcon, 
     FireIcon,
@@ -35,13 +36,19 @@ const InstagramIcon = (props: React.SVGProps<SVGSVGElement>) => (
     </svg>
 );
 
-const ClassificationTags: React.FC<{ title: string; tags?: string[]; colorClasses: string }> = ({ title, tags, colorClasses }) => {
-  if (!tags || tags.length === 0) return null;
+const ClassificationTags: React.FC<{
+  title: string;
+  tags?: string[];
+  colorClasses: string;
+  type: 'format' | 'proposal' | 'context' | 'tone' | 'reference';
+}> = ({ title, tags, colorClasses, type }) => {
+  const labels = idsToLabels(tags, type);
+  if (labels.length === 0) return null;
   return (
     <div>
       <h5 className="text-xs font-semibold text-gray-500 mb-1">{title}</h5>
       <div className="flex flex-wrap gap-1">
-        {tags.map(tag => (
+        {labels.map(tag => (
           <span key={tag} className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${colorClasses}`}>
             {tag}
           </span>
@@ -128,11 +135,11 @@ const VideoCard: React.FC<{ video: VideoListItem; index: number; readOnly?: bool
         </div>
 
         <div className="col-span-12 md:col-span-3 space-y-2">
-          <ClassificationTags title="Formato" tags={video.format} colorClasses="bg-gray-100 text-gray-800" />
-          <ClassificationTags title="Proposta" tags={video.proposal} colorClasses="bg-blue-100 text-blue-800" />
-          <ClassificationTags title="Contexto" tags={video.context} colorClasses="bg-purple-100 text-purple-800" />
-          <ClassificationTags title="Tom" tags={video.tone} colorClasses="bg-yellow-100 text-yellow-800" />
-          <ClassificationTags title="Referências" tags={video.references} colorClasses="bg-green-100 text-green-800" />
+          <ClassificationTags title="Formato" tags={video.format} type="format" colorClasses="bg-gray-100 text-gray-800" />
+          <ClassificationTags title="Proposta" tags={video.proposal} type="proposal" colorClasses="bg-blue-100 text-blue-800" />
+          <ClassificationTags title="Contexto" tags={video.context} type="context" colorClasses="bg-purple-100 text-purple-800" />
+          <ClassificationTags title="Tom" tags={video.tone} type="tone" colorClasses="bg-yellow-100 text-yellow-800" />
+          <ClassificationTags title="Referências" tags={video.references} type="reference" colorClasses="bg-green-100 text-green-800" />
         </div>
 
         <div className="col-span-6 md:col-span-1 text-left md:text-center">
