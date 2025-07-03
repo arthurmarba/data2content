@@ -8,6 +8,7 @@ import { Receiver } from "@upstash/qstash";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import Metric, { IMetric } from "@/app/models/Metric";
 import { logger } from "@/app/lib/logger";
+import { idsToLabels } from "@/app/lib/classification";
 import mongoose from "mongoose";
 
 // Importando as categorias definitivas para construir o prompt da IA
@@ -212,11 +213,11 @@ async function handlerLogic(request: NextRequest): Promise<NextResponse> { // Ad
                 logger.info(`${TAG} Classificação completa recebida para Metric ${metricId}: ${JSON.stringify(classification)}`);
 
                 const updateData: Partial<IMetric> = {
-                    format: classification.format,
-                    proposal: classification.proposal,
-                    context: classification.context,
-                    tone: classification.tone,
-                    references: classification.references,
+                    format: idsToLabels(classification.format, 'format'),
+                    proposal: idsToLabels(classification.proposal, 'proposal'),
+                    context: idsToLabels(classification.context, 'context'),
+                    tone: idsToLabels(classification.tone, 'tone'),
+                    references: idsToLabels(classification.references, 'reference'),
                     classificationStatus: 'completed',
                     classificationError: null,
                 };
