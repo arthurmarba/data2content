@@ -19,6 +19,7 @@ import {
   referenceCategories,
   Category
 } from '@/app/lib/classification';
+import { idsToLabels } from '@/app/lib/classification';
 
 const SCRIPT_TAG = '[MIGRATION_SCRIPT_RECLASSIFY_ALL_OPENAI_FINAL]';
 
@@ -189,13 +190,13 @@ async function reclassifyAllMetrics() {
       while (retries > 0 && !classified) {
         try {
           const classificationResult = await classifyContent(metric.description);
-          
+
           const updateData: Partial<IMetric> = {
-            format: classificationResult.format,
-            proposal: classificationResult.proposal,
-            context: classificationResult.context,
-            tone: classificationResult.tone,
-            references: classificationResult.references,
+            format: idsToLabels(classificationResult.format, 'format'),
+            proposal: idsToLabels(classificationResult.proposal, 'proposal'),
+            context: idsToLabels(classificationResult.context, 'context'),
+            tone: idsToLabels(classificationResult.tone, 'tone'),
+            references: idsToLabels(classificationResult.references, 'reference'),
             classificationStatus: 'completed',
             classificationError: null,
           };
