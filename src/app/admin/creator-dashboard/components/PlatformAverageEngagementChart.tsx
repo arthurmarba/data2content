@@ -1,47 +1,44 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, memo } from 'react';
-import { getCategoryById } from '../../../lib/classification';
 import { useGlobalTimePeriod } from './filters/GlobalTimePeriodContext';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
+import { commaSeparatedIdsToLabels } from '../../../lib/classification';
 
+// --- Interfaces e Constantes ---
 type GroupingType = "format" | "context" | "proposal";
+interface ApiAverageEngagementDataPoint { name: string; value: number; postsCount: number; }
+interface PlatformAverageEngagementResponse { chartData: ApiAverageEngagementDataPoint[]; groupBy: GroupingType; metricUsed: string; insightSummary?: string; }
+const ENGAGEMENT_METRIC_OPTIONS = [ { value: "stats.total_interactions", label: "Total de Interações" }, { value: "stats.views", label: "Visualizações" }, { value: "stats.likes", label: "Curtidas" }, ];
+const GROUP_BY_OPTIONS = [ { value: "format", label: "Formato" }, { value: "context", label: "Contexto" }, { value: "proposal", label: "Proposta" }, ];
+interface PlatformAverageEngagementChartProps { initialGroupBy: GroupingType; chartTitle: string; initialEngagementMetric?: string; }
 
-interface ApiAverageEngagementDataPoint {
-  name: string;
-  value: number;
-  postsCount: number;
-}
 
-interface PlatformAverageEngagementResponse {
-  chartData: ApiAverageEngagementDataPoint[];
-  groupBy: GroupingType;
-  metricUsed: string;
-  insightSummary?: string;
-}
+// --- Componente Customizado para Labels do Eixo Y ---
+const CustomYAxisTick = (props: any) => {
+  const { x, y, payload } = props;
+  const { value } = payload;
+  const parts = value.split(', ');
+  const line1 = parts[0];
+  const line2 = parts.length > 1 ? parts.slice(1).join(', ') : null;
+  const initialDy = line2 ? "-0.4em" : "0.35em";
 
-// TIME_PERIOD_OPTIONS não é mais necessário aqui
-// ENGAGEMENT_METRIC_OPTIONS e GROUP_BY_OPTIONS podem ser mantidos ou movidos para um local compartilhado se usados por mais componentes
-const ENGAGEMENT_METRIC_OPTIONS = [
-  { value: "stats.total_interactions", label: "Total de Interações" },
-  { value: "stats.views", label: "Visualizações" },
-  { value: "stats.likes", label: "Curtidas" },
-];
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text x={-10} y={0} textAnchor="end" fill="#666" fontSize={12}>
+        <tspan x={-10} dy={initialDy}>{line1}</tspan> 
+        {line2 && (
+          <tspan x={-10} dy="1.2em">{line2}</tspan>
+        )}
+      </text>
+    </g>
+  );
+};
 
-const GROUP_BY_OPTIONS = [ // Usado apenas se o seletor de groupBy fosse habilitado
-  { value: "format", label: "Formato" },
-  { value: "context", label: "Contexto" },
-  { value: "proposal", label: "Proposta" },
-];
 
-interface PlatformAverageEngagementChartProps {
-  initialGroupBy: GroupingType;
-  chartTitle: string;
-  initialEngagementMetric?: string;
-}
-
+// --- Componente Principal do Gráfico ---
 const PlatformAverageEngagementChart: React.FC<PlatformAverageEngagementChartProps> = ({
   initialGroupBy,
   chartTitle,
@@ -52,27 +49,21 @@ const PlatformAverageEngagementChart: React.FC<PlatformAverageEngagementChartPro
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-
-  // timePeriod vem do contexto global
   const [engagementMetric, setEngagementMetric] = useState<string>(initialEngagementMetric);
-  // groupBy é controlado por initialGroupBy, não muda internamente por seletor neste componente
   const groupBy = initialGroupBy;
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // Usa timePeriod do contexto
-      const apiUrl = `/api/v1/platform/performance/average-engagement?timePeriod=${timePeriod}&engagementMetricField=${engagementMetric}&groupBy=${groupBy}`;
+      // Busca todos os dados, ordenados
+      const apiUrl = `/api/v1/platform/performance/average-engagement?timePeriod=${timePeriod}&engagementMetricField=${engagementMetric}&groupBy=${groupBy}&sortOrder=desc`;
       const response = await fetch(apiUrl);
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Erro HTTP: ${response.status} - ${errorData.error || response.statusText}`);
-      }
+      if (!response.ok) { throw new Error(`Erro HTTP: ${response.status}`); }
       const result: PlatformAverageEngagementResponse = await response.json();
       const mapped = result.chartData.map((d) => ({
         ...d,
-        name: getCategoryById(d.name, groupBy as any)?.label ?? d.name,
+        name: commaSeparatedIdsToLabels(d.name, groupBy as any) || d.name,
       }));
       setData(mapped);
       setInsightSummary(result.insightSummary);
@@ -83,12 +74,14 @@ const PlatformAverageEngagementChart: React.FC<PlatformAverageEngagementChartPro
     } finally {
       setLoading(false);
     }
-  }, [timePeriod, engagementMetric, groupBy]); // Adicionado timePeriod às dependências
+  }, [timePeriod, engagementMetric, groupBy]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
+  // Mantém a altura dinâmica que você prefere
+  const calculatedHeight = Math.max(400, data.length * 40);
 
   const yAxisFormatter = (value: number) => {
     if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
@@ -98,72 +91,46 @@ const PlatformAverageEngagementChart: React.FC<PlatformAverageEngagementChartPro
 
   const tooltipFormatter = (value: number, name: string, props: {payload?: ApiAverageEngagementDataPoint}) => {
       const { postsCount } = props.payload || { postsCount: 0 };
-      return [`${value.toLocaleString()} (de ${postsCount} posts)`, name];
+      return [`${value.toLocaleString('pt-BR')} (de ${postsCount} posts)`, name];
   };
-  const xAxisTickFormatter = (value: string) => {
-    if (value && value.length > 15) {
-        return `${value.substring(0, 13)}...`;
-    }
-    return value;
-  }
 
   return (
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6 md:mt-0">
       <h2 className="text-lg md:text-xl font-semibold mb-4 text-gray-700">{chartTitle}</h2>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6"> {/* Removido o terceiro slot do grid */}
-        {/* Seletor de timePeriod removido */}
-        <div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+       <div>
           <label htmlFor={`metricAvgEngPlatform-${groupBy}`} className="block text-sm font-medium text-gray-600 mb-1">Métrica:</label>
-          <select
-            id={`metricAvgEngPlatform-${groupBy}`}
-            value={engagementMetric}
-            onChange={(e) => setEngagementMetric(e.target.value)}
-            disabled={loading}
-            className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-          >
-            {ENGAGEMENT_METRIC_OPTIONS.map(option => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
+          <select id={`metricAvgEngPlatform-${groupBy}`} value={engagementMetric} onChange={(e) => setEngagementMetric(e.target.value)} disabled={loading} className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm" >
+            {ENGAGEMENT_METRIC_OPTIONS.map(option => (<option key={option.value} value={option.value}>{option.label}</option>))}
           </select>
         </div>
         <div>
           <label htmlFor={`groupByAvgEngPlatform-${groupBy}`} className="block text-sm font-medium text-gray-600 mb-1">Agrupar por:</label>
-          <input
-            type="text"
-            id={`groupByAvgEngPlatform-${groupBy}`}
-            value={GROUP_BY_OPTIONS.find(opt => opt.value === groupBy)?.label || groupBy}
-            disabled
-            className="w-full p-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-sm"
-          />
+          <input type="text" id={`groupByAvgEngPlatform-${groupBy}`} value={GROUP_BY_OPTIONS.find(opt => opt.value === groupBy)?.label || groupBy} disabled className="w-full p-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-sm" />
         </div>
       </div>
 
-      <div style={{ width: '100%', height: 350 }}>
+      <div style={{ width: '100%', height: calculatedHeight }}>
         {loading && <div className="flex justify-center items-center h-full"><p className="text-gray-500">Carregando dados...</p></div>}
         {error && <div className="flex justify-center items-center h-full"><p className="text-red-500">Erro: {error}</p></div>}
         {!loading && !error && data.length > 0 && (
           <ResponsiveContainer>
-            <BarChart data={data} layout="vertical" margin={{ top: 5, right: 30, left: 30, bottom: 5 }}>
+            {/* ✅ AJUSTE FINAL DE MARGEM E LARGURA */}
+            <BarChart data={data} layout="vertical" margin={{ top: 5, right: 30, left: 100, bottom: 20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
               <XAxis type="number" stroke="#666" tick={{ fontSize: 12 }} tickFormatter={yAxisFormatter} />
               <YAxis
                 type="category"
                 dataKey="name"
-                stroke="#666"
-                tick={{ fontSize: 12 }}
-                width={100}
+                width={220} // Largura generosa para os labels
+                tick={<CustomYAxisTick />}
                 interval={0}
-                tickFormatter={xAxisTickFormatter}
               />
-              <Tooltip formatter={tooltipFormatter} labelStyle={{ color: '#333' }} wrapperStyle={{ zIndex: 1000 }}/>
+              <Tooltip formatter={tooltipFormatter} labelStyle={{ color: '#333' }} wrapperStyle={{ zIndex: 1000 }} contentStyle={{whiteSpace: 'normal'}}/>
               <Legend wrapperStyle={{ fontSize: 14 }} />
-              <Bar dataKey="value" name={`Média de ${ENGAGEMENT_METRIC_OPTIONS.find(m=>m.value === engagementMetric)?.label || 'Engajamento'}`} fill="#8884d8" />
+              <Bar dataKey="value" name={`Média de ${ENGAGEMENT_METRIC_OPTIONS.find(m=>m.value === engagementMetric)?.label || 'Engajamento'}`} fill="#8884d8" barSize={15} />
             </BarChart>
           </ResponsiveContainer>
-        )}
-        {!loading && !error && data.length === 0 && (
-          <div className="flex justify-center items-center h-full"><p className="text-gray-500">Nenhum dado disponível para os filtros selecionados.</p></div>
         )}
       </div>
       {insightSummary && !loading && !error && (
@@ -174,4 +141,3 @@ const PlatformAverageEngagementChart: React.FC<PlatformAverageEngagementChartPro
 };
 
 export default memo(PlatformAverageEngagementChart);
-

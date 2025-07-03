@@ -26,11 +26,9 @@ const PlatformContentAnalysisSection: React.FC<Props> = ({
     <div className="mb-6 md:mb-8">
       <PlatformPerformanceHighlights />
     </div>
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 md:mb-8">
-      <PlatformAverageEngagementChart
-        initialGroupBy="format"
-        chartTitle="Engajamento Médio por Formato (Plataforma)"
-      />
+
+    {/* ✅ LAYOUT ATUALIZADO PARA 2 COLUNAS LADO A LADO */}
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 md:mb-8">
       <PlatformAverageEngagementChart
         initialGroupBy="context"
         chartTitle="Engajamento Médio por Contexto (Plataforma)"
@@ -40,10 +38,16 @@ const PlatformContentAnalysisSection: React.FC<Props> = ({
         chartTitle="Engajamento Médio por Proposta (Plataforma)"
       />
     </div>
+
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 md:mb-8">
+      {/* O gráfico de Formato pode viver aqui, ao lado de outras métricas */}
+      <PlatformAverageEngagementChart
+        initialGroupBy="format"
+        chartTitle="Engajamento Médio por Formato (Plataforma)"
+      />
       <PlatformPostDistributionChart chartTitle="Distribuição de Posts por Formato (Plataforma)" />
-      <PlatformVideoPerformanceMetrics />
     </div>
+    
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <PlatformMonthlyEngagementStackedChart />
       <PlatformEngagementDistributionByFormatChart />

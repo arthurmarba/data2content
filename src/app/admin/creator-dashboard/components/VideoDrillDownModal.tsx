@@ -38,12 +38,21 @@ const InstagramIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 const ClassificationTags: React.FC<{
   title: string;
-  tags?: string[];
+  tags?: string[] | string; // Prop 'tags' pode ser string ou array
   colorClasses: string;
   type: 'format' | 'proposal' | 'context' | 'tone' | 'reference';
 }> = ({ title, tags, colorClasses, type }) => {
-  const labels = idsToLabels(tags, type);
+  // ✅ CORREÇÃO: Garante que 'tags' seja sempre um array de IDs antes de traduzir.
+  const sanitizedIds = !tags
+    ? []
+    : Array.isArray(tags)
+      ? tags
+      : String(tags).split(',').map(id => id.trim()).filter(Boolean);
+
+  const labels = idsToLabels(sanitizedIds, type);
+
   if (labels.length === 0) return null;
+  
   return (
     <div>
       <h5 className="text-xs font-semibold text-gray-500 mb-1">{title}</h5>
@@ -58,17 +67,18 @@ const ClassificationTags: React.FC<{
   );
 };
 
+
 interface VideoListItem {
   _id: string;
   postLink?: string;
   permalink?: string;
   description: string;
   thumbnailUrl?: string;
-  format?: string[];
-  proposal?: string[];
-  context?: string[];
-  tone?: string[];
-  references?: string[];
+  format?: string[] | string;
+  proposal?: string[] | string;
+  context?: string[] | string;
+  tone?: string[] | string;
+  references?: string[] | string;
   stats: {
     views?: number;
     likes?: number;
@@ -85,7 +95,6 @@ interface VideosTableProps {
   readOnly?: boolean;
 }
 
-// CORREÇÃO: Placeholder para PostDetailModal definido localmente para resolver o erro de importação.
 const PostDetailModal: React.FC<{ isOpen: boolean; onClose: () => void; postId: string | null; publicMode?: boolean; }> = ({ isOpen, onClose, postId }) => {
   if (!isOpen) return null;
   return (
@@ -174,6 +183,7 @@ const VideoCard: React.FC<{ video: VideoListItem; index: number; readOnly?: bool
     </div>
   );
 };
+
 
 const VideosTable: React.FC<VideosTableProps> = ({ videos, ...props }) => {
   return (

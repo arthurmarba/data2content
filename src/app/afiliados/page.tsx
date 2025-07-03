@@ -111,7 +111,7 @@ export default function AffiliateProgramPage() {
             Você recebe uma comissão de <strong>10% sobre o valor da primeira assinatura</strong> de cada novo cliente que utilizar o seu código ou link de afiliado.
           </p>
           <p className="mt-2">
-            Por exemplo, se o plano mensal é R$ 19,90, a sua comissão por uma nova assinatura mensal indicada por você será de R$ 1,99.
+            Por exemplo, se o plano mensal é R$ 29,90, a sua comissão por uma nova assinatura mensal indicada por você será de R$ 1,99.
           </p>
           <p className="mt-2">
             <strong>Importante:</strong> A comissão é válida apenas para a primeira assinatura do novo cliente. Não há comissões recorrentes sobre renovações neste momento.

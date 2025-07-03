@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { idsToLabels } from '../../../lib/classification';
+import { idsToLabels } from '@/app/lib/classification'; 
 import { 
     FireIcon, 
     EyeIcon, 
@@ -18,6 +18,28 @@ interface VideosTableProps {
   onRowClick?: (postId: string) => void;
   readOnly?: boolean;
 }
+
+// ✅ CORREÇÃO FINAL: A função agora processa os itens *dentro* do array.
+const getTranslatedLabels = (
+  tags: string | string[] | undefined,
+  type: 'format' | 'proposal' | 'context'
+): string[] => {
+  if (!tags) {
+    return [];
+  }
+  
+  // Garante que estamos sempre trabalhando com um array.
+  const initialArray = Array.isArray(tags) ? tags : [String(tags)];
+
+  // Usa flatMap para processar cada item do array. Se um item for 'id1,id2',
+  // ele será transformado em ['id1', 'id2'] e achatado no resultado final.
+  const allIds = initialArray.flatMap(tag =>
+    String(tag).split(',').map(id => id.trim()).filter(Boolean)
+  );
+  
+  return idsToLabels(allIds, type as any);
+};
+
 
 const InstagramIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
@@ -53,7 +75,7 @@ const VideoCard: React.FC<{ video: VideoListItem; index: number; readOnly?: bool
       <div className="grid grid-cols-12 gap-x-4 gap-y-2 items-start">
         
         <div className="col-span-12 md:col-span-5 flex items-start gap-4">
-          <img src={video.thumbnailUrl || 'https://placehold.co/96x54/e2e8f0/a0aec0?text=Img'} alt={`Thumbnail para ${video.caption || 'post'}`} width={96} height={96} className="rounded-md object-cover flex-shrink-0" />
+          <img src={video.thumbnailUrl || 'https://placehold.co/96x96/e2e8f0/a0aec0?text=Img'} alt={`Thumbnail para ${video.caption || 'post'}`} width={96} height={96} className="rounded-md object-cover flex-shrink-0" />
           <div className="flex-grow">
             <p className="font-semibold text-sm text-gray-800" title={video.caption || ''}>
               {readOnly && index === 0 && <FireIcon className="w-4 h-4 text-orange-400 inline-block mr-1.5 align-text-bottom" title="Top Performance"/>}
@@ -63,15 +85,14 @@ const VideoCard: React.FC<{ video: VideoListItem; index: number; readOnly?: bool
           </div>
         </div>
 
-        {/* ✅ 'Reel' movido de volta para cá para agrupar todas as tags */}
         <div className="col-span-12 md:col-span-2 flex flex-wrap gap-1.5 content-start">
-          {idsToLabels(video.format, 'format').map(tag => (
+          {getTranslatedLabels(video.format, 'format').map(tag => (
             <span key={tag} className={`${tagBaseClasses} bg-gray-100 text-gray-700`}>{tag}</span>
           ))}
-          {idsToLabels(video.proposal, 'proposal').map(tag => (
+          {getTranslatedLabels(video.proposal, 'proposal').map(tag => (
             <span key={tag} className={`${tagBaseClasses} bg-blue-100 text-blue-800`}>{tag}</span>
           ))}
-          {idsToLabels(video.context, 'context').map(tag => (
+          {getTranslatedLabels(video.context, 'context').map(tag => (
             <span key={tag} className={`${tagBaseClasses} bg-purple-100 text-purple-800`}>{tag}</span>
           ))}
         </div>

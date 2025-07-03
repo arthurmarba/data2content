@@ -405,57 +405,66 @@ const AdminCreatorDashboardContent: React.FC = () => {
             <PlatformSummaryKpis startDate={startDate} endDate={endDate} />
           </section>
 
-      <section
-        id="creator-selection"
-        className="mb-8 p-4 bg-white rounded-lg shadow"
-      >
-        <h2 className="text-lg font-semibold text-gray-700 mb-3">
-          Selecionar Criador para Detalhar
-        </h2>
-        <div className="flex flex-wrap items-center gap-4">
-          <button
-            onClick={() => setIsSelectorOpen(true)}
-            className="p-2 rounded-md text-sm bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+          <section
+            id="creator-selection"
+            className="mb-8 p-4 bg-white rounded-lg shadow"
           >
-            Buscar Criador
-          </button>
-          {selectedUserName && (
-            <span className="px-2 py-1 text-sm bg-indigo-50 text-indigo-700 rounded">
-              {selectedUserName}
-            </span>
-          )}
-          {selectedUserId && (
-            <button
-              onClick={() => {
-                setSelectedUserId(null);
-                setSelectedUserName(null);
-              }}
-              className="p-2 rounded-md text-sm bg-gray-200 text-gray-700 hover:bg-gray-300"
-            >
-              Limpar seleção e voltar à visão geral
-            </button>
-          )}
-        </div>
-      </section>
-
-      {!selectedUserId && (
-        <>
-          <PlatformOverviewSection />
-          <PlatformContentAnalysisSection
-            startDate={startDate}
-            endDate={endDate}
-          />
-          <CreatorRankingSection
-            rankingDateRange={rankingDateRange}
-            rankingDateLabel={rankingDateLabel}
-          />
-          <TopMoversSection />
-
-          <section id="global-posts-explorer" className="mt-8">
-            <GlobalPostsExplorer dateRangeFilter={{ startDate, endDate }} />
+            <h2 className="text-lg font-semibold text-gray-700 mb-3">
+              Selecionar Criador para Detalhar
+            </h2>
+            <div className="flex flex-wrap items-center gap-4">
+              <button
+                onClick={() => setIsSelectorOpen(true)}
+                className="p-2 rounded-md text-sm bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+              >
+                Buscar Criador
+              </button>
+              {selectedUserName && (
+                <span className="px-2 py-1 text-sm bg-indigo-50 text-indigo-700 rounded">
+                  {selectedUserName}
+                </span>
+              )}
+              {selectedUserId && (
+                <button
+                  onClick={() => {
+                    setSelectedUserId(null);
+                    setSelectedUserName(null);
+                  }}
+                  className="p-2 rounded-md text-sm bg-gray-200 text-gray-700 hover:bg-gray-300"
+                >
+                  Limpar seleção e voltar à visão geral
+                </button>
+              )}
+            </div>
           </section>
-        </>
-      )}
+          
+          {/* --- CORREÇÃO FINAL: Bloco de visão geral reorganizado --- */}
+          {!selectedUserId && (
+            <>
+              {/* 1. Ranking de Criadores */}
+              <CreatorRankingSection
+                rankingDateRange={rankingDateRange}
+                rankingDateLabel={rankingDateLabel}
+              />
+              
+              {/* 2. Top Movers (Abaixo do Ranking) */}
+              <TopMoversSection />
+
+              {/* 3. Análise de Conteúdo */}
+              <PlatformContentAnalysisSection
+                startDate={startDate}
+                endDate={endDate}
+              />
+              
+              {/* 4. Visão Geral da Plataforma */}
+              <PlatformOverviewSection />
+
+              {/* 5. Explorador de Posts (Final) */}
+              <section id="global-posts-explorer" className="mt-8">
+                <GlobalPostsExplorer dateRangeFilter={{ startDate, endDate }} />
+              </section>
+            </>
+          )}
 
           <div id="user-detail-view-container">
             {selectedUserId && (

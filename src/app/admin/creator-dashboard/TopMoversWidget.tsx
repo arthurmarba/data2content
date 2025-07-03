@@ -1,5 +1,6 @@
 'use client';
 
+// CORREÇÃO: Removidas todas as classes de tema escuro (dark:) para unificar o design.
 import React, { useState, useCallback, useEffect } from 'react';
 import { useGlobalTimePeriod } from './components/filters/GlobalTimePeriodContext';
 import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
@@ -10,7 +11,6 @@ import {
     ArrowsUpDownIcon
 } from '@heroicons/react/24/outline';
 
-// CORREÇÃO: Os tipos agora são importados do ficheiro de tipos modularizado.
 import {
     TopMoverEntityType,
     TopMoverMetric,
@@ -20,7 +20,6 @@ import {
     IPeriod
 } from '@/app/lib/dataService/marketAnalysis/types';
 
-// Componentes de Apoio reutilizados no dashboard
 import SkeletonBlock from './SkeletonBlock';
 import EmptyState from './EmptyState';
 
@@ -59,7 +58,6 @@ const SORT_BY_OPTIONS: { value: TopMoverSortBy; label: string }[] = [
 
 const FORMAT_OPTIONS_TOP_MOVERS = ["", "Reel", "Post Estático", "Carrossel", "Story", "Video Longo"];
 
-// Context options loaded from API
 const DEFAULT_CONTEXTS = [""];
 
 
@@ -89,7 +87,7 @@ export default function TopMoversWidget() {
   const [results, setResults] = useState<ITopMoverResult[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Periods are auto-calculated from the global time range, so no manual validation
+
   const { timePeriod: globalTimePeriod } = useGlobalTimePeriod();
 
   useEffect(() => {
@@ -124,17 +122,14 @@ export default function TopMoversWidget() {
   }, [globalTimePeriod]);
 
   const handleContentFilterChange = (field: keyof ISegmentDefinition, value: string) => {
-    // CORREÇÃO: A atualização do estado com `prev` está correta, mas clarificamos que o valor vazio se torna `undefined`.
     setContentFilters(prev => ({ ...prev, [field]: value === "" ? undefined : value }));
   };
 
   const handleFetchTopMovers = useCallback(async () => {
-
     setIsLoading(true);
     setError(null);
     setResults(null);
     
-    // A interface para o payload da API.
     interface IFetchTopMoversArgs {
         entityType: TopMoverEntityType;
         metric: TopMoverMetric;
@@ -143,7 +138,7 @@ export default function TopMoversWidget() {
         topN: number;
         sortBy: TopMoverSortBy;
         contentFilters?: ISegmentDefinition;
-        creatorFilters?: any; // Definir um tipo mais estrito se filtros de criador forem implementados
+        creatorFilters?: any;
     }
 
     const apiPayload: IFetchTopMoversArgs = {
@@ -166,7 +161,6 @@ export default function TopMoversWidget() {
     } else if (entityType === 'creator') {
       apiPayload.creatorFilters = undefined;
     }
-
 
     try {
       const response = await fetch('/api/admin/dashboard/top-movers', {
@@ -196,65 +190,64 @@ export default function TopMoversWidget() {
 
 
   return (
-    <div className="bg-white dark:bg-gray-800/50 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6 space-y-6">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6 space-y-6">
       <div>
         <div className="flex items-center space-x-2">
-          <ChartBarIcon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
+          <ChartBarIcon className="h-5 w-5 text-indigo-600" />
+          <h3 className="text-lg font-semibold text-gray-800">
             Top Movers ({ENTITY_TYPE_OPTIONS.find(e=>e.value === entityType)?.label})
           </h3>
         </div>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 ml-7">
+        <p className="text-sm text-gray-500 mt-1 ml-7">
           Identifique variações de performance entre dois períodos.
         </p>
       </div>
 
       {/* --- UI de Seleção de Parâmetros --- */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-end">
-        <div>
-          <label htmlFor="tm-entityType" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Entidade</label>
-          <select id="tm-entityType" value={entityType} onChange={(e) => setEntityType(e.target.value as TopMoverEntityType)} className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 h-[38px]">
-            {ENTITY_TYPE_OPTIONS.map(opt => <option key={opt.value} value={opt.value} disabled={opt.disabled}>{opt.label}</option>)}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="tm-metric" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Métrica</label>
-          <select id="tm-metric" value={metric} onChange={(e) => setMetric(e.target.value as TopMoverMetric)} className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 h-[38px]">
-            {METRIC_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="tm-sortBy" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Ordenar Por</label>
-          <select id="tm-sortBy" value={sortBy} onChange={(e) => setSortBy(e.target.value as TopMoverSortBy)} className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 h-[38px]">
-            {SORT_BY_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="tm-topN" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Top N</label>
-          <input type="number" id="tm-topN" value={topN} onChange={(e) => setTopN(Math.max(1, parseInt(e.target.value, 10) || 1))} min="1" max="50" className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 h-[38px]" />
+      <div className="p-4 border border-gray-200 rounded-md bg-gray-50">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-end">
+          <div>
+            <label htmlFor="tm-entityType" className="block text-xs font-medium text-gray-600 mb-1">Entidade</label>
+            <select id="tm-entityType" value={entityType} onChange={(e) => setEntityType(e.target.value as TopMoverEntityType)} className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white text-gray-900 h-[38px]">
+              {ENTITY_TYPE_OPTIONS.map(opt => <option key={opt.value} value={opt.value} disabled={opt.disabled}>{opt.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="tm-metric" className="block text-xs font-medium text-gray-600 mb-1">Métrica</label>
+            <select id="tm-metric" value={metric} onChange={(e) => setMetric(e.target.value as TopMoverMetric)} className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white text-gray-900 h-[38px]">
+              {METRIC_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="tm-sortBy" className="block text-xs font-medium text-gray-600 mb-1">Ordenar Por</label>
+            <select id="tm-sortBy" value={sortBy} onChange={(e) => setSortBy(e.target.value as TopMoverSortBy)} className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white text-gray-900 h-[38px]">
+              {SORT_BY_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="tm-topN" className="block text-xs font-medium text-gray-600 mb-1">Top N</label>
+            <input type="number" id="tm-topN" value={topN} onChange={(e) => setTopN(Math.max(1, parseInt(e.target.value, 10) || 1))} min="1" max="50" className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white text-gray-900 h-[38px]" />
+          </div>
+
+          {entityType === 'content' && (
+            <>
+              <div className="mt-2">
+                <label htmlFor="tm-contentFormat" className="block text-xs font-medium text-gray-600 mb-1">Formato (Conteúdo)</label>
+                <select id="tm-contentFormat" value={contentFilters.format || ""} onChange={e => handleContentFilterChange('format', e.target.value)} className="w-full px-3 py-1.5 border-gray-300 rounded-md h-[38px] sm:text-sm bg-white text-gray-900">
+                  {FORMAT_OPTIONS_TOP_MOVERS.map(f => <option key={f} value={f}>{f === "" ? "Todos Formatos" : f}</option>)}
+                </select>
+              </div>
+              <div className="mt-2">
+                <label htmlFor="tm-contentContext" className="block text-xs font-medium text-gray-600 mb-1">Contexto (Conteúdo)</label>
+                <select id="tm-contentContext" value={contentFilters.context || ""} onChange={e => handleContentFilterChange('context', e.target.value)} className="w-full px-3 py-1.5 border-gray-300 rounded-md h-[38px] sm:text-sm bg-white text-gray-900">
+                  {contextOptions.map(c => <option key={c} value={c}>{c === "" ? "Todos Contextos" : c}</option>)}
+                </select>
+              </div>
+            </>
+          )}
         </div>
       </div>
-
-
-        {entityType === 'content' && (
-          <>
-            <div>
-              <label htmlFor="tm-contentFormat" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Formato (Conteúdo)</label>
-              <select id="tm-contentFormat" value={contentFilters.format || ""} onChange={e => handleContentFilterChange('format', e.target.value)} className="w-full px-3 py-1.5 border-gray-300 dark:border-gray-500 rounded-md h-[38px] sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
-                {FORMAT_OPTIONS_TOP_MOVERS.map(f => <option key={f} value={f}>{f === "" ? "Todos Formatos" : f}</option>)}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="tm-contentContext" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Contexto (Conteúdo)</label>
-              <select id="tm-contentContext" value={contentFilters.context || ""} onChange={e => handleContentFilterChange('context', e.target.value)} className="w-full px-3 py-1.5 border-gray-300 dark:border-gray-500 rounded-md h-[38px] sm:text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
-                {contextOptions.map(c => <option key={c} value={c}>{c === "" ? "Todos Contextos" : c}</option>)}
-              </select>
-            </div>
-          </>
-        )}
       
-      <div className="mt-4" />
-
       {/* --- Área de Resultados --- */}
       <div className="mt-6">
         {isLoading && (<SkeletonBlock height="h-48" />)}
@@ -267,8 +260,8 @@ export default function TopMoversWidget() {
         )}
         {!isLoading && !error && results && results.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
-              <thead className="bg-gray-50 dark:bg-gray-700/50">
+            <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <thead className="bg-gray-50">
                 <tr>
                   <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{entityType === 'content' ? 'Conteúdo' : 'Criador'}</th>
                   <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Val. Anterior</th>
@@ -277,24 +270,22 @@ export default function TopMoversWidget() {
                   <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Mud. (%)</th>
                 </tr>
               </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="bg-white divide-y divide-gray-200">
                 {results.map((item) => (
-                  <tr key={item.entityId} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                    <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-800 dark:text-gray-100">
+                  <tr key={item.entityId} className="hover:bg-gray-50">
+                    <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-800">
                       <div className="flex items-center">
-                        {/* Lógica para avatar de Criador (existente) */}
                         {entityType === 'creator' && item.profilePictureUrl && (
                            <img src={item.profilePictureUrl} alt={item.entityName} className="h-6 w-6 rounded-full mr-2 object-cover" width={24} height={24} />
                         )}
                         {entityType === 'creator' && !item.profilePictureUrl && (
                            <div className="h-6 w-6 rounded-full bg-gray-200 mr-2 flex items-center justify-center text-xs">{item.entityName?.substring(0,1).toUpperCase()}</div>
                         )}
-                        {/* MODIFICAÇÃO: Lógica para capa de Conteúdo */}
                         {entityType === 'content' && item.coverUrl && (
                           <img src={item.coverUrl} alt={item.entityName} className="h-6 w-6 object-cover rounded mr-2" />
                         )}
                         {entityType === 'content' && !item.coverUrl && (
-                          <div className="h-6 w-6 rounded bg-gray-200 dark:bg-gray-600 mr-2 flex items-center justify-center text-gray-400">
+                          <div className="h-6 w-6 rounded bg-gray-200 mr-2 flex items-center justify-center text-gray-400">
                             <ChartBarIcon className="h-4 w-4" />
                           </div>
                         )}

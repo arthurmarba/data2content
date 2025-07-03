@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import { useGlobalTimePeriod } from './filters/GlobalTimePeriodContext';
-import { TrendingUp, TrendingDown, Sparkles } from 'lucide-react'; // Ícones
+import { TrendingUp, TrendingDown, Sparkles } from 'lucide-react';
 import HighlightCard from './HighlightCard';
+// CORREÇÃO: Importa a função para traduzir os IDs de contexto.
+import { commaSeparatedIdsToLabels } from '../../../lib/classification';
 
-// Reutilizar as interfaces e componentes auxiliares
 interface PerformanceHighlightItem {
   name: string;
   metricName: string;
@@ -24,17 +25,6 @@ interface PerformanceSummaryResponse {
   insightSummary: string;
 }
 
-// TIME_PERIOD_OPTIONS não é mais necessário aqui, será controlado pelo pai
-// const TIME_PERIOD_OPTIONS = [ ... ];
-
-
-// Ícone de Informação (mantido como estava)
-const InfoIcon: React.FC<{className?: string}> = ({className}) => (
-    <svg xmlns="http://www.w3.org/2000/svg" className={className || "h-4 w-4"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-);
-
 interface PlatformPerformanceHighlightsProps {
   sectionTitle?: string;
 }
@@ -46,13 +36,11 @@ const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps
   const [summary, setSummary] = useState<PerformanceSummaryResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  // timePeriod vem do contexto global
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // Usa timePeriod do contexto na URL da API
       const apiUrl = `/api/v1/platform/highlights/performance-summary?timePeriod=${timePeriod}`;
       const response = await fetch(apiUrl);
       if (!response.ok) {
@@ -60,6 +48,14 @@ const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps
         throw new Error(`Erro HTTP: ${response.status} - ${errorData.error || response.statusText}`);
       }
       const result: PerformanceSummaryResponse = await response.json();
+
+      // CORREÇÃO APLICADA AQUI
+      // Verifica se o campo 'topPerformingContext' existe e traduz seu nome
+      // antes de salvar os dados no estado do componente.
+      if (result.topPerformingContext) {
+          result.topPerformingContext.name = commaSeparatedIdsToLabels(result.topPerformingContext.name, 'context') || result.topPerformingContext.name;
+      }
+
       setSummary(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ocorreu um erro desconhecido.');
@@ -67,17 +63,16 @@ const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps
     } finally {
       setLoading(false);
     }
-  }, [timePeriod]); // Adicionado timePeriod às dependências
+  }, [timePeriod]);
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]); // fetchData já inclui timePeriod
+  }, [fetchData]);
 
   return (
-    <div className="bg-white p-4 md:p-6 rounded-lg shadow-md"> {/* Removido mt-6 para ser controlado pelo grid pai */}
+    <div className="bg-white p-4 md:p-6 rounded-lg shadow-md">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4">
         <h3 className="text-md font-semibold text-gray-700 mb-2 sm:mb-0">{sectionTitle}</h3>
-        {/* Seletor de timePeriod removido */}
       </div>
 
       {loading && <div className="text-center py-5"><p className="text-gray-500">Carregando destaques...</p></div>}
@@ -121,4 +116,3 @@ const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps
 };
 
 export default memo(PlatformPerformanceHighlights);
-
