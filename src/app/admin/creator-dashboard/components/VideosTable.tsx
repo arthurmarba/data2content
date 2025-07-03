@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { idsToLabels } from '../../../lib/classification';
 import { 
     FireIcon, 
     EyeIcon, 
@@ -64,9 +65,15 @@ const VideoCard: React.FC<{ video: VideoListItem; index: number; readOnly?: bool
 
         {/* ✅ 'Reel' movido de volta para cá para agrupar todas as tags */}
         <div className="col-span-12 md:col-span-2 flex flex-wrap gap-1.5 content-start">
-          {video.format?.map(tag => <span key={tag} className={`${tagBaseClasses} bg-gray-100 text-gray-700`}>{tag}</span>)}
-          {video.proposal?.map(tag => <span key={tag} className={`${tagBaseClasses} bg-blue-100 text-blue-800`}>{tag}</span>)}
-          {video.context?.map(tag => <span key={tag} className={`${tagBaseClasses} bg-purple-100 text-purple-800`}>{tag}</span>)}
+          {idsToLabels(video.format, 'format').map(tag => (
+            <span key={tag} className={`${tagBaseClasses} bg-gray-100 text-gray-700`}>{tag}</span>
+          ))}
+          {idsToLabels(video.proposal, 'proposal').map(tag => (
+            <span key={tag} className={`${tagBaseClasses} bg-blue-100 text-blue-800`}>{tag}</span>
+          ))}
+          {idsToLabels(video.context, 'context').map(tag => (
+            <span key={tag} className={`${tagBaseClasses} bg-purple-100 text-purple-800`}>{tag}</span>
+          ))}
         </div>
 
         <div className="col-span-12 md:col-span-1 text-left md:text-center">
