@@ -123,11 +123,22 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
   };
 
   // As opções agora são derivadas diretamente das definições de categoria
-  const formatOptions = createOptionsFromCategories(formatCategories);
-  const proposalOptions = createOptionsFromCategories(proposalCategories);
-  const contextOptions = createOptionsFromCategories(contextCategories);
-  const toneOptions = createOptionsFromCategories(toneCategories);
-  const referenceOptions = createOptionsFromCategories(referenceCategories);
+  // useMemo evita recomputar a cada renderização
+  const formatOptions = useMemo(() =>
+    createOptionsFromCategories(formatCategories),
+  []);
+  const proposalOptions = useMemo(() =>
+    createOptionsFromCategories(proposalCategories),
+  []);
+  const contextOptions = useMemo(() =>
+    createOptionsFromCategories(contextCategories),
+  []);
+  const toneOptions = useMemo(() =>
+    createOptionsFromCategories(toneCategories),
+  []);
+  const referenceOptions = useMemo(() =>
+    createOptionsFromCategories(referenceCategories),
+  []);
 
   const handleOpenPostDetailModal = useCallback((postId: string) => { setSelectedPostIdForModal(postId); setIsPostDetailModalOpen(true); }, []);
   const handleClosePostDetailModal = useCallback(() => { setIsPostDetailModalOpen(false); setSelectedPostIdForModal(null); }, []);
@@ -214,7 +225,7 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
   };
   
   // ATUALIZADO: Colunas incluem `tone` e `references` e lidam com arrays
-  const columns = [
+  const columns = useMemo(() => [
     { key: 'cover', label: 'Imagem', sortable: false, getVal: (p: IGlobalPostResult) => p.coverUrl || '' },
     { key: 'text_content', label: 'Conteúdo', sortable: false, getVal: (p: IGlobalPostResult) => p.text_content || p.description || 'N/A' },
     { key: 'creatorName', label: 'Criador', sortable: true, getVal: (p: IGlobalPostResult) => p.creatorName || 'N/A' },
@@ -251,7 +262,7 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
     },
     { key: 'stats.total_interactions', label: 'Interações', sortable: true, getVal: (p: IGlobalPostResult) => getNestedValue(p, 'stats.total_interactions', 0) },
     { key: 'actions', label: 'Ações', sortable: false, headerClassName: 'text-center', getVal: () => null },
-  ];
+  ], []);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
