@@ -4,6 +4,7 @@ import React from "react";
 import GlobalPeriodIndicator from "../GlobalPeriodIndicator";
 import CreatorRankingCard from "../../CreatorRankingCard";
 import TopCreatorsWidget from "../../TopCreatorsWidget";
+import { useGlobalTimePeriod } from "../filters/GlobalTimePeriodContext";
 
 interface Props {
   rankingDateRange: { startDate: string; endDate: string };
@@ -13,12 +14,14 @@ interface Props {
 const CreatorRankingSection: React.FC<Props> = ({
   rankingDateRange,
   rankingDateLabel,
-}) => (
-  <section id="creator-rankings" className="mb-10">
-    <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
-      Rankings de Criadores <GlobalPeriodIndicator />
-    </h2>
-    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+}) => {
+  const { timePeriod: globalTimePeriod } = useGlobalTimePeriod();
+  return (
+    <section id="creator-rankings" className="mb-10">
+      <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
+        Rankings de Criadores <GlobalPeriodIndicator />
+      </h2>
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
       <CreatorRankingCard
         title="Maior Engajamento"
         apiEndpoint="/api/admin/dashboard/rankings/creators/top-engaging"
@@ -94,13 +97,14 @@ const CreatorRankingSection: React.FC<Props> = ({
         limit={5}
       />
       <TopCreatorsWidget
-        title="Top Criadores (30 dias)"
+        title="Top Criadores"
         metric="total_interactions"
-        days={30}
+        timePeriod={globalTimePeriod}
         limit={5}
       />
     </div>
   </section>
-);
+  );
+};
 
 export default CreatorRankingSection;
