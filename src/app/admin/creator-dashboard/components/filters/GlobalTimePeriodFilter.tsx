@@ -24,12 +24,15 @@ const GlobalTimePeriodFilter: React.FC<GlobalTimePeriodFilterProps> = ({
   selectedTimePeriod,
   onTimePeriodChange,
   options = DEFAULT_TIME_PERIOD_OPTIONS,
-  label = "Selecionar Período:",
+  label = "Período:",
   disabled = false,
 }) => {
   return (
     <div className="flex items-center">
-      <label htmlFor="globalTimePeriodSelector" className="text-sm font-medium text-gray-700 mr-2 whitespace-nowrap">
+      <label
+        htmlFor="globalTimePeriodSelector"
+        className="hidden sm:block text-sm font-medium text-gray-700 mr-2 whitespace-nowrap"
+      >
         {label}
       </label>
       <select

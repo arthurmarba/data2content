@@ -141,17 +141,6 @@ const AdminCreatorDashboardContent: React.FC = () => {
               <Link href="/admin/creator-dashboard" className="flex-shrink-0 flex items-center gap-2 group">
                 <span className="text-brand-pink text-3xl font-bold group-hover:opacity-80 transition-opacity">[2]</span>
               </Link>
-            </div>
-          </div>
-        </header>
-
-        <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-brand-dark mb-6">
-            Dashboard Administrativo de Criadores
-          </h1>
-
-          <div className="mb-8">
-            <div className="p-4 bg-white rounded-md shadow">
               <GlobalTimePeriodFilter
                 selectedTimePeriod={globalTimePeriod}
                 onTimePeriodChange={setGlobalTimePeriod}
@@ -166,6 +155,12 @@ const AdminCreatorDashboardContent: React.FC = () => {
               />
             </div>
           </div>
+        </header>
+
+        <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+          <h1 className="text-2xl md:text-3xl font-bold text-brand-dark mb-6">
+            Dashboard Administrativo de Criadores
+          </h1>
 
           <section id="platform-summary" className="mb-8">
             <PlatformSummaryKpis startDate={startDate} endDate={endDate} />
