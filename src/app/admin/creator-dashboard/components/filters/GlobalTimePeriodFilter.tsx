@@ -24,7 +24,7 @@ const GlobalTimePeriodFilter: React.FC<GlobalTimePeriodFilterProps> = ({
   selectedTimePeriod,
   onTimePeriodChange,
   options = DEFAULT_TIME_PERIOD_OPTIONS,
-  label = "Período:",
+  label = "Selecionar Período",
   disabled = false,
 }) => {
   return (
@@ -37,6 +37,8 @@ const GlobalTimePeriodFilter: React.FC<GlobalTimePeriodFilterProps> = ({
       </label>
       <select
         id="globalTimePeriodSelector"
+        aria-label={label}
+        title={label}
         value={selectedTimePeriod}
         onChange={(e) => onTimePeriodChange(e.target.value)}
         disabled={disabled}
