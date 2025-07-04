@@ -13,8 +13,27 @@ import {
 } from '@heroicons/react/24/outline';
 
 // --- Itens do Menu ---
-const menuItems = [
-  { label: 'Painel Criadores', href: '/admin/creator-dashboard', icon: ChartBarIcon },
+interface MenuItem {
+  label: string;
+  href: string;
+  icon: React.ElementType;
+  children?: { label: string; href: string }[];
+}
+
+const menuItems: MenuItem[] = [
+  {
+    label: 'Painel Criadores',
+    href: '/admin/creator-dashboard',
+    icon: ChartBarIcon,
+    children: [
+      { label: 'Resumo', href: '/admin/creator-dashboard#platform-summary' },
+      { label: 'Rankings', href: '/admin/creator-dashboard#creator-rankings' },
+      { label: 'Top Movers', href: '/admin/creator-dashboard#top-movers' },
+      { label: 'Análise de Conteúdo', href: '/admin/creator-dashboard#platform-content-analysis' },
+      { label: 'Visão Geral', href: '/admin/creator-dashboard#platform-overview' },
+      { label: 'Posts', href: '/admin/creator-dashboard#global-posts-explorer' },
+    ],
+  },
   { label: 'Afiliados', href: '/admin/affiliates', icon: UserGroupIcon },
   { label: 'Resgates', href: '/admin/redemptions', icon: CurrencyDollarIcon },
 ];
@@ -36,21 +55,37 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             const isActive = pathname === item.href;
             const Icon = item.icon;
             return (
-            <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setIsSidebarOpen(false)}
-                className={`
-                flex items-center gap-3 px-3 py-2 rounded-lg
-                transition-colors duration-150
-                ${isActive
-                    ? 'bg-indigo-100 text-indigo-700 font-semibold'
-                    : 'text-brand-dark hover:bg-brand-light hover:text-brand-dark'}
-                `}
-            >
-                <Icon className="w-5 h-5" />
-                <span>{item.label}</span>
-            </Link>
+            <div key={item.href}>
+              <Link
+                  href={item.href}
+                  onClick={() => setIsSidebarOpen(false)}
+                  className={`
+                  flex items-center gap-3 px-3 py-2 rounded-lg
+                  transition-colors duration-150
+                  ${isActive
+                      ? 'bg-indigo-100 text-indigo-700 font-semibold'
+                      : 'text-brand-dark hover:bg-brand-light hover:text-brand-dark'}
+                  `}
+              >
+                  <Icon className="w-5 h-5" />
+                  <span>{item.label}</span>
+              </Link>
+              {item.children && (
+                <ul className="mt-1 ml-8 space-y-1 text-sm">
+                  {item.children.map(child => (
+                    <li key={child.href}>
+                      <Link
+                        href={child.href}
+                        onClick={() => setIsSidebarOpen(false)}
+                        className="block px-2 py-1 text-brand-dark hover:text-brand-pink"
+                      >
+                        {child.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
             );
         })}
         </nav>
