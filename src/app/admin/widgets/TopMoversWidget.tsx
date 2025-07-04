@@ -256,9 +256,9 @@ const TopMoversWidget = memo(function TopMoversWidget() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-3 py-2 text-left font-medium text-gray-500 uppercase">Entidade</th>
-                  <th className="px-3 py-2 text-right font-medium text-gray-500 uppercase">Val. Anterior</th>
+                  <th className="px-3 py-2 text-right font-medium text-gray-500 uppercase hidden sm:table-cell">Val. Anterior</th>
                   <th className="px-3 py-2 text-right font-medium text-gray-500 uppercase">Val. Atual</th>
-                  <th className="px-3 py-2 text-right font-medium text-gray-500 uppercase">Mud. Absoluta</th>
+                  <th className="px-3 py-2 text-right font-medium text-gray-500 uppercase hidden sm:table-cell">Mud. Absoluta</th>
                   <th className="px-3 py-2 text-right font-medium text-gray-500 uppercase">Mud. (%)</th>
                   {/* OTIMIZAÇÃO: Nova coluna para o gráfico de tendência */}
                   <th className="px-3 py-2 text-center font-medium text-gray-500 uppercase">Tendência</th>
@@ -275,9 +275,9 @@ const TopMoversWidget = memo(function TopMoversWidget() {
                         <span title={item.entityName}>{item.entityName}</span>
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-right text-gray-500">{formatDisplayNumberTM(item.previousValue)}</td>
+                    <td className="px-3 py-2 text-right text-gray-500 hidden sm:table-cell">{formatDisplayNumberTM(item.previousValue)}</td>
                     <td className="px-3 py-2 text-right text-gray-500">{formatDisplayNumberTM(item.currentValue)}</td>
-                    <td className={`px-3 py-2 text-right font-semibold ${item.absoluteChange > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <td className={`px-3 py-2 text-right font-semibold hidden sm:table-cell ${item.absoluteChange > 0 ? 'text-green-600' : 'text-red-600'}`}>
                       {item.absoluteChange > 0 ? '▲' : '▼'} {formatDisplayNumberTM(item.absoluteChange)}
                     </td>
                     <td className={`px-3 py-2 text-right font-semibold ${item.percentageChange && item.percentageChange > 0 ? 'text-green-600' : 'text-red-600'}`}>
