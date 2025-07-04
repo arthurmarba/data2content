@@ -18,7 +18,7 @@ const CreatorRankingSection: React.FC<Props> = ({
     <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
       Rankings de Criadores <GlobalPeriodIndicator />
     </h2>
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
       <CreatorRankingCard
         title="Maior Engajamento"
         apiEndpoint="/api/admin/dashboard/rankings/creators/top-engaging"
@@ -93,44 +93,8 @@ const CreatorRankingSection: React.FC<Props> = ({
         tooltip="Relação entre alcance total e seguidores; mede eficiência de distribuição."
         limit={5}
       />
-      <CreatorRankingCard
-        title="Engajamento Médio/Post"
-        apiEndpoint="/api/admin/dashboard/rankings/creators/avg-engagement-per-post"
-        dateRangeFilter={rankingDateRange}
-        dateRangeLabel={rankingDateLabel}
-        limit={5}
-      />
-      <CreatorRankingCard
-        title="Alcance Médio/Post"
-        apiEndpoint="/api/admin/dashboard/rankings/creators/avg-reach-per-post"
-        dateRangeFilter={rankingDateRange}
-        dateRangeLabel={rankingDateLabel}
-        limit={5}
-      />
-      <CreatorRankingCard
-        title="Variação de Engajamento"
-        apiEndpoint="/api/admin/dashboard/rankings/creators/engagement-growth"
-        dateRangeFilter={rankingDateRange}
-        dateRangeLabel={rankingDateLabel}
-        metricLabel="%"
-        limit={5}
-      />
-      <CreatorRankingCard
-        title="Consistência de Performance"
-        apiEndpoint="/api/admin/dashboard/rankings/creators/performance-consistency"
-        dateRangeFilter={rankingDateRange}
-        dateRangeLabel={rankingDateLabel}
-        limit={5}
-      />
-      <CreatorRankingCard
-        title="Alcance por Seguidor"
-        apiEndpoint="/api/admin/dashboard/rankings/creators/reach-per-follower"
-        dateRangeFilter={rankingDateRange}
-        dateRangeLabel={rankingDateLabel}
-        limit={5}
-      />
       <TopCreatorsWidget
-        title="Top Criadores"
+        title="Top Criadores (30 dias)"
         metric="total_interactions"
         days={30}
         limit={5}
