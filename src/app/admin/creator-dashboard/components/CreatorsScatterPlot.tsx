@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback } from 'react';
+import { LightBulbIcon } from '@heroicons/react/24/outline';
 import CreatorSelector from './CreatorSelector';
 import {
   ScatterChart,
@@ -279,7 +280,8 @@ export default function CreatorsScatterPlot() {
       </div>
 
       {data?.insightSummary && !loading && !error && (
-        <p className="text-xs md:text-sm text-gray-600 mt-4 pt-2 border-t border-gray-200">
+        <p className="text-xs md:text-sm text-gray-600 mt-4 pt-2 border-t border-gray-200 flex items-start">
+          <LightBulbIcon className="w-4 h-4 text-yellow-500 mr-1 flex-shrink-0" />
           {data.insightSummary}
         </p>
       )}

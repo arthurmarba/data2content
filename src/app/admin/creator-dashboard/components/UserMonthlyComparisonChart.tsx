@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { LightBulbIcon } from '@heroicons/react/24/outline';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
@@ -174,7 +175,10 @@ const UserMonthlyComparisonChart: React.FC<UserMonthlyComparisonChartProps> = ({
         )}
       </div>
       {insightSummary && !loading && !error && (
-        <p className="text-xs md:text-sm text-gray-600 mt-3 pt-2 border-t border-gray-100">{insightSummary}</p>
+        <p className="text-xs md:text-sm text-gray-600 mt-3 pt-2 border-t border-gray-100 flex items-start">
+          <LightBulbIcon className="w-4 h-4 text-yellow-500 mr-1 flex-shrink-0" />
+          {insightSummary}
+        </p>
       )}
     </div>
   );

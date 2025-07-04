@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { LightBulbIcon } from '@heroicons/react/24/outline';
 import ComparisonTargetSearch, { ComparisonTarget } from './ComparisonTargetSearch';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Legend, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -197,7 +198,10 @@ const UserRadarChartComparison: React.FC<UserRadarChartComparisonProps> = ({
         )}
       </div>
       {chartData?.insightSummary && !loading && !error && (
-        <p className="text-xs md:text-sm text-gray-600 mt-4 pt-2 border-t border-gray-200">{chartData.insightSummary}</p>
+        <p className="text-xs md:text-sm text-gray-600 mt-4 pt-2 border-t border-gray-200 flex items-start">
+          <LightBulbIcon className="w-4 h-4 text-yellow-500 mr-1 flex-shrink-0" />
+          {chartData.insightSummary}
+        </p>
       )}
     </div>
   );
