@@ -84,6 +84,21 @@ describe('GlobalPostsExplorer Component', () => {
     expect(trendButtons.length).toBe(mockPosts.length);
   });
 
+  test('renders tone and reference columns and options', async () => {
+    render(<GlobalPostsExplorer />);
+
+    // columns should appear after fetch resolves
+    await waitFor(() => {
+      expect(screen.getByText('Tom')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Referências')).toBeInTheDocument();
+
+    // Check some option from each select exists
+    expect(screen.getByRole('option', { name: 'Humorístico' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /Cultura Pop/ })).toBeInTheDocument();
+  });
+
   test('opens PostDetailModal with correct postId when "Detalhes" button is clicked', async () => {
     render(<GlobalPostsExplorer dateRangeFilter={{ startDate: '2023-01-01', endDate: '2023-01-31' }} />);
 
