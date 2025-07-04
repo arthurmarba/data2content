@@ -310,7 +310,7 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
                             return (
                               <td key="cover" className="px-3 py-2 whitespace-nowrap">
                                 {rawValue ? (
-                                  <img src={rawValue} alt="capa" className="w-16 h-16 object-cover rounded" />
+                                  <img src={rawValue} alt="capa" className="w-24 h-24 object-cover rounded" />
                                 ) : (
                                   '–'
                                 )}

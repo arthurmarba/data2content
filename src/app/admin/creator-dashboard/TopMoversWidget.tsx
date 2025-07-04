@@ -282,7 +282,7 @@ export default function TopMoversWidget() {
                            <div className="h-6 w-6 rounded-full bg-gray-200 mr-2 flex items-center justify-center text-xs">{item.entityName?.substring(0,1).toUpperCase()}</div>
                         )}
                         {entityType === 'content' && item.coverUrl && (
-                          <img src={item.coverUrl} alt={item.entityName} className="h-6 w-6 object-cover rounded mr-2" />
+                          <img src={item.coverUrl} alt={item.entityName} className="h-20 w-20 object-cover rounded mr-2" />
                         )}
                         {entityType === 'content' && !item.coverUrl && (
                           <div className="h-6 w-6 rounded bg-gray-200 mr-2 flex items-center justify-center text-gray-400">

@@ -23,6 +23,8 @@ export async function GET(request: Request) {
   const timePeriodParam = searchParams.get('timePeriod') as TimePeriod | null;
   const engagementMetricParam = searchParams.get('engagementMetricField') as EngagementMetricField | null;
   const groupByParam = searchParams.get('groupBy') as GroupingType | null;
+  // ✅ PASSO 1: LER O NOVO PARÂMETRO 'limit' DA URL
+  const limitParam = searchParams.get('limit');
 
   // Validar timePeriod
   const timePeriod: TimePeriod = timePeriodParam && ALLOWED_TIME_PERIODS.includes(timePeriodParam)
@@ -73,20 +75,34 @@ export async function GET(request: Request) {
       const groupKey = groupBy === 'format' ? post.format : groupBy === 'context' ? post.context : post.proposal;
       const metricValue = getNestedValue(post, engagementMetric);
       if (groupKey && metricValue !== null) {
-        const key = groupKey.toString();
-        if (!performanceByGroup[key]) {
-          performanceByGroup[key] = { sumPerformance: 0, count: 0 };
+        // Corrigido para lidar com arrays e strings
+        const keys = Array.isArray(groupKey) ? groupKey : [groupKey];
+        for (const key of keys) {
+            if (!performanceByGroup[key]) {
+                performanceByGroup[key] = { sumPerformance: 0, count: 0 };
+            }
+            performanceByGroup[key].sumPerformance += metricValue;
+            performanceByGroup[key].count += 1;
         }
-        performanceByGroup[key].sumPerformance += metricValue;
-        performanceByGroup[key].count += 1;
       }
     }
 
-    const results = Object.entries(performanceByGroup).map(([key, data]) => ({
+    // ✅ Usamos 'let' para que a variável possa ser modificada
+    let results = Object.entries(performanceByGroup).map(([key, data]) => ({
       name: key,
       value: data.sumPerformance / data.count,
       postsCount: data.count,
     })).sort((a, b) => b.value - a.value);
+
+    // ✅ PASSO 2: APLICAR O LIMITE SE ELE FOI FORNECIDO
+    if (limitParam) {
+      const limit = parseInt(limitParam, 10);
+      // Garante que o limite é um número válido e positivo
+      if (!isNaN(limit) && limit > 0) {
+        // Usa slice() para pegar apenas os N primeiros itens do array já ordenado
+        results = results.slice(0, limit);
+      }
+    }
 
     // Retorna dados
     return NextResponse.json({ chartData: results, metricUsed: engagementMetric, groupBy }, { status: 200 });
@@ -95,4 +111,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Erro ao processar engajamento médio agrupado.', details: (error as Error).message }, { status: 500 });
   }
 }
-
