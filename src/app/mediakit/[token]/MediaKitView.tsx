@@ -170,6 +170,9 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis 
                         <TrendIndicator value={kpiData.followerGrowth?.percentageChange ?? null} />
                       </p>
                       <p className="text-xs text-gray-500 mt-1">Novos seguidores no período selecionado.</p>
+                      {user.followers_count !== undefined && (
+                        <p className="text-xs text-gray-500">Total de seguidores: {user.followers_count.toLocaleString('pt-BR')}</p>
+                      )}
                     </div>
                   </div>
                 )}
