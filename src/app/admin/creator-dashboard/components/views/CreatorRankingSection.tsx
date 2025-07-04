@@ -48,6 +48,42 @@ const CreatorRankingSection: React.FC<Props> = ({
         dateRangeLabel={rankingDateLabel}
         limit={5}
       />
+      <CreatorRankingCard
+        title="Engajamento Médio/Post"
+        apiEndpoint="/api/admin/dashboard/rankings/creators/avg-engagement-per-post"
+        dateRangeFilter={rankingDateRange}
+        dateRangeLabel={rankingDateLabel}
+        limit={5}
+      />
+      <CreatorRankingCard
+        title="Alcance Médio/Post"
+        apiEndpoint="/api/admin/dashboard/rankings/creators/avg-reach-per-post"
+        dateRangeFilter={rankingDateRange}
+        dateRangeLabel={rankingDateLabel}
+        limit={5}
+      />
+      <CreatorRankingCard
+        title="Variação de Engajamento"
+        apiEndpoint="/api/admin/dashboard/rankings/creators/engagement-growth"
+        dateRangeFilter={rankingDateRange}
+        dateRangeLabel={rankingDateLabel}
+        metricLabel="%"
+        limit={5}
+      />
+      <CreatorRankingCard
+        title="Consistência de Performance"
+        apiEndpoint="/api/admin/dashboard/rankings/creators/performance-consistency"
+        dateRangeFilter={rankingDateRange}
+        dateRangeLabel={rankingDateLabel}
+        limit={5}
+      />
+      <CreatorRankingCard
+        title="Alcance por Seguidor"
+        apiEndpoint="/api/admin/dashboard/rankings/creators/reach-per-follower"
+        dateRangeFilter={rankingDateRange}
+        dateRangeLabel={rankingDateLabel}
+        limit={5}
+      />
       <TopCreatorsWidget
         title="Top Criadores"
         metric="total_interactions"

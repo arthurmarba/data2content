@@ -245,6 +245,355 @@ export async function fetchTopSharingCreators(
   }
 }
 
+/**
+ * @function fetchAvgEngagementPerPostCreators
+ * @description Ranks creators by their average interactions per post.
+ */
+export async function fetchAvgEngagementPerPostCreators(
+  params: IFetchCreatorRankingParams
+): Promise<ICreatorMetricRankItem[]> {
+  const TAG = `${SERVICE_TAG}[fetchAvgEngagementPerPostCreators]`;
+  const { dateRange, limit = 5 } = params;
+  logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
+
+  try {
+    await connectToDatabase();
+    const pipeline: PipelineStage[] = [
+      {
+        $match: {
+          postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
+          'stats.total_interactions': { $exists: true, $ne: null }
+        }
+      },
+      {
+        $group: {
+          _id: '$user',
+          postCount: { $sum: 1 },
+          totalInteractions: { $sum: '$stats.total_interactions' }
+        }
+      },
+      { $match: { postCount: { $gte: 3 } } },
+      {
+        $addFields: {
+          metricValue: { $divide: ['$totalInteractions', '$postCount'] }
+        }
+      },
+      { $sort: { metricValue: -1 } },
+      { $limit: limit },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'creatorDetails',
+          pipeline: [{ $project: { name: 1, profile_picture_url: 1 } }]
+        }
+      },
+      { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 0,
+          creatorId: '$_id',
+          creatorName: { $ifNull: ['$creatorDetails.name', 'Unknown Creator'] },
+          profilePictureUrl: '$creatorDetails.profile_picture_url',
+          metricValue: { $round: ['$metricValue', 2] }
+        }
+      }
+    ];
+    const results = await MetricModel.aggregate(pipeline);
+    logger.info(`${TAG} Found ${results.length} creators.`);
+    return results as ICreatorMetricRankItem[];
+  } catch (error: any) {
+    logger.error(`${TAG} Error:`, error);
+    throw new DatabaseError(`Failed to fetch avg engagement per post creators: ${error.message}`);
+  }
+}
+
+/**
+ * @function fetchAvgReachPerPostCreators
+ * @description Ranks creators by their average reach per post.
+ */
+export async function fetchAvgReachPerPostCreators(
+  params: IFetchCreatorRankingParams
+): Promise<ICreatorMetricRankItem[]> {
+  const TAG = `${SERVICE_TAG}[fetchAvgReachPerPostCreators]`;
+  const { dateRange, limit = 5 } = params;
+  logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
+
+  try {
+    await connectToDatabase();
+    const pipeline: PipelineStage[] = [
+      {
+        $match: {
+          postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
+          'stats.reach': { $exists: true, $ne: null }
+        }
+      },
+      {
+        $group: {
+          _id: '$user',
+          postCount: { $sum: 1 },
+          totalReach: { $sum: '$stats.reach' }
+        }
+      },
+      { $match: { postCount: { $gte: 3 } } },
+      {
+        $addFields: {
+          metricValue: { $divide: ['$totalReach', '$postCount'] }
+        }
+      },
+      { $sort: { metricValue: -1 } },
+      { $limit: limit },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'creatorDetails',
+          pipeline: [{ $project: { name: 1, profile_picture_url: 1 } }]
+        }
+      },
+      { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 0,
+          creatorId: '$_id',
+          creatorName: { $ifNull: ['$creatorDetails.name', 'Unknown Creator'] },
+          profilePictureUrl: '$creatorDetails.profile_picture_url',
+          metricValue: { $round: ['$metricValue', 0] }
+        }
+      }
+    ];
+    const results = await MetricModel.aggregate(pipeline);
+    logger.info(`${TAG} Found ${results.length} creators.`);
+    return results as ICreatorMetricRankItem[];
+  } catch (error: any) {
+    logger.error(`${TAG} Error:`, error);
+    throw new DatabaseError(`Failed to fetch avg reach per post creators: ${error.message}`);
+  }
+}
+
+/**
+ * @function fetchEngagementVariationCreators
+ * @description Ranks creators by percentage change in total interactions compared to the previous period.
+ */
+export async function fetchEngagementVariationCreators(
+  params: IFetchCreatorRankingParams
+): Promise<ICreatorMetricRankItem[]> {
+  const TAG = `${SERVICE_TAG}[fetchEngagementVariationCreators]`;
+  const { dateRange, limit = 5 } = params;
+  logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
+
+  const periodMs = dateRange.endDate.getTime() - dateRange.startDate.getTime();
+  const previousStart = new Date(dateRange.startDate.getTime() - periodMs - 86400000);
+  const previousEnd = new Date(dateRange.startDate.getTime() - 86400000);
+
+  try {
+    await connectToDatabase();
+    const pipeline: PipelineStage[] = [
+      {
+        $match: {
+          postDate: { $gte: previousStart, $lte: dateRange.endDate },
+          'stats.total_interactions': { $exists: true, $ne: null }
+        }
+      },
+      {
+        $group: {
+          _id: '$user',
+          currentTotal: {
+            $sum: {
+              $cond: [
+                { $and: [ { $gte: ['$postDate', dateRange.startDate] }, { $lte: ['$postDate', dateRange.endDate] } ] },
+                '$stats.total_interactions',
+                0
+              ]
+            }
+          },
+          previousTotal: {
+            $sum: {
+              $cond: [
+                { $and: [ { $gte: ['$postDate', previousStart] }, { $lte: ['$postDate', previousEnd] } ] },
+                '$stats.total_interactions',
+                0
+              ]
+            }
+          }
+        }
+      },
+      { $match: { currentTotal: { $gte: 50 }, previousTotal: { $gte: 50 } } },
+      {
+        $addFields: {
+          metricValue: {
+            $multiply: [{ $divide: [{ $subtract: ['$currentTotal', '$previousTotal'] }, '$previousTotal'] }, 100]
+          }
+        }
+      },
+      { $sort: { metricValue: -1 } },
+      { $limit: limit },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'creatorDetails',
+          pipeline: [{ $project: { name: 1, profile_picture_url: 1 } }]
+        }
+      },
+      { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 0,
+          creatorId: '$_id',
+          creatorName: { $ifNull: ['$creatorDetails.name', 'Unknown Creator'] },
+          profilePictureUrl: '$creatorDetails.profile_picture_url',
+          metricValue: { $round: ['$metricValue', 2] }
+        }
+      }
+    ];
+    const results = await MetricModel.aggregate(pipeline);
+    logger.info(`${TAG} Found ${results.length} creators.`);
+    return results as ICreatorMetricRankItem[];
+  } catch (error: any) {
+    logger.error(`${TAG} Error:`, error);
+    throw new DatabaseError(`Failed to fetch engagement variation creators: ${error.message}`);
+  }
+}
+
+/**
+ * @function fetchPerformanceConsistencyCreators
+ * @description Ranks creators by consistency of interactions per post (lower variability means higher score).
+ */
+export async function fetchPerformanceConsistencyCreators(
+  params: IFetchCreatorRankingParams
+): Promise<ICreatorMetricRankItem[]> {
+  const TAG = `${SERVICE_TAG}[fetchPerformanceConsistencyCreators]`;
+  const { dateRange, limit = 5 } = params;
+  logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
+
+  try {
+    await connectToDatabase();
+    const pipeline: PipelineStage[] = [
+      {
+        $match: {
+          postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
+          'stats.total_interactions': { $exists: true, $ne: null }
+        }
+      },
+      {
+        $group: {
+          _id: '$user',
+          postCount: { $sum: 1 },
+          avgInteractions: { $avg: '$stats.total_interactions' },
+          stdDevInteractions: { $stdDevPop: '$stats.total_interactions' }
+        }
+      },
+      { $match: { postCount: { $gte: 5 }, avgInteractions: { $gte: 50 } } },
+      {
+        $addFields: {
+          cv: { $cond: [ { $eq: ['$avgInteractions', 0] }, null, { $divide: ['$stdDevInteractions', '$avgInteractions'] } ] }
+        }
+      },
+      {
+        $addFields: {
+          metricValue: { $cond: [ { $eq: ['$cv', null] }, 0, { $divide: [1, { $add: ['$cv', 1] }] } ] }
+        }
+      },
+      { $sort: { metricValue: -1 } },
+      { $limit: limit },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'creatorDetails',
+          pipeline: [{ $project: { name: 1, profile_picture_url: 1 } }]
+        }
+      },
+      { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 0,
+          creatorId: '$_id',
+          creatorName: { $ifNull: ['$creatorDetails.name', 'Unknown Creator'] },
+          profilePictureUrl: '$creatorDetails.profile_picture_url',
+          metricValue: { $round: ['$metricValue', 2] }
+        }
+      }
+    ];
+    const results = await MetricModel.aggregate(pipeline);
+    logger.info(`${TAG} Found ${results.length} creators.`);
+    return results as ICreatorMetricRankItem[];
+  } catch (error: any) {
+    logger.error(`${TAG} Error:`, error);
+    throw new DatabaseError(`Failed to fetch performance consistency creators: ${error.message}`);
+  }
+}
+
+/**
+ * @function fetchReachPerFollowerCreators
+ * @description Ranks creators by total reach relative to follower count.
+ */
+export async function fetchReachPerFollowerCreators(
+  params: IFetchCreatorRankingParams
+): Promise<ICreatorMetricRankItem[]> {
+  const TAG = `${SERVICE_TAG}[fetchReachPerFollowerCreators]`;
+  const { dateRange, limit = 5 } = params;
+  logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
+
+  try {
+    await connectToDatabase();
+    const pipeline: PipelineStage[] = [
+      {
+        $match: {
+          postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
+          'stats.reach': { $exists: true, $ne: null }
+        }
+      },
+      {
+        $group: {
+          _id: '$user',
+          postCount: { $sum: 1 },
+          totalReach: { $sum: '$stats.reach' }
+        }
+      },
+      { $match: { postCount: { $gte: 3 } } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'creatorDetails',
+          pipeline: [{ $project: { name: 1, profile_picture_url: 1, followers_count: 1 } }]
+        }
+      },
+      { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } },
+      { $match: { 'creatorDetails.followers_count': { $gte: 1000 } } },
+      {
+        $addFields: {
+          metricValue: { $divide: ['$totalReach', '$creatorDetails.followers_count'] }
+        }
+      },
+      { $sort: { metricValue: -1 } },
+      { $limit: limit },
+      {
+        $project: {
+          _id: 0,
+          creatorId: '$_id',
+          creatorName: { $ifNull: ['$creatorDetails.name', 'Unknown Creator'] },
+          profilePictureUrl: '$creatorDetails.profile_picture_url',
+          metricValue: { $round: ['$metricValue', 2] }
+        }
+      }
+    ];
+    const results = await MetricModel.aggregate(pipeline);
+    logger.info(`${TAG} Found ${results.length} creators.`);
+    return results as ICreatorMetricRankItem[];
+  } catch (error: any) {
+    logger.error(`${TAG} Error:`, error);
+    throw new DatabaseError(`Failed to fetch reach per follower creators: ${error.message}`);
+  }
+}
+
 
 
 // --- (ATUALIZADO E FINALIZADO) Função genérica para ranking de categorias ---
