@@ -89,6 +89,7 @@ export default function CreatorSelector({ isOpen, onClose, onSelect }: CreatorSe
             onSearchChange={(val) => setSearchTerm(val)}
             placeholder="Buscar por nome ou email..."
             autoFocus={isOpen}
+            debounceMs={200}
           />
           <div className="max-h-60 overflow-y-auto divide-y">
             {isLoading && <p className="text-sm text-gray-500 p-2">Carregando...</p>}

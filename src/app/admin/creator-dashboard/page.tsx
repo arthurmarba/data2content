@@ -14,7 +14,7 @@ import PlatformContentAnalysisSection from './components/views/PlatformContentAn
 import CreatorRankingSection from './components/views/CreatorRankingSection';
 import TopMoversSection from './components/views/TopMoversSection';
 import UserDetailView from './components/views/UserDetailView';
-import CreatorSelector from './components/CreatorSelector';
+import CreatorQuickSearch from './components/CreatorQuickSearch';
 import ContentTrendChart from './ContentTrendChart';
 import PostDetailModal from './PostDetailModal';
 import ScrollToTopButton from '@/app/components/ScrollToTopButton';
@@ -103,7 +103,6 @@ const AdminCreatorDashboardContent: React.FC = () => {
   const [selectedUserName, setSelectedUserName] = useState<string | null>(null);
   const { timePeriod: globalTimePeriod, setTimePeriod: setGlobalTimePeriod } = useGlobalTimePeriod();
 
-  const [isSelectorOpen, setIsSelectorOpen] = useState(false);
 
   const formatOptions = formatCategories.map(c => c.label);
   const proposalOptions = proposalCategories.map(c => c.label);
@@ -137,10 +136,18 @@ const AdminCreatorDashboardContent: React.FC = () => {
       <div className="min-h-screen bg-brand-light">
         <header className="bg-white shadow-sm sticky top-0 z-40 border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
+            <div className="flex justify-between items-center h-16 gap-4">
               <Link href="/admin/creator-dashboard" className="flex-shrink-0 flex items-center gap-2 group">
                 <span className="text-brand-pink text-3xl font-bold group-hover:opacity-80 transition-opacity">[2]</span>
               </Link>
+              <CreatorQuickSearch
+                onSelect={(creator) => handleUserSelect(creator.id, creator.name)}
+                selectedCreatorName={selectedUserName}
+                onClear={() => {
+                  setSelectedUserId(null);
+                  setSelectedUserName(null);
+                }}
+              />
               <GlobalTimePeriodFilter
                 selectedTimePeriod={globalTimePeriod}
                 onTimePeriodChange={setGlobalTimePeriod}
@@ -166,38 +173,7 @@ const AdminCreatorDashboardContent: React.FC = () => {
             <PlatformSummaryKpis startDate={startDate} endDate={endDate} />
           </section>
 
-          <section
-            id="creator-selection"
-            className="mb-8 p-4 bg-white rounded-lg shadow"
-          >
-            <h2 className="text-lg font-semibold text-gray-700 mb-3">
-              Selecionar Criador para Detalhar
-            </h2>
-            <div className="flex flex-wrap items-center gap-4">
-              <button
-                onClick={() => setIsSelectorOpen(true)}
-                className="p-2 rounded-md text-sm bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
-              >
-                Buscar Criador
-              </button>
-              {selectedUserName && (
-                <span className="px-2 py-1 text-sm bg-indigo-50 text-indigo-700 rounded">
-                  {selectedUserName}
-                </span>
-              )}
-              {selectedUserId && (
-                <button
-                  onClick={() => {
-                    setSelectedUserId(null);
-                    setSelectedUserName(null);
-                  }}
-                  className="p-2 rounded-md text-sm bg-gray-200 text-gray-700 hover:bg-gray-300"
-                >
-                  Limpar seleção e voltar à visão geral
-                </button>
-              )}
-            </div>
-          </section>
+
           
           {/* --- CORREÇÃO FINAL: Bloco de visão geral reorganizado --- */}
           {!selectedUserId && (
@@ -236,11 +212,6 @@ const AdminCreatorDashboardContent: React.FC = () => {
             )}
           </div>
 
-          <CreatorSelector
-            isOpen={isSelectorOpen}
-            onClose={() => setIsSelectorOpen(false)}
-            onSelect={(creator: {id: string, name: string}) => handleUserSelect(creator.id, creator.name)}
-          />
           <ScrollToTopButton />
         </main>
 
