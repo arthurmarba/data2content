@@ -3,12 +3,15 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import SkeletonBlock from './SkeletonBlock';
 import { TopCreatorMetric } from '@/app/lib/dataService/marketAnalysisService';
+import { useGlobalTimePeriod } from './components/filters/GlobalTimePeriodContext';
+import { timePeriodToDays } from '@/utils/timePeriodHelpers';
+import { TimePeriod } from '@/app/lib/constants/timePeriods';
 
 interface TopCreatorsWidgetProps {
   title: string;
   context?: string;
   metric?: TopCreatorMetric;
-  days?: number;
+  timePeriod?: TimePeriod;
   limit?: number;
   metricLabel?: string;
 }
@@ -17,10 +20,14 @@ const TopCreatorsWidget: React.FC<TopCreatorsWidgetProps> = ({
   title,
   context,
   metric = 'total_interactions',
-  days = 30,
+  timePeriod,
   limit = 5,
   metricLabel = '',
 }) => {
+  const { timePeriod: globalTimePeriod } = useGlobalTimePeriod();
+  const effectiveTimePeriod: TimePeriod = timePeriod || (globalTimePeriod as TimePeriod);
+  const days = timePeriodToDays(effectiveTimePeriod);
+
   const [rankingData, setRankingData] = useState<any[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
