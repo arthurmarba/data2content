@@ -22,7 +22,8 @@ const SERVICE_TAG = '[dataService][postsService]';
 export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Promise<IGlobalPostsPaginatedResult> {
     const TAG = `${SERVICE_TAG}[findGlobalPostsByCriteria]`;
     const {
-        context, proposal, format, minInteractions = 0, page = 1, limit = 10,
+        context, proposal, format, tone, references, minInteractions = 0,
+        page = 1, limit = 10,
         sortBy = 'stats.total_interactions', sortOrder = 'desc', dateRange,
     } = args;
 
@@ -33,6 +34,8 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
         if (context) matchStage.context = { $regex: context, $options: 'i' };
         if (proposal) matchStage.proposal = { $regex: proposal, $options: 'i' };
         if (format) matchStage.format = { $regex: format, $options: 'i' };
+        if (tone) matchStage.tone = { $regex: tone, $options: 'i' };
+        if (references) matchStage.references = { $regex: references, $options: 'i' };
         if (minInteractions > 0) matchStage['stats.total_interactions'] = { $gte: minInteractions };
         if (dateRange?.startDate) matchStage.postDate = { ...matchStage.postDate, $gte: dateRange.startDate };
         if (dateRange?.endDate) matchStage.postDate = { ...matchStage.postDate, $lte: dateRange.endDate };
@@ -57,7 +60,8 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
         postsPipeline.push({
             $project: {
                 _id: 1, text_content: 1, description: 1, creatorName: 1, postDate: 1,
-                format: 1, proposal: 1, context: 1, 'stats.total_interactions': '$stats.total_interactions',
+                format: 1, proposal: 1, context: 1, tone: 1, references: 1,
+                'stats.total_interactions': '$stats.total_interactions',
                 'stats.likes': '$stats.likes', 'stats.shares': '$stats.shares',
                 // MODIFICAÇÃO (FASE 1): Adicionados coverUrl e instagramMediaId para a feature de capas.
                 coverUrl: 1,
