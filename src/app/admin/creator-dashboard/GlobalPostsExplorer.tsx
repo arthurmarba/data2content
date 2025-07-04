@@ -12,6 +12,7 @@ import {
   toneCategories,
   referenceCategories,
   idsToLabels,
+  commaSeparatedIdsToLabels,
 } from '../../lib/classification';
 
 
@@ -42,11 +43,11 @@ interface IGlobalPostResult {
   coverUrl?: string;
   creatorName?: string;
   postDate?: Date | string;
-  format?: string[];
-  proposal?: string[];
-  context?: string[];
-  tone?: string[];
-  references?: string[];
+  format?: string[] | string;
+  proposal?: string[] | string;
+  context?: string[] | string;
+  tone?: string[] | string;
+  references?: string[] | string;
   stats?: {
     total_interactions?: number;
     likes?: number;
@@ -201,6 +202,16 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
   const formatDate = (dateString?: Date | string) => !dateString ? 'N/A' : new Date(dateString).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const getNestedValue = (obj: any, path: string, defaultValue: any = 'N/A') => path.split('.').reduce((acc, part) => acc && acc[part], obj) ?? defaultValue;
   const formatNumberStd = (val: any) => !isNaN(parseFloat(String(val))) ? parseFloat(String(val)).toLocaleString('pt-BR') : 'N/A';
+
+  const formatClassValue = (val: string[] | string | undefined, type: 'format'|'proposal'|'context'|'tone'|'reference') => {
+    if (!val) return 'N/A';
+    if (Array.isArray(val)) {
+      const labels = idsToLabels(val, type);
+      return labels.length > 0 ? labels.join(', ') : 'N/A';
+    }
+    const labels = commaSeparatedIdsToLabels(val, type);
+    return labels || 'N/A';
+  };
   
   // ATUALIZADO: Colunas incluem `tone` e `references` e lidam com arrays
   const columns = [
@@ -212,46 +223,31 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
       key: 'format',
       label: 'Formato',
       sortable: true,
-      getVal: (p: IGlobalPostResult) => {
-        const labels = idsToLabels(p.format, 'format');
-        return labels.length > 0 ? labels.join(', ') : 'N/A';
-      },
+      getVal: (p: IGlobalPostResult) => formatClassValue(p.format, 'format'),
     },
     {
       key: 'proposal',
       label: 'Proposta',
       sortable: true,
-      getVal: (p: IGlobalPostResult) => {
-        const labels = idsToLabels(p.proposal, 'proposal');
-        return labels.length > 0 ? labels.join(', ') : 'N/A';
-      },
+      getVal: (p: IGlobalPostResult) => formatClassValue(p.proposal, 'proposal'),
     },
     {
       key: 'context',
       label: 'Contexto',
       sortable: true,
-      getVal: (p: IGlobalPostResult) => {
-        const labels = idsToLabels(p.context, 'context');
-        return labels.length > 0 ? labels.join(', ') : 'N/A';
-      },
+      getVal: (p: IGlobalPostResult) => formatClassValue(p.context, 'context'),
     },
     {
       key: 'tone',
       label: 'Tom',
       sortable: true,
-      getVal: (p: IGlobalPostResult) => {
-        const labels = idsToLabels(p.tone, 'tone');
-        return labels.length > 0 ? labels.join(', ') : 'N/A';
-      },
+      getVal: (p: IGlobalPostResult) => formatClassValue(p.tone, 'tone'),
     },
     {
       key: 'references',
       label: 'Referências',
       sortable: true,
-      getVal: (p: IGlobalPostResult) => {
-        const labels = idsToLabels(p.references, 'reference');
-        return labels.length > 0 ? labels.join(', ') : 'N/A';
-      },
+      getVal: (p: IGlobalPostResult) => formatClassValue(p.references, 'reference'),
     },
     { key: 'stats.total_interactions', label: 'Interações', sortable: true, getVal: (p: IGlobalPostResult) => getNestedValue(p, 'stats.total_interactions', 0) },
     { key: 'actions', label: 'Ações', sortable: false, headerClassName: 'text-center', getVal: () => null },
