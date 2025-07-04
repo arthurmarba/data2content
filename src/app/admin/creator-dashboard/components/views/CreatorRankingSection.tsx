@@ -32,11 +32,11 @@ const CreatorRankingSection: React.FC<Props> = ({
         limit={5}
       />
       <CreatorRankingCard
-        title="Mais Interações"
+        title="Interações Totais"
         apiEndpoint="/api/admin/dashboard/rankings/creators/top-interactions"
         dateRangeFilter={rankingDateRange}
         dateRangeLabel={rankingDateLabel}
-        tooltip="Soma de todas as interações (curtidas, comentários, etc.) no período."
+        tooltip="Soma de todas as interações obtidas no período selecionado."
         limit={5}
       />
       <CreatorRankingCard
@@ -97,7 +97,7 @@ const CreatorRankingSection: React.FC<Props> = ({
         limit={5}
       />
       <TopCreatorsWidget
-        title="Top Criadores"
+        title="Média de Interações/Post"
         metric="total_interactions"
         timePeriod={globalTimePeriod}
         limit={5}
