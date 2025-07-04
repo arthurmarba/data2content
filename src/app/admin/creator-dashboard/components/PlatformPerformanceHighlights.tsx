@@ -89,14 +89,14 @@ const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps
               textColorClass="text-green-600"
             />
             <HighlightCard
-              title="Contexto Principal (Plataforma)"
+              title="Contexto de Melhor Desempenho (Plataforma)"
               highlight={summary.topPerformingContext}
               icon={<Sparkles size={18} className="mr-2 text-blue-500"/>}
               bgColorClass="bg-blue-50"
               textColorClass="text-blue-600"
             />
             <HighlightCard
-              title="Menor Performance (Formato, Plataforma)"
+              title="Formato de Pior Desempenho"
               highlight={summary.lowPerformingFormat}
               icon={<TrendingDown size={18} className="mr-2 text-red-500"/>}
               bgColorClass="bg-red-50"
