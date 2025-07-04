@@ -3,12 +3,15 @@ import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import PlatformSummaryKpis from '../kpis/PlatformSummaryKpis';
 
-// Helper to mock fetch
-const mockFetch = (response: any, ok = true) => {
-  (global.fetch as jest.Mock) = jest.fn().mockResolvedValue({
-    ok,
-    status: ok ? 200 : response.status || 500,
-    json: async () => response,
+// Helper to mock sequential fetch calls
+const mockFetchSequence = (responses: { data: any; ok?: boolean; status?: number }[]) => {
+  (global.fetch as jest.Mock) = jest.fn();
+  responses.forEach(res => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: res.ok !== false,
+      status: res.ok !== false ? 200 : res.status || 500,
+      json: async () => res.data,
+    });
   });
 };
 
@@ -21,13 +24,24 @@ describe('PlatformSummaryKpis', () => {
   });
 
   test('shows loading state and renders metric values after fetch', async () => {
-    mockFetch({
-      totalCreators: 10,
-      pendingCreators: 2,
-      activeCreatorsInPeriod: 8,
-      averageEngagementRateInPeriod: 0.05,
-      averageReachInPeriod: 1000,
-    });
+    mockFetchSequence([
+      { data: {
+          totalCreators: 10,
+          pendingCreators: 2,
+          activeCreatorsInPeriod: 8,
+          averageEngagementRateInPeriod: 0.05,
+          averageReachInPeriod: 1000,
+        }
+      },
+      { data: {
+          totalCreators: 9,
+          pendingCreators: 3,
+          activeCreatorsInPeriod: 7,
+          averageEngagementRateInPeriod: 0.04,
+          averageReachInPeriod: 800,
+        }
+      }
+    ]);
 
     render(<PlatformSummaryKpis startDate={startDate} endDate={endDate} />);
 
@@ -43,10 +57,16 @@ describe('PlatformSummaryKpis', () => {
     expect(screen.getByText('8')).toBeInTheDocument();
     expect(screen.getByText('5.0%')).toBeInTheDocument();
     expect(screen.getByText('1,000')).toBeInTheDocument();
+
+    expect(screen.getAllByText('+11.1% vs período anterior').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('-33.3% vs período anterior').length).toBeGreaterThan(0);
   });
 
   test('shows error message when fetch fails', async () => {
-    mockFetch({ error: 'Internal' }, false);
+    mockFetchSequence([
+      { data: { error: 'Internal' }, ok: false, status: 500 },
+      { data: { error: 'Internal' }, ok: false, status: 500 }
+    ]);
 
     render(<PlatformSummaryKpis startDate={startDate} endDate={endDate} />);
 
