@@ -12,7 +12,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { getCategoryById, commaSeparatedIdsToLabels } from "../../../lib/classification";
+import { commaSeparatedIdsToLabels } from "../../../lib/classification";
 
 type GroupingType = "format" | "context" | "proposal";
 
@@ -42,17 +42,23 @@ const ENGAGEMENT_METRIC_OPTIONS = [
   { value: "stats.likes", label: "Curtidas" },
 ];
 
+const GROUP_BY_OPTIONS = [
+  { value: "format", label: "Formato" },
+  { value: "context", label: "Contexto" },
+  { value: "proposal", label: "Proposta" },
+];
+
 interface UserAverageEngagementChartProps {
   userId: string | null;
-  groupBy: GroupingType;
   chartTitle: string;
+  initialGroupBy?: GroupingType;
   initialEngagementMetric?: string;
 }
 
 const UserAverageEngagementChart: React.FC<UserAverageEngagementChartProps> = ({
   userId,
-  groupBy,
   chartTitle,
+  initialGroupBy = "format",
   initialEngagementMetric = ENGAGEMENT_METRIC_OPTIONS[0]!.value,
 }) => {
   const [data, setData] = useState<ApiUserAverageEngagementDataPoint[]>([]);
@@ -67,6 +73,7 @@ const UserAverageEngagementChart: React.FC<UserAverageEngagementChartProps> = ({
   const [engagementMetric, setEngagementMetric] = useState<string>(
     initialEngagementMetric,
   );
+  const [groupBy, setGroupBy] = useState<GroupingType>(initialGroupBy);
 
   useEffect(() => {
     setTimePeriod(globalTimePeriod);
@@ -76,6 +83,10 @@ const UserAverageEngagementChart: React.FC<UserAverageEngagementChartProps> = ({
     // Se uma métrica inicial diferente for passada como prop e mudar
     setEngagementMetric(initialEngagementMetric);
   }, [initialEngagementMetric]);
+
+  useEffect(() => {
+    setGroupBy(initialGroupBy);
+  }, [initialGroupBy]);
 
   const fetchData = useCallback(async () => {
     if (!userId) {
@@ -163,7 +174,7 @@ const UserAverageEngagementChart: React.FC<UserAverageEngagementChartProps> = ({
         {chartTitle}
       </h2>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div>
           <label
             htmlFor={`timePeriodUserAvgEng-${groupBy}-${userId || "default"}`}
@@ -200,6 +211,27 @@ const UserAverageEngagementChart: React.FC<UserAverageEngagementChartProps> = ({
             className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
           >
             {ENGAGEMENT_METRIC_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label
+            htmlFor={`groupByUserAvgEng-${userId || "default"}`}
+            className="block text-sm font-medium text-gray-600 mb-1"
+          >
+            Agrupar por:
+          </label>
+          <select
+            id={`groupByUserAvgEng-${userId || "default"}`}
+            value={groupBy}
+            onChange={(e) => setGroupBy(e.target.value as GroupingType)}
+            disabled={loading}
+            className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+          >
+            {GROUP_BY_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
