@@ -264,9 +264,9 @@ export default function TopMoversWidget() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{entityType === 'content' ? 'Conteúdo' : 'Criador'}</th>
-                  <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Val. Anterior</th>
+                  <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Val. Anterior</th>
                   <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Val. Atual</th>
-                  <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Mud. Absoluta</th>
+                  <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Mud. Absoluta</th>
                   <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Mud. (%)</th>
                 </tr>
               </thead>
@@ -292,9 +292,9 @@ export default function TopMoversWidget() {
                         <span className="truncate max-w-[200px]" title={item.entityName}>{item.entityName}</span>
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-right text-gray-500">{formatDisplayNumberTM(item.previousValue)}</td>
+                    <td className="px-3 py-2 text-right text-gray-500 hidden sm:table-cell">{formatDisplayNumberTM(item.previousValue)}</td>
                     <td className="px-3 py-2 text-right text-gray-500">{formatDisplayNumberTM(item.currentValue)}</td>
-                    <td className={`px-3 py-2 text-right font-semibold ${item.absoluteChange > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <td className={`px-3 py-2 text-right font-semibold hidden sm:table-cell ${item.absoluteChange > 0 ? 'text-green-600' : 'text-red-600'}`}>
                       {item.absoluteChange > 0 ? <ArrowUpIcon className="h-3 w-3 inline" /> : <ArrowDownIcon className="h-3 w-3 inline" />} {formatDisplayNumberTM(item.absoluteChange)}
                     </td>
                     <td className={`px-3 py-2 text-right font-semibold ${item.percentageChange && item.percentageChange > 0 ? 'text-green-600' : 'text-red-600'}`}>
