@@ -75,6 +75,8 @@ describe('API Route: /api/admin/dashboard/posts', () => {
       context: 'Gaming',
       proposal: 'Livestream',
       format: 'Video',
+      tone: 'Humor',
+      references: 'Cultura Pop',
       minInteractions: '100',
       startDate,
       endDate,
@@ -90,6 +92,8 @@ describe('API Route: /api/admin/dashboard/posts', () => {
       context: 'Gaming',
       proposal: 'Livestream',
       format: 'Video',
+      tone: 'Humor',
+      references: 'Cultura Pop',
       minInteractions: 100,
       dateRange: {
         startDate: new Date(startDate),
@@ -154,6 +158,8 @@ describe('API Route: /api/admin/dashboard/posts', () => {
     expect(calledArgs.context).toBeUndefined();
     expect(calledArgs.proposal).toBeUndefined();
     expect(calledArgs.format).toBeUndefined();
+    expect(calledArgs.tone).toBeUndefined();
+    expect(calledArgs.references).toBeUndefined();
     expect(calledArgs.minInteractions).toBeUndefined();
     expect(calledArgs.dateRange).toBeUndefined();
   });

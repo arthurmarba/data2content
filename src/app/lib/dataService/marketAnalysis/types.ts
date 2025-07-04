@@ -82,6 +82,8 @@ export interface FindGlobalPostsArgs {
     context?: string;
     proposal?: string;
     format?: string;
+    tone?: string;
+    references?: string;
     minInteractions?: number;
     limit?: number;
     page?: number;
@@ -103,6 +105,8 @@ export interface IGlobalPostResult {
   format?: string;
   proposal?: string;
   context?: string;
+  tone?: string;
+  references?: string;
   stats?: {
     total_interactions?: number;
     likes?: number;
