@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
-import { MagnifyingGlassIcon, DocumentMagnifyingGlassIcon, ChartBarIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, DocumentMagnifyingGlassIcon, ChartBarIcon, XMarkIcon, Bars3Icon } from '@heroicons/react/24/outline';
 import Head from 'next/head';
 import Link from 'next/link';
 
@@ -119,6 +119,16 @@ const AdminCreatorDashboardContent: React.FC = () => {
   const endDateLabel = today.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
   const rankingDateLabel = `${startDateLabel} - ${endDateLabel}`;
 
+  const sections = [
+    { id: 'platform-summary', label: 'Resumo' },
+    { id: 'creator-rankings', label: 'Rankings' },
+    { id: 'top-movers', label: 'Top Movers' },
+    { id: 'platform-content-analysis', label: 'Análise de Conteúdo' },
+    { id: 'platform-overview', label: 'Visão Geral' },
+    { id: 'global-posts-explorer', label: 'Posts' },
+  ];
+  const [navOpen, setNavOpen] = useState(false);
+
   const handleUserSelect = (userId: string, userName: string) => {
     setSelectedUserId(userId);
     setSelectedUserName(userName);
@@ -165,14 +175,41 @@ const AdminCreatorDashboardContent: React.FC = () => {
           </div>
         </header>
 
-        <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-brand-dark mb-6">
-            Dashboard Administrativo de Criadores
-          </h1>
+        <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8 lg:flex lg:gap-8">
+          <div className="lg:w-56 lg:flex-shrink-0">
+            <button
+              onClick={() => setNavOpen(prev => !prev)}
+              className="lg:hidden flex items-center gap-2 mb-4 text-brand-dark border px-3 py-2 rounded-md"
+            >
+              <Bars3Icon className="w-5 h-5" />
+              Menu
+            </button>
+            <nav
+              className={`${navOpen ? 'block' : 'hidden'} lg:block bg-white lg:bg-transparent border lg:border-none rounded-md p-4 lg:p-0`}
+            >
+              <ul className="space-y-2 text-sm lg:sticky lg:top-24">
+                {sections.map(sec => (
+                  <li key={sec.id}>
+                    <a
+                      href={`#${sec.id}`}
+                      className="block px-2 py-1 text-brand-dark hover:text-brand-pink"
+                      onClick={() => setNavOpen(false)}
+                    >
+                      {sec.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          </div>
+          <div className="flex-1">
+            <h1 className="text-2xl md:text-3xl font-bold text-brand-dark mb-6">
+              Dashboard Administrativo de Criadores
+            </h1>
 
-          <section id="platform-summary" className="mb-8">
-            <PlatformSummaryKpis startDate={startDate} endDate={endDate} />
-          </section>
+            <section id="platform-summary" className="mb-8">
+              <PlatformSummaryKpis startDate={startDate} endDate={endDate} />
+            </section>
 
 
           
@@ -214,6 +251,7 @@ const AdminCreatorDashboardContent: React.FC = () => {
           </div>
 
           <ScrollToTopButton />
+          </div>
         </main>
 
         <footer className="text-center mt-20 py-10 border-t border-gray-200 text-xs text-gray-500 font-light">
