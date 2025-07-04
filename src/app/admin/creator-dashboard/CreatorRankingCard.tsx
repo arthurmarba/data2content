@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { ICreatorMetricRankItem } from '@/app/lib/dataService/marketAnalysisService';
 import SkeletonBlock from './SkeletonBlock';
+import CreatorRankingModal from './CreatorRankingModal';
 
 interface CreatorRankingCardProps {
   title: string;
@@ -48,6 +49,7 @@ const CreatorRankingCard: React.FC<CreatorRankingCardProps> = ({
   const [rankingData, setRankingData] = useState<ICreatorMetricRankItem[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!dateRangeFilter?.startDate || !dateRangeFilter?.endDate) {
@@ -191,6 +193,23 @@ const CreatorRankingCard: React.FC<CreatorRankingCardProps> = ({
             Nenhum dado disponível para o período selecionado.
         </div>
       )}
+      <div className="mt-3 text-right">
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="text-xs text-indigo-600 hover:underline"
+        >
+          Ver mais
+        </button>
+      </div>
+      <CreatorRankingModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={title}
+        apiEndpoint={apiEndpoint}
+        dateRangeFilter={dateRangeFilter}
+        dateRangeLabel={dateRangeLabel}
+        metricLabel={metricLabel}
+      />
     </div>
   );
 };

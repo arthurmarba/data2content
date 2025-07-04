@@ -23,6 +23,9 @@ const CreatorRankingSection: React.FC<Props> = ({
       </h2>
       <div className="overflow-x-auto">
         <div className="flex md:grid md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="col-span-full">
+            <h3 className="text-sm font-semibold text-gray-600 mb-2">Engajamento</h3>
+          </div>
           <div className="inline-flex md:block">
             <CreatorRankingCard
               title="Maior Engajamento"
@@ -46,41 +49,11 @@ const CreatorRankingSection: React.FC<Props> = ({
           </div>
           <div className="inline-flex md:block">
             <CreatorRankingCard
-              title="Mais Posts"
-              apiEndpoint="/api/admin/dashboard/rankings/creators/most-prolific"
-              dateRangeFilter={rankingDateRange}
-              dateRangeLabel={rankingDateLabel}
-              tooltip="Quantidade total de conteúdos publicados no período selecionado."
-              limit={5}
-            />
-          </div>
-          <div className="inline-flex md:block">
-            <CreatorRankingCard
-              title="Mais Compartilhamentos"
-              apiEndpoint="/api/admin/dashboard/rankings/creators/top-sharing"
-              dateRangeFilter={rankingDateRange}
-              dateRangeLabel={rankingDateLabel}
-              tooltip="Total de compartilhamentos obtidos pelos posts no período."
-              limit={5}
-            />
-          </div>
-          <div className="inline-flex md:block">
-            <CreatorRankingCard
               title="Engajamento Médio/Post"
               apiEndpoint="/api/admin/dashboard/rankings/creators/avg-engagement-per-post"
               dateRangeFilter={rankingDateRange}
               dateRangeLabel={rankingDateLabel}
               tooltip="Média de interações por post; considera apenas criadores com 3 ou mais posts."
-              limit={5}
-            />
-          </div>
-          <div className="inline-flex md:block">
-            <CreatorRankingCard
-              title="Alcance Médio/Post"
-              apiEndpoint="/api/admin/dashboard/rankings/creators/avg-reach-per-post"
-              dateRangeFilter={rankingDateRange}
-              dateRangeLabel={rankingDateLabel}
-              tooltip="Média de alcance por post; inclui criadores com pelo menos 3 posts."
               limit={5}
             />
           </div>
@@ -102,6 +75,39 @@ const CreatorRankingSection: React.FC<Props> = ({
               dateRangeFilter={rankingDateRange}
               dateRangeLabel={rankingDateLabel}
               tooltip="Avalia a regularidade do engajamento por post; exige ao menos 5 posts relevantes."
+              limit={5}
+            />
+          </div>
+          <div className="col-span-full mt-4">
+            <h3 className="text-sm font-semibold text-gray-600 mb-2">Alcance</h3>
+          </div>
+          <div className="inline-flex md:block">
+            <CreatorRankingCard
+              title="Mais Posts"
+              apiEndpoint="/api/admin/dashboard/rankings/creators/most-prolific"
+              dateRangeFilter={rankingDateRange}
+              dateRangeLabel={rankingDateLabel}
+              tooltip="Quantidade total de conteúdos publicados no período selecionado."
+              limit={5}
+            />
+          </div>
+          <div className="inline-flex md:block">
+            <CreatorRankingCard
+              title="Mais Compartilhamentos"
+              apiEndpoint="/api/admin/dashboard/rankings/creators/top-sharing"
+              dateRangeFilter={rankingDateRange}
+              dateRangeLabel={rankingDateLabel}
+              tooltip="Total de compartilhamentos obtidos pelos posts no período."
+              limit={5}
+            />
+          </div>
+          <div className="inline-flex md:block">
+            <CreatorRankingCard
+              title="Alcance Médio/Post"
+              apiEndpoint="/api/admin/dashboard/rankings/creators/avg-reach-per-post"
+              dateRangeFilter={rankingDateRange}
+              dateRangeLabel={rankingDateLabel}
+              tooltip="Média de alcance por post; inclui criadores com pelo menos 3 posts."
               limit={5}
             />
           </div>
