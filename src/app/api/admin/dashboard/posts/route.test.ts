@@ -77,6 +77,7 @@ describe('API Route: /api/admin/dashboard/posts', () => {
       format: 'Video',
       tone: 'Humor',
       references: 'Cultura Pop',
+      searchText: 'foo',
       minInteractions: '100',
       startDate,
       endDate,
@@ -94,6 +95,7 @@ describe('API Route: /api/admin/dashboard/posts', () => {
       format: 'Video',
       tone: 'Humor',
       references: 'Cultura Pop',
+      searchText: 'foo',
       minInteractions: 100,
       dateRange: {
         startDate: new Date(startDate),

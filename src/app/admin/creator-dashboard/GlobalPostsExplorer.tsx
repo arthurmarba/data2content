@@ -57,7 +57,65 @@ interface IGlobalPostResult {
 
 interface ContentTrendChartProps { postId: string; }
 const ContentTrendChart: React.FC<ContentTrendChartProps> = ({ postId }) => { /* ... Implementação do Gráfico ... */ return <div className="p-4">Gráfico de Tendência para o Post ID: {postId}</div>; };
-const PostDetailModal = ({ isOpen, onClose, postId }: { isOpen: boolean; onClose: () => void; postId: string | null }) => { if (!isOpen) return null; return <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"><div className="bg-white p-8 rounded-lg">Detalhes do Post ID: {postId} <button onClick={onClose}>Fechar</button></div></div>; };
+
+interface PostDetailResponse {
+  text_content?: string;
+  description?: string;
+  creatorName?: string;
+  coverUrl?: string;
+  stats?: { total_interactions?: number; likes?: number; shares?: number };
+  dailySnapshots: any[];
+}
+
+const PostDetailModal = ({ isOpen, onClose, postId }: { isOpen: boolean; onClose: () => void; postId: string | null }) => {
+  const [data, setData] = useState<PostDetailResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen || !postId) return;
+    const fetchDetails = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/admin/dashboard/posts/${postId}/details`);
+        if (res.ok) {
+          const json = await res.json();
+          setData(json);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDetails();
+  }, [isOpen, postId]);
+
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white w-full max-w-3xl rounded-lg shadow-xl relative overflow-y-auto max-h-full p-6 space-y-4">
+        <button onClick={onClose} className="absolute top-2 right-2 text-gray-500" aria-label="Fechar">
+          <XMarkIcon className="w-5 h-5" />
+        </button>
+        {loading ? (
+          <div className="text-center">Carregando...</div>
+        ) : data ? (
+          <>
+            <div className="flex space-x-4">
+              {data.coverUrl && <img src={data.coverUrl} alt="capa" className="w-40 h-40 object-cover rounded" />}
+              <div className="flex-1 text-sm space-y-1">
+                <p><strong>Criador:</strong> {data.creatorName || 'N/A'}</p>
+                <p><strong>Texto:</strong> {data.text_content || data.description || 'N/A'}</p>
+                <p><strong>Interações:</strong> {data.stats?.total_interactions?.toLocaleString('pt-BR') || '0'}</p>
+              </div>
+            </div>
+            {postId && <ContentTrendChart postId={postId} />}
+          </>
+        ) : (
+          <div className="text-center text-sm">Falha ao carregar detalhes.</div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 
 interface GlobalPostsExplorerProps {
@@ -79,6 +137,7 @@ interface ActiveFilters {
   format?: string;
   tone?: string;
   references?: string;
+  searchText?: string;
   minInteractions?: number;
 }
 
@@ -91,6 +150,10 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
   const [selectedTone, setSelectedTone] = useState<string>('all');
   const [selectedReferences, setSelectedReferences] = useState<string>('all');
   const [minInteractionsValue, setMinInteractionsValue] = useState<string>('');
+  const [textSearch, setTextSearch] = useState('');
+
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(true);
 
   const [posts, setPosts] = useState<IGlobalPostResult[]>([]);
   const [totalPosts, setTotalPosts] = useState(0);
@@ -163,6 +226,7 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
     if (activeFilters.tone && activeFilters.tone !== 'all') params.append('tone', activeFilters.tone);
     if (activeFilters.references && activeFilters.references !== 'all') params.append('references', activeFilters.references);
     if (activeFilters.minInteractions) params.append('minInteractions', String(activeFilters.minInteractions));
+    if (activeFilters.searchText) params.append('searchText', activeFilters.searchText);
 
     if (dateRangeFilter?.startDate) params.append('startDate', new Date(dateRangeFilter.startDate).toISOString());
     if (dateRangeFilter?.endDate) params.append('endDate', new Date(dateRangeFilter.endDate).toISOString());
@@ -194,9 +258,10 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
       format: selectedFormat === 'all' ? undefined : selectedFormat,
       tone: selectedTone === 'all' ? undefined : selectedTone,
       references: selectedReferences === 'all' ? undefined : selectedReferences,
+      searchText: textSearch || undefined,
       minInteractions: minInteractionsValue ? parseInt(minInteractionsValue) : undefined,
     });
-  }, [selectedContext, selectedProposal, selectedFormat, selectedTone, selectedReferences, minInteractionsValue]);
+  }, [selectedContext, selectedProposal, selectedFormat, selectedTone, selectedReferences, minInteractionsValue, textSearch]);
 
   const handleSort = useCallback((columnKey: string) => {
     setSortConfig(prev => ({ sortBy: columnKey, sortOrder: prev.sortBy === columnKey && prev.sortOrder === 'asc' ? 'desc' : 'asc' }));
@@ -266,10 +331,23 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <h3 className="text-lg font-semibold text-gray-800">Explorador de Posts Globais</h3>
-      <p className="text-sm text-gray-500 mt-1 mb-4">Filtre e explore todos os posts da plataforma com base em diversos critérios.</p>
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-gray-800">Explorador de Posts Globais</h3>
+        <button onClick={() => setIsCollapsed(!isCollapsed)} className="text-sm text-indigo-600">
+          {isCollapsed ? 'Expandir' : 'Recolher'}
+        </button>
+      </div>
+      {!isCollapsed && (
+        <>
+          <p className="text-sm text-gray-500 mt-1 mb-4">Filtre e explore todos os posts da plataforma com base em diversos critérios.</p>
       
       {/* ATUALIZADO: Painel de Filtros com 5 dimensões */}
+      <div className="mb-2 sm:mb-4">
+        <button onClick={() => setFiltersOpen(!filtersOpen)} className="text-sm text-indigo-600 sm:hidden">
+          {filtersOpen ? 'Esconder filtros' : 'Mostrar filtros'}
+        </button>
+      </div>
+      {filtersOpen && (
       <div className="p-4 border border-gray-200 rounded-md bg-gray-50">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           <div><label htmlFor="gpe-format" className="block text-xs font-medium text-gray-600 mb-1">Formato</label><select id="gpe-format" value={selectedFormat} onChange={(e) => setSelectedFormat(e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm bg-white h-[38px]"><option value="all">Todos os Formatos</option>{formatOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></div>
@@ -278,11 +356,13 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
           <div><label htmlFor="gpe-tone" className="block text-xs font-medium text-gray-600 mb-1">Tom</label><select id="gpe-tone" value={selectedTone} onChange={(e) => setSelectedTone(e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm bg-white h-[38px]"><option value="all">Todos os Tons</option>{toneOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></div>
           <div><label htmlFor="gpe-references" className="block text-xs font-medium text-gray-600 mb-1">Referências</label><select id="gpe-references" value={selectedReferences} onChange={(e) => setSelectedReferences(e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm bg-white h-[38px]"><option value="all">Todas as Referências</option>{referenceOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></div>
           <div><label htmlFor="gpe-minInteractions" className="block text-xs font-medium text-gray-600 mb-1">Min. Interações</label><input type="number" id="gpe-minInteractions" value={minInteractionsValue} onChange={(e) => setMinInteractionsValue(e.target.value)} placeholder="Ex: 100" min="0" className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm bg-white h-[38px]"/></div>
+          <div><label htmlFor="gpe-textSearch" className="block text-xs font-medium text-gray-600 mb-1">Buscar texto</label><input id="gpe-textSearch" type="text" value={textSearch} onChange={(e) => setTextSearch(e.target.value)} placeholder="Buscar texto..." className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm bg-white h-[38px]" /></div>
         </div>
         <div className="mt-4 flex justify-end">
           <button onClick={handleApplyLocalFilters} className="h-[38px] flex items-center justify-center px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md shadow-sm hover:bg-indigo-700 text-sm disabled:bg-gray-300" disabled={isLoading}><MagnifyingGlassIcon className="w-5 h-5 mr-2" />{isLoading ? 'Buscando...' : 'Filtrar Posts'}</button>
         </div>
       </div>
+      )}
 
       {/* Tabela de Resultados */}
       <div className="mt-6">
@@ -320,11 +400,13 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
                           if (col.key === 'actions') {
                             return (
                               <td key={col.key} className="px-4 py-3 whitespace-nowrap text-center flex items-center justify-center space-x-1">
-                                <button onClick={() => handleOpenPostDetailModal(post._id!.toString())} className="text-indigo-600 hover:text-indigo-800 p-1" title="Ver detalhes">
+                                <button onClick={() => handleOpenPostDetailModal(post._id!.toString())} className="text-indigo-600 hover:text-indigo-800 p-1 flex items-center" title="Ver detalhes">
                                   <DocumentMagnifyingGlassIcon className="w-5 h-5" />
+                                  <span className="sr-only lg:not-sr-only lg:ml-1">Detalhes</span>
                                 </button>
-                                <button onClick={() => handleOpenTrendChart(post._id!.toString())} className="text-green-600 hover:text-green-800 p-1" title="Ver tendência">
+                                <button onClick={() => handleOpenTrendChart(post._id!.toString())} className="text-green-600 hover:text-green-800 p-1 flex items-center" title="Ver tendência">
                                   <ChartBarIcon className="w-5 h-5" />
+                                  <span className="sr-only lg:not-sr-only lg:ml-1">Tendência</span>
                                 </button>
                               </td>
                             );
@@ -356,6 +438,8 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
             <ContentTrendChart postId={selectedPostIdForTrend} />
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

@@ -25,6 +25,7 @@ const querySchema = z.object({
   format: z.string().optional(),
   tone: z.string().optional(), // NOVO: Filtro por tom
   references: z.string().optional(), // NOVO: Filtro por referências
+  searchText: z.string().optional(),
   minInteractions: z.coerce.number().int().min(0).optional(),
   startDate: z.string().datetime({ offset: true }).optional().transform(val => val ? new Date(val) : undefined),
   endDate: z.string().datetime({ offset: true }).optional().transform(val => val ? new Date(val) : undefined),

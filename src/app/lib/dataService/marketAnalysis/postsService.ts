@@ -22,7 +22,7 @@ const SERVICE_TAG = '[dataService][postsService]';
 export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Promise<IGlobalPostsPaginatedResult> {
     const TAG = `${SERVICE_TAG}[findGlobalPostsByCriteria]`;
     const {
-        context, proposal, format, tone, references, minInteractions = 0,
+        context, proposal, format, tone, references, searchText, minInteractions = 0,
         page = 1, limit = 10,
         sortBy = 'stats.total_interactions', sortOrder = 'desc', dateRange,
     } = args;
@@ -36,6 +36,13 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
         if (format) matchStage.format = { $regex: format, $options: 'i' };
         if (tone) matchStage.tone = { $regex: tone, $options: 'i' };
         if (references) matchStage.references = { $regex: references, $options: 'i' };
+        if (searchText) {
+            matchStage.$or = [
+                { text_content: { $regex: searchText, $options: 'i' } },
+                { description: { $regex: searchText, $options: 'i' } },
+                { creatorName: { $regex: searchText, $options: 'i' } },
+            ];
+        }
         if (minInteractions > 0) matchStage['stats.total_interactions'] = { $gte: minInteractions };
         if (dateRange?.startDate) matchStage.postDate = { ...matchStage.postDate, $gte: dateRange.startDate };
         if (dateRange?.endDate) matchStage.postDate = { ...matchStage.postDate, $lte: dateRange.endDate };
