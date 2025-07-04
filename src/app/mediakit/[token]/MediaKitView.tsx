@@ -165,14 +165,17 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis 
                   <div className="space-y-4 pt-4 border-t border-gray-100">
                     <h3 className="text-sm font-semibold text-gray-700 mb-2">Crescimento de Seguidores</h3>
                     <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
-                      <p className="text-2xl font-bold text-gray-900 mt-1 flex items-center">
+                      {user.followers_count !== undefined && (
+                        <p className="text-2xl font-bold text-gray-900 mt-1">
+                          {user.followers_count.toLocaleString('pt-BR')}
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-500">Seguidores totais</p>
+                      <p className="text-sm text-gray-700 mt-3 flex items-center">
                         <KpiValue value={kpiData.followerGrowth?.currentValue} type="number" />
                         <TrendIndicator value={kpiData.followerGrowth?.percentageChange ?? null} />
+                        <span className="ml-1 text-gray-500">no período selecionado</span>
                       </p>
-                      <p className="text-xs text-gray-500 mt-1">Novos seguidores no período selecionado.</p>
-                      {user.followers_count !== undefined && (
-                        <p className="text-xs text-gray-500">Total de seguidores: {user.followers_count.toLocaleString('pt-BR')}</p>
-                      )}
                     </div>
                   </div>
                 )}
