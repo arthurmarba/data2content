@@ -57,7 +57,7 @@ const PlatformAverageEngagementChart: React.FC<PlatformAverageEngagementChartPro
   const [error, setError] = useState<string | null>(null);
   const [engagementMetric, setEngagementMetric] = useState<string>(initialEngagementMetric);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const groupBy = initialGroupBy;
+  const [groupBy, setGroupBy] = useState<GroupingType>(initialGroupBy);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -112,7 +112,17 @@ const PlatformAverageEngagementChart: React.FC<PlatformAverageEngagementChartPro
           </div>
           <div>
             <label htmlFor={`groupByAvgEngPlatform-${groupBy}`} className="block text-sm font-medium text-gray-600 mb-1">Agrupar por:</label>
-            <input type="text" id={`groupByAvgEngPlatform-${groupBy}`} value={GROUP_BY_OPTIONS.find(opt => opt.value === groupBy)?.label || groupBy} disabled className="w-full p-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-sm" />
+            <select
+              id={`groupByAvgEngPlatform-${groupBy}`}
+              value={groupBy}
+              onChange={(e) => setGroupBy(e.target.value as GroupingType)}
+              disabled={loading}
+              className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+            >
+              {GROUP_BY_OPTIONS.map(option => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
           </div>
         </div>
 
