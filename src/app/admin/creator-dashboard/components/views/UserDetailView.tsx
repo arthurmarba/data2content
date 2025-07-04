@@ -1,6 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
+import GlobalPeriodIndicator from "../GlobalPeriodIndicator";
+import GlobalTimePeriodFilter from "../filters/GlobalTimePeriodFilter";
+import { useGlobalTimePeriod } from "../filters/GlobalTimePeriodContext";
 
 // User-specific charts & metrics
 import UserFollowerTrendChart from "../UserFollowerTrendChart";
@@ -37,6 +40,8 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
   const [kpiComparisonPeriod, setKpiComparisonPeriod] = useState<string>(
     KPI_COMPARISON_PERIOD_OPTIONS[0]!.value,
   );
+  const { timePeriod: globalTimePeriod, setTimePeriod: setGlobalTimePeriod } =
+    useGlobalTimePeriod();
 
   if (!userId) {
     return (
@@ -54,8 +59,8 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
   return (
     <div className="p-1 md:p-2 mt-8 border-t-2 border-indigo-500 pt-6">
       <header className="mb-6">
-        <h2 className="text-2xl md:text-3xl font-bold text-indigo-700">
-          Análise Detalhada: {displayName}
+        <h2 className="text-2xl md:text-3xl font-bold text-indigo-700 flex items-center gap-2">
+          Análise Detalhada: {displayName} <GlobalPeriodIndicator />
         </h2>
         <nav className="mt-4">
           <ul className="flex flex-wrap gap-4 text-sm font-medium text-indigo-600">
@@ -87,10 +92,15 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
           </ul>
         </nav>
         {/*
-          Aqui poderia ir um seletor de período GERAL para TODOS os componentes dentro de UserDetailView,
-          similar ao GlobalTimePeriodFilter da página principal. Atualmente cada gráfico tem seu próprio seletor,
-          mas eles usam o período global como valor inicial e respondem às mudanças desse filtro.
+          Seletor de período local que afeta todos os gráficos abaixo.
+          Os componentes usam o período global como valor inicial e respondem às mudanças deste filtro.
         */}
+        <div className="mt-4">
+          <GlobalTimePeriodFilter
+            selectedTimePeriod={globalTimePeriod}
+            onTimePeriodChange={setGlobalTimePeriod}
+          />
+        </div>
       </header>
 
       {/* Seção de KPIs Comparativos do Criador */}
