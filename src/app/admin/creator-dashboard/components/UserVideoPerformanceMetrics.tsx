@@ -27,6 +27,12 @@ interface UserVideoPerformanceMetricsProps {
   chartTitle?: string;
 }
 
+const formatWatchTime = (seconds: number): string => {
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  return `${m}m ${s}s`;
+};
+
 // Sub-componente MetricDisplay e InfoIcon (assumindo que estão definidos em outro lugar ou copiados aqui se necessário)
 // Para este exemplo, vou copiá-los para manter o componente autocontido, mas em um projeto real seriam importados.
 const InfoIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -66,7 +72,7 @@ const MetricDisplay: React.FC<{
     </div>
     <div className="text-xl font-bold text-indigo-600">
       {value !== null && value !== undefined
-        ? `${value.toLocaleString()}${unit || ""}`
+        ? `${typeof value === 'number' ? value.toLocaleString() : value}${unit || ""}`
         : "-"}
     </div>
   </div>
@@ -167,10 +173,10 @@ const UserVideoPerformanceMetrics: React.FC<
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-md font-semibold text-gray-700">{chartTitle}</h3>
-        <div>
+        <div className="flex items-center gap-2">
           <label
             htmlFor={`timePeriodUserVideo-${userId || "default"}`}
-            className="sr-only"
+            className="text-xs font-medium text-gray-600"
           >
             Período
           </label>
@@ -227,10 +233,9 @@ const UserVideoPerformanceMetrics: React.FC<
                 label="Tempo Médio de Visualização"
                 value={
                   metrics.averageWatchTimeSeconds !== null
-                    ? metrics.averageWatchTimeSeconds.toFixed(0)
+                    ? formatWatchTime(metrics.averageWatchTimeSeconds)
                     : null
                 }
-                unit="s"
                 tooltip="Tempo médio que os espectadores passam assistindo a cada vídeo."
               />
             </div>
