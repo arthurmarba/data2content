@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { AlertTriangle, Info, Zap, ChevronDown, ChevronUp } from 'lucide-react'; // Usando lucide-react para ícones
+import { LightBulbIcon } from '@heroicons/react/24/outline';
 
 // Tipos espelhando a resposta da API
 enum AlertTypeEnum {
@@ -114,7 +115,10 @@ const UserAlertsWidget: React.FC<UserAlertsWidgetProps> = ({
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6">
       <h2 className="text-lg md:text-xl font-semibold mb-1 text-gray-700">Alertas Recentes do Criador</h2>
       {alertsResponse?.insightSummary && (
-        <p className="text-xs text-gray-500 mb-4">{alertsResponse.insightSummary}</p>
+        <p className="text-xs text-gray-500 mb-4 flex items-start">
+          <LightBulbIcon className="w-4 h-4 text-yellow-500 mr-1 flex-shrink-0" />
+          {alertsResponse.insightSummary}
+        </p>
       )}
 
       {loading && <div className="flex justify-center items-center py-4"><p className="text-gray-500">Carregando alertas...</p></div>}

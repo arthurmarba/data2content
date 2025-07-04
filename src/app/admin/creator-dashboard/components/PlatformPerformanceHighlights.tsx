@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, memo } from 'react';
+import { LightBulbIcon } from '@heroicons/react/24/outline';
 import { useGlobalTimePeriod } from './filters/GlobalTimePeriodContext';
 import { TrendingUp, TrendingDown, Sparkles } from 'lucide-react';
 import HighlightCard from './HighlightCard';
@@ -104,7 +105,10 @@ const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps
             />
           </div>
           {summary.insightSummary && (
-            <p className="text-xs text-gray-600 mt-4 pt-3 border-t border-gray-200">{summary.insightSummary}</p>
+            <p className="text-xs text-gray-600 mt-4 pt-3 border-t border-gray-200 flex items-start">
+              <LightBulbIcon className="w-4 h-4 text-yellow-500 mr-1 flex-shrink-0" />
+              {summary.insightSummary}
+            </p>
           )}
         </>
       )}
