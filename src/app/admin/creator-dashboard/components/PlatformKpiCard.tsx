@@ -18,6 +18,8 @@ interface PlatformKpiCardProps {
   isLoading?: boolean;
   error?: string | null;
   chartData?: MiniChartDataPoint[]; // Nova prop para o mini-gráfico
+  icon?: React.ElementType;
+  iconClassName?: string;
 }
 
 // Cores para o mini-gráfico (Anterior, Atual)
@@ -39,6 +41,8 @@ const PlatformKpiCard: React.FC<PlatformKpiCardProps> = ({
   isLoading = false,
   error = null,
   chartData,
+  icon: Icon,
+  iconClassName,
 }) => {
   const getChangeColor = () => {
     if (error) return "text-red-500"; // Erro tem prioridade na cor da mudança
@@ -69,7 +73,10 @@ const PlatformKpiCard: React.FC<PlatformKpiCardProps> = ({
     <div className="bg-white p-4 rounded-lg shadow-md min-h-[120px] flex flex-col justify-between">
       <div>
         <div className="flex items-center justify-between mb-1">
-          <h3 className="text-sm font-medium text-gray-500 truncate" title={title}>{title}</h3>
+          <div className="flex items-center">
+            {Icon && <Icon className={`h-4 w-4 mr-1 ${iconClassName || 'text-gray-400'}`} />}
+            <h3 className="text-sm font-medium text-gray-500 truncate" title={title}>{title}</h3>
+          </div>
           {tooltip && (
             <div className="relative group">
               <InfoIcon className="h-4 w-4 text-gray-400 hover:text-gray-600 cursor-pointer" />
