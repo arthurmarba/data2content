@@ -18,7 +18,8 @@ const CreatorRankingSection: React.FC<Props> = ({
     <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
       Rankings de Criadores <GlobalPeriodIndicator />
     </h2>
-    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+    <h3 className="text-lg font-semibold text-gray-600 mt-4 mb-2">Engajamento</h3>
+    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
       <CreatorRankingCard
         title="Maior Engajamento"
         apiEndpoint="/api/admin/dashboard/rankings/creators/top-engaging"
@@ -34,14 +35,6 @@ const CreatorRankingSection: React.FC<Props> = ({
         dateRangeFilter={rankingDateRange}
         dateRangeLabel={rankingDateLabel}
         tooltip="Soma de todas as interações (curtidas, comentários, etc.) no período."
-        limit={5}
-      />
-      <CreatorRankingCard
-        title="Mais Posts"
-        apiEndpoint="/api/admin/dashboard/rankings/creators/most-prolific"
-        dateRangeFilter={rankingDateRange}
-        dateRangeLabel={rankingDateLabel}
-        tooltip="Quantidade total de conteúdos publicados no período selecionado."
         limit={5}
       />
       <CreatorRankingCard
@@ -61,14 +54,6 @@ const CreatorRankingSection: React.FC<Props> = ({
         limit={5}
       />
       <CreatorRankingCard
-        title="Alcance Médio/Post"
-        apiEndpoint="/api/admin/dashboard/rankings/creators/avg-reach-per-post"
-        dateRangeFilter={rankingDateRange}
-        dateRangeLabel={rankingDateLabel}
-        tooltip="Média de alcance por post; inclui criadores com pelo menos 3 posts."
-        limit={5}
-      />
-      <CreatorRankingCard
         title="Variação de Engajamento"
         apiEndpoint="/api/admin/dashboard/rankings/creators/engagement-growth"
         dateRangeFilter={rankingDateRange}
@@ -83,6 +68,25 @@ const CreatorRankingSection: React.FC<Props> = ({
         dateRangeFilter={rankingDateRange}
         dateRangeLabel={rankingDateLabel}
         tooltip="Avalia a regularidade do engajamento por post; exige ao menos 5 posts relevantes."
+        limit={5}
+      />
+    </div>
+    <h3 className="text-lg font-semibold text-gray-600 mt-4 mb-2">Alcance</h3>
+    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <CreatorRankingCard
+        title="Mais Posts"
+        apiEndpoint="/api/admin/dashboard/rankings/creators/most-prolific"
+        dateRangeFilter={rankingDateRange}
+        dateRangeLabel={rankingDateLabel}
+        tooltip="Quantidade total de conteúdos publicados no período selecionado."
+        limit={5}
+      />
+      <CreatorRankingCard
+        title="Alcance Médio/Post"
+        apiEndpoint="/api/admin/dashboard/rankings/creators/avg-reach-per-post"
+        dateRangeFilter={rankingDateRange}
+        dateRangeLabel={rankingDateLabel}
+        tooltip="Média de alcance por post; inclui criadores com pelo menos 3 posts."
         limit={5}
       />
       <CreatorRankingCard
