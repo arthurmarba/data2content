@@ -99,6 +99,7 @@ export interface IGlobalPostResult {
   description?: string;
   creatorName?: string;
   postDate?: Date;
+  coverUrl?: string;
   format?: string;
   proposal?: string;
   context?: string;

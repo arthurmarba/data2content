@@ -89,6 +89,7 @@ interface IGlobalPostResult {
   _id?: string;
   text_content?: string;
   description?: string;
+  coverUrl?: string;
   creatorName?: string;
   postDate?: Date | string;
   format?: string[];
@@ -245,6 +246,7 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
   
   // ATUALIZAÇÃO: Adicionadas colunas para Tom e Referências na tabela
   const columns = [
+    { key: 'cover', label: 'Imagem', sortable: false, getVal: (p: IGlobalPostResult) => p.coverUrl || '' },
     { key: 'text_content', label: 'Conteúdo', sortable: false, getVal: (p: IGlobalPostResult) => p.text_content || p.description || 'N/A' },
     { key: 'creatorName', label: 'Criador', sortable: true, getVal: (p: IGlobalPostResult) => p.creatorName || 'N/A' },
     { key: 'postDate', label: 'Data', sortable: true, getVal: (p: IGlobalPostResult) => formatDate(p.postDate) },
@@ -298,10 +300,34 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
                           const rawValue = col.getVal(post);
                           let displayValue: React.ReactNode = rawValue;
                           if (col.key.startsWith('stats.')) displayValue = formatNumberStd(rawValue);
-                          if (col.key === 'actions') {
-                            return (<td key={col.key} className="px-4 py-3 whitespace-nowrap text-center flex items-center justify-center space-x-1"><button onClick={() => handleOpenPostDetailModal(post._id!.toString())} className="text-indigo-600 hover:text-indigo-800 p-1" title="Ver detalhes"><DocumentMagnifyingGlassIcon className="w-5 h-5" /></button><button onClick={() => handleOpenTrendChart(post._id!.toString())} className="text-green-600 hover:text-green-800 p-1" title="Ver tendência"><ChartBarIcon className="w-5 h-5" /></button></td>);
+                          if (col.key === 'cover') {
+                            return (
+                              <td key="cover" className="px-3 py-2 whitespace-nowrap">
+                                {rawValue ? (
+                                  <img src={rawValue} alt="capa" className="w-16 h-16 object-cover rounded" />
+                                ) : (
+                                  '–'
+                                )}
+                              </td>
+                            );
                           }
-                          return (<td key={col.key} className={`px-4 py-3 whitespace-nowrap text-gray-600 ${col.key.startsWith('stats.') ? 'text-center' : 'text-left'}`}><span title={String(rawValue)} className="block max-w-[150px] truncate">{displayValue}</span></td>);
+                          if (col.key === 'actions') {
+                            return (
+                              <td key={col.key} className="px-4 py-3 whitespace-nowrap text-center flex items-center justify-center space-x-1">
+                                <button onClick={() => handleOpenPostDetailModal(post._id!.toString())} className="text-indigo-600 hover:text-indigo-800 p-1" title="Ver detalhes">
+                                  <DocumentMagnifyingGlassIcon className="w-5 h-5" />
+                                </button>
+                                <button onClick={() => handleOpenTrendChart(post._id!.toString())} className="text-green-600 hover:text-green-800 p-1" title="Ver tendência">
+                                  <ChartBarIcon className="w-5 h-5" />
+                                </button>
+                              </td>
+                            );
+                          }
+                          return (
+                            <td key={col.key} className={`px-4 py-3 whitespace-nowrap text-gray-600 ${col.key.startsWith('stats.') ? 'text-center' : 'text-left'}`}> 
+                              <span title={String(rawValue)} className="block max-w-[150px] truncate">{displayValue}</span>
+                            </td>
+                          );
                       })}
                     </tr>
                   ))}
