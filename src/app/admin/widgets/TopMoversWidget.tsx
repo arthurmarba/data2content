@@ -91,7 +91,7 @@ const TopMoversWidget = memo(function TopMoversWidget() {
   const [previousPeriod, setPreviousPeriod] = useState<PeriodState>(initialPeriodState);
   const [currentPeriod, setCurrentPeriod] = useState<PeriodState>(initialPeriodState);
   const [topN, setTopN] = useState<number>(5);
-  const [sortBy, setSortBy] = useState<TopMoverSortBy>('absoluteChange_decrease');
+  const [sortBy, setSortBy] = useState<TopMoverSortBy>('absoluteChange_increase');
   const [contentFilters, setContentFilters] = useState<ISegmentDefinition>({});
   
   const [results, setResults] = useState<ITopMoverResult[] | null>(null);
@@ -200,7 +200,9 @@ const TopMoversWidget = memo(function TopMoversWidget() {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-gray-800">Top Movers ({ENTITY_TYPE_OPTIONS.find(e=>e.value === entityType)?.label})</h3>
+        <h3 className="text-lg font-semibold text-gray-800">
+          {`Top Movers – ${ENTITY_TYPE_OPTIONS.find(e => e.value === entityType)?.label} por ${METRIC_OPTIONS.find(m => m.value === metric)?.label} (${SORT_BY_OPTIONS.find(s => s.value === sortBy)?.label})`}
+        </h3>
         <p className="text-sm text-gray-500 mt-1">Identifique as maiores variações de performance entre dois períodos.</p>
       </div>
 

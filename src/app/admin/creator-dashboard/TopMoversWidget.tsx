@@ -79,7 +79,7 @@ export default function TopMoversWidget() {
   const [previousPeriod, setPreviousPeriod] = useState<PeriodState>(initialPeriodState);
   const [currentPeriod, setCurrentPeriod] = useState<PeriodState>(initialPeriodState);
   const [topN, setTopN] = useState<number>(10);
-  const [sortBy, setSortBy] = useState<TopMoverSortBy>('absoluteChange_decrease');
+  const [sortBy, setSortBy] = useState<TopMoverSortBy>('absoluteChange_increase');
 
   const [contentFilters, setContentFilters] = useState<ISegmentDefinition>({});
   const [contextOptions, setContextOptions] = useState<string[]>(DEFAULT_CONTEXTS);
@@ -195,7 +195,7 @@ export default function TopMoversWidget() {
         <div className="flex items-center space-x-2">
           <ChartBarIcon className="h-5 w-5 text-indigo-600" />
           <h3 className="text-lg font-semibold text-gray-800">
-            Top Movers ({ENTITY_TYPE_OPTIONS.find(e=>e.value === entityType)?.label})
+            {`Top Movers – ${ENTITY_TYPE_OPTIONS.find(e => e.value === entityType)?.label} por ${METRIC_OPTIONS.find(m => m.value === metric)?.label} (${SORT_BY_OPTIONS.find(s => s.value === sortBy)?.label})`}
           </h3>
         </div>
         <p className="text-sm text-gray-500 mt-1 ml-7">
