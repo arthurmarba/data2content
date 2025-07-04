@@ -63,6 +63,7 @@ const UserFollowerTrendChart: React.FC<UserFollowerTrendChartProps> = ({
       "last_7_days",
   );
   const [granularity, setGranularity] = useState<string>(initialGranularity);
+  const timePeriodLabel = TIME_PERIOD_OPTIONS.find((o) => o.value === timePeriod)?.label;
 
   useEffect(() => {
     setTimePeriod(globalTimePeriod);
@@ -155,6 +156,9 @@ const UserFollowerTrendChart: React.FC<UserFollowerTrendChartProps> = ({
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6">
       <h2 className="text-lg md:text-xl font-semibold mb-4 text-gray-700">
         {chartTitle}
+        {timePeriodLabel && (
+          <span className="ml-2 text-xs font-normal text-gray-500">({timePeriodLabel})</span>
+        )}
       </h2>
 
       <div className="flex flex-col sm:flex-row gap-4 mb-6">

@@ -57,6 +57,35 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
         <h2 className="text-2xl md:text-3xl font-bold text-indigo-700">
           Análise Detalhada: {displayName}
         </h2>
+        <nav className="mt-4">
+          <ul className="flex flex-wrap gap-4 text-sm font-medium text-indigo-600">
+            <li>
+              <a href={`#user-kpis-${userId}`} className="hover:underline">
+                Geral
+              </a>
+            </li>
+            <li>
+              <a href={`#user-performance-highlights-${userId}`} className="hover:underline">
+                Destaques
+              </a>
+            </li>
+            <li>
+              <a href={`#user-advanced-analysis-${userId}`} className="hover:underline">
+                Análise & Alertas
+              </a>
+            </li>
+            <li>
+              <a href={`#user-trends-${userId}`} className="hover:underline">
+                Tendências
+              </a>
+            </li>
+            <li>
+              <a href={`#user-content-performance-${userId}`} className="hover:underline">
+                Conteúdo
+              </a>
+            </li>
+          </ul>
+        </nav>
         {/*
           Aqui poderia ir um seletor de período GERAL para TODOS os componentes dentro de UserDetailView,
           similar ao GlobalTimePeriodFilter da página principal. Atualmente cada gráfico tem seu próprio seletor,
@@ -70,12 +99,12 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
           <h3 className="text-xl font-semibold text-gray-700 pb-2">
             Desempenho Comparativo Chave
           </h3>
-          <div>
+          <div className="flex items-center gap-2">
             <label
               htmlFor={`kpiComparisonPeriod-${userId}`}
-              className="sr-only"
+              className="text-xs font-medium text-gray-600"
             >
-              Período de Comparação
+              Comparar:
             </label>
             <select
               id={`kpiComparisonPeriod-${userId}`}

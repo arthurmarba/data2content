@@ -64,8 +64,14 @@ const PlatformKpiCard: React.FC<PlatformKpiCardProps> = ({
   };
 
   const changeDisplay = () => {
-    if (isLoading || error || !change ) return <div className="h-4"></div>; // Placeholder para manter altura
-    return <p className={`text-xs mt-1 ${getChangeColor()}`}>{change}</p>;
+    if (isLoading || error || !change) return <div className="h-4"></div>; // Placeholder para manter altura
+    const arrow = changeType === 'positive' ? '▲' : changeType === 'negative' ? '▼' : '';
+    return (
+      <p className={`text-xs mt-1 flex items-center ${getChangeColor()}`}>
+        {arrow && <span className="mr-1">{arrow}</span>}
+        {change}
+      </p>
+    );
   };
 
 

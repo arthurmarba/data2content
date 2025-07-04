@@ -146,6 +146,7 @@ const AdminCreatorDashboardContent: React.FC = () => {
                 onClear={() => {
                   setSelectedUserId(null);
                   setSelectedUserName(null);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
               />
               <GlobalTimePeriodFilter

@@ -52,6 +52,7 @@ const UserFollowerChangeChart: React.FC<UserFollowerChangeChartProps> = ({
   const [timePeriod, setTimePeriod] = useState<string>(
     globalTimePeriod || TIME_PERIOD_OPTIONS[1]?.value || "last_30_days",
   );
+  const timePeriodLabel = TIME_PERIOD_OPTIONS.find((o) => o.value === timePeriod)?.label;
 
   useEffect(() => {
     setTimePeriod(globalTimePeriod);
@@ -112,6 +113,9 @@ const UserFollowerChangeChart: React.FC<UserFollowerChangeChartProps> = ({
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6">
       <h2 className="text-lg md:text-xl font-semibold mb-4 text-gray-700">
         {chartTitle}
+        {timePeriodLabel && (
+          <span className="ml-2 text-xs font-normal text-gray-500">({timePeriodLabel})</span>
+        )}
       </h2>
       {userId && (
         <div className="mb-4">
