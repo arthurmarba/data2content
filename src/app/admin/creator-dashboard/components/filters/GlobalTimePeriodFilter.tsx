@@ -27,8 +27,14 @@ const GlobalTimePeriodFilter: React.FC<GlobalTimePeriodFilterProps> = ({
   label = "Selecionar Período",
   disabled = false,
 }) => {
+  const selectedLabel =
+    options.find((o) => o.value === selectedTimePeriod)?.label || "";
   return (
     <div className="flex items-center">
+      {/* Placeholder text shown on small screens when the label is hidden */}
+      <span className="sm:hidden text-sm text-gray-500 mr-2" aria-hidden="true">
+        {selectedLabel}
+      </span>
       <label
         htmlFor="globalTimePeriodSelector"
         className="hidden sm:block text-sm font-medium text-gray-700 mr-2 whitespace-nowrap"
@@ -42,7 +48,7 @@ const GlobalTimePeriodFilter: React.FC<GlobalTimePeriodFilterProps> = ({
         value={selectedTimePeriod}
         onChange={(e) => onTimePeriodChange(e.target.value)}
         disabled={disabled}
-        className="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm text-gray-700 disabled:bg-gray-100 disabled:cursor-not-allowed"
+        className="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm text-gray-700 disabled:bg-gray-100 disabled:cursor-not-allowed w-full sm:w-auto"
       >
         {options.map(option => (
           <option key={option.value} value={option.value}>{option.label}</option>
