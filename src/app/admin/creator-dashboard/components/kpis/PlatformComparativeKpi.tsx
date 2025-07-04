@@ -20,14 +20,20 @@ interface PlatformPeriodicComparisonResponse {
   platformFollowerGrowth: KPIComparisonData;
   platformTotalEngagement: KPIComparisonData;
   platformPostingFrequency?: KPIComparisonData;
+  platformActiveCreators?: KPIComparisonData;
   insightSummary?: {
     platformFollowerGrowth?: string;
     platformTotalEngagement?: string;
     platformPostingFrequency?: string;
+    platformActiveCreators?: string;
   };
 }
 
-type KpiName = "platformFollowerGrowth" | "platformTotalEngagement" | "platformPostingFrequency";
+type KpiName =
+  | "platformFollowerGrowth"
+  | "platformTotalEngagement"
+  | "platformPostingFrequency"
+  | "platformActiveCreators";
 
 interface PlatformComparativeKpiProps {
   kpiName: KpiName;
