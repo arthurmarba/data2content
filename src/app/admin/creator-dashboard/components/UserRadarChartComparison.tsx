@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
+import ComparisonTargetSearch, { ComparisonTarget } from './ComparisonTargetSearch';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Legend, Tooltip, ResponsiveContainer } from 'recharts';
 
 // Tipos da API (espelhando RadarChartResponse de getRadarChartData.ts)
@@ -19,11 +20,10 @@ interface ApiRadarChartResponse {
   insightSummary?: string;
 }
 
-// Opções de comparação (simuladas - em uma app real, viriam de uma busca de usuários ou lista de segmentos)
+// Opções de segmentos usados como exemplo. Em um app real, viriam de uma API.
 const COMPARISON_OPTIONS = [
   { value: "segment_gamers_tier1", label: "Média: Gamers Tier 1 (Simulado)", type: "segment" },
   { value: "segment_foodies_avg", label: "Média: Foodies (Simulado)", type: "segment" },
-  // User IDs seriam adicionados dinamicamente ou por busca
 ];
 
 interface UserRadarChartComparisonProps {
@@ -39,12 +39,10 @@ const UserRadarChartComparison: React.FC<UserRadarChartComparisonProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Estado para o perfil de comparação selecionado
+  // Estado para o perfil ou segmento selecionado para comparação
   // Formato: "type:id", ex: "user:userId123" ou "segment:gamers_tier1"
   const [comparisonTarget, setComparisonTarget] = useState<string>("");
-  // TODO: Adicionar um input de busca para encontrar userIds para comparação.
-  // Por agora, usaremos um select com opções pré-definidas e um campo para ID manual.
-  const [manualCompareId, setManualCompareId] = useState<string>("");
+  const [selectedTargetLabel, setSelectedTargetLabel] = useState<string>("");
 
 
   const fetchData = useCallback(async () => {
@@ -105,11 +103,7 @@ const UserRadarChartComparison: React.FC<UserRadarChartComparisonProps> = ({
     }
   }, [profile1UserId, comparisonTarget, fetchData]);
 
-  const handleManualCompare = () => {
-      if(manualCompareId.trim()){
-          setComparisonTarget(`user:${manualCompareId.trim()}`);
-      }
-  }
+
 
   // Formatter para tooltip para mostrar valores brutos se disponíveis
   const tooltipFormatter = (value: number, name: string, entry: any, index: number) => {
@@ -143,42 +137,18 @@ const UserRadarChartComparison: React.FC<UserRadarChartComparisonProps> = ({
 
       <div className="flex flex-col sm:flex-row gap-4 mb-6 items-end">
         <div>
-          <label htmlFor={`comparisonTarget-${profile1UserId}`} className="block text-sm font-medium text-gray-600 mb-1">Comparar com:</label>
-          <select
-            id={`comparisonTarget-${profile1UserId}`}
-            value={comparisonTarget}
-            onChange={(e) => setComparisonTarget(e.target.value)}
-            className="w-full sm:w-auto p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-          >
-            <option value="">Selecione...</option>
-            {COMPARISON_OPTIONS.map(option => (
-              <option key={option.value} value={`${option.type}:${option.value}`}>{option.label}</option>
-            ))}
-            {/* Adicionar opção para ID manual se não houver busca de usuário */}
-            <option value="manual_user">Outro Usuário (ID Manual)</option>
-          </select>
+          <label className="block text-sm font-medium text-gray-600 mb-1">Comparar com:</label>
+          <ComparisonTargetSearch
+            segments={COMPARISON_OPTIONS.filter(o => o.type === "segment").map(o => ({ value: o.value, label: o.label }))}
+            onSelect={(target: ComparisonTarget) => {
+              setComparisonTarget(`${target.type}:${target.id}`);
+              setSelectedTargetLabel(target.label);
+            }}
+          />
+          {selectedTargetLabel && (
+            <p className="mt-1 text-sm text-indigo-700">{selectedTargetLabel}</p>
+          )}
         </div>
-        {comparisonTarget === "manual_user" && (
-            <div className="flex items-end gap-2">
-                 <div>
-                    <label htmlFor={`manualCompareId-${profile1UserId}`} className="block text-sm font-medium text-gray-600 mb-1">ID do Usuário:</label>
-                    <input
-                        type="text"
-                        id={`manualCompareId-${profile1UserId}`}
-                        value={manualCompareId}
-                        onChange={(e) => setManualCompareId(e.target.value)}
-                        placeholder="Cole o ID do usuário aqui"
-                        className="w-full sm:w-auto p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                    />
-                </div>
-                <button
-                    onClick={handleManualCompare}
-                    className="p-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                >
-                    Comparar
-                </button>
-            </div>
-        )}
       </div>
 
       <div style={{ width: '100%', height: 350 }}>
