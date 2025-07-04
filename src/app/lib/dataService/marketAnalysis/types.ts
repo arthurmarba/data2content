@@ -84,6 +84,8 @@ export interface FindGlobalPostsArgs {
     format?: string;
     tone?: string;
     references?: string;
+    /** Texto de busca para título, descrição ou nome do criador */
+    searchText?: string;
     minInteractions?: number;
     limit?: number;
     page?: number;
