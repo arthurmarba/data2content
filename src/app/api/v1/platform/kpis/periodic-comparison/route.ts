@@ -25,10 +25,12 @@ interface PlatformPeriodicComparisonResponse {
   platformFollowerGrowth: KPIComparisonData;
   platformTotalEngagement: KPIComparisonData;
   platformPostingFrequency: KPIComparisonData;
+  platformActiveCreators: KPIComparisonData;
   insightSummary?: {
     platformFollowerGrowth?: string;
     platformTotalEngagement?: string;
     platformPostingFrequency?: string;
+    platformActiveCreators?: string;
   };
 }
 
@@ -65,6 +67,11 @@ async function getPlatformTotalPostsInPeriod(startDate: Date, endDate: Date, use
         postDate: { $gte: startDate, $lte: endDate }
     });
     return count;
+}
+
+async function getTotalActiveCreatorsAtDate(date: Date): Promise<number> {
+    // Critérios para considerar um criador ativo poderiam ser adicionados aqui
+    return UserModel.countDocuments({ createdAt: { $lte: date } });
 }
 
 
@@ -104,10 +111,12 @@ export async function GET(
         platformFollowerGrowth: emptyKpi,
         platformTotalEngagement: emptyKpi,
         platformPostingFrequency: emptyKpi,
+        platformActiveCreators: emptyKpi,
         insightSummary: {
             platformFollowerGrowth: "Nenhum usuário na plataforma.",
             platformTotalEngagement: "Nenhum usuário na plataforma.",
-            platformPostingFrequency: "Nenhum usuário na plataforma."
+            platformPostingFrequency: "Nenhum usuário na plataforma.",
+            platformActiveCreators: "Nenhum usuário na plataforma."
         }
       }, { status: 200 });
     }
@@ -186,14 +195,30 @@ export async function GET(
         ]
     };
 
+    // --- Platform Active Creators ---
+    const currentActiveCreators = await getTotalActiveCreatorsAtDate(currentEndDate);
+    const previousActiveCreators = await getTotalActiveCreatorsAtDate(previousEndDate);
+
+    const activeCreatorsData: KPIComparisonData = {
+        currentValue: currentActiveCreators,
+        previousValue: previousActiveCreators,
+        percentageChange: calculatePercentageChange(currentActiveCreators, previousActiveCreators),
+        chartData: [
+            { name: periodNamePrevious, value: previousActiveCreators ?? 0 },
+            { name: periodNameCurrent, value: currentActiveCreators ?? 0 }
+        ]
+    };
+
     const response: PlatformPeriodicComparisonResponse = {
       platformFollowerGrowth: followerGrowthData,
       platformTotalEngagement: totalEngagementData,
       platformPostingFrequency: postingFrequencyData,
+      platformActiveCreators: activeCreatorsData,
       insightSummary: {
           platformFollowerGrowth: `Crescimento de seguidores da plataforma: ${followerGrowthData.currentValue?.toLocaleString() ?? 'N/A'} vs ${followerGrowthData.previousValue?.toLocaleString() ?? 'N/A'} no período anterior.`,
           platformTotalEngagement: `Engajamento total da plataforma: ${totalEngagementData.currentValue?.toLocaleString() ?? 'N/A'} vs ${totalEngagementData.previousValue?.toLocaleString() ?? 'N/A'} no período anterior.`,
-          platformPostingFrequency: `Frequência de posts da plataforma: ${postingFrequencyData.currentValue?.toFixed(1) ?? 'N/A'} posts/sem vs ${postingFrequencyData.previousValue?.toFixed(1) ?? 'N/A'} no período anterior.`
+          platformPostingFrequency: `Frequência de posts da plataforma: ${postingFrequencyData.currentValue?.toFixed(1) ?? 'N/A'} posts/sem vs ${postingFrequencyData.previousValue?.toFixed(1) ?? 'N/A'} no período anterior.`,
+          platformActiveCreators: `Criadores ativos na plataforma: ${activeCreatorsData.currentValue?.toLocaleString() ?? 'N/A'} vs ${activeCreatorsData.previousValue?.toLocaleString() ?? 'N/A'} no período anterior.`
       }
     };
 
@@ -209,6 +234,7 @@ export async function GET(
         platformFollowerGrowth: errorKpi,
         platformTotalEngagement: errorKpi,
         platformPostingFrequency: errorKpi,
+        platformActiveCreators: errorKpi,
      }, { status: 500 });
   }
 }
