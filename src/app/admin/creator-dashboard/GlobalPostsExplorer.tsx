@@ -152,7 +152,7 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
   const [minInteractionsValue, setMinInteractionsValue] = useState<string>('');
   const [textSearch, setTextSearch] = useState('');
 
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const [filtersOpen, setFiltersOpen] = useState(true);
 
   const [posts, setPosts] = useState<IGlobalPostResult[]>([]);
@@ -333,7 +333,10 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-800">Explorador de Posts Globais</h3>
-        <button onClick={() => setIsCollapsed(!isCollapsed)} className="text-sm text-indigo-600">
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="px-3 py-1.5 bg-indigo-600 text-white text-sm font-semibold rounded-md shadow-sm hover:bg-indigo-700"
+        >
           {isCollapsed ? 'Expandir' : 'Recolher'}
         </button>
       </div>
