@@ -25,6 +25,7 @@ const CreatorRankingSection: React.FC<Props> = ({
         dateRangeFilter={rankingDateRange}
         dateRangeLabel={rankingDateLabel}
         metricLabel="%"
+        tooltip="Taxa de engajamento média: interações divididas pelo alcance total do período."
         limit={5}
       />
       <CreatorRankingCard
@@ -32,6 +33,7 @@ const CreatorRankingSection: React.FC<Props> = ({
         apiEndpoint="/api/admin/dashboard/rankings/creators/top-interactions"
         dateRangeFilter={rankingDateRange}
         dateRangeLabel={rankingDateLabel}
+        tooltip="Soma de todas as interações (curtidas, comentários, etc.) no período."
         limit={5}
       />
       <CreatorRankingCard
@@ -39,6 +41,7 @@ const CreatorRankingSection: React.FC<Props> = ({
         apiEndpoint="/api/admin/dashboard/rankings/creators/most-prolific"
         dateRangeFilter={rankingDateRange}
         dateRangeLabel={rankingDateLabel}
+        tooltip="Quantidade total de conteúdos publicados no período selecionado."
         limit={5}
       />
       <CreatorRankingCard
@@ -46,6 +49,48 @@ const CreatorRankingSection: React.FC<Props> = ({
         apiEndpoint="/api/admin/dashboard/rankings/creators/top-sharing"
         dateRangeFilter={rankingDateRange}
         dateRangeLabel={rankingDateLabel}
+        tooltip="Total de compartilhamentos obtidos pelos posts no período."
+        limit={5}
+      />
+      <CreatorRankingCard
+        title="Engajamento Médio/Post"
+        apiEndpoint="/api/admin/dashboard/rankings/creators/avg-engagement-per-post"
+        dateRangeFilter={rankingDateRange}
+        dateRangeLabel={rankingDateLabel}
+        tooltip="Média de interações por post; considera apenas criadores com 3 ou mais posts."
+        limit={5}
+      />
+      <CreatorRankingCard
+        title="Alcance Médio/Post"
+        apiEndpoint="/api/admin/dashboard/rankings/creators/avg-reach-per-post"
+        dateRangeFilter={rankingDateRange}
+        dateRangeLabel={rankingDateLabel}
+        tooltip="Média de alcance por post; inclui criadores com pelo menos 3 posts."
+        limit={5}
+      />
+      <CreatorRankingCard
+        title="Variação de Engajamento"
+        apiEndpoint="/api/admin/dashboard/rankings/creators/engagement-growth"
+        dateRangeFilter={rankingDateRange}
+        dateRangeLabel={rankingDateLabel}
+        metricLabel="%"
+        tooltip="Diferença percentual do engajamento total em relação ao período anterior equivalente."
+        limit={5}
+      />
+      <CreatorRankingCard
+        title="Consistência de Performance"
+        apiEndpoint="/api/admin/dashboard/rankings/creators/performance-consistency"
+        dateRangeFilter={rankingDateRange}
+        dateRangeLabel={rankingDateLabel}
+        tooltip="Avalia a regularidade do engajamento por post; exige ao menos 5 posts relevantes."
+        limit={5}
+      />
+      <CreatorRankingCard
+        title="Alcance por Seguidor"
+        apiEndpoint="/api/admin/dashboard/rankings/creators/reach-per-follower"
+        dateRangeFilter={rankingDateRange}
+        dateRangeLabel={rankingDateLabel}
+        tooltip="Relação entre alcance total e seguidores; mede eficiência de distribuição."
         limit={5}
       />
       <CreatorRankingCard

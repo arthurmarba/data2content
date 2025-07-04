@@ -16,7 +16,25 @@ interface CreatorRankingCardProps {
   dateRangeLabel?: string;
   metricLabel?: string;
   limit?: number;
+  tooltip?: string;
 }
+
+const InfoIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className={className || 'h-4 w-4'}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+    />
+  </svg>
+);
 
 const CreatorRankingCard: React.FC<CreatorRankingCardProps> = ({
   title,
@@ -25,6 +43,7 @@ const CreatorRankingCard: React.FC<CreatorRankingCardProps> = ({
   dateRangeLabel,
   metricLabel = '',
   limit = 5,
+  tooltip,
 }) => {
   const [rankingData, setRankingData] = useState<ICreatorMetricRankItem[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -105,9 +124,19 @@ const CreatorRankingCard: React.FC<CreatorRankingCardProps> = ({
 
   return (
     <div className="bg-white p-4 rounded-lg shadow border border-gray-200 h-full flex flex-col">
-      <h4 className="text-md font-semibold text-gray-700 truncate" title={title}>
-        {title}
-      </h4>
+      <div className="flex items-center justify-between mb-1">
+        <h4 className="text-md font-semibold text-gray-700 truncate" title={title}>
+          {title}
+        </h4>
+        {tooltip && (
+          <div className="relative group">
+            <InfoIcon className="h-4 w-4 text-gray-400 hover:text-gray-600 cursor-pointer" />
+            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-max max-w-xs p-1.5 text-xs text-white bg-gray-700 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
+              {tooltip}
+            </div>
+          </div>
+        )}
+      </div>
       {dateRangeLabel && (
         <p className="text-xs text-gray-500 mb-3">{dateRangeLabel}</p>
       )}
