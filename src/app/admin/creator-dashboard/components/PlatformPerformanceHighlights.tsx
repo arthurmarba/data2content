@@ -7,6 +7,7 @@ import { TrendingUp, TrendingDown, Sparkles } from 'lucide-react';
 import HighlightCard from './HighlightCard';
 // CORREÇÃO: Importa a função para traduzir os IDs de contexto.
 import { commaSeparatedIdsToLabels } from '../../../lib/classification';
+import FormatPerformanceRankingTable from './FormatPerformanceRankingTable';
 
 interface PerformanceHighlightItem {
   name: string;
@@ -103,15 +104,18 @@ const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps
               bgColorClass="bg-red-50"
               textColorClass="text-red-600"
             />
-          </div>
-          {summary.insightSummary && (
-            <p className="text-xs text-gray-600 mt-4 pt-3 border-t border-gray-200 flex items-start">
-              <LightBulbIcon className="w-4 h-4 text-yellow-500 mr-1 flex-shrink-0" />
-              {summary.insightSummary}
-            </p>
-          )}
-        </>
-      )}
+        </div>
+        {summary.insightSummary && (
+          <p className="text-xs text-gray-600 mt-4 pt-3 border-t border-gray-200 flex items-start">
+            <LightBulbIcon className="w-4 h-4 text-yellow-500 mr-1 flex-shrink-0" />
+            {summary.insightSummary}
+          </p>
+        )}
+        <div className="mt-6">
+          <FormatPerformanceRankingTable />
+        </div>
+      </>
+    )}
        {!loading && !error && !summary && (
          <div className="text-center py-5"><p className="text-gray-500">Nenhum destaque de performance encontrado para a plataforma.</p></div>
       )}
