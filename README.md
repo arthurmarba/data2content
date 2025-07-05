@@ -49,6 +49,10 @@ Ele consome o endpoint `/api/v1/users/{userId}/charts/monthly-comparison` e perm
 
 Basta fornecer o `userId` ao componente e ele renderizará um gráfico de colunas com as diferenças mensais.
 
+### Platform Performance Highlights
+
+Na seção **Destaques de Performance da Plataforma** todo o resumo de conteúdo é consolidado em um único bloco. Os cards indicam o melhor e pior formato, além das propostas, tons e referências de maior desempenho. Logo abaixo, a tabela **Ranking de Desempenho por Formato** apresenta os dados completos e oferece acesso a uma análise detalhada.
+
 ### Populando o Banco para Desenvolvimento
 
 Os gráficos dependem das coleções **AccountInsight** e **Metric**. Caso seu banco esteja vazio, os componentes exibirão a mensagem "Sem dados no período selecionado". Para experimentar localmente ou em ambiente de teste, insira alguns registros manualmente no MongoDB:
