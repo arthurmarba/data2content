@@ -5,6 +5,12 @@ import getReachInteractionTrendChartData from '@/charts/getReachInteractionTrend
 import { connectToDatabase } from '@/app/lib/mongoose';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 import { Types } from 'mongoose';
+import {
+  addDays,
+  formatDateYYYYMMDD,
+  getStartDateFromTimePeriod,
+  getYearWeek,
+} from '@/utils/dateHelpers';
 
 // Tipos para os dados da API
 interface ApiReachEngagementDataPoint {
@@ -94,21 +100,25 @@ export async function GET(
       }
     });
 
-    if (aggregatedDataByDate.size === 0) {
-      return NextResponse.json({
-        chartData: [],
-        insightSummary: "Nenhum dado de alcance ou engajamento encontrado para os usuários no período."
-      }, { status: 200 });
-    }
+    // 4. Formatar Dados Agregados para Resposta preenchendo o intervalo completo
+    const endDate = new Date();
+    endDate.setHours(23, 59, 59, 999);
+    const startDate = getStartDateFromTimePeriod(endDate, timePeriod);
 
-    // 4. Formatar Dados Agregados para Resposta
-    const platformChartData: ApiReachEngagementDataPoint[] = Array.from(aggregatedDataByDate.entries())
-      .map(([date, data]) => ({
-        date: date,
-        reach: data.reach,
-        engagedUsers: data.engagedUsers
-      }))
-      .sort((a, b) => a.date.localeCompare(b.date));
+    const platformChartData: ApiReachEngagementDataPoint[] = [];
+    let cursor = new Date(startDate);
+    while (cursor <= endDate) {
+      const key = granularity === 'daily'
+        ? formatDateYYYYMMDD(cursor)
+        : getYearWeek(cursor);
+      const entry = aggregatedDataByDate.get(key);
+      platformChartData.push({
+        date: key,
+        reach: entry?.reach ?? null,
+        engagedUsers: entry?.engagedUsers ?? null,
+      });
+      cursor = granularity === 'daily' ? addDays(cursor, 1) : addDays(cursor, 7);
+    }
 
     // 5. Gerar insightSummary para a Plataforma
     let platformInsightSummary = "Dados de tendência de alcance e engajamento da plataforma.";
