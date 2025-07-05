@@ -61,6 +61,9 @@ async function aggregatePlatformPerformanceHighlights(
       $project: {
         format: { $ifNull: ["$format", null] },
         context: { $ifNull: ["$context", null] },
+        proposal: { $ifNull: ["$proposal", null] },
+        tone: { $ifNull: ["$tone", null] },
+        references: { $ifNull: ["$references", null] },
         metricValue: `$${metricField}`,
       },
     };
