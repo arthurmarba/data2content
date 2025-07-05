@@ -194,10 +194,10 @@ export function idsToLabels(ids: string[] | undefined, type: 'format'|'proposal'
 }
 
 // Novo helper para traduzir strings com IDs separados por vírgula
-export function commaSeparatedIdsToLabels(ids: string | undefined, type: 'format'|'proposal'|'context'|'tone'|'reference'): string {
+export function commaSeparatedIdsToLabels(ids: string | string[] | undefined, type: 'format'|'proposal'|'context'|'tone'|'reference'): string {
   if (!ids) return '';
-  return ids
-    .split(',')
+  const idList = Array.isArray(ids) ? ids : ids.split(',');
+  return idList
     .map(id => id.trim())
     .filter(id => id.length > 0)
     .map(id => getCategoryById(id, type)?.label ?? id)
