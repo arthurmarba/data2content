@@ -14,6 +14,9 @@ export interface PlatformPerformanceHighlightsAggregation {
   topFormat: AggregatedHighlight | null;
   lowFormat: AggregatedHighlight | null;
   topContext: AggregatedHighlight | null;
+  topProposal: AggregatedHighlight | null;
+  topTone: AggregatedHighlight | null;
+  topReference: AggregatedHighlight | null;
 }
 
 async function aggregatePlatformPerformanceHighlights(
@@ -40,6 +43,9 @@ async function aggregatePlatformPerformanceHighlights(
     topFormat: null,
     lowFormat: null,
     topContext: null,
+    topProposal: null,
+    topTone: null,
+    topReference: null,
   };
 
   try {
@@ -91,6 +97,39 @@ async function aggregatePlatformPerformanceHighlights(
             },
             { $sort: { avg: -1 } },
           ],
+          byProposal: [
+            { $unwind: "$proposal" },
+            {
+              $group: {
+                _id: "$proposal",
+                avg: { $avg: "$metricValue" },
+                count: { $sum: 1 },
+              },
+            },
+            { $sort: { avg: -1 } },
+          ],
+          byTone: [
+            { $unwind: "$tone" },
+            {
+              $group: {
+                _id: "$tone",
+                avg: { $avg: "$metricValue" },
+                count: { $sum: 1 },
+              },
+            },
+            { $sort: { avg: -1 } },
+          ],
+          byReference: [
+            { $unwind: "$references" },
+            {
+              $group: {
+                _id: "$references",
+                avg: { $avg: "$metricValue" },
+                count: { $sum: 1 },
+              },
+            },
+            { $sort: { avg: -1 } },
+          ],
         },
       },
     ];
@@ -121,6 +160,36 @@ async function aggregatePlatformPerformanceHighlights(
         name: topContextName ?? null,
         average: topC.avg ?? 0,
         count: topC.count ?? 0,
+      };
+    }
+
+    if (agg?.byProposal?.length) {
+      const topP = agg.byProposal[0];
+      const topProposalName = Array.isArray(topP._id) ? topP._id.join(',') : topP._id;
+      initial.topProposal = {
+        name: topProposalName ?? null,
+        average: topP.avg ?? 0,
+        count: topP.count ?? 0,
+      };
+    }
+
+    if (agg?.byTone?.length) {
+      const topT = agg.byTone[0];
+      const topToneName = Array.isArray(topT._id) ? topT._id.join(',') : topT._id;
+      initial.topTone = {
+        name: topToneName ?? null,
+        average: topT.avg ?? 0,
+        count: topT.count ?? 0,
+      };
+    }
+
+    if (agg?.byReference?.length) {
+      const topR = agg.byReference[0];
+      const topReferenceName = Array.isArray(topR._id) ? topR._id.join(',') : topR._id;
+      initial.topReference = {
+        name: topReferenceName ?? null,
+        average: topR.avg ?? 0,
+        count: topR.count ?? 0,
       };
     }
 

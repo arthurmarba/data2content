@@ -16,6 +16,9 @@ interface PlatformPerformanceSummaryResponse {
   topPerformingFormat: PerformanceHighlight | null;
   lowPerformingFormat: PerformanceHighlight | null;
   topPerformingContext: PerformanceHighlight | null;
+  topPerformingProposal: PerformanceHighlight | null;
+  topPerformingTone: PerformanceHighlight | null;
+  topPerformingReference: PerformanceHighlight | null;
   insightSummary: string;
 }
 
@@ -101,6 +104,42 @@ export async function GET(
           postsCount: aggResult.topContext.count,
         }
       : null,
+    topPerformingProposal: aggResult.topProposal
+      ? {
+          name: aggResult.topProposal.name as string,
+          metricName: performanceMetricLabel,
+          value: aggResult.topProposal.average,
+          valueFormatted: formatPerformanceValue(
+            aggResult.topProposal.average,
+            performanceMetricField
+          ),
+          postsCount: aggResult.topProposal.count,
+        }
+      : null,
+    topPerformingTone: aggResult.topTone
+      ? {
+          name: aggResult.topTone.name as string,
+          metricName: performanceMetricLabel,
+          value: aggResult.topTone.average,
+          valueFormatted: formatPerformanceValue(
+            aggResult.topTone.average,
+            performanceMetricField
+          ),
+          postsCount: aggResult.topTone.count,
+        }
+      : null,
+    topPerformingReference: aggResult.topReference
+      ? {
+          name: aggResult.topReference.name as string,
+          metricName: performanceMetricLabel,
+          value: aggResult.topReference.average,
+          valueFormatted: formatPerformanceValue(
+            aggResult.topReference.average,
+            performanceMetricField
+          ),
+          postsCount: aggResult.topReference.count,
+        }
+      : null,
     insightSummary: "",
   };
 
@@ -120,6 +159,21 @@ export async function GET(
       `${response.topPerformingContext.name} é o contexto de melhor performance (${response.topPerformingContext.valueFormatted} de ${performanceMetricLabel} em média).`
     );
   }
+  if (response.topPerformingProposal) {
+    insights.push(
+      `${response.topPerformingProposal.name} é a proposta de melhor desempenho (${response.topPerformingProposal.valueFormatted} de ${performanceMetricLabel} em média).`
+    );
+  }
+  if (response.topPerformingTone) {
+    insights.push(
+      `${response.topPerformingTone.name} é o tom de melhor desempenho (${response.topPerformingTone.valueFormatted} de ${performanceMetricLabel} em média).`
+    );
+  }
+  if (response.topPerformingReference) {
+    insights.push(
+      `${response.topPerformingReference.name} é a referência de melhor desempenho (${response.topPerformingReference.valueFormatted} de ${performanceMetricLabel} em média).`
+    );
+  }
   if (
     response.lowPerformingFormat &&
     response.lowPerformingFormat.name !== response.topPerformingFormat?.name
@@ -133,7 +187,7 @@ export async function GET(
     insights.length === 0 ||
     (insights.length === 1 && insights[0]?.startsWith("Não foi"))
   ) {
-    response.insightSummary = `Análise de performance da plataforma por formato e contexto para ${performanceMetricLabel} (${timePeriod.replace("last_", "").replace("_", " ")}).`;
+    response.insightSummary = `Análise de performance da plataforma por formato, contexto e outras dimensões para ${performanceMetricLabel} (${timePeriod.replace("last_", "").replace("_", " ")}).`;
   }
 
 
