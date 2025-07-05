@@ -20,7 +20,7 @@ describe('PlatformVideoPerformanceMetrics', () => {
     (fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        averageRetentionRate: 50,
+        averageViews: 200,
         averageWatchTimeSeconds: 120,
         numberOfVideoPosts: 10,
         insightSummary: 'Resumo',
@@ -29,7 +29,7 @@ describe('PlatformVideoPerformanceMetrics', () => {
 
     render(<PlatformVideoPerformanceMetrics />);
 
-    await waitFor(() => expect(screen.getByText('50.0%')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('200')).toBeInTheDocument());
     expect(screen.getByText('120s')).toBeInTheDocument();
     expect(screen.getByText('10')).toBeInTheDocument();
     expect(screen.getByText('Resumo')).toBeInTheDocument();
@@ -39,7 +39,7 @@ describe('PlatformVideoPerformanceMetrics', () => {
     (fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        averageRetentionRate: null,
+        averageViews: null,
         averageWatchTimeSeconds: null,
         numberOfVideoPosts: null,
       }),

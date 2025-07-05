@@ -6,7 +6,7 @@ import { useGlobalTimePeriod } from './filters/GlobalTimePeriodContext';
 
 // Reutilizar as interfaces e componentes auxiliares
 interface VideoMetricsData {
-  averageRetentionRate: number | null;
+  averageViews: number | null;
   averageWatchTimeSeconds: number | null;
   numberOfVideoPosts: number | null;
 }
@@ -72,7 +72,7 @@ const PlatformVideoPerformanceMetrics: React.FC<PlatformVideoPerformanceMetricsP
       }
       const result: VideoMetricsResponse = await response.json();
       setMetrics({
-        averageRetentionRate: result.averageRetentionRate,
+        averageViews: result.averageViews,
         averageWatchTimeSeconds: result.averageWatchTimeSeconds,
         numberOfVideoPosts: result.numberOfVideoPosts,
       });
@@ -104,10 +104,9 @@ const PlatformVideoPerformanceMetrics: React.FC<PlatformVideoPerformanceMetricsP
         <>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <MetricDisplay
-                label="Retenção Média (Plataforma)"
-                value={metrics.averageRetentionRate !== null ? (metrics.averageRetentionRate).toFixed(1) : null}
-                unit="%"
-                tooltip="Média da porcentagem de vídeo que os espectadores assistem em toda a plataforma."
+                label="Média de Visualizações (Plataforma)"
+                value={metrics.averageViews !== null ? metrics.averageViews.toFixed(0) : null}
+                tooltip="Média de visualizações por vídeo na plataforma."
             />
             <MetricDisplay
                 label="Tempo Médio de Visualização (Plataforma)"
