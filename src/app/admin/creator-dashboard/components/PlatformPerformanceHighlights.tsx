@@ -24,6 +24,9 @@ interface PerformanceSummaryResponse {
   topPerformingFormat: PerformanceHighlightItem | null;
   lowPerformingFormat: PerformanceHighlightItem | null;
   topPerformingContext: PerformanceHighlightItem | null;
+  topPerformingProposal: PerformanceHighlightItem | null;
+  topPerformingTone: PerformanceHighlightItem | null;
+  topPerformingReference: PerformanceHighlightItem | null;
   insightSummary: string;
 }
 
@@ -55,7 +58,16 @@ const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps
       // Verifica se o campo 'topPerformingContext' existe e traduz seu nome
       // antes de salvar os dados no estado do componente.
       if (result.topPerformingContext) {
-          result.topPerformingContext.name = commaSeparatedIdsToLabels(result.topPerformingContext.name, 'context') || result.topPerformingContext.name;
+        result.topPerformingContext.name = commaSeparatedIdsToLabels(result.topPerformingContext.name, 'context') || result.topPerformingContext.name;
+      }
+      if (result.topPerformingProposal) {
+        result.topPerformingProposal.name = commaSeparatedIdsToLabels(result.topPerformingProposal.name, 'proposal') || result.topPerformingProposal.name;
+      }
+      if (result.topPerformingTone) {
+        result.topPerformingTone.name = commaSeparatedIdsToLabels(result.topPerformingTone.name, 'tone') || result.topPerformingTone.name;
+      }
+      if (result.topPerformingReference) {
+        result.topPerformingReference.name = commaSeparatedIdsToLabels(result.topPerformingReference.name, 'reference') || result.topPerformingReference.name;
       }
 
       setSummary(result);
@@ -82,7 +94,7 @@ const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps
 
       {!loading && !error && summary && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <HighlightCard
               title="Melhor Formato (Plataforma)"
               highlight={summary.topPerformingFormat}
@@ -103,6 +115,27 @@ const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps
               icon={<TrendingDown size={18} className="mr-2 text-red-500"/>}
               bgColorClass="bg-red-50"
               textColorClass="text-red-600"
+            />
+            <HighlightCard
+              title="Melhor Proposta"
+              highlight={summary.topPerformingProposal}
+              icon={<Sparkles size={18} className="mr-2 text-purple-500"/>}
+              bgColorClass="bg-purple-50"
+              textColorClass="text-purple-600"
+            />
+            <HighlightCard
+              title="Melhor Tom"
+              highlight={summary.topPerformingTone}
+              icon={<Sparkles size={18} className="mr-2 text-amber-500"/>}
+              bgColorClass="bg-amber-50"
+              textColorClass="text-amber-600"
+            />
+            <HighlightCard
+              title="Melhor Referência"
+              highlight={summary.topPerformingReference}
+              icon={<Sparkles size={18} className="mr-2 text-teal-500"/>}
+              bgColorClass="bg-teal-50"
+              textColorClass="text-teal-600"
             />
         </div>
         {summary.insightSummary && (
