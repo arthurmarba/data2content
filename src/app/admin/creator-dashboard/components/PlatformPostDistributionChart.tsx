@@ -6,6 +6,31 @@ import { useGlobalTimePeriod } from './filters/GlobalTimePeriodContext';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { getCategoryById } from "../../../lib/classification";
 
+const FORMAT_LABEL_MAP: Record<string, string> = {
+  IMAGE: 'photo',
+  IMAGEM: 'photo',
+  PHOTO: 'photo',
+  FOTO: 'photo',
+  VIDEO: 'long_video',
+  REEL: 'reel',
+  CAROUSEL_ALBUM: 'carousel',
+  CAROUSEL: 'carousel',
+  CARROSSEL: 'carousel',
+  STORY: 'story',
+  LIVE: 'live',
+  LONG_VIDEO: 'long_video',
+};
+
+function toFormatLabel(raw: string): string {
+  const key = raw.trim().toUpperCase();
+  const mappedId = FORMAT_LABEL_MAP[key];
+  return (
+    (mappedId && getCategoryById(mappedId, 'format')?.label) ||
+    getCategoryById(raw.trim().toLowerCase(), 'format')?.label ||
+    raw.trim()
+  );
+}
+
 interface ApiPostDistributionDataPoint {
   name: string;
   value: number; // Agora representa contagem de posts
@@ -61,7 +86,7 @@ const PlatformPostDistributionChart: React.FC<PlatformPostDistributionChartProps
       const result: PlatformPostDistributionResponse = await response.json();
       const mapped = result.chartData.map(d => ({
         ...d,
-        name: getCategoryById(d.name, 'format')?.label ?? d.name,
+        name: toFormatLabel(d.name),
       }));
       setData(mapped);
       setInsightSummary(result.insightSummary);
