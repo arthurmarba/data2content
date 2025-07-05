@@ -11,6 +11,7 @@ const DEFAULT_VIDEO_TYPES: string[] = ['REEL', 'VIDEO'];
 interface PlatformVideoMetricsResponse {
   averageRetentionRate: number | null;
   averageWatchTimeSeconds: number | null;
+  averageViews: number | null;
   numberOfVideoPosts: number | null;
   insightSummary?: string;
 }
@@ -68,10 +69,12 @@ export async function GET(request: Request) {
           // Ele usa o valor calculado acima e divide pela duração do vídeo.
           retention_rate: {
             $cond: {
-              if: { $and: [
-                { $gt: [{ $ifNull: ['$stats.ig_reels_avg_watch_time', 0] }, 0] },
-                { $gt: [{ $ifNull: ['$stats.video_duration_seconds', 0] }, 0] } // Evita divisão por zero
-              ]},
+              if: {
+                $and: [
+                  { $gt: [{ $ifNull: ['$stats.ig_reels_avg_watch_time', 0] }, 0] },
+                  { $gt: [{ $ifNull: ['$stats.video_duration_seconds', 0] }, 0] } // Evita divisão por zero
+                ]
+              },
               then: {
                 $divide: [
                   { $divide: ['$stats.ig_reels_avg_watch_time', 1000] }, // watch time em segundos
@@ -80,6 +83,13 @@ export async function GET(request: Request) {
               },
               else: null
             }
+          },
+          // 3. Visualizações do vídeo
+          views: {
+            $ifNull: [
+              '$stats.views',
+              { $ifNull: ['$stats.video_views', null] }
+            ]
           }
         },
       },
@@ -98,6 +108,8 @@ export async function GET(request: Request) {
           countWatchTimeValid: {
             $sum: { $cond: [{ $ne: ['$average_video_watch_time_seconds', null] }, 1, 0] }
           },
+          totalViewsSum: { $sum: { $ifNull: ['$views', 0] } },
+          countViewsValid: { $sum: { $cond: [{ $ne: ['$views', null] }, 1, 0] } },
           totalVideoPosts: { $sum: 1 },
         },
       },
@@ -109,6 +121,7 @@ export async function GET(request: Request) {
       return NextResponse.json<PlatformVideoMetricsResponse>({
         averageRetentionRate: null,
         averageWatchTimeSeconds: null,
+        averageViews: null,
         numberOfVideoPosts: 0,
         insightSummary: summary,
       });
@@ -121,10 +134,13 @@ export async function GET(request: Request) {
     const avgWatchTime = agg.countWatchTimeValid
       ? agg.totalWatchTimeSum / agg.countWatchTimeValid
       : null;
+    const avgViews = agg.countViewsValid
+      ? agg.totalViewsSum / agg.countViewsValid
+      : null;
 
     const summary =
-      `No período "${timePeriod}", retenção média de vídeos: ${
-        avgRetention != null ? avgRetention.toFixed(1) + '%' : 'N/A'
+      `No período "${timePeriod}", visualizações médias: ${
+        avgViews != null ? avgViews.toFixed(0) : 'N/A'
       }, tempo médio de visualização: ${
         avgWatchTime != null ? avgWatchTime.toFixed(0) + 's' : 'N/A'
       } em ${agg.totalVideoPosts.toLocaleString()} vídeos.`;
@@ -132,6 +148,7 @@ export async function GET(request: Request) {
     return NextResponse.json<PlatformVideoMetricsResponse>({
       averageRetentionRate: avgRetention,
       averageWatchTimeSeconds: avgWatchTime,
+      averageViews: avgViews,
       numberOfVideoPosts: agg.totalVideoPosts,
       insightSummary: summary,
     });

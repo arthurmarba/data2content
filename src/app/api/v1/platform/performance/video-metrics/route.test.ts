@@ -25,6 +25,8 @@ describe('GET /api/v1/platform/performance/video-metrics', () => {
         countRetentionValid: 2,
         totalWatchTimeSum: 300,
         countWatchTimeValid: 3,
+        totalViewsSum: 1000,
+        countViewsValid: 4,
         totalVideoPosts: 5,
       },
     ]);
@@ -35,6 +37,7 @@ describe('GET /api/v1/platform/performance/video-metrics', () => {
     expect(res.status).toBe(200);
     expect(body.averageRetentionRate).toBeCloseTo(100);
     expect(body.averageWatchTimeSeconds).toBeCloseTo(100);
+    expect(body.averageViews).toBeCloseTo(250);
     expect(body.numberOfVideoPosts).toBe(5);
     expect(body.insightSummary).toContain('last_30_days');
   });
@@ -48,6 +51,7 @@ describe('GET /api/v1/platform/performance/video-metrics', () => {
     expect(res.status).toBe(200);
     expect(body.averageRetentionRate).toBeNull();
     expect(body.averageWatchTimeSeconds).toBeNull();
+    expect(body.averageViews).toBeNull();
     expect(body.numberOfVideoPosts).toBe(0);
     expect(body.insightSummary).toContain('Nenhum post de vídeo encontrado');
   });
