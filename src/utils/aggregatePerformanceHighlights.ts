@@ -74,6 +74,7 @@ async function aggregatePerformanceHighlights(
       {
         $facet: {
           byFormat: [
+            { $unwind: "$format" },
             {
               $group: {
                 _id: "$format",
@@ -84,6 +85,7 @@ async function aggregatePerformanceHighlights(
             { $sort: { avg: -1 } },
           ],
           byContext: [
+            { $unwind: "$context" },
             {
               $group: {
                 _id: "$context",
@@ -102,13 +104,15 @@ async function aggregatePerformanceHighlights(
     if (agg?.byFormat?.length) {
       const topF = agg.byFormat[0];
       const lowF = agg.byFormat[agg.byFormat.length - 1];
+      const topFormatName = Array.isArray(topF._id) ? topF._id.join(',') : topF._id;
+      const lowFormatName = Array.isArray(lowF._id) ? lowF._id.join(',') : lowF._id;
       initial.topFormat = {
-        name: topF._id ?? null,
+        name: topFormatName ?? null,
         average: topF.avg ?? 0,
         count: topF.count ?? 0,
       };
       initial.lowFormat = {
-        name: lowF._id ?? null,
+        name: lowFormatName ?? null,
         average: lowF.avg ?? 0,
         count: lowF.count ?? 0,
       };
@@ -116,8 +120,9 @@ async function aggregatePerformanceHighlights(
 
     if (agg?.byContext?.length) {
       const topC = agg.byContext[0];
+      const topContextName = Array.isArray(topC._id) ? topC._id.join(',') : topC._id;
       initial.topContext = {
-        name: topC._id ?? null,
+        name: topContextName ?? null,
         average: topC.avg ?? 0,
         count: topC.count ?? 0,
       };

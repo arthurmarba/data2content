@@ -40,6 +40,25 @@ describe('aggregatePlatformPerformanceHighlights', () => {
     expect(res.topContext).toEqual({ name: 'FEED', average: 5, count: 3 });
   });
 
+  it('joins array ids into comma separated strings', async () => {
+    mockAgg.mockResolvedValueOnce([
+      {
+        byFormat: [
+          { _id: ['VIDEO', 'LIVE'], avg: 8, count: 4 },
+          { _id: ['IMAGE'], avg: 2, count: 1 },
+        ],
+        byContext: [
+          { _id: ['FEED', 'STORIES'], avg: 7, count: 5 },
+        ],
+      },
+    ]);
+
+    const res = await aggregatePlatformPerformanceHighlights(30, 'stats.total_interactions');
+    expect(res.topFormat?.name).toBe('VIDEO,LIVE');
+    expect(res.lowFormat?.name).toBe('IMAGE');
+    expect(res.topContext?.name).toBe('FEED,STORIES');
+  });
+
   it('handles empty aggregation', async () => {
     mockAgg.mockResolvedValueOnce([{}]);
     const res = await aggregatePlatformPerformanceHighlights(30, 'stats.total_interactions');
