@@ -5,6 +5,7 @@ import GlobalPeriodIndicator from "../GlobalPeriodIndicator";
 import CreatorRankingCard from "../../CreatorRankingCard";
 import TopCreatorsWidget from "../../TopCreatorsWidget";
 import { useGlobalTimePeriod } from "../filters/GlobalTimePeriodContext";
+import { TimePeriod } from "@/app/lib/constants/timePeriods"; // Importa o tipo específico
 
 interface Props {
   rankingDateRange: { startDate: string; endDate: string };
@@ -16,6 +17,11 @@ const CreatorRankingSection: React.FC<Props> = ({
   rankingDateLabel,
 }) => {
   const { timePeriod: globalTimePeriod } = useGlobalTimePeriod();
+  
+  // A correção é aplicar uma asserção de tipo para garantir ao TypeScript
+  // que a string 'globalTimePeriod' é um dos valores permitidos.
+  const validatedTimePeriod = globalTimePeriod as TimePeriod;
+
   return (
     <section id="creator-rankings" className="mb-10">
       <h2 className="text-xl md:text-2xl font-semibold text-gray-700 mb-6 pb-2 border-b border-gray-300">
@@ -33,9 +39,9 @@ const CreatorRankingSection: React.FC<Props> = ({
               dateRangeFilter={rankingDateRange}
               dateRangeLabel={rankingDateLabel}
               metricLabel="%"
-        tooltip="Taxa de engajamento média: interações divididas pelo alcance total do período."
-        limit={5}
-      />
+              tooltip="Taxa de engajamento média: interações divididas pelo alcance total do período."
+              limit={5}
+            />
           </div>
           <div className="inline-flex md:block">
             <CreatorRankingCard
@@ -125,7 +131,7 @@ const CreatorRankingSection: React.FC<Props> = ({
             <TopCreatorsWidget
               title="Top Criadores"
               metric="total_interactions"
-              timePeriod={globalTimePeriod}
+              timePeriod={validatedTimePeriod}
               limit={5}
             />
           </div>

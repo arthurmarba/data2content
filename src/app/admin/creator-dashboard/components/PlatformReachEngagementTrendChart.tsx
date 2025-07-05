@@ -7,19 +7,19 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 
-interface ApiReachEngagementDataPoint {
+// ===== INÍCIO DA CORREÇÃO =====
+// A interface foi atualizada para corresponder à resposta da API
+interface ApiChartDataPoint {
   date: string;
   reach: number | null;
-  engagedUsers: number | null;
+  totalInteractions: number | null; // Alterado de engagedUsers
 }
 
-interface PlatformReachEngagementTrendResponse {
-  chartData: ApiReachEngagementDataPoint[];
+interface PlatformChartResponse {
+  chartData: ApiChartDataPoint[];
   insightSummary?: string;
 }
-
-// TIME_PERIOD_OPTIONS não é mais necessário aqui
-// const TIME_PERIOD_OPTIONS = [ ... ];
+// ===== FIM DA CORREÇÃO =====
 
 const GRANULARITY_OPTIONS = [
   { value: "daily", label: "Diário" },
@@ -34,11 +34,10 @@ const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendCh
   initialGranularity = GRANULARITY_OPTIONS[0]!.value
 }) => {
   const { timePeriod } = useGlobalTimePeriod();
-  const [data, setData] = useState<PlatformReachEngagementTrendResponse['chartData']>([]);
+  const [data, setData] = useState<PlatformChartResponse['chartData']>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  // timePeriod vem do contexto global
   const [granularity, setGranularity] = useState<string>(initialGranularity);
 
   const fetchData = useCallback(async () => {
@@ -51,7 +50,7 @@ const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendCh
         const errorData = await response.json().catch(() => ({}));
         throw new Error(`Erro HTTP: ${response.status} - ${errorData.error || response.statusText}`);
       }
-      const result: PlatformReachEngagementTrendResponse = await response.json();
+      const result: PlatformChartResponse = await response.json();
       setData(result.chartData);
       setInsightSummary(result.insightSummary);
     } catch (err) {
@@ -61,13 +60,11 @@ const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendCh
     } finally {
       setLoading(false);
     }
-  }, [timePeriod, granularity]); // Adicionado timePeriod às dependências
+  }, [timePeriod, granularity]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
-  // handleTimePeriodChange não é mais necessário aqui
 
   const handleGranularityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setGranularity(e.target.value);
@@ -91,10 +88,11 @@ const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendCh
   };
 
   return (
-    <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6 md:mt-0"> {/* Removido mt-6 se for o segundo na linha */}
+    <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6 md:mt-0">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4">
+        {/* ===== CORREÇÃO: Título do gráfico atualizado ===== */}
         <h2 className="text-lg md:text-xl font-semibold text-gray-700 mb-2 sm:mb-0">
-            Evolução de Alcance e Contas Engajadas (Plataforma)
+            Evolução de Alcance e Interações (Plataforma)
         </h2>
         <div>
             <label htmlFor="granularityReachEngPlatform" className="sr-only">Granularidade:</label>
@@ -143,11 +141,12 @@ const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendCh
                 dot={{ r: 3 }}
                 activeDot={{ r: 6 }}
               />
+              {/* ===== CORREÇÃO: dataKey e name atualizados para "Interações" ===== */}
               <Line
                 yAxisId="left"
                 type="monotone"
-                dataKey="engagedUsers"
-                name="Contas Engajadas"
+                dataKey="totalInteractions"
+                name="Interações"
                 stroke="#82ca9d"
                 strokeWidth={2}
                 dot={{ r: 3 }}
@@ -171,4 +170,3 @@ const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendCh
 };
 
 export default memo(PlatformReachEngagementTrendChart);
-

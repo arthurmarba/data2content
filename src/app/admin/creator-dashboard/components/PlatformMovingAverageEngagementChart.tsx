@@ -19,9 +19,6 @@ interface PlatformMovingAverageResponse {
   insightSummary?: string;
 }
 
-// DATA_WINDOW_OPTIONS não é mais necessário aqui, pois será controlado pelo pai (timePeriod)
-// const DATA_WINDOW_OPTIONS = [ ... ];
-
 const MOVING_AVERAGE_WINDOW_OPTIONS = [
   { value: "7", label: "7 dias (Média Semanal)" },
   { value: "14", label: "14 dias" },
@@ -33,10 +30,9 @@ const timePeriodToDataWindowDays = (timePeriod: string): number => {
   switch (timePeriod) {
     case "last_7_days": return 7;
     case "last_30_days": return 30;
-    case "last_60_days": return 60; // Adicionado para exemplo
+    case "last_60_days": return 60;
     case "last_90_days": return 90;
-    // Adicionar mais casos se o GlobalTimePeriodFilter tiver outras opções que se aplicam aqui
-    default: return 30; // Default se a string não corresponder
+    default: return 30; // Default
   }
 };
 
@@ -53,7 +49,6 @@ const PlatformMovingAverageEngagementChart: React.FC<PlatformMovingAverageEngage
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // dataWindow (número de dias) é derivado do timePeriod do contexto
   const dataWindowInDays = timePeriodToDataWindowDays(timePeriod);
   const [avgWindow, setAvgWindow] = useState<string>(initialAvgWindow);
 
@@ -87,7 +82,7 @@ const PlatformMovingAverageEngagementChart: React.FC<PlatformMovingAverageEngage
     } finally {
       setLoading(false);
     }
-  }, [dataWindowInDays, avgWindow]); // Depende de dataWindowInDays (derivado de timePeriod) e avgWindow
+  }, [dataWindowInDays, avgWindow]);
 
   useEffect(() => {
     fetchData();
@@ -106,10 +101,10 @@ const PlatformMovingAverageEngagementChart: React.FC<PlatformMovingAverageEngage
   return (
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-6 md:mt-0">
        <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4">
+        {/* ===== CORREÇÃO: Título do gráfico atualizado ===== */}
         <h2 className="text-lg md:text-xl font-semibold text-gray-700 mb-2 sm:mb-0">
-            Média Móvel de Engajamento Diário (Plataforma)
+            Tendência de Engajamento (Plataforma)
         </h2>
-        {/* Seletor de dataWindow (timePeriod) foi removido */}
         <div>
           <label htmlFor="avgWindowMovingAvgPlatform" className="sr-only">Janela da Média Móvel:</label>
           <select
@@ -137,10 +132,11 @@ const PlatformMovingAverageEngagementChart: React.FC<PlatformMovingAverageEngage
               <YAxis stroke="#666" tick={{ fontSize: 12 }} tickFormatter={yAxisFormatter} />
               <Tooltip formatter={tooltipFormatter} labelStyle={{ color: '#333' }} itemStyle={{ color: '#82ca9d' }} />
               <Legend wrapperStyle={{ fontSize: 14 }} />
+              {/* ===== CORREÇÃO: Nome da linha na legenda atualizado ===== */}
               <Line
                 type="monotone"
                 dataKey="movingAverageEngagement"
-                name={`Média Móvel (${avgWindow}d)`}
+                name={`Tendência (${avgWindow}d)`}
                 stroke="#82ca9d"
                 strokeWidth={2}
                 dot={{ r: 2 }}
@@ -165,4 +161,3 @@ const PlatformMovingAverageEngagementChart: React.FC<PlatformMovingAverageEngage
 };
 
 export default memo(PlatformMovingAverageEngagementChart);
-
