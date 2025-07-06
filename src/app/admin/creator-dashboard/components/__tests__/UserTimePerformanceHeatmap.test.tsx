@@ -26,4 +26,14 @@ describe('UserTimePerformanceHeatmap', () => {
     await waitFor(() => expect(global.fetch).toHaveBeenCalled());
     expect((global.fetch as jest.Mock).mock.calls[0][0]).toContain('/api/v1/users/u1/performance/time-distribution');
   });
+
+  it('refetches when userId changes', async () => {
+    const { rerender } = render(<UserTimePerformanceHeatmap userId="u1" />);
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+    expect((global.fetch as jest.Mock).mock.calls[0][0]).toContain('/api/v1/users/u1/performance/time-distribution');
+
+    rerender(<UserTimePerformanceHeatmap userId="u2" />);
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
+    expect((global.fetch as jest.Mock).mock.calls[1][0]).toContain('/api/v1/users/u2/performance/time-distribution');
+  });
 });
