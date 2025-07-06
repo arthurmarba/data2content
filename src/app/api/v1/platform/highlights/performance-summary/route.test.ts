@@ -1,13 +1,13 @@
 import { GET } from './route';
 import aggregatePlatformPerformanceHighlights from '@/utils/aggregatePlatformPerformanceHighlights';
-import aggregatePlatformTimePerformance from '@/utils/aggregatePlatformTimePerformance';
+import aggregatePlatformDayPerformance from '@/utils/aggregatePlatformDayPerformance';
 import { NextRequest } from 'next/server';
 
 jest.mock('@/utils/aggregatePlatformPerformanceHighlights');
-jest.mock('@/utils/aggregatePlatformTimePerformance');
+jest.mock('@/utils/aggregatePlatformDayPerformance');
 
 const mockAgg = aggregatePlatformPerformanceHighlights as jest.Mock;
-const mockTimeAgg = aggregatePlatformTimePerformance as jest.Mock;
+const mockDayAgg = aggregatePlatformDayPerformance as jest.Mock;
 
 const makeRequest = (search = '') => new NextRequest(`http://localhost/api/v1/platform/highlights/performance-summary${search}`);
 
@@ -25,10 +25,10 @@ describe('GET /api/v1/platform/highlights/performance-summary', () => {
       topTone: { name: 'humor', average: 7, count: 2 },
       topReference: { name: 'pop_culture', average: 6, count: 3 },
     });
-    mockTimeAgg.mockResolvedValueOnce({
+    mockDayAgg.mockResolvedValueOnce({
       buckets: [],
-      bestSlots: [{ dayOfWeek: 5, timeBlock: '18-24', average: 12, count: 4 }],
-      worstSlots: [],
+      bestDays: [{ dayOfWeek: 5, average: 12, count: 4 }],
+      worstDays: [],
     });
 
     const res = await GET(makeRequest('?timePeriod=last_30_days'));
@@ -36,14 +36,14 @@ describe('GET /api/v1/platform/highlights/performance-summary', () => {
 
     expect(res.status).toBe(200);
     expect(mockAgg).toHaveBeenCalled();
-    expect(mockTimeAgg).toHaveBeenCalled();
+    expect(mockDayAgg).toHaveBeenCalled();
     expect(body.topPerformingFormat.name).toBe('VIDEO');
     expect(body.lowPerformingFormat.name).toBe('IMAGE');
     expect(body.topPerformingContext.name).toBe('FEED');
     expect(body.topPerformingProposal.name).toBe('educational');
     expect(body.topPerformingTone.name).toBe('humor');
     expect(body.topPerformingReference.name).toBe('pop_culture');
-    expect(body.bestTimeSlot.timeBlock).toBe('18-24');
+    expect(body.bestDay.dayOfWeek).toBe(5);
   });
 
   it('returns 400 for invalid timePeriod', async () => {
@@ -52,5 +52,6 @@ describe('GET /api/v1/platform/highlights/performance-summary', () => {
     expect(res.status).toBe(400);
     expect(body.error).toContain('Time period inválido');
     expect(mockAgg).not.toHaveBeenCalled();
+    expect(mockDayAgg).not.toHaveBeenCalled();
   });
 });
