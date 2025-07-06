@@ -93,8 +93,19 @@ export async function aggregatePlatformTimePerformance(
       {
         $group: {
           _id: { dayOfWeek: "$dayOfWeek", timeBlock: "$timeBlock" },
-          avg: { $avg: "$metricValue" },
+          total: { $sum: "$metricValue" },
           count: { $sum: 1 },
+        },
+      },
+      {
+        $addFields: {
+          avg: {
+            $cond: {
+              if: { $eq: ["$count", 0] },
+              then: 0,
+              else: { $divide: ["$total", "$count"] },
+            },
+          },
         },
       },
       { $sort: { avg: -1 } },
