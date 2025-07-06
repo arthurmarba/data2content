@@ -9,6 +9,30 @@ import HighlightCard from './HighlightCard';
 import { commaSeparatedIdsToLabels } from '../../../lib/classification';
 import FormatPerformanceRankingTable from './FormatPerformanceRankingTable';
 
+const DAY_LABELS = [
+  'Domingo',
+  'Segunda-feira',
+  'Terça-feira',
+  'Quarta-feira',
+  'Quinta-feira',
+  'Sexta-feira',
+  'Sábado',
+];
+
+function formatTimeBlock(block: string) {
+  const [start, end] = block.split('-');
+  return `${start}h-${end}h`;
+}
+
+function mapBestTimeSlot(slot: { dayOfWeek: number; timeBlock: string; average: number }) {
+  return {
+    name: `${DAY_LABELS[slot.dayOfWeek]}, ${formatTimeBlock(slot.timeBlock)}`,
+    metricName: 'Horário',
+    value: slot.average,
+    valueFormatted: slot.average.toFixed(1),
+  };
+}
+
 interface PerformanceHighlightItem {
   name: string;
   metricName: string;
@@ -22,11 +46,11 @@ interface PerformanceHighlightItem {
 
 interface PerformanceSummaryResponse {
   topPerformingFormat: PerformanceHighlightItem | null;
-  lowPerformingFormat: PerformanceHighlightItem | null;
   topPerformingContext: PerformanceHighlightItem | null;
   topPerformingProposal: PerformanceHighlightItem | null;
   topPerformingTone: PerformanceHighlightItem | null;
   topPerformingReference: PerformanceHighlightItem | null;
+  bestTimeSlot: { dayOfWeek: number; timeBlock: string; average: number } | null;
   insightSummary: string;
 }
 
@@ -94,7 +118,7 @@ const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps
 
       {!loading && !error && summary && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4">
             <HighlightCard
               title="Melhor Formato (Plataforma)"
               highlight={summary.topPerformingFormat}
@@ -108,13 +132,6 @@ const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps
               icon={<Sparkles size={18} className="mr-2 text-blue-500"/>}
               bgColorClass="bg-blue-50"
               textColorClass="text-blue-600"
-            />
-            <HighlightCard
-              title="Formato de Pior Desempenho"
-              highlight={summary.lowPerformingFormat}
-              icon={<TrendingDown size={18} className="mr-2 text-red-500"/>}
-              bgColorClass="bg-red-50"
-              textColorClass="text-red-600"
             />
             <HighlightCard
               title="Melhor Proposta"
@@ -136,6 +153,13 @@ const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps
               icon={<Sparkles size={18} className="mr-2 text-teal-500"/>}
               bgColorClass="bg-teal-50"
               textColorClass="text-teal-600"
+            />
+            <HighlightCard
+              title="Melhor Dia e Horário"
+              highlight={summary.bestTimeSlot ? mapBestTimeSlot(summary.bestTimeSlot) : null}
+              icon={<TrendingUp size={18} className="mr-2 text-indigo-500"/>}
+              bgColorClass="bg-indigo-50"
+              textColorClass="text-indigo-600"
             />
         </div>
         {summary.insightSummary && (
