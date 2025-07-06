@@ -10,8 +10,8 @@ import { camelizeKeys } from '@/utils/camelizeKeys';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 import aggregatePlatformPerformanceHighlights from '@/utils/aggregatePlatformPerformanceHighlights';
 import { timePeriodToDays } from '@/utils/timePeriodHelpers';
-// CORREÇÃO: Adicionada a importação que faltava.
-import { aggregatePlatformTimePerformance } from '@/utils/aggregatePlatformTimePerformance';
+// CORREÇÃO: Adicionada a importação que faltava para 'aggregatePlatformDayPerformance'.
+import { aggregatePlatformDayPerformance } from '@/utils/aggregatePlatformDayPerformance';
 
 
 // Tipos
@@ -29,9 +29,8 @@ interface PlatformPerformanceSummaryResponse {
   topPerformingProposal: PerformanceHighlight | null;
   topPerformingTone: PerformanceHighlight | null;
   topPerformingReference: PerformanceHighlight | null;
-  bestTimeSlot: {
+  bestDay: {
     dayOfWeek: number;
-    hour: number;
     average: number;
   } | null;
   insightSummary: string;
@@ -78,12 +77,12 @@ export async function GET(
     const performanceMetricLabel = DEFAULT_PERFORMANCE_METRIC_LABEL;
     const periodInDaysValue = timePeriodToDays(timePeriod);
 
-    const [aggResult, timeAgg] = await Promise.all([
+    const [aggResult, dayAgg] = await Promise.all([
         aggregatePlatformPerformanceHighlights(periodInDaysValue, performanceMetricField),
-        aggregatePlatformTimePerformance(periodInDaysValue, performanceMetricField)
+        aggregatePlatformDayPerformance(periodInDaysValue, performanceMetricField)
     ]);
-    
-    const bestSlot = timeAgg.bestSlots[0] || null;
+
+    const bestDay = dayAgg.bestDays[0] || null;
 
     const response: PlatformPerformanceSummaryResponse = {
       topPerformingFormat: aggResult.topFormat ? {
@@ -128,10 +127,9 @@ export async function GET(
             valueFormatted: formatPerformanceValue(aggResult.topReference.average, performanceMetricField),
             postsCount: aggResult.topReference.count,
           } : null,
-      bestTimeSlot: bestSlot ? {
-            dayOfWeek: bestSlot.dayOfWeek,
-            hour: bestSlot.hour,
-            average: bestSlot.average,
+      bestDay: bestDay ? {
+            dayOfWeek: bestDay.dayOfWeek,
+            average: bestDay.average,
           } : null,
       insightSummary: "",
     };
@@ -142,9 +140,9 @@ export async function GET(
     if (response.topPerformingContext) insights.push(`${response.topPerformingContext.name} é o contexto de melhor performance (${response.topPerformingContext.valueFormatted} de média).`);
     if (response.topPerformingProposal) insights.push(`${response.topPerformingProposal.name} é a proposta de melhor desempenho (${response.topPerformingProposal.valueFormatted} de média).`);
     
-    if (response.bestTimeSlot) {
-        const dayName = getPortugueseWeekdayNameForSummary(response.bestTimeSlot.dayOfWeek);
-        insights.push(`O melhor horário para postar é ${dayName} às ${response.bestTimeSlot.hour}h, com média de ${response.bestTimeSlot.average.toFixed(1)} interações.`);
+    if (response.bestDay) {
+        const dayName = getPortugueseWeekdayNameForSummary(response.bestDay.dayOfWeek);
+        insights.push(`O melhor dia para postar é ${dayName}, com média de ${response.bestDay.average.toFixed(1)} interações por post.`);
     }
     if (response.lowPerformingFormat && response.lowPerformingFormat.name !== response.topPerformingFormat?.name) {
         insights.push(`O formato ${response.lowPerformingFormat.name} tem performance mais baixa (${response.lowPerformingFormat.valueFormatted}).`);

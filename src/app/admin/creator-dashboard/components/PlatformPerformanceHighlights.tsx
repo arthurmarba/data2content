@@ -27,7 +27,7 @@ interface PerformanceSummaryResponse {
   topPerformingProposal: PerformanceHighlightItem | null;
   topPerformingTone: PerformanceHighlightItem | null;
   topPerformingReference: PerformanceHighlightItem | null;
-  bestTimeSlot: { dayOfWeek: number; timeBlock: string; average: number } | null;
+  bestDay: { dayOfWeek: number; average: number } | null;
   insightSummary: string;
 }
 
@@ -35,12 +35,12 @@ interface PlatformPerformanceHighlightsProps {
   sectionTitle?: string;
 }
 
-function formatBestTimeSlot(slot: PerformanceSummaryResponse["bestTimeSlot"]): PerformanceHighlightItem | null {
+function formatBestDay(slot: PerformanceSummaryResponse["bestDay"]): PerformanceHighlightItem | null {
   if (!slot) return null;
   const dayName = getPortugueseWeekdayName(slot.dayOfWeek);
   return {
-    name: `🗓️ ${dayName}, ${slot.timeBlock}h`,
-    metricName: "Horário",
+    name: `🗓️ ${dayName}`,
+    metricName: "Dia",
     value: slot.average,
     valueFormatted: slot.average.toFixed(1),
   };
@@ -143,8 +143,8 @@ const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps
               textColorClass="text-teal-600"
             />
             <HighlightCard
-              title="Melhor Dia e Horário"
-              highlight={formatBestTimeSlot(summary.bestTimeSlot)}
+              title="Melhor Dia"
+              highlight={formatBestDay(summary.bestDay)}
               icon={<CalendarDays size={18} className="mr-2 text-indigo-500"/>}
               bgColorClass="bg-indigo-50"
               textColorClass="text-indigo-600"
