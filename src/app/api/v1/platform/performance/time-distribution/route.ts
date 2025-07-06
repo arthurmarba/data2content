@@ -12,6 +12,9 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const timePeriodParam = searchParams.get('timePeriod');
   const formatParam = searchParams.get('format');
+  const proposalParam = searchParams.get('proposal');
+  const contextParam = searchParams.get('context');
+  const metricParam = searchParams.get('metric');
 
   const timePeriod: TimePeriod = isAllowedTimePeriod(timePeriodParam)
     ? timePeriodParam
@@ -22,9 +25,13 @@ export async function GET(request: Request) {
   }
 
   const periodInDaysValue = timePeriodToDays(timePeriod);
-  const metricField = 'stats.total_interactions';
+  const metricField = metricParam || 'stats.total_interactions';
 
-  const result = await aggregatePlatformTimePerformance(periodInDaysValue, metricField, formatParam || undefined);
+  const result = await aggregatePlatformTimePerformance(periodInDaysValue, metricField, {
+    format: formatParam || undefined,
+    proposal: proposalParam || undefined,
+    context: contextParam || undefined,
+  });
 
   return NextResponse.json(camelizeKeys(result), { status: 200 });
 }

@@ -19,11 +19,15 @@ describe('GET /api/v1/platform/performance/time-distribution', () => {
       worstSlots: [],
     });
 
-    const res = await GET(makeRequest('?timePeriod=last_30_days'));
+    const res = await GET(makeRequest('?timePeriod=last_30_days&format=reel&metric=stats.total_interactions'));
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(mockAgg).toHaveBeenCalled();
+    expect(mockAgg).toHaveBeenCalledWith(30, 'stats.total_interactions', {
+      format: 'reel',
+      proposal: undefined,
+      context: undefined,
+    }, expect.any(Date));
     expect(body.buckets[0].timeBlock).toBe('6-12');
   });
 
