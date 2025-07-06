@@ -3,6 +3,7 @@
 import React from "react";
 import GlobalPeriodIndicator from "../GlobalPeriodIndicator";
 import PlatformPerformanceHighlights from "../PlatformPerformanceHighlights";
+import TimePerformanceHeatmap from "../TimePerformanceHeatmap";
 
 
 interface Props {
@@ -19,6 +20,9 @@ const PlatformContentAnalysisSection: React.FC<Props> = ({
       Destaques de Performance da Plataforma <GlobalPeriodIndicator />
     </h2>
     <PlatformPerformanceHighlights />
+    <div className="mt-6">
+      <TimePerformanceHeatmap />
+    </div>
   </section>
 );
 
