@@ -54,7 +54,7 @@ const TimeSlotTopPostsModal: React.FC<TimeSlotTopPostsModalProps> = ({ isOpen, o
       }
     };
     fetchPosts();
-  }, [isOpen, dayOfWeek, timeBlock, filters]);
+  }, [isOpen, dayOfWeek, timeBlock, filters, userId]);
 
   if (!isOpen) return null;
 
