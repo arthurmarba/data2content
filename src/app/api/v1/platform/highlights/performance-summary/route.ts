@@ -36,7 +36,10 @@ interface PlatformPerformanceSummaryResponse {
   insightSummary: string;
 }
 
-const DEFAULT_PERFORMANCE_METRIC_LABEL = "Interações Totais";
+// Use "Interações (média por post)" para deixar claro que os valores
+// retornados representam a média de interações por publicação, não o total
+// acumulado.
+const DEFAULT_PERFORMANCE_METRIC_LABEL = "Interações (média por post)";
 
 // Helpers
 function formatPerformanceValue(value: number, metricFieldId: string): string {
