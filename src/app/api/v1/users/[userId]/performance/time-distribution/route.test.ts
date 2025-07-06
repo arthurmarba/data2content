@@ -1,5 +1,5 @@
 import { GET } from './route';
-import aggregateUserTimePerformance from '@/utils/aggregateUserTimePerformance';
+import { aggregateUserTimePerformance } from '@/utils/aggregateUserTimePerformance';
 import { NextRequest } from 'next/server';
 import { Types } from 'mongoose';
 
