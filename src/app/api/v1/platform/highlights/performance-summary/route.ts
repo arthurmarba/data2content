@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { camelizeKeys } from '@/utils/camelizeKeys';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 import aggregatePlatformPerformanceHighlights from '@/utils/aggregatePlatformPerformanceHighlights';
+import aggregatePlatformTimePerformance from '@/utils/aggregatePlatformTimePerformance';
 import { timePeriodToDays } from '@/utils/timePeriodHelpers';
 
 // Reutilizar tipos e helpers se possível, ou definir específicos da plataforma
@@ -19,6 +20,11 @@ interface PlatformPerformanceSummaryResponse {
   topPerformingProposal: PerformanceHighlight | null;
   topPerformingTone: PerformanceHighlight | null;
   topPerformingReference: PerformanceHighlight | null;
+  bestTimeSlot: {
+    dayOfWeek: number;
+    timeBlock: string;
+    average: number;
+  } | null;
   insightSummary: string;
 }
 
@@ -66,6 +72,12 @@ export async function GET(
     periodInDaysValue,
     performanceMetricField
   );
+
+  const timeAgg = await aggregatePlatformTimePerformance(
+    periodInDaysValue,
+    performanceMetricField
+  );
+  const bestSlot = timeAgg.bestSlots[0] || null;
 
   const response: PlatformPerformanceSummaryResponse = {
     topPerformingFormat: aggResult.topFormat
@@ -140,6 +152,13 @@ export async function GET(
           postsCount: aggResult.topReference.count,
         }
       : null,
+    bestTimeSlot: bestSlot
+      ? {
+          dayOfWeek: bestSlot.dayOfWeek,
+          timeBlock: bestSlot.timeBlock,
+          average: bestSlot.average,
+        }
+      : null,
     insightSummary: "",
   };
 
@@ -172,6 +191,11 @@ export async function GET(
   if (response.topPerformingReference) {
     insights.push(
       `${response.topPerformingReference.name} é a referência de melhor desempenho (${response.topPerformingReference.valueFormatted} de ${performanceMetricLabel} em média).`
+    );
+  }
+  if (response.bestTimeSlot) {
+    insights.push(
+      `O melhor horário médio de postagem é ${response.bestTimeSlot.timeBlock} na semana (dia ${response.bestTimeSlot.dayOfWeek}), com média de ${response.bestTimeSlot.average.toFixed(1)} ${performanceMetricLabel}.`
     );
   }
   if (
