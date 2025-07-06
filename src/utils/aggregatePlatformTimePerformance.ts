@@ -17,10 +17,16 @@ export interface PlatformTimePerformance {
   worstSlots: TimeBucket[];
 }
 
+export interface PerformanceFilters {
+  format?: string;
+  proposal?: string;
+  context?: string;
+}
+
 export async function aggregatePlatformTimePerformance(
   periodInDays: number,
   metricField: string,
-  formatFilter?: string,
+  filters: PerformanceFilters = {},
   referenceDate: Date = new Date()
 ): Promise<PlatformTimePerformance> {
   const today = new Date(referenceDate);
@@ -49,8 +55,14 @@ export async function aggregatePlatformTimePerformance(
       },
     };
 
-    if (formatFilter) {
-      (matchStage.$match as any).format = formatFilter;
+    if (filters.format) {
+      (matchStage.$match as any).format = filters.format;
+    }
+    if (filters.proposal) {
+      (matchStage.$match as any).proposal = filters.proposal;
+    }
+    if (filters.context) {
+      (matchStage.$match as any).context = filters.context;
     }
 
     const pipeline: PipelineStage[] = [
