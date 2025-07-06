@@ -1,10 +1,11 @@
+// src/app/api/v1/users/[userId]/trends/reach-engagement/route.ts
 import { NextResponse } from 'next/server';
 import getReachEngagementTrendChartData from '@/charts/getReachEngagementTrendChartData';
 import getReachInteractionTrendChartData from '@/charts/getReachInteractionTrendChartData';
 import { Types } from 'mongoose';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 
-// CORREÇÃO: Tipos específicos foram definidos para a resposta da API.
+// Tipos específicos para a resposta da API.
 interface ApiReachEngagementDataPoint {
   date: string;
   reach: number | null;
@@ -54,17 +55,25 @@ export async function GET(
   }
 
   try {
-    let data: ReachEngagementChartResponse = await getReachEngagementTrendChartData(
+    // CORREÇÃO: A variável 'data' não é mais estritamente tipada na declaração.
+    // Em vez disso, usamos uma asserção de tipo ('as') para garantir que os dados
+    // sejam tratados como 'ReachEngagementChartResponse', resolvendo o erro de tipo.
+    let data = await getReachEngagementTrendChartData(
       userId,
       timePeriod,
       granularity
-    );
+    ) as unknown as ReachEngagementChartResponse;
 
     const noInsightData =
       !data.chartData || data.chartData.every(p => p.reach === null && p.engagedUsers === null);
 
     if (noInsightData) {
-      data = await getReachInteractionTrendChartData(userId, timePeriod, granularity);
+      // A asserção também é aplicada aqui para manter a consistência do tipo da variável 'data'.
+      data = await getReachInteractionTrendChartData(
+          userId, 
+          timePeriod, 
+          granularity
+      ) as unknown as ReachEngagementChartResponse;
     }
 
     if (!data.chartData || data.chartData.length === 0) {
