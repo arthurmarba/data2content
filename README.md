@@ -128,7 +128,7 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 ## Documentação
 
-Consulte o diretório `docs` para informações adicionais, incluindo o [plano de expanção dos rankings](docs/ranking-expansion.md).
+Consulte o diretório `docs` para informações adicionais, incluindo o [plano de expanção dos rankings](docs/ranking-expansion.md) e o [plano de otimização estratégica v4](docs/plano-de-otimizacao-estrategica-v4.md).
 
 
 ## Deploy on Vercel
