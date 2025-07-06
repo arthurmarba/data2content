@@ -184,18 +184,18 @@ const AdminCreatorDashboardContent: React.FC = () => {
                 rankingDateRange={rankingDateRange}
                 rankingDateLabel={rankingDateLabel}
               />
-              
-              {/* 2. Top Movers (Abaixo do Ranking) */}
-              <TopMoversSection />
 
-              {/* 3. Análise de Conteúdo */}
+              {/* 2. Destaques e Análise por Horário */}
               <PlatformContentAnalysisSection
                 startDate={startDate}
                 endDate={endDate}
               />
-              
-              {/* 4. Visão Geral da Plataforma */}
+
+              {/* 3. Visão Geral da Plataforma */}
               <PlatformOverviewSection />
+
+              {/* 4. Top Movers */}
+              <TopMoversSection />
 
               {/* 5. Explorador de Posts (Final) */}
               <section id="global-posts-explorer" className="mt-8">
