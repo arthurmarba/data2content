@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useGlobalTimePeriod } from "./filters/GlobalTimePeriodContext";
 import { formatCategories, proposalCategories, contextCategories } from "@/app/lib/classification";
 import { getPortugueseWeekdayName } from '@/utils/weekdays';
+import TimeSlotTopPostsModal from './TimeSlotTopPostsModal';
 
 const createOptionsFromCategories = (categories: any[]) => {
   const options: { value: string; label: string }[] = [];
@@ -31,6 +32,7 @@ interface TimePerformanceResponse {
   buckets: HeatmapCell[];
   bestSlots: HeatmapCell[];
   worstSlots: HeatmapCell[];
+  insightSummary?: string;
 }
 
 const DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -54,6 +56,7 @@ const TimePerformanceHeatmap: React.FC = () => {
   const [proposal, setProposal] = useState('');
   const [context, setContext] = useState('');
   const [metric, setMetric] = useState(metricOptions[0]!.value);
+  const [selectedSlot, setSelectedSlot] = useState<{ dayOfWeek: number; block: string } | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -79,9 +82,8 @@ const TimePerformanceHeatmap: React.FC = () => {
 
   useEffect(() => { fetchData(); }, [timePeriod]);
 
-  const getCellValue = (day: number, block: string) => {
-    const cell = data?.buckets.find(b => b.dayOfWeek === day + 1 && b.timeBlock === block);
-    return cell ? cell.average : 0;
+  const getCell = (day: number, block: string) => {
+    return data?.buckets.find(b => b.dayOfWeek === day + 1 && b.timeBlock === block);
   };
 
   const maxValue = data?.buckets.reduce((max, c) => Math.max(max, c.average), 0) || 0;
@@ -150,15 +152,18 @@ const TimePerformanceHeatmap: React.FC = () => {
                 <tr key={d}>
                   <td className="px-2 py-1 font-medium text-gray-600">{d}</td>
                   {BLOCKS.map(b => {
-                    const val = getCellValue(idx, b);
+                    const cell = getCell(idx, b);
+                    const val = cell ? cell.average : 0;
                     const intensity = maxValue === 0 ? 0 : val / maxValue;
                     const style = val === 0 ? undefined : { backgroundColor: `rgba(79,70,229,${intensity})` };
+                    const tooltip = cell ? `${val.toFixed(1)} (n=${cell.count} posts)` : '0';
                     return (
                       <td
                         key={b}
-                        className="px-2 py-1"
+                        className="px-2 py-1 cursor-pointer"
                         style={style}
-                        title={val.toFixed(1)}
+                        title={tooltip}
+                        onClick={() => cell && setSelectedSlot({ dayOfWeek: cell.dayOfWeek, block: cell.timeBlock })}
                       />
                     );
                   })}
@@ -188,12 +193,19 @@ const TimePerformanceHeatmap: React.FC = () => {
                   </ul>
                 </div>
               )}
-              <p className="mt-2">Recomendação: priorize os melhores horários e evite os piores.</p>
+              <p className="mt-2">{data.insightSummary || 'Recomendação: priorize os melhores horários e evite os piores.'}</p>
             </div>
           )}
         </div>
       )}
     </div>
+    <TimeSlotTopPostsModal
+      isOpen={!!selectedSlot}
+      onClose={() => setSelectedSlot(null)}
+      dayOfWeek={selectedSlot?.dayOfWeek || 1}
+      timeBlock={selectedSlot?.block || '0-6'}
+      filters={{ timePeriod, format: format || undefined, proposal: proposal || undefined, context: context || undefined, metric }}
+    />
   );
 };
 

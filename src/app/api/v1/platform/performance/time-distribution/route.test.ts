@@ -15,8 +15,8 @@ describe('GET /api/v1/platform/performance/time-distribution', () => {
   it('returns aggregated data', async () => {
     mockAgg.mockResolvedValueOnce({
       buckets: [{ dayOfWeek: 1, timeBlock: '6-12', average: 10, count: 2 }],
-      bestSlots: [],
-      worstSlots: [],
+      bestSlots: [{ dayOfWeek: 1, timeBlock: '6-12', average: 10, count: 2 }],
+      worstSlots: [{ dayOfWeek: 2, timeBlock: '0-6', average: 1, count: 1 }],
     });
 
     const res = await GET(makeRequest('?timePeriod=last_30_days&format=reel&metric=stats.total_interactions'));
@@ -29,6 +29,7 @@ describe('GET /api/v1/platform/performance/time-distribution', () => {
       context: undefined,
     }, expect.any(Date));
     expect(body.buckets[0].timeBlock).toBe('6-12');
+    expect(body.insightSummary).toContain('pico de engajamento');
   });
 
   it('returns 400 for invalid time period', async () => {
