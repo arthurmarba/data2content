@@ -1,13 +1,42 @@
+/*
+================================================================================
+ARQUIVO 3/3: TimePerformanceHeatmap.tsx
+FUNÇÃO: Componente React do front-end.
+CORREÇÃO: A chamada ao modal foi ajustada para passar a prop 'timeBlock' que ele
+espera, convertendo a 'hour' selecionada. Isso corrige o erro de tipo.
+================================================================================
+*/
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
 import { useGlobalTimePeriod } from "./filters/GlobalTimePeriodContext";
 import { formatCategories, proposalCategories, contextCategories } from "@/app/lib/classification";
-import { getPortugueseWeekdayName } from '@/utils/weekdays';
 import TimeSlotTopPostsModal from './TimeSlotTopPostsModal';
 import { LightBulbIcon, CalendarDaysIcon, ChartBarIcon } from '@heroicons/react/24/solid';
 
-// --- Helper Components ---
+// --- Funções Auxiliares ---
+
+const getPortugueseWeekdayNameForList = (day: number): string => {
+    switch (day) {
+        case 1: return 'Domingo';
+        case 2: return 'Segunda';
+        case 3: return 'Terça';
+        case 4: return 'Quarta';
+        case 5: return 'Quinta';
+        case 6: return 'Sexta';
+        case 7: return 'Sábado';
+        default: return '';
+    }
+};
+
+// CORREÇÃO: Função auxiliar para converter a hora de volta para o formato de bloco.
+const hourToTimeBlock = (hour: number): string => {
+    if (hour <= 5) return "0-6";
+    if (hour <= 11) return "6-12";
+    if (hour <= 17) return "12-18";
+    return "18-24";
+};
+
 const createOptionsFromCategories = (categories: any[]) => {
   const options: { value: string; label: string }[] = [];
   const traverse = (cats: any[], prefix = '') => {
@@ -48,10 +77,10 @@ const EmptyState = ({ message }: { message: string }) => (
 );
 
 
-// --- Types and Constants ---
+// --- Tipos e Constantes ---
 interface HeatmapCell {
   dayOfWeek: number;
-  timeBlock: string;
+  hour: number;
   average: number;
   count: number;
 }
@@ -64,18 +93,18 @@ interface TimePerformanceResponse {
 }
 
 const DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-const BLOCKS = ["0-6", "6-12", "12-18", "18-24"];
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 const metricOptions = [
-  { value: 'stats.total_interactions', label: 'Volume de Engajamento' },
-  { value: 'stats.engagement_rate_on_reach', label: 'Taxa de Engajamento' },
+  { value: 'stats.total_interactions', label: 'Média de Engajamento por Post' },
+  { value: 'stats.engagement_rate_on_reach', label: 'Taxa de Engajamento Média' },
 ];
 
 const formatOptions = createOptionsFromCategories(formatCategories);
 const proposalOptions = createOptionsFromCategories(proposalCategories);
 const contextOptions = createOptionsFromCategories(contextCategories);
 
-// --- Main Component ---
+// --- Componente Principal ---
 const TimePerformanceHeatmap: React.FC = () => {
   const { timePeriod } = useGlobalTimePeriod();
   const [data, setData] = useState<TimePerformanceResponse | null>(null);
@@ -87,7 +116,7 @@ const TimePerformanceHeatmap: React.FC = () => {
   const [context, setContext] = useState('');
   const [metric, setMetric] = useState(metricOptions[0]!.value);
   
-  const [selectedSlot, setSelectedSlot] = useState<{ dayOfWeek: number; block: string } | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<{ dayOfWeek: number; hour: number } | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -114,11 +143,12 @@ const TimePerformanceHeatmap: React.FC = () => {
     fetchData();
   }, [fetchData]);
 
-  const getCell = (day: number, block: string) => {
-    return data?.buckets.find(b => b.dayOfWeek === day && b.timeBlock === block);
+  const getCell = (day: number, hour: number) => {
+    return data?.buckets.find(b => b.dayOfWeek === day && b.hour === hour);
   };
 
   const maxValue = data?.buckets.reduce((max, c) => Math.max(max, c.average), 0) || 0;
+  const selectedMetricLabel = metricOptions.find(opt => opt.value === metric)?.label || '';
 
   return (
     <>
@@ -155,12 +185,12 @@ const TimePerformanceHeatmap: React.FC = () => {
             ) : (
             <>
                 <div className="overflow-x-auto">
-                <table className="w-full text-center text-xs border-separate border-spacing-1 table-fixed">
+                <table className="w-full text-center text-xs border-separate border-spacing-px table-fixed">
                     <thead>
                     <tr>
-                        <th className="p-1 w-12"></th> 
-                        {BLOCKS.map(b => (
-                        <th key={b} className="p-1 font-normal text-gray-500">{b}h</th>
+                        <th className="p-1 w-10"></th> 
+                        {HOURS.map(h => (
+                        <th key={h} className="p-1 font-normal text-gray-500 text-[9px]">{h.toString().padStart(2, '0')}h</th>
                         ))}
                     </tr>
                     </thead>
@@ -168,20 +198,21 @@ const TimePerformanceHeatmap: React.FC = () => {
                     {DAYS.map((d, idx) => (
                         <tr key={d}>
                         <td className="p-1 font-semibold text-gray-600 text-right">{d}</td>
-                        {BLOCKS.map(b => {
-                            const cell = getCell(idx, b);
+                        {HOURS.map(h => {
+                            const cell = getCell(idx + 1, h);
                             const val = cell ? cell.average : 0;
                             const intensity = maxValue === 0 ? 0 : 0.15 + (val / maxValue) * 0.85;
                             const style = val === 0 ? { backgroundColor: '#f8fafc' } : { backgroundColor: `rgba(79, 70, 229, ${intensity})` };
-                            const tooltip = cell ? `${val.toLocaleString('pt-BR', {maximumFractionDigits: 0})} de engaj. (n=${cell.count} posts)` : 'Nenhum post';
+                            const tooltip = cell ? `${val.toLocaleString('pt-BR', {maximumFractionDigits: 1})} de média de engajamento (${cell.count} post${cell.count > 1 ? 's' : ''})` : 'Nenhum post';
                             return (
                             <td
-                                key={b}
-                                className="p-3 cursor-pointer rounded-md transition-all duration-200 hover:scale-110 hover:shadow-lg hover:z-10"
+                                key={h}
+                                className="h-8 cursor-pointer rounded-sm transition-all duration-200 hover:scale-125 hover:shadow-lg hover:z-10"
                                 style={style}
                                 title={tooltip}
-                                onClick={() => cell && cell.count > 0 && setSelectedSlot({ dayOfWeek: cell.dayOfWeek, block: cell.timeBlock })}
-                            />
+                                onClick={() => cell && cell.count > 0 && setSelectedSlot({ dayOfWeek: cell.dayOfWeek, hour: cell.hour })}
+                            >
+                            </td>
                             );
                         })}
                         </tr>
@@ -193,13 +224,14 @@ const TimePerformanceHeatmap: React.FC = () => {
                 <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                 {data.bestSlots.length > 0 && (
                     <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                    <p className="font-semibold mb-2 text-green-800">✅ Melhores Horários</p>
+                    <p className="font-semibold mb-1 text-green-800">✅ Melhores Horários</p>
+                    <p className="text-green-700 text-[11px] mb-2">{selectedMetricLabel}</p>
                     <ul className="space-y-2">
                         {data.bestSlots.slice(0,3).map((s, i) => (
                         <li key={i} className="space-y-1">
                             <div className="flex justify-between items-center">
-                            <span className="font-medium text-gray-700">{getPortugueseWeekdayName(s.dayOfWeek)} • {s.timeBlock}h</span>
-                            <span className="font-bold text-gray-800">{s.average.toLocaleString('pt-BR', {maximumFractionDigits: 0})}</span>
+                            <span className="font-medium text-gray-700">{getPortugueseWeekdayNameForList(s.dayOfWeek)} • {s.hour.toString().padStart(2, '0')}:00h</span>
+                            <span className="font-bold text-gray-800">{s.average.toLocaleString('pt-BR', {maximumFractionDigits: 1})}</span>
                             </div>
                             <div className="w-full bg-green-200 rounded-full h-1.5">
                             <div className="bg-green-500 h-1.5 rounded-full" style={{ width: `${(s.average / maxValue) * 100}%` }}></div>
@@ -211,13 +243,14 @@ const TimePerformanceHeatmap: React.FC = () => {
                 )}
                 {data.worstSlots.length > 0 && (
                     <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-                    <p className="font-semibold mb-2 text-red-800">❌ Piores Horários</p>
+                    <p className="font-semibold mb-1 text-red-800">❌ Piores Horários</p>
+                    <p className="text-red-700 text-[11px] mb-2">{selectedMetricLabel}</p>
                     <ul className="space-y-2">
                         {data.worstSlots.slice(0,3).map((s, i) => (
                         <li key={i} className="space-y-1">
                             <div className="flex justify-between items-center">
-                            <span className="font-medium text-gray-700">{getPortugueseWeekdayName(s.dayOfWeek)} • {s.timeBlock}h</span>
-                            <span className="font-bold text-gray-800">{s.average.toLocaleString('pt-BR', {maximumFractionDigits: 0})}</span>
+                            <span className="font-medium text-gray-700">{getPortugueseWeekdayNameForList(s.dayOfWeek)} • {s.hour.toString().padStart(2, '0')}:00h</span>
+                            <span className="font-bold text-gray-800">{s.average.toLocaleString('pt-BR', {maximumFractionDigits: 1})}</span>
                             </div>
                             <div className="w-full bg-red-200 rounded-full h-1.5">
                             <div className="bg-red-500 h-1.5 rounded-full" style={{ width: `${(s.average / maxValue) * 100}%` }}></div>
@@ -243,7 +276,9 @@ const TimePerformanceHeatmap: React.FC = () => {
         isOpen={!!selectedSlot}
         onClose={() => setSelectedSlot(null)}
         dayOfWeek={selectedSlot?.dayOfWeek || 0}
-        timeBlock={selectedSlot?.block || '0-6'}
+        // CORREÇÃO: O modal ainda espera 'timeBlock'. Convertemos a hora para o formato de bloco.
+        // O ideal é refatorar o modal para aceitar 'hour' para uma filtragem precisa.
+        timeBlock={selectedSlot ? hourToTimeBlock(selectedSlot.hour) : '0-6'}
         filters={{ timePeriod, format: format || undefined, proposal: proposal || undefined, context: context || undefined, metric }}
       />
     </>

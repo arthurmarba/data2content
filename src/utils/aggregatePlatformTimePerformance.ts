@@ -1,3 +1,11 @@
+/*
+================================================================================
+ARQUIVO 1/3: src/utils/aggregatePlatformTimePerformance.ts
+FUNÇÃO: Lógica de agregação no back-end.
+OTIMIZAÇÃO: A pipeline de agregação foi modificada para agrupar os dados por
+hora individual, em vez de blocos de 6 horas, fornecendo maior granularidade.
+================================================================================
+*/
 import MetricModel from "@/app/models/Metric";
 import { PipelineStage } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
@@ -6,7 +14,7 @@ import { getStartDateFromTimePeriod } from "./dateHelpers";
 
 export interface TimeBucket {
   dayOfWeek: number;
-  timeBlock: string;
+  hour: number; // ALTERADO: de timeBlock: string para hour: number
   average: number;
   count: number;
 }
@@ -55,14 +63,15 @@ export async function aggregatePlatformTimePerformance(
       },
     };
 
+    // Filtros usam regex para busca case-insensitive.
     if (filters.format) {
-      (matchStage.$match as any).format = filters.format;
+      (matchStage.$match as any).format = { $regex: `^${filters.format}$`, $options: 'i' };
     }
     if (filters.proposal) {
-      (matchStage.$match as any).proposal = filters.proposal;
+      (matchStage.$match as any).proposal = { $regex: `^${filters.proposal}$`, $options: 'i' };
     }
     if (filters.context) {
-      (matchStage.$match as any).context = filters.context;
+      (matchStage.$match as any).context = { $regex: `^${filters.context}$`, $options: 'i' };
     }
 
     const pipeline: PipelineStage[] = [
@@ -75,24 +84,11 @@ export async function aggregatePlatformTimePerformance(
         },
       },
       { $match: { metricValue: { $ne: null } } },
-      {
-        $addFields: {
-          timeBlock: {
-            $switch: {
-              branches: [
-                { case: { $lte: ["$hour", 5] }, then: "0-6" },
-                { case: { $lte: ["$hour", 11] }, then: "6-12" },
-                { case: { $lte: ["$hour", 17] }, then: "12-18" },
-                { case: { $lte: ["$hour", 23] }, then: "18-24" },
-              ],
-              default: "unknown",
-            },
-          },
-        },
-      },
+      // REMOVIDO: O estágio que criava 'timeBlock' foi removido.
       {
         $group: {
-          _id: { dayOfWeek: "$dayOfWeek", timeBlock: "$timeBlock" },
+          // ALTERADO: Agrupamento agora é por hora individual.
+          _id: { dayOfWeek: "$dayOfWeek", hour: "$hour" },
           total: { $sum: "$metricValue" },
           count: { $sum: 1 },
         },
@@ -114,7 +110,7 @@ export async function aggregatePlatformTimePerformance(
     const agg = await MetricModel.aggregate(pipeline);
     result.buckets = agg.map((d: any) => ({
       dayOfWeek: d._id.dayOfWeek,
-      timeBlock: d._id.timeBlock,
+      hour: d._id.hour, // ALTERADO: Mapeando 'hour' em vez de 'timeBlock'.
       average: d.avg,
       count: d.count,
     }));
@@ -128,5 +124,3 @@ export async function aggregatePlatformTimePerformance(
     return result;
   }
 }
-
-export default aggregatePlatformTimePerformance;

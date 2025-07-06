@@ -1,11 +1,20 @@
+/*
+================================================================================
+ARQUIVO 2/2: src/app/api/v1/platform/highlights/performance-summary/route.ts
+FUNÇÃO: Endpoint da API de destaques.
+CORREÇÃO: Adicionada a importação que faltava para 'aggregatePlatformTimePerformance'.
+================================================================================
+*/
 import { NextResponse } from 'next/server';
 import { camelizeKeys } from '@/utils/camelizeKeys';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 import aggregatePlatformPerformanceHighlights from '@/utils/aggregatePlatformPerformanceHighlights';
-import aggregatePlatformTimePerformance from '@/utils/aggregatePlatformTimePerformance';
 import { timePeriodToDays } from '@/utils/timePeriodHelpers';
+// CORREÇÃO: Adicionada a importação que faltava.
+import { aggregatePlatformTimePerformance } from '@/utils/aggregatePlatformTimePerformance';
 
-// Reutilizar tipos e helpers se possível, ou definir específicos da plataforma
+
+// Tipos
 interface PerformanceHighlight {
   name: string;
   metricName: string;
@@ -22,18 +31,17 @@ interface PlatformPerformanceSummaryResponse {
   topPerformingReference: PerformanceHighlight | null;
   bestTimeSlot: {
     dayOfWeek: number;
-    timeBlock: string;
+    hour: number;
     average: number;
   } | null;
   insightSummary: string;
 }
 
-const DEFAULT_PERFORMANCE_METRIC_LABEL = "Interações Totais"; // Consistente com o endpoint de usuário
+const DEFAULT_PERFORMANCE_METRIC_LABEL = "Interações Totais";
 
-// Helper para formatar valor (simplificado - pode ser compartilhado)
+// Helpers
 function formatPerformanceValue(value: number, metricFieldId: string): string {
-    // Supondo que metricFieldId não é usado diretamente aqui para formatação, apenas o valor
-    if (metricFieldId.includes("Rate") || metricFieldId.includes("percentage")) { // Inferir pelo ID da métrica
+    if (metricFieldId.includes("Rate") || metricFieldId.includes("percentage")) {
         return `${(value * 100).toFixed(1)}%`;
     }
     if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
@@ -41,186 +49,116 @@ function formatPerformanceValue(value: number, metricFieldId: string): string {
     return value.toFixed(0);
 }
 
-// CORREÇÃO: Função de verificação de tipo (type guard) para validar o parâmetro
 function isAllowedTimePeriod(period: any): period is TimePeriod {
     return ALLOWED_TIME_PERIODS.includes(period);
+}
+
+function getPortugueseWeekdayNameForSummary(day: number): string {
+    const days = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+    return days[day - 1] || '';
 }
 
 
 export async function GET(
   request: Request
 ) {
-  const { searchParams } = new URL(request.url);
-  const timePeriodParam = searchParams.get('timePeriod');
-  // const performanceMetricFieldParam = searchParams.get('performanceMetricField'); // Opcional
+  try {
+    const { searchParams } = new URL(request.url);
+    const timePeriodParam = searchParams.get('timePeriod');
+    
+    const timePeriod: TimePeriod = isAllowedTimePeriod(timePeriodParam)
+      ? timePeriodParam
+      : "last_90_days";
 
-  // CORREÇÃO: Usa a função de verificação de tipo para validar e inferir o tipo correto.
-  const timePeriod: TimePeriod = isAllowedTimePeriod(timePeriodParam)
-    ? timePeriodParam
-    : "last_90_days"; // Default
+    if (timePeriodParam && !isAllowedTimePeriod(timePeriodParam)) {
+      return NextResponse.json({ error: `Time period inválido. Permitidos: ${ALLOWED_TIME_PERIODS.join(', ')}` }, { status: 400 });
+    }
 
-  if (timePeriodParam && !isAllowedTimePeriod(timePeriodParam)) {
-    return NextResponse.json({ error: `Time period inválido. Permitidos: ${ALLOWED_TIME_PERIODS.join(', ')}` }, { status: 400 });
+    const performanceMetricField = "stats.total_interactions";
+    const performanceMetricLabel = DEFAULT_PERFORMANCE_METRIC_LABEL;
+    const periodInDaysValue = timePeriodToDays(timePeriod);
+
+    const [aggResult, timeAgg] = await Promise.all([
+        aggregatePlatformPerformanceHighlights(periodInDaysValue, performanceMetricField),
+        aggregatePlatformTimePerformance(periodInDaysValue, performanceMetricField)
+    ]);
+    
+    const bestSlot = timeAgg.bestSlots[0] || null;
+
+    const response: PlatformPerformanceSummaryResponse = {
+      topPerformingFormat: aggResult.topFormat ? {
+            name: aggResult.topFormat.name as string,
+            metricName: performanceMetricLabel,
+            value: aggResult.topFormat.average,
+            valueFormatted: formatPerformanceValue(aggResult.topFormat.average, performanceMetricField),
+            postsCount: aggResult.topFormat.count,
+          } : null,
+      lowPerformingFormat: aggResult.lowFormat ? {
+            name: aggResult.lowFormat.name as string,
+            metricName: performanceMetricLabel,
+            value: aggResult.lowFormat.average,
+            valueFormatted: formatPerformanceValue(aggResult.lowFormat.average, performanceMetricField),
+            postsCount: aggResult.lowFormat.count,
+          } : null,
+      topPerformingContext: aggResult.topContext ? {
+            name: aggResult.topContext.name as string,
+            metricName: performanceMetricLabel,
+            value: aggResult.topContext.average,
+            valueFormatted: formatPerformanceValue(aggResult.topContext.average, performanceMetricField),
+            postsCount: aggResult.topContext.count,
+          } : null,
+      topPerformingProposal: aggResult.topProposal ? {
+            name: aggResult.topProposal.name as string,
+            metricName: performanceMetricLabel,
+            value: aggResult.topProposal.average,
+            valueFormatted: formatPerformanceValue(aggResult.topProposal.average, performanceMetricField),
+            postsCount: aggResult.topProposal.count,
+          } : null,
+      topPerformingTone: aggResult.topTone ? {
+            name: aggResult.topTone.name as string,
+            metricName: performanceMetricLabel,
+            value: aggResult.topTone.average,
+            valueFormatted: formatPerformanceValue(aggResult.topTone.average, performanceMetricField),
+            postsCount: aggResult.topTone.count,
+          } : null,
+      topPerformingReference: aggResult.topReference ? {
+            name: aggResult.topReference.name as string,
+            metricName: performanceMetricLabel,
+            value: aggResult.topReference.average,
+            valueFormatted: formatPerformanceValue(aggResult.topReference.average, performanceMetricField),
+            postsCount: aggResult.topReference.count,
+          } : null,
+      bestTimeSlot: bestSlot ? {
+            dayOfWeek: bestSlot.dayOfWeek,
+            hour: bestSlot.hour,
+            average: bestSlot.average,
+          } : null,
+      insightSummary: "",
+    };
+
+    // Construir Insight Summary
+    const insights: string[] = [];
+    if (response.topPerformingFormat) insights.push(`O formato de melhor performance é ${response.topPerformingFormat.name} (${response.topPerformingFormat.valueFormatted} de média).`);
+    if (response.topPerformingContext) insights.push(`${response.topPerformingContext.name} é o contexto de melhor performance (${response.topPerformingContext.valueFormatted} de média).`);
+    if (response.topPerformingProposal) insights.push(`${response.topPerformingProposal.name} é a proposta de melhor desempenho (${response.topPerformingProposal.valueFormatted} de média).`);
+    
+    if (response.bestTimeSlot) {
+        const dayName = getPortugueseWeekdayNameForSummary(response.bestTimeSlot.dayOfWeek);
+        insights.push(`O melhor horário para postar é ${dayName} às ${response.bestTimeSlot.hour}h, com média de ${response.bestTimeSlot.average.toFixed(1)} interações.`);
+    }
+    if (response.lowPerformingFormat && response.lowPerformingFormat.name !== response.topPerformingFormat?.name) {
+        insights.push(`O formato ${response.lowPerformingFormat.name} tem performance mais baixa (${response.lowPerformingFormat.valueFormatted}).`);
+    }
+    
+    response.insightSummary = insights.join(" ");
+    if (insights.length === 0) {
+      response.insightSummary = `Não há dados suficientes para gerar insights de performance no período selecionado.`;
+    }
+
+    return NextResponse.json(camelizeKeys(response), { status: 200 });
+  } catch (error) {
+    console.error(`[API PLATFORM/HIGHLIGHTS/PERFORMANCE-SUMMARY] Error:`, error);
+    const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
+    return NextResponse.json({ error: "Erro ao processar sua solicitação.", details: errorMessage }, { status: 500 });
   }
-
-  const performanceMetricField = "stats.total_interactions";
-  const performanceMetricLabel = DEFAULT_PERFORMANCE_METRIC_LABEL;
-
-  const periodInDaysValue = timePeriodToDays(timePeriod);
-
-  const aggResult = await aggregatePlatformPerformanceHighlights(
-    periodInDaysValue,
-    performanceMetricField
-  );
-
-  const timeAgg = await aggregatePlatformTimePerformance(
-    periodInDaysValue,
-    performanceMetricField
-  );
-  const bestSlot = timeAgg.bestSlots[0] || null;
-
-  const response: PlatformPerformanceSummaryResponse = {
-    topPerformingFormat: aggResult.topFormat
-      ? {
-          name: aggResult.topFormat.name as string,
-          metricName: performanceMetricLabel,
-          value: aggResult.topFormat.average,
-          valueFormatted: formatPerformanceValue(
-            aggResult.topFormat.average,
-            performanceMetricField
-          ),
-          postsCount: aggResult.topFormat.count,
-        }
-      : null,
-    lowPerformingFormat: aggResult.lowFormat
-      ? {
-          name: aggResult.lowFormat.name as string,
-          metricName: performanceMetricLabel,
-          value: aggResult.lowFormat.average,
-          valueFormatted: formatPerformanceValue(
-            aggResult.lowFormat.average,
-            performanceMetricField
-          ),
-          postsCount: aggResult.lowFormat.count,
-        }
-      : null,
-    topPerformingContext: aggResult.topContext
-      ? {
-          name: aggResult.topContext.name as string,
-          metricName: performanceMetricLabel,
-          value: aggResult.topContext.average,
-          valueFormatted: formatPerformanceValue(
-            aggResult.topContext.average,
-            performanceMetricField
-          ),
-          postsCount: aggResult.topContext.count,
-        }
-      : null,
-    topPerformingProposal: aggResult.topProposal
-      ? {
-          name: aggResult.topProposal.name as string,
-          metricName: performanceMetricLabel,
-          value: aggResult.topProposal.average,
-          valueFormatted: formatPerformanceValue(
-            aggResult.topProposal.average,
-            performanceMetricField
-          ),
-          postsCount: aggResult.topProposal.count,
-        }
-      : null,
-    topPerformingTone: aggResult.topTone
-      ? {
-          name: aggResult.topTone.name as string,
-          metricName: performanceMetricLabel,
-          value: aggResult.topTone.average,
-          valueFormatted: formatPerformanceValue(
-            aggResult.topTone.average,
-            performanceMetricField
-          ),
-          postsCount: aggResult.topTone.count,
-        }
-      : null,
-    topPerformingReference: aggResult.topReference
-      ? {
-          name: aggResult.topReference.name as string,
-          metricName: performanceMetricLabel,
-          value: aggResult.topReference.average,
-          valueFormatted: formatPerformanceValue(
-            aggResult.topReference.average,
-            performanceMetricField
-          ),
-          postsCount: aggResult.topReference.count,
-        }
-      : null,
-    bestTimeSlot: bestSlot
-      ? {
-          dayOfWeek: bestSlot.dayOfWeek,
-          timeBlock: bestSlot.timeBlock,
-          average: bestSlot.average,
-        }
-      : null,
-    insightSummary: "",
-  };
-
-  // Construir Insight Summary
-  const insights: string[] = [];
-  if (response.topPerformingFormat) {
-    insights.push(
-      `O formato de melhor performance na plataforma é ${response.topPerformingFormat.name} (${response.topPerformingFormat.valueFormatted} de ${performanceMetricLabel} em média).`
-    );
-  } else {
-    insights.push(
-      `Não foi possível identificar um formato de melhor performance com base em ${performanceMetricLabel}.`
-    );
-  }
-  if (response.topPerformingContext) {
-    insights.push(
-      `${response.topPerformingContext.name} é o contexto de melhor performance (${response.topPerformingContext.valueFormatted} de ${performanceMetricLabel} em média).`
-    );
-  }
-  if (response.topPerformingProposal) {
-    insights.push(
-      `${response.topPerformingProposal.name} é a proposta de melhor desempenho (${response.topPerformingProposal.valueFormatted} de ${performanceMetricLabel} em média).`
-    );
-  }
-  if (response.topPerformingTone) {
-    insights.push(
-      `${response.topPerformingTone.name} é o tom de melhor desempenho (${response.topPerformingTone.valueFormatted} de ${performanceMetricLabel} em média).`
-    );
-  }
-  if (response.topPerformingReference) {
-    insights.push(
-      `${response.topPerformingReference.name} é a referência de melhor desempenho (${response.topPerformingReference.valueFormatted} de ${performanceMetricLabel} em média).`
-    );
-  }
-  if (response.bestTimeSlot) {
-    insights.push(
-      `O melhor horário médio de postagem é ${response.bestTimeSlot.timeBlock} na semana (dia ${response.bestTimeSlot.dayOfWeek}), com média de ${response.bestTimeSlot.average.toFixed(1)} ${performanceMetricLabel}.`
-    );
-  }
-  if (
-    response.lowPerformingFormat &&
-    response.lowPerformingFormat.name !== response.topPerformingFormat?.name
-  ) {
-    insights.push(
-      `O formato ${response.lowPerformingFormat.name} tem apresentado uma performance mais baixa na plataforma (${response.lowPerformingFormat.valueFormatted}).`
-    );
-  }
-  response.insightSummary = insights.join(" ");
-  if (
-    insights.length === 0 ||
-    (insights.length === 1 && insights[0]?.startsWith("Não foi"))
-  ) {
-    response.insightSummary = `Análise de performance da plataforma por formato, contexto e outras dimensões para ${performanceMetricLabel} (${timePeriod.replace("last_", "").replace("_", " ")}).`;
-  }
-
-
-  return NextResponse.json(camelizeKeys(response), { status: 200 });
-
-  // Exemplo de tratamento de erro (se fosse uma busca real)
-  // catch (error) {
-  //   console.error(`[API PLATFORM/HIGHLIGHTS/PERFORMANCE-SUMMARY] Error:`, error);
-  //   const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
-  //   return NextResponse.json({ error: "Erro ao processar sua solicitação de destaques de performance da plataforma.", details: errorMessage }, { status: 500 });
-  // }
 }
