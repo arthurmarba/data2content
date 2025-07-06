@@ -3,8 +3,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { LightBulbIcon } from '@heroicons/react/24/outline';
 import { useGlobalTimePeriod } from "./filters/GlobalTimePeriodContext";
-import { TrendingUp, TrendingDown, Sparkles } from "lucide-react";
+import { TrendingUp, TrendingDown, Sparkles, CalendarDays } from "lucide-react";
 import HighlightCard from "./HighlightCard";
+import UserFormatPerformanceRankingTable from "./UserFormatPerformanceRankingTable";
 
 interface PerformanceHighlightItem {
   name: string;
@@ -21,6 +22,10 @@ interface PerformanceSummaryResponse {
   topPerformingFormat: PerformanceHighlightItem | null;
   lowPerformingFormat: PerformanceHighlightItem | null;
   topPerformingContext: PerformanceHighlightItem | null;
+  topPerformingProposal: PerformanceHighlightItem | null;
+  topPerformingTone: PerformanceHighlightItem | null;
+  topPerformingReference: PerformanceHighlightItem | null;
+  bestDay?: { dayOfWeek: number; average: number } | null;
   insightSummary: string;
 }
 
@@ -52,6 +57,11 @@ const InfoIcon: React.FC<{ className?: string }> = ({ className }) => (
     />
   </svg>
 );
+
+const getPortugueseWeekdayName = (day: number): string => {
+  const days = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+  return days[day - 1] || '';
+};
 
 const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
   userId,
@@ -160,7 +170,7 @@ const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
 
       {!loading && !error && summary && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4">
             <HighlightCard
               title="Melhor Formato"
               highlight={summary.topPerformingFormat}
@@ -182,6 +192,34 @@ const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
               bgColorClass="bg-red-50"
               textColorClass="text-red-600"
             />
+            <HighlightCard
+              title="Melhor Proposta"
+              highlight={summary.topPerformingProposal}
+              icon={<Sparkles size={18} className="mr-2 text-purple-500" />}
+              bgColorClass="bg-purple-50"
+              textColorClass="text-purple-600"
+            />
+            <HighlightCard
+              title="Melhor Tom"
+              highlight={summary.topPerformingTone}
+              icon={<Sparkles size={18} className="mr-2 text-amber-500" />}
+              bgColorClass="bg-amber-50"
+              textColorClass="text-amber-600"
+            />
+            <HighlightCard
+              title="Melhor Referência"
+              highlight={summary.topPerformingReference}
+              icon={<Sparkles size={18} className="mr-2 text-teal-500" />}
+              bgColorClass="bg-teal-50"
+              textColorClass="text-teal-600"
+            />
+            <HighlightCard
+              title="Melhor Dia"
+              highlight={summary.bestDay ? { name: `🗓️ ${getPortugueseWeekdayName(summary.bestDay.dayOfWeek)}`, metricName: 'Interações (média)', value: summary.bestDay.average, valueFormatted: summary.bestDay.average.toFixed(1) } : null}
+              icon={<CalendarDays size={18} className="mr-2 text-indigo-500" />}
+              bgColorClass="bg-indigo-50"
+              textColorClass="text-indigo-600"
+            />
           </div>
           {summary.insightSummary && (
             <p className="text-xs text-gray-600 mt-4 pt-3 border-t border-gray-200 flex items-start">
@@ -189,6 +227,9 @@ const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
               {summary.insightSummary}
             </p>
           )}
+          <div className="mt-6">
+            <UserFormatPerformanceRankingTable userId={userId} />
+          </div>
         </>
       )}
       {!loading && !error && !summary && (
