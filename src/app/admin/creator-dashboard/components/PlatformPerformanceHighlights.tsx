@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import { LightBulbIcon } from '@heroicons/react/24/outline';
 import { useGlobalTimePeriod } from './filters/GlobalTimePeriodContext';
-import { TrendingUp, TrendingDown, Sparkles } from 'lucide-react';
+import { TrendingUp, TrendingDown, Sparkles, CalendarDays } from 'lucide-react';
 import HighlightCard from './HighlightCard';
 // CORREÇÃO: Importa a função para traduzir os IDs de contexto.
 import { commaSeparatedIdsToLabels } from '../../../lib/classification';
@@ -32,6 +32,27 @@ interface PerformanceSummaryResponse {
 
 interface PlatformPerformanceHighlightsProps {
   sectionTitle?: string;
+}
+
+const DAY_NAMES = [
+  "Domingo",
+  "Segunda-feira",
+  "Terça-feira",
+  "Quarta-feira",
+  "Quinta-feira",
+  "Sexta-feira",
+  "Sábado",
+];
+
+function formatBestTimeSlot(slot: PerformanceSummaryResponse["bestTimeSlot"]): PerformanceHighlightItem | null {
+  if (!slot) return null;
+  const dayName = DAY_NAMES[slot.dayOfWeek] || `Dia ${slot.dayOfWeek}`;
+  return {
+    name: `\uD83D\uDCC5 ${dayName}, ${slot.timeBlock}h`,
+    metricName: "Horário",
+    value: slot.average,
+    valueFormatted: slot.average.toFixed(1),
+  };
 }
 
 const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps> = ({
@@ -132,8 +153,8 @@ const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps
             />
             <HighlightCard
               title="Melhor Dia e Horário"
-              highlight={summary.bestTimeSlot ? { name: `${summary.bestTimeSlot.timeBlock} (Dia ${summary.bestTimeSlot.dayOfWeek})`, metricName: 'Horário', value: summary.bestTimeSlot.average, valueFormatted: summary.bestTimeSlot.average.toFixed(1) } : null}
-              icon={<TrendingUp size={18} className="mr-2 text-indigo-500"/>}
+              highlight={formatBestTimeSlot(summary.bestTimeSlot)}
+              icon={<CalendarDays size={18} className="mr-2 text-indigo-500"/>}
               bgColorClass="bg-indigo-50"
               textColorClass="text-indigo-600"
             />

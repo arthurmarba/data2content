@@ -21,6 +21,8 @@ export async function aggregatePlatformTimePerformance(
   periodInDays: number,
   metricField: string,
   formatFilter?: string,
+  proposalFilter?: string,
+  contextFilter?: string,
   referenceDate: Date = new Date()
 ): Promise<PlatformTimePerformance> {
   const today = new Date(referenceDate);
@@ -51,6 +53,12 @@ export async function aggregatePlatformTimePerformance(
 
     if (formatFilter) {
       (matchStage.$match as any).format = formatFilter;
+    }
+    if (proposalFilter) {
+      (matchStage.$match as any).proposal = proposalFilter;
+    }
+    if (contextFilter) {
+      (matchStage.$match as any).context = contextFilter;
     }
 
     const pipeline: PipelineStage[] = [

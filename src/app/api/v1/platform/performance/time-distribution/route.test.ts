@@ -27,6 +27,18 @@ describe('GET /api/v1/platform/performance/time-distribution', () => {
     expect(body.buckets[0].timeBlock).toBe('6-12');
   });
 
+  it('passes filters to aggregation', async () => {
+    mockAgg.mockResolvedValueOnce({ buckets: [], bestSlots: [], worstSlots: [] });
+    await GET(makeRequest('?timePeriod=last_30_days&format=reel&proposal=announcement&context=lifestyle&metric=engagement_rate'));
+    expect(mockAgg).toHaveBeenCalledWith(
+      expect.any(Number),
+      'stats.engagement_rate_on_reach',
+      'reel',
+      'announcement',
+      'lifestyle'
+    );
+  });
+
   it('returns 400 for invalid time period', async () => {
     const res = await GET(makeRequest('?timePeriod=bad'));
     const body = await res.json();
