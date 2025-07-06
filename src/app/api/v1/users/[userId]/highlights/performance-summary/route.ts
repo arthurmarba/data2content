@@ -3,7 +3,8 @@ import { Types } from 'mongoose';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 import { camelizeKeys } from '@/utils/camelizeKeys';
 
-import aggregatePerformanceHighlights from '@/utils/aggregatePerformanceHighlights';
+import aggregateUserPerformanceHighlights from '@/utils/aggregateUserPerformanceHighlights';
+import aggregateUserDayPerformance from '@/utils/aggregateUserDayPerformance';
 import calculatePlatformAverageMetric from '@/utils/calculatePlatformAverageMetric';
 import { timePeriodToDays } from '@/utils/timePeriodHelpers';
 
@@ -31,6 +32,10 @@ interface PerformanceSummaryResponse {
   topPerformingFormat: PerformanceHighlight | null;
   lowPerformingFormat: PerformanceHighlight | null;
   topPerformingContext: PerformanceHighlight | null;
+  topPerformingProposal: PerformanceHighlight | null;
+  topPerformingTone: PerformanceHighlight | null;
+  topPerformingReference: PerformanceHighlight | null;
+  bestDay: { dayOfWeek: number; average: number } | null;
   insightSummary: string;
 }
 
@@ -42,6 +47,19 @@ const DEFAULT_PERFORMANCE_METRIC_LABEL = "Interações (média por post)"; // Pa
 // --- Função de verificação de tipo (Type Guard) ---
 function isAllowedTimePeriod(period: any): period is TimePeriod {
     return ALLOWED_TIME_PERIODS.includes(period);
+}
+
+function getPortugueseWeekdayNameForSummary(day: number): string {
+    const days = [
+      'Domingo',
+      'Segunda-feira',
+      'Terça-feira',
+      'Quarta-feira',
+      'Quinta-feira',
+      'Sexta-feira',
+      'Sábado',
+    ];
+    return days[day - 1] || '';
 }
 
 export async function GET(
@@ -74,16 +92,25 @@ export async function GET(
 
   try {
     const today = new Date();
-    const aggResult = await aggregatePerformanceHighlights(
-      userId,
-      periodInDaysValue,
-      performanceMetricField,
-      today
-    );
+    const [aggResult, dayAgg] = await Promise.all([
+      aggregateUserPerformanceHighlights(
+        userId,
+        periodInDaysValue,
+        performanceMetricField,
+        today
+      ),
+      aggregateUserDayPerformance(
+        userId,
+        periodInDaysValue,
+        performanceMetricField,
+        {},
+        today
+      ),
+    ]);
 
     const prevReference = new Date(today);
     prevReference.setDate(prevReference.getDate() - periodInDaysValue);
-    const prevAgg = await aggregatePerformanceHighlights(
+    const prevAgg = await aggregateUserPerformanceHighlights(
       userId,
       periodInDaysValue,
       performanceMetricField,
@@ -95,6 +122,8 @@ export async function GET(
       performanceMetricField,
       today
     );
+
+    const bestDay = dayAgg.bestDays[0] || null;
 
     const response: PerformanceSummaryResponse = {
       topPerformingFormat: aggResult.topFormat
@@ -163,6 +192,63 @@ export async function GET(
                 : undefined,
           }
         : null,
+      topPerformingProposal: aggResult.topProposal
+        ? {
+            name: aggResult.topProposal.name as string,
+            metricName: performanceMetricLabel,
+            value: aggResult.topProposal.average,
+            valueFormatted: formatPerformanceValue(
+              aggResult.topProposal.average,
+              performanceMetricField
+            ),
+            postsCount: aggResult.topProposal.count,
+            platformAverage: platformAverage,
+            platformAverageFormatted: formatPerformanceValue(
+              platformAverage,
+              performanceMetricField
+            ),
+          }
+        : null,
+      topPerformingTone: aggResult.topTone
+        ? {
+            name: aggResult.topTone.name as string,
+            metricName: performanceMetricLabel,
+            value: aggResult.topTone.average,
+            valueFormatted: formatPerformanceValue(
+              aggResult.topTone.average,
+              performanceMetricField
+            ),
+            postsCount: aggResult.topTone.count,
+            platformAverage: platformAverage,
+            platformAverageFormatted: formatPerformanceValue(
+              platformAverage,
+              performanceMetricField
+            ),
+          }
+        : null,
+      topPerformingReference: aggResult.topReference
+        ? {
+            name: aggResult.topReference.name as string,
+            metricName: performanceMetricLabel,
+            value: aggResult.topReference.average,
+            valueFormatted: formatPerformanceValue(
+              aggResult.topReference.average,
+              performanceMetricField
+            ),
+            postsCount: aggResult.topReference.count,
+            platformAverage: platformAverage,
+            platformAverageFormatted: formatPerformanceValue(
+              platformAverage,
+              performanceMetricField
+            ),
+          }
+        : null,
+      bestDay: bestDay
+        ? {
+            dayOfWeek: bestDay.dayOfWeek,
+            average: bestDay.average,
+          }
+        : null,
       insightSummary: "", // Será construído abaixo
     };
 
@@ -175,6 +261,19 @@ export async function GET(
     }
     if (response.topPerformingContext) {
       insights.push(`${response.topPerformingContext.name} é seu contexto de melhor performance com ${response.topPerformingContext.valueFormatted} de ${performanceMetricLabel} em média.`);
+    }
+    if (response.topPerformingProposal) {
+      insights.push(`${response.topPerformingProposal.name} é a proposta de melhor desempenho (${response.topPerformingProposal.valueFormatted} de média).`);
+    }
+    if (response.topPerformingTone) {
+      insights.push(`${response.topPerformingTone.name} é o tom de melhor desempenho (${response.topPerformingTone.valueFormatted} de média).`);
+    }
+    if (response.topPerformingReference) {
+      insights.push(`${response.topPerformingReference.name} é a referência de melhor desempenho (${response.topPerformingReference.valueFormatted} de média).`);
+    }
+    if (response.bestDay) {
+      const dayName = getPortugueseWeekdayNameForSummary(response.bestDay.dayOfWeek);
+      insights.push(`O melhor dia para postar é ${dayName}, com média de ${response.bestDay.average.toFixed(1)} interações por post.`);
     }
     if (response.lowPerformingFormat && response.lowPerformingFormat.name !== response.topPerformingFormat?.name) {
       insights.push(`O formato ${response.lowPerformingFormat.name} tem apresentado uma performance mais baixa (${response.lowPerformingFormat.valueFormatted}).`);
