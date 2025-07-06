@@ -34,6 +34,27 @@ interface PlatformPerformanceHighlightsProps {
   sectionTitle?: string;
 }
 
+const DAY_NAMES = [
+  "Domingo",
+  "Segunda-feira",
+  "Terça-feira",
+  "Quarta-feira",
+  "Quinta-feira",
+  "Sexta-feira",
+  "Sábado",
+];
+
+function formatBestTimeSlot(slot: PerformanceSummaryResponse["bestTimeSlot"]): PerformanceHighlightItem | null {
+  if (!slot) return null;
+  const dayName = DAY_NAMES[slot.dayOfWeek] || `Dia ${slot.dayOfWeek}`;
+  return {
+    name: `${dayName}, ${slot.timeBlock}h`,
+    metricName: "Horário",
+    value: slot.average,
+    valueFormatted: slot.average.toFixed(1),
+  };
+}
+
 const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps> = ({
   sectionTitle = "Destaques de Performance da Plataforma"
 }) => {
@@ -132,7 +153,7 @@ const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps
             />
             <HighlightCard
               title="Melhor Dia e Horário"
-              highlight={summary.bestTimeSlot ? { name: `${summary.bestTimeSlot.timeBlock} (Dia ${summary.bestTimeSlot.dayOfWeek})`, metricName: 'Horário', value: summary.bestTimeSlot.average, valueFormatted: summary.bestTimeSlot.average.toFixed(1) } : null}
+              highlight={formatBestTimeSlot(summary.bestTimeSlot)}
               icon={<TrendingUp size={18} className="mr-2 text-indigo-500"/>}
               bgColorClass="bg-indigo-50"
               textColorClass="text-indigo-600"

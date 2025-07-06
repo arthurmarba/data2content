@@ -53,6 +53,8 @@ const TimePerformanceHeatmap: React.FC<Props> = ({ formatFilter }) => {
     return cell ? cell.average : 0;
   };
 
+  const maxValue = data?.buckets.reduce((max, c) => Math.max(max, c.average), 0) || 0;
+
   return (
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md">
       <h3 className="text-md font-semibold text-gray-700 mb-4">Análise de Performance por Horário</h3>
@@ -75,12 +77,15 @@ const TimePerformanceHeatmap: React.FC<Props> = ({ formatFilter }) => {
                   <td className="px-2 py-1 font-medium text-gray-600">{d}</td>
                   {BLOCKS.map(b => {
                     const val = getCellValue(idx, b);
-                    const intensity = val === 0 ? 0 : Math.min(1, val / (data.bestSlots[0]?.average || val));
-                    const color = `rgba(59,130,246,${intensity})`;
+                    const intensity = maxValue === 0 ? 0 : val / maxValue;
+                    const style = val === 0 ? undefined : { backgroundColor: `rgba(79,70,229,${intensity})` };
                     return (
-                      <td key={b} className="px-2 py-1" style={{ backgroundColor: color }}>
-                        {val.toFixed(0)}
-                      </td>
+                      <td
+                        key={b}
+                        className="px-2 py-1"
+                        style={style}
+                        title={val.toFixed(1)}
+                      />
                     );
                   })}
                 </tr>
