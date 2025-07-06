@@ -51,7 +51,7 @@ Basta fornecer o `userId` ao componente e ele renderizará um gráfico de coluna
 
 ### Platform Performance Highlights
 
-Na seção **Destaques de Performance da Plataforma** todo o resumo de conteúdo é consolidado em um único bloco. Os cards indicam o melhor e pior formato, além das propostas, tons e referências de maior desempenho. Logo abaixo, a tabela **Ranking de Desempenho por Formato** apresenta os dados completos e oferece acesso a uma análise detalhada.
+Na seção **Destaques de Performance da Plataforma** todo o resumo de conteúdo é consolidado em um único bloco. Os cards indicam o melhor e pior formato, além das propostas, tons e referências de maior desempenho. Todas as métricas exibidas representam a **média de interações por post**, acompanhadas do volume de publicações avaliadas. Logo abaixo, a tabela **Ranking de Desempenho por Formato** apresenta os dados completos e oferece acesso a uma análise detalhada.
 
 ### Populando o Banco para Desenvolvimento
 

@@ -35,7 +35,9 @@ interface PerformanceSummaryResponse {
 }
 
 const DEFAULT_PERFORMANCE_METRIC = "stats.total_interactions";
-const DEFAULT_PERFORMANCE_METRIC_LABEL = "Interações Totais"; // Para o insightSummary
+// Indica explicitamente que os destaques utilizam a média por post,
+// evitando interpretações equivocadas sobre valores acumulados.
+const DEFAULT_PERFORMANCE_METRIC_LABEL = "Interações (média por post)"; // Para o insightSummary
 
 // --- Função de verificação de tipo (Type Guard) ---
 function isAllowedTimePeriod(period: any): period is TimePeriod {
