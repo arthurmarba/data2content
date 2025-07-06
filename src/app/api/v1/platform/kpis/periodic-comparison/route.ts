@@ -5,6 +5,7 @@ import MetricModel from '@/app/models/Metric'; // Importar MetricModel
 import calculateAverageEngagementPerPost from '@/utils/calculateAverageEngagementPerPost'; // Usado para engajamento
 import { addDays, getStartDateFromTimePeriod as getStartDateFromTimePeriodGeneric } from '@/utils/dateHelpers';
 import { Types } from 'mongoose';
+import { connectToDatabase } from '@/app/lib/mongoose';
 
 // Tipos de dados para a resposta
 interface MiniChartDataPoint {
@@ -101,6 +102,7 @@ export async function GET(
   previousStartDate.setHours(0,0,0,0);
 
   try {
+    await connectToDatabase();
     const platformUsers = await UserModel.find({
         // TODO: Adicionar critérios para usuários ativos
     }).select('_id').limit(10).lean();
