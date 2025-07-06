@@ -8,6 +8,7 @@ interface TimeSlotTopPostsModalProps {
   dayOfWeek: number;
   timeBlock: string;
   filters: { timePeriod: string; format?: string; proposal?: string; context?: string; metric: string };
+  userId?: string;
 }
 
 interface PostItem {
@@ -18,7 +19,7 @@ interface PostItem {
   metricValue: number;
 }
 
-const TimeSlotTopPostsModal: React.FC<TimeSlotTopPostsModalProps> = ({ isOpen, onClose, dayOfWeek, timeBlock, filters }) => {
+const TimeSlotTopPostsModal: React.FC<TimeSlotTopPostsModalProps> = ({ isOpen, onClose, dayOfWeek, timeBlock, filters, userId }) => {
   const [posts, setPosts] = useState<PostItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +39,10 @@ const TimeSlotTopPostsModal: React.FC<TimeSlotTopPostsModalProps> = ({ isOpen, o
         if (filters.format) params.append('format', filters.format);
         if (filters.proposal) params.append('proposal', filters.proposal);
         if (filters.context) params.append('context', filters.context);
-        const res = await fetch(`/api/v1/platform/performance/time-distribution/posts?${params.toString()}`);
+        const base = userId
+          ? `/api/v1/users/${userId}/performance/time-distribution/posts`
+          : '/api/v1/platform/performance/time-distribution/posts';
+        const res = await fetch(`${base}?${params.toString()}`);
         if (!res.ok) throw new Error(`Erro HTTP ${res.status}`);
         const json = await res.json();
         setPosts(json.posts || []);
