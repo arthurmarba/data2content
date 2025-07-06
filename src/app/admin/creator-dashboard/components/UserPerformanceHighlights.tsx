@@ -6,6 +6,7 @@ import { useGlobalTimePeriod } from "./filters/GlobalTimePeriodContext";
 import { TrendingUp, TrendingDown, Sparkles, CalendarDays } from "lucide-react";
 import HighlightCard from "./HighlightCard";
 import UserFormatPerformanceRankingTable from "./UserFormatPerformanceRankingTable";
+import { commaSeparatedIdsToLabels } from '../../../lib/classification';
 
 interface PerformanceHighlightItem {
   name: string;
@@ -29,11 +30,6 @@ interface PerformanceSummaryResponse {
   insightSummary: string;
 }
 
-const TIME_PERIOD_OPTIONS = [
-  { value: "last_30_days", label: "Últimos 30 dias" },
-  { value: "last_90_days", label: "Últimos 90 dias" },
-  { value: "last_6_months", label: "Últimos 6 meses" },
-];
 
 interface UserPerformanceHighlightsProps {
   userId: string | null;
@@ -73,18 +69,7 @@ const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { timePeriod: globalTimePeriod } = useGlobalTimePeriod();
-  const defaultTimePeriod =
-    TIME_PERIOD_OPTIONS[1]?.value ||
-    TIME_PERIOD_OPTIONS[0]?.value ||
-    "last_30_days";
-  const [timePeriod, setTimePeriod] = useState<string>(
-    globalTimePeriod || defaultTimePeriod,
-  );
-
-  useEffect(() => {
-    setTimePeriod(globalTimePeriod);
-  }, [globalTimePeriod]);
+  const { timePeriod } = useGlobalTimePeriod();
 
   const fetchData = useCallback(async () => {
     if (!userId) {
@@ -104,6 +89,36 @@ const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
         );
       }
       const result: PerformanceSummaryResponse = await response.json();
+      if (result.topPerformingFormat) {
+        result.topPerformingFormat.name =
+          commaSeparatedIdsToLabels(result.topPerformingFormat.name, 'format') ||
+          result.topPerformingFormat.name;
+      }
+      if (result.lowPerformingFormat) {
+        result.lowPerformingFormat.name =
+          commaSeparatedIdsToLabels(result.lowPerformingFormat.name, 'format') ||
+          result.lowPerformingFormat.name;
+      }
+      if (result.topPerformingContext) {
+        result.topPerformingContext.name =
+          commaSeparatedIdsToLabels(result.topPerformingContext.name, 'context') ||
+          result.topPerformingContext.name;
+      }
+      if (result.topPerformingProposal) {
+        result.topPerformingProposal.name =
+          commaSeparatedIdsToLabels(result.topPerformingProposal.name, 'proposal') ||
+          result.topPerformingProposal.name;
+      }
+      if (result.topPerformingTone) {
+        result.topPerformingTone.name =
+          commaSeparatedIdsToLabels(result.topPerformingTone.name, 'tone') ||
+          result.topPerformingTone.name;
+      }
+      if (result.topPerformingReference) {
+        result.topPerformingReference.name =
+          commaSeparatedIdsToLabels(result.topPerformingReference.name, 'reference') ||
+          result.topPerformingReference.name;
+      }
       setSummary(result);
     } catch (err) {
       setError(
@@ -134,27 +149,7 @@ const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
         <h3 className="text-md font-semibold text-gray-700 mb-2 sm:mb-0">
           {sectionTitle}
         </h3>
-        <div>
-          <label
-            htmlFor={`timePeriodUserHighlights-${userId || "default"}`}
-            className="sr-only"
-          >
-            Período
-          </label>
-          <select
-            id={`timePeriodUserHighlights-${userId || "default"}`}
-            value={timePeriod}
-            onChange={(e) => setTimePeriod(e.target.value)}
-            disabled={loading}
-            className="p-1.5 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs"
-          >
-            {TIME_PERIOD_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* período controlado globalmente */}
       </div>
 
       {loading && (
