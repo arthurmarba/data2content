@@ -18,6 +18,7 @@ interface FullDataModalProps {
   groupBy: GroupingType;
   metricUsed: string;
   chartTitle: string;
+  userId?: string;
 }
 
 export const FullDataModal: React.FC<FullDataModalProps> = ({
@@ -25,7 +26,8 @@ export const FullDataModal: React.FC<FullDataModalProps> = ({
   onClose,
   groupBy,
   metricUsed,
-  chartTitle
+  chartTitle,
+  userId,
 }) => {
   const [allData, setAllData] = useState<DataPoint[]>([]);
   const [loading, setLoading] = useState(false);
@@ -36,7 +38,10 @@ export const FullDataModal: React.FC<FullDataModalProps> = ({
       setLoading(true);
       setError(null);
       // Busca TODOS os dados (sem o parâmetro 'limit') quando o modal é aberto
-      const apiUrl = `/api/v1/platform/performance/average-engagement?groupBy=${groupBy}&engagementMetricField=${metricUsed}&sortOrder=desc`;
+      const base = userId
+        ? `/api/v1/users/${userId}/performance/average-engagement`
+        : '/api/v1/platform/performance/average-engagement';
+      const apiUrl = `${base}?groupBy=${groupBy}&engagementMetricField=${metricUsed}&sortOrder=desc`;
       
       fetch(apiUrl)
         .then(res => {
