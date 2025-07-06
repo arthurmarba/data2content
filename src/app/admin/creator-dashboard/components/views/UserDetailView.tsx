@@ -16,6 +16,7 @@ import UserVideoPerformanceMetrics from "../UserVideoPerformanceMetrics";
 import UserMonthlyEngagementStackedChart from "../UserMonthlyEngagementStackedChart";
 import UserMonthlyComparisonChart from "../UserMonthlyComparisonChart";
 import UserPerformanceHighlights from "../UserPerformanceHighlights";
+import UserTimePerformanceHeatmap from "../UserTimePerformanceHeatmap";
 
 // User-specific components from Módulo 3 (Creator Detail)
 import UserRadarChartComparison from "../UserRadarChartComparison";
@@ -160,6 +161,9 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
           userId={userId}
           sectionTitle="Destaques de Performance"
         />
+        <div className="mt-6">
+          <UserTimePerformanceHeatmap userId={userId} />
+        </div>
       </section>
 
       <section id={`user-advanced-analysis-${userId}`} className="mb-10">
