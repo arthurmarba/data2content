@@ -6,6 +6,7 @@ import { useGlobalTimePeriod } from "./filters/GlobalTimePeriodContext";
 import { TrendingUp, TrendingDown, Sparkles, CalendarDays } from "lucide-react";
 import HighlightCard from "./HighlightCard";
 import UserFormatPerformanceRankingTable from "./UserFormatPerformanceRankingTable";
+import { commaSeparatedIdsToLabels } from '../../../lib/classification';
 
 interface PerformanceHighlightItem {
   name: string;
@@ -104,6 +105,26 @@ const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
         );
       }
       const result: PerformanceSummaryResponse = await response.json();
+      if (result.topPerformingContext) {
+        result.topPerformingContext.name =
+          commaSeparatedIdsToLabels(result.topPerformingContext.name, 'context') ||
+          result.topPerformingContext.name;
+      }
+      if (result.topPerformingProposal) {
+        result.topPerformingProposal.name =
+          commaSeparatedIdsToLabels(result.topPerformingProposal.name, 'proposal') ||
+          result.topPerformingProposal.name;
+      }
+      if (result.topPerformingTone) {
+        result.topPerformingTone.name =
+          commaSeparatedIdsToLabels(result.topPerformingTone.name, 'tone') ||
+          result.topPerformingTone.name;
+      }
+      if (result.topPerformingReference) {
+        result.topPerformingReference.name =
+          commaSeparatedIdsToLabels(result.topPerformingReference.name, 'reference') ||
+          result.topPerformingReference.name;
+      }
       setSummary(result);
     } catch (err) {
       setError(
