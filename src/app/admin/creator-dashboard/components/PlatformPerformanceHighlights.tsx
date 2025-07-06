@@ -40,7 +40,8 @@ function formatBestDay(slot: PerformanceSummaryResponse["bestDay"]): Performance
   const dayName = getPortugueseWeekdayName(slot.dayOfWeek);
   return {
     name: `🗓️ ${dayName}`,
-    metricName: "Dia",
+    // Exibir claramente que o valor representa a média de interações
+    metricName: "Interações (média)",
     value: slot.average,
     valueFormatted: slot.average.toFixed(1),
   };
