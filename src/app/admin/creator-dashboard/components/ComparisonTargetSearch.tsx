@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { SearchBar } from "@/app/components/SearchBar";
 import { UserAvatar } from "@/app/components/UserAvatar";
 import type { AdminCreatorListItem } from "@/types/admin/creators";
+import { useCreatorSearch } from "@/hooks/useCreatorSearch";
 
 export interface ComparisonTarget {
   type: "user" | "segment";
@@ -16,40 +17,10 @@ interface ComparisonTargetSearchProps {
 
 export default function ComparisonTargetSearch({ segments, onSelect }: ComparisonTargetSearchProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [userResults, setUserResults] = useState<AdminCreatorListItem[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { results: userResults, isLoading, error } = useCreatorSearch(searchTerm);
   const [showDropdown, setShowDropdown] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!searchTerm) {
-      setUserResults([]);
-      return;
-    }
-
-    const fetchUsers = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const params = new URLSearchParams({ limit: "5", search: searchTerm });
-        const resp = await fetch(`/api/admin/creators?${params.toString()}`);
-        if (!resp.ok) {
-          const data = await resp.json().catch(() => ({}));
-          throw new Error(data.error || "Erro ao buscar criadores");
-        }
-        const data = await resp.json();
-        setUserResults(data.creators || []);
-      } catch (e: any) {
-        setError(e.message);
-        setUserResults([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchUsers();
-  }, [searchTerm]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -64,14 +35,12 @@ export default function ComparisonTargetSearch({ segments, onSelect }: Compariso
   const handleSelectUser = (user: AdminCreatorListItem) => {
     onSelect({ type: "user", id: user._id, label: user.name });
     setSearchTerm("");
-    setUserResults([]);
     setShowDropdown(false);
   };
 
   const handleSelectSegment = (segment: { value: string; label: string }) => {
     onSelect({ type: "segment", id: segment.value, label: segment.label });
     setSearchTerm("");
-    setUserResults([]);
     setShowDropdown(false);
   };
 
