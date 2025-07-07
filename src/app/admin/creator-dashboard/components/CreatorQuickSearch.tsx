@@ -3,7 +3,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { SearchBar } from "@/app/components/SearchBar";
 import { UserAvatar } from "@/app/components/UserAvatar";
-import { XMarkIcon } from "@heroicons/react/24/solid";
 import type { AdminCreatorListItem } from "@/types/admin/creators";
 import { useCreatorSearch } from "@/hooks/useCreatorSearch";
 
@@ -77,22 +76,12 @@ export default function CreatorQuickSearch({
           setSearchTerm(val);
           setShowDropdown(true);
         }}
-        placeholder="Buscar criador..."
+        placeholder={selectedCreatorName || "Buscar criador..."}
         debounceMs={200}
         className="w-60 sm:w-72"
         ariaLabel="Buscar criador"
+        onClear={selectedCreatorName ? onClear : undefined}
       />
-      {selectedCreatorName && onClear && (
-        <span className="ml-2 flex items-center text-sm text-indigo-700">
-          <span className="mr-1">{selectedCreatorName}</span>
-          <button
-            onClick={onClear}
-            className="p-1 rounded-full bg-gray-200 hover:bg-gray-300"
-          >
-            <XMarkIcon className="w-4 h-4" />
-          </button>
-        </span>
-      )}
       {showDropdown && (searchTerm || isLoading) && (
         <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
           {isLoading && (

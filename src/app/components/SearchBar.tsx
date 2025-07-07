@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, forwardRef } from "react";
 import { debounce } from "lodash";
 import { FaSearch } from "react-icons/fa"; // Usando react-icons para o ícone
+import { XMarkIcon } from "@heroicons/react/24/solid";
 
 interface SearchBarProps {
   initialValue?: string;
@@ -12,6 +13,11 @@ interface SearchBarProps {
   className?: string;
   autoFocus?: boolean;
   ariaLabel?: string;
+  /**
+   * Optional callback executed when the clear button is pressed. If not
+   * provided, the input will simply be emptied.
+   */
+  onClear?: () => void;
 }
 
 /**
@@ -35,6 +41,7 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
       className = "",
       autoFocus = false,
       ariaLabel,
+      onClear,
     }: SearchBarProps,
     ref,
   ) {
@@ -64,6 +71,18 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
           <FaSearch className="h-4 w-4 text-gray-400" />
         </div>
+        {(inputValue || onClear) && (
+          <button
+            type="button"
+            onClick={() => {
+              setInputValue("");
+              onClear?.();
+            }}
+            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+          >
+            <XMarkIcon className="h-4 w-4" />
+          </button>
+        )}
         <input
           type="text"
           value={inputValue}
@@ -72,7 +91,7 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
           aria-label={ariaLabel}
           ref={ref}
           autoFocus={autoFocus}
-          className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm
+          className="block w-full pl-10 pr-8 py-2 border border-gray-300 rounded-md shadow-sm
                    focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-700
                    dark:bg-gray-800 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
         />
