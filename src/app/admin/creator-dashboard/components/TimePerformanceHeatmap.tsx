@@ -105,7 +105,12 @@ const proposalOptions = createOptionsFromCategories(proposalCategories);
 const contextOptions = createOptionsFromCategories(contextCategories);
 
 // --- Componente Principal ---
-const TimePerformanceHeatmap: React.FC = () => {
+interface TimePerformanceHeatmapProps {
+  /** Se fornecido, filtra os dados para o usuário indicado */
+  userId?: string | null;
+}
+
+const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({ userId }) => {
   const { timePeriod } = useGlobalTimePeriod();
   const [data, setData] = useState<TimePerformanceResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -126,8 +131,11 @@ const TimePerformanceHeatmap: React.FC = () => {
       if (format) params.set('format', format);
       if (proposal) params.set('proposal', proposal);
       if (context) params.set('context', context);
-      
-      const res = await fetch(`/api/v1/platform/performance/time-distribution?${params.toString()}`);
+
+      const baseUrl = userId
+        ? `/api/v1/users/${userId}/performance/time-distribution`
+        : '/api/v1/platform/performance/time-distribution';
+      const res = await fetch(`${baseUrl}?${params.toString()}`);
       if (!res.ok) throw new Error(`Erro ao buscar dados: ${res.statusText}`);
       const json: TimePerformanceResponse = await res.json();
       setData(json);
@@ -137,7 +145,7 @@ const TimePerformanceHeatmap: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [timePeriod, format, proposal, context, metric]);
+  }, [timePeriod, format, proposal, context, metric, userId]);
 
   useEffect(() => {
     fetchData();
@@ -280,6 +288,7 @@ const TimePerformanceHeatmap: React.FC = () => {
         // O ideal é refatorar o modal para aceitar 'hour' para uma filtragem precisa.
         timeBlock={selectedSlot ? hourToTimeBlock(selectedSlot.hour) : '0-6'}
         filters={{ timePeriod, format: format || undefined, proposal: proposal || undefined, context: context || undefined, metric }}
+        userId={userId || undefined}
       />
     </>
   );
