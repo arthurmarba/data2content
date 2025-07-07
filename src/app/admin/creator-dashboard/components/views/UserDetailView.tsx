@@ -6,12 +6,9 @@ import GlobalTimePeriodFilter from "../filters/GlobalTimePeriodFilter";
 import { useGlobalTimePeriod } from "../filters/GlobalTimePeriodContext";
 
 // User-specific charts & metrics
-import UserFollowerTrendChart from "../UserFollowerTrendChart";
 import UserFollowerChangeChart from "../UserFollowerChangeChart";
 import UserReachEngagementTrendChart from "../UserReachEngagementTrendChart";
 import UserMovingAverageEngagementChart from "../UserMovingAverageEngagementChart";
-import UserAverageEngagementChart from "../UserAverageEngagementChart";
-import UserEngagementDistributionChart from "../UserEngagementDistributionChart";
 import UserVideoPerformanceMetrics from "../UserVideoPerformanceMetrics";
 import UserMonthlyEngagementStackedChart from "../UserMonthlyEngagementStackedChart";
 import UserMonthlyComparisonChart from "../UserMonthlyComparisonChart";
@@ -19,7 +16,6 @@ import UserPerformanceHighlights from "../UserPerformanceHighlights";
 import UserTimePerformanceHeatmap from "../UserTimePerformanceHeatmap";
 
 // User-specific components from Módulo 3 (Creator Detail)
-import UserRadarChartComparison from "../UserRadarChartComparison";
 import UserAlertsWidget from "../widgets/UserAlertsWidget";
 import UserComparativeKpi from "../kpis/UserComparativeKpi";
 
@@ -171,10 +167,6 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
           Análise Avançada e Alertas
         </h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <UserRadarChartComparison
-            profile1UserId={userId}
-            chartTitle="Radar Comparativo de Performance"
-          />
           <UserAlertsWidget userId={userId} />
         </div>
       </section>
@@ -184,10 +176,6 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
           Tendências da Conta
         </h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <UserFollowerTrendChart
-            userId={userId}
-            chartTitle="Evolução de Seguidores"
-          />
           <UserFollowerChangeChart
             userId={userId}
             chartTitle="Variação Diária de Seguidores"
@@ -209,18 +197,7 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
         <h3 className="text-xl font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-300">
           Performance de Conteúdo
         </h3>
-        <div className="mb-6">
-          <UserAverageEngagementChart
-            userId={userId}
-            chartTitle="Engajamento Médio por Categoria"
-            initialGroupBy="format"
-          />
-        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <UserEngagementDistributionChart
-            userId={userId}
-            chartTitle="Distribuição de Engajamento por Formato"
-          />
           <UserVideoPerformanceMetrics
             userId={userId}
             chartTitle="Performance de Vídeos"
