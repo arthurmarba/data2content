@@ -6,6 +6,7 @@ enum AlertTypeEnum {
   FOLLOWER_STAGNATION = "FollowerStagnation",
   FORGOTTEN_FORMAT = "ForgottenFormat",
   CONTENT_PERFORMANCE_DROP = "ContentPerformanceDrop",
+  NO_EVENT_FOUND_TODAY_WITH_INSIGHT = "no_event_found_today_with_insight",
 }
 
 interface AlertResponseItem {
@@ -38,6 +39,7 @@ export async function GET(
   const { searchParams } = new URL(request.url);
   const limitParam = searchParams.get('limit');
   const typesParam = searchParams.getAll('types');
+  const dedupeParam = searchParams.get('dedupeNoEventAlerts');
 
   let limit = 5;
   if (limitParam) {
@@ -51,8 +53,10 @@ export async function GET(
 
   const filterTypes = typesParam.filter(t => ALLOWED_ALERT_TYPES.includes(t as AlertTypeEnum));
 
+  const dedupeNoEventAlerts = dedupeParam === 'true';
+
   try {
-    const { alerts, totalAlerts } = await fetchUserAlerts(userId, { limit, types: filterTypes });
+    const { alerts, totalAlerts } = await fetchUserAlerts(userId, { limit, types: filterTypes, dedupeNoEventAlerts });
 
     const mappedAlerts: AlertResponseItem[] = alerts.map((a) => ({
       alertId: (a._id ?? new Types.ObjectId()).toString(),

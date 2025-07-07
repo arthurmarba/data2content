@@ -336,6 +336,7 @@ export async function addAlertToHistory(
 export interface FetchUserAlertsOptions {
   limit?: number;
   types?: string[];
+  dedupeNoEventAlerts?: boolean;
 }
 
 export interface FetchUserAlertsResult {
@@ -345,7 +346,7 @@ export interface FetchUserAlertsResult {
 
 export async function fetchUserAlerts(
   userId: string,
-  { limit = 5, types = [] }: FetchUserAlertsOptions = {}
+  { limit = 5, types = [], dedupeNoEventAlerts = false }: FetchUserAlertsOptions = {}
 ): Promise<FetchUserAlertsResult> {
   const TAG = '[dataService][userService][fetchUserAlerts]';
 
@@ -367,12 +368,48 @@ export async function fetchUserAlerts(
       pipeline.push({ $match: { 'alertHistory.type': { $in: types } } });
     }
 
+    if (dedupeNoEventAlerts) {
+      pipeline.push({
+        $addFields: {
+          dedupeKey: {
+            $cond: [
+              { $eq: ['$alertHistory.type', 'no_event_found_today_with_insight'] },
+              {
+                $concat: [
+                  '$alertHistory.type',
+                  '_',
+                  { $dateToString: { format: '%Y-%m-%d', date: '$alertHistory.date' } }
+                ]
+              },
+              {
+                $concat: [
+                  '$alertHistory.type',
+                  '_',
+                  { $toString: '$alertHistory._id' }
+                ]
+              }
+            ]
+          }
+        }
+      });
+      pipeline.push({ $sort: { 'alertHistory.date': -1 } });
+      pipeline.push({
+        $group: {
+          _id: '$dedupeKey',
+          alertHistory: { $first: '$alertHistory' }
+        }
+      });
+      pipeline.push({ $replaceRoot: { newRoot: '$alertHistory' } });
+    } else {
+      pipeline.push({ $replaceRoot: { newRoot: '$alertHistory' } });
+    }
+
+    pipeline.push({ $sort: { date: -1 } });
+
     pipeline.push({
       $facet: {
         alerts: [
-          { $sort: { 'alertHistory.date': -1 } },
-          { $limit: limit },
-          { $replaceRoot: { newRoot: '$alertHistory' } },
+          { $limit: limit }
         ],
         totalCount: [
           { $count: 'count' },

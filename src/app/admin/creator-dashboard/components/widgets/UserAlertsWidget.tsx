@@ -9,6 +9,7 @@ enum AlertTypeEnum {
   FOLLOWER_STAGNATION = "FollowerStagnation",
   FORGOTTEN_FORMAT = "ForgottenFormat",
   CONTENT_PERFORMANCE_DROP = "ContentPerformanceDrop",
+  NO_EVENT_FOUND_TODAY_WITH_INSIGHT = "no_event_found_today_with_insight",
 }
 
 interface AlertResponseItem {
@@ -53,6 +54,7 @@ const UserAlertsWidget: React.FC<UserAlertsWidgetProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [limit, setLimit] = useState<number>(initialLimit);
   const [expandedAlerts, setExpandedAlerts] = useState<Set<string>>(new Set());
+  const [hideNoEventAlerts, setHideNoEventAlerts] = useState<boolean>(false);
 
   const fetchData = useCallback(async () => {
     if (!userId) {
@@ -63,7 +65,7 @@ const UserAlertsWidget: React.FC<UserAlertsWidgetProps> = ({
     setLoading(true);
     setError(null);
     try {
-      const apiUrl = `/api/v1/users/${userId}/alerts/active?limit=${limit}`;
+      const apiUrl = `/api/v1/users/${userId}/alerts/active?limit=${limit}&dedupeNoEventAlerts=true`;
       // Adicionar filtros de tipo se necessário no futuro: &types=Type1&types=Type2
       const response = await fetch(apiUrl);
       if (!response.ok) {
@@ -125,8 +127,22 @@ const UserAlertsWidget: React.FC<UserAlertsWidgetProps> = ({
       {error && <div className="flex justify-center items-center py-4"><p className="text-red-500">Erro: {error}</p></div>}
 
       {!loading && !error && alertsResponse && alertsResponse.alerts.length > 0 && (
-        <ul className="space-y-3">
-          {alertsResponse.alerts.map((alert) => (
+        <>
+          <div className="flex items-center mb-2">
+            <label className="text-xs text-gray-600 flex items-center space-x-1">
+              <input
+                type="checkbox"
+                className="mr-1"
+                checked={hideNoEventAlerts}
+                onChange={(e) => setHideNoEventAlerts(e.target.checked)}
+              />
+              <span>Ocultar alertas de nenhum evento</span>
+            </label>
+          </div>
+          <ul className="space-y-3">
+          {alertsResponse.alerts
+            .filter(alert => !hideNoEventAlerts || alert.type !== AlertTypeEnum.NO_EVENT_FOUND_TODAY_WITH_INSIGHT)
+            .map((alert) => (
             <li key={alert.alertId} className="border border-gray-200 rounded-md">
               <button
                 onClick={() => toggleAlertExpansion(alert.alertId)}
@@ -157,6 +173,7 @@ const UserAlertsWidget: React.FC<UserAlertsWidgetProps> = ({
             </li>
           ))}
         </ul>
+        </>
       )}
 
       {!loading && !error && alertsResponse && alertsResponse.alerts.length === 0 && (
