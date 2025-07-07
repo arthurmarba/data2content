@@ -22,7 +22,7 @@ interface VideosTableProps {
 // ✅ CORREÇÃO FINAL: A função agora processa os itens *dentro* do array.
 const getTranslatedLabels = (
   tags: string | string[] | undefined,
-  type: 'format' | 'proposal' | 'context'
+  type: 'format' | 'proposal' | 'context' | 'tone' | 'reference'
 ): string[] => {
   if (!tags) {
     return [];
@@ -94,6 +94,12 @@ const VideoCard: React.FC<{ video: VideoListItem; index: number; readOnly?: bool
           ))}
           {getTranslatedLabels(video.context, 'context').map(tag => (
             <span key={tag} className={`${tagBaseClasses} bg-purple-100 text-purple-800`}>{tag}</span>
+          ))}
+          {getTranslatedLabels(video.tone, 'tone').map(tag => (
+            <span key={tag} className={`${tagBaseClasses} bg-yellow-100 text-yellow-800`}>{tag}</span>
+          ))}
+          {getTranslatedLabels(video.references, 'reference').map(tag => (
+            <span key={tag} className={`${tagBaseClasses} bg-green-100 text-green-800`}>{tag}</span>
           ))}
         </div>
 

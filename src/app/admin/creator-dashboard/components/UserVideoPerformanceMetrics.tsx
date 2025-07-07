@@ -11,6 +11,8 @@ interface VideoMetricsData {
   averageRetentionRate: number | null;
   averageWatchTimeSeconds: number | null;
   numberOfVideoPosts: number | null;
+  averageShares: number | null;
+  averageSaves: number | null;
 }
 
 interface VideoMetricsResponse extends VideoMetricsData {
@@ -129,6 +131,8 @@ const UserVideoPerformanceMetrics: React.FC<
         averageRetentionRate: result.averageRetentionRate,
         averageWatchTimeSeconds: result.averageWatchTimeSeconds,
         numberOfVideoPosts: result.numberOfVideoPosts,
+        averageShares: result.averageShares ?? null,
+        averageSaves: result.averageSaves ?? null,
       });
       setInsightSummary(result.insightSummary);
     } catch (err) {
@@ -213,7 +217,7 @@ const UserVideoPerformanceMetrics: React.FC<
 
       {!loading && !error && metrics && (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
             <div
               className="cursor-pointer"
               onClick={() => handleMetricClick("retention_rate")}
@@ -251,6 +255,26 @@ const UserVideoPerformanceMetrics: React.FC<
                 label="Total de Vídeos Analisados"
                 value={metrics.numberOfVideoPosts}
                 tooltip="Número de posts de vídeo considerados para estas métricas no período."
+              />
+            </div>
+            <div
+              className="cursor-pointer"
+              onClick={() => handleMetricClick("shares")}
+            >
+              <MetricDisplay
+                label="Compartilhamentos Médios"
+                value={metrics.averageShares !== null ? metrics.averageShares.toFixed(1) : null}
+                tooltip="Média de compartilhamentos por vídeo."
+              />
+            </div>
+            <div
+              className="cursor-pointer"
+              onClick={() => handleMetricClick("saves")}
+            >
+              <MetricDisplay
+                label="Salvamentos Médios"
+                value={metrics.averageSaves !== null ? metrics.averageSaves.toFixed(1) : null}
+                tooltip="Média de salvamentos por vídeo."
               />
             </div>
           </div>

@@ -8,6 +8,8 @@ interface AverageVideoMetricsData {
   averageRetentionRate: number;
   averageWatchTimeSeconds: number;
   numberOfVideoPosts: number;
+  averageShares: number;
+  averageSaves: number;
 }
 
 interface UserVideoMetricsResponse extends Omit<Awaited<ReturnType<typeof calculateAverageVideoMetrics>>, 'startDate' | 'endDate'> {
@@ -55,6 +57,8 @@ export async function GET(
       averageRetentionRate: videoMetrics.averageRetentionRate,
       averageWatchTimeSeconds: videoMetrics.averageWatchTimeSeconds,
       numberOfVideoPosts: videoMetrics.numberOfVideoPosts,
+      averageShares: videoMetrics.averageShares,
+      averageSaves: videoMetrics.averageSaves,
       insightSummary: `Nos ${timePeriod.replace("last_","").replace("_"," ")}, a retenção média dos seus vídeos é de ${videoMetrics.averageRetentionRate.toFixed(1)}% e o tempo médio de visualização é de ${videoMetrics.averageWatchTimeSeconds.toFixed(0)}s, baseado em ${videoMetrics.numberOfVideoPosts} vídeos.`
     };
     if (videoMetrics.numberOfVideoPosts === 0) {

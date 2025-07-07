@@ -8,6 +8,8 @@ interface AverageVideoMetricsData {
   numberOfVideoPosts: number;
   averageRetentionRate: number; // percentual, ex: 25.5 para 25.5%
   averageWatchTimeSeconds: number;
+  averageShares: number;
+  averageSaves: number;
   startDate: Date;
   endDate: Date;
 }
@@ -37,6 +39,8 @@ async function calculateAverageVideoMetrics(
     numberOfVideoPosts: 0,
     averageRetentionRate: 0,
     averageWatchTimeSeconds: 0,
+    averageShares: 0,
+    averageSaves: 0,
     startDate,
     endDate,
   };
@@ -56,7 +60,7 @@ async function calculateAverageVideoMetrics(
         }
       },
       // Passo 2: Criar os campos corretos para cada documento em tempo de execução
-      {
+      { 
         $project: {
           // Calcula o tempo médio de visualização em segundos a partir do dado bruto em milissegundos
           watchTimeInSeconds: {
@@ -82,6 +86,9 @@ async function calculateAverageVideoMetrics(
               else: null
             }
           }
+          ,
+          shares: '$stats.shares',
+          saves: '$stats.saves'
         }
       },
       // Passo 3: Agrupar tudo para calcular as médias finais
@@ -93,6 +100,10 @@ async function calculateAverageVideoMetrics(
           countValidWatchTime: { $sum: { $cond: [{ $ne: ['$watchTimeInSeconds', null] }, 1, 0] } },
           sumRetention: { $sum: { $ifNull: ['$retentionRate', 0] } },
           countValidRetention: { $sum: { $cond: [{ $ne: ['$retentionRate', null] }, 1, 0] } },
+          sumShares: { $sum: { $ifNull: ['$shares', 0] } },
+          countValidShares: { $sum: { $cond: [{ $ne: ['$shares', null] }, 1, 0] } },
+          sumSaves: { $sum: { $ifNull: ['$saves', 0] } },
+          countValidSaves: { $sum: { $cond: [{ $ne: ['$saves', null] }, 1, 0] } },
         }
       }
     ]);
@@ -109,6 +120,12 @@ async function calculateAverageVideoMetrics(
         : 0,
       averageRetentionRate: aggregationResult.countValidRetention > 0
         ? (aggregationResult.sumRetention / aggregationResult.countValidRetention) * 100 // Multiplica por 100 para ser porcentagem
+        : 0,
+      averageShares: aggregationResult.countValidShares > 0
+        ? aggregationResult.sumShares / aggregationResult.countValidShares
+        : 0,
+      averageSaves: aggregationResult.countValidSaves > 0
+        ? aggregationResult.sumSaves / aggregationResult.countValidSaves
         : 0,
       startDate,
       endDate,
