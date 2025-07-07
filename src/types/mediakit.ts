@@ -45,6 +45,7 @@ export interface VideoListItem {
     comparisonPeriod?: string;
     followerGrowth: KPIComparisonData;
     engagementRate: KPIComparisonData;
+    totalEngagement: KPIComparisonData;
     postingFrequency: KPIComparisonData;
     avgViewsPerPost: KPIComparisonData;
     avgCommentsPerPost: KPIComparisonData;
@@ -54,6 +55,7 @@ export interface VideoListItem {
     insightSummary?: {
       followerGrowth?: string;
       engagementRate?: string;
+      totalEngagement?: string;
       postingFrequency?: string;
       avgViewsPerPost?: string;
       avgCommentsPerPost?: string;
