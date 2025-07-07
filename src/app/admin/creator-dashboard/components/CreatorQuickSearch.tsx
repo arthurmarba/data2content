@@ -21,6 +21,7 @@ export default function CreatorQuickSearch({
   const [searchTerm, setSearchTerm] = useState("");
   const { results: creators, isLoading, error } = useCreatorSearch(searchTerm);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [highlightIndex, setHighlightIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,6 +33,35 @@ export default function CreatorQuickSearch({
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!showDropdown) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (creators.length === 0) return;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setHighlightIndex((prev) => (prev + 1) % creators.length);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setHighlightIndex((prev) => (prev - 1 + creators.length) % creators.length);
+      } else if (e.key === 'Enter' && highlightIndex >= 0) {
+        e.preventDefault();
+        handleSelect(creators[highlightIndex]);
+      } else if (e.key === 'Escape') {
+        setShowDropdown(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showDropdown, creators, highlightIndex]);
+
+  useEffect(() => {
+    if (showDropdown && creators.length > 0) {
+      setHighlightIndex(0);
+    } else {
+      setHighlightIndex(-1);
+    }
+  }, [showDropdown, creators]);
 
   const handleSelect = (creator: AdminCreatorListItem) => {
     onSelect({ id: creator._id, name: creator.name });
@@ -49,7 +79,8 @@ export default function CreatorQuickSearch({
         }}
         placeholder="Buscar criador..."
         debounceMs={200}
-        className="w-48"
+        className="w-60 sm:w-72"
+        ariaLabel="Buscar criador"
       />
       {selectedCreatorName && onClear && (
         <span className="ml-2 flex items-center text-sm text-indigo-700">
@@ -73,14 +104,16 @@ export default function CreatorQuickSearch({
           {!isLoading && !error && creators.length === 0 && (
             <p className="p-2 text-sm text-gray-500">Nenhum criador encontrado.</p>
           )}
-          {creators.map((creator) => (
+          {creators.map((creator, index) => (
             <button
               key={creator._id}
-              className="flex items-center w-full text-left px-3 py-2 hover:bg-gray-100"
+              className={`flex items-center w-full text-left px-3 py-2 hover:bg-gray-100 ${
+                highlightIndex === index ? 'bg-indigo-600 text-white' : ''
+              }`}
               onClick={() => handleSelect(creator)}
             >
               <UserAvatar name={creator.name} src={creator.profilePictureUrl} size={24} />
-              <span className="ml-2 text-sm text-gray-800">{creator.name}</span>
+              <span className={`ml-2 text-sm ${highlightIndex === index ? 'text-white' : 'text-gray-800'}`}>{creator.name}</span>
             </button>
           ))}
         </div>
