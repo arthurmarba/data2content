@@ -197,7 +197,7 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
         <h3 className="text-xl font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-300">
           Performance de Conteúdo
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 gap-6 mb-6">
           <UserVideoPerformanceMetrics
             userId={userId}
             chartTitle="Performance de Vídeos"

@@ -17,8 +17,25 @@ jest.mock('../VideoDrillDownModal', () => {
   };
 });
 
+// Mock PostDetailModal used inside VideoListPreview
+const MockPostDetailModal = jest.fn(({ isOpen, postId, onClose }) => {
+  if (!isOpen) return null;
+  return (
+    <div data-testid="mock-post-detail-modal">
+      Post {postId}
+      <button onClick={onClose}>Close</button>
+    </div>
+  );
+});
+
+jest.mock('../../PostDetailModal', () => ({
+  __esModule: true,
+  default: MockPostDetailModal,
+}));
+
 const mockUseGlobalTimePeriod = useGlobalTimePeriod as jest.Mock;
 const MockVideoDrillDownModal = require('../VideoDrillDownModal').default as jest.Mock;
+const MockedPostDetailModal = require('../../PostDetailModal').default as jest.Mock;
 
 describe('UserVideoPerformanceMetrics', () => {
   beforeEach(() => {
@@ -40,7 +57,7 @@ describe('UserVideoPerformanceMetrics', () => {
           videos: [
             {
               _id: 'v1',
-              description: 'Video 1',
+              caption: 'Video 1',
               thumbnailUrl: null,
               stats: { views: 100, likes: 10, comments: 1 },
               postDate: '2024-01-01T00:00:00Z',
@@ -98,5 +115,16 @@ describe('UserVideoPerformanceMetrics', () => {
     render(<UserVideoPerformanceMetrics userId="u1" />);
     expect(await screen.findByTestId('video-list-preview')).toBeInTheDocument();
     expect(screen.getByText('Video 1')).toBeInTheDocument();
+  });
+
+  it('opens PostDetailModal when a video row is clicked', async () => {
+    render(<UserVideoPerformanceMetrics userId="u1" />);
+    const row = await screen.findByTestId('video-preview-row-v1');
+    fireEvent.click(row);
+    expect(MockedPostDetailModal).toHaveBeenCalledWith(
+      expect.objectContaining({ isOpen: true, postId: 'v1' }),
+      {}
+    );
+    expect(screen.getByTestId('mock-post-detail-modal')).toBeInTheDocument();
   });
 });

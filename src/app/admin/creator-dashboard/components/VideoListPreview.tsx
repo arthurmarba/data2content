@@ -7,6 +7,8 @@ import {
   ChatBubbleOvalLeftEllipsisIcon,
 } from "@heroicons/react/24/solid";
 import { VideoListItem } from "@/types/mediakit";
+import PostDetailModal from "../PostDetailModal";
+import { idsToLabels } from "@/app/lib/classification";
 
 interface VideoListPreviewProps {
   userId: string;
@@ -20,10 +22,28 @@ const formatDate = (d?: string | Date) =>
 const formatNumber = (n?: number) =>
   n?.toLocaleString("pt-BR", { notation: "compact", maximumFractionDigits: 1 }) ?? "-";
 
+const getLabels = (
+  tags: string | string[] | undefined,
+  type: "format" | "proposal" | "context"
+): string[] => {
+  if (!tags) {
+    return [];
+  }
+  const initialArray = Array.isArray(tags) ? tags : [String(tags)];
+  const allIds = initialArray.flatMap((tag) =>
+    String(tag)
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean)
+  );
+  return idsToLabels(allIds, type as any);
+};
+
 const VideoListPreview: React.FC<VideoListPreviewProps> = ({ userId, timePeriod, limit = 5, onExpand }) => {
   const [videos, setVideos] = useState<VideoListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!userId) return;
@@ -66,20 +86,48 @@ const VideoListPreview: React.FC<VideoListPreviewProps> = ({ userId, timePeriod,
           {videos.map((video) => (
             <div
               key={video._id}
-              className="flex items-start gap-4 bg-white border border-gray-100 rounded-md p-2"
+              data-testid={`video-preview-row-${video._id}`}
+              onClick={() => setSelectedPostId(video._id)}
+              className="flex items-start gap-4 bg-white border border-gray-100 rounded-md p-2 cursor-pointer"
             >
               <img
                 src={video.thumbnailUrl || "https://placehold.co/96x54/e2e8f0/a0aec0?text=Img"}
-                alt={video.description || "thumbnail"}
+                alt={video.caption || "thumbnail"}
                 width={96}
                 height={54}
                 className="rounded-md object-cover flex-shrink-0 mt-1"
               />
               <div className="flex-grow">
-                <p className="text-sm font-medium text-gray-700 line-clamp-2" title={video.description}>
-                  {video.description || "Sem legenda"}
+                <p className="text-sm font-medium text-gray-700 line-clamp-2" title={video.caption}>
+                  {video.caption || "Sem legenda"}
                 </p>
                 <p className="text-xs text-gray-500 mt-0.5">{formatDate(video.postDate)}</p>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {getLabels(video.format, "format").map((tag) => (
+                    <span
+                      key={tag}
+                      className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded text-[10px]"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                  {getLabels(video.proposal, "proposal").map((tag) => (
+                    <span
+                      key={tag}
+                      className="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-[10px]"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                  {getLabels(video.context, "context").map((tag) => (
+                    <span
+                      key={tag}
+                      className="bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded text-[10px]"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               </div>
               <div className="flex flex-col text-xs text-gray-600 gap-1 pr-2">
                 <span className="flex items-center gap-1">
@@ -107,6 +155,11 @@ const VideoListPreview: React.FC<VideoListPreviewProps> = ({ userId, timePeriod,
           )}
         </div>
       )}
+      <PostDetailModal
+        isOpen={selectedPostId !== null}
+        onClose={() => setSelectedPostId(null)}
+        postId={selectedPostId}
+      />
     </div>
   );
 };
