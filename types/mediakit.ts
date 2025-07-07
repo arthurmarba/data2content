@@ -5,6 +5,7 @@ export interface VideoListItem {
     _id: string;
     thumbnailUrl?: string | null;
     caption?: string;
+    description?: string;
     permalink?: string | null;
     postDate?: string | Date;
     stats?: {
