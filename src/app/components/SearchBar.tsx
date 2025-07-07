@@ -11,6 +11,7 @@ interface SearchBarProps {
   debounceMs?: number;
   className?: string;
   autoFocus?: boolean;
+  ariaLabel?: string;
 }
 
 /**
@@ -22,6 +23,7 @@ interface SearchBarProps {
  * @param {string} placeholder - Texto de placeholder para o input.
  * @param {number} debounceMs - O tempo de espera em milissegundos. Padrão: 500.
  * @param {string} className - Classes CSS adicionais para o container.
+ * @param {string} ariaLabel - Rótulo de acessibilidade para o input.
  */
 export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
   function SearchBar(
@@ -32,6 +34,7 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
       debounceMs = 500,
       className = "",
       autoFocus = false,
+      ariaLabel,
     }: SearchBarProps,
     ref,
   ) {
@@ -66,6 +69,7 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           placeholder={placeholder}
+          aria-label={ariaLabel}
           ref={ref}
           autoFocus={autoFocus}
           className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm
