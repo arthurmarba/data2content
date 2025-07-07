@@ -24,14 +24,30 @@ describe('UserVideoPerformanceMetrics', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseGlobalTimePeriod.mockReturnValue({ timePeriod: 'last_30_days' });
-    (global.fetch as jest.Mock) = jest.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        averageRetentionRate: 50,
-        averageWatchTimeSeconds: 120,
-        numberOfVideoPosts: 10,
-      }),
-    });
+    (global.fetch as jest.Mock) = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          averageRetentionRate: 50,
+          averageWatchTimeSeconds: 120,
+          numberOfVideoPosts: 10,
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          videos: [
+            {
+              _id: 'v1',
+              description: 'Video 1',
+              thumbnailUrl: null,
+              stats: { views: 100, likes: 10, comments: 1 },
+              postDate: '2024-01-01T00:00:00Z',
+            },
+          ],
+        }),
+      });
   });
 
   it('opens drill down modal with "retention_rate" when Retenção Média is clicked', async () => {
@@ -76,5 +92,11 @@ describe('UserVideoPerformanceMetrics', () => {
       {}
     );
     expect(screen.getByTestId('drilldown-modal')).toHaveTextContent('views');
+  });
+
+  it('renders video list preview automatically', async () => {
+    render(<UserVideoPerformanceMetrics userId="u1" />);
+    expect(await screen.findByTestId('video-list-preview')).toBeInTheDocument();
+    expect(screen.getByText('Video 1')).toBeInTheDocument();
   });
 });

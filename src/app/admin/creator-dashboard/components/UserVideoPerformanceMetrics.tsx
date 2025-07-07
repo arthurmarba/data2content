@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { LightBulbIcon } from '@heroicons/react/24/outline';
 import VideoDrillDownModal from "./VideoDrillDownModal";
+import VideoListPreview from "./VideoListPreview";
 import { useGlobalTimePeriod } from "./filters/GlobalTimePeriodContext";
 
 interface VideoMetricsData {
@@ -251,6 +252,14 @@ const UserVideoPerformanceMetrics: React.FC<
               />
             </div>
           </div>
+          <VideoListPreview
+            userId={userId!}
+            timePeriod={timePeriod}
+            onExpand={() => {
+              setDrillDownMetric('views');
+              setIsModalOpen(true);
+            }}
+          />
           <div className="mt-4">
             <button
               onClick={() => {
