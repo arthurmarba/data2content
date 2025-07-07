@@ -17,11 +17,11 @@ interface KPIComparisonData {
 
 interface UserPeriodicComparisonResponse {
   followerGrowth: KPIComparisonData;
-  totalEngagement: KPIComparisonData;
+  engagementRate: KPIComparisonData;
   postingFrequency: KPIComparisonData;
   insightSummary?: {
     followerGrowth?: string;
-    totalEngagement?: string;
+    engagementRate?: string;
     postingFrequency?: string;
   };
 }
