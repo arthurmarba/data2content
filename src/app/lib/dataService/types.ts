@@ -231,7 +231,7 @@ export interface FollowerTrendData {
 export interface ReachEngagementTrendPoint {
     date: string;
     reach: number | null;
-    engagedUsers: number | null;
+    totalInteractions: number | null;
 }
 
 export interface ReachEngagementTrendData {

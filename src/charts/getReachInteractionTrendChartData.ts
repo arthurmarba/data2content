@@ -14,7 +14,7 @@ import {
 interface ReachInteractionDataPoint {
   date: string;
   reach: number | null;
-  engagedUsers: number | null; // represents total_interactions
+  totalInteractions: number | null; // represents total_interactions
 }
 
 interface ReachInteractionChartResponse {
@@ -48,7 +48,7 @@ async function getReachInteractionTrendChartData(
       .sort({ postDate: 1 })
       .lean();
 
-    const dataMap = new Map<string, { reach: number; engagedUsers: number }>();
+    const dataMap = new Map<string, { reach: number; totalInteractions: number }>();
     for (const post of posts) {
       const stats = post.stats || {};
       const reach = typeof stats.reach === 'number' ? stats.reach : 0;
@@ -59,9 +59,9 @@ async function getReachInteractionTrendChartData(
         ? formatDateYYYYMMDD(post.postDate)
         : getYearWeek(post.postDate);
 
-      const agg = dataMap.get(key) || { reach: 0, engagedUsers: 0 };
+      const agg = dataMap.get(key) || { reach: 0, totalInteractions: 0 };
       agg.reach += reach;
-      agg.engagedUsers += interactions;
+      agg.totalInteractions += interactions;
       dataMap.set(key, agg);
     }
 
@@ -74,15 +74,15 @@ async function getReachInteractionTrendChartData(
       response.chartData.push({
         date: key,
         reach: entry ? entry.reach : null,
-        engagedUsers: entry ? entry.engagedUsers : null,
+        totalInteractions: entry ? entry.totalInteractions : null,
       });
       cursor = granularity === 'daily' ? addDays(cursor, 1) : addDays(cursor, 7);
     }
 
-    const valid = response.chartData.filter(p => p.reach !== null || p.engagedUsers !== null);
+    const valid = response.chartData.filter(p => p.reach !== null || p.totalInteractions !== null);
     if (valid.length) {
       const totalReach = valid.reduce((s, p) => s + (p.reach ?? 0), 0);
-      const totalInter = valid.reduce((s, p) => s + (p.engagedUsers ?? 0), 0);
+      const totalInter = valid.reduce((s, p) => s + (p.totalInteractions ?? 0), 0);
       const periodText = timePeriod === 'all_time'
         ? 'todo o período'
         : timePeriod.replace('last_', 'últimos ').replace('_days', ' dias').replace('_months', ' meses');

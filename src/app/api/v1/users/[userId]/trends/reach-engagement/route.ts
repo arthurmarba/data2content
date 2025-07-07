@@ -8,7 +8,7 @@ import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriod
 interface ApiReachEngagementDataPoint {
   date: string;
   reach: number | null;
-  engagedUsers: number | null;
+  totalInteractions: number | null;
 }
 
 interface ReachEngagementChartResponse {
@@ -54,12 +54,19 @@ export async function GET(
   }
 
   try {
-    const data: ReachEngagementChartResponse =
-      await getReachInteractionTrendChartData(
-        userId,
-        timePeriod,
-        granularity
-      );
+    const rawData = await getReachInteractionTrendChartData(
+      userId,
+      timePeriod,
+      granularity
+    );
+    const data: ReachEngagementChartResponse = {
+      chartData: rawData.chartData.map((d) => ({
+        date: d.date,
+        reach: d.reach,
+        totalInteractions: d.totalInteractions,
+      })),
+      insightSummary: rawData.insightSummary,
+    };
 
     if (!data.chartData || data.chartData.length === 0) {
       data.insightSummary =

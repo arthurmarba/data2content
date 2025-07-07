@@ -75,11 +75,11 @@ describe('getReachEngagementTrendChartData', () => {
       const result = await getReachEngagementTrendChartData(userId, period, "daily");
 
       expect(result.chartData.length).toBe(7); // 7 dias
-      expect(result.chartData[0]).toEqual({ date: formatDateYYYYMMDD(createDate(6, baseTestDate)), reach: 100, engagedUsers: 10 }); // Nov 9
-      expect(result.chartData[1]).toEqual({ date: formatDateYYYYMMDD(createDate(5, baseTestDate)), reach: null, engagedUsers: null });// Nov 10 (gap)
-      expect(result.chartData[2]).toEqual({ date: formatDateYYYYMMDD(createDate(4, baseTestDate)), reach: 120, engagedUsers: 12 });// Nov 11
-      expect(result.chartData[3]).toEqual({ date: formatDateYYYYMMDD(createDate(3, baseTestDate)), reach: null, engagedUsers: null });// Nov 12 (gap)
-      expect(result.chartData[6]).toEqual({ date: formatDateYYYYMMDD(createDate(0, baseTestDate)), reach: 150, engagedUsers: 15 });// Nov 15
+      expect(result.chartData[0]).toEqual({ date: formatDateYYYYMMDD(createDate(6, baseTestDate)), reach: 100, totalInteractions: 10 }); // Nov 9
+      expect(result.chartData[1]).toEqual({ date: formatDateYYYYMMDD(createDate(5, baseTestDate)), reach: null, totalInteractions: null });// Nov 10 (gap)
+      expect(result.chartData[2]).toEqual({ date: formatDateYYYYMMDD(createDate(4, baseTestDate)), reach: 120, totalInteractions: 12 });// Nov 11
+      expect(result.chartData[3]).toEqual({ date: formatDateYYYYMMDD(createDate(3, baseTestDate)), reach: null, totalInteractions: null });// Nov 12 (gap)
+      expect(result.chartData[6]).toEqual({ date: formatDateYYYYMMDD(createDate(0, baseTestDate)), reach: 150, totalInteractions: 15 });// Nov 15
       expect(result.insightSummary).toContain("Média de alcance");
     });
 
@@ -89,7 +89,7 @@ describe('getReachEngagementTrendChartData', () => {
       expect(result.chartData.length).toBe(3);
       result.chartData.forEach(dp => {
         expect(dp.reach).toBeNull();
-        expect(dp.engagedUsers).toBeNull();
+        expect(dp.totalInteractions).toBeNull();
       });
       expect(result.insightSummary).toBe("Nenhum dado de alcance ou engajamento encontrado para o período.");
     });
@@ -104,7 +104,7 @@ describe('getReachEngagementTrendChartData', () => {
         (AccountInsightModel.find as jest.Mock).mockResolvedValue(snapshots);
         const result = await getReachEngagementTrendChartData(userId, period, "daily");
         expect(result.chartData.length).toBe(3);
-        expect(result.chartData[2]).toEqual({ date: formatDateYYYYMMDD(createDate(0, baseTestDate)), reach: 100, engagedUsers: 10 });
+        expect(result.chartData[2]).toEqual({ date: formatDateYYYYMMDD(createDate(0, baseTestDate)), reach: 100, totalInteractions: 10 });
         expect(result.chartData[0].reach).toBeNull(); // Gaps para Nov 13, 14
         expect(result.chartData[1].reach).toBeNull();
     });
@@ -142,11 +142,11 @@ describe('getReachEngagementTrendChartData', () => {
       const weekForNov15 = getYearWeek(createDate(0, baseTestDate));  // 2023-46
       const weekForOct25 = getYearWeek(createDate(21, baseTestDate)); // 2023-43 (gap)
 
-      expect(result.chartData.find(p=>p.date === weekForOct18)).toEqual({ date: weekForOct18, reach: 700, engagedUsers: 70 });
-      expect(result.chartData.find(p=>p.date === weekForOct25)).toEqual({ date: weekForOct25, reach: null, engagedUsers: null });
-      expect(result.chartData.find(p=>p.date === weekForNov1)).toEqual({ date: weekForNov1, reach: 800, engagedUsers: 80 });
-      expect(result.chartData.find(p=>p.date === getYearWeek(createDate(7, baseTestDate)))).toEqual({ date: getYearWeek(createDate(7, baseTestDate)), reach: null, engagedUsers: null }); // 2023-45 (gap)
-      expect(result.chartData.find(p=>p.date === weekForNov15)).toEqual({ date: weekForNov15, reach: 900, engagedUsers: 90 });
+      expect(result.chartData.find(p=>p.date === weekForOct18)).toEqual({ date: weekForOct18, reach: 700, totalInteractions: 70 });
+      expect(result.chartData.find(p=>p.date === weekForOct25)).toEqual({ date: weekForOct25, reach: null, totalInteractions: null });
+      expect(result.chartData.find(p=>p.date === weekForNov1)).toEqual({ date: weekForNov1, reach: 800, totalInteractions: 80 });
+      expect(result.chartData.find(p=>p.date === getYearWeek(createDate(7, baseTestDate)))).toEqual({ date: getYearWeek(createDate(7, baseTestDate)), reach: null, totalInteractions: null }); // 2023-45 (gap)
+      expect(result.chartData.find(p=>p.date === weekForNov15)).toEqual({ date: weekForNov15, reach: 900, totalInteractions: 90 });
     });
      test('Sobrescreve com o último snapshot se múltiplos para a mesma semana/dia', async () => {
         const snapshots = [
@@ -157,7 +157,7 @@ describe('getReachEngagementTrendChartData', () => {
         const result = await getReachEngagementTrendChartData(userId, "last_7_days", "daily");
         const pointForNov9 = result.chartData.find(p=>p.date === formatDateYYYYMMDD(createDate(6, baseTestDate)));
         expect(pointForNov9?.reach).toBe(105); // Valor do último snapshot para o dia
-        expect(pointForNov9?.engagedUsers).toBe(11);
+        expect(pointForNov9?.totalInteractions).toBe(11);
     });
   });
 
@@ -167,7 +167,7 @@ describe('getReachEngagementTrendChartData', () => {
     expect(result.chartData.length).toBe(7); // Deve preencher com nulos
     result.chartData.forEach(dp => {
         expect(dp.reach).toBeNull();
-        expect(dp.engagedUsers).toBeNull();
+        expect(dp.totalInteractions).toBeNull();
     });
     expect(result.insightSummary).toBe("Erro ao buscar dados de alcance e engajamento.");
     expect(console.error).toHaveBeenCalled();
