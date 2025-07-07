@@ -135,7 +135,7 @@ const AdminCreatorDashboardContent: React.FC = () => {
       <div className="min-h-screen bg-brand-light">
         <header className="bg-white shadow-sm sticky top-0 z-40 border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16 gap-4">
+            <div className="flex items-center gap-4 h-16">
               <Link href="/admin/creator-dashboard" className="flex-shrink-0 flex items-center gap-2 group">
                 <span className="text-brand-pink text-3xl font-bold group-hover:opacity-80 transition-opacity">[2]</span>
               </Link>
@@ -148,18 +148,20 @@ const AdminCreatorDashboardContent: React.FC = () => {
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
               />
-              <GlobalTimePeriodFilter
-                selectedTimePeriod={globalTimePeriod}
-                onTimePeriodChange={setGlobalTimePeriod}
-                options={[
-                  { value: "last_7_days", label: "Últimos 7 dias" },
-                  { value: "last_30_days", label: "Últimos 30 dias" },
-                  { value: "last_90_days", label: "Últimos 90 dias" },
-                  { value: "last_6_months", label: "Últimos 6 meses" },
-                  { value: "last_12_months", label: "Últimos 12 meses" },
-                  { value: "all_time", label: "Todo o período" },
-                ]}
-              />
+              <div className="ml-auto">
+                <GlobalTimePeriodFilter
+                  selectedTimePeriod={globalTimePeriod}
+                  onTimePeriodChange={setGlobalTimePeriod}
+                  options={[
+                    { value: "last_7_days", label: "Últimos 7 dias" },
+                    { value: "last_30_days", label: "Últimos 30 dias" },
+                    { value: "last_90_days", label: "Últimos 90 dias" },
+                    { value: "last_6_months", label: "Últimos 6 meses" },
+                    { value: "last_12_months", label: "Últimos 12 meses" },
+                    { value: "all_time", label: "Todo o período" },
+                  ]}
+                />
+              </div>
             </div>
           </div>
         </header>
