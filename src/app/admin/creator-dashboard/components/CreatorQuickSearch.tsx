@@ -80,7 +80,7 @@ export default function CreatorQuickSearch({
         }}
         placeholder="Buscar criador..."
         debounceMs={200}
-        className="w-60 sm:w-72"
+        className="w-80 sm:w-96 flex-grow"
         ariaLabel="Buscar criador"
       />
       {selectedCreatorName && onClear && (
