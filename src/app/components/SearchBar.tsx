@@ -21,6 +21,11 @@ interface SearchBarProps {
   ariaLabel?: string;
   value?: string;
   onClear?: () => void;
+  /**
+   * When true, the clear button is displayed even if the input is empty.
+   * Useful for showing a selected value that can be cleared.
+   */
+  showClearWhenEmpty?: boolean;
 }
 
 /**
@@ -46,6 +51,7 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
       ariaLabel,
       value,
       onClear,
+      showClearWhenEmpty = false,
     }: SearchBarProps,
     ref,
   ) {
@@ -101,7 +107,7 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
                    focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-700
                    bg-white dark:bg-gray-800 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
         />
-        {onClear && inputValue && (
+        {onClear && (inputValue || showClearWhenEmpty) && (
           <button
             type="button"
             onClick={() => {
