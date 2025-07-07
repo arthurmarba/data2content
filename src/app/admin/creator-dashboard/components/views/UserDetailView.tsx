@@ -141,7 +141,7 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
           />
           <UserComparativeKpi
             userId={userId}
-            kpiName="engagementRate"
+            kpiName="totalEngagement"
             title="Engajamento Total"
             comparisonPeriod={kpiComparisonPeriod}
             tooltip="Variação no total de interações em relação ao período anterior equivalente."

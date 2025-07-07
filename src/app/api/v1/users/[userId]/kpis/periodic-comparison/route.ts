@@ -111,6 +111,12 @@ export async function GET(
     const currentEngagementRate = (engCurrentResult.totalEngagement !== null && fgT0 !== null && fgT0 > 0) ? (engCurrentResult.totalEngagement / fgT0) * 100 : null;
     const previousEngagementRate = (engPreviousResult.totalEngagement !== null && fgT1 !== null && fgT1 > 0) ? (engPreviousResult.totalEngagement / fgT1) * 100 : null;
     const engagementRateData = createKpiDataObject(currentEngagementRate, previousEngagementRate, { current: periodNameCurrent, previous: periodNamePrevious });
+
+    const totalEngagementData = createKpiDataObject(
+      engCurrentResult.totalEngagement,
+      engPreviousResult.totalEngagement,
+      { current: periodNameCurrent, previous: periodNamePrevious }
+    );
     
     const postingFrequencyData = createKpiDataObject(freqData.currentWeeklyFrequency, freqData.previousWeeklyFrequency, { current: periodNameCurrent, previous: periodNamePrevious });
     const periodNames = { current: periodNameCurrent, previous: periodNamePrevious };
@@ -127,6 +133,7 @@ export async function GET(
       comparisonPeriod: comparisonPeriodParam,
       followerGrowth: followerGrowthData,
       engagementRate: engagementRateData,
+      totalEngagement: totalEngagementData,
       postingFrequency: postingFrequencyData,
       avgViewsPerPost: avgViewsPerPostData,
       avgCommentsPerPost: avgCommentsPerPostData,
@@ -137,6 +144,7 @@ export async function GET(
       insightSummary: {
         followerGrowth: `Ganho de ${followerGrowthData.currentValue?.toLocaleString() ?? 'N/A'} seguidores.`,
         engagementRate: `Taxa de ${engagementRateData.currentValue?.toFixed(2) ?? 'N/A'}% por post.`,
+        totalEngagement: `${compactNumberFormat(totalEngagementData.currentValue)} interações no período.`,
         postingFrequency: `${postingFrequencyData.currentValue?.toFixed(1) ?? 'N/A'} posts por semana.`,
         avgViewsPerPost: `Média de ${compactNumberFormat(avgViewsPerPostData.currentValue)} views/post.`,
         avgCommentsPerPost: `Média de ${compactNumberFormat(avgCommentsPerPostData.currentValue)} comentários/post.`,
@@ -155,7 +163,7 @@ export async function GET(
     const errorKpi: KPIComparisonData = { currentValue: null, previousValue: null, percentageChange: null, chartData: [] };
     return NextResponse.json({
         error: "Erro ao processar sua solicitação de KPIs.", details: errorMessage,
-        followerGrowth: errorKpi, engagementRate: errorKpi, postingFrequency: errorKpi,
+        followerGrowth: errorKpi, engagementRate: errorKpi, totalEngagement: errorKpi, postingFrequency: errorKpi,
         avgViewsPerPost: errorKpi, avgCommentsPerPost: errorKpi, avgSharesPerPost: errorKpi, avgSavesPerPost: errorKpi,
         // NOVO: Adicionando o campo de alcance à resposta de erro
         avgReachPerPost: errorKpi
