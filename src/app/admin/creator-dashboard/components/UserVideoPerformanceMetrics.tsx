@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { LightBulbIcon } from '@heroicons/react/24/outline';
 import VideoDrillDownModal from "./VideoDrillDownModal";
 import VideoListPreview from "./VideoListPreview";
+import PostDetailModal from "../PostDetailModal";
 import { useGlobalTimePeriod } from "./filters/GlobalTimePeriodContext";
 
 interface VideoMetricsData {
@@ -91,6 +92,7 @@ const UserVideoPerformanceMetrics: React.FC<
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [drillDownMetric, setDrillDownMetric] = useState<string | null>(null);
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
 
   const { timePeriod: globalTimePeriod } = useGlobalTimePeriod();
   const [timePeriod, setTimePeriod] = useState<string>(
@@ -255,6 +257,7 @@ const UserVideoPerformanceMetrics: React.FC<
           <VideoListPreview
             userId={userId!}
             timePeriod={timePeriod}
+            onRowClick={(id) => setSelectedPostId(id)}
             onExpand={() => {
               setDrillDownMetric('views');
               setIsModalOpen(true);
@@ -290,6 +293,11 @@ const UserVideoPerformanceMetrics: React.FC<
         userId={userId!}
         timePeriod={timePeriod}
         drillDownMetric={drillDownMetric}
+      />
+      <PostDetailModal
+        isOpen={selectedPostId !== null}
+        onClose={() => setSelectedPostId(null)}
+        postId={selectedPostId}
       />
     </div>
   );

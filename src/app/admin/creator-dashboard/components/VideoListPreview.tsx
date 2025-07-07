@@ -14,6 +14,7 @@ interface VideoListPreviewProps {
   timePeriod: string;
   limit?: number;
   onExpand?: () => void;
+  onRowClick?: (postId: string) => void;
 }
 
 const formatDate = (d?: string | Date) =>
@@ -38,7 +39,7 @@ const getLabels = (
   return idsToLabels(allIds, type as any);
 };
 
-const VideoListPreview: React.FC<VideoListPreviewProps> = ({ userId, timePeriod, limit = 5, onExpand }) => {
+const VideoListPreview: React.FC<VideoListPreviewProps> = ({ userId, timePeriod, limit = 5, onExpand, onRowClick }) => {
   const [videos, setVideos] = useState<VideoListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -84,18 +85,19 @@ const VideoListPreview: React.FC<VideoListPreviewProps> = ({ userId, timePeriod,
           {videos.map((video) => (
             <div
               key={video._id}
-              className="flex items-start gap-4 bg-white border border-gray-100 rounded-md p-2"
+              onClick={() => onRowClick && onRowClick(video._id)}
+              className="flex items-start gap-4 bg-white border border-gray-100 rounded-md p-2 cursor-pointer"
             >
               <img
                 src={video.thumbnailUrl || "https://placehold.co/96x54/e2e8f0/a0aec0?text=Img"}
-                alt={video.description || "thumbnail"}
+                alt={video.caption || video.description || "thumbnail"}
                 width={96}
                 height={54}
                 className="rounded-md object-cover flex-shrink-0 mt-1"
               />
               <div className="flex-grow">
-                <p className="text-sm font-medium text-gray-700 line-clamp-2" title={video.description}>
-                  {video.description || "Sem legenda"}
+                <p className="text-sm font-medium text-gray-700 line-clamp-2" title={video.caption || video.description}>
+                  {video.caption || video.description || "Sem legenda"}
                 </p>
                 <p className="text-xs text-gray-500 mt-0.5">{formatDate(video.postDate)}</p>
                 <div className="flex flex-wrap gap-1 mt-1">
