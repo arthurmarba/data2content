@@ -7,6 +7,7 @@ import {
   ChatBubbleOvalLeftEllipsisIcon,
 } from "@heroicons/react/24/solid";
 import { VideoListItem } from "@/types/mediakit";
+import { idsToLabels } from "@/app/lib/classification";
 
 interface VideoListPreviewProps {
   userId: string;
@@ -19,6 +20,23 @@ const formatDate = (d?: string | Date) =>
   d ? new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "N/A";
 const formatNumber = (n?: number) =>
   n?.toLocaleString("pt-BR", { notation: "compact", maximumFractionDigits: 1 }) ?? "-";
+
+const getLabels = (
+  tags: string | string[] | undefined,
+  type: "format" | "proposal" | "context"
+): string[] => {
+  if (!tags) {
+    return [];
+  }
+  const initialArray = Array.isArray(tags) ? tags : [String(tags)];
+  const allIds = initialArray.flatMap((tag) =>
+    String(tag)
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean)
+  );
+  return idsToLabels(allIds, type as any);
+};
 
 const VideoListPreview: React.FC<VideoListPreviewProps> = ({ userId, timePeriod, limit = 5, onExpand }) => {
   const [videos, setVideos] = useState<VideoListItem[]>([]);
@@ -80,6 +98,32 @@ const VideoListPreview: React.FC<VideoListPreviewProps> = ({ userId, timePeriod,
                   {video.description || "Sem legenda"}
                 </p>
                 <p className="text-xs text-gray-500 mt-0.5">{formatDate(video.postDate)}</p>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {getLabels(video.format, "format").map((tag) => (
+                    <span
+                      key={tag}
+                      className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded text-[10px]"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                  {getLabels(video.proposal, "proposal").map((tag) => (
+                    <span
+                      key={tag}
+                      className="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-[10px]"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                  {getLabels(video.context, "context").map((tag) => (
+                    <span
+                      key={tag}
+                      className="bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded text-[10px]"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               </div>
               <div className="flex flex-col text-xs text-gray-600 gap-1 pr-2">
                 <span className="flex items-center gap-1">
