@@ -1,8 +1,15 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, forwardRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  forwardRef,
+  useRef,
+} from "react";
 import { debounce } from "lodash";
 import { FaSearch } from "react-icons/fa"; // Usando react-icons para o ícone
+import { XMarkIcon } from "@heroicons/react/24/solid";
 
 interface SearchBarProps {
   initialValue?: string;
@@ -12,6 +19,8 @@ interface SearchBarProps {
   className?: string;
   autoFocus?: boolean;
   ariaLabel?: string;
+  value?: string;
+  onClear?: () => void;
 }
 
 /**
@@ -35,10 +44,22 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
       className = "",
       autoFocus = false,
       ariaLabel,
+      value,
+      onClear,
     }: SearchBarProps,
     ref,
   ) {
     const [inputValue, setInputValue] = useState(initialValue);
+    const localRef = useRef<HTMLInputElement>(null);
+
+    const setRefs = (node: HTMLInputElement | null) => {
+      localRef.current = node;
+      if (typeof ref === 'function') {
+        ref(node);
+      } else if (ref) {
+        (ref as React.MutableRefObject<HTMLInputElement | null>).current = node;
+      }
+    };
 
     // useMemo garante que a função debounced seja criada apenas uma vez
     const debouncedOnChange = useMemo(
@@ -48,6 +69,10 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
         }, debounceMs),
       [onSearchChange, debounceMs],
     );
+
+    useEffect(() => {
+      setInputValue(value ?? initialValue);
+    }, [value, initialValue]);
 
     // Efeito que chama a função debounced quando o valor do input muda
     useEffect(() => {
@@ -70,12 +95,26 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
           onChange={(e) => setInputValue(e.target.value)}
           placeholder={placeholder}
           aria-label={ariaLabel}
-          ref={ref}
+          ref={setRefs}
           autoFocus={autoFocus}
-          className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm
+          className="block w-full pl-10 pr-8 py-2 border border-gray-300 rounded-md shadow-sm
                    focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-700
                    dark:bg-gray-800 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
         />
+        {onClear && inputValue && (
+          <button
+            type="button"
+            onClick={() => {
+              setInputValue("");
+              onClear();
+              localRef.current?.focus();
+            }}
+            className="absolute inset-y-0 right-0 pr-3 flex items-center"
+            aria-label="Limpar busca"
+          >
+            <XMarkIcon className="h-4 w-4 text-gray-400" />
+          </button>
+        )}
       </div>
     );
   },
