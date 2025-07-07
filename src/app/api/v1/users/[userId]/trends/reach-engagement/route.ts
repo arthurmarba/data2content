@@ -54,14 +54,12 @@ export async function GET(
   }
 
   try {
-    // CORREÇÃO: A variável 'data' não é mais estritamente tipada na declaração.
-    // Em vez disso, usamos uma asserção de tipo ('as') para garantir que os dados
-    // sejam tratados como 'ReachEngagementChartResponse', resolvendo o erro de tipo.
-    const data = await getReachInteractionTrendChartData(
-      userId,
-      timePeriod,
-      granularity
-    ) as unknown as ReachEngagementChartResponse;
+    const data: ReachEngagementChartResponse =
+      await getReachInteractionTrendChartData(
+        userId,
+        timePeriod,
+        granularity
+      );
 
     if (!data.chartData || data.chartData.length === 0) {
       data.insightSummary =
