@@ -3,6 +3,7 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import { logger } from '@/app/lib/logger';
 import { Types } from 'mongoose';
 import { getNestedValue } from './dataAccessHelpers';
+import { isValidCategoryId } from '@/app/lib/classification';
 import { getStartDateFromTimePeriod } from './dateHelpers';
 
 export type GroupingType = 'format' | 'context' | 'proposal';
@@ -59,6 +60,7 @@ async function getAverageEngagementByGrouping(
       if (Array.isArray(keys)) {
         for (const key of keys) {
           if (!key) continue; // Pula chaves nulas ou vazias dentro do array
+          if (!isValidCategoryId(key, groupBy)) continue; // ignora IDs desconhecidos
 
           if (!aggregation[key]) {
             aggregation[key] = { sum: 0, count: 0 };
