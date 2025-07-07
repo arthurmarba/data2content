@@ -32,6 +32,8 @@ describe('UserVideoPerformanceMetrics', () => {
           averageRetentionRate: 50,
           averageWatchTimeSeconds: 120,
           numberOfVideoPosts: 10,
+          averageShares: 5,
+          averageSaves: 3,
         }),
       })
       .mockResolvedValueOnce({

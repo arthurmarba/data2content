@@ -5,6 +5,8 @@ import {
   EyeIcon,
   HeartIcon,
   ChatBubbleOvalLeftEllipsisIcon,
+  ShareIcon,
+  BookmarkIcon,
 } from "@heroicons/react/24/solid";
 import { VideoListItem } from "@/types/mediakit";
 import { idsToLabels } from "@/app/lib/classification";
@@ -24,7 +26,7 @@ const formatNumber = (n?: number) =>
 
 const getLabels = (
   tags: string | string[] | undefined,
-  type: "format" | "proposal" | "context"
+  type: "format" | "proposal" | "context" | "tone" | "reference"
 ): string[] => {
   if (!tags) {
     return [];
@@ -125,6 +127,22 @@ const VideoListPreview: React.FC<VideoListPreviewProps> = ({ userId, timePeriod,
                       {tag}
                     </span>
                   ))}
+                  {getLabels(video.tone, "tone").map((tag) => (
+                    <span
+                      key={tag}
+                      className="bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded text-[10px]"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                  {getLabels(video.references, "reference").map((tag) => (
+                    <span
+                      key={tag}
+                      className="bg-green-100 text-green-800 px-1.5 py-0.5 rounded text-[10px]"
+                    >
+                      {tag}
+                    </span>
+                  ))}
                 </div>
               </div>
               <div className="flex flex-col text-xs text-gray-600 gap-1 pr-2">
@@ -139,6 +157,14 @@ const VideoListPreview: React.FC<VideoListPreviewProps> = ({ userId, timePeriod,
                 <span className="flex items-center gap-1">
                   <ChatBubbleOvalLeftEllipsisIcon className="w-3.5 h-3.5 text-gray-400" />
                   {formatNumber(video.stats?.comments)}
+                </span>
+                <span className="flex items-center gap-1">
+                  <ShareIcon className="w-3.5 h-3.5 text-gray-400" />
+                  {formatNumber(video.stats?.shares)}
+                </span>
+                <span className="flex items-center gap-1">
+                  <BookmarkIcon className="w-3.5 h-3.5 text-gray-400" />
+                  {formatNumber(video.stats?.saves)}
                 </span>
               </div>
             </div>
