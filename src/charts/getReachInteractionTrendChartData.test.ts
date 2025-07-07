@@ -58,10 +58,10 @@ describe('getReachInteractionTrendChartData', () => {
     const result = await getReachInteractionTrendChartData(userId, 'last_7_days', 'daily');
 
     expect(result.chartData.length).toBe(7);
-    expect(result.chartData[0]).toEqual({ date: formatDateYYYYMMDD(addDays(baseDate, -6)), reach: 100, engagedUsers: 10 });
-    expect(result.chartData[1]).toEqual({ date: formatDateYYYYMMDD(addDays(baseDate, -5)), reach: null, engagedUsers: null });
-    expect(result.chartData[2]).toEqual({ date: formatDateYYYYMMDD(addDays(baseDate, -4)), reach: 120, engagedUsers: 12 });
-    expect(result.chartData[6]).toEqual({ date: formatDateYYYYMMDD(addDays(baseDate, 0)), reach: 150, engagedUsers: 15 });
+    expect(result.chartData[0]).toEqual({ date: formatDateYYYYMMDD(addDays(baseDate, -6)), reach: 100, totalInteractions: 10 });
+    expect(result.chartData[1]).toEqual({ date: formatDateYYYYMMDD(addDays(baseDate, -5)), reach: null, totalInteractions: null });
+    expect(result.chartData[2]).toEqual({ date: formatDateYYYYMMDD(addDays(baseDate, -4)), reach: 120, totalInteractions: 12 });
+    expect(result.chartData[6]).toEqual({ date: formatDateYYYYMMDD(addDays(baseDate, 0)), reach: 150, totalInteractions: 15 });
   });
 
   test('Agrega posts semanais e preenche gaps', async () => {
@@ -82,9 +82,9 @@ describe('getReachInteractionTrendChartData', () => {
 
     expect(result.chartData.find(p => p.date === week1)?.reach).toBe(200);
     expect(result.chartData.find(p => p.date === week2)?.reach).toBeNull();
-    expect(result.chartData.find(p => p.date === week3)?.engagedUsers).toBe(30);
+    expect(result.chartData.find(p => p.date === week3)?.totalInteractions).toBe(30);
     expect(result.chartData.find(p => p.date === week4)?.reach).toBeNull();
-    expect(result.chartData.find(p => p.date === week5)?.engagedUsers).toBe(40);
+    expect(result.chartData.find(p => p.date === week5)?.totalInteractions).toBe(40);
   });
 
   test('Nenhum post retorna todos nulos', async () => {
@@ -93,7 +93,7 @@ describe('getReachInteractionTrendChartData', () => {
     expect(result.chartData.length).toBe(3);
     result.chartData.forEach(p => {
       expect(p.reach).toBeNull();
-      expect(p.engagedUsers).toBeNull();
+      expect(p.totalInteractions).toBeNull();
     });
   });
 

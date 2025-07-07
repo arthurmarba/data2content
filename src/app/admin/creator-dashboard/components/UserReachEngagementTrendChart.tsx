@@ -17,7 +17,7 @@ import {
 interface ApiReachEngagementDataPoint {
   date: string;
   reach: number | null;
-  engagedUsers: number | null;
+  totalInteractions: number | null;
 }
 
 interface UserReachEngagementTrendResponse {
@@ -265,8 +265,8 @@ const UserReachEngagementTrendChart: React.FC<
               <Line
                 yAxisId="left"
                 type="monotone"
-                dataKey="engagedUsers"
-                name="Contas Engajadas"
+                dataKey="totalInteractions"
+                name="Interações"
                 stroke="#82ca9d"
                 strokeWidth={2}
                 dot={{ r: 3 }}
