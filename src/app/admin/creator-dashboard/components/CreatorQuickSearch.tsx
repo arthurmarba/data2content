@@ -73,6 +73,7 @@ export default function CreatorQuickSearch({
     <div className="relative flex items-center" ref={containerRef}>
       <SearchBar
         initialValue=""
+        value={searchTerm}
         onSearchChange={(val) => {
           setSearchTerm(val);
           setShowDropdown(true);
