@@ -72,6 +72,11 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
               </a>
             </li>
             <li>
+              <a href={`#user-content-performance-${userId}`} className="hover:underline">
+                Conteúdo
+              </a>
+            </li>
+            <li>
               <a href={`#user-advanced-analysis-${userId}`} className="hover:underline">
                 Análise & Alertas
               </a>
@@ -79,11 +84,6 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
             <li>
               <a href={`#user-trends-${userId}`} className="hover:underline">
                 Tendências
-              </a>
-            </li>
-            <li>
-              <a href={`#user-content-performance-${userId}`} className="hover:underline">
-                Conteúdo
               </a>
             </li>
           </ul>
@@ -162,6 +162,19 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
         </div>
       </section>
 
+      <section id={`user-content-performance-${userId}`} className="mb-10">
+        <h3 className="text-xl font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-300">
+          Performance de Conteúdo
+        </h3>
+        <div className="grid grid-cols-1 gap-6 mb-6">
+          <UserVideoPerformanceMetrics userId={userId} chartTitle="Performance de Vídeos" />
+        </div>
+        <div className="grid grid-cols-1 gap-6">
+          <UserMonthlyEngagementStackedChart userId={userId} chartTitle="Engajamento Mensal Detalhado" />
+          <UserMonthlyComparisonChart userId={userId} chartTitle="Comparação Mensal" />
+        </div>
+      </section>
+
       <section id={`user-advanced-analysis-${userId}`} className="mb-10">
         <h3 className="text-xl font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-300">
           Análise Avançada e Alertas
@@ -193,27 +206,6 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
         </div>
       </section>
 
-      <section id={`user-content-performance-${userId}`} className="mb-10">
-        <h3 className="text-xl font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-300">
-          Performance de Conteúdo
-        </h3>
-        <div className="grid grid-cols-1 gap-6 mb-6">
-          <UserVideoPerformanceMetrics
-            userId={userId}
-            chartTitle="Performance de Vídeos"
-          />
-        </div>
-        <div className="grid grid-cols-1 gap-6">
-          <UserMonthlyEngagementStackedChart
-            userId={userId}
-            chartTitle="Engajamento Mensal Detalhado"
-          />
-          <UserMonthlyComparisonChart
-            userId={userId}
-            chartTitle="Comparação Mensal"
-          />
-        </div>
-      </section>
     </div>
   );
 };
