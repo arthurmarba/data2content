@@ -26,6 +26,11 @@ interface SearchBarProps {
    * Useful for showing a selected value that can be cleared.
    */
   showClearWhenEmpty?: boolean;
+  /**
+   * Visual variant of the input. Default keeps the bordered style while
+   * 'minimal' removes the box and uses only a bottom border.
+   */
+  variant?: 'default' | 'minimal';
 }
 
 /**
@@ -52,6 +57,7 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
       value,
       onClear,
       showClearWhenEmpty = false,
+      variant = 'default',
     }: SearchBarProps,
     ref,
   ) {
@@ -107,9 +113,11 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
           aria-label={ariaLabel}
           ref={setRefs}
           autoFocus={autoFocus}
-          className="block w-full pl-10 pr-8 py-2 border border-gray-300 rounded-md shadow-sm
-                   focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-700
-                   bg-white dark:bg-gray-800 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+          className={`block w-full pl-10 pr-8 py-2 sm:text-sm text-gray-700 dark:text-white focus:outline-none ${
+            variant === 'minimal'
+              ? 'bg-brand-light dark:bg-gray-800 border-0 border-b border-gray-200 rounded-none shadow-none focus:border-gray-400 focus:ring-0'
+              : 'border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-800 dark:border-gray-600'
+          }`}
         />
         {onClear && (inputValue || showClearWhenEmpty) && (
           <button

@@ -85,6 +85,7 @@ export default function CreatorQuickSearch({
         placeholder={selectedCreatorName || "Buscar criador..."}
         debounceMs={200}
         className="w-80 sm:w-96 flex-grow"
+        variant="minimal"
         ariaLabel="Buscar criador"
         onClear={() => {
           setSearchTerm("");
