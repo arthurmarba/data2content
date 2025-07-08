@@ -3,6 +3,7 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import { logger } from '@/app/lib/logger';
 import { Types } from 'mongoose';
 import { getNestedValue } from './dataAccessHelpers';
+// Validador agora aceita IDs ou labels (ex: "Reel", "Foto")
 import { isValidCategoryId } from '@/app/lib/classification';
 import { getStartDateFromTimePeriod } from './dateHelpers';
 

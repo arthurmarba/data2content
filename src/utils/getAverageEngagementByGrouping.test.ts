@@ -3,6 +3,7 @@ import getAverageEngagementByGrouping, { GroupingType } from './getAverageEngage
 import MetricModel, { IMetric, FormatType, IMetricStats } from '@/app/models/Metric'; // Ajuste
 import { getNestedValue } from "./dataAccessHelpers"; // Importar para mock ou referência
 import { getStartDateFromTimePeriod } from "./dateHelpers"; // Para referência de datas
+import { isValidCategoryId } from '@/app/lib/classification';
 
 jest.mock('@/app/models/Metric', () => ({
   find: jest.fn(),
@@ -190,5 +191,13 @@ describe('getAverageEngagementByGrouping', () => {
     const result = await getAverageEngagementByGrouping(userId, timePeriod, performanceMetricField, "format");
     expect(result).toEqual([]);
     expect(console.error).toHaveBeenCalled();
+  });
+
+  test('Valores de formato por label continuam válidos', () => {
+    expect(isValidCategoryId('Reel', 'format')).toBe(true);
+    expect(isValidCategoryId('Foto', 'format')).toBe(true);
+    // também aceita variações em minúsculas
+    expect(isValidCategoryId('reel', 'format')).toBe(true);
+    expect(isValidCategoryId('foto', 'format')).toBe(true);
   });
 });
