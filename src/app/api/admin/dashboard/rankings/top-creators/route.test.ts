@@ -15,7 +15,14 @@ function mockRequest(params: Record<string, string>): NextRequest {
 }
 
 const sampleData = [
-  { creatorId: '1', creatorName: 'Alice', metricValue: 100, totalInteractions: 200, postCount: 10 },
+  {
+    creatorId: '1',
+    creatorName: 'Alice',
+    metricValue: 100,
+    totalInteractions: 200,
+    postCount: 10,
+    profilePictureUrl: 'https://example.com/alice.jpg',
+  },
 ];
 const sampleScoreData = [
   { creatorId: '1', creatorName: 'Alice', score: 90 },

@@ -58,6 +58,7 @@ export interface IMarketPerformanceResult {
 export interface ITopCreatorResult {
     creatorId: string;
     creatorName?: string;
+    profilePictureUrl?: string;
     metricValue: number;
     totalInteractions: number;
     postCount: number;
