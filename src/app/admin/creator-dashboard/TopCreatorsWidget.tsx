@@ -14,6 +14,7 @@ interface TopCreatorsWidgetProps {
   timePeriod?: TimePeriod;
   limit?: number;
   metricLabel?: string;
+  compositeRanking?: boolean;
 }
 
 const TopCreatorsWidget: React.FC<TopCreatorsWidgetProps> = ({
@@ -23,6 +24,7 @@ const TopCreatorsWidget: React.FC<TopCreatorsWidgetProps> = ({
   timePeriod,
   limit = 5,
   metricLabel = '',
+  compositeRanking = false,
 }) => {
   const { timePeriod: globalTimePeriod } = useGlobalTimePeriod();
   const effectiveTimePeriod: TimePeriod = timePeriod || (globalTimePeriod as TimePeriod);
@@ -37,10 +39,14 @@ const TopCreatorsWidget: React.FC<TopCreatorsWidgetProps> = ({
     setError(null);
 
     const params = new URLSearchParams({
-      metric,
       days: String(days),
       limit: String(limit),
     });
+    if (compositeRanking) {
+      params.append('composite', 'true');
+    } else {
+      params.append('metric', metric);
+    }
     if (context) params.append('context', context);
 
     try {
@@ -57,13 +63,16 @@ const TopCreatorsWidget: React.FC<TopCreatorsWidgetProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [context, metric, days, limit]);
+  }, [context, metric, days, limit, compositeRanking]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
   const formatMetricValue = (value: number): string => {
+    if (compositeRanking) {
+      return `${Math.round(value)}%`;
+    }
     if (Number.isInteger(value)) {
       return value.toLocaleString('pt-BR');
     }
@@ -90,7 +99,7 @@ const TopCreatorsWidget: React.FC<TopCreatorsWidgetProps> = ({
   return (
     <div className="bg-white p-4 rounded-lg shadow border border-gray-200 h-full flex flex-col">
       <h4 className="text-md font-semibold text-gray-700 mb-3 truncate" title={title}>
-        {title}
+        {compositeRanking ? 'Top Criadores (Score)' : title}
       </h4>
       {isLoading && renderSkeleton()}
       {!isLoading && error && (
@@ -128,8 +137,8 @@ const TopCreatorsWidget: React.FC<TopCreatorsWidgetProps> = ({
                 </p>
               </div>
               <span className="text-xs text-indigo-600 font-semibold whitespace-nowrap">
-                {formatMetricValue(item.metricValue)}
-                {metricLabel && ` ${metricLabel}`}
+                {formatMetricValue(compositeRanking ? item.score : item.metricValue)}
+                {metricLabel && !compositeRanking && ` ${metricLabel}`}
               </span>
             </li>
           ))}

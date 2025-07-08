@@ -112,3 +112,110 @@ export async function fetchTopCreators(args: { context: string, metricToSortBy: 
     throw new DatabaseError(`Falha ao buscar top criadores: ${error.message}`);
   }
 }
+
+/**
+ * Aggregates multiple engagement metrics to compute a composite score for each creator.
+ */
+export async function fetchTopCreatorsWithScore(args: { context?: string; days: number; limit: number }) {
+  const { context, days, limit } = args;
+  const TAG = `${SERVICE_TAG}[fetchTopCreatorsWithScore]`;
+
+  try {
+    await connectToDatabase();
+    const sinceDate = subDays(new Date(), days);
+
+    const matchStage: PipelineStage.Match['$match'] = { postDate: { $gte: sinceDate } };
+    if (context && !['geral', 'todos', 'all'].includes(context.toLowerCase())) {
+      matchStage.context = { $regex: context, $options: 'i' };
+    }
+
+    const aggregationPipeline: PipelineStage[] = [
+      { $match: matchStage },
+      {
+        $group: {
+          _id: '$user',
+          avgEngagementRate: { $avg: '$stats.engagement_rate_on_reach' },
+          avgInteractionsPerPost: { $avg: '$stats.total_interactions' },
+          totalReach: { $sum: '$stats.reach' },
+          postCount: { $sum: 1 }
+        }
+      },
+      {
+        $lookup: {
+          from: 'accountinsights',
+          let: { userId: '$_id' },
+          pipeline: [
+            { $match: { $expr: { $eq: ['$user', '$$userId'] }, recordedAt: { $gte: sinceDate } } },
+            { $sort: { recordedAt: 1 } },
+            {
+              $group: {
+                _id: null,
+                firstFollowers: { $first: '$followersCount' },
+                lastFollowers: { $last: '$followersCount' }
+              }
+            }
+          ],
+          as: 'followersData'
+        }
+      },
+      { $unwind: { path: '$followersData', preserveNullAndEmptyArrays: true } },
+      ...createBasePipeline(),
+      {
+        $project: {
+          _id: 0,
+          creatorId: '$_id',
+          creatorName: '$creatorInfo.name',
+          profilePictureUrl: '$creatorInfo.profile_picture_url',
+          avgEngagementRate: { $ifNull: ['$avgEngagementRate', 0] },
+          avgInteractionsPerPost: { $ifNull: ['$avgInteractionsPerPost', 0] },
+          totalReach: 1,
+          firstFollowers: '$followersData.firstFollowers',
+          lastFollowers: {
+            $ifNull: ['$followersData.lastFollowers', '$creatorInfo.followers_count']
+          }
+        }
+      }
+    ];
+
+    const rawResults = await MetricModel.aggregate(aggregationPipeline);
+
+    // Calculate derived metrics
+    const results = rawResults.map((r: any) => {
+      const lastFollowers = r.lastFollowers ?? 0;
+      const firstFollowers = r.firstFollowers ?? lastFollowers;
+      const reachPerFollower = lastFollowers > 0 ? r.totalReach / lastFollowers : 0;
+      const followerGrowthRate = firstFollowers > 0 ? ((lastFollowers - firstFollowers) / firstFollowers) * 100 : 0;
+      return {
+        creatorId: r.creatorId,
+        creatorName: r.creatorName || 'Desconhecido',
+        profilePictureUrl: r.profilePictureUrl,
+        avgEngagementRate: r.avgEngagementRate,
+        avgInteractionsPerPost: r.avgInteractionsPerPost,
+        reachPerFollower,
+        followerGrowthRate
+      };
+    });
+
+    // Determine min and max for normalization
+    const getMinMax = (arr: number[]) => [Math.min(...arr), Math.max(...arr)] as [number, number];
+    const [minEng, maxEng] = getMinMax(results.map(r => r.avgEngagementRate || 0));
+    const [minInt, maxInt] = getMinMax(results.map(r => r.avgInteractionsPerPost || 0));
+    const [minReach, maxReach] = getMinMax(results.map(r => r.reachPerFollower || 0));
+    const [minGrow, maxGrow] = getMinMax(results.map(r => r.followerGrowthRate || 0));
+
+    const scored = results.map(r => {
+      const engN = normalizeValue(r.avgEngagementRate, minEng, maxEng);
+      const intN = normalizeValue(r.avgInteractionsPerPost, minInt, maxInt);
+      const reachN = normalizeValue(r.reachPerFollower, minReach, maxReach);
+      const growN = normalizeValue(r.followerGrowthRate, minGrow, maxGrow);
+      const score = 0.4 * engN + 0.3 * intN + 0.2 * reachN + 0.1 * growN;
+      return { ...r, score: Math.round(score) };
+    });
+
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, limit);
+  } catch (error: any) {
+    logger.error(`${TAG} Erro na agregação de score de criadores:`, error);
+    throw new DatabaseError(`Falha ao calcular score de criadores: ${error.message}`);
+  }
+}

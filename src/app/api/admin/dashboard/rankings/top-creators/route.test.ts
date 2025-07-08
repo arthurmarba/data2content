@@ -1,10 +1,11 @@
 import { GET } from './route';
 import { NextRequest } from 'next/server';
-import { fetchTopCreators } from '@/app/lib/dataService/marketAnalysis/profilesService';
+import { fetchTopCreators, fetchTopCreatorsWithScore } from '@/app/lib/dataService/marketAnalysis/profilesService';
 import { DatabaseError } from '@/app/lib/errors';
 
 jest.mock('@/app/lib/dataService/marketAnalysis/profilesService', () => ({
   fetchTopCreators: jest.fn(),
+  fetchTopCreatorsWithScore: jest.fn(),
 }));
 
 function mockRequest(params: Record<string, string>): NextRequest {
@@ -16,10 +17,14 @@ function mockRequest(params: Record<string, string>): NextRequest {
 const sampleData = [
   { creatorId: '1', creatorName: 'Alice', metricValue: 100, totalInteractions: 200, postCount: 10 },
 ];
+const sampleScoreData = [
+  { creatorId: '1', creatorName: 'Alice', score: 90 },
+];
 
 describe('API Route: top-creators', () => {
   beforeEach(() => {
     (fetchTopCreators as jest.Mock).mockReset();
+    (fetchTopCreatorsWithScore as jest.Mock).mockReset();
   });
 
   it('returns ranking data with valid query', async () => {
@@ -37,6 +42,26 @@ describe('API Route: top-creators', () => {
     const res = await GET(req);
     expect(res.status).toBe(400);
     expect(fetchTopCreators).not.toHaveBeenCalled();
+  });
+
+  it('returns composite ranking when composite=true', async () => {
+    (fetchTopCreatorsWithScore as jest.Mock).mockResolvedValueOnce(sampleScoreData);
+    const req = mockRequest({ composite: 'true', days: '30', limit: '1' });
+    const res = await GET(req);
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body).toEqual(sampleScoreData);
+    expect(fetchTopCreatorsWithScore).toHaveBeenCalledWith({ context: 'geral', days: 30, limit: 1 });
+    expect(fetchTopCreators).not.toHaveBeenCalled();
+  });
+
+  it('handles empty data for composite ranking', async () => {
+    (fetchTopCreatorsWithScore as jest.Mock).mockResolvedValueOnce([]);
+    const req = mockRequest({ composite: 'true' });
+    const res = await GET(req);
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body).toEqual([]);
   });
 
   it('handles DatabaseError with 500', async () => {
