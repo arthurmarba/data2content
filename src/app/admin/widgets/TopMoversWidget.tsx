@@ -9,7 +9,8 @@ import {
     ExclamationTriangleIcon,
     ChartBarIcon,
     ArrowsUpDownIcon,
-    ArrowTrendingUpIcon
+    ArrowTrendingUpIcon,
+    InformationCircleIcon
 } from '@heroicons/react/24/outline';
 
 import SkeletonBlock from '../components/SkeletonBlock';
@@ -26,7 +27,7 @@ import {
 
 
 // --- Componente de Gráfico de Tendência (Sparkline) ---
-const TrendChart = memo(function TrendChart({ v1, v2 }: { v1: number, v2: number }) {
+export const TrendChart = memo(function TrendChart({ v1, v2 }: { v1: number, v2: number }) {
     const isIncrease = v2 > v1;
     const isDecrease = v2 < v1;
     const color = isIncrease ? 'stroke-green-500' : isDecrease ? 'stroke-red-500' : 'stroke-gray-400';
@@ -98,10 +99,17 @@ const TopMoversWidget = memo(function TopMoversWidget() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [summary, setSummary] = useState<string | null>(null);
 
   const handleContentFilterChange = (field: keyof ISegmentDefinition, value: string) => {
     setContentFilters(prev => ({ ...prev, [field]: value === "" ? undefined : value }));
   };
+
+  const handleClearFilters = () => {
+    setContentFilters({});
+  };
+
+  const hasActiveFilters = Object.keys(contentFilters).length > 0;
 
   const handleSetPeriodPreset = useCallback((days: number) => {
     const today = endOfDay(new Date());
@@ -182,6 +190,13 @@ const TopMoversWidget = memo(function TopMoversWidget() {
       });
 
       setResults(mockResults);
+      if (mockResults.length > 0) {
+        const inc = mockResults.reduce((p, c) => (c.percentageChange > p.percentageChange ? c : p), mockResults[0]);
+        const dec = mockResults.reduce((p, c) => (c.percentageChange < p.percentageChange ? c : p), mockResults[0]);
+        setSummary(`Maior crescimento: ${inc.entityName} (${formatDisplayPercentageTM(inc.percentageChange)}) / Maior queda: ${dec.entityName} (${formatDisplayPercentageTM(dec.percentageChange)})`);
+      } else {
+        setSummary(null);
+      }
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -196,10 +211,17 @@ const TopMoversWidget = memo(function TopMoversWidget() {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-gray-800">
+        <h3 className="text-lg font-semibold text-gray-800 flex items-center">
           {`Top Movers – ${ENTITY_TYPE_OPTIONS.find(e => e.value === entityType)?.label} por ${METRIC_OPTIONS.find(m => m.value === metric)?.label} (${SORT_BY_OPTIONS.find(s => s.value === sortBy)?.label})`}
+          <InformationCircleIcon
+            className="h-4 w-4 text-gray-400 ml-1 cursor-help"
+            title="Val. Anterior e Val. Atual representam os totais agregados de cada período. Mud. (%) indica a variação percentual entre eles."
+          />
         </h3>
         <p className="text-sm text-gray-500 mt-1">Identifique as maiores variações de performance entre dois períodos.</p>
+        {summary && (
+          <p className="text-sm text-gray-600 mt-1">{summary}</p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
@@ -214,6 +236,9 @@ const TopMoversWidget = memo(function TopMoversWidget() {
         <button onClick={() => handleSetPeriodPreset(7)} className="text-xs px-2.5 py-1 bg-gray-100 hover:bg-gray-200 rounded-full">Últimos 7 dias</button>
         <button onClick={() => handleSetPeriodPreset(14)} className="text-xs px-2.5 py-1 bg-gray-100 hover:bg-gray-200 rounded-full">Últimos 14 dias</button>
         <button onClick={() => handleSetPeriodPreset(30)} className="text-xs px-2.5 py-1 bg-gray-100 hover:bg-gray-200 rounded-full">Últimos 30 dias</button>
+        {hasActiveFilters && (
+          <button onClick={handleClearFilters} className="ml-auto text-xs px-2.5 py-1 bg-blue-500 text-white rounded-full">Limpar filtros</button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
