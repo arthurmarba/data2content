@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useGlobalTimePeriod } from "./filters/GlobalTimePeriodContext";
 import { LightBulbIcon } from '@heroicons/react/24/outline';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -48,6 +49,7 @@ const UserMonthlyComparisonChart: React.FC<UserMonthlyComparisonChartProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [metric, setMetric] = useState<string>(initialMetric);
+  const { timePeriod } = useGlobalTimePeriod();
 
   useEffect(() => {
     setMetric(initialMetric);
@@ -84,7 +86,7 @@ const UserMonthlyComparisonChart: React.FC<UserMonthlyComparisonChartProps> = ({
     setLoading(true);
     setError(null);
     try {
-      const apiUrl = `/api/v1/users/${userId}/charts/monthly-comparison?metric=${encodeURIComponent(metric)}`;
+      const apiUrl = `/api/v1/users/${userId}/charts/monthly-comparison?metric=${encodeURIComponent(metric)}&timePeriod=${timePeriod}`;
       const response = await fetch(apiUrl);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -100,7 +102,7 @@ const UserMonthlyComparisonChart: React.FC<UserMonthlyComparisonChartProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [userId, metric]);
+  }, [userId, metric, timePeriod]);
 
   useEffect(() => {
     if (userId) {

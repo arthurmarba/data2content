@@ -18,6 +18,8 @@ describe('UserMonthlyComparisonChart', () => {
   it('calls user endpoint', async () => {
     render(<UserMonthlyComparisonChart userId="u1" />);
     await waitFor(() => expect(global.fetch).toHaveBeenCalled());
-    expect((global.fetch as jest.Mock).mock.calls[0][0]).toContain('/api/v1/users/u1/charts/monthly-comparison');
+    const url = (global.fetch as jest.Mock).mock.calls[0][0] as string;
+    expect(url).toContain('/api/v1/users/u1/charts/monthly-comparison');
+    expect(url).toContain('timePeriod=last_3_months');
   });
 });
