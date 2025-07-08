@@ -174,11 +174,7 @@ const TopMoversWidget = memo(function TopMoversWidget() {
           profilePictureUrl: entityType === 'creator' ? `https://i.pravatar.cc/40?u=${i}` : undefined,
       })).map(item => {
           item.absoluteChange = item.currentValue - item.previousValue;
-          // --- INÍCIO DA CORREÇÃO ---
-          // O erro de tipo ocorria aqui. `percentageChange` espera um `number`, mas `null` era fornecido.
-          // Alterado para `0` para casos de divisão por zero, garantindo a compatibilidade de tipo.
           item.percentageChange = item.previousValue !== 0 ? item.absoluteChange / item.previousValue : 0;
-          // --- FIM DA CORREÇÃO ---
           return item;
       }).sort((a, b) => {
           if (sortBy.includes('decrease')) return a.absoluteChange - b.absoluteChange;

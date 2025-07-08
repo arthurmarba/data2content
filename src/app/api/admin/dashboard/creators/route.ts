@@ -11,12 +11,7 @@ import { fetchDashboardCreatorsList } from '@/app/lib/dataService/marketAnalysis
 import { IFetchDashboardCreatorsListParams } from '@/app/lib/dataService/marketAnalysis/types';
 import { DatabaseError } from '@/app/lib/errors';
 
-// ==================== INÍCIO DA CORREÇÃO ====================
-// Força a rota a ser sempre renderizada dinamicamente no servidor.
-// Isso é necessário porque a rota utiliza `req.url` para ler parâmetros de busca
-// e `getServerSession` para validação, o que impede a geração estática.
 export const dynamic = 'force-dynamic';
-// ==================== FIM DA CORREÇÃO ======================
 
 const SERVICE_TAG = '[api/admin/dashboard/creators]';
 

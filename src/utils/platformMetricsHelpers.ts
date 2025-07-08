@@ -62,15 +62,10 @@ export async function getPlatformMinMaxValues(
               );
               const latestFollowerCountsResults = await Promise.allSettled(latestFollowerCountsPromises);
               
-              // ==================== INÍCIO DA CORREÇÃO ====================
-              // 1. O primeiro .filter() agora apenas verifica o status da promessa, sem um type predicate complexo.
-              // 2. O .map() usa uma asserção de tipo (as) para informar ao TypeScript a "forma" do valor,
-              //    o que é seguro aqui porque já filtramos por status 'fulfilled' e valor não nulo.
               const validCounts = latestFollowerCountsResults
                   .filter(r => r.status === 'fulfilled' && r.value !== null)
                   .map(r => (r as PromiseFulfilledResult<FollowerCountResult>).value.followersCount)
                   .filter((count): count is number => typeof count === 'number');
-              // ==================== FIM DA CORREÇÃO ======================
 
               if (validCounts.length > 0) {
                   results[metricId] = {

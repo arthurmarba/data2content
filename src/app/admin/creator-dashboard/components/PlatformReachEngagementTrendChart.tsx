@@ -7,19 +7,16 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 
-// ===== INÍCIO DA CORREÇÃO =====
-// A interface foi atualizada para corresponder à resposta da API
 interface ApiChartDataPoint {
   date: string;
   reach: number | null;
-  totalInteractions: number | null; // Alterado de engagedUsers
+  totalInteractions: number | null;
 }
 
 interface PlatformChartResponse {
   chartData: ApiChartDataPoint[];
   insightSummary?: string;
 }
-// ===== FIM DA CORREÇÃO =====
 
 const GRANULARITY_OPTIONS = [
   { value: "daily", label: "Diário" },

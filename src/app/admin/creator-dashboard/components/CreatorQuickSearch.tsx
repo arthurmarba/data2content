@@ -45,12 +45,10 @@ export default function CreatorQuickSearch({
         setHighlightIndex((prev) => (prev - 1 + creators.length) % creators.length);
       } else if (e.key === 'Enter' && highlightIndex >= 0) {
         e.preventDefault();
-        // --- INÍCIO DA CORREÇÃO ---
         const selectedCreator = creators[highlightIndex];
         if (selectedCreator) {
           handleSelect(selectedCreator);
         }
-        // --- FIM DA CORREÇÃO ---
       } else if (e.key === 'Escape') {
         setShowDropdown(false);
       }

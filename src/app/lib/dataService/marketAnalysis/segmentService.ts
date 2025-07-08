@@ -162,10 +162,7 @@ export async function fetchContentPerformanceByType(
             $lte: endDate,
           },
           'stats.total_interactions': { $exists: true, $ne: null, $type: "number" }, // Ensure it's a number
-          // --- INÍCIO DA CORREÇÃO ---
-          // Substituído o uso duplicado de '$ne' por '$nin' (not in) para verificar múltiplos valores.
           type: { $exists: true, $nin: [null, ""] }
-          // --- FIM DA CORREÇÃO ---
         }
       },
       {
