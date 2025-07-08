@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
-import { fetchTopCreators, TopCreatorMetricEnum } from '@/app/lib/dataService/marketAnalysisService';
+import { fetchTopCreators, fetchTopCreatorsWithScore, TopCreatorMetricEnum } from '@/app/lib/dataService/marketAnalysisService';
 import { DatabaseError } from '@/app/lib/errors';
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +12,7 @@ const querySchema = z.object({
   metric: TopCreatorMetricEnum.optional().default('total_interactions'),
   days: z.coerce.number().int().positive().max(365).optional().default(30),
   limit: z.coerce.number().int().min(1).max(50).optional().default(5),
+  composite: z.coerce.boolean().optional().default(false),
 });
 
 async function getAdminSession(req: NextRequest): Promise<{ user: { name: string } } | null> {
@@ -49,13 +50,22 @@ export async function GET(req: NextRequest) {
       return apiError(`Parâmetros de consulta inválidos: ${errorMessage}`, 400);
     }
 
-    const { context, metric, days, limit } = validationResult.data;
-    const results = await fetchTopCreators({
-      context: context ?? 'geral',
-      metricToSortBy: metric,
-      days,
-      limit,
-    });
+    const { context, metric, days, limit, composite } = validationResult.data;
+    let results;
+    if (composite) {
+      results = await fetchTopCreatorsWithScore({
+        context: context ?? 'geral',
+        days,
+        limit,
+      });
+    } else {
+      results = await fetchTopCreators({
+        context: context ?? 'geral',
+        metricToSortBy: metric,
+        days,
+        limit,
+      });
+    }
 
     return NextResponse.json(results, { status: 200 });
   } catch (error: any) {
