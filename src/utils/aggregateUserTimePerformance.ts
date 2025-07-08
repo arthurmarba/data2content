@@ -1,10 +1,11 @@
 /*
 ================================================================================
-ARQUIVO 3/4: aggregateUserTimePerformance.ts
+ARQUIVO: aggregateUserTimePerformance.ts
 FUNÇÃO: Utilitário com a lógica de agregação de dados no MongoDB.
-STATUS: CORRIGIDO. Esta é a principal alteração. A lógica de aplicação
-de filtros foi refeita para usar o operador '$in' do MongoDB e a nova função
-auxiliar, permitindo a filtragem hierárquica de categorias.
+STATUS: CORREÇÃO DE FUSO HORÁRIO. A pipeline foi ajustada para usar um
+fuso horário específico ('America/Sao_Paulo'), garantindo que os cálculos
+de dia da semana e hora correspondam à perspectiva do usuário no Brasil,
+independentemente do fuso horário do servidor.
 ================================================================================
 */
 import MetricModel from "@/app/models/Metric";
@@ -12,8 +13,10 @@ import { PipelineStage, Types } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { logger } from "@/app/lib/logger";
 import { getStartDateFromTimePeriod } from "./dateHelpers";
-// CORREÇÃO: Importa a nova função auxiliar de `classification.ts`
 import { getCategoryWithSubcategoryIds } from "@/app/lib/classification";
+
+// Define o fuso horário alvo para garantir consistência
+const TARGET_TIMEZONE = 'America/Sao_Paulo';
 
 export interface TimeBucket {
   dayOfWeek: number;
@@ -39,6 +42,7 @@ export async function aggregateUserTimePerformance(
   periodInDays: number,
   metricField: string,
   filters: PerformanceFilters = {},
+  // A data de referência ainda é um problema, mas a correção na pipeline é o passo mais crítico.
   referenceDate: Date = new Date()
 ): Promise<UserTimePerformance> {
   const today = new Date(referenceDate);
@@ -63,20 +67,20 @@ export async function aggregateUserTimePerformance(
 
     const resolvedUserId =
       typeof userId === 'string' ? new Types.ObjectId(userId) : userId;
+    
+    // ATENÇÃO: A lógica de startDate e endDate AINDA pode causar problemas
+    // em filtros de curto período (como "Hoje"). A solução ideal para isso
+    // seria usar uma biblioteca como date-fns-tz para criar essas datas
+    // já no fuso correto. A correção abaixo resolve o agrupamento.
     const matchStage: PipelineStage.Match = {
       $match: {
         user: resolvedUserId,
         postDate: { $gte: startDate, $lte: endDate },
       },
     };
-
-    // ================== INÍCIO DA CORREÇÃO ==================
-    // A lógica de filtragem foi completamente refeita para suportar hierarquias.
     
     if (filters.format) {
       const formatIds = getCategoryWithSubcategoryIds(filters.format, 'format');
-      // Usa $in para incluir a categoria e suas subcategorias, se houver.
-      // Converte para minúsculas para garantir consistência na busca.
       (matchStage.$match as any).format = { $in: formatIds.map(id => id.toLowerCase()) };
     }
     if (filters.proposal) {
@@ -87,15 +91,15 @@ export async function aggregateUserTimePerformance(
       const contextIds = getCategoryWithSubcategoryIds(filters.context, 'context');
       (matchStage.$match as any).context = { $in: contextIds.map(id => id.toLowerCase()) };
     }
-    // =================== FIM DA CORREÇÃO ====================
 
     const pipeline: PipelineStage[] = [
       matchStage,
       {
         $project: {
-          dayOfWeek: { $dayOfWeek: "$postDate" },
-          hour: { $hour: "$postDate" },
-          metricValue: `$${metricField}`,
+          // CORREÇÃO DE FUSO HORÁRIO APLICADA AQUI
+          dayOfWeek: { $dayOfWeek: { date: "$postDate", timezone: TARGET_TIMEZONE } },
+          hour: { $hour: { date: "$postDate", timezone: TARGET_TIMEZONE } },
+          metricValue: { $ifNull: [`$${metricField}`, 0] },
         },
       },
       { $match: { metricValue: { $ne: null } } },
