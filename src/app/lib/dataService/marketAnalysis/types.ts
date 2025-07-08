@@ -220,6 +220,7 @@ export interface IFetchCreatorRankingParams {
     endDate: Date;
   };
   limit?: number;
+  offset?: number;
 }
 
 export interface IFetchCreatorTimeSeriesArgs {

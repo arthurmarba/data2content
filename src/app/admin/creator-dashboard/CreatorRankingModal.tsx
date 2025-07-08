@@ -30,6 +30,7 @@ const CreatorRankingModal: React.FC<CreatorRankingModalProps> = ({
   const [rankingData, setRankingData] = useState<ICreatorMetricRankItem[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
 
   const fetchData = useCallback(async () => {
     if (!dateRangeFilter?.startDate || !dateRangeFilter?.endDate) {
@@ -40,7 +41,10 @@ const CreatorRankingModal: React.FC<CreatorRankingModalProps> = ({
     setIsLoading(true);
     setError(null);
 
-    const params = new URLSearchParams({ limit: String(limit) });
+    const params = new URLSearchParams({
+      limit: String(limit),
+      offset: String(page * limit),
+    });
 
     if (dateRangeFilter.startDate) {
       const ls = new Date(dateRangeFilter.startDate);
@@ -67,13 +71,17 @@ const CreatorRankingModal: React.FC<CreatorRankingModalProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [apiEndpoint, dateRangeFilter, limit, title]);
+  }, [apiEndpoint, dateRangeFilter, limit, title, page]);
 
   useEffect(() => {
     if (isOpen) {
       fetchData();
     }
   }, [isOpen, fetchData]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [dateRangeFilter]);
 
   const formatMetricValue = (value: number): string => {
     if (Number.isInteger(value)) {
@@ -164,7 +172,23 @@ const CreatorRankingModal: React.FC<CreatorRankingModalProps> = ({
             </div>
           )}
         </div>
-        <footer className="p-4 border-t text-right">
+        <footer className="p-4 border-t flex items-center justify-between space-x-2">
+          <div className="space-x-2">
+            <button
+              onClick={() => setPage(p => Math.max(0, p - 1))}
+              disabled={page === 0 || isLoading}
+              className="px-3 py-1 text-sm bg-gray-100 rounded-md disabled:opacity-50"
+            >
+              Anterior
+            </button>
+            <button
+              onClick={() => setPage(p => p + 1)}
+              disabled={isLoading || (rankingData && rankingData.length < limit)}
+              className="px-3 py-1 text-sm bg-gray-100 rounded-md disabled:opacity-50"
+            >
+              Próximo
+            </button>
+          </div>
           <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md">
             Fechar
           </button>

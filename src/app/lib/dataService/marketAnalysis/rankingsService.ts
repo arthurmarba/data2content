@@ -31,7 +31,7 @@ export async function fetchTopEngagingCreators(
   params: IFetchCreatorRankingParams
 ): Promise<ICreatorMetricRankItem[]> {
   const TAG = `${SERVICE_TAG}[fetchTopEngagingCreators]`;
-  const { dateRange, limit = 5 } = params;
+  const { dateRange, limit = 5, offset = 0 } = params;
   logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
 
   try {
@@ -58,6 +58,7 @@ export async function fetchTopEngagingCreators(
         }
       },
       { $sort: { metricValue: -1 } },
+      { $skip: offset },
       { $limit: limit },
       {
         $lookup: {
@@ -65,10 +66,11 @@ export async function fetchTopEngagingCreators(
           localField: '_id',
           foreignField: '_id',
           as: 'creatorDetails',
-          pipeline: [{ $project: { name: 1, profile_picture_url: 1 } }]
+          pipeline: [{ $project: { name: 1, profile_picture_url: 1, isInstagramConnected: 1 } }]
         }
       },
       { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } },
+      { $match: { 'creatorDetails.isInstagramConnected': true } },
       {
         $project: {
           _id: 0,
@@ -98,7 +100,7 @@ export async function fetchMostProlificCreators(
   params: IFetchCreatorRankingParams
 ): Promise<ICreatorMetricRankItem[]> {
   const TAG = `${SERVICE_TAG}[fetchMostProlificCreators]`;
-  const { dateRange, limit = 5 } = params;
+  const { dateRange, limit = 5, offset = 0 } = params;
    logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
 
   try {
@@ -107,6 +109,7 @@ export async function fetchMostProlificCreators(
       { $match: { postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate } } },
       { $group: { _id: '$user', metricValue: { $sum: 1 } }},
       { $sort: { metricValue: -1 } },
+      { $skip: offset },
       { $limit: limit },
       {
         $lookup: {
@@ -114,10 +117,11 @@ export async function fetchMostProlificCreators(
           localField: '_id',
           foreignField: '_id',
           as: 'creatorDetails',
-          pipeline: [{ $project: { name: 1, profile_picture_url: 1 } }]
+          pipeline: [{ $project: { name: 1, profile_picture_url: 1, isInstagramConnected: 1 } }]
         }
       },
       { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } },
+      { $match: { 'creatorDetails.isInstagramConnected': true } },
       {
         $project: {
           _id: 0,
@@ -147,7 +151,7 @@ export async function fetchTopInteractionCreators(
   params: IFetchCreatorRankingParams
 ): Promise<ICreatorMetricRankItem[]> {
     const TAG = `${SERVICE_TAG}[fetchTopInteractionCreators]`;
-    const { dateRange, limit = 5 } = params;
+    const { dateRange, limit = 5, offset = 0 } = params;
     logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
 
   try {
@@ -161,6 +165,7 @@ export async function fetchTopInteractionCreators(
       },
       { $group: { _id: '$user', metricValue: { $sum: '$stats.total_interactions' } }},
       { $sort: { metricValue: -1 } },
+      { $skip: offset },
       { $limit: limit },
       {
         $lookup: {
@@ -168,10 +173,11 @@ export async function fetchTopInteractionCreators(
           localField: '_id',
           foreignField: '_id',
           as: 'creatorDetails',
-          pipeline: [{ $project: { name: 1, profile_picture_url: 1 } }]
+          pipeline: [{ $project: { name: 1, profile_picture_url: 1, isInstagramConnected: 1 } }]
         }
       },
       { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } },
+      { $match: { 'creatorDetails.isInstagramConnected': true } },
       {
         $project: {
           _id: 0,
@@ -201,7 +207,7 @@ export async function fetchTopSharingCreators(
   params: IFetchCreatorRankingParams
 ): Promise<ICreatorMetricRankItem[]> {
     const TAG = `${SERVICE_TAG}[fetchTopSharingCreators]`;
-    const { dateRange, limit = 5 } = params;
+    const { dateRange, limit = 5, offset = 0 } = params;
     logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
 
   try {
@@ -215,6 +221,7 @@ export async function fetchTopSharingCreators(
       },
       { $group: { _id: '$user', metricValue: { $sum: '$stats.shares' } }},
       { $sort: { metricValue: -1 } },
+      { $skip: offset },
       { $limit: limit },
       {
         $lookup: {
@@ -222,10 +229,11 @@ export async function fetchTopSharingCreators(
           localField: '_id',
           foreignField: '_id',
           as: 'creatorDetails',
-          pipeline: [{ $project: { name: 1, profile_picture_url: 1 } }]
+          pipeline: [{ $project: { name: 1, profile_picture_url: 1, isInstagramConnected: 1 } }]
         }
       },
       { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } },
+      { $match: { 'creatorDetails.isInstagramConnected': true } },
       {
         $project: {
           _id: 0,
@@ -253,7 +261,7 @@ export async function fetchAvgEngagementPerPostCreators(
   params: IFetchCreatorRankingParams
 ): Promise<ICreatorMetricRankItem[]> {
   const TAG = `${SERVICE_TAG}[fetchAvgEngagementPerPostCreators]`;
-  const { dateRange, limit = 5 } = params;
+  const { dateRange, limit = 5, offset = 0 } = params;
   logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
 
   try {
@@ -279,6 +287,7 @@ export async function fetchAvgEngagementPerPostCreators(
         }
       },
       { $sort: { metricValue: -1 } },
+      { $skip: offset },
       { $limit: limit },
       {
         $lookup: {
@@ -286,10 +295,11 @@ export async function fetchAvgEngagementPerPostCreators(
           localField: '_id',
           foreignField: '_id',
           as: 'creatorDetails',
-          pipeline: [{ $project: { name: 1, profile_picture_url: 1 } }]
+          pipeline: [{ $project: { name: 1, profile_picture_url: 1, isInstagramConnected: 1 } }]
         }
       },
       { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } },
+      { $match: { 'creatorDetails.isInstagramConnected': true } },
       {
         $project: {
           _id: 0,
@@ -317,7 +327,7 @@ export async function fetchAvgReachPerPostCreators(
   params: IFetchCreatorRankingParams
 ): Promise<ICreatorMetricRankItem[]> {
   const TAG = `${SERVICE_TAG}[fetchAvgReachPerPostCreators]`;
-  const { dateRange, limit = 5 } = params;
+  const { dateRange, limit = 5, offset = 0 } = params;
   logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
 
   try {
@@ -343,6 +353,7 @@ export async function fetchAvgReachPerPostCreators(
         }
       },
       { $sort: { metricValue: -1 } },
+      { $skip: offset },
       { $limit: limit },
       {
         $lookup: {
@@ -350,10 +361,11 @@ export async function fetchAvgReachPerPostCreators(
           localField: '_id',
           foreignField: '_id',
           as: 'creatorDetails',
-          pipeline: [{ $project: { name: 1, profile_picture_url: 1 } }]
+          pipeline: [{ $project: { name: 1, profile_picture_url: 1, isInstagramConnected: 1 } }]
         }
       },
       { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } },
+      { $match: { 'creatorDetails.isInstagramConnected': true } },
       {
         $project: {
           _id: 0,
@@ -381,7 +393,7 @@ export async function fetchEngagementVariationCreators(
   params: IFetchCreatorRankingParams
 ): Promise<ICreatorMetricRankItem[]> {
   const TAG = `${SERVICE_TAG}[fetchEngagementVariationCreators]`;
-  const { dateRange, limit = 5 } = params;
+  const { dateRange, limit = 5, offset = 0 } = params;
   logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
 
   const periodMs = dateRange.endDate.getTime() - dateRange.startDate.getTime();
@@ -429,6 +441,7 @@ export async function fetchEngagementVariationCreators(
         }
       },
       { $sort: { metricValue: -1 } },
+      { $skip: offset },
       { $limit: limit },
       {
         $lookup: {
@@ -436,10 +449,11 @@ export async function fetchEngagementVariationCreators(
           localField: '_id',
           foreignField: '_id',
           as: 'creatorDetails',
-          pipeline: [{ $project: { name: 1, profile_picture_url: 1 } }]
+          pipeline: [{ $project: { name: 1, profile_picture_url: 1, isInstagramConnected: 1 } }]
         }
       },
       { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } },
+      { $match: { 'creatorDetails.isInstagramConnected': true } },
       {
         $project: {
           _id: 0,
@@ -467,7 +481,7 @@ export async function fetchPerformanceConsistencyCreators(
   params: IFetchCreatorRankingParams
 ): Promise<ICreatorMetricRankItem[]> {
   const TAG = `${SERVICE_TAG}[fetchPerformanceConsistencyCreators]`;
-  const { dateRange, limit = 5 } = params;
+  const { dateRange, limit = 5, offset = 0 } = params;
   logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
 
   try {
@@ -499,6 +513,7 @@ export async function fetchPerformanceConsistencyCreators(
         }
       },
       { $sort: { metricValue: -1 } },
+      { $skip: offset },
       { $limit: limit },
       {
         $lookup: {
@@ -506,10 +521,11 @@ export async function fetchPerformanceConsistencyCreators(
           localField: '_id',
           foreignField: '_id',
           as: 'creatorDetails',
-          pipeline: [{ $project: { name: 1, profile_picture_url: 1 } }]
+          pipeline: [{ $project: { name: 1, profile_picture_url: 1, isInstagramConnected: 1 } }]
         }
       },
       { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } },
+      { $match: { 'creatorDetails.isInstagramConnected': true } },
       {
         $project: {
           _id: 0,
@@ -537,7 +553,7 @@ export async function fetchReachPerFollowerCreators(
   params: IFetchCreatorRankingParams
 ): Promise<ICreatorMetricRankItem[]> {
   const TAG = `${SERVICE_TAG}[fetchReachPerFollowerCreators]`;
-  const { dateRange, limit = 5 } = params;
+  const { dateRange, limit = 5, offset = 0 } = params;
   logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
 
   try {
@@ -563,17 +579,18 @@ export async function fetchReachPerFollowerCreators(
           localField: '_id',
           foreignField: '_id',
           as: 'creatorDetails',
-          pipeline: [{ $project: { name: 1, profile_picture_url: 1, followers_count: 1 } }]
+          pipeline: [{ $project: { name: 1, profile_picture_url: 1, followers_count: 1, isInstagramConnected: 1 } }]
         }
       },
       { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } },
-      { $match: { 'creatorDetails.followers_count': { $gte: 1000 } } },
+      { $match: { 'creatorDetails.followers_count': { $gte: 1000 }, 'creatorDetails.isInstagramConnected': true } },
       {
         $addFields: {
           metricValue: { $divide: ['$totalReach', '$creatorDetails.followers_count'] }
         }
       },
       { $sort: { metricValue: -1 } },
+      { $skip: offset },
       { $limit: limit },
       {
         $project: {
