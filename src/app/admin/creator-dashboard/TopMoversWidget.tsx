@@ -8,7 +8,8 @@ import {
     ArrowUpIcon,
     ArrowDownIcon,
     ChartBarIcon,
-    ArrowsUpDownIcon
+    ArrowsUpDownIcon,
+    InformationCircleIcon
 } from '@heroicons/react/24/outline';
 
 import {
@@ -22,6 +23,7 @@ import {
 
 import SkeletonBlock from './SkeletonBlock';
 import EmptyState from './EmptyState';
+import { TrendChart } from '../widgets/TopMoversWidget';
 
 
 // --- Tipos e Opções para a UI ---
@@ -126,6 +128,12 @@ export default function TopMoversWidget() {
     setContentFilters(prev => ({ ...prev, [field]: value === "" ? undefined : value }));
   };
 
+  const handleClearFilters = () => {
+    setContentFilters({});
+  };
+
+  const hasActiveFilters = Object.keys(contentFilters).length > 0;
+
   const handleFetchTopMovers = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -195,8 +203,12 @@ export default function TopMoversWidget() {
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <ChartBarIcon className="h-5 w-5 text-indigo-600" />
-          <h3 className="text-lg font-semibold text-gray-800">
+          <h3 className="text-lg font-semibold text-gray-800 flex items-center">
             {`Top Movers – ${ENTITY_TYPE_OPTIONS.find(e => e.value === entityType)?.label} por ${METRIC_OPTIONS.find(m => m.value === metric)?.label} (${SORT_BY_OPTIONS.find(s => s.value === sortBy)?.label})`}
+            <InformationCircleIcon
+              className="h-4 w-4 text-gray-400 ml-1 cursor-help"
+              title="Val. Anterior e Val. Atual representam os totais agregados de cada período. Mud. (%) indica a variação percentual entre eles."
+            />
           </h3>
         </div>
         <button
@@ -255,6 +267,11 @@ export default function TopMoversWidget() {
             </>
           )}
         </div>
+        {hasActiveFilters && (
+          <div className="mt-3">
+            <button onClick={handleClearFilters} className="text-xs px-2.5 py-1 bg-blue-500 text-white rounded">Limpar filtros</button>
+          </div>
+        )}
       </div>
       
       {/* --- Área de Resultados --- */}
@@ -277,6 +294,7 @@ export default function TopMoversWidget() {
                   <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Val. Atual</th>
                   <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Mud. Absoluta</th>
                   <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Mud. (%)</th>
+                  <th className="px-3 py-2.5 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Tendência</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -309,6 +327,11 @@ export default function TopMoversWidget() {
                     <td className={`px-3 py-2 text-right font-semibold ${item.percentageChange && item.percentageChange > 0 ? 'text-green-600' : 'text-red-600'}`}>
                       {item.percentageChange ? formatDisplayPercentageTM(item.percentageChange) : 'N/A'}
                     </td>
+                    <td className="px-3 py-2">
+                      <div className="flex justify-center items-center">
+                        <TrendChart v1={item.previousValue} v2={item.currentValue} />
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -318,5 +341,4 @@ export default function TopMoversWidget() {
       </div>
         </>
       )}
-    </div>
-  );}
+    </div>  );}
