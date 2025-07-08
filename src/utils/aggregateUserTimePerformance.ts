@@ -1,19 +1,23 @@
 /*
-==============================================================================
-Utilitário: aggregateUserTimePerformance
-Função   : Agrega métricas de desempenho por horário para um usuário específico.
-Baseado em aggregatePlatformTimePerformance.ts, com filtro adicional por userId.
-==============================================================================
+================================================================================
+ARQUIVO 3/4: aggregateUserTimePerformance.ts
+FUNÇÃO: Utilitário com a lógica de agregação de dados no MongoDB.
+STATUS: CORRIGIDO. Esta é a principal alteração. A lógica de aplicação
+de filtros foi refeita para usar o operador '$in' do MongoDB e a nova função
+auxiliar, permitindo a filtragem hierárquica de categorias.
+================================================================================
 */
 import MetricModel from "@/app/models/Metric";
 import { PipelineStage, Types } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { logger } from "@/app/lib/logger";
 import { getStartDateFromTimePeriod } from "./dateHelpers";
+// CORREÇÃO: Importa a nova função auxiliar de `classification.ts`
+import { getCategoryWithSubcategoryIds } from "@/app/lib/classification";
 
 export interface TimeBucket {
   dayOfWeek: number;
-  hour: number; // ALTERADO: de timeBlock: string para hour: number
+  hour: number;
   average: number;
   count: number;
 }
@@ -66,16 +70,24 @@ export async function aggregateUserTimePerformance(
       },
     };
 
-    // Filtros usam regex para busca case-insensitive.
+    // ================== INÍCIO DA CORREÇÃO ==================
+    // A lógica de filtragem foi completamente refeita para suportar hierarquias.
+    
     if (filters.format) {
-      (matchStage.$match as any).format = { $regex: `^${filters.format}$`, $options: 'i' };
+      const formatIds = getCategoryWithSubcategoryIds(filters.format, 'format');
+      // Usa $in para incluir a categoria e suas subcategorias, se houver.
+      // Converte para minúsculas para garantir consistência na busca.
+      (matchStage.$match as any).format = { $in: formatIds.map(id => id.toLowerCase()) };
     }
     if (filters.proposal) {
-      (matchStage.$match as any).proposal = { $regex: `^${filters.proposal}$`, $options: 'i' };
+      const proposalIds = getCategoryWithSubcategoryIds(filters.proposal, 'proposal');
+      (matchStage.$match as any).proposal = { $in: proposalIds.map(id => id.toLowerCase()) };
     }
     if (filters.context) {
-      (matchStage.$match as any).context = { $regex: `^${filters.context}$`, $options: 'i' };
+      const contextIds = getCategoryWithSubcategoryIds(filters.context, 'context');
+      (matchStage.$match as any).context = { $in: contextIds.map(id => id.toLowerCase()) };
     }
+    // =================== FIM DA CORREÇÃO ====================
 
     const pipeline: PipelineStage[] = [
       matchStage,
@@ -87,10 +99,8 @@ export async function aggregateUserTimePerformance(
         },
       },
       { $match: { metricValue: { $ne: null } } },
-      // REMOVIDO: O estágio que criava 'timeBlock' foi removido.
       {
         $group: {
-          // ALTERADO: Agrupamento agora é por hora individual.
           _id: { dayOfWeek: "$dayOfWeek", hour: "$hour" },
           total: { $sum: "$metricValue" },
           count: { $sum: 1 },
@@ -113,7 +123,7 @@ export async function aggregateUserTimePerformance(
     const agg = await MetricModel.aggregate(pipeline);
     result.buckets = agg.map((d: any) => ({
       dayOfWeek: d._id.dayOfWeek,
-      hour: d._id.hour, // ALTERADO: Mapeando 'hour' em vez de 'timeBlock'.
+      hour: d._id.hour,
       average: d.avg,
       count: d.count,
     }));

@@ -1,13 +1,11 @@
-/**
- * classification.ts (v5.2 - Versão Definitiva)
- *
- * Esta é a versão mais robusta do sistema, combinando cinco dimensões de análise:
- * 1.  **Format:** O tipo de mídia.
- * 2.  **Proposal:** A intenção/propósito do conteúdo (com expansão máxima).
- * 3.  **Context:** O tópico principal do conteúdo (com expansão máxima e hierarquia).
- * 4.  **Tone:** A abordagem emocional e o sentimento do conteúdo.
- * 5.  **Reference:** Elementos específicos de cultura, geografia e sociedade (com categorias pré-definidas).
- */
+/*
+================================================================================
+ARQUIVO 4/4: classification.ts
+FUNÇÃO: Define as categorias e os filtros usados em toda a aplicação.
+STATUS: ATUALIZADO. Foi adicionada a nova função auxiliar 'getCategoryWithSubcategoryIds'
+no final do arquivo. Essa função é essencial para a correção no back-end.
+================================================================================
+*/
 
 export interface Category {
   id: string;
@@ -15,8 +13,8 @@ export interface Category {
   description:string;
   keywords?: string[];
   subcategories?: Category[];
-  examples?: string[]; // Exemplos concretos para guiar a IA
-  conflictsWith?: string[]; // IDs de categorias mutuamente exclusivas
+  examples?: string[];
+  conflictsWith?: string[];
 }
 
 // --- Dimensão 1: Format ---
@@ -161,7 +159,7 @@ export const referenceCategories: Category[] = [
 ];
 
 
-// --- Funções Auxiliares (Atualizadas para todas as dimensões) ---
+// --- Funções Auxiliares (Existentes) ---
 
 const flattenCategories = (categories: Category[]): Category[] => {
   return categories.flatMap(cat => {
@@ -225,7 +223,6 @@ export function idsToLabels(ids: string[] | undefined, type: 'format'|'proposal'
   return (ids ?? []).map(id => getCategoryById(id, type)?.label ?? id);
 }
 
-// Novo helper para traduzir strings com IDs separados por vírgula
 export function commaSeparatedIdsToLabels(ids: string | string[] | undefined, type: 'format'|'proposal'|'context'|'tone'|'reference'): string {
   if (!ids) return '';
   const idList = Array.isArray(ids) ? ids : ids.split(',');
@@ -235,3 +232,51 @@ export function commaSeparatedIdsToLabels(ids: string | string[] | undefined, ty
     .map(id => getCategoryById(id, type)?.label ?? id)
     .join(', ');
 }
+
+
+// ================== INÍCIO DA ADIÇÃO ==================
+// Nova função auxiliar adicionada para suportar a filtragem hierárquica.
+
+const getAllCategoryIds = (category: Category): string[] => {
+  let ids = [category.id];
+  if (category.subcategories && category.subcategories.length > 0) {
+    ids = ids.concat(
+      category.subcategories.flatMap(sub => getAllCategoryIds(sub))
+    );
+  }
+  return ids;
+};
+
+export const getCategoryWithSubcategoryIds = (
+  id: string,
+  type: 'format' | 'proposal' | 'context' | 'tone' | 'reference'
+): string[] => {
+  // Define a lista de categorias de nível raiz com base no tipo
+  const categories =
+    type === 'context' ? contextCategories :
+    type === 'proposal' ? proposalCategories :
+    type === 'format' ? formatCategories :
+    type === 'tone' ? toneCategories :
+    referenceCategories;
+
+  // Função recursiva para encontrar a categoria pelo ID em uma árvore
+  const findCategory = (cats: Category[], catId: string): Category | undefined => {
+    for (const cat of cats) {
+      if (cat.id === catId) return cat;
+      if (cat.subcategories) {
+        const found = findCategory(cat.subcategories, catId);
+        if (found) return found;
+      }
+    }
+    return undefined; // Retorna undefined se não encontrar
+  };
+
+  const rootCategory = findCategory(categories, id);
+  if (!rootCategory) {
+    return [id]; // Se não encontrar a categoria (fallback), retorna o próprio ID em um array
+  }
+  
+  // Se encontrou a categoria, retorna todos os seus IDs descendentes
+  return getAllCategoryIds(rootCategory);
+};
+// =================== FIM DA ADIÇÃO ===================

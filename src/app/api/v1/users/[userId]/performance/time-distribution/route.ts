@@ -1,32 +1,35 @@
 /*
-Endpoint: /api/v1/users/[userId]/performance/time-distribution
-Versão  : baseada no endpoint da plataforma, filtrando os posts pelo usuário.
+================================================================================
+ARQUIVO 2/4: .../performance/time-distribution/route.ts
+FUNÇÃO: Rota da API que recebe a requisição do front-end.
+STATUS: Nenhuma alteração necessária. O arquivo já extrai os parâmetros
+corretamente da requisição e os repassa para a função de agregação.
+================================================================================
 */
-import { NextResponse as NextResponseForTime } from 'next/server';
-import { camelizeKeys as camelizeKeysForTime } from '@/utils/camelizeKeys';
-import { ALLOWED_TIME_PERIODS as ALLOWED_TIME_PERIODS_FOR_TIME, TimePeriod as TimePeriodForTime } from '@/app/lib/constants/timePeriods';
-import { timePeriodToDays as timePeriodToDaysForTime } from '@/utils/timePeriodHelpers';
+import { NextResponse } from 'next/server';
+import { camelizeKeys } from '@/utils/camelizeKeys';
+import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
+import { timePeriodToDays } from '@/utils/timePeriodHelpers';
 import { Types } from 'mongoose';
 import { getCategoryById } from '@/app/lib/classification';
-import { aggregateUserTimePerformance as aggregateTimePerformance } from '@/utils/aggregateUserTimePerformance';
+import { aggregateUserTimePerformance } from '@/utils/aggregateUserTimePerformance';
 
-function getPortugueseWeekdayNameForTime(day: number): string {
+function getPortugueseWeekdayName(day: number): string {
     const days = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
     return days[day - 1] || '';
 }
 
-function isAllowedTimePeriodForTime(period: any): period is TimePeriodForTime {
-  return ALLOWED_TIME_PERIODS_FOR_TIME.includes(period);
+function isAllowedTimePeriod(period: any): period is TimePeriod {
+  return ALLOWED_TIME_PERIODS.includes(period);
 }
 
-// CORREÇÃO: Nome da função corrigido para GET.
 export async function GET(
   request: Request,
   { params }: { params: { userId: string } }
 ) {
   const { userId } = params;
   if (!userId || !Types.ObjectId.isValid(userId)) {
-    return NextResponseForTime.json(
+    return NextResponse.json(
       { error: 'User ID inválido ou ausente.' },
       { status: 400 }
     );
@@ -38,18 +41,18 @@ export async function GET(
   const contextParam = searchParams.get('context');
   const metricParam = searchParams.get('metric');
 
-  const timePeriod: TimePeriodForTime = isAllowedTimePeriodForTime(timePeriodParam)
+  const timePeriod: TimePeriod = isAllowedTimePeriod(timePeriodParam)
     ? timePeriodParam
     : 'last_90_days';
 
-  if (timePeriodParam && !isAllowedTimePeriodForTime(timePeriodParam)) {
-    return NextResponseForTime.json({ error: `Time period inválido. Permitidos: ${ALLOWED_TIME_PERIODS_FOR_TIME.join(', ')}` }, { status: 400 });
+  if (timePeriodParam && !isAllowedTimePeriod(timePeriodParam)) {
+    return NextResponse.json({ error: `Time period inválido. Permitidos: ${ALLOWED_TIME_PERIODS.join(', ')}` }, { status: 400 });
   }
 
-  const periodInDaysValue = timePeriodToDaysForTime(timePeriod);
+  const periodInDaysValue = timePeriodToDays(timePeriod);
   const metricField = metricParam || 'stats.total_interactions';
 
-  const result = await aggregateTimePerformance(userId, periodInDaysValue, metricField, {
+  const result = await aggregateUserTimePerformance(userId, periodInDaysValue, metricField, {
     format: formatParam || undefined,
     proposal: proposalParam || undefined,
     context: contextParam || undefined,
@@ -59,12 +62,12 @@ export async function GET(
   const worst = result.worstSlots[0];
   let summary = '';
   if (best) {
-    const dayName = getPortugueseWeekdayNameForTime(best.dayOfWeek).toLowerCase();
+    const dayName = getPortugueseWeekdayName(best.dayOfWeek).toLowerCase();
     const bestAvg = best.average.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
     summary += `O pico de performance ocorre ${dayName} às ${best.hour}h, com uma média de ${bestAvg} de engajamento por post.`;
   }
   if (worst) {
-    const dayName = getPortugueseWeekdayNameForTime(worst.dayOfWeek).toLowerCase();
+    const dayName = getPortugueseWeekdayName(worst.dayOfWeek).toLowerCase();
     summary += ` O menor desempenho é ${dayName} às ${worst.hour}h.`;
   }
 
@@ -76,5 +79,5 @@ export async function GET(
     summary = `Para posts sobre ${filterLabels.join(' e ')}, ${summary.charAt(0).toLowerCase() + summary.slice(1)}`;
   }
 
-  return NextResponseForTime.json(camelizeKeysForTime({ ...result, insightSummary: summary }), { status: 200 });
+  return NextResponse.json(camelizeKeys({ ...result, insightSummary: summary }), { status: 200 });
 }

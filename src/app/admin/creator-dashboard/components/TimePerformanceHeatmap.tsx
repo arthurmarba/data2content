@@ -1,9 +1,9 @@
 /*
 ================================================================================
-ARQUIVO 3/3: TimePerformanceHeatmap.tsx
-FUNÇÃO: Componente React do front-end.
-CORREÇÃO: A chamada ao modal foi ajustada para passar a prop 'timeBlock' que ele
-espera, convertendo a 'hour' selecionada. Isso corrige o erro de tipo.
+ARQUIVO 1/4: TimePerformanceHeatmap.tsx
+FUNÇÃO: Componente React do front-end que exibe o heatmap e os filtros.
+STATUS: Nenhuma alteração adicional necessária. O arquivo já envia os
+parâmetros de filtro corretamente para a API.
 ================================================================================
 */
 "use client";
@@ -29,7 +29,7 @@ const getPortugueseWeekdayNameForList = (day: number): string => {
     }
 };
 
-// CORREÇÃO: Função auxiliar para converter a hora de volta para o formato de bloco.
+// Função auxiliar para converter a hora de volta para o formato de bloco, para o modal.
 const hourToTimeBlock = (hour: number): string => {
     if (hour <= 5) return "0-6";
     if (hour <= 11) return "6-12";
@@ -284,8 +284,6 @@ const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({ userId 
         isOpen={!!selectedSlot}
         onClose={() => setSelectedSlot(null)}
         dayOfWeek={selectedSlot?.dayOfWeek || 0}
-        // CORREÇÃO: O modal ainda espera 'timeBlock'. Convertemos a hora para o formato de bloco.
-        // O ideal é refatorar o modal para aceitar 'hour' para uma filtragem precisa.
         timeBlock={selectedSlot ? hourToTimeBlock(selectedSlot.hour) : '0-6'}
         filters={{ timePeriod, format: format || undefined, proposal: proposal || undefined, context: context || undefined, metric }}
         userId={userId || undefined}
