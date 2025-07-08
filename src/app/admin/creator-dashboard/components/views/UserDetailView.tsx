@@ -2,8 +2,7 @@
 
 import React, { useState } from "react";
 import GlobalPeriodIndicator from "../GlobalPeriodIndicator";
-import GlobalTimePeriodFilter from "../filters/GlobalTimePeriodFilter";
-import { useGlobalTimePeriod } from "../filters/GlobalTimePeriodContext";
+
 
 // User-specific charts & metrics
 import UserFollowerChangeChart from "../UserFollowerChangeChart";
@@ -37,8 +36,7 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
   const [kpiComparisonPeriod, setKpiComparisonPeriod] = useState<string>(
     KPI_COMPARISON_PERIOD_OPTIONS[0]!.value,
   );
-  const { timePeriod: globalTimePeriod, setTimePeriod: setGlobalTimePeriod } =
-    useGlobalTimePeriod();
+
 
   if (!userId) {
     return (
@@ -63,7 +61,7 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
           <ul className="flex flex-wrap gap-4 text-sm font-medium text-indigo-600">
             <li>
               <a href={`#user-kpis-${userId}`} className="hover:underline">
-                Geral
+                KPIs Chave
               </a>
             </li>
             <li>
@@ -73,12 +71,12 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
             </li>
             <li>
               <a href={`#user-content-performance-${userId}`} className="hover:underline">
-                Conteúdo
+                Desempenho de Conteúdo
               </a>
             </li>
             <li>
               <a href={`#user-advanced-analysis-${userId}`} className="hover:underline">
-                Análise & Alertas
+                Alertas de Desempenho
               </a>
             </li>
             <li>
@@ -88,23 +86,14 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
             </li>
           </ul>
         </nav>
-        {/*
-          Seletor de período local que afeta todos os gráficos abaixo.
-          Os componentes usam o período global como valor inicial e respondem às mudanças deste filtro.
-        */}
-        <div className="mt-4">
-          <GlobalTimePeriodFilter
-            selectedTimePeriod={globalTimePeriod}
-            onTimePeriodChange={setGlobalTimePeriod}
-          />
-        </div>
+
       </header>
 
       {/* Seção de KPIs Comparativos do Criador */}
       <section id={`user-kpis-${userId}`} className="mb-10">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-semibold text-gray-700 pb-2">
-            Desempenho Comparativo Chave
+            KPIs Chave
           </h3>
           <div className="flex items-center gap-2">
             <label
@@ -155,21 +144,20 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
       <section id={`user-performance-highlights-${userId}`} className="mb-10">
         <UserPerformanceHighlights
           userId={userId}
-          sectionTitle="Destaques de Performance"
+          sectionTitle="Destaques de Desempenho"
         />
-        <div className="mt-6">
-          <TimePerformanceHeatmap userId={userId} />
-        </div>
+        <h4 className="text-lg font-semibold text-gray-700 mt-6 mb-4">
+          Análise por Horário
+        </h4>
+        <TimePerformanceHeatmap userId={userId} />
       </section>
 
       <section id={`user-content-performance-${userId}`} className="mb-10">
         <h3 className="text-xl font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-300">
-          Performance de Conteúdo
+          Desempenho de Conteúdo
         </h3>
-        <div className="grid grid-cols-1 gap-6 mb-6">
-          <UserVideoPerformanceMetrics userId={userId} chartTitle="Performance de Vídeos" />
-        </div>
-        <div className="grid grid-cols-1 gap-6">
+        <UserVideoPerformanceMetrics userId={userId} chartTitle="Performance de Vídeos" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
           <UserMonthlyEngagementStackedChart userId={userId} chartTitle="Engajamento Mensal Detalhado" />
           <UserMonthlyComparisonChart userId={userId} chartTitle="Comparação Mensal" />
         </div>
@@ -177,11 +165,9 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
 
       <section id={`user-advanced-analysis-${userId}`} className="mb-10">
         <h3 className="text-xl font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-300">
-          Análise Avançada e Alertas
+          Alertas de Desempenho
         </h3>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <UserAlertsWidget userId={userId} />
-        </div>
+        <UserAlertsWidget userId={userId} />
       </section>
 
       <section id={`user-trends-${userId}`} className="mb-10">
