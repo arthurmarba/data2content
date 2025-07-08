@@ -136,9 +136,6 @@ const AdminCreatorDashboardContent: React.FC = () => {
         <header className="bg-brand-light sticky top-0 z-40 border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-4 h-16">
-              <Link href="/admin/creator-dashboard" className="flex-shrink-0 flex items-center gap-2 group">
-                <span className="text-brand-pink text-3xl font-bold group-hover:opacity-80 transition-opacity">[2]</span>
-              </Link>
               <CreatorQuickSearch
                 onSelect={(creator) => handleUserSelect(creator.id, creator.name)}
                 selectedCreatorName={selectedUserName}
