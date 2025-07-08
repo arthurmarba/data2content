@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Toaster } from 'react-hot-toast';
-import AdminAuthGuard from './components/AdminAuthGuard'; // Mantendo seu componente de guarda de rota
+import AdminAuthGuard from './components/AdminAuthGuard';
 import {
   Bars3Icon,
   UserGroupIcon,
@@ -52,8 +52,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
         <nav className="flex-1 px-4 space-y-2">
         {menuItems.map(item => {
-            const isActive = pathname === item.href;
+            // ===== MELHORIA 1: LÓGICA DE LINK ATIVO APRIMORADA =====
+            const isActive = pathname.startsWith(item.href);
             const Icon = item.icon;
+            
             return (
             <div key={item.href}>
               <Link
@@ -64,20 +66,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   transition-colors duration-150
                   ${isActive
                       ? 'bg-indigo-100 text-indigo-700 font-semibold'
-                      : 'text-brand-dark hover:bg-brand-light hover:text-brand-dark'}
+                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'}
                   `}
               >
                   <Icon className="w-5 h-5" />
                   <span>{item.label}</span>
               </Link>
-              {item.children && (
+              {isActive && item.children && ( // Renderiza filhos apenas se o item pai estiver ativo
                 <ul className="mt-1 ml-8 space-y-1 text-sm">
                   {item.children.map(child => (
                     <li key={child.href}>
                       <Link
                         href={child.href}
                         onClick={() => setIsSidebarOpen(false)}
-                        className="block px-2 py-1 text-brand-dark hover:text-brand-pink"
+                        className="block px-2 py-1 text-gray-600 hover:text-indigo-700"
                       >
                         {child.label}
                       </Link>
@@ -93,14 +95,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   );
 
   return (
-    <AdminAuthGuard> {/* ✅ Seu AuthGuard foi mantido */}
+    <AdminAuthGuard>
       <Toaster
         position="top-right"
         toastOptions={{ duration: 5000 }}
       />
-      <div className="flex min-h-screen bg-brand-light">
+      <div className="flex min-h-screen bg-gray-50">
         {/* Sidebar para Desktop */}
-        <aside className="hidden md:flex md:flex-col w-64 bg-brand-light border-r border-gray-200 flex-shrink-0">
+        <aside className="hidden md:flex md:flex-col w-64 bg-white border-r border-gray-200 flex-shrink-0">
           <SidebarContent />
         </aside>
 
@@ -112,16 +114,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 className="fixed inset-0 bg-black/60"
                 aria-hidden="true"
             ></div>
-            <aside className="relative w-64 bg-brand-light border-r border-gray-200 flex flex-col">
+            <aside className="relative w-64 bg-white border-r border-gray-200 flex flex-col">
               <SidebarContent />
             </aside>
           </div>
         )}
 
         {/* Conteúdo Principal */}
-        <div className="flex-1 flex flex-col w-full">
+        {/* ===== MELHORIA 2: PREVENÇÃO DE OVERFLOW ===== */}
+        <div className="flex-1 flex flex-col min-w-0">
           {/* Topbar com botão hamburger (apenas em mobile) */}
-          <header className="flex items-center justify-between bg-brand-light p-4 border-b border-gray-200 md:hidden sticky top-0 z-30">
+          <header className="flex items-center justify-between bg-white p-4 border-b border-gray-200 md:hidden sticky top-0 z-30">
             <button
               onClick={() => setIsSidebarOpen(prev => !prev)}
               className="p-2 rounded-md text-gray-500 hover:bg-gray-200"
@@ -129,7 +132,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             >
               <Bars3Icon className="w-6 h-6" />
             </button>
-            <h1 className="text-lg font-bold text-brand-dark">Admin</h1>
+            <h1 className="text-lg font-bold text-gray-800">Admin</h1>
             <div className="w-8 h-8" /> {/* Espaço para alinhar o título ao centro */}
           </header>
 

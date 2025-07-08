@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import React, { useState, useEffect, useCallback } from 'react';
 import Head from 'next/head';
-import Link from 'next/link';
+import { AnimatePresence, motion } from 'framer-motion';
 
 import GlobalTimePeriodFilter from './components/filters/GlobalTimePeriodFilter';
 import { GlobalTimePeriodProvider, useGlobalTimePeriod } from './components/filters/GlobalTimePeriodContext';
@@ -13,139 +14,95 @@ import CreatorRankingSection from './components/views/CreatorRankingSection';
 import TopMoversSection from './components/views/TopMoversSection';
 import UserDetailView from './components/views/UserDetailView';
 import CreatorQuickSearch from './components/CreatorQuickSearch';
-import ContentTrendChart from './ContentTrendChart';
-import PostDetailModal from './PostDetailModal';
 import ScrollToTopButton from '@/app/components/ScrollToTopButton';
 import GlobalPostsExplorer from './GlobalPostsExplorer';
-import {
-  formatCategories,
-  proposalCategories,
-  contextCategories,
-  toneCategories,
-  referenceCategories,
-} from '../../lib/classification';
 
-
-// --- Contexto, Provider e Hook para o Filtro de Tempo Global ---
-type TimePeriod =
-  | 'last_7_days'
-  | 'last_30_days'
-  | 'last_90_days'
-  | 'last_6_months'
-  | 'last_12_months'
-  | 'all_time';
-
-// --- Função auxiliar de data ---
+// --- Tipos e Funções Auxiliares ---
+type TimePeriod = 'last_7_days' | 'last_30_days' | 'last_90_days';
 const getStartDateFromTimePeriod = (endDate: Date, timePeriod: TimePeriod): Date => {
     const startDate = new Date(endDate);
     switch (timePeriod) {
-        case 'last_7_days':
-            startDate.setDate(startDate.getDate() - 7);
-            break;
-        case 'last_30_days':
-            startDate.setMonth(startDate.getMonth() - 1);
-            break;
-        case 'last_90_days':
-            startDate.setMonth(startDate.getMonth() - 3);
-            break;
-        case 'last_6_months':
-            startDate.setMonth(startDate.getMonth() - 6);
-            break;
-        case 'last_12_months':
-            startDate.setFullYear(startDate.getFullYear() - 1);
-            break;
-        case 'all_time':
-            return new Date(0); // Início da Época Unix
+        case 'last_7_days': startDate.setDate(startDate.getDate() - 7); break;
+        case 'last_30_days': startDate.setMonth(startDate.getMonth() - 1); break;
+        case 'last_90_days': startDate.setMonth(startDate.getMonth() - 3); break;
     }
     return startDate;
 };
-
-// --- Componentes de Apoio ---
-
-const SkeletonBlock = ({ width = 'w-full', height = 'h-4', className = '', variant = 'rectangle' }: { width?: string; height?: string; className?: string; variant?: 'rectangle' | 'circle' }) => {
-  const baseClasses = "bg-gray-200 animate-pulse";
-  const shapeClass = variant === 'circle' ? 'rounded-full' : 'rounded';
-  return <div className={`${baseClasses} ${width} ${height} ${shapeClass} ${className}`}></div>;
-};
-
-const EmptyState = ({ icon, title, message }: { icon: React.ReactNode; title: string; message: string; }) => (
-  <div className="text-center py-8">
-    <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-gray-100">{icon}</div>
-    <h3 className="mt-2 text-sm font-semibold text-gray-900">{title}</h3>
-    <p className="mt-1 text-sm text-gray-500">{message}</p>
-  </div>
+const SkeletonBlock = ({ width = 'w-full', height = 'h-4', className = '' }) => (
+  <div className={`bg-gray-200 animate-pulse rounded ${width} ${height} ${className}`}></div>
 );
 
-// --- Tipos e Interfaces ---
-interface IGlobalPostResult {
-  _id?: string;
-  text_content?: string;
-  description?: string;
-  coverUrl?: string;
-  creatorName?: string;
-  postDate?: Date | string;
-  format?: string[];
-  proposal?: string[];
-  context?: string[];
-  tone?: string[];
-  references?: string[];
-  stats?: {
-    total_interactions?: number;
-    likes?: number;
-    shares?: number;
-  };
-}
 const AdminCreatorDashboardContent: React.FC = () => {
-
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedUserName, setSelectedUserName] = useState<string | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
   const { timePeriod: globalTimePeriod, setTimePeriod: setGlobalTimePeriod } = useGlobalTimePeriod();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
+  // ===== ALTERAÇÃO 1: useEffect SIMPLIFICADO =====
+  // A responsabilidade do useEffect agora é APENAS carregar o estado em um refresh de página (F5) ou link direto.
+  useEffect(() => {
+    const userIdFromUrl = searchParams.get('userId');
 
-  const formatOptions = formatCategories.map(c => c.label);
-  const proposalOptions = proposalCategories.map(c => c.label);
-
-  const [marketFormat, setMarketFormat] = useState<string>(formatOptions[0]!);
-  const [marketProposal, setMarketProposal] = useState<string>(proposalOptions[0]!);
+    if (userIdFromUrl && !selectedUserId) {
+      // Esta função placeholder é chamada apenas neste cenário específico.
+      const fetchCreatorName = async (id: string) => `Criador ID: ...${id.slice(-4)}`;
+      fetchCreatorName(userIdFromUrl).then(name => {
+        setSelectedUserId(userIdFromUrl);
+        setSelectedUserName(name);
+      });
+    }
+    setIsInitializing(false);
+  }, [searchParams, selectedUserId]);
 
   const today = new Date();
   const startDateObj = getStartDateFromTimePeriod(today, globalTimePeriod as TimePeriod);
   const startDate = startDateObj.toISOString();
   const endDate = today.toISOString();
   const rankingDateRange = { startDate, endDate };
-  const startDateLabel = startDateObj.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
-  const endDateLabel = today.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
-  const rankingDateLabel = `${startDateLabel} - ${endDateLabel}`;
-
-
-  const handleUserSelect = (userId: string, userName: string) => {
-    setSelectedUserId(userId);
-    setSelectedUserName(userName);
-    const userDetailSection = document.getElementById("user-detail-view-container");
-    if (userDetailSection) {
-      userDetailSection.scrollIntoView({ behavior: "smooth", block: "start" });
+  const rankingDateLabel = `${startDateObj.toLocaleDateString("pt-BR")} - ${today.toLocaleDateString("pt-BR")}`;
+  
+  // A função de selecionar continua com a responsabilidade de definir o estado e a URL.
+  const handleUserSelect = useCallback((creator: { id: string; name: string }) => {
+    if (creator.id !== selectedUserId) {
+      setSelectedUserId(creator.id);
+      setSelectedUserName(creator.name);
+      router.push(`${pathname}?userId=${creator.id}`, { scroll: false });
     }
-  };
+  }, [pathname, router, selectedUserId]);
+
+  // ===== ALTERAÇÃO 2: handleClearSelection volta a limpar o estado diretamente =====
+  // Esta é a forma mais segura de garantir que o estado seja limpo junto com a URL.
+  const handleClearSelection = useCallback(() => {
+    setSelectedUserId(null);
+    setSelectedUserName(null);
+    router.push(pathname, { scroll: false });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [pathname, router]);
+
+  if (isInitializing) {
+    return <div className="flex justify-center items-center h-screen"><SkeletonBlock height="h-12" width="w-12" /></div>;
+  }
 
   return (
     <>
       <Head>
-        <title>Dashboard Admin - Data2Content</title>
+        <title>Dashboard de Criadores - Data2Content</title>
       </Head>
-      <div className="min-h-screen bg-brand-light">
-        <header className="bg-brand-light sticky top-0 z-40 border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-end gap-4">
-              <CreatorQuickSearch
-                onSelect={(creator) => handleUserSelect(creator.id, creator.name)}
-                selectedCreatorName={selectedUserName}
-                onClear={() => {
-                  setSelectedUserId(null);
-                  setSelectedUserName(null);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-              />
-              <div className="ml-auto">
+      <div className="min-h-screen bg-gray-50">
+        <header className="bg-white sticky top-0 z-40 border-b border-gray-200">
+          <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+              <div className="flex-1 min-w-0">
+                <CreatorQuickSearch
+                    onSelect={handleUserSelect}
+                    selectedCreatorName={selectedUserName}
+                    onClear={handleClearSelection}
+                />
+              </div>
+              <div className="flex items-center gap-4 ml-4">
                 <GlobalTimePeriodFilter
                   selectedTimePeriod={globalTimePeriod}
                   onTimePeriodChange={setGlobalTimePeriod}
@@ -153,9 +110,6 @@ const AdminCreatorDashboardContent: React.FC = () => {
                     { value: "last_7_days", label: "Últimos 7 dias" },
                     { value: "last_30_days", label: "Últimos 30 dias" },
                     { value: "last_90_days", label: "Últimos 90 dias" },
-                    { value: "last_6_months", label: "Últimos 6 meses" },
-                    { value: "last_12_months", label: "Últimos 12 meses" },
-                    { value: "all_time", label: "Todo o período" },
                   ]}
                 />
               </div>
@@ -163,62 +117,39 @@ const AdminCreatorDashboardContent: React.FC = () => {
           </div>
         </header>
 
-        <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-          <div className="flex-1">
-            <h1 className="text-2xl md:text-3xl font-bold text-brand-dark mb-6">
-              Dashboard Administrativo de Criadores
-            </h1>
-
+        <main className="max-w-full mx-auto py-8 px-4 sm:px-6 lg:px-8">
             <section id="platform-summary" className="mb-8">
               <PlatformSummaryKpis startDate={startDate} endDate={endDate} />
             </section>
 
+            <AnimatePresence>
+              {!selectedUserId && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="space-y-8"
+                >
+                  <CreatorRankingSection rankingDateRange={rankingDateRange} rankingDateLabel={rankingDateLabel} />
+                  <PlatformContentAnalysisSection startDate={startDate} endDate={endDate} />
+                  <PlatformOverviewSection />
+                  <TopMoversSection />
+                  <GlobalPostsExplorer dateRangeFilter={{ startDate, endDate }} />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-          
-          {/* --- CORREÇÃO FINAL: Bloco de visão geral reorganizado --- */}
-          {!selectedUserId && (
-            <>
-              {/* 1. Ranking de Criadores */}
-              <CreatorRankingSection
-                rankingDateRange={rankingDateRange}
-                rankingDateLabel={rankingDateLabel}
-              />
-
-              {/* 2. Destaques e Análise por Horário */}
-              <PlatformContentAnalysisSection
-                startDate={startDate}
-                endDate={endDate}
-              />
-
-              {/* 3. Visão Geral da Plataforma */}
-              <PlatformOverviewSection />
-
-              {/* 4. Top Movers */}
-              <TopMoversSection />
-
-              {/* 5. Explorador de Posts (Final) */}
-              <section id="global-posts-explorer" className="mt-8">
-                <GlobalPostsExplorer dateRangeFilter={{ startDate, endDate }} />
-              </section>
-            </>
-          )}
-
-          <div id="user-detail-view-container">
-            {selectedUserId && (
-              <UserDetailView
-                userId={selectedUserId}
-                userName={selectedUserName ?? undefined}
-              />
-            )}
-          </div>
-
-          <ScrollToTopButton />
-          </div>
+            <div id="user-detail-view-container">
+              {selectedUserId && (
+                <UserDetailView
+                  userId={selectedUserId}
+                  userName={selectedUserName ?? undefined}
+                  onClear={handleClearSelection}
+                />
+              )}
+            </div>
+            <ScrollToTopButton />
         </main>
-
-        <footer className="text-center mt-20 py-10 border-t border-gray-200 text-xs text-gray-500 font-light">
-          © {new Date().getFullYear()} Data2Content. Todos os direitos reservados.
-        </footer>
       </div>
     </>
   );

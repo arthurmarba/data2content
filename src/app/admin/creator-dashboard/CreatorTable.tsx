@@ -279,7 +279,8 @@ const CreatorTable = memo(function CreatorTable({ planStatusFilter, expertiseLev
             <p className="text-sm text-gray-500 mt-1">Visão geral dos criadores. Clique para detalhes ou selecione para comparar.</p>
           </div>
           <SearchBar
-            initialValue={nameSearch}
+            // ===== CORREÇÃO APLICADA AQUI =====
+            value={nameSearch}
             onSearchChange={handleSearchChange}
             placeholder="Buscar por nome..."
             className="w-full sm:w-auto sm:min-w-[250px]"

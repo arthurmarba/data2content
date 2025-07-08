@@ -1,11 +1,9 @@
-// src/lib/services/adminCreatorService.ts
-
 import { Types } from 'mongoose';
-import mongoose from 'mongoose'; // Mongoose é necessário para PipelineStage, etc.
+import mongoose from 'mongoose';
 
 // Modelos de dados importados de sua fonte única e correta
 import UserModel, { IUser } from '@/app/models/User';
-import RedemptionModel, { IRedemption } from '@/app/models/Redemption'; // <<< ALTERAÇÃO CHAVE: Importando o modelo unificado
+import RedemptionModel, { IRedemption } from '@/app/models/Redemption';
 
 // Funções e tipos de suporte
 import { connectToDatabase } from '@/app/lib/dataService/connection';
@@ -31,10 +29,6 @@ import {
 
 const SERVICE_TAG = '[adminCreatorService]';
 
-// ===================================================================================
-// O BLOCO DE CÓDIGO DO "PLACEHOLDER" PARA O RedemptionModel FOI REMOVIDO DESTA ÁREA
-// ===================================================================================
-
 /**
  * Fetches a paginated list of creators for admin management.
  */
@@ -44,7 +38,7 @@ export async function fetchCreators(
   const TAG = `${SERVICE_TAG}[fetchCreators]`;
   await connectToDatabase();
 
-  const {
+  let {
     page = 1,
     limit = 10,
     search,
@@ -54,16 +48,20 @@ export async function fetchCreators(
     sortOrder = 'desc',
   } = params;
 
+  // Otimização de ordenação: Se houver busca, ordena por nome.
+  if (search) {
+    sortBy = 'name';
+    sortOrder = 'asc';
+  }
+
   const skip = (page - 1) * limit;
   const sortDirection = sortOrder === 'asc' ? 1 : -1;
 
   const query: any = {};
 
+  // Otimização de performance: Usa o operador $text, que depende do índice de texto.
   if (search) {
-    query.$or = [
-      { name: { $regex: search, $options: 'i' } },
-      { email: { $regex: search, $options: 'i' } },
-    ];
+    query.$text = { $search: search };
   }
 
   if (status) {

@@ -11,7 +11,7 @@ export interface ComparisonTarget {
 }
 
 interface ComparisonTargetSearchProps {
-  segments: { value: string; label: string }[];
+  segments: { value: string; label:string }[];
   onSelect: (target: ComparisonTarget) => void;
 }
 
@@ -51,13 +51,13 @@ export default function ComparisonTargetSearch({ segments, onSelect }: Compariso
   return (
     <div className="relative" ref={containerRef}>
       <SearchBar
-        initialValue=""
+        value={searchTerm}
         onSearchChange={val => {
           setSearchTerm(val);
           setShowDropdown(true);
         }}
         placeholder="Buscar usuário ou segmento..."
-        debounceMs={200}
+        // ===== CORREÇÃO APLICADA AQUI: Prop 'debounceMs' removida =====
         className="w-60"
       />
       {showDropdown && (searchTerm || isLoading) && (
@@ -91,4 +91,3 @@ export default function ComparisonTargetSearch({ segments, onSelect }: Compariso
     </div>
   );
 }
-

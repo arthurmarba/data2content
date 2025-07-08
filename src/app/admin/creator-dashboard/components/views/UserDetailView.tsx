@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import GlobalPeriodIndicator from "../GlobalPeriodIndicator";
+import { ArrowLeftIcon } from '@heroicons/react/24/solid';
 
 
 // User-specific charts & metrics
@@ -21,6 +22,7 @@ import UserComparativeKpi from "../kpis/UserComparativeKpi";
 interface UserDetailViewProps {
   userId: string | null;
   userName?: string;
+  onClear?: () => void; // Otimização: Prop para limpar a seleção
 }
 
 const KPI_COMPARISON_PERIOD_OPTIONS = [
@@ -32,10 +34,33 @@ const KPI_COMPARISON_PERIOD_OPTIONS = [
 const UserDetailView: React.FC<UserDetailViewProps> = ({
   userId,
   userName,
+  onClear,
 }) => {
   const [kpiComparisonPeriod, setKpiComparisonPeriod] = useState<string>(
     KPI_COMPARISON_PERIOD_OPTIONS[0]!.value,
   );
+  // Otimização: Estado para controlar o feedback visual de "flash"
+  const [isNewlyLoaded, setIsNewlyLoaded] = useState(false);
+
+  // Otimização: Efeito para ativar o "flash" quando um novo usuário é selecionado
+  useEffect(() => {
+    // ===== CORREÇÃO APLICADA AQUI =====
+    // Se não há userId, simplesmente saímos do efeito.
+    // Isso garante que todos os caminhos de código são tratados.
+    if (!userId) {
+      return;
+    }
+
+    // O resto da lógica só executa se houver um userId
+    setIsNewlyLoaded(true);
+    const timer = setTimeout(() => {
+      setIsNewlyLoaded(false);
+    }, 1500); // Duração do efeito
+
+    // A função de limpeza agora só é retornada no caminho onde o timer foi criado.
+    return () => clearTimeout(timer);
+    // ===================================
+  }, [userId]);
 
 
   if (!userId) {
@@ -52,147 +77,175 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
   // portanto são atualizados automaticamente quando o filtro principal muda.
 
   return (
-    <div className="p-1 md:p-2 mt-8 border-t-2 border-indigo-500 pt-6">
-      <header className="mb-6">
-        <h2 className="text-2xl md:text-3xl font-bold text-indigo-700 flex items-center gap-2">
-          Análise Detalhada: {displayName} <GlobalPeriodIndicator />
-        </h2>
-        <nav className="mt-4">
-          <ul className="flex flex-wrap gap-4 text-sm font-medium text-indigo-600">
-            <li>
-              <a href={`#user-kpis-${userId}`} className="hover:underline">
-                KPIs Chave
-              </a>
-            </li>
-            <li>
-              <a href={`#user-performance-highlights-${userId}`} className="hover:underline">
-                Destaques
-              </a>
-            </li>
-            <li>
-              <a href={`#user-content-performance-${userId}`} className="hover:underline">
-                Desempenho de Conteúdo
-              </a>
-            </li>
-            <li>
-              <a href={`#user-advanced-analysis-${userId}`} className="hover:underline">
-                Alertas de Desempenho
-              </a>
-            </li>
-            <li>
-              <a href={`#user-trends-${userId}`} className="hover:underline">
-                Tendências
-              </a>
-            </li>
-          </ul>
-        </nav>
+    <>
+      {/* Otimização: Estilos para a animação de "flash" */}
+      <style jsx global>{`
+        @keyframes flash-background {
+          0% { background-color: transparent; }
+          25% { background-color: #f0f5ff; } /* Cor de destaque (indigo-50) */
+          100% { background-color: transparent; }
+        }
+        .flash-on-load {
+          animation: flash-background 1.5s ease-in-out;
+        }
+      `}</style>
 
-      </header>
-
-      {/* Seção de KPIs Comparativos do Criador */}
-      <section id={`user-kpis-${userId}`} className="mb-10">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-semibold text-gray-700 pb-2">
-            KPIs Chave
-          </h3>
-          <div className="flex items-center gap-2">
-            <label
-              htmlFor={`kpiComparisonPeriod-${userId}`}
-              className="text-xs font-medium text-gray-600"
-            >
-              Comparar:
-            </label>
-            <select
-              id={`kpiComparisonPeriod-${userId}`}
-              value={kpiComparisonPeriod}
-              onChange={(e) => setKpiComparisonPeriod(e.target.value)}
-              className="p-1.5 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs"
-            >
-              {KPI_COMPARISON_PERIOD_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+      {/* Otimização: Classe condicional para o efeito de "flash" */}
+      <div className={`p-1 md:p-2 mt-8 border-t-2 border-indigo-500 pt-6 rounded-lg ${isNewlyLoaded ? 'flash-on-load' : ''}`}>
+        <header className="mb-6">
+          <div className="flex justify-between items-start">
+              <div>
+                {/* Otimização: Adiciona botão "Voltar" */}
+                {onClear && (
+                    <button
+                        onClick={onClear}
+                        className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-800 font-semibold mb-2"
+                    >
+                        <ArrowLeftIcon className="w-4 h-4" />
+                        Voltar para visão geral
+                    </button>
+                )}
+                <h2 className="text-2xl md:text-3xl font-bold text-indigo-700 flex items-center gap-2">
+                  Análise Detalhada: {displayName} <GlobalPeriodIndicator />
+                </h2>
+              </div>
           </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-          <UserComparativeKpi
-            userId={userId}
-            kpiName="followerGrowth"
-            title="Crescimento de Seguidores"
-            comparisonPeriod={kpiComparisonPeriod}
-            tooltip="Variação no ganho de seguidores em relação ao período anterior equivalente."
-          />
-          <UserComparativeKpi
-            userId={userId}
-            kpiName="totalEngagement"
-            title="Engajamento Total"
-            comparisonPeriod={kpiComparisonPeriod}
-            tooltip="Variação no total de interações em relação ao período anterior equivalente."
-          />
-          <UserComparativeKpi
-            userId={userId}
-            kpiName="postingFrequency"
-            title="Frequência de Postagem"
-            comparisonPeriod={kpiComparisonPeriod}
-            tooltip="Variação na frequência semanal de postagens em relação ao período anterior equivalente."
-          />
-        </div>
-      </section>
+          <nav className="mt-4">
+            <ul className="flex flex-wrap gap-4 text-sm font-medium text-indigo-600">
+              <li>
+                <a href={`#user-kpis-${userId}`} className="hover:underline">
+                  KPIs Chave
+                </a>
+              </li>
+              <li>
+                <a href={`#user-performance-highlights-${userId}`} className="hover:underline">
+                  Destaques
+                </a>
+              </li>
+              <li>
+                <a href={`#user-content-performance-${userId}`} className="hover:underline">
+                  Desempenho de Conteúdo
+                </a>
+              </li>
+              <li>
+                <a href={`#user-advanced-analysis-${userId}`} className="hover:underline">
+                  Alertas de Desempenho
+                </a>
+              </li>
+              <li>
+                <a href={`#user-trends-${userId}`} className="hover:underline">
+                  Tendências
+                </a>
+              </li>
+            </ul>
+          </nav>
+        </header>
 
-      <section id={`user-performance-highlights-${userId}`} className="mb-10">
-        <UserPerformanceHighlights
-          userId={userId}
-          sectionTitle="Destaques de Desempenho"
-        />
-        <h4 className="text-lg font-semibold text-gray-700 mt-6 mb-4">
-          Análise por Horário
-        </h4>
-        <TimePerformanceHeatmap userId={userId} />
-      </section>
+        {/* Seção de KPIs Comparativos do Criador */}
+        <section id={`user-kpis-${userId}`} className="mb-10">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-semibold text-gray-700 pb-2">
+              KPIs Chave
+            </h3>
+            <div className="flex items-center gap-2">
+              <label
+                htmlFor={`kpiComparisonPeriod-${userId}`}
+                className="text-xs font-medium text-gray-600"
+              >
+                Comparar:
+              </label>
+              <select
+                id={`kpiComparisonPeriod-${userId}`}
+                value={kpiComparisonPeriod}
+                onChange={(e) => setKpiComparisonPeriod(e.target.value)}
+                className="p-1.5 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs"
+              >
+                {KPI_COMPARISON_PERIOD_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            <UserComparativeKpi
+              userId={userId}
+              kpiName="followerGrowth"
+              title="Crescimento de Seguidores"
+              comparisonPeriod={kpiComparisonPeriod}
+              tooltip="Variação no ganho de seguidores em relação ao período anterior equivalente."
+            />
+            <UserComparativeKpi
+              userId={userId}
+              kpiName="totalEngagement"
+              title="Engajamento Total"
+              comparisonPeriod={kpiComparisonPeriod}
+              tooltip="Variação no total de interações em relação ao período anterior equivalente."
+            />
+            <UserComparativeKpi
+              userId={userId}
+              kpiName="postingFrequency"
+              title="Frequência de Postagem"
+              comparisonPeriod={kpiComparisonPeriod}
+              tooltip="Variação na frequência semanal de postagens em relação ao período anterior equivalente."
+            />
+          </div>
+        </section>
 
-      <section id={`user-content-performance-${userId}`} className="mb-10">
-        <h3 className="text-xl font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-300">
-          Desempenho de Conteúdo
-        </h3>
-        <UserVideoPerformanceMetrics userId={userId} chartTitle="Performance de Vídeos" />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-          <UserMonthlyEngagementStackedChart userId={userId} chartTitle="Engajamento Mensal Detalhado" />
-          <UserMonthlyComparisonChart userId={userId} chartTitle="Comparação Mensal" />
-        </div>
-      </section>
-
-      <section id={`user-advanced-analysis-${userId}`} className="mb-10">
-        <h3 className="text-xl font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-300">
-          Alertas de Desempenho
-        </h3>
-        <UserAlertsWidget userId={userId} />
-      </section>
-
-      <section id={`user-trends-${userId}`} className="mb-10">
-        <h3 className="text-xl font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-300">
-          Tendências da Conta
-        </h3>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <UserFollowerChangeChart
+        <section id={`user-performance-highlights-${userId}`} className="mb-10">
+          <UserPerformanceHighlights
             userId={userId}
-            chartTitle="Variação Diária de Seguidores"
+            sectionTitle="Destaques de Desempenho"
           />
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <UserReachEngagementTrendChart
-            userId={userId}
-            chartTitle="Alcance e Contas Engajadas"
-          />
-          <UserMovingAverageEngagementChart
-            userId={userId}
-            chartTitle="Média Móvel de Engajamento Diário"
-          />
-        </div>
-      </section>
+          <h4 className="text-lg font-semibold text-gray-700 mt-6 mb-4">
+            Análise por Horário
+          </h4>
+          <TimePerformanceHeatmap userId={userId} />
+        </section>
 
-    </div>
+        <section id={`user-content-performance-${userId}`} className="mb-10">
+          <h3 className="text-xl font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-300">
+            Desempenho de Conteúdo
+          </h3>
+          <UserVideoPerformanceMetrics userId={userId} chartTitle="Performance de Vídeos" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+            <UserMonthlyEngagementStackedChart userId={userId} chartTitle="Engajamento Mensal Detalhado" />
+            <UserMonthlyComparisonChart userId={userId} chartTitle="Comparação Mensal" />
+          </div>
+        </section>
+
+        <section id={`user-advanced-analysis-${userId}`} className="mb-10">
+          <h3 className="text-xl font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-300">
+            Alertas de Desempenho
+          </h3>
+          <UserAlertsWidget userId={userId} />
+        </section>
+
+        <section id={`user-trends-${userId}`} className="mb-10">
+          <h3 className="text-xl font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-300">
+            Tendências da Conta
+          </h3>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <UserFollowerChangeChart
+              userId={userId}
+              chartTitle="Variação Diária de Seguidores"
+            />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <UserReachEngagementTrendChart
+              userId={userId}
+              chartTitle="Alcance e Contas Engajadas"
+            />
+            <UserMovingAverageEngagementChart
+              userId={userId}
+              chartTitle="Média Móvel de Engajamento Diário"
+            />
+          </div>
+        </section>
+
+      </div>
+    </>
   );
 };
 

@@ -162,7 +162,8 @@ export default function AdminAffiliatesPage() {
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1">Buscar Afiliado</label>
           <SearchBar
-              initialValue={filters.search}
+              // ===== CORREÇÃO APLICADA AQUI =====
+              value={filters.search}
               onSearchChange={handleSearchChange}
               placeholder="Nome, e-mail ou código..."
           />

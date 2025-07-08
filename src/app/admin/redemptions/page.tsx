@@ -12,7 +12,9 @@ import { useAdminList } from '../../../hooks/useAdminList';
 import { SkeletonTable } from '../../components/SkeletonTable';
 import { UserAvatar } from '../../components/UserAvatar';
 import { StatusBadge } from '../../components/StatusBadge';
-import { SearchBar } from '../../components/SearchBar';
+// ===== CORREÇÃO APLICADA AQUI =====
+// A importação agora inclui o SearchIcon, se necessário, e corrige o erro de módulo.
+import { SearchBar, SearchIcon } from '../../components/SearchBar';
 import { EmptyState } from '../../components/EmptyState';
 import { CurrencyDollarIcon } from "@heroicons/react/24/outline";
 
@@ -224,7 +226,8 @@ export default function AdminRedemptionsPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Buscar por Afiliado</label>
-            <SearchBar initialValue={filters.search} onSearchChange={handleSearchChange} placeholder="Nome ou e-mail do afiliado..." />
+            {/* ===== CORREÇÃO APLICADA AQUI ===== */}
+            <SearchBar value={filters.search} onSearchChange={handleSearchChange} placeholder="Nome ou e-mail do afiliado..." />
           </div>
         </div>
         

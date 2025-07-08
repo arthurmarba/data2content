@@ -5,135 +5,126 @@ import React, {
   useEffect,
   useMemo,
   forwardRef,
-  useRef,
+  ReactNode,
 } from "react";
 import { debounce } from "lodash";
-import { FaSearch } from "react-icons/fa"; // Usando react-icons para o ícone
-import { XMarkIcon } from "@heroicons/react/24/solid";
+
+export const SearchIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth={1.5}
+    stroke="currentColor"
+    {...props}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
+    />
+  </svg>
+);
+
+const Spinner = () => (
+    <svg className="animate-spin h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+    </svg>
+);
 
 interface SearchBarProps {
-  initialValue?: string;
   onSearchChange: (value: string) => void;
-  placeholder?: string;
-  debounceMs?: number;
-  className?: string;
-  autoFocus?: boolean;
-  ariaLabel?: string;
   value?: string;
-  onClear?: () => void;
-  /**
-   * When true, the clear button is displayed even if the input is empty.
-   * Useful for showing a selected value that can be cleared.
-   */
-  showClearWhenEmpty?: boolean;
-  /**
-   * Visual variant of the input. Default keeps the bordered style while
-   * 'minimal' removes the box and uses only a bottom border.
-   */
+  placeholder?: string;
+  className?: string;
+  isLoading?: boolean;
+  disabled?: boolean;
+  children?: ReactNode;
   variant?: 'default' | 'minimal';
+  ariaLabel?: string;
+  autoFocus?: boolean;
+  debounceMs?: number;
 }
 
-/**
- * Componente de barra de busca com lógica de debounce embutida.
- * A função `onSearchChange` só é chamada após o usuário parar de digitar
- * pelo tempo definido em `debounceMs`.
- * @param {string} initialValue - O valor inicial do campo de busca.
- * @param {(value: string) => void} onSearchChange - Callback acionado após o debounce.
- * @param {string} placeholder - Texto de placeholder para o input.
- * @param {number} debounceMs - O tempo de espera em milissegundos. Padrão: 500.
- * @param {string} className - Classes CSS adicionais para o container.
- * @param {string} ariaLabel - Rótulo de acessibilidade para o input.
- */
 export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
   function SearchBar(
     {
-      initialValue = "",
       onSearchChange,
-      placeholder = "Buscar...",
-      debounceMs = 500,
-      className = "",
-      autoFocus = false,
-      ariaLabel,
       value,
-      onClear,
-      showClearWhenEmpty = false,
+      placeholder = "Buscar...",
+      className = "",
+      isLoading = false,
+      disabled = false,
+      children,
       variant = 'default',
+      ariaLabel,
+      autoFocus = false,
+      debounceMs = 300,
     }: SearchBarProps,
     ref,
   ) {
-    const [inputValue, setInputValue] = useState(initialValue);
-    // --- CORREÇÃO APLICADA AQUI ---
-    // Alterado de useRef<HTMLInputElement>(null) para useRef<HTMLInputElement | null>(null)
-    // para criar uma ref mutável.
-    const localRef = useRef<HTMLInputElement | null>(null);
-
-    const setRefs = (node: HTMLInputElement | null) => {
-      // Agora esta atribuição é permitida
-      localRef.current = node;
-      if (typeof ref === 'function') {
-        ref(node);
-      } else if (ref) {
-        (ref as React.MutableRefObject<HTMLInputElement | null>).current = node;
-      }
-    };
-
-    // useMemo garante que a função debounced seja criada apenas uma vez
+    const [inputValue, setInputValue] = useState(value ?? "");
+    
     const debouncedOnChange = useMemo(
-      () =>
-        debounce((value: string) => {
-          onSearchChange(value);
-        }, debounceMs),
-      [onSearchChange, debounceMs],
+      () => debounce(onSearchChange, debounceMs),
+      [onSearchChange, debounceMs]
     );
 
     useEffect(() => {
-      setInputValue(value ?? initialValue);
-    }, [value, initialValue]);
-
-    // Efeito que chama a função debounced quando o valor do input muda
+      if (value !== inputValue) setInputValue(value ?? '');
+    }, [value]);
+    
     useEffect(() => {
       debouncedOnChange(inputValue);
-
-      // Função de limpeza para cancelar qualquer chamada pendente quando o componente é desmontado
-      return () => {
-        debouncedOnChange.cancel();
-      };
+      return () => debouncedOnChange.cancel();
     }, [inputValue, debouncedOnChange]);
+
+    // ===== ALTERAÇÃO 2: REMOÇÃO DAS CLASSES 'dark:' PARA CORRIGIR CORES =====
+    const minimalVariantClasses = `
+      bg-transparent border-0
+      focus:ring-0 focus:border-indigo-500 focus:border-b
+      placeholder-gray-500
+      transition-all duration-200
+    `;
+    const defaultVariantClasses = `
+      bg-white border border-gray-300 rounded-md shadow-sm
+      focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500
+    `;
 
     return (
       <div className={`relative flex items-center ${className}`}>
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <FaSearch className="h-4 w-4 text-gray-400" />
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+          <div className="transition-opacity duration-200">
+            {isLoading ? <Spinner /> : <SearchIcon className="h-5 w-5 text-gray-400" />}
+          </div>
         </div>
+        
+        {children && (
+          <div className="absolute inset-y-0 left-0 pl-12 flex items-center z-10">
+            {children}
+          </div>
+        )}
+
         <input
           type="text"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          placeholder={placeholder}
-          aria-label={ariaLabel}
-          ref={setRefs}
+          placeholder={children ? "" : placeholder}
+          aria-label={ariaLabel || placeholder}
+          ref={ref}
+          disabled={disabled}
           autoFocus={autoFocus}
-          className={`block w-full pl-10 pr-8 py-2 sm:text-sm text-brand-dark focus:outline-none ${
-            variant === 'minimal'
-              ? '!bg-brand-light dark:bg-gray-800 border-0 border-b border-gray-200 rounded-none shadow-none focus:border-gray-400 focus:ring-0 placeholder-gray-500'
-              : 'border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-800 dark:border-gray-600'
-          }`}
+          // ===== ALTERAÇÃO 3: REMOÇÃO DA CLASSE 'dark:text-gray-200' =====
+          className={`block w-full py-2 sm:text-sm text-gray-900 focus:outline-none 
+            ${children ? 'pl-44' : 'pl-10'} 
+            ${disabled ? 'cursor-default' : ''}
+            ${variant === 'minimal' ? minimalVariantClasses : defaultVariantClasses}
+          `}
         />
-        {onClear && (inputValue || showClearWhenEmpty) && (
-          <button
-            type="button"
-            onClick={() => {
-              setInputValue("");
-              onClear();
-              localRef.current?.focus();
-            }}
-            className="absolute inset-y-0 right-0 pr-3 flex items-center"
-            aria-label="Limpar busca"
-          >
-            <XMarkIcon className="h-4 w-4 text-gray-400" />
-          </button>
-        )}
       </div>
     );
   },
 );
+
+SearchBar.displayName = "SearchBar";
