@@ -7,6 +7,9 @@ import { timePeriodToDays } from '@/utils/timePeriodHelpers';
 interface AverageVideoMetricsData {
   averageRetentionRate: number;
   averageWatchTimeSeconds: number;
+  averageViews: number;
+  averageLikes: number;
+  averageComments: number;
   numberOfVideoPosts: number;
   averageShares: number;
   averageSaves: number;
@@ -56,6 +59,9 @@ export async function GET(
     const responsePayload: UserVideoMetricsResponse = {
       averageRetentionRate: videoMetrics.averageRetentionRate,
       averageWatchTimeSeconds: videoMetrics.averageWatchTimeSeconds,
+      averageViews: videoMetrics.averageViews,
+      averageLikes: videoMetrics.averageLikes,
+      averageComments: videoMetrics.averageComments,
       numberOfVideoPosts: videoMetrics.numberOfVideoPosts,
       averageShares: videoMetrics.averageShares,
       averageSaves: videoMetrics.averageSaves,

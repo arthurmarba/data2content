@@ -8,6 +8,9 @@ interface AverageVideoMetricsData {
   numberOfVideoPosts: number;
   averageRetentionRate: number; // percentual, ex: 25.5 para 25.5%
   averageWatchTimeSeconds: number;
+  averageViews: number;
+  averageLikes: number;
+  averageComments: number;
   averageShares: number;
   averageSaves: number;
   startDate: Date;
@@ -39,6 +42,9 @@ async function calculateAverageVideoMetrics(
     numberOfVideoPosts: 0,
     averageRetentionRate: 0,
     averageWatchTimeSeconds: 0,
+    averageViews: 0,
+    averageLikes: 0,
+    averageComments: 0,
     averageShares: 0,
     averageSaves: 0,
     startDate,
@@ -87,8 +93,11 @@ async function calculateAverageVideoMetrics(
             }
           }
           ,
+          views: '$stats.views',
+          likes: '$stats.likes',
+          comments: '$stats.comments',
           shares: '$stats.shares',
-          saves: '$stats.saves'
+          saves: '$stats.saved'
         }
       },
       // Passo 3: Agrupar tudo para calcular as médias finais
@@ -100,6 +109,12 @@ async function calculateAverageVideoMetrics(
           countValidWatchTime: { $sum: { $cond: [{ $ne: ['$watchTimeInSeconds', null] }, 1, 0] } },
           sumRetention: { $sum: { $ifNull: ['$retentionRate', 0] } },
           countValidRetention: { $sum: { $cond: [{ $ne: ['$retentionRate', null] }, 1, 0] } },
+          sumViews: { $sum: { $ifNull: ['$views', 0] } },
+          countValidViews: { $sum: { $cond: [{ $ne: ['$views', null] }, 1, 0] } },
+          sumLikes: { $sum: { $ifNull: ['$likes', 0] } },
+          countValidLikes: { $sum: { $cond: [{ $ne: ['$likes', null] }, 1, 0] } },
+          sumComments: { $sum: { $ifNull: ['$comments', 0] } },
+          countValidComments: { $sum: { $cond: [{ $ne: ['$comments', null] }, 1, 0] } },
           sumShares: { $sum: { $ifNull: ['$shares', 0] } },
           countValidShares: { $sum: { $cond: [{ $ne: ['$shares', null] }, 1, 0] } },
           sumSaves: { $sum: { $ifNull: ['$saves', 0] } },
@@ -119,7 +134,16 @@ async function calculateAverageVideoMetrics(
         ? aggregationResult.sumWatchTime / aggregationResult.countValidWatchTime
         : 0,
       averageRetentionRate: aggregationResult.countValidRetention > 0
-        ? (aggregationResult.sumRetention / aggregationResult.countValidRetention) * 100 // Multiplica por 100 para ser porcentagem
+        ? (aggregationResult.sumRetention / aggregationResult.countValidRetention) * 100
+        : 0,
+      averageViews: aggregationResult.countValidViews > 0
+        ? aggregationResult.sumViews / aggregationResult.countValidViews
+        : 0,
+      averageLikes: aggregationResult.countValidLikes > 0
+        ? aggregationResult.sumLikes / aggregationResult.countValidLikes
+        : 0,
+      averageComments: aggregationResult.countValidComments > 0
+        ? aggregationResult.sumComments / aggregationResult.countValidComments
         : 0,
       averageShares: aggregationResult.countValidShares > 0
         ? aggregationResult.sumShares / aggregationResult.countValidShares
@@ -138,5 +162,4 @@ async function calculateAverageVideoMetrics(
     return defaultResult; // Retorna o padrão em caso de erro
   }
 }
-
 export default calculateAverageVideoMetrics;

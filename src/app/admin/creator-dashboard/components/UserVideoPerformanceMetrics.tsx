@@ -8,8 +8,10 @@ import PostDetailModal from "../PostDetailModal";
 import { useGlobalTimePeriod } from "./filters/GlobalTimePeriodContext";
 
 interface VideoMetricsData {
-  averageRetentionRate: number | null;
+  averageViews: number | null;
   averageWatchTimeSeconds: number | null;
+  averageLikes: number | null;
+  averageComments: number | null;
   numberOfVideoPosts: number | null;
   averageShares: number | null;
   averageSaves: number | null;
@@ -36,6 +38,14 @@ const formatWatchTime = (seconds: number): string => {
   const m = Math.floor(seconds / 60);
   const s = Math.round(seconds % 60);
   return `${m}m ${s}s`;
+};
+
+const formatCompactNumber = (value: number | null): string | null => {
+  if (value === null || value === undefined) return null;
+  if (Math.abs(value) >= 1000) {
+    return `${(value / 1000).toFixed(1)} mil`;
+  }
+  return value.toFixed(1);
 };
 
 // Sub-componente MetricDisplay e InfoIcon (assumindo que estão definidos em outro lugar ou copiados aqui se necessário)
@@ -128,8 +138,10 @@ const UserVideoPerformanceMetrics: React.FC<
       }
       const result: VideoMetricsResponse = await response.json();
       setMetrics({
-        averageRetentionRate: result.averageRetentionRate,
+        averageViews: result.averageViews,
         averageWatchTimeSeconds: result.averageWatchTimeSeconds,
+        averageLikes: result.averageLikes,
+        averageComments: result.averageComments,
         numberOfVideoPosts: result.numberOfVideoPosts,
         averageShares: result.averageShares ?? null,
         averageSaves: result.averageSaves ?? null,
@@ -217,20 +229,15 @@ const UserVideoPerformanceMetrics: React.FC<
 
       {!loading && !error && metrics && (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-7 gap-3">
             <div
               className="cursor-pointer"
-              onClick={() => handleMetricClick("retention_rate")}
+              onClick={() => handleMetricClick("views")}
             >
               <MetricDisplay
-                label="Retenção Média"
-                value={
-                  metrics.averageRetentionRate !== null
-                    ? metrics.averageRetentionRate.toFixed(1)
-                    : null
-                }
-                unit="%"
-                tooltip="Média da porcentagem de vídeo que os espectadores assistem."
+                label="Visualizações Médias"
+                value={formatCompactNumber(metrics.averageViews)}
+                tooltip="Média de visualizações por vídeo."
               />
             </div>
             <div
@@ -249,6 +256,26 @@ const UserVideoPerformanceMetrics: React.FC<
             </div>
             <div
               className="cursor-pointer"
+              onClick={() => handleMetricClick("likes")}
+            >
+              <MetricDisplay
+                label="Curtidas Médias"
+                value={formatCompactNumber(metrics.averageLikes)}
+                tooltip="Média de curtidas por vídeo."
+              />
+            </div>
+            <div
+              className="cursor-pointer"
+              onClick={() => handleMetricClick("comments")}
+            >
+              <MetricDisplay
+                label="Comentários Médios"
+                value={formatCompactNumber(metrics.averageComments)}
+                tooltip="Média de comentários por vídeo."
+              />
+            </div>
+            <div
+              className="cursor-pointer"
               onClick={() => handleMetricClick("views")}
             >
               <MetricDisplay
@@ -263,7 +290,7 @@ const UserVideoPerformanceMetrics: React.FC<
             >
               <MetricDisplay
                 label="Compartilhamentos Médios"
-                value={metrics.averageShares !== null ? metrics.averageShares.toFixed(1) : null}
+                value={formatCompactNumber(metrics.averageShares)}
                 tooltip="Média de compartilhamentos por vídeo."
               />
             </div>
@@ -273,7 +300,7 @@ const UserVideoPerformanceMetrics: React.FC<
             >
               <MetricDisplay
                 label="Salvamentos Médios"
-                value={metrics.averageSaves !== null ? metrics.averageSaves.toFixed(1) : null}
+                value={formatCompactNumber(metrics.averageSaves)}
                 tooltip="Média de salvamentos por vídeo."
               />
             </div>
