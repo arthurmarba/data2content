@@ -103,7 +103,7 @@ export async function fetchTopCreators(args: { context: string, metricToSortBy: 
       { $group: { _id: '$user', metricValue: { $avg: `$${sortField}` }, totalInteractions: { $sum: '$stats.total_interactions' }, postCount: { $sum: 1 } } },
       { $sort: { metricValue: -1 } },
       { $limit: limit },
-      ...createBasePipeline(),
+      ...createBasePipeline('_id'),
       {
         $project: {
           _id: 0,
@@ -169,7 +169,7 @@ export async function fetchTopCreatorsWithScore(args: { context?: string; days: 
         }
       },
       { $unwind: { path: '$followersData', preserveNullAndEmptyArrays: true } },
-      ...createBasePipeline(),
+      ...createBasePipeline('_id'),
       {
         $project: {
           _id: 0,

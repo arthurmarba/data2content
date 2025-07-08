@@ -8,13 +8,14 @@ import { PipelineStage } from 'mongoose';
 /**
  * @function createBasePipeline
  * @description Cria um pipeline de base para adicionar informações do criador (usuário) aos documentos de métricas.
+ * @param {string} [localField='user'] - Campo utilizado para correlacionar o usuário. Após agrupamentos costuma ser '_id'.
  * @returns {PipelineStage[]} Um array de estágios de pipeline do Mongoose.
  */
-export const createBasePipeline = (): PipelineStage[] => [
+export const createBasePipeline = (localField: string = 'user'): PipelineStage[] => [
     {
         $lookup: {
             from: 'users',
-            localField: 'user',
+            localField,
             foreignField: '_id',
             as: 'creatorInfo',
         },
