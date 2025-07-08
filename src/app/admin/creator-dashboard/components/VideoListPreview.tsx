@@ -88,84 +88,82 @@ const VideoListPreview: React.FC<VideoListPreviewProps> = ({ userId, timePeriod,
             <div
               key={video._id}
               onClick={() => onRowClick && onRowClick(video._id)}
-              className="flex items-start gap-4 bg-white border border-gray-100 rounded-md p-2 cursor-pointer"
+              className="bg-white border border-gray-100 rounded-md p-3 cursor-pointer space-y-2"
             >
               <img
-                src={video.thumbnailUrl || "https://placehold.co/96x54/e2e8f0/a0aec0?text=Img"}
+                src={video.thumbnailUrl || "https://placehold.co/320x180/e2e8f0/a0aec0?text=Img"}
                 alt={video.caption || "thumbnail"}
-                width={96}
-                height={54}
-                className="rounded-md object-cover flex-shrink-0 mt-1"
+                className="w-full aspect-video object-cover rounded-md"
+                width={320}
+                height={180}
               />
-              <div className="flex-grow">
-                <p className="text-sm font-medium text-gray-700 line-clamp-2" title={video.caption}>
-                  {video.caption || "Sem legenda"}
-                </p>
-                <p className="text-xs text-gray-500 mt-0.5">{formatDate(video.postDate)}</p>
-                <div className="flex flex-wrap gap-1 mt-1 text-xs">
-                  {getLabels(video.format, "format").map((tag) => (
-                    <span
-                      key={tag}
-                      className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                  {getLabels(video.proposal, "proposal").map((tag) => (
-                    <span
-                      key={tag}
-                      className="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                  {getLabels(video.context, "context").map((tag) => (
-                    <span
-                      key={tag}
-                      className="bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                  {getLabels(video.tone, "tone").map((tag) => (
-                    <span
-                      key={tag}
-                      className="bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                  {getLabels(video.references, "reference").map((tag) => (
-                    <span
-                      key={tag}
-                      className="bg-green-100 text-green-800 px-1.5 py-0.5 rounded"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-                <div className="flex flex-wrap gap-2 text-xs text-gray-600 mt-2">
-                  <span className="flex items-center gap-1">
-                    <EyeIcon className="w-3.5 h-3.5 text-gray-400" />
-                    {formatNumber(video.stats?.views)}
+              <p className="text-base font-medium text-gray-700 line-clamp-2" title={video.caption}>
+                {video.caption || "Sem legenda"}
+              </p>
+              <p className="text-sm text-gray-500">{formatDate(video.postDate)}</p>
+              <div className="flex flex-wrap gap-1 text-sm">
+                {getLabels(video.format, "format").map((tag) => (
+                  <span
+                    key={tag}
+                    className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded"
+                  >
+                    {tag}
                   </span>
-                  <span className="flex items-center gap-1">
-                    <HeartIcon className="w-3.5 h-3.5 text-gray-400" />
-                    {formatNumber(video.stats?.likes)}
+                ))}
+                {getLabels(video.proposal, "proposal").map((tag) => (
+                  <span
+                    key={tag}
+                    className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded"
+                  >
+                    {tag}
                   </span>
-                  <span className="flex items-center gap-1">
-                    <ChatBubbleOvalLeftEllipsisIcon className="w-3.5 h-3.5 text-gray-400" />
-                    {formatNumber(video.stats?.comments)}
+                ))}
+                {getLabels(video.context, "context").map((tag) => (
+                  <span
+                    key={tag}
+                    className="bg-purple-100 text-purple-800 px-2 py-0.5 rounded"
+                  >
+                    {tag}
                   </span>
-                  <span className="flex items-center gap-1">
-                    <ShareIcon className="w-3.5 h-3.5 text-gray-400" />
-                    {formatNumber(video.stats?.shares)}
+                ))}
+                {getLabels(video.tone, "tone").map((tag) => (
+                  <span
+                    key={tag}
+                    className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded"
+                  >
+                    {tag}
                   </span>
-                  <span className="flex items-center gap-1">
-                    <BookmarkIcon className="w-3.5 h-3.5 text-gray-400" />
-                    {formatNumber(video.stats?.saves)}
+                ))}
+                {getLabels(video.references, "reference").map((tag) => (
+                  <span
+                    key={tag}
+                    className="bg-green-100 text-green-800 px-2 py-0.5 rounded"
+                  >
+                    {tag}
                   </span>
-                </div>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-3 text-base text-gray-700 font-semibold">
+                <span className="flex items-center gap-1">
+                  <EyeIcon className="w-4 h-4 text-gray-500" />
+                  {formatNumber(video.stats?.views)}
+                </span>
+                <span className="flex items-center gap-1">
+                  <HeartIcon className="w-4 h-4 text-gray-500" />
+                  {formatNumber(video.stats?.likes)}
+                </span>
+                <span className="flex items-center gap-1">
+                  <ChatBubbleOvalLeftEllipsisIcon className="w-4 h-4 text-gray-500" />
+                  {formatNumber(video.stats?.comments)}
+                </span>
+                <span className="flex items-center gap-1">
+                  <ShareIcon className="w-4 h-4 text-gray-500" />
+                  {formatNumber(video.stats?.shares)}
+                </span>
+                <span className="flex items-center gap-1">
+                  <BookmarkIcon className="w-4 h-4 text-gray-500" />
+                  {formatNumber(video.stats?.saves)}
+                </span>
               </div>
             </div>
           ))}
@@ -181,5 +179,4 @@ const VideoListPreview: React.FC<VideoListPreviewProps> = ({ userId, timePeriod,
       )}
     </div>
   );
-};
-export default VideoListPreview;
+};export default VideoListPreview;

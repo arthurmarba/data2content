@@ -231,7 +231,7 @@ const UserVideoPerformanceMetrics: React.FC<
 
       {!loading && !error && metrics && (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-7 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 gap-4">
             <div
               className="cursor-pointer"
               onClick={() => handleMetricClick("views")}
