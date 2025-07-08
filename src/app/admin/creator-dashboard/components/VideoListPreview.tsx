@@ -92,14 +92,14 @@ const VideoListPreview: React.FC<VideoListPreviewProps> = ({ userId, timePeriod,
             >
               <img
                 src={video.thumbnailUrl || "https://placehold.co/96x54/e2e8f0/a0aec0?text=Img"}
-                alt={video.caption || video.description || "thumbnail"}
+                alt={video.caption || "thumbnail"}
                 width={96}
                 height={54}
                 className="rounded-md object-cover flex-shrink-0 mt-1"
               />
               <div className="flex-grow">
-                <p className="text-sm font-medium text-gray-700 line-clamp-2" title={video.caption || video.description}>
-                  {video.caption || video.description || "Sem legenda"}
+                <p className="text-sm font-medium text-gray-700 line-clamp-2" title={video.caption}>
+                  {video.caption || "Sem legenda"}
                 </p>
                 <p className="text-xs text-gray-500 mt-0.5">{formatDate(video.postDate)}</p>
                 <div className="flex flex-wrap gap-1 mt-1">

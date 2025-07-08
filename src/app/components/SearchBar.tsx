@@ -56,9 +56,13 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
     ref,
   ) {
     const [inputValue, setInputValue] = useState(initialValue);
-    const localRef = useRef<HTMLInputElement>(null);
+    // --- CORREÇÃO APLICADA AQUI ---
+    // Alterado de useRef<HTMLInputElement>(null) para useRef<HTMLInputElement | null>(null)
+    // para criar uma ref mutável.
+    const localRef = useRef<HTMLInputElement | null>(null);
 
     const setRefs = (node: HTMLInputElement | null) => {
+      // Agora esta atribuição é permitida
       localRef.current = node;
       if (typeof ref === 'function') {
         ref(node);
