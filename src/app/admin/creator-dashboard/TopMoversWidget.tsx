@@ -87,6 +87,7 @@ export default function TopMoversWidget() {
   const [results, setResults] = useState<ITopMoverResult[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   const { timePeriod: globalTimePeriod } = useGlobalTimePeriod();
 
@@ -190,21 +191,29 @@ export default function TopMoversWidget() {
 
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6 space-y-6">
-      <div>
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6">
+      <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <ChartBarIcon className="h-5 w-5 text-indigo-600" />
           <h3 className="text-lg font-semibold text-gray-800">
             {`Top Movers – ${ENTITY_TYPE_OPTIONS.find(e => e.value === entityType)?.label} por ${METRIC_OPTIONS.find(m => m.value === metric)?.label} (${SORT_BY_OPTIONS.find(s => s.value === sortBy)?.label})`}
           </h3>
         </div>
-        <p className="text-sm text-gray-500 mt-1 ml-7">
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="px-3 py-1.5 bg-indigo-600 text-white text-sm font-semibold rounded-md shadow-sm hover:bg-indigo-700"
+        >
+          {isCollapsed ? 'Expandir' : 'Recolher'}
+        </button>
+      </div>
+      {!isCollapsed && (
+        <>
+        <p className="text-sm text-gray-500 mt-1 mb-4 ml-7">
           Identifique variações de performance entre dois períodos.
         </p>
-      </div>
 
-      {/* --- UI de Seleção de Parâmetros --- */}
-      <div className="p-4 border border-gray-200 rounded-md bg-gray-50">
+        {/* --- UI de Seleção de Parâmetros --- */}
+        <div className="p-4 border border-gray-200 rounded-md bg-gray-50">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-end">
           <div>
             <label htmlFor="tm-entityType" className="block text-xs font-medium text-gray-600 mb-1">Entidade</label>
@@ -307,6 +316,7 @@ export default function TopMoversWidget() {
           </div>
         )}
       </div>
+        </>
+      )}
     </div>
-  );
-}
+  );}
