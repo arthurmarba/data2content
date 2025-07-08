@@ -74,7 +74,7 @@ export default function CreatorQuickSearch({
   };
 
   return (
-    <div className="relative flex items-center" ref={containerRef}>
+    <div className="relative flex items-center bg-brand-light" ref={containerRef}>
       <SearchBar
         initialValue=""
         value={searchTerm}
