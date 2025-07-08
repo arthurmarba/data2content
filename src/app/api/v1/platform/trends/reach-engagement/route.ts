@@ -1,18 +1,12 @@
 // src/app/api/v1/platform/trends/reach-engagement/route.ts
 
 import { NextResponse } from 'next/server';
-import UserModel from '@/app/models/User';
-import getReachEngagementTrendChartData from '@/charts/getReachEngagementTrendChartData';
-import getReachInteractionTrendChartData from '@/charts/getReachInteractionTrendChartData';
+// --- INÍCIO DA CORREÇÃO ---
+// Importa a função de lógica correta e específica para a plataforma.
+import { getPlatformReachEngagementTrendChartData } from '@/charts/getReachInteractionTrendChartData';
+// --- FIM DA CORREÇÃO ---
 import { connectToDatabase } from '@/app/lib/mongoose';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
-import { Types } from 'mongoose';
-import {
-  addDays,
-  formatDateYYYYMMDD,
-  getStartDateFromTimePeriod,
-  getYearWeek,
-} from '@/utils/dateHelpers';
 
 interface ApiChartDataPoint {
   date: string;
@@ -22,7 +16,9 @@ interface ApiChartDataPoint {
 
 interface ChartResponse {
   chartData: ApiChartDataPoint[];
-  insightSummary: string;
+  insightSummary?: string;
+  averageReach?: number;
+  averageInteractions?: number;
 }
 
 const ALLOWED_GRANULARITIES: string[] = ["daily", "weekly"];
@@ -56,10 +52,9 @@ export async function GET(
   try {
     await connectToDatabase();
     
-    // A lógica foi simplificada para chamar a função de agregação de plataforma diretamente.
-    // O placeholder de userId é mantido por compatibilidade de interface, mas não é usado.
-    const placeholderUserId = new Types.ObjectId();
-    const platformData = await getReachEngagementTrendChartData(placeholderUserId, timePeriod, granularity);
+    // --- INÍCIO DA CORREÇÃO ---
+    // Chama a função de agregação de plataforma, que não precisa de um userId.
+    const platformData = await getPlatformReachEngagementTrendChartData(timePeriod, granularity);
 
     if (!platformData || platformData.chartData.length === 0) {
       return NextResponse.json({
@@ -68,18 +63,9 @@ export async function GET(
       }, { status: 200 });
     }
 
-    // A função já retorna os dados no formato correto.
-    // Apenas garantimos que o nome da propriedade esteja correto na resposta final.
-    const response: ChartResponse = {
-      chartData: platformData.chartData.map(d => ({
-          date: d.date,
-          reach: d.reach,
-          totalInteractions: d.totalInteractions,
-      })),
-      insightSummary: platformData.insightSummary || "Dados de tendência da plataforma.",
-    };
-
-    return NextResponse.json(response, { status: 200 });
+    // Retorna diretamente a resposta, pois ela já está no formato correto.
+    return NextResponse.json(platformData, { status: 200 });
+    // --- FIM DA CORREÇÃO ---
 
   } catch (error) {
     console.error(`[API PLATFORM/TRENDS/REACH-ENGAGEMENT] Error aggregating platform data:`, error);

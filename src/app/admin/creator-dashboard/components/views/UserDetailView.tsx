@@ -22,7 +22,7 @@ import UserComparativeKpi from "../kpis/UserComparativeKpi";
 interface UserDetailViewProps {
   userId: string | null;
   userName?: string;
-  onClear?: () => void; // Otimização: Prop para limpar a seleção
+  onClear?: () => void;
 }
 
 const KPI_COMPARISON_PERIOD_OPTIONS = [
@@ -39,27 +39,13 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
   const [kpiComparisonPeriod, setKpiComparisonPeriod] = useState<string>(
     KPI_COMPARISON_PERIOD_OPTIONS[0]!.value,
   );
-  // Otimização: Estado para controlar o feedback visual de "flash"
   const [isNewlyLoaded, setIsNewlyLoaded] = useState(false);
 
-  // Otimização: Efeito para ativar o "flash" quando um novo usuário é selecionado
   useEffect(() => {
-    // ===== CORREÇÃO APLICADA AQUI =====
-    // Se não há userId, simplesmente saímos do efeito.
-    // Isso garante que todos os caminhos de código são tratados.
-    if (!userId) {
-      return;
-    }
-
-    // O resto da lógica só executa se houver um userId
+    if (!userId) { return; }
     setIsNewlyLoaded(true);
-    const timer = setTimeout(() => {
-      setIsNewlyLoaded(false);
-    }, 1500); // Duração do efeito
-
-    // A função de limpeza agora só é retornada no caminho onde o timer foi criado.
+    const timer = setTimeout(() => { setIsNewlyLoaded(false); }, 1500);
     return () => clearTimeout(timer);
-    // ===================================
   }, [userId]);
 
 
@@ -73,34 +59,23 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
 
   const displayName = userName || `Criador ID: ${userId.substring(0, 8)}...`;
 
-  // Os gráficos internos leem o período global via contexto,
-  // portanto são atualizados automaticamente quando o filtro principal muda.
-
   return (
     <>
-      {/* Otimização: Estilos para a animação de "flash" */}
       <style jsx global>{`
         @keyframes flash-background {
           0% { background-color: transparent; }
-          25% { background-color: #f0f5ff; } /* Cor de destaque (indigo-50) */
+          25% { background-color: #f0f5ff; }
           100% { background-color: transparent; }
         }
-        .flash-on-load {
-          animation: flash-background 1.5s ease-in-out;
-        }
+        .flash-on-load { animation: flash-background 1.5s ease-in-out; }
       `}</style>
 
-      {/* Otimização: Classe condicional para o efeito de "flash" */}
       <div className={`p-1 md:p-2 mt-8 border-t-2 border-indigo-500 pt-6 rounded-lg ${isNewlyLoaded ? 'flash-on-load' : ''}`}>
         <header className="mb-6">
           <div className="flex justify-between items-start">
               <div>
-                {/* Otimização: Adiciona botão "Voltar" */}
                 {onClear && (
-                    <button
-                        onClick={onClear}
-                        className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-800 font-semibold mb-2"
-                    >
+                    <button onClick={onClear} className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-800 font-semibold mb-2">
                         <ArrowLeftIcon className="w-4 h-4" />
                         Voltar para visão geral
                     </button>
@@ -112,31 +87,11 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
           </div>
           <nav className="mt-4">
             <ul className="flex flex-wrap gap-4 text-sm font-medium text-indigo-600">
-              <li>
-                <a href={`#user-kpis-${userId}`} className="hover:underline">
-                  KPIs Chave
-                </a>
-              </li>
-              <li>
-                <a href={`#user-performance-highlights-${userId}`} className="hover:underline">
-                  Destaques
-                </a>
-              </li>
-              <li>
-                <a href={`#user-content-performance-${userId}`} className="hover:underline">
-                  Desempenho de Conteúdo
-                </a>
-              </li>
-              <li>
-                <a href={`#user-advanced-analysis-${userId}`} className="hover:underline">
-                  Alertas de Desempenho
-                </a>
-              </li>
-              <li>
-                <a href={`#user-trends-${userId}`} className="hover:underline">
-                  Tendências
-                </a>
-              </li>
+              <li><a href={`#user-kpis-${userId}`} className="hover:underline">KPIs Chave</a></li>
+              <li><a href={`#user-performance-highlights-${userId}`} className="hover:underline">Destaques</a></li>
+              <li><a href={`#user-content-performance-${userId}`} className="hover:underline">Desempenho de Conteúdo</a></li>
+              <li><a href={`#user-advanced-analysis-${userId}`} className="hover:underline">Alertas de Desempenho</a></li>
+              <li><a href={`#user-trends-${userId}`} className="hover:underline">Tendências</a></li>
             </ul>
           </nav>
         </header>
@@ -144,81 +99,41 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
         {/* Seção de KPIs Comparativos do Criador */}
         <section id={`user-kpis-${userId}`} className="mb-10">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-semibold text-gray-700 pb-2">
-              KPIs Chave
-            </h3>
+            <h3 className="text-xl font-semibold text-gray-700 pb-2">KPIs Chave</h3>
             <div className="flex items-center gap-2">
-              <label
-                htmlFor={`kpiComparisonPeriod-${userId}`}
-                className="text-xs font-medium text-gray-600"
-              >
-                Comparar:
-              </label>
-              <select
-                id={`kpiComparisonPeriod-${userId}`}
-                value={kpiComparisonPeriod}
-                onChange={(e) => setKpiComparisonPeriod(e.target.value)}
-                className="p-1.5 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs"
-              >
-                {KPI_COMPARISON_PERIOD_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
+              <label htmlFor={`kpiComparisonPeriod-${userId}`} className="text-xs font-medium text-gray-600">Comparar:</label>
+              <select id={`kpiComparisonPeriod-${userId}`} value={kpiComparisonPeriod} onChange={(e) => setKpiComparisonPeriod(e.target.value)} className="p-1.5 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-xs">
+                {KPI_COMPARISON_PERIOD_OPTIONS.map((option) => (<option key={option.value} value={option.value}>{option.label}</option>))}
               </select>
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-            <UserComparativeKpi
-              userId={userId}
-              kpiName="followerGrowth"
-              title="Crescimento de Seguidores"
-              comparisonPeriod={kpiComparisonPeriod}
-              tooltip="Variação no ganho de seguidores em relação ao período anterior equivalente."
-            />
-            <UserComparativeKpi
-              userId={userId}
-              kpiName="totalEngagement"
-              title="Engajamento Total"
-              comparisonPeriod={kpiComparisonPeriod}
-              tooltip="Variação no total de interações em relação ao período anterior equivalente."
-            />
-            <UserComparativeKpi
-              userId={userId}
-              kpiName="postingFrequency"
-              title="Frequência de Postagem"
-              comparisonPeriod={kpiComparisonPeriod}
-              tooltip="Variação na frequência semanal de postagens em relação ao período anterior equivalente."
-            />
+            <UserComparativeKpi userId={userId} kpiName="followerGrowth" title="Crescimento de Seguidores" comparisonPeriod={kpiComparisonPeriod} tooltip="Variação no ganho de seguidores em relação ao período anterior equivalente." />
+            <UserComparativeKpi userId={userId} kpiName="totalEngagement" title="Engajamento Total" comparisonPeriod={kpiComparisonPeriod} tooltip="Variação no total de interações em relação ao período anterior equivalente." />
+            <UserComparativeKpi userId={userId} kpiName="postingFrequency" title="Frequência de Postagem" comparisonPeriod={kpiComparisonPeriod} tooltip="Variação na frequência semanal de postagens em relação ao período anterior equivalente." />
           </div>
         </section>
 
         <section id={`user-performance-highlights-${userId}`} className="mb-10">
-          <UserPerformanceHighlights
-            userId={userId}
-            sectionTitle="Destaques de Desempenho"
-          />
-          <h4 className="text-lg font-semibold text-gray-700 mt-6 mb-4">
-            Análise por Horário
-          </h4>
+          <UserPerformanceHighlights userId={userId} sectionTitle="Destaques de Desempenho" />
+          <h4 className="text-lg font-semibold text-gray-700 mt-6 mb-4">Análise por Horário</h4>
           <TimePerformanceHeatmap userId={userId} />
         </section>
 
         <section id={`user-content-performance-${userId}`} className="mb-10">
-          <h3 className="text-xl font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-300">
-            Desempenho de Conteúdo
-          </h3>
+          <h3 className="text-xl font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-300">Desempenho de Conteúdo</h3>
           <UserVideoPerformanceMetrics userId={userId} chartTitle="Performance de Vídeos" />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+          {/* --- INÍCIO DA ALTERAÇÃO (FASE 2.5) --- */}
+          {/* A grid foi ajustada para ser mais responsiva em telas médias */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
             <UserMonthlyEngagementStackedChart userId={userId} chartTitle="Engajamento Mensal Detalhado" />
             <UserMonthlyComparisonChart userId={userId} chartTitle="Comparação Mensal" />
           </div>
+          {/* --- FIM DA ALTERAÇÃO (FASE 2.5) --- */}
         </section>
 
         <section id={`user-advanced-analysis-${userId}`} className="mb-10">
-          <h3 className="text-xl font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-300">
-            Alertas de Desempenho
-          </h3>
+          <h3 className="text-xl font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-300">Alertas de Desempenho</h3>
           <UserAlertsWidget userId={userId} />
         </section>
 
@@ -226,13 +141,17 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
           <h3 className="text-xl font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-300">
             Tendências da Conta
           </h3>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <UserFollowerChangeChart
-              userId={userId}
-              chartTitle="Variação Diária de Seguidores"
-            />
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* --- INÍCIO DA ALTERAÇÃO (FASE 2.5) --- */}
+          {/* Os gráficos de tendências agora estão em uma única grid unificada e responsiva. */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* O gráfico de seguidores agora ocupa a largura total em telas médias e maiores */}
+            <div className="md:col-span-2">
+              <UserFollowerChangeChart
+                userId={userId}
+                chartTitle="Variação Diária de Seguidores"
+              />
+            </div>
+            
             <UserReachEngagementTrendChart
               userId={userId}
               chartTitle="Alcance e Contas Engajadas"
@@ -242,6 +161,7 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
               chartTitle="Média Móvel de Engajamento Diário"
             />
           </div>
+          {/* --- FIM DA ALTERAÇÃO (FASE 2.5) --- */}
         </section>
 
       </div>

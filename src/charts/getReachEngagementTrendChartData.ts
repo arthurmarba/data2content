@@ -1,9 +1,9 @@
-// src/app/charts/getReachEngagementTrendChartData.ts
+// src/charts/getReachEngagementTrendChartData.ts
 
 import { Types } from 'mongoose';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import { logger } from '@/app/lib/logger';
-import DailyMetricSnapshotModel from '@/app/models/DailyMetricSnapshot';
+import MetricModel from '@/app/models/Metric';
 import {
   addDays,
   formatDateYYYYMMDD,
@@ -11,22 +11,25 @@ import {
   getYearWeek
 } from '@/utils/dateHelpers';
 
-// Interface atualizada para usar totalInteractions
 interface ChartDataPoint {
   date: string; // 'YYYY-MM-DD' ou 'YYYY-WW'
   reach: number | null;
   totalInteractions: number | null;
 }
 
+// --- INÍCIO DA ALTERAÇÃO (FASE 2.1) ---
+// Adicionadas as propriedades para as médias no tipo de resposta.
 interface ChartResponse {
   chartData: ChartDataPoint[];
   insightSummary?: string;
+  averageReach?: number;
+  averageInteractions?: number;
 }
+// --- FIM DA ALTERAÇÃO (FASE 2.1) ---
 
 /**
- * Retorna dados de tendência de alcance e interações totais para a plataforma.
- * CORREÇÃO FINAL v7: A consulta foi simplificada para usar o campo `cumulativeTotalInteractions`
- * para calcular a média de interações, que é mais robusto do que somar campos individuais.
+ * CORREÇÃO FINAL v9: A função agora também calcula e retorna a média de
+ * alcance e interações para o período, para uso como linha de referência.
  */
 async function getReachEngagementTrendChartData(
   userId: string | Types.ObjectId,
@@ -38,94 +41,93 @@ async function getReachEngagementTrendChartData(
   const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
   const startDate = getStartDateFromTimePeriod(today, timePeriod);
 
+  // --- INÍCIO DA ALTERAÇÃO (FASE 2.1) ---
+  // A resposta agora é inicializada com os novos campos.
   const response: ChartResponse = {
     chartData: [],
     insightSummary: 'Nenhum dado encontrado para o período.',
+    averageReach: 0,
+    averageInteractions: 0,
   };
+  // --- FIM DA ALTERAÇÃO (FASE 2.1) ---
 
   try {
     await connectToDatabase();
 
-    // ===== 1. BUSCAR DADOS DIÁRIOS AGREGADOS (DA FONTE CORRETA) =====
-    const aggregatedData = await DailyMetricSnapshotModel.aggregate([
-      { $match: { date: { $gte: startDate, $lte: endDate } } },
+    const aggregatedData = await MetricModel.aggregate([
+      {
+        $match: {
+          user: new Types.ObjectId(userId),
+          postDate: { $gte: startDate, $lte: endDate }
+        }
+      },
       {
         $group: {
-          _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
-          // ===== CORREÇÃO: Usa $avg diretamente nos campos desejados =====
-          avgReach: { $avg: "$dailyReach" },
-          avgInteractions: { $avg: "$cumulativeTotalInteractions" } // Usando o campo cumulativo para a média
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$postDate" } },
+          totalReach: { $sum: { $ifNull: ["$stats.reach", 0] } },
+          totalInteractions: { $sum: { $ifNull: ["$stats.total_interactions", 0] } }
         }
       },
       { $sort: { _id: 1 } }
     ]);
     
-    // Mapeia os resultados da agregação para o dataMap
     const dataMap = new Map<string, { reach: number; totalInteractions: number }>(
-      aggregatedData.map(item => [item._id, { reach: item.avgReach, totalInteractions: item.avgInteractions }])
+      aggregatedData.map(item => [item._id, { reach: item.totalReach, totalInteractions: item.totalInteractions }])
     );
-
-    // ===== 2. PREENCHER DATAS AUSENTES (FORWARD-FILL) =====
-    let lastKnownReach: number | null = null;
-    let lastKnownInteractions: number | null = null;
 
     let cursor = new Date(startDate);
     const dailyChartData: ChartDataPoint[] = [];
 
     while (cursor <= endDate) {
       const dayKey = formatDateYYYYMMDD(cursor);
-      
-      if (dataMap.has(dayKey)) {
-        const dayData = dataMap.get(dayKey)!;
-        lastKnownReach = dayData.reach;
-        lastKnownInteractions = dayData.totalInteractions;
-      }
-      
+      const dayData = dataMap.get(dayKey);
       dailyChartData.push({
         date: dayKey,
-        reach: lastKnownReach,
-        totalInteractions: lastKnownInteractions,
+        reach: dayData?.reach ?? 0,
+        totalInteractions: dayData?.totalInteractions ?? 0,
       });
-
       cursor = addDays(cursor, 1);
     }
     
-    // 3. Agrupar em semanas se necessário
     if (granularity === 'weekly') {
         const weeklyMap = new Map<string, { reachValues: number[], interactionValues: number[] }>();
         for (const dailyPoint of dailyChartData) {
-            if (dailyPoint.reach !== null || dailyPoint.totalInteractions !== null) {
-                const weekKey = getYearWeek(new Date(dailyPoint.date));
-                const weekData = weeklyMap.get(weekKey) || { reachValues: [], interactionValues: [] };
-                if (dailyPoint.reach !== null) weekData.reachValues.push(dailyPoint.reach);
-                if (dailyPoint.totalInteractions !== null) weekData.interactionValues.push(dailyPoint.totalInteractions);
-                weeklyMap.set(weekKey, weekData);
-            }
+            const weekKey = getYearWeek(new Date(dailyPoint.date));
+            const weekData = weeklyMap.get(weekKey) || { reachValues: [], interactionValues: [] };
+            if (dailyPoint.reach !== null) weekData.reachValues.push(dailyPoint.reach);
+            if (dailyPoint.totalInteractions !== null) weekData.interactionValues.push(dailyPoint.totalInteractions);
+            weeklyMap.set(weekKey, weekData);
         }
         response.chartData = Array.from(weeklyMap.entries()).map(([weekKey, data]) => {
-            const avgReach = data.reachValues.length > 0 ? data.reachValues.reduce((a, b) => a + b, 0) / data.reachValues.length : null;
-            const avgInteractions = data.interactionValues.length > 0 ? data.interactionValues.reduce((a, b) => a + b, 0) / data.interactionValues.length : null;
-            return { date: weekKey, reach: avgReach, totalInteractions: avgInteractions };
+            const totalReach = data.reachValues.reduce((a, b) => a + b, 0);
+            const totalInteractions = data.interactionValues.reduce((a, b) => a + b, 0);
+            return { date: weekKey, reach: totalReach, totalInteractions: totalInteractions };
         });
     } else {
         response.chartData = dailyChartData;
     }
 
-    // 4. Calcular Resumo
-    const valid = response.chartData.filter(pt => pt.reach !== null || pt.totalInteractions !== null);
-    if (valid.length) {
-      const avgReach = valid.reduce((s, pt) => s + (pt.reach ?? 0), 0) / valid.length;
-      const avgInteractions = valid.reduce((s, pt) => s + (pt.totalInteractions ?? 0), 0) / valid.length;
+    // --- INÍCIO DA ALTERAÇÃO (FASE 2.1) ---
+    // A lógica de cálculo da média agora atribui os valores à resposta final.
+    const validDataPoints = response.chartData.filter(pt => pt.reach !== null || pt.totalInteractions !== null);
+    if (validDataPoints.length > 0) {
+      const avgReach = validDataPoints.reduce((sum, pt) => sum + (pt.reach ?? 0), 0) / validDataPoints.length;
+      const avgInteractions = validDataPoints.reduce((sum, pt) => sum + (pt.totalInteractions ?? 0), 0) / validDataPoints.length;
+      
+      response.averageReach = avgReach;
+      response.averageInteractions = avgInteractions;
+
       const periodText = timePeriod.replace('last_', 'últimos ').replace('_days', ' dias');
       response.insightSummary =
         `Média de alcance: ${avgReach.toFixed(0)}, interações: ${avgInteractions.toFixed(0)} por ${
           granularity === 'daily' ? 'dia' : 'semana'
         } nos ${periodText}.`;
     }
+    // --- FIM DA ALTERAÇÃO (FASE 2.1) ---
 
     return response;
   } catch (err) {
-    logger.error(`Erro em getReachEngagementTrendChartData:`, err);
+    logger.error(`Erro em getReachEngagementTrendChartData para o usuário ${userId}:`, err);
     response.insightSummary = 'Erro ao buscar dados de tendência.';
     response.chartData = [];
     return response;

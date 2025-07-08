@@ -1,37 +1,28 @@
 // src/app/api/v1/users/[userId]/trends/reach-engagement/route.ts
+
 import { NextResponse } from 'next/server';
-import getReachInteractionTrendChartData from '@/charts/getReachInteractionTrendChartData';
-import { Types } from 'mongoose';
+// --- INÍCIO DA CORREÇÃO DE BUILD ---
+// Corrigida a importação para usar a exportação nomeada correta.
+import { getUserReachInteractionTrendChartData, ContentFilters } from '@/charts/getReachInteractionTrendChartData';
+// --- FIM DA CORREÇÃO DE BUILD ---
+import { connectToDatabase } from '@/app/lib/mongoose';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
-
-// Tipos específicos para a resposta da API.
-interface ApiReachEngagementDataPoint {
-  date: string;
-  reach: number | null;
-  totalInteractions: number | null;
-}
-
-interface ReachEngagementChartResponse {
-  chartData: ApiReachEngagementDataPoint[];
-  insightSummary?: string;
-}
-
+import { Types } from 'mongoose';
 
 const ALLOWED_GRANULARITIES: string[] = ["daily", "weekly"];
 
-// --- Função de verificação de tipo (Type Guard) ---
 function isAllowedTimePeriod(period: any): period is TimePeriod {
     return ALLOWED_TIME_PERIODS.includes(period);
 }
 
 export async function GET(
   request: Request,
-  { params }: { params: { userId: string } }
+  { params }: { params: { userId: string } } 
 ) {
   const { userId } = params;
 
   if (!userId || !Types.ObjectId.isValid(userId)) {
-    return NextResponse.json({ error: "User ID inválido ou ausente." }, { status: 400 });
+    return NextResponse.json({ error: 'User ID inválido ou ausente.' }, { status: 400 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -45,38 +36,46 @@ export async function GET(
   const granularity = granularityParam && ALLOWED_GRANULARITIES.includes(granularityParam)
     ? granularityParam as "daily" | "weekly"
     : "daily";
+    
+  const formatParam = searchParams.get('format');
+  const proposalParam = searchParams.get('proposal');
+  const contextParam = searchParams.get('context');
 
-  if (timePeriodParam && !isAllowedTimePeriod(timePeriodParam)) {
-    return NextResponse.json({ error: `Time period inválido. Permitidos: ${ALLOWED_TIME_PERIODS.join(', ')}` }, { status: 400 });
+  const contentFilters: ContentFilters = {};
+  if (formatParam) {
+    contentFilters.format = formatParam.split(',').filter(id => id.trim() !== '');
   }
-  if (granularityParam && !ALLOWED_GRANULARITIES.includes(granularityParam)) {
-    return NextResponse.json({ error: `Granularity inválida. Permitidas: ${ALLOWED_GRANULARITIES.join(', ')}` }, { status: 400 });
+  if (proposalParam) {
+    contentFilters.proposal = proposalParam.split(',').filter(id => id.trim() !== '');
+  }
+  if (contextParam) {
+    contentFilters.context = contextParam.split(',').filter(id => id.trim() !== '');
   }
 
   try {
-    const rawData = await getReachInteractionTrendChartData(
+    await connectToDatabase();
+    
+    // --- INÍCIO DA CORREÇÃO DE BUILD ---
+    // Corrigido o nome da função chamada para corresponder à importação.
+    const userData = await getUserReachInteractionTrendChartData(
       userId,
       timePeriod,
-      granularity
+      granularity,
+      contentFilters
     );
-    const data: ReachEngagementChartResponse = {
-      chartData: rawData.chartData.map((d) => ({
-        date: d.date,
-        reach: d.reach,
-        totalInteractions: d.totalInteractions,
-      })),
-      insightSummary: rawData.insightSummary,
-    };
+    // --- FIM DA CORREÇÃO DE BUILD ---
 
-    if (!data.chartData || data.chartData.length === 0) {
-      data.insightSummary =
-        data.insightSummary || 'Sem dados no período selecionado.';
+    if (!userData) {
+      return NextResponse.json({
+        chartData: [],
+        insightSummary: "Erro ao buscar dados do usuário."
+      }, { status: 500 });
     }
-
-    return NextResponse.json(data, { status: 200 });
+    
+    return NextResponse.json(userData, { status: 200 });
 
   } catch (error) {
-    console.error(`[API TRENDS/REACH-ENGAGEMENT] Error fetching reach & engagement trend data for userId ${userId}:`, error);
+    console.error(`[API USERS/TRENDS/REACH-ENGAGEMENT] Error for user ${userId}:`, error);
     const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
     return NextResponse.json({ error: "Erro ao processar sua solicitação.", details: errorMessage }, { status: 500 });
   }
