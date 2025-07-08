@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useGlobalTimePeriod } from './filters/GlobalTimePeriodContext';
 import { LightBulbIcon } from '@heroicons/react/24/outline';
 import ComparisonTargetSearch, { ComparisonTarget } from './ComparisonTargetSearch';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Legend, Tooltip, ResponsiveContainer } from 'recharts';
@@ -39,6 +40,7 @@ const UserRadarChartComparison: React.FC<UserRadarChartComparisonProps> = ({
   const [chartData, setChartData] = useState<ApiRadarChartResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const { timePeriod: globalTimePeriod } = useGlobalTimePeriod();
 
   // Estado para o perfil ou segmento selecionado para comparação
   // Formato: "type:id", ex: "user:userId123" ou "segment:gamers_tier1"
@@ -76,6 +78,7 @@ const UserRadarChartComparison: React.FC<UserRadarChartComparisonProps> = ({
       setChartData(null);
       return;
     }
+    apiUrl += `&timePeriod=${globalTimePeriod}`;
     // Opcional: adicionar metricSetConfigId se houver diferentes conjuntos de métricas
     // apiUrl += `&metricSetConfigId=default`;
 
@@ -93,7 +96,7 @@ const UserRadarChartComparison: React.FC<UserRadarChartComparisonProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [profile1UserId, comparisonTarget]);
+  }, [profile1UserId, comparisonTarget, globalTimePeriod]);
 
   useEffect(() => {
     // Fetch data if a comparison target is selected and profile1UserId is available

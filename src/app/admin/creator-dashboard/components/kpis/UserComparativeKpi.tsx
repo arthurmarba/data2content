@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import PlatformKpiCard from '../PlatformKpiCard'; // Reutilizar o card de KPI
+import { useGlobalTimePeriod } from '../filters/GlobalTimePeriodContext';
 
 // Tipos de dados da API (espelhando a resposta do endpoint /users/{userId}/kpis/periodic-comparison)
 interface MiniChartDataPoint {
@@ -35,9 +36,18 @@ interface UserComparativeKpiProps {
   userId: string | null;
   kpiName: UserKpiName;
   title: string;
-  comparisonPeriod: string;
+  comparisonPeriod?: string;
   tooltip?: string;
 }
+
+const TIME_PERIOD_TO_COMPARISON: Record<string, string> = {
+  last_7_days: 'last_7d_vs_previous_7d',
+  last_30_days: 'last_30d_vs_previous_30d',
+  last_90_days: 'last_30d_vs_previous_30d',
+  last_6_months: 'month_vs_previous',
+  last_12_months: 'month_vs_previous',
+  all_time: 'month_vs_previous',
+};
 
 const UserComparativeKpi: React.FC<UserComparativeKpiProps> = ({
   userId,
@@ -49,6 +59,9 @@ const UserComparativeKpi: React.FC<UserComparativeKpiProps> = ({
   const [kpiData, setKpiData] = useState<KPIComparisonData | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const { timePeriod } = useGlobalTimePeriod();
+  const effectiveComparisonPeriod =
+    comparisonPeriod || TIME_PERIOD_TO_COMPARISON[timePeriod] || 'month_vs_previous';
   // const [specificInsight, setSpecificInsight] = useState<string | undefined>(undefined); // O insight geral da API pode ser usado se necessário
 
   const fetchData = useCallback(async () => {
@@ -60,7 +73,7 @@ const UserComparativeKpi: React.FC<UserComparativeKpiProps> = ({
     setLoading(true);
     setError(null);
     try {
-      const apiUrl = `/api/v1/users/${userId}/kpis/periodic-comparison?comparisonPeriod=${comparisonPeriod}`;
+      const apiUrl = `/api/v1/users/${userId}/kpis/periodic-comparison?comparisonPeriod=${effectiveComparisonPeriod}`;
       const response = await fetch(apiUrl);
 
       if (!response.ok) {
@@ -85,7 +98,7 @@ const UserComparativeKpi: React.FC<UserComparativeKpiProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [userId, comparisonPeriod, kpiName]);
+  }, [userId, effectiveComparisonPeriod, kpiName]);
 
   useEffect(() => {
     if (userId) {

@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AlertTriangle, Info, Zap, ChevronDown, ChevronUp } from 'lucide-react'; // Usando lucide-react para ícones
 import { LightBulbIcon } from '@heroicons/react/24/outline';
+import { useGlobalTimePeriod } from '../filters/GlobalTimePeriodContext';
+import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
 
 // Tipos espelhando a resposta da API
 enum AlertTypeEnum {
@@ -55,6 +57,7 @@ const UserAlertsWidget: React.FC<UserAlertsWidgetProps> = ({
   const [limit, setLimit] = useState<number>(initialLimit);
   const [expandedAlerts, setExpandedAlerts] = useState<Set<string>>(new Set());
   const [hideNoEventAlerts, setHideNoEventAlerts] = useState<boolean>(false);
+  const { timePeriod: globalTimePeriod } = useGlobalTimePeriod();
 
   const fetchData = useCallback(async () => {
     if (!userId) {
@@ -65,7 +68,7 @@ const UserAlertsWidget: React.FC<UserAlertsWidgetProps> = ({
     setLoading(true);
     setError(null);
     try {
-      const apiUrl = `/api/v1/users/${userId}/alerts/active?limit=${limit}&dedupeNoEventAlerts=true`;
+      const apiUrl = `/api/v1/users/${userId}/alerts/active?limit=${limit}&dedupeNoEventAlerts=true&timePeriod=${globalTimePeriod}`;
       // Adicionar filtros de tipo se necessário no futuro: &types=Type1&types=Type2
       const response = await fetch(apiUrl);
       if (!response.ok) {
@@ -73,14 +76,20 @@ const UserAlertsWidget: React.FC<UserAlertsWidgetProps> = ({
         throw new Error(`Erro HTTP: ${response.status} - ${errorData.error || response.statusText}`);
       }
       const result: UserAlertsResponse = await response.json();
-      setAlertsResponse(result);
+      const today = new Date();
+      const startDate = getStartDateFromTimePeriod(today, globalTimePeriod);
+      const filteredAlerts = result.alerts.filter(a => {
+        const dt = new Date(a.date + 'T00:00:00Z');
+        return dt >= startDate && dt <= today;
+      });
+      setAlertsResponse({ ...result, alerts: filteredAlerts });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ocorreu um erro desconhecido.');
       setAlertsResponse(null);
     } finally {
       setLoading(false);
     }
-  }, [userId, limit]);
+  }, [userId, limit, globalTimePeriod]);
 
   useEffect(() => {
     if (userId) {
