@@ -55,10 +55,10 @@ const ClassificationTags: React.FC<{
   
   return (
     <div>
-      <h5 className="text-xs font-semibold text-gray-500 mb-1">{title}</h5>
-      <div className="flex flex-wrap gap-1">
+      <h5 className="text-sm font-semibold text-gray-500 mb-1">{title}</h5>
+      <div className="flex flex-wrap gap-1 text-sm">
         {labels.map(tag => (
-          <span key={tag} className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${colorClasses}`}>
+          <span key={tag} className={`inline-flex items-center px-2 py-0.5 rounded-md font-medium ${colorClasses}`}>
             {tag}
           </span>
         ))}
@@ -135,11 +135,11 @@ const VideoCard: React.FC<{ video: VideoListItem; index: number; readOnly?: bool
         <div className="col-span-12 md:col-span-4 flex items-start gap-4">
           <img src={video.thumbnailUrl || 'https://placehold.co/96x54/e2e8f0/a0aec0?text=Img'} alt={`Thumbnail para ${video.description || 'post'}`} width={96} height={54} className="rounded-md object-cover flex-shrink-0 mt-1" />
           <div className="flex-grow">
-            <p className="font-semibold text-sm text-gray-800 line-clamp-3" title={video.description}>
+            <p className="font-semibold text-base text-gray-800 line-clamp-3" title={video.description}>
               {readOnly && index === 0 && <FireIcon className="w-4 h-4 text-orange-400 inline-block mr-1.5 align-text-bottom" title="Top Performance"/>}
               {video.description || 'Sem legenda'}
             </p>
-            <p className="text-xs text-gray-500 mt-1">{formatDate(video.postDate)}</p>
+            <p className="text-sm text-gray-500 mt-1">{formatDate(video.postDate)}</p>
           </div>
         </div>
 
@@ -152,29 +152,29 @@ const VideoCard: React.FC<{ video: VideoListItem; index: number; readOnly?: bool
         </div>
 
         <div className="col-span-6 md:col-span-1 text-left md:text-center">
-            <h5 className="text-xs font-semibold text-gray-500 mb-1 md:hidden">Engaj.</h5>
+            <h5 className="text-sm font-semibold text-gray-500 mb-1 md:hidden">Engaj.</h5>
             <div className="font-bold text-base text-pink-600">{calculateEngagementRate(video.stats)}</div>
         </div>
 
         <div className="col-span-6 md:col-span-2">
-            <h5 className="text-xs font-semibold text-gray-500 mb-1 md:hidden">Performance</h5>
-            <div className="flex flex-col space-y-1.5 text-xs">
-                <span className="flex items-center gap-2 text-gray-700"><EyeIcon className="text-gray-400 w-3.5 h-3.5"/> {formatNumber(video.stats?.views)}</span>
-                <span className="flex items-center gap-2 text-gray-700"><HeartIcon className="text-gray-400 w-3.5 h-3.5"/> {formatNumber(video.stats?.likes)}</span>
-                <span className="flex items-center gap-2 text-gray-700"><ChatBubbleOvalLeftEllipsisIcon className="text-gray-400 w-3.5 h-3.5"/> {formatNumber(video.stats?.comments)}</span>
-                <span className="flex items-center gap-2 text-gray-700"><ShareIcon className="text-gray-400 w-3.5 h-3.5"/> {formatNumber(video.stats?.shares)}</span>
-                <span className="flex items-center gap-2 text-gray-700"><BookmarkIcon className="text-gray-400 w-3.5 h-3.5"/> {formatNumber(video.stats?.saves)}</span>
+            <h5 className="text-sm font-semibold text-gray-500 mb-1 md:hidden">Performance</h5>
+            <div className="flex flex-col space-y-1.5 text-sm font-semibold">
+                <span className="flex items-center gap-2 text-gray-700"><EyeIcon className="text-gray-400 w-4 h-4"/> {formatNumber(video.stats?.views)}</span>
+                <span className="flex items-center gap-2 text-gray-700"><HeartIcon className="text-gray-400 w-4 h-4"/> {formatNumber(video.stats?.likes)}</span>
+                <span className="flex items-center gap-2 text-gray-700"><ChatBubbleOvalLeftEllipsisIcon className="text-gray-400 w-4 h-4"/> {formatNumber(video.stats?.comments)}</span>
+                <span className="flex items-center gap-2 text-gray-700"><ShareIcon className="text-gray-400 w-4 h-4"/> {formatNumber(video.stats?.shares)}</span>
+                <span className="flex items-center gap-2 text-gray-700"><BookmarkIcon className="text-gray-400 w-4 h-4"/> {formatNumber(video.stats?.saves)}</span>
             </div>
         </div>
 
         <div className="col-span-12 md:col-span-2 flex flex-row sm:flex-col items-center justify-start sm:justify-center gap-2 pt-2 md:pt-0">
           {onRowClick && (
-            <button onClick={() => onRowClick(video._id)} title="Analisar Detalhes" className="flex items-center justify-center gap-2 w-full px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 transition-colors">
+            <button onClick={() => onRowClick(video._id)} title="Analisar Detalhes" className="flex items-center justify-center gap-2 w-full px-3 py-1.5 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 transition-colors">
               <ChartBarIcon className="w-3.5 h-3.5" />
               <span>Analisar</span>
             </button>
           )}
-          <a href={video.permalink ?? '#'} target="_blank" rel="noopener noreferrer" title="Ver na Rede Social" className="flex items-center justify-center gap-2 w-full px-3 py-1.5 text-xs font-semibold text-white bg-gray-800 rounded-md shadow-sm hover:bg-gray-700 transition-colors">
+          <a href={video.permalink ?? '#'} target="_blank" rel="noopener noreferrer" title="Ver na Rede Social" className="flex items-center justify-center gap-2 w-full px-3 py-1.5 text-sm font-semibold text-white bg-gray-800 rounded-md shadow-sm hover:bg-gray-700 transition-colors">
             <InstagramIcon className="w-3.5 h-3.5" />
             <span>Ver Post</span>
           </a>
@@ -189,11 +189,11 @@ const VideosTable: React.FC<VideosTableProps> = ({ videos, ...props }) => {
   return (
     <div className="space-y-3">
       <div className="hidden md:grid md:grid-cols-12 md:gap-x-4 px-4 py-2 border-b border-gray-200">
-        <h4 className="md:col-span-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Conteúdo</h4>
-        <h4 className="md:col-span-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Classificação</h4>
-        <h4 className="md:col-span-1 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">Engaj.</h4>
-        <h4 className="md:col-span-2 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Performance</h4>
-        <h4 className="md:col-span-2 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">Ações</h4>
+        <h4 className="md:col-span-4 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider">Conteúdo</h4>
+        <h4 className="md:col-span-3 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider">Classificação</h4>
+        <h4 className="md:col-span-1 text-center text-sm font-semibold text-gray-400 uppercase tracking-wider">Engaj.</h4>
+        <h4 className="md:col-span-2 text-left text-sm font-semibold text-gray-400 uppercase tracking-wider">Performance</h4>
+        <h4 className="md:col-span-2 text-center text-sm font-semibold text-gray-400 uppercase tracking-wider">Ações</h4>
       </div>
       
       {videos.map((video, index) => (
