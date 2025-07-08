@@ -133,7 +133,7 @@ const AdminCreatorDashboardContent: React.FC = () => {
         <title>Dashboard Admin - Data2Content</title>
       </Head>
       <div className="min-h-screen bg-brand-light">
-        <header className="bg-white shadow-sm sticky top-0 z-40 border-b border-gray-200">
+        <header className="bg-brand-light sticky top-0 z-40 border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-4 h-16">
               <Link href="/admin/creator-dashboard" className="flex-shrink-0 flex items-center gap-2 group">
