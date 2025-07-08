@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Head from 'next/head';
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -40,22 +40,24 @@ const AdminCreatorDashboardContent: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const nameCache = useRef<Record<string, string>>({});
 
-  // ===== ALTERAÇÃO 1: useEffect SIMPLIFICADO =====
-  // A responsabilidade do useEffect agora é APENAS carregar o estado em um refresh de página (F5) ou link direto.
+  // ===== CORREÇÃO APLICADA: useEffect segue a recomendação do desenvolvedor =====
   useEffect(() => {
     const userIdFromUrl = searchParams.get('userId');
-
-    if (userIdFromUrl && !selectedUserId) {
-      // Esta função placeholder é chamada apenas neste cenário específico.
-      const fetchCreatorName = async (id: string) => `Criador ID: ...${id.slice(-4)}`;
-      fetchCreatorName(userIdFromUrl).then(name => {
+    
+    if (userIdFromUrl) {
+        const knownName = nameCache.current[userIdFromUrl];
+        const finalName = knownName || `Criador ID: ...${userIdFromUrl.slice(-4)}`;
+        
         setSelectedUserId(userIdFromUrl);
-        setSelectedUserName(name);
-      });
+        setSelectedUserName(finalName);
+    } else {
+        setSelectedUserId(null);
+        setSelectedUserName(null);
     }
     setIsInitializing(false);
-  }, [searchParams, selectedUserId]);
+  }, [searchParams]); // A dependência agora é APENAS a URL, como recomendado.
 
   const today = new Date();
   const startDateObj = getStartDateFromTimePeriod(today, globalTimePeriod as TimePeriod);
@@ -64,20 +66,13 @@ const AdminCreatorDashboardContent: React.FC = () => {
   const rankingDateRange = { startDate, endDate };
   const rankingDateLabel = `${startDateObj.toLocaleDateString("pt-BR")} - ${today.toLocaleDateString("pt-BR")}`;
   
-  // A função de selecionar continua com a responsabilidade de definir o estado e a URL.
+  // ===== CORREÇÃO APLICADA: Handlers apenas modificam a URL =====
   const handleUserSelect = useCallback((creator: { id: string; name: string }) => {
-    if (creator.id !== selectedUserId) {
-      setSelectedUserId(creator.id);
-      setSelectedUserName(creator.name);
-      router.push(`${pathname}?userId=${creator.id}`, { scroll: false });
-    }
-  }, [pathname, router, selectedUserId]);
+    nameCache.current[creator.id] = creator.name; // Salva o nome no cache para UX
+    router.push(`${pathname}?userId=${creator.id}`, { scroll: false });
+  }, [pathname, router]);
 
-  // ===== ALTERAÇÃO 2: handleClearSelection volta a limpar o estado diretamente =====
-  // Esta é a forma mais segura de garantir que o estado seja limpo junto com a URL.
   const handleClearSelection = useCallback(() => {
-    setSelectedUserId(null);
-    setSelectedUserName(null);
     router.push(pathname, { scroll: false });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [pathname, router]);
