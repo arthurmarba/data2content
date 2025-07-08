@@ -115,7 +115,7 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
           autoFocus={autoFocus}
           className={`block w-full pl-10 pr-8 py-2 sm:text-sm text-gray-700 dark:text-white focus:outline-none ${
             variant === 'minimal'
-              ? 'bg-brand-light dark:bg-gray-800 border-0 border-b border-gray-200 rounded-none shadow-none focus:border-gray-400 focus:ring-0'
+              ? 'bg-brand-light dark:bg-gray-800 border-0 border-b border-gray-200 rounded-none shadow-none focus:border-gray-400 focus:ring-0 placeholder-gray-500'
               : 'border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-800 dark:border-gray-600'
           }`}
         />
