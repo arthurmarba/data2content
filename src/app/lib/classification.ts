@@ -176,24 +176,49 @@ const flatContextCategories = flattenCategories(contextCategories);
 const flatToneCategories = flattenCategories(toneCategories);
 const flatReferenceCategories = flattenCategories(referenceCategories);
 
-export const getCategoryById = (id: string, type: 'format' | 'proposal' | 'context' | 'tone' | 'reference'): Category | undefined => {
-  let list: Category[];
+const getFlatCategoriesByType = (
+  type: 'format' | 'proposal' | 'context' | 'tone' | 'reference'
+): Category[] => {
   switch (type) {
-    case 'format': list = flatFormatCategories; break;
-    case 'proposal': list = flatProposalCategories; break;
-    case 'context': list = flatContextCategories; break;
-    case 'tone': list = flatToneCategories; break;
-    case 'reference': list = flatReferenceCategories; break;
-    default: return undefined;
+    case 'format':
+      return flatFormatCategories;
+    case 'proposal':
+      return flatProposalCategories;
+    case 'context':
+      return flatContextCategories;
+    case 'tone':
+      return flatToneCategories;
+    case 'reference':
+      return flatReferenceCategories;
+    default:
+      return [];
   }
-  return list.find(cat => cat.id === id);
+};
+
+export const getCategoryById = (
+  id: string,
+  type: 'format' | 'proposal' | 'context' | 'tone' | 'reference'
+): Category | undefined => {
+  return getFlatCategoriesByType(type).find((cat) => cat.id === id);
+};
+
+export const getCategoryByValue = (
+  value: string,
+  type: 'format' | 'proposal' | 'context' | 'tone' | 'reference'
+): Category | undefined => {
+  const list = getFlatCategoriesByType(type);
+  const byId = list.find((cat) => cat.id === value);
+  if (byId) return byId;
+  return list.find(
+    (cat) => cat.label.toLocaleLowerCase() === value.toLocaleLowerCase()
+  );
 };
 
 export const isValidCategoryId = (
   id: string,
   type: 'format' | 'proposal' | 'context' | 'tone' | 'reference'
 ): boolean => {
-  return Boolean(getCategoryById(id, type));
+  return Boolean(getCategoryByValue(id, type));
 };
 
 export function idsToLabels(ids: string[] | undefined, type: 'format'|'proposal'|'context'|'tone'|'reference'): string[] {
