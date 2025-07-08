@@ -40,6 +40,16 @@ const formatWatchTime = (seconds: number): string => {
   return `${m}m ${s}s`;
 };
 
+const formatCompactNumber = (
+  num: number | null | undefined,
+): string | null => {
+  if (num === null || num === undefined) return null;
+  return num.toLocaleString('pt-BR', {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  });
+};
+
 // Sub-componente MetricDisplay e InfoIcon (assumindo que estão definidos em outro lugar ou copiados aqui se necessário)
 // Para este exemplo, vou copiá-los para manter o componente autocontido, mas em um projeto real seriam importados.
 const InfoIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -228,7 +238,7 @@ const UserVideoPerformanceMetrics: React.FC<
             >
               <MetricDisplay
                 label="Visualizações Médias"
-                value={metrics.averageViews !== null ? metrics.averageViews.toFixed(1) : null}
+                value={formatCompactNumber(metrics.averageViews)}
                 tooltip="Média de visualizações por vídeo."
               />
             </div>
@@ -252,7 +262,7 @@ const UserVideoPerformanceMetrics: React.FC<
             >
               <MetricDisplay
                 label="Curtidas Médias"
-                value={metrics.averageLikes !== null ? metrics.averageLikes.toFixed(1) : null}
+                value={formatCompactNumber(metrics.averageLikes)}
                 tooltip="Média de curtidas por vídeo."
               />
             </div>
@@ -262,7 +272,7 @@ const UserVideoPerformanceMetrics: React.FC<
             >
               <MetricDisplay
                 label="Comentários Médios"
-                value={metrics.averageComments !== null ? metrics.averageComments.toFixed(1) : null}
+                value={formatCompactNumber(metrics.averageComments)}
                 tooltip="Média de comentários por vídeo."
               />
             </div>
@@ -282,7 +292,7 @@ const UserVideoPerformanceMetrics: React.FC<
             >
               <MetricDisplay
                 label="Compartilhamentos Médios"
-                value={metrics.averageShares !== null ? metrics.averageShares.toFixed(1) : null}
+                value={formatCompactNumber(metrics.averageShares)}
                 tooltip="Média de compartilhamentos por vídeo."
               />
             </div>
@@ -292,7 +302,7 @@ const UserVideoPerformanceMetrics: React.FC<
             >
               <MetricDisplay
                 label="Salvamentos Médios"
-                value={metrics.averageSaves !== null ? metrics.averageSaves.toFixed(1) : null}
+                value={formatCompactNumber(metrics.averageSaves)}
                 tooltip="Média de salvamentos por vídeo."
               />
             </div>
