@@ -94,7 +94,7 @@ export default function CreatorQuickSearch({
         showClearWhenEmpty={!!selectedCreatorName}
       />
       {showDropdown && (searchTerm || isLoading) && (
-        <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+        <div className="absolute z-10 left-0 top-full mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
           {isLoading && (
             <p className="p-2 text-sm text-gray-500">Carregando...</p>
           )}
