@@ -244,9 +244,6 @@ function generateAffiliateCode(): string {
 const commissionLogEntrySchema = new Schema<ICommissionLogEntry>({/*...*/}, {/*...*/}); // Placeholder for brevity
 const lastCommunityInspirationShownSchema = new Schema<ILastCommunityInspirationShown>({/*...*/}, {/*...*/}); // Placeholder for brevity
 
-// ========== INÍCIO DA CORREÇÃO ==========
-// O schema foi restaurado para a sua definição completa, garantindo que
-// os campos da conta do Instagram sejam salvos corretamente no banco de dados.
 const AvailableInstagramAccountSchema = new Schema<IAvailableInstagramAccount>({
     igAccountId: { type: String, required: true },
     pageId: { type: String, required: true },
@@ -254,7 +251,6 @@ const AvailableInstagramAccountSchema = new Schema<IAvailableInstagramAccount>({
     username: { type: String },
     profile_picture_url: { type: String },
 }, { _id: false });
-// ========== FIM DA CORREÇÃO ==========
 
 const UserPreferencesSchema = new Schema<IUserPreferences>({/*...*/}, {/*...*/}); // Placeholder for brevity
 const UserLongTermGoalSchema = new Schema<IUserLongTermGoal>({/*...*/}, {/*...*/}); // Placeholder for brevity

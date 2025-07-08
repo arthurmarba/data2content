@@ -58,13 +58,10 @@ export async function GET(
     return NextResponse.json(postDetails, { status: 200 });
 
   } catch (error: any) {
-    // --- INÍCIO DA CORREÇÃO ---
-    // A propriedade 'details' foi removida do objeto de log, pois não existe no tipo 'DatabaseError'.
     logger.error(`${TAG} Error in request handler for postId ${postId}:`, {
       message: error.message,
       stack: error.stack,
     });
-    // --- FIM DA CORREÇÃO ---
 
     if (error instanceof DatabaseError) {
       return NextResponse.json({ error: 'Database error', details: error.message }, { status: 500 });

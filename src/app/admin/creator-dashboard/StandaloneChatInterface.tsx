@@ -49,11 +49,9 @@ interface FinalPayload {
   suggestions: string[];
 }
 
-// --- INÍCIO DA CORREÇÃO 1: Adicionar a interface de props ---
 interface StandaloneChatInterfaceProps {
   initialPrompt?: string;
 }
-// --- FIM DA CORREÇÃO 1 ---
 
 // --- CONSTANTS ---
 const DATA_DELIMITER = '---JSON_DATA_PAYLOAD---';
@@ -345,14 +343,11 @@ const ChatInput: FC<{
 };
 
 // --- MAIN CHAT INTERFACE COMPONENT ---
-// --- INÍCIO DA CORREÇÃO 2: Alterar a assinatura do componente para aceitar props ---
 const StandaloneChatInterface: React.FC<StandaloneChatInterfaceProps> = ({ initialPrompt }) => {
-// --- FIM DA CORREÇÃO 2 ---
   const { messages, isLoading, error, visualizations, suggestions, startConversation, askRadarEffectiveness } = useIntelligenceChat();
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // --- INÍCIO DA CORREÇÃO 3: Adicionar useEffect para lidar com o initialPrompt ---
   useEffect(() => {
     // Inicia a conversa automaticamente se um prompt inicial for fornecido e não houver mensagens
     if (initialPrompt && messages.length === 0 && !isLoading) {
@@ -360,7 +355,6 @@ const StandaloneChatInterface: React.FC<StandaloneChatInterfaceProps> = ({ initi
     }
     // A dependência de 'startConversation' garante que a função mais recente seja usada.
   }, [initialPrompt, messages.length, isLoading, startConversation]);
-  // --- FIM DA CORREÇÃO 3 ---
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

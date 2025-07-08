@@ -14,8 +14,6 @@ import {
   getYearWeek,
 } from '@/utils/dateHelpers';
 
-// ===== INÍCIO DA CORREÇÃO =====
-// Tipos atualizados para refletir a mudança de 'engagedUsers' para 'totalInteractions'
 interface ApiChartDataPoint {
   date: string;
   reach: number | null;
@@ -26,7 +24,6 @@ interface ChartResponse {
   chartData: ApiChartDataPoint[];
   insightSummary: string;
 }
-// ===== FIM DA CORREÇÃO =====
 
 const ALLOWED_GRANULARITIES: string[] = ["daily", "weekly"];
 

@@ -112,8 +112,6 @@ export async function GET(
         const sum = window.reduce((acc, curr) => acc + curr.totalDailyEngagement, 0);
         const average = sum / movingAverageWindowInDays;
         
-        // ===== INÍCIO DA CORREÇÃO =====
-        // Adicionada uma verificação para garantir que o ponto atual existe antes de acessá-lo.
         const currentPoint = completeDailyEngagements[i];
         if (currentPoint) {
             movingAverageSeries.push({
@@ -121,7 +119,6 @@ export async function GET(
                 movingAverageEngagement: average,
             });
         }
-        // ===== FIM DA CORREÇÃO =====
     }
 
     // 5. Filtrar a série final para corresponder à janela de dados solicitada
