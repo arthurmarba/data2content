@@ -128,12 +128,13 @@ const CreatorRankingSection: React.FC<Props> = ({
             />
           </div>
           <div className="inline-flex md:block">
-            <TopCreatorsWidget
-              title="Top Criadores"
-              metric="total_interactions"
-              timePeriod={validatedTimePeriod}
-              limit={5}
-            />
+          <TopCreatorsWidget
+            title="Top Criadores"
+            metric="total_interactions"
+            timePeriod={validatedTimePeriod}
+            limit={5}
+            tooltip="Ranking geral com base em interações e alcance"
+          />
           </div>
         </div>
       </div>

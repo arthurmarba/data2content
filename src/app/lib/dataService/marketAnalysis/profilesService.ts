@@ -104,7 +104,17 @@ export async function fetchTopCreators(args: { context: string, metricToSortBy: 
       { $sort: { metricValue: -1 } },
       { $limit: limit },
       ...createBasePipeline(),
-      { $project: { _id: 0, creatorId: '$_id', creatorName: '$creatorInfo.name', totalInteractions: 1, metricValue: 1, postCount: 1 } },
+      {
+        $project: {
+          _id: 0,
+          creatorId: '$_id',
+          creatorName: '$creatorInfo.name',
+          profilePictureUrl: '$creatorInfo.profile_picture_url',
+          totalInteractions: 1,
+          metricValue: 1,
+          postCount: 1,
+        },
+      },
     ];
     return await MetricModel.aggregate(aggregationPipeline);
   } catch (error: any) {
