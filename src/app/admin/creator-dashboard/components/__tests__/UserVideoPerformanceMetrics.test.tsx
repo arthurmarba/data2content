@@ -29,8 +29,10 @@ describe('UserVideoPerformanceMetrics', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          averageRetentionRate: 50,
+          averageViews: 100,
           averageWatchTimeSeconds: 120,
+          averageLikes: 20,
+          averageComments: 5,
           numberOfVideoPosts: 10,
           averageShares: 5,
           averageSaves: 3,
@@ -52,20 +54,20 @@ describe('UserVideoPerformanceMetrics', () => {
       });
   });
 
-  it('opens drill down modal with "retention_rate" when Retenção Média is clicked', async () => {
+  it('opens drill down modal with "views" when Visualizações Médias is clicked', async () => {
     render(<UserVideoPerformanceMetrics userId="u1" />);
-    await waitFor(() => expect(screen.getByText('50.0%')).toBeInTheDocument());
-    fireEvent.click(screen.getByText('Retenção Média'));
+    await waitFor(() => expect(screen.getByText('100')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('Visualizações Médias'));
     expect(MockVideoDrillDownModal).toHaveBeenLastCalledWith(
-      expect.objectContaining({ isOpen: true, drillDownMetric: 'retention_rate' }),
+      expect.objectContaining({ isOpen: true, drillDownMetric: 'views' }),
       {}
     );
-    expect(screen.getByTestId('drilldown-modal')).toHaveTextContent('retention_rate');
+    expect(screen.getByTestId('drilldown-modal')).toHaveTextContent('views');
   });
 
   it('opens drill down modal with "average_video_watch_time_seconds" when Tempo Médio de Visualização is clicked', async () => {
     render(<UserVideoPerformanceMetrics userId="u1" />);
-    await waitFor(() => expect(screen.getByText('50.0%')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('100')).toBeInTheDocument());
     fireEvent.click(screen.getByText('Tempo Médio de Visualização'));
     expect(MockVideoDrillDownModal).toHaveBeenLastCalledWith(
       expect.objectContaining({ isOpen: true, drillDownMetric: 'average_video_watch_time_seconds' }),
@@ -76,7 +78,7 @@ describe('UserVideoPerformanceMetrics', () => {
 
   it('opens drill down modal with "views" when Total de Vídeos Analisados is clicked', async () => {
     render(<UserVideoPerformanceMetrics userId="u1" />);
-    await waitFor(() => expect(screen.getByText('50.0%')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('100')).toBeInTheDocument());
     fireEvent.click(screen.getByText('Total de Vídeos Analisados'));
     expect(MockVideoDrillDownModal).toHaveBeenLastCalledWith(
       expect.objectContaining({ isOpen: true, drillDownMetric: 'views' }),
@@ -87,7 +89,7 @@ describe('UserVideoPerformanceMetrics', () => {
 
   it('opens drill down modal with "views" when "Ver Todos os Vídeos" button is clicked', async () => {
     render(<UserVideoPerformanceMetrics userId="u1" />);
-    await waitFor(() => expect(screen.getByText('50.0%')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('100')).toBeInTheDocument());
     fireEvent.click(screen.getByText('Ver Todos os Vídeos'));
     expect(MockVideoDrillDownModal).toHaveBeenLastCalledWith(
       expect.objectContaining({ isOpen: true, drillDownMetric: 'views' }),

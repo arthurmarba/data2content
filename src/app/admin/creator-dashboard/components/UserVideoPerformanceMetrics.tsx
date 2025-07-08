@@ -8,8 +8,10 @@ import PostDetailModal from "../PostDetailModal";
 import { useGlobalTimePeriod } from "./filters/GlobalTimePeriodContext";
 
 interface VideoMetricsData {
-  averageRetentionRate: number | null;
+  averageViews: number | null;
   averageWatchTimeSeconds: number | null;
+  averageLikes: number | null;
+  averageComments: number | null;
   numberOfVideoPosts: number | null;
   averageShares: number | null;
   averageSaves: number | null;
@@ -128,8 +130,10 @@ const UserVideoPerformanceMetrics: React.FC<
       }
       const result: VideoMetricsResponse = await response.json();
       setMetrics({
-        averageRetentionRate: result.averageRetentionRate,
+        averageViews: result.averageViews,
         averageWatchTimeSeconds: result.averageWatchTimeSeconds,
+        averageLikes: result.averageLikes,
+        averageComments: result.averageComments,
         numberOfVideoPosts: result.numberOfVideoPosts,
         averageShares: result.averageShares ?? null,
         averageSaves: result.averageSaves ?? null,
@@ -217,20 +221,15 @@ const UserVideoPerformanceMetrics: React.FC<
 
       {!loading && !error && metrics && (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-7 gap-3">
             <div
               className="cursor-pointer"
-              onClick={() => handleMetricClick("retention_rate")}
+              onClick={() => handleMetricClick("views")}
             >
               <MetricDisplay
-                label="Retenção Média"
-                value={
-                  metrics.averageRetentionRate !== null
-                    ? metrics.averageRetentionRate.toFixed(1)
-                    : null
-                }
-                unit="%"
-                tooltip="Média da porcentagem de vídeo que os espectadores assistem."
+                label="Visualizações Médias"
+                value={metrics.averageViews !== null ? metrics.averageViews.toFixed(1) : null}
+                tooltip="Média de visualizações por vídeo."
               />
             </div>
             <div
@@ -245,6 +244,26 @@ const UserVideoPerformanceMetrics: React.FC<
                     : null
                 }
                 tooltip="Tempo médio que os espectadores passam assistindo a cada vídeo."
+              />
+            </div>
+            <div
+              className="cursor-pointer"
+              onClick={() => handleMetricClick("likes")}
+            >
+              <MetricDisplay
+                label="Curtidas Médias"
+                value={metrics.averageLikes !== null ? metrics.averageLikes.toFixed(1) : null}
+                tooltip="Média de curtidas por vídeo."
+              />
+            </div>
+            <div
+              className="cursor-pointer"
+              onClick={() => handleMetricClick("comments")}
+            >
+              <MetricDisplay
+                label="Comentários Médios"
+                value={metrics.averageComments !== null ? metrics.averageComments.toFixed(1) : null}
+                tooltip="Média de comentários por vídeo."
               />
             </div>
             <div
