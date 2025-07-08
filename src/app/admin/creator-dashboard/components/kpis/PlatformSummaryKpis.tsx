@@ -113,7 +113,7 @@ const PlatformSummaryKpis: React.FC<PlatformSummaryKpisProps> = ({ startDate, en
         iconClassName="text-indigo-500"
       />
       <PlatformKpiCard
-        title="Pendentes"
+        title="Criadores Pendentes"
         value={data?.pendingCreators ?? null}
         {...buildChange(data?.pendingCreators, prevData?.pendingCreators)}
         isLoading={loading}
