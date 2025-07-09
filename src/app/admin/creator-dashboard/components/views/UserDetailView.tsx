@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import GlobalPeriodIndicator from "../GlobalPeriodIndicator";
 import { ArrowLeftIcon } from '@heroicons/react/24/solid';
+import { UserAvatar } from "@/app/components/UserAvatar";
 
 
 // User-specific charts & metrics
@@ -22,6 +23,7 @@ import UserComparativeKpi from "../kpis/UserComparativeKpi";
 interface UserDetailViewProps {
   userId: string | null;
   userName?: string;
+  userPhotoUrl?: string | null;
   onClear?: () => void;
 }
 
@@ -34,6 +36,7 @@ const KPI_COMPARISON_PERIOD_OPTIONS = [
 const UserDetailView: React.FC<UserDetailViewProps> = ({
   userId,
   userName,
+  userPhotoUrl,
   onClear,
 }) => {
   const [kpiComparisonPeriod, setKpiComparisonPeriod] = useState<string>(
@@ -81,7 +84,9 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
                     </button>
                 )}
                 <h2 className="text-2xl md:text-3xl font-bold text-indigo-700 flex items-center gap-2">
-                  Análise Detalhada: {displayName} <GlobalPeriodIndicator />
+                  <UserAvatar name={displayName} src={userPhotoUrl ?? undefined} size={36} />
+                  <span>{displayName}</span>
+                  <GlobalPeriodIndicator />
                 </h2>
               </div>
           </div>
