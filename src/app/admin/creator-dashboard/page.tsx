@@ -35,26 +35,31 @@ const SkeletonBlock = ({ width = 'w-full', height = 'h-4', className = '' }) => 
 const AdminCreatorDashboardContent: React.FC = () => {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedUserName, setSelectedUserName] = useState<string | null>(null);
+  const [selectedUserPhotoUrl, setSelectedUserPhotoUrl] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const { timePeriod: globalTimePeriod, setTimePeriod: setGlobalTimePeriod } = useGlobalTimePeriod();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const nameCache = useRef<Record<string, string>>({});
+  const photoCache = useRef<Record<string, string | null>>({});
 
   // ===== CORREÇÃO APLICADA: useEffect segue a recomendação do desenvolvedor =====
   useEffect(() => {
     const userIdFromUrl = searchParams.get('userId');
-    
+
     if (userIdFromUrl) {
         const knownName = nameCache.current[userIdFromUrl];
+        const knownPhoto = photoCache.current[userIdFromUrl];
         const finalName = knownName || `Criador ID: ...${userIdFromUrl.slice(-4)}`;
-        
+
         setSelectedUserId(userIdFromUrl);
         setSelectedUserName(finalName);
+        setSelectedUserPhotoUrl(knownPhoto ?? null);
     } else {
         setSelectedUserId(null);
         setSelectedUserName(null);
+        setSelectedUserPhotoUrl(null);
     }
     setIsInitializing(false);
   }, [searchParams]); // A dependência agora é APENAS a URL, como recomendado.
@@ -67,9 +72,11 @@ const AdminCreatorDashboardContent: React.FC = () => {
   const rankingDateLabel = `${startDateObj.toLocaleDateString("pt-BR")} - ${today.toLocaleDateString("pt-BR")}`;
   
   // ===== CORREÇÃO APLICADA: Handlers apenas modificam a URL =====
-  const handleUserSelect = useCallback((creator: { id: string; name: string }) => {
+  const handleUserSelect = useCallback((creator: { id: string; name: string; profilePictureUrl?: string | null }) => {
     nameCache.current[creator.id] = creator.name; // Salva o nome no cache para UX
+    photoCache.current[creator.id] = creator.profilePictureUrl ?? null;
     router.push(`${pathname}?userId=${creator.id}`, { scroll: false });
+    setSelectedUserPhotoUrl(creator.profilePictureUrl ?? null);
   }, [pathname, router]);
 
   const handleClearSelection = useCallback(() => {
@@ -94,6 +101,7 @@ const AdminCreatorDashboardContent: React.FC = () => {
                 <CreatorQuickSearch
                     onSelect={handleUserSelect}
                     selectedCreatorName={selectedUserName}
+                    selectedCreatorPhotoUrl={selectedUserPhotoUrl}
                     onClear={handleClearSelection}
                 />
               </div>
@@ -139,6 +147,7 @@ const AdminCreatorDashboardContent: React.FC = () => {
                 <UserDetailView
                   userId={selectedUserId}
                   userName={selectedUserName ?? undefined}
+                  userPhotoUrl={selectedUserPhotoUrl ?? undefined}
                   onClear={handleClearSelection}
                 />
               )}
@@ -155,5 +164,4 @@ const AdminCreatorDashboardPage: React.FC = () => (
     <AdminCreatorDashboardContent />
   </GlobalTimePeriodProvider>
 );
-
 export default AdminCreatorDashboardPage;

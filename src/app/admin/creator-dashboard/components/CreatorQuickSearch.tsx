@@ -8,7 +8,15 @@ import { useCreatorSearch } from "@/hooks/useCreatorSearch";
 import { XMarkIcon, MagnifyingGlassIcon } from "@heroicons/react/24/solid";
 import { AnimatePresence, motion } from "framer-motion";
 
-const CreatorBadge = ({ name, onClear }: { name: string; onClear: () => void; }) => (
+const CreatorBadge = ({
+  name,
+  photoUrl,
+  onClear,
+}: {
+  name: string;
+  photoUrl?: string | null;
+  onClear: () => void;
+}) => (
   <motion.div
     layoutId="creatorBadge"
     initial={{ opacity: 0, scale: 0.8 }}
@@ -17,6 +25,7 @@ const CreatorBadge = ({ name, onClear }: { name: string; onClear: () => void; })
     transition={{ type: "spring", stiffness: 300, damping: 30 }}
     className="flex items-center gap-2 bg-indigo-100 text-indigo-800 text-sm font-medium px-2 py-1 rounded-full"
   >
+    <UserAvatar name={name} src={photoUrl} size={24} />
     <span>{name}</span>
     <button onClick={onClear} className="p-0.5 rounded-full hover:bg-indigo-200">
       <XMarkIcon className="w-4 h-4" />
@@ -70,14 +79,16 @@ const HighlightMatch = ({ text, highlight }: { text: string; highlight: string }
 };
 
 interface CreatorQuickSearchProps {
-  onSelect: (creator: { id: string; name: string }) => void;
+  onSelect: (creator: { id: string; name: string; profilePictureUrl?: string | null }) => void;
   selectedCreatorName?: string | null;
+  selectedCreatorPhotoUrl?: string | null;
   onClear: () => void;
 }
 
 export default function CreatorQuickSearch({
   onSelect,
   selectedCreatorName,
+  selectedCreatorPhotoUrl,
   onClear,
 }: CreatorQuickSearchProps) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -116,7 +127,7 @@ export default function CreatorQuickSearch({
   }, [showDropdown, creators, highlightIndex, isLoading]);
 
   const handleSelect = (creator: AdminCreatorListItem) => {
-    onSelect({ id: creator._id, name: creator.name });
+    onSelect({ id: creator._id, name: creator.name, profilePictureUrl: creator.profilePictureUrl });
     setSearchTerm("");
     setShowDropdown(false);
   };
@@ -141,7 +152,13 @@ export default function CreatorQuickSearch({
         disabled={!!selectedCreatorName}
       >
         <AnimatePresence>
-          {selectedCreatorName && <CreatorBadge name={selectedCreatorName} onClear={onClear} />}
+          {selectedCreatorName && (
+            <CreatorBadge
+              name={selectedCreatorName}
+              photoUrl={selectedCreatorPhotoUrl}
+              onClear={onClear}
+            />
+          )}
         </AnimatePresence>
       </SearchBar>
 
