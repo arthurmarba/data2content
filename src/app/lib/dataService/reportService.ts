@@ -212,7 +212,7 @@ export async function getRecentPostObjects(
         }
 
         const postsFromMetrics: IMetric[] = await MetricModel.find(query)
-            .select('_id user instagramMediaId type description postDate stats format proposal context')
+            .select('_id user postLink instagramMediaId type description postDate stats format proposal context')
             .sort({ postDate: -1 })
             .limit(100)
             .lean();
@@ -239,6 +239,7 @@ export async function getRecentPostObjects(
             return {
                 _id: metric._id.toString(),
                 userId: metric.user.toString(),
+                postLink: metric.postLink,
                 instagramMediaId: metric.instagramMediaId, // PADRONIZADO
                 type: metric.type as PostObject['type'],
                 description: metric.description,
@@ -278,7 +279,7 @@ export async function getRecentPostObjectsWithAggregatedMetrics(
             user: new Types.ObjectId(userId),
             postDate: { $gte: sinceDate }
         })
-        .select('_id user instagramMediaId type description postDate stats format proposal context')
+        .select('_id user postLink instagramMediaId type description postDate stats format proposal context')
         .sort({ postDate: -1 })
         .limit(150)
         .lean();
@@ -306,6 +307,7 @@ export async function getRecentPostObjectsWithAggregatedMetrics(
             return {
                 _id: metric._id.toString(),
                 userId: metric.user.toString(),
+                postLink: metric.postLink,
                 instagramMediaId: metric.instagramMediaId,
                 type: metric.type as PostObject['type'],
                 description: metric.description,
