@@ -83,11 +83,11 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
                         Voltar para visão geral
                     </button>
                 )}
-                <h2 className="text-2xl md:text-3xl font-bold text-indigo-700 flex items-center gap-2">
+                <h2 className="text-2xl md:text-3xl font-bold text-indigo-700 flex items-center gap-4">
                   <UserAvatar
                     name={displayName}
                     src={userPhotoUrl ?? undefined}
-                    size={48}
+                    size={70}
                   />
                   <span>{displayName}</span>
                   <GlobalPeriodIndicator />
