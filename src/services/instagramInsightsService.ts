@@ -9,13 +9,48 @@ interface DemographicResponse {
   error?: { code: number; message: string; type?: string; error_subcode?: number };
 }
 
+// A forma final dos dados, agora muito mais limpa
 export interface FollowerDemographicsResult {
-  follower_demographics: Record<string, any[]>;
+  follower_demographics: Record<string, Record<string, number>>;
   retrieved_at: string;
 }
 
 function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Transforma a resposta bruta e aninhada da API em um objeto de chave-valor simples.
+ * @param rawData O array 'data' bruto da resposta da API do Instagram.
+ * @returns Um objeto simplificado, ex: { "18-24": 500, "25-34": 800 }.
+ */
+function transformApiResponse(rawData: any[]): Record<string, number> {
+  const transformed: Record<string, number> = {};
+
+  try {
+    // Verifica se os dados brutos têm a estrutura esperada
+    if (!rawData || !rawData[0] || !rawData[0].total_value) {
+      return transformed;
+    }
+
+    const breakdowns = rawData[0].total_value.breakdowns;
+    if (!breakdowns || !breakdowns[0] || !breakdowns[0].results) {
+      return transformed;
+    }
+
+    const results = breakdowns[0].results;
+
+    for (const item of results) {
+      if (item.dimension_values && item.dimension_values.length > 0 && typeof item.value === 'number') {
+        const key = item.dimension_values[0];
+        transformed[key] = item.value;
+      }
+    }
+  } catch (e) {
+    logger.error('[transformApiResponse] Falha ao analisar os dados demográficos brutos', e);
+  }
+
+  return transformed;
 }
 
 export async function fetchFollowerDemographics(
@@ -25,7 +60,7 @@ export async function fetchFollowerDemographics(
   const TAG = '[fetchFollowerDemographics]';
   const baseUrl = `https://graph.facebook.com/${API_VERSION}/${igUserId}/insights`;
 
-  const results: Record<string, any[]> = {};
+  const results: Record<string, Record<string, number>> = {};
 
   for (const breakdown of BREAKDOWNS) {
     let attempts = 0;
@@ -44,10 +79,12 @@ export async function fetchFollowerDemographics(
         const response = await axios.get<DemographicResponse>(baseUrl, { params });
         const duration = Date.now() - start;
         logger.info(`${TAG} ${breakdown} retornado em ${duration}ms`);
+
         if (Array.isArray(response.data?.data)) {
-          results[breakdown] = response.data.data;
+          // **NOVO**: Transforma a resposta bruta em um formato limpo
+          results[breakdown] = transformApiResponse(response.data.data);
         } else {
-          results[breakdown] = [];
+          results[breakdown] = {};
         }
         break;
       } catch (err) {
@@ -62,7 +99,7 @@ export async function fetchFollowerDemographics(
           await sleep(backoff);
         } else if (data?.error?.type === 'OAuthException') {
           logger.error(`${TAG} OAuthException para ${breakdown}: ${message}`);
-          results[breakdown] = [];
+          results[breakdown] = {};
           break;
         } else if (status && status >= 500) {
           if (attempts >= maxAttempts - 1) {
@@ -71,7 +108,7 @@ export async function fetchFollowerDemographics(
           const backoff = 500 * Math.pow(2, attempts);
           await sleep(backoff);
         } else {
-          results[breakdown] = [];
+          results[breakdown] = {};
           break;
         }
       }
@@ -81,4 +118,3 @@ export async function fetchFollowerDemographics(
 
   return { follower_demographics: results, retrieved_at: new Date().toISOString() };
 }
-

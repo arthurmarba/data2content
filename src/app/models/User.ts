@@ -1,8 +1,7 @@
-// @/app/models/User.ts - v1.9.17 (CORRIGIDO)
-// - CORRIGIDO: Restaurada a definição completa do `AvailableInstagramAccountSchema` para garantir a persistência correta dos dados da conta do Instagram.
-// - MANTIDO: Índices nos campos `planStatus` e `inferredExpertiseLevel` para acelerar a filtragem.
-// - MANTIDO: Índice de texto no campo `name` para otimizar a busca.
-import { Schema, model, models, Document, Model, Types } from "mongoose";
+// @/app/models/User.ts - v1.9.18 (CORRIGIDO)
+// - CORRIGIDO: A importação do Mongoose foi ajustada para `import mongoose from 'mongoose'` para resolver o erro "does not provide an export named 'models'".
+// - CORRIGIDO: As chamadas para `models.User` e `model("User", ...)` foram atualizadas para `mongoose.models.User` e `mongoose.model(...)` para alinhar com a nova importação.
+import mongoose, { Schema, Document, Model, Types } from "mongoose";
 import { logger } from "@/app/lib/logger";
 
 // --- INTERFACES ---
@@ -365,10 +364,11 @@ userSchema.pre<IUser>("save", function (next) {
   next();
 });
 
-const UserModel: Model<IUser> = models.User || model<IUser>("User", userSchema);
+// ** CORREÇÃO PRINCIPAL APLICADA AQUI **
+const UserModel: Model<IUser> = mongoose.models.User || mongoose.model<IUser>("User", userSchema);
 
 // Garantir que os índices sejam criados quando o modelo é inicializado
-if (!models.User) {
+if (!mongoose.models.User) {
   UserModel.createIndexes().catch((err) => {
     logger.error(`[User.ts] Erro ao criar índices: ${err}`);
   });

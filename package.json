@@ -13,7 +13,8 @@
     "reset-classification": "tsx --env-file=.env.local ./scripts/resetClassificationStatus.ts",
     "ensure-indexes": "tsx --env-file=.env.local ./scripts/ensureIndexes.ts",
     "force-clean-indexes": "tsx --env-file=.env.local ./scripts/forceCleanIndexes.ts",
-    "fix-formats": "tsx --env-file=.env.local ./scripts/fixFormatLabels.ts"
+    "fix-formats": "tsx --env-file=.env.local ./scripts/fixFormatLabels.ts",
+    "test:demographics": "tsx --env-file=.env.local ./scripts/testDemographics.ts"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.2",
@@ -23,6 +24,7 @@
     "@upstash/qstash": "^2.7.23",
     "@upstash/redis": "^1.34.8",
     "async-retry": "^1.3.3",
+    "axios": "^1.10.0",
     "chart.js": "^4.4.7",
     "date-fns": "^4.1.0",
     "dotenv": "^16.5.0",
