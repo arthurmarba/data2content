@@ -136,3 +136,7 @@ Consulte o diretório `docs` para informações adicionais, incluindo o [plano d
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Instagram Demographics Service
+
+The `src/services/instagramInsightsService.ts` module provides `fetchFollowerDemographics`, which sequentially calls the Instagram Graph API (v23.0) for each demographic breakdown and aggregates the results. A daily cron job (`src/cron/fetchDemographics.ts`) stores the values in Redis under `demographics:<igUserId>` with 24h TTL. The API endpoint `/api/instagram/[userId]/demographics` reads from this cache or fetches fresh data if missing.
