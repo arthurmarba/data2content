@@ -130,9 +130,9 @@ const CreatorRankingSection: React.FC<Props> = ({
           <div className="inline-flex md:block">
           <TopCreatorsWidget
             title="Top Criadores"
-            metric="total_interactions"
             timePeriod={validatedTimePeriod}
             limit={5}
+            compositeRanking={true}
             tooltip="Ranking geral com base em interações e alcance"
           />
           </div>
