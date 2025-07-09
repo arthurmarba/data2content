@@ -88,20 +88,21 @@ const VideoListPreview: React.FC<VideoListPreviewProps> = ({ userId, timePeriod,
             <div
               key={video._id}
               onClick={() => onRowClick && onRowClick(video._id)}
-              className="bg-white border border-gray-100 rounded-md p-3 cursor-pointer space-y-2"
+              className="bg-white border border-gray-100 rounded-md p-3 cursor-pointer space-y-2 md:flex md:items-start md:gap-3 md:space-y-0"
             >
               <img
                 src={video.thumbnailUrl || "https://placehold.co/320x180/e2e8f0/a0aec0?text=Img"}
                 alt={video.caption || "thumbnail"}
-                className="w-full aspect-video object-cover rounded-md"
+                className="w-full aspect-video object-cover rounded-md md:w-32 md:h-auto md:flex-shrink-0"
                 width={320}
                 height={180}
               />
-              <p className="text-base font-medium text-gray-700 line-clamp-2" title={video.caption}>
-                {video.caption || "Sem legenda"}
-              </p>
-              <p className="text-sm text-gray-500">{formatDate(video.postDate)}</p>
-              <div className="flex flex-wrap gap-1 text-sm">
+              <div className="flex-1 space-y-1">
+                <p className="text-base font-medium text-gray-700 line-clamp-2" title={video.caption}>
+                  {video.caption || "Sem legenda"}
+                </p>
+                <p className="text-sm text-gray-500">{formatDate(video.postDate)}</p>
+                <div className="flex flex-wrap gap-1 text-sm">
                 {getLabels(video.format, "format").map((tag) => (
                   <span
                     key={tag}
@@ -143,25 +144,25 @@ const VideoListPreview: React.FC<VideoListPreviewProps> = ({ userId, timePeriod,
                   </span>
                 ))}
               </div>
-              <div className="flex flex-wrap gap-3 text-base text-gray-700 font-semibold">
+              <div className="flex flex-wrap gap-3 text-base text-indigo-600 font-semibold">
                 <span className="flex items-center gap-1">
-                  <EyeIcon className="w-4 h-4 text-gray-500" />
+                  <EyeIcon className="w-4 h-4" />
                   {formatNumber(video.stats?.views)}
                 </span>
                 <span className="flex items-center gap-1">
-                  <HeartIcon className="w-4 h-4 text-gray-500" />
+                  <HeartIcon className="w-4 h-4" />
                   {formatNumber(video.stats?.likes)}
                 </span>
                 <span className="flex items-center gap-1">
-                  <ChatBubbleOvalLeftEllipsisIcon className="w-4 h-4 text-gray-500" />
+                  <ChatBubbleOvalLeftEllipsisIcon className="w-4 h-4" />
                   {formatNumber(video.stats?.comments)}
                 </span>
                 <span className="flex items-center gap-1">
-                  <ShareIcon className="w-4 h-4 text-gray-500" />
+                  <ShareIcon className="w-4 h-4" />
                   {formatNumber(video.stats?.shares)}
                 </span>
                 <span className="flex items-center gap-1">
-                  <BookmarkIcon className="w-4 h-4 text-gray-500" />
+                  <BookmarkIcon className="w-4 h-4" />
                   {formatNumber(video.stats?.saves)}
                 </span>
               </div>
@@ -178,5 +179,4 @@ const VideoListPreview: React.FC<VideoListPreviewProps> = ({ userId, timePeriod,
         </div>
       )}
     </div>
-  );
-};export default VideoListPreview;
+  );};export default VideoListPreview;
