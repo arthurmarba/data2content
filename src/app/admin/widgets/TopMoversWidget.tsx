@@ -191,8 +191,9 @@ const TopMoversWidget = memo(function TopMoversWidget() {
 
       setResults(mockResults);
       if (mockResults.length > 0) {
-        const inc = mockResults.reduce((p, c) => (c.percentageChange > p.percentageChange ? c : p), mockResults[0]);
-        const dec = mockResults.reduce((p, c) => (c.percentageChange < p.percentageChange ? c : p), mockResults[0]);
+        // CORREÇÃO FINAL APLICADA AQUI
+        const inc = mockResults.reduce((p, c) => ((c.percentageChange ?? -Infinity) > (p.percentageChange ?? -Infinity) ? c : p));
+        const dec = mockResults.reduce((p, c) => ((c.percentageChange ?? Infinity) < (p.percentageChange ?? Infinity) ? c : p));
         setSummary(`Maior crescimento: ${inc.entityName} (${formatDisplayPercentageTM(inc.percentageChange)}) / Maior queda: ${dec.entityName} (${formatDisplayPercentageTM(dec.percentageChange)})`);
       } else {
         setSummary(null);

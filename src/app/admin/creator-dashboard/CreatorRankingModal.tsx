@@ -183,7 +183,7 @@ const CreatorRankingModal: React.FC<CreatorRankingModalProps> = ({
             </button>
             <button
               onClick={() => setPage(p => p + 1)}
-              disabled={isLoading || (rankingData && rankingData.length < limit)}
+              disabled={isLoading || !rankingData || rankingData.length < limit}
               className="px-3 py-1 text-sm bg-gray-100 rounded-md disabled:opacity-50"
             >
               Próximo

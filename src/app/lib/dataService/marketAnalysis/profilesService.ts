@@ -212,6 +212,14 @@ export async function fetchTopCreatorsWithScore(args: { context?: string; days: 
     const [minInt, maxInt] = getMinMax(results.map(r => r.avgInteractionsPerPost || 0));
     const [minReach, maxReach] = getMinMax(results.map(r => r.reachPerFollower || 0));
     const [minGrow, maxGrow] = getMinMax(results.map(r => r.followerGrowthRate || 0));
+    
+    // CORREÇÃO: Definição da função normalizeValue
+    const normalizeValue = (value: number, min: number, max: number): number => {
+      if (max === min) {
+        return 0;
+      }
+      return ((value - min) / (max - min)) * 100;
+    };
 
     const scored = results.map(r => {
       const engN = normalizeValue(r.avgEngagementRate, minEng, maxEng);
