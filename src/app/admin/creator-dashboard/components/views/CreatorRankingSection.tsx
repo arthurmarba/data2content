@@ -133,7 +133,7 @@ const CreatorRankingSection: React.FC<Props> = ({
             timePeriod={validatedTimePeriod}
             limit={5}
             compositeRanking={true}
-            tooltip="Ranking geral com base em interações e alcance"
+            tooltip="Score composto: 40% engajamento médio, 30% interações/post, 20% alcance/seguidor e 10% crescimento de seguidores"
           />
           </div>
         </div>

@@ -6,6 +6,7 @@ import { TopCreatorMetric } from '@/app/lib/dataService/marketAnalysisService';
 import { useGlobalTimePeriod } from './components/filters/GlobalTimePeriodContext';
 import { timePeriodToDays } from '@/utils/timePeriodHelpers';
 import { TimePeriod } from '@/app/lib/constants/timePeriods';
+import TopCreatorsModal from './TopCreatorsModal';
 
 const InfoIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg
@@ -52,6 +53,7 @@ const TopCreatorsWidget: React.FC<TopCreatorsWidgetProps> = ({
   const [rankingData, setRankingData] = useState<any[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -180,6 +182,26 @@ const TopCreatorsWidget: React.FC<TopCreatorsWidgetProps> = ({
           </svg>
           Nenhum dado disponível para o período selecionado.
         </div>
+      )}
+      {compositeRanking && (
+        <>
+          <div className="mt-3 text-right">
+            <button onClick={() => setIsModalOpen(true)} className="text-xs text-indigo-600 hover:underline">
+              Ver mais
+            </button>
+          </div>
+          <TopCreatorsModal
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            title={compositeRanking ? 'Top Criadores (Score)' : title}
+            context={context}
+            metric={metric}
+            timePeriod={effectiveTimePeriod}
+            metricLabel={metricLabel}
+            compositeRanking={compositeRanking}
+            limit={20}
+          />
+        </>
       )}
     </div>
   );
