@@ -3,7 +3,8 @@ import { logger } from '@/app/lib/logger';
 import { IUser } from '@/app/models/User';
 import { IMetricStats } from '@/app/models/Metric';
 // ATUALIZADO: Importa IDemographicBreakdown
-import { IAccountInsightsPeriod, IAudienceDemographics, IDemographicBreakdown } from '@/app/models/AccountInsight';
+import { IAccountInsightsPeriod } from '@/app/models/AccountInsight';
+import { IAudienceDemographics, IDemographicBreakdown } from '@/app/models/demographics/AudienceDemographicSnapshot';
 import {
   API_VERSION,
   BASE_URL,

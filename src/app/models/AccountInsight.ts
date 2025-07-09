@@ -2,26 +2,9 @@
 // - CONSOLIDAÇÃO: Os índices foram revisados e consolidados para otimizar as consultas principais do dashboard.
 // - LIMPEZA: Removido índice do campo `fetchDate` que está sendo depreciado em favor de `recordedAt`.
 import { Schema, model, models, Document, Model, Types } from "mongoose";
+import { IAudienceDemographics, IDemographicBreakdown } from './demographics/AudienceDemographicSnapshot';
 
-// --- INTERFACES (sem alterações) ---
-interface IDemographicBreakdown {
-  value: string;
-  count: number;
-}
-interface IAudienceDemographics {
-  follower_demographics?: {
-    city?: IDemographicBreakdown[];
-    country?: IDemographicBreakdown[];
-    age?: IDemographicBreakdown[];
-    gender?: IDemographicBreakdown[];
-  };
-  engaged_audience_demographics?: {
-    city?: IDemographicBreakdown[];
-    country?: IDemographicBreakdown[];
-    age?: IDemographicBreakdown[];
-    gender?: IDemographicBreakdown[];
-  };
-}
+// --- INTERFACES ---
 interface IAccountInsightsPeriod {
   period: string;
   views?: number;
