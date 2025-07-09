@@ -155,7 +155,9 @@ export async function POST(request: NextRequest) {
                 userWithCode.whatsappVerified = true;
                 await userWithCode.save();
                 const userFirstNameForReply = userWithCode.name ? userWithCode.name.split(' ')[0] : '';
-                reply = `Olá ${userFirstNameForReply}! Seu número de WhatsApp (${fromPhone}) foi vinculado com sucesso à sua conta.`;
+                reply = `Olá ${userFirstNameForReply}, me chamo Tuca! Seu número de WhatsApp (${fromPhone}) foi vinculado com sucesso à sua conta. A partir de agora serei seu assistente de métricas e insights via WhatsApp. 👋
+Vou acompanhar em tempo real o desempenho dos seus conteúdos, enviar resumos diários com os principais indicadores e sugerir dicas práticas para você melhorar seu engajamento. Sempre que quiser consultar alguma métrica, receber insights sobre seus posts ou configurar alertas personalizados, é só me chamar por aqui. Estou à disposição para ajudar você a crescer de forma inteligente!
+Você pode começar me pedindo um planejamento de conteudo que otimize seu alcance. :)`;
                 logger.info(`${verifyTag} Número ${fromPhone} vinculado com sucesso ao usuário ${userWithCode._id}.`);
             } else {
                 const userFirstNameForReply = userWithCode.name ? userWithCode.name.split(' ')[0] : '';
