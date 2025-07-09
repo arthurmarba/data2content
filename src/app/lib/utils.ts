@@ -18,6 +18,7 @@ const UTILS_TAG = '[Utils v3.1]'; // Versão atualizada
  */
 export interface PostObjectForAverage {
     _id: string; // ID interno da métrica/post
+    postLink?: string;
     instagramMediaId?: string; // NOVO: ID da mídia no Instagram (fonte para platformPostId)
     type?: 'IMAGE' | 'CAROUSEL' | 'REEL' | 'VIDEO' | 'STORY' | string;
     postDate: Date | string;

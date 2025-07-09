@@ -156,6 +156,7 @@ export interface CommunityInspirationFilters {
 export interface PostObject {
     _id: string;
     userId: string;
+    postLink?: string;
     platformPostId?: string; // Pode coexistir se necessário, ou ser removido se instagramMediaId for o padrão nesta camada
     instagramMediaId?: string; // <-- ADICIONADO PARA CORRIGIR O ERRO EM reportService.ts
     type: string; 
