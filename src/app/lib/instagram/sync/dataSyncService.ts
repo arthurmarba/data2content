@@ -22,7 +22,8 @@ import {
   FetchBasicAccountDataResult,
 } from '../types';
 import { IMetricStats } from '@/app/models/Metric'; // IMetricStats já inclui as métricas calculadas (após Passo 1)
-import { IAccountInsightsPeriod, IAudienceDemographics } from '@/app/models/AccountInsight';
+import { IAccountInsightsPeriod } from '@/app/models/AccountInsight';
+import { IAudienceDemographics } from '@/app/models/demographics/AudienceDemographicSnapshot';
 import {
   fetchBasicAccountData,
   fetchInstagramMedia,

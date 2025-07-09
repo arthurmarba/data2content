@@ -2,7 +2,8 @@
 import mongoose, { Types } from 'mongoose';
 import { logger } from '@/app/lib/logger';
 import { connectToDatabase } from '@/app/lib/mongoose';
-import AccountInsightModel, { IAccountInsight, IAccountInsightsPeriod, IAudienceDemographics } from '@/app/models/AccountInsight';
+import AccountInsightModel, { IAccountInsight, IAccountInsightsPeriod } from '@/app/models/AccountInsight';
+import AudienceDemographicSnapshotModel, { IAudienceDemographics } from '@/app/models/demographics/AudienceDemographicSnapshot';
 import { IUser } from '@/app/models/User'; // Para os dados básicos da conta em accountDetails
 
 /**
@@ -26,17 +27,19 @@ export async function saveAccountInsightData(
   logger.debug(`${TAG} Preparando snapshot de dados da conta para User ${userId}, IG Account ${accountId}...`);
 
   try {
+    const recordedAt = new Date();
     const snapshot: Partial<IAccountInsight> = {
       user: userId,
       instagramAccountId: accountId,
-      recordedAt: new Date(), // Timestamp de quando o snapshot foi gravado
+      recordedAt,
     };
 
     if (insights && Object.keys(insights).length > 0) {
       snapshot.accountInsightsPeriod = insights;
     }
 
-    if (demographics && (demographics.follower_demographics || demographics.engaged_audience_demographics)) {
+    const hasDemographics = demographics && (demographics.follower_demographics || demographics.engaged_audience_demographics);
+    if (hasDemographics) {
       snapshot.audienceDemographics = demographics;
     }
 
@@ -80,6 +83,14 @@ export async function saveAccountInsightData(
     if (hasDataToSave) {
       await connectToDatabase();
       await AccountInsightModel.create(snapshot);
+      if (hasDemographics) {
+        await AudienceDemographicSnapshotModel.create({
+          user: userId,
+          instagramAccountId: accountId,
+          recordedAt,
+          demographics: demographics as IAudienceDemographics,
+        });
+      }
       logger.info(`${TAG} Snapshot de dados da conta salvo com sucesso para User ${userId}. Insights: ${!!snapshot.accountInsightsPeriod}, Demo: ${!!snapshot.audienceDemographics}, Details: ${!!snapshot.accountDetails}`);
     } else {
       logger.warn(`${TAG} Nenhum dado novo de insights, demografia ou detalhes da conta para salvar no snapshot para User ${userId}. Nenhum registro de AccountInsight criado.`);
