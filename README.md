@@ -139,4 +139,4 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 ## Instagram Demographics Service
 
-The `src/services/instagramInsightsService.ts` module provides `fetchFollowerDemographics`, which sequentially calls the Instagram Graph API (v23.0) for each demographic breakdown and aggregates the results. A daily cron job (`src/cron/fetchDemographics.ts`) stores the values in Redis under `demographics:<igUserId>` with 24h TTL. The API endpoint `/api/instagram/[userId]/demographics` reads from this cache or fetches fresh data if missing.
+The `src/services/instagramInsightsService.ts` module provides `fetchFollowerDemographics`, which sequentially calls the Instagram Graph API (v23.0) for each demographic breakdown and aggregates the results. A daily cron job (`src/cron/fetchDemographics.ts`) now saves each snapshot to MongoDB while also caching the raw result in Redis under `demographics:<igUserId>` with 24h TTL. The API endpoint `/api/instagram/[userId]/demographics` reads from this cache or fetches fresh data if missing, persisting new snapshots to the database as well.
