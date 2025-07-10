@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { BRAZIL_STATE_GRID, BrazilStateTile } from "@/data/brazilStateGrid";
+import { BRAZIL_REGION_STATES } from "@/data/brazilRegions";
 
 interface CityBreakdown {
   count: number;
@@ -33,6 +34,7 @@ function getColor(value: number, max: number) {
 export default function CreatorRegionHeatmap() {
   const [data, setData] = useState<Record<string, StateBreakdown>>({});
   const [gender, setGender] = useState("");
+  const [region, setRegion] = useState("");
   const [minAge, setMinAge] = useState("");
   const [maxAge, setMaxAge] = useState("");
   const [tooltip, setTooltip] = useState<{ x: number; y: number; state: StateBreakdown } | null>(null);
@@ -40,6 +42,7 @@ export default function CreatorRegionHeatmap() {
   const fetchData = useCallback(async () => {
     const params = new URLSearchParams();
     if (gender) params.set("gender", gender);
+    if (region) params.set("region", region);
     if (minAge) params.set("minAge", minAge);
     if (maxAge) params.set("maxAge", maxAge);
     const res = await fetch(`/api/admin/creators/region-summary?${params.toString()}`);
@@ -51,7 +54,7 @@ export default function CreatorRegionHeatmap() {
     } else {
       setData({});
     }
-  }, [gender, minAge, maxAge]);
+  }, [gender, region, minAge, maxAge]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -61,6 +64,12 @@ export default function CreatorRegionHeatmap() {
     <div className="bg-white p-4 rounded-lg shadow-md border border-gray-200">
       <h3 className="text-md font-semibold text-gray-700 mb-2">Distribui\u00E7\u00E3o de Criadores</h3>
       <div className="flex items-end space-x-2 mb-4">
+        <select className="border p-1 text-sm" value={region} onChange={e => setRegion(e.target.value)}>
+          <option value="">Todas as Regiões</option>
+          {Object.keys(BRAZIL_REGION_STATES).map(r => (
+            <option key={r} value={r}>{r}</option>
+          ))}
+        </select>
         <select className="border p-1 text-sm" value={gender} onChange={e => setGender(e.target.value)}>
           <option value="">Todos os G\u00EAneros</option>
           <option value="male">Masculino</option>
@@ -107,7 +116,15 @@ export default function CreatorRegionHeatmap() {
           <div className="font-semibold mb-1">{tooltip.state.state}</div>
           <div>Total: {tooltip.state.count}</div>
           {Object.entries(tooltip.state.cities).slice(0, 5).map(([city, info]) => (
-            <div key={city}>{city}: {info.count}</div>
+            <div key={city} className="mt-1">
+              <div className="font-semibold">{city}: {info.count}</div>
+              <div className="pl-2">{`M: ${info.gender.male || 0} F: ${info.gender.female || 0} O: ${info.gender.other || 0}`}</div>
+              <div className="pl-2 flex flex-wrap gap-1">
+                {Object.entries(info.age).map(([group, c]) => (
+                  <span key={group}>{group}:{c}</span>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       )}
