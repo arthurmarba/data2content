@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { BRAZIL_STATE_GRID, BrazilStateTile } from "@/data/brazilStateGrid";
 import { BRAZIL_REGION_STATES } from "@/data/brazilRegions";
 
@@ -37,6 +37,8 @@ export default function CreatorRegionHeatmap() {
   const [region, setRegion] = useState("");
   const [minAge, setMinAge] = useState("");
   const [maxAge, setMaxAge] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; state: StateBreakdown } | null>(null);
 
@@ -44,27 +46,33 @@ export default function CreatorRegionHeatmap() {
     fetchData();
   };
 
-  async function fetchData() {
-    const params = new URLSearchParams();
-    if (gender) params.set("gender", gender);
-    if (region) params.set("region", region);
-    if (minAge) params.set("minAge", minAge);
-    if (maxAge) params.set("maxAge", maxAge);
-    const res = await fetch(`/api/admin/creators/region-summary?${params.toString()}`);
-    if (res.ok) {
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      if (gender) params.set("gender", gender);
+      if (region) params.set("region", region);
+      if (minAge) params.set("minAge", minAge);
+      if (maxAge) params.set("maxAge", maxAge);
+      const res = await fetch(`/api/admin/creators/region-summary?${params.toString()}`);
+      if (!res.ok) throw new Error(res.statusText);
       const json: ApiResponse = await res.json();
       const map: Record<string, StateBreakdown> = {};
       json.states.forEach(s => { map[s.state] = s; });
       setData(map);
-    } else {
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao buscar dados');
       setData({});
+    } finally {
+      setLoading(false);
     }
-  }
+  }, [gender, region, minAge, maxAge]);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  const maxCount = Math.max(0, ...Object.values(data).map(d => d.count));
-  const hasData = Object.keys(data).length > 0;
+  const maxCount = useMemo(() => Math.max(0, ...Object.values(data).map(d => d.count)), [data]);
+  const hasData = useMemo(() => Object.keys(data).length > 0, [data]);
 
   return (
     <div ref={containerRef} className="relative bg-white p-4 rounded-lg shadow-md border border-gray-200">
@@ -91,7 +99,13 @@ export default function CreatorRegionHeatmap() {
           Aplicar
         </button>
       </div>
-      {hasData ? (
+      {loading && (
+        <p className="text-center text-sm text-gray-500">Carregando...</p>
+      )}
+      {!loading && error && (
+        <p className="text-center text-sm text-red-500">Erro: {error}</p>
+      )}
+      {!loading && hasData ? (
         <svg
           width={TILE_SIZE * 9}
           height={TILE_SIZE * 11}
@@ -138,7 +152,9 @@ export default function CreatorRegionHeatmap() {
           })}
         </svg>
       ) : (
-        <p className="text-center text-sm text-gray-500">Sem dados para os filtros selecionados.</p>
+        !loading && !error && (
+          <p className="text-center text-sm text-gray-500">Sem dados para os filtros selecionados.</p>
+        )
       )}
       {tooltip && (
         <div
