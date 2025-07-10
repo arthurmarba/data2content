@@ -1,6 +1,6 @@
 /**
  * @fileoverview Serviço para buscar e gerenciar posts.
- * @version 1.9.1 - Corrigida a projeção de dados em findUserVideoPosts para aninhar 'stats'.
+ * @version 1.9.2 - Refinada a busca de vídeos para compatibilidade com 'views' e 'video_views'.
  */
 
 import { PipelineStage, Types } from 'mongoose';
@@ -15,7 +15,7 @@ import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
 import { TimePeriod } from '@/app/lib/constants/timePeriods';
 import { getInstagramConnectionDetails } from '@/app/lib/instagram/db/userActions';
 import fetch from 'node-fetch';
-import User from '@/app/models/User'; // Importação necessária para a nova função
+import User from '@/app/models/User';
 
 const SERVICE_TAG = '[dataService][postsService]';
 
@@ -219,6 +219,7 @@ export async function findUserVideoPosts({
     const skip = (page - 1) * limit;
 
     const sortField = sortBy === 'stats.views' ? 'viewsSortable' : sortBy;
+    
     const videosPipeline: PipelineStage[] = [
       { $match: matchStage },
       { $addFields: { viewsSortable: { $ifNull: ['$stats.views', '$stats.video_views'] } } },
