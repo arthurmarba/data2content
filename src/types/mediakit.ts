@@ -38,6 +38,7 @@ export interface KpiComparison {
   totalEngagement: KPIComparisonData;
   postingFrequency: KPIComparisonData;
   avgViewsPerPost: KPIComparisonData;
+  avgLikesPerPost: KPIComparisonData;
   avgCommentsPerPost: KPIComparisonData;
   avgSharesPerPost: KPIComparisonData;
   avgSavesPerPost: KPIComparisonData;
@@ -48,6 +49,7 @@ export interface KpiComparison {
     totalEngagement?: string;
     postingFrequency?: string;
     avgViewsPerPost?: string;
+    avgLikesPerPost?: string;
     avgCommentsPerPost?: string;
     avgSharesPerPost?: string;
     avgSavesPerPost?: string;

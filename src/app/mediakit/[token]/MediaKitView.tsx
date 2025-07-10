@@ -298,6 +298,7 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
                     {isLoading ? <FaIcon path={ICONS.spinner} className="animate-spin text-pink-500 mx-auto my-10 h-6 w-6" /> : (
                       <div className="space-y-1">
                         <AverageMetricRow icon={<FaIcon path={ICONS.eye} className="w-4 h-4"/>} label="Visualizações" value={kpiData?.avgViewsPerPost?.currentValue} />
+                        <AverageMetricRow icon={<FaIcon path={ICONS.heart} className="w-4 h-4"/>} label="Curtidas" value={kpiData?.avgLikesPerPost?.currentValue} />
                         <AverageMetricRow icon={<FaIcon path={ICONS.comments} className="w-4 h-4"/>} label="Comentários" value={kpiData?.avgCommentsPerPost?.currentValue} />
                         <AverageMetricRow icon={<FaIcon path={ICONS.share} className="w-4 h-4"/>} label="Compartilhamentos" value={kpiData?.avgSharesPerPost?.currentValue} />
                         <AverageMetricRow icon={<FaIcon path={ICONS.bookmark} className="w-4 h-4"/>} label="Salvos" value={kpiData?.avgSavesPerPost?.currentValue} />
