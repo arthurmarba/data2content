@@ -10,6 +10,7 @@ const querySchema = z.object({
   gender: z.enum(['male', 'female', 'other']).optional(),
   minAge: z.coerce.number().int().positive().optional(),
   maxAge: z.coerce.number().int().positive().optional(),
+  region: z.enum(['Norte', 'Nordeste', 'Centro-Oeste', 'Sudeste', 'Sul']).optional(),
 });
 
 export async function GET(req: NextRequest) {

@@ -1,6 +1,7 @@
 import { connectToDatabase } from '@/app/lib/mongoose';
 import UserModel from '@/app/models/User';
 import { logger } from '@/app/lib/logger';
+import { getStatesByRegion } from '@/data/brazilRegions';
 
 export interface CityBreakdown {
   count: number;
@@ -20,6 +21,7 @@ interface Filters {
   gender?: string;
   minAge?: number;
   maxAge?: number;
+  region?: string;
 }
 
 function getAge(date: Date): number {
@@ -42,6 +44,12 @@ export default async function aggregateCreatorsByRegion(filters: Filters = {}): 
   const query: any = { 'location.country': 'BR' };
   if (filters.gender) {
     query.gender = filters.gender;
+  }
+  if (filters.region) {
+    const states = getStatesByRegion(filters.region);
+    if (states.length > 0) {
+      query['location.state'] = { $in: states };
+    }
   }
 
   const docs = await UserModel.find(query)

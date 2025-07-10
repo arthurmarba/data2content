@@ -35,4 +35,17 @@ describe('aggregateCreatorsByRegion', () => {
     expect(sp.count).toBe(2);
     expect(sp.cities['Sao Paulo'].count).toBe(1);
   });
+
+  it('applies region filter when provided', async () => {
+    mockFind.mockReturnValue({
+      select: () => ({ lean: () => Promise.resolve([]) })
+    });
+
+    await aggregateCreatorsByRegion({ region: 'Sudeste' });
+
+    expect(mockFind).toHaveBeenCalledWith({
+      'location.country': 'BR',
+      'location.state': { $in: ['ES', 'MG', 'RJ', 'SP'] },
+    });
+  });
 });
