@@ -108,10 +108,16 @@ export async function fetchPostDetails(args: IPostDetailsArgs): Promise<IPostDet
         .find({ metric: new Types.ObjectId(postId) })
         .sort({ date: 1 })
         .lean<IDailyMetricSnapshot[]>();
+      const unifiedStats = {
+        ...postData.stats,
+        views:
+          postData.stats?.views ?? postData.stats?.video_views ?? null,
+      };
+
       const result: IPostDetailsData = {
         ...(postData as any),
         _id: postData._id,
-        stats: postData.stats,
+        stats: unifiedStats,
         dailySnapshots: fetchedDailySnapshots,
       };
       return result;
