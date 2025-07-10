@@ -34,6 +34,48 @@ const ICONS = {
   mapPin: "M215.7 499.2C267 435 384 279.4 384 192C384 86 298 0 192 0S0 86 0 192c0 87.4 117 243 168.3 307.2c12.3 15.3 35.1 15.3 47.4 0zM192 256c-35.3 0-64-28.7-64-64s28.7-64 64-64s64 28.7 64 64s-28.7 64-64 64z"
 };
 
+// --- Micro-Componentes Internos ---
+
+const KeyMetric: React.FC<{ icon: React.ReactNode; value: string; label: string }> = ({ icon, value, label }) => (
+  <div className="flex flex-col items-center text-center p-2">
+    <div className="text-pink-500">{icon}</div>
+    <p className="mt-1 text-xl font-bold text-gray-900">{value}</p>
+    <p className="text-xs text-gray-500 mt-1">{label}</p>
+  </div>
+);
+
+const TrendIndicator: React.FC<{ value: number | null }> = ({ value }) => {
+  if (value === null || value === undefined) return null;
+  const isPositive = value >= 0;
+  const colorClass = isPositive ? 'text-green-600' : 'text-red-600';
+  const Icon = isPositive ? <FaIcon path={ICONS.arrowUp} /> : <FaIcon path={ICONS.arrowDown} />;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 ml-2 text-xs font-semibold`}
+      title={`Variação de ${value.toFixed(1)}% em relação ao período anterior`}
+    >
+      <span className={`w-2.5 h-2.5 ${colorClass}`}>{Icon}</span>
+      <span className={colorClass}>{Math.abs(value).toFixed(1)}%</span>
+    </span>
+  );
+};
+
+const KpiValue: React.FC<{ value: number | null | undefined; type: 'number' | 'percent' }> = ({ value, type }) => {
+  const [formattedValue, setFormattedValue] = useState<string>('...');
+  useEffect(() => {
+    if (value === null || value === undefined) {
+      setFormattedValue('N/A');
+      return;
+    }
+    if (type === 'percent') {
+      setFormattedValue(`${value.toFixed(2)}%`);
+    } else {
+      setFormattedValue(`+${value.toLocaleString('pt-BR')}`);
+    }
+  }, [value, type]);
+  return <>{formattedValue}</>;
+};
+
 // --- Funções Auxiliares de Demografia ---
 
 const getTopEntry = (data: Record<string, number> | undefined): [string, number] | null => {
@@ -207,14 +249,89 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
                   {PERIOD_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
               </div>
-              {/* ... resto do card de performance ... */}
+              <div className={`transition-opacity duration-300 ${isLoading ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
+                <div className="mb-4">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Números-Chave</h3>
+                  <div className="grid grid-cols-3 divide-x divide-gray-200 bg-gray-50 p-2 rounded-lg">
+                    <KeyMetric icon={<FaIcon path={ICONS.users}/>} value={compactNumberFormat(kpiData?.avgReachPerPost?.currentValue ?? null)} label="Alcance Médio" />
+                    <KeyMetric icon={<FaIcon path={ICONS.heart}/>} value={`${kpiData?.engagementRate?.currentValue?.toFixed(2) ?? '0'}%`} label="Taxa de Engaj." />
+                    <KeyMetric icon={<FaIcon path={ICONS.calendar}/>} value={`${kpiData?.postingFrequency?.currentValue?.toFixed(1) ?? '0'}`} label="Posts/Semana" />
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Médias Detalhadas por Post</h3>
+                  <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
+                    {isLoading ? <FaIcon path={ICONS.spinner} className="animate-spin text-pink-500 mx-auto my-10 h-6 w-6" /> : (
+                      <div className="space-y-1">
+                        <AverageMetricRow icon={<FaIcon path={ICONS.eye} className="w-4 h-4"/>} label="Visualizações" value={kpiData?.avgViewsPerPost?.currentValue} />
+                        <AverageMetricRow icon={<FaIcon path={ICONS.comments} className="w-4 h-4"/>} label="Comentários" value={kpiData?.avgCommentsPerPost?.currentValue} />
+                        <AverageMetricRow icon={<FaIcon path={ICONS.share} className="w-4 h-4"/>} label="Compartilhamentos" value={kpiData?.avgSharesPerPost?.currentValue} />
+                        <AverageMetricRow icon={<FaIcon path={ICONS.bookmark} className="w-4 h-4"/>} label="Salvos" value={kpiData?.avgSavesPerPost?.currentValue} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {kpiData && !isLoading && (
+                  <div className="space-y-4 pt-4 border-t border-gray-100">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-2">Crescimento de Seguidores</h3>
+                    <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
+                      {user.followers_count !== undefined && (
+                        <p className="text-2xl font-bold text-gray-900 mt-1">
+                          {user.followers_count.toLocaleString('pt-BR')}
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-500">Seguidores totais</p>
+                      <p className="text-sm text-gray-700 mt-3 flex items-center">
+                        <KpiValue value={kpiData.followerGrowth?.currentValue} type="number" />
+                        <TrendIndicator value={kpiData.followerGrowth?.percentageChange ?? null} />
+                        <span className="ml-1 text-gray-500">no período selecionado</span>
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </motion.div>
           </aside>
 
           <main className="lg:col-span-2 space-y-8">
-            {/* ... Conteúdo Principal - Tabela de Vídeos ... */}
+            <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={0.5} className={cardStyle}>
+              <div className="flex items-center gap-3 mb-6">
+                <FaIcon path={ICONS.trophy} className="w-6 h-6 text-pink-500" />
+                <h2 className="text-2xl font-bold text-gray-800">Top Posts em Performance</h2>
+              </div>
+              <p className="text-gray-600 mb-6 font-light">Uma amostra do conteúdo de maior impacto, agora com a classificação completa. <span className="font-medium text-gray-700">Clique em um post para ver a análise detalhada.</span></p>
+
+              <VideosTable
+                videos={videos}
+                readOnly
+                onRowClick={handleVideoClick}
+              />
+            </motion.div>
           </main>
         </div>
+
+        <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={2}>
+          <div className="mt-12 bg-gray-800 text-white text-center p-8 lg:p-12 rounded-xl shadow-2xl">
+            <FaIcon path={ICONS.envelope} className="w-10 h-10 mx-auto mb-4 text-pink-500"/>
+
+            <h3 className="text-3xl lg:text-4xl font-bold mb-3">
+              Inteligência Criativa: A Fórmula da Alta Performance.
+            </h3>
+
+            <p className="mb-8 text-gray-300 max-w-2xl mx-auto font-light">
+              Nós decodificamos o DNA da audiência de cada criador. Com dados exclusivos, guiamos a narrativa da sua campanha, definindo o formato, contexto e horário ideais para gerar o máximo de engajamento e compartilhamentos.
+            </p>
+
+            <a
+              href="mailto:arthur@data2content.ai?subject=Desenho de Campanha Inteligente para [Nome da Marca]"
+              className="inline-block bg-pink-500 text-white px-10 py-4 rounded-lg font-semibold text-lg hover:bg-pink-600 transform hover:scale-105 transition-all duration-300 shadow-lg"
+            >
+              Desenhar Campanha Inteligente
+            </a>
+          </div>
+        </motion.div>
       </div>
 
       <PostDetailModal
