@@ -1,0 +1,116 @@
+"use client";
+
+import React, { useState, useEffect, useCallback } from "react";
+import { BRAZIL_STATE_GRID, BrazilStateTile } from "@/data/brazilStateGrid";
+
+interface CityBreakdown {
+  count: number;
+  gender: Record<string, number>;
+  age: Record<string, number>;
+}
+
+interface StateBreakdown {
+  state: string;
+  count: number;
+  gender: Record<string, number>;
+  age: Record<string, number>;
+  cities: Record<string, CityBreakdown>;
+}
+
+interface ApiResponse {
+  states: StateBreakdown[];
+}
+
+const TILE_SIZE = 32;
+const COLORS = ["#fee5d9", "#fcae91", "#fb6a4a", "#de2d26", "#a50f15"];
+
+function getColor(value: number, max: number) {
+  if (max === 0) return COLORS[0];
+  const idx = Math.min(COLORS.length - 1, Math.floor((value / max) * COLORS.length));
+  return COLORS[idx];
+}
+
+export default function CreatorRegionHeatmap() {
+  const [data, setData] = useState<Record<string, StateBreakdown>>({});
+  const [gender, setGender] = useState("");
+  const [minAge, setMinAge] = useState("");
+  const [maxAge, setMaxAge] = useState("");
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; state: StateBreakdown } | null>(null);
+
+  const fetchData = useCallback(async () => {
+    const params = new URLSearchParams();
+    if (gender) params.set("gender", gender);
+    if (minAge) params.set("minAge", minAge);
+    if (maxAge) params.set("maxAge", maxAge);
+    const res = await fetch(`/api/admin/creators/region-summary?${params.toString()}`);
+    if (res.ok) {
+      const json: ApiResponse = await res.json();
+      const map: Record<string, StateBreakdown> = {};
+      json.states.forEach(s => { map[s.state] = s; });
+      setData(map);
+    } else {
+      setData({});
+    }
+  }, [gender, minAge, maxAge]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const maxCount = Math.max(0, ...Object.values(data).map(d => d.count));
+
+  return (
+    <div className="bg-white p-4 rounded-lg shadow-md border border-gray-200">
+      <h3 className="text-md font-semibold text-gray-700 mb-2">Distribui\u00E7\u00E3o de Criadores</h3>
+      <div className="flex items-end space-x-2 mb-4">
+        <select className="border p-1 text-sm" value={gender} onChange={e => setGender(e.target.value)}>
+          <option value="">Todos os G\u00EAneros</option>
+          <option value="male">Masculino</option>
+          <option value="female">Feminino</option>
+          <option value="other">Outro</option>
+        </select>
+        <input type="number" className="border p-1 text-sm w-20" placeholder="Idade min" value={minAge} onChange={e => setMinAge(e.target.value)} />
+        <input type="number" className="border p-1 text-sm w-20" placeholder="Idade max" value={maxAge} onChange={e => setMaxAge(e.target.value)} />
+        <button className="text-xs text-indigo-600" onClick={fetchData}>Filtrar</button>
+      </div>
+      <svg
+        width={TILE_SIZE * 9}
+        height={TILE_SIZE * 11}
+        onMouseLeave={() => setTooltip(null)}
+        className="mx-auto"
+      >
+        {BRAZIL_STATE_GRID.map((tile: BrazilStateTile) => {
+          const stateData = data[tile.id];
+          const fill = stateData ? getColor(stateData.count, maxCount) : "#f0f0f0";
+          return (
+            <rect
+              key={tile.id}
+              x={tile.col * TILE_SIZE}
+              y={tile.row * TILE_SIZE}
+              width={TILE_SIZE - 2}
+              height={TILE_SIZE - 2}
+              fill={fill}
+              stroke="#ccc"
+              onMouseEnter={e => {
+                if (stateData) {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setTooltip({ x: rect.x + rect.width / 2, y: rect.y, state: stateData });
+                }
+              }}
+            />
+          );
+        })}
+      </svg>
+      {tooltip && (
+        <div
+          className="absolute bg-white text-xs shadow-md border rounded p-2"
+          style={{ left: tooltip.x, top: tooltip.y }}
+        >
+          <div className="font-semibold mb-1">{tooltip.state.state}</div>
+          <div>Total: {tooltip.state.count}</div>
+          {Object.entries(tooltip.state.cities).slice(0, 5).map(([city, info]) => (
+            <div key={city}>{city}: {info.count}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -10,6 +10,7 @@ import PlatformMovingAverageEngagementChart from "../PlatformMovingAverageEngage
 import TotalActiveCreatorsKpi from "../kpis/TotalActiveCreatorsKpi";
 import PlatformComparativeKpi from "../kpis/PlatformComparativeKpi";
 import PlatformDemographicsWidget from "../PlatformDemographicsWidget";
+import CreatorRegionHeatmap from "../CreatorRegionHeatmap";
 
 const TIME_PERIOD_TO_COMPARISON: Record<string, string> = {
   last_7_days: "last_7d_vs_previous_7d",
@@ -55,6 +56,10 @@ const PlatformOverviewSection: React.FC = () => {
 
     <div className="mt-6">
       <PlatformDemographicsWidget />
+    </div>
+
+    <div className="mt-6">
+      <CreatorRegionHeatmap />
     </div>
 
   </section>
