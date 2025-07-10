@@ -112,20 +112,24 @@ const generateDemographicSummary = (demographics: DemographicsData | null): stri
 
 // --- Componentes de UI para Demografia ---
 
-const DemographicRow: React.FC<{ label: string; percentage: number }> = ({ label, percentage }) => (
-  <div className="flex items-center justify-between text-sm py-1">
-    <span className="text-gray-600">{label}</span>
-    <div className="flex items-center gap-2 w-2/3">
-      <div className="w-full bg-gray-200/70 rounded-full h-2 overflow-hidden">
-        <div
-          className="h-2 rounded-full bg-gradient-to-r from-brand-pink to-pink-500"
-          style={{ width: `${percentage}%` }}
-        />
+const DemographicRow: React.FC<{ label: string; percentage: number; compact?: boolean }> = ({ label, percentage, compact }) => {
+  const displayLabel = compact ? label.split(',')[0] : label;
+  const containerClasses = compact ? 'flex items-center justify-between text-xs py-0.5' : 'flex items-center justify-between text-sm py-1';
+  return (
+    <div className={containerClasses}>
+      <span className="text-gray-600">{displayLabel}</span>
+      <div className="flex items-center gap-2 w-2/3">
+        <div className="w-full bg-gray-200/70 rounded-full h-2 overflow-hidden">
+          <div
+            className="h-2 rounded-full bg-gradient-to-r from-brand-pink to-pink-500"
+            style={{ width: `${percentage}%` }}
+          />
+        </div>
+        <span className="font-semibold text-gray-800">{percentage.toFixed(1)}%</span>
       </div>
-      <span className="font-semibold text-gray-800">{percentage.toFixed(1)}%</span>
     </div>
-  </div>
-);
+  );
+};
 
 
 // --- Componente Principal da View ---
@@ -237,7 +241,9 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
                     <div>
                       <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2"><FaIcon path={ICONS.mapPin} className="w-4 h-4" /> Top 3 Cidades</h3>
                       <div className="space-y-1">
-                        {demographicBreakdowns.location.map(item => <DemographicRow key={item.label} label={item.label} percentage={item.percentage} />)}
+                        {demographicBreakdowns.location.map(item => (
+                          <DemographicRow key={item.label} label={item.label} percentage={item.percentage} compact />
+                        ))}
                       </div>
                     </div>
                   )}
