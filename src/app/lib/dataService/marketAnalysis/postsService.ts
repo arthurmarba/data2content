@@ -1,6 +1,6 @@
 /**
  * @fileoverview Serviço para buscar e gerenciar posts.
- * @version 1.9.0 - Adicionada a função de backfill para capas (Fase 2).
+ * @version 1.9.1 - Corrigida a projeção de dados em findUserVideoPosts para aninhar 'stats'.
  */
 
 import { PipelineStage, Types } from 'mongoose';
@@ -70,7 +70,6 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
                 format: 1, proposal: 1, context: 1, tone: 1, references: 1,
                 'stats.total_interactions': '$stats.total_interactions',
                 'stats.likes': '$stats.likes', 'stats.shares': '$stats.shares',
-                // MODIFICAÇÃO (FASE 1): Adicionados coverUrl e instagramMediaId para a feature de capas.
                 coverUrl: 1,
                 instagramMediaId: 1,
             }
@@ -229,11 +228,17 @@ export async function findUserVideoPosts({
           format: 1,
           proposal: 1,
           context: 1,
-          'stats.views': '$stats.views',
-          'stats.likes': '$stats.likes',
-          'stats.comments': '$stats.comments',
-          'stats.shares': '$stats.shares',
-          'stats.saves': '$stats.saved', 
+          // ==================== INÍCIO DA CORREÇÃO ====================
+          // A estrutura foi alterada para criar um objeto 'stats' aninhado,
+          // que é o formato esperado pelo frontend.
+          stats: {
+            views: '$stats.views',
+            likes: '$stats.likes',
+            comments: '$stats.comments',
+            shares: '$stats.shares',
+            saves: '$stats.saved'
+          }
+          // ==================== FIM DA CORREÇÃO ====================
         },
       },
     ];
