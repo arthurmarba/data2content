@@ -225,7 +225,14 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
                     <div>
                       <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2"><FaIcon path={ICONS.gender} className="w-4 h-4" /> Gênero</h3>
                       <div className="space-y-1">
-                        {demographicBreakdowns.gender.map(item => <DemographicRow key={item.label} label={item.label.charAt(0).toUpperCase() + item.label.slice(1)} percentage={item.percentage} />)}
+                        {demographicBreakdowns.gender.map(item => (
+                          <DemographicRow
+                            key={item.label}
+                            label={item.label.charAt(0).toUpperCase() + item.label.slice(1)}
+                            percentage={item.percentage}
+                            compact
+                          />
+                        ))}
                       </div>
                     </div>
                   )}
@@ -233,7 +240,14 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
                     <div>
                       <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2"><FaIcon path={ICONS.cake} className="w-4 h-4" /> Top 5 Faixas Etárias</h3>
                       <div className="space-y-1">
-                        {demographicBreakdowns.age.map(item => <DemographicRow key={item.label} label={item.label} percentage={item.percentage} />)}
+                        {demographicBreakdowns.age.map(item => (
+                          <DemographicRow
+                            key={item.label}
+                            label={item.label}
+                            percentage={item.percentage}
+                            compact
+                          />
+                        ))}
                       </div>
                     </div>
                   )}
