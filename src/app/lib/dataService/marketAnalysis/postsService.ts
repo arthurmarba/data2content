@@ -205,7 +205,12 @@ export async function findUserVideoPosts({
     if (filters.context) matchStage.context = { $regex: filters.context, $options: 'i' };
     if (filters.format) matchStage.format = { $regex: filters.format, $options: 'i' };
     if (filters.linkSearch) matchStage.postLink = { $regex: filters.linkSearch, $options: 'i' };
-    if (filters.minViews !== undefined && filters.minViews >= 0) matchStage['stats.views'] = { $gte: filters.minViews };
+    if (filters.minViews !== undefined && filters.minViews >= 0) {
+      matchStage.$or = [
+        { 'stats.views': { $gte: filters.minViews } },
+        { 'stats.video_views': { $gte: filters.minViews } }
+      ];
+    }
     
     const countResult = await MetricModel.countDocuments(matchStage);
     if (countResult === 0) return { videos: [], totalVideos: 0, page, limit };
@@ -213,9 +218,11 @@ export async function findUserVideoPosts({
     const sortDirection = sortOrder === 'asc' ? 1 : -1;
     const skip = (page - 1) * limit;
 
+    const sortField = sortBy === 'stats.views' ? 'viewsSortable' : sortBy;
     const videosPipeline: PipelineStage[] = [
       { $match: matchStage },
-      { $sort: { [sortBy]: sortDirection } },
+      { $addFields: { viewsSortable: { $ifNull: ['$stats.views', '$stats.video_views'] } } },
+      { $sort: { [sortField]: sortDirection } },
       { $skip: skip },
       { $limit: limit },
       {
@@ -228,17 +235,13 @@ export async function findUserVideoPosts({
           format: 1,
           proposal: 1,
           context: 1,
-          // ==================== INÍCIO DA CORREÇÃO ====================
-          // A estrutura foi alterada para criar um objeto 'stats' aninhado,
-          // que é o formato esperado pelo frontend.
           stats: {
-            views: '$stats.views',
+            views: '$viewsSortable',
             likes: '$stats.likes',
             comments: '$stats.comments',
             shares: '$stats.shares',
             saves: '$stats.saved'
           }
-          // ==================== FIM DA CORREÇÃO ====================
         },
       },
     ];
