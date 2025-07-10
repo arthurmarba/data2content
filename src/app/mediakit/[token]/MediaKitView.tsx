@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { LightBulbIcon } from '@heroicons/react/24/outline';
 import { motion } from 'framer-motion';
 import VideosTable from '@/app/admin/creator-dashboard/components/VideosTable';
 import { UserAvatar } from '@/app/components/UserAvatar';
@@ -78,6 +79,18 @@ const KpiValue: React.FC<{ value: number | null | undefined; type: 'number' | 'p
 
 // --- Funções Auxiliares de Demografia ---
 
+const genderLabelMap: Record<string, string> = {
+  f: 'Feminino',
+  m: 'Masculino',
+  u: 'Desconhecido',
+};
+
+const genderSummaryMap: Record<string, string> = {
+  f: 'feminino',
+  m: 'masculino',
+  u: 'desconhecido',
+};
+
 const getTopEntry = (data: Record<string, number> | undefined): [string, number] | null => {
   if (!data || Object.keys(data).length === 0) return null;
   return Object.entries(data).reduce((a, b) => (a[1] > b[1] ? a : b));
@@ -100,14 +113,10 @@ const generateDemographicSummary = (demographics: DemographicsData | null): stri
     return "Perfil de público diversificado.";
   }
   
-  const genderMap: Record<string, string> = {
-    'male': 'masculino',
-    'female': 'feminino',
-    'unknown': 'desconhecido'
-  };
-  const dominantGender = genderMap[topGenderEntry[0].toLowerCase()] || topGenderEntry[0];
+  const dominantGender =
+    genderSummaryMap[topGenderEntry[0].toLowerCase()] || topGenderEntry[0];
 
-  return `É mais popular entre o público ${dominantGender}, na faixa de ${topAgeEntry[0]} anos, com forte presença em ${topLocation}.`;
+  return `Mais popular entre o público ${dominantGender}, ${topAgeEntry[0]} anos, em ${topLocation}.`;
 };
 
 // --- Componentes de UI para Demografia ---
@@ -217,18 +226,19 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
             {demographics && demographicBreakdowns && (
               <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={1} className={cardStyle}>
                 <h2 className="text-xl font-bold text-gray-800 mb-4">Demografia do Público</h2>
-                <div className="mb-6 p-4 bg-pink-50 border border-pink-200 rounded-lg">
-                  <p className="text-center text-pink-800 font-medium">{demographicSummary}</p>
+                <div className="mb-6 p-3 text-xs text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-2">
+                  <LightBulbIcon className="w-5 h-5 text-yellow-500 flex-shrink-0" />
+                  <span>{demographicSummary}</span>
                 </div>
                 <div className="space-y-5">
                   {demographicBreakdowns.gender.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2"><FaIcon path={ICONS.gender} className="w-4 h-4" /> Gênero</h3>
+                      <h3 className="text-sm font-semibold text-gray-700 mb-2">Gênero</h3>
                       <div className="space-y-1">
                         {demographicBreakdowns.gender.map(item => (
                           <DemographicRow
                             key={item.label}
-                            label={item.label.charAt(0).toUpperCase() + item.label.slice(1)}
+                            label={genderLabelMap[item.label.toLowerCase()] || item.label}
                             percentage={item.percentage}
                             compact
                           />
@@ -238,7 +248,7 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
                   )}
                   {demographicBreakdowns.age.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2"><FaIcon path={ICONS.cake} className="w-4 h-4" /> Top 5 Faixas Etárias</h3>
+                      <h3 className="text-sm font-semibold text-gray-700 mb-2">Top 5 Faixas Etárias</h3>
                       <div className="space-y-1">
                         {demographicBreakdowns.age.map(item => (
                           <DemographicRow
@@ -253,7 +263,7 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
                   )}
                   {demographicBreakdowns.location.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2"><FaIcon path={ICONS.mapPin} className="w-4 h-4" /> Top 3 Cidades</h3>
+                      <h3 className="text-sm font-semibold text-gray-700 mb-2">Top 3 Cidades</h3>
                       <div className="space-y-1">
                         {demographicBreakdowns.location.map(item => (
                           <DemographicRow key={item.label} label={item.label} percentage={item.percentage} compact />
