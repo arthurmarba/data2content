@@ -1,26 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useState, useRef, useMemo } from "react";
 import { BRAZIL_STATE_GRID, BrazilStateTile } from "@/data/brazilStateGrid";
 import { BRAZIL_REGION_STATES } from "@/data/brazilRegions";
+import useCreatorRegionSummary, { StateBreakdown } from "@/hooks/useCreatorRegionSummary";
 
-interface CityBreakdown {
-  count: number;
-  gender: Record<string, number>;
-  age: Record<string, number>;
-}
-
-interface StateBreakdown {
-  state: string;
-  count: number;
-  gender: Record<string, number>;
-  age: Record<string, number>;
-  cities: Record<string, CityBreakdown>;
-}
-
-interface ApiResponse {
-  states: StateBreakdown[];
-}
 
 const TILE_SIZE = 32;
 const COLORS = ["#fee5d9", "#fcae91", "#fb6a4a", "#de2d26", "#a50f15"];
@@ -32,44 +16,22 @@ function getColor(value: number, max: number) {
 }
 
 export default function CreatorRegionHeatmap() {
-  const [data, setData] = useState<Record<string, StateBreakdown>>({});
   const [gender, setGender] = useState("");
   const [region, setRegion] = useState("");
   const [minAge, setMinAge] = useState("");
   const [maxAge, setMaxAge] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { data = {}, loading, error, refresh } = useCreatorRegionSummary({
+    gender,
+    region,
+    minAge,
+    maxAge,
+  });
   const containerRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; state: StateBreakdown } | null>(null);
 
   const handleApplyFilters = () => {
-    fetchData();
+    refresh();
   };
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams();
-      if (gender) params.set("gender", gender);
-      if (region) params.set("region", region);
-      if (minAge) params.set("minAge", minAge);
-      if (maxAge) params.set("maxAge", maxAge);
-      const res = await fetch(`/api/admin/creators/region-summary?${params.toString()}`);
-      if (!res.ok) throw new Error(res.statusText);
-      const json: ApiResponse = await res.json();
-      const map: Record<string, StateBreakdown> = {};
-      json.states.forEach(s => { map[s.state] = s; });
-      setData(map);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao buscar dados');
-      setData({});
-    } finally {
-      setLoading(false);
-    }
-  }, [gender, region, minAge, maxAge]);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
 
   const maxCount = useMemo(() => Math.max(0, ...Object.values(data).map(d => d.count)), [data]);
   const hasData = useMemo(() => Object.keys(data).length > 0, [data]);
@@ -97,6 +59,18 @@ export default function CreatorRegionHeatmap() {
           className="px-3 py-1 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700"
         >
           Aplicar
+        </button>
+        <button
+          onClick={() => {
+            setGender("");
+            setRegion("");
+            setMinAge("");
+            setMaxAge("");
+            refresh();
+          }}
+          className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300"
+        >
+          Limpar
         </button>
       </div>
       {loading && (
