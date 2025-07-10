@@ -4,7 +4,6 @@ import { createClient } from 'redis';
 import { logger } from '@/app/lib/logger';
 import { fetchFollowerDemographics } from '@/services/instagramInsightsService';
 import AudienceDemographicSnapshotModel from '@/app/models/demographics/AudienceDemographicSnapshot';
-import { convertFollowerDemographics } from '@/utils/convertFollowerDemographics';
 
 const redisUrl = process.env.REDIS_URL || '';
 const redis = createClient({ url: redisUrl });
@@ -17,7 +16,7 @@ async function run() {
   const TAG = '[cron fetchDemographics]';
   await connectToDatabase();
   const users = await User.find({ isInstagramConnected: true, instagramAccountId: { $ne: null }, instagramAccessToken: { $ne: null } })
-    .select('instagramAccountId instagramAccessToken')
+    .select('_id instagramAccountId instagramAccessToken')
     .lean();
   logger.info(`${TAG} ${users.length} contas encontradas`);
   for (const u of users) {
@@ -27,13 +26,15 @@ async function run() {
       const data = await fetchFollowerDemographics(accountId, token);
       const key = `demographics:${accountId}`;
       await redis.set(key, JSON.stringify(data), { EX: TTL_SECONDS });
-
-      const demographicsForDb = convertFollowerDemographics(data);
+      
       await AudienceDemographicSnapshotModel.create({
         user: u._id,
         instagramAccountId: accountId,
         recordedAt: new Date(),
-        demographics: demographicsForDb,
+        // CORREÇÃO FINAL: Envolve os dados na estrutura correta que o schema espera.
+        demographics: {
+          follower_demographics: data.follower_demographics,
+        },
       });
 
       logger.info(`${TAG} Dados salvos no cache e banco para ${accountId}`);

@@ -1,4 +1,3 @@
-// src/app/lib/instagram/sync/dataSyncService.ts
 import mongoose, { Types } from 'mongoose';
 import pLimit from 'p-limit';
 import { logger } from '@/app/lib/logger';
@@ -430,10 +429,14 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
                 demographicsWereCollected = true;
                 logger.info(`${TAG} Dados demográficos obtidos. Salvando na coleção 'AudienceDemographicSnapshot'...`);
                 try {
+                    // CORREÇÃO APLICADA AQUI
                     await AudienceDemographicSnapshotModel.findOneAndUpdate(
                         { user: userObjectId, instagramAccountId: accountId! },
                         {
-                            demographics: demographicsData.follower_demographics,
+                            // Envolve os dados na estrutura correta que o schema espera.
+                            demographics: {
+                                follower_demographics: demographicsData.follower_demographics,
+                            },
                             recordedAt: new Date(),
                         },
                         { upsert: true, new: true }

@@ -6,7 +6,6 @@ import { createClient } from 'redis';
 import { logger } from '@/app/lib/logger';
 import { fetchFollowerDemographics } from '@/services/instagramInsightsService';
 import AudienceDemographicSnapshotModel from '@/app/models/demographics/AudienceDemographicSnapshot';
-import { convertFollowerDemographics } from '@/utils/convertFollowerDemographics';
 
 const redisUrl = process.env.REDIS_URL || '';
 const redis = createClient({ url: redisUrl });
@@ -23,7 +22,7 @@ export async function GET(request: NextRequest, { params }: { params: { userId: 
 
   await connectToDatabase();
   const user = await User.findById(userId)
-    .select('instagramAccountId instagramAccessToken')
+    .select('_id instagramAccountId instagramAccessToken')
     .lean();
 
   if (!user?.instagramAccountId || !user?.instagramAccessToken) {
@@ -35,7 +34,6 @@ export async function GET(request: NextRequest, { params }: { params: { userId: 
     const cached = await redis.get(cacheKey);
     if (cached) {
       const parsed = JSON.parse(cached);
-      await redis.quit();
       return NextResponse.json(parsed, { status: 200 });
     }
   } catch (e) {
@@ -45,13 +43,15 @@ export async function GET(request: NextRequest, { params }: { params: { userId: 
   try {
     const data = await fetchFollowerDemographics(user.instagramAccountId, user.instagramAccessToken);
     await redis.set(cacheKey, JSON.stringify(data), { EX: 60 * 60 * 24 });
-
-    const demographicsForDb = convertFollowerDemographics(data);
+    
+    // CORREÇÃO: Envolve os dados na estrutura correta que o schema espera.
     await AudienceDemographicSnapshotModel.create({
       user: user._id,
       instagramAccountId: user.instagramAccountId,
       recordedAt: new Date(),
-      demographics: demographicsForDb,
+      demographics: {
+        follower_demographics: data.follower_demographics,
+      },
     });
 
     await redis.quit();

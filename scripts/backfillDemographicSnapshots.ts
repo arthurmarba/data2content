@@ -2,7 +2,7 @@ import 'dotenv/config';
 import mongoose from 'mongoose';
 import { connectToDatabase } from '../src/app/lib/mongoose';
 import User from '../src/app/models/User';
-import { fetchAudienceDemographics } from '../src/app/lib/instagram/api/fetchers';
+import { fetchFollowerDemographics } from '../src/services/instagramInsightsService'; 
 import AudienceDemographicSnapshot from '../src/app/models/demographics/AudienceDemographicSnapshot';
 import { logger } from '../src/app/lib/logger';
 
@@ -29,23 +29,23 @@ async function run() {
       continue;
     }
     try {
-      const res = await fetchAudienceDemographics(u.instagramAccountId as string, u.instagramAccessToken as string);
-      if (res.success && res.data) {
-        await AudienceDemographicSnapshot.create({
-          user: u._id,
-          instagramAccountId: u.instagramAccountId,
-          recordedAt: new Date(),
-          demographics: res.data.follower_demographics, // Salva o objeto limpo
-        });
-        logger.info(`${TAG} Demografia salva para usuário ${u._id}`);
-      } else {
-        logger.warn(`${TAG} Falha ao coletar demografia para usuário ${u._id}: ${res.error || res.errorMessage}`);
-      }
+      const data = await fetchFollowerDemographics(u.instagramAccountId as string, u.instagramAccessToken as string);
+      
+      await AudienceDemographicSnapshot.create({
+        user: u._id,
+        instagramAccountId: u.instagramAccountId,
+        recordedAt: new Date(),
+        // CORREÇÃO FINAL: Envolve os dados na estrutura correta que o schema espera.
+        demographics: {
+          follower_demographics: data.follower_demographics,
+        },
+      });
+      logger.info(`${TAG} Demografia salva para usuário ${u._id}`);
+      
     } catch (err) {
       logger.error(`${TAG} Erro ao processar usuário ${u._id}`, err);
     }
     
-    // Pausa para não sobrecarregar a API
     await sleep(DELAY_BETWEEN_USERS_MS);
   }
   logger.info(`${TAG} Processamento concluído.`);
@@ -53,4 +53,4 @@ async function run() {
 
 run().catch(e => {
   logger.error('[backfillDemographicSnapshots] erro geral', e);
-}).finally(() => mongoose.disconnect()); // Garante que a conexão seja fechada
+}).finally(() => mongoose.disconnect());
