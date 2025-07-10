@@ -9,6 +9,7 @@ import PlatformReachEngagementTrendChart from "../PlatformReachEngagementTrendCh
 import PlatformMovingAverageEngagementChart from "../PlatformMovingAverageEngagementChart";
 import TotalActiveCreatorsKpi from "../kpis/TotalActiveCreatorsKpi";
 import PlatformComparativeKpi from "../kpis/PlatformComparativeKpi";
+import PlatformDemographicsWidget from "../PlatformDemographicsWidget";
 
 const TIME_PERIOD_TO_COMPARISON: Record<string, string> = {
   last_7_days: "last_7d_vs_previous_7d",
@@ -50,6 +51,10 @@ const PlatformOverviewSection: React.FC = () => {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 md:mb-8">
       <PlatformReachEngagementTrendChart />
       <PlatformMovingAverageEngagementChart />
+    </div>
+
+    <div className="mt-6">
+      <PlatformDemographicsWidget />
     </div>
 
   </section>
