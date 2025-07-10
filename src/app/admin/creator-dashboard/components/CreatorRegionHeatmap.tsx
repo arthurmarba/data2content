@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { BRAZIL_STATE_GRID, BrazilStateTile } from "@/data/brazilStateGrid";
 import { BRAZIL_REGION_STATES } from "@/data/brazilRegions";
 
@@ -40,7 +40,11 @@ export default function CreatorRegionHeatmap() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; state: StateBreakdown } | null>(null);
 
-  const fetchData = useCallback(async () => {
+  const handleApplyFilters = () => {
+    fetchData();
+  };
+
+  async function fetchData() {
     const params = new URLSearchParams();
     if (gender) params.set("gender", gender);
     if (region) params.set("region", region);
@@ -55,9 +59,9 @@ export default function CreatorRegionHeatmap() {
     } else {
       setData({});
     }
-  }, [gender, region, minAge, maxAge]);
+  }
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { fetchData(); }, []);
 
   const maxCount = Math.max(0, ...Object.values(data).map(d => d.count));
   const hasData = Object.keys(data).length > 0;
@@ -80,6 +84,12 @@ export default function CreatorRegionHeatmap() {
         </select>
         <input type="number" className="border p-1 text-sm w-20" placeholder="Idade min" value={minAge} onChange={e => setMinAge(e.target.value)} />
         <input type="number" className="border p-1 text-sm w-20" placeholder="Idade max" value={maxAge} onChange={e => setMaxAge(e.target.value)} />
+        <button
+          onClick={handleApplyFilters}
+          className="px-3 py-1 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700"
+        >
+          Aplicar
+        </button>
       </div>
       {hasData ? (
         <svg
@@ -91,27 +101,39 @@ export default function CreatorRegionHeatmap() {
           {BRAZIL_STATE_GRID.map((tile: BrazilStateTile) => {
             const stateData = data[tile.id];
             const fill = stateData ? getColor(stateData.count, maxCount) : "#f0f0f0";
+            const x = tile.col * TILE_SIZE;
+            const y = tile.row * TILE_SIZE;
             return (
-              <rect
-                key={tile.id}
-                x={tile.col * TILE_SIZE}
-                y={tile.row * TILE_SIZE}
-                width={TILE_SIZE - 2}
-                height={TILE_SIZE - 2}
-                fill={fill}
-                stroke="#ccc"
-                onMouseEnter={e => {
-                  if (stateData && containerRef.current) {
-                    const tileRect = e.currentTarget.getBoundingClientRect();
-                    const containerRect = containerRef.current.getBoundingClientRect();
-                    setTooltip({
-                      x: tileRect.left - containerRect.left + tileRect.width / 2,
-                      y: tileRect.top - containerRect.top,
-                      state: stateData,
-                    });
-                  }
-                }}
-              />
+              <g key={tile.id}>
+                <rect
+                  x={x}
+                  y={y}
+                  width={TILE_SIZE - 2}
+                  height={TILE_SIZE - 2}
+                  fill={fill}
+                  stroke="#ccc"
+                  onMouseEnter={e => {
+                    if (stateData && containerRef.current) {
+                      const tileRect = e.currentTarget.getBoundingClientRect();
+                      const containerRect = containerRef.current.getBoundingClientRect();
+                      setTooltip({
+                        x: tileRect.left - containerRect.left + tileRect.width / 2,
+                        y: tileRect.top - containerRect.top,
+                        state: stateData,
+                      });
+                    }
+                  }}
+                />
+                <text
+                  x={x + TILE_SIZE / 2}
+                  y={y + TILE_SIZE / 2}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  className="text-[10px] pointer-events-none select-none"
+                >
+                  {tile.id}
+                </text>
+              </g>
             );
           })}
         </svg>
@@ -125,7 +147,8 @@ export default function CreatorRegionHeatmap() {
         >
           <div className="font-semibold mb-1">{tooltip.state.state}</div>
           <div>Total: {tooltip.state.count}</div>
-          {Object.entries(tooltip.state.cities).slice(0, 5).map(([city, info]) => (
+          <div className="max-h-48 overflow-y-auto">
+          {Object.entries(tooltip.state.cities).map(([city, info]) => (
             <div key={city} className="mt-1">
               <div className="font-semibold">{city}: {info.count}</div>
               <div className="pl-2">{`M: ${info.gender.male || 0} F: ${info.gender.female || 0} O: ${info.gender.other || 0}`}</div>
@@ -136,6 +159,7 @@ export default function CreatorRegionHeatmap() {
               </div>
             </div>
           ))}
+          </div>
         </div>
       )}
     </div>
