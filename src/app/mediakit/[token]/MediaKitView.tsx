@@ -248,7 +248,7 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
                   )}
                   {demographicBreakdowns.age.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-700 mb-2">Top 5 Faixas Etárias</h3>
+                      <h3 className="text-sm font-semibold text-gray-700 mb-2">Faixas Etárias</h3>
                       <div className="space-y-1">
                         {demographicBreakdowns.age.map(item => (
                           <DemographicRow
@@ -263,7 +263,7 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
                   )}
                   {demographicBreakdowns.location.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-700 mb-2">Top 3 Cidades</h3>
+                      <h3 className="text-sm font-semibold text-gray-700 mb-2">Cidades</h3>
                       <div className="space-y-1">
                         {demographicBreakdowns.location.map(item => (
                           <DemographicRow key={item.label} label={item.label} percentage={item.percentage} compact />
