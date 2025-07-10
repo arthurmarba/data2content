@@ -3,6 +3,8 @@ import User from '@/app/models/User';
 import { createClient } from 'redis';
 import { logger } from '@/app/lib/logger';
 import { fetchFollowerDemographics } from '@/services/instagramInsightsService';
+import AudienceDemographicSnapshotModel from '@/app/models/demographics/AudienceDemographicSnapshot';
+import { convertFollowerDemographics } from '@/utils/convertFollowerDemographics';
 
 const redisUrl = process.env.REDIS_URL || '';
 const redis = createClient({ url: redisUrl });
@@ -25,7 +27,16 @@ async function run() {
       const data = await fetchFollowerDemographics(accountId, token);
       const key = `demographics:${accountId}`;
       await redis.set(key, JSON.stringify(data), { EX: TTL_SECONDS });
-      logger.info(`${TAG} Dados salvos no cache para ${accountId}`);
+
+      const demographicsForDb = convertFollowerDemographics(data);
+      await AudienceDemographicSnapshotModel.create({
+        user: u._id,
+        instagramAccountId: accountId,
+        recordedAt: new Date(),
+        demographics: demographicsForDb,
+      });
+
+      logger.info(`${TAG} Dados salvos no cache e banco para ${accountId}`);
     } catch (e) {
       logger.error(`${TAG} Falha ao obter demografia para ${accountId}`, e);
     }

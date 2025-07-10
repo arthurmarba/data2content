@@ -5,6 +5,8 @@ import User from '@/app/models/User';
 import { createClient } from 'redis';
 import { logger } from '@/app/lib/logger';
 import { fetchFollowerDemographics } from '@/services/instagramInsightsService';
+import AudienceDemographicSnapshotModel from '@/app/models/demographics/AudienceDemographicSnapshot';
+import { convertFollowerDemographics } from '@/utils/convertFollowerDemographics';
 
 const redisUrl = process.env.REDIS_URL || '';
 const redis = createClient({ url: redisUrl });
@@ -43,6 +45,15 @@ export async function GET(request: NextRequest, { params }: { params: { userId: 
   try {
     const data = await fetchFollowerDemographics(user.instagramAccountId, user.instagramAccessToken);
     await redis.set(cacheKey, JSON.stringify(data), { EX: 60 * 60 * 24 });
+
+    const demographicsForDb = convertFollowerDemographics(data);
+    await AudienceDemographicSnapshotModel.create({
+      user: user._id,
+      instagramAccountId: user.instagramAccountId,
+      recordedAt: new Date(),
+      demographics: demographicsForDb,
+    });
+
     await redis.quit();
     return NextResponse.json(data, { status: 200 });
   } catch (err) {
