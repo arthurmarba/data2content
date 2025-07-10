@@ -91,6 +91,7 @@ export async function GET(
       engCurrentResult, engPreviousResult,
       freqData,
       currViews, prevViews,
+      currLikes, prevLikes,
       currComments, prevComments,
       currShares, prevShares,
       currSaves, prevSaves,
@@ -103,6 +104,7 @@ export async function GET(
       calculateAverageEngagementPerPost(resolvedUserId, {startDate: previousStartDate, endDate: previousEndDate}),
       calculateWeeklyPostingFrequency(resolvedUserId, currentPeriodDays),
       getAverageViews(currentStartDate, currentEndDate), getAverageViews(previousStartDate, previousEndDate),
+      getAverage('stats.likes', currentStartDate, currentEndDate), getAverage('stats.likes', previousStartDate, previousEndDate),
       getAverage('stats.comments', currentStartDate, currentEndDate), getAverage('stats.comments', previousStartDate, previousEndDate),
       getAverage('stats.shares', currentStartDate, currentEndDate), getAverage('stats.shares', previousStartDate, previousEndDate),
       getAverage('stats.saved', currentStartDate, currentEndDate), getAverage('stats.saved', previousStartDate, previousEndDate),
@@ -131,6 +133,7 @@ export async function GET(
     const postingFrequencyData = createKpiDataObject(freqData.currentWeeklyFrequency, freqData.previousWeeklyFrequency, { current: periodNameCurrent, previous: periodNamePrevious });
     const periodNames = { current: periodNameCurrent, previous: periodNamePrevious };
     const avgViewsPerPostData = createKpiDataObject(currViews, prevViews, periodNames);
+    const avgLikesPerPostData = createKpiDataObject(currLikes, prevLikes, periodNames);
     const avgCommentsPerPostData = createKpiDataObject(currComments, prevComments, periodNames);
     const avgSharesPerPostData = createKpiDataObject(currShares, prevShares, periodNames);
     const avgSavesPerPostData = createKpiDataObject(currSaves, prevSaves, periodNames);
@@ -146,6 +149,7 @@ export async function GET(
       totalEngagement: totalEngagementData,
       postingFrequency: postingFrequencyData,
       avgViewsPerPost: avgViewsPerPostData,
+      avgLikesPerPost: avgLikesPerPostData,
       avgCommentsPerPost: avgCommentsPerPostData,
       avgSharesPerPost: avgSharesPerPostData,
       avgSavesPerPost: avgSavesPerPostData,
@@ -157,6 +161,7 @@ export async function GET(
         totalEngagement: `${compactNumberFormat(totalEngagementData.currentValue)} interações no período.`,
         postingFrequency: `${postingFrequencyData.currentValue?.toFixed(1) ?? 'N/A'} posts por semana.`,
         avgViewsPerPost: `Média de ${compactNumberFormat(avgViewsPerPostData.currentValue)} views/post.`,
+        avgLikesPerPost: `Média de ${compactNumberFormat(avgLikesPerPostData.currentValue)} curtidas/post.`,
         avgCommentsPerPost: `Média de ${compactNumberFormat(avgCommentsPerPostData.currentValue)} comentários/post.`,
         avgSharesPerPost: `Média de ${compactNumberFormat(avgSharesPerPostData.currentValue)} compartilhamentos/post.`,
         avgSavesPerPost: `Média de ${compactNumberFormat(avgSavesPerPostData.currentValue)} salvamentos/post.`,
@@ -175,6 +180,7 @@ export async function GET(
         error: "Erro ao processar sua solicitação de KPIs.", details: errorMessage,
         followerGrowth: errorKpi, engagementRate: errorKpi, totalEngagement: errorKpi, postingFrequency: errorKpi,
         avgViewsPerPost: errorKpi, avgCommentsPerPost: errorKpi, avgSharesPerPost: errorKpi, avgSavesPerPost: errorKpi,
+        avgLikesPerPost: errorKpi,
         // NOVO: Adicionando o campo de alcance à resposta de erro
         avgReachPerPost: errorKpi
     }, { status: 500 });
