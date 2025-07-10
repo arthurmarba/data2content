@@ -115,9 +115,12 @@ const generateDemographicSummary = (demographics: DemographicsData | null): stri
 const DemographicRow: React.FC<{ label: string; percentage: number }> = ({ label, percentage }) => (
   <div className="flex items-center justify-between text-sm py-1">
     <span className="text-gray-600">{label}</span>
-    <div className="flex items-center w-1/2">
-      <div className="w-full bg-gray-200 rounded-full h-2 mr-2">
-        <div className="bg-pink-500 h-2 rounded-full" style={{ width: `${percentage}%` }}></div>
+    <div className="flex items-center gap-2 w-2/3">
+      <div className="w-full bg-gray-200/70 rounded-full h-2 overflow-hidden">
+        <div
+          className="h-2 rounded-full bg-gradient-to-r from-brand-pink to-pink-500"
+          style={{ width: `${percentage}%` }}
+        />
       </div>
       <span className="font-semibold text-gray-800">{percentage.toFixed(1)}%</span>
     </div>
