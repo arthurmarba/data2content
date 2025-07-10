@@ -86,19 +86,19 @@ const VideoCard: React.FC<{ video: VideoListItem; index: number; readOnly?: bool
         </div>
 
         <div className="col-span-12 md:col-span-2 flex flex-wrap gap-1.5 content-start">
-          {getTranslatedLabels(video.format, 'format').map(tag => (
+          {getTranslatedLabels((video as any).format, 'format').map(tag => (
             <span key={tag} className={`${tagBaseClasses} bg-gray-100 text-gray-700`}>{tag}</span>
           ))}
-          {getTranslatedLabels(video.proposal, 'proposal').map(tag => (
+          {getTranslatedLabels((video as any).proposal, 'proposal').map(tag => (
             <span key={tag} className={`${tagBaseClasses} bg-blue-100 text-blue-800`}>{tag}</span>
           ))}
-          {getTranslatedLabels(video.context, 'context').map(tag => (
+          {getTranslatedLabels((video as any).context, 'context').map(tag => (
             <span key={tag} className={`${tagBaseClasses} bg-purple-100 text-purple-800`}>{tag}</span>
           ))}
-          {getTranslatedLabels(video.tone, 'tone').map(tag => (
+          {getTranslatedLabels((video as any).tone, 'tone').map(tag => (
             <span key={tag} className={`${tagBaseClasses} bg-yellow-100 text-yellow-800`}>{tag}</span>
           ))}
-          {getTranslatedLabels(video.references, 'reference').map(tag => (
+          {getTranslatedLabels((video as any).references, 'reference').map(tag => (
             <span key={tag} className={`${tagBaseClasses} bg-green-100 text-green-800`}>{tag}</span>
           ))}
         </div>
@@ -113,7 +113,7 @@ const VideoCard: React.FC<{ video: VideoListItem; index: number; readOnly?: bool
             <span className="flex items-center gap-2 text-gray-700"><HeartIcon className="text-gray-400 w-3.5 h-3.5"/> {formatNumber(video.stats?.likes)}</span>
             <span className="flex items-center gap-2 text-gray-700"><ChatBubbleOvalLeftEllipsisIcon className="text-gray-400 w-3.5 h-3.5"/> {formatNumber(video.stats?.comments)}</span>
             <span className="flex items-center gap-2 text-gray-700"><ShareIcon className="text-gray-400 w-3.5 h-3.5"/> {formatNumber(video.stats?.shares)}</span>
-            <span className="flex items-center gap-2 text-gray-700"><BookmarkIcon className="text-gray-400 w-3.5 h-3.5"/> {formatNumber(video.stats?.saves)}</span>
+            <span className="flex items-center gap-2 text-gray-700"><BookmarkIcon className="text-gray-400 w-3.5 h-3.5"/> {formatNumber((video.stats as any)?.saves)}</span>
           </div>
         </div>
 

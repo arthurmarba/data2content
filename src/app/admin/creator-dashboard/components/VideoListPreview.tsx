@@ -39,7 +39,7 @@ const getLabels = (tags: string | string[] | undefined, type: LabelType): string
 // Configuração de estilo das tags atualizada para o novo design
 const labelConfig: {
   type: LabelType;
-  property: keyof VideoListItem;
+  property: string;
   className: string;
 }[] = [
   { type: "format", property: "format", className: "bg-gray-100 text-gray-800" },
@@ -113,7 +113,7 @@ const VideoListPreview: React.FC<VideoListPreviewProps> = ({ userId, timePeriod,
 
                   <div className="flex flex-wrap gap-2 text-xs font-medium mt-3">
                     {labelConfig.map(config =>
-                      getLabels(video[config.property] as string[], config.type).map(tag => (
+                      getLabels((video as any)[config.property] as string[], config.type).map(tag => (
                         <span
                           key={`${config.type}-${tag}`}
                           className={`${config.className} px-2.5 py-1 rounded-full`}
@@ -144,7 +144,7 @@ const VideoListPreview: React.FC<VideoListPreviewProps> = ({ userId, timePeriod,
                   </span>
                   <span className="flex items-center gap-1.5" title="Salvos">
                     <BookmarkIcon className="w-4 h-4 text-gray-400" />
-                    <span className="font-medium">{formatNumber(video.stats?.saves)}</span>
+                    <span className="font-medium">{formatNumber((video.stats as any)?.saves)}</span>
                   </span>
                 </div>
               </div>

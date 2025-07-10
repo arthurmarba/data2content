@@ -1,4 +1,4 @@
-// @/types/mediakit.ts
+// src/types/mediakit.ts
 
 // Tipo para os itens da tabela de vídeos
 export interface VideoListItem {
@@ -7,6 +7,7 @@ export interface VideoListItem {
   caption?: string;
   permalink?: string | null;
   postDate?: string | Date;
+  
   // Classificação de conteúdo
   // Todos os campos são arrays para acomodar múltiplas tags
   format?: string[];
@@ -14,13 +15,15 @@ export interface VideoListItem {
   context?: string[];
   tone?: string[];
   references?: string[];
+
+  // Estatísticas de engajamento
   stats?: {
     views?: number;
     likes?: number;
     comments?: number;
     shares?: number;
     saves?: number;
-    reach?: number; // NOVO: Adicionado para o cálculo de alcance
+    reach?: number; // Alcance
   };
 }
 
@@ -63,8 +66,7 @@ export interface KpiComparison {
   };
 }
 
-// --- NOVOS TIPOS PARA DEMOGRAFIA ---
-
+// Dados demográficos de audiência
 export interface DemographicsData {
   follower_demographics?: {
     gender?: Record<string, number>;
@@ -80,11 +82,11 @@ export interface DemographicsData {
   };
 }
 
-// Para as props do componente MediaKitView
+// Props para o componente de visualização do Media Kit
 export interface MediaKitViewProps {
   user: any;
   summary: PerformanceSummary | null;
   videos: VideoListItem[];
-  kpis: KpiComparison | null; // Dados iniciais
+  kpis: KpiComparison | null;
   demographics: DemographicsData | null;
 }
