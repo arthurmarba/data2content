@@ -105,7 +105,7 @@ export async function GET(
       getAverageViews(currentStartDate, currentEndDate), getAverageViews(previousStartDate, previousEndDate),
       getAverage('stats.comments', currentStartDate, currentEndDate), getAverage('stats.comments', previousStartDate, previousEndDate),
       getAverage('stats.shares', currentStartDate, currentEndDate), getAverage('stats.shares', previousStartDate, previousEndDate),
-      getAverage('stats.saves', currentStartDate, currentEndDate), getAverage('stats.saves', previousStartDate, previousEndDate),
+      getAverage('stats.saved', currentStartDate, currentEndDate), getAverage('stats.saved', previousStartDate, previousEndDate),
       // NOVO: Chamada para a nova métrica de alcance
       getAverage('stats.reach', currentStartDate, currentEndDate), getAverage('stats.reach', previousStartDate, previousEndDate),
     ]);
