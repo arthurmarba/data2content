@@ -6,7 +6,7 @@ import { logMediaKitAccess } from '@/lib/logMediaKitAccess';
 import MediaKitView from './MediaKitView';
 
 // Tipos centralizados para garantir consistência em todo o fluxo de dados.
-import { VideoListItem, PerformanceSummary, KpiComparison } from '@/types/mediakit';
+import { VideoListItem, PerformanceSummary, KpiComparison, DemographicsData } from '@/types/mediakit';
 
 // A revalidação garante que os dados do Mídia Kit sejam atualizados periodicamente.
 export const revalidate = 300; // 5 minutos
@@ -53,7 +53,6 @@ async function fetchTopVideos(baseUrl: string, userId: string): Promise<VideoLis
  */
 async function fetchKpis(baseUrl: string, userId: string): Promise<KpiComparison | null> {
   try {
-    // A API usará o período padrão (ex: 30 dias) nesta busca inicial no servidor.
     const res = await fetch(`${baseUrl}/api/v1/users/${userId}/kpis/periodic-comparison`, { next: { revalidate: 300 } });
     if (!res.ok) {
       console.error(`[MediaKitPage] Falha ao buscar kpis: ${res.status}`);
@@ -65,6 +64,24 @@ async function fetchKpis(baseUrl: string, userId: string): Promise<KpiComparison
     return null;
   }
 }
+
+/**
+ * Busca os dados demográficos do público.
+ */
+async function fetchDemographics(baseUrl: string, userId: string): Promise<DemographicsData | null> {
+  try {
+    const res = await fetch(`${baseUrl}/api/demographics/${userId}`, { next: { revalidate: 300 } });
+    if (!res.ok) {
+      console.error(`[MediaKitPage] Falha ao buscar demographics: ${res.status}`);
+      return null;
+    }
+    return await res.json();
+  } catch (error) {
+    console.error('[MediaKitPage] Erro de rede ao buscar demographics:', error);
+    return null;
+  }
+}
+
 
 // --- COMPONENTE DE PÁGINA (SERVER COMPONENT) ---
 
@@ -84,16 +101,13 @@ export default async function MediaKitPage({ params }: { params: { token: string
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || '';
   
-  const [summary, videos, kpis] = await Promise.all([
+  const [summary, videos, kpis, demographics] = await Promise.all([
     fetchSummary(baseUrl, user._id.toString()),
     fetchTopVideos(baseUrl, user._id.toString()),
-    fetchKpis(baseUrl, user._id.toString())
+    fetchKpis(baseUrl, user._id.toString()),
+    fetchDemographics(baseUrl, user._id.toString()) // Adiciona a busca de demografia
   ]);
 
-  // CORREÇÃO: O erro de tipo ocorre porque 'VideoListItem' não possui 'tone' e 'references'.
-  // Ao fazer o cast de 'video' para 'any', podemos acessar essas propriedades (que esperamos que
-  // a API retorne) sem causar um erro de compilação. Isso garante que todos os dados de
-  // classificação sejam transformados em arrays antes de serem passados para a view.
   const compatibleVideos = videos.map((video: any) => ({
     ...video,
     format: video.format ? [video.format] : [],
@@ -111,6 +125,7 @@ export default async function MediaKitPage({ params }: { params: { token: string
       summary={summary}
       videos={compatibleVideos}
       kpis={kpis}
+      demographics={demographics} // Passa a nova prop para o componente
     />
   );
 }
