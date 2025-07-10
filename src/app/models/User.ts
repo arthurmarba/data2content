@@ -155,6 +155,12 @@ export interface IUserKeyFact {
   fact: string;
   mentionedAt?: Date;
 }
+
+export interface IUserLocation {
+  country?: string;
+  state?: string;
+  city?: string;
+}
 export interface IAlertHistoryEntry {
   _id?: Types.ObjectId;
   type: string;
@@ -206,6 +212,9 @@ export interface IUser extends Document {
   profileTone?: string;
   hobbies?: string[];
   goal?: string;
+  gender?: 'male' | 'female' | 'other';
+  birthDate?: Date | null;
+  location?: IUserLocation;
   affiliateRank?: number;
   affiliateInvites?: number;
   affiliateCode?: string;
@@ -322,6 +331,13 @@ const userSchema = new Schema<IUser>(
     profileTone: { type: String, default: 'informal e prestativo' },
     hobbies: { type: [String], default: [] },
     goal: { type: String, default: null },
+    gender: { type: String, enum: ['male', 'female', 'other'], default: 'other', index: true },
+    birthDate: { type: Date, default: null },
+    location: {
+      country: { type: String, default: 'BR' },
+      state: { type: String, index: true },
+      city: { type: String },
+    },
     affiliateRank: { type: Number, default: 1 },
     affiliateInvites: { type: Number, default: 0 },
     affiliateCode: { type: String, unique: true, sparse: true },
