@@ -168,7 +168,7 @@ function addCommonAveragesToGroupStage(groupStage: any): any {
     groupStage.$group.avgSaved = { $avg: { $ifNull: ["$stats.saved", 0] } };
     groupStage.$group.avgReach = { $avg: { $ifNull: ["$stats.reach", 0] } };
     groupStage.$group.avgImpressions = { $avg: { $ifNull: ["$stats.impressions", 0] } };
-    groupStage.$group.avgViews = { $avg: { $ifNull: ["$stats.views", 0] } }; // Note: IMetricStats.views, não video_views
+    groupStage.$group.avgViews = { $avg: { $ifNull: ["$stats.views", "$stats.video_views", 0] } };
     groupStage.$group.avgFollows = { $avg: { $ifNull: ["$stats.follows", 0] } };
     groupStage.$group.avgProfileVisits = { $avg: { $ifNull: ["$stats.profile_visits", 0] } };
     groupStage.$group.avgTotalInteractions = { $avg: { $ifNull: ["$stats.total_interactions", 0] } };

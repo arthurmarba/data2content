@@ -93,7 +93,7 @@ async function calculateAverageVideoMetrics(
             }
           }
           ,
-          views: '$stats.views',
+          views: { $ifNull: ['$stats.views', '$stats.video_views'] },
           likes: '$stats.likes',
           comments: '$stats.comments',
           shares: '$stats.shares',
