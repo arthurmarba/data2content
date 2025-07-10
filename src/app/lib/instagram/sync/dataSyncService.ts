@@ -21,9 +21,9 @@ import {
   InsightTaskInternalResult,
   FetchBasicAccountDataResult,
 } from '../types';
-import { IMetricStats } from '@/app/models/Metric'; // IMetricStats já inclui as métricas calculadas (após Passo 1)
+import { IMetricStats } from '@/app/models/Metric';
 import { IAccountInsightsPeriod } from '@/app/models/AccountInsight';
-import { IAudienceDemographics } from '@/app/models/demographics/AudienceDemographicSnapshot';
+import AudienceDemographicSnapshotModel, { IAudienceDemographics } from '@/app/models/demographics/AudienceDemographicSnapshot';
 import {
   fetchBasicAccountData,
   fetchInstagramMedia,
@@ -36,21 +36,18 @@ import { clearInstagramConnection } from '../db/connectionManagement';
 import { saveMetricData } from '../db/metricActions';
 import { saveAccountInsightData } from '../db/accountInsightActions';
 import { isTokenInvalidError } from '../utils/tokenUtils';
-// === INÍCIO DA MODIFICAÇÃO ===
-import { calcFormulas } from '@/app/lib/formulas'; // Importar calcFormulas
-// === FIM DA MODIFICAÇÃO ===
+import { calcFormulas } from '@/app/lib/formulas';
 
 const limitInsightsFetch = pLimit(INSIGHTS_CONCURRENCY_LIMIT);
 
 /**
  * Orquestra a atualização completa dos dados de uma conta Instagram conectada.
  * ATUALIZADO:
- * - Corrigida verificação de 'firstUserError' para evitar 'possibly undefined'.
- * - Limite de páginas de mídia agora é tratado como Info e não erro para o usuário.
- * - Integrada chamada a calcFormulas para enriquecer IMetricStats.
+ * - Corrigida a chamada para saveAccountInsightData para refletir a nova assinatura (sem demografia).
+ * - Adicionada lógica para salvar os dados demográficos diretamente na coleção AudienceDemographicSnapshot.
  */
 export async function triggerDataRefresh(userId: string): Promise<{ success: boolean; message: string; details?: any }> {
-  const TAG = '[triggerDataRefresh v2.2.6_calcFormulas_integration]'; // Versão atualizada
+  const TAG = '[triggerDataRefresh v3.0]';
   const startTime = Date.now();
   logger.info(`${TAG} Iniciando atualização de dados para User ${userId}...`);
 
@@ -103,9 +100,9 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
 
   let totalMediaFound = 0, totalMediaProcessedForInsights = 0, savedMediaMetrics = 0, skippedOldMedia = 0, skippedCarouselChildren = 0;
   let collectedAccountInsightsData: IAccountInsightsPeriod | undefined;
-  let collectedAudienceDemographicsData: IAudienceDemographics | undefined;
   let collectedBasicAccountData: Partial<IUser> | undefined;
   let savedAccountSnapshot = false;
+  let demographicsWereCollected = false;
 
   const errors: { step: string; message: string; details?: any; tokenUsed?: string }[] = [];
   let overallSuccess = true;
@@ -306,24 +303,17 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
                 if (taskValue.status === 'processed') {
                   const { mediaId, media, insightsResult, insightTokenSource } = taskValue;
                   if (insightsResult.success && insightsResult.data) {
-                    // === INÍCIO DA MODIFICAÇÃO ===
                     logger.debug(`${TAG} Insights brutos para mídia ${mediaId}:`, insightsResult.data);
-
                     const rawStatsForFormulas: Record<string, unknown> = insightsResult.data as Record<string, unknown>;
                     const calculatedMetrics = calcFormulas([rawStatsForFormulas]);
                     logger.debug(`${TAG} Métricas calculadas para mídia ${mediaId}:`, calculatedMetrics);
-
-                    const combinedStats: IMetricStats = {
-                      ...insightsResult.data, // Métricas brutas da API
-                      ...calculatedMetrics    // Métricas calculadas por calcFormulas
-                    };
+                    const combinedStats: IMetricStats = { ...insightsResult.data, ...calculatedMetrics };
                     logger.debug(`${TAG} Stats combinados para mídia ${mediaId}:`, combinedStats);
-                    // === FIM DA MODIFICAÇÃO ===
 
                     if(insightsResult.error){
                         logger.warn(`${TAG} Insights para mídia ${mediaId} obtidos com sucesso parcial usando: ${insightTokenSource}. Erro menor: ${insightsResult.error}`);
                          try {
-                            await saveMetricData(userObjectId, media, combinedStats); // Usar combinedStats
+                            await saveMetricData(userObjectId, media, combinedStats);
                             savedMediaMetrics++;
                         } catch (saveError: any) {
                             logger.error(`${TAG} Erro ao salvar métrica ${mediaId} (parcial):`, saveError);
@@ -333,7 +323,7 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
                     } else {
                         logger.info(`${TAG} Insights para mídia ${mediaId} obtidos com sucesso usando: ${insightTokenSource}.`);
                          try {
-                            await saveMetricData(userObjectId, media, combinedStats); // Usar combinedStats
+                            await saveMetricData(userObjectId, media, combinedStats);
                             savedMediaMetrics++;
                         } catch (saveError: any) {
                             logger.error(`${TAG} Erro ao salvar métrica ${mediaId}:`, saveError);
@@ -425,16 +415,38 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
         }
     }
 
-    // PASSO 4: Buscar dados demográficos da conta
+    // PASSO 4: Buscar e SALVAR dados demográficos da conta
     if (criticalTokenErrorOccurred) {
         logger.warn(`${TAG} Pulando busca de demografia (Passo 4/5) devido a User LLAT comprometido.`);
     } else {
-        logger.info(`${TAG} [Passo 4/5] Buscando dados demográficos da conta ${accountId} com User LLAT...`);
+        logger.info(`${TAG} [Passo 4/5] Buscando e salvando dados demográficos da conta ${accountId} com User LLAT...`);
         const demographicsResult = await fetchAudienceDemographics(accountId!, userLlat!);
 
-        if (demographicsResult.data && (Object.keys(demographicsResult.data.follower_demographics || {}).length > 0 || Object.keys(demographicsResult.data.engaged_audience_demographics || {}).length > 0 )) {
-            collectedAudienceDemographicsData = demographicsResult.data;
-            logger.info(`${TAG} Dados demográficos parcialmente ou totalmente obtidos usando User LLAT.`);
+        if (demographicsResult.success && demographicsResult.data) {
+            const demographicsData = demographicsResult.data;
+            const hasData = demographicsData.follower_demographics && Object.values(demographicsData.follower_demographics).some(breakdown => Object.keys(breakdown || {}).length > 0);
+
+            if (hasData) {
+                demographicsWereCollected = true;
+                logger.info(`${TAG} Dados demográficos obtidos. Salvando na coleção 'AudienceDemographicSnapshot'...`);
+                try {
+                    await AudienceDemographicSnapshotModel.findOneAndUpdate(
+                        { user: userObjectId, instagramAccountId: accountId! },
+                        {
+                            demographics: demographicsData.follower_demographics,
+                            recordedAt: new Date(),
+                        },
+                        { upsert: true, new: true }
+                    );
+                    logger.info(`${TAG} Snapshot demográfico salvo/atualizado com sucesso para o usuário ${userId}.`);
+                } catch (saveError: any) {
+                    logger.error(`${TAG} Erro ao salvar snapshot demográfico para o usuário ${userId}:`, saveError);
+                    errors.push({ step: 'saveDemographicSnapshot', message: `Salvar demografia: ${saveError.message}` });
+                    overallSuccess = false;
+                }
+            } else {
+                logger.warn(`${TAG} Coleta de demografia bem-sucedida, mas sem dados retornados para o usuário ${userId}.`);
+            }
         }
 
         if (demographicsResult.errorMessage) {
@@ -457,11 +469,12 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
         }
     }
 
-    // PASSO 5: Salvar o snapshot da conta com todos os dados coletados
-    if (!criticalTokenErrorOccurred && (collectedAccountInsightsData || collectedAudienceDemographicsData || collectedBasicAccountData)) {
-        logger.info(`${TAG} [Passo 5/5] Salvando snapshot da conta...`);
+    // PASSO 5: Salvar o snapshot da conta (sem demografia)
+    if (!criticalTokenErrorOccurred && (collectedAccountInsightsData || collectedBasicAccountData)) {
+        logger.info(`${TAG} [Passo 5/5] Salvando snapshot da conta (insights e detalhes)...`);
         try {
-            await saveAccountInsightData(userObjectId, accountId!, collectedAccountInsightsData, collectedAudienceDemographicsData, collectedBasicAccountData);
+            // ** CHAMADA CORRIGIDA: Removido o argumento de demografia **
+            await saveAccountInsightData(userObjectId, accountId!, collectedAccountInsightsData, collectedBasicAccountData);
             savedAccountSnapshot = true;
             logger.info(`${TAG} Snapshot da conta salvo com sucesso.`);
         } catch (saveError: any) {
@@ -472,7 +485,7 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
     } else if (criticalTokenErrorOccurred) {
         logger.warn(`${TAG} Pulando save snapshot da conta devido a erro crítico de token.`);
     } else {
-        logger.warn(`${TAG} Nenhum dado novo de insights, demografia ou básico da conta para salvar no snapshot.`);
+        logger.warn(`${TAG} Nenhum dado novo de insights ou básico da conta para salvar no snapshot.`);
     }
 
   } catch (error: unknown) {
@@ -487,7 +500,7 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
 
     return { success: false, message: `Erro interno crítico durante a atualização: ${message}` };
   }
-
+  
   const duration = Date.now() - startTime;
   const collectedAnyMeaningfulData = savedMediaMetrics > 0 ||
                                    savedAccountSnapshot ||
@@ -505,7 +518,7 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
   }
 
 
-  const summary = `Mídias Recentes Processadas/Salvas: ${savedMediaMetrics}/${totalMediaProcessedForInsights}. Mídias Antigas Puladas: ${skippedOldMedia}. Filhos Carrossel Pulados: ${skippedCarouselChildren}. Snapshot Conta: ${savedAccountSnapshot ? 'Salvo' : 'Não'}. Básicos: ${collectedBasicAccountData ? 'OK' : 'Falha/Parcial'}. Insights Conta: ${collectedAccountInsightsData ? 'OK/Parcial' : 'Falha'}. Demo: ${collectedAudienceDemographicsData ? 'OK/Parcial' : 'Falha/Indisp.'}`;
+  const summary = `Mídias Recentes Processadas/Salvas: ${savedMediaMetrics}/${totalMediaProcessedForInsights}. Mídias Antigas Puladas: ${skippedOldMedia}. Filhos Carrossel Pulados: ${skippedCarouselChildren}. Snapshot Conta: ${savedAccountSnapshot ? 'Salvo' : 'Não'}. Básicos: ${collectedBasicAccountData ? 'OK' : 'Falha/Parcial'}. Demo: ${demographicsWereCollected ? 'OK/Parcial' : 'Falha/Indisp.'}`;
 
   let errorMsgForDb: string | null = null;
   const isPageLimitInfo = (err: { step: string; message: string; }) => err.step === 'fetchInstagramMediaLimitReachedInfo';
@@ -590,7 +603,7 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
       skippedCarouselChildren: skippedCarouselChildren,
       accountInsightsCollected: !!collectedAccountInsightsData,
       accountSnapshotSaved: savedAccountSnapshot,
-      demographicsCollected: !!collectedAudienceDemographicsData,
+      demographicsCollected: demographicsWereCollected,
       basicAccountDataCollected: !!collectedBasicAccountData,
       criticalTokenErrorOccurred: criticalTokenErrorOccurred,
       userLlatWasCompromised: userLlatIsCompromised,

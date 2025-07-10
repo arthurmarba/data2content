@@ -1,4 +1,4 @@
-import { Schema, model, models, Document, Model, Types } from 'mongoose';
+import mongoose, { Schema, model, models, Document, Model, Types } from 'mongoose';
 
 export interface IDemographicBreakdown {
   value: string;
@@ -7,16 +7,16 @@ export interface IDemographicBreakdown {
 
 export interface IAudienceDemographics {
   follower_demographics?: {
-    city?: IDemographicBreakdown[];
-    country?: IDemographicBreakdown[];
-    age?: IDemographicBreakdown[];
-    gender?: IDemographicBreakdown[];
+    city?: Record<string, number>;
+    country?: Record<string, number>;
+    age?: Record<string, number>;
+    gender?: Record<string, number>;
   };
   engaged_audience_demographics?: {
-    city?: IDemographicBreakdown[];
-    country?: IDemographicBreakdown[];
-    age?: IDemographicBreakdown[];
-    gender?: IDemographicBreakdown[];
+    city?: Record<string, number>;
+    country?: Record<string, number>;
+    age?: Record<string, number>;
+    gender?: Record<string, number>;
   };
 }
 
@@ -27,23 +27,19 @@ export interface IAudienceDemographicSnapshot extends Document {
   demographics: IAudienceDemographics;
 }
 
-const demographicBreakdownSchema = new Schema<IDemographicBreakdown>({
-  value: String,
-  count: Number,
-}, { _id: false });
-
+// O schema agora espera um objeto de chave-valor, que é mais limpo
 const audienceDemographicsSchema = new Schema<IAudienceDemographics>({
   follower_demographics: {
-    city: { type: [demographicBreakdownSchema], default: undefined },
-    country: { type: [demographicBreakdownSchema], default: undefined },
-    age: { type: [demographicBreakdownSchema], default: undefined },
-    gender: { type: [demographicBreakdownSchema], default: undefined },
+    city: { type: Schema.Types.Mixed, default: {} },
+    country: { type: Schema.Types.Mixed, default: {} },
+    age: { type: Schema.Types.Mixed, default: {} },
+    gender: { type: Schema.Types.Mixed, default: {} },
   },
   engaged_audience_demographics: {
-    city: { type: [demographicBreakdownSchema], default: undefined },
-    country: { type: [demographicBreakdownSchema], default: undefined },
-    age: { type: [demographicBreakdownSchema], default: undefined },
-    gender: { type: [demographicBreakdownSchema], default: undefined },
+    city: { type: Schema.Types.Mixed, default: {} },
+    country: { type: Schema.Types.Mixed, default: {} },
+    age: { type: Schema.Types.Mixed, default: {} },
+    gender: { type: Schema.Types.Mixed, default: {} },
   },
 }, { _id: false });
 
@@ -55,10 +51,11 @@ const audienceDemographicSnapshotSchema = new Schema<IAudienceDemographicSnapsho
 }, { timestamps: true, collection: 'audience_demographic_snapshots' });
 
 audienceDemographicSnapshotSchema.index({ user: 1, recordedAt: -1 });
+audienceDemographicSnapshotSchema.index({ instagramAccountId: 1 });
 
-const AudienceDemographicSnapshotModel = models.AudienceDemographicSnapshot
-  ? (models.AudienceDemographicSnapshot as Model<IAudienceDemographicSnapshot>)
-  : model<IAudienceDemographicSnapshot>('AudienceDemographicSnapshot', audienceDemographicSnapshotSchema);
+// ** CORREÇÃO PRINCIPAL APLICADA AQUI **
+const AudienceDemographicSnapshotModel = mongoose.models.AudienceDemographicSnapshot
+  ? (mongoose.models.AudienceDemographicSnapshot as Model<IAudienceDemographicSnapshot>)
+  : mongoose.model<IAudienceDemographicSnapshot>('AudienceDemographicSnapshot', audienceDemographicSnapshotSchema);
 
 export default AudienceDemographicSnapshotModel;
-export type { IDemographicBreakdown, IAudienceDemographics };

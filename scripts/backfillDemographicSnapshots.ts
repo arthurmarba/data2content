@@ -1,9 +1,13 @@
 import 'dotenv/config';
+import mongoose from 'mongoose';
 import { connectToDatabase } from '../src/app/lib/mongoose';
 import User from '../src/app/models/User';
 import { fetchAudienceDemographics } from '../src/app/lib/instagram/api/fetchers';
 import AudienceDemographicSnapshot from '../src/app/models/demographics/AudienceDemographicSnapshot';
 import { logger } from '../src/app/lib/logger';
+
+const DELAY_BETWEEN_USERS_MS = 2000; // Pausa de 2 segundos entre cada usuário
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function run() {
   const TAG = '[backfillDemographicSnapshots]';
@@ -13,7 +17,8 @@ async function run() {
     .lean();
   logger.info(`${TAG} ${users.length} usuários encontrados para verificação.`);
 
-  for (const u of users) {
+  for (const [index, u] of users.entries()) {
+    logger.info(`${TAG} Processando usuário ${index + 1}/${users.length} (ID: ${u._id})`);
     const existing = await AudienceDemographicSnapshot.findOne({ user: u._id }).lean();
     if (existing) {
       logger.info(`${TAG} Usuário ${u._id} já possui demografia registrada. Pulando.`);
@@ -30,7 +35,7 @@ async function run() {
           user: u._id,
           instagramAccountId: u.instagramAccountId,
           recordedAt: new Date(),
-          demographics: res.data,
+          demographics: res.data.follower_demographics, // Salva o objeto limpo
         });
         logger.info(`${TAG} Demografia salva para usuário ${u._id}`);
       } else {
@@ -39,10 +44,13 @@ async function run() {
     } catch (err) {
       logger.error(`${TAG} Erro ao processar usuário ${u._id}`, err);
     }
+    
+    // Pausa para não sobrecarregar a API
+    await sleep(DELAY_BETWEEN_USERS_MS);
   }
   logger.info(`${TAG} Processamento concluído.`);
 }
 
 run().catch(e => {
   logger.error('[backfillDemographicSnapshots] erro geral', e);
-}).finally(() => process.exit(0));
+}).finally(() => mongoose.disconnect()); // Garante que a conexão seja fechada
