@@ -32,20 +32,27 @@ export interface KPIComparisonData {
 
 // Tipo para o objeto completo de KPIs que vem da API
 export interface KpiComparison {
+  comparisonPeriod?: string;
   followerGrowth: KPIComparisonData;
   engagementRate: KPIComparisonData;
+  totalEngagement: KPIComparisonData;
   postingFrequency: KPIComparisonData;
-  avgReachPerPost?: KPIComparisonData;
-  avgViewsPerPost?: KPIComparisonData;
-  avgCommentsPerPost?: KPIComparisonData;
-  avgSharesPerPost?: KPIComparisonData;
-  avgSavesPerPost?: KPIComparisonData;
+  avgViewsPerPost: KPIComparisonData;
+  avgCommentsPerPost: KPIComparisonData;
+  avgSharesPerPost: KPIComparisonData;
+  avgSavesPerPost: KPIComparisonData;
+  avgReachPerPost: KPIComparisonData;
   insightSummary?: {
     followerGrowth?: string;
     engagementRate?: string;
+    totalEngagement?: string;
     postingFrequency?: string;
+    avgViewsPerPost?: string;
+    avgCommentsPerPost?: string;
+    avgSharesPerPost?: string;
+    avgSavesPerPost?: string;
+    avgReachPerPost?: string;
   };
-  comparisonPeriod: string;
 }
 
 // --- NOVOS TIPOS PARA DEMOGRAFIA ---
