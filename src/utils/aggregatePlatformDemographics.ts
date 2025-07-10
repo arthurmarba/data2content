@@ -1,7 +1,10 @@
+// src/utils/aggregatePlatformDemographics.ts
+
 import AudienceDemographicSnapshotModel, { IAudienceDemographics } from '@/app/models/demographics/AudienceDemographicSnapshot';
 import UserModel from '@/app/models/User';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import { logger } from '@/app/lib/logger';
+import { PipelineStage } from 'mongoose'; // 1. Importar o tipo PipelineStage
 
 export interface PlatformDemographicsAggregation {
   follower_demographics: {
@@ -24,7 +27,8 @@ export default async function aggregatePlatformDemographics(): Promise<PlatformD
 
     const userIds = activeUsers.map(u => u._id);
 
-    const pipeline = [
+    // 2. Aplicar o tipo explícito à pipeline
+    const pipeline: PipelineStage[] = [
       { $match: { user: { $in: userIds } } },
       { $sort: { user: 1, recordedAt: -1 } },
       { $group: { _id: '$user', doc: { $first: '$$ROOT' } } },
