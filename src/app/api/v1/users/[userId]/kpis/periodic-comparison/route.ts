@@ -76,6 +76,16 @@ export async function GET(
       return agg?.avg ?? null;
     }
 
+    async function getAverageViews(start: Date, end: Date): Promise<number | null> {
+      const [agg] = await MetricModel.aggregate([
+        { $match: { user: resolvedUserId, postDate: { $gte: start, $lte: end } } },
+        { $project: { value: { $ifNull: ['$stats.views', '$stats.video_views'] } } },
+        { $match: { value: { $ne: null } } },
+        { $group: { _id: null, avg: { $avg: '$value' } } }
+      ]);
+      return agg?.avg ?? null;
+    }
+
     const [
       fgDataCurrent, fgDataOverall,
       engCurrentResult, engPreviousResult,
@@ -92,7 +102,7 @@ export async function GET(
       calculateAverageEngagementPerPost(resolvedUserId, {startDate: currentStartDate, endDate: currentEndDate}),
       calculateAverageEngagementPerPost(resolvedUserId, {startDate: previousStartDate, endDate: previousEndDate}),
       calculateWeeklyPostingFrequency(resolvedUserId, currentPeriodDays),
-      getAverage('stats.views', currentStartDate, currentEndDate), getAverage('stats.views', previousStartDate, previousEndDate),
+      getAverageViews(currentStartDate, currentEndDate), getAverageViews(previousStartDate, previousEndDate),
       getAverage('stats.comments', currentStartDate, currentEndDate), getAverage('stats.comments', previousStartDate, previousEndDate),
       getAverage('stats.shares', currentStartDate, currentEndDate), getAverage('stats.shares', previousStartDate, previousEndDate),
       getAverage('stats.saves', currentStartDate, currentEndDate), getAverage('stats.saves', previousStartDate, previousEndDate),
