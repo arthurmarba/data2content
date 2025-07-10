@@ -5,24 +5,32 @@ export interface VideoListItem {
   _id: string;
   thumbnailUrl?: string | null;
   caption?: string;
-  description?: string;
   permalink?: string | null;
   postDate?: string | Date;
+  // Classificação de conteúdo
+  // Todos os campos são arrays para acomodar múltiplas tags
+  format?: string[];
+  proposal?: string[];
+  context?: string[];
+  tone?: string[];
+  references?: string[];
   stats?: {
     views?: number;
     likes?: number;
     comments?: number;
     shares?: number;
+    saves?: number;
+    reach?: number; // NOVO: Adicionado para o cálculo de alcance
   };
 }
 
-// Tipo para o resumo de performance (cards de destaque)
+// Para os cards de destaque
 export interface PerformanceSummary {
   topPerformingFormat?: { name: string; metricName: string; valueFormatted: string } | null;
   topPerformingContext?: { name: string; metricName: string; valueFormatted: string } | null;
 }
 
-// Tipo para os dados de cada KPI individual
+// Para cada KPI individual
 export interface KPIComparisonData {
   currentValue: number | null;
   previousValue: number | null;
@@ -30,28 +38,34 @@ export interface KPIComparisonData {
   chartData?: { name: string; value: number }[];
 }
 
-// Tipo para o objeto completo de KPIs que vem da API
+// Para o objeto completo de KPIs da API
 export interface KpiComparison {
+  comparisonPeriod?: string;
   followerGrowth: KPIComparisonData;
   engagementRate: KPIComparisonData;
+  totalEngagement: KPIComparisonData;
   postingFrequency: KPIComparisonData;
-  avgReachPerPost?: KPIComparisonData;
-  avgViewsPerPost?: KPIComparisonData;
-  avgCommentsPerPost?: KPIComparisonData;
-  avgSharesPerPost?: KPIComparisonData;
-  avgSavesPerPost?: KPIComparisonData;
+  avgViewsPerPost: KPIComparisonData;
+  avgCommentsPerPost: KPIComparisonData;
+  avgSharesPerPost: KPIComparisonData;
+  avgSavesPerPost: KPIComparisonData;
+  avgReachPerPost: KPIComparisonData;
   insightSummary?: {
     followerGrowth?: string;
     engagementRate?: string;
+    totalEngagement?: string;
     postingFrequency?: string;
+    avgViewsPerPost?: string;
+    avgCommentsPerPost?: string;
+    avgSharesPerPost?: string;
+    avgSavesPerPost?: string;
+    avgReachPerPost?: string;
   };
-  comparisonPeriod: string;
 }
 
 // --- NOVOS TIPOS PARA DEMOGRAFIA ---
 
-// CORREÇÃO: Renomeado de AudienceDemographics para DemographicsData para corresponder ao uso.
-export interface DemographicsData { // <--- Este é o nome correto
+export interface DemographicsData {
   follower_demographics?: {
     gender?: Record<string, number>;
     age?: Record<string, number>;
@@ -66,11 +80,11 @@ export interface DemographicsData { // <--- Este é o nome correto
   };
 }
 
-// Props para o componente MediaKitView
+// Para as props do componente MediaKitView
 export interface MediaKitViewProps {
   user: any;
   summary: PerformanceSummary | null;
   videos: VideoListItem[];
-  kpis: KpiComparison | null;
-  demographics: DemographicsData | null; // A linha precisa estar aqui
+  kpis: KpiComparison | null; // Dados iniciais
+  demographics: DemographicsData | null;
 }
