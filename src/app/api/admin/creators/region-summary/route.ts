@@ -6,10 +6,18 @@ import aggregateCreatorsByRegion from '@/utils/aggregateCreatorsByRegion';
 
 export const dynamic = 'force-dynamic';
 
+const parseAge = (val: unknown) => {
+  if (val === '' || val === undefined || val === null) {
+    return undefined;
+  }
+  const num = Number(val);
+  return Number.isFinite(num) ? num : undefined;
+};
+
 const querySchema = z.object({
   gender: z.enum(['male', 'female', 'other']).optional(),
-  minAge: z.coerce.number().int().positive().optional(),
-  maxAge: z.coerce.number().int().positive().optional(),
+  minAge: z.preprocess(parseAge, z.number().int().positive().optional()),
+  maxAge: z.preprocess(parseAge, z.number().int().positive().optional()),
   region: z.enum(['Norte', 'Nordeste', 'Centro-Oeste', 'Sudeste', 'Sul']).optional(),
 });
 
