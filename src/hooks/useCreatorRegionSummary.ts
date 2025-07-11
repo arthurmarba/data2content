@@ -42,7 +42,9 @@ export default function useCreatorRegionSummary(options: UseCreatorRegionSummary
 
   // Memoizar a função fetcher com useCallback.
   const fetcher = useCallback(async (): Promise<Record<string, StateBreakdown>> => {
-    const res = await fetch(`/api/admin/creators/region-summary?${queryString}`);
+    const res = await fetch(`/api/admin/creators/region-summary?${queryString}`, {
+      credentials: 'include',
+    });
     if (!res.ok) throw new Error(`Erro na API: ${res.statusText}`);
     const json: ApiResponse = await res.json();
     
