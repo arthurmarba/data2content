@@ -7,10 +7,9 @@ import VideosTable from '@/app/admin/creator-dashboard/components/VideosTable';
 import { UserAvatar } from '@/app/components/UserAvatar';
 import AverageMetricRow from '@/app/dashboard/components/AverageMetricRow';
 import PostDetailModal from '@/app/admin/creator-dashboard/PostDetailModal';
-// CORREÇÃO: O tipo importado deve ser 'DemographicsData' para corresponder ao que é exportado.
 import { MediaKitViewProps, VideoListItem, KpiComparison, DemographicsData } from '@/types/mediakit';
 
-// Placeholder para Ícones
+// Placeholder para Ícones (sem alterações)
 const FaIcon = ({ path, className = "w-5 h-5" }: { path: string, className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" className={className} fill="currentColor">
     <path d={path} />
@@ -30,12 +29,12 @@ const ICONS = {
   users: "M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3C0 498.7 13.3 512 29.7 512H418.3c16.4 0 29.7-13.3 29.7-29.7C448 383.8 368.2 304 269.7 304H178.3z",
   heart: "M47.6 300.4L228.3 469.1c7.5 7 17.4 10.9 27.7 10.9s20.2-3.9 27.7-10.9L464.4 300.4c30.4-28.3 47.6-68 47.6-109.5v-5.8c0-69.9-50.5-129.5-119.4-141C347 36.5 300.6 51.4 268 84L256 96 244 84c-32.6-32.6-79-47.5-124.6-39.9C50.5 55.6 0 115.2 0 185.1v5.8c0 41.5 17.2 81.2 47.6 109.5z",
   calendar: "M448 64H352V32c0-17.7-14.3-32-32-32s-32 14.3-32 32v32H160V32c0-17.7-14.3-32-32-32s-32 14.3-32 32v32H48C21.5 64 0 85.5 0 112v352c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48zm-64 352H128V224h256v192z",
-  gender: "M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3C0 498.7 13.3 512 29.7 512H418.3c16.4 0 29.7-13.3 29.7-29.7C448 383.8 368.2 304 269.7 304H178.3z", // Reutilizando 'users'
-  cake: "M512 32H0v320c0 35.3 28.7 64 64 64h128v32H96c-17.7 0-32 14.3-32 32s14.3 32 32 32h320c17.7 0 32-14.3 32-32s-14.3-32-32-32h-96v-32h128c35.3 0 64-28.7 64-64V32zM256 224c-17.7 0-32-14.3-32-32s14.3-32 32-32s32 14.3 32 32s-14.3 32-32 32z", // Ícone de bolo
+  gender: "M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3C0 498.7 13.3 512 29.7 512H418.3c16.4 0 29.7-13.3 29.7-29.7C448 383.8 368.2 304 269.7 304H178.3z",
+  cake: "M512 32H0v320c0 35.3 28.7 64 64 64h128v32H96c-17.7 0-32 14.3-32 32s14.3 32 32 32h320c17.7 0 32-14.3 32-32s-14.3-32-32-32h-96v-32h128c35.3 0 64-28.7 64-64V32zM256 224c-17.7 0-32-14.3-32-32s14.3-32 32-32s32 14.3 32 32s-14.3 32-32 32z",
   mapPin: "M215.7 499.2C267 435 384 279.4 384 192C384 86 298 0 192 0S0 86 0 192c0 87.4 117 243 168.3 307.2c12.3 15.3 35.1 15.3 47.4 0zM192 256c-35.3 0-64-28.7-64-64s28.7-64 64-64s64 28.7 64 64s-28.7 64-64 64z"
 };
 
-// --- Micro-Componentes Internos ---
+// --- Micro-Componentes Internos (sem alterações) ---
 
 const KeyMetric: React.FC<{ icon: React.ReactNode; value: string; label: string }> = ({ icon, value, label }) => (
   <div className="flex flex-col items-center text-center p-2">
@@ -77,7 +76,7 @@ const KpiValue: React.FC<{ value: number | null | undefined; type: 'number' | 'p
   return <>{formattedValue}</>;
 };
 
-// --- Funções Auxiliares de Demografia ---
+// --- Funções Auxiliares de Demografia (sem alterações) ---
 
 const genderLabelMap: Record<string, string> = {
   f: 'Feminino',
@@ -96,7 +95,6 @@ const getTopEntry = (data: Record<string, number> | undefined): [string, number]
   return Object.entries(data).reduce((a, b) => (a[1] > b[1] ? a : b));
 };
 
-// CORREÇÃO: O tipo do parâmetro 'demographics' está correto agora.
 const generateDemographicSummary = (demographics: DemographicsData | null): string => {
   if (!demographics?.follower_demographics) return "Dados demográficos não disponíveis.";
   
@@ -119,7 +117,7 @@ const generateDemographicSummary = (demographics: DemographicsData | null): stri
   return `Mais popular entre o público ${dominantGender}, ${topAgeEntry[0]} anos, em ${topLocation}.`;
 };
 
-// --- Componentes de UI para Demografia ---
+// --- Componentes de UI para Demografia (sem alterações) ---
 
 const DemographicRow: React.FC<{ label: string; percentage: number; compact?: boolean }> = ({ label, percentage, compact }) => {
   const displayLabel = compact ? label.split(',')[0] : label;
@@ -206,6 +204,35 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
       location: calculatePercentages(city).slice(0, 3), // Top 3
     };
   }, [demographics]);
+
+  // *** INÍCIO DA CORREÇÃO DEFINITIVA ***
+  // Esta função corrige os dados dos vídeos antes de passá-los para a tabela.
+  // Ela garante que 'stats.views' sempre tenha um valor, usando 'stats.reach' como fallback.
+  // Isso resolve a inconsistência de dados da API e garante que a tabela e os cálculos
+  // de engajamento funcionem como esperado.
+  const videosWithCorrectStats = useMemo(() => {
+    if (!Array.isArray(videos)) {
+        return [];
+    }
+    return videos.map(video => {
+        // Clona o objeto para evitar mutação direta da prop
+        const newVideo = JSON.parse(JSON.stringify(video));
+
+        // Garante que o objeto de stats exista
+        if (!newVideo.stats) {
+            newVideo.stats = {};
+        }
+
+        // Se 'views' não estiver definido, usa 'reach' como valor.
+        // Esta é a correção principal para os dados que alimentam a VideosTable.
+        if (newVideo.stats.views === undefined || newVideo.stats.views === null) {
+            newVideo.stats.views = newVideo.stats.reach;
+        }
+        
+        return newVideo;
+    });
+  }, [videos]);
+  // *** FIM DA CORREÇÃO DEFINITIVA ***
 
   return (
     <div className="bg-slate-50 min-h-screen font-sans">
@@ -297,7 +324,8 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
                   <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
                     {isLoading ? <FaIcon path={ICONS.spinner} className="animate-spin text-pink-500 mx-auto my-10 h-6 w-6" /> : (
                       <div className="space-y-1">
-                        <AverageMetricRow icon={<FaIcon path={ICONS.eye} className="w-4 h-4"/>} label="Visualizações" value={kpiData?.avgViewsPerPost?.currentValue} />
+                        {/* *** APLICANDO A CORREÇÃO AQUI *** */}
+                        <AverageMetricRow icon={<FaIcon path={ICONS.eye} className="w-4 h-4"/>} label="Visualizações" value={kpiData?.avgReachPerPost?.currentValue} />
                         <AverageMetricRow icon={<FaIcon path={ICONS.heart} className="w-4 h-4"/>} label="Curtidas" value={kpiData?.avgLikesPerPost?.currentValue} />
                         <AverageMetricRow icon={<FaIcon path={ICONS.comments} className="w-4 h-4"/>} label="Comentários" value={kpiData?.avgCommentsPerPost?.currentValue} />
                         <AverageMetricRow icon={<FaIcon path={ICONS.share} className="w-4 h-4"/>} label="Compartilhamentos" value={kpiData?.avgSharesPerPost?.currentValue} />
@@ -337,8 +365,9 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
               </div>
               <p className="text-gray-600 mb-6 font-light">Uma amostra do conteúdo de maior impacto, agora com a classificação completa. <span className="font-medium text-gray-700">Clique em um post para ver a análise detalhada.</span></p>
 
+              {/* *** APLICANDO A CORREÇÃO AQUI *** */}
               <VideosTable
-                videos={videos}
+                videos={videosWithCorrectStats}
                 readOnly
                 onRowClick={handleVideoClick}
               />
