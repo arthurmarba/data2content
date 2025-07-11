@@ -15,6 +15,7 @@ import UserMonthlyEngagementStackedChart from "../UserMonthlyEngagementStackedCh
 import UserMonthlyComparisonChart from "../UserMonthlyComparisonChart";
 import UserPerformanceHighlights from "../UserPerformanceHighlights";
 import TimePerformanceHeatmap from "../TimePerformanceHeatmap";
+import UserDemographicsWidget from "../UserDemographicsWidget";
 
 // User-specific components from Módulo 3 (Creator Detail)
 import UserAlertsWidget from "../widgets/UserAlertsWidget";
@@ -98,6 +99,7 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
             <ul className="flex flex-wrap gap-4 text-sm font-medium text-indigo-600">
               <li><a href={`#user-kpis-${userId}`} className="hover:underline">KPIs Chave</a></li>
               <li><a href={`#user-performance-highlights-${userId}`} className="hover:underline">Destaques</a></li>
+              <li><a href={`#user-demographics-${userId}`} className="hover:underline">Demografia</a></li>
               <li><a href={`#user-content-performance-${userId}`} className="hover:underline">Desempenho de Conteúdo</a></li>
               <li><a href={`#user-advanced-analysis-${userId}`} className="hover:underline">Alertas de Desempenho</a></li>
               <li><a href={`#user-trends-${userId}`} className="hover:underline">Tendências</a></li>
@@ -127,6 +129,10 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
           <UserPerformanceHighlights userId={userId} sectionTitle="Destaques de Desempenho" />
           <h4 className="text-lg font-semibold text-gray-700 mt-6 mb-4">Análise por Horário</h4>
           <TimePerformanceHeatmap userId={userId} />
+        </section>
+
+        <section id={`user-demographics-${userId}`} className="mb-10">
+          <UserDemographicsWidget userId={userId} />
         </section>
 
         <section id={`user-content-performance-${userId}`} className="mb-10">
