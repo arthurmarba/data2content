@@ -151,7 +151,12 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
 
   const [comparisonPeriod, setComparisonPeriod] = useState<string>(initialKpis?.comparisonPeriod || 'last_30d_vs_previous_30d');
   const [kpiData, setKpiData] = useState<KpiComparison | null>(initialKpis);
-  const [isLoading, setIsLoading] = useState(false);
+  
+  // --- INÍCIO DA CORREÇÃO ---
+  // O estado de carregamento agora começa como 'true' se não houver dados de KPI iniciais.
+  const [isLoading, setIsLoading] = useState(!initialKpis);
+  // --- FIM DA CORREÇÃO ---
+
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const isFirstRender = useRef(true);
 
@@ -162,7 +167,7 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
     }
     async function fetchData() {
       if (!user?._id) return;
-      setIsLoading(true);
+      setIsLoading(true); // Ativa o loading antes de cada nova busca
       try {
         const res = await fetch(`/api/v1/users/${user._id}/kpis/periodic-comparison?comparisonPeriod=${comparisonPeriod}`);
         setKpiData(res.ok ? await res.json() : null);
@@ -170,7 +175,7 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
         console.error('Erro ao buscar KPIs', err);
         setKpiData(null);
       } finally {
-        setIsLoading(false);
+        setIsLoading(false); // Desativa o loading no final, independentemente do resultado
       }
     }
     fetchData();
@@ -205,34 +210,21 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
     };
   }, [demographics]);
 
-  // *** INÍCIO DA CORREÇÃO DEFINITIVA ***
-  // Esta função corrige os dados dos vídeos antes de passá-los para a tabela.
-  // Ela garante que 'stats.views' sempre tenha um valor, usando 'stats.reach' como fallback.
-  // Isso resolve a inconsistência de dados da API e garante que a tabela e os cálculos
-  // de engajamento funcionem como esperado.
   const videosWithCorrectStats = useMemo(() => {
     if (!Array.isArray(videos)) {
         return [];
     }
     return videos.map(video => {
-        // Clona o objeto para evitar mutação direta da prop
         const newVideo = JSON.parse(JSON.stringify(video));
-
-        // Garante que o objeto de stats exista
         if (!newVideo.stats) {
             newVideo.stats = {};
         }
-
-        // Se 'views' não estiver definido, usa 'reach' como valor.
-        // Esta é a correção principal para os dados que alimentam a VideosTable.
-        if (newVideo.stats.views === undefined || newVideo.stats.views === null) {
+        if (newVideo.stats.views === undefined || newVideo.stats.views === null || newVideo.stats.views === 0) {
             newVideo.stats.views = newVideo.stats.reach;
         }
-        
         return newVideo;
     });
   }, [videos]);
-  // *** FIM DA CORREÇÃO DEFINITIVA ***
 
   return (
     <div className="bg-slate-50 min-h-screen font-sans">
@@ -305,55 +297,70 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
             <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={2} className={cardStyle}>
                <div className="flex items-center justify-between gap-3 mb-4">
                 <h2 className="text-xl font-bold text-gray-800">Performance</h2>
-                <select className="text-sm border-gray-300 rounded-md shadow-sm focus:ring-pink-500 focus:border-pink-500" value={comparisonPeriod} onChange={(e) => setComparisonPeriod(e.target.value)} disabled={isLoading}>
+                <select 
+                    className="text-sm border-gray-300 rounded-md shadow-sm focus:ring-pink-500 focus:border-pink-500" 
+                    value={comparisonPeriod} 
+                    onChange={(e) => setComparisonPeriod(e.target.value)} 
+                    disabled={isLoading}
+                >
                   {PERIOD_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
               </div>
-              <div className={`transition-opacity duration-300 ${isLoading ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
-                <div className="mb-4">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Números-Chave</h3>
-                  <div className="grid grid-cols-3 divide-x divide-gray-200 bg-gray-50 p-2 rounded-lg">
-                    <KeyMetric icon={<FaIcon path={ICONS.users}/>} value={compactNumberFormat(kpiData?.avgReachPerPost?.currentValue ?? null)} label="Alcance Médio" />
-                    <KeyMetric icon={<FaIcon path={ICONS.heart}/>} value={`${kpiData?.engagementRate?.currentValue?.toFixed(2) ?? '0'}%`} label="Taxa de Engaj." />
-                    <KeyMetric icon={<FaIcon path={ICONS.calendar}/>} value={`${kpiData?.postingFrequency?.currentValue?.toFixed(1) ?? '0'}`} label="Posts/Semana" />
-                  </div>
+              
+              {/* --- INÍCIO DA CORREÇÃO DE RENDERIZAÇÃO --- */}
+              {isLoading ? (
+                <div className="flex justify-center items-center h-64">
+                    <FaIcon path={ICONS.spinner} className="animate-spin text-pink-500 h-8 w-8" />
                 </div>
+              ) : !kpiData ? (
+                <div className="flex justify-center items-center h-64 text-center">
+                    <p className="text-red-500">Não foi possível carregar os dados de performance.</p>
+                </div>
+              ) : (
+                <div className="transition-opacity duration-300">
+                    <div className="mb-4">
+                      <h3 className="text-sm font-semibold text-gray-700 mb-2">Números-Chave</h3>
+                      <div className="grid grid-cols-3 divide-x divide-gray-200 bg-gray-50 p-2 rounded-lg">
+                        <KeyMetric icon={<FaIcon path={ICONS.users}/>} value={compactNumberFormat(kpiData?.avgReachPerPost?.currentValue ?? null)} label="Alcance Médio" />
+                        <KeyMetric icon={<FaIcon path={ICONS.heart}/>} value={`${kpiData?.engagementRate?.currentValue?.toFixed(2) ?? '0'}%`} label="Taxa de Engaj." />
+                        <KeyMetric icon={<FaIcon path={ICONS.calendar}/>} value={`${kpiData?.postingFrequency?.currentValue?.toFixed(1) ?? '0'}`} label="Posts/Semana" />
+                      </div>
+                    </div>
 
-                <div className="mb-4">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Médias Detalhadas por Post</h3>
-                  <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
-                    {isLoading ? <FaIcon path={ICONS.spinner} className="animate-spin text-pink-500 mx-auto my-10 h-6 w-6" /> : (
-                      <div className="space-y-1">
-                        {/* *** APLICANDO A CORREÇÃO AQUI *** */}
-                        <AverageMetricRow icon={<FaIcon path={ICONS.eye} className="w-4 h-4"/>} label="Visualizações" value={kpiData?.avgReachPerPost?.currentValue} />
-                        <AverageMetricRow icon={<FaIcon path={ICONS.heart} className="w-4 h-4"/>} label="Curtidas" value={kpiData?.avgLikesPerPost?.currentValue} />
-                        <AverageMetricRow icon={<FaIcon path={ICONS.comments} className="w-4 h-4"/>} label="Comentários" value={kpiData?.avgCommentsPerPost?.currentValue} />
-                        <AverageMetricRow icon={<FaIcon path={ICONS.share} className="w-4 h-4"/>} label="Compartilhamentos" value={kpiData?.avgSharesPerPost?.currentValue} />
-                        <AverageMetricRow icon={<FaIcon path={ICONS.bookmark} className="w-4 h-4"/>} label="Salvos" value={kpiData?.avgSavesPerPost?.currentValue} />
+                    <div className="mb-4">
+                      <h3 className="text-sm font-semibold text-gray-700 mb-2">Médias Detalhadas por Post</h3>
+                      <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
+                          <div className="space-y-1">
+                            <AverageMetricRow icon={<FaIcon path={ICONS.eye} className="w-4 h-4"/>} label="Visualizações" value={kpiData?.avgReachPerPost?.currentValue} />
+                            <AverageMetricRow icon={<FaIcon path={ICONS.heart} className="w-4 h-4"/>} label="Curtidas" value={kpiData?.avgLikesPerPost?.currentValue} />
+                            <AverageMetricRow icon={<FaIcon path={ICONS.comments} className="w-4 h-4"/>} label="Comentários" value={kpiData?.avgCommentsPerPost?.currentValue} />
+                            <AverageMetricRow icon={<FaIcon path={ICONS.share} className="w-4 h-4"/>} label="Compartilhamentos" value={kpiData?.avgSharesPerPost?.currentValue} />
+                            <AverageMetricRow icon={<FaIcon path={ICONS.bookmark} className="w-4 h-4"/>} label="Salvos" value={kpiData?.avgSavesPerPost?.currentValue} />
+                          </div>
+                      </div>
+                    </div>
+
+                    {kpiData.followerGrowth && (
+                      <div className="space-y-4 pt-4 border-t border-gray-100">
+                        <h3 className="text-sm font-semibold text-gray-700 mb-2">Crescimento de Seguidores</h3>
+                        <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
+                          {user.followers_count !== undefined && (
+                            <p className="text-2xl font-bold text-gray-900 mt-1">
+                              {user.followers_count.toLocaleString('pt-BR')}
+                            </p>
+                          )}
+                          <p className="text-xs text-gray-500">Seguidores totais</p>
+                          <p className="text-sm text-gray-700 mt-3 flex items-center">
+                            <KpiValue value={kpiData.followerGrowth?.currentValue} type="number" />
+                            <TrendIndicator value={kpiData.followerGrowth?.percentageChange ?? null} />
+                            <span className="ml-1 text-gray-500">no período selecionado</span>
+                          </p>
+                        </div>
                       </div>
                     )}
-                  </div>
                 </div>
-
-                {kpiData && !isLoading && (
-                  <div className="space-y-4 pt-4 border-t border-gray-100">
-                    <h3 className="text-sm font-semibold text-gray-700 mb-2">Crescimento de Seguidores</h3>
-                    <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
-                      {user.followers_count !== undefined && (
-                        <p className="text-2xl font-bold text-gray-900 mt-1">
-                          {user.followers_count.toLocaleString('pt-BR')}
-                        </p>
-                      )}
-                      <p className="text-xs text-gray-500">Seguidores totais</p>
-                      <p className="text-sm text-gray-700 mt-3 flex items-center">
-                        <KpiValue value={kpiData.followerGrowth?.currentValue} type="number" />
-                        <TrendIndicator value={kpiData.followerGrowth?.percentageChange ?? null} />
-                        <span className="ml-1 text-gray-500">no período selecionado</span>
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
+              )}
+              {/* --- FIM DA CORREÇÃO DE RENDERIZAÇÃO --- */}
             </motion.div>
           </aside>
 
@@ -365,7 +372,6 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
               </div>
               <p className="text-gray-600 mb-6 font-light">Uma amostra do conteúdo de maior impacto, agora com a classificação completa. <span className="font-medium text-gray-700">Clique em um post para ver a análise detalhada.</span></p>
 
-              {/* *** APLICANDO A CORREÇÃO AQUI *** */}
               <VideosTable
                 videos={videosWithCorrectStats}
                 readOnly

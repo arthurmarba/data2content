@@ -8,7 +8,7 @@ import MediaKitView from './MediaKitView';
 // Tipos centralizados para garantir consistência em todo o fluxo de dados.
 import { VideoListItem, PerformanceSummary, KpiComparison, DemographicsData } from '@/types/mediakit';
 
-// A revalidação garante que os dados do Mídia Kit sejam atualizados periodicamente.
+// A revalidação é mantida como um fallback, mas 'no-store' terá prioridade.
 export const revalidate = 300; // 5 minutos
 
 // --- MÓDULO DE BUSCA DE DADOS (DATA FETCHING) ---
@@ -18,7 +18,7 @@ export const revalidate = 300; // 5 minutos
  */
 async function fetchSummary(baseUrl: string, userId: string): Promise<PerformanceSummary | null> {
   try {
-    const res = await fetch(`${baseUrl}/api/v1/users/${userId}/highlights/performance-summary`, { next: { revalidate: 300 } });
+    const res = await fetch(`${baseUrl}/api/v1/users/${userId}/highlights/performance-summary`, { cache: 'no-store' });
     if (!res.ok) {
       console.error(`[MediaKitPage] Falha ao buscar summary: ${res.status}`);
       return null;
@@ -35,7 +35,7 @@ async function fetchSummary(baseUrl: string, userId: string): Promise<Performanc
  */
 async function fetchTopVideos(baseUrl: string, userId: string): Promise<VideoListItem[]> {
   try {
-    const res = await fetch(`${baseUrl}/api/v1/users/${userId}/videos/list?sortBy=views&limit=5`, { next: { revalidate: 300 } });
+    const res = await fetch(`${baseUrl}/api/v1/users/${userId}/videos/list?sortBy=views&limit=5`, { cache: 'no-store' });
     if (!res.ok) {
       console.error(`[MediaKitPage] Falha ao buscar top videos: ${res.status}`);
       return [];
@@ -53,7 +53,7 @@ async function fetchTopVideos(baseUrl: string, userId: string): Promise<VideoLis
  */
 async function fetchKpis(baseUrl: string, userId: string): Promise<KpiComparison | null> {
   try {
-    const res = await fetch(`${baseUrl}/api/v1/users/${userId}/kpis/periodic-comparison`, { next: { revalidate: 300 } });
+    const res = await fetch(`${baseUrl}/api/v1/users/${userId}/kpis/periodic-comparison`, { cache: 'no-store' });
     if (!res.ok) {
       console.error(`[MediaKitPage] Falha ao buscar kpis: ${res.status}`);
       return null;
@@ -70,7 +70,7 @@ async function fetchKpis(baseUrl: string, userId: string): Promise<KpiComparison
  */
 async function fetchDemographics(baseUrl: string, userId: string): Promise<DemographicsData | null> {
   try {
-    const res = await fetch(`${baseUrl}/api/demographics/${userId}`, { next: { revalidate: 300 } });
+    const res = await fetch(`${baseUrl}/api/demographics/${userId}`, { cache: 'no-store' });
     if (!res.ok) {
       console.error(`[MediaKitPage] Falha ao buscar demographics: ${res.status}`);
       return null;
