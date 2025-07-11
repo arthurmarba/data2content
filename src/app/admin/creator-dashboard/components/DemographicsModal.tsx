@@ -16,8 +16,8 @@ const DemographicsModal: React.FC<DemographicsModalProps> = ({ isOpen, onClose, 
   const entries = Object.entries(data || {}).sort((a, b) => b[1] - a[1]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-center items-center p-4" role="dialog" aria-modal="true">
-      <div className="bg-white w-full max-w-md rounded-xl shadow-2xl flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-center items-center p-4" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="bg-white w-full max-w-md rounded-xl shadow-2xl flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
         <header className="flex items-center justify-between p-4 border-b sticky top-0 bg-white z-10">
           <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
           <button onClick={onClose} className="p-1.5 rounded-full text-gray-500 hover:bg-gray-100 transition-colors">
@@ -30,9 +30,9 @@ const DemographicsModal: React.FC<DemographicsModalProps> = ({ isOpen, onClose, 
           ) : (
             <ul className="space-y-1 text-sm">
               {entries.map(([k, v]) => (
-                <li key={k} className="flex justify-between">
+                <li key={k} className="flex justify-between items-center gap-4 py-1">
                   <span className="truncate" title={k}>{k}</span>
-                  <span className="ml-2 font-medium">{v.toLocaleString("pt-BR")}</span>
+                  <span className="font-medium flex-shrink-0">{v.toLocaleString("pt-BR")}</span>
                 </li>
               ))}
             </ul>
@@ -43,4 +43,4 @@ const DemographicsModal: React.FC<DemographicsModalProps> = ({ isOpen, onClose, 
   );
 };
 
-export default DemographicsModal;
+export default React.memo(DemographicsModal);

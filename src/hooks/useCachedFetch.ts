@@ -15,26 +15,30 @@ export interface UseCachedFetchReturn<T> {
 export default function useCachedFetch<T>(
   key: string,
   fetcher: () => Promise<T>,
-  ttl = 10 * 60 * 1000
+  ttl = 10 * 60 * 1000 // 10 minutos
 ): UseCachedFetchReturn<T> {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (forceRefresh = false) => {
     setLoading(true);
     setError(null);
+
     try {
-      const cachedRaw =
-        typeof window !== "undefined" ? localStorage.getItem(key) : null;
-      if (cachedRaw) {
-        const cached = JSON.parse(cachedRaw) as CacheEntry<T>;
-        if (Date.now() - cached.timestamp < ttl) {
-          setData(cached.data);
-          setLoading(false);
-          return;
+      if (!forceRefresh) {
+        const cachedRaw =
+          typeof window !== "undefined" ? localStorage.getItem(key) : null;
+        if (cachedRaw) {
+          const cached = JSON.parse(cachedRaw) as CacheEntry<T>;
+          if (Date.now() - cached.timestamp < ttl) {
+            setData(cached.data);
+            setLoading(false);
+            return;
+          }
         }
       }
+
       const result = await fetcher();
       setData(result);
       if (typeof window !== "undefined") {
@@ -52,6 +56,8 @@ export default function useCachedFetch<T>(
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+  
+  const refresh = useCallback(() => fetchData(true), [fetchData]);
 
-  return { data, loading, error, refresh: fetchData };
+  return { data, loading, error, refresh };
 }

@@ -41,7 +41,7 @@ export default async function aggregateCreatorsByRegion(filters: Filters = {}): 
   const TAG = '[aggregateCreatorsByRegion]';
   await connectToDatabase();
 
-  const query: any = { 'location.country': 'BR' };
+  const query: any = {}; // Temporariamente busca todos os usuários
   if (filters.gender) {
     query.gender = filters.gender;
   }

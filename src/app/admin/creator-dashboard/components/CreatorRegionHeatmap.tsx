@@ -1,59 +1,81 @@
 "use client";
 
-import React, { useState, useRef, useMemo } from "react";
+import React, { useState, useRef, useMemo, useCallback } from "react";
+// Supondo que você tenha estes arquivos de dados
 import { BRAZIL_STATE_GRID, BrazilStateTile } from "@/data/brazilStateGrid";
 import { BRAZIL_REGION_STATES } from "@/data/brazilRegions";
 import useCreatorRegionSummary, { StateBreakdown } from "@/hooks/useCreatorRegionSummary";
 
-
 const TILE_SIZE = 32;
 const COLORS = ["#fee5d9", "#fcae91", "#fb6a4a", "#de2d26", "#a50f15"];
 
-function getColor(value: number, max: number) {
-  if (max === 0) return COLORS[0];
+function getColor(value: number, max: number): string {
+  // CORRIGIDO: Adicionado '!' para afirmar que COLORS[0] não é nulo/undefined
+  if (max === 0 || value === 0) return COLORS[0]!; 
+  
   const idx = Math.min(COLORS.length - 1, Math.floor((value / max) * COLORS.length));
-  return COLORS[idx];
+  // CORRIGIDO: Adicionado '!' para consistência e segurança
+  return COLORS[idx]!; 
 }
 
+// OTIMIZAÇÃO: Calcula as dimensões do grid dinamicamente.
+// Nota: Isto depende que BRAZIL_STATE_GRID não esteja vazio.
+const gridDimensions = {
+  width: BRAZIL_STATE_GRID.length > 0 ? Math.max(...BRAZIL_STATE_GRID.map(t => t.col)) + 1 : 0,
+  height: BRAZIL_STATE_GRID.length > 0 ? Math.max(...BRAZIL_STATE_GRID.map(t => t.row)) + 1 : 0,
+};
+
 export default function CreatorRegionHeatmap() {
-  const [gender, setGender] = useState("");
-  const [region, setRegion] = useState("");
-  const [minAge, setMinAge] = useState("");
-  const [maxAge, setMaxAge] = useState("");
-  const { data = {}, loading, error, refresh } = useCreatorRegionSummary({
+  const [gender, setGender] = useState<string>("");
+  const [region, setRegion] = useState<string>("");
+  const [minAge, setMinAge] = useState<string>("");
+  const [maxAge, setMaxAge] = useState<string>("");
+  
+  // O hook retorna `data` que pode ser `null`, por isso as correções abaixo são necessárias
+  const { data, loading, error, refresh } = useCreatorRegionSummary({
     gender,
     region,
     minAge,
     maxAge,
   });
+
   const containerRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; state: StateBreakdown } | null>(null);
 
-  const handleApplyFilters = () => {
+  const handleApplyFilters = useCallback(() => {
     refresh();
-  };
+  }, [refresh]);
 
-  const maxCount = useMemo(() => Math.max(0, ...Object.values(data).map(d => d.count)), [data]);
-  const hasData = useMemo(() => Object.keys(data).length > 0, [data]);
+  const handleClearFilters = useCallback(() => {
+    setGender("");
+    setRegion("");
+    setMinAge("");
+    setMaxAge("");
+    refresh();
+  }, [refresh]);
+
+  // CORRIGIDO: Usa `data || {}` para evitar erro quando data for `null`
+  const maxCount = useMemo(() => Math.max(0, ...Object.values(data || {}).map(d => d.count)), [data]);
+  const hasData = useMemo(() => Object.keys(data || {}).length > 0, [data]);
 
   return (
     <div ref={containerRef} className="relative bg-white p-4 rounded-lg shadow-md border border-gray-200">
-      <h3 className="text-md font-semibold text-gray-700 mb-2">Distribui\u00E7\u00E3o de Criadores</h3>
-      <div className="flex items-end space-x-2 mb-4">
-        <select className="border p-1 text-sm" value={region} onChange={e => setRegion(e.target.value)}>
+      <h3 className="text-md font-semibold text-gray-700 mb-2">Distribuição de Criadores</h3>
+      <div className="flex items-end space-x-2 mb-4 flex-wrap gap-y-2">
+        <select className="border p-1 text-sm rounded" value={region} onChange={e => setRegion(e.target.value)}>
           <option value="">Todas as Regiões</option>
           {Object.keys(BRAZIL_REGION_STATES).map(r => (
             <option key={r} value={r}>{r}</option>
           ))}
         </select>
-        <select className="border p-1 text-sm" value={gender} onChange={e => setGender(e.target.value)}>
-          <option value="">Todos os G\u00EAneros</option>
+        <select className="border p-1 text-sm rounded" value={gender} onChange={e => setGender(e.target.value)}>
+          <option value="">Todos os Gêneros</option>
           <option value="male">Masculino</option>
           <option value="female">Feminino</option>
           <option value="other">Outro</option>
         </select>
-        <input type="number" className="border p-1 text-sm w-20" placeholder="Idade min" value={minAge} onChange={e => setMinAge(e.target.value)} />
-        <input type="number" className="border p-1 text-sm w-20" placeholder="Idade max" value={maxAge} onChange={e => setMaxAge(e.target.value)} />
+        <input type="number" className="border p-1 text-sm w-20 rounded" placeholder="Idade min" value={minAge} onChange={e => setMinAge(e.target.value)} />
+        <input type="number" className="border p-1 text-sm w-20 rounded" placeholder="Idade max" value={maxAge} onChange={e => setMaxAge(e.target.value)} />
         <button
           onClick={handleApplyFilters}
           className="px-3 py-1 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700"
@@ -61,33 +83,23 @@ export default function CreatorRegionHeatmap() {
           Aplicar
         </button>
         <button
-          onClick={() => {
-            setGender("");
-            setRegion("");
-            setMinAge("");
-            setMaxAge("");
-            refresh();
-          }}
+          onClick={handleClearFilters}
           className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300"
         >
           Limpar
         </button>
       </div>
-      {loading && (
-        <p className="text-center text-sm text-gray-500">Carregando...</p>
-      )}
-      {!loading && error && (
-        <p className="text-center text-sm text-red-500">Erro: {error}</p>
-      )}
+      {loading && <p className="text-center text-sm text-gray-500">Carregando...</p>}
+      {!loading && error && <p className="text-center text-sm text-red-500">Erro: {error}</p>}
       {!loading && hasData ? (
         <svg
-          width={TILE_SIZE * 9}
-          height={TILE_SIZE * 11}
+          width={TILE_SIZE * gridDimensions.width}
+          height={TILE_SIZE * gridDimensions.height}
           onMouseLeave={() => setTooltip(null)}
           className="mx-auto"
         >
           {BRAZIL_STATE_GRID.map((tile: BrazilStateTile) => {
-            const stateData = data[tile.id];
+            const stateData = data?.[tile.id]; // Usar optional chaining é uma boa prática
             const fill = stateData ? getColor(stateData.count, maxCount) : "#f0f0f0";
             const x = tile.col * TILE_SIZE;
             const y = tile.row * TILE_SIZE;
@@ -100,7 +112,7 @@ export default function CreatorRegionHeatmap() {
                   height={TILE_SIZE - 2}
                   fill={fill}
                   stroke="#ccc"
-                  onMouseEnter={e => {
+                  onMouseEnter={(e: React.MouseEvent<SVGRectElement>) => {
                     if (stateData && containerRef.current) {
                       const tileRect = e.currentTarget.getBoundingClientRect();
                       const containerRect = containerRef.current.getBoundingClientRect();
@@ -126,29 +138,27 @@ export default function CreatorRegionHeatmap() {
           })}
         </svg>
       ) : (
-        !loading && !error && (
-          <p className="text-center text-sm text-gray-500">Sem dados para os filtros selecionados.</p>
-        )
+        !loading && !error && <p className="text-center text-sm text-gray-500">Sem dados para os filtros selecionados.</p>
       )}
       {tooltip && (
         <div
-          className="absolute bg-white text-xs shadow-md border rounded p-2"
-          style={{ left: tooltip.x, top: tooltip.y - 10 }}
+          className="absolute bg-white text-xs shadow-md border rounded p-2 pointer-events-none"
+          style={{ left: tooltip.x, top: tooltip.y, transform: 'translate(-50%, -110%)' }}
         >
           <div className="font-semibold mb-1">{tooltip.state.state}</div>
           <div>Total: {tooltip.state.count}</div>
           <div className="max-h-48 overflow-y-auto">
-          {Object.entries(tooltip.state.cities).map(([city, info]) => (
-            <div key={city} className="mt-1">
-              <div className="font-semibold">{city}: {info.count}</div>
-              <div className="pl-2">{`M: ${info.gender.male || 0} F: ${info.gender.female || 0} O: ${info.gender.other || 0}`}</div>
-              <div className="pl-2 flex flex-wrap gap-1">
-                {Object.entries(info.age).map(([group, c]) => (
-                  <span key={group}>{group}:{c}</span>
-                ))}
+            {Object.entries(tooltip.state.cities).map(([city, info]) => (
+              <div key={city} className="mt-1">
+                <div className="font-semibold">{city}: {info.count}</div>
+                <div className="pl-2">{`M: ${info.gender.male || 0} F: ${info.gender.female || 0} O: ${info.gender.other || 0}`}</div>
+                <div className="pl-2 flex flex-wrap gap-1">
+                  {Object.entries(info.age).map(([group, c]) => (
+                    <span key={group} className="text-[10px] bg-gray-100 px-1 rounded">{group}:{c}</span>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
           </div>
         </div>
       )}
