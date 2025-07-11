@@ -1,6 +1,6 @@
 /**
  * @fileoverview Serviço para buscar e gerenciar posts.
- * @version 1.9.2 - Refinada a busca de vídeos para compatibilidade com 'views' e 'video_views'.
+ * @version 1.9.5 - Finalizada a lógica de fallback de views para ser 100% robusta.
  */
 
 import { PipelineStage, Types } from 'mongoose';
@@ -90,6 +90,7 @@ export interface IPostDetailsData {
   collab?: boolean; collabCreator?: Types.ObjectId; coverUrl?: string; instagramMediaId?: string;
   source?: string; classificationStatus?: string; stats?: any; dailySnapshots: IDailyMetricSnapshot[];
 }
+
 export async function fetchPostDetails(args: IPostDetailsArgs): Promise<IPostDetailsData | null> {
     const TAG = `${SERVICE_TAG}[fetchPostDetails]`;
     const { postId } = args;
@@ -104,28 +105,37 @@ export async function fetchPostDetails(args: IPostDetailsArgs): Promise<IPostDet
         logger.warn(`${TAG} Post not found with ID: ${postId}`);
         return null;
       }
+
+      const unifiedStats = {
+        ...postData.stats,
+        views:
+          postData.stats?.video_views || postData.stats?.reach || postData.stats?.views || postData.stats?.impressions || 0,
+      };
+
       const fetchedDailySnapshots = await DailyMetricSnapshotModel
         .find({ metric: new Types.ObjectId(postId) })
         .sort({ date: 1 })
         .lean<IDailyMetricSnapshot[]>();
-      const unifiedStats = {
-        ...postData.stats,
-        views:
-          postData.stats?.views ?? postData.stats?.video_views ?? null,
-      };
+      
+      const unifiedDailySnapshots = fetchedDailySnapshots.map(snapshot => ({
+        ...snapshot,
+        dailyViews: snapshot.dailyReach || snapshot.dailyViews || 0, 
+      }));
 
       const result: IPostDetailsData = {
         ...(postData as any),
         _id: postData._id,
         stats: unifiedStats,
-        dailySnapshots: fetchedDailySnapshots,
+        dailySnapshots: unifiedDailySnapshots,
       };
+      
       return result;
     } catch (error: any) {
       logger.error(`${TAG} Error fetching post details for ID ${postId}:`, error);
       throw new DatabaseError(`Failed to fetch post details: ${error.message}`);
     }
 }
+
 
 export interface IFindUserVideoPostsArgs {
   userId: string;
@@ -228,7 +238,31 @@ export async function findUserVideoPosts({
     
     const videosPipeline: PipelineStage[] = [
       { $match: matchStage },
-      { $addFields: { viewsSortable: { $ifNull: ['$stats.views', '$stats.video_views'] } } },
+      // --- INÍCIO DA CORREÇÃO FINAL ---
+      // Lógica de agregação robusta para encontrar o melhor valor de visualização,
+      // tratando tanto valores nulos quanto o valor 0.
+      {
+        $addFields: {
+          viewsSortable: {
+            $ifNull: [
+              { $first: {
+                  $filter: {
+                    input: [
+                      '$stats.video_views',
+                      '$stats.reach',
+                      '$stats.views',
+                      '$stats.impressions'
+                    ],
+                    as: 'viewValue',
+                    cond: { $gt: ['$$viewValue', 0] }
+                  }
+              }},
+              0
+            ]
+          }
+        }
+      },
+      // --- FIM DA CORREÇÃO FINAL ---
       { $sort: { [sortField]: sortDirection } },
       { $skip: skip },
       { $limit: limit },
@@ -287,13 +321,6 @@ export async function findUserVideoPosts({
   }
 }
 
-// --- INÍCIO DA NOVA FUNÇÃO (FASE 2) ---
-
-/**
- * Busca a URL da capa de um post no Instagram e a salva no banco de dados.
- * @param postId - O ID do post (Metric) a ser processado.
- * @returns Um objeto indicando sucesso ou falha.
- */
 export async function backfillPostCover(postId: string): Promise<{ success: boolean; message: string; }> {
     const TAG = `${SERVICE_TAG}[backfillPostCover]`;
     logger.info(`${TAG} Iniciando backfill para postId: ${postId}`);
@@ -328,7 +355,6 @@ export async function backfillPostCover(postId: string): Promise<{ success: bool
             return { success: false, message: 'Post does not have an associated user.' };
         }
 
-        // Buscar o token de acesso do usuário associado ao post
         const connectionDetails = await getInstagramConnectionDetails(post.user as Types.ObjectId);
         const accessToken = connectionDetails?.accessToken;
 
@@ -337,7 +363,6 @@ export async function backfillPostCover(postId: string): Promise<{ success: bool
             return { success: false, message: 'Access token not found for the post\'s user.' };
         }
 
-        // Chamar a função existente para buscar a miniatura
         const thumbnailUrl = await fetchMediaThumbnail(post.instagramMediaId, accessToken);
 
         if (thumbnailUrl) {
@@ -346,8 +371,6 @@ export async function backfillPostCover(postId: string): Promise<{ success: bool
             return { success: true, message: 'Cover URL successfully fetched and saved.' };
         } else {
             logger.warn(`${TAG} Não foi possível obter a thumbnail para o post ${postId} via API.`);
-            // Opcional: Você pode querer salvar um valor especial, como 'fetch_failed',
-            // para não tentar novamente. Por enquanto, deixamos nulo.
             return { success: false, message: 'Failed to fetch thumbnail from Instagram API.' };
         }
 
@@ -356,5 +379,3 @@ export async function backfillPostCover(postId: string): Promise<{ success: bool
         return { success: false, message: `An unexpected error occurred: ${error.message}` };
     }
 }
-
-// --- FIM DA NOVA FUNÇÃO ---
