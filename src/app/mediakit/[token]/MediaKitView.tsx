@@ -151,35 +151,40 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
 
   const [comparisonPeriod, setComparisonPeriod] = useState<string>(initialKpis?.comparisonPeriod || 'last_30d_vs_previous_30d');
   const [kpiData, setKpiData] = useState<KpiComparison | null>(initialKpis);
-  
-  // --- INÍCIO DA CORREÇÃO ---
-  // O estado de carregamento agora começa como 'true' se não houver dados de KPI iniciais.
   const [isLoading, setIsLoading] = useState(!initialKpis);
-  // --- FIM DA CORREÇÃO ---
-
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const isFirstRender = useRef(true);
 
+  // --- INÍCIO DA CORREÇÃO ---
   useEffect(() => {
-    if (isFirstRender.current) {
+    // Se for a primeira renderização E já tivermos dados do servidor, podemos saltar a busca no cliente.
+    if (isFirstRender.current && kpiData) {
       isFirstRender.current = false;
       return;
     }
+
+    // Caso contrário (é uma renderização subsequente OU a primeira renderização sem dados do servidor), devemos buscar os dados.
+    isFirstRender.current = false; // Marca a primeira renderização como passada
+
     async function fetchData() {
       if (!user?._id) return;
-      setIsLoading(true); // Ativa o loading antes de cada nova busca
+      setIsLoading(true);
       try {
         const res = await fetch(`/api/v1/users/${user._id}/kpis/periodic-comparison?comparisonPeriod=${comparisonPeriod}`);
-        setKpiData(res.ok ? await res.json() : null);
+        const data = res.ok ? await res.json() : null;
+        setKpiData(data);
       } catch (err) {
         console.error('Erro ao buscar KPIs', err);
         setKpiData(null);
       } finally {
-        setIsLoading(false); // Desativa o loading no final, independentemente do resultado
+        setIsLoading(false);
       }
     }
+
     fetchData();
   }, [comparisonPeriod, user?._id]);
+  // --- FIM DA CORREÇÃO ---
+
 
   const handleVideoClick = (postId: string) => { setSelectedPostId(postId); };
   const handleCloseModal = () => { setSelectedPostId(null); };
@@ -307,7 +312,6 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
                 </select>
               </div>
               
-              {/* --- INÍCIO DA CORREÇÃO DE RENDERIZAÇÃO --- */}
               {isLoading ? (
                 <div className="flex justify-center items-center h-64">
                     <FaIcon path={ICONS.spinner} className="animate-spin text-pink-500 h-8 w-8" />
@@ -360,7 +364,6 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
                     )}
                 </div>
               )}
-              {/* --- FIM DA CORREÇÃO DE RENDERIZAÇÃO --- */}
             </motion.div>
           </aside>
 

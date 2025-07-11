@@ -10,7 +10,7 @@ import PlatformMovingAverageEngagementChart from "../PlatformMovingAverageEngage
 import TotalActiveCreatorsKpi from "../kpis/TotalActiveCreatorsKpi";
 import PlatformComparativeKpi from "../kpis/PlatformComparativeKpi";
 import PlatformDemographicsWidget from "../PlatformDemographicsWidget";
-import CreatorRegionHeatmap from "../CreatorRegionHeatmap";
+import CreatorBrazilMap from "../CreatorBrazilMap";
 
 const TIME_PERIOD_TO_COMPARISON: Record<string, string> = {
   last_7_days: "last_7d_vs_previous_7d",
@@ -54,12 +54,11 @@ const PlatformOverviewSection: React.FC = () => {
       <PlatformMovingAverageEngagementChart />
     </div>
 
-    <div className="mt-6">
+    {/* --- CORREÇÃO APLICADA AQUI --- */}
+    {/* Colocamos o widget de demografia e o mapa lado a lado em um grid para controlar o tamanho. */}
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
       <PlatformDemographicsWidget />
-    </div>
-
-    <div className="mt-6">
-      <CreatorRegionHeatmap />
+      <CreatorBrazilMap />
     </div>
 
   </section>

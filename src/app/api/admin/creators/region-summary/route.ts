@@ -2,27 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
 import { getAdminSession } from '@/lib/getAdminSession';
-import aggregateCreatorsByRegion from '@/utils/aggregateCreatorsByRegion';
+// Importa a função de agregação de audiência
+import aggregateAudienceByRegion from '@/utils/aggregateAudienceByRegion';
 
 export const dynamic = 'force-dynamic';
 
-const parseAge = (val: unknown) => {
-  if (val === '' || val === undefined || val === null) {
-    return undefined;
-  }
-  const num = Number(val);
-  return Number.isFinite(num) ? num : undefined;
-};
-
+// --- PASSO 1: Atualizar o schema de validação ---
+// Adicionamos os novos filtros opcionais para gênero e faixa etária.
 const querySchema = z.object({
-  gender: z.enum(['male', 'female', 'other']).optional(),
-  minAge: z.preprocess(parseAge, z.number().int().positive().optional()),
-  maxAge: z.preprocess(parseAge, z.number().int().positive().optional()),
   region: z.enum(['Norte', 'Nordeste', 'Centro-Oeste', 'Sudeste', 'Sul']).optional(),
+  gender: z.enum(['F', 'M', 'U']).optional(),
+  ageRange: z.enum(['13-17', '18-24', '25-34', '35-44', '45-54', '55-64', '65+']).optional(),
 });
 
 export async function GET(req: NextRequest) {
-  const TAG = '[api/admin/creators/region-summary]';
+  const TAG = '[api/admin/audience/region-summary]';
   const session = await getAdminSession(req);
   if (!session || !session.user) {
     return NextResponse.json({ error: 'Acesso não autorizado.' }, { status: 401 });
@@ -30,6 +24,8 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const params = Object.fromEntries(searchParams.entries());
+  
+  // Valida os novos parâmetros (região, gênero e idade)
   const validated = querySchema.safeParse(params);
   if (!validated.success) {
     const message = validated.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
@@ -37,13 +33,13 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // --- LOG DE DEBUG 1: VERIFIQUE OS FILTROS VALIDADOS ---
-    console.log(`${TAG} Filtros validados para agregação:`, validated.data);
+    logger.info(`${TAG} Filtros validados para agregação de audiência:`, validated.data);
 
-    const data = await aggregateCreatorsByRegion(validated.data);
+    // --- PASSO 2: Passar os filtros validados para a função ---
+    // A função aggregateAudienceByRegion agora receberá os filtros de gênero e idade.
+    const data = await aggregateAudienceByRegion(validated.data);
 
-    // --- LOG DE DEBUG 2: VERIFIQUE O RESULTADO DO BANCO ---
-    console.log(`${TAG} Resultado da agregação do banco:`, JSON.stringify(data, null, 2));
+    logger.info(`${TAG} Resultado da agregação de audiência: ${data.length} estados.`);
 
     return NextResponse.json({ states: data }, { status: 200 });
   } catch (err) {
