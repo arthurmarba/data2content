@@ -4,12 +4,55 @@ import UserModel from '@/app/models/User';
 import { headers } from 'next/headers';
 import { logMediaKitAccess } from '@/lib/logMediaKitAccess';
 import MediaKitView from './MediaKitView';
+import type { Metadata } from 'next';
 
 // Tipos centralizados para garantir consistência em todo o fluxo de dados.
 import { VideoListItem, PerformanceSummary, KpiComparison, DemographicsData } from '@/types/mediakit';
 
 // A revalidação é mantida como um fallback, mas 'no-store' terá prioridade.
 export const revalidate = 300; // 5 minutos
+
+// Gera metadados dinâmicos para que o link do mídia kit apresente informações
+// personalizadas do criador nas prévias de compartilhamento.
+export async function generateMetadata(
+  { params }: { params: { token: string } }
+): Promise<Metadata> {
+  await connectToDatabase();
+
+  const user = await UserModel.findOne({ mediaKitSlug: params.token })
+    .select('name biography profile_picture_url')
+    .lean();
+
+  if (!user) {
+    return {
+      title: 'Mídia Kit | Data2Content',
+      description: 'Conheça os dados de desempenho dos nossos criadores.'
+    };
+  }
+
+  const title = `Mídia Kit de ${user.name}`;
+  const description = user.biography
+    ? user.biography.slice(0, 160)
+    : `Dados de desempenho e publicações de destaque de ${user.name}.`;
+
+  const images = user.profile_picture_url ? [user.profile_picture_url] : undefined;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      images,
+    },
+    twitter: {
+      card: 'summary',
+      title,
+      description,
+      images,
+    },
+  };
+}
 
 // --- MÓDULO DE BUSCA DE DADOS (DATA FETCHING) ---
 
