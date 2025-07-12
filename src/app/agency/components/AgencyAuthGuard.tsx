@@ -9,6 +9,7 @@ interface AgencyUser {
   image?: string | null;
   role?: string;
   isAgency?: boolean;
+  agencyPlanStatus?: string | null;
 }
 
 interface ExtendedSession {
@@ -29,12 +30,22 @@ export default function AgencyAuthGuard({ children }: { children: React.ReactNod
     }
 
     const userIsAgency = session?.user?.role === 'agency' || session?.user?.isAgency === true;
+    const planActive = session?.user?.agencyPlanStatus === 'active';
     if (!userIsAgency) {
       router.replace('/unauthorized?error=AgencyAccessRequired');
+    } else if (!planActive) {
+      router.replace('/agency/subscription');
     }
   }, [status, session, router]);
 
-  if (status === 'loading' || status === 'unauthenticated' || (status === 'authenticated' && !(session?.user?.role === 'agency' || session?.user?.isAgency === true))) {
+  if (
+    status === 'loading' ||
+    status === 'unauthenticated' ||
+    (status === 'authenticated' && (
+      !(session?.user?.role === 'agency' || session?.user?.isAgency === true) ||
+      session?.user?.agencyPlanStatus !== 'active'
+    ))
+  ) {
     return (
       <div className="flex items-center justify-center h-screen bg-brand-light">
         <p className="text-lg text-gray-700">Verificando autorização...</p>

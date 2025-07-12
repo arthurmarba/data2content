@@ -133,7 +133,7 @@ Consulte o diretório `docs` para informações adicionais, incluindo o [plano d
 
 ## Agency Dashboard
 
-Usuários com papel **agency** podem acessar `/agency/creator-dashboard` para acompanhar apenas os criadores vinculados à sua agência. Crie a conta de agência pelo painel admin e compartilhe o link de convite (`/assinar?codigo_agencia=<inviteCode>`). A assinatura do WhatsApp permanece do usuário mesmo que ele saia da agência.
+Usuários com papel **agency** podem acessar `/agency/creator-dashboard` para acompanhar apenas os criadores vinculados à sua agência. Crie a conta de agência pelo painel admin e compartilhe o link de convite (`/assinar?codigo_agencia=<inviteCode>`). A assinatura do WhatsApp permanece do usuário mesmo que ele saia da agência. O dashboard só é liberado se o plano da agência estiver ativo.
 
 ## Deploy on Vercel
 

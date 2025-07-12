@@ -40,8 +40,15 @@ describe('AgencyAuthGuard', () => {
     expect(mockRouterReplace).toHaveBeenCalledWith('/unauthorized?error=AgencyAccessRequired');
   });
 
-  it('should render children if authenticated and agency', async () => {
-    mockUseSession.mockReturnValue({ data: { user: { name: 'Agent', role: 'agency' } }, status: 'authenticated' });
+  it('should redirect to /agency/subscription if plan inactive', async () => {
+    mockUseSession.mockReturnValue({ data: { user: { name: 'Agent', role: 'agency', agencyPlanStatus: 'inactive' } }, status: 'authenticated' });
+    render(<AgencyAuthGuard><div>Protected</div></AgencyAuthGuard>);
+    await act(async () => {});
+    expect(mockRouterReplace).toHaveBeenCalledWith('/agency/subscription');
+  });
+
+  it('should render children if authenticated and agency with active plan', async () => {
+    mockUseSession.mockReturnValue({ data: { user: { name: 'Agent', role: 'agency', agencyPlanStatus: 'active' } }, status: 'authenticated' });
     render(<AgencyAuthGuard><div>Protected</div></AgencyAuthGuard>);
     await act(async () => {});
     expect(screen.getByText('Protected')).toBeInTheDocument();
