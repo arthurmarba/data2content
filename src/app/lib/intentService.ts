@@ -70,6 +70,7 @@ export type DeterminedIntent =
   | 'generate_proactive_alert'
   | 'ask_community_inspiration'
   | 'user_stated_preference'
+  | 'demographic_query'
   | 'user_shared_goal'
   | 'user_mentioned_key_fact'
   | 'user_requests_memory_update'
@@ -215,6 +216,12 @@ const METRIC_DETAILS_KEYWORDS: string[] = [
     'me da a media', 'e os numeros', 'qual foi o resultado', 'mostra os detalhes disso', 'aprofundar nisso',
     'quero ver os detalhes', 'quais foram as medias', 'detalha essa metrica', 'me mostre os dados', 'quais os numeros'
 ];
+/** Palavras-chave para identificar perguntas sobre demografia do público. */
+const DEMOGRAPHICS_KEYWORDS: string[] = [
+  'demografia', 'demográfico', 'demograficos', 'perfil do público',
+  'idade do público', 'faixa etária', 'idade média', 'gênero dos seguidores',
+  'publico feminino', 'publico masculino', 'onde moram', 'quais países', 'quais cidades'
+];
 /** Palavras-chave que indicam que o usuário deseja continuar ou aprofundar o tópico anterior. */
 const CONTINUE_TOPIC_KEYWORDS: string[] = [
     'e sobre isso', 'continuando', 'voltando ao assunto', 'sobre o que falamos', 'mais sobre isso',
@@ -252,6 +259,7 @@ const N_CLARIFICATION_KW = toNormSet(CLARIFICATION_KEYWORDS);
 const N_DATA_SOURCE_KW   = toNormSet(DATA_SOURCE_KEYWORDS);
 const N_METRIC_DETAILS_KW = toNormSet(METRIC_DETAILS_KEYWORDS);
 const N_CONTINUE_TOPIC_KW = toNormSet(CONTINUE_TOPIC_KEYWORDS);
+const N_DEMOGRAPHICS_KW = toNormSet(DEMOGRAPHICS_KEYWORDS);
 
 const includesKw = (txt: string, kwSet: Set<string>) =>
   [...kwSet].some((kw) => txt.includes(kw));
@@ -292,6 +300,7 @@ const isClarificationRequest = (txt: string) => includesKw(txt, N_CLARIFICATION_
 const isDataSourceRequest    = (txt: string) => includesKw(txt, N_DATA_SOURCE_KW);
 const isMetricDetailsRequest = (txt: string) => includesKw(txt, N_METRIC_DETAILS_KW);
 const isContinueTopicRequest = (txt: string) => includesKw(txt, N_CONTINUE_TOPIC_KW);
+const isDemographicsRequest = (txt: string) => includesKw(txt, N_DEMOGRAPHICS_KW);
 
 /** Verifica se a mensagem é apenas uma saudação curta. */
 function isGreetingOnly(norm: string): boolean {
@@ -738,6 +747,7 @@ export async function determineIntent(
   else if (isPlanRequest(normalizedText))        intent = 'content_plan';
   else if (isScriptRequest(normalizedText))      intent = 'script_request';
   else if (isBestPerfRequest(normalizedText))    intent = 'ASK_BEST_PERFORMER';
+  else if (isDemographicsRequest(normalizedText)) intent = 'demographic_query';
   else if (isCommunityInspirationRequest(normalizedText)) intent = 'ask_community_inspiration';
   else if (isIdeasRequest(normalizedText))       intent = 'content_ideas';
   else if (isRankingRequest(normalizedText))     intent = 'ranking_request';
