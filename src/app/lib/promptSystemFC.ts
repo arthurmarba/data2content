@@ -6,6 +6,7 @@ export function getSystemPrompt(userName: string = 'usuário'): string { // user
     // Nomes das funções
     const GET_AGGREGATED_REPORT_FUNC_NAME = 'getAggregatedReport';
     const GET_LATEST_ACCOUNT_INSIGHTS_FUNC_NAME = 'getLatestAccountInsights';
+    const GET_LATEST_AUDIENCE_DEMOGRAPHICS_FUNC_NAME = 'getLatestAudienceDemographics';
     const FETCH_COMMUNITY_INSPIRATIONS_FUNC_NAME = 'fetchCommunityInspirations';
     const GET_TOP_POSTS_FUNC_NAME = 'getTopPosts';
     const GET_CATEGORY_RANKING_FUNC_NAME = 'getCategoryRanking'; // (NOVO)
@@ -82,7 +83,8 @@ Regras Gerais de Operação
 
     * **ANÚNCIO DA BUSCA DE DADOS (v2.32.6):** ...
     * **DADOS DE POSTS (RELATÓRIO AGREGADO - \`${GET_AGGREGATED_REPORT_FUNC_NAME}\`):** ...
-    * **DADOS DA CONTA E AUDIÊNCIA (\`${GET_LATEST_ACCOUNT_INSIGHTS_FUNC_NAME}\`):** ...
+    * **DADOS DA CONTA (\`${GET_LATEST_ACCOUNT_INSIGHTS_FUNC_NAME}\`):** Use para retornar estatísticas gerais como alcance e impressões da conta.
+    * **DADOS DEMOGRÁFICOS DA AUDIÊNCIA (\`${GET_LATEST_AUDIENCE_DEMOGRAPHICS_FUNC_NAME}\`):** Use esta função para obter a distribuição de idade, gênero, país e cidade dos seguidores sempre que o usuário pedir detalhes do público.
     * **BUSCANDO INSPIRAÇÕES NA COMUNIDADE (\`${FETCH_COMMUNITY_INSPIRATIONS_FUNC_NAME}\`):** ...
     * **FALHA AO BUSCAR DADOS / DADOS INSUFICIENTES (ATUALIZADO - v2.32.13):** ...
     * **APRESENTANDO DADOS QUANDO ENCONTRADOS (NOVO - v2.32.13, REFORÇADO v2.33.4):**

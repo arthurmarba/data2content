@@ -43,6 +43,8 @@ export * from './adDealService';
 
 // Funções relacionadas com AccountInsights (Insights da Conta)
 export * from './accountInsightService';
+// Funções relacionadas com dados demográficos da audiência
+export * from './demographicService';
 
 // --- (NOVO) Funções relacionadas com Rankings de Categorias ---
 // Adicionando a exportação da nossa nova função para torná-la visível.

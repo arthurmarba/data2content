@@ -34,6 +34,7 @@ import {
   IDailyMetricSnapshot,
   getDailySnapshotsForMetric,
   getLatestAccountInsights as getLatestAccountInsightsFromDataService,
+  getLatestAudienceDemographics as getLatestAudienceDemographicsFromDataService,
   getTopPostsByMetric as getTopPostsByMetricFromDataService,
   getMetricDetails as getMetricDetailsFromDataService,
   findMetricsByCriteria as findMetricsByCriteriaFromDataService,
@@ -76,6 +77,15 @@ export const functionSchemas = [
   {
     name: 'getLatestAccountInsights',
     description: 'Busca os insights de conta e dados demográficos mais recentes disponíveis para o usuário. Útil para entender o perfil da audiência (idade, gênero, localização) e o desempenho geral da conta (alcance, impressões da conta). Não recebe argumentos da IA.',
+    parameters: {
+      type: 'object',
+      properties: {},
+      required: []
+    }
+  },
+  {
+    name: 'getLatestAudienceDemographics',
+    description: 'Retorna somente a distribuição demográfica mais recente dos seguidores (idade, gênero, país e cidade). Use quando o usuário pedir detalhes específicos do público.',
     parameters: {
       type: 'object',
       properties: {},
@@ -439,6 +449,24 @@ const getLatestAccountInsights: ExecutorFn = async (_args: z.infer<typeof ZodSch
         logger.error(`${fnTag} Erro ao buscar os insights de conta mais recentes para User ${loggedUser._id} (via dataService):`, err);
         return { error: err.message || "Ocorreu um erro inesperado ao tentar buscar os dados mais recentes da sua conta. Por favor, tente novamente." };
     }
+};
+
+/* 2.3 getLatestAudienceDemographics */
+const getLatestAudienceDemographics: ExecutorFn = async (_args: z.infer<typeof ZodSchemas.GetLatestAudienceDemographicsArgsSchema>, loggedUser) => {
+  const fnTag = '[fn:getLatestAudienceDemographics v0.1]';
+  logger.info(`${fnTag} Executando para usuário ${loggedUser._id} via dataService.`);
+  try {
+    const demographics = await getLatestAudienceDemographicsFromDataService(loggedUser._id.toString());
+    if (!demographics) {
+      logger.warn(`${fnTag} Nenhum snapshot demográfico encontrado para User ${loggedUser._id}.`);
+      return { message: 'Ainda não possuo dados demográficos suficientes para analisar seu público.' };
+    }
+    logger.info(`${fnTag} Snapshot demográfico retornado para User ${loggedUser._id}.`);
+    return { demographics };
+  } catch (err: any) {
+    logger.error(`${fnTag} Erro ao buscar demografia para User ${loggedUser._id}:`, err);
+    return { error: err.message || 'Erro ao buscar dados demográficos.' };
+  }
 };
 
 /* 2.X fetchCommunityInspirations */
@@ -976,6 +1004,7 @@ const getConsultingKnowledge: ExecutorFn = async (args: z.infer<typeof ZodSchema
 export const functionExecutors: Record<string, ExecutorFn> = {
   getAggregatedReport,
   getLatestAccountInsights,
+  getLatestAudienceDemographics,
   fetchCommunityInspirations,
   getTopPosts,
   getCategoryRanking, // (NOVO) Garantir que esta linha está aqui

@@ -151,6 +151,12 @@ export const GetConsultingKnowledgeArgsSchema = z.object({
 export const GetLatestAccountInsightsArgsSchema = z.object({
 }).strict().describe("Busca os insights de conta e dados demográficos mais recentes disponíveis para o usuário.");
 
+// Schema para getLatestAudienceDemographics
+export const GetLatestAudienceDemographicsArgsSchema = z
+  .object({})
+  .strict()
+  .describe('Busca apenas o snapshot demográfico mais recente do usuário.');
+
 
 // Schema para FetchCommunityInspirationsArgsSchema
 export const FetchCommunityInspirationsArgsSchema = z.object({
@@ -197,5 +203,6 @@ export const functionValidators: ValidatorMap = {
   getFpcTrendHistory: GetFpcTrendHistoryArgsSchema,
   getConsultingKnowledge: GetConsultingKnowledgeArgsSchema,
   getLatestAccountInsights: GetLatestAccountInsightsArgsSchema,
+  getLatestAudienceDemographics: GetLatestAudienceDemographicsArgsSchema,
   fetchCommunityInspirations: FetchCommunityInspirationsArgsSchema,
 };
