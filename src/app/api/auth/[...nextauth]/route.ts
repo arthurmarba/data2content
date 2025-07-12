@@ -10,7 +10,8 @@ import FacebookProvider from "next-auth/providers/facebook";
 import CredentialsProvider from "next-auth/providers/credentials";
 
 import { connectToDatabase } from "@/app/lib/mongoose";
-import DbUser, { IUser } from "@/app/models/User"; 
+import DbUser, { IUser } from "@/app/models/User";
+import AgencyModel, { IAgency } from "@/app/models/Agency";
 
 import { Types } from "mongoose";
 import type { JWT, DefaultJWT, JWTEncodeParams, JWTDecodeParams } from "next-auth/jwt";
@@ -482,6 +483,7 @@ export const authOptions: NextAuthOptions = {
                     (authUserFromProvider as NextAuthUserArg).planStatus = dbUserRecord.planStatus;
                     (authUserFromProvider as NextAuthUserArg).planExpiresAt = dbUserRecord.planExpiresAt;
                     (authUserFromProvider as NextAuthUserArg).affiliateCode = dbUserRecord.affiliateCode;
+                    (authUserFromProvider as NextAuthUserArg).agency = dbUserRecord.agency ? dbUserRecord.agency.toString() : undefined;
                     
                     logger.debug(`${TAG_SIGNIN} [${provider}] FINAL signIn. authUser.id (interno): '${authUserFromProvider.id}', name: '${authUserFromProvider.name}', provider (final): '${(authUserFromProvider as NextAuthUserArg).provider}', planStatus: ${(authUserFromProvider as NextAuthUserArg).planStatus}, igAccountsCount: ${(authUserFromProvider as NextAuthUserArg).availableIgAccounts?.length ?? 0}, igLlatSet: ${!!(authUserFromProvider as NextAuthUserArg).instagramAccessToken}`);
                     return true;
@@ -531,8 +533,23 @@ export const authOptions: NextAuthOptions = {
                 token.planStatus = (userFromSignIn as NextAuthUserArg).planStatus;
                 token.planExpiresAt = (userFromSignIn as NextAuthUserArg).planExpiresAt;
                 token.affiliateCode = (userFromSignIn as NextAuthUserArg).affiliateCode;
+                token.agencyId = (userFromSignIn as NextAuthUserArg).agency ?? null;
+                if ((userFromSignIn as NextAuthUserArg).agency) {
+                    try {
+                        await connectToDatabase();
+                        const agency = await AgencyModel.findById((userFromSignIn as NextAuthUserArg).agency)
+                            .select('planStatus')
+                            .lean<IAgency>();
+                        token.agencyPlanStatus = agency?.planStatus ?? 'inactive';
+                    } catch (err) {
+                        logger.error(`${TAG_JWT} Erro ao buscar agency durante signIn:`, err);
+                        token.agencyPlanStatus = 'inactive';
+                    }
+                } else {
+                    token.agencyPlanStatus = null;
+                }
 
-                logger.info(`${TAG_JWT} Token populado de userFromSignIn. ID: ${token.id}, Provider: ${token.provider}, planStatus: ${token.planStatus}, igAccounts: ${token.availableIgAccounts?.length}, igLlatSet: ${!!token.instagramAccessToken}`);
+                logger.info(`${TAG_JWT} Token populado de userFromSignIn. ID: ${token.id}, Provider: ${token.provider}, planStatus: ${token.planStatus}, agencyPlanStatus: ${token.agencyPlanStatus}, igAccounts: ${token.availableIgAccounts?.length}, igLlatSet: ${!!token.instagramAccessToken}`);
             }
 
             // For subsequent JWT reads (e.g., session creation, API calls) or updates
@@ -540,6 +557,7 @@ export const authOptions: NextAuthOptions = {
                 let needsDbRefresh = trigger === 'update' || // Explicit update
                                       !token.role ||  // Missing essential data
                                       typeof token.planStatus === 'undefined' ||
+                                      typeof token.agencyPlanStatus === 'undefined' ||
                                       typeof token.affiliateCode === 'undefined' ||
                                       (typeof token.isInstagramConnected === 'undefined' && typeof token.availableIgAccounts === 'undefined');
 
@@ -559,7 +577,7 @@ export const authOptions: NextAuthOptions = {
                     try {
                         await connectToDatabase();
                         const dbUser = await DbUser.findById(token.id)
-                            .select('name email image role provider providerAccountId facebookProviderAccountId isNewUserForOnboarding onboardingCompletedAt isInstagramConnected instagramAccountId username lastInstagramSyncAttempt lastInstagramSyncSuccess instagramSyncErrorMsg planStatus planExpiresAt affiliateCode availableIgAccounts instagramAccessToken')
+                            .select('name email image role agency provider providerAccountId facebookProviderAccountId isNewUserForOnboarding onboardingCompletedAt isInstagramConnected instagramAccountId username lastInstagramSyncAttempt lastInstagramSyncSuccess instagramSyncErrorMsg planStatus planExpiresAt affiliateCode availableIgAccounts instagramAccessToken')
                             .lean<IUser>(); // Use lean for performance
 
                         if (dbUser) {
@@ -588,6 +606,19 @@ export const authOptions: NextAuthOptions = {
                             token.planStatus = dbUser.planStatus ?? token.planStatus ?? 'inactive';
                             token.planExpiresAt = dbUser.planExpiresAt ?? token.planExpiresAt ?? null;
                             token.affiliateCode = dbUser.affiliateCode ?? token.affiliateCode ?? null;
+                            token.agencyId = dbUser.agency ? dbUser.agency.toString() : token.agencyId ?? null;
+                            if (dbUser.agency) {
+                                try {
+                                    const dbAgency = await AgencyModel.findById(dbUser.agency)
+                                        .select('planStatus')
+                                        .lean<IAgency>();
+                                    token.agencyPlanStatus = dbAgency?.planStatus ?? token.agencyPlanStatus ?? 'inactive';
+                                } catch (err) {
+                                    logger.error(`${TAG_JWT} Erro ao buscar agencia para token refresh:`, err);
+                                }
+                            } else {
+                                token.agencyPlanStatus = null;
+                            }
 
                             logger.info(`${TAG_JWT} Token enriquecido/atualizado do DB. ID: ${token.id}, Provider: ${token.provider}, planStatus: ${token.planStatus}, igAccounts: ${token.availableIgAccounts?.length}, igLlatSet: ${!!token.instagramAccessToken}, igErr: ${token.igConnectionError ? 'Sim ('+String(token.igConnectionError).substring(0,30)+'...)': 'Não'}`);
                         } else {
@@ -610,7 +641,7 @@ export const authOptions: NextAuthOptions = {
             // Ensure 'picture' is not in the final token if 'image' is used
             if (token.image && (token as any).picture) delete (token as any).picture; 
 
-            logger.debug(`${TAG_JWT} FINAL jwt. Token id: '${token.id}', name: '${token.name}', provider: '${token.provider}', planStatus: ${token.planStatus}, affiliateCode: ${token.affiliateCode}, igErr: ${token.igConnectionError ? 'Sim ('+String(token.igConnectionError).substring(0,30)+'...)': 'Não'}`);
+            logger.debug(`${TAG_JWT} FINAL jwt. Token id: '${token.id}', name: '${token.name}', provider: '${token.provider}', planStatus: ${token.planStatus}, agencyPlanStatus: ${token.agencyPlanStatus}, affiliateCode: ${token.affiliateCode}, agencyId: ${token.agencyId}, igErr: ${token.igConnectionError ? 'Sim ('+String(token.igConnectionError).substring(0,30)+'...)': 'Não'}`);
             return token;
         },
 
@@ -649,6 +680,8 @@ export const authOptions: NextAuthOptions = {
             session.user.planStatus = token.planStatus ?? 'inactive';
             session.user.planExpiresAt = token.planExpiresAt ? (typeof token.planExpiresAt === 'string' ? token.planExpiresAt : new Date(token.planExpiresAt).toISOString()) : null;
             session.user.affiliateCode = token.affiliateCode;
+            session.user.agencyId = token.agencyId ?? null;
+            session.user.agencyPlanStatus = token.agencyPlanStatus ?? null;
             
             // These fields might be populated from other sources or kept if already in session
             session.user.affiliateBalance = session.user.affiliateBalance ?? undefined; 
@@ -669,13 +702,23 @@ export const authOptions: NextAuthOptions = {
                     session.user.planStatus = dbUserCheck.planStatus ?? session.user.planStatus ?? 'inactive';
                     if (dbUserCheck.planExpiresAt instanceof Date) {
                         session.user.planExpiresAt = dbUserCheck.planExpiresAt.toISOString();
-                    } else if (dbUserCheck.planExpiresAt === null) { // Explicitly handle null
+                    } else if (dbUserCheck.planExpiresAt === null) {
                         session.user.planExpiresAt = null;
                     }
-                    // Ensure name, role, image are from the latest DB record if they exist
                     if (dbUserCheck.name) session.user.name = dbUserCheck.name;
                     if (dbUserCheck.role) session.user.role = dbUserCheck.role;
                     if (dbUserCheck.image) session.user.image = dbUserCheck.image;
+
+                    if (session.user.agencyId) {
+                        try {
+                            const agency = await AgencyModel.findById(session.user.agencyId)
+                                .select('planStatus')
+                                .lean<IAgency>();
+                            session.user.agencyPlanStatus = agency?.planStatus ?? session.user.agencyPlanStatus ?? 'inactive';
+                        } catch (err) {
+                            logger.error(`${TAG_SESSION} Erro ao revalidar agency para session ${token.id}:`, err);
+                        }
+                    }
 
                 } else if (!dbUserCheck) {
                     logger.warn(`${TAG_SESSION} Utilizador ${token.id} não encontrado no DB durante revalidação da sessão. Usando dados do token como estão.`);
@@ -684,7 +727,7 @@ export const authOptions: NextAuthOptions = {
                 logger.error(`${TAG_SESSION} Erro ao buscar dados do DB para revalidação da sessão ${token.id}:`, error);
             }
             
-            logger.debug(`${TAG_SESSION} Finalizado. Session.user ID: ${session.user?.id}, Name: ${session.user?.name}, Provider: ${session.user?.provider}, Session planStatus (final): ${session.user?.planStatus}, igAccounts: ${session.user?.availableIgAccounts?.length}, igErr: ${session.user?.igConnectionError ? 'Sim' : 'Não'}`);
+            logger.debug(`${TAG_SESSION} Finalizado. Session.user ID: ${session.user?.id}, Name: ${session.user?.name}, Provider: ${session.user?.provider}, Session planStatus (final): ${session.user?.planStatus}, agencyId: ${session.user?.agencyId}, agencyPlanStatus: ${session.user?.agencyPlanStatus}, igAccounts: ${session.user?.availableIgAccounts?.length}, igErr: ${session.user?.igConnectionError ? 'Sim' : 'Não'}`);
             return session;
          },
 
