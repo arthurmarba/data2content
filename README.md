@@ -131,6 +131,10 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 Consulte o diretório `docs` para informações adicionais, incluindo o [plano de expanção dos rankings](docs/ranking-expansion.md) e o [plano de otimização estratégica v4](docs/plano-de-otimizacao-estrategica-v4.md).
 
 
+## Agency Dashboard
+
+Usuários com papel **agency** podem acessar `/agency/creator-dashboard` para acompanhar apenas os criadores vinculados à sua agência. Crie a conta de agência pelo painel admin e compartilhe o link de convite (`/assinar?codigo_agencia=<inviteCode>`). A assinatura do WhatsApp permanece do usuário mesmo que ele saia da agência.
+
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
