@@ -17,6 +17,7 @@ declare module "next-auth" {
       image?: string | null;
       provider?: string | null; // Provider usado no login ATUAL ('google', 'facebook')
       role?: string;
+      agencyId?: string | null;
       planStatus?: string;
       planExpiresAt?: string | null; // Mantido como string (ISO) para o cliente
       affiliateCode?: string;
@@ -48,6 +49,7 @@ declare module "next-auth" {
   interface User extends DefaultUser { // DefaultUser já tem id, name, email, image
     id: string; // Garante que nosso ID (do DB) sobrescreva/seja o principal
     role?: string | null;
+    agency?: string | null;
     provider?: string | null; // Provider do primeiro login ou principal
     providerAccountId?: string | null; // ID do provider principal
     facebookProviderAccountId?: string | null; // ID específico do Facebook
@@ -84,6 +86,7 @@ declare module "next-auth/jwt" {
   interface JWT extends DefaultJWT { // DefaultJWT já tem name, email, picture, sub
     id: string; // ID do usuário do seu DB (obrigatório)
     role?: string | null;
+    agencyId?: string | null;
     provider?: string | null;
     
     isNewUserForOnboarding?: boolean;

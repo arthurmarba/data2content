@@ -4,7 +4,7 @@
  * @description Adicionadas anotações de otimização de performance.
  */
 
-import { PipelineStage } from 'mongoose';
+import { PipelineStage, Types } from 'mongoose';
 import { logger } from '@/app/lib/logger';
 import MetricModel from '@/app/models/Metric';
 import UserModel from '@/app/models/User';
@@ -53,6 +53,9 @@ export async function fetchDashboardCreatorsList(
     const userMatchStage: PipelineStage.Match['$match'] = {};
     if (filters.nameSearch) {
       userMatchStage.name = { $regex: filters.nameSearch, $options: 'i' };
+    }
+    if (params.agencyId) {
+      userMatchStage.agency = new Types.ObjectId(params.agencyId);
     }
     if (filters.planStatus && Array.isArray(filters.planStatus) && filters.planStatus.length > 0) {
       userMatchStage.planStatus = { $in: filters.planStatus };

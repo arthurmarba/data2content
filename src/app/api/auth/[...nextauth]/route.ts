@@ -482,6 +482,7 @@ export const authOptions: NextAuthOptions = {
                     (authUserFromProvider as NextAuthUserArg).planStatus = dbUserRecord.planStatus;
                     (authUserFromProvider as NextAuthUserArg).planExpiresAt = dbUserRecord.planExpiresAt;
                     (authUserFromProvider as NextAuthUserArg).affiliateCode = dbUserRecord.affiliateCode;
+                    (authUserFromProvider as NextAuthUserArg).agency = dbUserRecord.agency ? dbUserRecord.agency.toString() : undefined;
                     
                     logger.debug(`${TAG_SIGNIN} [${provider}] FINAL signIn. authUser.id (interno): '${authUserFromProvider.id}', name: '${authUserFromProvider.name}', provider (final): '${(authUserFromProvider as NextAuthUserArg).provider}', planStatus: ${(authUserFromProvider as NextAuthUserArg).planStatus}, igAccountsCount: ${(authUserFromProvider as NextAuthUserArg).availableIgAccounts?.length ?? 0}, igLlatSet: ${!!(authUserFromProvider as NextAuthUserArg).instagramAccessToken}`);
                     return true;
@@ -531,6 +532,7 @@ export const authOptions: NextAuthOptions = {
                 token.planStatus = (userFromSignIn as NextAuthUserArg).planStatus;
                 token.planExpiresAt = (userFromSignIn as NextAuthUserArg).planExpiresAt;
                 token.affiliateCode = (userFromSignIn as NextAuthUserArg).affiliateCode;
+                token.agencyId = (userFromSignIn as NextAuthUserArg).agency ?? null;
 
                 logger.info(`${TAG_JWT} Token populado de userFromSignIn. ID: ${token.id}, Provider: ${token.provider}, planStatus: ${token.planStatus}, igAccounts: ${token.availableIgAccounts?.length}, igLlatSet: ${!!token.instagramAccessToken}`);
             }
@@ -559,7 +561,7 @@ export const authOptions: NextAuthOptions = {
                     try {
                         await connectToDatabase();
                         const dbUser = await DbUser.findById(token.id)
-                            .select('name email image role provider providerAccountId facebookProviderAccountId isNewUserForOnboarding onboardingCompletedAt isInstagramConnected instagramAccountId username lastInstagramSyncAttempt lastInstagramSyncSuccess instagramSyncErrorMsg planStatus planExpiresAt affiliateCode availableIgAccounts instagramAccessToken')
+                            .select('name email image role agency provider providerAccountId facebookProviderAccountId isNewUserForOnboarding onboardingCompletedAt isInstagramConnected instagramAccountId username lastInstagramSyncAttempt lastInstagramSyncSuccess instagramSyncErrorMsg planStatus planExpiresAt affiliateCode availableIgAccounts instagramAccessToken')
                             .lean<IUser>(); // Use lean for performance
 
                         if (dbUser) {
@@ -588,6 +590,7 @@ export const authOptions: NextAuthOptions = {
                             token.planStatus = dbUser.planStatus ?? token.planStatus ?? 'inactive';
                             token.planExpiresAt = dbUser.planExpiresAt ?? token.planExpiresAt ?? null;
                             token.affiliateCode = dbUser.affiliateCode ?? token.affiliateCode ?? null;
+                            token.agencyId = dbUser.agency ? dbUser.agency.toString() : token.agencyId ?? null;
 
                             logger.info(`${TAG_JWT} Token enriquecido/atualizado do DB. ID: ${token.id}, Provider: ${token.provider}, planStatus: ${token.planStatus}, igAccounts: ${token.availableIgAccounts?.length}, igLlatSet: ${!!token.instagramAccessToken}, igErr: ${token.igConnectionError ? 'Sim ('+String(token.igConnectionError).substring(0,30)+'...)': 'Não'}`);
                         } else {
@@ -610,7 +613,7 @@ export const authOptions: NextAuthOptions = {
             // Ensure 'picture' is not in the final token if 'image' is used
             if (token.image && (token as any).picture) delete (token as any).picture; 
 
-            logger.debug(`${TAG_JWT} FINAL jwt. Token id: '${token.id}', name: '${token.name}', provider: '${token.provider}', planStatus: ${token.planStatus}, affiliateCode: ${token.affiliateCode}, igErr: ${token.igConnectionError ? 'Sim ('+String(token.igConnectionError).substring(0,30)+'...)': 'Não'}`);
+            logger.debug(`${TAG_JWT} FINAL jwt. Token id: '${token.id}', name: '${token.name}', provider: '${token.provider}', planStatus: ${token.planStatus}, affiliateCode: ${token.affiliateCode}, agencyId: ${token.agencyId}, igErr: ${token.igConnectionError ? 'Sim ('+String(token.igConnectionError).substring(0,30)+'...)': 'Não'}`);
             return token;
         },
 
@@ -649,6 +652,7 @@ export const authOptions: NextAuthOptions = {
             session.user.planStatus = token.planStatus ?? 'inactive';
             session.user.planExpiresAt = token.planExpiresAt ? (typeof token.planExpiresAt === 'string' ? token.planExpiresAt : new Date(token.planExpiresAt).toISOString()) : null;
             session.user.affiliateCode = token.affiliateCode;
+            session.user.agencyId = token.agencyId ?? null;
             
             // These fields might be populated from other sources or kept if already in session
             session.user.affiliateBalance = session.user.affiliateBalance ?? undefined; 
@@ -684,7 +688,7 @@ export const authOptions: NextAuthOptions = {
                 logger.error(`${TAG_SESSION} Erro ao buscar dados do DB para revalidação da sessão ${token.id}:`, error);
             }
             
-            logger.debug(`${TAG_SESSION} Finalizado. Session.user ID: ${session.user?.id}, Name: ${session.user?.name}, Provider: ${session.user?.provider}, Session planStatus (final): ${session.user?.planStatus}, igAccounts: ${session.user?.availableIgAccounts?.length}, igErr: ${session.user?.igConnectionError ? 'Sim' : 'Não'}`);
+            logger.debug(`${TAG_SESSION} Finalizado. Session.user ID: ${session.user?.id}, Name: ${session.user?.name}, Provider: ${session.user?.provider}, Session planStatus (final): ${session.user?.planStatus}, agencyId: ${session.user?.agencyId}, igAccounts: ${session.user?.availableIgAccounts?.length}, igErr: ${session.user?.igConnectionError ? 'Sim' : 'Não'}`);
             return session;
          },
 

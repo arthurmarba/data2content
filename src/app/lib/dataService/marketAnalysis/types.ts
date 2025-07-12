@@ -129,6 +129,7 @@ export interface IFetchDashboardCreatorsListParams {
   limit?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  agencyId?: string;
   filters?: {
     nameSearch?: string;
     planStatus?: string[];
