@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { createHash } from 'crypto';
+import bcrypt from 'bcryptjs';
 import { getAdminSession } from '@/lib/getAdminSession';
 import AgencyModel from '@/app/models/Agency';
 import UserModel from '@/app/models/User';
@@ -9,8 +9,8 @@ import { logger } from '@/app/lib/logger';
 export const dynamic = 'force-dynamic';
 const SERVICE_TAG = '[api/admin/agencies]';
 
-function hashPassword(pwd: string) {
-  return createHash('sha256').update(pwd).digest('hex');
+async function hashPassword(pwd: string) {
+  return bcrypt.hash(pwd, 10);
 }
 
 function apiError(message: string, status: number) {
@@ -58,7 +58,8 @@ export async function POST(req: NextRequest) {
   }
 
   const agency = await AgencyModel.create({ name: val.data.name, contactEmail: val.data.contactEmail });
-  await UserModel.create({ email: val.data.managerEmail, password: hashPassword(val.data.managerPassword), role: 'agency', agency: agency._id });
+  const hashedPassword = await hashPassword(val.data.managerPassword);
+  await UserModel.create({ email: val.data.managerEmail, password: hashedPassword, role: 'agency', agency: agency._id });
   return NextResponse.json({ agency });
 }
 
@@ -76,7 +77,8 @@ export async function PUT(req: NextRequest) {
     contactEmail: val.data.contactEmail,
   });
   if (val.data.managerPassword) {
-    await UserModel.updateOne({ agency: id, role: 'agency' }, { $set: { password: hashPassword(val.data.managerPassword) } });
+    const hashedPassword = await hashPassword(val.data.managerPassword);
+    await UserModel.updateOne({ agency: id, role: 'agency' }, { $set: { password: hashedPassword } });
   }
   return NextResponse.json({ success: true });
 }

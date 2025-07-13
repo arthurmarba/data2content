@@ -14,6 +14,7 @@ import DbUser, { IUser } from "@/app/models/User";
 import AgencyModel from "@/app/models/Agency";
 
 import { Types } from "mongoose";
+import bcrypt from "bcryptjs";
 import type { JWT, DefaultJWT, JWTEncodeParams, JWTDecodeParams } from "next-auth/jwt";
 import { SignJWT, jwtVerify } from "jose";
 import { logger } from "@/app/lib/logger";
@@ -270,30 +271,41 @@ export const authOptions: NextAuthOptions = {
             }
         }),
         CredentialsProvider({
-            name: "Demo",
+            name: "Credentials",
             credentials: {
-                username: { label: "Utilizador", type: "text", placeholder: "demo" },
-                password: { label: "Senha", type: "password", placeholder: "demo" }
+                email: { label: "Email", type: "email" },
+                password: { label: "Senha", type: "password" }
             },
-            async authorize(credentials, req) {
-                if (credentials?.username === "demo" && credentials?.password === "demo") {
-                    logger.debug("[NextAuth Credentials DEBUG] Authorize para Demo User bem-sucedido.");
-                    return { // This is the User object NextAuth expects from authorize
-                        id: "demo-123",
-                        name: "Demo User",
-                        email: "demo@example.com",
-                        image: null,
-                        // Custom fields for the User object, will be passed to JWT callback
-                        role: "user",
-                        isNewUserForOnboarding: false,
-                        onboardingCompletedAt: new Date(),
-                        isInstagramConnected: false, 
-                        planStatus: 'inactive',
-                        affiliateCode: 'DEMOCODE123',
-                    } as NextAuthUserArg; // Cast to your extended User type
+            async authorize(credentials) {
+                if (!credentials?.email || !credentials.password) {
+                    return null;
                 }
-                logger.warn("[NextAuth Credentials DEBUG] Authorize para Demo User falhou.");
-                return null;
+
+                await connectToDatabase();
+
+                const user = await DbUser.findOne({ email: credentials.email }).select('+password');
+
+                if (!user) {
+                    logger.warn('Nenhum usuário encontrado com este e-mail.');
+                    return null;
+                }
+
+                const passwordsMatch = await bcrypt.compare(credentials.password, user.password as string);
+
+                if (!passwordsMatch) {
+                    logger.warn('Senha incorreta.');
+                    return null;
+                }
+
+                logger.info(`Login bem-sucedido para ${user.email}`);
+                return {
+                    id: user._id.toString(),
+                    name: user.name,
+                    email: user.email,
+                    image: user.image,
+                    role: user.role,
+                    agency: user.agency ? user.agency.toString() : null,
+                } as NextAuthUserArg;
             }
         }),
     ],
