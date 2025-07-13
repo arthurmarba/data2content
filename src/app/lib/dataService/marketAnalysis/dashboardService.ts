@@ -1,7 +1,7 @@
 /**
  * @fileoverview Serviço para buscar dados relacionados ao dashboard de criadores.
- * @version 2.0.0
- * @description Adicionadas anotações de otimização de performance.
+ * @version 2.0.1
+ * @description Corrigido erro de projeção mista (inclusão/exclusão) no MongoDB.
  */
 
 import { PipelineStage, Types } from 'mongoose';
@@ -64,10 +64,6 @@ export async function fetchDashboardCreatorsList(
       userMatchStage.inferredExpertiseLevel = { $in: filters.expertiseLevel };
     }
     
-    // OTIMIZAÇÃO: Para melhorar a performance, considere criar índices nos seguintes campos
-    // da coleção 'users' que são usados para filtragem:
-    // - Índices de texto em 'name' para otimizar buscas com $regex.
-    // - Índices em 'planStatus' e 'inferredExpertiseLevel' para acelerar a filtragem por $in.
     if (Object.keys(userMatchStage).length > 0) {
         aggregationPipeline.push({ $match: userMatchStage });
     }
@@ -82,8 +78,6 @@ export async function fetchDashboardCreatorsList(
           pipeline: (() => {
             const metricsPipeline: PipelineStage.Match[] = [];
             const metricsMatchStage: PipelineStage.Match['$match'] = {};
-            // OTIMIZAÇÃO: Um índice no campo 'metrics.postDate' é crucial para a performance
-            // de consultas com intervalo de datas.
             if (startDate) {
               metricsMatchStage.postDate = { ...metricsMatchStage.postDate, $gte: new Date(startDate) };
             }
@@ -120,15 +114,15 @@ export async function fetchDashboardCreatorsList(
     const totalCreatorsResult = await UserModel.aggregate(countPipeline);
     const totalCreators = totalCreatorsResult.length > 0 ? totalCreatorsResult[0].totalCreators : 0;
 
-    // OTIMIZAÇÃO: A ordenação por campos calculados ('totalPosts', 'avgEngagementRate')
-    // força o MongoDB a processar todo o conjunto de dados em memória. Para grandes volumes,
-    // considere pré-calcular e armazenar estas métricas agregadas diretamente nos documentos dos utilizadores
-    // e atualizá-las periodicamente. Isso permitiria a utilização de índices para a ordenação.
     const sortStage: PipelineStage.Sort = { $sort: { [sortBy]: sortDirection } };
     aggregationPipeline.push(sortStage, { $skip: skip }, { $limit: limit });
 
+    // ===== INÍCIO DA CORREÇÃO =====
     aggregationPipeline.push({
       $project: {
+        // Apenas inclua os campos que você quer na resposta final.
+        // Não adicione "metrics: 0". O MongoDB irá excluí-lo automaticamente
+        // porque ele não foi explicitamente incluído nesta lista.
         _id: 1,
         name: 1,
         planStatus: 1,
@@ -137,11 +131,11 @@ export async function fetchDashboardCreatorsList(
         lastActivityDate: 1,
         avgEngagementRate: { $ifNull: ['$avgEngagementRate', 0] },
         profilePictureUrl: '$profilePictureUrl',
-        followers_count: 1, // Added followers_count
+        followers_count: 1,
         alertHistory: 1,
-        metrics: 0 // Remove o array de métricas para uma resposta mais leve
       },
     });
+    // ===== FIM DA CORREÇÃO =====
 
     logger.debug(`${TAG} Pipeline: ${JSON.stringify(aggregationPipeline)}`);
     let fetchedCreators: any[] = await UserModel.aggregate(aggregationPipeline);
@@ -154,23 +148,20 @@ export async function fetchDashboardCreatorsList(
       };
 
       if (creator.alertHistory && Array.isArray(creator.alertHistory) && creator.alertHistory.length > 0) {
-        // Sort alerts by date descending to get the most recent
         const sortedAlerts = [...creator.alertHistory].sort((a, b) =>
           (b.date instanceof Date ? b.date.getTime() : new Date(b.date).getTime()) -
           (a.date instanceof Date ? a.date.getTime() : new Date(a.date).getTime())
         );
 
-        const mostRecentAlerts = sortedAlerts.slice(0, 3); // Get top 3
-
-        recentAlertsSummary.count = sortedAlerts.length; // Total count of alerts
+        const mostRecentAlerts = sortedAlerts.slice(0, 3);
+        recentAlertsSummary.count = sortedAlerts.length;
         recentAlertsSummary.alerts = mostRecentAlerts.map(alert => ({
           type: alert.type || 'Unknown',
           date: alert.date instanceof Date ? alert.date : new Date(alert.date),
-          message: alert.finalUserMessage || alert.message || undefined, // Adapt based on actual field name
+          message: alert.finalUserMessage || alert.message || undefined,
         }));
       }
 
-      // Remove original alertHistory to avoid sending large data to client
       const { alertHistory, ...creatorFields } = creator;
       return {
         ...creatorFields,
@@ -213,13 +204,9 @@ export async function fetchDashboardOverallContentStats(
 
     const aggregationPipeline: PipelineStage[] = [];
     if (Object.keys(dateMatchStage).length > 0) {
-        // OTIMIZAÇÃO: Um índice em 'metrics.postDate' acelera significativamente esta consulta.
         aggregationPipeline.push({ $match: dateMatchStage });
     }
 
-    // OTIMIZAÇÃO: As agregações em $facet são executadas em paralelo, o que é bom.
-    // Para dashboards muito acedidos, considere armazenar em cache os resultados desta agregação
-    // (ex: a cada hora) para evitar recálculos constantes.
     aggregationPipeline.push({
       $facet: {
         totalPlatformPosts: [{ $count: 'count' }],
@@ -287,7 +274,7 @@ export interface IPlatformSummaryData {
   totalCreators: number;
   pendingCreators: number;
   activeCreatorsInPeriod: number;
-  averageEngagementRateInPeriod: number; // Store as decimal, e.g., 0.0575 for 5.75%
+  averageEngagementRateInPeriod: number;
   averageReachInPeriod: number;
 }
 
@@ -304,9 +291,8 @@ export async function fetchPlatformSummary(args: IPlatformSummaryArgs = {}): Pro
     const totalCreators = await UserModel.countDocuments({});
     logger.info(`${PLATFORM_SUMMARY_TAG} Total de criadores: ${totalCreators}`);
 
-    // 2. Pending Creators (Example: role 'pending_user')
-    // IMPORTANT: Adjust { role: 'pending_user' } to the actual field and value in your UserModel
-    const pendingCreators = await UserModel.countDocuments({ status: 'PENDING_APPROVAL' }); // Adjusted assumption
+    // 2. Pending Creators
+    const pendingCreators = await UserModel.countDocuments({ status: 'PENDING_APPROVAL' });
     logger.info(`${PLATFORM_SUMMARY_TAG} Criadores pendentes: ${pendingCreators}`);
 
     // 3. Period-specific metrics
@@ -324,12 +310,10 @@ export async function fetchPlatformSummary(args: IPlatformSummaryArgs = {}): Pro
       };
       logger.info(`${PLATFORM_SUMMARY_TAG} Critério de data para métricas de período: ${JSON.stringify(dateMatchCriteria.postDate)}`);
 
-      // Active Creators in Period
       const distinctUsers = await MetricModel.distinct('user', dateMatchCriteria);
       activeCreatorsInPeriod = distinctUsers.length;
       logger.info(`${PLATFORM_SUMMARY_TAG} Criadores ativos no período: ${activeCreatorsInPeriod}`);
 
-      // Average Engagement Rate in Period
       const engagementPipeline: PipelineStage[] = [
         { $match: { ...dateMatchCriteria, 'stats.engagement_rate_on_reach': { $exists: true, $ne: null, $type: "number" } } },
         { $group: { _id: null, avgEngagement: { $avg: '$stats.engagement_rate_on_reach' } } },
@@ -337,10 +321,9 @@ export async function fetchPlatformSummary(args: IPlatformSummaryArgs = {}): Pro
       ];
       const engagementResult = await MetricModel.aggregate(engagementPipeline);
       averageEngagementRateInPeriod = engagementResult[0]?.avgEngagement || 0;
-      averageEngagementRateInPeriod = parseFloat(averageEngagementRateInPeriod.toFixed(4)); // Round to 4 decimal places
+      averageEngagementRateInPeriod = parseFloat(averageEngagementRateInPeriod.toFixed(4));
       logger.info(`${PLATFORM_SUMMARY_TAG} Taxa de engajamento média no período: ${averageEngagementRateInPeriod}`);
 
-      // Average Reach in Period
       const reachPipeline: PipelineStage[] = [
         { $match: { ...dateMatchCriteria, 'stats.reach': { $exists: true, $ne: null, $type: "number" } } },
         { $group: { _id: null, avgReach: { $avg: '$stats.reach' } } },
@@ -348,7 +331,7 @@ export async function fetchPlatformSummary(args: IPlatformSummaryArgs = {}): Pro
       ];
       const reachResult = await MetricModel.aggregate(reachPipeline);
       averageReachInPeriod = reachResult[0]?.avgReach || 0;
-      averageReachInPeriod = parseFloat(averageReachInPeriod.toFixed(0)); // Round to 0 decimal places (whole number)
+      averageReachInPeriod = parseFloat(averageReachInPeriod.toFixed(0));
       logger.info(`${PLATFORM_SUMMARY_TAG} Alcance médio no período: ${averageReachInPeriod}`);
 
     } else {
