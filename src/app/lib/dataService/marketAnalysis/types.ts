@@ -161,6 +161,7 @@ export interface IFetchDashboardOverallContentStatsFilters {
     startDate?: Date;
     endDate?: Date;
   };
+  agencyId?: string;
 }
 
 export interface IDashboardOverallStats {
