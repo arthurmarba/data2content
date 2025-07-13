@@ -35,6 +35,7 @@ const menuItems: MenuItem[] = [
     ],
   },
   { label: 'Afiliados', href: '/admin/affiliates', icon: UserGroupIcon },
+  { label: 'Agências', href: '/admin/agencies', icon: UserGroupIcon },
   { label: 'Resgates', href: '/admin/redemptions', icon: CurrencyDollarIcon },
 ];
 
