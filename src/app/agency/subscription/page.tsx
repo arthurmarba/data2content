@@ -1,10 +1,12 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
+import { toast } from 'react-hot-toast';
 
 export default function AgencySubscriptionPage() {
   const { data: session } = useSession();
   const [inviteCode, setInviteCode] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     fetch('/api/agency/invite-code').then(res => res.json()).then(data => {
@@ -15,12 +17,17 @@ export default function AgencySubscriptionPage() {
   const planStatus = session?.user?.agencyPlanStatus || 'inactive';
 
   const handleSubscribe = async () => {
-    const res = await fetch('/api/agency/subscription/create-checkout', { method: 'POST', body: JSON.stringify({ planId: 'basic' }) });
-    if (res.ok) {
-      const json = await res.json();
-      if (json.initPoint) {
-        window.location.href = json.initPoint;
-      }
+    setIsLoading(true);
+    const res = await fetch('/api/agency/subscription/create-checkout', {
+      method: 'POST',
+      body: JSON.stringify({ planId: 'basic' })
+    });
+    const json = await res.json();
+    if (res.ok && json.initPoint) {
+      window.location.href = json.initPoint;
+    } else {
+      toast.error(json.error || 'Não foi possível iniciar a assinatura.');
+      setIsLoading(false);
     }
   };
 
@@ -37,7 +44,13 @@ export default function AgencySubscriptionPage() {
       <h1 className="text-2xl font-bold">Assinatura da Agência</h1>
       <p>Status atual: <strong>{planStatus}</strong></p>
       {planStatus !== 'active' && (
-        <button className="px-4 py-2 bg-brand-pink text-white rounded" onClick={handleSubscribe}>Contratar</button>
+        <button
+          className="px-4 py-2 bg-brand-pink text-white rounded disabled:opacity-50"
+          onClick={handleSubscribe}
+          disabled={isLoading}
+        >
+          {isLoading ? 'Aguarde...' : 'Contratar'}
+        </button>
       )}
       {planStatus === 'active' && (
         <button className="px-4 py-2 bg-gray-800 text-white rounded" onClick={handleManage}>Gerenciar Assinatura</button>
