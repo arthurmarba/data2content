@@ -1,13 +1,10 @@
-// src/app/login/page.tsx
+// src/app/login/page.tsx - VERSÃO CORRIGIDA
+
 "use client";
 
 import { signIn } from "next-auth/react";
 import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
-
-// Opcional: Se você tiver um componente de loader, pode importá-lo
-// import FullPageLoader from '@/app/components/auth/FullPageLoader';
-// import React, { useState } from 'react';
 
 export default function LoginPage() {
   const searchParams = useSearchParams();
@@ -15,18 +12,17 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false); // Adicionado para desabilitar o botão durante o login
 
   const handleGoogleSignIn = () => {
-    // setIsLoading(true); // Opcional
-    // O callbackUrl para /auth/complete-signup é para o fluxo de onboarding de novos usuários.
-    // Se um usuário existente logar, o AuthRedirectHandler o levará ao dashboard
-    // a partir da página /auth/complete-signup se isNewUserForOnboarding for false.
+    setIsLoading(true);
     signIn("google", {
-      callbackUrl: callbackUrlFromParams || "/auth/complete-signup", // Prioriza callback da URL, senão vai para o onboarding
+      callbackUrl: callbackUrlFromParams || "/auth/complete-signup",
     });
   };
 
   const handleCredentialsSignIn = async () => {
+    setIsLoading(true);
     const result = await signIn("credentials", {
       redirect: false,
       email,
@@ -35,21 +31,19 @@ export default function LoginPage() {
 
     if (result?.error) {
       console.error("Falha no login:", result.error);
+      // Aqui você poderia adicionar um toast de erro para o usuário
+      setIsLoading(false); // Reabilita o botão em caso de erro
     } else {
-      window.location.href = "/agency/dashboard";
+      // O redirecionamento será tratado pelo NextAuth se o login for bem-sucedido
+      // e o callbackUrl for válido, ou podemos forçar.
+      window.location.href = callbackUrlFromParams || "/agency/dashboard";
     }
   };
-
-  // if (isLoading) { // Opcional
-  //   return <FullPageLoader message="Redirecionando para o login..." />;
-  // }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
       <div className="bg-white p-8 sm:p-12 rounded-xl shadow-2xl w-full max-w-md">
         <div className="text-center mb-8">
-          {/* Sugestão: Adicione seu logo aqui */}
-          {/* <img src="/logo.png" alt="Data2Content Logo" className="w-32 mx-auto mb-6" /> */}
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-800 tracking-tight">
             Bem-vindo(a) de volta!
           </h1>
@@ -62,53 +56,58 @@ export default function LoginPage() {
           <button
             onClick={handleGoogleSignIn}
             type="button"
-            className="w-full flex items-center justify-center py-3.5 px-4 border border-gray-300 rounded-lg shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-150 group"
+            disabled={isLoading}
+            className="w-full flex items-center justify-center py-3.5 px-4 border border-gray-300 rounded-lg shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-150 group disabled:opacity-50"
           >
-            <svg className="w-5 h-5 mr-3 text-gray-400 group-hover:text-gray-500 transition-colors duration-150" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M21.543 9.75h-1.06c-.11-.79-.3-1.54-.56-2.25H21.5c.28 0 .5.22.5.5s-.22.5-.5.5h-1.581c-.12-" />
-            </svg>
+            {/* Ícone do Google SVG aqui */}
+            <svg className="w-5 h-5 mr-3 text-gray-400 group-hover:text-gray-500 transition-colors duration-150" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" clipRule="evenodd" d="M48 24.4C48 22.7 47.9 21.2 47.5 19.8H24.5V28.5H37.9C37.3 31.4 35.6 33.7 32.9 35.3V41.3H41.1C45.6 37.1 48 31.3 48 24.4Z" fill="#4285F4"/><path fillRule="evenodd" clipRule="evenodd" d="M24.5 48.1C31.5 48.1 37.4 45.8 41.1 41.3L32.9 35.3C30.6 36.9 27.8 37.8 24.5 37.8C18.2 37.8 12.9 33.6 11 28H2.6V34.1C6.4 42.2 14.8 48.1 24.5 48.1Z" fill="#34A853"/><path fillRule="evenodd" clipRule="evenodd" d="M11 28C10.5 26.6 10.2 25.1 10.2 23.5C10.2 21.9 10.5 20.4 11 19V12.9H2.6C1 15.8 0 19.5 0 23.5C0 27.5 1 31.2 2.6 34.1L11 28Z" fill="#FBBC05"/><path fillRule="evenodd" clipRule="evenodd" d="M24.5 9.2C28.2 9.2 31.8 10.6 34.5 13.1L41.3 6.6C37.4 2.9 31.5 0 24.5 0C14.8 0 6.4 5.9 2.6 12.9L11 19C12.9 13.4 18.2 9.2 24.5 9.2Z" fill="#EA4335"/></svg>
             Entrar com Google
           </button>
 
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="bg-white px-2 text-gray-500">OU</span>
+            </div>
+          </div>
+
           <div>
-            <label className="block text-gray-700 mb-1">E-mail</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="email">E-mail</label>
             <input
+              id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
               placeholder="seu@email.com"
+              disabled={isLoading}
             />
           </div>
 
           <div>
-            <label className="block text-gray-700 mb-1">Senha</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="password">Senha</label>
             <input
+              id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
               placeholder="Sua senha"
+              disabled={isLoading}
             />
           </div>
 
           <button
             onClick={handleCredentialsSignIn}
             type="button"
-            className="w-full flex items-center justify-center py-3.5 px-4 border border-indigo-600 text-white bg-indigo-600 rounded-lg shadow-sm text-base font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-150"
+            disabled={isLoading}
+            className="w-full flex items-center justify-center py-3.5 px-4 border border-indigo-600 text-white bg-indigo-600 rounded-lg shadow-sm text-base font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-150 disabled:opacity-50"
           >
-            Entrar
+            {isLoading ? 'Entrando...' : 'Entrar'}
           </button>
         </div>
-        </div>
-
-        {/* Link para cadastro, se você tiver uma página de SignUpPage funcional */}
-        {/* <p className="text-sm text-gray-600 text-center mt-8">
-          Não tem uma conta?{' '}
-          <a href="/signup" className="font-medium text-indigo-600 hover:text-indigo-500">
-            Cadastre-se
-          </a>
-        </p> */}
       </div>
     </div>
   );

@@ -1,6 +1,9 @@
+// src/app/api/agency/dashboard/creators/route.ts - VERSÃO CORRIGIDA
+
 /**
  * @fileoverview API Endpoint for fetching dashboard creators.
- * @version 1.1.0
+ * @version 1.2.0
+ * @description Adicionada validação explícita para o agencyId da sessão.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -61,11 +64,19 @@ export async function GET(req: NextRequest) {
 
   try {
     const session = await getAgencySession(req);
-    // CORREÇÃO: Adicionada verificação explícita para session.user.
+    // Verificação inicial do usuário da sessão
     if (!session || !session.user) {
       return apiError('Acesso não autorizado.', 401);
     }
     logger.info(`${TAG} Sessão de agência validada para o utilizador: ${session.user.name}`);
+    
+    // ===== INÍCIO DA CORREÇÃO =====
+    // Garante que o agencyId existe e não é nulo antes de prosseguir.
+    const agencyId = session.user.agencyId;
+    if (!agencyId) {
+      return apiError('ID da agência não encontrado na sessão. Acesso não autorizado.', 401);
+    }
+    // ===== FIM DA CORREÇÃO =====
 
     const { searchParams } = new URL(req.url);
     const queryParams = Object.fromEntries(searchParams.entries());
@@ -100,7 +111,8 @@ export async function GET(req: NextRequest) {
     });
 
     logger.info(`${TAG} A chamar fetchDashboardCreatorsList com parâmetros: ${JSON.stringify(params)}`);
-    const { creators, totalCreators } = await fetchDashboardCreatorsList({ ...params, agencyId: session.user.agencyId });
+    // Agora passamos a variável agencyId que já foi validada, garantindo a segurança de tipo.
+    const { creators, totalCreators } = await fetchDashboardCreatorsList({ ...params, agencyId: agencyId });
 
     logger.info(`${TAG} ${creators.length} criadores buscados com sucesso. Total disponível: ${totalCreators}.`);
     return NextResponse.json({ creators, totalCreators, page: params.page, limit: params.limit }, { status: 200 });
