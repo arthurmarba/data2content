@@ -10,7 +10,8 @@ import FacebookProvider from "next-auth/providers/facebook";
 import CredentialsProvider from "next-auth/providers/credentials";
 
 import { connectToDatabase } from "@/app/lib/mongoose";
-import DbUser, { IUser } from "@/app/models/User"; 
+import DbUser, { IUser } from "@/app/models/User";
+import AgencyModel from "@/app/models/Agency";
 
 import { Types } from "mongoose";
 import type { JWT, DefaultJWT, JWTEncodeParams, JWTDecodeParams } from "next-auth/jwt";
@@ -53,6 +54,8 @@ declare module "next-auth" {
         image?: string | null;
         provider?: string | null; // Reflects the primary provider
         role?: string | null;
+        agencyId?: string | null;
+        agencyPlanStatus?: string | null;
         planStatus?: string | null;
         planExpiresAt?: string | null;
         affiliateCode?: string | null;
@@ -78,9 +81,11 @@ declare module "next-auth" {
 
 declare module "next-auth/jwt" {
      interface JWT extends DefaultJWT {
-         id: string;
-         role?: string | null;
-         provider?: string | null; // Reflects the primary provider after initial link
+        id: string;
+        role?: string | null;
+        agencyId?: string | null;
+        agencyPlanStatus?: string | null;
+        provider?: string | null; // Reflects the primary provider after initial link
 
          isNewUserForOnboarding?: boolean;
          onboardingCompletedAt?: Date | string | null;
@@ -533,6 +538,18 @@ export const authOptions: NextAuthOptions = {
                 token.planExpiresAt = (userFromSignIn as NextAuthUserArg).planExpiresAt;
                 token.affiliateCode = (userFromSignIn as NextAuthUserArg).affiliateCode;
                 token.agencyId = (userFromSignIn as NextAuthUserArg).agency ?? null;
+                if (token.agencyId) {
+                    try {
+                        await connectToDatabase();
+                        const agency = await AgencyModel.findById(token.agencyId).select('planStatus').lean();
+                        token.agencyPlanStatus = agency?.planStatus ?? null;
+                    } catch (e) {
+                        logger.error(`${TAG_JWT} Erro ao buscar planStatus da agência ${token.agencyId}:`, e);
+                        token.agencyPlanStatus = null;
+                    }
+                } else {
+                    token.agencyPlanStatus = null;
+                }
 
                 logger.info(`${TAG_JWT} Token populado de userFromSignIn. ID: ${token.id}, Provider: ${token.provider}, planStatus: ${token.planStatus}, igAccounts: ${token.availableIgAccounts?.length}, igLlatSet: ${!!token.instagramAccessToken}`);
             }
@@ -591,6 +608,17 @@ export const authOptions: NextAuthOptions = {
                             token.planExpiresAt = dbUser.planExpiresAt ?? token.planExpiresAt ?? null;
                             token.affiliateCode = dbUser.affiliateCode ?? token.affiliateCode ?? null;
                             token.agencyId = dbUser.agency ? dbUser.agency.toString() : token.agencyId ?? null;
+                            if (token.agencyId) {
+                                try {
+                                    const agency = await AgencyModel.findById(token.agencyId).select('planStatus').lean();
+                                    token.agencyPlanStatus = agency?.planStatus ?? null;
+                                } catch (e) {
+                                    logger.error(`${TAG_JWT} Erro ao buscar planStatus da agência ${token.agencyId}:`, e);
+                                    token.agencyPlanStatus = null;
+                                }
+                            } else {
+                                token.agencyPlanStatus = null;
+                            }
 
                             logger.info(`${TAG_JWT} Token enriquecido/atualizado do DB. ID: ${token.id}, Provider: ${token.provider}, planStatus: ${token.planStatus}, igAccounts: ${token.availableIgAccounts?.length}, igLlatSet: ${!!token.instagramAccessToken}, igErr: ${token.igConnectionError ? 'Sim ('+String(token.igConnectionError).substring(0,30)+'...)': 'Não'}`);
                         } else {
@@ -613,7 +641,7 @@ export const authOptions: NextAuthOptions = {
             // Ensure 'picture' is not in the final token if 'image' is used
             if (token.image && (token as any).picture) delete (token as any).picture; 
 
-            logger.debug(`${TAG_JWT} FINAL jwt. Token id: '${token.id}', name: '${token.name}', provider: '${token.provider}', planStatus: ${token.planStatus}, affiliateCode: ${token.affiliateCode}, agencyId: ${token.agencyId}, igErr: ${token.igConnectionError ? 'Sim ('+String(token.igConnectionError).substring(0,30)+'...)': 'Não'}`);
+            logger.debug(`${TAG_JWT} FINAL jwt. Token id: '${token.id}', name: '${token.name}', provider: '${token.provider}', planStatus: ${token.planStatus}, agencyPlanStatus: ${token.agencyPlanStatus}, affiliateCode: ${token.affiliateCode}, agencyId: ${token.agencyId}, igErr: ${token.igConnectionError ? 'Sim ('+String(token.igConnectionError).substring(0,30)+'...)': 'Não'}`);
             return token;
         },
 
@@ -653,6 +681,7 @@ export const authOptions: NextAuthOptions = {
             session.user.planExpiresAt = token.planExpiresAt ? (typeof token.planExpiresAt === 'string' ? token.planExpiresAt : new Date(token.planExpiresAt).toISOString()) : null;
             session.user.affiliateCode = token.affiliateCode;
             session.user.agencyId = token.agencyId ?? null;
+            session.user.agencyPlanStatus = token.agencyPlanStatus ?? null;
             
             // These fields might be populated from other sources or kept if already in session
             session.user.affiliateBalance = session.user.affiliateBalance ?? undefined; 
@@ -676,6 +705,14 @@ export const authOptions: NextAuthOptions = {
                     } else if (dbUserCheck.planExpiresAt === null) { // Explicitly handle null
                         session.user.planExpiresAt = null;
                     }
+                    if (session.user.agencyId) {
+                        try {
+                            const agency = await AgencyModel.findById(session.user.agencyId).select('planStatus').lean();
+                            session.user.agencyPlanStatus = agency?.planStatus ?? session.user.agencyPlanStatus ?? null;
+                        } catch (e) {
+                            logger.error(`${TAG_SESSION} Erro ao buscar planStatus da agência ${session.user.agencyId}:`, e);
+                        }
+                    }
                     // Ensure name, role, image are from the latest DB record if they exist
                     if (dbUserCheck.name) session.user.name = dbUserCheck.name;
                     if (dbUserCheck.role) session.user.role = dbUserCheck.role;
@@ -688,7 +725,7 @@ export const authOptions: NextAuthOptions = {
                 logger.error(`${TAG_SESSION} Erro ao buscar dados do DB para revalidação da sessão ${token.id}:`, error);
             }
             
-            logger.debug(`${TAG_SESSION} Finalizado. Session.user ID: ${session.user?.id}, Name: ${session.user?.name}, Provider: ${session.user?.provider}, Session planStatus (final): ${session.user?.planStatus}, agencyId: ${session.user?.agencyId}, igAccounts: ${session.user?.availableIgAccounts?.length}, igErr: ${session.user?.igConnectionError ? 'Sim' : 'Não'}`);
+            logger.debug(`${TAG_SESSION} Finalizado. Session.user ID: ${session.user?.id}, Name: ${session.user?.name}, Provider: ${session.user?.provider}, Session planStatus (final): ${session.user?.planStatus}, agencyId: ${session.user?.agencyId}, agencyPlanStatus: ${session.user?.agencyPlanStatus}, igAccounts: ${session.user?.availableIgAccounts?.length}, igErr: ${session.user?.igConnectionError ? 'Sim' : 'Não'}`);
             return session;
          },
 

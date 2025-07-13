@@ -18,6 +18,7 @@ declare module "next-auth" {
       provider?: string | null; // Provider usado no login ATUAL ('google', 'facebook')
       role?: string;
       agencyId?: string | null;
+      agencyPlanStatus?: string | null;
       planStatus?: string;
       planExpiresAt?: string | null; // Mantido como string (ISO) para o cliente
       affiliateCode?: string;
@@ -87,6 +88,7 @@ declare module "next-auth/jwt" {
     id: string; // ID do usuário do seu DB (obrigatório)
     role?: string | null;
     agencyId?: string | null;
+    agencyPlanStatus?: string | null;
     provider?: string | null;
     
     isNewUserForOnboarding?: boolean;

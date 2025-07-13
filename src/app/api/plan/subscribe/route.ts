@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"; // Ajuste o caminho conforme necessário
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
+import AgencyModel from "@/app/models/Agency";
 import mercadopago from "@/app/lib/mercadopago";
 import { Types } from "mongoose";
 
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
 
     // 3) Lê os dados do corpo da requisição
     const body = await req.json();
-    const { planType, affiliateCode } = body || {};
+    const { planType, affiliateCode, agencyInviteCode } = body || {};
     console.debug("plan/subscribe -> Body recebido:", body);
 
     // 4) Conecta ao banco de dados e busca o usuário via email da sessão
@@ -66,6 +67,21 @@ export async function POST(req: NextRequest) {
       // Aplica desconto de 10%
       price = parseFloat((price * 0.9).toFixed(2));
       user.affiliateUsed = affiliateCode;
+    }
+
+    // 6.1) Se agencyInviteCode fornecido, vincula usuário à agência ativa e aplica desconto
+    if (agencyInviteCode) {
+      const agency = await AgencyModel.findOne({ inviteCode: agencyInviteCode });
+      if (!agency) {
+        console.error("plan/subscribe -> Código de agência inválido:", agencyInviteCode);
+        return NextResponse.json({ error: "Código de agência inválido." }, { status: 400 });
+      }
+      if (agency.planStatus !== 'active') {
+        console.error(`plan/subscribe -> Agência ${agency._id} com plano inativo`);
+        return NextResponse.json({ error: 'Agência sem assinatura ativa.' }, { status: 403 });
+      }
+      user.agency = agency._id;
+      price = parseFloat((price * 0.9).toFixed(2));
     }
 
     // 7) Atualiza o status do plano para "pending" e salva o usuário

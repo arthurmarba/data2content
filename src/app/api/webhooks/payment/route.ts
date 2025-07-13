@@ -1,0 +1,53 @@
+import { NextRequest, NextResponse } from 'next/server';
+import AgencyModel from '@/app/models/Agency';
+import { logger } from '@/app/lib/logger';
+
+export const runtime = 'nodejs';
+const SERVICE_TAG = '[api/webhooks/payment]';
+
+interface PaymentEvent {
+  type: string;
+  data?: {
+    subscriptionId?: string;
+  };
+}
+
+export async function POST(req: NextRequest) {
+  const TAG = `${SERVICE_TAG}[POST]`;
+  try {
+    const body = (await req.json()) as PaymentEvent;
+    logger.info(`${TAG} event received: ${body.type}`);
+
+    const subscriptionId = body.data?.subscriptionId;
+    if (!subscriptionId) {
+      logger.warn(`${TAG} missing subscriptionId`);
+      return NextResponse.json({ received: true });
+    }
+
+    const agency = await AgencyModel.findOne({ paymentGatewaySubscriptionId: subscriptionId });
+    if (!agency) {
+      logger.warn(`${TAG} agency not found for subscription ${subscriptionId}`);
+      return NextResponse.json({ received: true });
+    }
+
+    if (body.type === 'checkout.session.completed' || body.type === 'subscription.active') {
+      agency.planStatus = 'active';
+      agency.paymentGatewaySubscriptionId = subscriptionId;
+      await agency.save();
+      logger.info(`${TAG} agency ${agency._id} activated`);
+    } else if (body.type === 'invoice.payment_failed') {
+      agency.planStatus = 'past_due';
+      await agency.save();
+      logger.info(`${TAG} agency ${agency._id} marked past_due`);
+    } else if (body.type === 'customer.subscription.deleted') {
+      agency.planStatus = 'canceled';
+      await agency.save();
+      logger.info(`${TAG} agency ${agency._id} canceled`);
+    }
+
+    return NextResponse.json({ received: true });
+  } catch (err: any) {
+    logger.error(`${TAG} unexpected error`, err);
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 });
+  }
+}
