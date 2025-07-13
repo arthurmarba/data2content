@@ -47,15 +47,20 @@ export async function POST(req: NextRequest) {
     } as any;
 
     const response = await mercadopago.preapproval.create(preapprovalData);
-    const initPoint = response.body.init_point;
 
-    agency.planStatus = 'pending';
-    await agency.save();
+    if (response.body.init_point) {
+      agency.planStatus = 'pending';
+      agency.paymentGatewaySubscriptionId = response.body.id;
+      await agency.save();
 
-    logger.info(`${TAG} checkout session created for agency ${agency._id}`);
-    return NextResponse.json({ initPoint });
+      logger.info(`${TAG} checkout session created for agency ${agency._id}`);
+      return NextResponse.json({ initPoint: response.body.init_point });
+    } else {
+      throw new Error('Mercado Pago não retornou um link de pagamento.');
+    }
   } catch (err: any) {
-    logger.error(`${TAG} unexpected error`, err);
-    return NextResponse.json({ error: 'Internal error' }, { status: 500 });
+    logger.error(`${TAG} Erro da API do Mercado Pago:`, err?.cause ?? err);
+    const errorMessage = err?.cause?.message || 'Falha ao criar assinatura no Mercado Pago.';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

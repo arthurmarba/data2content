@@ -36,9 +36,10 @@ export default function LoginPage() {
       console.error("Falha no login:", result.error);
       setIsLoading(false);
     } else {
-      // O redirecionamento será tratado pelo NextAuth se o login for bem-sucedido
-      // e o callbackUrl for válido, ou podemos forçar.
-      window.location.href = callbackUrlFromParams || "/agency/dashboard";
+      // Após um login bem-sucedido redirecionamos sempre para uma página de
+      // callback centralizada que irá decidir o destino final conforme o papel
+      // do usuário.
+      window.location.href = callbackUrlFromParams || "/auth/callback";
     }
   };
 
