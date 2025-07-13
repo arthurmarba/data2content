@@ -1,5 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
+import { toast } from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
 import AdminAuthGuard from '../components/AdminAuthGuard';
 
@@ -13,15 +14,58 @@ interface Agency {
 export default function AdminAgenciesPage() {
   const { data: session } = useSession();
   const [agencies, setAgencies] = useState<Agency[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [form, setForm] = useState({
+    name: '',
+    contactEmail: '',
+    managerEmail: '',
+    managerPassword: '',
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetch('/api/admin/agencies').then(res => res.json()).then(data => setAgencies(data.agencies));
   }, []);
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/admin/agencies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao criar agência');
+      setAgencies(prev => [...prev, data.agency]);
+      toast.success('Agência criada com sucesso');
+      setIsModalOpen(false);
+      setForm({ name: '', contactEmail: '', managerEmail: '', managerPassword: '' });
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao criar agência');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <AdminAuthGuard>
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold">Gerenciar Agências</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">Gerenciar Agências</h1>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="px-4 py-2 text-sm font-medium text-white bg-brand-red rounded hover:bg-red-700"
+          >
+            Adicionar Nova Agência
+          </button>
+        </div>
         <table className="min-w-full bg-white">
           <thead>
             <tr>
@@ -40,6 +84,80 @@ export default function AdminAgenciesPage() {
             ))}
           </tbody>
         </table>
+
+        {isModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="bg-white w-full max-w-md rounded-lg p-6 space-y-4">
+              <h2 className="text-lg font-semibold">Nova Agência</h2>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="name">Nome da Agência</label>
+                  <input
+                    id="name"
+                    name="name"
+                    type="text"
+                    required
+                    value={form.name}
+                    onChange={handleChange}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="contactEmail">Email de Contato</label>
+                  <input
+                    id="contactEmail"
+                    name="contactEmail"
+                    type="email"
+                    value={form.contactEmail}
+                    onChange={handleChange}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="managerEmail">Email do Gestor</label>
+                  <input
+                    id="managerEmail"
+                    name="managerEmail"
+                    type="email"
+                    required
+                    value={form.managerEmail}
+                    onChange={handleChange}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="managerPassword">Senha do Gestor</label>
+                  <input
+                    id="managerPassword"
+                    name="managerPassword"
+                    type="password"
+                    required
+                    value={form.managerPassword}
+                    onChange={handleChange}
+                    className="w-full border border-gray-300 rounded px-3 py-2"
+                  />
+                </div>
+                <div className="flex justify-end gap-2 mt-4">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded hover:bg-gray-200"
+                    disabled={isSubmitting}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="px-4 py-2 text-sm font-medium text-white bg-brand-red rounded hover:bg-red-700 disabled:opacity-60"
+                  >
+                    {isSubmitting ? 'Enviando...' : 'Criar Agência'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </AdminAuthGuard>
   );
