@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { createHash } from 'crypto';
 import { getAdminSession } from '@/lib/getAdminSession';
 import AgencyModel from '@/app/models/Agency';
 import UserModel from '@/app/models/User';
@@ -7,6 +8,10 @@ import { logger } from '@/app/lib/logger';
 
 export const dynamic = 'force-dynamic';
 const SERVICE_TAG = '[api/admin/agencies]';
+
+function hashPassword(pwd: string) {
+  return createHash('sha256').update(pwd).digest('hex');
+}
 
 function apiError(message: string, status: number) {
   logger.error(`${SERVICE_TAG} ${message}`);
@@ -17,7 +22,13 @@ export async function GET(req: NextRequest) {
   const session = await getAdminSession(req);
   if (!session || !session.user) return apiError('Unauthorized', 401);
   const agencies = await AgencyModel.find().lean();
-  return NextResponse.json({ agencies });
+  const managers = await UserModel.find({ role: 'agency', agency: { $in: agencies.map(a => a._id) } }).lean();
+  const managerMap = new Map(managers.map(m => [m.agency?.toString(), m.email]));
+  const agenciesWithManagers = agencies.map(a => ({
+    ...a,
+    managerEmail: managerMap.get(a._id.toString()) || '',
+  }));
+  return NextResponse.json({ agencies: agenciesWithManagers });
 }
 
 const createSchema = z.object({
@@ -25,6 +36,12 @@ const createSchema = z.object({
   contactEmail: z.string().email().optional(),
   managerEmail: z.string().email(),
   managerPassword: z.string().min(6),
+});
+
+const updateSchema = z.object({
+  name: z.string().optional(),
+  contactEmail: z.string().email().optional().nullable(),
+  managerPassword: z.string().min(6).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -41,7 +58,7 @@ export async function POST(req: NextRequest) {
   }
 
   const agency = await AgencyModel.create({ name: val.data.name, contactEmail: val.data.contactEmail });
-  await UserModel.create({ email: val.data.managerEmail, password: val.data.managerPassword, role: 'agency', agency: agency._id });
+  await UserModel.create({ email: val.data.managerEmail, password: hashPassword(val.data.managerPassword), role: 'agency', agency: agency._id });
   return NextResponse.json({ agency });
 }
 
@@ -52,6 +69,26 @@ export async function PUT(req: NextRequest) {
   const id = searchParams.get('id');
   if (!id) return apiError('Missing id', 400);
   const body = await req.json();
-  await AgencyModel.findByIdAndUpdate(id, body);
+  const val = updateSchema.safeParse(body);
+  if (!val.success) return apiError('Invalid body', 400);
+  await AgencyModel.findByIdAndUpdate(id, {
+    name: val.data.name,
+    contactEmail: val.data.contactEmail,
+  });
+  if (val.data.managerPassword) {
+    await UserModel.updateOne({ agency: id, role: 'agency' }, { $set: { password: hashPassword(val.data.managerPassword) } });
+  }
+  return NextResponse.json({ success: true });
+}
+
+export async function DELETE(req: NextRequest) {
+  const session = await getAdminSession(req);
+  if (!session || !session.user) return apiError('Unauthorized', 401);
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get('id');
+  if (!id) return apiError('Missing id', 400);
+  await UserModel.updateMany({ agency: id }, { $set: { agency: null } });
+  await UserModel.deleteOne({ agency: id, role: 'agency' });
+  await AgencyModel.findByIdAndDelete(id);
   return NextResponse.json({ success: true });
 }
