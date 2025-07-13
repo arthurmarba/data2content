@@ -268,6 +268,7 @@ export interface IPlatformSummaryArgs {
     startDate: Date;
     endDate: Date;
   };
+  agencyId?: string;
 }
 
 export interface IPlatformSummaryData {
@@ -285,14 +286,19 @@ export async function fetchPlatformSummary(args: IPlatformSummaryArgs = {}): Pro
 
   try {
     await connectToDatabase();
-    const { dateRange } = args;
+    const { dateRange, agencyId } = args;
+
+    const userFilter: any = {};
+    if (agencyId) {
+      userFilter.agency = new Types.ObjectId(agencyId);
+    }
 
     // 1. Total Creators
-    const totalCreators = await UserModel.countDocuments({});
+    const totalCreators = await UserModel.countDocuments(userFilter);
     logger.info(`${PLATFORM_SUMMARY_TAG} Total de criadores: ${totalCreators}`);
 
     // 2. Pending Creators
-    const pendingCreators = await UserModel.countDocuments({ status: 'PENDING_APPROVAL' });
+    const pendingCreators = await UserModel.countDocuments({ ...userFilter, status: 'PENDING_APPROVAL' });
     logger.info(`${PLATFORM_SUMMARY_TAG} Criadores pendentes: ${pendingCreators}`);
 
     // 3. Period-specific metrics
@@ -301,6 +307,11 @@ export async function fetchPlatformSummary(args: IPlatformSummaryArgs = {}): Pro
     let averageReachInPeriod = 0;
 
     const dateMatchCriteria: PipelineStage.Match['$match'] = {};
+    let agencyUserIds: Types.ObjectId[] | undefined;
+    if (agencyId) {
+      agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
+      dateMatchCriteria.user = { $in: agencyUserIds };
+    }
     if (dateRange?.startDate && dateRange?.endDate) {
       const endOfDay = new Date(dateRange.endDate);
       endOfDay.setUTCHours(23, 59, 59, 999);
@@ -336,6 +347,10 @@ export async function fetchPlatformSummary(args: IPlatformSummaryArgs = {}): Pro
 
     } else {
       logger.info(`${PLATFORM_SUMMARY_TAG} Nenhum intervalo de datas fornecido; métricas de período serão 0.`);
+      if (agencyUserIds && agencyUserIds.length > 0) {
+        const distinctUsers = await MetricModel.distinct('user', { user: { $in: agencyUserIds } });
+        activeCreatorsInPeriod = distinctUsers.length;
+      }
     }
 
     return {
