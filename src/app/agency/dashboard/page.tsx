@@ -14,7 +14,7 @@ import PlatformContentAnalysisSection from '@/app/admin/creator-dashboard/compon
 import CreatorRankingSection from '@/app/admin/creator-dashboard/components/views/CreatorRankingSection';
 import TopMoversSection from '@/app/admin/creator-dashboard/components/views/TopMoversSection';
 import UserDetailView from '@/app/admin/creator-dashboard/components/views/UserDetailView';
-import CreatorQuickSearch from '@/app/admin/creator-dashboard/CreatorQuickSearch';
+import CreatorQuickSearch from '@/app/admin/creator-dashboard/components/CreatorQuickSearch';
 import ScrollToTopButton from '@/app/components/ScrollToTopButton';
 import GlobalPostsExplorer from '@/app/admin/creator-dashboard/GlobalPostsExplorer';
 
