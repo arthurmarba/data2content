@@ -178,6 +178,7 @@ export interface IUser extends Document {
   _id: Types.ObjectId;
   name?: string;
   email: string;
+  password?: string;
   image?: string;
   googleId?: string;
   provider?: string;
@@ -291,6 +292,10 @@ const userSchema = new Schema<IUser>(
         unique: true,
         match: [/.+\@.+\..+/, 'Please fill a valid email address'],
         index: true,
+    },
+    password: {
+        type: String,
+        select: false
     },
     planStatus: { type: String, default: "inactive", index: true }, // OTIMIZAÇÃO: Mantido índice.
     inferredExpertiseLevel: {
