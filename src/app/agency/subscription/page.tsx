@@ -18,7 +18,9 @@ export default function AgencySubscriptionPage() {
     const res = await fetch('/api/agency/subscription/create-checkout', { method: 'POST', body: JSON.stringify({ planId: 'basic' }) });
     if (res.ok) {
       const json = await res.json();
-      window.location.href = json.checkoutUrl;
+      if (json.initPoint) {
+        window.location.href = json.initPoint;
+      }
     }
   };
 
