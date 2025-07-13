@@ -13,6 +13,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false); // Adicionado para desabilitar o botão durante o login
+  const [error, setError] = useState('');
 
   const handleGoogleSignIn = () => {
     setIsLoading(true);
@@ -23,6 +24,7 @@ export default function LoginPage() {
 
   const handleCredentialsSignIn = async () => {
     setIsLoading(true);
+    setError('');
     const result = await signIn("credentials", {
       redirect: false,
       email,
@@ -30,9 +32,9 @@ export default function LoginPage() {
     });
 
     if (result?.error) {
+      setError('Email ou senha inválidos. Por favor, tente novamente.');
       console.error("Falha no login:", result.error);
-      // Aqui você poderia adicionar um toast de erro para o usuário
-      setIsLoading(false); // Reabilita o botão em caso de erro
+      setIsLoading(false);
     } else {
       // O redirecionamento será tratado pelo NextAuth se o login for bem-sucedido
       // e o callbackUrl for válido, ou podemos forçar.
@@ -98,6 +100,12 @@ export default function LoginPage() {
               disabled={isLoading}
             />
           </div>
+
+          {error && (
+            <div className="p-3 bg-red-100 border border-red-200 text-red-700 text-sm rounded-lg text-center">
+              {error}
+            </div>
+          )}
 
           <button
             onClick={handleCredentialsSignIn}
