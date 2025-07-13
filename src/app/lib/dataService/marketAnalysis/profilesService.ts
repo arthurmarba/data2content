@@ -87,8 +87,8 @@ export async function getCreatorProfile(args: { name: string }): Promise<ICreato
  * @param args - Arguments for fetching top creators.
  * @returns {Promise<ITopCreatorResult[]>} A list of top creators.
  */
-export async function fetchTopCreators(args: { context: string, metricToSortBy: TopCreatorMetric, days: number, limit: number }): Promise<ITopCreatorResult[]> {
-  const { context, metricToSortBy, days, limit } = args;
+export async function fetchTopCreators(args: { context: string, metricToSortBy: TopCreatorMetric, days: number, limit: number, agencyId?: string }): Promise<ITopCreatorResult[]> {
+  const { context, metricToSortBy, days, limit, agencyId } = args;
   const TAG = `${SERVICE_TAG}[fetchTopCreators]`;
   try {
     await connectToDatabase();
@@ -97,6 +97,10 @@ export async function fetchTopCreators(args: { context: string, metricToSortBy: 
     const matchStage: PipelineStage.Match['$match'] = { postDate: { $gte: sinceDate }, [sortField]: { $exists: true, $ne: null, $gt: 0 } };
     if (context && !['geral', 'todos', 'all'].includes(context.toLowerCase())) {
         matchStage.context = { $regex: context, $options: 'i' };
+    }
+    if (agencyId) {
+        const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
+        matchStage.user = { $in: agencyUserIds };
     }
     const aggregationPipeline: PipelineStage[] = [
       { $match: matchStage },
@@ -126,8 +130,8 @@ export async function fetchTopCreators(args: { context: string, metricToSortBy: 
 /**
  * Aggregates multiple engagement metrics to compute a composite score for each creator.
  */
-export async function fetchTopCreatorsWithScore(args: { context?: string; days: number; limit: number }) {
-  const { context, days, limit } = args;
+export async function fetchTopCreatorsWithScore(args: { context?: string; days: number; limit: number; agencyId?: string }) {
+  const { context, days, limit, agencyId } = args;
   const TAG = `${SERVICE_TAG}[fetchTopCreatorsWithScore]`;
 
   try {
@@ -137,6 +141,10 @@ export async function fetchTopCreatorsWithScore(args: { context?: string; days: 
     const matchStage: PipelineStage.Match['$match'] = { postDate: { $gte: sinceDate } };
     if (context && !['geral', 'todos', 'all'].includes(context.toLowerCase())) {
       matchStage.context = { $regex: context, $options: 'i' };
+    }
+    if (agencyId) {
+      const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
+      matchStage.user = { $in: agencyUserIds };
     }
 
     const aggregationPipeline: PipelineStage[] = [
