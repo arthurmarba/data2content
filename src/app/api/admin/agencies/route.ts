@@ -35,6 +35,11 @@ export async function POST(req: NextRequest) {
   const val = createSchema.safeParse(body);
   if (!val.success) return apiError('Invalid body', 400);
 
+  const existingUser = await UserModel.findOne({ email: val.data.managerEmail });
+  if (existingUser) {
+    return NextResponse.json({ error: 'Este e-mail já está em uso por outro usuário.' }, { status: 409 });
+  }
+
   const agency = await AgencyModel.create({ name: val.data.name, contactEmail: val.data.contactEmail });
   await UserModel.create({ email: val.data.managerEmail, password: val.data.managerPassword, role: 'agency', agency: agency._id });
   return NextResponse.json({ agency });
