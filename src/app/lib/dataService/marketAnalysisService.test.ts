@@ -181,6 +181,14 @@ describe('MarketAnalysisService', () => {
       const result = await marketAnalysisService.fetchDashboardOverallContentStats({});
       expect(result).toEqual(mockStatsData);
     });
+    it('should apply agencyId filter when provided', async () => {
+      (MetricModel.aggregate as jest.Mock).mockResolvedValueOnce([{ totalPlatformPosts: [], averagePlatformEngagementRate: [], totalContentCreators: [], breakdownByFormat: [], breakdownByProposal: [], breakdownByContext: [] }]);
+      const agencyId = new Types.ObjectId().toString();
+      await marketAnalysisService.fetchDashboardOverallContentStats({ agencyId });
+      const pipeline = (MetricModel.aggregate as jest.Mock).mock.calls[0][0];
+      const matchStage = pipeline.find((stage: any) => stage.$match);
+      expect(matchStage.$match.user).toBeDefined();
+    });
     it('should throw DatabaseError if aggregation fails', async () => {
       (MetricModel.aggregate as jest.Mock).mockRejectedValue(new Error('Stats Aggregation failed'));
       await expect(marketAnalysisService.fetchDashboardOverallContentStats({})).rejects.toThrow('Falha ao buscar estatísticas gerais de conteúdo: Stats Aggregation failed');

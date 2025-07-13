@@ -192,9 +192,14 @@ export async function fetchDashboardOverallContentStats(
 
   try {
     await connectToDatabase();
-    const { dateRange } = params;
+    const { dateRange, agencyId } = params;
 
     const dateMatchStage: PipelineStage.Match['$match'] = {};
+    let agencyUserIds: Types.ObjectId[] | undefined;
+    if (agencyId) {
+      agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
+      dateMatchStage.user = { $in: agencyUserIds };
+    }
     if (dateRange?.startDate) {
       dateMatchStage.postDate = { ...dateMatchStage.postDate, $gte: dateRange.startDate };
     }
