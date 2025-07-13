@@ -21,6 +21,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: '/admin/creator-dashboard', label: 'Dashboard', icon: HomeIcon },
   { href: '/admin/creators-management', label: 'Criadores', icon: UsersIcon }, // Exemplo de rota
+  { href: '/admin/agencies', label: 'Agências', icon: UserGroupIcon },
   { href: '/admin/affiliates', label: 'Afiliados', icon: UserGroupIcon }, // Exemplo de rota
   { href: '/admin/redemptions', label: 'Resgates', icon: BanknotesIcon }, // Exemplo de rota
   { href: '/admin/intelligence-hub', label: 'Inteligência', icon: CpuChipIcon }, // Exemplo de rota
