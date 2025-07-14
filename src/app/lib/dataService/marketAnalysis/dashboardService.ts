@@ -194,22 +194,22 @@ export async function fetchDashboardOverallContentStats(
     await connectToDatabase();
     const { dateRange, agencyId } = params;
 
-    const dateMatchStage: PipelineStage.Match['$match'] = {};
+    const matchStage: PipelineStage.Match['$match'] = {};
     let agencyUserIds: Types.ObjectId[] | undefined;
     if (agencyId) {
       agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
-      dateMatchStage.user = { $in: agencyUserIds };
+      matchStage.user = { $in: agencyUserIds };
     }
     if (dateRange?.startDate) {
-      dateMatchStage.postDate = { ...dateMatchStage.postDate, $gte: dateRange.startDate };
+      matchStage.postDate = { ...matchStage.postDate, $gte: dateRange.startDate };
     }
     if (dateRange?.endDate) {
-      dateMatchStage.postDate = { ...dateMatchStage.postDate, $lte: dateRange.endDate };
+      matchStage.postDate = { ...matchStage.postDate, $lte: dateRange.endDate };
     }
 
     const aggregationPipeline: PipelineStage[] = [];
-    if (Object.keys(dateMatchStage).length > 0) {
-        aggregationPipeline.push({ $match: dateMatchStage });
+    if (Object.keys(matchStage).length > 0) {
+        aggregationPipeline.push({ $match: matchStage });
     }
 
     aggregationPipeline.push({
@@ -293,6 +293,7 @@ export async function fetchPlatformSummary(args: IPlatformSummaryArgs = {}): Pro
     await connectToDatabase();
     const { dateRange, agencyId } = args;
 
+    // --- Parte 1: Filtro de usuários por agência ---
     const userFilter: any = {};
     if (agencyId) {
       userFilter.agency = new Types.ObjectId(agencyId);
@@ -314,7 +315,7 @@ export async function fetchPlatformSummary(args: IPlatformSummaryArgs = {}): Pro
     const dateMatchCriteria: PipelineStage.Match['$match'] = {};
     let agencyUserIds: Types.ObjectId[] | undefined;
     if (agencyId) {
-      agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
+      agencyUserIds = await UserModel.find(userFilter).distinct('_id');
       dateMatchCriteria.user = { $in: agencyUserIds };
     }
     if (dateRange?.startDate && dateRange?.endDate) {
