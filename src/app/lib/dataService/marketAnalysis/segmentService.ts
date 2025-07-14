@@ -3,10 +3,11 @@
  * @version 1.0.1
  */
 
-import { PipelineStage } from 'mongoose';
+import { PipelineStage, Types } from 'mongoose';
 import { subDays } from 'date-fns';
 import { logger } from '@/app/lib/logger';
 import MetricModel from '@/app/models/Metric';
+import UserModel from '@/app/models/User';
 import { connectToDatabase } from '../connection';
 import { DatabaseError } from '@/app/lib/errors';
 import { IFetchSegmentPerformanceArgs, ISegmentPerformanceResult, IMarketPerformanceResult } from './types';
@@ -113,6 +114,7 @@ export interface IContentPerformanceByTypeArgs {
     startDate: Date;
     endDate: Date;
   };
+  agencyId?: string;
 }
 
 export interface IContentPerformanceByTypeDataPoint {
@@ -136,7 +138,7 @@ export async function fetchContentPerformanceByType(
 
   try {
     await connectToDatabase();
-    const { dateRange } = args;
+    const { dateRange, agencyId } = args;
 
     if (!dateRange || !dateRange.startDate || !dateRange.endDate) {
       throw new Error('Date range with startDate and endDate must be provided.');
@@ -154,17 +156,27 @@ export async function fetchContentPerformanceByType(
     endDate.setUTCHours(23, 59, 59, 999);
 
 
-    const pipeline: PipelineStage[] = [
-      {
-        $match: {
-          postDate: {
-            $gte: startDate,
-            $lte: endDate,
-          },
-          'stats.total_interactions': { $exists: true, $ne: null, $type: "number" }, // Ensure it's a number
-          type: { $exists: true, $nin: [null, ""] }
-        }
+    const matchStage: PipelineStage.Match = {
+      $match: {
+        postDate: {
+          $gte: startDate,
+          $lte: endDate,
+        },
+        'stats.total_interactions': { $exists: true, $ne: null, $type: 'number' },
+        type: { $exists: true, $nin: [null, ''] },
       },
+    };
+
+    if (agencyId) {
+      const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
+      if (agencyUserIds.length === 0) {
+        return [];
+      }
+      (matchStage.$match as any).user = { $in: agencyUserIds };
+    }
+
+    const pipeline: PipelineStage[] = [
+      matchStage,
       {
         $group: {
           _id: "$type",
