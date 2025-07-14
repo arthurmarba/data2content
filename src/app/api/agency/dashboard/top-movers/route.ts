@@ -113,13 +113,10 @@ export async function POST(req: NextRequest) {
       return apiError(`Corpo da requisição inválido: ${errorMessage}`, 400);
     }
 
-    // CORRIGIDO: Usamos 'as any' para contornar o erro de tipo temporariamente.
-    // AVISO: A correção permanente requer a atualização do tipo 'IFetchTopMoversArgs'
-    // no arquivo 'marketAnalysisService.ts' para incluir 'agencyId'.
     const validatedArgs: IFetchTopMoversArgs = {
       ...validationResult.data,
       agencyId: session.user.agencyId,
-    } as any;
+    };
 
     logger.info(`${TAG} Calling fetchTopMoversData with validated args: ${JSON.stringify(validatedArgs)}`);
     const results: ITopMoverResult[] = await fetchTopMoversData(validatedArgs);

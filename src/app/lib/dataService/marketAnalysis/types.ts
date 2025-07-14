@@ -96,6 +96,7 @@ export interface FindGlobalPostsArgs {
         startDate?: Date;
         endDate?: Date;
     };
+    agencyId?: string;
 }
 
 export interface IGlobalPostResult {
@@ -290,6 +291,7 @@ export interface IFetchTopMoversArgs {
   sortBy?: TopMoverSortBy;
   creatorFilters?: ITopMoverCreatorFilters;
   contentFilters?: ISegmentDefinition;
+  agencyId?: string;
 }
 
 export interface ITopMoverResult {

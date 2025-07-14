@@ -15,7 +15,7 @@ import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
 import { TimePeriod } from '@/app/lib/constants/timePeriods';
 import { getInstagramConnectionDetails } from '@/app/lib/instagram/db/userActions';
 import fetch from 'node-fetch';
-import User from '@/app/models/User';
+import UserModel from '@/app/models/User';
 
 const SERVICE_TAG = '[dataService][postsService]';
 
@@ -46,6 +46,17 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
         if (minInteractions > 0) matchStage['stats.total_interactions'] = { $gte: minInteractions };
         if (dateRange?.startDate) matchStage.postDate = { ...matchStage.postDate, $gte: dateRange.startDate };
         if (dateRange?.endDate) matchStage.postDate = { ...matchStage.postDate, $lte: dateRange.endDate };
+
+        if (args.agencyId) {
+            const agencyUserIds = await UserModel.find({ agency: args.agencyId }).select('_id').lean();
+            const userMongoIds = agencyUserIds.map(u => u._id);
+
+            if (userMongoIds.length === 0) {
+                return { posts: [], totalPosts: 0, page, limit };
+            }
+
+            matchStage.user = { $in: userMongoIds };
+        }
 
         const baseAggregation: PipelineStage[] = [
             ...createBasePipeline(),
@@ -83,7 +94,7 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
     }
 }
 
-export interface IPostDetailsArgs { postId: string; }
+export interface IPostDetailsArgs { postId: string; agencyId?: string; }
 export interface IPostDetailsData {
   _id: Types.ObjectId; user?: any; postLink?: string; description?: string; postDate?: Date;
   type?: string; format?: string; proposal?: string; context?: string; theme?: string;
@@ -93,7 +104,7 @@ export interface IPostDetailsData {
 
 export async function fetchPostDetails(args: IPostDetailsArgs): Promise<IPostDetailsData | null> {
     const TAG = `${SERVICE_TAG}[fetchPostDetails]`;
-    const { postId } = args;
+    const { postId, agencyId } = args;
     if (!Types.ObjectId.isValid(postId)) {
       logger.warn(`${TAG} Invalid postId format: ${postId}`);
       return null;
@@ -104,6 +115,15 @@ export async function fetchPostDetails(args: IPostDetailsArgs): Promise<IPostDet
       if (!postData) {
         logger.warn(`${TAG} Post not found with ID: ${postId}`);
         return null;
+      }
+
+      if (agencyId) {
+        const agencyUserIds = await UserModel.find({ agency: agencyId }).select('_id').lean();
+        const userMongoIds = agencyUserIds.map(u => u._id.toString());
+        if (userMongoIds.length === 0 || !userMongoIds.includes(postData.user?.toString())) {
+          logger.warn(`${TAG} Post ${postId} does not belong to agency ${agencyId}`);
+          return null;
+        }
       }
 
       const unifiedStats = {

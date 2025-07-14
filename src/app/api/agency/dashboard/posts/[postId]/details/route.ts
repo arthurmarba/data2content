@@ -52,11 +52,8 @@ export async function GET(
   try {
     // 3. Call Service Function
     logger.info(`${TAG} Calling fetchPostDetails service for postId: ${postId}`);
-    
-    // CORRIGIDO: Usamos 'as any' como uma medida TEMPORÁRIA para suprimir o erro de tipo.
-    // Isso permite que o código compile enquanto aguardamos a atualização da função 'fetchPostDetails'
-    // no arquivo 'postsService.ts' para aceitar formalmente o 'agencyId'.
-    const postDetails: IPostDetailsData | null = await fetchPostDetails({ postId, agencyId: session.user.agencyId } as any);
+
+    const postDetails: IPostDetailsData | null = await fetchPostDetails({ postId, agencyId: session.user.agencyId });
 
     if (!postDetails) {
       logger.warn(`${TAG} Post details not found for postId: ${postId} within agency ${session.user.agencyId}`);
