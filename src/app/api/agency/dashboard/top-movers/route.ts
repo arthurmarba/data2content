@@ -1,6 +1,6 @@
 /**
  * @fileoverview API Endpoint for fetching Top Movers data (content or creators).
- * @version 2.1.2 - Temporarily bypass type error for agencyId.
+ * @version 2.1.3 - Added explicit type guard for agencyId.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -16,7 +16,7 @@ import {
 import { DatabaseError } from '@/app/lib/errors';
 import { getAgencySession } from '@/lib/getAgencySession';
 
-const SERVICE_TAG = '[api/agency/dashboard/top-movers v2.1.2]';
+const SERVICE_TAG = '[api/agency/dashboard/top-movers v2.1.3]';
 
 // --- Zod Schemas for Validation ---
 
@@ -99,7 +99,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const session = await getSession(req);
-    if (!session || !session.user) {
+    // CORRIGIDO: A verificação explícita de 'session.user' e 'session.user.agencyId'
+    // é necessária aqui para que o TypeScript entenda que o objeto não é nulo no escopo desta função.
+    if (!session || !session.user || !session.user.agencyId) {
       return apiError('Acesso não autorizado. A sessão do usuário é inválida ou não está associada a uma agência.', 401);
     }
     logger.info(`${TAG} Agency session validated for user: ${session.user.id} on agency: ${session.user.agencyId}`);
@@ -113,6 +115,7 @@ export async function POST(req: NextRequest) {
       return apiError(`Corpo da requisição inválido: ${errorMessage}`, 400);
     }
 
+    // A verificação acima garante que session.user.agencyId é uma string, resolvendo o erro de tipo.
     const validatedArgs: IFetchTopMoversArgs = {
       ...validationResult.data,
       agencyId: session.user.agencyId,

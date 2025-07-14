@@ -1,6 +1,6 @@
 /**
  * @fileoverview API Endpoint for fetching dashboard posts for content exploration.
- * @version 1.3.2 - Temporarily bypass type error for agencyId.
+ * @version 1.3.3 - Added explicit type guard for agencyId.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -11,7 +11,7 @@ import { DatabaseError } from '@/app/lib/errors';
 
 export const dynamic = 'force-dynamic';
 
-const SERVICE_TAG = '[api/agency/dashboard/posts v1.3.2]';
+const SERVICE_TAG = '[api/agency/dashboard/posts v1.3.3]';
 
 const querySchema = z.object({
   page: z.coerce.number().int().min(1).optional().default(1),
@@ -54,7 +54,9 @@ export async function GET(req: NextRequest) {
 
   try {
     const session = await getSession(req);
-    if (!session || !session.user) {
+    // CORRIGIDO: A verificação explícita de 'session.user' e 'session.user.agencyId'
+    // é necessária aqui para que o TypeScript entenda que o objeto não é nulo no escopo desta função.
+    if (!session || !session.user || !session.user.agencyId) {
       return apiError('Acesso não autorizado. Sessão da agência inválida.', 401);
     }
     logger.info(`${TAG} Agency session validated for user: ${session.user.id} on agency: ${session.user.agencyId}`);
@@ -71,6 +73,7 @@ export async function GET(req: NextRequest) {
 
     const { startDate, endDate, ...otherParams } = validationResult.data;
 
+    // A verificação acima garante que session.user.agencyId é uma string, resolvendo o erro de tipo.
     const serviceArgs: FindGlobalPostsArgs = {
         ...otherParams,
         agencyId: session.user.agencyId,
