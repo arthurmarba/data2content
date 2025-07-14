@@ -52,17 +52,17 @@ const PlatformOverviewSection: React.FC<Props> = ({ apiPrefix = '/api/admin', fo
     </div>
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 md:mb-8">
       <PlatformFollowerTrendChart apiPrefix={apiPrefix} title={followerTrendTitle} />
-      <PlatformFollowerChangeChart />
+      <PlatformFollowerChangeChart apiPrefix={apiPrefix} />
     </div>
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 md:mb-8">
-      <PlatformReachEngagementTrendChart />
-      <PlatformMovingAverageEngagementChart />
+      <PlatformReachEngagementTrendChart apiPrefix={apiPrefix} />
+      <PlatformMovingAverageEngagementChart apiPrefix={apiPrefix} />
     </div>
 
     {/* --- CORREÇÃO APLICADA AQUI --- */}
     {/* Colocamos o widget de demografia e o mapa lado a lado em um grid para controlar o tamanho. */}
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-      <PlatformDemographicsWidget />
+      <PlatformDemographicsWidget apiPrefix={apiPrefix} />
       <CreatorBrazilMap apiPrefix={apiPrefix} />
     </div>
 

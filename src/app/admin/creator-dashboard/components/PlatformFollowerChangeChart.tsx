@@ -17,9 +17,11 @@ interface PlatformFollowerChangeResponse {
   insightSummary?: string;
 }
 
-interface PlatformFollowerChangeChartProps {}
+interface PlatformFollowerChangeChartProps {
+  apiPrefix?: string;
+}
 
-const PlatformFollowerChangeChart: React.FC<PlatformFollowerChangeChartProps> = () => {
+const PlatformFollowerChangeChart: React.FC<PlatformFollowerChangeChartProps> = ({ apiPrefix = '/api/admin' }) => {
   const { timePeriod } = useGlobalTimePeriod();
   const [data, setData] = useState<PlatformFollowerChangeResponse['chartData']>([]);
   const [insightSummary, setInsightSummary] = useState<string | undefined>(undefined);
@@ -30,7 +32,7 @@ const PlatformFollowerChangeChart: React.FC<PlatformFollowerChangeChartProps> = 
     setLoading(true);
     setError(null);
     try {
-      const apiUrl = `/api/v1/platform/trends/follower-change?timePeriod=${timePeriod}`;
+      const apiUrl = `${apiPrefix}/dashboard/trends/follower-change?timePeriod=${timePeriod}`;
       const response = await fetch(apiUrl);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));

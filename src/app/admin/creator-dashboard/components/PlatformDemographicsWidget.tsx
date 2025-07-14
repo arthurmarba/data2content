@@ -74,8 +74,8 @@ const MODAL_TITLES: Record<ModalType, string> = {
   gender: "Seguidores por Gênero",
 };
 
-const PlatformDemographicsWidget: React.FC = () => {
-  const { data, loading, error, refresh } = usePlatformDemographics();
+const PlatformDemographicsWidget: React.FC<{ apiPrefix?: string }> = ({ apiPrefix = '/api/v1/platform' }) => {
+  const { data, loading, error, refresh } = usePlatformDemographics(apiPrefix);
   const [modalType, setModalType] = useState<ModalType | null>(null);
 
   const handleCloseModal = useCallback(() => setModalType(null), []);

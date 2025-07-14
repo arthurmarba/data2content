@@ -108,9 +108,10 @@ const contextOptions = createOptionsFromCategories(contextCategories);
 interface TimePerformanceHeatmapProps {
   /** Se fornecido, filtra os dados para o usuário indicado */
   userId?: string | null;
+  apiPrefix?: string;
 }
 
-const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({ userId }) => {
+const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({ userId, apiPrefix = '/api/admin' }) => {
   const { timePeriod } = useGlobalTimePeriod();
   const [data, setData] = useState<TimePerformanceResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -133,8 +134,8 @@ const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({ userId 
       if (context) params.set('context', context);
 
       const baseUrl = userId
-        ? `/api/v1/users/${userId}/performance/time-distribution`
-        : '/api/v1/platform/performance/time-distribution';
+        ? `${apiPrefix}/dashboard/users/${userId}/performance/time-distribution`
+        : `${apiPrefix}/dashboard/performance/time-distribution`;
       const res = await fetch(`${baseUrl}?${params.toString()}`);
       if (!res.ok) throw new Error(`Erro ao buscar dados: ${res.statusText}`);
       const json: TimePerformanceResponse = await res.json();

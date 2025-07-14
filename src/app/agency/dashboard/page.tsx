@@ -36,6 +36,8 @@ const getStartDateFromTimePeriod = (endDate: Date, timePeriod: TimePeriod): Date
 
 const AgencyDashboardContent: React.FC = () => {
 
+  const apiPrefix = '/api/agency';
+
   const [inviteCode, setInviteCode] = useState<string>('');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedUserName, setSelectedUserName] = useState<string | null>(null);
@@ -112,7 +114,7 @@ const AgencyDashboardContent: React.FC = () => {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-4">
               <div className="flex-1 min-w-0 mb-2 sm:mb-0">
                 <CreatorQuickSearch
-                  apiPrefix="/api/agency"
+                  apiPrefix={apiPrefix}
                   onSelect={handleUserSelect}
                   selectedCreatorName={selectedUserName}
                   selectedCreatorPhotoUrl={selectedUserPhotoUrl}
@@ -142,17 +144,17 @@ const AgencyDashboardContent: React.FC = () => {
 
         <main className="max-w-full mx-auto py-8 px-4 sm:px-6 lg:px-8">
           <section id="platform-summary" className="mb-8">
-            <PlatformSummaryKpis apiPrefix="/api/agency" startDate={startDate} endDate={endDate} />
+            <PlatformSummaryKpis apiPrefix={apiPrefix} startDate={startDate} endDate={endDate} />
           </section>
 
           <AnimatePresence>
             {!selectedUserId && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8">
-                <CreatorRankingSection apiPrefix="/api/agency" rankingDateRange={rankingDateRange} rankingDateLabel={rankingDateLabel} />
-                <PlatformContentAnalysisSection startDate={startDate} endDate={endDate} />
-                <PlatformOverviewSection apiPrefix="/api/agency" followerTrendTitle="Evolução de Seguidores da Agência" />
-                <TopMoversSection apiPrefix="/api/agency" />
-                <GlobalPostsExplorer apiPrefix="/api/agency" dateRangeFilter={{ startDate, endDate }} />
+                <CreatorRankingSection apiPrefix={apiPrefix} rankingDateRange={rankingDateRange} rankingDateLabel={rankingDateLabel} />
+                <PlatformContentAnalysisSection apiPrefix={apiPrefix} startDate={startDate} endDate={endDate} />
+                <PlatformOverviewSection apiPrefix={apiPrefix} followerTrendTitle="Evolução de Seguidores da Agência" />
+                <TopMoversSection apiPrefix={apiPrefix} />
+                <GlobalPostsExplorer apiPrefix={apiPrefix} dateRangeFilter={{ startDate, endDate }} />
               </motion.div>
             )}
           </AnimatePresence>
