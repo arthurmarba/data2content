@@ -71,7 +71,13 @@ export async function GET(request: NextRequest) {
     for (let i=movingWindow-1; i<complete.length; i++) {
       const window = complete.slice(i-movingWindow+1, i+1);
       const sum = window.reduce((a,b)=>a+b.total,0);
-      series.push({ date: complete[i].date, movingAverageEngagement: sum / movingWindow });
+      
+      // CORREÇÃO: Adicionada uma verificação para garantir que o item existe
+      // antes de tentar acessar suas propriedades.
+      const currentEntry = complete[i];
+      if (currentEntry) {
+        series.push({ date: currentEntry.date, movingAverageEngagement: sum / movingWindow });
+      }
     }
     const displayStart = new Date(today); displayStart.setDate(displayStart.getDate()-dataWindowInDays+1); displayStart.setHours(0,0,0,0);
     const finalSeries = series.filter(p => new Date(p.date) >= displayStart);
