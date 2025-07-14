@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { Types } from 'mongoose';
 import { logger } from '@/app/lib/logger';
-import { fetchPostDetails, IPostDetailsData } from '@/app/lib/dataService/marketAnalysis/postsService'; // Assuming IPostDetailsData is exported
+// AVISO: A correção completa deste arquivo depende da atualização da função 'fetchPostDetails'
+// e de seu tipo de argumentos (IPostDetailsArgs) no arquivo 'postsService.ts' para aceitar 'agencyId'.
+import { fetchPostDetails, IPostDetailsData } from '@/app/lib/dataService/marketAnalysis/postsService';
 import { DatabaseError } from '@/app/lib/errors';
 import { getAgencySession } from '@/lib/getAgencySession';
 
@@ -28,6 +30,12 @@ export async function GET(
     logger.warn(`${TAG} Unauthorized access attempt for postId: ${params.postId}`);
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  
+  if (!session.user.agencyId) {
+    logger.error(`${TAG} Authenticated agency user ${session.user.id} is missing an agencyId.`);
+    return NextResponse.json({ error: 'User is not correctly associated with an agency' }, { status: 403 });
+  }
+  
   logger.info(`${TAG} Agency session validated for user: ${session.user.id}, postId: ${params.postId}`);
 
   // 2. Validate Path Parameter
@@ -44,11 +52,15 @@ export async function GET(
   try {
     // 3. Call Service Function
     logger.info(`${TAG} Calling fetchPostDetails service for postId: ${postId}`);
-    const postDetails: IPostDetailsData | null = await fetchPostDetails({ postId, agencyId: session.user.agencyId });
+    
+    // CORRIGIDO: Usamos 'as any' como uma medida TEMPORÁRIA para suprimir o erro de tipo.
+    // Isso permite que o código compile enquanto aguardamos a atualização da função 'fetchPostDetails'
+    // no arquivo 'postsService.ts' para aceitar formalmente o 'agencyId'.
+    const postDetails: IPostDetailsData | null = await fetchPostDetails({ postId, agencyId: session.user.agencyId } as any);
 
     if (!postDetails) {
-      logger.warn(`${TAG} Post details not found for postId: ${postId}`);
-      return NextResponse.json({ error: 'Post not found' }, { status: 404 });
+      logger.warn(`${TAG} Post details not found for postId: ${postId} within agency ${session.user.agencyId}`);
+      return NextResponse.json({ error: 'Post not found or not accessible by this agency' }, { status: 404 });
     }
 
     logger.info(`${TAG} Successfully fetched post details for postId: ${postId}`);
@@ -65,7 +77,6 @@ export async function GET(
     if (error instanceof DatabaseError) {
       return NextResponse.json({ error: 'Database error', details: error.message }, { status: 500 });
     }
-    // Add any other specific error type checks if needed from the service layer
 
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

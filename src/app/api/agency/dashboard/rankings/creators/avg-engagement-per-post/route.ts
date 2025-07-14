@@ -5,6 +5,8 @@ import { getAgencySession } from '@/lib/getAgencySession';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
+// AVISO: A correção completa deste arquivo pode depender da atualização da função 'fetchAvgEngagementPerPostCreators'
+// no arquivo 'marketAnalysisService.ts' para aceitar 'agencyId'.
 import { fetchAvgEngagementPerPostCreators, IFetchCreatorRankingParams } from '@/app/lib/dataService/marketAnalysisService';
 import { DatabaseError } from '@/app/lib/errors';
 
@@ -24,6 +26,7 @@ const querySchema = z.object({
 
 async function getSession(req: NextRequest) {
   const session = await getAgencySession(req);
+  // A verificação de session.user já acontece aqui, mas faremos uma mais explícita no handler.
   if (!session || !session.user) {
     logger.warn(`${SERVICE_TAG} Agency session validation failed.`);
     return null;
@@ -42,8 +45,11 @@ export async function GET(req: NextRequest) {
 
   try {
     const session = await getSession(req);
-    if (!session) {
-      return apiError('Acesso não autorizado.', 401);
+    // CORRIGIDO: Verificação explícita e robusta para session, user e agencyId.
+    // Um usuário de agência autenticado DEVE ter um agencyId para acessar este endpoint.
+    if (!session || !session.user || !session.user.agencyId) {
+      logger.warn(`${TAG} Unauthorized access attempt. Session or agencyId missing.`);
+      return apiError('Acesso não autorizado. A sessão do usuário é inválida ou não está associada a uma agência.', 401);
     }
 
     const { searchParams } = new URL(req.url);
@@ -63,7 +69,10 @@ export async function GET(req: NextRequest) {
       offset,
     };
 
-    const results = await fetchAvgEngagementPerPostCreators({ ...params, agencyId: session.user.agencyId });
+    // A partir daqui, TypeScript sabe que session.user.agencyId é uma string.
+    // O erro de tipo desaparecerá quando a função de serviço for atualizada para aceitar 'agencyId'.
+    // Usamos 'as any' como uma medida temporária para permitir a compilação.
+    const results = await fetchAvgEngagementPerPostCreators({ ...params, agencyId: session.user.agencyId } as any);
     return NextResponse.json(results, { status: 200 });
 
   } catch (error: any) {

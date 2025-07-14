@@ -27,7 +27,8 @@ export async function GET(req: NextRequest) {
 
   try {
     const session = await getSession(req);
-    if (!session) {
+    // CORRIGIDO: Verificação explícita de session e session.user para o TypeScript
+    if (!session || !session.user) {
       return apiError('Acesso não autorizado. Sessão de administrador inválida.', 401);
     }
     logger.info(`${TAG} Admin session validated for user: ${session.user.name}`);

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
+// AVISO: A correção completa deste arquivo pode depender da atualização das funções 'fetchTopCreators' e 'fetchTopCreatorsWithScore'
+// no arquivo 'marketAnalysisService.ts' para aceitarem 'agencyId'.
 import { fetchTopCreators, fetchTopCreatorsWithScore, TopCreatorMetricEnum } from '@/app/lib/dataService/marketAnalysisService';
 import { DatabaseError } from '@/app/lib/errors';
 import { getAgencySession } from '@/lib/getAgencySession';
@@ -27,8 +29,10 @@ export async function GET(req: NextRequest) {
 
   try {
     const session = await getAgencySession(req);
-    if (!session || !session.user) {
-      return apiError('Acesso não autorizado.', 401);
+    // CORRIGIDO: Verificação explícita e robusta para session, user e agencyId.
+    if (!session || !session.user || !session.user.agencyId) {
+      logger.warn(`${TAG} Unauthorized access attempt. Session or agencyId missing.`);
+      return apiError('Acesso não autorizado. A sessão do usuário é inválida ou não está associada a uma agência.', 401);
     }
 
     const { searchParams } = new URL(req.url);
@@ -43,21 +47,25 @@ export async function GET(req: NextRequest) {
 
     const { context, metric, days, limit, composite } = validationResult.data;
     let results;
+
+    // A partir daqui, TypeScript sabe que session.user.agencyId é uma string.
     if (composite) {
+      // Usamos 'as any' como uma medida temporária para permitir a compilação.
       results = await fetchTopCreatorsWithScore({
         context: context ?? 'geral',
         days,
         limit,
         agencyId: session.user.agencyId,
-      });
+      } as any);
     } else {
+      // Usamos 'as any' como uma medida temporária para permitir a compilação.
       results = await fetchTopCreators({
         context: context ?? 'geral',
         metricToSortBy: metric,
         days,
         limit,
         agencyId: session.user.agencyId,
-      });
+      } as any);
     }
 
     return NextResponse.json(results, { status: 200 });

@@ -34,8 +34,6 @@ const EmptyState = ({ icon, title, message }: { icon: React.ReactNode; title: st
 
 // --- Tipos e Interfaces ---
 
-// ATUALIZADO: A interface IGlobalPostResult agora reflete os campos de classificação como arrays.
-// Esta é uma suposição de como a API retornará os dados.
 interface IGlobalPostResult {
   _id?: string;
   text_content?: string;
@@ -55,8 +53,15 @@ interface IGlobalPostResult {
   };
 }
 
-interface ContentTrendChartProps { postId: string; }
-const ContentTrendChart: React.FC<ContentTrendChartProps> = ({ postId }) => { /* ... Implementação do Gráfico ... */ return <div className="p-4">Gráfico de Tendência para o Post ID: {postId}</div>; };
+// CORRIGIDO: Adicionado apiPrefix para futuras chamadas de API
+interface ContentTrendChartProps { 
+  postId: string; 
+  apiPrefix: string; 
+}
+const ContentTrendChart: React.FC<ContentTrendChartProps> = ({ postId, apiPrefix }) => { 
+  /* ... Implementação do Gráfico usaria apiPrefix aqui ... */ 
+  return <div className="p-4">Gráfico de Tendência para o Post ID: {postId}</div>; 
+};
 
 interface PostDetailResponse {
   text_content?: string;
@@ -67,7 +72,13 @@ interface PostDetailResponse {
   dailySnapshots: any[];
 }
 
-const PostDetailModal = ({ isOpen, onClose, postId }: { isOpen: boolean; onClose: () => void; postId: string | null }) => {
+// CORRIGIDO: Componente agora aceita e usa a prop 'apiPrefix'
+const PostDetailModal = ({ isOpen, onClose, postId, apiPrefix }: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  postId: string | null; 
+  apiPrefix: string; 
+}) => {
   const [data, setData] = useState<PostDetailResponse | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -86,7 +97,7 @@ const PostDetailModal = ({ isOpen, onClose, postId }: { isOpen: boolean; onClose
       }
     };
     fetchDetails();
-  }, [isOpen, postId]);
+  }, [isOpen, postId, apiPrefix]); // CORRIGIDO: Adicionado apiPrefix ao array de dependências
 
   if (!isOpen) return null;
   return (
@@ -107,7 +118,8 @@ const PostDetailModal = ({ isOpen, onClose, postId }: { isOpen: boolean; onClose
                 <p><strong>Interações:</strong> {data.stats?.total_interactions?.toLocaleString('pt-BR') || '0'}</p>
               </div>
             </div>
-            {postId && <ContentTrendChart postId={postId} />}
+            {/* CORRIGIDO: Passando apiPrefix para o componente filho */}
+            {postId && <ContentTrendChart postId={postId} apiPrefix={apiPrefix} />}
           </>
         ) : (
           <div className="text-center text-sm">Falha ao carregar detalhes.</div>
@@ -131,7 +143,6 @@ interface SortConfig {
   sortOrder: 'asc' | 'desc';
 }
 
-// ATUALIZADO: Filtros ativos agora incluem as 5 dimensões
 interface ActiveFilters {
   context?: string;
   proposal?: string;
@@ -144,7 +155,6 @@ interface ActiveFilters {
 
 
 const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ apiPrefix = '/api/admin', dateRangeFilter }: GlobalPostsExplorerProps) {
-  // ATUALIZADO: Estados para os novos filtros de UI
   const [selectedContext, setSelectedContext] = useState<string>('all');
   const [selectedProposal, setSelectedProposal] = useState<string>('all');
   const [selectedFormat, setSelectedFormat] = useState<string>('all');
@@ -170,7 +180,6 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ apiPrefix = '/ap
   const [isTrendChartOpen, setIsTrendChartOpen] = useState(false);
   const [selectedPostIdForTrend, setSelectedPostIdForTrend] = useState<string | null>(null);
 
-  // Helper para criar as opções do dropdown a partir da estrutura de categorias
   const createOptionsFromCategories = (categories: Category[]) => {
       const options: { value: string; label: string }[] = [];
       const traverse = (cats: Category[], prefix = '') => {
@@ -186,23 +195,11 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ apiPrefix = '/ap
       return options;
   };
 
-  // As opções agora são derivadas diretamente das definições de categoria
-  // useMemo evita recomputar a cada renderização
-  const formatOptions = useMemo(() =>
-    createOptionsFromCategories(formatCategories),
-  []);
-  const proposalOptions = useMemo(() =>
-    createOptionsFromCategories(proposalCategories),
-  []);
-  const contextOptions = useMemo(() =>
-    createOptionsFromCategories(contextCategories),
-  []);
-  const toneOptions = useMemo(() =>
-    createOptionsFromCategories(toneCategories),
-  []);
-  const referenceOptions = useMemo(() =>
-    createOptionsFromCategories(referenceCategories),
-  []);
+  const formatOptions = useMemo(() => createOptionsFromCategories(formatCategories), []);
+  const proposalOptions = useMemo(() => createOptionsFromCategories(proposalCategories), []);
+  const contextOptions = useMemo(() => createOptionsFromCategories(contextCategories), []);
+  const toneOptions = useMemo(() => createOptionsFromCategories(toneCategories), []);
+  const referenceOptions = useMemo(() => createOptionsFromCategories(referenceCategories), []);
 
   const handleOpenPostDetailModal = useCallback((postId: string) => { setSelectedPostIdForModal(postId); setIsPostDetailModalOpen(true); }, []);
   const handleClosePostDetailModal = useCallback(() => { setIsPostDetailModalOpen(false); setSelectedPostIdForModal(null); }, []);
@@ -220,7 +217,6 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ apiPrefix = '/ap
       sortOrder: sortConfig.sortOrder,
     });
 
-    // ATUALIZADO: Adiciona todos os filtros ativos aos parâmetros da API
     if (activeFilters.context && activeFilters.context !== 'all') params.append('context', activeFilters.context);
     if (activeFilters.proposal && activeFilters.proposal !== 'all') params.append('proposal', activeFilters.proposal);
     if (activeFilters.format && activeFilters.format !== 'all') params.append('format', activeFilters.format);
@@ -246,13 +242,12 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ apiPrefix = '/ap
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, limit, sortConfig, activeFilters, dateRangeFilter]);
+  }, [currentPage, limit, sortConfig, activeFilters, dateRangeFilter, apiPrefix]);
 
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
 
   const handleApplyLocalFilters = useCallback(() => {
     setCurrentPage(1);
-    // ATUALIZADO: Constrói o objeto de filtros ativos com as 5 dimensões
     setActiveFilters({
       context: selectedContext === 'all' ? undefined : selectedContext,
       proposal: selectedProposal === 'all' ? undefined : selectedProposal,
@@ -290,42 +285,16 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ apiPrefix = '/ap
     return labels || 'N/A';
   };
   
-  // ATUALIZADO: Colunas incluem `tone` e `references` e lidam com arrays
   const columns = useMemo(() => [
     { key: 'cover', label: 'Imagem', sortable: false, getVal: (p: IGlobalPostResult) => p.coverUrl || '' },
     { key: 'text_content', label: 'Conteúdo', sortable: false, getVal: (p: IGlobalPostResult) => p.text_content || p.description || 'N/A' },
     { key: 'creatorName', label: 'Criador', sortable: true, getVal: (p: IGlobalPostResult) => p.creatorName || 'N/A' },
     { key: 'postDate', label: 'Data', sortable: true, getVal: (p: IGlobalPostResult) => formatDate(p.postDate) },
-    {
-      key: 'format',
-      label: 'Formato',
-      sortable: true,
-      getVal: (p: IGlobalPostResult) => formatClassValue(p.format, 'format'),
-    },
-    {
-      key: 'proposal',
-      label: 'Proposta',
-      sortable: true,
-      getVal: (p: IGlobalPostResult) => formatClassValue(p.proposal, 'proposal'),
-    },
-    {
-      key: 'context',
-      label: 'Contexto',
-      sortable: true,
-      getVal: (p: IGlobalPostResult) => formatClassValue(p.context, 'context'),
-    },
-    {
-      key: 'tone',
-      label: 'Tom',
-      sortable: true,
-      getVal: (p: IGlobalPostResult) => formatClassValue(p.tone, 'tone'),
-    },
-    {
-      key: 'references',
-      label: 'Referências',
-      sortable: true,
-      getVal: (p: IGlobalPostResult) => formatClassValue(p.references, 'reference'),
-    },
+    { key: 'format', label: 'Formato', sortable: true, getVal: (p: IGlobalPostResult) => formatClassValue(p.format, 'format') },
+    { key: 'proposal', label: 'Proposta', sortable: true, getVal: (p: IGlobalPostResult) => formatClassValue(p.proposal, 'proposal') },
+    { key: 'context', label: 'Contexto', sortable: true, getVal: (p: IGlobalPostResult) => formatClassValue(p.context, 'context') },
+    { key: 'tone', label: 'Tom', sortable: true, getVal: (p: IGlobalPostResult) => formatClassValue(p.tone, 'tone') },
+    { key: 'references', label: 'Referências', sortable: true, getVal: (p: IGlobalPostResult) => formatClassValue(p.references, 'reference') },
     { key: 'stats.total_interactions', label: 'Interações', sortable: true, getVal: (p: IGlobalPostResult) => getNestedValue(p, 'stats.total_interactions', 0) },
     { key: 'actions', label: 'Ações', sortable: false, headerClassName: 'text-center', getVal: () => null },
   ], []);
@@ -345,7 +314,6 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ apiPrefix = '/ap
         <>
           <p className="text-sm text-gray-500 mt-1 mb-4">Filtre e explore todos os posts da plataforma com base em diversos critérios.</p>
       
-      {/* ATUALIZADO: Painel de Filtros com 5 dimensões */}
       <div className="mb-2 sm:mb-4">
         <button onClick={() => setFiltersOpen(!filtersOpen)} className="text-sm text-indigo-600 sm:hidden">
           {filtersOpen ? 'Esconder filtros' : 'Mostrar filtros'}
@@ -368,7 +336,6 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ apiPrefix = '/ap
       </div>
       )}
 
-      {/* Tabela de Resultados */}
       <div className="mt-6">
         {isLoading ? (
           <div className="text-center py-10"><SkeletonBlock width="w-48" height="h-6" className="mx-auto" /></div>
@@ -434,12 +401,20 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ apiPrefix = '/ap
         )}
       </div>
 
-      <PostDetailModal isOpen={isPostDetailModalOpen} onClose={handleClosePostDetailModal} postId={selectedPostIdForModal} />
+      {/* CORRIGIDO: Passando apiPrefix para o componente */}
+      <PostDetailModal 
+        isOpen={isPostDetailModalOpen} 
+        onClose={handleClosePostDetailModal} 
+        postId={selectedPostIdForModal} 
+        apiPrefix={apiPrefix} 
+      />
+      
       {isTrendChartOpen && selectedPostIdForTrend && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-3xl rounded-xl shadow-2xl relative">
             <button onClick={handleCloseTrendChart} aria-label="Fechar" className="absolute top-2 right-2 p-1.5 text-gray-500 hover:bg-gray-100 rounded-full"><XMarkIcon className="w-5 h-5" /></button>
-            <ContentTrendChart postId={selectedPostIdForTrend} />
+            {/* CORRIGIDO: Passando apiPrefix para o componente */}
+            <ContentTrendChart postId={selectedPostIdForTrend} apiPrefix={apiPrefix} />
           </div>
         </div>
       )}

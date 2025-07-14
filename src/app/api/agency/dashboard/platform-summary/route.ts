@@ -31,6 +31,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // CORRIGIDO: Adicionado um 'type guard' para garantir que o agencyId existe.
+  // Se um usuário de agência está logado, ele DEVE ter um agencyId.
+  if (!session.user.agencyId) {
+    logger.error(`${TAG} Authenticated user ${session.user.id || session.user.email} has no agencyId.`);
+    return NextResponse.json({ error: 'User is not associated with an agency' }, { status: 400 });
+  }
+
   const { searchParams } = new URL(req.url);
   const queryParamsFromUrl = {
     startDate: searchParams.get('startDate') || undefined,
@@ -54,6 +61,7 @@ export async function GET(req: NextRequest) {
   logger.info(`${TAG} Query parameters validated. Date range: ${dateRange ? JSON.stringify(dateRange) : 'Not provided'}`);
 
   try {
+    // A partir daqui, o TypeScript sabe que session.user.agencyId é uma string.
     const summaryData = await fetchPlatformSummary({ dateRange, agencyId: session.user.agencyId });
     return NextResponse.json(summaryData, { status: 200 });
   } catch (error: any) {

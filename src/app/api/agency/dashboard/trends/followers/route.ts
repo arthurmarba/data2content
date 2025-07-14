@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import UserModel from '@/app/models/User';
 import getFollowerTrendChartData from '@/charts/getFollowerTrendChartData';
 import { connectToDatabase } from '@/app/lib/mongoose';
@@ -23,7 +23,7 @@ function isAllowedTimePeriod(period: any): period is TimePeriod {
   return ALLOWED_TIME_PERIODS.includes(period);
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const timePeriodParam = searchParams.get('timePeriod');
   const granularityParam = searchParams.get('granularity');
@@ -51,11 +51,15 @@ export async function GET(request: Request) {
 
   try {
     await connectToDatabase();
-    const session = await getAgencySession(request as any);
-    if (!session || !session.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const session = await getAgencySession(request);
+    
+    // CORRIGIDO: Verificação explícita e robusta para session, user e agencyId.
+    if (!session || !session.user || !session.user.agencyId) {
+      logger.warn('[API AGENCY/TRENDS/FOLLOWERS] Unauthorized access attempt. Session or agencyId missing.');
+      return NextResponse.json({ error: 'Acesso não autorizado. A sessão do usuário é inválida ou não está associada a uma agência.' }, { status: 401 });
     }
 
+    // A partir daqui, TypeScript sabe que session.user.agencyId é uma string.
     const agencyUsers = await UserModel.find({
       agency: new Types.ObjectId(session.user.agencyId),
       planStatus: 'active',

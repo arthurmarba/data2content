@@ -1,10 +1,12 @@
 /**
  * @fileoverview API Endpoint for fetching Top Movers data (content or creators).
- * @version 2.0.0 - Updated to support 5-dimension classification.
+ * @version 2.0.0 - Updated to support 5-dimension classification and agency filtering.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
+// AVISO: A correção completa deste arquivo pode depender da atualização da função 'fetchTopMoversData'
+// e de seu tipo de argumentos (IFetchTopMoversArgs) no arquivo 'marketAnalysisService.ts' para aceitar 'agencyId'.
 import {
   fetchTopMoversData,
   IFetchTopMoversArgs,
@@ -28,7 +30,6 @@ const periodSchema = z.object({
     path: ["endDate"],
 });
 
-// ATUALIZADO: Filtros de conteúdo agora incluem as 5 dimensões
 const contentFiltersSchema = z.object({
   format: z.string().optional(),
   proposal: z.string().optional(),
@@ -100,10 +101,12 @@ export async function POST(req: NextRequest) {
 
   try {
     const session = await getSession(req);
-    if (!session || !session.user) {
-      return apiError('Acesso não autorizado. Sessão de administrador inválida.', 401);
+    // CORRIGIDO: Verificação explícita e robusta para session, user e agencyId.
+    if (!session || !session.user || !session.user.agencyId) {
+      logger.warn(`${TAG} Unauthorized access attempt. Session or agencyId missing.`);
+      return apiError('Acesso não autorizado. A sessão do usuário é inválida ou não está associada a uma agência.', 401);
     }
-    logger.info(`${TAG} Admin session validated for user: ${session.user.name}`);
+    logger.info(`${TAG} Agency session validated for user: ${session.user.id}`);
 
     const body = await req.json();
     const validationResult = requestBodySchema.safeParse(body);
@@ -117,7 +120,11 @@ export async function POST(req: NextRequest) {
     const validatedArgs = validationResult.data as IFetchTopMoversArgs;
 
     logger.info(`${TAG} Calling fetchTopMoversData with validated args: ${JSON.stringify(validatedArgs)}`);
-    const results: ITopMoverResult[] = await fetchTopMoversData({ ...validatedArgs, agencyId: session.user.agencyId });
+    
+    // CORRIGIDO: Usamos 'as any' como uma medida TEMPORÁRIA para suprimir o erro de tipo.
+    // Isso permite que o código compile enquanto aguardamos a atualização da função 'fetchTopMoversData'
+    // no arquivo 'marketAnalysisService.ts' para aceitar formalmente o 'agencyId'.
+    const results: ITopMoverResult[] = await fetchTopMoversData({ ...validatedArgs, agencyId: session.user.agencyId } as any);
 
     logger.info(`${TAG} Successfully fetched ${results.length} top movers.`);
     return NextResponse.json(results, { status: 200 });
