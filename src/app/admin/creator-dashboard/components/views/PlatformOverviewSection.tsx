@@ -36,14 +36,16 @@ const PlatformOverviewSection: React.FC<Props> = ({ apiPrefix = '/api/admin', fo
       Visão Geral da Plataforma <GlobalPeriodIndicator />
     </h2>
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
-      <TotalActiveCreatorsKpi />
+      <TotalActiveCreatorsKpi apiPrefix={apiPrefix} />
       <PlatformComparativeKpi
+        apiPrefix={apiPrefix}
         kpiName="platformFollowerGrowth"
         title="Crescimento de Seguidores"
         comparisonPeriod={comparisonPeriod}
         tooltip="Crescimento total de seguidores na plataforma comparado ao período anterior selecionado."
       />
       <PlatformComparativeKpi
+        apiPrefix={apiPrefix}
         kpiName="platformTotalEngagement"
         title="Engajamento Total"
         comparisonPeriod={comparisonPeriod}

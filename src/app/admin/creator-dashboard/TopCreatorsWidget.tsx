@@ -34,6 +34,7 @@ interface TopCreatorsWidgetProps {
   metricLabel?: string;
   compositeRanking?: boolean;
   tooltip?: string;
+  apiPrefix?: string;
 }
 
 const TopCreatorsWidget: React.FC<TopCreatorsWidgetProps> = ({
@@ -45,6 +46,7 @@ const TopCreatorsWidget: React.FC<TopCreatorsWidgetProps> = ({
   metricLabel = '',
   compositeRanking = false,
   tooltip,
+  apiPrefix = '/api/admin',
 }) => {
   const { timePeriod: globalTimePeriod } = useGlobalTimePeriod();
   const effectiveTimePeriod: TimePeriod = timePeriod || (globalTimePeriod as TimePeriod);
@@ -71,7 +73,7 @@ const TopCreatorsWidget: React.FC<TopCreatorsWidgetProps> = ({
     if (context) params.append('context', context);
 
     try {
-      const response = await fetch(`/api/admin/dashboard/rankings/top-creators?${params.toString()}`);
+      const response = await fetch(`${apiPrefix}/dashboard/rankings/top-creators?${params.toString()}`);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to fetch rankings');
@@ -84,7 +86,7 @@ const TopCreatorsWidget: React.FC<TopCreatorsWidgetProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [context, metric, days, limit, compositeRanking]);
+  }, [context, metric, days, limit, compositeRanking, apiPrefix]);
 
   useEffect(() => {
     fetchData();
