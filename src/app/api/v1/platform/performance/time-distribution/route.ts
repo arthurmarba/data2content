@@ -42,11 +42,16 @@ export async function GET(request: Request) {
   const periodInDaysValue = timePeriodToDaysForTime(timePeriod);
   const metricField = metricParam || 'stats.total_interactions';
 
-  const result = await aggregateTimePerformance(periodInDaysValue, metricField, {
-    format: formatParam || undefined,
-    proposal: proposalParam || undefined,
-    context: contextParam || undefined,
-  });
+  const result = await aggregateTimePerformance(
+    periodInDaysValue,
+    metricField,
+    {
+      format: formatParam || undefined,
+      proposal: proposalParam || undefined,
+      context: contextParam || undefined,
+    },
+    undefined
+  );
 
   const best = result.bestSlots[0];
   const worst = result.worstSlots[0];

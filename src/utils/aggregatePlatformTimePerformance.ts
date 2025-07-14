@@ -7,7 +7,8 @@ hora individual, em vez de blocos de 6 horas, fornecendo maior granularidade.
 ================================================================================
 */
 import MetricModel from "@/app/models/Metric";
-import { PipelineStage } from "mongoose";
+import UserModel from "@/app/models/User";
+import { PipelineStage, Types } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { logger } from "@/app/lib/logger";
 import { getStartDateFromTimePeriod } from "./dateHelpers";
@@ -35,6 +36,7 @@ export async function aggregatePlatformTimePerformance(
   periodInDays: number,
   metricField: string,
   filters: PerformanceFilters = {},
+  agencyId?: string,
   referenceDate: Date = new Date()
 ): Promise<PlatformTimePerformance> {
   const today = new Date(referenceDate);
@@ -62,6 +64,14 @@ export async function aggregatePlatformTimePerformance(
         postDate: { $gte: startDate, $lte: endDate },
       },
     };
+
+    if (agencyId) {
+      const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
+      if (agencyUserIds.length === 0) {
+        return result;
+      }
+      (matchStage.$match as any).user = { $in: agencyUserIds };
+    }
 
     // Filtros usam regex para busca case-insensitive.
     if (filters.format) {
