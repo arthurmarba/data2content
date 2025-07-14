@@ -1,6 +1,8 @@
 import { connectToDatabase } from '@/app/lib/mongoose';
 import AudienceDemographicSnapshotModel from '@/app/models/demographics/AudienceDemographicSnapshot';
+import UserModel from '@/app/models/User';
 import { logger } from '@/app/lib/logger';
+import { Types } from 'mongoose';
 import { BRAZIL_CITY_TO_STATE_MAP, normalizeCityName } from '@/data/brazilCityToState';
 import { getStatesByRegion } from '@/data/brazilRegions';
 import { BRAZIL_STATE_POPULATION } from '@/data/brazilStatePopulation';
@@ -26,18 +28,32 @@ interface Filters {
   ageRange?: '13-17' | '18-24' | '25-34' | '35-44' | '45-54' | '55-64' | '65+';
 }
 
-export default async function aggregateAudienceByRegion(filters: Filters = {}): Promise<StateBreakdown[]> {
+export default async function aggregateAudienceByRegion(
+  filters: Filters = {},
+  agencyId?: string
+): Promise<StateBreakdown[]> {
   const TAG = '[aggregateAudienceByRegion]';
   await connectToDatabase();
 
   try {
-    const latestSnapshots = await AudienceDemographicSnapshotModel.aggregate([
+    const pipeline: any[] = [];
+    if (agencyId) {
+      const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
+      if (!agencyUserIds.length) {
+        return [];
+      }
+      pipeline.push({ $match: { user: { $in: agencyUserIds } } });
+    }
+
+    pipeline.push(
       { $sort: { user: 1, recordedAt: -1 } },
       { $group: { _id: '$user', latestSnapshotId: { $first: '$_id' } } },
       { $lookup: { from: 'audience_demographic_snapshots', localField: 'latestSnapshotId', foreignField: '_id', as: 'snapshot' } },
       { $unwind: '$snapshot' },
       { $replaceRoot: { newRoot: '$snapshot' } }
-    ]);
+    );
+
+    const latestSnapshots = await AudienceDemographicSnapshotModel.aggregate(pipeline);
 
     const stateResults: Record<string, StateBreakdown> = {};
     const allowedStates = filters.region ? new Set(getStatesByRegion(filters.region)) : null;
