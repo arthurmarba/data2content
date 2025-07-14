@@ -229,7 +229,8 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ apiPrefix = '/ap
     if (dateRangeFilter?.endDate) params.append('endDate', new Date(dateRangeFilter.endDate).toISOString());
 
     try {
-      const response = await fetch(`${apiPrefix}/dashboard/posts?${params.toString()}`);
+      const postsUrl = `${apiPrefix}/dashboard/posts?${params.toString()}`;
+      const response = await fetch(postsUrl);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || `Failed to fetch posts: ${response.statusText}`);
