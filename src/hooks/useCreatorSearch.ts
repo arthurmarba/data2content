@@ -48,9 +48,8 @@ export function useCreatorSearch(
       setIsLoading(true);
       setError(null);
       try {
-        const params = new URLSearchParams({ limit: String(limit), search: query });
-        // Recomendação: O backend deve ser ajustado para ordenar por relevância (nome) em vez de data.
-        const resp = await fetch(`${apiPrefix}/creators?${params.toString()}`, { signal: controller.signal });
+        const encodedQuery = encodeURIComponent(query);
+        const resp = await fetch(`${apiPrefix}/users/search?name=${encodedQuery}`, { signal: controller.signal });
         
         if (!resp.ok) {
           const data = await resp.json().catch(() => ({}));
@@ -58,7 +57,16 @@ export function useCreatorSearch(
         }
         
         const data = await resp.json();
-        const creators: AdminCreatorListItem[] = data.creators || [];
+        const creators: AdminCreatorListItem[] = Array.isArray(data)
+          ? data.map((c: any) => ({
+              _id: c.id,
+              name: c.name,
+              email: c.email ?? '',
+              profilePictureUrl: c.profilePictureUrl,
+              adminStatus: 'active',
+              registrationDate: new Date().toISOString(),
+            }))
+          : [];
 
         // 2. Otimização: Implementa política de limpeza de cache (LRU simples).
         if (resultCache.size >= MAX_CACHE_SIZE) {
