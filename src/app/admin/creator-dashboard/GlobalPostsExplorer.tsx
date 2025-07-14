@@ -76,7 +76,7 @@ const PostDetailModal = ({ isOpen, onClose, postId }: { isOpen: boolean; onClose
     const fetchDetails = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/admin/dashboard/posts/${postId}/details`);
+        const res = await fetch(`${apiPrefix}/dashboard/posts/${postId}/details`);
         if (res.ok) {
           const json = await res.json();
           setData(json);
@@ -119,6 +119,7 @@ const PostDetailModal = ({ isOpen, onClose, postId }: { isOpen: boolean; onClose
 
 
 interface GlobalPostsExplorerProps {
+  apiPrefix?: string;
   dateRangeFilter?: {
     startDate: string;
     endDate: string;
@@ -142,7 +143,7 @@ interface ActiveFilters {
 }
 
 
-const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter }: GlobalPostsExplorerProps) {
+const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ apiPrefix = '/api/admin', dateRangeFilter }: GlobalPostsExplorerProps) {
   // ATUALIZADO: Estados para os novos filtros de UI
   const [selectedContext, setSelectedContext] = useState<string>('all');
   const [selectedProposal, setSelectedProposal] = useState<string>('all');
@@ -232,7 +233,7 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ dateRangeFilter 
     if (dateRangeFilter?.endDate) params.append('endDate', new Date(dateRangeFilter.endDate).toISOString());
 
     try {
-      const response = await fetch(`/api/admin/dashboard/posts?${params.toString()}`);
+      const response = await fetch(`${apiPrefix}/dashboard/posts?${params.toString()}`);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || `Failed to fetch posts: ${response.statusText}`);

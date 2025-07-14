@@ -18,26 +18,6 @@ import CreatorQuickSearch from '@/app/admin/creator-dashboard/components/Creator
 import ScrollToTopButton from '@/app/components/ScrollToTopButton';
 import GlobalPostsExplorer from '@/app/admin/creator-dashboard/GlobalPostsExplorer';
 
-function useAdminFetchRedirect() {
-  useEffect(() => {
-    const originalFetch = window.fetch;
-    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = typeof input === 'string' ? input : input.url;
-      if (typeof url === 'string' && url.startsWith('/api/admin/')) {
-        const newUrl = url.replace('/api/admin/', '/api/agency/');
-        if (typeof input === 'string') {
-          return originalFetch(newUrl, init);
-        }
-        const newRequest = new Request(newUrl, input as RequestInit);
-        return originalFetch(newRequest, init);
-      }
-      return originalFetch(input, init);
-    };
-    return () => {
-      window.fetch = originalFetch;
-    };
-  }, []);
-}
 
 const SkeletonBlock = ({ width = 'w-full', height = 'h-4', className = '' }) => (
   <div className={`bg-gray-200 animate-pulse rounded ${width} ${height} ${className}`}></div>
@@ -55,7 +35,6 @@ const getStartDateFromTimePeriod = (endDate: Date, timePeriod: TimePeriod): Date
 };
 
 const AgencyDashboardContent: React.FC = () => {
-  useAdminFetchRedirect();
 
   const [inviteCode, setInviteCode] = useState<string>('');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -133,6 +112,7 @@ const AgencyDashboardContent: React.FC = () => {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-4">
               <div className="flex-1 min-w-0 mb-2 sm:mb-0">
                 <CreatorQuickSearch
+                  apiPrefix="/api/agency"
                   onSelect={handleUserSelect}
                   selectedCreatorName={selectedUserName}
                   selectedCreatorPhotoUrl={selectedUserPhotoUrl}
@@ -162,17 +142,17 @@ const AgencyDashboardContent: React.FC = () => {
 
         <main className="max-w-full mx-auto py-8 px-4 sm:px-6 lg:px-8">
           <section id="platform-summary" className="mb-8">
-            <PlatformSummaryKpis startDate={startDate} endDate={endDate} />
+            <PlatformSummaryKpis apiPrefix="/api/agency" startDate={startDate} endDate={endDate} />
           </section>
 
           <AnimatePresence>
             {!selectedUserId && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8">
-                <CreatorRankingSection rankingDateRange={rankingDateRange} rankingDateLabel={rankingDateLabel} />
+                <CreatorRankingSection apiPrefix="/api/agency" rankingDateRange={rankingDateRange} rankingDateLabel={rankingDateLabel} />
                 <PlatformContentAnalysisSection startDate={startDate} endDate={endDate} />
                 <PlatformOverviewSection />
-                <TopMoversSection />
-                <GlobalPostsExplorer dateRangeFilter={{ startDate, endDate }} />
+                <TopMoversSection apiPrefix="/api/agency" />
+                <GlobalPostsExplorer apiPrefix="/api/agency" dateRangeFilter={{ startDate, endDate }} />
               </motion.div>
             )}
           </AnimatePresence>
