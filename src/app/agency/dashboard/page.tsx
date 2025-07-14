@@ -166,6 +166,7 @@ const AgencyDashboardContent: React.FC = () => {
                 userName={selectedUserName ?? undefined}
                 userPhotoUrl={selectedUserPhotoUrl ?? undefined}
                 onClear={handleClearSelection}
+                apiPrefix={apiPrefix}
               />
             )}
           </div>

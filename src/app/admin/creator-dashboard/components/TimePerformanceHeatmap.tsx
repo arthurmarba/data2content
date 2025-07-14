@@ -136,6 +136,7 @@ const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({ userId,
       const baseUrl = userId
         ? `${apiPrefix}/dashboard/users/${userId}/performance/time-distribution`
         : `${apiPrefix}/dashboard/performance/time-distribution`;
+      console.log("URL da API sendo chamada:", baseUrl);
       const res = await fetch(`${baseUrl}?${params.toString()}`);
       if (!res.ok) throw new Error(`Erro ao buscar dados: ${res.statusText}`);
       const json: TimePerformanceResponse = await res.json();

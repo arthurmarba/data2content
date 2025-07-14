@@ -26,6 +26,7 @@ interface UserDetailViewProps {
   userName?: string;
   userPhotoUrl?: string | null;
   onClear?: () => void;
+  apiPrefix?: string;
 }
 
 const KPI_COMPARISON_PERIOD_OPTIONS = [
@@ -39,6 +40,7 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
   userName,
   userPhotoUrl,
   onClear,
+  apiPrefix = '/api/admin',
 }) => {
   const [kpiComparisonPeriod, setKpiComparisonPeriod] = useState<string>(
     KPI_COMPARISON_PERIOD_OPTIONS[0]!.value,
@@ -128,7 +130,7 @@ const UserDetailView: React.FC<UserDetailViewProps> = ({
         <section id={`user-performance-highlights-${userId}`} className="mb-10">
           <UserPerformanceHighlights userId={userId} sectionTitle="Destaques de Desempenho" />
           <h4 className="text-lg font-semibold text-gray-700 mt-6 mb-4">Análise por Horário</h4>
-          <TimePerformanceHeatmap userId={userId} />
+          <TimePerformanceHeatmap userId={userId} apiPrefix={apiPrefix} />
         </section>
 
         <section id={`user-demographics-${userId}`} className="mb-10">
