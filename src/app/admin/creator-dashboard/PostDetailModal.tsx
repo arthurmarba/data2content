@@ -90,9 +90,10 @@ interface PostDetailModalProps {
   onClose: () => void;
   postId: string | null;
   publicMode?: boolean;
+  apiPrefix?: string;
 }
 
-const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, postId, publicMode = false }) => {
+const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, postId, publicMode = false, apiPrefix = '/api/admin' }) => {
   const [postData, setPostData] = useState<IPostDetailsData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -107,7 +108,7 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
 
       const apiUrl = publicMode
         ? `/api/v1/posts/${postId}/details`
-        : `/api/admin/dashboard/posts/${postId}/details`;
+        : `${apiPrefix}/dashboard/posts/${postId}/details`;
 
       try {
         const response = await fetch(apiUrl);
@@ -147,7 +148,7 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
       setIsLoading(false);
       setError(null);
     }
-  }, [isOpen, postId, publicMode]); // Adicionado publicMode às dependências
+  }, [isOpen, postId, publicMode, apiPrefix]); // Adicionado publicMode e apiPrefix às dependências
 
   if (!isOpen || !postId) {
     return null;
