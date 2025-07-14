@@ -36,7 +36,7 @@ const MapLegend: React.FC<{ mode: 'count' | 'density' }> = ({ mode }) => (
   </div>
 );
 
-export default function CreatorBrazilMap() {
+export default function CreatorBrazilMap({ apiPrefix = '/api/admin' }: { apiPrefix?: string }) {
   // --- PASSO 1: Adicionar estados para os novos filtros ---
   const [region, setRegion] = useState<string>("");
   const [gender, setGender] = useState<string>("");
@@ -51,6 +51,7 @@ export default function CreatorBrazilMap() {
     region,
     gender,
     ageRange,
+    apiPrefix,
   });
 
   const { maxCount, maxDensity } = useMemo(() => {

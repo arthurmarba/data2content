@@ -21,7 +21,12 @@ const TIME_PERIOD_TO_COMPARISON: Record<string, string> = {
   all_time: "month_vs_previous",
 };
 
-const PlatformOverviewSection: React.FC = () => {
+interface Props {
+  apiPrefix?: string;
+  followerTrendTitle?: string;
+}
+
+const PlatformOverviewSection: React.FC<Props> = ({ apiPrefix = '/api/admin', followerTrendTitle = 'Evolução de Seguidores da Plataforma' }) => {
   const { timePeriod } = useGlobalTimePeriod();
   const comparisonPeriod = TIME_PERIOD_TO_COMPARISON[timePeriod] || "month_vs_previous";
 
@@ -46,7 +51,7 @@ const PlatformOverviewSection: React.FC = () => {
       />
     </div>
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 md:mb-8">
-      <PlatformFollowerTrendChart />
+      <PlatformFollowerTrendChart apiPrefix={apiPrefix} title={followerTrendTitle} />
       <PlatformFollowerChangeChart />
     </div>
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 md:mb-8">
@@ -58,7 +63,7 @@ const PlatformOverviewSection: React.FC = () => {
     {/* Colocamos o widget de demografia e o mapa lado a lado em um grid para controlar o tamanho. */}
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
       <PlatformDemographicsWidget />
-      <CreatorBrazilMap />
+      <CreatorBrazilMap apiPrefix={apiPrefix} />
     </div>
 
   </section>

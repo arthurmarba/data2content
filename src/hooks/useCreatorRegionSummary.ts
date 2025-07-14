@@ -33,7 +33,8 @@ export interface UseAudienceRegionSummaryOptions {
 }
 
 // O nome da função foi atualizado para refletir o seu propósito
-export default function useAudienceRegionSummary(options: UseAudienceRegionSummaryOptions) {
+export default function useAudienceRegionSummary(options: UseAudienceRegionSummaryOptions & { apiPrefix?: string }) {
+  const { apiPrefix = '/api/admin' } = options;
   // --- ATUALIZAÇÃO: Incluir os novos filtros na query string ---
   const queryString = useMemo(() => {
     const query = new URLSearchParams();
@@ -43,10 +44,10 @@ export default function useAudienceRegionSummary(options: UseAudienceRegionSumma
     return query.toString();
   }, [options.region, options.gender, options.ageRange]);
 
-  const key = `audience_region_summary_${queryString}`;
+  const key = `audience_region_summary_${apiPrefix}_${queryString}`;
 
   const fetcher = useCallback(async (): Promise<Record<string, StateBreakdown>> => {
-    const res = await fetch(`/api/admin/creators/region-summary?${queryString}`, {
+    const res = await fetch(`${apiPrefix}/creators/region-summary?${queryString}`, {
       credentials: 'include',
     });
     if (!res.ok) throw new Error(`Erro na API: ${res.statusText}`);
@@ -57,7 +58,7 @@ export default function useAudienceRegionSummary(options: UseAudienceRegionSumma
       return acc;
     }, {} as Record<string, StateBreakdown>);
 
-  }, [queryString]);
+  }, [queryString, apiPrefix]);
 
   return useCachedFetch<Record<string, StateBreakdown>>(key, fetcher);
 }
