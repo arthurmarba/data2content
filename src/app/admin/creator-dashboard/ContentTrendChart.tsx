@@ -35,6 +35,7 @@ interface PostDetailResponse {
 
 interface ContentTrendChartProps {
   postId: string;
+  apiPrefix?: string;
 }
 
 const metricOptions: { key: keyof DailySnapshot; label: string; color: string }[] = [
@@ -45,7 +46,7 @@ const metricOptions: { key: keyof DailySnapshot; label: string; color: string }[
 
 // --- Componente Principal ---
 
-const ContentTrendChart: React.FC<ContentTrendChartProps> = ({ postId }) => {
+const ContentTrendChart: React.FC<ContentTrendChartProps> = ({ postId, apiPrefix = '/api/admin' }) => {
   const [data, setData] = useState<DailySnapshot[]>([]);
   // ATUALIZADO: Estado de metadados para armazenar as 5 dimensões
   const [meta, setMeta] = useState<{
@@ -64,7 +65,7 @@ const ContentTrendChart: React.FC<ContentTrendChartProps> = ({ postId }) => {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/admin/dashboard/posts/${postId}/details`);
+      const res = await fetch(`${apiPrefix}/dashboard/posts/${postId}/details`);
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.error || 'Erro ao buscar dados');
@@ -94,7 +95,7 @@ const ContentTrendChart: React.FC<ContentTrendChartProps> = ({ postId }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [postId]);
+  }, [postId, apiPrefix]);
 
   useEffect(() => {
     fetchData();
