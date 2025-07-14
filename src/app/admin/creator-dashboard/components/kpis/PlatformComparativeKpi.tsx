@@ -40,6 +40,7 @@ interface PlatformComparativeKpiProps {
   title: string;
   comparisonPeriod: string;
   tooltip?: string;
+  apiPrefix?: string;
 }
 
 const PlatformComparativeKpi: React.FC<PlatformComparativeKpiProps> = ({
@@ -47,6 +48,7 @@ const PlatformComparativeKpi: React.FC<PlatformComparativeKpiProps> = ({
   title,
   comparisonPeriod,
   tooltip,
+  apiPrefix = '/api/admin',
 }) => {
   const [kpiData, setKpiData] = useState<KPIComparisonData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -57,7 +59,7 @@ const PlatformComparativeKpi: React.FC<PlatformComparativeKpiProps> = ({
     setLoading(true);
     setError(null);
     try {
-      const apiUrl = `/api/v1/platform/kpis/periodic-comparison?comparisonPeriod=${comparisonPeriod}`;
+      const apiUrl = `${apiPrefix}/dashboard/platform-kpis/periodic-comparison?comparisonPeriod=${comparisonPeriod}`;
       const response = await fetch(apiUrl);
 
       if (!response.ok) {
@@ -87,7 +89,7 @@ const PlatformComparativeKpi: React.FC<PlatformComparativeKpiProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [comparisonPeriod, kpiName]);
+  }, [comparisonPeriod, kpiName, apiPrefix]);
 
   useEffect(() => {
     fetchData();

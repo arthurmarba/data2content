@@ -132,6 +132,7 @@ const CreatorRankingSection: React.FC<Props> = ({
           <div className="inline-flex md:block">
           <TopCreatorsWidget
             title="Top Criadores"
+            apiPrefix={apiPrefix}
             timePeriod={validatedTimePeriod}
             limit={5}
             compositeRanking={true}

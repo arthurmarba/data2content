@@ -13,12 +13,13 @@ const TIME_PERIOD_TO_COMPARISON: Record<string, string> = {
   all_time: "month_vs_previous",
 };
 
-const TotalActiveCreatorsKpi: React.FC = () => {
+const TotalActiveCreatorsKpi: React.FC<{ apiPrefix?: string }> = ({ apiPrefix = '/api/admin' }) => {
   const { timePeriod } = useGlobalTimePeriod();
   const comparisonPeriod = TIME_PERIOD_TO_COMPARISON[timePeriod] || "month_vs_previous";
 
   return (
     <PlatformComparativeKpi
+      apiPrefix={apiPrefix}
       kpiName="platformActiveCreators"
       title="Total de Criadores Ativos"
       comparisonPeriod={comparisonPeriod}
