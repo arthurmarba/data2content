@@ -38,10 +38,12 @@ const timePeriodToDataWindowDays = (timePeriod: string): number => {
 
 interface PlatformMovingAverageEngagementChartProps {
   initialAvgWindow?: string;
+  apiPrefix?: string;
 }
 
 const PlatformMovingAverageEngagementChart: React.FC<PlatformMovingAverageEngagementChartProps> = ({
-  initialAvgWindow = MOVING_AVERAGE_WINDOW_OPTIONS[0]?.value ?? "7"
+  initialAvgWindow = MOVING_AVERAGE_WINDOW_OPTIONS[0]?.value ?? "7",
+  apiPrefix = '/api/admin'
 }) => {
   const { timePeriod } = useGlobalTimePeriod();
   const [data, setData] = useState<PlatformMovingAverageResponse['series']>([]);
@@ -66,7 +68,7 @@ const PlatformMovingAverageEngagementChart: React.FC<PlatformMovingAverageEngage
     }
 
     try {
-      const apiUrl = `/api/v1/platform/trends/moving-average-engagement?dataWindowInDays=${dataWindowInDays}&movingAverageWindowInDays=${currentAvgWindowDays}`;
+      const apiUrl = `${apiPrefix}/dashboard/trends/moving-average-engagement?dataWindowInDays=${dataWindowInDays}&movingAverageWindowInDays=${currentAvgWindowDays}`;
       const response = await fetch(apiUrl);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));

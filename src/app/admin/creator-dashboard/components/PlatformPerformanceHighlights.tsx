@@ -33,6 +33,7 @@ interface PerformanceSummaryResponse {
 
 interface PlatformPerformanceHighlightsProps {
   sectionTitle?: string;
+  apiPrefix?: string;
 }
 
 function formatBestDay(slot: PerformanceSummaryResponse["bestDay"]): PerformanceHighlightItem | null {
@@ -48,7 +49,8 @@ function formatBestDay(slot: PerformanceSummaryResponse["bestDay"]): Performance
 }
 
 const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps> = ({
-  sectionTitle = "Destaques de Performance da Plataforma"
+  sectionTitle = "Destaques de Performance da Plataforma",
+  apiPrefix = '/api/admin'
 }) => {
   const { timePeriod } = useGlobalTimePeriod();
   const [summary, setSummary] = useState<PerformanceSummaryResponse | null>(null);
@@ -59,7 +61,7 @@ const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps
     setLoading(true);
     setError(null);
     try {
-      const apiUrl = `/api/v1/platform/highlights/performance-summary?timePeriod=${timePeriod}`;
+      const apiUrl = `${apiPrefix}/dashboard/highlights/performance-summary?timePeriod=${timePeriod}`;
       const response = await fetch(apiUrl);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -158,7 +160,7 @@ const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps
           </p>
         )}
         <div className="mt-6">
-          <FormatPerformanceRankingTable />
+          <FormatPerformanceRankingTable apiPrefix={apiPrefix} />
         </div>
       </>
     )}

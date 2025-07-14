@@ -11,7 +11,11 @@ interface DataPoint {
 
 const DEFAULT_METRIC = 'stats.total_interactions';
 
-const FormatPerformanceRankingTable: React.FC = () => {
+interface FormatPerformanceRankingTableProps {
+  apiPrefix?: string;
+}
+
+const FormatPerformanceRankingTable: React.FC<FormatPerformanceRankingTableProps> = ({ apiPrefix = '/api/admin' }) => {
   const { timePeriod } = useGlobalTimePeriod();
   const [data, setData] = useState<DataPoint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,7 +26,7 @@ const FormatPerformanceRankingTable: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const apiUrl = `/api/v1/platform/performance/average-engagement?timePeriod=${timePeriod}&groupBy=format&sortOrder=desc&engagementMetricField=${DEFAULT_METRIC}`;
+      const apiUrl = `${apiPrefix}/dashboard/performance/average-engagement?timePeriod=${timePeriod}&groupBy=format&sortOrder=desc&engagementMetricField=${DEFAULT_METRIC}`;
       const res = await fetch(apiUrl);
       if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
       const result = await res.json();
@@ -98,6 +102,7 @@ const FormatPerformanceRankingTable: React.FC = () => {
         groupBy="format"
         metricUsed={DEFAULT_METRIC}
         chartTitle="Ranking de Desempenho por Formato"
+        apiPrefix={apiPrefix}
       />
     </div>
   );

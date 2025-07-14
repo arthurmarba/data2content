@@ -13,9 +13,9 @@ export interface DemographicsData {
 const CACHE_KEY = "platform_demographics_cache";
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
-export default function usePlatformDemographics(): UseCachedFetchReturn<DemographicsData> {
+export default function usePlatformDemographics(apiPrefix: string = '/api/v1/platform'): UseCachedFetchReturn<DemographicsData> {
   const fetcher = useCallback(async (): Promise<DemographicsData> => {
-    const res = await fetch("/api/v1/platform/demographics");
+    const res = await fetch(`${apiPrefix}/demographics`);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || res.statusText);

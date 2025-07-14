@@ -25,10 +25,12 @@ const GRANULARITY_OPTIONS = [
 
 interface PlatformReachEngagementTrendChartProps {
   initialGranularity?: string;
+  apiPrefix?: string;
 }
 
 const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendChartProps> = ({
-  initialGranularity = GRANULARITY_OPTIONS[0]!.value
+  initialGranularity = GRANULARITY_OPTIONS[0]!.value,
+  apiPrefix = '/api/admin'
 }) => {
   const { timePeriod } = useGlobalTimePeriod();
   const [data, setData] = useState<PlatformChartResponse['chartData']>([]);
@@ -41,7 +43,7 @@ const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendCh
     setLoading(true);
     setError(null);
     try {
-      const apiUrl = `/api/v1/platform/trends/reach-engagement?timePeriod=${timePeriod}&granularity=${granularity}`;
+      const apiUrl = `${apiPrefix}/dashboard/trends/reach-engagement?timePeriod=${timePeriod}&granularity=${granularity}`;
       const response = await fetch(apiUrl);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
