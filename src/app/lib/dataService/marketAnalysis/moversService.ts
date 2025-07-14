@@ -39,6 +39,7 @@ export async function fetchTopMoversData(
       sortBy = 'absoluteChange_decrease',
       creatorFilters,
       contentFilters,
+      agencyId,
     } = args;
 
     const mappedMetricField = mapMetricToDbField(metric);
@@ -46,12 +47,24 @@ export async function fetchTopMoversData(
 
     if (entityType === 'content') {
       let preFilteredPostIds: Types.ObjectId[] | null = null;
-      if (contentFilters && (contentFilters.format || contentFilters.proposal || contentFilters.context)) {
+      let userMongoIds: Types.ObjectId[] | null = null;
+      if (agencyId) {
+        const agencyUsers = await UserModel.find({ agency: agencyId }).select('_id').lean();
+        userMongoIds = agencyUsers.map(u => u._id);
+        if (userMongoIds.length === 0) return [];
+      }
+
+      if (contentFilters && (contentFilters.format || contentFilters.proposal || contentFilters.context || userMongoIds)) {
         const filterQuery: any = {};
         if (contentFilters.format) filterQuery.format = contentFilters.format;
         if (contentFilters.proposal) filterQuery.proposal = contentFilters.proposal;
         if (contentFilters.context) filterQuery.context = contentFilters.context;
+        if (userMongoIds) filterQuery.user = { $in: userMongoIds };
         const matchingMetrics = await MetricModel.find(filterQuery).select('_id').lean();
+        preFilteredPostIds = matchingMetrics.map(m => m._id);
+        if (preFilteredPostIds.length === 0) return [];
+      } else if (userMongoIds) {
+        const matchingMetrics = await MetricModel.find({ user: { $in: userMongoIds } }).select('_id').lean();
         preFilteredPostIds = matchingMetrics.map(m => m._id);
         if (preFilteredPostIds.length === 0) return [];
       }
@@ -104,10 +117,11 @@ export async function fetchTopMoversData(
 
     } else { // entityType === 'creator'
       let preFilteredCreatorIds: Types.ObjectId[] | null = null;
-      if (creatorFilters && (creatorFilters.planStatus || creatorFilters.inferredExpertiseLevel)) {
+      if (creatorFilters || agencyId) {
         const userQuery: any = {};
-        if (creatorFilters.planStatus) userQuery.planStatus = { $in: creatorFilters.planStatus };
-        if (creatorFilters.inferredExpertiseLevel) userQuery.inferredExpertiseLevel = { $in: creatorFilters.inferredExpertiseLevel };
+        if (creatorFilters?.planStatus) userQuery.planStatus = { $in: creatorFilters.planStatus };
+        if (creatorFilters?.inferredExpertiseLevel) userQuery.inferredExpertiseLevel = { $in: creatorFilters.inferredExpertiseLevel };
+        if (agencyId) userQuery.agency = agencyId;
         const matchingUsers = await UserModel.find(userQuery).select('_id').lean();
         preFilteredCreatorIds = matchingUsers.map(u => u._id);
         if (preFilteredCreatorIds.length === 0) return [];

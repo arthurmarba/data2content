@@ -71,13 +71,10 @@ export async function GET(req: NextRequest) {
 
     const { startDate, endDate, ...otherParams } = validationResult.data;
 
-    // CORRIGIDO: Usamos 'as any' para contornar o erro de tipo temporariamente.
-    // AVISO: A correção permanente requer a atualização do tipo 'FindGlobalPostsArgs'
-    // no arquivo 'marketAnalysisService.ts' para incluir 'agencyId'.
     const serviceArgs: FindGlobalPostsArgs = {
         ...otherParams,
         agencyId: session.user.agencyId,
-    } as any;
+    };
 
     if (startDate || endDate) {
         serviceArgs.dateRange = {};
