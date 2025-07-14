@@ -27,10 +27,14 @@ const GRANULARITY_OPTIONS = [
 
 interface PlatformFollowerTrendChartProps {
   initialGranularity?: string;
+  apiPrefix?: string;
+  title?: string;
 }
 
 const PlatformFollowerTrendChart: React.FC<PlatformFollowerTrendChartProps> = ({
-  initialGranularity = GRANULARITY_OPTIONS[0]?.value || "daily"
+  initialGranularity = GRANULARITY_OPTIONS[0]?.value || "daily",
+  apiPrefix = '/api/admin',
+  title = 'Evolução de Seguidores da Plataforma'
 }) => {
   const { timePeriod } = useGlobalTimePeriod();
   const [data, setData] = useState<PlatformFollowerTrendResponse['chartData']>([]);
@@ -45,7 +49,7 @@ const PlatformFollowerTrendChart: React.FC<PlatformFollowerTrendChartProps> = ({
     setError(null);
     try {
       // Usa timePeriod do contexto e granularity do estado local
-      const apiUrl = `/api/v1/platform/trends/followers?timePeriod=${timePeriod}&granularity=${granularity}`;
+      const apiUrl = `${apiPrefix}/dashboard/trends/followers?timePeriod=${timePeriod}&granularity=${granularity}`;
       const response = await fetch(apiUrl);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -87,7 +91,7 @@ const PlatformFollowerTrendChart: React.FC<PlatformFollowerTrendChartProps> = ({
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4">
         <h2 className="text-lg md:text-xl font-semibold text-gray-700 mb-2 sm:mb-0">
-          Evolução de Seguidores da Plataforma
+          {title}
         </h2>
         {/* Seletor de timePeriod removido */}
         <div>

@@ -150,7 +150,7 @@ const AgencyDashboardContent: React.FC = () => {
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8">
                 <CreatorRankingSection apiPrefix="/api/agency" rankingDateRange={rankingDateRange} rankingDateLabel={rankingDateLabel} />
                 <PlatformContentAnalysisSection startDate={startDate} endDate={endDate} />
-                <PlatformOverviewSection />
+                <PlatformOverviewSection apiPrefix="/api/agency" followerTrendTitle="Evolução de Seguidores da Agência" />
                 <TopMoversSection apiPrefix="/api/agency" />
                 <GlobalPostsExplorer apiPrefix="/api/agency" dateRangeFilter={{ startDate, endDate }} />
               </motion.div>
