@@ -1,4 +1,5 @@
 import { getAgencySession } from '@/lib/getAgencySession';
+/**
  * @fileoverview API Endpoint for fetching top interaction creators.
  */
 import { NextRequest, NextResponse } from 'next/server';
