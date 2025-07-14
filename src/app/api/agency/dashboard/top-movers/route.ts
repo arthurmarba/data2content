@@ -1,24 +1,22 @@
 /**
  * @fileoverview API Endpoint for fetching Top Movers data (content or creators).
- * @version 2.0.0 - Updated to support 5-dimension classification and agency filtering.
+ * @version 2.1.2 - Temporarily bypass type error for agencyId.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
-// AVISO: A correção completa deste arquivo pode depender da atualização da função 'fetchTopMoversData'
-// e de seu tipo de argumentos (IFetchTopMoversArgs) no arquivo 'marketAnalysisService.ts' para aceitar 'agencyId'.
 import {
   fetchTopMoversData,
   IFetchTopMoversArgs,
   ITopMoverResult,
-  TopMoverEntityType, // For Zod enum
-  TopMoverMetric,     // For Zod enum
-  TopMoverSortBy,     // For Zod enum
+  TopMoverEntityType,
+  TopMoverMetric,
+  TopMoverSortBy,
 } from '@/app/lib/dataService/marketAnalysisService';
 import { DatabaseError } from '@/app/lib/errors';
 import { getAgencySession } from '@/lib/getAgencySession';
 
-const SERVICE_TAG = '[api/agency/dashboard/top-movers v2.0.0]';
+const SERVICE_TAG = '[api/agency/dashboard/top-movers v2.1.2]';
 
 // --- Zod Schemas for Validation ---
 
@@ -78,7 +76,7 @@ const requestBodySchema = z.object({
 
 async function getSession(req: NextRequest) {
   const session = await getAgencySession(req);
-  if (!session || !session.user) {
+  if (!session || !session.user || !session.user.agencyId) {
     logger.warn(`${SERVICE_TAG} Agency session validation failed.`);
     return null;
   }
@@ -101,12 +99,10 @@ export async function POST(req: NextRequest) {
 
   try {
     const session = await getSession(req);
-    // CORRIGIDO: Verificação explícita e robusta para session, user e agencyId.
-    if (!session || !session.user || !session.user.agencyId) {
-      logger.warn(`${TAG} Unauthorized access attempt. Session or agencyId missing.`);
+    if (!session || !session.user) {
       return apiError('Acesso não autorizado. A sessão do usuário é inválida ou não está associada a uma agência.', 401);
     }
-    logger.info(`${TAG} Agency session validated for user: ${session.user.id}`);
+    logger.info(`${TAG} Agency session validated for user: ${session.user.id} on agency: ${session.user.agencyId}`);
 
     const body = await req.json();
     const validationResult = requestBodySchema.safeParse(body);
@@ -117,16 +113,18 @@ export async function POST(req: NextRequest) {
       return apiError(`Corpo da requisição inválido: ${errorMessage}`, 400);
     }
 
-    const validatedArgs = validationResult.data as IFetchTopMoversArgs;
+    // CORRIGIDO: Usamos 'as any' para contornar o erro de tipo temporariamente.
+    // AVISO: A correção permanente requer a atualização do tipo 'IFetchTopMoversArgs'
+    // no arquivo 'marketAnalysisService.ts' para incluir 'agencyId'.
+    const validatedArgs: IFetchTopMoversArgs = {
+      ...validationResult.data,
+      agencyId: session.user.agencyId,
+    } as any;
 
     logger.info(`${TAG} Calling fetchTopMoversData with validated args: ${JSON.stringify(validatedArgs)}`);
-    
-    // CORRIGIDO: Usamos 'as any' como uma medida TEMPORÁRIA para suprimir o erro de tipo.
-    // Isso permite que o código compile enquanto aguardamos a atualização da função 'fetchTopMoversData'
-    // no arquivo 'marketAnalysisService.ts' para aceitar formalmente o 'agencyId'.
-    const results: ITopMoverResult[] = await fetchTopMoversData({ ...validatedArgs, agencyId: session.user.agencyId } as any);
+    const results: ITopMoverResult[] = await fetchTopMoversData(validatedArgs);
 
-    logger.info(`${TAG} Successfully fetched ${results.length} top movers.`);
+    logger.info(`${TAG} Successfully fetched ${results.length} top movers for agency ${session.user.agencyId}.`);
     return NextResponse.json(results, { status: 200 });
 
   } catch (error: any) {
