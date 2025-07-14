@@ -75,7 +75,7 @@ const formatDisplayPercentageTM = (num?: number | null): string => {
 };
 
 
-export default function TopMoversWidget() {
+export default function TopMoversWidget({ apiPrefix = '/api/admin' }: { apiPrefix?: string }) {
   const [entityType, setEntityType] = useState<TopMoverEntityType>('content');
   const [metric, setMetric] = useState<TopMoverMetric>('cumulativeViews');
   const [previousPeriod, setPreviousPeriod] = useState<PeriodState>(initialPeriodState);
@@ -96,7 +96,7 @@ export default function TopMoversWidget() {
   useEffect(() => {
     async function loadContexts() {
       try {
-        const res = await fetch('/api/admin/dashboard/contexts');
+        const res = await fetch(`${apiPrefix}/dashboard/contexts`);
         if (res.ok) {
           const data = await res.json();
           setContextOptions(['', ...data.contexts]);
@@ -172,7 +172,7 @@ export default function TopMoversWidget() {
     }
 
     try {
-      const response = await fetch('/api/admin/dashboard/top-movers', {
+      const response = await fetch(`${apiPrefix}/dashboard/top-movers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(apiPayload),

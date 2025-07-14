@@ -83,6 +83,7 @@ interface CreatorQuickSearchProps {
   selectedCreatorName?: string | null;
   selectedCreatorPhotoUrl?: string | null;
   onClear: () => void;
+  apiPrefix?: string;
 }
 
 export default function CreatorQuickSearch({
@@ -90,9 +91,10 @@ export default function CreatorQuickSearch({
   selectedCreatorName,
   selectedCreatorPhotoUrl,
   onClear,
+  apiPrefix = '/api/admin',
 }: CreatorQuickSearchProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const { results: creators, isLoading, error } = useCreatorSearch(searchTerm, { minChars: 2 });
+  const { results: creators, isLoading, error } = useCreatorSearch(searchTerm, { minChars: 2, apiPrefix });
   const [showDropdown, setShowDropdown] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);

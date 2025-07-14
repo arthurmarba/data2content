@@ -19,11 +19,12 @@ interface PlatformSummaryData {
 }
 
 interface PlatformSummaryKpisProps {
+  apiPrefix?: string;
   startDate: string;
   endDate: string;
 }
 
-const PlatformSummaryKpis: React.FC<PlatformSummaryKpisProps> = ({ startDate, endDate }) => {
+const PlatformSummaryKpis: React.FC<PlatformSummaryKpisProps> = ({ apiPrefix = '/api/admin', startDate, endDate }) => {
   const [data, setData] = useState<PlatformSummaryData | null>(null);
   const [prevData, setPrevData] = useState<PlatformSummaryData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -47,8 +48,8 @@ const PlatformSummaryKpis: React.FC<PlatformSummaryKpisProps> = ({ startDate, en
         });
 
         const [response, prevResponse] = await Promise.all([
-          fetch(`/api/admin/dashboard/platform-summary?${params.toString()}`),
-          fetch(`/api/admin/dashboard/platform-summary?${prevParams.toString()}`),
+          fetch(`${apiPrefix}/dashboard/platform-summary?${params.toString()}`),
+          fetch(`${apiPrefix}/dashboard/platform-summary?${prevParams.toString()}`),
         ]);
 
         if (!response.ok) {

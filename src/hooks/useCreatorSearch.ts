@@ -18,7 +18,7 @@ const MAX_CACHE_SIZE = 50;
 
 export function useCreatorSearch(
   query: string,
-  { limit = 5, minChars = 2 }: UseCreatorSearchOptions = {}
+  { limit = 5, minChars = 2, apiPrefix = '/api/admin' }: UseCreatorSearchOptions & { apiPrefix?: string } = {}
 ) {
   const [results, setResults] = useState<AdminCreatorListItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -50,7 +50,7 @@ export function useCreatorSearch(
       try {
         const params = new URLSearchParams({ limit: String(limit), search: query });
         // Recomendação: O backend deve ser ajustado para ordenar por relevância (nome) em vez de data.
-        const resp = await fetch(`/api/admin/creators?${params.toString()}`, { signal: controller.signal });
+        const resp = await fetch(`${apiPrefix}/creators?${params.toString()}`, { signal: controller.signal });
         
         if (!resp.ok) {
           const data = await resp.json().catch(() => ({}));
