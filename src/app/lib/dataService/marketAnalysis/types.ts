@@ -224,6 +224,7 @@ export interface IFetchCreatorRankingParams {
   };
   limit?: number;
   offset?: number;
+  agencyId?: string;
 }
 
 export interface IFetchCreatorTimeSeriesArgs {

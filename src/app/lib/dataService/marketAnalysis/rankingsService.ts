@@ -7,6 +7,7 @@
 import { PipelineStage, Types } from 'mongoose';
 import { logger } from '@/app/lib/logger';
 import MetricModel from '@/app/models/Metric';
+import UserModel from '@/app/models/User';
 import { connectToDatabase } from '../connection';
 import { DatabaseError } from '@/app/lib/errors';
 import {
@@ -31,19 +32,23 @@ export async function fetchTopEngagingCreators(
   params: IFetchCreatorRankingParams
 ): Promise<ICreatorMetricRankItem[]> {
   const TAG = `${SERVICE_TAG}[fetchTopEngagingCreators]`;
-  const { dateRange, limit = 5, offset = 0 } = params;
+  const { dateRange, limit = 5, offset = 0, agencyId } = params;
   logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
 
   try {
     await connectToDatabase();
+    const matchStage: PipelineStage.Match['$match'] = {
+      postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
+      'stats.reach': { $exists: true, $ne: null, $gt: 0 },
+      'stats.total_interactions': { $exists: true, $ne: null }
+    };
+    if (agencyId) {
+      const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
+      matchStage.user = { $in: agencyUserIds };
+    }
+
     const pipeline: PipelineStage[] = [
-      {
-        $match: {
-          postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
-          'stats.reach': { $exists: true, $ne: null, $gt: 0 },
-          'stats.total_interactions': { $exists: true, $ne: null }
-        }
-      },
+      { $match: matchStage },
       {
         $group: {
           _id: '$user',
@@ -100,13 +105,21 @@ export async function fetchMostProlificCreators(
   params: IFetchCreatorRankingParams
 ): Promise<ICreatorMetricRankItem[]> {
   const TAG = `${SERVICE_TAG}[fetchMostProlificCreators]`;
-  const { dateRange, limit = 5, offset = 0 } = params;
+  const { dateRange, limit = 5, offset = 0, agencyId } = params;
    logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
 
   try {
     await connectToDatabase();
+    const matchStage: PipelineStage.Match['$match'] = {
+      postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate }
+    };
+    if (agencyId) {
+      const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
+      matchStage.user = { $in: agencyUserIds };
+    }
+
     const pipeline: PipelineStage[] = [
-      { $match: { postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate } } },
+      { $match: matchStage },
       { $group: { _id: '$user', metricValue: { $sum: 1 } }},
       { $sort: { metricValue: -1 } },
       { $skip: offset },
@@ -151,18 +164,22 @@ export async function fetchTopInteractionCreators(
   params: IFetchCreatorRankingParams
 ): Promise<ICreatorMetricRankItem[]> {
     const TAG = `${SERVICE_TAG}[fetchTopInteractionCreators]`;
-    const { dateRange, limit = 5, offset = 0 } = params;
+    const { dateRange, limit = 5, offset = 0, agencyId } = params;
     logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
 
   try {
     await connectToDatabase();
+    const matchStage: PipelineStage.Match['$match'] = {
+      postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
+      'stats.total_interactions': { $exists: true, $ne: null }
+    };
+    if (agencyId) {
+      const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
+      matchStage.user = { $in: agencyUserIds };
+    }
+
     const pipeline: PipelineStage[] = [
-      {
-        $match: {
-          postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
-          'stats.total_interactions': { $exists: true, $ne: null }
-        }
-      },
+      { $match: matchStage },
       { $group: { _id: '$user', metricValue: { $sum: '$stats.total_interactions' } }},
       { $sort: { metricValue: -1 } },
       { $skip: offset },
@@ -207,18 +224,22 @@ export async function fetchTopSharingCreators(
   params: IFetchCreatorRankingParams
 ): Promise<ICreatorMetricRankItem[]> {
     const TAG = `${SERVICE_TAG}[fetchTopSharingCreators]`;
-    const { dateRange, limit = 5, offset = 0 } = params;
+    const { dateRange, limit = 5, offset = 0, agencyId } = params;
     logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
 
   try {
     await connectToDatabase();
+    const matchStage: PipelineStage.Match['$match'] = {
+      postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
+      'stats.shares': { $exists: true, $ne: null }
+    };
+    if (agencyId) {
+      const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
+      matchStage.user = { $in: agencyUserIds };
+    }
+
     const pipeline: PipelineStage[] = [
-      {
-        $match: {
-          postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
-          'stats.shares': { $exists: true, $ne: null }
-        }
-      },
+      { $match: matchStage },
       { $group: { _id: '$user', metricValue: { $sum: '$stats.shares' } }},
       { $sort: { metricValue: -1 } },
       { $skip: offset },
@@ -261,18 +282,22 @@ export async function fetchAvgEngagementPerPostCreators(
   params: IFetchCreatorRankingParams
 ): Promise<ICreatorMetricRankItem[]> {
   const TAG = `${SERVICE_TAG}[fetchAvgEngagementPerPostCreators]`;
-  const { dateRange, limit = 5, offset = 0 } = params;
+  const { dateRange, limit = 5, offset = 0, agencyId } = params;
   logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
 
   try {
     await connectToDatabase();
+    const matchStage: PipelineStage.Match['$match'] = {
+      postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
+      'stats.total_interactions': { $exists: true, $ne: null }
+    };
+    if (agencyId) {
+      const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
+      matchStage.user = { $in: agencyUserIds };
+    }
+
     const pipeline: PipelineStage[] = [
-      {
-        $match: {
-          postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
-          'stats.total_interactions': { $exists: true, $ne: null }
-        }
-      },
+      { $match: matchStage },
       {
         $group: {
           _id: '$user',
@@ -327,18 +352,22 @@ export async function fetchAvgReachPerPostCreators(
   params: IFetchCreatorRankingParams
 ): Promise<ICreatorMetricRankItem[]> {
   const TAG = `${SERVICE_TAG}[fetchAvgReachPerPostCreators]`;
-  const { dateRange, limit = 5, offset = 0 } = params;
+  const { dateRange, limit = 5, offset = 0, agencyId } = params;
   logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
 
   try {
     await connectToDatabase();
+    const matchStage: PipelineStage.Match['$match'] = {
+      postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
+      'stats.reach': { $exists: true, $ne: null }
+    };
+    if (agencyId) {
+      const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
+      matchStage.user = { $in: agencyUserIds };
+    }
+
     const pipeline: PipelineStage[] = [
-      {
-        $match: {
-          postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
-          'stats.reach': { $exists: true, $ne: null }
-        }
-      },
+      { $match: matchStage },
       {
         $group: {
           _id: '$user',
@@ -393,7 +422,7 @@ export async function fetchEngagementVariationCreators(
   params: IFetchCreatorRankingParams
 ): Promise<ICreatorMetricRankItem[]> {
   const TAG = `${SERVICE_TAG}[fetchEngagementVariationCreators]`;
-  const { dateRange, limit = 5, offset = 0 } = params;
+  const { dateRange, limit = 5, offset = 0, agencyId } = params;
   logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
 
   const periodMs = dateRange.endDate.getTime() - dateRange.startDate.getTime();
@@ -402,13 +431,17 @@ export async function fetchEngagementVariationCreators(
 
   try {
     await connectToDatabase();
+    const matchStage: PipelineStage.Match['$match'] = {
+      postDate: { $gte: previousStart, $lte: dateRange.endDate },
+      'stats.total_interactions': { $exists: true, $ne: null }
+    };
+    if (agencyId) {
+      const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
+      matchStage.user = { $in: agencyUserIds };
+    }
+
     const pipeline: PipelineStage[] = [
-      {
-        $match: {
-          postDate: { $gte: previousStart, $lte: dateRange.endDate },
-          'stats.total_interactions': { $exists: true, $ne: null }
-        }
-      },
+      { $match: matchStage },
       {
         $group: {
           _id: '$user',
@@ -481,18 +514,22 @@ export async function fetchPerformanceConsistencyCreators(
   params: IFetchCreatorRankingParams
 ): Promise<ICreatorMetricRankItem[]> {
   const TAG = `${SERVICE_TAG}[fetchPerformanceConsistencyCreators]`;
-  const { dateRange, limit = 5, offset = 0 } = params;
+  const { dateRange, limit = 5, offset = 0, agencyId } = params;
   logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
 
   try {
     await connectToDatabase();
+    const matchStage: PipelineStage.Match['$match'] = {
+      postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
+      'stats.total_interactions': { $exists: true, $ne: null }
+    };
+    if (agencyId) {
+      const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
+      matchStage.user = { $in: agencyUserIds };
+    }
+
     const pipeline: PipelineStage[] = [
-      {
-        $match: {
-          postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
-          'stats.total_interactions': { $exists: true, $ne: null }
-        }
-      },
+      { $match: matchStage },
       {
         $group: {
           _id: '$user',
@@ -553,18 +590,22 @@ export async function fetchReachPerFollowerCreators(
   params: IFetchCreatorRankingParams
 ): Promise<ICreatorMetricRankItem[]> {
   const TAG = `${SERVICE_TAG}[fetchReachPerFollowerCreators]`;
-  const { dateRange, limit = 5, offset = 0 } = params;
+  const { dateRange, limit = 5, offset = 0, agencyId } = params;
   logger.info(`${TAG} Fetching for period: ${dateRange.startDate} - ${dateRange.endDate}`);
 
   try {
     await connectToDatabase();
+    const matchStage: PipelineStage.Match['$match'] = {
+      postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
+      'stats.reach': { $exists: true, $ne: null }
+    };
+    if (agencyId) {
+      const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
+      matchStage.user = { $in: agencyUserIds };
+    }
+
     const pipeline: PipelineStage[] = [
-      {
-        $match: {
-          postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
-          'stats.reach': { $exists: true, $ne: null }
-        }
-      },
+      { $match: matchStage },
       {
         $group: {
           _id: '$user',
