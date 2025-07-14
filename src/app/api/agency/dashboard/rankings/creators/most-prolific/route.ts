@@ -7,8 +7,6 @@ import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
 import { fetchMostProlificCreators, IFetchCreatorRankingParams } from '@/app/lib/dataService/marketAnalysisService';
 import { DatabaseError } from '@/app/lib/errors';
-import { getAgencySession } from '@/lib/getAgencySession';
-
 export const dynamic = 'force-dynamic';
 
 const SERVICE_TAG = '[api/agency/dashboard/rankings/creators/most-prolific]';
