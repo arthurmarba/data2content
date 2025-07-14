@@ -96,7 +96,8 @@ export default function TopMoversWidget({ apiPrefix = '/api/admin' }: { apiPrefi
   useEffect(() => {
     async function loadContexts() {
       try {
-        const res = await fetch(`${apiPrefix}/dashboard/contexts`);
+        const contextsUrl = `${apiPrefix}/dashboard/contexts`;
+        const res = await fetch(contextsUrl);
         if (res.ok) {
           const data = await res.json();
           setContextOptions(['', ...data.contexts]);
@@ -172,7 +173,8 @@ export default function TopMoversWidget({ apiPrefix = '/api/admin' }: { apiPrefi
     }
 
     try {
-      const response = await fetch(`${apiPrefix}/dashboard/top-movers`, {
+      const topMoversUrl = `${apiPrefix}/dashboard/top-movers`;
+      const response = await fetch(topMoversUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(apiPayload),
