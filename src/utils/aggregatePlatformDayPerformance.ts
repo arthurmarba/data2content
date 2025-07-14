@@ -1,5 +1,6 @@
 import MetricModel from "@/app/models/Metric";
-import { PipelineStage } from "mongoose";
+import UserModel from "@/app/models/User";
+import { PipelineStage, Types } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { logger } from "@/app/lib/logger";
 import { getStartDateFromTimePeriod } from "./dateHelpers";
@@ -26,6 +27,7 @@ export async function aggregatePlatformDayPerformance(
   periodInDays: number,
   metricField: string,
   filters: PerformanceFilters = {},
+  agencyId?: string,
   referenceDate: Date = new Date()
 ): Promise<PlatformDayPerformance> {
   const today = new Date(referenceDate);
@@ -48,9 +50,19 @@ export async function aggregatePlatformDayPerformance(
   try {
     await connectToDatabase();
 
+    let userFilter: any = {};
+    if (agencyId) {
+      const agencyUserIds = await UserModel.find({ agency: new Types.ObjectId(agencyId) }).distinct('_id');
+      if (!agencyUserIds.length) {
+        return result;
+      }
+      userFilter = { user: { $in: agencyUserIds } };
+    }
+
     const matchStage: PipelineStage.Match = {
       $match: {
         postDate: { $gte: startDate, $lte: endDate },
+        ...userFilter,
       },
     };
 

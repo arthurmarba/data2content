@@ -4,7 +4,7 @@ import AudienceDemographicSnapshotModel, { IAudienceDemographics } from '@/app/m
 import UserModel from '@/app/models/User';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import { logger } from '@/app/lib/logger';
-import { PipelineStage } from 'mongoose'; // 1. Importar o tipo PipelineStage
+import { PipelineStage, Types } from 'mongoose'; // 1. Importar o tipo PipelineStage
 
 export interface PlatformDemographicsAggregation {
   follower_demographics: {
@@ -15,14 +15,18 @@ export interface PlatformDemographicsAggregation {
   };
 }
 
-export default async function aggregatePlatformDemographics(): Promise<PlatformDemographicsAggregation> {
+export default async function aggregatePlatformDemographics(agencyId?: string): Promise<PlatformDemographicsAggregation> {
   const initial: PlatformDemographicsAggregation = {
     follower_demographics: { country: {}, city: {}, age: {}, gender: {} },
   };
 
   try {
     await connectToDatabase();
-    const activeUsers = await UserModel.find({ planStatus: 'active' }).select('_id').lean();
+    const userQuery: any = { planStatus: 'active' };
+    if (agencyId) {
+      userQuery.agency = new Types.ObjectId(agencyId);
+    }
+    const activeUsers = await UserModel.find(userQuery).select('_id').lean();
     if (!activeUsers.length) return initial;
 
     const userIds = activeUsers.map(u => u._id);
