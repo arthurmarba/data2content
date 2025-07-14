@@ -39,6 +39,7 @@ const AgencyDashboardContent: React.FC = () => {
   const apiPrefix = '/api/agency';
 
   const [inviteCode, setInviteCode] = useState<string>('');
+  const [agencyName, setAgencyName] = useState<string>('');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedUserName, setSelectedUserName] = useState<string | null>(null);
   const [selectedUserPhotoUrl, setSelectedUserPhotoUrl] = useState<string | null>(null);
@@ -54,6 +55,13 @@ const AgencyDashboardContent: React.FC = () => {
     fetch('/api/agency/invite-code')
       .then(res => res.json())
       .then(data => { if (data.inviteCode) setInviteCode(data.inviteCode); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/agency/profile')
+      .then(res => res.json())
+      .then(data => { if (data.name) setAgencyName(data.name); })
       .catch(() => {});
   }, []);
 
@@ -111,6 +119,11 @@ const AgencyDashboardContent: React.FC = () => {
       <div className="min-h-screen bg-gray-50">
         <header className="bg-white sticky top-0 z-40 border-b border-gray-200">
           <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
+            {agencyName && (
+              <h1 className="text-xl font-semibold text-gray-800 text-center py-2">
+                {agencyName}
+              </h1>
+            )}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-4">
               <div className="flex-1 min-w-0 mb-2 sm:mb-0">
                 <CreatorQuickSearch
@@ -134,9 +147,22 @@ const AgencyDashboardContent: React.FC = () => {
               </div>
             </div>
             {inviteCode && (
-              <div className="bg-white p-2 rounded shadow inline-flex items-center gap-2 mt-2">
-                <span className="text-sm break-all">{inviteLink}</span>
-                <button className="px-2 py-1 text-sm bg-brand-pink text-white rounded" onClick={copy}>Copiar</button>
+              <div className="mt-2 bg-gray-100 p-4 rounded-lg shadow">
+                <p className="text-sm mb-2">Link de convite para cadastrar criadores:</p>
+                <div className="flex">
+                  <input
+                    type="text"
+                    readOnly
+                    value={inviteLink}
+                    className="flex-1 border border-gray-300 rounded-l px-2 py-1 text-sm bg-white break-all"
+                  />
+                  <button
+                    className="px-3 py-1 text-sm bg-brand-pink text-white rounded-r"
+                    onClick={copy}
+                  >
+                    Copiar
+                  </button>
+                </div>
               </div>
             )}
           </div>
