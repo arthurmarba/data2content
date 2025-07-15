@@ -186,6 +186,31 @@ Pergunta instigante (ou "NO_QUESTION"):
     }
 }
 
+/**
+ * If the provided message has no URL, append an Instagram link derived from the
+ * alert details when available.
+ */
+export function appendInstagramLinkIfMissing(
+    message: string,
+    details: { [key: string]: any }
+): string {
+    if (/https?:\/\//.test(message)) {
+        return message;
+    }
+
+    const postLink: string | undefined =
+        (details && typeof details.postLink === 'string' && details.postLink.trim()) ||
+        (details && typeof details.platformPostId === 'string' && `https://www.instagram.com/p/${details.platformPostId}`) ||
+        (details && typeof details.originalPlatformPostId === 'string' && `https://www.instagram.com/p/${details.originalPlatformPostId}`) ||
+        undefined;
+
+    if (!postLink) {
+        return message;
+    }
+
+    return `${message}\n\n${postLink}`;
+}
+
 export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextResponse> {
     console.log("!!!!!!!!!! EXECUTANDO handleDailyTip (v1.5.3) !!!!!!!!!! USER ID:", payload.userId, new Date().toISOString());
     
@@ -413,6 +438,8 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
         if (instigatingQuestionForAlert) {
             fullAlertMessageToUser += `\n\n${instigatingQuestionForAlert}`;
         }
+
+        fullAlertMessageToUser = appendInstagramLinkIfMissing(fullAlertMessageToUser, detectedEvent.detailsForLog);
         
         let alertEntryDetails: AlertDetails & { whatsappMessageId?: string; sendStatus?: string; sendError?: string; } = { ...detectedEvent.detailsForLog };
 
