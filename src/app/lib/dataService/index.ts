@@ -61,4 +61,9 @@ export {
 } from './trendService';
 // -------------------------------------------------------------
 
+export {
+    fetchTopActiveUsers,
+    fetchUserUsageTrend
+} from './usageService';
+
 logger.info('[dataService][index] Módulos do dataService carregados e prontos para uso.')
