@@ -367,6 +367,7 @@ const userSchema = new Schema<IUser>(
     userPreferences: { type: UserPreferencesSchema, default: () => ({}) },
     userLongTermGoals: { type: [UserLongTermGoalSchema], default: [] },
     userKeyFacts: { type: [UserKeyFactSchema], default: [] },
+    totalMessages: { type: Number, default: 0 },
     alertHistory: { type: [AlertHistoryEntrySchema], default: [] },
   },
   {
