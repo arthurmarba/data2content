@@ -240,6 +240,7 @@ export interface IUser extends Document {
   userPreferences?: IUserPreferences;
   userLongTermGoals?: IUserLongTermGoal[];
   userKeyFacts?: IUserKeyFact[];
+  totalMessages?: number; // <-- CORREÇÃO APLICADA AQUI
   alertHistory?: IAlertHistoryEntry[];
   createdAt?: Date;
   updatedAt?: Date;
