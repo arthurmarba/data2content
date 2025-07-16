@@ -1,8 +1,8 @@
 // src/app/api/whatsapp/process-response/dailyTipHandler.ts
-// Versão: v1.5.3 (Fix: Remove quebras de linha do texto do template)
-// - ATUALIZADO: Adicionada sanitização para remover `\n` do texto enviado como variável do template,
-//   para cumprir com as regras da API do WhatsApp.
-// - Baseado na v1.5.2
+// Versão: v1.5.6 (Fix: Adiciona verificação de tipo para detalhes do evento)
+// - ATUALIZADO: Adicionada verificação de segurança para as propriedades 'proposal', 
+//   'context', e 'format' antes de passá-las como filtros.
+// - Baseado na v1.5.5
 
 import { NextResponse } from 'next/server';
 import { logger } from '@/app/lib/logger';
@@ -33,7 +33,7 @@ import { subDays } from 'date-fns';
 
 import * as fallbackInsightService from '@/app/lib/fallbackInsightService';
 
-const HANDLER_TAG_BASE = '[DailyTipHandler v1.5.3]'; // Tag da versão atualizada
+const HANDLER_TAG_BASE = '[DailyTipHandler v1.5.6]'; // Tag da versão atualizada
 
 const PROACTIVE_ALERT_TEMPLATE_NAME = process.env.PROACTIVE_ALERT_TEMPLATE_NAME;
 const GENERIC_ERROR_TEMPLATE_NAME = process.env.GENERIC_ERROR_TEMPLATE_NAME;
@@ -222,8 +222,8 @@ async function fetchInspirationSnippet(
 ): Promise<{ text: string; inspirationId?: string }> {
     try {
         const inspirations = await dataService.getInspirations(filters, 1);
-        if (inspirations && inspirations.length > 0) {
-            const insp = inspirations[0];
+        const insp = inspirations?.[0];
+        if (insp) {
             await dataService.recordDailyInspirationShown(userId, [insp._id.toString()]);
             return {
                 text: `\n\nInspiração da comunidade: ${insp.contentSummary} (${insp.originalInstagramPostUrl})`,
@@ -237,7 +237,7 @@ async function fetchInspirationSnippet(
 }
 
 export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextResponse> {
-    console.log("!!!!!!!!!! EXECUTANDO handleDailyTip (v1.5.3) !!!!!!!!!! USER ID:", payload.userId, new Date().toISOString());
+    console.log("!!!!!!!!!! EXECUTANDO handleDailyTip (v1.5.6) !!!!!!!!!! USER ID:", payload.userId, new Date().toISOString());
     
     const { userId } = payload;
     const handlerTAG = `${HANDLER_TAG_BASE} User ${userId}:`;
@@ -321,7 +321,7 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
                 finalDefaultMessageToSend += `\n\n${instigatingQuestion}`;
             }
 
-            const inspiration = await fetchInspirationSnippet(userId, { format: 'reels' });
+            const inspiration = await fetchInspirationSnippet(userId, { format: 'Reel' });
             finalDefaultMessageToSend += inspiration.text;
 
             let whatsappMessageIdFallback: string | undefined;
@@ -333,7 +333,6 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
                     type: 'body',
                     parameters: [{
                         type: 'text',
-                        // CORREÇÃO: Remove quebras de linha antes de enviar
                         text: finalDefaultMessageToSend.replace(/\n/g, ' ')
                     }]
                 }];
@@ -469,10 +468,13 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
             fullAlertMessageToUser += `\n\n${instigatingQuestionForAlert}`;
         }
 
+        // CORREÇÃO: Adicionada verificação de tipo para os detalhes do evento
+        // antes de tentar acessar propriedades que podem não existir.
+        const details = detectedEvent.detailsForLog;
         const inspiration = await fetchInspirationSnippet(userId, {
-            proposal: detectedEvent.detailsForLog.proposal,
-            context: detectedEvent.detailsForLog.context,
-            format: detectedEvent.detailsForLog.format,
+            proposal: 'proposal' in details ? (details as any).proposal : undefined,
+            context: 'context' in details ? (details as any).context : undefined,
+            format: 'format' in details ? (details as any).format : undefined,
         });
         fullAlertMessageToUser += inspiration.text;
 
@@ -485,7 +487,6 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
                 type: 'body',
                 parameters: [{
                     type: 'text',
-                    // CORREÇÃO: Remove quebras de linha antes de enviar
                     text: fullAlertMessageToUser.replace(/\n/g, ' ')
                 }]
             }];
@@ -529,9 +530,7 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
 
         if (userPhoneForRadar) {
             try {
-                // ATUALIZADO: O template de erro agora é estático e não precisa de parâmetros.
-                // A mensagem completa está no próprio template aprovado na plataforma da Meta.
-                const templateComponents: ITemplateComponent[] = []; // Envia um array vazio
+                const templateComponents: ITemplateComponent[] = [];
                 const wamid = await sendTemplateMessage(userPhoneForRadar, GENERIC_ERROR_TEMPLATE_NAME, templateComponents);
                 logger.info(`${handlerTAG} Mensagem de erro (template estático) enviada. WhatsAppMsgID: ${wamid}`);
             } catch (e: any) {
