@@ -38,6 +38,11 @@ const HANDLER_TAG_BASE = '[DailyTipHandler v1.5.3]'; // Tag da versão atualizad
 const PROACTIVE_ALERT_TEMPLATE_NAME = process.env.PROACTIVE_ALERT_TEMPLATE_NAME;
 const GENERIC_ERROR_TEMPLATE_NAME = process.env.GENERIC_ERROR_TEMPLATE_NAME;
 
+function getFirstSentence(text: string): string {
+    const match = text.trim().match(/^.*?[.!?](\s|$)/);
+    return match ? match[0].trim() : text.trim();
+}
+
 
 async function extractContextFromRadarResponse(
     aiResponseText: string,
@@ -434,7 +439,8 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
             userFirstNameForRadar
         );
 
-        let fullAlertMessageToUser = finalAIResponse;
+        const shortAIResponse = getFirstSentence(finalAIResponse);
+        let fullAlertMessageToUser = `${alertInputForAI}\n\n${shortAIResponse}`;
         if (instigatingQuestionForAlert) {
             fullAlertMessageToUser += `\n\n${instigatingQuestionForAlert}`;
         }
