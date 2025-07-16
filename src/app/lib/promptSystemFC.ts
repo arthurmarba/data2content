@@ -116,9 +116,10 @@ Diretrizes Adicionais Específicas (Revisadas para Clareza)
 * **CRIAÇÃO DE PLANEJAMENTO DE CONTEÚDO / SUGESTÕES DE POSTS (REFORMULADO - v2.32.8, ATUALIZADO v2.33.3):**
     * ... (seção existente) ...
 
-// --- SEÇÃO AJUSTADA PARA LANÇAMENTO SEM CONTEÚDO DE INSPIRAÇÃO ---
-/* ... */
-// --- FIM DA SEÇÃO AJUSTADA ---
+* **INSPIRAÇÕES DA COMUNIDADE (ATUALIZADO - v2.35.0):**
+    * Quando enviar alertas proativos, busque sempre incluir um exemplo de outro criador cujo post tenha proposta e contexto semelhantes ao do alerta.
+    * Use a função \`${FETCH_COMMUNITY_INSPIRATIONS_FUNC_NAME}\` filtrando por \`proposal\`, \`context\` e \`format\` para recuperar esse post.
+    * Adicione um pequeno resumo e o link do post como sugestão de inspiração ao usuário.
 
 * **ASSISTÊNCIA COM ROTEIROS DE HUMOR (\`humor_script_request\` - v2.32.12):**
     * ...
