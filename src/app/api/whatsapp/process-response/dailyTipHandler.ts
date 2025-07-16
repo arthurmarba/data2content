@@ -11,7 +11,7 @@ import { askLLMWithEnrichedContext } from '@/app/lib/aiOrchestrator';
 import * as stateService from '@/app/lib/stateService';
 import type { IDialogueState, ILastResponseContext, IFallbackInsightHistoryEntry } from '@/app/lib/stateService'; 
 import * as dataService from '@/app/lib/dataService';
-import type { IEnrichedReport, IAccountInsight } from '@/app/lib/dataService';
+import type { IEnrichedReport, IAccountInsight, CommunityInspirationFilters } from '@/app/lib/dataService';
 import { IUser, IAlertHistoryEntry, AlertDetails } from '@/app/models/User'; 
 
 import { ProcessRequestBody, DetectedEvent, EnrichedAIContext } from './types'; 
@@ -216,6 +216,26 @@ export function appendInstagramLinkIfMissing(
     return `${message}\n\n${postLink}`;
 }
 
+async function fetchInspirationSnippet(
+    userId: string,
+    filters: CommunityInspirationFilters
+): Promise<{ text: string; inspirationId?: string }> {
+    try {
+        const inspirations = await dataService.getInspirations(filters, 1);
+        if (inspirations && inspirations.length > 0) {
+            const insp = inspirations[0];
+            await dataService.recordDailyInspirationShown(userId, [insp._id.toString()]);
+            return {
+                text: `\n\nInspiração da comunidade: ${insp.contentSummary} (${insp.originalInstagramPostUrl})`,
+                inspirationId: insp._id.toString(),
+            };
+        }
+    } catch (e) {
+        logger.warn(`[DailyTipHandler] Falha ao buscar inspiração: ${e}`);
+    }
+    return { text: '' };
+}
+
 export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextResponse> {
     console.log("!!!!!!!!!! EXECUTANDO handleDailyTip (v1.5.3) !!!!!!!!!! USER ID:", payload.userId, new Date().toISOString());
     
@@ -301,6 +321,9 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
                 finalDefaultMessageToSend += `\n\n${instigatingQuestion}`;
             }
 
+            const inspiration = await fetchInspirationSnippet(userId, { format: 'reels' });
+            finalDefaultMessageToSend += inspiration.text;
+
             let whatsappMessageIdFallback: string | undefined;
             let sendStatusFallback: 'sent' | 'failed' = 'failed';
             let sendErrorFallback: string | undefined;
@@ -341,13 +364,14 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
             await stateService.updateDialogueState(userId, stateToUpdate);
 
             try {
-                const noEventDetails: AlertDetails & { whatsappMessageId?: string; sendStatus?: string; sendError?: string; } = {
+                const noEventDetails: AlertDetails & { whatsappMessageId?: string; sendStatus?: string; sendError?: string; inspirationId?: string } = {
                     reason: 'Nenhum evento de regra detectado, insight de fallback fornecido.',
                     fallbackInsightProvided: fallbackInsightText || 'Fallback genérico de engajamento.',
                     fallbackInsightType: fallbackInsightType || 'none',
                     whatsappMessageId: whatsappMessageIdFallback,
                     sendStatus: sendStatusFallback,
-                    sendError: sendErrorFallback
+                    sendError: sendErrorFallback,
+                    inspirationId: inspiration.inspirationId
                 };
 
                 await dataService.addAlertToHistory(userId, {
@@ -445,9 +469,16 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
             fullAlertMessageToUser += `\n\n${instigatingQuestionForAlert}`;
         }
 
+        const inspiration = await fetchInspirationSnippet(userId, {
+            proposal: detectedEvent.detailsForLog.proposal,
+            context: detectedEvent.detailsForLog.context,
+            format: detectedEvent.detailsForLog.format,
+        });
+        fullAlertMessageToUser += inspiration.text;
+
         fullAlertMessageToUser = appendInstagramLinkIfMissing(fullAlertMessageToUser, detectedEvent.detailsForLog);
-        
-        let alertEntryDetails: AlertDetails & { whatsappMessageId?: string; sendStatus?: string; sendError?: string; } = { ...detectedEvent.detailsForLog };
+
+        let alertEntryDetails: AlertDetails & { whatsappMessageId?: string; sendStatus?: string; sendError?: string; inspirationId?: string } = { ...detectedEvent.detailsForLog, inspirationId: inspiration.inspirationId };
 
         try {
             const templateComponents: ITemplateComponent[] = [{
