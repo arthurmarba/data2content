@@ -144,8 +144,26 @@ export interface CommunityInspirationFilters {
   format?: FormatType;
   primaryObjectiveAchieved_Qualitative?: QualitativeObjectiveType;
   performanceHighlights_Qualitative_INCLUDES_ANY?: PerformanceHighlightType[];
-  performanceHighlights_Qualitative_CONTAINS?: string; 
+  performanceHighlights_Qualitative_CONTAINS?: string;
   tags_IA?: string[];
+}
+
+/**
+ * Critérios mínimos de performance para seleção de posts elegíveis
+ * à comunidade de inspiração.
+ * Todos os valores são opcionais e representam limites mínimos
+ * (inclusive) que o post deve atingir nas métricas correspondentes.
+ * As taxas como saveRate ou shareRate devem ser fornecidas como
+ * números decimais (ex: 0.05 para 5%).
+ */
+export interface CommunityPerformanceCriteria {
+  minLikes?: number;
+  minComments?: number;
+  minShares?: number;
+  minSaved?: number;
+  minReach?: number;
+  minSaveRate?: number; // saved / reach
+  minShareRate?: number; // shares / reach
 }
 
 /**
