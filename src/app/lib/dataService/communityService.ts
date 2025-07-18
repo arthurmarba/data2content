@@ -343,12 +343,30 @@ export async function findUserPostsEligibleForCommunity(
     try {
         await connectToDatabase();
         const eligiblePosts = await MetricModel.find(query)
-            .sort({ postDate: -1 })
             .limit(50)
             .lean();
 
-        logger.info(`${TAG} Encontrados ${eligiblePosts.length} posts elegíveis para comunidade para User ${userId}.`);
-        return eligiblePosts as IMetric[];
+        const postsWithInteractions = eligiblePosts.map(post => {
+            const stats: any = post.stats || {};
+            if (typeof stats.total_interactions !== 'number') {
+                const likes = stats.likes ?? 0;
+                const comments = stats.comments ?? 0;
+                const shares = stats.shares ?? 0;
+                const saved = stats.saved ?? 0;
+                stats.total_interactions = likes + comments + shares + saved;
+            }
+            post.stats = stats;
+            return post;
+        });
+
+        postsWithInteractions.sort((a, b) => {
+            const aInt = a.stats?.total_interactions ?? 0;
+            const bInt = b.stats?.total_interactions ?? 0;
+            return bInt - aInt;
+        });
+
+        logger.info(`${TAG} Encontrados ${postsWithInteractions.length} posts elegíveis para comunidade para User ${userId}.`);
+        return postsWithInteractions as IMetric[];
     } catch (error: any) {
         logger.error(`${TAG} Erro ao buscar posts elegíveis para comunidade para User ${userId}:`, error);
         throw new DatabaseError(`Erro ao buscar posts elegíveis: ${error.message}`);

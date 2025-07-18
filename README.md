@@ -115,6 +115,13 @@ Media kit links are now created using a slug based on the creator's name.
 Admin users can generate or revoke this slug from the creators management page, and
 the public URL becomes `/mediakit/<slug>`.
 
+### Community Inspirations
+
+Community inspirations are registered based on total interactions rather than
+just the most recent posts. The cron job selects each user's top-performing
+content so the community feed highlights what resonated the most with their
+followers.
+
 
 
 ## Learn More
