@@ -8,6 +8,7 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import User, { IUser } from '@/app/models/User'; // IUser v1.9.0+
 import { IMetric } from '@/app/models/Metric'; // IMetric v1.3+
 import * as dataService from '@/app/lib/dataService'; // dataService v2.12.0+
+import type { CommunityPerformanceCriteria } from '@/app/lib/dataService';
 import * as communityProcessorService from '@/app/lib/communityProcessorService'; // communityProcessorService v1.0.0+
 import { subDays } from 'date-fns';
 
@@ -35,6 +36,10 @@ if (!currentSigningKey || !nextSigningKey) {
 const RECENT_POST_WINDOW_DAYS = 90; // Considerar posts dos últimos 90 dias
 const MAX_POSTS_TO_PROCESS_PER_USER = 10; // Limite para não sobrecarregar em uma única execução por usuário
 const MAX_USERS_TO_PROCESS_PER_RUN = 50; // Limite de usuários a processar por execução do CRON
+const DEFAULT_PERFORMANCE_CRITERIA: CommunityPerformanceCriteria = {
+    minShares: 3,
+    minSaveRate: 0.01,
+};
 
 /**
  * POST /api/cron/populate-community-inspirations
@@ -98,7 +103,7 @@ export async function POST(request: NextRequest) {
             // ainda é um TODO, por enquanto busca posts recentes e classificados.
             const eligibleMetrics: IMetric[] = await dataService.findUserPostsEligibleForCommunity(
                 user._id.toString(),
-                { sinceDate } // Poderia adicionar mais critérios aqui se findUserPostsEligibleForCommunity suportar
+                { sinceDate, minPerformanceCriteria: DEFAULT_PERFORMANCE_CRITERIA }
             );
             
             totalEligibleMetricsFound += eligibleMetrics.length;

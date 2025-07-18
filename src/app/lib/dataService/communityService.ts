@@ -13,7 +13,7 @@ import CommunityInspirationModel, { ICommunityInspiration } from '@/app/models/C
 import MetricModel, { IMetric } from '@/app/models/Metric';
 
 import { connectToDatabase } from './connection';
-import { CommunityInspirationFilters } from './types';
+import { CommunityInspirationFilters, CommunityPerformanceCriteria } from './types';
 import {
     FormatType,
     ProposalType,
@@ -289,9 +289,9 @@ export async function recordDailyInspirationShown(
  */
 export async function findUserPostsEligibleForCommunity(
     userId: string,
-    criteria: { sinceDate: Date; minPerformanceCriteria?: any; } // minPerformanceCriteria ainda como placeholder
+    criteria: { sinceDate: Date; minPerformanceCriteria?: CommunityPerformanceCriteria }
 ): Promise<IMetric[]> {
-    const TAG = `${SERVICE_TAG}[findUserPostsEligibleForCommunity v2.14.6]`; // Lógica da v2.14.6 mantida
+    const TAG = `${SERVICE_TAG}[findUserPostsEligibleForCommunity v2.14.8]`;
     logger.info(`${TAG} Buscando posts elegíveis para comunidade para User ${userId} desde ${criteria.sinceDate.toISOString()}`);
 
     if (!mongoose.isValidObjectId(userId)) {
@@ -308,10 +308,37 @@ export async function findUserPostsEligibleForCommunity(
         source: 'api',
     };
 
-    // if (criteria.minPerformanceCriteria) {
-    //     // Lógica para adicionar critérios de performance à query
-    //     // Ex: query['stats.shares'] = { $gte: criteria.minPerformanceCriteria.minShares };
-    // }
+    if (criteria.minPerformanceCriteria) {
+        const perf = criteria.minPerformanceCriteria;
+        if (typeof perf.minLikes === 'number') query['stats.likes'] = { $gte: perf.minLikes };
+        if (typeof perf.minComments === 'number') query['stats.comments'] = { $gte: perf.minComments };
+        if (typeof perf.minShares === 'number') query['stats.shares'] = { $gte: perf.minShares };
+        if (typeof perf.minSaved === 'number') query['stats.saved'] = { $gte: perf.minSaved };
+        if (typeof perf.minReach === 'number') query['stats.reach'] = { $gte: perf.minReach };
+
+        const exprConditions: any[] = [];
+        if (typeof perf.minSaveRate === 'number') {
+            exprConditions.push({
+                $gte: [
+                    { $cond: [ { $gt: ['$stats.reach', 0] }, { $divide: ['$stats.saved', '$stats.reach'] }, 0 ] },
+                    perf.minSaveRate
+                ]
+            });
+        }
+        if (typeof perf.minShareRate === 'number') {
+            exprConditions.push({
+                $gte: [
+                    { $cond: [ { $gt: ['$stats.reach', 0] }, { $divide: ['$stats.shares', '$stats.reach'] }, 0 ] },
+                    perf.minShareRate
+                ]
+            });
+        }
+        if (exprConditions.length === 1) {
+            query.$expr = exprConditions[0];
+        } else if (exprConditions.length > 1) {
+            query.$expr = { $and: exprConditions };
+        }
+    }
 
     try {
         await connectToDatabase();
