@@ -26,10 +26,14 @@ const nextConfig = {
         protocol: 'https',
         hostname: '**.xx.fbcdn.net',
       },
-      // LINHA ADICIONADA: Permite carregar imagens de qualquer subdomínio da CDN do Instagram.
       {
         protocol: 'https',
         hostname: '**.cdninstagram.com',
+      },
+      // NOVO: Adicionado para permitir o carregamento da imagem de fundo do WhatsApp.
+      {
+        protocol: 'https',
+        hostname: 'i.ibb.co',
       },
     ],
   },
