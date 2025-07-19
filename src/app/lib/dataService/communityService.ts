@@ -1,8 +1,9 @@
 // src/app/lib/dataService/communityService.ts - v2.14.9 (log debug query info for eligible posts)
 // - ATUALIZADO: Função addInspiration refatorada para usar findOneAndUpdate com upsert:true para maior eficiência e atomicidade.
+// - CORRIGIDO: Adicionada tipagem explícita ao pipeline de agregação para resolver erro de tipo no estágio $sort.
 // - Baseado na v2.14.6.
 
-import mongoose, { Types } from 'mongoose';
+import mongoose, { Types, PipelineStage } from 'mongoose'; // <-- ADICIONADO PipelineStage
 import { startOfDay } from 'date-fns';
 
 import { logger } from '@/app/lib/logger';
@@ -352,7 +353,8 @@ export async function findUserPostsEligibleForCommunity(
             ]
         };
 
-        const pipeline = [
+        // CORREÇÃO: Adicionada a tipagem explícita PipelineStage[] para o array.
+        const pipeline: PipelineStage[] = [
             { $match: query },
             {
                 $addFields: {
