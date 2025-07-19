@@ -118,9 +118,10 @@ the public URL becomes `/mediakit/<slug>`.
 ### Community Inspirations
 
 Community inspirations are registered based on total interactions rather than
-just the most recent posts. The cron job selects each user's top-performing
-content so the community feed highlights what resonated the most with their
-followers.
+just the most recent posts. Database-level sorting ensures that only the
+highest-engagement items are kept. The cron job selects each user's
+top-performing content so the community feed highlights what resonated the most
+with their followers.
 
 
 
