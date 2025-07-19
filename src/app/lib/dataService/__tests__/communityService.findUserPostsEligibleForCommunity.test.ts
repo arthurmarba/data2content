@@ -32,7 +32,7 @@ describe('findUserPostsEligibleForCommunity', () => {
     const result = await findUserPostsEligibleForCommunity(userId, { sinceDate: since });
 
     expect(mockConnect).toHaveBeenCalled();
-    expect(result.map(p => p._id)).toEqual(['1', '3', '2']);
+    expect(result.posts.map(p => p._id)).toEqual(['1', '3', '2']);
 
     const pipeline = mockAggregate.mock.calls[0][0];
     const sortIndex = pipeline.findIndex((s: any) => Boolean(s.$sort));
@@ -51,7 +51,7 @@ describe('findUserPostsEligibleForCommunity', () => {
     const result = await findUserPostsEligibleForCommunity(userId, { sinceDate: since });
 
     // Expect IDs from 1..50 which correspond to total_interactions 55..6
-    expect(result.map(p => p._id)).toEqual(posts.slice(0, 50).map(p => p._id));
+    expect(result.posts.map(p => p._id)).toEqual(posts.slice(0, 50).map(p => p._id));
   });
 
   it('computes total_interactions when missing', async () => {
@@ -62,6 +62,6 @@ describe('findUserPostsEligibleForCommunity', () => {
 
     const result = await findUserPostsEligibleForCommunity(userId, { sinceDate: since });
 
-    expect(result[0].stats.total_interactions).toBe(4);
+    expect(result.posts[0].stats.total_interactions).toBe(4);
   });
 });

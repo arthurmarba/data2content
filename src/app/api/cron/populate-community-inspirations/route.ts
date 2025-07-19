@@ -101,7 +101,11 @@ export async function POST(request: NextRequest) {
             // Buscar posts elegíveis deste usuário
             // A lógica de 'minPerformanceCriteria' em findUserPostsEligibleForCommunity
             // ainda é um TODO, por enquanto busca posts recentes e classificados.
-            const eligibleMetrics: IMetric[] = await dataService.findUserPostsEligibleForCommunity(
+            const {
+                posts: eligibleMetrics,
+                query: debugQuery,
+                sinceDate: debugSinceDate
+            } = await dataService.findUserPostsEligibleForCommunity(
                 user._id.toString(),
                 { sinceDate, minPerformanceCriteria: DEFAULT_PERFORMANCE_CRITERIA }
             );
@@ -110,7 +114,7 @@ export async function POST(request: NextRequest) {
             logger.debug(`${TAG} User ${user._id}: Encontradas ${eligibleMetrics.length} métricas elegíveis (recentes/classificadas).`);
 
             if (eligibleMetrics.length === 0) {
-                logger.info(`${TAG} User ${user._id}: Nenhuma métrica nova/elegível encontrada para processar.`);
+                logger.info(`${TAG} User ${user._id}: Nenhuma métrica nova/elegível encontrada para processar. Query=${JSON.stringify(debugQuery)} sinceDate=${debugSinceDate.toISOString()}`);
                 continue;
             }
 
@@ -142,7 +146,7 @@ export async function POST(request: NextRequest) {
                     logger.error(`${TAG} User ${user._id}: Erro ao processar Metric ${metric._id}: ${metricError.message}`, metricError.stack);
                 }
             }
-            logger.info(`${TAG} User ${user._id}: Processamento concluído. ${metricsToProcess.length} métricas tentadas. Duração: ${Date.now() - userProcessStartTime}ms`);
+            logger.info(`${TAG} User ${user._id}: Processamento concluído. ${metricsToProcess.length} métricas tentadas. Duração: ${Date.now() - userProcessStartTime}ms. Query=${JSON.stringify(debugQuery)} sinceDate=${debugSinceDate.toISOString()}`);
 
         } catch (userError: any) {
             logger.error(`${TAG} Erro ao processar posts para o usuário ${user._id}: ${userError.message}`, userError.stack);
