@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
         communityInspirationOptIn: true,
         isInstagramConnected: true // Apenas usuários com Instagram conectado
     })
-    .select('_id name communityInspirationSharingPreference followers_count') // Campos necessários para o processamento
+    .select('_id name followers_count') // Campos necessários para o processamento
     .limit(MAX_USERS_TO_PROCESS_PER_RUN) // Limitar o número de usuários por execução
     .lean();
 
