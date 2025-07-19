@@ -1,6 +1,6 @@
-// src/app/lib/dataService/communityService.ts - v2.15.0
-// - REATORADO: A função findUserPostsEligibleForCommunity foi reescrita para usar um pipeline de agregação multi-estágio,
-//   separando a busca base dos cálculos e filtros de performance para maior robustez e depuração.
+// src/app/lib/dataService/communityService.ts - v2.15.1
+// - DEBUG: Adicionado um log de contagem para verificar quantos documentos correspondem à `baseQuery` antes de aplicar os filtros de performance.
+// - REATORADO: A função findUserPostsEligibleForCommunity foi reescrita para usar um pipeline de agregação multi-estágio.
 // - ATUALIZADO: Função addInspiration refatorada para usar findOneAndUpdate com upsert:true para maior eficiência e atomicidade.
 // - Baseado na v2.14.6.
 
@@ -24,7 +24,7 @@ import {
     PerformanceHighlightType
 } from "@/app/lib/constants/communityInspirations.constants";
 
-const SERVICE_TAG = '[dataService][communityService v2.15.0]'; // Versão atualizada
+const SERVICE_TAG = '[dataService][communityService v2.15.1]'; // Versão atualizada
 
 /**
  * Regista o opt-in de um utilizador para a funcionalidade de inspiração da comunidade.
@@ -312,6 +312,16 @@ export async function findUserPostsEligibleForCommunity(
         const pipeline: PipelineStage[] = [{ $match: baseQuery }];
         const performanceMatch: any = {};
         let fullQueryForDebug: any = { baseQuery: { ...baseQuery } };
+
+        // DEBUG: Executa uma contagem apenas com a query base para diagnosticar o problema.
+        try {
+            const countPipeline = [...pipeline, { $count: 'baseMatchCount' }];
+            const baseMatchCountResult = await MetricModel.aggregate(countPipeline).exec();
+            const baseMatchCount = baseMatchCountResult.length > 0 ? baseMatchCountResult[0].baseMatchCount : 0;
+            logger.debug(`${TAG} [DIAGNÓSTICO] Encontrados ${baseMatchCount} documentos que correspondem à baseQuery para User ${userId}.`);
+        } catch (e) {
+            logger.warn(`${TAG} [DIAGNÓSTICO] Falha ao executar contagem de diagnóstico.`, e);
+        }
 
 
         // 2. Se houver critérios de performance, adiciona estágios para calcular e filtrar.
