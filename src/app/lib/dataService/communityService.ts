@@ -1,4 +1,5 @@
-// src/app/lib/dataService/communityService.ts - v2.15.1
+// src/app/lib/dataService/communityService.ts - v2.15.2
+// - DEBUG FINAL: Adicionado log de diagnóstico que mostra uma amostra de posts rejeitados e suas métricas de performance.
 // - DEBUG: Adicionado um log de contagem para verificar quantos documentos correspondem à `baseQuery` antes de aplicar os filtros de performance.
 // - REATORADO: A função findUserPostsEligibleForCommunity foi reescrita para usar um pipeline de agregação multi-estágio.
 // - ATUALIZADO: Função addInspiration refatorada para usar findOneAndUpdate com upsert:true para maior eficiência e atomicidade.
@@ -24,7 +25,7 @@ import {
     PerformanceHighlightType
 } from "@/app/lib/constants/communityInspirations.constants";
 
-const SERVICE_TAG = '[dataService][communityService v2.15.1]'; // Versão atualizada
+const SERVICE_TAG = '[dataService][communityService v2.15.2]'; // Versão atualizada
 
 /**
  * Regista o opt-in de um utilizador para a funcionalidade de inspiração da comunidade.
@@ -313,17 +314,6 @@ export async function findUserPostsEligibleForCommunity(
         const performanceMatch: any = {};
         let fullQueryForDebug: any = { baseQuery: { ...baseQuery } };
 
-        // DEBUG: Executa uma contagem apenas com a query base para diagnosticar o problema.
-        try {
-            const countPipeline = [...pipeline, { $count: 'baseMatchCount' }];
-            const baseMatchCountResult = await MetricModel.aggregate(countPipeline).exec();
-            const baseMatchCount = baseMatchCountResult.length > 0 ? baseMatchCountResult[0].baseMatchCount : 0;
-            logger.debug(`${TAG} [DIAGNÓSTICO] Encontrados ${baseMatchCount} documentos que correspondem à baseQuery para User ${userId}.`);
-        } catch (e) {
-            logger.warn(`${TAG} [DIAGNÓSTICO] Falha ao executar contagem de diagnóstico.`, e);
-        }
-
-
         // 2. Se houver critérios de performance, adiciona estágios para calcular e filtrar.
         if (criteria.minPerformanceCriteria) {
             const perf = criteria.minPerformanceCriteria;
@@ -391,8 +381,45 @@ export async function findUserPostsEligibleForCommunity(
         logger.info(`${TAG} Encontrados ${eligiblePosts.length} posts elegíveis para comunidade para User ${userId}.`);
 
         if (eligiblePosts.length === 0) {
-            logger.debug(`${TAG} Query para zero resultados: ${JSON.stringify(fullQueryForDebug)}`);
+            logger.debug(`${TAG} Query final para zero resultados: ${JSON.stringify(fullQueryForDebug)}`);
             logger.debug(`${TAG} sinceDate utilizado: ${criteria.sinceDate.toISOString()}`);
+            
+            // DEBUG FINAL: Se não encontrou nada, loga uma amostra dos posts que passaram na baseQuery mas falharam na performance.
+            try {
+                const diagnosticPipeline: PipelineStage[] = [
+                    { $match: baseQuery },
+                    {
+                        $addFields: {
+                            saveRate: {
+                                $cond: {
+                                    if: { $gt: ['$stats.reach', 0] },
+                                    then: { $divide: [{ $ifNull: ['$stats.saved', 0] }, '$stats.reach'] },
+                                    else: 0
+                                }
+                            }
+                        }
+                    },
+                    { $limit: 5 },
+                    { 
+                        $project: {
+                            _id: 0,
+                            postId_Instagram: 1,
+                            'stats.shares': 1,
+                            'stats.saved': 1,
+                            'stats.reach': 1,
+                            saveRate: 1
+                        }
+                    }
+                ];
+                const rejectedCandidates = await MetricModel.aggregate(diagnosticPipeline).exec();
+                if (rejectedCandidates.length > 0) {
+                    logger.debug(`${TAG} [DIAGNÓSTICO] Amostra de posts que foram REJEITADOS pelo filtro de performance: ${JSON.stringify(rejectedCandidates, null, 2)}`);
+                } else {
+                    logger.debug(`${TAG} [DIAGNÓSTICO] Nenhum documento encontrado, mesmo na baseQuery. Verifique os critérios de data, status e source.`);
+                }
+            } catch (e) {
+                logger.warn(`${TAG} [DIAGNÓSTICO] Falha ao executar pipeline de diagnóstico de rejeitados.`, e);
+            }
         }
 
         return { posts: eligiblePosts as IMetric[], query: fullQueryForDebug, sinceDate: criteria.sinceDate };
