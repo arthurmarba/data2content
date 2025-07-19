@@ -15,7 +15,9 @@ import {
     VALID_FORMATS,
     VALID_PROPOSALS,
     VALID_CONTEXTS,
-    VALID_QUALITATIVE_OBJECTIVES
+    VALID_QUALITATIVE_OBJECTIVES,
+    VALID_TONES,
+    VALID_REFERENCES
 } from '@/app/lib/constants/communityInspirations.constants';
 
 import { IUser } from '@/app/models/User';
@@ -109,6 +111,14 @@ export const functionSchemas = [
         format: {
           type: 'string',
           description: `Opcional. Formato do post para refinar a busca. Valores válidos: ${VALID_FORMATS.join(', ')}.`
+        },
+        tone: {
+          type: 'string',
+          description: `Opcional. Tom predominante do post. Valores válidos: ${VALID_TONES.join(', ')}.`
+        },
+        reference: {
+          type: 'string',
+          description: `Opcional. Referência ou elemento utilizado. Valores válidos: ${VALID_REFERENCES.join(', ')}.`
         },
         primaryObjectiveAchieved_Qualitative: {
           type: 'string',
@@ -486,6 +496,8 @@ const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSc
       proposal: args.proposal,
       context: args.context,
       format: args.format,
+      tone: args.tone,
+      reference: args.reference,
       primaryObjectiveAchieved_Qualitative: args.primaryObjectiveAchieved_Qualitative,
     };
 
@@ -515,6 +527,8 @@ const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSc
       proposal: insp.proposal,
       context: insp.context,
       format: insp.format,
+      tone: insp.tone,
+      reference: insp.reference,
       contentSummary: insp.contentSummary,
       performanceHighlights_Qualitative: insp.performanceHighlights_Qualitative,
       primaryObjectiveAchieved_Qualitative: insp.primaryObjectiveAchieved_Qualitative,

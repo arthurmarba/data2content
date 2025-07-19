@@ -9,9 +9,13 @@ import {
     VALID_PROPOSALS,
     VALID_CONTEXTS,
     VALID_QUALITATIVE_OBJECTIVES,
+    VALID_TONES,
+    VALID_REFERENCES,
     FormatType,
     ProposalType,
     ContextType,
+    ToneType,
+    ReferenceType,
     QualitativeObjectiveType
 } from '@/app/lib/constants/communityInspirations.constants';
 
@@ -175,6 +179,16 @@ export const FetchCommunityInspirationsArgsSchema = z.object({
     })
     .optional()
     .describe(`Opcional. Formato do post (ex: Reels, Foto, Carrossel) para refinar a busca. Valores válidos: ${VALID_FORMATS.join(', ')}`),
+  tone: z.enum(VALID_TONES, {
+      invalid_type_error: "Tom inválido. Use um dos valores de tom conhecidos."
+    })
+    .optional()
+    .describe(`Opcional. Tom predominante do post. Valores válidos: ${VALID_TONES.join(', ')}`),
+  reference: z.enum(VALID_REFERENCES, {
+      invalid_type_error: "Referência inválida. Use um dos valores de referência conhecidos."
+    })
+    .optional()
+    .describe(`Opcional. Referência ou elemento utilizado. Valores válidos: ${VALID_REFERENCES.join(', ')}`),
   primaryObjectiveAchieved_Qualitative: z.enum(VALID_QUALITATIVE_OBJECTIVES, {
       invalid_type_error: "Objetivo qualitativo inválido. Por favor, use um dos valores de objetivo conhecidos."
     })

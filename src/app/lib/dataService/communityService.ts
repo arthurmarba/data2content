@@ -193,6 +193,8 @@ export async function getInspirations(
     if (filters.proposal) query.proposal = filters.proposal;
     if (filters.context) query.context = filters.context;
     if (filters.format) query.format = filters.format;
+    if (filters.tone) query.tone = filters.tone;
+    if (filters.reference) query.reference = filters.reference;
     if (filters.primaryObjectiveAchieved_Qualitative) {
         query.primaryObjectiveAchieved_Qualitative = filters.primaryObjectiveAchieved_Qualitative;
     }
