@@ -37,8 +37,10 @@ const RECENT_POST_WINDOW_DAYS = 90; // Considerar posts dos últimos 90 dias
 const MAX_POSTS_TO_PROCESS_PER_USER = 10; // Limite para não sobrecarregar em uma única execução por usuário
 const MAX_USERS_TO_PROCESS_PER_RUN = 50; // Limite de usuários a processar por execução do CRON
 const DEFAULT_PERFORMANCE_CRITERIA: CommunityPerformanceCriteria = {
+    // A post must have at least three shares and a minimum save rate of
+    // 0.2% (saved / reach) to be considered for the community feed.
     minShares: 3,
-    minSaveRate: 0.01,
+    minSaveRate: 0.002,
 };
 
 /**

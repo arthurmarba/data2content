@@ -122,6 +122,8 @@ just the most recent posts. Database-level sorting ensures that only the
 highest-engagement items are kept. The cron job selects each user's
 top-performing content so the community feed highlights what resonated the most
 with their followers.
+Posts are considered eligible only if they have at least three shares and a save
+rate of 0.2% (saved divided by reach) or higher.
 
 #### Running the community cron manually
 
