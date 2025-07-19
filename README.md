@@ -123,6 +123,16 @@ highest-engagement items are kept. The cron job selects each user's
 top-performing content so the community feed highlights what resonated the most
 with their followers.
 
+#### Running the community cron manually
+
+Set `LOG_LEVEL=debug` before invoking the cron route to see additional debug
+information, including the MongoDB query parameters and sinceDate whenever a
+user has no eligible posts:
+
+```bash
+LOG_LEVEL=debug curl -X POST http://localhost:3000/api/cron/populate-community-inspirations
+```
+
 
 
 ## Learn More

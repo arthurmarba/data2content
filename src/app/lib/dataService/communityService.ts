@@ -1,4 +1,4 @@
-// src/app/lib/dataService/communityService.ts - v2.14.7 (Otimiza addInspiration com findOneAndUpdate e upsert)
+// src/app/lib/dataService/communityService.ts - v2.14.9 (log debug query info for eligible posts)
 // - ATUALIZADO: Função addInspiration refatorada para usar findOneAndUpdate com upsert:true para maior eficiência e atomicidade.
 // - Baseado na v2.14.6.
 
@@ -13,7 +13,7 @@ import CommunityInspirationModel, { ICommunityInspiration } from '@/app/models/C
 import MetricModel, { IMetric } from '@/app/models/Metric';
 
 import { connectToDatabase } from './connection';
-import { CommunityInspirationFilters, CommunityPerformanceCriteria } from './types';
+import { CommunityInspirationFilters, CommunityPerformanceCriteria, FindUserPostsEligibleForCommunityResult } from './types';
 import {
     FormatType,
     ProposalType,
@@ -22,7 +22,7 @@ import {
     PerformanceHighlightType
 } from "@/app/lib/constants/communityInspirations.constants";
 
-const SERVICE_TAG = '[dataService][communityService v2.14.7]'; // Versão atualizada
+const SERVICE_TAG = '[dataService][communityService v2.14.9]'; // Versão atualizada
 
 /**
  * Regista o opt-in de um utilizador para a funcionalidade de inspiração da comunidade.
@@ -290,8 +290,8 @@ export async function recordDailyInspirationShown(
 export async function findUserPostsEligibleForCommunity(
     userId: string,
     criteria: { sinceDate: Date; minPerformanceCriteria?: CommunityPerformanceCriteria }
-): Promise<IMetric[]> {
-    const TAG = `${SERVICE_TAG}[findUserPostsEligibleForCommunity v2.14.8]`;
+): Promise<FindUserPostsEligibleForCommunityResult> {
+    const TAG = `${SERVICE_TAG}[findUserPostsEligibleForCommunity v2.14.9]`;
     logger.info(`${TAG} Buscando posts elegíveis para comunidade para User ${userId} desde ${criteria.sinceDate.toISOString()}`);
 
     if (!mongoose.isValidObjectId(userId)) {
@@ -368,7 +368,13 @@ export async function findUserPostsEligibleForCommunity(
         const eligiblePosts = await MetricModel.aggregate(pipeline).exec();
 
         logger.info(`${TAG} Encontrados ${eligiblePosts.length} posts elegíveis para comunidade para User ${userId}.`);
-        return eligiblePosts as IMetric[];
+
+        if (eligiblePosts.length === 0) {
+            logger.debug(`${TAG} Query para zero resultados: ${JSON.stringify(query)}`);
+            logger.debug(`${TAG} sinceDate utilizado: ${criteria.sinceDate.toISOString()}`);
+        }
+
+        return { posts: eligiblePosts as IMetric[], query, sinceDate: criteria.sinceDate };
     } catch (error: any) {
         logger.error(`${TAG} Erro ao buscar posts elegíveis para comunidade para User ${userId}:`, error);
         throw new DatabaseError(`Erro ao buscar posts elegíveis: ${error.message}`);

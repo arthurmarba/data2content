@@ -166,6 +166,12 @@ export interface CommunityPerformanceCriteria {
   minShareRate?: number; // shares / reach
 }
 
+export interface FindUserPostsEligibleForCommunityResult {
+  posts: LocalIMetric[];
+  query: any;
+  sinceDate: Date;
+}
+
 /**
  * Representa um objeto de post simplificado.
  * ATUALIZADO v2.14.14: Adicionado instagramMediaId.
