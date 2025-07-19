@@ -1,9 +1,10 @@
-// src/app/lib/dataService/communityService.ts - v2.14.9 (log debug query info for eligible posts)
+// src/app/lib/dataService/communityService.ts - v2.15.0
+// - REATORADO: A função findUserPostsEligibleForCommunity foi reescrita para usar um pipeline de agregação multi-estágio,
+//   separando a busca base dos cálculos e filtros de performance para maior robustez e depuração.
 // - ATUALIZADO: Função addInspiration refatorada para usar findOneAndUpdate com upsert:true para maior eficiência e atomicidade.
-// - CORRIGIDO: Adicionada tipagem explícita ao pipeline de agregação para resolver erro de tipo no estágio $sort.
 // - Baseado na v2.14.6.
 
-import mongoose, { Types, PipelineStage } from 'mongoose'; // <-- ADICIONADO PipelineStage
+import mongoose, { Types, PipelineStage } from 'mongoose';
 import { startOfDay } from 'date-fns';
 
 import { logger } from '@/app/lib/logger';
@@ -23,7 +24,7 @@ import {
     PerformanceHighlightType
 } from "@/app/lib/constants/communityInspirations.constants";
 
-const SERVICE_TAG = '[dataService][communityService v2.14.9]'; // Versão atualizada
+const SERVICE_TAG = '[dataService][communityService v2.15.0]'; // Versão atualizada
 
 /**
  * Regista o opt-in de um utilizador para a funcionalidade de inspiração da comunidade.
@@ -37,7 +38,7 @@ export async function optInUserToCommunity(
     userId: string,
     termsVersion: string
 ): Promise<IUser> {
-    const TAG = `${SERVICE_TAG}[optInUserToCommunity]`; // Mantém versão interna da lógica se não alterada
+    const TAG = `${SERVICE_TAG}[optInUserToCommunity]`;
     logger.info(`${TAG} Registando opt-in para User ${userId}. Termos: ${termsVersion}`);
 
     if (!mongoose.isValidObjectId(userId)) {
@@ -127,7 +128,7 @@ export async function optOutUserFromCommunity(userId: string): Promise<IUser> {
 export async function addInspiration(
     inspirationData: Partial<ICommunityInspiration>
 ): Promise<ICommunityInspiration> {
-    const TAG = `${SERVICE_TAG}[addInspiration v2.14.7]`; // Tag de função atualizada
+    const TAG = `${SERVICE_TAG}[addInspiration]`;
     logger.info(`${TAG} Adicionando/Atualizando inspiração. PostId Instagram: ${inspirationData.postId_Instagram}`);
 
     if (!inspirationData.postId_Instagram) {
@@ -161,10 +162,6 @@ export async function addInspiration(
              throw new DatabaseError(`Falha ao criar/atualizar inspiração com postId_Instagram ${inspirationData.postId_Instagram}`);
         }
         
-        // Verifica se o documento foi inserido ou atualizado para logar corretamente
-        // (findOneAndUpdate não indica diretamente se foi upsert ou update no retorno padrão,
-        //  mas podemos inferir se o addedToCommunityAt foi setado pelo $setOnInsert,
-        //  ou comparando timestamps se necessário, mas para o log, um genérico é suficiente)
         logger.info(`${TAG} Inspiração ID: ${upsertedInspiration._id} (PostId Instagram: ${upsertedInspiration.postId_Instagram}) criada/atualizada com sucesso.`);
         return upsertedInspiration as ICommunityInspiration;
 
@@ -176,7 +173,6 @@ export async function addInspiration(
 
 /**
  * Busca inspirações na comunidade com base em filtros.
- * ATUALIZADO v2.14.6: Melhorada a ordenação para incluir um fator de "qualidade" (ex: saveRate).
  * @param filters - Os filtros a serem aplicados na busca.
  * @param limit - O número máximo de inspirações a serem retornadas (padrão: 3).
  * @param excludeIds - Um array opcional de IDs de inspiração a serem excluídos dos resultados.
@@ -188,7 +184,7 @@ export async function getInspirations(
     limit: number = 3,
     excludeIds?: string[]
 ): Promise<ICommunityInspiration[]> {
-    const TAG = `${SERVICE_TAG}[getInspirations v2.14.6]`; // Lógica da v2.14.6 mantida
+    const TAG = `${SERVICE_TAG}[getInspirations]`;
     logger.info(`${TAG} Buscando inspirações com filtros: ${JSON.stringify(filters)}, limite: ${limit}, excluir IDs: ${excludeIds?.join(',')}`);
 
     const query: any = { status: 'active' };
@@ -246,7 +242,7 @@ export async function recordDailyInspirationShown(
     userId: string,
     inspirationIds: string[]
 ): Promise<void> {
-    const TAG = `${SERVICE_TAG}[recordDailyInspirationShown v2.14.6]`; // Lógica da v2.14.6 mantida
+    const TAG = `${SERVICE_TAG}[recordDailyInspirationShown]`;
 
     if (!inspirationIds || inspirationIds.length === 0) {
         logger.debug(`${TAG} Nenhuma ID de inspiração fornecida para User ${userId}. Pulando registo.`);
@@ -292,7 +288,7 @@ export async function findUserPostsEligibleForCommunity(
     userId: string,
     criteria: { sinceDate: Date; minPerformanceCriteria?: CommunityPerformanceCriteria }
 ): Promise<FindUserPostsEligibleForCommunityResult> {
-    const TAG = `${SERVICE_TAG}[findUserPostsEligibleForCommunity v2.14.9]`;
+    const TAG = `${SERVICE_TAG}[findUserPostsEligibleForCommunity]`;
     logger.info(`${TAG} Buscando posts elegíveis para comunidade para User ${userId} desde ${criteria.sinceDate.toISOString()}`);
 
     if (!mongoose.isValidObjectId(userId)) {
@@ -302,48 +298,63 @@ export async function findUserPostsEligibleForCommunity(
 
     const userObjectId = new Types.ObjectId(userId);
 
-    const query: any = {
-        user: userObjectId,
-        postDate: { $gte: criteria.sinceDate },
-        classificationStatus: 'completed',
-        source: 'api',
-    };
-
-    if (criteria.minPerformanceCriteria) {
-        const perf = criteria.minPerformanceCriteria;
-        if (typeof perf.minLikes === 'number') query['stats.likes'] = { $gte: perf.minLikes };
-        if (typeof perf.minComments === 'number') query['stats.comments'] = { $gte: perf.minComments };
-        if (typeof perf.minShares === 'number') query['stats.shares'] = { $gte: perf.minShares };
-        if (typeof perf.minSaved === 'number') query['stats.saved'] = { $gte: perf.minSaved };
-        if (typeof perf.minReach === 'number') query['stats.reach'] = { $gte: perf.minReach };
-
-        const exprConditions: any[] = [];
-        if (typeof perf.minSaveRate === 'number') {
-            exprConditions.push({
-                $gte: [
-                    { $cond: [ { $gt: ['$stats.reach', 0] }, { $divide: ['$stats.saved', '$stats.reach'] }, 0 ] },
-                    perf.minSaveRate
-                ]
-            });
-        }
-        if (typeof perf.minShareRate === 'number') {
-            exprConditions.push({
-                $gte: [
-                    { $cond: [ { $gt: ['$stats.reach', 0] }, { $divide: ['$stats.shares', '$stats.reach'] }, 0 ] },
-                    perf.minShareRate
-                ]
-            });
-        }
-        if (exprConditions.length === 1) {
-            query.$expr = exprConditions[0];
-        } else if (exprConditions.length > 1) {
-            query.$expr = { $and: exprConditions };
-        }
-    }
-
     try {
         await connectToDatabase();
 
+        // 1. Define a consulta base para encontrar o conjunto inicial de documentos.
+        const baseQuery = {
+            user: userObjectId,
+            postDate: { $gte: criteria.sinceDate },
+            classificationStatus: 'completed',
+            source: 'api',
+        };
+
+        const pipeline: PipelineStage[] = [{ $match: baseQuery }];
+        const performanceMatch: any = {};
+        let fullQueryForDebug: any = { baseQuery: { ...baseQuery } };
+
+
+        // 2. Se houver critérios de performance, adiciona estágios para calcular e filtrar.
+        if (criteria.minPerformanceCriteria) {
+            const perf = criteria.minPerformanceCriteria;
+
+            // Adiciona um estágio para calcular taxas (saveRate, shareRate).
+            pipeline.push({
+                $addFields: {
+                    saveRate: {
+                        $cond: {
+                            if: { $gt: ['$stats.reach', 0] },
+                            then: { $divide: [{ $ifNull: ['$stats.saved', 0] }, '$stats.reach'] },
+                            else: 0
+                        }
+                    },
+                    shareRate: {
+                        $cond: {
+                            if: { $gt: ['$stats.reach', 0] },
+                            then: { $divide: [{ $ifNull: ['$stats.shares', 0] }, '$stats.reach'] },
+                            else: 0
+                        }
+                    }
+                }
+            });
+
+            // Constrói o objeto de consulta para o segundo estágio de match (performance).
+            if (typeof perf.minLikes === 'number') performanceMatch['stats.likes'] = { $gte: perf.minLikes };
+            if (typeof perf.minComments === 'number') performanceMatch['stats.comments'] = { $gte: perf.minComments };
+            if (typeof perf.minShares === 'number') performanceMatch['stats.shares'] = { $gte: perf.minShares };
+            if (typeof perf.minSaved === 'number') performanceMatch['stats.saved'] = { $gte: perf.minSaved };
+            if (typeof perf.minReach === 'number') performanceMatch['stats.reach'] = { $gte: perf.minReach };
+            if (typeof perf.minSaveRate === 'number') performanceMatch.saveRate = { $gte: perf.minSaveRate };
+            if (typeof perf.minShareRate === 'number') performanceMatch.shareRate = { $gte: perf.minShareRate };
+
+            // Adiciona o estágio de match de performance ao pipeline, se houver critérios.
+            if (Object.keys(performanceMatch).length > 0) {
+                pipeline.push({ $match: performanceMatch });
+                fullQueryForDebug.performanceMatch = { ...performanceMatch };
+            }
+        }
+
+        // 3. Adiciona o cálculo de interações totais, ordenação e limite.
         const interactionsField = {
             $add: [
                 { $ifNull: ['$stats.likes', 0] },
@@ -353,9 +364,7 @@ export async function findUserPostsEligibleForCommunity(
             ]
         };
 
-        // CORREÇÃO: Adicionada a tipagem explícita PipelineStage[] para o array.
-        const pipeline: PipelineStage[] = [
-            { $match: query },
+        pipeline.push(
             {
                 $addFields: {
                     'stats.total_interactions': {
@@ -365,18 +374,18 @@ export async function findUserPostsEligibleForCommunity(
             },
             { $sort: { 'stats.total_interactions': -1 } },
             { $limit: 50 }
-        ];
+        );
 
         const eligiblePosts = await MetricModel.aggregate(pipeline).exec();
 
         logger.info(`${TAG} Encontrados ${eligiblePosts.length} posts elegíveis para comunidade para User ${userId}.`);
 
         if (eligiblePosts.length === 0) {
-            logger.debug(`${TAG} Query para zero resultados: ${JSON.stringify(query)}`);
+            logger.debug(`${TAG} Query para zero resultados: ${JSON.stringify(fullQueryForDebug)}`);
             logger.debug(`${TAG} sinceDate utilizado: ${criteria.sinceDate.toISOString()}`);
         }
 
-        return { posts: eligiblePosts as IMetric[], query, sinceDate: criteria.sinceDate };
+        return { posts: eligiblePosts as IMetric[], query: fullQueryForDebug, sinceDate: criteria.sinceDate };
     } catch (error: any) {
         logger.error(`${TAG} Erro ao buscar posts elegíveis para comunidade para User ${userId}:`, error);
         throw new DatabaseError(`Erro ao buscar posts elegíveis: ${error.message}`);
