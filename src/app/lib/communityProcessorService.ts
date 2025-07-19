@@ -237,6 +237,8 @@ export async function processMetricForCommunity(
     const mappedFormat = mapToEnum(metric.format?.[0], VALID_FORMATS, DEFAULT_FORMAT_ENUM);
     const mappedProposal = mapToEnum(metric.proposal?.[0], VALID_PROPOSALS, DEFAULT_PROPOSAL_ENUM);
     const mappedContext = mapToEnum(metric.context?.[0], VALID_CONTEXTS, DEFAULT_CONTEXT_ENUM);
+    const mappedTone = mapToEnum(metric.tone?.[0], VALID_TONES, DEFAULT_TONE_ENUM);
+    const mappedReference = mapToEnum(metric.references?.[0], VALID_REFERENCES, DEFAULT_REFERENCE_ENUM);
 
 
     if (!metric.stats) {
@@ -255,6 +257,8 @@ export async function processMetricForCommunity(
             proposal: mappedProposal,
             context: mappedContext,
             format: mappedFormat,
+            tone: mappedTone,
+            reference: mappedReference,
             contentSummary: basicSummary,
             performanceHighlights_Qualitative: ['sem_metricas_detalhadas_para_analise'],
             primaryObjectiveAchieved_Qualitative: 'analise_qualitativa_do_conteudo',
@@ -299,6 +303,8 @@ export async function processMetricForCommunity(
         proposal: mappedProposal,
         context: mappedContext,
         format: mappedFormat,
+        tone: mappedTone,
+        reference: mappedReference,
         contentSummary: contentSummary,
         performanceHighlights_Qualitative: highlights,
         primaryObjectiveAchieved_Qualitative: primaryObjective,

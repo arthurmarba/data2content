@@ -95,3 +95,33 @@ export const VALID_PERFORMANCE_HIGHLIGHTS = [
 ] as const;
 export type PerformanceHighlightType = typeof VALID_PERFORMANCE_HIGHLIGHTS[number];
 export const DEFAULT_PERFORMANCE_HIGHLIGHT_ENUM: PerformanceHighlightType = "desempenho_padrao"; // NOVO: Exportando default
+
+// --- TONALIDADES DO CONTEÚDO ---
+export const VALID_TONES = [
+  'humorous',
+  'inspirational',
+  'educational',
+  'critical',
+  'promotional',
+  'neutral'
+] as const;
+export type ToneType = typeof VALID_TONES[number];
+export const DEFAULT_TONE_ENUM: ToneType = 'neutral';
+
+// --- REFERÊNCIAS UTILIZADAS ---
+export const VALID_REFERENCES = [
+  'pop_culture',
+  'pop_culture_movies_series',
+  'pop_culture_books',
+  'pop_culture_games',
+  'pop_culture_music',
+  'pop_culture_internet',
+  'people_and_groups',
+  'regional_stereotypes',
+  'professions',
+  'geography',
+  'city',
+  'country'
+] as const;
+export type ReferenceType = typeof VALID_REFERENCES[number];
+export const DEFAULT_REFERENCE_ENUM: ReferenceType = 'pop_culture';

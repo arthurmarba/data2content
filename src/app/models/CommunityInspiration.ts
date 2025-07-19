@@ -9,12 +9,18 @@ import {
     VALID_CONTEXTS,
     VALID_QUALITATIVE_OBJECTIVES,
     VALID_PERFORMANCE_HIGHLIGHTS,
+    VALID_TONES,
+    VALID_REFERENCES,
     FormatType,
     ProposalType,
     ContextType,
+    ToneType,
+    ReferenceType,
     QualitativeObjectiveType,
-    PerformanceHighlightType
-} from "@/app/lib/constants/communityInspirations.constants"; 
+    PerformanceHighlightType,
+    DEFAULT_TONE_ENUM,
+    DEFAULT_REFERENCE_ENUM
+} from "@/app/lib/constants/communityInspirations.constants";
 
 /**
  * Interface para o subdocumento de métricas internas.
@@ -38,8 +44,10 @@ export interface ICommunityInspiration extends Document {
   originalCreatorId: Types.ObjectId; 
   
   proposal: ProposalType; 
-  context: ContextType;   
-  format: FormatType;     
+  context: ContextType;
+  format: FormatType;
+  tone?: ToneType;
+  reference?: ReferenceType;
   
   contentSummary: string;
   performanceHighlights_Qualitative: PerformanceHighlightType[]; 
@@ -79,6 +87,8 @@ const communityInspirationSchema = new Schema<ICommunityInspiration>(
     proposal: { type: String, required: true, enum: VALID_PROPOSALS, index: true, trim: true },
     context: { type: String, required: true, enum: VALID_CONTEXTS, index: true, trim: true },
     format: { type: String, required: true, enum: VALID_FORMATS, index: true, trim: true },
+    tone: { type: String, enum: VALID_TONES, index: true, trim: true, default: DEFAULT_TONE_ENUM },
+    reference: { type: String, enum: VALID_REFERENCES, index: true, trim: true, default: DEFAULT_REFERENCE_ENUM },
     
     contentSummary: { type: String, required: true },
     performanceHighlights_Qualitative: { type: [String], default: [], enum: VALID_PERFORMANCE_HIGHLIGHTS, index: true },
@@ -107,7 +117,9 @@ communityInspirationSchema.index({ postId_Instagram: 1 }, { unique: true });
 // Índices adicionais para otimizar buscas comuns (mantidos da v1.1.0)
 communityInspirationSchema.index({ proposal: 1, context: 1, primaryObjectiveAchieved_Qualitative: 1, status: 1 });
 communityInspirationSchema.index({ format: 1, primaryObjectiveAchieved_Qualitative: 1, status: 1 });
-communityInspirationSchema.index({ originalCreatorId: 1, status: 1 }); 
+communityInspirationSchema.index({ tone: 1, primaryObjectiveAchieved_Qualitative: 1, status: 1 });
+communityInspirationSchema.index({ reference: 1, status: 1 });
+communityInspirationSchema.index({ originalCreatorId: 1, status: 1 });
 
 // NOVO ÍNDICE para otimizar a query principal em communityService.getInspirations (v1.1.1)
 // Suporta filtro por status: 'active' e ordenação por addedToCommunityAt e internalMetricsSnapshot.saveRate
