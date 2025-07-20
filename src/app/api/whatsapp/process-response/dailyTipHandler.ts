@@ -1,8 +1,8 @@
 // src/app/api/whatsapp/process-response/dailyTipHandler.ts
-// Versão: v1.5.6 (Fix: Adiciona verificação de tipo para detalhes do evento)
-// - ATUALIZADO: Adicionada verificação de segurança para as propriedades 'proposal', 
-//   'context', e 'format' antes de passá-las como filtros.
-// - Baseado na v1.5.5
+// Versão: v1.6.0
+// - Adiciona seleção automática de inspirações da comunidade com base nos detalhes do alerta ou
+//   no último formato usado em caso de fallback.
+// - Mantém verificações de segurança para os campos recebidos.
 
 import { NextResponse } from 'next/server';
 import { logger } from '@/app/lib/logger';
@@ -216,6 +216,46 @@ export function appendInstagramLinkIfMissing(
     return `${message}\n\n${postLink}`;
 }
 
+async function buildInspirationFilters(
+    userId: string,
+    details?: { [key: string]: any },
+    forFallback: boolean = false
+): Promise<CommunityInspirationFilters> {
+    const filters: CommunityInspirationFilters = {};
+
+    if (details) {
+        if (typeof details.format === 'string') filters.format = details.format;
+        if (typeof details.formatName === 'string' && !filters.format) {
+            filters.format = details.formatName;
+        }
+        if (typeof details.proposal === 'string') filters.proposal = details.proposal;
+        if (typeof details.context === 'string') filters.context = details.context;
+        if (typeof details.tone === 'string') filters.tone = details.tone;
+        if (typeof details.reference === 'string') filters.reference = details.reference;
+    }
+
+    if (!filters.format && forFallback) {
+        try {
+            const posts = await dataService.getRecentPostObjectsWithAggregatedMetrics(userId, 30);
+            if (posts && posts.length > 0) {
+                posts.sort((a, b) => {
+                    const dA = new Date(a.postDate as any).getTime();
+                    const dB = new Date(b.postDate as any).getTime();
+                    return dB - dA;
+                });
+                const lastFormat = posts[0]?.format;
+                if (typeof lastFormat === 'string') {
+                    filters.format = lastFormat as any;
+                }
+            }
+        } catch (e) {
+            logger.warn(`[DailyTipHandler] Falha ao inferir formato para inspiração: ${e}`);
+        }
+    }
+
+    return filters;
+}
+
 async function fetchInspirationSnippet(
     userId: string,
     filters: CommunityInspirationFilters
@@ -321,7 +361,8 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
                 finalDefaultMessageToSend += `\n\n${instigatingQuestion}`;
             }
 
-            const inspiration = await fetchInspirationSnippet(userId, { format: 'Reel' });
+            const inspirationFilters = await buildInspirationFilters(userId, undefined, true);
+            const inspiration = await fetchInspirationSnippet(userId, inspirationFilters);
             finalDefaultMessageToSend += inspiration.text;
 
             let whatsappMessageIdFallback: string | undefined;
@@ -471,11 +512,8 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
         // CORREÇÃO: Adicionada verificação de tipo para os detalhes do evento
         // antes de tentar acessar propriedades que podem não existir.
         const details = detectedEvent.detailsForLog;
-        const inspiration = await fetchInspirationSnippet(userId, {
-            proposal: 'proposal' in details ? (details as any).proposal : undefined,
-            context: 'context' in details ? (details as any).context : undefined,
-            format: 'format' in details ? (details as any).format : undefined,
-        });
+        const inspirationFilters = await buildInspirationFilters(userId, details);
+        const inspiration = await fetchInspirationSnippet(userId, inspirationFilters);
         fullAlertMessageToUser += inspiration.text;
 
         fullAlertMessageToUser = appendInstagramLinkIfMissing(fullAlertMessageToUser, detectedEvent.detailsForLog);
