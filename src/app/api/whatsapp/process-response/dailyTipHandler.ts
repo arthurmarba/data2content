@@ -216,8 +216,8 @@ export function appendInstagramLinkIfMissing(
     return `${message}\n\n${postLink}`;
 }
 
-async function buildInspirationFilters(
-    userId: string,
+export async function buildInspirationFilters(
+    user: IUser,
     details?: { [key: string]: any },
     forFallback: boolean = false
 ): Promise<CommunityInspirationFilters> {
@@ -243,7 +243,7 @@ async function buildInspirationFilters(
 
     if (forFallback && (!filters.format || !filters.proposal || !filters.context)) {
         try {
-            const posts = await dataService.getRecentPostObjectsWithAggregatedMetrics(userId, 30);
+            const posts = await dataService.getRecentPostObjectsWithAggregatedMetrics(user._id.toString(), 30);
             if (posts && posts.length > 0) {
                 posts.sort((a, b) => {
                     const dA = new Date(a.postDate as any).getTime();
@@ -263,6 +263,19 @@ async function buildInspirationFilters(
             }
         } catch (e) {
             logger.warn(`[DailyTipHandler] Falha ao inferir formato para inspiração: ${e}`);
+        }
+
+        const prefs = user.userPreferences;
+        if (prefs) {
+            if (!filters.format && Array.isArray(prefs.preferredFormats) && prefs.preferredFormats.length > 0) {
+                filters.format = prefs.preferredFormats[0] as any;
+            }
+            if (!filters.tone && typeof prefs.preferredAiTone === 'string') {
+                filters.tone = prefs.preferredAiTone as any;
+            }
+            if (!filters.context && Array.isArray((prefs as any).preferredContexts) && (prefs as any).preferredContexts.length > 0) {
+                filters.context = (prefs as any).preferredContexts[0] as any;
+            }
         }
     }
 
@@ -374,7 +387,7 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
                 finalDefaultMessageToSend += `\n\n${instigatingQuestion}`;
             }
 
-            const inspirationFilters = await buildInspirationFilters(userId, undefined, true);
+            const inspirationFilters = await buildInspirationFilters(userForRadar!, undefined, true);
             const inspiration = await fetchInspirationSnippet(userId, inspirationFilters);
             finalDefaultMessageToSend += inspiration.text;
 
@@ -525,7 +538,7 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
         // CORREÇÃO: Adicionada verificação de tipo para os detalhes do evento
         // antes de tentar acessar propriedades que podem não existir.
         const details = detectedEvent.detailsForLog;
-        const inspirationFilters = await buildInspirationFilters(userId, details);
+        const inspirationFilters = await buildInspirationFilters(userForRadar!, details);
         const inspiration = await fetchInspirationSnippet(userId, inspirationFilters);
         fullAlertMessageToUser += inspiration.text;
 
