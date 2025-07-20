@@ -285,6 +285,14 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             logger.error(`${fnTag} Erro ao obter resumo de performance:`, e);
         }
 
+        const tonePref = user.userPreferences?.preferredAiTone || 'N/A';
+        const prefFormats = Array.isArray(user.userPreferences?.preferredFormats) && user.userPreferences?.preferredFormats.length
+            ? user.userPreferences!.preferredFormats.join(', ')
+            : 'N/A';
+        const dislikedTopics = Array.isArray(user.userPreferences?.dislikedTopics) && user.userPreferences?.dislikedTopics.length
+            ? user.userPreferences!.dislikedTopics.join(', ')
+            : 'N/A';
+
         systemPrompt = systemPrompt
             .replace('{{AVG_REACH_LAST30}}', String(avgReach))
             .replace('{{AVG_SHARES_LAST30}}', String(avgShares))
@@ -308,7 +316,10 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             .replace('{{TOP_PERFORMING_FORMAT}}', topFormatText)
             .replace('{{LOW_PERFORMING_FORMAT}}', lowFormatText)
             .replace('{{BEST_DAY}}', bestDayText)
-            .replace('{{PERFORMANCE_INSIGHT_SUMMARY}}', perfSummaryText);
+            .replace('{{PERFORMANCE_INSIGHT_SUMMARY}}', perfSummaryText)
+            .replace('{{USER_TONE_PREF}}', tonePref)
+            .replace('{{USER_PREFERRED_FORMATS}}', prefFormats)
+            .replace('{{USER_DISLIKED_TOPICS}}', dislikedTopics);
     } catch (metricErr) {
         logger.error(`${fnTag} Erro ao obter métricas para systemPrompt:`, metricErr);
         systemPrompt = systemPrompt
@@ -334,7 +345,10 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             .replace('{{DEALS_REVENUE_LAST30}}', 'Dados insuficientes')
             .replace('{{DEAL_AVG_VALUE_LAST30}}', 'Dados insuficientes')
             .replace('{{DEALS_BRAND_SEGMENTS}}', 'Dados insuficientes')
-            .replace('{{DEALS_FREQUENCY}}', 'Dados insuficientes');
+            .replace('{{DEALS_FREQUENCY}}', 'Dados insuficientes')
+            .replace('{{USER_TONE_PREF}}', 'N/A')
+            .replace('{{USER_PREFERRED_FORMATS}}', 'N/A')
+            .replace('{{USER_DISLIKED_TOPICS}}', 'N/A');
     }
 
     return systemPrompt;

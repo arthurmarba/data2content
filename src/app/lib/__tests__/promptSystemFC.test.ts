@@ -1,4 +1,29 @@
 import { getSystemPrompt } from '../promptSystemFC';
+import { populateSystemPrompt } from '../aiOrchestrator';
+import { functionExecutors } from '../aiFunctions';
+import { Types } from 'mongoose';
+import aggregateUserPerformanceHighlights from '@/utils/aggregateUserPerformanceHighlights';
+import aggregateUserDayPerformance from '@/utils/aggregateUserDayPerformance';
+import { aggregateUserTimePerformance } from '@/utils/aggregateUserTimePerformance';
+
+jest.mock('../aiFunctions', () => ({
+  functionExecutors: {
+    getAggregatedReport: jest.fn(),
+    getUserTrend: jest.fn(),
+    getFpcTrendHistory: jest.fn(),
+    getDayPCOStats: jest.fn(),
+    getCategoryRanking: jest.fn(),
+    getLatestAudienceDemographics: jest.fn(),
+  }
+}));
+jest.mock('@/utils/aggregateUserPerformanceHighlights');
+jest.mock('@/utils/aggregateUserDayPerformance');
+jest.mock('@/utils/aggregateUserTimePerformance');
+
+const execs = functionExecutors as jest.Mocked<typeof functionExecutors>;
+const mockPerf = aggregateUserPerformanceHighlights as jest.Mock;
+const mockDayPerf = aggregateUserDayPerformance as jest.Mock;
+const mockTimePerf = aggregateUserTimePerformance as jest.Mock;
 
 describe('getSystemPrompt', () => {
   it('includes metrics placeholders in Resumo Atual section', () => {
@@ -23,5 +48,43 @@ describe('getSystemPrompt', () => {
     expect(prompt).toContain('{{DEAL_AVG_VALUE_LAST30}}');
     expect(prompt).toContain('{{DEALS_BRAND_SEGMENTS}}');
     expect(prompt).toContain('{{DEALS_FREQUENCY}}');
+    expect(prompt).toContain('{{USER_TONE_PREF}}');
+    expect(prompt).toContain('{{USER_PREFERRED_FORMATS}}');
+    expect(prompt).toContain('{{USER_DISLIKED_TOPICS}}');
+  });
+});
+
+describe('populateSystemPrompt user preference placeholders', () => {
+  const user = {
+    _id: new Types.ObjectId(),
+    name: 'Tester',
+    userPreferences: {
+      preferredAiTone: 'direto',
+      preferredFormats: ['reel', 'story'],
+      dislikedTopics: ['politica', 'religiao'],
+    },
+  } as any;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    execs.getAggregatedReport.mockResolvedValue({ reportData: {}, adDealInsights: {} });
+    execs.getUserTrend.mockResolvedValue({});
+    execs.getFpcTrendHistory.mockResolvedValue({});
+    execs.getDayPCOStats.mockResolvedValue({});
+    execs.getCategoryRanking.mockResolvedValue({});
+    execs.getLatestAudienceDemographics.mockResolvedValue({});
+    mockPerf.mockResolvedValue({});
+    mockDayPerf.mockResolvedValue({});
+    mockTimePerf.mockResolvedValue({});
+  });
+
+  it('replaces placeholders with user preferences', async () => {
+    const prompt = await populateSystemPrompt(user, 'Ana');
+    expect(prompt).toContain('direto');
+    expect(prompt).toContain('reel, story');
+    expect(prompt).toContain('politica, religiao');
+    expect(prompt).not.toContain('{{USER_TONE_PREF}}');
+    expect(prompt).not.toContain('{{USER_PREFERRED_FORMATS}}');
+    expect(prompt).not.toContain('{{USER_DISLIKED_TOPICS}}');
   });
 });
