@@ -192,7 +192,10 @@ export const bestDayFormatEngagementRule: IRule = {
         });
 
         const bestSlot = promisingSlots[0]!;
-        const bestSlotFormatAvg = bestSlot.formatAvg as number; 
+        const bestSlotFormatAvg = bestSlot.formatAvg as number;
+        const lastPostInSlot = bestSlot.postsInSlot[0];
+        const lastPostProposal = lastPostInSlot?.proposal;
+        const lastPostContext = lastPostInSlot?.context;
 
         logger.debug(`${detectionTAG} Condição ATENDIDA. Melhor slot: Formato ${bestSlot.format} às ${bestSlot.dayName}. Média slot (${METRIC_TO_USE_FOR_PERFORMANCE}): ${bestSlot.avgMetricValue.toFixed(1)}, Média formato (${METRIC_TO_USE_FOR_PERFORMANCE}): ${bestSlotFormatAvg.toFixed(1)}, Dias desde último uso: ${bestSlot.daysSinceLastUsedInSlot}`);
         
@@ -204,9 +207,11 @@ export const bestDayFormatEngagementRule: IRule = {
                     dayOfWeek: bestSlot.dayName,
                     avgEngValue: bestSlot.avgMetricValue,
                     metricUsed: METRIC_TO_USE_FOR_PERFORMANCE,
-                    referenceAvgEngValue: bestSlotFormatAvg, 
+                    referenceAvgEngValue: bestSlotFormatAvg,
                 },
-                daysSinceLastUsedInSlot: bestSlot.daysSinceLastUsedInSlot
+                daysSinceLastUsedInSlot: bestSlot.daysSinceLastUsedInSlot,
+                lastPostProposal,
+                lastPostContext
             }
         };
     },
@@ -219,7 +224,7 @@ export const bestDayFormatEngagementRule: IRule = {
             return null;
         }
 
-        const { bestCombination, daysSinceLastUsedInSlot } = conditionData;
+        const { bestCombination, daysSinceLastUsedInSlot, lastPostProposal, lastPostContext } = conditionData;
         const { format, dayOfWeek, avgEngValue, metricUsed, referenceAvgEngValue } = bestCombination;
 
         if (typeof format !== 'string' ||
@@ -239,7 +244,9 @@ export const bestDayFormatEngagementRule: IRule = {
             avgEngRate: parseFloat(avgEngValue.toFixed(2)),
             metricUsed,
             referenceAvgEngRate: parseFloat(referenceAvgEngValue.toFixed(2)),
-            daysSinceLastUsedInSlot
+            daysSinceLastUsedInSlot,
+            lastPostProposal,
+            lastPostContext
         };
         
         const percentageSuperior = referenceAvgEngValue > 0 ? ((avgEngValue / referenceAvgEngValue - 1) * 100) : (avgEngValue > 0 ? 100 : 0);
