@@ -150,6 +150,33 @@ export async function askLLMWithEnrichedContext(
             .map((s: any) => `${s._id.format}/${s._id.proposal}/${s._id.context}`);
         const emergingCombos = emergingCombosArr.length > 0 ? emergingCombosArr.join(', ') : 'N/A';
 
+        let topTrendText = 'N/A';
+        try {
+            const trendPromises = fpcStats.slice(0, 5).map(async (s: any) => {
+                const history: any = await functionExecutors.getFpcTrendHistory({
+                    format: s._id.format,
+                    proposal: s._id.proposal,
+                    context: s._id.context,
+                    timePeriod: 'last_90_days',
+                    granularity: 'weekly'
+                }, user);
+                const series = history?.chartData || [];
+                const valid = series.filter((p: any) => typeof p.avgInteractions === 'number');
+                if (valid.length < 2) return null;
+                const first = valid[0].avgInteractions as number;
+                const last = valid[valid.length - 1].avgInteractions as number;
+                if (first === 0) return null;
+                const growth = ((last - first) / first) * 100;
+                return { combo: `${s._id.format}/${s._id.proposal}/${s._id.context}`, growth };
+            });
+            const trendData = (await Promise.all(trendPromises)).filter(Boolean) as { combo: string; growth: number }[];
+            trendData.sort((a, b) => b.growth - a.growth);
+            const top = trendData.slice(0, 3).map(d => d.combo);
+            if (top.length) topTrendText = top.join(', ');
+        } catch (trendErr) {
+            logger.error(`${fnTag} Erro ao processar FPC trend history:`, trendErr);
+        }
+
         let hotTimeText = 'N/A';
         try {
             const dayRes: any = await functionExecutors.getDayPCOStats({}, user);
@@ -182,7 +209,8 @@ export async function askLLMWithEnrichedContext(
             .replace('{{AVG_ENG_RATE_LAST30}}', String(avgEngRate))
             .replace('{{FOLLOWER_GROWTH_LAST30}}', followerGrowthText)
             .replace('{{EMERGING_FPC_COMBOS}}', emergingCombos)
-            .replace('{{HOT_TIMES_LAST_ANALYSIS}}', hotTimeText);
+            .replace('{{HOT_TIMES_LAST_ANALYSIS}}', hotTimeText)
+            .replace('{{TOP_FPC_TRENDS}}', topTrendText);
     } catch (metricErr) {
         logger.error(`${fnTag} Erro ao obter métricas para systemPrompt:`, metricErr);
         systemPrompt = systemPrompt
@@ -192,7 +220,8 @@ export async function askLLMWithEnrichedContext(
             .replace('{{AVG_ENG_RATE_LAST30}}', 'N/A')
             .replace('{{FOLLOWER_GROWTH_LAST30}}', 'N/A')
             .replace('{{EMERGING_FPC_COMBOS}}', 'N/A')
-            .replace('{{HOT_TIMES_LAST_ANALYSIS}}', 'N/A');
+            .replace('{{HOT_TIMES_LAST_ANALYSIS}}', 'N/A')
+            .replace('{{TOP_FPC_TRENDS}}', 'N/A');
     }
 
     const initialMsgs: ChatCompletionMessageParam[] = [
