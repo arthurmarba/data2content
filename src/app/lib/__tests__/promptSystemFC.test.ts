@@ -11,5 +11,6 @@ describe('getSystemPrompt', () => {
     expect(prompt).toContain('{{FOLLOWER_GROWTH_LAST30}}');
     expect(prompt).toContain('{{EMERGING_FPC_COMBOS}}');
     expect(prompt).toContain('{{HOT_TIMES_LAST_ANALYSIS}}');
+    expect(prompt).toContain('{{TOP_FPC_TRENDS}}');
   });
 });
