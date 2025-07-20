@@ -190,11 +190,14 @@ export const evergreenRepurposeRule: IRule = {
         const details: IEvergreenRepurposeDetails = {
             originalPostId: originalPost._id,
             originalPlatformPostId: originalPost.instagramMediaId,
-            originalPostDate: originalPostDateObj, 
+            originalPostDate: originalPostDateObj,
             originalPostDescriptionExcerpt: postDescriptionExcerpt,
             originalPostMetricValue,
             originalPostMetricName,
-            suggestionType: randomSuggestionType
+            suggestionType: randomSuggestionType,
+            format: originalPost.format,
+            proposal: originalPost.proposal,
+            context: originalPost.context
         };
         
         let suggestionText = "";

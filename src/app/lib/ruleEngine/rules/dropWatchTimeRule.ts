@@ -165,7 +165,7 @@ export const dropWatchTimeRule: IRule = {
     },
 
     action: async (context: RuleContext, conditionData?: any): Promise<DetectedEvent | null> => {
-        const { user } = context;
+        const { user, allUserPosts } = context;
         const actionTAG = `${RULE_TAG_BASE}[action] User ${user._id}:`;
         if (!conditionData || typeof conditionData.currentAverageReelsWatchTime !== 'number' || typeof conditionData.historicalAverageReelsWatchTime !== 'number' || !Array.isArray(conditionData.reelsAnalyzedIds)) {
             logger.error(`${actionTAG} conditionData inválido ou incompleto.`);
@@ -178,10 +178,17 @@ export const dropWatchTimeRule: IRule = {
 
         logger.info(`${actionTAG} Gerando evento.`);
 
+        let lastReel = allUserPosts
+            .filter(p => p.type === 'REEL')
+            .sort((a,b) => new Date(b.postDate as any).getTime() - new Date(a.postDate as any).getTime())[0];
+
         const details: IDropWatchTimeDetails = {
-            currentAvg: currentAverageReelsWatchTime, 
-            historicalAvg: historicalAverageReelsWatchTime, 
-            reelsAnalyzedIds
+            currentAvg: currentAverageReelsWatchTime,
+            historicalAvg: historicalAverageReelsWatchTime,
+            reelsAnalyzedIds,
+            format: 'Reel',
+            proposal: lastReel?.proposal,
+            context: lastReel?.context
         };
 
         const messageForAI = `Radar Tuca detectou: O tempo médio de visualização dos seus Reels mais recentes está em torno de ${currentAverageReelsWatchTime.toFixed(0)}s. Isso é um pouco abaixo da sua média histórica de ${historicalAverageReelsWatchTime.toFixed(0)}s. Pode ser um sinal para revisitar as introduções ou o ritmo desses Reels.`;

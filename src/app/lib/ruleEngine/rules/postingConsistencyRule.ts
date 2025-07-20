@@ -130,7 +130,7 @@ export const postingConsistencyRule: IRule = {
     },
 
     action: async (context: RuleContext, conditionData?: any): Promise<DetectedEvent | null> => {
-        const { user } = context;
+        const { user, allUserPosts } = context;
         const actionTAG = `${RULE_TAG_BASE}[action] User ${user._id}:`;
         if (!conditionData || typeof conditionData.daysSinceLastPost !== 'number') {
             logger.error(`${actionTAG} conditionData inválido ou incompleto. Data: ${JSON.stringify(conditionData)}`);
@@ -141,10 +141,16 @@ export const postingConsistencyRule: IRule = {
         
         logger.info(`${actionTAG} Gerando evento.`);
 
+        const lastPost = allUserPosts
+            .sort((a,b) => new Date(b.postDate as any).getTime() - new Date(a.postDate as any).getTime())[0];
+
         const details: IPostingConsistencyDetails = {
             previousAverageFrequencyDays: parseFloat(previousAverageFrequencyDays?.toFixed(1) ?? '0'),
             daysSinceLastPost,
-            breakInPattern: true
+            breakInPattern: true,
+            lastPostFormat: lastPost?.format,
+            lastPostProposal: lastPost?.proposal,
+            lastPostContext: lastPost?.context
         };
         
         let messageForAI = `Radar Tuca Alerta: Percebi que já faz ${daysSinceLastPost} dias desde o seu último post. `;

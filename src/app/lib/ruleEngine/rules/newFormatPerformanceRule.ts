@@ -189,7 +189,7 @@ export const newFormatPerformanceRule: IRule = {
     },
 
     action: async (context: RuleContext, conditionData?: any): Promise<DetectedEvent | null> => {
-        const { user } = context;
+        const { user, allUserPosts } = context;
         const actionTAG = `${RULE_TAG_BASE}[action] User ${user._id}:`;
         if (!conditionData) { 
             logger.error(`${actionTAG} conditionData inválido.`);
@@ -210,13 +210,19 @@ export const newFormatPerformanceRule: IRule = {
         
         logger.info(`${actionTAG} Gerando evento para novo formato '${formatName}'.`);
 
+        const samplePost = allUserPosts
+            .filter(p => p.format === formatName)
+            .sort((a,b) => new Date(b.postDate as any).getTime() - new Date(a.postDate as any).getTime())[0];
+
         const details: INewFormatPerformanceDetails = {
             formatName,
             avgPerformanceNewFormat: parseFloat(avgPerformanceNewFormat.toFixed(2)),
             referenceAvgPerformance: parseFloat(referenceAvgPerformance.toFixed(2)),
             metricUsed, // Agora será 'views'
             numberOfPostsInNewFormat,
-            isPositiveAlert
+            isPositiveAlert,
+            dominantProposal: samplePost?.proposal,
+            dominantContext: samplePost?.context
         };
         
         let messageForAI: string;

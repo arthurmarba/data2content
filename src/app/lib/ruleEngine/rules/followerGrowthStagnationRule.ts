@@ -193,7 +193,7 @@ export const followerGrowthStagnationRule: IRule = {
     },
 
     action: async (context: RuleContext, conditionData?: any): Promise<DetectedEvent | null> => {
-        const { user } = context;
+        const { user, allUserPosts } = context;
         const actionTAG = `${RULE_TAG_BASE}[action] User ${user._id}:`;
         if (!conditionData || typeof conditionData.currentGrowthRate !== 'number' || typeof conditionData.previousGrowthRate !== 'number') {
             logger.error(`${actionTAG} conditionData inválido ou incompleto.`);
@@ -204,12 +204,18 @@ export const followerGrowthStagnationRule: IRule = {
         
         logger.info(`${actionTAG} Gerando evento.`);
 
-        const details: IFollowerStagnationDetails = { 
+        const lastPost = allUserPosts
+            .sort((a,b) => new Date(b.postDate as any).getTime() - new Date(a.postDate as any).getTime())[0];
+
+        const details: IFollowerStagnationDetails = {
             currentGrowthRate: parseFloat(currentGrowthRate.toFixed(2)),
             previousGrowthRate: parseFloat(previousGrowthRate.toFixed(2)),
             currentGrowthAbs: currentGrowth,
             previousGrowthAbs: previousGrowth,
-            periodAnalyzed
+            periodAnalyzed,
+            mostRecentFormat: lastPost?.format,
+            mostRecentProposal: lastPost?.proposal,
+            mostRecentContext: lastPost?.context
         };
 
         const messageForAI = `Radar Tuca observou: Notei que seu crescimento de seguidores deu uma desacelerada nas ${periodAnalyzed.replace('vs. as ', 'em comparação com as ')} (crescimento de ${currentGrowthRate.toFixed(1)}% vs ${previousGrowthRate.toFixed(1)}% anteriormente). Gostaria de analisar algumas estratégias para reaquecer o crescimento ou entender melhor essa tendência?`;
