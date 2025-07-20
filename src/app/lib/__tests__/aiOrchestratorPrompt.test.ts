@@ -43,5 +43,6 @@ describe('populateSystemPrompt', () => {
     expect(prompt).toContain('Brasil');
     expect(prompt).not.toContain('{{AVG_REACH_LAST30}}');
     expect(prompt).not.toContain('{{TOP_CATEGORY_RANKINGS}}');
+    expect(prompt).not.toContain('{{TOP_DAY_PCO_COMBOS}}');
   });
 });
