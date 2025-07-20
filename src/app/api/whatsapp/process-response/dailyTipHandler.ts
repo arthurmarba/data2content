@@ -270,6 +270,22 @@ async function buildInspirationFilters(
         } catch (e) {
             logger.warn(`[DailyTipHandler] Falha ao inferir formato para inspiração: ${e}`);
         }
+
+        // Complementa com preferências do usuário, se disponíveis
+        try {
+            const user = await dataService.lookupUserById(userId);
+            const prefs = user.userPreferences;
+            if (prefs) {
+                if (!filters.format && Array.isArray(prefs.preferredFormats) && prefs.preferredFormats.length > 0) {
+                    filters.format = prefs.preferredFormats[0] as any;
+                }
+                if (!filters.tone && typeof prefs.preferredAiTone === 'string') {
+                    filters.tone = prefs.preferredAiTone as any;
+                }
+            }
+        } catch (e) {
+            logger.warn(`[DailyTipHandler] Falha ao consultar preferências do usuário para inspiração: ${e}`);
+        }
     }
 
     return filters;
