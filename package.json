@@ -73,6 +73,7 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/react-simple-maps": "^3.0.6",
+    "@types/next": "13.4.19",
     "autoprefixer": "^10.4.20",
     "encoding": "^0.1.13",
     "eslint": "^8.44.0",
