@@ -32,10 +32,22 @@ describe('populateSystemPrompt', () => {
     execs.getAggregatedReport.mockResolvedValue({
       reportData: {
         overallStats: { avgReach: 100, avgShares: 5, avgEngagementRate: 0.1 },
-        historicalComparisons: { followerChangeShortTerm: 2 },
+        historicalComparisons: {
+          followerChangeShortTerm: 2,
+          followerGrowthRateShortTerm: 0.2,
+          avgEngagementPerPostShortTerm: 4,
+          avgReachPerPostShortTerm: 40,
+        },
         detailedContentStats: [
           { _id: { format: 'reel', proposal: 'dica', context: 'tech' }, shareDiffPercentage: 10 }
         ]
+      },
+      adDealInsights: {
+        totalDeals: 3,
+        totalRevenueBRL: 5000,
+        averageDealValueBRL: 1666.7,
+        commonBrandSegments: ['tech', 'food'],
+        dealsFrequency: 1.5,
       }
     });
     execs.getUserTrend.mockResolvedValue({ insightSummary: 'alta' });
@@ -62,9 +74,14 @@ describe('populateSystemPrompt', () => {
     expect(prompt).toContain('Brasil');
     expect(prompt).toContain('VIDEO');
     expect(prompt).toContain('14h');
+    expect(prompt).toContain('1.5');
+    expect(prompt).toContain('5000');
+    expect(prompt).toContain('tech');
     expect(prompt).not.toContain('{{AVG_REACH_LAST30}}');
     expect(prompt).not.toContain('{{TOP_CATEGORY_RANKINGS}}');
     expect(prompt).not.toContain('{{TOP_DAY_PCO_COMBOS}}');
     expect(prompt).not.toContain('{{PERFORMANCE_INSIGHT_SUMMARY}}');
+    expect(prompt).not.toContain('{{DEALS_COUNT_LAST30}}');
+    expect(prompt).not.toContain('{{FOLLOWER_GROWTH_RATE_LAST30}}');
   });
 });

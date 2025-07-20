@@ -87,8 +87,22 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
         }
         const trendSummary = trendRes?.insightSummary || 'N/A';
 
-        const followerGrowth = reportRes?.reportData?.historicalComparisons?.followerChangeShortTerm;
-        const followerGrowthText = typeof followerGrowth === 'number' ? String(followerGrowth) : 'N/A';
+        const historical = reportRes?.reportData?.historicalComparisons || {};
+        const followerGrowth = historical?.followerChangeShortTerm;
+        const followerGrowthText = typeof followerGrowth === 'number' ? String(followerGrowth) : 'Dados insuficientes';
+        const followerGrowthRate = historical?.followerGrowthRateShortTerm;
+        const followerGrowthRateText = typeof followerGrowthRate === 'number' ? `${followerGrowthRate.toFixed(1)}%` : 'Dados insuficientes';
+        const avgEngPost = historical?.avgEngagementPerPostShortTerm;
+        const avgEngPostText = typeof avgEngPost === 'number' ? Math.round(avgEngPost).toString() : 'Dados insuficientes';
+        const avgReachPost = historical?.avgReachPerPostShortTerm;
+        const avgReachPostText = typeof avgReachPost === 'number' ? Math.round(avgReachPost).toString() : 'Dados insuficientes';
+
+        const deals = reportRes?.adDealInsights || {};
+        const dealsCountText = typeof deals.totalDeals === 'number' ? String(deals.totalDeals) : 'Dados insuficientes';
+        const dealsRevenueText = typeof deals.totalRevenueBRL === 'number' ? Math.round(deals.totalRevenueBRL).toString() : 'Dados insuficientes';
+        const dealsAvgValueText = typeof deals.averageDealValueBRL === 'number' ? Math.round(deals.averageDealValueBRL).toString() : 'Dados insuficientes';
+        const brandSegText = Array.isArray(deals.commonBrandSegments) && deals.commonBrandSegments.length ? deals.commonBrandSegments.join(', ') : 'Dados insuficientes';
+        const dealsFreqText = typeof deals.dealsFrequency === 'number' ? deals.dealsFrequency.toFixed(1) : 'Dados insuficientes';
 
         const fpcStats = reportRes?.reportData?.detailedContentStats || [];
         const emergingCombosArr = fpcStats
@@ -277,6 +291,14 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             .replace('{{TREND_SUMMARY_LAST30}}', String(trendSummary))
             .replace('{{AVG_ENG_RATE_LAST30}}', String(avgEngRate))
             .replace('{{FOLLOWER_GROWTH_LAST30}}', followerGrowthText)
+            .replace('{{FOLLOWER_GROWTH_RATE_LAST30}}', followerGrowthRateText)
+            .replace('{{AVG_ENG_POST_LAST30}}', avgEngPostText)
+            .replace('{{AVG_REACH_POST_LAST30}}', avgReachPostText)
+            .replace('{{DEALS_COUNT_LAST30}}', dealsCountText)
+            .replace('{{DEALS_REVENUE_LAST30}}', dealsRevenueText)
+            .replace('{{DEAL_AVG_VALUE_LAST30}}', dealsAvgValueText)
+            .replace('{{DEALS_BRAND_SEGMENTS}}', brandSegText)
+            .replace('{{DEALS_FREQUENCY}}', dealsFreqText)
             .replace('{{EMERGING_FPC_COMBOS}}', emergingCombos)
             .replace('{{HOT_TIMES_LAST_ANALYSIS}}', hotTimeText)
             .replace('{{TOP_DAY_PCO_COMBOS}}', topDayCombosText)
@@ -304,7 +326,15 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             .replace('{{TOP_PERFORMING_FORMAT}}', 'N/A')
             .replace('{{LOW_PERFORMING_FORMAT}}', 'N/A')
             .replace('{{BEST_DAY}}', 'N/A')
-            .replace('{{PERFORMANCE_INSIGHT_SUMMARY}}', 'N/A');
+            .replace('{{PERFORMANCE_INSIGHT_SUMMARY}}', 'N/A')
+            .replace('{{FOLLOWER_GROWTH_RATE_LAST30}}', 'Dados insuficientes')
+            .replace('{{AVG_ENG_POST_LAST30}}', 'Dados insuficientes')
+            .replace('{{AVG_REACH_POST_LAST30}}', 'Dados insuficientes')
+            .replace('{{DEALS_COUNT_LAST30}}', 'Dados insuficientes')
+            .replace('{{DEALS_REVENUE_LAST30}}', 'Dados insuficientes')
+            .replace('{{DEAL_AVG_VALUE_LAST30}}', 'Dados insuficientes')
+            .replace('{{DEALS_BRAND_SEGMENTS}}', 'Dados insuficientes')
+            .replace('{{DEALS_FREQUENCY}}', 'Dados insuficientes');
     }
 
     return systemPrompt;
