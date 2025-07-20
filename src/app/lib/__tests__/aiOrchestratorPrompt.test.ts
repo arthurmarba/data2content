@@ -31,7 +31,12 @@ describe('populateSystemPrompt', () => {
     });
     execs.getUserTrend.mockResolvedValue({ insightSummary: 'alta' });
     execs.getFpcTrendHistory.mockResolvedValue({ chartData: [{ avgInteractions: 1 }, { avgInteractions: 3 }] });
-    execs.getDayPCOStats.mockResolvedValue({ dayPCOStats: { '1': { dica: { tech: { avgTotalInteractions: 10 } } } } });
+    execs.getDayPCOStats.mockResolvedValue({
+      dayPCOStats: {
+        '1': { dica: { tech: { avgTotalInteractions: 10 }, review: { games: { avgTotalInteractions: 5 } } } },
+        '2': { dica: { food: { avgTotalInteractions: 20 } } }
+      }
+    });
     execs.getCategoryRanking.mockResolvedValue({ ranking: [{ category: 'reel' }, { category: 'carrossel' }] });
     execs.getLatestAudienceDemographics.mockResolvedValue({ demographics: { follower_demographics: { country: { Brasil: 80 }, age: { '18-24': 50 } } } });
   });
@@ -41,7 +46,9 @@ describe('populateSystemPrompt', () => {
     expect(prompt).toContain('100');
     expect(prompt).toContain('reel');
     expect(prompt).toContain('Brasil');
+    expect(prompt).toContain('Terça');
     expect(prompt).not.toContain('{{AVG_REACH_LAST30}}');
     expect(prompt).not.toContain('{{TOP_CATEGORY_RANKINGS}}');
+    expect(prompt).not.toContain('{{TOP_DAY_PCO_COMBOS}}');
   });
 });

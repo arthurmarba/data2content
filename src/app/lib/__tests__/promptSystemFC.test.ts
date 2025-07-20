@@ -14,5 +14,6 @@ describe('getSystemPrompt', () => {
     expect(prompt).toContain('{{TOP_FPC_TRENDS}}');
     expect(prompt).toContain('{{TOP_CATEGORY_RANKINGS}}');
     expect(prompt).toContain('{{AUDIENCE_TOP_SEGMENT}}');
+    expect(prompt).toContain('{{TOP_DAY_PCO_COMBOS}}');
   });
 });

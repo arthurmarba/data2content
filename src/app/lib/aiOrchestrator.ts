@@ -105,11 +105,13 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
         }
 
         let hotTimeText = 'N/A';
+        let topCombosText = 'N/A';
         try {
             const dayRes: any = await functionExecutors.getDayPCOStats({}, user);
             const data = dayRes?.dayPCOStats || {};
             let maxVal = 0;
             let best: { d: number; p: string; c: string } | null = null;
+            const combos: { d: number; p: string; c: string; avg: number }[] = [];
             for (const [day, propObj] of Object.entries(data)) {
                 for (const [prop, ctxObj] of Object.entries(propObj as any)) {
                     for (const [ctx, val] of Object.entries(ctxObj as any)) {
@@ -118,12 +120,18 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
                             maxVal = avg;
                             best = { d: Number(day), p: prop, c: ctx };
                         }
+                        combos.push({ d: Number(day), p: prop, c: ctx, avg });
                     }
                 }
             }
             if (best) {
                 const dayNames = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
                 hotTimeText = `${dayNames[best.d]} • ${best.p} • ${best.c}`;
+            }
+            combos.sort((a, b) => b.avg - a.avg);
+            if (combos.length) {
+                const dayNames = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+                topCombosText = combos.slice(0, 3).map(c => `${dayNames[c.d]} • ${c.p} • ${c.c}`).join('; ');
             }
         } catch (e) {
             logger.error(`${fnTag} Erro ao processar DayPCOStats:`, e);
@@ -163,6 +171,7 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             .replace('{{FOLLOWER_GROWTH_LAST30}}', followerGrowthText)
             .replace('{{EMERGING_FPC_COMBOS}}', emergingCombos)
             .replace('{{HOT_TIMES_LAST_ANALYSIS}}', hotTimeText)
+            .replace('{{TOP_DAY_PCO_COMBOS}}', topCombosText)
             .replace('{{TOP_FPC_TRENDS}}', topTrendText)
             .replace('{{TOP_CATEGORY_RANKINGS}}', catText)
             .replace('{{AUDIENCE_TOP_SEGMENT}}', demoText);
@@ -176,6 +185,7 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             .replace('{{FOLLOWER_GROWTH_LAST30}}', 'N/A')
             .replace('{{EMERGING_FPC_COMBOS}}', 'N/A')
             .replace('{{HOT_TIMES_LAST_ANALYSIS}}', 'N/A')
+            .replace('{{TOP_DAY_PCO_COMBOS}}', 'N/A')
             .replace('{{TOP_FPC_TRENDS}}', 'N/A')
             .replace('{{TOP_CATEGORY_RANKINGS}}', 'N/A')
             .replace('{{AUDIENCE_TOP_SEGMENT}}', 'N/A');
