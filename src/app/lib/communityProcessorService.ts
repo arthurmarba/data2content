@@ -1,8 +1,8 @@
-// @/app/lib/communityProcessorService.ts - v1.1.3 (Corrige importações ausentes)
-// - CORRIGIDO: Adicionadas as importações de VALID_TONES, VALID_REFERENCES e seus tipos e defaults correspondentes.
-// - CORRIGIDO: `mapToEnum` agora usa o primeiro elemento dos arrays de classificação (format, proposal, context).
-// - CORRIGIDO: Condição para `reelAvgWatchTimeSec` agora usa `includes('Reel')` no array de formato.
-// - Baseado na v1.1.1.
+// @/app/lib/communityProcessorService.ts - v1.2.0
+// - Mapeia corretamente os IDs de classificação das métricas para os valores
+//   dos enums usados em CommunityInspirations.
+// - Mantém as correções anteriores de importações ausentes e tratamento de arrays.
+// - Baseado na v1.1.3.
 
 import { logger } from '@/app/lib/logger';
 import { IMetric, IMetricStats } from '@/app/models/Metric'; // Assegure que IMetric.format usa FormatType
@@ -48,14 +48,88 @@ const MIN_STATS_FOR_HIGHLIGHTS = {
     views: 100,
 };
 
+// Mapas para converter os IDs usados nas métricas para os rótulos
+// correspondentes dos enums de CommunityInspirations.
+const FORMAT_ID_MAP: Record<string, FormatType> = {
+    reel: 'Reel',
+    photo: 'Foto',
+    carousel: 'Carrossel',
+    story: 'Story',
+    live: 'Live',
+    long_video: 'Vídeo Longo',
+};
+
+const PROPOSAL_ID_MAP: Record<string, ProposalType> = {
+    tips: 'Dicas',
+    review: 'Review',
+    trend: 'Trend',
+    humor_scene: 'Humor/Cena',
+    clip: 'Clipe',
+    message_motivational: 'Mensagem/Motivacional',
+    positioning_authority: 'Posicionamento/Autoridade',
+    call_to_action: 'Chamada',
+    react: 'React',
+    participation: 'Participação',
+    publi_divulgation: 'Publi/Divulgação',
+    lifestyle: 'LifeStyle',
+    behind_the_scenes: 'Bastidores',
+    news: 'Notícia',
+    announcement: 'Anúncio',
+    comparison: 'Comparação',
+    giveaway: 'Sorteio/Giveaway',
+    'q&a': 'Perguntas e Respostas',
+    unboxing: 'Unboxing',
+};
+
+const CONTEXT_ID_MAP: Record<string, ContextType> = {
+    fashion_style: 'Moda/Estilo',
+    beauty_personal_care: 'Beleza/Cuidados Pessoais',
+    fitness_sports: 'Fitness/Esporte',
+    food_culinary: 'Alimentação/Culinária',
+    health_wellness: 'Saúde/Bem-Estar',
+    lifestyle_and_wellbeing: 'Estilo de Vida e Bem-Estar',
+    relationships_family: 'Relacionamentos/Família',
+    parenting: 'Parentalidade',
+    career_work: 'Carreira/Trabalho',
+    finance: 'Finanças',
+    personal_development: 'Desenvolvimento Pessoal',
+    education: 'Educação/Estudos',
+    personal_and_professional: 'Pessoal e Profissional',
+    travel_tourism: 'Viagem/Turismo',
+    home_decor_diy: 'Casa/Decor/DIY',
+    technology_digital: 'Tecnologia/Digital',
+    art_culture: 'Arte/Cultura',
+    media_entertainment: 'Mídia/Entretenimento',
+    automotive: 'Automotivo',
+    hobbies_and_interests: 'Hobbies e Interesses',
+    gaming: 'Games/Jogos',
+    pets: 'Animais de Estimação',
+    nature_animals: 'Natureza/Animais Selvagens',
+    science_and_knowledge: 'Ciência e Conhecimento',
+    science_communication: 'Divulgação Científica',
+    history: 'História',
+    curiosities: 'Curiosidades',
+    social_and_events: 'Social e Eventos',
+    events_celebrations: 'Eventos/Celebrações',
+    social_causes_religion: 'Social/Causas/Religião',
+    geography: 'Viagem/Turismo',
+    city: 'Viagem/Turismo',
+    country: 'Viagem/Turismo',
+    general: 'Geral',
+};
+
 /**
  * Helper para mapear uma string de entrada para um valor de enum válido, com fallback.
  */
 function mapToEnum<T extends string>(
     value: string | undefined | null, // Aceita string de IMetric.format que pode não ser do Enum ainda
     validEnumValues: readonly T[],
-    defaultValue: T
+    defaultValue: T,
+    mapping?: Record<string, T>
 ): T {
+    if (value && mapping && mapping[value]) {
+        return mapping[value];
+    }
     if (value && validEnumValues.includes(value as T)) {
         return value as T;
     }
@@ -241,9 +315,9 @@ export async function processMetricForCommunity(
     // Mapeamento para os enums com fallbacks
     // Usa os valores DEFAULT_..._ENUM do arquivo de constantes, que são membros dos enums.
     // CORREÇÃO: As propriedades format, proposal e context agora são arrays. Usamos o primeiro elemento [0] para o mapeamento.
-    const mappedFormat = mapToEnum(metric.format?.[0], VALID_FORMATS, DEFAULT_FORMAT_ENUM);
-    const mappedProposal = mapToEnum(metric.proposal?.[0], VALID_PROPOSALS, DEFAULT_PROPOSAL_ENUM);
-    const mappedContext = mapToEnum(metric.context?.[0], VALID_CONTEXTS, DEFAULT_CONTEXT_ENUM);
+    const mappedFormat = mapToEnum(metric.format?.[0], VALID_FORMATS, DEFAULT_FORMAT_ENUM, FORMAT_ID_MAP);
+    const mappedProposal = mapToEnum(metric.proposal?.[0], VALID_PROPOSALS, DEFAULT_PROPOSAL_ENUM, PROPOSAL_ID_MAP);
+    const mappedContext = mapToEnum(metric.context?.[0], VALID_CONTEXTS, DEFAULT_CONTEXT_ENUM, CONTEXT_ID_MAP);
     const mappedTone = mapToEnum(metric.tone?.[0], VALID_TONES, DEFAULT_TONE_ENUM);
     const mappedReference = mapToEnum(metric.references?.[0], VALID_REFERENCES, DEFAULT_REFERENCE_ENUM);
 
