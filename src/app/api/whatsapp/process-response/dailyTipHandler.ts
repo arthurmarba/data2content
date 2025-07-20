@@ -29,7 +29,7 @@ import {
     FallbackInsightType
 } from '@/app/lib/constants';
 import { callOpenAIForQuestion } from '@/app/lib/aiService';
-import { subDays } from 'date-fns';
+import { subDays, startOfDay } from 'date-fns';
 
 import * as fallbackInsightService from '@/app/lib/fallbackInsightService';
 
@@ -271,10 +271,29 @@ async function buildInspirationFilters(
 
 async function fetchInspirationSnippet(
     userId: string,
-    filters: CommunityInspirationFilters
+    filters: CommunityInspirationFilters,
+    userOrExcludeIds?: IUser | string[]
 ): Promise<{ text: string; inspirationId?: string }> {
     try {
-        const inspirations = await dataService.getInspirations(filters, 1);
+        let excludeIds: string[] = [];
+        if (Array.isArray(userOrExcludeIds)) {
+            excludeIds = userOrExcludeIds;
+        } else if (userOrExcludeIds) {
+            const lastShown = userOrExcludeIds.lastCommunityInspirationShown_Daily;
+            if (
+                lastShown?.date &&
+                lastShown.inspirationIds &&
+                lastShown.inspirationIds.length > 0
+            ) {
+                const today = startOfDay(new Date());
+                const lastShownDate = startOfDay(new Date(lastShown.date));
+                if (today.getTime() === lastShownDate.getTime()) {
+                    excludeIds = lastShown.inspirationIds.map(id => id.toString());
+                }
+            }
+        }
+
+        const inspirations = await dataService.getInspirations(filters, 1, excludeIds);
         const insp = inspirations?.[0];
         if (insp) {
             await dataService.recordDailyInspirationShown(userId, [insp._id.toString()]);
@@ -375,7 +394,7 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
             }
 
             const inspirationFilters = await buildInspirationFilters(userId, undefined, true);
-            const inspiration = await fetchInspirationSnippet(userId, inspirationFilters);
+            const inspiration = await fetchInspirationSnippet(userId, inspirationFilters, userForRadar!);
             finalDefaultMessageToSend += inspiration.text;
 
             let whatsappMessageIdFallback: string | undefined;
@@ -526,7 +545,7 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
         // antes de tentar acessar propriedades que podem não existir.
         const details = detectedEvent.detailsForLog;
         const inspirationFilters = await buildInspirationFilters(userId, details);
-        const inspiration = await fetchInspirationSnippet(userId, inspirationFilters);
+        const inspiration = await fetchInspirationSnippet(userId, inspirationFilters, userForRadar!);
         fullAlertMessageToUser += inspiration.text;
 
         fullAlertMessageToUser = appendInstagramLinkIfMissing(fullAlertMessageToUser, detectedEvent.detailsForLog);
