@@ -229,7 +229,13 @@ async function buildInspirationFilters(
             filters.format = details.formatName;
         }
         if (typeof details.proposal === 'string') filters.proposal = details.proposal;
+        if (!filters.proposal && typeof details.lastPostProposal === 'string') {
+            filters.proposal = details.lastPostProposal as any;
+        }
         if (typeof details.context === 'string') filters.context = details.context;
+        if (!filters.context && typeof details.lastPostContext === 'string') {
+            filters.context = details.lastPostContext as any;
+        }
         if (typeof details.tone === 'string') filters.tone = details.tone;
         if (typeof details.reference === 'string') filters.reference = details.reference;
         if (typeof details.isPositiveAlert === 'boolean') {

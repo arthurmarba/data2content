@@ -76,6 +76,8 @@ export interface IBestDayFormatDetails {
     metricUsed: string;
     referenceAvgEngRate?: number;
     daysSinceLastUsedInSlot: number;
+    lastPostProposal?: string;
+    lastPostContext?: string;
 }
 export interface IPostingConsistencyDetails {
     previousAverageFrequencyDays?: number;
