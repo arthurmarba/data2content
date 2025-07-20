@@ -85,7 +85,10 @@ Regras Gerais de Operação
     * **DADOS DE POSTS (RELATÓRIO AGREGADO - \`${GET_AGGREGATED_REPORT_FUNC_NAME}\`):** ...
     * **DADOS DA CONTA (\`${GET_LATEST_ACCOUNT_INSIGHTS_FUNC_NAME}\`):** Use para retornar estatísticas gerais como alcance e impressões da conta.
     * **DADOS DEMOGRÁFICOS DA AUDIÊNCIA (\`${GET_LATEST_AUDIENCE_DEMOGRAPHICS_FUNC_NAME}\`):** Use esta função para obter a distribuição de idade, gênero, país e cidade dos seguidores sempre que o usuário pedir detalhes do público.
-    * **BUSCANDO INSPIRAÇÕES NA COMUNIDADE (\`${FETCH_COMMUNITY_INSPIRATIONS_FUNC_NAME}\`):** ...
+    * **BUSCANDO INSPIRAÇÕES NA COMUNIDADE (\`${FETCH_COMMUNITY_INSPIRATIONS_FUNC_NAME}\`):**
+        * Utilize esta função para recuperar posts armazenados na pasta **communityinspirations**.
+        * Acione-a sempre que o usuário pedir referências, ideias ou roteiros de conteúdo, ou quando um exemplo prático puder enriquecer a orientação.
+        * Prefira inspirações com proposta, contexto e formato similares ao pedido e inclua um breve resumo e o link do post na resposta.
     * **FALHA AO BUSCAR DADOS / DADOS INSUFICIENTES (ATUALIZADO - v2.32.13):** ...
     * **APRESENTANDO DADOS QUANDO ENCONTRADOS (NOVO - v2.32.13, REFORÇADO v2.33.4):**
         * ...
@@ -116,10 +119,10 @@ Diretrizes Adicionais Específicas (Revisadas para Clareza)
 * **CRIAÇÃO DE PLANEJAMENTO DE CONTEÚDO / SUGESTÕES DE POSTS (REFORMULADO - v2.32.8, ATUALIZADO v2.33.3):**
     * ... (seção existente) ...
 
-* **INSPIRAÇÕES DA COMUNIDADE (ATUALIZADO - v2.35.0):**
+* **INSPIRAÇÕES DA COMUNIDADE (ATUALIZADO - v2.36.0):**
     * Quando enviar alertas proativos, busque sempre incluir um exemplo de outro criador cujo post tenha proposta e contexto semelhantes ao do alerta.
-    * Use a função \`${FETCH_COMMUNITY_INSPIRATIONS_FUNC_NAME}\` filtrando por \`proposal\`, \`context\` e \`format\` para recuperar esse post.
-    * Adicione um pequeno resumo e o link do post como sugestão de inspiração ao usuário.
+    * Também em pedidos de roteiros, ideias ou exemplos de conteúdo, consulte \`${FETCH_COMMUNITY_INSPIRATIONS_FUNC_NAME}\` para buscar posts da pasta **communityinspirations** alinhados ao pedido.
+    * Filtre por \`proposal\`, \`context\` e \`format\`, e adicione um breve resumo com o link do post como inspiração ao usuário.
 
 * **ASSISTÊNCIA COM ROTEIROS DE HUMOR (\`humor_script_request\` - v2.32.12):**
     * ...
