@@ -134,20 +134,65 @@ export async function askLLMWithEnrichedContext(
         const stats = reportRes?.reportData?.overallStats || {};
         const avgReach = typeof stats.avgReach === 'number' ? Math.round(stats.avgReach) : 'N/A';
         const avgShares = typeof stats.avgShares === 'number' ? Math.round(stats.avgShares) : 'N/A';
+        const avgEngRate = typeof stats.avgEngagementRate === 'number' ? (stats.avgEngagementRate * 100).toFixed(1) : 'N/A';
 
         const trendRes: any = await functionExecutors.getUserTrend({ trendType: 'reach_engagement', timePeriod: 'last_30_days', granularity: 'weekly' }, user);
         const trendSummary = trendRes?.insightSummary || 'N/A';
 
+        const followerGrowth = reportRes?.reportData?.historicalComparisons?.followerChangeShortTerm;
+        const followerGrowthText = typeof followerGrowth === 'number' ? String(followerGrowth) : 'N/A';
+
+        const fpcStats = reportRes?.reportData?.detailedContentStats || [];
+        const emergingCombosArr = fpcStats
+            .filter((s: any) => typeof s.shareDiffPercentage === 'number' && s.shareDiffPercentage > 0)
+            .sort((a: any, b: any) => (b.shareDiffPercentage ?? 0) - (a.shareDiffPercentage ?? 0))
+            .slice(0, 3)
+            .map((s: any) => `${s._id.format}/${s._id.proposal}/${s._id.context}`);
+        const emergingCombos = emergingCombosArr.length > 0 ? emergingCombosArr.join(', ') : 'N/A';
+
+        let hotTimeText = 'N/A';
+        try {
+            const dayRes: any = await functionExecutors.getDayPCOStats({}, user);
+            const data = dayRes?.dayPCOStats || {};
+            let maxVal = 0;
+            let best: { d: number; p: string; c: string } | null = null;
+            for (const [day, propObj] of Object.entries(data)) {
+                for (const [prop, ctxObj] of Object.entries(propObj as any)) {
+                    for (const [ctx, val] of Object.entries(ctxObj as any)) {
+                        const avg = (val as any).avgTotalInteractions ?? 0;
+                        if (avg > maxVal) {
+                            maxVal = avg;
+                            best = { d: Number(day), p: prop, c: ctx };
+                        }
+                    }
+                }
+            }
+            if (best) {
+                const dayNames = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+                hotTimeText = `${dayNames[best.d]} • ${best.p} • ${best.c}`;
+            }
+        } catch (e) {
+            logger.error(`${fnTag} Erro ao processar DayPCOStats:`, e);
+        }
+
         systemPrompt = systemPrompt
             .replace('{{AVG_REACH_LAST30}}', String(avgReach))
             .replace('{{AVG_SHARES_LAST30}}', String(avgShares))
-            .replace('{{TREND_SUMMARY_LAST30}}', String(trendSummary));
+            .replace('{{TREND_SUMMARY_LAST30}}', String(trendSummary))
+            .replace('{{AVG_ENG_RATE_LAST30}}', String(avgEngRate))
+            .replace('{{FOLLOWER_GROWTH_LAST30}}', followerGrowthText)
+            .replace('{{EMERGING_FPC_COMBOS}}', emergingCombos)
+            .replace('{{HOT_TIMES_LAST_ANALYSIS}}', hotTimeText);
     } catch (metricErr) {
         logger.error(`${fnTag} Erro ao obter métricas para systemPrompt:`, metricErr);
         systemPrompt = systemPrompt
             .replace('{{AVG_REACH_LAST30}}', 'N/A')
             .replace('{{AVG_SHARES_LAST30}}', 'N/A')
-            .replace('{{TREND_SUMMARY_LAST30}}', 'N/A');
+            .replace('{{TREND_SUMMARY_LAST30}}', 'N/A')
+            .replace('{{AVG_ENG_RATE_LAST30}}', 'N/A')
+            .replace('{{FOLLOWER_GROWTH_LAST30}}', 'N/A')
+            .replace('{{EMERGING_FPC_COMBOS}}', 'N/A')
+            .replace('{{HOT_TIMES_LAST_ANALYSIS}}', 'N/A');
     }
 
     const initialMsgs: ChatCompletionMessageParam[] = [
