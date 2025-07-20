@@ -24,6 +24,9 @@ import { functionValidators } from './aiFunctionSchemas.zod';
 import { DeterminedIntent } from './intentService';
 // Importando EnrichedAIContext do local correto
 import { EnrichedAIContext } from '@/app/api/whatsapp/process-response/types';
+import aggregateUserPerformanceHighlights from '@/utils/aggregateUserPerformanceHighlights';
+import aggregateUserDayPerformance from '@/utils/aggregateUserDayPerformance';
+import { aggregateUserTimePerformance } from '@/utils/aggregateUserTimePerformance';
 
 
 // Configuração do cliente OpenAI e constantes
@@ -154,6 +157,48 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             logger.error(`${fnTag} Erro ao obter demographics:`, e);
         }
 
+        let topFormatText = 'N/A';
+        let lowFormatText = 'N/A';
+        let bestDayText = 'N/A';
+        let perfSummaryText = 'N/A';
+        try {
+            const [perfHighlights, dayPerf, timePerf] = await Promise.all([
+                aggregateUserPerformanceHighlights(user._id, 30, 'stats.total_interactions'),
+                aggregateUserDayPerformance(user._id, 30, 'stats.total_interactions'),
+                aggregateUserTimePerformance(user._id, 30, 'stats.total_interactions'),
+            ]);
+
+            const formatVal = (v: number) => (v >= 1000 ? `${(v/1000).toFixed(1)}K` : Math.round(v).toString());
+
+            if (perfHighlights?.topFormat) {
+                topFormatText = `${perfHighlights.topFormat.name} (${formatVal(perfHighlights.topFormat.average)})`;
+            }
+            if (perfHighlights?.lowFormat) {
+                lowFormatText = `${perfHighlights.lowFormat.name} (${formatVal(perfHighlights.lowFormat.average)})`;
+            }
+            if (dayPerf?.bestDays?.length) {
+                const dayName = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'][dayPerf.bestDays[0].dayOfWeek - 1];
+                bestDayText = dayName;
+            }
+            if (timePerf?.bestSlots?.length) {
+                const slot = timePerf.bestSlots[0];
+                const slotDay = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'][slot.dayOfWeek - 1];
+                hotTimeText = `${slotDay} às ${slot.hour}h`;
+            }
+
+            const parts: string[] = [];
+            if (perfHighlights?.topFormat) parts.push(`Formato em alta: ${perfHighlights.topFormat.name}.`);
+            if (bestDayText !== 'N/A') parts.push(`Melhor dia: ${bestDayText}.`);
+            if (timePerf?.bestSlots?.length) {
+                const slot = timePerf.bestSlots[0];
+                const slotDay = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'][slot.dayOfWeek - 1];
+                parts.push(`Horário mais quente: ${slotDay} às ${slot.hour}h.`);
+            }
+            if (parts.length) perfSummaryText = parts.join(' ');
+        } catch (e) {
+            logger.error(`${fnTag} Erro ao obter resumo de performance:`, e);
+        }
+
         systemPrompt = systemPrompt
             .replace('{{AVG_REACH_LAST30}}', String(avgReach))
             .replace('{{AVG_SHARES_LAST30}}', String(avgShares))
@@ -165,7 +210,11 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             .replace('{{TOP_DAY_PCO_COMBOS}}', topDayCombosText)
             .replace('{{TOP_FPC_TRENDS}}', topTrendText)
             .replace('{{TOP_CATEGORY_RANKINGS}}', catText)
-            .replace('{{AUDIENCE_TOP_SEGMENT}}', demoText);
+            .replace('{{AUDIENCE_TOP_SEGMENT}}', demoText)
+            .replace('{{TOP_PERFORMING_FORMAT}}', topFormatText)
+            .replace('{{LOW_PERFORMING_FORMAT}}', lowFormatText)
+            .replace('{{BEST_DAY}}', bestDayText)
+            .replace('{{PERFORMANCE_INSIGHT_SUMMARY}}', perfSummaryText);
     } catch (metricErr) {
         logger.error(`${fnTag} Erro ao obter métricas para systemPrompt:`, metricErr);
         systemPrompt = systemPrompt
@@ -179,7 +228,11 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             .replace('{{TOP_DAY_PCO_COMBOS}}', 'N/A')
             .replace('{{TOP_FPC_TRENDS}}', 'N/A')
             .replace('{{TOP_CATEGORY_RANKINGS}}', 'N/A')
-            .replace('{{AUDIENCE_TOP_SEGMENT}}', 'N/A');
+            .replace('{{AUDIENCE_TOP_SEGMENT}}', 'N/A')
+            .replace('{{TOP_PERFORMING_FORMAT}}', 'N/A')
+            .replace('{{LOW_PERFORMING_FORMAT}}', 'N/A')
+            .replace('{{BEST_DAY}}', 'N/A')
+            .replace('{{PERFORMANCE_INSIGHT_SUMMARY}}', 'N/A');
     }
 
     return systemPrompt;
