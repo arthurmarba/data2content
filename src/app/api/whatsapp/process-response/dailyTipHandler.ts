@@ -1,8 +1,12 @@
 // src/app/api/whatsapp/process-response/dailyTipHandler.ts
-// Versão: v1.6.0
-// - Adiciona seleção automática de inspirações da comunidade com base nos detalhes do alerta ou
-//   no último formato usado em caso de fallback.
-// - Mantém verificações de segurança para os campos recebidos.
+// Versão: v1.6.5
+// - CORREÇÃO 5: Adiciona um type guard para 'reference' para resolver o erro de tipo mais recente.
+// - CORREÇÃO 4: Ajusta o tipo 'ToneType' para corresponder aos valores reais esperados.
+// - NOTA: As listas de tipos 'ProposalType' e 'ContextType' podem precisar ser completadas pelo usuário.
+// - CORREÇÃO 3: Ajusta o tipo 'ContextType'.
+// - CORREÇÃO 2: Ajusta o tipo 'ProposalType'.
+// - CORREÇÃO: Adiciona validações de tipo (type guards) para garantir a segurança das atribuições.
+// - REMOÇÃO: Remove o uso de 'as any' para aumentar a segurança de tipos.
 
 import { NextResponse } from 'next/server';
 import { logger } from '@/app/lib/logger';
@@ -33,7 +37,93 @@ import { subDays, startOfDay } from 'date-fns';
 
 import * as fallbackInsightService from '@/app/lib/fallbackInsightService';
 
-const HANDLER_TAG_BASE = '[DailyTipHandler v1.5.6]'; // Tag da versão atualizada
+// ===================================================================================
+// INÍCIO: Definições de Tipos e Validadores (Type Guards) para Correção
+// ===================================================================================
+
+// Definindo os tipos literais para os filtros, para garantir a consistência dos dados.
+type FormatType = "Reel" | "Foto" | "Carrossel" | "Story" | "Live" | "Vídeo Longo" | "Outro Formato" | "Desconhecido";
+
+// ATENÇÃO: O tipo 'ProposalType' foi atualizado com base na mensagem de erro.
+// A mensagem indicava "... 8 more ...", o que significa que esta lista pode estar INCOMPLETA.
+// Por favor, verifique a definição original em 'dataService' e adicione os valores que faltam.
+type ProposalType = 
+    | "Anúncio" | "Bastidores" | "Chamada" | "Clipe" | "Comparação" | "Sorteio/Giveaway" 
+    | "Humor/Cena" | "LifeStyle" | "Mensagem/Motivacional" | "Notícia" | "Participação" 
+    | "Posicionamento/Autoridade";
+    // | "VALOR_FALTANTE_1" | ... (adicione os 8 tipos restantes aqui)
+
+// ATENÇÃO: O tipo 'ContextType' foi atualizado com base na nova mensagem de erro.
+// A mensagem indicava "... 27 more ...", o que significa que esta lista pode estar INCOMPLETA.
+// Por favor, verifique a definição original em 'dataService' e adicione os valores que faltam.
+type ContextType = 
+    | "Estilo de Vida e Bem-Estar" | "Moda/Estilo" | "Beleza/Cuidados Pessoais" | "Fitness/Esporte"
+    | "Alimentação/Culinária" | "Saúde/Bem-Estar" | "Pessoal e Profissional";
+    // | "VALOR_FALTANTE_1" | ... (adicione os 27 tipos restantes aqui)
+
+type ToneType = "humorous" | "inspirational" | "educational" | "critical" | "promotional" | "neutral";
+
+// CORREÇÃO: Novo tipo para 'reference' baseado na mensagem de erro.
+type ReferenceType = "country" | "city" | "pop_culture" | "pop_culture_movies_series" | "pop_culture_books" | "pop_culture_games" | "pop_culture_music" | "pop_culture_internet" | "people_and_groups" | "regional_stereotypes" | "professions" | "geography";
+
+type PerformanceHighlightType = 'excelente_retencao_em_reels' | 'viralizou_nos_compartilhamentos' | 'desempenho_padrao' | 'baixo_volume_de_dados';
+
+// Arrays de valores válidos para usar nas funções de verificação (type guards).
+const validFormats: FormatType[] = ["Reel", "Foto", "Carrossel", "Story", "Live", "Vídeo Longo", "Outro Formato", "Desconhecido"];
+
+// ATENÇÃO: Complete esta lista com os mesmos valores que faltam no 'ProposalType' acima.
+const validProposals: ProposalType[] = [
+    "Anúncio", "Bastidores", "Chamada", "Clipe", "Comparação", "Sorteio/Giveaway", 
+    "Humor/Cena", "LifeStyle", "Mensagem/Motivacional", "Notícia", "Participação", 
+    "Posicionamento/Autoridade"
+];
+
+// ATENÇÃO: Complete esta lista com os mesmos valores que faltam no 'ContextType' acima.
+const validContexts: ContextType[] = [
+    "Estilo de Vida e Bem-Estar", "Moda/Estilo", "Beleza/Cuidados Pessoais", "Fitness/Esporte",
+    "Alimentação/Culinária", "Saúde/Bem-Estar", "Pessoal e Profissional"
+];
+
+const validTones: ToneType[] = ["humorous", "inspirational", "educational", "critical", "promotional", "neutral"];
+
+// CORREÇÃO: Nova lista de referências válidas.
+const validReferences: ReferenceType[] = ["country", "city", "pop_culture", "pop_culture_movies_series", "pop_culture_books", "pop_culture_games", "pop_culture_music", "pop_culture_internet", "people_and_groups", "regional_stereotypes", "professions", "geography"];
+
+const validPerformanceHighlights: PerformanceHighlightType[] = ['excelente_retencao_em_reels', 'viralizou_nos_compartilhamentos', 'desempenho_padrao', 'baixo_volume_de_dados'];
+
+// Funções "Type Guard" que verificam se um valor pertence ao tipo específico em tempo de execução.
+function isFormatType(value: any): value is FormatType {
+    return validFormats.includes(value);
+}
+
+function isProposalType(value: any): value is ProposalType {
+    return validProposals.includes(value as ProposalType);
+}
+
+function isContextType(value: any): value is ContextType {
+    return validContexts.includes(value as ContextType);
+}
+
+function isToneType(value: any): value is ToneType {
+    return validTones.includes(value as ToneType);
+}
+
+// CORREÇÃO: Novo type guard para 'reference'.
+function isReferenceType(value: any): value is ReferenceType {
+    return validReferences.includes(value as ReferenceType);
+}
+
+function isPerformanceHighlightType(value: any): value is PerformanceHighlightType {
+    return validPerformanceHighlights.includes(value);
+}
+
+
+// ===================================================================================
+// FIM: Definições de Tipos e Validadores
+// ===================================================================================
+
+
+const HANDLER_TAG_BASE = '[DailyTipHandler v1.6.5]'; // Tag da versão atualizada
 
 const PROACTIVE_ALERT_TEMPLATE_NAME = process.env.PROACTIVE_ALERT_TEMPLATE_NAME;
 const GENERIC_ERROR_TEMPLATE_NAME = process.env.GENERIC_ERROR_TEMPLATE_NAME;
@@ -224,20 +314,31 @@ async function buildInspirationFilters(
     const filters: CommunityInspirationFilters = {};
 
     if (details) {
-        if (typeof details.format === 'string') filters.format = details.format;
-        if (typeof details.formatName === 'string' && !filters.format) {
+        if (isFormatType(details.format)) {
+            filters.format = details.format;
+        }
+        if (!filters.format && isFormatType(details.formatName)) {
             filters.format = details.formatName;
         }
-        if (typeof details.proposal === 'string') filters.proposal = details.proposal;
-        if (!filters.proposal && typeof details.lastPostProposal === 'string') {
-            filters.proposal = details.lastPostProposal as any;
+        if (isProposalType(details.proposal)) {
+            filters.proposal = details.proposal;
         }
-        if (typeof details.context === 'string') filters.context = details.context;
-        if (!filters.context && typeof details.lastPostContext === 'string') {
-            filters.context = details.lastPostContext as any;
+        if (!filters.proposal && isProposalType(details.lastPostProposal)) {
+            filters.proposal = details.lastPostProposal;
         }
-        if (typeof details.tone === 'string') filters.tone = details.tone;
-        if (typeof details.reference === 'string') filters.reference = details.reference;
+        if (isContextType(details.context)) {
+            filters.context = details.context;
+        }
+        if (!filters.context && isContextType(details.lastPostContext)) {
+            filters.context = details.lastPostContext;
+        }
+        if (isToneType(details.tone)) {
+            filters.tone = details.tone;
+        }
+        // CORREÇÃO: A lógica agora usa o type guard 'isReferenceType'.
+        if (isReferenceType(details.reference)) {
+            filters.reference = details.reference;
+        }
         if (typeof details.isPositiveAlert === 'boolean') {
             if (details.isPositiveAlert) {
                 filters.performanceHighlights_Qualitative_INCLUDES_ANY = ['excelente_retencao_em_reels', 'viralizou_nos_compartilhamentos'];
@@ -257,14 +358,14 @@ async function buildInspirationFilters(
                     return dB - dA;
                 });
                 const lastPost = posts[0];
-                if (!filters.format && typeof lastPost?.format === 'string') {
-                    filters.format = lastPost.format as any;
+                if (!filters.format && isFormatType(lastPost?.format)) {
+                    filters.format = lastPost.format;
                 }
-                if (!filters.proposal && typeof lastPost?.proposal === 'string') {
-                    filters.proposal = lastPost.proposal as any;
+                if (!filters.proposal && isProposalType(lastPost?.proposal)) {
+                    filters.proposal = lastPost.proposal;
                 }
-                if (!filters.context && typeof lastPost?.context === 'string') {
-                    filters.context = lastPost.context as any;
+                if (!filters.context && isContextType(lastPost?.context)) {
+                    filters.context = lastPost.context;
                 }
             }
         } catch (e) {
@@ -277,10 +378,13 @@ async function buildInspirationFilters(
             const prefs = user.userPreferences;
             if (prefs) {
                 if (!filters.format && Array.isArray(prefs.preferredFormats) && prefs.preferredFormats.length > 0) {
-                    filters.format = prefs.preferredFormats[0] as any;
+                    const preferredFormat = prefs.preferredFormats[0];
+                    if (isFormatType(preferredFormat)) {
+                        filters.format = preferredFormat;
+                    }
                 }
-                if (!filters.tone && typeof prefs.preferredAiTone === 'string') {
-                    filters.tone = prefs.preferredAiTone as any;
+                if (!filters.tone && isToneType(prefs.preferredAiTone)) {
+                    filters.tone = prefs.preferredAiTone;
                 }
             }
         } catch (e) {
@@ -290,6 +394,7 @@ async function buildInspirationFilters(
 
     return filters;
 }
+
 
 async function fetchInspirationSnippet(
     userId: string,
@@ -331,7 +436,7 @@ async function fetchInspirationSnippet(
 }
 
 export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextResponse> {
-    console.log("!!!!!!!!!! EXECUTANDO handleDailyTip (v1.5.6) !!!!!!!!!! USER ID:", payload.userId, new Date().toISOString());
+    console.log("!!!!!!!!!! EXECUTANDO handleDailyTip (v1.6.5) !!!!!!!!!! USER ID:", payload.userId, new Date().toISOString());
     
     const { userId } = payload;
     const handlerTAG = `${HANDLER_TAG_BASE} User ${userId}:`;
@@ -563,8 +668,6 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
             fullAlertMessageToUser += `\n\n${instigatingQuestionForAlert}`;
         }
 
-        // CORREÇÃO: Adicionada verificação de tipo para os detalhes do evento
-        // antes de tentar acessar propriedades que podem não existir.
         const details = detectedEvent.detailsForLog;
         const inspirationFilters = await buildInspirationFilters(userId, details);
         const inspiration = await fetchInspirationSnippet(userId, inspirationFilters, userForRadar!);
