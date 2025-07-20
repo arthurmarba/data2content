@@ -28,7 +28,7 @@
     ],
     "forceConsistentCasingInFileNames": true,
     "typeRoots": ["./types", "./node_modules/@types"],
-    "types": ["next"],
+    "types": ["next", "jest"],
     "strictNullChecks": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitAny": true,
