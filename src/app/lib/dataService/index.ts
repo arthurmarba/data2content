@@ -49,7 +49,12 @@ export * from './demographicService';
 // --- (NOVO) Funções relacionadas com Rankings de Categorias ---
 // Adicionando a exportação da nossa nova função para torná-la visível.
 export {
-    fetchTopCategories
+    fetchTopCategories,
+    fetchAvgEngagementPerPostCreators,
+    fetchAvgReachPerPostCreators,
+    fetchEngagementVariationCreators,
+    fetchPerformanceConsistencyCreators,
+    fetchReachPerFollowerCreators
 } from './marketAnalysis/rankingsService';
 // -------------------------------------------------------------
 
