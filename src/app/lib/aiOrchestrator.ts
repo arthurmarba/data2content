@@ -48,6 +48,152 @@ interface AskLLMResult {
     historyPromise: Promise<ChatCompletionMessageParam[]>;
 }
 
+/**
+ * Preenche o system prompt com métricas e estatísticas recentes.
+ * Exportada para facilitar testes unitários.
+ */
+export async function populateSystemPrompt(user: IUser, userName: string): Promise<string> {
+    const fnTag = '[populateSystemPrompt]';
+    let systemPrompt = getSystemPrompt(userName || user.name || 'usuário');
+
+    try {
+        const reportRes: any = await functionExecutors.getAggregatedReport({ analysisPeriod: 30 }, user);
+        const stats = reportRes?.reportData?.overallStats || {};
+        const avgReach = typeof stats.avgReach === 'number' ? Math.round(stats.avgReach) : 'N/A';
+        const avgShares = typeof stats.avgShares === 'number' ? Math.round(stats.avgShares) : 'N/A';
+        const avgEngRate = typeof stats.avgEngagementRate === 'number' ? (stats.avgEngagementRate * 100).toFixed(1) : 'N/A';
+
+        const trendRes: any = await functionExecutors.getUserTrend({ trendType: 'reach_engagement', timePeriod: 'last_30_days', granularity: 'weekly' }, user);
+        const trendSummary = trendRes?.insightSummary || 'N/A';
+
+        const followerGrowth = reportRes?.reportData?.historicalComparisons?.followerChangeShortTerm;
+        const followerGrowthText = typeof followerGrowth === 'number' ? String(followerGrowth) : 'N/A';
+
+        const fpcStats = reportRes?.reportData?.detailedContentStats || [];
+        const emergingCombosArr = fpcStats
+            .filter((s: any) => typeof s.shareDiffPercentage === 'number' && s.shareDiffPercentage > 0)
+            .sort((a: any, b: any) => (b.shareDiffPercentage ?? 0) - (a.shareDiffPercentage ?? 0))
+            .slice(0, 3)
+            .map((s: any) => `${s._id.format}/${s._id.proposal}/${s._id.context}`);
+        const emergingCombos = emergingCombosArr.length > 0 ? emergingCombosArr.join(', ') : 'N/A';
+
+        let topTrendText = 'N/A';
+        try {
+            const trendPromises = fpcStats.slice(0, 5).map(async (s: any) => {
+                const history: any = await functionExecutors.getFpcTrendHistory({
+                    format: s._id.format,
+                    proposal: s._id.proposal,
+                    context: s._id.context,
+                    timePeriod: 'last_90_days',
+                    granularity: 'weekly'
+                }, user);
+                const series = history?.chartData || [];
+                const valid = series.filter((p: any) => typeof p.avgInteractions === 'number');
+                if (valid.length < 2) return null;
+                const first = valid[0].avgInteractions as number;
+                const last = valid[valid.length - 1].avgInteractions as number;
+                if (first === 0) return null;
+                const growth = ((last - first) / first) * 100;
+                return { combo: `${s._id.format}/${s._id.proposal}/${s._id.context}`, growth };
+            });
+            const trendData = (await Promise.all(trendPromises)).filter(Boolean) as { combo: string; growth: number }[];
+            trendData.sort((a, b) => b.growth - a.growth);
+            const top = trendData.slice(0, 3).map(d => d.combo);
+            if (top.length) topTrendText = top.join(', ');
+        } catch (trendErr) {
+            logger.error(`${fnTag} Erro ao processar FPC trend history:`, trendErr);
+        }
+
+        let hotTimeText = 'N/A';
+        let topCombosText = 'N/A';
+        try {
+            const dayRes: any = await functionExecutors.getDayPCOStats({}, user);
+            const data = dayRes?.dayPCOStats || {};
+            let maxVal = 0;
+            let best: { d: number; p: string; c: string } | null = null;
+            const combos: { d: number; p: string; c: string; avg: number }[] = [];
+            for (const [day, propObj] of Object.entries(data)) {
+                for (const [prop, ctxObj] of Object.entries(propObj as any)) {
+                    for (const [ctx, val] of Object.entries(ctxObj as any)) {
+                        const avg = (val as any).avgTotalInteractions ?? 0;
+                        if (avg > maxVal) {
+                            maxVal = avg;
+                            best = { d: Number(day), p: prop, c: ctx };
+                        }
+                        combos.push({ d: Number(day), p: prop, c: ctx, avg });
+                    }
+                }
+            }
+            if (best) {
+                const dayNames = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+                hotTimeText = `${dayNames[best.d]} • ${best.p} • ${best.c}`;
+            }
+            combos.sort((a, b) => b.avg - a.avg);
+            if (combos.length) {
+                const dayNames = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+                topCombosText = combos.slice(0, 3).map(c => `${dayNames[c.d]} • ${c.p} • ${c.c}`).join('; ');
+            }
+        } catch (e) {
+            logger.error(`${fnTag} Erro ao processar DayPCOStats:`, e);
+        }
+
+        let catText = 'N/A';
+        try {
+            const catRes: any = await functionExecutors.getCategoryRanking({ category: 'format', metric: 'shares', periodDays: 30, limit: 3 }, user);
+            if (Array.isArray(catRes?.ranking) && catRes.ranking.length) {
+                catText = catRes.ranking.map((r: any) => r.category).slice(0, 3).join(', ');
+            }
+        } catch (e) {
+            logger.error(`${fnTag} Erro ao obter ranking de categorias:`, e);
+        }
+
+        let demoText = 'N/A';
+        try {
+            const demoRes: any = await functionExecutors.getLatestAudienceDemographics({}, user);
+            const demo = demoRes?.demographics?.follower_demographics;
+            if (demo) {
+                const topCountry = Object.entries(demo.country || {}).sort((a, b) => (b[1] as number) - (a[1] as number))[0]?.[0];
+                const topAge = Object.entries(demo.age || {}).sort((a, b) => (b[1] as number) - (a[1] as number))[0]?.[0];
+                const parts = [] as string[];
+                if (topCountry) parts.push(String(topCountry));
+                if (topAge) parts.push(String(topAge));
+                if (parts.length) demoText = parts.join(' • ');
+            }
+        } catch (e) {
+            logger.error(`${fnTag} Erro ao obter demographics:`, e);
+        }
+
+        systemPrompt = systemPrompt
+            .replace('{{AVG_REACH_LAST30}}', String(avgReach))
+            .replace('{{AVG_SHARES_LAST30}}', String(avgShares))
+            .replace('{{TREND_SUMMARY_LAST30}}', String(trendSummary))
+            .replace('{{AVG_ENG_RATE_LAST30}}', String(avgEngRate))
+            .replace('{{FOLLOWER_GROWTH_LAST30}}', followerGrowthText)
+            .replace('{{EMERGING_FPC_COMBOS}}', emergingCombos)
+            .replace('{{HOT_TIMES_LAST_ANALYSIS}}', hotTimeText)
+            .replace('{{TOP_DAY_PCO_COMBOS}}', topCombosText)
+            .replace('{{TOP_FPC_TRENDS}}', topTrendText)
+            .replace('{{TOP_CATEGORY_RANKINGS}}', catText)
+            .replace('{{AUDIENCE_TOP_SEGMENT}}', demoText);
+    } catch (metricErr) {
+        logger.error(`${fnTag} Erro ao obter métricas para systemPrompt:`, metricErr);
+        systemPrompt = systemPrompt
+            .replace('{{AVG_REACH_LAST30}}', 'N/A')
+            .replace('{{AVG_SHARES_LAST30}}', 'N/A')
+            .replace('{{TREND_SUMMARY_LAST30}}', 'N/A')
+            .replace('{{AVG_ENG_RATE_LAST30}}', 'N/A')
+            .replace('{{FOLLOWER_GROWTH_LAST30}}', 'N/A')
+            .replace('{{EMERGING_FPC_COMBOS}}', 'N/A')
+            .replace('{{HOT_TIMES_LAST_ANALYSIS}}', 'N/A')
+            .replace('{{TOP_DAY_PCO_COMBOS}}', 'N/A')
+            .replace('{{TOP_FPC_TRENDS}}', 'N/A')
+            .replace('{{TOP_CATEGORY_RANKINGS}}', 'N/A')
+            .replace('{{AUDIENCE_TOP_SEGMENT}}', 'N/A');
+    }
+
+    return systemPrompt;
+}
+
 
 /**
  * Gera uma resposta curta e rápida para reconhecimento inicial (quebra-gelo).
@@ -127,102 +273,7 @@ export async function askLLMWithEnrichedContext(
     }
     // ----- FIM DA MODIFICAÇÃO -----
 
-    let systemPrompt = getSystemPrompt(userName || user.name || 'usuário');
-
-    try {
-        const reportRes: any = await functionExecutors.getAggregatedReport({ analysisPeriod: 30 }, user);
-        const stats = reportRes?.reportData?.overallStats || {};
-        const avgReach = typeof stats.avgReach === 'number' ? Math.round(stats.avgReach) : 'N/A';
-        const avgShares = typeof stats.avgShares === 'number' ? Math.round(stats.avgShares) : 'N/A';
-        const avgEngRate = typeof stats.avgEngagementRate === 'number' ? (stats.avgEngagementRate * 100).toFixed(1) : 'N/A';
-
-        const trendRes: any = await functionExecutors.getUserTrend({ trendType: 'reach_engagement', timePeriod: 'last_30_days', granularity: 'weekly' }, user);
-        const trendSummary = trendRes?.insightSummary || 'N/A';
-
-        const followerGrowth = reportRes?.reportData?.historicalComparisons?.followerChangeShortTerm;
-        const followerGrowthText = typeof followerGrowth === 'number' ? String(followerGrowth) : 'N/A';
-
-        const fpcStats = reportRes?.reportData?.detailedContentStats || [];
-        const emergingCombosArr = fpcStats
-            .filter((s: any) => typeof s.shareDiffPercentage === 'number' && s.shareDiffPercentage > 0)
-            .sort((a: any, b: any) => (b.shareDiffPercentage ?? 0) - (a.shareDiffPercentage ?? 0))
-            .slice(0, 3)
-            .map((s: any) => `${s._id.format}/${s._id.proposal}/${s._id.context}`);
-        const emergingCombos = emergingCombosArr.length > 0 ? emergingCombosArr.join(', ') : 'N/A';
-
-        let topTrendText = 'N/A';
-        try {
-            const trendPromises = fpcStats.slice(0, 5).map(async (s: any) => {
-                const history: any = await functionExecutors.getFpcTrendHistory({
-                    format: s._id.format,
-                    proposal: s._id.proposal,
-                    context: s._id.context,
-                    timePeriod: 'last_90_days',
-                    granularity: 'weekly'
-                }, user);
-                const series = history?.chartData || [];
-                const valid = series.filter((p: any) => typeof p.avgInteractions === 'number');
-                if (valid.length < 2) return null;
-                const first = valid[0].avgInteractions as number;
-                const last = valid[valid.length - 1].avgInteractions as number;
-                if (first === 0) return null;
-                const growth = ((last - first) / first) * 100;
-                return { combo: `${s._id.format}/${s._id.proposal}/${s._id.context}`, growth };
-            });
-            const trendData = (await Promise.all(trendPromises)).filter(Boolean) as { combo: string; growth: number }[];
-            trendData.sort((a, b) => b.growth - a.growth);
-            const top = trendData.slice(0, 3).map(d => d.combo);
-            if (top.length) topTrendText = top.join(', ');
-        } catch (trendErr) {
-            logger.error(`${fnTag} Erro ao processar FPC trend history:`, trendErr);
-        }
-
-        let hotTimeText = 'N/A';
-        try {
-            const dayRes: any = await functionExecutors.getDayPCOStats({}, user);
-            const data = dayRes?.dayPCOStats || {};
-            let maxVal = 0;
-            let best: { d: number; p: string; c: string } | null = null;
-            for (const [day, propObj] of Object.entries(data)) {
-                for (const [prop, ctxObj] of Object.entries(propObj as any)) {
-                    for (const [ctx, val] of Object.entries(ctxObj as any)) {
-                        const avg = (val as any).avgTotalInteractions ?? 0;
-                        if (avg > maxVal) {
-                            maxVal = avg;
-                            best = { d: Number(day), p: prop, c: ctx };
-                        }
-                    }
-                }
-            }
-            if (best) {
-                const dayNames = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
-                hotTimeText = `${dayNames[best.d]} • ${best.p} • ${best.c}`;
-            }
-        } catch (e) {
-            logger.error(`${fnTag} Erro ao processar DayPCOStats:`, e);
-        }
-
-        systemPrompt = systemPrompt
-            .replace('{{AVG_REACH_LAST30}}', String(avgReach))
-            .replace('{{AVG_SHARES_LAST30}}', String(avgShares))
-            .replace('{{TREND_SUMMARY_LAST30}}', String(trendSummary))
-            .replace('{{AVG_ENG_RATE_LAST30}}', String(avgEngRate))
-            .replace('{{FOLLOWER_GROWTH_LAST30}}', followerGrowthText)
-            .replace('{{EMERGING_FPC_COMBOS}}', emergingCombos)
-            .replace('{{HOT_TIMES_LAST_ANALYSIS}}', hotTimeText)
-            .replace('{{TOP_FPC_TRENDS}}', topTrendText);
-    } catch (metricErr) {
-        logger.error(`${fnTag} Erro ao obter métricas para systemPrompt:`, metricErr);
-        systemPrompt = systemPrompt
-            .replace('{{AVG_REACH_LAST30}}', 'N/A')
-            .replace('{{AVG_SHARES_LAST30}}', 'N/A')
-            .replace('{{TREND_SUMMARY_LAST30}}', 'N/A')
-            .replace('{{AVG_ENG_RATE_LAST30}}', 'N/A')
-            .replace('{{FOLLOWER_GROWTH_LAST30}}', 'N/A')
-            .replace('{{EMERGING_FPC_COMBOS}}', 'N/A')
-            .replace('{{HOT_TIMES_LAST_ANALYSIS}}', 'N/A')
-            .replace('{{TOP_FPC_TRENDS}}', 'N/A');
-    }
+    const systemPrompt = await populateSystemPrompt(user, userName || user.name || 'usuário');
 
     const initialMsgs: ChatCompletionMessageParam[] = [
         { role: 'system', content: systemPrompt },
