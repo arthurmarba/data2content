@@ -232,9 +232,16 @@ async function buildInspirationFilters(
         if (typeof details.context === 'string') filters.context = details.context;
         if (typeof details.tone === 'string') filters.tone = details.tone;
         if (typeof details.reference === 'string') filters.reference = details.reference;
+        if (typeof details.isPositiveAlert === 'boolean') {
+            if (details.isPositiveAlert) {
+                filters.performanceHighlights_Qualitative_INCLUDES_ANY = ['excelente_retencao_em_reels', 'viralizou_nos_compartilhamentos'];
+            } else {
+                filters.performanceHighlights_Qualitative_INCLUDES_ANY = ['desempenho_padrao', 'baixo_volume_de_dados'];
+            }
+        }
     }
 
-    if (!filters.format && forFallback) {
+    if (forFallback && (!filters.format || !filters.proposal || !filters.context)) {
         try {
             const posts = await dataService.getRecentPostObjectsWithAggregatedMetrics(userId, 30);
             if (posts && posts.length > 0) {
@@ -243,9 +250,15 @@ async function buildInspirationFilters(
                     const dB = new Date(b.postDate as any).getTime();
                     return dB - dA;
                 });
-                const lastFormat = posts[0]?.format;
-                if (typeof lastFormat === 'string') {
-                    filters.format = lastFormat as any;
+                const lastPost = posts[0];
+                if (!filters.format && typeof lastPost?.format === 'string') {
+                    filters.format = lastPost.format as any;
+                }
+                if (!filters.proposal && typeof lastPost?.proposal === 'string') {
+                    filters.proposal = lastPost.proposal as any;
+                }
+                if (!filters.context && typeof lastPost?.context === 'string') {
+                    filters.context = lastPost.context as any;
                 }
             }
         } catch (e) {

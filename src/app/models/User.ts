@@ -20,6 +20,9 @@ export interface IDropWatchTimeDetails {
     currentAvg: number;
     historicalAvg: number;
     reelsAnalyzedIds: string[];
+    format?: string;
+    proposal?: string;
+    context?: string;
 }
 export interface IForgottenFormatDetails {
     format: string;
@@ -62,6 +65,9 @@ export interface IFollowerStagnationDetails {
     currentGrowthAbs: number;
     previousGrowthAbs: number;
     periodAnalyzed: string;
+    mostRecentFormat?: string;
+    mostRecentProposal?: string;
+    mostRecentContext?: string;
 }
 export interface IBestDayFormatDetails {
     format: string;
@@ -76,6 +82,9 @@ export interface IPostingConsistencyDetails {
     currentAverageFrequencyDays?: number;
     daysSinceLastPost?: number;
     breakInPattern?: boolean;
+    lastPostFormat?: string;
+    lastPostProposal?: string;
+    lastPostContext?: string;
 }
 export interface IEvergreenRepurposeDetails {
     originalPostId: string;
@@ -85,6 +94,9 @@ export interface IEvergreenRepurposeDetails {
     originalPostMetricValue: number;
     originalPostMetricName: string;
     suggestionType: 'tbt' | 'new_angle' | 'story_series' | 'other';
+    format?: string;
+    proposal?: string;
+    context?: string;
 }
 export interface INewFormatPerformanceDetails {
     formatName: string;
@@ -93,6 +105,8 @@ export interface INewFormatPerformanceDetails {
     metricUsed: string;
     numberOfPostsInNewFormat: number;
     isPositiveAlert: boolean;
+    dominantProposal?: string;
+    dominantContext?: string;
 }
 export interface IMediaTypePerformance {
     type: string;
