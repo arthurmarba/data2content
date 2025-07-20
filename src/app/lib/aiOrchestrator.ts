@@ -1,9 +1,14 @@
 /**
  * @fileoverview Orquestrador de chamadas à API OpenAI com Function Calling e Streaming.
  * Otimizado para buscar dados sob demanda via funções e modular comportamento por intenção.
+ * ATUALIZADO: v1.0.4 - Corrige erro de tipo 'is possibly undefined' para 'dayPerf.bestDays[0]'.
+ * ATUALIZADO: v1.0.3 - Corrige erro de tipo 'is possibly undefined' para 'firstCombo'.
+ * ATUALIZADO: v1.0.2 - Corrige erro de tipo 'Object is possibly undefined' ao acessar array 'dayNames'.
+ * ATUALIZADO: v1.0.1 - Corrige erro de tipo em 'getFpcTrendHistory' dentro de um loop .map().
+ * ATUALIZADO: v1.0.0 - Adiciona verificações de existência para funções executoras para evitar erros de tipo.
  * ATUALIZADO: v0.9.9 - Inclui currentAlertDetails no contexto para a LLM em alertas proativos.
  * ATUALIZADO: v0.9.8 - Omite 'functions' e 'function_call' para intents leves.
- * @version 0.9.9
+ * @version 1.0.4
  */
 
 import OpenAI from 'openai';
@@ -60,13 +65,26 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
     let systemPrompt = getSystemPrompt(userName || user.name || 'usuário');
 
     try {
-        const reportRes: any = await functionExecutors.getAggregatedReport({ analysisPeriod: 30 }, user);
+        // CORREÇÃO: Adicionada verificação para garantir que a função existe antes de chamá-la.
+        let reportRes: any = {};
+        if (functionExecutors && typeof functionExecutors.getAggregatedReport === 'function') {
+            reportRes = await functionExecutors.getAggregatedReport({ analysisPeriod: 30 }, user);
+        } else {
+            logger.warn(`${fnTag} Executor function 'getAggregatedReport' not found.`);
+        }
+        
         const stats = reportRes?.reportData?.overallStats || {};
         const avgReach = typeof stats.avgReach === 'number' ? Math.round(stats.avgReach) : 'N/A';
         const avgShares = typeof stats.avgShares === 'number' ? Math.round(stats.avgShares) : 'N/A';
         const avgEngRate = typeof stats.avgEngagementRate === 'number' ? (stats.avgEngagementRate * 100).toFixed(1) : 'N/A';
 
-        const trendRes: any = await functionExecutors.getUserTrend({ trendType: 'reach_engagement', timePeriod: 'last_30_days', granularity: 'weekly' }, user);
+        // CORREÇÃO: Adicionada verificação para getUserTrend.
+        let trendRes: any = {};
+        if (functionExecutors && typeof functionExecutors.getUserTrend === 'function') {
+            trendRes = await functionExecutors.getUserTrend({ trendType: 'reach_engagement', timePeriod: 'last_30_days', granularity: 'weekly' }, user);
+        } else {
+            logger.warn(`${fnTag} Executor function 'getUserTrend' not found.`);
+        }
         const trendSummary = trendRes?.insightSummary || 'N/A';
 
         const followerGrowth = reportRes?.reportData?.historicalComparisons?.followerChangeShortTerm;
@@ -82,27 +100,33 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
 
         let topTrendText = 'N/A';
         try {
-            const trendPromises = fpcStats.slice(0, 5).map(async (s: any) => {
-                const history: any = await functionExecutors.getFpcTrendHistory({
-                    format: s._id.format,
-                    proposal: s._id.proposal,
-                    context: s._id.context,
-                    timePeriod: 'last_90_days',
-                    granularity: 'weekly'
-                }, user);
-                const series = history?.chartData || [];
-                const valid = series.filter((p: any) => typeof p.avgInteractions === 'number');
-                if (valid.length < 2) return null;
-                const first = valid[0].avgInteractions as number;
-                const last = valid[valid.length - 1].avgInteractions as number;
-                if (first === 0) return null;
-                const growth = ((last - first) / first) * 100;
-                return { combo: `${s._id.format}/${s._id.proposal}/${s._id.context}`, growth };
-            });
-            const trendData = (await Promise.all(trendPromises)).filter(Boolean) as { combo: string; growth: number }[];
-            trendData.sort((a, b) => b.growth - a.growth);
-            const top = trendData.slice(0, 3).map(d => d.combo);
-            if (top.length) topTrendText = top.join(', ');
+            // CORREÇÃO: A função é atribuída a uma constante para que o TypeScript possa rastreá-la dentro do .map().
+            if (functionExecutors && typeof functionExecutors.getFpcTrendHistory === 'function') {
+                const getHistoryFunc = functionExecutors.getFpcTrendHistory;
+                const trendPromises = fpcStats.slice(0, 5).map(async (s: any) => {
+                    const history: any = await getHistoryFunc({
+                        format: s._id.format,
+                        proposal: s._id.proposal,
+                        context: s._id.context,
+                        timePeriod: 'last_90_days',
+                        granularity: 'weekly'
+                    }, user);
+                    const series = history?.chartData || [];
+                    const valid = series.filter((p: any) => typeof p.avgInteractions === 'number');
+                    if (valid.length < 2) return null;
+                    const first = valid[0].avgInteractions as number;
+                    const last = valid[valid.length - 1].avgInteractions as number;
+                    if (first === 0) return null;
+                    const growth = ((last - first) / first) * 100;
+                    return { combo: `${s._id.format}/${s._id.proposal}/${s._id.context}`, growth };
+                });
+                const trendData = (await Promise.all(trendPromises)).filter(Boolean) as { combo: string; growth: number }[];
+                trendData.sort((a, b) => b.growth - a.growth);
+                const top = trendData.slice(0, 3).map(d => d.combo);
+                if (top.length) topTrendText = top.join(', ');
+            } else {
+                logger.warn(`${fnTag} Executor function 'getFpcTrendHistory' not found.`);
+            }
         } catch (trendErr) {
             logger.error(`${fnTag} Erro ao processar FPC trend history:`, trendErr);
         }
@@ -110,7 +134,13 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
         let hotTimeText = 'N/A';
         let topDayCombosText = 'N/A';
         try {
-            const dayRes: any = await functionExecutors.getDayPCOStats({}, user);
+            // CORREÇÃO: Adicionada verificação para getDayPCOStats.
+            let dayRes: any = {};
+            if (functionExecutors && typeof functionExecutors.getDayPCOStats === 'function') {
+                dayRes = await functionExecutors.getDayPCOStats({}, user);
+            } else {
+                logger.warn(`${fnTag} Executor function 'getDayPCOStats' not found.`);
+            }
             const data = dayRes?.dayPCOStats || {};
             const combos: { d: number; p: string; c: string; avg: number }[] = [];
             for (const [day, propObj] of Object.entries(data)) {
@@ -122,10 +152,26 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
                 }
             }
             combos.sort((a, b) => b.avg - a.avg);
-            if (combos.length) {
+            // CORREÇÃO: Adicionada verificação de segurança para o acesso ao array dayNames e para 'firstCombo'.
+            if (combos.length > 0) {
                 const dayNames = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
-                hotTimeText = `${dayNames[combos[0].d]} • ${combos[0].p} • ${combos[0].c}`;
-                topDayCombosText = combos.slice(0, 3).map(c => `${dayNames[c.d]} • ${c.p} • ${c.c}`).join(', ');
+                const firstCombo = combos[0];
+                
+                if (firstCombo) {
+                    const firstDayName = dayNames[firstCombo.d];
+                    if (firstDayName) {
+                        hotTimeText = `${firstDayName} • ${firstCombo.p} • ${firstCombo.c}`;
+                    }
+                }
+
+                topDayCombosText = combos
+                    .slice(0, 3)
+                    .map(c => {
+                        const dayName = dayNames[c.d];
+                        return dayName ? `${dayName} • ${c.p} • ${c.c}` : null;
+                    })
+                    .filter((text): text is string => text !== null)
+                    .join(', ');
             }
         } catch (e) {
             logger.error(`${fnTag} Erro ao processar DayPCOStats:`, e);
@@ -133,7 +179,13 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
 
         let catText = 'N/A';
         try {
-            const catRes: any = await functionExecutors.getCategoryRanking({ category: 'format', metric: 'shares', periodDays: 30, limit: 3 }, user);
+            // CORREÇÃO: Adicionada verificação para getCategoryRanking.
+            let catRes: any = {};
+            if (functionExecutors && typeof functionExecutors.getCategoryRanking === 'function') {
+                catRes = await functionExecutors.getCategoryRanking({ category: 'format', metric: 'shares', periodDays: 30, limit: 3 }, user);
+            } else {
+                logger.warn(`${fnTag} Executor function 'getCategoryRanking' not found.`);
+            }
             if (Array.isArray(catRes?.ranking) && catRes.ranking.length) {
                 catText = catRes.ranking.map((r: any) => r.category).slice(0, 3).join(', ');
             }
@@ -143,7 +195,13 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
 
         let demoText = 'N/A';
         try {
-            const demoRes: any = await functionExecutors.getLatestAudienceDemographics({}, user);
+            // CORREÇÃO: Adicionada verificação para getLatestAudienceDemographics.
+            let demoRes: any = {};
+            if (functionExecutors && typeof functionExecutors.getLatestAudienceDemographics === 'function') {
+                demoRes = await functionExecutors.getLatestAudienceDemographics({}, user);
+            } else {
+                logger.warn(`${fnTag} Executor function 'getLatestAudienceDemographics' not found.`);
+            }
             const demo = demoRes?.demographics?.follower_demographics;
             if (demo) {
                 const topCountry = Object.entries(demo.country || {}).sort((a, b) => (b[1] as number) - (a[1] as number))[0]?.[0];
@@ -176,14 +234,24 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             if (perfHighlights?.lowFormat) {
                 lowFormatText = `${perfHighlights.lowFormat.name} (${formatVal(perfHighlights.lowFormat.average)})`;
             }
+            // CORREÇÃO: Adicionada verificação explícita para dayPerf.bestDays[0] antes de usá-lo.
             if (dayPerf?.bestDays?.length) {
-                const dayName = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'][dayPerf.bestDays[0].dayOfWeek - 1];
-                bestDayText = dayName;
+                const bestDay = dayPerf.bestDays[0];
+                if (bestDay) {
+                    const dayName = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'][bestDay.dayOfWeek - 1];
+                    if (dayName) {
+                        bestDayText = dayName;
+                    }
+                }
             }
             if (timePerf?.bestSlots?.length) {
                 const slot = timePerf.bestSlots[0];
-                const slotDay = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'][slot.dayOfWeek - 1];
-                hotTimeText = `${slotDay} às ${slot.hour}h`;
+                if (slot) {
+                    const slotDay = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'][slot.dayOfWeek - 1];
+                    if (slotDay) {
+                        hotTimeText = `${slotDay} às ${slot.hour}h`;
+                    }
+                }
             }
 
             const parts: string[] = [];
@@ -191,8 +259,12 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             if (bestDayText !== 'N/A') parts.push(`Melhor dia: ${bestDayText}.`);
             if (timePerf?.bestSlots?.length) {
                 const slot = timePerf.bestSlots[0];
-                const slotDay = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'][slot.dayOfWeek - 1];
-                parts.push(`Horário mais quente: ${slotDay} às ${slot.hour}h.`);
+                if (slot) {
+                    const slotDay = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'][slot.dayOfWeek - 1];
+                    if (slotDay) {
+                        parts.push(`Horário mais quente: ${slotDay} às ${slot.hour}h.`);
+                    }
+                }
             }
             if (parts.length) perfSummaryText = parts.join(' ');
         } catch (e) {
