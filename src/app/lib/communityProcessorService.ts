@@ -1,4 +1,5 @@
-// @/app/lib/communityProcessorService.ts - v1.1.2 (Corrige o manuseio de tipos de array para classificação)
+// @/app/lib/communityProcessorService.ts - v1.1.3 (Corrige importações ausentes)
+// - CORRIGIDO: Adicionadas as importações de VALID_TONES, VALID_REFERENCES e seus tipos e defaults correspondentes.
 // - CORRIGIDO: `mapToEnum` agora usa o primeiro elemento dos arrays de classificação (format, proposal, context).
 // - CORRIGIDO: Condição para `reelAvgWatchTimeSec` agora usa `includes('Reel')` no array de formato.
 // - Baseado na v1.1.1.
@@ -12,16 +13,22 @@ import {
     VALID_FORMATS,
     VALID_PROPOSALS,
     VALID_CONTEXTS,
+    VALID_TONES,
+    VALID_REFERENCES,
     VALID_QUALITATIVE_OBJECTIVES,
     VALID_PERFORMANCE_HIGHLIGHTS,
     FormatType,
     ProposalType,
     ContextType,
+    ToneType,
+    ReferenceType,
     QualitativeObjectiveType,
     PerformanceHighlightType,
-    DEFAULT_FORMAT_ENUM, // Importando defaults para mapToEnum
+    DEFAULT_FORMAT_ENUM,
     DEFAULT_PROPOSAL_ENUM,
-    DEFAULT_CONTEXT_ENUM
+    DEFAULT_CONTEXT_ENUM,
+    DEFAULT_TONE_ENUM,
+    DEFAULT_REFERENCE_ENUM
 } from "@/app/lib/constants/communityInspirations.constants";
 
 // Configuração do cliente OpenAI
