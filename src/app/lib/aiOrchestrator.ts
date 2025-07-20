@@ -127,10 +127,33 @@ export async function askLLMWithEnrichedContext(
     }
     // ----- FIM DA MODIFICAÇÃO -----
 
+    let systemPrompt = getSystemPrompt(userName || user.name || 'usuário');
+
+    try {
+        const reportRes: any = await functionExecutors.getAggregatedReport({ analysisPeriod: 30 }, user);
+        const stats = reportRes?.reportData?.overallStats || {};
+        const avgReach = typeof stats.avgReach === 'number' ? Math.round(stats.avgReach) : 'N/A';
+        const avgShares = typeof stats.avgShares === 'number' ? Math.round(stats.avgShares) : 'N/A';
+
+        const trendRes: any = await functionExecutors.getUserTrend({ trendType: 'reach_engagement', timePeriod: 'last_30_days', granularity: 'weekly' }, user);
+        const trendSummary = trendRes?.insightSummary || 'N/A';
+
+        systemPrompt = systemPrompt
+            .replace('{{AVG_REACH_LAST30}}', String(avgReach))
+            .replace('{{AVG_SHARES_LAST30}}', String(avgShares))
+            .replace('{{TREND_SUMMARY_LAST30}}', String(trendSummary));
+    } catch (metricErr) {
+        logger.error(`${fnTag} Erro ao obter métricas para systemPrompt:`, metricErr);
+        systemPrompt = systemPrompt
+            .replace('{{AVG_REACH_LAST30}}', 'N/A')
+            .replace('{{AVG_SHARES_LAST30}}', 'N/A')
+            .replace('{{TREND_SUMMARY_LAST30}}', 'N/A');
+    }
+
     const initialMsgs: ChatCompletionMessageParam[] = [
-        { role: 'system', content: getSystemPrompt(userName || user.name || 'usuário') },
+        { role: 'system', content: systemPrompt },
         // Adiciona a mensagem de contexto do alerta, se existir
-        ...(alertContextSystemMessage ? [alertContextSystemMessage] : []), 
+        ...(alertContextSystemMessage ? [alertContextSystemMessage] : []),
         ...historyMessages,
         { role: 'user', content: incomingText }
     ];
