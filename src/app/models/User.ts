@@ -274,8 +274,15 @@ function generateAffiliateCode(): string {
 
 // --- SCHEMAS ANINHADOS ---
 const commissionLogEntrySchema = new Schema<ICommissionLogEntry>({/*...*/}, {/*...*/}); // Placeholder for brevity
-const lastCommunityInspirationShownSchema = new Schema<ILastCommunityInspirationShown>({/*...*/}, {/*...*/}); // Placeholder for brevity
-const communityInspirationHistoryEntrySchema = new Schema<ICommunityInspirationHistoryEntry>({/*...*/}, {/*...*/}); // Placeholder for brevity
+const lastCommunityInspirationShownSchema = new Schema<ILastCommunityInspirationShown>({
+  date: { type: Date, required: true },
+  inspirationIds: [{ type: Schema.Types.ObjectId, required: true }],
+}, { _id: false });
+
+const communityInspirationHistoryEntrySchema = new Schema<ICommunityInspirationHistoryEntry>({
+  date: { type: Date, required: true },
+  inspirationIds: [{ type: Schema.Types.ObjectId, required: true }],
+}, { _id: false });
 
 const AvailableInstagramAccountSchema = new Schema<IAvailableInstagramAccount>({
     igAccountId: { type: String, required: true },
