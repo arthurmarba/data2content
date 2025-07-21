@@ -32,6 +32,7 @@ import { EnrichedAIContext } from '@/app/api/whatsapp/process-response/types';
 import aggregateUserPerformanceHighlights from '@/utils/aggregateUserPerformanceHighlights';
 import aggregateUserDayPerformance from '@/utils/aggregateUserDayPerformance';
 import { aggregateUserTimePerformance } from '@/utils/aggregateUserTimePerformance';
+import { DEFAULT_METRICS_FETCH_DAYS } from '@/app/lib/constants';
 
 
 // Configuração do cliente OpenAI e constantes
@@ -68,7 +69,7 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
         // CORREÇÃO: Adicionada verificação para garantir que a função existe antes de chamá-la.
         let reportRes: any = {};
         if (functionExecutors && typeof functionExecutors.getAggregatedReport === 'function') {
-            reportRes = await functionExecutors.getAggregatedReport({ analysisPeriod: 30 }, user);
+            reportRes = await functionExecutors.getAggregatedReport({ analysisPeriod: DEFAULT_METRICS_FETCH_DAYS }, user);
         } else {
             logger.warn(`${fnTag} Executor function 'getAggregatedReport' not found.`);
         }
@@ -81,7 +82,7 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
         // CORREÇÃO: Adicionada verificação para getUserTrend.
         let trendRes: any = {};
         if (functionExecutors && typeof functionExecutors.getUserTrend === 'function') {
-            trendRes = await functionExecutors.getUserTrend({ trendType: 'reach_engagement', timePeriod: 'last_30_days', granularity: 'weekly' }, user);
+            trendRes = await functionExecutors.getUserTrend({ trendType: 'reach_engagement', timePeriod: `last_${DEFAULT_METRICS_FETCH_DAYS}_days`, granularity: 'weekly' }, user);
         } else {
             logger.warn(`${fnTag} Executor function 'getUserTrend' not found.`);
         }
@@ -196,7 +197,7 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             // CORREÇÃO: Adicionada verificação para getCategoryRanking.
             let catRes: any = {};
             if (functionExecutors && typeof functionExecutors.getCategoryRanking === 'function') {
-                catRes = await functionExecutors.getCategoryRanking({ category: 'format', metric: 'shares', periodDays: 30, limit: 3 }, user);
+                catRes = await functionExecutors.getCategoryRanking({ category: 'format', metric: 'shares', periodDays: DEFAULT_METRICS_FETCH_DAYS, limit: 3 }, user);
             } else {
                 logger.warn(`${fnTag} Executor function 'getCategoryRanking' not found.`);
             }
@@ -235,7 +236,7 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
         try {
             let metricsRes: any = {};
             if (functionExecutors && typeof functionExecutors.getMetricsHistory === 'function') {
-                metricsRes = await functionExecutors.getMetricsHistory({ days: 30 }, user);
+                metricsRes = await functionExecutors.getMetricsHistory({ days: DEFAULT_METRICS_FETCH_DAYS }, user);
             } else {
                 logger.warn(`${fnTag} Executor function 'getMetricsHistory' not found.`);
             }
@@ -260,9 +261,9 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
         let perfSummaryText = 'Dados insuficientes';
         try {
             const [perfHighlights, dayPerf, timePerf] = await Promise.all([
-                aggregateUserPerformanceHighlights(user._id, 30, 'stats.total_interactions'),
-                aggregateUserDayPerformance(user._id, 30, 'stats.total_interactions'),
-                aggregateUserTimePerformance(user._id, 30, 'stats.total_interactions'),
+                aggregateUserPerformanceHighlights(user._id, DEFAULT_METRICS_FETCH_DAYS, 'stats.total_interactions'),
+                aggregateUserDayPerformance(user._id, DEFAULT_METRICS_FETCH_DAYS, 'stats.total_interactions'),
+                aggregateUserTimePerformance(user._id, DEFAULT_METRICS_FETCH_DAYS, 'stats.total_interactions'),
             ]);
 
             const formatVal = (v: number) => (v >= 1000 ? `${(v/1000).toFixed(1)}K` : Math.round(v).toString());
