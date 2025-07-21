@@ -316,30 +316,73 @@ export async function buildInspirationFilters(
 ): Promise<CommunityInspirationFilters> {
     const filters: CommunityInspirationFilters = {};
 
+    // Always try to analyse the user's top posts
+    let topPosts: IMetric[] = [];
+    try {
+        topPosts = await dataService.getTopPostsByMetric(userId, 'saved', 5);
+    } catch (e) {
+        logger.warn(`[DailyTipHandler] Falha ao obter top posts: ${e}`);
+    }
+
+    const hasEnoughPosts = topPosts.length >= 3;
+
+    if (hasEnoughPosts) {
+        const freq: Record<'proposal' | 'context' | 'reference' | 'tone', Record<string, number>> = {
+            proposal: {},
+            context: {},
+            reference: {},
+            tone: {},
+        };
+
+        for (const p of topPosts) {
+            const pr = Array.isArray(p.proposal) ? p.proposal[0] : (p as any).proposal;
+            const ct = Array.isArray(p.context) ? p.context[0] : (p as any).context;
+            const rf = Array.isArray((p as any).references) ? (p as any).references[0] : (p as any).references?.[0];
+            const tn = Array.isArray((p as any).tone) ? (p as any).tone[0] : (p as any).tone;
+
+            if (isProposalType(pr)) freq.proposal[pr] = (freq.proposal[pr] || 0) + 1;
+            if (isContextType(ct)) freq.context[ct] = (freq.context[ct] || 0) + 1;
+            if (isReferenceType(rf)) freq.reference[rf] = (freq.reference[rf] || 0) + 1;
+            if (isToneType(tn)) freq.tone[tn] = (freq.tone[tn] || 0) + 1;
+        }
+
+        const mostCommon = (m: Record<string, number>): string | undefined =>
+            Object.entries(m).sort((a, b) => b[1] - a[1])[0]?.[0];
+
+        const bestProposal = mostCommon(freq.proposal);
+        const bestContext = mostCommon(freq.context);
+        const bestReference = mostCommon(freq.reference);
+        const bestTone = mostCommon(freq.tone);
+
+        if (bestProposal && isProposalType(bestProposal)) filters.proposal = bestProposal;
+        if (bestContext && isContextType(bestContext)) filters.context = bestContext;
+        if (bestReference && isReferenceType(bestReference)) filters.reference = bestReference;
+        if (bestTone && isToneType(bestTone)) filters.tone = bestTone;
+    }
+
     if (details) {
-        if (isFormatType(details.format)) {
+        if (!filters.format && isFormatType(details.format)) {
             filters.format = details.format;
         }
         if (!filters.format && isFormatType(details.formatName)) {
             filters.format = details.formatName;
         }
-        if (isProposalType(details.proposal)) {
+        if (!filters.proposal && isProposalType(details.proposal)) {
             filters.proposal = details.proposal;
         }
         if (!filters.proposal && isProposalType(details.lastPostProposal)) {
             filters.proposal = details.lastPostProposal;
         }
-        if (isContextType(details.context)) {
+        if (!filters.context && isContextType(details.context)) {
             filters.context = details.context;
         }
         if (!filters.context && isContextType(details.lastPostContext)) {
             filters.context = details.lastPostContext;
         }
-        if (isToneType(details.tone)) {
+        if (!filters.tone && isToneType(details.tone)) {
             filters.tone = details.tone;
         }
-        // CORREÇÃO: A lógica agora usa o type guard 'isReferenceType'.
-        if (isReferenceType(details.reference)) {
+        if (!filters.reference && isReferenceType(details.reference)) {
             filters.reference = details.reference;
         }
         if (typeof details.isPositiveAlert === 'boolean') {
@@ -351,9 +394,8 @@ export async function buildInspirationFilters(
         }
     }
 
-    if (forFallback && (!filters.format || !filters.proposal || !filters.context)) {
+    if (forFallback && !hasEnoughPosts && (!filters.format || !filters.proposal || !filters.context)) {
         try {
-            const topPosts = await dataService.getTopPostsByMetric(userId, 'saved', 5);
             const selected = Array.isArray(topPosts) ? topPosts.slice(0, 3) : [];
 
             const formatFreq: Record<string, number> = {};
