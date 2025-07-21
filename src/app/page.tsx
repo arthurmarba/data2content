@@ -11,7 +11,6 @@ import { TypeAnimation } from "react-type-animation";
 import { FaGoogle, FaGem, FaChartPie, FaHeart, FaBriefcase, FaStar, FaPaintBrush, FaBullhorn, FaChalkboardTeacher, FaQuestionCircle, FaCheckCircle, FaTimesCircle, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
 // --- DADOS E CONSTANTES DA PÁGINA ---
-// Manter os dados em constantes separadas melhora a organização e facilita a manutenção.
 const exampleScreenshots = [
   { title: "Alertas de Oportunidade", imageUrl: "/placeholder1.png" },
   { title: "Análise de Conteúdo", imageUrl: "/placeholder2.png" },
@@ -77,6 +76,10 @@ const faqItems = [
      { q: "Preciso ter uma conta profissional do Instagram?", a: "Sim, para o Tuca analisar seus dados (via conexão ou prints), categorizar conteúdo, otimizar horários e aprender com você, é necessária uma conta Profissional (Comercial ou Criador de Conteúdo) vinculada a uma Página do Facebook." },
 ];
 
+const heroQuestions = [
+    "Qual o melhor dia para postar?", "Qual o melhor horário?", "Me dê uma ideia de conteúdo viral", "Analise meu último post", "Que formato está em alta?", "Como aumentar meu engajamento?", "Crie um roteiro para um Reel", "Preciso de inspiração para Stories", "Qual tema devo abordar hoje?"
+];
+
 // --- COMPONENTES DE UI REUTILIZÁVEIS ---
 const AnimatedSection = React.memo(({ children, delay = 0, className = "" }: { children: React.ReactNode; delay?: number; className?: string; }) => {
   const controls = useAnimation();
@@ -127,7 +130,6 @@ const ScreenshotCard = ({ imageUrl, title }: { imageUrl: string; title: string; 
     >
         <div className="w-full h-full bg-white rounded-[22px] shadow-inner overflow-hidden">
             <ImagePlaceholder className="w-full h-full" />
-            {/* Otimização de Imagem: Em um projeto Next.js real, use o componente Image para performance. */}
             {/* <Image src={imageUrl} alt={title} layout="fill" className="object-cover" loading="lazy" /> */}
         </div>
     </motion.div>
@@ -155,6 +157,26 @@ const ImagePlaceholder = ({ className = "" }: { className?: string }) => (
     </div>
 );
 
+const Marquee = ({ items, direction = 'left' }: { items: string[], direction?: 'left' | 'right' }) => {
+    const marqueeContent = useMemo(() => [...items, ...items], [items]);
+    return (
+        <div className="relative w-full overflow-hidden">
+            <motion.div
+                className="flex gap-4"
+                initial={{ x: direction === 'left' ? 0 : '-50%' }}
+                animate={{ x: direction === 'left' ? '-50%' : 0 }}
+                transition={{ duration: 40, repeat: Infinity, ease: 'linear' }}
+            >
+                {marqueeContent.map((item, index) => (
+                    <div key={index} className="flex-shrink-0 whitespace-nowrap px-6 py-3 rounded-full bg-gray-200/80 text-gray-600 font-medium">
+                        {item}
+                    </div>
+                ))}
+            </motion.div>
+        </div>
+    );
+};
+
 
 // --- COMPONENTE PRINCIPAL DA PÁGINA ---
 export default function FinalCompleteLandingPage() {
@@ -177,7 +199,7 @@ export default function FinalCompleteLandingPage() {
 
   const heroVariants = {
     hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.2 } },
+    visible: { opacity: 1, transition: { staggerChildren: 0.2, delayChildren: 0.1 } },
   };
 
   const heroItemVariants = {
@@ -190,7 +212,6 @@ export default function FinalCompleteLandingPage() {
       <Head>
         <title>Data2Content - Menos análise, mais criação.</title>
         <meta name="description" content="Seu estrategista de conteúdo pessoal que analisa seu Instagram e te diz exatamente o que fazer para crescer." />
-        {/* Otimização de Fonte: Para a estética Apple, a fonte "Inter" é uma ótima escolha. */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
@@ -218,61 +239,63 @@ export default function FinalCompleteLandingPage() {
         </header>
 
         <main>
-          <section className="relative flex min-h-screen items-center bg-gray-100 text-left overflow-hidden">
-            {/* Fundo de largura total (simulando vídeo/imagem) */}
-            <div className="absolute inset-0 w-full h-full">
-                <div 
-                    className="w-full h-full bg-cover bg-center"
-                    style={{ backgroundImage: "url('https://placehold.co/1920x1080/e2e8f0/a0aec0?text=Fundo+de+V%C3%ADdeo')" }}
-                    aria-hidden="true"
-                />
-                {/* Gradiente para legibilidade do texto */}
-                <div className="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-transparent" aria-hidden="true" />
-            </div>
-
-            <div className="relative max-w-screen-xl mx-auto w-full px-6">
-              <motion.div
-                variants={heroVariants}
-                initial="hidden"
-                animate="visible"
-                className="max-w-2xl"
-              >
-                <motion.h1 
-                  variants={heroItemVariants}
-                  className="text-5xl md:text-7xl font-extrabold tracking-tighter text-brand-dark"
+          <section className="relative flex justify-center items-center min-h-screen bg-gray-100 text-left overflow-hidden">
+            <div className="w-full">
+              <div className="w-full max-w-screen-xl mx-auto px-6">
+                <motion.div
+                  variants={heroVariants}
+                  initial="hidden"
+                  animate="visible"
+                  className="max-w-3xl text-center mx-auto"
                 >
-                  O fim da dúvida: o que postar hoje?
-                </motion.h1>
-                
-                <motion.div variants={heroItemVariants} className="mt-8 h-14 md:h-auto">
-                  <TypeAnimation
-                    sequence={[
-                      'Uma Inteligência Artificial.',
-                      1000,
-                      'Uma Inteligência Artificial. Conectada ao seu Instagram.',
-                      1000,
-                      'Uma Inteligência Artificial. Conectada ao seu Instagram. Pra conversar no WhatsApp.',
-                      3000,
-                    ]}
-                    wrapper="p"
-                    speed={50}
-                    className="text-lg md:text-xl text-gray-600 max-w-2xl leading-relaxed"
-                    cursor={true}
-                    repeat={Infinity}
-                  />
-                </motion.div>
+                  <motion.h1 
+                    variants={heroItemVariants}
+                    className="text-5xl md:text-7xl font-extrabold tracking-tighter text-brand-dark"
+                  >
+                    O fim da dúvida: o que postar hoje?
+                  </motion.h1>
+                  
+                  <motion.div variants={heroItemVariants} className="mt-6 h-14 md:h-auto">
+                    <TypeAnimation
+                      sequence={[
+                        'Uma Inteligência Artificial.',
+                        1000,
+                        'Uma Inteligência Artificial conectada ao seu Instagram.',
+                        1000,
+                        'Uma Inteligência Artificial para conversar no WhatsApp.',
+                        3000,
+                      ]}
+                      wrapper="p"
+                      speed={50}
+                      className="text-lg md:text-xl text-gray-600 max-w-2xl leading-relaxed mx-auto"
+                      cursor={true}
+                      repeat={Infinity}
+                    />
+                  </motion.div>
 
-                <motion.div variants={heroItemVariants}>
-                  <ButtonPrimary onClick={handleSignIn} className="mt-12">
-                    <FaGoogle /> Ative sua IA do Instagram no WhatsApp ▸
-                  </ButtonPrimary>
+                  <motion.div variants={heroItemVariants}>
+                    <ButtonPrimary onClick={handleSignIn} className="mt-10">
+                      <FaGoogle /> Ative sua IA do Instagram no WhatsApp ▸
+                    </ButtonPrimary>
+                  </motion.div>
                 </motion.div>
+              </div>
+
+              <motion.div 
+                className="mt-16 md:mt-24 w-full space-y-4"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: 0.4 }}
+              >
+                <Marquee items={heroQuestions} />
+                <Marquee items={[...heroQuestions].reverse()} direction="right" />
               </motion.div>
             </div>
           </section>
 
           <div className="relative bg-white">
-            <section className="py-24 sm:py-32 bg-gray-50/70">
+            {/* SEÇÃO SEPARADORA - PADDING MAIOR */}
+            <section className="py-20 sm:py-24 lg:py-32 bg-gray-50/70">
               <div className="mx-auto max-w-screen-xl px-6 lg:px-8 text-left">
                 <AnimatedSection>
                   <SectionTitle>Veja o Tuca em Ação.</SectionTitle>
@@ -288,7 +311,7 @@ export default function FinalCompleteLandingPage() {
                       className="flex gap-8"
                       style={{
                         paddingTop: '2rem',
-                        paddingBottom: '4rem', // Aumentado para dar mais espaço para a sombra
+                        paddingBottom: '4rem',
                         paddingLeft: 'calc(max(0px, (100vw - 1280px) / 2) + 1.5rem)', 
                         paddingRight: 'calc(max(0px, (100vw - 1280px) / 2) + 1.5rem)'
                       }}
@@ -320,7 +343,8 @@ export default function FinalCompleteLandingPage() {
               </div>
             </section>
 
-            <section className="py-24 sm:py-32 bg-white">
+            {/* SEÇÃO DE CONTEÚDO - PADDING MENOR */}
+            <section className="py-16 sm:py-20 bg-white">
                 <div className="mx-auto max-w-screen-xl px-6 lg:px-8 text-left">
                     <AnimatedSection>
                         <SectionTitle>Feito para todos os tipos de criadores.</SectionTitle>
@@ -338,7 +362,8 @@ export default function FinalCompleteLandingPage() {
                 </div>
             </section>
             
-            <section id="features" className="py-24 sm:py-32 bg-white">
+            {/* SEÇÃO DE CONTEÚDO - PADDING MENOR */}
+            <section id="features" className="py-16 sm:py-20 bg-white">
                  <div className="mx-auto max-w-screen-xl px-6 lg:px-8 text-left">
                   <AnimatedSection>
                     <SectionTitle>Sua Central de Inteligência de Conteúdo.</SectionTitle>
@@ -353,7 +378,8 @@ export default function FinalCompleteLandingPage() {
                 </div>
             </section>
             
-            <section className="py-24 sm:py-32 bg-gray-50/70">
+            {/* SEÇÃO SEPARADORA - PADDING MAIOR */}
+            <section className="py-20 sm:py-24 lg:py-32 bg-gray-50/70">
                 <div className="mx-auto max-w-screen-xl px-6 lg:px-8 text-left">
                     <AnimatedSection>
                         <SectionTitle>Resultados que falam por si.</SectionTitle>
@@ -369,7 +395,8 @@ export default function FinalCompleteLandingPage() {
                 </div>
             </section>
 
-            <section id="arthur-marba" className="py-24 sm:py-32 bg-white">
+            {/* SEÇÃO DE CONTEÚDO - PADDING MENOR */}
+            <section id="arthur-marba" className="py-16 sm:py-20 bg-white">
                 <div className="max-w-screen-md mx-auto px-6 text-left">
                     <AnimatedSection>
                         <SectionTitle className="text-3xl">A Mente por Trás da Inteligência do Tuca</SectionTitle>
@@ -398,7 +425,8 @@ export default function FinalCompleteLandingPage() {
                 </div>
             </section>
 
-            <section id="faq" className="py-24 sm:py-32 bg-white">
+            {/* SEÇÃO DE CONTEÚDO - PADDING MENOR */}
+            <section id="faq" className="py-16 sm:py-20 bg-white">
                 <div className="max-w-3xl mx-auto px-6">
                     <AnimatedSection className="text-left mb-16">
                         <SectionTitle>Dúvidas Frequentes</SectionTitle>
@@ -423,7 +451,8 @@ export default function FinalCompleteLandingPage() {
                 </div>
             </section>
             
-            <section className="py-24 sm:py-32 bg-brand-dark text-white">
+            {/* SEÇÃO SEPARADORA - PADDING MAIOR */}
+            <section className="py-20 sm:py-24 lg:py-32 bg-brand-dark text-white">
                 <div className="max-w-screen-xl mx-auto px-6 text-left">
                     <AnimatedSection className="max-w-3xl">
                         <SectionTitle className="text-white">Pronto para transformar sua criação de conteúdo?</SectionTitle>
@@ -455,32 +484,8 @@ export default function FinalCompleteLandingPage() {
             --brand-red: #EF4444;
             --brand-dark: #111827;
         }
-        /* Otimização de Fonte: Definindo a fonte base para a página */
         html {
             font-family: 'Inter', sans-serif;
-        }
-        .constellation {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            background: 
-                radial-gradient(1px 1px at 20% 30%, var(--brand-pink), transparent),
-                radial-gradient(1px 1px at 80% 20%, var(--brand-pink), transparent),
-                radial-gradient(1px 1px at 50% 70%, var(--brand-red), transparent),
-                radial-gradient(1px 1px at 90% 80%, var(--brand-pink), transparent),
-                radial-gradient(1px 1px at 10% 90%, var(--brand-red), transparent);
-            animation: move-constellation 20s linear infinite;
-        }
-        @keyframes move-constellation {
-          from { transform: translate(0, 0); }
-          to { transform: translate(-200px, -200px); }
-        }
-        @keyframes fade-in-up {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in-up {
-            animation: fade-in-up 0.5s ease-out forwards;
         }
         .hide-scrollbar::-webkit-scrollbar {
             display: none;
