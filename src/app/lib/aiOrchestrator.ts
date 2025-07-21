@@ -317,6 +317,12 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
         const dislikedTopics = Array.isArray(user.userPreferences?.dislikedTopics) && user.userPreferences?.dislikedTopics.length
             ? user.userPreferences!.dislikedTopics.join(', ')
             : 'N/A';
+        const longTermGoals = Array.isArray(user.userLongTermGoals) && user.userLongTermGoals.length
+            ? user.userLongTermGoals.map(g => g.goal).join(', ')
+            : 'Dados insuficientes';
+        const keyFacts = Array.isArray(user.userKeyFacts) && user.userKeyFacts.length
+            ? user.userKeyFacts.map(f => f.fact).join(', ')
+            : 'Dados insuficientes';
 
         systemPrompt = systemPrompt
             .replace('{{AVG_REACH_LAST30}}', String(avgReach))
@@ -347,7 +353,9 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             .replace('{{PERFORMANCE_INSIGHT_SUMMARY}}', perfSummaryText)
             .replace('{{USER_TONE_PREF}}', tonePref)
             .replace('{{USER_PREFERRED_FORMATS}}', prefFormats)
-            .replace('{{USER_DISLIKED_TOPICS}}', dislikedTopics);
+            .replace('{{USER_DISLIKED_TOPICS}}', dislikedTopics)
+            .replace('{{USER_LONG_TERM_GOALS}}', longTermGoals)
+            .replace('{{USER_KEY_FACTS}}', keyFacts);
     } catch (metricErr) {
         logger.error(`${fnTag} Erro ao obter métricas para systemPrompt:`, metricErr);
         systemPrompt = systemPrompt
@@ -379,7 +387,9 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             .replace('{{DEALS_FREQUENCY}}', 'Dados insuficientes')
             .replace('{{USER_TONE_PREF}}', 'Dados insuficientes')
             .replace('{{USER_PREFERRED_FORMATS}}', 'Dados insuficientes')
-            .replace('{{USER_DISLIKED_TOPICS}}', 'Dados insuficientes');
+            .replace('{{USER_DISLIKED_TOPICS}}', 'Dados insuficientes')
+            .replace('{{USER_LONG_TERM_GOALS}}', 'Dados insuficientes')
+            .replace('{{USER_KEY_FACTS}}', 'Dados insuficientes');
     }
 
     return systemPrompt;

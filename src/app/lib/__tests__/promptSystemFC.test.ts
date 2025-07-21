@@ -55,6 +55,8 @@ describe('getSystemPrompt', () => {
     expect(prompt).toContain('{{USER_TONE_PREF}}');
     expect(prompt).toContain('{{USER_PREFERRED_FORMATS}}');
     expect(prompt).toContain('{{USER_DISLIKED_TOPICS}}');
+    expect(prompt).toContain('{{USER_LONG_TERM_GOALS}}');
+    expect(prompt).toContain('{{USER_KEY_FACTS}}');
   });
 });
 
@@ -67,6 +69,13 @@ describe('populateSystemPrompt user preference placeholders', () => {
       preferredFormats: ['reel', 'story'],
       dislikedTopics: ['politica', 'religiao'],
     },
+    userLongTermGoals: [
+      { goal: 'ser influenciador digital' },
+      { goal: 'vender curso' },
+    ],
+    userKeyFacts: [
+      { fact: 'ama gatos' },
+    ],
   } as any;
 
   beforeEach(() => {
@@ -88,8 +97,12 @@ describe('populateSystemPrompt user preference placeholders', () => {
     expect(prompt).toContain('direto');
     expect(prompt).toContain('reel, story');
     expect(prompt).toContain('politica, religiao');
+    expect(prompt).toContain('ser influenciador digital, vender curso');
+    expect(prompt).toContain('ama gatos');
     expect(prompt).not.toContain('{{USER_TONE_PREF}}');
     expect(prompt).not.toContain('{{USER_PREFERRED_FORMATS}}');
     expect(prompt).not.toContain('{{USER_DISLIKED_TOPICS}}');
+    expect(prompt).not.toContain('{{USER_LONG_TERM_GOALS}}');
+    expect(prompt).not.toContain('{{USER_KEY_FACTS}}');
   });
 });
