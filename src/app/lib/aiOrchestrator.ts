@@ -323,21 +323,21 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
     } catch (metricErr) {
         logger.error(`${fnTag} Erro ao obter métricas para systemPrompt:`, metricErr);
         systemPrompt = systemPrompt
-            .replace('{{AVG_REACH_LAST30}}', 'N/A')
-            .replace('{{AVG_SHARES_LAST30}}', 'N/A')
-            .replace('{{TREND_SUMMARY_LAST30}}', 'N/A')
-            .replace('{{AVG_ENG_RATE_LAST30}}', 'N/A')
-            .replace('{{FOLLOWER_GROWTH_LAST30}}', 'N/A')
-            .replace('{{EMERGING_FPC_COMBOS}}', 'N/A')
-            .replace('{{HOT_TIMES_LAST_ANALYSIS}}', 'N/A')
-            .replace('{{TOP_DAY_PCO_COMBOS}}', 'N/A')
-            .replace('{{TOP_FPC_TRENDS}}', 'N/A')
-            .replace('{{TOP_CATEGORY_RANKINGS}}', 'N/A')
-            .replace('{{AUDIENCE_TOP_SEGMENT}}', 'N/A')
-            .replace('{{TOP_PERFORMING_FORMAT}}', 'N/A')
-            .replace('{{LOW_PERFORMING_FORMAT}}', 'N/A')
-            .replace('{{BEST_DAY}}', 'N/A')
-            .replace('{{PERFORMANCE_INSIGHT_SUMMARY}}', 'N/A')
+            .replace('{{AVG_REACH_LAST30}}', 'Dados insuficientes')
+            .replace('{{AVG_SHARES_LAST30}}', 'Dados insuficientes')
+            .replace('{{TREND_SUMMARY_LAST30}}', 'Dados insuficientes')
+            .replace('{{AVG_ENG_RATE_LAST30}}', 'Dados insuficientes')
+            .replace('{{FOLLOWER_GROWTH_LAST30}}', 'Dados insuficientes')
+            .replace('{{EMERGING_FPC_COMBOS}}', 'Dados insuficientes')
+            .replace('{{HOT_TIMES_LAST_ANALYSIS}}', 'Dados insuficientes')
+            .replace('{{TOP_DAY_PCO_COMBOS}}', 'Dados insuficientes')
+            .replace('{{TOP_FPC_TRENDS}}', 'Dados insuficientes')
+            .replace('{{TOP_CATEGORY_RANKINGS}}', 'Dados insuficientes')
+            .replace('{{AUDIENCE_TOP_SEGMENT}}', 'Dados insuficientes')
+            .replace('{{TOP_PERFORMING_FORMAT}}', 'Dados insuficientes')
+            .replace('{{LOW_PERFORMING_FORMAT}}', 'Dados insuficientes')
+            .replace('{{BEST_DAY}}', 'Dados insuficientes')
+            .replace('{{PERFORMANCE_INSIGHT_SUMMARY}}', 'Dados insuficientes')
             .replace('{{FOLLOWER_GROWTH_RATE_LAST30}}', 'Dados insuficientes')
             .replace('{{AVG_ENG_POST_LAST30}}', 'Dados insuficientes')
             .replace('{{AVG_REACH_POST_LAST30}}', 'Dados insuficientes')
@@ -346,9 +346,9 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             .replace('{{DEAL_AVG_VALUE_LAST30}}', 'Dados insuficientes')
             .replace('{{DEALS_BRAND_SEGMENTS}}', 'Dados insuficientes')
             .replace('{{DEALS_FREQUENCY}}', 'Dados insuficientes')
-            .replace('{{USER_TONE_PREF}}', 'N/A')
-            .replace('{{USER_PREFERRED_FORMATS}}', 'N/A')
-            .replace('{{USER_DISLIKED_TOPICS}}', 'N/A');
+            .replace('{{USER_TONE_PREF}}', 'Dados insuficientes')
+            .replace('{{USER_PREFERRED_FORMATS}}', 'Dados insuficientes')
+            .replace('{{USER_DISLIKED_TOPICS}}', 'Dados insuficientes');
     }
 
     return systemPrompt;
