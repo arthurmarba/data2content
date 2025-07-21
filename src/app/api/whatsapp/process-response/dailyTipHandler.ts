@@ -327,6 +327,16 @@ export async function buildInspirationFilters(
     const hasEnoughPosts = topPosts.length >= 3;
 
     if (hasEnoughPosts) {
+        const bestPost = topPosts[0];
+        const bestTone = Array.isArray((bestPost as any).tone) ? (bestPost as any).tone[0] : (bestPost as any).tone;
+        if (bestTone && isToneType(bestTone)) {
+            filters.tone = bestTone;
+        }
+        const bestReference = Array.isArray((bestPost as any).references) ? (bestPost as any).references[0] : (bestPost as any).references?.[0];
+        if (bestReference && isReferenceType(bestReference)) {
+            filters.reference = bestReference;
+        }
+
         const freq: Record<'proposal' | 'context' | 'reference' | 'tone', Record<string, number>> = {
             proposal: {},
             context: {},
@@ -351,13 +361,21 @@ export async function buildInspirationFilters(
 
         const bestProposal = mostCommon(freq.proposal);
         const bestContext = mostCommon(freq.context);
-        const bestReference = mostCommon(freq.reference);
-        const bestTone = mostCommon(freq.tone);
 
         if (bestProposal && isProposalType(bestProposal)) filters.proposal = bestProposal;
         if (bestContext && isContextType(bestContext)) filters.context = bestContext;
-        if (bestReference && isReferenceType(bestReference)) filters.reference = bestReference;
-        if (bestTone && isToneType(bestTone)) filters.tone = bestTone;
+
+        if (!filters.reference) {
+            const refCommon = mostCommon(freq.reference);
+            if (refCommon && isReferenceType(refCommon)) filters.reference = refCommon;
+        }
+
+        if (!filters.tone) {
+            const toneCommon = mostCommon(freq.tone);
+            if (toneCommon && isToneType(toneCommon)) filters.tone = toneCommon;
+        }
+
+        logger.debug(`[DailyTipHandler] Filtros extraídos do melhor post: tone=${filters.tone}, reference=${filters.reference}`);
     }
 
     if (details) {
@@ -581,7 +599,7 @@ export async function fetchInspirationSnippet(
             tone: mostCommon(freq.tone) as ToneType | undefined,
         };
 
-        logger.debug(`[DailyTipHandler] Perfil de engajamento extraído: ${JSON.stringify(userProfile)}`);
+        logger.debug(`[DailyTipHandler] Perfil de engajamento extraído (proposal/context/reference/tone): ${JSON.stringify(userProfile)}`);
 
         const similarityFn = (insp: ICommunityInspiration) =>
             calculateInspirationSimilarity(userProfile, insp);
