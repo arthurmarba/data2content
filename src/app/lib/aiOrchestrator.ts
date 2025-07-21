@@ -79,14 +79,14 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
         const avgShares = typeof stats.avgShares === 'number' ? Math.round(stats.avgShares) : 'Dados insuficientes';
         const avgEngRate = typeof stats.avgEngagementRate === 'number' ? (stats.avgEngagementRate * 100).toFixed(1) : 'Dados insuficientes';
 
-        // CORREÇÃO: Adicionada verificação para getUserTrend.
-        let trendRes: any = {};
-        if (functionExecutors && typeof functionExecutors.getUserTrend === 'function') {
-            trendRes = await functionExecutors.getUserTrend({ trendType: 'reach_engagement', timePeriod: `last_${DEFAULT_METRICS_FETCH_DAYS}_days`, granularity: 'weekly' }, user);
-        } else {
-            logger.warn(`${fnTag} Executor function 'getUserTrend' not found.`);
-        }
-        const trendSummary = trendRes?.insightSummary || 'Dados insuficientes';
+        // Após obter o relatório, iniciamos as demais chamadas em paralelo.
+        const userTrendPromise =
+            functionExecutors && typeof functionExecutors.getUserTrend === 'function'
+                ? functionExecutors.getUserTrend(
+                      { trendType: 'reach_engagement', timePeriod: `last_${DEFAULT_METRICS_FETCH_DAYS}_days`, granularity: 'weekly' },
+                      user,
+                  )
+                : Promise.resolve(undefined);
 
         const historical = reportRes?.reportData?.historicalComparisons || {};
         const followerGrowth = historical?.followerChangeShortTerm;
@@ -146,139 +146,193 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             logger.error(`${fnTag} Erro ao processar FPC trend history:`, trendErr);
         }
 
+        // Promises para as demais chamadas de métricas
+        const dayPCOPromise =
+            functionExecutors && typeof functionExecutors.getDayPCOStats === 'function'
+                ? functionExecutors.getDayPCOStats({}, user)
+                : Promise.resolve(undefined);
+        const categoryPromise =
+            functionExecutors && typeof functionExecutors.getCategoryRanking === 'function'
+                ? functionExecutors.getCategoryRanking(
+                      { category: 'format', metric: 'shares', periodDays: DEFAULT_METRICS_FETCH_DAYS, limit: 3 },
+                      user,
+                  )
+                : Promise.resolve(undefined);
+        const demoPromise =
+            functionExecutors && typeof functionExecutors.getLatestAudienceDemographics === 'function'
+                ? functionExecutors.getLatestAudienceDemographics({}, user)
+                : Promise.resolve(undefined);
+        const metricsPromise =
+            functionExecutors && typeof functionExecutors.getMetricsHistory === 'function'
+                ? functionExecutors.getMetricsHistory({ days: DEFAULT_METRICS_FETCH_DAYS }, user)
+                : Promise.resolve(undefined);
+
+        const perfHighlightsPromise = aggregateUserPerformanceHighlights(
+            user._id,
+            DEFAULT_METRICS_FETCH_DAYS,
+            'stats.total_interactions',
+        );
+        const dayPerfPromise = aggregateUserDayPerformance(
+            user._id,
+            DEFAULT_METRICS_FETCH_DAYS,
+            'stats.total_interactions',
+        );
+        const timePerfPromise = aggregateUserTimePerformance(
+            user._id,
+            DEFAULT_METRICS_FETCH_DAYS,
+            'stats.total_interactions',
+        );
+
+        const [
+            trendRes,
+            dayRes,
+            catRes,
+            demoRes,
+            metricsRes,
+            perfHighlightsRes,
+            dayPerfRes,
+            timePerfRes,
+        ] = await Promise.allSettled([
+            userTrendPromise,
+            dayPCOPromise,
+            categoryPromise,
+            demoPromise,
+            metricsPromise,
+            perfHighlightsPromise,
+            dayPerfPromise,
+            timePerfPromise,
+        ]);
+
+        const trendSummary =
+            trendRes.status === 'fulfilled' && trendRes.value
+                ? trendRes.value.insightSummary ?? 'Dados insuficientes'
+                : 'Dados insuficientes';
+
         let hotTimeText = 'Dados insuficientes';
         let topDayCombosText = 'Dados insuficientes';
-        try {
-            // CORREÇÃO: Adicionada verificação para getDayPCOStats.
-            let dayRes: any = {};
-            if (functionExecutors && typeof functionExecutors.getDayPCOStats === 'function') {
-                dayRes = await functionExecutors.getDayPCOStats({}, user);
-            } else {
-                logger.warn(`${fnTag} Executor function 'getDayPCOStats' not found.`);
-            }
-            const data = dayRes?.dayPCOStats || {};
-            const combos: { d: number; p: string; c: string; avg: number }[] = [];
-            for (const [day, propObj] of Object.entries(data)) {
-                for (const [prop, ctxObj] of Object.entries(propObj as any)) {
-                    for (const [ctx, val] of Object.entries(ctxObj as any)) {
-                        const avg = (val as any).avgTotalInteractions ?? 0;
-                        combos.push({ d: Number(day), p: prop, c: ctx, avg });
+        if (dayRes.status === 'fulfilled' && dayRes.value) {
+            try {
+                const data = dayRes.value.dayPCOStats || {};
+                const combos: { d: number; p: string; c: string; avg: number }[] = [];
+                for (const [day, propObj] of Object.entries(data)) {
+                    for (const [prop, ctxObj] of Object.entries(propObj as any)) {
+                        for (const [ctx, val] of Object.entries(ctxObj as any)) {
+                            const avg = (val as any).avgTotalInteractions ?? 0;
+                            combos.push({ d: Number(day), p: prop, c: ctx, avg });
+                        }
                     }
                 }
-            }
-            combos.sort((a, b) => b.avg - a.avg);
-            // CORREÇÃO: Adicionada verificação de segurança para o acesso ao array dayNames e para 'firstCombo'.
-            if (combos.length > 0) {
-                const dayNames = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
-                const firstCombo = combos[0];
-                
-                if (firstCombo) {
-                    const firstDayName = dayNames[firstCombo.d];
-                    if (firstDayName) {
-                        hotTimeText = `${firstDayName} • ${firstCombo.p} • ${firstCombo.c}`;
+                combos.sort((a, b) => b.avg - a.avg);
+                if (combos.length > 0) {
+                    const dayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+                    const firstCombo = combos[0];
+                    if (firstCombo) {
+                        const firstDayName = dayNames[firstCombo.d];
+                        if (firstDayName) {
+                            hotTimeText = `${firstDayName} • ${firstCombo.p} • ${firstCombo.c}`;
+                        }
                     }
+                    topDayCombosText = combos
+                        .slice(0, 3)
+                        .map(c => {
+                            const dayName = dayNames[c.d];
+                            return dayName ? `${dayName} • ${c.p} • ${c.c}` : null;
+                        })
+                        .filter((text): text is string => text !== null)
+                        .join(', ');
                 }
-
-                topDayCombosText = combos
-                    .slice(0, 3)
-                    .map(c => {
-                        const dayName = dayNames[c.d];
-                        return dayName ? `${dayName} • ${c.p} • ${c.c}` : null;
-                    })
-                    .filter((text): text is string => text !== null)
-                    .join(', ');
+            } catch (e) {
+                logger.error(`${fnTag} Erro ao processar DayPCOStats:`, e);
             }
-        } catch (e) {
-            logger.error(`${fnTag} Erro ao processar DayPCOStats:`, e);
+        } else if (dayRes.status === 'rejected') {
+            logger.error(`${fnTag} Erro ao processar DayPCOStats:`, dayRes.reason);
         }
 
         let catText = 'Dados insuficientes';
-        try {
-            // CORREÇÃO: Adicionada verificação para getCategoryRanking.
-            let catRes: any = {};
-            if (functionExecutors && typeof functionExecutors.getCategoryRanking === 'function') {
-                catRes = await functionExecutors.getCategoryRanking({ category: 'format', metric: 'shares', periodDays: DEFAULT_METRICS_FETCH_DAYS, limit: 3 }, user);
-            } else {
-                logger.warn(`${fnTag} Executor function 'getCategoryRanking' not found.`);
+        if (catRes.status === 'fulfilled' && catRes.value) {
+            try {
+                if (Array.isArray(catRes.value.ranking) && catRes.value.ranking.length) {
+                    catText = catRes.value.ranking.map((r: any) => r.category).slice(0, 3).join(', ');
+                }
+            } catch (e) {
+                logger.error(`${fnTag} Erro ao obter ranking de categorias:`, e);
             }
-            if (Array.isArray(catRes?.ranking) && catRes.ranking.length) {
-                catText = catRes.ranking.map((r: any) => r.category).slice(0, 3).join(', ');
-            }
-        } catch (e) {
-            logger.error(`${fnTag} Erro ao obter ranking de categorias:`, e);
+        } else if (catRes.status === 'rejected') {
+            logger.error(`${fnTag} Erro ao obter ranking de categorias:`, catRes.reason);
         }
 
         let demoText = 'Dados insuficientes';
-        try {
-            // CORREÇÃO: Adicionada verificação para getLatestAudienceDemographics.
-            let demoRes: any = {};
-            if (functionExecutors && typeof functionExecutors.getLatestAudienceDemographics === 'function') {
-                demoRes = await functionExecutors.getLatestAudienceDemographics({}, user);
-            } else {
-                logger.warn(`${fnTag} Executor function 'getLatestAudienceDemographics' not found.`);
+        if (demoRes.status === 'fulfilled' && demoRes.value) {
+            try {
+                const demo = demoRes.value.demographics?.follower_demographics;
+                if (demo) {
+                    const topCountry = Object.entries(demo.country || {}).sort((a, b) => (b[1] as number) - (a[1] as number))[0]?.[0];
+                    const topAge = Object.entries(demo.age || {}).sort((a, b) => (b[1] as number) - (a[1] as number))[0]?.[0];
+                    const parts = [] as string[];
+                    if (topCountry) parts.push(String(topCountry));
+                    if (topAge) parts.push(String(topAge));
+                    if (parts.length) demoText = parts.join(' • ');
+                }
+            } catch (e) {
+                logger.error(`${fnTag} Erro ao obter demographics:`, e);
             }
-            const demo = demoRes?.demographics?.follower_demographics;
-            if (demo) {
-                const topCountry = Object.entries(demo.country || {}).sort((a, b) => (b[1] as number) - (a[1] as number))[0]?.[0];
-                const topAge = Object.entries(demo.age || {}).sort((a, b) => (b[1] as number) - (a[1] as number))[0]?.[0];
-                const parts = [] as string[];
-                if (topCountry) parts.push(String(topCountry));
-                if (topAge) parts.push(String(topAge));
-                if (parts.length) demoText = parts.join(' • ');
-            }
-        } catch (e) {
-            logger.error(`${fnTag} Erro ao obter demographics:`, e);
+        } else if (demoRes.status === 'rejected') {
+            logger.error(`${fnTag} Erro ao obter demographics:`, demoRes.reason);
         }
 
         let avgPropagationText = 'Dados insuficientes';
         let avgFollowerConvText = 'Dados insuficientes';
         let avgRetentionText = 'Dados insuficientes';
-        try {
-            let metricsRes: any = {};
-            if (functionExecutors && typeof functionExecutors.getMetricsHistory === 'function') {
-                metricsRes = await functionExecutors.getMetricsHistory({ days: DEFAULT_METRICS_FETCH_DAYS }, user);
-            } else {
-                logger.warn(`${fnTag} Executor function 'getMetricsHistory' not found.`);
+        if (metricsRes.status === 'fulfilled' && metricsRes.value) {
+            try {
+                const history = metricsRes.value.history || {};
+                const avgOf = (arr: any): number | null => {
+                    const vals = Array.isArray(arr) ? arr.filter((v: any) => typeof v === 'number') : [];
+                    return vals.length ? vals.reduce((a: number, b: number) => a + b, 0) / vals.length : null;
+                };
+                const propAvg = avgOf(history.propagationIndex?.datasets?.[0]?.data);
+                const convAvg = avgOf(history.followerConversionRate?.datasets?.[0]?.data);
+                const retAvg = avgOf(history.retentionRate?.datasets?.[0]?.data);
+                if (propAvg !== null) avgPropagationText = propAvg.toFixed(1);
+                if (convAvg !== null) avgFollowerConvText = convAvg.toFixed(1);
+                if (retAvg !== null) avgRetentionText = retAvg.toFixed(1);
+            } catch (e) {
+                logger.error(`${fnTag} Erro ao processar MetricsHistory:`, e);
             }
-            const history = metricsRes?.history || {};
-            const avgOf = (arr: any): number | null => {
-                const vals = Array.isArray(arr) ? arr.filter((v: any) => typeof v === 'number') : [];
-                return vals.length ? vals.reduce((a: number, b: number) => a + b, 0) / vals.length : null;
-            };
-            const propAvg = avgOf(history.propagationIndex?.datasets?.[0]?.data);
-            const convAvg = avgOf(history.followerConversionRate?.datasets?.[0]?.data);
-            const retAvg = avgOf(history.retentionRate?.datasets?.[0]?.data);
-            if (propAvg !== null) avgPropagationText = propAvg.toFixed(1);
-            if (convAvg !== null) avgFollowerConvText = convAvg.toFixed(1);
-            if (retAvg !== null) avgRetentionText = retAvg.toFixed(1);
-        } catch (e) {
-            logger.error(`${fnTag} Erro ao processar MetricsHistory:`, e);
+        } else if (metricsRes.status === 'rejected') {
+            logger.error(`${fnTag} Erro ao processar MetricsHistory:`, metricsRes.reason);
         }
 
         let topFormatText = 'Dados insuficientes';
         let lowFormatText = 'Dados insuficientes';
         let bestDayText = 'Dados insuficientes';
         let perfSummaryText = 'Dados insuficientes';
+        const perfHighlights =
+            perfHighlightsRes.status === 'fulfilled' ? perfHighlightsRes.value : null;
+        const dayPerf = dayPerfRes.status === 'fulfilled' ? dayPerfRes.value : null;
+        const timePerf = timePerfRes.status === 'fulfilled' ? timePerfRes.value : null;
+
+        if (perfHighlightsRes.status === 'rejected')
+            logger.error(`${fnTag} Erro ao obter resumo de performance:`, perfHighlightsRes.reason);
+        if (dayPerfRes.status === 'rejected')
+            logger.error(`${fnTag} Erro ao obter desempenho por dia:`, dayPerfRes.reason);
+        if (timePerfRes.status === 'rejected')
+            logger.error(`${fnTag} Erro ao obter desempenho por horário:`, timePerfRes.reason);
+
         try {
-            const [perfHighlights, dayPerf, timePerf] = await Promise.all([
-                aggregateUserPerformanceHighlights(user._id, DEFAULT_METRICS_FETCH_DAYS, 'stats.total_interactions'),
-                aggregateUserDayPerformance(user._id, DEFAULT_METRICS_FETCH_DAYS, 'stats.total_interactions'),
-                aggregateUserTimePerformance(user._id, DEFAULT_METRICS_FETCH_DAYS, 'stats.total_interactions'),
-            ]);
-
-            const formatVal = (v: number) => (v >= 1000 ? `${(v/1000).toFixed(1)}K` : Math.round(v).toString());
-
-            if (perfHighlights?.topFormat) {
-                topFormatText = `${perfHighlights.topFormat.name} (${formatVal(perfHighlights.topFormat.average)})`;
+            if (perfHighlights) {
+                const formatVal = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}K` : Math.round(v).toString());
+                if (perfHighlights.topFormat) {
+                    topFormatText = `${perfHighlights.topFormat.name} (${formatVal(perfHighlights.topFormat.average)})`;
+                }
+                if (perfHighlights.lowFormat) {
+                    lowFormatText = `${perfHighlights.lowFormat.name} (${formatVal(perfHighlights.lowFormat.average)})`;
+                }
             }
-            if (perfHighlights?.lowFormat) {
-                lowFormatText = `${perfHighlights.lowFormat.name} (${formatVal(perfHighlights.lowFormat.average)})`;
-            }
-            // CORREÇÃO: Adicionada verificação explícita para dayPerf.bestDays[0] antes de usá-lo.
             if (dayPerf?.bestDays?.length) {
                 const bestDay = dayPerf.bestDays[0];
                 if (bestDay) {
-                    const dayName = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'][bestDay.dayOfWeek - 1];
+                    const dayName = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][bestDay.dayOfWeek - 1];
                     if (dayName) {
                         bestDayText = dayName;
                     }
@@ -287,7 +341,7 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             if (timePerf?.bestSlots?.length) {
                 const slot = timePerf.bestSlots[0];
                 if (slot) {
-                    const slotDay = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'][slot.dayOfWeek - 1];
+                    const slotDay = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][slot.dayOfWeek - 1];
                     if (slotDay) {
                         hotTimeText = `${slotDay} às ${slot.hour}h`;
                     }
@@ -300,7 +354,7 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             if (timePerf?.bestSlots?.length) {
                 const slot = timePerf.bestSlots[0];
                 if (slot) {
-                    const slotDay = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'][slot.dayOfWeek - 1];
+                    const slotDay = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][slot.dayOfWeek - 1];
                     if (slotDay) {
                         parts.push(`Horário mais quente: ${slotDay} às ${slot.hour}h.`);
                     }
