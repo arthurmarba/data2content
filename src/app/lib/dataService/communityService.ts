@@ -228,7 +228,7 @@ export async function getInspirations(
         let inspirations = await CommunityInspirationModel.find(query)
             .sort({ addedToCommunityAt: -1, 'internalMetricsSnapshot.saveRate': -1 })
             .limit(similarityFn ? limit * 3 : limit)
-            .select('-internalMetricsSnapshot -updatedAt -status -__v')
+            .select(similarityFn ? '-updatedAt -status -__v' : '-internalMetricsSnapshot -updatedAt -status -__v')
             .lean();
 
         if (similarityFn) {

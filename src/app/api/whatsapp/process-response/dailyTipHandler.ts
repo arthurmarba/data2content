@@ -16,6 +16,8 @@ import * as stateService from '@/app/lib/stateService';
 import type { IDialogueState, ILastResponseContext, IFallbackInsightHistoryEntry } from '@/app/lib/stateService'; 
 import * as dataService from '@/app/lib/dataService';
 import type { IEnrichedReport, IAccountInsight, CommunityInspirationFilters } from '@/app/lib/dataService';
+import type { ICommunityInspiration } from '@/app/models/CommunityInspiration';
+import type { IMetric } from '@/app/models/Metric';
 import { IUser, IAlertHistoryEntry, AlertDetails } from '@/app/models/User'; 
 
 import { ProcessRequestBody, DetectedEvent, EnrichedAIContext } from './types'; 
@@ -394,7 +396,38 @@ async function buildInspirationFilters(
 }
 
 
-async function fetchInspirationSnippet(
+export function computeInspirationSimilarity(
+    bestPost: IMetric | null,
+    insp: ICommunityInspiration
+): number {
+    // Simple heuristic: negative distance for rate differences + bonuses for matching categories
+    let score = 0;
+    const snap = insp.internalMetricsSnapshot || {};
+
+    if (bestPost?.stats && bestPost.stats.reach && bestPost.stats.reach > 0) {
+        const bestSaveRate = (bestPost.stats.saved ?? 0) / bestPost.stats.reach;
+        const bestShareRate = (bestPost.stats.shares ?? 0) / bestPost.stats.reach;
+
+        if (typeof snap.saveRate === 'number') {
+            score -= Math.abs(snap.saveRate - bestSaveRate);
+        }
+        if (typeof snap.shareRate === 'number') {
+            score -= Math.abs(snap.shareRate - bestShareRate);
+        }
+    }
+
+    const bestFormat = Array.isArray(bestPost?.format) ? bestPost?.format[0] : bestPost?.format;
+    const bestProposal = Array.isArray(bestPost?.proposal) ? bestPost?.proposal[0] : bestPost?.proposal;
+    const bestContext = Array.isArray(bestPost?.context) ? bestPost?.context[0] : bestPost?.context;
+
+    if (bestFormat && insp.format === bestFormat) score += 0.5;
+    if (bestProposal && insp.proposal === bestProposal) score += 0.3;
+    if (bestContext && insp.context === bestContext) score += 0.2;
+
+    return score;
+}
+
+export async function fetchInspirationSnippet(
     userId: string,
     filters: CommunityInspirationFilters,
     userOrExcludeIds?: IUser | string[]
@@ -408,8 +441,22 @@ async function fetchInspirationSnippet(
             excludeIds = historyEntries.flatMap(h => h.inspirationIds.map(id => id.toString()));
         }
 
-        const inspirations = await dataService.getInspirations(filters, 3, excludeIds);
-        const insp = inspirations && inspirations.length > 0 ? inspirations[Math.floor(Math.random() * inspirations.length)] : undefined;
+        let bestPost: IMetric | null = null;
+        try {
+            const topPosts = await dataService.getTopPostsByMetric(userId, 'saved', 1);
+            bestPost = topPosts && topPosts.length > 0 ? topPosts[0] : null;
+        } catch (e) {
+            logger.debug(`[DailyTipHandler] Não foi possível obter top post para similaridade: ${e}`);
+        }
+
+        const inspirations = await dataService.getInspirations(
+            filters,
+            3,
+            excludeIds,
+            (i) => computeInspirationSimilarity(bestPost, i)
+        );
+
+        const insp = inspirations && inspirations.length > 0 ? inspirations[0] : undefined;
         if (insp) {
             await dataService.recordDailyInspirationShown(userId, [insp._id.toString()]);
             return {
