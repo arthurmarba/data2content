@@ -74,9 +74,9 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
         }
         
         const stats = reportRes?.reportData?.overallStats || {};
-        const avgReach = typeof stats.avgReach === 'number' ? Math.round(stats.avgReach) : 'N/A';
-        const avgShares = typeof stats.avgShares === 'number' ? Math.round(stats.avgShares) : 'N/A';
-        const avgEngRate = typeof stats.avgEngagementRate === 'number' ? (stats.avgEngagementRate * 100).toFixed(1) : 'N/A';
+        const avgReach = typeof stats.avgReach === 'number' ? Math.round(stats.avgReach) : 'Dados insuficientes';
+        const avgShares = typeof stats.avgShares === 'number' ? Math.round(stats.avgShares) : 'Dados insuficientes';
+        const avgEngRate = typeof stats.avgEngagementRate === 'number' ? (stats.avgEngagementRate * 100).toFixed(1) : 'Dados insuficientes';
 
         // CORREÇÃO: Adicionada verificação para getUserTrend.
         let trendRes: any = {};
@@ -85,7 +85,7 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
         } else {
             logger.warn(`${fnTag} Executor function 'getUserTrend' not found.`);
         }
-        const trendSummary = trendRes?.insightSummary || 'N/A';
+        const trendSummary = trendRes?.insightSummary || 'Dados insuficientes';
 
         const historical = reportRes?.reportData?.historicalComparisons || {};
         const followerGrowth = historical?.followerChangeShortTerm;
@@ -110,9 +110,9 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             .sort((a: any, b: any) => (b.shareDiffPercentage ?? 0) - (a.shareDiffPercentage ?? 0))
             .slice(0, 3)
             .map((s: any) => `${s._id.format}/${s._id.proposal}/${s._id.context}`);
-        const emergingCombos = emergingCombosArr.length > 0 ? emergingCombosArr.join(', ') : 'N/A';
+        const emergingCombos = emergingCombosArr.length > 0 ? emergingCombosArr.join(', ') : 'Dados insuficientes';
 
-        let topTrendText = 'N/A';
+        let topTrendText = 'Dados insuficientes';
         try {
             // CORREÇÃO: A função é atribuída a uma constante para que o TypeScript possa rastreá-la dentro do .map().
             if (functionExecutors && typeof functionExecutors.getFpcTrendHistory === 'function') {
@@ -145,8 +145,8 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             logger.error(`${fnTag} Erro ao processar FPC trend history:`, trendErr);
         }
 
-        let hotTimeText = 'N/A';
-        let topDayCombosText = 'N/A';
+        let hotTimeText = 'Dados insuficientes';
+        let topDayCombosText = 'Dados insuficientes';
         try {
             // CORREÇÃO: Adicionada verificação para getDayPCOStats.
             let dayRes: any = {};
@@ -191,7 +191,7 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             logger.error(`${fnTag} Erro ao processar DayPCOStats:`, e);
         }
 
-        let catText = 'N/A';
+        let catText = 'Dados insuficientes';
         try {
             // CORREÇÃO: Adicionada verificação para getCategoryRanking.
             let catRes: any = {};
@@ -207,7 +207,7 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             logger.error(`${fnTag} Erro ao obter ranking de categorias:`, e);
         }
 
-        let demoText = 'N/A';
+        let demoText = 'Dados insuficientes';
         try {
             // CORREÇÃO: Adicionada verificação para getLatestAudienceDemographics.
             let demoRes: any = {};
@@ -254,10 +254,10 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             logger.error(`${fnTag} Erro ao processar MetricsHistory:`, e);
         }
 
-        let topFormatText = 'N/A';
-        let lowFormatText = 'N/A';
-        let bestDayText = 'N/A';
-        let perfSummaryText = 'N/A';
+        let topFormatText = 'Dados insuficientes';
+        let lowFormatText = 'Dados insuficientes';
+        let bestDayText = 'Dados insuficientes';
+        let perfSummaryText = 'Dados insuficientes';
         try {
             const [perfHighlights, dayPerf, timePerf] = await Promise.all([
                 aggregateUserPerformanceHighlights(user._id, 30, 'stats.total_interactions'),
@@ -295,7 +295,7 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
 
             const parts: string[] = [];
             if (perfHighlights?.topFormat) parts.push(`Formato em alta: ${perfHighlights.topFormat.name}.`);
-            if (bestDayText !== 'N/A') parts.push(`Melhor dia: ${bestDayText}.`);
+            if (bestDayText !== 'Dados insuficientes') parts.push(`Melhor dia: ${bestDayText}.`);
             if (timePerf?.bestSlots?.length) {
                 const slot = timePerf.bestSlots[0];
                 if (slot) {
@@ -310,13 +310,13 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             logger.error(`${fnTag} Erro ao obter resumo de performance:`, e);
         }
 
-        const tonePref = user.userPreferences?.preferredAiTone || 'N/A';
+        const tonePref = user.userPreferences?.preferredAiTone || 'Dados insuficientes';
         const prefFormats = Array.isArray(user.userPreferences?.preferredFormats) && user.userPreferences?.preferredFormats.length
             ? user.userPreferences!.preferredFormats.join(', ')
-            : 'N/A';
+            : 'Dados insuficientes';
         const dislikedTopics = Array.isArray(user.userPreferences?.dislikedTopics) && user.userPreferences?.dislikedTopics.length
             ? user.userPreferences!.dislikedTopics.join(', ')
-            : 'N/A';
+            : 'Dados insuficientes';
         const longTermGoals = Array.isArray(user.userLongTermGoals) && user.userLongTermGoals.length
             ? user.userLongTermGoals.map(g => g.goal).join(', ')
             : 'Dados insuficientes';
