@@ -37,6 +37,15 @@ const nextConfig = {
       },
     ],
   },
+  // ▼▼▼ ADICIONE ESTE BLOCO ▼▼▼
+  experimental: {
+    // Esta opção diz ao Next.js para incluir arquivos que correspondem
+    // a este padrão no pacote da função de servidor.
+    outputFileTracingIncludes: {
+      '/app/**/*': ['./src/app/lib/**/*.md'],
+    },
+  },
+  // ▲▲▲ FIM DO BLOCO ADICIONADO ▲▲▲
 };
 
 console.log("--- Configuração de images (ESM):", JSON.stringify(nextConfig.images, null, 2));
