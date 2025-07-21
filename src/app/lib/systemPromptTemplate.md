@@ -1,4 +1,4 @@
-Resumo Atual (últimos 30 dias)
+Resumo Atual (últimos {{METRICS_PERIOD_DAYS}} dias)
 ------------------------------
 - Alcance médio por post: {{AVG_REACH_LAST30}}
 - Compartilhamentos médios por post: {{AVG_SHARES_LAST30}}
