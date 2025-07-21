@@ -379,6 +379,8 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             ? user.userKeyFacts.map(f => f.fact).join(', ')
             : 'Dados insuficientes';
         const expertiseLevel = user.inferredExpertiseLevel || 'Dados insuficientes';
+        const userBio = user.biography || 'Dados insuficientes';
+        const profileTone = user.profileTone || 'Dados insuficientes';
 
         systemPrompt = systemPrompt
             .replace('{{AVG_REACH_LAST30}}', String(avgReach))
@@ -412,7 +414,9 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             .replace('{{USER_DISLIKED_TOPICS}}', dislikedTopics)
             .replace('{{USER_LONG_TERM_GOALS}}', longTermGoals)
             .replace('{{USER_KEY_FACTS}}', keyFacts)
-            .replace('{{USER_EXPERTISE_LEVEL}}', expertiseLevel);
+            .replace('{{USER_EXPERTISE_LEVEL}}', expertiseLevel)
+            .replace('{{USER_BIO}}', userBio)
+            .replace('{{USER_PROFILE_TONE}}', profileTone);
     } catch (metricErr) {
         logger.error(`${fnTag} Erro ao obter métricas para systemPrompt:`, metricErr);
         systemPrompt = systemPrompt
@@ -447,7 +451,9 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             .replace('{{USER_DISLIKED_TOPICS}}', 'Dados insuficientes')
             .replace('{{USER_LONG_TERM_GOALS}}', 'Dados insuficientes')
             .replace('{{USER_KEY_FACTS}}', 'Dados insuficientes')
-            .replace('{{USER_EXPERTISE_LEVEL}}', 'Dados insuficientes');
+            .replace('{{USER_EXPERTISE_LEVEL}}', 'Dados insuficientes')
+            .replace('{{USER_BIO}}', 'Dados insuficientes')
+            .replace('{{USER_PROFILE_TONE}}', 'Dados insuficientes');
     }
 
     return systemPrompt;
