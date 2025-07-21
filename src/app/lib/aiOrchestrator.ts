@@ -61,15 +61,30 @@ interface AskLLMResult {
  * Preenche o system prompt com métricas e estatísticas recentes.
  * Exportada para facilitar testes unitários.
  */
-export async function populateSystemPrompt(user: IUser, userName: string): Promise<string> {
+export async function populateSystemPrompt(
+    user: IUser,
+    userName: string,
+    periodDays: number = DEFAULT_METRICS_FETCH_DAYS,
+    forceRefresh: boolean = false
+): Promise<string> {
     const fnTag = '[populateSystemPrompt]';
+    const cacheKey = `prompt:${user._id}:${periodDays}`;
+
+    if (!forceRefresh) {
+        const cached = await stateService.getFromCache(cacheKey);
+        if (cached) {
+            logger.debug(`${fnTag} Cache HIT para ${cacheKey}`);
+            return cached;
+        }
+    }
+
     let systemPrompt = getSystemPrompt(userName || user.name || 'usuário');
 
     try {
         // CORREÇÃO: Adicionada verificação para garantir que a função existe antes de chamá-la.
         let reportRes: any = {};
         if (functionExecutors && typeof functionExecutors.getAggregatedReport === 'function') {
-            reportRes = await functionExecutors.getAggregatedReport({ analysisPeriod: DEFAULT_METRICS_FETCH_DAYS }, user);
+            reportRes = await functionExecutors.getAggregatedReport({ analysisPeriod: periodDays }, user);
         } else {
             logger.warn(`${fnTag} Executor function 'getAggregatedReport' not found.`);
         }
@@ -83,7 +98,7 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
         const userTrendPromise =
             functionExecutors && typeof functionExecutors.getUserTrend === 'function'
                 ? functionExecutors.getUserTrend(
-                      { trendType: 'reach_engagement', timePeriod: `last_${DEFAULT_METRICS_FETCH_DAYS}_days`, granularity: 'weekly' },
+                      { trendType: 'reach_engagement', timePeriod: `last_${periodDays}_days`, granularity: 'weekly' },
                       user,
                   )
                 : Promise.resolve(undefined);
@@ -154,7 +169,7 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
         const categoryPromise =
             functionExecutors && typeof functionExecutors.getCategoryRanking === 'function'
                 ? functionExecutors.getCategoryRanking(
-                      { category: 'format', metric: 'shares', periodDays: DEFAULT_METRICS_FETCH_DAYS, limit: 3 },
+                      { category: 'format', metric: 'shares', periodDays: periodDays, limit: 3 },
                       user,
                   )
                 : Promise.resolve(undefined);
@@ -164,22 +179,22 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
                 : Promise.resolve(undefined);
         const metricsPromise =
             functionExecutors && typeof functionExecutors.getMetricsHistory === 'function'
-                ? functionExecutors.getMetricsHistory({ days: DEFAULT_METRICS_FETCH_DAYS }, user)
+                ? functionExecutors.getMetricsHistory({ days: periodDays }, user)
                 : Promise.resolve(undefined);
 
         const perfHighlightsPromise = aggregateUserPerformanceHighlights(
             user._id,
-            DEFAULT_METRICS_FETCH_DAYS,
+            periodDays,
             'stats.total_interactions',
         );
         const dayPerfPromise = aggregateUserDayPerformance(
             user._id,
-            DEFAULT_METRICS_FETCH_DAYS,
+            periodDays,
             'stats.total_interactions',
         );
         const timePerfPromise = aggregateUserTimePerformance(
             user._id,
-            DEFAULT_METRICS_FETCH_DAYS,
+            periodDays,
             'stats.total_interactions',
         );
 
@@ -456,7 +471,20 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             .replace('{{USER_PROFILE_TONE}}', 'Dados insuficientes');
     }
 
+    try {
+        await stateService.setInCache(cacheKey, systemPrompt, 300);
+    } catch (cacheErr) {
+        logger.error(`${fnTag} Erro ao salvar prompt em cache:`, cacheErr);
+    }
     return systemPrompt;
+}
+
+export async function invalidateSystemPromptCache(
+    userId: string,
+    periodDays: number = DEFAULT_METRICS_FETCH_DAYS
+): Promise<void> {
+    const key = `prompt:${userId}:${periodDays}`;
+    await stateService.deleteFromCache(key);
 }
 
 
