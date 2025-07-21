@@ -207,6 +207,11 @@ export default function FinalCompleteLandingPage() {
     visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] } },
   };
   
+  // Array de perguntas para o terceiro carrossel, para adicionar variedade.
+  const thirdMarqueeQuestions = useMemo(() => 
+    [...heroQuestions].sort(() => Math.random() - 0.5)
+  , []);
+
   return (
     <>
       <Head>
@@ -239,56 +244,58 @@ export default function FinalCompleteLandingPage() {
         </header>
 
         <main>
-          <section className="relative flex justify-center items-center min-h-screen bg-gray-100 text-left overflow-hidden">
+          {/* ====================================================================== */}
+          {/* HERO SECTION - CORRIGIDA                                               */}
+          {/* ====================================================================== */}
+          <section className="relative bg-gray-100 text-center overflow-x-hidden pt-24 pb-16 md:pt-32 md:pb-24">
             <div className="w-full">
-              <div className="w-full max-w-screen-xl mx-auto px-6">
-                <motion.div
-                  variants={heroVariants}
-                  initial="hidden"
-                  animate="visible"
-                  className="max-w-3xl text-center mx-auto"
+              <motion.div
+                variants={heroVariants}
+                initial="hidden"
+                animate="visible"
+                className="max-w-3xl mx-auto px-6 lg:px-8"
+              >
+                <motion.h1 
+                  variants={heroItemVariants}
+                  className="text-5xl md:text-7xl font-extrabold tracking-tighter text-brand-dark"
                 >
-                  <motion.h1 
-                    variants={heroItemVariants}
-                    className="text-5xl md:text-7xl font-extrabold tracking-tighter text-brand-dark"
-                  >
-                    O fim da dúvida: o que postar hoje?
-                  </motion.h1>
-                  
-                  <motion.div variants={heroItemVariants} className="mt-6 h-14 md:h-auto">
-                    <TypeAnimation
-                      sequence={[
-                        'Uma Inteligência Artificial.',
-                        1000,
-                        'Uma Inteligência Artificial conectada ao seu Instagram.',
-                        1000,
-                        'Uma Inteligência Artificial para conversar no WhatsApp.',
-                        3000,
-                      ]}
-                      wrapper="p"
-                      speed={50}
-                      className="text-lg md:text-xl text-gray-600 max-w-2xl leading-relaxed mx-auto"
-                      cursor={true}
-                      repeat={Infinity}
-                    />
-                  </motion.div>
-
-                  <motion.div variants={heroItemVariants}>
-                    <ButtonPrimary onClick={handleSignIn} className="mt-10">
-                      <FaGoogle /> Ative sua IA do Instagram no WhatsApp ▸
-                    </ButtonPrimary>
-                  </motion.div>
+                  O fim da dúvida: o que postar hoje?
+                </motion.h1>
+                
+                <motion.div variants={heroItemVariants} className="mt-6 h-14 md:h-auto">
+                  <TypeAnimation
+                    sequence={[
+                      'Uma Inteligência Artificial.',
+                      1000,
+                      'Uma Inteligência Artificial conectada ao seu Instagram.',
+                      1000,
+                      'Uma Inteligência Artificial para conversar no WhatsApp.',
+                      3000,
+                    ]}
+                    wrapper="p"
+                    speed={50}
+                    className="text-lg md:text-xl text-gray-600 max-w-2xl leading-relaxed mx-auto"
+                    cursor={true}
+                    repeat={Infinity}
+                  />
                 </motion.div>
-              </div>
 
+                <motion.div variants={heroItemVariants}>
+                  <ButtonPrimary onClick={handleSignIn} className="mt-10">
+                    <FaGoogle /> Ative sua IA do Instagram no WhatsApp ▸
+                  </ButtonPrimary>
+                </motion.div>
+              </motion.div>
+              
               <motion.div 
-                className="mt-16 md:mt-24 w-full space-y-4"
+                className="mt-12 md:mt-16 w-full space-y-4"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: 0.4 }}
               >
                 <Marquee items={heroQuestions} />
                 <Marquee items={[...heroQuestions].reverse()} direction="right" />
+                <Marquee items={thirdMarqueeQuestions} />
               </motion.div>
             </div>
           </section>
