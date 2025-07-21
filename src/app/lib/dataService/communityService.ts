@@ -183,10 +183,11 @@ export async function addInspiration(
 export async function getInspirations(
     filters: CommunityInspirationFilters,
     limit: number = 3,
-    excludeIds?: string[]
+    excludeIds?: string[],
+    similarityFn?: (insp: ICommunityInspiration) => number
 ): Promise<ICommunityInspiration[]> {
     const TAG = `${SERVICE_TAG}[getInspirations]`;
-    logger.info(`${TAG} Buscando inspirações com filtros: ${JSON.stringify(filters)}, limite: ${limit}, excluir IDs: ${excludeIds?.join(',')}`);
+    logger.info(`${TAG} Buscando inspirações com filtros: ${JSON.stringify(filters)}, limite: ${limit}, excluir IDs: ${excludeIds?.join(',')}, similarityFn: ${similarityFn ? 'yes' : 'no'}`);
 
     const query: any = { status: 'active' };
 
@@ -224,11 +225,17 @@ export async function getInspirations(
 
     try {
         await connectToDatabase();
-        const inspirations = await CommunityInspirationModel.find(query)
+        let inspirations = await CommunityInspirationModel.find(query)
             .sort({ addedToCommunityAt: -1, 'internalMetricsSnapshot.saveRate': -1 })
-            .limit(limit)
-            .select('-internalMetricsSnapshot -updatedAt -status -__v') 
+            .limit(similarityFn ? limit * 3 : limit)
+            .select('-internalMetricsSnapshot -updatedAt -status -__v')
             .lean();
+
+        if (similarityFn) {
+            inspirations = inspirations.sort((a, b) => similarityFn(b) - similarityFn(a));
+        }
+
+        inspirations = inspirations.slice(0, limit);
 
         logger.info(`${TAG} Encontradas ${inspirations.length} inspirações.`);
         return inspirations as ICommunityInspiration[];
@@ -269,13 +276,20 @@ export async function recordDailyInspirationShown(
 
     try {
         await connectToDatabase();
+        const today = startOfDay(new Date());
         await User.findByIdAndUpdate(userId, {
             $set: {
                 lastCommunityInspirationShown_Daily: {
-                    date: startOfDay(new Date()),
+                    date: today,
                     inspirationIds: validInspirationObjectIds,
                 },
             },
+            $push: {
+                communityInspirationHistory: {
+                    $each: [{ date: today, inspirationIds: validInspirationObjectIds }],
+                    $slice: -7
+                }
+            }
         });
         logger.info(`${TAG} Registo de inspirações diárias atualizado para User ${userId}.`);
     } catch (error: any) {

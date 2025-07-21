@@ -156,6 +156,10 @@ export interface ILastCommunityInspirationShown {
   date: Date;
   inspirationIds: Types.ObjectId[];
 }
+export interface ICommunityInspirationHistoryEntry {
+  date: Date;
+  inspirationIds: Types.ObjectId[];
+}
 export type UserExpertiseLevel = 'iniciante' | 'intermediario' | 'avancado';
 export interface IUserPreferences {
   preferredFormats?: string[];
@@ -250,6 +254,7 @@ export interface IUser extends Document {
   communityInspirationOptInDate?: Date | null;
   communityInspirationTermsVersion?: string | null;
   lastCommunityInspirationShown_Daily?: ILastCommunityInspirationShown | null;
+  communityInspirationHistory?: ICommunityInspirationHistoryEntry[];
   isNewUserForOnboarding?: boolean;
   onboardingCompletedAt?: Date | null;
   inferredExpertiseLevel?: UserExpertiseLevel;
@@ -270,6 +275,7 @@ function generateAffiliateCode(): string {
 // --- SCHEMAS ANINHADOS ---
 const commissionLogEntrySchema = new Schema<ICommissionLogEntry>({/*...*/}, {/*...*/}); // Placeholder for brevity
 const lastCommunityInspirationShownSchema = new Schema<ILastCommunityInspirationShown>({/*...*/}, {/*...*/}); // Placeholder for brevity
+const communityInspirationHistoryEntrySchema = new Schema<ICommunityInspirationHistoryEntry>({/*...*/}, {/*...*/}); // Placeholder for brevity
 
 const AvailableInstagramAccountSchema = new Schema<IAvailableInstagramAccount>({
     igAccountId: { type: String, required: true },
@@ -379,6 +385,7 @@ const userSchema = new Schema<IUser>(
     communityInspirationOptInDate: { type: Date, default: null },
     communityInspirationTermsVersion: { type: String, default: null },
     lastCommunityInspirationShown_Daily: { type: lastCommunityInspirationShownSchema, default: null },
+    communityInspirationHistory: { type: [communityInspirationHistoryEntrySchema], default: [] },
     isNewUserForOnboarding: { type: Boolean, default: true },
     onboardingCompletedAt: { type: Date, default: null },
     userPreferences: { type: UserPreferencesSchema, default: () => ({}) },
