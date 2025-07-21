@@ -1,5 +1,6 @@
 // src/app/api/whatsapp/process-response/dailyTipHandler.ts
-// Versão: v1.6.5
+// Versão: v1.6.6
+// - CORREÇÃO 6: Aplica type guards no contador de frequência dentro de `fetchInspirationSnippet` para resolver erro 'possibly undefined'.
 // - CORREÇÃO 5: Adiciona um type guard para 'reference' para resolver o erro de tipo mais recente.
 // - CORREÇÃO 4: Ajusta o tipo 'ToneType' para corresponder aos valores reais esperados.
 // - NOTA: As listas de tipos 'ProposalType' e 'ContextType' podem precisar ser completadas pelo usuário.
@@ -126,7 +127,7 @@ function isPerformanceHighlightType(value: any): value is PerformanceHighlightTy
 // ===================================================================================
 
 
-const HANDLER_TAG_BASE = '[DailyTipHandler v1.6.5]'; // Tag da versão atualizada
+const HANDLER_TAG_BASE = '[DailyTipHandler v1.6.6]'; // Tag da versão atualizada
 
 const PROACTIVE_ALERT_TEMPLATE_NAME = process.env.PROACTIVE_ALERT_TEMPLATE_NAME;
 const GENERIC_ERROR_TEMPLATE_NAME = process.env.GENERIC_ERROR_TEMPLATE_NAME;
@@ -573,7 +574,7 @@ export async function fetchInspirationSnippet(
         }
 
         const topPosts = await dataService.getTopPostsByMetric(userId, 'saved', 10);
-        const freq: Record<string, Record<string, number>> = {
+        const freq: Record<'proposal' | 'context' | 'reference' | 'tone', Record<string, number>> = {
             proposal: {},
             context: {},
             reference: {},
@@ -584,10 +585,15 @@ export async function fetchInspirationSnippet(
             const ct = Array.isArray(p.context) ? p.context[0] : (p as any).context?.[0] || (p as any).context;
             const rf = Array.isArray((p as any).references) ? (p as any).references[0] : (p as any).references?.[0];
             const tn = Array.isArray((p as any).tone) ? (p as any).tone[0] : (p as any).tone?.[0];
-            if (pr) freq.proposal[pr] = (freq.proposal[pr] || 0) + 1;
-            if (ct) freq.context[ct] = (freq.context[ct] || 0) + 1;
-            if (rf) freq.reference[rf] = (freq.reference[rf] || 0) + 1;
-            if (tn) freq.tone[tn] = (freq.tone[tn] || 0) + 1;
+            
+            // =======================================================================
+            // CORREÇÃO APLICADA AQUI
+            // Usando os type guards para garantir a segurança e resolver o erro de tipo.
+            // =======================================================================
+            if (isProposalType(pr)) freq.proposal[pr] = (freq.proposal[pr] || 0) + 1;
+            if (isContextType(ct)) freq.context[ct] = (freq.context[ct] || 0) + 1;
+            if (isReferenceType(rf)) freq.reference[rf] = (freq.reference[rf] || 0) + 1;
+            if (isToneType(tn)) freq.tone[tn] = (freq.tone[tn] || 0) + 1;
         }
         const mostCommon = (m: Record<string, number>): string | undefined =>
             Object.entries(m).sort((a, b) => b[1] - a[1])[0]?.[0];
@@ -629,7 +635,7 @@ export async function fetchInspirationSnippet(
 }
 
 export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextResponse> {
-    console.log("!!!!!!!!!! EXECUTANDO handleDailyTip (v1.6.5) !!!!!!!!!! USER ID:", payload.userId, new Date().toISOString());
+    console.log("!!!!!!!!!! EXECUTANDO handleDailyTip (v1.6.6) !!!!!!!!!! USER ID:", payload.userId, new Date().toISOString());
     
     const { userId } = payload;
     const handlerTAG = `${HANDLER_TAG_BASE} User ${userId}:`;
