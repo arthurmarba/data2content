@@ -451,6 +451,47 @@ export function computeInspirationSimilarity(
     return score;
 }
 
+export async function buildSimilarityFn(
+    userId: string
+): Promise<(insp: ICommunityInspiration) => number> {
+    let avgSaveRate: number | null = null;
+    let avgShareRate: number | null = null;
+    let count = 0;
+
+    try {
+        const topPosts = await dataService.getTopPostsByMetric(userId, 'saved', 5);
+        for (const post of topPosts) {
+            if (post.stats && post.stats.reach && post.stats.reach > 0) {
+                const reach = post.stats.reach;
+                avgSaveRate = (avgSaveRate ?? 0) + ((post.stats.saved ?? 0) / reach);
+                avgShareRate = (avgShareRate ?? 0) + ((post.stats.shares ?? 0) / reach);
+                count++;
+            }
+        }
+        if (count > 0) {
+            avgSaveRate = avgSaveRate! / count;
+            avgShareRate = avgShareRate! / count;
+            logger.debug(`[${HANDLER_TAG_BASE}] Ordenação por similaridade ativa (saveRate=${avgSaveRate.toFixed(4)}, shareRate=${avgShareRate.toFixed(4)})`);
+            return (insp: ICommunityInspiration) => {
+                let score = 0;
+                const snap = insp.internalMetricsSnapshot || {};
+                if (avgSaveRate !== null && typeof snap.saveRate === 'number') {
+                    score -= Math.abs(snap.saveRate - avgSaveRate);
+                }
+                if (avgShareRate !== null && typeof snap.shareRate === 'number') {
+                    score -= Math.abs(snap.shareRate - avgShareRate);
+                }
+                return score;
+            };
+        }
+    } catch (e) {
+        logger.debug(`[DailyTipHandler] Não foi possível obter posts para similaridade: ${e}`);
+    }
+
+    logger.debug(`[DailyTipHandler] Ordenação por similaridade não ativa.`);
+    return () => 0;
+}
+
 export async function fetchInspirationSnippet(
     userId: string,
     filters: CommunityInspirationFilters,
@@ -465,19 +506,13 @@ export async function fetchInspirationSnippet(
             excludeIds = historyEntries.flatMap(h => h.inspirationIds.map(id => id.toString()));
         }
 
-        let bestPost: IMetric | null = null;
-        try {
-            const topPosts = await dataService.getTopPostsByMetric(userId, 'saved', 1);
-            bestPost = topPosts && topPosts.length > 0 ? topPosts[0] : null;
-        } catch (e) {
-            logger.debug(`[DailyTipHandler] Não foi possível obter top post para similaridade: ${e}`);
-        }
+        const similarityFn = await buildSimilarityFn(userId);
 
         const inspirations = await dataService.getInspirations(
             filters,
             3,
             excludeIds,
-            (i) => computeInspirationSimilarity(bestPost, i),
+            similarityFn,
             userId
         );
 
