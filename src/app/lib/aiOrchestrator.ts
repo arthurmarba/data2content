@@ -1,6 +1,8 @@
 /**
  * @fileoverview Orquestrador de chamadas à API OpenAI com Function Calling e Streaming.
  * Otimizado para buscar dados sob demanda via funções e modular comportamento por intenção.
+ * ATUALIZADO: v1.0.6 - Corrige erro de tipo 'Property 'dayPCOStats' does not exist on type '{}''.
+ * ATUALIZADO: v1.0.5 - Corrige erro de tipo 'Property 'insightSummary' does not exist on type '{}''.
  * ATUALIZADO: v1.0.4 - Corrige erro de tipo 'is possibly undefined' para 'dayPerf.bestDays[0]'.
  * ATUALIZADO: v1.0.3 - Corrige erro de tipo 'is possibly undefined' para 'firstCombo'.
  * ATUALIZADO: v1.0.2 - Corrige erro de tipo 'Object is possibly undefined' ao acessar array 'dayNames'.
@@ -8,7 +10,7 @@
  * ATUALIZADO: v1.0.0 - Adiciona verificações de existência para funções executoras para evitar erros de tipo.
  * ATUALIZADO: v0.9.9 - Inclui currentAlertDetails no contexto para a LLM em alertas proativos.
  * ATUALIZADO: v0.9.8 - Omite 'functions' e 'function_call' para intents leves.
- * @version 1.0.4
+ * @version 1.0.6
  */
 
 import OpenAI from 'openai';
@@ -17,7 +19,7 @@ import type {
     ChatCompletionChunk,
     ChatCompletionAssistantMessageParam,
     ChatCompletionFunctionCallOption,
-    ChatCompletionCreateParamsStreaming 
+    ChatCompletionCreateParamsStreaming
 } from 'openai/resources/chat/completions';
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
@@ -89,7 +91,7 @@ export async function populateSystemPrompt(
         } else {
             logger.warn(`${fnTag} Executor function 'getAggregatedReport' not found.`);
         }
-        
+
         const stats = reportRes?.reportData?.overallStats || {};
         const avgReach = typeof stats.avgReach === 'number' ? Math.round(stats.avgReach) : 'Dados insuficientes';
         const avgShares = typeof stats.avgShares === 'number' ? Math.round(stats.avgShares) : 'Dados insuficientes';
@@ -99,9 +101,9 @@ export async function populateSystemPrompt(
         const userTrendPromise =
             functionExecutors && typeof functionExecutors.getUserTrend === 'function'
                 ? functionExecutors.getUserTrend(
-                      { trendType: 'reach_engagement', timePeriod: `last_${periodDays}_days`, granularity: 'weekly' },
-                      user,
-                  )
+                    { trendType: 'reach_engagement', timePeriod: `last_${periodDays}_days`, granularity: 'weekly' },
+                    user,
+                )
                 : Promise.resolve(undefined);
 
         const historical = reportRes?.reportData?.historicalComparisons || {};
@@ -170,9 +172,9 @@ export async function populateSystemPrompt(
         const categoryPromise =
             functionExecutors && typeof functionExecutors.getCategoryRanking === 'function'
                 ? functionExecutors.getCategoryRanking(
-                      { category: 'format', metric: 'shares', periodDays: periodDays, limit: 3 },
-                      user,
-                  )
+                    { category: 'format', metric: 'shares', periodDays: periodDays, limit: 3 },
+                    user,
+                )
                 : Promise.resolve(undefined);
         const demoPromise =
             functionExecutors && typeof functionExecutors.getLatestAudienceDemographics === 'function'
@@ -219,16 +221,26 @@ export async function populateSystemPrompt(
             timePerfPromise,
         ]);
 
-        const trendSummary =
-            trendRes.status === 'fulfilled' && trendRes.value
-                ? trendRes.value.insightSummary ?? 'Dados insuficientes'
-                : 'Dados insuficientes';
+        // ==================================================================
+        // CORREÇÃO: Bloco 'if' explícito para garantir a segurança de tipo.
+        // ==================================================================
+        let trendSummary = 'Dados insuficientes';
+        if (trendRes.status === 'fulfilled' && trendRes.value) {
+            // O TypeScript agora sabe que trendRes.value é do tipo correto
+            // e permite o acesso seguro à propriedade 'insightSummary'.
+            // A coerção de tipo (as) ajuda a ser explícito sobre a estrutura esperada.
+            trendSummary = (trendRes.value as { insightSummary?: string }).insightSummary ?? 'Dados insuficientes';
+        } else if (trendRes.status === 'rejected') {
+            logger.error(`${fnTag} Erro ao obter UserTrend:`, trendRes.reason);
+        }
+        // ==================================================================
 
         let hotTimeText = 'Dados insuficientes';
         let topDayCombosText = 'Dados insuficientes';
         if (dayRes.status === 'fulfilled' && dayRes.value) {
             try {
-                const data = dayRes.value.dayPCOStats || {};
+                // CORREÇÃO: Adicionada asserção de tipo para 'dayRes.value'.
+                const data = (dayRes.value as { dayPCOStats?: any }).dayPCOStats || {};
                 const combos: { d: number; p: string; c: string; avg: number }[] = [];
                 for (const [day, propObj] of Object.entries(data)) {
                     for (const [prop, ctxObj] of Object.entries(propObj as any)) {
@@ -267,8 +279,8 @@ export async function populateSystemPrompt(
         let catText = 'Dados insuficientes';
         if (catRes.status === 'fulfilled' && catRes.value) {
             try {
-                if (Array.isArray(catRes.value.ranking) && catRes.value.ranking.length) {
-                    catText = catRes.value.ranking.map((r: any) => r.category).slice(0, 3).join(', ');
+                if (Array.isArray((catRes.value as { ranking?: any[] }).ranking) && (catRes.value as { ranking: any[] }).ranking.length) {
+                    catText = (catRes.value as { ranking: { category: string }[] }).ranking.map((r: any) => r.category).slice(0, 3).join(', ');
                 }
             } catch (e) {
                 logger.error(`${fnTag} Erro ao obter ranking de categorias:`, e);
@@ -280,7 +292,7 @@ export async function populateSystemPrompt(
         let demoText = 'Dados insuficientes';
         if (demoRes.status === 'fulfilled' && demoRes.value) {
             try {
-                const demo = demoRes.value.demographics?.follower_demographics;
+                const demo = (demoRes.value as { demographics?: any }).demographics?.follower_demographics;
                 if (demo) {
                     const topCountry = Object.entries(demo.country || {}).sort((a, b) => (b[1] as number) - (a[1] as number))[0]?.[0];
                     const topAge = Object.entries(demo.age || {}).sort((a, b) => (b[1] as number) - (a[1] as number))[0]?.[0];
@@ -301,7 +313,7 @@ export async function populateSystemPrompt(
         let avgRetentionText = 'Dados insuficientes';
         if (metricsRes.status === 'fulfilled' && metricsRes.value) {
             try {
-                const history = metricsRes.value.history || {};
+                const history = (metricsRes.value as { history?: any }).history || {};
                 const avgOf = (arr: any): number | null => {
                     const vals = Array.isArray(arr) ? arr.filter((v: any) => typeof v === 'number') : [];
                     return vals.length ? vals.reduce((a: number, b: number) => a + b, 0) / vals.length : null;
@@ -589,7 +601,7 @@ export async function askLLMWithEnrichedContext(
     });
 
     // Passando enrichedContext (que agora é EnrichedAIContext) para processTurn
-    processTurn(initialMsgs, 0, null, writer, user, intent, enrichedContext) 
+    processTurn(initialMsgs, 0, null, writer, user, intent, enrichedContext)
         .then((finalHistory) => {
             logger.debug(`${fnTag} processTurn concluído com sucesso. Fechando writer.`);
             writer.close();
@@ -638,9 +650,9 @@ export async function askLLMWithEnrichedContext(
         if (iter >= MAX_ITERS) {
             logger.warn(`${turnTag} Function-call loop excedeu MAX_ITERS (${MAX_ITERS}).`);
             const maxIterMessage = `Desculpe, parece que estou tendo dificuldades em processar sua solicitação após várias tentativas. Poderia tentar de outra forma?`;
-            currentMsgs.push({role: 'assistant', content: maxIterMessage});
+            currentMsgs.push({ role: 'assistant', content: maxIterMessage });
             try { await writer.write(maxIterMessage); }
-            catch(e) { logger.error(`${turnTag} Erro ao escrever msg de MAX_ITERS:`, e); }
+            catch (e) { logger.error(`${turnTag} Erro ao escrever msg de MAX_ITERS:`, e); }
             return currentMsgs;
         }
 
@@ -671,16 +683,16 @@ export async function askLLMWithEnrichedContext(
         try {
             logger.debug(`${turnTag} Chamando OpenAI API (Modelo: ${requestPayload.model}, Histórico: ${requestPayload.messages.length} msgs). Function calling: ${(requestPayload as any).function_call ?? 'omitido'}, Functions count: ${(requestPayload as any).functions?.length ?? 'omitido'}`);
             completionStream = await openai.chat.completions.create(
-                requestPayload, 
+                requestPayload,
                 { signal: aborter.signal }
             );
         } catch (error: any) {
             clearTimeout(timeout);
             logger.error(`${turnTag} Falha na chamada à API OpenAI. Error Name: ${error.name}, Message: ${error.message}. Full Error Object:`, error);
             const apiCallFailMessage = "Desculpe, não consegui conectar com o serviço de IA no momento. Tente mais tarde.";
-            currentMsgs.push({role: 'assistant', content: apiCallFailMessage});
+            currentMsgs.push({ role: 'assistant', content: apiCallFailMessage });
             try { await writer.write(apiCallFailMessage); }
-            catch(e) { logger.error(`${turnTag} Erro ao escrever msg de falha da API:`, e); }
+            catch (e) { logger.error(`${turnTag} Erro ao escrever msg de falha da API:`, e); }
             return currentMsgs;
         }
 
@@ -722,51 +734,51 @@ export async function askLLMWithEnrichedContext(
             if (pendingAssistantMsg && typeof pendingAssistantMsg.content === 'string') {
                 pendingAssistantMsg.content += `\n${streamErrMessage}`;
             } else {
-                pendingAssistantMsg = {role: 'assistant', content: streamErrMessage};
+                pendingAssistantMsg = { role: 'assistant', content: streamErrMessage };
             }
             currentMsgs.push(pendingAssistantMsg);
             try { await writer.write(`\n${streamErrMessage}`); }
-            catch(e) { logger.error(`${turnTag} Erro ao escrever msg de erro de stream:`, e); }
+            catch (e) { logger.error(`${turnTag} Erro ao escrever msg de erro de stream:`, e); }
             return currentMsgs;
         } finally {
             clearTimeout(timeout);
         }
 
         if (!streamReceivedContent && lastFinishReason !== 'stop' && lastFinishReason !== 'length' && lastFinishReason !== 'function_call') {
-             logger.error(`${turnTag} Stream finalizado sem conteúdo útil e com finish_reason inesperado: ${lastFinishReason}`);
-             const noContentMessage = "A IA não forneceu uma resposta utilizável desta vez. Poderia tentar novamente?";
-             currentMsgs.push({role: 'assistant', content: noContentMessage});
-             try { await writer.write(noContentMessage); }
-             catch(e) { logger.error(`${turnTag} Erro ao escrever msg de 'sem conteúdo útil':`, e); }
-             return currentMsgs;
+            logger.error(`${turnTag} Stream finalizado sem conteúdo útil e com finish_reason inesperado: ${lastFinishReason}`);
+            const noContentMessage = "A IA não forneceu uma resposta utilizável desta vez. Poderia tentar novamente?";
+            currentMsgs.push({ role: 'assistant', content: noContentMessage });
+            try { await writer.write(noContentMessage); }
+            catch (e) { logger.error(`${turnTag} Erro ao escrever msg de 'sem conteúdo útil':`, e); }
+            return currentMsgs;
         }
         if (pendingAssistantMsg) {
             if (functionCallName || functionCallArgs) {
                 if (isLightweightIntent) {
                     logger.warn(`${turnTag} IA tentou function call (${functionCallName}) para intent leve ('${currentIntent}'), mas os parâmetros de função não foram enviados. Ignorando a chamada de função e tratando como texto.`);
                     if (pendingAssistantMsg.content === null || pendingAssistantMsg.content === '') {
-                        pendingAssistantMsg.content = "Entendi."; 
-                        try { await writer.write(pendingAssistantMsg.content); } catch(e) { /* ignore */ }
+                        pendingAssistantMsg.content = "Entendi.";
+                        try { await writer.write(pendingAssistantMsg.content); } catch (e) { /* ignore */ }
                     }
                     pendingAssistantMsg.function_call = undefined;
-                } else { 
+                } else {
                     pendingAssistantMsg.function_call = { name: functionCallName, arguments: functionCallArgs };
                     pendingAssistantMsg.content = null;
                 }
             } else if (pendingAssistantMsg.content === null || pendingAssistantMsg.content === '') {
-                 if(lastFinishReason !== 'stop' && lastFinishReason !== 'length') {
+                if (lastFinishReason !== 'stop' && lastFinishReason !== 'length') {
                     logger.warn(`${turnTag} Mensagem assistente finalizada sem conteúdo/function call. Finish Reason: ${lastFinishReason}. Content será null/vazio.`);
-                 }
+                }
             }
             currentMsgs.push(pendingAssistantMsg as ChatCompletionAssistantMessageParam);
         } else if (lastFinishReason === 'stop' || lastFinishReason === 'length') {
-             logger.warn(`${turnTag} Stream finalizado (${lastFinishReason}) mas sem delta de assistente. Adicionando msg de assistente vazia de fallback.`);
-             currentMsgs.push({ role: 'assistant', content: '' });
+            logger.warn(`${turnTag} Stream finalizado (${lastFinishReason}) mas sem delta de assistente. Adicionando msg de assistente vazia de fallback.`);
+            currentMsgs.push({ role: 'assistant', content: '' });
         } else if (!functionCallName && lastFinishReason !== 'function_call') {
-             logger.error(`${turnTag} Estado inesperado no final do processamento do stream. Finish Reason: ${lastFinishReason}, sem function call name.`);
+            logger.error(`${turnTag} Estado inesperado no final do processamento do stream. Finish Reason: ${lastFinishReason}, sem function call name.`);
         }
 
-        if (pendingAssistantMsg?.function_call && !isLightweightIntent) { 
+        if (pendingAssistantMsg?.function_call && !isLightweightIntent) {
             const { name, arguments: rawArgs } = pendingAssistantMsg.function_call;
             logger.info(`${turnTag} API solicitou Function Call: ${name}. Args RAW: ${rawArgs.slice(0, 100)}...`);
 
@@ -775,9 +787,9 @@ export async function askLLMWithEnrichedContext(
                 const loopErrorMessage = `Ainda estou tendo dificuldades com a função '${name}' após tentar corrigi-la. Poderia reformular sua solicitação ou focar em outro aspecto?`;
                 currentMsgs.push({ role: 'assistant', content: loopErrorMessage });
                 try {
-                    const lastMessageInHistory = currentMsgs[currentMsgs.length-2];
-                    if(!(lastMessageInHistory?.role === 'assistant' && lastMessageInHistory.content)){
-                         await writer.write(loopErrorMessage);
+                    const lastMessageInHistory = currentMsgs[currentMsgs.length - 2];
+                    if (!(lastMessageInHistory?.role === 'assistant' && lastMessageInHistory.content)) {
+                        await writer.write(loopErrorMessage);
                     }
                 }
                 catch (writeError) { logger.error(`${turnTag} Erro ao escrever mensagem de loop detectado no writer:`, writeError); }
@@ -792,8 +804,8 @@ export async function askLLMWithEnrichedContext(
                 functionResult = { error: `Função "${name}" desconhecida.` };
                 logger.error(`${turnTag} Executor não encontrado para "${name}".`);
             } else if (!validator) {
-                 functionResult = { error: `Configuração interna inválida: Validador não encontrado para a função ${name}.` };
-                 logger.error(`${turnTag} Validador Zod não encontrado para "${name}".`);
+                functionResult = { error: `Configuração interna inválida: Validador não encontrado para a função ${name}.` };
+                logger.error(`${turnTag} Validador Zod não encontrado para "${name}".`);
             } else {
                 let validatedArgs: any;
                 try {
@@ -818,8 +830,8 @@ export async function askLLMWithEnrichedContext(
                         functionResult = { error: `Argumentos inválidos para a função ${name}. Detalhes: ${errorMessages}` };
                     }
                 } catch (parseError) {
-                     logger.error(`${turnTag} Erro JSON.parse dos args para "${name}": ${rawArgs}`, parseError);
-                     functionResult = { error: `Argumentos inválidos para ${name}. Esperava formato JSON.` };
+                    logger.error(`${turnTag} Erro JSON.parse dos args para "${name}": ${rawArgs}`, parseError);
+                    functionResult = { error: `Argumentos inválidos para ${name}. Esperava formato JSON.` };
                 }
             }
 
