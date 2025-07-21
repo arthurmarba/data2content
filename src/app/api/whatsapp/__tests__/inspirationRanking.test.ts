@@ -1,41 +1,35 @@
-import { computeInspirationSimilarity, fetchInspirationSnippet } from '../process-response/dailyTipHandler';
+import { fetchInspirationSnippet } from '../process-response/dailyTipHandler';
+import { calculateInspirationSimilarity, UserEngagementProfile } from '@/app/lib/dataService/communityService';
 import * as dataService from '@/app/lib/dataService';
 
 describe('inspiration ranking', () => {
-  test('computeInspirationSimilarity gives higher score to closer match', () => {
-    const bestPost: any = {
-      stats: { reach: 1000, saved: 200, shares: 50 },
-      format: ['Reel'],
-      proposal: ['Humor/Cena'],
-      context: ['Estilo de Vida e Bem-Estar']
+  test('calculateInspirationSimilarity gives higher score to closer match', () => {
+    const profile: UserEngagementProfile = {
+      proposal: 'Humor/Cena',
+      context: 'Estilo de Vida e Bem-Estar'
     };
 
     const insp1: any = {
-      format: 'Reel',
       proposal: 'Humor/Cena',
       context: 'Estilo de Vida e Bem-Estar',
-      internalMetricsSnapshot: { saveRate: 0.2, shareRate: 0.05 }
+      internalMetricsSnapshot: { saveRate: 0.2 }
     };
 
     const insp2: any = {
-      format: 'Foto',
       proposal: 'Mensagem/Motivacional',
       context: 'Moda/Estilo',
-      internalMetricsSnapshot: { saveRate: 0.05, shareRate: 0.01 }
+      internalMetricsSnapshot: { saveRate: 0.05 }
     };
 
-    const score1 = computeInspirationSimilarity(bestPost, insp1);
-    const score2 = computeInspirationSimilarity(bestPost, insp2);
+    const score1 = calculateInspirationSimilarity(profile, insp1);
+    const score2 = calculateInspirationSimilarity(profile, insp2);
     expect(score1).toBeGreaterThan(score2);
   });
 
   test('fetchInspirationSnippet returns most similar inspiration', async () => {
-    const bestPost: any = {
-      stats: { reach: 1000, saved: 200, shares: 50 },
-      format: ['Reel'],
-      proposal: ['Humor/Cena'],
-      context: ['Estilo de Vida e Bem-Estar']
-    };
+    const topPosts: any[] = [
+      { proposal: ['Humor/Cena'], context: ['Estilo de Vida e Bem-Estar'] }
+    ];
 
     const inspHigh: any = {
       _id: '1',
@@ -57,7 +51,7 @@ describe('inspiration ranking', () => {
       internalMetricsSnapshot: { saveRate: 0.05, shareRate: 0.01 }
     };
 
-    jest.spyOn(dataService, 'getTopPostsByMetric').mockResolvedValue([bestPost]);
+    jest.spyOn(dataService, 'getTopPostsByMetric').mockResolvedValue(topPosts);
     jest.spyOn(dataService, 'recordDailyInspirationShown').mockResolvedValue();
     jest.spyOn(dataService, 'getInspirations').mockImplementation((f, l, e, simFn, excludeCreatorId) => {
       const arr = [inspLow, inspHigh];

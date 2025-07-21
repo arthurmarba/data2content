@@ -16,6 +16,7 @@ import * as stateService from '@/app/lib/stateService';
 import type { IDialogueState, ILastResponseContext, IFallbackInsightHistoryEntry } from '@/app/lib/stateService'; 
 import * as dataService from '@/app/lib/dataService';
 import type { IEnrichedReport, IAccountInsight, CommunityInspirationFilters } from '@/app/lib/dataService';
+import { calculateInspirationSimilarity, UserEngagementProfile } from '@/app/lib/dataService/communityService';
 import type { ICommunityInspiration } from '@/app/models/CommunityInspiration';
 import type { IMetric } from '@/app/models/Metric';
 import { IUser, IAlertHistoryEntry, AlertDetails } from '@/app/models/User'; 
@@ -492,6 +493,11 @@ export async function buildSimilarityFn(
     return () => 0;
 }
 
+/**
+ * Busca uma inspiração da comunidade mais alinhada ao perfil de engajamento do usuário.
+ * O perfil é construído a partir dos 10 posts com mais salvamentos e considera
+ * proposta, contexto, referência e tom predominantes.
+ */
 export async function fetchInspirationSnippet(
     userId: string,
     filters: CommunityInspirationFilters,
@@ -506,7 +512,37 @@ export async function fetchInspirationSnippet(
             excludeIds = historyEntries.flatMap(h => h.inspirationIds.map(id => id.toString()));
         }
 
-        const similarityFn = await buildSimilarityFn(userId);
+        const topPosts = await dataService.getTopPostsByMetric(userId, 'saved', 10);
+        const freq: Record<string, Record<string, number>> = {
+            proposal: {},
+            context: {},
+            reference: {},
+            tone: {},
+        };
+        for (const p of topPosts) {
+            const pr = Array.isArray(p.proposal) ? p.proposal[0] : (p as any).proposal?.[0] || (p as any).proposal;
+            const ct = Array.isArray(p.context) ? p.context[0] : (p as any).context?.[0] || (p as any).context;
+            const rf = Array.isArray((p as any).references) ? (p as any).references[0] : (p as any).references?.[0];
+            const tn = Array.isArray((p as any).tone) ? (p as any).tone[0] : (p as any).tone?.[0];
+            if (pr) freq.proposal[pr] = (freq.proposal[pr] || 0) + 1;
+            if (ct) freq.context[ct] = (freq.context[ct] || 0) + 1;
+            if (rf) freq.reference[rf] = (freq.reference[rf] || 0) + 1;
+            if (tn) freq.tone[tn] = (freq.tone[tn] || 0) + 1;
+        }
+        const mostCommon = (m: Record<string, number>): string | undefined =>
+            Object.entries(m).sort((a, b) => b[1] - a[1])[0]?.[0];
+
+        const userProfile: UserEngagementProfile = {
+            proposal: mostCommon(freq.proposal) as ProposalType | undefined,
+            context: mostCommon(freq.context) as ContextType | undefined,
+            reference: mostCommon(freq.reference) as ReferenceType | undefined,
+            tone: mostCommon(freq.tone) as ToneType | undefined,
+        };
+
+        logger.debug(`[DailyTipHandler] Perfil de engajamento extraído: ${JSON.stringify(userProfile)}`);
+
+        const similarityFn = (insp: ICommunityInspiration) =>
+            calculateInspirationSimilarity(userProfile, insp);
 
         const inspirations = await dataService.getInspirations(
             filters,
@@ -518,6 +554,8 @@ export async function fetchInspirationSnippet(
 
         const insp = inspirations && inspirations.length > 0 ? inspirations[0] : undefined;
         if (insp) {
+            const score = calculateInspirationSimilarity(userProfile, insp);
+            logger.info(`[DailyTipHandler] Inspiração escolhida ${insp._id.toString()} com score ${score.toFixed(2)}`);
             await dataService.recordDailyInspirationShown(userId, [insp._id.toString()]);
             return {
                 text: `\n\nInspiração da comunidade: ${insp.contentSummary} (${insp.originalInstagramPostUrl})`,
