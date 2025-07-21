@@ -350,26 +350,24 @@ async function buildInspirationFilters(
 
     if (forFallback && (!filters.format || !filters.proposal || !filters.context)) {
         try {
-            const posts = await dataService.getRecentPostObjectsWithAggregatedMetrics(userId, 30);
-            if (posts && posts.length > 0) {
-                posts.sort((a, b) => {
-                    const dA = new Date(a.postDate as any).getTime();
-                    const dB = new Date(b.postDate as any).getTime();
-                    return dB - dA;
-                });
-                const lastPost = posts[0];
-                if (!filters.format && isFormatType(lastPost?.format)) {
-                    filters.format = lastPost.format;
+            const topPosts = await dataService.getTopPostsByMetric(userId, 'saved', 5);
+            const best = topPosts && topPosts.length > 0 ? topPosts[0] : undefined;
+            if (best) {
+                const format = Array.isArray(best.format) ? best.format[0] : best.format as any;
+                const proposal = Array.isArray(best.proposal) ? best.proposal[0] : best.proposal as any;
+                const context = Array.isArray(best.context) ? best.context[0] : best.context as any;
+                if (!filters.format && isFormatType(format)) {
+                    filters.format = format;
                 }
-                if (!filters.proposal && isProposalType(lastPost?.proposal)) {
-                    filters.proposal = lastPost.proposal;
+                if (!filters.proposal && isProposalType(proposal)) {
+                    filters.proposal = proposal;
                 }
-                if (!filters.context && isContextType(lastPost?.context)) {
-                    filters.context = lastPost.context;
+                if (!filters.context && isContextType(context)) {
+                    filters.context = context;
                 }
             }
         } catch (e) {
-            logger.warn(`[DailyTipHandler] Falha ao inferir formato para inspiração: ${e}`);
+            logger.warn(`[DailyTipHandler] Falha ao inferir formato por desempenho: ${e}`);
         }
 
         // Complementa com preferências do usuário, se disponíveis
@@ -406,22 +404,12 @@ async function fetchInspirationSnippet(
         if (Array.isArray(userOrExcludeIds)) {
             excludeIds = userOrExcludeIds;
         } else if (userOrExcludeIds) {
-            const lastShown = userOrExcludeIds.lastCommunityInspirationShown_Daily;
-            if (
-                lastShown?.date &&
-                lastShown.inspirationIds &&
-                lastShown.inspirationIds.length > 0
-            ) {
-                const today = startOfDay(new Date());
-                const lastShownDate = startOfDay(new Date(lastShown.date));
-                if (today.getTime() === lastShownDate.getTime()) {
-                    excludeIds = lastShown.inspirationIds.map(id => id.toString());
-                }
-            }
+            const historyEntries = userOrExcludeIds.communityInspirationHistory || [];
+            excludeIds = historyEntries.flatMap(h => h.inspirationIds.map(id => id.toString()));
         }
 
-        const inspirations = await dataService.getInspirations(filters, 1, excludeIds);
-        const insp = inspirations?.[0];
+        const inspirations = await dataService.getInspirations(filters, 3, excludeIds);
+        const insp = inspirations && inspirations.length > 0 ? inspirations[Math.floor(Math.random() * inspirations.length)] : undefined;
         if (insp) {
             await dataService.recordDailyInspirationShown(userId, [insp._id.toString()]);
             return {
