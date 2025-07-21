@@ -229,6 +229,31 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             logger.error(`${fnTag} Erro ao obter demographics:`, e);
         }
 
+        let avgPropagationText = 'Dados insuficientes';
+        let avgFollowerConvText = 'Dados insuficientes';
+        let avgRetentionText = 'Dados insuficientes';
+        try {
+            let metricsRes: any = {};
+            if (functionExecutors && typeof functionExecutors.getMetricsHistory === 'function') {
+                metricsRes = await functionExecutors.getMetricsHistory({ days: 30 }, user);
+            } else {
+                logger.warn(`${fnTag} Executor function 'getMetricsHistory' not found.`);
+            }
+            const history = metricsRes?.history || {};
+            const avgOf = (arr: any): number | null => {
+                const vals = Array.isArray(arr) ? arr.filter((v: any) => typeof v === 'number') : [];
+                return vals.length ? vals.reduce((a: number, b: number) => a + b, 0) / vals.length : null;
+            };
+            const propAvg = avgOf(history.propagationIndex?.datasets?.[0]?.data);
+            const convAvg = avgOf(history.followerConversionRate?.datasets?.[0]?.data);
+            const retAvg = avgOf(history.retentionRate?.datasets?.[0]?.data);
+            if (propAvg !== null) avgPropagationText = propAvg.toFixed(1);
+            if (convAvg !== null) avgFollowerConvText = convAvg.toFixed(1);
+            if (retAvg !== null) avgRetentionText = retAvg.toFixed(1);
+        } catch (e) {
+            logger.error(`${fnTag} Erro ao processar MetricsHistory:`, e);
+        }
+
         let topFormatText = 'N/A';
         let lowFormatText = 'N/A';
         let bestDayText = 'N/A';
@@ -302,6 +327,9 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             .replace('{{FOLLOWER_GROWTH_RATE_LAST30}}', followerGrowthRateText)
             .replace('{{AVG_ENG_POST_LAST30}}', avgEngPostText)
             .replace('{{AVG_REACH_POST_LAST30}}', avgReachPostText)
+            .replace('{{AVG_PROPAGATION_LAST30}}', avgPropagationText)
+            .replace('{{AVG_FOLLOWER_CONV_RATE_LAST30}}', avgFollowerConvText)
+            .replace('{{AVG_RETENTION_RATE_LAST30}}', avgRetentionText)
             .replace('{{DEALS_COUNT_LAST30}}', dealsCountText)
             .replace('{{DEALS_REVENUE_LAST30}}', dealsRevenueText)
             .replace('{{DEAL_AVG_VALUE_LAST30}}', dealsAvgValueText)
@@ -341,6 +369,9 @@ export async function populateSystemPrompt(user: IUser, userName: string): Promi
             .replace('{{FOLLOWER_GROWTH_RATE_LAST30}}', 'Dados insuficientes')
             .replace('{{AVG_ENG_POST_LAST30}}', 'Dados insuficientes')
             .replace('{{AVG_REACH_POST_LAST30}}', 'Dados insuficientes')
+            .replace('{{AVG_PROPAGATION_LAST30}}', 'Dados insuficientes')
+            .replace('{{AVG_FOLLOWER_CONV_RATE_LAST30}}', 'Dados insuficientes')
+            .replace('{{AVG_RETENTION_RATE_LAST30}}', 'Dados insuficientes')
             .replace('{{DEALS_COUNT_LAST30}}', 'Dados insuficientes')
             .replace('{{DEALS_REVENUE_LAST30}}', 'Dados insuficientes')
             .replace('{{DEAL_AVG_VALUE_LAST30}}', 'Dados insuficientes')

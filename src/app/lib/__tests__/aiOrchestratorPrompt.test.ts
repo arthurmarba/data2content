@@ -14,6 +14,7 @@ jest.mock('../aiFunctions', () => ({
     getDayPCOStats: jest.fn(),
     getCategoryRanking: jest.fn(),
     getLatestAudienceDemographics: jest.fn(),
+    getMetricsHistory: jest.fn(),
   }
 }));
 jest.mock('@/utils/aggregateUserPerformanceHighlights');
@@ -56,6 +57,13 @@ describe('populateSystemPrompt', () => {
     execs.getDayPCOStats.mockResolvedValue({ dayPCOStats: { '1': { dica: { tech: { avgTotalInteractions: 10 } } } } });
     execs.getCategoryRanking.mockResolvedValue({ ranking: [{ category: 'reel' }, { category: 'carrossel' }] });
     execs.getLatestAudienceDemographics.mockResolvedValue({ demographics: { follower_demographics: { country: { Brasil: 80 }, age: { '18-24': 50 } } } });
+    execs.getMetricsHistory.mockResolvedValue({
+      history: {
+        propagationIndex: { labels: [], datasets: [{ data: [10, 20] }] },
+        followerConversionRate: { labels: [], datasets: [{ data: [3, 5] }] },
+        retentionRate: { labels: [], datasets: [{ data: [60, 80] }] },
+      }
+    });
     mockPerf.mockResolvedValue({
       topFormat: { name: 'VIDEO', average: 10, count: 2 },
       lowFormat: { name: 'IMAGE', average: 2, count: 1 },
@@ -77,6 +85,9 @@ describe('populateSystemPrompt', () => {
     expect(prompt).toContain('14h');
     expect(prompt).toContain('1.5');
     expect(prompt).toContain('5000');
+    expect(prompt).toContain('15.0');
+    expect(prompt).toContain('4.0');
+    expect(prompt).toContain('70.0');
     expect(prompt).toContain('tech');
     expect(prompt).not.toContain('{{AVG_REACH_LAST30}}');
     expect(prompt).not.toContain('{{TOP_CATEGORY_RANKINGS}}');
@@ -84,6 +95,9 @@ describe('populateSystemPrompt', () => {
     expect(prompt).not.toContain('{{PERFORMANCE_INSIGHT_SUMMARY}}');
     expect(prompt).not.toContain('{{DEALS_COUNT_LAST30}}');
     expect(prompt).not.toContain('{{FOLLOWER_GROWTH_RATE_LAST30}}');
+    expect(prompt).not.toContain('{{AVG_PROPAGATION_LAST30}}');
+    expect(prompt).not.toContain('{{AVG_FOLLOWER_CONV_RATE_LAST30}}');
+    expect(prompt).not.toContain('{{AVG_RETENTION_RATE_LAST30}}');
   });
 
   it('uses fallback phrase when metrics retrieval fails', async () => {
@@ -93,6 +107,7 @@ describe('populateSystemPrompt', () => {
     execs.getDayPCOStats.mockRejectedValue(new Error('fail'));
     execs.getCategoryRanking.mockRejectedValue(new Error('fail'));
     execs.getLatestAudienceDemographics.mockRejectedValue(new Error('fail'));
+    execs.getMetricsHistory.mockRejectedValue(new Error('fail'));
     mockPerf.mockRejectedValue(new Error('fail'));
     mockDayPerf.mockRejectedValue(new Error('fail'));
     mockTimePerf.mockRejectedValue(new Error('fail'));
@@ -114,6 +129,9 @@ describe('populateSystemPrompt', () => {
       '{{BEST_DAY}}',
       '{{PERFORMANCE_INSIGHT_SUMMARY}}',
       '{{FOLLOWER_GROWTH_RATE_LAST30}}',
+      '{{AVG_PROPAGATION_LAST30}}',
+      '{{AVG_FOLLOWER_CONV_RATE_LAST30}}',
+      '{{AVG_RETENTION_RATE_LAST30}}',
       '{{AVG_ENG_POST_LAST30}}',
       '{{AVG_REACH_POST_LAST30}}',
       '{{DEALS_COUNT_LAST30}}',
