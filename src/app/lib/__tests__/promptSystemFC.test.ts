@@ -58,6 +58,8 @@ describe('getSystemPrompt', () => {
     expect(prompt).toContain('{{USER_LONG_TERM_GOALS}}');
     expect(prompt).toContain('{{USER_KEY_FACTS}}');
     expect(prompt).toContain('{{USER_EXPERTISE_LEVEL}}');
+    expect(prompt).toContain('{{USER_BIO}}');
+    expect(prompt).toContain('{{USER_PROFILE_TONE}}');
   });
 });
 
@@ -66,6 +68,8 @@ describe('populateSystemPrompt user preference placeholders', () => {
     _id: new Types.ObjectId(),
     name: 'Tester',
     inferredExpertiseLevel: 'Iniciante',
+    biography: 'Bio de teste',
+    profileTone: 'profissional',
     userPreferences: {
       preferredAiTone: 'direto',
       preferredFormats: ['reel', 'story'],
@@ -102,6 +106,8 @@ describe('populateSystemPrompt user preference placeholders', () => {
     expect(prompt).toContain('ser influenciador digital, vender curso');
     expect(prompt).toContain('ama gatos');
     expect(prompt).toContain('Iniciante');
+    expect(prompt).toContain('Bio de teste');
+    expect(prompt).toContain('profissional');
     expect(prompt).toContain('Dados insuficientes');
     expect(prompt).not.toContain('{{USER_TONE_PREF}}');
     expect(prompt).not.toContain('{{USER_PREFERRED_FORMATS}}');
@@ -109,5 +115,7 @@ describe('populateSystemPrompt user preference placeholders', () => {
     expect(prompt).not.toContain('{{USER_LONG_TERM_GOALS}}');
     expect(prompt).not.toContain('{{USER_KEY_FACTS}}');
     expect(prompt).not.toContain('{{USER_EXPERTISE_LEVEL}}');
+    expect(prompt).not.toContain('{{USER_BIO}}');
+    expect(prompt).not.toContain('{{USER_PROFILE_TONE}}');
   });
 });
