@@ -1,6 +1,7 @@
 import { populateSystemPrompt } from '../aiOrchestrator';
 import { getSystemPrompt } from '../promptSystemFC';
 import { functionExecutors } from '../aiFunctions';
+import { DEFAULT_METRICS_FETCH_DAYS } from '../constants';
 import { Types } from 'mongoose';
 import * as stateService from '../stateService';
 import aggregateUserPerformanceHighlights from '@/utils/aggregateUserPerformanceHighlights';
@@ -85,6 +86,7 @@ describe('populateSystemPrompt', () => {
 
   it('fills placeholders with values', async () => {
     const prompt = await populateSystemPrompt(user, 'Ana');
+    expect(prompt).toContain(`últimos ${DEFAULT_METRICS_FETCH_DAYS} dias`);
     expect(prompt).toContain('100');
     expect(prompt).toContain('reel');
     expect(prompt).toContain('Brasil');
@@ -159,7 +161,7 @@ describe('populateSystemPrompt', () => {
     const expected = placeholders.reduce(
       (p, ph) => p.replace(ph, 'Dados insuficientes'),
       getSystemPrompt('Ana')
-    );
+    ).replace('{{METRICS_PERIOD_DAYS}}', DEFAULT_METRICS_FETCH_DAYS.toString());
 
     const prompt = await populateSystemPrompt(user, 'Ana');
     expect(prompt).toBe(expected);

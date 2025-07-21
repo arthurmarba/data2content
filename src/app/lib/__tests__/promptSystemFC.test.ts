@@ -1,6 +1,7 @@
 import { getSystemPrompt } from '../promptSystemFC';
 import { populateSystemPrompt } from '../aiOrchestrator';
 import { functionExecutors } from '../aiFunctions';
+import { DEFAULT_METRICS_FETCH_DAYS } from '../constants';
 import { Types } from 'mongoose';
 import aggregateUserPerformanceHighlights from '@/utils/aggregateUserPerformanceHighlights';
 import aggregateUserDayPerformance from '@/utils/aggregateUserDayPerformance';
@@ -30,6 +31,7 @@ describe('getSystemPrompt', () => {
   it('includes metrics placeholders in Resumo Atual section', () => {
     const prompt = getSystemPrompt('Ana');
     expect(prompt).toContain('Resumo Atual');
+    expect(prompt).toContain('{{METRICS_PERIOD_DAYS}}');
     expect(prompt).toContain('{{AVG_REACH_LAST30}}');
     expect(prompt).toContain('{{AVG_SHARES_LAST30}}');
     expect(prompt).toContain('{{TREND_SUMMARY_LAST30}}');
@@ -100,6 +102,7 @@ describe('populateSystemPrompt user preference placeholders', () => {
 
   it('replaces placeholders with user preferences', async () => {
     const prompt = await populateSystemPrompt(user, 'Ana');
+    expect(prompt).toContain(`últimos ${DEFAULT_METRICS_FETCH_DAYS} dias`);
     expect(prompt).toContain('direto');
     expect(prompt).toContain('reel, story');
     expect(prompt).toContain('politica, religiao');

@@ -79,6 +79,7 @@ export async function populateSystemPrompt(
     }
 
     let systemPrompt = getSystemPrompt(userName || user.name || 'usuário');
+    systemPrompt = systemPrompt.replace('{{METRICS_PERIOD_DAYS}}', String(periodDays));
 
     try {
         // CORREÇÃO: Adicionada verificação para garantir que a função existe antes de chamá-la.
