@@ -308,7 +308,7 @@ export function appendInstagramLinkIfMissing(
     return `${message}\n\n${postLink}`;
 }
 
-async function buildInspirationFilters(
+export async function buildInspirationFilters(
     userId: string,
     details?: { [key: string]: any },
     forFallback: boolean = false
@@ -353,20 +353,44 @@ async function buildInspirationFilters(
     if (forFallback && (!filters.format || !filters.proposal || !filters.context)) {
         try {
             const topPosts = await dataService.getTopPostsByMetric(userId, 'saved', 5);
-            const best = topPosts && topPosts.length > 0 ? topPosts[0] : undefined;
-            if (best) {
-                const format = Array.isArray(best.format) ? best.format[0] : best.format as any;
-                const proposal = Array.isArray(best.proposal) ? best.proposal[0] : best.proposal as any;
-                const context = Array.isArray(best.context) ? best.context[0] : best.context as any;
-                if (!filters.format && isFormatType(format)) {
-                    filters.format = format;
+            const selected = Array.isArray(topPosts) ? topPosts.slice(0, 3) : [];
+
+            const formatFreq: Record<string, number> = {};
+            const proposalFreq: Record<string, number> = {};
+            const contextFreq: Record<string, number> = {};
+
+            for (const p of selected) {
+                const f = Array.isArray(p.format) ? p.format[0] : (p.format as any);
+                const pr = Array.isArray(p.proposal) ? p.proposal[0] : (p.proposal as any);
+                const c = Array.isArray(p.context) ? p.context[0] : (p.context as any);
+
+                if (isFormatType(f)) {
+                    formatFreq[f] = (formatFreq[f] || 0) + 1;
                 }
-                if (!filters.proposal && isProposalType(proposal)) {
-                    filters.proposal = proposal;
+                if (isProposalType(pr)) {
+                    proposalFreq[pr] = (proposalFreq[pr] || 0) + 1;
                 }
-                if (!filters.context && isContextType(context)) {
-                    filters.context = context;
+                if (isContextType(c)) {
+                    contextFreq[c] = (contextFreq[c] || 0) + 1;
                 }
+            }
+
+            const mostCommon = (freq: Record<string, number>): string | undefined => {
+                return Object.entries(freq).sort((a, b) => b[1] - a[1])[0]?.[0];
+            };
+
+            const commonFormat = mostCommon(formatFreq);
+            const commonProposal = mostCommon(proposalFreq);
+            const commonContext = mostCommon(contextFreq);
+
+            if (!filters.format && commonFormat && isFormatType(commonFormat)) {
+                filters.format = commonFormat;
+            }
+            if (!filters.proposal && commonProposal && isProposalType(commonProposal)) {
+                filters.proposal = commonProposal;
+            }
+            if (!filters.context && commonContext && isContextType(commonContext)) {
+                filters.context = commonContext;
             }
         } catch (e) {
             logger.warn(`[DailyTipHandler] Falha ao inferir formato por desempenho: ${e}`);
