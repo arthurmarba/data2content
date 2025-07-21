@@ -144,6 +144,7 @@ describe('populateSystemPrompt', () => {
       '{{USER_DISLIKED_TOPICS}}',
       '{{USER_LONG_TERM_GOALS}}',
       '{{USER_KEY_FACTS}}',
+      '{{USER_EXPERTISE_LEVEL}}',
     ];
 
     const expected = placeholders.reduce(
