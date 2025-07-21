@@ -99,6 +99,7 @@ describe('populateSystemPrompt user preference placeholders', () => {
     expect(prompt).toContain('politica, religiao');
     expect(prompt).toContain('ser influenciador digital, vender curso');
     expect(prompt).toContain('ama gatos');
+    expect(prompt).toContain('Dados insuficientes');
     expect(prompt).not.toContain('{{USER_TONE_PREF}}');
     expect(prompt).not.toContain('{{USER_PREFERRED_FORMATS}}');
     expect(prompt).not.toContain('{{USER_DISLIKED_TOPICS}}');
