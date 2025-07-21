@@ -24,9 +24,9 @@ describe('buildInspirationFilters', () => {
 
   test('prioritizes top post categories over provided details', async () => {
     const posts: any[] = [
-      { proposal: ['Humor/Cena'], context: ['Moda/Estilo'], references: ['pop_culture_music'], tone: ['humorous'] },
-      { proposal: ['Humor/Cena'], context: ['Moda/Estilo'], references: ['pop_culture_music'], tone: ['humorous'] },
       { proposal: ['Mensagem/Motivacional'], context: ['Estilo de Vida e Bem-Estar'], references: ['pop_culture_books'], tone: ['inspirational'] },
+      { proposal: ['Humor/Cena'], context: ['Moda/Estilo'], references: ['pop_culture_music'], tone: ['humorous'] },
+      { proposal: ['Humor/Cena'], context: ['Moda/Estilo'], references: ['pop_culture_music'], tone: ['humorous'] },
       { proposal: ['Humor/Cena'], context: ['Moda/Estilo'], references: ['pop_culture_music'], tone: ['humorous'] },
       { proposal: ['Humor/Cena'], context: ['Moda/Estilo'], references: ['pop_culture_music'], tone: ['humorous'] }
     ];
@@ -42,10 +42,10 @@ describe('buildInspirationFilters', () => {
     }, true);
 
     expect(filters.format).toBe('Foto');
-    expect(filters.proposal).toBe('Humor/Cena');
-    expect(filters.context).toBe('Moda/Estilo');
-    expect(filters.reference).toBe('pop_culture_music');
-    expect(filters.tone).toBe('humorous');
+    expect(filters.proposal).toBe('Mensagem/Motivacional');
+    expect(filters.context).toBe('Estilo de Vida e Bem-Estar');
+    expect(filters.reference).toBe('pop_culture_books');
+    expect(filters.tone).toBe('inspirational');
   });
 
   test('uses provided details when user has few posts', async () => {
