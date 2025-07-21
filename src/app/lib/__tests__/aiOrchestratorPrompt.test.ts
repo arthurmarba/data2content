@@ -2,6 +2,7 @@ import { populateSystemPrompt } from '../aiOrchestrator';
 import { getSystemPrompt } from '../promptSystemFC';
 import { functionExecutors } from '../aiFunctions';
 import { Types } from 'mongoose';
+import * as stateService from '../stateService';
 import aggregateUserPerformanceHighlights from '@/utils/aggregateUserPerformanceHighlights';
 import aggregateUserDayPerformance from '@/utils/aggregateUserDayPerformance';
 import { aggregateUserTimePerformance } from '@/utils/aggregateUserTimePerformance';
@@ -20,11 +21,17 @@ jest.mock('../aiFunctions', () => ({
 jest.mock('@/utils/aggregateUserPerformanceHighlights');
 jest.mock('@/utils/aggregateUserDayPerformance');
 jest.mock('@/utils/aggregateUserTimePerformance');
+jest.mock('../stateService', () => ({
+  getFromCache: jest.fn(),
+  setInCache: jest.fn(),
+  deleteFromCache: jest.fn(),
+}));
 
 const execs = functionExecutors as jest.Mocked<typeof functionExecutors>;
 const mockPerf = aggregateUserPerformanceHighlights as jest.Mock;
 const mockDayPerf = aggregateUserDayPerformance as jest.Mock;
 const mockTimePerf = aggregateUserTimePerformance as jest.Mock;
+const stateMocks = stateService as jest.Mocked<typeof stateService>;
 
 describe('populateSystemPrompt', () => {
   const user = { _id: new Types.ObjectId(), name: 'Tester' } as any;
@@ -156,5 +163,26 @@ describe('populateSystemPrompt', () => {
 
     const prompt = await populateSystemPrompt(user, 'Ana');
     expect(prompt).toBe(expected);
+  });
+
+  it('returns cached prompt on subsequent call within TTL', async () => {
+    stateMocks.getFromCache
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce('cached');
+
+    const first = await populateSystemPrompt(user, 'Ana');
+    expect(stateMocks.setInCache).toHaveBeenCalledWith(
+      expect.stringContaining(`prompt:${user._id}`),
+      first,
+      300
+    );
+
+    jest.clearAllMocks();
+    stateMocks.getFromCache.mockResolvedValueOnce('cached');
+
+    const second = await populateSystemPrompt(user, 'Ana');
+    expect(second).toBe('cached');
+    expect(execs.getAggregatedReport).not.toHaveBeenCalled();
+    expect(stateMocks.setInCache).not.toHaveBeenCalled();
   });
 });
