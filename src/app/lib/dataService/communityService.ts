@@ -177,6 +177,7 @@ export async function addInspiration(
  * @param filters - Os filtros a serem aplicados na busca.
  * @param limit - O número máximo de inspirações a serem retornadas (padrão: 3).
  * @param excludeIds - Um array opcional de IDs de inspiração a serem excluídos dos resultados.
+ * @param excludeCreatorId - ID de criador a ser excluído dos resultados.
  * @returns Uma promessa que resolve para um array de inspirações encontradas.
  * @throws {DatabaseError} Se ocorrer um erro de banco de dados.
  */
@@ -184,10 +185,11 @@ export async function getInspirations(
     filters: CommunityInspirationFilters,
     limit: number = 3,
     excludeIds?: string[],
-    similarityFn?: (insp: ICommunityInspiration) => number
+    similarityFn?: (insp: ICommunityInspiration) => number,
+    excludeCreatorId?: string
 ): Promise<ICommunityInspiration[]> {
     const TAG = `${SERVICE_TAG}[getInspirations]`;
-    logger.info(`${TAG} Buscando inspirações com filtros: ${JSON.stringify(filters)}, limite: ${limit}, excluir IDs: ${excludeIds?.join(',')}, similarityFn: ${similarityFn ? 'yes' : 'no'}`);
+    logger.info(`${TAG} Buscando inspirações com filtros: ${JSON.stringify(filters)}, limite: ${limit}, excluir IDs: ${excludeIds?.join(',')}, similarityFn: ${similarityFn ? 'yes' : 'no'}, excludeCreatorId: ${excludeCreatorId}`);
 
     const query: any = { status: 'active' };
 
@@ -221,6 +223,10 @@ export async function getInspirations(
         if (validObjectIds.length > 0) {
             query._id = { $nin: validObjectIds };
         }
+    }
+
+    if (excludeCreatorId && mongoose.isValidObjectId(excludeCreatorId)) {
+        query.originalCreatorId = { $ne: new Types.ObjectId(excludeCreatorId) };
     }
 
     try {

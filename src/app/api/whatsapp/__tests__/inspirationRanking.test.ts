@@ -59,7 +59,7 @@ describe('inspiration ranking', () => {
 
     jest.spyOn(dataService, 'getTopPostsByMetric').mockResolvedValue([bestPost]);
     jest.spyOn(dataService, 'recordDailyInspirationShown').mockResolvedValue();
-    jest.spyOn(dataService, 'getInspirations').mockImplementation((f, l, e, simFn) => {
+    jest.spyOn(dataService, 'getInspirations').mockImplementation((f, l, e, simFn, excludeCreatorId) => {
       const arr = [inspLow, inspHigh];
       if (simFn) {
         arr.sort((a, b) => simFn(b) - simFn(a));

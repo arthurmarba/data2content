@@ -453,7 +453,8 @@ export async function fetchInspirationSnippet(
             filters,
             3,
             excludeIds,
-            (i) => computeInspirationSimilarity(bestPost, i)
+            (i) => computeInspirationSimilarity(bestPost, i),
+            userId
         );
 
         const insp = inspirations && inspirations.length > 0 ? inspirations[0] : undefined;
