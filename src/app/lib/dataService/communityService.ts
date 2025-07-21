@@ -21,11 +21,42 @@ import {
     FormatType,
     ProposalType,
     ContextType,
+    ToneType,
+    ReferenceType,
     QualitativeObjectiveType,
     PerformanceHighlightType
 } from "@/app/lib/constants/communityInspirations.constants";
 
 const SERVICE_TAG = '[dataService][communityService v2.15.2]'; // Versão atualizada
+
+export interface UserEngagementProfile {
+    proposal?: ProposalType;
+    context?: ContextType;
+    reference?: ReferenceType;
+    tone?: ToneType;
+}
+
+/**
+ * Calcula a similaridade entre o perfil de engajamento do usuário e
+ * uma inspiração da comunidade. Cada categoria correspondente soma
+ * pontos e o resultado é ponderado pelo saveRate do post, se disponível.
+ */
+export function calculateInspirationSimilarity(
+    profile: UserEngagementProfile,
+    insp: ICommunityInspiration
+): number {
+    let score = 0;
+    if (profile.proposal && insp.proposal === profile.proposal) score += 1;
+    if (profile.context && insp.context === profile.context) score += 1;
+    if (profile.reference && insp.reference === profile.reference) score += 1;
+    if (profile.tone && insp.tone === profile.tone) score += 1;
+
+    const saveRate = insp.internalMetricsSnapshot?.saveRate;
+    if (typeof saveRate === 'number') {
+        score *= 1 + saveRate;
+    }
+    return score;
+}
 
 /**
  * Regista o opt-in de um utilizador para a funcionalidade de inspiração da comunidade.
@@ -238,7 +269,12 @@ export async function getInspirations(
             .lean();
 
         if (similarityFn) {
-            inspirations = inspirations.sort((a, b) => similarityFn(b) - similarityFn(a));
+            inspirations.forEach(i => {
+                (i as any).similarityScore = similarityFn(i);
+            });
+            inspirations = inspirations.sort((a, b) =>
+                ((b as any).similarityScore ?? 0) - ((a as any).similarityScore ?? 0)
+            );
         }
 
         inspirations = inspirations.slice(0, limit);
