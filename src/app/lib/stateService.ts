@@ -143,6 +143,18 @@ export async function setInCache(key: string, value: string, ttlSeconds: number)
   }
 }
 
+export async function deleteFromCache(key: string): Promise<void> {
+   const TAG = '[stateService][deleteFromCache v1.9.17]';
+   try {
+    const redis = getClient();
+    logger.debug(`${TAG} Deletando chave: ${key}`);
+    await redis.del(key);
+    logger.debug(`${TAG} Chave ${key} deletada com sucesso.`);
+  } catch (error) {
+     logger.error(`${TAG} Erro ao deletar key ${key}:`, error);
+  }
+}
+
 // --- Estado do Diálogo ---
 
 export type { CurrentTask, ILastResponseContext, IFallbackInsightHistoryEntry, IDialogueState };
