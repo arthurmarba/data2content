@@ -14,6 +14,7 @@ jest.mock('../aiFunctions', () => ({
     getDayPCOStats: jest.fn(),
     getCategoryRanking: jest.fn(),
     getLatestAudienceDemographics: jest.fn(),
+    getMetricsHistory: jest.fn(),
   }
 }));
 jest.mock('@/utils/aggregateUserPerformanceHighlights');
@@ -37,6 +38,9 @@ describe('getSystemPrompt', () => {
     expect(prompt).toContain('{{FOLLOWER_GROWTH_RATE_LAST30}}');
     expect(prompt).toContain('{{AVG_ENG_POST_LAST30}}');
     expect(prompt).toContain('{{AVG_REACH_POST_LAST30}}');
+    expect(prompt).toContain('{{AVG_PROPAGATION_LAST30}}');
+    expect(prompt).toContain('{{AVG_FOLLOWER_CONV_RATE_LAST30}}');
+    expect(prompt).toContain('{{AVG_RETENTION_RATE_LAST30}}');
     expect(prompt).toContain('{{EMERGING_FPC_COMBOS}}');
     expect(prompt).toContain('{{HOT_TIMES_LAST_ANALYSIS}}');
     expect(prompt).toContain('{{TOP_DAY_PCO_COMBOS}}');
@@ -73,6 +77,7 @@ describe('populateSystemPrompt user preference placeholders', () => {
     execs.getDayPCOStats.mockResolvedValue({});
     execs.getCategoryRanking.mockResolvedValue({});
     execs.getLatestAudienceDemographics.mockResolvedValue({});
+    execs.getMetricsHistory.mockResolvedValue({ history: {} });
     mockPerf.mockResolvedValue({});
     mockDayPerf.mockResolvedValue({});
     mockTimePerf.mockResolvedValue({});

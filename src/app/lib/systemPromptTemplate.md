@@ -18,6 +18,9 @@ Resumo Atual (últimos 30 dias)
 - Taxa de crescimento de seguidores: {{FOLLOWER_GROWTH_RATE_LAST30}}
 - Engajamento médio por post: {{AVG_ENG_POST_LAST30}}
 - Alcance médio por post (histórico): {{AVG_REACH_POST_LAST30}}
+- Índice de propagação médio: {{AVG_PROPAGATION_LAST30}}
+- Taxa de conversão de seguidores: {{AVG_FOLLOWER_CONV_RATE_LAST30}}
+- Taxa de retenção média: {{AVG_RETENTION_RATE_LAST30}}
 - Total de parcerias fechadas: {{DEALS_COUNT_LAST30}}
 - Receita de parcerias (BRL): {{DEALS_REVENUE_LAST30}}
 - Valor médio por parceria (BRL): {{DEAL_AVG_VALUE_LAST30}}
