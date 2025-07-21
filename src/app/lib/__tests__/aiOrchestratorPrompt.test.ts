@@ -1,4 +1,5 @@
 import { populateSystemPrompt } from '../aiOrchestrator';
+import { getSystemPrompt } from '../promptSystemFC';
 import { functionExecutors } from '../aiFunctions';
 import { Types } from 'mongoose';
 import aggregateUserPerformanceHighlights from '@/utils/aggregateUserPerformanceHighlights';
@@ -83,5 +84,54 @@ describe('populateSystemPrompt', () => {
     expect(prompt).not.toContain('{{PERFORMANCE_INSIGHT_SUMMARY}}');
     expect(prompt).not.toContain('{{DEALS_COUNT_LAST30}}');
     expect(prompt).not.toContain('{{FOLLOWER_GROWTH_RATE_LAST30}}');
+  });
+
+  it('uses fallback phrase when metrics retrieval fails', async () => {
+    execs.getAggregatedReport.mockRejectedValue(new Error('fail'));
+    execs.getUserTrend.mockRejectedValue(new Error('fail'));
+    execs.getFpcTrendHistory.mockRejectedValue(new Error('fail'));
+    execs.getDayPCOStats.mockRejectedValue(new Error('fail'));
+    execs.getCategoryRanking.mockRejectedValue(new Error('fail'));
+    execs.getLatestAudienceDemographics.mockRejectedValue(new Error('fail'));
+    mockPerf.mockRejectedValue(new Error('fail'));
+    mockDayPerf.mockRejectedValue(new Error('fail'));
+    mockTimePerf.mockRejectedValue(new Error('fail'));
+
+    const placeholders = [
+      '{{AVG_REACH_LAST30}}',
+      '{{AVG_SHARES_LAST30}}',
+      '{{TREND_SUMMARY_LAST30}}',
+      '{{AVG_ENG_RATE_LAST30}}',
+      '{{FOLLOWER_GROWTH_LAST30}}',
+      '{{EMERGING_FPC_COMBOS}}',
+      '{{HOT_TIMES_LAST_ANALYSIS}}',
+      '{{TOP_DAY_PCO_COMBOS}}',
+      '{{TOP_FPC_TRENDS}}',
+      '{{TOP_CATEGORY_RANKINGS}}',
+      '{{AUDIENCE_TOP_SEGMENT}}',
+      '{{TOP_PERFORMING_FORMAT}}',
+      '{{LOW_PERFORMING_FORMAT}}',
+      '{{BEST_DAY}}',
+      '{{PERFORMANCE_INSIGHT_SUMMARY}}',
+      '{{FOLLOWER_GROWTH_RATE_LAST30}}',
+      '{{AVG_ENG_POST_LAST30}}',
+      '{{AVG_REACH_POST_LAST30}}',
+      '{{DEALS_COUNT_LAST30}}',
+      '{{DEALS_REVENUE_LAST30}}',
+      '{{DEAL_AVG_VALUE_LAST30}}',
+      '{{DEALS_BRAND_SEGMENTS}}',
+      '{{DEALS_FREQUENCY}}',
+      '{{USER_TONE_PREF}}',
+      '{{USER_PREFERRED_FORMATS}}',
+      '{{USER_DISLIKED_TOPICS}}',
+    ];
+
+    const expected = placeholders.reduce(
+      (p, ph) => p.replace(ph, 'Dados insuficientes'),
+      getSystemPrompt('Ana')
+    );
+
+    const prompt = await populateSystemPrompt(user, 'Ana');
+    expect(prompt).toBe(expected);
   });
 });
