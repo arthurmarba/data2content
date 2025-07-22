@@ -77,7 +77,27 @@ const faqItems = [
 ];
 
 const heroQuestions = [
-    "Qual o melhor dia para postar?", "Qual o melhor horário?", "Me dê uma ideia de conteúdo viral", "Analise meu último post", "Que formato está em alta?", "Como aumentar meu engajamento?", "Crie um roteiro para um Reel", "Preciso de inspiração para Stories", "Qual tema devo abordar hoje?"
+    "Qual o melhor dia para postar?",
+    "Qual o melhor horário pra postar?",
+    "Me dê uma ideia de conteúdo viral",
+    "Analise meus post do mês",
+    "Que formato está em alta?",
+    "Como aumentar meu engajamento?",
+    "Crie um roteiro para um Reel",
+    "Preciso de inspiração para Reels",
+    "Qual tema devo abordar hoje?",
+    "Crie um plano de postagens pra ganhar seguidores",
+    "Quais dias eu não devo postar?",
+    "Quantos segundos meus reels devem ter?",
+    "Meus reels estão com poucas visualizações, o que fazer?",
+    "Como escrever uma legenda que gera mais comentários?",
+    "Qual o melhor formato para vender meu produto?",
+    "Postar humor na terça-feira dá mais resultado?",
+    "Qual o pior dia para postar uma publicidade?",
+    "Crie um calendário de conteúdo para a próxima semana.",
+    "Devo postar nos fins de semana?",
+    "Quantas postagens devo fazer por semana?",
+    "Posts sobre dicas funcionam melhor de manhã ou à noite?",
 ];
 
 // --- COMPONENTES DE UI REUTILIZÁVEIS ---
@@ -247,8 +267,8 @@ export default function FinalCompleteLandingPage() {
           {/* ====================================================================== */}
           {/* HERO SECTION - CORRIGIDA                                               */}
           {/* ====================================================================== */}
-          <section className="relative bg-gray-100 text-center overflow-x-hidden pt-24 pb-16 md:pt-32 md:pb-24">
-            <div className="w-full">
+          <section className="relative flex justify-center items-center min-h-screen bg-gray-100 text-center overflow-x-hidden">
+            <div className="w-full py-12">
               <motion.div
                 variants={heroVariants}
                 initial="hidden"
@@ -302,7 +322,7 @@ export default function FinalCompleteLandingPage() {
 
           <div className="relative bg-white">
             {/* SEÇÃO SEPARADORA - PADDING MAIOR */}
-            <section className="py-20 sm:py-24 lg:py-32 bg-gray-50/70">
+            <section className="py-12 sm:py-16 bg-gray-50/70">
               <div className="mx-auto max-w-screen-xl px-6 lg:px-8 text-left">
                 <AnimatedSection>
                   <SectionTitle>Veja o Tuca em Ação.</SectionTitle>
@@ -318,7 +338,7 @@ export default function FinalCompleteLandingPage() {
                       className="flex gap-8"
                       style={{
                         paddingTop: '2rem',
-                        paddingBottom: '4rem',
+                        paddingBottom: '2rem',
                         paddingLeft: 'calc(max(0px, (100vw - 1280px) / 2) + 1.5rem)', 
                         paddingRight: 'calc(max(0px, (100vw - 1280px) / 2) + 1.5rem)'
                       }}
@@ -331,7 +351,7 @@ export default function FinalCompleteLandingPage() {
                         ))}
                     </div>
                 </div>
-                <div className="absolute top-1/2 -translate-y-12 w-full flex justify-between px-4 pointer-events-none">
+                <div className="absolute top-1/2 -translate-y-1/2 w-full flex justify-between px-4 pointer-events-none">
                     <button 
                         onClick={() => scrollCarousel('left')} 
                         className="pointer-events-auto w-12 h-12 rounded-full bg-white/50 backdrop-blur-sm shadow-md flex items-center justify-center text-gray-700 hover:bg-white transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-pink"
@@ -351,7 +371,7 @@ export default function FinalCompleteLandingPage() {
             </section>
 
             {/* SEÇÃO DE CONTEÚDO - PADDING MENOR */}
-            <section className="py-16 sm:py-20 bg-white">
+            <section className="py-12 sm:py-16 bg-white">
                 <div className="mx-auto max-w-screen-xl px-6 lg:px-8 text-left">
                     <AnimatedSection>
                         <SectionTitle>Feito para todos os tipos de criadores.</SectionTitle>
@@ -369,24 +389,8 @@ export default function FinalCompleteLandingPage() {
                 </div>
             </section>
             
-            {/* SEÇÃO DE CONTEÚDO - PADDING MENOR */}
-            <section id="features" className="py-16 sm:py-20 bg-white">
-                 <div className="mx-auto max-w-screen-xl px-6 lg:px-8 text-left">
-                  <AnimatedSection>
-                    <SectionTitle>Sua Central de Inteligência de Conteúdo.</SectionTitle>
-                    <SectionSubtitle>Veja o que nossa IA estrategista de conteúdo faz por você.</SectionSubtitle>
-                  </AnimatedSection>
-                  <div className="mt-20 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
-                    <AnimatedSection delay={0.1}><PillarCard icon={FaGem} title="Descubra Seus Temas de Ouro">Nosso <strong>Consultor IA</strong> entende o <strong>contexto</strong> e te mostra quais assuntos específicos sua audiência mais ama.</PillarCard></AnimatedSection>
-                    <AnimatedSection delay={0.2}><PillarCard icon={FaChartPie} title="Entenda o Impacto de Cada Formato">Saiba como uma 'publi' afeta seu engajamento em comparação com uma 'dica', para equilibrar sua estratégia.</PillarCard></AnimatedSection>
-                    <AnimatedSection delay={0.3}><PillarCard icon={FaHeart} title="Fale a Língua da Sua Audiência">Decodificamos o que sua comunidade quer ver. Ao agradar sua audiência, o algoritmo te recompensa.</PillarCard></AnimatedSection>
-                    <AnimatedSection delay={0.4}><PillarCard icon={FaBriefcase} title="Transforme Insights em Oportunidades">Aprenda na <strong>Comunidade de Inspiração</strong> e gere <strong>Media Kits</strong> profissionais com um clique.</PillarCard></AnimatedSection>
-                  </div>
-                </div>
-            </section>
-            
             {/* SEÇÃO SEPARADORA - PADDING MAIOR */}
-            <section className="py-20 sm:py-24 lg:py-32 bg-gray-50/70">
+            <section className="py-12 sm:py-16 bg-gray-50/70">
                 <div className="mx-auto max-w-screen-xl px-6 lg:px-8 text-left">
                     <AnimatedSection>
                         <SectionTitle>Resultados que falam por si.</SectionTitle>
@@ -403,7 +407,7 @@ export default function FinalCompleteLandingPage() {
             </section>
 
             {/* SEÇÃO DE CONTEÚDO - PADDING MENOR */}
-            <section id="arthur-marba" className="py-16 sm:py-20 bg-white">
+            <section id="arthur-marba" className="py-12 sm:py-16 bg-white">
                 <div className="max-w-screen-md mx-auto px-6 text-left">
                     <AnimatedSection>
                         <SectionTitle className="text-3xl">A Mente por Trás da Inteligência do Tuca</SectionTitle>
@@ -433,9 +437,9 @@ export default function FinalCompleteLandingPage() {
             </section>
 
             {/* SEÇÃO DE CONTEÚDO - PADDING MENOR */}
-            <section id="faq" className="py-16 sm:py-20 bg-white">
+            <section id="faq" className="py-12 sm:py-16 bg-white">
                 <div className="max-w-3xl mx-auto px-6">
-                    <AnimatedSection className="text-left mb-16">
+                    <AnimatedSection className="text-left mb-12">
                         <SectionTitle>Dúvidas Frequentes</SectionTitle>
                     </AnimatedSection>
                     <div className="space-y-5">
@@ -459,7 +463,7 @@ export default function FinalCompleteLandingPage() {
             </section>
             
             {/* SEÇÃO SEPARADORA - PADDING MAIOR */}
-            <section className="py-20 sm:py-24 lg:py-32 bg-brand-dark text-white">
+            <section className="py-16 sm:py-20 bg-brand-dark text-white">
                 <div className="max-w-screen-xl mx-auto px-6 text-left">
                     <AnimatedSection className="max-w-3xl">
                         <SectionTitle className="text-white">Pronto para transformar sua criação de conteúdo?</SectionTitle>
@@ -475,7 +479,7 @@ export default function FinalCompleteLandingPage() {
           </div>
         </main>
         
-        <footer className="text-center py-12 bg-gray-100 border-t">
+        <footer className="text-center py-8 bg-gray-100 border-t">
             <div className="mb-4 text-brand-dark font-bold text-2xl flex justify-center items-center gap-2"><span className="text-brand-pink">[2]</span>Data2Content</div>
             <p className="text-sm text-gray-500 mb-4">© {new Date().getFullYear()} Mobi Media Produtores de Conteúdo LTDA.</p>
             <div className="flex justify-center gap-6 text-sm">
