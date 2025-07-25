@@ -10,13 +10,14 @@ import { useInView } from "react-intersection-observer";
 import { TypeAnimation } from "react-type-animation";
 import { FaGoogle, FaGem, FaChartPie, FaHeart, FaBriefcase, FaStar, FaPaintBrush, FaBullhorn, FaChalkboardTeacher, FaQuestionCircle, FaCheckCircle, FaTimesCircle, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
-// --- DADOS E CONSTANTES DA PÁGINA ---
+// --- DADOS E CONSTANTES DA PÁGINA (CORRIGIDO) ---
 const exampleScreenshots = [
-  { title: "Alertas de Oportunidade", imageUrl: "/placeholder1.png" },
-  { title: "Análise de Conteúdo", imageUrl: "/placeholder2.png" },
-  { title: "Sugestão Estratégica", imageUrl: "/placeholder3.png" },
-  { title: "Ideia de Conteúdo", imageUrl: "/placeholder4.png" },
-  { title: "Otimização de Horário", imageUrl: "/placeholder5.png" }
+  // Caminhos atualizados para apontar para a pasta /public/images/
+  { title: "(1) Alerta Diário Recebido", imageUrl: "/images/WhatsApp Image 2025-07-07 at 14.00.20.png" },
+  { title: "(2) Análise de Conteúdo", imageUrl: "/images/WhatsApp Image 2025-07-07 at 14.00.20 (1).png" },
+  { title: "(3) Sugestão Estratégica", imageUrl: "/images/WhatsApp Image 2025-07-07 at 14.00.21.png" },
+  { title: "(4) Ideia de Conteúdo", imageUrl: "/images/WhatsApp Image 2025-07-07 at 14.00.21 (1).png" },
+  { title: "(5) Usuário Tira Dúvidas", imageUrl: "/images/WhatsApp Image 2025-07-07 at 14.00.21 (2).png" }
 ];
 
 const creatorTypes = [
@@ -46,17 +47,20 @@ const testimonials = [
   {
     name: "Juliana Alves",
     handle: "@jualvesfit",
-    quote: "O Tuca é revolucionário. Em uma semana, ele identificou um formato de vídeo que eu tinha abandonado e que era um sucesso. Retomei e meu alcance dobrou."
+    quote: "O Tuca é revolucionário. Em uma semana, ele identificou um formato de vídeo que eu tinha abandonado e que era um sucesso. Retomei e meu alcance dobrou.",
+    avatarUrl: "/images/default-profile.png" // Adicionado avatar padrão
   },
   {
     name: "Marcos Lins",
     handle: "@marcoslins.dev",
-    quote: "Finalmente entendi meus números sem precisar de planilhas. Os alertas proativos são como ter um estrategista na equipe, mas no meu WhatsApp."
+    quote: "Finalmente entendi meus números sem precisar de planilhas. Os alertas proativos são como ter um estrategista na equipe, mas no meu WhatsApp.",
+    avatarUrl: "/images/default-profile.png" // Adicionado avatar padrão
   },
   {
     name: "Carla Souza",
     handle: "@carladesign",
-    quote: "O programa de afiliados é genial! Já paguei minha assinatura só com as comissões, e meus amigos amaram o desconto e a ferramenta."
+    quote: "O programa de afiliados é genial! Já paguei minha assinatura só com as comissões, e meus amigos amaram o desconto e a ferramenta.",
+    avatarUrl: "/images/default-profile.png" // Adicionado avatar padrão
   }
 ];
 
@@ -143,24 +147,43 @@ const PillarCard = ({ icon: Icon, title, children }: { icon: React.ElementType; 
     </div>
 );
 
+// --- COMPONENTE ScreenshotCard (CORRIGIDO) ---
 const ScreenshotCard = ({ imageUrl, title }: { imageUrl: string; title: string; }) => (
     <motion.div 
         className="flex-shrink-0 w-[65vw] sm:w-[45vw] md:w-[30vw] lg:w-[22vw] aspect-[9/16] rounded-3xl bg-gradient-to-br from-gray-100 to-gray-200 p-1 shadow-2xl cursor-grab active:cursor-grabbing"
         whileTap={{ scale: 0.98, transition: { duration: 0.2 } }}
     >
-        <div className="w-full h-full bg-white rounded-[22px] shadow-inner overflow-hidden">
-            <ImagePlaceholder className="w-full h-full" />
-            {/* <Image src={imageUrl} alt={title} layout="fill" className="object-cover" loading="lazy" /> */}
+        {/* Adicionado 'relative' para o posicionamento do Image do Next.js */}
+        <div className="relative w-full h-full bg-white rounded-[22px] shadow-inner overflow-hidden">
+            {/* Removido o placeholder e ativado o componente Image */}
+            <Image 
+                src={imageUrl} 
+                alt={title} 
+                layout="fill" 
+                className="object-cover" 
+                loading="lazy"
+                // Adicionado um fallback para o caso de a imagem não carregar
+                onError={(e) => { e.currentTarget.src = 'https://placehold.co/360x640/f0f0f0/333?text=Imagem+Indisponível'; }}
+            />
         </div>
     </motion.div>
 );
 
-const TestimonialCard = ({ name, handle, quote }: { name: string; handle: string; quote: string; }) => (
+// --- COMPONENTE TestimonialCard (CORRIGIDO) ---
+const TestimonialCard = ({ name, handle, quote, avatarUrl }: { name: string; handle: string; quote: string; avatarUrl: string; }) => (
     <div className="bg-white p-8 rounded-xl h-full shadow-lg flex flex-col">
         <div className="flex text-yellow-400 gap-1 mb-4">{[...Array(5)].map((_, i) => <FaStar key={i} />)}</div>
         <p className="text-gray-700 italic flex-grow">"{quote}"</p>
         <div className="flex items-center mt-6">
-            <ImagePlaceholder className="w-12 h-12 rounded-full" />
+            {/* Removido o placeholder e ativado o componente Image */}
+            <div className="relative w-12 h-12 rounded-full overflow-hidden">
+                <Image 
+                    src={avatarUrl} 
+                    alt={`Avatar de ${name}`} 
+                    layout="fill" 
+                    className="object-cover"
+                />
+            </div>
             <div className="ml-4">
                 <p className="font-bold text-brand-dark">{name}</p>
                 <p className="text-sm text-gray-500">{handle}</p>
@@ -227,7 +250,6 @@ export default function FinalCompleteLandingPage() {
     visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] } },
   };
   
-  // Array de perguntas para o terceiro carrossel, para adicionar variedade.
   const thirdMarqueeQuestions = useMemo(() => 
     [...heroQuestions].sort(() => Math.random() - 0.5)
   , []);
@@ -264,10 +286,7 @@ export default function FinalCompleteLandingPage() {
         </header>
 
         <main>
-          {/* ====================================================================== */}
-          {/* HERO SECTION - CORRIGIDA                                               */}
-          {/* ====================================================================== */}
-          <section className="relative flex justify-center items-center min-h-screen bg-gray-100 text-center overflow-x-hidden">
+          <section className="relative flex justify-center items-center min-h-screen bg-gray-100 text-center overflow-x-hidden pt-20">
             <div className="w-full py-12">
               <motion.div
                 variants={heroVariants}
@@ -321,7 +340,6 @@ export default function FinalCompleteLandingPage() {
           </section>
 
           <div className="relative bg-white">
-            {/* SEÇÃO SEPARADORA - PADDING MAIOR */}
             <section className="py-12 sm:py-16 bg-gray-50/70">
               <div className="mx-auto max-w-screen-xl px-6 lg:px-8 text-left">
                 <AnimatedSection>
@@ -345,7 +363,7 @@ export default function FinalCompleteLandingPage() {
                     >
                         {exampleScreenshots.map((item, index) => (
                           <div key={index} className="flex flex-col items-start gap-2 flex-shrink-0 snap-center">
-                            <h3 className="font-bold text-lg text-gray-600">{item.title}</h3>
+                            <h3 className="font-bold text-lg text-gray-600 pl-1">{item.title}</h3>
                             <ScreenshotCard imageUrl={item.imageUrl} title={item.title} />
                           </div>
                         ))}
@@ -370,7 +388,6 @@ export default function FinalCompleteLandingPage() {
               </div>
             </section>
 
-            {/* SEÇÃO DE CONTEÚDO - PADDING MENOR */}
             <section className="py-12 sm:py-16 bg-white">
                 <div className="mx-auto max-w-screen-xl px-6 lg:px-8 text-left">
                     <AnimatedSection>
@@ -389,7 +406,6 @@ export default function FinalCompleteLandingPage() {
                 </div>
             </section>
             
-            {/* SEÇÃO SEPARADORA - PADDING MAIOR */}
             <section className="py-12 sm:py-16 bg-gray-50/70">
                 <div className="mx-auto max-w-screen-xl px-6 lg:px-8 text-left">
                     <AnimatedSection>
@@ -406,7 +422,6 @@ export default function FinalCompleteLandingPage() {
                 </div>
             </section>
 
-            {/* SEÇÃO DE CONTEÚDO - PADDING MENOR */}
             <section id="arthur-marba" className="py-12 sm:py-16 bg-white">
                 <div className="max-w-screen-md mx-auto px-6 text-left">
                     <AnimatedSection>
@@ -436,7 +451,6 @@ export default function FinalCompleteLandingPage() {
                 </div>
             </section>
 
-            {/* SEÇÃO DE CONTEÚDO - PADDING MENOR */}
             <section id="faq" className="py-12 sm:py-16 bg-white">
                 <div className="max-w-3xl mx-auto px-6">
                     <AnimatedSection className="text-left mb-12">
@@ -462,7 +476,6 @@ export default function FinalCompleteLandingPage() {
                 </div>
             </section>
             
-            {/* SEÇÃO SEPARADORA - PADDING MAIOR */}
             <section className="py-16 sm:py-20 bg-brand-dark text-white">
                 <div className="max-w-screen-xl mx-auto px-6 text-left">
                     <AnimatedSection className="max-w-3xl">
