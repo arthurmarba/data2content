@@ -10,9 +10,8 @@ import { useInView } from "react-intersection-observer";
 import { TypeAnimation } from "react-type-animation";
 import { FaGoogle, FaGem, FaChartPie, FaHeart, FaBriefcase, FaStar, FaPaintBrush, FaBullhorn, FaChalkboardTeacher, FaQuestionCircle, FaCheckCircle, FaTimesCircle, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
-// --- DADOS E CONSTANTES DA PÁGINA (CORRIGIDO) ---
+// --- DADOS E CONSTANTES DA PÁGINA ---
 const exampleScreenshots = [
-  // Caminhos atualizados para apontar para a pasta /public/images/
   { title: "(1) Alerta Diário Recebido", imageUrl: "/images/WhatsApp Image 2025-07-07 at 14.00.20.png" },
   { title: "(2) Análise de Conteúdo", imageUrl: "/images/WhatsApp Image 2025-07-07 at 14.00.20 (1).png" },
   { title: "(3) Sugestão Estratégica", imageUrl: "/images/WhatsApp Image 2025-07-07 at 14.00.21.png" },
@@ -43,19 +42,19 @@ const testimonials = [
     name: "Juliana Alves",
     handle: "@jualvesfit",
     quote: "O Tuca é revolucionário. Em uma semana, ele identificou um formato de vídeo que eu tinha abandonado e que era um sucesso. Retomei e meu alcance dobrou.",
-    avatarUrl: "/images/default-profile.png" // Adicionado avatar padrão
+    avatarUrl: "/images/default-profile.png"
   },
   {
     name: "Marcos Lins",
     handle: "@marcoslins.dev",
     quote: "Finalmente entendi meus números sem precisar de planilhas. Os alertas proativos são como ter um estrategista na equipe, mas no meu WhatsApp.",
-    avatarUrl: "/images/default-profile.png" // Adicionado avatar padrão
+    avatarUrl: "/images/default-profile.png"
   },
   {
     name: "Carla Souza",
     handle: "@carladesign",
     quote: "O programa de afiliados é genial! Já paguei minha assinatura só com as comissões, e meus amigos amaram o desconto e a ferramenta.",
-    avatarUrl: "/images/default-profile.png" // Adicionado avatar padrão
+    avatarUrl: "/images/default-profile.png"
   }
 ];
 
@@ -64,39 +63,26 @@ const faqItems = [
          q: "Qual a diferença da Nossa Inteligência Artificial para outros assistentes ou ferramentas?",
          a: "Nossa Inteligência Artificial é única por integrar múltiplos superpoderes focados nos SEUS resultados:\n\n* <strong class='font-semibold text-brand-dark'>Análise Conectada:</strong> Acessa SEU Instagram para insights de métricas e conteúdos REAIS (atuais e históricos via print).\n* <strong class='font-semibold text-brand-dark'>Entende Seu Conteúdo:</strong> Categoriza posts por Formato, Propósito e Contexto, revelando padrões.\n* <strong class='font-semibold text-brand-dark'>Timing Inteligente:</strong> Otimiza horários para CADA tipo de conteúdo, maximizando impacto.\n* <strong class='font-semibold text-brand-dark'>Expert + IA Proativa:</strong> Treinado por Arthur Marbá, monitora 24/7 e envia alertas estratégicos.\n* <strong class='font-semibold text-brand-dark'>Prático no WhatsApp:</strong> Interação simples, insights diretos, sem dashboards.\n* <strong class='font-semibold text-brand-dark'>De Dados a Roteiros:</strong> Analisa e GERA ROTEIROS para replicar seus sucessos.\n* <strong class='font-semibold text-brand-dark'>Evolui com Você:</strong> Aprende com suas interações e preferências.\n* <strong class='font-semibold text-brand-dark'>Inspiração da Comunidade:</strong> Exemplos de posts de sucesso (privacidade garantida).\n* <strong class='font-semibold text-brand-dark'>Gestão de Publis:</strong> Ajuda a organizar e otimizar parcerias.\n\nResumindo: Nossa Inteligência Artificial é seu consultor estratégico e criativo completo para Instagram, no WhatsApp."
      },
-     { q: "Como a Inteligência Artificial da D2C define o melhor horário e dia para postar?", a: "A Nossa Inteligência Artificial realiza uma <strong class='font-semibold text-brand-dark'>análise combinatória profunda</strong>, cruzando dados de horário, duração, formato, propósito e contexto do seu conteúdo. Ela identifica os momentos em que seu público está mais receptivo a cada tipo de post, visando seus objetivos (ex: mais views em Reels de Dicas às terças, 19h). Converse com a Nossa Inteligência Artificial para investigar esses padrões." },
-     { q: "Como a Inteligência Artificial da D2C me ajuda a criar conteúdo e roteiros?", a: "A Nossa Inteligência Artificial impulsiona sua criatividade e produção:\n\n* <strong class='font-semibold text-brand-dark'>Identifica Seus Sucessos:</strong> Analisa métricas e categoriza seu conteúdo (formato, propósito, contexto, horário) para encontrar seus posts de melhor desempenho.\n* <strong class='font-semibold text-brand-dark'>Gera Roteiros e Estruturas:</strong> Com base nesses sucessos, peça à Nossa Inteligência Artificial roteiros ou variações de temas que já funcionaram para seu público.\n* <strong class='font-semibold text-brand-dark'>Supera Bloqueios Criativos:</strong> Use seus próprios acertos como ponto de partida, economizando tempo.\n* <strong class='font-semibold text-brand-dark'>Criatividade Direcionada por Dados:</strong> Receba ideias com maior probabilidade de sucesso, baseadas na análise do seu desempenho." },
-     { q: "Como funcionam os alertas proativos da a Inteligência Artificial da D2C?", a: "A Nossa Inteligência Artificial monitora seu Instagram 24/7 e envia alertas personalizados para seu WhatsApp sobre:\n\n* <strong class='font-semibold text-brand-dark'>Picos de Performance:</strong> Ex: 'Seu Reel de Dica sobre [tema], postado [dia/hora], teve X compartilhamentos! Que tal um roteiro?'\n* <strong class='font-semibold text-brand-dark'>Quedas de Desempenho:</strong> Ex: 'O tempo de visualização dos seus Reels de Humor caiu. Vamos analisar?'\n* <strong class='font-semibold text-brand-dark'>Melhores Combinações:</strong> Ex: 'Lembrete: Fotos LifeStyle sobre Viagem às sextas, 10h, costumam ter ótimo engajamento.'\n\nEsses alertas se tornam mais precisos conforme a Nossa Inteligência Artificial aprende com você." },
-     { q: "O que é a Comunidade de Inspiração da a Inteligência Artificial da D2C?", a: "É um recurso para destravar sua criatividade! A Nossa Inteligência Artificial te dá acesso a exemplos de posts de sucesso (com resumos estratégicos e destaques qualitativos) de outros criadores. Peça inspiração por <strong class='font-semibold text-brand-dark'>tema, formato, propósito e contexto</strong>. <strong class='font-semibold text-brand-pink'>Importante: Métricas numéricas de terceiros NUNCA são compartilhadas.</strong> O foco é no aprendizado e na inspiração, com links para o post original." },
-     { q: "Como a Inteligência Artificial da D2C me ajuda com minhas 'publis'?", a: "A Nossa Inteligência Artificial é seu aliado estratégico para publicidade:\n\n* <strong class='font-semibold text-brand-dark'>Organize Parcerias:</strong> Registre detalhes dos seus acordos na plataforma.\n* <strong class='font-semibold text-brand-dark'>Brainstorm para 'Publis':</strong> Peça ideias e roteiros para posts patrocinados, e a Nossa Inteligência Artificial usará os dados da parceria e do seu perfil para sugestões eficazes.\n* <strong class='font-semibold text-brand-dark'>Análise de Propostas (Em Breve):</strong> Futuramente, a Nossa Inteligência Artificial ajudará a analisar propostas e entender o valor das suas entregas.\n* <strong class='font-semibold text-brand-dark'>Histórico para Negociações:</strong> Use seu histórico de 'publis' para embasar futuras negociações." },
+     { q: "Como a Nossa Inteligência Artificial define o melhor horário e dia para postar?", a: "A Nossa Inteligência Artificial realiza uma <strong class='font-semibold text-brand-dark'>análise combinatória profunda</strong>, cruzando dados de horário, duração, formato, propósito e contexto do seu conteúdo. Ela identifica os momentos em que seu público está mais receptivo a cada tipo de post, visando seus objetivos (ex: mais views em Reels de Dicas às terças, 19h). Converse com a Nossa Inteligência Artificial para investigar esses padrões." },
+     { q: "Como a Nossa Inteligência Artificial me ajuda a criar conteúdo e roteiros?", a: "A Nossa Inteligência Artificial impulsiona sua criatividade e produção:\n\n* <strong class='font-semibold text-brand-dark'>Identifica Seus Sucessos:</strong> Analisa métricas e categoriza seu conteúdo (formato, propósito, contexto, horário) para encontrar seus posts de melhor desempenho.\n* <strong class='font-semibold text-brand-dark'>Gera Roteiros e Estruturas:</strong> Com base nesses sucessos, peça à Nossa Inteligência Artificial roteiros ou variações de temas que já funcionaram para seu público.\n* <strong class='font-semibold text-brand-dark'>Supera Bloqueios Criativos:</strong> Use seus próprios acertos como ponto de partida, economizando tempo.\n* <strong class='font-semibold text-brand-dark'>Criatividade Direcionada por Dados:</strong> Receba ideias com maior probabilidade de sucesso, baseadas na análise do seu desempenho." },
+     { q: "Como funcionam os alertas proativos da Nossa Inteligência Artificial?", a: "A Nossa Inteligência Artificial monitora seu Instagram 24/7 e envia alertas personalizados para seu WhatsApp sobre:\n\n* <strong class='font-semibold text-brand-dark'>Picos de Performance:</strong> Ex: 'Seu Reel de Dica sobre [tema], postado [dia/hora], teve X compartilhamentos! Que tal um roteiro?'\n* <strong class='font-semibold text-brand-dark'>Quedas de Desempenho:</strong> Ex: 'O tempo de visualização dos seus Reels de Humor caiu. Vamos analisar?'\n* <strong class='font-semibold text-brand-dark'>Melhores Combinações:</strong> Ex: 'Lembrete: Fotos LifeStyle sobre Viagem às sextas, 10h, costumam ter ótimo engajamento.'\n\nEsses alertas se tornam mais precisos conforme a Nossa Inteligência Artificial aprende com você." },
+     { q: "O que é a Comunidade de Inspiração da Nossa Inteligência Artificial?", a: "É um recurso para destravar sua criatividade! A Nossa Inteligência Artificial te dá acesso a exemplos de posts de sucesso (com resumos estratégicos e destaques qualitativos) de outros criadores. Peça inspiração por <strong class='font-semibold text-brand-dark'>tema, formato, propósito e contexto</strong>. <strong class='font-semibold text-brand-pink'>Importante: Métricas numéricas de terceiros NUNCA são compartilhadas.</strong> O foco é no aprendizado e na inspiração, com links para o post original." },
+     { q: "Como a Nossa Inteligência Artificial me ajuda com minhas 'publis'?", a: "A Nossa Inteligência Artificial é seu aliado estratégico para publicidade:\n\n* <strong class='font-semibold text-brand-dark'>Organize Parcerias:</strong> Registre detalhes dos seus acordos na plataforma.\n* <strong class='font-semibold text-brand-dark'>Brainstorm para 'Publis':</strong> Peça ideias e roteiros para posts patrocinados, e a Nossa Inteligência Artificial usará os dados da parceria e do seu perfil para sugestões eficazes.\n* <strong class='font-semibold text-brand-dark'>Análise de Propostas (Em Breve):</strong> Futuramente, a Nossa Inteligência Artificial ajudará a analisar propostas e entender o valor das suas entregas.\n* <strong class='font-semibold text-brand-dark'>Histórico para Negociações:</strong> Use seu histórico de 'publis' para embasar futuras negociações." },
      { q: "Como funciona o programa de afiliados?", a: "Todos os usuários, mesmo no plano gratuito, viram afiliados ao criar a conta! Você recebe um cupom exclusivo. Seu amigo usa o cupom e ganha <strong class='font-semibold text-brand-dark'>10% de desconto</strong> na assinatura da Nossa Inteligência Artificial. E você ganha <strong class='font-semibold text-brand-dark'>10% de comissão recorrente</strong> enquanto ele for assinante. Simples assim!" },
-     { q: "A Data2Content é gratuita para começar?", a: "Sim! Crie sua conta grátis e já vire afiliado. Para ter acesso a Nossa Inteligência Artificial (análise profunda, categorização, otimização de horários, alertas, aprendizado contínuo, comunidade, roteiros, gestão de publis) é preciso fazer assinatura." },
-     { q: "Como a Inteligência Artificial da D2C acessa meus dados e aprende comigo? É seguro?", a: "Sim, total segurança e privacidade! A Nossa Inteligência Artificial acessa dados do seu Instagram (com sua permissão via conexão segura com Meta/Facebook) para buscar métricas, posts e categorizar descrições. Você também pode <strong class='font-semibold text-brand-dark'>enviar prints de posts antigos</strong>. Ela <strong class='font-semibold text-brand-dark'>aprende com suas conversas no WhatsApp</strong>, registrando preferências e objetivos para refinar as análises. Tudo em conformidade com a LGPD e diretrizes do Instagram. Você tem total controle." },
-     { q: "Preciso ter uma conta profissional do Instagram?", a: "Sim, para a Nossa Inteligência Artificial analisar seus dados (via conexão ou prints), categorizar conteúdo, otimizar horários e aprender com você, é necessária uma conta Profissional (Comercial ou Criador de Conteúdo) vinculada a uma Página do Facebook." },
+     { q: "O Data2Content é realmente gratuito para começar?", a: "Sim! Crie sua conta grátis e já vire afiliado. Funcionalidades básicas estão disponíveis. O poder completo da Nossa Inteligência Artificial (análise profunda, categorização, otimização de horários, alertas, aprendizado contínuo, comunidade, roteiros, gestão de publis) faz parte do nosso plano premium." },
+     { q: "Como a Nossa Inteligência Artificial acessa meus dados e aprende comigo? É seguro?", a: "Sim, total segurança e privacidade! A Nossa Inteligência Artificial acessa dados do seu Instagram (com sua permissão via conexão segura com Meta/Facebook) para buscar métricas, posts e categorizar descrições. Você também pode <strong class='font-semibold text-brand-dark'>enviar prints de posts antigos</strong>. Ela <strong class='font-semibold text-brand-dark'>aprende com suas conversas no WhatsApp</strong>, registrando preferências e objetivos para refinar as análises. Tudo em conformidade com a LGPD e diretrizes do Instagram. Você tem total controle." },
+     { q: "Preciso ter uma conta profissional do Instagram?", a: "Sim, para a Nossa Inteligência Artificial analisar seus dados (via conexão ou prints), categorizar conteúdo, otimização de horários e aprender com você, é necessária uma conta Profissional (Comercial ou Criador de Conteúdo) vinculada a uma Página do Facebook." },
 ];
 
 const heroQuestions = [
-    "Qual o melhor dia para postar?",
-    "Qual o melhor horário pra postar?",
-    "Me dê uma ideia de conteúdo viral",
-    "Analise meus post do mês",
-    "Que formato está em alta?",
-    "Como aumentar meu engajamento?",
-    "Crie um roteiro para um Reel",
-    "Preciso de inspiração para Reels",
-    "Qual tema devo abordar hoje?",
-    "Crie um plano de postagens pra ganhar seguidores",
-    "Quais dias eu não devo postar?",
-    "Quantos segundos meus reels devem ter?",
-    "Meus reels estão com poucas visualizações, o que fazer?",
-    "Como escrever uma legenda que gera mais comentários?",
-    "Qual o melhor formato para vender meu produto?",
-    "Postar humor na terça-feira dá mais resultado?",
-    "Qual o pior dia para postar uma publicidade?",
-    "Crie um calendário de conteúdo para a próxima semana.",
-    "Devo postar nos fins de semana?",
-    "Quantas postagens devo fazer por semana?",
-    "Posts sobre dicas funcionam melhor de manhã ou à noite?",
+    "Qual o melhor dia para postar?", "Qual o melhor horário pra postar?", "Me dê uma ideia de conteúdo viral",
+    "Analise meus post do mês", "Que formato está em alta?", "Como aumentar meu engajamento?",
+    "Crie um roteiro para um Reel", "Preciso de inspiração para Reels", "Qual tema devo abordar hoje?",
+    "Crie um plano de postagens pra ganhar seguidores", "Quais dias eu não devo postar?", "Quantos segundos meus reels devem ter?",
+    "Meus reels estão com poucas visualizações, o que fazer?", "Como escrever uma legenda que gera mais comentários?",
+    "Qual o melhor formato para vender meu produto?", "Postar humor na terça-feira dá mais resultado?",
+    "Qual o pior dia para postar uma publicidade?", "Crie um calendário de conteúdo para a próxima semana.",
+    "Devo postar nos fins de semana?", "Quantas postagens devo fazer por semana?", "Posts sobre dicas funcionam melhor de manhã ou à noite?",
 ];
 
 // --- COMPONENTES DE UI REUTILIZÁVEIS ---
@@ -142,7 +128,6 @@ const PillarCard = ({ icon: Icon, title, children }: { icon: React.ElementType; 
     </div>
 );
 
-// --- COMPONENTE ScreenshotCard (CORRIGIDO) ---
 const ScreenshotCard = ({ imageUrl, title }: { imageUrl: string; title: string; }) => (
     <motion.div 
         className="flex-shrink-0 w-[65vw] sm:w-[45vw] md:w-[30vw] lg:w-[22vw] aspect-[9/16] rounded-3xl bg-gradient-to-br from-gray-100 to-gray-200 p-1 shadow-2xl cursor-grab active:cursor-grabbing"
@@ -161,7 +146,6 @@ const ScreenshotCard = ({ imageUrl, title }: { imageUrl: string; title: string; 
     </motion.div>
 );
 
-// --- COMPONENTE TestimonialCard (CORRIGIDO) ---
 const TestimonialCard = ({ name, handle, quote, avatarUrl }: { name: string; handle: string; quote: string; avatarUrl: string; }) => (
     <div className="bg-white p-8 rounded-xl h-full shadow-lg flex flex-col">
         <div className="flex text-yellow-400 gap-1 mb-4">{[...Array(5)].map((_, i) => <FaStar key={i} />)}</div>
@@ -180,14 +164,6 @@ const TestimonialCard = ({ name, handle, quote, avatarUrl }: { name: string; han
                 <p className="text-sm text-gray-500">{handle}</p>
             </div>
         </div>
-    </div>
-);
-
-
-// --- COMPONENTES DE LAYOUT E EFEITOS ---
-const ImagePlaceholder = ({ className = "" }: { className?: string }) => (
-    <div className={`relative w-full overflow-hidden h-full ${className}`}>
-        <div className="absolute inset-0 bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-100 opacity-80" />
     </div>
 );
 
@@ -241,10 +217,6 @@ export default function FinalCompleteLandingPage() {
     visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] } },
   };
   
-  const thirdMarqueeQuestions = useMemo(() => 
-    [...heroQuestions].sort(() => Math.random() - 0.5)
-  , []);
-
   return (
     <>
       <Head>
@@ -276,63 +248,59 @@ export default function FinalCompleteLandingPage() {
             </div>
         </header>
 
-        <main>
-          {/* Seção Hero com espaçamento vertical corrigido para melhor centralização */}
-          <section className="relative flex flex-col justify-center items-center min-h-screen bg-gray-100 text-center overflow-x-hidden pt-20 pb-12">
-            <div className="w-full">
-              <motion.div
-                variants={heroVariants}
-                initial="hidden"
-                animate="visible"
-                className="max-w-3xl mx-auto px-6 lg:px-8"
-              >
-                <motion.h1 
-                  variants={heroItemVariants}
-                  className="text-5xl md:text-7xl font-extrabold tracking-tighter text-brand-dark"
-                >
-                  O fim da dúvida: o que postar hoje?
-                </motion.h1>
-                
-                <motion.div variants={heroItemVariants} className="mt-6 h-14 md:h-auto">
-                  <TypeAnimation
-                    sequence={[
-                      'Uma Inteligência Artificial.',
-                      1000,
-                      'Uma Inteligência Artificial conectada ao seu Instagram.',
-                      1000,
-                      'Uma Inteligência Artificial para conversar no WhatsApp.',
-                      3000,
-                    ]}
-                    wrapper="p"
-                    speed={50}
-                    className="text-lg md:text-xl text-gray-600 max-w-2xl leading-relaxed mx-auto"
-                    cursor={true}
-                    repeat={Infinity}
-                  />
-                </motion.div>
+        <>
+          {/* [CORREÇÃO] A altura mínima foi ajustada para 90vh para diminuir o espaço vertical. */}
+          <section className="relative flex flex-col min-h-[90vh] bg-gray-100 text-center overflow-x-hidden">
+            {/* O container interno usa flex-grow e justify-center para centralizar o conteúdo no espaço disponível. */}
+            <div className="flex-grow flex flex-col justify-center">
+                <div className="w-full">
+                    <motion.div
+                      variants={heroVariants}
+                      initial="hidden"
+                      animate="visible"
+                      className="w-full"
+                    >
+                      <div className="max-w-3xl mx-auto px-6 lg:px-8">
+                        <motion.h1 
+                          variants={heroItemVariants}
+                          className="text-5xl md:text-7xl font-extrabold tracking-tighter text-brand-dark"
+                        >
+                          O fim da dúvida: o que postar hoje?
+                        </motion.h1>
+                        
+                        <motion.div variants={heroItemVariants} className="mt-6 h-14 md:h-auto">
+                          <TypeAnimation
+                            sequence={[
+                              'Uma Inteligência Artificial.', 1000,
+                              'Uma Inteligência Artificial conectada ao seu Instagram.', 1000,
+                              'Uma Inteligência Artificial para conversar no WhatsApp.', 3000,
+                            ]}
+                            wrapper="p" speed={50}
+                            className="text-lg md:text-xl text-gray-600 max-w-2xl leading-relaxed mx-auto"
+                            cursor={true} repeat={Infinity}
+                          />
+                        </motion.div>
 
-                <motion.div variants={heroItemVariants}>
-                  <ButtonPrimary onClick={handleSignIn} className="mt-8">
-                    <FaGoogle /> Ative sua IA do Instagram no WhatsApp ▸
-                  </ButtonPrimary>
-                </motion.div>
-              </motion.div>
-              
-              <motion.div 
-                className="mt-10 md:mt-12 w-full space-y-4"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: 0.4 }}
-              >
-                <Marquee items={heroQuestions} />
-                <Marquee items={[...heroQuestions].reverse()} direction="right" />
-                <Marquee items={thirdMarqueeQuestions} />
-              </motion.div>
+                        <motion.div variants={heroItemVariants}>
+                          <ButtonPrimary onClick={handleSignIn} className="mt-8">
+                            <FaGoogle /> Ative sua IA do Instagram no WhatsApp ▸
+                          </ButtonPrimary>
+                        </motion.div>
+                      </div>
+                      
+                      <motion.div 
+                        variants={heroItemVariants}
+                        className="mt-10 md:mt-12 w-full space-y-4"
+                      >
+                        <Marquee items={heroQuestions} />
+                        <Marquee items={[...heroQuestions].reverse()} direction="right" />
+                      </motion.div>
+                    </motion.div>
+                </div>
             </div>
           </section>
 
           <div className="relative bg-white">
-            {/* Seção com espaçamento vertical ajustado */}
             <section className="py-10 sm:py-14 bg-gray-50/70">
               <div className="mx-auto max-w-screen-xl px-6 lg:px-8 text-left">
                 <AnimatedSection>
@@ -381,7 +349,6 @@ export default function FinalCompleteLandingPage() {
               </div>
             </section>
 
-            {/* Seção com espaçamento vertical ajustado */}
             <section className="py-10 sm:py-14 bg-white">
                 <div className="mx-auto max-w-screen-xl px-6 lg:px-8 text-left">
                     <AnimatedSection>
@@ -400,7 +367,6 @@ export default function FinalCompleteLandingPage() {
                 </div>
             </section>
             
-            {/* Seção com espaçamento vertical ajustado */}
             <section className="py-10 sm:py-14 bg-gray-50/70">
                 <div className="mx-auto max-w-screen-xl px-6 lg:px-8 text-left">
                     <AnimatedSection>
@@ -417,7 +383,6 @@ export default function FinalCompleteLandingPage() {
                 </div>
             </section>
 
-            {/* Seção com espaçamento vertical ajustado */}
             <section id="arthur-marba" className="py-10 sm:py-14 bg-white">
                 <div className="max-w-screen-md mx-auto px-6 text-left">
                     <AnimatedSection>
@@ -447,7 +412,6 @@ export default function FinalCompleteLandingPage() {
                 </div>
             </section>
 
-            {/* Seção com espaçamento vertical ajustado e BUG CORRIGIDO */}
             <section id="faq" className="py-10 sm:py-14 bg-white">
                 <div className="max-w-3xl mx-auto px-6">
                     <AnimatedSection className="text-left mb-10">
@@ -463,7 +427,6 @@ export default function FinalCompleteLandingPage() {
                                             <FaQuestionCircle />
                                         </span>
                                     </summary>
-                                    {/* CORREÇÃO APLICADA AQUI */}
                                     <div className="text-gray-700 mt-4 text-base font-light leading-relaxed whitespace-pre-line"
                                        dangerouslySetInnerHTML={{ __html: item.a.replace(/\n\n\*/g, '<br /><br />&#8226; ').replace(/\n\*/g, '<br />&#8226; ').replace(/\n/g, '<br />') }}
                                     ></div>
@@ -474,7 +437,6 @@ export default function FinalCompleteLandingPage() {
                 </div>
             </section>
             
-            {/* Seção com espaçamento vertical ajustado */}
             <section className="py-12 sm:py-20 bg-brand-dark text-white">
                 <div className="max-w-screen-xl mx-auto px-6 text-left">
                     <AnimatedSection className="max-w-3xl">
@@ -489,9 +451,8 @@ export default function FinalCompleteLandingPage() {
                 </div>
             </section>
           </div>
-        </main>
+        </>
         
-        {/* Seção com espaçamento vertical ajustado */}
         <footer className="text-center py-8 bg-gray-100 border-t">
             <div className="mb-4 text-brand-dark font-bold text-2xl flex justify-center items-center gap-2"><span className="text-brand-pink">[2]</span>Data2Content</div>
             <p className="text-sm text-gray-500 mb-4">© {new Date().getFullYear()} Mobi Media Produtores de Conteúdo LTDA.</p>
@@ -521,5 +482,5 @@ export default function FinalCompleteLandingPage() {
         }
       `}</style>
     </>
-    );
+    )
 }
