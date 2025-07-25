@@ -28,13 +28,8 @@ const creatorTypes = [
     },
     {
         icon: FaBullhorn,
-        title: "Influenciadores",
-        description: "Entenda sua audiência para aumentar o engajamento e fechar parcerias autênticas."
-    },
-    {
-        icon: FaPaintBrush,
-        title: "Lifestyle e Humor",
-        description: "Descubra quais formatos e piadas realmente conectam e viralizam com sua comunidade."
+        title: "Influenciadores e Atores",
+        description: "Entenda sua audiência para aumentar o engajamento e fechar mais publicidades."
     },
     {
         icon: FaStar,
@@ -66,18 +61,18 @@ const testimonials = [
 
 const faqItems = [
      {
-         q: "Qual a diferença do Tuca para outros assistentes ou ferramentas?",
-         a: "O Tuca é único por integrar múltiplos superpoderes focados nos SEUS resultados:\n\n* <strong class='font-semibold text-brand-dark'>Análise Conectada:</strong> Acessa SEU Instagram para insights de métricas e conteúdos REAIS (atuais e históricos via print).\n* <strong class='font-semibold text-brand-dark'>Entende Seu Conteúdo:</strong> Categoriza posts por Formato, Propósito e Contexto, revelando padrões.\n* <strong class='font-semibold text-brand-dark'>Timing Inteligente:</strong> Otimiza horários para CADA tipo de conteúdo, maximizando impacto.\n* <strong class='font-semibold text-brand-dark'>Expert + IA Proativa:</strong> Treinado por Arthur Marbá, monitora 24/7 e envia alertas estratégicos.\n* <strong class='font-semibold text-brand-dark'>Prático no WhatsApp:</strong> Interação simples, insights diretos, sem dashboards.\n* <strong class='font-semibold text-brand-dark'>De Dados a Roteiros:</strong> Analisa e GERA ROTEIROS para replicar seus sucessos.\n* <strong class='font-semibold text-brand-dark'>Evolui com Você:</strong> Aprende com suas interações e preferências.\n* <strong class='font-semibold text-brand-dark'>Inspiração da Comunidade:</strong> Exemplos de posts de sucesso (privacidade garantida).\n* <strong class='font-semibold text-brand-dark'>Gestão de Publis:</strong> Ajuda a organizar e otimizar parcerias.\n\nResumindo: Tuca é seu consultor estratégico e criativo completo para Instagram, no WhatsApp."
+         q: "Qual a diferença da Nossa Inteligência Artificial para outros assistentes ou ferramentas?",
+         a: "Nossa Inteligência Artificial é única por integrar múltiplos superpoderes focados nos SEUS resultados:\n\n* <strong class='font-semibold text-brand-dark'>Análise Conectada:</strong> Acessa SEU Instagram para insights de métricas e conteúdos REAIS (atuais e históricos via print).\n* <strong class='font-semibold text-brand-dark'>Entende Seu Conteúdo:</strong> Categoriza posts por Formato, Propósito e Contexto, revelando padrões.\n* <strong class='font-semibold text-brand-dark'>Timing Inteligente:</strong> Otimiza horários para CADA tipo de conteúdo, maximizando impacto.\n* <strong class='font-semibold text-brand-dark'>Expert + IA Proativa:</strong> Treinado por Arthur Marbá, monitora 24/7 e envia alertas estratégicos.\n* <strong class='font-semibold text-brand-dark'>Prático no WhatsApp:</strong> Interação simples, insights diretos, sem dashboards.\n* <strong class='font-semibold text-brand-dark'>De Dados a Roteiros:</strong> Analisa e GERA ROTEIROS para replicar seus sucessos.\n* <strong class='font-semibold text-brand-dark'>Evolui com Você:</strong> Aprende com suas interações e preferências.\n* <strong class='font-semibold text-brand-dark'>Inspiração da Comunidade:</strong> Exemplos de posts de sucesso (privacidade garantida).\n* <strong class='font-semibold text-brand-dark'>Gestão de Publis:</strong> Ajuda a organizar e otimizar parcerias.\n\nResumindo: Nossa Inteligência Artificial é seu consultor estratégico e criativo completo para Instagram, no WhatsApp."
      },
-     { q: "Como o Tuca define o melhor horário e dia para postar?", a: "O Tuca realiza uma <strong class='font-semibold text-brand-dark'>análise combinatória profunda</strong>, cruzando dados de horário, duração, formato, propósito e contexto do seu conteúdo. Ele identifica os momentos em que seu público está mais receptivo a cada tipo de post, visando seus objetivos (ex: mais views em Reels de Dicas às terças, 19h). Converse com o Tuca para investigar esses padrões." },
-     { q: "Como o Tuca me ajuda a criar conteúdo e roteiros?", a: "O Tuca impulsiona sua criatividade e produção:\n\n* <strong class='font-semibold text-brand-dark'>Identifica Seus Sucessos:</strong> Analisa métricas e categoriza seu conteúdo (formato, propósito, contexto, horário) para encontrar seus posts de melhor desempenho.\n* <strong class='font-semibold text-brand-dark'>Gera Roteiros e Estruturas:</strong> Com base nesses sucessos, peça ao Tuca roteiros ou variações de temas que já funcionaram para seu público.\n* <strong class='font-semibold text-brand-dark'>Supera Bloqueios Criativos:</strong> Use seus próprios acertos como ponto de partida, economizando tempo.\n* <strong class='font-semibold text-brand-dark'>Criatividade Direcionada por Dados:</strong> Receba ideias com maior probabilidade de sucesso, baseadas na análise do seu desempenho." },
-     { q: "Como funcionam os alertas proativos do Tuca?", a: "O Tuca monitora seu Instagram 24/7 e envia alertas personalizados para seu WhatsApp sobre:\n\n* <strong class='font-semibold text-brand-dark'>Picos de Performance:</strong> Ex: 'Seu Reel de Dica sobre [tema], postado [dia/hora], teve X compartilhamentos! Que tal um roteiro?'\n* <strong class='font-semibold text-brand-dark'>Quedas de Desempenho:</strong> Ex: 'O tempo de visualização dos seus Reels de Humor caiu. Vamos analisar?'\n* <strong class='font-semibold text-brand-dark'>Melhores Combinações:</strong> Ex: 'Lembrete: Fotos LifeStyle sobre Viagem às sextas, 10h, costumam ter ótimo engajamento.'\n\nEsses alertas se tornam mais precisos conforme o Tuca aprende com você." },
-     { q: "O que é a Comunidade de Inspiração Tuca?", a: "É um recurso para destravar sua criatividade! O Tuca te dá acesso a exemplos de posts de sucesso (com resumos estratégicos e destaques qualitativos) de outros criadores. Peça inspiração por <strong class='font-semibold text-brand-dark'>tema, formato, propósito e contexto</strong>. <strong class='font-semibold text-brand-pink'>Importante: Métricas numéricas de terceiros NUNCA são compartilhadas.</strong> O foco é no aprendizado e na inspiração, com links para o post original." },
-     { q: "Como o Tuca me ajuda com minhas 'publis'?", a: "O Tuca é seu aliado estratégico para publicidade:\n\n* <strong class='font-semibold text-brand-dark'>Organize Parcerias:</strong> Registre detalhes dos seus acordos na plataforma.\n* <strong class='font-semibold text-brand-dark'>Brainstorm para 'Publis':</strong> Peça ideias e roteiros para posts patrocinados, e o Tuca usará os dados da parceria e do seu perfil para sugestões eficazes.\n* <strong class='font-semibold text-brand-dark'>Análise de Propostas (Em Breve):</strong> Futuramente, o Tuca ajudará a analisar propostas e entender o valor das suas entregas.\n* <strong class='font-semibold text-brand-dark'>Histórico para Negociações:</strong> Use seu histórico de 'publis' para embasar futuras negociações." },
-     { q: "Como funciona o programa de afiliados?", a: "Todos os usuários, mesmo no plano gratuito, viram afiliados ao criar a conta! Você recebe um cupom exclusivo. Seu amigo usa o cupom e ganha <strong class='font-semibold text-brand-dark'>10% de desconto</strong> na assinatura do Tuca. E você ganha <strong class='font-semibold text-brand-dark'>10% de comissão recorrente</strong> enquanto ele for assinante. Simples assim!" },
-     { q: "O Data2Content é realmente gratuito para começar?", a: "Sim! Crie sua conta grátis e já vire afiliado. Funcionalidades básicas estão disponíveis. O poder completo do Tuca (análise profunda, categorização, otimização de horários, alertas, aprendizado contínuo, comunidade, roteiros, gestão de publis) faz parte do nosso plano premium." },
-     { q: "Como o Tuca acessa meus dados e aprende comigo? É seguro?", a: "Sim, total segurança e privacidade! O Tuca acessa dados do seu Instagram (com sua permissão via conexão segura com Meta/Facebook) para buscar métricas, posts e categorizar descrições. Você também pode <strong class='font-semibold text-brand-dark'>enviar prints de posts antigos</strong>. Ele <strong class='font-semibold text-brand-dark'>aprende com suas conversas no WhatsApp</strong>, registrando preferências e objetivos para refinar as análises. Tudo em conformidade com a LGPD e diretrizes do Instagram. Você tem total controle." },
-     { q: "Preciso ter uma conta profissional do Instagram?", a: "Sim, para o Tuca analisar seus dados (via conexão ou prints), categorizar conteúdo, otimizar horários e aprender com você, é necessária uma conta Profissional (Comercial ou Criador de Conteúdo) vinculada a uma Página do Facebook." },
+     { q: "Como a Inteligência Artificial da D2C define o melhor horário e dia para postar?", a: "A Nossa Inteligência Artificial realiza uma <strong class='font-semibold text-brand-dark'>análise combinatória profunda</strong>, cruzando dados de horário, duração, formato, propósito e contexto do seu conteúdo. Ela identifica os momentos em que seu público está mais receptivo a cada tipo de post, visando seus objetivos (ex: mais views em Reels de Dicas às terças, 19h). Converse com a Nossa Inteligência Artificial para investigar esses padrões." },
+     { q: "Como a Inteligência Artificial da D2C me ajuda a criar conteúdo e roteiros?", a: "A Nossa Inteligência Artificial impulsiona sua criatividade e produção:\n\n* <strong class='font-semibold text-brand-dark'>Identifica Seus Sucessos:</strong> Analisa métricas e categoriza seu conteúdo (formato, propósito, contexto, horário) para encontrar seus posts de melhor desempenho.\n* <strong class='font-semibold text-brand-dark'>Gera Roteiros e Estruturas:</strong> Com base nesses sucessos, peça à Nossa Inteligência Artificial roteiros ou variações de temas que já funcionaram para seu público.\n* <strong class='font-semibold text-brand-dark'>Supera Bloqueios Criativos:</strong> Use seus próprios acertos como ponto de partida, economizando tempo.\n* <strong class='font-semibold text-brand-dark'>Criatividade Direcionada por Dados:</strong> Receba ideias com maior probabilidade de sucesso, baseadas na análise do seu desempenho." },
+     { q: "Como funcionam os alertas proativos da a Inteligência Artificial da D2C?", a: "A Nossa Inteligência Artificial monitora seu Instagram 24/7 e envia alertas personalizados para seu WhatsApp sobre:\n\n* <strong class='font-semibold text-brand-dark'>Picos de Performance:</strong> Ex: 'Seu Reel de Dica sobre [tema], postado [dia/hora], teve X compartilhamentos! Que tal um roteiro?'\n* <strong class='font-semibold text-brand-dark'>Quedas de Desempenho:</strong> Ex: 'O tempo de visualização dos seus Reels de Humor caiu. Vamos analisar?'\n* <strong class='font-semibold text-brand-dark'>Melhores Combinações:</strong> Ex: 'Lembrete: Fotos LifeStyle sobre Viagem às sextas, 10h, costumam ter ótimo engajamento.'\n\nEsses alertas se tornam mais precisos conforme a Nossa Inteligência Artificial aprende com você." },
+     { q: "O que é a Comunidade de Inspiração da a Inteligência Artificial da D2C?", a: "É um recurso para destravar sua criatividade! A Nossa Inteligência Artificial te dá acesso a exemplos de posts de sucesso (com resumos estratégicos e destaques qualitativos) de outros criadores. Peça inspiração por <strong class='font-semibold text-brand-dark'>tema, formato, propósito e contexto</strong>. <strong class='font-semibold text-brand-pink'>Importante: Métricas numéricas de terceiros NUNCA são compartilhadas.</strong> O foco é no aprendizado e na inspiração, com links para o post original." },
+     { q: "Como a Inteligência Artificial da D2C me ajuda com minhas 'publis'?", a: "A Nossa Inteligência Artificial é seu aliado estratégico para publicidade:\n\n* <strong class='font-semibold text-brand-dark'>Organize Parcerias:</strong> Registre detalhes dos seus acordos na plataforma.\n* <strong class='font-semibold text-brand-dark'>Brainstorm para 'Publis':</strong> Peça ideias e roteiros para posts patrocinados, e a Nossa Inteligência Artificial usará os dados da parceria e do seu perfil para sugestões eficazes.\n* <strong class='font-semibold text-brand-dark'>Análise de Propostas (Em Breve):</strong> Futuramente, a Nossa Inteligência Artificial ajudará a analisar propostas e entender o valor das suas entregas.\n* <strong class='font-semibold text-brand-dark'>Histórico para Negociações:</strong> Use seu histórico de 'publis' para embasar futuras negociações." },
+     { q: "Como funciona o programa de afiliados?", a: "Todos os usuários, mesmo no plano gratuito, viram afiliados ao criar a conta! Você recebe um cupom exclusivo. Seu amigo usa o cupom e ganha <strong class='font-semibold text-brand-dark'>10% de desconto</strong> na assinatura da Nossa Inteligência Artificial. E você ganha <strong class='font-semibold text-brand-dark'>10% de comissão recorrente</strong> enquanto ele for assinante. Simples assim!" },
+     { q: "A Data2Content é gratuita para começar?", a: "Sim! Crie sua conta grátis e já vire afiliado. Para ter acesso a Nossa Inteligência Artificial (análise profunda, categorização, otimização de horários, alertas, aprendizado contínuo, comunidade, roteiros, gestão de publis) é preciso fazer assinatura." },
+     { q: "Como a Inteligência Artificial da D2C acessa meus dados e aprende comigo? É seguro?", a: "Sim, total segurança e privacidade! A Nossa Inteligência Artificial acessa dados do seu Instagram (com sua permissão via conexão segura com Meta/Facebook) para buscar métricas, posts e categorizar descrições. Você também pode <strong class='font-semibold text-brand-dark'>enviar prints de posts antigos</strong>. Ela <strong class='font-semibold text-brand-dark'>aprende com suas conversas no WhatsApp</strong>, registrando preferências e objetivos para refinar as análises. Tudo em conformidade com a LGPD e diretrizes do Instagram. Você tem total controle." },
+     { q: "Preciso ter uma conta profissional do Instagram?", a: "Sim, para a Nossa Inteligência Artificial analisar seus dados (via conexão ou prints), categorizar conteúdo, otimizar horários e aprender com você, é necessária uma conta Profissional (Comercial ou Criador de Conteúdo) vinculada a uma Página do Facebook." },
 ];
 
 const heroQuestions = [
@@ -153,16 +148,13 @@ const ScreenshotCard = ({ imageUrl, title }: { imageUrl: string; title: string; 
         className="flex-shrink-0 w-[65vw] sm:w-[45vw] md:w-[30vw] lg:w-[22vw] aspect-[9/16] rounded-3xl bg-gradient-to-br from-gray-100 to-gray-200 p-1 shadow-2xl cursor-grab active:cursor-grabbing"
         whileTap={{ scale: 0.98, transition: { duration: 0.2 } }}
     >
-        {/* Adicionado 'relative' para o posicionamento do Image do Next.js */}
         <div className="relative w-full h-full bg-white rounded-[22px] shadow-inner overflow-hidden">
-            {/* Removido o placeholder e ativado o componente Image */}
             <Image 
                 src={imageUrl} 
                 alt={title} 
                 layout="fill" 
                 className="object-cover" 
                 loading="lazy"
-                // Adicionado um fallback para o caso de a imagem não carregar
                 onError={(e) => { e.currentTarget.src = 'https://placehold.co/360x640/f0f0f0/333?text=Imagem+Indisponível'; }}
             />
         </div>
@@ -175,7 +167,6 @@ const TestimonialCard = ({ name, handle, quote, avatarUrl }: { name: string; han
         <div className="flex text-yellow-400 gap-1 mb-4">{[...Array(5)].map((_, i) => <FaStar key={i} />)}</div>
         <p className="text-gray-700 italic flex-grow">"{quote}"</p>
         <div className="flex items-center mt-6">
-            {/* Removido o placeholder e ativado o componente Image */}
             <div className="relative w-12 h-12 rounded-full overflow-hidden">
                 <Image 
                     src={avatarUrl} 
@@ -286,8 +277,9 @@ export default function FinalCompleteLandingPage() {
         </header>
 
         <main>
-          <section className="relative flex justify-center items-center min-h-screen bg-gray-100 text-center overflow-x-hidden pt-20">
-            <div className="w-full py-12">
+          {/* Seção Hero com espaçamento vertical corrigido para melhor centralização */}
+          <section className="relative flex flex-col justify-center items-center min-h-screen bg-gray-100 text-center overflow-x-hidden pt-20 pb-12">
+            <div className="w-full">
               <motion.div
                 variants={heroVariants}
                 initial="hidden"
@@ -320,14 +312,14 @@ export default function FinalCompleteLandingPage() {
                 </motion.div>
 
                 <motion.div variants={heroItemVariants}>
-                  <ButtonPrimary onClick={handleSignIn} className="mt-10">
+                  <ButtonPrimary onClick={handleSignIn} className="mt-8">
                     <FaGoogle /> Ative sua IA do Instagram no WhatsApp ▸
                   </ButtonPrimary>
                 </motion.div>
               </motion.div>
               
               <motion.div 
-                className="mt-12 md:mt-16 w-full space-y-4"
+                className="mt-10 md:mt-12 w-full space-y-4"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: 0.4 }}
@@ -340,14 +332,15 @@ export default function FinalCompleteLandingPage() {
           </section>
 
           <div className="relative bg-white">
-            <section className="py-12 sm:py-16 bg-gray-50/70">
+            {/* Seção com espaçamento vertical ajustado */}
+            <section className="py-10 sm:py-14 bg-gray-50/70">
               <div className="mx-auto max-w-screen-xl px-6 lg:px-8 text-left">
                 <AnimatedSection>
-                  <SectionTitle>Veja o Tuca em Ação.</SectionTitle>
+                  <SectionTitle>Veja Nossa IA em Ação.</SectionTitle>
                   <SectionSubtitle>Receba alertas, análises e ideias diretamente no seu WhatsApp, de forma clara e objetiva.</SectionSubtitle>
                 </AnimatedSection>
               </div>
-              <div className="relative mt-8">
+              <div className="relative mt-6">
                 <div 
                   ref={carouselRef}
                   className="overflow-x-auto snap-x snap-mandatory hide-scrollbar"
@@ -355,8 +348,8 @@ export default function FinalCompleteLandingPage() {
                     <div 
                       className="flex gap-8"
                       style={{
-                        paddingTop: '2rem',
-                        paddingBottom: '2rem',
+                        paddingTop: '1.5rem',
+                        paddingBottom: '1.5rem',
                         paddingLeft: 'calc(max(0px, (100vw - 1280px) / 2) + 1.5rem)', 
                         paddingRight: 'calc(max(0px, (100vw - 1280px) / 2) + 1.5rem)'
                       }}
@@ -388,13 +381,14 @@ export default function FinalCompleteLandingPage() {
               </div>
             </section>
 
-            <section className="py-12 sm:py-16 bg-white">
+            {/* Seção com espaçamento vertical ajustado */}
+            <section className="py-10 sm:py-14 bg-white">
                 <div className="mx-auto max-w-screen-xl px-6 lg:px-8 text-left">
                     <AnimatedSection>
                         <SectionTitle>Feito para todos os tipos de criadores.</SectionTitle>
-                        <SectionSubtitle>Se você cria conteúdo, o Data2Content trabalha para você. Nossa IA se adapta ao seu nicho e aos seus objetivos.</SectionSubtitle>
+                        <SectionSubtitle>Se você cria conteúdo, o Data2Content trabalha para você. Nossa IA se adapta ao seu histórico de conteúdo, nicho e objetivos.</SectionSubtitle>
                     </AnimatedSection>
-                    <div className="mt-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                    <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                         {creatorTypes.map((creator, index) => (
                             <AnimatedSection delay={0.1 * (index + 1)} key={creator.title}>
                                 <PillarCard icon={creator.icon} title={creator.title}>
@@ -406,13 +400,14 @@ export default function FinalCompleteLandingPage() {
                 </div>
             </section>
             
-            <section className="py-12 sm:py-16 bg-gray-50/70">
+            {/* Seção com espaçamento vertical ajustado */}
+            <section className="py-10 sm:py-14 bg-gray-50/70">
                 <div className="mx-auto max-w-screen-xl px-6 lg:px-8 text-left">
                     <AnimatedSection>
                         <SectionTitle>Resultados que falam por si.</SectionTitle>
                         <SectionSubtitle>Criadores como você já estão economizando tempo e crescendo com mais estratégia.</SectionSubtitle>
                     </AnimatedSection>
-                    <div className="mt-16 grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
                         {testimonials.map((testimonial, index) => (
                             <AnimatedSection delay={0.1 * (index + 1)} key={testimonial.name}>
                                 <TestimonialCard {...testimonial} />
@@ -422,12 +417,13 @@ export default function FinalCompleteLandingPage() {
                 </div>
             </section>
 
-            <section id="arthur-marba" className="py-12 sm:py-16 bg-white">
+            {/* Seção com espaçamento vertical ajustado */}
+            <section id="arthur-marba" className="py-10 sm:py-14 bg-white">
                 <div className="max-w-screen-md mx-auto px-6 text-left">
                     <AnimatedSection>
-                        <SectionTitle className="text-3xl">A Mente por Trás da Inteligência do Tuca</SectionTitle>
-                        <p className="mt-6 text-lg text-gray-600 leading-relaxed">Arthur Marbá, Fundador da Data2Content, une 10 anos de marketing para criadores a uma herança de 40 anos no agenciamento de talentos. Ele percebeu que criadores precisam de um especialista para traduzir dados em direcionamento. O Tuca é a personificação dessa filosofia.</p>
-                        <blockquote className="mt-6 pl-5 border-l-4 border-brand-pink italic text-gray-700 text-lg">
+                        <SectionTitle className="text-3xl">Conheça o Fundador da Data2Content</SectionTitle>
+                        <p className="mt-5 text-lg text-gray-600 leading-relaxed">Arthur Marbá, Fundador da Data2Content, une 10 anos de marketing digital para criadores a uma herança familiar de 40 anos no agenciamento de talentos. Ele percebeu que criadores precisam de um especialista para traduzir dados em direcionamento estratégico. O Tuca é a personificação dessa filosofia.</p>
+                        <blockquote className="mt-5 pl-5 border-l-4 border-brand-pink italic text-gray-700 text-lg">
                             "Democratizamos a consultoria estratégica, tornando-a acessível, proativa e capaz de evoluir com cada criador, tudo via WhatsApp."
                             <cite className="mt-4 block text-base font-semibold text-brand-dark not-italic">- Arthur Marbá, Fundador</cite>
                         </blockquote>
@@ -435,7 +431,7 @@ export default function FinalCompleteLandingPage() {
                     
                     <AnimatedSection delay={0.1}>
                         <div 
-                            className="relative mt-12 overflow-hidden rounded-2xl shadow-lg"
+                            className="relative mt-10 overflow-hidden rounded-2xl shadow-lg"
                             style={{ paddingTop: '56.25%' }} // Proporção 16:9 para vídeo
                         >
                            <iframe
@@ -451,12 +447,13 @@ export default function FinalCompleteLandingPage() {
                 </div>
             </section>
 
-            <section id="faq" className="py-12 sm:py-16 bg-white">
+            {/* Seção com espaçamento vertical ajustado e BUG CORRIGIDO */}
+            <section id="faq" className="py-10 sm:py-14 bg-white">
                 <div className="max-w-3xl mx-auto px-6">
-                    <AnimatedSection className="text-left mb-12">
+                    <AnimatedSection className="text-left mb-10">
                         <SectionTitle>Dúvidas Frequentes</SectionTitle>
                     </AnimatedSection>
-                    <div className="space-y-5">
+                    <div className="space-y-4">
                         {faqItems.map((item, index) => (
                             <AnimatedSection delay={0.05 * (index + 1)} key={index}>
                                 <details className="group bg-gray-50/80 p-6 rounded-lg transition-shadow duration-200 hover:shadow-lg">
@@ -466,6 +463,7 @@ export default function FinalCompleteLandingPage() {
                                             <FaQuestionCircle />
                                         </span>
                                     </summary>
+                                    {/* CORREÇÃO APLICADA AQUI */}
                                     <div className="text-gray-700 mt-4 text-base font-light leading-relaxed whitespace-pre-line"
                                        dangerouslySetInnerHTML={{ __html: item.a.replace(/\n\n\*/g, '<br /><br />&#8226; ').replace(/\n\*/g, '<br />&#8226; ').replace(/\n/g, '<br />') }}
                                     ></div>
@@ -476,12 +474,13 @@ export default function FinalCompleteLandingPage() {
                 </div>
             </section>
             
-            <section className="py-16 sm:py-20 bg-brand-dark text-white">
+            {/* Seção com espaçamento vertical ajustado */}
+            <section className="py-12 sm:py-20 bg-brand-dark text-white">
                 <div className="max-w-screen-xl mx-auto px-6 text-left">
                     <AnimatedSection className="max-w-3xl">
                         <SectionTitle className="text-white">Pronto para transformar sua criação de conteúdo?</SectionTitle>
                         <SectionSubtitle className="text-gray-300">Pare de adivinhar e comece a crescer com estratégia. O Tuca está esperando por você.</SectionSubtitle>
-                        <div className="mt-12">
+                        <div className="mt-10">
                            <ButtonPrimary onClick={handleSignIn}>
                                <FaGoogle /> Ativar meu estrategista agora ▸
                            </ButtonPrimary>
@@ -492,6 +491,7 @@ export default function FinalCompleteLandingPage() {
           </div>
         </main>
         
+        {/* Seção com espaçamento vertical ajustado */}
         <footer className="text-center py-8 bg-gray-100 border-t">
             <div className="mb-4 text-brand-dark font-bold text-2xl flex justify-center items-center gap-2"><span className="text-brand-pink">[2]</span>Data2Content</div>
             <p className="text-sm text-gray-500 mb-4">© {new Date().getFullYear()} Mobi Media Produtores de Conteúdo LTDA.</p>
@@ -510,6 +510,7 @@ export default function FinalCompleteLandingPage() {
         }
         html {
             font-family: 'Inter', sans-serif;
+            scroll-padding-top: 5rem; /* Ajusta a rolagem de links de âncora por causa do header fixo */
         }
         .hide-scrollbar::-webkit-scrollbar {
             display: none;
