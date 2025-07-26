@@ -69,7 +69,7 @@ const faqItems = [
      { q: "O que é a Comunidade de Inspiração da Nossa Inteligência Artificial?", a: "É um recurso para destravar sua criatividade! A Nossa Inteligência Artificial te dá acesso a exemplos de posts de sucesso (com resumos estratégicos e destaques qualitativos) de outros criadores. Peça inspiração por <strong class='font-semibold text-brand-dark'>tema, formato, propósito e contexto</strong>. <strong class='font-semibold text-brand-pink'>Importante: Métricas numéricas de terceiros NUNCA são compartilhadas.</strong> O foco é no aprendizado e na inspiração, com links para o post original." },
      { q: "Como a Nossa Inteligência Artificial me ajuda com minhas 'publis'?", a: "A Nossa Inteligência Artificial é seu aliado estratégico para publicidade:\n\n* <strong class='font-semibold text-brand-dark'>Organize Parcerias:</strong> Registre detalhes dos seus acordos na plataforma.\n* <strong class='font-semibold text-brand-dark'>Brainstorm para 'Publis':</strong> Peça ideias e roteiros para posts patrocinados, e a Nossa Inteligência Artificial usará os dados da parceria e do seu perfil para sugestões eficazes.\n* <strong class='font-semibold text-brand-dark'>Análise de Propostas (Em Breve):</strong> Futuramente, a Nossa Inteligência Artificial ajudará a analisar propostas e entender o valor das suas entregas.\n* <strong class='font-semibold text-brand-dark'>Histórico para Negociações:</strong> Use seu histórico de 'publis' para embasar futuras negociações." },
      { q: "Como funciona o programa de afiliados?", a: "Todos os usuários, mesmo no plano gratuito, viram afiliados ao criar a conta! Você recebe um cupom exclusivo. Seu amigo usa o cupom e ganha <strong class='font-semibold text-brand-dark'>10% de desconto</strong> na assinatura da Nossa Inteligência Artificial. E você ganha <strong class='font-semibold text-brand-dark'>10% de comissão recorrente</strong> enquanto ele for assinante. Simples assim!" },
-     { q: "O Data2Content é realmente gratuito para começar?", a: "Sim! Crie sua conta grátis e já vire afiliado. Funcionalidades básicas estão disponíveis. O poder completo da Nossa Inteligência Artificial (análise profunda, categorização, otimização de horários, alertas, aprendizado contínuo, comunidade, roteiros, gestão de publis) faz parte do nosso plano premium." },
+     { q: "A data2content é realmente gratuito para começar?", a: "Sim! Crie sua conta grátis e já vire afiliado. Funcionalidades básicas estão disponíveis. O poder completo da Nossa Inteligência Artificial (análise profunda, categorização, otimização de horários, alertas, aprendizado contínuo, comunidade, roteiros, gestão de publis) faz parte do nosso plano premium." },
      { q: "Como a Nossa Inteligência Artificial acessa meus dados e aprende comigo? É seguro?", a: "Sim, total segurança e privacidade! A Nossa Inteligência Artificial acessa dados do seu Instagram (com sua permissão via conexão segura com Meta/Facebook) para buscar métricas, posts e categorizar descrições. Você também pode <strong class='font-semibold text-brand-dark'>enviar prints de posts antigos</strong>. Ela <strong class='font-semibold text-brand-dark'>aprende com suas conversas no WhatsApp</strong>, registrando preferências e objetivos para refinar as análises. Tudo em conformidade com a LGPD e diretrizes do Instagram. Você tem total controle." },
      { q: "Preciso ter uma conta profissional do Instagram?", a: "Sim, para a Nossa Inteligência Artificial analisar seus dados (via conexão ou prints), categorizar conteúdo, otimização de horários e aprender com você, é necessária uma conta Profissional (Comercial ou Criador de Conteúdo) vinculada a uma Página do Facebook." },
 ];
@@ -220,7 +220,7 @@ export default function FinalCompleteLandingPage() {
   return (
     <>
       <Head>
-        <title>Data2Content - Menos análise, mais criação.</title>
+        <title>data2content - Menos análise, mais criação.</title>
         <meta name="description" content="Seu estrategista de conteúdo pessoal que analisa seu Instagram e te diz exatamente o que fazer para crescer." />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -233,7 +233,7 @@ export default function FinalCompleteLandingPage() {
             <div className="max-w-screen-xl mx-auto flex justify-between items-center h-20 px-6">
                 <Link href="/" className="font-bold text-2xl text-brand-dark flex items-center gap-2">
                     <span className="text-brand-pink">[2]</span>
-                    <span>Data2Content</span>
+                    <span>data2content</span>
                 </Link>
                 <nav className="flex items-center gap-5">
                   {session ? (
@@ -353,7 +353,7 @@ export default function FinalCompleteLandingPage() {
                 <div className="mx-auto max-w-screen-xl px-6 lg:px-8 text-left">
                     <AnimatedSection>
                         <SectionTitle>Feito para todos os tipos de criadores.</SectionTitle>
-                        <SectionSubtitle>Se você cria conteúdo, o Data2Content trabalha para você. Nossa IA se adapta ao seu histórico de conteúdo, nicho e objetivos.</SectionSubtitle>
+                        <SectionSubtitle>Se você cria conteúdo, a data2content trabalha para você. Nossa IA se adapta ao seu histórico de conteúdo, nicho e objetivos.</SectionSubtitle>
                     </AnimatedSection>
                     <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                         {creatorTypes.map((creator, index) => (
@@ -386,8 +386,8 @@ export default function FinalCompleteLandingPage() {
             <section id="arthur-marba" className="py-10 sm:py-14 bg-white">
                 <div className="max-w-screen-md mx-auto px-6 text-left">
                     <AnimatedSection>
-                        <SectionTitle className="text-3xl">Conheça o Fundador da Data2Content</SectionTitle>
-                        <p className="mt-5 text-lg text-gray-600 leading-relaxed">Arthur Marbá, Fundador da Data2Content, une 10 anos de marketing digital para criadores a uma herança familiar de 40 anos no agenciamento de talentos. Ele percebeu que criadores precisam de um especialista para traduzir dados em direcionamento estratégico. O Tuca é a personificação dessa filosofia.</p>
+                        <SectionTitle className="text-3xl">Conheça o Fundador da data2content</SectionTitle>
+                        <p className="mt-5 text-lg text-gray-600 leading-relaxed">Arthur Marbá, Fundador da data2content, une 10 anos de marketing digital para criadores a uma herança familiar de 40 anos no agenciamento de talentos. Ele percebeu que criadores precisam de um especialista para traduzir dados em direcionamento estratégico. O Tuca é a personificação dessa filosofia.</p>
                         <blockquote className="mt-5 pl-5 border-l-4 border-brand-pink italic text-gray-700 text-lg">
                             "Democratizamos a consultoria estratégica, tornando-a acessível, proativa e capaz de evoluir com cada criador, tudo via WhatsApp."
                             <cite className="mt-4 block text-base font-semibold text-brand-dark not-italic">- Arthur Marbá, Fundador</cite>
@@ -454,7 +454,7 @@ export default function FinalCompleteLandingPage() {
         </>
         
         <footer className="text-center py-8 bg-gray-100 border-t">
-            <div className="mb-4 text-brand-dark font-bold text-2xl flex justify-center items-center gap-2"><span className="text-brand-pink">[2]</span>Data2Content</div>
+            <div className="mb-4 text-brand-dark font-bold text-2xl flex justify-center items-center gap-2"><span className="text-brand-pink">[2]</span>data2content</div>
             <p className="text-sm text-gray-500 mb-4">© {new Date().getFullYear()} Mobi Media Produtores de Conteúdo LTDA.</p>
             <div className="flex justify-center gap-6 text-sm">
                  <Link href="/politica-de-privacidade" className="text-gray-600 hover:text-brand-pink transition-colors">Política de Privacidade</Link>
