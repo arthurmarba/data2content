@@ -80,7 +80,15 @@ export async function POST(req: NextRequest) {
         console.error(`plan/subscribe -> Agência ${agency._id} com plano inativo`);
         return NextResponse.json({ error: 'Agência sem assinatura ativa.' }, { status: 403 });
       }
-      user.agency = agency._id;
+
+      if (user.agency && user.agency.toString() !== agency._id.toString()) {
+        return NextResponse.json(
+          { error: 'Usuário já vinculado a outra agência. Saia da atual antes de prosseguir.' },
+          { status: 409 }
+        );
+      }
+
+      user.pendingAgency = agency._id;
       price = parseFloat((price * 0.9).toFixed(2));
     }
 

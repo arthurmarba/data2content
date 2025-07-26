@@ -1,13 +1,15 @@
 'use client';
-import React, { useState } from 'react';
+import React from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useSession, signIn } from 'next-auth/react';
 
 export default function PublicSubscribePage() {
   const searchParams = useSearchParams();
   const agencyCode = searchParams.get('codigo_agencia');
-  const [email, setEmail] = useState('');
+  const { data: session, status } = useSession();
 
   const handleSubscribe = async () => {
+    if (!session) return;
     const res = await fetch('/api/plan/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -22,8 +24,11 @@ export default function PublicSubscribePage() {
   return (
     <div className="p-6 max-w-md mx-auto space-y-4">
       {agencyCode && <div className="bg-green-100 text-green-800 p-2 rounded">Você foi convidado por uma agência! Desconto aplicado.</div>}
-      <input type="email" placeholder="Seu email" value={email} onChange={e => setEmail(e.target.value)} className="w-full border p-2" />
-      <button className="px-4 py-2 bg-brand-pink text-white rounded" onClick={handleSubscribe}>Assinar</button>
+      {status === 'authenticated' ? (
+        <button className="px-4 py-2 bg-brand-pink text-white rounded" onClick={handleSubscribe}>Assinar</button>
+      ) : (
+        <button className="px-4 py-2 bg-brand-pink text-white rounded" onClick={() => signIn(undefined, { callbackUrl: window.location.href })}>Entrar para Assinar</button>
+      )}
     </div>
   );
 }

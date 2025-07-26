@@ -226,6 +226,7 @@ export interface IUser extends Document {
   mediaKitSlug?: string;
   role: string;
   agency?: Types.ObjectId | null;
+  pendingAgency?: Types.ObjectId | null;
   planStatus?: string;
   planExpiresAt?: Date | null;
   whatsappVerificationCode?: string | null;
@@ -361,6 +362,7 @@ const userSchema = new Schema<IUser>(
     mediaKitSlug: { type: String, unique: true, sparse: true },
     role: { type: String, default: "user" },
     agency: { type: Schema.Types.ObjectId, ref: 'Agency', default: null },
+    pendingAgency: { type: Schema.Types.ObjectId, ref: 'Agency', default: null },
     planExpiresAt: { type: Date, default: null },
     whatsappVerificationCode: { type: String, default: null, index: true },
     whatsappPhone: { type: String, default: null, index: true },

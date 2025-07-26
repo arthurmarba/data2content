@@ -3,9 +3,9 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { logger } from '@/app/lib/logger';
 
-export async function getAgencySession(_req: NextRequest) {
+export async function getAgencySession(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession({ req, ...authOptions });
     if (!session || session.user?.role !== 'agency') {
       logger.warn('[getAgencySession] session invalid or user not agency');
       return null;
