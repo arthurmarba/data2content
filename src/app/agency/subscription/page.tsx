@@ -9,9 +9,17 @@ export default function AgencySubscriptionPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    fetch('/api/agency/invite-code').then(res => res.json()).then(data => {
-      if (data.inviteCode) setInviteCode(data.inviteCode);
-    }).catch(() => {});
+    fetch('/api/agency/invite-code')
+      .then(async res => {
+        if (res.ok) {
+          const data = await res.json();
+          if (data.inviteCode) setInviteCode(data.inviteCode);
+        } else if (res.status === 403) {
+          const data = await res.json().catch(() => null);
+          toast.error(data?.error || 'Você precisa de um plano ativo para acessar o link de convite.');
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const planStatus = session?.user?.agencyPlanStatus || 'inactive';

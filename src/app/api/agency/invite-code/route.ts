@@ -15,9 +15,21 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const agency = await AgencyModel.findById(session.user.agencyId).select('inviteCode').lean();
+    const agency = await AgencyModel.findById(session.user.agencyId)
+      .select('inviteCode planStatus')
+      .lean();
     if (!agency) {
       return NextResponse.json({ error: 'Agency not found' }, { status: 404 });
+    }
+
+    if (agency.planStatus !== 'active') {
+      logger.warn(
+        `${TAG} agency ${session.user.agencyId} attempted access with plan status ${agency.planStatus}`,
+      );
+      return NextResponse.json(
+        { error: 'Plano da agência inativo. Assine para acessar o link de convite.' },
+        { status: 403 },
+      );
     }
 
     return NextResponse.json({ inviteCode: agency.inviteCode });
