@@ -1,5 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
+import { FaCopy } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
 import AdminAuthGuard from '../components/AdminAuthGuard';
@@ -88,6 +89,13 @@ export default function AdminAgenciesPage() {
     }
   };
 
+  const handleCopy = (link: string) => {
+    if (!link) return;
+    navigator.clipboard.writeText(link).then(() => {
+      toast.success('Link copiado!');
+    }).catch(() => toast.error('Falha ao copiar link'));
+  };
+
   return (
     <AdminAuthGuard>
       <div className="space-y-4">
@@ -123,7 +131,16 @@ export default function AdminAgenciesPage() {
               <tr key={a._id} className="border-t">
                 <td className="px-3 py-2">{a.name}</td>
                 <td className="px-3 py-2">{a.planStatus}</td>
-                <td className="px-3 py-2 text-sm">{`${typeof window !== 'undefined' ? window.location.origin : ''}/assinar?codigo_agencia=${a.inviteCode}`}</td>
+                <td className="px-3 py-2 text-sm flex items-center gap-1">
+                  {`${typeof window !== 'undefined' ? window.location.origin : ''}/assinar?codigo_agencia=${a.inviteCode}`}
+                  <button
+                    onClick={() => handleCopy(`${typeof window !== 'undefined' ? window.location.origin : ''}/assinar?codigo_agencia=${a.inviteCode}`)}
+                    title="Copiar link"
+                    className="ml-1 text-gray-400 hover:text-brand-pink"
+                  >
+                    <FaCopy className="w-3 h-3" />
+                  </button>
+                </td>
                 <td className="px-3 py-2 space-x-2">
                   <button onClick={() => {
                     setEditingId(a._id);
