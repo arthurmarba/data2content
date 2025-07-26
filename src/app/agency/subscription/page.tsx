@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { toast } from 'react-hot-toast';
+import Link from 'next/link';
 
 export default function AgencySubscriptionPage() {
   const { data: session } = useSession();
@@ -68,7 +69,20 @@ export default function AgencySubscriptionPage() {
           </button>
         )}
         {planStatus === 'active' && (
-          <button className="px-4 py-2 bg-gray-800 text-white rounded" onClick={handleManage}>Gerenciar Assinatura</button>
+          <div className="flex gap-2">
+            <button
+              className="px-4 py-2 bg-gray-800 text-white rounded"
+              onClick={handleManage}
+            >
+              Gerenciar Assinatura
+            </button>
+            <Link
+              href="/agency/dashboard"
+              className="px-4 py-2 bg-brand-pink text-white rounded"
+            >
+              Ir para Dashboard
+            </Link>
+          </div>
         )}
       </div>
       {inviteCode && (
