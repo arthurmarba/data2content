@@ -52,16 +52,12 @@ const AgencyDashboardContent: React.FC = () => {
   const photoCache = useRef<Record<string, string | null>>({});
 
   useEffect(() => {
-    fetch('/api/agency/invite-code')
+    fetch('/api/agency/summary')
       .then(res => res.json())
-      .then(data => { if (data.inviteCode) setInviteCode(data.inviteCode); })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    fetch('/api/agency/profile')
-      .then(res => res.json())
-      .then(data => { if (data.name) setAgencyName(data.name); })
+      .then(data => {
+        if (data.inviteCode) setInviteCode(data.inviteCode);
+        if (data.name) setAgencyName(data.name);
+      })
       .catch(() => {});
   }, []);
 
