@@ -30,6 +30,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Este e-mail já está em uso por outro usuário.' }, { status: 409 });
     }
 
+    const agencyQuery: any[] = [{ name: val.data.name }];
+    if (val.data.contactEmail) {
+      agencyQuery.push({ contactEmail: val.data.contactEmail });
+    }
+    const existingAgency = await AgencyModel.findOne({ $or: agencyQuery });
+    if (existingAgency) {
+      return NextResponse.json({ error: 'Já há agência registrada com esses dados.' }, { status: 409 });
+    }
+
     const agency = await AgencyModel.create({ name: val.data.name, contactEmail: val.data.contactEmail });
     const hashedPassword = await hashPassword(val.data.managerPassword);
     await UserModel.create({ email: val.data.managerEmail, password: hashedPassword, role: 'agency', agency: agency._id });
