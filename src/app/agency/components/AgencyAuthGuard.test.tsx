@@ -30,7 +30,7 @@ describe('AgencyAuthGuard', () => {
     mockUseSession.mockReturnValue({ data: null, status: 'unauthenticated' });
     render(<AgencyAuthGuard><div>Protected</div></AgencyAuthGuard>);
     await act(async () => {});
-    expect(mockRouterReplace).toHaveBeenCalledWith('/login?error=SessionRequired&callbackUrl=/agency/creator-dashboard');
+    expect(mockRouterReplace).toHaveBeenCalledWith('/login?error=SessionRequired&callbackUrl=/agency/dashboard');
   });
 
   it('should redirect to /unauthorized if authenticated but not agency', async () => {
