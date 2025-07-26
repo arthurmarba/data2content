@@ -25,7 +25,7 @@ export default function AgencyAuthGuard({ children }: { children: React.ReactNod
     if (status === 'loading') return;
 
     if (status === 'unauthenticated') {
-      router.replace('/login?error=SessionRequired&callbackUrl=/agency/creator-dashboard');
+      router.replace('/login?error=SessionRequired&callbackUrl=/agency/dashboard');
       return;
     }
 
