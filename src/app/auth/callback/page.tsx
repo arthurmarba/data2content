@@ -20,7 +20,11 @@ export default function AuthCallbackPage() {
       if (userRole === 'admin') {
         router.replace('/admin/creator-dashboard');
       } else if (userRole === 'agency') {
-        router.replace('/agency/subscription');
+        if (session.user.agencyPlanStatus === 'active') {
+          router.replace('/agency/dashboard');
+        } else {
+          router.replace('/agency/subscription');
+        }
       } else {
         router.replace('/dashboard');
       }
