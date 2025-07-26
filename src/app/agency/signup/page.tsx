@@ -31,12 +31,17 @@ export default function AgencySignupPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao cadastrar agência');
 
-      await signIn('credentials', {
+      const result = await signIn('credentials', {
         redirect: false,
         email: form.managerEmail,
         password: form.password,
       });
-      router.push('/agency/subscription');
+
+      if (result?.error) {
+        toast.error(result.error || 'Falha na autenticação');
+      } else {
+        router.push('/agency/subscription');
+      }
     } catch (err: any) {
       toast.error(err.message || 'Falha ao registrar');
     } finally {
