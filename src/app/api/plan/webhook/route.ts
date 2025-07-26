@@ -163,6 +163,11 @@ export async function POST(request: NextRequest) {
       user.planExpiresAt = new Date(approvalDate.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 dias
       user.lastProcessedPaymentId = paymentId;
 
+      if (user.pendingAgency) {
+        user.agency = user.pendingAgency;
+        user.pendingAgency = null;
+      }
+
       // Processa comissão
       if (user.affiliateUsed) {
         //  console.log(`[plan/webhook] Pagamento usou código de afiliado: ${user.affiliateUsed}`);

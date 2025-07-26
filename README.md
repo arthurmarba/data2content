@@ -155,6 +155,15 @@ Consulte o diretório `docs` para informações adicionais, incluindo o [plano d
 
 Usuários com papel **agency** podem acessar `/agency/creator-dashboard` para acompanhar apenas os criadores vinculados à sua agência. Crie a conta de agência pelo painel admin e compartilhe o link de convite (`/assinar?codigo_agencia=<inviteCode>`). A assinatura do WhatsApp permanece do usuário mesmo que ele saia da agência.
 
+### Onboarding de Agências
+
+1. **Cadastro** – a agência pode ser criada pelo administrador em `/admin/agencies` ou de forma autônoma em `/agency/signup`.
+2. **Assinatura** – após o cadastro, o gestor deve acessar `/agency/subscription` e contratar o plano para ativar sua conta.
+3. **Compartilhar link** – com a assinatura ativa, copie o link de convite exibido na página de assinatura ou no painel admin e envie aos criadores.
+4. **Criadores** – os criadores devem estar autenticados ao acessar `/assinar?codigo_agencia=<código>` para concluir o pagamento com desconto. Só após o pagamento a afiliação à agência é efetivada.
+
+Cada criador pode se vincular a apenas uma agência por vez. O cancelamento da assinatura da agência não remove a assinatura individual do WhatsApp dos criadores.
+
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.

@@ -42,21 +42,33 @@ export default function AgencySubscriptionPage() {
   return (
     <div className="p-6 max-w-xl mx-auto space-y-4">
       <h1 className="text-2xl font-bold">Assinatura da Agência</h1>
-      <p>Status atual: <strong>{planStatus}</strong></p>
-      {planStatus !== 'active' && (
-        <button
-          className="px-4 py-2 bg-brand-pink text-white rounded disabled:opacity-50"
-          onClick={handleSubscribe}
-          disabled={isLoading}
-        >
-          {isLoading ? 'Aguarde...' : 'Contratar'}
-        </button>
-      )}
-      {planStatus === 'active' && (
-        <button className="px-4 py-2 bg-gray-800 text-white rounded" onClick={handleManage}>Gerenciar Assinatura</button>
-      )}
+      <div className="border rounded-lg p-4 space-y-2 bg-white shadow">
+        <p className="text-lg font-semibold">Plano Básico - R$ 99/mês</p>
+        <ul className="list-disc list-inside text-sm text-gray-700">
+          <li>Acesso ao dashboard dos criadores vinculados</li>
+          <li>Suporte prioritário via WhatsApp</li>
+          <li>Desconto de 10% para seus criadores</li>
+        </ul>
+        <p className="text-sm">Status atual: <strong>{planStatus}</strong></p>
+        {planStatus !== 'active' && (
+          <button
+            className="px-4 py-2 bg-brand-pink text-white rounded disabled:opacity-50"
+            onClick={handleSubscribe}
+            disabled={isLoading}
+          >
+            {isLoading ? 'Aguarde...' : 'Contratar'}
+          </button>
+        )}
+        {planStatus === 'active' && (
+          <button className="px-4 py-2 bg-gray-800 text-white rounded" onClick={handleManage}>Gerenciar Assinatura</button>
+        )}
+      </div>
       {inviteCode && (
-        <p className="mt-4 text-sm">Link de convite: {`${typeof window !== 'undefined' ? window.location.origin : ''}/assinar?codigo_agencia=${inviteCode}`}</p>
+        <div className="text-sm flex items-center gap-2">
+          <span>Link de convite:</span>
+          <span className="truncate">{`${typeof window !== 'undefined' ? window.location.origin : ''}/assinar?codigo_agencia=${inviteCode}`}</span>
+          <button onClick={() => navigator.clipboard.writeText(`${typeof window !== 'undefined' ? window.location.origin : ''}/assinar?codigo_agencia=${inviteCode}`).then(() => toast.success('Copiado!'))} className="text-gray-500 hover:text-brand-pink text-xs border px-2 py-1 rounded">Copiar link</button>
+        </div>
       )}
     </div>
   );
