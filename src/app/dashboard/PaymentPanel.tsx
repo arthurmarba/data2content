@@ -112,7 +112,8 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
   const [ctaClicked, setCtaClicked] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    async function loadFromStorage() {
+      if (typeof window === 'undefined') return;
       const storedRefDataString = localStorage.getItem(AFFILIATE_REF_KEY);
       if (storedRefDataString) {
         try {
@@ -140,7 +141,17 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
           const data = JSON.parse(storedAgency);
           if (data && data.code && data.expiresAt && Date.now() < data.expiresAt) {
             setAgencyInviteCode(String(data.code));
-            setAgencyMessage(`Convite de agência ${data.code} aplicado!`);
+            try {
+              const res = await fetch(`/api/agency/info/${data.code}`);
+              if (res.ok) {
+                const info = await res.json();
+                setAgencyMessage(`Convite da agência ${info.name} aplicado!`);
+              } else {
+                setAgencyMessage(`Convite de agência ${data.code} aplicado!`);
+              }
+            } catch {
+              setAgencyMessage(`Convite de agência ${data.code} aplicado!`);
+            }
           } else {
             localStorage.removeItem(AGENCY_INVITE_KEY);
           }
@@ -150,6 +161,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
         }
       }
     }
+    loadFromStorage();
   }, []);
 
   if (user.planStatus === "active" || user.planStatus === "pending") {
@@ -163,17 +175,21 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
       const description = isPending
         ? 'Estamos aguardando a confirmação do seu pagamento. Assim que for aprovado, seu plano será ativado automaticamente!'
         : `Acesso total liberado até: ${user.planExpiresAt ? new Date(user.planExpiresAt).toLocaleDateString("pt-BR") : "Data Indefinida"}`;
+      const nextStep = isPending
+        ? 'Assim que confirmado, conecte sua conta do Instagram para liberar todos os recursos.'
+        : 'Agora conecte sua conta do Instagram e conclua o onboarding.';
 
       return (
-         <div className={`border ${borderColor} rounded-xl shadow-sm p-4 sm:p-6 ${bgColor} ${textColor}`}>
-            <div className="flex items-center gap-3 mb-2">
-               <IconComponent className={`w-6 h-6 ${iconColor} flex-shrink-0 ${isPending ? 'animate-spin' : ''}`} />
-               <h2 className="text-lg font-semibold">{title}</h2>
-           </div>
-           <p className={`text-sm mb-1 ${isPending ? 'pl-9' : 'pl-9'}`}>
-             {isPending ? description : <>{description.split(':')[0]}: <strong className="font-medium">{description.split(':')[1]}</strong></>}
-           </p>
-         </div>
+         <div className={`border ${borderColor} rounded-xl shadow-sm p-4 sm:p-6 ${bgColor} ${textColor}`}> 
+            <div className="flex items-center gap-3 mb-2"> 
+               <IconComponent className={`w-6 h-6 ${iconColor} flex-shrink-0 ${isPending ? 'animate-spin' : ''}`} /> 
+               <h2 className="text-lg font-semibold">{title}</h2> 
+           </div> 
+           <p className={`text-sm mb-1 ${isPending ? 'pl-9' : 'pl-9'}`}> 
+             {isPending ? description : <>{description.split(':')[0]}: <strong className="font-medium">{description.split(':')[1]}</strong></>} 
+           </p> 
+           <p className="text-sm mt-2 pl-9">{nextStep}</p>
+         </div> 
        );
   }
 
