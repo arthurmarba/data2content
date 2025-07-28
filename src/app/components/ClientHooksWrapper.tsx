@@ -6,25 +6,36 @@ import { useEffect } from 'react';
 
 const AFFILIATE_REF_KEY = 'affiliateRefCode';
 const AFFILIATE_REF_EXPIRATION_DAYS = 30;
+const AGENCY_INVITE_KEY = 'agencyInviteCode';
+const AGENCY_INVITE_EXPIRATION_DAYS = 7;
 
 export default function ClientHooksWrapper() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    // A lógica do window.undefined é para garantir que o código só rode no cliente
+    // A lógica do typeof window !== 'undefined' garante execução somente no cliente
     if (typeof window !== 'undefined') {
       const refCode = searchParams.get('ref');
       if (refCode && refCode.trim() !== '') {
         const expiresAt = Date.now() + AFFILIATE_REF_EXPIRATION_DAYS * 24 * 60 * 60 * 1000;
-        const refDataToStore = {
-          code: refCode.trim(),
-          expiresAt: expiresAt,
-        };
+        const refDataToStore = { code: refCode.trim(), expiresAt };
         try {
           localStorage.setItem(AFFILIATE_REF_KEY, JSON.stringify(refDataToStore));
           console.log('[ClientHooksWrapper] Código de referência salvo:', refDataToStore);
         } catch (error) {
           console.error('[ClientHooksWrapper] Erro ao salvar código de referência no localStorage:', error);
+        }
+      }
+
+      const invite = searchParams.get('codigo_agencia');
+      if (invite && invite.trim() !== '') {
+        const expiresAt = Date.now() + AGENCY_INVITE_EXPIRATION_DAYS * 24 * 60 * 60 * 1000;
+        const data = { code: invite.trim(), expiresAt };
+        try {
+          localStorage.setItem(AGENCY_INVITE_KEY, JSON.stringify(data));
+          console.log('[ClientHooksWrapper] Código de agência salvo:', data);
+        } catch (error) {
+          console.error('[ClientHooksWrapper] Erro ao salvar código de agência no localStorage:', error);
         }
       }
     }

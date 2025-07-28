@@ -32,6 +32,7 @@ interface PaymentPanelProps {
 }
 
 const AFFILIATE_REF_KEY = 'affiliateRefCode';
+const AGENCY_INVITE_KEY = 'agencyInviteCode';
 
 // Componente FAQItem com visual aprimorado
 const FAQItem = ({ question, answer }: { question: string; answer: string | React.ReactNode }) => {
@@ -102,10 +103,12 @@ const FeedbackMessage = ({ message, type }: { message: string; type: 'success' |
 
 export default function PaymentPanel({ user }: PaymentPanelProps) {
   const [affiliateCodeInput, setAffiliateCodeInput] = useState("");
+  const [agencyInviteCode, setAgencyInviteCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [initPoint, setInitPoint] = useState("");
   const [refCodeAppliedMessage, setRefCodeAppliedMessage] = useState<string | null>(null);
+  const [agencyMessage, setAgencyMessage] = useState<string | null>(null);
   const [ctaClicked, setCtaClicked] = useState(false);
 
   useEffect(() => {
@@ -128,6 +131,22 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
         } catch (error) {
           console.error('[PaymentPanel] Erro ao processar dados de referência do localStorage:', error);
           localStorage.removeItem(AFFILIATE_REF_KEY);
+        }
+      }
+
+      const storedAgency = localStorage.getItem(AGENCY_INVITE_KEY);
+      if (storedAgency) {
+        try {
+          const data = JSON.parse(storedAgency);
+          if (data && data.code && data.expiresAt && Date.now() < data.expiresAt) {
+            setAgencyInviteCode(String(data.code));
+            setAgencyMessage(`Convite de agência ${data.code} aplicado!`);
+          } else {
+            localStorage.removeItem(AGENCY_INVITE_KEY);
+          }
+        } catch (error) {
+          console.error('[PaymentPanel] Erro ao processar invite de agência:', error);
+          localStorage.removeItem(AGENCY_INVITE_KEY);
         }
       }
     }
@@ -173,6 +192,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
         body: JSON.stringify({
           planType: "monthly",
           affiliateCode: affiliateCodeInput.trim() === "" ? undefined : affiliateCodeInput.trim(),
+          agencyInviteCode: agencyInviteCode || undefined,
         }),
       });
       const data = await res.json();
@@ -333,6 +353,12 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
                   <p className="mt-2 text-xs text-green-700 flex items-center gap-1.5">
                     <FaCheckCircle className="w-3.5 h-3.5"/>
                     {refCodeAppliedMessage}
+                  </p>
+                )}
+                {agencyMessage && !loading && (
+                  <p className="mt-2 text-xs text-green-700 flex items-center gap-1.5">
+                    <FaCheckCircle className="w-3.5 h-3.5"/>
+                    {agencyMessage}
                   </p>
                 )}
               </div>
