@@ -17,19 +17,30 @@ export default function LoginPage() {
   const [agencyMessage, setAgencyMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    async function loadAgencyMessage() {
+      if (typeof window === 'undefined') return;
       const stored = localStorage.getItem('agencyInviteCode');
-      if (stored) {
-        try {
-          const data = JSON.parse(stored);
-          if (data && data.code) {
-            setAgencyMessage(`Convite de agência ${data.code} ativo! Desconto será aplicado após assinatura.`);
+      if (!stored) return;
+      try {
+        const data = JSON.parse(stored);
+        if (data && data.code) {
+          try {
+            const res = await fetch(`/api/agency/info/${data.code}`);
+            if (res.ok) {
+              const info = await res.json();
+              setAgencyMessage(`Convite da agência ${info.name} ativo! Desconto será aplicado após assinatura.`);
+            } else {
+              setAgencyMessage(`Convite de agência ${data.code} ativo!`);
+            }
+          } catch {
+            setAgencyMessage(`Convite de agência ${data.code} ativo!`);
           }
-        } catch (e) {
-          // ignore
         }
+      } catch {
+        /* ignore */
       }
     }
+    loadAgencyMessage();
   }, []);
 
   const handleGoogleSignIn = () => {
