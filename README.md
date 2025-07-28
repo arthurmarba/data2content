@@ -160,7 +160,7 @@ Usuários com papel **agency** podem acessar `/agency/dashboard` para acompanhar
 1. **Cadastro** – a agência pode ser criada pelo administrador em `/admin/agencies` ou de forma autônoma em `/agency/signup`.
 2. **Assinatura** – após o cadastro, o gestor deve acessar `/agency/subscription` e contratar o plano para ativar sua conta.
 3. **Compartilhar link** – com a assinatura ativa, copie o link de convite exibido na página de assinatura ou no painel admin e envie aos criadores.
-4. **Criadores** – os criadores devem estar autenticados ao acessar `/assinar?codigo_agencia=<código>` para concluir o pagamento com desconto. Só após o pagamento a afiliação à agência é efetivada.
+4. **Criadores** – ao acessar `/assinar?codigo_agencia=<código>`, o criador faz login normalmente e é levado ao dashboard inativo. O código de convite é salvo e o desconto é aplicado automaticamente ao concluir a assinatura pelo painel de pagamento. Após gerar o link de pagamento, o código de agência é removido do navegador para evitar reutilizações.
 
 Cada criador pode se vincular a apenas uma agência por vez. O cancelamento da assinatura da agência não remove a assinatura individual do WhatsApp dos criadores.
 
