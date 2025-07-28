@@ -4,7 +4,7 @@
 
 import { signIn } from "next-auth/react";
 import { useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function LoginPage() {
   const searchParams = useSearchParams();
@@ -14,6 +14,23 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false); // Adicionado para desabilitar o botão durante o login
   const [error, setError] = useState('');
+  const [agencyMessage, setAgencyMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('agencyInviteCode');
+      if (stored) {
+        try {
+          const data = JSON.parse(stored);
+          if (data && data.code) {
+            setAgencyMessage(`Convite de agência ${data.code} ativo! Desconto será aplicado após assinatura.`);
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
+  }, []);
 
   const handleGoogleSignIn = () => {
     setIsLoading(true);
@@ -53,6 +70,11 @@ export default function LoginPage() {
           <p className="text-gray-600 mt-3 text-base sm:text-lg">
             Acesse sua conta Data2Content para continuar.
           </p>
+          {agencyMessage && (
+            <p className="mt-2 text-green-700 text-sm bg-green-100 px-3 py-1 rounded">
+              {agencyMessage}
+            </p>
+          )}
         </div>
 
         <div className="space-y-5">
