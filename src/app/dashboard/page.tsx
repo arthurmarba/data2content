@@ -19,13 +19,14 @@
  import PaymentModal from './PaymentModal';
  import AdDealForm from './AdDealForm';
  import VideoCarousel from './VideoCarousel';
- import InstagramConnectCard from './InstagramConnectCard';
+import InstagramConnectCard from './InstagramConnectCard';
+import StepIndicator from './StepIndicator';
 
  // --- FIM IMPORTS ---
 
 
  // --- INTERFACES ---
- interface ExtendedUser {
+interface ExtendedUser {
   id?: string;
   name?: string | null;
   email?: string | null;
@@ -37,7 +38,9 @@
   affiliateRank?: number;
   affiliateInvites?: number;
   provider?: string;
- }
+  isInstagramConnected?: boolean;
+  whatsappVerified?: boolean;
+}
 
  interface VideoData {
     id: string;
@@ -259,6 +262,22 @@
       fetchLog();
     }
   }, [status, userId]);
+
+  useEffect(() => {
+    if (status === 'authenticated' && user && user.planStatus === 'inactive') {
+      const stored = localStorage.getItem('agencyInviteCode');
+      if (stored) {
+        try {
+          const data = JSON.parse(stored);
+          if (data && data.code) {
+            redirectToPaymentPanel();
+          }
+        } catch (e) {
+          // ignore JSON errors
+        }
+      }
+    }
+  }, [status, user, redirectToPaymentPanel]);
 
   // --- FUNÇÕES DE HANDLER RESTAURADAS ---
   const handleRedeemBalance = useCallback(async (userIdFromFunc: string | undefined) => {
@@ -533,6 +552,13 @@
                      <div className="flex-grow text-center sm:text-left">
                         <h1 className="text-2xl sm:text-3xl font-semibold text-brand-dark mb-2">Bem-vindo(a), {user?.name ?? 'Usuário'}!</h1>
                         <p className="text-base text-gray-600 font-light mb-4">Pronto para otimizar sua carreira de criador?</p>
+                        {!canAccessFeatures && (
+                          <StepIndicator
+                            planActive={planStatus === 'active' || planStatus === 'pending'}
+                            instagramConnected={!!user.isInstagramConnected}
+                            whatsappConnected={!!user.whatsappVerified}
+                          />
+                        )}
                         <div className="flex items-center flex-wrap gap-2 justify-center sm:justify-start">
                             <div className={`inline-flex items-center gap-2 text-sm mb-1 px-4 py-1.5 rounded-full border ${statusInfo.colorClasses}`}> {statusInfo.icon} <span className="font-semibold">{statusInfo.text}</span> {planStatus === 'active' && user?.planExpiresAt && ( <span className="hidden md:inline text-xs opacity-80 ml-2">(Expira em {new Date(user.planExpiresAt).toLocaleDateString("pt-BR")})</span> )} </div>
                             {!canAccessFeatures && (
