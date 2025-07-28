@@ -1,7 +1,7 @@
  // src/app/dashboard/page.tsx
  "use client";
 
- import React, { useState, useEffect, useCallback, Fragment, useRef } from 'react';
+import React, { useState, useEffect, useCallback, Fragment, useRef } from 'react';
  import { useSession, signIn, signOut } from 'next-auth/react';
  import { useRouter } from "next/navigation";
  import Image from 'next/image';
@@ -196,6 +196,8 @@ interface ExtendedUser {
   const [isLoadingCommissionLog, setIsLoadingCommissionLog] = useState(true);
   const [commissionLogError, setCommissionLogError] = useState<string | null>(null);
 
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
+
   const redirectToPaymentPanel = useCallback(() => {
     const paymentSection = document.getElementById('payment-section');
     if (paymentSection) {
@@ -262,6 +264,24 @@ interface ExtendedUser {
       fetchLog();
     }
   }, [status, userId]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('agencyInviteCode');
+      if (stored) {
+        try {
+          const data = JSON.parse(stored);
+          if (data && data.code && data.expiresAt && Date.now() < data.expiresAt) {
+            setInviteCode(String(data.code));
+          } else {
+            localStorage.removeItem('agencyInviteCode');
+          }
+        } catch (e) {
+          localStorage.removeItem('agencyInviteCode');
+        }
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (status === 'authenticated' && user && user.planStatus === 'inactive') {
@@ -553,11 +573,19 @@ interface ExtendedUser {
                         <h1 className="text-2xl sm:text-3xl font-semibold text-brand-dark mb-2">Bem-vindo(a), {user?.name ?? 'Usuário'}!</h1>
                         <p className="text-base text-gray-600 font-light mb-4">Pronto para otimizar sua carreira de criador?</p>
                         {!canAccessFeatures && (
-                          <StepIndicator
-                            planActive={planStatus === 'active' || planStatus === 'pending'}
-                            instagramConnected={!!user.isInstagramConnected}
-                            whatsappConnected={!!user.whatsappVerified}
-                          />
+                          <>
+                            <StepIndicator
+                              planActive={planStatus === 'active' || planStatus === 'pending'}
+                              instagramConnected={!!user.isInstagramConnected}
+                              whatsappConnected={!!user.whatsappVerified}
+                            />
+                            {inviteCode && (
+                              <p className="text-xs text-green-700 flex items-center gap-1 mb-2">
+                                <FaCheckCircle className="w-3 h-3" />
+                                Convite {inviteCode} ativo! Desconto aplicado na assinatura.
+                              </p>
+                            )}
+                          </>
                         )}
                         <div className="flex items-center flex-wrap gap-2 justify-center sm:justify-start">
                             <div className={`inline-flex items-center gap-2 text-sm mb-1 px-4 py-1.5 rounded-full border ${statusInfo.colorClasses}`}> {statusInfo.icon} <span className="font-semibold">{statusInfo.text}</span> {planStatus === 'active' && user?.planExpiresAt && ( <span className="hidden md:inline text-xs opacity-80 ml-2">(Expira em {new Date(user.planExpiresAt).toLocaleDateString("pt-BR")})</span> )} </div>
