@@ -161,6 +161,7 @@ Usuários com papel **agency** podem acessar `/agency/dashboard` para acompanhar
 2. **Assinatura** – após o cadastro, o gestor deve acessar `/agency/subscription` e contratar o plano para ativar sua conta.
 3. **Compartilhar link** – com a assinatura ativa, copie o link de convite exibido na página de assinatura ou no painel admin e envie aos criadores.
 4. **Criadores** – ao acessar `/assinar?codigo_agencia=<código>`, o criador faz login normalmente e é levado ao dashboard inativo. O código de convite é salvo e o desconto é aplicado automaticamente ao concluir a assinatura pelo painel de pagamento.
+5. **Verificação do convite** – o criador pode confirmar se o código ainda é válido chamando `GET /api/agency/info/<inviteCode>`. Se a resposta incluir o nome da agência, o convite está ativo. Essa verificação também ocorre automaticamente na tela de pagamento quando o código está salvo no `localStorage` sob a chave `agencyInviteCode`.
 
 Cada criador pode se vincular a apenas uma agência por vez. O cancelamento da assinatura da agência não remove a assinatura individual do WhatsApp dos criadores.
 
