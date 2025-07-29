@@ -195,6 +195,7 @@ interface ExtendedUser {
   const [commissionLog, setCommissionLog] = useState<CommissionLogItem[]>([]);
   const [isLoadingCommissionLog, setIsLoadingCommissionLog] = useState(true);
   const [commissionLogError, setCommissionLogError] = useState<string | null>(null);
+  const [agencyName, setAgencyName] = useState<string | null>(null);
 
   const redirectToPaymentPanel = useCallback(() => {
     const paymentSection = document.getElementById('payment-section');
@@ -271,6 +272,16 @@ interface ExtendedUser {
           const data = JSON.parse(stored);
           if (data && data.code) {
             redirectToPaymentPanel();
+            fetch(`/api/agency/info/${data.code}`)
+              .then((res) => res.ok ? res.json() : null)
+              .then((info) => {
+                if (info && info.name) {
+                  setAgencyName(info.name);
+                } else {
+                  setAgencyName(data.code);
+                }
+              })
+              .catch(() => setAgencyName(data.code));
           }
         } catch (e) {
           // ignore JSON errors
@@ -558,6 +569,11 @@ interface ExtendedUser {
                             instagramConnected={!!user.isInstagramConnected}
                             whatsappConnected={!!user.whatsappVerified}
                           />
+                        )}
+                        {agencyName && !canAccessFeatures && (
+                          <p className="mt-1 text-green-700 bg-green-50 border border-green-200 inline-block px-3 py-1 rounded text-sm">
+                            Convite da agência {agencyName} ativo! Desconto aplicado.
+                          </p>
                         )}
                         <div className="flex items-center flex-wrap gap-2 justify-center sm:justify-start">
                             <div className={`inline-flex items-center gap-2 text-sm mb-1 px-4 py-1.5 rounded-full border ${statusInfo.colorClasses}`}> {statusInfo.icon} <span className="font-semibold">{statusInfo.text}</span> {planStatus === 'active' && user?.planExpiresAt && ( <span className="hidden md:inline text-xs opacity-80 ml-2">(Expira em {new Date(user.planExpiresAt).toLocaleDateString("pt-BR")})</span> )} </div>
