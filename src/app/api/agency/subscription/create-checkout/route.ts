@@ -9,7 +9,7 @@ export const runtime = 'nodejs';
 const SERVICE_TAG = '[api/agency/subscription/create-checkout]';
 
 const bodySchema = z.object({
-  planId: z.string(),
+  planId: z.enum(['basic', 'annual']).default('basic'),
 });
 
 export async function POST(req: NextRequest) {
@@ -33,6 +33,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Agency not found' }, { status: 404 });
     }
 
+    const price =
+      validation.data.planId === 'annual'
+        ? Number(process.env.AGENCY_ANNUAL_MONTHLY_PRICE || 90)
+        : Number(process.env.AGENCY_MONTHLY_PRICE || 99);
+
     const preapprovalData = {
       reason: 'Plano Agência Data2Content',
       back_url: `${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || ''}/agency/subscription`,
@@ -41,7 +46,7 @@ export async function POST(req: NextRequest) {
       auto_recurring: {
         frequency: 1,
         frequency_type: 'months',
-        transaction_amount: Number(process.env.AGENCY_MONTHLY_PRICE || 99),
+        transaction_amount: price,
         currency_id: 'BRL',
       },
     } as any;

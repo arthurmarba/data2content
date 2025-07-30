@@ -37,6 +37,8 @@ npm test
 
 Esta aplicação utiliza MongoDB. Configure as variáveis de ambiente `MONGODB_URI` e `MONGODB_DB_NAME` (ou `DB_NAME`) no arquivo `.env.local` apontando para sua instância. Certifique‑se de que o banco especificado exista antes de iniciar o servidor.
 
+Para os valores da assinatura de agências, você pode definir `AGENCY_MONTHLY_PRICE` e `AGENCY_ANNUAL_MONTHLY_PRICE` (padrões `99` e `90`).
+
 ### Creators Scatter Plot
 
 Na dashboard administrativa, utilize o componente **CreatorsScatterPlot** para comparar métricas de diferentes criadores em um gráfico de dispersão.
