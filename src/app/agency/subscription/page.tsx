@@ -8,6 +8,7 @@ export default function AgencySubscriptionPage() {
   const { data: session } = useSession();
   const [inviteCode, setInviteCode] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<'basic' | 'annual'>('basic');
 
   useEffect(() => {
     fetch('/api/agency/invite-code')
@@ -29,7 +30,7 @@ export default function AgencySubscriptionPage() {
     setIsLoading(true);
     const res = await fetch('/api/agency/subscription/create-checkout', {
       method: 'POST',
-      body: JSON.stringify({ planId: 'basic' })
+      body: JSON.stringify({ planId: selectedPlan })
     });
     const json = await res.json();
     if (res.ok && json.initPoint) {
@@ -52,7 +53,29 @@ export default function AgencySubscriptionPage() {
     <div className="p-6 max-w-xl mx-auto space-y-4">
       <h1 className="text-2xl font-bold">Assinatura da Agência</h1>
       <div className="border rounded-lg p-4 space-y-2 bg-white shadow">
-        <p className="text-lg font-semibold">Plano Básico - R$ 99/mês</p>
+        <p className="text-lg font-semibold">Escolha o plano</p>
+        <div className="space-y-1">
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="plan"
+              value="basic"
+              checked={selectedPlan === 'basic'}
+              onChange={() => setSelectedPlan('basic')}
+            />
+            <span>Plano Mensal - R$ 99/mês</span>
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="plan"
+              value="annual"
+              checked={selectedPlan === 'annual'}
+              onChange={() => setSelectedPlan('annual')}
+            />
+            <span>Plano Anual - R$ 90/mês</span>
+          </label>
+        </div>
         <ul className="list-disc list-inside text-sm text-gray-700">
           <li>Acesso ao dashboard dos criadores vinculados</li>
           <li>Suporte prioritário via WhatsApp</li>
