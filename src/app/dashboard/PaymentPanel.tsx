@@ -21,6 +21,7 @@ import {
 } from "react-icons/fa";
 // Importando Framer Motion
 import { motion, AnimatePresence } from "framer-motion";
+import { MONTHLY_PRICE } from "@/config/pricing.config";
 
 interface PaymentPanelProps {
   user: {
@@ -337,7 +338,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
           </h3>
           <div className="flex items-baseline justify-center space-x-1 text-brand-dark mt-2">
               <span className="text-2xl font-medium">R$</span>
-              <span className="text-6xl font-extrabold tracking-tight leading-none text-brand-pink">29,90</span>
+              <span className="text-6xl font-extrabold tracking-tight leading-none text-brand-pink">{MONTHLY_PRICE.toFixed(2).replace('.', ',')}</span>
               <span className="text-xl font-medium text-brand-dark/80">/mês</span>
           </div>
           <p className="text-sm text-brand-dark/70 mt-2 font-light">
@@ -387,7 +388,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
           whileTap={!(loading || ctaClicked) ? { scale: 0.97 } : {}}
           transition={{ type: "spring", stiffness: 350, damping: 17 }}
           className={` shimmer-button w-full px-6 py-4 bg-gradient-to-br from-brand-pink to-pink-500 text-white text-lg font-bold rounded-full hover:shadow-2xl transition-all duration-200 ease-out disabled:opacity-60 disabled:cursor-not-allowed shadow-xl flex items-center justify-center gap-2.5 relative overflow-hidden focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-pink-500/70 ${(loading || ctaClicked) ? 'cursor-wait' : ''} `}
-          aria-label="Assinar o plano Data2Content Completo por R$29,90 por mês"
+          aria-label={`Assinar o plano Data2Content Completo por R$${MONTHLY_PRICE.toFixed(2).replace('.', ',')} por mês`}
         >
           {loading ? (
             <> <FaSpinner className="animate-spin w-5 h-5" /> <span>PROCESSANDO...</span> </>

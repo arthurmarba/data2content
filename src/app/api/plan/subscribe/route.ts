@@ -6,6 +6,12 @@ import User from "@/app/models/User";
 import AgencyModel from "@/app/models/Agency";
 import mercadopago from "@/app/lib/mercadopago";
 import { Types } from "mongoose";
+import {
+  MONTHLY_PRICE,
+  ANNUAL_MONTHLY_PRICE,
+  AGENCY_GUEST_MONTHLY_PRICE,
+  AGENCY_GUEST_ANNUAL_MONTHLY_PRICE,
+} from "@/config/pricing.config";
 
 export const runtime = "nodejs";
 
@@ -43,10 +49,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
     }
 
-    // 5) Define o preço base com base no tipo de plano
-    let price = 19.9; // preço mensal padrão
+    // 5) Define o preço base considerando plano e convite de agência
+    let price: number;
     if (planType === "annual") {
-      price = 12.9 * 12;
+      price = agencyInviteCode
+        ? AGENCY_GUEST_ANNUAL_MONTHLY_PRICE * 12
+        : ANNUAL_MONTHLY_PRICE * 12;
+    } else {
+      price = agencyInviteCode ? AGENCY_GUEST_MONTHLY_PRICE : MONTHLY_PRICE;
     }
 
     // 6) Se houver affiliateCode, valida e aplica desconto (10%)
@@ -69,7 +79,7 @@ export async function POST(req: NextRequest) {
       user.affiliateUsed = affiliateCode;
     }
 
-    // 6.1) Se agencyInviteCode fornecido, vincula usuário à agência ativa e aplica desconto
+    // 6.1) Se agencyInviteCode fornecido, vincula usuário à agência ativa
     if (agencyInviteCode) {
       const agency = await AgencyModel.findOne({ inviteCode: agencyInviteCode });
       if (!agency) {
@@ -89,7 +99,6 @@ export async function POST(req: NextRequest) {
       }
 
       user.pendingAgency = agency._id;
-      price = parseFloat((price * 0.9).toFixed(2));
     }
 
     // 7) Atualiza o status do plano para "pending" e salva o usuário
