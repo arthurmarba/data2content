@@ -51,12 +51,39 @@ export async function POST(req: NextRequest) {
 
     // 5) Define o preço base considerando plano e convite de agência
     let price: number;
-    if (planType === "annual") {
-      price = agencyInviteCode
-        ? AGENCY_GUEST_ANNUAL_MONTHLY_PRICE * 12
-        : ANNUAL_MONTHLY_PRICE * 12;
+    if (agencyInviteCode) {
+      const agency = await AgencyModel.findOne({ inviteCode: agencyInviteCode });
+      if (!agency) {
+        console.error("plan/subscribe -> Código de agência inválido:", agencyInviteCode);
+        return NextResponse.json({ error: "Código de agência inválido." }, { status: 400 });
+      }
+      if (agency.planStatus !== 'active') {
+        console.error(`plan/subscribe -> Agência ${agency._id} com plano inativo`);
+        return NextResponse.json({ error: 'Agência sem assinatura ativa.' }, { status: 403 });
+      }
+
+      if (user.agency && user.agency.toString() !== agency._id.toString()) {
+        return NextResponse.json(
+          { error: 'Usuário já vinculado a outra agência. Saia da atual antes de prosseguir.' },
+          { status: 409 }
+        );
+      }
+
+      const activeGuests = await User.countDocuments({
+        agency: agency._id,
+        role: { $ne: 'agency' },
+        planStatus: 'active',
+      });
+      const useGuestPricing = activeGuests === 0;
+
+      price =
+        planType === 'annual'
+          ? (useGuestPricing ? AGENCY_GUEST_ANNUAL_MONTHLY_PRICE : ANNUAL_MONTHLY_PRICE) * 12
+          : useGuestPricing ? AGENCY_GUEST_MONTHLY_PRICE : MONTHLY_PRICE;
+
+      user.pendingAgency = agency._id;
     } else {
-      price = agencyInviteCode ? AGENCY_GUEST_MONTHLY_PRICE : MONTHLY_PRICE;
+      price = planType === 'annual' ? ANNUAL_MONTHLY_PRICE * 12 : MONTHLY_PRICE;
     }
 
     // 6) Se houver affiliateCode, valida e aplica desconto (10%)
@@ -79,27 +106,6 @@ export async function POST(req: NextRequest) {
       user.affiliateUsed = affiliateCode;
     }
 
-    // 6.1) Se agencyInviteCode fornecido, vincula usuário à agência ativa
-    if (agencyInviteCode) {
-      const agency = await AgencyModel.findOne({ inviteCode: agencyInviteCode });
-      if (!agency) {
-        console.error("plan/subscribe -> Código de agência inválido:", agencyInviteCode);
-        return NextResponse.json({ error: "Código de agência inválido." }, { status: 400 });
-      }
-      if (agency.planStatus !== 'active') {
-        console.error(`plan/subscribe -> Agência ${agency._id} com plano inativo`);
-        return NextResponse.json({ error: 'Agência sem assinatura ativa.' }, { status: 403 });
-      }
-
-      if (user.agency && user.agency.toString() !== agency._id.toString()) {
-        return NextResponse.json(
-          { error: 'Usuário já vinculado a outra agência. Saia da atual antes de prosseguir.' },
-          { status: 409 }
-        );
-      }
-
-      user.pendingAgency = agency._id;
-    }
 
     // 7) Atualiza o status do plano para "pending" e salva o usuário
     user.planStatus = "pending";
