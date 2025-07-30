@@ -6,6 +6,7 @@ import Head from 'next/head';
 // Usaremos ícones para ilustrar as seções
 import { FaInfoCircle, FaLink, FaDollarSign, FaTrophy, FaQuestionCircle, FaHandshake, FaBullhorn, FaMoneyBillWave } from 'react-icons/fa'; // <<< FaMoneyBillWave ADICIONADO AQUI >>>
 import { motion } from 'framer-motion';
+import { MONTHLY_PRICE } from '@/config/pricing.config';
 
 // Componente para um Card de Informação
 const InfoCard = ({
@@ -111,7 +112,7 @@ export default function AffiliateProgramPage() {
             Você recebe uma comissão de <strong>10% sobre o valor da primeira assinatura</strong> de cada novo cliente que utilizar o seu código ou link de afiliado.
           </p>
           <p className="mt-2">
-            Por exemplo, se o plano mensal é R$ 29,90, a sua comissão por uma nova assinatura mensal indicada por você será de R$ 1,99.
+            Por exemplo, se o plano mensal é R$ {MONTHLY_PRICE.toFixed(2).replace('.', ',')}, a sua comissão por uma nova assinatura mensal indicada por você será de R$ {(MONTHLY_PRICE * 0.1).toFixed(2).replace('.', ',')}.
           </p>
           <p className="mt-2">
             <strong>Importante:</strong> A comissão é válida apenas para a primeira assinatura do novo cliente. Não há comissões recorrentes sobre renovações neste momento.
