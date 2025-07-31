@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { middleware } from './middleware';
+import { resetPlanGuardMetrics } from '@/app/lib/planGuard';
 import { getToken } from 'next-auth/jwt';
 
 jest.mock('next-auth/jwt', () => ({ getToken: jest.fn() }));
@@ -11,6 +12,9 @@ function createRequest(path: string) {
 }
 
 describe('middleware plan guard', () => {
+  beforeEach(() => {
+    resetPlanGuardMetrics();
+  });
   it('allows access when plan is active', async () => {
     mockGetToken.mockResolvedValue({ id: 'u1', planStatus: 'active' });
     const res = await middleware(createRequest('/api/ai/chat'));
