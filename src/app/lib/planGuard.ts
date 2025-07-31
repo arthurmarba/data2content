@@ -19,8 +19,9 @@ export async function guardPremiumRequest(
   }
 
   const userId = token?.id ?? 'anonymous';
+  const path = req.nextUrl.pathname;
   logger.warn(
-    `[planGuard] Blocked request for user ${userId} with status ${status}`
+    `[planGuard] Blocked request for user ${userId} with status ${status} on ${path}`
   );
 
   return NextResponse.json(
