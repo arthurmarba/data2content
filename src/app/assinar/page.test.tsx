@@ -28,7 +28,8 @@ describe('PublicSubscribePage', () => {
     global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ name: 'Agência X' }) }) as any;
     render(<PublicSubscribePage />);
     await waitFor(() => {
-      expect(screen.getByText('Bem-vindo como convidado da Agência X.')).toBeInTheDocument();
+      expect(screen.getByText('Bem-vindo como convidado da Agência X!')).toBeInTheDocument();
+      expect(screen.getByText(/39,90/)).toBeInTheDocument();
     });
   });
 
