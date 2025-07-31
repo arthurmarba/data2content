@@ -8,6 +8,14 @@ Este documento descreve os processos automáticos e manuais quando uma agência 
   - 7 dias antes do vencimento, envia e-mail avisando sobre a migração.
   - Após o vencimento, o convidado é migrado para `role: user`, `planStatus: inactive` e a agência é removida.
 
+### Agendamento
+
+Agende a execução diária do script via crontab (exemplo às 3h):
+
+```
+0 3 * * * cd /caminho/do/app && npm run cron:guest-transition >> /var/log/guest-transition.log 2>&1
+```
+
 ## Criador sai da agência
 - Endpoint protegido: `PATCH /api/admin/users/[userId]/role`.
 - Permite a um administrador alterar `role` e `planStatus` de qualquer usuário.

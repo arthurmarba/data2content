@@ -2,6 +2,7 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import { logger } from '@/app/lib/logger';
 import UserModel from '@/app/models/User';
 import { sendGuestMigrationEmail } from '@/app/lib/emailService';
+import billingService from '@/services/billingService';
 
 export async function handleGuestTransitions() {
   const TAG = '[cron guestTransition]';
@@ -17,6 +18,11 @@ export async function handleGuestTransitions() {
       guest.agency = null;
       guest.planStatus = 'inactive';
       await guest.save();
+      try {
+        await billingService.updateSubscription(String(guest._id));
+      } catch (err) {
+        logger.error(`${TAG} erro ao atualizar billing do usuário ${guest._id}`, err);
+      }
       logger.info(`${TAG} guest ${guest._id} migrado para user`);
     } else if (guest.planExpiresAt <= upcoming && guest.email) {
       await sendGuestMigrationEmail(guest.email, guest.planExpiresAt);
