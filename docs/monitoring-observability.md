@@ -6,8 +6,9 @@ This module provides near real-time visibility into key KPIs and centralised err
 - **Active Agencies** – count of agencies with `planStatus: active`.
 - **Creators** – total creators segmented by role (`user` vs `guest`).
 - **Segmented MRR** – monthly recurring revenue derived from active creators and agencies.
+- **Plan Guard Blocks** – total premium requests denied due to inactive plans.
 
-Metrics are served by `/api/admin/monitoring/summary` and refreshed every 30s on the admin dashboard.
+Metrics are served by `/api/admin/monitoring/summary` and `/api/admin/plan-guard/metrics` and refreshed every 30s on the admin dashboard.
 To add new metrics:
 1. Extend the API route with the desired aggregation.
 2. Update `src/app/admin/monitoring/page.tsx` to render the new data (cards, tables or charts).

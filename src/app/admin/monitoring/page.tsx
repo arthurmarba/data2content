@@ -13,9 +13,16 @@ import {
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
 export default function MonitoringPage() {
-  const { data } = useSWR('/api/admin/monitoring/summary', fetcher, { refreshInterval: 30000 });
+  const { data } = useSWR('/api/admin/monitoring/summary', fetcher, {
+    refreshInterval: 30000,
+  });
+  const { data: planGuard } = useSWR(
+    '/api/admin/plan-guard/metrics',
+    fetcher,
+    { refreshInterval: 30000 }
+  );
 
-  if (!data) {
+  if (!data || !planGuard) {
     return <p>Carregando...</p>;
   }
 
@@ -35,7 +42,13 @@ export default function MonitoringPage() {
         </div>
         <div className="bg-white shadow p-4 rounded">
           <p className="text-sm text-gray-500">MRR Total</p>
-          <p className="text-2xl font-semibold">R$ {data.mrr.total.toFixed(2)}</p>
+          <p className="text-2xl font-semibold">
+            R$ {data.mrr.total.toFixed(2)}
+          </p>
+        </div>
+        <div className="bg-white shadow p-4 rounded">
+          <p className="text-sm text-gray-500">Bloqueios de Plano</p>
+          <p className="text-2xl font-semibold">{planGuard.blocked}</p>
         </div>
       </div>
 
