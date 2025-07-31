@@ -40,6 +40,7 @@ const AgencyDashboardContent: React.FC = () => {
 
   const [inviteCode, setInviteCode] = useState<string>('');
   const [agencyName, setAgencyName] = useState<string>('');
+  const [guests, setGuests] = useState<Array<{ id: string; name: string; email: string; planStatus: string }>>([]);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedUserName, setSelectedUserName] = useState<string | null>(null);
   const [selectedUserPhotoUrl, setSelectedUserPhotoUrl] = useState<string | null>(null);
@@ -58,6 +59,13 @@ const AgencyDashboardContent: React.FC = () => {
         if (data.inviteCode) setInviteCode(data.inviteCode);
         if (data.name) setAgencyName(data.name);
       })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/agency/guests')
+      .then(res => res.json())
+      .then(data => setGuests(data.guests || []))
       .catch(() => {});
   }, []);
 
@@ -142,9 +150,39 @@ const AgencyDashboardContent: React.FC = () => {
                 />
               </div>
             </div>
-            {inviteCode && (
-              <div className="mt-2 bg-gray-100 p-4 rounded-lg shadow">
-                <p className="text-sm mb-2">Link de convite para cadastrar criadores:</p>
+          </div>
+        </header>
+
+        <main className="max-w-full mx-auto py-8 px-4 sm:px-6 lg:px-8">
+          <section id="my-guests" className="mb-8">
+            <h2 className="text-lg font-semibold mb-2">Meus Convidados ({guests.length})</h2>
+            {guests.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full bg-white">
+                  <thead>
+                    <tr>
+                      <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Nome</th>
+                      <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">E-mail</th>
+                      <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {guests.map((g) => (
+                      <tr key={g.id} className="border-t">
+                        <td className="px-4 py-2 text-sm">{g.name || '-'}</td>
+                        <td className="px-4 py-2 text-sm">{g.email}</td>
+                        <td className="px-4 py-2 text-sm">{g.planStatus}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">Nenhum convidado registrado ainda.</p>
+            )}
+            {inviteLink && (
+              <div className="mt-4">
+                <p className="text-sm mb-2">Convide novos criadores com o link:</p>
                 <div className="flex">
                   <input
                     type="text"
@@ -161,10 +199,7 @@ const AgencyDashboardContent: React.FC = () => {
                 </div>
               </div>
             )}
-          </div>
-        </header>
-
-        <main className="max-w-full mx-auto py-8 px-4 sm:px-6 lg:px-8">
+          </section>
           <section id="platform-summary" className="mb-8">
             <PlatformSummaryKpis apiPrefix={apiPrefix} startDate={startDate} endDate={endDate} />
           </section>
