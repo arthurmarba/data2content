@@ -2,14 +2,15 @@
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import React, { useEffect } from 'react';
+import type { UserRole, PlanStatus } from '@/types/enums';
 
 interface AgencyUser {
   name?: string | null;
   email?: string | null;
   image?: string | null;
-  role?: string;
+  role?: UserRole;
   isAgency?: boolean;
-  agencyPlanStatus?: string | null;
+  agencyPlanStatus?: PlanStatus | null;
 }
 
 interface ExtendedSession {

@@ -8,6 +8,7 @@ import RedemptionModel, { IRedemption } from '@/app/models/Redemption';
 // Funções e tipos de suporte
 import { connectToDatabase } from '@/app/lib/dataService/connection';
 import { logger } from '@/app/lib/logger';
+import type { PlanStatus } from '@/types/enums';
 import {
   AdminCreatorListItem,
   AdminCreatorListParams,
@@ -94,7 +95,7 @@ export async function fetchCreators(
         registrationDate?: Date;
         adminStatus?: AdminCreatorStatus;
         profile_picture_url?: string;
-        planStatus?: string;
+        planStatus?: PlanStatus;
         inferredExpertiseLevel?: string;
         mediaKitSlug?: string;
         name?: string;

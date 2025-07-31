@@ -22,10 +22,11 @@ import {
 // Importando Framer Motion
 import { motion, AnimatePresence } from "framer-motion";
 import { MONTHLY_PRICE } from "@/config/pricing.config";
+import type { PlanStatus } from '@/types/enums';
 
 interface PaymentPanelProps {
   user: {
-    planStatus?: string;
+    planStatus?: PlanStatus;
     planExpiresAt?: string | null;
     affiliateBalance?: number;
     affiliateCode?: string;

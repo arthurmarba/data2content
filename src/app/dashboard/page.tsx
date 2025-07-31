@@ -7,6 +7,7 @@
  import Image from 'next/image';
  import Head from 'next/head';
  import Link from 'next/link';
+ import type { PlanStatus } from '@/types/enums';
  // Usando React Icons (Font Awesome)
  import { FaCopy, FaCheckCircle, FaClock, FaTimesCircle, FaLock, FaTrophy, FaGift, FaMoneyBillWave, FaWhatsapp, FaUpload, FaCog, FaQuestionCircle, FaSignOutAlt, FaUserCircle, FaDollarSign, FaEllipsisV, FaBullhorn, FaVideo, FaSpinner, FaExclamationCircle, FaInfoCircle, FaHandshake, FaFileContract, FaShieldAlt, FaTrashAlt, FaEnvelope, FaCreditCard } from 'react-icons/fa';
  // Framer Motion para animações
@@ -31,7 +32,7 @@ interface ExtendedUser {
   name?: string | null;
   email?: string | null;
   image?: string | null;
-  planStatus?: string;
+  planStatus?: PlanStatus;
   planExpiresAt?: string | null;
   affiliateCode?: string | null;
   affiliateBalance?: number;
