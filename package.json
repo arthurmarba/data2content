@@ -57,7 +57,9 @@
     "swiper": "^11.2.6",
     "uuid": "^11.1.0",
     "winston": "^3.17.0",
-    "zod": "^3.24.4"
+    "zod": "^3.24.4",
+    "@sentry/node": "^7.122.0",
+    "nodemailer": "^6.9.12"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
