@@ -2,6 +2,12 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useSession, signIn } from 'next-auth/react';
+import {
+  MONTHLY_PRICE,
+  ANNUAL_MONTHLY_PRICE,
+  AGENCY_GUEST_MONTHLY_PRICE,
+  AGENCY_GUEST_ANNUAL_MONTHLY_PRICE,
+} from '@/config/pricing.config';
 
 export default function PublicSubscribePage() {
   const searchParams = useSearchParams();
@@ -34,9 +40,33 @@ export default function PublicSubscribePage() {
 
   return (
     <div className="p-6 max-w-md mx-auto space-y-4">
-      {agencyName && (
-        <div className="bg-green-100 text-green-800 p-2 rounded">
-          Bem-vindo como convidado da {agencyName}.
+      {agencyName ? (
+        <div className="bg-green-100 text-green-800 p-2 rounded space-y-1">
+          <p>Bem-vindo como convidado da {agencyName}!</p>
+          <p>
+            Como convidado, o plano mensal sai por{' '}
+            <strong>
+              R${AGENCY_GUEST_MONTHLY_PRICE.toFixed(2).replace('.', ',')}
+            </strong>{' '}
+            e o plano anual por{' '}
+            <strong>
+              R${AGENCY_GUEST_ANNUAL_MONTHLY_PRICE.toFixed(2).replace('.', ',')}
+              /mês
+            </strong>{' '}
+            (cobrado anualmente).
+          </p>
+        </div>
+      ) : (
+        <div className="bg-gray-100 text-gray-800 p-2 rounded">
+          <p className="mb-1">Conheça nossos planos:</p>
+          <ul className="list-disc list-inside space-y-1">
+            <li>
+              Plano Mensal - R${MONTHLY_PRICE.toFixed(2).replace('.', ',')}/mês
+            </li>
+            <li>
+              Plano Anual - R${ANNUAL_MONTHLY_PRICE.toFixed(2).replace('.', ',')}/mês (cobrança anual)
+            </li>
+          </ul>
         </div>
       )}
       {alert === 'convite_invalido' && (
