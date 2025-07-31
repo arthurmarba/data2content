@@ -3,6 +3,29 @@ import { getToken } from 'next-auth/jwt';
 import { logger } from '@/app/lib/logger';
 import type { PlanStatus } from '@/types/enums';
 
+export interface PlanGuardMetrics {
+  blocked: number;
+  byRoute: Record<string, number>;
+}
+
+// In-memory metrics used by the support dashboard to monitor blocked access
+export const planGuardMetrics: PlanGuardMetrics = {
+  blocked: 0,
+  byRoute: {},
+};
+
+export function resetPlanGuardMetrics() {
+  planGuardMetrics.blocked = 0;
+  planGuardMetrics.byRoute = {};
+}
+
+export function getPlanGuardMetrics(): PlanGuardMetrics {
+  return {
+    blocked: planGuardMetrics.blocked,
+    byRoute: { ...planGuardMetrics.byRoute },
+  };
+}
+
 /**
  * Centralized helper to ensure a user has an active plan before accessing
  * premium APIs. Returns a NextResponse with status 403 when the plan is not
@@ -20,6 +43,9 @@ export async function guardPremiumRequest(
 
   const userId = token?.id ?? 'anonymous';
   const path = req.nextUrl.pathname;
+  // Update metrics for monitoring purposes
+  planGuardMetrics.blocked += 1;
+  planGuardMetrics.byRoute[path] = (planGuardMetrics.byRoute[path] || 0) + 1;
   logger.warn(
     `[planGuard] Blocked request for user ${userId} with status ${status} on ${path}`
   );

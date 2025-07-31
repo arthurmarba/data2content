@@ -1,5 +1,9 @@
 import { NextRequest } from 'next/server';
-import { guardPremiumRequest } from '@/app/lib/planGuard';
+import {
+  guardPremiumRequest,
+  getPlanGuardMetrics,
+  resetPlanGuardMetrics,
+} from '@/app/lib/planGuard';
 import { getToken } from 'next-auth/jwt';
 import { logger } from '@/app/lib/logger';
 
@@ -16,6 +20,7 @@ function createRequest(path: string) {
 describe('guardPremiumRequest', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    resetPlanGuardMetrics();
   });
 
   it('allows when plan is active', async () => {
@@ -33,6 +38,9 @@ describe('guardPremiumRequest', () => {
     expect(mockWarn).toHaveBeenCalledWith(
       '[planGuard] Blocked request for user u1 with status inactive on /api/ai/chat'
     );
+    const metrics = getPlanGuardMetrics();
+    expect(metrics.blocked).toBe(1);
+    expect(metrics.byRoute['/api/ai/chat']).toBe(1);
   });
 });
 
