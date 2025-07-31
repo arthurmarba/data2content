@@ -3,7 +3,14 @@
 // - CORRIGIDO: As chamadas para `models.User` e `model("User", ...)` foram atualizadas para `mongoose.models.User` e `mongoose.model(...)` para alinhar com a nova importação.
 import mongoose, { Schema, Document, Model, Types } from "mongoose";
 import { logger } from "@/app/lib/logger";
-import { USER_ROLES, PLAN_STATUSES, type UserRole, type PlanStatus } from '@/types/enums';
+import {
+  USER_ROLES,
+  PLAN_STATUSES,
+  PLAN_TYPES,
+  type UserRole,
+  type PlanStatus,
+  type PlanType,
+} from '@/types/enums';
 
 // --- INTERFACES ---
 export interface IPeakSharesDetails {
@@ -229,6 +236,8 @@ export interface IUser extends Document {
   agency?: Types.ObjectId | null;
   pendingAgency?: Types.ObjectId | null;
   planStatus?: PlanStatus;
+  planType?: PlanType;
+  paymentGatewaySubscriptionId?: string | null;
   planExpiresAt?: Date | null;
   whatsappVerificationCode?: string | null;
   whatsappPhone?: string | null;
@@ -330,6 +339,8 @@ const userSchema = new Schema<IUser>(
         select: false
     },
     planStatus: { type: String, enum: PLAN_STATUSES, default: "inactive", index: true }, // OTIMIZAÇÃO: Mantido índice.
+    planType: { type: String, enum: PLAN_TYPES, default: 'monthly' },
+    paymentGatewaySubscriptionId: { type: String, default: null },
     inferredExpertiseLevel: {
         type: String,
         enum: ['iniciante', 'intermediario', 'avancado'],
