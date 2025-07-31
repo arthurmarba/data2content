@@ -167,6 +167,10 @@ Usuários com papel **agency** podem acessar `/agency/dashboard` para acompanhar
 
 Cada criador pode se vincular a apenas uma agência por vez. O cancelamento da assinatura da agência não remove a assinatura individual do WhatsApp dos criadores.
 
+### Desvinculação de Criadores
+
+Administradores podem utilizar o endpoint interno `POST /api/admin/users/convert-guest` para remover manualmente um criador de uma agência. O corpo da requisição deve incluir `userId` e o `planStatus` desejado. A chamada redefine o papel para `user`, limpa o `agency` e ajusta o status do plano informado.
+
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
