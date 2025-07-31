@@ -21,7 +21,12 @@ import {
 } from "react-icons/fa";
 // Importando Framer Motion
 import { motion, AnimatePresence } from "framer-motion";
-import { MONTHLY_PRICE } from "@/config/pricing.config";
+import {
+  MONTHLY_PRICE,
+  ANNUAL_MONTHLY_PRICE,
+  AGENCY_GUEST_MONTHLY_PRICE,
+  AGENCY_GUEST_ANNUAL_MONTHLY_PRICE,
+} from "@/config/pricing.config";
 import type { PlanStatus } from '@/types/enums';
 
 interface PaymentPanelProps {
@@ -112,6 +117,14 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
   const [refCodeAppliedMessage, setRefCodeAppliedMessage] = useState<string | null>(null);
   const [agencyMessage, setAgencyMessage] = useState<string | null>(null);
   const [ctaClicked, setCtaClicked] = useState(false);
+  const [planType, setPlanType] = useState<'monthly' | 'annual'>('monthly');
+
+  const monthlyPrice = agencyInviteCode ? AGENCY_GUEST_MONTHLY_PRICE : MONTHLY_PRICE;
+  const annualMonthlyPrice = agencyInviteCode
+    ? AGENCY_GUEST_ANNUAL_MONTHLY_PRICE
+    : ANNUAL_MONTHLY_PRICE;
+  const selectedMonthlyPrice = planType === 'annual' ? annualMonthlyPrice : monthlyPrice;
+  const totalPrice = planType === 'annual' ? selectedMonthlyPrice * 12 : selectedMonthlyPrice;
 
   useEffect(() => {
     async function loadFromStorage() {
@@ -208,7 +221,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          planType: "monthly",
+          planType,
           affiliateCode: affiliateCodeInput.trim() === "" ? undefined : affiliateCodeInput.trim(),
           agencyInviteCode: agencyInviteCode || undefined,
         }),
@@ -335,15 +348,46 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
       >
         <div className="text-center">
           <h3 id="plano-title" className="text-xl sm:text-2xl font-bold text-brand-pink mb-1 tracking-wide uppercase">
-            Plano Data2Content Completo
+            Plano {planType === 'annual' ? 'Anual' : 'Mensal'} Data2Content Completo
           </h3>
+          <div className="flex justify-center gap-4 mt-3">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name="plan-type"
+                value="monthly"
+                checked={planType === 'monthly'}
+                onChange={() => setPlanType('monthly')}
+                className="text-brand-pink focus:ring-brand-pink"
+              />
+              Mensal
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name="plan-type"
+                value="annual"
+                checked={planType === 'annual'}
+                onChange={() => setPlanType('annual')}
+                className="text-brand-pink focus:ring-brand-pink"
+              />
+              Anual
+            </label>
+          </div>
           <div className="flex items-baseline justify-center space-x-1 text-brand-dark mt-2">
               <span className="text-2xl font-medium">R$</span>
-              <span className="text-6xl font-extrabold tracking-tight leading-none text-brand-pink">{MONTHLY_PRICE.toFixed(2).replace('.', ',')}</span>
+              <span className="text-6xl font-extrabold tracking-tight leading-none text-brand-pink">{selectedMonthlyPrice.toFixed(2).replace('.', ',')}</span>
               <span className="text-xl font-medium text-brand-dark/80">/mês</span>
           </div>
+          {planType === 'annual' && (
+            <p className="text-xs text-brand-dark/70 mt-1">
+              Cobrança anual de R$ {totalPrice.toFixed(2).replace('.', ',')}
+            </p>
+          )}
           <p className="text-sm text-brand-dark/70 mt-2 font-light">
-            Investimento mínimo, resultados máximos. Cancele quando quiser.
+            {planType === 'annual'
+              ? 'Economize com 12 meses de acesso completo.'
+              : 'Investimento mínimo, resultados máximos. Cancele quando quiser.'}
           </p>
         </div>
 
@@ -389,14 +433,14 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
           whileTap={!(loading || ctaClicked) ? { scale: 0.97 } : {}}
           transition={{ type: "spring", stiffness: 350, damping: 17 }}
           className={` shimmer-button w-full px-6 py-4 bg-gradient-to-br from-brand-pink to-pink-500 text-white text-lg font-bold rounded-full hover:shadow-2xl transition-all duration-200 ease-out disabled:opacity-60 disabled:cursor-not-allowed shadow-xl flex items-center justify-center gap-2.5 relative overflow-hidden focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-pink-500/70 ${(loading || ctaClicked) ? 'cursor-wait' : ''} `}
-          aria-label={`Assinar o plano Data2Content Completo por R$${MONTHLY_PRICE.toFixed(2).replace('.', ',')} por mês`}
+          aria-label={`Assinar o plano ${planType === 'annual' ? 'Anual' : 'Mensal'} Data2Content Completo por R$${totalPrice.toFixed(2).replace('.', ',')} ${planType === 'annual' ? 'por ano' : 'por mês'}`}
         >
           {loading ? (
             <> <FaSpinner className="animate-spin w-5 h-5" /> <span>PROCESSANDO...</span> </>
           ) : ctaClicked ? (
             <> <FaCheckCircle className="w-5 h-5" /> <span>AGUARDE...</span> </>
           ) : (
-            <> QUERO DESBLOQUEAR MEU ACESSO! <motion.span className="inline-block ml-1" transition={{ type: 'spring', stiffness: 300 }}> <FaArrowRight className="w-5 h-5 opacity-90" /> </motion.span> </>
+            <> {planType === 'annual' ? 'QUERO O PLANO ANUAL!' : 'QUERO O PLANO MENSAL!'} <motion.span className="inline-block ml-1" transition={{ type: 'spring', stiffness: 300 }}> <FaArrowRight className="w-5 h-5 opacity-90" /> </motion.span> </>
           )}
         </motion.button>
 
