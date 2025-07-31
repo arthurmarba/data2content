@@ -38,7 +38,11 @@ export async function POST(req: NextRequest) {
 
     // 3) Lê os dados do corpo da requisição
     const body = await req.json();
-    const { planType, affiliateCode, agencyInviteCode } = body || {};
+    const { planType = 'monthly', affiliateCode, agencyInviteCode } = body as {
+      planType?: 'monthly' | 'annual';
+      affiliateCode?: string;
+      agencyInviteCode?: string;
+    };
     console.debug("plan/subscribe -> Body recebido:", body);
 
     // 4) Conecta ao banco de dados e busca o usuário via email da sessão

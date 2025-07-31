@@ -6,10 +6,8 @@ import { logger } from "@/app/lib/logger";
 import {
   USER_ROLES,
   PLAN_STATUSES,
-  PLAN_TYPES,
   type UserRole,
   type PlanStatus,
-  type PlanType,
 } from '@/types/enums';
 
 // --- INTERFACES ---
@@ -236,8 +234,8 @@ export interface IUser extends Document {
   agency?: Types.ObjectId | null;
   pendingAgency?: Types.ObjectId | null;
   planStatus?: PlanStatus;
-  planType?: PlanType;
-  paymentGatewaySubscriptionId?: string | null;
+  planType?: 'monthly' | 'annual';
+  paymentGatewaySubscriptionId?: string;
   planExpiresAt?: Date | null;
   whatsappVerificationCode?: string | null;
   whatsappPhone?: string | null;
@@ -339,8 +337,8 @@ const userSchema = new Schema<IUser>(
         select: false
     },
     planStatus: { type: String, enum: PLAN_STATUSES, default: "inactive", index: true }, // OTIMIZAÇÃO: Mantido índice.
-    planType: { type: String, enum: PLAN_TYPES, default: 'monthly' },
-    paymentGatewaySubscriptionId: { type: String, default: null },
+    planType: { type: String, enum: ['monthly', 'annual'], default: 'monthly' },
+    paymentGatewaySubscriptionId: { type: String },
     inferredExpertiseLevel: {
         type: String,
         enum: ['iniciante', 'intermediario', 'avancado'],
