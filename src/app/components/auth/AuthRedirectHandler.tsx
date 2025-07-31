@@ -4,13 +4,39 @@
 
 import { useSession } from 'next-auth/react';
 import { useRouter, usePathname } from 'next/navigation';
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import FullPageLoader from '@/app/components/auth/FullPageLoader'; 
 
 const AuthRedirectHandler: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const router = useRouter();
   const pathname = usePathname();
+  const inviteProcessed = useRef(false);
+
+  useEffect(() => {
+    if (status !== 'authenticated' || inviteProcessed.current) return;
+    if (session?.user?.agencyId) return;
+    if (typeof window === 'undefined') return;
+    const stored = localStorage.getItem('agencyInviteCode');
+    if (!stored) return;
+    try {
+      const data = JSON.parse(stored);
+      if (data?.code) {
+        inviteProcessed.current = true;
+        fetch('/api/agency/accept-invite', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ inviteCode: data.code }),
+        })
+          .then((res) => {
+            if (res.ok) update();
+          })
+          .catch((err) => console.error('[AuthRedirectHandler] failed to accept invite', err));
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [status, session, update]);
 
   useEffect(() => {
     console.log(`[AuthRedirectHandler v2.2] Status: ${status}, Pathname: ${pathname}, UserID: ${session?.user?.id}, isNewUser: ${session?.user?.isNewUserForOnboarding}`);
