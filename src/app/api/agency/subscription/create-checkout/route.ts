@@ -4,6 +4,10 @@ import { logger } from '@/app/lib/logger';
 import { getAgencySession } from '@/lib/getAgencySession';
 import AgencyModel from '@/app/models/Agency';
 import mercadopago from '@/app/lib/mercadopago';
+import {
+  AGENCY_ANNUAL_MONTHLY_PRICE,
+  AGENCY_MONTHLY_PRICE,
+} from '@/config/pricing.config';
 
 export const runtime = 'nodejs';
 const SERVICE_TAG = '[api/agency/subscription/create-checkout]';
@@ -35,8 +39,8 @@ export async function POST(req: NextRequest) {
 
     const price =
       validation.data.planId === 'annual'
-        ? Number(process.env.AGENCY_ANNUAL_MONTHLY_PRICE || 90)
-        : Number(process.env.AGENCY_MONTHLY_PRICE || 99);
+        ? AGENCY_ANNUAL_MONTHLY_PRICE
+        : AGENCY_MONTHLY_PRICE;
 
     const preapprovalData = {
       reason: 'Plano Agência Data2Content',

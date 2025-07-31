@@ -3,6 +3,10 @@ import React, { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
+import {
+  AGENCY_ANNUAL_MONTHLY_PRICE,
+  AGENCY_MONTHLY_PRICE,
+} from '@/config/pricing.config';
 
 export default function AgencySubscriptionPage() {
   const { data: session } = useSession();
@@ -63,7 +67,9 @@ export default function AgencySubscriptionPage() {
               checked={selectedPlan === 'basic'}
               onChange={() => setSelectedPlan('basic')}
             />
-            <span>Plano Mensal - R$ 99/mês</span>
+            <span>
+              Plano Mensal - R$ {AGENCY_MONTHLY_PRICE.toFixed(2).replace('.', ',')}/mês
+            </span>
           </label>
           <label className="flex items-center gap-2">
             <input
@@ -73,7 +79,9 @@ export default function AgencySubscriptionPage() {
               checked={selectedPlan === 'annual'}
               onChange={() => setSelectedPlan('annual')}
             />
-            <span>Plano Anual - R$ 90/mês</span>
+            <span>
+              Plano Anual - R$ {AGENCY_ANNUAL_MONTHLY_PRICE.toFixed(2).replace('.', ',')}/mês
+            </span>
           </label>
         </div>
         <ul className="list-disc list-inside text-sm text-gray-700">
