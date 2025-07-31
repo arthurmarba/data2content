@@ -7,6 +7,7 @@ import User from "@/app/models/User";
 // <<< ALTERAÇÃO 1: Importamos o modelo E a interface correta que criamos.
 import Redemption, { IRedemption } from "@/app/models/Redemption";
 import { Types } from "mongoose";
+import type { UserRole } from '@/types/enums';
 
 export const runtime = "nodejs";
 export const dynamic = 'force-dynamic';
@@ -31,7 +32,7 @@ interface SessionUser {
   name?: string | null;
   email?: string | null;
   image?: string | null;
-  role?: string;
+  role?: UserRole;
   id?: string;
 }
 

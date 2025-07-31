@@ -4,6 +4,7 @@
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import React, { useEffect } from 'react';
+import type { UserRole } from '@/types/enums';
 
 // Suposição: Seu objeto de usuário na sessão tem uma propriedade 'role'
 // ou uma propriedade booleana como 'isAdmin'.
@@ -12,7 +13,7 @@ interface AdminUser {
   name?: string | null;
   email?: string | null;
   image?: string | null;
-  role?: string; // Exemplo: 'admin', 'user'
+  role?: UserRole; // Exemplo: 'admin', 'user'
   isAdmin?: boolean; // Alternativa: true/false
 }
 

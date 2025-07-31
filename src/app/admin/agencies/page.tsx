@@ -5,12 +5,13 @@ import { toast } from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
 import AdminAuthGuard from '../components/AdminAuthGuard';
 import ModalConfirm from '../components/ModalConfirm';
+import type { PlanStatus } from '@/types/enums';
 
 interface Agency {
   _id: string;
   name: string;
   inviteCode: string;
-  planStatus?: string;
+  planStatus?: PlanStatus;
   contactEmail?: string;
   managerEmail?: string;
 }
