@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
       } else if (preapproval.status === 'cancelled') {
         agency.planStatus = 'canceled';
       } else if (preapproval.status === 'paused' || preapproval.status === 'suspended') {
-        agency.planStatus = 'past_due';
+        agency.planStatus = 'inactive';
       }
       await agency.save();
       logger.info(`${TAG} agency ${agency._id} updated to ${agency.planStatus}`);
@@ -70,9 +70,9 @@ export async function POST(req: NextRequest) {
         await agency.save();
         logger.info(`${TAG} agency ${agency._id} activated`);
       } else if (body.type === 'invoice.payment_failed') {
-        agency.planStatus = 'past_due';
+        agency.planStatus = 'inactive';
         await agency.save();
-        logger.info(`${TAG} agency ${agency._id} marked past_due`);
+        logger.info(`${TAG} agency ${agency._id} marked inactive`);
       } else if (body.type === 'customer.subscription.deleted') {
         agency.planStatus = 'canceled';
         await agency.save();

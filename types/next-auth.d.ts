@@ -3,6 +3,7 @@
 import { DefaultSession, DefaultUser } from "next-auth";
 import { JWT as DefaultJWT } from "next-auth/jwt"; // Import JWT type for merging
 import type { AvailableInstagramAccount } from '@/app/lib/instagramService'; // Importando o tipo que faltava
+import type { UserRole, PlanStatus } from '@/types/enums';
 
 /**
  * Aqui estendemos a interface `Session` para incluir campos extras.
@@ -16,10 +17,10 @@ declare module "next-auth" {
       email?: string | null;
       image?: string | null;
       provider?: string | null; // Provider usado no login ATUAL ('google', 'facebook')
-      role?: string;
+      role?: UserRole;
       agencyId?: string | null;
-      agencyPlanStatus?: string | null;
-      planStatus?: string;
+      agencyPlanStatus?: PlanStatus | null;
+      planStatus?: PlanStatus;
       planExpiresAt?: string | null; // Mantido como string (ISO) para o cliente
       affiliateCode?: string;
       affiliateBalance?: number;
@@ -49,7 +50,7 @@ declare module "next-auth" {
    */
   interface User extends DefaultUser { // DefaultUser já tem id, name, email, image
     id: string; // Garante que nosso ID (do DB) sobrescreva/seja o principal
-    role?: string | null;
+    role?: UserRole | null;
     agency?: string | null;
     provider?: string | null; // Provider do primeiro login ou principal
     providerAccountId?: string | null; // ID do provider principal
@@ -58,7 +59,7 @@ declare module "next-auth" {
     isNewUserForOnboarding?: boolean;
     onboardingCompletedAt?: Date | null; // Pode ser Date aqui, pois vem do DB
     
-    planStatus?: string | null;
+    planStatus?: PlanStatus | null;
     planExpiresAt?: Date | null; // Pode ser Date aqui
     affiliateCode?: string | null;
     affiliateBalance?: number;
@@ -86,10 +87,11 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
   interface JWT extends DefaultJWT { // DefaultJWT já tem name, email, picture, sub
     id: string; // ID do usuário do seu DB (obrigatório)
-    role?: string | null;
+    role?: UserRole | null;
     agencyId?: string | null;
-    agencyPlanStatus?: string | null;
+    agencyPlanStatus?: PlanStatus | null;
     provider?: string | null;
+    planStatus?: PlanStatus | null;
     
     isNewUserForOnboarding?: boolean;
     onboardingCompletedAt?: Date | string | null; // Pode ser Date ou string (após encode)

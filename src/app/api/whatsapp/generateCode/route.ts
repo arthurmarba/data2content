@@ -154,21 +154,6 @@ export async function POST(request: NextRequest) {
     console.log(`[whatsapp/generateCode] Usuário encontrado no DB: ${user._id}`);
 
 
-    // Log para verificar o status antes do check
-    console.log(`[whatsapp/generateCode] Verificando status do plano para usuário ${user._id}. Status atual no DB: '${user.planStatus}'`);
-
-    // Verifica se o plano do usuário está ativo (Autorização nº 2)
-    if (user.planStatus !== "active") {
-      // Log para quando a verificação falha
-      console.warn(`[whatsapp/generateCode] Falha na Autorização nº 2 (Plano): Status do plano é '${user.planStatus}', esperado 'active'. Retornando 403.`);
-      return NextResponse.json(
-        { error: "Você não possui um plano ativo ou acesso permitido." },
-        { status: 403 }
-      );
-    }
-    console.log("[whatsapp/generateCode] Autorização nº 2 (Plano Ativo): OK.");
-
-
     // Se o usuário já tiver um número vinculado, retorna uma flag para indicar isso
     if (user.whatsappPhone) {
       console.log(`[whatsapp/generateCode] Usuário ${user._id} já possui telefone vinculado: ${user.whatsappPhone}. Retornando status 'linked'.`);

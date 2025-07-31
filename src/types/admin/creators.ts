@@ -1,5 +1,7 @@
 // src/types/admin/creators.ts
 
+import type { PlanStatus } from '@/types/enums';
+
 // Define os possíveis status de um criador no contexto de admin
 export type AdminCreatorStatus = 'pending' | 'approved' | 'rejected' | 'active'; // 'active' pode ser um sinônimo de 'approved' ou um estado pós-aprovação.
 
@@ -8,7 +10,7 @@ export interface AdminCreatorListItem {
   _id: string; // Geralmente o ID do MongoDB como string
   name: string;
   email: string;
-  planStatus?: string; // Status do plano (ex: 'Free', 'Pro', 'Trial') - vindo do UserModel
+  planStatus?: PlanStatus; // Status do plano - vindo do UserModel
   inferredExpertiseLevel?: string; // Nível de expertise inferido - vindo do UserModel
   profilePictureUrl?: string; // URL da foto de perfil
   mediaKitSlug?: string; // Slug do mídia kit, se já gerado
@@ -30,7 +32,7 @@ export interface AdminCreatorListParams {
   limit?: number;
   search?: string; // Para buscar por nome, email, etc.
   status?: AdminCreatorStatus; // Para filtrar por status de admin
-  planStatus?: string; // Para filtrar por status do plano
+  planStatus?: PlanStatus; // Para filtrar por status do plano
   sortBy?: keyof AdminCreatorListItem | string; // Campo para ordenação
   sortOrder?: 'asc' | 'desc';
   // Adicionar startDate e endDate se a lista principal de gerenciamento de criadores for filtrável por data
