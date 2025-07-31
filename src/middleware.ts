@@ -11,5 +11,11 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/api/whatsapp/generateCode/:path*', '/api/ai/:path*'],
+  matcher: [
+    '/api/whatsapp/generateCode/:path*',
+    '/api/whatsapp/sendTips/:path*',
+    '/api/whatsapp/verify/:path*',
+    '/api/whatsapp/weeklyReport/:path*',
+    '/api/ai/:path*',
+  ],
 };
