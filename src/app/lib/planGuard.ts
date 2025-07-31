@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { logger } from '@/app/lib/logger';
+import { sendAlert } from '@/app/lib/alerts';
 import type { PlanStatus } from '@/types/enums';
 
 export interface PlanGuardMetrics {
@@ -46,7 +47,8 @@ export async function guardPremiumRequest(
   // Update metrics for monitoring purposes
   planGuardMetrics.blocked += 1;
   planGuardMetrics.byRoute[path] = (planGuardMetrics.byRoute[path] || 0) + 1;
-  logger.warn(
+  logger.warn({ userId, status, path });
+  void sendAlert(
     `[planGuard] Blocked request for user ${userId} with status ${status} on ${path}`
   );
 
