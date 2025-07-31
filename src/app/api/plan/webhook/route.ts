@@ -166,6 +166,7 @@ export async function POST(request: NextRequest) {
       if (user.pendingAgency) {
         user.agency = user.pendingAgency;
         user.pendingAgency = null;
+        user.role = 'guest';
       }
 
       // Processa comissão

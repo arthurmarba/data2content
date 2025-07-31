@@ -3,6 +3,7 @@
 // - CORRIGIDO: As chamadas para `models.User` e `model("User", ...)` foram atualizadas para `mongoose.models.User` e `mongoose.model(...)` para alinhar com a nova importação.
 import mongoose, { Schema, Document, Model, Types } from "mongoose";
 import { logger } from "@/app/lib/logger";
+import { USER_ROLES, PLAN_STATUSES, type UserRole, type PlanStatus } from '@/types/enums';
 
 // --- INTERFACES ---
 export interface IPeakSharesDetails {
@@ -224,10 +225,10 @@ export interface IUser extends Document {
   linkTokenExpiresAt?: Date;
   mediaKitToken?: string;
   mediaKitSlug?: string;
-  role: string;
+  role: UserRole;
   agency?: Types.ObjectId | null;
   pendingAgency?: Types.ObjectId | null;
-  planStatus?: string;
+  planStatus?: PlanStatus;
   planExpiresAt?: Date | null;
   whatsappVerificationCode?: string | null;
   whatsappPhone?: string | null;
@@ -328,7 +329,7 @@ const userSchema = new Schema<IUser>(
         type: String,
         select: false
     },
-    planStatus: { type: String, default: "inactive", index: true }, // OTIMIZAÇÃO: Mantido índice.
+    planStatus: { type: String, enum: PLAN_STATUSES, default: "inactive", index: true }, // OTIMIZAÇÃO: Mantido índice.
     inferredExpertiseLevel: {
         type: String,
         enum: ['iniciante', 'intermediario', 'avancado'],
@@ -360,7 +361,7 @@ const userSchema = new Schema<IUser>(
     linkTokenExpiresAt: { type: Date },
     mediaKitToken: { type: String, unique: true, sparse: true },
     mediaKitSlug: { type: String, unique: true, sparse: true },
-    role: { type: String, default: "user" },
+    role: { type: String, enum: USER_ROLES, default: "user" },
     agency: { type: Schema.Types.ObjectId, ref: 'Agency', default: null },
     pendingAgency: { type: Schema.Types.ObjectId, ref: 'Agency', default: null },
     planExpiresAt: { type: Date, default: null },

@@ -1,11 +1,12 @@
 import { Schema, model, models, Document, Model } from 'mongoose';
 import { nanoid } from 'nanoid';
+import { PLAN_STATUSES, type PlanStatus } from '@/types/enums';
 
 export interface IAgency extends Document {
   name: string;
   contactEmail?: string;
   inviteCode: string;
-  planStatus?: string;
+  planStatus?: PlanStatus;
   paymentGatewaySubscriptionId?: string | null;
 }
 
@@ -13,7 +14,7 @@ const agencySchema = new Schema<IAgency>({
   name: { type: String, required: true },
   contactEmail: { type: String },
   inviteCode: { type: String, required: true, default: () => nanoid(10), unique: true },
-  planStatus: { type: String, default: 'inactive' },
+  planStatus: { type: String, enum: PLAN_STATUSES, default: 'inactive' },
   paymentGatewaySubscriptionId: { type: String, default: null },
 }, { timestamps: true });
 
