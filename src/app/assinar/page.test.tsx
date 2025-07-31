@@ -28,15 +28,15 @@ describe('PublicSubscribePage', () => {
     global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ name: 'Agência X' }) }) as any;
     render(<PublicSubscribePage />);
     await waitFor(() => {
-      expect(screen.getByText(/Agência X/)).toBeInTheDocument();
+      expect(screen.getByText('Bem-vindo como convidado da Agência X.')).toBeInTheDocument();
     });
   });
 
-  it('shows warning when invite is invalid', async () => {
+  it('redirects when invite is invalid', async () => {
     global.fetch = jest.fn().mockResolvedValue({ ok: false, json: async () => ({}) }) as any;
     render(<PublicSubscribePage />);
     await waitFor(() => {
-      expect(screen.getByText(/Convite inválido/)).toBeInTheDocument();
+      expect(mockReplace).toHaveBeenCalledWith('/assinar?alert=convite_invalido');
     });
   });
 });

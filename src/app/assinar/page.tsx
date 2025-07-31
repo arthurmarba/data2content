@@ -6,10 +6,10 @@ import { useSession, signIn } from 'next-auth/react';
 export default function PublicSubscribePage() {
   const searchParams = useSearchParams();
   const agencyCode = searchParams.get('codigo_agencia');
+  const alert = searchParams.get('alert');
   const { status } = useSession();
   const router = useRouter();
   const [agencyName, setAgencyName] = useState<string | null>(null);
-  const [invalidInvite, setInvalidInvite] = useState(false);
 
   useEffect(() => {
     if (agencyCode) {
@@ -19,12 +19,12 @@ export default function PublicSubscribePage() {
             const data = await res.json();
             setAgencyName(data.name);
           } else {
-            setInvalidInvite(true);
+            router.replace('/assinar?alert=convite_invalido');
           }
         })
-        .catch(() => setInvalidInvite(true));
+        .catch(() => router.replace('/assinar?alert=convite_invalido'));
     }
-  }, [agencyCode]);
+  }, [agencyCode, router]);
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -32,15 +32,14 @@ export default function PublicSubscribePage() {
     }
   }, [status, router]);
 
-
   return (
     <div className="p-6 max-w-md mx-auto space-y-4">
       {agencyName && (
         <div className="bg-green-100 text-green-800 p-2 rounded">
-          Boas-vindas! Como convidado da {agencyName}, você tem acesso a planos exclusivos.
+          Bem-vindo como convidado da {agencyName}.
         </div>
       )}
-      {invalidInvite && (
+      {alert === 'convite_invalido' && (
         <div className="bg-yellow-100 text-yellow-800 p-2 rounded">
           Convite inválido ou agência inativa. Confira nossos planos.
         </div>
