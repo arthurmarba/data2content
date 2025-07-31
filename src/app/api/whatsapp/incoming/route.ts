@@ -205,6 +205,15 @@ Você pode começar me pedindo um planejamento de conteudo que otimize seu alcan
       return NextResponse.json({ error: 'Failed to lookup user' }, { status: 500 });
   }
 
+  if (user.planStatus !== 'active') {
+      try {
+          await sendWhatsAppMessage(fromPhone, `Olá ${userFirstName}! Seu plano está ${user.planStatus}. Para continuar usando a Tuca, reative seu plano em nosso site.`);
+      } catch (sendError) {
+          logger.error(`${postTag} Falha ao enviar mensagem de plano inativo:`, sendError);
+      }
+      return NextResponse.json({ plan_inactive: true }, { status: 200 });
+  }
+
   // CORREÇÃO APLICADA AQUI:
   let currentDialogueState: stateService.IDialogueState = stateService.getDefaultDialogueState();
   try {

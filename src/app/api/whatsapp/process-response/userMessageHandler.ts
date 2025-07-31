@@ -269,6 +269,16 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
 
         logger.debug(`${handlerTAG} Dados carregados. Nome: ${firstName}, Histórico: ${historyMessages.length} msgs. Sumário Conv: ${dialogueState.conversationSummary ? '"' + extractExcerpt(dialogueState.conversationSummary, 30) + '"': 'N/A'}`);
 
+        if (user.planStatus !== 'active') {
+            try {
+                const wamid = await sendWhatsAppMessage(fromPhone, `Olá ${firstName}! Seu plano está ${user.planStatus}. Para continuar usando a Tuca, reative seu plano em nosso site.`);
+                logger.info(`${handlerTAG} Mensagem de plano inativo enviada. WhatsAppMsgID: ${wamid}`);
+            } catch (sendError) {
+                logger.error(`${handlerTAG} Falha ao enviar mensagem de plano inativo:`, sendError);
+            }
+            return NextResponse.json({ plan_inactive: true }, { status: 200 });
+        }
+
         const stateUpdateForProcessingStart: Partial<stateService.IDialogueState> = {
             currentProcessingMessageId: messageId_MsgAtual,
             currentProcessingQueryExcerpt: queryExcerpt_MsgAtual
