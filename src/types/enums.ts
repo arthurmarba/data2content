@@ -3,3 +3,6 @@ export type UserRole = typeof USER_ROLES[number];
 
 export const PLAN_STATUSES = ['active', 'pending', 'canceled', 'inactive', 'trial'] as const;
 export type PlanStatus = typeof PLAN_STATUSES[number];
+
+export const PLAN_TYPES = ['monthly', 'annual'] as const;
+export type PlanType = typeof PLAN_TYPES[number];

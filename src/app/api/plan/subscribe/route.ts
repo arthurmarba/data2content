@@ -17,7 +17,7 @@ export const runtime = "nodejs";
 
 /**
  * POST /api/plan/subscribe
- * Cria uma preferência de pagamento no Mercado Pago.
+ * Cria uma assinatura no Mercado Pago.
  * Aplica desconto se houver affiliateCode válido.
  * Marca o usuário como "pending" e salva affiliateUsed, se aplicável.
  */
@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 5) Define o preço base considerando plano e convite de agência
+    let monthlyPrice: number;
     let price: number;
     if (agencyInviteCode) {
       const agency = await AgencyModel.findOne({ inviteCode: agencyInviteCode });
@@ -76,14 +77,21 @@ export async function POST(req: NextRequest) {
       });
       const useGuestPricing = activeGuests === 0;
 
-      price =
+      monthlyPrice =
         planType === 'annual'
-          ? (useGuestPricing ? AGENCY_GUEST_ANNUAL_MONTHLY_PRICE : ANNUAL_MONTHLY_PRICE) * 12
-          : useGuestPricing ? AGENCY_GUEST_MONTHLY_PRICE : MONTHLY_PRICE;
+          ? useGuestPricing
+            ? AGENCY_GUEST_ANNUAL_MONTHLY_PRICE
+            : ANNUAL_MONTHLY_PRICE
+          : useGuestPricing
+            ? AGENCY_GUEST_MONTHLY_PRICE
+            : MONTHLY_PRICE;
+
+      price = planType === 'annual' ? monthlyPrice * 12 : monthlyPrice;
 
       user.pendingAgency = agency._id;
     } else {
-      price = planType === 'annual' ? ANNUAL_MONTHLY_PRICE * 12 : MONTHLY_PRICE;
+      monthlyPrice = planType === 'annual' ? ANNUAL_MONTHLY_PRICE : MONTHLY_PRICE;
+      price = planType === 'annual' ? monthlyPrice * 12 : monthlyPrice;
     }
 
     // 6) Se houver affiliateCode, valida e aplica desconto (10%)
@@ -102,7 +110,8 @@ export async function POST(req: NextRequest) {
         );
       }
       // Aplica desconto de 10%
-      price = parseFloat((price * 0.9).toFixed(2));
+      monthlyPrice = parseFloat((monthlyPrice * 0.9).toFixed(2));
+      price = planType === 'annual' ? parseFloat((monthlyPrice * 12).toFixed(2)) : monthlyPrice;
       user.affiliateUsed = affiliateCode;
     }
 
@@ -111,36 +120,34 @@ export async function POST(req: NextRequest) {
     user.planStatus = "pending";
     await user.save();
 
-    // 8) Cria a preferência no Mercado Pago
-    const preference = {
-      items: [
-        {
-          title: planType === "annual" ? "Plano Anual" : "Plano Mensal",
-          quantity: 1,
-          currency_id: "BRL",
-          unit_price: price,
-        },
-      ],
-      payer: {
-        email: user.email,
-      },
-      back_urls: {
-        success: "https://seusite.com/dashboard",
-        failure: "https://seusite.com/dashboard",
-        pending: "https://seusite.com/dashboard",
-      },
-      auto_return: "approved",
+    // 8) Cria a assinatura no Mercado Pago
+    const preapprovalData = {
+      reason: planType === "annual" ? "Plano Anual" : "Plano Mensal",
+      back_url: "https://seusite.com/dashboard",
       external_reference: user._id.toString(), // Utilizado para o webhook
-    };
+      payer_email: user.email,
+      auto_recurring: {
+        frequency: 1,
+        frequency_type: "months",
+        transaction_amount: monthlyPrice,
+        currency_id: "BRL",
+      },
+    } as any;
 
-    const responseMP = await mercadopago.preferences.create(preference);
+    const responseMP = await mercadopago.preapproval.create(preapprovalData);
     const initPoint = responseMP.body.init_point;
-    console.debug("plan/subscribe -> Preferência criada. Link:", initPoint);
+    const subscriptionId = responseMP.body.id;
+    console.debug("plan/subscribe -> Assinatura criada. Link:", initPoint);
 
-    // 9) Retorna o link de pagamento e o preço aplicado
+    user.paymentGatewaySubscriptionId = subscriptionId;
+    user.planType = planType;
+    await user.save();
+
+    // 9) Retorna o link de pagamento, o id da assinatura e o preço aplicado
     return NextResponse.json({
       initPoint,
-      message: "Preferência criada. Redirecione o usuário para esse link.",
+      subscriptionId,
+      message: "Assinatura criada. Redirecione o usuário para esse link.",
       price,
     });
   } catch (error: unknown) {
