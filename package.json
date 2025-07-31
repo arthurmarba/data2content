@@ -16,7 +16,8 @@
     "fix-formats": "tsx --env-file=.env.local ./scripts/fixFormatLabels.ts",
     "test:demographics": "tsx --env-file=.env.local ./scripts/testDemographics.ts",
     "backfill:demographics": "tsx --env-file=.env.local ./scripts/backfillDemographicSnapshots.ts",
-    "migrate:roles": "tsx --env-file=.env.local ./scripts/migrateRolesAndPlans.ts"
+    "migrate:roles": "tsx --env-file=.env.local ./scripts/migrateRolesAndPlans.ts",
+    "cron:guest-transition": "tsx --env-file=.env.local ./src/cron/guestTransition.ts"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.2",
