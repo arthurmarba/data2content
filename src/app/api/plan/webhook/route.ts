@@ -126,99 +126,146 @@ export async function POST(request: NextRequest) {
          return NextResponse.json({ error: "Discrepância de ID" }, { status: 400 });
     }
 
-    if (body.type !== "payment") {
-      // console.log(`[plan/webhook] Ignorando tipo: ${body.type}`);
-      return NextResponse.json({ received: true, nonPayment: true }, { status: 200 });
-    }
+    const eventType = body.type;
 
-    const paymentId = body.data.id;
-    //  console.log(`[plan/webhook] Obtendo detalhes do pagamento ID: ${paymentId}`);
-    const paymentResponse = await mercadopago.payment.get(paymentId);
-    const paymentDetails = paymentResponse.body;
-    // console.log("[plan/webhook] Detalhes do pagamento obtidos:", paymentDetails);
+    // ------------------------------------------------------------------
+    // Pagamento único (tipo "payment")
+    // ------------------------------------------------------------------
+    if (eventType === "payment") {
+      const paymentId = body.data.id;
+      //  console.log(`[plan/webhook] Obtendo detalhes do pagamento ID: ${paymentId}`);
+      const paymentResponse = await mercadopago.payment.get(paymentId);
+      const paymentDetails = paymentResponse.body;
+      // console.log("[plan/webhook] Detalhes do pagamento obtidos:", paymentDetails);
 
-    const externalReference = paymentDetails.external_reference;
-    if (!externalReference || !mongoose.isValidObjectId(externalReference)) {
-      console.error(`[plan/webhook] Referência externa inválida ou ausente: ${externalReference}`);
-      return NextResponse.json({ error: "Referência externa inválida." }, { status: 200 });
-    }
-    //  console.log(`[plan/webhook] External reference (User ID): ${externalReference}`);
+      const externalReference = paymentDetails.external_reference;
+      if (!externalReference || !mongoose.isValidObjectId(externalReference)) {
+        console.error(`[plan/webhook] Referência externa inválida ou ausente: ${externalReference}`);
+        return NextResponse.json({ error: "Referência externa inválida." }, { status: 200 });
+      }
+      //  console.log(`[plan/webhook] External reference (User ID): ${externalReference}`);
 
-    const user = await User.findById(externalReference) as IUser | null; // Tipagem explícita
-    if (!user) {
-      console.error(`[plan/webhook] Usuário não encontrado: ${externalReference}`);
-      return NextResponse.json({ error: "Usuário não encontrado" }, { status: 200 });
-    }
-    // console.log(`[plan/webhook] Usuário encontrado: ${user.email}`);
+      const user = await User.findById(externalReference) as IUser | null; // Tipagem explícita
+      if (!user) {
+        console.error(`[plan/webhook] Usuário não encontrado: ${externalReference}`);
+        return NextResponse.json({ error: "Usuário não encontrado" }, { status: 200 });
+      }
+      // console.log(`[plan/webhook] Usuário encontrado: ${user.email}`);
 
-    if (user.planStatus === 'active' && user.lastProcessedPaymentId === paymentId) {
-        //  console.log(`[plan/webhook] Pagamento ${paymentId} já processado. Ignorando.`);
-         return NextResponse.json({ received: true, alreadyProcessed: true }, { status: 200 });
-    }
-
-    if (paymentDetails.status === "approved") {
-    //   console.log(`[plan/webhook] Pagamento ${paymentId} APROVADO. Atualizando usuário ${user._id}`);
-      user.planStatus = "active";
-      const approvalDate = paymentDetails.date_approved ? new Date(paymentDetails.date_approved) : new Date();
-      user.planExpiresAt = new Date(approvalDate.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 dias
-      user.lastProcessedPaymentId = paymentId;
-
-      if (user.pendingAgency) {
-        user.agency = user.pendingAgency;
-        user.pendingAgency = null;
-        user.role = 'guest';
+      if (user.planStatus === 'active' && user.lastProcessedPaymentId === paymentId) {
+          //  console.log(`[plan/webhook] Pagamento ${paymentId} já processado. Ignorando.`);
+           return NextResponse.json({ received: true, alreadyProcessed: true }, { status: 200 });
       }
 
-      // Processa comissão
-      if (user.affiliateUsed) {
-        //  console.log(`[plan/webhook] Pagamento usou código de afiliado: ${user.affiliateUsed}`);
-        const affUser = await User.findOne({ affiliateCode: user.affiliateUsed }) as IUser | null; // Tipagem explícita
-        if (affUser) {
-          const commissionRate = 0.1; // 10%
-          const transactionAmount = paymentDetails.transaction_amount || 0;
-          const commission = transactionAmount * commissionRate;
+      if (paymentDetails.status === "approved") {
+      //   console.log(`[plan/webhook] Pagamento ${paymentId} APROVADO. Atualizando usuário ${user._id}`);
+        user.planStatus = "active";
+        const approvalDate = paymentDetails.date_approved ? new Date(paymentDetails.date_approved) : new Date();
+        user.planExpiresAt = new Date(approvalDate.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 dias
+        user.lastProcessedPaymentId = paymentId;
 
-          affUser.affiliateBalance = (affUser.affiliateBalance || 0) + commission;
-          affUser.affiliateInvites = (affUser.affiliateInvites || 0) + 1;
-          // A lógica do rank já estava correta
-          if (affUser.affiliateInvites % 5 === 0 && affUser.affiliateInvites > 0) { // Garante que não incremente no convite 0
-            affUser.affiliateRank = (affUser.affiliateRank || 1) + 1;
-          }
-
-          // --- INÍCIO: Adicionar entrada ao commissionLog ---
-          const commissionEntry: ICommissionLogEntry = {
-            date: new Date(), // Data em que a comissão é processada
-            amount: commission,
-            description: `Comissão pela assinatura de ${user.email || user._id.toString()}`,
-            sourcePaymentId: paymentId.toString(),
-            referredUserId: user._id, // ID do usuário que fez o pagamento
-          };
-
-          // Garante que commissionLog seja um array antes de dar push
-          if (!Array.isArray(affUser.commissionLog)) {
-            affUser.commissionLog = [];
-          }
-          affUser.commissionLog.push(commissionEntry);
-          // --- FIM: Adicionar entrada ao commissionLog ---
-
-          await affUser.save();
-          console.log(`[plan/webhook] Comissão de ${commission.toFixed(2)} creditada para afiliado=${affUser._id}. Log adicionado. Novo saldo: ${affUser.affiliateBalance?.toFixed(2)}`);
-        
-        } else {
-            console.warn(`[plan/webhook] Afiliado ${user.affiliateUsed} não encontrado.`);
+        if (user.pendingAgency) {
+          user.agency = user.pendingAgency;
+          user.pendingAgency = null;
+          user.role = 'guest';
         }
-        user.affiliateUsed = undefined; // Limpa código usado
+
+        // Processa comissão
+        if (user.affiliateUsed) {
+          //  console.log(`[plan/webhook] Pagamento usou código de afiliado: ${user.affiliateUsed}`);
+          const affUser = await User.findOne({ affiliateCode: user.affiliateUsed }) as IUser | null; // Tipagem explícita
+          if (affUser) {
+            const commissionRate = 0.1; // 10%
+            const transactionAmount = paymentDetails.transaction_amount || 0;
+            const commission = transactionAmount * commissionRate;
+
+            affUser.affiliateBalance = (affUser.affiliateBalance || 0) + commission;
+            affUser.affiliateInvites = (affUser.affiliateInvites || 0) + 1;
+            // A lógica do rank já estava correta
+            if (affUser.affiliateInvites % 5 === 0 && affUser.affiliateInvites > 0) { // Garante que não incremente no convite 0
+              affUser.affiliateRank = (affUser.affiliateRank || 1) + 1;
+            }
+
+            // --- INÍCIO: Adicionar entrada ao commissionLog ---
+            const commissionEntry: ICommissionLogEntry = {
+              date: new Date(), // Data em que a comissão é processada
+              amount: commission,
+              description: `Comissão pela assinatura de ${user.email || user._id.toString()}`,
+              sourcePaymentId: paymentId.toString(),
+              referredUserId: user._id, // ID do usuário que fez o pagamento
+            };
+
+            // Garante que commissionLog seja um array antes de dar push
+            if (!Array.isArray(affUser.commissionLog)) {
+              affUser.commissionLog = [];
+            }
+            affUser.commissionLog.push(commissionEntry);
+            // --- FIM: Adicionar entrada ao commissionLog ---
+
+            await affUser.save();
+            console.log(`[plan/webhook] Comissão de ${commission.toFixed(2)} creditada para afiliado=${affUser._id}. Log adicionado. Novo saldo: ${affUser.affiliateBalance?.toFixed(2)}`);
+
+          } else {
+              console.warn(`[plan/webhook] Afiliado ${user.affiliateUsed} não encontrado.`);
+          }
+          user.affiliateUsed = undefined; // Limpa código usado
+        } else {
+          //   console.log("[plan/webhook] Pagamento sem código de afiliado.");
+        }
+        await user.save();
+      //   console.log(`[plan/webhook] Plano ativado para userId=${externalReference}. Expira em: ${user.planExpiresAt}`);
       } else {
-        //   console.log("[plan/webhook] Pagamento sem código de afiliado.");
+      //   console.log(`[plan/webhook] Pagamento não aprovado: ${paymentDetails.status}`);
       }
-      await user.save();
-    //   console.log(`[plan/webhook] Plano ativado para userId=${externalReference}. Expira em: ${user.planExpiresAt}`);
-    } else {
-    //   console.log(`[plan/webhook] Pagamento não aprovado: ${paymentDetails.status}`);
+
+      // console.log("[plan/webhook] Processamento concluído com sucesso. Retornando 200.");
+      return NextResponse.json({ received: true }, { status: 200 });
     }
 
-    // console.log("[plan/webhook] Processamento concluído com sucesso. Retornando 200.");
-    return NextResponse.json({ received: true }, { status: 200 });
+    // ------------------------------------------------------------------
+    // Eventos de assinatura (preapproval) - authorized_payment e plan
+    // ------------------------------------------------------------------
+    if (eventType === "authorized_payment" || eventType === "plan") {
+      const subscriptionId = body.data.subscription_id || body.data.id;
+      if (!subscriptionId) {
+        return NextResponse.json({ error: "subscription_id ausente" }, { status: 200 });
+      }
+
+      const user = await User.findOne({ paymentGatewaySubscriptionId: subscriptionId });
+      if (!user) {
+        console.error(`[plan/webhook] Usuário não encontrado para subscription ${subscriptionId}`);
+        return NextResponse.json({ error: "Usuário não encontrado" }, { status: 200 });
+      }
+
+      // Evita reprocessamento
+      const eventId = body.data.id;
+      if (user.lastProcessedPaymentId === eventId) {
+        return NextResponse.json({ received: true, alreadyProcessed: true }, { status: 200 });
+      }
+
+      if (eventType === "authorized_payment") {
+        const now = new Date();
+        const days = user.planType === 'annual' ? 365 : 30;
+        user.planExpiresAt = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+        user.planStatus = 'active';
+      } else {
+        const status = body.data.status;
+        if (status === 'authorized' || status === 'active') {
+          user.planStatus = 'active';
+        } else if (status === 'cancelled') {
+          user.planStatus = 'canceled';
+        } else if (status === 'paused' || status === 'suspended') {
+          user.planStatus = 'inactive';
+        }
+      }
+
+      user.lastProcessedPaymentId = eventId;
+      await user.save();
+      return NextResponse.json({ received: true }, { status: 200 });
+    }
+
+    // Tipo de evento não tratado
+    return NextResponse.json({ received: true, nonPayment: true }, { status: 200 });
 
   } catch (error: unknown) {
     console.error("[plan/webhook] Erro GERAL em POST /api/plan/webhook:", error);
