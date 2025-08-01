@@ -1,7 +1,7 @@
 import { GET } from './route';
 import AgencyModel from '@/app/models/Agency';
 import UserModel from '@/app/models/User';
-import { MONTHLY_PRICE } from '@/config/pricing.config';
+import { MONTHLY_PRICE, AGENCY_MONTHLY_PRICE } from '@/config/pricing.config';
 
 jest.mock('@/app/models/Agency', () => ({
   countDocuments: jest.fn(),
@@ -16,8 +16,6 @@ const mockUserCount = (UserModel as any).countDocuments as jest.Mock;
 
 describe('GET /api/admin/monitoring/summary', () => {
   it('returns aggregated metrics', async () => {
-    const agencyPrice = Number(process.env.AGENCY_MONTHLY_PRICE || '99');
-
     mockAgencyCount.mockResolvedValueOnce(2);
     mockUserCount
       .mockResolvedValueOnce(100) // users
@@ -31,9 +29,9 @@ describe('GET /api/admin/monitoring/summary', () => {
       activeAgencies: 2,
       creators: { users: 100, guests: 20 },
       mrr: {
-        agencies: 2 * agencyPrice,
+        agencies: 2 * AGENCY_MONTHLY_PRICE,
         creators: 50 * MONTHLY_PRICE,
-        total: 2 * agencyPrice + 50 * MONTHLY_PRICE,
+        total: 2 * AGENCY_MONTHLY_PRICE + 50 * MONTHLY_PRICE,
       },
     });
   });
