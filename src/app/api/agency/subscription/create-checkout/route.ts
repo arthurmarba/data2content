@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
 
     if (response.body.init_point) {
       agency.planStatus = 'pending';
+      agency.planType = validation.data.planId;
       agency.paymentGatewaySubscriptionId = response.body.id;
       await agency.save();
 

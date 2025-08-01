@@ -29,6 +29,7 @@ export default function AgencySubscriptionPage() {
   }, []);
 
   const planStatus = session?.user?.agencyPlanStatus || 'inactive';
+  const planType = session?.user?.agencyPlanType || 'basic';
 
   const handleSubscribe = async () => {
     setIsLoading(true);
@@ -89,6 +90,7 @@ export default function AgencySubscriptionPage() {
           <li>Suporte prioritário via WhatsApp</li>
           <li>Desconto de 10% para seus criadores</li>
         </ul>
+        <p className="text-sm">Plano atual: <strong>{planType}</strong></p>
         <p className="text-sm">Status atual: <strong>{planStatus}</strong></p>
         {planStatus !== 'active' && (
           <button

@@ -57,6 +57,7 @@ declare module "next-auth" {
         role?: string | null;
         agencyId?: string | null;
         agencyPlanStatus?: string | null;
+        agencyPlanType?: string | null;
         planStatus?: string | null;
         planExpiresAt?: string | null;
         affiliateCode?: string | null;
@@ -86,6 +87,7 @@ declare module "next-auth/jwt" {
         role?: string | null;
         agencyId?: string | null;
         agencyPlanStatus?: string | null;
+        agencyPlanType?: string | null;
         provider?: string | null; // Reflects the primary provider after initial link
 
          isNewUserForOnboarding?: boolean;
@@ -553,14 +555,17 @@ export const authOptions: NextAuthOptions = {
                 if (token.agencyId) {
                     try {
                         await connectToDatabase();
-                        const agency = await AgencyModel.findById(token.agencyId).select('planStatus').lean();
+                        const agency = await AgencyModel.findById(token.agencyId).select('planStatus planType').lean();
                         token.agencyPlanStatus = agency?.planStatus ?? null;
+                        token.agencyPlanType = agency?.planType ?? null;
                     } catch (e) {
                         logger.error(`${TAG_JWT} Erro ao buscar planStatus da agência ${token.agencyId}:`, e);
                         token.agencyPlanStatus = null;
+                        token.agencyPlanType = null;
                     }
                 } else {
                     token.agencyPlanStatus = null;
+                    token.agencyPlanType = null;
                 }
 
                 logger.info(`${TAG_JWT} Token populado de userFromSignIn. ID: ${token.id}, Provider: ${token.provider}, planStatus: ${token.planStatus}, igAccounts: ${token.availableIgAccounts?.length}, igLlatSet: ${!!token.instagramAccessToken}`);
@@ -622,14 +627,17 @@ export const authOptions: NextAuthOptions = {
                             token.agencyId = dbUser.agency ? dbUser.agency.toString() : token.agencyId ?? null;
                             if (token.agencyId) {
                                 try {
-                                    const agency = await AgencyModel.findById(token.agencyId).select('planStatus').lean();
+                                    const agency = await AgencyModel.findById(token.agencyId).select('planStatus planType').lean();
                                     token.agencyPlanStatus = agency?.planStatus ?? null;
+                                    token.agencyPlanType = agency?.planType ?? null;
                                 } catch (e) {
                                     logger.error(`${TAG_JWT} Erro ao buscar planStatus da agência ${token.agencyId}:`, e);
                                     token.agencyPlanStatus = null;
+                                    token.agencyPlanType = null;
                                 }
                             } else {
                                 token.agencyPlanStatus = null;
+                                token.agencyPlanType = null;
                             }
 
                             logger.info(`${TAG_JWT} Token enriquecido/atualizado do DB. ID: ${token.id}, Provider: ${token.provider}, planStatus: ${token.planStatus}, igAccounts: ${token.availableIgAccounts?.length}, igLlatSet: ${!!token.instagramAccessToken}, igErr: ${token.igConnectionError ? 'Sim ('+String(token.igConnectionError).substring(0,30)+'...)': 'Não'}`);
@@ -694,6 +702,7 @@ export const authOptions: NextAuthOptions = {
             session.user.affiliateCode = token.affiliateCode;
             session.user.agencyId = token.agencyId ?? null;
             session.user.agencyPlanStatus = token.agencyPlanStatus ?? null;
+            session.user.agencyPlanType = token.agencyPlanType ?? null;
             
             // These fields might be populated from other sources or kept if already in session
             session.user.affiliateBalance = session.user.affiliateBalance ?? undefined; 
@@ -719,8 +728,9 @@ export const authOptions: NextAuthOptions = {
                     }
                     if (session.user.agencyId) {
                         try {
-                            const agency = await AgencyModel.findById(session.user.agencyId).select('planStatus').lean();
+                            const agency = await AgencyModel.findById(session.user.agencyId).select('planStatus planType').lean();
                             session.user.agencyPlanStatus = agency?.planStatus ?? session.user.agencyPlanStatus ?? null;
+                            session.user.agencyPlanType = agency?.planType ?? session.user.agencyPlanType ?? null;
                         } catch (e) {
                             logger.error(`${TAG_SESSION} Erro ao buscar planStatus da agência ${session.user.agencyId}:`, e);
                         }

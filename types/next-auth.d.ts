@@ -3,7 +3,7 @@
 import { DefaultSession, DefaultUser } from "next-auth";
 import { JWT as DefaultJWT } from "next-auth/jwt"; // Import JWT type for merging
 import type { AvailableInstagramAccount } from '@/app/lib/instagramService'; // Importando o tipo que faltava
-import type { UserRole, PlanStatus } from '@/types/enums';
+import type { UserRole, PlanStatus, AgencyPlanType } from '@/types/enums';
 
 /**
  * Aqui estendemos a interface `Session` para incluir campos extras.
@@ -20,6 +20,7 @@ declare module "next-auth" {
       role?: UserRole;
       agencyId?: string | null;
       agencyPlanStatus?: PlanStatus | null;
+      agencyPlanType?: AgencyPlanType | null;
       planStatus?: PlanStatus;
       planExpiresAt?: string | null; // Mantido como string (ISO) para o cliente
       affiliateCode?: string;
@@ -90,6 +91,7 @@ declare module "next-auth/jwt" {
     role?: UserRole | null;
     agencyId?: string | null;
     agencyPlanStatus?: PlanStatus | null;
+    agencyPlanType?: AgencyPlanType | null;
     provider?: string | null;
     planStatus?: PlanStatus | null;
     
