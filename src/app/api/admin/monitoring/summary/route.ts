@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import AgencyModel from '@/app/models/Agency';
 import UserModel from '@/app/models/User';
-import { MONTHLY_PRICE } from '@/config/pricing.config';
+import { MONTHLY_PRICE, AGENCY_MONTHLY_PRICE } from '@/config/pricing.config';
 
 export async function GET() {
   const activeAgencies = await AgencyModel.countDocuments({ planStatus: 'active' });
@@ -9,7 +9,7 @@ export async function GET() {
   const guestsCount = await UserModel.countDocuments({ role: 'guest' });
   const activeCreators = await UserModel.countDocuments({ planStatus: 'active', role: { $in: ['user', 'guest'] } });
 
-  const agencyMrr = activeAgencies * Number(process.env.AGENCY_MONTHLY_PRICE || '99');
+  const agencyMrr = activeAgencies * AGENCY_MONTHLY_PRICE;
   const creatorMrr = activeCreators * MONTHLY_PRICE;
 
   return NextResponse.json({
