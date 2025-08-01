@@ -20,8 +20,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Agency not found' }, { status: 404 });
     }
 
-    // TODO: Integrate with payment gateway customer portal using agency.paymentGatewaySubscriptionId
-    const portalUrl = `https://pagamento.exemplo.com/manage/${agency.paymentGatewaySubscriptionId || ''}`;
+    const portalUrl = `https://www.mercadopago.com.br/subscriptions/redirect?preapproval_id=${agency.paymentGatewaySubscriptionId || ''}`;
 
     logger.info(`${TAG} portal session for agency ${agency._id}`);
     return NextResponse.json({ portalUrl });
