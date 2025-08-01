@@ -179,32 +179,30 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
     loadFromStorage();
   }, []);
 
-  if (user.planStatus === "active" || user.planStatus === "pending") {
-      const isPending = user.planStatus === "pending";
-      const bgColor = isPending ? 'bg-yellow-50' : 'bg-green-50';
-      const textColor = isPending ? 'text-yellow-800' : 'text-green-800';
-      const borderColor = isPending ? 'border-yellow-300' : 'border-green-300';
-      const IconComponent = isPending ? FaSpinner : FaCheckCircle;
-      const iconColor = isPending ? 'text-yellow-600' : 'text-green-600';
-      const title = isPending ? 'Pagamento Pendente' : 'Seu plano está ativo!';
-      const description = isPending
-        ? 'Estamos aguardando a confirmação do seu pagamento. Assim que for aprovado, seu plano será ativado automaticamente!'
-        : `Acesso total liberado até: ${user.planExpiresAt ? new Date(user.planExpiresAt).toLocaleDateString("pt-BR") : "Data Indefinida"}`;
-      const nextStep = isPending
-        ? 'Assim que confirmado, conecte sua conta do Instagram para liberar todos os recursos.'
-        : 'Agora conecte sua conta do Instagram e conclua o onboarding.';
+  const isPending = user.planStatus === "pending";
+  const isActive = user.planStatus === "active";
+
+  if (isActive) {
+      const bgColor = 'bg-green-50';
+      const textColor = 'text-green-800';
+      const borderColor = 'border-green-300';
+      const IconComponent = FaCheckCircle;
+      const iconColor = 'text-green-600';
+      const title = 'Seu plano está ativo!';
+      const description = `Acesso total liberado até: ${user.planExpiresAt ? new Date(user.planExpiresAt).toLocaleDateString("pt-BR") : "Data Indefinida"}`;
+      const nextStep = 'Agora conecte sua conta do Instagram e conclua o onboarding.';
 
       return (
-         <div className={`border ${borderColor} rounded-xl shadow-sm p-4 sm:p-6 ${bgColor} ${textColor}`}> 
-            <div className="flex items-center gap-3 mb-2"> 
-               <IconComponent className={`w-6 h-6 ${iconColor} flex-shrink-0 ${isPending ? 'animate-spin' : ''}`} /> 
-               <h2 className="text-lg font-semibold">{title}</h2> 
-           </div> 
-           <p className={`text-sm mb-1 ${isPending ? 'pl-9' : 'pl-9'}`}> 
-             {isPending ? description : <>{description.split(':')[0]}: <strong className="font-medium">{description.split(':')[1]}</strong></>} 
-           </p> 
+         <div className={`border ${borderColor} rounded-xl shadow-sm p-4 sm:p-6 ${bgColor} ${textColor}`}>
+            <div className="flex items-center gap-3 mb-2">
+               <IconComponent className={`w-6 h-6 ${iconColor} flex-shrink-0`} />
+               <h2 className="text-lg font-semibold">{title}</h2>
+           </div>
+           <p className="text-sm mb-1 pl-9">
+             {description.split(':')[0]}: <strong className="font-medium">{description.split(':')[1]}</strong>
+           </p>
            <p className="text-sm mt-2 pl-9">{nextStep}</p>
-         </div> 
+         </div>
        );
   }
 
@@ -320,6 +318,20 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
 
   return (
     <div className="space-y-8 sm:space-y-10 font-sans">
+      {isPending && (
+        <div className={`border border-yellow-300 rounded-xl shadow-sm p-4 sm:p-6 bg-yellow-50 text-yellow-800`}>
+          <div className="flex items-center gap-3 mb-2">
+            <FaSpinner className="w-6 h-6 text-yellow-600 flex-shrink-0 animate-spin" />
+            <h2 className="text-lg font-semibold">Pagamento Pendente</h2>
+          </div>
+          <p className="text-sm mb-1 pl-9">
+            Estamos aguardando a confirmação do seu pagamento. Assim que for aprovado, seu plano será ativado automaticamente!
+          </p>
+          <p className="text-sm mt-2 pl-9">
+            Assim que confirmado, conecte sua conta do Instagram para liberar todos os recursos.
+          </p>
+        </div>
+      )}
       <motion.div
          variants={sectionVariants} initial="hidden" animate="visible" custom={videoIndex}
       >
