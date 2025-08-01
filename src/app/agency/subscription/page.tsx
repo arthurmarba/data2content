@@ -81,7 +81,7 @@ export default function AgencySubscriptionPage() {
               onChange={() => setSelectedPlan('annual')}
             />
             <span>
-              Plano Anual - R$ {AGENCY_ANNUAL_MONTHLY_PRICE.toFixed(2).replace('.', ',')}/mês
+              Plano Anual - R$ {(AGENCY_ANNUAL_MONTHLY_PRICE * 12).toFixed(2).replace('.', ',')}/ano
             </span>
           </label>
         </div>

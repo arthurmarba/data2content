@@ -139,9 +139,9 @@ export async function POST(req: NextRequest) {
       external_reference: user._id.toString(), // Utilizado para o webhook
       payer_email: user.email,
       auto_recurring: {
-        frequency: 1,
+        frequency: planType === "annual" ? 12 : 1,
         frequency_type: "months",
-        transaction_amount: monthlyPrice,
+        transaction_amount: planType === "annual" ? price : monthlyPrice,
         currency_id: "BRL",
       },
     } as any;
