@@ -125,9 +125,17 @@ export async function POST(req: NextRequest) {
     await user.save();
 
     // 8) Cria a assinatura no Mercado Pago
+    const appUrl =
+      process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL;
+    if (!appUrl) {
+      throw new Error(
+        "NEXT_PUBLIC_APP_URL ou NEXTAUTH_URL não está definida"
+      );
+    }
+
     const preapprovalData = {
       reason: planType === "annual" ? "Plano Anual" : "Plano Mensal",
-      back_url: "https://seusite.com/dashboard",
+      back_url: `${appUrl}/dashboard`,
       external_reference: user._id.toString(), // Utilizado para o webhook
       payer_email: user.email,
       auto_recurring: {
