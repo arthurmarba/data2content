@@ -376,12 +376,14 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
           </div>
           <div className="flex items-baseline justify-center space-x-1 text-brand-dark mt-2">
               <span className="text-2xl font-medium">R$</span>
-              <span className="text-6xl font-extrabold tracking-tight leading-none text-brand-pink">{selectedMonthlyPrice.toFixed(2).replace('.', ',')}</span>
-              <span className="text-xl font-medium text-brand-dark/80">/mês</span>
+              <span className="text-6xl font-extrabold tracking-tight leading-none text-brand-pink">
+                {(planType === 'annual' ? totalPrice : selectedMonthlyPrice).toFixed(2).replace('.', ',')}
+              </span>
+              <span className="text-xl font-medium text-brand-dark/80">{planType === 'annual' ? '/ano' : '/mês'}</span>
           </div>
           {planType === 'annual' && (
             <p className="text-xs text-brand-dark/70 mt-1">
-              Cobrança anual de R$ {totalPrice.toFixed(2).replace('.', ',')}
+              Equivalente a R$ {selectedMonthlyPrice.toFixed(2).replace('.', ',')}/mês
             </p>
           )}
           <p className="text-sm text-brand-dark/70 mt-2 font-light">

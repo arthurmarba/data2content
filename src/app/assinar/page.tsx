@@ -50,10 +50,9 @@ export default function PublicSubscribePage() {
             </strong>{' '}
             e o plano anual por{' '}
             <strong>
-              R${AGENCY_GUEST_ANNUAL_MONTHLY_PRICE.toFixed(2).replace('.', ',')}
-              /mês
+              R${(AGENCY_GUEST_ANNUAL_MONTHLY_PRICE * 12).toFixed(2).replace('.', ',')}
             </strong>{' '}
-            (cobrado anualmente).
+            pagos uma vez ao ano.
           </p>
         </div>
       ) : (
@@ -64,7 +63,7 @@ export default function PublicSubscribePage() {
               Plano Mensal - R${MONTHLY_PRICE.toFixed(2).replace('.', ',')}/mês
             </li>
             <li>
-              Plano Anual - R${ANNUAL_MONTHLY_PRICE.toFixed(2).replace('.', ',')}/mês (cobrança anual)
+              Plano Anual - R${(ANNUAL_MONTHLY_PRICE * 12).toFixed(2).replace('.', ',')}/ano
             </li>
           </ul>
         </div>
