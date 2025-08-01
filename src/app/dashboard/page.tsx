@@ -566,7 +566,7 @@ interface ExtendedUser {
                         <p className="text-base text-gray-600 font-light mb-4">Pronto para otimizar sua carreira de criador?</p>
                         {!canAccessFeatures && (
                           <StepIndicator
-                            planActive={planStatus === 'active' || planStatus === 'pending'}
+                          planActive={planStatus === 'pending'}
                             instagramConnected={!!user.isInstagramConnected}
                             whatsappConnected={!!user.whatsappVerified}
                           />
