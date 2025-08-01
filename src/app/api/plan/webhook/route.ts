@@ -264,6 +264,41 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true }, { status: 200 });
     }
 
+    // ------------------------------------------------------------------
+    // Eventos de assinatura (preapproval)
+    // ------------------------------------------------------------------
+    if (eventType === "preapproval") {
+      const subscriptionId = body.data?.id || body.data?.subscription_id;
+      if (!subscriptionId) {
+        return NextResponse.json({ error: "subscription_id ausente" }, { status: 200 });
+      }
+
+      const user = await User.findOne({ paymentGatewaySubscriptionId: subscriptionId });
+      if (!user) {
+        console.error(`[plan/webhook] Usuário não encontrado para subscription ${subscriptionId}`);
+        return NextResponse.json({ error: "Usuário não encontrado" }, { status: 200 });
+      }
+
+      // Evita reprocessamento
+      const eventId = body.data.id;
+      if (user.lastProcessedPaymentId === eventId) {
+        return NextResponse.json({ received: true, alreadyProcessed: true }, { status: 200 });
+      }
+
+      const { body: preapproval } = await mercadopago.preapproval.get(subscriptionId);
+      if (preapproval.status === 'authorized' || preapproval.status === 'active') {
+        user.planStatus = 'active';
+      } else if (preapproval.status === 'cancelled') {
+        user.planStatus = 'canceled';
+      } else if (preapproval.status === 'paused' || preapproval.status === 'suspended') {
+        user.planStatus = 'inactive';
+      }
+
+      user.lastProcessedPaymentId = eventId;
+      await user.save();
+      return NextResponse.json({ received: true }, { status: 200 });
+    }
+
     // Tipo de evento não tratado
     return NextResponse.json({ received: true, nonPayment: true }, { status: 200 });
 
