@@ -1,5 +1,5 @@
 /**
- * @fileoverview Serviço para calcular a eficácia do Radar Tuca.
+ * @fileoverview Serviço para calcular a eficácia do Radar Mobi.
  * @version 1.0.0
  */
 
@@ -15,7 +15,7 @@ const SERVICE_TAG = '[dataService][radarService]';
 
 /**
  * @function fetchTucaRadarEffectiveness
- * @description Calculates the effectiveness of Tuca Radar alerts based on user interactions.
+ * @description Calculates the effectiveness of Mobi Radar alerts based on user interactions.
  * @param {IFetchTucaRadarEffectivenessArgs} args - Arguments defining the alert type and period.
  * @returns {Promise<ITucaRadarEffectivenessResult[]>} - An array of effectiveness results.
  */
@@ -65,7 +65,7 @@ export async function fetchTucaRadarEffectiveness(args: IFetchTucaRadarEffective
         const results = await UserModel.aggregate(aggregationPipeline);
         return results;
     } catch (error: any) {
-        logger.error(`${TAG} Erro ao calcular eficácia do Radar Tuca:`, error);
+        logger.error(`${TAG} Erro ao calcular eficácia do Radar Mobi:`, error);
         throw new DatabaseError(`Falha ao buscar dados de eficácia dos alertas: ${error.message}`);
     }
 }

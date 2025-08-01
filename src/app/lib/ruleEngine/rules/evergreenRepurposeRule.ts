@@ -217,7 +217,7 @@ export const evergreenRepurposeRule: IRule = {
         
         // --- CORREÇÃO AQUI ---
         // Incluído o 'originalPost.postLink' para garantir que a IA tenha o link correto para incluir na mensagem final.
-        const messageForAI = `Radar Tuca Recomenda: Lembra daquele seu post sobre "${postDescriptionExcerpt}" (${originalPost.postLink}) que teve um ótimo desempenho (${originalPostMetricName}: ${originalPostMetricValue.toFixed(0)})? O conteúdo parece ainda ser super relevante! ${suggestionText}`;
+        const messageForAI = `Radar Mobi Recomenda: Lembra daquele seu post sobre "${postDescriptionExcerpt}" (${originalPost.postLink}) que teve um ótimo desempenho (${originalPostMetricName}: ${originalPostMetricValue.toFixed(0)})? O conteúdo parece ainda ser super relevante! ${suggestionText}`;
 
         return {
             type: RULE_ID,

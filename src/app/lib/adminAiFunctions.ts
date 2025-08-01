@@ -218,7 +218,7 @@ const tools = {
   
   getTucaRadarEffectiveness: defineAdminTool(
     'getTucaRadarEffectiveness',
-    'Mede a eficácia dos alertas do Radar Tuca, analisando as interações dos usuários com eles.',
+    'Mede a eficácia dos alertas do Radar Mobi, analisando as interações dos usuários com eles.',
     z.object({
         alertType: z.string().optional().describe("Opcional. Filtra a análise para um tipo de alerta específico. Ex: 'PeakShares'."),
         periodDays: z.number().default(30).describe("Período de análise em dias. Padrão: 30."),

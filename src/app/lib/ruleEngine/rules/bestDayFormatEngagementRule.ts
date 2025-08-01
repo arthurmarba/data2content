@@ -258,7 +258,7 @@ export const bestDayFormatEngagementRule: IRule = {
             metricDisplayName = 'impressões';
         }
 
-        const messageForAI = `Radar Tuca de olho! Percebi que seus posts no formato **${format}** costumam ter um ótimo desempenho de ${metricDisplayName} às **${dayOfWeek}s**, cerca de ${percentageSuperior.toFixed(0)}% acima da média para esse formato! Faz ${daysSinceLastUsedInSlot} dias que você não posta um "${format}" nesse dia. Que tal planejar algo para a próxima ${dayOfWeek}?`;
+        const messageForAI = `Radar Mobi de olho! Percebi que seus posts no formato **${format}** costumam ter um ótimo desempenho de ${metricDisplayName} às **${dayOfWeek}s**, cerca de ${percentageSuperior.toFixed(0)}% acima da média para esse formato! Faz ${daysSinceLastUsedInSlot} dias que você não posta um "${format}" nesse dia. Que tal planejar algo para a próxima ${dayOfWeek}?`;
 
         return {
             type: RULE_ID,

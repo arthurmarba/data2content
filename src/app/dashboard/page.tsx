@@ -388,7 +388,7 @@ interface ExtendedUser {
     { id: 'intro-plataforma', title: 'Bem-vindo à Data2Content!', youtubeVideoId: 'BHACKCNDMW8' },
     { id: 'upload-metrics-guide', title: 'Como Enviar suas Métricas', youtubeVideoId: '_dpB7R6csAE' },
     { id: 'afiliados-explainer', title: 'Entenda o Programa de Afiliados', youtubeVideoId: 'I7hJJkF00hU' },
-    { id: 'whatsapp-tuca', title: 'Conectando ao Tuca no WhatsApp', youtubeVideoId: 'iG9CE55wbtY' },
+    { id: 'whatsapp-mobi', title: 'Conectando ao Mobi no WhatsApp', youtubeVideoId: 'iG9CE55wbtY' },
     { id: 'seguranca-dados', title: 'Como Cuidamos dos Seus Dados', youtubeVideoId: 'eX2qFMC8cFo' },
   ];
 
@@ -604,9 +604,9 @@ interface ExtendedUser {
                 </motion.section>
               </div>
 
-              {/* Consultor IA Tuca (WhatsApp) */}
+              {/* Consultor IA Mobi (WhatsApp) */}
               <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={1}>
-                  <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Consultor IA Tuca (WhatsApp)</h2>
+                  <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Consultor IA Mobi (WhatsApp)</h2>
                   <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
                     <WhatsAppPanel
                         userId={userId}

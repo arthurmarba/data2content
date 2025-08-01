@@ -284,7 +284,7 @@ export async function addUserKeyFact(
 }
 
 /**
- * Adiciona uma nova entrada ao histórico de alertas do Radar Tuca para um utilizador.
+ * Adiciona uma nova entrada ao histórico de alertas do Radar Mobi para um utilizador.
  * @param userId - O ID do utilizador.
  * @param alertEntry - O objeto da entrada de alerta a ser adicionado.
  * @returns O documento do utilizador atualizado ou null se o utilizador não for encontrado.

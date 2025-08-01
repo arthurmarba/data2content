@@ -496,8 +496,8 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
           {/* --- TEXTO ATUALIZADO --- */}
           <p className={`text-xs text-gray-500 mt-4 ${isEffectivelyInstagramConnected ? '' : 'border-t pt-3'}`}>
             {isEffectivelyInstagramConnected
-            ? 'Piloto automático ativado! Seus novos posts serão cadastrados e analisados pelo Tuca sem esforço.'
-            : 'Conecte seu Instagram e ative o piloto automático! O Tuca passa a cadastrar e analisar seus posts para você, sem esforço.'
+            ? 'Piloto automático ativado! Seus novos posts serão cadastrados e analisados pelo Mobi sem esforço.'
+            : 'Conecte seu Instagram e ative o piloto automático! O Mobi passa a cadastrar e analisar seus posts para você, sem esforço.'
           }
           </p>
         </div>

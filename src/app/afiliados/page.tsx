@@ -47,7 +47,7 @@ export default function AffiliateProgramPage() {
         <title>Programa de Afiliados - Data2Content</title>
         <meta
           name="description"
-          content="Entenda como funciona o programa de afiliados da Data2Content e comece a ganhar indicando novos criadores para o Tuca."
+          content="Entenda como funciona o programa de afiliados da Data2Content e comece a ganhar indicando novos criadores para o Mobi."
         />
       </Head>
 
@@ -64,7 +64,7 @@ export default function AffiliateProgramPage() {
               Programa de Afiliados Data2Content
             </h1>
             <p className="text-lg sm:text-xl max-w-2xl mx-auto opacity-90">
-              Indique o Tuca para outros criadores de conteúdo e seja recompensado!
+              Indique o Mobi para outros criadores de conteúdo e seja recompensado!
               Transforme sua rede de contatos em uma fonte de renda.
             </p>
           </motion.div>
@@ -79,10 +79,10 @@ export default function AffiliateProgramPage() {
           </p>
           <ol className="list-decimal list-inside space-y-2 mt-3 pl-2">
             <li>
-              <strong>Partilhe o seu Código ou Link:</strong> Divulgue o seu código ou link de afiliado com criadores de conteúdo que possam beneficiar do Tuca.
+              <strong>Partilhe o seu Código ou Link:</strong> Divulgue o seu código ou link de afiliado com criadores de conteúdo que possam beneficiar do Mobi.
             </li>
             <li>
-              <strong>O seu Indicado Assina:</strong> Quando um novo utilizador assina um plano do Tuca utilizando o seu código de afiliado (ou vindo através do seu link de indicação), você ganha uma comissão.
+              <strong>O seu Indicado Assina:</strong> Quando um novo utilizador assina um plano do Mobi utilizando o seu código de afiliado (ou vindo através do seu link de indicação), você ganha uma comissão.
             </li>
             <li>
               <strong>Receba a sua Comissão:</strong> A comissão é creditada no seu saldo de afiliado na plataforma após a confirmação do pagamento da assinatura do seu indicado.
@@ -154,8 +154,8 @@ export default function AffiliateProgramPage() {
         <InfoCard icon={<FaBullhorn />} title="Dicas para Divulgar">
           <ul className="list-disc list-inside space-y-2 pl-2">
             <li>Partilhe o seu link de afiliado nas suas redes sociais, biografia do Instagram, grupos de WhatsApp ou Telegram com outros criadores.</li>
-            <li>Crie conteúdo mostrando como o Tuca o ajuda e inclua o seu código/link na descrição.</li>
-            <li>Explique os benefícios do Tuca e como ele pode impulsionar a carreira de outros criadores.</li>
+            <li>Crie conteúdo mostrando como o Mobi o ajuda e inclua o seu código/link na descrição.</li>
+            <li>Explique os benefícios do Mobi e como ele pode impulsionar a carreira de outros criadores.</li>
             <li>Lembre os seus indicados de usarem o seu código para garantir o desconto de 10% na primeira assinatura deles!</li>
           </ul>
         </InfoCard>

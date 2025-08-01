@@ -47,7 +47,7 @@ export interface PostObject {
 }
 
 /**
- * Estrutura para um evento detectado pelo Radar Tuca,
+ * Estrutura para um evento detectado pelo Radar Mobi,
  * a ser usado para gerar a mensagem para a IA e para logs.
  */
 export interface DetectedEvent {

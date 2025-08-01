@@ -226,7 +226,7 @@ export async function detectPeakPerformanceShares(
                 
                 const detectedEvent: DetectedEvent = {
                     type: alertType,
-                    messageForAI: `Radar Tuca detectou: Seu post ${postDescriptionForAI} teve um pico de ${peakSharesValue} compartilhamentos no Dia ${peakSharesDay}, significativamente acima da sua média habitual (${averageSharesFirst3Days.toFixed(1)} shares nos primeiros dias). Isso é um ótimo sinal de que o conteúdo ressoou fortemente!`,
+                    messageForAI: `Radar Mobi detectou: Seu post ${postDescriptionForAI} teve um pico de ${peakSharesValue} compartilhamentos no Dia ${peakSharesDay}, significativamente acima da sua média habitual (${averageSharesFirst3Days.toFixed(1)} shares nos primeiros dias). Isso é um ótimo sinal de que o conteúdo ressoou fortemente!`,
                     detailsForLog: detailsForLog
                 };
                 logger.info(`${detectionTAG} '${alertType}' DETECTADO. ${JSON.stringify(detectedEvent.detailsForLog)}`);
@@ -347,7 +347,7 @@ export async function detectUnexpectedDropReelsWatchTime(
 
             const detectedEvent: DetectedEvent = {
                 type: alertType,
-                messageForAI: `Radar Tuca detectou: O tempo médio de visualização dos seus Reels mais recentes está em torno de ${currentAverageReelsWatchTime.toFixed(0)}s. Isso é um pouco abaixo da sua média histórica de ${historicalAverageReelsWatchTime.toFixed(0)}s. Pode ser um sinal para revisitar as introduções ou o ritmo desses Reels.`,
+                messageForAI: `Radar Mobi detectou: O tempo médio de visualização dos seus Reels mais recentes está em torno de ${currentAverageReelsWatchTime.toFixed(0)}s. Isso é um pouco abaixo da sua média histórica de ${historicalAverageReelsWatchTime.toFixed(0)}s. Pode ser um sinal para revisitar as introduções ou o ritmo desses Reels.`,
                 detailsForLog: detailsForLog
             };
             logger.info(`${detectionTAG} '${alertType}' DETECTADO. ${JSON.stringify(detectedEvent.detailsForLog)}`);
@@ -477,7 +477,7 @@ export async function detectForgottenPromisingFormat(
 
                 const detectedEvent: DetectedEvent = {
                     type: alertType,
-                    messageForAI: `Radar Tuca de olho! 👀 Percebi que faz uns ${bestForgottenFormatInfo.daysSinceLastUsed} dias que você não usa o formato **${bestForgottenFormatInfo.format}**. No passado, posts nesse formato tiveram um desempenho (${metricDisplayName}) em média ${percentageSuperior.toFixed(0)}% superior à sua média geral (${bestForgottenFormatInfo.avgMetric.toFixed(1)} vs ${overallAvgPerformance.toFixed(1)} ${metricDisplayName}). Que tal revisitar esse formato?`,
+                    messageForAI: `Radar Mobi de olho! 👀 Percebi que faz uns ${bestForgottenFormatInfo.daysSinceLastUsed} dias que você não usa o formato **${bestForgottenFormatInfo.format}**. No passado, posts nesse formato tiveram um desempenho (${metricDisplayName}) em média ${percentageSuperior.toFixed(0)}% superior à sua média geral (${bestForgottenFormatInfo.avgMetric.toFixed(1)} vs ${overallAvgPerformance.toFixed(1)} ${metricDisplayName}). Que tal revisitar esse formato?`,
                     detailsForLog: detailsForLog
                 };
                 logger.info(`${detectionTAG} '${alertType}' DETECTADO. ${JSON.stringify(detectedEvent.detailsForLog)}`);
@@ -643,7 +643,7 @@ export async function detectUntappedPotentialTopic(
 
                     const detectedEvent: DetectedEvent = {
                         type: alertType,
-                        messageForAI: `Radar Tuca detectou: Lembra do seu post "${oldPost.description ? oldPost.description.substring(0, 70) + "..." : "um post anterior"}" (classificado como ${oldPost.format || 'N/D'})? Ele teve um ótimo desempenho (${performanceValue.toFixed(0)} ${metricDisplayName}) há cerca de ${daysSincePosted} dias, superando a média recente de posts similares (${refAvgPerfNumber.toFixed(1)})! Parece que o tema/formato (Proposta: ${oldPost.proposal || 'N/D'} / Contexto: ${oldPost.context || 'N/D'}) ressoou bem e não foi revisitado. Que tal explorar essa ideia novamente?`,
+                        messageForAI: `Radar Mobi detectou: Lembra do seu post "${oldPost.description ? oldPost.description.substring(0, 70) + "..." : "um post anterior"}" (classificado como ${oldPost.format || 'N/D'})? Ele teve um ótimo desempenho (${performanceValue.toFixed(0)} ${metricDisplayName}) há cerca de ${daysSincePosted} dias, superando a média recente de posts similares (${refAvgPerfNumber.toFixed(1)})! Parece que o tema/formato (Proposta: ${oldPost.proposal || 'N/D'} / Contexto: ${oldPost.context || 'N/D'}) ressoou bem e não foi revisitado. Que tal explorar essa ideia novamente?`,
                         detailsForLog: detailsForLog 
                     };
                     logger.info(`${detectionTAG} '${alertType}' DETECTADO. ${JSON.stringify(detailsForLog)}`);
@@ -746,7 +746,7 @@ export async function detectEngagementPeakNotCapitalized(
 
                 const detectedEvent: DetectedEvent = {
                     type: alertType,
-                    messageForAI: `Radar Tuca detectou: Seu post ${postDescriptionForAI} gerou bastante conversa, com ${postComments} comentários! Isso é bem acima da sua média de ${averageComments.toFixed(1)}. Parece que sua audiência tem perguntas ou muito interesse no tema. Já considerou fazer um conteúdo de follow-up ou responder mais diretamente aos comentários para manter essa chama acesa?`,
+                    messageForAI: `Radar Mobi detectou: Seu post ${postDescriptionForAI} gerou bastante conversa, com ${postComments} comentários! Isso é bem acima da sua média de ${averageComments.toFixed(1)}. Parece que sua audiência tem perguntas ou muito interesse no tema. Já considerou fazer um conteúdo de follow-up ou responder mais diretamente aos comentários para manter essa chama acesa?`,
                     detailsForLog: detailsForLog
                 };
                 logger.info(`${detectionTAG} '${alertType}' DETECTADO. ${JSON.stringify(detailsForLog)}`);

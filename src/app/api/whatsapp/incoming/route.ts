@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
                 userWithCode.whatsappVerified = true;
                 await userWithCode.save();
                 const userFirstNameForReply = userWithCode.name ? userWithCode.name.split(' ')[0] : '';
-                reply = `Olá ${userFirstNameForReply}, me chamo Tuca! Seu número de WhatsApp (${fromPhone}) foi vinculado com sucesso à sua conta. A partir de agora serei seu assistente de métricas e insights via WhatsApp. 👋
+                reply = `Olá ${userFirstNameForReply}, me chamo Mobi! Seu número de WhatsApp (${fromPhone}) foi vinculado com sucesso à sua conta. A partir de agora serei seu assistente de métricas e insights via WhatsApp. 👋
 Vou acompanhar em tempo real o desempenho dos seus conteúdos, enviar resumos diários com os principais indicadores e sugerir dicas práticas para você melhorar seu engajamento. Sempre que quiser consultar alguma métrica, receber insights sobre seus posts ou configurar alertas personalizados, é só me chamar por aqui. Estou à disposição para ajudar você a crescer de forma inteligente!
 Você pode começar me pedindo um planejamento de conteudo que otimize seu alcance. :)`;
                 logger.info(`${verifyTag} Número ${fromPhone} vinculado com sucesso ao usuário ${userWithCode._id}.`);
@@ -207,7 +207,7 @@ Você pode começar me pedindo um planejamento de conteudo que otimize seu alcan
 
   if (user.planStatus !== 'active') {
       try {
-          await sendWhatsAppMessage(fromPhone, `Olá ${userFirstName}! Seu plano está ${user.planStatus}. Para continuar usando a Tuca, reative seu plano em nosso site.`);
+          await sendWhatsAppMessage(fromPhone, `Olá ${userFirstName}! Seu plano está ${user.planStatus}. Para continuar usando o Mobi, reative seu plano em nosso site.`);
       } catch (sendError) {
           logger.error(`${postTag} Falha ao enviar mensagem de plano inativo:`, sendError);
       }

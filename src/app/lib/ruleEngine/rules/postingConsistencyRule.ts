@@ -153,7 +153,7 @@ export const postingConsistencyRule: IRule = {
             lastPostContext: lastPost?.context
         };
         
-        let messageForAI = `Radar Tuca Alerta: Percebi que já faz ${daysSinceLastPost} dias desde o seu último post. `;
+        let messageForAI = `Radar Mobi Alerta: Percebi que já faz ${daysSinceLastPost} dias desde o seu último post. `;
         if (previousAverageFrequencyDays && previousAverageFrequencyDays > 0 && previousAverageFrequencyDays < 15) { 
             messageForAI += `Antes, você costumava postar em média a cada ${previousAverageFrequencyDays.toFixed(0)} dias. Manter uma consistência pode ajudar muito seu alcance e engajamento. Aconteceu algo ou precisa de ideias?`;
         } else {

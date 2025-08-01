@@ -213,7 +213,7 @@ export const forgottenFormatRule: IRule = {
             metricDisplayName = 'visualizações';
         }
 
-        const messageForAI = `Radar Tuca de olho! 👀 Percebi que faz uns ${daysSinceLastUsed} dias que você não usa o formato **${format}**. No passado, posts nesse formato tiveram um desempenho (${metricDisplayName}) em média ${percentageSuperior.toFixed(0)}% superior à sua média geral (${avgMetric.toFixed(0)} vs ${overallAvgPerformance.toFixed(0)} ${metricDisplayName}). Que tal revisitar esse formato?`;
+        const messageForAI = `Radar Mobi de olho! 👀 Percebi que faz uns ${daysSinceLastUsed} dias que você não usa o formato **${format}**. No passado, posts nesse formato tiveram um desempenho (${metricDisplayName}) em média ${percentageSuperior.toFixed(0)}% superior à sua média geral (${avgMetric.toFixed(0)} vs ${overallAvgPerformance.toFixed(0)} ${metricDisplayName}). Que tal revisitar esse formato?`;
 
         return {
             type: RULE_ID,

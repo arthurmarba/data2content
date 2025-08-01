@@ -205,7 +205,7 @@ export const peakPerformanceSharesRule: IRule = {
 
         // --- CORREÇÃO AQUI ---
         // Incluído o 'post.postLink' para garantir que a IA tenha o link correto para incluir na mensagem final.
-        const messageForAI = `Radar Tuca detectou: Seu post ${postDescriptionForAI} (${post.postLink}) teve um pico de ${peakSharesValue} compartilhamentos no Dia ${peakSharesDay}, significativamente acima da sua média habitual (${averageSharesFirst3Days.toFixed(1)} shares nos primeiros dias). Isso é um ótimo sinal de que o conteúdo ressoou fortemente!`;
+        const messageForAI = `Radar Mobi detectou: Seu post ${postDescriptionForAI} (${post.postLink}) teve um pico de ${peakSharesValue} compartilhamentos no Dia ${peakSharesDay}, significativamente acima da sua média habitual (${averageSharesFirst3Days.toFixed(1)} shares nos primeiros dias). Isso é um ótimo sinal de que o conteúdo ressoou fortemente!`;
 
         return {
             type: RULE_ID, 

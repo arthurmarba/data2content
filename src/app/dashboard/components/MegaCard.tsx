@@ -72,7 +72,7 @@ export default function MegaCard() {
         <IndicatorsGrid indicators={indicators} />
       </div>
 
-      {/* Eficácia do Radar Tuca */}
+      {/* Eficácia do Radar Mobi */}
       <div>
         <RadarEffectivenessWidget />
       </div>

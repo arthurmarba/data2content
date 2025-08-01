@@ -154,11 +154,11 @@ async function extractContextFromRadarResponse(
     }
 
     const prompt = `
-Dada a seguinte resposta de um assistente de IA chamado Tuca, identifique concisamente:
-1. O tópico principal da resposta de Tuca (em até 10 palavras).
-2. As principais entidades ou termos chave mencionados por Tuca (liste até 3-4 termos).
+Dada a seguinte resposta de um assistente de IA chamado Mobi, identifique concisamente:
+1. O tópico principal da resposta de Mobi (em até 10 palavras).
+2. As principais entidades ou termos chave mencionados por Mobi (liste até 3-4 termos).
 
-Resposta de Tuca:
+Resposta de Mobi:
 ---
 ${trimmedResponseText.substring(0, 1500)} ${trimmedResponseText.length > 1500 ? "\n[...resposta truncada...]" : ""}
 ---
@@ -169,7 +169,7 @@ JSON:
 `;
 
     try {
-        logger.debug(`${TAG} Solicitando extração de contexto para a resposta do Radar Tuca...`);
+        logger.debug(`${TAG} Solicitando extração de contexto para a resposta do Radar Mobi...`);
         const modelForExtraction = (typeof CONTEXT_EXTRACTION_MODEL !== 'undefined' ? CONTEXT_EXTRACTION_MODEL : process.env.CONTEXT_EXTRACTION_MODEL) || 'gpt-3.5-turbo';
         const tempForExtraction = (typeof CONTEXT_EXTRACTION_TEMP !== 'undefined' ? CONTEXT_EXTRACTION_TEMP : Number(process.env.CONTEXT_EXTRACTION_TEMP)) ?? 0.2;
         const maxTokensForExtraction = (typeof CONTEXT_EXTRACTION_MAX_TOKENS !== 'undefined' ? CONTEXT_EXTRACTION_MAX_TOKENS : Number(process.env.CONTEXT_EXTRACTION_MAX_TOKENS)) || 150;
@@ -237,17 +237,17 @@ async function generateInstigatingQuestionForDefaultMessage(
     const lastRadarAlertType = dialogueState.lastRadarAlertType || 'Nenhum alerta recente.';
 
     const prompt = `
-Você é Tuca, um consultor de IA especialista em Instagram, e está enviando uma mensagem proativa diária para ${userName}.
+Você é Mobi, um consultor de IA especialista em Instagram, e está enviando uma mensagem proativa diária para ${userName}.
 Sua mensagem base para ${userName} foi:
 "${baseMessage}"
 
 Para tornar essa mensagem mais engajadora e incentivar ${userName} a interagir, formule UMA pergunta curta (1-2 frases), aberta e instigante (em português brasileiro) que o convide a:
-1. Explorar alguma funcionalidade geral do Tuca que ele talvez não conheça.
+1. Explorar alguma funcionalidade geral do Mobi que ele talvez não conheça.
 2. Refletir sobre seus objetivos de conteúdo atuais.
 3. Pedir uma análise de dados que não seja um "alerta", mas que possa ser útil (ex: "Como foi o alcance dos seus últimos Reels?", "Quer ver um resumo do seu crescimento de seguidores este mês?").
 4. Considerar um tipo de conteúdo ou estratégia que ele pode não ter explorado recentemente.
 
-A pergunta NÃO deve ser uma simples confirmação. Deve genuinamente levar o usuário a pensar e a querer usar o Tuca para investigar mais.
+A pergunta NÃO deve ser uma simples confirmação. Deve genuinamente levar o usuário a pensar e a querer usar o Mobi para investigar mais.
 Evite perguntas que pareçam genéricas demais ou que já tenham sido feitas recentemente.
 Se, após um esforço genuíno, não conseguir pensar em uma pergunta instigante e útil que se encaixe bem após a mensagem base, responda APENAS com a palavra "NO_QUESTION".
 
@@ -639,7 +639,7 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
     
     const { userId } = payload;
     const handlerTAG = `${HANDLER_TAG_BASE} User ${userId}:`;
-    logger.info(`${handlerTAG} Iniciando processamento do Radar Tuca com Templates...`);
+    logger.info(`${handlerTAG} Iniciando processamento do Radar Mobi com Templates...`);
 
     let userForRadar: IUser | null = null;
     let userPhoneForRadar: string | null | undefined;
@@ -675,7 +675,7 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
         if (!detectedEvent) {
             logger.info(`${handlerTAG} Nenhum evento detectado. Gerando insight de fallback...`);
             
-            let baseDefaultMessage = `Olá ${userFirstNameForRadar}, Tuca na área! 👋`;
+            let baseDefaultMessage = `Olá ${userFirstNameForRadar}, Mobi na área! 👋`;
             let enrichedReportForFallback: IEnrichedReport | null = null;
             let latestAccountInsightsForFallback: IAccountInsight | null = null;
 
@@ -851,7 +851,7 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
         }
 
         if (!finalAIResponse.trim()) {
-            finalAIResponse = `Olá ${userFirstNameForRadar}! Radar Tuca aqui com uma observação sobre ${detectedEvent.type}: ${alertInputForAI} Que tal explorarmos isso juntos?`;
+            finalAIResponse = `Olá ${userFirstNameForRadar}! Radar Mobi aqui com uma observação sobre ${detectedEvent.type}: ${alertInputForAI} Que tal explorarmos isso juntos?`;
         }
 
         const instigatingQuestionForAlert = await generateInstigatingQuestionForDefaultMessage(
@@ -920,7 +920,7 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
         return NextResponse.json({ success: true, message: `Radar alert '${detectedEvent.type}' processed via template.` }, { status: 200 });
 
     } catch (error) {
-        logger.error(`${handlerTAG} Erro GERAL ao processar Radar Tuca para User ${userId}:`, error);
+        logger.error(`${handlerTAG} Erro GERAL ao processar Radar Mobi para User ${userId}:`, error);
 
         if (userPhoneForRadar) {
             try {
@@ -938,9 +938,9 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
                 lastInteraction: Date.now(),
                 lastResponseContext: null,
                 fallbackInsightsHistory: currentDialogueStateOnError?.fallbackInsightsHistory || [] 
-            }).catch(stateErr => logger.error(`${handlerTAG} Falha ao atualizar estado após erro geral do Radar Tuca:`, stateErr));
+            }).catch(stateErr => logger.error(`${handlerTAG} Falha ao atualizar estado após erro geral do Radar Mobi:`, stateErr));
         }
 
-        return NextResponse.json({ error: `Failed to process Radar Tuca: ${error instanceof Error ? error.message : String(error)}` }, { status: 500 });
+        return NextResponse.json({ error: `Failed to process Radar Mobi: ${error instanceof Error ? error.message : String(error)}` }, { status: 500 });
     }
 }

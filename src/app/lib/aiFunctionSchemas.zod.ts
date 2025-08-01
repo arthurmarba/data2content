@@ -196,7 +196,7 @@ export const FetchCommunityInspirationsArgsSchema = z.object({
     .describe(`Opcional. O objetivo qualitativo principal que a inspiração deve ter demonstrado. Valores válidos: ${VALID_QUALITATIVE_OBJECTIVES.join(', ')}`),
   count: z.number().int().min(1).max(3).optional().default(2)
     .describe("Número de exemplos de inspiração a retornar (padrão 2, mínimo 1, máximo 3).")
-}).strict().describe("Argumentos para buscar inspirações na comunidade de criadores IA Tuca.");
+}).strict().describe("Argumentos para buscar inspirações na comunidade de criadores IA Mobi.");
 
 
 // --- Mapa de Validadores ---

@@ -240,9 +240,9 @@ export const newFormatPerformanceRule: IRule = {
 
 
         if (isPositiveAlert) {
-            messageForAI = `Radar Tuca de Olho na Inovação! ✨ Seu novo formato de conteúdo "${formatName}" está com um desempenho incrível! Com ${numberOfPostsInNewFormat} post(s) analisado(s), a média de ${metricDisplayName} foi de ${avgPerformanceNewFormat.toFixed(0)}, cerca de ${percentageDiff.toFixed(0)}% acima da sua média de referência (${referenceAvgPerformance.toFixed(0)}). Parece que sua audiência adorou a novidade! Continue assim!`;
+            messageForAI = `Radar Mobi de Olho na Inovação! ✨ Seu novo formato de conteúdo "${formatName}" está com um desempenho incrível! Com ${numberOfPostsInNewFormat} post(s) analisado(s), a média de ${metricDisplayName} foi de ${avgPerformanceNewFormat.toFixed(0)}, cerca de ${percentageDiff.toFixed(0)}% acima da sua média de referência (${referenceAvgPerformance.toFixed(0)}). Parece que sua audiência adorou a novidade! Continue assim!`;
         } else {
-            messageForAI = `Radar Tuca Analisando Experimentos! 🔬 Notei que sua recente experiência com o formato "${formatName}" (${numberOfPostsInNewFormat} post(s)) teve um desempenho em ${metricDisplayName} de ${avgPerformanceNewFormat.toFixed(0)}, que ficou cerca de ${percentageDiff.toFixed(0)}% abaixo da sua média de referência (${referenceAvgPerformance.toFixed(0)}). Que tal analisarmos juntos o que pode ter influenciado ou testarmos uma abordagem diferente para este formato?`;
+            messageForAI = `Radar Mobi Analisando Experimentos! 🔬 Notei que sua recente experiência com o formato "${formatName}" (${numberOfPostsInNewFormat} post(s)) teve um desempenho em ${metricDisplayName} de ${avgPerformanceNewFormat.toFixed(0)}, que ficou cerca de ${percentageDiff.toFixed(0)}% abaixo da sua média de referência (${referenceAvgPerformance.toFixed(0)}). Que tal analisarmos juntos o que pode ter influenciado ou testarmos uma abordagem diferente para este formato?`;
         }
 
         return {

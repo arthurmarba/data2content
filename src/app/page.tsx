@@ -387,7 +387,7 @@ export default function FinalCompleteLandingPage() {
                 <div className="max-w-screen-md mx-auto px-6 text-left">
                     <AnimatedSection>
                         <SectionTitle className="text-3xl">Conheça o Fundador da data2content</SectionTitle>
-                        <p className="mt-5 text-lg text-gray-600 leading-relaxed">Arthur Marbá, Fundador da data2content, une 10 anos de marketing digital para criadores a uma herança familiar de 40 anos no agenciamento de talentos. Ele percebeu que criadores precisam de um especialista para traduzir dados em direcionamento estratégico. O Tuca é a personificação dessa filosofia.</p>
+                        <p className="mt-5 text-lg text-gray-600 leading-relaxed">Arthur Marbá, Fundador da data2content, une 10 anos de marketing digital para criadores a uma herança familiar de 40 anos no agenciamento de talentos. Ele percebeu que criadores precisam de um especialista para traduzir dados em direcionamento estratégico. O Mobi é a personificação dessa filosofia.</p>
                         <blockquote className="mt-5 pl-5 border-l-4 border-brand-pink italic text-gray-700 text-lg">
                             "Democratizamos a consultoria estratégica, tornando-a acessível, proativa e capaz de evoluir com cada criador, tudo via WhatsApp."
                             <cite className="mt-4 block text-base font-semibold text-brand-dark not-italic">- Arthur Marbá, Fundador</cite>
@@ -441,7 +441,7 @@ export default function FinalCompleteLandingPage() {
                 <div className="max-w-screen-xl mx-auto px-6 text-left">
                     <AnimatedSection className="max-w-3xl">
                         <SectionTitle className="text-white">Pronto para transformar sua criação de conteúdo?</SectionTitle>
-                        <SectionSubtitle className="text-gray-300">Pare de adivinhar e comece a crescer com estratégia. O Tuca está esperando por você.</SectionSubtitle>
+                        <SectionSubtitle className="text-gray-300">Pare de adivinhar e comece a crescer com estratégia. O Mobi está esperando por você.</SectionSubtitle>
                         <div className="mt-10">
                            <ButtonPrimary onClick={handleSignIn}>
                                <FaGoogle /> Ativar meu estrategista agora ▸

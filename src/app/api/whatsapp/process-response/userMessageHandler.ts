@@ -76,11 +76,11 @@ async function extractContextFromAIResponse(
     }
 
     const prompt = `
-Dada a seguinte resposta de um assistente de IA chamado Tuca, identifique concisamente:
-1. O tópico principal da resposta de Tuca (em até 10 palavras).
-2. As principais entidades ou termos chave mencionados por Tuca (liste até 3-4 termos).
+Dada a seguinte resposta de um assistente de IA chamado Mobi, identifique concisamente:
+1. O tópico principal da resposta de Mobi (em até 10 palavras).
+2. As principais entidades ou termos chave mencionados por Mobi (liste até 3-4 termos).
 
-Resposta de Tuca:
+Resposta de Mobi:
 ---
 ${trimmedResponseText.substring(0, 1500)} ${trimmedResponseText.length > 1500 ? "\n[...resposta truncada...]" : ""}
 ---
@@ -166,8 +166,8 @@ async function generateInstigatingQuestion(
     const conversationSummary = dialogueState.conversationSummary || 'Não há resumo ainda.';
 
     const prompt = `
-Você é um assistente especialista em engajamento de usuários e marketing digital, com o objetivo de ajudar o usuário a explorar mais o potencial da IA Tuca.
-A IA Tuca acabou de fornecer a seguinte resposta para o usuário:
+Você é um assistente especialista em engajamento de usuários e marketing digital, com o objetivo de ajudar o usuário a explorar mais o potencial da IA Mobi.
+A IA Mobi acabou de fornecer a seguinte resposta para o usuário:
 ---
 ${aiResponseText.substring(0, 1000)} ${aiResponseText.length > 1000 ? "\n[...resposta truncada...]" : ""}
 ---
@@ -176,15 +176,15 @@ Contexto adicional:
 - Tópico da última resposta da IA (se houver): "${lastResponseTopic}"
 - Resumo da conversa até agora: "${conversationSummary.substring(0, 500)}"
 
-Baseado na resposta de Tuca e no contexto geral, formule UMA pergunta curta (1-2 frases), aberta e instigante (em português brasileiro) que incentive o usuário a:
+Baseado na resposta de Mobi e no contexto geral, formule UMA pergunta curta (1-2 frases), aberta e instigante (em português brasileiro) que incentive o usuário a:
 1. Refletir sobre um aspecto relacionado que ele pode não ter considerado.
 2. Explorar um próximo passo lógico ou uma otimização relevante ao que foi discutido.
-3. Aprofundar seu entendimento sobre o tópico discutido por Tuca.
+3. Aprofundar seu entendimento sobre o tópico discutido por Mobi.
 
-A pergunta NÃO deve ser uma simples confirmação ou algo que Tuca possa responder diretamente com 'sim' ou 'não'. Deve genuinamente levar o usuário a pensar e a querer usar o Tuca para investigar mais.
-Mesmo que a resposta de Tuca seja breve ou pareça conclusiva (ex: um simples "Entendido." ou um alerta de "nenhum dado novo encontrado"), tente encontrar um aspecto relacionado, um 'e se...', uma sugestão de exploração de dados ou uma forma de o usuário aprender mais sobre o tema geral ou funcionalidades do Tuca.
-Evite perguntas que Tuca já tenha feito recentemente ou que sejam muito genéricas.
-Se, após um esforço genuíno, a resposta de Tuca for *extremamente* transacional (ex: apenas "Ok.") e não houver *nenhum* gancho minimamente relevante, responda APENAS com a palavra "NO_QUESTION".
+A pergunta NÃO deve ser uma simples confirmação ou algo que Mobi possa responder diretamente com 'sim' ou 'não'. Deve genuinamente levar o usuário a pensar e a querer usar o Mobi para investigar mais.
+Mesmo que a resposta de Mobi seja breve ou pareça conclusiva (ex: um simples "Entendido." ou um alerta de "nenhum dado novo encontrado"), tente encontrar um aspecto relacionado, um 'e se...', uma sugestão de exploração de dados ou uma forma de o usuário aprender mais sobre o tema geral ou funcionalidades do Mobi.
+Evite perguntas que Mobi já tenha feito recentemente ou que sejam muito genéricas.
+Se, após um esforço genuíno, a resposta de Mobi for *extremamente* transacional (ex: apenas "Ok.") e não houver *nenhum* gancho minimamente relevante, responda APENAS com a palavra "NO_QUESTION".
 
 Pergunta instigante (ou "NO_QUESTION"):
 `;
@@ -271,7 +271,7 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
 
         if (user.planStatus !== 'active') {
             try {
-                const wamid = await sendWhatsAppMessage(fromPhone, `Olá ${firstName}! Seu plano está ${user.planStatus}. Para continuar usando a Tuca, reative seu plano em nosso site.`);
+                const wamid = await sendWhatsAppMessage(fromPhone, `Olá ${firstName}! Seu plano está ${user.planStatus}. Para continuar usando o Mobi, reative seu plano em nosso site.`);
                 logger.info(`${handlerTAG} Mensagem de plano inativo enviada. WhatsAppMsgID: ${wamid}`);
             } catch (sendError) {
                 logger.error(`${handlerTAG} Falha ao enviar mensagem de plano inativo:`, sendError);
@@ -605,7 +605,7 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
     if (currentDeterminedIntent === 'humor_script_request') {
         try {
             const humorDirectives = [
-                "**Diretrizes para Geração de Roteiros de Humor (Para a IA Tuca):**",
+                "**Diretrizes para Geração de Roteiros de Humor (Para a IA Mobi):**",
                 humorKnowledge.getComicDistortionDirectives(),
                 humorKnowledge.getSetupPunchlineStructureDirectives(),
                 humorKnowledge.getJokeGenerationStrategiesForAI(),

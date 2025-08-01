@@ -89,7 +89,7 @@ Siga estes passos em ordem para cada nova pergunta do usuário:
     * Parâmetros necessários: \`creatorName\`.
 
 * **Use \`${GET_TUCA_RADAR_EFFECTIVENESS_FUNC_NAME}\` para:**
-    * Medir o quão eficazes são os alertas do "Radar Tuca" enviados aos usuários.
+    * Medir o quão eficazes são os alertas do "Radar Mobi" enviados aos usuários.
     * Parâmetros: \`alertType\` (opcional), \`periodDays\` (opcional).
 
 * **Use \`${COMPARE_USER_COHORTS_FUNC_NAME}\` para:**

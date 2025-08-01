@@ -569,7 +569,7 @@ export async function askLLMWithEnrichedContext(
             // Stringify os detalhes do alerta. O promptSystemFC.ts já instrui a IA
             // a procurar por platformPostId ou originalPlatformPostId nestes detalhes.
             const detailsString = JSON.stringify(currentAlertDetails);
-            const messageContent = `Contexto adicional para o alerta do Radar Tuca que você vai apresentar ao usuário:\nDetalhes específicos do alerta (JSON): ${detailsString}\nLembre-se de usar 'platformPostId' ou 'originalPlatformPostId' destes detalhes para criar o link do Instagram, se disponível, conforme suas instruções gerais para alertas.`;
+            const messageContent = `Contexto adicional para o alerta do Radar Mobi que você vai apresentar ao usuário:\nDetalhes específicos do alerta (JSON): ${detailsString}\nLembre-se de usar 'platformPostId' ou 'originalPlatformPostId' destes detalhes para criar o link do Instagram, se disponível, conforme suas instruções gerais para alertas.`;
             alertContextSystemMessage = { role: 'system', content: messageContent };
             logger.info(`${fnTag} Adicionando contexto de detalhes do alerta para LLM. Tamanho dos detalhes: ${detailsString.length} chars.`);
         } catch (stringifyError) {

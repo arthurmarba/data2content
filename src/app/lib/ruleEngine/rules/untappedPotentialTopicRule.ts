@@ -240,7 +240,7 @@ export const untappedPotentialTopicRule: IRule = {
 
         // --- CORREÇÃO AQUI ---
         // Incluído o 'oldPost.postLink' para garantir que a IA tenha o link correto para incluir na mensagem final.
-        const messageForAI = `Radar Tuca detectou: Lembra do seu post ${postDescriptionForAI} (${oldPost.postLink}) (classificado como ${oldPost.format || 'N/D'})? Ele teve um ótimo desempenho (${performanceValue.toFixed(0)} ${metricDisplayName}) há cerca de ${daysSincePosted} dias, superando a média recente de posts similares (${referenceAveragePerformance.toFixed(1)})! Parece que o tema/formato (Proposta: ${oldPost.proposal || 'N/D'} / Contexto: ${oldPost.context || 'N/D'}) ressoou bem e não foi revisitado. Que tal explorar essa ideia novamente?`;
+        const messageForAI = `Radar Mobi detectou: Lembra do seu post ${postDescriptionForAI} (${oldPost.postLink}) (classificado como ${oldPost.format || 'N/D'})? Ele teve um ótimo desempenho (${performanceValue.toFixed(0)} ${metricDisplayName}) há cerca de ${daysSincePosted} dias, superando a média recente de posts similares (${referenceAveragePerformance.toFixed(1)})! Parece que o tema/formato (Proposta: ${oldPost.proposal || 'N/D'} / Contexto: ${oldPost.context || 'N/D'}) ressoou bem e não foi revisitado. Que tal explorar essa ideia novamente?`;
 
         return {
             type: RULE_ID,

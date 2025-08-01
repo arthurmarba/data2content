@@ -172,8 +172,8 @@ const useIntelligenceChat = () => {
   const askRadarEffectiveness = useCallback(
     (alertType?: string, periodDays: number = 30) => {
       const query = alertType
-        ? `Qual a eficácia do Radar Tuca para alertas do tipo '${alertType}' nos últimos ${periodDays} dias?`
-        : `Qual a eficácia do Radar Tuca nos últimos ${periodDays} dias?`;
+        ? `Qual a eficácia do Radar Mobi para alertas do tipo '${alertType}' nos últimos ${periodDays} dias?`
+        : `Qual a eficácia do Radar Mobi nos últimos ${periodDays} dias?`;
       startConversation(query);
     },
     [startConversation]
