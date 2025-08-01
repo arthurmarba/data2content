@@ -14,7 +14,7 @@ interface WhatsAppPanelProps {
  * Card dedicado ao WhatsApp que ajusta seu comportamento e texto
  * com base no status de vinculação e no plano do usuário.
  * * - Exibe "Vincular com WhatsApp" para usuários não vinculados.
- * - Exibe "Conversar com o Tuca" para usuários já vinculados.
+ * - Exibe "Conversar com o Mobi" para usuários já vinculados.
  * - Redireciona usuários sem plano ativo para a página de pagamento.
  */
 export default function WhatsAppPanel({
@@ -95,7 +95,7 @@ export default function WhatsAppPanel({
     // Se não tiver plano, redireciona para a página de upgrade.
     if (!canAccessFeatures) {
       event.preventDefault();
-      showToast("Para conversar com o IA Tuca, um plano premium é necessário. Conheça as opções!", 'info');
+      showToast("Para conversar com o IA Mobi, um plano premium é necessário. Conheça as opções!", 'info');
       onActionRedirect();
       return;
     }
@@ -123,7 +123,7 @@ export default function WhatsAppPanel({
       <div className="flex items-center gap-2 mb-3">
         <FaWhatsapp className="text-green-500 w-5 h-5" />
         <h2 className="text-lg sm:text-xl font-bold text-gray-800">
-          Consultor IA Tuca (WhatsApp)
+          Consultor IA Mobi (WhatsApp)
         </h2>
       </div>
 
@@ -158,7 +158,7 @@ export default function WhatsAppPanel({
             <span>Carregando...</span>
           </>
         ) : isWhatsAppLinked ? (
-            "Conversar com o Tuca"
+            "Conversar com o Mobi"
         ) : (
             "Vincular com WhatsApp"
         )}

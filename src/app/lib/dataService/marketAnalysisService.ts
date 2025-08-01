@@ -30,7 +30,7 @@ export * from './marketAnalysis/moversService';
 // Exporta as funções de análise de segmentos
 export * from './marketAnalysis/segmentService';
 
-// Exporta as funções do Radar Tuca
+// Exporta as funções do Radar Mobi
 export * from './marketAnalysis/radarService';
 
 // Exporta as funções de comparação de coortes

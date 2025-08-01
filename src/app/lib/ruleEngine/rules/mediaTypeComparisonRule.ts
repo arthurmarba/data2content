@@ -200,7 +200,7 @@ export const mediaTypeComparisonRule: IRule = {
             metricDisplayName = 'impressões';
         }
 
-        let messageForAI = `Radar Tuca Comparando Formatos! 📊 Analisei o desempenho dos seus posts recentes por tipo de mídia, usando a métrica "${metricDisplayName}":\n`;
+        let messageForAI = `Radar Mobi Comparando Formatos! 📊 Analisei o desempenho dos seus posts recentes por tipo de mídia, usando a métrica "${metricDisplayName}":\n`;
         details.performanceByMediaType.forEach(item => {
             messageForAI += `\n- **${item.type}** (${item.postCount} posts): Média de ${item.avgMetricValue.toFixed(0)} ${metricDisplayName}.`;
         });

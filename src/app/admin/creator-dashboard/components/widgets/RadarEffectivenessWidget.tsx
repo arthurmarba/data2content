@@ -56,7 +56,7 @@ const RadarEffectivenessWidget: React.FC = () => {
   return (
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md">
       <h2 className="text-lg md:text-xl font-semibold mb-4 text-gray-700">
-        Eficácia do Radar Tuca
+        Eficácia do Radar Mobi
       </h2>
       <div className="mb-4">
         <label htmlFor="radar-period-selector" className="text-sm text-gray-600 mr-2">

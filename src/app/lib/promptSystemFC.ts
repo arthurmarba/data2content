@@ -5,7 +5,7 @@ import fs from 'fs';
 import path from 'path';
 
 /**
- * Carrega o prompt base do Tuca a partir de systemPromptTemplate.md e
+ * Carrega o prompt base do Mobi a partir de systemPromptTemplate.md e
  * substitui o placeholder de nome do usuário.
  */
 export function getSystemPrompt(userName: string = 'usuário'): string {

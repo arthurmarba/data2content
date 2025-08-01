@@ -96,7 +96,7 @@ export const functionSchemas = [
   },
   {
     name: 'fetchCommunityInspirations',
-    description: "Busca exemplos de posts da Comunidade de Inspiração IA Tuca que tiveram bom desempenho qualitativo. Use quando o usuário pedir explicitamente por inspiração, ou para ilustrar sugestões de planejamento de conteúdo. Baseie-se na proposta e contexto fornecidos, e opcionalmente em um objetivo qualitativo de desempenho.",
+    description: "Busca exemplos de posts da Comunidade de Inspiração IA Mobi que tiveram bom desempenho qualitativo. Use quando o usuário pedir explicitamente por inspiração, ou para ilustrar sugestões de planejamento de conteúdo. Baseie-se na proposta e contexto fornecidos, e opcionalmente em um objetivo qualitativo de desempenho.",
     parameters: {
       type: 'object',
       properties: {

@@ -13,11 +13,11 @@ Não existe um horário mágico que funcione para todo mundo. O ideal é observa
 }
 
 /**
- * Breve explicação sobre a Comunidade de Inspiração IA Tuca.
+ * Breve explicação sobre a Comunidade de Inspiração IA Mobi.
  */
 export function getCommunityInspirationOverview(): string {
     return `
-**O que é a Comunidade de Inspiração IA Tuca?**
+**O que é a Comunidade de Inspiração IA Mobi?**
 
 É o nosso acervo de posts da comunidade que tiveram bom desempenho qualitativo. Ele serve para gerar exemplos práticos quando você usa a função de buscar inspirações. Assim você recebe ideias baseadas em conteúdos reais que já engajaram outras pessoas.`;
 }

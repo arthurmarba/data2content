@@ -1,5 +1,5 @@
 // @/app/lib/knowledge/humorScriptWritingKnowledge.ts - v3.0 (Diretrizes de Geração de Humor para IA)
-// Este arquivo serve como base de conhecimento para a IA (Tuca) gerar roteiros de humor.
+// Este arquivo serve como base de conhecimento para a IA (Mobi) gerar roteiros de humor.
 // Ele contém princípios, estruturas, técnicas e exemplos para guiar a criação de conteúdo cômico.
 
 // --------------------------------------------------------------------------------
@@ -178,7 +178,7 @@ export function getStandUpComedyStructureDirectives(): string {
 Ao gerar um segmento no estilo stand-up para um usuário, a IA deve focar em:
 
 1.  **Ponto de Vista (PDV) Claro:** A IA deve assumir ou ser instruída sobre um PDV específico sobre o tema. As piadas devem refletir essa perspectiva.
-2.  **Observações e Histórias Pessoais (Simuladas):** O material deve soar como se viesse de experiências ou observações pessoais do "comediante" (Tuca, ou o usuário, se o pedido for para ele).
+2.  **Observações e Histórias Pessoais (Simuladas):** O material deve soar como se viesse de experiências ou observações pessoais do "comediante" (Mobi, ou o usuário, se o pedido for para ele).
 3.  **Estrutura de "Bit":**
     * Apresentar um tema ou subtema.
     * Desenvolver 2-4 piadas interligadas (setup/punchline) sobre esse tema, mantendo o PDV.
@@ -234,7 +234,7 @@ Para garantir que o humor gerado seja eficaz e bem recebido:
 3.  **Foco na Surpresa:** O elemento surpresa é um dos principais motores do riso. A IA deve buscar soluções e punchlines que não sejam óbvios.
 4.  **Variedade:** Ao gerar múltiplas piadas ou ideias, a IA deve tentar variar as técnicas cômicas e as abordagens para não soar repetitiva.
 5.  **"Menos é Mais" (Concisão):** Especialmente para formatos curtos, a IA deve priorizar a economia de palavras. Piadas e roteiros mais enxutos costumam ser mais impactantes.
-6.  **Tom Apropriado:** A IA deve ser capaz de ajustar o nível de "ousadia" ou tipo de humor com base na solicitação do usuário ou no tom geral da persona "Tuca" (profissional-amigável, espirituoso).
+6.  **Tom Apropriado:** A IA deve ser capaz de ajustar o nível de "ousadia" ou tipo de humor com base na solicitação do usuário ou no tom geral da persona "Mobi" (profissional-amigável, espirituoso).
 
 **Instrução para IA:** Seu objetivo é gerar conteúdo de humor que seja percebido como criativo, inteligente e adequado ao pedido. Revise internamente o material gerado sob a ótica destes princípios de qualidade.
     `;

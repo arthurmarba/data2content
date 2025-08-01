@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Por favor, forneça o parâmetro 'to' na URL. Exemplo: /api/test-whatsapp?to=+5521999998888" }, { status: 400 });
   }
 
-  const testMessage = `Olá, Tuca! 🚀 Teste de ativação do número oficial às ${new Date().toLocaleTimeString()}. Se você recebeu isto, funcionou!`;
+  const testMessage = `Olá, Mobi! 🚀 Teste de ativação do número oficial às ${new Date().toLocaleTimeString()}. Se você recebeu isto, funcionou!`;
 
   logger.info(`${TAG} Enviando mensagem de teste para o número: ${to}`);
 

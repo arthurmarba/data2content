@@ -148,7 +148,7 @@ const AdDealForm: React.FC<AdDealFormProps> = ({
               Registre suas Parcerias
           </h2>
           <p className="mt-1 text-sm text-gray-500">
-              Se você faz 'publis', este é o seu cantinho! Registre os detalhes dos seus acordos aqui e deixe o Tuca precificar suas entregas.
+              Se você faz 'publis', este é o seu cantinho! Registre os detalhes dos seus acordos aqui e deixe o Mobi precificar suas entregas.
           </p>
       </div>
 

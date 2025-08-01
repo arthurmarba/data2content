@@ -218,7 +218,7 @@ export const followerGrowthStagnationRule: IRule = {
             mostRecentContext: lastPost?.context
         };
 
-        const messageForAI = `Radar Tuca observou: Notei que seu crescimento de seguidores deu uma desacelerada nas ${periodAnalyzed.replace('vs. as ', 'em comparação com as ')} (crescimento de ${currentGrowthRate.toFixed(1)}% vs ${previousGrowthRate.toFixed(1)}% anteriormente). Gostaria de analisar algumas estratégias para reaquecer o crescimento ou entender melhor essa tendência?`;
+        const messageForAI = `Radar Mobi observou: Notei que seu crescimento de seguidores deu uma desacelerada nas ${periodAnalyzed.replace('vs. as ', 'em comparação com as ')} (crescimento de ${currentGrowthRate.toFixed(1)}% vs ${previousGrowthRate.toFixed(1)}% anteriormente). Gostaria de analisar algumas estratégias para reaquecer o crescimento ou entender melhor essa tendência?`;
 
         return {
             type: RULE_ID,

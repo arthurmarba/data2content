@@ -84,7 +84,7 @@ export async function generateConversationSummary(
 
   const conversationText = history
     .filter(msg => msg.role === 'user' || msg.role === 'assistant') 
-    .map(msg => `${msg.role === 'user' ? userName : 'Tuca'}: ${msg.content}`)
+    .map(msg => `${msg.role === 'user' ? userName : 'Mobi'}: ${msg.content}`)
     .join('\n');
 
   if (conversationText.trim().length === 0) {
@@ -93,13 +93,13 @@ export async function generateConversationSummary(
   }
 
   const prompt = `
-Você é um assistente de sumarização altamente eficiente. Sua tarefa é ler o seguinte diálogo entre ${userName} (o usuário) e Tuca (um consultor de IA) e criar um resumo conciso em no máximo 2-3 frases.
-O resumo é crucial para dar contexto a Tuca sobre o que já foi conversado e deve focar nos seguintes aspectos:
+Você é um assistente de sumarização altamente eficiente. Sua tarefa é ler o seguinte diálogo entre ${userName} (o usuário) e Mobi (um consultor de IA) e criar um resumo conciso em no máximo 2-3 frases.
+O resumo é crucial para dar contexto a Mobi sobre o que já foi conversado e deve focar nos seguintes aspectos:
 
 1.  **Principais tópicos e informações chave discutidas**: Quais foram os assuntos centrais?
 2.  **Objetivos do usuário mencionados**: ${userName} expressou alguma meta ou o que desejava alcançar?
 3.  **Preferências ou restrições expressas pelo usuário**: ${userName} indicou gostos, desgostos, formatos preferidos, ou limitações?
-4.  **Soluções ou estratégias propostas por Tuca e a reação do usuário**: Tuca sugeriu algo? Como ${userName} reagiu?
+4.  **Soluções ou estratégias propostas por Mobi e a reação do usuário**: Mobi sugeriu algo? Como ${userName} reagiu?
 5.  **Decisões ou próximos passos acordados**: Alguma ação foi definida?
 6.  **Perguntas não respondidas ou tópicos pendentes**: Algo ficou em aberto para ser discutido depois?
 

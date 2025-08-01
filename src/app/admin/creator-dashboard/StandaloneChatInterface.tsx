@@ -174,8 +174,8 @@ const useIntelligenceChat = () => {
   const askRadarEffectiveness = useCallback(
     (alertType?: string, periodDays: number = 30) => {
       const query = alertType
-        ? `Qual a eficácia do Radar Tuca para alertas do tipo '${alertType}' nos últimos ${periodDays} dias?`
-        : `Qual a eficácia do Radar Tuca nos últimos ${periodDays} dias?`;
+        ? `Qual a eficácia do Radar Mobi para alertas do tipo '${alertType}' nos últimos ${periodDays} dias?`
+        : `Qual a eficácia do Radar Mobi nos últimos ${periodDays} dias?`;
       startConversation(query);
     },
     [startConversation]
@@ -382,7 +382,7 @@ const StandaloneChatInterface: React.FC<StandaloneChatInterfaceProps> = ({ initi
               onClick={() => askRadarEffectiveness()}
               className="mt-4 inline-flex items-center px-3 py-1.5 rounded-md bg-indigo-600 text-white text-xs font-medium hover:bg-indigo-700"
             >
-              Radar Tuca
+              Radar Mobi
             </button>
           </div>
         )}

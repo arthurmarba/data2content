@@ -43,7 +43,7 @@ export default function RadarEffectivenessWidget() {
   return (
     <div className="bg-white rounded-lg shadow p-4">
       <h3 className="text-sm font-semibold text-gray-800 mb-2">
-        Eficácia do Radar Tuca
+        Eficácia do Radar Mobi
       </h3>
       {loading && <p className="text-sm text-gray-500">Carregando...</p>}
       {error && <p className="text-sm text-red-500">Erro: {error}</p>}

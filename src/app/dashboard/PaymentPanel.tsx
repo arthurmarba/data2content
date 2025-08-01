@@ -257,7 +257,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
 
   const benefitsList: string[] = [
       "Análises ILIMITADAS de métricas (via upload ou automação Instagram)",
-      "Consultor IA Tuca 24/7 no seu WhatsApp para insights e planejamentos",
+      "Consultor IA Mobi 24/7 no seu WhatsApp para insights e planejamentos",
       "Estratégias de conteúdo 100% PERSONALIZADAS para seus objetivos",
       "Suporte PRIORITÁRIO individualizado via WhatsApp",
       "Acesso VIP a todas as novas funcionalidades e atualizações da plataforma",
@@ -269,7 +269,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
       name: "Joana S.",
       role: "Criadora de Conteúdo Digital",
       avatar: "https://placehold.co/60x60/E91E63/FFFFFF?text=JS", // ATUALIZAR
-      quote: "Depois que assinei, minhas métricas melhoraram e as dicas no WhatsApp me ajudaram a dobrar meu engajamento! O IA Tuca é incrível. Recomendo demais.", // ATUALIZAR
+      quote: "Depois que assinei, minhas métricas melhoraram e as dicas no WhatsApp me ajudaram a dobrar meu engajamento! O IA Mobi é incrível. Recomendo demais.", // ATUALIZAR
       profileLink: null
     },
   ];
@@ -289,10 +289,10 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
       answer: "Através do Mercado Pago, você pode pagar com cartão de crédito (principais bandeiras), Pix, boleto bancário e saldo em conta Mercado Pago."
     },
     {
-      question: "Como o IA Tuca me ajuda na prática?",
+      question: "Como o IA Mobi me ajuda na prática?",
       answer: (
         <>
-          <p className="mb-2">O IA Tuca é seu consultor de marketing digital pessoal. Ele pode:</p>
+          <p className="mb-2">O IA Mobi é seu consultor de marketing digital pessoal. Ele pode:</p>
           <ul className="list-disc list-inside space-y-1 pl-2">
             <li>Analisar o desempenho dos seus posts do Instagram (métricas de alcance, engajamento, etc.).</li>
             <li>Gerar relatórios com insights sobre o que funciona melhor para sua audiência.</li>
@@ -307,7 +307,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
     },
     {
         question: "Preciso conectar minha conta do Instagram?",
-        answer: "Para análises automáticas e insights mais profundos, recomendamos conectar sua conta profissional do Instagram. No entanto, você também pode enviar prints das suas métricas manualmente para análise pelo IA Tuca."
+        answer: "Para análises automáticas e insights mais profundos, recomendamos conectar sua conta profissional do Instagram. No entanto, você também pode enviar prints das suas métricas manualmente para análise pelo IA Mobi."
     }
   ];
 

@@ -106,7 +106,7 @@ export const FALLBACK_INSIGHT_COOLDOWNS_DAYS: Record<FallbackInsightType, number
 // --- FIM da Seção de Insights de Fallback ---
 
 
-// --- Radar Tuca - Configurações Gerais de Detecção de Alertas ---
+// --- Radar Mobi - Configurações Gerais de Detecção de Alertas ---
 // ... (restante do arquivo igual ao que você forneceu) ...
 
 export const SHARES_MIN_POST_AGE_DAYS_FOR_PICO = 2;

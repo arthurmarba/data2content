@@ -1,5 +1,5 @@
 /**
- * @fileoverview Serviço principal para obter respostas do consultor Tuca.
+ * @fileoverview Serviço principal para obter respostas do consultor Mobi.
  * Otimizado para:
  * - Respostas diretas para interações simples.
  * - Contexto leve para IA em perguntas sociais/meta.

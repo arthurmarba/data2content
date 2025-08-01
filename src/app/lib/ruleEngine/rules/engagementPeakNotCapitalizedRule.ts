@@ -174,7 +174,7 @@ export const engagementPeakNotCapitalizedRule: IRule = {
 
         // --- CORREÇÃO AQUI ---
         // Incluído o 'post.postLink' para garantir que a IA tenha o link correto para incluir na mensagem final.
-        const messageForAI = `Radar Tuca detectou: Seu post (${post.postLink}) sobre ${postDescriptionForAI} gerou bastante conversa, com ${postComments} comentários! Isso é bem acima da sua média de ${averageComments.toFixed(1)}. Parece que sua audiência tem perguntas ou muito interesse no tema. Já considerou fazer um conteúdo de follow-up ou responder mais diretamente aos comentários para manter essa chama acesa?`;
+        const messageForAI = `Radar Mobi detectou: Seu post (${post.postLink}) sobre ${postDescriptionForAI} gerou bastante conversa, com ${postComments} comentários! Isso é bem acima da sua média de ${averageComments.toFixed(1)}. Parece que sua audiência tem perguntas ou muito interesse no tema. Já considerou fazer um conteúdo de follow-up ou responder mais diretamente aos comentários para manter essa chama acesa?`;
 
         return {
             type: RULE_ID,
