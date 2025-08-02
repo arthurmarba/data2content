@@ -18,6 +18,8 @@ import {
   FaLock,
   FaChevronDown,
   FaChevronUp,
+  FaChevronLeft,
+  FaChevronRight,
   FaCalendar,
   FaCalendarAlt,
 } from "react-icons/fa";
@@ -301,7 +303,16 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
       profileLink: null
     },
   ];
-  const currentTestimonial = testimonials[0];
+  const [currentTestimonialIndex, setCurrentTestimonialIndex] = useState(0);
+  const currentTestimonial = testimonials[currentTestimonialIndex];
+
+  useEffect(() => {
+    if (testimonials.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentTestimonialIndex((prev) => (prev + 1) % testimonials.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [testimonials.length]);
 
   const faqItems = [
     {
@@ -663,35 +674,63 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
             <h3 id="depoimentos-title" className="text-xl font-semibold text-brand-dark mb-5 text-center flex items-center justify-center gap-2">
                 <FaUserFriends aria-hidden="true" /> O que nossos criadores dizem:
             </h3>
-            <div className="relative">
-              {currentTestimonial && (
-                <div className="flex flex-col sm:flex-row items-center gap-5 p-4">
-                  <img 
-                    src={currentTestimonial.avatar} 
-                    alt={`Avatar de ${currentTestimonial.name}`}
-                    className="w-16 h-16 rounded-full flex-shrink-0 border-2 border-white shadow-lg ring-1 ring-brand-pink/50"
-                  />
-                  <div className="flex-grow text-center sm:text-left">
-                    <blockquote className="font-sans text-lg italic text-gray-700 relative px-4 py-2 font-light bg-brand-light/30 rounded-md">
-                      <FaQuoteLeft aria-hidden="true" className="absolute left-2 -top-2 text-3xl text-brand-pink/30 opacity-80" />
-                      {currentTestimonial.quote}
-                      <FaQuoteRight aria-hidden="true" className="absolute right-2 -bottom-2 text-3xl text-brand-pink/30 opacity-80" />
-                    </blockquote>
-                    <cite className="block mt-3 text-md font-semibold text-brand-dark text-center sm:text-right not-italic">
-                      {currentTestimonial.name}
-                    </cite>
-                    <p className="text-sm text-gray-600 font-light text-center sm:text-right">
-                      {currentTestimonial.role}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-            {testimonials.length > 1 && (
-                <p className="text-xs text-gray-500 text-center mt-4">
-                    (Em breve: mais depoimentos em um carrossel interativo!)
-                </p>
-            )}
+              <div className="relative">
+                <AnimatePresence mode="wait">
+                  {currentTestimonial && (
+                    <motion.div
+                      key={currentTestimonial.id}
+                      initial={{ opacity: 0, x: 50 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -50 }}
+                      transition={{ duration: 0.3 }}
+                      className="flex flex-col sm:flex-row items-center gap-5 p-4"
+                    >
+                      <img
+                        src={currentTestimonial.avatar}
+                        alt={`Avatar de ${currentTestimonial.name}`}
+                        className="w-16 h-16 rounded-full flex-shrink-0 border-2 border-white shadow-lg ring-1 ring-brand-pink/50"
+                      />
+                      <div className="flex-grow text-center sm:text-left">
+                        <blockquote className="font-sans text-lg italic text-gray-700 relative px-4 py-2 font-light bg-brand-light/30 rounded-md">
+                          <FaQuoteLeft aria-hidden="true" className="absolute left-2 -top-2 text-3xl text-brand-pink/30 opacity-80" />
+                          {currentTestimonial.quote}
+                          <FaQuoteRight aria-hidden="true" className="absolute right-2 -bottom-2 text-3xl text-brand-pink/30 opacity-80" />
+                        </blockquote>
+                        <cite className="block mt-3 text-md font-semibold text-brand-dark text-center sm:text-right not-italic">
+                          {currentTestimonial.name}
+                        </cite>
+                        <p className="text-sm text-gray-600 font-light text-center sm:text-right">
+                          {currentTestimonial.role}
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                {testimonials.length > 1 && (
+                  <>
+                    <button
+                      onClick={() =>
+                        setCurrentTestimonialIndex(
+                          (prev) => (prev - 1 + testimonials.length) % testimonials.length
+                        )
+                      }
+                      aria-label="Depoimento anterior"
+                      className="absolute left-0 top-1/2 -translate-y-1/2 p-2 text-gray-600 hover:text-brand-pink"
+                    >
+                      <FaChevronLeft />
+                    </button>
+                    <button
+                      onClick={() =>
+                        setCurrentTestimonialIndex((prev) => (prev + 1) % testimonials.length)
+                      }
+                      aria-label="Próximo depoimento"
+                      className="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-gray-600 hover:text-brand-pink"
+                    >
+                      <FaChevronRight />
+                    </button>
+                  </>
+                )}
+              </div>
        </motion.div>
 
       <motion.div
