@@ -110,6 +110,8 @@ const FeedbackMessage = ({ message, type }: { message: string; type: 'success' |
 
 export default function PaymentPanel({ user }: PaymentPanelProps) {
   const [affiliateCodeInput, setAffiliateCodeInput] = useState("");
+  const [isAffiliateCodeValid, setIsAffiliateCodeValid] = useState(true);
+  const [affiliateCodeError, setAffiliateCodeError] = useState<string | null>(null);
   const [agencyInviteCode, setAgencyInviteCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -145,6 +147,8 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
               const codeFromStorage = String(storedRefData.code).toUpperCase();
               setAffiliateCodeInput(codeFromStorage);
               setRefCodeAppliedMessage(`Código de indicação ${codeFromStorage} aplicado! Você receberá um desconto.`);
+              setIsAffiliateCodeValid(true);
+              setAffiliateCodeError(null);
             } else {
               localStorage.removeItem(AFFILIATE_REF_KEY);
             }
@@ -220,6 +224,8 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
     setLoading(true);
     setStatusMessage(null);
     setInitPoint("");
+    setIsAffiliateCodeValid(true);
+    setAffiliateCodeError(null);
     try {
       const res = await fetch("/api/plan/subscribe", {
         method: "POST",
@@ -233,8 +239,17 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
       });
       const data = await res.json();
       if (!res.ok || data.error) {
-         setStatusMessage({ message: `Erro: ${data.error || 'Falha ao iniciar assinatura.'}`, type: 'error' });
+        if (
+          data.error &&
+          (data.error.toLowerCase().includes('afiliado') || data.error.toLowerCase().includes('cupom'))
+        ) {
+          setIsAffiliateCodeValid(false);
+          setAffiliateCodeError(data.error);
+        }
+        setStatusMessage({ message: `Erro: ${data.error || 'Falha ao iniciar assinatura.'}`, type: 'error' });
       } else {
+        setIsAffiliateCodeValid(true);
+        setAffiliateCodeError(null);
         setStatusMessage({ message: data.message || "Link de pagamento gerado abaixo. Você será redirecionado.", type: 'info' });
         if (data.initPoint) {
           setInitPoint(data.initPoint);
@@ -435,17 +450,26 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
                 value={affiliateCodeInput}
                 onChange={(e) => {
                     setAffiliateCodeInput(e.target.value.toUpperCase());
+                    setIsAffiliateCodeValid(true);
+                    setAffiliateCodeError(null);
                     if (refCodeAppliedMessage) {
                         setRefCodeAppliedMessage(null);
                     }
                 }}
                 placeholder="Insira o código aqui se tiver um"
                 disabled={loading || ctaClicked}
-                className="block w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm shadow-sm focus:ring-2 focus:ring-brand-pink focus:border-transparent transition placeholder-gray-400 disabled:opacity-50 disabled:bg-gray-100"
+                className={`block w-full border ${isAffiliateCodeValid ? 'border-gray-300' : 'border-red-500 text-red-700'} rounded-xl px-4 py-2.5 text-sm shadow-sm focus:ring-2 focus:ring-brand-pink focus:border-transparent transition placeholder-gray-400 disabled:opacity-50 disabled:bg-gray-100`}
                 aria-describedby="ref-code-message"
+                aria-invalid={!isAffiliateCodeValid}
               />
               <div id="ref-code-message" aria-live="polite">
-                {refCodeAppliedMessage && !loading && (
+                {!isAffiliateCodeValid && affiliateCodeError && !loading && (
+                  <p className="mt-2 text-xs text-red-700 flex items-center gap-1.5">
+                    <FaTimesCircle className="w-3.5 h-3.5" />
+                    {affiliateCodeError}
+                  </p>
+                )}
+                {isAffiliateCodeValid && refCodeAppliedMessage && !loading && (
                   <p className="mt-2 text-xs text-green-700 flex items-center gap-1.5">
                     <FaCheckCircle className="w-3.5 h-3.5"/>
                     {refCodeAppliedMessage}
