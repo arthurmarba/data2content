@@ -18,6 +18,8 @@ import {
   FaLock,
   FaChevronDown,
   FaChevronUp,
+  FaCalendar,
+  FaCalendarAlt,
 } from "react-icons/fa";
 // Importando Framer Motion
 import { motion, AnimatePresence } from "framer-motion";
@@ -393,28 +395,34 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
           <fieldset className="mt-3">
             <legend className="text-sm font-medium text-brand-dark mb-2">Tipo de plano</legend>
             <div className="flex justify-center gap-4">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="plan-type"
-                  value="monthly"
-                  checked={planType === 'monthly'}
-                  onChange={() => setPlanType('monthly')}
-                  className="text-brand-pink focus:ring-brand-pink"
-                />
-                Mensal
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="plan-type"
-                  value="annual"
-                  checked={planType === 'annual'}
-                  onChange={() => setPlanType('annual')}
-                  className="text-brand-pink focus:ring-brand-pink"
-                />
-                Anual
-              </label>
+              <motion.button
+                type="button"
+                onClick={() => setPlanType('monthly')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-colors ${
+                  planType === 'monthly'
+                    ? 'bg-brand-pink text-white border-brand-pink'
+                    : 'bg-white text-brand-pink border-brand-pink'
+                }`}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <FaCalendar className="w-4 h-4" />
+                <span className="text-sm">Mensal</span>
+              </motion.button>
+              <motion.button
+                type="button"
+                onClick={() => setPlanType('annual')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-colors ${
+                  planType === 'annual'
+                    ? 'bg-brand-pink text-white border-brand-pink'
+                    : 'bg-white text-brand-pink border-brand-pink'
+                }`}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <FaCalendarAlt className="w-4 h-4" />
+                <span className="text-sm">Anual</span>
+              </motion.button>
             </div>
           </fieldset>
           <div className="flex items-baseline justify-center space-x-1 text-brand-dark mt-2">
