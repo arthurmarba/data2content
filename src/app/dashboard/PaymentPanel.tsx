@@ -477,6 +477,9 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
               Equivale a {currencyFormatter.format(discountedMonthlyPrice)} / mês
             </span>
           )}
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Cobrança anual única. Cancelamento a qualquer momento.
+          </p>
           <p className="text-sm text-brand-dark/70 mt-2 font-light">
             {planType === 'annual'
               ? `Economize R$ ${savingsAmount.toFixed(2).replace('.', ',')} (${discountPercentage}%) com 12 meses de acesso completo.`
