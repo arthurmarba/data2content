@@ -383,12 +383,16 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
       </motion.div>
 
       <motion.div
-        variants={sectionVariants} initial="hidden" animate="visible" custom={paymentBlockIndex}
-        className="p-6 bg-white border border-gray-200 shadow-lg ring-1 ring-black/5 rounded-xl space-y-6"
+        variants={sectionVariants}
+        initial="hidden"
+        animate="visible"
+        custom={paymentBlockIndex}
         role="region"
         aria-labelledby="plano-title"
       >
-        <div className="text-center">
+        <div className="relative p-[1px] rounded-2xl bg-gradient-to-r from-brand-pink via-brand-dark to-brand-pink animate-[spin_6s_linear_infinite]">
+          <div className="rounded-2xl bg-white dark:bg-brand-dark p-6 shadow-lg space-y-6">
+            <div className="text-center">
           <h3 id="plano-title" className="text-xl sm:text-2xl font-bold text-brand-pink mb-1 tracking-wide uppercase">
             Plano {planType === 'annual' ? 'Anual' : 'Mensal'} Data2Content Completo
           </h3>
@@ -589,6 +593,8 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
             </p>
             </div>
         )}
+          </div>
+        </div>
       </motion.div>
 
       <motion.div
