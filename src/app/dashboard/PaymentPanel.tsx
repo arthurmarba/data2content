@@ -391,7 +391,11 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
           role="region"
           aria-labelledby="plano-title"
         >
-        <div className="relative p-[1px] rounded-2xl bg-gradient-to-r from-brand-pink via-brand-dark to-brand-pink animate-[spin_6s_linear_infinite]">
+        <motion.div
+          className="relative p-[1px] rounded-2xl bg-gradient-to-r from-brand-pink via-brand-dark to-brand-pink animate-[spin_6s_linear_infinite]"
+          whileHover={{ scale: 1.02, rotate: 0.2 }}
+          transition={{ type: 'spring', stiffness: 150 }}
+        >
           <div className="rounded-2xl bg-white dark:bg-brand-dark p-6 shadow-lg space-y-6">
             <div className="text-center">
           <h3 id="plano-title" className="text-xl sm:text-2xl font-bold text-brand-pink mb-1 tracking-wide uppercase">
@@ -410,6 +414,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
                 }`}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                transition={{ type: 'spring', stiffness: 150 }}
               >
                 <FaCalendar className="w-4 h-4" />
                 <span className="flex flex-col items-start">
@@ -429,6 +434,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
                 }`}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                transition={{ type: 'spring', stiffness: 150 }}
               >
                 <FaCalendarAlt className="w-4 h-4" />
                 <span className="flex flex-col items-start">
@@ -600,7 +606,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
             </div>
         )}
           </div>
-        </div>
+        </motion.div>
       </motion.div>
         <div className="space-y-8 sm:space-y-10">
           <motion.div
