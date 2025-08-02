@@ -119,12 +119,19 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
   const [ctaClicked, setCtaClicked] = useState(false);
   const [planType, setPlanType] = useState<'monthly' | 'annual'>('monthly');
 
-  const monthlyPrice = agencyInviteCode ? AGENCY_GUEST_MONTHLY_PRICE : MONTHLY_PRICE;
-  const annualMonthlyPrice = agencyInviteCode
+  const originalMonthlyPrice = agencyInviteCode ? AGENCY_GUEST_MONTHLY_PRICE : MONTHLY_PRICE;
+  const discountedMonthlyPrice = agencyInviteCode
     ? AGENCY_GUEST_ANNUAL_MONTHLY_PRICE
     : ANNUAL_MONTHLY_PRICE;
-  const selectedMonthlyPrice = planType === 'annual' ? annualMonthlyPrice : monthlyPrice;
-  const totalPrice = planType === 'annual' ? selectedMonthlyPrice * 12 : selectedMonthlyPrice;
+  const totalAnnualPrice = discountedMonthlyPrice * 12;
+  const originalAnnualPrice = originalMonthlyPrice * 12;
+  const discountPercentage = Math.round(
+    ((originalAnnualPrice - totalAnnualPrice) / originalAnnualPrice) * 100
+  );
+  const savingsAmount = originalAnnualPrice - totalAnnualPrice;
+  const selectedMonthlyPrice =
+    planType === 'annual' ? discountedMonthlyPrice : originalMonthlyPrice;
+  const totalPrice = planType === 'annual' ? totalAnnualPrice : selectedMonthlyPrice;
 
   useEffect(() => {
     async function loadFromStorage() {
@@ -392,18 +399,28 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
           <div className="flex items-baseline justify-center space-x-1 text-brand-dark mt-2">
               <span className="text-2xl font-medium">R$</span>
               <span className="text-6xl font-extrabold tracking-tight leading-none text-brand-pink">
-                {(planType === 'annual' ? totalPrice : selectedMonthlyPrice).toFixed(2).replace('.', ',')}
+                {(planType === 'annual' ? totalAnnualPrice : selectedMonthlyPrice).toFixed(2).replace('.', ',')}
               </span>
               <span className="text-xl font-medium text-brand-dark/80">{planType === 'annual' ? '/ano' : '/mês'}</span>
+              {planType === 'annual' && (
+                <span className="ml-2 flex items-center gap-2">
+                  <span className="text-sm line-through text-brand-dark/50">
+                    R$ {originalAnnualPrice.toFixed(2).replace('.', ',')}
+                  </span>
+                  <span className="bg-brand-pink text-white text-xs font-semibold px-2 py-0.5 rounded">
+                    -{discountPercentage}%
+                  </span>
+                </span>
+              )}
           </div>
           {planType === 'annual' && (
             <p className="text-xs text-brand-dark/70 mt-1">
-              Equivalente a R$ {selectedMonthlyPrice.toFixed(2).replace('.', ',')}/mês
+              Equivalente a R$ {discountedMonthlyPrice.toFixed(2).replace('.', ',')}/mês
             </p>
           )}
           <p className="text-sm text-brand-dark/70 mt-2 font-light">
             {planType === 'annual'
-              ? 'Economize com 12 meses de acesso completo.'
+              ? `Economize R$ ${savingsAmount.toFixed(2).replace('.', ',')} (${discountPercentage}%) com 12 meses de acesso completo.`
               : 'Investimento mínimo, resultados máximos. Cancele quando quiser.'}
           </p>
         </div>
