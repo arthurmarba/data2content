@@ -597,35 +597,51 @@ interface ExtendedUser {
                    <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg"> <VideoCarousel videos={videoGuidesData} swiperRef={swiperRef} /> </div>
                </motion.section>
 
-              {/* Card de Afiliados para MOBILE */}
-              <div className="lg:hidden">
-                <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={0.6}>
-                    <AffiliateCardContent {...affiliateCardProps} />
-                </motion.section>
-              </div>
-
-              {/* Consultor IA Mobi (WhatsApp) */}
-              <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={1}>
-                  <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Consultor IA Mobi (WhatsApp)</h2>
-                  <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
-                    <WhatsAppPanel
-                        userId={userId}
-                        canAccessFeatures={canAccessFeatures}
-                        onActionRedirect={redirectToPaymentPanel}
-                        showToast={showToastMessage}
-                    />
+              {/* Seção de Pagamento (PaymentPanel) */}
+              {!canAccessFeatures && (
+                <motion.section
+                  id="payment-section"
+                  variants={cardVariants}
+                  initial="hidden"
+                  animate="visible"
+                  custom={0.6}
+                  className="animated-border-card"
+                >
+                  <div className="card-content bg-white p-6 sm:p-8 rounded-xl">
+                    <PaymentPanel user={paymentPanelUserProps} />
                   </div>
-              </motion.section>
+                </motion.section>
+              )}
 
               {/* Automação de Métricas (InstagramConnectCard) */}
               <InstagramConnectCard
-                  canAccessFeatures={canAccessFeatures}
-                  onActionRedirect={redirectToPaymentPanel}
-                  showToast={showToastMessage}
+                canAccessFeatures={canAccessFeatures}
+                onActionRedirect={redirectToPaymentPanel}
+                showToast={showToastMessage}
               />
 
+              {/* Consultor IA Mobi (WhatsApp) */}
+              <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={0.7}>
+                <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Consultor IA Mobi (WhatsApp)</h2>
+                <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
+                  <WhatsAppPanel
+                    userId={userId}
+                    canAccessFeatures={canAccessFeatures}
+                    onActionRedirect={redirectToPaymentPanel}
+                    showToast={showToastMessage}
+                  />
+                </div>
+              </motion.section>
+
+              {/* Card de Afiliados para MOBILE */}
+              <div className="lg:hidden">
+                <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={0.8}>
+                  <AffiliateCardContent {...affiliateCardProps} />
+                </motion.section>
+              </div>
+
               {/* Suas Métricas (UploadMetrics) */}
-              <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={2}>
+              <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={1}>
                   <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Suas Métricas</h2>
                    <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
                         <UploadMetrics
@@ -639,26 +655,17 @@ interface ExtendedUser {
                </motion.section>
 
                {/* Suas Parcerias (AdDealForm) */}
-               <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={3}>
-                   <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Suas Parcerias</h2>
-                   <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
-                        <AdDealForm
-                            userId={userId}
-                            canAccessFeatures={canAccessFeatures}
-                            onActionRedirect={redirectToPaymentPanel}
-                            showToast={showToastMessage}
-                        />
-                   </div>
+               <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={1.2}>
+                 <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Suas Parcerias</h2>
+                 <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
+                   <AdDealForm
+                     userId={userId}
+                     canAccessFeatures={canAccessFeatures}
+                     onActionRedirect={redirectToPaymentPanel}
+                     showToast={showToastMessage}
+                   />
+                 </div>
                </motion.section>
-
-               {/* Seção de Pagamento (PaymentPanel) */}
-               {!canAccessFeatures && (
-                  <motion.section id="payment-section" variants={cardVariants} initial="hidden" animate="visible" custom={4} className="animated-border-card">
-                     <div className="card-content bg-white p-6 sm:p-8 rounded-xl">
-                         <PaymentPanel user={paymentPanelUserProps} />
-                    </div>
-                  </motion.section>
-              )}
             </div>
 
             {/* --- COLUNA DA DIREITA (SIDEBAR) */}
