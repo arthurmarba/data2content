@@ -384,7 +384,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
 
       <motion.div
         variants={sectionVariants} initial="hidden" animate="visible" custom={paymentBlockIndex}
-        className="p-6 bg-gradient-to-br from-brand-pink/20 via-brand-dark/90 to-brand-dark text-brand-light border border-brand-pink/20 rounded-xl shadow-lg space-y-6"
+        className="p-6 bg-white border border-gray-200 shadow-lg ring-1 ring-black/5 rounded-xl space-y-6"
         role="region"
         aria-labelledby="plano-title"
       >
@@ -393,7 +393,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
             Plano {planType === 'annual' ? 'Anual' : 'Mensal'} Data2Content Completo
           </h3>
           <fieldset className="mt-3">
-            <legend className="text-sm font-medium text-brand-light mb-2">Tipo de plano</legend>
+            <legend className="text-sm font-medium text-brand-dark mb-2">Tipo de plano</legend>
             <div className="flex justify-center gap-4">
               <motion.button
                 type="button"
@@ -425,7 +425,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
               </motion.button>
             </div>
           </fieldset>
-          <div className="flex items-baseline justify-center space-x-1 text-brand-light mt-2">
+          <div className="flex items-baseline justify-center space-x-1 text-brand-dark mt-2">
               <span className="text-2xl font-medium">R$</span>
               <AnimatePresence mode="wait">
                 <motion.span
@@ -439,7 +439,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
                   {formattedTotalPriceWithoutSymbol}
                 </motion.span>
               </AnimatePresence>
-              <span className="text-xl font-medium text-brand-light/80">{planType === 'annual' ? '/ano' : '/mês'}</span>
+              <span className="text-xl font-medium text-brand-dark/80">{planType === 'annual' ? '/ano' : '/mês'}</span>
               <AnimatePresence mode="wait">
                 {planType === 'annual' && (
                   <motion.span
@@ -450,7 +450,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
                     transition={{ duration: 0.2 }}
                     className="ml-2 flex items-center gap-2"
                   >
-                    <span className="text-sm line-through text-brand-light/50">
+                    <span className="text-sm line-through text-brand-dark/50">
                       R$ {originalAnnualPrice.toFixed(2).replace('.', ',')}
                     </span>
                     <AnimatePresence mode="wait">
@@ -470,11 +470,11 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
               </AnimatePresence>
           </div>
           {planType === 'annual' && (
-            <p className="text-xs text-brand-light/70 mt-1">
+            <p className="text-xs text-brand-dark/70 mt-1">
               Equivalente a R$ {discountedMonthlyPrice.toFixed(2).replace('.', ',')}/mês
             </p>
           )}
-          <p className="text-sm text-brand-light/70 mt-2 font-light">
+          <p className="text-sm text-brand-dark/70 mt-2 font-light">
             {planType === 'annual'
               ? `Economize R$ ${savingsAmount.toFixed(2).replace('.', ',')} (${discountPercentage}%) com 12 meses de acesso completo.`
               : 'Investimento mínimo, resultados máximos. Cancele quando quiser.'}
@@ -482,8 +482,8 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
         </div>
 
         <div className={`${loading || ctaClicked ? 'opacity-50 pointer-events-none' : ''}`}>
-              <label htmlFor="affiliateCodeInputPayment" className="block text-sm font-medium text-brand-light mb-1.5">
-                  Código de Afiliado <span className="text-xs text-brand-light/70 font-light">(Opcional)</span>
+              <label htmlFor="affiliateCodeInputPayment" className="block text-sm font-medium text-brand-dark mb-1.5">
+                  Código de Afiliado <span className="text-xs text-brand-dark/70 font-light">(Opcional)</span>
               </label>
               <input
                 id="affiliateCodeInputPayment"
@@ -559,7 +559,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
                 <FaExternalLinkAlt className="w-4 h-4"/>
                 Finalizar Pagamento Seguro
             </a>
-            <p className="text-xs text-brand-light/70 mt-2.5 font-light">
+            <p className="text-xs text-brand-dark/70 mt-2.5 font-light">
               (Você será redirecionado para um ambiente seguro do Mercado Pago)
             </p>
             </div>
