@@ -436,7 +436,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
                   transition={{ duration: 0.2 }}
                   className="text-6xl font-extrabold tracking-tight leading-none text-brand-pink"
                 >
-                  {formattedTotalPriceWithoutSymbol}
+                  <span className="font-mono tabular-nums">{formattedTotalPriceWithoutSymbol}</span>
                 </motion.span>
               </AnimatePresence>
               <span className="text-xl font-medium text-brand-dark/80">{planType === 'annual' ? '/ano' : '/mês'}</span>
