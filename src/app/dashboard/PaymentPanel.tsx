@@ -342,9 +342,9 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
   const videoIndex = 0;
   const paymentBlockIndex = 1;
   const benefitsGridIndex = 2;
-  const testimonialIndex = benefitsGridIndex + benefitsList.length; // Ajustado para após os benefícios
+  const faqIndex = benefitsGridIndex + benefitsList.length;
+  const testimonialIndex = faqIndex + 1;
   const guaranteesIndex = testimonialIndex + 1;
-  const faqIndex = guaranteesIndex + 1;
 
   return (
     <div className="space-y-8 sm:space-y-10 font-sans">
@@ -382,14 +382,15 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
         </div>
       </motion.div>
 
-      <motion.div
-        variants={sectionVariants}
-        initial="hidden"
-        animate="visible"
-        custom={paymentBlockIndex}
-        role="region"
-        aria-labelledby="plano-title"
-      >
+      <div className="space-y-8 sm:space-y-10 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-8">
+        <motion.div
+          variants={sectionVariants}
+          initial="hidden"
+          animate="visible"
+          custom={paymentBlockIndex}
+          role="region"
+          aria-labelledby="plano-title"
+        >
         <div className="relative p-[1px] rounded-2xl bg-gradient-to-r from-brand-pink via-brand-dark to-brand-pink animate-[spin_6s_linear_infinite]">
           <div className="rounded-2xl bg-white dark:bg-brand-dark p-6 shadow-lg space-y-6">
             <div className="text-center">
@@ -596,31 +597,48 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
           </div>
         </div>
       </motion.div>
+        <div className="space-y-8 sm:space-y-10">
+          <motion.div
+            variants={sectionVariants} initial="hidden" animate="visible" custom={benefitsGridIndex}
+            className="pt-4"
+            role="region"
+            aria-labelledby="beneficios-title"
+          >
+            <h3 id="beneficios-title" className="text-xl font-semibold text-brand-dark mb-5 text-center sm:text-left">O que você ganha ao assinar:</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {benefitsList.map((benefit, index) => (
+                  <motion.div
+                    key={index}
+                    variants={sectionVariants}
+                    initial="hidden"
+                    animate="visible"
+                    custom={benefitsGridIndex + index * 0.1}
+                    className="flex items-start p-4 bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-shadow ring-1 ring-black/5"
+                    whileHover={{ scale: 1.03 }}
+                  >
+                    <FaCheckCircle aria-hidden="true" className="text-green-500 mr-3 mt-1 flex-shrink-0 w-5 h-5" />
+                    <span className="text-base font-medium text-gray-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: benefit.replace(/ILIMITADAS|24\/7|PERSONALIZADAS|PRIORITÁRIO|VIP/g, '<strong class=\"text-brand-pink\">$&</strong>') }}></span>
+                  </motion.div>
+              ))}
+            </div>
+          </motion.div>
 
-      <motion.div
-        variants={sectionVariants} initial="hidden" animate="visible" custom={benefitsGridIndex}
-        className="pt-4"
-        role="region"
-        aria-labelledby="beneficios-title"
-      >
-        <h3 id="beneficios-title" className="text-xl font-semibold text-brand-dark mb-5 text-center sm:text-left">O que você ganha ao assinar:</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {benefitsList.map((benefit, index) => (
-              <motion.div
-                key={index}
-                variants={sectionVariants}
-                initial="hidden"
-                animate="visible"
-                custom={benefitsGridIndex + index * 0.1}
-                className="flex items-start p-4 bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-shadow ring-1 ring-black/5"
-                whileHover={{ scale: 1.03 }}
-              >
-                <FaCheckCircle aria-hidden="true" className="text-green-500 mr-3 mt-1 flex-shrink-0 w-5 h-5" />
-                <span className="text-base font-medium text-gray-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: benefit.replace(/ILIMITADAS|24\/7|PERSONALIZADAS|PRIORITÁRIO|VIP/g, '<strong class="text-brand-pink">$&</strong>') }}></span>
-              </motion.div>
-          ))}
+          <motion.div
+            variants={sectionVariants} initial="hidden" animate="visible" custom={faqIndex}
+            className="pt-6 pb-4"
+            role="region"
+            aria-labelledby="faq-title"
+          >
+            <h3 id="faq-title" className="text-xl font-semibold text-brand-dark mb-6 text-center">Perguntas Frequentes (FAQ)</h3>
+            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-2 sm:p-4 space-y-2">
+              {faqItems.map((item, index) => (
+                // O componente FAQItem agora é responsável pelo seu próprio \"card\" visual
+                <FAQItem key={index} question={item.question} answer={item.answer} />
+              ))}
+            </div>
+          </motion.div>
         </div>
-      </motion.div>
+      </div>
 
       <motion.div
          variants={sectionVariants} initial="hidden" animate="visible" custom={testimonialIndex}
@@ -691,22 +709,6 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
         </div>
       </motion.div>
 
-      {/* Seção de FAQ Expansível ATUALIZADA */}
-      <motion.div
-        variants={sectionVariants} initial="hidden" animate="visible" custom={faqIndex}
-        className="pt-6 pb-4"
-        role="region"
-        aria-labelledby="faq-title"
-      >
-        <h3 id="faq-title" className="text-xl font-semibold text-brand-dark mb-6 text-center">Perguntas Frequentes (FAQ)</h3>
-        {/* Contêiner do FAQ com fundo e sombra para agrupar os itens */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-2 sm:p-4 space-y-2">
-          {faqItems.map((item, index) => (
-            // O componente FAQItem agora é responsável pelo seu próprio "card" visual
-            <FAQItem key={index} question={item.question} answer={item.answer} />
-          ))}
-        </div>
-      </motion.div>
 
       <style jsx>{`
         .shimmer-button {
