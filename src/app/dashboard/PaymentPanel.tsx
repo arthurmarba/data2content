@@ -40,6 +40,10 @@ interface PaymentPanelProps {
 
 const AFFILIATE_REF_KEY = 'affiliateRefCode';
 const AGENCY_INVITE_KEY = 'agencyInviteCode';
+const currencyFormatter = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+});
 
 // Componente FAQItem com visual aprimorado
 const FAQItem = ({ question, answer }: { question: string; answer: string | React.ReactNode }) => {
@@ -134,6 +138,8 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
   const selectedMonthlyPrice =
     planType === 'annual' ? discountedMonthlyPrice : originalMonthlyPrice;
   const totalPrice = planType === 'annual' ? totalAnnualPrice : selectedMonthlyPrice;
+  const formattedTotalPrice = currencyFormatter.format(totalPrice);
+  const formattedTotalPriceWithoutSymbol = formattedTotalPrice.replace('R$', '').trim();
 
   useEffect(() => {
     async function loadFromStorage() {
@@ -414,7 +420,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
           <div className="flex items-baseline justify-center space-x-1 text-brand-dark mt-2">
               <span className="text-2xl font-medium">R$</span>
               <span className="text-6xl font-extrabold tracking-tight leading-none text-brand-pink">
-                {(planType === 'annual' ? totalAnnualPrice : selectedMonthlyPrice).toFixed(2).replace('.', ',')}
+                {formattedTotalPriceWithoutSymbol}
               </span>
               <span className="text-xl font-medium text-brand-dark/80">{planType === 'annual' ? '/ano' : '/mês'}</span>
               {planType === 'annual' && (
@@ -491,7 +497,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
           whileTap={!(loading || ctaClicked) ? { scale: 0.97 } : {}}
           transition={{ type: "spring", stiffness: 350, damping: 17 }}
           className={` shimmer-button w-full px-6 py-4 bg-gradient-to-br from-brand-pink to-pink-500 text-white text-lg font-bold rounded-full hover:shadow-2xl transition-all duration-200 ease-out disabled:opacity-60 disabled:cursor-not-allowed shadow-xl flex items-center justify-center gap-2.5 relative overflow-hidden focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-pink-500/70 ${(loading || ctaClicked) ? 'cursor-wait' : ''} `}
-          aria-label={`Assinar o plano ${planType === 'annual' ? 'Anual' : 'Mensal'} Data2Content Completo por R$${totalPrice.toFixed(2).replace('.', ',')} ${planType === 'annual' ? 'por ano' : 'por mês'}`}
+          aria-label={`Assinar o plano ${planType === 'annual' ? 'Anual' : 'Mensal'} Data2Content Completo por ${formattedTotalPrice} ${planType === 'annual' ? 'por ano' : 'por mês'}`}
         >
           {loading ? (
             <> <FaSpinner className="animate-spin w-5 h-5" /> <span>PROCESSANDO...</span> </>
