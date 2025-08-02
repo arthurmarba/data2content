@@ -427,20 +427,47 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
           </fieldset>
           <div className="flex items-baseline justify-center space-x-1 text-brand-dark mt-2">
               <span className="text-2xl font-medium">R$</span>
-              <span className="text-6xl font-extrabold tracking-tight leading-none text-brand-pink">
-                {formattedTotalPriceWithoutSymbol}
-              </span>
+              <AnimatePresence mode="wait">
+                <motion.span
+                  key={planType}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.2 }}
+                  className="text-6xl font-extrabold tracking-tight leading-none text-brand-pink"
+                >
+                  {formattedTotalPriceWithoutSymbol}
+                </motion.span>
+              </AnimatePresence>
               <span className="text-xl font-medium text-brand-dark/80">{planType === 'annual' ? '/ano' : '/mês'}</span>
-              {planType === 'annual' && (
-                <span className="ml-2 flex items-center gap-2">
-                  <span className="text-sm line-through text-brand-dark/50">
-                    R$ {originalAnnualPrice.toFixed(2).replace('.', ',')}
-                  </span>
-                  <span className="bg-brand-pink text-white text-xs font-semibold px-2 py-0.5 rounded">
-                    -{discountPercentage}%
-                  </span>
-                </span>
-              )}
+              <AnimatePresence mode="wait">
+                {planType === 'annual' && (
+                  <motion.span
+                    key={planType}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="ml-2 flex items-center gap-2"
+                  >
+                    <span className="text-sm line-through text-brand-dark/50">
+                      R$ {originalAnnualPrice.toFixed(2).replace('.', ',')}
+                    </span>
+                    <AnimatePresence mode="wait">
+                      <motion.span
+                        key={planType}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        transition={{ duration: 0.2 }}
+                        className="bg-brand-pink text-white text-xs font-semibold px-2 py-0.5 rounded"
+                      >
+                        -{discountPercentage}%
+                      </motion.span>
+                    </AnimatePresence>
+                  </motion.span>
+                )}
+              </AnimatePresence>
           </div>
           {planType === 'annual' && (
             <p className="text-xs text-brand-dark/70 mt-1">
