@@ -563,9 +563,12 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
           whileHover={!(loading || ctaClicked) ? { scale: 1.02, y: -1, boxShadow: '0 12px 25px -8px rgba(233, 30, 99, 0.5)' } : {}}
           whileTap={!(loading || ctaClicked) ? { scale: 0.97 } : {}}
           transition={{ type: "spring", stiffness: 350, damping: 17 }}
-          className={`w-full px-6 py-4 bg-white border border-brand-pink text-brand-dark text-lg font-bold rounded-full hover:bg-brand-pink/10 transition-all duration-200 ease-out disabled:opacity-60 disabled:cursor-not-allowed shadow-xl flex items-center justify-center gap-2 focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-brand-pink ${(loading || ctaClicked) ? 'cursor-wait' : ''}`}
+          className={`relative w-full px-6 py-4 bg-white border border-brand-pink text-brand-dark text-lg font-bold rounded-full hover:bg-brand-pink/10 transition-all duration-200 ease-out disabled:opacity-60 disabled:cursor-not-allowed shadow-xl flex items-center justify-center gap-2 focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-brand-pink ${(loading || ctaClicked) ? 'cursor-wait' : ''}`}
           aria-label={`Assinar o plano ${planType === 'annual' ? 'Anual' : 'Mensal'} Data2Content Completo por ${formattedTotalPrice} ${planType === 'annual' ? 'por ano' : 'por mês'}`}
         >
+          <span className="absolute inset-0 rounded-full overflow-hidden">
+            <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-[shimmer_2s_infinite]"></span>
+          </span>
           {loading ? (
             <>
               <FaSpinner className="animate-spin w-5 h-5" />
