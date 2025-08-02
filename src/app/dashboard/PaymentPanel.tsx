@@ -295,12 +295,10 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
 
   const testimonials = [
     {
-      id: 1,
-      name: "Joana S.",
+      text: "Depois que assinei, minhas métricas melhoraram e as dicas no WhatsApp me ajudaram a dobrar meu engajamento! O IA Mobi é incrível. Recomendo demais.", // ATUALIZAR
+      author: "Joana S.",
       role: "Criadora de Conteúdo Digital",
-      avatar: "https://placehold.co/60x60/E91E63/FFFFFF?text=JS", // ATUALIZAR
-      quote: "Depois que assinei, minhas métricas melhoraram e as dicas no WhatsApp me ajudaram a dobrar meu engajamento! O IA Mobi é incrível. Recomendo demais.", // ATUALIZAR
-      profileLink: null
+      avatarUrl: "https://placehold.co/60x60/E91E63/FFFFFF?text=JS", // ATUALIZAR
     },
   ];
   const [currentTestimonialIndex, setCurrentTestimonialIndex] = useState(0);
@@ -683,25 +681,27 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: -50 }}
                       transition={{ duration: 0.3 }}
-                      className="flex flex-col sm:flex-row items-center gap-5 p-4"
+                      className="flex flex-col items-center p-4"
                     >
-                      <img
-                        src={currentTestimonial.avatar}
-                        alt={`Avatar de ${currentTestimonial.name}`}
-                        className="w-16 h-16 rounded-full flex-shrink-0 border-2 border-white shadow-lg ring-1 ring-brand-pink/50"
-                      />
-                      <div className="flex-grow text-center sm:text-left">
-                        <blockquote className="font-sans text-lg italic text-gray-700 relative px-4 py-2 font-light bg-brand-light/30 rounded-md">
-                          <FaQuoteLeft aria-hidden="true" className="absolute left-2 -top-2 text-3xl text-brand-pink/30 opacity-80" />
-                          {currentTestimonial.quote}
-                          <FaQuoteRight aria-hidden="true" className="absolute right-2 -bottom-2 text-3xl text-brand-pink/30 opacity-80" />
-                        </blockquote>
-                        <cite className="block mt-3 text-md font-semibold text-brand-dark text-center sm:text-right not-italic">
-                          {currentTestimonial.name}
-                        </cite>
-                        <p className="text-sm text-gray-600 font-light text-center sm:text-right">
-                          {currentTestimonial.role}
-                        </p>
+                      <blockquote className="font-sans text-lg italic text-gray-700 relative px-4 py-2 font-light bg-brand-light/30 rounded-md text-center">
+                        <FaQuoteLeft aria-hidden="true" className="absolute left-2 -top-2 text-3xl text-brand-pink/30 opacity-80" />
+                        {currentTestimonial.text}
+                        <FaQuoteRight aria-hidden="true" className="absolute right-2 -bottom-2 text-3xl text-brand-pink/30 opacity-80" />
+                      </blockquote>
+                      <div className="flex items-center mt-3">
+                        <img
+                          src={currentTestimonial.avatarUrl}
+                          alt={`Foto de ${currentTestimonial.author}`}
+                          className="w-10 h-10 rounded-full"
+                        />
+                        <div className="ml-3 text-left">
+                          <cite className="block text-md font-semibold text-brand-dark not-italic">
+                            {currentTestimonial.author}
+                          </cite>
+                          <p className="text-sm text-gray-600 font-light">
+                            {currentTestimonial.role}
+                          </p>
+                        </div>
                       </div>
                     </motion.div>
                   )}
