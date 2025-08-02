@@ -125,7 +125,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
   const [refCodeAppliedMessage, setRefCodeAppliedMessage] = useState<string | null>(null);
   const [agencyMessage, setAgencyMessage] = useState<string | null>(null);
   const [ctaClicked, setCtaClicked] = useState(false);
-  const [planType, setPlanType] = useState<'monthly' | 'annual'>('monthly');
+  const [planType, setPlanType] = useState<'monthly' | 'annual'>('annual');
 
   const originalMonthlyPrice = agencyInviteCode ? AGENCY_GUEST_MONTHLY_PRICE : MONTHLY_PRICE;
   const discountedMonthlyPrice = agencyInviteCode
@@ -470,9 +470,9 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
               </AnimatePresence>
           </div>
           {planType === 'annual' && (
-            <p className="text-xs text-brand-dark/70 mt-1">
-              Equivalente a R$ {discountedMonthlyPrice.toFixed(2).replace('.', ',')}/mês
-            </p>
+            <span className="text-sm text-gray-600">
+              Equivale a {currencyFormatter.format(discountedMonthlyPrice)} / mês
+            </span>
           )}
           <p className="text-sm text-brand-dark/70 mt-2 font-light">
             {planType === 'annual'
