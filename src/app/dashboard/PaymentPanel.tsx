@@ -412,7 +412,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
               <motion.button
                 type="button"
                 onClick={() => setPlanType('annual')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-colors ${
+                className={`relative flex items-center gap-2 px-4 py-2 rounded-full border transition-colors ${
                   planType === 'annual'
                     ? 'bg-brand-pink text-brand-light border-brand-pink'
                     : 'bg-brand-light text-brand-pink border-brand-pink'
@@ -422,6 +422,9 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
               >
                 <FaCalendarAlt className="w-4 h-4" />
                 <span className="text-sm">Anual</span>
+                <span className="absolute bg-brand-pink text-white text-xs px-2 py-0.5 rounded-full -top-2 -right-2">
+                  Mais vantajoso
+                </span>
               </motion.button>
             </div>
           </fieldset>
