@@ -407,7 +407,12 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
                 whileTap={{ scale: 0.95 }}
               >
                 <FaCalendar className="w-4 h-4" />
-                <span className="text-sm">Mensal</span>
+                <span className="flex flex-col items-start">
+                  <span className="text-sm">Mensal</span>
+                  <span className="text-sm text-gray-600">
+                    R$ {currencyFormatter.format(originalMonthlyPrice)} / mês
+                  </span>
+                </span>
               </motion.button>
               <motion.button
                 type="button"
@@ -421,7 +426,12 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
                 whileTap={{ scale: 0.95 }}
               >
                 <FaCalendarAlt className="w-4 h-4" />
-                <span className="text-sm">Anual</span>
+                <span className="flex flex-col items-start">
+                  <span className="text-sm">Anual</span>
+                  <span className="text-sm text-gray-600">
+                    R$ {currencyFormatter.format(discountedMonthlyPrice)} / mês (cobrança anual)
+                  </span>
+                </span>
                 <span className="absolute bg-brand-pink text-white text-xs px-2 py-0.5 rounded-full -top-2 -right-2">
                   Mais vantajoso
                 </span>
