@@ -362,30 +362,33 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
           <h3 id="plano-title" className="text-xl sm:text-2xl font-bold text-brand-pink mb-1 tracking-wide uppercase">
             Plano {planType === 'annual' ? 'Anual' : 'Mensal'} Data2Content Completo
           </h3>
-          <div className="flex justify-center gap-4 mt-3">
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="radio"
-                name="plan-type"
-                value="monthly"
-                checked={planType === 'monthly'}
-                onChange={() => setPlanType('monthly')}
-                className="text-brand-pink focus:ring-brand-pink"
-              />
-              Mensal
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="radio"
-                name="plan-type"
-                value="annual"
-                checked={planType === 'annual'}
-                onChange={() => setPlanType('annual')}
-                className="text-brand-pink focus:ring-brand-pink"
-              />
-              Anual
-            </label>
-          </div>
+          <fieldset className="mt-3">
+            <legend className="text-sm font-medium text-brand-dark mb-2">Tipo de plano</legend>
+            <div className="flex justify-center gap-4">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="plan-type"
+                  value="monthly"
+                  checked={planType === 'monthly'}
+                  onChange={() => setPlanType('monthly')}
+                  className="text-brand-pink focus:ring-brand-pink"
+                />
+                Mensal
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="plan-type"
+                  value="annual"
+                  checked={planType === 'annual'}
+                  onChange={() => setPlanType('annual')}
+                  className="text-brand-pink focus:ring-brand-pink"
+                />
+                Anual
+              </label>
+            </div>
+          </fieldset>
           <div className="flex items-baseline justify-center space-x-1 text-brand-dark mt-2">
               <span className="text-2xl font-medium">R$</span>
               <span className="text-6xl font-extrabold tracking-tight leading-none text-brand-pink">
