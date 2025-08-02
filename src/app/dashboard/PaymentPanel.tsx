@@ -503,27 +503,32 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
         </div>
 
         <div className={`${loading || ctaClicked ? 'opacity-50 pointer-events-none' : ''}`}>
-              <label htmlFor="affiliateCodeInputPayment" className="block text-sm font-medium text-brand-dark mb-1.5">
-                  Código de Afiliado <span className="text-xs text-brand-dark/70 font-light">(Opcional)</span>
-              </label>
-              <input
-                id="affiliateCodeInputPayment"
-                type="text"
-                value={affiliateCodeInput}
-                onChange={(e) => {
-                    setAffiliateCodeInput(e.target.value.toUpperCase());
-                    setIsAffiliateCodeValid(true);
-                    setAffiliateCodeError(null);
-                    if (refCodeAppliedMessage) {
-                        setRefCodeAppliedMessage(null);
-                    }
-                }}
-                placeholder="Insira o código aqui se tiver um"
-                disabled={loading || ctaClicked}
-                className={`w-full bg-white border ${isAffiliateCodeValid ? 'border-gray-300' : 'border-red-500 text-red-700'} rounded-lg px-3 py-2 text-brand-dark placeholder:text-sm placeholder:text-gray-500 focus:border-brand-pink focus:ring-brand-pink disabled:opacity-50 disabled:bg-gray-100`}
-                aria-describedby="ref-code-message"
-                aria-invalid={!isAffiliateCodeValid}
-              />
+              <div className="relative">
+                <input
+                  id="affiliateCodeInputPayment"
+                  type="text"
+                  value={affiliateCodeInput}
+                  onChange={(e) => {
+                      setAffiliateCodeInput(e.target.value.toUpperCase());
+                      setIsAffiliateCodeValid(true);
+                      setAffiliateCodeError(null);
+                      if (refCodeAppliedMessage) {
+                          setRefCodeAppliedMessage(null);
+                      }
+                  }}
+                  placeholder=" "
+                  disabled={loading || ctaClicked}
+                  className={`peer w-full bg-white border ${isAffiliateCodeValid ? 'border-gray-300' : 'border-red-500 text-red-700'} rounded-lg px-3 py-2 text-brand-dark placeholder:text-sm placeholder:text-gray-500 focus:border-brand-pink focus:ring-brand-pink disabled:opacity-50 disabled:bg-gray-100`}
+                  aria-describedby="ref-code-message"
+                  aria-invalid={!isAffiliateCodeValid}
+                />
+                <label
+                  htmlFor="affiliateCodeInputPayment"
+                  className="absolute left-3 top-2 text-xs text-gray-500 transition-all peer-focus:-top-2 peer-focus:text-[10px] peer-placeholder-shown:top-2.5 peer-placeholder-shown:text-xs"
+                >
+                  Código de Afiliado <span className="font-light">(Opcional)</span>
+                </label>
+              </div>
               <div id="ref-code-message" aria-live="polite">
                 {!isAffiliateCodeValid && affiliateCodeError && !loading && (
                   <p className="mt-2 text-sm text-gray-500 flex items-center gap-1.5">
