@@ -531,15 +531,24 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
           whileHover={!(loading || ctaClicked) ? { scale: 1.02, y: -1, boxShadow: '0 12px 25px -8px rgba(233, 30, 99, 0.5)' } : {}}
           whileTap={!(loading || ctaClicked) ? { scale: 0.97 } : {}}
           transition={{ type: "spring", stiffness: 350, damping: 17 }}
-          className={` shimmer-button w-full px-6 py-4 bg-gradient-to-br from-brand-pink to-pink-500 text-brand-light text-lg font-bold rounded-full hover:shadow-2xl transition-all duration-200 ease-out disabled:opacity-60 disabled:cursor-not-allowed shadow-xl flex items-center justify-center gap-2.5 relative overflow-hidden focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-pink-500/70 ${(loading || ctaClicked) ? 'cursor-wait' : ''} `}
+          className={`w-full px-6 py-4 bg-white border border-brand-pink text-brand-dark text-lg font-bold rounded-full hover:bg-brand-pink/10 transition-all duration-200 ease-out disabled:opacity-60 disabled:cursor-not-allowed shadow-xl flex items-center justify-center gap-2 focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-brand-pink ${(loading || ctaClicked) ? 'cursor-wait' : ''}`}
           aria-label={`Assinar o plano ${planType === 'annual' ? 'Anual' : 'Mensal'} Data2Content Completo por ${formattedTotalPrice} ${planType === 'annual' ? 'por ano' : 'por mês'}`}
         >
           {loading ? (
-            <> <FaSpinner className="animate-spin w-5 h-5" /> <span>PROCESSANDO...</span> </>
+            <>
+              <FaSpinner className="animate-spin w-5 h-5" />
+              <span>PROCESSANDO...</span>
+            </>
           ) : ctaClicked ? (
-            <> <FaCheckCircle className="w-5 h-5" /> <span>AGUARDE...</span> </>
+            <>
+              <FaCheckCircle className="w-5 h-5" />
+              <span>AGUARDE...</span>
+            </>
           ) : (
-            <> {planType === 'annual' ? 'QUERO O PLANO ANUAL!' : 'QUERO O PLANO MENSAL!'} <motion.span className="inline-block ml-1" transition={{ type: 'spring', stiffness: 300 }}> <FaArrowRight className="w-5 h-5 opacity-90" /> </motion.span> </>
+            <>
+              <FaArrowRight className="w-5 h-5 opacity-90" />
+              <span>{planType === 'annual' ? 'QUERO O PLANO ANUAL!' : 'QUERO O PLANO MENSAL!'}</span>
+            </>
           )}
         </motion.button>
 
