@@ -220,6 +220,35 @@ JSON:
     }
 }
 
+async function generateAlertSubjectFromText(
+    rawText: string,
+    userName: string,
+    userId: string
+): Promise<string> {
+    const TAG = `${HANDLER_TAG_BASE}[generateAlertSubjectFromText] User ${userId}:`;
+    const prompt = `\
+Você é Mobi, um consultor de IA especialista em Instagram.\n\
+Gere uma frase curta em português brasileiro descrevendo diretamente o assunto do alerta abaixo para ${userName},\n\
+falando em segunda pessoa e sem saudação.\n\n\
+Alerta: "${rawText}"\n\n\
+Frase curta:`;
+
+    const subject = await callOpenAIForQuestion(prompt, {
+        model: CONTEXT_EXTRACTION_MODEL,
+        temperature: CONTEXT_EXTRACTION_TEMP,
+        max_tokens: CONTEXT_EXTRACTION_MAX_TOKENS,
+    });
+
+    const cleaned = subject.trim();
+    if (!cleaned) {
+        logger.warn(`${TAG} IA retornou assunto vazio, utilizando texto original.`);
+        return rawText.trim();
+    }
+
+    logger.info(`${TAG} Assunto gerado: "${cleaned}"`);
+    return cleaned;
+}
+
 async function generateInstigatingQuestionForDefaultMessage(
     baseMessage: string,
     dialogueState: IDialogueState,
@@ -675,7 +704,6 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
         if (!detectedEvent) {
             logger.info(`${handlerTAG} Nenhum evento detectado. Gerando insight de fallback...`);
             
-            let baseDefaultMessage = `Olá ${userFirstNameForRadar}, Mobi na área! 👋`;
             let enrichedReportForFallback: IEnrichedReport | null = null;
             let latestAccountInsightsForFallback: IAccountInsight | null = null;
 
@@ -699,14 +727,24 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
             );
             
             let fallbackInsightText: string | null = null;
-            let fallbackInsightType: FallbackInsightType | null = null; 
+            let fallbackInsightType: FallbackInsightType | null = null;
 
             if (fallbackResult && fallbackResult.text && fallbackResult.type) {
                 fallbackInsightText = fallbackResult.text;
-                fallbackInsightType = fallbackResult.type; 
-                baseDefaultMessage += ` ${fallbackInsightText}`;
-            } else {
-                baseDefaultMessage += ` Dei uma olhada geral nos seus dados hoje...`;
+                fallbackInsightType = fallbackResult.type;
+            }
+
+            const subjectText = await generateAlertSubjectFromText(
+                fallbackInsightText || 'dei uma olhada geral nos seus dados hoje',
+                userFirstNameForRadar,
+                userId
+            );
+
+            let baseDefaultMessage = `Olá ${userFirstNameForRadar}, ${subjectText}`;
+            if (fallbackInsightText && fallbackInsightText.trim() !== subjectText) {
+                baseDefaultMessage += `\n\n${fallbackInsightText}`;
+            } else if (!fallbackInsightText) {
+                baseDefaultMessage += `\n\nDei uma olhada geral nos seus dados hoje...`;
             }
             const instigatingQuestion = await generateInstigatingQuestionForDefaultMessage(
                 baseDefaultMessage,
@@ -851,7 +889,7 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
         }
 
         if (!finalAIResponse.trim()) {
-            finalAIResponse = `Olá ${userFirstNameForRadar}! Radar Mobi aqui com uma observação sobre ${detectedEvent.type}: ${alertInputForAI} Que tal explorarmos isso juntos?`;
+            finalAIResponse = 'Que tal explorarmos isso juntos?';
         }
 
         const instigatingQuestionForAlert = await generateInstigatingQuestionForDefaultMessage(
@@ -862,7 +900,14 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
         );
 
         const shortAIResponse = getFirstSentence(finalAIResponse);
-        let fullAlertMessageToUser = `${alertInputForAI}\n\n${shortAIResponse}`;
+        const sanitizedAlertInput = alertInputForAI.replace(/^Radar Mobi[^:!]*[:!]\s*/i, '');
+        const alertSubject = await generateAlertSubjectFromText(
+            sanitizedAlertInput,
+            userFirstNameForRadar,
+            userId
+        );
+        let fullAlertMessageToUser = `Olá ${userFirstNameForRadar}, ${alertSubject}`;
+        fullAlertMessageToUser += `\n\n${shortAIResponse}`;
         if (instigatingQuestionForAlert) {
             fullAlertMessageToUser += `\n\n${instigatingQuestionForAlert}`;
         }
