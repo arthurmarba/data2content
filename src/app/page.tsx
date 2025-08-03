@@ -288,13 +288,25 @@ export default function FinalCompleteLandingPage() {
                         </motion.div>
                       </div>
                       
-                      <motion.div 
+                      <motion.div
                         variants={heroItemVariants}
                         className="mt-10 md:mt-12 w-full space-y-4"
                       >
                         <Marquee items={heroQuestions} />
                         <Marquee items={[...heroQuestions].reverse()} direction="right" />
                       </motion.div>
+
+                      <div className="relative mt-12 bg-gradient-to-b from-gray-100 via-gray-100/0 to-gray-50">
+                        <video
+                          autoPlay
+                          muted
+                          loop
+                          playsInline
+                          poster="/images/tuca-analise-whatsapp.png"
+                          src="/videos/hero-demo.mp4"
+                          className="w-full max-w-4xl mx-auto rounded-2xl shadow-xl aspect-video"
+                        />
+                      </div>
                     </motion.div>
                 </div>
             </div>
