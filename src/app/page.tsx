@@ -8,7 +8,7 @@ import { useSession, signIn } from "next-auth/react";
 import { motion, useAnimation } from "framer-motion";
 import { useInView } from "react-intersection-observer";
 import { TypeAnimation } from "react-type-animation";
-import { FaGoogle, FaGem, FaChartPie, FaHeart, FaBriefcase, FaStar, FaPaintBrush, FaBullhorn, FaChalkboardTeacher, FaQuestionCircle, FaCheckCircle, FaTimesCircle, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaGoogle, FaGem, FaChartPie, FaHeart, FaBriefcase, FaStar, FaPaintBrush, FaBullhorn, FaChalkboardTeacher, FaQuestionCircle, FaCheckCircle, FaTimesCircle, FaChevronLeft, FaChevronRight, FaPlay } from 'react-icons/fa';
 
 // --- DADOS E CONSTANTES DA PÁGINA ---
 const exampleScreenshots = [
@@ -204,6 +204,23 @@ export default function FinalCompleteLandingPage() {
         const gap = 32; // Corresponde a 'gap-8' no Tailwind
         const scrollAmount = cardWidth + gap;
         carouselRef.current.scrollBy({ left: direction === 'right' ? scrollAmount : -scrollAmount, behavior: 'smooth' });
+    }
+  };
+
+  const videoId = "dQw4w9WgXcQ";
+  const videoRef = useRef<HTMLDivElement>(null);
+  const handleVideoClick = () => {
+    if (videoRef.current) {
+      const iframe = document.createElement("iframe");
+      iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1`;
+      iframe.title = "YouTube video player";
+      iframe.frameBorder = "0";
+      iframe.allow =
+        "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+      iframe.allowFullscreen = true;
+      iframe.className = "absolute top-0 left-0 h-full w-full";
+      videoRef.current.innerHTML = "";
+      videoRef.current.appendChild(iframe);
     }
   };
 
@@ -407,18 +424,21 @@ export default function FinalCompleteLandingPage() {
                     </AnimatedSection>
                     
                     <AnimatedSection delay={0.1}>
-                        <div 
-                            className="relative mt-10 overflow-hidden rounded-2xl shadow-lg"
-                            style={{ paddingTop: '56.25%' }} // Proporção 16:9 para vídeo
+                        <div
+                            ref={videoRef}
+                            onClick={handleVideoClick}
+                            className="relative cursor-pointer mt-10 overflow-hidden rounded-2xl shadow-lg w-full aspect-video"
                         >
-                           <iframe
-                                className="absolute top-0 left-0 h-full w-full"
-                                src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&mute=1&loop=1&playlist=dQw4w9WgXcQ&controls=0"
-                                title="YouTube video player"
-                                frameBorder="0"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                allowFullScreen
-                            ></iframe>
+                            <img
+                                src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
+                                alt="Thumbnail do vídeo"
+                                className="absolute top-0 left-0 h-full w-full object-cover"
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="bg-black/60 rounded-full p-4">
+                                    <FaPlay className="text-white text-3xl" />
+                                </div>
+                            </div>
                         </div>
                     </AnimatedSection>
                 </div>
