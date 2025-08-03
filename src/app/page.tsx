@@ -322,6 +322,8 @@ export default function FinalCompleteLandingPage() {
                           poster="/images/tuca-analise-whatsapp.png"
                           src="/videos/hero-demo.mp4"
                           className="w-full max-w-4xl mx-auto rounded-2xl shadow-xl aspect-video"
+                          loading="lazy"
+                          decoding="async"
                         />
                       </div>
                     </motion.div>
@@ -433,6 +435,8 @@ export default function FinalCompleteLandingPage() {
                                 src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
                                 alt="Thumbnail do vídeo"
                                 className="absolute top-0 left-0 h-full w-full object-cover"
+                                loading="lazy"
+                                decoding="async"
                             />
                             <div className="absolute inset-0 flex items-center justify-center">
                                 <div className="bg-black/60 rounded-full p-4">
