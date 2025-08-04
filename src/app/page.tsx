@@ -5,7 +5,7 @@ import Head from "next/head";
 import Link from "next/link";
 import Image from "next/image";
 import { useSession, signIn } from "next-auth/react";
-import { motion, useAnimation } from "framer-motion";
+import { motion, useAnimation, useScroll, useTransform } from "framer-motion";
 import { useInView } from "react-intersection-observer";
 import { TypeAnimation } from "react-type-animation";
 import { FaGoogle, FaGem, FaChartPie, FaHeart, FaBriefcase, FaStar, FaPaintBrush, FaBullhorn, FaChalkboardTeacher, FaQuestionCircle, FaCheckCircle, FaTimesCircle, FaChevronLeft, FaChevronRight, FaPlay } from 'react-icons/fa';
@@ -258,6 +258,10 @@ export default function FinalCompleteLandingPage() {
     },
   };
 
+  const { scrollY } = useScroll();
+  const topBlobY = useTransform(scrollY, [0, 500], [0, -100]);
+  const bottomBlobY = useTransform(scrollY, [0, 500], [0, -150]);
+
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
     window.addEventListener("scroll", handleScroll);
@@ -300,8 +304,14 @@ export default function FinalCompleteLandingPage() {
           {/* [CORREÇÃO] A altura mínima foi ajustada para 90vh para diminuir o espaço vertical. */}
           <section className="relative flex flex-col h-screen pt-20 bg-gradient-to-b from-white via-brand-pink/5 to-gray-50 text-center overflow-x-hidden">
             <div className="absolute inset-0 -z-10 overflow-hidden">
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[40rem] h-[40rem] bg-[radial-gradient(circle_at_top,rgba(236,72,153,0.35),transparent)]" />
-              <div className="absolute bottom-20 right-0 w-72 h-72 bg-brand-pink/20 blur-3xl rounded-full" />
+              <motion.div
+                style={{ y: topBlobY }}
+                className="absolute top-0 left-1/2 -translate-x-1/2 w-[40rem] h-[40rem] bg-[radial-gradient(circle_at_top,rgba(236,72,153,0.35),transparent)]"
+              />
+              <motion.div
+                style={{ y: bottomBlobY }}
+                className="absolute bottom-20 right-0 w-72 h-72 bg-brand-pink/20 blur-3xl rounded-full"
+              />
             </div>
             {/* O container interno usa flex-grow e justify-start para alinhar o conteúdo ao topo. */}
             <div className="flex-grow flex flex-col justify-start pt-32">
