@@ -302,7 +302,7 @@ export default function FinalCompleteLandingPage() {
                       <div className="max-w-3xl mx-auto px-6 lg:px-8">
                         <motion.h1 
                           variants={heroItemVariants}
-                          className="text-5xl md:text-7xl font-extrabold tracking-tighter text-brand-dark"
+                          className="text-5xl md:text-7xl font-semibold tracking-tighter bg-gradient-to-r from-brand-pink to-brand-red bg-clip-text text-transparent"
                         >
                           O fim da dúvida: o que postar hoje?
                         </motion.h1>
