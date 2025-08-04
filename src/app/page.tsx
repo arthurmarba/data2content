@@ -9,6 +9,9 @@ import { motion, useAnimation, useScroll, useTransform } from "framer-motion";
 import { useInView } from "react-intersection-observer";
 import { TypeAnimation } from "react-type-animation";
 import { FaGoogle, FaGem, FaChartPie, FaHeart, FaBriefcase, FaStar, FaPaintBrush, FaBullhorn, FaChalkboardTeacher, FaQuestionCircle, FaCheckCircle, FaTimesCircle, FaChevronLeft, FaChevronRight, FaPlay } from 'react-icons/fa';
+import testimonials from "@/data/testimonials";
+import faqItems from "@/data/faq";
+import heroQuestions from "@/data/heroQuestions";
 
 // --- DADOS E CONSTANTES DA PÁGINA ---
 const exampleScreenshots = [
@@ -37,53 +40,6 @@ const creatorTypes = [
     }
 ];
 
-const testimonials = [
-    {
-      name: "Livia Linhares",
-      handle: "@livialinharess",
-      quote: "A IA da D2C é tipo o CEO do meu Instagram 😅. Ela olha pras minhas métricas, me mostra o que meu público curte (e o que não curte) e ainda me dá um toque quando tô postando pouco, pra eu não deixar o engajamento cair. E tudo isso é feito só pra mim, porque ele conhece as minhas métricas. Eu acho que, como criadora, esse tipo de ajuda faz muita diferença. Até porque, meu retorno financeiro vem de publis, e pra fechar boas parcerias, cada post precisa engajar bem. Uso direto e recomendo demais!",
-      avatarUrl: "/images/Livia Foto D2C.png"
-    },
-    {
-      name: "Rafael Belli",
-      handle: "@belli_rafa",
-      quote: "Antes eu ficava meio perdido com os números, mas agora, com o acompanhamento pelo WhatsApp, é outra história. É como ter um parceiro super gente boa que te dá uns toques na hora certa. Os alertas chegam direto no meu WhatsApp e são super úteis. É um suporte personalizado que faz toda a diferença, me ajudando a entender tudo sem complicação e a crescer de verdade.",
-      avatarUrl: "/images/Rafa Belli Foto D2C.png"
-    },
-    {
-      name: "Carla Souza",
-      handle: "@carladesign",
-      quote: "O programa de afiliados é genial! Já paguei minha assinatura só com as comissões, e meus amigos amaram o desconto e a ferramenta.",
-      avatarUrl: "/images/default-profile.png"
-    }
-  ];
-
-const faqItems = [
-     {
-         q: "Qual a diferença da Nossa Inteligência Artificial para outros assistentes ou ferramentas?",
-         a: "Nossa Inteligência Artificial é única por integrar múltiplos superpoderes focados nos SEUS resultados:\n\n* <strong class='font-semibold text-brand-dark'>Análise Conectada:</strong> Acessa SEU Instagram para insights de métricas e conteúdos REAIS (atuais e históricos via print).\n* <strong class='font-semibold text-brand-dark'>Entende Seu Conteúdo:</strong> Categoriza posts por Formato, Propósito e Contexto, revelando padrões.\n* <strong class='font-semibold text-brand-dark'>Timing Inteligente:</strong> Otimiza horários para CADA tipo de conteúdo, maximizando impacto.\n* <strong class='font-semibold text-brand-dark'>Expert + IA Proativa:</strong> Treinado por Arthur Marbá, monitora 24/7 e envia alertas estratégicos.\n* <strong class='font-semibold text-brand-dark'>Prático no WhatsApp:</strong> Interação simples, insights diretos, sem dashboards.\n* <strong class='font-semibold text-brand-dark'>De Dados a Roteiros:</strong> Analisa e GERA ROTEIROS para replicar seus sucessos.\n* <strong class='font-semibold text-brand-dark'>Evolui com Você:</strong> Aprende com suas interações e preferências.\n* <strong class='font-semibold text-brand-dark'>Inspiração da Comunidade:</strong> Exemplos de posts de sucesso (privacidade garantida).\n* <strong class='font-semibold text-brand-dark'>Gestão de Publis:</strong> Ajuda a organizar e otimizar parcerias.\n\nResumindo: Nossa Inteligência Artificial é seu consultor estratégico e criativo completo para Instagram, no WhatsApp."
-     },
-     { q: "Como a Nossa Inteligência Artificial define o melhor horário e dia para postar?", a: "A Nossa Inteligência Artificial realiza uma <strong class='font-semibold text-brand-dark'>análise combinatória profunda</strong>, cruzando dados de horário, duração, formato, propósito e contexto do seu conteúdo. Ela identifica os momentos em que seu público está mais receptivo a cada tipo de post, visando seus objetivos (ex: mais views em Reels de Dicas às terças, 19h). Converse com a Nossa Inteligência Artificial para investigar esses padrões." },
-     { q: "Como a Nossa Inteligência Artificial me ajuda a criar conteúdo e roteiros?", a: "A Nossa Inteligência Artificial impulsiona sua criatividade e produção:\n\n* <strong class='font-semibold text-brand-dark'>Identifica Seus Sucessos:</strong> Analisa métricas e categoriza seu conteúdo (formato, propósito, contexto, horário) para encontrar seus posts de melhor desempenho.\n* <strong class='font-semibold text-brand-dark'>Gera Roteiros e Estruturas:</strong> Com base nesses sucessos, peça à Nossa Inteligência Artificial roteiros ou variações de temas que já funcionaram para seu público.\n* <strong class='font-semibold text-brand-dark'>Supera Bloqueios Criativos:</strong> Use seus próprios acertos como ponto de partida, economizando tempo.\n* <strong class='font-semibold text-brand-dark'>Criatividade Direcionada por Dados:</strong> Receba ideias com maior probabilidade de sucesso, baseadas na análise do seu desempenho." },
-     { q: "Como funcionam os alertas proativos da Nossa Inteligência Artificial?", a: "A Nossa Inteligência Artificial monitora seu Instagram 24/7 e envia alertas personalizados para seu WhatsApp sobre:\n\n* <strong class='font-semibold text-brand-dark'>Picos de Performance:</strong> Ex: 'Seu Reel de Dica sobre [tema], postado [dia/hora], teve X compartilhamentos! Que tal um roteiro?'\n* <strong class='font-semibold text-brand-dark'>Quedas de Desempenho:</strong> Ex: 'O tempo de visualização dos seus Reels de Humor caiu. Vamos analisar?'\n* <strong class='font-semibold text-brand-dark'>Melhores Combinações:</strong> Ex: 'Lembrete: Fotos LifeStyle sobre Viagem às sextas, 10h, costumam ter ótimo engajamento.'\n\nEsses alertas se tornam mais precisos conforme a Nossa Inteligência Artificial aprende com você." },
-     { q: "O que é a Comunidade de Inspiração da Nossa Inteligência Artificial?", a: "É um recurso para destravar sua criatividade! A Nossa Inteligência Artificial te dá acesso a exemplos de posts de sucesso (com resumos estratégicos e destaques qualitativos) de outros criadores. Peça inspiração por <strong class='font-semibold text-brand-dark'>tema, formato, propósito e contexto</strong>. <strong class='font-semibold text-brand-pink'>Importante: Métricas numéricas de terceiros NUNCA são compartilhadas.</strong> O foco é no aprendizado e na inspiração, com links para o post original." },
-     { q: "Como a Nossa Inteligência Artificial me ajuda com minhas 'publis'?", a: "A Nossa Inteligência Artificial é seu aliado estratégico para publicidade:\n\n* <strong class='font-semibold text-brand-dark'>Organize Parcerias:</strong> Registre detalhes dos seus acordos na plataforma.\n* <strong class='font-semibold text-brand-dark'>Brainstorm para 'Publis':</strong> Peça ideias e roteiros para posts patrocinados, e a Nossa Inteligência Artificial usará os dados da parceria e do seu perfil para sugestões eficazes.\n* <strong class='font-semibold text-brand-dark'>Análise de Propostas (Em Breve):</strong> Futuramente, a Nossa Inteligência Artificial ajudará a analisar propostas e entender o valor das suas entregas.\n* <strong class='font-semibold text-brand-dark'>Histórico para Negociações:</strong> Use seu histórico de 'publis' para embasar futuras negociações." },
-     { q: "Como funciona o programa de afiliados?", a: "Todos os usuários, mesmo no plano gratuito, viram afiliados ao criar a conta! Você recebe um cupom exclusivo. Seu amigo usa o cupom e ganha <strong class='font-semibold text-brand-dark'>10% de desconto</strong> na assinatura da Nossa Inteligência Artificial. E você ganha <strong class='font-semibold text-brand-dark'>10% de comissão recorrente</strong> enquanto ele for assinante. Simples assim!" },
-     { q: "A data2content é realmente gratuito para começar?", a: "Sim! Crie sua conta grátis e já vire afiliado. Funcionalidades básicas estão disponíveis. O poder completo da Nossa Inteligência Artificial (análise profunda, categorização, otimização de horários, alertas, aprendizado contínuo, comunidade, roteiros, gestão de publis) faz parte do nosso plano premium." },
-     { q: "Como a Nossa Inteligência Artificial acessa meus dados e aprende comigo? É seguro?", a: "Sim, total segurança e privacidade! A Nossa Inteligência Artificial acessa dados do seu Instagram (com sua permissão via conexão segura com Meta/Facebook) para buscar métricas, posts e categorizar descrições. Você também pode <strong class='font-semibold text-brand-dark'>enviar prints de posts antigos</strong>. Ela <strong class='font-semibold text-brand-dark'>aprende com suas conversas no WhatsApp</strong>, registrando preferências e objetivos para refinar as análises. Tudo em conformidade com a LGPD e diretrizes do Instagram. Você tem total controle." },
-     { q: "Preciso ter uma conta profissional do Instagram?", a: "Sim, para a Nossa Inteligência Artificial analisar seus dados (via conexão ou prints), categorizar conteúdo, otimização de horários e aprender com você, é necessária uma conta Profissional (Comercial ou Criador de Conteúdo) vinculada a uma Página do Facebook." },
-];
-
-const heroQuestions = [
-    "Qual o melhor dia para postar?", "Qual o melhor horário pra postar?", "Me dê uma ideia de conteúdo viral",
-    "Analise meus post do mês", "Que formato está em alta?", "Como aumentar meu engajamento?",
-    "Crie um roteiro para um Reel", "Preciso de inspiração para Reels", "Qual tema devo abordar hoje?",
-    "Crie um plano de postagens pra ganhar seguidores", "Quais dias eu não devo postar?", "Quantos segundos meus reels devem ter?",
-    "Meus reels estão com poucas visualizações, o que fazer?", "Como escrever uma legenda que gera mais comentários?",
-    "Qual o melhor formato para vender meu produto?", "Postar humor na terça-feira dá mais resultado?",
-    "Qual o pior dia para postar uma publicidade?", "Crie um calendário de conteúdo para a próxima semana.",
-    "Devo postar nos fins de semana?", "Quantas postagens devo fazer por semana?", "Posts sobre dicas funcionam melhor de manhã ou à noite?",
-];
 
 // --- COMPONENTES DE UI REUTILIZÁVEIS ---
 const AnimatedSection = React.memo(({ children, delay = 0, className = "" }: { children: React.ReactNode; delay?: number; className?: string; }) => {
