@@ -236,13 +236,26 @@ export default function FinalCompleteLandingPage() {
   }, [videoId]);
 
   const heroVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.2, delayChildren: 0.1 } },
+    hidden: { opacity: 0, scale: 0.95 },
+    visible: {
+      opacity: [0, 1],
+      scale: [0.95, 1],
+      transition: {
+        ease: [0.33, 1, 0.68, 1],
+        staggerChildren: 0.2,
+        delayChildren: 0.1,
+      },
+    },
   };
 
   const heroItemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] } },
+    hidden: { opacity: 0, y: 20, scale: 0.95 },
+    visible: {
+      opacity: [0, 1],
+      y: 0,
+      scale: [0.95, 1],
+      transition: { duration: 0.7, ease: [0.33, 1, 0.68, 1] },
+    },
   };
 
   useEffect(() => {
@@ -326,16 +339,11 @@ export default function FinalCompleteLandingPage() {
                           </ButtonPrimary>
                         </motion.div>
                       </div>
-                      
+
                       <motion.div
                         variants={heroItemVariants}
-                        className="mt-10 md:mt-12 w-full space-y-4"
+                        className="relative mt-12 bg-gradient-to-b from-white via-brand-pink/5 to-gray-50"
                       >
-                        <Marquee items={heroQuestions} />
-                        <Marquee items={[...heroQuestions].reverse()} direction="right" />
-                      </motion.div>
-
-                      <div className="relative mt-12 bg-gradient-to-b from-white via-brand-pink/5 to-gray-50">
                         <video
                           autoPlay
                           muted
@@ -347,7 +355,15 @@ export default function FinalCompleteLandingPage() {
                           loading="lazy"
                           decoding="async"
                         />
-                      </div>
+                      </motion.div>
+
+                      <motion.div
+                        variants={heroItemVariants}
+                        className="mt-10 md:mt-12 w-full space-y-4"
+                      >
+                        <Marquee items={heroQuestions} />
+                        <Marquee items={[...heroQuestions].reverse()} direction="right" />
+                      </motion.div>
                     </motion.div>
                 </div>
             </div>
