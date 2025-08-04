@@ -5,7 +5,7 @@ import Head from "next/head";
 import Link from "next/link";
 import Image from "next/image";
 import { useSession, signIn } from "next-auth/react";
-import { motion, useAnimation, useScroll, useTransform } from "framer-motion";
+import { motion, useAnimation, useScroll, useTransform, PanInfo } from "framer-motion";
 import { useInView } from "react-intersection-observer";
 import { FaGoogle, FaGem, FaChartPie, FaHeart, FaBriefcase, FaStar, FaPaintBrush, FaBullhorn, FaChalkboardTeacher, FaQuestionCircle, FaCheckCircle, FaTimesCircle, FaChevronLeft, FaChevronRight, FaPlay } from 'react-icons/fa';
 import testimonials from "@/data/testimonials";
@@ -83,23 +83,25 @@ const PillarCard = ({ icon: Icon, title, children }: { icon: React.ElementType; 
 );
 
 const ScreenshotCard = ({ imageUrl, title }: { imageUrl: string; title: string; }) => {
-    const [isCoarsePointer, setIsCoarsePointer] = useState(false);
+    const [isTouch, setIsTouch] = useState(false);
 
     useEffect(() => {
-        if (typeof window !== "undefined") {
-            setIsCoarsePointer(window.matchMedia("(pointer: coarse)").matches);
-        }
+        const handlePointerDown = (e: PointerEvent) => {
+            setIsTouch(e.pointerType === "touch");
+        };
+        window.addEventListener("pointerdown", handlePointerDown, { once: true });
+        return () => window.removeEventListener("pointerdown", handlePointerDown);
     }, []);
 
     return (
         <div
-            className="flex-shrink-0 w-[65vw] sm:w-[45vw] md:w-[30vw] lg:w-[22vw] aspect-[9/16] rounded-3xl bg-gradient-to-br from-gray-100 to-gray-200 p-1 shadow-2xl cursor-grab active:cursor-grabbing"
+            className="flex-shrink-0 w-[60vw] sm:w-[40vw] md:w-[28vw] lg:w-[22vw] aspect-[9/16] rounded-3xl bg-gradient-to-br from-gray-100 to-gray-200 p-1 shadow-2xl cursor-grab active:cursor-grabbing"
             style={{ perspective: "1000px", transformStyle: "preserve-3d" }}
         >
             <motion.div
                 className="relative w-full h-full bg-white rounded-[22px] shadow-inner overflow-hidden"
                 whileTap={{ scale: 0.98, transition: { duration: 0.2 } }}
-                whileHover={isCoarsePointer ? undefined : { rotateX: 5, rotateY: -5 }}
+                whileHover={isTouch ? undefined : { rotateX: 5, rotateY: -5 }}
             >
                 <Image
                     src={imageUrl}
@@ -320,16 +322,29 @@ export default function FinalCompleteLandingPage() {
                 </AnimatedSection>
               </div>
               <div className="relative mt-6">
-                <div 
+                <motion.div
                   ref={carouselRef}
-                  className="overflow-x-auto snap-x snap-mandatory hide-scrollbar"
+                  className="overflow-hidden snap-x snap-mandatory hide-scrollbar"
+                  drag="x"
+                  dragConstraints={{ left: 0, right: 0 }}
+                  dragElastic={0.05}
+                  style={{ touchAction: "pan-y" }}
+                  onDragEnd={(event, info: PanInfo) => {
+                    const pointerEvent = event as PointerEvent;
+                    if (pointerEvent.pointerType !== 'touch') return;
+                    if (info.offset.x < -50) {
+                      scrollCarousel('right');
+                    } else if (info.offset.x > 50) {
+                      scrollCarousel('left');
+                    }
+                  }}
                 >
-                    <div 
+                    <div
                       className="flex gap-8"
                       style={{
                         paddingTop: '1.5rem',
                         paddingBottom: '1.5rem',
-                        paddingLeft: 'calc(max(0px, (100vw - 1280px) / 2) + 1.5rem)', 
+                        paddingLeft: 'calc(max(0px, (100vw - 1280px) / 2) + 1.5rem)',
                         paddingRight: 'calc(max(0px, (100vw - 1280px) / 2) + 1.5rem)'
                       }}
                     >
@@ -340,10 +355,10 @@ export default function FinalCompleteLandingPage() {
                           </div>
                         ))}
                     </div>
-                </div>
+                </motion.div>
                 <div className="absolute top-1/2 -translate-y-1/2 w-full flex justify-between px-4 pointer-events-none">
-                    <button 
-                        onClick={() => scrollCarousel('left')} 
+                    <button
+                        onClick={() => scrollCarousel('left')}
                         className="pointer-events-auto w-12 h-12 rounded-full bg-white/50 backdrop-blur-sm shadow-md flex items-center justify-center text-gray-700 hover:bg-white transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-pink"
                         aria-label="Anterior"
                     >
