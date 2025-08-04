@@ -1,11 +1,11 @@
 import React from "react";
-import Head from "next/head";
 import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { FaChalkboardTeacher, FaBullhorn, FaStar, FaQuestionCircle } from "react-icons/fa";
 import testimonials from "@/data/testimonials";
 import faqItems from "@/data/faq";
+import { landingMetadata, landingJsonLd } from "@/seo/landing";
 
 const AnimatedSection = dynamic(() => import("./landing/components/AnimatedSection"), { ssr: false });
 const LandingHeader = dynamic(() => import("./landing/components/LandingHeader"), { ssr: false });
@@ -77,15 +77,17 @@ const TestimonialCard = ({ name, handle, quote, avatarUrl }: { name: string; han
   </div>
 );
 
+export const metadata = landingMetadata;
+
 export default function FinalCompleteLandingPage() {
   const videoId = "dQw4w9WgXcQ";
 
   return (
     <>
-      <Head>
-        <title>data2content - Menos análise, mais criação.</title>
-        <meta name="description" content="Seu estrategista de conteúdo pessoal que analisa seu Instagram e te diz exatamente o que fazer para crescer." />
-      </Head>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(landingJsonLd) }}
+      />
 
       <div className="bg-white text-gray-800 font-sans">
         <LandingHeader />
