@@ -300,9 +300,9 @@ export default function FinalCompleteLandingPage() {
             </div>
         </header>
 
-        <>
+        <main className="snap-y snap-mandatory overflow-y-scroll h-screen scroll-pt-20">
           {/* [CORREÇÃO] A altura mínima foi ajustada para 90vh para diminuir o espaço vertical. */}
-          <section className="relative flex flex-col h-screen pt-20 bg-gradient-to-b from-white via-brand-pink/5 to-gray-50 text-center overflow-x-hidden">
+          <section className="snap-start relative flex flex-col h-screen pt-20 bg-gradient-to-b from-white via-brand-pink/5 to-gray-50 text-center overflow-x-hidden">
             <div className="absolute inset-0 -z-10 overflow-hidden">
               <motion.div
                 style={{ y: topBlobY }}
@@ -379,8 +379,7 @@ export default function FinalCompleteLandingPage() {
             </div>
           </section>
 
-          <div className="relative bg-white">
-            <section className="py-10 sm:py-14 bg-gray-50/70">
+          <section className="snap-start py-10 sm:py-14 bg-gray-50/70">
               <div className="mx-auto max-w-screen-xl px-6 lg:px-8 text-left">
                 <AnimatedSection>
                   <SectionTitle>Veja Nossa IA em Ação.</SectionTitle>
@@ -428,7 +427,7 @@ export default function FinalCompleteLandingPage() {
               </div>
             </section>
 
-            <section className="py-10 sm:py-14 bg-white">
+            <section className="snap-start py-10 sm:py-14 bg-white">
                 <div className="mx-auto max-w-screen-xl px-6 lg:px-8 text-left">
                     <AnimatedSection>
                         <SectionTitle>Feito para todos os tipos de criadores.</SectionTitle>
@@ -445,8 +444,8 @@ export default function FinalCompleteLandingPage() {
                     </div>
                 </div>
             </section>
-            
-            <section className="py-10 sm:py-14 bg-gray-50/70">
+
+            <section className="snap-start py-10 sm:py-14 bg-gray-50/70">
                 <div className="mx-auto max-w-screen-xl px-6 lg:px-8 text-left">
                     <AnimatedSection>
                         <SectionTitle>Resultados que falam por si.</SectionTitle>
@@ -462,7 +461,7 @@ export default function FinalCompleteLandingPage() {
                 </div>
             </section>
 
-            <section id="arthur-marba" className="py-10 sm:py-14 bg-white">
+            <section id="arthur-marba" className="snap-start py-10 sm:py-14 bg-white">
                 <div className="max-w-screen-md mx-auto px-6 text-left">
                     <AnimatedSection>
                         <SectionTitle className="text-3xl">Conheça o Fundador da data2content</SectionTitle>
@@ -495,7 +494,7 @@ export default function FinalCompleteLandingPage() {
                 </div>
             </section>
 
-            <section id="faq" className="py-10 sm:py-14 bg-white">
+            <section id="faq" className="snap-start py-10 sm:py-14 bg-white">
                 <div className="max-w-3xl mx-auto px-6">
                     <AnimatedSection className="text-left mb-10">
                         <SectionTitle>Dúvidas Frequentes</SectionTitle>
@@ -519,8 +518,8 @@ export default function FinalCompleteLandingPage() {
                     </div>
                 </div>
             </section>
-            
-            <section className="py-12 sm:py-20 bg-brand-dark text-white">
+
+            <section className="snap-start py-12 sm:py-20 bg-brand-dark text-white">
                 <div className="max-w-screen-xl mx-auto px-6 text-left">
                     <AnimatedSection className="max-w-3xl">
                         <SectionTitle className="text-white">Pronto para transformar sua criação de conteúdo?</SectionTitle>
@@ -533,9 +532,8 @@ export default function FinalCompleteLandingPage() {
                     </AnimatedSection>
                 </div>
             </section>
-          </div>
-        </>
-        
+        </main>
+
         <footer className="text-center py-8 bg-gradient-to-b from-white via-brand-pink/5 to-gray-50 border-t">
             <div className="mb-4 text-brand-dark font-bold text-2xl flex justify-center items-center gap-2"><span className="text-brand-pink">[2]</span>data2content</div>
             <p className="text-sm text-gray-500 mb-4">© {new Date().getFullYear()} Mobi Media Produtores de Conteúdo LTDA.</p>
@@ -554,7 +552,6 @@ export default function FinalCompleteLandingPage() {
         }
         html {
             font-family: 'Inter', sans-serif;
-            scroll-padding-top: 5rem; /* Ajusta a rolagem de links de âncora por causa do header fixo */
         }
         .hide-scrollbar::-webkit-scrollbar {
             display: none;
