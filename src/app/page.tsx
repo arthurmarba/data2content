@@ -62,9 +62,9 @@ const SectionSubtitle = ({ children, className = "" }: { children: React.ReactNo
 
 const ButtonPrimary = ({ href, onClick, children, className }: { href?: string; onClick?: () => void; children: React.ReactNode; className?: string }) => {
     const commonClasses = `group inline-flex items-center justify-center gap-3 rounded-full bg-gradient-to-r from-brand-pink to-brand-red px-8 py-4 text-lg font-bold text-white shadow-lg shadow-pink-500/30 transition-all duration-300 hover:shadow-xl hover:shadow-pink-500/40 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-red focus-visible:ring-offset-2 ${className}`;
-    
+
     if (href) {
-        return <Link href={href} className={commonClasses}>{children}</Link>;
+        return <Link href={href} onClick={onClick} className={commonClasses}>{children}</Link>;
     }
     return <button onClick={onClick} className={commonClasses}>{children}</button>;
 };
@@ -144,8 +144,15 @@ export default function FinalCompleteLandingPage() {
   const { data: session } = useSession();
   const carouselRef = useRef<HTMLDivElement>(null);
   const [isScrolled, setIsScrolled] = useState(false);
-  
+
+  const trackEvent = (eventName: string) => {
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', eventName);
+    }
+  };
+
   const handleSignIn = () => {
+    trackEvent('sign_in_click');
     signIn("google", { callbackUrl: "/auth/complete-signup" });
   };
 
@@ -239,11 +246,9 @@ export default function FinalCompleteLandingPage() {
                   {session ? (
                      <Link href="/dashboard" className="text-sm font-semibold text-gray-600 hover:text-brand-pink transition-colors">Meu Painel</Link>
                   ) : (
-                     <button onClick={handleSignIn} className="text-sm font-semibold text-gray-600 hover:text-brand-pink transition-colors">Fazer Login</button>
+                     <Link href="/login" onClick={() => trackEvent('login_link_click')} className="text-sm font-semibold text-gray-600 hover:text-brand-pink transition-colors">Fazer Login</Link>
                   )}
-                    <div className="hidden sm:block">
-                        <ButtonPrimary href="/register">Começar Agora</ButtonPrimary>
-                    </div>
+                    <ButtonPrimary href="/register" onClick={() => trackEvent('cta_start_now_click')}>Começar Agora</ButtonPrimary>
                 </nav>
             </div>
         </header>
@@ -289,6 +294,11 @@ export default function FinalCompleteLandingPage() {
                           <ButtonPrimary onClick={handleSignIn} className="mt-8">
                             <FaGoogle /> Ative sua IA do Instagram no WhatsApp ▸
                           </ButtonPrimary>
+                        </motion.div>
+                        <motion.div variants={heroItemVariants}>
+                          <Link href="#features" onClick={() => trackEvent('saiba_mais_click')} className="mt-4 inline-block text-sm font-semibold text-brand-pink hover:underline">
+                            Saiba Mais
+                          </Link>
                         </motion.div>
                       </div>
 
@@ -375,7 +385,7 @@ export default function FinalCompleteLandingPage() {
               </div>
             </section>
 
-            <section className="snap-start py-10 sm:py-14 bg-white">
+            <section id="features" className="snap-start py-10 sm:py-14 bg-white">
                 <div className="mx-auto max-w-screen-xl px-6 lg:px-8 text-left">
                     <AnimatedSection>
                         <SectionTitle>Feito para todos os tipos de criadores.</SectionTitle>
