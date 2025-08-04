@@ -1,18 +1,34 @@
+"use client";
+
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { FaChalkboardTeacher, FaBullhorn, FaStar, FaQuestionCircle } from "react-icons/fa";
+import withViewport from "./landing/components/withViewport";
+import { FaChalkboardTeacher } from "react-icons/fa";
+import { FaBullhorn } from "react-icons/fa";
+import { FaStar } from "react-icons/fa";
+import { FaQuestionCircle } from "react-icons/fa";
 import testimonials from "@/data/testimonials";
 import faqItems from "@/data/faq";
-import { landingMetadata, landingJsonLd } from "@/seo/landing";
+import { landingJsonLd } from "@/seo/landing";
 
-const AnimatedSection = dynamic(() => import("./landing/components/AnimatedSection"), { ssr: false });
+const AnimatedSection = withViewport(
+  dynamic(() => import("./landing/components/AnimatedSection"), { ssr: false })
+);
 const LandingHeader = dynamic(() => import("./landing/components/LandingHeader"), { ssr: false });
-const HeroSection = dynamic(() => import("./landing/components/HeroSection"), { ssr: false });
-const ScreenshotCarousel = dynamic(() => import("./landing/components/ScreenshotCarousel"), { ssr: false });
-const FounderVideo = dynamic(() => import("./landing/components/FounderVideo"), { ssr: false });
-const CallToAction = dynamic(() => import("./landing/components/CallToAction"), { ssr: false });
+const HeroSection = withViewport(
+  dynamic(() => import("./landing/components/HeroSection"), { ssr: false })
+);
+const ScreenshotCarousel = withViewport(
+  dynamic(() => import("./landing/components/ScreenshotCarousel"), { ssr: false })
+);
+const FounderVideo = withViewport(
+  dynamic(() => import("./landing/components/FounderVideo"), { ssr: false })
+);
+const CallToAction = withViewport(
+  dynamic(() => import("./landing/components/CallToAction"), { ssr: false })
+);
 
 const exampleScreenshots = [
   { title: "(1) Alerta Diário Recebido", imageUrl: "/images/WhatsApp Image 2025-07-07 at 14.00.20.png" },
@@ -76,8 +92,6 @@ const TestimonialCard = ({ name, handle, quote, avatarUrl }: { name: string; han
     </div>
   </div>
 );
-
-export const metadata = landingMetadata;
 
 export default function FinalCompleteLandingPage() {
   const videoId = "dQw4w9WgXcQ";
