@@ -128,23 +128,37 @@ const PillarCard = ({ icon: Icon, title, children }: { icon: React.ElementType; 
     </div>
 );
 
-const ScreenshotCard = ({ imageUrl, title }: { imageUrl: string; title: string; }) => (
-    <motion.div 
-        className="flex-shrink-0 w-[65vw] sm:w-[45vw] md:w-[30vw] lg:w-[22vw] aspect-[9/16] rounded-3xl bg-gradient-to-br from-gray-100 to-gray-200 p-1 shadow-2xl cursor-grab active:cursor-grabbing"
-        whileTap={{ scale: 0.98, transition: { duration: 0.2 } }}
-    >
-        <div className="relative w-full h-full bg-white rounded-[22px] shadow-inner overflow-hidden">
-            <Image 
-                src={imageUrl} 
-                alt={title} 
-                layout="fill" 
-                className="object-cover" 
-                loading="lazy"
-                onError={(e) => { e.currentTarget.src = 'https://placehold.co/360x640/f0f0f0/333?text=Imagem+Indisponível'; }}
-            />
+const ScreenshotCard = ({ imageUrl, title }: { imageUrl: string; title: string; }) => {
+    const [isCoarsePointer, setIsCoarsePointer] = useState(false);
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            setIsCoarsePointer(window.matchMedia("(pointer: coarse)").matches);
+        }
+    }, []);
+
+    return (
+        <div
+            className="flex-shrink-0 w-[65vw] sm:w-[45vw] md:w-[30vw] lg:w-[22vw] aspect-[9/16] rounded-3xl bg-gradient-to-br from-gray-100 to-gray-200 p-1 shadow-2xl cursor-grab active:cursor-grabbing"
+            style={{ perspective: "1000px", transformStyle: "preserve-3d" }}
+        >
+            <motion.div
+                className="relative w-full h-full bg-white rounded-[22px] shadow-inner overflow-hidden"
+                whileTap={{ scale: 0.98, transition: { duration: 0.2 } }}
+                whileHover={isCoarsePointer ? undefined : { rotateX: 5, rotateY: -5 }}
+            >
+                <Image
+                    src={imageUrl}
+                    alt={title}
+                    layout="fill"
+                    className="object-cover"
+                    loading="lazy"
+                    onError={(e) => { e.currentTarget.src = 'https://placehold.co/360x640/f0f0f0/333?text=Imagem+Indisponível'; }}
+                />
+            </motion.div>
         </div>
-    </motion.div>
-);
+    );
+};
 
 const TestimonialCard = ({ name, handle, quote, avatarUrl }: { name: string; handle: string; quote: string; avatarUrl: string; }) => (
     <div className="bg-white p-8 rounded-xl h-full shadow-lg flex flex-col">
