@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import Image from "next/image";
@@ -192,6 +192,7 @@ const Marquee = ({ items, direction = 'left' }: { items: string[], direction?: '
 export default function FinalCompleteLandingPage() {
   const { data: session } = useSession();
   const carouselRef = useRef<HTMLDivElement>(null);
+  const [isScrolled, setIsScrolled] = useState(false);
   
   const handleSignIn = () => {
     signIn("google", { callbackUrl: "/auth/complete-signup" });
@@ -243,6 +244,13 @@ export default function FinalCompleteLandingPage() {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] } },
   };
+
+  useEffect(() => {
+    const handleScroll = () => setIsScrolled(window.scrollY > 50);
+    window.addEventListener("scroll", handleScroll);
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
   
   return (
     <>
@@ -256,7 +264,7 @@ export default function FinalCompleteLandingPage() {
 
       <div className="bg-white text-gray-800 font-sans">
         
-        <header className="fixed top-0 left-0 w-full z-50 bg-white/80 backdrop-blur-lg border-b border-gray-900/5">
+        <header className={`fixed top-0 w-full z-50 backdrop-blur-md transition-all ${isScrolled ? 'bg-white shadow' : 'bg-white/60'}`}>
             <div className="max-w-screen-xl mx-auto flex justify-between items-center h-20 px-6">
                 <Link href="/" className="font-bold text-2xl text-brand-dark flex items-center gap-2">
                     <span className="text-brand-pink">[2]</span>
@@ -277,7 +285,7 @@ export default function FinalCompleteLandingPage() {
 
         <>
           {/* [CORREÇÃO] A altura mínima foi ajustada para 90vh para diminuir o espaço vertical. */}
-          <section className="relative flex flex-col h-screen bg-gradient-to-b from-white via-brand-pink/5 to-gray-50 text-center overflow-x-hidden">
+          <section className="relative flex flex-col h-screen pt-20 bg-gradient-to-b from-white via-brand-pink/5 to-gray-50 text-center overflow-x-hidden">
             <div className="absolute inset-0 -z-10 overflow-hidden">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[40rem] h-[40rem] bg-[radial-gradient(circle_at_top,rgba(236,72,153,0.35),transparent)]" />
               <div className="absolute bottom-20 right-0 w-72 h-72 bg-brand-pink/20 blur-3xl rounded-full" />
