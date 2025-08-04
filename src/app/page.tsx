@@ -288,9 +288,6 @@ export default function FinalCompleteLandingPage() {
       <Head>
         <title>data2content - Menos análise, mais criação.</title>
         <meta name="description" content="Seu estrategista de conteúdo pessoal que analisa seu Instagram e te diz exatamente o que fazer para crescer." />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
       </Head>
 
       <div className="bg-white text-gray-800 font-sans">
