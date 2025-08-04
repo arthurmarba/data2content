@@ -277,7 +277,7 @@ export default function FinalCompleteLandingPage() {
 
         <>
           {/* [CORREÇÃO] A altura mínima foi ajustada para 90vh para diminuir o espaço vertical. */}
-          <section className="relative flex flex-col h-screen bg-gray-100 text-center overflow-x-hidden">
+          <section className="relative flex flex-col h-screen bg-gradient-to-b from-white via-brand-pink/5 to-gray-50 text-center overflow-x-hidden">
             {/* O container interno usa flex-grow e justify-start para alinhar o conteúdo ao topo. */}
             <div className="flex-grow flex flex-col justify-start pt-32">
                 <div className="w-full">
@@ -323,7 +323,7 @@ export default function FinalCompleteLandingPage() {
                         <Marquee items={[...heroQuestions].reverse()} direction="right" />
                       </motion.div>
 
-                      <div className="relative mt-12 bg-gradient-to-b from-gray-100 via-gray-100/0 to-gray-50">
+                      <div className="relative mt-12 bg-gradient-to-b from-white via-brand-pink/5 to-gray-50">
                         <video
                           autoPlay
                           muted
@@ -498,7 +498,7 @@ export default function FinalCompleteLandingPage() {
           </div>
         </>
         
-        <footer className="text-center py-8 bg-gray-100 border-t">
+        <footer className="text-center py-8 bg-gradient-to-b from-white via-brand-pink/5 to-gray-50 border-t">
             <div className="mb-4 text-brand-dark font-bold text-2xl flex justify-center items-center gap-2"><span className="text-brand-pink">[2]</span>data2content</div>
             <p className="text-sm text-gray-500 mb-4">© {new Date().getFullYear()} Mobi Media Produtores de Conteúdo LTDA.</p>
             <div className="flex justify-center gap-6 text-sm">
