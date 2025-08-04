@@ -18,8 +18,8 @@ const config: Config = { // Define o tipo da configuração
       colors: {
         // Cores definidas no Manual da Marca
         'brand-dark': '#191E1E', // Preto/Cinza Escuro
-        'brand-red': '#FF2D3A',  // Vermelho
-        'brand-pink': '#F6007B', // Rosa/Magenta
+        'brand-red': '#FF6B6B',  // Vermelho Suave
+        'brand-pink': '#FF85C0', // Rosa Suave
         'brand-light': '#F0F7F7', // Branco/Cinza Claro
 
         // Cores antigas (decida se mantém ou remove)

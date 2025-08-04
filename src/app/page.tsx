@@ -1,17 +1,15 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import Image from "next/image";
 import { useSession, signIn } from "next-auth/react";
 import { motion, useAnimation, useScroll, useTransform } from "framer-motion";
 import { useInView } from "react-intersection-observer";
-import { TypeAnimation } from "react-type-animation";
 import { FaGoogle, FaGem, FaChartPie, FaHeart, FaBriefcase, FaStar, FaPaintBrush, FaBullhorn, FaChalkboardTeacher, FaQuestionCircle, FaCheckCircle, FaTimesCircle, FaChevronLeft, FaChevronRight, FaPlay } from 'react-icons/fa';
 import testimonials from "@/data/testimonials";
 import faqItems from "@/data/faq";
-import heroQuestions from "@/data/heroQuestions";
 
 // --- DADOS E CONSTANTES DA PÁGINA ---
 const exampleScreenshots = [
@@ -72,14 +70,14 @@ const ButtonPrimary = ({ href, onClick, children, className }: { href?: string; 
 };
 
 const PillarCard = ({ icon: Icon, title, children }: { icon: React.ElementType; title: string; children: React.ReactNode; }) => (
-    <div className="group relative h-full rounded-2xl bg-gradient-to-br from-white to-gray-50 p-8 text-left transition-all duration-300 hover:shadow-2xl hover:-translate-y-2">
+    <div className="group relative h-full rounded-2xl bg-gradient-to-br from-white to-gray-50 p-6 text-left transition-all duration-300 hover:shadow-2xl hover:-translate-y-2">
         <div className="absolute -inset-px rounded-2xl bg-gradient-to-r from-pink-200/50 to-purple-200/50 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
         <div className="relative">
-            <div className="mb-5 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-pink/10 text-3xl text-brand-pink shadow-inner shadow-pink-100 transition-all duration-300 group-hover:scale-110 group-hover:bg-brand-pink group-hover:text-white">
+            <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-brand-pink/10 text-2xl text-brand-pink shadow-inner shadow-pink-100 transition-all duration-300 group-hover:scale-110 group-hover:bg-brand-pink group-hover:text-white">
                 <Icon />
             </div>
-            <h3 className="text-xl font-bold text-brand-dark">{title}</h3>
-            <p className="mt-3 text-base text-gray-600">{children}</p>
+            <h3 className="text-lg font-semibold text-brand-dark">{title}</h3>
+            <p className="mt-2 text-sm text-gray-600">{children}</p>
         </div>
     </div>
 );
@@ -117,45 +115,26 @@ const ScreenshotCard = ({ imageUrl, title }: { imageUrl: string; title: string; 
 };
 
 const TestimonialCard = ({ name, handle, quote, avatarUrl }: { name: string; handle: string; quote: string; avatarUrl: string; }) => (
-    <div className="bg-white p-8 rounded-xl h-full shadow-lg flex flex-col">
+    <div className="bg-white p-6 rounded-xl h-full shadow-lg flex flex-col">
         <div className="flex text-yellow-400 gap-1 mb-4">{[...Array(5)].map((_, i) => <FaStar key={i} />)}</div>
-        <p className="text-gray-700 italic flex-grow">"{quote}"</p>
-        <div className="flex items-center mt-6">
-            <div className="relative w-12 h-12 rounded-full overflow-hidden">
-                <Image 
-                    src={avatarUrl} 
-                    alt={`Avatar de ${name}`} 
-                    layout="fill" 
+        <p className="text-gray-700 italic text-sm flex-grow">"{quote}"</p>
+        <div className="flex items-center mt-4">
+            <div className="relative w-10 h-10 rounded-full overflow-hidden">
+                <Image
+                    src={avatarUrl}
+                    alt={`Avatar de ${name}`}
+                    layout="fill"
                     className="object-cover"
                 />
             </div>
             <div className="ml-4">
-                <p className="font-bold text-brand-dark">{name}</p>
-                <p className="text-sm text-gray-500">{handle}</p>
+                <p className="font-semibold text-brand-dark text-sm">{name}</p>
+                <p className="text-xs text-gray-500">{handle}</p>
             </div>
         </div>
     </div>
 );
 
-const Marquee = ({ items, direction = 'left' }: { items: string[], direction?: 'left' | 'right' }) => {
-    const marqueeContent = useMemo(() => [...items, ...items], [items]);
-    return (
-        <div className="relative w-full overflow-hidden">
-            <motion.div
-                className="flex gap-4"
-                initial={{ x: direction === 'left' ? 0 : '-50%' }}
-                animate={{ x: direction === 'left' ? '-50%' : 0 }}
-                transition={{ duration: 40, repeat: Infinity, ease: 'linear' }}
-            >
-                {marqueeContent.map((item, index) => (
-                    <div key={index} className="flex-shrink-0 whitespace-nowrap px-6 py-3 rounded-full bg-gray-200/80 text-gray-600 font-medium">
-                        {item}
-                    </div>
-                ))}
-            </motion.div>
-        </div>
-    );
-};
 
 
 // --- COMPONENTE PRINCIPAL DA PÁGINA ---
@@ -290,25 +269,19 @@ export default function FinalCompleteLandingPage() {
                       className="w-full"
                     >
                       <div className="max-w-3xl mx-auto px-6 lg:px-8">
-                        <motion.h1 
+                        <motion.h1
                           variants={heroItemVariants}
                           className="text-5xl md:text-7xl font-semibold tracking-tighter bg-gradient-to-r from-brand-pink to-brand-red bg-clip-text text-transparent"
                         >
-                          O fim da dúvida: o que postar hoje?
+                          A IA que diz o que postar no Instagram
                         </motion.h1>
-                        
-                        <motion.div variants={heroItemVariants} className="mt-6 h-14 md:h-auto">
-                          <TypeAnimation
-                            sequence={[
-                              'Uma Inteligência Artificial.', 1000,
-                              'Uma Inteligência Artificial conectada ao seu Instagram.', 1000,
-                              'Uma Inteligência Artificial para conversar no WhatsApp.', 3000,
-                            ]}
-                            wrapper="p" speed={50}
-                            className="text-lg md:text-xl text-gray-600 max-w-2xl leading-relaxed mx-auto"
-                            cursor={true} repeat={Infinity}
-                          />
-                        </motion.div>
+
+                        <motion.p
+                          variants={heroItemVariants}
+                          className="mt-4 text-lg md:text-xl text-gray-600 max-w-2xl mx-auto"
+                        >
+                          Receba análises e ideias prontas direto no WhatsApp.
+                        </motion.p>
 
                         <motion.div variants={heroItemVariants}>
                           <ButtonPrimary onClick={handleSignIn} className="mt-8">
@@ -334,13 +307,6 @@ export default function FinalCompleteLandingPage() {
                         />
                       </motion.div>
 
-                      <motion.div
-                        variants={heroItemVariants}
-                        className="mt-10 md:mt-12 w-full space-y-4"
-                      >
-                        <Marquee items={heroQuestions} />
-                        <Marquee items={[...heroQuestions].reverse()} direction="right" />
-                      </motion.div>
                     </motion.div>
                 </div>
             </div>
@@ -513,8 +479,8 @@ export default function FinalCompleteLandingPage() {
 
       <style jsx global>{`
         :root {
-            --brand-pink: #EC4899;
-            --brand-red: #EF4444;
+            --brand-pink: #FF85C0;
+            --brand-red: #FF6B6B;
             --brand-dark: #111827;
         }
         html {
