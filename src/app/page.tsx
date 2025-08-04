@@ -277,9 +277,9 @@ export default function FinalCompleteLandingPage() {
 
         <>
           {/* [CORREÇÃO] A altura mínima foi ajustada para 90vh para diminuir o espaço vertical. */}
-          <section className="relative flex flex-col min-h-[90vh] bg-gray-100 text-center overflow-x-hidden">
-            {/* O container interno usa flex-grow e justify-center para centralizar o conteúdo no espaço disponível. */}
-            <div className="flex-grow flex flex-col justify-center">
+          <section className="relative flex flex-col h-screen bg-gray-100 text-center overflow-x-hidden">
+            {/* O container interno usa flex-grow e justify-start para alinhar o conteúdo ao topo. */}
+            <div className="flex-grow flex flex-col justify-start pt-32">
                 <div className="w-full">
                     <motion.div
                       variants={heroVariants}
