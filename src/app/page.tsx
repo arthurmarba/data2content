@@ -13,6 +13,7 @@ import { landingJsonLd } from "@/seo/landing";
 import { IntroSlide } from "./landing/components/IntroSlide";
 import { FeaturesSlide } from "./landing/components/FeaturesSlide";
 import { ExamplesSlide } from "./landing/components/ExamplesSlide";
+import Container from "./components/Container";
 
 const AnimatedSection = withViewport(
   dynamic(() => import("./landing/components/AnimatedSection"), { ssr: false })
@@ -84,11 +85,13 @@ export default function FinalCompleteLandingPage() {
           <FeaturesSlide />
           <ExamplesSlide screenshots={exampleScreenshots} />
 
-          <section className="snap-start py-10 sm:py-14 bg-gray-50/70">
-            <div className="mx-auto max-w-screen-xl px-6 lg:px-8 text-left">
+          <section className="snap-start bg-gray-50/70">
+            <Container padding="py-10 sm:py-14" className="lg:px-8 text-left">
               <AnimatedSection>
                 <SectionTitle>Resultados que falam por si.</SectionTitle>
-                <SectionSubtitle>Criadores como você já estão economizando tempo e crescendo com mais estratégia.</SectionSubtitle>
+                <SectionSubtitle>
+                  Criadores como você já estão economizando tempo e crescendo com mais estratégia.
+                </SectionSubtitle>
               </AnimatedSection>
               <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {testimonials.map((testimonial, index) => (
@@ -97,7 +100,7 @@ export default function FinalCompleteLandingPage() {
                   </AnimatedSection>
                 ))}
               </div>
-            </div>
+            </Container>
           </section>
 
           <section id="arthur-marba" className="snap-start py-10 sm:py-14 bg-white">

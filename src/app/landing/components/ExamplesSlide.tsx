@@ -4,6 +4,7 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 import { useRef } from 'react';
 import { ScrollCue } from './ScrollCue';
 import ScreenshotCarousel from './ScreenshotCarousel';
+import Container from '../../components/Container';
 
 interface ScreenshotItem {
   title: string;
@@ -28,13 +29,13 @@ export function ExamplesSlide({ screenshots }: ExamplesSlideProps) {
       className="relative h-screen flex flex-col items-center justify-center bg-brand-light text-brand-dark"
       id="examples"
     >
-      <div className="max-w-screen-xl mx-auto px-6 text-center">
+      <Container className="text-center">
         <h2 className="text-3xl md:text-4xl font-bold mb-4">Exemplos</h2>
         <p className="text-lg">Veja como nosso produto pode ajudar você.</p>
         <div className="mt-8 w-full">
           <ScreenshotCarousel items={screenshots} />
         </div>
-      </div>
+      </Container>
       <ScrollCue targetId="features" direction="up" />
     </motion.section>
   );

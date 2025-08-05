@@ -3,6 +3,7 @@
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { useRef } from 'react';
 import { ScrollCue } from './ScrollCue';
+import Container from '../../components/Container';
 
 export function FeaturesSlide() {
   const ref = useRef<HTMLElement>(null);
@@ -17,14 +18,14 @@ export function FeaturesSlide() {
       className="relative h-screen flex flex-col items-center justify-center bg-gradient-to-r from-brand-pink to-brand-red text-brand-dark"
       id="features"
     >
-      <div className="max-w-screen-xl mx-auto px-6 text-center">
+      <Container className="text-center">
         <h2 className="text-3xl md:text-4xl font-bold mb-6">Recursos</h2>
         <ul className="space-y-2">
           <li>Recurso 1</li>
           <li>Recurso 2</li>
           <li>Recurso 3</li>
         </ul>
-      </div>
+      </Container>
       <ScrollCue targetId="examples" />
       <ScrollCue targetId="intro" direction="up" />
     </motion.section>
