@@ -4,6 +4,7 @@ import ButtonPrimary from './ButtonPrimary';
 import dynamic from 'next/dynamic';
 import Marquee from './Marquee';
 import Container from '../../components/Container';
+import { ScrollCue } from './ScrollCue';
 
 const TypingEffect = dynamic(() => import('./TypingEffect'), { ssr: false });
 
@@ -45,6 +46,9 @@ export default function LegacyHero() {
       <div className="mt-8 space-y-2 overflow-hidden">
         <Marquee direction="left" />
         <Marquee direction="right" />
+      </div>
+      <div className="relative mt-6 h-12">
+        <ScrollCue targetId="intro" />
       </div>
     </section>
   );
