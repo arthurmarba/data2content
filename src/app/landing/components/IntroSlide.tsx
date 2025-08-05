@@ -15,7 +15,7 @@ export function IntroSlide() {
     <motion.section
       ref={ref}
       style={{ opacity, y }}
-      className="relative h-screen flex items-center justify-center bg-brand-light text-brand-dark"
+      className="relative min-h-screen flex items-center justify-center bg-brand-light text-brand-dark py-20"
       id="intro"
     >
       <Container className="text-center">
