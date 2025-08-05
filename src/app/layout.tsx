@@ -1,7 +1,7 @@
 // src/app/layout.tsx
 
 import type { Metadata } from "next";
-import { Poppins, Inter } from "next/font/google";
+import { Poppins } from "next/font/google";
 import "./globals.css";
 
 // Imports do NextAuth para buscar a sessão no servidor
@@ -22,10 +22,6 @@ const poppins = Poppins({
   variable: "--font-poppins",
 });
 
-const inter = Inter({
-  subsets: ["latin"],
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "Data2Content: Gestão de Carreira IA para Criadores",
@@ -50,7 +46,7 @@ export default async function RootLayout({
       </head>
       <body
         className={`
-          ${inter.className}
+          ${poppins.className}
           antialiased
           flex
           flex-col
