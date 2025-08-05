@@ -17,7 +17,7 @@ export function ScrollCue({ targetId, direction = 'down' }: ScrollCueProps) {
     <button
       onClick={handleClick}
       aria-label={`Scroll ${direction}`}
-      className="absolute left-1/2 -translate-x-1/2 text-white animate-bounce p-2"
+      className="absolute left-1/2 -translate-x-1/2 text-brand-dark animate-bounce p-2"
       style={direction === 'down' ? { bottom: '1rem' } : { top: '1rem' }}
     >
       {direction === 'down' ? <ChevronDown size={32} /> : <ChevronUp size={32} />}
