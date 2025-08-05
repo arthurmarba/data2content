@@ -14,11 +14,15 @@ import { IntroSlide } from "./landing/components/IntroSlide";
 import { FeaturesSlide } from "./landing/components/FeaturesSlide";
 import { ExamplesSlide } from "./landing/components/ExamplesSlide";
 import Container from "./components/Container";
+import LegacyHero from "./landing/components/LegacyHero";
 
 const AnimatedSection = withViewport(
   dynamic(() => import("./landing/components/AnimatedSection"), { ssr: false })
 );
-const LandingHeader = dynamic(() => import("./landing/components/LandingHeader"), { ssr: false });
+const LandingHeader = dynamic(
+  () => import("./landing/components/LandingHeader"),
+  { ssr: false }
+) as React.ComponentType<{ showLoginButton?: boolean }>;
 const FounderVideo = withViewport(
   dynamic(() => import("./landing/components/FounderVideo"), { ssr: false })
 );
@@ -79,8 +83,9 @@ export default function FinalCompleteLandingPage() {
       />
 
       <div className="bg-white text-gray-800 font-sans">
-        <LandingHeader />
+        <LandingHeader showLoginButton />
         <main className="snap-y snap-mandatory overflow-y-scroll h-screen scroll-pt-20">
+          <LegacyHero />
           <IntroSlide />
           <FeaturesSlide />
           <ExamplesSlide screenshots={exampleScreenshots} />
