@@ -15,7 +15,7 @@ export function FeaturesSlide() {
     <motion.section
       ref={ref}
       style={{ opacity, y }}
-      className="relative h-screen flex flex-col items-center justify-center bg-gradient-to-r from-brand-pink to-brand-red text-brand-dark"
+      className="relative min-h-screen flex flex-col items-center justify-center bg-gradient-to-r from-brand-pink to-brand-red text-brand-dark py-20"
       id="features"
     >
       <Container className="text-center">

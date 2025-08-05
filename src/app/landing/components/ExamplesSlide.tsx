@@ -26,7 +26,7 @@ export function ExamplesSlide({ screenshots }: ExamplesSlideProps) {
     <motion.section
       ref={ref}
       style={{ opacity, y }}
-      className="relative h-screen flex flex-col items-center justify-center bg-brand-light text-brand-dark"
+      className="relative min-h-screen flex flex-col items-center justify-center bg-brand-light text-brand-dark py-20"
       id="examples"
     >
       <Container className="text-center">
