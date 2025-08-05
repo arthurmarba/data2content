@@ -1,6 +1,7 @@
 'use client';
 
 import ButtonPrimary from './ButtonPrimary';
+import { TypeAnimation } from 'react-type-animation';
 
 export default function LegacyHero() {
   return (
@@ -9,9 +10,20 @@ export default function LegacyHero() {
         <h1 className="text-5xl md:text-7xl font-semibold tracking-tight text-brand-dark">
           O fim da dúvida: o que postar hoje
         </h1>
-        <p className="mt-4 text-lg md:text-xl text-gray-600">
-          Uma inteligência artificial conectada ao Instagram e conversa no WhatsApp
-        </p>
+        <TypeAnimation
+          sequence={[
+            'Uma inteligência artificial',
+            1000,
+            'conectada ao Instagram',
+            1000,
+            'que conversa no WhatsApp',
+            1000,
+          ]}
+          wrapper="p"
+          speed={50}
+          repeat={Infinity}
+          className="mt-4 text-lg md:text-xl text-gray-600"
+        />
         <ButtonPrimary href="/login" className="mt-8">
           Fazer Login
         </ButtonPrimary>
