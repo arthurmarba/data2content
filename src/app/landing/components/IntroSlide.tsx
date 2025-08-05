@@ -14,10 +14,12 @@ export function IntroSlide() {
     <motion.section
       ref={ref}
       style={{ opacity, y }}
-      className="relative h-screen flex items-center justify-center bg-blue-600 text-white"
+      className="relative h-screen flex items-center justify-center bg-brand-light text-brand-dark"
       id="intro"
     >
-      <h1 className="text-4xl font-bold">Bem-vindo ao Data2Content</h1>
+      <div className="max-w-screen-xl mx-auto px-6 text-center">
+        <h1 className="text-4xl md:text-5xl font-bold">Bem-vindo ao Data2Content</h1>
+      </div>
       <ScrollCue targetId="features" />
     </motion.section>
   );
