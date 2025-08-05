@@ -1,6 +1,18 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import ButtonPrimary from './ButtonPrimary';
+
+const HeroVideo = dynamic(() => import('./HeroVideo'), {
+  ssr: false,
+  loading: () => (
+    <img
+      src="/images/tuca-analise-whatsapp.png"
+      alt="Demonstração do produto"
+      className="w-full max-w-4xl mx-auto rounded-2xl shadow-xl aspect-video"
+    />
+  ),
+});
 
 export default function LegacyHero() {
   return (
@@ -16,17 +28,7 @@ export default function LegacyHero() {
           Fazer Login
         </ButtonPrimary>
         <div className="mt-12">
-          <video
-            autoPlay
-            muted
-            loop
-            playsInline
-            poster="/images/tuca-analise-whatsapp.png"
-            src="/videos/hero-demo.mp4"
-            className="w-full max-w-4xl mx-auto rounded-2xl shadow-xl aspect-video"
-            loading="lazy"
-            decoding="async"
-          />
+          <HeroVideo />
         </div>
       </div>
     </section>
