@@ -11,24 +11,24 @@ export default function LegacyHero() {
   return (
     <section className="snap-start relative flex flex-col h-screen pt-20 bg-gradient-to-b from-white via-brand-pink/5 to-gray-50 text-center overflow-x-hidden">
       <Container className="flex-grow flex flex-col justify-center">
-        <h1 className="text-5xl md:text-7xl font-semibold tracking-tight text-brand-dark">
-          O fim da dúvida: o que postar hoje
-        </h1>
-        <TypingEffect
-          sequence={[
-            'Uma inteligência artificial',
-            1000,
-            'conectada ao Instagram',
-            1000,
-            'que conversa no WhatsApp',
-            1000,
-          ]}
-          className="mt-4 text-lg md:text-xl text-gray-600"
-        />
-        <ButtonPrimary href="/login" className="mt-8">
-          Fazer Login
-        </ButtonPrimary>
-        <div className="mt-12">
+        <div className="flex flex-col items-center space-y-6">
+          <h1 className="text-5xl md:text-7xl font-semibold tracking-tight text-brand-dark">
+            O fim da dúvida: o que postar hoje
+          </h1>
+          <TypingEffect
+            sequence={[
+              'Uma inteligência artificial',
+              1000,
+              'conectada ao Instagram',
+              1000,
+              'que conversa no WhatsApp',
+              1000,
+            ]}
+            className="text-lg md:text-xl text-gray-600"
+          />
+          <ButtonPrimary href="/login">
+            Fazer Login
+          </ButtonPrimary>
           <video
             autoPlay
             muted
@@ -36,7 +36,7 @@ export default function LegacyHero() {
             playsInline
             poster="/images/tuca-analise-whatsapp.png"
             src="/videos/hero-demo.mp4"
-            className="w-full max-w-4xl mx-auto rounded-2xl shadow-xl aspect-video"
+            className="w-full max-w-4xl mx-auto rounded-2xl shadow-xl aspect-video mt-8"
             loading="lazy"
             decoding="async"
           />
