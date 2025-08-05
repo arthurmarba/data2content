@@ -157,11 +157,6 @@ export default function FinalCompleteLandingPage() {
       </div>
 
       <style jsx global>{`
-        :root {
-          --brand-pink: #FF85C0;
-          --brand-red: #FF6B6B;
-          --brand-dark: #111827;
-        }
         html {
           font-family: 'Inter', sans-serif;
         }
