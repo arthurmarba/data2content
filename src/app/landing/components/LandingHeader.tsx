@@ -44,7 +44,7 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
             </Link>
           ) : showLoginButton ? (
             <ButtonPrimary href="/login" onClick={() => trackEvent('login_button_click')}>
-              Fazer Login
+              Ative sua IA do Instagram no WhatsApp
             </ButtonPrimary>
           ) : (
             <Link
@@ -52,7 +52,7 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
               onClick={() => trackEvent('login_link_click')}
               className="text-sm font-semibold text-gray-600 hover:text-brand-pink transition-colors"
             >
-              Fazer Login
+              Ative sua IA do Instagram no WhatsApp
             </Link>
           )}
           <ButtonPrimary href="/register" onClick={() => trackEvent('cta_start_now_click')}>
