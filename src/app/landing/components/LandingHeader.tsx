@@ -6,7 +6,11 @@ import { useEffect, useState } from 'react';
 import ButtonPrimary from './ButtonPrimary';
 import Container from '../../components/Container';
 
-export default function LandingHeader() {
+interface LandingHeaderProps {
+  showLoginButton?: boolean;
+}
+
+export default function LandingHeader({ showLoginButton = false }: LandingHeaderProps) {
   const { data: session } = useSession();
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -38,6 +42,10 @@ export default function LandingHeader() {
             >
               Meu Painel
             </Link>
+          ) : showLoginButton ? (
+            <ButtonPrimary href="/login" onClick={() => trackEvent('login_button_click')}>
+              Fazer Login
+            </ButtonPrimary>
           ) : (
             <Link
               href="/login"
