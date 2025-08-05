@@ -18,17 +18,15 @@ export default function LegacyHero() {
           </h1>
           <TypingEffect
             sequence={[
-              'Uma inteligência artificial',
+              'uma inteligência artificial conectada ao seu Instagram.',
               1000,
-              'conectada ao Instagram',
-              1000,
-              'que conversa no WhatsApp',
+              'uma inteligência artificial para conversar no WhatsApp',
               1000,
             ]}
             className="text-lg md:text-xl text-gray-600"
           />
           <ButtonPrimary href="/login">
-            Fazer Login
+            Ative sua IA do Instagram no WhatsApp
           </ButtonPrimary>
           <video
             autoPlay
