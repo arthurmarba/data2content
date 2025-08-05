@@ -3,6 +3,7 @@
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { useRef } from 'react';
 import { ScrollCue } from './ScrollCue';
+import Container from '../../components/Container';
 
 export function IntroSlide() {
   const ref = useRef<HTMLElement>(null);
@@ -17,9 +18,9 @@ export function IntroSlide() {
       className="relative h-screen flex items-center justify-center bg-brand-light text-brand-dark"
       id="intro"
     >
-      <div className="max-w-screen-xl mx-auto px-6 text-center">
+      <Container className="text-center">
         <h1 className="text-4xl md:text-5xl font-bold">Bem-vindo ao Data2Content</h1>
-      </div>
+      </Container>
       <ScrollCue targetId="features" />
     </motion.section>
   );
