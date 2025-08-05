@@ -5,24 +5,19 @@ import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import withViewport from "./landing/components/withViewport";
-import { FaChalkboardTeacher } from "react-icons/fa";
-import { FaBullhorn } from "react-icons/fa";
 import { FaStar } from "react-icons/fa";
 import { FaQuestionCircle } from "react-icons/fa";
 import testimonials from "@/data/testimonials";
 import faqItems from "@/data/faq";
 import { landingJsonLd } from "@/seo/landing";
+import { IntroSlide } from "./landing/components/IntroSlide";
+import { FeaturesSlide } from "./landing/components/FeaturesSlide";
+import { ExamplesSlide } from "./landing/components/ExamplesSlide";
 
 const AnimatedSection = withViewport(
   dynamic(() => import("./landing/components/AnimatedSection"), { ssr: false })
 );
 const LandingHeader = dynamic(() => import("./landing/components/LandingHeader"), { ssr: false });
-const HeroSection = withViewport(
-  dynamic(() => import("./landing/components/HeroSection"), { ssr: false })
-);
-const ScreenshotCarousel = withViewport(
-  dynamic(() => import("./landing/components/ScreenshotCarousel"), { ssr: false })
-);
 const FounderVideo = withViewport(
   dynamic(() => import("./landing/components/FounderVideo"), { ssr: false })
 );
@@ -30,51 +25,12 @@ const CallToAction = withViewport(
   dynamic(() => import("./landing/components/CallToAction"), { ssr: false })
 );
 
-const exampleScreenshots = [
-  { title: "(1) Alerta Diário Recebido", imageUrl: "/images/WhatsApp Image 2025-07-07 at 14.00.20.png" },
-  { title: "(2) Análise de Conteúdo", imageUrl: "/images/WhatsApp Image 2025-07-07 at 14.00.20 (1).png" },
-  { title: "(3) Sugestão Estratégica", imageUrl: "/images/WhatsApp Image 2025-07-07 at 14.00.21.png" },
-  { title: "(4) Ideia de Conteúdo", imageUrl: "/images/WhatsApp Image 2025-07-07 at 14.00.21 (1).png" },
-  { title: "(5) Usuário Tira Dúvidas", imageUrl: "/images/WhatsApp Image 2025-07-07 at 14.00.21 (2).png" }
-];
-
-const creatorTypes = [
-  {
-    icon: FaChalkboardTeacher,
-    title: "Especialistas e Coaches",
-    description: "Transforme seu conhecimento em conteúdo de alto valor que educa e converte."
-  },
-  {
-    icon: FaBullhorn,
-    title: "Influenciadores e Atores",
-    description: "Entenda sua audiência para aumentar o engajamento e fechar mais publicidades."
-  },
-  {
-    icon: FaStar,
-    title: "Marcas e Empreendedores",
-    description: "Use seu Instagram como uma ferramenta de negócios poderosa, com estratégia baseada em dados."
-  }
-];
-
 const SectionTitle = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
   <h2 className={`text-4xl md:text-5xl font-bold tracking-tight text-brand-dark ${className}`}>{children}</h2>
 );
 
 const SectionSubtitle = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
   <p className={`mt-4 text-lg md:text-xl text-gray-600 max-w-3xl leading-relaxed ${className}`}>{children}</p>
-);
-
-const PillarCard = ({ icon: Icon, title, children }: { icon: React.ElementType; title: string; children: React.ReactNode }) => (
-  <div className="group relative h-full rounded-2xl bg-gradient-to-br from-white to-gray-50 p-6 text-left transition-all duration-300 hover:shadow-2xl hover:-translate-y-2">
-    <div className="absolute -inset-px rounded-2xl bg-gradient-to-r from-pink-200/50 to-purple-200/50 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-    <div className="relative">
-      <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-brand-pink/10 text-2xl text-brand-pink shadow-inner shadow-pink-100 transition-all duration-300 group-hover:scale-110 group-hover:bg-brand-pink group-hover:text-white">
-        <Icon />
-      </div>
-      <h3 className="text-lg font-semibold text-brand-dark">{title}</h3>
-      <p className="mt-2 text-sm text-gray-600">{children}</p>
-    </div>
-  </div>
 );
 
 const TestimonialCard = ({ name, handle, quote, avatarUrl }: { name: string; handle: string; quote: string; avatarUrl: string }) => (
@@ -106,35 +62,9 @@ export default function FinalCompleteLandingPage() {
       <div className="bg-white text-gray-800 font-sans">
         <LandingHeader />
         <main className="snap-y snap-mandatory overflow-y-scroll h-screen scroll-pt-20">
-          <HeroSection />
-
-          <section className="snap-start py-10 sm:py-14 bg-gray-50/70">
-            <div className="mx-auto max-w-screen-xl px-6 lg:px-8 text-left">
-              <AnimatedSection>
-                <SectionTitle>Veja Nossa IA em Ação.</SectionTitle>
-                <SectionSubtitle>Receba alertas, análises e ideias diretamente no seu WhatsApp, de forma clara e objetiva.</SectionSubtitle>
-              </AnimatedSection>
-            </div>
-            <ScreenshotCarousel items={exampleScreenshots} />
-          </section>
-
-          <section id="features" className="snap-start py-10 sm:py-14 bg-white">
-            <div className="mx-auto max-w-screen-xl px-6 lg:px-8 text-left">
-              <AnimatedSection>
-                <SectionTitle>Feito para todos os tipos de criadores.</SectionTitle>
-                <SectionSubtitle>Se você cria conteúdo, a data2content trabalha para você. Nossa IA se adapta ao seu histórico de conteúdo, nicho e objetivos.</SectionSubtitle>
-              </AnimatedSection>
-              <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                {creatorTypes.map((creator, index) => (
-                  <AnimatedSection delay={0.1 * (index + 1)} key={creator.title}>
-                    <PillarCard icon={creator.icon} title={creator.title}>
-                      {creator.description}
-                    </PillarCard>
-                  </AnimatedSection>
-                ))}
-              </div>
-            </div>
-          </section>
+          <IntroSlide />
+          <FeaturesSlide />
+          <ExamplesSlide />
 
           <section className="snap-start py-10 sm:py-14 bg-gray-50/70">
             <div className="mx-auto max-w-screen-xl px-6 lg:px-8 text-left">
