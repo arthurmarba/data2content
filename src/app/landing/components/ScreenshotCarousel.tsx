@@ -2,12 +2,13 @@
 
 import Image from 'next/image';
 import React, { useEffect, useRef, useState } from 'react';
-import { motion, PanInfo } from 'framer-motion';
+import { motion, PanInfo, useMotionValueEvent, useScroll } from 'framer-motion';
 import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
 interface Screenshot {
   title: string;
   imageUrl: string;
+  description: string;
 }
 
 interface ScreenshotCarouselProps {
@@ -16,6 +17,18 @@ interface ScreenshotCarouselProps {
 
 export default function ScreenshotCarousel({ items }: ScreenshotCarouselProps) {
   const carouselRef = useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const { scrollX } = useScroll({ container: carouselRef });
+  useMotionValueEvent(scrollX, 'change', (latest) => {
+    const card = carouselRef.current?.children[0] as HTMLElement;
+    const cardWidth = card?.offsetWidth || 0;
+    const gap = 32;
+    if (cardWidth === 0) return;
+    const index = Math.round(latest / (cardWidth + gap));
+    if (index >= 0 && index < items.length) {
+      setActiveIndex(index);
+    }
+  });
 
   const scrollCarousel = (direction: 'left' | 'right') => {
     if (carouselRef.current) {
@@ -115,6 +128,7 @@ export default function ScreenshotCarousel({ items }: ScreenshotCarouselProps) {
           <FaChevronRight />
         </button>
       </div>
+      <p className="mt-4 text-center text-gray-600 max-w-md mx-auto">{items[activeIndex]?.description}</p>
     </div>
   );
 }

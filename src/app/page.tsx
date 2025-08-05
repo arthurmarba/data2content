@@ -49,6 +49,24 @@ const TestimonialCard = ({ name, handle, quote, avatarUrl }: { name: string; han
   </div>
 );
 
+const exampleScreenshots = [
+  {
+    title: "Análises no WhatsApp",
+    imageUrl: "/images/tuca-analise-whatsapp.png",
+    description: "Receba insights do Mobi diretamente pelo WhatsApp para agir rapidamente.",
+  },
+  {
+    title: "Nova análise",
+    imageUrl: "/images/tuca-nova-analise.png",
+    description: "Descubra oportunidades de conteúdo com base nos dados mais recentes.",
+  },
+  {
+    title: "Comunidade Tuca",
+    imageUrl: "/images/Tuca-comunidade.png",
+    description: "Aprenda com outros criadores e compartilhe experiências na comunidade.",
+  },
+];
+
 export default function FinalCompleteLandingPage() {
   const videoId = "dQw4w9WgXcQ";
 
@@ -64,7 +82,7 @@ export default function FinalCompleteLandingPage() {
         <main className="snap-y snap-mandatory overflow-y-scroll h-screen scroll-pt-20">
           <IntroSlide />
           <FeaturesSlide />
-          <ExamplesSlide />
+          <ExamplesSlide screenshots={exampleScreenshots} />
 
           <section className="snap-start py-10 sm:py-14 bg-gray-50/70">
             <div className="mx-auto max-w-screen-xl px-6 lg:px-8 text-left">
