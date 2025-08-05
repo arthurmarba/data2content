@@ -1,8 +1,10 @@
 'use client';
 
 import ButtonPrimary from './ButtonPrimary';
-import { TypeAnimation } from 'react-type-animation';
+import dynamic from 'next/dynamic';
 import Marquee from './Marquee';
+
+const TypingEffect = dynamic(() => import('./TypingEffect'), { ssr: false });
 
 export default function LegacyHero() {
   return (
@@ -11,7 +13,7 @@ export default function LegacyHero() {
         <h1 className="text-5xl md:text-7xl font-semibold tracking-tight text-brand-dark">
           O fim da dúvida: o que postar hoje
         </h1>
-        <TypeAnimation
+        <TypingEffect
           sequence={[
             'Uma inteligência artificial',
             1000,
@@ -20,9 +22,6 @@ export default function LegacyHero() {
             'que conversa no WhatsApp',
             1000,
           ]}
-          wrapper="p"
-          speed={50}
-          repeat={Infinity}
           className="mt-4 text-lg md:text-xl text-gray-600"
         />
         <ButtonPrimary href="/login" className="mt-8">

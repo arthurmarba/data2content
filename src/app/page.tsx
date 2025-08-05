@@ -10,11 +10,17 @@ import { FaQuestionCircle } from "react-icons/fa";
 import testimonials from "@/data/testimonials";
 import faqItems from "@/data/faq";
 import { landingJsonLd } from "@/seo/landing";
-import { IntroSlide } from "./landing/components/IntroSlide";
-import { FeaturesSlide } from "./landing/components/FeaturesSlide";
-import { ExamplesSlide } from "./landing/components/ExamplesSlide";
 import Container from "./components/Container";
-import LegacyHero from "./landing/components/LegacyHero";
+const LegacyHero = dynamic(() => import("./landing/components/LegacyHero"), { ssr: false });
+const IntroSlide = withViewport(
+  dynamic(() => import("./landing/components/IntroSlide"), { ssr: false })
+);
+const FeaturesSlide = withViewport(
+  dynamic(() => import("./landing/components/FeaturesSlide"), { ssr: false })
+);
+const ExamplesSlide = withViewport(
+  dynamic(() => import("./landing/components/ExamplesSlide"), { ssr: false })
+);
 
 const AnimatedSection = withViewport(
   dynamic(() => import("./landing/components/AnimatedSection"), { ssr: false })
