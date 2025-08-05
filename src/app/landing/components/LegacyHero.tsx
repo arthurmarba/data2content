@@ -2,6 +2,7 @@
 
 import ButtonPrimary from './ButtonPrimary';
 import { TypeAnimation } from 'react-type-animation';
+import Marquee from './Marquee';
 
 export default function LegacyHero() {
   return (
@@ -40,6 +41,10 @@ export default function LegacyHero() {
             decoding="async"
           />
         </div>
+      </div>
+      <div className="mt-8 space-y-2 overflow-hidden">
+        <Marquee direction="left" />
+        <Marquee direction="right" />
       </div>
     </section>
   );
