@@ -3,13 +3,14 @@
 import ButtonPrimary from './ButtonPrimary';
 import dynamic from 'next/dynamic';
 import Marquee from './Marquee';
+import Container from '../../components/Container';
 
 const TypingEffect = dynamic(() => import('./TypingEffect'), { ssr: false });
 
 export default function LegacyHero() {
   return (
     <section className="snap-start relative flex flex-col h-screen pt-20 bg-gradient-to-b from-white via-brand-pink/5 to-gray-50 text-center overflow-x-hidden">
-      <div className="flex-grow flex flex-col justify-center px-6">
+      <Container className="flex-grow flex flex-col justify-center">
         <h1 className="text-5xl md:text-7xl font-semibold tracking-tight text-brand-dark">
           O fim da dúvida: o que postar hoje
         </h1>
@@ -40,7 +41,7 @@ export default function LegacyHero() {
             decoding="async"
           />
         </div>
-      </div>
+      </Container>
       <div className="mt-8 space-y-2 overflow-hidden">
         <Marquee direction="left" />
         <Marquee direction="right" />
