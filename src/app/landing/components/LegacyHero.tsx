@@ -5,10 +5,43 @@ import dynamic from 'next/dynamic';
 import Marquee from './Marquee';
 import Container from '../../components/Container';
 import { ScrollCue } from './ScrollCue';
+import { useEffect, useRef, useState } from 'react';
+import { useInView } from 'react-intersection-observer';
 
 const TypingEffect = dynamic(() => import('./TypingEffect'), { ssr: false });
 
 export default function LegacyHero() {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const { ref: inViewRef, inView } = useInView({ triggerOnce: true, threshold: 0.25 });
+  const setRefs = (node: HTMLVideoElement) => {
+    videoRef.current = node;
+    inViewRef(node);
+  };
+  const [shouldLoad, setShouldLoad] = useState(false);
+  const [reducedData, setReducedData] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-data: reduce)');
+    setReducedData(media.matches);
+  }, []);
+
+  useEffect(() => {
+    if (inView && !reducedData) {
+      setShouldLoad(true);
+    }
+  }, [inView, reducedData]);
+
+  useEffect(() => {
+    if (shouldLoad && videoRef.current) {
+      videoRef.current.play().catch(() => {});
+    }
+  }, [shouldLoad]);
+
+  const handlePlay = () => {
+    setShouldLoad(true);
+    videoRef.current?.play();
+  };
+
   return (
     <section className="snap-start relative flex flex-col h-screen pt-20 bg-gradient-to-b from-white via-brand-pink/5 to-gray-50 text-center overflow-x-hidden">
       <Container className="flex-grow flex flex-col justify-center">
@@ -29,16 +62,25 @@ export default function LegacyHero() {
             Ative sua IA do Instagram no WhatsApp
           </ButtonPrimary>
           <video
-            autoPlay
+            ref={setRefs}
+            autoPlay={!reducedData}
             muted
             loop
             playsInline
             poster="/images/tuca-analise-whatsapp.png"
-            src="/videos/hero-demo.mp4"
+            preload="none"
+            src={shouldLoad ? '/videos/hero-demo.mp4' : undefined}
             className="w-full max-w-4xl mx-auto rounded-2xl shadow-xl aspect-video mt-8"
-            loading="lazy"
-            decoding="async"
           />
+          {reducedData && !shouldLoad && (
+            <button
+              type="button"
+              onClick={handlePlay}
+              className="mt-4 px-4 py-2 rounded bg-brand-dark text-white"
+            >
+              Assistir vídeo
+            </button>
+          )}
         </div>
       </Container>
       <div className="mt-8 space-y-2 overflow-hidden">
