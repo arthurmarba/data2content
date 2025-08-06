@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import ButtonPrimary from './ButtonPrimary';
 import Container from '../../components/Container';
@@ -14,7 +14,9 @@ interface LandingHeaderProps {
 export default function LandingHeader({ showLoginButton = false }: LandingHeaderProps) {
   const { data: session } = useSession();
   const [isScrolled, setIsScrolled] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const firstLinkRef = useRef<HTMLAnchorElement>(null);
 
   const trackEvent = (eventName: string) => {
     if (typeof window !== 'undefined' && (window as any).gtag) {
@@ -29,6 +31,14 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    if (isMenuOpen) {
+      firstLinkRef.current?.focus();
+    } else {
+      menuButtonRef.current?.focus();
+    }
+  }, [isMenuOpen]);
+
   return (
     <header className={`fixed top-0 w-full z-50 backdrop-blur-md transition-all ${isScrolled ? 'bg-white shadow' : 'bg-white/60'}`}>
       <Container className="flex justify-between items-center h-20 relative">
@@ -37,7 +47,7 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
           <span>data2content</span>
         </Link>
         <div className="flex items-center gap-3">
-          <nav className="hidden sm:flex items-center gap-5">
+          <nav className="hidden md:flex items-center gap-5">
             {session ? (
               <Link
                 href="/dashboard"
@@ -70,21 +80,25 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
             Começar Agora
           </ButtonPrimary>
           <button
-            className="sm:hidden p-2 text-gray-600"
-            onClick={() => setMenuOpen(!menuOpen)}
+            ref={menuButtonRef}
+            className="md:hidden p-2 text-gray-600"
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Menu"
+            aria-controls="mobile-menu"
+            aria-expanded={isMenuOpen}
           >
-            {menuOpen ? <XMarkIcon className="w-6 h-6" /> : <Bars3Icon className="w-6 h-6" />}
+            {isMenuOpen ? <XMarkIcon className="w-6 h-6" /> : <Bars3Icon className="w-6 h-6" />}
           </button>
         </div>
-        {menuOpen && (
-          <div className="absolute right-4 top-full mt-2 w-48 rounded-md bg-white shadow-lg sm:hidden">
-            <nav className="flex flex-col p-2">
+        {isMenuOpen && (
+          <div className="absolute top-20 right-0 w-48 rounded-md bg-white shadow-lg md:hidden">
+            <nav id="mobile-menu" className="flex flex-col p-2">
               {session ? (
                 <Link
                   href="/dashboard"
                   className="px-4 py-2 text-sm hover:bg-gray-100"
-                  onClick={() => setMenuOpen(false)}
+                  onClick={() => setIsMenuOpen(false)}
+                  ref={firstLinkRef}
                 >
                   Meu Painel
                 </Link>
@@ -93,9 +107,10 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
                   href="/login"
                   onClick={() => {
                     trackEvent(showLoginButton ? 'login_button_click' : 'login_link_click');
-                    setMenuOpen(false);
+                    setIsMenuOpen(false);
                   }}
                   className="px-4 py-2 text-sm hover:bg-gray-100"
+                  ref={firstLinkRef}
                 >
                   Entrar
                 </Link>
