@@ -6,8 +6,12 @@ interface ContainerProps {
   padding?: string;
 }
 
-const Container: React.FC<ContainerProps> = ({ children, className = "", padding = "" }) => {
-  return <div className={`max-w-screen-xl mx-auto px-6 ${padding} ${className}`}>{children}</div>;
+const Container: React.FC<ContainerProps> = ({
+  children,
+  className = "",
+  padding = "px-4 sm:px-6 lg:px-8",
+}) => {
+  return <div className={`max-w-screen-xl mx-auto ${padding} ${className}`}>{children}</div>;
 };
 
 export default Container;

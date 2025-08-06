@@ -34,25 +34,25 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
           <span className="text-brand-pink">[2]</span>
           <span>data2content</span>
         </Link>
-        <nav className="flex items-center gap-5">
+        <nav className="flex items-center gap-6">
           {session ? (
             <Link
               href="/dashboard"
-              className="text-sm font-semibold text-gray-600 hover:text-brand-pink transition-colors"
+              className="text-base font-semibold text-gray-600 hover:text-brand-pink transition-colors"
             >
               Meu Painel
             </Link>
           ) : showLoginButton ? (
             <ButtonPrimary href="/login" onClick={() => trackEvent('login_button_click')}>
-              Fazer Login
+              Ative sua IA do Instagram no WhatsApp
             </ButtonPrimary>
           ) : (
             <Link
               href="/login"
               onClick={() => trackEvent('login_link_click')}
-              className="text-sm font-semibold text-gray-600 hover:text-brand-pink transition-colors"
+              className="text-base font-semibold text-gray-600 hover:text-brand-pink transition-colors"
             >
-              Fazer Login
+              Ative sua IA do Instagram no WhatsApp
             </Link>
           )}
           <ButtonPrimary href="/register" onClick={() => trackEvent('cta_start_now_click')}>
