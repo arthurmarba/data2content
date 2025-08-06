@@ -76,7 +76,7 @@ export default function AnswerPage() {
 
       <main className="px-8 py-16 pt-24 space-y-8">
         <div className="text-center">
-          <h1 className="text-4xl font-bold mb-2 font-poppins">
+          <h1 className="text-4xl font-bold mb-2 font-sans">
             data2content
           </h1>
           <div className="mx-auto" style={{ maxWidth: "400px" }}>

@@ -169,18 +169,6 @@ export default function FinalCompleteLandingPage() {
         </footer>
       </div>
 
-      <style jsx global>{`
-        html {
-          font-family: 'Inter', sans-serif;
-        }
-        .hide-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-        .hide-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-      `}</style>
     </>
   );
 }

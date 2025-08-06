@@ -6,8 +6,8 @@
 @tailwind components;
 @tailwind utilities;
 
-/* REMOVIDO: @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap'); */
-/* A fonte Poppins agora é carregada via next/font/google no layout.tsx */
+/* REMOVIDO: @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'); */
+/* A fonte Inter agora é carregada via next/font/google no layout.tsx */
 
 /* REMOVIDO: Bloco :root com variáveis CSS */
 /* As cores base são aplicadas via classes Tailwind no layout.tsx, usando o tailwind.config.ts */

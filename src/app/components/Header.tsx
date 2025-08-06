@@ -24,7 +24,7 @@ const Header: React.FC = () => {
 
   // Se não for '/dashboard', renderiza o Header normalmente
   return (
-    <header className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-sm shadow-sm font-poppins">
+    <header className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-sm shadow-sm font-sans">
       <div className="max-w-6xl mx-auto flex items-center justify-between py-3 px-4">
         {/* Logo */}
         <div>
