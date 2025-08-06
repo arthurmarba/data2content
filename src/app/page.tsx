@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -11,6 +11,7 @@ import testimonials from "@/data/testimonials";
 import faqItems from "@/data/faq";
 import { landingJsonLd } from "@/seo/landing";
 import Container from "./components/Container";
+import ButtonPrimary from "./landing/components/ButtonPrimary";
 const LegacyHero = dynamic(() => import("./landing/components/LegacyHero"), { ssr: false });
 const IntroSlide = withViewport(
   dynamic(() => import("./landing/components/IntroSlide"), { ssr: false })
@@ -76,6 +77,21 @@ const exampleScreenshots = [
 ];
 
 export default function FinalCompleteLandingPage() {
+  const [showStickyLogin, setShowStickyLogin] = useState(false);
+  const mainRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      setShowStickyLogin(el.scrollTop >= window.innerHeight);
+    };
+    el.addEventListener("scroll", handleScroll);
+    return () => {
+      el.removeEventListener("scroll", handleScroll);
+    };
+  }, [mainRef]);
+
   return (
     <>
       <script
@@ -85,7 +101,7 @@ export default function FinalCompleteLandingPage() {
 
       <div className="bg-white text-gray-800 font-sans">
         <LandingHeader showLoginButton />
-        <main className="snap-y snap-mandatory overflow-y-scroll h-screen scroll-pt-20">
+        <main ref={mainRef} className="snap-y snap-mandatory overflow-y-scroll h-screen scroll-pt-20">
           <LegacyHero />
           <IntroSlide />
           <FeaturesSlide />
@@ -136,6 +152,11 @@ export default function FinalCompleteLandingPage() {
           </section>
 
           <CallToAction />
+          {showStickyLogin && (
+            <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-white/80 backdrop-blur-md shadow-md">
+              <ButtonPrimary href="/login">Ative sua IA do Instagram no WhatsApp</ButtonPrimary>
+            </div>
+          )}
         </main>
 
         <footer className="text-center py-8 bg-gradient-to-b from-white via-brand-pink/5 to-gray-50 border-t">
