@@ -80,7 +80,7 @@ export default function ScreenshotCarousel({ items }: ScreenshotCarouselProps) {
     <div className="relative mt-6">
       <motion.div
         ref={carouselRef}
-        className="overflow-hidden snap-x snap-mandatory hide-scrollbar"
+        className="overflow-hidden snap-x snap-mandatory scrollbar-hide"
         drag="x"
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={0.05}

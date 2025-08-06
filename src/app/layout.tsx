@@ -1,7 +1,7 @@
 // src/app/layout.tsx
 
 import type { Metadata } from "next";
-import { Poppins } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
 // Imports do NextAuth para buscar a sessão no servidor
@@ -15,11 +15,10 @@ import AuthRedirectHandler from "./components/auth/AuthRedirectHandler";
 import ClientHooksWrapper from "./components/ClientHooksWrapper";
 import MainContentWrapper from "./components/MainContentWrapper"; // ✅ IMPORTADO O NOVO COMPONENTE
 
-const poppins = Poppins({
-  weight: ["300", "400", "500", "600", "700", "800"],
+const inter = Inter({
   subsets: ["latin"],
   display: 'swap',
-  variable: "--font-poppins",
+  variable: "--font-inter",
 });
 
 
@@ -38,7 +37,7 @@ export default async function RootLayout({
   const serializableSession = session ? JSON.parse(JSON.stringify(session)) : null;
 
   return (
-    <html lang="pt-BR" className={`${poppins.variable} h-full`}>
+    <html lang="pt-BR" className={`${inter.variable} h-full`}>
       <head>
         <link rel="preconnect" href="https://www.youtube.com" />
         <link rel="preconnect" href="https://www.google.com" />
@@ -46,7 +45,7 @@ export default async function RootLayout({
       </head>
       <body
         className={`
-          ${poppins.className}
+          ${inter.className}
           antialiased
           flex
           flex-col
