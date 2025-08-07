@@ -7,6 +7,8 @@ import TypingEffect from './TypingEffect';
 import Marquee from './Marquee';
 import heroQuestions from '@/data/heroQuestions';
 
+const YOUTUBE_VIDEO_ID = 'n5E_hLThxEA';
+
 export default function HeroSection() {
   const handleSignIn = () => {
     signIn('google', { callbackUrl: '/auth/complete-signup' });
@@ -68,13 +70,12 @@ export default function HeroSection() {
               <Marquee items={[...heroQuestions].reverse()} direction="right" />
             </motion.div>
 
-            {/* VÍDEO DO YOUTUBE ADICIONADO AQUI */}
             <motion.div variants={heroItemVariants} className="mt-12 px-6">
               <div className="relative max-w-4xl mx-auto aspect-video rounded-2xl shadow-xl overflow-hidden border border-gray-200">
                 <iframe
                   className="absolute top-0 left-0 w-full h-full"
-                  src="https://www.youtube.com/embed/n5E_hLThxEA" // <-- TROQUE O ID DO VÍDEO AQUI
-                  title="YouTube video player"
+                  src={`https://www.youtube.com/embed/${YOUTUBE_VIDEO_ID}`}
+                  title="Demo do data2content"
                   frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
