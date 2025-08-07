@@ -79,6 +79,7 @@ export default function ScreenshotCarousel({ items }: ScreenshotCarouselProps) {
             src={imageUrl}
             alt={altTextService(title, description)}
             fill
+            sizes="(max-width:768px)60vw,(max-width:1024px)40vw,22vw"
             className="object-cover"
             loading="lazy"
             onError={(e) => {

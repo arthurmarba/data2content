@@ -53,7 +53,7 @@ const TestimonialCard = ({ name, handle, quote, avatarUrl }: { name: string; han
     <p className="text-gray-700 italic text-sm flex-grow">"{quote}"</p>
     <div className="flex items-center mt-4">
       <div className="relative w-10 h-10 rounded-full overflow-hidden">
-        <Image src={avatarUrl} alt={`Avatar de ${name}`} fill className="object-cover" />
+        <Image src={avatarUrl} alt={`Avatar de ${name}`} fill sizes="40px" className="object-cover" />
       </div>
       <div className="ml-4">
         <p className="font-semibold text-brand-dark text-sm">{name}</p>
