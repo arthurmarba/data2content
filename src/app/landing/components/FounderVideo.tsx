@@ -16,7 +16,8 @@ export default function FounderVideo({ videoId }: FounderVideoProps) {
 
     const observer = new IntersectionObserver((entries, obs) => {
       const entry = entries[0];
-      if (entry.isIntersecting) {
+      // CORREÇÃO: Adicionada uma verificação para garantir que 'entry' não é undefined.
+      if (entry && entry.isIntersecting) {
         const iframe = document.createElement('iframe');
         iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1`;
         iframe.title = 'YouTube video player';
@@ -54,4 +55,3 @@ export default function FounderVideo({ videoId }: FounderVideoProps) {
     </div>
   );
 }
-

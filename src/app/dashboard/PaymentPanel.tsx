@@ -295,6 +295,8 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
 
   const testimonials = [
     {
+      // CORREÇÃO: Adicionada uma propriedade 'id' única para o depoimento.
+      id: 'testimonial-joana-s',
       text: "Depois que assinei, minhas métricas melhoraram e as dicas no WhatsApp me ajudaram a dobrar meu engajamento! O IA Mobi é incrível. Recomendo demais.", // ATUALIZAR
       author: "Joana S.",
       role: "Criadora de Conteúdo Digital",
@@ -380,7 +382,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
         <div className="aspect-w-16 aspect-h-9 rounded-xl overflow-hidden shadow-lg border border-gray-200 ring-1 ring-black/5">
           <iframe
             className="w-full h-full"
-            src="https://www.youtube.com/watch?v=n5E_hLThxEA" // ATUALIZAR VIDEO_ID_PLACEHOLDER
+            src="https://www.youtube.com/embed/n5E_hLThxEA" // ATUALIZAR VIDEO_ID_PLACEHOLDER
             title="Vídeo Explicativo da Assinatura Data2Content"
             frameBorder="0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -790,11 +792,6 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
         .shimmer-button:disabled::before {
             animation: none;
             display: none;
-        }
-        @keyframes shimmer {
-          0% { left: -150%; }
-          40% { left: 150%; }
-          100% { left: 150%; }
         }
         *:focus-visible {
             outline: 3px solid #E91E63; /* Cor brand-pink */

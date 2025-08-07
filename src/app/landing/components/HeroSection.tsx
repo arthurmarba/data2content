@@ -104,8 +104,7 @@ export default function HeroSection() {
                 poster="/images/tuca-analise-whatsapp.png"
                 src="/videos/hero-demo.mp4"
                 className="w-full max-w-4xl mx-auto rounded-2xl shadow-xl aspect-video"
-                loading="lazy"
-                decoding="async"
+                // CORREÇÃO: Removidos os atributos 'loading' e 'decoding' que não são válidos para a tag <video>.
               />
             </motion.div>
           </motion.div>
@@ -114,4 +113,3 @@ export default function HeroSection() {
     </section>
   );
 }
-
