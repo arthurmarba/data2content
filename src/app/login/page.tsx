@@ -5,6 +5,11 @@
 import { signIn } from "next-auth/react";
 import { useSearchParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 export default function LoginPage() {
   const searchParams = useSearchParams();

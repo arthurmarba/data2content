@@ -59,6 +59,7 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
               <ButtonPrimary
                 href="/login"
                 onClick={() => trackEvent('login_button_click')}
+                rel="nofollow"
               >
                 Ative sua IA do Instagram no WhatsApp
               </ButtonPrimary>
@@ -67,6 +68,7 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
                 href="/login"
                 onClick={() => trackEvent('login_link_click')}
                 className="text-sm font-semibold text-gray-600 hover:text-brand-pink transition-colors"
+                rel="nofollow"
               >
                 Ative sua IA do Instagram no WhatsApp
               </Link>
@@ -111,6 +113,7 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
                   }}
                   className="px-4 py-2 text-sm hover:bg-gray-100"
                   ref={firstLinkRef}
+                  rel="nofollow"
                 >
                   Entrar
                 </Link>
