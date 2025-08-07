@@ -1,28 +1,30 @@
 "use client";
 
+import React, { useMemo } from "react";
 import { motion } from "framer-motion";
-import heroQuestions from "@/data/heroQuestions";
 
 interface MarqueeProps {
+  items: string[];
   direction?: "left" | "right";
 }
 
-export default function Marquee({ direction = "left" }: MarqueeProps) {
-  const questions = [...heroQuestions, ...heroQuestions];
-  const animateFrom = direction === "left" ? "0%" : "-100%";
-  const animateTo = direction === "left" ? "-100%" : "0%";
-
+export default function Marquee({ items, direction = "left" }: MarqueeProps) {
+  const marqueeContent = useMemo(() => [...items, ...items], [items]);
   return (
-    <div className="overflow-hidden whitespace-nowrap">
+    <div className="relative w-full overflow-hidden">
       <motion.div
-        className="flex gap-8"
-        animate={{ x: [animateFrom, animateTo] }}
-        transition={{ repeat: Infinity, ease: "linear", duration: 30 }}
+        className="flex gap-4"
+        initial={{ x: direction === "left" ? 0 : "-50%" }}
+        animate={{ x: direction === "left" ? "-50%" : 0 }}
+        transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
       >
-        {questions.map((q, idx) => (
-          <span key={idx} className="text-sm md:text-base text-gray-600">
-            {q}
-          </span>
+        {marqueeContent.map((item, index) => (
+          <div
+            key={index}
+            className="flex-shrink-0 whitespace-nowrap px-6 py-3 rounded-full bg-gray-200/80 text-gray-600 font-medium"
+          >
+            {item}
+          </div>
         ))}
       </motion.div>
     </div>
