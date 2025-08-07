@@ -32,3 +32,17 @@ export const landingJsonLd = {
   name: "data2content",
   url: "https://data2content.ai"
 };
+
+export const landingProductJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "data2content",
+  description:
+    "Seu estrategista de conteúdo pessoal que analisa seu Instagram e te diz exatamente o que fazer para crescer.",
+  applicationCategory: "MarketingApplication",
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "BRL",
+  },
+};

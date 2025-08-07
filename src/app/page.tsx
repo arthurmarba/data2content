@@ -9,7 +9,11 @@ import { FaStar } from "react-icons/fa";
 import { FaQuestionCircle } from "react-icons/fa";
 import testimonials from "@/data/testimonials";
 import faqItems from "@/data/faq";
-import { landingJsonLd, landingMetadata } from "@/seo/landing";
+import {
+  landingJsonLd,
+  landingProductJsonLd,
+  landingMetadata,
+} from "@/seo/landing";
 import Container from "./components/Container";
 import ButtonPrimary from "./landing/components/ButtonPrimary";
 const LegacyHero = dynamic(() => import("./landing/components/LegacyHero"));
@@ -97,7 +101,9 @@ export default function FinalCompleteLandingPage() {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(landingJsonLd) }}
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify([landingJsonLd, landingProductJsonLd]),
+        }}
       />
 
       <div className="bg-white text-gray-800 font-sans">
