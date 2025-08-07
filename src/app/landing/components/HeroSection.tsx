@@ -7,7 +7,8 @@ import TypingEffect from './TypingEffect';
 import Marquee from './Marquee';
 import heroQuestions from '@/data/heroQuestions';
 
-const YOUTUBE_VIDEO_ID = 'n5E_hLThxEA';
+// CORREÇÃO: O ID do vídeo foi atualizado para o novo link.
+const YOUTUBE_VIDEO_ID = '0Uu_VJeVVfo';
 
 export default function HeroSection() {
   const handleSignIn = () => {
@@ -31,60 +32,66 @@ export default function HeroSection() {
     },
   };
 
+  // URL do YouTube otimizada para a aparência mais limpa, sem loop para evitar a barra de playlist.
+  const youtubeEmbedUrl = `https://www.youtube.com/embed/${YOUTUBE_VIDEO_ID}?autoplay=1&mute=1&controls=0&rel=0&showinfo=0&modestbranding=1`;
+
   return (
-    <section className="relative flex flex-col min-h-screen bg-gray-100 text-center overflow-x-hidden pt-20 pb-10">
-      <div className="flex-grow flex flex-col justify-start">
-        <div className="w-full">
-          <motion.div variants={heroVariants} initial="hidden" animate="visible" className="w-full">
-            <div className="max-w-3xl mx-auto px-6 lg:px-8">
-              <motion.h1
-                variants={heroItemVariants}
-                className="text-5xl md:text-7xl font-extrabold tracking-tighter text-brand-dark"
-              >
-                O fim da dúvida: o que postar hoje?
-              </motion.h1>
+    <section className="relative bg-gray-100 text-center overflow-x-hidden pt-32 pb-24">
+      <div className="w-full">
+        <motion.div variants={heroVariants} initial="hidden" animate="visible" className="w-full">
+          <div className="max-w-3xl mx-auto px-6 lg:px-8">
+            <motion.h1
+              variants={heroItemVariants}
+              className="text-5xl md:text-7xl font-extrabold tracking-tighter text-brand-dark"
+            >
+              O fim da dúvida: o que postar hoje?
+            </motion.h1>
 
-              <motion.div variants={heroItemVariants} className="mt-6 h-14 md:h-auto">
-                <TypingEffect
-                  sequence={[
-                    'Uma Inteligência Artificial.',
-                    1000,
-                    'Uma Inteligência Artificial conectada ao seu Instagram.',
-                    1000,
-                    'Uma Inteligência Artificial para conversar no WhatsApp.',
-                    3000,
-                  ]}
-                  className="text-lg md:text-xl text-gray-600 max-w-2xl leading-relaxed mx-auto"
-                />
-              </motion.div>
-
-              <motion.div variants={heroItemVariants}>
-                <ButtonPrimary onClick={handleSignIn} className="mt-8">
-                  <FaGoogle /> Ative sua IA do Instagram no WhatsApp ▸
-                </ButtonPrimary>
-              </motion.div>
-            </div>
-
-            <motion.div variants={heroItemVariants} className="mt-10 md:mt-12 w-full space-y-4">
-              <Marquee items={heroQuestions} direction="left" />
-              <Marquee items={[...heroQuestions].reverse()} direction="right" />
+            <motion.div variants={heroItemVariants} className="mt-6 h-14 md:h-auto">
+              <TypingEffect
+                sequence={[
+                  'Uma Inteligência Artificial.',
+                  1000,
+                  'Uma Inteligência Artificial conectada ao seu Instagram.',
+                  1000,
+                  'Uma Inteligência Artificial para conversar no WhatsApp.',
+                  3000,
+                ]}
+                className="text-lg md:text-xl text-gray-600 max-w-2xl leading-relaxed mx-auto"
+              />
             </motion.div>
 
-            <motion.div variants={heroItemVariants} className="mt-12 px-6">
-              <div className="relative max-w-4xl mx-auto w-full aspect-video rounded-2xl shadow-xl overflow-hidden border border-gray-200">
-                <iframe
-                  className="absolute top-0 left-0 w-full h-full"
-                  src={`https://www.youtube.com/embed/${YOUTUBE_VIDEO_ID}`}
-                  title="Demo do data2content"
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                ></iframe>
-              </div>
+            <motion.div variants={heroItemVariants}>
+              <ButtonPrimary onClick={handleSignIn} className="mt-8">
+                <FaGoogle /> Ative sua IA do Instagram no WhatsApp ▸
+              </ButtonPrimary>
             </motion.div>
-            
+          </div>
+
+          <motion.div variants={heroItemVariants} className="mt-10 md:mt-12 w-full space-y-4">
+            <Marquee items={heroQuestions} direction="left" />
+            <Marquee items={[...heroQuestions].reverse()} direction="right" />
           </motion.div>
-        </div>
+
+          <motion.div variants={heroItemVariants} className="mt-12 px-6">
+            <div
+              className="relative max-w-2xl mx-auto w-full rounded-lg overflow-hidden shadow-lg"
+              style={{ paddingTop: '56.25%' }} // Proporção 16:9
+            >
+              <iframe
+                className="absolute top-0 left-0 h-full w-full"
+                src={youtubeEmbedUrl}
+                title="Demo do data2content"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              ></iframe>
+              {/* Esta div transparente fica sobre o iframe para capturar os cliques do mouse e impedir que os controles do YouTube apareçam */}
+              <div className="absolute top-0 left-0 w-full h-full"></div>
+            </div>
+          </motion.div>
+          
+        </motion.div>
       </div>
     </section>
   );
