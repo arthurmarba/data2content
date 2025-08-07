@@ -24,6 +24,7 @@ const InstagramProfile: React.FC<InstagramProfileProps> = ({
           src={image}
           alt={name}
           fill
+          sizes="128px"
           // or width={128} height={128} se preferir fixo
           className="rounded-full object-cover border border-gray-200"
         />
