@@ -32,8 +32,8 @@ export default function HeroSection() {
   };
 
   return (
-    <section className="relative flex flex-col min-h-[90vh] bg-gray-100 text-center overflow-x-hidden pt-20 pb-10">
-      <div className="flex-grow flex flex-col justify-center">
+    <section className="relative flex flex-col min-h-screen bg-gray-100 text-center overflow-x-hidden pt-20 pb-10">
+      <div className="flex-grow flex flex-col justify-start">
         <div className="w-full">
           <motion.div variants={heroVariants} initial="hidden" animate="visible" className="w-full">
             <div className="max-w-3xl mx-auto px-6 lg:px-8">
