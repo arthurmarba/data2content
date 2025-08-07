@@ -71,7 +71,7 @@ export default function HeroSection() {
             </motion.div>
 
             <motion.div variants={heroItemVariants} className="mt-12 px-6">
-              <div className="relative max-w-4xl mx-auto aspect-video rounded-2xl shadow-xl overflow-hidden border border-gray-200">
+              <div className="relative max-w-4xl mx-auto w-full aspect-video rounded-2xl shadow-xl overflow-hidden border border-gray-200">
                 <iframe
                   className="absolute top-0 left-0 w-full h-full"
                   src={`https://www.youtube.com/embed/${YOUTUBE_VIDEO_ID}`}
