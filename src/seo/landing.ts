@@ -31,7 +31,12 @@ export const landingJsonLd = {
   "@context": "https://schema.org",
   "@type": "WebSite",
   name: "data2content",
-  url: "https://data2content.ai"
+  url: "https://data2content.ai",
+  potentialAction: {
+    "@type": "SearchAction",
+    target: "https://data2content.ai/search?q={search_term_string}",
+    "query-input": "required name=search_term_string",
+  }
 };
 
 export const landingProductJsonLd = {
