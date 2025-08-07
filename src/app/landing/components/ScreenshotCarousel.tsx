@@ -4,6 +4,7 @@ import Image from 'next/image';
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, PanInfo, useMotionValueEvent, useScroll } from 'framer-motion';
 import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { altTextService } from '@/services/altTextService';
 
 interface Screenshot {
   title: string;
@@ -51,7 +52,7 @@ export default function ScreenshotCarousel({ items }: ScreenshotCarouselProps) {
     }
   };
 
-  const ScreenshotCard = ({ imageUrl, title }: { imageUrl: string; title: string }) => {
+  const ScreenshotCard = ({ imageUrl, title, description }: { imageUrl: string; title: string; description: string }) => {
     const [isTouch, setIsTouch] = useState(false);
 
     useEffect(() => {
@@ -76,7 +77,7 @@ export default function ScreenshotCarousel({ items }: ScreenshotCarouselProps) {
         >
           <Image
             src={imageUrl}
-            alt={title}
+            alt={altTextService(title, description)}
             fill
             className="object-cover"
             loading="lazy"
@@ -124,7 +125,11 @@ export default function ScreenshotCarousel({ items }: ScreenshotCarouselProps) {
           {items.map((item, index) => (
             <div key={index} className="flex flex-col items-start gap-2 flex-shrink-0 snap-center">
               <h3 className="font-bold text-lg text-gray-600 pl-1">{item.title}</h3>
-              <ScreenshotCard imageUrl={item.imageUrl} title={item.title} />
+              <ScreenshotCard
+                imageUrl={item.imageUrl}
+                title={item.title}
+                description={item.description}
+              />
             </div>
           ))}
         </div>
