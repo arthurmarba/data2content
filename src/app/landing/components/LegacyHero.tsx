@@ -71,7 +71,18 @@ export default function LegacyHero() {
             preload="none"
             src={shouldLoad ? '/videos/hero-demo.mp4' : undefined}
             className="w-full max-w-4xl mx-auto rounded-2xl shadow-xl aspect-video mt-8"
-          />
+            aria-label="Demonstração da IA analisando conversas no WhatsApp"
+          >
+            <track
+              kind="captions"
+              src="/videos/hero-demo.vtt"
+              label="Português"
+              default
+            />
+          </video>
+          <p className="mt-2 text-sm text-gray-600">
+            Vídeo demonstrando a IA do Instagram analisando conversas no WhatsApp.
+          </p>
           {reducedData && !shouldLoad && (
             <button
               type="button"
