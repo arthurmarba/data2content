@@ -14,6 +14,7 @@ import {
   landingProductJsonLd,
   landingMetadata,
   landingFaqJsonLd,
+  landingOrganizationJsonLd,
 } from "@/seo/landing";
 import Container from "./components/Container";
 import ButtonPrimary from "./landing/components/ButtonPrimary";
@@ -107,6 +108,7 @@ export default function FinalCompleteLandingPage() {
             landingJsonLd,
             landingProductJsonLd,
             landingFaqJsonLd,
+            landingOrganizationJsonLd,
           ]),
         }}
       />
