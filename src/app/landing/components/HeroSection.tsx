@@ -7,7 +7,6 @@ import TypingEffect from './TypingEffect';
 import Marquee from './Marquee';
 import heroQuestions from '@/data/heroQuestions';
 
-// CORREÇÃO: O ID do vídeo foi atualizado para o novo link.
 const YOUTUBE_VIDEO_ID = '0Uu_VJeVVfo';
 
 export default function HeroSection() {
@@ -32,11 +31,12 @@ export default function HeroSection() {
     },
   };
 
-  // URL do YouTube otimizada para a aparência mais limpa, sem loop para evitar a barra de playlist.
-  const youtubeEmbedUrl = `https://www.youtube.com/embed/${YOUTUBE_VIDEO_ID}?autoplay=1&mute=1&controls=0&rel=0&showinfo=0&modestbranding=1`;
+  // URL otimizada para autoplay, sem controlos e em loop
+  const youtubeEmbedUrl = `https://www.youtube.com/embed/${YOUTUBE_VIDEO_ID}?autoplay=1&mute=1&controls=0&autohide=1&rel=0&showinfo=0&modestbranding=1&loop=1&playlist=${YOUTUBE_VIDEO_ID}`;
 
   return (
-    <section className="relative bg-gray-100 text-center overflow-x-hidden pt-32 pb-24">
+    // O espaçamento no topo foi reduzido de pt-32 para pt-20
+    <section className="relative bg-gray-100 text-center overflow-x-hidden pt-20 pb-24">
       <div className="w-full">
         <motion.div variants={heroVariants} initial="hidden" animate="visible" className="w-full">
           <div className="max-w-3xl mx-auto px-6 lg:px-8">
@@ -52,9 +52,9 @@ export default function HeroSection() {
                 sequence={[
                   'Uma Inteligência Artificial.',
                   1000,
-                  'Uma Inteligência Artificial conectada ao seu Instagram.',
+                  'Uma Inteligência Artificial do seu Instagram.',
                   1000,
-                  'Uma Inteligência Artificial para conversar no WhatsApp.',
+                  'Uma Inteligência Artificial no seu WhatsApp.',
                   3000,
                 ]}
                 className="text-lg md:text-xl text-gray-600 max-w-2xl leading-relaxed mx-auto"
@@ -62,8 +62,9 @@ export default function HeroSection() {
             </motion.div>
 
             <motion.div variants={heroItemVariants}>
-              <ButtonPrimary onClick={handleSignIn} className="mt-8">
-                <FaGoogle /> Ative sua IA do Instagram no WhatsApp ▸
+              {/* O espaçamento foi reduzido de mt-6 para mt-4 */}
+              <ButtonPrimary onClick={handleSignIn} className="mt-4">
+                <FaGoogle /> Ative IA do Instagram no WhatsApp ▸
               </ButtonPrimary>
             </motion.div>
           </div>
@@ -75,22 +76,33 @@ export default function HeroSection() {
 
           <motion.div variants={heroItemVariants} className="mt-12 px-6">
             <div
-              className="relative max-w-2xl mx-auto w-full rounded-lg overflow-hidden shadow-lg"
-              style={{ paddingTop: '56.25%' }} // Proporção 16:9
+              className="relative max-w-3xl mx-auto w-full rounded-lg overflow-hidden shadow-lg"
+              style={{
+                paddingTop: '56.25%', // Define um contêiner padrão 16:9
+                overflow: 'hidden',   // Essencial para cortar o excesso
+              }}
             >
               <iframe
-                className="absolute top-0 left-0 h-full w-full"
+                className="absolute left-0" // Removido top-0 para controle via style
+                style={{
+                  position: 'absolute',
+                  top: '0', // Alinha o vídeo pelo topo
+                  left: '50%',
+                  width: '100%',
+                  height: '100%',
+                  // Alinha horizontalmente e aplica zoom, sem mover verticalmente
+                  transform: 'translateX(-50%) scale(1.5)',
+                }}
                 src={youtubeEmbedUrl}
                 title="Demo do data2content"
                 frameBorder="0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
               ></iframe>
-              {/* Esta div transparente fica sobre o iframe para capturar os cliques do mouse e impedir que os controles do YouTube apareçam */}
+              {/* Esta div transparente fica sobre o iframe para capturar os cliques */}
               <div className="absolute top-0 left-0 w-full h-full"></div>
             </div>
           </motion.div>
-          
         </motion.div>
       </div>
     </section>

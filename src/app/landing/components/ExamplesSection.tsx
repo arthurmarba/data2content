@@ -10,9 +10,9 @@ export default function ExamplesSection() {
     <section className="py-10 sm:py-14 bg-gray-50/70">
       <div className="mx-auto max-w-screen-xl px-6 lg:px-8 text-left">
         <AnimatedSection>
-          <SectionTitle>Veja Nossa IA em Ação.</SectionTitle>
+          <SectionTitle>Conheça nossa IA</SectionTitle>
           <SectionSubtitle>
-            Receba alertas, análises e ideias diretamente no seu WhatsApp, de forma clara e objetiva.
+            Receba alertas, análises e ideias diretamente no seu WhatsApp.
           </SectionSubtitle>
         </AnimatedSection>
       </div>

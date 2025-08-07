@@ -16,10 +16,56 @@ interface ScreenshotCarouselProps {
   items: Screenshot[];
 }
 
+// --- SUBCOMPONENTE CORRIGIDO ---
+// A correção está aqui. Removemos a proporção fixa e ajustamos o next/image.
+const ScreenshotCard = ({ imageUrl, title, description }: Screenshot) => {
+  const [isTouch, setIsTouch] = useState(false);
+
+  useEffect(() => {
+    const handlePointerDown = (e: PointerEvent) => {
+      setIsTouch(e.pointerType === 'touch');
+    };
+    window.addEventListener('pointerdown', handlePointerDown, { once: true });
+    return () => window.removeEventListener('pointerdown', handlePointerDown);
+  }, []);
+
+  return (
+    // A classe "aspect-[9/16]" foi removida para que a imagem dite a proporção.
+    <div
+      tabIndex={0}
+      aria-label={title}
+      className="flex-shrink-0 w-[60vw] sm:w-[40vw] md:w-[28vw] lg:w-[22vw] rounded-3xl bg-gradient-to-br from-gray-100 to-gray-200 p-1 shadow-2xl cursor-grab active:cursor-grabbing"
+      style={{ perspective: '1000px', transformStyle: 'preserve-3d' }}
+    >
+      <motion.div
+        className="relative w-full h-full bg-white rounded-[22px] shadow-inner overflow-hidden"
+        whileTap={{ scale: 0.98, transition: { duration: 0.2 } }}
+        whileHover={isTouch ? undefined : { rotateX: 5, rotateY: -5 }}
+      >
+        <Image
+          src={imageUrl}
+          alt={altTextService(title, description)}
+          // As propriedades abaixo garantem que a imagem seja exibida por completo e sem cortes.
+          width={1080} // Largura original da imagem
+          height={2240} // Altura original da imagem (ajustada para ser mais alta)
+          layout="responsive" // Mantém a proporção da imagem
+          className="rounded-[22px]" // Adicionado para arredondar a imagem também
+          loading="lazy"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = 'https://placehold.co/360x640/f0f0f0/333?text=Imagem+Indisponível';
+          }}
+        />
+      </motion.div>
+    </div>
+  );
+};
+
+// --- COMPONENTE PRINCIPAL (COM A LÓGICA DO CARROSSEL) ---
 export default function ScreenshotCarousel({ items }: ScreenshotCarouselProps) {
   const carouselRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const { scrollX } = useScroll({ container: carouselRef });
+
   useMotionValueEvent(scrollX, 'change', (latest) => {
     const card = carouselRef.current?.children[0] as HTMLElement;
     const cardWidth = card?.offsetWidth || 0;
@@ -52,45 +98,6 @@ export default function ScreenshotCarousel({ items }: ScreenshotCarouselProps) {
     }
   };
 
-  const ScreenshotCard = ({ imageUrl, title, description }: { imageUrl: string; title: string; description: string }) => {
-    const [isTouch, setIsTouch] = useState(false);
-
-    useEffect(() => {
-      const handlePointerDown = (e: PointerEvent) => {
-        setIsTouch(e.pointerType === 'touch');
-      };
-      window.addEventListener('pointerdown', handlePointerDown, { once: true });
-      return () => window.removeEventListener('pointerdown', handlePointerDown);
-    }, []);
-
-    return (
-      <div
-        tabIndex={0}
-        aria-label={title}
-        className="flex-shrink-0 w-[60vw] sm:w-[40vw] md:w-[28vw] lg:w-[22vw] aspect-[9/16] rounded-3xl bg-gradient-to-br from-gray-100 to-gray-200 p-1 shadow-2xl cursor-grab active:cursor-grabbing"
-        style={{ perspective: '1000px', transformStyle: 'preserve-3d' }}
-      >
-        <motion.div
-          className="relative w-full h-full bg-white rounded-[22px] shadow-inner overflow-hidden"
-          whileTap={{ scale: 0.98, transition: { duration: 0.2 } }}
-          whileHover={isTouch ? undefined : { rotateX: 5, rotateY: -5 }}
-        >
-          <Image
-            src={imageUrl}
-            alt={altTextService(title, description)}
-            fill
-            sizes="(max-width:768px)60vw,(max-width:1024px)40vw,22vw"
-            className="object-cover"
-            loading="lazy"
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).src = 'https://placehold.co/360x640/f0f0f0/333?text=Imagem+Indispon\u00edvel';
-            }}
-          />
-        </motion.div>
-      </div>
-    );
-  };
-
   return (
     <div
       className="relative mt-6"
@@ -99,7 +106,7 @@ export default function ScreenshotCarousel({ items }: ScreenshotCarouselProps) {
     >
       <motion.div
         ref={carouselRef}
-        className="overflow-hidden snap-x snap-mandatory scrollbar-hide"
+        className="overflow-x-auto snap-x snap-mandatory hide-scrollbar"
         drag="x"
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={0.05}
@@ -115,7 +122,7 @@ export default function ScreenshotCarousel({ items }: ScreenshotCarouselProps) {
         }}
       >
         <div
-          className="flex gap-8"
+          className="flex gap-8 items-start" // Usar items-start para alinhar pelo topo
           style={{
             paddingTop: '1.5rem',
             paddingBottom: '1.5rem',
@@ -138,7 +145,7 @@ export default function ScreenshotCarousel({ items }: ScreenshotCarouselProps) {
       <div className="absolute top-1/2 -translate-y-1/2 w-full flex justify-between px-4 pointer-events-none">
         <button
           onClick={() => scrollCarousel('left')}
-          tabIndex={0}
+          tabIndex={-1} // Removido do foco do teclado para evitar duplicidade
           className="pointer-events-auto w-12 h-12 rounded-full bg-white/50 backdrop-blur-sm shadow-md flex items-center justify-center text-gray-700 hover:bg-white transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-pink"
           aria-label="Anterior"
         >
@@ -146,9 +153,9 @@ export default function ScreenshotCarousel({ items }: ScreenshotCarouselProps) {
         </button>
         <button
           onClick={() => scrollCarousel('right')}
-          tabIndex={0}
+          tabIndex={-1} // Removido do foco do teclado para evitar duplicidade
           className="pointer-events-auto w-12 h-12 rounded-full bg-white/50 backdrop-blur-sm shadow-md flex items-center justify-center text-gray-700 hover:bg-white transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-pink"
-          aria-label="Pr\u00f3ximo"
+          aria-label="Próximo"
         >
           <FaChevronRight />
         </button>
@@ -160,7 +167,15 @@ export default function ScreenshotCarousel({ items }: ScreenshotCarouselProps) {
       >
         {items[activeIndex]?.description}
       </p>
+      <style jsx global>{`
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .hide-scrollbar {
+          -ms-overflow-style: none; /* IE and Edge */
+          scrollbar-width: none; /* Firefox */
+        }
+      `}</style>
     </div>
   );
 }
-
