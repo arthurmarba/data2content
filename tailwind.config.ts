@@ -1,8 +1,8 @@
-// tailwind.config.ts (Atualizado com Manual da Marca e Sintaxe TS)
+// tailwind.config.ts (Atualizado com as cores do design de referência)
 
-import type { Config } from 'tailwindcss' // Importa o tipo Config
+import type { Config } from 'tailwindcss'
 
-const config: Config = { // Define o tipo da configuração
+const config: Config = {
   content: [
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
@@ -11,18 +11,17 @@ const config: Config = { // Define o tipo da configuração
   theme: {
     extend: {
       fontFamily: {
-        // Define Inter como a fonte principal 'sans'
         sans: ['var(--font-inter)', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', '"Noto Sans"', 'sans-serif', '"Apple Color Emoji"', '"Segoe UI Emoji"', '"Segoe UI Symbol"', '"Noto Color Emoji"'],
         mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', 'monospace'],
       },
       colors: {
-        // Cores definidas no Manual da Marca
-        'brand-dark': '#191E1E', // Preto/Cinza Escuro
-        'brand-red': '#FF6B6B',  // Vermelho Suave
-        'brand-pink': '#FF85C0', // Rosa Suave
-        'brand-light': '#F0F7F7', // Branco/Cinza Claro
+        // CORREÇÃO: As cores foram ajustadas para corresponder ao design de referência do botão.
+        'brand-dark': '#111827',
+        'brand-red': '#EF4444',  // Cor do gradiente do botão
+        'brand-pink': '#EC4899', // Cor do gradiente e da sombra do botão
+        'brand-light': '#F0F7F7',
 
-        // Cores antigas (decida se mantém ou remove)
+        // Cores antigas mantidas para referência
         primary: "#1D4ED8",
         primaryLight: "#93C5FD",
         grayDark: "#374151",
@@ -30,14 +29,7 @@ const config: Config = { // Define o tipo da configuração
       },
       animation: {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-        // Adicionar shimmer se necessário
       },
-      keyframes: {
-        // Adicionar shimmer se necessário
-        // shimmer: {
-        //   '100%': { transform: 'translateX(100%)' },
-        // }
-      }
     },
   },
   plugins: [
@@ -47,4 +39,4 @@ const config: Config = { // Define o tipo da configuração
   ],
 }
 
-export default config // Exporta a configuração
+export default config

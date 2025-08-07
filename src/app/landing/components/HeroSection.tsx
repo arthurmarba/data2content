@@ -30,7 +30,7 @@ export default function HeroSection() {
   };
 
   return (
-    <section className="relative flex flex-col min-h-[90vh] bg-gray-100 text-center overflow-x-hidden">
+    <section className="relative flex flex-col min-h-[90vh] bg-gray-100 text-center overflow-x-hidden pt-20 pb-10">
       <div className="flex-grow flex flex-col justify-center">
         <div className="w-full">
           <motion.div variants={heroVariants} initial="hidden" animate="visible" className="w-full">
@@ -67,6 +67,21 @@ export default function HeroSection() {
               <Marquee items={heroQuestions} direction="left" />
               <Marquee items={[...heroQuestions].reverse()} direction="right" />
             </motion.div>
+
+            {/* VÍDEO DO YOUTUBE ADICIONADO AQUI */}
+            <motion.div variants={heroItemVariants} className="mt-12 px-6">
+              <div className="relative max-w-4xl mx-auto aspect-video rounded-2xl shadow-xl overflow-hidden border border-gray-200">
+                <iframe
+                  className="absolute top-0 left-0 w-full h-full"
+                  src="https://www.youtube.com/embed/n5E_hLThxEA" // <-- TROQUE O ID DO VÍDEO AQUI
+                  title="YouTube video player"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                ></iframe>
+              </div>
+            </motion.div>
+            
           </motion.div>
         </div>
       </div>

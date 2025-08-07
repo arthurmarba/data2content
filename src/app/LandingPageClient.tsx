@@ -6,44 +6,44 @@ import Link from "next/link";
 import withViewport from "./landing/components/withViewport";
 import ButtonPrimary from "./landing/components/ButtonPrimary";
 
+// Componentes dinâmicos
 const HeroSection = dynamic(() => import("./landing/components/HeroSection"));
 const ExamplesSection = withViewport(dynamic(() => import("./landing/components/ExamplesSection")));
 const CreatorTypesSection = withViewport(dynamic(() => import("./landing/components/CreatorTypesSection")));
 const TestimonialsSection = withViewport(dynamic(() => import("./landing/components/TestimonialsSection")));
-const FounderSection = withViewport(dynamic(() => import("./landing/components/FounderSection")));
+// const FounderSection = withViewport(dynamic(() => import("./landing/components/FounderSection"))); // Seção removida
 const FaqSection = withViewport(dynamic(() => import("./landing/components/FaqSection")));
 const CallToAction = withViewport(dynamic(() => import("./landing/components/CallToAction").then((mod) => mod.default)));
 const LandingHeader = dynamic<{ showLoginButton?: boolean }>(() => import("./landing/components/LandingHeader"));
 
 export default function LandingPageClient() {
   const [showStickyLogin, setShowStickyLogin] = useState(false);
+  
   const mainRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const el = mainRef.current;
-    if (!el) return;
     const handleScroll = () => {
-      setShowStickyLogin(el.scrollTop >= window.innerHeight);
+      setShowStickyLogin(window.scrollY >= window.innerHeight);
     };
-    el.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll);
     return () => {
-      el.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("scroll", handleScroll);
     };
-  }, [mainRef]);
+  }, []);
 
   return (
     <div className="bg-white text-gray-800 font-sans">
       <LandingHeader showLoginButton />
-      <main ref={mainRef} className="snap-y snap-mandatory overflow-y-scroll h-screen scroll-pt-20">
+      <main ref={mainRef} className="scroll-pt-20">
         <HeroSection />
         <ExamplesSection />
         <CreatorTypesSection />
         <TestimonialsSection />
-        <FounderSection />
+        {/* <FounderSection /> - Seção removida */}
         <FaqSection />
         <CallToAction />
         {showStickyLogin && (
-          <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-white/80 backdrop-blur-md shadow-md">
+          <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-white/80 backdrop-blur-md shadow-md animate-fade-in-up md:hidden">
             <ButtonPrimary href="/login" rel="nofollow">
               Ative sua IA do Instagram no WhatsApp
             </ButtonPrimary>
@@ -66,6 +66,15 @@ export default function LandingPageClient() {
           </Link>
         </div>
       </footer>
+       <style jsx global>{`
+        @keyframes fade-in-up {
+          from { opacity: 0; transform: translateY(1rem); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up {
+          animation: fade-in-up 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 }

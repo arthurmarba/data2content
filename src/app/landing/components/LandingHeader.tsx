@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useSession } from 'next-auth/react';
+import { useSession, signIn } from 'next-auth/react';
 import { useEffect, useRef, useState } from 'react';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import ButtonPrimary from './ButtonPrimary';
@@ -22,6 +22,11 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
     if (typeof window !== 'undefined' && (window as any).gtag) {
       (window as any).gtag('event', eventName);
     }
+  };
+
+  const handleSignIn = () => {
+    trackEvent('login_button_click');
+    signIn('google', { callbackUrl: '/auth/complete-signup' });
   };
 
   useEffect(() => {
@@ -46,7 +51,7 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
           <span className="text-brand-pink">[2]</span>
           <span>data2content</span>
         </Link>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-5">
           <nav className="hidden md:flex items-center gap-5">
             {session ? (
               <Link
@@ -55,32 +60,25 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
               >
                 Meu Painel
               </Link>
-            ) : showLoginButton ? (
-              <ButtonPrimary
-                href="/login"
-                onClick={() => trackEvent('login_button_click')}
-                rel="nofollow"
-              >
-                Ative sua IA do Instagram no WhatsApp
-              </ButtonPrimary>
             ) : (
-              <Link
-                href="/login"
-                onClick={() => trackEvent('login_link_click')}
+              // CORREÇÃO: Simplificado para um único link de Login
+              <button
+                onClick={handleSignIn}
                 className="text-sm font-semibold text-gray-600 hover:text-brand-pink transition-colors"
-                rel="nofollow"
               >
-                Ative sua IA do Instagram no WhatsApp
-              </Link>
+                Login
+              </button>
             )}
+            {/* Mantido o botão principal de "Começar Agora" */}
+            <ButtonPrimary
+              href="/register"
+              onClick={() => trackEvent('cta_start_now_click')}
+              className="px-4 py-2 text-sm" // Ajustado para um tamanho menor
+            >
+              Começar Agora
+            </ButtonPrimary>
           </nav>
-          <ButtonPrimary
-            href="/register"
-            onClick={() => trackEvent('cta_start_now_click')}
-            className="px-4 py-2 text-sm sm:px-8 sm:py-4 sm:text-lg"
-          >
-            Começar Agora
-          </ButtonPrimary>
+          
           <button
             ref={menuButtonRef}
             className="md:hidden p-2 text-gray-600"
@@ -93,7 +91,7 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
           </button>
         </div>
         {isMenuOpen && (
-          <div className="absolute top-20 right-0 w-48 rounded-md bg-white shadow-lg md:hidden">
+          <div className="absolute top-20 right-0 w-full rounded-md bg-white shadow-lg md:hidden">
             <nav id="mobile-menu" className="flex flex-col p-2">
               {session ? (
                 <Link
@@ -105,18 +103,30 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
                   Meu Painel
                 </Link>
               ) : (
-                <Link
-                  href="/login"
-                  onClick={() => {
-                    trackEvent(showLoginButton ? 'login_button_click' : 'login_link_click');
-                    setIsMenuOpen(false);
-                  }}
-                  className="px-4 py-2 text-sm hover:bg-gray-100"
-                  ref={firstLinkRef}
-                  rel="nofollow"
-                >
-                  Entrar
-                </Link>
+                <>
+                  <Link
+                    href="/login"
+                    onClick={() => {
+                      trackEvent('login_link_click');
+                      setIsMenuOpen(false);
+                    }}
+                    className="px-4 py-2 text-sm hover:bg-gray-100"
+                    ref={firstLinkRef}
+                    rel="nofollow"
+                  >
+                    Login
+                  </Link>
+                  <Link
+                    href="/register"
+                    onClick={() => {
+                      trackEvent('cta_start_now_click');
+                      setIsMenuOpen(false);
+                    }}
+                    className="px-4 py-2 text-sm font-bold text-brand-pink hover:bg-gray-100"
+                  >
+                    Começar Agora
+                  </Link>
+                </>
               )}
             </nav>
           </div>
@@ -125,4 +135,3 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
     </header>
   );
 }
-
