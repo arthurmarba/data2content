@@ -12,26 +12,25 @@ import faqItems from "@/data/faq";
 import { landingJsonLd, landingMetadata } from "@/seo/landing";
 import Container from "./components/Container";
 import ButtonPrimary from "./landing/components/ButtonPrimary";
-const LegacyHero = dynamic(() => import("./landing/components/LegacyHero"), { ssr: false });
+const LegacyHero = dynamic(() => import("./landing/components/LegacyHero"));
 const IntroSlide = withViewport(
-  dynamic(() => import("./landing/components/IntroSlide"), { ssr: false })
+  dynamic(() => import("./landing/components/IntroSlide"))
 );
 const FeaturesSlide = withViewport(
-  dynamic(() => import("./landing/components/FeaturesSlide"), { ssr: false })
+  dynamic(() => import("./landing/components/FeaturesSlide"))
 );
 const ExamplesSlide = withViewport(
-  dynamic(() => import("./landing/components/ExamplesSlide"), { ssr: false })
+  dynamic(() => import("./landing/components/ExamplesSlide"))
 );
 
 const AnimatedSection = withViewport(
-  dynamic(() => import("./landing/components/AnimatedSection"), { ssr: false })
+  dynamic(() => import("./landing/components/AnimatedSection"))
 );
 const LandingHeader = dynamic(
-  () => import("./landing/components/LandingHeader"),
-  { ssr: false }
+  () => import("./landing/components/LandingHeader")
 ) as React.ComponentType<{ showLoginButton?: boolean }>;
 const CallToAction = withViewport(
-  dynamic(() => import("./landing/components/CallToAction"), { ssr: false })
+  dynamic(() => import("./landing/components/CallToAction"))
 );
 
 const SectionTitle = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
