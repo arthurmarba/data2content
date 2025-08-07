@@ -13,6 +13,7 @@ import {
   landingJsonLd,
   landingProductJsonLd,
   landingMetadata,
+  landingFaqJsonLd,
 } from "@/seo/landing";
 import Container from "./components/Container";
 import ButtonPrimary from "./landing/components/ButtonPrimary";
@@ -102,7 +103,11 @@ export default function FinalCompleteLandingPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify([landingJsonLd, landingProductJsonLd]),
+          __html: JSON.stringify([
+            landingJsonLd,
+            landingProductJsonLd,
+            landingFaqJsonLd,
+          ]),
         }}
       />
 

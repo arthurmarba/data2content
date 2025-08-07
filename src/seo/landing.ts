@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import faqItems from "@/data/faq";
 
 export const landingMetadata: Metadata = {
   title: "data2content - Menos análise, mais criação.",
@@ -45,4 +46,17 @@ export const landingProductJsonLd = {
     price: "0",
     priceCurrency: "BRL",
   },
+};
+
+export const landingFaqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqItems.map((item) => ({
+    "@type": "Question",
+    name: item.q,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: item.a,
+    },
+  })),
 };
