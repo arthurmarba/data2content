@@ -48,6 +48,20 @@ export const landingProductJsonLd = {
   },
 };
 
+export const landingOrganizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "data2content",
+  url: "https://data2content.ai",
+  logo: "https://data2content.ai/images/Colorido-Simbolo.png",
+  sameAs: [
+    "https://github.com/data2content",
+    "https://www.linkedin.com/company/data2content",
+    "https://twitter.com/data2content",
+    "https://www.instagram.com/data2content",
+  ],
+};
+
 export const landingFaqJsonLd = {
   "@context": "https://schema.org",
   "@type": "FAQPage",
