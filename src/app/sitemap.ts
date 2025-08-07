@@ -10,7 +10,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/afiliados",
     "/assinar",
     "/landing",
-    "/login",
     "/api/ai-summary",
   ];
 
