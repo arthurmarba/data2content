@@ -5,6 +5,7 @@ import { signIn } from 'next-auth/react';
 import ButtonPrimary from './ButtonPrimary';
 import TypingEffect from './TypingEffect';
 import Marquee from './Marquee';
+import heroQuestions from '@/data/heroQuestions';
 
 export default function HeroSection() {
   const handleSignIn = () => {
@@ -63,8 +64,8 @@ export default function HeroSection() {
             </div>
 
             <motion.div variants={heroItemVariants} className="mt-10 md:mt-12 w-full space-y-4">
-              <Marquee direction="left" />
-              <Marquee direction="right" />
+              <Marquee items={heroQuestions} direction="left" />
+              <Marquee items={[...heroQuestions].reverse()} direction="right" />
             </motion.div>
           </motion.div>
         </div>
