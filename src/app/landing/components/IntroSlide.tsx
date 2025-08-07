@@ -19,7 +19,7 @@ export function IntroSlide() {
       id="intro"
     >
       <Container className="text-center">
-        <h1 className="text-4xl md:text-5xl font-bold">Bem-vindo ao Data2Content</h1>
+        <h2 className="text-4xl md:text-5xl font-bold">Bem-vindo ao Data2Content</h2>
       </Container>
       <ScrollCue targetId="features" />
     </motion.section>
