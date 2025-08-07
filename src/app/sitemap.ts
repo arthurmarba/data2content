@@ -11,6 +11,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/assinar",
     "/landing",
     "/api/ai-summary",
+    "/search",
   ];
 
   return routes.map((route) => ({
