@@ -58,7 +58,7 @@ export default function LegacyHero() {
             ]}
             className="text-lg md:text-xl text-gray-600"
           />
-          <ButtonPrimary href="/login">
+          <ButtonPrimary href="/login" rel="nofollow">
             Ative sua IA do Instagram no WhatsApp
           </ButtonPrimary>
           <video

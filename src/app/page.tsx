@@ -161,7 +161,7 @@ export default function FinalCompleteLandingPage() {
           <CallToAction />
           {showStickyLogin && (
             <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-white/80 backdrop-blur-md shadow-md">
-              <ButtonPrimary href="/login">Ative sua IA do Instagram no WhatsApp</ButtonPrimary>
+              <ButtonPrimary href="/login" rel="nofollow">Ative sua IA do Instagram no WhatsApp</ButtonPrimary>
             </div>
           )}
         </main>
