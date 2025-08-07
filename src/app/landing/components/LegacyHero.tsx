@@ -75,13 +75,16 @@ export default function LegacyHero() {
           >
             <track
               kind="captions"
-              src="/videos/hero-demo.vtt"
+              src="/hero-transcript.vtt"
               label="Português"
               default
             />
           </video>
           <p className="mt-2 text-sm text-gray-600">
             Vídeo demonstrando a IA do Instagram analisando conversas no WhatsApp.
+            <a href="/hero-transcript.vtt" className="ml-1 underline">
+              Transcrição do vídeo
+            </a>
           </p>
           {reducedData && !shouldLoad && (
             <button
