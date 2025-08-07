@@ -4,6 +4,7 @@ export const landingMetadata: Metadata = {
   title: "data2content - Menos análise, mais criação.",
   description:
     "Seu estrategista de conteúdo pessoal que analisa seu Instagram e te diz exatamente o que fazer para crescer.",
+  alternates: { canonical: "https://data2content.ai/" },
   openGraph: {
     title: "data2content - Menos análise, mais criação.",
     description:

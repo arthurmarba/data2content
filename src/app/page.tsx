@@ -9,7 +9,7 @@ import { FaStar } from "react-icons/fa";
 import { FaQuestionCircle } from "react-icons/fa";
 import testimonials from "@/data/testimonials";
 import faqItems from "@/data/faq";
-import { landingJsonLd } from "@/seo/landing";
+import { landingJsonLd, landingMetadata } from "@/seo/landing";
 import Container from "./components/Container";
 import ButtonPrimary from "./landing/components/ButtonPrimary";
 const LegacyHero = dynamic(() => import("./landing/components/LegacyHero"), { ssr: false });
@@ -75,6 +75,8 @@ const exampleScreenshots = [
     description: "Aprenda com outros criadores e compartilhe experiências na comunidade.",
   },
 ];
+
+export const metadata = landingMetadata;
 
 export default function FinalCompleteLandingPage() {
   const [showStickyLogin, setShowStickyLogin] = useState(false);
