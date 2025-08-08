@@ -25,7 +25,7 @@ const querySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional().default(10),
   search: z.string().optional(),
   // CORREÇÃO: Adicionado o status "expired" para manter consistência com outras partes do código.
-  planStatus: z.enum(['active', 'pending', 'canceled', 'inactive', 'trial', 'expired']).optional(), 
+  planStatus: z.enum(['active', 'pending', 'canceled', 'inactive', 'trial', 'expired', 'non_renewing']).optional(),
   sortBy: z.string().optional().default('registrationDate'),
   sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
 });

@@ -43,7 +43,7 @@ export async function guardPremiumRequest(
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
   const status = token?.planStatus as PlanStatus | undefined;
 
-  if (status === 'active') {
+  if (status === 'active' || status === 'non_renewing') {
     // Se o plano está ativo, permite a passagem sem fazer nada.
     return null;
   }

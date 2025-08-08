@@ -3,10 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 // getServerSession e authOptions não são usados neste arquivo, podem ser removidos se não houver planos futuros para eles aqui.
 // import { getServerSession } from "next-auth/next";
 // import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import mongoose, { Types } from "mongoose"; // Types importado para referredUserId
 import { connectToDatabase } from "@/app/lib/mongoose";
 import mercadopago from "@/app/lib/mercadopago";
-import User, { IUser, ICommissionLogEntry } from "@/app/models/User"; // IUser e ICommissionLogEntry importados
+import User, { ICommissionLogEntry } from "@/app/models/User";
 import crypto from 'crypto';
 
 export const runtime = "nodejs";
@@ -126,122 +125,13 @@ export async function POST(request: NextRequest) {
 
     const eventType = body.type;
 
-    // ------------------------------------------------------------------
-    // Pagamento único (tipo "payment")
-    // ------------------------------------------------------------------
+    // Ignore standalone payment events
     if (eventType === "payment") {
-      const paymentId = body.data.id;
-      //  console.log(`[plan/webhook] Obtendo detalhes do pagamento ID: ${paymentId}`);
-      const paymentResponse = await mercadopago.payment.get(paymentId);
-      const paymentDetails = paymentResponse.body;
-      const externalReference = paymentDetails.external_reference;
-      console.log(
-        `[plan/webhook] payment external_reference=${externalReference} planType=${paymentDetails.metadata?.planType} transaction_amount=${paymentDetails.transaction_amount} status_detail=${paymentDetails.status_detail}`
-      );
-      // console.log("[plan/webhook] Detalhes do pagamento obtidos:", paymentDetails);
-
-      if (!externalReference || !mongoose.isValidObjectId(externalReference)) {
-        console.error(`[plan/webhook] Referência externa inválida ou ausente: ${externalReference}`);
-        return NextResponse.json({ error: "Referência externa inválida." }, { status: 200 });
-      }
-      //  console.log(`[plan/webhook] External reference (User ID): ${externalReference}`);
-
-      const user = await User.findById(externalReference) as IUser | null; // Tipagem explícita
-      if (!user) {
-        console.error(`[plan/webhook] Usuário não encontrado: ${externalReference}`);
-        return NextResponse.json({ error: "Usuário não encontrado" }, { status: 200 });
-      }
-      // console.log(`[plan/webhook] Usuário encontrado: ${user.email}`);
-
-      if (user.planStatus === 'active' && user.lastProcessedPaymentId === paymentId) {
-          //  console.log(`[plan/webhook] Pagamento ${paymentId} já processado. Ignorando.`);
-           return NextResponse.json({ received: true, alreadyProcessed: true }, { status: 200 });
-      }
-
-      if (paymentDetails.status === "approved") {
-      //   console.log(`[plan/webhook] Pagamento ${paymentId} APROVADO. Atualizando usuário ${user._id}`);
-        user.planStatus = "active";
-        const approvalDate = paymentDetails.date_approved
-          ? new Date(paymentDetails.date_approved)
-          : new Date();
-        const metaPlanType = paymentDetails.metadata?.planType as string | undefined;
-        const days = metaPlanType === 'annual_one_time' ? 365 : 30;
-        const baseDate =
-          metaPlanType === 'annual_one_time' &&
-          user.planExpiresAt &&
-          user.planExpiresAt > approvalDate
-            ? user.planExpiresAt
-            : approvalDate;
-        user.planExpiresAt = new Date(
-          new Date(baseDate).getTime() + days * 24 * 60 * 60 * 1000
-        );
-        if (metaPlanType === 'annual_one_time' || metaPlanType === 'annual' || metaPlanType === 'monthly') {
-          user.planType = metaPlanType as 'annual_one_time' | 'annual' | 'monthly';
-        }
-        user.lastProcessedPaymentId = paymentId;
-
-        if (user.pendingAgency) {
-          user.agency = user.pendingAgency;
-          user.pendingAgency = null;
-          user.role = 'guest';
-        }
-
-        // Processa comissão
-        if (user.affiliateUsed) {
-          //  console.log(`[plan/webhook] Pagamento usou código de afiliado: ${user.affiliateUsed}`);
-          const affUser = await User.findOne({ affiliateCode: user.affiliateUsed }) as IUser | null; // Tipagem explícita
-          if (affUser) {
-            const commissionRate = 0.1; // 10%
-            const transactionAmount = paymentDetails.transaction_amount || 0;
-            const commission = transactionAmount * commissionRate;
-
-            affUser.affiliateBalance = (affUser.affiliateBalance || 0) + commission;
-            affUser.affiliateInvites = (affUser.affiliateInvites || 0) + 1;
-            // A lógica do rank já estava correta
-            if (affUser.affiliateInvites % 5 === 0 && affUser.affiliateInvites > 0) { // Garante que não incremente no convite 0
-              affUser.affiliateRank = (affUser.affiliateRank || 1) + 1;
-            }
-
-            // --- INÍCIO: Adicionar entrada ao commissionLog ---
-            const commissionEntry: ICommissionLogEntry = {
-              date: new Date(), // Data em que a comissão é processada
-              amount: commission,
-              description: `Comissão pela assinatura de ${user.email || user._id.toString()}`,
-              sourcePaymentId: paymentId.toString(),
-              referredUserId: user._id, // ID do usuário que fez o pagamento
-            };
-
-            // Garante que commissionLog seja um array antes de dar push
-            if (!Array.isArray(affUser.commissionLog)) {
-              affUser.commissionLog = [];
-            }
-            affUser.commissionLog.push(commissionEntry);
-            // --- FIM: Adicionar entrada ao commissionLog ---
-
-            await affUser.save();
-            console.log(`[plan/webhook] Comissão de ${commission.toFixed(2)} creditada para afiliado=${affUser._id}. Log adicionado. Novo saldo: ${affUser.affiliateBalance?.toFixed(2)}`);
-
-          } else {
-              console.warn(`[plan/webhook] Afiliado ${user.affiliateUsed} não encontrado.`);
-          }
-          user.affiliateUsed = undefined; // Limpa código usado
-        } else {
-          //   console.log("[plan/webhook] Pagamento sem código de afiliado.");
-        }
-        await user.save();
-      //   console.log(`[plan/webhook] Plano ativado para userId=${externalReference}. Expira em: ${user.planExpiresAt}`);
-      } else {
-      //   console.log(`[plan/webhook] Pagamento não aprovado: ${paymentDetails.status}`);
-      }
-
-      // console.log("[plan/webhook] Processamento concluído com sucesso. Retornando 200.");
-      return NextResponse.json({ received: true }, { status: 200 });
+      return NextResponse.json({ received: true, ignored: "payment-event" }, { status: 200 });
     }
 
-    // ------------------------------------------------------------------
-    // Eventos de assinatura (preapproval) - authorized_payment e plan
-    // ------------------------------------------------------------------
-    if (eventType === "authorized_payment" || eventType === "plan") {
+    // authorized_payment -> renew subscription + commission (first charge only)
+    if (eventType === "authorized_payment") {
       const subscriptionId = body.data.subscription_id || body.data.id;
       if (!subscriptionId) {
         return NextResponse.json({ error: "subscription_id ausente" }, { status: 200 });
@@ -249,78 +139,59 @@ export async function POST(request: NextRequest) {
 
       const user = await User.findOne({ paymentGatewaySubscriptionId: subscriptionId });
       if (!user) {
-        console.error(`[plan/webhook] Usuário não encontrado para subscription ${subscriptionId}`);
-        return NextResponse.json({ error: "Usuário não encontrado" }, { status: 200 });
+        return NextResponse.json({ received: true }, { status: 200 });
       }
 
-      // Evita reprocessamento
       const eventId = body.data.id;
       if (user.lastProcessedPaymentId === eventId) {
         return NextResponse.json({ received: true, alreadyProcessed: true }, { status: 200 });
       }
 
-      if (eventType === "authorized_payment") {
-        const now = new Date();
-        const days = 30;
-        user.planExpiresAt = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
-        user.planStatus = 'active';
+      const now = new Date();
+      user.planExpiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      user.planStatus = "active";
 
-        if (user.pendingAgency) {
-          user.agency = user.pendingAgency;
-          user.pendingAgency = null;
-          user.role = 'guest';
-        }
+      if (user.pendingAgency) {
+        user.agency = user.pendingAgency;
+        user.pendingAgency = null;
+        user.role = "guest";
+      }
 
-        if (user.affiliateUsed) {
-          const affUser = await User.findOne({ affiliateCode: user.affiliateUsed });
-          if (affUser) {
-            const commissionRate = 0.1; // 10%
-            let transactionAmount = body.data?.transaction_amount || 0;
+      if (user.affiliateUsed) {
+        const affUser = await User.findOne({ affiliateCode: user.affiliateUsed });
+        if (affUser) {
+          const commissionRate = 0.1;
+          let transactionAmount = body.data?.transaction_amount || 0;
 
-            if (!transactionAmount && body.data?.payment_id) {
-              try {
-                const paymentResp = await mercadopago.payment.get(body.data.payment_id);
-                transactionAmount = paymentResp.body?.transaction_amount || 0;
-              } catch {}
-            }
-
-            const commission = transactionAmount * commissionRate;
-
-            affUser.affiliateBalance = (affUser.affiliateBalance || 0) + commission;
-            affUser.affiliateInvites = (affUser.affiliateInvites || 0) + 1;
-            if (affUser.affiliateInvites % 5 === 0 && affUser.affiliateInvites > 0) {
-              affUser.affiliateRank = (affUser.affiliateRank || 1) + 1;
-            }
-
-            const commissionEntry: ICommissionLogEntry = {
-              date: new Date(),
-              amount: commission,
-              description: `Comissão pela assinatura de ${user.email || user._id.toString()}`,
-              sourcePaymentId: eventId.toString(),
-              referredUserId: user._id,
-            };
-            if (!Array.isArray(affUser.commissionLog)) {
-              affUser.commissionLog = [];
-            }
-            affUser.commissionLog.push(commissionEntry);
-            await affUser.save();
-            console.log(
-              `[plan/webhook] Comissão de ${commission.toFixed(2)} creditada para afiliado=${affUser._id}. Log adicionado. Novo saldo: ${affUser.affiliateBalance?.toFixed(2)}`
-            );
-          } else {
-            console.warn(`[plan/webhook] Afiliado ${user.affiliateUsed} não encontrado.`);
+          if (!transactionAmount && body.data?.payment_id) {
+            try {
+              const paymentResp = await mercadopago.payment.get(body.data.payment_id);
+              transactionAmount = paymentResp.body?.transaction_amount || 0;
+            } catch {}
           }
-          user.affiliateUsed = undefined;
+
+          const commission = transactionAmount * commissionRate;
+
+          affUser.affiliateBalance = (affUser.affiliateBalance || 0) + commission;
+          affUser.affiliateInvites = (affUser.affiliateInvites || 0) + 1;
+          if (affUser.affiliateInvites % 5 === 0 && affUser.affiliateInvites > 0) {
+            affUser.affiliateRank = (affUser.affiliateRank || 1) + 1;
+          }
+
+          const commissionEntry: ICommissionLogEntry = {
+            date: new Date(),
+            amount: commission,
+            description: `Comissão (1ª cobrança) de ${user.email || user._id.toString()}`,
+            sourcePaymentId: eventId.toString(),
+            referredUserId: user._id,
+          };
+          if (!Array.isArray(affUser.commissionLog)) {
+            affUser.commissionLog = [];
+          }
+          affUser.commissionLog.push(commissionEntry);
+          await affUser.save();
         }
-      } else {
-        const status = body.data.status;
-        if (status === 'authorized' || status === 'active') {
-          user.planStatus = 'active';
-        } else if (status === 'cancelled') {
-          user.planStatus = 'canceled';
-        } else if (status === 'paused' || status === 'suspended') {
-          user.planStatus = 'inactive';
-        }
+        user.affiliateUsed = undefined;
       }
 
       user.lastProcessedPaymentId = eventId;
@@ -328,34 +199,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true }, { status: 200 });
     }
 
-    // ------------------------------------------------------------------
-    // Eventos de assinatura (preapproval)
-    // ------------------------------------------------------------------
-    if (eventType === "preapproval") {
-      const subscriptionId = body.data?.id || body.data?.subscription_id;
+    // plan/preapproval -> update status only
+    if (eventType === "plan" || eventType === "preapproval") {
+      const subscriptionId = body.data?.subscription_id || body.data?.id;
       if (!subscriptionId) {
         return NextResponse.json({ error: "subscription_id ausente" }, { status: 200 });
       }
 
       const user = await User.findOne({ paymentGatewaySubscriptionId: subscriptionId });
       if (!user) {
-        console.error(`[plan/webhook] Usuário não encontrado para subscription ${subscriptionId}`);
-        return NextResponse.json({ error: "Usuário não encontrado" }, { status: 200 });
+        return NextResponse.json({ received: true }, { status: 200 });
       }
 
-      // Evita reprocessamento
       const eventId = body.data.id;
       if (user.lastProcessedPaymentId === eventId) {
         return NextResponse.json({ received: true, alreadyProcessed: true }, { status: 200 });
       }
 
-      const { body: preapproval } = await mercadopago.preapproval.get(subscriptionId);
-      if (preapproval.status === 'authorized' || preapproval.status === 'active') {
-        user.planStatus = 'active';
-      } else if (preapproval.status === 'cancelled') {
-        user.planStatus = 'canceled';
-      } else if (preapproval.status === 'paused' || preapproval.status === 'suspended') {
-        user.planStatus = 'inactive';
+      const status = body.data.status;
+      if (status === "authorized" || status === "active") {
+        user.planStatus = "active";
+      } else if (status === "cancelled") {
+        user.planStatus = "non_renewing";
+      } else if (status === "paused" || status === "suspended") {
+        user.planStatus = "inactive";
       }
 
       user.lastProcessedPaymentId = eventId;
