@@ -234,7 +234,7 @@ export interface IUser extends Document {
   agency?: Types.ObjectId | null;
   pendingAgency?: Types.ObjectId | null;
   planStatus?: PlanStatus;
-  planType?: 'monthly' | 'annual';
+  planType?: 'monthly' | 'annual' | 'annual_one_time';
   paymentGatewaySubscriptionId?: string;
   planExpiresAt?: Date | null;
   autoRenewConsentAt?: Date | null;
@@ -338,7 +338,7 @@ const userSchema = new Schema<IUser>(
         select: false
     },
     planStatus: { type: String, enum: PLAN_STATUSES, default: "inactive", index: true }, // OTIMIZAÇÃO: Mantido índice.
-    planType: { type: String, enum: ['monthly', 'annual'], default: 'monthly' },
+    planType: { type: String, enum: ['monthly', 'annual', 'annual_one_time'], default: 'monthly' },
     paymentGatewaySubscriptionId: { type: String },
     inferredExpertiseLevel: {
         type: String,
