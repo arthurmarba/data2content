@@ -66,10 +66,12 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
   const affiliateRef = useRef<HTMLInputElement | null>(null);
 
   // --- precificação memorizada
-  const { originalMonthlyPrice, totalAnnualPrice, discountPercentage } = useMemo(() => {
+  const { originalMonthlyPrice, annualMonthlyPrice, totalAnnualPrice, discountPercentage } = useMemo(() => {
     const originalMonthlyPrice = agencyInviteCode ? AGENCY_GUEST_MONTHLY_PRICE : MONTHLY_PRICE;
-    const discountedAnnualMonthly = agencyInviteCode ? AGENCY_GUEST_ANNUAL_MONTHLY_PRICE : ANNUAL_MONTHLY_PRICE;
-    const totalAnnualPrice = discountedAnnualMonthly * 12;
+    const annualMonthlyPrice = agencyInviteCode
+      ? AGENCY_GUEST_ANNUAL_MONTHLY_PRICE
+      : ANNUAL_MONTHLY_PRICE;
+    const totalAnnualPrice = annualMonthlyPrice * 12;
     const originalAnnualPrice = originalMonthlyPrice * 12;
     const discountPercentage = Math.round(
       ((originalAnnualPrice - totalAnnualPrice) / Math.max(originalAnnualPrice, 1)) * 100,
@@ -77,10 +79,11 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
 
     return {
       originalMonthlyPrice,
+      annualMonthlyPrice,
       totalAnnualPrice,
       discountPercentage,
     };
-  }, [agencyInviteCode, planType]);
+  }, [agencyInviteCode]);
 
   // --- carregar ref/agency via localStorage
   useEffect(() => {
@@ -379,13 +382,13 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
         <div className="text-center mb-4">
           {planType === "annual" ? (
             <>
-              {renderBigPrice(totalAnnualPrice)}
+              {renderBigPrice(annualMonthlyPrice)}
               <p className="text-sm text-gray-600 mt-1">
-                {currencyFormatter.format(totalAnnualPrice)} <span className="text-gray-500">/ ano</span>
+                {currencyFormatter.format(annualMonthlyPrice)} <span className="text-gray-500">/ mês</span>
               </p>
               <p className="text-xs text-green-700 mt-1">em até 12x sem juros</p>
               <p className="text-xs text-gray-600 mt-1">
-                Cobrança agora do valor anual. Renovação automática anual.
+                Cobrança agora de {currencyFormatter.format(totalAnnualPrice)}. Renovação automática anual.
               </p>
             </>
           ) : (
@@ -507,9 +510,14 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
                 </div>
                 <div className="text-base font-semibold text-brand-dark leading-tight">
                   {planType === "annual"
-                    ? `${currencyFormatter.format(totalAnnualPrice)} / ano`
+                    ? `${currencyFormatter.format(annualMonthlyPrice)} / mês`
                     : `${currencyFormatter.format(originalMonthlyPrice)} / mês`}
                 </div>
+                {planType === "annual" && (
+                  <div className="text-[10px] text-gray-500">
+                    Cobraremos agora {currencyFormatter.format(totalAnnualPrice)}
+                  </div>
+                )}
                 {planType === "annual" && discountPercentage > 0 && (
                   <div className="mt-0.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 text-[10px] font-semibold border border-green-200">
                     Economize {discountPercentage}%
