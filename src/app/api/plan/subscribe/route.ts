@@ -46,12 +46,14 @@ export async function POST(req: NextRequest) {
     // 3) Lê o corpo
     const body = await req.json();
     const { planType = "monthly", affiliateCode, agencyInviteCode, autoRenewConsent } = body as {
-  planType?: "monthly" | "annual";
-  affiliateCode?: string;
-  agencyInviteCode?: string;
-  autoRenewConsent?: boolean;
-};
-    console.debug("plan/subscribe -> Body recebido:", body);
+      planType?: "monthly" | "annual";
+      affiliateCode?: string;
+      agencyInviteCode?: string;
+      autoRenewConsent?: boolean;
+    };
+    if (process.env.NODE_ENV !== "production") {
+      console.debug("plan/subscribe -> Body recebido:", body);
+    }
 
     // exige consentimento explícito de renovação automática
     if (!autoRenewConsent) {
@@ -161,7 +163,10 @@ export async function POST(req: NextRequest) {
           installments: 12,
           default_installments: 12,
         },
-        // differential_pricing: { id: Number(process.env.MP_12X_NO_INTEREST_ID) },
+        ...(process.env.MP_12X_NO_INTEREST_ID
+          ? { differential_pricing: { id: Number(process.env.MP_12X_NO_INTEREST_ID) } }
+          : {}),
+        notification_url: `${appUrl}/api/plan/webhook`,
         metadata: {
           planType: "annual_upfront",
           commission_base_cents: annualCents,
@@ -219,7 +224,9 @@ export async function POST(req: NextRequest) {
     const responseMP = await mercadopago.preapproval.create(preapprovalData);
     const initPoint = responseMP.body.init_point;
     const subscriptionId = responseMP.body.id;
-    console.debug("plan/subscribe -> Assinatura criada. Link:", initPoint);
+    if (process.env.NODE_ENV !== "production") {
+      console.debug("plan/subscribe -> Assinatura criada. Link:", initPoint);
+    }
 
     user.paymentGatewaySubscriptionId = subscriptionId;
     user.planType = planType;

@@ -24,11 +24,10 @@ export async function POST(req: NextRequest) {
     await mercadopago.preapproval.update(user.paymentGatewaySubscriptionId, { status: "cancelled" });
 
     user.planStatus = "non_renewing";
-    user.paymentGatewaySubscriptionId = undefined;
     await user.save();
 
     return NextResponse.json({
-      message: "Assinatura cancelada. Seu acesso permanece até o fim do período já pago."
+      message: "Assinatura cancelada."
     });
   } catch (error: unknown) {
     console.error("Erro em /api/plan/cancel:", error);
