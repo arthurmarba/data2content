@@ -134,7 +134,8 @@ export async function POST(req: NextRequest) {
     if (!appUrl) throw new Error("NEXT_PUBLIC_APP_URL ou NEXTAUTH_URL não está definida");
 
     // Para recorrência mensal, sempre usamos o valor mensal (no anual é o mensal com desconto)
-    const txAmount = monthly; // número com 2 casas (apenas p/ logs)
+    // Sempre recorrência mensal; no Anual usamos o valor mensal com desconto
+    const txAmount = monthly;
 
     console.debug("plan/subscribe -> Valores:", {
       planType,
@@ -154,9 +155,9 @@ export async function POST(req: NextRequest) {
       external_reference: user._id.toString(),
       payer_email: user.email,
       auto_recurring: {
-        frequency: 1, // mensal
+        frequency: 1, // sempre mensal
         frequency_type: "months",
-        transaction_amount: monthly, // mensal (com desconto se annual)
+        transaction_amount: txAmount,
         currency_id: "BRL",
       },
     } as any;
@@ -185,7 +186,9 @@ export async function POST(req: NextRequest) {
       initPoint,
       subscriptionId,
       message: "Assinatura criada. Redirecione o usuário para esse link.",
-      price: planType === "annual" ? total : monthly,
+      // Preço que será cobrado por ciclo
+      chargedMonthlyPrice: monthly,
+      planBillingCycle: "monthly",
     });
   } catch (error: unknown) {
     console.error("Erro em /api/plan/subscribe:", error);
