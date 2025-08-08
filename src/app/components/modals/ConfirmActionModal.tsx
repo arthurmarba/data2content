@@ -15,6 +15,11 @@ interface ConfirmActionModalProps {
   cancelButtonText?: string;
   isProcessing?: boolean; // Para mostrar estado de processamento no botão de confirmação
   isDestructiveAction?: boolean; // Para estilizar o botão de confirmação como destrutivo
+  secondaryButtonText?: string;
+  onSecondaryAction?: () => void;
+  secondaryButtonDisabled?: boolean;
+  secondaryButtonProcessing?: boolean;
+  feedbackMessage?: { type: 'success' | 'error'; text: string } | null;
 }
 
 export default function ConfirmActionModal({
@@ -27,6 +32,11 @@ export default function ConfirmActionModal({
   cancelButtonText = "Cancelar",
   isProcessing = false,
   isDestructiveAction = false,
+  secondaryButtonText,
+  onSecondaryAction,
+  secondaryButtonDisabled = false,
+  secondaryButtonProcessing = false,
+  feedbackMessage = null,
 }: ConfirmActionModalProps) {
   return (
     <Transition.Root show={isOpen} as={Fragment}>
@@ -92,6 +102,20 @@ export default function ConfirmActionModal({
                   >
                     {isProcessing ? 'A processar...' : confirmButtonText}
                   </button>
+                  {secondaryButtonText && onSecondaryAction && (
+                    <button
+                      type="button"
+                      disabled={secondaryButtonDisabled || secondaryButtonProcessing}
+                      className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto disabled:opacity-50"
+                      onClick={() => {
+                        if (!secondaryButtonDisabled && !secondaryButtonProcessing) {
+                          onSecondaryAction();
+                        }
+                      }}
+                    >
+                      {secondaryButtonProcessing ? 'Processando...' : secondaryButtonText}
+                    </button>
+                  )}
                   <button
                     type="button"
                     disabled={isProcessing}
@@ -101,6 +125,11 @@ export default function ConfirmActionModal({
                     {cancelButtonText}
                   </button>
                 </div>
+                {feedbackMessage && (
+                  <p className={`px-6 pb-4 text-sm ${feedbackMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                    {feedbackMessage.text}
+                  </p>
+                )}
               </Dialog.Panel>
             </Transition.Child>
           </div>

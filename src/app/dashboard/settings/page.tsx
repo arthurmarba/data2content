@@ -6,8 +6,6 @@ import React, { useState, useEffect, Fragment } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import ConfirmActionModal from '@/app/components/modals/ConfirmActionModal'; // Ajuste o caminho se necessário
-import Link from 'next/link';
-import { FaCreditCard, FaExternalLinkAlt } from 'react-icons/fa';
 
 // Placeholder para logger
 const logger = {
@@ -24,12 +22,16 @@ const logger = {
 // };
 
 export default function SettingsPage() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const router = useRouter();
 
   const [showConfirmDeleteModal, setShowConfirmDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelMessage, setCancelMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [modalCancelLoading, setModalCancelLoading] = useState(false);
+  const [modalCancelMessage, setModalCancelMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     // Definir o título da página dinamicamente no cliente
@@ -51,6 +53,11 @@ export default function SettingsPage() {
   if (status !== "authenticated" || !session?.user) {
     return null;
   }
+
+  const userPlanStatus = session.user.planStatus;
+  const planExpiresFormatted = session.user.planExpiresAt
+    ? new Date(session.user.planExpiresAt).toLocaleDateString('pt-BR')
+    : null;
 
   const handleDeleteAccountClick = () => {
     setDeleteError(null);
@@ -80,6 +87,68 @@ export default function SettingsPage() {
     }
   };
 
+  const handleCancelRenewal = async () => {
+    setCancelMessage(null);
+    setIsCancelling(true);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[Settings] Chamando /api/plan/cancel');
+    }
+    try {
+      const res = await fetch('/api/plan/cancel', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setCancelMessage({ type: 'error', text: data.error || 'Falha ao cancelar renovação.' });
+      } else {
+        const newSession = await update();
+        const expires = newSession?.user?.planExpiresAt
+          ? new Date(newSession.user.planExpiresAt).toLocaleDateString('pt-BR')
+          : undefined;
+        setCancelMessage({
+          type: 'success',
+          text: `Renovação cancelada. Seu acesso permanece até o fim do período já pago${
+            expires ? ` (${expires})` : ''
+          }.`,
+        });
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Erro desconhecido ao cancelar.';
+      setCancelMessage({ type: 'error', text: msg });
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  const handleModalCancelRenewal = async () => {
+    setModalCancelMessage(null);
+    setModalCancelLoading(true);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[DeleteModal] Chamando /api/plan/cancel');
+    }
+    try {
+      const res = await fetch('/api/plan/cancel', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setModalCancelMessage({ type: 'error', text: data.error || 'Falha ao cancelar renovação.' });
+      } else {
+        const newSession = await update();
+        const expires = newSession?.user?.planExpiresAt
+          ? new Date(newSession.user.planExpiresAt).toLocaleDateString('pt-BR')
+          : undefined;
+        setModalCancelMessage({
+          type: 'success',
+          text: `Renovação cancelada. Seu acesso permanece até o fim do período já pago${
+            expires ? ` (${expires})` : ''
+          }.`,
+        });
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Erro desconhecido ao cancelar.';
+      setModalCancelMessage({ type: 'error', text: msg });
+    } finally {
+      setModalCancelLoading(false);
+    }
+  };
+
   const modalMessage = (
     <>
       <p className="text-sm text-gray-600">
@@ -89,19 +158,16 @@ export default function SettingsPage() {
         Esta ação é <strong className="font-semibold text-red-600">IRREVERSÍVEL</strong>.
       </p>
       <div className="mt-4 p-3 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-700 rounded-md">
-        <h4 className="text-sm font-semibold text-yellow-800">Importante sobre Assinaturas Ativas!</h4>
+        <h4 className="text-sm font-semibold text-yellow-800">Importante sobre Assinaturas Ativas</h4>
         <p className="text-xs text-yellow-700 mt-1">
-          A exclusão da sua conta Data2Content <strong className="font-bold">NÃO</strong> cancela automaticamente qualquer assinatura ativa que você possa ter no Mercado Pago (ou outra plataforma de pagamento).
+          A exclusão da sua conta não cancela automaticamente a sua assinatura recorrente.
         </p>
         <p className="text-xs text-yellow-700 mt-1">
-          Para evitar cobranças futuras, por favor, <strong className="font-bold">CANCELE A SUA ASSINATURA DIRETAMENTE NA PLATAFORMA DE PAGAMENTO</strong> (ex: Mercado Pago) antes ou imediatamente após excluir os seus dados aqui.
+          Para evitar cobranças futuras, cancele a renovação aqui pelo app antes de excluir sua conta. Seu acesso permanece até o fim do período já pago.
         </p>
       </div>
     </>
   );
-
-  // <<< URL ATUALIZADA AQUI >>>
-  const MERCADO_PAGO_SUBSCRIPTION_MANAGEMENT_URL = "https://www.mercadopago.com.br/subscriptions";
 
   return (
     <div className="min-h-screen bg-gray-100 py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
@@ -135,29 +201,39 @@ export default function SettingsPage() {
             <hr className="my-6 sm:my-8 border-gray-200" />
 
             {/* Secção Gerir Assinatura */}
-            <section aria-labelledby="subscription-management-title" id="subscription-management-title"> {/* Adicionado ID para o hash link */}
-              <h2 className="text-xl font-semibold text-gray-700">
-                Minha Assinatura
-              </h2>
+            <section aria-labelledby="subscription-management-title" id="subscription-management-title">
+              <h2 className="text-xl font-semibold text-gray-700">Minha Assinatura</h2>
               <div className="mt-4 space-y-3">
-                <p className="text-sm text-gray-600">
-                  Para visualizar detalhes do seu plano, histórico de pagamentos ou para cancelar a sua assinatura, por favor, aceda à sua conta no Mercado Pago.
-                </p>
-                <p className="text-sm text-gray-600">
-                  Lembre-se: o cancelamento da sua assinatura deve ser feito diretamente na plataforma de pagamento.
-                </p>
-                <div className="mt-5">
-                  <a
-                    href={MERCADO_PAGO_SUBSCRIPTION_MANAGEMENT_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center px-5 py-2.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-150 ease-in-out"
+                {planExpiresFormatted && (
+                  <p className="text-sm text-gray-600">
+                    Seu acesso expira em <strong className="font-medium">{planExpiresFormatted}</strong>.
+                  </p>
+                )}
+                {userPlanStatus === 'active' && (
+                  <button
+                    type="button"
+                    onClick={handleCancelRenewal}
+                    disabled={isCancelling}
+                    className={`px-5 py-2.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-brand-pink hover:bg-brand-pink/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-pink transition-colors duration-150 ease-in-out disabled:opacity-50`}
                   >
-                    <FaCreditCard className="w-4 h-4 mr-2" />
-                    Gerir Assinatura no Mercado Pago
-                    <FaExternalLinkAlt className="w-3 h-3 ml-2 opacity-70" />
-                  </a>
-                </div>
+                    {isCancelling ? 'Cancelando...' : 'Cancelar renovação'}
+                  </button>
+                )}
+                {userPlanStatus === 'non_renewing' && (
+                  <button
+                    type="button"
+                    disabled
+                    title="A renovação já foi cancelada"
+                    className="px-5 py-2.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gray-400 cursor-not-allowed"
+                  >
+                    Cancelar renovação
+                  </button>
+                )}
+                {cancelMessage && (
+                  <p className={`text-sm mt-2 ${cancelMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                    {cancelMessage.text}
+                  </p>
+                )}
               </div>
             </section>
 
@@ -177,18 +253,15 @@ export default function SettingsPage() {
                 <p className="text-sm text-red-500 font-medium">
                   Atenção: Esta ação é irreversível e não pode ser desfeita.
                 </p>
-                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-300 rounded-md">
-                  <h3 className="text-sm font-semibold text-yellow-800">Importante sobre Assinaturas Ativas</h3>
-                  <p className="text-xs text-yellow-700 mt-1">
-                    Se você possui uma assinatura ativa connosco através do Mercado Pago (ou outra plataforma de pagamento),
-                    a exclusão da sua conta e dados da Data2Content <strong className="font-bold">NÃO</strong> cancela automaticamente
-                    a sua assinatura na plataforma de pagamento.
-                  </p>
-                  <p className="text-xs text-yellow-700 mt-1">
-                    Para evitar cobranças futuras, por favor, cancele a sua assinatura diretamente
-                    na plataforma de pagamento (ex: Mercado Pago) <strong className="font-bold">antes ou imediatamente após</strong> excluir os seus dados aqui.
-                  </p>
-                </div>
+                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-300 rounded-md">
+                    <h3 className="text-sm font-semibold text-yellow-800">Importante sobre Assinaturas Ativas</h3>
+                    <p className="text-xs text-yellow-700 mt-1">
+                      A exclusão da sua conta não cancela automaticamente a sua assinatura recorrente.
+                    </p>
+                    <p className="text-xs text-yellow-700 mt-1">
+                      Para evitar cobranças futuras, cancele a renovação aqui pelo app antes de excluir sua conta. Seu acesso permanece até o fim do período já pago.
+                    </p>
+                  </div>
                 <div className="mt-5">
                   <button
                     type="button"
@@ -225,6 +298,11 @@ export default function SettingsPage() {
           cancelButtonText="Cancelar"
           isProcessing={isDeleting}
           isDestructiveAction={true}
+          secondaryButtonText="Cancelar renovação agora"
+          onSecondaryAction={handleModalCancelRenewal}
+          secondaryButtonDisabled={modalCancelLoading || userPlanStatus !== 'active'}
+          secondaryButtonProcessing={modalCancelLoading}
+          feedbackMessage={modalCancelMessage}
         />
       )}
     </div>
