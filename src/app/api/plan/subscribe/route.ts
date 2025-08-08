@@ -133,7 +133,8 @@ export async function POST(req: NextRequest) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL;
     if (!appUrl) throw new Error("NEXT_PUBLIC_APP_URL ou NEXTAUTH_URL não está definida");
 
-    const txAmount = planType === "annual" ? total : monthly; // número com exatamente 2 casas
+    // Para recorrência mensal, sempre usamos o valor mensal (no anual é o mensal com desconto)
+    const txAmount = monthly; // número com 2 casas (apenas p/ logs)
 
     console.debug("plan/subscribe -> Valores:", {
       planType,
@@ -143,18 +144,32 @@ export async function POST(req: NextRequest) {
       txAmount: txAmount.toFixed(2),
     });
 
+    // Sempre recorrência mensal. No plano annual cobramos o mensal com desconto (12x sem juros - recorrente)
     const preapprovalData = {
-      reason: planType === "annual" ? "Plano Anual" : "Plano Mensal",
+      reason:
+        planType === "annual"
+          ? "Plano Anual (12x sem juros - recorrente)"
+          : "Plano Mensal",
       back_url: `${appUrl}/dashboard`,
       external_reference: user._id.toString(),
       payer_email: user.email,
       auto_recurring: {
-        frequency: planType === "annual" ? 12 : 1,
+        frequency: 1, // mensal
         frequency_type: "months",
-        transaction_amount: txAmount, // sempre 2 casas
+        transaction_amount: monthly, // mensal (com desconto se annual)
         currency_id: "BRL",
       },
     } as any;
+
+    // Se já existe assinatura no gateway, cancela para evitar duplicidade
+    if (user.paymentGatewaySubscriptionId) {
+      try {
+        await mercadopago.preapproval.update(user.paymentGatewaySubscriptionId, {
+          status: "cancelled",
+        });
+      } catch {}
+      user.paymentGatewaySubscriptionId = undefined;
+    }
 
     const responseMP = await mercadopago.preapproval.create(preapprovalData);
     const initPoint = responseMP.body.init_point;
