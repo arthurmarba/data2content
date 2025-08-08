@@ -61,6 +61,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
   const [statusMessage, setStatusMessage] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
   const [initPoint, setInitPoint] = useState("");
   const [autoRenewAccepted, setAutoRenewAccepted] = useState(false);
+  const [lastPaymentError, setLastPaymentError] = useState<{ statusDetail: string } | null>(null);
 
   const affiliateRef = useRef<HTMLInputElement | null>(null);
 
@@ -141,6 +142,21 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
   const isActive = user.planStatus === "active";
   const isNonRenewing = user.planStatus === "non_renewing";
   const userPlanType = user.planType;
+
+  useEffect(() => {
+    if (!isPending) return;
+    (async () => {
+      try {
+        const res = await fetch("/api/plan/last-error");
+        if (res.ok) {
+          const data = await res.json();
+          setLastPaymentError(data.lastPaymentError);
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, [isPending]);
 
   // --- subscribe
   async function handleSubscribe(e?: React.FormEvent) {
@@ -400,6 +416,14 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
             </a>
           </span>
         </label>
+
+        {/* Aviso de erro da última tentativa */}
+        {isPending && lastPaymentError && (
+          <FeedbackMessage
+            message={`Sua última tentativa de pagamento foi recusada (detalhe: ${lastPaymentError.statusDetail}). Você pode tentar novamente escolhendo outro meio de pagamento.`}
+            type="error"
+          />
+        )}
 
         {/* CTA principal */}
         <button
