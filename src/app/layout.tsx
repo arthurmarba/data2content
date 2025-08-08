@@ -39,6 +39,7 @@ export default async function RootLayout({
   return (
     <html lang="pt-BR" className={`${inter.variable} h-full`}>
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="preconnect" href="https://www.youtube.com" />
         <link rel="preconnect" href="https://www.google.com" />
         <link rel="preconnect" href="https://img.youtube.com" />
