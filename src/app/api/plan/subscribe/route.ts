@@ -43,13 +43,14 @@ export async function POST(req: NextRequest) {
     // 3) Lê o corpo
     const body = await req.json();
     const { planType = "monthly", affiliateCode, agencyInviteCode, autoRenewConsent } = body as {
-      planType?: "monthly" | "annual";
-      affiliateCode?: string;
-      agencyInviteCode?: string;
-      autoRenewConsent?: boolean;
-    };
+  planType?: "monthly" | "annual";
+  affiliateCode?: string;
+  agencyInviteCode?: string;
+  autoRenewConsent?: boolean;
+};
     console.debug("plan/subscribe -> Body recebido:", body);
 
+    // exige consentimento explícito de renovação automática
     if (!autoRenewConsent) {
       return NextResponse.json({ error: "É necessário aceitar a renovação automática." }, { status: 400 });
     }
