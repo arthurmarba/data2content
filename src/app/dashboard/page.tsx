@@ -1,32 +1,32 @@
- // src/app/dashboard/page.tsx
- "use client";
+// src/app/dashboard/page.tsx
+"use client";
 
- import React, { useState, useEffect, useCallback, Fragment, useRef } from 'react';
- import { useSession, signIn, signOut } from 'next-auth/react';
- import { useRouter } from "next/navigation";
- import Image from 'next/image';
- import Head from 'next/head';
- import Link from 'next/link';
- import type { PlanStatus } from '@/types/enums';
- // Usando React Icons (Font Awesome)
- import { FaCopy, FaCheckCircle, FaClock, FaTimesCircle, FaLock, FaTrophy, FaGift, FaMoneyBillWave, FaWhatsapp, FaUpload, FaCog, FaQuestionCircle, FaSignOutAlt, FaUserCircle, FaDollarSign, FaEllipsisV, FaBullhorn, FaVideo, FaSpinner, FaExclamationCircle, FaInfoCircle, FaHandshake, FaFileContract, FaShieldAlt, FaTrashAlt, FaEnvelope, FaCreditCard } from 'react-icons/fa';
- // Framer Motion para animações
- import { motion, AnimatePresence } from "framer-motion";
+import React, { useState, useEffect, useCallback, Fragment, useRef } from 'react';
+import { useSession, signIn, signOut } from 'next-auth/react';
+import { useRouter } from "next/navigation";
+import Image from 'next/image';
+import Head from 'next/head';
+import Link from 'next/link';
+import type { PlanStatus, PlanType } from '@/types/enums';
+// Usando React Icons (Font Awesome)
+import { FaCopy, FaCheckCircle, FaClock, FaTimesCircle, FaLock, FaTrophy, FaGift, FaMoneyBillWave, FaWhatsapp, FaUpload, FaCog, FaQuestionCircle, FaSignOutAlt, FaUserCircle, FaDollarSign, FaEllipsisV, FaBullhorn, FaVideo, FaSpinner, FaExclamationCircle, FaInfoCircle, FaHandshake, FaFileContract, FaShieldAlt, FaTrashAlt, FaEnvelope, FaCreditCard } from 'react-icons/fa';
+// Framer Motion para animações
+import { motion, AnimatePresence } from "framer-motion";
 
- // --- Imports dos seus Componentes Reais ---
- import PaymentPanel from './PaymentPanel';
- import UploadMetrics from './UploadMetrics';
- import WhatsAppPanel from './WhatsAppPanel';
- import PaymentModal from './PaymentModal';
- import AdDealForm from './AdDealForm';
- import VideoCarousel from './VideoCarousel';
+// --- Imports dos seus Componentes Reais ---
+import PaymentPanel from './PaymentPanel';
+import UploadMetrics from './UploadMetrics';
+import WhatsAppPanel from './WhatsAppPanel';
+import PaymentModal from './PaymentModal';
+import AdDealForm from './AdDealForm';
+import VideoCarousel from './VideoCarousel';
 import InstagramConnectCard from './InstagramConnectCard';
 import StepIndicator from './StepIndicator';
 
- // --- FIM IMPORTS ---
+// --- FIM IMPORTS ---
 
 
- // --- INTERFACES ---
+// --- INTERFACES ---
 interface ExtendedUser {
   id?: string;
   name?: string | null;
@@ -41,29 +41,29 @@ interface ExtendedUser {
   provider?: string;
   isInstagramConnected?: boolean;
   whatsappVerified?: boolean;
+  planType?: PlanType; // ✅ adicionado
 }
 
- interface VideoData {
-    id: string;
-    title: string;
-    youtubeVideoId: string;
- }
+interface VideoData {
+  id: string;
+  title: string;
+  youtubeVideoId: string;
+}
 
- interface CommissionLogItem {
+interface CommissionLogItem {
   date: string;
   amount: number;
   description: string;
   sourcePaymentId?: string;
   referredUserId?: string;
- }
+}
 
+const SkeletonLoader = ({ className = "" }: { className?: string }) => (
+  <div className={`animate-pulse bg-gray-200 rounded-xl ${className}`}></div>
+);
 
- const SkeletonLoader = ({ className = "" }: { className?: string }) => (
-    <div className={`animate-pulse bg-gray-200 rounded-xl ${className}`}></div>
- );
-
- // --- COMPONENTE FUNCIONAL PARA O CARD DE AFILIADOS (PARA REUTILIZAÇÃO) ---
- const AffiliateCardContent: React.FC<{
+// --- COMPONENTE FUNCIONAL PARA O CARD DE AFILIADOS (PARA REUTILIZAÇÃO) ---
+const AffiliateCardContent: React.FC<{
   user: ExtendedUser | undefined;
   affiliateCode: string | null;
   fullAffiliateLink: string | null;
@@ -123,10 +123,10 @@ interface ExtendedUser {
           <div className="space-y-1.5 mt-4">
             <label className="text-xs font-medium text-gray-500 block">Seu Link de Indicação Completo:</label>
             <div className="flex items-center gap-2">
-            <input type="text" value={fullAffiliateLink} readOnly className="flex-grow text-xs font-mono bg-gray-50 px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-brand-pink" />
-            <button onClick={() => handleCopyToClipboard(fullAffiliateLink, 'link')} title="Copiar Link Completo" className={`p-2 rounded-md transition-all duration-200 ease-in-out ${ copyFeedback?.type === 'link' && copyFeedback.success ? 'bg-green-100 text-green-600 scale-110' : 'bg-gray-100 text-gray-500 hover:text-brand-pink hover:bg-gray-200' }`}>
+              <input type="text" value={fullAffiliateLink} readOnly className="flex-grow text-xs font-mono bg-gray-50 px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-brand-pink" />
+              <button onClick={() => handleCopyToClipboard(fullAffiliateLink, 'link')} title="Copiar Link Completo" className={`p-2 rounded-md transition-all duration-200 ease-in-out ${ copyFeedback?.type === 'link' && copyFeedback.success ? 'bg-green-100 text-green-600 scale-110' : 'bg-gray-100 text-gray-500 hover:text-brand-pink hover:bg-gray-200' }`}>
                 {copyFeedback?.type === 'link' && copyFeedback.success ? <FaCheckCircle className="w-4 h-4"/> : <FaCopy className="w-4 h-4"/>}
-            </button>
+              </button>
             </div>
           </div>
         )}
@@ -143,15 +143,15 @@ interface ExtendedUser {
           {!isLoadingCommissionLog && !commissionLogError && commissionLog.length === 0 && ( <p className="text-xs text-gray-500 text-center py-3 italic">Nenhuma comissão recebida ainda.</p> )}
           {!isLoadingCommissionLog && !commissionLogError && commissionLog.length > 0 && (
             <div className="max-h-60 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-            {commissionLog.map((logItem, index) => (
-              <div key={logItem.sourcePaymentId || `commission-${index}`} className="p-2.5 bg-gray-50 rounded-lg border border-gray-200/80 text-xs hover:shadow-sm transition-shadow">
-                <div className="flex justify-between items-start">
-                  <span className="font-medium text-gray-700">{new Date(logItem.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
-                  <span className="font-semibold text-green-600 text-sm">+ {logItem.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+              {commissionLog.map((logItem, index) => (
+                <div key={logItem.sourcePaymentId || `commission-${index}`} className="p-2.5 bg-gray-50 rounded-lg border border-gray-200/80 text-xs hover:shadow-sm transition-shadow">
+                  <div className="flex justify-between items-start">
+                    <span className="font-medium text-gray-700">{new Date(logItem.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                    <span className="font-semibold text-green-600 text-sm">+ {logItem.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                  </div>
+                  <p className="text-gray-600 mt-1 text-[11px] leading-relaxed">{logItem.description}</p>
                 </div>
-                <p className="text-gray-600 mt-1 text-[11px] leading-relaxed">{logItem.description}</p>
-              </div>
-            ))}
+              ))}
             </div>
           )}
         </div>
@@ -180,10 +180,10 @@ interface ExtendedUser {
     </div>
   );
 };
- // --- FIM COMPONENTE FUNCIONAL PARA O CARD DE AFILIADOS ---
+// --- FIM COMPONENTE FUNCIONAL PARA O CARD DE AFILIADOS ---
 
 
- export default function MainDashboard() {
+export default function MainDashboard() {
   const { data: session, status, update: updateSession } = useSession();
   const router = useRouter();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -226,7 +226,7 @@ interface ExtendedUser {
       y: 0,
       transition: { delay: i * 0.1, duration: 0.5, ease: "easeOut" }
     })
-   };
+  };
 
   const user = session?.user as ExtendedUser | undefined;
   const affiliateCode = user?.affiliateCode ?? null;
@@ -293,28 +293,28 @@ interface ExtendedUser {
 
   // --- FUNÇÕES DE HANDLER RESTAURADAS ---
   const handleRedeemBalance = useCallback(async (userIdFromFunc: string | undefined) => {
-     if (!userIdFromFunc) { setRedeemMessage("Erro: ID do usuário não encontrado."); return; }
-     setRedeemMessage("Processando...");
-     try {
-        // Simula chamada à API
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        setRedeemMessage("Resgate solicitado com sucesso! Seu saldo será atualizado em breve.");
-        // Idealmente, aqui você invalidaria o cache ou refazeria o fetch do saldo do usuário
-        if (updateSession) await updateSession(); 
-        setTimeout(() => setRedeemMessage(""), 5000); // Limpa mensagem após 5s
+    if (!userIdFromFunc) { setRedeemMessage("Erro: ID do usuário não encontrado."); return; }
+    setRedeemMessage("Processando...");
+    try {
+      // Simula chamada à API
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      setRedeemMessage("Resgate solicitado com sucesso! Seu saldo será atualizado em breve.");
+      // Idealmente, aqui você invalidaria o cache ou refazeria o fetch do saldo do usuário
+      if (updateSession) await updateSession(); 
+      setTimeout(() => setRedeemMessage(""), 5000); // Limpa mensagem após 5s
     } catch (error) {
-        console.error("Erro ao solicitar resgate:", error);
-        setRedeemMessage(`Erro ao solicitar resgate: ${error instanceof Error ? error.message : String(error)}`);
-        setTimeout(() => setRedeemMessage(""), 5000);
+      console.error("Erro ao solicitar resgate:", error);
+      setRedeemMessage(`Erro ao solicitar resgate: ${error instanceof Error ? error.message : String(error)}`);
+      setTimeout(() => setRedeemMessage(""), 5000);
     }
-   }, [updateSession]);
+  }, [updateSession]);
 
   const handleCopyToClipboard = useCallback((textToCopy: string | null, type: 'code' | 'link') => {
     if (!textToCopy || !navigator.clipboard) {
-        console.warn("Clipboard API não disponível ou texto para copiar é nulo.");
-        setCopyFeedback({ type, success: false });
-        setTimeout(() => setCopyFeedback(null), 2000);
-        return;
+      console.warn("Clipboard API não disponível ou texto para copiar é nulo.");
+      setCopyFeedback({ type, success: false });
+      setTimeout(() => setCopyFeedback(null), 2000);
+      return;
     }
     navigator.clipboard.writeText(textToCopy).then(() => {
       setCopyFeedback({ type, success: true });
@@ -324,55 +324,57 @@ interface ExtendedUser {
       setCopyFeedback({ type, success: false });
       setTimeout(() => setCopyFeedback(null), 2000);
     });
-   }, []);
+  }, []);
   // --- FIM DAS FUNÇÕES DE HANDLER RESTAURADAS ---
 
 
   if (status === "loading" || (status === "unauthenticated" && router)) {
     return (
-        <div className="min-h-screen bg-brand-light p-4 sm:p-6 lg:p-8">
-             <div className="max-w-7xl mx-auto">
-                {status === "loading" && (
-                    <>
-                        <div className="flex justify-between items-center h-16 mb-10">
-                            <SkeletonLoader className="h-8 w-24 rounded-md" />
-                            <SkeletonLoader className="h-10 w-10 rounded-full" />
-                        </div>
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-10">
-                            <div className="lg:col-span-2 space-y-10">
-                                <SkeletonLoader className="h-40 rounded-xl" />
-                                <SkeletonLoader className="h-60 rounded-xl" />
-                                <SkeletonLoader className="h-52 rounded-xl" />
-                            </div>
-                            <div className="lg:col-span-1 space-y-8">
-                                <SkeletonLoader className="h-72 rounded-xl" />
-                                <SkeletonLoader className="h-36 rounded-xl" />
-                            </div>
-                        </div>
-                    </>
-                )}
-                {status === "unauthenticated" && (
-                    <div className="min-h-[calc(100vh-10rem)] flex items-center justify-center">
-                        <p className="text-gray-500 font-medium">Redirecionando para login...</p>
-                    </div>
-                )}
+      <div className="min-h-screen bg-brand-light p-4 sm:p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto">
+          {status === "loading" && (
+            <>
+              <div className="flex justify-between items-center h-16 mb-10">
+                <SkeletonLoader className="h-8 w-24 rounded-md" />
+                <SkeletonLoader className="h-10 w-10 rounded-full" />
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-10">
+                <div className="lg:col-span-2 space-y-10">
+                  <SkeletonLoader className="h-40 rounded-xl" />
+                  <SkeletonLoader className="h-60 rounded-xl" />
+                  <SkeletonLoader className="h-52 rounded-xl" />
+                </div>
+                <div className="lg:col-span-1 space-y-8">
+                  <SkeletonLoader className="h-72 rounded-xl" />
+                  <SkeletonLoader className="h-36 rounded-xl" />
+                </div>
+              </div>
+            </>
+          )}
+          {status === "unauthenticated" && (
+            <div className="min-h-[calc(100vh-10rem)] flex items-center justify-center">
+              <p className="text-gray-500 font-medium">Redirecionando para login...</p>
             </div>
+          )}
         </div>
-     );
+      </div>
+    );
   }
   if (!user) {
-      return ( <div className="min-h-screen flex items-center justify-center bg-brand-light"><p className="text-red-500 font-medium">Erro ao carregar dados do usuário.</p></div> );
+    return ( <div className="min-h-screen flex items-center justify-center bg-brand-light"><p className="text-red-500 font-medium">Erro ao carregar dados do usuário.</p></div> );
   }
 
   const planStatus = user.planStatus ?? "inactive";
-  const canAccessFeatures = planStatus === "active";
+  // ✅ passa a considerar non_renewing como acesso permitido
+  const canAccessFeatures = planStatus === "active" || planStatus === "non_renewing";
   
   const getStatusInfo = () => {
-      switch (planStatus) {
+    switch (planStatus) {
       case 'active': return { text: 'Plano Ativo', colorClasses: 'text-green-700 bg-green-100 border-green-300', icon: <FaCheckCircle className="w-4 h-4"/> };
+      case 'non_renewing': return { text: 'Plano Ativo (não-renovável)', colorClasses: 'text-green-700 bg-green-100 border-green-300', icon: <FaCheckCircle className="w-4 h-4"/> };
       case 'pending': return { text: 'Pagamento Pendente', colorClasses: 'text-yellow-700 bg-yellow-100 border-yellow-300', icon: <FaClock className="w-4 h-4"/> };
       default: return { text: 'Plano Inativo', colorClasses: 'text-brand-red bg-red-100 border-red-300', icon: <FaTimesCircle className="w-4 h-4"/> };
-      }
+    }
   };
   const statusInfo = getStatusInfo(); 
   
@@ -381,7 +383,7 @@ interface ExtendedUser {
     planExpiresAt: user.planExpiresAt,
     affiliateBalance: user.affiliateBalance,
     affiliateCode: affiliateCode === null ? undefined : affiliateCode,
-    planType: user.planType,
+    planType: user.planType, // ✅ agora tipado corretamente
   };
   const canRedeem = (user.affiliateBalance ?? 0) > 0;
 
@@ -396,25 +398,25 @@ interface ExtendedUser {
   const scrollToVideoGuide = (videoId: string) => {
     const guideSection = document.getElementById('video-guides-section');
     if (guideSection) {
-        guideSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        if (swiperRef.current && swiperRef.current.slides) { 
-            const slideIndex = videoGuidesData.findIndex(video => video.id === videoId);
-            if (slideIndex !== -1) {
-                setTimeout(() => {
-                    if (swiperRef.current && typeof swiperRef.current.slideTo === 'function') {
-                        swiperRef.current.slideTo(slideIndex);
-                    } else {
-                        console.warn("Swiper API `slideTo` não encontrada na referência.");
-                    }
-                }, 300);
+      guideSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (swiperRef.current && swiperRef.current.slides) { 
+        const slideIndex = videoGuidesData.findIndex(video => video.id === videoId);
+        if (slideIndex !== -1) {
+          setTimeout(() => {
+            if (swiperRef.current && typeof swiperRef.current.slideTo === 'function') {
+              swiperRef.current.slideTo(slideIndex);
             } else {
-                console.warn(`Vídeo com ID "${videoId}" não encontrado nos dados.`);
+              console.warn("Swiper API `slideTo` não encontrada na referência.");
             }
+          }, 300);
         } else {
-            console.warn("Referência do Swiper (swiperRef.current) ou swiperRef.current.slides não encontrada.");
+          console.warn(`Vídeo com ID "${videoId}" não encontrado nos dados.`);
         }
+      } else {
+        console.warn("Referência do Swiper (swiperRef.current) ou swiperRef.current.slides não encontrada.");
+      }
     } else {
-        console.warn("Seção #video-guides-section não encontrada para scroll.");
+      console.warn("Seção #video-guides-section não encontrada para scroll.");
     }
   };
 
@@ -443,112 +445,112 @@ interface ExtendedUser {
       <div className="min-h-screen bg-brand-light">
         {/* --- HEADER RESTAURADO --- */}
         <header className="bg-white shadow-sm sticky top-0 z-40 border-b border-gray-200">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between items-center h-16">
-                    <Link href="/dashboard" className="flex-shrink-0 flex items-center gap-2 group">
-                        <span className="text-brand-pink text-3xl font-bold group-hover:opacity-80 transition-opacity">[2]</span>
-                    </Link>
-                    <div className="relative">
-                        <button
-                            onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                            className="p-2 rounded-full text-gray-500 hover:text-brand-dark hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-pink transition-colors"
-                            aria-expanded={isUserMenuOpen} aria-haspopup="true" aria-label="Menu de ações"
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <Link href="/dashboard" className="flex-shrink-0 flex items-center gap-2 group">
+                <span className="text-brand-pink text-3xl font-bold group-hover:opacity-80 transition-opacity">[2]</span>
+              </Link>
+              <div className="relative">
+                <button
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  className="p-2 rounded-full text-gray-500 hover:text-brand-dark hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-pink transition-colors"
+                  aria-expanded={isUserMenuOpen} aria-haspopup="true" aria-label="Menu de ações"
+                >
+                  {user?.image ? (
+                    <Image src={user.image} alt="Avatar" width={32} height={32} className="rounded-full" />
+                  ) : (
+                    <FaUserCircle className="w-6 h-6" />
+                  )}
+                </button>
+                <AnimatePresence>
+                  {isUserMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                      transition={{ duration: 0.15, ease: "easeOut" }}
+                      className="origin-top-right absolute right-0 mt-2 w-64 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50"
+                      onMouseLeave={() => setIsUserMenuOpen(false)}
+                    >
+                      <div className="px-4 py-3 border-b border-gray-100">
+                        <p className="text-sm font-semibold text-brand-dark truncate">{user?.name ?? 'Usuário'}</p>
+                        <p className="text-xs text-gray-500 truncate">{user?.email || 'Sem email'}</p>
+                      </div>
+                      <div className="py-1 border-t border-gray-100">
+                        <Link
+                          href="/dashboard/settings#subscription-management-title"
+                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
+                          onClick={() => setIsUserMenuOpen(false)}
                         >
-                           {user?.image ? (
-                                <Image src={user.image} alt="Avatar" width={32} height={32} className="rounded-full" />
-                           ) : (
-                                <FaUserCircle className="w-6 h-6" />
-                           )}
+                          <FaCreditCard className="w-4 h-4 text-gray-400"/> Gerir Assinatura
+                        </Link>
+                      </div>
+                      <div className="py-1 border-t border-gray-100">
+                        <Link
+                          href="/termos-e-condicoes"
+                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
+                          onClick={() => setIsUserMenuOpen(false)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <FaFileContract className="w-4 h-4 text-gray-400"/> Termos e Condições
+                        </Link>
+                      </div>
+                      <div className="py-1 border-t border-gray-100">
+                        <Link
+                          href="/politica-de-privacidade"
+                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
+                          onClick={() => setIsUserMenuOpen(false)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <FaShieldAlt className="w-4 h-4 text-gray-400"/> Política de Privacidade
+                        </Link>
+                      </div>
+                      <div className="py-1 border-t border-gray-100">
+                        <a 
+                          href="mailto:arthur@data2content.ai"
+                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          <FaEnvelope className="w-4 h-4 text-gray-400"/> Suporte por Email
+                        </a>
+                      </div>
+                      <div className="py-1 border-t border-gray-100">
+                        <a 
+                          href="/afiliados"
+                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          <FaHandshake className="w-4 h-4 text-gray-400"/> Programa de Afiliados
+                        </a>
+                      </div>
+                      <div className="py-1 border-t border-gray-100">
+                        <Link 
+                          href="/dashboard/settings" 
+                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-brand-red transition-colors rounded-md mx-1 my-0.5"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          <FaTrashAlt className="w-4 h-4"/> Excluir Conta
+                        </Link>
+                      </div>
+                      <div className="py-1 border-t border-gray-100">
+                        <button
+                          onClick={() => {
+                            setIsUserMenuOpen(false);
+                            signOut({ callbackUrl: '/' });
+                          }}
+                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
+                        >
+                          <FaSignOutAlt className="w-4 h-4"/> Sair
                         </button>
-                        <AnimatePresence>
-                            {isUserMenuOpen && (
-                                <motion.div
-                                    initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                                    exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                                    transition={{ duration: 0.15, ease: "easeOut" }}
-                                    className="origin-top-right absolute right-0 mt-2 w-64 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50"
-                                    onMouseLeave={() => setIsUserMenuOpen(false)}
-                                >
-                                    <div className="px-4 py-3 border-b border-gray-100">
-                                        <p className="text-sm font-semibold text-brand-dark truncate">{user?.name ?? 'Usuário'}</p>
-                                        <p className="text-xs text-gray-500 truncate">{user?.email || 'Sem email'}</p>
-                                    </div>
-                                    <div className="py-1 border-t border-gray-100">
-                                        <Link
-                                          href="/dashboard/settings#subscription-management-title"
-                                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
-                                          onClick={() => setIsUserMenuOpen(false)}
-                                        >
-                                            <FaCreditCard className="w-4 h-4 text-gray-400"/> Gerir Assinatura
-                                        </Link>
-                                    </div>
-                                    <div className="py-1 border-t border-gray-100">
-                                        <Link
-                                          href="/termos-e-condicoes"
-                                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
-                                          onClick={() => setIsUserMenuOpen(false)}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                        >
-                                            <FaFileContract className="w-4 h-4 text-gray-400"/> Termos e Condições
-                                        </Link>
-                                    </div>
-                                    <div className="py-1 border-t border-gray-100">
-                                        <Link
-                                          href="/politica-de-privacidade"
-                                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
-                                          onClick={() => setIsUserMenuOpen(false)}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                        >
-                                            <FaShieldAlt className="w-4 h-4 text-gray-400"/> Política de Privacidade
-                                        </Link>
-                                    </div>
-                                    <div className="py-1 border-t border-gray-100">
-                                         <a 
-                                           href="mailto:arthur@data2content.ai"
-                                           className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
-                                           onClick={() => setIsUserMenuOpen(false)}
-                                         >
-                                            <FaEnvelope className="w-4 h-4 text-gray-400"/> Suporte por Email
-                                        </a>
-                                    </div>
-                                    <div className="py-1 border-t border-gray-100">
-                                         <a 
-                                           href="/afiliados"
-                                           className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
-                                           onClick={() => setIsUserMenuOpen(false)}
-                                         >
-                                            <FaHandshake className="w-4 h-4 text-gray-400"/> Programa de Afiliados
-                                        </a>
-                                    </div>
-                                    <div className="py-1 border-t border-gray-100">
-                                        <Link 
-                                          href="/dashboard/settings" 
-                                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-brand-red transition-colors rounded-md mx-1 my-0.5"
-                                          onClick={() => setIsUserMenuOpen(false)}
-                                        >
-                                            <FaTrashAlt className="w-4 h-4"/> Excluir Conta
-                                        </Link>
-                                    </div>
-                                    <div className="py-1 border-t border-gray-100">
-                                        <button
-                                            onClick={() => {
-                                                setIsUserMenuOpen(false);
-                                                signOut({ callbackUrl: '/' });
-                                            }}
-                                            className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
-                                        >
-                                            <FaSignOutAlt className="w-4 h-4 text-gray-400"/> Sair
-                                        </button>
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                    </div>
-                </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
+          </div>
         </header>
         {/* --- FIM DO HEADER RESTAURADO --- */}
 
@@ -557,46 +559,46 @@ interface ExtendedUser {
             {/* --- COLUNA PRINCIPAL (ESQUERDA) --- */}
             <div className="lg:col-span-2 space-y-12"> 
               {/* Card de Boas-Vindas */}
-               <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={0}>
-                 <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg border-t-4 border-brand-pink flex flex-col sm:flex-row items-center gap-6">
-                     <div className="flex-shrink-0">
-                        {user?.image ? ( <Image src={user.image} alt="Avatar" width={88} height={88} className="rounded-full border-4 border-white shadow-md" /> ) : ( <span className="inline-block h-22 w-22 overflow-hidden rounded-full bg-gray-100 border-4 border-white shadow-md"><FaUserCircle className="h-full w-full text-gray-300" /></span> )}
-                     </div>
-                     <div className="flex-grow text-center sm:text-left">
-                        <h1 className="text-2xl sm:text-3xl font-semibold text-brand-dark mb-2">Bem-vindo(a), {user?.name ?? 'Usuário'}!</h1>
-                        <p className="text-base text-gray-600 font-light mb-4">Pronto para otimizar sua carreira de criador?</p>
-                        {!canAccessFeatures && (
-                          <StepIndicator
-                          planActive={planStatus === 'pending'}
-                            instagramConnected={!!user.isInstagramConnected}
-                            whatsappConnected={!!user.whatsappVerified}
-                          />
-                        )}
-                        {agencyName && !canAccessFeatures && (
-                          <p className="mt-1 text-green-700 bg-green-50 border border-green-200 inline-block px-3 py-1 rounded text-sm">
-                            Convite da agência {agencyName} ativo! Desconto aplicado.
-                          </p>
-                        )}
-                        <div className="flex items-center flex-wrap gap-2 justify-center sm:justify-start">
-                            <div className={`inline-flex items-center gap-2 text-sm mb-1 px-4 py-1.5 rounded-full border ${statusInfo.colorClasses}`}> {statusInfo.icon} <span className="font-semibold">{statusInfo.text}</span> {planStatus === 'active' && user?.planExpiresAt && ( <span className="hidden md:inline text-xs opacity-80 ml-2">(Expira em {new Date(user.planExpiresAt).toLocaleDateString("pt-BR")})</span> )} </div>
-                            {!canAccessFeatures && (
-                              <button
-                                onClick={redirectToPaymentPanel}
-                                className="text-xs bg-brand-pink text-white px-4 py-1.5 rounded-full hover:opacity-90 font-semibold transition-default align-middle"
-                              >
-                                Fazer Upgrade
-                              </button>
-                            )}
-                        </div>
-                     </div>
-                 </div>
+              <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={0}>
+                <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg border-t-4 border-brand-pink flex flex-col sm:flex-row items-center gap-6">
+                  <div className="flex-shrink-0">
+                    {user?.image ? ( <Image src={user.image} alt="Avatar" width={88} height={88} className="rounded-full border-4 border-white shadow-md" /> ) : ( <span className="inline-block h-22 w-22 overflow-hidden rounded-full bg-gray-100 border-4 border-white shadow-md"><FaUserCircle className="h-full w-full text-gray-300" /></span> )}
+                  </div>
+                  <div className="flex-grow text-center sm:text-left">
+                    <h1 className="text-2xl sm:text-3xl font-semibold text-brand-dark mb-2">Bem-vindo(a), {user?.name ?? 'Usuário'}!</h1>
+                    <p className="text-base text-gray-600 font-light mb-4">Pronto para otimizar sua carreira de criador?</p>
+                    {!canAccessFeatures && (
+                      <StepIndicator
+                        planActive={planStatus === 'pending'}
+                        instagramConnected={!!user.isInstagramConnected}
+                        whatsappConnected={!!user.whatsappVerified}
+                      />
+                    )}
+                    {agencyName && !canAccessFeatures && (
+                      <p className="mt-1 text-green-700 bg-green-50 border border-green-200 inline-block px-3 py-1 rounded text-sm">
+                        Convite da agência {agencyName} ativo! Desconto aplicado.
+                      </p>
+                    )}
+                    <div className="flex items-center flex-wrap gap-2 justify-center sm:justify-start">
+                      <div className={`inline-flex items-center gap-2 text-sm mb-1 px-4 py-1.5 rounded-full border ${statusInfo.colorClasses}`}> {statusInfo.icon} <span className="font-semibold">{statusInfo.text}</span> {planStatus === 'active' && user?.planExpiresAt && ( <span className="hidden md:inline text-xs opacity-80 ml-2">(Expira em {new Date(user.planExpiresAt).toLocaleDateString("pt-BR")})</span> )} </div>
+                      {!canAccessFeatures && (
+                        <button
+                          onClick={redirectToPaymentPanel}
+                          className="text-xs bg-brand-pink text-white px-4 py-1.5 rounded-full hover:opacity-90 font-semibold transition-default align-middle"
+                        >
+                          Fazer Upgrade
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </motion.section>
 
               {/* Guias Rápidos da Plataforma (VideoCarousel) */}
               <motion.section id="video-guides-section" variants={cardVariants} initial="hidden" animate="visible" custom={0.5}>
-                  <div className="flex items-center gap-3 mb-5 ml-1"> <FaVideo className="w-5 h-5 text-brand-pink"/> <h2 className="text-xl font-semibold text-brand-dark">Guias Rápidos da Plataforma</h2> </div>
-                   <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg"> <VideoCarousel videos={videoGuidesData} swiperRef={swiperRef} /> </div>
-               </motion.section>
+                <div className="flex items-center gap-3 mb-5 ml-1"> <FaVideo className="w-5 h-5 text-brand-pink"/> <h2 className="text-xl font-semibold text-brand-dark">Guias Rápidos da Plataforma</h2> </div>
+                <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg"> <VideoCarousel videos={videoGuidesData} swiperRef={swiperRef} /> </div>
+              </motion.section>
 
               {/* Seção de Pagamento (PaymentPanel) */}
               {!canAccessFeatures && (
@@ -643,56 +645,56 @@ interface ExtendedUser {
 
               {/* Suas Métricas (UploadMetrics) */}
               <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={1}>
-                  <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Suas Métricas</h2>
-                   <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
-                        <UploadMetrics
-                            canAccessFeatures={canAccessFeatures}
-                            userId={userId}
-                            onNeedHelp={() => scrollToVideoGuide('upload-metrics-guide')}
-                            onActionRedirect={redirectToPaymentPanel}
-                            showToast={showToastMessage}
-                        />
-                   </div>
-               </motion.section>
+                <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Suas Métricas</h2>
+                <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
+                  <UploadMetrics
+                    canAccessFeatures={canAccessFeatures}
+                    userId={userId}
+                    onNeedHelp={() => scrollToVideoGuide('upload-metrics-guide')}
+                    onActionRedirect={redirectToPaymentPanel}
+                    showToast={showToastMessage}
+                  />
+                </div>
+              </motion.section>
 
-               {/* Suas Parcerias (AdDealForm) */}
-               <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={1.2}>
-                 <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Suas Parcerias</h2>
-                 <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
-                   <AdDealForm
-                     userId={userId}
-                     canAccessFeatures={canAccessFeatures}
-                     onActionRedirect={redirectToPaymentPanel}
-                     showToast={showToastMessage}
-                   />
-                 </div>
-               </motion.section>
+              {/* Suas Parcerias (AdDealForm) */}
+              <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={1.2}>
+                <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Suas Parcerias</h2>
+                <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
+                  <AdDealForm
+                    userId={userId}
+                    canAccessFeatures={canAccessFeatures}
+                    onActionRedirect={redirectToPaymentPanel}
+                    showToast={showToastMessage}
+                  />
+                </div>
+              </motion.section>
             </div>
 
             {/* --- COLUNA DA DIREITA (SIDEBAR) */}
             <div className="hidden lg:block lg:col-span-1 space-y-8">
               {/* Card de Afiliados para DESKTOP */}
               <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={0.5}>
-                 <AffiliateCardContent {...affiliateCardProps} />
+                <AffiliateCardContent {...affiliateCardProps} />
               </motion.section>
 
               {/* Seção "Precisa de Ajuda?" */}
               <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={3}>
-                 <div className="bg-brand-light p-6 rounded-xl border border-gray-200 text-center hover:shadow-md transition-shadow flex flex-col items-center">
-                    <div className="p-3 bg-brand-pink/10 rounded-full text-brand-pink mb-4">
-                        <FaEnvelope className="w-6 h-6"/>
-                    </div>
-                    <h3 className="font-semibold text-brand-dark mb-2 text-lg">Precisa de Ajuda?</h3>
-                    <p className="text-sm text-gray-600 font-light mb-5 leading-relaxed">
-                        Entre em contacto connosco por email para qualquer questão ou suporte.
-                    </p>
-                    <a 
-                      href="mailto:arthur@data2content.ai"
-                      className="text-sm text-brand-pink hover:underline font-semibold mt-auto pt-2"
-                    >
-                        Contactar Suporte por Email
-                    </a>
-                 </div>
+                <div className="bg-brand-light p-6 rounded-xl border border-gray-200 text-center hover:shadow-md transition-shadow flex flex-col items-center">
+                  <div className="p-3 bg-brand-pink/10 rounded-full text-brand-pink mb-4">
+                    <FaEnvelope className="w-6 h-6"/>
+                  </div>
+                  <h3 className="font-semibold text-brand-dark mb-2 text-lg">Precisa de Ajuda?</h3>
+                  <p className="text-sm text-gray-600 font-light mb-5 leading-relaxed">
+                    Entre em contacto connosco por email para qualquer questão ou suporte.
+                  </p>
+                  <a 
+                    href="mailto:arthur@data2content.ai"
+                    className="text-sm text-brand-pink hover:underline font-semibold mt-auto pt-2"
+                  >
+                    Contactar Suporte por Email
+                  </a>
+                </div>
               </motion.section>
             </div>
 
@@ -700,10 +702,10 @@ interface ExtendedUser {
         </main>
 
         <footer className="text-center mt-20 py-10 border-t border-gray-200 text-xs text-gray-500 font-light">
-             © {new Date().getFullYear()} Data2Content. Todos os direitos reservados.
+          © {new Date().getFullYear()} Data2Content. Todos os direitos reservados.
         </footer>
       </div>
-       <style jsx global>{`
+      <style jsx global>{`
         /* ... (Seus estilos globais) ... */
       `}</style>
     </>
