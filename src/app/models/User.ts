@@ -237,6 +237,7 @@ export interface IUser extends Document {
   planType?: 'monthly' | 'annual';
   paymentGatewaySubscriptionId?: string;
   planExpiresAt?: Date | null;
+  autoRenewConsentAt?: Date | null;
   whatsappVerificationCode?: string | null;
   whatsappPhone?: string | null;
   whatsappVerified?: boolean;
@@ -374,6 +375,7 @@ const userSchema = new Schema<IUser>(
     agency: { type: Schema.Types.ObjectId, ref: 'Agency', default: null },
     pendingAgency: { type: Schema.Types.ObjectId, ref: 'Agency', default: null },
     planExpiresAt: { type: Date, default: null },
+    autoRenewConsentAt: { type: Date, default: null },
     whatsappVerificationCode: { type: String, default: null, index: true },
     whatsappPhone: { type: String, default: null, index: true },
     whatsappVerified: { type: Boolean, default: false },
