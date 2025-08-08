@@ -261,7 +261,7 @@ export async function POST(request: NextRequest) {
 
       if (eventType === "authorized_payment") {
         const now = new Date();
-        const days = user.planType === 'annual' ? 365 : 30;
+        const days = 30;
         user.planExpiresAt = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
         user.planStatus = 'active';
 

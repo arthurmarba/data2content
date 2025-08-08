@@ -56,7 +56,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
   const [agencyMessage, setAgencyMessage] = useState<string | null>(null);
   const [refCodeAppliedMessage, setRefCodeAppliedMessage] = useState<string | null>(null);
 
-  const [planType, setPlanType] = useState<"monthly" | "annual" | "annual_one_time">("annual");
+  const [planType, setPlanType] = useState<"monthly" | "annual">("annual");
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
   const [initPoint, setInitPoint] = useState("");
@@ -68,31 +68,18 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
   const {
     originalMonthlyPrice,
     discountedMonthlyPrice,
-    totalAnnualPrice,
-    originalAnnualPrice,
     discountPercentage,
-    savingsAmount,
-    selectedMonthlyPrice,
-    totalPrice,
   } = useMemo(() => {
     const originalMonthlyPrice = agencyInviteCode ? AGENCY_GUEST_MONTHLY_PRICE : MONTHLY_PRICE;
     const discountedMonthlyPrice = agencyInviteCode ? AGENCY_GUEST_ANNUAL_MONTHLY_PRICE : ANNUAL_MONTHLY_PRICE;
     const totalAnnualPrice = discountedMonthlyPrice * 12;
     const originalAnnualPrice = originalMonthlyPrice * 12;
     const discountPercentage = Math.round(((originalAnnualPrice - totalAnnualPrice) / Math.max(originalAnnualPrice, 1)) * 100);
-    const savingsAmount = originalAnnualPrice - totalAnnualPrice;
-    const selectedMonthlyPrice = planType === "monthly" ? originalMonthlyPrice : discountedMonthlyPrice;
-    const totalPrice = planType === "monthly" ? selectedMonthlyPrice : totalAnnualPrice;
 
     return {
       originalMonthlyPrice,
       discountedMonthlyPrice,
-      totalAnnualPrice,
-      originalAnnualPrice,
       discountPercentage,
-      savingsAmount,
-      selectedMonthlyPrice,
-      totalPrice,
     };
   }, [agencyInviteCode, planType]);
 
@@ -157,7 +144,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
   // --- subscribe
   async function handleSubscribe(e?: React.FormEvent) {
     e?.preventDefault();
-    if (planType !== "annual_one_time" && !autoRenewAccepted) {
+    if (!autoRenewAccepted) {
       setStatusMessage({ message: "É necessário aceitar a renovação automática.", type: "error" });
       return;
     }
@@ -167,15 +154,13 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
     setIsAffiliateCodeValid(true);
     setAffiliateErr(null);
     try {
-      const endpoint = planType === "annual_one_time" ? "/api/plan/subscribe-one-time" : "/api/plan/subscribe";
+      const endpoint = "/api/plan/subscribe";
       const body: Record<string, unknown> = {
         planType,
         affiliateCode: affiliateCodeInput.trim() === "" ? undefined : affiliateCodeInput.trim(),
         agencyInviteCode: agencyInviteCode || undefined,
+        autoRenewConsent: true,
       };
-      if (planType !== "annual_one_time") {
-        body.autoRenewConsent = true;
-      }
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -348,12 +333,12 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
         ref={formRef}
       >
         <h3 id="plano-title" className="text-lg sm:text-xl font-bold text-center text-brand-dark mb-3">
-          Plano {planType === "monthly" ? "Mensal" : planType === "annual" ? "Anual Recorrente" : "Anual 12x"} Data2Content
+          Plano {planType === "monthly" ? "Mensal" : "Anual (12x sem juros)"} Data2Content
         </h3>
 
         {/* Toggle minimalista */}
         <fieldset className="mb-5" aria-label="Tipo de plano">
-          <div className="grid grid-cols-3 p-1 bg-gray-100 rounded-full border border-gray-200">
+          <div className="grid grid-cols-2 p-1 bg-gray-100 rounded-full border border-gray-200">
             <button
               type="button"
               onClick={() => setPlanType("monthly")}
@@ -379,50 +364,27 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
                 </span>
               )}
             </button>
-            <button
-              type="button"
-              onClick={() => setPlanType("annual_one_time")}
-              aria-pressed={planType === "annual_one_time"}
-              className={`px-2 py-2 rounded-full text-sm font-medium transition-colors inline-flex items-center justify-center gap-1 ${
-                planType === "annual_one_time" ? "bg-white text-brand-dark shadow-sm" : "text-gray-600 hover:text-brand-dark"
-              }`}
-            >
-              12x sem juros
-              {planType !== "annual_one_time" && discountPercentage > 0 && (
-                <span className="ml-1 inline-flex px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 text-[10px] font-semibold border border-green-200">
-                  -{discountPercentage}%
-                </span>
-              )}
-            </button>
           </div>
         </fieldset>
 
         {/* Preço hierárquico */}
         <div className="text-center mb-4">
-          {planType === "annual_one_time" ? (
+          {planType === "annual" ? (
             <>
               <div className="font-extrabold tracking-tight text-brand-dark text-[clamp(28px,6vw,42px)]">
-                12x {currencyFormatter.format(discountedMonthlyPrice)}
+                {currencyFormatter.format(discountedMonthlyPrice)} <span className="text-sm text-gray-600">/ mês</span>
               </div>
-              <p className="text-sm text-gray-600 mt-1">Total {currencyFormatter.format(totalAnnualPrice)}</p>
+              <p className="text-xs text-green-700 mt-1">12x sem juros • recorrente</p>
             </>
           ) : (
             <>
-              {renderBigPrice(totalPrice)}
+              {renderBigPrice(originalMonthlyPrice)}
               <p className="text-sm text-gray-600 mt-1">
-                {planType === "annual" ? (
-                  <>
-                    equivale a {currencyFormatter.format(discountedMonthlyPrice)} <span className="text-gray-500">/ mês</span>
-                  </>
-                ) : (
-                  <>
-                    {currencyFormatter.format(originalMonthlyPrice)} <span className="text-gray-500">/ mês</span>
-                  </>
-                )}
+                {currencyFormatter.format(originalMonthlyPrice)} <span className="text-gray-500">/ mês</span>
               </p>
             </>
           )}
-          {(planType === "annual" || planType === "annual_one_time") && discountPercentage > 0 && (
+          {planType === "annual" && discountPercentage > 0 && (
             <div className="mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-50 text-green-700 text-xs font-medium border border-green-200">
               Economize {discountPercentage}%
             </div>
@@ -430,36 +392,32 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
         </div>
 
         {/* consentimento */}
-        {planType !== "annual_one_time" && (
-          <label className="mt-4 flex items-start gap-2 text-sm text-gray-700">
-            <input
-              type="checkbox"
-              checked={autoRenewAccepted}
-              onChange={(e) => setAutoRenewAccepted(e.target.checked)}
-              className="mt-1"
-            />
-            <span>
-              Esta assinatura renova automaticamente.{' '}
-              <a href="/dashboard/settings" className="underline text-brand-pink">
-                Gerir assinatura
-              </a>
-            </span>
-          </label>
-        )}
+        <label className="mt-4 flex items-start gap-2 text-sm text-gray-700">
+          <input
+            type="checkbox"
+            checked={autoRenewAccepted}
+            onChange={(e) => setAutoRenewAccepted(e.target.checked)}
+            className="mt-1"
+          />
+          <span>
+            Esta assinatura renova automaticamente{' '}
+            <a href="/dashboard/settings" className="underline text-brand-pink">
+              Gerir assinatura
+            </a>
+          </span>
+        </label>
 
         {/* CTA principal */}
         <button
           type="submit"
-          disabled={loading || (planType !== "annual_one_time" && !autoRenewAccepted)}
+          disabled={loading || !autoRenewAccepted}
           className="w-full flex items-center justify-center gap-2 bg-brand-pink text-white py-3 rounded-xl font-semibold disabled:opacity-70"
           data-testid="subscribe-cta"
         >
           {loading ? <FaSpinner className="w-5 h-5 animate-spin" /> : "Assinar agora"}
         </button>
         <p className="mt-2 text-center text-xs text-gray-500">
-          {planType === "annual_one_time"
-            ? "Pagamento processado no cartão em 12 parcelas sem juros. Você recebe acesso por 12 meses (não renova automaticamente)."
-            : "Pagamento seguro via Mercado Pago. Sem fidelidade — cancele quando quiser."}
+          Pagamento seguro via Mercado Pago. Sem fidelidade — cancele quando quiser.
         </p>
 
         {/* Mensagens */}
@@ -525,20 +483,14 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
             <div className="flex items-center gap-3 p-3">
               <div className="flex-1">
                 <div className="text-xs text-gray-500">
-                  {planType === "annual"
-                    ? "Plano Anual"
-                    : planType === "annual_one_time"
-                    ? "Plano Anual 12x"
-                    : "Plano Mensal"}
+                  {planType === "annual" ? "Plano Anual" : "Plano Mensal"}
                 </div>
                 <div className="text-base font-semibold text-brand-dark leading-tight">
                   {planType === "annual"
                     ? `${currencyFormatter.format(discountedMonthlyPrice)} / mês`
-                    : planType === "annual_one_time"
-                    ? `12x ${currencyFormatter.format(discountedMonthlyPrice)}`
                     : `${currencyFormatter.format(originalMonthlyPrice)} / mês`}
                 </div>
-                {(planType === "annual" || planType === "annual_one_time") && discountPercentage > 0 && (
+                {planType === "annual" && discountPercentage > 0 && (
                   <div className="mt-0.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 text-[10px] font-semibold border border-green-200">
                     Economize {discountPercentage}%
                   </div>
@@ -546,7 +498,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
               </div>
               <button
                 onClick={() => handleSubscribe()}
-                disabled={loading || (planType !== "annual_one_time" && !autoRenewAccepted)}
+                disabled={loading || !autoRenewAccepted}
                 className="min-w-[120px] inline-flex items-center justify-center gap-2 bg-brand-pink text-white px-4 py-2.5 rounded-lg font-semibold disabled:opacity-70"
               >
                 {loading ? <FaSpinner className="w-4 h-4 animate-spin" /> : "Assinar"}

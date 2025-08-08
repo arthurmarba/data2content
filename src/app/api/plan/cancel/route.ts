@@ -16,9 +16,6 @@ export async function POST(req: NextRequest) {
 
     await connectToDatabase();
     const user = await User.findOne({ email: session.user.email });
-    if (user?.planType === "annual_one_time") {
-      return NextResponse.json({ error: "Plano anual parcelado não tem renovação automática." }, { status: 400 });
-    }
 
     if (!user || !user.paymentGatewaySubscriptionId) {
       return NextResponse.json({ error: "Assinatura não encontrada" }, { status: 404 });
