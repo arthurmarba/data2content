@@ -1,6 +1,6 @@
 'use client';
 import { motion } from 'framer-motion';
-import { FaGoogle } from 'react-icons/fa';
+// import { FaGoogle } from 'react-icons/fa'; // Ícone removido, então a importação não é mais necessária
 import { signIn } from 'next-auth/react';
 import ButtonPrimary from './ButtonPrimary';
 import TypingEffect from './TypingEffect';
@@ -37,7 +37,6 @@ export default function HeroSection() {
     <section className="relative bg-gray-100 text-center overflow-x-hidden pt-20 pb-24">
       <div className="w-full">
         <motion.div variants={heroVariants} initial="hidden" animate="visible" className="w-full">
-          {/* ... (O restante do cabeçalho permanece igual) ... */}
           <div className="max-w-3xl mx-auto px-6 lg:px-8">
             <motion.h1
               variants={heroItemVariants}
@@ -46,6 +45,7 @@ export default function HeroSection() {
               O fim da dúvida: o que postar hoje?
             </motion.h1>
 
+            {/*
             <motion.div variants={heroItemVariants} className="mt-6 h-14 md:h-auto">
               <TypingEffect
                 sequence={[
@@ -59,10 +59,13 @@ export default function HeroSection() {
                 className="text-lg md:text-xl text-gray-600 max-w-2xl leading-relaxed mx-auto"
               />
             </motion.div>
+            */}
 
-            <motion.div variants={heroItemVariants}>
-              <ButtonPrimary onClick={handleSignIn} className="mt-4">
-                <FaGoogle /> Ative IA do Instagram no WhatsApp ▸
+            {/* A margem superior foi aumentada de mt-8 para mt-12 para criar mais espaço */}
+            <motion.div variants={heroItemVariants} className="mt-12">
+              {/* O ícone do Google foi removido para testar o layout do texto */}
+              <ButtonPrimary onClick={handleSignIn}>
+                Ative IA do Instagram no WhatsApp ▸
               </ButtonPrimary>
             </motion.div>
           </div>
