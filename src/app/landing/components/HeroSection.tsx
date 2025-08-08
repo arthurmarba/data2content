@@ -73,15 +73,8 @@ export default function HeroSection() {
           </motion.div>
 
           <motion.div variants={heroItemVariants} className="mt-12 px-6">
-            <div
-              className="relative max-w-3xl mx-auto w-full rounded-lg overflow-hidden shadow-lg"
-              style={{
-                paddingTop: '56.25%', // Mantém a proporção 16:9
-              }}
-            >
-              {/* --- CÓDIGO CORRIGIDO --- */}
+            <div className="relative max-w-3xl mx-auto w-full rounded-lg overflow-hidden shadow-lg aspect-w-16 aspect-h-9">
               <iframe
-                // Classes do Tailwind para preencher o contêiner pai perfeitamente
                 className="absolute top-0 left-0 w-full h-full"
                 src={youtubeEmbedUrl}
                 title="Demo do data2content"
