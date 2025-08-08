@@ -29,11 +29,14 @@ export async function POST(req: NextRequest) {
   try {
     // 1) Log de cookie para debug
     const rawCookie = req.headers.get("cookie");
-    console.debug("plan/subscribe -> Cookie recebido:", rawCookie || "NENHUM COOKIE");
 
     // 2) Obtém a sessão
     const session = await getServerSession({ req, ...authOptions });
-    console.debug("plan/subscribe -> Sessão retornada:", session);
+
+    if (process.env.NODE_ENV !== "production") {
+      console.debug("plan/subscribe -> Cookie recebido:", rawCookie || "NENHUM COOKIE");
+      console.debug("plan/subscribe -> Sessão retornada:", session);
+    }
 
     if (!session?.user?.email) {
       console.error("plan/subscribe -> Falha de autenticação: session.user.email ausente");
@@ -124,9 +127,8 @@ export async function POST(req: NextRequest) {
     const monthly = fromCents(monthlyCents);
     const total = fromCents(totalCents);
 
-    // 7) status pendente
+    // 7) limpa erro anterior e registra consentimento
     user.lastPaymentError = undefined;
-    user.planStatus = "pending";
     user.autoRenewConsentAt = new Date();
     await user.save();
 
@@ -180,6 +182,7 @@ export async function POST(req: NextRequest) {
 
     user.paymentGatewaySubscriptionId = subscriptionId;
     user.planType = planType;
+    user.planStatus = "pending";
     await user.save();
 
     // 9) Retorno
