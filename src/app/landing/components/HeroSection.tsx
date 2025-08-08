@@ -65,7 +65,7 @@ export default function HeroSection() {
             <motion.div variants={heroItemVariants} className="mt-12">
               {/* O ícone do Google foi removido para testar o layout do texto */}
               <ButtonPrimary onClick={handleSignIn}>
-                Ative IA do Instagram no WhatsApp ▸
+                Ative IA do Instagram no WhatsApp
               </ButtonPrimary>
             </motion.div>
           </div>
