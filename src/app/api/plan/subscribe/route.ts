@@ -14,6 +14,7 @@ import {
 } from "@/config/pricing.config";
 
 export const runtime = "nodejs";
+const isProd = process.env.NODE_ENV === "production";
 
 // ---- helpers contra float ----
 const toCents = (v: number) => Math.round(v * 100); // trata 29.9 -> 2990
@@ -33,13 +34,16 @@ export async function POST(req: NextRequest) {
     // 2) Obtém a sessão
     const session = await getServerSession({ req, ...authOptions });
 
-    if (process.env.NODE_ENV !== "production") {
+    if (!isProd) {
       console.debug("plan/subscribe -> Cookie recebido:", rawCookie || "NENHUM COOKIE");
       console.debug("plan/subscribe -> Sessão retornada:", session);
     }
 
     if (!session?.user?.email) {
-      console.error("plan/subscribe -> Falha de autenticação: session.user.email ausente");
+      if (!isProd)
+        console.error(
+          "plan/subscribe -> Falha de autenticação: session.user.email ausente",
+        );
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
@@ -51,7 +55,7 @@ export async function POST(req: NextRequest) {
       agencyInviteCode?: string;
       autoRenewConsent?: boolean;
     };
-    if (process.env.NODE_ENV !== "production") {
+    if (!isProd) {
       console.debug("plan/subscribe -> Body recebido:", body);
     }
 
@@ -64,7 +68,8 @@ export async function POST(req: NextRequest) {
     await connectToDatabase();
     const user = await User.findOne({ email: session.user.email });
     if (!user) {
-      console.error("plan/subscribe -> Usuário não encontrado:", session.user.email);
+      if (!isProd)
+        console.error("plan/subscribe -> Usuário não encontrado:", session.user.email);
       return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
     }
 
@@ -75,11 +80,16 @@ export async function POST(req: NextRequest) {
     if (agencyInviteCode) {
       const agency = await AgencyModel.findOne({ inviteCode: agencyInviteCode });
       if (!agency) {
-        console.error("plan/subscribe -> Código de agência inválido:", agencyInviteCode);
+        if (!isProd)
+          console.error(
+            "plan/subscribe -> Código de agência inválido:",
+            agencyInviteCode,
+          );
         return NextResponse.json({ error: "Código de agência inválido." }, { status: 400 });
       }
       if (agency.planStatus !== "active") {
-        console.error(`plan/subscribe -> Agência ${agency._id} com plano inativo`);
+        if (!isProd)
+          console.error(`plan/subscribe -> Agência ${agency._id} com plano inativo`);
         return NextResponse.json({ error: "Agência sem assinatura ativa." }, { status: 403 });
       }
       if (user.agency && user.agency.toString() !== agency._id.toString()) {
@@ -129,11 +139,16 @@ export async function POST(req: NextRequest) {
       if (affiliateCode) {
         const affUser = await User.findOne({ affiliateCode });
         if (!affUser) {
-          console.error("plan/subscribe -> Cupom inválido:", affiliateCode);
+          if (!isProd)
+            console.error("plan/subscribe -> Cupom inválido:", affiliateCode);
           return NextResponse.json({ error: "Cupom de afiliado inválido." }, { status: 400 });
         }
         if ((affUser._id as Types.ObjectId).equals(user._id as Types.ObjectId)) {
-          console.error("plan/subscribe -> Tentativa de uso do próprio cupom:", affiliateCode);
+          if (!isProd)
+            console.error(
+              "plan/subscribe -> Tentativa de uso do próprio cupom:",
+              affiliateCode,
+            );
           return NextResponse.json({ error: "Você não pode usar seu próprio cupom." }, { status: 400 });
         }
         annualCents = Math.round(annualCents * 0.9);
@@ -195,11 +210,16 @@ export async function POST(req: NextRequest) {
     if (affiliateCode) {
       const affUser = await User.findOne({ affiliateCode });
       if (!affUser) {
-        console.error("plan/subscribe -> Cupom inválido:", affiliateCode);
+        if (!isProd)
+          console.error("plan/subscribe -> Cupom inválido:", affiliateCode);
         return NextResponse.json({ error: "Cupom de afiliado inválido." }, { status: 400 });
       }
       if ((affUser._id as Types.ObjectId).equals(user._id as Types.ObjectId)) {
-        console.error("plan/subscribe -> Tentativa de uso do próprio cupom:", affiliateCode);
+        if (!isProd)
+          console.error(
+            "plan/subscribe -> Tentativa de uso do próprio cupom:",
+            affiliateCode,
+          );
         return NextResponse.json({ error: "Você não pode usar seu próprio cupom." }, { status: 400 });
       }
       monthlyCents = Math.round((monthlyCents * 90) / 100);
@@ -224,7 +244,7 @@ export async function POST(req: NextRequest) {
     const responseMP = await mercadopago.preapproval.create(preapprovalData);
     const initPoint = responseMP.body.init_point;
     const subscriptionId = responseMP.body.id;
-    if (process.env.NODE_ENV !== "production") {
+    if (!isProd) {
       console.debug("plan/subscribe -> Assinatura criada. Link:", initPoint);
     }
 
@@ -241,7 +261,7 @@ export async function POST(req: NextRequest) {
       planBillingCycle: "monthly",
     });
   } catch (error: unknown) {
-    console.error("Erro em /api/plan/subscribe:", error);
+    if (!isProd) console.error("Erro em /api/plan/subscribe:", error);
     const message = error instanceof Error ? error.message : "Erro desconhecido.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
