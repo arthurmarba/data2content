@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
     user.planStatus = "canceled";
     user.paymentGatewaySubscriptionId = undefined;
     user.planType = undefined;
+    user.planExpiresAt = null;
     await user.save();
 
     return NextResponse.json({ message: "Assinatura cancelada." });
