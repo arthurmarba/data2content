@@ -15,6 +15,10 @@ import {
 
 export const runtime = "nodejs";
 
+// ---- helpers contra float ----
+const toCents = (v: number) => Math.round(v * 100); // trata 29.9 -> 2990
+const fromCents = (c: number) => Number((c / 100).toFixed(2)); // garante 2 casas
+
 /**
  * POST /api/plan/subscribe
  * Cria uma assinatura no Mercado Pago.
@@ -27,7 +31,7 @@ export async function POST(req: NextRequest) {
     const rawCookie = req.headers.get("cookie");
     console.debug("plan/subscribe -> Cookie recebido:", rawCookie || "NENHUM COOKIE");
 
-    // 2) Obtém a sessão usando getServerSession passando um objeto com req e as opções
+    // 2) Obtém a sessão
     const session = await getServerSession({ req, ...authOptions });
     console.debug("plan/subscribe -> Sessão retornada:", session);
 
@@ -36,16 +40,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
-    // 3) Lê os dados do corpo da requisição
+    // 3) Lê o corpo
     const body = await req.json();
-    const { planType = 'monthly', affiliateCode, agencyInviteCode } = body as {
-      planType?: 'monthly' | 'annual';
+    const { planType = "monthly", affiliateCode, agencyInviteCode } = body as {
+      planType?: "monthly" | "annual";
       affiliateCode?: string;
       agencyInviteCode?: string;
     };
     console.debug("plan/subscribe -> Body recebido:", body);
 
-    // 4) Conecta ao banco de dados e busca o usuário via email da sessão
+    // 4) DB + usuário
     await connectToDatabase();
     const user = await User.findOne({ email: session.user.email });
     if (!user) {
@@ -53,95 +57,94 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
     }
 
-    // 5) Define o preço base considerando plano e convite de agência
-    let monthlyPrice: number;
-    let price: number;
+    // 5) precificação em CENTAVOS sempre
+    let monthlyBase = planType === "annual" ? ANNUAL_MONTHLY_PRICE : MONTHLY_PRICE;
+    let isAgencyGuest = false;
+
     if (agencyInviteCode) {
       const agency = await AgencyModel.findOne({ inviteCode: agencyInviteCode });
       if (!agency) {
         console.error("plan/subscribe -> Código de agência inválido:", agencyInviteCode);
         return NextResponse.json({ error: "Código de agência inválido." }, { status: 400 });
       }
-      if (agency.planStatus !== 'active') {
+      if (agency.planStatus !== "active") {
         console.error(`plan/subscribe -> Agência ${agency._id} com plano inativo`);
-        return NextResponse.json({ error: 'Agência sem assinatura ativa.' }, { status: 403 });
+        return NextResponse.json({ error: "Agência sem assinatura ativa." }, { status: 403 });
       }
-
       if (user.agency && user.agency.toString() !== agency._id.toString()) {
         return NextResponse.json(
-          { error: 'Usuário já vinculado a outra agência. Saia da atual antes de prosseguir.' },
+          { error: "Usuário já vinculado a outra agência. Saia da atual antes de prosseguir." },
           { status: 409 }
         );
       }
 
       const activeGuests = await User.countDocuments({
         agency: agency._id,
-        role: { $ne: 'agency' },
-        planStatus: 'active',
+        role: { $ne: "agency" },
+        planStatus: "active",
       });
-      const useGuestPricing = activeGuests === 0;
+      isAgencyGuest = activeGuests === 0;
 
-      monthlyPrice =
-        planType === 'annual'
-          ? useGuestPricing
-            ? AGENCY_GUEST_ANNUAL_MONTHLY_PRICE
-            : ANNUAL_MONTHLY_PRICE
-          : useGuestPricing
-            ? AGENCY_GUEST_MONTHLY_PRICE
-            : MONTHLY_PRICE;
-
-      price = planType === 'annual' ? monthlyPrice * 12 : monthlyPrice;
+      if (planType === "annual") {
+        monthlyBase = isAgencyGuest ? AGENCY_GUEST_ANNUAL_MONTHLY_PRICE : ANNUAL_MONTHLY_PRICE;
+      } else {
+        monthlyBase = isAgencyGuest ? AGENCY_GUEST_MONTHLY_PRICE : MONTHLY_PRICE;
+      }
 
       user.pendingAgency = agency._id;
-    } else {
-      monthlyPrice = planType === 'annual' ? ANNUAL_MONTHLY_PRICE : MONTHLY_PRICE;
-      price = planType === 'annual' ? monthlyPrice * 12 : monthlyPrice;
     }
 
-    // 6) Se houver affiliateCode, valida e aplica desconto (10%)
+    // centavos
+    let monthlyCents = toCents(monthlyBase);
+    let totalCents = planType === "annual" ? monthlyCents * 12 : monthlyCents;
+
+    // 6) affiliate desconto 10%
     if (affiliateCode) {
       const affUser = await User.findOne({ affiliateCode });
       if (!affUser) {
         console.error("plan/subscribe -> Cupom inválido:", affiliateCode);
         return NextResponse.json({ error: "Cupom de afiliado inválido." }, { status: 400 });
       }
-      // Impede que o usuário use seu próprio cupom
       if ((affUser._id as Types.ObjectId).equals(user._id as Types.ObjectId)) {
         console.error("plan/subscribe -> Tentativa de uso do próprio cupom:", affiliateCode);
-        return NextResponse.json(
-          { error: "Você não pode usar seu próprio cupom." },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: "Você não pode usar seu próprio cupom." }, { status: 400 });
       }
-      // Aplica desconto de 10%
-      monthlyPrice = parseFloat((monthlyPrice * 0.9).toFixed(2));
-      price = planType === 'annual' ? parseFloat((monthlyPrice * 12).toFixed(2)) : monthlyPrice;
+      // aplica 10% em centavos (arredonda corretamente)
+      monthlyCents = Math.round((monthlyCents * 90) / 100);
+      totalCents = planType === "annual" ? monthlyCents * 12 : monthlyCents;
       user.affiliateUsed = affiliateCode;
     }
 
+    const monthly = fromCents(monthlyCents);
+    const total = fromCents(totalCents);
 
-    // 7) Atualiza o status do plano para "pending" e salva o usuário
+    // 7) status pendente
     user.planStatus = "pending";
     await user.save();
 
-    // 8) Cria a assinatura no Mercado Pago
-    const appUrl =
-      process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL;
-    if (!appUrl) {
-      throw new Error(
-        "NEXT_PUBLIC_APP_URL ou NEXTAUTH_URL não está definida"
-      );
-    }
+    // 8) Preapproval no Mercado Pago
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL;
+    if (!appUrl) throw new Error("NEXT_PUBLIC_APP_URL ou NEXTAUTH_URL não está definida");
+
+    const txAmount = planType === "annual" ? total : monthly; // número com exatamente 2 casas
+
+    console.debug("plan/subscribe -> Valores:", {
+      planType,
+      monthlyBase,
+      monthly: monthly.toFixed(2),
+      total: total.toFixed(2),
+      txAmount: txAmount.toFixed(2),
+    });
 
     const preapprovalData = {
       reason: planType === "annual" ? "Plano Anual" : "Plano Mensal",
       back_url: `${appUrl}/dashboard`,
-      external_reference: user._id.toString(), // Utilizado para o webhook
+      external_reference: user._id.toString(),
       payer_email: user.email,
       auto_recurring: {
         frequency: planType === "annual" ? 12 : 1,
         frequency_type: "months",
-        transaction_amount: planType === "annual" ? price : monthlyPrice,
+        transaction_amount: txAmount, // sempre 2 casas
         currency_id: "BRL",
       },
     } as any;
@@ -155,12 +158,12 @@ export async function POST(req: NextRequest) {
     user.planType = planType;
     await user.save();
 
-    // 9) Retorna o link de pagamento, o id da assinatura e o preço aplicado
+    // 9) Retorno
     return NextResponse.json({
       initPoint,
       subscriptionId,
       message: "Assinatura criada. Redirecione o usuário para esse link.",
-      price,
+      price: planType === "annual" ? total : monthly,
     });
   } catch (error: unknown) {
     console.error("Erro em /api/plan/subscribe:", error);
