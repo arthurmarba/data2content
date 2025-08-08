@@ -457,7 +457,9 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
           {loading ? <FaSpinner className="w-5 h-5 animate-spin" /> : "Assinar agora"}
         </button>
         <p className="mt-2 text-center text-xs text-gray-500">
-          Pagamento seguro via Mercado Pago. Sem fidelidade — cancele quando quiser.
+          {planType === "annual_one_time"
+            ? "Pagamento processado no cartão em 12 parcelas sem juros. Você recebe acesso por 12 meses (não renova automaticamente)."
+            : "Pagamento seguro via Mercado Pago. Sem fidelidade — cancele quando quiser."}
         </p>
 
         {/* Mensagens */}

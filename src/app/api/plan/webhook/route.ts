@@ -112,7 +112,8 @@ export async function POST(request: NextRequest) {
     // console.log("[plan/webhook] Conectado ao banco.");
 
     const body = await request.json();
-    // console.log("[plan/webhook] Corpo JSON parseado:", body);
+    // Log básico do tipo e dados recebidos
+    console.log("[plan/webhook] type:", body.type, "data:", body.data);
 
     if (!body.data || !body.data.id) {
       // console.log("[plan/webhook] Notificação sem 'data.id' no corpo.");
@@ -160,10 +161,20 @@ export async function POST(request: NextRequest) {
       if (paymentDetails.status === "approved") {
       //   console.log(`[plan/webhook] Pagamento ${paymentId} APROVADO. Atualizando usuário ${user._id}`);
         user.planStatus = "active";
-        const approvalDate = paymentDetails.date_approved ? new Date(paymentDetails.date_approved) : new Date();
+        const approvalDate = paymentDetails.date_approved
+          ? new Date(paymentDetails.date_approved)
+          : new Date();
         const metaPlanType = paymentDetails.metadata?.planType as string | undefined;
         const days = metaPlanType === 'annual_one_time' ? 365 : 30;
-        user.planExpiresAt = new Date(approvalDate.getTime() + days * 24 * 60 * 60 * 1000);
+        const baseDate =
+          metaPlanType === 'annual_one_time' &&
+          user.planExpiresAt &&
+          user.planExpiresAt > approvalDate
+            ? user.planExpiresAt
+            : approvalDate;
+        user.planExpiresAt = new Date(
+          new Date(baseDate).getTime() + days * 24 * 60 * 60 * 1000
+        );
         if (metaPlanType === 'annual_one_time' || metaPlanType === 'annual' || metaPlanType === 'monthly') {
           user.planType = metaPlanType as 'annual_one_time' | 'annual' | 'monthly';
         }

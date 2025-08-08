@@ -49,6 +49,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
     }
 
+    // Cancela qualquer preapproval ativo para evitar dupla cobrança
+    if (user.paymentGatewaySubscriptionId) {
+      try {
+        await mercadopago.preapproval.update(user.paymentGatewaySubscriptionId, {
+          status: "cancelled",
+        });
+      } catch {}
+      user.paymentGatewaySubscriptionId = undefined;
+    }
+
     let monthlyBase = ANNUAL_MONTHLY_PRICE;
     let isAgencyGuest = false;
 
@@ -104,6 +114,15 @@ export async function POST(req: NextRequest) {
       throw new Error("NEXT_PUBLIC_APP_URL ou NEXTAUTH_URL não está definida");
     }
 
+    const diffId = process.env.MP_DIFF_PRICING_ID
+      ? Number(process.env.MP_DIFF_PRICING_ID)
+      : undefined;
+    if (!diffId)
+      return NextResponse.json(
+        { error: "Configurar MP_DIFF_PRICING_ID para 12x sem juros." },
+        { status: 500 }
+      );
+
     const preference = {
       items: [
         {
@@ -121,11 +140,13 @@ export async function POST(req: NextRequest) {
         failure: `${appUrl}/dashboard`,
       },
       auto_return: "approved",
+      binary_mode: true,
       payment_methods: {
         installments: 12,
         default_installments: 12,
+        excluded_payment_types: [{ id: "ticket" }, { id: "bank_transfer" }],
       },
-      differential_pricing: { id: Number(process.env.MP_DIFF_PRICING_ID) || undefined },
+      differential_pricing: { id: diffId },
       metadata: {
         planType: "annual_one_time",
         affiliateCode: affiliateCode || undefined,
@@ -134,6 +155,10 @@ export async function POST(req: NextRequest) {
     } as any;
 
     const responseMP = await mercadopago.preferences.create({ body: preference });
+    const preferenceId = responseMP.body.id;
+    console.log("[subscribe-one-time] preference_id:", preferenceId);
+    user.lastProcessedPaymentId = preferenceId;
+    await user.save();
     const initPoint = responseMP.body.init_point;
 
     return NextResponse.json({
