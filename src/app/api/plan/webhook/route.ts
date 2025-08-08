@@ -262,7 +262,15 @@ export async function POST(request: NextRequest) {
           const affUser = await User.findOne({ affiliateCode: user.affiliateUsed });
           if (affUser) {
             const commissionRate = 0.1; // 10%
-            const transactionAmount = body.data.transaction_amount || 0;
+            let transactionAmount = body.data?.transaction_amount || 0;
+
+            if (!transactionAmount && body.data?.payment_id) {
+              try {
+                const paymentResp = await mercadopago.payment.get(body.data.payment_id);
+                transactionAmount = paymentResp.body?.transaction_amount || 0;
+              } catch {}
+            }
+
             const commission = transactionAmount * commissionRate;
 
             affUser.affiliateBalance = (affUser.affiliateBalance || 0) + commission;
@@ -283,7 +291,9 @@ export async function POST(request: NextRequest) {
             }
             affUser.commissionLog.push(commissionEntry);
             await affUser.save();
-            console.log(`[plan/webhook] Comissão de ${commission.toFixed(2)} creditada para afiliado=${affUser._id}. Log adicionado. Novo saldo: ${affUser.affiliateBalance?.toFixed(2)}`);
+            console.log(
+              `[plan/webhook] Comissão de ${commission.toFixed(2)} creditada para afiliado=${affUser._id}. Log adicionado. Novo saldo: ${affUser.affiliateBalance?.toFixed(2)}`
+            );
           } else {
             console.warn(`[plan/webhook] Afiliado ${user.affiliateUsed} não encontrado.`);
           }
