@@ -139,6 +139,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
 
   const isPending = user.planStatus === "pending";
   const isActive = user.planStatus === "active";
+  const isNonRenewing = user.planStatus === "non_renewing";
   const userPlanType = user.planType;
 
   // --- subscribe
@@ -234,13 +235,13 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
     const obs = new IntersectionObserver((entries) => {
       const entry = entries[0];
       if (!entry) return;
-      const shouldShow = !entry.isIntersecting && !isActive && !isPending;
+      const shouldShow = !entry.isIntersecting && !isActive && !isNonRenewing && !isPending;
       setShowStickyCTA(shouldShow);
     }, { root: null, threshold: 0, rootMargin: "0px" });
 
     obs.observe(el);
     return () => obs.disconnect();
-  }, [isActive, isPending]);
+  }, [isActive, isNonRenewing, isPending]);
 
   // --- atalhos de lista
   const benefitsList: string[] = [
@@ -264,7 +265,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
   ];
 
   // --- estados ativos/pendentes (cards compactos)
-  if (isActive) {
+  if (isActive || isNonRenewing) {
     const expires = user.planExpiresAt
       ? new Date(user.planExpiresAt).toLocaleDateString("pt-BR")
       : "Data Indefinida";
@@ -272,23 +273,27 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
       <div className="border border-green-300 rounded-xl shadow-sm p-4 sm:p-6 bg-green-50 text-green-800">
         <div className="flex items-center gap-3 mb-2">
           <FaCheckCircle className="w-6 h-6 text-green-600" />
-          <h2 className="text-lg font-semibold">Seu plano está ativo!</h2>
+          <h2 className="text-lg font-semibold">Seu plano está {isNonRenewing ? "ativo (não-renovável)" : "ativo"}!</h2>
         </div>
-        <p className="text-sm mb-1 pl-9">
-          Renova automaticamente em <strong className="font-medium">{expires}</strong>.{' '}
-          <a href="/dashboard/settings" className="underline text-brand-pink">
-            Gerencie/cancele nas configurações
-          </a>.
-        </p>
-        <p className="text-sm mt-2 pl-9">
-          <button
-            onClick={handleCancel}
-            disabled={loading}
-            className="underline text-brand-pink"
-          >
-            cancelar assinatura
-          </button>
-        </p>
+        {isNonRenewing ? (
+          <p className="text-sm mb-1 pl-9">
+            Seu acesso permanece até <strong className="font-medium">{expires}</strong>. Não haverá nova cobrança.
+          </p>
+        ) : (
+          <p className="text-sm mb-1 pl-9">
+            Renova automaticamente em <strong className="font-medium">{expires}</strong>.{' '}
+            <a href="/dashboard/settings" className="underline text-brand-pink">Gerencie/cancele nas configurações</a>.
+          </p>
+        )}
+
+        {!isNonRenewing && (
+          <p className="text-sm mt-2 pl-9">
+            <button onClick={handleCancel} disabled={loading} className="underline text-brand-pink">
+              cancelar assinatura
+            </button>
+          </p>
+        )}
+
         {statusMessage && (
           <FeedbackMessage message={statusMessage.message} type={statusMessage.type} />
         )}
