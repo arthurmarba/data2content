@@ -152,7 +152,7 @@ export async function POST(req: NextRequest) {
         planType === "annual"
           ? "Plano Anual (12x sem juros - recorrente)"
           : "Plano Mensal",
-      back_url: `${appUrl}/dashboard`,
+      back_url: `${appUrl}/dashboard?from=mp`,
       external_reference: user._id.toString(),
       payer_email: user.email,
       auto_recurring: {

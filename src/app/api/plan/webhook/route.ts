@@ -125,29 +125,25 @@ export async function POST(request: NextRequest) {
 
     const eventType = body.type;
 
-    // Eventos de pagamento: registrar e guardar motivo da recusa
+    // Eventos de pagamento aprovados ou rejeitados
     if (eventType === "payment") {
       try {
         const paymentId = body?.data?.id;
-        if (paymentId) {
-          const { body: p } = await mercadopago.payment.get(paymentId);
-          console.warn(
-            "[MP payment] id=%s status=%s detail=%s ext_ref=%s preapproval_id=%s",
-            p.id,
-            p.status,
-            p.status_detail,
-            p.external_reference,
-            p.preapproval_id
-          );
+        if (!paymentId) {
+          return NextResponse.json({ received: true }, { status: 200 });
+        }
 
-          let user: any = null;
-          if (p.preapproval_id) {
-            user = await User.findOne({ paymentGatewaySubscriptionId: p.preapproval_id });
-          }
-          if (!user && p.external_reference) {
-            user = await User.findById(p.external_reference);
-          }
-          if (user && p.status === "rejected") {
+        const { body: p } = await mercadopago.payment.get(paymentId);
+
+        // Se rejeitado, salva último erro
+        if (p.status === "rejected") {
+          const userByPreapproval = p.preapproval_id
+            ? await User.findOne({ paymentGatewaySubscriptionId: p.preapproval_id })
+            : null;
+          const user =
+            userByPreapproval || (p.external_reference ? await User.findById(p.external_reference) : null);
+
+          if (user) {
             user.lastPaymentError = {
               at: new Date(),
               paymentId: String(p.id),
@@ -156,11 +152,76 @@ export async function POST(request: NextRequest) {
             };
             await user.save();
           }
+          return NextResponse.json({ received: true, noted: "payment-rejected" }, { status: 200 });
         }
+
+        // Ativar plano quando aprovado/accredited
+        if (p.status === "approved" || p.status_detail === "accredited") {
+          const userByPreapproval = p.preapproval_id
+            ? await User.findOne({ paymentGatewaySubscriptionId: p.preapproval_id })
+            : null;
+          const user =
+            userByPreapproval || (p.external_reference ? await User.findById(p.external_reference) : null);
+
+          if (!user) {
+            return NextResponse.json({ received: true }, { status: 200 });
+          }
+
+          const eventId = String(p.id);
+          if (user.lastProcessedPaymentId === eventId) {
+            return NextResponse.json({ received: true, alreadyProcessed: true }, { status: 200 });
+          }
+
+          const now = new Date();
+          user.planStatus = "active";
+          user.planExpiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+          user.lastPaymentError = undefined;
+          user.lastProcessedPaymentId = eventId;
+
+          if (user.pendingAgency) {
+            user.agency = user.pendingAgency;
+            user.pendingAgency = null;
+            user.role = "guest";
+          }
+
+          // Comissão do afiliado na 1ª cobrança
+          if (user.affiliateUsed) {
+            try {
+              const affUser = await User.findOne({ affiliateCode: user.affiliateUsed });
+              if (affUser) {
+                const commissionRate = 0.1;
+                const amount = Number(p.transaction_amount || 0);
+                const commission = amount * commissionRate;
+
+                affUser.affiliateBalance = (affUser.affiliateBalance || 0) + commission;
+                affUser.affiliateInvites = (affUser.affiliateInvites || 0) + 1;
+                if (affUser.affiliateInvites % 5 === 0 && affUser.affiliateInvites > 0) {
+                  affUser.affiliateRank = (affUser.affiliateRank || 1) + 1;
+                }
+                affUser.commissionLog = affUser.commissionLog || [];
+                affUser.commissionLog.push({
+                  date: new Date(),
+                  amount: commission,
+                  description: `Comissão (1ª cobrança) de ${user.email || user._id}`,
+                  sourcePaymentId: eventId,
+                  referredUserId: user._id,
+                });
+                await affUser.save();
+              }
+            } finally {
+              user.affiliateUsed = undefined;
+            }
+          }
+
+          await user.save();
+          return NextResponse.json({ received: true, activatedOn: "payment.approved" }, { status: 200 });
+        }
+
+        return NextResponse.json({ received: true, paymentStatus: p.status }, { status: 200 });
       } catch (e) {
-        console.error("[MP payment] Falha ao buscar detalhes:", e);
+        console.error("[webhook/payment] erro:", e);
+        return NextResponse.json({ received: true }, { status: 200 });
       }
-      return NextResponse.json({ received: true, noted: "payment-event" }, { status: 200 });
     }
 
     // authorized_payment -> renovar assinatura + comissão na 1ª cobrança
@@ -246,8 +307,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true }, { status: 200 });
     }
 
-    // plan/preapproval -> update status only
-    if (eventType === "plan" || eventType === "preapproval") {
+    // plan/preapproval/subscription_preapproval -> update status only
+    if (
+      eventType === "subscription_preapproval" ||
+      eventType === "preapproval" ||
+      eventType === "plan"
+    ) {
       const subscriptionId = body.data?.subscription_id || body.data?.id;
       if (!subscriptionId) {
         return NextResponse.json({ error: "subscription_id ausente" }, { status: 200 });
@@ -258,7 +323,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ received: true }, { status: 200 });
       }
 
-      const eventId = body.data.id;
+      const eventId = String(body.data.id);
       if (user.lastProcessedPaymentId === eventId) {
         return NextResponse.json({ received: true, alreadyProcessed: true }, { status: 200 });
       }

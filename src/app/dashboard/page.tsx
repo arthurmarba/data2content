@@ -219,6 +219,16 @@ export default function MainDashboard() {
     }
   }, [status, session, router]);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('from') === 'mp') {
+        updateSession?.();
+        router.replace('/dashboard');
+      }
+    }
+  }, [router, updateSession]);
+
   const cardVariants = {
     hidden: { opacity: 0, y: 15 },
     visible: (i: number = 0) => ({
