@@ -91,10 +91,21 @@ export default function ScreenshotCarousel({ items }: ScreenshotCarouselProps) {
       <div
         ref={carouselRef}
         className="overflow-x-auto snap-x snap-mandatory hide-scrollbar"
-        onTouchStart={(e) => setTouchStart(e.touches[0].clientX)}
+        onTouchStart={(e) => {
+          // CORREÇÃO: Garante que o objeto touch existe antes de usá-lo
+          const touch = e.touches[0];
+          if (touch) {
+            setTouchStart(touch.clientX);
+          }
+        }}
         onTouchEnd={(e) => {
           if (touchStart === null) return;
-          const deltaX = e.changedTouches[0].clientX - touchStart;
+          
+          // CORREÇÃO: Garante que o objeto touch existe antes de usá-lo
+          const touch = e.changedTouches[0];
+          if (!touch) return;
+
+          const deltaX = touch.clientX - touchStart;
           if (deltaX < -50) {
             scrollCarousel('right');
           } else if (deltaX > 50) {
