@@ -35,11 +35,23 @@ export interface Indicator {
 /** Tipos adicionados para ProDashboard **/
 
 // Interface estendida para a sessão do usuário
+import type { PlanStatus, PlanType } from "@/types/enums";
+
 export interface ExtendedUser {
   id: string;
   name?: string | null;
   email?: string | null;
   image?: string | null;
+  planStatus?: PlanStatus;
+  planExpiresAt?: string | null;
+  planType?: PlanType;
+  affiliateCode?: string | null;
+  affiliateBalance?: number;
+  affiliateRank?: number;
+  affiliateInvites?: number;
+  provider?: string;
+  isInstagramConnected?: boolean;
+  whatsappVerified?: boolean;
 }
 
 // Tipo para cada item de métrica

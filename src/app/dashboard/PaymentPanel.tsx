@@ -282,7 +282,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
         ) : (
           <p className="text-sm mb-1 pl-9">
             Renova automaticamente em <strong className="font-medium">{expires}</strong>.{' '}
-            <a href="/dashboard/settings" className="underline text-brand-pink">Gerencie/cancele nas configurações</a>.
+            <a href="/dashboard/settings#subscription-management-title" className="underline text-brand-pink">Gerencie/cancele nas configurações</a>.
           </p>
         )}
 
@@ -395,7 +395,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
           />
           <span>
             Esta assinatura renova automaticamente{' '}
-            <a href="/dashboard/settings" className="underline text-brand-pink">
+            <a href="/dashboard/settings#subscription-management-title" className="underline text-brand-pink">
               Gerir assinatura
             </a>
           </span>

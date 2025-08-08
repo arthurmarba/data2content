@@ -41,6 +41,7 @@ declare module "next-auth" {
         lastInstagramSyncAttempt?: Date | null;
         lastInstagramSyncSuccess?: boolean | null;
         planStatus?: string | null;
+        planType?: string | null;
         planExpiresAt?: Date | null;
         affiliateCode?: string | null;
         facebookProviderAccountId?: string | null;
@@ -59,6 +60,7 @@ declare module "next-auth" {
         agencyPlanStatus?: string | null;
         agencyPlanType?: string | null;
         planStatus?: string | null;
+        planType?: string | null;
         planExpiresAt?: string | null;
         affiliateCode?: string | null;
         affiliateBalance?: number;
@@ -98,10 +100,11 @@ declare module "next-auth/jwt" {
          instagramUsername?: string | null;
          igConnectionError?: string | null;
          availableIgAccounts?: ServiceAvailableIgAccount[] | null;
-         instagramAccessToken?: string | null; 
+         instagramAccessToken?: string | null;
          lastInstagramSyncAttempt?: Date | string | null;
          lastInstagramSyncSuccess?: boolean | null;
          planStatus?: string | null;
+         planType?: string | null;
          planExpiresAt?: Date | string | null;
          affiliateCode?: string | null;
          image?: string | null;
@@ -496,9 +499,10 @@ export const authOptions: NextAuthOptions = {
                     (authUserFromProvider as NextAuthUserArg).lastInstagramSyncSuccess = dbUserRecord.lastInstagramSyncSuccess;
                     (authUserFromProvider as NextAuthUserArg).instagramSyncErrorMsg = dbUserRecord.instagramSyncErrorMsg; 
                     (authUserFromProvider as NextAuthUserArg).availableIgAccounts = dbUserRecord.availableIgAccounts as ServiceAvailableIgAccount[] | null | undefined;
-                    (authUserFromProvider as NextAuthUserArg).instagramAccessToken = dbUserRecord.instagramAccessToken; 
+                    (authUserFromProvider as NextAuthUserArg).instagramAccessToken = dbUserRecord.instagramAccessToken;
 
                     (authUserFromProvider as NextAuthUserArg).planStatus = dbUserRecord.planStatus;
+                    (authUserFromProvider as NextAuthUserArg).planType = dbUserRecord.planType;
                     (authUserFromProvider as NextAuthUserArg).planExpiresAt = dbUserRecord.planExpiresAt;
                     (authUserFromProvider as NextAuthUserArg).affiliateCode = dbUserRecord.affiliateCode;
                     (authUserFromProvider as NextAuthUserArg).agency = dbUserRecord.agency ? dbUserRecord.agency.toString() : undefined;
@@ -546,9 +550,10 @@ export const authOptions: NextAuthOptions = {
                 token.lastInstagramSyncSuccess = (userFromSignIn as NextAuthUserArg).lastInstagramSyncSuccess;
                 token.igConnectionError = (userFromSignIn as NextAuthUserArg).instagramSyncErrorMsg ?? null; 
                 token.availableIgAccounts = (userFromSignIn as NextAuthUserArg).availableIgAccounts;
-                token.instagramAccessToken = (userFromSignIn as NextAuthUserArg).instagramAccessToken; 
+                token.instagramAccessToken = (userFromSignIn as NextAuthUserArg).instagramAccessToken;
 
                 token.planStatus = (userFromSignIn as NextAuthUserArg).planStatus;
+                token.planType = (userFromSignIn as NextAuthUserArg).planType;
                 token.planExpiresAt = (userFromSignIn as NextAuthUserArg).planExpiresAt;
                 token.affiliateCode = (userFromSignIn as NextAuthUserArg).affiliateCode;
                 token.agencyId = (userFromSignIn as NextAuthUserArg).agency ?? null;
@@ -576,6 +581,7 @@ export const authOptions: NextAuthOptions = {
                 let needsDbRefresh = trigger === 'update' || // Explicit update
                                       !token.role ||  // Missing essential data
                                       typeof token.planStatus === 'undefined' ||
+                                      typeof token.planType === 'undefined' ||
                                       typeof token.affiliateCode === 'undefined' ||
                                       (typeof token.isInstagramConnected === 'undefined' && typeof token.availableIgAccounts === 'undefined');
 
@@ -595,7 +601,7 @@ export const authOptions: NextAuthOptions = {
                     try {
                         await connectToDatabase();
                         const dbUser = await DbUser.findById(token.id)
-                            .select('name email image role agency provider providerAccountId facebookProviderAccountId isNewUserForOnboarding onboardingCompletedAt isInstagramConnected instagramAccountId username lastInstagramSyncAttempt lastInstagramSyncSuccess instagramSyncErrorMsg planStatus planExpiresAt affiliateCode availableIgAccounts instagramAccessToken')
+                            .select('name email image role agency provider providerAccountId facebookProviderAccountId isNewUserForOnboarding onboardingCompletedAt isInstagramConnected instagramAccountId username lastInstagramSyncAttempt lastInstagramSyncSuccess instagramSyncErrorMsg planStatus planType planExpiresAt affiliateCode availableIgAccounts instagramAccessToken')
                             .lean<IUser>(); // Use lean for performance
 
                         if (dbUser) {
@@ -622,6 +628,7 @@ export const authOptions: NextAuthOptions = {
                             token.instagramAccessToken = dbUser.instagramAccessToken ?? token.instagramAccessToken ?? null;
 
                             token.planStatus = dbUser.planStatus ?? token.planStatus ?? 'inactive';
+                            token.planType = dbUser.planType ?? token.planType ?? null;
                             token.planExpiresAt = dbUser.planExpiresAt ?? token.planExpiresAt ?? null;
                             token.affiliateCode = dbUser.affiliateCode ?? token.affiliateCode ?? null;
                             token.agencyId = dbUser.agency ? dbUser.agency.toString() : token.agencyId ?? null;
@@ -698,6 +705,7 @@ export const authOptions: NextAuthOptions = {
             session.user.lastInstagramSyncSuccess = token.lastInstagramSyncSuccess;
 
             session.user.planStatus = token.planStatus ?? 'inactive';
+            session.user.planType = token.planType ?? null;
             session.user.planExpiresAt = token.planExpiresAt ? (typeof token.planExpiresAt === 'string' ? token.planExpiresAt : new Date(token.planExpiresAt).toISOString()) : null;
             session.user.affiliateCode = token.affiliateCode;
             session.user.agencyId = token.agencyId ?? null;
@@ -715,12 +723,13 @@ export const authOptions: NextAuthOptions = {
             try {
                 await connectToDatabase();
                 const dbUserCheck = await DbUser.findById(token.id)
-                    .select('planStatus planExpiresAt name role image') // Select only needed fields
-                    .lean<Pick<IUser, 'planStatus' | 'planExpiresAt' | 'name' | 'role' | 'image'>>();
+                    .select('planStatus planType planExpiresAt name role image') // Select only needed fields
+                    .lean<Pick<IUser, 'planStatus' | 'planType' | 'planExpiresAt' | 'name' | 'role' | 'image'>>();
 
                 if (dbUserCheck && session.user) {
                     logger.info(`${TAG_SESSION} Revalidando sessão com dados do DB para User ID: ${token.id}. DB planStatus: ${dbUserCheck.planStatus}. Session planStatus (antes da revalidação DB): ${session.user.planStatus}`);
                     session.user.planStatus = dbUserCheck.planStatus ?? session.user.planStatus ?? 'inactive';
+                    session.user.planType = dbUserCheck.planType ?? session.user.planType ?? null;
                     if (dbUserCheck.planExpiresAt instanceof Date) {
                         session.user.planExpiresAt = dbUserCheck.planExpiresAt.toISOString();
                     } else if (dbUserCheck.planExpiresAt === null) { // Explicitly handle null
