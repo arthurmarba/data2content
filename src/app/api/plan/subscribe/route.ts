@@ -42,12 +42,17 @@ export async function POST(req: NextRequest) {
 
     // 3) Lê o corpo
     const body = await req.json();
-    const { planType = "monthly", affiliateCode, agencyInviteCode } = body as {
+    const { planType = "monthly", affiliateCode, agencyInviteCode, autoRenewConsent } = body as {
       planType?: "monthly" | "annual";
       affiliateCode?: string;
       agencyInviteCode?: string;
+      autoRenewConsent?: boolean;
     };
     console.debug("plan/subscribe -> Body recebido:", body);
+
+    if (!autoRenewConsent) {
+      return NextResponse.json({ error: "É necessário aceitar a renovação automática." }, { status: 400 });
+    }
 
     // 4) DB + usuário
     await connectToDatabase();
@@ -120,6 +125,7 @@ export async function POST(req: NextRequest) {
 
     // 7) status pendente
     user.planStatus = "pending";
+    user.autoRenewConsentAt = new Date();
     await user.save();
 
     // 8) Preapproval no Mercado Pago

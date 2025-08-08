@@ -59,6 +59,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
   const [initPoint, setInitPoint] = useState("");
+  const [autoRenewAccepted, setAutoRenewAccepted] = useState(false);
 
   const affiliateRef = useRef<HTMLInputElement | null>(null);
 
@@ -154,6 +155,10 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
   // --- subscribe
   async function handleSubscribe(e?: React.FormEvent) {
     e?.preventDefault();
+    if (!autoRenewAccepted) {
+      setStatusMessage({ message: "É necessário aceitar a renovação automática.", type: "error" });
+      return;
+    }
     setLoading(true);
     setStatusMessage(null);
     setInitPoint("");
@@ -168,6 +173,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
           planType,
           affiliateCode: affiliateCodeInput.trim() === "" ? undefined : affiliateCodeInput.trim(),
           agencyInviteCode: agencyInviteCode || undefined,
+          autoRenewConsent: true,
         }),
       });
       const data = await res.json();
@@ -185,6 +191,26 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
       }
     } catch (error: unknown) {
       let errorMsg = "Erro desconhecido ao processar assinatura.";
+      if (error instanceof Error) errorMsg = error.message;
+      setStatusMessage({ message: `Erro de rede: ${errorMsg}`, type: "error" });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleCancel() {
+    setLoading(true);
+    setStatusMessage(null);
+    try {
+      const res = await fetch("/api/plan/cancel", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setStatusMessage({ message: `Erro: ${data.error || "Falha ao cancelar assinatura."}`, type: "error" });
+      } else {
+        setStatusMessage({ message: data.message || "Assinatura cancelada.", type: "success" });
+      }
+    } catch (error: unknown) {
+      let errorMsg = "Erro desconhecido ao cancelar assinatura.";
       if (error instanceof Error) errorMsg = error.message;
       setStatusMessage({ message: `Erro de rede: ${errorMsg}`, type: "error" });
     } finally {
@@ -260,7 +286,20 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
             {user.planExpiresAt ? new Date(user.planExpiresAt).toLocaleDateString("pt-BR") : "Data Indefinida"}
           </strong>
         </p>
-        <p className="text-sm mt-2 pl-9">Agora conecte sua conta do Instagram e conclua o onboarding.</p>
+        <p className="text-sm mt-2 pl-9">
+          Renova automaticamente. Você pode
+          <button
+            onClick={handleCancel}
+            disabled={loading}
+            className="underline text-brand-pink ml-1"
+          >
+            cancelar aqui
+          </button>
+          .
+        </p>
+        {statusMessage && (
+          <FeedbackMessage message={statusMessage.message} type={statusMessage.type} />
+        )}
       </div>
     );
   }
@@ -344,10 +383,26 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
           )}
         </div>
 
+        {/* consentimento */}
+        <label className="mt-4 flex items-start gap-2 text-sm text-gray-700">
+          <input
+            type="checkbox"
+            checked={autoRenewAccepted}
+            onChange={(e) => setAutoRenewAccepted(e.target.checked)}
+            className="mt-1"
+          />
+          <span>
+            Esta assinatura renova automaticamente.{' '}
+            <a href="/dashboard/settings" className="underline text-brand-pink">
+              Gerir assinatura
+            </a>
+          </span>
+        </label>
+
         {/* CTA principal */}
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || !autoRenewAccepted}
           className="w-full flex items-center justify-center gap-2 bg-brand-pink text-white py-3 rounded-xl font-semibold disabled:opacity-70"
           data-testid="subscribe-cta"
         >
@@ -429,7 +484,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
                   </div>
                 )}
               </div>
-              <button onClick={() => handleSubscribe()} disabled={loading} className="min-w-[120px] inline-flex items-center justify-center gap-2 bg-brand-pink text-white px-4 py-2.5 rounded-lg font-semibold disabled:opacity-70">
+              <button onClick={() => handleSubscribe()} disabled={loading || !autoRenewAccepted} className="min-w-[120px] inline-flex items-center justify-center gap-2 bg-brand-pink text-white px-4 py-2.5 rounded-lg font-semibold disabled:opacity-70">
                 {loading ? <FaSpinner className="w-4 h-4 animate-spin" /> : "Assinar"}
               </button>
             </div>
