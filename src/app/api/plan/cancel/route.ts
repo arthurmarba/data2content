@@ -23,6 +23,8 @@ export async function POST(req: NextRequest) {
     await mercadopago.preapproval.update(user.paymentGatewaySubscriptionId, { status: "cancelled" });
 
     user.planStatus = "canceled";
+    user.paymentGatewaySubscriptionId = undefined;
+    user.planType = undefined;
     await user.save();
 
     return NextResponse.json({ message: "Assinatura cancelada." });
