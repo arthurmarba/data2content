@@ -32,6 +32,7 @@ export default function SettingsPage() {
   const [cancelMessage, setCancelMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [modalCancelLoading, setModalCancelLoading] = useState(false);
   const [modalCancelMessage, setModalCancelMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [lastPaymentError, setLastPaymentError] = useState<{ statusDetail: string; at: string } | null>(null);
 
   useEffect(() => {
     // Definir o título da página dinamicamente no cliente
@@ -41,6 +42,21 @@ export default function SettingsPage() {
       router.replace('/login');
     }
   }, [status, router]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    (async () => {
+      try {
+        const res = await fetch('/api/plan/last-error');
+        if (res.ok) {
+          const data = await res.json();
+          setLastPaymentError(data.lastPaymentError);
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, [status]);
 
   if (status === "loading") {
     return (
@@ -204,6 +220,16 @@ export default function SettingsPage() {
             <section aria-labelledby="subscription-management-title" id="subscription-management-title">
               <h2 className="text-xl font-semibold text-gray-700">Minha Assinatura</h2>
               <div className="mt-4 space-y-3">
+                {lastPaymentError && (
+                  <>
+                    <p className="text-sm text-red-600">
+                      Última tentativa de pagamento foi recusada ({lastPaymentError.statusDetail}) em {new Date(lastPaymentError.at).toLocaleDateString('pt-BR')}.
+                    </p>
+                    <a href="/dashboard#payment-section" className="text-sm text-brand-pink underline">
+                      Tentar novamente
+                    </a>
+                  </>
+                )}
                 {planExpiresFormatted && (
                   <p className="text-sm text-gray-600">
                     Seu acesso expira em <strong className="font-medium">{planExpiresFormatted}</strong>.

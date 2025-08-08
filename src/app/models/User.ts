@@ -259,6 +259,12 @@ export interface IUser extends Document {
     bankAgency?: string;
     bankAccount?: string;
   };
+  lastPaymentError?: {
+    at: Date;
+    paymentId: string;
+    status: string;
+    statusDetail: string;
+  };
   lastProcessedPaymentId?: string;
   communityInspirationOptIn?: boolean;
   communityInspirationOptInDate?: Date | null;
@@ -400,6 +406,12 @@ const userSchema = new Schema<IUser>(
       bankName: { type: String, default: "" },
       bankAgency: { type: String, default: "" },
       bankAccount: { type: String, default: "" },
+    },
+    lastPaymentError: {
+      at: { type: Date },
+      paymentId: { type: String },
+      status: { type: String },
+      statusDetail: { type: String },
     },
     lastProcessedPaymentId: { type: String, default: null, index: true },
     communityInspirationOptIn: { type: Boolean, default: false },

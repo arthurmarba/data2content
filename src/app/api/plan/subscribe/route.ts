@@ -125,6 +125,7 @@ export async function POST(req: NextRequest) {
     const total = fromCents(totalCents);
 
     // 7) status pendente
+    user.lastPaymentError = undefined;
     user.planStatus = "pending";
     user.autoRenewConsentAt = new Date();
     await user.save();

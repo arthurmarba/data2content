@@ -125,24 +125,70 @@ export async function POST(request: NextRequest) {
 
     const eventType = body.type;
 
-    // Ignore standalone payment events
+    // Eventos de pagamento: registrar e guardar motivo da recusa
     if (eventType === "payment") {
-      return NextResponse.json({ received: true, ignored: "payment-event" }, { status: 200 });
+      try {
+        const paymentId = body?.data?.id;
+        if (paymentId) {
+          const { body: p } = await mercadopago.payment.get(paymentId);
+          console.warn(
+            "[MP payment] id=%s status=%s detail=%s ext_ref=%s preapproval_id=%s",
+            p.id,
+            p.status,
+            p.status_detail,
+            p.external_reference,
+            p.preapproval_id
+          );
+
+          let user: any = null;
+          if (p.preapproval_id) {
+            user = await User.findOne({ paymentGatewaySubscriptionId: p.preapproval_id });
+          }
+          if (!user && p.external_reference) {
+            user = await User.findById(p.external_reference);
+          }
+          if (user && p.status === "rejected") {
+            user.lastPaymentError = {
+              at: new Date(),
+              paymentId: String(p.id),
+              status: String(p.status),
+              statusDetail: String(p.status_detail || "unknown"),
+            };
+            await user.save();
+          }
+        }
+      } catch (e) {
+        console.error("[MP payment] Falha ao buscar detalhes:", e);
+      }
+      return NextResponse.json({ received: true, noted: "payment-event" }, { status: 200 });
     }
 
-    // authorized_payment -> renew subscription + commission (first charge only)
+    // authorized_payment -> renovar assinatura + comissão na 1ª cobrança
     if (eventType === "authorized_payment") {
-      const subscriptionId = body.data.subscription_id || body.data.id;
-      if (!subscriptionId) {
-        return NextResponse.json({ error: "subscription_id ausente" }, { status: 200 });
+      let preapprovalId =
+        body.data?.subscription_id ||
+        body.data?.preapproval_id ||
+        body.data?.preapproval?.id ||
+        body.data?.id ||
+        null;
+
+      if (!preapprovalId && body.data?.payment_id) {
+        try {
+          const { body: p } = await mercadopago.payment.get(body.data.payment_id);
+          preapprovalId = p?.preapproval_id || p?.metadata?.preapproval_id || null;
+        } catch {}
       }
 
-      const user = await User.findOne({ paymentGatewaySubscriptionId: subscriptionId });
+      if (!preapprovalId) {
+        return NextResponse.json({ error: "preapproval_id ausente" }, { status: 200 });
+      }
+
+      const user = await User.findOne({ paymentGatewaySubscriptionId: preapprovalId });
       if (!user) {
         return NextResponse.json({ received: true }, { status: 200 });
       }
 
-      const eventId = body.data.id;
+      const eventId = String(body.data.id);
       if (user.lastProcessedPaymentId === eventId) {
         return NextResponse.json({ received: true, alreadyProcessed: true }, { status: 200 });
       }
@@ -194,6 +240,7 @@ export async function POST(request: NextRequest) {
         user.affiliateUsed = undefined;
       }
 
+      user.lastPaymentError = undefined;
       user.lastProcessedPaymentId = eventId;
       await user.save();
       return NextResponse.json({ received: true }, { status: 200 });
