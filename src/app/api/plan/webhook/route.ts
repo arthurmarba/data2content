@@ -6,11 +6,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import mercadopago from "@/app/lib/mercadopago";
 import User, { ICommissionLogEntry } from "@/app/models/User";
-import crypto from 'crypto';
+import { ANNUAL_MONTHLY_PRICE } from "@/config/pricing.config";
+import crypto from "crypto";
 
 export const runtime = "nodejs";
 
 const MERCADOPAGO_WEBHOOK_SECRET = process.env.MERCADOPAGO_WEBHOOK_SECRET;
+
+const toCents = (v: number) => Math.round(v * 100);
+const fromCents = (c: number) => Number((c / 100).toFixed(2));
 
 function validateWebhookSignature(
     requestHeaders: Headers,
@@ -135,8 +139,8 @@ export async function POST(request: NextRequest) {
 
         const { body: p } = await mercadopago.payment.get(paymentId);
 
-        // Se rejeitado, salva último erro
-        if (p.status === "rejected") {
+        // Se rejeitado/refundado/chargeback, salva último erro
+        if (["rejected", "refunded", "cancelled", "charged_back"].includes(p.status)) {
           const userByPreapproval = p.preapproval_id
             ? await User.findOne({ paymentGatewaySubscriptionId: p.preapproval_id })
             : null;
@@ -173,6 +177,75 @@ export async function POST(request: NextRequest) {
           }
 
           const now = new Date();
+
+          if (p.metadata?.planType === "annual_upfront") {
+            // fluxo para pagamento anual à vista
+            user.planStatus = "active";
+            user.planExpiresAt = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+            user.lastPaymentError = undefined;
+            user.lastProcessedPaymentId = eventId;
+
+            if (user.pendingAgency) {
+              user.agency = user.pendingAgency;
+              user.pendingAgency = null;
+              user.role = "guest";
+            }
+
+            // Comissão única sobre o total anual (já com desconto)
+            if (user.affiliateUsed) {
+              const affUser = await User.findOne({ affiliateCode: user.affiliateUsed });
+              if (affUser) {
+                const baseCents =
+                  p.metadata?.commission_base_cents ?? Math.round((p.transaction_amount || 0) * 100);
+                const commission = (baseCents / 100) * 0.1;
+
+                affUser.affiliateBalance = (affUser.affiliateBalance || 0) + commission;
+                affUser.affiliateInvites = (affUser.affiliateInvites || 0) + 1;
+                if (affUser.affiliateInvites % 5 === 0) {
+                  affUser.affiliateRank = (affUser.affiliateRank || 1) + 1;
+                }
+                affUser.commissionLog = affUser.commissionLog || [];
+                affUser.commissionLog.push({
+                  date: new Date(),
+                  amount: commission,
+                  description: `Comissão (plano anual) de ${user.email || user._id}`,
+                  sourcePaymentId: eventId,
+                  referredUserId: user._id,
+                });
+                await affUser.save();
+              }
+              user.affiliateUsed = undefined; // não pagar comissão na renovação
+            }
+
+            // cria preapproval para renovação anual
+            try {
+              const renewFullCents =
+                p.metadata?.renew_full_cents ?? toCents(ANNUAL_MONTHLY_PRICE * 12);
+              const preapproval = await mercadopago.preapproval.create({
+                reason: "Plano Anual (renovação anual)",
+                external_reference: user._id.toString(),
+                payer_email: user.email,
+                auto_recurring: {
+                  frequency: 12,
+                  frequency_type: "months",
+                  transaction_amount: fromCents(renewFullCents),
+                  currency_id: "BRL",
+                  start_date: new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+                },
+              } as any);
+              user.paymentGatewaySubscriptionId = preapproval.body.id;
+            } catch (e) {
+              console.error("[annual-renewal preapproval] erro:", e);
+            }
+
+            await user.save();
+            return NextResponse.json(
+              { received: true, activatedOn: "payment.annual_upfront" },
+              { status: 200 },
+            );
+          }
+
+          // fluxo padrão (mensal)
           user.planStatus = "active";
           user.planExpiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
           user.lastPaymentError = undefined;
@@ -184,7 +257,6 @@ export async function POST(request: NextRequest) {
             user.role = "guest";
           }
 
-          // Comissão do afiliado na 1ª cobrança
           if (user.affiliateUsed) {
             try {
               const affUser = await User.findOne({ affiliateCode: user.affiliateUsed });
@@ -255,7 +327,8 @@ export async function POST(request: NextRequest) {
       }
 
       const now = new Date();
-      user.planExpiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      const cycleDays = user.planType === "annual" ? 365 : 30;
+      user.planExpiresAt = new Date(now.getTime() + cycleDays * 24 * 60 * 60 * 1000);
       user.planStatus = "active";
 
       if (user.pendingAgency) {

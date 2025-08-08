@@ -66,20 +66,18 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
   const affiliateRef = useRef<HTMLInputElement | null>(null);
 
   // --- precificação memorizada
-  const {
-    originalMonthlyPrice,
-    discountedMonthlyPrice,
-    discountPercentage,
-  } = useMemo(() => {
+  const { originalMonthlyPrice, totalAnnualPrice, discountPercentage } = useMemo(() => {
     const originalMonthlyPrice = agencyInviteCode ? AGENCY_GUEST_MONTHLY_PRICE : MONTHLY_PRICE;
-    const discountedMonthlyPrice = agencyInviteCode ? AGENCY_GUEST_ANNUAL_MONTHLY_PRICE : ANNUAL_MONTHLY_PRICE;
-    const totalAnnualPrice = discountedMonthlyPrice * 12;
+    const discountedAnnualMonthly = agencyInviteCode ? AGENCY_GUEST_ANNUAL_MONTHLY_PRICE : ANNUAL_MONTHLY_PRICE;
+    const totalAnnualPrice = discountedAnnualMonthly * 12;
     const originalAnnualPrice = originalMonthlyPrice * 12;
-    const discountPercentage = Math.round(((originalAnnualPrice - totalAnnualPrice) / Math.max(originalAnnualPrice, 1)) * 100);
+    const discountPercentage = Math.round(
+      ((originalAnnualPrice - totalAnnualPrice) / Math.max(originalAnnualPrice, 1)) * 100,
+    );
 
     return {
       originalMonthlyPrice,
-      discountedMonthlyPrice,
+      totalAnnualPrice,
       discountPercentage,
     };
   }, [agencyInviteCode, planType]);
@@ -343,7 +341,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
         ref={formRef}
       >
         <h3 id="plano-title" className="text-lg sm:text-xl font-bold text-center text-brand-dark mb-3">
-          Plano {planType === "monthly" ? "Mensal" : "Anual (12x sem juros)"} Data2Content
+          Plano {planType === "monthly" ? "Mensal" : "Anual"} Data2Content
         </h3>
 
         {/* Toggle minimalista */}
@@ -381,10 +379,14 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
         <div className="text-center mb-4">
           {planType === "annual" ? (
             <>
-              <div className="font-extrabold tracking-tight text-brand-dark text-[clamp(28px,6vw,42px)]">
-                {currencyFormatter.format(discountedMonthlyPrice)} <span className="text-sm text-gray-600">/ mês</span>
-              </div>
-              <p className="text-xs text-green-700 mt-1">12x sem juros • recorrente</p>
+              {renderBigPrice(totalAnnualPrice)}
+              <p className="text-sm text-gray-600 mt-1">
+                {currencyFormatter.format(totalAnnualPrice)} <span className="text-gray-500">/ ano</span>
+              </p>
+              <p className="text-xs text-green-700 mt-1">em até 12x sem juros</p>
+              <p className="text-xs text-gray-600 mt-1">
+                Cobrança agora do valor anual. Renovação automática anual.
+              </p>
             </>
           ) : (
             <>
@@ -505,7 +507,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
                 </div>
                 <div className="text-base font-semibold text-brand-dark leading-tight">
                   {planType === "annual"
-                    ? `${currencyFormatter.format(discountedMonthlyPrice)} / mês`
+                    ? `${currencyFormatter.format(totalAnnualPrice)} / ano`
                     : `${currencyFormatter.format(originalMonthlyPrice)} / mês`}
                 </div>
                 {planType === "annual" && discountPercentage > 0 && (
