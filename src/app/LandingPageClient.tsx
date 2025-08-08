@@ -43,7 +43,7 @@ export default function LandingPageClient() {
         <FaqSection />
         <CallToAction />
         {showStickyLogin && (
-          <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-white/80 backdrop-blur-md shadow-md animate-fade-in-up md:hidden">
+          <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center p-4 bg-gray-100/80 backdrop-blur-md shadow-md animate-fade-in-up md:hidden">
             <ButtonPrimary href="/login" rel="nofollow">
               Ative IA do Instagram no WhatsApp
             </ButtonPrimary>
