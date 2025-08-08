@@ -1,8 +1,8 @@
 'use client';
 
 import Image from 'next/image';
-import React, { useEffect, useRef, useState } from 'react';
-import { motion, PanInfo, useMotionValueEvent, useScroll } from 'framer-motion';
+import React, { useRef, useState } from 'react';
+import { motion, useMotionValueEvent, useScroll } from 'framer-motion';
 import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { altTextService } from '@/services/altTextService';
 
@@ -16,54 +16,38 @@ interface ScreenshotCarouselProps {
   items: Screenshot[];
 }
 
-// --- SUBCOMPONENTE CORRIGIDO ---
-// A correção está aqui. Removemos a proporção fixa e ajustamos o next/image.
-const ScreenshotCard = ({ imageUrl, title, description }: Screenshot) => {
-  const [isTouch, setIsTouch] = useState(false);
-
-  useEffect(() => {
-    const handlePointerDown = (e: PointerEvent) => {
-      setIsTouch(e.pointerType === 'touch');
-    };
-    window.addEventListener('pointerdown', handlePointerDown, { once: true });
-    return () => window.removeEventListener('pointerdown', handlePointerDown);
-  }, []);
-
-  return (
-    // A classe "aspect-[9/16]" foi removida para que a imagem dite a proporção.
-    <div
-      tabIndex={0}
-      aria-label={title}
-      className="flex-shrink-0 w-[60vw] sm:w-[40vw] md:w-[28vw] lg:w-[22vw] rounded-3xl bg-gradient-to-br from-gray-100 to-gray-200 p-1 shadow-2xl cursor-grab active:cursor-grabbing"
-      style={{ perspective: '1000px', transformStyle: 'preserve-3d' }}
+// Cartão individual do carrossel de screenshots
+const ScreenshotCard = ({ imageUrl, title, description }: Screenshot) => (
+  <div
+    tabIndex={0}
+    aria-label={title}
+    className="flex-shrink-0 w-[60vw] sm:w-[40vw] md:w-[28vw] lg:w-[22vw] rounded-3xl bg-gradient-to-br from-gray-100 to-gray-200 p-1 shadow-2xl"
+  >
+    <motion.div
+      className="relative w-full h-full bg-white rounded-[22px] shadow-inner overflow-hidden"
+      whileTap={{ scale: 0.98, transition: { duration: 0.2 } }}
     >
-      <motion.div
-        className="relative w-full h-full bg-white rounded-[22px] shadow-inner overflow-hidden"
-        whileTap={{ scale: 0.98, transition: { duration: 0.2 } }}
-        whileHover={isTouch ? undefined : { rotateX: 5, rotateY: -5 }}
-      >
-        <Image
-          src={imageUrl}
-          alt={altTextService(title, description)}
-          // As propriedades abaixo garantem que a imagem seja exibida por completo e sem cortes.
-          width={1080} // Largura original da imagem
-          height={2240} // Altura original da imagem (ajustada para ser mais alta)
-          layout="responsive" // Mantém a proporção da imagem
-          className="rounded-[22px]" // Adicionado para arredondar a imagem também
-          loading="lazy"
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src = 'https://placehold.co/360x640/f0f0f0/333?text=Imagem+Indisponível';
-          }}
-        />
-      </motion.div>
-    </div>
-  );
-};
+      <Image
+        src={imageUrl}
+        alt={altTextService(title, description)}
+        width={1080}
+        height={2240}
+        className="rounded-[22px] w-full h-auto"
+        loading="lazy"
+        onError={(e) => {
+          (e.currentTarget as HTMLImageElement).src =
+            'https://placehold.co/360x640/f0f0f0/333?text=Imagem+Indisponível';
+        }}
+      />
+    </motion.div>
+  </div>
+);
 
 // --- COMPONENTE PRINCIPAL (COM A LÓGICA DO CARROSSEL) ---
 export default function ScreenshotCarousel({ items }: ScreenshotCarouselProps) {
   const carouselRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
   const { scrollX } = useScroll({ container: carouselRef });
 
   useMotionValueEvent(scrollX, 'change', (latest) => {
@@ -104,21 +88,19 @@ export default function ScreenshotCarousel({ items }: ScreenshotCarouselProps) {
       onKeyDown={handleKeyDown}
       aria-label={`Carrossel de screenshots, slide ${activeIndex + 1} de ${items.length}`}
     >
-      <motion.div
+      <div
         ref={carouselRef}
         className="overflow-x-auto snap-x snap-mandatory hide-scrollbar"
-        drag="x"
-        dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={0.05}
-        style={{ touchAction: 'pan-y' }}
-        onDragEnd={(event, info: PanInfo) => {
-          const pointerEvent = event as PointerEvent;
-          if (pointerEvent.pointerType !== 'touch') return;
-          if (info.offset.x < -50) {
+        onTouchStart={(e) => setTouchStart(e.touches[0].clientX)}
+        onTouchEnd={(e) => {
+          if (touchStart === null) return;
+          const deltaX = e.changedTouches[0].clientX - touchStart;
+          if (deltaX < -50) {
             scrollCarousel('right');
-          } else if (info.offset.x > 50) {
+          } else if (deltaX > 50) {
             scrollCarousel('left');
           }
+          setTouchStart(null);
         }}
       >
         <div
@@ -141,7 +123,7 @@ export default function ScreenshotCarousel({ items }: ScreenshotCarouselProps) {
             </div>
           ))}
         </div>
-      </motion.div>
+      </div>
       <div className="absolute top-1/2 -translate-y-1/2 w-full flex justify-between px-4 pointer-events-none">
         <button
           onClick={() => scrollCarousel('left')}
