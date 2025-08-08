@@ -103,11 +103,90 @@ export async function POST(req: NextRequest) {
       user.pendingAgency = agency._id;
     }
 
-    // centavos
-    let monthlyCents = toCents(monthlyBase);
-    let totalCents = planType === "annual" ? monthlyCents * 12 : monthlyCents;
+    // 6) cancela assinatura existente no gateway para evitar duplicidade
+    if (user.paymentGatewaySubscriptionId) {
+      try {
+        await mercadopago.preapproval.update(user.paymentGatewaySubscriptionId, {
+          status: "cancelled",
+        });
+      } catch {}
+      user.paymentGatewaySubscriptionId = undefined;
+    }
 
-    // 6) affiliate desconto 10%
+    // 7) limpa erro anterior e registra consentimento
+    user.lastPaymentError = undefined;
+    user.autoRenewConsentAt = new Date();
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL;
+    if (!appUrl) throw new Error("NEXT_PUBLIC_APP_URL ou NEXTAUTH_URL não está definida");
+
+    if (planType === "annual") {
+      // ---- fluxo ANUAL: cobrança única agora via preference ----
+      let annualCents = toCents(monthlyBase) * 12;
+
+      if (affiliateCode) {
+        const affUser = await User.findOne({ affiliateCode });
+        if (!affUser) {
+          console.error("plan/subscribe -> Cupom inválido:", affiliateCode);
+          return NextResponse.json({ error: "Cupom de afiliado inválido." }, { status: 400 });
+        }
+        if ((affUser._id as Types.ObjectId).equals(user._id as Types.ObjectId)) {
+          console.error("plan/subscribe -> Tentativa de uso do próprio cupom:", affiliateCode);
+          return NextResponse.json({ error: "Você não pode usar seu próprio cupom." }, { status: 400 });
+        }
+        annualCents = Math.round(annualCents * 0.9);
+        user.affiliateUsed = affiliateCode;
+      }
+
+      const annualTotal = fromCents(annualCents);
+
+      const pref = await mercadopago.preferences.create({
+        items: [
+          {
+            title: "Plano Anual Data2Content",
+            quantity: 1,
+            currency_id: "BRL",
+            unit_price: annualTotal,
+          },
+        ],
+        back_urls: {
+          success: `${appUrl}/dashboard?from=mp`,
+          pending: `${appUrl}/dashboard?from=mp`,
+          failure: `${appUrl}/dashboard?from=mp`,
+        },
+        auto_return: "approved",
+        external_reference: user._id.toString(),
+        payer: { email: user.email },
+        payment_methods: {
+          installments: 12,
+          default_installments: 12,
+        },
+        // differential_pricing: { id: Number(process.env.MP_12X_NO_INTEREST_ID) },
+        metadata: {
+          planType: "annual_upfront",
+          commission_base_cents: annualCents,
+          renew_full_cents: toCents(
+            (agencyInviteCode ? AGENCY_GUEST_ANNUAL_MONTHLY_PRICE : ANNUAL_MONTHLY_PRICE) * 12,
+          ),
+        },
+      });
+
+      user.planStatus = "pending";
+      user.planType = "annual";
+      await user.save();
+
+      return NextResponse.json({
+        initPoint: pref.body.init_point,
+        preferenceId: pref.body.id,
+        message: "Assinatura criada. Redirecione o usuário para esse link.",
+        chargedAnnualPrice: annualTotal,
+        planBillingCycle: "annual",
+      });
+    }
+
+    // ---- fluxo MENSAL (como antes) ----
+    let monthlyCents = toCents(monthlyBase);
+
     if (affiliateCode) {
       const affUser = await User.findOne({ affiliateCode });
       if (!affUser) {
@@ -118,62 +197,24 @@ export async function POST(req: NextRequest) {
         console.error("plan/subscribe -> Tentativa de uso do próprio cupom:", affiliateCode);
         return NextResponse.json({ error: "Você não pode usar seu próprio cupom." }, { status: 400 });
       }
-      // aplica 10% em centavos (arredonda corretamente)
       monthlyCents = Math.round((monthlyCents * 90) / 100);
-      totalCents = planType === "annual" ? monthlyCents * 12 : monthlyCents;
       user.affiliateUsed = affiliateCode;
     }
 
     const monthly = fromCents(monthlyCents);
-    const total = fromCents(totalCents);
 
-    // 7) limpa erro anterior e registra consentimento
-    user.lastPaymentError = undefined;
-    user.autoRenewConsentAt = new Date();
-    await user.save();
-
-    // 8) Preapproval no Mercado Pago
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL;
-    if (!appUrl) throw new Error("NEXT_PUBLIC_APP_URL ou NEXTAUTH_URL não está definida");
-
-    // Para recorrência mensal, sempre usamos o valor mensal (no anual é o mensal com desconto)
-    // Sempre recorrência mensal; no Anual usamos o valor mensal com desconto
-    const txAmount = monthly;
-
-    console.debug("plan/subscribe -> Valores:", {
-      planType,
-      monthlyBase,
-      monthly: monthly.toFixed(2),
-      total: total.toFixed(2),
-      txAmount: txAmount.toFixed(2),
-    });
-
-    // Sempre recorrência mensal. No plano annual cobramos o mensal com desconto (12x sem juros - recorrente)
     const preapprovalData = {
-      reason:
-        planType === "annual"
-          ? "Plano Anual (12x sem juros - recorrente)"
-          : "Plano Mensal",
+      reason: "Plano Mensal",
       back_url: `${appUrl}/dashboard?from=mp`,
       external_reference: user._id.toString(),
       payer_email: user.email,
       auto_recurring: {
-        frequency: 1, // sempre mensal
+        frequency: 1,
         frequency_type: "months",
-        transaction_amount: txAmount,
+        transaction_amount: monthly,
         currency_id: "BRL",
       },
     } as any;
-
-    // Se já existe assinatura no gateway, cancela para evitar duplicidade
-    if (user.paymentGatewaySubscriptionId) {
-      try {
-        await mercadopago.preapproval.update(user.paymentGatewaySubscriptionId, {
-          status: "cancelled",
-        });
-      } catch {}
-      user.paymentGatewaySubscriptionId = undefined;
-    }
 
     const responseMP = await mercadopago.preapproval.create(preapprovalData);
     const initPoint = responseMP.body.init_point;
@@ -185,12 +226,10 @@ export async function POST(req: NextRequest) {
     user.planStatus = "pending";
     await user.save();
 
-    // 9) Retorno
     return NextResponse.json({
       initPoint,
       subscriptionId,
       message: "Assinatura criada. Redirecione o usuário para esse link.",
-      // Preço que será cobrado por ciclo
       chargedMonthlyPrice: monthly,
       planBillingCycle: "monthly",
     });
