@@ -95,8 +95,10 @@ function validateWebhookSignature(
  * ATUALIZADO: Adiciona entrada ao commissionLog do afiliado.
  */
 export async function POST(request: NextRequest) {
-  console.log("--- [plan/webhook] Nova requisição recebida ---");
-  // console.log("[plan/webhook] URL da requisição:", request.url);
+  if (process.env.NODE_ENV !== "production") {
+    console.debug("--- [plan/webhook] Nova requisição recebida ---");
+    // console.debug("[plan/webhook] URL da requisição:", request.url);
+  }
 
   try {
     const { searchParams } = request.nextUrl;
@@ -115,8 +117,10 @@ export async function POST(request: NextRequest) {
     // console.log("[plan/webhook] Conectado ao banco.");
 
     const body = await request.json();
-    // Log básico do tipo e dados recebidos
-    console.log("[plan/webhook] type:", body.type, "data:", body.data);
+    if (process.env.NODE_ENV !== "production") {
+      // Log básico do tipo e dados recebidos
+      console.debug("[plan/webhook] type:", body.type, "data:", body.data);
+    }
 
     if (!body.data || !body.data.id) {
       // console.log("[plan/webhook] Notificação sem 'data.id' no corpo.");
@@ -154,6 +158,7 @@ export async function POST(request: NextRequest) {
               status: String(p.status),
               statusDetail: String(p.status_detail || "unknown"),
             };
+            user.planStatus = "inactive";
             await user.save();
           }
           return NextResponse.json({ received: true, noted: "payment-rejected" }, { status: 200 });

@@ -21,7 +21,9 @@ export async function GET(request: NextRequest) {
 
     // 2) Extrai o token JWT dos cookies ou headers
     const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
-    console.debug("[plan/status] Token extraído:", token);
+    if (process.env.NODE_ENV !== "production") {
+      console.debug("[plan/status] Token extraído:", token);
+    }
     if (!token || !token.sub) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
