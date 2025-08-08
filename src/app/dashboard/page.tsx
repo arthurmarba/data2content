@@ -381,6 +381,7 @@ interface ExtendedUser {
     planExpiresAt: user.planExpiresAt,
     affiliateBalance: user.affiliateBalance,
     affiliateCode: affiliateCode === null ? undefined : affiliateCode,
+    planType: user.planType,
   };
   const canRedeem = (user.affiliateBalance ?? 0) > 0;
 

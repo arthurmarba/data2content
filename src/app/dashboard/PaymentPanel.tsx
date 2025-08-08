@@ -9,7 +9,7 @@ import {
   AGENCY_GUEST_MONTHLY_PRICE,
   AGENCY_GUEST_ANNUAL_MONTHLY_PRICE,
 } from "@/config/pricing.config";
-import type { PlanStatus } from "@/types/enums";
+import type { PlanStatus, PlanType } from "@/types/enums";
 
 interface PaymentPanelProps {
   user: {
@@ -17,6 +17,7 @@ interface PaymentPanelProps {
     planExpiresAt?: string | null;
     affiliateBalance?: number;
     affiliateCode?: string;
+    planType?: PlanType;
   };
 }
 
@@ -55,7 +56,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
   const [agencyMessage, setAgencyMessage] = useState<string | null>(null);
   const [refCodeAppliedMessage, setRefCodeAppliedMessage] = useState<string | null>(null);
 
-  const [planType, setPlanType] = useState<"monthly" | "annual">("annual");
+  const [planType, setPlanType] = useState<"monthly" | "annual" | "annual_one_time">("annual");
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
   const [initPoint, setInitPoint] = useState("");
@@ -80,8 +81,8 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
     const originalAnnualPrice = originalMonthlyPrice * 12;
     const discountPercentage = Math.round(((originalAnnualPrice - totalAnnualPrice) / Math.max(originalAnnualPrice, 1)) * 100);
     const savingsAmount = originalAnnualPrice - totalAnnualPrice;
-    const selectedMonthlyPrice = planType === "annual" ? discountedMonthlyPrice : originalMonthlyPrice;
-    const totalPrice = planType === "annual" ? totalAnnualPrice : selectedMonthlyPrice;
+    const selectedMonthlyPrice = planType === "monthly" ? originalMonthlyPrice : discountedMonthlyPrice;
+    const totalPrice = planType === "monthly" ? selectedMonthlyPrice : totalAnnualPrice;
 
     return {
       originalMonthlyPrice,
@@ -151,11 +152,12 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
 
   const isPending = user.planStatus === "pending";
   const isActive = user.planStatus === "active";
+  const userPlanType = user.planType;
 
   // --- subscribe
   async function handleSubscribe(e?: React.FormEvent) {
     e?.preventDefault();
-    if (!autoRenewAccepted) {
+    if (planType !== "annual_one_time" && !autoRenewAccepted) {
       setStatusMessage({ message: "É necessário aceitar a renovação automática.", type: "error" });
       return;
     }
@@ -165,16 +167,20 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
     setIsAffiliateCodeValid(true);
     setAffiliateErr(null);
     try {
-      const res = await fetch("/api/plan/subscribe", {
+      const endpoint = planType === "annual_one_time" ? "/api/plan/subscribe-one-time" : "/api/plan/subscribe";
+      const body: Record<string, unknown> = {
+        planType,
+        affiliateCode: affiliateCodeInput.trim() === "" ? undefined : affiliateCodeInput.trim(),
+        agencyInviteCode: agencyInviteCode || undefined,
+      };
+      if (planType !== "annual_one_time") {
+        body.autoRenewConsent = true;
+      }
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          planType,
-          affiliateCode: affiliateCodeInput.trim() === "" ? undefined : affiliateCodeInput.trim(),
-          agencyInviteCode: agencyInviteCode || undefined,
-          autoRenewConsent: true,
-        }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok || data.error) {
@@ -184,13 +190,13 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
           setShowAffiliateField(true);
           setTimeout(() => affiliateRef.current?.focus(), 0);
         }
-        setStatusMessage({ message: `Erro: ${data.error || "Falha ao iniciar assinatura."}`, type: "error" });
+        setStatusMessage({ message: `Erro: ${data.error || "Falha ao iniciar pagamento."}`, type: "error" });
       } else {
         setStatusMessage({ message: data.message || "Redirecionando para o pagamento...", type: "info" });
         if (data.initPoint) setInitPoint(data.initPoint);
       }
     } catch (error: unknown) {
-      let errorMsg = "Erro desconhecido ao processar assinatura.";
+      let errorMsg = "Erro desconhecido ao processar pagamento.";
       if (error instanceof Error) errorMsg = error.message;
       setStatusMessage({ message: `Erro de rede: ${errorMsg}`, type: "error" });
     } finally {
@@ -274,29 +280,39 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
 
   // --- estados ativos/pendentes (cards compactos)
   if (isActive) {
+    const expires = user.planExpiresAt
+      ? new Date(user.planExpiresAt).toLocaleDateString("pt-BR")
+      : "Data Indefinida";
+    const isOneTime = userPlanType === "annual_one_time";
     return (
       <div className="border border-green-300 rounded-xl shadow-sm p-4 sm:p-6 bg-green-50 text-green-800">
         <div className="flex items-center gap-3 mb-2">
           <FaCheckCircle className="w-6 h-6 text-green-600" />
           <h2 className="text-lg font-semibold">Seu plano está ativo!</h2>
         </div>
-        <p className="text-sm mb-1 pl-9">
-          Acesso liberado até:{" "}
-          <strong className="font-medium">
-            {user.planExpiresAt ? new Date(user.planExpiresAt).toLocaleDateString("pt-BR") : "Data Indefinida"}
-          </strong>
-        </p>
-        <p className="text-sm mt-2 pl-9">
-          Renova automaticamente. Você pode
-          <button
-            onClick={handleCancel}
-            disabled={loading}
-            className="underline text-brand-pink ml-1"
-          >
-            cancelar aqui
-          </button>
-          .
-        </p>
+        {isOneTime ? (
+          <p className="text-sm mb-1 pl-9">
+            Plano ativo até <strong className="font-medium">{expires}</strong>. Não renova automaticamente.
+          </p>
+        ) : (
+          <p className="text-sm mb-1 pl-9">
+            Renova automaticamente em <strong className="font-medium">{expires}</strong>.{' '}
+            <a href="/dashboard/settings" className="underline text-brand-pink">
+              Gerencie/cancele nas configurações
+            </a>.
+          </p>
+        )}
+        {!isOneTime && (
+          <p className="text-sm mt-2 pl-9">
+            <button
+              onClick={handleCancel}
+              disabled={loading}
+              className="underline text-brand-pink"
+            >
+              cancelar assinatura
+            </button>
+          </p>
+        )}
         {statusMessage && (
           <FeedbackMessage message={statusMessage.message} type={statusMessage.type} />
         )}
@@ -313,9 +329,13 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
             <h2 className="text-lg font-semibold">Pagamento Pendente</h2>
           </div>
           <p className="text-sm mb-1 pl-9">
-            Estamos aguardando a confirmação do seu pagamento. Assim que for aprovado, seu plano será ativado automaticamente!
+            Estamos aguardando a confirmação do seu pagamento.
           </p>
-          <p className="text-sm mt-2 pl-9">Assim que confirmado, conecte sua conta do Instagram para liberar todos os recursos.</p>
+          <p className="text-sm mt-2 pl-9">
+            {userPlanType === "annual_one_time"
+              ? "Após aprovação, o plano ficará ativo por 12 meses e não renova automaticamente."
+              : "Após aprovação, o plano será ativado e renovará automaticamente. Você poderá gerenciá-lo nas configurações."}
+          </p>
         </div>
       )}
 
@@ -328,17 +348,17 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
         ref={formRef}
       >
         <h3 id="plano-title" className="text-lg sm:text-xl font-bold text-center text-brand-dark mb-3">
-          Plano {planType === "annual" ? "Anual" : "Mensal"} Data2Content
+          Plano {planType === "monthly" ? "Mensal" : planType === "annual" ? "Anual Recorrente" : "Anual 12x"} Data2Content
         </h3>
 
         {/* Toggle minimalista */}
         <fieldset className="mb-5" aria-label="Tipo de plano">
-          <div className="grid grid-cols-2 p-1 bg-gray-100 rounded-full border border-gray-200">
+          <div className="grid grid-cols-3 p-1 bg-gray-100 rounded-full border border-gray-200">
             <button
               type="button"
               onClick={() => setPlanType("monthly")}
               aria-pressed={planType === "monthly"}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+              className={`px-2 py-2 rounded-full text-sm font-medium transition-colors ${
                 planType === "monthly" ? "bg-white text-brand-dark shadow-sm" : "text-gray-600 hover:text-brand-dark"
               }`}
             >
@@ -348,7 +368,7 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
               type="button"
               onClick={() => setPlanType("annual")}
               aria-pressed={planType === "annual"}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors inline-flex items-center justify-center gap-1 ${
+              className={`px-2 py-2 rounded-full text-sm font-medium transition-colors inline-flex items-center justify-center gap-1 ${
                 planType === "annual" ? "bg-white text-brand-dark shadow-sm" : "text-gray-600 hover:text-brand-dark"
               }`}
             >
@@ -359,24 +379,50 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
                 </span>
               )}
             </button>
+            <button
+              type="button"
+              onClick={() => setPlanType("annual_one_time")}
+              aria-pressed={planType === "annual_one_time"}
+              className={`px-2 py-2 rounded-full text-sm font-medium transition-colors inline-flex items-center justify-center gap-1 ${
+                planType === "annual_one_time" ? "bg-white text-brand-dark shadow-sm" : "text-gray-600 hover:text-brand-dark"
+              }`}
+            >
+              12x sem juros
+              {planType !== "annual_one_time" && discountPercentage > 0 && (
+                <span className="ml-1 inline-flex px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 text-[10px] font-semibold border border-green-200">
+                  -{discountPercentage}%
+                </span>
+              )}
+            </button>
           </div>
         </fieldset>
 
         {/* Preço hierárquico */}
         <div className="text-center mb-4">
-          {renderBigPrice(totalPrice)}
-          <p className="text-sm text-gray-600 mt-1">
-            {planType === "annual" ? (
-              <>
-                equivale a {currencyFormatter.format(discountedMonthlyPrice)} <span className="text-gray-500">/ mês</span>
-              </>
-            ) : (
-              <>
-                {currencyFormatter.format(originalMonthlyPrice)} <span className="text-gray-500">/ mês</span>
-              </>
-            )}
-          </p>
-          {planType === "annual" && discountPercentage > 0 && (
+          {planType === "annual_one_time" ? (
+            <>
+              <div className="font-extrabold tracking-tight text-brand-dark text-[clamp(28px,6vw,42px)]">
+                12x {currencyFormatter.format(discountedMonthlyPrice)}
+              </div>
+              <p className="text-sm text-gray-600 mt-1">Total {currencyFormatter.format(totalAnnualPrice)}</p>
+            </>
+          ) : (
+            <>
+              {renderBigPrice(totalPrice)}
+              <p className="text-sm text-gray-600 mt-1">
+                {planType === "annual" ? (
+                  <>
+                    equivale a {currencyFormatter.format(discountedMonthlyPrice)} <span className="text-gray-500">/ mês</span>
+                  </>
+                ) : (
+                  <>
+                    {currencyFormatter.format(originalMonthlyPrice)} <span className="text-gray-500">/ mês</span>
+                  </>
+                )}
+              </p>
+            </>
+          )}
+          {(planType === "annual" || planType === "annual_one_time") && discountPercentage > 0 && (
             <div className="mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-50 text-green-700 text-xs font-medium border border-green-200">
               Economize {discountPercentage}%
             </div>
@@ -384,25 +430,27 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
         </div>
 
         {/* consentimento */}
-        <label className="mt-4 flex items-start gap-2 text-sm text-gray-700">
-          <input
-            type="checkbox"
-            checked={autoRenewAccepted}
-            onChange={(e) => setAutoRenewAccepted(e.target.checked)}
-            className="mt-1"
-          />
-          <span>
-            Esta assinatura renova automaticamente.{' '}
-            <a href="/dashboard/settings" className="underline text-brand-pink">
-              Gerir assinatura
-            </a>
-          </span>
-        </label>
+        {planType !== "annual_one_time" && (
+          <label className="mt-4 flex items-start gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={autoRenewAccepted}
+              onChange={(e) => setAutoRenewAccepted(e.target.checked)}
+              className="mt-1"
+            />
+            <span>
+              Esta assinatura renova automaticamente.{' '}
+              <a href="/dashboard/settings" className="underline text-brand-pink">
+                Gerir assinatura
+              </a>
+            </span>
+          </label>
+        )}
 
         {/* CTA principal */}
         <button
           type="submit"
-          disabled={loading || !autoRenewAccepted}
+          disabled={loading || (planType !== "annual_one_time" && !autoRenewAccepted)}
           className="w-full flex items-center justify-center gap-2 bg-brand-pink text-white py-3 rounded-xl font-semibold disabled:opacity-70"
           data-testid="subscribe-cta"
         >
@@ -474,17 +522,31 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
           <div className="mx-3 mb-3 rounded-xl border border-gray-200 bg-white shadow-lg">
             <div className="flex items-center gap-3 p-3">
               <div className="flex-1">
-                <div className="text-xs text-gray-500">{planType === "annual" ? "Plano Anual" : "Plano Mensal"}</div>
-                <div className="text-base font-semibold text-brand-dark leading-tight">
-                  {planType === "annual" ? `${currencyFormatter.format(discountedMonthlyPrice)} / mês` : `${currencyFormatter.format(originalMonthlyPrice)} / mês`}
+                <div className="text-xs text-gray-500">
+                  {planType === "annual"
+                    ? "Plano Anual"
+                    : planType === "annual_one_time"
+                    ? "Plano Anual 12x"
+                    : "Plano Mensal"}
                 </div>
-                {planType === "annual" && discountPercentage > 0 && (
+                <div className="text-base font-semibold text-brand-dark leading-tight">
+                  {planType === "annual"
+                    ? `${currencyFormatter.format(discountedMonthlyPrice)} / mês`
+                    : planType === "annual_one_time"
+                    ? `12x ${currencyFormatter.format(discountedMonthlyPrice)}`
+                    : `${currencyFormatter.format(originalMonthlyPrice)} / mês`}
+                </div>
+                {(planType === "annual" || planType === "annual_one_time") && discountPercentage > 0 && (
                   <div className="mt-0.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 text-[10px] font-semibold border border-green-200">
                     Economize {discountPercentage}%
                   </div>
                 )}
               </div>
-              <button onClick={() => handleSubscribe()} disabled={loading || !autoRenewAccepted} className="min-w-[120px] inline-flex items-center justify-center gap-2 bg-brand-pink text-white px-4 py-2.5 rounded-lg font-semibold disabled:opacity-70">
+              <button
+                onClick={() => handleSubscribe()}
+                disabled={loading || (planType !== "annual_one_time" && !autoRenewAccepted)}
+                className="min-w-[120px] inline-flex items-center justify-center gap-2 bg-brand-pink text-white px-4 py-2.5 rounded-lg font-semibold disabled:opacity-70"
+              >
                 {loading ? <FaSpinner className="w-4 h-4 animate-spin" /> : "Assinar"}
               </button>
             </div>

@@ -133,10 +133,12 @@ export async function POST(request: NextRequest) {
       //  console.log(`[plan/webhook] Obtendo detalhes do pagamento ID: ${paymentId}`);
       const paymentResponse = await mercadopago.payment.get(paymentId);
       const paymentDetails = paymentResponse.body;
-      console.log(`[plan/webhook] status_detail: ${paymentDetails.status_detail}`);
+      const externalReference = paymentDetails.external_reference;
+      console.log(
+        `[plan/webhook] payment external_reference=${externalReference} planType=${paymentDetails.metadata?.planType} transaction_amount=${paymentDetails.transaction_amount} status_detail=${paymentDetails.status_detail}`
+      );
       // console.log("[plan/webhook] Detalhes do pagamento obtidos:", paymentDetails);
 
-      const externalReference = paymentDetails.external_reference;
       if (!externalReference || !mongoose.isValidObjectId(externalReference)) {
         console.error(`[plan/webhook] Referência externa inválida ou ausente: ${externalReference}`);
         return NextResponse.json({ error: "Referência externa inválida." }, { status: 200 });
