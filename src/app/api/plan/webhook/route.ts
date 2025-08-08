@@ -10,6 +10,7 @@ import { ANNUAL_MONTHLY_PRICE } from "@/config/pricing.config";
 import crypto from "crypto";
 
 export const runtime = "nodejs";
+const isProd = process.env.NODE_ENV === "production";
 
 const MERCADOPAGO_WEBHOOK_SECRET = process.env.MERCADOPAGO_WEBHOOK_SECRET;
 
@@ -23,7 +24,8 @@ function validateWebhookSignature(
     // console.log("[validateWebhookSignature] Iniciando validação (v_CorrectManifest)...");
 
     if (!MERCADOPAGO_WEBHOOK_SECRET) {
-        console.error("[validateWebhookSignature] Erro: MERCADOPAGO_WEBHOOK_SECRET não está configurado.");
+        if (!isProd)
+            console.error("[validateWebhookSignature] Erro: MERCADOPAGO_WEBHOOK_SECRET não está configurado.");
         return { isValid: false };
     }
     // console.log("[validateWebhookSignature] Chave secreta carregada.");
@@ -84,7 +86,8 @@ function validateWebhookSignature(
         }
         return { isValid, timestamp, receivedSignature };
     } catch (error) {
-        console.error("[validateWebhookSignature] Erro inesperado durante a validação:", error);
+        if (!isProd)
+            console.error("[validateWebhookSignature] Erro inesperado durante a validação:", error);
         return { isValid: false };
     }
 }
@@ -95,7 +98,7 @@ function validateWebhookSignature(
  * ATUALIZADO: Adiciona entrada ao commissionLog do afiliado.
  */
 export async function POST(request: NextRequest) {
-  if (process.env.NODE_ENV !== "production") {
+  if (!isProd) {
     console.debug("--- [plan/webhook] Nova requisição recebida ---");
     // console.debug("[plan/webhook] URL da requisição:", request.url);
   }
@@ -108,7 +111,7 @@ export async function POST(request: NextRequest) {
     // console.log("[plan/webhook] Iniciando validação da assinatura...");
     const validationResult = validateWebhookSignature(request.headers, dataIdFromUrl);
     if (!validationResult.isValid) {
-        console.error("[plan/webhook] VALIDAÇÃO FALHOU. Retornando 400.");
+        if (!isProd) console.error("[plan/webhook] VALIDAÇÃO FALHOU. Retornando 400.");
         return NextResponse.json({ error: "Assinatura inválida" }, { status: 400 });
     }
     // console.log("[plan/webhook] Validação da assinatura OK.");
@@ -117,7 +120,7 @@ export async function POST(request: NextRequest) {
     // console.log("[plan/webhook] Conectado ao banco.");
 
     const body = await request.json();
-    if (process.env.NODE_ENV !== "production") {
+    if (!isProd) {
       // Log básico do tipo e dados recebidos
       console.debug("[plan/webhook] type:", body.type, "data:", body.data);
     }
@@ -186,7 +189,9 @@ export async function POST(request: NextRequest) {
           if (p.metadata?.planType === "annual_upfront") {
             // fluxo para pagamento anual à vista
             user.planStatus = "active";
-            user.planExpiresAt = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+            const annualExpire = new Date(now);
+            annualExpire.setFullYear(annualExpire.getFullYear() + 1);
+            user.planExpiresAt = annualExpire;
             user.lastPaymentError = undefined;
             user.lastProcessedPaymentId = eventId;
 
@@ -226,6 +231,8 @@ export async function POST(request: NextRequest) {
             try {
               const renewFullCents =
                 p.metadata?.renew_full_cents ?? toCents(ANNUAL_MONTHLY_PRICE * 12);
+              const renewalStart = new Date(now);
+              renewalStart.setFullYear(renewalStart.getFullYear() + 1);
               const preapproval = await mercadopago.preapproval.create({
                 reason: "Plano Anual (renovação anual)",
                 external_reference: user._id.toString(),
@@ -235,12 +242,12 @@ export async function POST(request: NextRequest) {
                   frequency_type: "months",
                   transaction_amount: fromCents(renewFullCents),
                   currency_id: "BRL",
-                  start_date: new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+                  start_date: renewalStart.toISOString(),
                 },
               } as any);
               user.paymentGatewaySubscriptionId = preapproval.body.id;
             } catch (e) {
-              console.error("[annual-renewal preapproval] erro:", e);
+              if (!isProd) console.error("[annual-renewal preapproval] erro:", e);
             }
 
             await user.save();
@@ -252,7 +259,9 @@ export async function POST(request: NextRequest) {
 
           // fluxo padrão (mensal)
           user.planStatus = "active";
-          user.planExpiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+          const monthlyExpire = new Date(now);
+          monthlyExpire.setMonth(monthlyExpire.getMonth() + 1);
+          user.planExpiresAt = monthlyExpire;
           user.lastPaymentError = undefined;
           user.lastProcessedPaymentId = eventId;
 
@@ -296,7 +305,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ received: true, paymentStatus: p.status }, { status: 200 });
       } catch (e) {
-        console.error("[webhook/payment] erro:", e);
+        if (!isProd) console.error("[webhook/payment] erro:", e);
         return NextResponse.json({ received: true }, { status: 200 });
       }
     }
@@ -332,8 +341,13 @@ export async function POST(request: NextRequest) {
       }
 
       const now = new Date();
-      const cycleDays = user.planType === "annual" ? 365 : 30;
-      user.planExpiresAt = new Date(now.getTime() + cycleDays * 24 * 60 * 60 * 1000);
+      const expires = new Date(now);
+      if (user.planType === "annual") {
+        expires.setFullYear(expires.getFullYear() + 1);
+      } else {
+        expires.setMonth(expires.getMonth() + 1);
+      }
+      user.planExpiresAt = expires;
       user.planStatus = "active";
 
       if (user.pendingAgency) {
@@ -424,7 +438,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true, nonPayment: true }, { status: 200 });
 
   } catch (error: unknown) {
-    console.error("[plan/webhook] Erro GERAL em POST /api/plan/webhook:", error);
+    if (!isProd) console.error("[plan/webhook] Erro GERAL em POST /api/plan/webhook:", error);
     const message = error instanceof Error ? error.message : "Erro desconhecido.";
     return NextResponse.json({ error: `Erro interno: ${message}` }, { status: 200 });
   }

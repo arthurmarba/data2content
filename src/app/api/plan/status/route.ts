@@ -8,6 +8,7 @@ import User from "@/app/models/User";
 
 export const runtime = "nodejs";
 export const dynamic = 'force-dynamic';
+const isProd = process.env.NODE_ENV === "production";
 
 /**
  * GET /api/plan/status?userId=...
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
 
     // 2) Extrai o token JWT dos cookies ou headers
     const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
-    if (process.env.NODE_ENV !== "production") {
+    if (!isProd) {
       console.debug("[plan/status] Token extraído:", token);
     }
     if (!token || !token.sub) {
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (error: unknown) {
-    console.error("GET /api/plan/status error:", error);
+    if (!isProd) console.error("GET /api/plan/status error:", error);
     const message = error instanceof Error ? error.message : "Erro desconhecido.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
