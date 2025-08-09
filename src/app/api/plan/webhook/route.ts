@@ -104,9 +104,11 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { searchParams } = request.nextUrl;
-    const dataIdFromUrl = searchParams.get('data.id');
-    // console.log(`[plan/webhook] Extraído data.id da URL: ${dataIdFromUrl}`);
+    const dataIdFromUrl =
+      request.nextUrl.searchParams.get("data.id") ||
+      request.nextUrl.searchParams.get("id") ||
+      null;
+    // console.log(`[plan/webhook] Extraído data.id/id da URL: ${dataIdFromUrl}`);
 
     // console.log("[plan/webhook] Iniciando validação da assinatura...");
     const validationResult = validateWebhookSignature(request.headers, dataIdFromUrl);
@@ -116,23 +118,42 @@ export async function POST(request: NextRequest) {
     }
     // console.log("[plan/webhook] Validação da assinatura OK.");
 
-    await connectToDatabase();
-    // console.log("[plan/webhook] Conectado ao banco.");
-
     const body = await request.json();
     if (!isProd) {
       // Log básico do tipo e dados recebidos
       console.debug("[plan/webhook] type:", body.type, "data:", body.data);
     }
 
-    if (!body.data || !body.data.id) {
-      // console.log("[plan/webhook] Notificação sem 'data.id' no corpo.");
-      return NextResponse.json({ received: true, simulation: true }, { status: 200 });
+    const action = (body?.action as string) || null;
+
+    if (body?.type === "payment" && action === "payment.created") {
+      return NextResponse.json({ received: true, ack: "payment.created" }, { status: 200 });
     }
-    if (body.data.id !== dataIdFromUrl) {
-        //  console.error(`[plan/webhook] Discrepância entre data.id da URL (${dataIdFromUrl}) e do corpo (${body.data.id})`);
-         return NextResponse.json({ error: "Discrepância de ID" }, { status: 400 });
+    // (opcional)
+    // if (action === "test.notification") {
+    //   return NextResponse.json({ received: true, ack: "test.notification" }, { status: 200 });
+    // }
+
+    const bodyId = body?.data?.id ? String(body.data.id) : null;
+
+    if (!bodyId && !dataIdFromUrl) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[webhook] Nenhum ID encontrado (nem na URL, nem no corpo).");
+      }
+      return NextResponse.json({ error: "missing id" }, { status: 400 });
     }
+
+    if (bodyId && dataIdFromUrl && bodyId !== dataIdFromUrl) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[webhook] Discrepância de ID detectada; prosseguindo mesmo assim.", {
+          bodyId,
+          urlId: dataIdFromUrl,
+        });
+      }
+    }
+
+    await connectToDatabase();
+    // console.log("[plan/webhook] Conectado ao banco.");
 
     const eventType = body.type;
 
