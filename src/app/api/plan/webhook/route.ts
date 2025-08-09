@@ -100,7 +100,11 @@ function validateWebhookSignature(
 export async function POST(request: NextRequest) {
   if (!isProd) {
     console.debug("--- [plan/webhook] Nova requisição recebida ---");
-    // console.debug("[plan/webhook] URL da requisição:", request.url);
+    console.debug("[plan/webhook] headers:", {
+      xSignature: request.headers.get("x-signature"),
+      xRequestId: request.headers.get("x-request-id"),
+    });
+    console.debug("[plan/webhook] query:", request.nextUrl.search);
   }
 
   try {
