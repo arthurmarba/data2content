@@ -1,17 +1,17 @@
 "use client";
 
 import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useRef,
-  useState,
-  useEffect,
+  createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
 } from "react";
 
 type ToastVariant = "success" | "error" | "info" | "warning";
 type ToastPriority = "high" | "normal" | "low";
+
+type ToastAction = {
+  label: string;
+  onClick: () => void | Promise<void>;
+  closeOnAction?: boolean; // default: false
+};
 
 type ToastItem = {
   id: string;
@@ -19,20 +19,24 @@ type ToastItem = {
   description?: string;
   variant?: ToastVariant;
   priority?: ToastPriority;
-  duration?: number; // ms (0 = não auto-dismiss)
+  duration?: number;     // ms (0 = não auto-dismiss)
   createdAt: number;
+  totalMs?: number;      // para progress
+  deadlineAt?: number;   // timestamp quando deve encerrar
+  paused?: boolean;
+  remainingMs?: number;  // usado em pause
+  action?: ToastAction;
 };
 
-type ToastInput = Omit<ToastItem, "id" | "createdAt">;
+type ToastInput = Omit<ToastItem, "id" | "createdAt" | "totalMs" | "deadlineAt" | "paused" | "remainingMs">;
 
 type ToastContextValue = {
-  toast: (t: ToastInput) => string; // retorna id
+  toast: (t: ToastInput) => string;
   dismiss: (id: string) => void;
   dismissAll: () => void;
 };
 
 const ToastCtx = createContext<ToastContextValue | null>(null);
-
 export function useToast() {
   const ctx = useContext(ToastCtx);
   if (!ctx) throw new Error("useToast must be used within <ToastA11yProvider>");
@@ -41,10 +45,6 @@ export function useToast() {
 
 type Props = {
   children: React.ReactNode;
-  /**
-   * Quantos toasts podem ficar visíveis ao mesmo tempo.
-   * O excedente fica na fila (prioridade/ordem de chegada).
-   */
   maxVisible?: number;
 };
 
@@ -52,56 +52,56 @@ export function ToastA11yProvider({ children, maxVisible = 3 }: Props) {
   const [visible, setVisible] = useState<ToastItem[]>([]);
   const [queue, setQueue] = useState<ToastItem[]>([]);
   const timersRef = useRef<Record<string, any>>({});
+  const tickRef = useRef<any>(null); // 1 intervalo global p/ re-render do progress
+  const [, setTick] = useState(0); // força re-render do progress
 
-  // Live region (para leitores de tela)
+  // Live region
   const [srText, setSrText] = useState<string>("");
   const [srPoliteness, setSrPoliteness] = useState<"polite" | "assertive">("polite");
 
-  // Defaults por prioridade/variant
+  // Defaults
   const getDefaults = (t: ToastInput) => {
     const pri = t.priority ?? "normal";
     const variant = t.variant ?? "info";
-
-    // Durações sugeridas (A11y: assertive geralmente um pouco mais longo)
-    const durationByPriority: Record<ToastPriority, number> = {
-      high: 6000,
-      normal: 4000,
-      low: 2500,
-    };
-
-    // Variant pode ajustar a prioridade/politeness
     const isAssertive = variant === "error" || pri === "high";
-
-    // Se dev quiser 0 (= não auto-dismiss), respeitamos
+    const durationByPriority: Record<ToastPriority, number> = {
+      high: 6000, normal: 4000, low: 2500,
+    };
     const duration = typeof t.duration === "number" ? t.duration : durationByPriority[pri];
-
-    return { pri, variant, duration, isAssertive };
+    return { pri, variant, isAssertive, duration };
   };
 
-  // Ordenação: prioridade > createdAt
+  // Ordenação por prioridade e chegada
   const sortQueue = (list: ToastItem[]) =>
     [...list].sort((a, b) => {
-      const weight = (p: ToastPriority) => (p === "high" ? 3 : p === "normal" ? 2 : 1);
-      const prDiff = weight(b.priority ?? "normal") - weight(a.priority ?? "normal");
-      if (prDiff !== 0) return prDiff;
-      return a.createdAt - b.createdAt;
+      const w = (p: ToastPriority | undefined) => (p === "high" ? 3 : p === "normal" ? 2 : 1);
+      const d = w(b.priority) - w(a.priority);
+      return d !== 0 ? d : a.createdAt - b.createdAt;
     });
 
   const announceSR = (title?: string, description?: string, assertive?: boolean) => {
-    // Para leitores de tela: atualiza o live region com o último toast inserido
     const msg = [title, description].filter(Boolean).join(" — ");
     if (!msg) return;
     setSrPoliteness(assertive ? "assertive" : "polite");
     setSrText(msg);
-    // Reseta o texto em ~100ms para permitir re-anúncio do mesmo conteúdo no futuro
     setTimeout(() => setSrText(""), 100);
   };
 
-  const scheduleDismiss = (id: string, duration: number) => {
-    if (duration <= 0) return;
-    timersRef.current[id] = setTimeout(() => {
-      dismiss(id);
-    }, duration);
+  const scheduleDismiss = (id: string, ms: number) => {
+    if (ms <= 0) return;
+    timersRef.current[id] = setTimeout(() => dismiss(id), ms);
+  };
+
+  const ensureTickLoop = () => {
+    if (tickRef.current) return;
+    tickRef.current = setInterval(() => setTick((n) => (n + 1) % 1000000), 100);
+  };
+  const stopTickLoopIfIdle = () => {
+    const anyRunning = visible.some((t) => !!t.totalMs && !t.paused);
+    if (!anyRunning && tickRef.current) {
+      clearInterval(tickRef.current);
+      tickRef.current = null;
+    }
   };
 
   const maybeShowFromQueue = useCallback(() => {
@@ -115,12 +115,19 @@ export function ToastA11yProvider({ children, maxVisible = 3 }: Props) {
         const toTake = sorted.slice(0, slots);
         const remaining = sorted.slice(slots);
 
+        const now = Date.now();
         toTake.forEach((t) => {
-          nextVisible.push(t);
+          // inicializa timers do toast
           if (t.duration && t.duration > 0) {
+            t.totalMs = t.duration;
+            t.deadlineAt = now + t.duration;
+            t.paused = false;
             scheduleDismiss(t.id, t.duration);
+            ensureTickLoop();
           }
+          nextVisible.push(t);
         });
+
         return remaining;
       });
       return nextVisible;
@@ -133,23 +140,22 @@ export function ToastA11yProvider({ children, maxVisible = 3 }: Props) {
       clearTimeout(timersRef.current[id]);
       delete timersRef.current[id];
     }
-    // Libera vaga e puxa próximo da fila
     setTimeout(maybeShowFromQueue, 10);
+    setTimeout(stopTickLoopIfIdle, 50);
   }, [maybeShowFromQueue]);
 
   const dismissAll = useCallback(() => {
     Object.values(timersRef.current).forEach(clearTimeout);
     timersRef.current = {};
     setVisible([]);
-    // Mantém fila, mas pode limpar se preferir:
-    // setQueue([]);
+    setTimeout(stopTickLoopIfIdle, 50);
   }, []);
 
   const toast = useCallback((input: ToastInput) => {
     const id = crypto.randomUUID();
-    const { pri, variant, duration, isAssertive } = getDefaults(input);
+    const { pri, variant, isAssertive, duration } = getDefaults(input);
 
-    const next: ToastItem = {
+    const base: ToastItem = {
       id,
       title: input.title,
       description: input.description,
@@ -157,34 +163,66 @@ export function ToastA11yProvider({ children, maxVisible = 3 }: Props) {
       priority: input.priority ?? pri,
       duration,
       createdAt: Date.now(),
+      action: input.action,
     };
 
-    // Anuncia no live region
-    announceSR(next.title, next.description, isAssertive);
-
-    setQueue((prev) => sortQueue([...prev, next]));
-    // tenta exibir imediatamente se houver slot
+    announceSR(base.title, base.description, isAssertive);
+    setQueue((prev) => sortQueue([...prev, base]));
     setTimeout(maybeShowFromQueue, 0);
-
     return id;
   }, [maybeShowFromQueue]);
+
+  // Pause/Resume helpers
+  const pause = (id: string) => {
+    setVisible((prev) =>
+      prev.map((t) => {
+        if (t.id !== id || t.paused || !t.deadlineAt || !t.totalMs) return t;
+        const remaining = Math.max(0, t.deadlineAt - Date.now());
+        if (timersRef.current[id]) {
+          clearTimeout(timersRef.current[id]);
+          delete timersRef.current[id];
+        }
+        return { ...t, paused: true, remainingMs: remaining };
+      })
+    );
+  };
+
+  const resume = (id: string) => {
+    setVisible((prev) =>
+      prev.map((t) => {
+        if (t.id !== id || !t.paused || !t.totalMs) return t;
+        const remaining = t.remainingMs ?? 0;
+        const newDeadline = Date.now() + remaining;
+        scheduleDismiss(id, remaining);
+        ensureTickLoop();
+        return { ...t, paused: false, remainingMs: undefined, deadlineAt: newDeadline };
+      })
+    );
+  };
+
+  // cleanup global
+  useEffect(() => {
+    return () => {
+      Object.values(timersRef.current).forEach(clearTimeout);
+      timersRef.current = {};
+      if (tickRef.current) clearInterval(tickRef.current);
+    };
+  }, []);
 
   const value = useMemo<ToastContextValue>(
     () => ({ toast, dismiss, dismissAll }),
     [toast, dismiss, dismissAll]
   );
 
-  // Cleanup timers on unmount
-  useEffect(() => {
-    return () => {
-      Object.values(timersRef.current).forEach(clearTimeout);
-      timersRef.current = {};
-    };
-  }, []);
+  const progressPct = (t: ToastItem) => {
+    if (!t.totalMs || !t.deadlineAt) return 0;
+    const remaining = Math.max(0, (t.paused ? (t.remainingMs ?? 0) : (t.deadlineAt - Date.now())));
+    return Math.max(0, Math.min(100, (remaining / t.totalMs) * 100));
+  };
 
   return (
     <ToastCtx.Provider value={value}>
-      {/* Live region invisível, anuncia o último toast criado */}
+      {/* Live region invisível */}
       <div
         aria-live={srPoliteness}
         aria-atomic="true"
@@ -196,40 +234,81 @@ export function ToastA11yProvider({ children, maxVisible = 3 }: Props) {
 
       {children}
 
-      {/* Container visual dos toasts */}
+      {/* Container dos toasts */}
       <div className="fixed bottom-4 right-4 z-50 space-y-2">
-        {visible.map((t) => (
-          <div
-            key={t.id}
-            role={t.variant === "error" || t.priority === "high" ? "alert" : "status"}
-            aria-live={t.variant === "error" || t.priority === "high" ? "assertive" : "polite"}
-            className={[
-              "w-[320px] rounded-lg p-3 shadow-lg text-sm transition-all animate-[toastIn_.14s_ease-out]",
-              t.variant === "success" && "bg-green-600 text-white",
-              t.variant === "error" && "bg-red-600 text-white",
-              t.variant === "warning" && "bg-yellow-600 text-white",
-              (!t.variant || t.variant === "info") && "bg-gray-900 text-white",
-            ].filter(Boolean).join(" ")}
-          >
-            <div className="flex items-start gap-2">
-              <div className="grow">
-                {t.title && <div className="font-medium">{t.title}</div>}
-                {t.description && <div className="opacity-90">{t.description}</div>}
+        {visible.map((t) => {
+          const isAlert = t.variant === "error" || t.priority === "high";
+          const pct = progressPct(t);
+
+          return (
+            <div
+              key={t.id}
+              role={isAlert ? "alert" : "status"}
+              aria-live={isAlert ? "assertive" : "polite"}
+              className={[
+                "w-[340px] rounded-lg p-3 shadow-lg text-sm transition-all animate-[toastIn_.14s_ease-out] focus-within:ring-2 focus-within:ring-white/30",
+                t.variant === "success" && "bg-green-600 text-white",
+                t.variant === "error" && "bg-red-600 text-white",
+                t.variant === "warning" && "bg-yellow-600 text-white",
+                (!t.variant || t.variant === "info") && "bg-gray-900 text-white",
+              ].filter(Boolean).join(" ")}
+              onMouseEnter={() => pause(t.id)}
+              onMouseLeave={() => resume(t.id)}
+              onFocus={() => pause(t.id)}
+              onBlur={() => resume(t.id)}
+            >
+              <div className="flex items-start gap-2">
+                <div className="grow">
+                  {t.title && <div className="font-medium">{t.title}</div>}
+                  {t.description && <div className="opacity-90">{t.description}</div>}
+                  {/* Ação opcional */}
+                  {t.action && (
+                    <div className="mt-2">
+                      <button
+                        onClick={async () => {
+                          try {
+                            await t.action!.onClick();
+                          } finally {
+                            if (t.action?.closeOnAction) {
+                              // dismiss depois da ação
+                              dismiss(t.id);
+                            }
+                          }
+                        }}
+                          className="px-2 py-1 rounded bg-white/15 hover:bg-white/25 focus:outline-none focus:ring-2 focus:ring-white/40"
+                      >
+                        {t.action.label}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => dismiss(t.id)}
+                  className="opacity-80 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-white/40 rounded"
+                  aria-label="Fechar notificação"
+                  title="Fechar"
+                >
+                  <span aria-hidden>×</span>
+                </button>
               </div>
-              <button
-                onClick={() => dismiss(t.id)}
-                className="opacity-80 hover:opacity-100 focus:outline-none"
-                aria-label="Fechar notificação"
-                title="Fechar"
-              >
-                <span aria-hidden>×</span>
-              </button>
+
+              {/* Barra de progresso (restante) */}
+              {t.totalMs && (
+                <div className="mt-3 h-1 w-full bg-white/25 rounded">
+                  <div
+                    className="h-1 bg-white rounded transition-[width] duration-100"
+                    style={{ width: `${pct}%` }}
+                    aria-hidden="true"
+                  />
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {/* Animação + respeito a reduced motion */}
+      {/* reduced motion */}
       <style jsx global>{`
         @keyframes toastIn {
           from { opacity: 0; transform: translateY(6px); }
