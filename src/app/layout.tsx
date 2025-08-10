@@ -14,7 +14,7 @@ import { Providers } from "./providers";
 import AuthRedirectHandler from "./components/auth/AuthRedirectHandler";
 import ClientHooksWrapper from "./components/ClientHooksWrapper";
 import MainContentWrapper from "./components/MainContentWrapper"; // ✅ IMPORTADO O NOVO COMPONENTE
-import { ToastProvider } from "@/app/components/ui/ToastProvider";
+import { ToastA11yProvider } from "@/app/components/ui/ToastA11yProvider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -56,7 +56,7 @@ export default async function RootLayout({
           text-brand-dark
         `}
       >
-        <ToastProvider>
+        <ToastA11yProvider maxVisible={3}>
           <Providers session={serializableSession}>
             <ClientHooksWrapper />
             <AuthRedirectHandler>
@@ -70,7 +70,7 @@ export default async function RootLayout({
               <Footer />
             </AuthRedirectHandler>
           </Providers>
-        </ToastProvider>
+        </ToastA11yProvider>
       </body>
     </html>
   );

@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import type { StripeElementsOptions } from "@stripe/stripe-js";
 import { stripePromise } from "@/app/lib/stripe-browser";
-import { useToast } from "@/app/components/ui/ToastProvider";
+import { useToast } from "@/app/components/ui/ToastA11yProvider";
 import { useBillingStatus } from "@/app/hooks/useBillingStatus";
 
 type Plan = "monthly" | "annual";
