@@ -2,9 +2,14 @@
 
 import React, { useState } from "react";
 import { useSession } from "next-auth/react";
+import { useToast } from "@/app/components/ui/ToastProvider";
+import { useBillingStatus } from "@/app/hooks/useBillingStatus";
 
 export default function CancelRenewalCard() {
   const { data: session, update } = useSession();
+  const userId = (session?.user as any)?.id as string | undefined;
+  const { refetch } = useBillingStatus({ userId, auto: false });
+  const { toast } = useToast();
   const planStatus = (session?.user as any)?.planStatus as
     | "active"
     | "non_renewing"
@@ -34,9 +39,21 @@ export default function CancelRenewalCard() {
       setOkMsg(
         "Renovação cancelada. Seu acesso permanece até o fim do período já pago."
       );
+      toast({
+        variant: "success",
+        title: "Renovação cancelada",
+        description: "Você manterá acesso até expirar.",
+      });
       await update().catch(() => {});
+      refetch();
     } catch (e: any) {
-      setErr(e?.message || "Erro inesperado");
+      const msg = e?.message || "Erro inesperado";
+      setErr(msg);
+      toast({
+        variant: "error",
+        title: "Falha ao cancelar",
+        description: String(msg),
+      });
     } finally {
       setLoading(false);
     }

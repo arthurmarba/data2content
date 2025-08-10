@@ -5,12 +5,17 @@ import { useSession } from "next-auth/react";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import type { StripeElementsOptions } from "@stripe/stripe-js";
 import { stripePromise } from "@/app/lib/stripe-browser";
+import { useToast } from "@/app/components/ui/ToastProvider";
+import { useBillingStatus } from "@/app/hooks/useBillingStatus";
 
 type Plan = "monthly" | "annual";
 type When = "now" | "period_end";
 
 export default function ChangePlanCard() {
   const { data: session, update } = useSession();
+  const userId = (session?.user as any)?.id as string | undefined;
+  const { refetch } = useBillingStatus({ userId, auto: false });
+  const { toast } = useToast();
   const currentPlan = (session?.user as any)?.planType as Plan | undefined;
   const [newPlan, setNewPlan] = useState<Plan>(currentPlan === "annual" ? "monthly" : "annual");
   const [when, setWhen] = useState<When>("now");
@@ -52,7 +57,16 @@ export default function ChangePlanCard() {
             ? "Plano agendado para trocar no fim do ciclo atual."
             : "Plano atualizado com sucesso."
         );
+        toast({
+          variant: "success",
+          title: "Plano atualizado",
+          description:
+            when === "period_end"
+              ? "A mudança ocorrerá no fim do ciclo."
+              : "Mudança aplicada.",
+        });
         await update().catch(() => {});
+        refetch();
         return;
       }
 
@@ -60,7 +74,13 @@ export default function ChangePlanCard() {
       setClientSecret(data.clientSecret);
       setSubscriptionId(data.subscriptionId || null);
     } catch (e: any) {
-      setErr(e?.message || "Erro inesperado");
+      const msg = e?.message || "Erro inesperado";
+      setErr(msg);
+      toast({
+        variant: "error",
+        title: "Falha ao mudar plano",
+        description: String(msg),
+      });
     } finally {
       setLoading(false);
     }
@@ -147,7 +167,13 @@ export default function ChangePlanCard() {
                   setSubscriptionId(null);
                   if (ok) {
                     setOkMsg("Plano atualizado e pagamento confirmado.");
+                    toast({
+                      variant: "success",
+                      title: "Pagamento confirmado",
+                      description: "Seu plano foi atualizado.",
+                    });
                     await update().catch(() => {});
+                    refetch();
                   }
                 }}
               />
@@ -171,6 +197,7 @@ function InlineConfirm({
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const { toast } = useToast();
 
   async function confirm() {
     if (!stripe || !elements) return;
@@ -186,7 +213,13 @@ function InlineConfirm({
       if (error) throw new Error(error.message || "Falha ao confirmar pagamento");
       onClose(true);
     } catch (e: any) {
-      setErr(e?.message || "Erro inesperado");
+      const msg = e?.message || "Erro inesperado";
+      setErr(msg);
+      toast({
+        variant: "error",
+        title: "Falha ao confirmar",
+        description: String(msg),
+      });
     } finally {
       setSubmitting(false);
     }

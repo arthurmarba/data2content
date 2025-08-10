@@ -14,6 +14,7 @@ import { Providers } from "./providers";
 import AuthRedirectHandler from "./components/auth/AuthRedirectHandler";
 import ClientHooksWrapper from "./components/ClientHooksWrapper";
 import MainContentWrapper from "./components/MainContentWrapper"; // ✅ IMPORTADO O NOVO COMPONENTE
+import { ToastProvider } from "@/app/components/ui/ToastProvider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -55,19 +56,21 @@ export default async function RootLayout({
           text-brand-dark
         `}
       >
-        <Providers session={serializableSession}>
-          <ClientHooksWrapper />
-          <AuthRedirectHandler>
-            <Header />
+        <ToastProvider>
+          <Providers session={serializableSession}>
+            <ClientHooksWrapper />
+            <AuthRedirectHandler>
+              <Header />
 
-            {/* ✅ O wrapper agora é usado aqui para aplicar o padding condicionalmente */}
-            <MainContentWrapper>
-              {children}
-            </MainContentWrapper>
-            
-            <Footer />
-          </AuthRedirectHandler>
-        </Providers>
+              {/* ✅ O wrapper agora é usado aqui para aplicar o padding condicionalmente */}
+              <MainContentWrapper>
+                {children}
+              </MainContentWrapper>
+
+              <Footer />
+            </AuthRedirectHandler>
+          </Providers>
+        </ToastProvider>
       </body>
     </html>
   );
