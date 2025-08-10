@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useSession } from "next-auth/react";
-import { useToast } from "@/app/components/ui/ToastProvider";
+import { useToast } from "@/app/components/ui/ToastA11yProvider";
 import { useBillingStatus } from "@/app/hooks/useBillingStatus";
 
 export default function CancelRenewalCard() {
