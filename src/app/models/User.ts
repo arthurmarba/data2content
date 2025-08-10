@@ -236,6 +236,10 @@ export interface IUser extends Document {
   planStatus?: PlanStatus;
   planType?: 'monthly' | 'annual' | 'annual_one_time';
   paymentGatewaySubscriptionId?: string;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string | null;
+  currency?: string;
+  lastProcessedEventId?: string;
   planExpiresAt?: Date | null;
   autoRenewConsentAt?: Date | null;
   whatsappVerificationCode?: string | null;
@@ -346,6 +350,10 @@ const userSchema = new Schema<IUser>(
     planStatus: { type: String, enum: PLAN_STATUSES, default: "inactive", index: true }, // OTIMIZAÇÃO: Mantido índice.
     planType: { type: String, enum: ['monthly', 'annual', 'annual_one_time'], default: 'monthly' },
     paymentGatewaySubscriptionId: { type: String },
+    stripeCustomerId: { type: String, index: true },
+    stripeSubscriptionId: { type: String, default: null },
+    currency: { type: String, default: 'BRL' },
+    lastProcessedEventId: { type: String },
     inferredExpertiseLevel: {
         type: String,
         enum: ['iniciante', 'intermediario', 'avancado'],

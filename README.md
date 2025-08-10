@@ -39,6 +39,19 @@ Esta aplicação utiliza MongoDB. Configure as variáveis de ambiente `MONGODB_U
 
 Para os valores da assinatura de agências, você pode definir `AGENCY_MONTHLY_PRICE` e `AGENCY_ANNUAL_MONTHLY_PRICE` (padrões `99` e `90`).
 
+## Stripe Billing
+
+Configure as variáveis de ambiente abaixo para habilitar os planos recorrentes via Stripe:
+
+```
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_PRICE_MONTHLY_BRL=price_...
+STRIPE_PRICE_ANNUAL_BRL=price_...
+STRIPE_PRICE_MONTHLY_USD=price_...
+STRIPE_PRICE_ANNUAL_USD=price_...
+```
+
 ### Creators Scatter Plot
 
 Na dashboard administrativa, utilize o componente **CreatorsScatterPlot** para comparar métricas de diferentes criadores em um gráfico de dispersão.
