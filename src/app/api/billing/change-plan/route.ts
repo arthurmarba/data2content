@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     }
     const sub = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
     const currentCurrency = sub.items.data[0]?.price?.currency?.toUpperCase() as Currency | undefined;
-    const currency: Currency = body?.currency ?? (currentCurrency === "USD" ? "USD" : "BRL");
+    const currency: Currency = body?.currency === "USD" ? "USD" : (currentCurrency === "USD" ? "USD" : "BRL");
     const priceId = getPriceId(toPlan, currency);
     const itemId = sub.items.data[0]?.id;
     if (!itemId) throw new Error("Item da assinatura não encontrado");
@@ -56,8 +56,7 @@ export async function POST(req: NextRequest) {
         metadata: { plan: toPlan },
       });
 
-      user.planType = toPlan;
-      await user.save();
+      // Deixe o webhook ajustar planType/planExpiresAt quando a invoice for paga.
 
       const pi = (updated.latest_invoice as any)?.payment_intent;
       return NextResponse.json({
@@ -68,23 +67,30 @@ export async function POST(req: NextRequest) {
     }
 
     // when === "period_end" → agenda com Subscription Schedules (fase futura)
-    const schedule = await stripe.subscriptionSchedules.create({
-      from_subscription: sub.id,
-      end_behavior: "release",
-      phases: [
-        {
-          // mantém o preço atual por 1 ciclo
-          items: [{ price: sub.items.data[0].price.id, quantity: 1 }],
-          iterations: 1,
-        },
-        {
-          // troca para o novo price no próximo ciclo
-          items: [{ price: priceId, quantity: 1 }],
-        },
-      ],
-    });
+    try {
+      const schedule = await stripe.subscriptionSchedules.create({
+        from_subscription: sub.id,
+        end_behavior: "release",
+        phases: [
+          {
+            // mantém o preço atual por 1 ciclo
+            items: [{ price: sub.items.data[0].price.id, quantity: 1 }],
+            iterations: 1,
+          },
+          {
+            // troca para o novo price no próximo ciclo
+            items: [{ price: priceId, quantity: 1 }],
+          },
+        ],
+      });
 
-    return NextResponse.json({ scheduled: true, scheduleId: schedule.id });
+      return NextResponse.json({ scheduled: true, scheduleId: schedule.id });
+    } catch (e: any) {
+      if (String(e?.message || "").includes("active subscription schedule")) {
+        return NextResponse.json({ error: "Já existe uma troca agendada para o fim do ciclo atual." }, { status: 409 });
+      }
+      throw e;
+    }
   } catch (err: any) {
     console.error("[billing/change-plan] error:", err);
     return NextResponse.json({ error: err?.message || "Erro ao mudar de plano" }, { status: 500 });
