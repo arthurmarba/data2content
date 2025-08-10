@@ -27,9 +27,8 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const toPlan: Plan = body?.to;
+    const toPlan: Plan = body?.to ?? body?.newPlan;
     const when: When = body?.when ?? "now";
-    const currency: Currency = body?.currency ?? "BRL";
 
     if (!toPlan) {
       return NextResponse.json({ error: "Destino do plano (to) é obrigatório" }, { status: 400 });
@@ -40,9 +39,10 @@ export async function POST(req: NextRequest) {
     if (!user?.stripeSubscriptionId) {
       return NextResponse.json({ error: "Assinatura Stripe não encontrada" }, { status: 404 });
     }
-    const priceId = getPriceId(toPlan, currency);
-
     const sub = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
+    const currentCurrency = sub.items.data[0]?.price?.currency?.toUpperCase() as Currency | undefined;
+    const currency: Currency = body?.currency ?? (currentCurrency === "USD" ? "USD" : "BRL");
+    const priceId = getPriceId(toPlan, currency);
     const itemId = sub.items.data[0]?.id;
     if (!itemId) throw new Error("Item da assinatura não encontrado");
 
@@ -73,11 +73,12 @@ export async function POST(req: NextRequest) {
       end_behavior: "release",
       phases: [
         {
+          // mantém o preço atual por 1 ciclo
           items: [{ price: sub.items.data[0].price.id, quantity: 1 }],
-          start_date: "now",
-          end_date: sub.current_period_end,
+          iterations: 1,
         },
         {
+          // troca para o novo price no próximo ciclo
           items: [{ price: priceId, quantity: 1 }],
         },
       ],
