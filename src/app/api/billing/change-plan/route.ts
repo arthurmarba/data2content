@@ -1,58 +1,92 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { connectToDatabase } from '@/app/lib/mongoose';
-import User from '@/app/models/User';
-import stripe from '@/app/lib/stripe';
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { connectToDatabase } from "@/app/lib/mongoose";
+import User from "@/app/models/User";
+import stripe from "@/app/lib/stripe";
 
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
-function getPriceId(plan: 'monthly' | 'annual', currency: string): string | null {
-  const key = `STRIPE_PRICE_${plan === 'monthly' ? 'MONTHLY' : 'ANNUAL'}_${currency}`.toUpperCase();
-  return process.env[key] || null;
+type Plan = "monthly" | "annual";
+type Currency = "BRL" | "USD";
+type When = "now" | "period_end";
+
+function getPriceId(plan: Plan, currency: Currency) {
+  if (plan === "monthly" && currency === "BRL") return process.env.STRIPE_PRICE_MONTHLY_BRL!;
+  if (plan === "annual"  && currency === "BRL") return process.env.STRIPE_PRICE_ANNUAL_BRL!;
+  if (plan === "monthly" && currency === "USD") return process.env.STRIPE_PRICE_MONTHLY_USD!;
+  if (plan === "annual"  && currency === "USD") return process.env.STRIPE_PRICE_ANNUAL_USD!;
+  throw new Error("PriceId não configurado para este plano/moeda");
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession({ req, ...authOptions });
-  if (!session?.user?.email) {
-    return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
+  try {
+    const session = await getServerSession({ req, ...authOptions });
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const toPlan: Plan = body?.to;
+    const when: When = body?.when ?? "now";
+    const currency: Currency = body?.currency ?? "BRL";
+
+    if (!toPlan) {
+      return NextResponse.json({ error: "Destino do plano (to) é obrigatório" }, { status: 400 });
+    }
+
+    await connectToDatabase();
+    const user = await User.findOne({ email: session.user.email });
+    if (!user?.stripeSubscriptionId) {
+      return NextResponse.json({ error: "Assinatura Stripe não encontrada" }, { status: 404 });
+    }
+    const priceId = getPriceId(toPlan, currency);
+
+    const sub = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
+    const itemId = sub.items.data[0]?.id;
+    if (!itemId) throw new Error("Item da assinatura não encontrado");
+
+    if (when === "now") {
+      const updated = await stripe.subscriptions.update(sub.id, {
+        items: [{ id: itemId, price: priceId }],
+        proration_behavior: "create_prorations",
+        billing_cycle_anchor: "now",
+        payment_behavior: "default_incomplete",
+        expand: ["latest_invoice.payment_intent"],
+        metadata: { plan: toPlan },
+      });
+
+      user.planType = toPlan;
+      await user.save();
+
+      const pi = (updated.latest_invoice as any)?.payment_intent;
+      return NextResponse.json({
+        subscriptionId: updated.id,
+        clientSecret: pi?.client_secret || null,
+        requiresAction: !!pi && ["requires_action", "requires_payment_method"].includes(pi.status),
+      });
+    }
+
+    // when === "period_end" → agenda com Subscription Schedules (fase futura)
+    const schedule = await stripe.subscriptionSchedules.create({
+      from_subscription: sub.id,
+      end_behavior: "release",
+      phases: [
+        {
+          items: [{ price: sub.items.data[0].price.id, quantity: 1 }],
+          start_date: "now",
+          end_date: sub.current_period_end,
+        },
+        {
+          items: [{ price: priceId, quantity: 1 }],
+        },
+      ],
+    });
+
+    return NextResponse.json({ scheduled: true, scheduleId: schedule.id });
+  } catch (err: any) {
+    console.error("[billing/change-plan] error:", err);
+    return NextResponse.json({ error: err?.message || "Erro ao mudar de plano" }, { status: 500 });
   }
-
-  const body = (await req.json()) as { to: 'annual' | 'monthly'; when?: 'now' | 'period_end' };
-  const { to, when = 'now' } = body;
-
-  await connectToDatabase();
-  const user = await User.findOne({ email: session.user.email });
-  if (!user || !user.stripeSubscriptionId) {
-    return NextResponse.json({ error: 'Assinatura não encontrada' }, { status: 404 });
-  }
-
-  const priceId = getPriceId(to, user.currency || 'BRL');
-  if (!priceId) {
-    return NextResponse.json({ error: 'Plano indisponível' }, { status: 400 });
-  }
-
-  const subscription = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
-
-  const params: any = {
-    items: [{ id: subscription.items.data[0].id, price: priceId }],
-    payment_behavior: 'default_incomplete',
-    expand: ['latest_invoice.payment_intent'],
-  };
-
-  if (when === 'now') {
-    params.proration_behavior = 'create_prorations';
-    params.billing_cycle_anchor = 'now';
-  } else {
-    params.proration_behavior = 'none';
-  }
-
-  const updated = await stripe.subscriptions.update(user.stripeSubscriptionId, params);
-
-  user.planType = to;
-  user.planStatus = 'pending';
-  await user.save();
-
-  const paymentIntent = (updated.latest_invoice as any)?.payment_intent;
-  return NextResponse.json({ clientSecret: paymentIntent?.client_secret || null });
 }
+
