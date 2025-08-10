@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { FaSpinner, FaCheckCircle, FaInfoCircle, FaTimesCircle, FaLock } from "react-icons/fa";
 import {
   MONTHLY_PRICE,
@@ -320,6 +321,14 @@ export default function PaymentPanel({ user }: PaymentPanelProps) {
 
   return (
     <div className="mx-auto w-full max-w-md">
+      <div className="mb-4 text-center">
+        <Link
+          href="/dashboard/billing"
+          className="px-4 py-2 rounded bg-black text-white inline-block"
+        >
+          Assinar agora
+        </Link>
+      </div>
       {isPending && (
         <div className="border border-yellow-300 rounded-xl shadow-sm p-4 sm:p-5 bg-yellow-50 text-yellow-800 mb-4">
           <div className="flex items-center gap-3 mb-2">
