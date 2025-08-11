@@ -50,13 +50,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
     }
 
-    // Evita assinatura duplicada ativa
+    let existing: Stripe.Subscription | null = null;
     if (user.stripeSubscriptionId) {
       try {
-        const existing = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
-        if (["active", "trialing", "past_due", "unpaid", "paused", "incomplete"].includes(existing.status)) {
-          return NextResponse.json({ error: "Já existe uma assinatura em andamento para este usuário." }, { status: 409 });
-        }
+        existing = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
       } catch {}
     }
 
@@ -73,38 +70,48 @@ export async function POST(req: NextRequest) {
       user.stripeCustomerId = customer.id;
     }
 
-    if (affiliateCode) {
-      affiliateCode = affiliateCode.toUpperCase();
-      if (affiliateCode !== user.affiliateCode) {
-        const owner = await User.findOne({ affiliateCode }).select("_id");
-        if (owner) {
-          user.affiliateUsed = affiliateCode;
+    let sub: Stripe.Subscription;
+
+    if (existing && !["canceled", "incomplete_expired"].includes(existing.status)) {
+      // Atualiza price em assinatura existente
+      const itemId = existing.items.data[0]?.id;
+      sub = await stripe.subscriptions.update(existing.id, {
+        items: [{ id: itemId, price: priceId }],
+        payment_behavior: "default_incomplete",
+        proration_behavior: "create_prorations",
+        billing_cycle_anchor: "now",
+        expand: ["latest_invoice.payment_intent"],
+      }, { idempotencyKey: `sub_update_${user._id}_${plan}_${currency}` });
+    } else {
+      if (affiliateCode) {
+        affiliateCode = affiliateCode.toUpperCase();
+        if (affiliateCode !== user.affiliateCode) {
+          const owner = await User.findOne({ affiliateCode }).select("_id");
+          if (owner) {
+            user.affiliateUsed = affiliateCode;
+          }
         }
       }
+
+      const params: Stripe.SubscriptionCreateParams = {
+        customer: customerId!,
+        items: [{ price: priceId }],
+        payment_behavior: "default_incomplete",
+        expand: ["latest_invoice.payment_intent"],
+      };
+      if (coupon || promotion_code) {
+        (params as any).discounts = [coupon ? { coupon } : { promotion_code }];
+      }
+      sub = await stripe.subscriptions.create(
+        params,
+        { idempotencyKey: `sub_${user._id}_${plan}_${currency}` }
+      );
     }
-
-    await user.save();
-
-    const params: Stripe.SubscriptionCreateParams = {
-      customer: customerId!,
-      items: [{ price: priceId }],
-      payment_behavior: "default_incomplete",
-      expand: ["latest_invoice.payment_intent"],
-    };
-
-    // descontos: use discounts[] (suporta coupon OU promotion_code)
-    if (coupon || promotion_code) {
-      (params as any).discounts = [coupon ? { coupon } : { promotion_code }];
-    }
-
-    const sub = await stripe.subscriptions.create(
-      params,
-      { idempotencyKey: `sub_${user._id}_${plan}_${currency}` }
-    );
 
     user.stripeSubscriptionId = sub.id;
     user.planType = plan;
     user.planStatus = "pending";
+    user.stripePriceId = priceId;
     await user.save();
 
     const clientSecret = (sub.latest_invoice as any)?.payment_intent?.client_secret;
