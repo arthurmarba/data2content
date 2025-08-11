@@ -9,8 +9,8 @@ import { checkRateLimit } from "@/utils/rateLimit";
 
 export const runtime = "nodejs";
 
-export type Plan = "monthly" | "annual";
-export type Currency = "BRL" | "USD";
+type Plan = "monthly" | "annual";
+type Currency = "BRL" | "USD";
 
 function getPriceId(plan: Plan, currency: Currency) {
   if (plan === "monthly" && currency === "BRL") return process.env.STRIPE_PRICE_MONTHLY_BRL!;
@@ -34,11 +34,13 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const plan: Plan = body.plan;
-    const currency: Currency = body.currency;
+    // normaliza moeda vinda do front ("brl"/"usd")
+    const currency = String(body.currency || "").toUpperCase() as Currency;
     const coupon: string | undefined = body.coupon;
     const promotion_code: string | undefined = body.promotion_code;
     let affiliateCode: string | undefined = body.affiliateCode;
-    if (!plan || !currency) {
+
+    if (!plan || (currency !== "BRL" && currency !== "USD")) {
       return NextResponse.json({ error: "Parâmetros inválidos" }, { status: 400 });
     }
 
@@ -46,6 +48,16 @@ export async function POST(req: NextRequest) {
     const user = await User.findById(session.user.id);
     if (!user) {
       return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
+    }
+
+    // Evita assinatura duplicada ativa
+    if (user.stripeSubscriptionId) {
+      try {
+        const existing = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
+        if (["active", "trialing", "past_due", "unpaid", "paused", "incomplete"].includes(existing.status)) {
+          return NextResponse.json({ error: "Já existe uma assinatura em andamento para este usuário." }, { status: 409 });
+        }
+      } catch {}
     }
 
     const priceId = getPriceId(plan, currency);
@@ -74,13 +86,16 @@ export async function POST(req: NextRequest) {
     await user.save();
 
     const params: Stripe.SubscriptionCreateParams = {
-      customer: customerId,
+      customer: customerId!,
       items: [{ price: priceId }],
       payment_behavior: "default_incomplete",
       expand: ["latest_invoice.payment_intent"],
     };
-    if (coupon) (params as any).coupon = coupon;
-    if (promotion_code) (params as any).promotion_code = promotion_code;
+
+    // descontos: use discounts[] (suporta coupon OU promotion_code)
+    if (coupon || promotion_code) {
+      (params as any).discounts = [coupon ? { coupon } : { promotion_code }];
+    }
 
     const sub = await stripe.subscriptions.create(
       params,

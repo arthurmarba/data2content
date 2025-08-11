@@ -231,13 +231,17 @@ export async function POST(request: NextRequest) {
             if (user.affiliateUsed) {
               const affUser = await User.findOne({ affiliateCode: user.affiliateUsed });
               if (affUser) {
+                if (!affUser.affiliateBalances || !(affUser.affiliateBalances instanceof Map)) {
+                  affUser.affiliateBalances = new Map<string, number>();
+                }
                 const baseCents =
                   p.metadata?.commission_base_cents ?? Math.round((p.transaction_amount || 0) * 100);
                 const commissionCents = Math.round(baseCents * 0.1);
                 const cur = normCur((p as any).currency_id || 'brl');
 
-                const prev = affUser.affiliateBalances?.get(cur) ?? 0;
-                affUser.affiliateBalances?.set(cur, prev + commissionCents);
+                const prev = affUser.affiliateBalances.get(cur) ?? 0;
+                affUser.affiliateBalances.set(cur, prev + commissionCents);
+                affUser.markModified('affiliateBalances');
                 affUser.affiliateInvites = (affUser.affiliateInvites || 0) + 1;
                 if (affUser.affiliateInvites % 5 === 0) {
                   affUser.affiliateRank = (affUser.affiliateRank || 1) + 1;
@@ -255,7 +259,7 @@ export async function POST(request: NextRequest) {
                 });
                 await affUser.save();
               }
-              user.affiliateUsed = undefined; // não pagar comissão na renovação
+              user.affiliateUsed = null; // não pagar comissão na renovação
             }
 
             // cria preapproval para renovação anual
@@ -306,13 +310,17 @@ export async function POST(request: NextRequest) {
             try {
               const affUser = await User.findOne({ affiliateCode: user.affiliateUsed });
               if (affUser) {
+                if (!affUser.affiliateBalances || !(affUser.affiliateBalances instanceof Map)) {
+                  affUser.affiliateBalances = new Map<string, number>();
+                }
                 const commissionRate = 0.1;
                 const amount = Number(p.transaction_amount || 0);
                 const commissionCents = Math.round(amount * 100 * commissionRate);
                 const cur = normCur((p as any).currency_id || 'brl');
 
-                const prev = affUser.affiliateBalances?.get(cur) ?? 0;
-                affUser.affiliateBalances?.set(cur, prev + commissionCents);
+                const prev = affUser.affiliateBalances.get(cur) ?? 0;
+                affUser.affiliateBalances.set(cur, prev + commissionCents);
+                affUser.markModified('affiliateBalances');
                 affUser.affiliateInvites = (affUser.affiliateInvites || 0) + 1;
                 if (affUser.affiliateInvites % 5 === 0 && affUser.affiliateInvites > 0) {
                   affUser.affiliateRank = (affUser.affiliateRank || 1) + 1;
@@ -331,7 +339,7 @@ export async function POST(request: NextRequest) {
                 await affUser.save();
               }
             } finally {
-              user.affiliateUsed = undefined;
+              user.affiliateUsed = null;
             }
           }
 
@@ -395,6 +403,9 @@ export async function POST(request: NextRequest) {
       if (user.affiliateUsed) {
         const affUser = await User.findOne({ affiliateCode: user.affiliateUsed });
         if (affUser) {
+          if (!affUser.affiliateBalances || !(affUser.affiliateBalances instanceof Map)) {
+            affUser.affiliateBalances = new Map<string, number>();
+          }
           const commissionRate = 0.1;
           let transactionAmount = body.data?.transaction_amount || 0;
 
@@ -408,8 +419,9 @@ export async function POST(request: NextRequest) {
           const commissionCents = Math.round(transactionAmount * 100 * commissionRate);
           const cur = normCur((body.data as any)?.currency_id || 'brl');
 
-          const prev = affUser.affiliateBalances?.get(cur) ?? 0;
-          affUser.affiliateBalances?.set(cur, prev + commissionCents);
+          const prev = affUser.affiliateBalances.get(cur) ?? 0;
+          affUser.affiliateBalances.set(cur, prev + commissionCents);
+          affUser.markModified('affiliateBalances');
           affUser.affiliateInvites = (affUser.affiliateInvites || 0) + 1;
           if (affUser.affiliateInvites % 5 === 0 && affUser.affiliateInvites > 0) {
             affUser.affiliateRank = (affUser.affiliateRank || 1) + 1;
@@ -431,7 +443,7 @@ export async function POST(request: NextRequest) {
           affUser.commissionLog.push(commissionEntry);
           await affUser.save();
         }
-        user.affiliateUsed = undefined;
+        user.affiliateUsed = null;
       }
 
       user.lastPaymentError = undefined;
