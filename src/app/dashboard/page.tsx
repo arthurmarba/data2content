@@ -14,7 +14,6 @@ import { FaCopy, FaCheckCircle, FaClock, FaTimesCircle, FaLock, FaTrophy, FaGift
 import { motion, AnimatePresence } from "framer-motion";
 
 // --- Imports dos seus Componentes Reais ---
-import PaymentPanel from './PaymentPanel';
 import UploadMetrics from './UploadMetrics';
 import WhatsAppPanel from './WhatsAppPanel';
 import PaymentModal from './PaymentModal';
@@ -22,7 +21,7 @@ import AdDealForm from './AdDealForm';
 import VideoCarousel from './VideoCarousel';
 import InstagramConnectCard from './InstagramConnectCard';
 import StepIndicator from './StepIndicator';
-import PlanTeaser from './components/PlanTeaser';
+import PlanCardPro from '@/components/billing/PlanCardPro';
 
 // --- FIM IMPORTS ---
 
@@ -211,12 +210,12 @@ export default function MainDashboard() {
   const [commissionLogError, setCommissionLogError] = useState<string | null>(null);
   const [agencyName, setAgencyName] = useState<string | null>(null);
 
-  const redirectToPaymentPanel = useCallback(() => {
-    const paymentSection = document.getElementById('payment-section');
-    if (paymentSection) {
-      paymentSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const scrollToPlanCard = useCallback(() => {
+    const planCard = document.getElementById('plan-card');
+    if (planCard) {
+      planCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
     } else {
-      console.warn("Seção #payment-section não encontrada para scroll. Verifique o ID ou implemente a navegação.");
+      console.warn("Elemento #plan-card não encontrado para scroll. Verifique o ID ou implemente a navegação.");
     }
   }, []);
 
@@ -295,7 +294,7 @@ export default function MainDashboard() {
         try {
           const data = JSON.parse(stored);
           if (data && data.code) {
-            redirectToPaymentPanel();
+            scrollToPlanCard();
             fetch(`/api/agency/info/${data.code}`)
               .then((res) => res.ok ? res.json() : null)
               .then((info) => {
@@ -312,7 +311,7 @@ export default function MainDashboard() {
         }
       }
     }
-  }, [status, user, redirectToPaymentPanel]);
+  }, [status, user, scrollToPlanCard]);
 
   // --- FUNÇÕES DE HANDLER RESTAURADAS ---
   const handleRedeemBalance = useCallback(async (userIdFromFunc: string | undefined) => {
@@ -399,15 +398,11 @@ export default function MainDashboard() {
       default: return { text: 'Plano Inativo', colorClasses: 'text-brand-red bg-red-100 border-red-300', icon: <FaTimesCircle className="w-4 h-4"/> };
     }
   };
-  const statusInfo = getStatusInfo(); 
-  
-  const paymentPanelUserProps = {
-    planStatus: user.planStatus,
-    planExpiresAt: user.planExpiresAt,
-    affiliateBalance: (user.affiliateBalanceCents ?? Math.round((user.affiliateBalance || 0) * 100)) / 100,
-    affiliateCode: affiliateCode === null ? undefined : affiliateCode,
-    planType: user.planType, // ✅ agora tipado corretamente
-  };
+  const statusInfo = getStatusInfo();
+
+  const showPlan = planStatus !== 'active';
+  const defaultCurrency = (user?.currency || 'BRL').toUpperCase() === 'USD' ? 'USD' : 'BRL';
+
   const canRedeem = (user.affiliateBalanceCents ?? Math.round((user.affiliateBalance ?? 0) * 100)) > 0;
 
   const videoGuidesData: VideoData[] = [
@@ -578,10 +573,16 @@ export default function MainDashboard() {
         {/* --- FIM DO HEADER RESTAURADO --- */}
 
         <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8 space-y-12">
-          <PlanTeaser />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 lg:gap-12">
             {/* --- COLUNA PRINCIPAL (ESQUERDA) --- */}
-            <div className="lg:col-span-2 space-y-12"> 
+            <div className="lg:col-span-2 space-y-12">
+              {showPlan && (
+                <PlanCardPro
+                  id="plan-card"
+                  defaultCurrency={defaultCurrency}
+                  className="w-full"
+                />
+              )}
               {/* Card de Boas-Vindas */}
               <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={0}>
                 <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg border-t-4 border-brand-pink flex flex-col sm:flex-row items-center gap-6">
@@ -607,7 +608,7 @@ export default function MainDashboard() {
                       <div className={`inline-flex items-center gap-2 text-sm mb-1 px-4 py-1.5 rounded-full border ${statusInfo.colorClasses}`}> {statusInfo.icon} <span className="font-semibold">{statusInfo.text}</span> {planStatus === 'active' && user?.planExpiresAt && ( <span className="hidden md:inline text-xs opacity-80 ml-2">(Expira em {new Date(user.planExpiresAt).toLocaleDateString("pt-BR")})</span> )} </div>
                       {!canAccessFeatures && (
                         <button
-                          onClick={redirectToPaymentPanel}
+                          onClick={scrollToPlanCard}
                           className="text-xs bg-brand-pink text-white px-4 py-1.5 rounded-full hover:opacity-90 font-semibold transition-default align-middle"
                         >
                           Fazer Upgrade
@@ -624,26 +625,10 @@ export default function MainDashboard() {
                 <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg"> <VideoCarousel videos={videoGuidesData} swiperRef={swiperRef} /> </div>
               </motion.section>
 
-              {/* Seção de Pagamento (PaymentPanel) */}
-              {!canAccessFeatures && (
-                <motion.section
-                  id="payment-section"
-                  variants={cardVariants}
-                  initial="hidden"
-                  animate="visible"
-                  custom={0.6}
-                  className="animated-border-card"
-                >
-                  <div className="card-content bg-white p-6 sm:p-8 rounded-xl">
-                    <PaymentPanel user={paymentPanelUserProps} />
-                  </div>
-                </motion.section>
-              )}
-
               {/* Automação de Métricas (InstagramConnectCard) */}
               <InstagramConnectCard
                 canAccessFeatures={canAccessFeatures}
-                onActionRedirect={redirectToPaymentPanel}
+                onActionRedirect={scrollToPlanCard}
                 showToast={showToastMessage}
               />
 
@@ -654,7 +639,7 @@ export default function MainDashboard() {
                   <WhatsAppPanel
                     userId={userId}
                     canAccessFeatures={canAccessFeatures}
-                    onActionRedirect={redirectToPaymentPanel}
+                    onActionRedirect={scrollToPlanCard}
                     showToast={showToastMessage}
                   />
                 </div>
@@ -675,7 +660,7 @@ export default function MainDashboard() {
                     canAccessFeatures={canAccessFeatures}
                     userId={userId}
                     onNeedHelp={() => scrollToVideoGuide('upload-metrics-guide')}
-                    onActionRedirect={redirectToPaymentPanel}
+                    onActionRedirect={scrollToPlanCard}
                     showToast={showToastMessage}
                   />
                 </div>
@@ -688,7 +673,7 @@ export default function MainDashboard() {
                   <AdDealForm
                     userId={userId}
                     canAccessFeatures={canAccessFeatures}
-                    onActionRedirect={redirectToPaymentPanel}
+                    onActionRedirect={scrollToPlanCard}
                     showToast={showToastMessage}
                   />
                 </div>
