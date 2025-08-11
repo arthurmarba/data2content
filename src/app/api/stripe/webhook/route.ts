@@ -92,22 +92,23 @@ export async function POST(req: NextRequest) {
         break;
       }
 
+      case "customer.subscription.created":
       case "customer.subscription.updated": {
         const sub = event.data.object as Stripe.Subscription;
+        const item = sub.items.data[0];
         const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer?.id;
         if (!customerId) break;
-        const user = await User.findOne({ stripeCustomerId: customerId });
-        if (!user) break;
 
-        if (sub.cancel_at_period_end) {
-          user.planStatus = "non_renewing";
-        } else if (sub.status === "active" || sub.status === "trialing") {
-          user.planStatus = "active";
-        }
+        const update: any = {
+          planStatus: sub.cancel_at_period_end ? "non_renewing" : sub.status,
+          stripeSubscriptionId: sub.id,
+          stripePriceId: item?.price?.id,
+          planInterval: item?.price?.recurring?.interval,
+        };
         if (sub.current_period_end) {
-          user.planExpiresAt = new Date(sub.current_period_end * 1000);
+          update.planExpiresAt = new Date(sub.current_period_end * 1000);
         }
-        await user.save();
+        await User.updateOne({ stripeCustomerId: customerId }, { $set: update });
         break;
       }
 
@@ -156,7 +157,7 @@ declare namespace Stripe {
     status: "active" | "trialing" | "past_due" | "unpaid" | "canceled" | "incomplete" | "incomplete_expired" | "paused";
     cancel_at_period_end: boolean | null;
     current_period_end: number;
-    items: { data: Array<{ id: string, price: { id: string } }> };
+    items: { data: Array<{ id: string, price: { id: string; recurring?: { interval?: "day"|"week"|"month"|"year" } } }> };
   }
 }
 

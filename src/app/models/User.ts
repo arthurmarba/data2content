@@ -238,6 +238,9 @@ export interface IUser extends Document {
   paymentGatewaySubscriptionId?: string;
   stripeCustomerId?: string;
   stripeSubscriptionId?: string | null;
+  stripePriceId?: string | null;
+  planInterval?: 'month' | 'year' | null;
+  currentPeriodEnd?: Date | null;
   currency?: string;
   lastProcessedEventId?: string;
   planExpiresAt?: Date | null;
@@ -352,6 +355,9 @@ const userSchema = new Schema<IUser>(
     paymentGatewaySubscriptionId: { type: String },
     stripeCustomerId: { type: String, index: true },
     stripeSubscriptionId: { type: String, default: null },
+    stripePriceId: { type: String, default: null },
+    planInterval: { type: String, enum: ['month', 'year'], default: null },
+    currentPeriodEnd: { type: Date, default: null },
     currency: { type: String, default: 'BRL' },
     lastProcessedEventId: { type: String },
     inferredExpertiseLevel: {
