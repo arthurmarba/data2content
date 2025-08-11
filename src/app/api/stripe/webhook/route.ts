@@ -202,7 +202,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true });
   } catch (err: any) {
     logger.error("[stripe/webhook] handler error:", err);
-    return NextResponse.json({ error: "logged" }, { status: 500 });
+    return NextResponse.json({ received: true, error: "logged" }, { status: 200 });
   }
 }
 

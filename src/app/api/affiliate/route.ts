@@ -27,10 +27,12 @@ export async function GET(request: NextRequest) {
   try {
     // 1) Log do cookie recebido (para debug)
     const rawCookie = request.headers.get("cookie");
-    console.debug("[affiliate:GET] Cookie recebido:", rawCookie || "NENHUM COOKIE");
+    if (process.env.NODE_ENV !== 'production') {
+      console.debug("[affiliate:GET] Cookie recebido:", rawCookie || "NENHUM COOKIE");
+    }
 
     // 2) Obtém a sessão usando getServerSession
-    const session = (await getServerSession({ req: request, ...authOptions })) as Session | null;
+    const session = (await getServerSession(authOptions)) as Session | null;
     console.debug("[affiliate:GET] Sessão retornada:", session);
 
     if (!session) {
