@@ -25,6 +25,8 @@ export async function POST(req: NextRequest) {
       const account = await stripe.accounts.create({
         type: process.env.STRIPE_CONNECT_MODE === "express" ? "express" : "standard",
         email: user.email,
+        capabilities: { transfers: { requested: true } },
+        metadata: { userId: String(user._id) },
       });
       accountId = account.id;
       user.paymentInfo = user.paymentInfo || {};

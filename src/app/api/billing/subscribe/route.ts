@@ -59,40 +59,41 @@ export async function POST(req: NextRequest) {
     // Se já tem assinatura Stripe, atualiza para o novo price (caso de “reativar/trocar” por aqui)
     if (user.stripeSubscriptionId) {
       const sub = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
-      const itemId = sub.items.data[0]?.id;
-      if (!itemId) throw new Error("Item da assinatura não encontrado");
+      if (sub.status === 'canceled' || sub.status === 'incomplete_expired') {
+        user.stripeSubscriptionId = undefined;
+      } else {
+        const itemId = sub.items.data[0]?.id;
+        if (!itemId) throw new Error("Item da assinatura não encontrado");
 
-      const updated = await stripe.subscriptions.update(user.stripeSubscriptionId, {
-        items: [{ id: itemId, price: priceId }],
-        payment_behavior: "default_incomplete",
-        proration_behavior: "create_prorations",
-        billing_cycle_anchor: "now",
-        expand: ["latest_invoice.payment_intent"],
-        metadata: { plan },
-      });
+        const updated = await stripe.subscriptions.update(user.stripeSubscriptionId, {
+          items: [{ id: itemId, price: priceId }],
+          payment_behavior: "default_incomplete",
+          proration_behavior: "create_prorations",
+          billing_cycle_anchor: "now",
+          expand: ["latest_invoice.payment_intent"],
+          metadata: { plan },
+        });
 
-      await user.save();
+        await user.save();
 
-      const pi = (updated.latest_invoice as any)?.payment_intent;
-      return NextResponse.json({
-        subscriptionId: updated.id,
-        clientSecret: pi?.client_secret || null,
-        requiresAction: !!pi && ["requires_action", "requires_payment_method"].includes(pi.status),
-      });
+        const pi = (updated.latest_invoice as any)?.payment_intent;
+        return NextResponse.json({
+          subscriptionId: updated.id,
+          clientSecret: pi?.client_secret || null,
+          requiresAction: !!pi && ["requires_action", "requires_payment_method"].includes(pi.status),
+        });
+      }
     }
 
     // Cria assinatura do zero
-    const subParams: any = {
+    const created = await stripe.subscriptions.create({
       customer: user.stripeCustomerId,
       items: [{ price: priceId }],
       payment_behavior: "default_incomplete",
       expand: ["latest_invoice.payment_intent"],
       metadata: { plan },
-    };
-    if (affiliateCode) {
-      subParams.coupon = process.env.STRIPE_PROMO_COUPON_ID_10OFF_ONCE;
-    }
-    const created = await stripe.subscriptions.create(subParams);
+      ...(affiliateCode ? { discounts: [{ coupon: process.env.STRIPE_PROMO_COUPON_ID_10OFF_ONCE! }] } : {}),
+    });
 
     user.stripeSubscriptionId = created.id;
     user.planType = plan;      // mantém coerência na sessão
