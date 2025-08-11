@@ -14,6 +14,7 @@ import { normCur } from '@/utils/normCur';
       }
     }
     u.affiliateBalances = map;
+    u.markModified('affiliateBalances');
     u.affiliateBalance = 0;
     u.affiliateBalanceCents = 0;
     await u.save();

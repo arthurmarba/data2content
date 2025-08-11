@@ -127,7 +127,8 @@ export async function POST(request: NextRequest) {
     }
 
     const cur = normCur(currency);
-    const balanceCents = user.affiliateBalances?.get(cur) ?? 0;
+    user.affiliateBalances ||= new Map();
+    const balanceCents = user.affiliateBalances.get(cur) ?? 0;
 
     const MINIMUM_REDEEM_AMOUNT_CENTS = 50 * 100;
     if (balanceCents < MINIMUM_REDEEM_AMOUNT_CENTS) {
@@ -148,7 +149,8 @@ export async function POST(request: NextRequest) {
       currency: cur,
     });
 
-    user.affiliateBalances?.set(cur, 0);
+    user.affiliateBalances.set(cur, 0);
+    user.markModified('affiliateBalances');
     await user.save();
 
     return NextResponse.json({
