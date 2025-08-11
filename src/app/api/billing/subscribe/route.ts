@@ -13,6 +13,12 @@ export const runtime = "nodejs";
 type Plan = "monthly" | "annual";
 type Currency = "BRL" | "USD";
 
+function getCouponId(currency: Currency) {
+  if (currency === "BRL") return process.env.STRIPE_COUPON_10OFF_ONCE_BRL;
+  if (currency === "USD") return process.env.STRIPE_COUPON_10OFF_ONCE_USD;
+  return undefined;
+}
+
 function getPriceId(plan: Plan, currency: Currency) {
   if (plan === "monthly" && currency === "BRL") return process.env.STRIPE_PRICE_MONTHLY_BRL!;
   if (plan === "annual" && currency === "BRL") return process.env.STRIPE_PRICE_ANNUAL_BRL!;
@@ -40,6 +46,7 @@ export async function POST(req: NextRequest) {
     const coupon: string | undefined = body.coupon;
     const promotion_code: string | undefined = body.promotion_code;
     let affiliateCode: string | undefined = body.affiliateCode;
+    let affiliateValid = false;
 
     if (!plan || (currency !== "BRL" && currency !== "USD")) {
       return NextResponse.json({ error: "Parâmetros inválidos" }, { status: 400 });
@@ -104,12 +111,13 @@ export async function POST(req: NextRequest) {
           const owner = await User.findOne({ affiliateCode }).select("_id");
           if (owner) {
             user.affiliateUsed = affiliateCode;
+            affiliateValid = true;
           }
         }
       }
 
-      const metadata: Record<string, string> = { userId: String(user._id) };
-      if (affiliateCode) metadata.affiliateCode = affiliateCode;
+      const metadata: Record<string, string> = { userId: String(user._id), plan };
+      if (affiliateValid && affiliateCode) metadata.affiliateCode = affiliateCode;
 
       const params: Stripe.SubscriptionCreateParams = {
         customer: customerId!,
@@ -120,9 +128,14 @@ export async function POST(req: NextRequest) {
       };
       if (coupon || promotion_code) {
         (params as any).discounts = [coupon ? { coupon } : { promotion_code }];
+      } else if (affiliateValid) {
+        const couponId = getCouponId(currency);
+        if (couponId) {
+          (params as any).discounts = [{ coupon: couponId }];
+        }
       }
 
-      const idemKey = `sub_create_${user._id}_${priceId}_${affiliateCode || "na"}_${Date.now()}`;
+      const idemKey = `sub_create_${user._id}_${priceId}_${affiliateCode || "na"}`;
       sub = await stripe.subscriptions.create(params, { idempotencyKey: idemKey });
     }
 

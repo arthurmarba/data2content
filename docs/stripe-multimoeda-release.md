@@ -30,7 +30,7 @@ Este documento consolida a especificação, checklist e critérios de aceite par
 
 **Tarefas**
 - Garantir `getPriceId(plan, currency)` com todas envs definidas (`STRIPE_PRICE_MONTHLY_BRL`, `STRIPE_PRICE_ANNUAL_BRL`, `STRIPE_PRICE_MONTHLY_USD`, `STRIPE_PRICE_ANNUAL_USD`).
-- Se houver cupom (`STRIPE_PROMO_COUPON_ID_10OFF_ONCE`), aplicar apenas se compatível com a moeda configurada.
+- Se houver cupom (`STRIPE_COUPON_10OFF_ONCE_BRL` ou `STRIPE_COUPON_10OFF_ONCE_USD`), aplicar apenas se compatível com a moeda configurada.
 - Usuário com `stripeSubscriptionId` ativo → ignorar `affiliateCode` e atualizar price.
 
 **Critérios de Aceite**
@@ -136,7 +136,7 @@ Este documento consolida a especificação, checklist e critérios de aceite par
   - `STRIPE_CONNECT_MODE=express`
   - `STRIPE_PRICE_MONTHLY_BRL`, `STRIPE_PRICE_ANNUAL_BRL`
   - `STRIPE_PRICE_MONTHLY_USD`, `STRIPE_PRICE_ANNUAL_USD`
-  - (opcional) `STRIPE_PROMO_COUPON_ID_10OFF_ONCE`
+  - (opcional) `STRIPE_COUPON_10OFF_ONCE_BRL`, `STRIPE_COUPON_10OFF_ONCE_USD`
 - Stripe CLI: script de teste (local ou staging) para:
   - Criar/atualizar assinatura BRL e USD
   - Disparar `invoice.payment_succeeded`
