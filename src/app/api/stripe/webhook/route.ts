@@ -60,12 +60,7 @@ export async function POST(req: NextRequest) {
             const alreadyPaidForThisReferral = (affUser.commissionLog || []).some(
               (e) => String(e.referredUserId) === String(user._id) && e.status === 'paid'
             );
-            if (alreadyPaidForThisReferral) {
-              user.affiliateUsed = null;
-              await user.save();
-              break;
-            }
-            if (!affUser.commissionPaidInvoiceIds?.includes(String(invoice.id))) {
+            if (!alreadyPaidForThisReferral && !affUser.commissionPaidInvoiceIds?.includes(String(invoice.id))) {
               const percent = Number(process.env.AFFILIATE_COMMISSION_PERCENT || 10) / 100;
               const amountCents = Math.round((invoice.total ?? 0) * percent);
               let status: 'paid' | 'failed' | 'fallback' = 'paid';
@@ -114,8 +109,11 @@ export async function POST(req: NextRequest) {
               }
               await affUser.save();
             }
-            user.affiliateUsed = null; // limpa para não pagar em renovações
           }
+        }
+        // Sempre limpa affiliateUsed após processar a cobrança inicial
+        if (user.affiliateUsed) {
+          user.affiliateUsed = null;
         }
 
         user.lastPaymentError = undefined;
