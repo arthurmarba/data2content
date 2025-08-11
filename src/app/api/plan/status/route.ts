@@ -38,10 +38,11 @@ export async function GET(req: Request) {
 
   const subs = await stripe.subscriptions.list({
     customer: user.stripeCustomerId,
-    status: "active",
+    status: "all",
     limit: 1,
   });
   const sub = subs.data.find((s) => !s.cancel_at_period_end) ?? subs.data[0];
+  const status = sub?.cancel_at_period_end ? "non_renewing" : sub?.status;
   const item = sub?.items.data[0];
   const interval = item?.price.recurring?.interval ?? null;
 
@@ -49,7 +50,7 @@ export async function GET(req: Request) {
     { _id: user._id },
     {
       $set: {
-        planStatus: sub?.status,
+        planStatus: status,
         stripeSubscriptionId: sub?.id,
         stripePriceId: item?.price.id,
         planInterval: interval,
@@ -62,7 +63,7 @@ export async function GET(req: Request) {
 
   return NextResponse.json({
     ok: true,
-    status: sub?.status,
+    status,
     interval,
     priceId: item?.price.id,
     planExpiresAt: sub?.current_period_end
