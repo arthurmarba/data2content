@@ -68,13 +68,19 @@ export async function POST(req: NextRequest) {
 
     // when === "period_end" → agenda com Subscription Schedules (fase futura)
     try {
+      // CORREÇÃO APLICADA AQUI
+      const currentItem = sub.items.data[0];
+      if (!currentItem?.price?.id) {
+        throw new Error("Item da assinatura atual não encontrado para o agendamento.");
+      }
+
       const schedule = await stripe.subscriptionSchedules.create({
         from_subscription: sub.id,
         end_behavior: "release",
         phases: [
           {
             // mantém o preço atual por 1 ciclo
-            items: [{ price: sub.items.data[0].price.id, quantity: 1 }],
+            items: [{ price: currentItem.price.id, quantity: 1 }],
             iterations: 1,
           },
           {
@@ -96,4 +102,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: err?.message || "Erro ao mudar de plano" }, { status: 500 });
   }
 }
-

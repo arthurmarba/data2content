@@ -6,8 +6,8 @@ if (!STRIPE_SECRET_KEY) {
 }
 
 const stripe = new Stripe(STRIPE_SECRET_KEY, {
-  apiVersion: "2024-06-20",
+  // Corrigido para a versão de API esperada pela sua biblioteca Stripe
+  apiVersion: "2022-11-15",
 });
 
 export default stripe;
-
