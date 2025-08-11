@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useSession } from 'next-auth/react';
+import PaymentStep from './PaymentStep';
 
 type Plan = 'monthly'|'annual';
 type Cur = 'brl'|'usd';
@@ -127,19 +128,13 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
 
         {step === 3 && (
           <div className="space-y-4">
-            {!clientSecret && (
+            {clientSecret ? (
+              <PaymentStep clientSecret={clientSecret} onClose={onClose} />
+            ) : (
               <div className="rounded-xl bg-yellow-50 p-4 text-sm">
                 Falta confirmar o pagamento. Recarregue e tente novamente.
               </div>
             )}
-            {/* Aqui você pode renderizar o PaymentElement do Stripe */}
-            <div className="rounded-xl border p-4">
-              <p className="text-sm text-gray-600">Finalize o pagamento na etapa seguinte.</p>
-              {/* se já usa Checkout Session, pode também redirecionar aqui */}
-            </div>
-            <div className="flex justify-end">
-              <button className="rounded-xl bg-black px-4 py-2 text-white" onClick={onClose}>Concluir</button>
-            </div>
           </div>
         )}
       </div>

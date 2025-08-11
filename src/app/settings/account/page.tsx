@@ -1,13 +1,13 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { useState } from 'react';
 
 export default function AccountSettingsPage() {
   const { data: session } = useSession();
   const [loading, setLoading] = useState(false);
   const planStatus = session?.user?.planStatus ?? 'inactive';
-  const canDelete = !['active','trialing','past_due'].includes(planStatus);
+  const canDelete = !['active','trialing','past_due','unpaid','paused'].includes(planStatus);
 
   async function handleDelete() {
     if (!canDelete) return;
@@ -19,8 +19,8 @@ export default function AccountSettingsPage() {
         const b = await res.json().catch(()=>({}));
         alert(b?.error || 'Falha ao excluir');
       } else {
-        // redirecionar para logout/home
-        window.location.href = '/';
+        await signOut({ callbackUrl: '/' });
+        return;
       }
     } finally {
       setLoading(false);

@@ -46,7 +46,7 @@ declare module "next-auth" {
     planExpiresAt?: Date | null;
     affiliateCode?: string | null;
     // multimoeda em cents
-    affiliateBalances?: Record<string, number> | null;
+    affiliateBalances?: Record<string, number>;
     facebookProviderAccountId?: string | null;
     providerAccountId?: string | null;
   }
@@ -68,7 +68,7 @@ declare module "next-auth" {
       planExpiresAt?: string | null;
       affiliateCode?: string | null;
       // multimoeda em cents
-      affiliateBalances?: Record<string, number> | null;
+      affiliateBalances?: Record<string, number>;
       affiliateRank?: number;
       affiliateInvites?: number;
 
@@ -116,7 +116,7 @@ declare module "next-auth/jwt" {
 
     affiliateCode?: string | null;
     // multimoeda em cents
-    affiliateBalances?: Record<string, number> | null;
+    affiliateBalances?: Record<string, number>;
 
     image?: string | null;
   }
@@ -692,7 +692,7 @@ export const authOptions: NextAuthOptions = {
       session.user.agencyPlanType = token.agencyPlanType ?? null;
 
       // multimoeda (cents)
-      session.user.affiliateBalances = token.affiliateBalances ?? session.user.affiliateBalances ?? null;
+      session.user.affiliateBalances = token.affiliateBalances || {};
       session.user.affiliateRank = session.user.affiliateRank ?? undefined;
       session.user.affiliateInvites = session.user.affiliateInvites ?? undefined;
       

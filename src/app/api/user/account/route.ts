@@ -20,7 +20,7 @@ export async function DELETE(req: Request) {
   } catch (error) {
     logger.error(`${TAG} Erro ao obter sessão:`, error);
     return NextResponse.json(
-      { message: "Erro de autenticação ao tentar obter a sessão." },
+      { error: "Erro de autenticação ao tentar obter a sessão." },
       { status: 500 }
     );
   }
@@ -29,7 +29,7 @@ export async function DELETE(req: Request) {
   if (!session || !session.user || !session.user.id) {
     logger.warn(`${TAG} Tentativa de exclusão de conta não autenticada.`);
     return NextResponse.json(
-      { message: "Não autorizado. É necessário estar autenticado para excluir a conta." },
+      { error: "Não autorizado. É necessário estar autenticado para excluir a conta." },
       { status: 401 }
     );
   }
@@ -40,7 +40,7 @@ export async function DELETE(req: Request) {
   if (!Types.ObjectId.isValid(userId)) {
     logger.error(`${TAG} User ID inválido na sessão durante a tentativa de exclusão: ${userId}`);
     return NextResponse.json(
-      { message: "ID de utilizador inválido na sessão." },
+      { error: "ID de utilizador inválido na sessão." },
       { status: 400 }
     );
   }
@@ -54,9 +54,9 @@ export async function DELETE(req: Request) {
       const sub = await stripe.subscriptions
         .retrieve(user.stripeSubscriptionId)
         .catch(() => null);
-      if (sub && ["active", "trialing", "past_due"].includes(sub.status)) {
+      if (sub && ["active", "trialing", "past_due", "unpaid", "paused"].includes(sub.status)) {
         return NextResponse.json(
-          { message: "Cancele sua assinatura antes de excluir a conta." },
+          { error: "Cancele sua assinatura antes de excluir a conta." },
           { status: 400 }
         );
       }
@@ -67,6 +67,13 @@ export async function DELETE(req: Request) {
 
     if (deletionSuccessful) {
       logger.info(`${TAG} Conta e dados associados para o utilizador ${userId} excluídos com sucesso.`);
+      if (user?.stripeCustomerId) {
+        try {
+          await stripe.customers.del(user.stripeCustomerId);
+        } catch (e) {
+          logger.warn(`${TAG} Falha ao remover cliente Stripe ${user.stripeCustomerId}:`, e);
+        }
+      }
       // Após a exclusão bem-sucedida, o frontend deverá tratar o signOut e redirecionamento.
       // Retornar 200 OK ou 204 No Content. 200 com mensagem pode ser mais informativo.
       return NextResponse.json(
@@ -78,7 +85,7 @@ export async function DELETE(req: Request) {
       // Mas é uma salvaguarda.
       logger.error(`${TAG} A função deleteUserAccountAndAssociatedData retornou false para o utilizador ${userId} sem lançar um erro explícito.`);
       return NextResponse.json(
-        { message: "Ocorreu um problema ao tentar excluir a conta. A operação pode não ter sido completada." },
+        { error: "Ocorreu um problema ao tentar excluir a conta. A operação pode não ter sido completada." },
         { status: 500 }
       );
     }
@@ -86,13 +93,13 @@ export async function DELETE(req: Request) {
     logger.error(`${TAG} Erro ao processar a solicitação de exclusão de conta para o utilizador ${userId}:`, error);
     if (error instanceof UserNotFoundError) {
       // Se o utilizador já não existe (talvez excluído numa tentativa anterior mas a sessão ainda era válida)
-      return NextResponse.json({ message: "Utilizador não encontrado. A conta pode já ter sido excluída." }, { status: 404 });
+      return NextResponse.json({ error: "Utilizador não encontrado. A conta pode já ter sido excluída." }, { status: 404 });
     }
     if (error instanceof DatabaseError) {
-      return NextResponse.json({ message: `Erro na base de dados ao excluir a conta: ${error.message}` }, { status: 500 });
+      return NextResponse.json({ error: `Erro na base de dados ao excluir a conta: ${error.message}` }, { status: 500 });
     }
     return NextResponse.json(
-      { message: "Erro interno do servidor ao tentar excluir a conta." },
+      { error: "Erro interno do servidor ao tentar excluir a conta." },
       { status: 500 }
     );
   }
