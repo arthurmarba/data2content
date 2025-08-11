@@ -8,6 +8,7 @@ import Redemption from "@/app/models/Redemption";
 import { Model, Document, Types } from "mongoose"; // Types importado para _id
 import { checkRateLimit } from "@/utils/rateLimit";
 import { getClientIp } from "@/utils/getClientIp";
+import { normCur } from "@/utils/normCur";
 
 export const runtime = "nodejs";
 
@@ -21,6 +22,7 @@ interface IRedemptionDocument extends Document { // Renomeado para IRedemptionDo
   status: "pending" | "paid" | "canceled";
   paymentMethod: string;
   notes: string; // Este campo será usado para as notas do admin
+  currency?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -98,7 +100,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { userId } = body || {};
+    const { userId, currency } = body || {};
     if (!userId) {
       return NextResponse.json({ error: "Parâmetro userId é obrigatório." }, { status: 400 });
     }
@@ -124,26 +126,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const balanceCents = user.affiliateBalanceCents || 0;
-    const balance = balanceCents / 100;
+    const cur = normCur(currency);
+    const balanceCents = user.affiliateBalances?.get(cur) ?? 0;
+
     const MINIMUM_REDEEM_AMOUNT_CENTS = 50 * 100;
     if (balanceCents < MINIMUM_REDEEM_AMOUNT_CENTS) {
       return NextResponse.json(
-        { error: `Saldo insuficiente. O valor mínimo para resgate é R$ ${(MINIMUM_REDEEM_AMOUNT_CENTS / 100).toFixed(2)}.` },
+        { error: `Saldo insuficiente em ${cur.toUpperCase()}. Mínimo é ${(MINIMUM_REDEEM_AMOUNT_CENTS/100).toFixed(2)}.` },
         { status: 400 }
       );
     }
 
+    const amount = balanceCents / 100;
     const redemptionModel = Redemption as unknown as Model<IRedemptionDocument>;
     const newRedemption = await redemptionModel.create({
       user: user._id,
-      amount: balance,
+      amount,
       status: "pending",
-      paymentMethod: "", // Pode ser preenchido depois pelo admin ou automaticamente
-      notes: "", // Inicialmente vazio, pode ser preenchido pelo admin no PATCH
+      paymentMethod: "",
+      notes: "",
+      currency: cur,
     });
 
-    user.affiliateBalanceCents = 0;
+    user.affiliateBalances?.set(cur, 0);
     await user.save();
 
     return NextResponse.json({

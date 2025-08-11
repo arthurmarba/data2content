@@ -24,8 +24,7 @@ declare module "next-auth" {
       planStatus?: PlanStatus;
       planExpiresAt?: string | null; // Mantido como string (ISO) para o cliente
       affiliateCode?: string;
-      affiliateBalance?: number;
-      affiliateBalanceCents?: number;
+      affiliateBalances?: Record<string, number>;
       affiliateRank?: number;
       affiliateInvites?: number;
 
@@ -64,8 +63,7 @@ declare module "next-auth" {
     planStatus?: PlanStatus | null;
     planExpiresAt?: Date | null; // Pode ser Date aqui
     affiliateCode?: string | null;
-    affiliateBalance?: number;
-    affiliateBalanceCents?: number;
+    affiliateBalances?: Record<string, number>;
     affiliateRank?: number;
     affiliateInvites?: number;
     
@@ -96,8 +94,7 @@ declare module "next-auth/jwt" {
     agencyPlanType?: AgencyPlanType | null;
     provider?: string | null;
     planStatus?: PlanStatus | null;
-    affiliateBalance?: number;
-    affiliateBalanceCents?: number;
+    affiliateBalances?: Record<string, number>;
     
     isNewUserForOnboarding?: boolean;
     onboardingCompletedAt?: Date | string | null; // Pode ser Date ou string (após encode)

@@ -8,6 +8,7 @@ import mercadopago from "@/app/lib/mercadopago";
 import User, { ICommissionLogEntry } from "@/app/models/User";
 import { ANNUAL_MONTHLY_PRICE } from "@/config/pricing.config";
 import crypto from "crypto";
+import { normCur } from "@/utils/normCur";
 
 export const runtime = "nodejs";
 const isProd = process.env.NODE_ENV === "production";
@@ -232,9 +233,11 @@ export async function POST(request: NextRequest) {
               if (affUser) {
                 const baseCents =
                   p.metadata?.commission_base_cents ?? Math.round((p.transaction_amount || 0) * 100);
-                const commission = (baseCents / 100) * 0.1;
+                const commissionCents = Math.round(baseCents * 0.1);
+                const cur = normCur((p as any).currency_id || 'brl');
 
-                affUser.affiliateBalance = (affUser.affiliateBalance || 0) + commission;
+                const prev = affUser.affiliateBalances?.get(cur) ?? 0;
+                affUser.affiliateBalances?.set(cur, prev + commissionCents);
                 affUser.affiliateInvites = (affUser.affiliateInvites || 0) + 1;
                 if (affUser.affiliateInvites % 5 === 0) {
                   affUser.affiliateRank = (affUser.affiliateRank || 1) + 1;
@@ -242,10 +245,13 @@ export async function POST(request: NextRequest) {
                 affUser.commissionLog = affUser.commissionLog || [];
                 affUser.commissionLog.push({
                   date: new Date(),
-                  amount: commission,
+                  amount: commissionCents / 100,
                   description: `Comissão (plano anual) de ${user.email || user._id}`,
                   sourcePaymentId: eventId,
                   referredUserId: user._id,
+                  status: 'fallback',
+                  currency: cur,
+                  amountCents: commissionCents,
                 });
                 await affUser.save();
               }
@@ -302,9 +308,11 @@ export async function POST(request: NextRequest) {
               if (affUser) {
                 const commissionRate = 0.1;
                 const amount = Number(p.transaction_amount || 0);
-                const commission = amount * commissionRate;
+                const commissionCents = Math.round(amount * 100 * commissionRate);
+                const cur = normCur((p as any).currency_id || 'brl');
 
-                affUser.affiliateBalance = (affUser.affiliateBalance || 0) + commission;
+                const prev = affUser.affiliateBalances?.get(cur) ?? 0;
+                affUser.affiliateBalances?.set(cur, prev + commissionCents);
                 affUser.affiliateInvites = (affUser.affiliateInvites || 0) + 1;
                 if (affUser.affiliateInvites % 5 === 0 && affUser.affiliateInvites > 0) {
                   affUser.affiliateRank = (affUser.affiliateRank || 1) + 1;
@@ -312,10 +320,13 @@ export async function POST(request: NextRequest) {
                 affUser.commissionLog = affUser.commissionLog || [];
                 affUser.commissionLog.push({
                   date: new Date(),
-                  amount: commission,
+                  amount: commissionCents / 100,
                   description: `Comissão (1ª cobrança) de ${user.email || user._id}`,
                   sourcePaymentId: eventId,
                   referredUserId: user._id,
+                  status: 'fallback',
+                  currency: cur,
+                  amountCents: commissionCents,
                 });
                 await affUser.save();
               }
@@ -394,9 +405,11 @@ export async function POST(request: NextRequest) {
             } catch {}
           }
 
-          const commission = transactionAmount * commissionRate;
+          const commissionCents = Math.round(transactionAmount * 100 * commissionRate);
+          const cur = normCur((body.data as any)?.currency_id || 'brl');
 
-          affUser.affiliateBalance = (affUser.affiliateBalance || 0) + commission;
+          const prev = affUser.affiliateBalances?.get(cur) ?? 0;
+          affUser.affiliateBalances?.set(cur, prev + commissionCents);
           affUser.affiliateInvites = (affUser.affiliateInvites || 0) + 1;
           if (affUser.affiliateInvites % 5 === 0 && affUser.affiliateInvites > 0) {
             affUser.affiliateRank = (affUser.affiliateRank || 1) + 1;
@@ -404,10 +417,13 @@ export async function POST(request: NextRequest) {
 
           const commissionEntry: ICommissionLogEntry = {
             date: new Date(),
-            amount: commission,
+            amount: commissionCents / 100,
             description: `Comissão (1ª cobrança) de ${user.email || user._id.toString()}`,
             sourcePaymentId: eventId.toString(),
             referredUserId: user._id,
+            status: 'fallback',
+            currency: cur,
+            amountCents: commissionCents,
           };
           if (!Array.isArray(affUser.commissionLog)) {
             affUser.commissionLog = [];
