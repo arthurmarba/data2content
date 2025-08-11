@@ -22,6 +22,7 @@ import AdDealForm from './AdDealForm';
 import VideoCarousel from './VideoCarousel';
 import InstagramConnectCard from './InstagramConnectCard';
 import StepIndicator from './StepIndicator';
+import PlanTeaser from './components/PlanTeaser';
 
 // --- FIM IMPORTS ---
 
@@ -576,7 +577,8 @@ export default function MainDashboard() {
         </header>
         {/* --- FIM DO HEADER RESTAURADO --- */}
 
-        <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+        <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8 space-y-12">
+          <PlanTeaser />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 lg:gap-12">
             {/* --- COLUNA PRINCIPAL (ESQUERDA) --- */}
             <div className="lg:col-span-2 space-y-12"> 

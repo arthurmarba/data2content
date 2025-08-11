@@ -120,6 +120,7 @@ export async function POST(req: NextRequest) {
         customerId,
         items: params.items,
         discounts: (params as any).discounts ?? null,
+        affiliateCode: affiliateCode ?? null,
         behavior: params.payment_behavior,
         expand: params.expand,
       });
