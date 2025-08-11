@@ -16,9 +16,19 @@ function fmt(amountCents:number, cur:string) {
 export default function AffiliateCard() {
   const { data: session } = useSession();
 
-  const { data: connectStatus } = useSWR(
+  const { data: connectStatus, mutate } = useSWR(
     '/api/affiliate/connect/status', fetcher, { revalidateOnFocus:false }
   );
+
+  const handleOnboard = async () => {
+    try {
+      const res = await fetch('/api/affiliate/connect/onboard', { method: 'POST' });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   // saldo por moeda vindos da sessão (já serializados no JWT/session callback)
   const balances: Record<string, number> = session?.user?.affiliateBalances || {};
@@ -67,8 +77,8 @@ export default function AffiliateCard() {
         </div>
 
         {!!connectStatus && (
-          <div className="rounded-xl bg-gray-50 p-3 text-sm">
-            <div className="mb-1 flex items-center justify-between">
+          <div className="rounded-xl bg-gray-50 p-3 text-sm space-y-2">
+            <div className="flex items-center justify-between">
               <span>Status Stripe Connect:</span>
               <span className="font-medium">
                 {connectStatus.stripeAccountStatus ?? '—'}
@@ -80,11 +90,19 @@ export default function AffiliateCard() {
             </div>
             {connectStatus.destCurrency &&
               Object.keys(balances).some(cur => cur !== connectStatus.destCurrency) && (
-              <p className="mt-2 text-xs text-amber-700">
+              <p className="text-xs text-amber-700">
                 Observação: saldos em moeda diferente de <b>{connectStatus.destCurrency.toUpperCase()}</b>{' '}
                 serão mantidos como saldo interno (fallback) até conversão/pagamento manual.
               </p>
             )}
+            {connectStatus.needsOnboarding && (
+              <button onClick={handleOnboard} className="mt-1 w-full rounded bg-brand-pink px-3 py-1.5 text-white text-xs font-medium hover:opacity-90">
+                Configurar Stripe
+              </button>
+            )}
+            <button onClick={() => mutate()} className="w-full rounded border px-3 py-1.5 text-xs font-medium">
+              Atualizar status
+            </button>
           </div>
         )}
       </div>

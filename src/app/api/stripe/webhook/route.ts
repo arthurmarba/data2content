@@ -78,6 +78,7 @@ export async function POST(req: NextRequest) {
                     status = 'fallback';
                     const prev = affUser.affiliateBalances?.get(cur) ?? 0;
                     affUser.affiliateBalances?.set(cur, prev + amountCents);
+                    affUser.markModified('affiliateBalances');
                   } else {
                     const transfer = await stripe.transfers.create({
                       amount: amountCents,
@@ -98,11 +99,13 @@ export async function POST(req: NextRequest) {
                   status = 'failed';
                   const prev = affUser.affiliateBalances?.get(cur) ?? 0;
                   affUser.affiliateBalances?.set(cur, prev + amountCents);
+                  affUser.markModified('affiliateBalances');
                 }
               } else {
                 status = 'fallback';
                 const prev = affUser.affiliateBalances?.get(cur) ?? 0;
                 affUser.affiliateBalances?.set(cur, prev + amountCents);
+                affUser.markModified('affiliateBalances');
               }
 
               affUser.commissionLog = affUser.commissionLog || [];

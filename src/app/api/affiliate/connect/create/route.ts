@@ -1,0 +1,52 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { connectToDatabase } from "@/app/lib/mongoose";
+import User from "@/app/models/User";
+import stripe from "@/app/lib/stripe";
+import { checkRateLimit } from "@/utils/rateLimit";
+import { getClientIp } from "@/utils/getClientIp";
+
+export const runtime = "nodejs";
+
+export async function POST(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    }
+    const ip = getClientIp(req);
+    const { allowed } = await checkRateLimit(`connect_create:${session.user.id}:${ip}`, 5, 60);
+    if (!allowed) {
+      return NextResponse.json({ error: 'Muitas tentativas, tente novamente mais tarde.' }, { status: 429 });
+    }
+
+    await connectToDatabase();
+    const user = await User.findById(session.user.id);
+    if (!user) {
+      return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
+    }
+
+    user.paymentInfo = user.paymentInfo || {};
+    if (!user.paymentInfo.stripeAccountId) {
+      const account = await stripe.accounts.create({
+        type: "express",
+        email: user.email,
+        capabilities: { transfers: { requested: true } },
+        metadata: { userId: String(user._id) },
+      });
+      user.paymentInfo.stripeAccountId = account.id;
+      user.paymentInfo.stripeAccountStatus = "pending";
+      user.affiliatePayoutMode = "connect";
+      await user.save();
+    }
+
+    return NextResponse.json({
+      stripeAccountId: user.paymentInfo.stripeAccountId,
+      stripeAccountStatus: user.paymentInfo.stripeAccountStatus,
+    });
+  } catch (err) {
+    console.error("[affiliate/connect/create] error:", err);
+    return NextResponse.json({ error: "Erro ao criar conta" }, { status: 500 });
+  }
+}
