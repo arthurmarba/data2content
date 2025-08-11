@@ -486,6 +486,10 @@ export const authOptions: NextAuthOptions = {
           (authUserFromProvider as NextAuthUserArg).planInterval = dbUserRecord.planInterval;
           (authUserFromProvider as NextAuthUserArg).planExpiresAt = dbUserRecord.planExpiresAt;
           (authUserFromProvider as NextAuthUserArg).affiliateCode = dbUserRecord.affiliateCode;
+          (authUserFromProvider as any).affiliateBalances =
+            dbUserRecord.affiliateBalances
+              ? Object.fromEntries(dbUserRecord.affiliateBalances as any)
+              : {};
           (authUserFromProvider as NextAuthUserArg).agency = dbUserRecord.agency ? dbUserRecord.agency.toString() : undefined;
           
           logger.debug(`${TAG_SIGNIN} [${provider}] FINAL signIn. authUser.id (interno): '${authUserFromProvider.id}', name: '${authUserFromProvider.name}', provider (final): '${(authUserFromProvider as NextAuthUserArg).provider}', planStatus: ${(authUserFromProvider as NextAuthUserArg).planStatus}, igAccountsCount: ${(authUserFromProvider as NextAuthUserArg).availableIgAccounts?.length ?? 0}, igLlatSet: ${!!(authUserFromProvider as NextAuthUserArg).instagramAccessToken}`);
@@ -531,6 +535,10 @@ export const authOptions: NextAuthOptions = {
         token.planInterval = (userFromSignIn as NextAuthUserArg).planInterval;
         token.planExpiresAt = (userFromSignIn as NextAuthUserArg).planExpiresAt;
         token.affiliateCode = (userFromSignIn as NextAuthUserArg).affiliateCode;
+        const anyUser = userFromSignIn as any;
+        if (anyUser.affiliateBalances && typeof anyUser.affiliateBalances === 'object') {
+          token.affiliateBalances = anyUser.affiliateBalances;
+        }
 
         token.agencyId = (userFromSignIn as NextAuthUserArg).agency ?? null;
         if (token.agencyId) {
