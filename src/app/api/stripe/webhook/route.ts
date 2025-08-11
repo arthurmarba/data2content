@@ -1,3 +1,4 @@
+// src/app/api/stripe/webhook/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
@@ -128,7 +129,9 @@ export async function POST(req: NextRequest) {
         }
         // Sempre limpa affiliateUsed após processar a cobrança inicial
         if (user.affiliateUsed) {
-          user.affiliateUsed = null;
+          // ajuste de tipo: propriedade é string | undefined no tipo
+          user.affiliateUsed = undefined;
+          // ou: delete user.affiliateUsed;
         }
 
         user.lastPaymentError = undefined;
@@ -207,7 +210,6 @@ export async function POST(req: NextRequest) {
 }
 
 // Tipos Stripe (evita import global pesado)
-// Se o projeto já tiver os tipos, pode remover este bloco e usar diretamente Stripe.* acima.
 declare namespace Stripe {
   export interface Invoice {
     id: string;
@@ -227,4 +229,3 @@ declare namespace Stripe {
     items: { data: Array<{ id: string, price: { id: string; recurring?: { interval?: "day"|"week"|"month"|"year" } } }> };
   }
 }
-

@@ -1,6 +1,8 @@
-// @/app/models/User.ts - v1.9.18 (CORRIGIDO)
-// - CORRIGIDO: A importação do Mongoose foi ajustada para `import mongoose from 'mongoose'` para resolver o erro "does not provide an export named 'models'".
-// - CORRIGIDO: As chamadas para `models.User` e `model("User", ...)` foram atualizadas para `mongoose.models.User` e `mongoose.model(...)` para alinhar com a nova importação.
+// @/app/models/User.ts - v1.9.19
+// - Alinha interface IUser com campos legados: affiliateBalanceCents, affiliateBalance
+// - Alinha tipo de affiliateUsed para string | null (default no schema)
+// - Mantém affiliateBalances (Map por moeda, em cents)
+
 import mongoose, { Schema, Document, Model, Types } from "mongoose";
 import { logger } from "@/app/lib/logger";
 import {
@@ -12,137 +14,137 @@ import {
 
 // --- INTERFACES ---
 export interface IPeakSharesDetails {
-    postId: string;
-    platformPostId?: string;
-    postDescriptionExcerpt?: string;
-    peakShares: number;
-    peakDay: number;
-    averageSharesFirst3Days: number;
-    format?: string;
-    proposal?: string;
-    context?: string;
+  postId: string;
+  platformPostId?: string;
+  postDescriptionExcerpt?: string;
+  peakShares: number;
+  peakDay: number;
+  averageSharesFirst3Days: number;
+  format?: string;
+  proposal?: string;
+  context?: string;
 }
 export interface IDropWatchTimeDetails {
-    currentAvg: number;
-    historicalAvg: number;
-    reelsAnalyzedIds: string[];
-    format?: string;
-    proposal?: string;
-    context?: string;
+  currentAvg: number;
+  historicalAvg: number;
+  reelsAnalyzedIds: string[];
+  format?: string;
+  proposal?: string;
+  context?: string;
 }
 export interface IForgottenFormatDetails {
-    format: string;
-    avgMetricValue: number;
-    overallAvgPerformance: number;
-    metricUsed: string;
-    daysSinceLastUsed: number;
-    percentageSuperior: number;
+  format: string;
+  avgMetricValue: number;
+  overallAvgPerformance: number;
+  metricUsed: string;
+  daysSinceLastUsed: number;
+  percentageSuperior: number;
 }
 export interface IUntappedPotentialTopicDetails {
-    postId: string;
-    platformPostId?: string;
-    postDescriptionExcerpt?: string;
-    performanceMetric: string;
-    performanceValue: number;
-    referenceAverage: number;
-    daysSincePosted: number;
-    postType?: string;
-    format?: string;
-    proposal?: string;
-    context?: string;
+  postId: string;
+  platformPostId?: string;
+  postDescriptionExcerpt?: string;
+  performanceMetric: string;
+  performanceValue: number;
+  referenceAverage: number;
+  daysSincePosted: number;
+  postType?: string;
+  format?: string;
+  proposal?: string;
+  context?: string;
 }
 export interface IEngagementPeakNotCapitalizedDetails {
-    postId: string;
-    platformPostId?: string;
-    postDescriptionExcerpt?: string;
-    comments: number;
-    averageComments: number;
-    postType?: string;
-    format?: string;
-    proposal?: string;
-    context?: string;
+  postId: string;
+  platformPostId?: string;
+  postDescriptionExcerpt?: string;
+  comments: number;
+  averageComments: number;
+  postType?: string;
+  format?: string;
+  proposal?: string;
+  context?: string;
 }
 export interface INoEventDetails {
-    reason: string;
+  reason: string;
 }
 export interface IFollowerStagnationDetails {
-    currentGrowthRate: number;
-    previousGrowthRate: number;
-    currentGrowthAbs: number;
-    previousGrowthAbs: number;
-    periodAnalyzed: string;
-    mostRecentFormat?: string;
-    mostRecentProposal?: string;
-    mostRecentContext?: string;
+  currentGrowthRate: number;
+  previousGrowthRate: number;
+  currentGrowthAbs: number;
+  previousGrowthAbs: number;
+  periodAnalyzed: string;
+  mostRecentFormat?: string;
+  mostRecentProposal?: string;
+  mostRecentContext?: string;
 }
 export interface IBestDayFormatDetails {
-    format: string;
-    dayOfWeek: string;
-    avgEngRate?: number;
-    metricUsed: string;
-    referenceAvgEngRate?: number;
-    daysSinceLastUsedInSlot: number;
-    lastPostProposal?: string;
-    lastPostContext?: string;
+  format: string;
+  dayOfWeek: string;
+  avgEngRate?: number;
+  metricUsed: string;
+  referenceAvgEngRate?: number;
+  daysSinceLastUsedInSlot: number;
+  lastPostProposal?: string;
+  lastPostContext?: string;
 }
 export interface IPostingConsistencyDetails {
-    previousAverageFrequencyDays?: number;
-    currentAverageFrequencyDays?: number;
-    daysSinceLastPost?: number;
-    breakInPattern?: boolean;
-    lastPostFormat?: string;
-    lastPostProposal?: string;
-    lastPostContext?: string;
+  previousAverageFrequencyDays?: number;
+  currentAverageFrequencyDays?: number;
+  daysSinceLastPost?: number;
+  breakInPattern?: boolean;
+  lastPostFormat?: string;
+  lastPostProposal?: string;
+  lastPostContext?: string;
 }
 export interface IEvergreenRepurposeDetails {
-    originalPostId: string;
-    originalPlatformPostId?: string;
-    originalPostDate: Date;
-    originalPostDescriptionExcerpt?: string;
-    originalPostMetricValue: number;
-    originalPostMetricName: string;
-    suggestionType: 'tbt' | 'new_angle' | 'story_series' | 'other';
-    format?: string;
-    proposal?: string;
-    context?: string;
+  originalPostId: string;
+  originalPlatformPostId?: string;
+  originalPostDate: Date;
+  originalPostDescriptionExcerpt?: string;
+  originalPostMetricValue: number;
+  originalPostMetricName: string;
+  suggestionType: 'tbt' | 'new_angle' | 'story_series' | 'other';
+  format?: string;
+  proposal?: string;
+  context?: string;
 }
 export interface INewFormatPerformanceDetails {
-    formatName: string;
-    avgPerformanceNewFormat: number;
-    referenceAvgPerformance: number;
-    metricUsed: string;
-    numberOfPostsInNewFormat: number;
-    isPositiveAlert: boolean;
-    dominantProposal?: string;
-    dominantContext?: string;
+  formatName: string;
+  avgPerformanceNewFormat: number;
+  referenceAvgPerformance: number;
+  metricUsed: string;
+  numberOfPostsInNewFormat: number;
+  isPositiveAlert: boolean;
+  dominantProposal?: string;
+  dominantContext?: string;
 }
 export interface IMediaTypePerformance {
-    type: string;
-    avgMetricValue: number;
-    postCount: number;
-    metricUsed: string;
+  type: string;
+  avgMetricValue: number;
+  postCount: number;
+  metricUsed: string;
 }
 export interface IMediaTypeComparisonDetails {
-    performanceByMediaType: IMediaTypePerformance[];
-    bestPerformingType?: { type: string; avgMetricValue: number; };
-    worstPerformingType?: { type: string; avgMetricValue: number; };
-    overallAverage?: number;
-    metricUsed: string;
+  performanceByMediaType: IMediaTypePerformance[];
+  bestPerformingType?: { type: string; avgMetricValue: number; };
+  worstPerformingType?: { type: string; avgMetricValue: number; };
+  overallAverage?: number;
+  metricUsed: string;
 }
 export type AlertDetails =
-    | IPeakSharesDetails
-    | IDropWatchTimeDetails
-    | IForgottenFormatDetails
-    | IUntappedPotentialTopicDetails
-    | IEngagementPeakNotCapitalizedDetails
-    | INoEventDetails
-    | IFollowerStagnationDetails
-    | IBestDayFormatDetails
-    | IPostingConsistencyDetails
-    | IEvergreenRepurposeDetails
-    | INewFormatPerformanceDetails
-    | IMediaTypeComparisonDetails
-    | { [key: string]: any };
+  | IPeakSharesDetails
+  | IDropWatchTimeDetails
+  | IForgottenFormatDetails
+  | IUntappedPotentialTopicDetails
+  | IEngagementPeakNotCapitalizedDetails
+  | INoEventDetails
+  | IFollowerStagnationDetails
+  | IBestDayFormatDetails
+  | IPostingConsistencyDetails
+  | IEvergreenRepurposeDetails
+  | INewFormatPerformanceDetails
+  | IMediaTypeComparisonDetails
+  | { [key: string]: any };
 
 export interface IAvailableInstagramAccount {
   igAccountId: string;
@@ -204,6 +206,7 @@ export interface IAlertHistoryEntry {
     interactedAt?: Date;
   };
 }
+
 export interface IUser extends Document {
   _id: Types.ObjectId;
   name?: string;
@@ -237,6 +240,7 @@ export interface IUser extends Document {
   role: UserRole;
   agency?: Types.ObjectId | null;
   pendingAgency?: Types.ObjectId | null;
+
   planStatus?: PlanStatus;
   planType?: 'monthly' | 'annual' | 'annual_one_time';
   paymentGatewaySubscriptionId?: string;
@@ -249,20 +253,28 @@ export interface IUser extends Document {
   lastProcessedEventId?: string;
   planExpiresAt?: Date | null;
   autoRenewConsentAt?: Date | null;
+
   whatsappVerificationCode?: string | null;
   whatsappPhone?: string | null;
   whatsappVerified?: boolean;
+
   profileTone?: string;
   hobbies?: string[];
   goal?: string;
   gender?: 'male' | 'female' | 'other';
   birthDate?: Date | null;
   location?: IUserLocation;
+
   affiliateRank?: number;
   affiliateInvites?: number;
   affiliateCode?: string;
-  affiliateUsed?: string;
-  affiliateBalances?: Map<string, number>;
+  affiliateUsed?: string | null;           // alinhar com default null do schema
+  affiliateBalances?: Map<string, number>; // multimoeda em cents
+
+  // LEGACY (mantidos por compatibilidade/migração)
+  affiliateBalanceCents?: number;          // <- adicionado para alinhar com schema
+  affiliateBalance?: number;               // <- adicionado para alinhar com schema
+
   commissionLog?: ICommissionLogEntry[];
   paymentInfo?: {
     pixKey?: string;
@@ -274,6 +286,7 @@ export interface IUser extends Document {
   };
   affiliatePayoutMode?: 'connect' | 'manual';
   commissionPaidInvoiceIds?: string[];
+
   lastPaymentError?: {
     at: Date;
     paymentId: string;
@@ -281,19 +294,22 @@ export interface IUser extends Document {
     statusDetail: string;
   };
   lastProcessedPaymentId?: string;
+
   communityInspirationOptIn?: boolean;
   communityInspirationOptInDate?: Date | null;
   communityInspirationTermsVersion?: string | null;
   lastCommunityInspirationShown_Daily?: ILastCommunityInspirationShown | null;
   communityInspirationHistory?: ICommunityInspirationHistoryEntry[];
+
   isNewUserForOnboarding?: boolean;
   onboardingCompletedAt?: Date | null;
   inferredExpertiseLevel?: UserExpertiseLevel;
   userPreferences?: IUserPreferences;
   userLongTermGoals?: IUserLongTermGoal[];
   userKeyFacts?: IUserKeyFact[];
-  totalMessages?: number; // <-- CORREÇÃO APLICADA AQUI
+  totalMessages?: number;
   alertHistory?: IAlertHistoryEntry[];
+
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -315,6 +331,7 @@ const commissionLogEntrySchema = new Schema<ICommissionLogEntry>({
   currency: { type: String },
   amountCents: { type: Number },
 }, { _id: false });
+
 const lastCommunityInspirationShownSchema = new Schema<ILastCommunityInspirationShown>({
   date: { type: Date, required: true },
   inspirationIds: [{ type: Schema.Types.ObjectId, required: true }],
@@ -326,16 +343,17 @@ const communityInspirationHistoryEntrySchema = new Schema<ICommunityInspirationH
 }, { _id: false });
 
 const AvailableInstagramAccountSchema = new Schema<IAvailableInstagramAccount>({
-    igAccountId: { type: String, required: true },
-    pageId: { type: String, required: true },
-    pageName: { type: String, required: true },
-    username: { type: String },
-    profile_picture_url: { type: String },
+  igAccountId: { type: String, required: true },
+  pageId: { type: String, required: true },
+  pageName: { type: String, required: true },
+  username: { type: String },
+  profile_picture_url: { type: String },
 }, { _id: false });
 
-const UserPreferencesSchema = new Schema<IUserPreferences>({/*...*/}, {/*...*/}); // Placeholder for brevity
-const UserLongTermGoalSchema = new Schema<IUserLongTermGoal>({/*...*/}, {/*...*/}); // Placeholder for brevity
-const UserKeyFactSchema = new Schema<IUserKeyFact>({/*...*/}, {/*...*/}); // Placeholder for brevity
+const UserPreferencesSchema = new Schema<IUserPreferences>({/*...*/}, {/*...*/}); // Placeholder
+const UserLongTermGoalSchema = new Schema<IUserLongTermGoal>({/*...*/}, {/*...*/}); // Placeholder
+const UserKeyFactSchema = new Schema<IUserKeyFact>({/*...*/}, {/*...*/}); // Placeholder
+
 const AlertHistoryEntrySchema = new Schema<IAlertHistoryEntry>({
   type: { type: String, required: true },
   date: { type: Date, required: true, default: Date.now },
@@ -344,31 +362,28 @@ const AlertHistoryEntrySchema = new Schema<IAlertHistoryEntry>({
   details: { type: Schema.Types.Mixed, required: true },
   userInteraction: {
     type: {
-        type: String,
-        enum: ['explored_further', 'dismissed', 'not_interacted', 'error_sending', 'pending_interaction', 'not_applicable', 'viewed', 'clicked_suggestion', 'provided_feedback'],
-        default: 'pending_interaction'
+      type: String,
+      enum: ['explored_further', 'dismissed', 'not_interacted', 'error_sending', 'pending_interaction', 'not_applicable', 'viewed', 'clicked_suggestion', 'provided_feedback'],
+      default: 'pending_interaction'
     },
     feedback: { type: String },
     interactedAt: { type: Date }
   },
 }, { _id: true });
 
-
 const userSchema = new Schema<IUser>(
   {
-    name: { type: String, trim: true, text: true }, // Otimização: Adicionado 'text' para o índice
+    name: { type: String, trim: true, text: true },
     email: {
-        type: String,
-        required: [true, 'Email is required.'],
-        unique: true,
-        match: [/.+\@.+\..+/, 'Please fill a valid email address'],
-        index: true,
+      type: String,
+      required: [true, 'Email is required.'],
+      unique: true,
+      match: [/.+\@.+\..+/, 'Please fill a valid email address'],
+      index: true,
     },
-    password: {
-        type: String,
-        select: false
-    },
-    planStatus: { type: String, enum: PLAN_STATUSES, default: "inactive", index: true }, // OTIMIZAÇÃO: Mantido índice.
+    password: { type: String, select: false },
+
+    planStatus: { type: String, enum: PLAN_STATUSES, default: "inactive", index: true },
     planType: { type: String, enum: ['monthly', 'annual', 'annual_one_time'], default: 'monthly' },
     paymentGatewaySubscriptionId: { type: String },
     stripeCustomerId: { type: String, index: true },
@@ -378,17 +393,20 @@ const userSchema = new Schema<IUser>(
     currentPeriodEnd: { type: Date, default: null },
     currency: { type: String, default: 'BRL' },
     lastProcessedEventId: { type: String },
+
     inferredExpertiseLevel: {
-        type: String,
-        enum: ['iniciante', 'intermediario', 'avancado'],
-        default: 'iniciante',
-        index: true // OTIMIZAÇÃO: Mantido índice.
+      type: String,
+      enum: ['iniciante', 'intermediario', 'avancado'],
+      default: 'iniciante',
+      index: true
     },
+
     image: { type: String },
     googleId: { type: String },
     provider: { type: String, index: true },
     providerAccountId: { type: String, index: true },
     facebookProviderAccountId: { type: String, index: true, sparse: true },
+
     instagramAccessToken: { type: String },
     instagramAccountId: { type: String, index: true, default: null },
     isInstagramConnected: { type: Boolean, default: false },
@@ -405,39 +423,52 @@ const userSchema = new Schema<IUser>(
     is_published: { type: Boolean },
     shopping_product_tag_eligibility: { type: Boolean },
     availableIgAccounts: { type: [AvailableInstagramAccountSchema], default: null },
+
     linkToken: { type: String, index: true, sparse: true },
     linkTokenExpiresAt: { type: Date },
+
     mediaKitToken: { type: String, unique: true, sparse: true },
     mediaKitSlug: { type: String, unique: true, sparse: true },
+
     role: { type: String, enum: USER_ROLES, default: "user" },
     agency: { type: Schema.Types.ObjectId, ref: 'Agency', default: null },
     pendingAgency: { type: Schema.Types.ObjectId, ref: 'Agency', default: null },
+
     planExpiresAt: { type: Date, default: null },
     autoRenewConsentAt: { type: Date, default: null },
+
     whatsappVerificationCode: { type: String, default: null, index: true },
     whatsappPhone: { type: String, default: null, index: true },
     whatsappVerified: { type: Boolean, default: false },
+
     profileTone: { type: String, default: 'informal e prestativo' },
     hobbies: { type: [String], default: [] },
     goal: { type: String, default: null },
     gender: { type: String, enum: ['male', 'female', 'other'], default: 'other', index: true },
     birthDate: { type: Date, default: null },
+
     location: {
       country: { type: String, default: 'BR' },
       state: { type: String, index: true },
       city: { type: String },
     },
+
     affiliateRank: { type: Number, default: 1 },
     affiliateInvites: { type: Number, default: 0 },
     affiliateCode: { type: String, unique: true, sparse: true },
     affiliateUsed: { type: String, default: null },
+
+    // Multimoeda (cents por moeda)
     affiliateBalances: { type: Map, of: Number, default: {} },
-    // legacy fields:
+
+    // LEGACY (manter enquanto existir dado antigo)
     affiliateBalanceCents: { type: Number, default: 0 },
     affiliateBalance: { type: Number },
+
     commissionLog: { type: [commissionLogEntrySchema], default: [] },
     affiliatePayoutMode: { type: String, enum: ['connect', 'manual'], default: 'manual' },
     commissionPaidInvoiceIds: { type: [String], default: [] },
+
     paymentInfo: {
       pixKey: { type: String, default: "" },
       bankName: { type: String, default: "" },
@@ -446,18 +477,22 @@ const userSchema = new Schema<IUser>(
       stripeAccountId: { type: String, default: null },
       stripeAccountStatus: { type: String, enum: ['pending', 'verified', 'restricted', 'disabled'], default: null },
     },
+
     lastPaymentError: {
       at: { type: Date },
       paymentId: { type: String },
       status: { type: String },
       statusDetail: { type: String },
     },
+
     lastProcessedPaymentId: { type: String, default: null, index: true },
+
     communityInspirationOptIn: { type: Boolean, default: false },
     communityInspirationOptInDate: { type: Date, default: null },
     communityInspirationTermsVersion: { type: String, default: null },
     lastCommunityInspirationShown_Daily: { type: lastCommunityInspirationShownSchema, default: null },
     communityInspirationHistory: { type: [communityInspirationHistoryEntrySchema], default: [] },
+
     isNewUserForOnboarding: { type: Boolean, default: true },
     onboardingCompletedAt: { type: Date, default: null },
     userPreferences: { type: UserPreferencesSchema, default: () => ({}) },
@@ -466,13 +501,11 @@ const userSchema = new Schema<IUser>(
     totalMessages: { type: Number, default: 0 },
     alertHistory: { type: [AlertHistoryEntrySchema], default: [] },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
 userSchema.pre<IUser>("save", function (next) {
-  const TAG_PRE_SAVE = '[User.ts pre-save v1.9.17]';
+  const TAG_PRE_SAVE = '[User.ts pre-save v1.9.19]';
   if (this.isNew && !this.affiliateCode) {
     const newCode = generateAffiliateCode();
     logger.info(`${TAG_PRE_SAVE} Gerando novo affiliateCode: '${newCode}' para User Email: ${this.email}`);
@@ -484,10 +517,9 @@ userSchema.pre<IUser>("save", function (next) {
   next();
 });
 
-// ** CORREÇÃO PRINCIPAL APLICADA AQUI **
 const UserModel: Model<IUser> = mongoose.models.User || mongoose.model<IUser>("User", userSchema);
 
-// Garantir que os índices sejam criados quando o modelo é inicializado
+// Garantir índices (opcional)
 if (!mongoose.models.User) {
   UserModel.createIndexes().catch((err) => {
     logger.error(`[User.ts] Erro ao criar índices: ${err}`);
