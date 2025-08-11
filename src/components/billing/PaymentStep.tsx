@@ -3,7 +3,9 @@ import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-
 import { loadStripe } from '@stripe/stripe-js';
 import { useState } from 'react';
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+const pk = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+if (!pk) console.warn('[PaymentStep] NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ausente');
+const stripePromise = loadStripe(pk!);
 
 function InnerPayment({ clientSecret, onClose }: { clientSecret: string; onClose: () => void }) {
   const stripe = useStripe();

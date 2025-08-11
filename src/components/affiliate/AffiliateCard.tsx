@@ -40,12 +40,15 @@ export default function AffiliateCard() {
 
         <div className="rounded-xl bg-gray-50 p-3">
           <p className="text-xs text-gray-600">Link de indicação</p>
-          <p className="break-all text-sm">
-            {typeof window !== 'undefined'
-              ? `${window.location.origin}/?ref=${session?.user?.affiliateCode}`
-              : `/?ref=${session?.user?.affiliateCode}`
-            }
-          </p>
+          {session?.user?.affiliateCode ? (
+            <p className="break-all text-sm">
+              {typeof window !== 'undefined'
+                ? `${window.location.origin}/?ref=${session.user.affiliateCode}`
+                : `/?ref=${session.user.affiliateCode}`}
+            </p>
+          ) : (
+            <p className="text-sm text-gray-500">Seu código será gerado após o primeiro login.</p>
+          )}
         </div>
 
         <div className="rounded-xl bg-gray-50 p-3">
