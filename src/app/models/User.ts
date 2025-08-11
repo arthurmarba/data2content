@@ -247,7 +247,7 @@ export interface IUser extends Document {
   stripeCustomerId?: string;
   stripeSubscriptionId?: string | null;
   stripePriceId?: string | null;
-  planInterval?: 'month' | 'year' | null;
+  planInterval?: 'month' | 'year';
   currentPeriodEnd?: Date | null;
   currency?: string;
   lastProcessedEventId?: string;
@@ -282,7 +282,7 @@ export interface IUser extends Document {
     bankAgency?: string;
     bankAccount?: string;
     stripeAccountId?: string | null;
-    stripeAccountStatus?: 'pending' | 'verified' | 'restricted' | 'disabled' | null;
+    stripeAccountStatus?: 'pending' | 'verified' | 'restricted' | 'disabled';
   };
   affiliatePayoutMode?: 'connect' | 'manual';
   commissionPaidInvoiceIds?: string[];
@@ -389,7 +389,7 @@ const userSchema = new Schema<IUser>(
     stripeCustomerId: { type: String, index: true },
     stripeSubscriptionId: { type: String, default: null },
     stripePriceId: { type: String, default: null },
-    planInterval: { type: String, enum: ['month', 'year'], default: null },
+    planInterval: { type: String, enum: ['month', 'year'], default: undefined },
     currentPeriodEnd: { type: Date, default: null },
     currency: { type: String, default: 'BRL' },
     lastProcessedEventId: { type: String },
@@ -475,7 +475,7 @@ const userSchema = new Schema<IUser>(
       bankAgency: { type: String, default: "" },
       bankAccount: { type: String, default: "" },
       stripeAccountId: { type: String, default: null },
-      stripeAccountStatus: { type: String, enum: ['pending', 'verified', 'restricted', 'disabled'], default: null },
+      stripeAccountStatus: { type: String, enum: ['pending', 'verified', 'restricted', 'disabled'], default: undefined },
     },
 
     lastPaymentError: {

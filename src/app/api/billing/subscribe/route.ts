@@ -111,7 +111,12 @@ export async function POST(req: NextRequest) {
     user.stripeSubscriptionId = sub.id;
     user.planType = plan;
     user.planStatus = "pending";
+    user.planInterval = plan === "annual" ? "year" : "month";
     user.stripePriceId = priceId;
+
+    if (user.paymentInfo?.stripeAccountStatus === null) {
+      delete (user as any).paymentInfo.stripeAccountStatus;
+    }
     await user.save();
 
     const clientSecret = (sub.latest_invoice as any)?.payment_intent?.client_secret;
