@@ -36,8 +36,6 @@ interface ExtendedUser {
   planStatus?: PlanStatus;
   planExpiresAt?: string | null;
   affiliateCode?: string | null;
-  affiliateBalance?: number;
-  affiliateBalanceCents?: number;
   affiliateRank?: number;
   affiliateInvites?: number;
   provider?: string;
@@ -95,10 +93,12 @@ const AffiliateCardContent: React.FC<{
   canRedeem,
   userId
 }) => {
+  const { data: session } = useSession();
   const fetcher = (url: string) => fetch(url).then(r => r.json());
   const { data: connectStatus } = useSWR('/api/affiliate/connect/status', fetcher, { revalidateOnFocus: false });
   const destCurrency = connectStatus?.destCurrency?.toLowerCase();
-  const balance = (user?.affiliateBalanceCents ?? Math.round((user?.affiliateBalance ?? 0) * 100)) / 100;
+  const balances: Record<string, number> = (session as any)?.user?.affiliateBalances || {};
+  const entries = Object.entries(balances).sort(([a],[b]) => a.localeCompare(b));
   return (
     <div className="bg-white p-6 rounded-xl shadow-lg border-t-4 border-brand-pink">
       <div className="flex justify-between items-center mb-6">
@@ -110,8 +110,21 @@ const AffiliateCardContent: React.FC<{
       </div>
       <div className="space-y-5 text-sm">
         <div className="text-center p-4 bg-brand-light rounded-lg border border-gray-200">
-          <span className="text-xs text-gray-500 uppercase tracking-wider block mb-1">Saldo Disponível</span>
-          <span className="font-bold text-3xl text-green-600 block">R$ {balance.toFixed(2)}</span>
+          <span className="text-xs text-gray-500 block mb-1">Saldos por moeda</span>
+          {!entries.length ? (
+            <span className="text-sm text-gray-500">Sem saldo ainda.</span>
+          ) : (
+            <ul className="space-y-1">
+              {entries.map(([cur, cents]) => (
+                <li key={cur} className="text-sm flex justify-center gap-2">
+                  <span className="uppercase text-[10px] bg-gray-100 px-2 py-0.5 rounded">{cur}</span>
+                  <span className="font-bold">
+                    {new Intl.NumberFormat(cur==='brl'?'pt-BR':'en-US',{style:'currency',currency:cur.toUpperCase()}).format(cents/100)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         
         <div className="space-y-1.5">
@@ -411,8 +424,7 @@ export default function MainDashboard() {
 
   const showPlan = planStatus !== 'active';
   const defaultCurrency = (user?.currency || 'BRL').toUpperCase() === 'USD' ? 'USD' : 'BRL';
-
-  const canRedeem = (user.affiliateBalanceCents ?? Math.round((user.affiliateBalance ?? 0) * 100)) > 0;
+  const canRedeem = Object.values((user as any)?.affiliateBalances || {}).some((c: any) => c > 0);
 
   const videoGuidesData: VideoData[] = [
     { id: 'intro-plataforma', title: 'Bem-vindo à Data2Content!', youtubeVideoId: 'BHACKCNDMW8' },
