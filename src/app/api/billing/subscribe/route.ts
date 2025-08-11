@@ -5,6 +5,7 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import stripe from "@/app/lib/stripe";
 import { checkRateLimit } from "@/utils/rateLimit";
+import { getClientIp } from "@/utils/getClientIp";
 
 export const runtime = "nodejs";
 
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
-    const ip = req.headers.get('x-forwarded-for') || req.ip || 'unknown';
+    const ip = getClientIp(req);
     const { allowed } = await checkRateLimit(`billing_subscribe:${session.user.id ?? session.user.email}:${ip}`, 5, 60);
     if (!allowed) {
       return NextResponse.json({ error: 'Muitas tentativas, tente novamente mais tarde.' }, { status: 429 });
@@ -34,12 +35,16 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const plan: Plan = body?.plan ?? "monthly";
     const currency: Currency = body?.currency ?? "BRL";
-    const affiliateCode: string | undefined = body?.affiliateCode;
+    let affiliateCode: string | undefined = body?.affiliateCode;
     let aff: any = null;
 
     await connectToDatabase();
     const user = await User.findOne({ email: session.user.email });
     if (!user) return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
+
+    if (user.stripeSubscriptionId) {
+      affiliateCode = undefined;
+    }
 
     // Garante customer no Stripe
     if (!user.stripeCustomerId) {

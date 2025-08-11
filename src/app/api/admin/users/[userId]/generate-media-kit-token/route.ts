@@ -9,6 +9,7 @@ import UserModel from '@/app/models/User';
 import { logger } from '@/app/lib/logger';
 import { checkRateLimit } from '@/utils/rateLimit';
 import { getAdminSession } from '@/lib/getAdminSession';
+import { getClientIp } from '@/utils/getClientIp';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,7 +37,8 @@ export async function POST(
     return apiError('User ID inválido.', 400);
   }
 
-  const identifier = req.ip || userId;
+  const ip = getClientIp(req);
+  const identifier = ip === 'unknown' ? userId : ip;
   const { allowed } = await checkRateLimit(`generate-media-kit:${identifier}`, 5, 3600);
   if (!allowed) {
     logger.warn(`${TAG} Rate limit exceeded for ${identifier}`);

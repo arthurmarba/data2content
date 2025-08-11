@@ -6,6 +6,7 @@ import User from "@/app/models/User";
 import stripe from "@/app/lib/stripe";
 import { checkRateLimit } from "@/utils/rateLimit";
 import { logger } from "@/app/lib/logger";
+import { getClientIp } from "@/utils/getClientIp";
 
 export const runtime = "nodejs";
 
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest, { params }: { params: { invoiceId: 
       return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
     }
 
-    const ip = req.headers.get('x-forwarded-for') || req.ip || 'unknown';
+    const ip = getClientIp(req);
     const { allowed } = await checkRateLimit(`admin_retry:${session.user.id ?? 'anon'}:${ip}`, 5, 60);
     if (!allowed) {
       return NextResponse.json({ error: 'Muitas tentativas, tente novamente mais tarde.' }, { status: 429 });
@@ -44,6 +45,22 @@ export async function POST(req: NextRequest, { params }: { params: { invoiceId: 
 
     const amountCents = entry.amountCents ?? Math.round(entry.amount * 100);
     const currency = entry.currency || 'usd';
+    const account = await stripe.accounts.retrieve(affUser.paymentInfo.stripeAccountId!);
+    const destCurrency = (account as any).default_currency || 'usd';
+    if (destCurrency !== currency) {
+      entry.status = 'fallback';
+      affUser.markModified('commissionLog');
+      await affUser.save();
+      return NextResponse.json({ success: true, status: 'fallback' });
+    }
+
+    logger.info('[admin/affiliate/commissions/retry] transfer', {
+      invoiceId: entry.sourcePaymentId,
+      amountCents,
+      currency,
+      dest: affUser.paymentInfo.stripeAccountId,
+    });
+
     const transfer = await stripe.transfers.create({
       amount: amountCents,
       currency,

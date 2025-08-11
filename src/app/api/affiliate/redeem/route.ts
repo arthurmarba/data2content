@@ -7,6 +7,7 @@ import User from "@/app/models/User"; // Assume que User tem a role
 import Redemption from "@/app/models/Redemption";
 import { Model, Document, Types } from "mongoose"; // Types importado para _id
 import { checkRateLimit } from "@/utils/rateLimit";
+import { getClientIp } from "@/utils/getClientIp";
 
 export const runtime = "nodejs";
 
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
-    const ip = request.headers.get('x-forwarded-for') || request.ip || 'unknown';
+    const ip = getClientIp(request);
     const { allowed } = await checkRateLimit(`redeem_post:${session.user.id}:${ip}`, 1, 10);
     if (!allowed) {
       return NextResponse.json({ error: 'Muitas tentativas, tente novamente mais tarde.' }, { status: 429 });
