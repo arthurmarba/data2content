@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import type { StripeElementsOptions } from "@stripe/stripe-js";
@@ -13,11 +13,20 @@ type When = "now" | "period_end";
 
 export default function ChangePlanCard() {
   const { data: session, update } = useSession();
-  const userId = (session?.user as any)?.id as string | undefined;
-  const { refetch } = useBillingStatus({ userId, auto: false });
+  const { refetch } = useBillingStatus({ auto: false });
   const { toast } = useToast();
-  const currentPlan = (session?.user as any)?.planType as Plan | undefined;
-  const [newPlan, setNewPlan] = useState<Plan>(currentPlan === "annual" ? "monthly" : "annual");
+  const [currentPlan, setCurrentPlan] = useState<Plan | undefined>(undefined);
+  const [newPlan, setNewPlan] = useState<Plan>("monthly");
+  useEffect(() => {
+    fetch('/api/plan/status', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => {
+        const plan = d.interval === 'year' ? 'annual' : 'monthly';
+        setCurrentPlan(plan);
+        setNewPlan(plan === 'annual' ? 'monthly' : 'annual');
+      })
+      .catch(() => {});
+  }, []);
   const [when, setWhen] = useState<When>("now");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -30,6 +39,7 @@ export default function ChangePlanCard() {
     [clientSecret]
   );
 
+  const currentPlanText = currentPlan === 'annual' ? 'Anual' : currentPlan === 'monthly' ? 'Mensal' : '—';
   const disabled = loading || !currentPlan || currentPlan === newPlan;
 
   async function handleSubmit() {
@@ -91,7 +101,7 @@ export default function ChangePlanCard() {
       <h2 className="text-lg font-semibold">Mudar de plano</h2>
 
       <div className="text-sm text-gray-600">
-        Plano atual: <strong>{currentPlan ?? "—"}</strong>
+        Plano atual: <strong>{currentPlanText}</strong>
       </div>
 
       <div className="space-y-3">

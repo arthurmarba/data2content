@@ -7,8 +7,7 @@ import { useBillingStatus } from "@/app/hooks/useBillingStatus";
 
 export default function CancelRenewalCard() {
   const { data: session, update } = useSession();
-  const userId = (session?.user as any)?.id as string | undefined;
-  const { refetch } = useBillingStatus({ userId, auto: false });
+  const { refetch } = useBillingStatus({ auto: false });
   const { toast } = useToast();
   const planStatus = (session?.user as any)?.planStatus as
     | "active"
