@@ -283,6 +283,7 @@ export interface IUser extends Document {
     bankAccount?: string;
     stripeAccountId?: string | null;
     stripeAccountStatus?: 'pending' | 'verified' | 'restricted' | 'disabled';
+    stripeAccountDefaultCurrency?: string;
   };
   affiliatePayoutMode?: 'connect' | 'manual';
   commissionPaidInvoiceIds?: string[];
@@ -476,6 +477,7 @@ const userSchema = new Schema<IUser>(
       bankAccount: { type: String, default: "" },
       stripeAccountId: { type: String, default: null },
       stripeAccountStatus: { type: String, enum: ['pending', 'verified', 'restricted', 'disabled'], default: undefined },
+      stripeAccountDefaultCurrency: { type: String, default: undefined },
     },
 
     lastPaymentError: {

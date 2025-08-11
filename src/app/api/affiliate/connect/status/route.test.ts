@@ -1,3 +1,6 @@
+import { Response } from 'node-fetch';
+(global as any).Response = Response;
+
 import { GET } from './route';
 import { NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -61,6 +64,9 @@ describe('GET /api/affiliate/connect/status', () => {
     expect(body.destCurrency).toBe('brl');
     expect(body.stripeAccountId).toBe('acct_123');
     expect(body.stripeAccountStatus).toBe('verified');
+    expect(body.affiliatePayoutMode).toBe('connect');
     expect(body.needsOnboarding).toBe(false);
+    expect(mockUser.paymentInfo.stripeAccountDefaultCurrency).toBe('brl');
+    expect(mockUser.save).toHaveBeenCalled();
   });
 });

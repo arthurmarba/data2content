@@ -47,10 +47,12 @@ export async function POST(req: NextRequest) {
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
+    const refreshUrl = process.env.STRIPE_CONNECT_REFRESH_URL || `${baseUrl}/affiliate/connect/refresh`;
+    const returnUrl = process.env.STRIPE_CONNECT_RETURN_URL || `${baseUrl}/affiliate/connect/return`;
     const link = await stripe.accountLinks.create({
       account: accountId,
-      refresh_url: `${baseUrl}/dashboard/affiliate`,
-      return_url: `${baseUrl}/dashboard/affiliate`,
+      refresh_url: refreshUrl,
+      return_url: returnUrl,
       type: "account_onboarding",
     });
 
