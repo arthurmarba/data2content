@@ -6,6 +6,7 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User"; // Assume que User tem a role
 import Redemption from "@/app/models/Redemption";
 import { Model, Document, Types } from "mongoose"; // Types importado para _id
+import { checkRateLimit } from "@/utils/rateLimit";
 
 export const runtime = "nodejs";
 
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest) {
   try {
     await connectToDatabase();
 
-    const session = await getServerSession({ req: request, ...authOptions });
+    const session = await getServerSession(authOptions);
     // console.debug("[redeem:GET] Sessão:", session);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
@@ -83,10 +84,16 @@ export async function POST(request: NextRequest) {
   try {
     await connectToDatabase();
 
-    const session = await getServerSession({ req: request, ...authOptions });
+    const session = await getServerSession(authOptions);
     // console.debug("[redeem:POST] Sessão:", session);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    }
+
+    const ip = request.headers.get('x-forwarded-for') || request.ip || 'unknown';
+    const { allowed } = await checkRateLimit(`redeem_post:${session.user.id}:${ip}`, 1, 10);
+    if (!allowed) {
+      return NextResponse.json({ error: 'Muitas tentativas, tente novamente mais tarde.' }, { status: 429 });
     }
 
     const body = await request.json();
@@ -116,7 +123,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const balanceCents = user.affiliateBalanceCents ?? Math.round((user.affiliateBalance || 0) * 100);
+    const balanceCents = user.affiliateBalanceCents || 0;
     const balance = balanceCents / 100;
     const MINIMUM_REDEEM_AMOUNT_CENTS = 50 * 100;
     if (balanceCents < MINIMUM_REDEEM_AMOUNT_CENTS) {
@@ -135,7 +142,6 @@ export async function POST(request: NextRequest) {
       notes: "", // Inicialmente vazio, pode ser preenchido pelo admin no PATCH
     });
 
-    user.affiliateBalance = 0;
     user.affiliateBalanceCents = 0;
     await user.save();
 
@@ -160,7 +166,7 @@ export async function PATCH(request: NextRequest) {
   try {
     await connectToDatabase();
 
-    const session = await getServerSession({ req: request, ...authOptions });
+    const session = await getServerSession(authOptions);
     // console.debug("[redeem:PATCH] Sessão:", session);
 
     if (!session?.user?.id) {
