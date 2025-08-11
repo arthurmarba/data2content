@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     // 1. Obter a sessão do usuário
     // Usaremos getServerSession para ter acesso ao objeto User completo da sessão, se necessário,
     // mas para este caso, apenas o ID do usuário (token.sub) seria suficiente se usássemos getToken.
-    const session = await getServerSession({ req: request, ...authOptions });
+    const session = await getServerSession(authOptions);
     // console.debug(`${TAG} Sessão obtida:`, session);
 
     if (!session?.user?.id) {

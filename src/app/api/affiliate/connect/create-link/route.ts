@@ -4,6 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import stripe from "@/app/lib/stripe";
+import { checkRateLimit } from "@/utils/rateLimit";
 
 export const runtime = "nodejs";
 
@@ -12,9 +13,14 @@ export async function POST(req: NextRequest) {
     if (process.env.STRIPE_CONNECT_MODE !== "express") {
       return NextResponse.json({ error: "Stripe Connect deve estar configurado como Express" }, { status: 400 });
     }
-    const session = await getServerSession({ req, ...authOptions });
+    const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    }
+    const ip = req.headers.get('x-forwarded-for') || req.ip || 'unknown';
+    const { allowed } = await checkRateLimit(`connect_create:${session.user.id}:${ip}`, 5, 60);
+    if (!allowed) {
+      return NextResponse.json({ error: 'Muitas tentativas, tente novamente mais tarde.' }, { status: 429 });
     }
 
     await connectToDatabase();

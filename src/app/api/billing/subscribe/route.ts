@@ -4,6 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import stripe from "@/app/lib/stripe";
+import { checkRateLimit } from "@/utils/rateLimit";
 
 export const runtime = "nodejs";
 
@@ -20,9 +21,14 @@ function getPriceId(plan: Plan, currency: Currency) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession({ req, ...authOptions });
+    const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    }
+    const ip = req.headers.get('x-forwarded-for') || req.ip || 'unknown';
+    const { allowed } = await checkRateLimit(`billing_subscribe:${session.user.id ?? session.user.email}:${ip}`, 5, 60);
+    if (!allowed) {
+      return NextResponse.json({ error: 'Muitas tentativas, tente novamente mais tarde.' }, { status: 429 });
     }
 
     const body = await req.json();
