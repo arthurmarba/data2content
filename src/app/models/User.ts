@@ -262,8 +262,7 @@ export interface IUser extends Document {
   affiliateInvites?: number;
   affiliateCode?: string;
   affiliateUsed?: string;
-  affiliateBalance?: number;
-  affiliateBalanceCents?: number;
+  affiliateBalances?: Map<string, number>;
   commissionLog?: ICommissionLogEntry[];
   paymentInfo?: {
     pixKey?: string;
@@ -432,8 +431,10 @@ const userSchema = new Schema<IUser>(
     affiliateInvites: { type: Number, default: 0 },
     affiliateCode: { type: String, unique: true, sparse: true },
     affiliateUsed: { type: String, default: null },
-    affiliateBalance: { type: Number, default: 0 },
+    affiliateBalances: { type: Map, of: Number, default: {} },
+    // legacy fields:
     affiliateBalanceCents: { type: Number, default: 0 },
+    affiliateBalance: { type: Number },
     commissionLog: { type: [commissionLogEntrySchema], default: [] },
     affiliatePayoutMode: { type: String, enum: ['connect', 'manual'], default: 'manual' },
     commissionPaidInvoiceIds: { type: [String], default: [] },

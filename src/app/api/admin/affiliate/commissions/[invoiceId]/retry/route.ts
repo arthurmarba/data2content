@@ -7,6 +7,7 @@ import stripe from "@/app/lib/stripe";
 import { checkRateLimit } from "@/utils/rateLimit";
 import { logger } from "@/app/lib/logger";
 import { getClientIp } from "@/utils/getClientIp";
+import { normCur } from "@/utils/normCur";
 
 export const runtime = "nodejs";
 
@@ -44,9 +45,9 @@ export async function POST(req: NextRequest, { params }: { params: { invoiceId: 
     }
 
     const amountCents = entry.amountCents ?? Math.round(entry.amount * 100);
-    const currency = entry.currency || 'usd';
+    const currency = normCur(entry.currency);
     const account = await stripe.accounts.retrieve(affUser.paymentInfo.stripeAccountId!);
-    const destCurrency = (account as any).default_currency || 'usd';
+    const destCurrency = normCur((account as any).default_currency);
     if (destCurrency !== currency) {
       entry.status = 'fallback';
       affUser.markModified('commissionLog');
@@ -76,7 +77,8 @@ export async function POST(req: NextRequest, { params }: { params: { invoiceId: 
 
     entry.status = 'paid';
     entry.transferId = transfer.id;
-    affUser.affiliateBalanceCents = Math.max((affUser.affiliateBalanceCents || 0) - amountCents, 0);
+    const prev = affUser.affiliateBalances?.get(currency) ?? 0;
+    affUser.affiliateBalances?.set(currency, Math.max(prev - amountCents, 0));
     affUser.markModified('commissionLog');
     await affUser.save();
 

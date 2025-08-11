@@ -3,6 +3,7 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import stripe from "@/app/lib/stripe";
 import { logger } from "@/app/lib/logger";
+import { normCur } from "@/utils/normCur";
 
 export const runtime = "nodejs";
 export const dynamic = 'force-dynamic';
@@ -30,9 +31,8 @@ export async function POST(req: NextRequest) {
     switch (event.type) {
       case "invoice.payment_succeeded": {
         const invoice = event.data.object as Stripe.Invoice;
-        if (invoice.billing_reason !== 'subscription_create' || !invoice.total || invoice.total <= 0) {
-          break;
-        }
+        const reason = invoice.billing_reason ?? '';
+        if (!['subscription_create','subscription_cycle'].includes(reason) || !invoice.total || invoice.total <= 0) break;
         const subId = typeof invoice.subscription === "string" ? invoice.subscription : invoice.subscription?.id;
         const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
 
@@ -65,18 +65,18 @@ export async function POST(req: NextRequest) {
             if (!alreadyPaidForThisReferral && !affUser.commissionPaidInvoiceIds?.includes(String(invoice.id))) {
               const percent = Number(process.env.AFFILIATE_COMMISSION_PERCENT || 10) / 100;
               const amountCents = Math.round((invoice.total ?? 0) * percent);
+              const cur = normCur((invoice as any).currency);
               let status: 'paid' | 'failed' | 'fallback' = 'paid';
               let transferId: string | null = null;
 
               if (affUser.paymentInfo?.stripeAccountId && affUser.affiliatePayoutMode === 'connect') {
                 try {
                   const account = await stripe.accounts.retrieve(affUser.paymentInfo.stripeAccountId);
-                  const destCurrency = (account as any).default_currency || 'usd';
-                  const invoiceCurrency = (invoice as any).currency || 'usd';
-                  if (destCurrency !== invoiceCurrency) {
+                  const destCurrency = normCur((account as any).default_currency);
+                  if (destCurrency !== cur) {
                     status = 'fallback';
-                    affUser.affiliateBalance = (affUser.affiliateBalance || 0) + amountCents / 100;
-                    affUser.affiliateBalanceCents = (affUser.affiliateBalanceCents || 0) + amountCents;
+                    const prev = affUser.affiliateBalances?.get(cur) ?? 0;
+                    affUser.affiliateBalances?.set(cur, prev + amountCents);
                   } else {
                     const transfer = await stripe.transfers.create({
                       amount: amountCents,
@@ -95,13 +95,13 @@ export async function POST(req: NextRequest) {
                 } catch (err) {
                   logger.error('[stripe/webhook] transfer error:', { err, currency: (invoice as any).currency, amountCents });
                   status = 'failed';
-                  affUser.affiliateBalance = (affUser.affiliateBalance || 0) + amountCents / 100;
-                  affUser.affiliateBalanceCents = (affUser.affiliateBalanceCents || 0) + amountCents;
+                  const prev = affUser.affiliateBalances?.get(cur) ?? 0;
+                  affUser.affiliateBalances?.set(cur, prev + amountCents);
                 }
               } else {
                 status = 'fallback';
-                affUser.affiliateBalance = (affUser.affiliateBalance || 0) + amountCents / 100;
-                affUser.affiliateBalanceCents = (affUser.affiliateBalanceCents || 0) + amountCents;
+                const prev = affUser.affiliateBalances?.get(cur) ?? 0;
+                affUser.affiliateBalances?.set(cur, prev + amountCents);
               }
 
               affUser.commissionLog = affUser.commissionLog || [];
@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
                 referredUserId: user._id,
                 status,
                 transferId,
-                currency: (invoice as any).currency,
+                currency: cur,
                 amountCents,
               });
               affUser.commissionPaidInvoiceIds = affUser.commissionPaidInvoiceIds || [];

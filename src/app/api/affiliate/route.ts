@@ -58,8 +58,7 @@ export async function GET(request: NextRequest) {
     // 5) Retorna os dados do afiliado
     return NextResponse.json({
       affiliate_code: dbUser.affiliateCode,
-      affiliate_balance: dbUser.affiliateBalance,
-      // Você pode incluir outros campos conforme necessário
+      affiliate_balances: Object.fromEntries(dbUser.affiliateBalances || []),
     });
   } catch (error: unknown) {
     console.error("[affiliate:GET] Erro:", error);
