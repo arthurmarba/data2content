@@ -1,0 +1,66 @@
+import { GET } from './route';
+import { NextRequest } from 'next/server';
+import { getServerSession } from 'next-auth/next';
+import { connectToDatabase } from '@/app/lib/mongoose';
+import User from '@/app/models/User';
+import stripe from '@/app/lib/stripe';
+
+jest.mock('next-auth/next', () => ({
+  getServerSession: jest.fn(),
+}));
+
+jest.mock('@/app/api/auth/[...nextauth]/route', () => ({
+  authOptions: {},
+}));
+
+jest.mock('@/app/lib/mongoose', () => ({
+  connectToDatabase: jest.fn(),
+}));
+
+jest.mock('@/app/models/User', () => ({
+  findById: jest.fn(),
+}));
+
+jest.mock('@/app/lib/stripe', () => ({
+  accounts: {
+    retrieve: jest.fn(),
+  },
+}));
+
+const mockGetServerSession = getServerSession as jest.Mock;
+const mockConnect = connectToDatabase as jest.Mock;
+const mockFindById = User.findById as jest.Mock;
+const mockRetrieve = (stripe.accounts.retrieve as unknown) as jest.Mock;
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockConnect.mockResolvedValue(undefined);
+});
+
+describe('GET /api/affiliate/connect/status', () => {
+  it('returns destCurrency from Stripe account', async () => {
+    mockGetServerSession.mockResolvedValue({ user: { id: 'user1' } });
+    const mockUser = {
+      paymentInfo: { stripeAccountId: 'acct_123', stripeAccountStatus: 'pending' },
+      affiliatePayoutMode: 'connect',
+      save: jest.fn().mockResolvedValue(undefined),
+    } as any;
+    mockFindById.mockResolvedValue(mockUser);
+    mockRetrieve.mockResolvedValue({
+      details_submitted: true,
+      charges_enabled: true,
+      payouts_enabled: true,
+      default_currency: 'BRL',
+    });
+
+    const req = new NextRequest('http://localhost/api/affiliate/connect/status');
+    const res = await GET(req);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.destCurrency).toBe('brl');
+    expect(body.stripeAccountId).toBe('acct_123');
+    expect(body.stripeAccountStatus).toBe('verified');
+    expect(body.needsOnboarding).toBe(false);
+  });
+});

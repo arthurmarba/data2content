@@ -22,10 +22,12 @@ export async function GET(req: NextRequest) {
 
     const accountId = user.paymentInfo?.stripeAccountId || null;
     let status = user.paymentInfo?.stripeAccountStatus || null;
+    let destCurrency = 'usd';
 
     if (accountId) {
       try {
         const account = await stripe.accounts.retrieve(accountId);
+        destCurrency = ((account as any).default_currency || 'usd').toLowerCase();
         let newStatus: 'verified' | 'restricted' | 'disabled' | 'pending' | null = 'pending';
         if (account.details_submitted && account.charges_enabled && account.payouts_enabled) newStatus = 'verified';
         else if (account.requirements?.disabled_reason) newStatus = 'restricted';
@@ -44,6 +46,7 @@ export async function GET(req: NextRequest) {
       stripeAccountStatus: status,
       affiliatePayoutMode: user.affiliatePayoutMode,
       needsOnboarding: status !== 'verified',
+      destCurrency,
     });
   } catch (err) {
     console.error("[affiliate/connect/status] error:", err);
