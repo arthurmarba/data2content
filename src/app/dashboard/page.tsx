@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useCallback, Fragment, useRef } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useRouter } from "next/navigation";
+import useSWR from 'swr';
 import Image from 'next/image';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -53,12 +54,11 @@ interface VideoData {
 
 interface CommissionLogItem {
   date: string;
-  amount: number;
   description: string;
   sourcePaymentId?: string;
   referredUserId?: string;
   currency?: string;
-  amountCents?: number;
+  amountCents: number;
 }
 
 const SkeletonLoader = ({ className = "" }: { className?: string }) => (
@@ -95,6 +95,9 @@ const AffiliateCardContent: React.FC<{
   canRedeem,
   userId
 }) => {
+  const fetcher = (url: string) => fetch(url).then(r => r.json());
+  const { data: connectStatus } = useSWR('/api/affiliate/connect/status', fetcher, { revalidateOnFocus: false });
+  const destCurrency = connectStatus?.destCurrency?.toLowerCase();
   const balance = (user?.affiliateBalanceCents ?? Math.round((user?.affiliateBalance ?? 0) * 100)) / 100;
   return (
     <div className="bg-white p-6 rounded-xl shadow-lg border-t-4 border-brand-pink">
@@ -147,23 +150,29 @@ const AffiliateCardContent: React.FC<{
           {!isLoadingCommissionLog && !commissionLogError && commissionLog.length === 0 && ( <p className="text-xs text-gray-500 text-center py-3 italic">Nenhuma comissão recebida ainda.</p> )}
           {!isLoadingCommissionLog && !commissionLogError && commissionLog.length > 0 && (
             <div className="max-h-60 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-              {commissionLog.map((logItem, index) => (
-                <div key={logItem.sourcePaymentId || `commission-${index}`} className="p-2.5 bg-gray-50 rounded-lg border border-gray-200/80 text-xs hover:shadow-sm transition-shadow">
-                  <div className="flex justify-between items-start">
-                    <span className="font-medium text-gray-700">{new Date(logItem.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
-                    {(() => {
-                      const amt = logItem.amountCents !== undefined ? logItem.amountCents / 100 : logItem.amount;
-                      const curr = (logItem.currency || 'BRL').toUpperCase();
-                      return (
-                        <span className="font-semibold text-green-600 text-sm">
-                          + {amt.toLocaleString('pt-BR', { style: 'currency', currency: curr })}
-                        </span>
-                      );
-                    })()}
+              {commissionLog.map((logItem, index) => {
+                const amt = logItem.amountCents / 100;
+                const curr = (logItem.currency || 'BRL').toUpperCase();
+                const mismatch = destCurrency && logItem.currency && destCurrency !== logItem.currency.toLowerCase();
+                return (
+                  <div key={logItem.sourcePaymentId || `commission-${index}`} className="p-2.5 bg-gray-50 rounded-lg border border-gray-200/80 text-xs hover:shadow-sm transition-shadow">
+                    <div className="flex justify-between items-start">
+                      <span className="font-medium text-gray-700">{new Date(logItem.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                      <div className="flex items-center gap-1">
+                        <span className="font-semibold text-green-600 text-sm">+ {amt.toLocaleString('pt-BR', { style: 'currency', currency: curr })}</span>
+                        {mismatch && (
+                          <span
+                            className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800"
+                            title="Comissão caiu no saldo manual por moeda diferente. Você pode resgatar por Pix."
+                          >!
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-gray-600 mt-1 text-[11px] leading-relaxed">{logItem.description}</p>
                   </div>
-                  <p className="text-gray-600 mt-1 text-[11px] leading-relaxed">{logItem.description}</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

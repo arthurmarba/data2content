@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
         if (user.affiliateUsed) {
           const affUser = await User.findOne({ affiliateCode: user.affiliateUsed });
           if (affUser) {
-            if (!affUser.affiliateBalances || !(affUser.affiliateBalances instanceof Map)) {
+            if (!affUser.affiliateBalances) {
               affUser.affiliateBalances = new Map<string, number>();
             }
             const alreadyPaidForThisReferral = (affUser.commissionLog || []).some(
@@ -114,7 +114,6 @@ export async function POST(req: NextRequest) {
               affUser.commissionLog = affUser.commissionLog || [];
               affUser.commissionLog.push({
                 date: new Date(),
-                amount: amountCents / 100,
                 description: `Comissão (1ª cobrança) de ${user.email || user._id}`,
                 sourcePaymentId: String(invoice.id),
                 referredUserId: user._id,

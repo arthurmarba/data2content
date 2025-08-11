@@ -43,8 +43,6 @@ export async function POST(req: NextRequest) {
     const plan: Plan = body.plan;
     // normaliza moeda vinda do front ("brl"/"usd")
     const currency = String(body.currency || "").toUpperCase() as Currency;
-    const coupon: string | undefined = body.coupon;
-    const promotion_code: string | undefined = body.promotion_code;
     let affiliateCode: string | undefined = body.affiliateCode;
     let affiliateValid = false;
 
@@ -126,9 +124,7 @@ export async function POST(req: NextRequest) {
         expand: ["latest_invoice.payment_intent"],
         metadata,
       };
-      if (coupon || promotion_code) {
-        (params as any).discounts = [coupon ? { coupon } : { promotion_code }];
-      } else if (affiliateValid) {
+      if (affiliateValid) {
         const couponId = getCouponId(currency);
         if (couponId) {
           (params as any).discounts = [{ coupon: couponId }];
@@ -145,9 +141,6 @@ export async function POST(req: NextRequest) {
     user.planInterval = plan === "annual" ? "year" : "month";
     user.stripePriceId = priceId;
 
-    if (user.paymentInfo?.stripeAccountStatus === null) {
-      delete (user as any).paymentInfo.stripeAccountStatus;
-    }
     await user.save();
 
     const clientSecret = (sub.latest_invoice as any)?.payment_intent?.client_secret;
