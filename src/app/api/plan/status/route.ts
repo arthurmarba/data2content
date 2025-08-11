@@ -28,10 +28,10 @@ export async function GET(req: Request) {
 
   const subs = await stripe.subscriptions.list({
     customer: user.stripeCustomerId,
-    status: "all",
+    status: "active",
     limit: 1,
   });
-  const sub = subs.data[0];
+  const sub = subs.data.find((s) => !s.cancel_at_period_end) ?? subs.data[0];
   const item = sub?.items.data[0];
   const interval = item?.price.recurring?.interval ?? null;
 

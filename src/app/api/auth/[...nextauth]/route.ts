@@ -42,6 +42,7 @@ declare module "next-auth" {
         lastInstagramSyncSuccess?: boolean | null;
         planStatus?: string | null;
         planType?: string | null;
+        planInterval?: string | null;
         planExpiresAt?: Date | null;
         affiliateCode?: string | null;
         facebookProviderAccountId?: string | null;
@@ -61,6 +62,7 @@ declare module "next-auth" {
         agencyPlanType?: string | null;
         planStatus?: string | null;
         planType?: string | null;
+        planInterval?: string | null;
         planExpiresAt?: string | null;
         affiliateCode?: string | null;
         affiliateBalance?: number;
@@ -105,6 +107,7 @@ declare module "next-auth/jwt" {
          lastInstagramSyncSuccess?: boolean | null;
          planStatus?: string | null;
          planType?: string | null;
+         planInterval?: string | null;
          planExpiresAt?: Date | string | null;
          affiliateCode?: string | null;
          image?: string | null;
@@ -503,6 +506,7 @@ export const authOptions: NextAuthOptions = {
 
                     (authUserFromProvider as NextAuthUserArg).planStatus = dbUserRecord.planStatus;
                     (authUserFromProvider as NextAuthUserArg).planType = dbUserRecord.planType;
+                    (authUserFromProvider as NextAuthUserArg).planInterval = dbUserRecord.planInterval;
                     (authUserFromProvider as NextAuthUserArg).planExpiresAt = dbUserRecord.planExpiresAt;
                     (authUserFromProvider as NextAuthUserArg).affiliateCode = dbUserRecord.affiliateCode;
                     (authUserFromProvider as NextAuthUserArg).agency = dbUserRecord.agency ? dbUserRecord.agency.toString() : undefined;
@@ -554,6 +558,7 @@ export const authOptions: NextAuthOptions = {
 
                 token.planStatus = (userFromSignIn as NextAuthUserArg).planStatus;
                 token.planType = (userFromSignIn as NextAuthUserArg).planType;
+                token.planInterval = (userFromSignIn as NextAuthUserArg).planInterval;
                 token.planExpiresAt = (userFromSignIn as NextAuthUserArg).planExpiresAt;
                 token.affiliateCode = (userFromSignIn as NextAuthUserArg).affiliateCode;
                 token.agencyId = (userFromSignIn as NextAuthUserArg).agency ?? null;
@@ -582,6 +587,7 @@ export const authOptions: NextAuthOptions = {
                                       !token.role ||  // Missing essential data
                                       typeof token.planStatus === 'undefined' ||
                                       typeof token.planType === 'undefined' ||
+                                      typeof token.planInterval === 'undefined' ||
                                       typeof token.affiliateCode === 'undefined' ||
                                       (typeof token.isInstagramConnected === 'undefined' && typeof token.availableIgAccounts === 'undefined');
 
@@ -601,7 +607,7 @@ export const authOptions: NextAuthOptions = {
                     try {
                         await connectToDatabase();
                         const dbUser = await DbUser.findById(token.id)
-                            .select('name email image role agency provider providerAccountId facebookProviderAccountId isNewUserForOnboarding onboardingCompletedAt isInstagramConnected instagramAccountId username lastInstagramSyncAttempt lastInstagramSyncSuccess instagramSyncErrorMsg planStatus planType planExpiresAt affiliateCode availableIgAccounts instagramAccessToken')
+                            .select('name email image role agency provider providerAccountId facebookProviderAccountId isNewUserForOnboarding onboardingCompletedAt isInstagramConnected instagramAccountId username lastInstagramSyncAttempt lastInstagramSyncSuccess instagramSyncErrorMsg planStatus planType planInterval planExpiresAt affiliateCode availableIgAccounts instagramAccessToken')
                             .lean<IUser>(); // Use lean for performance
 
                         if (dbUser) {
@@ -629,6 +635,7 @@ export const authOptions: NextAuthOptions = {
 
                             token.planStatus = dbUser.planStatus ?? token.planStatus ?? 'inactive';
                             token.planType = dbUser.planType ?? token.planType ?? null;
+                            token.planInterval = dbUser.planInterval ?? token.planInterval ?? null;
                             token.planExpiresAt = dbUser.planExpiresAt ?? token.planExpiresAt ?? null;
                             token.affiliateCode = dbUser.affiliateCode ?? token.affiliateCode ?? null;
                             token.agencyId = dbUser.agency ? dbUser.agency.toString() : token.agencyId ?? null;
@@ -706,6 +713,7 @@ export const authOptions: NextAuthOptions = {
 
             session.user.planStatus = token.planStatus ?? 'inactive';
             session.user.planType = token.planType ?? null;
+            session.user.planInterval = token.planInterval ?? null;
             session.user.planExpiresAt = token.planExpiresAt ? (typeof token.planExpiresAt === 'string' ? token.planExpiresAt : new Date(token.planExpiresAt).toISOString()) : null;
             session.user.affiliateCode = token.affiliateCode;
             session.user.agencyId = token.agencyId ?? null;
@@ -723,13 +731,14 @@ export const authOptions: NextAuthOptions = {
             try {
                 await connectToDatabase();
                 const dbUserCheck = await DbUser.findById(token.id)
-                    .select('planStatus planType planExpiresAt name role image') // Select only needed fields
-                    .lean<Pick<IUser, 'planStatus' | 'planType' | 'planExpiresAt' | 'name' | 'role' | 'image'>>();
+                    .select('planStatus planType planInterval planExpiresAt name role image') // Select only needed fields
+                    .lean<Pick<IUser, 'planStatus' | 'planType' | 'planInterval' | 'planExpiresAt' | 'name' | 'role' | 'image'>>();
 
                 if (dbUserCheck && session.user) {
                     logger.info(`${TAG_SESSION} Revalidando sessão com dados do DB para User ID: ${token.id}. DB planStatus: ${dbUserCheck.planStatus}. Session planStatus (antes da revalidação DB): ${session.user.planStatus}`);
                     session.user.planStatus = dbUserCheck.planStatus ?? session.user.planStatus ?? 'inactive';
                     session.user.planType = dbUserCheck.planType ?? session.user.planType ?? null;
+                    session.user.planInterval = dbUserCheck.planInterval ?? session.user.planInterval ?? null;
                     if (dbUserCheck.planExpiresAt instanceof Date) {
                         session.user.planExpiresAt = dbUserCheck.planExpiresAt.toISOString();
                     } else if (dbUserCheck.planExpiresAt === null) { // Explicitly handle null
