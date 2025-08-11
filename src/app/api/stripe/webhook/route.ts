@@ -53,22 +53,48 @@ export async function POST(req: NextRequest) {
         // Comissão somente na 1ª cobrança da assinatura
         if (invoice.billing_reason === "subscription_create" && user.affiliateUsed) {
           const affUser = await User.findOne({ affiliateCode: user.affiliateUsed });
-          if (affUser) {
-            const gross = (invoice.total ?? 0) / 100; // total já em moeda
-            const commission = gross * 0.10; // ajuste a taxa se necessário
-            affUser.affiliateBalance = (affUser.affiliateBalance || 0) + commission;
+          if (affUser && !affUser.commissionPaidInvoiceIds?.includes(String(invoice.id))) {
+            const percent = Number(process.env.AFFILIATE_COMMISSION_PERCENT || 10) / 100;
+            const amountCents = Math.round((invoice.total ?? 0) * percent);
+            let status: 'paid' | 'failed' | 'fallback' = 'paid';
+            let transferId: string | null = null;
+
+            if (affUser.paymentInfo?.stripeAccountId && affUser.affiliatePayoutMode === 'connect') {
+              try {
+                const transfer = await stripe.transfers.create({
+                  amount: amountCents,
+                  currency: (invoice as any).currency || 'usd',
+                  destination: affUser.paymentInfo.stripeAccountId,
+                  description: `Comissão de ${user.email || user._id}`,
+                  metadata: { invoiceId: String(invoice.id), referredUserId: String(user._id) },
+                }, { idempotencyKey: `commission_${invoice.id}_${affUser._id}` });
+                transferId = transfer.id;
+              } catch (err) {
+                console.error('[stripe/webhook] transfer error:', err);
+                status = 'failed';
+                affUser.affiliateBalance = (affUser.affiliateBalance || 0) + amountCents / 100;
+              }
+            } else {
+              status = 'fallback';
+              affUser.affiliateBalance = (affUser.affiliateBalance || 0) + amountCents / 100;
+            }
+
+            affUser.commissionLog = affUser.commissionLog || [];
+            affUser.commissionLog.push({
+              date: new Date(),
+              amount: amountCents / 100,
+              description: `Comissão (1ª cobrança) de ${user.email || user._id}`,
+              sourcePaymentId: String(invoice.id),
+              referredUserId: user._id,
+              status,
+              transferId,
+            });
+            affUser.commissionPaidInvoiceIds = affUser.commissionPaidInvoiceIds || [];
+            affUser.commissionPaidInvoiceIds.push(String(invoice.id));
             affUser.affiliateInvites = (affUser.affiliateInvites || 0) + 1;
             if (affUser.affiliateInvites % 5 === 0) {
               affUser.affiliateRank = (affUser.affiliateRank || 1) + 1;
             }
-            affUser.commissionLog = affUser.commissionLog || [];
-          affUser.commissionLog.push({
-              date: new Date(),
-              amount: commission,
-              description: `Comissão (1ª cobrança) de ${user.email || user._id}`,
-              sourcePaymentId: String(invoice.id),
-              referredUserId: user._id,
-            });
             await affUser.save();
           }
           user.affiliateUsed = null; // limpa para não pagar em renovações
