@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
               affUser.affiliateRank = (affUser.affiliateRank || 1) + 1;
             }
             affUser.commissionLog = affUser.commissionLog || [];
-            affUser.commissionLog.push({
+          affUser.commissionLog.push({
               date: new Date(),
               amount: commission,
               description: `Comissão (1ª cobrança) de ${user.email || user._id}`,
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
             });
             await affUser.save();
           }
-          user.affiliateUsed = undefined; // limpa para não pagar em renovações
+          user.affiliateUsed = null; // limpa para não pagar em renovações
         }
 
         user.lastPaymentError = undefined;
@@ -114,7 +114,10 @@ export async function POST(req: NextRequest) {
         if (sub.current_period_end) {
           update.planExpiresAt = new Date(sub.current_period_end * 1000);
         }
-        await User.updateOne({ stripeCustomerId: customerId }, { $set: update });
+        await User.updateOne(
+          { stripeCustomerId: customerId },
+          { $set: { ...update, lastProcessedEventId: event.id } }
+        );
         break;
       }
 
