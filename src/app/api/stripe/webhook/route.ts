@@ -60,6 +60,9 @@ export async function POST(req: NextRequest) {
         if (user.affiliateUsed) {
           const affUser = await User.findOne({ affiliateCode: user.affiliateUsed });
           if (affUser) {
+            if (!affUser.affiliateBalances || !(affUser.affiliateBalances instanceof Map)) {
+              affUser.affiliateBalances = new Map<string, number>();
+            }
             const alreadyPaidForThisReferral = (affUser.commissionLog || []).some(
               (e) => String(e.referredUserId) === String(user._id) && e.status === 'paid'
             );
@@ -132,9 +135,7 @@ export async function POST(req: NextRequest) {
         }
         // Sempre limpa affiliateUsed após processar a cobrança inicial
         if (user.affiliateUsed) {
-          // ajuste de tipo: propriedade é string | undefined no tipo
-          user.affiliateUsed = undefined;
-          // ou: delete user.affiliateUsed;
+          user.affiliateUsed = null; // padroniza com o schema (string | null)
         }
 
         user.lastPaymentError = undefined;

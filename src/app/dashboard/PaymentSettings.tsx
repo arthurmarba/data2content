@@ -15,6 +15,7 @@ import { useSession } from "next-auth/react";
 interface Redemption {
   _id: string;
   amount: number;
+  currency?: string;
   status: 'pending' | 'paid' | 'failed' | string; // Tipos comuns de status
   createdAt: string;
   // Adicione outros campos se a API retornar (ex: transactionId, paidAt)
@@ -520,7 +521,7 @@ export default function PaymentSettings({ userId }: PaymentSettingsProps) {
                 <thead className="bg-gray-50">
                 <tr>
                     <th className="px-3 py-2 text-left font-medium text-gray-600 border-b border-gray-200">Data</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600 border-b border-gray-200">Valor (R$)</th>
+                    <th className="px-3 py-2 text-left font-medium text-gray-600 border-b border-gray-200">Valor</th>
                     <th className="px-3 py-2 text-left font-medium text-gray-600 border-b border-gray-200">Status</th>
                 </tr>
                 </thead>
@@ -530,7 +531,9 @@ export default function PaymentSettings({ userId }: PaymentSettingsProps) {
                     <td className="px-3 py-2 text-gray-700">
                         {new Date(r.createdAt).toLocaleString("pt-BR", { dateStyle: 'short', timeStyle: 'short' })}
                     </td>
-                    <td className="px-3 py-2 text-gray-700">{r.amount.toFixed(2)}</td>
+                    <td className="px-3 py-2 text-gray-700">
+                        {fmt(Math.round(r.amount*100), (r.currency || 'brl').toLowerCase())}
+                    </td>
                     <td className="px-3 py-2">
                         <StatusBadge status={r.status} />
                     </td>
