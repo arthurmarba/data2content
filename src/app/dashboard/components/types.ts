@@ -47,6 +47,7 @@ export interface ExtendedUser {
   planType?: PlanType;
   affiliateCode?: string | null;
   affiliateBalance?: number;
+  affiliateBalanceCents?: number;
   affiliateRank?: number;
   affiliateInvites?: number;
   provider?: string;

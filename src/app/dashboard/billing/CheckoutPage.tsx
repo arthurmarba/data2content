@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Elements } from "@stripe/react-stripe-js";
 import type { StripeElementsOptions } from "@stripe/stripe-js";
 import { stripePromise } from "@/app/lib/stripe-browser";
@@ -19,10 +19,22 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      const aff = document.cookie.match(/(?:^|;\s*)aff_code=([^;]+)/)?.[1];
+      if (aff) setAffiliateCode(aff);
+    }
+  }, []);
+
   async function startCheckout() {
     try {
       setLoading(true);
       setErr(null);
+
+      const cookieAff = typeof document !== 'undefined'
+        ? document.cookie.match(/(?:^|;\s*)aff_code=([^;]+)/)?.[1]
+        : undefined;
+      const effectiveCode = affiliateCode.trim() || cookieAff;
 
       const res = await fetch("/api/billing/subscribe", {
         method: "POST",
@@ -30,7 +42,7 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           plan,
           currency,
-          affiliateCode: affiliateCode.trim() || undefined,
+          affiliateCode: effectiveCode || undefined,
         }),
       });
 
@@ -109,6 +121,9 @@ export default function CheckoutPage() {
               placeholder="EX: ABC123"
               className="w-full px-3 py-2 border rounded"
             />
+            {affiliateCode && (
+              <p className="text-xs text-green-600 mt-1">Cupom de 10% aplicado na primeira cobrança</p>
+            )}
           </div>
 
           {err && <p className="text-sm text-red-600">{err}</p>}

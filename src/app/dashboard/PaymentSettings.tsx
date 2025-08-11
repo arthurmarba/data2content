@@ -41,6 +41,8 @@ interface PaymentInfoApiResponse {
         bankName?: string;
         bankAgency?: string;
         bankAccount?: string;
+        stripeAccountId?: string | null;
+        stripeAccountStatus?: string | null;
     };
     error?: string;
 }
@@ -127,6 +129,22 @@ export default function PaymentSettings({ userId, availableBalance = 0 }: Paymen
   // Histórico de resgates
   const [redemptions, setRedemptions] = useState<Redemption[]>([]);
   const [loadingRedemptions, setLoadingRedemptions] = useState(false);
+  const [stripeAccountId, setStripeAccountId] = useState<string | null>(null);
+  const [stripeAccountStatus, setStripeAccountStatus] = useState<string | null>(null);
+
+  const openStripeDashboard = useCallback(async () => {
+    try {
+      const res = await fetch('/api/affiliate/connect/login-link', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok && data.url) {
+        window.open(data.url, '_blank');
+      } else {
+        console.error(data.error || 'Falha ao gerar link');
+      }
+    } catch (error) {
+      console.error('[PaymentSettings] Erro ao abrir painel do Stripe:', error);
+    }
+  }, []);
 
   /**
    * Busca os dados de pagamento do usuário.
@@ -155,6 +173,8 @@ export default function PaymentSettings({ userId, availableBalance = 0 }: Paymen
         setBankName(data.paymentInfo.bankName || "");
         setBankAgency(data.paymentInfo.bankAgency || "");
         setBankAccount(data.paymentInfo.bankAccount || "");
+        setStripeAccountId(data.paymentInfo.stripeAccountId || null);
+        setStripeAccountStatus(data.paymentInfo.stripeAccountStatus || null);
       } else {
          // Não mostra erro se apenas não encontrou dados (status 404)
          if (res.status !== 404) {
@@ -166,6 +186,8 @@ export default function PaymentSettings({ userId, availableBalance = 0 }: Paymen
          setBankName("");
          setBankAgency("");
          setBankAccount("");
+         setStripeAccountId(null);
+         setStripeAccountStatus(null);
       }
     } catch (error) {
       console.error("[PaymentSettings] Erro ao buscar paymentInfo:", error);
@@ -331,6 +353,17 @@ export default function PaymentSettings({ userId, availableBalance = 0 }: Paymen
   return (
     // Container principal com espaçamento vertical
     <div className="space-y-8">
+      {stripeAccountId && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={openStripeDashboard}
+            className="px-4 py-2 bg-black text-white rounded-md text-sm hover:opacity-90"
+          >
+            Abrir painel do Stripe
+          </button>
+        </div>
+      )}
 
       {/* Formulário de dados bancários */}
       <form onSubmit={handleSave} className="border border-gray-200 p-4 sm:p-6 rounded-lg shadow-sm bg-white">

@@ -116,11 +116,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const balance = user.affiliateBalance || 0;
-    const MINIMUM_REDEEM_AMOUNT = 50;
-    if (balance < MINIMUM_REDEEM_AMOUNT) {
+    const balanceCents = user.affiliateBalanceCents ?? Math.round((user.affiliateBalance || 0) * 100);
+    const balance = balanceCents / 100;
+    const MINIMUM_REDEEM_AMOUNT_CENTS = 50 * 100;
+    if (balanceCents < MINIMUM_REDEEM_AMOUNT_CENTS) {
       return NextResponse.json(
-        { error: `Saldo insuficiente. O valor mínimo para resgate é R$ ${MINIMUM_REDEEM_AMOUNT.toFixed(2)}.` },
+        { error: `Saldo insuficiente. O valor mínimo para resgate é R$ ${(MINIMUM_REDEEM_AMOUNT_CENTS / 100).toFixed(2)}.` },
         { status: 400 }
       );
     }
@@ -135,6 +136,7 @@ export async function POST(request: NextRequest) {
     });
 
     user.affiliateBalance = 0;
+    user.affiliateBalanceCents = 0;
     await user.save();
 
     return NextResponse.json({

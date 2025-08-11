@@ -36,6 +36,7 @@ interface ExtendedUser {
   planExpiresAt?: string | null;
   affiliateCode?: string | null;
   affiliateBalance?: number;
+  affiliateBalanceCents?: number;
   affiliateRank?: number;
   affiliateInvites?: number;
   provider?: string;
@@ -56,6 +57,8 @@ interface CommissionLogItem {
   description: string;
   sourcePaymentId?: string;
   referredUserId?: string;
+  currency?: string;
+  amountCents?: number;
 }
 
 const SkeletonLoader = ({ className = "" }: { className?: string }) => (
@@ -92,6 +95,7 @@ const AffiliateCardContent: React.FC<{
   canRedeem,
   userId
 }) => {
+  const balance = (user?.affiliateBalanceCents ?? Math.round((user?.affiliateBalance ?? 0) * 100)) / 100;
   return (
     <div className="bg-white p-6 rounded-xl shadow-lg border-t-4 border-brand-pink">
       <div className="flex justify-between items-center mb-6">
@@ -104,7 +108,7 @@ const AffiliateCardContent: React.FC<{
       <div className="space-y-5 text-sm">
         <div className="text-center p-4 bg-brand-light rounded-lg border border-gray-200">
           <span className="text-xs text-gray-500 uppercase tracking-wider block mb-1">Saldo Disponível</span>
-          <span className="font-bold text-3xl text-green-600 block">R$ {(user?.affiliateBalance ?? 0).toFixed(2)}</span>
+          <span className="font-bold text-3xl text-green-600 block">R$ {balance.toFixed(2)}</span>
         </div>
         
         <div className="space-y-1.5">
@@ -147,7 +151,15 @@ const AffiliateCardContent: React.FC<{
                 <div key={logItem.sourcePaymentId || `commission-${index}`} className="p-2.5 bg-gray-50 rounded-lg border border-gray-200/80 text-xs hover:shadow-sm transition-shadow">
                   <div className="flex justify-between items-start">
                     <span className="font-medium text-gray-700">{new Date(logItem.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
-                    <span className="font-semibold text-green-600 text-sm">+ {logItem.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                    {(() => {
+                      const amt = logItem.amountCents !== undefined ? logItem.amountCents / 100 : logItem.amount;
+                      const curr = (logItem.currency || 'BRL').toUpperCase();
+                      return (
+                        <span className="font-semibold text-green-600 text-sm">
+                          + {amt.toLocaleString('pt-BR', { style: 'currency', currency: curr })}
+                        </span>
+                      );
+                    })()}
                   </div>
                   <p className="text-gray-600 mt-1 text-[11px] leading-relaxed">{logItem.description}</p>
                 </div>
@@ -391,11 +403,11 @@ export default function MainDashboard() {
   const paymentPanelUserProps = {
     planStatus: user.planStatus,
     planExpiresAt: user.planExpiresAt,
-    affiliateBalance: user.affiliateBalance,
+    affiliateBalance: (user.affiliateBalanceCents ?? Math.round((user.affiliateBalance || 0) * 100)) / 100,
     affiliateCode: affiliateCode === null ? undefined : affiliateCode,
     planType: user.planType, // ✅ agora tipado corretamente
   };
-  const canRedeem = (user.affiliateBalance ?? 0) > 0;
+  const canRedeem = (user.affiliateBalanceCents ?? Math.round((user.affiliateBalance ?? 0) * 100)) > 0;
 
   const videoGuidesData: VideoData[] = [
     { id: 'intro-plataforma', title: 'Bem-vindo à Data2Content!', youtubeVideoId: 'BHACKCNDMW8' },

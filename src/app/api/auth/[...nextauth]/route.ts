@@ -45,6 +45,8 @@ declare module "next-auth" {
         planInterval?: string | null;
         planExpiresAt?: Date | null;
         affiliateCode?: string | null;
+        affiliateBalance?: number | null;
+        affiliateBalanceCents?: number | null;
         facebookProviderAccountId?: string | null;
         providerAccountId?: string | null; // Added for consistency, though id is primary
     }
@@ -66,6 +68,7 @@ declare module "next-auth" {
         planExpiresAt?: string | null;
         affiliateCode?: string | null;
         affiliateBalance?: number;
+        affiliateBalanceCents?: number;
         affiliateRank?: number;
         affiliateInvites?: number;
 
@@ -561,6 +564,8 @@ export const authOptions: NextAuthOptions = {
                 token.planInterval = (userFromSignIn as NextAuthUserArg).planInterval;
                 token.planExpiresAt = (userFromSignIn as NextAuthUserArg).planExpiresAt;
                 token.affiliateCode = (userFromSignIn as NextAuthUserArg).affiliateCode;
+                token.affiliateBalance = (userFromSignIn as NextAuthUserArg).affiliateBalance ?? 0;
+                token.affiliateBalanceCents = (userFromSignIn as NextAuthUserArg).affiliateBalanceCents ?? 0;
                 token.agencyId = (userFromSignIn as NextAuthUserArg).agency ?? null;
                 if (token.agencyId) {
                     try {
@@ -589,6 +594,8 @@ export const authOptions: NextAuthOptions = {
                                       typeof token.planType === 'undefined' ||
                                       typeof token.planInterval === 'undefined' ||
                                       typeof token.affiliateCode === 'undefined' ||
+                                      typeof token.affiliateBalance === 'undefined' ||
+                                      typeof token.affiliateBalanceCents === 'undefined' ||
                                       (typeof token.isInstagramConnected === 'undefined' && typeof token.availableIgAccounts === 'undefined');
 
                 // Periodic refresh logic
@@ -607,7 +614,7 @@ export const authOptions: NextAuthOptions = {
                     try {
                         await connectToDatabase();
                         const dbUser = await DbUser.findById(token.id)
-                            .select('name email image role agency provider providerAccountId facebookProviderAccountId isNewUserForOnboarding onboardingCompletedAt isInstagramConnected instagramAccountId username lastInstagramSyncAttempt lastInstagramSyncSuccess instagramSyncErrorMsg planStatus planType planInterval planExpiresAt affiliateCode availableIgAccounts instagramAccessToken')
+                            .select('name email image role agency provider providerAccountId facebookProviderAccountId isNewUserForOnboarding onboardingCompletedAt isInstagramConnected instagramAccountId username lastInstagramSyncAttempt lastInstagramSyncSuccess instagramSyncErrorMsg planStatus planType planInterval planExpiresAt affiliateCode availableIgAccounts instagramAccessToken affiliateBalance affiliateBalanceCents')
                             .lean<IUser>(); // Use lean for performance
 
                         if (dbUser) {
@@ -638,6 +645,8 @@ export const authOptions: NextAuthOptions = {
                             token.planInterval = dbUser.planInterval ?? token.planInterval ?? null;
                             token.planExpiresAt = dbUser.planExpiresAt ?? token.planExpiresAt ?? null;
                             token.affiliateCode = dbUser.affiliateCode ?? token.affiliateCode ?? null;
+                            token.affiliateBalance = dbUser.affiliateBalance ?? token.affiliateBalance ?? 0;
+                            token.affiliateBalanceCents = dbUser.affiliateBalanceCents ?? token.affiliateBalanceCents ?? 0;
                             token.agencyId = dbUser.agency ? dbUser.agency.toString() : token.agencyId ?? null;
                             if (token.agencyId) {
                                 try {
@@ -721,7 +730,8 @@ export const authOptions: NextAuthOptions = {
             session.user.agencyPlanType = token.agencyPlanType ?? null;
             
             // These fields might be populated from other sources or kept if already in session
-            session.user.affiliateBalance = session.user.affiliateBalance ?? undefined; 
+            session.user.affiliateBalance = token.affiliateBalance ?? session.user.affiliateBalance ?? undefined;
+            session.user.affiliateBalanceCents = token.affiliateBalanceCents ?? session.user.affiliateBalanceCents ?? undefined;
             session.user.affiliateRank = session.user.affiliateRank ?? undefined;
             session.user.affiliateInvites = session.user.affiliateInvites ?? undefined;
             
