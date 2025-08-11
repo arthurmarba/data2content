@@ -6,6 +6,7 @@ import User from "@/app/models/User";
 import stripe from "@/app/lib/stripe";
 import Stripe from "stripe";
 import { checkRateLimit } from "@/utils/rateLimit";
+import crypto from "crypto";
 
 export const runtime = "nodejs";
 
@@ -69,6 +70,18 @@ export async function POST(req: NextRequest) {
       customerId = customer.id;
       user.stripeCustomerId = customer.id;
     }
+    if (!existing) {
+      const list = await stripe.subscriptions.list({ customer: customerId!, status: "all", limit: 10 });
+      const reuse =
+        list.data.find(
+          s =>
+            s.items.data.some(i => i.price.id === priceId) &&
+            s.status !== "incomplete_expired"
+        );
+      if (reuse) {
+        existing = reuse;
+      }
+    }
 
     let sub: Stripe.Subscription;
 
@@ -81,7 +94,7 @@ export async function POST(req: NextRequest) {
         proration_behavior: "create_prorations",
         billing_cycle_anchor: "now",
         expand: ["latest_invoice.payment_intent"],
-      }, { idempotencyKey: `sub_update_${user._id}_${plan}_${currency}` });
+      }, { idempotencyKey: `sub_update_${user._id}_${priceId}` });
     } else {
       if (affiliateCode) {
         affiliateCode = affiliateCode.toUpperCase();
@@ -102,10 +115,37 @@ export async function POST(req: NextRequest) {
       if (coupon || promotion_code) {
         (params as any).discounts = [coupon ? { coupon } : { promotion_code }];
       }
-      sub = await stripe.subscriptions.create(
-        params,
-        { idempotencyKey: `sub_${user._id}_${plan}_${currency}` }
-      );
+
+      const idemRaw = JSON.stringify({
+        customerId,
+        items: params.items,
+        discounts: (params as any).discounts ?? null,
+        behavior: params.payment_behavior,
+        expand: params.expand,
+      });
+      const idemKey =
+        "sub_" + crypto.createHash("sha256").update(idemRaw).digest("hex").slice(0, 24);
+
+      try {
+        sub = await stripe.subscriptions.create(params, { idempotencyKey: idemKey });
+      } catch (e: any) {
+        if (e.rawType === "idempotency_error") {
+          const list = await stripe.subscriptions.list({ customer: customerId!, status: "all", limit: 10 });
+          const reuse =
+            list.data.find(
+              s =>
+                s.items.data.some(i => i.price.id === priceId) &&
+                s.status !== "incomplete_expired"
+            );
+          if (reuse) {
+            sub = reuse;
+          } else {
+            throw e;
+          }
+        } else {
+          throw e;
+        }
+      }
     }
 
     user.stripeSubscriptionId = sub.id;
