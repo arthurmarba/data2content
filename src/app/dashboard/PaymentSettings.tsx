@@ -23,8 +23,6 @@ interface Redemption {
 /** Props para o componente PaymentSettings */
 interface PaymentSettingsProps {
   userId: string;
-  // Passando o saldo disponível como prop para exibir contexto e checagem
-  availableBalance?: number;
 }
 
 // Interface para a resposta da API de resgate
@@ -110,9 +108,19 @@ const StatusBadge = ({ status }: { status: string }) => {
  * Componente que gerencia os dados de pagamento (Pix/Conta) e exibe
  * o histórico de saques do afiliado, permitindo também solicitar novo saque.
  */
-export default function PaymentSettings({ userId, availableBalance = 0 }: PaymentSettingsProps) {
+function fmt(amountCents:number, cur:string){
+  const n = amountCents/100;
+  const locale = cur === 'brl' ? 'pt-BR' : 'en-US';
+  return new Intl.NumberFormat(locale,{style:'currency',currency:cur.toUpperCase()}).format(n);
+}
+
+export default function PaymentSettings({ userId }: PaymentSettingsProps) {
   // Hook useSession para atualizar dados
-  const { update: updateSession } = useSession();
+  const { data: session, update: updateSession } = useSession();
+  const balances: Record<string, number> = session?.user?.affiliateBalances || {};
+  const currencyOptions = Object.entries(balances).filter(([,c])=>c>0);
+  const [selectedCurrency, setSelectedCurrency] = useState(currencyOptions[0]?.[0] || 'brl');
+  const availableBalance = balances[selectedCurrency] ? balances[selectedCurrency]/100 : 0;
 
   // Estados para os dados bancários
   const [pixKey, setPixKey] = useState("");
@@ -306,7 +314,7 @@ export default function PaymentSettings({ userId, availableBalance = 0 }: Paymen
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ userId }),
+            body: JSON.stringify({ userId, currency: selectedCurrency }),
         });
 
         const data: RedeemApiResponse = await response.json();
@@ -345,7 +353,7 @@ export default function PaymentSettings({ userId, availableBalance = 0 }: Paymen
         }, 5000);
     }
    // Adiciona saveStatus como dependência para evitar stale closure nos setTimeouts
-   }, [userId, fetchRedemptions, updateSession, redeemStatusState, saveStatus]);
+   }, [userId, fetchRedemptions, updateSession, redeemStatusState, saveStatus, selectedCurrency]);
 
    // Condição para habilitar o botão de resgate no modal
    const canRedeemModal = availableBalance > 0 && redeemStatusState !== 'processing';
@@ -462,19 +470,25 @@ export default function PaymentSettings({ userId, availableBalance = 0 }: Paymen
       {/* Seção de Resgate */}
       <div className="border border-gray-200 p-4 sm:p-6 rounded-lg shadow-sm bg-white">
          <h3 className="text-lg font-semibold mb-2 text-brand-dark">Solicitar Resgate</h3>
-         {/* Exibe saldo disponível */}
-         <p className="text-sm text-gray-600 mb-4">Saldo disponível atual: <strong className="text-green-600">R$ {availableBalance.toFixed(2)}</strong></p>
+         <div className="mb-4 flex items-center gap-2">
+           <select value={selectedCurrency} onChange={e=>setSelectedCurrency(e.target.value)} className="rounded border px-2 py-1 text-sm">
+             {currencyOptions.map(([cur]) => (
+               <option key={cur} value={cur}>{cur.toUpperCase()}</option>
+             ))}
+           </select>
+           <span className="text-sm text-gray-600">Saldo: <strong className="text-green-600">{fmt(balances[selectedCurrency]||0, selectedCurrency)}</strong></span>
+         </div>
          <p className="text-xs text-gray-500 mb-4">O pagamento será processado manualmente em até 72 horas após a solicitação.</p>
 
          {/* Botão de Resgate Atualizado */}
          <button
           onClick={handleRedeem}
-          disabled={!canRedeemModal} // Usa a nova condição
+          disabled={!canRedeemModal}
           className="px-5 py-2 bg-green-600 text-white text-sm font-semibold rounded-full hover:bg-green-700 transition-default disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2"
          >
           {redeemStatusState === 'processing' ? (
             <> <FaSpinner className="animate-spin w-4 h-4" /> <span>Processando...</span> </>
-          ) : ( "Resgatar Saldo Disponível" )}
+          ) : ( "Resgatar" )}
         </button>
 
         {/* Feedback de Resgate */}
