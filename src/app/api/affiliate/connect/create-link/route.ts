@@ -20,17 +20,14 @@ export async function POST(req: NextRequest) {
     }
     const ip = getClientIp(req);
     const { allowed } = await checkRateLimit(`connect_create:${session.user.id}:${ip}`, 5, 60);
-    if (!allowed) {
-      return NextResponse.json({ error: 'Muitas tentativas, tente novamente mais tarde.' }, { status: 429 });
-    }
+    if (!allowed) return NextResponse.json({ error: 'Muitas tentativas, tente novamente mais tarde.' }, { status: 429 });
 
     await connectToDatabase();
     const user = await User.findById(session.user.id);
-    if (!user) {
-      return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
-    }
+    if (!user) return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
 
-    let accountId = user.paymentInfo?.stripeAccountId;
+    user.paymentInfo ||= {};
+    let accountId = user.paymentInfo.stripeAccountId;
     if (!accountId) {
       const account = await stripe.accounts.create({
         type: "express",
@@ -39,27 +36,32 @@ export async function POST(req: NextRequest) {
         metadata: { userId: String(user._id) },
       });
       accountId = account.id;
-      user.paymentInfo = user.paymentInfo || {};
       user.paymentInfo.stripeAccountId = accountId;
       user.paymentInfo.stripeAccountStatus = "pending";
       user.affiliatePayoutMode = "connect";
       await user.save();
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
-    const refreshUrl = process.env.STRIPE_CONNECT_REFRESH_URL || `${baseUrl}/affiliate/connect/refresh`;
-    const returnUrl = process.env.STRIPE_CONNECT_RETURN_URL || `${baseUrl}/affiliate/connect/return`;
+    const account = await stripe.accounts.retrieve(accountId!);
+    const verified = !!(account.charges_enabled && account.payouts_enabled);
+
+    const origin = req.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    if (verified) {
+      const ll = await stripe.accounts.createLoginLink(accountId!);
+      return NextResponse.json({ url: ll.url, kind: 'login' });
+    }
+
+    const refreshUrl = process.env.STRIPE_CONNECT_REFRESH_URL || `${origin}/affiliate/connect/refresh`;
+    const returnUrl = process.env.STRIPE_CONNECT_RETURN_URL || `${origin}/affiliate/connect/return`;
     const link = await stripe.accountLinks.create({
-      account: accountId,
+      account: accountId!,
       refresh_url: refreshUrl,
       return_url: returnUrl,
       type: "account_onboarding",
     });
-
-    return NextResponse.json({ onboardingUrl: link.url });
+    return NextResponse.json({ url: link.url, kind: 'onboarding' });
   } catch (err) {
     console.error("[affiliate/connect/create-link] error:", err);
     return NextResponse.json({ error: "Erro ao criar link" }, { status: 500 });
   }
 }
-
