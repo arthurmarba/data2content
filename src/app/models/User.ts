@@ -268,7 +268,7 @@ export interface IUser extends Document {
   affiliateRank?: number;
   affiliateInvites?: number;
   affiliateCode?: string;
-  affiliateUsed?: string | null;           // alinhar com default null do schema
+  affiliateUsed: string | null;            // alinhar com default null do schema
   affiliateBalances?: Map<string, number>; // multimoeda em cents
 
   // LEGACY (mantidos por compatibilidade, não usar):

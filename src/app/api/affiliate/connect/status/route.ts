@@ -41,12 +41,13 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    const stripeAccountStatus = status === 'verified' ? 'enabled' : 'pending';
+    const needsOnboarding = !accountId || status !== 'verified';
+
     return NextResponse.json({
-      stripeAccountId: accountId,
-      stripeAccountStatus: status,
-      affiliatePayoutMode: user.affiliatePayoutMode,
-      needsOnboarding: status !== 'verified',
+      stripeAccountStatus,
       destCurrency,
+      needsOnboarding,
     });
   } catch (err) {
     console.error("[affiliate/connect/status] error:", err);
