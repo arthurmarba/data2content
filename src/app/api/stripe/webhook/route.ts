@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
       case "invoice.payment_succeeded": {
         const invoice = event.data.object as Stripe.Invoice;
         const reason = invoice.billing_reason ?? '';
-        if (!['subscription_create','subscription_cycle'].includes(reason) || !invoice.total || invoice.total <= 0) break;
+        if (reason !== 'subscription_create' || !invoice.amount_paid || invoice.amount_paid <= 0) break;
         const subId = typeof invoice.subscription === "string" ? invoice.subscription : invoice.subscription?.id;
         const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
 
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
             );
             if (!alreadyPaidForThisReferral && !affUser.commissionPaidInvoiceIds?.includes(String(invoice.id))) {
               const percent = Number(process.env.AFFILIATE_COMMISSION_PERCENT || 10) / 100;
-              const amountCents = Math.round((invoice.total ?? 0) * percent);
+              const amountCents = Math.round((invoice.amount_paid ?? 0) * percent);
               const cur = normCur((invoice as any).currency);
               let status: 'paid' | 'failed' | 'fallback' = 'paid';
               let transferId: string | null = null;
@@ -218,6 +218,8 @@ declare namespace Stripe {
   export interface Invoice {
     id: string;
     total: number | null;
+    amount_paid?: number | null;
+    currency?: string;
     subscription: string | { id: string } | null;
     customer: string | { id: string } | null;
     billing_reason?: string;
