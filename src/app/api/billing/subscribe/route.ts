@@ -6,7 +6,7 @@ import User from "@/app/models/User";
 import stripe from "@/app/lib/stripe";
 import Stripe from "stripe";
 import { checkRateLimit } from "@/utils/rateLimit";
-import crypto from "crypto";
+import { cancelBlockingIncompleteSubs } from "@/utils/stripeHelpers";
 
 export const runtime = "nodejs";
 
@@ -51,13 +51,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
     }
 
-    let existing: Stripe.Subscription | null = null;
-    if (user.stripeSubscriptionId) {
-      try {
-        existing = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
-      } catch {}
-    }
-
     const priceId = getPriceId(plan, currency);
 
     let customerId = user.stripeCustomerId;
@@ -69,6 +62,15 @@ export async function POST(req: NextRequest) {
       });
       customerId = customer.id;
       user.stripeCustomerId = customer.id;
+    }
+
+    await cancelBlockingIncompleteSubs(stripe, customerId!);
+
+    let existing: Stripe.Subscription | null = null;
+    if (user.stripeSubscriptionId) {
+      try {
+        existing = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
+      } catch {}
     }
     if (!existing) {
       const list = await stripe.subscriptions.list({ customer: customerId!, status: "all", limit: 10 });
@@ -85,7 +87,7 @@ export async function POST(req: NextRequest) {
 
     let sub: Stripe.Subscription;
 
-    if (existing && !["canceled", "incomplete_expired"].includes(existing.status) && existing.items.data[0]) {
+    if (existing && ["active", "trialing"].includes(existing.status) && existing.items.data[0]) {
       // Atualiza price em assinatura existente
       const itemId = existing.items.data[0].id;
       sub = await stripe.subscriptions.update(existing.id, {
@@ -106,47 +108,22 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      const metadata: Record<string, string> = { userId: String(user._id) };
+      if (affiliateCode) metadata.affiliateCode = affiliateCode;
+
       const params: Stripe.SubscriptionCreateParams = {
         customer: customerId!,
         items: [{ price: priceId }],
         payment_behavior: "default_incomplete",
         expand: ["latest_invoice.payment_intent"],
+        metadata,
       };
       if (coupon || promotion_code) {
         (params as any).discounts = [coupon ? { coupon } : { promotion_code }];
       }
 
-      const idemRaw = JSON.stringify({
-        customerId,
-        items: params.items,
-        discounts: (params as any).discounts ?? null,
-        affiliateCode: affiliateCode ?? null,
-        behavior: params.payment_behavior,
-        expand: params.expand,
-      });
-      const idemKey =
-        "sub_" + crypto.createHash("sha256").update(idemRaw).digest("hex").slice(0, 24);
-
-      try {
-        sub = await stripe.subscriptions.create(params, { idempotencyKey: idemKey });
-      } catch (e: any) {
-        if (e.rawType === "idempotency_error") {
-          const list = await stripe.subscriptions.list({ customer: customerId!, status: "all", limit: 10 });
-          const reuse =
-            list.data.find(
-              s =>
-                s.items.data.some(i => i.price.id === priceId) &&
-                s.status !== "incomplete_expired"
-            );
-          if (reuse) {
-            sub = reuse;
-          } else {
-            throw e;
-          }
-        } else {
-          throw e;
-        }
-      }
+      const idemKey = `sub_create_${user._id}_${priceId}_${affiliateCode || "na"}_${Date.now()}`;
+      sub = await stripe.subscriptions.create(params, { idempotencyKey: idemKey });
     }
 
     user.stripeSubscriptionId = sub.id;
