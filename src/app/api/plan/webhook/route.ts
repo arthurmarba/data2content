@@ -231,7 +231,7 @@ export async function POST(request: NextRequest) {
             if (user.affiliateUsed) {
               const affUser = await User.findOne({ affiliateCode: user.affiliateUsed });
               if (affUser) {
-                if (!affUser.affiliateBalances || !(affUser.affiliateBalances instanceof Map)) {
+                if (!affUser.affiliateBalances) {
                   affUser.affiliateBalances = new Map<string, number>();
                 }
                 const baseCents =
@@ -249,7 +249,6 @@ export async function POST(request: NextRequest) {
                 affUser.commissionLog = affUser.commissionLog || [];
                 affUser.commissionLog.push({
                   date: new Date(),
-                  amount: commissionCents / 100,
                   description: `Comissão (plano anual) de ${user.email || user._id}`,
                   sourcePaymentId: eventId,
                   referredUserId: user._id,
@@ -310,7 +309,7 @@ export async function POST(request: NextRequest) {
             try {
               const affUser = await User.findOne({ affiliateCode: user.affiliateUsed });
               if (affUser) {
-                if (!affUser.affiliateBalances || !(affUser.affiliateBalances instanceof Map)) {
+                if (!affUser.affiliateBalances) {
                   affUser.affiliateBalances = new Map<string, number>();
                 }
                 const commissionRate = 0.1;
@@ -328,7 +327,6 @@ export async function POST(request: NextRequest) {
                 affUser.commissionLog = affUser.commissionLog || [];
                 affUser.commissionLog.push({
                   date: new Date(),
-                  amount: commissionCents / 100,
                   description: `Comissão (1ª cobrança) de ${user.email || user._id}`,
                   sourcePaymentId: eventId,
                   referredUserId: user._id,
@@ -403,7 +401,7 @@ export async function POST(request: NextRequest) {
       if (user.affiliateUsed) {
         const affUser = await User.findOne({ affiliateCode: user.affiliateUsed });
         if (affUser) {
-          if (!affUser.affiliateBalances || !(affUser.affiliateBalances instanceof Map)) {
+          if (!affUser.affiliateBalances) {
             affUser.affiliateBalances = new Map<string, number>();
           }
           const commissionRate = 0.1;
@@ -429,7 +427,6 @@ export async function POST(request: NextRequest) {
 
           const commissionEntry: ICommissionLogEntry = {
             date: new Date(),
-            amount: commissionCents / 100,
             description: `Comissão (1ª cobrança) de ${user.email || user._id.toString()}`,
             sourcePaymentId: eventId.toString(),
             referredUserId: user._id,

@@ -22,9 +22,9 @@ export default function AffiliateCard() {
 
   const handleOnboard = async () => {
     try {
-      const res = await fetch('/api/affiliate/connect/onboard', { method: 'POST' });
+      const res = await fetch('/api/affiliate/connect/create-link', { method: 'POST' });
       const data = await res.json();
-      if (data.url) window.location.href = data.url;
+      if (data.onboardingUrl) window.location.href = data.onboardingUrl;
     } catch (err) {
       console.error(err);
     }

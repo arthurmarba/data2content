@@ -155,14 +155,13 @@ export interface IAvailableInstagramAccount {
 }
 export interface ICommissionLogEntry {
   date: Date;
-  amount: number;
   description: string;
   sourcePaymentId?: string;
   referredUserId?: Types.ObjectId;
   status: 'paid' | 'failed' | 'fallback';
   transferId?: string | null;
   currency?: string;
-  amountCents?: number;
+  amountCents: number;
 }
 export interface ILastCommunityInspirationShown {
   date: Date;
@@ -323,14 +322,13 @@ function generateAffiliateCode(): string {
 // --- SCHEMAS ANINHADOS ---
 const commissionLogEntrySchema = new Schema<ICommissionLogEntry>({
   date: { type: Date, required: true },
-  amount: { type: Number, required: true },
   description: { type: String, required: true },
   sourcePaymentId: { type: String },
   referredUserId: { type: Schema.Types.ObjectId, ref: 'User' },
   status: { type: String, enum: ['paid', 'failed', 'fallback'], required: true },
   transferId: { type: String, default: null },
   currency: { type: String },
-  amountCents: { type: Number },
+  amountCents: { type: Number, required: true },
 }, { _id: false });
 
 const lastCommunityInspirationShownSchema = new Schema<ILastCommunityInspirationShown>({

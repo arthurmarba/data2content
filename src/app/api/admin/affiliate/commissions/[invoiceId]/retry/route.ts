@@ -44,7 +44,7 @@ export async function POST(req: NextRequest, { params }: { params: { invoiceId: 
       return NextResponse.json({ error: 'Conta do afiliado não verificada' }, { status: 400 });
     }
 
-    const amountCents = entry.amountCents ?? Math.round(entry.amount * 100);
+    const amountCents = entry.amountCents;
     const currency = normCur(entry.currency);
     const account = await stripe.accounts.retrieve(affUser.paymentInfo.stripeAccountId!);
     const destCurrency = normCur((account as any).default_currency);
