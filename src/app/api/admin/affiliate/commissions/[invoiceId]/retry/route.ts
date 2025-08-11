@@ -77,6 +77,10 @@ export async function POST(req: NextRequest, { params }: { params: { invoiceId: 
 
     entry.status = 'paid';
     entry.transferId = transfer.id;
+    affUser.commissionPaidInvoiceIds = affUser.commissionPaidInvoiceIds || [];
+    if (entry.sourcePaymentId && !affUser.commissionPaidInvoiceIds.includes(entry.sourcePaymentId)) {
+      affUser.commissionPaidInvoiceIds.push(entry.sourcePaymentId);
+    }
     affUser.affiliateBalances ||= new Map();
     const prev = affUser.affiliateBalances.get(currency) ?? 0;
     affUser.affiliateBalances.set(currency, Math.max(prev - amountCents, 0));
