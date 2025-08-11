@@ -82,13 +82,17 @@ export async function POST(req: NextRequest) {
     }
 
     // Cria assinatura do zero
-    const created = await stripe.subscriptions.create({
+    const subParams: any = {
       customer: user.stripeCustomerId,
       items: [{ price: priceId }],
       payment_behavior: "default_incomplete",
       expand: ["latest_invoice.payment_intent"],
       metadata: { plan },
-    });
+    };
+    if (affiliateCode) {
+      subParams.coupon = process.env.STRIPE_PROMO_COUPON_ID_10OFF_ONCE;
+    }
+    const created = await stripe.subscriptions.create(subParams);
 
     user.stripeSubscriptionId = created.id;
     user.planType = plan;      // mantém coerência na sessão

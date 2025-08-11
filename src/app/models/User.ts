@@ -157,6 +157,8 @@ export interface ICommissionLogEntry {
   description: string;
   sourcePaymentId?: string;
   referredUserId?: Types.ObjectId;
+  status: 'paid' | 'failed' | 'fallback';
+  transferId?: string | null;
 }
 export interface ILastCommunityInspirationShown {
   date: Date;
@@ -265,7 +267,11 @@ export interface IUser extends Document {
     bankName?: string;
     bankAgency?: string;
     bankAccount?: string;
+    stripeAccountId?: string | null;
+    stripeAccountStatus?: 'pending' | 'verified' | 'restricted' | 'disabled' | null;
   };
+  affiliatePayoutMode?: 'connect' | 'manual';
+  commissionPaidInvoiceIds?: string[];
   lastPaymentError?: {
     at: Date;
     paymentId: string;
@@ -296,7 +302,15 @@ function generateAffiliateCode(): string {
 }
 
 // --- SCHEMAS ANINHADOS ---
-const commissionLogEntrySchema = new Schema<ICommissionLogEntry>({/*...*/}, {/*...*/}); // Placeholder for brevity
+const commissionLogEntrySchema = new Schema<ICommissionLogEntry>({
+  date: { type: Date, required: true },
+  amount: { type: Number, required: true },
+  description: { type: String, required: true },
+  sourcePaymentId: { type: String },
+  referredUserId: { type: Schema.Types.ObjectId, ref: 'User' },
+  status: { type: String, enum: ['paid', 'failed', 'fallback'], required: true },
+  transferId: { type: String, default: null },
+}, { _id: false });
 const lastCommunityInspirationShownSchema = new Schema<ILastCommunityInspirationShown>({
   date: { type: Date, required: true },
   inspirationIds: [{ type: Schema.Types.ObjectId, required: true }],
@@ -415,11 +429,15 @@ const userSchema = new Schema<IUser>(
     affiliateUsed: { type: String, default: null },
     affiliateBalance: { type: Number, default: 0 },
     commissionLog: { type: [commissionLogEntrySchema], default: [] },
+    affiliatePayoutMode: { type: String, enum: ['connect', 'manual'], default: 'manual' },
+    commissionPaidInvoiceIds: { type: [String], default: [] },
     paymentInfo: {
       pixKey: { type: String, default: "" },
       bankName: { type: String, default: "" },
       bankAgency: { type: String, default: "" },
       bankAccount: { type: String, default: "" },
+      stripeAccountId: { type: String, default: null },
+      stripeAccountStatus: { type: String, enum: ['pending', 'verified', 'restricted', 'disabled'], default: null },
     },
     lastPaymentError: {
       at: { type: Date },
