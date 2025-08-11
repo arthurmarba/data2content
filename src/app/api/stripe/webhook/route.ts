@@ -34,14 +34,18 @@ export async function POST(req: NextRequest) {
         if (!customerId) break;
         const user = await User.findOne({ stripeCustomerId: customerId });
         if (!user) break;
+        if (user.lastProcessedEventId === event.id) break;
+        user.lastProcessedEventId = event.id;
 
         // Define plano e expiração a partir da própria invoice
         const line = invoice.lines?.data?.find((l) => l?.price?.recurring);
         const periodEnd = line?.period?.end ? new Date(line.period.end * 1000) : null;
-        const interval = line?.price?.recurring?.interval; // "month" | "year"
+        const interval = line?.price?.recurring?.interval as "month" | "year" | undefined;
 
-        if (interval === "month") user.planType = "monthly";
-        if (interval === "year")  user.planType = "annual";
+        if (interval) {
+          user.planInterval = interval;
+          user.planType = interval === "year" ? "annual" : "monthly";
+        }
         user.planStatus = "active";
         if (periodEnd) user.planExpiresAt = periodEnd;
         if (subId) user.stripeSubscriptionId = subId;
@@ -81,6 +85,8 @@ export async function POST(req: NextRequest) {
         if (!customerId) break;
         const user = await User.findOne({ stripeCustomerId: customerId });
         if (!user) break;
+        if (user.lastProcessedEventId === event.id) break;
+        user.lastProcessedEventId = event.id;
 
         user.lastPaymentError = {
           at: new Date(),
@@ -118,6 +124,8 @@ export async function POST(req: NextRequest) {
         if (!customerId) break;
         const user = await User.findOne({ stripeCustomerId: customerId });
         if (!user) break;
+        if (user.lastProcessedEventId === event.id) break;
+        user.lastProcessedEventId = event.id;
 
         user.planStatus = "inactive";
         user.planExpiresAt = null;
