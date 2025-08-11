@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
           proration_behavior: "create_prorations",
           billing_cycle_anchor: "now",
           expand: ["latest_invoice.payment_intent"],
-          metadata: { plan },
+          metadata: { plan, currency },
         });
 
         await user.save();
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
       items: [{ price: priceId }],
       payment_behavior: "default_incomplete",
       expand: ["latest_invoice.payment_intent"],
-      metadata: { plan, ...(affiliateCode ? { affiliateCode, affiliateUserId: String(aff!._id) } : {}) },
+      metadata: { plan, currency, ...(affiliateCode ? { affiliateCode, affiliateUserId: String(aff!._id) } : {}) },
       ...(affiliateCode ? { discounts: [{ coupon: process.env.STRIPE_PROMO_COUPON_ID_10OFF_ONCE! }] } : {}),
     });
 

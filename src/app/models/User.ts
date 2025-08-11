@@ -159,6 +159,8 @@ export interface ICommissionLogEntry {
   referredUserId?: Types.ObjectId;
   status: 'paid' | 'failed' | 'fallback';
   transferId?: string | null;
+  currency?: string;
+  amountCents?: number;
 }
 export interface ILastCommunityInspirationShown {
   date: Date;
@@ -261,6 +263,7 @@ export interface IUser extends Document {
   affiliateCode?: string;
   affiliateUsed?: string;
   affiliateBalance?: number;
+  affiliateBalanceCents?: number;
   commissionLog?: ICommissionLogEntry[];
   paymentInfo?: {
     pixKey?: string;
@@ -310,6 +313,8 @@ const commissionLogEntrySchema = new Schema<ICommissionLogEntry>({
   referredUserId: { type: Schema.Types.ObjectId, ref: 'User' },
   status: { type: String, enum: ['paid', 'failed', 'fallback'], required: true },
   transferId: { type: String, default: null },
+  currency: { type: String },
+  amountCents: { type: Number },
 }, { _id: false });
 const lastCommunityInspirationShownSchema = new Schema<ILastCommunityInspirationShown>({
   date: { type: Date, required: true },
@@ -428,6 +433,7 @@ const userSchema = new Schema<IUser>(
     affiliateCode: { type: String, unique: true, sparse: true },
     affiliateUsed: { type: String, default: null },
     affiliateBalance: { type: Number, default: 0 },
+    affiliateBalanceCents: { type: Number, default: 0 },
     commissionLog: { type: [commissionLogEntrySchema], default: [] },
     affiliatePayoutMode: { type: String, enum: ['connect', 'manual'], default: 'manual' },
     commissionPaidInvoiceIds: { type: [String], default: [] },

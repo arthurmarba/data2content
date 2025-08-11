@@ -85,10 +85,12 @@ export async function POST(req: NextRequest) {
                   console.error('[stripe/webhook] transfer error:', { err, currency: (invoice as any).currency, amountCents });
                   status = 'failed';
                   affUser.affiliateBalance = (affUser.affiliateBalance || 0) + amountCents / 100;
+                  affUser.affiliateBalanceCents = (affUser.affiliateBalanceCents || 0) + amountCents;
                 }
               } else {
                 status = 'fallback';
                 affUser.affiliateBalance = (affUser.affiliateBalance || 0) + amountCents / 100;
+                affUser.affiliateBalanceCents = (affUser.affiliateBalanceCents || 0) + amountCents;
               }
 
               affUser.commissionLog = affUser.commissionLog || [];
@@ -100,6 +102,8 @@ export async function POST(req: NextRequest) {
                 referredUserId: user._id,
                 status,
                 transferId,
+                currency: (invoice as any).currency,
+                amountCents,
               });
               affUser.commissionPaidInvoiceIds = affUser.commissionPaidInvoiceIds || [];
               affUser.commissionPaidInvoiceIds.push(String(invoice.id));
