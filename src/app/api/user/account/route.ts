@@ -6,6 +6,9 @@ import { Types } from "mongoose";
 import { logger } from "@/app/lib/logger"; // Ajuste o caminho se for diferente
 import { deleteUserAccountAndAssociatedData } from "@/app/lib/dataService"; // Ajuste o caminho se for diferente
 import { DatabaseError, UserNotFoundError } from "@/app/lib/errors"; // Ajuste o caminho se for diferente
+import { connectToDatabase } from "@/app/lib/mongoose";
+import User from "@/app/models/User";
+import stripe from "@/app/lib/stripe";
 
 export async function DELETE(req: Request) {
   const TAG = "[API DELETE /api/user/account]";
@@ -45,6 +48,20 @@ export async function DELETE(req: Request) {
   logger.info(`${TAG} Utilizador ${userId} solicitou a exclusão da sua conta.`);
 
   try {
+    await connectToDatabase();
+    const user = await User.findById(userId);
+    if (user?.stripeSubscriptionId) {
+      const sub = await stripe.subscriptions
+        .retrieve(user.stripeSubscriptionId)
+        .catch(() => null);
+      if (sub && ["active", "trialing", "past_due"].includes(sub.status)) {
+        return NextResponse.json(
+          { message: "Cancele sua assinatura antes de excluir a conta." },
+          { status: 400 }
+        );
+      }
+    }
+
     // Chamar a função do dataService para excluir a conta e todos os dados associados
     const deletionSuccessful = await deleteUserAccountAndAssociatedData(userId);
 
