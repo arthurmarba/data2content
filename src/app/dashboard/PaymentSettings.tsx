@@ -14,11 +14,10 @@ import { useSession } from "next-auth/react";
  */
 interface Redemption {
   _id: string;
-  amount: number;
-  currency?: string;
-  status: 'pending' | 'paid' | 'failed' | string; // Tipos comuns de status
-  createdAt: string;
-  // Adicione outros campos se a API retornar (ex: transactionId, paidAt)
+  amountCents: number;
+  currency: string;
+  status: 'requested' | 'approved' | 'rejected' | 'paid' | string;
+  requestedAt: string;
 }
 
 /** Props para o componente PaymentSettings */
@@ -75,33 +74,33 @@ const FeedbackMessage = ({ message, type }: { message: string; type: 'success' |
 
 // Componente auxiliar para Badges de Status
 const StatusBadge = ({ status }: { status: string }) => {
-    let colorClasses = 'bg-gray-100 text-gray-600 border-gray-300'; // Padrão
-    let text = status.charAt(0).toUpperCase() + status.slice(1); // Capitaliza
+  let colorClasses = 'bg-gray-100 text-gray-600 border-gray-300';
+  let text = status.charAt(0).toUpperCase() + status.slice(1);
 
-    switch (status.toLowerCase()) {
-        case 'paid':
-        case 'pago':
-            colorClasses = 'bg-green-100 text-green-700 border-green-300';
-            text = 'Pago';
-            break;
-        case 'pending':
-        case 'pendente':
-            colorClasses = 'bg-yellow-100 text-yellow-700 border-yellow-300';
-            text = 'Pendente';
-            break;
-        case 'failed':
-        case 'falhou':
-        case 'recusado':
-            colorClasses = 'bg-red-100 text-red-700 border-red-300';
-            text = 'Falhou';
-            break;
-    }
+  switch (status.toLowerCase()) {
+    case 'paid':
+      colorClasses = 'bg-green-100 text-green-700 border-green-300';
+      text = 'Pago';
+      break;
+    case 'approved':
+      colorClasses = 'bg-blue-100 text-blue-700 border-blue-300';
+      text = 'Aprovado';
+      break;
+    case 'requested':
+      colorClasses = 'bg-yellow-100 text-yellow-700 border-yellow-300';
+      text = 'Solicitado';
+      break;
+    case 'rejected':
+      colorClasses = 'bg-red-100 text-red-700 border-red-300';
+      text = 'Rejeitado';
+      break;
+  }
 
-    return (
-        <span className={`inline-block px-2 py-0.5 rounded-full border text-xs font-medium ${colorClasses}`}>
-            {text}
-        </span>
-    );
+  return (
+    <span className={`inline-block px-2 py-0.5 rounded-full border text-xs font-medium ${colorClasses}`}>
+      {text}
+    </span>
+  );
 };
 
 
@@ -143,7 +142,7 @@ export default function PaymentSettings({ userId }: PaymentSettingsProps) {
 
   const openStripeDashboard = useCallback(async () => {
     try {
-      const res = await fetch('/api/affiliate/connect/login-link', { method: 'POST' });
+      const res = await fetch('/api/affiliate/connect/create-link', { method: 'POST' });
       const data = await res.json();
       if (res.ok && data.url) {
         window.open(data.url, '_blank');
@@ -216,27 +215,27 @@ export default function PaymentSettings({ userId }: PaymentSettingsProps) {
       return;
     }
 
-    try {
-      const res = await fetch(`/api/affiliate/redeem?userId=${userId}`, {
-        credentials: "include",
-      });
-      const data = await res.json();
-      console.debug("[PaymentSettings] Resposta de redemptions:", data);
-      if (Array.isArray(data)) {
-        setRedemptions(data);
-      } else if (data.error) {
-         console.error("Erro ao buscar histórico:", data.error);
+      try {
+        const res = await fetch(`/api/affiliate/redeem`, {
+          credentials: "include",
+        });
+        const data = await res.json();
+        console.debug("[PaymentSettings] Resposta de redemptions:", data);
+        if (Array.isArray(data)) {
+          setRedemptions(data);
+        } else if (data.error) {
+          console.error("Erro ao buscar histórico:", data.error);
+          setRedemptions([]);
+        } else {
+          setRedemptions([]);
+        }
+      } catch (error) {
+        console.error("[PaymentSettings] Erro ao buscar redemptions:", error);
         setRedemptions([]);
-      } else {
-         setRedemptions([]);
+      } finally {
+        setLoadingRedemptions(false);
       }
-    } catch (error) {
-      console.error("[PaymentSettings] Erro ao buscar redemptions:", error);
-       setRedemptions([]);
-    } finally {
-      setLoadingRedemptions(false);
-    }
-  }, [userId]);
+    }, [userId]);
 
   // Chama as funções de fetch ao montar ou quando o userId mudar
   useEffect(() => {
@@ -310,13 +309,13 @@ export default function PaymentSettings({ userId }: PaymentSettingsProps) {
      setRedeemStatusState('processing'); // Define como processando
 
      try {
-        const response = await fetch('/api/affiliate/redeem', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ userId, currency: selectedCurrency }),
-        });
+       const response = await fetch('/api/affiliate/redeem', {
+           method: 'POST',
+           headers: {
+               'Content-Type': 'application/json',
+           },
+           body: JSON.stringify({ currency: selectedCurrency }),
+       });
 
         const data: RedeemApiResponse = await response.json();
 
@@ -528,12 +527,12 @@ export default function PaymentSettings({ userId }: PaymentSettingsProps) {
                 <tbody className="bg-white divide-y divide-gray-100">
                 {redemptions.map((r) => (
                     <tr key={r._id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-3 py-2 text-gray-700">
-                        {new Date(r.createdAt).toLocaleString("pt-BR", { dateStyle: 'short', timeStyle: 'short' })}
-                    </td>
-                    <td className="px-3 py-2 text-gray-700">
-                        {fmt(Math.round(r.amount*100), (r.currency || 'brl').toLowerCase())}
-                    </td>
+                      <td className="px-3 py-2 text-gray-700">
+                          {new Date(r.requestedAt).toLocaleString("pt-BR", { dateStyle: 'short', timeStyle: 'short' })}
+                      </td>
+                      <td className="px-3 py-2 text-gray-700">
+                          {fmt(r.amountCents, (r.currency || 'brl').toLowerCase())}
+                      </td>
                     <td className="px-3 py-2">
                         <StatusBadge status={r.status} />
                     </td>

@@ -296,8 +296,8 @@ export default function MainDashboard() {
             const errorData = await response.json();
             throw new Error(errorData.error || "Falha ao buscar histórico de comissões.");
           }
-          const data: CommissionLogItem[] = await response.json();
-          setCommissionLog(data);
+          const data = await response.json();
+          setCommissionLog(data.items || []);
         } catch (error: any) {
           console.error("Erro ao buscar log de comissões:", error);
           setCommissionLogError(error.message || "Não foi possível carregar o histórico.");

@@ -24,7 +24,7 @@ export default function AffiliateCard() {
     try {
       const res = await fetch('/api/affiliate/connect/create-link', { method: 'POST' });
       const data = await res.json();
-      if (data.onboardingUrl) window.location.href = data.onboardingUrl;
+      if (data.url) window.location.href = data.url;
     } catch (err) {
       console.error(err);
     }
