@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
         if (!user) break;
 
         // Define plano e expiração a partir da própria invoice
-        const line = invoice.lines?.data?.[0];
+        const line = invoice.lines?.data?.find((l) => l?.price?.recurring);
         const periodEnd = line?.period?.end ? new Date(line.period.end * 1000) : null;
         const interval = line?.price?.recurring?.interval; // "month" | "year"
 

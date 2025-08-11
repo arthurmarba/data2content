@@ -6,16 +6,9 @@ import { useToast } from "@/app/components/ui/ToastA11yProvider";
 import { useBillingStatus } from "@/app/hooks/useBillingStatus";
 
 export default function CancelRenewalCard() {
-  const { data: session, update } = useSession();
-  const { refetch } = useBillingStatus({ auto: false });
+  const { update } = useSession();
+  const { planStatus, planExpiresAt, refetch } = useBillingStatus();
   const { toast } = useToast();
-  const planStatus = (session?.user as any)?.planStatus as
-    | "active"
-    | "non_renewing"
-    | "inactive"
-    | "pending"
-    | undefined;
-  const planExpiresAt = (session?.user as any)?.planExpiresAt as string | undefined;
 
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
