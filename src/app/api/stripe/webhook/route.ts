@@ -68,19 +68,28 @@ export async function POST(req: NextRequest) {
 
               if (affUser.paymentInfo?.stripeAccountId && affUser.affiliatePayoutMode === 'connect') {
                 try {
-                  const transfer = await stripe.transfers.create({
-                    amount: amountCents,
-                    currency: (invoice as any).currency || 'usd',
-                    destination: affUser.paymentInfo.stripeAccountId,
-                    description: `Comissão de ${user.email || user._id}`,
-                    metadata: {
-                      invoiceId: String(invoice.id),
-                      referredUserId: String(user._id),
-                      affiliateUserId: String(affUser._id),
-                      affiliateCode: affUser.affiliateCode || ''
-                    },
-                  }, { idempotencyKey: `commission_${invoice.id}_${affUser._id}` });
-                  transferId = transfer.id;
+                  const account = await stripe.accounts.retrieve(affUser.paymentInfo.stripeAccountId);
+                  const destCurrency = (account as any).default_currency || 'usd';
+                  const invoiceCurrency = (invoice as any).currency || 'usd';
+                  if (destCurrency !== invoiceCurrency) {
+                    status = 'fallback';
+                    affUser.affiliateBalance = (affUser.affiliateBalance || 0) + amountCents / 100;
+                    affUser.affiliateBalanceCents = (affUser.affiliateBalanceCents || 0) + amountCents;
+                  } else {
+                    const transfer = await stripe.transfers.create({
+                      amount: amountCents,
+                      currency: destCurrency,
+                      destination: affUser.paymentInfo.stripeAccountId,
+                      description: `Comissão de ${user.email || user._id}`,
+                      metadata: {
+                        invoiceId: String(invoice.id),
+                        referredUserId: String(user._id),
+                        affiliateUserId: String(affUser._id),
+                        affiliateCode: affUser.affiliateCode || ''
+                      },
+                    }, { idempotencyKey: `commission_${invoice.id}_${affUser._id}` });
+                    transferId = transfer.id;
+                  }
                 } catch (err) {
                   console.error('[stripe/webhook] transfer error:', { err, currency: (invoice as any).currency, amountCents });
                   status = 'failed';

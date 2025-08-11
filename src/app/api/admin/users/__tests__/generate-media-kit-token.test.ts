@@ -28,9 +28,10 @@ const mockCheckRateLimit = checkRateLimit as jest.Mock;
 const mockFindByIdAndUpdate = UserModel.findByIdAndUpdate as jest.Mock;
 
 function createRequest(userId: string): NextRequest {
-  const req = new NextRequest(`http://localhost/api/admin/users/${userId}/generate-media-kit-token`, { method: 'POST' });
-  (req as any).ip = '127.0.0.1';
-  return req;
+  return new NextRequest(`http://localhost/api/admin/users/${userId}/generate-media-kit-token`, {
+    method: 'POST',
+    headers: { 'x-real-ip': '127.0.0.1' },
+  });
 }
 
 describe('POST /api/admin/users/[userId]/generate-media-kit-token', () => {

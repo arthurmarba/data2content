@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
       stripeAccountId: accountId,
       stripeAccountStatus: status,
       affiliatePayoutMode: user.affiliatePayoutMode,
+      needsOnboarding: status !== 'verified',
     });
   } catch (err) {
     console.error("[affiliate/connect/status] error:", err);
