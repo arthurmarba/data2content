@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
     const plan: Plan = body?.plan ?? "monthly";
     const currency: Currency = body?.currency ?? "BRL";
     const affiliateCode: string | undefined = body?.affiliateCode;
+    let aff: any = null;
 
     await connectToDatabase();
     const user = await User.findOne({ email: session.user.email });
@@ -46,12 +47,12 @@ export async function POST(req: NextRequest) {
 
     // (Opcional) valida cupom/afiliado e evita auto-uso
     if (affiliateCode) {
-      const aff = await User.findOne({ affiliateCode });
+      aff = await User.findOne({ affiliateCode });
       if (!aff) return NextResponse.json({ error: "Código de afiliado inválido." }, { status: 400 });
       if (String(aff._id) === String(user._id)) {
         return NextResponse.json({ error: "Você não pode usar seu próprio código." }, { status: 400 });
       }
-      user.affiliateUsed = affiliateCode;
+      // Não seta affiliateUsed aqui; somente valida
     }
 
     const priceId = getPriceId(plan, currency);
@@ -86,12 +87,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Cria assinatura do zero
+    if (affiliateCode) user.affiliateUsed = affiliateCode;
     const created = await stripe.subscriptions.create({
       customer: user.stripeCustomerId,
       items: [{ price: priceId }],
       payment_behavior: "default_incomplete",
       expand: ["latest_invoice.payment_intent"],
-      metadata: { plan },
+      metadata: { plan, ...(affiliateCode ? { affiliateCode, affiliateUserId: String(aff!._id) } : {}) },
       ...(affiliateCode ? { discounts: [{ coupon: process.env.STRIPE_PROMO_COUPON_ID_10OFF_ONCE! }] } : {}),
     });
 

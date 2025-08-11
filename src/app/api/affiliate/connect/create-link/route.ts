@@ -9,6 +9,9 @@ export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
+    if (process.env.STRIPE_CONNECT_MODE !== "express") {
+      return NextResponse.json({ error: "Stripe Connect deve estar configurado como Express" }, { status: 400 });
+    }
     const session = await getServerSession({ req, ...authOptions });
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
@@ -23,7 +26,7 @@ export async function POST(req: NextRequest) {
     let accountId = user.paymentInfo?.stripeAccountId;
     if (!accountId) {
       const account = await stripe.accounts.create({
-        type: process.env.STRIPE_CONNECT_MODE === "express" ? "express" : "standard",
+        type: "express",
         email: user.email,
         capabilities: { transfers: { requested: true } },
         metadata: { userId: String(user._id) },
