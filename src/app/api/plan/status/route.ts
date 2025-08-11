@@ -26,6 +26,16 @@ export async function GET(req: Request) {
     });
   }
 
+  if (!user.stripeCustomerId) {
+    return NextResponse.json({
+      ok: true,
+      status: user.planStatus ?? null,
+      interval: user.planInterval ?? null,
+      priceId: user.stripePriceId ?? null,
+      planExpiresAt: user.planExpiresAt ?? null,
+    });
+  }
+
   const subs = await stripe.subscriptions.list({
     customer: user.stripeCustomerId,
     status: "active",
