@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Faltou userId" }, { status: 400 });
     }
 
-    if (userId !== session.user.id) {
+    if (userId !== session.user.id && session.user.role !== "admin") {
       return NextResponse.json(
         { error: "Acesso negado: userId não corresponde ao usuário logado." },
         { status: 403 }
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Parâmetro userId é obrigatório." }, { status: 400 });
     }
 
-    if (userId !== session.user.id) {
+    if (userId !== session.user.id && session.user.role !== "admin") {
       return NextResponse.json(
         { error: "Acesso negado: userId não corresponde ao usuário logado." },
         { status: 403 }

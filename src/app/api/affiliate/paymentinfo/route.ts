@@ -33,8 +33,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Parâmetro 'userId' é obrigatório." }, { status: 400 });
     }
 
-    // 4) Verifica se o userId da query é o mesmo da sessão
-    if (userId !== session.user.id) {
+    // 4) Verifica se o userId da query é o mesmo da sessão (a menos que seja admin)
+    if (userId !== session.user.id && session.user.role !== "admin") {
       return NextResponse.json(
         { error: "Acesso negado: userId não corresponde ao usuário logado." },
         { status: 403 }
@@ -92,8 +92,8 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Parâmetro 'userId' é obrigatório." }, { status: 400 });
     }
 
-    // 4) Verifica se o userId do corpo é o mesmo da sessão
-    if (userId !== session.user.id) {
+    // 4) Verifica se o userId do corpo é o mesmo da sessão (a menos que seja admin)
+    if (userId !== session.user.id && session.user.role !== "admin") {
       return NextResponse.json(
         { error: "Acesso negado: userId não corresponde ao usuário logado." },
         { status: 403 }
