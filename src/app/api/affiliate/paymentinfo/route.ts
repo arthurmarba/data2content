@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     await connectToDatabase();
 
     // 2) Obtém a sessão via getServerSession
-    const session = await getServerSession({ req: request, ...authOptions });
+    const session = await getServerSession(authOptions);
     console.debug("[paymentinfo:GET] Sessão retornada:", session);
 
     if (!session?.user?.id) {
@@ -79,7 +79,7 @@ export async function PATCH(request: NextRequest) {
     await connectToDatabase();
 
     // 2) Obtém a sessão via getServerSession
-    const session = await getServerSession({ req: request, ...authOptions });
+    const session = await getServerSession(authOptions);
     console.debug("[paymentinfo:PATCH] Sessão retornada:", session);
 
     if (!session?.user?.id) {
@@ -113,6 +113,7 @@ export async function PATCH(request: NextRequest) {
 
     // 7) Atualiza os dados de paymentInfo
     user.paymentInfo = {
+      ...(user.paymentInfo || {}),
       pixKey: (pixKey || "").trim(),
       bankName: (bankName || "").trim(),
       bankAgency: (bankAgency || "").trim(),

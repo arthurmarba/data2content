@@ -104,6 +104,9 @@ export async function POST(request: NextRequest) {
     if (!userId) {
       return NextResponse.json({ error: "Parâmetro userId é obrigatório." }, { status: 400 });
     }
+    if (!currency || typeof currency !== "string") {
+      return NextResponse.json({ error: "Parâmetro currency é obrigatório." }, { status: 400 });
+    }
 
     if (userId !== session.user.id && session.user.role !== "admin") {
       return NextResponse.json(
