@@ -21,7 +21,7 @@ export default function AffiliateCard() {
   );
 
   // saldo por moeda vindos da sessão (já serializados no JWT/session callback)
-  const balances: Record<string, number> = (session?.user as any)?.affiliateBalances || {};
+  const balances: Record<string, number> = session?.user?.affiliateBalances || {};
 
   const entries = useMemo(
     () => Object.entries(balances).sort(([a],[b]) => a.localeCompare(b)),
