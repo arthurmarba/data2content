@@ -1,9 +1,11 @@
-import CheckoutPage from "./CheckoutPage";
+import PricingCard from "./PricingCard";
 
-export default function Page() {
+export const dynamic = "force-dynamic"; // garante preços frescos em dev
+
+export default async function BillingPage() {
   return (
-    <div className="p-6">
-      <CheckoutPage />
+    <div className="mx-auto max-w-5xl p-6">
+      <PricingCard />
     </div>
   );
 }
