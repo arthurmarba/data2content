@@ -271,9 +271,9 @@ export interface IUser extends Document {
   affiliateUsed?: string | null;           // alinhar com default null do schema
   affiliateBalances?: Map<string, number>; // multimoeda em cents
 
-  // LEGACY (mantidos por compatibilidade/migração)
-  affiliateBalanceCents?: number;          // <- adicionado para alinhar com schema
-  affiliateBalance?: number;               // <- adicionado para alinhar com schema
+  // LEGACY (mantidos por compatibilidade, não usar):
+  affiliateBalance?: number;
+  affiliateBalanceCents?: number;
 
   commissionLog?: ICommissionLogEntry[];
   paymentInfo?: {
