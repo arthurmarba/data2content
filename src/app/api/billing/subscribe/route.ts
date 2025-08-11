@@ -72,9 +72,9 @@ export async function POST(req: NextRequest) {
 
     let sub: Stripe.Subscription;
 
-    if (existing && !["canceled", "incomplete_expired"].includes(existing.status)) {
+    if (existing && !["canceled", "incomplete_expired"].includes(existing.status) && existing.items.data[0]) {
       // Atualiza price em assinatura existente
-      const itemId = existing.items.data[0]?.id;
+      const itemId = existing.items.data[0].id;
       sub = await stripe.subscriptions.update(existing.id, {
         items: [{ id: itemId, price: priceId }],
         payment_behavior: "default_incomplete",
