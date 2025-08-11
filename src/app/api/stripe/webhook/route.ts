@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import stripe from "@/app/lib/stripe";
+import { logger } from "@/app/lib/logger";
 
 export const runtime = "nodejs";
+export const dynamic = 'force-dynamic';
 
 // ⚠️ IMPORTANTE: No Stripe Dashboard, aponte o webhook para /api/stripe/webhook
 // Eventos mínimos: invoice.payment_succeeded, invoice.payment_failed,
@@ -18,7 +20,7 @@ export async function POST(req: NextRequest) {
     const payload = await req.text(); // precisa do raw body
     event = stripe.webhooks.constructEvent(payload, sig, process.env.STRIPE_WEBHOOK_SECRET!);
   } catch (err: any) {
-    console.error("[stripe/webhook] signature error:", err?.message);
+    logger.error("[stripe/webhook] signature error:", err?.message);
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
@@ -91,7 +93,7 @@ export async function POST(req: NextRequest) {
                     transferId = transfer.id;
                   }
                 } catch (err) {
-                  console.error('[stripe/webhook] transfer error:', { err, currency: (invoice as any).currency, amountCents });
+                  logger.error('[stripe/webhook] transfer error:', { err, currency: (invoice as any).currency, amountCents });
                   status = 'failed';
                   affUser.affiliateBalance = (affUser.affiliateBalance || 0) + amountCents / 100;
                   affUser.affiliateBalanceCents = (affUser.affiliateBalanceCents || 0) + amountCents;
@@ -199,9 +201,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ received: true });
   } catch (err: any) {
-    console.error("[stripe/webhook] handler error:", err);
-    // Sempre 2xx para evitar replays agressivos; logamos o erro para reprocessar manualmente se preciso
-    return NextResponse.json({ received: true, error: "logged" }, { status: 200 });
+    logger.error("[stripe/webhook] handler error:", err);
+    return NextResponse.json({ error: "logged" }, { status: 500 });
   }
 }
 

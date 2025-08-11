@@ -28,8 +28,7 @@ export async function POST(
   logger.info(`${TAG} Generating media kit token for user ${userId}`);
 
   const session = await getAdminSession(req);
-  // <<< BÔNUS: Corrigindo a verificação de sessão que tinha erro de tipo >>>
-  if (!session || !session.user) {
+  if (!session?.user || session.user.role !== 'admin') {
     return apiError('Acesso não autorizado.', 401);
   }
 
@@ -59,20 +58,30 @@ export async function POST(
     slug = `${baseSlug}-${crypto.randomBytes(2).toString('hex')}`;
   }
 
-  const updated = await UserModel.findByIdAndUpdate(
-    userId,
-    { mediaKitSlug: slug },
-    { new: true }
-  );
-
-  if (!updated) {
-    return apiError('Usuário não encontrado.', 404);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const updated = await UserModel.findByIdAndUpdate(
+        userId,
+        { mediaKitSlug: slug },
+        { new: true }
+      );
+      if (!updated) {
+        return apiError('Usuário não encontrado.', 404);
+      }
+      const url = `${req.nextUrl.origin}/mediakit/${slug}`;
+      logger.info(`${TAG} Slug generated for user ${userId}`);
+      return NextResponse.json({ slug, url });
+    } catch (err: any) {
+      if (err.code === 11000 && attempt === 0) {
+        slug = `${baseSlug}-${crypto.randomBytes(2).toString('hex')}`;
+        continue;
+      }
+      logger.error(`${TAG} Error generating slug:`, err);
+      return apiError('Erro ao gerar slug.', 500);
+    }
   }
 
-  const url = `${req.nextUrl.origin}/mediakit/${slug}`;
-  logger.info(`${TAG} Slug generated for user ${userId}`);
-
-  return NextResponse.json({ slug, url });
+  return apiError('Erro ao gerar slug.', 500);
 }
 
 export async function GET(
@@ -84,8 +93,7 @@ export async function GET(
   logger.info(`${TAG} Fetching media kit token for user ${userId}`);
 
   const session = await getAdminSession(req);
-  // <<< BÔNUS: Corrigindo a verificação de sessão que tinha erro de tipo >>>
-  if (!session || !session.user) {
+  if (!session?.user || session.user.role !== 'admin') {
     return apiError('Acesso não autorizado.', 401);
   }
 
