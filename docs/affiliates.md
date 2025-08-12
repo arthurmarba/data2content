@@ -29,7 +29,7 @@ This document describes the affiliate program implementation within the applicat
 ## Subscription and Coupon
 
 - Endpoint `POST /api/billing/subscribe` accepts `plan`, `currency` and optional `affiliateCode`.
-- When `affiliateCode` is present a coupon defined by `STRIPE_COUPON_10OFF_ONCE_BRL` or `STRIPE_COUPON_10OFF_ONCE_USD` (based on the currency) is applied via `discounts`.
+- When `affiliateCode` is present a coupon defined by `STRIPE_COUPON_AFFILIATE10_ONCE_BRL` or `STRIPE_COUPON_AFFILIATE10_ONCE_USD` (based on the currency) is applied via `discounts`.
 - Auto‑usage is blocked when `affUser._id === user._id`.
 - If an existing `stripeSubscriptionId` is `canceled` or `incomplete_expired`, a new subscription is created; otherwise the existing one is updated with `payment_behavior: default_incomplete`, `proration_behavior: create_prorations`, `billing_cycle_anchor: now` and `expand: latest_invoice.payment_intent`.
 - Price IDs are resolved for BRL/USD ensuring plan and currency consistency.
@@ -95,8 +95,8 @@ STRIPE_PRICE_MONTHLY_BRL
 STRIPE_PRICE_ANNUAL_BRL
 STRIPE_PRICE_MONTHLY_USD
 STRIPE_PRICE_ANNUAL_USD
-STRIPE_COUPON_10OFF_ONCE_BRL
-STRIPE_COUPON_10OFF_ONCE_USD
+STRIPE_COUPON_AFFILIATE10_ONCE_BRL
+STRIPE_COUPON_AFFILIATE10_ONCE_USD
 STRIPE_CONNECT_MODE=express|standard
 AFFILIATE_COMMISSION_PERCENT=10
 NEXT_PUBLIC_APP_URL

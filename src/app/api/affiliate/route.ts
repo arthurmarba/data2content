@@ -20,7 +20,7 @@ interface SessionUser {
 
 /**
  * GET /api/affiliate
- * Retorna dados do afiliado (se user.role === "affiliate").
+ * Retorna dados de afiliado do usuário autenticado.
  * Exemplo: affiliate_code, affiliate_balance, etc.
  */
 export async function GET(request: NextRequest) {
@@ -41,9 +41,6 @@ export async function GET(request: NextRequest) {
 
     // 3) Faz type assertion do session.user
     const user = session.user as SessionUser;
-    if (user.role !== "affiliate") {
-      return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
-    }
 
     // 4) Conecta ao banco e busca o usuário
     await connectToDatabase();
