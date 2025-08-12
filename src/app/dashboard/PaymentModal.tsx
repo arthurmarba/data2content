@@ -11,13 +11,11 @@ import PaymentSettings from "./PaymentSettings";
 interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  userId: string;
 }
 
 export default function PaymentModal({
   isOpen,
   onClose,
-  userId,
 }: PaymentModalProps) {
   // Usa AnimatePresence para animar entrada/saída
   return (
@@ -64,7 +62,7 @@ export default function PaymentModal({
             {/* Conteúdo do Modal com Scroll */}
             <div className="p-4 sm:p-6 overflow-y-auto max-h-[75vh]"> {/* Altura máxima e scroll */}
               {/* Componente que gerencia dados bancários e exibe o histórico de saques */}
-              <PaymentSettings userId={userId} />
+              <PaymentSettings />
             </div>
 
           </motion.div> {/* Fim motion.div container */}

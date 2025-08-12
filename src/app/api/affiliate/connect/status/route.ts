@@ -4,6 +4,8 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import stripe from "@/app/lib/stripe";
+import { checkRateLimit } from "@/utils/rateLimit";
+import { getClientIp } from "@/utils/getClientIp";
 
 export const runtime = "nodejs";
 
@@ -12,6 +14,12 @@ export async function GET(req: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    }
+
+    const ip = getClientIp(req);
+    const { allowed } = await checkRateLimit(`connect_status:${session.user.id}:${ip}`, 5, 60);
+    if (!allowed) {
+      return NextResponse.json({ error: "Muitas tentativas, tente novamente mais tarde." }, { status: 429 });
     }
 
     await connectToDatabase();

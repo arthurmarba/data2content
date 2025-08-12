@@ -5,6 +5,7 @@ import User from "@/app/models/User";
 import stripe from "@/app/lib/stripe";
 import { logger } from "@/app/lib/logger";
 import { normCur } from "@/utils/normCur";
+import Redemption from "@/app/models/Redemption";
 
 export const runtime = "nodejs";
 export const dynamic = 'force-dynamic';
@@ -30,6 +31,45 @@ export async function POST(req: NextRequest) {
     await connectToDatabase();
 
     switch (event.type) {
+      case "account.updated": {
+        const account = event.data.object as any;
+        const acctId = account.id as string;
+
+        const destCurrency = (account.default_currency || "").toLowerCase() || null;
+        let status: "verified" | "pending" | "disabled" = "pending";
+        if (account.charges_enabled && account.payouts_enabled) status = "verified";
+        if (account.requirements?.disabled_reason) status = "disabled";
+
+        const user = await User.findOne({ "paymentInfo.stripeAccountId": acctId });
+        if (user) {
+          user.paymentInfo ||= {};
+          user.paymentInfo.stripeAccountStatus = status;
+          user.paymentInfo.stripeAccountDefaultCurrency = destCurrency || undefined;
+          await user.save();
+        }
+        break;
+      }
+
+      case "transfer.reversed": {
+        const transfer = event.data.object as any;
+        const transferId = transfer.id as string;
+        const redemption = await Redemption.findOne({ transferId });
+        if (redemption) {
+          const user = await User.findById(redemption.userId);
+          if (user) {
+            const cur = redemption.currency.toLowerCase();
+            const balances: Map<string, number> = user.affiliateBalances || new Map();
+            const prev = balances.get(cur) ?? 0;
+            balances.set(cur, prev + redemption.amountCents);
+            user.markModified("affiliateBalances");
+            await user.save();
+          }
+          redemption.status = "rejected";
+          redemption.notes = `Reversed by Stripe: ${transferId}`;
+          await redemption.save();
+        }
+        break;
+      }
       case "invoice.payment_succeeded": {
         const invoice = event.data.object as Stripe.Invoice;
         const reason = invoice.billing_reason ?? '';
