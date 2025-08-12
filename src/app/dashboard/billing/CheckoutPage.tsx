@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Elements } from "@stripe/react-stripe-js";
 import type { StripeElementsOptions } from "@stripe/stripe-js";
 import { stripePromise } from "@/app/lib/stripe-browser";
@@ -10,6 +11,7 @@ type Plan = "monthly" | "annual";
 type Currency = "BRL" | "USD";
 
 export default function CheckoutPage() {
+  const params = useSearchParams();
   const [step, setStep] = useState<"config" | "pay">("config");
   const [plan, setPlan] = useState<Plan>("monthly");
   const [currency, setCurrency] = useState<Currency>("BRL");
@@ -20,12 +22,24 @@ export default function CheckoutPage() {
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    if (typeof document !== 'undefined') {
-      const aff = document.cookie.match(/(?:^|;\s*)d2c_ref=([^;]+)/)?.[1] ||
-        (typeof localStorage !== 'undefined' ? localStorage.getItem('d2c_ref') : undefined);
-      if (aff) setAffiliateCode(aff);
+    // Ex.: /checkout?cs=<client_secret>&sid=<subscription_id>
+    const cs = params.get("cs");
+    const sid = params.get("sid");
+    if (cs) {
+      setClientSecret(cs);
+      if (sid) setSubscriptionId(sid);
+      setStep("pay");
     }
-  }, []);
+
+    // Já existente: ler possível cookie/localStorage do afiliado
+    if (typeof document !== 'undefined') {
+      const cookieMatch = document.cookie.match(/(?:^|;\s*)d2c_ref=([^;]+)/);
+      const cookieAff = cookieMatch ? cookieMatch[1] : null;
+      const lsAff = typeof localStorage !== "undefined" ? localStorage.getItem("d2c_ref") : null;
+      const aff = cookieAff || lsAff || undefined;
+      if (aff) setAffiliateCode(aff as string);
+    }
+  }, [params]);
 
   async function startCheckout() {
     try {
