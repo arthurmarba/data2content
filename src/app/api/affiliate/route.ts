@@ -54,10 +54,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });
     }
 
-    // 5) Retorna os dados do afiliado
+    // 5) Retorna os dados do afiliado (fallback para possíveis estruturas)
+    const code = (dbUser as any)?.affiliate?.code || dbUser.affiliateCode || null;
+    const balances = dbUser?.affiliateBalances ? Object.fromEntries(dbUser.affiliateBalances) : {};
     return NextResponse.json({
-      affiliate_code: dbUser.affiliateCode,
-      affiliate_balances: Object.fromEntries(dbUser.affiliateBalances || []),
+      affiliate_code: code,
+      affiliate_balances: balances,
     });
   } catch (error: unknown) {
     console.error("[affiliate:GET] Erro:", error);

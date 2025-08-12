@@ -287,6 +287,7 @@ export interface IUser extends Document {
   };
   affiliatePayoutMode?: 'connect' | 'manual';
   commissionPaidInvoiceIds?: string[];
+  hasAffiliateCommissionPaid?: boolean; // nova flag
 
   lastPaymentError?: {
     at: Date;
@@ -469,6 +470,7 @@ const userSchema = new Schema<IUser>(
     commissionLog: { type: [commissionLogEntrySchema], default: [] },
     affiliatePayoutMode: { type: String, enum: ['connect', 'manual'], default: 'manual' },
     commissionPaidInvoiceIds: { type: [String], default: [] },
+    hasAffiliateCommissionPaid: { type: Boolean, default: false },
 
     paymentInfo: {
       pixKey: { type: String, default: "" },
