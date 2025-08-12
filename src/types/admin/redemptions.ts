@@ -9,13 +9,11 @@ export type RedemptionStatus =
 // Interface para os itens da lista de resgates na área de administração
 export interface AdminRedemptionListItem {
   _id: string;
-  userId: string;
-  userName: string;
-  userEmail: string;
+  user: { _id: string; name?: string; email?: string; profilePictureUrl?: string };
   amountCents: number;
   currency: string;
   status: RedemptionStatus;
-  requestedAt: Date | string;
+  createdAt: Date | string;
   updatedAt?: Date | string;
   notes?: string;
 }
@@ -25,13 +23,13 @@ export interface AdminRedemptionListParams {
   page?: number;
   limit?: number;
   search?: string; // Para buscar por nome/email do usuário, ID do resgate
-  status?: RedemptionStatus; // Para filtrar por status do resgate
+  status?: RedemptionStatus | 'all'; // Para filtrar por status do resgate
   userId?: string; // Para filtrar resgates de um usuário específico
   minAmountCents?: number;
   maxAmountCents?: number;
   dateFrom?: string; // Data de início do período de solicitação
   dateTo?: string;   // Data de fim do período de solicitação
-  sortBy?: keyof AdminRedemptionListItem | string; // Campo para ordenação
+  sortBy?: keyof AdminRedemptionListItem | 'createdAt' | 'updatedAt'; // Campo para ordenação
   sortOrder?: 'asc' | 'desc';
 }
 

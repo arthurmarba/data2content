@@ -1,189 +1,76 @@
-// src/app/api/admin/redemptions/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { connectToDatabase } from "@/app/lib/mongoose";
-import User from "@/app/models/User";
-// <<< ALTERAÇÃO 1: Importamos o modelo E a interface correta que criamos.
-import Redemption, { IRedemption } from "@/app/models/Redemption";
-import { Types } from "mongoose";
-import type { UserRole } from '@/types/enums';
+import { NextRequest, NextResponse } from 'next/server';
+import { fetchRedemptions } from '@/lib/services/adminCreatorService';
+import { getAdminSession } from '@/lib/getAdminSession';
+import { AdminRedemptionListParams } from '@/types/admin/redemptions';
 
-export const runtime = "nodejs";
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// Interface para o usuário populado (pode ser mantida, pois é útil)
-interface IPopulatedUserForRedemption {
-  _id: Types.ObjectId;
-  name?: string;
-  email: string;
-  paymentInfo?: {
-    pixKey?: string;
-    bankName?: string;
-    bankAgency?: string;
-    bankAccount?: string;
-  };
-}
-
-// <<< ALTERAÇÃO 2: A interface local e obsoleta IRedemptionDocument foi REMOVIDA.
-
-// Interface para a sessão (pode ser mantida)
-interface SessionUser {
-  name?: string | null;
-  email?: string | null;
-  image?: string | null;
-  role?: UserRole;
-  id?: string;
-}
-
-/**
- * Helper para escapar dados para CSV
- */
 function escapeCsvValue(value: any, delimiter = ';'): string {
-  if (value === null || value === undefined) {
-    return "";
+  if (value === null || value === undefined) return '';
+  const str = String(value);
+  if (str.includes(delimiter) || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+    return `"${str.replace(/"/g, '""')}"`;
   }
-  const stringValue = String(value);
-  if (stringValue.includes(delimiter) || stringValue.includes('"') || stringValue.includes('\n') || stringValue.includes('\r')) {
-    return `"${stringValue.replace(/"/g, '""')}"`;
-  }
-  return stringValue;
+  return str;
 }
 
-/**
- * GET /api/admin/redemptions
- * ... (descrição da rota)
- */
-export async function GET(request: NextRequest) {
+export async function GET(req: NextRequest) {
+  const session = await getAdminSession(req);
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Acesso não autorizado.' }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(req.url);
+  const exportType = searchParams.get('export');
+
+  const statusParam = searchParams.get('status') || undefined;
+  const params: AdminRedemptionListParams = {
+    page: searchParams.get('page') ? parseInt(searchParams.get('page')!, 10) : undefined,
+    limit: searchParams.get('limit') ? parseInt(searchParams.get('limit')!, 10) : undefined,
+    search: searchParams.get('search') || undefined,
+    status: statusParam && statusParam !== 'all' ? (statusParam as any) : undefined,
+    sortBy: (searchParams.get('sortBy') as any) || undefined,
+    sortOrder: (searchParams.get('sortOrder') as any) || undefined,
+    dateFrom: searchParams.get('dateFrom') || undefined,
+    dateTo: searchParams.get('dateTo') || undefined,
+  };
+
   try {
-    await connectToDatabase();
-
-    const session = await getServerSession({ req: request, ...authOptions });
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-    }
-
-    const userSession = session.user as SessionUser;
-    if (userSession.role !== 'admin') {
-      return NextResponse.json({ error: "Acesso negado. Permissão de administrador necessária." }, { status: 403 });
-    }
-
-    const { searchParams } = new URL(request.url);
-    const statusFilter = searchParams.get("status") || 'requested';
-    const searchQuery = searchParams.get("searchQuery");
-    const exportType = searchParams.get("export");
-
-    const filter: any = {};
-    if (statusFilter !== 'all') {
-      filter.status = statusFilter;
-    }
-
-    if (searchQuery) {
-      const userSearchRegex = new RegExp(searchQuery, 'i');
-      const matchingUsers = await User.find({
-        $or: [
-          { name: { $regex: userSearchRegex } },
-          { email: { $regex: userSearchRegex } },
-        ],
-      }).select('_id');
-
-      const userIds = matchingUsers.map(user => user._id);
-      
-      if (userIds.length === 0) {
-        return NextResponse.json({ items: [], totalItems: 0, totalPages: 0, currentPage: 1, perPage: 20 });
-      }
-
-      // <<< ALTERAÇÃO 3: Usando o nome de campo correto 'userId' do novo modelo.
-      filter.userId = { $in: userIds };
-    }
-    
-    // <<< ALTERAÇÃO 4: A linha com o casting (as Model<...>) foi REMOVIDA. Usamos 'Redemption' diretamente.
+    const { redemptions, totalRedemptions, totalPages } = await fetchRedemptions(params);
 
     if (exportType === 'csv') {
-      // Definimos um tipo para o documento após o populate para melhor type safety
-      type PopulatedRedemption = Omit<IRedemption, 'userId'> & { userId: IPopulatedUserForRedemption };
-
-      const redemptions = await Redemption
-        .find(filter)
-        // <<< ALTERAÇÃO 5: Populando 'userId' em vez de 'user'.
-        .populate<{ userId: IPopulatedUserForRedemption }>({
-          path: 'userId', model: User, select: 'name email paymentInfo',
-        })
-        // <<< ALTERAÇÃO 6: Ordenando por 'requestedAt' em vez de 'createdAt'.
-        .sort({ requestedAt: -1 })
-        .lean(); // Adicionado .lean() para melhor performance em leituras
-
-      const csvDelimiter = ';';
-      const csvHeaders = [
-        "ID Resgate", "Data Solicitacao", "Status", "Nome Afiliado", "Email Afiliado",
-        "Valor", "Moeda", "Chave PIX", "Banco", "Agencia", "Conta", "Notas Admin"
-      ];
-      let csvContent = csvHeaders.join(csvDelimiter) + "\r\n";
-      
+      const delimiter = ';';
+      const headers = ['createdAt', 'name', 'email', 'amount', 'currency', 'status', 'notes'];
+      let csv = headers.join(delimiter) + '\r\n';
       redemptions.forEach(r => {
-        // Agora 'r' é um objeto simples e já tem o tipo correto inferido pelo .lean() e populate
-        const user = r.userId as IPopulatedUserForRedemption;
-        const paymentInfo = user.paymentInfo || {};
-        const row = [
-          escapeCsvValue(r._id.toString(), csvDelimiter),
-          // <<< ALTERAÇÃO 7: Usando 'requestedAt'
-          escapeCsvValue(new Date(r.requestedAt).toLocaleString('pt-BR'), csvDelimiter),
-          escapeCsvValue(r.status, csvDelimiter),
-          escapeCsvValue(user.name || '', csvDelimiter),
-          escapeCsvValue(user.email || '', csvDelimiter),
-          escapeCsvValue((r.amountCents / 100).toFixed(2).replace('.', ','), csvDelimiter),
-          escapeCsvValue(r.currency, csvDelimiter),
-          escapeCsvValue(paymentInfo.pixKey || '', csvDelimiter),
-          escapeCsvValue(paymentInfo.bankName || '', csvDelimiter),
-          escapeCsvValue(paymentInfo.bankAgency || '', csvDelimiter),
-          escapeCsvValue(paymentInfo.bankAccount || '', csvDelimiter),
-          escapeCsvValue(r.notes || '', csvDelimiter)
-        ];
-        csvContent += row.join(csvDelimiter) + "\r\n";
+        csv += [
+          r.createdAt ? new Date(r.createdAt).toISOString() : '',
+          r.user.name || '',
+          r.user.email || '',
+          (r.amountCents / 100).toFixed(2).replace('.', ','),
+          r.currency,
+          r.status,
+          r.notes || ''
+        ].map(v => escapeCsvValue(v, delimiter)).join(delimiter) + '\r\n';
       });
-
-      return new NextResponse(csvContent, {
+      return new NextResponse(csv, {
         status: 200,
         headers: {
           'Content-Type': 'text/csv; charset=utf-8',
-          'Content-Disposition': `attachment; filename="resgates_${statusFilter}_${new Date().toISOString().slice(0,10)}.csv"`,
-        },
+          'Content-Disposition': `attachment; filename="redemptions.csv"`,
+        }
       });
-
-    } else {
-      const page = parseInt(searchParams.get('page') ?? '1', 10);
-      const limit = parseInt(searchParams.get('limit') ?? '20', 10);
-      const skip = (page - 1) * limit;
-
-      const [totalItems, items] = await Promise.all([
-        Redemption.countDocuments(filter),
-        Redemption
-          .find(filter)
-          // <<< ALTERAÇÃO 9: Populando 'userId'
-          .populate<{ userId: IPopulatedUserForRedemption }>({
-            path: 'userId', model: User, select: 'name email paymentInfo profilePictureUrl',
-          })
-          // <<< ALTERAÇÃO 10: Ordenando por 'requestedAt'
-          .sort({ requestedAt: -1 })
-          .skip(skip)
-          .limit(limit)
-          .lean() // Adicionado .lean() para melhor performance
-      ]);
-
-      const totalPages = Math.ceil(totalItems / limit);
-
-      return NextResponse.json({
-        items,
-        totalItems,
-        totalPages,
-        currentPage: page,
-        perPage: limit
-      }, { status: 200 });
     }
 
-  } catch (error: unknown) {
-    console.error("[admin/redemptions:GET] Erro:", error);
-    const message = error instanceof Error ? error.message : "Erro desconhecido.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({
+      items: redemptions,
+      totalItems: totalRedemptions,
+      totalPages,
+      currentPage: params.page ?? 1,
+      perPage: params.limit ?? 10,
+    });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Erro interno.' }, { status: 500 });
   }
 }
