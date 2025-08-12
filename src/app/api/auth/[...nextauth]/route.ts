@@ -490,6 +490,8 @@ export const authOptions: NextAuthOptions = {
             dbUserRecord.affiliateBalances
               ? Object.fromEntries(dbUserRecord.affiliateBalances as any)
               : {};
+          (authUserFromProvider as any).stripeAccountStatus = dbUserRecord.paymentInfo?.stripeAccountStatus ?? null;
+          (authUserFromProvider as any).stripeAccountDefaultCurrency = dbUserRecord.paymentInfo?.stripeAccountDefaultCurrency ?? null;
           (authUserFromProvider as NextAuthUserArg).agency = dbUserRecord.agency ? dbUserRecord.agency.toString() : undefined;
           
           logger.debug(`${TAG_SIGNIN} [${provider}] FINAL signIn. authUser.id (interno): '${authUserFromProvider.id}', name: '${authUserFromProvider.name}', provider (final): '${(authUserFromProvider as NextAuthUserArg).provider}', planStatus: ${(authUserFromProvider as NextAuthUserArg).planStatus}, igAccountsCount: ${(authUserFromProvider as NextAuthUserArg).availableIgAccounts?.length ?? 0}, igLlatSet: ${!!(authUserFromProvider as NextAuthUserArg).instagramAccessToken}`);
@@ -539,6 +541,8 @@ export const authOptions: NextAuthOptions = {
         if (anyUser.affiliateBalances && typeof anyUser.affiliateBalances === 'object') {
           token.affiliateBalances = anyUser.affiliateBalances;
         }
+        token.stripeAccountStatus = anyUser.stripeAccountStatus ?? null;
+        token.stripeAccountDefaultCurrency = anyUser.stripeAccountDefaultCurrency ?? null;
 
         token.agencyId = (userFromSignIn as NextAuthUserArg).agency ?? null;
         if (token.agencyId) {
@@ -568,6 +572,8 @@ export const authOptions: NextAuthOptions = {
                              typeof token.planInterval === 'undefined' ||
                              typeof token.affiliateCode === 'undefined' ||
                              typeof token.affiliateBalances === 'undefined' ||
+                             typeof token.stripeAccountStatus === 'undefined' ||
+                             typeof token.stripeAccountDefaultCurrency === 'undefined' ||
                              (typeof token.isInstagramConnected === 'undefined' && typeof token.availableIgAccounts === 'undefined');
 
         const tokenIssuedAt = token.iat; 
@@ -585,7 +591,7 @@ export const authOptions: NextAuthOptions = {
           try {
             await connectToDatabase();
             const dbUser = await DbUser.findById(token.id)
-              .select('name email image role agency provider providerAccountId facebookProviderAccountId isNewUserForOnboarding onboardingCompletedAt isInstagramConnected instagramAccountId username lastInstagramSyncAttempt lastInstagramSyncSuccess instagramSyncErrorMsg planStatus planType planInterval planExpiresAt affiliateCode availableIgAccounts instagramAccessToken affiliateBalances')
+              .select('name email image role agency provider providerAccountId facebookProviderAccountId isNewUserForOnboarding onboardingCompletedAt isInstagramConnected instagramAccountId username lastInstagramSyncAttempt lastInstagramSyncSuccess instagramSyncErrorMsg planStatus planType planInterval planExpiresAt affiliateCode availableIgAccounts instagramAccessToken affiliateBalances paymentInfo.stripeAccountStatus paymentInfo.stripeAccountDefaultCurrency')
               .lean<IUser>();
 
             if (dbUser) {
@@ -621,6 +627,8 @@ export const authOptions: NextAuthOptions = {
                   ? Object.fromEntries(dbUser.affiliateBalances as any)
                   : {};
               token.affiliateBalances = balancesObj;
+              token.stripeAccountStatus = dbUser.paymentInfo?.stripeAccountStatus ?? null;
+              token.stripeAccountDefaultCurrency = dbUser.paymentInfo?.stripeAccountDefaultCurrency ?? null;
 
               token.agencyId = dbUser.agency ? dbUser.agency.toString() : token.agencyId ?? null;
               if (token.agencyId) {
@@ -703,7 +711,9 @@ export const authOptions: NextAuthOptions = {
       session.user.affiliateBalances = token.affiliateBalances || {};
       session.user.affiliateRank = session.user.affiliateRank ?? undefined;
       session.user.affiliateInvites = session.user.affiliateInvites ?? undefined;
-      
+      session.user.stripeAccountStatus = token.stripeAccountStatus ?? null;
+      session.user.stripeAccountDefaultCurrency = token.stripeAccountDefaultCurrency ?? null;
+
       try {
         await connectToDatabase();
         const dbUserCheck = await DbUser.findById(token.id)

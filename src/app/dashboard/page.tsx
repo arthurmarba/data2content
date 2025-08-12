@@ -73,11 +73,8 @@ const AffiliateCardContent: React.FC<{
   commissionLogError: string | null;
   copyFeedback: { type: 'code' | 'link'; success: boolean } | null;
   handleCopyToClipboard: (textToCopy: string | null, type: 'code' | 'link') => void;
-  redeemMessage: string;
-  handleRedeemBalance: (userIdFromFunc: string | undefined) => void;
   setShowPaymentModal: (show: boolean) => void;
   canRedeem: boolean;
-  userId: string;
 }> = ({
   user,
   affiliateCode,
@@ -87,11 +84,8 @@ const AffiliateCardContent: React.FC<{
   commissionLogError,
   copyFeedback,
   handleCopyToClipboard,
-  redeemMessage,
-  handleRedeemBalance,
   setShowPaymentModal,
-  canRedeem,
-  userId
+  canRedeem
 }) => {
   const { data: session } = useSession();
   const fetcher = (url: string) => fetch(url).then(r => r.json());
@@ -176,7 +170,7 @@ const AffiliateCardContent: React.FC<{
                         {mismatch && (
                           <span
                             className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800"
-                            title="Comissão caiu no saldo manual por moeda diferente. Você pode resgatar por Pix."
+                            title="Moeda diferente da moeda da sua conta Stripe. O resgate só é possível quando a moeda coincidir."
                           >!
                           </span>
                         )}
@@ -200,16 +194,17 @@ const AffiliateCardContent: React.FC<{
           </div>
         </div>
         <div className="pt-4 flex flex-col sm:flex-row gap-3">
-          <button onClick={() => handleRedeemBalance(userId)} className="flex-1 px-4 py-2.5 bg-brand-pink text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-default disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2" disabled={!canRedeem || redeemMessage === "Processando..."}>
-            <FaMoneyBillWave className="w-4 h-4"/> {redeemMessage === "Processando..." ? "Processando..." : "Resgatar Saldo"}
+          <button
+            onClick={() => setShowPaymentModal(true)}
+            className="flex-1 px-4 py-2.5 bg-brand-pink text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-default disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2"
+            disabled={!canRedeem}
+          >
+            <FaMoneyBillWave className="w-4 h-4"/> Resgatar Saldo
           </button>
           <button onClick={() => setShowPaymentModal(true)} className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-default border border-gray-200 flex items-center justify-center gap-2">
             <FaCog className="w-4 h-4"/> Dados Pagamento
           </button>
         </div>
-        <AnimatePresence>
-          {redeemMessage && redeemMessage !== "Processando..." && ( <motion.p initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className={`text-xs text-center mt-3 font-medium ${redeemMessage.startsWith('Erro:') ? 'text-brand-red' : 'text-green-600'}`}> {redeemMessage} </motion.p> )}
-        </AnimatePresence>
       </div>
     </div>
   );
@@ -222,7 +217,6 @@ export default function MainDashboard() {
   const router = useRouter();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState<{ type: 'code' | 'link'; success: boolean } | null>(null);
-  const [redeemMessage, setRedeemMessage] = useState("");
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const swiperRef = useRef<any>(null);
   const [fullAffiliateLink, setFullAffiliateLink] = useState<string | null>(null);
@@ -334,24 +328,6 @@ export default function MainDashboard() {
       }
     }
   }, [status, user, scrollToPlanCard]);
-
-  // --- FUNÇÕES DE HANDLER RESTAURADAS ---
-  const handleRedeemBalance = useCallback(async (userIdFromFunc: string | undefined) => {
-    if (!userIdFromFunc) { setRedeemMessage("Erro: ID do usuário não encontrado."); return; }
-    setRedeemMessage("Processando...");
-    try {
-      // Simula chamada à API
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setRedeemMessage("Resgate solicitado com sucesso! Seu saldo será atualizado em breve.");
-      // Idealmente, aqui você invalidaria o cache ou refazeria o fetch do saldo do usuário
-      if (updateSession) await updateSession(); 
-      setTimeout(() => setRedeemMessage(""), 5000); // Limpa mensagem após 5s
-    } catch (error) {
-      console.error("Erro ao solicitar resgate:", error);
-      setRedeemMessage(`Erro ao solicitar resgate: ${error instanceof Error ? error.message : String(error)}`);
-      setTimeout(() => setRedeemMessage(""), 5000);
-    }
-  }, [updateSession]);
 
   const handleCopyToClipboard = useCallback((textToCopy: string | null, type: 'code' | 'link') => {
     if (!textToCopy || !navigator.clipboard) {
@@ -469,8 +445,6 @@ export default function MainDashboard() {
     commissionLogError,
     copyFeedback,
     handleCopyToClipboard,
-    redeemMessage,
-    handleRedeemBalance,
     setShowPaymentModal,
     canRedeem,
   };

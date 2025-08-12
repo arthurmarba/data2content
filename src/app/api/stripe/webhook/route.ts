@@ -11,7 +11,8 @@ export const runtime = "nodejs";
 export const dynamic = 'force-dynamic';
 
 // ⚠️ IMPORTANTE: No Stripe Dashboard, aponte o webhook para /api/stripe/webhook
-// Eventos mínimos: invoice.payment_succeeded, invoice.payment_failed,
+// Mínimos (Connect enabled): account.updated, transfer.reversed,
+// invoice.payment_succeeded, invoice.payment_failed,
 // customer.subscription.updated, customer.subscription.deleted
 
 export async function POST(req: NextRequest) {

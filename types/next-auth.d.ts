@@ -28,6 +28,9 @@ declare module "next-auth" {
       affiliateRank?: number;
       affiliateInvites?: number;
 
+      stripeAccountStatus?: 'pending' | 'verified' | 'restricted' | 'disabled' | null;
+      stripeAccountDefaultCurrency?: string | null;
+
       // Campos do Instagram que o frontend (InstagramConnectCard) espera:
       instagramConnected?: boolean;
       instagramAccountId?: string | null;
@@ -66,6 +69,9 @@ declare module "next-auth" {
     affiliateBalances?: Record<string, number>;
     affiliateRank?: number;
     affiliateInvites?: number;
+
+    stripeAccountStatus?: 'pending' | 'verified' | 'restricted' | 'disabled' | null;
+    stripeAccountDefaultCurrency?: string | null;
     
     // Campos do Instagram como vêm do DB ou são processados antes do JWT
     isInstagramConnected?: boolean | null;
@@ -107,8 +113,11 @@ declare module "next-auth/jwt" {
     availableIgAccounts?: AvailableInstagramAccount[] | null; // Se você decidir passar isso pelo token
     lastInstagramSyncAttempt?: Date | string | null; // Pode ser Date ou string (após encode)
     lastInstagramSyncSuccess?: boolean | null;
+
+    stripeAccountStatus?: 'pending' | 'verified' | 'restricted' | 'disabled' | null;
+    stripeAccountDefaultCurrency?: string | null;
     
     // picture pode ser usado por NextAuth, image é mais comum
-    image?: string | null; 
+    image?: string | null;
   }
 }
