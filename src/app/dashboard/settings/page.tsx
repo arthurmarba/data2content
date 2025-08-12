@@ -1,5 +1,6 @@
 import ChangePlanCard from "../billing/ChangePlanCard";
 import CancelRenewalCard from "../billing/CancelRenewalCard";
+import DeleteAccountSection from "./DeleteAccountSection";
 
 export default function SettingsPage() {
   return (
@@ -13,6 +14,7 @@ export default function SettingsPage() {
 
       <ChangePlanCard />
       <CancelRenewalCard />
+      <DeleteAccountSection />
     </div>
   );
 }
