@@ -13,11 +13,14 @@ const customJestConfig = {
       // --- CORREÇÃO APLICADA AQUI ---
       // Adicionado para lidar com a importação otimizada de lucide-react pelo Next.js
       '^modularize-import-loader\\?name=([a-zA-Z0-9_-]+)&from=default&as=default&join=../esm/icons/([a-zA-Z0-9_-]+)!lucide-react$': '<rootDir>/__mocks__/lucide-react.js',
-      
+
       // Mapeamentos existentes
       '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
       '\\.(gif|ttf|eot|svg|png)$': '<rootDir>/__mocks__/fileMock.js',
-      '^@/app/(.*)$': '<rootDir>/src/app/$1',
+
+      // Permite que imports usando o alias "@" apontem para a pasta src
+      '^@/(.*)$': '<rootDir>/src/$1',
+
       '^@heroicons/react/24/(solid|outline)/esm/.*$': '<rootDir>/__mocks__/heroicons/24/$1.js',
       '^@heroicons/react/(.*)$': '<rootDir>/__mocks__/heroicons/$1.js',
     },

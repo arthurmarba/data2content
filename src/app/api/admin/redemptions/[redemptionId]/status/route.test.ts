@@ -1,3 +1,4 @@
+/** @jest-environment node */
 // src/app/api/admin/redemptions/[redemptionId]/status/route.test.ts
 import { PATCH } from './route';
 import { updateRedemptionStatus } from '@/lib/services/adminCreatorService'; // Ajuste se o nome do serviço mudou

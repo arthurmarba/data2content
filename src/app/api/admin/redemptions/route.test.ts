@@ -1,3 +1,4 @@
+/** @jest-environment node */
 // src/app/api/admin/redemptions/route.test.ts
 import { GET } from './route';
 import { fetchRedemptions } from '@/lib/services/adminCreatorService'; // Ajuste se o nome do serviço mudou
