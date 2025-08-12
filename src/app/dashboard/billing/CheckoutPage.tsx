@@ -21,7 +21,8 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (typeof document !== 'undefined') {
-      const aff = document.cookie.match(/(?:^|;\s*)aff_code=([^;]+)/)?.[1];
+      const aff = document.cookie.match(/(?:^|;\s*)d2c_ref=([^;]+)/)?.[1] ||
+        (typeof localStorage !== 'undefined' ? localStorage.getItem('d2c_ref') : undefined);
       if (aff) setAffiliateCode(aff);
     }
   }, []);
@@ -32,7 +33,8 @@ export default function CheckoutPage() {
       setErr(null);
 
       const cookieAff = typeof document !== 'undefined'
-        ? document.cookie.match(/(?:^|;\s*)aff_code=([^;]+)/)?.[1]
+        ? document.cookie.match(/(?:^|;\s*)d2c_ref=([^;]+)/)?.[1] ||
+          localStorage.getItem('d2c_ref') || undefined
         : undefined;
       const effectiveCode = affiliateCode.trim() || cookieAff;
 

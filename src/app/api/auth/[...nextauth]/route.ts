@@ -462,6 +462,24 @@ export const authOptions: NextAuthOptions = {
         }
 
         if (dbUserRecord) {
+          // Persist affiliate referral code on first login if present
+          try {
+            const cookieStore = cookies();
+            const ref = cookieStore.get('d2c_ref')?.value;
+            if (ref && !dbUserRecord.affiliateUsed) {
+              // avoid self-referral
+              if (!dbUserRecord.affiliateCode || dbUserRecord.affiliateCode !== ref) {
+                const refUser = await DbUser.findOne({ affiliateCode: ref });
+                if (refUser && String(refUser._id) !== String(dbUserRecord._id)) {
+                  dbUserRecord.affiliateUsed = ref;
+                  await dbUserRecord.save();
+                }
+              }
+            }
+          } catch (e) {
+            logger.warn('[NextAuth signIn] falha ao aplicar affiliateUsed', e);
+          }
+
           authUserFromProvider.id = dbUserRecord._id.toString();
           authUserFromProvider.name = dbUserRecord.name;
           authUserFromProvider.email = dbUserRecord.email;

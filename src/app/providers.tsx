@@ -16,7 +16,14 @@ export function Providers({ children, session }: ProvidersProps) {
       const params = new URLSearchParams(window.location.search);
       const code = params.get('ref') || params.get('aff');
       if (code) {
-        document.cookie = `aff_code=${code}; Max-Age=${60 * 60 * 24 * 30}; Path=/; SameSite=Lax`;
+        const maxAge = 60 * 60 * 24 * 90; // 90 days
+        const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+        document.cookie = `d2c_ref=${code}; Max-Age=${maxAge}; Path=/; SameSite=Lax${secure}`;
+        try {
+          localStorage.setItem('d2c_ref', code);
+        } catch {
+          // ignore if localStorage is unavailable
+        }
       }
     }
   }, []);

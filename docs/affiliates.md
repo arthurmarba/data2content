@@ -36,7 +36,7 @@ This document describes the affiliate program implementation within the applicat
 
 ## Front‑End Tracking
 
-- Affiliate links include `?ref=` or `?aff=`; the code stores the value in `aff_code` cookie (TTL 30 days).
+- Affiliate links include `?ref=` or `?aff=`; the code stores the value in `d2c_ref` cookie (TTL 90 days).
 - During subscription the cookie value is sent as `affiliateCode` in the request body.
 - Checkout UI displays “Cupom de 10% aplicado na primeira cobrança” when an affiliate code is present.
 
