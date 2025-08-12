@@ -35,11 +35,11 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "NotFound" }, { status: 404 });
     }
 
-    // 🔒 bloqueia apenas se realmente tiver uma assinatura em vigor
-    //    => "active" e "trial" bloqueiam
-    //    => "pending" NÃO bloqueia (não há o que cancelar)
-    const blockedStatuses = ["active", "trial"];
-    const blocked = blockedStatuses.includes((user.planStatus as any) || "");
+    // 🔒 Gate pelo status do NOSSO banco:
+    //    Só bloqueia se realmente estiver ativo ou em trial.
+    //    'pending' e 'non_renewing' NÃO bloqueiam.
+    const blockedStatuses = new Set(["active", "trial"]);
+    const blocked = blockedStatuses.has((user.planStatus as any) || "");
     if (blocked) {
       logger.warn("[account.delete] blocked due to active/trial subscription", {
         userId: user._id,
@@ -55,6 +55,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     // (Opcional) checagem no Stripe se habilitada
+    // Corrigido: só considera 'active'/'trialing' que NÃO estão marcadas para cancelar ao fim do ciclo.
     if (
       process.env.VERIFY_STRIPE_BEFORE_DELETE === "true" &&
       user.stripeCustomerId
@@ -63,11 +64,17 @@ export async function DELETE(req: NextRequest) {
         const subs = await stripe.subscriptions.list({
           customer: user.stripeCustomerId,
           status: "all",
-          limit: 10,
+          limit: 20,
         });
-        // ⚠️ não considere 'incomplete' como ativo; usuário não consegue cancelar algo que não “virou”
-        const activeLike = ["active", "trialing", "past_due", "unpaid"]; // removido 'incomplete'
-        const anyActive = subs.data.some((s) => activeLike.includes(s.status));
+
+        const anyActive = subs.data.some((s) => {
+          const status = s.status; // 'active' | 'trialing' | 'past_due' | 'unpaid' | 'incomplete' | ...
+          const isLive = status === "active" || status === "trialing";
+          const willCancelAtPeriodEnd = Boolean(s.cancel_at_period_end);
+          // Tratar 'non_renewing' como permitido => se vai cancelar ao fim, NÃO bloqueia
+          return isLive && !willCancelAtPeriodEnd;
+        });
+
         if (anyActive) {
           logger.warn("[account.delete] blocked by live Stripe subscription", {
             userId: user._id,
@@ -95,8 +102,29 @@ export async function DELETE(req: NextRequest) {
         ? Object.fromEntries(user.affiliateBalances as any)
         : user.affiliateBalances || {};
     const balances = (balancesRaw || {}) as Record<string, number>;
+    const hasAffiliateBalances = Object.values(balances).some(
+      (v) => Number(v) > 0
+    );
 
-    const hasAffiliateBalances = Object.values(balances).some((v) => Number(v) > 0);
+    // (Opcional) bloquear exclusão se houver saldo de afiliado positivo
+    if (
+      hasAffiliateBalances &&
+      process.env.BLOCK_DELETE_WITH_AFFILIATE_BALANCE === "true"
+    ) {
+      logger.warn("[account.delete] abort due to affiliate balances", {
+        userId: user._id,
+        balances,
+      });
+      return NextResponse.json(
+        {
+          error: "ERR_AFFILIATE_BALANCE",
+          message:
+            "Você possui comissões pendentes. Solicite o saque antes de excluir a conta.",
+        },
+        { status: 409 }
+      );
+    }
+
     if (hasAffiliateBalances) {
       logger.warn("[account.delete] deleting account with affiliate balances", {
         userId: user._id,
