@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FaSpinner, FaCheckCircle, FaTimesCircle, FaExclamationTriangle, FaCopy, FaFileCsv } from "react-icons/fa";
+import { FaSpinner, FaCheckCircle, FaTimesCircle, FaExclamationTriangle, FaFileCsv } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
 
@@ -20,20 +20,11 @@ import { CurrencyDollarIcon } from "@heroicons/react/24/outline";
 
 export const dynamic = 'force-dynamic';
 
-// --- Interfaces ---
-interface PaymentInfo {
-  pixKey?: string;
-  bankName?: string;
-  bankAgency?: string;
-  bankAccount?: string;
-}
-
 interface UserInfo {
   _id: string;
   name?: string;
   email?: string;
   profilePictureUrl?: string;
-  paymentInfo?: PaymentInfo;
 }
 
 interface RedemptionAdmin {
@@ -57,30 +48,6 @@ const REDEMPTION_STATUS_MAPPINGS = {
   canceled: { label: 'Cancelado', bgColor: 'bg-red-100',   textColor: 'text-red-800',   borderColor: 'border-red-200' },
 };
 
-
-// --- Componentes Auxiliares ---
-const PaymentDetails = ({ paymentInfo }: { paymentInfo?: PaymentInfo }) => {
-    const [copiedKey, setCopiedKey] = useState<string | null>(null);
-    const copyToClipboard = (text: string | undefined, keyType: string) => {
-        if (!text) return;
-        navigator.clipboard.writeText(text).then(() => {
-            setCopiedKey(keyType);
-            setTimeout(() => setCopiedKey(null), 1500);
-        }).catch(err => console.error('Erro ao copiar:', err));
-    };
-
-    if (!paymentInfo || (!paymentInfo.pixKey && !paymentInfo.bankName)) {
-        return <span className="text-xs text-gray-400 italic">Dados não preenchidos</span>;
-    }
-    return (
-        <div className="text-xs space-y-1">
-            {paymentInfo.pixKey && ( <div className="flex items-center gap-1"> <strong className="text-gray-600">Pix:</strong> <span className="font-mono bg-gray-100 px-1 rounded text-gray-700 break-all">{paymentInfo.pixKey}</span> <button onClick={() => copyToClipboard(paymentInfo.pixKey, 'pix')} title="Copiar Chave Pix" className="ml-1 text-gray-400 hover:text-brand-pink"> {copiedKey === 'pix' ? <FaCheckCircle className="w-3 h-3 text-green-500"/> : <FaCopy className="w-3 h-3"/>} </button> </div> )}
-            {paymentInfo.bankName && ( <div className="flex items-center gap-1"> <strong className="text-gray-600">Banco:</strong> <span className="text-gray-700">{paymentInfo.bankName}</span> </div> )}
-            {paymentInfo.bankAgency && ( <div className="flex items-center gap-1"> <strong className="text-gray-600">Ag:</strong> <span className="font-mono text-gray-700">{paymentInfo.bankAgency}</span> <button onClick={() => copyToClipboard(paymentInfo.bankAgency, 'ag')} title="Copiar Agência" className="ml-1 text-gray-400 hover:text-brand-pink"> {copiedKey === 'ag' ? <FaCheckCircle className="w-3 h-3 text-green-500"/> : <FaCopy className="w-3 h-3"/>} </button> </div> )}
-            {paymentInfo.bankAccount && ( <div className="flex items-center gap-1"> <strong className="text-gray-600">CC:</strong> <span className="font-mono text-gray-700">{paymentInfo.bankAccount}</span> <button onClick={() => copyToClipboard(paymentInfo.bankAccount, 'cc')} title="Copiar Conta" className="ml-1 text-gray-400 hover:text-brand-pink"> {copiedKey === 'cc' ? <FaCheckCircle className="w-3 h-3 text-green-500"/> : <FaCopy className="w-3 h-3"/>} </button> </div> )}
-        </div>
-    );
-};
 
 interface ActionConfirmationModalProps {
   isOpen: boolean;
@@ -109,7 +76,7 @@ const ActionConfirmationModal: React.FC<ActionConfirmationModalProps> = ({
         <p className="text-sm text-gray-600 mb-4">Valor: <span className="font-medium">{redemption.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>
         <div className="mb-4">
           <label htmlFor="adminNotes" className="block text-sm font-medium text-gray-700 mb-1">Notas Administrativas (Opcional):</label>
-          <textarea id="adminNotes" rows={3} className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-brand-pink focus:border-brand-pink" value={currentNotes} onChange={(e) => onNotesChange(e.target.value)} placeholder="Ex: Pago via PIX em DD/MM/AAAA, ID Transação XYZ..."/>
+          <textarea id="adminNotes" rows={3} className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-brand-pink focus:border-brand-pink" value={currentNotes} onChange={(e) => onNotesChange(e.target.value)} placeholder="Ex: Pago em DD/MM/AAAA, ID Transferência XYZ..."/>
         </div>
         <div className="flex justify-end gap-3">
           <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors" disabled={isLoadingAction}>Cancelar</button>
@@ -202,7 +169,7 @@ export default function AdminRedemptionsPage() {
     return ( <div className="flex justify-center items-center min-h-screen"><FaSpinner className="animate-spin w-8 h-8 text-brand-pink" /></div> );
   }
 
-  const tableCols = (filters.status === 'pending' || filters.status === 'all') ? 7 : 6;
+  const tableCols = (filters.status === 'pending' || filters.status === 'all') ? 6 : 5;
 
   return (
     <>
@@ -242,7 +209,6 @@ export default function AdminRedemptionsPage() {
                     <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Data</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Afiliado</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Valor</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Dados Pag.</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Notas</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Status</th>
                     {(filters.status === 'pending' || filters.status === 'all') && (<th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Ações</th>)}
@@ -263,7 +229,6 @@ export default function AdminRedemptionsPage() {
                             </div>
                         </div></td>
                         <td className="px-4 py-3 text-gray-800 font-medium">{r.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                        <td className="px-4 py-3 text-gray-700 max-w-xs"><PaymentDetails paymentInfo={r.user?.paymentInfo} /></td>
                         <td className="px-4 py-3 text-gray-600 text-xs max-w-[200px] whitespace-pre-wrap">{r.notes || <span className="italic text-gray-400">N/A</span>}</td>
                         <td className="px-4 py-3 whitespace-nowrap"><StatusBadge status={r.status} mappings={REDEMPTION_STATUS_MAPPINGS} /></td>
                         {(filters.status === 'pending' || (filters.status === 'all' && r.status === 'pending')) && (

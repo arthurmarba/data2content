@@ -52,6 +52,16 @@ export async function POST(req: NextRequest) {
     if (current < min)
       return NextResponse.json({ error: `Valor mínimo: ${(min / 100).toFixed(2)} ${destCurrency.toUpperCase()}` }, { status: 400 });
 
+    const existing = await Redemption.findOne({
+      userId: user._id,
+      currency: destCurrency,
+      status: { $in: ['requested'] },
+      requestedAt: { $gte: new Date(Date.now() - 30_000) },
+    });
+    if (existing) {
+      return NextResponse.json({ error: "Já existe um saque em andamento." }, { status: 409 });
+    }
+
     // Cria um registro de Redemption (estado 'requested') para ter trilha
     const redemption = await Redemption.create({
       userId: user._id,
@@ -98,6 +108,10 @@ export async function POST(req: NextRequest) {
     });
   } catch (err: any) {
     console.error("[affiliate/redeem] error:", err);
+    const code = err?.raw?.code || err?.code;
+    if (code === 'balance_insufficient') {
+      return NextResponse.json({ error: "Saldo da plataforma insuficiente nesta moeda. Tente novamente em breve" }, { status: 400 });
+    }
     return NextResponse.json({ error: "Erro ao processar resgate." }, { status: 500 });
   }
 }
