@@ -13,12 +13,6 @@ export const runtime = "nodejs";
 type Plan = "monthly" | "annual";
 type Currency = "BRL" | "USD";
 
-function getCouponId(currency: Currency) {
-  if (currency === "BRL") return process.env.STRIPE_COUPON_10OFF_ONCE_BRL;
-  if (currency === "USD") return process.env.STRIPE_COUPON_10OFF_ONCE_USD;
-  return undefined;
-}
-
 function getPriceId(plan: Plan, currency: Currency) {
   if (plan === "monthly" && currency === "BRL") return process.env.STRIPE_PRICE_MONTHLY_BRL!;
   if (plan === "annual" && currency === "BRL") return process.env.STRIPE_PRICE_ANNUAL_BRL!;
@@ -41,7 +35,6 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const plan: Plan = body.plan;
-    // normaliza moeda vinda do front ("brl"/"usd")
     const currency = String(body.currency || "").toUpperCase() as Currency;
     let affiliateCode: string | undefined = body.affiliateCode;
     let affiliateValid = false;
@@ -58,6 +51,7 @@ export async function POST(req: NextRequest) {
 
     const priceId = getPriceId(plan, currency);
 
+    // garante cliente
     let customerId = user.stripeCustomerId;
     if (!customerId) {
       const customer = await stripe.customers.create({
@@ -69,31 +63,32 @@ export async function POST(req: NextRequest) {
       user.stripeCustomerId = customer.id;
     }
 
+    // evita "blocking incomplete" antigas
     await cancelBlockingIncompleteSubs(stripe, customerId!);
 
+    // tenta reaproveitar assinatura existente do mesmo price
     let existing: Stripe.Subscription | null = null;
     if (user.stripeSubscriptionId) {
       try {
         existing = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
-      } catch {}
+      } catch {
+        // ignora se não existir
+      }
     }
     if (!existing) {
       const list = await stripe.subscriptions.list({ customer: customerId!, status: "all", limit: 10 });
-      const reuse =
-        list.data.find(
-          s =>
-            s.items.data.some(i => i.price.id === priceId) &&
-            s.status !== "incomplete_expired"
-        );
-      if (reuse) {
-        existing = reuse;
-      }
+      const reuse = list.data.find(
+        s =>
+          s.items.data.some(i => i.price.id === priceId) &&
+          s.status !== "incomplete_expired"
+      );
+      if (reuse) existing = reuse;
     }
 
     let sub: Stripe.Subscription;
 
     if (existing && ["active", "trialing"].includes(existing.status) && existing.items.data[0]) {
-      // Atualiza price em assinatura existente
+      // Atualiza o price na assinatura atual
       const itemId = existing.items.data[0].id;
       sub = await stripe.subscriptions.update(existing.id, {
         items: [{ id: itemId, price: priceId }],
@@ -101,8 +96,9 @@ export async function POST(req: NextRequest) {
         proration_behavior: "create_prorations",
         billing_cycle_anchor: "now",
         expand: ["latest_invoice.payment_intent"],
-      }, { idempotencyKey: `sub_update_${user._id}_${priceId}` });
+      });
     } else {
+      // trata affiliateCode: só registra e envia em metadata (sem aplicar desconto automático)
       if (affiliateCode) {
         affiliateCode = affiliateCode.toUpperCase();
         if (affiliateCode !== user.affiliateCode) {
@@ -114,39 +110,41 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      const metadata: Record<string, string> = { userId: String(user._id), plan };
-      if (affiliateValid && affiliateCode) metadata.affiliateCode = affiliateCode;
+      const metadata: Record<string, string> = {
+        userId: String(user._id),
+        plan,
+      };
+      if (affiliateValid && affiliateCode) {
+        metadata.affiliateCode = affiliateCode;
+      }
 
-      const params: Stripe.SubscriptionCreateParams = {
+      const createParams: Stripe.SubscriptionCreateParams = {
         customer: customerId!,
         items: [{ price: priceId }],
         payment_behavior: "default_incomplete",
         expand: ["latest_invoice.payment_intent"],
         metadata,
+        // NÃO enviar discounts/allow_promotion_codes aqui.
       };
-      if (affiliateValid) {
-        const couponId = getCouponId(currency);
-        if (couponId) {
-          (params as any).discounts = [{ coupon: couponId }];
-        }
-      }
 
-      const idemKey = `sub_create_${user._id}_${priceId}_${affiliateCode || "na"}`;
-      sub = await stripe.subscriptions.create(params, { idempotencyKey: idemKey });
+      sub = await stripe.subscriptions.create(createParams);
     }
 
+    // atualiza usuário
     user.stripeSubscriptionId = sub.id;
     user.planType = plan;
     user.planStatus = "pending";
     user.planInterval = plan === "annual" ? "year" : "month";
     user.stripePriceId = priceId;
-
     await user.save();
 
     const clientSecret = (sub.latest_invoice as any)?.payment_intent?.client_secret;
     return NextResponse.json({ clientSecret, subscriptionId: sub.id });
   } catch (err: any) {
     console.error("[billing/subscribe] error:", err);
-    return NextResponse.json({ error: err?.message || "Erro ao iniciar assinatura" }, { status: 500 });
+    return NextResponse.json(
+      { error: err?.message || "Erro ao iniciar assinatura" },
+      { status: 500 }
+    );
   }
 }

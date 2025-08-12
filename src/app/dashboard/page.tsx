@@ -1,7 +1,7 @@
 // src/app/dashboard/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback, Fragment, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useRouter } from "next/navigation";
 import useSWR from 'swr';
@@ -249,15 +249,32 @@ export default function MainDashboard() {
     }
   }, [status, session, router]);
 
+  // Trata retornos de checkout (evita 404 e dá feedback)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
+
+      // legado MP
       if (params.get('from') === 'mp') {
         updateSession?.();
         router.replace('/dashboard');
+        return;
+      }
+
+      const checkout = params.get('checkout'); // success | cancel
+      if (checkout === 'success') {
+        showToastMessage('Pagamento confirmado! Bem-vindo(a) ao Pro 🎉', 'success');
+        updateSession?.();
+        router.replace('/dashboard');
+        return;
+      }
+      if (checkout === 'cancel') {
+        showToastMessage('Pagamento cancelado. Nada foi cobrado.', 'warning');
+        router.replace('/dashboard');
+        return;
       }
     }
-  }, [router, updateSession]);
+  }, [router, updateSession, showToastMessage]);
 
   const cardVariants = {
     hidden: { opacity: 0, y: 15 },
@@ -417,12 +434,12 @@ export default function MainDashboard() {
     const guideSection = document.getElementById('video-guides-section');
     if (guideSection) {
       guideSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      if (swiperRef.current && swiperRef.current.slides) { 
+      if (swiperRef.current && (swiperRef.current as any).slides) { 
         const slideIndex = videoGuidesData.findIndex(video => video.id === videoId);
         if (slideIndex !== -1) {
           setTimeout(() => {
-            if (swiperRef.current && typeof swiperRef.current.slideTo === 'function') {
-              swiperRef.current.slideTo(slideIndex);
+            if (swiperRef.current && typeof (swiperRef.current as any).slideTo === 'function') {
+              (swiperRef.current as any).slideTo(slideIndex);
             } else {
               console.warn("Swiper API `slideTo` não encontrada na referência.");
             }
