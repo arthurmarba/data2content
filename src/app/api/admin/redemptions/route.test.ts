@@ -4,6 +4,7 @@ import { GET } from './route';
 import { fetchRedemptions } from '@/lib/services/adminCreatorService'; // Ajuste se o nome do serviço mudou
 import { NextRequest } from 'next/server';
 import { AdminRedemptionListParams } from '@/types/admin/redemptions';
+import { getAdminSession } from '@/lib/getAdminSession';
 
 jest.mock('@/lib/services/adminCreatorService', () => ({
   fetchRedemptions: jest.fn(),
@@ -19,6 +20,7 @@ function createMockRedemptionRequest(searchParams: URLSearchParams = new URLSear
 
 describe('API Route: GET /api/admin/redemptions', () => {
   const mockFetchRedemptions = fetchRedemptions as jest.Mock;
+  const mockGetAdminSession = getAdminSession as jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -45,5 +47,12 @@ describe('API Route: GET /api/admin/redemptions', () => {
 
     expect(res.status).toBe(500);
     expect(body.error).toBe('Redemption service DB error');
+  });
+
+  it('should return 401 if user is not admin', async () => {
+    mockGetAdminSession.mockResolvedValueOnce({ user: { role: 'user', name: 'User' } });
+    const req = createMockRedemptionRequest();
+    const res = await GET(req);
+    expect(res.status).toBe(401);
   });
 });

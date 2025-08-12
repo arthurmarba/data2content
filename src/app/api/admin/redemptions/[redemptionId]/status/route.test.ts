@@ -4,6 +4,7 @@ import { PATCH } from './route';
 import { updateRedemptionStatus } from '@/lib/services/adminCreatorService'; // Ajuste se o nome do serviço mudou
 import { NextRequest } from 'next/server';
 import { AdminRedemptionUpdateStatusPayload } from '@/types/admin/redemptions';
+import { getAdminSession } from '@/lib/getAdminSession';
 
 jest.mock('@/lib/services/adminCreatorService', () => ({
   updateRedemptionStatus: jest.fn(),
@@ -25,6 +26,7 @@ async function createMockRedemptionPatchRequest(body: any): Promise<NextRequest>
 
 describe('API Route: PATCH /api/admin/redemptions/[redemptionId]/status', () => {
   const mockUpdateRedemptionStatus = updateRedemptionStatus as jest.Mock;
+  const mockGetAdminSession = getAdminSession as jest.Mock;
   const mockRedemptionId = 'testRedemptionId123';
 
   beforeEach(() => {
@@ -65,6 +67,23 @@ describe('API Route: PATCH /api/admin/redemptions/[redemptionId]/status', () => 
 
     expect(response.status).toBe(404);
     expect(body.error).toBe('Redemption not found.');
+  });
+
+  it('should return 409 if balance is insufficient', async () => {
+    mockUpdateRedemptionStatus.mockRejectedValueOnce(new Error('Saldo insuficiente ou alterado.'));
+    const req = await createMockRedemptionPatchRequest({ status: 'paid' });
+    const response = await PATCH(req, { params: { redemptionId: mockRedemptionId } });
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body.error).toBe('Saldo insuficiente ou alterado.');
+  });
+
+  it('should return 401 if user is not admin', async () => {
+    mockGetAdminSession.mockResolvedValueOnce({ user: { role: 'user' } });
+    const req = await createMockRedemptionPatchRequest({ status: 'paid' });
+    const response = await PATCH(req, { params: { redemptionId: mockRedemptionId } });
+    expect(response.status).toBe(401);
   });
 
   it('should return 500 if service throws an unexpected error', async () => {

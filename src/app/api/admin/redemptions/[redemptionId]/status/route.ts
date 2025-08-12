@@ -66,6 +66,9 @@ export async function PATCH(
     if (error.message === 'Invalid redemptionId format.' || error.message === 'Redemption not found.') {
         return apiError(error.message, 404);
     }
+    if (error.message === 'Saldo insuficiente ou alterado.') {
+        return apiError(error.message, 409);
+    }
     return apiError(error.message || 'Ocorreu um erro interno no servidor.', 500);
   }
 }

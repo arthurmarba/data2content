@@ -17,7 +17,7 @@ function escapeCsvValue(value: any, delimiter = ';'): string {
 
 export async function GET(req: NextRequest) {
   const session = await getAdminSession(req);
-  if (!session?.user) {
+  if (!session?.user || session.user.role !== 'admin') {
     return NextResponse.json({ error: 'Acesso não autorizado.' }, { status: 401 });
   }
 
