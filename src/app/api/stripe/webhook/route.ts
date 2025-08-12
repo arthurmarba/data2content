@@ -74,8 +74,10 @@ export async function POST(req: NextRequest) {
       case "invoice.payment_succeeded": {
         const invoice = event.data.object as Stripe.Invoice;
         const reason = invoice.billing_reason ?? '';
-        // somente a PRIMEIRA fatura de assinatura
-        if (reason !== 'subscription_create' || !invoice.amount_paid || invoice.amount_paid <= 0) break;
+        // primeira fatura PAGA da vida do cliente:
+        // pode ser 'subscription_create' (sem trial) ou 'subscription_cycle' (primeira pós-trial)
+        const isFirstCycle = reason === 'subscription_create' || reason === 'subscription_cycle';
+        if (!isFirstCycle || !invoice.amount_paid || invoice.amount_paid <= 0) break;
         const subId = typeof invoice.subscription === "string" ? invoice.subscription : invoice.subscription?.id;
         const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
 
@@ -109,7 +111,7 @@ export async function POST(req: NextRequest) {
 
         if (!user.hasAffiliateCommissionPaid && !manualCouponUsed && user.affiliateUsed) {
           const affUser = await User.findOne({ affiliateCode: user.affiliateUsed });
-          if (affUser) {
+          if (affUser && String(affUser._id) !== String(user._id)) {
             if (!affUser.affiliateBalances) {
               affUser.affiliateBalances = new Map<string, number>();
             }

@@ -129,6 +129,19 @@ export async function POST(req: NextRequest) {
         if (source) metadata.attribution_source = source;
       }
 
+      // Guard: cupom interno de afiliado precisa existir, senão falha cedo
+      if (affiliateValid) {
+        const affCoupon = currency === "BRL"
+          ? process.env.STRIPE_COUPON_AFFILIATE10_ONCE_BRL
+          : process.env.STRIPE_COUPON_AFFILIATE10_ONCE_USD;
+        if (!affCoupon) {
+          return NextResponse.json(
+            { error: `Cupom interno de afiliado ausente para ${currency}. Configure STRIPE_COUPON_AFFILIATE10_ONCE_${currency}.` },
+            { status: 500 }
+          );
+        }
+      }
+
       const createParams: Stripe.SubscriptionCreateParams = {
         customer: customerId!,
         items: [{ price: priceId }],
