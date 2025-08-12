@@ -283,12 +283,12 @@ describe('AdminCreatorService', () => {
       mockExecForFetchRedemptions.mockResolvedValueOnce([]);
       mockExecForFetchRedemptions.mockResolvedValueOnce([{ totalCount: 0 }]);
 
-      const params: AdminRedemptionListParams = { status: 'pending' };
+      const params: AdminRedemptionListParams = { status: 'requested' };
       await fetchRedemptions(params);
 
       const firstPipeline = (mongoose.model('Redemption').aggregate as jest.Mock).mock.calls[0][0];
       const initialMatchStage = firstPipeline.find((stage: any) => stage.$match && stage.$match.status);
-      expect(initialMatchStage?.$match).toEqual({ status: 'pending' });
+      expect(initialMatchStage?.$match).toEqual({ status: 'requested' });
     });
 
     it('should include $match for date range if dateFrom and dateTo are provided', async () => {
@@ -328,16 +328,16 @@ describe('AdminCreatorService', () => {
     });
 
     it('should call RedemptionModel.findByIdAndUpdate with correct parameters', async () => {
-      const mockUpdatedRedemption = { _id: 'redemption1', status: 'approved', adminNotes: 'Approved by admin' };
+      const mockUpdatedRedemption = { _id: 'redemption1', status: 'paid', notes: 'Approved by admin' };
       mockExecForUpdateRedemption.mockResolvedValueOnce(mockUpdatedRedemption);
 
       const redemptionId = 'redemption1';
-      const payload: AdminRedemptionUpdateStatusPayload = { status: 'approved', adminNotes: 'Approved by admin' };
+      const payload: AdminRedemptionUpdateStatusPayload = { status: 'paid', notes: 'Approved by admin' };
       const result = await updateRedemptionStatus(redemptionId, payload);
 
       expect(mongoose.model('Redemption').findByIdAndUpdate).toHaveBeenCalledWith(
         redemptionId,
-        { $set: expect.objectContaining({ status: 'approved', adminNotes: 'Approved by admin' }) },
+        { $set: expect.objectContaining({ status: 'paid', notes: 'Approved by admin' }) },
         { new: true, runValidators: true }
       );
       expect(result).toEqual(mockUpdatedRedemption);
@@ -345,11 +345,11 @@ describe('AdminCreatorService', () => {
 
     it('should throw error if redemption not found', async () => {
       mockExecForUpdateRedemption.mockResolvedValueOnce(null);
-      await expect(updateRedemptionStatus('notFoundId', { status: 'approved' })).rejects.toThrow('Redemption not found.');
+      await expect(updateRedemptionStatus('notFoundId', { status: 'paid' })).rejects.toThrow('Redemption not found.');
     });
 
     it('should throw error for invalid redemptionId format', async () => {
-      await expect(updateRedemptionStatus('invalid-id', { status: 'approved' })).rejects.toThrow('Invalid redemptionId format.');
+      await expect(updateRedemptionStatus('invalid-id', { status: 'paid' })).rejects.toThrow('Invalid redemptionId format.');
     });
   });
 });

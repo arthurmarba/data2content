@@ -337,8 +337,8 @@ export async function fetchRedemptions(
     search,
     status,
     userId,
-    minAmount,
-    maxAmount,
+    minAmountCents,
+    maxAmountCents,
     dateFrom,
     dateTo,
     sortBy = 'requestedAt',
@@ -361,11 +361,11 @@ export async function fetchRedemptions(
       query.userId = null;
     }
   }
-  if (typeof minAmount === 'number') {
-    query.amount = { ...query.amount, $gte: minAmount };
+  if (typeof minAmountCents === 'number') {
+    query.amountCents = { ...query.amountCents, $gte: minAmountCents };
   }
-  if (typeof maxAmount === 'number') {
-    query.amount = { ...query.amount, $lte: maxAmount };
+  if (typeof maxAmountCents === 'number') {
+    query.amountCents = { ...query.amountCents, $lte: maxAmountCents };
   }
   if (dateFrom) {
     query.requestedAt = { ...query.requestedAt, $gte: new Date(dateFrom) };
@@ -433,14 +433,14 @@ export async function fetchRedemptions(
       userId: doc.userId.toString(),
       userName: doc.userDetails?.name || 'Usuário Desconhecido',
       userEmail: doc.userDetails?.email || 'N/A',
-      amount: doc.amount,
+      amountCents: doc.amountCents,
       currency: doc.currency,
       status: doc.status,
       requestedAt: doc.requestedAt,
       updatedAt: doc.updatedAt,
       paymentMethod: doc.paymentMethod,
       paymentDetails: doc.paymentDetails,
-      adminNotes: doc.adminNotes,
+      notes: doc.notes,
     }));
 
     logger.info(`${TAG} Successfully fetched ${redemptions.length} redemptions. Total: ${totalRedemptions}.`);
@@ -467,11 +467,11 @@ export async function updateRedemptionStatus(
     throw new Error('Invalid redemptionId format.');
   }
 
-  const { status, adminNotes, transactionId } = payload;
+  const { status, notes, transactionId } = payload;
   const updateData: Partial<IRedemption> = { status };
-  
-  if (adminNotes !== undefined) {
-    updateData.adminNotes = adminNotes;
+
+  if (notes !== undefined) {
+    updateData.notes = notes;
   }
   if (transactionId !== undefined) {
     updateData.transactionId = transactionId;
