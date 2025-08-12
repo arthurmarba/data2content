@@ -12,7 +12,10 @@ export const runtime = "nodejs";
 export async function POST(req: NextRequest) {
   try {
     if (process.env.STRIPE_CONNECT_MODE !== "express") {
-      return NextResponse.json({ error: "Stripe Connect deve estar configurado como Express" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Stripe Connect deve estar configurado como Express" },
+        { status: 400 }
+      );
     }
 
     const session = await getServerSession(authOptions);
@@ -21,9 +24,16 @@ export async function POST(req: NextRequest) {
     }
 
     const ip = getClientIp(req);
-    const { allowed } = await checkRateLimit(`connect_link:${session.user.id}:${ip}`, 5, 60);
+    const { allowed } = await checkRateLimit(
+      `connect_link:${session.user.id}:${ip}`,
+      5,
+      60
+    );
     if (!allowed) {
-      return NextResponse.json({ error: "Muitas tentativas, tente novamente mais tarde." }, { status: 429 });
+      return NextResponse.json(
+        { error: "Muitas tentativas, tente novamente mais tarde." },
+        { status: 429 }
+      );
     }
 
     await connectToDatabase();
@@ -34,11 +44,19 @@ export async function POST(req: NextRequest) {
 
     user.paymentInfo ||= {};
     let accountId = user.paymentInfo.stripeAccountId;
+
+    // fallback: garantir a conta com as capacidades corretas (BR exige ambos)
     if (!accountId) {
       const account = await stripe.accounts.create({
         type: "express",
         email: user.email,
-        capabilities: { transfers: { requested: true } },
+        capabilities: {
+          card_payments: { requested: true },
+          transfers: { requested: true },
+        },
+        business_profile: {
+          product_description: "Pagamentos de afiliado da Data2Content",
+        },
         metadata: { userId: String(user._id) },
       });
       accountId = account.id;
@@ -49,7 +67,7 @@ export async function POST(req: NextRequest) {
     }
 
     const account = await stripe.accounts.retrieve(accountId!);
-    const verified = account.charges_enabled && account.payouts_enabled;
+    const verified = !!account.payouts_enabled;
 
     const origin =
       req.headers.get("origin") ||
@@ -62,8 +80,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ url: ll.url, kind: "login" });
     }
 
-    const refreshUrl = process.env.STRIPE_CONNECT_REFRESH_URL || `${origin}/affiliate/connect/refresh`;
-    const returnUrl = process.env.STRIPE_CONNECT_RETURN_URL || `${origin}/affiliate/connect/return`;
+    const refreshUrl =
+      process.env.STRIPE_CONNECT_REFRESH_URL ||
+      `${origin}/affiliate/connect/refresh`;
+    const returnUrl =
+      process.env.STRIPE_CONNECT_RETURN_URL ||
+      `${origin}/affiliate/connect/return`;
 
     const link = await stripe.accountLinks.create({
       account: accountId!,
@@ -78,4 +100,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Erro ao gerar link" }, { status: 500 });
   }
 }
-

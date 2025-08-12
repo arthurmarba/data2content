@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
 
   let items = (user.commissionLog || []).slice();
+
   if (curFilter) {
     const cur = normCur(curFilter);
     items = items.filter(i => (i.currency || '').toLowerCase() === cur);

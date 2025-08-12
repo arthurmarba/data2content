@@ -1,7 +1,6 @@
-// @/app/models/User.ts - v1.9.19
-// - Alinha interface IUser com campos legados: affiliateBalanceCents, affiliateBalance
-// - Alinha tipo de affiliateUsed para string | null (default no schema)
-// - Mantém affiliateBalances (Map por moeda, em cents)
+// @/app/models/User.ts - v1.9.20
+// - Adiciona status "accrued" ao commissionLog (interface + schema enum)
+// - Garante currency do commissionLog em lowercase
 
 import mongoose, { Schema, Document, Model, Types } from "mongoose";
 import { logger } from "@/app/lib/logger";
@@ -153,16 +152,18 @@ export interface IAvailableInstagramAccount {
   username?: string;
   profile_picture_url?: string;
 }
+
 export interface ICommissionLogEntry {
   date: Date;
   description: string;
   sourcePaymentId?: string;
   referredUserId?: Types.ObjectId;
-  status: 'paid' | 'failed' | 'fallback';
+  status: 'accrued' | 'paid' | 'failed' | 'fallback'; // <- inclui "accrued"
   transactionId?: string | null;
   currency?: string;
   amountCents: number;
 }
+
 export interface ILastCommunityInspirationShown {
   date: Date;
   inspirationIds: Types.ObjectId[];
@@ -267,10 +268,10 @@ export interface IUser extends Document {
   affiliateRank?: number;
   affiliateInvites?: number;
   affiliateCode?: string;
-  affiliateUsed: string | null;            // alinhar com default null do schema
+  affiliateUsed: string | null;
   affiliateBalances?: Map<string, number>; // multimoeda em cents
 
-  // LEGACY (mantidos por compatibilidade, não usar):
+  // LEGACY
   affiliateBalance?: number;
   affiliateBalanceCents?: number;
 
@@ -325,9 +326,9 @@ const commissionLogEntrySchema = new Schema<ICommissionLogEntry>({
   description: { type: String, required: true },
   sourcePaymentId: { type: String },
   referredUserId: { type: Schema.Types.ObjectId, ref: 'User' },
-  status: { type: String, enum: ['paid', 'failed', 'fallback'], required: true },
+  status: { type: String, enum: ['accrued', 'paid', 'failed', 'fallback'], required: true }, // <- inclui "accrued"
   transactionId: { type: String, default: null },
-  currency: { type: String },
+  currency: { type: String, lowercase: true }, // garantir lowercase
   amountCents: { type: Number, required: true },
 }, { _id: false });
 
@@ -349,9 +350,10 @@ const AvailableInstagramAccountSchema = new Schema<IAvailableInstagramAccount>({
   profile_picture_url: { type: String },
 }, { _id: false });
 
-const UserPreferencesSchema = new Schema<IUserPreferences>({/*...*/}, {/*...*/}); // Placeholder
-const UserLongTermGoalSchema = new Schema<IUserLongTermGoal>({/*...*/}, {/*...*/}); // Placeholder
-const UserKeyFactSchema = new Schema<IUserKeyFact>({/*...*/}, {/*...*/}); // Placeholder
+// Placeholders (mantidos conforme arquivo original)
+const UserPreferencesSchema = new Schema<IUserPreferences>({/*...*/}, {/*...*/});
+const UserLongTermGoalSchema = new Schema<IUserLongTermGoal>({/*...*/}, {/*...*/});
+const UserKeyFactSchema = new Schema<IUserKeyFact>({/*...*/}, {/*...*/});
 
 const AlertHistoryEntrySchema = new Schema<IAlertHistoryEntry>({
   type: { type: String, required: true },
@@ -460,7 +462,7 @@ const userSchema = new Schema<IUser>(
     // Multimoeda (cents por moeda)
     affiliateBalances: { type: Map, of: Number, default: {} },
 
-    // LEGACY (manter enquanto existir dado antigo)
+    // LEGACY
     affiliateBalanceCents: { type: Number, default: 0 },
     affiliateBalance: { type: Number },
 
@@ -505,7 +507,7 @@ const userSchema = new Schema<IUser>(
 );
 
 userSchema.pre<IUser>("save", function (next) {
-  const TAG_PRE_SAVE = '[User.ts pre-save v1.9.19]';
+  const TAG_PRE_SAVE = '[User.ts pre-save v1.9.20]';
   if (this.isNew && !this.affiliateCode) {
     const newCode = generateAffiliateCode();
     logger.info(`${TAG_PRE_SAVE} Gerando novo affiliateCode: '${newCode}' para User Email: ${this.email}`);

@@ -12,7 +12,10 @@ export const runtime = "nodejs";
 export async function POST(req: NextRequest) {
   try {
     if (process.env.STRIPE_CONNECT_MODE !== "express") {
-      return NextResponse.json({ error: "Stripe Connect deve estar configurado como Express" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Stripe Connect deve estar configurado como Express" },
+        { status: 400 }
+      );
     }
 
     const session = await getServerSession(authOptions);
@@ -21,9 +24,16 @@ export async function POST(req: NextRequest) {
     }
 
     const ip = getClientIp(req);
-    const { allowed } = await checkRateLimit(`connect_create:${session.user.id}:${ip}`, 5, 60);
+    const { allowed } = await checkRateLimit(
+      `connect_create:${session.user.id}:${ip}`,
+      5,
+      60
+    );
     if (!allowed) {
-      return NextResponse.json({ error: "Muitas tentativas, tente novamente mais tarde." }, { status: 429 });
+      return NextResponse.json(
+        { error: "Muitas tentativas, tente novamente mais tarde." },
+        { status: 429 }
+      );
     }
 
     await connectToDatabase();
@@ -33,7 +43,7 @@ export async function POST(req: NextRequest) {
     }
 
     user.paymentInfo ||= {};
-    let accountId = user.paymentInfo.stripeAccountId;
+    let accountId = user.paymentInfo.stripeAccountId as string | undefined;
     let status = user.paymentInfo.stripeAccountStatus as
       | "verified"
       | "pending"
@@ -44,9 +54,17 @@ export async function POST(req: NextRequest) {
       const account = await stripe.accounts.create({
         type: "express",
         email: user.email,
-        capabilities: { transfers: { requested: true } },
+        // 🇧🇷 é obrigatório solicitar ambos no BR
+        capabilities: {
+          card_payments: { requested: true },
+          transfers: { requested: true },
+        },
+        business_profile: {
+          product_description: "Pagamentos de afiliado da Data2Content",
+        },
         metadata: { userId: String(user._id) },
       });
+
       accountId = account.id;
       status = "pending";
       user.paymentInfo.stripeAccountId = accountId;
@@ -61,4 +79,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Erro ao criar conta" }, { status: 500 });
   }
 }
-

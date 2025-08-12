@@ -42,6 +42,8 @@ interface ExtendedUser {
   isInstagramConnected?: boolean;
   whatsappVerified?: boolean;
   planType?: PlanType; // ✅ adicionado
+  // ✅ usamos a moeda padrão da conta Stripe vinda da sessão
+  stripeAccountDefaultCurrency?: string | null;
 }
 
 interface VideoData {
@@ -399,7 +401,8 @@ export default function MainDashboard() {
   const statusInfo = getStatusInfo();
 
   const showPlan = planStatus !== 'active';
-  const defaultCurrency = (user?.currency || 'BRL').toUpperCase() === 'USD' ? 'USD' : 'BRL';
+  // ✅ usar a moeda padrão da conta Stripe, com fallback para BRL
+  const defaultCurrency = ((user?.stripeAccountDefaultCurrency ?? 'BRL').toUpperCase() === 'USD') ? 'USD' : 'BRL';
   const canRedeem = Object.values((user as any)?.affiliateBalances || {}).some((c: any) => c > 0);
 
   const videoGuidesData: VideoData[] = [

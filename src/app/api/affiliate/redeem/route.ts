@@ -35,12 +35,17 @@ export async function POST(req: NextRequest) {
     if (!acctId) {
       return NextResponse.json({ error: "Conecte sua conta Stripe antes do saque." }, { status: 400 });
     }
+
     const account = await stripe.accounts.retrieve(acctId);
-    if (!account.charges_enabled || !account.payouts_enabled) {
+    if (!account.payouts_enabled) {
       return NextResponse.json({ error: "Conta Stripe não verificada para saques." }, { status: 400 });
     }
-    let destCurrency = (account as any).default_currency || user.paymentInfo?.stripeAccountDefaultCurrency || user.currency;
-    destCurrency = destCurrency ? destCurrency.toLowerCase() : "";
+
+    let destCurrency =
+      (account as any).default_currency ||
+      user.paymentInfo?.stripeAccountDefaultCurrency ||
+      user.currency;
+    destCurrency = destCurrency ? String(destCurrency).toLowerCase() : "";
     if (!destCurrency) {
       return NextResponse.json({ error: "Moeda destino não disponível; finalize o onboarding da Stripe." }, { status: 400 });
     }
@@ -48,14 +53,19 @@ export async function POST(req: NextRequest) {
     const balances: Map<string, number> = user.affiliateBalances || new Map();
     const current = balances.get(destCurrency) ?? 0;
     const min = minForCurrency(destCurrency);
+
     if (current <= 0) return NextResponse.json({ error: "Sem saldo disponível." }, { status: 400 });
-    if (current < min)
-      return NextResponse.json({ error: `Valor mínimo: ${(min / 100).toFixed(2)} ${destCurrency.toUpperCase()}` }, { status: 400 });
+    if (current < min) {
+      return NextResponse.json(
+        { error: `Valor mínimo: ${(min / 100).toFixed(2)} ${destCurrency.toUpperCase()}` },
+        { status: 400 }
+      );
+    }
 
     const today = new Date().toISOString().slice(0,10).replace(/-/g,"");
     const idemKey = `redeem_${session.user.id}_${current}_${today}`;
 
-    // Atomic-ish balance update before calling Stripe
+    // Tenta "reservar" o saldo antes de chamar a Stripe
     const preUpdate = await User.findOneAndUpdate(
       { _id: user._id, [`affiliateBalances.${destCurrency}`]: current },
       { $set: { [`affiliateBalances.${destCurrency}`]: 0 } }
@@ -72,10 +82,7 @@ export async function POST(req: NextRequest) {
           currency: destCurrency,
           destination: acctId,
           description: `Affiliate redeem ${destCurrency.toUpperCase()} ${current / 100}`,
-          metadata: {
-            userId: String(user._id),
-            kind: 'affiliate_redeem',
-          },
+          metadata: { userId: String(user._id), kind: 'affiliate_redeem' },
         },
         { idempotencyKey: idemKey }
       );
@@ -117,10 +124,13 @@ export async function POST(req: NextRequest) {
         method: 'connect',
         notes: `auto-transfer failed: ${err.message}`,
       });
+
+      // Reverte o saldo
       await User.updateOne(
         { _id: user._id },
         { $set: { [`affiliateBalances.${destCurrency}`]: current } }
       );
+
       return NextResponse.json({ ok: true, mode: 'queued', redemptionId: String(redemption._id), transactionId: null });
     }
   } catch (err: any) {
