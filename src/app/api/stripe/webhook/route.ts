@@ -272,9 +272,11 @@ export async function POST(req: NextRequest) {
         if (user.lastProcessedEventId === event.id) break;
         user.lastProcessedEventId = event.id;
 
-        user.planStatus = "inactive";
-        user.planExpiresAt = null;
-        await user.save();
+        if ((user as any).planStatus !== "active") {
+          user.planStatus = "inactive";
+          user.planExpiresAt = null;
+          await user.save();
+        }
         break;
       }
 

@@ -8,6 +8,7 @@ import { logger } from "@/app/lib/logger";
 import stripe from "@/app/lib/stripe";
 import { checkRateLimit } from "@/utils/rateLimit";
 import { getClientIp } from "@/utils/getClientIp";
+import { cancelBlockingIncompleteSubs } from "@/utils/stripeHelpers";
 
 export const runtime = "nodejs";
 
@@ -60,31 +61,33 @@ export async function DELETE(req: NextRequest) {
       process.env.VERIFY_STRIPE_BEFORE_DELETE === "true" &&
       user.stripeCustomerId
     ) {
+      const customerId = user.stripeCustomerId;
       try {
+        try {
+          await cancelBlockingIncompleteSubs(customerId);
+        } catch {}
         const subs = await stripe.subscriptions.list({
-          customer: user.stripeCustomerId,
+          customer: customerId,
           status: "all",
-          limit: 20,
+          limit: 100,
         });
-
-        const anyActive = subs.data.some((s) => {
-          const status = s.status; // 'active' | 'trialing' | 'past_due' | 'unpaid' | 'incomplete' | ...
-          const isLive = status === "active" || status === "trialing";
-          const willCancelAtPeriodEnd = Boolean(s.cancel_at_period_end);
-          // Tratar 'non_renewing' como permitido => se vai cancelar ao fim, NÃO bloqueia
-          return isLive && !willCancelAtPeriodEnd;
-        });
-
-        if (anyActive) {
+        const activeLike = new Set([
+          "active",
+          "trialing",
+          "past_due",
+          "unpaid",
+          "paused",
+        ]);
+        const hasBlocking = subs.data.some((s) =>
+          activeLike.has(s.status as any)
+        );
+        if (hasBlocking) {
           logger.warn("[account.delete] blocked by live Stripe subscription", {
+            customerId,
             userId: user._id,
-            customerId: user.stripeCustomerId,
           });
           return NextResponse.json(
-            {
-              error: "ERR_ACTIVE_SUBSCRIPTION",
-              message: "Cancele sua assinatura antes de excluir a conta.",
-            },
+            { error: "has_active_subscription" },
             { status: 409 }
           );
         }

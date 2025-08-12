@@ -117,10 +117,14 @@ export async function POST(req: NextRequest) {
       user.stripeCustomerId = customer.id;
     }
 
-    // evita "blocking incomplete" antigas
-    await cancelBlockingIncompleteSubs(stripe, customerId!);
+    // 0) Antes de criar, limpe tentativas pendentes (evita travar em INCOMPLETE)
+    if (customerId) {
+      try {
+        await cancelBlockingIncompleteSubs(customerId);
+      } catch {}
+    }
 
-    // tenta reaproveitar assinatura existente do mesmo price
+    // 1) Tenta reaproveitar assinatura existente do mesmo price
     let existing: Stripe.Subscription | null = null;
     if (user.stripeSubscriptionId) {
       try {
