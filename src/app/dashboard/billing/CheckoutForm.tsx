@@ -29,7 +29,7 @@ export default function CheckoutForm({ subscriptionId, onBack }: Props) {
 
       const returnUrl = `${window.location.origin}/dashboard/billing/success`;
 
-      const { error } = await stripe.confirmPayment({
+      const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: { return_url: returnUrl },
         redirect: "if_required",
@@ -44,6 +44,11 @@ export default function CheckoutForm({ subscriptionId, onBack }: Props) {
       try {
         await update();
       } catch {}
+
+      if (paymentIntent?.status === "succeeded") {
+        router.push("/dashboard/billing/success?ok=1");
+        return;
+      }
 
       router.push("/dashboard");
     } catch (e: any) {
