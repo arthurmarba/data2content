@@ -41,12 +41,25 @@ export default function CheckoutForm({ subscriptionId, onBack }: Props) {
         return;
       }
 
-      try {
-        await update();
-      } catch {}
-
       if (paymentIntent?.status === "succeeded") {
-        router.push("/dashboard/billing/success?ok=1");
+        // ativa plano e processa comissão sem depender do webhook
+        if (subscriptionId) {
+          try {
+            await fetch("/api/billing/finalize", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ subscriptionId }),
+            });
+          } catch {}
+        }
+        try {
+          await update();
+        } catch {}
+        router.push(
+          `/dashboard/billing/success?ok=1${
+            subscriptionId ? `&sid=${subscriptionId}` : ""
+          }`
+        );
         return;
       }
 
