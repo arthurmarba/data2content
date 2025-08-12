@@ -159,7 +159,7 @@ export interface ICommissionLogEntry {
   sourcePaymentId?: string;
   referredUserId?: Types.ObjectId;
   status: 'paid' | 'failed' | 'fallback';
-  transferId?: string | null;
+  transactionId?: string | null;
   currency?: string;
   amountCents: number;
 }
@@ -326,7 +326,7 @@ const commissionLogEntrySchema = new Schema<ICommissionLogEntry>({
   sourcePaymentId: { type: String },
   referredUserId: { type: Schema.Types.ObjectId, ref: 'User' },
   status: { type: String, enum: ['paid', 'failed', 'fallback'], required: true },
-  transferId: { type: String, default: null },
+  transactionId: { type: String, default: null },
   currency: { type: String },
   amountCents: { type: Number, required: true },
 }, { _id: false });

@@ -13,7 +13,7 @@ This document describes the affiliate program implementation within the applicat
    - Metadata records `invoiceId`, `referredUserId`, `affiliateUserId` and `affiliateCode`.
    - On transfer failure, the amount is credited to `affiliateBalance` for manual payout (`status: failed`).
 4. **Cleanup**: `user.affiliateUsed` is cleared after the first charge.
-5. **Logging**: Structured logs store `event.id`, `invoice.id`, `customer`, `amountCents`, `currency`, `status` and `transferId`.
+5. **Logging**: Structured logs store `event.id`, `invoice.id`, `customer`, `amountCents`, `currency`, `status` and `transactionId`.
 
 ## Stripe Connect Onboarding
 
@@ -48,7 +48,7 @@ Features:
 
 - **Connect to Stripe** button calling `POST /api/affiliate/connect/create` then `POST /api/affiliate/connect/link` and redirecting to onboarding.
 - **Status badge** showing `pending`, `restricted`, `verified` or `disabled` based on `GET /api/affiliate/connect/status`.
-- **Commission log** table displaying date, amount, currency, status, `invoiceId` and `transferId`.
+- **Commission log** table displaying date, amount, currency, status, `invoiceId` and `transactionId`.
 - Displays `affiliateBalance` and manual payout instructions when the account is not verified.
 - Provides copyable affiliate link `${APP_URL}/?ref=${user.affiliateCode}`.
 
@@ -58,7 +58,7 @@ Route: `/admin/affiliates/commissions`
 
 - List and filter commissions with `status` in `[failed, fallback]`.
 - Action **Reprocess** triggers `POST /api/admin/affiliate/commissions/:id/retry`.
-- If the affiliate account is verified a new `transfer` is attempted; on success the entry is marked `paid` with `transferId`.
+- If the affiliate account is verified a new `transfer` is attempted; on success the entry is marked `paid` with `transactionId`.
 - Access restricted to users with `role=admin` via NextAuth.
 
 ## Monetary Fields
@@ -68,7 +68,7 @@ Route: `/admin/affiliates/commissions`
 
 ## Observability
 
-- Logs (info/error) include `event.id`, `customer`, `invoice.id`, `transferId` and `status`.
+- Logs (info/error) include `event.id`, `customer`, `invoice.id`, `transactionId` and `status`.
 - Alerts should be configured in Sentry or logging platform when commission transfers fail or accounts become `restricted/disabled`.
 - Runbook steps:
   1. Check logs for commission events.

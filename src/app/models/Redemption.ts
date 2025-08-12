@@ -9,7 +9,7 @@ export interface IRedemption extends Document {
   requestedAt: Date;
   processedAt?: Date | null;
   notes?: string;
-  transferId?: string;
+  transactionId?: string;
 }
 
 const redemptionSchema = new Schema<IRedemption>({
@@ -21,7 +21,7 @@ const redemptionSchema = new Schema<IRedemption>({
   requestedAt: { type: Date, default: Date.now },
   processedAt: { type: Date, default: null },
   notes: { type: String, default: '' },
-  transferId: { type: String, index: true },
+  transactionId: { type: String, index: true },
 }, { timestamps: true });
 
 redemptionSchema.index({ userId: 1, createdAt: -1 });
