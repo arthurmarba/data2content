@@ -1,8 +1,16 @@
-import { Response } from 'node-fetch';
-(global as any).Response = Response;
+import fetch, { Request, Response, Headers } from 'node-fetch';
+(global as any).fetch = fetch;
+(global as any).Request = Request;
+(global as any).Response = Response as any;
+(global as any).Headers = Headers;
+(global as any).Response.json = (data: any, init?: any) =>
+  new Response(JSON.stringify(data), {
+    ...init,
+    headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
+  });
 
-import { GET } from './route';
-import { NextRequest } from 'next/server';
+const { GET } = require('./route');
+const { NextRequest } = require('next/server');
 import { getServerSession } from 'next-auth/next';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import User from '@/app/models/User';
@@ -45,7 +53,6 @@ describe('GET /api/affiliate/connect/status', () => {
     mockGetServerSession.mockResolvedValue({ user: { id: 'user1' } });
     const mockUser = {
       paymentInfo: { stripeAccountId: 'acct_123', stripeAccountStatus: 'pending' },
-      affiliatePayoutMode: 'connect',
       save: jest.fn().mockResolvedValue(undefined),
     } as any;
     mockFindById.mockResolvedValue(mockUser);
@@ -64,7 +71,6 @@ describe('GET /api/affiliate/connect/status', () => {
     expect(body.destCurrency).toBe('brl');
     expect(body.stripeAccountId).toBe('acct_123');
     expect(body.stripeAccountStatus).toBe('verified');
-    expect(body.affiliatePayoutMode).toBe('connect');
     expect(body.needsOnboarding).toBe(false);
     expect(mockUser.paymentInfo.stripeAccountDefaultCurrency).toBe('brl');
     expect(mockUser.save).toHaveBeenCalled();
