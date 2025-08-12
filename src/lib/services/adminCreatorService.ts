@@ -471,21 +471,53 @@ export async function updateRedemptionStatus(
   }
 
   const { status, notes, transactionId } = payload;
-  const updateData: Partial<IRedemption> = { status };
-
-  if (status === 'paid' || status === 'rejected') {
-    updateData.processedAt = new Date();
-  }
-
-  if (notes !== undefined) {
-    updateData.notes = notes;
-  }
-  if (transactionId !== undefined) {
-    updateData.transactionId = transactionId;
-  }
 
   try {
-    logger.info(`${TAG} Updating status for redemption ${redemptionId} to ${status}.`);
+    logger.info(`${TAG} Fetching redemption ${redemptionId} for status update.`);
+
+    const redemption = await RedemptionModel.findById(redemptionId).exec();
+    if (!redemption) {
+      logger.warn(`${TAG} Redemption not found for ID: ${redemptionId}`);
+      throw new Error('Redemption not found.');
+    }
+
+    const updateData: Partial<IRedemption> = { status };
+    if (status === 'paid' || status === 'rejected') {
+      updateData.processedAt = new Date();
+    }
+    if (notes !== undefined) {
+      updateData.notes = notes;
+    }
+    if (transactionId !== undefined) {
+      updateData.transactionId = transactionId;
+    }
+
+    // If marking a previously requested redemption as paid, debit user balance
+    if (redemption.status === 'requested' && status === 'paid') {
+      const currency = redemption.currency;
+      const amountCents = redemption.amountCents;
+      const incField = { [`affiliateBalances.${currency}`]: -amountCents } as any;
+      const pushField: any = {
+        date: new Date(),
+        description: 'affiliate redeem (manual)',
+        status: 'paid',
+        currency,
+        amountCents,
+      };
+      if (transactionId) {
+        pushField.transactionId = transactionId;
+      }
+
+      const userUpdate = await UserModel.updateOne(
+        { _id: redemption.userId, [`affiliateBalances.${currency}`]: { $gte: amountCents } },
+        { $inc: incField, $push: { commissionLog: pushField } }
+      );
+
+      if (userUpdate.modifiedCount !== 1) {
+        logger.warn(`${TAG} Insufficient or changed balance for user ${redemption.userId}`);
+        throw new Error('Saldo insuficiente ou alterado.');
+      }
+    }
 
     const updatedRedemption = await RedemptionModel.findByIdAndUpdate(
       redemptionId,
@@ -493,16 +525,10 @@ export async function updateRedemptionStatus(
       { new: true, runValidators: true }
     ).exec();
 
-    if (!updatedRedemption) {
-      logger.warn(`${TAG} Redemption not found for ID: ${redemptionId}`);
-      throw new Error('Redemption not found.');
-    }
-
     logger.info(`${TAG} Successfully updated status for redemption ${redemptionId}.`);
     return updatedRedemption as IRedemption;
-
   } catch (error: any) {
     logger.error(`${TAG} Error updating redemption status for ID ${redemptionId}:`, error);
-    throw new Error(`Failed to update redemption status: ${error.message}`);
+    throw new Error(error.message);
   }
 }
