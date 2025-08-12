@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { FaSpinner, FaCheckCircle, FaTimesCircle, FaExclamationTriangle, FaFileCsv } from "react-icons/fa";
-import { motion, AnimatePresence } from "framer-motion";
+import { FaSpinner, FaExclamationTriangle, FaFileCsv } from "react-icons/fa";
+import { motion } from "framer-motion";
 import { toast } from "react-hot-toast";
 
 // Importando hooks e componentes reutilizáveis
@@ -14,7 +13,7 @@ import { UserAvatar } from '../../components/UserAvatar';
 import { StatusBadge } from '../../components/StatusBadge';
 // ===== CORREÇÃO APLICADA AQUI =====
 // A importação agora inclui o SearchIcon, se necessário, e corrige o erro de módulo.
-import { SearchBar, SearchIcon } from '../../components/SearchBar';
+import { SearchBar } from '../../components/SearchBar';
 import { EmptyState } from '../../components/EmptyState';
 import { CurrencyDollarIcon } from "@heroicons/react/24/outline";
 
@@ -30,58 +29,88 @@ interface UserInfo {
 interface RedemptionAdmin {
   _id: string;
   user: UserInfo;
-  amount: number;
-  status: "pending" | "paid" | "canceled";
+  amountCents: number;
+  currency: string;
+  status: "requested" | "paid" | "rejected";
   createdAt: string;
   updatedAt: string;
   notes?: string;
 }
 
-type UpdateStatusState = {
-    [key: string]: 'loading' | 'idle';
-};
-
 // --- Mapeamento de Status ---
 const REDEMPTION_STATUS_MAPPINGS = {
-  paid:     { label: 'Pago',      bgColor: 'bg-green-100',  textColor: 'text-green-800',  borderColor: 'border-green-200' },
-  pending:  { label: 'Pendente',  bgColor: 'bg-yellow-100', textColor: 'text-yellow-800', borderColor: 'border-yellow-200' },
-  canceled: { label: 'Cancelado', bgColor: 'bg-red-100',   textColor: 'text-red-800',   borderColor: 'border-red-200' },
+  requested: { label: 'Em processamento', bgColor:'bg-yellow-100', textColor:'text-yellow-800', borderColor:'border-yellow-200' },
+  paid:      { label: 'Pago',            bgColor:'bg-green-100',  textColor:'text-green-800',  borderColor:'border-green-200' },
+  rejected:  { label: 'Rejeitado',       bgColor:'bg-red-100',    textColor:'text-red-800',    borderColor:'border-red-200' },
 };
 
 
-interface ActionConfirmationModalProps {
+interface NotesModalProps {
   isOpen: boolean;
   onClose: () => void;
   redemption: RedemptionAdmin | null;
   currentNotes: string;
   onNotesChange: (notes: string) => void;
   onConfirm: () => void;
-  actionToConfirm: 'paid' | 'canceled' | null;
-  isLoadingAction: boolean;
+  isLoading: boolean;
 }
 
-const ActionConfirmationModal: React.FC<ActionConfirmationModalProps> = ({
-  isOpen, onClose, redemption, currentNotes, onNotesChange, onConfirm, actionToConfirm, isLoadingAction
+const NotesModal: React.FC<NotesModalProps> = ({
+  isOpen,
+  onClose,
+  redemption,
+  currentNotes,
+  onNotesChange,
+  onConfirm,
+  isLoading,
 }) => {
-  if (!isOpen || !redemption || !actionToConfirm) return null;
-
-  const actionText = actionToConfirm === 'paid' ? 'Marcar como Pago' : 'Cancelar Resgate';
-  const confirmButtonColor = actionToConfirm === 'paid' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700';
-
+  if (!isOpen || !redemption) return null;
+  const formattedAmount = (redemption.amountCents / 100).toLocaleString(
+    redemption.currency?.toLowerCase() === 'brl' ? 'pt-BR' : 'en-US',
+    { style: 'currency', currency: (redemption.currency || 'BRL').toUpperCase() }
+  );
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
-        <h3 className="text-lg font-semibold mb-2 text-gray-800">{actionText}</h3>
-        <p className="text-sm text-gray-600 mb-1">Afiliado: <span className="font-medium">{redemption.user.name || redemption.user.email}</span></p>
-        <p className="text-sm text-gray-600 mb-4">Valor: <span className="font-medium">{redemption.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md"
+      >
+        <h3 className="text-lg font-semibold mb-2 text-gray-800">Editar Notas</h3>
+        <p className="text-sm text-gray-600 mb-1">
+          Afiliado: <span className="font-medium">{redemption.user.name || redemption.user.email}</span>
+        </p>
+        <p className="text-sm text-gray-600 mb-4">
+          Valor: <span className="font-medium">{formattedAmount}</span>
+        </p>
         <div className="mb-4">
-          <label htmlFor="adminNotes" className="block text-sm font-medium text-gray-700 mb-1">Notas Administrativas (Opcional):</label>
-          <textarea id="adminNotes" rows={3} className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-brand-pink focus:border-brand-pink" value={currentNotes} onChange={(e) => onNotesChange(e.target.value)} placeholder="Ex: Pago em DD/MM/AAAA, ID Transferência XYZ..."/>
+          <label htmlFor="adminNotes" className="block text-sm font-medium text-gray-700 mb-1">
+            Notas Administrativas (Opcional):
+          </label>
+          <textarea
+            id="adminNotes"
+            rows={3}
+            className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-brand-pink focus:border-brand-pink"
+            value={currentNotes}
+            onChange={(e) => onNotesChange(e.target.value)}
+            placeholder="Ex: Pago em DD/MM/AAAA, ID Transferência XYZ..."
+          />
         </div>
         <div className="flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors" disabled={isLoadingAction}>Cancelar</button>
-          <button onClick={onConfirm} className={`px-4 py-2 text-sm font-medium text-white ${confirmButtonColor} rounded-md transition-colors disabled:opacity-50`} disabled={isLoadingAction}>
-            {isLoadingAction ? <FaSpinner className="animate-spin inline mr-2" /> : null} Confirmar {actionText.split(' ')[0]}
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+            disabled={isLoading}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
+            disabled={isLoading}
+          >
+            {isLoading ? <FaSpinner className="animate-spin inline mr-2" /> : null} Salvar
           </button>
         </div>
       </motion.div>
@@ -103,17 +132,16 @@ export default function AdminRedemptionsPage() {
   } = useAdminList<RedemptionAdmin>({
     endpoint: '/api/admin/redemptions',
     initialParams: {
-        filters: { status: 'pending', search: '' },
+        filters: { status: 'requested', search: '' },
         sort: { sortBy: 'createdAt', order: 'desc' }
     },
     syncWithUrl: true,
   });
-  
-  const [updateStatus, setUpdateStatus] = useState<UpdateStatusState>({});
+
   const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
   const [selectedRedemptionForNotes, setSelectedRedemptionForNotes] = useState<RedemptionAdmin | null>(null);
   const [currentNotes, setCurrentNotes] = useState("");
-  const [actionToConfirm, setActionToConfirm] = useState<'paid' | 'canceled' | null>(null);
+  const [savingNotes, setSavingNotes] = useState(false);
 
   const handleSearchChange = useCallback((value: string) => {
     setPage(1); 
@@ -130,34 +158,31 @@ export default function AdminRedemptionsPage() {
     setLimit(newLimit);
   };
 
-  const openNotesModal = (redemption: RedemptionAdmin, action: 'paid' | 'canceled') => {
+  const openNotesModal = (redemption: RedemptionAdmin) => {
     setSelectedRedemptionForNotes(redemption);
     setCurrentNotes(redemption.notes || "");
-    setActionToConfirm(action);
     setIsNotesModalOpen(true);
   };
 
-  const handleUpdateStatusAndNotes = async () => {
-    if (!selectedRedemptionForNotes || !actionToConfirm) return;
+  const handleSaveNotes = async () => {
+    if (!selectedRedemptionForNotes) return;
     const redeemId = selectedRedemptionForNotes._id;
-    setUpdateStatus(prev => ({ ...prev, [redeemId]: 'loading' }));
-    
+    setSavingNotes(true);
     try {
-      const response = await fetch('/api/affiliate/redeem', {
+      const response = await fetch(`/api/admin/redemptions/${redeemId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ redeemId, newStatus: actionToConfirm, adminNotes: currentNotes }),
+        body: JSON.stringify({ notes: currentNotes }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Erro ao atualizar status');
-      
-      toast.success('Status do resgate atualizado com sucesso!');
-      reload(); // Recarrega a lista
+      if (!response.ok) throw new Error(data.error || 'Erro ao salvar notas');
+      toast.success('Notas atualizadas com sucesso!');
+      reload();
       setIsNotesModalOpen(false);
     } catch (err: any) {
-      toast.error(err.message || 'Falha ao atualizar o status.');
+      toast.error(err.message || 'Falha ao salvar notas.');
     } finally {
-        setUpdateStatus(prev => ({ ...prev, [redeemId]: 'idle' }));
+      setSavingNotes(false);
     }
   };
 
@@ -169,11 +194,11 @@ export default function AdminRedemptionsPage() {
     return ( <div className="flex justify-center items-center min-h-screen"><FaSpinner className="animate-spin w-8 h-8 text-brand-pink" /></div> );
   }
 
-  const tableCols = (filters.status === 'pending' || filters.status === 'all') ? 6 : 5;
+  const tableCols = 5;
 
   return (
     <>
-      <ActionConfirmationModal isOpen={isNotesModalOpen} onClose={() => setIsNotesModalOpen(false)} redemption={selectedRedemptionForNotes} currentNotes={currentNotes} onNotesChange={setCurrentNotes} onConfirm={handleUpdateStatusAndNotes} actionToConfirm={actionToConfirm} isLoadingAction={selectedRedemptionForNotes ? updateStatus[selectedRedemptionForNotes._id] === 'loading' : false} />
+      <NotesModal isOpen={isNotesModalOpen} onClose={() => setIsNotesModalOpen(false)} redemption={selectedRedemptionForNotes} currentNotes={currentNotes} onNotesChange={setCurrentNotes} onConfirm={handleSaveNotes} isLoading={savingNotes} />
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
             <h1 className="text-2xl font-bold text-gray-800">Gerir Resgates {data?.totalItems ? `(${data.totalItems})` : ''}</h1>
@@ -184,7 +209,7 @@ export default function AdminRedemptionsPage() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Filtrar por Status</label>
             <div className="flex flex-wrap gap-2">
-              {(['pending', 'paid', 'canceled', 'all'] as const).map((statusOption) => (
+              {(['requested', 'paid', 'rejected', 'all'] as const).map((statusOption) => (
                 <button key={statusOption} onClick={() => handleFilterChange(statusOption)} className={`px-4 py-1.5 text-sm rounded-full border transition-colors ${filters.status === statusOption ? 'bg-pink-600 text-white border-pink-600 font-semibold shadow-sm' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
                   {statusOption.charAt(0).toUpperCase() + statusOption.slice(1)}
                 </button>
@@ -211,7 +236,6 @@ export default function AdminRedemptionsPage() {
                     <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Valor</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Notas</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Status</th>
-                    {(filters.status === 'pending' || filters.status === 'all') && (<th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Ações</th>)}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -228,15 +252,19 @@ export default function AdminRedemptionsPage() {
                                 <div className="text-xs text-gray-500">{r.user?.email || 'N/A'}</div>
                             </div>
                         </div></td>
-                        <td className="px-4 py-3 text-gray-800 font-medium">{r.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                        <td className="px-4 py-3 text-gray-600 text-xs max-w-[200px] whitespace-pre-wrap">{r.notes || <span className="italic text-gray-400">N/A</span>}</td>
+                        <td className="px-4 py-3 text-gray-800 font-medium">
+                          {(r.amountCents/100).toLocaleString(
+                            r.currency?.toLowerCase() === 'brl' ? 'pt-BR' : 'en-US',
+                            { style: 'currency', currency: (r.currency || 'BRL').toUpperCase() }
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-gray-600 text-xs max-w-[200px] whitespace-pre-wrap">
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="flex-1">{r.notes || <span className="italic text-gray-400">N/A</span>}</span>
+                            <button onClick={() => openNotesModal(r)} className="text-blue-600 text-xs hover:underline">Editar</button>
+                          </div>
+                        </td>
                         <td className="px-4 py-3 whitespace-nowrap"><StatusBadge status={r.status} mappings={REDEMPTION_STATUS_MAPPINGS} /></td>
-                        {(filters.status === 'pending' || (filters.status === 'all' && r.status === 'pending')) && (
-                          <td className="px-4 py-3 whitespace-nowrap"><div className="flex gap-2">
-                            <button onClick={() => openNotesModal(r, 'paid')} disabled={updateStatus[r._id] === 'loading'} className="px-2.5 py-1 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700 disabled:opacity-50 flex items-center gap-1"><FaCheckCircle className="w-3 h-3"/>Pago</button>
-                            <button onClick={() => openNotesModal(r, 'canceled')} disabled={updateStatus[r._id] === 'loading'} className="px-2.5 py-1 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 disabled:opacity-50 flex items-center gap-1"><FaTimesCircle className="w-3 h-3"/>Cancelar</button>
-                          </div></td>
-                        )}
                       </tr>
                     ))
                   )}

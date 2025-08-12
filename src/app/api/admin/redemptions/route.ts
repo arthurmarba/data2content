@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const statusFilter = searchParams.get("status") || 'pending';
+    const statusFilter = searchParams.get("status") || 'requested';
     const searchQuery = searchParams.get("searchQuery");
     const exportType = searchParams.get("export");
 
@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
       const csvDelimiter = ';';
       const csvHeaders = [
         "ID Resgate", "Data Solicitacao", "Status", "Nome Afiliado", "Email Afiliado",
-        "Valor (BRL)", "Moeda", "Chave PIX", "Banco", "Agencia", "Conta", "Notas Admin"
+        "Valor", "Moeda", "Chave PIX", "Banco", "Agencia", "Conta", "Notas Admin"
       ];
       let csvContent = csvHeaders.join(csvDelimiter) + "\r\n";
       
@@ -131,14 +131,13 @@ export async function GET(request: NextRequest) {
           escapeCsvValue(r.status, csvDelimiter),
           escapeCsvValue(user.name || '', csvDelimiter),
           escapeCsvValue(user.email || '', csvDelimiter),
-          escapeCsvValue(r.amount.toFixed(2).replace('.', ','), csvDelimiter),
-          escapeCsvValue(r.currency, csvDelimiter), // Campo adicionado
+          escapeCsvValue((r.amountCents / 100).toFixed(2).replace('.', ','), csvDelimiter),
+          escapeCsvValue(r.currency, csvDelimiter),
           escapeCsvValue(paymentInfo.pixKey || '', csvDelimiter),
           escapeCsvValue(paymentInfo.bankName || '', csvDelimiter),
           escapeCsvValue(paymentInfo.bankAgency || '', csvDelimiter),
           escapeCsvValue(paymentInfo.bankAccount || '', csvDelimiter),
-          // <<< ALTERAÇÃO 8: Usando 'adminNotes'
-          escapeCsvValue(r.adminNotes || '', csvDelimiter)
+          escapeCsvValue(r.notes || '', csvDelimiter)
         ];
         csvContent += row.join(csvDelimiter) + "\r\n";
       });
