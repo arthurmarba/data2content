@@ -341,7 +341,7 @@ export async function fetchRedemptions(
     maxAmountCents,
     dateFrom,
     dateTo,
-    sortBy = 'requestedAt',
+    sortBy = 'createdAt',
     sortOrder = 'desc',
   } = params;
 
@@ -350,7 +350,7 @@ export async function fetchRedemptions(
 
   const query: any = {};
 
-  if (status) {
+  if (status && status !== 'all') {
     query.status = status;
   }
   if (userId) {
@@ -368,12 +368,12 @@ export async function fetchRedemptions(
     query.amountCents = { ...query.amountCents, $lte: maxAmountCents };
   }
   if (dateFrom) {
-    query.requestedAt = { ...query.requestedAt, $gte: new Date(dateFrom) };
+    query.createdAt = { ...query.createdAt, $gte: new Date(dateFrom) };
   }
   if (dateTo) {
     const endDate = new Date(dateTo);
     endDate.setHours(23, 59, 59, 999);
-    query.requestedAt = { ...query.requestedAt, $lte: endDate };
+    query.createdAt = { ...query.createdAt, $lte: endDate };
   }
 
   if (search && Types.ObjectId.isValid(search)) {
@@ -429,17 +429,18 @@ export async function fetchRedemptions(
     const totalPages = Math.ceil(totalRedemptions / limit);
 
     const redemptions: AdminRedemptionListItem[] = redemptionsData.map((doc: any) => ({
-      _id: doc._id.toString(),
-      userId: doc.userId.toString(),
-      userName: doc.userDetails?.name || 'Usuário Desconhecido',
-      userEmail: doc.userDetails?.email || 'N/A',
+      _id: String(doc._id),
+      user: {
+        _id: String(doc.userId),
+        name: doc.userDetails?.name || 'Usuário',
+        email: doc.userDetails?.email || 'N/A',
+        profilePictureUrl: doc.userDetails?.profile_picture_url,
+      },
       amountCents: doc.amountCents,
       currency: doc.currency,
       status: doc.status,
-      requestedAt: doc.requestedAt,
+      createdAt: doc.createdAt || doc.requestedAt,
       updatedAt: doc.updatedAt,
-      paymentMethod: doc.paymentMethod,
-      paymentDetails: doc.paymentDetails,
       notes: doc.notes,
     }));
 

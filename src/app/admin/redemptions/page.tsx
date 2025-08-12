@@ -187,7 +187,10 @@ export default function AdminRedemptionsPage() {
   };
 
   const handleExportCSV = () => {
-    window.open(`/api/admin/redemptions?status=${filters.status}&export=csv&searchQuery=${filters.search}`, '_blank');
+    const qs = new URLSearchParams();
+    if (filters.search) qs.set('search', filters.search);
+    if (filters.status && filters.status !== 'all') qs.set('status', filters.status);
+    window.open(`/api/admin/redemptions?${qs.toString()}&export=csv`, '_blank');
   };
 
   if (sessionStatus === 'loading') {

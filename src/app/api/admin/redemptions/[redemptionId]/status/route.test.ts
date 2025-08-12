@@ -7,6 +7,9 @@ import { AdminRedemptionUpdateStatusPayload } from '@/types/admin/redemptions';
 jest.mock('@/lib/services/adminCreatorService', () => ({
   updateRedemptionStatus: jest.fn(),
 }));
+jest.mock('@/lib/getAdminSession', () => ({
+  getAdminSession: jest.fn().mockResolvedValue({ user: { role: 'admin', name: 'Admin' } }),
+}));
 
 // Mock de getAdminSession (similar ao GET)
 
@@ -29,8 +32,8 @@ describe('API Route: PATCH /api/admin/redemptions/[redemptionId]/status', () => 
   });
 
   it('should return 200 and updated redemption on successful status update', async () => {
-    const mockRequestBody: AdminRedemptionUpdateStatusPayload = { status: 'approved' };
-    const mockUpdatedRedemption = { _id: mockRedemptionId, status: 'approved', amount: 100 };
+    const mockRequestBody: AdminRedemptionUpdateStatusPayload = { status: 'paid' };
+    const mockUpdatedRedemption = { _id: mockRedemptionId, status: 'paid', amount: 100 };
     mockUpdateRedemptionStatus.mockResolvedValueOnce(mockUpdatedRedemption);
 
     const req = await createMockRedemptionPatchRequest(mockRequestBody);
@@ -50,12 +53,12 @@ describe('API Route: PATCH /api/admin/redemptions/[redemptionId]/status', () => 
 
     expect(response.status).toBe(400);
     expect(body.error).toContain('Corpo da requisição inválido');
-    expect(body.error).toContain("status: Invalid enum value. Expected 'pending' | 'approved' | 'rejected' | 'processing' | 'paid' | 'failed' | 'cancelled'");
+    expect(body.error).toContain("status: Invalid enum value. Expected 'requested' | 'paid' | 'rejected'");
   });
 
   it('should return 404 if redemption not found by service', async () => {
     mockUpdateRedemptionStatus.mockRejectedValueOnce(new Error('Redemption not found.'));
-    const req = await createMockRedemptionPatchRequest({ status: 'approved' });
+    const req = await createMockRedemptionPatchRequest({ status: 'paid' });
     const response = await PATCH(req, { params: { redemptionId: 'nonExistentId' } });
     const body = await response.json();
 
@@ -65,7 +68,7 @@ describe('API Route: PATCH /api/admin/redemptions/[redemptionId]/status', () => 
 
   it('should return 500 if service throws an unexpected error', async () => {
     mockUpdateRedemptionStatus.mockRejectedValueOnce(new Error('Some other internal DB failure'));
-    const req = await createMockRedemptionPatchRequest({ status: 'approved' });
+    const req = await createMockRedemptionPatchRequest({ status: 'paid' });
     const response = await PATCH(req, { params: { redemptionId: mockRedemptionId } });
     const body = await response.json();
 

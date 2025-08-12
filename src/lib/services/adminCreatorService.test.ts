@@ -272,7 +272,7 @@ describe('AdminCreatorService', () => {
         expect.arrayContaining([
           expect.objectContaining({ $lookup: expect.any(Object) }),
           expect.objectContaining({ $unwind: expect.any(Object) }),
-          expect.objectContaining({ $sort: { requestedAt: -1 } }),
+          expect.objectContaining({ $sort: { createdAt: -1 } }),
           expect.objectContaining({ $skip: 0 }),
           expect.objectContaining({ $limit: 10 }),
         ])
@@ -302,13 +302,13 @@ describe('AdminCreatorService', () => {
       await fetchRedemptions(params);
 
       const firstPipeline = (mongoose.model('Redemption').aggregate as jest.Mock).mock.calls[0][0];
-      const initialMatchStage = firstPipeline.find((stage: any) => stage.$match && stage.$match.requestedAt);
+      const initialMatchStage = firstPipeline.find((stage: any) => stage.$match && stage.$match.createdAt);
 
-      expect(initialMatchStage?.$match.requestedAt.$gte).toEqual(new Date(dateFromStr));
+      expect(initialMatchStage?.$match.createdAt.$gte).toEqual(new Date(dateFromStr));
       // Service adds time to dateTo to make it end of day
       const expectedEndDate = new Date(dateToStr);
       expectedEndDate.setHours(23, 59, 59, 999);
-      expect(initialMatchStage?.$match.requestedAt.$lte).toEqual(expectedEndDate);
+      expect(initialMatchStage?.$match.createdAt.$lte).toEqual(expectedEndDate);
     });
   });
 

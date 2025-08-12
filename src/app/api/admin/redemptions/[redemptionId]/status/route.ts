@@ -16,8 +16,8 @@ function apiError(message: string, status: number): NextResponse {
 
 // Zod Schema para validar o corpo da requisição PATCH
 const bodySchema = z.object({
-  status: z.enum(['pending', 'approved', 'rejected', 'processing', 'paid', 'failed', 'cancelled'] as const),
-  adminNotes: z.string().optional(),
+  status: z.enum(['requested', 'paid', 'rejected']),
+  notes: z.string().optional(),
   transactionId: z.string().optional(),
 });
 
@@ -40,11 +40,9 @@ export async function PATCH(
 
   try {
     const session = await getAdminSession(req);
-    // <<< CORREÇÃO AQUI: A verificação agora inclui !session.user >>>
-    if (!session || !session.user) {
+    if (!session?.user || session.user.role !== 'admin') {
       return apiError('Acesso não autorizado ou privilégios insuficientes.', 401);
     }
-    // Após a verificação acima, o TypeScript sabe que session.user é seguro de usar.
     logger.info(`${TAG} Admin session validated for user: ${session.user.name}`);
 
     const body = await req.json();
