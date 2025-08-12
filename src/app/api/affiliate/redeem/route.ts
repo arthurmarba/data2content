@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     }
 
     const ip = getClientIp(req);
-    const { allowed } = await checkRateLimit(`redeem_connect:${session.user.id}:${ip}`, 2, 60);
+    const { allowed } = await checkRateLimit(`redeem_connect:${session.user.id}:${ip}`, 5, 60);
     if (!allowed) return NextResponse.json({ error: "Muitas tentativas; tente novamente." }, { status: 429 });
 
     await connectToDatabase();
@@ -32,19 +32,19 @@ export async function POST(req: NextRequest) {
     if (!user) return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
 
     const acctId = user.paymentInfo?.stripeAccountId || null;
-    const status = user.paymentInfo?.stripeAccountStatus || null;
-    if (!acctId || status !== "verified") {
-      return NextResponse.json({ error: "Conecte e verifique sua conta Stripe antes do saque." }, { status: 400 });
+    if (!acctId) {
+      return NextResponse.json({ error: "Conecte sua conta Stripe antes do saque." }, { status: 400 });
     }
-
-    // Obtemos a moeda destino direto da Stripe para garantir precisão
     const account = await stripe.accounts.retrieve(acctId);
-    const destCurrency = ((account as any).default_currency || "").toLowerCase();
+    if (!account.charges_enabled || !account.payouts_enabled) {
+      return NextResponse.json({ error: "Conta Stripe não verificada para saques." }, { status: 400 });
+    }
+    let destCurrency = (account as any).default_currency || user.paymentInfo?.stripeAccountDefaultCurrency || user.currency;
+    destCurrency = destCurrency ? destCurrency.toLowerCase() : "";
     if (!destCurrency) {
       return NextResponse.json({ error: "Moeda destino não disponível; finalize o onboarding da Stripe." }, { status: 400 });
     }
 
-    // O resgate SEMPRE é na moeda destino
     const balances: Map<string, number> = user.affiliateBalances || new Map();
     const current = balances.get(destCurrency) ?? 0;
     const min = minForCurrency(destCurrency);
@@ -52,66 +52,69 @@ export async function POST(req: NextRequest) {
     if (current < min)
       return NextResponse.json({ error: `Valor mínimo: ${(min / 100).toFixed(2)} ${destCurrency.toUpperCase()}` }, { status: 400 });
 
-    const existing = await Redemption.findOne({
-      userId: user._id,
-      currency: destCurrency,
-      status: { $in: ['requested'] },
-      requestedAt: { $gte: new Date(Date.now() - 30_000) },
-    });
-    if (existing) {
-      return NextResponse.json({ error: "Já existe um saque em andamento." }, { status: 409 });
-    }
+    const today = new Date().toISOString().slice(0,10).replace(/-/g,"");
+    const idemKey = `redeem_${session.user.id}_${current}_${today}`;
 
-    // Cria um registro de Redemption (estado 'requested') para ter trilha
-    const redemption = await Redemption.create({
-      userId: user._id,
-      currency: destCurrency,
-      amountCents: current,
-      status: "requested",
-      method: "connect",
-      notes: "Redeem via Connect",
-    });
-
-    // Transfer Stripe → conta conectada do afiliado
-    const idemKey = `redeem_${session.user.id}_${destCurrency}_${current}_${redemption._id}`;
-    const transfer = await stripe.transfers.create(
-      {
-        amount: current,
-        currency: destCurrency,
-        destination: acctId,
-        description: `Affiliate redeem ${destCurrency.toUpperCase()} ${current / 100}`,
-        metadata: {
-          redemptionId: String(redemption._id),
-          affiliateUserId: String(user._id),
+    try {
+      const transfer = await stripe.transfers.create(
+        {
+          amount: current,
+          currency: destCurrency,
+          destination: acctId,
+          description: `Affiliate redeem ${destCurrency.toUpperCase()} ${current / 100}`,
+          metadata: {
+            userId: String(user._id),
+            kind: 'affiliate_redeem',
+          },
         },
-      },
-      { idempotencyKey: idemKey }
-    );
+        { idempotencyKey: idemKey }
+      );
 
-    // Zera saldo daquela moeda e dá baixa no redemption
-    balances.set(destCurrency, 0);
-    user.markModified("affiliateBalances");
-    await user.save();
+      const redemption = await Redemption.create({
+        userId: user._id,
+        currency: destCurrency,
+        amountCents: current,
+        status: 'paid',
+        method: 'connect',
+        transferId: transfer.id,
+        notes: 'auto-transfer',
+      } as any);
 
-    redemption.status = "paid"; // Transferência criada com sucesso (saldo na conta Connect)
-    redemption.transferId = transfer.id;
-    redemption.processedAt = new Date();
-    await redemption.save();
+      const updateRes = await User.updateOne(
+        { _id: user._id, [`affiliateBalances.${destCurrency}`]: current },
+        {
+          $set: { [`affiliateBalances.${destCurrency}`]: 0 },
+          $push: {
+            commissionLog: {
+              date: new Date(),
+              description: 'affiliate redeem',
+              status: 'paid',
+              transferId: transfer.id,
+              currency: destCurrency,
+              amountCents: current,
+            },
+          },
+        }
+      );
 
-    const plainBalances = Object.fromEntries(balances.entries());
-    return NextResponse.json({
-      success: true,
-      transferId: transfer.id,
-      currency: destCurrency,
-      amountCents: current,
-      newBalances: plainBalances,
-    });
+      if (updateRes.modifiedCount !== 1) {
+        return NextResponse.json({ error: 'Saldo já resgatado.' }, { status: 409 });
+      }
+
+      return NextResponse.json({ ok: true, mode: 'auto', redemptionId: String(redemption._id), transferId: transfer.id });
+    } catch (err: any) {
+      const redemption = await Redemption.create({
+        userId: user._id,
+        currency: destCurrency,
+        amountCents: current,
+        status: 'requested',
+        method: 'connect',
+        notes: `auto-transfer failed: ${err.message}`,
+      });
+      return NextResponse.json({ ok: true, mode: 'queued', redemptionId: String(redemption._id), transferId: null });
+    }
   } catch (err: any) {
     console.error("[affiliate/redeem] error:", err);
-    const code = err?.raw?.code || err?.code;
-    if (code === 'balance_insufficient') {
-      return NextResponse.json({ error: "Saldo da plataforma insuficiente nesta moeda. Tente novamente em breve" }, { status: 400 });
-    }
     return NextResponse.json({ error: "Erro ao processar resgate." }, { status: 500 });
   }
 }

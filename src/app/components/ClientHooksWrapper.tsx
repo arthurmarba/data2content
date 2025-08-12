@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useEffect } from 'react';
 
 const AFFILIATE_REF_KEY = 'affiliateRefCode';
-const AFFILIATE_REF_EXPIRATION_DAYS = 30;
+const AFFILIATE_REF_EXPIRATION_DAYS = 90;
 const AGENCY_INVITE_KEY = 'agencyInviteCode';
 const AGENCY_INVITE_EXPIRATION_DAYS = 7;
 
@@ -21,9 +21,15 @@ export default function ClientHooksWrapper() {
         const refDataToStore = { code: refCode.trim(), expiresAt };
         try {
           localStorage.setItem(AFFILIATE_REF_KEY, JSON.stringify(refDataToStore));
-          console.log('[ClientHooksWrapper] Código de referência salvo:', refDataToStore);
         } catch (error) {
           console.error('[ClientHooksWrapper] Erro ao salvar código de referência no localStorage:', error);
+        }
+
+        try {
+          const secure = window.location.protocol === 'https:';
+          document.cookie = `d2c_ref=${encodeURIComponent(refCode.trim())}; path=/; max-age=${AFFILIATE_REF_EXPIRATION_DAYS * 24 * 60 * 60}; samesite=lax${secure ? '; secure' : ''}`;
+        } catch (err) {
+          console.error('[ClientHooksWrapper] Erro ao definir cookie de referência:', err);
         }
       }
 
