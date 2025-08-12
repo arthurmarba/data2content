@@ -473,13 +473,12 @@ export default function MainDashboard() {
     handleRedeemBalance,
     setShowPaymentModal,
     canRedeem,
-    userId
   };
 
   return (
     <>
       <Head><title>Dashboard - Data2Content</title></Head>
-      <PaymentModal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)} userId={userId} />
+      <PaymentModal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)} />
 
       <div className="min-h-screen bg-brand-light">
         {/* --- HEADER RESTAURADO --- */}

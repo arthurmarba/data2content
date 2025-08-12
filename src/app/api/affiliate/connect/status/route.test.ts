@@ -15,6 +15,8 @@ import { getServerSession } from 'next-auth/next';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import User from '@/app/models/User';
 import stripe from '@/app/lib/stripe';
+import { checkRateLimit } from '@/utils/rateLimit';
+import { getClientIp } from '@/utils/getClientIp';
 
 jest.mock('next-auth/next', () => ({
   getServerSession: jest.fn(),
@@ -38,14 +40,26 @@ jest.mock('@/app/lib/stripe', () => ({
   },
 }));
 
+jest.mock('@/utils/rateLimit', () => ({
+  checkRateLimit: jest.fn(),
+}));
+
+jest.mock('@/utils/getClientIp', () => ({
+  getClientIp: jest.fn(),
+}));
+
 const mockGetServerSession = getServerSession as jest.Mock;
 const mockConnect = connectToDatabase as jest.Mock;
 const mockFindById = User.findById as jest.Mock;
 const mockRetrieve = (stripe.accounts.retrieve as unknown) as jest.Mock;
+const mockRate = checkRateLimit as jest.Mock;
+const mockIp = getClientIp as jest.Mock;
 
 beforeEach(() => {
   jest.clearAllMocks();
   mockConnect.mockResolvedValue(undefined);
+  mockRate.mockResolvedValue({ allowed: true });
+  mockIp.mockReturnValue('127.0.0.1');
 });
 
 describe('GET /api/affiliate/connect/status', () => {

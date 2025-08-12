@@ -9,6 +9,7 @@ export interface IRedemption extends Document {
   requestedAt: Date;
   processedAt?: Date | null;
   notes?: string;
+  transferId?: string;
 }
 
 const redemptionSchema = new Schema<IRedemption>({
@@ -20,7 +21,10 @@ const redemptionSchema = new Schema<IRedemption>({
   requestedAt: { type: Date, default: Date.now },
   processedAt: { type: Date, default: null },
   notes: { type: String, default: '' },
+  transferId: { type: String, index: true },
 }, { timestamps: true });
+
+redemptionSchema.index({ userId: 1, createdAt: -1 });
 
 const Redemption: Model<IRedemption> = mongoose.models.Redemption || mongoose.model<IRedemption>('Redemption', redemptionSchema);
 export default Redemption;
