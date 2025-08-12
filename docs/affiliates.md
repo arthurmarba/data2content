@@ -17,7 +17,8 @@ This document describes the affiliate program implementation within the applicat
 
 ## Stripe Connect Onboarding
 
-- Endpoint `POST /api/affiliate/connect/create-link` creates a Connect account with `capabilities.transfers.requested=true` and `metadata.userId`.
+- Endpoint `POST /api/affiliate/connect/create` ensures the user has a Connect account (`capabilities.transfers.requested=true`, `metadata.userId`).
+- Endpoint `POST /api/affiliate/connect/link` returns an onboarding or login link depending on account status.
 - Endpoint `GET /api/affiliate/connect/status` maps the account status to:
   - `verified` – `details_submitted && charges_enabled && payouts_enabled`
   - `restricted` – `requirements.disabled_reason`
@@ -45,7 +46,7 @@ Route: `/dashboard/affiliate`
 
 Features:
 
-- **Connect to Stripe** button calling `POST /api/affiliate/connect/create-link` and redirecting to onboarding.
+- **Connect to Stripe** button calling `POST /api/affiliate/connect/create` then `POST /api/affiliate/connect/link` and redirecting to onboarding.
 - **Status badge** showing `pending`, `restricted`, `verified` or `disabled` based on `GET /api/affiliate/connect/status`.
 - **Commission log** table displaying date, amount, currency, status, `invoiceId` and `transferId`.
 - Displays `affiliateBalance` and manual payout instructions when the account is not verified.

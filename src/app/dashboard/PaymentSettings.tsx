@@ -16,9 +16,14 @@ export default function PaymentSettings() {
   const balanceCents = destCurrency ? (balances[destCurrency] ?? 0) : 0;
 
   const openStripe = useCallback(async () => {
-    const res = await fetch('/api/affiliate/connect/create-link', { method: 'POST' });
-    const data = await res.json();
-    if (data.url) window.open(data.url, '_blank');
+    try {
+      await fetch('/api/affiliate/connect/create', { method: 'POST' });
+      const res = await fetch('/api/affiliate/connect/link', { method: 'POST' });
+      const data = await res.json();
+      if (data.url) window.open(data.url, '_blank');
+    } catch (err) {
+      console.error(err);
+    }
   }, []);
 
   const handleRedeem = useCallback(async () => {
