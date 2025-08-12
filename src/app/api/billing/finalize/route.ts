@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth"; // <— TIPAGEM adicionada
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
@@ -7,6 +8,9 @@ import stripe from "@/app/lib/stripe";
 import { normCur } from "@/utils/normCur";
 
 export const runtime = "nodejs";
+
+// Tipagem local para garantir que "user.id" exista no TS
+type AppSession = Session & { user?: { id?: string | null } };
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,7 +21,11 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
 
-    const session = await getServerSession(authOptions as any);
+    // Cast explícito evita "Property 'user' does not exist on type '{}'"
+    const session = (await getServerSession(
+      authOptions as any
+    )) as AppSession | null;
+
     if (!session?.user?.id)
       return NextResponse.json(
         { error: "unauthenticated" },
@@ -64,15 +72,15 @@ export async function POST(req: NextRequest) {
       paid &&
       isFirstCycle &&
       !manualCouponUsed &&
-      !user.hasAffiliateCommissionPaid &&
-      user.affiliateUsed
+      !(user as any).hasAffiliateCommissionPaid &&
+      (user as any).affiliateUsed
     ) {
       const affUser = await User.findOne({
-        affiliateCode: user.affiliateUsed,
+        affiliateCode: (user as any).affiliateUsed,
       });
       if (affUser && String(affUser._id) !== String(user._id)) {
-        if (!affUser.affiliateBalances)
-          affUser.affiliateBalances = new Map<string, number>();
+        if (!(affUser as any).affiliateBalances)
+          (affUser as any).affiliateBalances = new Map<string, number>();
         const percent =
           Number(process.env.AFFILIATE_COMMISSION_PERCENT || 10) / 100;
         const subtotalCents =
@@ -82,9 +90,9 @@ export async function POST(req: NextRequest) {
         let status: "paid" | "fallback" | "failed" = "paid";
         let transactionId: string | null = null;
         try {
-          if (affUser.paymentInfo?.stripeAccountId) {
+          if ((affUser as any).paymentInfo?.stripeAccountId) {
             const account = await stripe.accounts.retrieve(
-              affUser.paymentInfo.stripeAccountId
+              (affUser as any).paymentInfo.stripeAccountId
             );
             const payoutsEnabled = Boolean((account as any).payouts_enabled);
             const destCurrency = normCur((account as any).default_currency);
@@ -95,13 +103,13 @@ export async function POST(req: NextRequest) {
                 {
                   amount: amountCents,
                   currency: destCurrency,
-                  destination: affUser.paymentInfo.stripeAccountId,
-                  description: `Comissão de ${user.email || user._id}`,
+                  destination: (affUser as any).paymentInfo.stripeAccountId,
+                  description: `Comissão de ${(user as any).email || user._id}`,
                   metadata: {
                     invoiceId: String(invoice.id),
                     referredUserId: String(user._id),
                     affiliateUserId: String(affUser._id),
-                    affiliateCode: affUser.affiliateCode || "",
+                    affiliateCode: (affUser as any).affiliateCode || "",
                   },
                 },
                 {
@@ -118,13 +126,13 @@ export async function POST(req: NextRequest) {
         }
 
         if (status !== "paid") {
-          const prev = affUser.affiliateBalances.get(cur) ?? 0;
-          affUser.affiliateBalances.set(cur, prev + amountCents);
-          affUser.markModified("affiliateBalances");
+          const prev = (affUser as any).affiliateBalances.get(cur) ?? 0;
+          (affUser as any).affiliateBalances.set(cur, prev + amountCents);
+          (affUser as any).markModified?.("affiliateBalances");
         }
-        (affUser.commissionLog ??= []).push({
+        ((affUser as any).commissionLog ??= []).push({
           date: new Date(),
-          description: `Comissão (1ª cobrança) de ${user.email || user._id}`,
+          description: `Comissão (1ª cobrança) de ${(user as any).email || user._id}`,
           sourcePaymentId: String(invoice.id),
           referredUserId: user._id,
           status,
@@ -132,16 +140,20 @@ export async function POST(req: NextRequest) {
           currency: cur,
           amountCents,
         });
-        (affUser.commissionPaidInvoiceIds ??= []).push(String(invoice.id));
-        affUser.affiliateInvites = (affUser.affiliateInvites || 0) + 1;
-        if (affUser.affiliateInvites % 5 === 0)
-          affUser.affiliateRank = (affUser.affiliateRank || 1) + 1;
-        await affUser.save();
+        ((affUser as any).commissionPaidInvoiceIds ??= []).push(
+          String(invoice.id)
+        );
+        (affUser as any).affiliateInvites =
+          ((affUser as any).affiliateInvites || 0) + 1;
+        if (((affUser as any).affiliateInvites as number) % 5 === 0)
+          (affUser as any).affiliateRank =
+            ((affUser as any).affiliateRank || 1) + 1;
+        await (affUser as any).save();
 
-        user.hasAffiliateCommissionPaid = true as any;
+        (user as any).hasAffiliateCommissionPaid = true;
       }
       // limpar marcação de uso do afiliado após a 1ª cobrança
-      user.affiliateUsed = null;
+      (user as any).affiliateUsed = null;
     }
 
     await user.save();
@@ -158,4 +170,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
