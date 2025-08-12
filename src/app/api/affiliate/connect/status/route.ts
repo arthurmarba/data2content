@@ -21,27 +21,31 @@ export async function GET(req: NextRequest) {
     }
 
     const accountId = user.paymentInfo?.stripeAccountId || null;
-    let status: 'verified' | 'restricted' | 'disabled' | 'pending' | null =
-      user.paymentInfo?.stripeAccountStatus || 'pending';
-    let destCurrency = user.paymentInfo?.stripeAccountDefaultCurrency || 'usd';
+    let status: 'verified' | 'pending' | 'disabled' | null =
+      user.paymentInfo?.stripeAccountStatus || null;
+    let destCurrency = user.paymentInfo?.stripeAccountDefaultCurrency || null;
 
     if (accountId) {
       try {
         const account = await stripe.accounts.retrieve(accountId);
-        destCurrency = ((account as any).default_currency || 'usd').toLowerCase();
-        let newStatus: 'verified' | 'restricted' | 'disabled' | 'pending';
-        if (account.charges_enabled && account.payouts_enabled) newStatus = 'verified';
-        else if (account.requirements?.disabled_reason) newStatus = 'restricted';
-        else if ((account as any).disabled_reason) newStatus = 'disabled';
-        else newStatus = 'pending';
-        status = newStatus;
+        destCurrency = ((account as any).default_currency || null)?.toLowerCase() || null;
+        const verified = account.charges_enabled && account.payouts_enabled;
+        status = verified ? 'verified' : 'pending';
+        if (account.requirements?.disabled_reason || (account as any).disabled_reason) {
+          status = 'disabled';
+        }
         user.paymentInfo = user.paymentInfo || {};
         user.paymentInfo.stripeAccountStatus = status;
-        user.paymentInfo.stripeAccountDefaultCurrency = destCurrency;
+        user.paymentInfo.stripeAccountDefaultCurrency = destCurrency || undefined;
         await user.save();
       } catch (err) {
         console.error("[affiliate/connect/status] retrieve error:", err);
       }
+    }
+
+    if (!accountId) {
+      status = null;
+      destCurrency = null;
     }
 
     const needsOnboarding = !accountId || status !== 'verified';
@@ -50,7 +54,6 @@ export async function GET(req: NextRequest) {
       stripeAccountId: accountId,
       stripeAccountStatus: status,
       destCurrency,
-      affiliatePayoutMode: user.affiliatePayoutMode,
       needsOnboarding,
     });
   } catch (err) {
