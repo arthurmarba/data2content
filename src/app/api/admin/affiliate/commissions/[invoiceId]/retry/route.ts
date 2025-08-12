@@ -76,7 +76,7 @@ export async function POST(req: NextRequest, { params }: { params: { invoiceId: 
     }, { idempotencyKey: `commission_${entry.sourcePaymentId}_${affUser._id}` });
 
     entry.status = 'paid';
-    entry.transferId = transfer.id;
+    entry.transactionId = transfer.id;
     affUser.commissionPaidInvoiceIds = affUser.commissionPaidInvoiceIds || [];
     if (entry.sourcePaymentId && !affUser.commissionPaidInvoiceIds.includes(entry.sourcePaymentId)) {
       affUser.commissionPaidInvoiceIds.push(entry.sourcePaymentId);
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest, { params }: { params: { invoiceId: 
     affUser.markModified('affiliateBalances');
     await affUser.save();
 
-    return NextResponse.json({ success: true, transferId: transfer.id });
+    return NextResponse.json({ success: true, transactionId: transfer.id });
   } catch (err) {
     logger.error('[admin/affiliate/commissions/retry] error', err);
     return NextResponse.json({ error: 'Erro ao reprocessar comissão' }, { status: 500 });

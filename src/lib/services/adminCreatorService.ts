@@ -441,6 +441,8 @@ export async function fetchRedemptions(
       status: doc.status,
       createdAt: doc.createdAt || doc.requestedAt,
       updatedAt: doc.updatedAt,
+      processedAt: doc.processedAt,
+      transactionId: doc.transactionId,
       notes: doc.notes,
     }));
 
@@ -470,6 +472,10 @@ export async function updateRedemptionStatus(
 
   const { status, notes, transactionId } = payload;
   const updateData: Partial<IRedemption> = { status };
+
+  if (status === 'paid' || status === 'rejected') {
+    updateData.processedAt = new Date();
+  }
 
   if (notes !== undefined) {
     updateData.notes = notes;

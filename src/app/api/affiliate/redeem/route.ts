@@ -55,6 +55,16 @@ export async function POST(req: NextRequest) {
     const today = new Date().toISOString().slice(0,10).replace(/-/g,"");
     const idemKey = `redeem_${session.user.id}_${current}_${today}`;
 
+    // Atomic-ish balance update before calling Stripe
+    const preUpdate = await User.findOneAndUpdate(
+      { _id: user._id, [`affiliateBalances.${destCurrency}`]: current },
+      { $set: { [`affiliateBalances.${destCurrency}`]: 0 } }
+    );
+
+    if (!preUpdate) {
+      return NextResponse.json({ error: 'Saldo já resgatado.' }, { status: 409 });
+    }
+
     try {
       const transfer = await stripe.transfers.create(
         {
@@ -76,20 +86,20 @@ export async function POST(req: NextRequest) {
         amountCents: current,
         status: 'paid',
         method: 'connect',
-        transferId: transfer.id,
+        transactionId: transfer.id,
+        processedAt: new Date(),
         notes: 'auto-transfer',
       } as any);
 
-      const updateRes = await User.updateOne(
-        { _id: user._id, [`affiliateBalances.${destCurrency}`]: current },
+      await User.updateOne(
+        { _id: user._id },
         {
-          $set: { [`affiliateBalances.${destCurrency}`]: 0 },
           $push: {
             commissionLog: {
               date: new Date(),
               description: 'affiliate redeem',
               status: 'paid',
-              transferId: transfer.id,
+              transactionId: transfer.id,
               currency: destCurrency,
               amountCents: current,
             },
@@ -97,11 +107,7 @@ export async function POST(req: NextRequest) {
         }
       );
 
-      if (updateRes.modifiedCount !== 1) {
-        return NextResponse.json({ error: 'Saldo já resgatado.' }, { status: 409 });
-      }
-
-      return NextResponse.json({ ok: true, mode: 'auto', redemptionId: String(redemption._id), transferId: transfer.id });
+      return NextResponse.json({ ok: true, mode: 'auto', redemptionId: String(redemption._id), transactionId: transfer.id });
     } catch (err: any) {
       const redemption = await Redemption.create({
         userId: user._id,
@@ -111,7 +117,11 @@ export async function POST(req: NextRequest) {
         method: 'connect',
         notes: `auto-transfer failed: ${err.message}`,
       });
-      return NextResponse.json({ ok: true, mode: 'queued', redemptionId: String(redemption._id), transferId: null });
+      await User.updateOne(
+        { _id: user._id },
+        { $set: { [`affiliateBalances.${destCurrency}`]: current } }
+      );
+      return NextResponse.json({ ok: true, mode: 'queued', redemptionId: String(redemption._id), transactionId: null });
     }
   } catch (err: any) {
     console.error("[affiliate/redeem] error:", err);

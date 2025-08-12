@@ -53,10 +53,10 @@ Este documento consolida a especificação, checklist e critérios de aceite par
 **Tarefas**
 - Se `destCurrency !== commission.currency` → manter `status='fallback'` (sem mexer no saldo se a comissão já está no Map).
 - Se `destCurrency === commission.currency` → criar `transfer`, setar `status='paid'`; subtrair de `affiliateBalances[cur]` (cents) e `markModified`.
-- Logar tentativa e resultado (`transferId`/`fallback`).
+- Logar tentativa e resultado (`transactionId`/`fallback`).
 
 **Critérios de Aceite**
-- Admin reprocessa com feedback claro: `{success:true, transferId}` ou `{success:true, status:'fallback'}`.
+- Admin reprocessa com feedback claro: `{success:true, transactionId}` ou `{success:true, status:'fallback'}`.
 - Saldos por moeda ajustados corretamente.
 
 ## EPIC 5 — Redeem por moeda (manual)

@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
 
     if (exportType === 'csv') {
       const delimiter = ';';
-      const headers = ['createdAt', 'name', 'email', 'amount', 'currency', 'status', 'notes'];
+      const headers = ['createdAt', 'name', 'email', 'amount', 'currency', 'status', 'transactionId', 'notes'];
       let csv = headers.join(delimiter) + '\r\n';
       redemptions.forEach(r => {
         csv += [
@@ -51,6 +51,7 @@ export async function GET(req: NextRequest) {
           (r.amountCents / 100).toFixed(2).replace('.', ','),
           r.currency,
           r.status,
+          r.transactionId || '',
           r.notes || ''
         ].map(v => escapeCsvValue(v, delimiter)).join(delimiter) + '\r\n';
       });

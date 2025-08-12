@@ -34,6 +34,8 @@ interface RedemptionAdmin {
   status: "requested" | "paid" | "rejected";
   createdAt: string;
   updatedAt: string;
+  processedAt?: string;
+  transactionId?: string;
   notes?: string;
 }
 
@@ -186,6 +188,27 @@ export default function AdminRedemptionsPage() {
     }
   };
 
+  const handleStatusChange = async (r: RedemptionAdmin, newStatus: 'paid' | 'rejected') => {
+    const payload: any = { status: newStatus };
+    if (newStatus === 'paid') {
+      const tid = window.prompt('ID da transação (opcional):')?.trim();
+      if (tid) payload.transactionId = tid;
+    }
+    try {
+      const res = await fetch(`/api/admin/redemptions/${r._id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao atualizar status');
+      toast.success('Status atualizado!');
+      reload();
+    } catch (err: any) {
+      toast.error(err.message || 'Falha ao atualizar status');
+    }
+  };
+
   const handleExportCSV = () => {
     const qs = new URLSearchParams();
     if (filters.search) qs.set('search', filters.search);
@@ -197,7 +220,7 @@ export default function AdminRedemptionsPage() {
     return ( <div className="flex justify-center items-center min-h-screen"><FaSpinner className="animate-spin w-8 h-8 text-brand-pink" /></div> );
   }
 
-  const tableCols = 5;
+  const tableCols = 6;
 
   return (
     <>
@@ -237,8 +260,9 @@ export default function AdminRedemptionsPage() {
                     <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Data</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Afiliado</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Valor</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Notas</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Status</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Transação</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Notas</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase text-xs">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -261,13 +285,25 @@ export default function AdminRedemptionsPage() {
                             { style: 'currency', currency: (r.currency || 'BRL').toUpperCase() }
                           )}
                         </td>
-                        <td className="px-4 py-3 text-gray-600 text-xs max-w-[200px] whitespace-pre-wrap">
+                        <td className="px-4 py-3 text-xs text-gray-700 whitespace-nowrap" title={r.transactionId || ''}>{r.transactionId || '—'}</td>
+                        <td className="px-4 py-3 text-gray-600 text-xs max-w-[200px]">
                           <div className="flex items-start justify-between gap-2">
-                            <span className="flex-1">{r.notes || <span className="italic text-gray-400">N/A</span>}</span>
+                            <span className="flex-1 truncate" title={r.notes || ''}>{r.notes || <span className="italic text-gray-400">N/A</span>}</span>
                             <button onClick={() => openNotesModal(r)} className="text-blue-600 text-xs hover:underline">Editar</button>
                           </div>
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap"><StatusBadge status={r.status} mappings={REDEMPTION_STATUS_MAPPINGS} /></td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <StatusBadge status={r.status} mappings={REDEMPTION_STATUS_MAPPINGS} />
+                          {['paid','rejected'].includes(r.status) && r.processedAt && (
+                            <div className="text-xs text-gray-500">{new Date(r.processedAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</div>
+                          )}
+                          {r.status === 'requested' && (
+                            <div className="mt-1 flex gap-2">
+                              <button onClick={() => handleStatusChange(r, 'paid')} className="text-green-600 text-xs hover:underline">Marcar como pago</button>
+                              <button onClick={() => handleStatusChange(r, 'rejected')} className="text-red-600 text-xs hover:underline">Rejeitar</button>
+                            </div>
+                          )}
+                        </td>
                       </tr>
                     ))
                   )}

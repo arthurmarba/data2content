@@ -5,7 +5,7 @@ jest.mock('next-auth/next', () => ({ getServerSession: jest.fn() }));
 jest.mock('@/app/api/auth/[...nextauth]/route', () => ({ authOptions: {} }));
 jest.mock('@/app/lib/mongoose', () => ({ connectToDatabase: jest.fn() }));
 jest.mock('@/utils/rateLimit', () => ({ checkRateLimit: jest.fn() }));
-jest.mock('@/app/models/User', () => ({ findById: jest.fn(), updateOne: jest.fn() }));
+jest.mock('@/app/models/User', () => ({ findById: jest.fn(), updateOne: jest.fn(), findOneAndUpdate: jest.fn() }));
 jest.mock('@/app/models/Redemption', () => ({ create: jest.fn() }));
 jest.mock('@/app/lib/stripe', () => ({
   accounts: { retrieve: jest.fn() },
@@ -36,7 +36,8 @@ describe('POST /api/affiliate/redeem', () => {
       affiliateBalances: new Map([['brl', 2000]]),
       paymentInfo: { stripeAccountId: 'acct1' },
     });
-    User.updateOne.mockResolvedValue({ modifiedCount: 1 });
+    User.findOneAndUpdate.mockResolvedValue({});
+    User.updateOne.mockResolvedValue({});
     Redemption.create.mockImplementation(async (data: any) => ({ _id: 'red1', ...data }));
     stripe.accounts.retrieve.mockResolvedValue({ default_currency: 'brl', charges_enabled: true, payouts_enabled: true });
     stripe.transfers.create.mockResolvedValue({ id: 'tr_1' });

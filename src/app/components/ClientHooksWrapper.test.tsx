@@ -16,11 +16,10 @@ describe('ClientHooksWrapper', () => {
     localStorage.clear();
   });
 
-  it('sets cookie when ref param is present', () => {
-    (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams('ref=ABCD12'));
+  it('stores agency invite code when codigo_agencia param is present', () => {
+    (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams('codigo_agencia=XYZ123'));
     render(<ClientHooksWrapper />);
-    expect(document.cookie).toContain('d2c_ref=ABCD12');
-    expect(localStorage.getItem('affiliateRefCode')).toBeTruthy();
+    expect(localStorage.getItem('agencyInviteCode')).toBeTruthy();
   });
 });
 

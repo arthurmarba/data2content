@@ -53,8 +53,8 @@ export async function POST(req: NextRequest) {
 
       case "transfer.reversed": {
         const transfer = event.data.object as any;
-        const transferId = transfer.id as string;
-        const redemption = await Redemption.findOne({ transferId });
+        const transactionId = transfer.id as string;
+        const redemption = await Redemption.findOne({ transactionId });
         if (redemption) {
           const user = await User.findById(redemption.userId);
           if (user) {
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
             await user.save();
           }
           redemption.status = "rejected";
-          redemption.notes = `Reversed by Stripe: ${transferId}`;
+          redemption.notes = `Reversed by Stripe: ${transactionId}`;
           await redemption.save();
         }
         break;
@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
               const amountCents = Math.round((invoice.amount_paid ?? 0) * percent);
               const cur = normCur((invoice as any).currency);
               let status: 'paid' | 'failed' | 'fallback' = 'paid';
-              let transferId: string | null = null;
+              let transactionId: string | null = null;
 
               if (affUser.paymentInfo?.stripeAccountId && affUser.affiliatePayoutMode === 'connect') {
                 try {
@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
                         affiliateCode: affUser.affiliateCode || ''
                       },
                     }, { idempotencyKey: `commission_${invoice.id}_${affUser._id}` });
-                    transferId = transfer.id;
+                    transactionId = transfer.id;
                   }
                 } catch (err) {
                   logger.error('[stripe/webhook] transfer error:', { err, currency: (invoice as any).currency, amountCents });
@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
                 sourcePaymentId: String(invoice.id),
                 referredUserId: user._id,
                 status,
-                transferId,
+                transactionId,
                 currency: cur,
                 amountCents,
               });

@@ -15,7 +15,9 @@ export interface AdminRedemptionListItem {
   status: RedemptionStatus;
   createdAt: Date | string;
   updatedAt?: Date | string;
+  processedAt?: Date | string;
   notes?: string;
+  transactionId?: string;
 }
 
 // Interface para os parâmetros de query da API de listagem de resgates
