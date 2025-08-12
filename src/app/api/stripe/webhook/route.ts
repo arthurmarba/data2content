@@ -74,6 +74,7 @@ export async function POST(req: NextRequest) {
       case "invoice.payment_succeeded": {
         const invoice = event.data.object as Stripe.Invoice;
         const reason = invoice.billing_reason ?? '';
+        // somente a PRIMEIRA fatura de assinatura
         if (reason !== 'subscription_create' || !invoice.amount_paid || invoice.amount_paid <= 0) break;
         const subId = typeof invoice.subscription === "string" ? invoice.subscription : invoice.subscription?.id;
         const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
@@ -97,19 +98,26 @@ export async function POST(req: NextRequest) {
         if (periodEnd) user.planExpiresAt = periodEnd;
         if (subId) user.stripeSubscriptionId = subId;
 
-        // Comissão somente na 1ª cobrança da assinatura
-        if (user.affiliateUsed) {
+        // Comissão somente na 1ª cobrança da vida do cliente + sem cupom manual
+        // Detectar cupom manual vs. cupom interno de afiliado
+        const anyInv: any = invoice as any;
+        const couponId: string | null = anyInv?.discount?.coupon?.id || null;
+        const AFF_BRL = process.env.STRIPE_COUPON_AFFILIATE10_ONCE_BRL;
+        const AFF_USD = process.env.STRIPE_COUPON_AFFILIATE10_ONCE_USD;
+        const isAffiliateCoupon = couponId && (couponId === AFF_BRL || couponId === AFF_USD);
+        const manualCouponUsed = Boolean(couponId && !isAffiliateCoupon);
+
+        if (!user.hasAffiliateCommissionPaid && !manualCouponUsed && user.affiliateUsed) {
           const affUser = await User.findOne({ affiliateCode: user.affiliateUsed });
           if (affUser) {
             if (!affUser.affiliateBalances) {
               affUser.affiliateBalances = new Map<string, number>();
             }
-            const alreadyPaidForThisReferral = (affUser.commissionLog || []).some(
-              (e) => String(e.referredUserId) === String(user._id) && e.status === 'paid'
-            );
-            if (!alreadyPaidForThisReferral && !affUser.commissionPaidInvoiceIds?.includes(String(invoice.id))) {
+            // Evitar repetir comissão para este cliente (mesmo com outro afiliado no futuro)
+            if (!affUser.commissionPaidInvoiceIds?.includes(String(invoice.id))) {
               const percent = Number(process.env.AFFILIATE_COMMISSION_PERCENT || 10) / 100;
-              const amountCents = Math.round((invoice.amount_paid ?? 0) * percent);
+              const subtotalCents = (anyInv?.amount_subtotal ?? invoice.amount_paid ?? 0);
+              const amountCents = Math.round(subtotalCents * percent);
               const cur = normCur((invoice as any).currency);
               let status: 'paid' | 'failed' | 'fallback' = 'paid';
               let transactionId: string | null = null;
@@ -118,7 +126,8 @@ export async function POST(req: NextRequest) {
                 try {
                   const account = await stripe.accounts.retrieve(affUser.paymentInfo.stripeAccountId);
                   const destCurrency = normCur((account as any).default_currency);
-                  if (destCurrency !== cur) {
+                  const payoutsEnabled = Boolean((account as any).payouts_enabled);
+                  if (!payoutsEnabled || destCurrency !== cur) {
                     status = 'fallback';
                     const prev = affUser.affiliateBalances?.get(cur) ?? 0;
                     affUser.affiliateBalances?.set(cur, prev + amountCents);
@@ -170,6 +179,9 @@ export async function POST(req: NextRequest) {
                 affUser.affiliateRank = (affUser.affiliateRank || 1) + 1;
               }
               await affUser.save();
+
+              // marcar no usuário indicado que a comissão já foi paga (evita comissões com outros afiliados no futuro)
+              user.hasAffiliateCommissionPaid = true as any; // campo adicionado no modelo
             }
           }
         }
@@ -237,6 +249,51 @@ export async function POST(req: NextRequest) {
         user.planStatus = "inactive";
         user.planExpiresAt = null;
         await user.save();
+        break;
+      }
+
+      case "charge.refunded":
+      case "charge.dispute.funds_withdrawn":
+      case "charge.dispute.closed": {
+        // Clawback até 7 dias
+        const charge: any = event.data.object as any;
+        const invoiceId: string | undefined = typeof charge.invoice === 'string' ? charge.invoice : undefined;
+        if (!invoiceId) break;
+
+        // encontrar afiliado que recebeu a comissão desta invoice
+        const affUser = await User.findOne({ 'commissionLog.sourcePaymentId': invoiceId });
+        if (!affUser) break;
+        const entry = (affUser.commissionLog || []).find((e: any) => e.sourcePaymentId === invoiceId && (e.status === 'paid' || e.status === 'fallback' || e.status === 'failed'));
+        if (!entry) break;
+
+        const createdAt = new Date(entry.date).getTime();
+        const within7d = (Date.now() - createdAt) <= 7*24*60*60*1000;
+        if (!within7d) break;
+
+        const cur = String(entry.currency || 'brl').toLowerCase();
+        try {
+          if (entry.status === 'paid' && entry.transactionId) {
+            await stripe.transfers.createReversal(entry.transactionId, { amount: entry.amountCents });
+          } else {
+            // held/failed -> apenas ajustar ledger
+          }
+        } catch (e) {
+          // se não conseguir reverter, cai para ajuste de ledger negativo
+        }
+
+        const prev = affUser.affiliateBalances?.get(cur) ?? 0;
+        affUser.affiliateBalances?.set(cur, prev - entry.amountCents);
+        affUser.markModified('affiliateBalances');
+        affUser.commissionLog.push({
+          date: new Date(),
+          description: `Clawback comissão invoice ${invoiceId}`,
+          sourcePaymentId: invoiceId,
+          status: 'accrued', // marca de ajuste no log (usando novo status)
+          transactionId: null,
+          currency: cur,
+          amountCents: -entry.amountCents,
+        });
+        await affUser.save();
         break;
       }
 

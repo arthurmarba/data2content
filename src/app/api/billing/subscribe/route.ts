@@ -7,6 +7,7 @@ import stripe from "@/app/lib/stripe";
 import Stripe from "stripe";
 import { checkRateLimit } from "@/utils/rateLimit";
 import { cancelBlockingIncompleteSubs } from "@/utils/stripeHelpers";
+import { resolveAffiliateCode } from "@/app/lib/affiliate";
 
 export const runtime = "nodejs";
 
@@ -36,7 +37,10 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const plan: Plan = body.plan;
     const currency = String(body.currency || "").toUpperCase() as Currency;
-    let affiliateCode: string | undefined = body.affiliateCode;
+    const manualCoupon: string | undefined = body.manualCoupon?.trim() || undefined;
+    // prioridade: digitado > URL (?ref|?aff) > cookie (90 dias)
+    const { code: resolvedCode, source } = resolveAffiliateCode(req, body.affiliateCode);
+    let affiliateCode: string | undefined = resolvedCode || undefined;
     let affiliateValid = false;
 
     if (!plan || (currency !== "BRL" && currency !== "USD")) {
@@ -98,14 +102,19 @@ export async function POST(req: NextRequest) {
         expand: ["latest_invoice.payment_intent"],
       });
     } else {
-      // trata affiliateCode: só registra e envia em metadata (sem aplicar desconto automático)
+      // Afiliado: validar (bloquear self-referral) e preparar desconto interno (sem stacking com cupom manual)
+      let affiliateUserId: string | undefined;
       if (affiliateCode) {
         affiliateCode = affiliateCode.toUpperCase();
-        if (affiliateCode !== user.affiliateCode) {
-          const owner = await User.findOne({ affiliateCode }).select("_id");
-          if (owner) {
-            user.affiliateUsed = affiliateCode;
-            affiliateValid = true;
+        const owner = await User.findOne({ affiliateCode }).select("_id affiliateCode");
+        if (owner) {
+          if (String(owner._id) === String(user._id)) {
+            return NextResponse.json({ error: "Você não pode usar seu próprio código." }, { status: 400 });
+          }
+          affiliateValid = !manualCoupon; // somente se NÃO houver cupom manual
+          if (affiliateValid) {
+            affiliateUserId = String(owner._id);
+            user.affiliateUsed = owner.affiliateCode; // usado pelo webhook
           }
         }
       }
@@ -114,8 +123,10 @@ export async function POST(req: NextRequest) {
         userId: String(user._id),
         plan,
       };
-      if (affiliateValid && affiliateCode) {
+      if (affiliateValid && affiliateCode && affiliateUserId) {
         metadata.affiliateCode = affiliateCode;
+        metadata.affiliate_user_id = affiliateUserId;
+        if (source) metadata.attribution_source = source;
       }
 
       const createParams: Stripe.SubscriptionCreateParams = {
@@ -124,7 +135,15 @@ export async function POST(req: NextRequest) {
         payment_behavior: "default_incomplete",
         expand: ["latest_invoice.payment_intent"],
         metadata,
-        // NÃO enviar discounts/allow_promotion_codes aqui.
+        // Desconto de afiliado (10% once) SEM cumulatividade com cupom manual
+        discounts: manualCoupon
+          ? [{ coupon: manualCoupon }]
+          : (affiliateValid
+              ? [{ coupon: currency === "BRL"
+                    ? (process.env.STRIPE_COUPON_AFFILIATE10_ONCE_BRL as string)
+                    : (process.env.STRIPE_COUPON_AFFILIATE10_ONCE_USD as string)
+                 }]
+              : undefined),
       };
 
       sub = await stripe.subscriptions.create(createParams);
@@ -139,7 +158,12 @@ export async function POST(req: NextRequest) {
     await user.save();
 
     const clientSecret = (sub.latest_invoice as any)?.payment_intent?.client_secret;
-    return NextResponse.json({ clientSecret, subscriptionId: sub.id });
+    return NextResponse.json({
+      clientSecret,
+      subscriptionId: sub.id,
+      affiliateApplied: Boolean(affiliateValid),
+      usedCouponType: manualCoupon ? 'manual' : (affiliateValid ? 'affiliate' : null)
+    });
   } catch (err: any) {
     console.error("[billing/subscribe] error:", err);
     return NextResponse.json(
