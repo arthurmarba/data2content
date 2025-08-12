@@ -30,6 +30,7 @@ declare module "next-auth" {
 
       stripeAccountStatus?: 'pending' | 'verified' | 'disabled' | null;
       stripeAccountDefaultCurrency?: string | null;
+      payoutsEnabled?: boolean | null;
 
       // Campos do Instagram que o frontend (InstagramConnectCard) espera:
       instagramConnected?: boolean;
@@ -72,6 +73,7 @@ declare module "next-auth" {
 
     stripeAccountStatus?: 'pending' | 'verified' | 'disabled' | null;
     stripeAccountDefaultCurrency?: string | null;
+    payoutsEnabled?: boolean | null;
     
     // Campos do Instagram como vêm do DB ou são processados antes do JWT
     isInstagramConnected?: boolean | null;
@@ -116,6 +118,7 @@ declare module "next-auth/jwt" {
 
     stripeAccountStatus?: 'pending' | 'verified' | 'disabled' | null;
     stripeAccountDefaultCurrency?: string | null;
+    payoutsEnabled?: boolean | null;
     
     // picture pode ser usado por NextAuth, image é mais comum
     image?: string | null;
