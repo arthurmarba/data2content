@@ -169,10 +169,10 @@ export default function AdminRedemptionsPage() {
     const redeemId = selectedRedemptionForNotes._id;
     setSavingNotes(true);
     try {
-      const response = await fetch(`/api/admin/redemptions/${redeemId}`, {
+      const response = await fetch(`/api/admin/redemptions/${redeemId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notes: currentNotes }),
+        body: JSON.stringify({ status: selectedRedemptionForNotes.status, notes: currentNotes }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Erro ao salvar notas');

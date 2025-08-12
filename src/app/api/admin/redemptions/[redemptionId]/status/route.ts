@@ -17,7 +17,7 @@ function apiError(message: string, status: number): NextResponse {
 // Zod Schema para validar o corpo da requisição PATCH
 const bodySchema = z.object({
   status: z.enum(['requested', 'paid', 'rejected']),
-  notes: z.string().optional(),
+  notes: z.string().max(1000).optional(),
   transactionId: z.string().optional(),
 });
 
