@@ -66,6 +66,20 @@ describe('POST /api/affiliate/redeem', () => {
     expect(res.status).toBe(400);
   });
 
+  it('blocks when user has debt in currency', async () => {
+    User.findById.mockResolvedValueOnce({
+      _id: 'u1',
+      currency: 'brl',
+      affiliateBalances: new Map([['brl', 2000]]),
+      affiliateDebtByCurrency: new Map([['brl', 500]]),
+      paymentInfo: { stripeAccountId: 'acct1' },
+    });
+    const res = await POST(mockRequest());
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/dívida/);
+  });
+
   it('returns ok true on success', async () => {
     const res = await POST(mockRequest());
     const body = await res.json();

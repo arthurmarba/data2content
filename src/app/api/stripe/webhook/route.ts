@@ -12,6 +12,10 @@ import {
 } from "@/app/services/affiliate/idempotency";
 import { calcCommissionCents } from "@/app/services/affiliate/calcCommissionCents";
 import { AFFILIATE_HOLD_DAYS, AFFILIATE_PAYOUT_MODE } from "@/config/affiliates";
+import {
+  processAffiliateRefund,
+  getRefundedPaidTotal,
+} from "@/app/services/affiliate/refundCommission";
 import type { Stripe as StripeTypes } from "stripe";
 
 export const runtime = "nodejs";
@@ -315,45 +319,20 @@ export async function POST(req: NextRequest) {
         break;
       }
 
+      case "invoice.payment_refunded": {
+        const invoice = event.data.object as any;
+        const total = getRefundedPaidTotal(invoice);
+        await processAffiliateRefund(invoice.id, total);
+        break;
+      }
+
       case "charge.refunded": {
         const charge = event.data.object as any;
-        const customerId =
-          typeof charge.customer === "string" ? charge.customer : charge.customer?.id;
-        if (!customerId) break;
-
-        const buyer = await User.findOne({ stripeCustomerId: customerId });
-        if (!buyer) break;
-
-        const owner = await User.findOne({
-          affiliateCode: (buyer as any).affiliateUsed || "__none__",
-        });
-        if (!owner) break;
-
-        const invId = typeof charge.invoice === "string" ? charge.invoice : charge.invoice?.id;
-
-        const idx = (owner.commissionLog || []).findIndex((i: any) => {
-          if (invId) {
-            return (
-              i.invoiceId === invId &&
-              (i.status === "pending" || i.status === "available")
-            );
-          }
-          return (
-            String(i.buyerUserId || "") === String(buyer._id) &&
-            (i.status === "pending" || i.status === "available")
-          );
-        });
-
-        if (idx >= 0) {
-          const e = (owner as any).commissionLog[idx];
-          if (e.status === "available") {
-            adjustBalance(owner, e.currency, -Math.abs(Number(e.amountCents || 0)));
-          }
-          e.status = "reversed";
-          e.reversedAt = new Date();
-          e.reversalReason = "charge.refunded";
-          await owner.save();
-        }
+        const invId =
+          typeof charge.invoice === "string" ? charge.invoice : charge.invoice?.id;
+        if (!invId) break;
+        const total = getRefundedPaidTotal(charge);
+        await processAffiliateRefund(invId, total);
         break;
       }
 

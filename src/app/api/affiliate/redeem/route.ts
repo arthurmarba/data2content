@@ -52,6 +52,16 @@ export async function POST(req: NextRequest) {
 
     const balances: Map<string, number> = user.affiliateBalances || new Map();
     const current = balances.get(destCurrency) ?? 0;
+    const debtMap: Map<string, number> = user.affiliateDebtByCurrency || new Map();
+    const debt = debtMap.get(destCurrency) ?? 0;
+    if (debt > 0) {
+      return NextResponse.json(
+        {
+          error: `Você possui uma dívida de ${(debt / 100).toFixed(2)} ${destCurrency.toUpperCase()} devido a reembolsos. Seus próximos ganhos compensarão automaticamente; tente novamente quando a dívida for quitada.`,
+        },
+        { status: 400 }
+      );
+    }
     const min = minForCurrency(destCurrency);
 
     if (current <= 0) return NextResponse.json({ error: "Sem saldo disponível." }, { status: 400 });

@@ -536,6 +536,12 @@ userSchema.index(
   { name: 'idx_commission_pending_due' }
 );
 
+// Índice auxiliar para consultas de dívida por moeda
+userSchema.index(
+  { 'affiliateDebtByCurrency.brl': 1, 'affiliateDebtByCurrency.usd': 1 },
+  { name: 'idx_affiliate_debt_by_currency' }
+);
+
 userSchema.pre<IUser>("save", function (next) {
   const TAG_PRE_SAVE = '[User.ts pre-save v1.9.20]';
   if (this.isNew && !this.affiliateCode) {
