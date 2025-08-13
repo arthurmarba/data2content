@@ -40,24 +40,24 @@ export async function DELETE(req: NextRequest) {
     }
 
     // 🔒 Gate 1: status do NOSSO banco controla o bloqueio.
-    const blockedStatuses = new Set(["active", "trial"]);
+    // RECOMENDAÇÃO: Adicionado 'pending' e 'past_due' para máxima segurança.
+    const blockedStatuses = new Set(["active", "trial", "past_due", "pending"]);
     const dbBlocked = blockedStatuses.has((user.planStatus as any) || "");
     if (dbBlocked) {
-      logger.warn("[account.delete] blocked due to active/trial (DB)", {
+      logger.warn("[account.delete] blocked due to active subscription status (DB)", {
         userId: user._id,
         planStatus: user.planStatus,
       });
       return NextResponse.json(
         {
           error: "ERR_ACTIVE_SUBSCRIPTION",
-          message: "Cancele sua assinatura antes de excluir a conta.",
+          message: "Cancele sua assinatura ativa ou pendente antes de excluir a conta.",
         },
         { status: 409 }
       );
     }
 
     // 🔧 Stripe (opcional): se houver customer, SEMPRE limpamos pendências.
-    // 📌 Mas SÓ bloqueamos por Stripe se o DB JÁ bloquearia (dbBlocked === true).
     if (user.stripeCustomerId) {
       const customerId = user.stripeCustomerId;
 
@@ -84,9 +84,6 @@ export async function DELETE(req: NextRequest) {
               cancel_at_period_end: s.cancel_at_period_end,
             })),
           });
-
-          // ⚠️ Importante: NÃO bloqueamos aqui porque dbBlocked === false.
-          // Apenas deixamos logado para auditoria.
         }
       } catch (e) {
         logger.error(
@@ -146,7 +143,7 @@ export async function DELETE(req: NextRequest) {
       }
     }
 
-    // TODO: limpar coleções relacionadas (métricas, webhooks, etc.) se necessário
+    // Efetiva a exclusão (hard delete)
     await User.deleteOne({ _id: user._id });
 
     logger.info("[account.delete] user deleted", { userId: user._id });

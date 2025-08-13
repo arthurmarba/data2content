@@ -4,6 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import stripe from "@/app/lib/stripe";
+import { Stripe } from "stripe";
 
 export const runtime = "nodejs";
 
@@ -20,14 +21,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
     }
 
-    if (user.planStatus === "non_renewing") {
+    // VERIFICAÇÃO DE IDEMPOTÊNCIA: Se a assinatura já foi cancelada, retorna sucesso.
+    if (user.planStatus === "canceled") {
       return NextResponse.json({
         message:
-          "Renovação cancelada. Seu acesso permanece até o fim do período já pago.",
+          "Sua assinatura já foi cancelada. O acesso permanece até o fim do período pago.",
       });
     }
 
     let subscriptionId = user.stripeSubscriptionId;
+    
+    // LÓGICA DE AUTO-CORREÇÃO: Se não houver ID da assinatura no DB, busca no Stripe.
     if (!subscriptionId && user.stripeCustomerId) {
       const subs = await stripe.subscriptions.list({
         customer: user.stripeCustomerId,
@@ -36,19 +40,23 @@ export async function POST(req: NextRequest) {
       });
       subscriptionId = subs.data[0]?.id;
     }
+
     if (!subscriptionId) {
       return NextResponse.json({ error: "Assinatura Stripe não encontrada" }, { status: 404 });
     }
 
+    // CANCELAMENTO NO STRIPE: Agenda o cancelamento para o final do período.
     const sub = await stripe.subscriptions.update(subscriptionId, {
       cancel_at_period_end: true,
     });
 
+    // ATUALIZAÇÃO NO BANCO DE DADOS
     await User.updateOne(
       { _id: user._id },
       {
         $set: {
-          planStatus: "non_renewing",
+          // MUDANÇA: Padronizado para 'canceled' para consistência.
+          planStatus: "canceled", 
           planInterval:
             sub.items.data[0]?.price.recurring?.interval ?? user.planInterval,
           planExpiresAt: sub.current_period_end
@@ -56,6 +64,7 @@ export async function POST(req: NextRequest) {
             : user.planExpiresAt,
           stripeSubscriptionId: sub.id,
         },
+        // LIMPEZA: Remove erros de pagamento antigos, pois não são mais relevantes.
         $unset: { lastPaymentError: 1 },
       }
     );
@@ -66,7 +75,12 @@ export async function POST(req: NextRequest) {
     });
   } catch (err: any) {
     console.error("[billing/cancel] error:", err);
-    return NextResponse.json({ error: err?.message || "Erro ao cancelar renovação" }, { status: 500 });
+
+    // MELHORIA: Tratamento de erro específico do Stripe para mensagens mais claras.
+    if (err instanceof Stripe.errors.StripeError) {
+      return NextResponse.json({ error: err.message }, { status: err.statusCode || 500 });
+    }
+
+    return NextResponse.json({ error: "Ocorreu um erro inesperado ao cancelar a renovação." }, { status: 500 });
   }
 }
-
