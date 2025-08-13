@@ -3,20 +3,22 @@ import type { NextRequest } from "next/server";
 import { guardPremiumRequest } from "@/app/lib/planGuard";
 
 const AFFILIATE_COOKIE_NAME = "d2c_ref";
+const AFFILIATE_CODE_REGEX = /^[A-Z0-9_-]{3,32}$/i;
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
 
-  const refCode =
+  const rawRef =
     req.nextUrl.searchParams.get("ref") ||
     req.nextUrl.searchParams.get("aff") ||
-    req.nextUrl.searchParams.get("r");
+    "";
+  const refCode = rawRef && AFFILIATE_CODE_REGEX.test(rawRef) ? rawRef.toUpperCase() : "";
 
   const setAffiliateCookie = (response: NextResponse) => {
     if (refCode) {
       response.cookies.set(AFFILIATE_COOKIE_NAME, refCode, {
         path: "/",
-        httpOnly: false, // para fallback no client
+        httpOnly: false, // permite leitura no client para autofill
         sameSite: "lax",
         secure: process.env.NODE_ENV === "production",
         maxAge: Number(process.env.AFFILIATE_ATTRIBUTION_WINDOW_DAYS || 90) * 24 * 60 * 60,
