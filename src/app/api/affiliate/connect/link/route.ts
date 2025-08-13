@@ -6,6 +6,7 @@ import User from "@/app/models/User";
 import stripe from "@/app/lib/stripe";
 import { checkRateLimit } from "@/utils/rateLimit";
 import { getClientIp } from "@/utils/getClientIp";
+import { logger } from "@/app/lib/logger";
 
 export const runtime = "nodejs";
 
@@ -77,6 +78,11 @@ export async function POST(req: NextRequest) {
 
     if (verified) {
       const ll = await stripe.accounts.createLoginLink(accountId!);
+      logger.info("[connect:link]", {
+        userId: user._id,
+        accountId,
+        type: "login",
+      });
       return NextResponse.json({ url: ll.url, kind: "login" });
     }
 
@@ -93,7 +99,11 @@ export async function POST(req: NextRequest) {
       return_url: returnUrl,
       type: "account_onboarding",
     });
-
+    logger.info("[connect:link]", {
+      userId: user._id,
+      accountId,
+      type: "onboarding",
+    });
     return NextResponse.json({ url: link.url, kind: "onboarding" });
   } catch (err) {
     console.error("[affiliate/connect/link] error:", err);

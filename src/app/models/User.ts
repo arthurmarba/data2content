@@ -291,6 +291,14 @@ export interface IUser extends Document {
     stripeAccountId?: string | null;
     stripeAccountStatus?: 'pending' | 'verified' | 'disabled';
     stripeAccountDefaultCurrency?: string;
+    stripeAccountPayoutsEnabled?: boolean;
+    stripeAccountChargesEnabled?: boolean;
+    stripeAccountDisabledReason?: string | null;
+    stripeAccountCapabilities?: {
+      card_payments?: 'active' | 'pending' | 'inactive';
+      transfers?: 'active' | 'pending' | 'inactive';
+    };
+    stripeAccountNeedsOnboarding?: boolean;
   };
   affiliatePayoutMode?: 'connect' | 'manual';
   commissionPaidInvoiceIds?: string[];
@@ -502,6 +510,11 @@ const userSchema = new Schema<IUser>(
       stripeAccountId: { type: String, default: null },
       stripeAccountStatus: { type: String, enum: ['pending', 'verified', 'disabled'], default: undefined },
       stripeAccountDefaultCurrency: { type: String, default: undefined },
+      stripeAccountPayoutsEnabled: { type: Boolean, default: undefined },
+      stripeAccountChargesEnabled: { type: Boolean, default: undefined },
+      stripeAccountDisabledReason: { type: String, default: undefined },
+      stripeAccountCapabilities: { type: Map, of: String, default: {} },
+      stripeAccountNeedsOnboarding: { type: Boolean, default: undefined },
     },
 
     lastPaymentError: {
