@@ -7,6 +7,7 @@ import Redemption from "@/app/models/Redemption";
 import stripe from "@/app/lib/stripe";
 import { checkRateLimit } from "@/utils/rateLimit";
 import { getClientIp } from "@/utils/getClientIp";
+import { buildRedeemIdempotencyKey } from "@/app/services/affiliate/buildRedeemIdempotencyKey";
 
 export const runtime = "nodejs";
 
@@ -72,8 +73,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const today = new Date().toISOString().slice(0,10).replace(/-/g,"");
-    const idemKey = `redeem_${session.user.id}_${current}_${today}`;
+    const idemKey = buildRedeemIdempotencyKey(session.user.id, current);
 
     // Tenta "reservar" o saldo antes de chamar a Stripe
     const preUpdate = await User.findOneAndUpdate(
