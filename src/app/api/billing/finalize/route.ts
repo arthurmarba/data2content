@@ -6,6 +6,11 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import stripe from "@/app/lib/stripe";
 import { normCur } from "@/utils/normCur";
+import { logger } from "@/app/lib/logger";
+import {
+  ensureInvoiceIdempotent,
+  ensureSubscriptionFirstTime,
+} from "@/app/services/affiliate/idempotency";
 
 export const runtime = "nodejs";
 
@@ -79,78 +84,111 @@ export async function POST(req: NextRequest) {
         affiliateCode: (user as any).affiliateUsed,
       });
       if (affUser && String(affUser._id) !== String(user._id)) {
-        if (!(affUser as any).affiliateBalances)
-          (affUser as any).affiliateBalances = new Map<string, number>();
-        const percent =
-          Number(process.env.AFFILIATE_COMMISSION_PERCENT || 10) / 100;
-        const subtotalCents =
-          invoice?.amount_subtotal ?? invoice?.amount_paid ?? 0;
-        const amountCents = Math.round(subtotalCents * percent);
-        const cur = normCur(invoice.currency);
-        let status: "paid" | "fallback" | "failed" = "paid";
-        let transactionId: string | null = null;
-        try {
-          if ((affUser as any).paymentInfo?.stripeAccountId) {
-            const account = await stripe.accounts.retrieve(
-              (affUser as any).paymentInfo.stripeAccountId
+        const invoiceId = String(invoice.id);
+        const invoiceCheck = await ensureInvoiceIdempotent(
+          invoiceId,
+          affUser._id
+        );
+        if (!invoiceCheck.ok) {
+          logger.info("[affiliate:idempotency] skip duplicate invoice", {
+            invoiceId,
+            affiliateUserId: String(affUser._id),
+          });
+        } else {
+          const subId =
+            typeof invoice.subscription === "string"
+              ? invoice.subscription
+              : invoice.subscription?.id;
+          let proceed = true;
+          if (subId) {
+            const subCheck = await ensureSubscriptionFirstTime(
+              subId,
+              affUser._id
             );
-            const payoutsEnabled = Boolean((account as any).payouts_enabled);
-            const destCurrency = normCur((account as any).default_currency);
-            if (!payoutsEnabled || destCurrency !== cur) {
-              status = "fallback";
-            } else {
-              const transfer = await stripe.transfers.create(
+            if (!subCheck.ok) {
+              logger.info(
+                "[affiliate:business] skip subscription already commissioned",
                 {
-                  amount: amountCents,
-                  currency: destCurrency,
-                  destination: (affUser as any).paymentInfo.stripeAccountId,
-                  description: `Comissão de ${(user as any).email || user._id}`,
-                  metadata: {
-                    invoiceId: String(invoice.id),
-                    referredUserId: String(user._id),
-                    affiliateUserId: String(affUser._id),
-                    affiliateCode: (affUser as any).affiliateCode || "",
-                  },
-                },
-                {
-                  idempotencyKey: `commission_${invoice.id}_${affUser._id}`,
+                  subscriptionId: subId,
+                  affiliateUserId: String(affUser._id),
                 }
               );
-              transactionId = transfer.id;
+              proceed = false;
             }
-          } else {
-            status = "fallback";
           }
-        } catch (e) {
-          status = "failed";
-        }
+          if (proceed) {
+            if (!(affUser as any).affiliateBalances)
+              (affUser as any).affiliateBalances = new Map<string, number>();
+            const percent =
+              Number(process.env.AFFILIATE_COMMISSION_PERCENT || 10) / 100;
+            const subtotalCents =
+              invoice?.amount_subtotal ?? invoice?.amount_paid ?? 0;
+            const amountCents = Math.round(subtotalCents * percent);
+            const cur = normCur(invoice.currency);
+            let status: "paid" | "fallback" | "failed" = "paid";
+            let transactionId: string | null = null;
+            try {
+              if ((affUser as any).paymentInfo?.stripeAccountId) {
+                const account = await stripe.accounts.retrieve(
+                  (affUser as any).paymentInfo.stripeAccountId
+                );
+                const payoutsEnabled = Boolean((account as any).payouts_enabled);
+                const destCurrency = normCur((account as any).default_currency);
+                if (!payoutsEnabled || destCurrency !== cur) {
+                  status = "fallback";
+                } else {
+                  const transfer = await stripe.transfers.create(
+                    {
+                      amount: amountCents,
+                      currency: destCurrency,
+                      destination: (affUser as any).paymentInfo.stripeAccountId,
+                      description: `Comissão de ${(user as any).email || user._id}`,
+                      metadata: {
+                        invoiceId: invoiceId,
+                        referredUserId: String(user._id),
+                        affiliateUserId: String(affUser._id),
+                        affiliateCode: (affUser as any).affiliateCode || "",
+                      },
+                    },
+                    {
+                      idempotencyKey: `commission_${invoice.id}_${affUser._id}`,
+                    }
+                  );
+                  transactionId = transfer.id;
+                }
+              } else {
+                status = "fallback";
+              }
+            } catch (e) {
+              status = "failed";
+            }
 
-        if (status !== "paid") {
-          const prev = (affUser as any).affiliateBalances.get(cur) ?? 0;
-          (affUser as any).affiliateBalances.set(cur, prev + amountCents);
-          (affUser as any).markModified?.("affiliateBalances");
-        }
-        ((affUser as any).commissionLog ??= []).push({
-          date: new Date(),
-          description: `Comissão (1ª cobrança) de ${(user as any).email || user._id}`,
-          sourcePaymentId: String(invoice.id),
-          referredUserId: user._id,
-          status,
-          transactionId,
-          currency: cur,
-          amountCents,
-        });
-        ((affUser as any).commissionPaidInvoiceIds ??= []).push(
-          String(invoice.id)
-        );
-        (affUser as any).affiliateInvites =
-          ((affUser as any).affiliateInvites || 0) + 1;
-        if (((affUser as any).affiliateInvites as number) % 5 === 0)
-          (affUser as any).affiliateRank =
-            ((affUser as any).affiliateRank || 1) + 1;
-        await (affUser as any).save();
+            if (status !== "paid") {
+              const prev = (affUser as any).affiliateBalances.get(cur) ?? 0;
+              (affUser as any).affiliateBalances.set(cur, prev + amountCents);
+              (affUser as any).markModified?.("affiliateBalances");
+            }
+            ((affUser as any).commissionLog ??= []).push({
+              date: new Date(),
+              description: `Comissão (1ª cobrança) de ${(user as any).email || user._id}`,
+              sourcePaymentId: invoiceId,
+              referredUserId: user._id,
+              status,
+              transactionId,
+              currency: cur,
+              amountCents,
+            });
+            ((affUser as any).commissionPaidInvoiceIds ??= []).push(invoiceId);
+            (affUser as any).affiliateInvites =
+              ((affUser as any).affiliateInvites || 0) + 1;
+            if (((affUser as any).affiliateInvites as number) % 5 === 0)
+              (affUser as any).affiliateRank =
+                ((affUser as any).affiliateRank || 1) + 1;
+            await (affUser as any).save();
 
-        (user as any).hasAffiliateCommissionPaid = true;
+            (user as any).hasAffiliateCommissionPaid = true;
+          }
+        }
       }
       // limpar marcação de uso do afiliado após a 1ª cobrança
       (user as any).affiliateUsed = null;

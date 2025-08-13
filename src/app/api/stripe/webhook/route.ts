@@ -6,6 +6,10 @@ import stripe from "@/app/lib/stripe";
 import { logger } from "@/app/lib/logger";
 import { normCur } from "@/utils/normCur";
 import Redemption from "@/app/models/Redemption";
+import {
+  ensureInvoiceIdempotent,
+  ensureSubscriptionFirstTime,
+} from "@/app/services/affiliate/idempotency";
 import type { Stripe as StripeTypes } from "stripe";
 
 export const runtime = "nodejs";
@@ -197,41 +201,77 @@ export async function POST(req: NextRequest) {
                   invoiceId: invoice.id,
                 });
               } else {
-                // evita duplicado por fatura
-                const already = (affiliateOwner.commissionLog || []).some(
-                  (i: any) =>
-                    i.invoiceId === invoice.id && i.source === "affiliate_first_payment"
+                const invCheck = await ensureInvoiceIdempotent(
+                  invoice.id,
+                  affiliateOwner._id
                 );
-                if (!already) {
-                  const base = commissionBaseCents(invoice as any);
-                  const commissionAmount = calcCommissionCents(base);
-                  if (commissionAmount > 0) {
-                    const currency = normCur(invoice.currency || "brl");
-                    const availableAt = addDays(new Date(), HOLD_DAYS);
-
-                    (affiliateOwner as any).commissionLog ||= [];
-                    (affiliateOwner as any).commissionLog.push({
-                      date: new Date(),
-                      description: `Comissão (1ª cobrança) de ${user.email || user._id}`,
-                      status: "pending", // ficará "available" no cron
-                      currency,
-                      amountCents: commissionAmount,
-                      buyerId: String(user._id),
+                if (!invCheck.ok) {
+                  logger.info(
+                    "[affiliate:idempotency] skip duplicate invoice",
+                    {
                       invoiceId: invoice.id,
-                      availableAt,
-                      source: "affiliate_first_payment",
-                    });
-
-                    await affiliateOwner.save();
-
-                    logger.info("[stripe/webhook] Commission registered as pending.", {
                       affiliateUserId: String(affiliateOwner._id),
-                      affiliateCode,
-                      invoiceId: invoice.id,
-                      amount: commissionAmount,
-                      currency,
-                      availableAt,
-                    });
+                    }
+                  );
+                } else {
+                  const subId =
+                    typeof invoice.subscription === "string"
+                      ? invoice.subscription
+                      : invoice.subscription?.id;
+                  let allowed = true;
+                  if (subId) {
+                    const subCheck = await ensureSubscriptionFirstTime(
+                      subId,
+                      affiliateOwner._id
+                    );
+                    if (!subCheck.ok) {
+                      logger.info(
+                        "[affiliate:business] skip subscription already commissioned",
+                        {
+                          subscriptionId: subId,
+                          affiliateUserId: String(affiliateOwner._id),
+                        }
+                      );
+                      allowed = false;
+                    }
+                  }
+
+                  if (allowed) {
+                    const base = commissionBaseCents(invoice as any);
+                    const commissionAmount = calcCommissionCents(base);
+                    if (commissionAmount > 0) {
+                      const currency = normCur(invoice.currency || "brl");
+                      const availableAt = addDays(new Date(), HOLD_DAYS);
+
+                      (affiliateOwner as any).commissionLog ||= [];
+                      (affiliateOwner as any).commissionLog.push({
+                        date: new Date(),
+                        description: `Comissão (1ª cobrança) de ${
+                          user.email || user._id
+                        }`,
+                        status: "pending", // ficará "available" no cron
+                        currency,
+                        amountCents: commissionAmount,
+                        buyerId: String(user._id),
+                        invoiceId: invoice.id,
+                        availableAt,
+                        source: "affiliate_first_payment",
+                      });
+
+                      await affiliateOwner.save();
+
+                      logger.info(
+                        "[stripe/webhook] Commission registered as pending.",
+                        {
+                          affiliateUserId: String(affiliateOwner._id),
+                          affiliateCode,
+                          invoiceId: invoice.id,
+                          amount: commissionAmount,
+                          currency,
+                          availableAt,
+                        }
+                      );
+                    }
                   }
                 }
               }
