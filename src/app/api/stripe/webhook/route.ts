@@ -10,14 +10,12 @@ import {
   ensureInvoiceIdempotent,
   ensureSubscriptionFirstTime,
 } from "@/app/services/affiliate/idempotency";
+import { calcCommissionCents } from "@/app/services/affiliate/calcCommissionCents";
+import { AFFILIATE_HOLD_DAYS, AFFILIATE_PAYOUT_MODE } from "@/config/affiliates";
 import type { Stripe as StripeTypes } from "stripe";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-// ---- Config de comissão / hold ----
-const AFFILIATE_BPS = Number(process.env.AFFILIATE_BPS || 1000); // 1000 = 10%
-const HOLD_DAYS = Number(process.env.AFFILIATE_HOLD_DAYS || 7);
 
 // helpers
 function addDays(d: Date, days: number) {
@@ -32,21 +30,6 @@ function adjustBalance(user: any, currency: string, deltaCents: number) {
   balances.set(cur, prev + deltaCents);
   user.affiliateBalances = balances;
   if (typeof user.markModified === "function") user.markModified("affiliateBalances");
-}
-function commissionBaseCents(invoice: any): number {
-  return Math.max(
-    0,
-    Math.floor(
-      invoice.subtotal_excluding_tax ??
-        invoice.subtotal ??
-        invoice.amount_paid ??
-        invoice.total ??
-        0
-    )
-  );
-}
-function calcCommissionCents(baseCents: number) {
-  return Math.floor((baseCents * AFFILIATE_BPS) / 10_000);
 }
 
 export async function POST(req: NextRequest) {
@@ -237,40 +220,35 @@ export async function POST(req: NextRequest) {
                   }
 
                   if (allowed) {
-                    const base = commissionBaseCents(invoice as any);
-                    const commissionAmount = calcCommissionCents(base);
+                    const commissionAmount = calcCommissionCents(invoice as any);
                     if (commissionAmount > 0) {
                       const currency = normCur(invoice.currency || "brl");
-                      const availableAt = addDays(new Date(), HOLD_DAYS);
+                      const availableAt = addDays(new Date(), AFFILIATE_HOLD_DAYS);
 
                       (affiliateOwner as any).commissionLog ||= [];
                       (affiliateOwner as any).commissionLog.push({
-                        date: new Date(),
-                        description: `Comissão (1ª cobrança) de ${
-                          user.email || user._id
-                        }`,
-                        status: "pending", // ficará "available" no cron
+                        type: 'commission',
+                        status: 'pending',
+                        invoiceId: invoice.id,
+                        subscriptionId: subId,
+                        affiliateUserId: affiliateOwner._id,
+                        buyerUserId: user._id,
                         currency,
                         amountCents: commissionAmount,
-                        buyerId: String(user._id),
-                        invoiceId: invoice.id,
                         availableAt,
-                        source: "affiliate_first_payment",
-                      });
+                      } as any);
 
                       await affiliateOwner.save();
 
-                      logger.info(
-                        "[stripe/webhook] Commission registered as pending.",
-                        {
-                          affiliateUserId: String(affiliateOwner._id),
-                          affiliateCode,
-                          invoiceId: invoice.id,
-                          amount: commissionAmount,
-                          currency,
-                          availableAt,
-                        }
-                      );
+                      logger.info('[affiliate:commission] created pending', {
+                        invoiceId: invoice.id,
+                        subscriptionId: subId,
+                        affiliateUserId: String(affiliateOwner._id),
+                        buyerUserId: String(user._id),
+                        currency,
+                        amountCents: commissionAmount,
+                        availableAt,
+                      });
                     }
                   }
                 }
@@ -361,7 +339,7 @@ export async function POST(req: NextRequest) {
             );
           }
           return (
-            String(i.buyerId || "") === String(buyer._id) &&
+            String(i.buyerUserId || "") === String(buyer._id) &&
             (i.status === "pending" || i.status === "available")
           );
         });

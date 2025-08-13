@@ -103,12 +103,15 @@ export async function POST(req: NextRequest) {
         {
           $push: {
             commissionLog: {
-              date: new Date(),
-              description: 'affiliate redeem',
+              type: 'redeem',
               status: 'paid',
+              affiliateUserId: user._id,
               transactionId: transfer.id,
               currency: destCurrency,
               amountCents: current,
+              note: 'affiliate redeem',
+              createdAt: new Date(),
+              updatedAt: new Date(),
             },
           },
         }

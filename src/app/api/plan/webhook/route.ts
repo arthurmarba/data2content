@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 // import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import mercadopago from "@/app/lib/mercadopago";
-import User, { ICommissionLogEntry } from "@/app/models/User";
+import User, { ICommissionEntry } from "@/app/models/User";
 import { ANNUAL_MONTHLY_PRICE } from "@/config/pricing.config";
 import crypto from "crypto";
 import { normCur } from "@/utils/normCur";
@@ -248,14 +248,15 @@ export async function POST(request: NextRequest) {
                 }
                 affUser.commissionLog = affUser.commissionLog || [];
                 affUser.commissionLog.push({
-                  date: new Date(),
-                  description: `Comissão (plano anual) de ${user.email || user._id}`,
-                  sourcePaymentId: eventId,
-                  referredUserId: user._id,
-                  status: 'fallback',
+                  type: 'commission',
+                  status: 'available',
+                  affiliateUserId: affUser._id,
+                  buyerUserId: user._id,
+                  invoiceId: eventId,
                   currency: cur,
                   amountCents: commissionCents,
-                });
+                  note: `Comissão (plano anual) de ${user.email || user._id}`,
+                } as any);
                 await affUser.save();
               }
               user.affiliateUsed = null; // não pagar comissão na renovação
@@ -326,14 +327,15 @@ export async function POST(request: NextRequest) {
                 }
                 affUser.commissionLog = affUser.commissionLog || [];
                 affUser.commissionLog.push({
-                  date: new Date(),
-                  description: `Comissão (1ª cobrança) de ${user.email || user._id}`,
-                  sourcePaymentId: eventId,
-                  referredUserId: user._id,
-                  status: 'fallback',
+                  type: 'commission',
+                  status: 'available',
+                  affiliateUserId: affUser._id,
+                  buyerUserId: user._id,
+                  invoiceId: eventId,
                   currency: cur,
                   amountCents: commissionCents,
-                });
+                  note: `Comissão (1ª cobrança) de ${user.email || user._id}`,
+                } as any);
                 await affUser.save();
               }
             } finally {
@@ -425,15 +427,16 @@ export async function POST(request: NextRequest) {
             affUser.affiliateRank = (affUser.affiliateRank || 1) + 1;
           }
 
-          const commissionEntry: ICommissionLogEntry = {
-            date: new Date(),
-            description: `Comissão (1ª cobrança) de ${user.email || user._id.toString()}`,
-            sourcePaymentId: eventId.toString(),
-            referredUserId: user._id,
-            status: 'fallback',
+          const commissionEntry: ICommissionEntry = {
+            type: 'commission',
+            status: 'available',
+            affiliateUserId: affUser._id,
+            buyerUserId: user._id,
             currency: cur,
             amountCents: commissionCents,
-          };
+            invoiceId: eventId.toString(),
+            note: `Comissão (1ª cobrança) de ${user.email || user._id.toString()}`,
+          } as any;
           if (!Array.isArray(affUser.commissionLog)) {
             affUser.commissionLog = [];
           }

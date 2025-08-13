@@ -11,6 +11,14 @@ import {
   ensureInvoiceIdempotent,
   ensureSubscriptionFirstTime,
 } from "@/app/services/affiliate/idempotency";
+import { calcCommissionCents } from "@/app/services/affiliate/calcCommissionCents";
+import { AFFILIATE_HOLD_DAYS } from "@/config/affiliates";
+
+function addDays(d: Date, days: number) {
+  const dt = new Date(d);
+  dt.setDate(dt.getDate() + days);
+  return dt;
+}
 
 export const runtime = "nodejs";
 
@@ -117,66 +125,30 @@ export async function POST(req: NextRequest) {
             }
           }
           if (proceed) {
-            if (!(affUser as any).affiliateBalances)
-              (affUser as any).affiliateBalances = new Map<string, number>();
-            const percent =
-              Number(process.env.AFFILIATE_COMMISSION_PERCENT || 10) / 100;
-            const subtotalCents =
-              invoice?.amount_subtotal ?? invoice?.amount_paid ?? 0;
-            const amountCents = Math.round(subtotalCents * percent);
+            const amountCents = calcCommissionCents(invoice as any);
             const cur = normCur(invoice.currency);
-            let status: "paid" | "fallback" | "failed" = "paid";
-            let transactionId: string | null = null;
-            try {
-              if ((affUser as any).paymentInfo?.stripeAccountId) {
-                const account = await stripe.accounts.retrieve(
-                  (affUser as any).paymentInfo.stripeAccountId
-                );
-                const payoutsEnabled = Boolean((account as any).payouts_enabled);
-                const destCurrency = normCur((account as any).default_currency);
-                if (!payoutsEnabled || destCurrency !== cur) {
-                  status = "fallback";
-                } else {
-                  const transfer = await stripe.transfers.create(
-                    {
-                      amount: amountCents,
-                      currency: destCurrency,
-                      destination: (affUser as any).paymentInfo.stripeAccountId,
-                      description: `Comissão de ${(user as any).email || user._id}`,
-                      metadata: {
-                        invoiceId: invoiceId,
-                        referredUserId: String(user._id),
-                        affiliateUserId: String(affUser._id),
-                        affiliateCode: (affUser as any).affiliateCode || "",
-                      },
-                    },
-                    {
-                      idempotencyKey: `commission_${invoice.id}_${affUser._id}`,
-                    }
-                  );
-                  transactionId = transfer.id;
-                }
-              } else {
-                status = "fallback";
-              }
-            } catch (e) {
-              status = "failed";
-            }
+            const availableAt = addDays(new Date(), AFFILIATE_HOLD_DAYS);
 
-            if (status !== "paid") {
-              const prev = (affUser as any).affiliateBalances.get(cur) ?? 0;
-              (affUser as any).affiliateBalances.set(cur, prev + amountCents);
-              (affUser as any).markModified?.("affiliateBalances");
-            }
             ((affUser as any).commissionLog ??= []).push({
-              date: new Date(),
-              description: `Comissão (1ª cobrança) de ${(user as any).email || user._id}`,
-              sourcePaymentId: invoiceId,
-              referredUserId: user._id,
-              status,
-              transactionId,
+              type: 'commission',
+              status: 'pending',
+              invoiceId,
+              subscriptionId: subId,
+              affiliateUserId: affUser._id,
+              buyerUserId: user._id,
               currency: cur,
               amountCents,
+              availableAt,
+            } as any);
+
+            logger.info('[affiliate:commission] created pending', {
+              invoiceId,
+              subscriptionId: subId,
+              affiliateUserId: String(affUser._id),
+              buyerUserId: String(user._id),
+              currency: cur,
+              amountCents,
+              availableAt,
             });
             ((affUser as any).commissionPaidInvoiceIds ??= []).push(invoiceId);
             (affUser as any).affiliateInvites =
