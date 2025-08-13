@@ -1,3 +1,4 @@
+// middleware.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { guardPremiumRequest } from "@/app/lib/planGuard";
@@ -12,7 +13,8 @@ export async function middleware(req: NextRequest) {
     req.nextUrl.searchParams.get("ref") ||
     req.nextUrl.searchParams.get("aff") ||
     "";
-  const refCode = rawRef && AFFILIATE_CODE_REGEX.test(rawRef) ? rawRef.toUpperCase() : "";
+  const refCode =
+    rawRef && AFFILIATE_CODE_REGEX.test(rawRef) ? rawRef.trim().toUpperCase() : "";
 
   const setAffiliateCookie = (response: NextResponse) => {
     if (refCode) {
@@ -21,15 +23,22 @@ export async function middleware(req: NextRequest) {
         httpOnly: false, // permite leitura no client para autofill
         sameSite: "lax",
         secure: process.env.NODE_ENV === "production",
-        maxAge: Number(process.env.AFFILIATE_ATTRIBUTION_WINDOW_DAYS || 90) * 24 * 60 * 60,
-        // domain: process.env.COOKIE_DOMAIN || undefined, // descomente se usar subdomínios
+        maxAge:
+          Number(process.env.AFFILIATE_ATTRIBUTION_WINDOW_DAYS || 90) *
+          24 *
+          60 *
+          60, // 90 dias padrão
+        // Se usar subdomínios (ex.: app.data2content.ai), defina o domínio:
+        // domain: process.env.COOKIE_DOMAIN || ".data2content.ai",
       });
     }
     return response;
-  };
+    };
 
+  // grava o cookie se vier ref/aff
   setAffiliateCookie(res);
 
+  // mantém sua guarda premium e propaga o cookie nela também
   const guardPrefixes = [
     "/api/whatsapp/generateCode",
     "/api/whatsapp/sendTips",

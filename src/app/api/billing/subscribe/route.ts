@@ -1,5 +1,6 @@
 // src/app/api/billing/subscribe/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
@@ -8,12 +9,16 @@ import stripe from "@/app/lib/stripe";
 import Stripe from "stripe";
 import { checkRateLimit } from "@/utils/rateLimit";
 import { cancelBlockingIncompleteSubs } from "@/utils/stripeHelpers";
-import { resolveAffiliateCode } from "@/app/lib/affiliate";
+import { resolveAffiliateCode as resolveAffiliateCodeHelper } from "@/app/lib/affiliate";
 
 export const runtime = "nodejs";
 
 type Plan = "monthly" | "annual";
 type Currency = "BRL" | "USD";
+
+function normalizeCode(v?: string | null) {
+  return (v || "").trim().toUpperCase();
+}
 
 function getPriceId(plan: Plan, currency: Currency) {
   if (plan === "monthly" && currency === "BRL") return process.env.STRIPE_PRICE_MONTHLY_BRL!;
@@ -23,14 +28,14 @@ function getPriceId(plan: Plan, currency: Currency) {
   throw new Error("PriceId não configurado para este plano/moeda");
 }
 
-// Resolve código digitado para Promotion Code (preferência) ou Coupon ID
+// Resolve código digitado para Promotion Code (preferência) ou Coupon ID (fallback)
 async function resolveManualDiscountFields(
   code: string
 ): Promise<Partial<Pick<Stripe.SubscriptionCreateParams, "coupon" | "promotion_code">> | null> {
-  const trimmed = (code || "").trim();
+  const trimmed = normalizeCode(code);
   if (!trimmed) return null;
 
-  // 1) tentar como Promotion Code (código amigável)
+  // 1) Promotion Code
   try {
     const res = await stripe.promotionCodes.list({ code: trimmed, active: true, limit: 1 });
     const pc = res.data?.[0];
@@ -39,7 +44,7 @@ async function resolveManualDiscountFields(
     /* noop */
   }
 
-  // 2) fallback: tentar como ID de Coupon
+  // 2) Coupon ID
   try {
     const c: any = await stripe.coupons.retrieve(trimmed);
     if (c?.id && !c?.deleted) return { coupon: c.id };
@@ -48,6 +53,28 @@ async function resolveManualDiscountFields(
   }
 
   return null;
+}
+
+/** Union alinhado entre helper e fallback */
+type ResolvedAffiliate =
+  | { code: string | null; source: "typed" | "url" | "cookie" | null }
+  | { code: undefined; source: undefined };
+
+// Fallback local se o helper externo não retornar nada
+function resolveAffiliateCodeFallback(req: NextRequest, bodyCode?: string): ResolvedAffiliate {
+  const typed = normalizeCode(bodyCode);
+  if (typed) return { code: typed, source: "typed" };
+
+  const url = new URL(req.url);
+  const fromUrl = normalizeCode(url.searchParams.get("ref") || url.searchParams.get("aff"));
+  if (fromUrl) return { code: fromUrl, source: "url" };
+
+  const cookieStore = cookies();
+  const fromCookie = normalizeCode(cookieStore.get("d2c_ref")?.value || "");
+  if (fromCookie) return { code: fromCookie, source: "cookie" };
+
+  // Nada encontrado
+  return { code: undefined, source: undefined };
 }
 
 export async function POST(req: NextRequest) {
@@ -66,15 +93,10 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const plan: Plan = body.plan;
+    const plan: Plan = String(body.plan || "").toLowerCase() as Plan;
     const currency = String(body.currency || "").toUpperCase() as Currency;
-    let manualCoupon: string | undefined = body.manualCoupon?.trim() || undefined;
 
-    // prioridade: digitado > URL (?ref|?aff) > cookie (90 dias)
-    let { code: resolvedCode, source } = resolveAffiliateCode(req, body.affiliateCode);
-    let affiliateCode: string | undefined = resolvedCode || undefined;
-
-    if (!plan || (currency !== "BRL" && currency !== "USD")) {
+    if (!["monthly", "annual"].includes(plan) || !["BRL", "USD"].includes(currency)) {
       return NextResponse.json({ error: "Parâmetros inválidos" }, { status: 400 });
     }
 
@@ -85,23 +107,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
     }
 
-    // Se o usuário digitou um affiliate code no campo de cupom, reinterpreta como afiliado
-    if (manualCoupon) {
-      const affOwner = await User.findOne({ affiliateCode: manualCoupon.toUpperCase() }).select(
-        "_id affiliateCode"
-      );
-      if (affOwner) {
-        if (String(affOwner._id) === String(user._id)) {
-          return NextResponse.json(
-            { error: "Você não pode usar seu próprio código." },
-            { status: 400 }
-          );
-        }
-        affiliateCode = affOwner.affiliateCode; // vira afiliado "typed"
-        source = "typed";
-        manualCoupon = undefined; // não tratar mais como cupom
-      }
+    let manualCoupon: string | undefined = normalizeCode(body.manualCoupon || undefined);
+
+    // prioridade: digitado/typed > URL (?ref|?aff) > cookie (90 dias)
+    let resolved: ResolvedAffiliate = resolveAffiliateCodeHelper
+      ? (resolveAffiliateCodeHelper(req, body.affiliateCode) as ResolvedAffiliate)
+      : { code: undefined, source: undefined };
+
+    if (!resolved?.code) {
+      resolved = resolveAffiliateCodeFallback(req, body.affiliateCode);
     }
+
+    const affiliateCode: string | undefined =
+      normalizeCode(resolved.code || undefined) || undefined;
+
+    const source: "typed" | "url" | "cookie" | undefined =
+      (resolved as Extract<ResolvedAffiliate, { code: string | null }>).source || undefined;
 
     const priceId = getPriceId(plan, currency);
 
@@ -117,14 +138,14 @@ export async function POST(req: NextRequest) {
       user.stripeCustomerId = customer.id;
     }
 
-    // 0) Antes de criar, limpe tentativas pendentes (evita travar em INCOMPLETE)
+    // Limpa tentativas pendentes (evita travar INCOMPLETE)
     if (customerId) {
       try {
         await cancelBlockingIncompleteSubs(customerId);
       } catch {}
     }
 
-    // 1) Tenta reaproveitar assinatura existente do mesmo price
+    // Reaproveita assinatura existente do mesmo price (se fizer sentido pro seu fluxo)
     let existing: Stripe.Subscription | null = null;
     if (user.stripeSubscriptionId) {
       try {
@@ -150,7 +171,7 @@ export async function POST(req: NextRequest) {
     let sub: Stripe.Subscription;
 
     if (existing && ["active", "trialing"].includes(existing.status) && existing.items.data[0]) {
-      // Atualiza o price na assinatura atual
+      // Atualiza o price na assinatura atual (sem aplicar novo desconto)
       const itemId = existing.items.data[0].id;
       sub = await stripe.subscriptions.update(existing.id, {
         items: [{ id: itemId, price: priceId }],
@@ -165,7 +186,6 @@ export async function POST(req: NextRequest) {
       let affiliateUserId: string | undefined;
 
       if (affiliateCode) {
-        affiliateCode = affiliateCode.toUpperCase();
         const owner = await User.findOne({ affiliateCode }).select("_id affiliateCode");
         if (owner) {
           if (String(owner._id) === String(user._id)) {
@@ -174,15 +194,14 @@ export async function POST(req: NextRequest) {
               { status: 400 }
             );
           }
-          affiliateValid = true; // sempre que houver afiliado válido, ele vence
+          affiliateValid = true;
           affiliateUserId = String(owner._id);
-          user.affiliateUsed = owner.affiliateCode ?? null; // usado no webhook
-        } else {
-          affiliateCode = undefined;
+          // congela a atribuição no usuário (usada no webhook para pagar comissão)
+          user.affiliateUsed = owner.affiliateCode ?? null;
         }
       }
 
-      // Guard: cupom interno de afiliado precisa existir se for aplicar
+      // Se afiliado válido, exigimos que o cupom interno exista
       if (affiliateValid) {
         const affCoupon =
           currency === "BRL"
@@ -199,7 +218,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // metadata
+      // metadata para auditoria e webhook
       const metadata: Record<string, string> = {
         userId: String(user._id),
         plan,
@@ -207,15 +226,16 @@ export async function POST(req: NextRequest) {
       if (affiliateValid && affiliateCode && affiliateUserId) {
         metadata.affiliateCode = affiliateCode;
         metadata.affiliate_user_id = affiliateUserId;
-        if (source) metadata.attribution_source = source;
+        if (source) metadata.attribution_source = String(source);
       }
 
-      // Se afiliado válido => IGNORA qualquer cupom manual
-      // Senão, tenta resolver o cupom manual (promotion_code / coupon)
+      // Se afiliado válido => ignora cupom manual
       const manualDiscountFields =
         !affiliateValid && manualCoupon ? await resolveManualDiscountFields(manualCoupon) : null;
 
-      // montar params top-level (API 2022-11-15): coupon/promotion_code
+      // Montagem de descontos:
+      //  - Afiliado: aplica CUPOM interno "once" (10%)
+      //  - Manual: promotion_code/coupon
       const discountTopLevel: Partial<
         Pick<Stripe.SubscriptionCreateParams, "coupon" | "promotion_code">
       > = manualDiscountFields
@@ -235,13 +255,13 @@ export async function POST(req: NextRequest) {
         payment_behavior: "default_incomplete",
         expand: ["latest_invoice.payment_intent"],
         metadata,
-        ...discountTopLevel, // aplica OU manual (promotion_code/coupon) OU afiliado (coupon)
+        ...discountTopLevel, // aplica OU manual OU afiliado
       };
 
       sub = await stripe.subscriptions.create(createParams);
     }
 
-    // atualiza usuário
+    // Atualiza usuário
     user.stripeSubscriptionId = sub.id;
     user.planType = plan;
     user.planStatus = "pending";
@@ -250,13 +270,13 @@ export async function POST(req: NextRequest) {
     await user.save();
 
     const clientSecret = (sub.latest_invoice as any)?.payment_intent?.client_secret;
+    const affiliateApplied = Boolean(user.affiliateUsed);
 
-    const affiliateApplied = Boolean(user.affiliateUsed); // se aplicamos afiliado, affiliateUsed foi setado
     return NextResponse.json({
       clientSecret,
       subscriptionId: sub.id,
       affiliateApplied,
-      usedCouponType: affiliateApplied ? "affiliate" : (body.manualCoupon ? "manual" : null),
+      usedCouponType: affiliateApplied ? "affiliate" : (manualCoupon ? "manual" : null),
     });
   } catch (err: any) {
     console.error("[billing/subscribe] error:", err);

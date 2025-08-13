@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
@@ -10,14 +11,20 @@ type Plan = "monthly" | "annual";
 type Currency = "BRL" | "USD";
 type AffiliateCheckResult = {
   couponId?: string;
-  error?: "invalid_code" | "coupon_not_configured";
+  error?: "invalid_code" | "coupon_not_configured" | "self_referral";
+  source?: "typed" | "url" | "cookie" | "session";
+  code?: string;
 };
 
-// --- Funções Auxiliares Refatoradas ---
+// --- Funções Auxiliares ---
+
+function normalizeCode(v?: string | null) {
+  return (v || "").trim().toUpperCase();
+}
 
 function getPriceId(plan: Plan, currency: Currency): string {
   const key = `STRIPE_PRICE_${plan.toUpperCase()}_${currency.toUpperCase()}`;
-  const priceId = process.env[key];
+  const priceId = process.env[key as keyof NodeJS.ProcessEnv];
   if (!priceId) throw new Error(`Price ID não configurado para ${key}`);
   return priceId;
 }
@@ -32,37 +39,79 @@ async function getOrCreateStripeCustomerId(userId: string): Promise<string> {
     name: user.name || undefined,
     metadata: { userId: String(user._id) },
   });
-  
+
   user.stripeCustomerId = customer.id;
   await user.save();
   return customer.id;
 }
 
 /**
- * Verifica a validade de um código de afiliado e a configuração do cupom.
- * Retorna o ID do cupom ou um erro específico.
+ * Resolve o código de afiliado considerando:
+ * 1) Body (typed)
+ * 2) URL (?ref|?aff)
+ * 3) Cookie d2c_ref
+ * 4) Session.user.affiliateUsed (fallback)
  */
-async function checkAffiliateCode(affiliateCode: string, currency: Currency): Promise<AffiliateCheckResult> {
-  if (!affiliateCode) {
-    return {}; // Nenhum código fornecido, sem erro.
-  }
-  
-  const owner = await User.findOne({ affiliateCode: affiliateCode.toUpperCase() }).select("_id").lean();
+function resolveAffiliateFromRequest(
+  req: NextRequest,
+  bodyAffiliateCode?: string,
+  sessionAffiliateUsed?: string
+): { code?: string; source?: "typed" | "url" | "cookie" | "session" } {
+  const typed = normalizeCode(bodyAffiliateCode);
+  if (typed) return { code: typed, source: "typed" };
+
+  // URL
+  const url = new URL(req.url);
+  const fromUrl = normalizeCode(url.searchParams.get("ref") || url.searchParams.get("aff"));
+  if (fromUrl) return { code: fromUrl, source: "url" };
+
+  // Cookie
+  const cookieStore = cookies();
+  const fromCookie = normalizeCode(cookieStore.get("d2c_ref")?.value || "");
+  if (fromCookie) return { code: fromCookie, source: "cookie" };
+
+  // Session
+  const fromSession = normalizeCode(sessionAffiliateUsed);
+  if (fromSession) return { code: fromSession, source: "session" };
+
+  return {};
+}
+
+/**
+ * Verifica a validade do código e a configuração do cupom (10% once).
+ * Bloqueia self-referral (usuário não pode usar o próprio código).
+ */
+async function checkAffiliateCode(
+  affiliateCode: string | undefined,
+  currency: Currency,
+  currentUserId: string
+): Promise<AffiliateCheckResult> {
+  const code = normalizeCode(affiliateCode);
+  if (!code) return {};
+
+  // Dono do código
+  const owner = await User.findOne({ affiliateCode: code }).select("_id affiliateCode").lean();
   if (!owner) {
-    return { error: "invalid_code" }; // Código não encontrado no DB.
+    return { error: "invalid_code", code };
+  }
+
+  // Bloqueio de self-referral
+  if (String(owner._id) === String(currentUserId)) {
+    return { error: "self_referral", code };
   }
 
   const couponEnvKey = `STRIPE_COUPON_AFFILIATE10_ONCE_${currency.toUpperCase()}`;
-  const couponId = process.env[couponEnvKey];
-  
+  const couponId = process.env[couponEnvKey as keyof NodeJS.ProcessEnv] as string | undefined;
+
   if (!couponId) {
-    console.error(`[billing/preview] CRITICAL: Cupom de afiliado não configurado para ${currency}. Defina a variável ${couponEnvKey}.`);
-    return { error: "coupon_not_configured" }; // Cupom não configurado no .env
+    console.error(
+      `[billing/preview] CRITICAL: Cupom de afiliado não configurado para ${currency}. Defina ${couponEnvKey}.`
+    );
+    return { error: "coupon_not_configured", code };
   }
 
-  return { couponId };
+  return { couponId, code };
 }
-
 
 export async function POST(req: NextRequest) {
   try {
@@ -72,22 +121,49 @@ export async function POST(req: NextRequest) {
     }
 
     await connectToDatabase();
-    const { plan, currency, affiliateCode } = await req.json();
 
-    const priceId = getPriceId(plan, currency);
-    const customerId = await getOrCreateStripeCustomerId(session.user.id);
-    const affiliateCheck = await checkAffiliateCode(affiliateCode, currency);
+    const { plan, currency, affiliateCode: bodyAffiliateCode } = await req.json();
+    const planNorm = String(plan || "").toLowerCase() as Plan;
+    const currencyNorm = String(currency || "").toUpperCase() as Currency;
 
-    // Se o código for inválido, retorna um erro claro para o frontend.
-    if (affiliateCheck.error === 'invalid_code') {
-      return NextResponse.json({ error: "Código de afiliado inválido." }, { status: 400 });
+    if (!["monthly", "annual"].includes(planNorm) || !["BRL", "USD"].includes(currencyNorm)) {
+      return NextResponse.json({ error: "Parâmetros inválidos" }, { status: 400 });
     }
-    if (affiliateCheck.error === 'coupon_not_configured') {
-      return NextResponse.json({ error: "O sistema de cupons não está configurado corretamente." }, { status: 500 });
+
+    const { code: resolvedCode, source } = resolveAffiliateFromRequest(
+      req,
+      bodyAffiliateCode,
+      (session.user as any)?.affiliateUsed
+    );
+
+    const priceId = getPriceId(planNorm, currencyNorm);
+    const customerId = await getOrCreateStripeCustomerId(session.user.id);
+
+    // Validação do código + cupom
+    const affiliateCheck = await checkAffiliateCode(resolvedCode, currencyNorm, session.user.id);
+
+    if (affiliateCheck.error === "invalid_code") {
+      return NextResponse.json(
+        { error: "Código de afiliado inválido.", affiliateApplied: false },
+        { status: 400 }
+      );
+    }
+    if (affiliateCheck.error === "self_referral") {
+      return NextResponse.json(
+        { error: "Você não pode usar seu próprio código de afiliado.", affiliateApplied: false },
+        { status: 400 }
+      );
+    }
+    if (affiliateCheck.error === "coupon_not_configured") {
+      return NextResponse.json(
+        { error: "O sistema de cupons não está configurado corretamente." },
+        { status: 500 }
+      );
     }
 
     const affiliateCouponId = affiliateCheck.couponId;
 
+    // Preview via upcoming invoice (simulação do primeiro ciclo)
     const invoice = await stripe.invoices.retrieveUpcoming({
       customer: customerId,
       subscription_items: [{ price: priceId, quantity: 1 }],
@@ -100,11 +176,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       currency: invoice.currency,
       subtotal: invoice.subtotal,
-      discountsTotal: invoice.total_discount_amounts?.reduce((acc, d) => acc + d.amount, 0) ?? 0,
+      discountsTotal:
+        invoice.total_discount_amounts?.reduce((acc, d) => acc + d.amount, 0) ?? 0,
       tax: invoice.tax ?? 0,
       total: invoice.total,
       nextCycleAmount,
       affiliateApplied: !!affiliateCouponId,
+      affiliateSource: source || null,
+      affiliateCode: affiliateCheck.code || null,
     });
   } catch (error: any) {
     console.error("[billing/preview] error:", error);

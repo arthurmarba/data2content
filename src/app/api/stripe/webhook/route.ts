@@ -11,6 +11,40 @@ import type { Stripe as StripeTypes } from "stripe";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// ---- Config de comissão / hold ----
+const AFFILIATE_BPS = Number(process.env.AFFILIATE_BPS || 1000); // 1000 = 10%
+const HOLD_DAYS = Number(process.env.AFFILIATE_HOLD_DAYS || 7);
+
+// helpers
+function addDays(d: Date, days: number) {
+  const dt = new Date(d);
+  dt.setDate(dt.getDate() + days);
+  return dt;
+}
+function adjustBalance(user: any, currency: string, deltaCents: number) {
+  const cur = normCur(currency);
+  const balances: Map<string, number> = user.affiliateBalances || new Map();
+  const prev = balances.get(cur) ?? 0;
+  balances.set(cur, prev + deltaCents);
+  user.affiliateBalances = balances;
+  if (typeof user.markModified === "function") user.markModified("affiliateBalances");
+}
+function commissionBaseCents(invoice: any): number {
+  return Math.max(
+    0,
+    Math.floor(
+      invoice.subtotal_excluding_tax ??
+        invoice.subtotal ??
+        invoice.amount_paid ??
+        invoice.total ??
+        0
+    )
+  );
+}
+function calcCommissionCents(baseCents: number) {
+  return Math.floor((baseCents * AFFILIATE_BPS) / 10_000);
+}
+
 export async function POST(req: NextRequest) {
   const sig = req.headers.get("stripe-signature");
   if (!sig) {
@@ -19,6 +53,7 @@ export async function POST(req: NextRequest) {
 
   let event: StripeTypes.Event;
   try {
+    // App Router: precisa do RAW body (req.text())
     const payload = await req.text();
     event = stripe.webhooks.constructEvent(
       payload,
@@ -60,11 +95,7 @@ export async function POST(req: NextRequest) {
         if (redemption) {
           const user = await User.findById(redemption.userId);
           if (user) {
-            const cur = redemption.currency.toLowerCase();
-            const balances: Map<string, number> = user.affiliateBalances || new Map();
-            const prev = balances.get(cur) ?? 0;
-            balances.set(cur, prev + redemption.amountCents);
-            user.markModified("affiliateBalances");
+            adjustBalance(user, redemption.currency, redemption.amountCents);
             await user.save();
           }
           redemption.status = "rejected";
@@ -76,15 +107,15 @@ export async function POST(req: NextRequest) {
 
       case "invoice.payment_succeeded": {
         const invoice = event.data.object as StripeTypes.Invoice;
+
+        // ——— Proteções e resgate do usuário ———
         const customerId =
-          typeof invoice.customer === "string"
-            ? invoice.customer
-            : invoice.customer?.id;
+          typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
         if (!customerId) break;
 
         const user = await User.findOne({ stripeCustomerId: customerId });
 
-        // 🛡️ REDE DE SEGURANÇA: Lida com pagamentos de usuários já deletados.
+        // Usuário não existe mais → cancela a assinatura "órfã"
         if (!user) {
           logger.warn(
             `[stripe/webhook] Received payment for a deleted user. Canceling orphan subscription.`,
@@ -107,25 +138,18 @@ export async function POST(req: NextRequest) {
               );
             }
           }
-          break; // Interrompe o processamento.
+          break;
         }
 
-        if (user.lastProcessedEventId === event.id) break; // Idempotência
+        // Idempotência por evento (por usuário)
+        if (user.lastProcessedEventId === event.id) break;
         user.lastProcessedEventId = event.id;
 
-        // Ativação de plano e lógica de comissão
-        const reason = invoice.billing_reason ?? "";
-        const isFirstCycle =
-          reason === "subscription_create" || reason === "subscription_cycle";
-        if (isFirstCycle && invoice.amount_paid && invoice.amount_paid > 0) {
+        // ——— Ativação do plano ———
+        if (invoice.amount_paid && invoice.amount_paid > 0) {
           const line = invoice.lines?.data?.find((l) => l?.price?.recurring);
-          const periodEnd = line?.period?.end
-            ? new Date(line.period.end * 1000)
-            : null;
-          const interval = line?.price?.recurring?.interval as
-            | "month"
-            | "year"
-            | undefined;
+          const periodEnd = line?.period?.end ? new Date(line.period.end * 1000) : null;
+          const interval = line?.price?.recurring?.interval as "month" | "year" | undefined;
 
           if (interval) {
             user.planInterval = interval;
@@ -138,8 +162,81 @@ export async function POST(req: NextRequest) {
               ? invoice.subscription
               : invoice.subscription?.id;
           if (subId) user.stripeSubscriptionId = subId;
+        }
 
-          // ... (Lógica de comissão de afiliado completa) ...
+        // ——— Comissão de Afiliado (10% só na PRIMEIRA cobrança do assinante) ———
+        if (invoice.amount_paid && invoice.amount_paid > 0) {
+          // Gate atômico: garante uma única primeira comissão por comprador
+          const firstGate = await User.findOneAndUpdate(
+            { _id: user._id, affiliateFirstCommissionAt: { $exists: false } },
+            { $set: { affiliateFirstCommissionAt: new Date() } },
+            { new: false }
+          );
+
+          if (firstGate) {
+            const affiliateCode =
+              user.affiliateUsed ||
+              // fallback via metadata
+              (invoice as any)?.metadata?.affiliateCode ||
+              null;
+
+            if (affiliateCode) {
+              const affiliateOwner = await User.findOne({ affiliateCode }).select(
+                "_id affiliateCode commissionLog"
+              );
+
+              if (!affiliateOwner) {
+                logger.warn(
+                  "[stripe/webhook] Affiliate code not found, skipping commission.",
+                  { affiliateCode, userId: String(user._id), invoiceId: invoice.id }
+                );
+              } else if (String(affiliateOwner._id) === String(user._id)) {
+                logger.warn("[stripe/webhook] Self-referral detected; skipping commission.", {
+                  userId: String(user._id),
+                  affiliateCode,
+                  invoiceId: invoice.id,
+                });
+              } else {
+                // evita duplicado por fatura
+                const already = (affiliateOwner.commissionLog || []).some(
+                  (i: any) =>
+                    i.invoiceId === invoice.id && i.source === "affiliate_first_payment"
+                );
+                if (!already) {
+                  const base = commissionBaseCents(invoice as any);
+                  const commissionAmount = calcCommissionCents(base);
+                  if (commissionAmount > 0) {
+                    const currency = normCur(invoice.currency || "brl");
+                    const availableAt = addDays(new Date(), HOLD_DAYS);
+
+                    (affiliateOwner as any).commissionLog ||= [];
+                    (affiliateOwner as any).commissionLog.push({
+                      date: new Date(),
+                      description: `Comissão (1ª cobrança) de ${user.email || user._id}`,
+                      status: "pending", // ficará "available" no cron
+                      currency,
+                      amountCents: commissionAmount,
+                      buyerId: String(user._id),
+                      invoiceId: invoice.id,
+                      availableAt,
+                      source: "affiliate_first_payment",
+                    });
+
+                    await affiliateOwner.save();
+
+                    logger.info("[stripe/webhook] Commission registered as pending.", {
+                      affiliateUserId: String(affiliateOwner._id),
+                      affiliateCode,
+                      invoiceId: invoice.id,
+                      amount: commissionAmount,
+                      currency,
+                      availableAt,
+                    });
+                  }
+                }
+              }
+            }
+          }
         }
 
         user.lastPaymentError = undefined;
@@ -150,9 +247,7 @@ export async function POST(req: NextRequest) {
       case "invoice.payment_failed": {
         const invoice = event.data.object as StripeTypes.Invoice;
         const customerId =
-          typeof invoice.customer === "string"
-            ? invoice.customer
-            : invoice.customer?.id;
+          typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
         if (!customerId) break;
         const user = await User.findOne({ stripeCustomerId: customerId });
         if (!user) break;
@@ -163,11 +258,84 @@ export async function POST(req: NextRequest) {
           at: new Date(),
           paymentId: String(invoice.id),
           status: "failed",
-          statusDetail: String(
-            invoice.last_finalization_error?.message || "unknown"
-          ),
+          statusDetail: String(invoice.last_finalization_error?.message || "unknown"),
         };
         await user.save();
+        break;
+      }
+
+      case "invoice.voided": {
+        // Fatura anulada → reverte comissão se existir
+        const invoice = event.data.object as StripeTypes.Invoice;
+        const customerId =
+          typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
+        if (!customerId) break;
+
+        const buyer = await User.findOne({ stripeCustomerId: customerId });
+        if (!buyer) break;
+
+        const owner = await User.findOne({
+          affiliateCode: (buyer as any).affiliateUsed || "__none__",
+        });
+        if (!owner) break;
+
+        const idx = (owner.commissionLog || []).findIndex(
+          (i: any) =>
+            i.invoiceId === invoice.id &&
+            (i.status === "pending" || i.status === "available")
+        );
+        if (idx >= 0) {
+          const e = (owner as any).commissionLog[idx];
+          if (e.status === "available") {
+            adjustBalance(owner, e.currency, -Math.abs(Number(e.amountCents || 0)));
+          }
+          e.status = "reversed";
+          e.reversedAt = new Date();
+          e.reversalReason = "invoice.voided";
+          await owner.save();
+        }
+        break;
+      }
+
+      case "charge.refunded": {
+        const charge = event.data.object as any;
+        const customerId =
+          typeof charge.customer === "string" ? charge.customer : charge.customer?.id;
+        if (!customerId) break;
+
+        const buyer = await User.findOne({ stripeCustomerId: customerId });
+        if (!buyer) break;
+
+        const owner = await User.findOne({
+          affiliateCode: (buyer as any).affiliateUsed || "__none__",
+        });
+        if (!owner) break;
+
+        const invId = typeof charge.invoice === "string" ? charge.invoice : charge.invoice?.id;
+
+        const idx = (owner.commissionLog || []).findIndex((i: any) => {
+          if (invId) {
+            return (
+              i.invoiceId === invId &&
+              (i.status === "pending" || i.status === "available")
+            );
+          }
+          return (
+            String(i.buyerId || "") === String(buyer._id) &&
+            (i.status === "pending" || i.status === "available")
+          );
+        });
+
+        if (idx >= 0) {
+          const e = (owner as any).commissionLog[idx];
+          if (e.status === "available") {
+            adjustBalance(owner, e.currency, -Math.abs(Number(e.amountCents || 0)));
+          }
+          e.status = "reversed";
+          e.reversedAt = new Date();
+          e.reversalReason = "charge.refunded";
+          await owner.save();
+        }
         break;
       }
 
@@ -227,8 +395,6 @@ export async function POST(req: NextRequest) {
         );
         break;
       }
-      
-      // ... (outros cases como charge.refunded permanecem os mesmos)
 
       default:
         break;
@@ -237,6 +403,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true });
   } catch (err: any) {
     logger.error("[stripe/webhook] handler error:", err);
+    // 200 para evitar reentrega infinita quando já logamos erro interno
     return NextResponse.json({ received: true, error: "logged" }, { status: 200 });
   }
 }
@@ -258,6 +425,7 @@ declare namespace Stripe {
         price?: { recurring?: { interval?: "day" | "week" | "month" | "year" } };
       }>;
     };
+    metadata?: Record<string, string>;
   }
   export interface Subscription {
     id: string;
