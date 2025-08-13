@@ -9,12 +9,15 @@ import stripe from "@/app/lib/stripe";
 import { checkRateLimit } from "@/utils/rateLimit";
 import { getClientIp } from "@/utils/getClientIp";
 import { cancelBlockingIncompleteSubs } from "@/utils/stripeHelpers";
+import type Stripe from "stripe";
 
 export const runtime = "nodejs";
 
+type SessionWithUserId = { user?: { id?: string | null } } | null;
+
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = (await getServerSession(authOptions as any)) as SessionWithUserId;
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -36,13 +39,11 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "NotFound" }, { status: 404 });
     }
 
-    // 🔒 Gate pelo status do NOSSO banco:
-    //    Só bloqueia se realmente estiver ativo ou em trial.
-    //    'pending' e 'non_renewing' NÃO bloqueiam.
+    // 🔒 Gate 1: status do NOSSO banco controla o bloqueio.
     const blockedStatuses = new Set(["active", "trial"]);
-    const blocked = blockedStatuses.has((user.planStatus as any) || "");
-    if (blocked) {
-      logger.warn("[account.delete] blocked due to active/trial subscription", {
+    const dbBlocked = blockedStatuses.has((user.planStatus as any) || "");
+    if (dbBlocked) {
+      logger.warn("[account.delete] blocked due to active/trial (DB)", {
         userId: user._id,
         planStatus: user.planStatus,
       });
@@ -55,61 +56,56 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    // (Opcional) checagem no Stripe se habilitada
-    // Corrigido: só considera 'active'/'trialing' que NÃO estão marcadas para cancelar ao fim do ciclo.
-    if (
-      process.env.VERIFY_STRIPE_BEFORE_DELETE === "true" &&
-      user.stripeCustomerId
-    ) {
+    // 🔧 Stripe (opcional): se houver customer, SEMPRE limpamos pendências.
+    // 📌 Mas SÓ bloqueamos por Stripe se o DB JÁ bloquearia (dbBlocked === true).
+    if (user.stripeCustomerId) {
       const customerId = user.stripeCustomerId;
+
       try {
+        // 1) Limpa pendências: incomplete / incomplete_expired
         try {
           await cancelBlockingIncompleteSubs(customerId);
-        } catch {}
-        const subs = await stripe.subscriptions.list({
-          customer: customerId,
-          status: "all",
-          limit: 100,
-        });
-        const activeLike = new Set([
-          "active",
-          "trialing",
-          "past_due",
-          "unpaid",
-          "paused",
-        ]);
-        const hasBlocking = subs.data.some((s) =>
-          activeLike.has(s.status as any)
-        );
-        if (hasBlocking) {
-          logger.warn("[account.delete] blocked by live Stripe subscription", {
-            customerId,
-            userId: user._id,
+        } catch { /* noop */ }
+
+        // 2) Snapshot de diagnósticos
+        if (process.env.VERIFY_STRIPE_BEFORE_DELETE === "true") {
+          const subs = await stripe.subscriptions.list({
+            customer: customerId,
+            status: "all",
+            limit: 100,
           });
-          return NextResponse.json(
-            { error: "has_active_subscription" },
-            { status: 409 }
-          );
+
+          logger.info("[account.delete] stripe subs snapshot", {
+            userId: user._id,
+            customerId,
+            subs: subs.data.map((s) => ({
+              id: s.id,
+              status: s.status,
+              cancel_at_period_end: s.cancel_at_period_end,
+            })),
+          });
+
+          // ⚠️ Importante: NÃO bloqueamos aqui porque dbBlocked === false.
+          // Apenas deixamos logado para auditoria.
         }
       } catch (e) {
         logger.error(
-          "[account.delete] Stripe verification failed (continuing with DB status)",
+          "[account.delete] Stripe verification/cleanup failed (continuing)",
           e
         );
       }
     }
 
-    // normaliza balances -> Record<string, number>
+    // 💸 Opcional: bloquear exclusão se houver saldo de afiliado positivo
     const balancesRaw =
       user.affiliateBalances instanceof Map
         ? Object.fromEntries(user.affiliateBalances as any)
-        : user.affiliateBalances || {};
+        : (user.affiliateBalances as any) || {};
     const balances = (balancesRaw || {}) as Record<string, number>;
     const hasAffiliateBalances = Object.values(balances).some(
       (v) => Number(v) > 0
     );
 
-    // (Opcional) bloquear exclusão se houver saldo de afiliado positivo
     if (
       hasAffiliateBalances &&
       process.env.BLOCK_DELETE_WITH_AFFILIATE_BALANCE === "true"
