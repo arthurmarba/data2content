@@ -6,6 +6,7 @@ import User from "@/app/models/User";
 import stripe from "@/app/lib/stripe";
 import { checkRateLimit } from "@/utils/rateLimit";
 import { getClientIp } from "@/utils/getClientIp";
+import { mapStripeAccountInfo } from "@/app/services/stripe/mapAccountInfo";
 
 export const runtime = "nodejs";
 
@@ -37,58 +38,42 @@ export async function GET(req: NextRequest) {
 
     const accountId = user.paymentInfo?.stripeAccountId || null;
 
-    let status: "verified" | "pending" | "disabled" | null =
-      user.paymentInfo?.stripeAccountStatus || null;
-    let destCurrency: string | null =
-      user.paymentInfo?.stripeAccountDefaultCurrency || null;
-
     if (accountId) {
       try {
         const account = await stripe.accounts.retrieve(accountId);
+        const info = mapStripeAccountInfo(account as any);
 
-        destCurrency =
-          (account as any).default_currency
-            ? String((account as any).default_currency).toLowerCase()
-            : null;
+        const prev = user.paymentInfo || {};
+        user.paymentInfo = {
+          ...prev,
+          stripeAccountStatus: info.stripeAccountStatus,
+          stripeAccountDefaultCurrency: info.default_currency || undefined,
+          stripeAccountPayoutsEnabled: info.payouts_enabled,
+          stripeAccountChargesEnabled: info.charges_enabled,
+          stripeAccountDisabledReason: info.disabled_reason || undefined,
+          stripeAccountCapabilities: new Map(
+            Object.entries(info.capabilities)
+          ),
+          stripeAccountNeedsOnboarding: info.needsOnboarding,
+        } as any;
+        user.markModified("paymentInfo");
+        await user.save();
 
-        // Para receber transfers, o essencial é poder fazer *payouts*
-        const verified = !!account.payouts_enabled;
-        status = verified ? "verified" : "pending";
-
-        // Se a Stripe marcar como desabilitada
-        if (
-          (account.requirements as any)?.disabled_reason ||
-          (account as any).disabled_reason
-        ) {
-          status = "disabled";
-        }
-
-        // Persistir somente se mudou
-        const prevStatus = user.paymentInfo?.stripeAccountStatus ?? null;
-        const prevCurrency =
-          user.paymentInfo?.stripeAccountDefaultCurrency ?? null;
-
-        if (prevStatus !== status || prevCurrency !== destCurrency) {
-          user.paymentInfo = user.paymentInfo || {};
-          user.paymentInfo.stripeAccountStatus = status as any;
-          user.paymentInfo.stripeAccountDefaultCurrency = destCurrency || undefined;
-          await user.save();
-        }
+        return NextResponse.json(info);
       } catch (err) {
         console.error("[affiliate/connect/status] retrieve error:", err);
       }
-    } else {
-      status = null;
-      destCurrency = null;
     }
 
-    const needsOnboarding = !accountId || status !== "verified";
-
     return NextResponse.json({
-      stripeAccountId: accountId,
-      stripeAccountStatus: status,
-      destCurrency,
-      needsOnboarding,
+      payouts_enabled: false,
+      charges_enabled: false,
+      default_currency: null,
+      disabled_reason: null,
+      needsOnboarding: true,
+      capabilities: { card_payments: "inactive", transfers: "inactive" },
+      requirements: { currently_due: [], past_due: [], current_deadline: null },
+      stripeAccountStatus: "pending",
     });
   } catch (err) {
     console.error("[affiliate/connect/status] error:", err);

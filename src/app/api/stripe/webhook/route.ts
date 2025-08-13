@@ -16,6 +16,7 @@ import {
   processAffiliateRefund,
   getRefundedPaidTotal,
 } from "@/app/services/affiliate/refundCommission";
+import { mapStripeAccountInfo } from "@/app/services/stripe/mapAccountInfo";
 import type { Stripe as StripeTypes } from "stripe";
 
 export const runtime = "nodejs";
@@ -62,20 +63,32 @@ export async function POST(req: NextRequest) {
     switch (event.type) {
       case "account.updated": {
         const account = event.data.object as any;
+        const info = mapStripeAccountInfo(account);
         const acctId = account.id as string;
-
-        const destCurrency = (account.default_currency || "").toLowerCase() || null;
-        let status: "verified" | "pending" | "disabled" = "pending";
-        if (account.charges_enabled && account.payouts_enabled) status = "verified";
-        if (account.requirements?.disabled_reason) status = "disabled";
 
         const user = await User.findOne({ "paymentInfo.stripeAccountId": acctId });
         if (user) {
           user.paymentInfo ||= {};
-          user.paymentInfo.stripeAccountStatus = status;
-          user.paymentInfo.stripeAccountDefaultCurrency = destCurrency || undefined;
+          user.paymentInfo.stripeAccountStatus = info.stripeAccountStatus;
+          user.paymentInfo.stripeAccountDefaultCurrency = info.default_currency || undefined;
+          user.paymentInfo.stripeAccountPayoutsEnabled = info.payouts_enabled;
+          user.paymentInfo.stripeAccountChargesEnabled = info.charges_enabled;
+          user.paymentInfo.stripeAccountDisabledReason = info.disabled_reason || undefined;
+          user.paymentInfo.stripeAccountCapabilities = new Map(
+            Object.entries(info.capabilities)
+          );
+          user.paymentInfo.stripeAccountNeedsOnboarding = info.needsOnboarding;
+          user.markModified("paymentInfo");
           await user.save();
         }
+
+        logger.info("[connect:account.updated]", {
+          accountId: acctId,
+          payouts_enabled: info.payouts_enabled,
+          default_currency: info.default_currency,
+          needsOnboarding: info.needsOnboarding,
+          disabled_reason: info.disabled_reason,
+        });
         break;
       }
 

@@ -6,6 +6,7 @@ import User from "@/app/models/User";
 import stripe from "@/app/lib/stripe";
 import { checkRateLimit } from "@/utils/rateLimit";
 import { getClientIp } from "@/utils/getClientIp";
+import { logger } from "@/app/lib/logger";
 
 export const runtime = "nodejs";
 
@@ -72,6 +73,7 @@ export async function POST(req: NextRequest) {
       user.affiliatePayoutMode = "connect";
       await user.save();
     }
+    logger.info("[connect:create]", { userId: user._id, accountId });
 
     return NextResponse.json({ accountId, status });
   } catch (err) {
