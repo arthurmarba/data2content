@@ -10,7 +10,8 @@ export default function DeleteAccountSection() {
   const planStatus = session?.user?.planStatus;
   const affiliateBalances = session?.user?.affiliateBalances || {};
 
-  const isDeletionBlocked = ["active", "trial", "past_due", "pending"].includes(
+  // ✅ CORREÇÃO: 'pending' foi removido da lógica de bloqueio da UI.
+  const isDeletionBlocked = ["active", "trial", "past_due"].includes(
     planStatus || ""
   );
 
@@ -27,14 +28,12 @@ export default function DeleteAccountSection() {
     }
   };
 
-  // CORREÇÃO: Esta função rola a página para a seção correta.
   const scrollToManage = () => {
     setShowBlocked(false);
     const el = document.getElementById("subscription-management-title");
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "start" });
     } else {
-      // Fallback caso o componente esteja em outra página
       window.location.href = "/dashboard/settings#subscription-management-title";
     }
   };
@@ -68,14 +67,17 @@ export default function DeleteAccountSection() {
   return (
     <section id="delete-account" className="space-y-4 pt-4 border-t">
       <h2 className="text-xl font-semibold text-red-700">Excluir conta</h2>
-      <p className="text-sm text-gray-600">
-        Esta ação é permanente e removerá todos os seus dados da plataforma.
-      </p>
+      
+      {/* ✅ MELHORIA: Mensagem informativa para o status 'pending' */}
+      {planStatus === "pending" && (
+        <p className="text-sm text-blue-800 bg-blue-50 p-3 rounded-md">
+          Sua assinatura está <b>pendente</b> (sem cobrança ativa). Você pode excluir sua conta se desejar.
+        </p>
+      )}
 
       {isDeletionBlocked && (
         <p className="text-sm text-yellow-800 bg-yellow-50 p-3 rounded-md">
-          Você possui uma assinatura ativa ou pendente. Cancele sua assinatura
-          antes de prosseguir com a exclusão da conta.
+          Você possui uma assinatura ativa. Cancele sua assinatura antes de prosseguir com a exclusão da conta.
         </p>
       )}
 
@@ -114,7 +116,6 @@ export default function DeleteAccountSection() {
                 >
                   Entendi
                 </button>
-                {/* CORREÇÃO: O botão agora chama a função de rolagem. */}
                 <button
                   className="px-3 py-1 text-sm bg-gray-800 text-white rounded hover:bg-gray-900"
                   onClick={scrollToManage}

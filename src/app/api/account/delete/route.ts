@@ -39,9 +39,8 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "NotFound" }, { status: 404 });
     }
 
-    // 🔒 Gate 1: status do NOSSO banco controla o bloqueio.
-    // RECOMENDAÇÃO: Adicionado 'pending' e 'past_due' para máxima segurança.
-    const blockedStatuses = new Set(["active", "trial", "past_due", "pending"]);
+    // ✅ CORREÇÃO: O status 'pending' foi removido da lista de bloqueio.
+    const blockedStatuses = new Set(["active", "trial", "past_due"]);
     const dbBlocked = blockedStatuses.has((user.planStatus as any) || "");
     if (dbBlocked) {
       logger.warn("[account.delete] blocked due to active subscription status (DB)", {
