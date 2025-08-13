@@ -1,8 +1,8 @@
 // src/app/api/auth/[...nextauth]/route.ts
-// VERSÃO: v2.2.2
-// - Fix: normalização segura de affiliateBalances (Map vs objeto) para evitar "object is not iterable" com .lean().
-// - Inclui agency?: string | null na tipagem de User (NextAuth) para evitar TS lint chato.
-// - Mantém refinamentos de provider/Stripe/Instagram da v2.2.1.
+// VERSÃO: v2.2.3
+// - Exposição de affiliateCode/affiliateBalances também no nível da sessão (session.affiliateCode / session.affiliateBalances) para compat com clients.
+// - Reforço no JWT para garantir campos affiliateCode/affiliateBalances definidos mesmo antes do primeiro refresh.
+// - Mantém normalização segura de affiliateBalances (Map vs objeto) e demais integrações (Stripe/Instagram/Agência).
 
 import NextAuth from "next-auth";
 import type { DefaultSession, DefaultUser, NextAuthOptions, Session, User as NextAuthUserArg } from "next-auth";
@@ -89,6 +89,10 @@ declare module "next-auth" {
       stripeAccountStatus?: "pending" | "verified" | "disabled" | null;
       stripeAccountDefaultCurrency?: string | null;
     } & Omit<DefaultSession["user"], "id" | "name" | "email" | "image">;
+
+    // 👇 também no nível da sessão para compat com clients que leem session.affiliateCode
+    affiliateCode?: string | null;
+    affiliateBalances?: Record<string, number>;
   }
 }
 
@@ -159,7 +163,7 @@ function normalizeBalances(input: unknown): Record<string, number> {
 
 // Custom JWT encode function
 async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise<string> {
-  const TAG_ENCODE = "[NextAuth customEncode v2.2.2]";
+  const TAG_ENCODE = "[NextAuth customEncode v2.2.3]";
   if (!secret) throw new Error("NEXTAUTH_SECRET ausente em customEncode");
   const secretString = typeof secret === "string" ? secret : String(secret);
   const expirationTime =
@@ -216,7 +220,7 @@ async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise
 
 // Custom JWT decode function
 async function customDecode({ token, secret }: JWTDecodeParams): Promise<JWT | null> {
-  const TAG_DECODE = "[NextAuth customDecode v2.2.2]";
+  const TAG_DECODE = "[NextAuth customDecode v2.2.3]";
   if (!token || !secret) {
     logger.error(`${TAG_DECODE} Token ou secret não fornecidos.`);
     return null;
@@ -399,7 +403,7 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async signIn({ user: authUserFromProvider, account }) {
-      const TAG_SIGNIN = "[NextAuth signIn v2.2.2]";
+      const TAG_SIGNIN = "[NextAuth signIn v2.2.3]";
       logger.debug(`${TAG_SIGNIN} Iniciado`, {
         providerAccountIdReceived: authUserFromProvider.id,
         provider: account?.provider,
@@ -709,10 +713,14 @@ export const authOptions: NextAuthOptions = {
     },
 
     async jwt({ token, user: userFromSignIn, trigger }) {
-      const TAG_JWT = "[NextAuth JWT v2.2.2]";
+      const TAG_JWT = "[NextAuth JWT v2.2.3]";
       logger.debug(
         `${TAG_JWT} Iniciado. Trigger: ${trigger}. UserID(signIn): ${userFromSignIn?.id}. TokenInID: ${token?.id}. Token.planStatus(in): ${token.planStatus}, Token.affiliateCode(in): ${token.affiliateCode}`
       );
+
+      // 👇 garante que as chaves existam mesmo em fluxos onde ainda não foram populadas
+      if (typeof token.affiliateCode === "undefined") token.affiliateCode = null;
+      if (typeof token.affiliateBalances === "undefined") token.affiliateBalances = {};
 
       if ((trigger === "signIn" || trigger === "signUp") && userFromSignIn) {
         token.id = userFromSignIn.id;
@@ -930,7 +938,7 @@ export const authOptions: NextAuthOptions = {
     },
 
     async session({ session, token }) {
-      const TAG_SESSION = "[NextAuth Session v2.2.2]";
+      const TAG_SESSION = "[NextAuth Session v2.2.3]";
       logger.debug(
         `${TAG_SESSION} Iniciado. Token ID: ${token?.id}, Token.Provider: ${token?.provider}, Token.planStatus (vindo do token JWT): ${token?.planStatus}`
       );
@@ -990,6 +998,10 @@ export const authOptions: NextAuthOptions = {
       session.user.stripeAccountStatus = token.stripeAccountStatus ?? null;
       session.user.stripeAccountDefaultCurrency =
         token.stripeAccountDefaultCurrency ?? null;
+
+      // 👇 também expõe no nível da sessão para clients que leem session.affiliateCode
+      (session as any).affiliateCode = token.affiliateCode ?? null;
+      (session as any).affiliateBalances = token.affiliateBalances || {};
 
       try {
         await connectToDatabase();
