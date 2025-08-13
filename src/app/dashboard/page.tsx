@@ -590,13 +590,6 @@ export default function MainDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 lg:gap-12">
             {/* --- COLUNA PRINCIPAL (ESQUERDA) --- */}
             <div className="lg:col-span-2 space-y-12">
-              {showPlan && (
-                <PlanCardPro
-                  id="plan-card"
-                  defaultCurrency={defaultCurrency}
-                  className="w-full"
-                />
-              )}
               {/* Card de Boas-Vindas */}
               <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={0}>
                 <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg border-t-4 border-brand-pink flex flex-col sm:flex-row items-center gap-6">
@@ -638,6 +631,14 @@ export default function MainDashboard() {
                 <div className="flex items-center gap-3 mb-5 ml-1"> <FaVideo className="w-5 h-5 text-brand-pink"/> <h2 className="text-xl font-semibold text-brand-dark">Guias Rápidos da Plataforma</h2> </div>
                 <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg"> <VideoCarousel videos={videoGuidesData} swiperRef={swiperRef} /> </div>
               </motion.section>
+
+              {showPlan && (
+                <PlanCardPro
+                  id="plan-card"
+                  defaultCurrency={defaultCurrency}
+                  className="w-full"
+                />
+              )}
 
               {/* Automação de Métricas (InstagramConnectCard) */}
               <InstagramConnectCard
