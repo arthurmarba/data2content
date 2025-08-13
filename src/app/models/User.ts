@@ -530,6 +530,12 @@ const userSchema = new Schema<IUser>(
   { timestamps: true }
 );
 
+// Índice para acelerar a maturação de comissões pendentes
+userSchema.index(
+  { 'commissionLog.status': 1, 'commissionLog.availableAt': 1 },
+  { name: 'idx_commission_pending_due' }
+);
+
 userSchema.pre<IUser>("save", function (next) {
   const TAG_PRE_SAVE = '[User.ts pre-save v1.9.20]';
   if (this.isNew && !this.affiliateCode) {
