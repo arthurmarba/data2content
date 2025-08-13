@@ -3,23 +3,13 @@
 import * as React from "react";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { useSession } from "next-auth/react";
-import { useSearchParams } from "next/navigation";
+import { useAffiliateCode } from "@/hooks/useAffiliateCode";
 
 type Props = { initialAffiliateCode?: string };
 type FormData = { affiliateCode: string };
 
-function getCookie(name: string): string {
-  if (typeof document === "undefined") return "";
-  const m = document.cookie.match(
-    new RegExp("(?:^|;\\s*)" + name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "=([^;]+)")
-  );
-  return m && m[1] ? decodeURIComponent(m[1]) : "";
-}
-
 export default function BillingClientPage({ initialAffiliateCode = "" }: Props) {
-  const searchParams = useSearchParams();
-  const { data: session, status } = useSession();
+  const resolvedAffiliate = useAffiliateCode();
 
   const { register, setValue, watch } = useForm<FormData>({
     defaultValues: { affiliateCode: (initialAffiliateCode || "").toUpperCase() },
@@ -28,52 +18,13 @@ export default function BillingClientPage({ initialAffiliateCode = "" }: Props) 
   const affiliateCodeValue = watch("affiliateCode");
 
   useEffect(() => {
-    if (affiliateCodeValue) return; // já preenchido via SSR ou usuário
-
-    // URL e COOKIE primeiro
-    const fromUrl = (
-      searchParams?.get("ref") || searchParams?.get("aff") || ""
-    )
-      .toString()
-      .trim()
-      .toUpperCase();
-
-    const fromCookie = getCookie("d2c_ref").trim().toUpperCase();
-
-    // sessão por último
-    const fromSession = (
-      (session as any)?.user?.affiliateCode ||
-      (session as any)?.affiliateCode ||
-      (session as any)?.user?.ref ||
-      (session as any)?.ref ||
-      ""
-    )
-      .toString()
-      .trim()
-      .toUpperCase();
-
-    const candidate =
-      fromUrl || fromCookie || initialAffiliateCode.toUpperCase() || fromSession || "";
-
-    if (process.env.NODE_ENV !== "production") {
-      console.debug("[Billing autofill]", {
-        fromUrl,
-        fromCookie,
-        initial: initialAffiliateCode,
-        fromSession,
-        picked: candidate,
-        status,
-      });
-    }
-
-    if (candidate) {
-      setValue("affiliateCode", candidate, {
-        shouldDirty: false,
-        shouldTouch: false,
-        shouldValidate: false,
-      });
-    }
-  }, [affiliateCodeValue, searchParams, session, status, initialAffiliateCode, setValue]);
+    if (affiliateCodeValue || !resolvedAffiliate) return;
+    setValue("affiliateCode", resolvedAffiliate.toUpperCase(), {
+      shouldDirty: false,
+      shouldTouch: false,
+      shouldValidate: false,
+    });
+  }, [affiliateCodeValue, resolvedAffiliate, setValue]);
 
   return (
     <div className="mx-auto max-w-2xl rounded-2xl border p-6">
