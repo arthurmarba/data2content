@@ -57,6 +57,20 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Pr
   const [err, setErr] = useState<string | null>(null);
   const [preview, setPreview] = useState<InvoicePreview | null>(null);
 
+  // --- Fallback: busca código no localStorage se não vier do servidor ---
+  useEffect(() => {
+    if (!initialAffiliateCode) {
+      try {
+        const stored = localStorage.getItem("d2c_ref");
+        if (stored) {
+          setAffiliateCode(stored);
+        }
+      } catch {
+        // Ignora se localStorage não estiver disponível
+      }
+    }
+  }, [initialAffiliateCode]);
+
   // --- Efeito para buscar a prévia da fatura ---
   useEffect(() => {
     const fetchPreview = async () => {
