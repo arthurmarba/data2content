@@ -12,11 +12,9 @@ import { logger } from "@/app/lib/logger";
       { $unwind: "$commissionLog" },
       {
         $project: {
-          invoiceId: {
-            $ifNull: ["$commissionLog.invoiceId", "$commissionLog.sourcePaymentId"],
-          },
+          invoiceId: "$commissionLog.invoiceId",
           affiliateUserId: "$_id",
-          createdAt: { $ifNull: ["$commissionLog.date", new Date()] },
+          createdAt: { $ifNull: ["$commissionLog.createdAt", new Date()] },
         },
       },
       { $match: { invoiceId: { $exists: true } } },
@@ -38,7 +36,7 @@ import { logger } from "@/app/lib/logger";
         $project: {
           subscriptionId: "$commissionLog.subscriptionId",
           affiliateUserId: "$_id",
-          createdAt: { $ifNull: ["$commissionLog.date", new Date()] },
+          createdAt: { $ifNull: ["$commissionLog.createdAt", new Date()] },
         },
       },
     ]).cursor({ batchSize: 50 }).exec();

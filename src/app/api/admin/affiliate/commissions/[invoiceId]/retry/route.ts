@@ -32,11 +32,11 @@ export async function POST(req: NextRequest, { params }: { params: { invoiceId: 
 
     await connectToDatabase();
     const invoiceId = params.invoiceId;
-    const affUser = await User.findOne({ "commissionLog.sourcePaymentId": invoiceId });
+    const affUser = await User.findOne({ "commissionLog.invoiceId": invoiceId });
     if (!affUser) {
       return NextResponse.json({ error: 'Comissão não encontrada' }, { status: 404 });
     }
-    const entry = affUser.commissionLog?.find(e => e.sourcePaymentId === invoiceId);
+    const entry = affUser.commissionLog?.find(e => e.invoiceId === invoiceId);
     if (!entry || !['failed', 'fallback'].includes(entry.status)) {
       return NextResponse.json({ error: 'Comissão não elegível para reprocessamento' }, { status: 400 });
     }
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest, { params }: { params: { invoiceId: 
     }
 
     logger.info('[admin/affiliate/commissions/retry] transfer', {
-      invoiceId: entry.sourcePaymentId,
+      invoiceId: entry.invoiceId,
       amountCents,
       currency,
       dest: affUser.paymentInfo.stripeAccountId,
@@ -66,20 +66,20 @@ export async function POST(req: NextRequest, { params }: { params: { invoiceId: 
       amount: amountCents,
       currency,
       destination: affUser.paymentInfo.stripeAccountId,
-      description: entry.description,
+      description: entry.note || '',
       metadata: {
-        invoiceId: entry.sourcePaymentId || '',
-        referredUserId: entry.referredUserId ? String(entry.referredUserId) : '',
+        invoiceId: entry.invoiceId || '',
+        buyerUserId: entry.buyerUserId ? String(entry.buyerUserId) : '',
         affiliateUserId: String(affUser._id),
         affiliateCode: affUser.affiliateCode || ''
       }
-    }, { idempotencyKey: `commission_${entry.sourcePaymentId}_${affUser._id}` });
+    }, { idempotencyKey: `commission_${entry.invoiceId}_${affUser._id}` });
 
     entry.status = 'paid';
     entry.transactionId = transfer.id;
     affUser.commissionPaidInvoiceIds = affUser.commissionPaidInvoiceIds || [];
-    if (entry.sourcePaymentId && !affUser.commissionPaidInvoiceIds.includes(entry.sourcePaymentId)) {
-      affUser.commissionPaidInvoiceIds.push(entry.sourcePaymentId);
+    if (entry.invoiceId && !affUser.commissionPaidInvoiceIds.includes(entry.invoiceId)) {
+      affUser.commissionPaidInvoiceIds.push(entry.invoiceId);
     }
     affUser.affiliateBalances ||= new Map();
     const prev = affUser.affiliateBalances.get(currency) ?? 0;

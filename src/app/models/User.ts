@@ -153,15 +153,21 @@ export interface IAvailableInstagramAccount {
   profile_picture_url?: string;
 }
 
-export interface ICommissionLogEntry {
-  date: Date;
-  description: string;
-  sourcePaymentId?: string;
-  referredUserId?: Types.ObjectId;
-  status: 'accrued' | 'paid' | 'failed' | 'fallback'; // <- inclui "accrued"
-  transactionId?: string | null;
-  currency?: string;
+export interface ICommissionEntry {
+  _id: Types.ObjectId;
+  type: 'commission' | 'adjustment' | 'redeem';
+  status: 'pending' | 'available' | 'paid' | 'canceled' | 'reversed';
+  invoiceId?: string;
+  subscriptionId?: string;
+  affiliateUserId: Types.ObjectId;
+  buyerUserId?: Types.ObjectId;
+  currency: string;
   amountCents: number;
+  availableAt?: Date;
+  transactionId?: string;
+  note?: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface ILastCommunityInspirationShown {
@@ -270,12 +276,13 @@ export interface IUser extends Document {
   affiliateCode?: string;
   affiliateUsed: string | null;
   affiliateBalances?: Map<string, number>; // multimoeda em cents
+  affiliateDebtByCurrency?: Map<string, number>;
 
   // LEGACY
   affiliateBalance?: number;
   affiliateBalanceCents?: number;
 
-  commissionLog?: ICommissionLogEntry[];
+  commissionLog?: ICommissionEntry[];
   paymentInfo?: {
     pixKey?: string;
     bankName?: string;
@@ -322,16 +329,30 @@ function generateAffiliateCode(): string {
 }
 
 // --- SCHEMAS ANINHADOS ---
-const commissionLogEntrySchema = new Schema<ICommissionLogEntry>({
-  date: { type: Date, required: true },
-  description: { type: String, required: true },
-  sourcePaymentId: { type: String },
-  referredUserId: { type: Schema.Types.ObjectId, ref: 'User' },
-  status: { type: String, enum: ['accrued', 'paid', 'failed', 'fallback'], required: true }, // <- inclui "accrued"
-  transactionId: { type: String, default: null },
-  currency: { type: String, lowercase: true }, // garantir lowercase
-  amountCents: { type: Number, required: true },
-}, { _id: false });
+const commissionLogEntrySchema = new Schema<ICommissionEntry>(
+  {
+    type: {
+      type: String,
+      enum: ['commission', 'adjustment', 'redeem'],
+      required: true,
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'available', 'paid', 'canceled', 'reversed'],
+      required: true,
+    },
+    invoiceId: { type: String },
+    subscriptionId: { type: String },
+    affiliateUserId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    buyerUserId: { type: Schema.Types.ObjectId, ref: 'User' },
+    currency: { type: String, lowercase: true, required: true },
+    amountCents: { type: Number, required: true },
+    availableAt: { type: Date },
+    transactionId: { type: String },
+    note: { type: String },
+  },
+  { timestamps: true }
+);
 
 const lastCommunityInspirationShownSchema = new Schema<ILastCommunityInspirationShown>({
   date: { type: Date, required: true },
@@ -462,6 +483,7 @@ const userSchema = new Schema<IUser>(
 
     // Multimoeda (cents por moeda)
     affiliateBalances: { type: Map, of: Number, default: {} },
+    affiliateDebtByCurrency: { type: Map, of: Number, default: {} },
 
     // LEGACY
     affiliateBalanceCents: { type: Number, default: 0 },

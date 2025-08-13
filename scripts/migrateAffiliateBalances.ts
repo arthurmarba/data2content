@@ -19,7 +19,7 @@ import { normCur } from '@/utils/normCur';
       const map = new Map<string, number>();
 
       for (const e of u.commissionLog || []) {
-        if (['fallback', 'failed'].includes(e.status) && e.amountCents && e.currency) {
+        if (['available'].includes(e.status) && e.amountCents && e.currency) {
           const cur = normCur(e.currency);
           map.set(cur, (map.get(cur) ?? 0) + e.amountCents);
         }

@@ -498,15 +498,16 @@ export async function updateRedemptionStatus(
       const amountCents = redemption.amountCents;
       const incField = { [`affiliateBalances.${currency}`]: -amountCents } as any;
       const pushField: any = {
-        date: new Date(),
-        description: 'affiliate redeem (manual)',
+        type: 'redeem',
         status: 'paid',
         currency,
         amountCents,
+        affiliateUserId: redemption.userId,
+        note: 'affiliate redeem (manual)',
+        transactionId: transactionId || undefined,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
-      if (transactionId) {
-        pushField.transactionId = transactionId;
-      }
 
       const userUpdate = await UserModel.updateOne(
         { _id: redemption.userId, [`affiliateBalances.${currency}`]: { $gte: amountCents } },

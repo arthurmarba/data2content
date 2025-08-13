@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
     items = items.filter(i => i.status === statusFilter);
   }
 
-  items.sort((a: any, b: any) => (b.date?.valueOf() || 0) - (a.date?.valueOf() || 0));
+  items.sort((a: any, b: any) => (b.createdAt?.valueOf() || 0) - (a.createdAt?.valueOf() || 0));
 
   const total = items.length;
   const start = (page - 1) * limit;

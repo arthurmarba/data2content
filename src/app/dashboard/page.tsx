@@ -53,12 +53,20 @@ interface VideoData {
 }
 
 interface CommissionLogItem {
-  date: string;
-  description: string;
-  sourcePaymentId?: string;
-  referredUserId?: string;
+  _id: string;
+  type: string;
+  status: string;
+  invoiceId?: string;
+  subscriptionId?: string;
+  affiliateUserId: string;
+  buyerUserId?: string;
   currency?: string;
   amountCents: number;
+  availableAt?: string;
+  transactionId?: string;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 const SkeletonLoader = ({ className = "" }: { className?: string }) => (
@@ -164,9 +172,9 @@ const AffiliateCardContent: React.FC<{
                 const curr = (logItem.currency || 'BRL').toUpperCase();
                 const mismatch = destCurrency && logItem.currency && destCurrency !== logItem.currency.toLowerCase();
                 return (
-                  <div key={logItem.sourcePaymentId || `commission-${index}`} className="p-2.5 bg-gray-50 rounded-lg border border-gray-200/80 text-xs hover:shadow-sm transition-shadow">
+                  <div key={logItem.invoiceId || logItem._id || `commission-${index}`} className="p-2.5 bg-gray-50 rounded-lg border border-gray-200/80 text-xs hover:shadow-sm transition-shadow">
                     <div className="flex justify-between items-start">
-                      <span className="font-medium text-gray-700">{new Date(logItem.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                      <span className="font-medium text-gray-700">{new Date(logItem.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
                       <div className="flex items-center gap-1">
                         <span className="font-semibold text-green-600 text-sm">+ {amt.toLocaleString('pt-BR', { style: 'currency', currency: curr })}</span>
                         {mismatch && (
@@ -178,7 +186,7 @@ const AffiliateCardContent: React.FC<{
                         )}
                       </div>
                     </div>
-                    <p className="text-gray-600 mt-1 text-[11px] leading-relaxed">{logItem.description}</p>
+                    <p className="text-gray-600 mt-1 text-[11px] leading-relaxed">{logItem.note}</p>
                   </div>
                 );
               })}

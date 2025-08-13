@@ -6,9 +6,9 @@ export type CreditArgs = {
   affiliateUserId: string;
   amountCents: number;
   currency: string;
-  description: string;
+  description?: string;
   sourcePaymentId?: string;
-  referredUserId?: string; // chega como string
+  buyerUserId?: string; // chega como string
 };
 
 export async function creditAffiliateCommission(args: CreditArgs) {
@@ -18,7 +18,7 @@ export async function creditAffiliateCommission(args: CreditArgs) {
     currency,
     description,
     sourcePaymentId,
-    referredUserId,
+    buyerUserId,
   } = args;
 
   await connectToDatabase();
@@ -30,23 +30,24 @@ export async function creditAffiliateCommission(args: CreditArgs) {
   const user = await User.findById(affiliateUserId);
   if (!user) throw new Error("Affiliate user not found");
 
-  // normaliza moeda e valida o referredUserId (se vier)
+  // normaliza moeda e valida o buyerUserId (se vier)
   const lowerCurrency = (currency || "BRL").toLowerCase();
-  const referredObjId =
-    referredUserId && Types.ObjectId.isValid(referredUserId)
-      ? new Types.ObjectId(referredUserId)
+  const buyerObjId =
+    buyerUserId && Types.ObjectId.isValid(buyerUserId)
+      ? new Types.ObjectId(buyerUserId)
       : undefined;
 
   user.commissionLog ||= [];
   user.commissionLog.push({
-    date: new Date(),
-    description,
-    sourcePaymentId,
-    referredUserId: referredObjId, // agora é ObjectId | undefined
+    type: 'adjustment',
+    status: 'available',
+    affiliateUserId: user._id,
+    buyerUserId: buyerObjId,
     currency: lowerCurrency,
     amountCents,
-    status: "accrued",
-  });
+    invoiceId: sourcePaymentId,
+    note: description,
+  } as any);
 
   // Garante que affiliateBalances seja um Map-like válido (cobre legado objeto plano)
   // @ts-ignore (MongooseMap possui get/set em runtime)
