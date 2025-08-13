@@ -15,7 +15,8 @@
     "force-clean-indexes": "tsx --env-file=.env.local ./scripts/forceCleanIndexes.ts",
     "fix-formats": "tsx --env-file=.env.local ./scripts/fixFormatLabels.ts",
     "test:demographics": "tsx --env-file=.env.local ./scripts/testDemographics.ts",
-    "backfill:demographics": "tsx --env-file=.env.local ./scripts/backfillDemographicSnapshots.ts"
+    "backfill:demographics": "tsx --env-file=.env.local ./scripts/backfillDemographicSnapshots.ts",
+    "migrate-affiliates": "tsx --env-file=.env.local ./scripts/migrate-affiliates.ts"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.2",
