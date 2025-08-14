@@ -3,12 +3,13 @@
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import { v4 as uuidv4 } from 'uuid';
 import {
   useAffiliateSummary,
   canRedeem,
   getRedeemBlockReason,
 } from '@/hooks/useAffiliateSummary';
-import { REDEEM_BLOCK_MESSAGES, RULES_COPY } from '@/copy/affiliates';
+import { REDEEM_BLOCK_MESSAGES, REDEEM_ERROR_MESSAGES, RULES_COPY } from '@/copy/affiliates';
 import EmptyState from '@/components/ui/EmptyState';
 import SkeletonRow from '@/components/ui/SkeletonRow';
 import ErrorState from '@/components/ui/ErrorState';
@@ -36,7 +37,7 @@ function daysUntil(dateStr?: string | null) {
 }
 
 export default function AffiliateCard() {
-  const { data: session } = useSession();
+  const { data: session, update: updateSession } = useSession();
   const { summary, loading: summaryLoading, error: summaryError, refresh: refreshSummary } = useAffiliateSummary();
   const { status, isLoading: statusLoading, error: statusError, refresh: refreshStatus } = useConnectStatus();
   const loading = summaryLoading || statusLoading;
@@ -121,7 +122,11 @@ export default function AffiliateCard() {
     try {
       const res = await fetch('/api/affiliate/redeem', {
         method: 'POST',
-        body: JSON.stringify({ currency: redeemCur }),
+        body: JSON.stringify({
+          currency: redeemCur,
+          amountCents: null,
+          clientToken: uuidv4(),
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -129,16 +134,19 @@ export default function AffiliateCard() {
           currency: redeemCur,
           code: data.code,
         });
-        toast.error(data.message || 'Falha ao solicitar resgate.');
+        const msg =
+          REDEEM_ERROR_MESSAGES[data.code as keyof typeof REDEEM_ERROR_MESSAGES] ||
+          data.message ||
+          'Falha ao solicitar resgate.';
+        toast.error(msg);
       } else {
         track('affiliate_redeem_success', {
           currency: redeemCur,
           amountCents: amount,
         });
-        toast.success(
-          data.mode === 'auto' ? 'Transferência criada' : 'Solicitação registrada'
-        );
+        toast.success('Transferência criada');
         await refresh();
+        await updateSession?.();
       }
     } catch {
       toast.error('Falha ao solicitar resgate. Tente novamente.');
