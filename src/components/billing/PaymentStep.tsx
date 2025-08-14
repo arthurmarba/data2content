@@ -16,9 +16,12 @@ function InnerPayment({ clientSecret, onClose }: { clientSecret: string; onClose
   async function handleConfirm() {
     if (!stripe || !elements) return;
     setLoading(true); setError(null);
+    // sempre voltar para a página com polling
+    const returnUrl = `${window.location.origin}/dashboard/billing/success`;
+
     const { error } = await stripe.confirmPayment({
       elements,
-      confirmParams: { return_url: window.location.origin + '/billing/success' }
+      confirmParams: { return_url: returnUrl },
     });
     if (error) setError(error.message || 'Não foi possível confirmar o pagamento.');
     setLoading(false);

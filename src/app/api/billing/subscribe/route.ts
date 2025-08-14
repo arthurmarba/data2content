@@ -117,8 +117,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
     }
 
-    let manualCoupon: string | undefined = normalizeCode(body.manualCoupon || undefined);
-
     // prioridade: digitado/typed > URL (?ref|?aff) > cookie (90 dias)
     let resolved: ResolvedAffiliate = resolveAffiliateCodeHelper
       ? (resolveAffiliateCodeHelper(req, body.affiliateCode) as ResolvedAffiliate)
@@ -133,6 +131,8 @@ export async function POST(req: NextRequest) {
 
     const source: "typed" | "url" | "cookie" | undefined =
       (resolved as Extract<ResolvedAffiliate, { code: string | null }>).source || undefined;
+
+    const typedCode = source === "typed" ? affiliateCode : undefined;
 
     const priceId = getPriceId(plan, currency);
 
@@ -179,6 +179,8 @@ export async function POST(req: NextRequest) {
     }
 
     let sub: Stripe.Subscription;
+    let affiliateOwner: any = null;
+    let discounts: Stripe.SubscriptionCreateParams.Discount[] | undefined = undefined;
 
     if (existing && ["active", "trialing"].includes(existing.status) && existing.items.data[0]) {
       // Atualiza o price na assinatura atual (sem aplicar novo desconto)
@@ -192,68 +194,57 @@ export async function POST(req: NextRequest) {
       });
     } else {
       // ——— Regra de prioridade: AFILIADO > cupom manual ———
-      let affiliateValid = false;
-      let affiliateUserId: string | undefined;
-
       if (affiliateCode) {
-        const owner = await User.findOne({ affiliateCode }).select("_id affiliateCode");
-        if (owner) {
-          if (String(owner._id) === String(user._id)) {
-            return NextResponse.json(
-              { error: "Você não pode usar seu próprio código." },
-              { status: 400 }
-            );
-          }
-          affiliateValid = true;
-          affiliateUserId = String(owner._id);
-          // congela a atribuição no usuário (usada no webhook para pagar comissão)
-          user.affiliateUsed = owner.affiliateCode ?? null;
-        }
+        affiliateOwner = await User.findOne({ affiliateCode }).select("_id affiliateCode").lean();
       }
 
-      // Se afiliado válido, exigimos que o cupom interno exista
-      if (affiliateValid) {
-        const affCoupon =
+      if (affiliateOwner) {
+        if (String(affiliateOwner._id) === String(user._id)) {
+          return NextResponse.json(
+            { code: "SELF_REFERRAL", message: "Você não pode usar seu próprio código." },
+            { status: 400 }
+          );
+        }
+
+        if (!user.affiliateUsed) {
+          user.affiliateUsed = affiliateCode!;
+        }
+
+        const couponEnv =
           currency === "BRL"
             ? process.env.STRIPE_COUPON_AFFILIATE10_ONCE_BRL
             : process.env.STRIPE_COUPON_AFFILIATE10_ONCE_USD;
-        if (!affCoupon) {
+
+        if (!couponEnv) {
           return NextResponse.json(
             {
-              error: "AffiliateCouponMissing",
-              message: `Cupom interno de afiliado ausente para ${currency}. Configure STRIPE_COUPON_AFFILIATE10_ONCE_${currency}.`,
+              code: "AFFILIATE_COUPON_MISSING",
+              message: "Cupom de afiliado não configurado para esta moeda. Contate o suporte.",
             },
             { status: 500 }
           );
         }
+
+        discounts = [{ coupon: couponEnv }];
+      } else if (typedCode) {
+        const manual = await resolveManualDiscountFields(typedCode);
+        if (!manual) {
+          return NextResponse.json(
+            { code: "INVALID_CODE", message: "Código inválido ou expirado." },
+            { status: 422 }
+          );
+        }
+        discounts = manual.discounts;
       }
 
-      // metadata para auditoria e webhook
       const metadata: Record<string, string> = {
         userId: String(user._id),
         plan,
       };
-      if (affiliateValid && affiliateCode && affiliateUserId) {
+      if (affiliateOwner && affiliateCode) {
         metadata.affiliateCode = affiliateCode;
-        metadata.affiliate_user_id = affiliateUserId;
+        metadata.affiliate_user_id = String(affiliateOwner._id);
         if (source) metadata.attribution_source = String(source);
-      }
-
-      // Se afiliado válido => ignora cupom manual
-      const manualDiscountFields =
-        !affiliateValid && manualCoupon ? await resolveManualDiscountFields(manualCoupon) : null;
-
-      // Montagem de descontos (sempre array ou undefined)
-      let discounts: Stripe.SubscriptionCreateParams.Discount[] | undefined = undefined;
-
-      if (manualDiscountFields && Array.isArray(manualDiscountFields.discounts) && manualDiscountFields.discounts.length > 0) {
-        discounts = manualDiscountFields.discounts;
-      } else if (affiliateValid) {
-        const couponId =
-          currency === "BRL"
-            ? (process.env.STRIPE_COUPON_AFFILIATE10_ONCE_BRL as string)
-            : (process.env.STRIPE_COUPON_AFFILIATE10_ONCE_USD as string);
-        discounts = [{ coupon: couponId }];
       }
 
       const createParams: Stripe.SubscriptionCreateParams = {
@@ -277,13 +268,13 @@ export async function POST(req: NextRequest) {
     await user.save();
 
     const clientSecret = (sub.latest_invoice as any)?.payment_intent?.client_secret;
-    const affiliateApplied = Boolean(user.affiliateUsed);
+    const affiliateApplied = Boolean(affiliateOwner);
 
     return NextResponse.json({
       clientSecret,
       subscriptionId: sub.id,
       affiliateApplied,
-      usedCouponType: affiliateApplied ? "affiliate" : (manualCoupon ? "manual" : null),
+      usedCouponType: affiliateApplied ? "affiliate" : (typedCode ? "manual" : null),
     });
   } catch (err: any) {
     console.error("[billing/subscribe] error:", err);
@@ -291,6 +282,6 @@ export async function POST(req: NextRequest) {
       err?.raw?.message ||
       err?.message ||
       "Erro ao iniciar assinatura. Tente novamente.";
-    return NextResponse.json({ error: "SubscribeError", message: msg }, { status: 400 });
+    return NextResponse.json({ code: "SubscribeError", message: msg }, { status: 400 });
   }
 }

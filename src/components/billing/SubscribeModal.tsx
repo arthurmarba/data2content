@@ -25,13 +25,16 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
   const [loading, setLoading] = useState(false);
   const [clientSecret, setClientSecret] = useState<string|null>(null);
   const [error, setError] = useState<string|null>(null);
+  const [codeError, setCodeError] = useState<string|null>(null);
 
   if (!open) return null;
 
   const priceShown = plan === 'monthly' ? prices.monthly[currency] : prices.annual[currency];
 
   async function handleStart() {
-    setLoading(true); setError(null);
+    setLoading(true);
+    setError(null);
+    setCodeError(null);
     try {
       const res = await fetch('/api/billing/subscribe', {
         method: 'POST',
@@ -39,7 +42,14 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
         body: JSON.stringify({ plan, currency, affiliateCode: affiliateCode.trim() || undefined })
       });
       const body = await res.json();
-      if (!res.ok) throw new Error(body?.error || 'Falha ao iniciar assinatura');
+
+      if (res.status === 422) {
+        setCodeError(body?.message ?? 'Código inválido ou expirado.');
+        setLoading(false);
+        return;
+      }
+
+      if (!res.ok) throw new Error(body?.error || body?.message || 'Falha ao iniciar assinatura');
       setClientSecret(body.clientSecret ?? null);
       setStep(3);
     } catch (e:any) {
@@ -116,6 +126,7 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
               placeholder="Ex.: ABC123"
               className="w-full rounded-xl border px-3 py-2"
             />
+            {codeError && <p className="text-sm text-red-600">{codeError}</p>}
             <div className="flex justify-between">
               <button className="rounded-xl border px-4 py-2" onClick={()=>setStep(1)}>Voltar</button>
               <button disabled={loading} className="rounded-xl bg-black px-4 py-2 text-white" onClick={handleStart}>
