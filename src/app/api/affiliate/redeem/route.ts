@@ -8,6 +8,12 @@ import stripe from "@/app/lib/stripe";
 import { checkRateLimit } from "@/utils/rateLimit";
 import { getClientIp } from "@/utils/getClientIp";
 import { buildRedeemIdempotencyKey } from "@/app/services/affiliate/buildRedeemIdempotencyKey";
+import {
+  logAffiliateEvent,
+  metrics,
+  startAffiliateSpan,
+  SpanStatusCode,
+} from "@/app/lib/telemetry";
 
 export const runtime = "nodejs";
 
@@ -18,6 +24,9 @@ function minForCurrency(cur: string) {
 }
 
 export async function POST(req: NextRequest) {
+  let destCurrency = "";
+  let current = 0;
+  const span = startAffiliateSpan("affiliate_redeem");
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -42,20 +51,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Conta Stripe não verificada para saques." }, { status: 400 });
     }
 
-    let destCurrency =
+    destCurrency =
       (account as any).default_currency ||
       user.paymentInfo?.stripeAccountDefaultCurrency ||
       user.currency;
     destCurrency = destCurrency ? String(destCurrency).toLowerCase() : "";
     if (!destCurrency) {
+      metrics.affiliates_redeem_requests_total.inc({ currency: "unknown", result: "blocked_currency" });
       return NextResponse.json({ error: "Moeda destino não disponível; finalize o onboarding da Stripe." }, { status: 400 });
     }
 
     const balances: Map<string, number> = user.affiliateBalances || new Map();
-    const current = balances.get(destCurrency) ?? 0;
+    current = balances.get(destCurrency) ?? 0;
     const debtMap: Map<string, number> = user.affiliateDebtByCurrency || new Map();
     const debt = debtMap.get(destCurrency) ?? 0;
     if (debt > 0) {
+      metrics.affiliates_redeem_requests_total.inc({ currency: destCurrency, result: "blocked_debt" });
       return NextResponse.json(
         {
           error: `Você possui uma dívida de ${(debt / 100).toFixed(2)} ${destCurrency.toUpperCase()} devido a reembolsos. Seus próximos ganhos compensarão automaticamente; tente novamente quando a dívida for quitada.`,
@@ -65,8 +76,12 @@ export async function POST(req: NextRequest) {
     }
     const min = minForCurrency(destCurrency);
 
-    if (current <= 0) return NextResponse.json({ error: "Sem saldo disponível." }, { status: 400 });
+    if (current <= 0) {
+      metrics.affiliates_redeem_requests_total.inc({ currency: destCurrency, result: "error" });
+      return NextResponse.json({ error: "Sem saldo disponível." }, { status: 400 });
+    }
     if (current < min) {
+      metrics.affiliates_redeem_requests_total.inc({ currency: destCurrency, result: "blocked_min" });
       return NextResponse.json(
         { error: `Valor mínimo: ${(min / 100).toFixed(2)} ${destCurrency.toUpperCase()}` },
         { status: 400 }
@@ -74,6 +89,18 @@ export async function POST(req: NextRequest) {
     }
 
     const idemKey = buildRedeemIdempotencyKey(session.user.id, current);
+
+    logAffiliateEvent("affiliate:redeem.request", {
+      affiliate_user_id: String(user._id),
+      currency: destCurrency,
+      amount_cents: current,
+      idempotency_key: idemKey,
+    });
+    metrics.affiliates_redeem_requests_total.inc({ currency: destCurrency, result: "ok" });
+    span.setAttribute("affiliate_user_id", String(user._id));
+    span.setAttribute("currency", destCurrency);
+    span.setAttribute("amount_cents", current);
+    span.setAttribute("idempotency_key", idemKey);
 
     // Tenta "reservar" o saldo antes de chamar a Stripe
     const preUpdate = await User.findOneAndUpdate(
@@ -85,6 +112,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Saldo já resgatado.' }, { status: 409 });
     }
 
+    const t0 = Date.now();
     try {
       const transfer = await stripe.transfers.create(
         {
@@ -96,6 +124,8 @@ export async function POST(req: NextRequest) {
         },
         { idempotencyKey: idemKey }
       );
+      metrics.affiliates_transfer_create_duration_ms.observe({}, Date.now() - t0);
+      metrics.affiliates_transfers_total.inc({ result: "ok" });
 
       const redemption = await Redemption.create({
         userId: user._id,
@@ -127,8 +157,17 @@ export async function POST(req: NextRequest) {
         }
       );
 
+      logAffiliateEvent("affiliate:redeem.transfer_ok", {
+        redemption_id: String(redemption._id),
+        transaction_id: transfer.id,
+        currency: destCurrency,
+        amount_cents: current,
+      });
+
       return NextResponse.json({ ok: true, mode: 'auto', redemptionId: String(redemption._id), transactionId: transfer.id });
     } catch (err: any) {
+      metrics.affiliates_transfer_create_duration_ms.observe({}, Date.now() - t0);
+      metrics.affiliates_transfers_total.inc({ result: "error" });
       const redemption = await Redemption.create({
         userId: user._id,
         currency: destCurrency,
@@ -143,11 +182,28 @@ export async function POST(req: NextRequest) {
         { _id: user._id },
         { $set: { [`affiliateBalances.${destCurrency}`]: current } }
       );
-
+      logAffiliateEvent("affiliate:redeem.transfer_fail", {
+        redemption_id: String(redemption._id),
+        currency: destCurrency,
+        amount_cents: current,
+        error_kind: err.type || "unknown",
+        error_message: err.message,
+      });
       return NextResponse.json({ ok: true, mode: 'queued', redemptionId: String(redemption._id), transactionId: null });
     }
   } catch (err: any) {
-    console.error("[affiliate/redeem] error:", err);
+    logAffiliateEvent("affiliate:redeem.transfer_fail", {
+      currency: destCurrency,
+      amount_cents: current,
+      error_kind: "unexpected",
+      error_message: err.message,
+    });
+    metrics.affiliates_redeem_requests_total.inc({ currency: destCurrency || "unknown", result: "error" });
+    metrics.affiliates_transfers_total.inc({ result: "error" });
+    span.recordException(err);
+    span.setStatus({ code: SpanStatusCode.ERROR });
     return NextResponse.json({ error: "Erro ao processar resgate." }, { status: 500 });
+  } finally {
+    span.end();
   }
 }
