@@ -1,0 +1,26 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`affiliateHistory copy maps reason labels snapshot 1`] = `
+{
+  "adjustment_after_redeem": "Ajuste pós-resgate.",
+  "admin_manual_correction": "Correção manual pela equipe.",
+  "chargeback": "Estorno por contestação do pagamento.",
+  "coupon_100": "Pagamento com 100% de desconto não gera comissão.",
+  "currency_mismatch": "Moeda incompatível para saque.",
+  "duplicate_prevented": "Entrada duplicada ignorada.",
+  "refund_after_payout": "Reembolso após liberação (ajuste aplicado).",
+  "refund_within_hold": "Reembolso dentro do período de 7 dias.",
+  "self_referral_blocked": "Autoindicação não é elegível a comissão.",
+  "trial_no_commission": "Período de teste gratuito não gera comissão.",
+}
+`;
+
+exports[`affiliateHistory copy maps status labels snapshot 1`] = `
+{
+  "available": "Disponível",
+  "canceled": "Cancelado",
+  "paid": "Pago",
+  "pending": "Pendente",
+  "reversed": "Revertido",
+}
+`;
