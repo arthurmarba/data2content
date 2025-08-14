@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { connectToDatabase } from '@/app/lib/mongoose';
@@ -11,37 +11,43 @@ export const dynamic = 'force-dynamic';
 
 const cacheHeader = { 'Cache-Control': 'no-store, max-age=0' } as const;
 
-export async function POST(_req: NextRequest) {
+export async function POST() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401, headers: cacheHeader });
+      return NextResponse.json(
+        { message: 'Unauthorized' },
+        { status: 401, headers: cacheHeader }
+      );
     }
 
     await connectToDatabase();
-    const user = await User.findById(session.user.id).lean();
+    const user = await User.findById(session.user.id);
     if (!user?.stripeSubscriptionId) {
-      return NextResponse.json({ error: 'Assinatura não encontrada' }, { status: 404, headers: cacheHeader });
+      return NextResponse.json(
+        { message: 'No subscription' },
+        { status: 400, headers: cacheHeader }
+      );
     }
 
-    await stripe.subscriptions.update(user.stripeSubscriptionId, {
+    const sub = await stripe.subscriptions.update(user.stripeSubscriptionId, {
       cancel_at_period_end: false,
     });
 
     return NextResponse.json(
-      { ok: true, cancelAtPeriodEnd: false },
+      { ok: true, status: sub.status },
       { headers: cacheHeader }
     );
-  } catch (err: unknown) {
+  } catch (err) {
     if (err instanceof Stripe.errors.StripeError) {
       return NextResponse.json(
-        { error: err.message },
+        { ok: false, message: err.message },
         { status: err.statusCode || 500, headers: cacheHeader }
       );
     }
     return NextResponse.json(
-      { error: 'Não foi possível reativar a assinatura.' },
-      { status: 500, headers: cacheHeader }
+      { ok: false, message: 'Reactivate failed' },
+      { status: 400, headers: cacheHeader }
     );
   }
 }
