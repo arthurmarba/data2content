@@ -23,6 +23,9 @@ import VideoCarousel from './VideoCarousel';
 import InstagramConnectCard from './InstagramConnectCard';
 import StepIndicator from './StepIndicator';
 import PlanCardPro from '@/components/billing/PlanCardPro';
+import AffiliateCard from '@/components/affiliate/AffiliateCard';
+import AffiliateHistory from '@/components/affiliate/history/AffiliateHistory';
+import SubscriptionCard from '@/components/billing/SubscriptionCard';
 
 // --- FIM IMPORTS ---
 
@@ -298,6 +301,7 @@ export default function MainDashboard() {
   const userId = user?.id ?? "";
 
   useEffect(() => {
+    if (process.env.NEXT_PUBLIC_AFFILIATES_V2 === 'on') return;
     if (typeof window !== 'undefined' && affiliateCode) {
       const origin = window.location.origin;
       setFullAffiliateLink(`${origin}/?ref=${affiliateCode}`);
@@ -307,6 +311,7 @@ export default function MainDashboard() {
   }, [affiliateCode]);
 
   useEffect(() => {
+    if (process.env.NEXT_PUBLIC_AFFILIATES_V2 === 'on') return;
     if (status === "authenticated" && userId) {
       const fetchLog = async () => {
         setIsLoadingCommissionLog(true);
@@ -668,11 +673,18 @@ export default function MainDashboard() {
                 </div>
               </motion.section>
 
-              {/* Card de Afiliados para MOBILE */}
+              {/* Card de Afiliados / Subscription (Mobile) */}
               <div className="lg:hidden">
-                <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={0.8}>
-                  <AffiliateCardContent {...affiliateCardProps} />
-                </motion.section>
+                {process.env.NEXT_PUBLIC_AFFILIATES_V2 === 'on' ? (
+                  <div className="space-y-4">
+                    <AffiliateCard />
+                    <SubscriptionCard />
+                  </div>
+                ) : (
+                  <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={0.8}>
+                    <AffiliateCardContent {...affiliateCardProps} />
+                  </motion.section>
+                )}
               </div>
 
               {/* Suas Métricas (UploadMetrics) */}
@@ -701,14 +713,27 @@ export default function MainDashboard() {
                   />
                 </div>
               </motion.section>
+
+              {process.env.NEXT_PUBLIC_AFFILIATES_V2 === 'on' && (
+                <section className="mt-6">
+                  <AffiliateHistory />
+                </section>
+              )}
             </div>
 
             {/* --- COLUNA DA DIREITA (SIDEBAR) */}
             <div className="hidden lg:block lg:col-span-1 space-y-8">
-              {/* Card de Afiliados para DESKTOP */}
-              <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={0.5}>
-                <AffiliateCardContent {...affiliateCardProps} />
-              </motion.section>
+              {/* Affiliate & Subscription (Desktop) */}
+              {process.env.NEXT_PUBLIC_AFFILIATES_V2 === 'on' ? (
+                <section className="space-y-4">
+                  <AffiliateCard />
+                  <SubscriptionCard />
+                </section>
+              ) : (
+                <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={0.5}>
+                  <AffiliateCardContent {...affiliateCardProps} />
+                </motion.section>
+              )}
 
               {/* Seção "Precisa de Ajuda?" */}
               <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={3}>
