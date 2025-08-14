@@ -56,6 +56,11 @@
   display: block; /* Garante que o placeholder seja exibido */
 }
 
+:focus-visible {
+  outline: 2px solid hsl(220 90% 56%);
+  outline-offset: 2px;
+}
+
 /* Adicione aqui outros estilos globais realmente necessários */
 /* Exemplo: Estilos base para links, se não cobertos pelo Tailwind/Typography plugin */
 /*

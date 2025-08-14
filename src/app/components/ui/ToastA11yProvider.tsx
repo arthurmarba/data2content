@@ -224,6 +224,7 @@ export function ToastA11yProvider({ children, maxVisible = 3 }: Props) {
     <ToastCtx.Provider value={value}>
       {/* Live region invisível */}
       <div
+        id="a11y-live-region"
         aria-live={srPoliteness}
         aria-atomic="true"
         aria-relevant="additions text"

@@ -35,7 +35,7 @@ export default function HistoryItem({ item, onSelect }: Props) {
       </div>
       <div className="flex items-center space-x-2">
         <StatusBadge status={item.status} />
-        <InformationCircleIcon className="w-5 h-5 text-gray-500" />
+        <InformationCircleIcon className="w-5 h-5 text-gray-500" aria-hidden="true" />
       </div>
     </li>
   );

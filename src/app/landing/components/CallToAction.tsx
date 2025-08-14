@@ -4,12 +4,11 @@ import { signIn } from 'next-auth/react';
 import { FaGoogle } from 'react-icons/fa';
 import ButtonPrimary from './ButtonPrimary';
 import Container from '../../components/Container';
+import { track } from '@/lib/track';
 
 export default function CallToAction() {
   const handleSignIn = () => {
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'sign_in_click');
-    }
+    track('sign_in_click');
     signIn('google', { callbackUrl: '/auth/complete-signup' });
   };
 
@@ -25,7 +24,7 @@ export default function CallToAction() {
           </p>
           <div className="mt-10">
             <ButtonPrimary onClick={handleSignIn}>
-              <FaGoogle /> Ativar meu estrategista agora ▸
+              <FaGoogle aria-hidden="true" /> Ativar meu estrategista agora ▸
             </ButtonPrimary>
           </div>
         </div>

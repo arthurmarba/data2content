@@ -34,7 +34,7 @@ export default function StatusBadge({ status, size = 'sm' }: StatusBadgeProps) {
       className={`inline-flex items-center rounded-full font-medium ${padding} ${textSize} ${color}`}
       aria-label={`Status: ${label}`}
     >
-      <Icon className={`${iconSize} mr-1`} />
+      <Icon className={`${iconSize} mr-1`} aria-hidden="true" />
       {label}
     </span>
   );
