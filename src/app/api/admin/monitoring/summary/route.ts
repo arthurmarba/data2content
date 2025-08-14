@@ -8,6 +8,8 @@ import {
   AGENCY_GUEST_ANNUAL_MONTHLY_PRICE,
   AGENCY_MONTHLY_PRICE,
 } from '@/config/pricing.config';
+export const dynamic = 'force-dynamic';
+
 
 export async function GET() {
   const activeAgencies = await AgencyModel.countDocuments({ planStatus: 'active' });

@@ -7,6 +7,8 @@ import stripe from "@/app/lib/stripe";
 import { checkRateLimit } from "@/utils/rateLimit";
 import { getClientIp } from "@/utils/getClientIp";
 import { mapStripeAccountInfo } from "@/app/services/stripe/mapAccountInfo";
+export const dynamic = 'force-dynamic';
+
 
 export const runtime = "nodejs";
 

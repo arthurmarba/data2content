@@ -7,6 +7,8 @@ import {
   TimePeriod,
   EngagementMetricField, // CORREÇÃO: O tipo foi corrigido de EngagementMetric para EngagementMetricField
 } from '@/app/lib/constants/timePeriods';
+export const dynamic = 'force-dynamic';
+
 // Define FormatType enum locally if the import is not available
 enum FormatType {
   IMAGE = "IMAGE",

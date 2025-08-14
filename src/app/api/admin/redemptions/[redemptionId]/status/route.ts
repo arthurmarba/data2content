@@ -5,6 +5,8 @@ import { logger } from '@/app/lib/logger';
 import { updateRedemptionStatus } from '@/lib/services/adminCreatorService';
 import { AdminRedemptionUpdateStatusPayload } from '@/types/admin/redemptions';
 import { getAdminSession } from '@/lib/getAdminSession';
+export const dynamic = 'force-dynamic';
+
 
 const SERVICE_TAG = '[api/admin/redemptions/[redemptionId]/status]';
 

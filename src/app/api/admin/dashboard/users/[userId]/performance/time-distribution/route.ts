@@ -6,6 +6,8 @@ import { Types } from 'mongoose';
 import { getCategoryById } from '@/app/lib/classification';
 import { aggregateUserTimePerformance } from '@/utils/aggregateUserTimePerformance';
 import { getAdminSession } from '@/lib/getAdminSession';
+export const dynamic = 'force-dynamic';
+
 
 function getPortugueseWeekdayName(day: number): string {
   const days = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];

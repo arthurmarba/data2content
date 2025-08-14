@@ -7,6 +7,8 @@ import { logger } from '@/app/lib/logger';
 import { fetchPostDetails, IPostDetailsData } from '@/app/lib/dataService/marketAnalysis/postsService';
 import { DatabaseError } from '@/app/lib/errors';
 import { getAgencySession } from '@/lib/getAgencySession';
+export const dynamic = 'force-dynamic';
+
 
 const TAG = '/api/agency/dashboard/posts/[postId]/details';
 

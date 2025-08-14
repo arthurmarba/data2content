@@ -5,6 +5,8 @@ import { logger } from '@/app/lib/logger';
 import { updateCreatorStatus } from '@/lib/services/adminCreatorService';
 import { AdminCreatorUpdateStatusPayload } from '@/types/admin/creators';
 import { getAdminSession } from '@/lib/getAdminSession';
+export const dynamic = 'force-dynamic';
+
 
 const SERVICE_TAG = '[api/admin/creators/[creatorId]/status]';
 

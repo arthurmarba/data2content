@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 /**
  * @fileoverview API Endpoint for fetching Top Movers data (content or creators).
  * @version 2.0.0 - Updated to support 5-dimension classification.

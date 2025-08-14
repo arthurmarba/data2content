@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import aggregatePlatformDemographics from '@/utils/aggregatePlatformDemographics';
 import { getAgencySession } from '@/lib/getAgencySession';
+export const dynamic = 'force-dynamic';
+
 
 export async function GET(request: NextRequest) {
   const session = await getAgencySession(request);

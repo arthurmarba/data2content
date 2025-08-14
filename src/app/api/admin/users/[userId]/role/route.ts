@@ -5,6 +5,8 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import UserModel from '@/app/models/User';
 import { USER_ROLES, PLAN_STATUSES } from '@/types/enums';
 import { logger } from '@/app/lib/logger';
+export const dynamic = 'force-dynamic';
+
 
 const bodySchema = z.object({
   role: z.enum(USER_ROLES),

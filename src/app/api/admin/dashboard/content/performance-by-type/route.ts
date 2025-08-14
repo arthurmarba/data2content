@@ -5,6 +5,8 @@ import { fetchContentPerformanceByType } from '@/app/lib/dataService/marketAnaly
 import { DatabaseError } from '@/app/lib/errors';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+export const dynamic = 'force-dynamic';
+
 
 const TAG = '/api/admin/dashboard/content/performance-by-type';
 

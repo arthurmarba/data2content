@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 /*
 ================================================================================
 ARQUIVO 2/2: src/app/api/v1/platform/highlights/performance-summary/route.ts

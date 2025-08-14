@@ -6,6 +6,8 @@ import { logger } from '@/app/lib/logger';
 import { updateAffiliateStatus } from '@/lib/services/adminCreatorService';
 import { AdminAffiliateUpdateStatusPayload } from '@/types/admin/affiliates';
 import { getAdminSession } from '@/lib/getAdminSession';
+export const dynamic = 'force-dynamic';
+
 
 const SERVICE_TAG = '[api/admin/affiliates/[affiliateId]/status]';
 

@@ -5,6 +5,8 @@ import MetricModel from '@/app/models/Metric';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
+export const dynamic = 'force-dynamic';
+
 
 const DEFAULT_VIDEO_TYPES: string[] = ['REEL', 'VIDEO'];
 

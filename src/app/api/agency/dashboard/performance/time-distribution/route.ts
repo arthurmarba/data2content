@@ -5,6 +5,8 @@ import { timePeriodToDays } from '@/utils/timePeriodHelpers';
 import { getCategoryById } from '@/app/lib/classification';
 import { aggregatePlatformTimePerformance } from '@/utils/aggregatePlatformTimePerformance';
 import { getAgencySession } from '@/lib/getAgencySession';
+export const dynamic = 'force-dynamic';
+
 
 function getPortugueseWeekdayName(day: number): string {
   const days = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];

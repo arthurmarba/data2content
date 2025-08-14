@@ -6,6 +6,8 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import { logger } from '@/app/lib/logger';
 import dateHelpers from '@/utils/dateHelpers';
 import { ALLOWED_TIME_PERIODS as BASE_ALLOWED_TIME_PERIODS } from '@/app/lib/constants/timePeriods';
+export const dynamic = 'force-dynamic';
+
 
 interface MonthlyEngagementDataPoint {
   month: string;

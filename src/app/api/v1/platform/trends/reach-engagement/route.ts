@@ -7,6 +7,8 @@ import { getPlatformReachEngagementTrendChartData } from '@/charts/getReachInter
 // --- FIM DA CORREÇÃO ---
 import { connectToDatabase } from '@/app/lib/mongoose';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
+export const dynamic = 'force-dynamic';
+
 
 interface ApiChartDataPoint {
   date: string;

@@ -3,6 +3,8 @@ import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import AgencyModel from '@/app/models/Agency';
 import UserModel from '@/app/models/User';
+export const dynamic = 'force-dynamic';
+
 
 export const runtime = 'nodejs';
 

@@ -6,6 +6,8 @@ import { logger } from '@/app/lib/logger';
 import { Types } from 'mongoose';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 import { getAgencySession } from '@/lib/getAgencySession';
+export const dynamic = 'force-dynamic';
+
 
 interface ApiChangePoint { date: string; change: number | null; }
 interface FollowerChangeResponse { chartData: ApiChangePoint[]; insightSummary?: string; }

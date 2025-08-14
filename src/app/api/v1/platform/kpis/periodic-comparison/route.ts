@@ -6,6 +6,8 @@ import calculateAverageEngagementPerPost from '@/utils/calculateAverageEngagemen
 import { addDays, getStartDateFromTimePeriod as getStartDateFromTimePeriodGeneric } from '@/utils/dateHelpers';
 import { Types } from 'mongoose';
 import { connectToDatabase } from '@/app/lib/mongoose';
+export const dynamic = 'force-dynamic';
+
 
 // Tipos de dados para a resposta
 interface MiniChartDataPoint {

@@ -6,6 +6,8 @@ import { logger } from '@/app/lib/logger';
 import { Types } from 'mongoose';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 import { getAdminSession } from '@/lib/getAdminSession';
+export const dynamic = 'force-dynamic';
+
 
 interface ApiChartDataPoint {
   date: string;

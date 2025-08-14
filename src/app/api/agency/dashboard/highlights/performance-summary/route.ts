@@ -5,6 +5,8 @@ import aggregatePlatformPerformanceHighlights from '@/utils/aggregatePlatformPer
 import { timePeriodToDays } from '@/utils/timePeriodHelpers';
 import { aggregatePlatformDayPerformance } from '@/utils/aggregatePlatformDayPerformance';
 import { getAgencySession } from '@/lib/getAgencySession';
+export const dynamic = 'force-dynamic';
+
 
 interface PerformanceHighlight {
   name: string;

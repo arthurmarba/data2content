@@ -7,6 +7,8 @@ import { addDays, getStartDateFromTimePeriod as getStartDateFromTimePeriodGeneri
 import { Types } from 'mongoose';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import { getAgencySession } from '@/lib/getAgencySession';
+export const dynamic = 'force-dynamic';
+
 
 // Tipos de dados para a resposta
 interface MiniChartDataPoint {

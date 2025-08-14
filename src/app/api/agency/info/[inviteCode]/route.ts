@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import AgencyModel from '@/app/models/Agency';
+export const dynamic = 'force-dynamic';
+
 
 export const runtime = 'nodejs';
 

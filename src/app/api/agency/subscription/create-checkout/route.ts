@@ -8,6 +8,8 @@ import {
   AGENCY_ANNUAL_MONTHLY_PRICE,
   AGENCY_MONTHLY_PRICE,
 } from '@/config/pricing.config';
+export const dynamic = 'force-dynamic';
+
 
 export const runtime = 'nodejs';
 const SERVICE_TAG = '[api/agency/subscription/create-checkout]';

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 /**
  * @fileoverview API Endpoint for fetching and comparing performance data for multiple content segments.
  * @version 2.0.0 - Updated to support 5-dimension classification (format, proposal, context, tone, references).
