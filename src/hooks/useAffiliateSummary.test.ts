@@ -1,45 +1,40 @@
-import { canRedeem, AffiliateSummary, AffiliateStatus } from './useAffiliateSummary';
+import { canRedeem } from './useAffiliateSummary';
+import { AffiliateSummary, AffiliateStatus } from '@/types/affiliate';
 import { REDEEM_BLOCK_MESSAGES } from '@/copy/affiliates';
 
 describe('canRedeem', () => {
-  const status: AffiliateStatus = { payoutsEnabled: true, defaultCurrency: 'brl' } as any;
+  const status: AffiliateStatus = { payoutsEnabled: true, defaultCurrency: 'BRL' } as any;
   const summary: AffiliateSummary = {
-    balances: { brl: 10000, usd: 0 },
-    debt: { brl: 0 },
-    min: { brl: 5000 },
-    pending: {},
     byCurrency: {
-      brl: { availableCents: 10000, pendingCents: 0, debtCents: 0, minRedeemCents: 5000 },
-      usd: { availableCents: 0, pendingCents: 0, debtCents: 0 },
+      BRL: { availableCents: 10000, pendingCents: 0, debtCents: 0, nextMatureAt: null, minRedeemCents: 5000 },
+      USD: { availableCents: 0, pendingCents: 0, debtCents: 0, nextMatureAt: null, minRedeemCents: 0 },
     },
-  } as any;
+  };
 
   test('allows redeem when all conditions met', () => {
-    expect(canRedeem(status, summary, 'brl')).toBe(true);
+    expect(canRedeem(status, summary, 'BRL')).toBe(true);
   });
 
   test('blocks when payouts disabled', () => {
-    expect(canRedeem({ ...status, payoutsEnabled: false }, summary, 'brl')).toBe(false);
+    expect(canRedeem({ ...status, payoutsEnabled: false }, summary, 'BRL')).toBe(false);
   });
 
   test('blocks when debt exists', () => {
-    const s = {
-      ...summary,
-      byCurrency: { ...summary.byCurrency, brl: { ...summary.byCurrency.brl, debtCents: 100 } },
+    const s: AffiliateSummary = {
+      byCurrency: { ...summary.byCurrency, BRL: { ...summary.byCurrency.BRL, debtCents: 100 } },
     };
-    expect(canRedeem(status, s, 'brl')).toBe(false);
+    expect(canRedeem(status, s, 'BRL')).toBe(false);
   });
 
   test('blocks when below minimum', () => {
-    const s = {
-      ...summary,
-      byCurrency: { ...summary.byCurrency, brl: { ...summary.byCurrency.brl, availableCents: 1000 } },
+    const s: AffiliateSummary = {
+      byCurrency: { ...summary.byCurrency, BRL: { ...summary.byCurrency.BRL, availableCents: 1000 } },
     };
-    expect(canRedeem(status, s, 'brl')).toBe(false);
+    expect(canRedeem(status, s, 'BRL')).toBe(false);
   });
 
   test('blocks when currency mismatch', () => {
-    expect(canRedeem(status, summary, 'usd')).toBe(false);
+    expect(canRedeem(status, summary, 'USD')).toBe(false);
   });
 });
 

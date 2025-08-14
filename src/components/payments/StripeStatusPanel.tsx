@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { AffiliateStatus, AffiliateSummary } from '@/hooks/useAffiliateSummary';
+import { AffiliateStatus, AffiliateSummary } from '@/types/affiliate';
 import { STRIPE_DISABLED_REASON, STRIPE_STATUS, CURRENCY_HELP } from '@/copy/stripe';
 import CurrencyMismatchModal from './CurrencyMismatchModal';
 
