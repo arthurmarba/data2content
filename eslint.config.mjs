@@ -11,6 +11,18 @@ const compat = new FlatCompat({
 
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
+  {
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "NewExpression[callee.name='Stripe']",
+          message:
+            "Não instancie Stripe diretamente. Use o cliente único de src/app/lib/stripe.ts.",
+        },
+      ],
+    },
+  },
 ];
 
 export default eslintConfig;

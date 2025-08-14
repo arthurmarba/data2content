@@ -1,19 +1,40 @@
 import Stripe from "stripe";
+import { assertBillingEnv } from "@/app/lib/boot-sanity";
 
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
-if (!STRIPE_SECRET_KEY) {
-  console.warn("STRIPE_SECRET_KEY não está definido!");
+assertBillingEnv();
+
+const secret = process.env.STRIPE_SECRET_KEY;
+if (!secret) {
+  throw new Error("STRIPE_SECRET_KEY ausente nas variáveis de ambiente.");
 }
 
-// Opcional: fixe a versão via env (ex.: STRIPE_API_VERSION=2025-07-30.basil).
-// Se não definir, o SDK usa a Latest API automaticamente.
-const API_VERSION = process.env.STRIPE_API_VERSION;
+const apiVersion =
+  (process.env.STRIPE_API_VERSION as Stripe.LatestApiVersion | undefined) ??
+  "2022-11-15";
 
-const config: Stripe.StripeConfig = {};
-if (API_VERSION) {
-  // Cast proposital para ficar imune a mudanças futuras no union de versões.
-  (config as any).apiVersion = API_VERSION as any;
+if (
+  process.env.NODE_ENV === "production" &&
+  process.env.STRIPE_API_VERSION &&
+  process.env.STRIPE_API_VERSION !== "2022-11-15"
+) {
+  throw new Error(
+    `STRIPE_API_VERSION divergente (${process.env.STRIPE_API_VERSION}). Use 2022-11-15.`
+  );
 }
 
-export const stripe = new Stripe(STRIPE_SECRET_KEY!, config);
-export default stripe;
+let _stripe: Stripe | null = null;
+
+/**
+ * Retorna sempre a MESMA instância do cliente Stripe.
+ * Evita múltiplas conexões/configs divergentes.
+ */
+export function getStripe(): Stripe {
+  if (!_stripe) {
+    _stripe = new Stripe(secret, { apiVersion });
+  }
+  return _stripe;
+}
+
+// atalho conveniente
+export const stripe = getStripe();
+

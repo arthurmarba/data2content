@@ -5,7 +5,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
-import stripe from "@/app/lib/stripe";
+import { stripe } from "@/app/lib/stripe";
 import Stripe from "stripe";
 import { checkRateLimit } from "@/utils/rateLimit";
 import { cancelBlockingIncompleteSubs } from "@/utils/stripeHelpers";

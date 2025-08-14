@@ -1,5 +1,5 @@
 // src/utils/stripeHelpers.ts
-import stripe from "@/app/lib/stripe";
+import { stripe } from "@/app/lib/stripe";
 import type Stripe from "stripe";
 
 /**
