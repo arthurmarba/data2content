@@ -1,3 +1,4 @@
+// ./src/components/affiliate/AffiliateCard.tsx
 'use client';
 
 import { useSession } from 'next-auth/react';
@@ -232,7 +233,8 @@ export default function AffiliateCard() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded p-4 w-80 space-y-3">
             <h4 className="font-medium text-sm">
-              Resgatar {fmt(summary.balances[redeemCur], redeemCur)} {redeemCur.toUpperCase()}
+              {/* Fallback para evitar number | undefined */}
+              Resgatar {fmt(summary.balances[redeemCur] ?? 0, redeemCur)} {redeemCur.toUpperCase()}
             </h4>
             <p className="text-xs text-gray-600">
               Você vai transferir todo o saldo disponível em {redeemCur.toUpperCase()} para sua conta Stripe Connect.

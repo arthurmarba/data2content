@@ -74,9 +74,11 @@ export async function POST(req: NextRequest) {
           user.paymentInfo.stripeAccountPayoutsEnabled = info.payouts_enabled;
           user.paymentInfo.stripeAccountChargesEnabled = info.charges_enabled;
           user.paymentInfo.stripeAccountDisabledReason = info.disabled_reason || undefined;
-          user.paymentInfo.stripeAccountCapabilities = new Map(
-            Object.entries(info.capabilities)
-          );
+          // ← Correção: atribuir objeto em vez de Map
+          user.paymentInfo.stripeAccountCapabilities = {
+            card_payments: info.capabilities?.card_payments,
+            transfers: info.capabilities?.transfers,
+          };
           user.paymentInfo.stripeAccountNeedsOnboarding = info.needsOnboarding;
           user.markModified("paymentInfo");
           await user.save();

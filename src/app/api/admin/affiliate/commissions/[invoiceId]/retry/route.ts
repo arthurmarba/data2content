@@ -1,3 +1,4 @@
+// ./src/app/api/admin/affiliate/commissions/[invoiceId]/retry/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
@@ -32,14 +33,18 @@ export async function POST(req: NextRequest, { params }: { params: { invoiceId: 
 
     await connectToDatabase();
     const invoiceId = params.invoiceId;
+
     const affUser = await User.findOne({ "commissionLog.invoiceId": invoiceId });
     if (!affUser) {
       return NextResponse.json({ error: 'Comissão não encontrada' }, { status: 404 });
     }
-    const entry = affUser.commissionLog?.find(e => e.invoiceId === invoiceId);
-    if (!entry || !['failed', 'fallback'].includes(entry.status)) {
+
+    const entry = affUser.commissionLog?.find((e: any) => e.invoiceId === invoiceId);
+    // Elegível apenas se ainda está 'available' (não paga/cancelada/reversed/pending)
+    if (!entry || entry.status !== 'available') {
       return NextResponse.json({ error: 'Comissão não elegível para reprocessamento' }, { status: 400 });
     }
+
     if (!affUser.paymentInfo?.stripeAccountId || affUser.paymentInfo.stripeAccountStatus !== 'verified') {
       return NextResponse.json({ error: 'Conta do afiliado não verificada' }, { status: 400 });
     }
@@ -47,12 +52,17 @@ export async function POST(req: NextRequest, { params }: { params: { invoiceId: 
     const amountCents = entry.amountCents;
     const currency = normCur(entry.currency);
     const account = await stripe.accounts.retrieve(affUser.paymentInfo.stripeAccountId!);
-    const destCurrency = normCur((account as any).default_currency);
-    if (destCurrency !== currency) {
-      entry.status = 'fallback';
-      affUser.markModified('commissionLog');
-      await affUser.save();
-      return NextResponse.json({ success: true, status: 'fallback' });
+    const destCurrency = normCur((account as any)?.default_currency || '');
+
+    // ⚠️ Não mude o status para 'fallback' (valor inválido no tipo). Apenas retorne esse "estado" para a UI.
+    if (!destCurrency || destCurrency !== currency) {
+      logger.info('[admin/affiliate/commissions/retry] fallback_currency_mismatch', {
+        invoiceId: entry.invoiceId,
+        currency,
+        destCurrency,
+        accountId: affUser.paymentInfo.stripeAccountId,
+      });
+      return NextResponse.json({ success: true, status: 'fallback', reason: 'currency_mismatch', currency, destCurrency });
     }
 
     logger.info('[admin/affiliate/commissions/retry] transfer', {
@@ -75,15 +85,20 @@ export async function POST(req: NextRequest, { params }: { params: { invoiceId: 
       }
     }, { idempotencyKey: `commission_${entry.invoiceId}_${affUser._id}` });
 
+    // Sucesso → marque como 'paid' (valor permitido no union) e ajuste o saldo
     entry.status = 'paid';
     entry.transactionId = transfer.id;
+
     affUser.commissionPaidInvoiceIds = affUser.commissionPaidInvoiceIds || [];
     if (entry.invoiceId && !affUser.commissionPaidInvoiceIds.includes(entry.invoiceId)) {
       affUser.commissionPaidInvoiceIds.push(entry.invoiceId);
     }
+
+    // Debita o saldo disponível dessa moeda (sem deixar negativo)
     affUser.affiliateBalances ||= new Map();
     const prev = affUser.affiliateBalances.get(currency) ?? 0;
     affUser.affiliateBalances.set(currency, Math.max(prev - amountCents, 0));
+
     affUser.markModified('commissionLog');
     affUser.markModified('affiliateBalances');
     await affUser.save();

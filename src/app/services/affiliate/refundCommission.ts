@@ -1,3 +1,4 @@
+// src/app/services/affiliate/refundCommission.ts
 import { Types } from 'mongoose';
 import AffiliateRefundProgress from '@/app/models/AffiliateRefundProgress';
 import User from '@/app/models/User';
@@ -8,53 +9,89 @@ import { logger } from '@/app/lib/logger';
 export function getRefundedPaidTotal(obj: any): number {
   if (!obj) return 0;
   if (obj.object === 'invoice') {
-    if (typeof obj.amount_paid_refunded === 'number') return obj.amount_paid_refunded;
-    // fallback: sum refunds from charges
-    if (Array.isArray(obj.charge)) {
-      return obj.charge.reduce((s: number, c: any) => s + (c.amount_refunded || 0), 0);
+    if (typeof (obj as any).amount_paid_refunded === 'number') {
+      return (obj as any).amount_paid_refunded;
+    }
+    // fallback: somar refunds das charges anexadas ao invoice (quando presentes)
+    const charges = (obj as any).charges?.data;
+    if (Array.isArray(charges)) {
+      return charges.reduce((s: number, c: any) => s + (c?.amount_refunded || 0), 0);
     }
     return 0;
   }
   if (obj.object === 'charge') {
-    return obj.amount_refunded || 0;
+    return (obj as any).amount_refunded || 0;
   }
   return 0;
 }
 
-async function computeDelta(invoiceId: string, affiliateUserId: Types.ObjectId, eventTotal: number) {
-  const progress = await AffiliateRefundProgress.findOneAndUpdate(
+/**
+ * Garante doc de progresso (upsert) e retorna delta cumulativo a aplicar.
+ * Upsert via updateOne + leitura pela coleção nativa (evita overloads de TS).
+ */
+async function computeDelta(
+  invoiceId: string,
+  affiliateUserId: Types.ObjectId,
+  eventTotal: number
+) {
+  // upsert só para inicializar o doc, sem alterar valor existente
+  await AffiliateRefundProgress.updateOne(
     { invoiceId, affiliateUserId },
     { $setOnInsert: { refundedPaidCentsTotal: 0 } },
-    { upsert: true, new: true }
+    { upsert: true }
   );
-  const prev = progress?.refundedPaidCentsTotal || 0;
+
+  // ler o progresso atual (cumulativo já aplicado anteriormente) pela coleção (driver)
+  const progress = (await (AffiliateRefundProgress as any).collection.findOne({
+    invoiceId,
+    affiliateUserId,
+  })) as { refundedPaidCentsTotal?: number } | null;
+
+  const prev = progress?.refundedPaidCentsTotal ?? 0;
   const delta = Math.max(0, eventTotal - prev);
   return { progress, prev, delta };
 }
 
-export async function processAffiliateRefund(invoiceId: string, refundedPaidTotalCents: number) {
+export async function processAffiliateRefund(
+  invoiceId: string,
+  refundedPaidTotalCents: number
+) {
   if (!invoiceId) return;
 
   const owner = await User.findOne({ 'commissionLog.invoiceId': invoiceId });
   if (!owner) return;
 
-  const entry = (owner.commissionLog || []).find((e: any) => e.invoiceId === invoiceId && e.type === 'commission');
+  // Tipar como any para permitir campos opcionais (ex.: commissionRateBps) sem conflitos de TS
+  const entry: any = ((owner as any).commissionLog || []).find(
+    (e: any) => e.invoiceId === invoiceId && e.type === 'commission'
+  );
   if (!entry) return;
 
   const affiliateUserId = owner._id as Types.ObjectId;
 
   const { delta } = await computeDelta(invoiceId, affiliateUserId, refundedPaidTotalCents);
-  logger.info('[affiliate:refund] delta', { invoiceId, affiliateUserId: String(affiliateUserId), delta });
+  logger.info('[affiliate:refund] delta', {
+    invoiceId,
+    affiliateUserId: String(affiliateUserId),
+    delta,
+  });
   if (delta === 0) return;
 
-  const rate = entry.commissionRateBps ? entry.commissionRateBps / 10000 : COMMISSION_RATE;
+  // Usa commissionRateBps se existir no entry; senão cai no COMMISSION_RATE global
+  const commissionRateBps = typeof entry.commissionRateBps === 'number' ? entry.commissionRateBps : undefined;
+  const rate = commissionRateBps != null ? commissionRateBps / 10000 : COMMISSION_RATE;
   let reverse = Math.round(delta * rate);
 
-  const alreadyReversed = (owner.commissionLog || [])
-    .filter((e: any) => e.invoiceId === invoiceId && e.type === 'adjustment' && e.status === 'reversed')
+  const alreadyReversed = ((owner as any).commissionLog || [])
+    .filter(
+      (e: any) =>
+        e.invoiceId === invoiceId && e.type === 'adjustment' && e.status === 'reversed'
+    )
     .reduce((s: number, e: any) => s + Math.abs(Number(e.amountCents || 0)), 0);
+
   const origCommission = Math.abs(Number(entry.amountCents || 0));
   const maxReversable = origCommission - alreadyReversed;
+
   if (maxReversable <= 0) {
     await AffiliateRefundProgress.updateOne(
       { invoiceId, affiliateUserId },
@@ -62,14 +99,16 @@ export async function processAffiliateRefund(invoiceId: string, refundedPaidTota
     );
     return;
   }
+
   reverse = Math.min(reverse, maxReversable);
   if (reverse <= 0) return;
 
   const cur = entry.currency;
-  owner.affiliateBalances ||= new Map();
-  owner.affiliateDebtByCurrency ||= new Map();
+  (owner as any).affiliateBalances ||= new Map();
+  (owner as any).affiliateDebtByCurrency ||= new Map();
 
   if (entry.status === 'pending') {
+    // Ainda segurando: ajusta ou cancela antes de maturar
     if (reverse >= entry.amountCents) {
       entry.amountCents = 0;
       entry.status = 'canceled';
@@ -77,21 +116,25 @@ export async function processAffiliateRefund(invoiceId: string, refundedPaidTota
       entry.amountCents -= reverse;
     }
   } else if (entry.status === 'available') {
-    const prevBal = owner.affiliateBalances.get(cur) ?? 0;
+    // Já disponível, ainda não pago: debita saldo e gera ajuste
+    const prevBal = (owner as any).affiliateBalances.get(cur) ?? 0;
     let balDec = reverse;
     let debtInc = 0;
+
     if (prevBal < reverse) {
       balDec = prevBal;
       debtInc = reverse - prevBal;
     }
-    owner.affiliateBalances.set(cur, Math.max(prevBal - balDec, 0));
+
+    (owner as any).affiliateBalances.set(cur, Math.max(prevBal - balDec, 0));
     if (debtInc > 0) {
-      const prevDebt = owner.affiliateDebtByCurrency.get(cur) ?? 0;
-      owner.affiliateDebtByCurrency.set(cur, prevDebt + debtInc);
-      owner.markModified('affiliateDebtByCurrency');
+      const prevDebt = (owner as any).affiliateDebtByCurrency.get(cur) ?? 0;
+      (owner as any).affiliateDebtByCurrency.set(cur, prevDebt + debtInc);
+      (owner as any).markModified?.('affiliateDebtByCurrency');
     }
-    owner.markModified('affiliateBalances');
-    owner.commissionLog.push({
+
+    (owner as any).markModified?.('affiliateBalances');
+    (owner as any).commissionLog.push({
       type: 'adjustment',
       status: 'reversed',
       invoiceId,
@@ -103,10 +146,11 @@ export async function processAffiliateRefund(invoiceId: string, refundedPaidTota
       updatedAt: new Date(),
     } as any);
   } else if (entry.status === 'paid') {
-    const prevDebt = owner.affiliateDebtByCurrency.get(cur) ?? 0;
-    owner.affiliateDebtByCurrency.set(cur, prevDebt + reverse);
-    owner.markModified('affiliateDebtByCurrency');
-    owner.commissionLog.push({
+    // Já pago (resgatado): vira dívida e registra ajuste
+    const prevDebt = (owner as any).affiliateDebtByCurrency.get(cur) ?? 0;
+    (owner as any).affiliateDebtByCurrency.set(cur, prevDebt + reverse);
+    (owner as any).markModified?.('affiliateDebtByCurrency');
+    (owner as any).commissionLog.push({
       type: 'adjustment',
       status: 'reversed',
       invoiceId,
@@ -120,6 +164,8 @@ export async function processAffiliateRefund(invoiceId: string, refundedPaidTota
   }
 
   await owner.save();
+
+  // Atualiza o total cumulativo visto para esta invoice (idempotência do delta)
   await AffiliateRefundProgress.updateOne(
     { invoiceId, affiliateUserId },
     { $set: { refundedPaidCentsTotal: refundedPaidTotalCents } }

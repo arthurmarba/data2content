@@ -1,4 +1,8 @@
+// src/app/services/stripe/mapAccountInfo.ts
 import type Stripe from 'stripe';
+
+// Alias local — o SDK não exporta CapabilityStatus
+type CapabilityStatus = 'active' | 'inactive' | 'pending';
 
 export interface StripeAccountInfo {
   payouts_enabled: boolean;
@@ -6,8 +10,8 @@ export interface StripeAccountInfo {
   default_currency: string | null;
   disabled_reason: string | null;
   capabilities: {
-    card_payments: Stripe.Account.CapabilityStatus | undefined;
-    transfers: Stripe.Account.CapabilityStatus | undefined;
+    card_payments: CapabilityStatus;
+    transfers: CapabilityStatus;
   };
   requirements: {
     currently_due: string[];
@@ -24,19 +28,24 @@ export function mapStripeAccountInfo(account: Stripe.Account): StripeAccountInfo
   const default_currency = account.default_currency
     ? String(account.default_currency).toLowerCase()
     : null;
+
   const disabled_reason =
-    (account.requirements as any)?.disabled_reason || (account as any).disabled_reason || null;
-  const capabilities = {
-    card_payments: account.capabilities?.card_payments || "inactive",
-    transfers: account.capabilities?.transfers || "inactive",
-  } as const;
+    (account.requirements as any)?.disabled_reason ||
+    (account as any).disabled_reason ||
+    null;
+
+  // Normaliza capabilities com fallback seguro
+  const card_payments = (account.capabilities?.card_payments ?? 'inactive') as CapabilityStatus;
+  const transfers = (account.capabilities?.transfers ?? 'inactive') as CapabilityStatus;
+
   const requirements = {
-    currently_due: account.requirements?.currently_due || [],
-    past_due: account.requirements?.past_due || [],
+    currently_due: (account.requirements?.currently_due ?? []) as string[],
+    past_due: (account.requirements?.past_due ?? []) as string[],
     current_deadline: account.requirements?.current_deadline
       ? new Date(account.requirements.current_deadline * 1000).toISOString()
       : null,
   };
+
   const needsOnboarding = requirements.currently_due.length > 0 || !payouts_enabled;
 
   let stripeAccountStatus: 'verified' | 'pending' | 'disabled' = 'pending';
@@ -51,7 +60,7 @@ export function mapStripeAccountInfo(account: Stripe.Account): StripeAccountInfo
     charges_enabled,
     default_currency,
     disabled_reason,
-    capabilities,
+    capabilities: { card_payments, transfers },
     requirements,
     needsOnboarding,
     stripeAccountStatus,

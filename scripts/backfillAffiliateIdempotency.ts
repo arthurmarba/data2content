@@ -8,6 +8,7 @@ import { logger } from "@/app/lib/logger";
   try {
     await connectToDatabase();
 
+    // Cursor para invoices (sem .exec())
     const invoiceCursor = User.aggregate([
       { $unwind: "$commissionLog" },
       {
@@ -18,17 +19,21 @@ import { logger } from "@/app/lib/logger";
         },
       },
       { $match: { invoiceId: { $exists: true } } },
-    ]).cursor({ batchSize: 50 }).exec();
+    ])
+      .allowDiskUse(true)
+      .cursor({ batchSize: 50 });
 
-    for await (const doc of invoiceCursor) {
+    for await (const doc of invoiceCursor as AsyncIterable<any>) {
       try {
         await AffiliateInvoiceIndex.create(doc);
       } catch (e: any) {
-        if (e.code !== 11000)
+        if (e?.code !== 11000) {
           logger.error("[backfill] invoice index insert failed", e);
+        }
       }
     }
 
+    // Cursor para subscriptions (sem .exec())
     const subCursor = User.aggregate([
       { $unwind: "$commissionLog" },
       { $match: { "commissionLog.subscriptionId": { $exists: true } } },
@@ -39,14 +44,20 @@ import { logger } from "@/app/lib/logger";
           createdAt: { $ifNull: ["$commissionLog.createdAt", new Date()] },
         },
       },
-    ]).cursor({ batchSize: 50 }).exec();
+      // dica: se quiser reduzir colisões, pode agrupar para 1 registro por (sub, aff)
+      // { $group: { _id: { sub: "$subscriptionId", aff: "$affiliateUserId" }, createdAt: { $min: "$createdAt" } } },
+      // { $project: { subscriptionId: "$_id.sub", affiliateUserId: "$_id.aff", createdAt: 1, _id: 0 } },
+    ])
+      .allowDiskUse(true)
+      .cursor({ batchSize: 50 });
 
-    for await (const doc of subCursor) {
+    for await (const doc of subCursor as AsyncIterable<any>) {
       try {
         await AffiliateSubscriptionIndex.create(doc);
       } catch (e: any) {
-        if (e.code !== 11000)
+        if (e?.code !== 11000) {
           logger.error("[backfill] subscription index insert failed", e);
+        }
       }
     }
 
