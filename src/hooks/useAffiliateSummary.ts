@@ -1,62 +1,31 @@
-import { useMemo } from 'react';
 import useSWR from 'swr';
+import { AffiliateSummary, AffiliateStatus } from '@/types/affiliate';
 
-export type CurrencyCode = 'BRL' | 'USD' | string;
-export interface CurrencySummary {
-  availableCents: number;
-  pendingCents: number;
-  nextMatureAt?: string;
-  debtCents: number;
-  minRedeemCents?: number;
-}
-
-export interface AffiliateSummary {
-  byCurrency: Record<CurrencyCode, CurrencySummary>;
-  // legacy fields for retrocompatibility
-  balances: Record<string, number>;
-  debt: Record<string, number>;
-  min: Record<string, number>;
-  pendingNextDates?: Record<string, string>;
-  pending?: Record<string, number>;
-}
-
-export interface AffiliateStatus {
-  payoutsEnabled: boolean;
-  disabledReasonKey?: string;
-  defaultCurrency?: string;
-  needsOnboarding?: boolean;
-  accountCountry?: string;
-  isUnderReview?: boolean;
-}
-
-const fetcher = (url: string) => fetch(url).then(r => r.json());
+const fetcher = (url: string) =>
+  fetch(url, { cache: 'no-store' }).then((r) => {
+    if (!r.ok) throw new Error('Failed to fetch summary');
+    return r.json();
+  });
 
 export function useAffiliateSummary() {
-  const { data: rawSummary, error: summaryError, mutate: mutateSummary } = useSWR<AffiliateSummary>('/api/affiliate/summary', fetcher);
-  const { data: status, error: statusError, mutate: mutateStatus } = useSWR<AffiliateStatus>('/api/affiliate/connect/status', fetcher);
+  const {
+    data: summary,
+    error: summaryError,
+    isLoading: summaryLoading,
+    mutate: mutateSummary,
+  } = useSWR<AffiliateSummary>('/api/affiliate/summary', fetcher, {
+    revalidateOnFocus: false,
+  });
+  const {
+    data: status,
+    error: statusError,
+    isLoading: statusLoading,
+    mutate: mutateStatus,
+  } = useSWR<AffiliateStatus>('/api/affiliate/connect/status', fetcher, {
+    revalidateOnFocus: false,
+  });
 
-  const summary = useMemo<AffiliateSummary | undefined>(() => {
-    if (!rawSummary) return undefined;
-    const currencies = new Set<string>([
-      ...Object.keys(rawSummary.balances || {}),
-      ...Object.keys(rawSummary.pending || {}),
-      ...Object.keys(rawSummary.debt || {}),
-      ...Object.keys(rawSummary.min || {}),
-    ]);
-    const byCurrency: Record<string, CurrencySummary> = {};
-    currencies.forEach(cur => {
-      byCurrency[cur] = {
-        availableCents: rawSummary.balances?.[cur] ?? 0,
-        pendingCents: rawSummary.pending?.[cur] ?? 0,
-        nextMatureAt: rawSummary.pendingNextDates?.[cur],
-        debtCents: rawSummary.debt?.[cur] ?? 0,
-        minRedeemCents: rawSummary.min?.[cur],
-      };
-    });
-    return { ...rawSummary, byCurrency };
-  }, [rawSummary]);
-
-  const loading = !summary || !status;
+  const loading = summaryLoading || statusLoading;
   const error = summaryError || statusError;
   const refresh = async () => {
     await Promise.all([mutateSummary(), mutateStatus()]);
@@ -69,10 +38,12 @@ export function canRedeem(
   summary: AffiliateSummary | undefined,
   cur: string,
 ) {
+  const curNorm = cur.toUpperCase();
+  const statusCur = status?.defaultCurrency?.toUpperCase();
   if (!status?.payoutsEnabled) return false;
   if (!summary) return false;
-  if (cur !== status.defaultCurrency) return false;
-  const curSummary = summary.byCurrency?.[cur];
+  if (statusCur && curNorm !== statusCur) return false;
+  const curSummary = summary.byCurrency?.[curNorm];
   if (!curSummary) return false;
   const min = curSummary.minRedeemCents ?? 0;
   return curSummary.availableCents >= min && curSummary.debtCents === 0;
@@ -90,13 +61,15 @@ export function getRedeemBlockReason(
   summary: AffiliateSummary | undefined,
   cur: string,
 ): RedeemBlockReason | null {
+  const curNorm = cur.toUpperCase();
+  const statusCur = status?.defaultCurrency?.toUpperCase();
   if (!status) return null;
   if (!status.payoutsEnabled) {
     return status.needsOnboarding ? 'needsOnboarding' : 'payouts_disabled';
   }
   if (!summary) return null;
-  if (cur !== status.defaultCurrency) return 'currency_mismatch';
-  const curSummary = summary.byCurrency?.[cur];
+  if (statusCur && curNorm !== statusCur) return 'currency_mismatch';
+  const curSummary = summary.byCurrency?.[curNorm];
   if (!curSummary) return null;
   if (curSummary.debtCents > 0) return 'has_debt';
   const min = curSummary.minRedeemCents ?? 0;
