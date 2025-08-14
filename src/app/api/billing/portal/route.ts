@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { connectToDatabase } from '@/app/lib/mongoose';
@@ -11,46 +11,39 @@ export const dynamic = 'force-dynamic';
 
 const cacheHeader = { 'Cache-Control': 'no-store, max-age=0' } as const;
 
-export async function POST(req: NextRequest) {
+export async function POST() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Não autenticado' }, { status: 401, headers: cacheHeader });
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401, headers: cacheHeader });
     }
 
     await connectToDatabase();
     const user = await User.findById(session.user.id).lean();
     if (!user?.stripeCustomerId) {
       return NextResponse.json(
-        { error: 'Cliente Stripe não encontrado' },
-        { status: 404, headers: cacheHeader }
+        { message: 'No Stripe customer' },
+        { status: 400, headers: cacheHeader }
       );
     }
 
-    let returnUrl: string | undefined;
-    try {
-      const body = await req.json();
-      returnUrl = body?.returnUrl;
-    } catch {
-      returnUrl = undefined;
-    }
-
+    const returnUrl = process.env.NEXTAUTH_URL ?? 'http://localhost:3000/dashboard/billing';
     const portal = await stripe.billingPortal.sessions.create({
       customer: user.stripeCustomerId,
-      return_url: returnUrl || process.env.NEXTAUTH_URL || 'https://example.com',
+      return_url: returnUrl,
     });
 
     return NextResponse.json({ url: portal.url }, { headers: cacheHeader });
-  } catch (err: unknown) {
+  } catch (err) {
     if (err instanceof Stripe.errors.StripeError) {
       return NextResponse.json(
-        { error: err.message },
+        { message: err.message },
         { status: err.statusCode || 500, headers: cacheHeader }
       );
     }
     return NextResponse.json(
-      { error: 'Não foi possível criar sessão do portal.' },
-      { status: 500, headers: cacheHeader }
+      { message: 'Portal error' },
+      { status: 400, headers: cacheHeader }
     );
   }
 }
