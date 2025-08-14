@@ -9,8 +9,8 @@ describe('affiliateHistory copy maps', () => {
     expect(REASON_LABEL).toMatchSnapshot();
   });
 
-  test('humanizeReason fallback', () => {
-    expect(humanizeReason('unknown')).toBe('Ajuste no registro.');
-    expect(humanizeReason()).toBe('Ajuste no registro.');
-  });
+    test('humanizeReason fallback', () => {
+      expect(humanizeReason('unknown')).toBe('Ajuste administrativo.');
+      expect(humanizeReason()).toBe('Ajuste administrativo.');
+    });
 });

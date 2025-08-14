@@ -1,75 +1,63 @@
 import useSWRInfinite from 'swr/infinite';
 
-export type HistoryStatus = 'pending'|'available'|'paid'|'canceled'|'reversed';
-export type HistoryItem = {
+export type HistoryStatus = 'pending' | 'available' | 'paid' | 'canceled' | 'reversed';
+
+export interface HistoryItem {
   id: string;
-  currency: string;        // 'BRL' | 'USD' | ...
+  kind: 'commission' | 'redemption';
+  currency: string;
   amountCents: number;
   status: HistoryStatus;
-  createdAt: string;       // ISO
-  availableAt?: string;    // ISO, se pending
-  invoiceId?: string;
-  subscriptionId?: string;
-  transferId?: string;     // se paid
-  reasonCode?: string;     // ver mapa abaixo
-  notes?: string | null;   // livre
-};
-
-export type HistoryQuery = {
-  statuses?: HistoryStatus[];
-  currencies?: string[];
-  dateFrom?: string;  // ISO
-  dateTo?: string;    // ISO
-  sortBy?: 'createdAt'|'amountCents';
-  sortDir?: 'asc'|'desc';
-  cursor?: string;    // paginação
-  limit?: number;     // default 20
-};
-
-export type HistoryResponse = {
-  items: HistoryItem[];
-  nextCursor?: string | null;
-};
-
-const fetcher = (url: string) => fetch(url).then(r => {
-  if (!r.ok) throw new Error('Network error');
-  return r.json();
-});
-
-function buildQuery(q: HistoryQuery & { cursor?: string }) {
-  const params = new URLSearchParams();
-  if (q.statuses) q.statuses.forEach(s => params.append('statuses', s));
-  if (q.currencies) q.currencies.forEach(c => params.append('currencies', c));
-  if (q.dateFrom) params.set('dateFrom', q.dateFrom);
-  if (q.dateTo) params.set('dateTo', q.dateTo);
-  if (q.sortBy) params.set('sortBy', q.sortBy);
-  if (q.sortDir) params.set('sortDir', q.sortDir);
-  if (q.cursor) params.set('cursor', q.cursor);
-  if (q.limit) params.set('limit', String(q.limit));
-  return params.toString();
+  createdAt: string;
+  availableAt?: string | null;
+  invoiceId?: string | null;
+  subscriptionId?: string | null;
+  transferId?: string | null;
+  reasonCode?: string | null;
+  notes?: string | null;
 }
 
-export function useAffiliateHistory(query: HistoryQuery = {}) {
-  const getKey = (pageIndex: number, previousPageData: HistoryResponse | null) => {
-    if (previousPageData && !previousPageData.nextCursor) return null;
-    const cursor = pageIndex === 0 ? query.cursor : previousPageData?.nextCursor;
-    const q = { ...query, cursor } as HistoryQuery;
-    const qs = buildQuery(q);
-    return `/api/affiliate/history${qs ? `?${qs}` : ''}`;
+export interface HistoryResponse {
+  items: HistoryItem[];
+  nextCursor: string | null;
+}
+
+const PAGE_SIZE = 20;
+const fetcher = (url: string) => fetch(url, { cache: 'no-store' }).then(r => r.json());
+
+export function useAffiliateHistory(filters: { status?: string[]; currency?: string; from?: string; to?: string } = {}) {
+  const qs = new URLSearchParams();
+  qs.set('take', String(PAGE_SIZE));
+  if (filters.currency) qs.set('currency', filters.currency);
+  if (filters.status?.length) qs.set('status', filters.status.join(','));
+  if (filters.from) qs.set('from', filters.from);
+  if (filters.to) qs.set('to', filters.to);
+
+  const getKey = (index: number, prev: HistoryResponse | null) => {
+    if (prev && !prev.nextCursor) return null;
+    const cursor = index === 0 ? '' : `&cursor=${encodeURIComponent(prev!.nextCursor!)}`;
+    return `/api/affiliate/history?${qs.toString()}${cursor}`;
   };
 
-  const { data, error, size, setSize, isValidating, mutate } = useSWRInfinite<HistoryResponse>(getKey, fetcher);
-  const items = data ? data.flatMap(p => p.items) : [];
-  const loading = !data && !error;
-  const hasMore = !!data?.[data.length - 1]?.nextCursor;
+  const { data, error, size, setSize, isLoading } = useSWRInfinite<HistoryResponse>(getKey, fetcher, {
+    revalidateOnFocus: false,
+  });
 
-  const loadMore = () => setSize(size + 1);
-  const refresh = () => mutate();
+  const items = data?.flatMap(d => d.items) ?? [];
+  const hasMore = Boolean(data?.[data.length - 1]?.nextCursor);
 
-  return { items, loading, error, loadMore, hasMore, isValidating, refresh };
+  return {
+    items,
+    hasMore,
+    loadMore: () => setSize(size + 1),
+    error,
+    isLoading,
+    size,
+    setSize,
+  };
 }
 
-export function daysUntil(dateIso?: string) {
+export function daysUntil(dateIso?: string | null) {
   if (!dateIso) return 0;
   const target = new Date(dateIso).getTime();
   const now = Date.now();

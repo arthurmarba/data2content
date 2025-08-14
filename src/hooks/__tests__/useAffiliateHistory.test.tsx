@@ -7,7 +7,16 @@ describe('useAffiliateHistory', () => {
       const u = new URL(url, 'http://localhost');
       const cursor = u.searchParams.get('cursor');
       const page: HistoryResponse = {
-        items: [{ id: cursor || 'first', currency: 'BRL', amountCents: 100, status: 'pending', createdAt: new Date().toISOString() }],
+        items: [
+          {
+            id: cursor ? 'second' : 'first',
+            kind: 'commission',
+            currency: 'BRL',
+            amountCents: 100,
+            status: 'pending',
+            createdAt: new Date().toISOString(),
+          },
+        ],
         nextCursor: cursor ? null : 'next',
       };
       return Promise.resolve({ ok: true, json: () => Promise.resolve(page) });
@@ -15,11 +24,12 @@ describe('useAffiliateHistory', () => {
   });
 
   test('builds query with filters', async () => {
-    const { result } = renderHook(() =>
-      useAffiliateHistory({ statuses: ['pending'], currencies: ['BRL'], limit: 1 })
-    );
+    const { result } = renderHook(() => useAffiliateHistory({ status: ['pending'], currency: 'BRL' }));
     await waitFor(() => expect(result.current.items).toHaveLength(1));
-    expect((global as any).fetch).toHaveBeenCalledWith('/api/affiliate/history?statuses=pending&currencies=BRL&limit=1');
+    expect((global as any).fetch).toHaveBeenCalledWith(
+      '/api/affiliate/history?take=20&currency=BRL&status=pending',
+      { cache: 'no-store' }
+    );
   });
 
   test('loads more pages', async () => {

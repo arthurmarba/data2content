@@ -2,16 +2,13 @@
 
 exports[`affiliateHistory copy maps reason labels snapshot 1`] = `
 {
-  "adjustment_after_redeem": "Ajuste pós-resgate.",
-  "admin_manual_correction": "Correção manual pela equipe.",
-  "chargeback": "Estorno por contestação do pagamento.",
-  "coupon_100": "Pagamento com 100% de desconto não gera comissão.",
-  "currency_mismatch": "Moeda incompatível para saque.",
-  "duplicate_prevented": "Entrada duplicada ignorada.",
-  "refund_after_payout": "Reembolso após liberação (ajuste aplicado).",
-  "refund_within_hold": "Reembolso dentro do período de 7 dias.",
-  "self_referral_blocked": "Autoindicação não é elegível a comissão.",
-  "trial_no_commission": "Período de teste gratuito não gera comissão.",
+  "duplicates_blocked": "Pagamento duplicado — comissão ignorada.",
+  "payout_rejected": "Saque rejeitado — valor recreditado ao saldo.",
+  "race_condition": "Concorrência detectada — operação não concluída.",
+  "refund_after_release": "Reembolso após liberação — ajuste aplicado.",
+  "refund_within_hold": "Reembolso dentro do período de retenção — comissão cancelada.",
+  "self_referral_blocked": "Autoindicação não gera comissão.",
+  "transfer_reversed": "Transferência revertida pelo Stripe — valor recreditado.",
 }
 `;
 
