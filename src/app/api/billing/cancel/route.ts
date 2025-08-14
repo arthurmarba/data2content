@@ -4,7 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import stripe from "@/app/lib/stripe";
-import { Stripe } from "stripe";
+import type Stripe from "stripe";
 
 export const runtime = "nodejs";
 
@@ -21,12 +21,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
     }
 
-    // VERIFICAÇÃO DE IDEMPOTÊNCIA: Se a assinatura já foi cancelada, retorna sucesso.
+    // Se já estiver cancelada, simplesmente retorna o estado atual
     if (user.planStatus === "canceled") {
-      return NextResponse.json({
-        message:
-          "Sua assinatura já foi cancelada. O acesso permanece até o fim do período pago.",
-      });
+      return NextResponse.json({ ok: true });
     }
 
     let subscriptionId = user.stripeSubscriptionId;
@@ -55,8 +52,7 @@ export async function POST(req: NextRequest) {
       { _id: user._id },
       {
         $set: {
-          // MUDANÇA: Padronizado para 'canceled' para consistência.
-          planStatus: "canceled", 
+          planStatus: "canceled",
           planInterval:
             sub.items.data[0]?.price.recurring?.interval ?? user.planInterval,
           planExpiresAt: sub.current_period_end
@@ -64,15 +60,41 @@ export async function POST(req: NextRequest) {
             : user.planExpiresAt,
           stripeSubscriptionId: sub.id,
         },
-        // LIMPEZA: Remove erros de pagamento antigos, pois não são mais relevantes.
         $unset: { lastPaymentError: 1 },
       }
     );
 
-    return NextResponse.json({
-      message:
-        "Renovação cancelada. Seu acesso permanece até o fim do período já pago.",
-    });
+    let upcoming: Stripe.UpcomingInvoice | null = null;
+    try {
+      upcoming = await stripe.invoices.retrieveUpcoming({
+        customer: user.stripeCustomerId!,
+        subscription: sub.id,
+      });
+    } catch {
+      upcoming = null;
+    }
+
+    const paymentMethod = sub.default_payment_method as Stripe.PaymentMethod | null;
+    const subscription = {
+      planName: sub.items.data[0]?.plan?.nickname || "Pro",
+      currency:
+        upcoming?.currency?.toUpperCase() ||
+        sub.items.data[0]?.plan?.currency?.toUpperCase() ||
+        "BRL",
+      nextInvoiceAmountCents: upcoming?.amount_due || undefined,
+      nextInvoiceDate: upcoming?.next_payment_attempt
+        ? new Date(upcoming.next_payment_attempt * 1000).toISOString()
+        : undefined,
+      currentPeriodEnd: sub.current_period_end
+        ? new Date(sub.current_period_end * 1000).toISOString()
+        : undefined,
+      status: sub.status as any,
+      cancelAtPeriodEnd: !!sub.cancel_at_period_end,
+      paymentMethodLast4: paymentMethod?.card?.last4 || null,
+      defaultPaymentMethodBrand: paymentMethod?.card?.brand || null,
+    };
+
+    return NextResponse.json({ ok: true, subscription });
   } catch (err: any) {
     console.error("[billing/cancel] error:", err);
 
