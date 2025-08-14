@@ -16,7 +16,10 @@
     "fix-formats": "tsx --env-file=.env.local ./scripts/fixFormatLabels.ts",
     "test:demographics": "tsx --env-file=.env.local ./scripts/testDemographics.ts",
     "backfill:demographics": "tsx --env-file=.env.local ./scripts/backfillDemographicSnapshots.ts",
-    "migrate-affiliates": "tsx --env-file=.env.local ./scripts/migrate-affiliates.ts"
+    "migrate-affiliates": "tsx --env-file=.env.local ./scripts/migrate-affiliates.ts",
+    "qa:listen": "bash qa/stripe-listen.sh",
+    "qa:triggers": "bash qa/stripe-triggers.sh",
+    "qa:http": "bash qa/http.sh"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.2",
