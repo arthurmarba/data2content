@@ -8,7 +8,7 @@ import { deleteUserAccountAndAssociatedData } from "@/app/lib/dataService"; // A
 import { DatabaseError, UserNotFoundError } from "@/app/lib/errors"; // Ajuste o caminho se for diferente
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
-import stripe from "@/app/lib/stripe";
+import { stripe } from "@/app/lib/stripe";
 
 export async function DELETE(req: Request) {
   const TAG = "[API DELETE /api/user/account]";

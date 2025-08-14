@@ -5,14 +5,16 @@ jest.mock('@/app/lib/mongoose', () => ({ connectToDatabase: jest.fn() }));
 jest.mock('@/app/models/User', () => ({ findById: jest.fn(), updateOne: jest.fn() }));
 jest.mock('@/app/models/Redemption', () => ({ create: jest.fn(), updateOne: jest.fn() }));
 jest.mock('@/app/lib/stripe', () => ({
-  accounts: { retrieve: jest.fn() },
-  transfers: { create: jest.fn() },
+  stripe: {
+    accounts: { retrieve: jest.fn() },
+    transfers: { create: jest.fn() },
+  },
 }));
 
 const getServerSession = require('next-auth/next').getServerSession as jest.Mock;
 const User = require('@/app/models/User');
 const Redemption = require('@/app/models/Redemption');
-const stripe = require('@/app/lib/stripe');
+const { stripe } = require('@/app/lib/stripe');
 const { POST } = require('./route');
 
 function mockRequest(body: any = { currency: 'BRL', amountCents: null, clientToken: 'tok1' }) {

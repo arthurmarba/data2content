@@ -9,22 +9,23 @@ import fetch, { Request, Response, Headers } from 'node-fetch';
     headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
   });
 
-const { GET } = require('./route');
 import { getServerSession } from 'next-auth/next';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import User from '@/app/models/User';
-import stripe from '@/app/lib/stripe';
 
 jest.mock('next-auth/next', () => ({ getServerSession: jest.fn() }));
 jest.mock('@/app/api/auth/[...nextauth]/route', () => ({ authOptions: {} }));
 jest.mock('@/app/lib/mongoose', () => ({ connectToDatabase: jest.fn() }));
 jest.mock('@/app/models/User', () => ({ findById: jest.fn() }));
-jest.mock('@/app/lib/stripe', () => ({ accounts: { retrieve: jest.fn() } }));
+jest.mock('@/app/lib/stripe', () => ({ stripe: { accounts: { retrieve: jest.fn() } } }));
 
 const mockGetServerSession = getServerSession as jest.Mock;
 const mockConnect = connectToDatabase as jest.Mock;
 const mockFindById = User.findById as jest.Mock;
+const { stripe } = require('@/app/lib/stripe');
 const mockRetrieve = (stripe.accounts.retrieve as unknown) as jest.Mock;
+
+const { GET } = require('./route');
 
 beforeEach(() => {
   jest.clearAllMocks();

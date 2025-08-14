@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
-import stripe from "@/app/lib/stripe";
+import { stripe } from "@/app/lib/stripe";
 import { logger } from "@/app/lib/logger";
 import { normCur } from "@/utils/normCur";
 import Redemption from "@/app/models/Redemption";

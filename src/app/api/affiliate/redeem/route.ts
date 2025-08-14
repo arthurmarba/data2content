@@ -4,7 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import User from '@/app/models/User';
 import Redemption from '@/app/models/Redemption';
-import stripe from '@/app/lib/stripe';
+import { stripe } from '@/app/lib/stripe';
 
 export const runtime = 'nodejs';
 

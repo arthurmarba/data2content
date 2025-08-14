@@ -4,7 +4,7 @@ import type { Session } from "next-auth"; // <— TIPAGEM adicionada
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
-import stripe from "@/app/lib/stripe";
+import { stripe } from "@/app/lib/stripe";
 import { normCur } from "@/utils/normCur";
 import { logger } from "@/app/lib/logger";
 import {
