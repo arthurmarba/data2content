@@ -1,0 +1,11 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`redeem block messages snapshot of messages 1`] = `
+{
+  "below_min": [Function],
+  "currency_mismatch": [Function],
+  "has_debt": [Function],
+  "needsOnboarding": "Conecte sua conta Stripe para sacar.",
+  "payouts_disabled": "Sua conta Stripe precisa de verificação de documentos.",
+}
+`;
