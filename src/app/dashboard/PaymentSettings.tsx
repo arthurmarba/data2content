@@ -9,6 +9,9 @@ type ConnectStatus =
       payoutsEnabled: boolean;
       defaultCurrency?: string;
       needsOnboarding: boolean;
+      // opcionais (se seu backend enviar, não quebra):
+      disabledReasonKey?: string | null;
+      stripeAccountStatus?: string | null;
     }
   | undefined;
 
@@ -52,6 +55,18 @@ export default function PaymentSettings() {
     if (!destCurrency) return 0;
     return balances[destCurrency] ?? 0;
   }, [balances, destCurrency]);
+
+  const isVerified = !!connectStatus?.payoutsEnabled;
+
+  const statusLabel = useMemo(() => {
+    if (!connectStatus) return "—";
+    // se backend mandar string pronta, usa ela
+    if (connectStatus.stripeAccountStatus) return connectStatus.stripeAccountStatus;
+    // senão, deriva
+    if (connectStatus.payoutsEnabled) return "Verificado";
+    if (connectStatus.needsOnboarding) return "Ação necessária";
+    return "Em revisão";
+  }, [connectStatus]);
 
   const openStripe = useCallback(async () => {
     try {
@@ -120,9 +135,7 @@ export default function PaymentSettings() {
           <div>
             <p className="text-sm text-gray-600">Stripe Connect</p>
             <p className="text-base font-semibold">
-              {isLoadingStatus
-                ? "Carregando…"
-                : connectStatus?.stripeAccountStatus ?? "—"}
+              {isLoadingStatus ? "Carregando…" : statusLabel}
               {destCurrency ? ` · ${destCurrency.toUpperCase()}` : ""}
             </p>
             {statusError && (

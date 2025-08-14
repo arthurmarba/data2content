@@ -1,6 +1,6 @@
-// @/app/models/User.ts - v1.9.20
-// - Adiciona status "accrued" ao commissionLog (interface + schema enum)
-// - Garante currency do commissionLog em lowercase
+// @/app/models/User.ts - v1.9.21
+// - Adiciona stripeAccountCountry a paymentInfo (interface + schema)
+// - Mantém alterações anteriores (v1.9.20)
 
 import mongoose, { Schema, Document, Model, Types } from "mongoose";
 import { logger } from "@/app/lib/logger";
@@ -299,6 +299,8 @@ export interface IUser extends Document {
       transfers?: 'active' | 'pending' | 'inactive';
     };
     stripeAccountNeedsOnboarding?: boolean;
+    // ✅ NOVO CAMPO
+    stripeAccountCountry?: string | null;
   };
   affiliatePayoutMode?: 'connect' | 'manual';
   commissionPaidInvoiceIds?: string[];
@@ -515,6 +517,8 @@ const userSchema = new Schema<IUser>(
       stripeAccountDisabledReason: { type: String, default: undefined },
       stripeAccountCapabilities: { type: Map, of: String, default: {} },
       stripeAccountNeedsOnboarding: { type: Boolean, default: undefined },
+      // ✅ NOVO CAMPO
+      stripeAccountCountry: { type: String, default: undefined },
     },
 
     lastPaymentError: {
@@ -556,7 +560,7 @@ userSchema.index(
 );
 
 userSchema.pre<IUser>("save", function (next) {
-  const TAG_PRE_SAVE = '[User.ts pre-save v1.9.20]';
+  const TAG_PRE_SAVE = '[User.ts pre-save v1.9.21]';
   if (this.isNew && !this.affiliateCode) {
     const newCode = generateAffiliateCode();
     logger.info(`${TAG_PRE_SAVE} Gerando novo affiliateCode: '${newCode}' para User Email: ${this.email}`);
