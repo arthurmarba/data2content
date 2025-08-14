@@ -100,7 +100,7 @@ const AffiliateCardContent: React.FC<{
   const { data: session } = useSession();
   const fetcher = (url: string) => fetch(url).then(r => r.json());
   const { data: connectStatus } = useSWR('/api/affiliate/connect/status', fetcher, { revalidateOnFocus: false });
-  const destCurrency = connectStatus?.destCurrency?.toLowerCase();
+  const destCurrency = connectStatus?.defaultCurrency?.toLowerCase();
   const balances: Record<string, number> = (session as any)?.user?.affiliateBalances || {};
   const entries = Object.entries(balances).sort(([a],[b]) => a.localeCompare(b));
   return (

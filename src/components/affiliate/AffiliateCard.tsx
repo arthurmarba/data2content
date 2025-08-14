@@ -12,6 +12,8 @@ import { REDEEM_BLOCK_MESSAGES, RULES_COPY } from '@/copy/affiliates';
 import EmptyState from '@/components/ui/EmptyState';
 import SkeletonRow from '@/components/ui/SkeletonRow';
 import ErrorState from '@/components/ui/ErrorState';
+import StripeStatusPanel from '@/components/payments/StripeStatusPanel';
+import RedeemModal from '@/components/affiliate/RedeemModal';
 
 function fmt(amountCents: number, cur: string) {
   const n = amountCents / 100;
@@ -198,42 +200,15 @@ export default function AffiliateCard() {
       )}
     </div>
 
-    <div className="rounded-xl bg-gray-50 p-3 text-sm space-y-2">
-      <div className="flex items-center justify-between">
-        <span>Status Stripe Connect:</span>
-        <span className="font-medium">
-          {status.payouts_enabled
-            ? 'Verificada'
-            : status.needsOnboarding
-            ? 'Pendente'
-            : 'Desabilitada'}
-        </span>
-      </div>
-      <div className="flex items-center justify-between text-xs text-gray-600">
-        <span>Moeda destino:</span>
-        <span className="uppercase">{status.default_currency}</span>
-      </div>
-      {status.disabled_reason && (
-        <p className="text-xs text-red-600">{status.disabled_reason}</p>
-      )}
-      {status.needsOnboarding && (
-        <button
-          onClick={handleOnboard}
-          className="mt-1 w-full rounded bg-brand-pink px-3 py-1.5 text-white text-xs font-medium hover:opacity-90"
-        >
-          Configurar Stripe
-        </button>
-      )}
-      <button
-        onClick={() => {
-          refresh();
-          track('affiliate_refresh_status');
-        }}
-        className="w-full rounded border px-3 py-1.5 text-xs font-medium"
-      >
-        Atualizar status
-      </button>
-    </div>
+    <StripeStatusPanel
+      status={status}
+      summary={summary}
+      onRefresh={() => {
+        refresh();
+        track('affiliate_refresh_status');
+      }}
+      onOnboard={handleOnboard}
+    />
 
     <div className="rounded-xl bg-gray-50 p-3">
       <p className="mb-2 text-xs text-gray-600">Saldos</p>
@@ -264,7 +239,7 @@ export default function AffiliateCard() {
               break;
             case 'currency_mismatch':
               reasonText = REDEEM_BLOCK_MESSAGES.currency_mismatch(
-                status.default_currency.toUpperCase(),
+                (status.defaultCurrency || '').toUpperCase(),
                 cur.toUpperCase(),
               );
               break;
@@ -333,29 +308,15 @@ export default function AffiliateCard() {
       </ul>
     </div>
 
-    {redeemCur && (
-      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-        <div className="bg-white rounded p-4 w-80 space-y-3">
-          <h4 className="font-medium text-sm">
-            Resgatar {fmt(summary.byCurrency[redeemCur]?.availableCents || 0, redeemCur)}
-          </h4>
-          <p className="text-xs text-gray-600">
-            Você vai transferir todo o saldo disponível em {redeemCur.toUpperCase()} para sua conta Stripe Connect.
-          </p>
-          <div className="flex gap-2 justify-end pt-2">
-            <button onClick={() => setRedeemCur(null)} className="px-3 py-1 text-sm">
-              Cancelar
-            </button>
-            <button
-              disabled={submitting}
-              onClick={confirmRedeem}
-              className="px-3 py-1 rounded bg-brand-pink text-white text-sm disabled:opacity-50"
-            >
-              {submitting ? 'Enviando...' : 'Confirmar'}
-            </button>
-          </div>
-        </div>
-      </div>
+    {redeemCur && summary && (
+      <RedeemModal
+        open={!!redeemCur}
+        currency={redeemCur}
+        amountCents={summary.byCurrency[redeemCur]?.availableCents || 0}
+        onConfirm={confirmRedeem}
+        onClose={() => setRedeemCur(null)}
+        loading={submitting}
+      />
     )}
   </div>
   );

@@ -69,27 +69,21 @@ export async function POST(req: NextRequest) {
         const user = await User.findOne({ "paymentInfo.stripeAccountId": acctId });
         if (user) {
           user.paymentInfo ||= {};
-          user.paymentInfo.stripeAccountStatus = info.stripeAccountStatus;
-          user.paymentInfo.stripeAccountDefaultCurrency = info.default_currency || undefined;
-          user.paymentInfo.stripeAccountPayoutsEnabled = info.payouts_enabled;
-          user.paymentInfo.stripeAccountChargesEnabled = info.charges_enabled;
-          user.paymentInfo.stripeAccountDisabledReason = info.disabled_reason || undefined;
-          // ← Correção: atribuir objeto em vez de Map
-          user.paymentInfo.stripeAccountCapabilities = {
-            card_payments: info.capabilities?.card_payments,
-            transfers: info.capabilities?.transfers,
-          };
+          user.paymentInfo.stripeAccountDefaultCurrency = info.defaultCurrency;
+          user.paymentInfo.stripeAccountPayoutsEnabled = info.payoutsEnabled;
+          user.paymentInfo.stripeAccountDisabledReason = info.disabledReasonKey;
           user.paymentInfo.stripeAccountNeedsOnboarding = info.needsOnboarding;
+          user.paymentInfo.stripeAccountCountry = info.accountCountry;
           user.markModified("paymentInfo");
           await user.save();
         }
 
         logger.info("[connect:account.updated]", {
           accountId: acctId,
-          payouts_enabled: info.payouts_enabled,
-          default_currency: info.default_currency,
+          payouts_enabled: info.payoutsEnabled,
+          default_currency: info.defaultCurrency,
           needsOnboarding: info.needsOnboarding,
-          disabled_reason: info.disabled_reason,
+          disabled_reason: info.disabledReasonKey,
         });
         break;
       }

@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
     }
 
+    const _refresh = req.nextUrl.searchParams.get('refresh') === 'true';
     const accountId = user.paymentInfo?.stripeAccountId || null;
 
     if (accountId) {
@@ -48,34 +49,28 @@ export async function GET(req: NextRequest) {
         const prev = user.paymentInfo || {};
         user.paymentInfo = {
           ...prev,
-          stripeAccountStatus: info.stripeAccountStatus,
-          stripeAccountDefaultCurrency: info.default_currency || undefined,
-          stripeAccountPayoutsEnabled: info.payouts_enabled,
-          stripeAccountChargesEnabled: info.charges_enabled,
-          stripeAccountDisabledReason: info.disabled_reason || undefined,
-          stripeAccountCapabilities: new Map(
-            Object.entries(info.capabilities)
-          ),
+          stripeAccountDefaultCurrency: info.defaultCurrency,
+          stripeAccountPayoutsEnabled: info.payoutsEnabled,
+          stripeAccountDisabledReason: info.disabledReasonKey,
           stripeAccountNeedsOnboarding: info.needsOnboarding,
+          stripeAccountCountry: info.accountCountry,
         } as any;
         user.markModified("paymentInfo");
         await user.save();
 
-        return NextResponse.json(info);
+        return NextResponse.json({
+          ...info,
+          lastRefreshedAt: new Date().toISOString(),
+        });
       } catch (err) {
         console.error("[affiliate/connect/status] retrieve error:", err);
       }
     }
 
     return NextResponse.json({
-      payouts_enabled: false,
-      charges_enabled: false,
-      default_currency: null,
-      disabled_reason: null,
+      payoutsEnabled: false,
       needsOnboarding: true,
-      capabilities: { card_payments: "inactive", transfers: "inactive" },
-      requirements: { currently_due: [], past_due: [], current_deadline: null },
-      stripeAccountStatus: "pending",
+      lastRefreshedAt: new Date().toISOString(),
     });
   } catch (err) {
     console.error("[affiliate/connect/status] error:", err);

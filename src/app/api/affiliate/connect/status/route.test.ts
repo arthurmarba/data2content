@@ -63,18 +63,19 @@ beforeEach(() => {
 });
 
 describe('GET /api/affiliate/connect/status', () => {
-  it('returns destCurrency from Stripe account', async () => {
+  it('returns default currency and status', async () => {
     mockGetServerSession.mockResolvedValue({ user: { id: 'user1' } });
     const mockUser = {
-      paymentInfo: { stripeAccountId: 'acct_123', stripeAccountStatus: 'pending' },
+      paymentInfo: { stripeAccountId: 'acct_123' },
       save: jest.fn().mockResolvedValue(undefined),
+      markModified: jest.fn(),
     } as any;
     mockFindById.mockResolvedValue(mockUser);
     mockRetrieve.mockResolvedValue({
-      details_submitted: true,
-      charges_enabled: true,
       payouts_enabled: true,
       default_currency: 'BRL',
+      country: 'BR',
+      requirements: { currently_due: [] },
     });
 
     const req = new NextRequest('http://localhost/api/affiliate/connect/status');
@@ -82,11 +83,10 @@ describe('GET /api/affiliate/connect/status', () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body.destCurrency).toBe('brl');
-    expect(body.stripeAccountId).toBe('acct_123');
-    expect(body.stripeAccountStatus).toBe('verified');
+    expect(body.defaultCurrency).toBe('BRL');
+    expect(body.payoutsEnabled).toBe(true);
     expect(body.needsOnboarding).toBe(false);
-    expect(mockUser.paymentInfo.stripeAccountDefaultCurrency).toBe('brl');
+    expect(mockUser.paymentInfo.stripeAccountDefaultCurrency).toBe('BRL');
     expect(mockUser.save).toHaveBeenCalled();
   });
 });

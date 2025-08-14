@@ -6,9 +6,8 @@ import useSWR from "swr";
 
 type ConnectStatus =
   | {
-      stripeAccountId: string | null;
-      stripeAccountStatus: "verified" | "pending" | "disabled" | null;
-      destCurrency: string | null; // em minúsculas (ex.: 'brl' | 'usd')
+      payoutsEnabled: boolean;
+      defaultCurrency?: string;
       needsOnboarding: boolean;
     }
   | undefined;
@@ -47,7 +46,7 @@ export default function PaymentSettings() {
   const balances: Record<string, number> =
     (session?.user as any)?.affiliateBalances || {};
 
-  const destCurrency = connectStatus?.destCurrency || null;
+  const destCurrency = connectStatus?.defaultCurrency?.toLowerCase() || null;
 
   const balanceCents = useMemo(() => {
     if (!destCurrency) return 0;
@@ -111,9 +110,8 @@ export default function PaymentSettings() {
     }
   }, [updateSession, mutate]);
 
-  const isVerified = connectStatus?.stripeAccountStatus === "verified";
   const canRedeem =
-    !!destCurrency && balanceCents > 0 && isVerified && !isRedeeming;
+    !!destCurrency && balanceCents > 0 && connectStatus?.payoutsEnabled && !isRedeeming;
 
   return (
     <div className="space-y-4">
