@@ -8,6 +8,7 @@ interface Props {
   onClose: () => void;
   balanceCurrency: string;
   destinationCurrency: string;
+  onOnboard: () => Promise<void> | void;
 }
 
 export default function CurrencyMismatchModal({
@@ -15,34 +16,22 @@ export default function CurrencyMismatchModal({
   onClose,
   balanceCurrency,
   destinationCurrency,
+  onOnboard,
 }: Props) {
   const [loading, setLoading] = useState(false);
   if (!open) return null;
 
-  const connectNew = async () => {
+  const handleOnboard = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/affiliate/connect/link', { method: 'POST' });
-      const data = await res.json();
-      if (data.url) window.location.href = data.url;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const openPortal = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/affiliate/connect/portal');
-      const data = await res.json();
-      if (data.url) window.open(data.url, '_blank');
+      await onOnboard();
     } finally {
       setLoading(false);
     }
   };
 
   const contactSupport = () => {
-    window.location.href = 'mailto:support@example.com';
+    window.open('/suporte', '_blank');
   };
 
   return (
@@ -52,21 +41,26 @@ export default function CurrencyMismatchModal({
           <h4 className="font-medium text-sm">
             {`Não consigo sacar ${balanceCurrency.toUpperCase()}`}
           </h4>
-          <button onClick={onClose} aria-label="Fechar" className="text-sm">×</button>
+          <button onClick={onClose} aria-label="Fechar" className="text-sm">
+            ×
+          </button>
         </div>
         <p className="text-xs text-gray-600">
-          {CURRENCY_HELP.mismatch_reason(balanceCurrency.toUpperCase(), destinationCurrency.toUpperCase())}
+          {CURRENCY_HELP.mismatch_reason(
+            balanceCurrency.toUpperCase(),
+            destinationCurrency.toUpperCase()
+          )}
         </p>
         <div className="space-y-2">
           <button
-            onClick={connectNew}
+            onClick={handleOnboard}
             disabled={loading}
             className="w-full rounded border p-2 text-xs text-left"
           >
             Conectar outra conta que receba em {balanceCurrency.toUpperCase()}
           </button>
           <button
-            onClick={openPortal}
+            onClick={handleOnboard}
             disabled={loading}
             className="w-full rounded border p-2 text-xs text-left"
           >
