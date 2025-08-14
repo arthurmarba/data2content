@@ -14,6 +14,7 @@ import SkeletonRow from '@/components/ui/SkeletonRow';
 import ErrorState from '@/components/ui/ErrorState';
 import StripeStatusPanel from '@/components/payments/StripeStatusPanel';
 import RedeemModal from '@/components/affiliate/RedeemModal';
+import { useConnectStatus } from '@/hooks/useConnectStatus';
 
 function fmt(amountCents: number, cur: string) {
   const n = (amountCents || 0) / 100;
@@ -36,7 +37,11 @@ function daysUntil(dateStr?: string | null) {
 
 export default function AffiliateCard() {
   const { data: session } = useSession();
-  const { summary, status, loading, error, refresh } = useAffiliateSummary();
+  const { summary, loading: summaryLoading, error: summaryError, refresh: refreshSummary } = useAffiliateSummary();
+  const { status, isLoading: statusLoading, error: statusError, refresh: refreshStatus } = useConnectStatus();
+  const loading = summaryLoading || statusLoading;
+  const error = summaryError || statusError;
+  const refresh = async () => { await Promise.all([refreshSummary(), refreshStatus()]); };
   const [redeemCur, setRedeemCur] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -88,10 +93,9 @@ export default function AffiliateCard() {
   const handleOnboard = async () => {
     track('affiliate_open_onboarding', { userId: (session?.user as any)?.id });
     try {
-      await fetch('/api/affiliate/connect/create', { method: 'POST' });
-      const res = await fetch('/api/affiliate/connect/link', { method: 'POST' });
+      const res = await fetch('/api/affiliate/connect/onboard', { method: 'POST' });
       const data = await res.json();
-      if (data?.url) window.location.href = data.url;
+      if (data?.url) window.open(data.url, '_blank');
     } catch (err) {
       console.error(err);
     }
@@ -208,8 +212,8 @@ export default function AffiliateCard() {
         status={status}
         summary={summary}
         onRefresh={() => {
-          refresh();
-          track('affiliate_refresh_status');
+          track('stripe_status_refresh_click');
+          refreshStatus();
         }}
         onOnboard={handleOnboard}
       />

@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { AffiliateStatus, AffiliateSummary } from '@/types/affiliate';
+import { ConnectStatus } from '@/types/connect';
+import { AffiliateSummary } from '@/types/affiliate';
 import { STRIPE_DISABLED_REASON, STRIPE_STATUS, CURRENCY_HELP } from '@/copy/stripe';
 import CurrencyMismatchModal from './CurrencyMismatchModal';
 
 interface Props {
-  status: AffiliateStatus;
+  status: ConnectStatus;
   summary?: AffiliateSummary;
   onRefresh?: () => void;
   onOnboard?: () => void;
@@ -43,11 +44,10 @@ export default function StripeStatusPanel({ status, summary, onRefresh, onOnboar
     ? STRIPE_DISABLED_REASON[status.disabledReasonKey] || STRIPE_DISABLED_REASON.default
     : undefined;
 
-  // 🔧 TIPAGEM: união dos valores possíveis do STRIPE_STATUS
   type Badge = (typeof STRIPE_STATUS)[keyof typeof STRIPE_STATUS];
   let badge: Badge = STRIPE_STATUS.action_needed;
-  if (status.payoutsEnabled) badge = STRIPE_STATUS.verified;
-  else if ((status as any).isUnderReview) badge = STRIPE_STATUS.under_review;
+  if (status.isUnderReview) badge = STRIPE_STATUS.under_review;
+  else if (status.payoutsEnabled) badge = STRIPE_STATUS.verified;
 
   return (
     <div className="rounded-xl bg-gray-50 p-3 space-y-2">
@@ -63,7 +63,7 @@ export default function StripeStatusPanel({ status, summary, onRefresh, onOnboar
       {mismatchCur && dstCur && (
         <div className="bg-amber-100 text-xs p-2 rounded space-y-1">
           <p>
-            Você tem {fmt(mismatchAmount, mismatchCur)}.{' '}
+            Você tem {fmt(mismatchAmount, mismatchCur)}{' '}
             {CURRENCY_HELP.mismatch_banner(mismatchCur, dstCur)}
           </p>
           <button className="underline" onClick={() => setMismatchOpen(true)}>
@@ -82,9 +82,9 @@ export default function StripeStatusPanel({ status, summary, onRefresh, onOnboar
             </button>
           )}
           {reason.cta === 'contact' && (
-            <button onClick={onOnboard} className="underline">
-              Abrir conta no Stripe
-            </button>
+            <a href="/suporte" target="_blank" rel="noreferrer" className="underline">
+              Falar com suporte
+            </a>
           )}
         </div>
       )}
@@ -102,6 +102,7 @@ export default function StripeStatusPanel({ status, summary, onRefresh, onOnboar
           onClose={() => setMismatchOpen(false)}
           balanceCurrency={mismatchCur}
           destinationCurrency={dstCur}
+          onOnboard={onOnboard || (() => {})}
         />
       )}
     </div>

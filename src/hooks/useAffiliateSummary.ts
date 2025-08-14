@@ -8,29 +8,12 @@ const fetcher = (url: string) =>
   });
 
 export function useAffiliateSummary() {
-  const {
-    data: summary,
-    error: summaryError,
-    isLoading: summaryLoading,
-    mutate: mutateSummary,
-  } = useSWR<AffiliateSummary>('/api/affiliate/summary', fetcher, {
-    revalidateOnFocus: false,
-  });
-  const {
-    data: status,
-    error: statusError,
-    isLoading: statusLoading,
-    mutate: mutateStatus,
-  } = useSWR<AffiliateStatus>('/api/affiliate/connect/status', fetcher, {
-    revalidateOnFocus: false,
-  });
-
-  const loading = summaryLoading || statusLoading;
-  const error = summaryError || statusError;
-  const refresh = async () => {
-    await Promise.all([mutateSummary(), mutateStatus()]);
-  };
-  return { summary, status, loading, refresh, error };
+  const { data, error, isLoading, mutate } = useSWR<AffiliateSummary>(
+    '/api/affiliate/summary',
+    fetcher,
+    { revalidateOnFocus: false }
+  );
+  return { summary: data, loading: isLoading, error, refresh: () => mutate() };
 }
 
 export function canRedeem(
