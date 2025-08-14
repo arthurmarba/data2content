@@ -1,49 +1,30 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { logger } from '@/app/lib/logger';
-import matureAffiliateCommissions from '@/cron/matureAffiliateCommissions';
-import {
-  MATURATION_BATCH_USERS,
-  MATURATION_MAX_ENTRIES_PER_USER,
-  MATURATION_CRON_ENABLED,
-} from '@/config/affiliates';
-import { checkRateLimit } from '@/utils/rateLimit';
+import { User } from "@/server/db/models/User";
+import { adjustBalance } from "@/server/affiliate/balance";
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
-
-export async function POST(req: NextRequest) {
-  const TAG = '[api internal affiliate mature]';
-  const secret = req.headers.get('x-job-secret');
-  const expected = process.env.AFFILIATE_JOB_SECRET;
-  if (!secret || secret !== expected) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+export async function POST(req: Request) {
+  const token = req.headers.get("x-internal-secret");
+  if (token !== process.env.INTERNAL_CRON_SECRET) {
+    return new Response("Unauthorized", { status: 401 });
   }
 
-  const { allowed } = await checkRateLimit('affiliate_mature', 10, 60);
-  if (!allowed) {
-    return NextResponse.json({ error: 'rate limit exceeded' }, { status: 429 });
+  const now = new Date();
+  const batch = await User.find({
+    commissionLog: { $elemMatch: { status: "pending", availableAt: { $lte: now } } }
+  }).limit(100);
+
+  let matured = 0;
+  for (const u of batch) {
+    let dirty = false;
+    for (const e of (u as any).commissionLog) {
+      if (e.type === "commission" && e.status === "pending" && e.availableAt && e.availableAt <= now) {
+        await adjustBalance(u, e.currency, e.amountCents);
+        e.status = "available";
+        e.maturedAt = new Date();
+        dirty = true; matured++;
+      }
+    }
+    if (dirty) await u.save();
   }
 
-  if (!MATURATION_CRON_ENABLED) {
-    logger.warn(`${TAG} disabled`);
-    return NextResponse.json({ ok: false, disabled: true });
-  }
-
-  let body: any = {};
-  try {
-    body = await req.json();
-  } catch {}
-
-  const dryRun = body.dryRun ?? false;
-  const maxUsers = body.maxUsers ?? MATURATION_BATCH_USERS;
-  const maxEntriesPerUser =
-    body.maxEntriesPerUser ?? MATURATION_MAX_ENTRIES_PER_USER;
-
-  const result = await matureAffiliateCommissions({
-    dryRun,
-    maxUsers,
-    maxEntriesPerUser,
-  });
-
-  return NextResponse.json(result);
+  return Response.json({ matured, processedUsers: batch.length });
 }

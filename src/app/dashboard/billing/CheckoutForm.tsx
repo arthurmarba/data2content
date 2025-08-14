@@ -42,16 +42,7 @@ export default function CheckoutForm({ subscriptionId, onBack }: Props) {
       }
 
       if (paymentIntent?.status === "succeeded") {
-        // ativa plano e processa comissão sem depender do webhook
-        if (subscriptionId) {
-          try {
-            await fetch("/api/billing/finalize", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ subscriptionId }),
-            });
-          } catch {}
-        }
+        // webhook será responsável por ativar o plano e comissões
         try {
           await update();
         } catch {}
