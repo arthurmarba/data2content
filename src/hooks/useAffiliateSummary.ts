@@ -21,10 +21,12 @@ export interface AffiliateSummary {
 }
 
 export interface AffiliateStatus {
-  payouts_enabled: boolean;
-  disabled_reason?: string;
-  default_currency: string;
+  payoutsEnabled: boolean;
+  disabledReasonKey?: string;
+  defaultCurrency?: string;
   needsOnboarding?: boolean;
+  accountCountry?: string;
+  isUnderReview?: boolean;
 }
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
@@ -67,9 +69,9 @@ export function canRedeem(
   summary: AffiliateSummary | undefined,
   cur: string,
 ) {
-  if (!status?.payouts_enabled) return false;
+  if (!status?.payoutsEnabled) return false;
   if (!summary) return false;
-  if (cur !== status.default_currency) return false;
+  if (cur !== status.defaultCurrency) return false;
   const curSummary = summary.byCurrency?.[cur];
   if (!curSummary) return false;
   const min = curSummary.minRedeemCents ?? 0;
@@ -89,11 +91,11 @@ export function getRedeemBlockReason(
   cur: string,
 ): RedeemBlockReason | null {
   if (!status) return null;
-  if (!status.payouts_enabled) {
+  if (!status.payoutsEnabled) {
     return status.needsOnboarding ? 'needsOnboarding' : 'payouts_disabled';
   }
   if (!summary) return null;
-  if (cur !== status.default_currency) return 'currency_mismatch';
+  if (cur !== status.defaultCurrency) return 'currency_mismatch';
   const curSummary = summary.byCurrency?.[cur];
   if (!curSummary) return null;
   if (curSummary.debtCents > 0) return 'has_debt';

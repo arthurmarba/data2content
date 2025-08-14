@@ -2,7 +2,7 @@ import { canRedeem, AffiliateSummary, AffiliateStatus } from './useAffiliateSumm
 import { REDEEM_BLOCK_MESSAGES } from '@/copy/affiliates';
 
 describe('canRedeem', () => {
-  const status: AffiliateStatus = { payouts_enabled: true, default_currency: 'brl' } as any;
+  const status: AffiliateStatus = { payoutsEnabled: true, defaultCurrency: 'brl' } as any;
   const summary: AffiliateSummary = {
     balances: { brl: 10000, usd: 0 },
     debt: { brl: 0 },
@@ -19,7 +19,7 @@ describe('canRedeem', () => {
   });
 
   test('blocks when payouts disabled', () => {
-    expect(canRedeem({ ...status, payouts_enabled: false }, summary, 'brl')).toBe(false);
+    expect(canRedeem({ ...status, payoutsEnabled: false }, summary, 'brl')).toBe(false);
   });
 
   test('blocks when debt exists', () => {
