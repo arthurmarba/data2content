@@ -1,37 +1,30 @@
 import useSWR from 'swr';
 
-export type SubscriptionStatus =
-  | 'trialing'
-  | 'active'
-  | 'past_due'
-  | 'incomplete'
-  | 'incomplete_expired'
-  | 'unpaid'
-  | 'canceled';
-
-export interface SubscriptionInfo {
+export type SubResp = {
   planName: string;
   currency: string;
-  nextInvoiceAmountCents?: number;
-  nextInvoiceDate?: string;
-  currentPeriodEnd?: string;
-  status: SubscriptionStatus;
+  nextInvoiceAmountCents: number;
+  nextInvoiceDate: string;
+  currentPeriodEnd: string;
+  status: string;
   cancelAtPeriodEnd: boolean;
   paymentMethodLast4?: string | null;
   defaultPaymentMethodBrand?: string | null;
-}
+  trialEnd?: string | null;
+};
 
-const fetcher = (url: string) => fetch(url).then(r => r.json());
+const fetcher = (u: string) =>
+  fetch(u, { cache: 'no-store' }).then(async r => {
+    if (r.status === 204) return null;
+    if (!r.ok) throw new Error('fail');
+    return r.json();
+  });
 
-export default function useSubscription() {
-  const { data, error, mutate } = useSWR<SubscriptionInfo>(
+export function useSubscription() {
+  const { data, error, isLoading, mutate } = useSWR<SubResp | null>(
     '/api/billing/subscription',
-    fetcher
+    fetcher,
+    { revalidateOnFocus: false }
   );
-  return {
-    subscription: data,
-    loading: !data && !error,
-    error,
-    refresh: mutate,
-  };
+  return { subscription: data, error, isLoading, refresh: () => mutate() };
 }
