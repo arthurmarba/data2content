@@ -28,10 +28,15 @@ function getPriceId(plan: Plan, currency: Currency) {
   throw new Error("PriceId não configurado para este plano/moeda");
 }
 
-// Resolve código digitado para Promotion Code (preferência) ou Coupon ID (fallback)
+/**
+ * Resolve código digitado para Discount(s):
+ * - Tenta Promotion Code primeiro
+ * - Cai para Coupon ID se existir
+ * Retorna SEMPRE array (evita o union '' | Discount[] do SDK)
+ */
 async function resolveManualDiscountFields(
   code: string
-): Promise<Partial<Pick<Stripe.SubscriptionCreateParams, "coupon" | "promotion_code">> | null> {
+): Promise<{ discounts: Stripe.SubscriptionCreateParams.Discount[] } | null> {
   const trimmed = normalizeCode(code);
   if (!trimmed) return null;
 
@@ -39,15 +44,20 @@ async function resolveManualDiscountFields(
   try {
     const res = await stripe.promotionCodes.list({ code: trimmed, active: true, limit: 1 });
     const pc = res.data?.[0];
-    if (pc?.id) return { promotion_code: pc.id };
+    if (pc?.id) {
+      return { discounts: [{ promotion_code: pc.id }] };
+    }
   } catch {
     /* noop */
   }
 
   // 2) Coupon ID
   try {
-    const c: any = await stripe.coupons.retrieve(trimmed);
-    if (c?.id && !c?.deleted) return { coupon: c.id };
+    const c = await stripe.coupons.retrieve(trimmed as string);
+    const isDeleted = (c as any)?.deleted === true;
+    if ((c as any)?.id && !isDeleted) {
+      return { discounts: [{ coupon: (c as any).id }] };
+    }
   } catch {
     /* noop */
   }
@@ -233,21 +243,18 @@ export async function POST(req: NextRequest) {
       const manualDiscountFields =
         !affiliateValid && manualCoupon ? await resolveManualDiscountFields(manualCoupon) : null;
 
-      // Montagem de descontos:
-      //  - Afiliado: aplica CUPOM interno "once" (10%)
-      //  - Manual: promotion_code/coupon
-      const discountTopLevel: Partial<
-        Pick<Stripe.SubscriptionCreateParams, "coupon" | "promotion_code">
-      > = manualDiscountFields
-        ? manualDiscountFields
-        : affiliateValid
-        ? {
-            coupon:
-              currency === "BRL"
-                ? (process.env.STRIPE_COUPON_AFFILIATE10_ONCE_BRL as string)
-                : (process.env.STRIPE_COUPON_AFFILIATE10_ONCE_USD as string),
-          }
-        : {};
+      // Montagem de descontos (sempre array ou undefined)
+      let discounts: Stripe.SubscriptionCreateParams.Discount[] | undefined = undefined;
+
+      if (manualDiscountFields && Array.isArray(manualDiscountFields.discounts) && manualDiscountFields.discounts.length > 0) {
+        discounts = manualDiscountFields.discounts;
+      } else if (affiliateValid) {
+        const couponId =
+          currency === "BRL"
+            ? (process.env.STRIPE_COUPON_AFFILIATE10_ONCE_BRL as string)
+            : (process.env.STRIPE_COUPON_AFFILIATE10_ONCE_USD as string);
+        discounts = [{ coupon: couponId }];
+      }
 
       const createParams: Stripe.SubscriptionCreateParams = {
         customer: customerId!,
@@ -255,7 +262,7 @@ export async function POST(req: NextRequest) {
         payment_behavior: "default_incomplete",
         expand: ["latest_invoice.payment_intent"],
         metadata,
-        ...discountTopLevel, // aplica OU manual OU afiliado
+        ...(discounts ? { discounts } : {}),
       };
 
       sub = await stripe.subscriptions.create(createParams);

@@ -163,23 +163,28 @@ export async function POST(req: NextRequest) {
 
     const affiliateCouponId = affiliateCheck.couponId;
 
-    // Preview via upcoming invoice (simulação do primeiro ciclo)
-    const invoice = await stripe.invoices.retrieveUpcoming({
+    // ✅ Basil: usar Create Preview Invoice em vez de invoices.retrieveUpcoming
+    // e enviar subscription_details.items
+    const invoice = await stripe.invoices.createPreview({
       customer: customerId,
-      subscription_items: [{ price: priceId, quantity: 1 }],
+      subscription_details: {
+        items: [{ price: priceId, quantity: 1 }],
+      },
       discounts: affiliateCouponId ? [{ coupon: affiliateCouponId }] : [],
     });
 
+    // valor nominal do próximo ciclo (sem proration): usa o price direto
     const price = await stripe.prices.retrieve(priceId);
     const nextCycleAmount = price.unit_amount ?? 0;
 
     return NextResponse.json({
       currency: invoice.currency,
-      subtotal: invoice.subtotal,
+      subtotal: (invoice as any).subtotal ?? 0,
       discountsTotal:
-        invoice.total_discount_amounts?.reduce((acc, d) => acc + d.amount, 0) ?? 0,
-      tax: invoice.tax ?? 0,
-      total: invoice.total,
+        (invoice as any).total_discount_amounts?.reduce((acc: number, d: any) => acc + d.amount, 0) ??
+        0,
+      tax: (invoice as any).tax ?? 0,
+      total: (invoice as any).total ?? 0,
       nextCycleAmount,
       affiliateApplied: !!affiliateCouponId,
       affiliateSource: source || null,

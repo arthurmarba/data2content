@@ -14,11 +14,15 @@ const MIN_BY_CUR: Record<string, number> = {
 const minRedeemFor = (cur: string) =>
   MIN_BY_CUR[cur] ?? Number(process.env.AFFILIATE_MIN_REDEEM_DEFAULT ?? 5000);
 
-function normalize(obj: Record<string, number>): Record<string, number> {
+// ✅ correção aqui
+function normalize(
+  obj?: Record<string, number | undefined> | null
+): Record<string, number> {
   const out: Record<string, number> = {};
-  Object.keys(obj || {}).forEach((k) => {
-    out[k.toUpperCase()] = obj[k];
-  });
+  if (!obj) return out;
+  for (const [k, v] of Object.entries(obj)) {
+    out[k.toUpperCase()] = v ?? 0;
+  }
   return out;
 }
 

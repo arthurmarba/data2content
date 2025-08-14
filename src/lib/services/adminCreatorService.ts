@@ -19,14 +19,13 @@ import {
   AdminAffiliateListItem,
   AdminAffiliateListParams,
   AdminAffiliateStatus,
-  AdminAffiliateUpdateStatusPayload
+  AdminAffiliateUpdateStatusPayload,
 } from '@/types/admin/affiliates';
 import {
   AdminRedemptionListItem,
   AdminRedemptionListParams,
-  AdminRedemptionUpdateStatusPayload as AdminRedemptionUpdatePayload
+  AdminRedemptionUpdateStatusPayload as AdminRedemptionUpdatePayload,
 } from '@/types/admin/redemptions';
-
 
 const SERVICE_TAG = '[adminCreatorService]';
 
@@ -60,7 +59,7 @@ export async function fetchCreators(
 
   const query: any = {};
 
-  // Otimização de performance: Usa o operador $text, que depende do índice de texto.
+  // Otimização de performance: Usa o operador $text (requer índice de texto).
   if (search) {
     query.$text = { $search: search };
   }
@@ -71,9 +70,9 @@ export async function fetchCreators(
 
   if (planStatus) {
     if (Array.isArray(planStatus)) {
-        query.planStatus = { $in: planStatus };
+      query.planStatus = { $in: planStatus };
     } else {
-        query.planStatus = planStatus;
+      query.planStatus = planStatus;
     }
   }
 
@@ -116,7 +115,6 @@ export async function fetchCreators(
 
     logger.info(`${TAG} Successfully fetched ${creators.length} creators. Total: ${totalCreators}.`);
     return { creators, totalCreators, totalPages };
-
   } catch (error: any) {
     logger.error(`${TAG} Error fetching creators:`, error);
     throw new Error(`Failed to fetch creators: ${error.message}`);
@@ -138,12 +136,12 @@ export async function updateCreatorStatus(
     throw new Error('Invalid creatorId format.');
   }
 
-  const { status, feedback } = payload;
+  const { status } = payload;
   const updateQuery: any = { $set: { adminStatus: status } };
 
   try {
     logger.info(`${TAG} Updating status for creator ${creatorId} to ${status}.`);
-    
+
     const updatedCreator = await UserModel.findByIdAndUpdate(
       creatorId,
       updateQuery,
@@ -157,7 +155,6 @@ export async function updateCreatorStatus(
 
     logger.info(`${TAG} Successfully updated status for creator ${creatorId}.`);
     return updatedCreator as IUser;
-
   } catch (error: any) {
     logger.error(`${TAG} Error updating creator status for ID ${creatorId}:`, error);
     throw new Error(`Failed to update creator status: ${error.message}`);
@@ -276,49 +273,9 @@ export async function fetchAffiliates(
 
     logger.info(`${TAG} Successfully fetched ${affiliates.length} affiliates. Total: ${totalAffiliates}.`);
     return { affiliates, totalAffiliates, totalPages };
-
   } catch (error: any) {
     logger.error(`${TAG} Error fetching affiliates:`, error);
     throw new Error(`Failed to fetch affiliates: ${error.message}`);
-  }
-}
-
-/**
- * Updates the status of an affiliate.
- */
-export async function updateAffiliateStatus(
-  userId: string,
-  payload: AdminAffiliateUpdateStatusPayload
-): Promise<IUser> {
-  const TAG = `${SERVICE_TAG}[updateAffiliateStatus]`;
-  await connectToDatabase();
-
-  if (!Types.ObjectId.isValid(userId)) {
-    logger.warn(`${TAG} Invalid userId format: ${userId}`);
-    throw new Error('Invalid userId format.');
-  }
-
-  const { status, reason } = payload;
-
-  try {
-    logger.info(`${TAG} Updating affiliate status for user ${userId} to ${status}.`);
-    const updatedUserAffiliate = await UserModel.findByIdAndUpdate(
-      userId,
-      { $set: { affiliateStatus: status } },
-      { new: true, runValidators: true }
-    ).exec();
-
-    if (!updatedUserAffiliate) {
-      logger.warn(`${TAG} User (affiliate) not found for ID: ${userId}`);
-      throw new Error('User (affiliate) not found.');
-    }
-
-    logger.info(`${TAG} Successfully updated affiliate status for user ${userId}.`);
-    return updatedUserAffiliate as IUser;
-
-  } catch (error: any) {
-    logger.error(`${TAG} Error updating affiliate status for user ID ${userId}:`, error);
-    throw new Error(`Failed to update affiliate status: ${error.message}`);
   }
 }
 
@@ -377,9 +334,9 @@ export async function fetchRedemptions(
   }
 
   if (search && Types.ObjectId.isValid(search)) {
-     query._id = new Types.ObjectId(search);
+    query._id = new Types.ObjectId(search);
   } else if (search) {
-     logger.info(`${TAG} Search term "${search}" is not a valid ObjectId for redemption ID search. User search will be applied.`);
+    logger.info(`${TAG} Search term "${search}" is not a valid ObjectId for redemption ID search. User search will be applied.`);
   }
 
   try {
@@ -388,7 +345,7 @@ export async function fetchRedemptions(
     const aggregationPipeline: mongoose.PipelineStage[] = [];
 
     if (Object.keys(query).length > 0) {
-        aggregationPipeline.push({ $match: query });
+      aggregationPipeline.push({ $match: query });
     }
 
     aggregationPipeline.push({
@@ -396,33 +353,29 @@ export async function fetchRedemptions(
         from: 'users',
         localField: 'userId',
         foreignField: '_id',
-        as: 'userDetails'
-      }
+        as: 'userDetails',
+      },
     });
     aggregationPipeline.push({ $unwind: { path: '$userDetails', preserveNullAndEmptyArrays: true } });
 
     if (search && !Types.ObjectId.isValid(search)) {
-        aggregationPipeline.push({
-            $match: {
-                $or: [
-                    { 'userDetails.name': { $regex: search, $options: 'i' } },
-                    { 'userDetails.email': { $regex: search, $options: 'i' } },
-                ]
-            }
-        });
+      aggregationPipeline.push({
+        $match: {
+          $or: [
+            { 'userDetails.name': { $regex: search, $options: 'i' } },
+            { 'userDetails.email': { $regex: search, $options: 'i' } },
+          ],
+        },
+      });
     }
 
     const countPipeline = [...aggregationPipeline, { $count: 'totalCount' }];
 
-    aggregationPipeline.push(
-      { $sort: { [sortBy]: sortDirection } },
-      { $skip: skip },
-      { $limit: limit }
-    );
+    aggregationPipeline.push({ $sort: { [sortBy]: sortDirection } }, { $skip: skip }, { $limit: limit });
 
     const [redemptionsData, totalCountResult] = await Promise.all([
-        RedemptionModel.aggregate(aggregationPipeline).exec(),
-        RedemptionModel.aggregate(countPipeline).exec()
+      RedemptionModel.aggregate(aggregationPipeline).exec(),
+      RedemptionModel.aggregate(countPipeline).exec(),
     ]);
 
     const totalRedemptions = totalCountResult[0]?.totalCount || 0;
@@ -448,7 +401,6 @@ export async function fetchRedemptions(
 
     logger.info(`${TAG} Successfully fetched ${redemptions.length} redemptions. Total: ${totalRedemptions}.`);
     return { redemptions, totalRedemptions, totalPages };
-
   } catch (error: any) {
     logger.error(`${TAG} Error fetching redemptions:`, error);
     throw new Error(`Failed to fetch redemptions: ${error.message}`);
@@ -472,6 +424,15 @@ export async function updateRedemptionStatus(
 
   const { status, notes, transactionId } = payload;
 
+  // ✅ Apenas transições administráveis (não permitir voltar para 'requested')
+  type AdminNextStatus = 'processing' | 'paid' | 'rejected';
+  const allowedStatuses: AdminNextStatus[] = ['processing', 'paid', 'rejected'];
+  if (!allowedStatuses.includes(status as AdminNextStatus)) {
+    logger.warn(`${TAG} Invalid status transition requested: ${String(status)}`);
+    throw new Error('Invalid status value. Allowed: processing | paid | rejected.');
+  }
+  const nextStatus = status as AdminNextStatus;
+
   try {
     logger.info(`${TAG} Fetching redemption ${redemptionId} for status update.`);
 
@@ -481,8 +442,17 @@ export async function updateRedemptionStatus(
       throw new Error('Redemption not found.');
     }
 
-    const updateData: Partial<IRedemption> = { status };
-    if (status === 'paid' || status === 'rejected') {
+    // Cast local para comparação com 'requested'
+    type FullRedemptionStatus = 'requested' | 'processing' | 'paid' | 'rejected';
+    const prevStatus = redemption.status as unknown as FullRedemptionStatus;
+
+    // ⬇️ Tipagem expandida para incluir processedAt e transactionId opcionais
+    const updateData: Partial<IRedemption> & {
+      processedAt?: Date;
+      transactionId?: string;
+    } = { status: nextStatus };
+
+    if (nextStatus === 'paid' || nextStatus === 'rejected') {
       updateData.processedAt = new Date();
     }
     if (notes !== undefined) {
@@ -492,8 +462,8 @@ export async function updateRedemptionStatus(
       updateData.transactionId = transactionId;
     }
 
-    // If marking a previously requested redemption as paid, debit user balance
-    if (redemption.status === 'requested' && status === 'paid') {
+    // Se estava 'requested' e agora vai para 'paid', debita o saldo do usuário
+    if (prevStatus === 'requested' && nextStatus === 'paid') {
       const currency = redemption.currency;
       const amountCents = redemption.amountCents;
       const incField = { [`affiliateBalances.${currency}`]: -amountCents } as any;

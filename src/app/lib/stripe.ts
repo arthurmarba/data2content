@@ -1,16 +1,19 @@
-// src/app/lib/stripe.ts
 import Stripe from "stripe";
 
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY!;
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 if (!STRIPE_SECRET_KEY) {
-  // Log leve pra facilitar debug em dev
   console.warn("STRIPE_SECRET_KEY não está definido!");
 }
 
-// Importante: sua tipagem atual do SDK aceita "2022-11-15".
-// Se quiser usar "2024-06-20", atualize o pacote `stripe` no package.json.
-export const stripe = new Stripe(STRIPE_SECRET_KEY, {
-  apiVersion: "2022-11-15",
-});
+// Opcional: fixe a versão via env (ex.: STRIPE_API_VERSION=2025-07-30.basil).
+// Se não definir, o SDK usa a Latest API automaticamente.
+const API_VERSION = process.env.STRIPE_API_VERSION;
 
+const config: Stripe.StripeConfig = {};
+if (API_VERSION) {
+  // Cast proposital para ficar imune a mudanças futuras no union de versões.
+  (config as any).apiVersion = API_VERSION as any;
+}
+
+export const stripe = new Stripe(STRIPE_SECRET_KEY!, config);
 export default stripe;

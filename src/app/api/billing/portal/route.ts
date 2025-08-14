@@ -5,7 +5,7 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import User from '@/app/models/User';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' });
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-07-30.basil' })
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

@@ -11,7 +11,7 @@ import {
   ensureSubscriptionFirstTime,
 } from "@/app/services/affiliate/idempotency";
 import { calcCommissionCents } from "@/app/services/affiliate/calcCommissionCents";
-import { AFFILIATE_HOLD_DAYS, AFFILIATE_PAYOUT_MODE } from "@/config/affiliates";
+import { AFFILIATE_HOLD_DAYS } from "@/config/affiliates";
 import {
   processAffiliateRefund,
   getRefundedPaidTotal,
@@ -37,6 +37,22 @@ function adjustBalance(user: any, currency: string, deltaCents: number) {
   if (typeof user.markModified === "function") user.markModified("affiliateBalances");
 }
 
+/**
+ * Basil-safe resolver do SubscriptionId a partir da Invoice.
+ */
+function getInvoiceSubscriptionId(inv: any): string | undefined {
+  const parent = inv?.parent;
+  if (parent?.type === "subscription_details") {
+    const sub = parent?.subscription_details?.subscription;
+    if (typeof sub === "string") return sub;
+    if (sub && typeof sub.id === "string") return sub.id;
+  }
+  const legacy = inv?.subscription;
+  if (typeof legacy === "string") return legacy;
+  if (legacy && typeof legacy.id === "string") return legacy.id;
+  return undefined;
+}
+
 export async function POST(req: NextRequest) {
   const sig = req.headers.get("stripe-signature");
   if (!sig) {
@@ -45,7 +61,6 @@ export async function POST(req: NextRequest) {
 
   let event: StripeTypes.Event;
   try {
-    // App Router: precisa do RAW body (req.text())
     const payload = await req.text();
     event = stripe.webhooks.constructEvent(
       payload,
@@ -108,23 +123,20 @@ export async function POST(req: NextRequest) {
       case "invoice.payment_succeeded": {
         const invoice = event.data.object as StripeTypes.Invoice;
 
-        // ——— Proteções e resgate do usuário ———
         const customerId =
-          typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
+          typeof (invoice as any).customer === "string"
+            ? (invoice as any).customer
+            : (invoice as any).customer?.id;
         if (!customerId) break;
 
         const user = await User.findOne({ stripeCustomerId: customerId });
 
-        // Usuário não existe mais → cancela a assinatura "órfã"
         if (!user) {
           logger.warn(
             `[stripe/webhook] Received payment for a deleted user. Canceling orphan subscription.`,
             { customerId }
           );
-          const subId =
-            typeof invoice.subscription === "string"
-              ? invoice.subscription
-              : invoice.subscription?.id;
+          const subId = getInvoiceSubscriptionId(invoice as any);
           if (subId) {
             try {
               await stripe.subscriptions.cancel(subId);
@@ -141,32 +153,33 @@ export async function POST(req: NextRequest) {
           break;
         }
 
-        // Idempotência por evento (por usuário)
         if (user.lastProcessedEventId === event.id) break;
         user.lastProcessedEventId = event.id;
 
-        // ——— Ativação do plano ———
-        if (invoice.amount_paid && invoice.amount_paid > 0) {
-          const line = invoice.lines?.data?.find((l) => l?.price?.recurring);
+        const amountPaid = (invoice as any).amount_paid;
+        if (amountPaid && amountPaid > 0) {
+          const line = (invoice as any).lines?.data?.find((l: any) => l?.price?.recurring);
           const periodEnd = line?.period?.end ? new Date(line.period.end * 1000) : null;
-          const interval = line?.price?.recurring?.interval as "month" | "year" | undefined;
+          const intervalAll = line?.price?.recurring?.interval as
+            | "day"
+            | "week"
+            | "month"
+            | "year"
+            | undefined;
 
-          if (interval) {
-            user.planInterval = interval;
-            user.planType = interval === "year" ? "annual" : "monthly";
+          if (intervalAll === "month" || intervalAll === "year") {
+            user.planInterval = intervalAll;
+            user.planType = intervalAll === "year" ? "annual" : "monthly";
           }
           user.planStatus = "active";
           if (periodEnd) user.planExpiresAt = periodEnd;
-          const subId =
-            typeof invoice.subscription === "string"
-              ? invoice.subscription
-              : invoice.subscription?.id;
+
+          const subId = getInvoiceSubscriptionId(invoice as any);
           if (subId) user.stripeSubscriptionId = subId;
         }
 
-        // ——— Comissão de Afiliado (10% só na PRIMEIRA cobrança do assinante) ———
-        if (invoice.amount_paid && invoice.amount_paid > 0) {
-          // Gate atômico: garante uma única primeira comissão por comprador
+        // Comissão (primeiro pagamento real)
+        if (amountPaid && amountPaid > 0) {
           const firstGate = await User.findOneAndUpdate(
             { _id: user._id, affiliateFirstCommissionAt: { $exists: false } },
             { $set: { affiliateFirstCommissionAt: new Date() } },
@@ -176,7 +189,6 @@ export async function POST(req: NextRequest) {
           if (firstGate) {
             const affiliateCode =
               user.affiliateUsed ||
-              // fallback via metadata
               (invoice as any)?.metadata?.affiliateCode ||
               null;
 
@@ -188,32 +200,27 @@ export async function POST(req: NextRequest) {
               if (!affiliateOwner) {
                 logger.warn(
                   "[stripe/webhook] Affiliate code not found, skipping commission.",
-                  { affiliateCode, userId: String(user._id), invoiceId: invoice.id }
+                  { affiliateCode, userId: String(user._id), invoiceId: (invoice as any).id }
                 );
               } else if (String(affiliateOwner._id) === String(user._id)) {
                 logger.warn("[stripe/webhook] Self-referral detected; skipping commission.", {
                   userId: String(user._id),
                   affiliateCode,
-                  invoiceId: invoice.id,
+                  invoiceId: (invoice as any).id,
                 });
               } else {
                 const invCheck = await ensureInvoiceIdempotent(
-                  invoice.id,
+                  (invoice as any).id,
                   affiliateOwner._id
                 );
                 if (!invCheck.ok) {
-                  logger.info(
-                    "[affiliate:idempotency] skip duplicate invoice",
-                    {
-                      invoiceId: invoice.id,
-                      affiliateUserId: String(affiliateOwner._id),
-                    }
-                  );
+                  logger.info("[affiliate:idempotency] skip duplicate invoice", {
+                    invoiceId: (invoice as any).id,
+                    affiliateUserId: String(affiliateOwner._id),
+                  });
                 } else {
-                  const subId =
-                    typeof invoice.subscription === "string"
-                      ? invoice.subscription
-                      : invoice.subscription?.id;
+                  const subId = getInvoiceSubscriptionId(invoice as any);
+
                   let allowed = true;
                   if (subId) {
                     const subCheck = await ensureSubscriptionFirstTime(
@@ -235,14 +242,14 @@ export async function POST(req: NextRequest) {
                   if (allowed) {
                     const commissionAmount = calcCommissionCents(invoice as any);
                     if (commissionAmount > 0) {
-                      const currency = normCur(invoice.currency || "brl");
+                      const currency = normCur((invoice as any).currency || "brl");
                       const availableAt = addDays(new Date(), AFFILIATE_HOLD_DAYS);
 
                       (affiliateOwner as any).commissionLog ||= [];
                       (affiliateOwner as any).commissionLog.push({
-                        type: 'commission',
-                        status: 'pending',
-                        invoiceId: invoice.id,
+                        type: "commission",
+                        status: "pending",
+                        invoiceId: (invoice as any).id,
                         subscriptionId: subId,
                         affiliateUserId: affiliateOwner._id,
                         buyerUserId: user._id,
@@ -253,8 +260,8 @@ export async function POST(req: NextRequest) {
 
                       await affiliateOwner.save();
 
-                      logger.info('[affiliate:commission] created pending', {
-                        invoiceId: invoice.id,
+                      logger.info("[affiliate:commission] created pending", {
+                        invoiceId: (invoice as any).id,
                         subscriptionId: subId,
                         affiliateUserId: String(affiliateOwner._id),
                         buyerUserId: String(user._id),
@@ -278,7 +285,9 @@ export async function POST(req: NextRequest) {
       case "invoice.payment_failed": {
         const invoice = event.data.object as StripeTypes.Invoice;
         const customerId =
-          typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
+          typeof (invoice as any).customer === "string"
+            ? (invoice as any).customer
+            : (invoice as any).customer?.id;
         if (!customerId) break;
         const user = await User.findOne({ stripeCustomerId: customerId });
         if (!user) break;
@@ -287,19 +296,20 @@ export async function POST(req: NextRequest) {
 
         user.lastPaymentError = {
           at: new Date(),
-          paymentId: String(invoice.id),
+          paymentId: String((invoice as any).id),
           status: "failed",
-          statusDetail: String(invoice.last_finalization_error?.message || "unknown"),
+          statusDetail: String((invoice as any).last_finalization_error?.message || "unknown"),
         };
         await user.save();
         break;
       }
 
       case "invoice.voided": {
-        // Fatura anulada → reverte comissão se existir
         const invoice = event.data.object as StripeTypes.Invoice;
         const customerId =
-          typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
+          typeof (invoice as any).customer === "string"
+            ? (invoice as any).customer
+            : (invoice as any).customer?.id;
         if (!customerId) break;
 
         const buyer = await User.findOne({ stripeCustomerId: customerId });
@@ -312,7 +322,7 @@ export async function POST(req: NextRequest) {
 
         const idx = (owner.commissionLog || []).findIndex(
           (i: any) =>
-            i.invoiceId === invoice.id &&
+            i.invoiceId === (invoice as any).id &&
             (i.status === "pending" || i.status === "available")
         );
         if (idx >= 0) {
@@ -328,13 +338,7 @@ export async function POST(req: NextRequest) {
         break;
       }
 
-      case "invoice.payment_refunded": {
-        const invoice = event.data.object as any;
-        const total = getRefundedPaidTotal(invoice);
-        await processAffiliateRefund(invoice.id, total);
-        break;
-      }
-
+      // 🧾 Reembolsos → tratar via charge.refunded
       case "charge.refunded": {
         const charge = event.data.object as any;
         const invId =
@@ -362,15 +366,29 @@ export async function POST(req: NextRequest) {
           break;
         }
 
+        const rawInterval = item?.price?.recurring?.interval as
+          | "day"
+          | "week"
+          | "month"
+          | "year"
+          | undefined;
+        const safeInterval: "month" | "year" | undefined =
+          rawInterval === "month" || rawInterval === "year" ? rawInterval : undefined;
+
         const update: any = {
-          planStatus: sub.cancel_at_period_end ? "canceled" : sub.status,
+          planStatus: (sub as any).cancel_at_period_end ? "canceled" : sub.status,
           stripeSubscriptionId: sub.id,
           stripePriceId: item?.price?.id,
-          planInterval: item?.price?.recurring?.interval,
+          planInterval: safeInterval,
           lastProcessedEventId: event.id,
         };
-        if (sub.current_period_end) {
-          update.planExpiresAt = new Date(sub.current_period_end * 1000);
+
+        const ends = sub.items.data
+          .map((it) => (it as any)?.current_period_end)
+          .filter((n: any): n is number => typeof n === "number");
+        if (ends.length > 0) {
+          const minEnd = Math.min(...ends);
+          update.planExpiresAt = new Date(minEnd * 1000);
         }
 
         await User.updateOne({ _id: user._id }, { $set: update });
@@ -409,49 +427,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true });
   } catch (err: any) {
     logger.error("[stripe/webhook] handler error:", err);
-    // 200 para evitar reentrega infinita quando já logamos erro interno
     return NextResponse.json({ received: true, error: "logged" }, { status: 200 });
-  }
-}
-
-// Tipos Stripe (evita import global pesado)
-declare namespace Stripe {
-  export interface Invoice {
-    id: string;
-    total: number | null;
-    amount_paid?: number | null;
-    currency?: string;
-    subscription: string | { id: string } | null;
-    customer: string | { id: string } | null;
-    billing_reason?: string;
-    last_finalization_error?: { message?: string };
-    lines: {
-      data: Array<{
-        period: { start: number; end: number };
-        price?: { recurring?: { interval?: "day" | "week" | "month" | "year" } };
-      }>;
-    };
-    metadata?: Record<string, string>;
-  }
-  export interface Subscription {
-    id: string;
-    customer: string | { id: string };
-    status:
-      | "active"
-      | "trialing"
-      | "past_due"
-      | "unpaid"
-      | "canceled"
-      | "incomplete"
-      | "incomplete_expired"
-      | "paused";
-    cancel_at_period_end: boolean | null;
-    current_period_end: number;
-    items: {
-      data: Array<{
-        id: string;
-        price: { id: string; recurring?: { interval?: "day" | "week" | "month" | "year" } };
-      }>;
-    };
   }
 }
