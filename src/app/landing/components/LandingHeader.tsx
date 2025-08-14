@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import ButtonPrimary from './ButtonPrimary';
 import Container from '../../components/Container';
+import { track } from '@/lib/track';
 
 interface LandingHeaderProps {
   showLoginButton?: boolean;
@@ -18,14 +19,8 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const firstLinkRef = useRef<HTMLAnchorElement>(null);
 
-  const trackEvent = (eventName: string) => {
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', eventName);
-    }
-  };
-
   const handleSignIn = () => {
-    trackEvent('login_button_click');
+    track('login_button_click');
     signIn('google', { callbackUrl: '/auth/complete-signup' });
   };
 
@@ -72,7 +67,7 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
             {/* Mantido o botão principal de "Começar Agora" */}
             <ButtonPrimary
               href="/register"
-              onClick={() => trackEvent('cta_start_now_click')}
+              onClick={() => track('cta_start_now_click')}
               className="px-4 py-2 text-sm" // Ajustado para um tamanho menor
             >
               Começar Agora
@@ -87,7 +82,11 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
             aria-controls="mobile-menu"
             aria-expanded={isMenuOpen}
           >
-            {isMenuOpen ? <XMarkIcon className="w-6 h-6" /> : <Bars3Icon className="w-6 h-6" />}
+            {isMenuOpen ? (
+              <XMarkIcon className="w-6 h-6" aria-hidden="true" />
+            ) : (
+              <Bars3Icon className="w-6 h-6" aria-hidden="true" />
+            )}
           </button>
         </div>
         {isMenuOpen && (
@@ -107,7 +106,7 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
                   <Link
                     href="/login"
                     onClick={() => {
-                      trackEvent('login_link_click');
+                      track('login_link_click');
                       setIsMenuOpen(false);
                     }}
                     className="px-4 py-2 text-sm hover:bg-gray-100"
@@ -119,7 +118,7 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
                   <Link
                     href="/register"
                     onClick={() => {
-                      trackEvent('cta_start_now_click');
+                      track('cta_start_now_click');
                       setIsMenuOpen(false);
                     }}
                     className="px-4 py-2 text-sm font-bold text-brand-pink hover:bg-gray-100"

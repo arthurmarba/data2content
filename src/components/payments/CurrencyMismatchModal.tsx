@@ -1,7 +1,8 @@
 'use client';
 
 import { CURRENCY_HELP } from '@/copy/stripe';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useEscapeToClose, useFocusTrap, useReturnFocus } from '@/lib/a11y';
 
 interface Props {
   open: boolean;
@@ -19,6 +20,21 @@ export default function CurrencyMismatchModal({
   onOnboard,
 }: Props) {
   const [loading, setLoading] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const { remember, restore } = useReturnFocus();
+  useEscapeToClose(() => open && onClose());
+  useFocusTrap(ref);
+
+  useEffect(() => {
+    document.body.style.overflow = open ? 'hidden' : '';
+    if (open) {
+      remember();
+      ref.current?.querySelector<HTMLElement>('[data-autofocus]')?.focus();
+    } else {
+      restore();
+    }
+  }, [open, remember, restore]);
+
   if (!open) return null;
 
   const handleOnboard = async () => {
@@ -35,13 +51,20 @@ export default function CurrencyMismatchModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-modal="true">
-      <div className="bg-white rounded p-4 w-80 space-y-3">
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="fixed inset-0 bg-black/40" aria-hidden="true" onClick={onClose} />
+      <div
+        ref={ref}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mismatch-title"
+        className="relative w-full max-w-sm rounded-2xl bg-white p-4 shadow-lg space-y-3 focus:outline-none"
+      >
         <div className="flex justify-between items-center">
-          <h4 className="font-medium text-sm">
+          <h2 id="mismatch-title" className="font-medium text-sm" tabIndex={-1} data-autofocus>
             {`Não consigo sacar ${balanceCurrency.toUpperCase()}`}
-          </h4>
-          <button onClick={onClose} aria-label="Fechar" className="text-sm">
+          </h2>
+          <button onClick={onClose} aria-label="Fechar" className="inline-flex items-center justify-center h-11 min-w-[44px] px-3 text-sm">
             ×
           </button>
         </div>

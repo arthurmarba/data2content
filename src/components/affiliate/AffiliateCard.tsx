@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { v4 as uuidv4 } from 'uuid';
+import { track } from '@/lib/track';
 import {
   useAffiliateSummary,
   canRedeem,
@@ -45,12 +46,6 @@ export default function AffiliateCard() {
   const refresh = async () => { await Promise.all([refreshSummary(), refreshStatus()]); };
   const [redeemCur, setRedeemCur] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  const track = (event: string, props?: Record<string, any>) => {
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', event, props);
-    }
-  };
 
   useEffect(() => {
     if (summary?.byCurrency) {
