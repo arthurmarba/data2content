@@ -9,6 +9,8 @@ import { checkRateLimit } from "@/utils/rateLimit";
 import { logger } from "@/app/lib/logger";
 import { getClientIp } from "@/utils/getClientIp";
 import { normCur } from "@/utils/normCur";
+export const dynamic = 'force-dynamic';
+
 
 export const runtime = "nodejs";
 

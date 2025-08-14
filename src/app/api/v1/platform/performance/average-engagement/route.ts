@@ -11,6 +11,8 @@ import {
   TimePeriod,
   EngagementMetricField,
 } from '@/app/lib/constants/timePeriods';
+export const dynamic = 'force-dynamic';
+
 
 // Tipo local para agrupamento
 type GroupingType = 'format' | 'context' | 'proposal';

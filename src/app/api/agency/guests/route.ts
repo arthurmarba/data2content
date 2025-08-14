@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAgencySession } from '@/lib/getAgencySession';
 import UserModel from '@/app/models/User';
+export const dynamic = 'force-dynamic';
+
 
 export const runtime = 'nodejs';
 

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 /*
 ================================================================================
 ARQUIVO 2/3: src/app/api/v1/platform/performance/time-distribution/route.ts

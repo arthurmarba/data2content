@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import UserModel from '@/app/models/User'; // Descomentado para contagem real
 import { connectToDatabase } from '@/app/lib/mongoose'; // Added
 import { logger } from '@/app/lib/logger'; // Added
+export const dynamic = 'force-dynamic';
+
 
 // Interface para a resposta do endpoint
 interface PlatformKpisSummaryResponse {

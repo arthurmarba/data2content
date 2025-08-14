@@ -6,6 +6,8 @@ import { logger } from '@/app/lib/logger';
 import { Types } from 'mongoose';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 import { getAgencySession } from '@/lib/getAgencySession';
+export const dynamic = 'force-dynamic';
+
 
 interface ApiChartDataPoint { date: string; reach: number | null; totalInteractions: number | null; }
 interface ChartResponse { chartData: ApiChartDataPoint[]; insightSummary?: string; averageReach?: number; averageInteractions?: number; }

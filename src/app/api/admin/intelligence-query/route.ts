@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 /**
  * @fileoverview Endpoint da API para a Central de Inteligência.
  * @version 5.0.0

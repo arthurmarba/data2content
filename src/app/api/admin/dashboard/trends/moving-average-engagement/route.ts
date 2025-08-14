@@ -6,6 +6,8 @@ import { logger } from '@/app/lib/logger';
 import { addDays, formatDateYYYYMMDD } from '@/utils/dateHelpers';
 import { Types } from 'mongoose';
 import { getAdminSession } from '@/lib/getAdminSession';
+export const dynamic = 'force-dynamic';
+
 
 interface MovingAverageDataPoint { date: string; movingAverageEngagement: number | null; }
 interface ResponseData { series: MovingAverageDataPoint[]; insightSummary?: string; }

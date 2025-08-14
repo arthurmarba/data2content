@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
 import { fetchPlatformConversionMetrics } from '@/app/lib/dataService/marketAnalysisService';
+export const dynamic = 'force-dynamic';
+
 
 
 interface PlatformConversionMetricsResponse {

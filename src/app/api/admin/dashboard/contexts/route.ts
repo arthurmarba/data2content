@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/app/lib/logger';
 import { getAvailableContexts } from '@/app/lib/dataService/marketAnalysis/cohortsService';
 import { DatabaseError } from '@/app/lib/errors';
+export const dynamic = 'force-dynamic';
+
 
 const SERVICE_TAG = '[api/admin/dashboard/contexts]';
 

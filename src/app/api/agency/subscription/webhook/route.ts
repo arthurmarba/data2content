@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/app/lib/logger';
 import AgencyModel from '@/app/models/Agency';
 import mercadopago from '@/app/lib/mercadopago';
+export const dynamic = 'force-dynamic';
+
 
 export const runtime = 'nodejs';
 const SERVICE_TAG = '[api/agency/subscription/webhook]';

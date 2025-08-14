@@ -6,6 +6,8 @@ import UserModel from '@/app/models/User';
 import AgencyModel from '@/app/models/Agency';
 import { logger } from '@/app/lib/logger';
 import { z } from 'zod';
+export const dynamic = 'force-dynamic';
+
 
 const bodySchema = z.object({
   inviteCode: z.string(),

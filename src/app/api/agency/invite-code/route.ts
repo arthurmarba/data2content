@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAgencySession } from '@/lib/getAgencySession';
 import AgencyModel from '@/app/models/Agency';
 import { logger } from '@/app/lib/logger';
+export const dynamic = 'force-dynamic';
+
 
 export const runtime = 'nodejs';
 const SERVICE_TAG = '[api/agency/invite-code]';

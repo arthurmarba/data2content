@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 /*
 ================================================================================
 ARQUIVO 2/4: .../performance/time-distribution/route.ts

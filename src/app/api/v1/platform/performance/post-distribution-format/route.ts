@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import MetricModel from '@/app/models/Metric'; // Descomente para implementação real
 import { connectToDatabase } from '@/app/lib/mongoose';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
+export const dynamic = 'force-dynamic';
+
 // Defina FormatType localmente se o módulo não existir
 export enum FormatType {
   IMAGE = "IMAGE",

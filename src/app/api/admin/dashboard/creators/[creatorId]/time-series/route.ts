@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 /**
  * @fileoverview API Endpoint for fetching creator-specific time series data.
  * @version 1.0.0

@@ -9,6 +9,8 @@ import {
     formatDateYYYYMMDD,
     getStartDateFromTimePeriod,
 } from '@/utils/dateHelpers';
+export const dynamic = 'force-dynamic';
+
 
 // Tipos de dados para a resposta
 interface MovingAverageDataPoint {

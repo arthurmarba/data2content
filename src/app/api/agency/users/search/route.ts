@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAgencySession } from '@/lib/getAgencySession';
 import UserModel from '@/app/models/User';
 import { connectToDatabase } from '@/app/lib/mongoose';
+export const dynamic = 'force-dynamic';
+
 
 export async function GET(req: NextRequest) {
   try {

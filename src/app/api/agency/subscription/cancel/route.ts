@@ -3,6 +3,8 @@ import { logger } from '@/app/lib/logger';
 import { getAgencySession } from '@/lib/getAgencySession';
 import AgencyModel from '@/app/models/Agency';
 import mercadopago from '@/app/lib/mercadopago';
+export const dynamic = 'force-dynamic';
+
 
 export const runtime = 'nodejs';
 const SERVICE_TAG = '[api/agency/subscription/cancel]';

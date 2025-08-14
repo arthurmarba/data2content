@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 /**
  * @fileoverview API Endpoint for comparing performance across user cohorts.
  * @version 1.0.0

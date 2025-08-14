@@ -5,6 +5,8 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import { logger } from '@/app/lib/logger';
 import { Types } from 'mongoose';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
+export const dynamic = 'force-dynamic';
+
 
 // Tipos para os dados da API
 interface ApiChartDataPoint {

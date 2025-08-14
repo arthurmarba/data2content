@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 /**
  * @fileoverview API Endpoint for fetching data for creator comparison.
  * @version 1.0.0
