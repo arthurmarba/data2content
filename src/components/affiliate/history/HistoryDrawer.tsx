@@ -15,10 +15,11 @@ export default function HistoryDrawer({ item, onClose }: Props) {
   useEffect(() => {
     if (item) ref.current?.focus();
   }, [item]);
-  if (!item) return null;
-  const amount = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: item.currency }).format(
-    item.amountCents / 100,
-  );
+    if (!item) return null;
+    const formatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: item.currency }).format(
+      item.amountCents / 100,
+    );
+    const sign = item.kind === 'redemption' && item.status === 'paid' ? '-' : '+';
   return (
     <div className="fixed inset-0 bg-black/30 flex justify-end" onClick={onClose}>
       <div
@@ -31,8 +32,8 @@ export default function HistoryDrawer({ item, onClose }: Props) {
       >
         <button className="mb-4" onClick={onClose} aria-label="Fechar">✕</button>
         <h2 className="text-lg font-bold mb-2">Detalhes</h2>
-        <div className="mb-2"><StatusBadge status={item.status} size="md" /></div>
-        <p className="mb-1">Valor: {amount} ({item.currency})</p>
+          <div className="mb-2"><StatusBadge status={item.status} size="md" /></div>
+          <p className="mb-1">Valor: {sign}{formatted} ({item.currency})</p>
         {item.availableAt && (
           <p className="mb-1">Libera em: {format(new Date(item.availableAt), 'dd/MM/yyyy')}</p>
         )}
