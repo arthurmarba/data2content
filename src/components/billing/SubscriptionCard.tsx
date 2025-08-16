@@ -14,6 +14,7 @@ export default function SubscriptionCard() {
   const [showModal, setShowModal] = useState(false);
   const [canceling, setCanceling] = useState(false);
   const [reactivating, setReactivating] = useState(false);
+  const [isPortalLoading, setIsPortalLoading] = useState(false);
 
   if (isLoading) return <SkeletonRow />;
   if (error) return <ErrorState message="Erro ao carregar assinatura." />;
@@ -29,6 +30,7 @@ export default function SubscriptionCard() {
     : '—';
 
   async function openPortal(returnUrl?: string) {
+    setIsPortalLoading(true);
     try {
       const res = await fetch('/api/billing/portal', {
         method: 'POST',
@@ -37,27 +39,28 @@ export default function SubscriptionCard() {
       });
       const json = await res.json();
       if (res.ok && json?.url) {
-        window.open(json.url, '_blank');
+        window.location.href = json.url;
       } else {
-        throw new Error(json?.error);
+        throw new Error(json?.error || 'Não foi possível obter a URL do portal.');
       }
-    } catch {
-      toast.error('Não foi possível abrir o portal. Tente novamente.');
+    } catch (err: any) {
+      toast.error(err.message || 'Não foi possível abrir o portal. Tente novamente.');
+      setIsPortalLoading(false);
     }
   }
 
+  // <<< INÍCIO DA CORREÇÃO >>>
   async function cancel() {
     try {
       setCanceling(true);
       const res = await fetch('/api/billing/cancel', { method: 'POST' });
       if (!res.ok) throw new Error();
-      toast.success('Renovação cancelada.');
-      await refresh();
-      await updateSession?.();
+      toast.success('Renovação cancelada. Atualizando...');
+      // Força a recarga da página para buscar os dados mais recentes do servidor.
+      window.location.reload();
     } catch {
       toast.error('Não foi possível concluir no momento. Tente novamente.');
-    } finally {
-      setCanceling(false);
+      setCanceling(false); // Só desativa o loading em caso de erro.
     }
   }
 
@@ -66,21 +69,21 @@ export default function SubscriptionCard() {
       setReactivating(true);
       const res = await fetch('/api/billing/reactivate', { method: 'POST' });
       if (!res.ok) throw new Error();
-      toast.success('Assinatura reativada.');
-      await refresh();
-      await updateSession?.();
+      toast.success('Assinatura reativada. Atualizando...');
+      // Força a recarga da página para buscar os dados mais recentes.
+      window.location.reload();
     } catch {
       toast.error('Não foi possível concluir no momento. Tente novamente.');
-    } finally {
-      setReactivating(false);
+      setReactivating(false); // Só desativa o loading em caso de erro.
     }
   }
+  // <<< FIM DA CORREÇÃO >>>
 
   return (
     <div className="rounded-xl border p-4 bg-white">
       <h3 className="mb-2 text-lg font-semibold">Plano {subscription.planName}</h3>
       {subscription.cancelAtPeriodEnd && (
-        <ReactivateBanner onClick={() => reactivate()} />
+        <ReactivateBanner onClick={reactivate} disabled={reactivating}/>
       )}
       <div className="mb-2 text-sm text-gray-700">Status: {subscription.status}</div>
       <div className="mb-2 text-sm text-gray-700">
@@ -93,33 +96,39 @@ export default function SubscriptionCard() {
         {!subscription.cancelAtPeriodEnd && (
           <button
             onClick={() => setShowModal(true)}
-            className="rounded bg-red-600 px-4 py-2 text-white text-sm"
+            className="rounded bg-red-600 px-4 py-2 text-white text-sm hover:bg-red-700 disabled:opacity-50 transition-colors"
             disabled={canceling}
           >
-            Cancelar renovação
+            {canceling ? 'Cancelando...' : 'Cancelar renovação'}
           </button>
         )}
         {subscription.cancelAtPeriodEnd && (
           <button
-            onClick={() => reactivate()}
-            className="rounded bg-blue-600 px-4 py-2 text-white text-sm"
+            onClick={reactivate}
+            className="rounded bg-blue-600 px-4 py-2 text-white text-sm hover:bg-blue-700 disabled:opacity-50 transition-colors"
             disabled={reactivating}
           >
-            Reativar assinatura
+            {reactivating ? 'Reativando...' : 'Reativar assinatura'}
           </button>
         )}
+        
+        {/* Botões do portal comentados temporariamente */}
+        {/*
         <button
           onClick={() => openPortal()}
-          className="rounded border px-4 py-2 text-sm"
+          className="rounded border px-4 py-2 text-sm hover:bg-gray-50 disabled:opacity-50 transition-colors"
+          disabled={isPortalLoading}
         >
-          Atualizar pagamento
+          {isPortalLoading ? 'Abrindo...' : 'Atualizar pagamento'}
         </button>
         <button
           onClick={() => openPortal()}
-          className="rounded border px-4 py-2 text-sm"
+          className="rounded border px-4 py-2 text-sm hover:bg-gray-50 disabled:opacity-50 transition-colors"
+          disabled={isPortalLoading}
         >
-          Ver faturas/recibos
+          {isPortalLoading ? 'Abrindo...' : 'Ver faturas/recibos'}
         </button>
+        */}
       </div>
       <CancelSubscriptionModal
         open={showModal}

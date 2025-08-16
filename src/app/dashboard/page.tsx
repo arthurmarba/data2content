@@ -1,4 +1,3 @@
-// src/app/dashboard/page.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -6,15 +5,12 @@ import { useSession, signIn, signOut } from 'next-auth/react';
 import { useRouter } from "next/navigation";
 import useSWR from 'swr';
 import Image from 'next/image';
-import Head from 'next/head';
 import Link from 'next/link';
 import type { PlanStatus, PlanType } from '@/types/enums';
-// Usando React Icons (Font Awesome)
-import { FaCopy, FaCheckCircle, FaClock, FaTimesCircle, FaLock, FaTrophy, FaGift, FaMoneyBillWave, FaWhatsapp, FaUpload, FaCog, FaQuestionCircle, FaSignOutAlt, FaUserCircle, FaDollarSign, FaEllipsisV, FaBullhorn, FaVideo, FaSpinner, FaExclamationCircle, FaInfoCircle, FaHandshake, FaFileContract, FaShieldAlt, FaTrashAlt, FaEnvelope, FaCreditCard } from 'react-icons/fa';
-// Framer Motion para animações
-import { motion, AnimatePresence } from "framer-motion";
+import { FaCopy, FaCheckCircle, FaClock, FaTimesCircle, FaTrophy, FaMoneyBillWave, FaCog, FaVideo, FaSpinner, FaExclamationCircle, FaInfoCircle, FaHandshake, FaEnvelope, FaUserCircle } from 'react-icons/fa';
+import { motion } from "framer-motion";
 
-// --- Imports dos seus Componentes Reais ---
+// --- Imports dos seus Componentes ---
 import UploadMetrics from './UploadMetrics';
 import WhatsAppPanel from './WhatsAppPanel';
 import PaymentModal from './PaymentModal';
@@ -25,13 +21,9 @@ import StepIndicator from './StepIndicator';
 import PlanCardPro from '@/components/billing/PlanCardPro';
 import AffiliateCard from '@/components/affiliate/AffiliateCard';
 import AffiliateHistory from '@/components/affiliate/history/AffiliateHistory';
-import SubscriptionCard from '@/components/billing/SubscriptionCard';
-
-// --- FIM IMPORTS ---
-
 
 // --- INTERFACES ---
-interface ExtendedUser {
+export interface ExtendedUser {
   id?: string;
   name?: string | null;
   email?: string | null;
@@ -44,8 +36,7 @@ interface ExtendedUser {
   provider?: string;
   isInstagramConnected?: boolean;
   whatsappVerified?: boolean;
-  planType?: PlanType; // ✅ adicionado
-  // ✅ usamos a moeda padrão da conta Stripe vinda da sessão
+  planType?: PlanType;
   stripeAccountDefaultCurrency?: string | null;
 }
 
@@ -222,8 +213,6 @@ const AffiliateCardContent: React.FC<{
     </div>
   );
 };
-// --- FIM COMPONENTE FUNCIONAL PARA O CARD DE AFILIADOS ---
-
 
 export default function MainDashboard() {
   const { data: session, status, update: updateSession } = useSession();
@@ -260,19 +249,17 @@ export default function MainDashboard() {
     }
   }, [status, session, router]);
 
-  // Trata retornos de checkout (evita 404 e dá feedback)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
 
-      // legado MP
       if (params.get('from') === 'mp') {
         updateSession?.();
         router.replace('/dashboard');
         return;
       }
 
-      const checkout = params.get('checkout'); // success | cancel
+      const checkout = params.get('checkout');
       if (checkout === 'success') {
         showToastMessage('Pagamento confirmado! Bem-vindo(a) ao Pro 🎉', 'success');
         updateSession?.();
@@ -377,9 +364,7 @@ export default function MainDashboard() {
       setTimeout(() => setCopyFeedback(null), 2000);
     });
   }, []);
-  // --- FIM DAS FUNÇÕES DE HANDLER RESTAURADAS ---
-
-
+  
   if (status === "loading" || (status === "unauthenticated" && router)) {
     return (
       <div className="min-h-screen bg-brand-light p-4 sm:p-6 lg:p-8">
@@ -417,7 +402,6 @@ export default function MainDashboard() {
   }
 
   const planStatus = user.planStatus ?? "inactive";
-  // ✅ passa a considerar non_renewing como acesso permitido
   const canAccessFeatures = planStatus === "active" || planStatus === "non_renewing";
   
   const getStatusInfo = () => {
@@ -431,7 +415,6 @@ export default function MainDashboard() {
   const statusInfo = getStatusInfo();
 
   const showPlan = planStatus !== 'active';
-  // ✅ usar a moeda padrão da conta Stripe, com fallback para BRL
   const defaultCurrency = ((user?.stripeAccountDefaultCurrency ?? 'BRL').toUpperCase() === 'USD') ? 'USD' : 'BRL';
   const canRedeem = Object.values((user as any)?.affiliateBalances || {}).some((c: any) => c > 0);
 
@@ -468,7 +451,6 @@ export default function MainDashboard() {
     }
   };
 
-  // Props para o AffiliateCardContent
   const affiliateCardProps = {
     user,
     affiliateCode,
@@ -483,288 +465,149 @@ export default function MainDashboard() {
   };
 
   return (
-    <>
-      <Head><title>Dashboard - Data2Content</title></Head>
-      <PaymentModal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)} />
-
-      <div className="min-h-screen bg-brand-light">
-        {/* --- HEADER RESTAURADO --- */}
-        <header className="bg-white shadow-sm sticky top-0 z-40 border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <Link href="/dashboard" className="flex-shrink-0 flex items-center gap-2 group">
-                <span className="text-brand-pink text-3xl font-bold group-hover:opacity-80 transition-opacity">[2]</span>
-              </Link>
-              <div className="relative">
-                <button
-                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                  className="p-2 rounded-full text-gray-500 hover:text-brand-dark hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-pink transition-colors"
-                  aria-expanded={isUserMenuOpen} aria-haspopup="true" aria-label="Menu de ações"
-                >
-                  {user?.image ? (
-                    <Image src={user.image} alt="Avatar" width={32} height={32} className="rounded-full" />
-                  ) : (
-                    <FaUserCircle className="w-6 h-6" />
-                  )}
-                </button>
-                <AnimatePresence>
-                  {isUserMenuOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                      transition={{ duration: 0.15, ease: "easeOut" }}
-                      className="origin-top-right absolute right-0 mt-2 w-64 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50"
-                      onMouseLeave={() => setIsUserMenuOpen(false)}
-                    >
-                      <div className="px-4 py-3 border-b border-gray-100">
-                        <p className="text-sm font-semibold text-brand-dark truncate">{user?.name ?? 'Usuário'}</p>
-                        <p className="text-xs text-gray-500 truncate">{user?.email || 'Sem email'}</p>
-                      </div>
-                      <div className="py-1 border-t border-gray-100">
-                        <Link
-                          href="/dashboard/settings#subscription-management-title"
-                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
-                          onClick={() => setIsUserMenuOpen(false)}
-                        >
-                          <FaCreditCard className="w-4 h-4 text-gray-400"/> Gerir Assinatura
-                        </Link>
-                      </div>
-                      <div className="py-1 border-t border-gray-100">
-                        <Link
-                          href="/termos-e-condicoes"
-                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
-                          onClick={() => setIsUserMenuOpen(false)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <FaFileContract className="w-4 h-4 text-gray-400"/> Termos e Condições
-                        </Link>
-                      </div>
-                      <div className="py-1 border-t border-gray-100">
-                        <Link
-                          href="/politica-de-privacidade"
-                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
-                          onClick={() => setIsUserMenuOpen(false)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <FaShieldAlt className="w-4 h-4 text-gray-400"/> Política de Privacidade
-                        </Link>
-                      </div>
-                      <div className="py-1 border-t border-gray-100">
-                        <a 
-                          href="mailto:arthur@data2content.ai"
-                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
-                          onClick={() => setIsUserMenuOpen(false)}
-                        >
-                          <FaEnvelope className="w-4 h-4 text-gray-400"/> Suporte por Email
-                        </a>
-                      </div>
-                      <div className="py-1 border-t border-gray-100">
-                        <a 
-                          href="/afiliados"
-                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
-                          onClick={() => setIsUserMenuOpen(false)}
-                        >
-                          <FaHandshake className="w-4 h-4 text-gray-400"/> Programa de Afiliados
-                        </a>
-                      </div>
-                      <div className="py-1 border-t border-gray-100">
-                        <Link
-                          href="/dashboard/settings#delete-account"
-                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-brand-red transition-colors rounded-md mx-1 my-0.5"
-                          onClick={() => setIsUserMenuOpen(false)}
-                        >
-                          <FaTrashAlt className="w-4 h-4"/> Excluir Conta
-                        </Link>
-                      </div>
-                      <div className="py-1 border-t border-gray-100">
-                        <button
-                          onClick={() => {
-                            setIsUserMenuOpen(false);
-                            signOut({ callbackUrl: '/' });
-                          }}
-                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
-                        >
-                          <FaSignOutAlt className="w-4 h-4"/> Sair
-                        </button>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 lg:gap-12">
+      {/* --- COLUNA PRINCIPAL (ESQUERDA) --- */}
+      <div className="lg:col-span-2 space-y-12">
+        <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={0}>
+          <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg border-t-4 border-brand-pink flex flex-col sm:flex-row items-center gap-6">
+            <div className="flex-shrink-0">
+              {user?.image ? ( <Image src={user.image} alt="Avatar" width={88} height={88} className="rounded-full border-4 border-white shadow-md" /> ) : ( <span className="inline-block h-22 w-22 overflow-hidden rounded-full bg-gray-100 border-4 border-white shadow-md"><FaUserCircle className="h-full w-full text-gray-300" /></span> )}
             </div>
-          </div>
-        </header>
-        {/* --- FIM DO HEADER RESTAURADO --- */}
-
-        <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8 space-y-12">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 lg:gap-12">
-            {/* --- COLUNA PRINCIPAL (ESQUERDA) --- */}
-            <div className="lg:col-span-2 space-y-12">
-              {/* Card de Boas-Vindas */}
-              <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={0}>
-                <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg border-t-4 border-brand-pink flex flex-col sm:flex-row items-center gap-6">
-                  <div className="flex-shrink-0">
-                    {user?.image ? ( <Image src={user.image} alt="Avatar" width={88} height={88} className="rounded-full border-4 border-white shadow-md" /> ) : ( <span className="inline-block h-22 w-22 overflow-hidden rounded-full bg-gray-100 border-4 border-white shadow-md"><FaUserCircle className="h-full w-full text-gray-300" /></span> )}
-                  </div>
-                  <div className="flex-grow text-center sm:text-left">
-                    <h1 className="text-2xl sm:text-3xl font-semibold text-brand-dark mb-2">Bem-vindo(a), {user?.name ?? 'Usuário'}!</h1>
-                    <p className="text-base text-gray-600 font-light mb-4">Pronto para otimizar sua carreira de criador?</p>
-                    {!canAccessFeatures && (
-                      <StepIndicator
-                        planActive={planStatus === 'pending'}
-                        instagramConnected={!!user.isInstagramConnected}
-                        whatsappConnected={!!user.whatsappVerified}
-                      />
-                    )}
-                    {agencyName && !canAccessFeatures && (
-                      <p className="mt-1 text-green-700 bg-green-50 border border-green-200 inline-block px-3 py-1 rounded text-sm">
-                        Convite da agência {agencyName} ativo! Desconto aplicado.
-                      </p>
-                    )}
-                    <div className="flex items-center flex-wrap gap-2 justify-center sm:justify-start">
-                      <div className={`inline-flex items-center gap-2 text-sm mb-1 px-4 py-1.5 rounded-full border ${statusInfo.colorClasses}`}> {statusInfo.icon} <span className="font-semibold">{statusInfo.text}</span> {planStatus === 'active' && user?.planExpiresAt && ( <span className="hidden md:inline text-xs opacity-80 ml-2">(Expira em {new Date(user.planExpiresAt).toLocaleDateString("pt-BR")})</span> )} </div>
-                      {!canAccessFeatures && (
-                        <button
-                          onClick={scrollToPlanCard}
-                          className="text-xs bg-brand-pink text-white px-4 py-1.5 rounded-full hover:opacity-90 font-semibold transition-default align-middle"
-                        >
-                          Fazer Upgrade
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </motion.section>
-
-              {/* Guias Rápidos da Plataforma (VideoCarousel) */}
-              <motion.section id="video-guides-section" variants={cardVariants} initial="hidden" animate="visible" custom={0.5}>
-                <div className="flex items-center gap-3 mb-5 ml-1"> <FaVideo className="w-5 h-5 text-brand-pink"/> <h2 className="text-xl font-semibold text-brand-dark">Guias Rápidos da Plataforma</h2> </div>
-                <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg"> <VideoCarousel videos={videoGuidesData} swiperRef={swiperRef} /> </div>
-              </motion.section>
-
-              {showPlan && (
-                <PlanCardPro
-                  id="plan-card"
-                  defaultCurrency={defaultCurrency}
-                  className="w-full"
+            <div className="flex-grow text-center sm:text-left">
+              <h1 className="text-2xl sm:text-3xl font-semibold text-brand-dark mb-2">Bem-vindo(a), {user?.name ?? 'Usuário'}!</h1>
+              <p className="text-base text-gray-600 font-light mb-4">Pronto para otimizar sua carreira de criador?</p>
+              {!canAccessFeatures && (
+                <StepIndicator
+                  planActive={planStatus === 'pending'}
+                  instagramConnected={!!user.isInstagramConnected}
+                  whatsappConnected={!!user.whatsappVerified}
                 />
               )}
-
-              {/* Automação de Métricas (InstagramConnectCard) */}
-              <InstagramConnectCard
-                canAccessFeatures={canAccessFeatures}
-                onActionRedirect={scrollToPlanCard}
-                showToast={showToastMessage}
-              />
-
-              {/* Consultor IA Mobi (WhatsApp) */}
-              <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={0.7}>
-                <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Consultor IA Mobi (WhatsApp)</h2>
-                <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
-                  <WhatsAppPanel
-                    userId={userId}
-                    canAccessFeatures={canAccessFeatures}
-                    onActionRedirect={scrollToPlanCard}
-                    showToast={showToastMessage}
-                  />
-                </div>
-              </motion.section>
-
-              {/* Card de Afiliados / Subscription (Mobile) */}
-              <div className="lg:hidden">
-                {process.env.NEXT_PUBLIC_AFFILIATES_V2 === 'on' ? (
-                  <div className="space-y-4">
-                    <AffiliateCard />
-                    <SubscriptionCard />
-                  </div>
-                ) : (
-                  <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={0.8}>
-                    <AffiliateCardContent {...affiliateCardProps} />
-                  </motion.section>
+              {agencyName && !canAccessFeatures && (
+                <p className="mt-1 text-green-700 bg-green-50 border border-green-200 inline-block px-3 py-1 rounded text-sm">
+                  Convite da agência {agencyName} ativo! Desconto aplicado.
+                </p>
+              )}
+              <div className="flex items-center flex-wrap gap-2 justify-center sm:justify-start">
+                <div className={`inline-flex items-center gap-2 text-sm mb-1 px-4 py-1.5 rounded-full border ${statusInfo.colorClasses}`}> {statusInfo.icon} <span className="font-semibold">{statusInfo.text}</span> {planStatus === 'active' && user?.planExpiresAt && ( <span className="hidden md:inline text-xs opacity-80 ml-2">(Expira em {new Date(user.planExpiresAt).toLocaleDateString("pt-BR")})</span> )} </div>
+                {!canAccessFeatures && (
+                  <button
+                    onClick={scrollToPlanCard}
+                    className="text-xs bg-brand-pink text-white px-4 py-1.5 rounded-full hover:opacity-90 font-semibold transition-default align-middle"
+                  >
+                    Fazer Upgrade
+                  </button>
                 )}
               </div>
-
-              {/* Suas Métricas (UploadMetrics) */}
-              <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={1}>
-                <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Suas Métricas</h2>
-                <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
-                  <UploadMetrics
-                    canAccessFeatures={canAccessFeatures}
-                    userId={userId}
-                    onNeedHelp={() => scrollToVideoGuide('upload-metrics-guide')}
-                    onActionRedirect={scrollToPlanCard}
-                    showToast={showToastMessage}
-                  />
-                </div>
-              </motion.section>
-
-              {/* Suas Parcerias (AdDealForm) */}
-              <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={1.2}>
-                <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Suas Parcerias</h2>
-                <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
-                  <AdDealForm
-                    userId={userId}
-                    canAccessFeatures={canAccessFeatures}
-                    onActionRedirect={scrollToPlanCard}
-                    showToast={showToastMessage}
-                  />
-                </div>
-              </motion.section>
-
-              {process.env.NEXT_PUBLIC_AFFILIATES_V2 === 'on' && (
-                <section className="mt-6">
-                  <AffiliateHistory />
-                </section>
-              )}
             </div>
-
-            {/* --- COLUNA DA DIREITA (SIDEBAR) */}
-            <div className="hidden lg:block lg:col-span-1 space-y-8">
-              {/* Affiliate & Subscription (Desktop) */}
-              {process.env.NEXT_PUBLIC_AFFILIATES_V2 === 'on' ? (
-                <section className="space-y-4">
-                  <AffiliateCard />
-                  <SubscriptionCard />
-                </section>
-              ) : (
-                <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={0.5}>
-                  <AffiliateCardContent {...affiliateCardProps} />
-                </motion.section>
-              )}
-
-              {/* Seção "Precisa de Ajuda?" */}
-              <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={3}>
-                <div className="bg-brand-light p-6 rounded-xl border border-gray-200 text-center hover:shadow-md transition-shadow flex flex-col items-center">
-                  <div className="p-3 bg-brand-pink/10 rounded-full text-brand-pink mb-4">
-                    <FaEnvelope className="w-6 h-6"/>
-                  </div>
-                  <h3 className="font-semibold text-brand-dark mb-2 text-lg">Precisa de Ajuda?</h3>
-                  <p className="text-sm text-gray-600 font-light mb-5 leading-relaxed">
-                    Entre em contacto connosco por email para qualquer questão ou suporte.
-                  </p>
-                  <a 
-                    href="mailto:arthur@data2content.ai"
-                    className="text-sm text-brand-pink hover:underline font-semibold mt-auto pt-2"
-                  >
-                    Contactar Suporte por Email
-                  </a>
-                </div>
-              </motion.section>
-            </div>
-
           </div>
-        </main>
+        </motion.section>
 
-        <footer className="text-center mt-20 py-10 border-t border-gray-200 text-xs text-gray-500 font-light">
-          © {new Date().getFullYear()} Data2Content. Todos os direitos reservados.
-        </footer>
+        <motion.section id="video-guides-section" variants={cardVariants} initial="hidden" animate="visible" custom={0.5}>
+          <div className="flex items-center gap-3 mb-5 ml-1"> <FaVideo className="w-5 h-5 text-brand-pink"/> <h2 className="text-xl font-semibold text-brand-dark">Guias Rápidos da Plataforma</h2> </div>
+          <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg"> <VideoCarousel videos={videoGuidesData} swiperRef={swiperRef} /> </div>
+        </motion.section>
+
+        {showPlan && (
+          <PlanCardPro
+            id="plan-card"
+            defaultCurrency={defaultCurrency}
+            className="w-full"
+          />
+        )}
+
+        <InstagramConnectCard
+          canAccessFeatures={canAccessFeatures}
+          onActionRedirect={scrollToPlanCard}
+          showToast={showToastMessage}
+        />
+
+        <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={0.7}>
+          <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Consultor IA Mobi (WhatsApp)</h2>
+          <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
+            <WhatsAppPanel
+              userId={userId}
+              canAccessFeatures={canAccessFeatures}
+              onActionRedirect={scrollToPlanCard}
+              showToast={showToastMessage}
+            />
+          </div>
+        </motion.section>
+        
+        <div className="lg:hidden">
+          {process.env.NEXT_PUBLIC_AFFILIATES_V2 === 'on' ? (
+            <div className="space-y-4">
+              <AffiliateCard />
+            </div>
+          ) : (
+            <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={0.8}>
+              <AffiliateCardContent {...affiliateCardProps} />
+            </motion.section>
+          )}
+        </div>
+
+        <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={1}>
+          <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Suas Métricas</h2>
+          <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
+            <UploadMetrics
+              canAccessFeatures={canAccessFeatures}
+              userId={userId}
+              onNeedHelp={() => scrollToVideoGuide('upload-metrics-guide')}
+              onActionRedirect={scrollToPlanCard}
+              showToast={showToastMessage}
+            />
+          </div>
+        </motion.section>
+
+        <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={1.2}>
+          <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Suas Parcerias</h2>
+          <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
+            <AdDealForm
+              userId={userId}
+              canAccessFeatures={canAccessFeatures}
+              onActionRedirect={scrollToPlanCard}
+              showToast={showToastMessage}
+            />
+          </div>
+        </motion.section>
+
+        {process.env.NEXT_PUBLIC_AFFILIATES_V2 === 'on' && (
+          <section className="mt-6">
+            <AffiliateHistory />
+          </section>
+        )}
       </div>
-      <style jsx global>{`
-        /* ... (Seus estilos globais) ... */
-      `}</style>
-    </>
+
+      {/* --- COLUNA DA DIREITA (SIDEBAR) --- */}
+      <div className="hidden lg:block lg:col-span-1 space-y-8">
+        {process.env.NEXT_PUBLIC_AFFILIATES_V2 === 'on' ? (
+          <section className="space-y-4">
+            <AffiliateCard />
+          </section>
+        ) : (
+          <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={0.5}>
+            <AffiliateCardContent {...affiliateCardProps} />
+          </motion.section>
+        )}
+
+        <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={3}>
+          <div className="bg-brand-light p-6 rounded-xl border border-gray-200 text-center hover:shadow-md transition-shadow flex flex-col items-center">
+            <div className="p-3 bg-brand-pink/10 rounded-full text-brand-pink mb-4">
+              <FaEnvelope className="w-6 h-6"/>
+            </div>
+            <h3 className="font-semibold text-brand-dark mb-2 text-lg">Precisa de Ajuda?</h3>
+            <p className="text-sm text-gray-600 font-light mb-5 leading-relaxed">
+              Entre em contacto connosco por email para qualquer questão ou suporte.
+            </p>
+            <a 
+              href="mailto:arthur@data2content.ai"
+              className="text-sm text-brand-pink hover:underline font-semibold mt-auto pt-2"
+            >
+              Contactar Suporte por Email
+            </a>
+          </div>
+        </motion.section>
+      </div>
+    </div>
   );
 }

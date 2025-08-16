@@ -14,12 +14,17 @@ export function assertBillingEnv() {
     console.warn(msg);
   }
 
-  const wantedApi = "2022-11-15";
+  // Alinhado à versão pinada pelo stripe@18.4.0
+  const wantedApi = "2025-07-30.basil";
   const api = process.env.STRIPE_API_VERSION ?? wantedApi;
-  if (api !== wantedApi) {
-    const msg = `STRIPE_API_VERSION divergente (${api}). Use ${wantedApi}.`;
-    if (process.env.NODE_ENV === "production") throw new Error(msg);
-    console.warn(msg);
+
+  if (process.env.NODE_ENV === "production") {
+    if (api !== wantedApi) {
+      throw new Error(`STRIPE_API_VERSION divergente (${api}). Use ${wantedApi}.`);
+    }
+  } else {
+    if (api !== wantedApi) {
+      console.warn(`[boot-sanity] Aviso: STRIPE_API_VERSION=${api}. Recomendada: ${wantedApi}.`);
+    }
   }
 }
-

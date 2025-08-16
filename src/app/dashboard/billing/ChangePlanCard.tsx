@@ -17,6 +17,7 @@ export default function ChangePlanCard() {
   const { toast } = useToast();
   const [currentPlan, setCurrentPlan] = useState<Plan | undefined>(undefined);
   const [newPlan, setNewPlan] = useState<Plan>("monthly");
+
   useEffect(() => {
     fetch('/api/plan/status', { credentials: 'include' })
       .then(r => r.json())
@@ -26,7 +27,8 @@ export default function ChangePlanCard() {
         setNewPlan(plan === 'annual' ? 'monthly' : 'annual');
       })
       .catch(() => {});
-  }, []);
+  }, [refetch]);
+
   const [when, setWhen] = useState<When>("now");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -34,14 +36,22 @@ export default function ChangePlanCard() {
 
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
+  
+  // --- New states for confirmation modal ---
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [previewData, setPreviewData] = useState<{ amountDue: number; currency: string } | null>(null);
+
   const elementsOptions: StripeElementsOptions | undefined = useMemo(
     () => (clientSecret ? { clientSecret, appearance: { theme: "stripe" } } : undefined),
     [clientSecret]
   );
 
   const currentPlanText = currentPlan === 'annual' ? 'Anual' : currentPlan === 'monthly' ? 'Mensal' : '—';
-  const disabled = loading || !currentPlan || currentPlan === newPlan;
+  const newPlanText = newPlan === 'annual' ? 'Anual' : 'Mensal';
+  const disabled = loading || isPreviewing || !currentPlan || currentPlan === newPlan;
 
+  // This function now only performs the final plan change
   async function handleSubmit() {
     try {
       setLoading(true);
@@ -52,37 +62,33 @@ export default function ChangePlanCard() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          newPlan,
-          when, // "now" | "period_end"
+          to: newPlan,
+          when,
         }),
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Falha ao mudar de plano");
-
-      // Caso "period_end": nenhuma ação de pagamento imediata
-      if (when === "period_end" || !data?.clientSecret) {
-        setOkMsg(
-          when === "period_end"
-            ? "Plano agendado para trocar no fim do ciclo atual."
-            : "Plano atualizado com sucesso."
-        );
-        toast({
-          variant: "success",
-          title: "Plano atualizado",
-          description:
-            when === "period_end"
-              ? "A mudança ocorrerá no fim do ciclo."
-              : "Mudança aplicada.",
-        });
-        await update().catch(() => {});
+      
+      if (when === "period_end") {
+        setOkMsg("Plano agendado para trocar no fim do ciclo atual.");
+        toast({ variant: "success", title: "Mudança agendada" });
+        await update();
         refetch();
         return;
       }
+      
+      if (data.clientSecret) {
+        setClientSecret(data.clientSecret);
+        setSubscriptionId(data.subscriptionId || null);
+        return;
+      }
+      
+      setOkMsg("Seu plano foi alterado com sucesso.");
+      toast({ variant: "success", title: "Plano atualizado" });
+      await update();
+      refetch();
 
-      // Caso "now": pode haver cobrança imediata -> precisamos confirmar
-      setClientSecret(data.clientSecret);
-      setSubscriptionId(data.subscriptionId || null);
     } catch (e: any) {
       const msg = e?.message || "Erro inesperado";
       setErr(msg);
@@ -93,6 +99,37 @@ export default function ChangePlanCard() {
       });
     } finally {
       setLoading(false);
+    }
+  }
+
+  // New function to handle the preview and open the confirmation modal
+  async function handlePreviewAndConfirm() {
+    if (when === 'period_end') {
+      return handleSubmit();
+    }
+
+    setIsPreviewing(true);
+    setErr(null);
+    try {
+      const res = await fetch('/api/billing/preview-plan-change', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ toPlan: newPlan }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Falha ao pré-visualizar cobrança.');
+
+      setPreviewData(data);
+      setIsConfirmModalOpen(true);
+    } catch (e: any) {
+      setErr(e.message);
+      toast({
+        variant: "error",
+        title: "Erro ao calcular",
+        description: String(e.message),
+      });
+    } finally {
+      setIsPreviewing(false);
     }
   }
 
@@ -157,17 +194,63 @@ export default function ChangePlanCard() {
       {okMsg && <p className="text-sm text-green-600">{okMsg}</p>}
 
       <button
-        onClick={handleSubmit}
+        onClick={handlePreviewAndConfirm}
         disabled={disabled}
         className="px-4 py-2 rounded bg-black text-white disabled:opacity-50"
       >
-        {loading ? "Aplicando..." : "Aplicar mudança"}
+        {isPreviewing ? "Calculando..." : "Aplicar mudança"}
       </button>
 
-      {/* Se a API retornou clientSecret, abrimos um mini fluxo de confirmação */}
+      {/* --- Confirmation Modal --- */}
+      {isConfirmModalOpen && previewData && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-40">
+          <div className="w-full max-w-md bg-white rounded-lg p-6 shadow-xl m-4">
+            <h3 className="text-lg font-bold">Confirmar Mudança de Plano</h3>
+            <p className="mt-2 text-sm text-gray-600">
+              Você está prestes a mudar do plano <strong>{currentPlanText}</strong> para o plano <strong>{newPlanText}</strong>.
+            </p>
+            
+            {previewData.amountDue > 0 ? (
+              <p className="mt-4 font-semibold text-gray-800">
+                Será feita uma cobrança imediata de{' '}
+                <strong>
+                  {(previewData.amountDue / 100).toLocaleString('pt-BR', { style: 'currency', currency: previewData.currency.toUpperCase() })}
+                </strong>.
+              </p>
+            ) : (
+              <p className="mt-4 font-semibold text-gray-800">
+                Não haverá cobrança imediata para esta alteração.
+              </p>
+            )}
+            <p className="text-xs text-gray-500">Este valor considera o crédito pelo tempo não utilizado do seu plano atual.</p>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                className="px-4 py-2 rounded border text-sm"
+                onClick={() => setIsConfirmModalOpen(false)}
+                disabled={loading}
+              >
+                Cancelar
+              </button>
+              <button
+                className="px-4 py-2 rounded bg-black text-white text-sm disabled:opacity-50"
+                onClick={() => {
+                  setIsConfirmModalOpen(false);
+                  handleSubmit();
+                }}
+                disabled={loading}
+              >
+                {loading ? "Aguarde..." : "Confirmar e Continuar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- Stripe Payment Modal --- */}
       {clientSecret && elementsOptions && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-          <div className="w-full max-w-md bg-white rounded-lg p-4 shadow-lg">
+          <div className="w-full max-w-md bg-white rounded-lg p-4 shadow-lg m-4">
             <h3 className="text-base font-semibold mb-3">Confirmar cobrança</h3>
             <Elements stripe={stripePromise} options={elementsOptions} key={clientSecret}>
               <InlineConfirm
@@ -182,7 +265,7 @@ export default function ChangePlanCard() {
                       title: "Pagamento confirmado",
                       description: "Seu plano foi atualizado.",
                     });
-                    await update().catch(() => {});
+                    await update();
                     refetch();
                   }
                 }}
@@ -195,7 +278,6 @@ export default function ChangePlanCard() {
   );
 }
 
-/** Componente mínimo para confirmar o PaymentIntent retornado pelo change-plan (when=now) */
 function InlineConfirm({
   subscriptionId,
   onClose,
@@ -230,6 +312,7 @@ function InlineConfirm({
         title: "Falha ao confirmar",
         description: String(msg),
       });
+      onClose(false); // Indicate failure on close
     } finally {
       setSubmitting(false);
     }
@@ -242,16 +325,16 @@ function InlineConfirm({
       </div>
       <PaymentElement />
       {err && <p className="text-sm text-red-600">{err}</p>}
-      <div className="flex gap-2">
+      <div className="flex gap-2 justify-end">
         <button
-          className="px-3 py-2 rounded border"
+          className="px-3 py-2 rounded border text-sm"
           onClick={() => onClose(false)}
           disabled={submitting}
         >
           Cancelar
         </button>
         <button
-          className="px-3 py-2 rounded bg-black text-white disabled:opacity-50"
+          className="px-3 py-2 rounded bg-black text-white text-sm disabled:opacity-50"
           onClick={confirm}
           disabled={submitting || !stripe || !elements}
         >
@@ -261,4 +344,3 @@ function InlineConfirm({
     </div>
   );
 }
-

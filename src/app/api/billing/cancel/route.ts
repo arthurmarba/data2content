@@ -24,22 +24,31 @@ export async function POST() {
       return NextResponse.json({ message: 'No active subscription' }, { status: 400, headers: cacheHeader })
     }
 
-    const sub = await stripe.subscriptions.update(user.stripeSubscriptionId, {
-      cancel_at_period_end: true,
-    })
+    // 1. First, we retrieve the subscription to check its current status
+    const subscription = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
 
-    const cancelAt =
-      (sub as any).cancel_at
-        ? new Date((sub as any).cancel_at * 1000)
-        : sub.current_period_end
-          ? new Date(sub.current_period_end * 1000)
-          : null
+    let finalSubscription: Stripe.Subscription;
+
+    // 2. We decide the action based on the status
+    if (subscription.status === 'past_due' || subscription.status === 'incomplete') {
+      // If the subscription is overdue or incomplete, we cancel it immediately.
+      finalSubscription = await stripe.subscriptions.cancel(user.stripeSubscriptionId);
+    } else {
+      // If it's active or in another state, we just schedule the cancellation.
+      finalSubscription = await stripe.subscriptions.update(user.stripeSubscriptionId, {
+        cancel_at_period_end: true,
+      });
+    }
+
+    // CORRECTION: Use the correct, type-safe properties for the cancellation date
+    const cancelAtUnix = finalSubscription.canceled_at ?? finalSubscription.cancel_at;
+    const cancelAt = cancelAtUnix ? new Date(cancelAtUnix * 1000) : null;
 
     return NextResponse.json(
       {
         ok: true,
         cancelAt,
-        status: sub.cancel_at_period_end ? 'canceled' : sub.status,
+        status: finalSubscription.status,
       },
       { headers: cacheHeader }
     )
@@ -50,6 +59,7 @@ export async function POST() {
         { status: err.statusCode || 500, headers: cacheHeader }
       )
     }
+    console.error("[billing/cancel] error:", err);
     return NextResponse.json(
       { ok: false, message: 'Cancel failed' },
       { status: 400, headers: cacheHeader }

@@ -3,22 +3,27 @@ import { assertBillingEnv } from "@/app/lib/boot-sanity";
 
 assertBillingEnv();
 
-const secret = process.env.STRIPE_SECRET_KEY;
-if (!secret) {
-  throw new Error("STRIPE_SECRET_KEY ausente nas variáveis de ambiente.");
-}
+// Garante `string` no tipo (e no runtime)
+const secret: string = (() => {
+  const v = process.env.STRIPE_SECRET_KEY;
+  if (!v) {
+    throw new Error("STRIPE_SECRET_KEY ausente nas variáveis de ambiente.");
+  }
+  return v;
+})();
 
-const apiVersion =
+// Versão basil (pin do stripe@18.4.0)
+const DEFAULT_API_VERSION: Stripe.LatestApiVersion = "2025-07-30.basil";
+
+// Usa env se fornecida; caso contrário, trava na basil
+const apiVersion: Stripe.LatestApiVersion =
   (process.env.STRIPE_API_VERSION as Stripe.LatestApiVersion | undefined) ??
-  "2022-11-15";
+  DEFAULT_API_VERSION;
 
-if (
-  process.env.NODE_ENV === "production" &&
-  process.env.STRIPE_API_VERSION &&
-  process.env.STRIPE_API_VERSION !== "2022-11-15"
-) {
+// Em produção, exige a mesma versão para evitar drift
+if (process.env.NODE_ENV === "production" && apiVersion !== DEFAULT_API_VERSION) {
   throw new Error(
-    `STRIPE_API_VERSION divergente (${process.env.STRIPE_API_VERSION}). Use 2022-11-15.`
+    `STRIPE_API_VERSION divergente (${apiVersion}). Use ${DEFAULT_API_VERSION}.`
   );
 }
 
@@ -37,4 +42,3 @@ export function getStripe(): Stripe {
 
 // atalho conveniente
 export const stripe = getStripe();
-

@@ -1,12 +1,11 @@
-// @/app/models/User.ts - v1.9.21
-// - Adiciona stripeAccountCountry a paymentInfo (interface + schema)
-// - Mantém alterações anteriores (v1.9.20)
+// @/app/models/User.ts - v1.9.22 (CORRIGIDO)
+// - Expande enums de planStatus e planInterval para compatibilidade com Stripe.
 
 import mongoose, { Schema, Document, Model, Types } from "mongoose";
 import { logger } from "@/app/lib/logger";
 import {
   USER_ROLES,
-  PLAN_STATUSES,
+  PLAN_STATUSES, // Este import será sobreposto pela definição local no schema
   type UserRole,
   type PlanStatus,
 } from '@/types/enums';
@@ -246,7 +245,6 @@ export interface IUser extends Document {
   role: UserRole;
   agency?: Types.ObjectId | null;
   pendingAgency?: Types.ObjectId | null;
-
   planStatus?: PlanStatus;
   planType?: 'monthly' | 'annual' | 'annual_one_time';
   paymentGatewaySubscriptionId?: string;
@@ -259,29 +257,23 @@ export interface IUser extends Document {
   lastProcessedEventId?: string;
   planExpiresAt?: Date | null;
   autoRenewConsentAt?: Date | null;
-
   whatsappVerificationCode?: string | null;
   whatsappPhone?: string | null;
   whatsappVerified?: boolean;
-
   profileTone?: string;
   hobbies?: string[];
   goal?: string;
   gender?: 'male' | 'female' | 'other';
   birthDate?: Date | null;
   location?: IUserLocation;
-
   affiliateRank?: number;
   affiliateInvites?: number;
   affiliateCode?: string;
   affiliateUsed: string | null;
-  affiliateBalances?: Map<string, number>; // multimoeda em cents
+  affiliateBalances?: Map<string, number>;
   affiliateDebtByCurrency?: Map<string, number>;
-
-  // LEGACY
   affiliateBalance?: number;
   affiliateBalanceCents?: number;
-
   commissionLog?: ICommissionEntry[];
   paymentInfo?: {
     pixKey?: string;
@@ -299,13 +291,11 @@ export interface IUser extends Document {
       transfers?: 'active' | 'pending' | 'inactive';
     };
     stripeAccountNeedsOnboarding?: boolean;
-    // ✅ NOVO CAMPO
     stripeAccountCountry?: string | null;
   };
   affiliatePayoutMode?: 'connect' | 'manual';
   commissionPaidInvoiceIds?: string[];
-  hasAffiliateCommissionPaid?: boolean; // nova flag
-
+  hasAffiliateCommissionPaid?: boolean;
   lastPaymentError?: {
     at: Date;
     paymentId: string;
@@ -313,13 +303,11 @@ export interface IUser extends Document {
     statusDetail: string;
   };
   lastProcessedPaymentId?: string;
-
   communityInspirationOptIn?: boolean;
   communityInspirationOptInDate?: Date | null;
   communityInspirationTermsVersion?: string | null;
   lastCommunityInspirationShown_Daily?: ILastCommunityInspirationShown | null;
   communityInspirationHistory?: ICommunityInspirationHistoryEntry[];
-
   isNewUserForOnboarding?: boolean;
   onboardingCompletedAt?: Date | null;
   inferredExpertiseLevel?: UserExpertiseLevel;
@@ -328,7 +316,6 @@ export interface IUser extends Document {
   userKeyFacts?: IUserKeyFact[];
   totalMessages?: number;
   alertHistory?: IAlertHistoryEntry[];
-
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -382,7 +369,6 @@ const AvailableInstagramAccountSchema = new Schema<IAvailableInstagramAccount>({
   profile_picture_url: { type: String },
 }, { _id: false });
 
-// Placeholders (mantidos conforme arquivo original)
 const UserPreferencesSchema = new Schema<IUserPreferences>({/*...*/}, {/*...*/});
 const UserLongTermGoalSchema = new Schema<IUserLongTermGoal>({/*...*/}, {/*...*/});
 const UserKeyFactSchema = new Schema<IUserKeyFact>({/*...*/}, {/*...*/});
@@ -404,6 +390,7 @@ const AlertHistoryEntrySchema = new Schema<IAlertHistoryEntry>({
   },
 }, { _id: true });
 
+// --- SCHEMA PRINCIPAL DO USUÁRIO ---
 const userSchema = new Schema<IUser>(
   {
     name: { type: String, trim: true, text: true },
@@ -416,30 +403,54 @@ const userSchema = new Schema<IUser>(
     },
     password: { type: String, select: false },
 
-    planStatus: { type: String, enum: PLAN_STATUSES, default: "inactive", index: true },
+    planStatus: {
+      type: String,
+      // --- CORREÇÃO 1 APLICADA ---
+      // Expandimos a lista para incluir todos os status do ciclo de vida do Stripe
+      // que estavam causando o erro de validação.
+      enum: [
+        'active',
+        'inactive',
+        'canceled',
+        'pending',
+        'trialing',
+        'past_due',
+        'incomplete',
+        'incomplete_expired',
+        'unpaid',
+      ],
+      default: "inactive",
+      index: true
+    },
     planType: { type: String, enum: ['monthly', 'annual', 'annual_one_time'], default: 'monthly' },
     paymentGatewaySubscriptionId: { type: String },
     stripeCustomerId: { type: String, index: true },
     stripeSubscriptionId: { type: String, default: null },
     stripePriceId: { type: String, default: null },
-    planInterval: { type: String, enum: ['month', 'year'], default: undefined },
+    planInterval: {
+      type: String,
+      // --- CORREÇÃO 2 APLICADA ---
+      // Adicionamos 'null' para permitir casos onde o intervalo não é definido,
+      // resolvendo o segundo erro de validação.
+      enum: ['month', 'year', null],
+      default: undefined
+    },
     currentPeriodEnd: { type: Date, default: null },
     currency: { type: String, default: 'BRL' },
     lastProcessedEventId: { type: String },
-
+    
     inferredExpertiseLevel: {
       type: String,
       enum: ['iniciante', 'intermediario', 'avancado'],
       default: 'iniciante',
       index: true
     },
-
+    
     image: { type: String },
     googleId: { type: String },
     provider: { type: String, index: true },
     providerAccountId: { type: String, index: true },
     facebookProviderAccountId: { type: String, index: true, sparse: true },
-
     instagramAccessToken: { type: String },
     instagramAccountId: { type: String, index: true, default: null },
     isInstagramConnected: { type: Boolean, default: false },
@@ -456,54 +467,40 @@ const userSchema = new Schema<IUser>(
     is_published: { type: Boolean },
     shopping_product_tag_eligibility: { type: Boolean },
     availableIgAccounts: { type: [AvailableInstagramAccountSchema], default: null },
-
     linkToken: { type: String, index: true, sparse: true },
     linkTokenExpiresAt: { type: Date },
-
     mediaKitToken: { type: String, unique: true, sparse: true },
     mediaKitSlug: { type: String, unique: true, sparse: true },
-
     role: { type: String, enum: USER_ROLES, default: "user" },
     agency: { type: Schema.Types.ObjectId, ref: 'Agency', default: null },
     pendingAgency: { type: Schema.Types.ObjectId, ref: 'Agency', default: null },
-
     planExpiresAt: { type: Date, default: null },
     autoRenewConsentAt: { type: Date, default: null },
-
     whatsappVerificationCode: { type: String, default: null, index: true },
     whatsappPhone: { type: String, default: null, index: true },
     whatsappVerified: { type: Boolean, default: false },
-
     profileTone: { type: String, default: 'informal e prestativo' },
     hobbies: { type: [String], default: [] },
     goal: { type: String, default: null },
     gender: { type: String, enum: ['male', 'female', 'other'], default: 'other', index: true },
     birthDate: { type: Date, default: null },
-
     location: {
       country: { type: String, default: 'BR' },
       state: { type: String, index: true },
       city: { type: String },
     },
-
     affiliateRank: { type: Number, default: 1 },
     affiliateInvites: { type: Number, default: 0 },
     affiliateCode: { type: String, unique: true, sparse: true },
     affiliateUsed: { type: String, default: null },
-
-    // Multimoeda (cents por moeda)
     affiliateBalances: { type: Map, of: Number, default: {} },
     affiliateDebtByCurrency: { type: Map, of: Number, default: {} },
-
-    // LEGACY
     affiliateBalanceCents: { type: Number, default: 0 },
     affiliateBalance: { type: Number },
-
     commissionLog: { type: [commissionLogEntrySchema], default: [] },
     affiliatePayoutMode: { type: String, enum: ['connect', 'manual'], default: 'manual' },
     commissionPaidInvoiceIds: { type: [String], default: [] },
     hasAffiliateCommissionPaid: { type: Boolean, default: false },
-
     paymentInfo: {
       pixKey: { type: String, default: "" },
       bankName: { type: String, default: "" },
@@ -517,25 +514,20 @@ const userSchema = new Schema<IUser>(
       stripeAccountDisabledReason: { type: String, default: undefined },
       stripeAccountCapabilities: { type: Map, of: String, default: {} },
       stripeAccountNeedsOnboarding: { type: Boolean, default: undefined },
-      // ✅ NOVO CAMPO
       stripeAccountCountry: { type: String, default: undefined },
     },
-
     lastPaymentError: {
       at: { type: Date },
       paymentId: { type: String },
       status: { type: String },
       statusDetail: { type: String },
     },
-
     lastProcessedPaymentId: { type: String, default: null, index: true },
-
     communityInspirationOptIn: { type: Boolean, default: false },
     communityInspirationOptInDate: { type: Date, default: null },
     communityInspirationTermsVersion: { type: String, default: null },
     lastCommunityInspirationShown_Daily: { type: lastCommunityInspirationShownSchema, default: null },
     communityInspirationHistory: { type: [communityInspirationHistoryEntrySchema], default: [] },
-
     isNewUserForOnboarding: { type: Boolean, default: true },
     onboardingCompletedAt: { type: Date, default: null },
     userPreferences: { type: UserPreferencesSchema, default: () => ({}) },
@@ -547,13 +539,11 @@ const userSchema = new Schema<IUser>(
   { timestamps: true }
 );
 
-// Índice para acelerar a maturação de comissões pendentes
+// --- ÍNDICES E HOOKS ---
 userSchema.index(
   { 'commissionLog.status': 1, 'commissionLog.availableAt': 1 },
   { name: 'idx_commission_pending_due' }
 );
-
-// Índice auxiliar para consultas de dívida por moeda
 userSchema.index(
   { 'affiliateDebtByCurrency.brl': 1, 'affiliateDebtByCurrency.usd': 1 },
   { name: 'idx_affiliate_debt_by_currency' }
@@ -574,7 +564,6 @@ userSchema.pre<IUser>("save", function (next) {
 
 const UserModel: Model<IUser> = mongoose.models.User || mongoose.model<IUser>("User", userSchema);
 
-// Garantir índices (opcional)
 if (!mongoose.models.User) {
   UserModel.createIndexes().catch((err) => {
     logger.error(`[User.ts] Erro ao criar índices: ${err}`);

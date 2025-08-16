@@ -7,6 +7,7 @@ const AFFILIATE_COOKIE_NAME = "d2c_ref";
 const AFFILIATE_CODE_REGEX = /^[A-Z0-9_-]{3,32}$/i;
 
 export async function middleware(req: NextRequest) {
+  // Cria a resposta base que permite a continuação da requisição
   const res = NextResponse.next();
 
   const rawRef =
@@ -16,6 +17,7 @@ export async function middleware(req: NextRequest) {
   const refCode =
     rawRef && AFFILIATE_CODE_REGEX.test(rawRef) ? rawRef.trim().toUpperCase() : "";
 
+  // Função auxiliar para configurar o cookie em uma dada resposta
   const setAffiliateCookie = (response: NextResponse) => {
     if (refCode) {
       response.cookies.set(AFFILIATE_COOKIE_NAME, refCode, {
@@ -28,17 +30,12 @@ export async function middleware(req: NextRequest) {
           24 *
           60 *
           60, // 90 dias padrão
-        // Se usar subdomínios (ex.: app.data2content.ai), defina o domínio:
-        // domain: process.env.COOKIE_DOMAIN || ".data2content.ai",
       });
     }
     return response;
-    };
+  };
 
-  // grava o cookie se vier ref/aff
-  setAffiliateCookie(res);
-
-  // mantém sua guarda premium e propaga o cookie nela também
+  // Lógica para rotas protegidas
   const guardPrefixes = [
     "/api/whatsapp/generateCode",
     "/api/whatsapp/sendTips",
@@ -50,16 +47,20 @@ export async function middleware(req: NextRequest) {
   if (guardPrefixes.some((p) => req.nextUrl.pathname.startsWith(p))) {
     const guardResponse = await guardPremiumRequest(req);
     if (guardResponse) {
+      // Se a rota for protegida e bloqueada, retorna a resposta do guard com o cookie
       return setAffiliateCookie(guardResponse);
     }
   }
 
-  return res;
+  // Para todas as outras rotas, retorna a resposta principal com o cookie aplicado
+  return setAffiliateCookie(res);
 }
 
 export const config = {
   matcher: [
+    // Aplica o middleware a todas as rotas, exceto arquivos estáticos e de imagem.
     "/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)",
+    // Aplica também explicitamente às rotas da API que podem ser acessadas diretamente
     "/api/whatsapp/generateCode/:path*",
     "/api/whatsapp/sendTips/:path*",
     "/api/whatsapp/verify/:path*",

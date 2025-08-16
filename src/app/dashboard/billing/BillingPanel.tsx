@@ -19,7 +19,7 @@ export default function BillingPanel() {
   const [s, setS] = useState<BillingStatus | null>(null);
   const [doing, setDoing] = useState<'cancel' | 'reactivate' | 'portal' | null>(null);
 
-  const fetchStatus = useCallback(async () => {
+  const fetchStatus = useCallback(async (): Promise<void> => {
     setLoading(true);
     const res = await fetch('/api/billing/status', { cache: 'no-store' });
     const data = await res.json();
@@ -36,32 +36,42 @@ export default function BillingPanel() {
     fetchStatus();
   }, [fetchStatus]);
 
-  const openPortal = async () => {
+  const openPortal = async (): Promise<void> => {
     setDoing('portal');
     const res = await fetch('/api/billing/portal', { method: 'POST' });
     const data = await res.json();
     setDoing(null);
-    if (!res.ok) return toast.error(data?.message ?? 'Falha ao abrir portal');
+    if (!res.ok) {
+      toast.error(data?.message ?? 'Falha ao abrir portal');
+      return;
+    }
     window.location.href = data.url;
   };
 
-  const cancelAtPeriodEnd = async () => {
-    if (!confirm('Cancelar ao fim do período? Você continuará com acesso até a data de renovação.')) return;
+  const cancelAtPeriodEnd = async (): Promise<void> => {
+    const ok = confirm('Cancelar ao fim do período? Você continuará com acesso até a data de renovação.');
+    if (!ok) return;
     setDoing('cancel');
     const res = await fetch('/api/billing/cancel', { method: 'POST' });
     const data = await res.json();
     setDoing(null);
-    if (!res.ok) return toast.error(data?.message ?? 'Falha ao cancelar');
+    if (!res.ok) {
+      toast.error(data?.message ?? 'Falha ao cancelar');
+      return;
+    }
     toast.success('Cancelamento agendado.');
     await fetchStatus();
   };
 
-  const reactivate = async () => {
+  const reactivate = async (): Promise<void> => {
     setDoing('reactivate');
     const res = await fetch('/api/billing/reactivate', { method: 'POST' });
     const data = await res.json();
     setDoing(null);
-    if (!res.ok) return toast.error(data?.message ?? 'Falha ao reativar');
+    if (!res.ok) {
+      toast.error(data?.message ?? 'Falha ao reativar');
+      return;
+    }
     toast.success('Assinatura reativada.');
     await fetchStatus();
   };
@@ -122,4 +132,3 @@ export default function BillingPanel() {
     </div>
   );
 }
-

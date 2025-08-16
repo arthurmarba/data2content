@@ -15,17 +15,14 @@ export default function CancelRenewalCard() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  // Lógica de controle da UI baseada no status do plano
   const canCancel = planStatus === "active";
-  // CORREÇÃO: Cast para 'string' para resolver o erro de tipo.
-  // Isso ocorre porque a definição do tipo PlanStatus pode não incluir 'canceled'.
   const alreadyCancelled = (planStatus as string) === "canceled";
 
+  // <<< INÍCIO DA CORREÇÃO >>>
   async function cancelRenewal() {
+    setLoading(true);
+    setErr(null);
     try {
-      setLoading(true);
-      setErr(null);
-
       const res = await fetch("/api/billing/cancel", { method: "POST" });
       const data = await res.json();
 
@@ -35,13 +32,14 @@ export default function CancelRenewalCard() {
 
       toast({
         variant: "success",
-        title: "Renovação cancelada com sucesso",
-        description: "Você manterá o acesso ao plano até a data de expiração.",
+        title: "Renovação cancelada",
+        description: "Atualizando o status da sua assinatura...",
       });
 
-      // Força a atualização dos dados da sessão e do status de faturamento
-      await update();
-      refetch();
+      // Força a recarga da página para buscar a sessão e o status mais recentes.
+      // Esta é a forma mais robusta de garantir a sincronia da UI.
+      window.location.reload();
+
     } catch (e: any) {
       const msg = e?.message || "Ocorreu um erro inesperado";
       setErr(msg);
@@ -50,10 +48,10 @@ export default function CancelRenewalCard() {
         title: "Falha ao cancelar",
         description: String(msg),
       });
-    } finally {
-      setLoading(false);
+      setLoading(false); // Desativa o loading apenas em caso de erro
     }
   }
+  // <<< FIM DA CORREÇÃO >>>
 
   const getStatusLabel = (status: string | null | undefined) => {
     switch (status) {

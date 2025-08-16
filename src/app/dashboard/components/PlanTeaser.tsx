@@ -1,44 +1,125 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import useSWR from 'swr';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useDebounce } from 'use-debounce';
 
 type Plan = 'monthly' | 'annual';
 type Currency = 'BRL' | 'USD';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
+type InvoicePreview = {
+  currency: string;
+  subtotal: number;        // centavos
+  discountsTotal: number;  // centavos
+  tax: number;             // centavos
+  total: number;           // centavos
+  nextCycleAmount: number; // centavos
+  affiliateApplied: boolean;
+};
+
+const formatCurrency = (amount: number, currency: Currency | string) =>
+  new Intl.NumberFormat(currency === 'BRL' ? 'pt-BR' : 'en-US', {
+    style: 'currency',
+    currency: typeof currency === 'string' ? currency : (currency as Currency),
+  }).format((amount ?? 0) / 100);
+
 export default function PlanTeaser() {
   const { data: session } = useSession();
   const isActive = session?.user?.planStatus === 'active';
+  if (isActive) return null; // já tem plano ativo → não renderiza teaser
 
-  // Se já é ativo, não mostra o card (fica invisível)
-  if (isActive) return null;
+  const router = useRouter();
+  const sp = useSearchParams();
 
+  // Preços base (para economia e fallback)
   const { data, isLoading } = useSWR('/api/billing/prices', fetcher, { revalidateOnFocus: false });
-  const prices = (data?.prices ?? []) as {
-    plan: Plan; currency: Currency; unitAmount: number | null;
-  }[];
+  const prices = (data?.prices ?? []) as { plan: Plan; currency: Currency; unitAmount: number | null }[];
 
   const [currency, setCurrency] = useState<Currency>('BRL');
   const [plan, setPlan] = useState<Plan>('monthly');
+
+  // Afiliado / cupom/promotion (mantém compatibilidade do seu subscribe)
+  const [affiliate, setAffiliate] = useState('');
+  const [debouncedAffiliate] = useDebounce(affiliate, 400);
   const [showCoupon, setShowCoupon] = useState(false);
   const [coupon, setCoupon] = useState('');
   const [promotion, setPromotion] = useState('');
-  const [affiliate, setAffiliate] = useState('');
+
+  // Estados de validação/aplicação
+  const [applyLoading, setApplyLoading] = useState(false);
+  const [affiliateError, setAffiliateError] = useState<string | null>(null);
+
+  // Prévia (preço “real” com/sem afiliado) e loading
+  const [preview, setPreview] = useState<InvoicePreview | null>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  const sp = useSearchParams();
-  const router = useRouter();
 
   // Pré-preenche afiliado por ?ref=
   useEffect(() => {
     const ref = sp.get('ref');
     if (ref) setAffiliate(ref.toUpperCase());
   }, [sp]);
+
+  // Util para buscar preview (com/sem código)
+  const fetchPreview = useCallback(
+    async (p: Plan, c: Currency, code: string) => {
+      const res = await fetch('/api/billing/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: p, currency: c, affiliateCode: code }),
+      });
+      const data = await res.json();
+      return { ok: res.ok, data };
+    },
+    []
+  );
+
+  // Carrega prévia sempre que plano/moeda/código mudam (c/ debounce no código)
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      setIsPreviewLoading(true);
+      setErrorMsg(null);
+      setAffiliateError(null);
+      try {
+        const { ok, data } = await fetchPreview(plan, currency, debouncedAffiliate || '');
+        if (!ok) {
+          // Se erro for de código inválido/self-referral, trata como erro de input e restaura preview sem código
+          const msg: string = data?.message || data?.error || '';
+          const lower = (msg || '').toLowerCase();
+          if (data?.code === 'SELF_REFERRAL') {
+            if (!cancelled) setAffiliateError('Você não pode usar seu próprio código.');
+          } else if (data?.code === 'INVALID_CODE' || lower.includes('inválido')) {
+            if (!cancelled) setAffiliateError(data?.message || 'Código inválido ou expirado.');
+          } else {
+            if (!cancelled) setErrorMsg(msg || 'Erro ao calcular o valor.');
+          }
+          const fb = await fetchPreview(plan, currency, '');
+          if (!cancelled) setPreview(fb.data ?? null);
+        } else {
+          if (!cancelled) setPreview(data);
+        }
+      } catch (e: any) {
+        if (!cancelled) {
+          setErrorMsg(e?.message || 'Erro ao calcular o valor.');
+          setPreview(null);
+        }
+      } finally {
+        if (!cancelled) setIsPreviewLoading(false);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [plan, currency, debouncedAffiliate, fetchPreview]);
 
   const current = useMemo(
     () => prices.find(p => p.plan === plan && p.currency === currency) || null,
@@ -58,43 +139,80 @@ export default function PlanTeaser() {
     if (!priceMonthly || !priceAnnual) return null;
     const fullYear = priceMonthly * 12;
     const save = (fullYear - priceAnnual) / fullYear;
+    if (save <= 0) return null;
     return Math.round(save * 100);
   }, [priceMonthly, priceAnnual]);
 
-  const priceLabel = useMemo(() => {
-    if (!current?.unitAmount) return '—';
-    const fmt = new Intl.NumberFormat(currency === 'BRL' ? 'pt-BR' : 'en-US', {
-      style: 'currency', currency, minimumFractionDigits: 2
-    });
-    return fmt.format(current.unitAmount / 100) + (plan === 'monthly' ? '/mês' : '/ano');
-  }, [current, currency, plan]);
+  const savingsAbs = useMemo(() => {
+    if (!priceMonthly || !priceAnnual) return null;
+    const econ = priceMonthly * 12 - priceAnnual;
+    return econ > 0 ? econ : null;
+  }, [priceMonthly, priceAnnual]);
+
+  // Aplicar manualmente (sem esperar debounce)
+  const handleApplyAffiliate = useCallback(async () => {
+    const trimmed = affiliate.trim().toUpperCase();
+    if (!trimmed) return;
+    setApplyLoading(true);
+    setAffiliateError(null);
+    setErrorMsg(null);
+    try {
+      const { ok, data } = await fetchPreview(plan, currency, trimmed);
+      if (!ok) {
+        if (data?.code === 'SELF_REFERRAL') {
+          setAffiliateError('Você não pode usar seu próprio código.');
+        } else if (data?.code === 'INVALID_CODE' || (data?.error || '').toLowerCase().includes('inválido')) {
+          setAffiliateError(data?.message || data?.error || 'Código inválido ou expirado.');
+          // restaura preview sem código
+          const fb = await fetchPreview(plan, currency, '');
+          setPreview(fb.data ?? null);
+        } else {
+          setErrorMsg(data?.message || data?.error || 'Não foi possível validar o código.');
+        }
+      } else {
+        setPreview(data);
+        setAffiliate(trimmed); // normaliza
+      }
+    } catch {
+      setErrorMsg('Falha de rede. Tente novamente.');
+    } finally {
+      setApplyLoading(false);
+    }
+  }, [affiliate, plan, currency, fetchPreview]);
 
   async function handleSubscribe() {
     try {
       setLoading(true);
       setErrorMsg(null);
-
       const body: any = { plan, currency };
-      if (affiliate.trim()) body.affiliateCode = affiliate.trim();
+      if (affiliate.trim()) body.affiliateCode = affiliate.trim().toUpperCase();
       if (showCoupon) {
         if (coupon.trim()) body.coupon = coupon.trim();
         if (promotion.trim()) body.promotion_code = promotion.trim();
       }
-
       const res = await fetch('/api/billing/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
       const json = await res.json();
-
       if (!res.ok) {
-        setErrorMsg(json?.error || 'Falha ao iniciar assinatura.');
+        // Reflete erros de código no input
+        if (json?.code === 'SELF_REFERRAL') {
+          setAffiliateError('Você não pode usar seu próprio código.');
+        } else if (json?.code === 'INVALID_CODE' || (json?.message || '').toLowerCase().includes('inválido')) {
+          setAffiliateError(json?.message || 'Código inválido ou expirado.');
+        } else {
+          setErrorMsg(json?.error || json?.message || 'Falha ao iniciar assinatura.');
+        }
         return;
       }
-      // você pode ter uma página de checkout; se tiver, redirecione:
       if (json?.clientSecret) {
-        router.push(`/dashboard/billing/checkout?cs=${encodeURIComponent(json.clientSecret)}&sid=${encodeURIComponent(json.subscriptionId)}`);
+        router.push(
+          `/dashboard/billing/checkout?cs=${encodeURIComponent(json.clientSecret)}&sid=${encodeURIComponent(
+            json.subscriptionId
+          )}`
+        );
       } else {
         router.refresh();
       }
@@ -123,28 +241,65 @@ export default function PlanTeaser() {
       {/* Alternadores */}
       <div className="mb-5 flex items-center justify-center gap-2">
         {(['BRL','USD'] as Currency[]).map(c => (
-          <button key={c}
+          <button
+            key={c}
             onClick={() => setCurrency(c)}
-            className={`rounded-full px-3 py-1 text-sm ${currency===c?'bg-black text-white':'bg-gray-100 text-gray-700'}`}>{c}</button>
+            aria-pressed={currency===c}
+            className={`rounded-full px-3 py-1 text-sm transition ${currency===c?'bg-black text-white':'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+          >
+            {c}
+          </button>
         ))}
         <span className="mx-1 h-5 w-px bg-gray-200" />
         {(['monthly','annual'] as Plan[]).map(p => (
-          <button key={p}
+          <button
+            key={p}
             onClick={() => setPlan(p)}
-            className={`rounded-full px-3 py-1 text-sm ${plan===p?'bg-black text-white':'bg-gray-100 text-gray-700'}`}>
+            aria-pressed={plan===p}
+            className={`rounded-full px-3 py-1 text-sm transition ${plan===p?'bg-black text-white':'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+          >
             {p==='monthly' ? 'Mensal' : 'Anual'}
           </button>
         ))}
       </div>
 
-      {/* Preço */}
-      <div className="mb-6 text-center">
-        <div className="text-4xl font-extrabold tracking-tight">
-          {isLoading ? '—' : priceLabel}
-        </div>
-        {plan==='annual' && priceMonthly && priceAnnual && (
+      {/* Preço (usa preview para refletir afiliado; fallback para prices) */}
+      <div className="mb-6 text-center min-h-[3.25rem] flex items-center justify-center">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={isPreviewLoading ? 'loading' : `${plan}-${currency}-${preview?.total}-${preview?.affiliateApplied}`}
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -5 }}
+            transition={{ duration: 0.2 }}
+            className="flex items-baseline justify-center gap-2"
+          >
+            {isPreviewLoading ? (
+              <span className="text-gray-400">—</span>
+            ) : preview ? (
+              <>
+                {preview.affiliateApplied && (
+                  <span className="text-2xl text-gray-400 line-through">
+                    {formatCurrency(preview.subtotal, preview.currency)}
+                  </span>
+                )}
+                <span className="text-4xl font-extrabold tracking-tight">
+                  {formatCurrency(preview.total, preview.currency)}
+                </span>
+                <span className="text-lg text-gray-500">/{plan === 'monthly' ? 'mês' : 'ano'}</span>
+              </>
+            ) : (
+              <span className="text-4xl font-extrabold tracking-tight">
+                {current?.unitAmount ? formatCurrency(current.unitAmount, currency) : '—'}
+              </span>
+            )}
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Economia no anual */}
+        {plan==='annual' && savingsAbs && (
           <p className="mt-1 text-xs text-gray-500">
-            Equivalente a {(priceAnnual/(priceMonthly*12) * 100).toFixed(0)}% do preço mensal no ano.
+            Economize ~{formatCurrency(savingsAbs, currency)} / ano no plano anual
           </p>
         )}
       </div>
@@ -159,20 +314,42 @@ export default function PlanTeaser() {
 
       {/* Afiliado */}
       <div className="mb-3">
-        <label className="mb-1 block text-sm font-medium">Código de Afiliado (opcional)</label>
-        <input
-          value={affiliate}
-          onChange={(e) => setAffiliate(e.target.value.toUpperCase())}
-          placeholder="Ex: JLS29D"
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm tracking-widest outline-none focus:border-black"
-          maxLength={10}
-        />
+        <label htmlFor="aff" className="mb-1 block text-sm font-medium">Cupom ou Código de afiliado (opcional)</label>
+        <div className={`relative ${preview?.affiliateApplied && !affiliateError ? 'ring-2 ring-indigo-500/30 rounded-lg' : ''}`}>
+          <input
+            id="aff"
+            value={affiliate}
+            onChange={(e) => setAffiliate(e.target.value.toUpperCase())}
+            onKeyDown={(e) => e.key === 'Enter' && handleApplyAffiliate()}
+            placeholder="Ex: JLS29D"
+            className={`w-full rounded-lg border px-3 py-2 pr-24 text-sm tracking-widest outline-none ${affiliateError ? 'border-red-500' : 'border-gray-300 focus:border-black'}`}
+            maxLength={12}
+            aria-invalid={!!affiliateError}
+            aria-describedby={affiliateError ? 'aff-error' : undefined}
+          />
+          <div className="absolute right-1.5 top-1.5">
+            <button
+              type="button"
+              onClick={handleApplyAffiliate}
+              disabled={applyLoading || !affiliate.trim()}
+              className={`h-8 rounded-md border bg-white px-3 text-sm ${applyLoading ? 'opacity-60' : 'hover:bg-gray-50'}`}
+            >
+              {applyLoading ? '...' : 'Aplicar'}
+            </button>
+          </div>
+        </div>
+        <div role="status" aria-live="polite" className="min-h-[1.25rem]">
+          {affiliateError && <p id="aff-error" className="mt-1 text-xs text-red-600">{affiliateError}</p>}
+          {!affiliateError && preview?.affiliateApplied && (
+            <p className="mt-1 text-xs text-green-600">✓ Desconto de 10% aplicado na primeira cobrança!</p>
+          )}
+        </div>
         <p className="mt-1 text-xs text-gray-500">
           Use o código de quem te indicou. Só pode ser aplicado uma vez e não pode ser o seu próprio.
         </p>
       </div>
 
-      {/* Cupom / promotion — escondido por padrão */}
+      {/* Cupom / promotion — opcional, como no seu original */}
       <button
         className="mb-2 text-left text-xs text-gray-600 underline"
         onClick={() => setShowCoupon(v => !v)}
@@ -200,7 +377,7 @@ export default function PlanTeaser() {
       {errorMsg && <p className="mb-3 text-sm text-red-600">{errorMsg}</p>}
       <button
         onClick={handleSubscribe}
-        disabled={loading || !current}
+        disabled={loading || (!current && !preview) || isPreviewLoading}
         className="w-full rounded-2xl bg-black px-4 py-3 text-white disabled:opacity-50"
       >
         {loading ? 'Iniciando…' : 'Assinar agora'}
@@ -212,4 +389,3 @@ export default function PlanTeaser() {
     </div>
   );
 }
-

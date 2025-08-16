@@ -1,9 +1,11 @@
+// src/app/api/billing/change-plan/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import { stripe } from "@/app/lib/stripe";
+import Stripe from "stripe";
 
 export const runtime = "nodejs";
 
@@ -11,6 +13,7 @@ type Plan = "monthly" | "annual";
 type Currency = "BRL" | "USD";
 type When = "now" | "period_end";
 
+// Helper para obter o Price ID
 function getPriceId(plan: Plan, currency: Currency) {
   if (plan === "monthly" && currency === "BRL") return process.env.STRIPE_PRICE_MONTHLY_BRL!;
   if (plan === "annual"  && currency === "BRL") return process.env.STRIPE_PRICE_ANNUAL_BRL!;
@@ -47,56 +50,76 @@ export async function POST(req: NextRequest) {
     if (!itemId) throw new Error("Item da assinatura não encontrado");
 
     if (when === "now") {
-      const updated = await stripe.subscriptions.update(sub.id, {
+      const updatedSub = await stripe.subscriptions.update(sub.id, {
         items: [{ id: itemId, price: priceId }],
         proration_behavior: "create_prorations",
         billing_cycle_anchor: "now",
         payment_behavior: "default_incomplete",
-        expand: ["latest_invoice.payment_intent"],
         metadata: { plan: toPlan },
       });
 
-      // Deixe o webhook ajustar planType/planExpiresAt quando a invoice for paga.
+      const latestInvoiceId = updatedSub.latest_invoice;
+      if (typeof latestInvoiceId !== 'string') {
+        return NextResponse.json({ success: true, clientSecret: null });
+      }
 
-      const pi = (updated.latest_invoice as any)?.payment_intent;
+      const invoice = await stripe.invoices.retrieve(latestInvoiceId, {
+        expand: ['payment_intent'],
+      });
+      
+      let clientSecret: string | null = null;
+      
+      const expandedInvoice = invoice as Stripe.Invoice & { payment_intent?: Stripe.PaymentIntent };
+
+      if (expandedInvoice.status === 'open' && expandedInvoice.payment_intent && typeof expandedInvoice.payment_intent !== 'string') {
+        clientSecret = expandedInvoice.payment_intent.client_secret;
+      }
+      
       return NextResponse.json({
-        subscriptionId: updated.id,
-        clientSecret: pi?.client_secret || null,
-        requiresAction: !!pi && ["requires_action", "requires_payment_method"].includes(pi.status),
+        subscriptionId: updatedSub.id,
+        clientSecret: clientSecret,
       });
     }
 
-    // when === "period_end" → agenda com Subscription Schedules (fase futura)
+    // Lógica para agendamento
     try {
-      // CORREÇÃO APLICADA AQUI
       const currentItem = sub.items.data[0];
       if (!currentItem?.price?.id) {
         throw new Error("Item da assinatura atual não encontrado para o agendamento.");
       }
-
       const schedule = await stripe.subscriptionSchedules.create({
         from_subscription: sub.id,
+      });
+
+      // CORREÇÃO: Adiciona uma verificação de segurança para a fase atual
+      const currentPhase = schedule.phases[0];
+      if (!currentPhase) {
+        throw new Error("Falha ao criar agendamento: a fase atual da assinatura não foi encontrada.");
+      }
+
+      const updatedSchedule = await stripe.subscriptionSchedules.update(schedule.id, {
         end_behavior: "release",
         phases: [
           {
-            // mantém o preço atual por 1 ciclo
-            items: [{ price: currentItem.price.id, quantity: 1 }],
-            iterations: 1,
+            items: [{ price: currentItem.price.id }],
+            start_date: currentPhase.start_date, // Usa a variável segura
+            end_date: currentPhase.end_date,     // Usa a variável segura
+            proration_behavior: 'none',
           },
           {
-            // troca para o novo price no próximo ciclo
-            items: [{ price: priceId, quantity: 1 }],
+            items: [{ price: priceId }],
+            proration_behavior: 'create_prorations',
           },
         ],
       });
-
-      return NextResponse.json({ scheduled: true, scheduleId: schedule.id });
+      return NextResponse.json({ scheduled: true, scheduleId: updatedSchedule.id });
     } catch (e: any) {
       if (String(e?.message || "").includes("active subscription schedule")) {
         return NextResponse.json({ error: "Já existe uma troca agendada para o fim do ciclo atual." }, { status: 409 });
       }
       throw e;
     }
+
   } catch (err: any) {
     console.error("[billing/change-plan] error:", err);
     return NextResponse.json({ error: err?.message || "Erro ao mudar de plano" }, { status: 500 });

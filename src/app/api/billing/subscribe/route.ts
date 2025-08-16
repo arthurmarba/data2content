@@ -28,49 +28,33 @@ function getPriceId(plan: Plan, currency: Currency) {
   throw new Error("PriceId não configurado para este plano/moeda");
 }
 
-/**
- * Resolve código digitado para Discount(s):
- * - Tenta Promotion Code primeiro
- * - Cai para Coupon ID se existir
- * Retorna SEMPRE array (evita o union '' | Discount[] do SDK)
- */
 async function resolveManualDiscountFields(
   code: string
 ): Promise<{ discounts: Stripe.SubscriptionCreateParams.Discount[] } | null> {
   const trimmed = normalizeCode(code);
   if (!trimmed) return null;
 
-  // 1) Promotion Code
   try {
     const res = await stripe.promotionCodes.list({ code: trimmed, active: true, limit: 1 });
     const pc = res.data?.[0];
-    if (pc?.id) {
-      return { discounts: [{ promotion_code: pc.id }] };
-    }
-  } catch {
-    /* noop */
-  }
+    if (pc?.id) return { discounts: [{ promotion_code: pc.id }] };
+  } catch { /* noop */ }
 
-  // 2) Coupon ID
   try {
     const c = await stripe.coupons.retrieve(trimmed as string);
     const isDeleted = (c as any)?.deleted === true;
     if ((c as any)?.id && !isDeleted) {
       return { discounts: [{ coupon: (c as any).id }] };
     }
-  } catch {
-    /* noop */
-  }
+  } catch { /* noop */ }
 
   return null;
 }
 
-/** Union alinhado entre helper e fallback */
 type ResolvedAffiliate =
   | { code: string | null; source: "typed" | "url" | "cookie" | null }
   | { code: undefined; source: undefined };
 
-// Fallback local se o helper externo não retornar nada
 function resolveAffiliateCodeFallback(req: NextRequest, bodyCode?: string): ResolvedAffiliate {
   const typed = normalizeCode(bodyCode);
   if (typed) return { code: typed, source: "typed" };
@@ -83,8 +67,43 @@ function resolveAffiliateCodeFallback(req: NextRequest, bodyCode?: string): Reso
   const fromCookie = normalizeCode(cookieStore.get("d2c_ref")?.value || "");
   if (fromCookie) return { code: fromCookie, source: "cookie" };
 
-  // Nada encontrado
   return { code: undefined, source: undefined };
+}
+
+type InvoiceMaybePI = Stripe.Invoice & {
+  payment_intent?: Stripe.PaymentIntent | string | null;
+};
+
+function asInvoice(resp: unknown): InvoiceMaybePI {
+  const anyResp = resp as any;
+  if (anyResp && typeof anyResp === "object" && "data" in anyResp) {
+    return anyResp.data as InvoiceMaybePI;
+  }
+  return anyResp as InvoiceMaybePI;
+}
+
+async function extractClientSecretFromSubscription(sub: Stripe.Subscription): Promise<string | undefined> {
+  try {
+    if (sub.latest_invoice && typeof sub.latest_invoice !== "string") {
+      const latestInv = sub.latest_invoice as InvoiceMaybePI;
+      const pi = latestInv.payment_intent;
+      if (pi && typeof pi !== "string" && pi.client_secret) return pi.client_secret;
+    }
+
+    const invoiceId =
+      typeof sub.latest_invoice === "string"
+        ? sub.latest_invoice
+        : sub.latest_invoice?.id;
+
+    if (invoiceId) {
+      const invResp = await stripe.invoices.retrieve(invoiceId, { expand: ["payment_intent"] });
+      const invoice = asInvoice(invResp);
+      const pi = invoice.payment_intent;
+      if (pi && typeof pi !== "string" && pi.client_secret) return pi.client_secret;
+    }
+  } catch { /* noop */ }
+
+  return undefined;
 }
 
 export async function POST(req: NextRequest) {
@@ -111,13 +130,11 @@ export async function POST(req: NextRequest) {
     }
 
     await connectToDatabase();
-
     const user = await User.findById(session.user.id);
     if (!user) {
       return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
     }
 
-    // prioridade: digitado/typed > URL (?ref|?aff) > cookie (90 dias)
     let resolved: ResolvedAffiliate = resolveAffiliateCodeHelper
       ? (resolveAffiliateCodeHelper(req, body.affiliateCode) as ResolvedAffiliate)
       : { code: undefined, source: undefined };
@@ -126,17 +143,13 @@ export async function POST(req: NextRequest) {
       resolved = resolveAffiliateCodeFallback(req, body.affiliateCode);
     }
 
-    const affiliateCode: string | undefined =
-      normalizeCode(resolved.code || undefined) || undefined;
-
+    const affiliateCode: string | undefined = normalizeCode(resolved.code || undefined) || undefined;
     const source: "typed" | "url" | "cookie" | undefined =
       (resolved as Extract<ResolvedAffiliate, { code: string | null }>).source || undefined;
 
     const typedCode = source === "typed" ? affiliateCode : undefined;
-
     const priceId = getPriceId(plan, currency);
 
-    // garante cliente
     let customerId = user.stripeCustomerId;
     if (!customerId) {
       const customer = await stripe.customers.create({
@@ -148,21 +161,15 @@ export async function POST(req: NextRequest) {
       user.stripeCustomerId = customer.id;
     }
 
-    // Limpa tentativas pendentes (evita travar INCOMPLETE)
     if (customerId) {
-      try {
-        await cancelBlockingIncompleteSubs(customerId);
-      } catch {}
+      try { await cancelBlockingIncompleteSubs(customerId); } catch {}
     }
 
-    // Reaproveita assinatura existente do mesmo price (se fizer sentido pro seu fluxo)
     let existing: Stripe.Subscription | null = null;
     if (user.stripeSubscriptionId) {
       try {
         existing = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
-      } catch {
-        /* ignore */
-      }
+      } catch { /* ignore */ }
     }
     if (!existing) {
       const list = await stripe.subscriptions.list({
@@ -183,7 +190,7 @@ export async function POST(req: NextRequest) {
     let discounts: Stripe.SubscriptionCreateParams.Discount[] | undefined = undefined;
 
     if (existing && ["active", "trialing"].includes(existing.status) && existing.items.data[0]) {
-      // Atualiza o price na assinatura atual (sem aplicar novo desconto)
+      // --- FLUXO DE UPGRADE/DOWNGRADE ---
       const itemId = existing.items.data[0].id;
       sub = await stripe.subscriptions.update(existing.id, {
         items: [{ id: itemId, price: priceId }],
@@ -193,7 +200,7 @@ export async function POST(req: NextRequest) {
         expand: ["latest_invoice.payment_intent"],
       });
     } else {
-      // ——— Regra de prioridade: AFILIADO > cupom manual ———
+      // --- FLUXO DE NOVA ASSINATURA ---
       if (affiliateCode) {
         affiliateOwner = await User.findOne({ affiliateCode }).select("_id affiliateCode").lean();
       }
@@ -205,10 +212,14 @@ export async function POST(req: NextRequest) {
             { status: 400 }
           );
         }
-
+        
+        // --- INÍCIO DA CORREÇÃO 1 (COMISSÃO) ---
+        // Atribui e salva a afiliação ANTES de criar a assinatura no Stripe
         if (!user.affiliateUsed) {
           user.affiliateUsed = affiliateCode!;
+          await user.save(); // Garante que o dado esteja no DB para o webhook
         }
+        // --- FIM DA CORREÇÃO 1 ---
 
         const couponEnv =
           currency === "BRL"
@@ -219,12 +230,11 @@ export async function POST(req: NextRequest) {
           return NextResponse.json(
             {
               code: "AFFILIATE_COUPON_MISSING",
-              message: "Cupom de afiliado não configurado para esta moeda. Contate o suporte.",
+              message: "Cupom de afiliado não configurado. Contate o suporte.",
             },
             { status: 500 }
           );
         }
-
         discounts = [{ coupon: couponEnv }];
       } else if (typedCode) {
         const manual = await resolveManualDiscountFields(typedCode);
@@ -237,44 +247,96 @@ export async function POST(req: NextRequest) {
         discounts = manual.discounts;
       }
 
-      const metadata: Record<string, string> = {
-        userId: String(user._id),
-        plan,
-      };
+      const metadata: Record<string, string> = { userId: String(user._id), plan };
       if (affiliateOwner && affiliateCode) {
         metadata.affiliateCode = affiliateCode;
         metadata.affiliate_user_id = String(affiliateOwner._id);
         if (source) metadata.attribution_source = String(source);
       }
 
-      const createParams: Stripe.SubscriptionCreateParams = {
+      sub = await stripe.subscriptions.create({
         customer: customerId!,
         items: [{ price: priceId }],
         payment_behavior: "default_incomplete",
         expand: ["latest_invoice.payment_intent"],
         metadata,
         ...(discounts ? { discounts } : {}),
-      };
-
-      sub = await stripe.subscriptions.create(createParams);
+      });
     }
 
-    // Atualiza usuário
+    // --- INÍCIO DA CORREÇÃO 2 (MUDANÇA DE PLANO) ---
+    // Esta seção agora é executada tanto para NOVAS assinaturas quanto para UPGRADES,
+    // garantindo que o front-end sempre receba o clientSecret para o pagamento.
+
     user.stripeSubscriptionId = sub.id;
     user.planType = plan;
     user.planStatus = "pending";
     user.planInterval = plan === "annual" ? "year" : "month";
     user.stripePriceId = priceId;
+    // O 'affiliateUsed' já foi salvo antes, então aqui apenas garantimos os outros campos
     await user.save();
 
-    const clientSecret = (sub.latest_invoice as any)?.payment_intent?.client_secret;
+    let clientSecret = await extractClientSecretFromSubscription(sub);
+    if (!clientSecret) {
+      try {
+        const refreshed = await stripe.subscriptions.retrieve(sub.id, {
+          expand: ["latest_invoice.payment_intent"],
+        });
+        clientSecret = await extractClientSecretFromSubscription(refreshed);
+      } catch { /* noop */ }
+    }
+
     const affiliateApplied = Boolean(affiliateOwner);
+    const usedCouponType = affiliateApplied ? "affiliate" : (typedCode ? "manual" : null);
+
+    if (clientSecret) {
+      return NextResponse.json({
+        clientSecret,
+        subscriptionId: sub.id,
+        affiliateApplied,
+        usedCouponType,
+      });
+    }
+    // --- FIM DA CORREÇÃO 2 ---
+
+    // Lógica de fallback para Checkout Session (mantida por segurança)
+    try {
+      if (sub.status === "incomplete" && (!existing || existing.id !== sub.id)) {
+        await stripe.subscriptions.cancel(sub.id);
+      }
+    } catch { /* noop */ }
+
+    const successUrl = `${process.env.NEXTAUTH_URL}/dashboard/billing/thanks?session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = `${process.env.NEXTAUTH_URL}/dashboard/billing`;
+
+    const sessionCheckout = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      customer: customerId!,
+      line_items: [{ price: priceId, quantity: 1 }],
+      ...(discounts && discounts.length > 0
+        ? { discounts: discounts as Stripe.Checkout.SessionCreateParams.Discount[] }
+        : { allow_promotion_codes: true }
+      ),
+      subscription_data: {
+        metadata: {
+          userId: String(user._id),
+          plan,
+          ...(affiliateOwner && affiliateCode
+            ? { affiliateCode, affiliate_user_id: String(affiliateOwner._id) }
+            : {}),
+          ...(source ? { attribution_source: String(source) } : {}),
+        },
+      },
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      client_reference_id: String(user._id),
+    });
 
     return NextResponse.json({
-      clientSecret,
+      checkoutUrl: sessionCheckout.url,
       subscriptionId: sub.id,
       affiliateApplied,
-      usedCouponType: affiliateApplied ? "affiliate" : (typedCode ? "manual" : null),
+      usedCouponType,
     });
   } catch (err: any) {
     console.error("[billing/subscribe] error:", err);

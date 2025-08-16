@@ -9,11 +9,19 @@ export default function DeleteAccountSection() {
   const { data: session } = useSession();
   const planStatus = session?.user?.planStatus;
   const affiliateBalances = session?.user?.affiliateBalances || {};
-
-  // ✅ CORREÇÃO: 'pending' foi removido da lógica de bloqueio da UI.
-  const isDeletionBlocked = ["active", "trial", "past_due"].includes(
+  
+  // <<< INÍCIO DA CORREÇÃO >>>
+  // Acessamos o status de cancelamento agendado da sessão.
+  // @ts-ignore - Adicionado para permitir compilação antes de atualizarmos o tipo da sessão
+  const isScheduledForCancellation = session?.user?.cancelAtPeriodEnd === true;
+  
+  // A exclusão agora só é bloqueada se o plano estiver ativo E NÃO estiver agendado para cancelar.
+  const isPlanActive = ["active", "trial", "past_due"].includes(
     planStatus || ""
   );
+  const isDeletionBlocked = isPlanActive && !isScheduledForCancellation;
+  // <<< FIM DA CORREÇÃO >>>
+
 
   const [showBlocked, setShowBlocked] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -68,16 +76,22 @@ export default function DeleteAccountSection() {
     <section id="delete-account" className="space-y-4 pt-4 border-t">
       <h2 className="text-xl font-semibold text-red-700">Excluir conta</h2>
       
-      {/* ✅ MELHORIA: Mensagem informativa para o status 'pending' */}
       {planStatus === "pending" && (
         <p className="text-sm text-blue-800 bg-blue-50 p-3 rounded-md">
-          Sua assinatura está <b>pendente</b> (sem cobrança ativa). Você pode excluir sua conta se desejar.
+          Sua assinatura está <b>pendente</b>. Você pode excluir sua conta se desejar.
+        </p>
+      )}
+
+      {/* <<< NOVA MENSAGEM INFORMATIVA >>> */}
+      {isScheduledForCancellation && (
+        <p className="text-sm text-green-800 bg-green-50 p-3 rounded-md">
+          Sua assinatura já foi cancelada e não será renovada. Você pode excluir sua conta permanentemente agora, se desejar.
         </p>
       )}
 
       {isDeletionBlocked && (
         <p className="text-sm text-yellow-800 bg-yellow-50 p-3 rounded-md">
-          Você possui uma assinatura ativa. Cancele sua assinatura antes de prosseguir com a exclusão da conta.
+          Você possui uma assinatura ativa. Para excluir sua conta, primeiro é necessário cancelar a renovação automática.
         </p>
       )}
 
@@ -128,7 +142,6 @@ export default function DeleteAccountSection() {
         )}
       </AnimatePresence>
 
-      {/* O modal de confirmação final permanece o mesmo */}
       <AnimatePresence>
         {showConfirm && (
           <motion.div

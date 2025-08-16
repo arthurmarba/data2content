@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { ConnectStatus } from '@/types/connect';
 import { AffiliateSummary } from '@/types/affiliate';
-import { STRIPE_DISABLED_REASON, STRIPE_STATUS, CURRENCY_HELP } from '@/copy/stripe';
+import { STRIPE_DISABLED_REASON } from '@/copy/stripe';
 import CurrencyMismatchModal from './CurrencyMismatchModal';
 
 interface Props {
@@ -40,70 +40,91 @@ export default function StripeStatusPanel({ status, summary, onRefresh, onOnboar
     }
   }
 
-  const reason = status.disabledReasonKey
-    ? STRIPE_DISABLED_REASON[status.disabledReasonKey] || STRIPE_DISABLED_REASON.default
-    : undefined;
-
-  type Badge = (typeof STRIPE_STATUS)[keyof typeof STRIPE_STATUS];
-  let badge: Badge = STRIPE_STATUS.action_needed;
-  if (status.isUnderReview) badge = STRIPE_STATUS.under_review;
-  else if (status.payoutsEnabled) badge = STRIPE_STATUS.verified;
-
-  return (
-    <div className="rounded-xl bg-gray-50 p-3 space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-gray-600">Status Stripe</span>
-        <span className="text-xs font-semibold">{badge}</span>
+  // 1. Ação mais importante: O usuário precisa configurar a conta.
+  if (status.needsOnboarding) {
+    return (
+      <div className="rounded-xl bg-amber-50 p-4 space-y-3 text-center border border-amber-200">
+        <p className="text-sm font-semibold text-amber-800">Ação necessária</p>
+        <p className="text-xs text-amber-700">
+          Sua conta precisa ser configurada no Stripe para que você possa receber pagamentos.
+        </p>
+        <button
+          onClick={onOnboard}
+          className="w-full rounded-md bg-brand-pink px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-opacity"
+        >
+          Configurar Pagamentos via Stripe
+        </button>
       </div>
+    );
+  }
 
-      {dstCur && (
-        <div className="text-xs text-gray-600">Moeda de recebimento: {dstCur}</div>
-      )}
+  // 2. A conta está em análise, o usuário só pode esperar ou atualizar.
+  if (status.isUnderReview) {
+    return (
+      <div className="rounded-xl bg-blue-50 p-4 space-y-2 text-center border border-blue-200">
+        <p className="text-sm font-semibold text-blue-800">Conta em análise</p>
+        <p className="text-xs text-blue-700">
+          O Stripe está analisando seus dados. Isso pode levar alguns dias. Voltaremos a verificar automaticamente.
+        </p>
+        <button onClick={onRefresh} className="text-xs font-medium text-blue-700 underline">
+          Atualizar status agora
+        </button>
+      </div>
+    );
+  }
 
-      {mismatchCur && dstCur && (
-        <div className="bg-amber-100 text-xs p-2 rounded space-y-1">
-          <p>
-            Você tem {fmt(mismatchAmount, mismatchCur)}{' '}
-            {CURRENCY_HELP.mismatch_banner(mismatchCur, dstCur)}
-          </p>
-          <button className="underline" onClick={() => setMismatchOpen(true)}>
-            Entenda como sacar {mismatchCur}
-          </button>
-        </div>
-      )}
-
-      {!status.payoutsEnabled && reason && (
-        <div className="text-xs text-gray-700 space-y-1">
-          <p className="font-medium">{reason.title}</p>
-          <p>{reason.body}</p>
-          {reason.cta === 'onboarding' && (
-            <button onClick={onOnboard} className="underline">
-              Configurar Stripe
-            </button>
-          )}
-          {reason.cta === 'contact' && (
-            <a href="/suporte" target="_blank" rel="noreferrer" className="underline">
-              Falar com suporte
-            </a>
-          )}
-        </div>
-      )}
-
-      <button
-        onClick={() => onRefresh?.()}
-        className="w-full rounded border px-3 py-1.5 text-xs font-medium"
-      >
-        Atualizar status
-      </button>
-
-      {mismatchCur && dstCur && (
+  // 3. A conta está ativa e funcionando.
+  if (status.payoutsEnabled) {
+    return (
+      <div className="rounded-xl bg-green-50 p-4 space-y-2 text-center border border-green-200">
+        <p className="text-sm font-semibold text-green-800">Conta Ativa</p>
+        <p className="text-xs text-green-700">
+          Sua conta está pronta para receber pagamentos em <strong>{dstCur}</strong>.
+        </p>
+        {mismatchCur && dstCur && (
+          <div className="bg-amber-100 text-xs p-2 rounded-md space-y-1 mt-2">
+            <p className="text-amber-800">
+              Você tem {fmt(mismatchAmount, mismatchCur)} em outra moeda.
+              <button className="ml-1 font-semibold underline" onClick={() => setMismatchOpen(true)}>
+                Saiba mais
+              </button>
+            </p>
+          </div>
+        )}
         <CurrencyMismatchModal
           open={mismatchOpen}
           onClose={() => setMismatchOpen(false)}
-          balanceCurrency={mismatchCur}
-          destinationCurrency={dstCur}
+          balanceCurrency={mismatchCur || ''}
+          destinationCurrency={dstCur || ''}
           onOnboard={onOnboard || (() => {})}
         />
+      </div>
+    );
+  }
+
+  // 4. Outros casos: A conta está desabilitada por um motivo específico.
+  const reason = status.disabledReasonKey
+    ? STRIPE_DISABLED_REASON[status.disabledReasonKey] || STRIPE_DISABLED_REASON.default
+    : STRIPE_DISABLED_REASON.default;
+
+  // Guarda para prevenir o erro de tipo 'possibly undefined'.
+  if (!reason) {
+    return (
+       <div className="rounded-xl bg-red-50 p-4 space-y-2 text-center border border-red-200">
+         <p className="text-sm font-semibold text-red-800">Ocorreu um problema</p>
+         <p className="text-xs text-red-700">Não foi possível carregar o status detalhado da sua conta.</p>
+       </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl bg-red-50 p-4 space-y-2 text-center border border-red-200">
+      <p className="text-sm font-semibold text-red-800">{reason.title}</p>
+      <p className="text-xs text-red-700">{reason.body}</p>
+      {reason.cta === 'contact' && (
+        <a href="/suporte" target="_blank" rel="noreferrer" className="text-xs font-medium text-red-700 underline">
+          Falar com suporte
+        </a>
       )}
     </div>
   );

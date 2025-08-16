@@ -2,31 +2,41 @@
 "use client";
 
 import { SessionProvider } from "next-auth/react";
-import type { Session } from "next-auth"; // Importe o tipo Session do NextAuth
+import type { Session } from "next-auth";
 import { useEffect } from "react";
+import Cookies from "js-cookie";
 
+// --- INÍCIO DA CORREÇÃO ---
+// A definição da interface que estava faltando foi adicionada de volta.
 interface ProvidersProps {
   children: React.ReactNode;
-  session: Session | null; // ✅ Adicionada a prop session
+  session: Session | null;
 }
+// --- FIM DA CORREÇÃO ---
+
+const AFFILIATE_COOKIE_NAME = 'd2c_ref';
 
 export function Providers({ children, session }: ProvidersProps) {
   useEffect(() => {
+    // Este código roda uma vez quando a aplicação carrega no navegador.
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const code = params.get('ref') || params.get('aff');
+
+      // Se um código de afiliado estiver na URL...
       if (code) {
-        const maxAge = 60 * 60 * 24 * 90; // 90 days
-        const secure = window.location.protocol === 'https:' ? '; Secure' : '';
-        document.cookie = `d2c_ref=${code}; Max-Age=${maxAge}; Path=/; SameSite=Lax${secure}`;
         try {
-          localStorage.setItem('d2c_ref', code);
-        } catch {
-          // ignore if localStorage is unavailable
+          // Salva no localStorage, que é o mais seguro contra redirecionamentos.
+          localStorage.setItem(AFFILIATE_COOKIE_NAME, code);
+          // Também define o cookie como fallback.
+          Cookies.set(AFFILIATE_COOKIE_NAME, code, { expires: 90, path: '/', sameSite: 'lax' });
+        } catch (e) {
+          // Ignora erros se o localStorage/cookies estiverem desabilitados
+          console.warn('Could not set affiliate cookie/storage:', e);
         }
       }
     }
-  }, []);
+  }, []); // O array vazio [] garante que rode apenas uma vez.
 
   return (
     <SessionProvider

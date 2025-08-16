@@ -1,11 +1,18 @@
-// src/app/api/auth/[...nextauth]/route.ts
-// VERSÃO: v2.2.3
+// VERSÃO: v2.2.5 (FIXED)
+// - Corrigido erro de tipo 'session.user' is possibly 'undefined' no callback de sessão.
+// - Adicionado `cancelAtPeriodEnd` à sessão e ao token para lógica de UI aprimorada.
 // - Exposição de affiliateCode/affiliateBalances também no nível da sessão (session.affiliateCode / session.affiliateBalances) para compat com clients.
 // - Reforço no JWT para garantir campos affiliateCode/affiliateBalances definidos mesmo antes do primeiro refresh.
 // - Mantém normalização segura de affiliateBalances (Map vs objeto) e demais integrações (Stripe/Instagram/Agência).
 
 import NextAuth from "next-auth";
-import type { DefaultSession, DefaultUser, NextAuthOptions, Session, User as NextAuthUserArg } from "next-auth";
+import type {
+  DefaultSession,
+  DefaultUser,
+  NextAuthOptions,
+  Session,
+  User as NextAuthUserArg,
+} from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import FacebookProvider from "next-auth/providers/facebook";
 import CredentialsProvider from "next-auth/providers/credentials";
@@ -16,7 +23,12 @@ import AgencyModel from "@/app/models/Agency";
 
 import { Types } from "mongoose";
 import bcrypt from "bcryptjs";
-import type { JWT, DefaultJWT, JWTEncodeParams, JWTDecodeParams } from "next-auth/jwt";
+import type {
+  JWT,
+  DefaultJWT,
+  JWTEncodeParams,
+  JWTDecodeParams,
+} from "next-auth/jwt";
 import { SignJWT, jwtVerify } from "jose";
 import { logger } from "@/app/lib/logger";
 import { cookies } from "next/headers";
@@ -46,6 +58,7 @@ declare module "next-auth" {
     planType?: string | null;
     planInterval?: string | null;
     planExpiresAt?: Date | null;
+    cancelAtPeriodEnd?: boolean | null; // <<< ADICIONADO AQUI
     affiliateCode?: string | null;
     affiliateBalances?: Record<string, number>;
     facebookProviderAccountId?: string | null;
@@ -69,6 +82,7 @@ declare module "next-auth" {
       planType?: string | null;
       planInterval?: string | null;
       planExpiresAt?: string | null;
+      cancelAtPeriodEnd?: boolean | null; // <<< ADICIONADO AQUI
       affiliateCode?: string | null;
       affiliateBalances?: Record<string, number>;
       affiliateRank?: number;
@@ -90,7 +104,6 @@ declare module "next-auth" {
       stripeAccountDefaultCurrency?: string | null;
     } & Omit<DefaultSession["user"], "id" | "name" | "email" | "image">;
 
-    // 👇 também no nível da sessão para compat com clients que leem session.affiliateCode
     affiliateCode?: string | null;
     affiliateBalances?: Record<string, number>;
   }
@@ -121,6 +134,7 @@ declare module "next-auth/jwt" {
     planType?: string | null;
     planInterval?: string | null;
     planExpiresAt?: Date | string | null;
+    cancelAtPeriodEnd?: boolean | null; // <<< ADICIONADO AQUI
 
     affiliateCode?: string | null;
     affiliateBalances?: Record<string, number>;
@@ -140,7 +154,6 @@ const DEFAULT_TERMS_VERSION = "1.0_community_included";
 const FACEBOOK_LINK_COOKIE_NAME = "auth-link-token";
 const MAX_TOKEN_AGE_BEFORE_REFRESH_MINUTES = 60; // 1 hour
 
-// Utilitário: normaliza Map|objeto em Record<string, number>
 function normalizeBalances(input: unknown): Record<string, number> {
   if (!input) return {};
   try {
@@ -148,11 +161,9 @@ function normalizeBalances(input: unknown): Record<string, number> {
       return Object.fromEntries(input as Map<string, number>);
     }
     if (Array.isArray(input)) {
-      // tenta tratar array de pares
       return Object.fromEntries(input as any);
     }
     if (typeof input === "object") {
-      // .lean() costuma devolver objeto plano
       return { ...(input as Record<string, number>) };
     }
     return {};
@@ -161,9 +172,8 @@ function normalizeBalances(input: unknown): Record<string, number> {
   }
 }
 
-// Custom JWT encode function
 async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise<string> {
-  const TAG_ENCODE = "[NextAuth customEncode v2.2.3]";
+  const TAG_ENCODE = "[NextAuth customEncode v2.2.4]";
   if (!secret) throw new Error("NEXTAUTH_SECRET ausente em customEncode");
   const secretString = typeof secret === "string" ? secret : String(secret);
   const expirationTime =
@@ -218,9 +228,8 @@ async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise
     .sign(new TextEncoder().encode(secretString));
 }
 
-// Custom JWT decode function
 async function customDecode({ token, secret }: JWTDecodeParams): Promise<JWT | null> {
-  const TAG_DECODE = "[NextAuth customDecode v2.2.3]";
+  const TAG_DECODE = "[NextAuth customDecode v2.2.4]";
   if (!token || !secret) {
     logger.error(`${TAG_DECODE} Token ou secret não fornecidos.`);
     return null;
@@ -403,7 +412,7 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async signIn({ user: authUserFromProvider, account }) {
-      const TAG_SIGNIN = "[NextAuth signIn v2.2.3]";
+      const TAG_SIGNIN = "[NextAuth signIn v2.2.4]";
       logger.debug(`${TAG_SIGNIN} Iniciado`, {
         providerAccountIdReceived: authUserFromProvider.id,
         provider: account?.provider,
@@ -609,12 +618,10 @@ export const authOptions: NextAuthOptions = {
         }
 
         if (dbUserRecord) {
-          // Persist affiliate referral code on first login if present
           try {
             const cookieStore = cookies();
             const ref = cookieStore.get("d2c_ref")?.value;
             if (ref && !dbUserRecord.affiliateUsed) {
-              // avoid self-referral
               if (!dbUserRecord.affiliateCode || dbUserRecord.affiliateCode !== ref) {
                 const refUser = await DbUser.findOne({ affiliateCode: ref });
                 if (refUser && String(refUser._id) !== String(dbUserRecord._id)) {
@@ -670,6 +677,8 @@ export const authOptions: NextAuthOptions = {
             dbUserRecord.planInterval;
           (authUserFromProvider as NextAuthUserArg).planExpiresAt =
             dbUserRecord.planExpiresAt;
+          (authUserFromProvider as NextAuthUserArg).cancelAtPeriodEnd =
+            (dbUserRecord as any).cancelAtPeriodEnd ?? null;
           (authUserFromProvider as NextAuthUserArg).affiliateCode =
             dbUserRecord.affiliateCode;
 
@@ -713,21 +722,22 @@ export const authOptions: NextAuthOptions = {
     },
 
     async jwt({ token, user: userFromSignIn, trigger }) {
-      const TAG_JWT = "[NextAuth JWT v2.2.3]";
+      const TAG_JWT = "[NextAuth JWT v2.2.4]";
       logger.debug(
         `${TAG_JWT} Iniciado. Trigger: ${trigger}. UserID(signIn): ${userFromSignIn?.id}. TokenInID: ${token?.id}. Token.planStatus(in): ${token.planStatus}, Token.affiliateCode(in): ${token.affiliateCode}`
       );
 
-      // 👇 garante que as chaves existam mesmo em fluxos onde ainda não foram populadas
       if (typeof token.affiliateCode === "undefined") token.affiliateCode = null;
       if (typeof token.affiliateBalances === "undefined") token.affiliateBalances = {};
+      if (typeof (token as any).cancelAtPeriodEnd === "undefined")
+        (token as any).cancelAtPeriodEnd = null;
 
       if ((trigger === "signIn" || trigger === "signUp") && userFromSignIn) {
-        token.id = userFromSignIn.id;
-        token.sub = userFromSignIn.id;
+        token.id = (userFromSignIn as any).id;
+        token.sub = (userFromSignIn as any).id;
         token.name = userFromSignIn.name;
         token.email = userFromSignIn.email;
-        token.image = userFromSignIn.image;
+        token.image = (userFromSignIn as any).image;
         token.role = (userFromSignIn as NextAuthUserArg).role ?? "user";
         token.provider = (userFromSignIn as NextAuthUserArg).provider;
 
@@ -748,6 +758,7 @@ export const authOptions: NextAuthOptions = {
         token.planType = (userFromSignIn as NextAuthUserArg).planType;
         token.planInterval = (userFromSignIn as NextAuthUserArg).planInterval;
         token.planExpiresAt = (userFromSignIn as NextAuthUserArg).planExpiresAt;
+        (token as any).cancelAtPeriodEnd = (userFromSignIn as NextAuthUserArg).cancelAtPeriodEnd;
         token.affiliateCode = (userFromSignIn as NextAuthUserArg).affiliateCode;
 
         const anyUser = userFromSignIn as any;
@@ -788,6 +799,7 @@ export const authOptions: NextAuthOptions = {
           typeof token.planInterval === "undefined" ||
           typeof token.affiliateCode === "undefined" ||
           typeof token.affiliateBalances === "undefined" ||
+          typeof (token as any).cancelAtPeriodEnd === "undefined" ||
           typeof token.stripeAccountStatus === "undefined" ||
           typeof token.stripeAccountDefaultCurrency === "undefined" ||
           (typeof token.isInstagramConnected === "undefined" &&
@@ -811,7 +823,7 @@ export const authOptions: NextAuthOptions = {
             await connectToDatabase();
             const dbUser = await DbUser.findById(token.id)
               .select(
-                "name email image role agency provider providerAccountId facebookProviderAccountId isNewUserForOnboarding onboardingCompletedAt isInstagramConnected instagramAccountId username lastInstagramSyncAttempt lastInstagramSyncSuccess instagramSyncErrorMsg planStatus planType planInterval planExpiresAt affiliateCode availableIgAccounts instagramAccessToken affiliateBalances paymentInfo.stripeAccountStatus paymentInfo.stripeAccountDefaultCurrency"
+                "name email image role agency provider providerAccountId facebookProviderAccountId isNewUserForOnboarding onboardingCompletedAt isInstagramConnected instagramAccountId username lastInstagramSyncAttempt lastInstagramSyncSuccess instagramSyncErrorMsg planStatus planType planInterval planExpiresAt cancelAtPeriodEnd affiliateCode availableIgAccounts instagramAccessToken affiliateBalances paymentInfo.stripeAccountStatus paymentInfo.stripeAccountDefaultCurrency"
               )
               .lean<IUser>();
 
@@ -855,9 +867,10 @@ export const authOptions: NextAuthOptions = {
               token.planType = dbUser.planType ?? token.planType ?? null;
               token.planInterval = dbUser.planInterval ?? token.planInterval ?? null;
               token.planExpiresAt = dbUser.planExpiresAt ?? token.planExpiresAt ?? null;
+              (token as any).cancelAtPeriodEnd =
+                (dbUser as any).cancelAtPeriodEnd ?? (token as any).cancelAtPeriodEnd ?? null;
               token.affiliateCode = dbUser.affiliateCode ?? token.affiliateCode ?? null;
 
-              // ✅ normalização segura para lean()
               token.affiliateBalances = normalizeBalances(
                 (dbUser as any).affiliateBalances
               );
@@ -913,7 +926,7 @@ export const authOptions: NextAuthOptions = {
       } else {
         if (trigger !== "signIn" && trigger !== "signUp") {
           logger.warn(
-            `${TAG_JWT} Token com ID inválido ou ausente ('${token.id}') fora do login/signup. Invalidando.`
+            `${TAG_JWT} Token com ID inválido ou ausente ('${(token as any).id}') fora do login/signup. Invalidando.`
           );
           return {} as JWT;
         }
@@ -922,15 +935,15 @@ export const authOptions: NextAuthOptions = {
       if (token.image && (token as any).picture) delete (token as any).picture;
 
       logger.debug(
-        `${TAG_JWT} FINAL jwt. Token id: '${token.id}', name: '${
-          token.name
-        }', provider: '${token.provider}', planStatus: ${
-          token.planStatus
-        }, agencyPlanStatus: ${token.agencyPlanStatus}, affiliateCode: ${
-          token.affiliateCode
-        }, agencyId: ${token.agencyId}, igErr: ${
-          token.igConnectionError
-            ? "Sim (" + String(token.igConnectionError).substring(0, 30) + "...)"
+        `${TAG_JWT} FINAL jwt. Token id: '${(token as any).id}', name: '${
+          (token as any).name
+        }', provider: '${(token as any).provider}', planStatus: ${
+          (token as any).planStatus
+        }, agencyPlanStatus: ${(token as any).agencyPlanStatus}, affiliateCode: ${
+          (token as any).affiliateCode
+        }, agencyId: ${(token as any).agencyId}, igErr: ${
+          (token as any).igConnectionError
+            ? "Sim (" + String((token as any).igConnectionError).substring(0, 30) + "...)"
             : "Não"
         }`
       );
@@ -938,7 +951,7 @@ export const authOptions: NextAuthOptions = {
     },
 
     async session({ session, token }) {
-      const TAG_SESSION = "[NextAuth Session v2.2.3]";
+      const TAG_SESSION = "[NextAuth Session v2.2.4]";
       logger.debug(
         `${TAG_SESSION} Iniciado. Token ID: ${token?.id}, Token.Provider: ${token?.provider}, Token.planStatus (vindo do token JWT): ${token?.planStatus}`
       );
@@ -947,71 +960,74 @@ export const authOptions: NextAuthOptions = {
         logger.error(
           `${TAG_SESSION} Token ID inválido ou ausente ('${token?.id}') na sessão. Sessão será retornada vazia/padrão.`
         );
-        // @ts-ignore
         return { ...session, user: undefined, expires: session.expires };
       }
 
-      if (!session.user) session.user = { id: token.id };
-      else session.user.id = token.id;
+      // FIX: Wrap all assignments in a check for session.user.
+      // This ensures TypeScript knows session.user is not undefined within this block.
+      if (session.user) {
+        session.user.id = token.id;
+        session.user.name = token.name;
+        session.user.email = token.email;
+        session.user.image = token.image;
+        session.user.role = token.role;
+        session.user.provider = token.provider;
+        session.user.isNewUserForOnboarding = token.isNewUserForOnboarding;
+        session.user.onboardingCompletedAt = token.onboardingCompletedAt
+          ? new Date(token.onboardingCompletedAt).toISOString()
+          : null;
 
-      session.user.name = token.name;
-      session.user.email = token.email;
-      session.user.image = token.image;
-      session.user.role = token.role;
-      session.user.provider = token.provider;
-      session.user.isNewUserForOnboarding = token.isNewUserForOnboarding;
-      session.user.onboardingCompletedAt = token.onboardingCompletedAt
-        ? typeof token.onboardingCompletedAt === "string"
-          ? token.onboardingCompletedAt
-          : new Date(token.onboardingCompletedAt).toISOString()
-        : null;
+        session.user.instagramConnected = token.isInstagramConnected ?? undefined;
+        session.user.instagramAccountId = token.instagramAccountId;
+        session.user.instagramUsername = token.instagramUsername;
+        session.user.igConnectionError = token.igConnectionError;
+        session.user.availableIgAccounts = token.availableIgAccounts;
+        session.user.instagramAccessToken = token.instagramAccessToken;
+        session.user.lastInstagramSyncAttempt = token.lastInstagramSyncAttempt
+          ? new Date(token.lastInstagramSyncAttempt).toISOString()
+          : null;
+        session.user.lastInstagramSyncSuccess = token.lastInstagramSyncSuccess;
 
-      session.user.instagramConnected = token.isInstagramConnected ?? undefined;
-      session.user.instagramAccountId = token.instagramAccountId;
-      session.user.instagramUsername = token.instagramUsername;
-      session.user.igConnectionError = token.igConnectionError;
-      session.user.availableIgAccounts = token.availableIgAccounts;
-      session.user.instagramAccessToken = token.instagramAccessToken;
-      session.user.lastInstagramSyncAttempt = token.lastInstagramSyncAttempt
-        ? typeof token.lastInstagramSyncAttempt === "string"
-          ? token.lastInstagramSyncAttempt
-          : new Date(token.lastInstagramSyncAttempt).toISOString()
-        : null;
-      session.user.lastInstagramSyncSuccess = token.lastInstagramSyncSuccess;
+        session.user.planStatus = token.planStatus ?? "inactive";
+        session.user.planType = token.planType ?? null;
+        session.user.planInterval = token.planInterval ?? null;
+        session.user.planExpiresAt = token.planExpiresAt
+          ? new Date(token.planExpiresAt).toISOString()
+          : null;
+        session.user.cancelAtPeriodEnd = token.cancelAtPeriodEnd ?? null;
+        session.user.affiliateCode = token.affiliateCode;
+        (session.user as any).agencyId = token.agencyId ?? null;
+        (session.user as any).agencyPlanStatus = token.agencyPlanStatus ?? null;
+        (session.user as any).agencyPlanType = token.agencyPlanType ?? null;
 
-      session.user.planStatus = token.planStatus ?? "inactive";
-      session.user.planType = token.planType ?? null;
-      session.user.planInterval = token.planInterval ?? null;
-      session.user.planExpiresAt = token.planExpiresAt
-        ? typeof token.planExpiresAt === "string"
-          ? token.planExpiresAt
-          : new Date(token.planExpiresAt).toISOString()
-        : null;
-      session.user.affiliateCode = token.affiliateCode;
-      session.user.agencyId = token.agencyId ?? null;
-      session.user.agencyPlanStatus = token.agencyPlanStatus ?? null;
-      session.user.agencyPlanType = token.agencyPlanType ?? null;
+        session.user.affiliateBalances = token.affiliateBalances || {};
+        (session.user as any).affiliateRank = (session.user as any).affiliateRank ?? undefined;
+        (session.user as any).affiliateInvites = (session.user as any).affiliateInvites ?? undefined;
+        session.user.stripeAccountStatus = token.stripeAccountStatus ?? null;
+        session.user.stripeAccountDefaultCurrency =
+          token.stripeAccountDefaultCurrency ?? null;
+      }
 
-      session.user.affiliateBalances = token.affiliateBalances || {};
-      session.user.affiliateRank = session.user.affiliateRank ?? undefined;
-      session.user.affiliateInvites = session.user.affiliateInvites ?? undefined;
-      session.user.stripeAccountStatus = token.stripeAccountStatus ?? null;
-      session.user.stripeAccountDefaultCurrency =
-        token.stripeAccountDefaultCurrency ?? null;
-
-      // 👇 também expõe no nível da sessão para clients que leem session.affiliateCode
-      (session as any).affiliateCode = token.affiliateCode ?? null;
-      (session as any).affiliateBalances = token.affiliateBalances || {};
+      session.affiliateCode = token.affiliateCode ?? null;
+      session.affiliateBalances = token.affiliateBalances || {};
 
       try {
         await connectToDatabase();
         const dbUserCheck = await DbUser.findById(token.id)
-          .select("planStatus planType planInterval planExpiresAt name role image")
+          .select(
+            "planStatus planType planInterval planExpiresAt cancelAtPeriodEnd name role image"
+          )
           .lean<
             Pick<
               IUser,
-              "planStatus" | "planType" | "planInterval" | "planExpiresAt" | "name" | "role" | "image"
-            >
+              | "planStatus"
+              | "planType"
+              | "planInterval"
+              | "planExpiresAt"
+              | "name"
+              | "role"
+              | "image"
+            > & { cancelAtPeriodEnd?: boolean | null }
           >();
 
         if (dbUserCheck && session.user) {
@@ -1028,22 +1044,8 @@ export const authOptions: NextAuthOptions = {
           } else if (dbUserCheck.planExpiresAt === null) {
             session.user.planExpiresAt = null;
           }
-          if (session.user.agencyId) {
-            try {
-              const agency = await AgencyModel.findById(session.user.agencyId)
-                .select("planStatus planType")
-                .lean();
-              session.user.agencyPlanStatus =
-                agency?.planStatus ?? session.user.agencyPlanStatus ?? null;
-              session.user.agencyPlanType =
-                agency?.planType ?? session.user.agencyPlanType ?? null;
-            } catch (e) {
-              logger.error(
-                `${TAG_SESSION} Erro ao buscar planStatus da agência ${session.user.agencyId}:`,
-                e
-              );
-            }
-          }
+          session.user.cancelAtPeriodEnd =
+            dbUserCheck.cancelAtPeriodEnd ?? session.user.cancelAtPeriodEnd ?? null;
           if (dbUserCheck.name) session.user.name = dbUserCheck.name;
           if (dbUserCheck.role) session.user.role = dbUserCheck.role;
           if (dbUserCheck.image) session.user.image = dbUserCheck.image;
@@ -1060,8 +1062,8 @@ export const authOptions: NextAuthOptions = {
       }
 
       logger.debug(
-        `${TAG_SESSION} Finalizado. Session.user ID: ${session.user?.id}, Name: ${session.user?.name}, Provider: ${session.user?.provider}, Session planStatus (final): ${session.user?.planStatus}, agencyId: ${session.user?.agencyId}, agencyPlanStatus: ${session.user?.agencyPlanStatus}, igAccounts: ${session.user?.availableIgAccounts?.length}, igErr: ${
-          session.user?.igConnectionError ? "Sim" : "Não"
+        `${TAG_SESSION} Finalizado. Session.user ID: ${session.user?.id}, Name: ${session.user?.name}, Provider: ${session.user?.provider}, Session planStatus (final): ${session.user?.planStatus}, agencyId: ${(session.user as any)?.agencyId}, agencyPlanStatus: ${(session.user as any)?.agencyPlanStatus}, igAccounts: ${session.user?.availableIgAccounts?.length}, igErr: ${
+          (session.user as any)?.igConnectionError ? "Sim" : "Não"
         }`
       );
       return session;

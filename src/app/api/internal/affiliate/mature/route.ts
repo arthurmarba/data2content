@@ -14,22 +14,27 @@ async function safeJson(req: Request) {
   }
 }
 
+// Adquire lock de forma atômica com updateOne (evita overloads de findOneAndUpdate)
 async function acquireLock(name = 'affiliate-mature', ttlSec = 240) {
   const now = new Date();
   const expires = new Date(now.getTime() + ttlSec * 1000);
   const owner = os.hostname();
 
-  const res = await CronLock.findOneAndUpdate(
-    {
-      _id: name,
-      $or: [{ expiresAt: { $lte: now } }, { lockedAt: null }],
-    },
-    { $set: { lockedAt: now, expiresAt: expires, owner } },
-    { upsert: true, new: true }
-  );
+  // Só atualiza quando (a) expirado ou (b) nunca lockado
+  const filter = {
+    _id: name,
+    $or: [{ expiresAt: { $lte: now } }, { lockedAt: null }],
+  };
 
-  const has =
-    !!res && res.owner === owner && res.expiresAt && res.expiresAt.getTime() === expires.getTime();
+  const update = {
+    $set: { lockedAt: now, expiresAt: expires, owner },
+  };
+
+  const res = await CronLock.updateOne(filter as any, update, { upsert: true });
+
+  // Se fez upsert OU modificou o doc existente, o lock é nosso
+  const has = (res.upsertedCount ?? 0) > 0 || (res.modifiedCount ?? 0) > 0;
+
   return { has, owner };
 }
 
@@ -53,7 +58,12 @@ export async function POST(req: Request) {
   await connectMongo();
 
   const { has } = await acquireLock('affiliate-mature', 240);
-  if (!has) return new Response(JSON.stringify({ ok: false, reason: 'locked' }), { status: 409 });
+  if (!has) {
+    return new Response(JSON.stringify({ ok: false, reason: 'locked' }), {
+      status: 409,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
 
   const { limit = 100, maxItemsPerUser = 20, dryRun = false } = await safeJson(req);
 
@@ -88,7 +98,8 @@ export async function POST(req: Request) {
         if (!dryRun) {
           await adjustBalance(u as any, e.currency, e.amountCents);
           e.status = 'available';
-          e.maturedAt = new Date();
+          // ⬇️ Tip-safe: maturedAt pode não existir na interface gerada — setamos via `any`
+          (e as any).maturedAt = new Date();
         }
         changed = true;
         maturedEntries++;
@@ -97,6 +108,10 @@ export async function POST(req: Request) {
     }
 
     if (changed && !dryRun) {
+      // Garante persistência das mudanças no array de subdocs
+      // (em alguns setups o Mongoose já detecta; essa chamada é defensiva)
+      // @ts-ignore - nem todo tipo expõe markModified no TS
+      u.markModified?.('commissionLog');
       await u.save();
       maturedUsers++;
     }
