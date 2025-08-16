@@ -1,9 +1,7 @@
-// VERSÃO: v2.2.5 (FIXED)
-// - Corrigido erro de tipo 'session.user' is possibly 'undefined' no callback de sessão.
-// - Adicionado `cancelAtPeriodEnd` à sessão e ao token para lógica de UI aprimorada.
-// - Exposição de affiliateCode/affiliateBalances também no nível da sessão (session.affiliateCode / session.affiliateBalances) para compat com clients.
-// - Reforço no JWT para garantir campos affiliateCode/affiliateBalances definidos mesmo antes do primeiro refresh.
-// - Mantém normalização segura de affiliateBalances (Map vs objeto) e demais integrações (Stripe/Instagram/Agência).
+// VERSÃO: v2.2.6 (FIXED)
+// - Propaga stripeCustomerId/stripeSubscriptionId/stripePriceId para JWT e Session.
+// - Normaliza cancelAtPeriodEnd como boolean no cliente.
+// - Atualiza selects do DB no refresh do JWT e na revalidação da Session.
 
 import NextAuth from "next-auth";
 import type {
@@ -54,15 +52,26 @@ declare module "next-auth" {
     instagramAccessToken?: string | null;
     lastInstagramSyncAttempt?: Date | null;
     lastInstagramSyncSuccess?: boolean | null;
+
+    // Billing
     planStatus?: string | null;
     planType?: string | null;
     planInterval?: string | null;
     planExpiresAt?: Date | null;
-    cancelAtPeriodEnd?: boolean | null; // <<< ADICIONADO AQUI
+    cancelAtPeriodEnd?: boolean | null;
+    // IDs do Stripe
+    stripeCustomerId?: string | null;
+    stripeSubscriptionId?: string | null;
+    stripePriceId?: string | null;
+
+    // Afiliados
     affiliateCode?: string | null;
     affiliateBalances?: Record<string, number>;
+
     facebookProviderAccountId?: string | null;
     providerAccountId?: string | null;
+
+    // Stripe Connect (payouts)
     stripeAccountStatus?: "pending" | "verified" | "disabled" | null;
     stripeAccountDefaultCurrency?: string | null;
   }
@@ -75,19 +84,30 @@ declare module "next-auth" {
       image?: string | null;
       provider?: string | null;
       role?: string | null;
+
+      // Agência
       agencyId?: string | null;
       agencyPlanStatus?: string | null;
       agencyPlanType?: string | null;
+
+      // Billing
       planStatus?: string | null;
       planType?: string | null;
       planInterval?: string | null;
       planExpiresAt?: string | null;
-      cancelAtPeriodEnd?: boolean | null; // <<< ADICIONADO AQUI
+      cancelAtPeriodEnd?: boolean | null;
+      // IDs do Stripe também no cliente
+      stripeCustomerId?: string | null;
+      stripeSubscriptionId?: string | null;
+      stripePriceId?: string | null;
+
+      // Afiliados
       affiliateCode?: string | null;
       affiliateBalances?: Record<string, number>;
       affiliateRank?: number;
       affiliateInvites?: number;
 
+      // Instagram
       instagramConnected?: boolean;
       instagramAccountId?: string | null;
       instagramUsername?: string | null;
@@ -97,9 +117,11 @@ declare module "next-auth" {
       lastInstagramSyncAttempt?: string | null;
       lastInstagramSyncSuccess?: boolean | null;
 
+      // Onboarding
       isNewUserForOnboarding?: boolean;
       onboardingCompletedAt?: string | null;
 
+      // Stripe Connect (payouts)
       stripeAccountStatus?: "pending" | "verified" | "disabled" | null;
       stripeAccountDefaultCurrency?: string | null;
     } & Omit<DefaultSession["user"], "id" | "name" | "email" | "image">;
@@ -118,9 +140,11 @@ declare module "next-auth/jwt" {
     agencyPlanType?: string | null;
     provider?: string | null;
 
+    // Onboarding
     isNewUserForOnboarding?: boolean;
     onboardingCompletedAt?: Date | string | null;
 
+    // Instagram
     isInstagramConnected?: boolean | null;
     instagramAccountId?: string | null;
     instagramUsername?: string | null;
@@ -130,17 +154,24 @@ declare module "next-auth/jwt" {
     lastInstagramSyncAttempt?: Date | string | null;
     lastInstagramSyncSuccess?: boolean | null;
 
+    // Billing
     planStatus?: string | null;
     planType?: string | null;
     planInterval?: string | null;
     planExpiresAt?: Date | string | null;
-    cancelAtPeriodEnd?: boolean | null; // <<< ADICIONADO AQUI
+    cancelAtPeriodEnd?: boolean | null;
+    // IDs do Stripe
+    stripeCustomerId?: string | null;
+    stripeSubscriptionId?: string | null;
+    stripePriceId?: string | null;
 
+    // Afiliados
     affiliateCode?: string | null;
     affiliateBalances?: Record<string, number>;
 
     image?: string | null;
 
+    // Stripe Connect (payouts)
     stripeAccountStatus?: "pending" | "verified" | "disabled" | null;
     stripeAccountDefaultCurrency?: string | null;
   }
@@ -669,27 +700,33 @@ export const authOptions: NextAuthOptions = {
           (authUserFromProvider as NextAuthUserArg).instagramAccessToken =
             dbUserRecord.instagramAccessToken;
 
-          (authUserFromProvider as NextAuthUserArg).planStatus =
-            dbUserRecord.planStatus;
-          (authUserFromProvider as NextAuthUserArg).planType =
-            dbUserRecord.planType;
-          (authUserFromProvider as NextAuthUserArg).planInterval =
-            dbUserRecord.planInterval;
-          (authUserFromProvider as NextAuthUserArg).planExpiresAt =
-            dbUserRecord.planExpiresAt;
+          // Billing
+          (authUserFromProvider as NextAuthUserArg).planStatus = dbUserRecord.planStatus;
+          (authUserFromProvider as NextAuthUserArg).planType = dbUserRecord.planType;
+          (authUserFromProvider as NextAuthUserArg).planInterval = dbUserRecord.planInterval;
+          (authUserFromProvider as NextAuthUserArg).planExpiresAt = dbUserRecord.planExpiresAt;
           (authUserFromProvider as NextAuthUserArg).cancelAtPeriodEnd =
             (dbUserRecord as any).cancelAtPeriodEnd ?? null;
-          (authUserFromProvider as NextAuthUserArg).affiliateCode =
-            dbUserRecord.affiliateCode;
+          // IDs Stripe -> vão para JWT
+          (authUserFromProvider as NextAuthUserArg).stripeCustomerId =
+            dbUserRecord.stripeCustomerId ?? null;
+          (authUserFromProvider as NextAuthUserArg).stripeSubscriptionId =
+            dbUserRecord.stripeSubscriptionId ?? null;
+          (authUserFromProvider as NextAuthUserArg).stripePriceId =
+            dbUserRecord.stripePriceId ?? null;
 
+          // Afiliados
+          (authUserFromProvider as NextAuthUserArg).affiliateCode = dbUserRecord.affiliateCode;
           (authUserFromProvider as any).affiliateBalances = normalizeBalances(
             (dbUserRecord as any).affiliateBalances
           );
 
+          // Stripe Connect (payouts)
           (authUserFromProvider as any).stripeAccountStatus =
             dbUserRecord.paymentInfo?.stripeAccountStatus ?? null;
           (authUserFromProvider as any).stripeAccountDefaultCurrency =
             dbUserRecord.paymentInfo?.stripeAccountDefaultCurrency ?? null;
+
           (authUserFromProvider as NextAuthUserArg).agency = dbUserRecord.agency
             ? dbUserRecord.agency.toString()
             : undefined;
@@ -697,15 +734,11 @@ export const authOptions: NextAuthOptions = {
           logger.debug(
             `${TAG_SIGNIN} [${provider}] FINAL signIn. authUser.id (interno): '${
               authUserFromProvider.id
-            }', name: '${authUserFromProvider.name}', provider (final): '${
-              (authUserFromProvider as NextAuthUserArg).provider
-            }', planStatus: ${
+            }', provider: '${(authUserFromProvider as NextAuthUserArg).provider}', planStatus: ${
               (authUserFromProvider as NextAuthUserArg).planStatus
             }, igAccountsCount: ${
               (authUserFromProvider as NextAuthUserArg).availableIgAccounts?.length ?? 0
-            }, igLlatSet: ${
-              !!(authUserFromProvider as NextAuthUserArg).instagramAccessToken
-            }`
+            }, igLlatSet: ${!!(authUserFromProvider as NextAuthUserArg).instagramAccessToken}`
           );
           return true;
         } else {
@@ -741,9 +774,11 @@ export const authOptions: NextAuthOptions = {
         token.role = (userFromSignIn as NextAuthUserArg).role ?? "user";
         token.provider = (userFromSignIn as NextAuthUserArg).provider;
 
+        // Onboarding
         token.isNewUserForOnboarding = (userFromSignIn as NextAuthUserArg).isNewUserForOnboarding;
         token.onboardingCompletedAt = (userFromSignIn as NextAuthUserArg).onboardingCompletedAt;
 
+        // Instagram
         token.isInstagramConnected = (userFromSignIn as NextAuthUserArg).isInstagramConnected;
         token.instagramAccountId = (userFromSignIn as NextAuthUserArg).instagramAccountId;
         token.instagramUsername = (userFromSignIn as NextAuthUserArg).instagramUsername;
@@ -754,18 +789,27 @@ export const authOptions: NextAuthOptions = {
         token.availableIgAccounts = (userFromSignIn as NextAuthUserArg).availableIgAccounts;
         token.instagramAccessToken = (userFromSignIn as NextAuthUserArg).instagramAccessToken;
 
+        // Billing
         token.planStatus = (userFromSignIn as NextAuthUserArg).planStatus;
         token.planType = (userFromSignIn as NextAuthUserArg).planType;
         token.planInterval = (userFromSignIn as NextAuthUserArg).planInterval;
         token.planExpiresAt = (userFromSignIn as NextAuthUserArg).planExpiresAt;
         (token as any).cancelAtPeriodEnd = (userFromSignIn as NextAuthUserArg).cancelAtPeriodEnd;
-        token.affiliateCode = (userFromSignIn as NextAuthUserArg).affiliateCode;
+        // IDs do Stripe
+        (token as any).stripeCustomerId = (userFromSignIn as any).stripeCustomerId ?? null;
+        (token as any).stripeSubscriptionId = (userFromSignIn as any).stripeSubscriptionId ?? null;
+        (token as any).stripePriceId = (userFromSignIn as any).stripePriceId ?? null;
 
+        // Afiliados
+        token.affiliateCode = (userFromSignIn as NextAuthUserArg).affiliateCode;
         const anyUser = userFromSignIn as any;
         token.affiliateBalances = normalizeBalances(anyUser.affiliateBalances);
+
+        // Stripe Connect (payouts)
         token.stripeAccountStatus = anyUser.stripeAccountStatus ?? null;
         token.stripeAccountDefaultCurrency = anyUser.stripeAccountDefaultCurrency ?? null;
 
+        // Agência
         token.agencyId = (userFromSignIn as NextAuthUserArg).agency ?? null;
         if (token.agencyId) {
           try {
@@ -823,7 +867,13 @@ export const authOptions: NextAuthOptions = {
             await connectToDatabase();
             const dbUser = await DbUser.findById(token.id)
               .select(
-                "name email image role agency provider providerAccountId facebookProviderAccountId isNewUserForOnboarding onboardingCompletedAt isInstagramConnected instagramAccountId username lastInstagramSyncAttempt lastInstagramSyncSuccess instagramSyncErrorMsg planStatus planType planInterval planExpiresAt cancelAtPeriodEnd affiliateCode availableIgAccounts instagramAccessToken affiliateBalances paymentInfo.stripeAccountStatus paymentInfo.stripeAccountDefaultCurrency"
+                "name email image role agency provider providerAccountId facebookProviderAccountId " +
+                  "isNewUserForOnboarding onboardingCompletedAt " +
+                  "isInstagramConnected instagramAccountId username lastInstagramSyncAttempt lastInstagramSyncSuccess instagramSyncErrorMsg " +
+                  "planStatus planType planInterval planExpiresAt cancelAtPeriodEnd " +
+                  "stripeCustomerId stripeSubscriptionId stripePriceId " + // <<< ADD
+                  "affiliateCode availableIgAccounts instagramAccessToken affiliateBalances " +
+                  "paymentInfo.stripeAccountStatus paymentInfo.stripeAccountDefaultCurrency"
               )
               .lean<IUser>();
 
@@ -834,6 +884,7 @@ export const authOptions: NextAuthOptions = {
               token.role = dbUser.role ?? token.role ?? "user";
               token.provider = dbUser.provider ?? token.provider;
 
+              // Onboarding
               token.isNewUserForOnboarding =
                 typeof dbUser.isNewUserForOnboarding === "boolean"
                   ? dbUser.isNewUserForOnboarding
@@ -841,6 +892,7 @@ export const authOptions: NextAuthOptions = {
               token.onboardingCompletedAt =
                 dbUser.onboardingCompletedAt ?? token.onboardingCompletedAt ?? null;
 
+              // Instagram
               token.isInstagramConnected =
                 dbUser.isInstagramConnected ?? token.isInstagramConnected ?? false;
               token.instagramAccountId =
@@ -863,23 +915,35 @@ export const authOptions: NextAuthOptions = {
               token.instagramAccessToken =
                 dbUser.instagramAccessToken ?? token.instagramAccessToken ?? null;
 
+              // Billing
               token.planStatus = dbUser.planStatus ?? token.planStatus ?? "inactive";
               token.planType = dbUser.planType ?? token.planType ?? null;
               token.planInterval = dbUser.planInterval ?? token.planInterval ?? null;
               token.planExpiresAt = dbUser.planExpiresAt ?? token.planExpiresAt ?? null;
               (token as any).cancelAtPeriodEnd =
                 (dbUser as any).cancelAtPeriodEnd ?? (token as any).cancelAtPeriodEnd ?? null;
-              token.affiliateCode = dbUser.affiliateCode ?? token.affiliateCode ?? null;
 
+              // IDs do Stripe
+              (token as any).stripeCustomerId =
+                dbUser.stripeCustomerId ?? (token as any).stripeCustomerId ?? null;
+              (token as any).stripeSubscriptionId =
+                dbUser.stripeSubscriptionId ?? (token as any).stripeSubscriptionId ?? null;
+              (token as any).stripePriceId =
+                dbUser.stripePriceId ?? (token as any).stripePriceId ?? null;
+
+              // Afiliados
+              token.affiliateCode = dbUser.affiliateCode ?? token.affiliateCode ?? null;
               token.affiliateBalances = normalizeBalances(
                 (dbUser as any).affiliateBalances
               );
 
+              // Stripe Connect (payouts)
               token.stripeAccountStatus =
                 dbUser.paymentInfo?.stripeAccountStatus ?? null;
               token.stripeAccountDefaultCurrency =
                 dbUser.paymentInfo?.stripeAccountDefaultCurrency ?? null;
 
+              // Agência
               token.agencyId = dbUser.agency
                 ? dbUser.agency.toString()
                 : token.agencyId ?? null;
@@ -935,17 +999,7 @@ export const authOptions: NextAuthOptions = {
       if (token.image && (token as any).picture) delete (token as any).picture;
 
       logger.debug(
-        `${TAG_JWT} FINAL jwt. Token id: '${(token as any).id}', name: '${
-          (token as any).name
-        }', provider: '${(token as any).provider}', planStatus: ${
-          (token as any).planStatus
-        }, agencyPlanStatus: ${(token as any).agencyPlanStatus}, affiliateCode: ${
-          (token as any).affiliateCode
-        }, agencyId: ${(token as any).agencyId}, igErr: ${
-          (token as any).igConnectionError
-            ? "Sim (" + String((token as any).igConnectionError).substring(0, 30) + "...)"
-            : "Não"
-        }`
+        `${TAG_JWT} FINAL jwt. Token id: '${(token as any).id}', provider: '${(token as any).provider}', planStatus: ${(token as any).planStatus}, agencyPlanStatus: ${(token as any).agencyPlanStatus}, affiliateCode: ${(token as any).affiliateCode}, agencyId: ${(token as any).agencyId}`
       );
       return token;
     },
@@ -963,8 +1017,6 @@ export const authOptions: NextAuthOptions = {
         return { ...session, user: undefined, expires: session.expires };
       }
 
-      // FIX: Wrap all assignments in a check for session.user.
-      // This ensures TypeScript knows session.user is not undefined within this block.
       if (session.user) {
         session.user.id = token.id;
         session.user.name = token.name;
@@ -972,11 +1024,14 @@ export const authOptions: NextAuthOptions = {
         session.user.image = token.image;
         session.user.role = token.role;
         session.user.provider = token.provider;
+
+        // Onboarding
         session.user.isNewUserForOnboarding = token.isNewUserForOnboarding;
         session.user.onboardingCompletedAt = token.onboardingCompletedAt
           ? new Date(token.onboardingCompletedAt).toISOString()
           : null;
 
+        // Instagram
         session.user.instagramConnected = token.isInstagramConnected ?? undefined;
         session.user.instagramAccountId = token.instagramAccountId;
         session.user.instagramUsername = token.instagramUsername;
@@ -988,21 +1043,32 @@ export const authOptions: NextAuthOptions = {
           : null;
         session.user.lastInstagramSyncSuccess = token.lastInstagramSyncSuccess;
 
+        // Billing
         session.user.planStatus = token.planStatus ?? "inactive";
         session.user.planType = token.planType ?? null;
         session.user.planInterval = token.planInterval ?? null;
         session.user.planExpiresAt = token.planExpiresAt
           ? new Date(token.planExpiresAt).toISOString()
           : null;
-        session.user.cancelAtPeriodEnd = token.cancelAtPeriodEnd ?? null;
-        session.user.affiliateCode = token.affiliateCode;
+        // Normaliza como boolean para o client
+        session.user.cancelAtPeriodEnd = !!token.cancelAtPeriodEnd;
+        // IDs do Stripe
+        session.user.stripeCustomerId = (token as any).stripeCustomerId ?? null;
+        session.user.stripeSubscriptionId = (token as any).stripeSubscriptionId ?? null;
+        session.user.stripePriceId = (token as any).stripePriceId ?? null;
+
+        // Agência
         (session.user as any).agencyId = token.agencyId ?? null;
         (session.user as any).agencyPlanStatus = token.agencyPlanStatus ?? null;
         (session.user as any).agencyPlanType = token.agencyPlanType ?? null;
 
+        // Afiliados
+        session.user.affiliateCode = token.affiliateCode;
         session.user.affiliateBalances = token.affiliateBalances || {};
         (session.user as any).affiliateRank = (session.user as any).affiliateRank ?? undefined;
         (session.user as any).affiliateInvites = (session.user as any).affiliateInvites ?? undefined;
+
+        // Stripe Connect (payouts)
         session.user.stripeAccountStatus = token.stripeAccountStatus ?? null;
         session.user.stripeAccountDefaultCurrency =
           token.stripeAccountDefaultCurrency ?? null;
@@ -1015,7 +1081,9 @@ export const authOptions: NextAuthOptions = {
         await connectToDatabase();
         const dbUserCheck = await DbUser.findById(token.id)
           .select(
-            "planStatus planType planInterval planExpiresAt cancelAtPeriodEnd name role image"
+            "planStatus planType planInterval planExpiresAt cancelAtPeriodEnd " +
+              "stripeCustomerId stripeSubscriptionId stripePriceId " + // <<< ADD
+              "name role image"
           )
           .lean<
             Pick<
@@ -1027,25 +1095,41 @@ export const authOptions: NextAuthOptions = {
               | "name"
               | "role"
               | "image"
+              | "stripeCustomerId"
+              | "stripeSubscriptionId"
+              | "stripePriceId"
             > & { cancelAtPeriodEnd?: boolean | null }
           >();
 
         if (dbUserCheck && session.user) {
           logger.info(
-            `${TAG_SESSION} Revalidando sessão com dados do DB para User ID: ${token.id}. DB planStatus: ${dbUserCheck.planStatus}. Session planStatus (antes da revalidação DB): ${session.user.planStatus}`
+            `${TAG_SESSION} Revalidando sessão com dados do DB para User ID: ${token.id}. DB planStatus: ${dbUserCheck.planStatus}.`
           );
           session.user.planStatus =
             dbUserCheck.planStatus ?? session.user.planStatus ?? "inactive";
           session.user.planType = dbUserCheck.planType ?? session.user.planType ?? null;
           session.user.planInterval =
             dbUserCheck.planInterval ?? session.user.planInterval ?? null;
+
           if (dbUserCheck.planExpiresAt instanceof Date) {
             session.user.planExpiresAt = dbUserCheck.planExpiresAt.toISOString();
           } else if (dbUserCheck.planExpiresAt === null) {
             session.user.planExpiresAt = null;
           }
+
           session.user.cancelAtPeriodEnd =
-            dbUserCheck.cancelAtPeriodEnd ?? session.user.cancelAtPeriodEnd ?? null;
+            typeof dbUserCheck.cancelAtPeriodEnd === "boolean"
+              ? dbUserCheck.cancelAtPeriodEnd
+              : session.user.cancelAtPeriodEnd ?? false;
+
+          // IDs do Stripe
+          session.user.stripeCustomerId =
+            (dbUserCheck as any).stripeCustomerId ?? session.user.stripeCustomerId ?? null;
+          session.user.stripeSubscriptionId =
+            (dbUserCheck as any).stripeSubscriptionId ?? session.user.stripeSubscriptionId ?? null;
+          session.user.stripePriceId =
+            (dbUserCheck as any).stripePriceId ?? session.user.stripePriceId ?? null;
+
           if (dbUserCheck.name) session.user.name = dbUserCheck.name;
           if (dbUserCheck.role) session.user.role = dbUserCheck.role;
           if (dbUserCheck.image) session.user.image = dbUserCheck.image;
@@ -1062,9 +1146,7 @@ export const authOptions: NextAuthOptions = {
       }
 
       logger.debug(
-        `${TAG_SESSION} Finalizado. Session.user ID: ${session.user?.id}, Name: ${session.user?.name}, Provider: ${session.user?.provider}, Session planStatus (final): ${session.user?.planStatus}, agencyId: ${(session.user as any)?.agencyId}, agencyPlanStatus: ${(session.user as any)?.agencyPlanStatus}, igAccounts: ${session.user?.availableIgAccounts?.length}, igErr: ${
-          (session.user as any)?.igConnectionError ? "Sim" : "Não"
-        }`
+        `${TAG_SESSION} Finalizado. Session.user ID: ${session.user?.id}, planStatus: ${session.user?.planStatus}, cancelAtPeriodEnd: ${session.user?.cancelAtPeriodEnd}, stripeSub: ${session.user?.stripeSubscriptionId}`
       );
       return session;
     },

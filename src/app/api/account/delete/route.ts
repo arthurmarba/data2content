@@ -9,7 +9,6 @@ import { stripe } from "@/app/lib/stripe";
 import { checkRateLimit } from "@/utils/rateLimit";
 import { getClientIp } from "@/utils/getClientIp";
 import { cancelBlockingIncompleteSubs } from "@/utils/stripeHelpers";
-import type Stripe from "stripe";
 
 export const runtime = "nodejs";
 
@@ -22,7 +21,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // rate limit leve: 3 req/min
+    // rate limit leve: 3 req/min por IP + user
     const ip = getClientIp(req);
     const { allowed } = await checkRateLimit(
       `account_delete:${session.user.id}:${ip}`,
@@ -39,41 +38,61 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "NotFound" }, { status: 404 });
     }
 
-    // ✅ CORREÇÃO: O status 'pending' foi removido da lista de bloqueio.
-    const blockedStatuses = new Set(["active", "trial", "past_due"]);
-    const dbBlocked = blockedStatuses.has((user.planStatus as any) || "");
-    if (dbBlocked) {
-      logger.warn("[account.delete] blocked due to active subscription status (DB)", {
+    // ---------- BLOQUEIO (Stripe primeiro, depois fallback no DB) ----------
+    const ACTIVE_LIKE = new Set(["active", "trialing", "past_due", "unpaid"]);
+    let mustBlock = false;
+
+    // 1) Stripe como fonte de verdade (se houver subscriptionId)
+    if (user.stripeSubscriptionId) {
+      try {
+        const sub = await stripe.subscriptions.retrieve(user.stripeSubscriptionId);
+        mustBlock = ACTIVE_LIKE.has(sub.status) && !sub.cancel_at_period_end;
+      } catch (err) {
+        logger.warn("[account.delete] stripe retrieve failed, falling back to DB", {
+          userId: user._id,
+          err,
+        });
+      }
+    }
+
+    // 2) Fallback pelo que está salvo no DB
+    if (!mustBlock) {
+      const status = (user.planStatus as string) || "";
+      mustBlock = ACTIVE_LIKE.has(status) && !user.cancelAtPeriodEnd;
+    }
+
+    if (mustBlock) {
+      logger.warn("[account.delete] blocked due to active subscription status", {
         userId: user._id,
         planStatus: user.planStatus,
+        cancelAtPeriodEnd: user.cancelAtPeriodEnd,
       });
       return NextResponse.json(
         {
           error: "ERR_ACTIVE_SUBSCRIPTION",
-          message: "Cancele sua assinatura ativa ou pendente antes de excluir a conta.",
+          message: "Cancele sua assinatura ativa antes de excluir a conta.",
         },
         { status: 409 }
       );
     }
+    // ----------------------------------------------------------------------
 
-    // 🔧 Stripe (opcional): se houver customer, SEMPRE limpamos pendências.
+    // 🔧 Stripe (opcional): se houver customer, limpar pendências e (opcional) registrar snapshot
     if (user.stripeCustomerId) {
       const customerId = user.stripeCustomerId;
-
       try {
         // 1) Limpa pendências: incomplete / incomplete_expired
         try {
           await cancelBlockingIncompleteSubs(customerId);
         } catch { /* noop */ }
 
-        // 2) Snapshot de diagnósticos
+        // 2) Snapshot de diagnósticos (opcional)
         if (process.env.VERIFY_STRIPE_BEFORE_DELETE === "true") {
           const subs = await stripe.subscriptions.list({
             customer: customerId,
             status: "all",
             limit: 100,
           });
-
           logger.info("[account.delete] stripe subs snapshot", {
             userId: user._id,
             customerId,
@@ -85,10 +104,7 @@ export async function DELETE(req: NextRequest) {
           });
         }
       } catch (e) {
-        logger.error(
-          "[account.delete] Stripe verification/cleanup failed (continuing)",
-          e
-        );
+        logger.error("[account.delete] Stripe verification/cleanup failed (continuing)", e);
       }
     }
 
@@ -98,14 +114,9 @@ export async function DELETE(req: NextRequest) {
         ? Object.fromEntries(user.affiliateBalances as any)
         : (user.affiliateBalances as any) || {};
     const balances = (balancesRaw || {}) as Record<string, number>;
-    const hasAffiliateBalances = Object.values(balances).some(
-      (v) => Number(v) > 0
-    );
+    const hasAffiliateBalances = Object.values(balances).some((v) => Number(v) > 0);
 
-    if (
-      hasAffiliateBalances &&
-      process.env.BLOCK_DELETE_WITH_AFFILIATE_BALANCE === "true"
-    ) {
+    if (hasAffiliateBalances && process.env.BLOCK_DELETE_WITH_AFFILIATE_BALANCE === "true") {
       logger.warn("[account.delete] abort due to affiliate balances", {
         userId: user._id,
         balances,
@@ -113,8 +124,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json(
         {
           error: "ERR_AFFILIATE_BALANCE",
-          message:
-            "Você possui comissões pendentes. Solicite o saque antes de excluir a conta.",
+          message: "Você possui comissões pendentes. Solicite o saque antes de excluir a conta.",
         },
         { status: 409 }
       );

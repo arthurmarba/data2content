@@ -1,3 +1,4 @@
+// /src/app/api/billing/preview/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getServerSession } from "next-auth/next";
@@ -5,6 +6,8 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import { stripe } from "@/app/lib/stripe";
+
+const noStoreHeaders = { "Cache-Control": "no-store, max-age=0" } as const;
 
 // --- Tipos para clareza ---
 type Plan = "monthly" | "annual";
@@ -24,7 +27,7 @@ function normalizeCode(v?: string | null) {
 
 function getPriceId(plan: Plan, currency: Currency): string {
   const key = `STRIPE_PRICE_${plan.toUpperCase()}_${currency.toUpperCase()}`;
-  const priceId = process.env[key as keyof NodeJS.ProcessEnv];
+  const priceId = process.env[key as keyof NodeJS.ProcessEnv] as string | undefined;
   if (!priceId) throw new Error(`Price ID não configurado para ${key}`);
   return priceId;
 }
@@ -113,21 +116,29 @@ async function checkAffiliateCode(
   return { couponId, code };
 }
 
+function sumDiscounts(inv: any): number {
+  const a: any[] = Array.isArray(inv?.discount_amounts) ? inv.discount_amounts : [];
+  const b: any[] = Array.isArray(inv?.total_discount_amounts) ? inv.total_discount_amounts : [];
+  const sa = a.reduce((acc, d) => acc + (d?.amount ?? 0), 0);
+  const sb = b.reduce((acc, d) => acc + (d?.amount ?? 0), 0);
+  return sa || sb || 0;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+      return NextResponse.json({ error: "Não autenticado" }, { status: 401, headers: noStoreHeaders });
     }
 
     await connectToDatabase();
 
     const { plan, currency, affiliateCode: bodyAffiliateCode } = await req.json();
     const planNorm = String(plan || "").toLowerCase() as Plan;
-    const currencyNorm = String(currency || "").toUpperCase() as Currency;
+    const currencyNorm = (String(currency || "BRL").toUpperCase() === "USD" ? "USD" : "BRL") as Currency;
 
     if (!["monthly", "annual"].includes(planNorm) || !["BRL", "USD"].includes(currencyNorm)) {
-      return NextResponse.json({ error: "Parâmetros inválidos" }, { status: 400 });
+      return NextResponse.json({ error: "Parâmetros inválidos" }, { status: 400, headers: noStoreHeaders });
     }
 
     const { code: resolvedCode, source } = resolveAffiliateFromRequest(
@@ -144,27 +155,26 @@ export async function POST(req: NextRequest) {
 
     if (affiliateCheck.error === "invalid_code") {
       return NextResponse.json(
-        { error: "Código de afiliado inválido.", affiliateApplied: false },
-        { status: 400 }
+        { code: "INVALID_CODE", error: "Código de afiliado inválido.", affiliateApplied: false },
+        { status: 400, headers: noStoreHeaders }
       );
     }
     if (affiliateCheck.error === "self_referral") {
       return NextResponse.json(
-        { error: "Você não pode usar seu próprio código de afiliado.", affiliateApplied: false },
-        { status: 400 }
+        { code: "SELF_REFERRAL", error: "Você não pode usar seu próprio código de afiliado.", affiliateApplied: false },
+        { status: 400, headers: noStoreHeaders }
       );
     }
     if (affiliateCheck.error === "coupon_not_configured") {
       return NextResponse.json(
-        { error: "O sistema de cupons não está configurado corretamente." },
-        { status: 500 }
+        { code: "COUPON_NOT_CONFIGURED", error: "O sistema de cupons não está configurado corretamente." },
+        { status: 500, headers: noStoreHeaders }
       );
     }
 
     const affiliateCouponId = affiliateCheck.couponId;
 
-    // ✅ Basil: usar Create Preview Invoice em vez de invoices.retrieveUpcoming
-    // e enviar subscription_details.items
+    // ✅ Basil: usar Create Preview Invoice
     const invoice = await stripe.invoices.createPreview({
       customer: customerId,
       subscription_details: {
@@ -177,21 +187,24 @@ export async function POST(req: NextRequest) {
     const price = await stripe.prices.retrieve(priceId);
     const nextCycleAmount = price.unit_amount ?? 0;
 
-    return NextResponse.json({
-      currency: invoice.currency,
-      subtotal: (invoice as any).subtotal ?? 0,
-      discountsTotal:
-        (invoice as any).total_discount_amounts?.reduce((acc: number, d: any) => acc + d.amount, 0) ??
-        0,
-      tax: (invoice as any).tax ?? 0,
-      total: (invoice as any).total ?? 0,
-      nextCycleAmount,
-      affiliateApplied: !!affiliateCouponId,
-      affiliateSource: source || null,
-      affiliateCode: affiliateCheck.code || null,
-    });
+    const currencyUpper = (invoice.currency || currencyNorm).toString().toUpperCase();
+
+    return NextResponse.json(
+      {
+        currency: currencyUpper,
+        subtotal: (invoice as any).subtotal ?? 0,
+        discountsTotal: sumDiscounts(invoice),
+        tax: (invoice as any).tax ?? 0,
+        total: (invoice as any).total ?? 0,
+        nextCycleAmount,
+        affiliateApplied: !!affiliateCouponId,
+        affiliateSource: source || null,
+        affiliateCode: affiliateCheck.code || null,
+      },
+      { headers: noStoreHeaders }
+    );
   } catch (error: any) {
     console.error("[billing/preview] error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500, headers: noStoreHeaders });
   }
 }

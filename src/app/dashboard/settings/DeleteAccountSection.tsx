@@ -1,27 +1,54 @@
+// src/app/dashboard/settings/DeleteAccountSection.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useSession, signOut } from "next-auth/react";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 
+type SessionUser = {
+  planStatus?: string | null;
+  cancelAtPeriodEnd?: boolean | null;
+  planExpiresAt?: string | Date | null;
+  affiliateBalances?: Record<string, number> | Map<string, number>;
+};
+
 export default function DeleteAccountSection() {
   const { data: session } = useSession();
-  const planStatus = session?.user?.planStatus;
-  const affiliateBalances = session?.user?.affiliateBalances || {};
-  
-  // <<< INÍCIO DA CORREÇÃO >>>
-  // Acessamos o status de cancelamento agendado da sessão.
-  // @ts-ignore - Adicionado para permitir compilação antes de atualizarmos o tipo da sessão
-  const isScheduledForCancellation = session?.user?.cancelAtPeriodEnd === true;
-  
-  // A exclusão agora só é bloqueada se o plano estiver ativo E NÃO estiver agendado para cancelar.
-  const isPlanActive = ["active", "trial", "past_due"].includes(
-    planStatus || ""
-  );
-  const isDeletionBlocked = isPlanActive && !isScheduledForCancellation;
-  // <<< FIM DA CORREÇÃO >>>
+  const user = (session?.user as SessionUser) || {};
+  const planStatus = user.planStatus || "";
+  const affiliateBalancesRaw = user.affiliateBalances || {};
+  const affiliateBalances =
+    affiliateBalancesRaw instanceof Map
+      ? Object.fromEntries(affiliateBalancesRaw as Map<string, number>)
+      : (affiliateBalancesRaw as Record<string, number>);
 
+  // --- regras de bloqueio alinhadas com o backend ---
+  const isScheduledForCancellation = user.cancelAtPeriodEnd === true;
+  const ACTIVE_LIKE = new Set(["active", "trialing", "past_due", "unpaid"]);
+  const isPlanActiveLike = ACTIVE_LIKE.has(planStatus);
+  const isDeletionBlocked = isPlanActiveLike && !isScheduledForCancellation;
+
+  const planExpiresAt: Date | null = useMemo(() => {
+    const v = user.planExpiresAt as any;
+    if (!v) return null;
+    try {
+      return v instanceof Date ? v : new Date(v);
+    } catch {
+      return null;
+    }
+  }, [user.planExpiresAt]);
+
+  const expiresAtLabel = useMemo(() => {
+    if (!planExpiresAt) return null;
+    try {
+      return new Intl.DateTimeFormat("pt-BR", {
+        dateStyle: "long",
+      }).format(planExpiresAt);
+    } catch {
+      return planExpiresAt.toLocaleDateString?.() ?? String(planExpiresAt);
+    }
+  }, [planExpiresAt]);
 
   const [showBlocked, setShowBlocked] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -29,21 +56,15 @@ export default function DeleteAccountSection() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleClick = () => {
-    if (isDeletionBlocked) {
-      setShowBlocked(true);
-    } else {
-      setShowConfirm(true);
-    }
+    if (isDeletionBlocked) setShowBlocked(true);
+    else setShowConfirm(true);
   };
 
   const scrollToManage = () => {
     setShowBlocked(false);
     const el = document.getElementById("subscription-management-title");
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-    } else {
-      window.location.href = "/dashboard/settings#subscription-management-title";
-    }
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    else window.location.href = "/dashboard/settings#subscription-management-title";
   };
 
   const handleDelete = async () => {
@@ -55,43 +76,70 @@ export default function DeleteAccountSection() {
         await signOut({ callbackUrl: "/" });
         return;
       }
-      const data = await res.json().catch(() => null);
-      if (data?.error === "ERR_ACTIVE_SUBSCRIPTION") {
+
+      const data = await res.json().catch(() => null as any);
+
+      // erros conhecidos do backend
+      if (res.status === 409 && data?.error === "ERR_ACTIVE_SUBSCRIPTION") {
         toast.error("Cancele sua assinatura antes de excluir a conta.");
         setShowConfirm(false);
         setShowBlocked(true);
-      } else {
-        toast.error(data?.message || "Não foi possível excluir sua conta agora.");
+        return;
       }
+
+      if (res.status === 409 && data?.error === "ERR_AFFILIATE_BALANCE") {
+        toast.error(
+          data?.message ||
+            "Você possui comissões pendentes. Solicite o saque antes de excluir a conta."
+        );
+        return;
+      }
+
+      if (res.status === 429) {
+        toast.error("Muitas tentativas. Tente novamente em instantes.");
+        return;
+      }
+
+      if (res.status === 401) {
+        toast.error("Sua sessão expirou. Faça login novamente.");
+        return;
+      }
+
+      toast.error(data?.message || "Não foi possível excluir sua conta agora.");
     } finally {
       setIsDeleting(false);
     }
   };
 
-  const hasAffiliateBalance = Object.values(affiliateBalances).some(
+  const hasAffiliateBalance = Object.values(affiliateBalances || {}).some(
     (v) => Number(v) > 0
   );
 
   return (
     <section id="delete-account" className="space-y-4 pt-4 border-t">
       <h2 className="text-xl font-semibold text-red-700">Excluir conta</h2>
-      
-      {planStatus === "pending" && (
-        <p className="text-sm text-blue-800 bg-blue-50 p-3 rounded-md">
-          Sua assinatura está <b>pendente</b>. Você pode excluir sua conta se desejar.
-        </p>
-      )}
 
-      {/* <<< NOVA MENSAGEM INFORMATIVA >>> */}
+      {/* Informação quando a renovação já está agendada */}
       {isScheduledForCancellation && (
         <p className="text-sm text-green-800 bg-green-50 p-3 rounded-md">
-          Sua assinatura já foi cancelada e não será renovada. Você pode excluir sua conta permanentemente agora, se desejar.
+          Sua assinatura está com <b>cancelamento agendado</b>
+          {expiresAtLabel ? (
+            <>
+              {" "}
+              e permanecerá ativa até <b>{expiresAtLabel}</b>. Você já pode excluir sua conta
+              permanentemente, se desejar.
+            </>
+          ) : (
+            <> e não será renovada. Você já pode excluir sua conta permanentemente, se desejar.</>
+          )}
         </p>
       )}
 
+      {/* Bloqueio quando ainda está ativa e não agendada para encerrar */}
       {isDeletionBlocked && (
         <p className="text-sm text-yellow-800 bg-yellow-50 p-3 rounded-md">
-          Você possui uma assinatura ativa. Para excluir sua conta, primeiro é necessário cancelar a renovação automática.
+          Você possui uma assinatura ativa. Para excluir sua conta, primeiro cancele a renovação
+          automática na seção de gerenciamento de planos.
         </p>
       )}
 
@@ -102,6 +150,7 @@ export default function DeleteAccountSection() {
         Excluir minha conta
       </button>
 
+      {/* Modal bloqueado */}
       <AnimatePresence>
         {showBlocked && (
           <motion.div
@@ -120,14 +169,11 @@ export default function DeleteAccountSection() {
             >
               <h3 className="text-lg font-semibold mb-2">Ação necessária</h3>
               <p className="text-sm text-gray-600 mb-4">
-                Para excluir sua conta, primeiro é necessário cancelar sua
-                assinatura na seção de gerenciamento de planos.
+                Para excluir sua conta, primeiro cancele sua assinatura na seção de gerenciamento de
+                planos.
               </p>
               <div className="flex justify-end gap-2">
-                <button
-                  className="px-3 py-1 text-sm"
-                  onClick={() => setShowBlocked(false)}
-                >
+                <button className="px-3 py-1 text-sm" onClick={() => setShowBlocked(false)}>
                   Entendi
                 </button>
                 <button
@@ -142,6 +188,7 @@ export default function DeleteAccountSection() {
         )}
       </AnimatePresence>
 
+      {/* Modal de confirmação */}
       <AnimatePresence>
         {showConfirm && (
           <motion.div
@@ -157,20 +204,18 @@ export default function DeleteAccountSection() {
             >
               <h3 className="text-lg font-semibold mb-2">Tem certeza?</h3>
               <p className="text-sm text-gray-600 mb-4">
-                Esta ação é permanente e não pode ser desfeita. Para confirmar,
-                digite <strong>EXCLUIR</strong> no campo abaixo.
+                Esta ação é permanente e não pode ser desfeita. Para confirmar, digite{" "}
+                <strong>EXCLUIR</strong> no campo abaixo.
               </p>
 
               {hasAffiliateBalance && (
                 <div className="mb-4 text-sm text-yellow-800 bg-yellow-50 p-2 rounded">
-                  {Object.entries(affiliateBalances).map(
-                    ([cur, val]: [string, any]) => (
-                      <div key={cur}>
-                        Aviso: Você tem um saldo de afiliado de {val} em {cur}.
-                        Considere resgatá-lo antes de excluir a conta.
-                      </div>
-                    )
-                  )}
+                  {Object.entries(affiliateBalances).map(([cur, val]) => (
+                    <div key={cur}>
+                      Aviso: Você tem um saldo de afiliado de {val} em {cur}. Considere resgatá-lo
+                      antes de excluir a conta.
+                    </div>
+                  ))}
                 </div>
               )}
 
@@ -181,10 +226,7 @@ export default function DeleteAccountSection() {
                 className="w-full border p-2 mb-4 rounded-md"
               />
               <div className="flex justify-end gap-2">
-                <button
-                  className="px-3 py-1 text-sm"
-                  onClick={() => setShowConfirm(false)}
-                >
+                <button className="px-3 py-1 text-sm" onClick={() => setShowConfirm(false)}>
                   Cancelar
                 </button>
                 <button

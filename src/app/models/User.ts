@@ -1,11 +1,12 @@
-// @/app/models/User.ts - v1.9.22 (CORRIGIDO)
-// - Expande enums de planStatus e planInterval para compatibilidade com Stripe.
+// @/app/models/User.ts - v1.9.23
+// - Expande enums de planStatus para incluir 'non_renewing' (e 'trial'/'expired' por compat).
+// - Mantém compat com valores do Stripe e normalizações no backend.
 
 import mongoose, { Schema, Document, Model, Types } from "mongoose";
 import { logger } from "@/app/lib/logger";
 import {
   USER_ROLES,
-  PLAN_STATUSES, // Este import será sobreposto pela definição local no schema
+  PLAN_STATUSES, // mantém import; o schema abaixo define a validação efetiva
   type UserRole,
   type PlanStatus,
 } from '@/types/enums';
@@ -253,6 +254,7 @@ export interface IUser extends Document {
   stripePriceId?: string | null;
   planInterval?: 'month' | 'year';
   currentPeriodEnd?: Date | null;
+  cancelAtPeriodEnd?: boolean;
   currency?: string;
   lastProcessedEventId?: string;
   planExpiresAt?: Date | null;
@@ -405,36 +407,38 @@ const userSchema = new Schema<IUser>(
 
     planStatus: {
       type: String,
-      // --- CORREÇÃO 1 APLICADA ---
-      // Expandimos a lista para incluir todos os status do ciclo de vida do Stripe
-      // que estavam causando o erro de validação.
+      // enum ampliado para compatibilidade com toda a app e webhooks
       enum: [
+        'pending',
         'active',
         'inactive',
         'canceled',
-        'pending',
-        'trialing',
+        'trial',                // usado por algumas normalizações
+        'trialing',             // status nativo do Stripe
+        'expired',
         'past_due',
         'incomplete',
         'incomplete_expired',
         'unpaid',
+        'non_renewing',         // <<< necessário para cancel_at_period_end=true
       ],
       default: "inactive",
       index: true
     },
+
     planType: { type: String, enum: ['monthly', 'annual', 'annual_one_time'], default: 'monthly' },
     paymentGatewaySubscriptionId: { type: String },
     stripeCustomerId: { type: String, index: true },
     stripeSubscriptionId: { type: String, default: null },
     stripePriceId: { type: String, default: null },
+
     planInterval: {
       type: String,
-      // --- CORREÇÃO 2 APLICADA ---
-      // Adicionamos 'null' para permitir casos onde o intervalo não é definido,
-      // resolvendo o segundo erro de validação.
-      enum: ['month', 'year', null],
+      enum: ['month', 'year', null], // permitir null/undefined quando não há assinatura
       default: undefined
     },
+
+    cancelAtPeriodEnd: { type: Boolean, default: false },
     currentPeriodEnd: { type: Date, default: null },
     currency: { type: String, default: 'BRL' },
     lastProcessedEventId: { type: String },
@@ -550,7 +554,7 @@ userSchema.index(
 );
 
 userSchema.pre<IUser>("save", function (next) {
-  const TAG_PRE_SAVE = '[User.ts pre-save v1.9.21]';
+  const TAG_PRE_SAVE = '[User.ts pre-save v1.9.23]';
   if (this.isNew && !this.affiliateCode) {
     const newCode = generateAffiliateCode();
     logger.info(`${TAG_PRE_SAVE} Gerando novo affiliateCode: '${newCode}' para User Email: ${this.email}`);

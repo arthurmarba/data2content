@@ -1,49 +1,93 @@
+// src/app/hooks/useBillingStatus.ts
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-type PlanStatus = "active" | "non_renewing" | "inactive" | "pending" | "expired";
-type BillingStatus = {
+// Estados reais do Stripe + aliases de UI
+export type PlanStatus =
+  | "active"
+  | "trialing"
+  | "past_due"
+  | "incomplete"
+  | "incomplete_expired"
+  | "unpaid"
+  | "canceled"
+  | "inactive"
+  | "non_renewing"
+  // compat legado/UI:
+  | "pending"
+  | "expired";
+
+export type BillingStatus = {
   planStatus: PlanStatus | null;
-  planExpiresAt: string | null;
-  interval: 'month' | 'year' | null;
+  planExpiresAt: Date | null;
+  interval: "month" | "year" | null;
   priceId: string | null;
+  cancelAtPeriodEnd: boolean;
+  /** Ajuda a UI a decidir qual CTA exibir */
+  nextAction?: "cancel" | "reactivate" | "resubscribe";
 };
 
 type Options = {
-  auto?: boolean;        // se true, carrega imediatamente
-  pollOn?: PlanStatus[]; // estados que devem ligar polling automático
-  intervalMs?: number;   // período do polling
+  auto?: boolean;
+  pollOn?: PlanStatus[];
+  intervalMs?: number;
 };
 
 export function useBillingStatus(opts: Options = {}) {
   const {
     auto = true,
-    pollOn = ["pending"],
+    // Poll em estados que tendem a mudar logo após uma ação do usuário:
+    // /api/plan/status já mapeia 'past_due' e 'incomplete' -> 'pending'
+    pollOn = ["pending", "incomplete", "past_due"],
     intervalMs = 4000,
   } = opts;
 
-  const [data, setData] = useState<BillingStatus>({ planStatus: null, planExpiresAt: null, interval: null, priceId: null });
+  const [data, setData] = useState<BillingStatus>({
+    planStatus: null,
+    planExpiresAt: null,
+    interval: null,
+    priceId: null,
+    cancelAtPeriodEnd: false,
+  });
   const [loading, setLoading] = useState<boolean>(!!auto);
   const [error, setError] = useState<string | null>(null);
 
-  const pollingRef = useRef<any>(null);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const fetchOnce = useCallback(async () => {
     setLoading(true);
     setError(null);
+
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
-      const res = await fetch(`/api/plan/status`, { cache: "no-store", credentials: 'include' });
+      const res = await fetch(`/api/plan/status`, {
+        cache: "no-store",
+        credentials: "include",
+        signal: controller.signal,
+      });
       const j = await res.json();
-      if (!res.ok || !j.ok) throw new Error(j?.error || "Falha ao obter status");
+
+      if (!res.ok || !j?.ok) {
+        throw new Error(j?.error || "Falha ao obter status");
+      }
+
+      const planExpiresAt: Date | null = j?.planExpiresAt ? new Date(j.planExpiresAt) : null;
+
       setData({
-        planStatus: j?.status ?? null,
-        planExpiresAt: j?.planExpiresAt ?? null,
-        interval: j?.interval ?? null,
+        planStatus: (j?.status ?? null) as PlanStatus | null, // 'status' já vem mapeado p/ UI
+        planExpiresAt,
+        interval: (j?.interval ?? null) as "month" | "year" | null,
         priceId: j?.priceId ?? null,
+        cancelAtPeriodEnd: !!j?.cancelAtPeriodEnd,
       });
     } catch (e: any) {
       setError(e?.message || "Erro inesperado");
+      setData((prev) => ({ ...prev }));
     } finally {
       setLoading(false);
     }
@@ -63,18 +107,45 @@ export function useBillingStatus(opts: Options = {}) {
     }
   }, []);
 
-  // auto-load
   useEffect(() => {
     if (auto) fetchOnce();
-    return () => stopPolling();
+    return () => {
+      stopPolling();
+      abortRef.current?.abort();
+    };
   }, [auto, fetchOnce, stopPolling]);
 
-  // liga/desliga polling baseado em estado
   useEffect(() => {
     if (!data.planStatus) return;
     if (pollOn.includes(data.planStatus)) startPolling();
     else stopPolling();
   }, [data.planStatus, pollOn, startPolling, stopPolling]);
+
+  const flags = useMemo(() => {
+    const isActive = data.planStatus === "active" || data.planStatus === "trialing";
+    const isNonRenewing = data.planStatus === "non_renewing" || data.cancelAtPeriodEnd === true;
+    const isAnnual = data.interval === "year";
+    const isMonthly = data.interval === "month";
+
+    // CTA:
+    // - inactive/expired/canceled/unpaid/incomplete_expired => "Assinar novamente"
+    // - non_renewing (ou cancelAtPeriodEnd true) => "Reativar"
+    // - demais (active/pending...) => "Cancelar"
+    const shouldResubscribe =
+      data.planStatus === "inactive" ||
+      data.planStatus === "expired" ||
+      data.planStatus === "canceled" ||
+      data.planStatus === "unpaid" ||
+      data.planStatus === "incomplete_expired";
+
+    const nextAction: "cancel" | "reactivate" | "resubscribe" = shouldResubscribe
+      ? "resubscribe"
+      : isNonRenewing
+      ? "reactivate"
+      : "cancel";
+
+    return { isActive, isNonRenewing, isAnnual, isMonthly, nextAction };
+  }, [data.planStatus, data.cancelAtPeriodEnd, data.interval]);
 
   return useMemo(
     () => ({
@@ -84,8 +155,11 @@ export function useBillingStatus(opts: Options = {}) {
       refetch,
       startPolling,
       stopPolling,
+      ...flags,
+      nextAction: flags.nextAction,
     }),
-    [data, loading, error, refetch, startPolling, stopPolling]
+    [data, loading, error, refetch, startPolling, stopPolling, flags]
   );
 }
 
+export default useBillingStatus;

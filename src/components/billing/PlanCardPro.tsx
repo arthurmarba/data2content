@@ -18,20 +18,86 @@ interface PlanCardProProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 interface InvoicePreview {
-  currency: string;
-  subtotal: number;
-  discountsTotal: number;
-  tax: number;
-  total: number;
-  nextCycleAmount: number;
-  affiliateApplied: boolean;
+  currency?: string | null;
+  subtotal?: number | null;
+  discountsTotal?: number | null;
+  tax?: number | null;
+  total?: number | null;
+  nextCycleAmount?: number | null;
+  affiliateApplied?: boolean | null;
 }
 
-const formatCurrency = (amount: number, currency: string) => {
-  return new Intl.NumberFormat(currency === 'BRL' ? 'pt-BR' : 'en-US', {
-    style: 'currency',
-    currency,
-  }).format((amount ?? 0) / 100);
+const toNumberOrNull = (v: unknown): number | null => {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v === 'string' && v.trim() !== '' && !isNaN(Number(v))) return Number(v);
+  return null;
+};
+
+// Normaliza payloads diferentes do backend (ex.: total/totalCents/amountDue etc.)
+function normalizePreview(input: any, fallbackCurrency: string): InvoicePreview | null {
+  if (!input || typeof input !== 'object') return null;
+
+  const currencyRaw =
+    input.currency ??
+    input.currencyCode ??
+    input.currency_code ??
+    input.curr ??
+    null;
+
+  const currency =
+    typeof currencyRaw === 'string' && currencyRaw.trim()
+      ? currencyRaw.trim().toUpperCase()
+      : (fallbackCurrency || 'BRL');
+
+  const subtotal =
+    toNumberOrNull(input.subtotal) ??
+    toNumberOrNull(input.subtotalAmount) ??
+    toNumberOrNull(input.subtotalCents) ??
+    toNumberOrNull(input.subtotal_price);
+
+  const total =
+    toNumberOrNull(input.total) ??
+    toNumberOrNull(input.totalAmount) ??
+    toNumberOrNull(input.totalCents) ??
+    toNumberOrNull(input.amount_due) ??
+    toNumberOrNull(input.amountDue);
+
+  const discountsTotal =
+    toNumberOrNull(input.discountsTotal) ??
+    toNumberOrNull(input.discount) ??
+    toNumberOrNull(input.discounts);
+
+  const tax =
+    toNumberOrNull(input.tax) ??
+    toNumberOrNull(input.taxAmount) ??
+    toNumberOrNull(input.taxCents);
+
+  const nextCycleAmount =
+    toNumberOrNull(input.nextCycleAmount) ??
+    toNumberOrNull(input.upcoming_total) ??
+    toNumberOrNull(input.upcomingTotal);
+
+  const affiliateApplied =
+    typeof input.affiliateApplied === 'boolean'
+      ? input.affiliateApplied
+      : undefined;
+
+  // É importante que pelo menos total exista para exibir o preço
+  if (total === null) return null;
+
+  return { currency, subtotal, discountsTotal, tax, total, nextCycleAmount, affiliateApplied };
+}
+
+const formatCurrency = (amount?: number | null, currency?: string | null) => {
+  const cur = typeof currency === 'string' && currency.trim() ? currency.trim().toUpperCase() : 'BRL';
+  const locale = cur === 'BRL' ? 'pt-BR' : 'en-US';
+  try {
+    return new Intl.NumberFormat(locale, { style: 'currency', currency: cur }).format(((amount ?? 0) as number) / 100);
+  } catch {
+    const val = (((amount ?? 0) as number) / 100).toFixed(2);
+    const symbol = cur === 'BRL' ? 'R$' : '$';
+    return `${symbol} ${val}`;
+  }
 };
 
 const Spinner = () => (
@@ -70,29 +136,24 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
   const sp = useSearchParams();
   const router = useRouter();
 
-  // --- INÍCIO DA CORREÇÃO ---
-  // Este useEffect roda apenas uma vez, na montagem do componente.
-  // Ele "hidrata" o estado com o código de afiliado salvo no navegador pelo middleware.
+  // Hidrata código salvo (localStorage/cookie)
   useEffect(() => {
-    // Tenta ler do localStorage primeiro, depois do cookie.
-    const savedCode = localStorage.getItem('d2c_ref') || 
-                      document.cookie.match(/(?:^|; )d2c_ref=([^;]+)/)?.[1] || 
-                      '';
-                      
+    const savedCode =
+      localStorage.getItem('d2c_ref') ||
+      document.cookie.match(/(?:^|; )d2c_ref=([^;]+)/)?.[1] ||
+      '';
     if (savedCode) {
-      // decodeURIComponent é importante para ler valores de cookies
       setAffiliateCode(decodeURIComponent(savedCode).toUpperCase());
     }
-  }, []); // O array vazio [] garante que rode apenas uma vez na montagem inicial.
-  // --- FIM DA CORREÇÃO ---
+  }, []);
 
-  // Prefill a partir de ?ref=XYZ ou ?aff=XYZ (sobrescreve o cookie se houver novo ref na URL)
+  // Prefill via querystring (?ref= / ?aff=)
   useEffect(() => {
     const ref = sp.get('ref') || sp.get('aff');
     if (ref) setAffiliateCode(ref.toUpperCase());
   }, [sp]);
 
-  // Persistir localmente + cookie (o backend lê cookie d2c_ref)
+  // Persiste código localmente
   useEffect(() => {
     try {
       if (affiliateCode?.trim()) {
@@ -106,15 +167,15 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
     } catch { /* noop */ }
   }, [affiliateCode]);
 
-  // Função reutilizável para buscar preview (com ou sem código)
+  // Envia também "toPlan" para compat com o backend atual
   const fetchPreview = useCallback(
     async (p: Plan, c: Currency, code: string) => {
       const res = await fetch('/api/billing/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: p, currency: c, affiliateCode: code }),
+        body: JSON.stringify({ plan: p, toPlan: p, currency: c, affiliateCode: code }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       return { ok: res.ok, data };
     },
     []
@@ -138,14 +199,21 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
           } else {
             if (!cancelled) setError(data?.message || data?.error || 'Erro ao buscar prévia.');
           }
+          // fallback SEM código
           const fb = await fetchPreview(plan, currency, '');
-          if (!cancelled) setPreview(fb.data ?? null);
+          if (!cancelled) {
+            const n = normalizePreview(fb.data, currency);
+            setPreview(fb.ok ? n : null);
+          }
         } else {
-          if (!cancelled) setPreview(data);
+          if (!cancelled) {
+            const n = normalizePreview(data, currency);
+            setPreview(n);
+          }
         }
       } catch {
         if (!cancelled) {
-          setError('Não foi possível verificar o código.');
+          setError('Não foi possível verificar a prévia.');
           setPreview(null);
         }
       } finally {
@@ -167,7 +235,12 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
           fetchPreview('annual', currency, ''),
         ]);
         if (!cancelled) {
-          setBaseline({ monthly: m?.data?.total ?? undefined, annual: a?.data?.total ?? undefined });
+          const nm = normalizePreview(m.data, currency);
+          const na = normalizePreview(a.data, currency);
+          setBaseline({
+            monthly: m.ok ? nm?.total ?? undefined : undefined,
+            annual: a.ok ? na?.total ?? undefined : undefined,
+          });
         }
       } catch {
         if (!cancelled) setBaseline(null);
@@ -192,7 +265,8 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
       const res = await fetch('/api/billing/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan, currency, affiliateCode: affiliateCode || undefined }),
+        // Envia toPlan também, por simetria/compat
+        body: JSON.stringify({ plan, toPlan: plan, currency, affiliateCode: affiliateCode || undefined }),
       });
       const json = await res.json();
 
@@ -242,12 +316,14 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
         } else if (data?.code === 'INVALID_CODE' || msg.includes('inválido')) {
           setAffiliateError(data?.message || 'Código inválido ou expirado.');
           const fb = await fetchPreview(plan, currency, '');
-          setPreview(fb.data ?? null);
+          const n = normalizePreview(fb.data, currency);
+          setPreview(fb.ok ? n : null);
         } else {
           setError(data?.message || data?.error || 'Não foi possível validar o código.');
         }
       } else {
-        setPreview(data);
+        const n = normalizePreview(data, currency);
+        setPreview(n);
       }
     } catch {
       setError('Falha de rede. Tente novamente.');
@@ -257,6 +333,9 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
   };
 
   const hasDiscount = (preview?.discountsTotal ?? 0) > 0;
+  const displayCurrency = (preview?.currency ?? currency) as string;
+  const displayTotal = preview?.total ?? null;
+  const displaySubtotal = preview?.subtotal ?? null;
 
   return (
     <div {...props} className={cn('rounded-2xl border bg-white p-6 shadow-sm w-full', className)}>
@@ -295,7 +374,7 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
       <div className="mb-2 text-center h-12 flex items-center justify-center">
         <AnimatePresence mode="wait">
           <motion.div
-            key={preview ? `${preview.total}-${plan}-${currency}-${hasDiscount}` : 'loading'}
+            key={displayTotal ? `${displayTotal}-${plan}-${currency}-${hasDiscount}` : isPreviewLoading ? 'loading' : 'empty'}
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -5 }}
@@ -305,15 +384,15 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
             <div className="flex items-baseline justify-center gap-2">
               {isPreviewLoading ? (
                 <Spinner />
-              ) : preview ? (
+              ) : displayTotal !== null ? (
                 <>
-                  {hasDiscount && (
+                  {hasDiscount && displaySubtotal !== null && (
                     <span className="text-2xl text-gray-400 line-through">
-                      {formatCurrency(preview.subtotal, preview.currency)}
+                      {formatCurrency(displaySubtotal, displayCurrency)}
                     </span>
                   )}
                   <span className="text-4xl font-extrabold tracking-tight">
-                    {formatCurrency(preview.total, preview.currency)}
+                    {formatCurrency(displayTotal, displayCurrency)}
                   </span>
                   <span className="text-lg text-gray-500">/{plan === 'monthly' ? 'mês' : 'ano'}</span>
                 </>
@@ -403,7 +482,7 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
       <button
         onClick={handleSubscribe}
         aria-busy={loading}
-        disabled={loading || isPreviewLoading || !preview}
+        disabled={loading || isPreviewLoading || !preview || preview.total == null}
         className="w-full rounded-2xl bg-black px-4 py-3 text-white disabled:opacity-50"
       >
         {loading ? 'Iniciando…' : 'Assinar agora'}

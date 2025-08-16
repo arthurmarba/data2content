@@ -1,126 +1,156 @@
 // types/next-auth.d.ts
 
 import { DefaultSession, DefaultUser } from "next-auth";
-import { JWT as DefaultJWT } from "next-auth/jwt"; // Import JWT type for merging
-import type { AvailableInstagramAccount } from '@/app/lib/instagramService'; // Importando o tipo que faltava
+import { JWT as DefaultJWT } from "next-auth/jwt";
+import type { AvailableInstagramAccount } from '@/app/lib/instagramService';
 import type { UserRole, PlanStatus, AgencyPlanType } from '@/types/enums';
 
 /**
- * Aqui estendemos a interface `Session` para incluir campos extras.
- * Esta é a estrutura que o seu frontend (ex: useSession()) receberá.
+ * Estende a interface Session com campos extras que o frontend consome.
  */
 declare module "next-auth" {
   interface Session {
     user?: {
-      id: string; // ID do seu banco de dados (obrigatório)
+      id: string;
       name?: string | null;
       email?: string | null;
       image?: string | null;
-      provider?: string | null; // Provider usado no login ATUAL ('google', 'facebook')
+      provider?: string | null;
       role?: UserRole;
+
+      // Agency
       agencyId?: string | null;
-      agencyPlanStatus?: PlanStatus | null;
+      agencyPlanStatus?: PlanStatus | "non_renewing" | null;
       agencyPlanType?: AgencyPlanType | null;
-      planStatus?: PlanStatus;
-      planExpiresAt?: string | null; // Mantido como string (ISO) para o cliente
+
+      // Billing (PESSOAL)
+      planStatus?: PlanStatus | "non_renewing" | null;
+      planInterval?: "month" | "year" | null;
+      planExpiresAt?: string | null; // manter ISO no cliente
+      cancelAtPeriodEnd?: boolean;
+      stripeCustomerId?: string | null;
+      stripeSubscriptionId?: string | null;
+      stripePriceId?: string | null;
+
+      // Afiliados
       affiliateCode?: string;
       affiliateBalances?: Record<string, number>;
       affiliateRank?: number;
       affiliateInvites?: number;
 
+      // Stripe Connect (payouts)
       stripeAccountStatus?: 'pending' | 'verified' | 'disabled' | null;
       stripeAccountDefaultCurrency?: string | null;
       payoutsEnabled?: boolean | null;
 
-      // Campos do Instagram que o frontend (InstagramConnectCard) espera:
+      // Instagram (UI)
       instagramConnected?: boolean;
       instagramAccountId?: string | null;
       instagramUsername?: string | null;
-      igConnectionError?: string | null; // Erro de conexão do Instagram
-      availableIgAccounts?: AvailableInstagramAccount[] | null; // Lista de contas IG disponíveis (se aplicável no fluxo)
-      lastInstagramSyncAttempt?: string | null; // Data da última tentativa de sincronização (string ISO)
-      lastInstagramSyncSuccess?: boolean | null; // Status da última sincronização
+      igConnectionError?: string | null;
+      availableIgAccounts?: AvailableInstagramAccount[] | null;
+      lastInstagramSyncAttempt?: string | null;
+      lastInstagramSyncSuccess?: boolean | null;
 
-      // Outros campos personalizados que você possa ter
+      // Onboarding
       isNewUserForOnboarding?: boolean;
-      onboardingCompletedAt?: string | null; // Mantido como string (ISO) para o cliente
+      onboardingCompletedAt?: string | null;
 
-    } & Omit<DefaultSession["user"], "id">; // Omit "id" from DefaultSession["user"] if your "id" is string and DefaultSession's is different or to avoid conflict
+    } & Omit<DefaultSession["user"], "id">;
   }
 
   /**
-   * Aqui estendemos a interface `User` padrão do NextAuth.
-   * Representa o objeto 'user' no DB ou retornado pelo 'profile' callback do provider,
-   * e o que é passado para o callback `jwt` no parâmetro `user`.
+   * Estende o User do NextAuth (lado servidor/DB → JWT callback).
    */
-  interface User extends DefaultUser { // DefaultUser já tem id, name, email, image
-    id: string; // Garante que nosso ID (do DB) sobrescreva/seja o principal
+  interface User extends DefaultUser {
+    id: string;
     role?: UserRole | null;
     agency?: string | null;
-    provider?: string | null; // Provider do primeiro login ou principal
-    providerAccountId?: string | null; // ID do provider principal
-    facebookProviderAccountId?: string | null; // ID específico do Facebook
-    
+    provider?: string | null;
+    providerAccountId?: string | null;
+    facebookProviderAccountId?: string | null;
+
     isNewUserForOnboarding?: boolean;
-    onboardingCompletedAt?: Date | null; // Pode ser Date aqui, pois vem do DB
-    
-    planStatus?: PlanStatus | null;
-    planExpiresAt?: Date | null; // Pode ser Date aqui
+    onboardingCompletedAt?: Date | null;
+
+    // Billing
+    planStatus?: PlanStatus | "non_renewing" | null;
+    planInterval?: "month" | "year" | null;
+    planExpiresAt?: Date | null;
+    cancelAtPeriodEnd?: boolean;
+    stripeCustomerId?: string | null;
+    stripeSubscriptionId?: string | null;
+    stripePriceId?: string | null;
+
+    // Afiliados
     affiliateCode?: string | null;
     affiliateBalances?: Record<string, number>;
     affiliateRank?: number;
     affiliateInvites?: number;
 
+    // Stripe Connect (payouts)
     stripeAccountStatus?: 'pending' | 'verified' | 'disabled' | null;
     stripeAccountDefaultCurrency?: string | null;
     payoutsEnabled?: boolean | null;
-    
-    // Campos do Instagram como vêm do DB ou são processados antes do JWT
+
+    // Instagram
     isInstagramConnected?: boolean | null;
     instagramAccountId?: string | null;
     instagramUsername?: string | null;
-    instagramAccessToken?: string | null; // Geralmente não vai para o token/sessão final
-    igUserAccessToken?: string | null; // LLAT do usuário IG
-    igConnectionError?: string | null; // Adicionado para consistência
+    instagramAccessToken?: string | null;
+    igUserAccessToken?: string | null;
+    igConnectionError?: string | null;
     availableIgAccounts?: AvailableInstagramAccount[] | null;
-    lastInstagramSyncAttempt?: Date | null; // Date aqui
+    lastInstagramSyncAttempt?: Date | null;
     lastInstagramSyncSuccess?: boolean | null;
   }
 }
 
 /**
- * Aqui estendemos a interface `JWT` para incluir campos extras
- * que serão persistidos no token após o callback `jwt`.
- * O callback `session` usará esses campos para construir o objeto `session.user`.
+ * Estende o JWT com os mesmos campos que precisamos carregar na sessão.
  */
 declare module "next-auth/jwt" {
-  interface JWT extends DefaultJWT { // DefaultJWT já tem name, email, picture, sub
-    id: string; // ID do usuário do seu DB (obrigatório)
+  interface JWT extends DefaultJWT {
+    id: string;
     role?: UserRole | null;
+
+    // Agency
     agencyId?: string | null;
-    agencyPlanStatus?: PlanStatus | null;
+    agencyPlanStatus?: PlanStatus | "non_renewing" | null;
     agencyPlanType?: AgencyPlanType | null;
+
     provider?: string | null;
-    planStatus?: PlanStatus | null;
+
+    // Billing
+    planStatus?: PlanStatus | "non_renewing" | null;
+    planInterval?: "month" | "year" | null;
+    planExpiresAt?: Date | string | null;
+    cancelAtPeriodEnd?: boolean;
+    stripeCustomerId?: string | null;
+    stripeSubscriptionId?: string | null;
+    stripePriceId?: string | null;
+
+    // Afiliados
     affiliateBalances?: Record<string, number>;
-    
+
+    // Onboarding
     isNewUserForOnboarding?: boolean;
-    onboardingCompletedAt?: Date | string | null; // Pode ser Date ou string (após encode)
-    
-    // Campos do Instagram no token
+    onboardingCompletedAt?: Date | string | null;
+
+    // Instagram
     isInstagramConnected?: boolean | null;
     instagramAccountId?: string | null;
     instagramUsername?: string | null;
     igConnectionError?: string | null;
-    availableIgAccounts?: AvailableInstagramAccount[] | null; // Se você decidir passar isso pelo token
-    lastInstagramSyncAttempt?: Date | string | null; // Pode ser Date ou string (após encode)
+    availableIgAccounts?: AvailableInstagramAccount[] | null;
+    lastInstagramSyncAttempt?: Date | string | null;
     lastInstagramSyncSuccess?: boolean | null;
 
+    // Stripe Connect (payouts)
     stripeAccountStatus?: 'pending' | 'verified' | 'disabled' | null;
     stripeAccountDefaultCurrency?: string | null;
     payoutsEnabled?: boolean | null;
-    
-    // picture pode ser usado por NextAuth, image é mais comum
+
     image?: string | null;
   }
 }
