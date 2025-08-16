@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 type Plan = "monthly" | "annual";
 type When = "now" | "period_end";
 
-// Tipagem simples da sessão
+// >>> FIX: tipagem simples para a sessão
 type SessionWithUserId = { user?: { id?: string | null } } | null;
 
 // Resolve o Price ID por plano/moeda
@@ -25,7 +25,7 @@ function getPriceId(plan: Plan, currency: string) {
   throw new Error("PriceId not configured for plan/currency");
 }
 
-// (Opcional) menor current_period_end, como fallback
+// Helper para obter o menor current_period_end
 function getCurrentPeriodEndSec(sub: any): number | null {
   const top = sub?.current_period_end;
   if (typeof top === "number") return top;
@@ -37,17 +37,13 @@ function getCurrentPeriodEndSec(sub: any): number | null {
 
 export async function POST(req: Request) {
   try {
+    // >>> FIX: cast explícito evita "Property 'user' does not exist on type '{}'"
     const session = (await getServerSession(authOptions as any)) as SessionWithUserId;
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
-    const body = (await req.json().catch(() => ({}))) as any;
-    const to: Plan = body?.to;
-    const when: When = body?.when;
-    // NOVO: permite forçar cobrança agora (pró-rata). Padrão: cobrar (true) para manter compat.
-    const chargeNow: boolean = (body?.chargeNow ?? body?.prorate ?? true) === true;
-
+    const { to, when }: { to: Plan; when: When } = await req.json().catch(() => ({} as any));
     if (!to || !["monthly", "annual"].includes(to)) {
       return NextResponse.json({ error: "Parâmetro 'to' inválido" }, { status: 400 });
     }
@@ -61,7 +57,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Assinatura não encontrada" }, { status: 404 });
     }
 
-    // Assinatura atual (com price expandido e schedule)
+    // Expandimos items.data.price e schedule
     const sub: any = await stripe.subscriptions.retrieve(user.stripeSubscriptionId as string, {
       expand: ["items.data.price", "schedule"],
     } as any);
@@ -84,7 +80,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, noop: true, message: "Seu plano já está nesse valor." });
     }
 
-    // Helper: schedule anexado a esta assinatura
+    // Helper: buscar schedule anexado
     const getAttachedSchedule = async () => {
       try {
         const list = await stripe.subscriptionSchedules.list({
@@ -112,7 +108,7 @@ export async function POST(req: Request) {
         }
       }
 
-      // Requer cobrança automática para pending updates
+      // Requer charge_automatically para pending updates
       if ((sub as any).collection_method && (sub as any).collection_method !== "charge_automatically") {
         return NextResponse.json(
           {
@@ -124,13 +120,12 @@ export async function POST(req: Request) {
         );
       }
 
-      // Troca imediata — por padrão, COM pró-rata (mantém compat com seu fluxo anterior).
-      // Se chargeNow === false, troca sem cobrança agora.
+      // Troca imediata sem cobrança agora
       const updated = await stripe.subscriptions.update(
         sub.id,
         {
           items: [{ id: currentItem.id, price: newPriceId }],
-          proration_behavior: chargeNow ? ("create_prorations" as any) : "none",
+          proration_behavior: "none",
           payment_behavior: "pending_if_incomplete",
           expand: ["latest_invoice.payment_intent"],
         } as any
@@ -143,57 +138,43 @@ export async function POST(req: Request) {
       return NextResponse.json({
         ok: true,
         when: "now",
-        charged: chargeNow,
         subscriptionId: updated.id,
-        clientSecret, // se vier, precisa confirmar ação de pagamento
+        clientSecret,
       });
     }
 
-    // -------- when === "period_end" --------
-    // Agenda via Subscription Schedule com fases contíguas e datas ancoradas.
+    // when === "period_end": agenda via Subscription Schedule
+    const cpeSec = getCurrentPeriodEndSec(sub);
 
-    // 1) Garante que existe schedule (sem end_behavior aqui)
     let schedule = await getAttachedSchedule();
     if (!schedule) {
       schedule = await stripe.subscriptionSchedules.create({
         from_subscription: sub.id,
+        end_behavior: "release",
       } as any);
     }
 
-    // 2) Recarrega o schedule para obter o current_phase (traz start/end)
-    const fullSched: any = await stripe.subscriptionSchedules.retrieve(schedule.id as string);
-    const curStart: number | null = (fullSched?.current_phase?.start_date ?? null) as number | null;
-    const curEnd: number | null = (fullSched?.current_phase?.end_date ?? null) as number | null;
-
-    // Fallback extra
-    const cpeSec = getCurrentPeriodEndSec(sub);
     const currentQty = currentItem.quantity ?? 1;
 
-    // 3) Fases
-    const phase1: any =
-      typeof curStart === "number" && typeof curEnd === "number"
-        ? {
-            start_date: curStart,
-            end_date: curEnd,
-            items: [{ price: currentPriceId, quantity: currentQty }],
-            proration_behavior: "none",
-          }
-        : {
-            items: [{ price: currentPriceId, quantity: currentQty }],
-            proration_behavior: "none",
-            iterations: 1, // fallback seguro
-          };
+    const phases: any[] = [
+      {
+        // Fase 1: de agora até o fim do ciclo atual (ou 1 iteração), mantendo o preço atual
+        start_date: "now", // <<< importante para ancorar datas
+        items: [{ price: currentPriceId, quantity: currentQty }],
+        proration_behavior: "none",
+        ...(typeof cpeSec === "number" ? { end_date: cpeSec } : { iterations: 1 }),
+      },
+      {
+        // Fase 2: próximo ciclo com o novo preço
+        ...(typeof cpeSec === "number" ? { start_date: cpeSec } : {}),
+        items: [{ price: newPriceId, quantity: 1 }],
+        proration_behavior: "none",
+      },
+    ];
 
-    const phase2: any = {
-      // começa após a fase anterior
-      items: [{ price: newPriceId, quantity: currentQty }],
-      proration_behavior: "none",
-      iterations: 1,
-    };
-
-    // 4) Atualiza o schedule APENAS com phases
-    const updatedSchedule = await stripe.subscriptionSchedules.update(schedule.id as string, {
-      phases: [phase1, phase2],
+    const updatedSchedule = await stripe.subscriptionSchedules.update(schedule.id, {
+      end_behavior: "release",
+      phases,
     } as any);
 
     return NextResponse.json({
