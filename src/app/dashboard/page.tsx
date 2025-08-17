@@ -149,7 +149,7 @@ const AffiliateCardContent: React.FC<{
           </div>
         )}
 
-        <div className="mt-6 pt-4 border-t border-gray-200">
+        {/* <div className="mt-6 pt-4 border-t border-gray-200">
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-sm font-semibold text-gray-700">Histórico de Comissões</h3>
             <a href="/afiliados" className="text-xs text-brand-pink hover:underline font-medium flex items-center gap-1">
@@ -186,7 +186,7 @@ const AffiliateCardContent: React.FC<{
               })}
             </div>
           )}
-        </div>
+        </div> */}
 
         <div className="space-y-1.5 mt-6">
           <div className="flex justify-between text-xs text-gray-500">
@@ -229,11 +229,11 @@ export default function MainDashboard() {
   const [agencyName, setAgencyName] = useState<string | null>(null);
 
   const scrollToPlanCard = useCallback(() => {
-    const planCard = document.getElementById('plan-card');
+    const planCard = document.getElementById('plan-card-section');
     if (planCard) {
       planCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
     } else {
-      console.warn("Elemento #plan-card não encontrado para scroll. Verifique o ID ou implemente a navegação.");
+      console.warn("Elemento #plan-card-section não encontrado para scroll.");
     }
   }, []);
 
@@ -509,11 +509,13 @@ export default function MainDashboard() {
         </motion.section>
 
         {showPlan && (
-          <PlanCardPro
-            id="plan-card"
-            defaultCurrency={defaultCurrency}
-            className="w-full"
-          />
+          <motion.section id="plan-card-section" variants={cardVariants} initial="hidden" animate="visible" custom={0.6}>
+            <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Faça sua Assinatura</h2>
+            <PlanCardPro
+              defaultCurrency={defaultCurrency}
+              className="w-full"
+            />
+          </motion.section>
         )}
 
         <InstagramConnectCard
@@ -523,7 +525,7 @@ export default function MainDashboard() {
         />
 
         <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={0.7}>
-          <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Consultor IA Mobi (WhatsApp)</h2>
+          <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Consultor IA Mobi </h2>
           <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
             <WhatsAppPanel
               userId={userId}
@@ -546,7 +548,7 @@ export default function MainDashboard() {
           )}
         </div>
 
-        <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={1}>
+        {/* <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={1}>
           <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Suas Métricas</h2>
           <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
             <UploadMetrics
@@ -557,9 +559,9 @@ export default function MainDashboard() {
               showToast={showToastMessage}
             />
           </div>
-        </motion.section>
+        </motion.section> */}
 
-        <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={1.2}>
+        {/* <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={1.2}>
           <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Suas Parcerias</h2>
           <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
             <AdDealForm
@@ -569,13 +571,13 @@ export default function MainDashboard() {
               showToast={showToastMessage}
             />
           </div>
-        </motion.section>
+        </motion.section> */}
 
-        {process.env.NEXT_PUBLIC_AFFILIATES_V2 === 'on' && (
+        {/* {process.env.NEXT_PUBLIC_AFFILIATES_V2 === 'on' && (
           <section className="mt-6">
             <AffiliateHistory />
           </section>
-        )}
+        )} */}
       </div>
 
       {/* --- COLUNA DA DIREITA (SIDEBAR) --- */}

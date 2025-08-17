@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, MotionProps } from 'framer-motion';
 import { FaCheck } from 'react-icons/fa';
 import { useDebounce } from 'use-debounce';
 
@@ -13,8 +13,10 @@ function cn(...classes: (string | undefined | false)[]) {
 type Plan = 'monthly' | 'annual';
 type Currency = 'BRL' | 'USD';
 
-interface PlanCardProProps extends React.HTMLAttributes<HTMLDivElement> {
+// CORREÇÃO: A interface agora extende MotionProps para evitar conflitos de tipo.
+interface PlanCardProProps extends MotionProps {
   defaultCurrency?: Currency;
+  className?: string;
 }
 
 interface InvoicePreview {
@@ -101,7 +103,7 @@ const formatCurrency = (amount?: number | null, currency?: string | null) => {
 };
 
 const Spinner = () => (
-  <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-800 rounded-full animate-spin" />
+  <div className="w-5 h-5 border-2 border-gray-300 border-t-brand-pink rounded-full animate-spin" />
 );
 
 function setReferralCookie(code?: string) {
@@ -238,8 +240,8 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
           const nm = normalizePreview(m.data, currency);
           const na = normalizePreview(a.data, currency);
           setBaseline({
-            monthly: m.ok ? nm?.total ?? undefined : undefined,
-            annual: a.ok ? na?.total ?? undefined : undefined,
+            monthly: nm?.total ?? undefined,
+            annual: na?.total ?? undefined,
           });
         }
       } catch {
@@ -249,6 +251,7 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
       }
     };
     loadBaseline();
+    return () => { cancelled = true; };
   }, [currency, fetchPreview]);
 
   const economyCents = useMemo(() => {
@@ -338,10 +341,8 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
   const displaySubtotal = preview?.subtotal ?? null;
 
   return (
-    <div {...props} className={cn('rounded-2xl border bg-white p-6 shadow-sm w-full', className)}>
-      <h2 className="mb-3 text-center text-2xl font-semibold">Plano Data2Content</h2>
-
-      <div className="mb-5 flex items-center justify-center gap-2">
+    <motion.div {...props} className={cn('rounded-2xl border bg-white p-6 shadow-sm w-full', className)}>
+      <div className="mb-6 flex items-center justify-center gap-2">
         {(['BRL', 'USD'] as Currency[]).map((c) => (
           <button
             key={c}
@@ -349,7 +350,7 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
             aria-pressed={currency === c}
             className={cn(
               'rounded-full px-3 py-1 text-sm transition',
-              currency === c ? 'bg-black text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              currency === c ? 'bg-brand-dark text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             )}
           >
             {c}
@@ -363,7 +364,7 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
             aria-pressed={plan === p}
             className={cn(
               'rounded-full px-3 py-1 text-sm transition',
-              plan === p ? 'bg-black text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              plan === p ? 'bg-brand-dark text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             )}
           >
             {p === 'monthly' ? 'Mensal' : 'Anual'}
@@ -371,7 +372,7 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
         ))}
       </div>
 
-      <div className="mb-2 text-center h-12 flex items-center justify-center">
+      <div className="mb-8 text-center h-16 flex items-center justify-center">
         <AnimatePresence mode="wait">
           <motion.div
             key={displayTotal ? `${displayTotal}-${plan}-${currency}-${hasDiscount}` : isPreviewLoading ? 'loading' : 'empty'}
@@ -391,7 +392,7 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
                       {formatCurrency(displaySubtotal, displayCurrency)}
                     </span>
                   )}
-                  <span className="text-4xl font-extrabold tracking-tight">
+                  <span className="text-5xl font-extrabold tracking-tight text-brand-dark">
                     {formatCurrency(displayTotal, displayCurrency)}
                   </span>
                   <span className="text-lg text-gray-500">/{plan === 'monthly' ? 'mês' : 'ano'}</span>
@@ -402,7 +403,7 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
             </div>
 
             {!baselineLoading && economyCents > 0 && plan === 'annual' && (
-              <div className="mt-1 text-xs text-gray-500">
+              <div className="mt-1 text-xs text-green-600">
                 Economize ~{formatCurrency(economyCents, currency)} / ano no plano anual
               </div>
             )}
@@ -410,29 +411,31 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
         </AnimatePresence>
       </div>
 
-      <ul className="mx-auto mb-6 grid max-w-2xl grid-cols-1 gap-2 text-sm text-gray-700 sm:grid-cols-2">
+      <ul className="mx-auto mb-8 grid max-w-2xl grid-cols-1 gap-y-3 gap-x-4 text-sm text-gray-700 sm:grid-cols-2">
         {[
           'Ideias de conteúdo geradas por IA',
           'Análises automáticas do Instagram',
           'Sugestões personalizadas por nicho',
           'Relatórios e alertas de performance',
         ].map((b) => (
-          <li key={b} className="flex items-start gap-2">
-            <FaCheck className="mt-1 h-4 w-4 text-green-600" />
+          <li key={b} className="flex items-center gap-3">
+            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-pink/10 flex-shrink-0">
+              <FaCheck className="h-2.5 w-2.5 text-brand-pink" />
+            </div>
             <span>{b}</span>
           </li>
         ))}
       </ul>
 
-      <div className="mb-3">
+      <div className="mb-4">
         <label htmlFor="aff" className="mb-1 block text-sm font-medium">
           Cupom ou Código de afiliado (opcional)
         </label>
 
         <div
           className={cn(
-            'relative',
-            hasDiscount && !affiliateError && 'ring-2 ring-indigo-500/30 rounded-lg'
+            'relative flex items-center',
+            hasDiscount && !affiliateError && 'ring-2 ring-green-500/30 rounded-lg'
           )}
         >
           <input
@@ -445,29 +448,28 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
             aria-invalid={!!affiliateError}
             aria-describedby={affiliateError ? 'aff-error' : undefined}
             className={cn(
-              'w-full rounded-lg border px-3 py-2 pr-24 text-sm tracking-widest outline-none focus:border-black',
-              affiliateError ? 'border-red-500' : 'border-gray-300'
+              'w-full rounded-lg border px-3 py-2 pr-24 text-sm tracking-widest outline-none transition-colors',
+              'focus:border-brand-pink focus:ring-1 focus:ring-brand-pink',
+              affiliateError ? 'border-brand-red' : 'border-gray-300'
             )}
           />
-
-          <div className="absolute right-1.5 top-1.5">
-            <button
-              type="button"
-              onClick={handleApplyAffiliate}
-              disabled={applyLoading || !affiliateCode.trim()}
-              className={cn(
-                'h-8 rounded-md border bg-white px-3 text-sm',
-                applyLoading ? 'opacity-60' : 'hover:bg-gray-50'
-              )}
-            >
-              {applyLoading ? <Spinner /> : 'Aplicar'}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleApplyAffiliate}
+            disabled={applyLoading || !affiliateCode.trim()}
+            className={cn(
+              'absolute right-1.5',
+              'inline-flex h-8 items-center justify-center rounded-md border bg-white px-3 text-sm font-medium text-gray-700 transition-colors',
+              applyLoading ? 'opacity-60' : 'hover:bg-gray-50'
+            )}
+          >
+            {applyLoading ? <Spinner /> : 'Aplicar'}
+          </button>
         </div>
 
         <div role="status" aria-live="polite" className="min-h-[1.25rem]">
           {affiliateError && (
-            <p id="aff-error" className="mt-1 text-xs text-red-600">
+            <p id="aff-error" className="mt-1 text-xs text-brand-red">
               {affiliateError}
             </p>
           )}
@@ -477,20 +479,23 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
         </div>
       </div>
 
-      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+      {error && <p className="mb-4 text-sm text-brand-red">{error}</p>}
 
       <button
         onClick={handleSubscribe}
-        aria-busy={loading}
         disabled={loading || isPreviewLoading || !preview || preview.total == null}
-        className="w-full rounded-2xl bg-black px-4 py-3 text-white disabled:opacity-50"
+        className="w-full rounded-lg bg-gradient-to-r from-brand-red to-brand-pink px-4 py-3 text-white font-semibold
+                   transition-all duration-300 ease-in-out
+                   hover:shadow-lg hover:shadow-brand-pink/40
+                   focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-pink
+                   disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none"
       >
         {loading ? 'Iniciando…' : 'Assinar agora'}
       </button>
 
-      <p className="mt-2 text-center text-xs text-gray-500">
+      <p className="mt-4 text-center text-xs text-gray-500">
         Pagamento seguro via Stripe. Sem fidelidade — cancele quando quiser.
       </p>
-    </div>
+    </motion.div>
   );
 }

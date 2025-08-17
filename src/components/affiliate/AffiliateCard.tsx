@@ -153,21 +153,22 @@ export default function AffiliateCard() {
     <>
       <div className="bg-white p-6 rounded-xl shadow-lg border-t-4 border-brand-pink space-y-6">
         <div className="flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-brand-dark">Painel de Afiliado</h2>
+          <h2 className="text-xl font-semibold text-brand-dark">Indique e Ganhe</h2>
           <div className="flex items-center gap-1.5 text-amber-800 bg-amber-100 px-3 py-1 rounded-full border border-amber-200">
             <FaTrophy className="w-4 h-4" />
             <span className="text-xs font-bold">Rank {session?.user?.affiliateRank ?? 1}</span>
           </div>
         </div>
 
-        <div className="space-y-2">
+        {/* Seção Balanço Financeiro (Refinada) */}
+        <div className="space-y-4">
           <h3 className="text-sm font-medium text-gray-500">Balanço Financeiro</h3>
           {currencies.length === 0 ? (
-            <div className="text-center py-6 text-sm text-gray-500 bg-gray-50 rounded-lg">
-              Suas comissões aparecerão aqui assim que sua primeira indicação assinar.
+            <div className="text-center py-8 text-sm text-gray-500 bg-gray-50 rounded-lg">
+              <p>Suas comissões aparecerão aqui.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {currencies.map(cur => {
                 const info = summary.byCurrency?.[cur];
                 if (!info) return null;
@@ -175,30 +176,25 @@ export default function AffiliateCard() {
                 
                 return (
                   <React.Fragment key={cur}>
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
-                      <div className="flex items-center justify-center gap-2 text-green-700">
-                        <FaWallet className="w-4 h-4" />
-                        <span className="text-xs font-semibold">Disponível</span>
-                      </div>
-                      <p className="text-xl font-bold text-green-800 mt-1">{fmt(info.availableCents, cur)}</p>
-                    </div>
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
-                      <div className="flex items-center justify-center gap-2 text-amber-700">
-                        <FaClock className="w-4 h-4" />
-                        <span className="text-xs font-semibold">Pendente</span>
-                      </div>
-                      <p className="text-xl font-bold text-amber-800 mt-1">{fmt(info.pendingCents, cur)}</p>
-                      {days && <p className="text-[11px] text-amber-600 mt-0.5">libera em {days}d</p>}
-                    </div>
-                    {(info.debtCents ?? 0) > 0 &&
-                      <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
-                        <div className="flex items-center justify-center gap-2 text-red-700">
-                          <FaExclamationTriangle className="w-4 h-4" />
-                          <span className="text-xs font-semibold">Dívida</span>
+                    <div className="bg-white border border-gray-200 rounded-lg p-4 flex flex-col justify-between min-h-[110px]">
+                      <div>
+                        <div className="flex items-center gap-3 text-green-700">
+                          <FaWallet className="w-6 h-6" />
+                          <span className="text-sm font-semibold">Disponível</span>
                         </div>
-                        <p className="text-xl font-bold text-red-800 mt-1">{fmt(info.debtCents, cur)}</p>
+                        <p className="text-2xl font-bold text-gray-800 mt-2">{fmt(info.availableCents, cur)}</p>
                       </div>
-                    }
+                    </div>
+                     <div className="bg-white border border-gray-200 rounded-lg p-4 flex flex-col justify-between min-h-[110px]">
+                      <div>
+                        <div className="flex items-center gap-3 text-amber-700">
+                          <FaClock className="w-6 h-6" />
+                          <span className="text-sm font-semibold">Pendente</span>
+                        </div>
+                        <p className="text-2xl font-bold text-gray-800 mt-2">{fmt(info.pendingCents, cur)}</p>
+                      </div>
+                      {days && <p className="text-xs text-amber-600 mt-1 whitespace-nowrap">Libera em {days} dias</p>}
+                    </div>
                   </React.Fragment>
                 );
               })}
@@ -206,34 +202,34 @@ export default function AffiliateCard() {
           )}
         </div>
 
-        <div className="space-y-4">
-          <h3 className="text-sm font-medium text-gray-500">Ferramentas de Divulgação</h3>
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-gray-600">Seu Código</label>
-            <div className="flex items-center gap-2">
-              <div className="flex-grow font-mono text-sm bg-gray-100 px-3 py-2 rounded-md border border-gray-300">
-                {haveCode ? session?.user?.affiliateCode : '...'}
+        {/* Seção Ferramentas de Divulgação (Refinada) */}
+        <div className="space-y-4 pt-6 border-t border-gray-200/80">
+          <h3 className="text-sm font-medium text-gray-500">Compartilhe e Ganhe</h3>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="affiliate-code" className="text-xs font-semibold text-gray-600 mb-1 block">Seu Código de Afiliado</label>
+              <div className="flex items-center gap-2">
+                <input id="affiliate-code" type="text" readOnly value={haveCode ? (session?.user?.affiliateCode || '') : '...'} className="flex-grow font-mono text-sm bg-gray-100 px-3 py-2 rounded-md border border-gray-300 w-full" />
+                <button onClick={() => handleCopy(session?.user?.affiliateCode || '', 'code')} disabled={!haveCode} className="p-2.5 rounded-md bg-white border border-gray-300 text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50">
+                  {copyState === 'code' ? <FaCheckCircle className="text-green-600" /> : <FaCopy />}
+                </button>
               </div>
-              <button onClick={() => handleCopy(session?.user?.affiliateCode || '', 'code')} disabled={!haveCode} className="p-2.5 rounded-md bg-gray-200 text-gray-600 hover:bg-gray-300 transition-colors disabled:opacity-50">
-                {copyState === 'code' ? <FaCheckCircle className="text-green-600" /> : <FaCopy />}
-              </button>
             </div>
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-gray-600">Seu Link de Indicação</label>
-            <div className="flex items-center gap-2">
-              <div className="flex-grow font-mono text-xs sm:text-sm bg-gray-100 px-3 py-2 rounded-md border border-gray-300 truncate">
-                {referralLink || '...'}
+            <div>
+              <label htmlFor="affiliate-link" className="text-xs font-semibold text-gray-600 mb-1 block">Seu Link de Indicação</label>
+              <div className="flex items-center gap-2">
+                <input id="affiliate-link" type="text" readOnly value={referralLink || '...'} className="flex-grow font-mono text-xs sm:text-sm bg-gray-100 px-3 py-2 rounded-md border border-gray-300 truncate w-full" />
+                <button onClick={() => handleCopy(referralLink || '', 'link')} disabled={!referralLink} className="p-2.5 rounded-md bg-white border border-gray-300 text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50">
+                  {copyState === 'link' ? <FaCheckCircle className="text-green-600" /> : <FaCopy />}
+                </button>
               </div>
-              <button onClick={() => handleCopy(referralLink || '', 'link')} disabled={!referralLink} className="p-2.5 rounded-md bg-gray-200 text-gray-600 hover:bg-gray-300 transition-colors disabled:opacity-50">
-                {copyState === 'link' ? <FaCheckCircle className="text-green-600" /> : <FaCopy />}
-              </button>
             </div>
           </div>
         </div>
 
-        <div className="space-y-4 pt-4 border-t">
-          <h3 className="text-sm font-medium text-gray-500">Status do Pagamento e Resgate</h3>
+        {/* Seção Status e Resgate */}
+        <div className="space-y-4 pt-6 border-t border-gray-200/80">
+          <h3 className="text-sm font-medium text-gray-500">Situação do Pagamento e Resgate</h3>
           <StripeStatusPanel status={status} summary={summary} onRefresh={refreshStatus} onOnboard={handleOnboard} />
 
           {currencies.map((cur) => {
@@ -272,7 +268,11 @@ export default function AffiliateCard() {
                 <button
                   onClick={() => openRedeem(cur)}
                   disabled={!isRedeemable}
-                  className="w-full px-4 py-3 rounded-lg bg-brand-pink text-white font-semibold disabled:opacity-50 flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+                  className="w-full rounded-lg bg-gradient-to-r from-brand-red to-brand-pink px-4 py-3 text-white font-semibold
+                             transition-all duration-300 ease-in-out
+                             hover:shadow-lg hover:shadow-brand-pink/40
+                             focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-pink
+                             disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none"
                 >
                   Resgatar {fmt(info.availableCents, cur)}
                 </button>
