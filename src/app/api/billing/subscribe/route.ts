@@ -8,7 +8,10 @@ import User from "@/app/models/User";
 import { stripe } from "@/app/lib/stripe";
 import Stripe from "stripe";
 import { checkRateLimit } from "@/utils/rateLimit";
-import { cancelBlockingIncompleteSubs } from "@/utils/stripeHelpers";
+import {
+  cancelBlockingIncompleteSubs,
+  getOrCreateStripeCustomerId,
+} from "@/utils/stripeHelpers";
 import { resolveAffiliateCode as resolveAffiliateCodeHelper } from "@/app/lib/affiliate";
 
 export const runtime = "nodejs";
@@ -150,20 +153,10 @@ export async function POST(req: NextRequest) {
     const typedCode = source === "typed" ? affiliateCode : undefined;
     const priceId = getPriceId(plan, currency);
 
-    let customerId = user.stripeCustomerId;
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email,
-        name: user.name || undefined,
-        metadata: { userId: String(user._id) },
-      });
-      customerId = customer.id;
-      user.stripeCustomerId = customer.id;
-    }
-
-    if (customerId) {
-      try { await cancelBlockingIncompleteSubs(customerId); } catch {}
-    }
+    const customerId = await getOrCreateStripeCustomerId(user);
+    try {
+      await cancelBlockingIncompleteSubs(customerId);
+    } catch {}
 
     let existing: Stripe.Subscription | null = null;
     if (user.stripeSubscriptionId) {

@@ -6,6 +6,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import { stripe } from "@/app/lib/stripe";
+import { getOrCreateStripeCustomerId } from "@/utils/stripeHelpers";
 
 const noStoreHeaders = { "Cache-Control": "no-store, max-age=0" } as const;
 
@@ -30,22 +31,6 @@ function getPriceId(plan: Plan, currency: Currency): string {
   const priceId = process.env[key as keyof NodeJS.ProcessEnv] as string | undefined;
   if (!priceId) throw new Error(`Price ID não configurado para ${key}`);
   return priceId;
-}
-
-async function getOrCreateStripeCustomerId(userId: string): Promise<string> {
-  const user = await User.findById(userId);
-  if (!user) throw new Error("Usuário não encontrado");
-  if (user.stripeCustomerId) return user.stripeCustomerId;
-
-  const customer = await stripe.customers.create({
-    email: user.email,
-    name: user.name || undefined,
-    metadata: { userId: String(user._id) },
-  });
-
-  user.stripeCustomerId = customer.id;
-  await user.save();
-  return customer.id;
 }
 
 /**
