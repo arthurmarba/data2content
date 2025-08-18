@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
     // 4) Se já existe um código pendente, apenas retorne-o (idempotente)
     if (current.whatsappVerificationCode) {
       console.log(
-        `[whatsapp/generateCode] Pending existing code -> user=${current._id}, code=${current.whatsappVerificationCode}`
+        `[whatsapp/generateCode] Existing code reused -> user=${current._id}, code=${current.whatsappVerificationCode}`
       );
       return NextResponse.json(
         { code: current.whatsappVerificationCode },
@@ -124,23 +124,17 @@ export async function POST(request: NextRequest) {
     //    **IMPORTANTE**: não mexer em whatsappPhone nem em whatsappVerified aqui.
     const freshCode = generateVerificationCode();
 
-    const updated = await User.findOneAndUpdate(
+    const updateResult = await User.updateOne(
       {
         _id: userId,
-        // Garante que não vamos sobrescrever caso alguém tenha verificado no meio tempo
         whatsappVerified: { $ne: true },
-        $or: [
-          { whatsappVerificationCode: { $exists: false } },
-          { whatsappVerificationCode: null },
-          { whatsappVerificationCode: "" },
-        ],
+        whatsappVerificationCode: { $in: [null, ""] },
       },
       { $set: { whatsappVerificationCode: freshCode } },
-      { new: true }
-    ).select("_id whatsappVerificationCode whatsappPhone whatsappVerified");
+      { upsert: false }
+    );
 
-    if (!updated) {
-      // Em corrida de requests, se não atualizou, recarrega e decide:
+    if (updateResult.modifiedCount === 0) {
       const doc = await User.findById(userId).select(
         "_id whatsappVerificationCode whatsappPhone whatsappVerified"
       );
@@ -151,6 +145,7 @@ export async function POST(request: NextRequest) {
           { status: 404, headers: { "Cache-Control": "no-store" } }
         );
       }
+
       const nowLinked = !!doc.whatsappPhone && doc.whatsappVerified === true;
       if (nowLinked) {
         return NextResponse.json(
@@ -158,13 +153,17 @@ export async function POST(request: NextRequest) {
           { status: 200, headers: { "Cache-Control": "no-store" } }
         );
       }
+
       if (doc.whatsappVerificationCode) {
+        console.log(
+          `[whatsapp/generateCode] Existing code reused -> user=${doc._id}, code=${doc.whatsappVerificationCode}`
+        );
         return NextResponse.json(
           { code: doc.whatsappVerificationCode },
           { status: 200, headers: { "Cache-Control": "no-store" } }
         );
       }
-      // Caso raro: segue sem ação
+
       return NextResponse.json(
         {
           linked: false,
@@ -176,11 +175,11 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(
-      `[whatsapp/generateCode] Generated new code -> user=${updated._id}, code=${updated.whatsappVerificationCode}, phone=${updated.whatsappPhone}, verified=${updated.whatsappVerified}`
+      `[whatsapp/generateCode] New code generated -> user=${userId}, code=${freshCode}, phone=${current.whatsappPhone}, verified=${current.whatsappVerified}`
     );
 
     return NextResponse.json(
-      { code: updated.whatsappVerificationCode },
+      { code: freshCode },
       { status: 200, headers: { "Cache-Control": "no-store" } }
     );
   } catch (err) {
