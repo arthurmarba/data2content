@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { FaWhatsapp, FaSpinner, FaCheckCircle, FaUnlink } from "react-icons/fa";
+import { FaWhatsapp, FaSpinner, FaCheckCircle } from "react-icons/fa";
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface WhatsAppPanelProps {
@@ -17,11 +17,14 @@ export default function WhatsAppPanel({
   onActionRedirect,
   showToast,
 }: WhatsAppPanelProps) {
+  // Estado de carregamento unificado
   const [isLoading, setIsLoading] = useState(canAccessFeatures);
   const [isLinked, setIsLinked] = useState(false);
+  // Estado para armazenar o código gerado no carregamento
   const [whatsappCode, setWhatsappCode] = useState<string | null>(null);
   const [error, setError] = useState("");
 
+  // LÓGICA ANTIGA RESTAURADA: Gera o código no carregamento do componente
   useEffect(() => {
     if (!canAccessFeatures) {
       setIsLoading(false);
@@ -45,9 +48,11 @@ export default function WhatsAppPanel({
           setIsLinked(false);
         } else {
           const data = await res.json();
+          // Se a API retornar um código, armazena no estado
           if (data.code) {
             setWhatsappCode(data.code);
             setIsLinked(false);
+          // Se a API retornar que já está vinculado, atualiza o estado
           } else if (data.linked) {
             setWhatsappCode(null);
             setIsLinked(true);
@@ -67,6 +72,7 @@ export default function WhatsAppPanel({
     fetchWhatsAppStatus();
   }, [userId, canAccessFeatures]);
 
+  // LÓGICA ANTIGA RESTAURADA: A função de clique apenas usa o código do estado
   function handleActionClick(event: React.MouseEvent<HTMLButtonElement>) {
     if (!canAccessFeatures) {
       event.preventDefault();
@@ -77,23 +83,15 @@ export default function WhatsAppPanel({
 
     if (isLoading) return;
 
+    // Usa o código que foi gerado no carregamento da página
     const text = whatsappCode
       ? `Olá, data2content! Meu código de verificação é: ${whatsappCode}`
-      : "Olá, data2content!";
+      : "Olá, data2content!"; // Mensagem genérica se já estiver vinculado
     const encodedText = encodeURIComponent(text);
     const whatsAppNumber = "552120380975";
     const link = `https://wa.me/${whatsAppNumber}?text=${encodedText}`;
     window.open(link, "_blank");
   }
-
-  // Lógica para desconectar (simulada, requer API)
-  const handleDisconnect = () => {
-    // Aqui você chamaria sua API para desvincular o WhatsApp.
-    // Por enquanto, apenas simulamos o resultado.
-    showToast("WhatsApp desvinculado (simulação).", "success");
-    setIsLinked(false);
-    // Idealmente, você chamaria fetchWhatsAppStatus() novamente após a API responder.
-  };
 
   const buttonText = isLinked ? "Conversar no WhatsApp" : "Vincular com WhatsApp";
   const buttonDisabled = canAccessFeatures && isLoading;
@@ -123,14 +121,6 @@ export default function WhatsAppPanel({
               >
                 <FaCheckCircle /> Conectado
               </motion.span>
-              {/* Botão de desconectar pode ser adicionado aqui se necessário */}
-              {/* <button
-                onClick={handleDisconnect}
-                className="px-4 py-1.5 bg-red-100 text-red-700 text-xs font-semibold rounded-md hover:bg-red-200 border border-red-300 flex items-center justify-center gap-1.5 transition-colors duration-150"
-              >
-                <FaUnlink className="w-3 h-3" />
-                Desconectar
-              </button> */}
             </div>
           ) : (
             <button
