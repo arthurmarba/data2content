@@ -18,8 +18,7 @@ function generateVerificationCode(): string {
 
 /**
  * POST /api/whatsapp/generateCode
- * Body: { userId }
- * Verifica se o userId corresponde ao usuário autenticado (via JWT),
+ * Extrai o userId diretamente do token JWT do usuário autenticado,
  * gera um código de verificação e zera o whatsappPhone para forçar re-verificação.
  */
 export async function POST(request: NextRequest) {
@@ -96,43 +95,9 @@ export async function POST(request: NextRequest) {
     }
     console.log(`[whatsapp/generateCode] Autenticação bem-sucedida. User ID (token.sub): ${token.sub}`);
 
-    // Lê o corpo da requisição e extrai o userId
-    let body: any;
-    let userId: string | undefined;
-    try {
-        body = await request.json();
-        userId = body?.userId;
-        console.log("[whatsapp/generateCode] Body recebido:", body);
-    } catch (parseError) {
-        console.error("[whatsapp/generateCode] Erro ao fazer parse do corpo JSON:", parseError);
-        return NextResponse.json({ error: "Corpo da requisição inválido ou não é JSON." }, { status: 400 });
-    }
-
-    if (!userId) {
-      console.warn("[whatsapp/generateCode] Falha na validação: 'userId' ausente no corpo.");
-      return NextResponse.json({ error: "Parâmetro 'userId' é obrigatório." }, { status: 400 });
-    }
-
-    // ---- LOGS ADICIONADOS/MODIFICADOS PARA A VERIFICAÇÃO DE AUTORIZAÇÃO Nº 1 ----
-    console.log(`[whatsapp/generateCode] userId recebido no body: ${userId}`);
-    console.log(`[whatsapp/generateCode] ID do usuário no token (token.sub): ${token.sub}`); // Log do token.sub
-
-    // Confirma que o userId informado corresponde ao ID do token (Autorização nº 1)
-    if (userId !== token.sub) {
-      // Log SIMPLIFICADO e ALTO para garantir visibilidade
-      console.error(`!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!`);
-      console.error(`[AUTORIZAÇÃO Nº 1 FALHOU] userId Body: ${userId} !== token.sub: ${token.sub}`);
-      console.error(`!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!`);
-      // Mantém o warn original também, por segurança
-      console.warn(`[whatsapp/generateCode] Falha na Autorização nº 1: userId do body ('${userId}') não corresponde ao token.sub ('${token.sub}'). Retornando 403.`);
-      return NextResponse.json(
-        { error: "Acesso negado: userId não corresponde ao usuário autenticado." },
-        { status: 403 }
-      );
-    }
-    // Se passar, loga o sucesso
-    console.log("[whatsapp/generateCode] Autorização nº 1 (User Match): OK.");
-    // --------------------------------------------------------------------------
+    // Usa o ID do usuário diretamente do token
+    const userId = token.sub as string;
+    console.log(`[whatsapp/generateCode] Usando userId do token: ${userId}`);
 
 
     // Conecta ao banco de dados
