@@ -8,15 +8,11 @@ import { ProcessRequestBody } from './types';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import User from '@/app/models/User';
 import { sendWhatsAppMessage } from '@/app/lib/whatsappService';
+import { isActiveLike } from '@/app/lib/isActiveLike';
 
 export const runtime = 'nodejs';
 
 const ROUTE_TAG = '[API Route /process-response]';
-
-// Helper: plano ativo-like
-function isActiveLike(s: unknown): s is 'active' | 'non_renewing' | 'trial' {
-  return s === 'active' || s === 'non_renewing' || s === 'trial';
-}
 
 // QStash Receiver
 const currentSigningKey = process.env.QSTASH_CURRENT_SIGNING_KEY;

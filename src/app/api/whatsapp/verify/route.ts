@@ -2,20 +2,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
+import { isActiveLike } from "@/app/lib/isActiveLike";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-function isActiveLike(s: unknown): s is "active" | "non_renewing" | "trial" {
-  return s === "active" || s === "non_renewing" || s === "trial";
-}
-
 /**
  * POST /api/whatsapp/verify
  * Body: { phoneNumber: string, code: string }
  * - Não depende de sessão/cookies (WhatsApp não envia cookies).
- * - Valida status do plano via DB (active | non_renewing | trial = OK).
+ * - Valida status do plano via DB (active | non_renewing | trial | trialing = OK).
  * - Vincula o telefone e marca whatsappVerified=true; invalida o código.
  */
 export async function POST(request: NextRequest) {

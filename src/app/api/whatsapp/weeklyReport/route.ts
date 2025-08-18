@@ -12,6 +12,7 @@ import { generateStrategicWeeklySummary } from "@/app/lib/consultantService";
 import { logger } from "@/app/lib/logger";
 import { subDays } from "date-fns";
 import { MetricsNotFoundError, ReportAggregationError } from "@/app/lib/errors";
+import { isActiveLike, type ActiveLikeStatus } from "@/app/lib/isActiveLike";
 
 export const runtime = "nodejs";
 
@@ -62,7 +63,7 @@ function isRejected<T>(
 /**
  * POST /api/whatsapp/weeklyReport
  * Envia relatórios semanais ESTRATÉGICOS via WhatsApp para todos os usuários
- * com plano ativo-like (active | non_renewing | trial) e WhatsApp verificado.
+ * com plano ativo-like (active | non_renewing | trial | trialing) e WhatsApp verificado.
  * Idealmente acionado às sextas-feiras (CRON/job).
  */
 export async function POST(request: NextRequest) {
@@ -93,7 +94,12 @@ export async function POST(request: NextRequest) {
     logger.debug(`${functionName} Conectado ao MongoDB.`);
 
     // 2) Usuários elegíveis: active-like + whatsapp verificado
-    const ACTIVE_LIKE = ["active", "non_renewing", "trial"];
+    const ACTIVE_LIKE: ActiveLikeStatus[] = [
+      "active",
+      "non_renewing",
+      "trial",
+      "trialing",
+    ].filter(isActiveLike);
     logger.debug(`${functionName} Buscando usuários elegíveis...`);
     const users = await User.find({
       planStatus: { $in: ACTIVE_LIKE },

@@ -3,7 +3,7 @@
 // - ATUALIZADO: Captura e loga o WAMID retornado pelo whatsappService.
 // - ATUALIZADO: Melhorado o tratamento de erro para chamadas a sendWhatsAppMessage.
 // - CORRIGIDO: Adicionada chave de fechamento '}' ausente no final da função handleUserMessage (mantido).
-// - NOVO: Trata 'active' | 'non_renewing' | 'trial' como estados ativos.
+// - NOVO: Trata 'active' | 'non_renewing' | 'trial' | 'trialing' como estados ativos.
 // - Baseado em: vShortTermMemory_CtxExtract_13
 import { NextResponse } from 'next/server';
 import {
@@ -51,13 +51,9 @@ import {
     INSTIGATING_QUESTION_TEMP,
     INSTIGATING_QUESTION_MAX_TOKENS
 } from '@/app/lib/constants';
+import { isActiveLike } from '@/app/lib/isActiveLike';
 
 const HANDLER_TAG_BASE = '[UserMsgHandler vShortTermMemory_CtxExtract_13_FIXED_WamidHandling]'; // Tag atualizada
-
-// Helper local: considera como “ativo” os estados active | non_renewing | trial
-function isActiveLike(s: unknown): s is 'active' | 'non_renewing' | 'trial' {
-    return s === 'active' || s === 'non_renewing' || s === 'trial';
-}
 
 /**
  * Extrai o tópico principal e entidades chave da resposta de uma IA.

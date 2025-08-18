@@ -9,6 +9,7 @@ import { DailyMetric, IDailyMetric }  from "@/app/models/DailyMetric";
 import { callOpenAIForTips }          from "@/app/lib/aiService";
 import { sendWhatsAppMessage }        from "@/app/lib/whatsappService";
 import { Model, Types }               from "mongoose";
+import { isActiveLike, type ActiveLikeStatus } from "@/app/lib/isActiveLike";
 
 /* ────────────────────────────────────────────────────────── *
  * Tipos auxiliares                                           *
@@ -55,7 +56,7 @@ function formatTipsMessage({ titulo = "💡 Dicas da Semana", dicas = [] }: Tips
 /* ==================================================================
    POST /api/whatsapp/sendTips
    Envia dicas semanais a todos os usuários com plano ativo-like
-   (active | non_renewing | trial) e WhatsApp verificado
+   (active | non_renewing | trial | trialing) e WhatsApp verificado
    ================================================================== */
 export async function POST(request: NextRequest) {
   const guardResponse = await guardPremiumRequest(request);
@@ -73,7 +74,12 @@ export async function POST(request: NextRequest) {
   await connectToDatabase();
 
   // ✅ Considera active-like e exige número verificado
-  const ACTIVE_LIKE = ["active", "non_renewing", "trial"];
+  const ACTIVE_LIKE: ActiveLikeStatus[] = [
+    "active",
+    "non_renewing",
+    "trial",
+    "trialing",
+  ].filter(isActiveLike);
   const users = await User.find({
     planStatus: { $in: ACTIVE_LIKE },
     whatsappPhone: { $exists: true, $ne: null },

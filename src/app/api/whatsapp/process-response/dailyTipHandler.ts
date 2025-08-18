@@ -8,7 +8,7 @@
 // - CORREÇÃO 2: Ajusta o tipo 'ProposalType'.
 // - CORREÇÃO: Adiciona validações de tipo (type guards) para garantir a segurança das atribuições.
 // - REMOÇÃO: Remove o uso de 'as any' para aumentar a segurança de tipos.
-// - NOVO: Bloqueia envios proativos quando plano for inativo; trata 'active' | 'non_renewing' | 'trial' como ativos.
+// - NOVO: Bloqueia envios proativos quando plano for inativo; trata 'active' | 'non_renewing' | 'trial' | 'trialing' como ativos.
 
 import { NextResponse } from 'next/server';
 import { logger } from '@/app/lib/logger';
@@ -23,7 +23,7 @@ import type { ICommunityInspiration } from '@/app/models/CommunityInspiration';
 import type { IMetric } from '@/app/models/Metric';
 import { IUser, IAlertHistoryEntry, AlertDetails } from '@/app/models/User'; 
 
-import { ProcessRequestBody, DetectedEvent, EnrichedAIContext } from './types'; 
+import { ProcessRequestBody, DetectedEvent, EnrichedAIContext } from './types';
 
 import ruleEngineInstance from '@/app/lib/ruleEngine';
 import {
@@ -41,11 +41,7 @@ import { callOpenAIForQuestion } from '@/app/lib/aiService';
 import { subDays, startOfDay } from 'date-fns';
 
 import * as fallbackInsightService from '@/app/lib/fallbackInsightService';
-
-// Helper: considera como “ativo” os estados active | non_renewing | trial
-function isActiveLike(s: unknown): s is 'active' | 'non_renewing' | 'trial' {
-  return s === 'active' || s === 'non_renewing' || s === 'trial';
-}
+import { isActiveLike } from '@/app/lib/isActiveLike';
 
 // ===================================================================================
 // INÍCIO: Definições de Tipos e Validadores (Type Guards) para Correção
