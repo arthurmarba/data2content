@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import mongoose, { PipelineStage } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { DailyMetric } from "@/app/models/DailyMetric";
 import type { Session } from "next-auth";
+import { guardPremiumRequest } from "@/app/lib/planGuard";
 
 export const runtime = "nodejs";
 export const dynamic = 'force-dynamic';
@@ -25,7 +26,11 @@ interface SessionUser {
  * Agrupa por dia e calcula a média de métricas avançadas (ex.: taxaEngajamento).
  * Verifica se o userId do query param corresponde ao session.user.id (usuário logado).
  */
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const guardResponse = await guardPremiumRequest(request);
+  if (guardResponse) {
+    return guardResponse;
+  }
   try {
     // 1) Obtém a sessão usando getServerSession(authOptions) (no App Router, não é necessário passar request)
     const session = (await getServerSession(authOptions)) as Session | null;

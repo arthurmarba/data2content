@@ -1,8 +1,9 @@
 // @/src/app/api/ai/dynamicCards/route.ts – rev. OpenAI‑v4
 // Corrige import do SDK, simplifica instância e mantém restante da lógica.
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { guardPremiumRequest } from "@/app/lib/planGuard";
 
 /**
  * POST /api/ai/dynamicCards
@@ -12,7 +13,11 @@ import OpenAI from "openai";
  *   - filtros (opcional) -> array de strings
  * Retorna um JSON com "cards": [...]
  */
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const guardResponse = await guardPremiumRequest(request);
+  if (guardResponse) {
+    return guardResponse;
+  }
   try {
     /* --------------------------------------------------
        1. Leitura e validação do corpo

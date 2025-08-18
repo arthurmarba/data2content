@@ -1,5 +1,6 @@
 // src/app/api/whatsapp/generateCode/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { guardPremiumRequest } from "@/app/lib/planGuard";
 import { getToken } from "next-auth/jwt";
 import { jwtVerify } from "jose";
 import { connectToDatabase } from "@/app/lib/mongoose";
@@ -22,6 +23,11 @@ function generateVerificationCode(): string {
  * gera um código de verificação e zera o whatsappPhone para forçar re-verificação.
  */
 export async function POST(request: NextRequest) {
+  const guardResponse = await guardPremiumRequest(request);
+  if (guardResponse) {
+    return guardResponse;
+  }
+
   console.log("[whatsapp/generateCode] Request received."); // Log inicial
 
   try {

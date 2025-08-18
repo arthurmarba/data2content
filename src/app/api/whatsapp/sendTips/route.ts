@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { guardPremiumRequest } from "@/app/lib/planGuard";
 import { getServerSession }          from "next-auth/next";
 import { authOptions }               from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase }         from "@/app/lib/mongoose";
@@ -55,6 +56,11 @@ function formatTipsMessage({ titulo = "💡 Dicas da Semana", dicas = [] }: Tips
    Envia dicas semanais a todos os usuários com plano ativo
    ================================================================== */
 export async function POST(request: NextRequest) {
+  const guardResponse = await guardPremiumRequest(request);
+  if (guardResponse) {
+    return guardResponse;
+  }
+
   const tag = "[whatsapp/sendTips]";
 
   /* 1. Autenticação (caso use sessão) ------------------------------ */
