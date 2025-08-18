@@ -277,7 +277,7 @@ export default function ChangePlanCard() {
             </button>
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            Alterar para anual pode gerar cobrança pró-rata imediata se escolher “agora”.
+            Alterar para o plano anual pode gerar uma cobrança imediata pela diferença de valor.
           </p>
         </div>
 
@@ -294,9 +294,9 @@ export default function ChangePlanCard() {
                   onChange={() => setWhen("now")}
                   disabled={loading || isPreviewing}
                 />
-                <span>Agora (pode haver cobrança pró-rata)</span>
+                <span>Agora (com ajuste de valor imediato)</span>
               </label>
-              <label className="flex items-center gap-2 border rounded px-3 py-2 cursor-pointer">
+              {/* <label className="flex items-center gap-2 border rounded px-3 py-2 cursor-pointer">
                 <input
                   type="radio"
                   name="when"
@@ -306,7 +306,7 @@ export default function ChangePlanCard() {
                   disabled={loading || isPreviewing}
                 />
                 <span>No fim do ciclo atual (sem cobrança agora)</span>
-              </label>
+              </label> */}
             </div>
           </div>
         ) : (
