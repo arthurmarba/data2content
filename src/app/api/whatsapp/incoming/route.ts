@@ -154,15 +154,27 @@ export async function POST(request: NextRequest) {
   const normText_MsgNova = normalizeText(rawText_MsgNova);
   logger.info(`${postTag} MsgNova de ${fromPhone}: "${rawText_MsgNova.slice(0, 50)}..."`);
 
+  await connectToDatabase();
+  let alreadyLinkedUser: IUser | null = null;
+  try {
+    alreadyLinkedUser = await User.findOne({ whatsappPhone: fromPhone, whatsappVerified: true }).lean<IUser>();
+    if (alreadyLinkedUser) {
+      logger.debug(
+        `${postTag} Número ${fromPhone} já vinculado ao usuário ${alreadyLinkedUser._id}. Pulando verificação de código.`,
+      );
+    }
+  } catch (e) {
+    logger.error(`${postTag} Erro ao verificar vinculação prévia para ${fromPhone}:`, e);
+  }
+
   // 1) Fluxo de CÓDIGO DE VERIFICAÇÃO
-  const codeMatch = rawText_MsgNova.match(/\b([A-Za-z0-9]{6})\b/);
-  if (codeMatch && codeMatch[1]) {
+  const codeMatch = !alreadyLinkedUser ? rawText_MsgNova.match(/\b([A-Za-z0-9]{6})\b/) : null;
+  if (!alreadyLinkedUser && codeMatch && codeMatch[1]) {
     const verificationCode = codeMatch[1].toUpperCase();
     const verifyTag = '[whatsapp/incoming][Verification v2.3.8]';
     logger.info(`${verifyTag} Código detectado: ${verificationCode} de ${fromPhone}`);
 
     try {
-      await connectToDatabase();
       const userWithCode = await User.findOne({ whatsappVerificationCode: verificationCode });
       if (userWithCode) {
         const raw = userWithCode.planStatus;
@@ -219,8 +231,7 @@ Você pode começar me pedindo um planejamento de conteudo que otimize seu alcan
   let userFirstName: string;
 
   try {
-    await connectToDatabase();
-    user = await dataService.lookupUser(fromPhone);
+    user = alreadyLinkedUser ?? await dataService.lookupUser(fromPhone);
     uid = user._id.toString();
     userFirstName = (user.name || 'criador').split(' ')[0]!;
     logger.info(`${postTag} Usuário ${uid} (${userFirstName}) encontrado para ${fromPhone}.`);
