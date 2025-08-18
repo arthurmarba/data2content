@@ -76,9 +76,12 @@ async function getAuthTokenFromRequest(
 ): Promise<Record<string, any> | null> {
   try {
     const t = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-    const hasId = (t as any)?.id || (t as any)?.sub || (t as any)?.email;
+    if (t && !(t as any).id && (t as any).sub) {
+      (t as any).id = String((t as any).sub);
+    }
+    const hasId = (t as any)?.id || (t as any)?.email;
     if (t && hasId) return t as any;
-    if (t) console.warn('[planGuard] getToken() -> token sem id/sub/email, tentando fallback');
+    if (t) console.warn('[planGuard] getToken() -> token sem id/email, tentando fallback');
   } catch (e) {
     console.error('[planGuard] getToken() error:', e);
   }
