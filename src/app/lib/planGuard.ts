@@ -1,10 +1,10 @@
 // src/app/lib/planGuard.ts
-
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
+import { jwtVerify } from 'jose';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import DbUser from '@/app/models/User';
-import type { PlanStatus } from '@/types/enums';
+import mongoose from 'mongoose';
 
 export interface PlanGuardMetrics {
   blocked: number;
@@ -28,55 +28,100 @@ export function getPlanGuardMetrics(): PlanGuardMetrics {
   };
 }
 
+function isActiveLike(s: unknown): s is 'active' | 'non_renewing' {
+  return s === 'active' || s === 'non_renewing';
+}
+
+/** Tenta extrair o token do request: next-auth -> fallback manual por cookie */
+async function getAuthTokenFromRequest(req: NextRequest): Promise<Record<string, any> | null> {
+  try {
+    const t = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    if (t) return t as any;
+  } catch (e) {
+    console.error('[planGuard] getToken() error:', e);
+  }
+
+  // Fallback manual (funciona em dev/prod)
+  const cookieName =
+    process.env.NODE_ENV === 'production'
+      ? '__Secure-next-auth.session-token'
+      : 'next-auth.session-token';
+
+  const raw = req.cookies.get(cookieName)?.value;
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (!raw || !secret) return null;
+
+  try {
+    const { payload } = await jwtVerify(raw, new TextEncoder().encode(secret));
+    // payload pode conter sub, email e planStatus (se você escreve isso no JWT)
+    return payload as any;
+  } catch (err) {
+    console.error('[planGuard] jwtVerify fallback error:', err);
+    return null;
+  }
+}
+
 /**
- * Centralized helper to ensure a user has an active plan before accessing
- * premium APIs. Returns a NextResponse with status 403 when the plan is not
- * active. When the plan is active, returns null so the caller can proceed.
- * * Esta versão foi modificada para ser compatível com o Edge Runtime.
+ * Garante que o usuário tenha plano ativo antes de APIs premium.
+ * - Confia no token para liberar rápido se já estiver ativo.
+ * - Se o token vier inativo, revalida no DB (fonte da verdade).
+ * - Se não conseguir ler token, retorna 401 (não autenticado).
  */
 export async function guardPremiumRequest(
   req: NextRequest
 ): Promise<NextResponse | null> {
-  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-  const status = token?.planStatus as PlanStatus | undefined;
-  const userId = token?.id ?? token?.sub;
+  const token = await getAuthTokenFromRequest(req);
+  if (!token) {
+    return NextResponse.json(
+      { error: 'Não autenticado.' },
+      { status: 401, headers: { 'Cache-Control': 'no-store' } }
+    );
+  }
 
-  if (status === 'active' || status === 'non_renewing') {
-    // Se o plano está ativo no token, permite a passagem imediatamente.
+  const claimedStatus = (token as any)?.planStatus as unknown;
+
+  // ✅ Fast-path: se o token diz ativo, libera sem consultar DB.
+  if (isActiveLike(claimedStatus)) {
     return null;
   }
 
-  // CORREÇÃO: A verificação redundante foi removida.
-  // Se o código chegou até aqui, já sabemos que o status não é 'active' nem 'non_renewing'.
-  // Agora, apenas verificamos se temos um userId para tentar uma consulta ao banco de dados.
-  if (userId) {
-    try {
-      await connectToDatabase();
-      const dbUser = await DbUser.findById(userId)
+  // Caso o token diga "inactive" (ou não traga status), verifica no DB.
+  const tokenId = (token as any)?.id ?? (token as any)?.sub;
+  const tokenEmail = (token as any)?.email as string | undefined;
+
+  try {
+    await connectToDatabase();
+
+    let dbUser: { planStatus?: string } | null = null;
+
+    if (tokenId && mongoose.isValidObjectId(tokenId)) {
+      dbUser = await DbUser.findById(tokenId).select('planStatus').lean<{ planStatus?: string }>();
+    } else if (tokenEmail) {
+      dbUser = await DbUser.findOne({ email: tokenEmail })
         .select('planStatus')
-        .lean<{ planStatus?: PlanStatus }>();
-      const dbStatus = dbUser?.planStatus;
-      
-      // Se o banco de dados mostrar que o plano está ativo, permite a passagem.
-      if (dbStatus === 'active' || dbStatus === 'non_renewing') {
-        return null;
-      }
-    } catch (dbCheckError) {
-      // O Edge runtime não permite usar logger; fallback para console.
-      console.error('[planGuard] DB check failed', dbCheckError);
+        .lean<{ planStatus?: string }>();
+    }
+
+    const dbStatus = dbUser?.planStatus;
+    if (isActiveLike(dbStatus)) {
+      // ✅ DB confirma ativo: libera, mesmo que o JWT esteja “atrasado”.
+      return null;
+    }
+  } catch (dbCheckError) {
+    console.error('[planGuard] DB check failed:', dbCheckError);
+    // Se houver falha de DB mas o token indicar ativo, ainda liberamos.
+    if (isActiveLike(claimedStatus)) {
+      return null;
     }
   }
 
-  // Se o plano não está ativo (nem no token, nem no DB), bloqueia a requisição.
+  // 🚫 Bloqueia: não ativo (token + DB)
   const path = req.nextUrl.pathname;
-
-  // Atualiza as métricas para monitoramento.
   planGuardMetrics.blocked += 1;
   planGuardMetrics.byRoute[path] = (planGuardMetrics.byRoute[path] || 0) + 1;
 
-  // Retorna a resposta de bloqueio.
   return NextResponse.json(
     { error: 'Seu acesso está inativo. Verifique sua assinatura para continuar.' },
-    { status: 403 }
+    { status: 403, headers: { 'Cache-Control': 'no-store' } }
   );
 }

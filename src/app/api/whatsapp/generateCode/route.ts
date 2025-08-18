@@ -5,161 +5,161 @@ import { getToken } from "next-auth/jwt";
 import { jwtVerify } from "jose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import mongoose from "mongoose";
-import User from "@/app/models/User"; // Assuming IUser interface is also imported or handled by User model
+import User from "@/app/models/User";
 
 export const runtime = "nodejs";
 
-/**
- * Gera um código de verificação aleatório com 6 caracteres maiúsculos.
- */
+/** Gera um código de verificação aleatório com 6 caracteres maiúsculos. */
 function generateVerificationCode(): string {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
-/**
- * POST /api/whatsapp/generateCode
- * Extrai o userId diretamente do token JWT do usuário autenticado,
- * gera um código de verificação e zera o whatsappPhone para forçar re-verificação.
- */
 export async function POST(request: NextRequest) {
   const guardResponse = await guardPremiumRequest(request);
-  if (guardResponse) {
-    return guardResponse;
-  }
+  if (guardResponse) return guardResponse;
 
-  console.log("[whatsapp/generateCode] Request received."); // Log inicial
+  console.log("[whatsapp/generateCode] ▶︎ Request received");
 
   try {
-    // Log Headers usando console.log para garantir visibilidade
-    console.log(
-      "[whatsapp/generateCode] Request Headers:",
-      Object.fromEntries(request.headers.entries()) // Convert Headers object to plain object for logging
-    );
-
-    // Log Cookies usando console.log (CORRIGIDO)
-    let cookiesLog: { [key: string]: string } = {};
-    const allCookies = request.cookies.getAll(); // Use getAll()
-    allCookies.forEach(cookie => {
-        cookiesLog[cookie.name] = cookie.value;
-    });
-    console.log("[whatsapp/generateCode] Cookies:", cookiesLog);
-
-
-    // Tenta extrair o token usando getToken
-    let token: any = null; // Initialize token as null
+    // 1) Autenticação via next-auth; fallback decodificando cookie manualmente
+    let token: any = null;
     try {
-        token = await getToken({
-            req: request,
-            secret: process.env.NEXTAUTH_SECRET,
-        });
-        console.log("[whatsapp/generateCode] Token extraído pelo getToken:", token);
-    } catch (getTokenError) {
-        console.error("[whatsapp/generateCode] Erro ao tentar usar getToken:", getTokenError);
+      token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+      console.log("[whatsapp/generateCode] getToken() ->", token ? "OK" : "NULL");
+    } catch (e) {
+      console.error("[whatsapp/generateCode] getToken() error:", e);
     }
 
-
-    // Extração manual do cookie (com nome corrigido para produção)
-    const cookieName = process.env.NODE_ENV === 'production'
-        ? "__Secure-next-auth.session-token"
-        : "next-auth.session-token";
-    const manualTokenValue = request.cookies.get(cookieName)?.value;
-    console.log(`[whatsapp/generateCode] Tentando ler cookie: ${cookieName}`);
-    console.log("[whatsapp/generateCode] Valor do token extraído manualmente:", manualTokenValue ? manualTokenValue.substring(0,15) + '...' : 'Nenhum');
-
-
-    // Se getToken não retornou token, tente decodificá-lo manualmente
-    if (!token && manualTokenValue) {
-      console.log("[whatsapp/generateCode] getToken falhou ou retornou null, tentando decodificar manualmente...");
-      try {
-        // Certifique-se que NEXTAUTH_SECRET existe antes de usar
+    if (!token) {
+      const cookieName =
+        process.env.NODE_ENV === "production"
+          ? "__Secure-next-auth.session-token"
+          : "next-auth.session-token";
+      const raw = request.cookies.get(cookieName)?.value;
+      console.log(
+        `[whatsapp/generateCode] manual cookie ${cookieName}:`,
+        raw ? "FOUND" : "MISSING"
+      );
+      if (raw) {
         const secret = process.env.NEXTAUTH_SECRET;
         if (!secret) {
-            throw new Error("NEXTAUTH_SECRET não está definido no ambiente.");
+          console.error("[whatsapp/generateCode] NEXTAUTH_SECRET ausente");
+          return NextResponse.json(
+            { error: "Configuração do servidor ausente." },
+            { status: 500 }
+          );
         }
-        const decoded = await jwtVerify(
-          manualTokenValue,
-          new TextEncoder().encode(secret)
-        );
-        token = decoded.payload; // Atribui o payload decodificado
-        console.log("[whatsapp/generateCode] Token decodificado manualmente com sucesso:", token);
-      } catch (err) {
-        console.error("[whatsapp/generateCode] Erro ao decodificar manualmente o token:", err);
-        // Token não será definido ou permanecerá null se a decodificação falhar
+        try {
+          const decoded = await jwtVerify(raw, new TextEncoder().encode(secret));
+          token = decoded.payload;
+          console.log("[whatsapp/generateCode] manual jwtVerify() -> OK (payload only)");
+        } catch (err) {
+          console.error("[whatsapp/generateCode] manual jwtVerify() error:", err);
+        }
       }
     }
 
-    // Verifica se temos um token válido com 'sub' (ID do usuário)
     if (!token || !token.sub) {
-      console.warn("[whatsapp/generateCode] Falha na autenticação: Token inválido ou 'sub' ausente.", { hasToken: !!token, hasSub: !!token?.sub });
+      console.warn("[whatsapp/generateCode] Auth falhou (sem token/sub).");
       return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
     }
-    console.log(`[whatsapp/generateCode] Autenticação bem-sucedida. User ID (token.sub): ${token.sub}`);
 
-    // Usa o ID do usuário diretamente do token
-    const userId = token.sub as string;
-    console.log(`[whatsapp/generateCode] Usando userId do token: ${userId}`);
-
-
-    // Conecta ao banco de dados
-    try {
-        await connectToDatabase();
-        console.log("[whatsapp/generateCode] Conectado ao banco de dados.");
-    } catch (dbError) {
-        console.error("[whatsapp/generateCode] Falha ao conectar ao banco de dados:", dbError);
-        return NextResponse.json({ error: "Erro interno do servidor (DB Connect)." }, { status: 500 });
-    }
-
-
-    // Valida se o userId é um ObjectId válido
+    const userId = String(token.sub);
     if (!mongoose.isValidObjectId(userId)) {
-       console.warn(`[whatsapp/generateCode] Falha na validação: userId '${userId}' não é um ObjectId válido.`);
+      console.warn(`[whatsapp/generateCode] Token.sub inválido (não ObjectId): ${userId}`);
       return NextResponse.json({ error: "ID de usuário inválido." }, { status: 400 });
     }
 
-    // Busca o usuário no banco de dados
-    const user = await User.findById(userId);
-    if (!user) {
-       console.warn(`[whatsapp/generateCode] Usuário com ID '${userId}' não encontrado no banco de dados.`);
+    // 2) DB
+    await connectToDatabase();
+    console.log("[whatsapp/generateCode] DB connected. dbName =", mongoose.connection.name);
+
+    // 3) Já vinculado? NÃO gera código e não altera nada
+    const current = await User.findById(userId).select(
+      "_id whatsappVerificationCode whatsappPhone whatsappVerified"
+    );
+    if (!current) {
+      console.warn(`[whatsapp/generateCode] Usuário ${userId} não encontrado`);
       return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });
     }
-    console.log(`[whatsapp/generateCode] Usuário encontrado no DB: ${user._id}`);
 
-
-    // Se o usuário já tiver um número vinculado, retorna uma flag para indicar isso
-    if (user.whatsappPhone) {
-      console.log(`[whatsapp/generateCode] Usuário ${user._id} já possui telefone vinculado: ${user.whatsappPhone}. Retornando status 'linked'.`);
-       return NextResponse.json({ linked: true, message: "Telefone já vinculado." }, { status: 200 });
-    }
-
-
-    // Gera o código de verificação e zera o whatsappPhone para forçar re-verificação
-    const verificationCode = generateVerificationCode();
-    console.log(`[whatsapp/generateCode] Gerando novo código de verificação para usuário ${user._id}: ${verificationCode}`);
-    user.whatsappVerificationCode = verificationCode;
-    user.whatsappPhone = null;
-    user.whatsappVerified = false;
-    await user.save();
-    if (!user.whatsappVerificationCode) {
-      console.error(
-        `[whatsapp/generateCode] Erro: whatsappVerificationCode não foi persistido para usuário ${user._id}.`
-      );
-    } else {
+    const isLinked = !!current.whatsappPhone && current.whatsappVerified === true;
+    if (isLinked) {
       console.log(
-        `[whatsapp/generateCode] whatsappVerificationCode confirmado para usuário ${user._id}: ${user.whatsappVerificationCode}`
+        `[whatsapp/generateCode] User already linked -> user=${current._id}, phone=${current.whatsappPhone}`
+      );
+      return NextResponse.json(
+        { linked: true, phone: current.whatsappPhone },
+        { status: 200 }
       );
     }
+
+    // 4) Se já existe um código pendente, apenas retorne-o (idempotente)
+    if (current.whatsappVerificationCode) {
+      console.log(
+        `[whatsapp/generateCode] Pending existing code -> user=${current._id}, code=${current.whatsappVerificationCode}`
+      );
+      return NextResponse.json({ code: current.whatsappVerificationCode }, { status: 200 });
+    }
+
+    // 5) Não vinculado e sem código pendente -> gerar e salvar um novo código
+    //    **IMPORTANTE**: não mexer em whatsappPhone nem em whatsappVerified aqui.
+    const freshCode = generateVerificationCode();
+
+    const updated = await User.findOneAndUpdate(
+      {
+        _id: userId,
+        // Garante que não vamos sobrescrever caso alguém tenha verificado no meio tempo
+        whatsappVerified: { $ne: true },
+        $or: [
+          { whatsappVerificationCode: { $exists: false } },
+          { whatsappVerificationCode: null },
+          { whatsappVerificationCode: "" },
+        ],
+      },
+      {
+        $set: {
+          whatsappVerificationCode: freshCode,
+          // NÃO tocar em whatsappPhone nem em whatsappVerified aqui
+        },
+      },
+      { new: true }
+    ).select("_id whatsappVerificationCode whatsappPhone whatsappVerified");
+
+    if (!updated) {
+      // Em corrida de requests, se não atualizou, recarrega e decide:
+      const doc = await User.findById(userId).select(
+        "_id whatsappVerificationCode whatsappPhone whatsappVerified"
+      );
+
+      if (!doc) {
+        return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });
+      }
+      const nowLinked = !!doc.whatsappPhone && doc.whatsappVerified === true;
+      if (nowLinked) {
+        return NextResponse.json({ linked: true, phone: doc.whatsappPhone }, { status: 200 });
+      }
+      if (doc.whatsappVerificationCode) {
+        return NextResponse.json({ code: doc.whatsappVerificationCode }, { status: 200 });
+      }
+      // Caso raro: segue sem ação
+      return NextResponse.json(
+        {
+          linked: false,
+          message:
+            "Nenhuma ação necessária (verificação pode ter sido concluída em paralelo ou não há pendências).",
+        },
+        { status: 200 }
+      );
+    }
+
     console.log(
-      `[whatsapp/generateCode] Código salvo e whatsappPhone/whatsappVerified resetados para usuário ${user._id}.`
+      `[whatsapp/generateCode] Generated new code -> user=${updated._id}, code=${updated.whatsappVerificationCode}, phone=${updated.whatsappPhone}, verified=${updated.whatsappVerified}`
     );
 
-    // Retorna apenas o código gerado
-    return NextResponse.json({ code: verificationCode }, { status: 200 });
-
-  } catch (error: unknown) {
-    // Log detalhado do erro
-    console.error("Erro GERAL em POST /api/whatsapp/generateCode:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    // Mensagem genérica para o cliente
-    return NextResponse.json({ error: `Falha ao gerar código.` }, { status: 500 });
+    return NextResponse.json({ code: updated.whatsappVerificationCode }, { status: 200 });
+  } catch (err) {
+    console.error("[whatsapp/generateCode] Erro geral:", err);
+    return NextResponse.json({ error: "Falha ao gerar código." }, { status: 500 });
   }
 }
