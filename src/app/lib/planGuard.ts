@@ -2,6 +2,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
+import { connectToDatabase } from '@/app/lib/mongoose';
+import DbUser from '@/app/models/User';
 // CORREÇÃO: Removidas as importações de 'logger' e 'sendAlert',
 // pois são incompatíveis com o Edge Runtime do middleware.
 // import { logger } from '@/app/lib/logger';
@@ -48,10 +50,28 @@ export async function guardPremiumRequest(
     return null;
   }
 
+  // Para minimizar latência, apenas usuários com token "inactive" disparam
+  // uma checagem extra no banco de dados antes de bloquear o acesso.
+  if (status === 'inactive' && token?.id) {
+    try {
+      await connectToDatabase();
+      const dbUser = await DbUser.findById(token.id)
+        .select('planStatus')
+        .lean<{ planStatus?: PlanStatus }>();
+      const dbStatus = dbUser?.planStatus;
+      if (dbStatus === 'active' || dbStatus === 'non_renewing') {
+        return null;
+      }
+    } catch (dbCheckError) {
+      // Edge runtime doesn't allow using logger; fallback to console.
+      console.error('[planGuard] DB check failed', dbCheckError);
+    }
+  }
+
   // Se o plano não está ativo, bloqueia a requisição.
   const userId = token?.id ?? 'anonymous';
   const path = req.nextUrl.pathname;
-  
+
   // Atualiza as métricas para monitoramento.
   planGuardMetrics.blocked += 1;
   planGuardMetrics.byRoute[path] = (planGuardMetrics.byRoute[path] || 0) + 1;
