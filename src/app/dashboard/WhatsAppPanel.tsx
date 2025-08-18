@@ -37,9 +37,7 @@ export default function WhatsAppPanel({
       try {
         const res = await fetch("/api/whatsapp/generateCode", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ userId }),
         });
 
         if (!res.ok) {
