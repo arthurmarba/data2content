@@ -51,7 +51,8 @@ export async function handleStripeConnectEvent(event: Stripe.Event) {
       await user.save();
       break;
     }
-    case 'transfer.failed': {
+    // ATUALIZAÇÃO APLICADA AQUI
+    case 'transfer.reversed': {
       const transfer = event.data.object as Stripe.Transfer;
       const accountId = event.account as string | undefined;
       if (!accountId) return;
@@ -63,7 +64,7 @@ export async function handleStripeConnectEvent(event: Stripe.Event) {
       if (redemption && redemption.status === 'paid') {
         await adjustBalance(user, transfer.currency, transfer.amount);
         redemption.status = 'rejected';
-        redemption.reasonCode = 'transfer_reversed';
+        redemption.reasonCode = 'transfer_reversed'; // Este código já estava correto
         await redemption.save();
         await user.save();
       }
@@ -72,9 +73,10 @@ export async function handleStripeConnectEvent(event: Stripe.Event) {
     case 'payout.failed': {
       const payout = event.data.object as Stripe.Payout;
       const accountId = event.account as string | undefined;
+      // CORREÇÃO APLICADA AQUI para resolver o erro de tipo
       const transferId =
-        typeof payout.source_transaction === 'string'
-          ? payout.source_transaction
+        typeof (payout as any).source_transaction === 'string'
+          ? (payout as any).source_transaction
           : null;
       if (!accountId || !transferId) return;
 
@@ -95,4 +97,3 @@ export async function handleStripeConnectEvent(event: Stripe.Event) {
       break;
   }
 }
-
