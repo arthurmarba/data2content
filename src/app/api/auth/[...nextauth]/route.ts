@@ -253,6 +253,7 @@ async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise
   }
 
   return new SignJWT(cleanToken)
+    .setSubject(cleanToken.id)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(expirationTime)

@@ -19,9 +19,12 @@ async function getUserIdFromRequest(request: NextRequest): Promise<string | null
   // 1) next-auth
   try {
     const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
-    const uid = (token as any)?.id ?? (token as any)?.sub;
+    if (token && !(token as any).id && (token as any).sub) {
+      (token as any).id = String((token as any).sub);
+    }
+    const uid = (token as any)?.id;
     if (uid) return String(uid);
-    console.log("[whatsapp/generateCode] getToken() -> OK mas sem id/sub");
+    console.log("[whatsapp/generateCode] getToken() -> OK mas sem id");
   } catch (e) {
     console.error("[whatsapp/generateCode] getToken() error:", e);
   }
