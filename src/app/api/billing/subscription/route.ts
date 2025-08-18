@@ -22,7 +22,7 @@ export async function GET(_req: NextRequest) {
     }
 
     await connectToDatabase()
-    const user = await User.findById(session.user.id).lean()
+    const user = await User.findById(session.user.id)
     if (!user?.stripeSubscriptionId) {
       // Sem assinatura → 204 para o front renderizar Empty
       return new NextResponse(null, { status: 204, headers: cacheHeader })
@@ -34,6 +34,20 @@ export async function GET(_req: NextRequest) {
     })
 
     const sub = res as Stripe.Subscription
+
+    if (sub.status === 'incomplete' || sub.status === 'incomplete_expired') {
+      try {
+        await stripe.subscriptions.cancel(sub.id)
+      } catch {}
+      user.stripeSubscriptionId = undefined
+      user.planStatus = 'inactive'
+      user.stripePriceId = null
+      user.planInterval = undefined
+      user.planExpiresAt = null
+      user.cancelAtPeriodEnd = false
+      await user.save()
+      return new NextResponse(null, { status: 204, headers: cacheHeader })
+    }
 
     const items = sub.items?.data ?? []
     const firstItem = items[0]
