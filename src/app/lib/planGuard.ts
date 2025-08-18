@@ -66,11 +66,19 @@ export function isActiveLike(s: unknown): s is ActiveLikeStatus {
   return ACTIVE_LIKE_CANONICAL.has(norm);
 }
 
-/** Tenta extrair o token do request: next-auth -> fallback manual por cookie */
-async function getAuthTokenFromRequest(req: NextRequest): Promise<Record<string, any> | null> {
+/**
+ * Tenta extrair o token do request: next-auth -> fallback manual por cookie.
+ * Caso o token de `getToken` não possua identificadores básicos (id, sub ou email),
+ * tentamos decodificar manualmente o cookie para reconstruir os dados.
+ */
+async function getAuthTokenFromRequest(
+  req: NextRequest
+): Promise<Record<string, any> | null> {
   try {
     const t = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-    if (t) return t as any;
+    const hasId = (t as any)?.id || (t as any)?.sub || (t as any)?.email;
+    if (t && hasId) return t as any;
+    if (t) console.warn('[planGuard] getToken() -> token sem id/sub/email, tentando fallback');
   } catch (e) {
     console.error('[planGuard] getToken() error:', e);
   }
@@ -87,7 +95,10 @@ async function getAuthTokenFromRequest(req: NextRequest): Promise<Record<string,
 
   try {
     const { payload } = await jwtVerify(raw, new TextEncoder().encode(secret));
-    return payload as any;
+    const hasId =
+      (payload as any)?.id || (payload as any)?.sub || (payload as any)?.email;
+    if (hasId) return payload as any;
+    return null; // sem identificador mesmo após fallback
   } catch (err) {
     console.error('[planGuard] jwtVerify fallback error:', err);
     return null;
