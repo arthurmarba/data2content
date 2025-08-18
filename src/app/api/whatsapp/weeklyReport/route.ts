@@ -1,6 +1,7 @@
 // src/app/api/whatsapp/weeklyReport/route.ts - Correção v1.1
 
 import { NextRequest, NextResponse } from "next/server";
+import { guardPremiumRequest } from "@/app/lib/planGuard";
 import { getToken } from "next-auth/jwt";
 import { connectDB, safeSendWhatsAppMessage } from "@/app/lib/helpers"; // Verifique os caminhos
 import User, { IUser } from "@/app/models/User"; // Verifique o caminho
@@ -55,6 +56,11 @@ interface ReportResult {
  * Utiliza JWT para autenticação (getToken).
  */
 export async function POST(request: NextRequest) {
+  const guardResponse = await guardPremiumRequest(request);
+  if (guardResponse) {
+    return guardResponse;
+  }
+
   const functionName = "[whatsapp/weeklyReport POST v1.1]"; // Atualiza tag da versão
   try {
     // Verifica se hoje é sexta-feira (dia 5)

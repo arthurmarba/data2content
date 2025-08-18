@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import Metric, { IMetric } from "@/app/models/Metric";
 import { Model } from "mongoose";
 import { callOpenAIForQuestion } from "@/app/lib/aiService";
+import { guardPremiumRequest } from "@/app/lib/planGuard";
 
 // Garante que essa rota use Node.js em vez de Edge (importante para Mongoose).
 export const runtime = "nodejs";
@@ -12,7 +13,11 @@ export const runtime = "nodejs";
  * Body esperado: { userId, query }
  * Retorna uma resposta da IA baseada nas métricas do usuário.
  */
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const guardResponse = await guardPremiumRequest(request);
+  if (guardResponse) {
+    return guardResponse;
+  }
   try {
     // 1) Lê o body JSON
     const { userId, query } = (await request.json()) || {};

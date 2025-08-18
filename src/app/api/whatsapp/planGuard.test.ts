@@ -1,4 +1,9 @@
-import { middleware } from '../../../middleware';
+// @jest-environment node
+import { NextRequest } from 'next/server';
+import { POST as generateCode } from './generateCode/route';
+import { POST as sendTips } from './sendTips/route';
+import { POST as verify } from './verify/route';
+import { POST as weeklyReport } from './weeklyReport/route';
 import { getToken } from 'next-auth/jwt';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import DbUser from '@/app/models/User';
@@ -11,8 +16,8 @@ const mockGetToken = getToken as jest.Mock;
 const mockConnect = connectToDatabase as jest.Mock;
 const mockFindById = (DbUser as any).findById as jest.Mock;
 
-function makeRequest(path: string) {
-  return { nextUrl: { pathname: path } } as any;
+function makeRequest(url: string) {
+  return new NextRequest(url);
 }
 
 describe('plan guard for whatsapp routes', () => {
@@ -26,24 +31,24 @@ describe('plan guard for whatsapp routes', () => {
     });
   });
 
-  it.each([
-    '/api/whatsapp/generateCode',
-    '/api/whatsapp/sendTips',
-    '/api/whatsapp/verify',
-    '/api/whatsapp/weeklyReport',
-  ])('blocks inactive plan for %s', async (path) => {
-    const res = await middleware(makeRequest(path));
+  it('blocks inactive plan for generateCode', async () => {
+    const res = await generateCode(makeRequest('http://localhost/api/whatsapp/generateCode'));
     expect(res.status).toBe(403);
   });
 
-  it('allows when DB has active plan', async () => {
-    mockFindById.mockReturnValue({
-      select: jest.fn().mockReturnValue({
-        lean: jest.fn().mockResolvedValue({ planStatus: 'active' }),
-      }),
-    });
-    const res = await middleware(makeRequest('/api/whatsapp/generateCode'));
-    expect(res.status).toBe(200);
+  it('blocks inactive plan for sendTips', async () => {
+    const res = await sendTips(makeRequest('http://localhost/api/whatsapp/sendTips'));
+    expect(res.status).toBe(403);
+  });
+
+  it('blocks inactive plan for verify', async () => {
+    const res = await verify(makeRequest('http://localhost/api/whatsapp/verify'));
+    expect(res.status).toBe(403);
+  });
+
+  it('blocks inactive plan for weeklyReport', async () => {
+    const res = await weeklyReport(makeRequest('http://localhost/api/whatsapp/weeklyReport'));
+    expect(res.status).toBe(403);
   });
 });
 

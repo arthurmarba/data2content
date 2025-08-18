@@ -1,8 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { guardPremiumRequest } from "@/app/lib/planGuard";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const guardResponse = await guardPremiumRequest(req);
+  if (guardResponse) {
+    return guardResponse;
+  }
   const data = {
     name: "AI Summary",
     description: "Summary of the application's AI capabilities.",

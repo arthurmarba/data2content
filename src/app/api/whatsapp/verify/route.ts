@@ -1,5 +1,6 @@
 // src/app/api/whatsapp/verify/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { guardPremiumRequest } from "@/app/lib/planGuard";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import mongoose from "mongoose";
 import User, { IUser } from "@/app/models/User";
@@ -16,6 +17,11 @@ export const runtime = "nodejs";
  * visto que mensagens do WhatsApp não trazem cookies de sessão.
  */
 export async function POST(request: NextRequest) {
+  const guardResponse = await guardPremiumRequest(request);
+  if (guardResponse) {
+    return guardResponse;
+  }
+
   try {
     console.debug("[whatsapp/verify] Iniciando verificação de código (sem sessão).");
     
