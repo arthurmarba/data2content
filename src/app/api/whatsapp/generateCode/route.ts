@@ -139,7 +139,18 @@ export async function POST(request: NextRequest) {
     user.whatsappPhone = null;
     user.whatsappVerified = false;
     await user.save();
-    console.log(`[whatsapp/generateCode] Código salvo e whatsappPhone/whatsappVerified resetados para usuário ${user._id}.`);
+    if (!user.whatsappVerificationCode) {
+      console.error(
+        `[whatsapp/generateCode] Erro: whatsappVerificationCode não foi persistido para usuário ${user._id}.`
+      );
+    } else {
+      console.log(
+        `[whatsapp/generateCode] whatsappVerificationCode confirmado para usuário ${user._id}: ${user.whatsappVerificationCode}`
+      );
+    }
+    console.log(
+      `[whatsapp/generateCode] Código salvo e whatsappPhone/whatsappVerified resetados para usuário ${user._id}.`
+    );
 
     // Retorna apenas o código gerado
     return NextResponse.json({ code: verificationCode }, { status: 200 });
