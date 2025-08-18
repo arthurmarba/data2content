@@ -44,18 +44,20 @@ export async function guardPremiumRequest(
 ): Promise<NextResponse | null> {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
   const status = token?.planStatus as PlanStatus | undefined;
+  const userId = token?.id ?? token?.sub;
 
   if (status === 'active' || status === 'non_renewing') {
     // Se o plano está ativo, permite a passagem sem fazer nada.
     return null;
   }
 
-  // Para minimizar latência, apenas usuários com token "inactive" disparam
-  // uma checagem extra no banco de dados antes de bloquear o acesso.
-  if (status === 'inactive' && token?.id) {
+  // Para minimizar latência, apenas usuários cujo token não está ativo ou
+  // em fase de não renovação disparam uma checagem extra no banco de dados
+  // antes de bloquear o acesso.
+  if (status !== 'active' && status !== 'non_renewing' && userId) {
     try {
       await connectToDatabase();
-      const dbUser = await DbUser.findById(token.id)
+      const dbUser = await DbUser.findById(userId)
         .select('planStatus')
         .lean<{ planStatus?: PlanStatus }>();
       const dbStatus = dbUser?.planStatus;
@@ -69,7 +71,6 @@ export async function guardPremiumRequest(
   }
 
   // Se o plano não está ativo, bloqueia a requisição.
-  const userId = token?.id ?? 'anonymous';
   const path = req.nextUrl.pathname;
 
   // Atualiza as métricas para monitoramento.
