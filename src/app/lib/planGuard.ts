@@ -4,10 +4,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import DbUser from '@/app/models/User';
-// CORREÇÃO: Removidas as importações de 'logger' e 'sendAlert',
-// pois são incompatíveis com o Edge Runtime do middleware.
-// import { logger } from '@/app/lib/logger';
-// import { sendAlert } from '@/app/lib/alerts';
 import type { PlanStatus } from '@/types/enums';
 
 export interface PlanGuardMetrics {
@@ -15,7 +11,6 @@ export interface PlanGuardMetrics {
   byRoute: Record<string, number>;
 }
 
-// As métricas em memória podem continuar, pois não dependem de APIs do Node.js.
 export const planGuardMetrics: PlanGuardMetrics = {
   blocked: 0,
   byRoute: {},
@@ -47,43 +42,37 @@ export async function guardPremiumRequest(
   const userId = token?.id ?? token?.sub;
 
   if (status === 'active' || status === 'non_renewing') {
-    // Se o plano está ativo, permite a passagem sem fazer nada.
+    // Se o plano está ativo no token, permite a passagem imediatamente.
     return null;
   }
 
-  // Para minimizar latência, apenas usuários cujo token não está ativo ou
-  // em fase de não renovação disparam uma checagem extra no banco de dados
-  // antes de bloquear o acesso.
-  if (status !== 'active' && status !== 'non_renewing' && userId) {
+  // CORREÇÃO: A verificação redundante foi removida.
+  // Se o código chegou até aqui, já sabemos que o status não é 'active' nem 'non_renewing'.
+  // Agora, apenas verificamos se temos um userId para tentar uma consulta ao banco de dados.
+  if (userId) {
     try {
       await connectToDatabase();
       const dbUser = await DbUser.findById(userId)
         .select('planStatus')
         .lean<{ planStatus?: PlanStatus }>();
       const dbStatus = dbUser?.planStatus;
+      
+      // Se o banco de dados mostrar que o plano está ativo, permite a passagem.
       if (dbStatus === 'active' || dbStatus === 'non_renewing') {
         return null;
       }
     } catch (dbCheckError) {
-      // Edge runtime doesn't allow using logger; fallback to console.
+      // O Edge runtime não permite usar logger; fallback para console.
       console.error('[planGuard] DB check failed', dbCheckError);
     }
   }
 
-  // Se o plano não está ativo, bloqueia a requisição.
+  // Se o plano não está ativo (nem no token, nem no DB), bloqueia a requisição.
   const path = req.nextUrl.pathname;
 
   // Atualiza as métricas para monitoramento.
   planGuardMetrics.blocked += 1;
   planGuardMetrics.byRoute[path] = (planGuardMetrics.byRoute[path] || 0) + 1;
-
-  // CORREÇÃO: As chamadas para logger.warn e sendAlert foram removidas
-  // porque não podem ser executadas no middleware. O monitoramento de
-  // acessos bloqueados agora é feito apenas pelas métricas em memória.
-  // logger.warn({ userId, status, path });
-  // void sendAlert(
-  //   `[planGuard] Blocked request for user ${userId} with status ${status} on ${path}`
-  // );
 
   // Retorna a resposta de bloqueio.
   return NextResponse.json(
