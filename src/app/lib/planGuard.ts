@@ -28,8 +28,42 @@ export function getPlanGuardMetrics(): PlanGuardMetrics {
   };
 }
 
-function isActiveLike(s: unknown): s is 'active' | 'non_renewing' {
-  return s === 'active' || s === 'non_renewing';
+/** Status que consideramos como com acesso ativo aos recursos premium (forma canônica). */
+export type ActiveLikeStatus = 'active' | 'non_renewing' | 'trial' | 'trialing';
+
+const ACTIVE_LIKE_CANONICAL: ReadonlySet<ActiveLikeStatus> = new Set<ActiveLikeStatus>([
+  'active',
+  'non_renewing',
+  'trial',
+  'trialing',
+]);
+
+/**
+ * Normaliza o valor de planStatus para uma forma canônica:
+ * - lower-case
+ * - trim
+ * - troca espaços e hífens por "_"
+ * - colapsa múltiplos "_"
+ * - mapeia aliases comuns (ex.: "nonrenewing" → "non_renewing", "trialling" → "trialing")
+ */
+export function normalizePlanStatus(value: unknown): string {
+  if (value == null) return '';
+  let v = String(value).trim().toLowerCase();
+
+  // substituir espaço/hífen por "_"
+  v = v.replace(/[\s-]+/g, '_').replace(/_+/g, '_');
+
+  // aliases comuns
+  if (v === 'nonrenewing') v = 'non_renewing';
+  if (v === 'trialling') v = 'trialing';
+
+  return v;
+}
+
+/** Type guard reutilizável: indica se o valor (após normalização) é um status com acesso ativo. */
+export function isActiveLike(s: unknown): s is ActiveLikeStatus {
+  const norm = normalizePlanStatus(s) as ActiveLikeStatus;
+  return ACTIVE_LIKE_CANONICAL.has(norm);
 }
 
 /** Tenta extrair o token do request: next-auth -> fallback manual por cookie */
@@ -53,7 +87,6 @@ async function getAuthTokenFromRequest(req: NextRequest): Promise<Record<string,
 
   try {
     const { payload } = await jwtVerify(raw, new TextEncoder().encode(secret));
-    // payload pode conter sub, email e planStatus (se você escreve isso no JWT)
     return payload as any;
   } catch (err) {
     console.error('[planGuard] jwtVerify fallback error:', err);
@@ -63,8 +96,8 @@ async function getAuthTokenFromRequest(req: NextRequest): Promise<Record<string,
 
 /**
  * Garante que o usuário tenha plano ativo antes de APIs premium.
- * - Confia no token para liberar rápido se já estiver ativo.
- * - Se o token vier inativo, revalida no DB (fonte da verdade).
+ * - Confia no token para liberar rápido se já estiver ativo-like (active | non_renewing | trial | trialing).
+ * - Se o token vier inativo/indefinido, revalida no DB (fonte da verdade).
  * - Se não conseguir ler token, retorna 401 (não autenticado).
  */
 export async function guardPremiumRequest(
@@ -78,14 +111,15 @@ export async function guardPremiumRequest(
     );
   }
 
-  const claimedStatus = (token as any)?.planStatus as unknown;
+  const claimedStatusRaw = (token as any)?.planStatus as unknown;
+  const claimedStatusNorm = normalizePlanStatus(claimedStatusRaw);
 
-  // ✅ Fast-path: se o token diz ativo, libera sem consultar DB.
-  if (isActiveLike(claimedStatus)) {
+  // ✅ Fast-path: token já indica plano válido (active-like)
+  if (isActiveLike(claimedStatusNorm)) {
     return null;
   }
 
-  // Caso o token diga "inactive" (ou não traga status), verifica no DB.
+  // Token não trouxe ativo: revalida no DB
   const tokenId = (token as any)?.id ?? (token as any)?.sub;
   const tokenEmail = (token as any)?.email as string | undefined;
 
@@ -102,15 +136,16 @@ export async function guardPremiumRequest(
         .lean<{ planStatus?: string }>();
     }
 
-    const dbStatus = dbUser?.planStatus;
-    if (isActiveLike(dbStatus)) {
-      // ✅ DB confirma ativo: libera, mesmo que o JWT esteja “atrasado”.
+    const dbStatusNorm = normalizePlanStatus(dbUser?.planStatus);
+
+    if (isActiveLike(dbStatusNorm)) {
+      // ✅ DB confirma ativo-like: libera, mesmo com JWT “atrasado”
       return null;
     }
   } catch (dbCheckError) {
     console.error('[planGuard] DB check failed:', dbCheckError);
-    // Se houver falha de DB mas o token indicar ativo, ainda liberamos.
-    if (isActiveLike(claimedStatus)) {
+    // Em falha de DB, se o token disser ativo-like, ainda liberamos.
+    if (isActiveLike(claimedStatusNorm)) {
       return null;
     }
   }

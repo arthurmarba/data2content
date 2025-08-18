@@ -1,13 +1,14 @@
+// src/app/api/whatsapp/sendTips/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { guardPremiumRequest } from "@/app/lib/planGuard";
-import { getServerSession }          from "next-auth/next";
-import { authOptions }               from "@/app/api/auth/[...nextauth]/route";
-import { connectToDatabase }         from "@/app/lib/mongoose";
+import { guardPremiumRequest }        from "@/app/lib/planGuard";
+import { getServerSession }           from "next-auth/next";
+import { authOptions }                from "@/app/api/auth/[...nextauth]/route";
+import { connectToDatabase }          from "@/app/lib/mongoose";
 import User                           from "@/app/models/User";
-import { DailyMetric, IDailyMetric } from "@/app/models/DailyMetric";
-import { callOpenAIForTips }         from "@/app/lib/aiService";   // agora EXISTE
-import { sendWhatsAppMessage }       from "@/app/lib/whatsappService";
-import { Model, Types }              from "mongoose";
+import { DailyMetric, IDailyMetric }  from "@/app/models/DailyMetric";
+import { callOpenAIForTips }          from "@/app/lib/aiService";
+import { sendWhatsAppMessage }        from "@/app/lib/whatsappService";
+import { Model, Types }               from "mongoose";
 
 /* ────────────────────────────────────────────────────────── *
  * Tipos auxiliares                                           *
@@ -33,7 +34,7 @@ async function safeSendWhatsAppMessage(phone: string, body: string) {
   catch (err) { console.error("[sendTips] Falha WhatsApp", { phone, err }); }
 }
 
-/* -------- agregação simplificada (7 dias) ------------------------- */
+/* -------- agregação simplificada (7 dias) ------------------------- */
 function aggregateWeeklyMetrics(dms: DailyMetricDoc[]) {
   const totalCurts = dms.reduce((sum, dm) => sum + (dm.stats?.curtidas ?? 0), 0);
   const totalPosts = dms.length;
@@ -53,65 +54,70 @@ function formatTipsMessage({ titulo = "💡 Dicas da Semana", dicas = [] }: Tips
 
 /* ==================================================================
    POST /api/whatsapp/sendTips
-   Envia dicas semanais a todos os usuários com plano ativo
+   Envia dicas semanais a todos os usuários com plano ativo-like
+   (active | non_renewing | trial) e WhatsApp verificado
    ================================================================== */
 export async function POST(request: NextRequest) {
   const guardResponse = await guardPremiumRequest(request);
-  if (guardResponse) {
-    return guardResponse;
-  }
+  if (guardResponse) return guardResponse;
 
   const tag = "[whatsapp/sendTips]";
 
-  /* 1. Autenticação (caso use sessão) ------------------------------ */
+  /* 1) Autenticação da chamada (ex.: proteger para staff/admin) */
   const session = await getServerSession({ req: request, ...authOptions });
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   }
 
-  /* 2. DB ----------------------------------------------------------- */
+  /* 2) DB */
   await connectToDatabase();
 
+  // ✅ Considera active-like e exige número verificado
+  const ACTIVE_LIKE = ["active", "non_renewing", "trial"];
   const users = await User.find({
-    planStatus   : "active",
-    whatsappPhone: { $exists: true, $ne: null }
+    planStatus: { $in: ACTIVE_LIKE },
+    whatsappPhone: { $exists: true, $ne: null },
+    whatsappVerified: true,
   }).lean();
 
   if (!users.length) {
-    return NextResponse.json({ message: "Nenhum usuário ativo com WhatsApp." }, { status: 200 });
+    return NextResponse.json({ message: "Nenhum usuário elegível com WhatsApp verificado." }, { status: 200 });
   }
 
-  /* 3. Janela de 7 dias -------------------------------------------- */
+  /* 3) Janela de 7 dias */
   const to   = new Date();
   const from = new Date(); from.setDate(to.getDate() - 7);
 
-  /* 4. Processa todos em paralelo ---------------------------------- */
+  /* 4) Processa todos em paralelo */
   const results = await Promise.allSettled<ReportResult>(
     users.map(async u => {
       const userId = u._id?.toString() ?? "UNKNOWN";
       try {
-        /* 4a. coleta curtidas simplificadas */
+        // 4a) coleta curtidas simplificadas
         const dailyModel = DailyMetric as Model<IDailyMetric>;
-        const dms: DailyMetricDoc[] = await dailyModel.find({
-          user    : new Types.ObjectId(userId),
-          postDate: { $gte: from }
-        }).select("stats.curtidas").lean();
+        const dms: DailyMetricDoc[] = await dailyModel
+          .find({
+            user: new Types.ObjectId(userId),
+            postDate: { $gte: from } // últimos 7 dias
+          })
+          .select("stats.curtidas")
+          .lean();
 
         if (!dms.length) return { userId, success: false };
 
-        /* 4b. agrega & chama IA                                         */
+        // 4b) agrega & chama IA
         const weekly = aggregateWeeklyMetrics(dms);
 
         const rawTips = await callOpenAIForTips(JSON.stringify(weekly));
         let tips: TipsData;
-
-        try           { tips = typeof rawTips === "string" ? JSON.parse(rawTips) : rawTips as TipsData; }
-        catch (e)     {
-          console.warn(`${tag} IA retornou texto não‑JSON p/ ${userId}:`, rawTips);
+        try {
+          tips = typeof rawTips === "string" ? JSON.parse(rawTips) : (rawTips as TipsData);
+        } catch (e) {
+          console.warn(`${tag} IA retornou texto não-JSON p/ ${userId}:`, rawTips);
           tips = { dicas: [String(rawTips)] };
         }
 
-        /* 4c. monta e envia WhatsApp                                    */
+        // 4c) monta e envia WhatsApp
         if (u.whatsappPhone) {
           await safeSendWhatsAppMessage(u.whatsappPhone, formatTipsMessage(tips));
           return { userId, success: true };

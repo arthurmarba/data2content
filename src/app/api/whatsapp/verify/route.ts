@@ -1,72 +1,105 @@
 // src/app/api/whatsapp/verify/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { guardPremiumRequest } from "@/app/lib/planGuard";
 import { connectToDatabase } from "@/app/lib/mongoose";
-import mongoose from "mongoose";
-import User, { IUser } from "@/app/models/User";
+import User from "@/app/models/User";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+function isActiveLike(s: unknown): s is "active" | "non_renewing" | "trial" {
+  return s === "active" || s === "non_renewing" || s === "trial";
+}
 
 /**
  * POST /api/whatsapp/verify
- * Recebe { phoneNumber, code } no body.
- * Verifica se o código corresponde a algum usuário e se o plano está ativo.
- * Se tudo estiver correto, vincula o phoneNumber ao usuário e invalida o código.
- *
- * Nota: Este endpoint foi atualizado para permitir a verificação sem depender de sessão,
- * visto que mensagens do WhatsApp não trazem cookies de sessão.
+ * Body: { phoneNumber: string, code: string }
+ * - Não depende de sessão/cookies (WhatsApp não envia cookies).
+ * - Valida status do plano via DB (active | non_renewing | trial = OK).
+ * - Vincula o telefone e marca whatsappVerified=true; invalida o código.
  */
 export async function POST(request: NextRequest) {
-  const guardResponse = await guardPremiumRequest(request);
-  if (guardResponse) {
-    return guardResponse;
-  }
-
   try {
-    console.debug("[whatsapp/verify] Iniciando verificação de código (sem sessão).");
-    
-    // Conecta ao banco de dados
+    console.debug("[whatsapp/verify] ▶︎ Iniciando verificação de código (sem sessão).");
+
     await connectToDatabase();
-    
-    // Extrai os dados do corpo da requisição
+
     const body = await request.json();
-    console.debug("[whatsapp/verify] Corpo da requisição:", body);
-    const { phoneNumber, code } = body;
+    const phoneNumber = String(body?.phoneNumber || "").trim();
+    const code = String(body?.code || "").trim().toUpperCase();
+
     if (!phoneNumber || !code) {
-      console.error("[whatsapp/verify] Parâmetros ausentes:", body);
+      console.error("[whatsapp/verify] Parâmetros ausentes.", { phoneNumber, code });
       return NextResponse.json(
         { error: "Parâmetros 'phoneNumber' e 'code' são obrigatórios." },
-        { status: 400 }
+        { status: 400, headers: { "Cache-Control": "no-store" } }
       );
     }
-    
-    // Busca o usuário com o código de verificação
-    console.debug(`[whatsapp/verify] Procurando usuário com código: ${code}`);
-    const user = await User.findOne({ whatsappVerificationCode: code }) as IUser | null;
+
+    // 1) Busca usuário pelo código
+    const user = await User.findOne({ whatsappVerificationCode: code }).select(
+      "_id planStatus whatsappVerificationCode"
+    );
     if (!user) {
-      console.error("[whatsapp/verify] Nenhum usuário encontrado com o código:", code);
-      return NextResponse.json({ error: "Código inválido ou expirado." }, { status: 404 });
+      console.error("[whatsapp/verify] Código inválido ou expirado:", code);
+      return NextResponse.json(
+        { error: "Código inválido ou expirado." },
+        { status: 404, headers: { "Cache-Control": "no-store" } }
+      );
     }
-    
-    console.debug("[whatsapp/verify] Usuário encontrado com ID:", user._id.toString());
-    
-    // Verifica se o plano do usuário está ativo
-    if (user.planStatus !== "active") {
-      console.error("[whatsapp/verify] Plano inativo para o usuário:", user._id.toString());
-      return NextResponse.json({ error: "Seu plano não está ativo." }, { status: 403 });
+    console.debug("[whatsapp/verify] Usuário encontrado:", String(user._id), "status:", user.planStatus);
+
+    // 2) Checa plano ativo-like
+    if (!isActiveLike(user.planStatus)) {
+      console.error("[whatsapp/verify] Plano não ativo-like:", user.planStatus, "user:", String(user._id));
+      return NextResponse.json(
+        {
+          error:
+            "Seu plano não está ativo. Ative sua assinatura para vincular o WhatsApp.",
+          status: user.planStatus,
+        },
+        { status: 403, headers: { "Cache-Control": "no-store" } }
+      );
     }
-    
-    // Atualiza o telefone do usuário e invalida o código de verificação
-    console.debug(`[whatsapp/verify] Atualizando telefone para: ${phoneNumber}`);
-    user.whatsappPhone = phoneNumber;
-    user.whatsappVerificationCode = null;
-    await user.save();
-    
-    console.debug("[whatsapp/verify] Verificação concluída com sucesso para usuário:", user._id.toString());
-    return NextResponse.json({ message: "Vinculação concluída com sucesso!" }, { status: 200 });
+
+    // 3) Atualiza atomically: define phone + verified, remove code
+    const updated = await User.findOneAndUpdate(
+      { _id: user._id, whatsappVerificationCode: code },
+      {
+        $set: { whatsappPhone: phoneNumber, whatsappVerified: true },
+        $unset: { whatsappVerificationCode: "" },
+      },
+      { new: true }
+    ).select("_id whatsappPhone whatsappVerified");
+
+    if (!updated) {
+      // Corrida: alguém pode ter verificado ao mesmo tempo
+      console.warn("[whatsapp/verify] Conflito ao salvar (provável corrida). user:", String(user._id));
+      return NextResponse.json(
+        {
+          error:
+            "Não foi possível concluir a verificação agora. Gere um novo código e tente novamente.",
+        },
+        { status: 409, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    console.debug(
+      "[whatsapp/verify] ✅ Vinculação concluída. user:",
+      String(updated._id),
+      "phone:",
+      updated.whatsappPhone
+    );
+    return NextResponse.json(
+      { message: "Vinculação concluída com sucesso!" },
+      { status: 200, headers: { "Cache-Control": "no-store" } }
+    );
   } catch (error: unknown) {
-    console.error("Erro em POST /api/whatsapp/verify:", error);
+    console.error("[whatsapp/verify] Erro geral:", error);
     const errorMessage = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: `Falha ao verificar código: ${errorMessage}` }, { status: 500 });
+    return NextResponse.json(
+      { error: `Falha ao verificar código: ${errorMessage}` },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
+    );
   }
 }

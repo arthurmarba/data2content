@@ -15,7 +15,8 @@ async function getUserIdFromRequest(request: NextRequest): Promise<string | null
   // 1) Tenta via next-auth
   try {
     const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
-    if (token?.sub) return String(token.sub);
+    const uid = (token as any)?.id ?? (token as any)?.sub;
+    if (uid) return String(uid);
   } catch (e) {
     console.error("[whatsapp/status] getToken() error:", e);
   }
@@ -26,15 +27,14 @@ async function getUserIdFromRequest(request: NextRequest): Promise<string | null
       ? "__Secure-next-auth.session-token"
       : "next-auth.session-token";
   const raw = request.cookies.get(cookieName)?.value;
-  if (!raw) return null;
-
   const secret = process.env.NEXTAUTH_SECRET;
-  if (!secret) return null;
+  if (!raw || !secret) return null;
 
   try {
     const decoded = await jwtVerify(raw, new TextEncoder().encode(secret));
-    const sub = decoded?.payload?.sub;
-    return sub ? String(sub) : null;
+    const payload = decoded?.payload as any;
+    const uid = payload?.id ?? payload?.sub;
+    return uid ? String(uid) : null;
   } catch (err) {
     console.error("[whatsapp/status] manual jwtVerify() error:", err);
     return null;
@@ -42,14 +42,16 @@ async function getUserIdFromRequest(request: NextRequest): Promise<string | null
 }
 
 export async function GET(request: NextRequest) {
-  // ❌ Removido: guardPremiumRequest — este endpoint é read-only e não deve bloquear por plano.
-
+  // (Sem guardPremiumRequest) — é apenas leitura do estado de vinculação.
   console.log("[whatsapp/status] ▶︎ Request received");
 
   try {
     const userId = await getUserIdFromRequest(request);
     if (!userId || !mongoose.isValidObjectId(userId)) {
-      return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+      return NextResponse.json(
+        { error: "Não autenticado." },
+        { status: 401, headers: { "Cache-Control": "no-store" } }
+      );
     }
 
     await connectToDatabase();
@@ -59,14 +61,17 @@ export async function GET(request: NextRequest) {
     );
 
     if (!doc) {
-      return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });
+      return NextResponse.json(
+        { error: "Usuário não encontrado." },
+        { status: 404, headers: { "Cache-Control": "no-store" } }
+      );
     }
 
     // Já vinculado
     if (doc.whatsappVerified === true && doc.whatsappPhone) {
       return NextResponse.json(
         { linked: true, phone: doc.whatsappPhone },
-        { status: 200 }
+        { status: 200, headers: { "Cache-Control": "no-store" } }
       );
     }
 
@@ -74,17 +79,20 @@ export async function GET(request: NextRequest) {
     if (doc.whatsappVerificationCode) {
       return NextResponse.json(
         { linked: false, pending: true, code: doc.whatsappVerificationCode },
-        { status: 200 }
+        { status: 200, headers: { "Cache-Control": "no-store" } }
       );
     }
 
     // Não vinculado e sem código pendente
     return NextResponse.json(
       { linked: false, pending: false, code: null },
-      { status: 200 }
+      { status: 200, headers: { "Cache-Control": "no-store" } }
     );
   } catch (err) {
     console.error("[whatsapp/status] Erro geral:", err);
-    return NextResponse.json({ error: "Falha ao consultar status." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Falha ao consultar status." },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
+    );
   }
 }

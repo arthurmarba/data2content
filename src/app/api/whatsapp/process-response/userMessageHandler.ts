@@ -3,6 +3,7 @@
 // - ATUALIZADO: Captura e loga o WAMID retornado pelo whatsappService.
 // - ATUALIZADO: Melhorado o tratamento de erro para chamadas a sendWhatsAppMessage.
 // - CORRIGIDO: Adicionada chave de fechamento '}' ausente no final da função handleUserMessage (mantido).
+// - NOVO: Trata 'active' | 'non_renewing' | 'trial' como estados ativos.
 // - Baseado em: vShortTermMemory_CtxExtract_13
 import { NextResponse } from 'next/server';
 import {
@@ -52,6 +53,11 @@ import {
 } from '@/app/lib/constants';
 
 const HANDLER_TAG_BASE = '[UserMsgHandler vShortTermMemory_CtxExtract_13_FIXED_WamidHandling]'; // Tag atualizada
+
+// Helper local: considera como “ativo” os estados active | non_renewing | trial
+function isActiveLike(s: unknown): s is 'active' | 'non_renewing' | 'trial' {
+    return s === 'active' || s === 'non_renewing' || s === 'trial';
+}
 
 /**
  * Extrai o tópico principal e entidades chave da resposta de uma IA.
@@ -269,7 +275,8 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
 
         logger.debug(`${handlerTAG} Dados carregados. Nome: ${firstName}, Histórico: ${historyMessages.length} msgs. Sumário Conv: ${dialogueState.conversationSummary ? '"' + extractExcerpt(dialogueState.conversationSummary, 30) + '"': 'N/A'}`);
 
-        if (user.planStatus !== 'active') {
+        // ✅ Plano: bloquear somente se NÃO for “active-like”
+        if (!isActiveLike(user.planStatus)) {
             try {
                 const wamid = await sendWhatsAppMessage(fromPhone, `Olá ${firstName}! Seu plano está ${user.planStatus}. Para continuar usando o Mobi, reative seu plano em nosso site.`);
                 logger.info(`${handlerTAG} Mensagem de plano inativo enviada. WhatsAppMsgID: ${wamid}`);
@@ -427,7 +434,7 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
         }
         
         try {
-            const wamid = await sendWhatsAppMessage(fromPhone, fullResponseForSpecial);
+            const wamid = await sendWhatsAppMessage(fromPhone!, fullResponseForSpecial);
             logger.info(`${handlerTAG} Mensagem (intenção especial) enviada. UserMsgID: ${messageId_MsgAtual}, WhatsAppMsgID: ${wamid}, Preview: "${fullResponseForSpecial.substring(0,50)}..."`);
         } catch (sendError) {
             logger.error(`${handlerTAG} FALHA AO ENVIAR mensagem (intenção especial) para UserMsgID: ${messageId_MsgAtual}. Erro:`, sendError);
@@ -762,12 +769,8 @@ export async function handleUserMessage(payload: ProcessRequestBody): Promise<Ne
         logger.info(`${handlerTAG} Resposta principal enviada. UserMsgID: ${messageId_MsgAtual}, WhatsAppMsgID: ${wamid}, Preview: "${fullResponseToUser.substring(0,100)}..."`);
     } catch (sendError: any) { // Captura erros do sendWhatsAppMessage (que já tentou retentativas)
         logger.error(`${handlerTAG} FALHA CRÍTICA AO ENVIAR resposta principal para UserMsgID: ${messageId_MsgAtual}. Erro: ${sendError.message}`, sendError);
-        // Atualizar o estado para refletir a falha no envio, se apropriado.
-        // Não há como notificar o usuário pelo mesmo canal se o envio falhou.
-        // O erro não será relançado para o QStash aqui, para evitar loops se o problema for persistente com o número/API.
-        // A falha será logada e a tarefa do QStash concluirá.
         await stateService.updateDialogueState(userId, { 
-            lastResponseError: `send_failed: ${sendError.message.substring(0, 200)}`, // Limita o tamanho da msg de erro
+            lastResponseError: `send_failed: ${sendError.message.substring(0, 200)}`,
         }).catch(stateErr => logger.error(`${handlerTAG} Falha ao atualizar estado após erro de envio:`, stateErr));
     }
     

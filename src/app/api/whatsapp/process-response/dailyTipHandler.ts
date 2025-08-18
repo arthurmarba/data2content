@@ -8,6 +8,7 @@
 // - CORREÇÃO 2: Ajusta o tipo 'ProposalType'.
 // - CORREÇÃO: Adiciona validações de tipo (type guards) para garantir a segurança das atribuições.
 // - REMOÇÃO: Remove o uso de 'as any' para aumentar a segurança de tipos.
+// - NOVO: Bloqueia envios proativos quando plano for inativo; trata 'active' | 'non_renewing' | 'trial' como ativos.
 
 import { NextResponse } from 'next/server';
 import { logger } from '@/app/lib/logger';
@@ -40,6 +41,11 @@ import { callOpenAIForQuestion } from '@/app/lib/aiService';
 import { subDays, startOfDay } from 'date-fns';
 
 import * as fallbackInsightService from '@/app/lib/fallbackInsightService';
+
+// Helper: considera como “ativo” os estados active | non_renewing | trial
+function isActiveLike(s: unknown): s is 'active' | 'non_renewing' | 'trial' {
+  return s === 'active' || s === 'non_renewing' || s === 'trial';
+}
 
 // ===================================================================================
 // INÍCIO: Definições de Tipos e Validadores (Type Guards) para Correção
@@ -684,6 +690,12 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
         if (!userForRadar) {
             logger.warn(`${handlerTAG} Usuário com ID ${userId} não encontrado.`);
             return NextResponse.json({ success: true, message: "User not found." }, { status: 200 });
+        }
+
+        // 🚫 Plano inativo não recebe mensagens proativas
+        if (!isActiveLike(userForRadar.planStatus)) {
+            logger.warn(`${handlerTAG} Plano do usuário é ${userForRadar.planStatus}. Pulando envio proativo do Radar.`);
+            return NextResponse.json({ plan_inactive: true, skipped: true }, { status: 200 });
         }
 
         userPhoneForRadar = userForRadar.whatsappPhone;
