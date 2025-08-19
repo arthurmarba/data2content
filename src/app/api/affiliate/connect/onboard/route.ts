@@ -26,7 +26,11 @@ export async function POST() {
     const acct = await stripe.accounts.create({
       type: 'express',
       email: user.email ?? undefined,
-      capabilities: { transfers: { requested: true } },
+      country: 'BR',
+      capabilities: {
+        card_payments: { requested: true },
+        transfers: { requested: true },
+      },
       metadata: { userId: String(user._id) },
     });
     accountId = acct.id;
