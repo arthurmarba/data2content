@@ -7,7 +7,7 @@ import TypingEffect from './TypingEffect';
 import Marquee from './Marquee';
 import heroQuestions from '@/data/heroQuestions';
 
-const YOUTUBE_VIDEO_ID = '0Uu_VJeVVfo';
+const YOUTUBE_VIDEO_ID = 'NN0_0zxwx0E';
 
 export default function HeroSection() {
   const handleSignIn = () => {
