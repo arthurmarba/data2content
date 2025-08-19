@@ -1,6 +1,8 @@
 /**
  * @fileoverview Orquestrador de chamadas à API OpenAI com Function Calling e Streaming.
  * Otimizado para buscar dados sob demanda via funções e modular comportamento por intenção.
+ * ATUALIZADO: v1.0.8 - Corrige erro de tipo 'no overlap' ao remover 'if' redundante para generate_proactive_alert dentro do bloco 'else'.
+ * ATUALIZADO: v1.0.7 - Adicionado prompt direto e especializado para alertas proativos (generate_proactive_alert), focando em mensagens diretas e sem saudações.
  * ATUALIZADO: v1.0.6 - Corrige erro de tipo 'Property 'dayPCOStats' does not exist on type '{}''.
  * ATUALIZADO: v1.0.5 - Corrige erro de tipo 'Property 'insightSummary' does not exist on type '{}''.
  * ATUALIZADO: v1.0.4 - Corrige erro de tipo 'is possibly undefined' para 'dayPerf.bestDays[0]'.
@@ -10,7 +12,7 @@
  * ATUALIZADO: v1.0.0 - Adiciona verificações de existência para funções executoras para evitar erros de tipo.
  * ATUALIZADO: v0.9.9 - Inclui currentAlertDetails no contexto para a LLM em alertas proativos.
  * ATUALIZADO: v0.9.8 - Omite 'functions' e 'function_call' para intents leves.
- * @version 1.0.6
+ * @version 1.0.8
  */
 
 import OpenAI from 'openai';
@@ -556,38 +558,54 @@ export async function getQuickAcknowledgementLLMResponse(
 export async function askLLMWithEnrichedContext(
     enrichedContext: EnrichedAIContext, // Tipo atualizado para EnrichedAIContext
     incomingText: string,
-    intent: DeterminedIntent
+    intent: DeterminedIntent | 'generate_proactive_alert' // <<< ATUALIZAÇÃO DE TIPO AQUI >>>
 ): Promise<AskLLMResult> {
-    const fnTag = '[askLLMWithEnrichedContext v0.9.9]'; // Versão atualizada
+    const fnTag = '[askLLMWithEnrichedContext v1.0.8]'; // Versão atualizada
     const { user, historyMessages, userName, dialogueState, currentAlertDetails } = enrichedContext; // currentAlertDetails agora disponível
     logger.info(`${fnTag} Iniciando para usuário ${user._id} (Nome para prompt: ${userName}). Intenção: ${intent}. Texto: "${incomingText.slice(0, 50)}..." Usando modelo: ${MODEL}`);
 
-    // ----- INÍCIO DA MODIFICAÇÃO PARA INCLUIR DETALHES DO ALERTA -----
-    let alertContextSystemMessage: ChatCompletionMessageParam | null = null;
-    if (intent === 'generate_proactive_alert' && currentAlertDetails) {
-        try {
-            // Stringify os detalhes do alerta. O promptSystemFC.ts já instrui a IA
-            // a procurar por platformPostId ou originalPlatformPostId nestes detalhes.
-            const detailsString = JSON.stringify(currentAlertDetails);
-            const messageContent = `Contexto adicional para o alerta do Radar Mobi que você vai apresentar ao usuário:\nDetalhes específicos do alerta (JSON): ${detailsString}\nLembre-se de usar 'platformPostId' ou 'originalPlatformPostId' destes detalhes para criar o link do Instagram, se disponível, conforme suas instruções gerais para alertas.`;
-            alertContextSystemMessage = { role: 'system', content: messageContent };
-            logger.info(`${fnTag} Adicionando contexto de detalhes do alerta para LLM. Tamanho dos detalhes: ${detailsString.length} chars.`);
-        } catch (stringifyError) {
-            logger.error(`${fnTag} Erro ao stringificar currentAlertDetails:`, stringifyError);
-            // Não quebrar, apenas logar. O alerta prosseguirá sem os detalhes específicos no prompt.
-        }
+    let initialMsgs: ChatCompletionMessageParam[];
+
+    if (intent === 'generate_proactive_alert') {
+        logger.info(`${fnTag} Intenção 'generate_proactive_alert' detectada. Usando prompt direto e especializado.`);
+
+        // Template do novo prompt direto
+        const directAlertPromptTemplate = `
+Você é Mobi, um radar de performance inteligente para o Instagram. Sua comunicação é direta, proativa e valiosa.
+
+Sua tarefa é gerar a mensagem COMPLETA de um alerta proativo para ser enviada a um usuário no WhatsApp.
+
+**REGRAS CRÍTICAS:**
+1.  **NÃO USE SAUDAÇÕES GENÉRICAS.** Nunca comece com "Olá", "Oi", "E aí", etc.
+2.  **COMECE DIRETAMENTE COM O DADO MAIS IMPORTANTE.** A primeira frase deve ser o núcleo do alerta para que o usuário veja o valor imediatamente na notificação. Use o nome do usuário para personalizar, por exemplo: "Arthur, notei que...".
+3.  **SEJA CONCISO.** Use 1-2 parágrafos curtos para explicar a situação com base na informação fornecida.
+4.  **PERSONALIZE.** Use o nome do usuário, '${userName}', naturalmente na mensagem.
+5.  **MARCA.** Após a explicação principal, adicione a linha "🚨 Alerta do Radar Mobi!". Use emojis relevantes (🚀 para positivo, 💡 para oportunidade, etc.).
+6.  **ENGAJE.** Termine a mensagem com UMA pergunta estratégica e aberta que incentive o usuário a refletir sobre uma solução ou a pedir mais detalhes a você.
+
+**Informação-Chave detectada pelo sistema para o alerta de hoje (use-a para construir sua mensagem):**
+---
+${incomingText}
+---
+
+Gere a mensagem final agora.
+`;
+        // Monta a lista de mensagens apenas com o novo prompt de sistema
+        initialMsgs = [
+            { role: 'system', content: directAlertPromptTemplate }
+        ];
+
+    } else {
+        // Lógica original para todas as outras intenções
+        const systemPrompt = await populateSystemPrompt(user, userName || user.name || 'usuário');
+
+        initialMsgs = [
+            { role: 'system', content: systemPrompt },
+            ...historyMessages,
+            { role: 'user', content: incomingText }
+        ];
     }
-    // ----- FIM DA MODIFICAÇÃO -----
 
-    const systemPrompt = await populateSystemPrompt(user, userName || user.name || 'usuário');
-
-    const initialMsgs: ChatCompletionMessageParam[] = [
-        { role: 'system', content: systemPrompt },
-        // Adiciona a mensagem de contexto do alerta, se existir
-        ...(alertContextSystemMessage ? [alertContextSystemMessage] : []),
-        ...historyMessages,
-        { role: 'user', content: incomingText }
-    ];
     logger.debug(`${fnTag} Histórico inicial montado com ${initialMsgs.length} mensagens.`);
 
     const { readable, writable } = new TransformStream<string, string>();
@@ -600,7 +618,6 @@ export async function askLLMWithEnrichedContext(
         rejectHistoryPromise = reject;
     });
 
-    // Passando enrichedContext (que agora é EnrichedAIContext) para processTurn
     processTurn(initialMsgs, 0, null, writer, user, intent, enrichedContext)
         .then((finalHistory) => {
             logger.debug(`${fnTag} processTurn concluído com sucesso. Fechando writer.`);
@@ -630,7 +647,6 @@ export async function askLLMWithEnrichedContext(
 
     // ============================================================
     // Função Interna Recursiva para Processar Turnos da Conversa
-    // MODIFICADO: Adicionado enrichedContext como parâmetro para ter acesso a currentAlertDetails se necessário no futuro dentro de processTurn
     // ============================================================
     async function processTurn(
         currentMsgs: ChatCompletionMessageParam[],
@@ -638,21 +654,18 @@ export async function askLLMWithEnrichedContext(
         lastFnName: string | null,
         writer: WritableStreamDefaultWriter<string>,
         currentUser: IUser,
-        currentIntent: DeterminedIntent,
-        currentEnrichedContext: EnrichedAIContext // Adicionado para acesso futuro se necessário
+        currentIntent: DeterminedIntent | 'generate_proactive_alert', // <<< ATUALIZAÇÃO DE TIPO AQUI >>>
+        currentEnrichedContext: EnrichedAIContext
     ): Promise<ChatCompletionMessageParam[]> {
-        const turnTag = `[processTurn iter ${iter} v0.9.9]`; // Versão atualizada
-        // O currentEnrichedContext.currentAlertDetails já foi usado para construir initialMsgs
-        // Não há necessidade de usá-lo diretamente aqui novamente, a menos que a lógica de FC precise dele.
+        const turnTag = `[processTurn iter ${iter} v1.0.8]`; // Versão atualizada
         logger.debug(`${turnTag} Iniciando. Intenção atual do turno: ${currentIntent}`);
-
 
         if (iter >= MAX_ITERS) {
             logger.warn(`${turnTag} Function-call loop excedeu MAX_ITERS (${MAX_ITERS}).`);
             const maxIterMessage = `Desculpe, parece que estou tendo dificuldades em processar sua solicitação após várias tentativas. Poderia tentar de outra forma?`;
             currentMsgs.push({ role: 'assistant', content: maxIterMessage });
             try { await writer.write(maxIterMessage); }
-            catch (e) { logger.error(`${turnTag} Erro ao escrever msg de MAX_ITERS:`, e); }
+            catch (e) { logger.error(`${fnTag} Erro ao escrever msg de MAX_ITERS:`, e); }
             return currentMsgs;
         }
 
@@ -666,9 +679,7 @@ export async function askLLMWithEnrichedContext(
             stream: true,
             messages: currentMsgs,
         };
-
-        // A intenção 'generate_proactive_alert' é leve e não deve usar function calling.
-        // O currentAlertDetails já foi injetado no prompt de sistema.
+        
         const isLightweightIntent = currentIntent === 'social_query' || currentIntent === 'meta_query_personal' || currentIntent === 'generate_proactive_alert';
 
         if (isLightweightIntent) {
@@ -692,7 +703,7 @@ export async function askLLMWithEnrichedContext(
             const apiCallFailMessage = "Desculpe, não consegui conectar com o serviço de IA no momento. Tente mais tarde.";
             currentMsgs.push({ role: 'assistant', content: apiCallFailMessage });
             try { await writer.write(apiCallFailMessage); }
-            catch (e) { logger.error(`${turnTag} Erro ao escrever msg de falha da API:`, e); }
+            catch (e) { logger.error(`${fnTag} Erro ao escrever msg de falha da API:`, e); }
             return currentMsgs;
         }
 
@@ -749,7 +760,7 @@ export async function askLLMWithEnrichedContext(
             const noContentMessage = "A IA não forneceu uma resposta utilizável desta vez. Poderia tentar novamente?";
             currentMsgs.push({ role: 'assistant', content: noContentMessage });
             try { await writer.write(noContentMessage); }
-            catch (e) { logger.error(`${turnTag} Erro ao escrever msg de 'sem conteúdo útil':`, e); }
+            catch (e) { logger.error(`${fnTag} Erro ao escrever msg de 'sem conteúdo útil':`, e); }
             return currentMsgs;
         }
         if (pendingAssistantMsg) {

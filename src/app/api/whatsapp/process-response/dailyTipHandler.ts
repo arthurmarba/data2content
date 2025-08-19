@@ -1,14 +1,11 @@
 // src/app/api/whatsapp/process-response/dailyTipHandler.ts
-// Versão: v1.6.6
-// - CORREÇÃO 6: Aplica type guards no contador de frequência dentro de `fetchInspirationSnippet` para resolver erro 'possibly undefined'.
-// - CORREÇÃO 5: Adiciona um type guard para 'reference' para resolver o erro de tipo mais recente.
-// - CORREÇÃO 4: Ajusta o tipo 'ToneType' para corresponder aos valores reais esperados.
-// - NOTA: As listas de tipos 'ProposalType' e 'ContextType' podem precisar ser completadas pelo usuário.
-// - CORREÇÃO 3: Ajusta o tipo 'ContextType'.
-// - CORREÇÃO 2: Ajusta o tipo 'ProposalType'.
-// - CORREÇÃO: Adiciona validações de tipo (type guards) para garantir a segurança das atribuições.
-// - REMOÇÃO: Remove o uso de 'as any' para aumentar a segurança de tipos.
-// - NOVO: Bloqueia envios proativos quando plano for inativo; trata 'active' | 'non_renewing' | 'trial' | 'trialing' como ativos.
+// Versão: v2.0.1
+// - CORREÇÃO: Corrige erro 'Cannot find name' ao remover chamada obsoleta de 'generateAlertSubjectFromText' no bloco de Fallback.
+// - REATORAÇÃO COMPLETA: Lógica de montagem de mensagens de alerta e fallback foi redesenhada.
+// - CENTRALIZAÇÃO: A geração do texto do alerta agora é 100% delegada para o aiOrchestrator com um prompt especializado.
+// - REMOÇÃO: Removidas as funções 'generateAlertSubjectFromText' e 'getFirstSentence' que se tornaram obsoletas.
+// - MELHORIA: A mensagem não começa mais com saudações genéricas ("Olá..."), indo direto ao ponto do alerta.
+// - CONSISTÊNCIA: O bloco de Fallback agora usa a mesma lógica de geração de mensagem via IA que o bloco de Alerta.
 
 import { NextResponse } from 'next/server';
 import { logger } from '@/app/lib/logger';
@@ -129,15 +126,10 @@ function isPerformanceHighlightType(value: any): value is PerformanceHighlightTy
 // ===================================================================================
 
 
-const HANDLER_TAG_BASE = '[DailyTipHandler v1.6.6]'; // Tag da versão atualizada
+const HANDLER_TAG_BASE = '[DailyTipHandler v2.0.1]'; // Tag da versão atualizada
 
 const PROACTIVE_ALERT_TEMPLATE_NAME = process.env.PROACTIVE_ALERT_TEMPLATE_NAME;
 const GENERIC_ERROR_TEMPLATE_NAME = process.env.GENERIC_ERROR_TEMPLATE_NAME;
-
-function getFirstSentence(text: string): string {
-    const match = text.trim().match(/^.*?[.!?](\s|$)/);
-    return match ? match[0].trim() : text.trim();
-}
 
 
 async function extractContextFromRadarResponse(
@@ -220,35 +212,6 @@ JSON:
         logger.debug(`${TAG} Contexto retornado (erro na extração) - Timestamp: ${errorContext.timestamp}, WasQuestion: ${errorContext.wasQuestion}`);
         return errorContext;
     }
-}
-
-async function generateAlertSubjectFromText(
-    rawText: string,
-    userName: string,
-    userId: string
-): Promise<string> {
-    const TAG = `${HANDLER_TAG_BASE}[generateAlertSubjectFromText] User ${userId}:`;
-    const prompt = `\
-Você é Mobi, um consultor de IA especialista em Instagram.\n\
-Gere uma frase curta em português brasileiro descrevendo diretamente o assunto do alerta abaixo para ${userName},\n\
-falando em segunda pessoa e sem saudação.\n\n\
-Alerta: "${rawText}"\n\n\
-Frase curta:`;
-
-    const subject = await callOpenAIForQuestion(prompt, {
-        model: CONTEXT_EXTRACTION_MODEL,
-        temperature: CONTEXT_EXTRACTION_TEMP,
-        max_tokens: CONTEXT_EXTRACTION_MAX_TOKENS,
-    });
-
-    const cleaned = subject.trim();
-    if (!cleaned) {
-        logger.warn(`${TAG} IA retornou assunto vazio, utilizando texto original.`);
-        return rawText.trim();
-    }
-
-    logger.info(`${TAG} Assunto gerado: "${cleaned}"`);
-    return cleaned;
 }
 
 async function generateInstigatingQuestionForDefaultMessage(
@@ -666,7 +629,7 @@ export async function fetchInspirationSnippet(
 }
 
 export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextResponse> {
-    console.log("!!!!!!!!!! EXECUTANDO handleDailyTip (v1.6.6) !!!!!!!!!! USER ID:", payload.userId, new Date().toISOString());
+    console.log("!!!!!!!!!! EXECUTANDO handleDailyTip (v2.0.1) !!!!!!!!!! USER ID:", payload.userId, new Date().toISOString());
     
     const { userId } = payload;
     const handlerTAG = `${HANDLER_TAG_BASE} User ${userId}:`;
@@ -712,6 +675,8 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
         if (!detectedEvent) {
             logger.info(`${handlerTAG} Nenhum evento detectado. Gerando insight de fallback...`);
             
+            // <<< INÍCIO DA CORREÇÃO >>>
+            // A lógica para obter o insight de fallback continua a mesma.
             let enrichedReportForFallback: IEnrichedReport | null = null;
             let latestAccountInsightsForFallback: IAccountInsight | null = null;
 
@@ -742,33 +707,76 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
                 fallbackInsightType = fallbackResult.type;
             }
 
-            const subjectText = await generateAlertSubjectFromText(
-                fallbackInsightText || 'dei uma olhada geral nos seus dados hoje',
-                userFirstNameForRadar,
-                userId
-            );
+            // Se não houver insight de fallback, usamos um texto genérico.
+            const messageForAI = fallbackInsightText || 'Hoje não detectei nenhum alerta específico, mas dei uma olhada geral nos seus dados para encontrar oportunidades.';
 
-            let baseDefaultMessage = `Olá ${userFirstNameForRadar}, ${subjectText}`;
-            if (fallbackInsightText && fallbackInsightText.trim() !== subjectText) {
-                baseDefaultMessage += `\n\n${fallbackInsightText}`;
-            } else if (!fallbackInsightText) {
-                baseDefaultMessage += `\n\nDei uma olhada geral nos seus dados hoje...`;
-            }
-            const instigatingQuestion = await generateInstigatingQuestionForDefaultMessage(
-                baseDefaultMessage,
-                dialogueStateForRadar,
-                userId,
-                userFirstNameForRadar
+            // Montamos o contexto para a IA, assim como no bloco de alerta.
+            const enrichedContextForAI: EnrichedAIContext = {
+                user: userForRadar,
+                historyMessages: [], 
+                dialogueState: dialogueStateForRadar,
+                userName: userFirstNameForRadar,
+                currentAlertDetails: {} 
+            };
+
+            // Chamamos o aiOrchestrator com o prompt especializado de alerta.
+            const { stream } = await askLLMWithEnrichedContext(
+                enrichedContextForAI,
+                messageForAI,
+                'generate_proactive_alert'
             );
-            let finalDefaultMessageToSend = baseDefaultMessage;
-            if (instigatingQuestion) {
-                finalDefaultMessageToSend += `\n\n${instigatingQuestion}`;
+            
+            // Lemos a resposta completa da IA.
+            let finalDefaultMessageToSend = "";
+            const reader = stream.getReader();
+            // (A lógica de leitura do stream é a mesma do bloco de alerta, vamos adicioná-la aqui)
+            let streamReadTimeout: NodeJS.Timeout | null = setTimeout(() => {
+                logger.warn(`${handlerTAG} Timeout (${DEFAULT_RADAR_STREAM_READ_TIMEOUT_MS}ms) lendo stream da IA no fallback.`);
+                if (reader && streamReadTimeout) {
+                     reader.cancel().catch(e => logger.error(`${handlerTAG} Erro ao cancelar reader no timeout (fallback):`, e));
+                }
+                streamReadTimeout = null;
+            }, DEFAULT_RADAR_STREAM_READ_TIMEOUT_MS);
+
+            try {
+                while (true) {
+                    const result = await reader.read();
+                    if (streamReadTimeout === null && !result.done) {
+                        logger.warn(`${handlerTAG} Leitura do stream após timeout (fallback). Interrompendo.`);
+                        if (!reader.closed) { reader.cancel().catch(e => logger.error(`${handlerTAG} Erro ao cancelar reader pós-timeout (fallback):`, e)); }
+                        break;
+                    }
+                    if (result.done) break;
+                    const chunk: unknown = result.value;
+                    if (typeof chunk === 'string') {
+                        finalDefaultMessageToSend += chunk;
+                    } else if (chunk instanceof Uint8Array) {
+                        finalDefaultMessageToSend += new TextDecoder().decode(chunk);
+                    }
+                }
+            } catch (readError) {
+                if (!(readError instanceof Error && readError.name === 'AbortError' && streamReadTimeout === null)) {
+                     logger.error(`${handlerTAG} Erro ao ler stream da IA (fallback):`, readError);
+                } else {
+                    logger.info(`${handlerTAG} Leitura do stream cancelada por timeout (fallback).`);
+                }
+            } finally {
+                if (streamReadTimeout) {
+                    clearTimeout(streamReadTimeout);
+                    streamReadTimeout = null;
+                }
             }
 
+            if (!finalDefaultMessageToSend.trim()) {
+                finalDefaultMessageToSend = 'Dei uma olhada nos seus dados hoje e está tudo certo! Quer explorar algum ponto específico?';
+            }
+
+            // Adicionamos a inspiração, como antes.
             const inspirationFilters = await buildInspirationFilters(userId, undefined, true);
             const inspiration = await fetchInspirationSnippet(userId, inspirationFilters, userForRadar!);
             finalDefaultMessageToSend += inspiration.text;
 
+            // O resto da lógica para enviar e salvar no histórico permanece.
             let whatsappMessageIdFallback: string | undefined;
             let sendStatusFallback: 'sent' | 'failed' = 'failed';
             let sendErrorFallback: string | undefined;
@@ -821,7 +829,7 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
                 await dataService.addAlertToHistory(userId, {
                     type: 'no_event_found_today_with_insight',
                     date: today,
-                    messageForAI: baseDefaultMessage, 
+                    messageForAI: messageForAI, // Usamos a mensagem que foi para a IA
                     finalUserMessage: finalDefaultMessageToSend,
                     details: noEventDetails,
                     userInteraction: { type: 'not_applicable', interactedAt: today }
@@ -900,25 +908,23 @@ export async function handleDailyTip(payload: ProcessRequestBody): Promise<NextR
             finalAIResponse = 'Que tal explorarmos isso juntos?';
         }
 
-        const instigatingQuestionForAlert = await generateInstigatingQuestionForDefaultMessage(
-            finalAIResponse,
-            currentDialogueStateForAI, 
-            userId,
-            userFirstNameForRadar
-        );
+        // <<< INÍCIO DA ATUALIZAÇÃO >>>
+        // A IA agora gera a mensagem completa. 'finalAIResponse' é a nossa mensagem base.
+        let fullAlertMessageToUser = finalAIResponse.trim();
 
-        const shortAIResponse = getFirstSentence(finalAIResponse);
-        const sanitizedAlertInput = alertInputForAI.replace(/^Radar Mobi[^:!]*[:!]\s*/i, '');
-        const alertSubject = await generateAlertSubjectFromText(
-            sanitizedAlertInput,
-            userFirstNameForRadar,
-            userId
-        );
-        let fullAlertMessageToUser = `Olá ${userFirstNameForRadar}, ${alertSubject}`;
-        fullAlertMessageToUser += `\n\n${shortAIResponse}`;
-        if (instigatingQuestionForAlert) {
-            fullAlertMessageToUser += `\n\n${instigatingQuestionForAlert}`;
+        // Como fallback, se a IA não gerar uma pergunta, adicionamos uma.
+        if (!fullAlertMessageToUser.endsWith('?')) {
+            const instigatingQuestionForAlert = await generateInstigatingQuestionForDefaultMessage(
+                fullAlertMessageToUser,
+                currentDialogueStateForAI, 
+                userId,
+                userFirstNameForRadar
+            );
+            if (instigatingQuestionForAlert) {
+                fullAlertMessageToUser += `\n\n${instigatingQuestionForAlert}`;
+            }
         }
+        // <<< FIM DA ATUALIZAÇÃO >>>
 
         const details = detectedEvent.detailsForLog;
         const inspirationFilters = await buildInspirationFilters(userId, details);
