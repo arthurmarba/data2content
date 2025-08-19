@@ -1,23 +1,27 @@
 // src/app/api/whatsapp/process-response/types.ts
+// MODIFICADO: v1.3 - Adicionado campo opcional igConnected ao ProcessRequestBody para CTA de conexão do Instagram.
 // MODIFICADO: v1.2.1 - Confirmada inclusão de instagramMediaId em PostObject para resolver erro de tipo.
 // MODIFICADO: v1.2 - Tornar dialogueState opcional em EnrichedAIContext.
 // MODIFICADO: v1.1 - Adicionado currentAlertDetails a EnrichedAIContext
 
 import { DeterminedIntent } from '@/app/lib/intentService';
-import { IUser, AlertDetails } from '../../../models/User'; 
-import { IDialogueState } from '@/app/lib/stateService'; 
+import { IUser, AlertDetails } from '../../../models/User';
+import { IDialogueState } from '@/app/lib/stateService';
 
 /**
  * Define a estrutura esperada para o corpo da requisição
  * processada pelo QStash worker.
  */
 export interface ProcessRequestBody {
-    fromPhone?: string;
-    incomingText?: string;
-    userId: string;
-    taskType?: string; 
-    determinedIntent: DeterminedIntent | null;
-    qstashMessageId?: string;
+  fromPhone?: string;
+  incomingText?: string;
+  userId: string;
+  taskType?: string;
+  determinedIntent: DeterminedIntent | null;
+  qstashMessageId?: string;
+
+  /** NOVO: indica se o IG está conectado; vindo do incoming ou preenchido no worker */
+  igConnected?: boolean;
 }
 
 /**
@@ -26,24 +30,24 @@ export interface ProcessRequestBody {
  * O campo instagramMediaId está incluído aqui.
  */
 export interface PostObject {
-    _id: string;
-    userId: string;
-    platformPostId?: string; 
-    instagramMediaId?: string; // Campo necessário para reportService.ts
-    type: 'IMAGE' | 'CAROUSEL' | 'REEL' | 'VIDEO' | 'STORY' | string; 
-    description?: string;
-    createdAt: Date | string; 
-    postDate?: Date | string; 
-    totalImpressions?: number;
-    totalEngagement?: number;
-    videoViews?: number;
-    totalComments?: number; 
+  _id: string;
+  userId: string;
+  platformPostId?: string;
+  instagramMediaId?: string; // Campo necessário para reportService.ts
+  type: 'IMAGE' | 'CAROUSEL' | 'REEL' | 'VIDEO' | 'STORY' | string;
+  description?: string;
+  createdAt: Date | string;
+  postDate?: Date | string;
+  totalImpressions?: number;
+  totalEngagement?: number;
+  videoViews?: number;
+  totalComments?: number;
 
-    format?: string;
-    proposal?: string;
-    context?: string;
-    
-    tags?: string[]; 
+  format?: string;
+  proposal?: string;
+  context?: string;
+
+  tags?: string[];
 }
 
 /**
@@ -51,9 +55,9 @@ export interface PostObject {
  * a ser usado para gerar a mensagem para a IA e para logs.
  */
 export interface DetectedEvent {
-    type: string;
-    messageForAI: string;
-    detailsForLog: AlertDetails; 
+  type: string;
+  messageForAI: string;
+  detailsForLog: AlertDetails;
 }
 
 /**
@@ -61,9 +65,9 @@ export interface DetectedEvent {
  * MODIFICADO: dialogueState agora é opcional.
  */
 export interface EnrichedAIContext {
-    user: IUser;
-    historyMessages: any[]; 
-    dialogueState?: IDialogueState; 
-    userName: string;
-    currentAlertDetails?: AlertDetails; 
+  user: IUser;
+  historyMessages: any[];
+  dialogueState?: IDialogueState;
+  userName: string;
+  currentAlertDetails?: AlertDetails;
 }

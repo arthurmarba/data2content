@@ -1,9 +1,7 @@
-// src/app/api/whatsapp/incoming/route.ts - v2.3.8
-// - Normalização forte de planStatus (trim/lower/collapsing de espaços/hífens)
-// - Aceita active-like: active | non_renewing | non-renewing | nonrenewing | trial | trialing
-// - Revalida no DB antes de negar (evita falso negativo por atraso ou formatação)
-// - Logs detalhados (raw vs normalized)
-// - Mantém interrupção/QStash e demais correções (não chama extractContextFromAIResponse)
+// src/app/api/whatsapp/incoming/route.ts - v2.4.0 (IG CTA + igConnected flag)
+// - Mantém v2.3.9 intacto (intent restaurada + expiração só se existir expiresAt)
+// - ADICIONA: PS de conexão do Instagram em respostas special_handled (quando usuário ainda não conectou)
+// - ADICIONA: igConnected no payload do QStash para o worker poder anexar o mesmo PS
 
 import { NextRequest, NextResponse } from 'next/server';
 import { normalizePhoneNumber } from '@/app/lib/helpers';
@@ -30,10 +28,8 @@ import * as stateService from '@/app/lib/stateService';
    ────────────────────────────────────────────────────────────────── */
 function normalizePlanStatusStrong(s: unknown): string | null {
   if (s == null) return null;
-  // stringifica, trim, lower, troca espaços/hífens por "_", colapsa múltiplos "_"
   let v = String(s).trim().toLowerCase();
   v = v.replace(/[\s-]+/g, '_').replace(/_+/g, '_');
-  // também aceitamos variantes sem "_"
   if (v === 'nonrenewing') v = 'non_renewing';
   return v;
 }
@@ -72,16 +68,16 @@ export async function GET(request: NextRequest) {
   const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
 
   if (!verifyToken) {
-    logger.error('[whatsapp/incoming GET v2.3.8] Error: WHATSAPP_VERIFY_TOKEN não está no .env');
+    logger.error('[whatsapp/incoming GET v2.4.0] Error: WHATSAPP_VERIFY_TOKEN não está no .env');
     return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
   }
 
   if (searchParams.get('hub.mode') === 'subscribe' && searchParams.get('hub.verify_token') === verifyToken) {
-    logger.debug('[whatsapp/incoming GET v2.3.8] Verification succeeded.');
+    logger.debug('[whatsapp/incoming GET v2.4.0] Verification succeeded.');
     return new Response(searchParams.get('hub.challenge') || '', { status: 200 });
   }
 
-  logger.error('[whatsapp/incoming GET v2.3.8] Verification failed:', {
+  logger.error('[whatsapp/incoming GET v2.4.0] Verification failed:', {
     mode: searchParams.get('hub.mode'),
     token_received: searchParams.get('hub.verify_token') ? '******' : 'NONE',
     expected_defined: !!verifyToken,
@@ -107,7 +103,7 @@ function getSenderAndMessage(body: any): { from: string; text: string } | null {
       }
     }
   } catch (error) {
-    logger.error('[whatsapp/incoming getSenderAndMessage v2.3.8] Erro ao parsear payload:', error);
+    logger.error('[whatsapp/incoming getSenderAndMessage v2.4.0] Erro ao parsear payload:', error);
   }
   return null;
 }
@@ -117,11 +113,24 @@ function extractExcerpt(text: string, maxLength = 30): string {
   return `${text.substring(0, maxLength - 3)}...`;
 }
 
+/** PS de conexão do Instagram quando o usuário ainda não conectou. */
+function appendIgCtaIfNeeded(
+  text: string,
+  user: Pick<IUser, 'isInstagramConnected' | 'instagramAccountId'>
+) {
+  const isConnected = Boolean(user.isInstagramConnected && user.instagramAccountId);
+  if (isConnected) return text;
+  return (
+    text +
+    '\n\n🔗 Para eu analisar seus conteúdos e responder com dados reais, conecte seu Instagram na plataforma (Perfil → Conectar Instagram).'
+  );
+}
+
 /* ──────────────────────────────────────────────────────────────────
    POST
    ────────────────────────────────────────────────────────────────── */
 export async function POST(request: NextRequest) {
-  const postTag = '[whatsapp/incoming POST v2.3.8 InterruptionLogic]';
+  const postTag = '[whatsapp/incoming POST v2.4.0 InterruptionLogic]';
   let body: any;
 
   try {
@@ -171,20 +180,44 @@ export async function POST(request: NextRequest) {
   const codeMatch = !alreadyLinkedUser ? rawText_MsgNova.match(/\b([A-Za-z0-9]{6})\b/) : null;
   if (!alreadyLinkedUser && codeMatch && codeMatch[1]) {
     const verificationCode = codeMatch[1].toUpperCase();
-    const verifyTag = '[whatsapp/incoming][Verification v2.3.8]';
+    const verifyTag = '[whatsapp/incoming][Verification v2.4.0]';
     logger.info(`${verifyTag} Código detectado: ${verificationCode} de ${fromPhone}`);
 
     try {
       const userWithCode = await User.findOne({ whatsappVerificationCode: verificationCode });
       if (userWithCode) {
+        // ===== Checagem de expiração (só expira se existir expiresAt) =====
+        const exp: Date | undefined =
+          (userWithCode as any).whatsappVerificationCodeExpiresAt instanceof Date
+            ? (userWithCode as any).whatsappVerificationCodeExpiresAt
+            : (userWithCode as any).whatsappVerificationCodeExpiresAt
+            ? new Date((userWithCode as any).whatsappVerificationCodeExpiresAt)
+            : undefined;
+
+        const now = Date.now();
+        if (exp && exp.getTime() <= now) {
+          logger.warn(
+            `${verifyTag} Código expirado para user=${userWithCode._id}; exp=${exp.toISOString()}`
+          );
+          // Limpa o código expirado para evitar confusão
+          (userWithCode as any).whatsappVerificationCode = null;
+          (userWithCode as any).whatsappVerificationCodeExpiresAt = undefined;
+          await userWithCode.save();
+
+          await sendWhatsAppMessage(
+            fromPhone,
+            'Seu código expirou. Gere um novo na plataforma (Perfil > Vincular WhatsApp) e envie aqui novamente.'
+          );
+          return NextResponse.json({ verification_attempted: true, expired: true }, { status: 200 });
+        }
+        // ===== FIM: checagem de expiração =====
+
         const raw = userWithCode.planStatus;
         const norm = normalizePlanStatusStrong(raw);
         logger.debug(`${verifyTag} user=${userWithCode._id} planStatus raw="${raw}" normalized="${norm}"`);
 
-        // Checagem normalizada
+        // Checagem normalizada + revalidação
         let activeLike = isActiveLikeNormalized(raw);
-
-        // Revalida no DB (raro, mas evita edge case)
         if (!activeLike) {
           const reval = await revalidateActiveLikeById(String(userWithCode._id));
           logger.debug(`${verifyTag} Revalidação: raw="${reval.raw}" normalized="${reval.norm}" active=${reval.active}`);
@@ -193,15 +226,22 @@ export async function POST(request: NextRequest) {
 
         let reply = '';
         if (activeLike) {
-          userWithCode.whatsappPhone = fromPhone;
-          userWithCode.whatsappVerificationCode = null;
-          userWithCode.whatsappVerified = true;
+          (userWithCode as any).whatsappPhone = fromPhone;
+          (userWithCode as any).whatsappVerificationCode = null;
+          (userWithCode as any).whatsappVerificationCodeExpiresAt = undefined;
+          (userWithCode as any).whatsappVerified = true;
           await userWithCode.save();
 
           const firstName = userWithCode.name ? userWithCode.name.split(' ')[0] : '';
           reply = `Olá ${firstName}, me chamo Mobi! Seu número de WhatsApp (${fromPhone}) foi vinculado com sucesso à sua conta. A partir de agora serei seu assistente de métricas e insights via WhatsApp. 👋
 Vou acompanhar em tempo real o desempenho dos seus conteúdos, enviar resumos diários com os principais indicadores e sugerir dicas práticas para você melhorar seu engajamento. Sempre que quiser consultar alguma métrica, receber insights sobre seus posts ou configurar alertas personalizados, é só me chamar por aqui. Estou à disposição para ajudar você a crescer de forma inteligente!
 Você pode começar me pedindo um planejamento de conteudo que otimize seu alcance. :)`;
+
+          // PS: conexão do Instagram, se ainda não estiver conectado
+          if (!userWithCode.isInstagramConnected || !userWithCode.instagramAccountId) {
+            reply += '\n\n⚠️ Para que eu puxe seus dados e gere análises, conecte seu Instagram na plataforma (Perfil → Conectar Instagram).';
+          }
+
           logger.info(`${verifyTag} VINCULADO com sucesso user=${userWithCode._id}, status="${norm ?? raw}"`);
         } else {
           const firstName = userWithCode.name ? userWithCode.name.split(' ')[0] : '';
@@ -269,7 +309,7 @@ Você pode começar me pedindo um planejamento de conteudo que otimize seu alcan
     return NextResponse.json({ plan_inactive: true }, { status: 200 });
   }
 
-  // Interrupção / intenção / QStash
+  // Interrupção / estado de diálogo
   let currentDialogueState: stateService.IDialogueState = stateService.getDefaultDialogueState();
   try {
     const t0 = Date.now();
@@ -294,6 +334,7 @@ Você pode começar me pedindo um planejamento de conteudo que otimize seu alcan
     }
   }
 
+  // >>> RESTAURADO: cálculo da intenção <<<
   const greeting = getRandomGreeting(userFirstName);
   let intentResult: IntentResult;
   let determinedIntent: DeterminedIntent | null = null;
@@ -304,7 +345,10 @@ Você pode começar me pedindo um planejamento de conteudo que otimize seu alcan
     logger.debug(`${postTag} determineIntent levou ${Date.now() - t0}ms.`);
 
     if (intentResult.type === 'special_handled') {
-      await sendWhatsAppMessage(fromPhone, intentResult.response);
+      // Acrescenta PS do Instagram se ainda não estiver conectado
+      const toSend = appendIgCtaIfNeeded(intentResult.response, user);
+      await sendWhatsAppMessage(fromPhone, toSend);
+
       const st: Partial<stateService.IDialogueState> = { lastInteraction: Date.now() };
       if (currentDialogueState.lastAIQuestionType) { st.lastAIQuestionType = undefined; st.pendingActionContext = undefined; }
       await stateService.updateDialogueState(uid, st);
@@ -324,6 +368,7 @@ Você pode começar me pedindo um planejamento de conteudo que otimize seu alcan
     determinedIntent = 'general';
     if (currentDialogueState.lastAIQuestionType) await stateService.clearPendingActionState(uid);
   }
+  // <<< FIM RESTAURADO
 
   if (!qstashClient) {
     logger.error(`${postTag} QStash não configurado.`);
@@ -336,7 +381,8 @@ Você pode começar me pedindo um planejamento de conteudo que otimize seu alcan
   }
 
   const workerUrl = `${appBaseUrl}/api/whatsapp/process-response`;
-  const qstashPayload = { fromPhone, incomingText: rawText_MsgNova, userId: uid, determinedIntent };
+  const igConnected = Boolean(user.isInstagramConnected && user.instagramAccountId);
+  const qstashPayload = { fromPhone, incomingText: rawText_MsgNova, userId: uid, determinedIntent, igConnected };
 
   try {
     logger.info(`${postTag} Publicando tarefa no QStash para ${workerUrl} - payload: ${JSON.stringify(qstashPayload)}`);

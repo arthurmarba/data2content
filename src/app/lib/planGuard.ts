@@ -1,4 +1,4 @@
-// src/app/lib/planGuard.ts
+// src/app/lib/planGuard.ts — v2.1.0
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { jwtVerify } from 'jose';
@@ -66,46 +66,60 @@ export function isActiveLike(s: unknown): s is ActiveLikeStatus {
   return ACTIVE_LIKE_CANONICAL.has(norm);
 }
 
+/** tenta pegar o valor de forma segura e útil pra logs */
+function safe<T = unknown>(v: T): T | undefined {
+  return (v === undefined || v === null) ? undefined : v;
+}
+
 /**
  * Tenta extrair o token do request: next-auth -> fallback manual por cookie.
  * Caso o token de `getToken` não possua identificadores básicos (id, sub ou email),
  * tentamos decodificar manualmente o cookie para reconstruir os dados.
  */
-async function getAuthTokenFromRequest(
-  req: NextRequest
-): Promise<Record<string, any> | null> {
+async function getAuthTokenFromRequest(req: NextRequest): Promise<Record<string, any> | null> {
+  // 1) next-auth
   try {
     const t = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
     if (t && !(t as any).id && (t as any).sub) {
       (t as any).id = String((t as any).sub);
     }
-    const hasId = (t as any)?.id || (t as any)?.email;
-    if (t && hasId) return t as any;
-    if (t) console.warn('[planGuard] getToken() -> token sem id/email, tentando fallback');
+    const hasIdOrEmail = Boolean((t as any)?.id || (t as any)?.email);
+    if (t && hasIdOrEmail) return t as any;
+    if (t) console.warn('[planGuard] getToken() -> token sem id/email, tentando fallback por cookie.');
   } catch (e) {
     console.error('[planGuard] getToken() error:', e);
   }
 
-  // Fallback manual (funciona em dev/prod)
-  const cookieName =
-    process.env.NODE_ENV === 'production'
-      ? '__Secure-next-auth.session-token'
-      : 'next-auth.session-token';
+  // 2) Fallback manual (tenta ambos os nomes, útil em proxys/dev/prod)
+  const cookieCandidates = [
+    '__Secure-next-auth.session-token', // prod
+    'next-auth.session-token',          // dev
+  ];
 
-  const raw = req.cookies.get(cookieName)?.value;
   const secret = process.env.NEXTAUTH_SECRET;
-  if (!raw || !secret) return null;
-
-  try {
-    const { payload } = await jwtVerify(raw, new TextEncoder().encode(secret));
-    const hasId =
-      (payload as any)?.id || (payload as any)?.sub || (payload as any)?.email;
-    if (hasId) return payload as any;
-    return null; // sem identificador mesmo após fallback
-  } catch (err) {
-    console.error('[planGuard] jwtVerify fallback error:', err);
+  if (!secret) {
+    console.error('[planGuard] NEXTAUTH_SECRET ausente — não é possível decodificar cookie manualmente.');
     return null;
   }
+
+  const enc = new TextEncoder().encode(secret);
+  for (const name of cookieCandidates) {
+    const raw = req.cookies.get(name)?.value;
+    if (!raw) continue;
+    try {
+      const { payload } = await jwtVerify(raw, enc);
+      const p: any = payload || {};
+      if (!p.id && p.sub) p.id = String(p.sub);
+      if (p.id || p.email) {
+        return p;
+      }
+    } catch (err) {
+      // tenta próximo cookie name
+      continue;
+    }
+  }
+
+  return null; // sem identificador mesmo após fallbacks
 }
 
 /**
@@ -114,9 +128,7 @@ async function getAuthTokenFromRequest(
  * - Se o token vier inativo/indefinido, revalida no DB (fonte da verdade).
  * - Se não conseguir ler token, retorna 401 (não autenticado).
  */
-export async function guardPremiumRequest(
-  req: NextRequest
-): Promise<NextResponse | null> {
+export async function guardPremiumRequest(req: NextRequest): Promise<NextResponse | null> {
   const token = await getAuthTokenFromRequest(req);
   if (!token) {
     return NextResponse.json(
@@ -125,7 +137,7 @@ export async function guardPremiumRequest(
     );
   }
 
-  const claimedStatusRaw = (token as any)?.planStatus as unknown;
+  const claimedStatusRaw = safe((token as any)?.planStatus);
   const claimedStatusNorm = normalizePlanStatus(claimedStatusRaw);
 
   // ✅ Fast-path: token já indica plano válido (active-like)
@@ -145,9 +157,7 @@ export async function guardPremiumRequest(
     if (tokenId && mongoose.isValidObjectId(tokenId)) {
       dbUser = await DbUser.findById(tokenId).select('planStatus').lean<{ planStatus?: string }>();
     } else if (tokenEmail) {
-      dbUser = await DbUser.findOne({ email: tokenEmail })
-        .select('planStatus')
-        .lean<{ planStatus?: string }>();
+      dbUser = await DbUser.findOne({ email: tokenEmail }).select('planStatus').lean<{ planStatus?: string }>();
     }
 
     const dbStatusNorm = normalizePlanStatus(dbUser?.planStatus);

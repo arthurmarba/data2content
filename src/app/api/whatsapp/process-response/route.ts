@@ -14,29 +14,24 @@ export const runtime = 'nodejs';
 
 const ROUTE_TAG = '[API Route /process-response]';
 
-// QStash Receiver
+// QStash Receiver (inalterado)
 const currentSigningKey = process.env.QSTASH_CURRENT_SIGNING_KEY;
 const nextSigningKey = process.env.QSTASH_NEXT_SIGNING_KEY;
 let receiver: Receiver | null = null;
 
 if (currentSigningKey && nextSigningKey) {
   try {
-    receiver = new Receiver({
-      currentSigningKey,
-      nextSigningKey,
-    });
+    receiver = new Receiver({ currentSigningKey, nextSigningKey });
   } catch (e) {
     logger.error(`${ROUTE_TAG} Erro ao inicializar QStash Receiver:`, e);
   }
 } else {
-  logger.error(
-    `${ROUTE_TAG} Chaves de assinatura QStash (QSTASH_CURRENT_SIGNING_KEY, QSTASH_NEXT_SIGNING_KEY) não definidas nas variáveis de ambiente.`
-  );
+  logger.error(`${ROUTE_TAG} Chaves de assinatura QStash não definidas.`);
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   if (!receiver) {
-    logger.error(`${ROUTE_TAG} QStash Receiver não está inicializado. Verifique as chaves de assinatura.`);
+    logger.error(`${ROUTE_TAG} QStash Receiver não está inicializado.`);
     return NextResponse.json({ error: 'QStash Receiver not configured or initialization failed' }, { status: 500 });
   }
 
@@ -63,22 +58,30 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
       payload = JSON.parse(bodyText) as ProcessRequestBody;
       if (!payload || typeof payload !== 'object' || !payload.userId) {
-        logger.error(`${ROUTE_TAG} Payload inválido ou userId ausente. Payload recebido: ${bodyText.slice(0, 500)}`);
+        logger.error(`${ROUTE_TAG} Payload inválido ou userId ausente. Payload: ${bodyText.slice(0, 500)}`);
         return NextResponse.json({ error: 'Invalid payload structure or missing userId' }, { status: 400 });
       }
       qstashMessageIdForLog = payload.qstashMessageId || `internalNoQId_${payload.userId}_${Date.now()}`;
-      logger.info(`${ROUTE_TAG} Processando MsgID QStash (ou interno): ${qstashMessageIdForLog}, UserID: ${payload.userId}, TaskType: ${payload.taskType || 'user_message'}`);
+      logger.info(`${ROUTE_TAG} Processando MsgID: ${qstashMessageIdForLog}, UserID: ${payload.userId}, TaskType: ${payload.taskType || 'user_message'}`);
     } catch (parseError: any) {
-      logger.error(`${ROUTE_TAG} Erro ao parsear o corpo da requisição JSON: ${parseError.message}. BodyText (início): ${bodyText.slice(0, 200)}`);
+      logger.error(`${ROUTE_TAG} Erro ao parsear JSON: ${parseError.message}. Body (início): ${bodyText.slice(0, 200)}`);
       return NextResponse.json({ error: 'Invalid JSON request body' }, { status: 400 });
     }
 
-    // --- ✅ Gate de plano ANTES dos handlers ---
+    // --- ✅ Gate de plano + fetch de dados essenciais (inclui IG) ---
     try {
       await connectToDatabase();
       const user = await User.findById(payload.userId)
-        .select('_id name planStatus whatsappPhone whatsappVerified')
-        .lean<{ _id: any; name?: string; planStatus?: string; whatsappPhone?: string; whatsappVerified?: boolean }>();
+        .select('_id name planStatus whatsappPhone whatsappVerified isInstagramConnected instagramAccountId')
+        .lean<{
+          _id: any;
+          name?: string;
+          planStatus?: string;
+          whatsappPhone?: string;
+          whatsappVerified?: boolean;
+          isInstagramConnected?: boolean;
+          instagramAccountId?: string | null;
+        }>();
 
       if (!user) {
         logger.warn(`${ROUTE_TAG} Usuário ${payload.userId} não encontrado (gate de plano).`);
@@ -101,11 +104,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           }
         }
 
-        // Retorna 200 para QStash (considerado processado, apenas não executado)
+        // Retorna 200 para QStash (considerado processado)
         return NextResponse.json({ plan_inactive: true, userId: String(user._id) }, { status: 200 });
       }
+
+      // 🔹 Garante a flag igConnected no payload (fallback, caso o incoming não tenha enviado)
+      if (typeof payload.igConnected === 'undefined') {
+        payload.igConnected = Boolean(user.isInstagramConnected && user.instagramAccountId);
+        logger.debug(`${ROUTE_TAG} payload.igConnected não informado; preenchido via DB: ${payload.igConnected}`);
+      }
     } catch (gateErr) {
-      logger.error(`${ROUTE_TAG} Erro no gate de plano antes dos handlers:`, gateErr);
+      logger.error(`${ROUTE_TAG} Erro no gate de plano / fetch de dados:`, gateErr);
       return NextResponse.json({ error: 'Failed plan gate check' }, { status: 500 });
     }
     // --- Fim do gate ---
@@ -119,7 +128,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   } catch (error: any) {
     const topLevelErrorMsgId = qstashMessageIdForLog || 'N/A_NO_PAYLOAD_PARSE';
-    logger.error(`${ROUTE_TAG} Erro GERAL não tratado na rota principal (MsgID: ${topLevelErrorMsgId}):`, error);
+    logger.error(`${ROUTE_TAG} Erro GERAL não tratado (MsgID: ${topLevelErrorMsgId}):`, error);
     return NextResponse.json({ error: 'Internal server error processing the request at the top level.' }, { status: 500 });
   }
 }

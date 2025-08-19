@@ -9,6 +9,11 @@ import User from "@/app/models/User";
 
 export const runtime = "nodejs";
 
+// === Config ===
+// Janela de validade do código (em ms). Mesmo que o schema ainda não tenha o campo
+// de expiresAt, manter aqui torna o endpoint idempotente e pronto para o ciclo 2 (schema).
+const CODE_TTL_MS = 15 * 60 * 1000; // 15 minutos
+
 /** Gera um código de verificação aleatório com 6 caracteres maiúsculos. */
 function generateVerificationCode(): string {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
@@ -86,9 +91,9 @@ export async function POST(request: NextRequest) {
     await connectToDatabase();
     console.log("[whatsapp/generateCode] DB connected. dbName =", mongoose.connection.name);
 
-    // 3) Já vinculado? NÃO gera código e não altera nada
+    // 3) Busca o usuário e avalia estado atual (evita filtros que podem falhar silenciosamente)
     const current = await User.findById(userId).select(
-      "_id whatsappVerificationCode whatsappPhone whatsappVerified"
+      "_id whatsappVerificationCode whatsappVerificationCodeExpiresAt whatsappPhone whatsappVerified"
     );
     if (!current) {
       console.warn(`[whatsapp/generateCode] Usuário ${userId} não encontrado`);
@@ -109,77 +114,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4) Se já existe um código pendente, apenas retorne-o (idempotente)
-    if (current.whatsappVerificationCode) {
+    // 4) Se há código pendente e ainda válido, reutiliza (idempotente)
+    const now = Date.now();
+    const expiresAt = current as any;
+    const hasValidExisting =
+      !!current.whatsappVerificationCode &&
+      !!expiresAt.whatsappVerificationCodeExpiresAt &&
+      new Date(expiresAt.whatsappVerificationCodeExpiresAt).getTime() > now;
+
+    if (hasValidExisting) {
       console.log(
         `[whatsapp/generateCode] Existing code reused -> user=${current._id}, code=${current.whatsappVerificationCode}`
       );
       return NextResponse.json(
-        { code: current.whatsappVerificationCode },
-        { status: 200, headers: { "Cache-Control": "no-store" } }
-      );
-    }
-
-    // 5) Não vinculado e sem código pendente -> gerar e salvar um novo código
-    //    **IMPORTANTE**: não mexer em whatsappPhone nem em whatsappVerified aqui.
-    const freshCode = generateVerificationCode();
-
-    const updateResult = await User.updateOne(
-      {
-        _id: userId,
-        whatsappVerified: { $ne: true },
-        whatsappVerificationCode: { $in: [null, ""] },
-      },
-      { $set: { whatsappVerificationCode: freshCode } },
-      { upsert: false }
-    );
-
-    if (updateResult.modifiedCount === 0) {
-      const doc = await User.findById(userId).select(
-        "_id whatsappVerificationCode whatsappPhone whatsappVerified"
-      );
-
-      if (!doc) {
-        return NextResponse.json(
-          { error: "Usuário não encontrado." },
-          { status: 404, headers: { "Cache-Control": "no-store" } }
-        );
-      }
-
-      const nowLinked = !!doc.whatsappPhone && doc.whatsappVerified === true;
-      if (nowLinked) {
-        return NextResponse.json(
-          { linked: true, phone: doc.whatsappPhone },
-          { status: 200, headers: { "Cache-Control": "no-store" } }
-        );
-      }
-
-      if (doc.whatsappVerificationCode) {
-        console.log(
-          `[whatsapp/generateCode] Existing code reused -> user=${doc._id}, code=${doc.whatsappVerificationCode}`
-        );
-        return NextResponse.json(
-          { code: doc.whatsappVerificationCode },
-          { status: 200, headers: { "Cache-Control": "no-store" } }
-        );
-      }
-
-      return NextResponse.json(
         {
-          linked: false,
-          message:
-            "Nenhuma ação necessária (verificação pode ter sido concluída em paralelo ou não há pendências).",
+          code: current.whatsappVerificationCode,
+          expiresAt: new Date(expiresAt.whatsappVerificationCodeExpiresAt).toISOString(),
         },
         { status: 200, headers: { "Cache-Control": "no-store" } }
       );
     }
 
+    // 5) Gerar SEMPRE e SALVAR SEMPRE (garantindo persistência)
+    const freshCode = generateVerificationCode();
+    const freshExpiresAt = new Date(now + CODE_TTL_MS);
+
+    // Preferimos set direto no doc + save() para garantir persistência do valor.
+    // Mesmo que o schema ainda não tenha o campo 'whatsappVerificationCodeExpiresAt',
+    // o mais importante (o código) será persistido.
+    (current as any).whatsappVerificationCode = freshCode;
+    (current as any).whatsappVerificationCodeExpiresAt = freshExpiresAt;
+
+    await current.save(); // <-- Persistência garantida
+
     console.log(
-      `[whatsapp/generateCode] New code generated -> user=${userId}, code=${freshCode}, phone=${current.whatsappPhone}, verified=${current.whatsappVerified}`
+      `[whatsapp/generateCode] New code generated -> user=${userId}, code=${freshCode}, expiresAt=${freshExpiresAt.toISOString()}`
     );
 
     return NextResponse.json(
-      { code: freshCode },
+      { code: freshCode, expiresAt: freshExpiresAt.toISOString() },
       { status: 200, headers: { "Cache-Control": "no-store" } }
     );
   } catch (err) {

@@ -1,6 +1,7 @@
-// @/app/models/User.ts - v1.9.23
-// - Expande enums de planStatus para incluir 'non_renewing' (e 'trial'/'expired' por compat).
-// - Mantém compat com valores do Stripe e normalizações no backend.
+// @/app/models/User.ts - v1.9.24
+// - Adiciona campo whatsappVerificationCodeExpiresAt para expiração de código de verificação do WhatsApp
+// - Índice composto em (whatsappVerificationCode, whatsappVerificationCodeExpiresAt)
+// - Sanitiza campos de verificação quando whatsappVerified=true
 
 import mongoose, { Schema, Document, Model, Types } from "mongoose";
 import { logger } from "@/app/lib/logger";
@@ -259,9 +260,12 @@ export interface IUser extends Document {
   lastProcessedEventId?: string;
   planExpiresAt?: Date | null;
   autoRenewConsentAt?: Date | null;
+
   whatsappVerificationCode?: string | null;
+  whatsappVerificationCodeExpiresAt?: Date | null; // <<< NOVO
   whatsappPhone?: string | null;
   whatsappVerified?: boolean;
+
   profileTone?: string;
   hobbies?: string[];
   goal?: string;
@@ -407,20 +411,19 @@ const userSchema = new Schema<IUser>(
 
     planStatus: {
       type: String,
-      // enum ampliado para compatibilidade com toda a app e webhooks
       enum: [
         'pending',
         'active',
         'inactive',
         'canceled',
-        'trial',                // usado por algumas normalizações
-        'trialing',             // status nativo do Stripe
+        'trial',
+        'trialing',
         'expired',
         'past_due',
         'incomplete',
         'incomplete_expired',
         'unpaid',
-        'non_renewing',         // <<< necessário para cancel_at_period_end=true
+        'non_renewing',
       ],
       default: "inactive",
       index: true
@@ -434,7 +437,7 @@ const userSchema = new Schema<IUser>(
 
     planInterval: {
       type: String,
-      enum: ['month', 'year', null], // permitir null/undefined quando não há assinatura
+      enum: ['month', 'year', null],
       default: undefined
     },
 
@@ -480,9 +483,12 @@ const userSchema = new Schema<IUser>(
     pendingAgency: { type: Schema.Types.ObjectId, ref: 'Agency', default: null },
     planExpiresAt: { type: Date, default: null },
     autoRenewConsentAt: { type: Date, default: null },
+
     whatsappVerificationCode: { type: String, default: null, index: true },
+    whatsappVerificationCodeExpiresAt: { type: Date, default: null }, // <<< NOVO
     whatsappPhone: { type: String, default: null, index: true },
     whatsappVerified: { type: Boolean, default: false },
+
     profileTone: { type: String, default: 'informal e prestativo' },
     hobbies: { type: [String], default: [] },
     goal: { type: String, default: null },
@@ -553,8 +559,14 @@ userSchema.index(
   { name: 'idx_affiliate_debt_by_currency' }
 );
 
+// Índice composto para lookup de código + avaliação rápida de expiração
+userSchema.index(
+  { whatsappVerificationCode: 1, whatsappVerificationCodeExpiresAt: 1 },
+  { name: 'idx_whatsapp_code_and_exp' }
+);
+
 userSchema.pre<IUser>("save", function (next) {
-  const TAG_PRE_SAVE = '[User.ts pre-save v1.9.23]';
+  const TAG_PRE_SAVE = '[User.ts pre-save v1.9.24]';
   if (this.isNew && !this.affiliateCode) {
     const newCode = generateAffiliateCode();
     logger.info(`${TAG_PRE_SAVE} Gerando novo affiliateCode: '${newCode}' para User Email: ${this.email}`);
@@ -562,6 +574,14 @@ userSchema.pre<IUser>("save", function (next) {
   }
   if (this.onboardingCompletedAt && this.isNewUserForOnboarding) {
     this.isNewUserForOnboarding = false;
+  }
+  // Se o usuário já está verificado no WhatsApp, não faz sentido manter código/expiração
+  if (this.whatsappVerified) {
+    if (this.whatsappVerificationCode || this.whatsappVerificationCodeExpiresAt) {
+      logger.debug(`${TAG_PRE_SAVE} Limpando campos de verificação de WhatsApp por conta verificada.`);
+      this.whatsappVerificationCode = null;
+      this.whatsappVerificationCodeExpiresAt = null;
+    }
   }
   next();
 });
