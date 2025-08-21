@@ -419,11 +419,9 @@ export default function MainDashboard() {
   const canRedeem = Object.values((user as any)?.affiliateBalances || {}).some((c: any) => c > 0);
 
   const videoGuidesData: VideoData[] = [
-    { id: 'intro-plataforma', title: 'Bem-vindo à Data2Content!', youtubeVideoId: 'BHACKCNDMW8' },
-    { id: 'upload-metrics-guide', title: 'Como Enviar suas Métricas', youtubeVideoId: '_dpB7R6csAE' },
-    { id: 'afiliados-explainer', title: 'Entenda o Programa de Afiliados', youtubeVideoId: 'I7hJJkF00hU' },
-    { id: 'whatsapp-mobi', title: 'Conectando ao Mobi no WhatsApp', youtubeVideoId: 'iG9CE55wbtY' },
-    { id: 'seguranca-dados', title: 'Como Cuidamos dos Seus Dados', youtubeVideoId: 'eX2qFMC8cFo' },
+    { id: 'video-u10HxxC4Am8', title: 'Vídeo 1', youtubeVideoId: 'u10HxxC4Am8' },
+    { id: 'video-oDxBvhy8Gzg', title: 'Vídeo 2', youtubeVideoId: 'oDxBvhy8Gzg' },
+    { id: 'video-CIGa71QiHyo', title: 'Vídeo 3', youtubeVideoId: 'CIGa71QiHyo' },
   ];
 
   const scrollToVideoGuide = (videoId: string) => {
