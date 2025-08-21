@@ -66,8 +66,10 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
             )}
             {/* Mantido o botão principal de "Começar Agora" */}
             <ButtonPrimary
-              href="/register"
-              onClick={() => track('cta_start_now_click')}
+              onClick={() => {
+                track('cta_start_now_click');
+                handleSignIn();
+              }}
               className="px-4 py-2 text-sm" // Ajustado para um tamanho menor
             >
               Começar Agora
@@ -115,16 +117,16 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
                   >
                     Login
                   </Link>
-                  <Link
-                    href="/register"
+                  <button
                     onClick={() => {
                       track('cta_start_now_click');
                       setIsMenuOpen(false);
+                      handleSignIn();
                     }}
-                    className="px-4 py-2 text-sm font-bold text-brand-pink hover:bg-gray-100"
+                    className="px-4 py-2 text-sm font-bold text-brand-pink hover:bg-gray-100 text-left"
                   >
                     Começar Agora
-                  </Link>
+                  </button>
                 </>
               )}
             </nav>
