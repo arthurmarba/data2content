@@ -16,7 +16,7 @@ export default function TestimonialsSection() {
             Criadores como você já estão economizando tempo e crescendo com mais estratégia.
           </SectionSubtitle>
         </AnimatedSection>
-        <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-8">
           {testimonials.map((testimonial, index) => (
             <AnimatedSection delay={0.1 * (index + 1)} key={testimonial.name}>
               <TestimonialCard {...testimonial} />
