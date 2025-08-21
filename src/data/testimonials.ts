@@ -12,12 +12,6 @@ const testimonials: Testimonial[] = [
       handle: "@belli_rafa",
       quote: "Antes eu ficava meio perdido com os números, mas agora, com o acompanhamento pelo WhatsApp, é outra história. É como ter um parceiro super gente boa que te dá uns toques na hora certa. Os alertas chegam direto no meu WhatsApp e são super úteis. É um suporte personalizado que faz toda a diferença, me ajudando a entender tudo sem complicação e a crescer de verdade.",
       avatarUrl: "/images/Rafa Belli Foto D2C.png"
-    },
-    {
-      name: "Carla Souza",
-      handle: "@carladesign",
-      quote: "O programa de afiliados é genial! Já paguei minha assinatura só com as comissões, e meus amigos amaram o desconto e a ferramenta.",
-      avatarUrl: "/images/default-profile.png"
     }
 ];
 
