@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import React from "react";
+import { event } from "@/lib/gtag";
 
 // Define as props que o componente aceita
 interface ButtonPrimaryProps {
@@ -32,10 +33,18 @@ export default function ButtonPrimary({
     ${className}
   `;
 
+  const handleClick = () => {
+    event("select_content", {
+      content_type: "button",
+      item_id: "button_primary",
+    });
+    onClick?.();
+  };
+
   // Se a prop 'href' for fornecida, renderiza um componente Link do Next.js
   if (href) {
     return (
-      <Link href={href} className={commonClasses} rel={rel}>
+      <Link href={href} className={commonClasses} rel={rel} onClick={handleClick}>
         {children}
       </Link>
     );
@@ -43,7 +52,7 @@ export default function ButtonPrimary({
 
   // Caso contrário, renderiza um botão padrão
   return (
-    <button onClick={onClick} className={commonClasses}>
+    <button onClick={handleClick} className={commonClasses}>
       {children}
     </button>
   );

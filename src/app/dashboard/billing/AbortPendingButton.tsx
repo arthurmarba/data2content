@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { event } from "@/lib/gtag";
 
 export default function AbortPendingButton() {
   const { data: session, update } = useSession();
@@ -12,6 +13,10 @@ export default function AbortPendingButton() {
   if (session?.user?.planStatus !== "pending") return null;
 
   async function handleAbortPending() {
+    event("select_content", {
+      content_type: "button",
+      item_id: "abort_pending",
+    });
     try {
       setSubmitting(true);
       await fetch("/api/billing/abort", {
