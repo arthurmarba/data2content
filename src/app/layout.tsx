@@ -17,6 +17,7 @@ import ClientHooksWrapper from "./components/ClientHooksWrapper";
 import MainContentWrapper from "./components/MainContentWrapper"; // ✅ IMPORTADO O NOVO COMPONENTE
 import { ToastA11yProvider } from "@/app/components/ui/ToastA11yProvider";
 import GoogleAnalytics from "./GoogleAnalytics";
+import CookieConsent from "./components/CookieConsent";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -55,6 +56,7 @@ export default async function RootLayout({
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
+            gtag('consent', 'default', { ad_storage: 'denied', analytics_storage: 'denied' });
             gtag('config', '${process.env.NEXT_PUBLIC_GA_ID}');
           `}
         </Script>
@@ -84,6 +86,7 @@ export default async function RootLayout({
 
               <Footer />
             </AuthRedirectHandler>
+            <CookieConsent />
           </Providers>
         </ToastA11yProvider>
       </body>
