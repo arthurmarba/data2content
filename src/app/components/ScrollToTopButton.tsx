@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { ChevronUpIcon } from "@heroicons/react/24/outline";
+import { event } from "@/lib/gtag";
 
 export default function ScrollToTopButton() {
   const [isVisible, setIsVisible] = useState(false);
@@ -25,7 +26,13 @@ export default function ScrollToTopButton() {
   return (
     <button
       aria-label="Voltar ao topo"
-      onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+      onClick={() => {
+        event("select_content", {
+          content_type: "button",
+          item_id: "scroll_to_top",
+        });
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }}
       className="fixed bottom-6 right-6 p-2 rounded-full bg-indigo-600 text-white shadow-md hover:bg-indigo-700"
     >
       <ChevronUpIcon className="w-5 h-5" />
