@@ -2,6 +2,7 @@
 
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 // Imports do NextAuth para buscar a sessão no servidor
@@ -15,6 +16,7 @@ import AuthRedirectHandler from "./components/auth/AuthRedirectHandler";
 import ClientHooksWrapper from "./components/ClientHooksWrapper";
 import MainContentWrapper from "./components/MainContentWrapper"; // ✅ IMPORTADO O NOVO COMPONENTE
 import { ToastA11yProvider } from "@/app/components/ui/ToastA11yProvider";
+import GoogleAnalytics from "./GoogleAnalytics";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -44,6 +46,18 @@ export default async function RootLayout({
         <link rel="preconnect" href="https://www.youtube.com" />
         <link rel="preconnect" href="https://www.google.com" />
         <link rel="preconnect" href="https://img.youtube.com" />
+        <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID}`}
+          strategy="afterInteractive"
+        />
+        <Script id="ga-init" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${process.env.NEXT_PUBLIC_GA_ID}');
+          `}
+        </Script>
       </head>
       <body
         className={`
@@ -58,6 +72,7 @@ export default async function RootLayout({
       >
         <ToastA11yProvider maxVisible={3}>
           <Providers session={serializableSession}>
+            <GoogleAnalytics />
             <ClientHooksWrapper />
             <AuthRedirectHandler>
               <Header />
