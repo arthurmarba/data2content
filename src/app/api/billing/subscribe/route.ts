@@ -158,6 +158,10 @@ export async function POST(req: NextRequest) {
       await cancelBlockingIncompleteSubs(customerId);
     } catch {}
 
+    // === TRIAL (em dias) — mantém o Checkout mostrando “7 dias grátis” ===
+    const trialDays = Number.parseInt(process.env.TRIAL_DAYS ?? "7", 10);
+
+    // Tenta reaproveitar sub existente
     let existing: Stripe.Subscription | null = null;
     if (user.stripeSubscriptionId) {
       try {
@@ -185,13 +189,22 @@ export async function POST(req: NextRequest) {
     if (existing && ["active", "trialing"].includes(existing.status) && existing.items.data[0]) {
       // --- FLUXO DE UPGRADE/DOWNGRADE ---
       const itemId = existing.items.data[0].id;
-      sub = await stripe.subscriptions.update(existing.id, {
+
+      const isTrialing =
+        existing.status === "trialing" &&
+        typeof existing.trial_end === "number" &&
+        existing.trial_end > Math.floor(Date.now() / 1000);
+
+      // ⚠️ Se estiver em trial, NÃO forçar billing_cycle_anchor: "now"
+      const updateParams: Stripe.SubscriptionUpdateParams = {
         items: [{ id: itemId, price: priceId }],
         payment_behavior: "default_incomplete",
         proration_behavior: "create_prorations",
-        billing_cycle_anchor: "now",
         expand: ["latest_invoice.payment_intent"],
-      });
+        ...(isTrialing ? {} : { billing_cycle_anchor: "now" as const }),
+      };
+
+      sub = await stripe.subscriptions.update(existing.id, updateParams);
     } else {
       // --- FLUXO DE NOVA ASSINATURA ---
       if (affiliateCode) {
@@ -205,14 +218,12 @@ export async function POST(req: NextRequest) {
             { status: 400 }
           );
         }
-        
-        // --- INÍCIO DA CORREÇÃO 1 (COMISSÃO) ---
-        // Atribui e salva a afiliação ANTES de criar a assinatura no Stripe
+
+        // salva a afiliação ANTES de criar a assinatura (webhook-friendly)
         if (!user.affiliateUsed) {
           user.affiliateUsed = affiliateCode!;
-          await user.save(); // Garante que o dado esteja no DB para o webhook
+          await user.save();
         }
-        // --- FIM DA CORREÇÃO 1 ---
 
         const couponEnv =
           currency === "BRL"
@@ -247,27 +258,24 @@ export async function POST(req: NextRequest) {
         if (source) metadata.attribution_source = String(source);
       }
 
+      // ✅ Criação alinhada ao Checkout: usar trial_period_days (inteiro)
       sub = await stripe.subscriptions.create({
         customer: customerId!,
         items: [{ price: priceId }],
         payment_behavior: "default_incomplete",
         expand: ["latest_invoice.payment_intent"],
-        trial_period_days: parseInt(process.env.TRIAL_DAYS ?? "7", 10),
+        ...(trialDays > 0 ? { trial_period_days: trialDays } : {}),
         metadata,
         ...(discounts ? { discounts } : {}),
       });
     }
 
-    // --- INÍCIO DA CORREÇÃO 2 (MUDANÇA DE PLANO) ---
-    // Esta seção agora é executada tanto para NOVAS assinaturas quanto para UPGRADES,
-    // garantindo que o front-end sempre receba o clientSecret para o pagamento.
-
+    // --- Persistência e retorno ---
     user.stripeSubscriptionId = sub.id;
     user.planType = plan;
     user.planStatus = "pending";
     user.planInterval = plan === "annual" ? "year" : "month";
     user.stripePriceId = priceId;
-    // O 'affiliateUsed' já foi salvo antes, então aqui apenas garantimos os outros campos
     await user.save();
 
     let clientSecret = await extractClientSecretFromSubscription(sub);
@@ -291,9 +299,8 @@ export async function POST(req: NextRequest) {
         usedCouponType,
       });
     }
-    // --- FIM DA CORREÇÃO 2 ---
 
-    // Lógica de fallback para Checkout Session (mantida por segurança)
+    // Fallback para Checkout Session (raro)
     try {
       if (sub.status === "incomplete" && (!existing || existing.id !== sub.id)) {
         await stripe.subscriptions.cancel(sub.id);
@@ -312,7 +319,7 @@ export async function POST(req: NextRequest) {
         : { allow_promotion_codes: true }
       ),
       subscription_data: {
-        trial_period_days: parseInt(process.env.TRIAL_DAYS ?? "7", 10),
+        ...(trialDays > 0 ? { trial_period_days: trialDays } : {}),
         metadata: {
           userId: String(user._id),
           plan,
