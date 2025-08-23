@@ -18,7 +18,7 @@ export default function CancelRenewalCard({ planStatus, planExpiresAt }: Props) 
 
   const canCancel = planStatus === "active" || planStatus === "trialing";
   const isTrial = planStatus === "trialing";
-  const alreadyCancelled = planStatus === "canceled";
+  const alreadyCancelled = planStatus === "non_renewing" || planStatus === "canceled";
 
   // <<< INÍCIO DA CORREÇÃO >>>
   async function cancelRenewal() {
@@ -59,8 +59,9 @@ export default function CancelRenewalCard({ planStatus, planExpiresAt }: Props) 
     switch (status) {
       case "active":
         return "Ativo";
+      case "non_renewing":
       case "canceled":
-        return "Cancelado (não renovará)";
+        return "Cancelado ao fim do período";
       case "past_due":
         return "Pagamento pendente";
       case "trial":
