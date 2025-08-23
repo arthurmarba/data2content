@@ -137,6 +137,7 @@ Este documento consolida a especificação, checklist e critérios de aceite par
   - `STRIPE_PRICE_MONTHLY_BRL`, `STRIPE_PRICE_ANNUAL_BRL`
   - `STRIPE_PRICE_MONTHLY_USD`, `STRIPE_PRICE_ANNUAL_USD`
   - (opcional) `STRIPE_COUPON_AFFILIATE10_ONCE_BRL`, `STRIPE_COUPON_AFFILIATE10_ONCE_USD`
+  - (opcional) `TRIAL_DAYS` (padrão 7)
 - Stripe CLI: script de teste (local ou staging) para:
   - Criar/atualizar assinatura BRL e USD
   - Disparar `invoice.payment_succeeded`

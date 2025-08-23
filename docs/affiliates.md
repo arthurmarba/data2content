@@ -98,10 +98,13 @@ STRIPE_PRICE_ANNUAL_USD
 STRIPE_COUPON_AFFILIATE10_ONCE_BRL
 STRIPE_COUPON_AFFILIATE10_ONCE_USD
 STRIPE_CONNECT_MODE=express|standard
+TRIAL_DAYS=7
 AFFILIATE_COMMISSION_PERCENT=10
 NEXT_PUBLIC_APP_URL
 NEXTAUTH_URL
 ```
+
+`TRIAL_DAYS` controls the default free-trial duration for new subscriptions (7 days if unset).
 
 Configure the Stripe webhook to point to `/api/stripe/webhook` for both test and live environments.
 

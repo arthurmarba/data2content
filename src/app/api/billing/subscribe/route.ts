@@ -252,6 +252,7 @@ export async function POST(req: NextRequest) {
         items: [{ price: priceId }],
         payment_behavior: "default_incomplete",
         expand: ["latest_invoice.payment_intent"],
+        trial_period_days: parseInt(process.env.TRIAL_DAYS ?? "7", 10),
         metadata,
         ...(discounts ? { discounts } : {}),
       });
