@@ -16,6 +16,11 @@ export default function CheckoutForm({ subscriptionId, onBack }: Props) {
   const router = useRouter();
   const { update } = useSession();
 
+  const trialDays = parseInt(
+    process.env.NEXT_PUBLIC_TRIAL_DAYS ?? "7",
+    10
+  );
+
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -72,6 +77,10 @@ export default function CheckoutForm({ subscriptionId, onBack }: Props) {
         )}
       </div>
 
+      <p className="text-sm text-gray-600">
+        Você está assinando com teste gratuito de {trialDays} dias; nada será
+        cobrado hoje.
+      </p>
       <PaymentElement />
 
       {err && <p className="text-sm text-red-600">{err}</p>}
