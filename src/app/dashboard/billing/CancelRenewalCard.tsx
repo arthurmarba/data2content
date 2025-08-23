@@ -16,6 +16,7 @@ export default function CancelRenewalCard() {
   const [err, setErr] = useState<string | null>(null);
 
   const canCancel = planStatus === "active" || planStatus === "trialing";
+  const isTrial = planStatus === "trialing";
   const alreadyCancelled = (planStatus as string) === "canceled";
 
   // <<< INÍCIO DA CORREÇÃO >>>
@@ -110,11 +111,12 @@ export default function CancelRenewalCard() {
             disabled={loading}
             className="px-4 py-2 rounded-md bg-gray-800 text-white text-sm font-medium hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {loading ? "Cancelando..." : "Cancelar Renovação"}
+            {loading ? "Cancelando..." : isTrial ? "Cancelar pagamento" : "Cancelar recorrência"}
           </button>
           <p className="text-xs text-gray-500">
-            Ao cancelar, você poderá continuar usando o produto até a data de
-            expiração do período já pago.
+            {isTrial
+              ? "Ao cancelar, você não será cobrado ao final do período de teste."
+              : "Ao cancelar, você poderá continuar usando o produto até a data de expiração do período já pago."}
           </p>
         </>
       )}
