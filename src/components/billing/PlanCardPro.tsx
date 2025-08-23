@@ -240,8 +240,8 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
           const nm = normalizePreview(m.data, currency);
           const na = normalizePreview(a.data, currency);
           setBaseline({
-            monthly: nm?.total ?? undefined,
-            annual: na?.total ?? undefined,
+            monthly: nm?.nextCycleAmount ?? undefined,
+            annual: na?.nextCycleAmount ?? undefined,
           });
         }
       } catch {
@@ -337,7 +337,11 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
 
   const hasDiscount = (preview?.discountsTotal ?? 0) > 0;
   const displayCurrency = (preview?.currency ?? currency) as string;
-  const displayTotal = preview?.total ?? null;
+  const displayTotal = preview
+    ? preview.total === 0 && preview.nextCycleAmount
+      ? preview.nextCycleAmount
+      : preview.total ?? null
+    : null;
   const displaySubtotal = preview?.subtotal ?? null;
 
   return (
