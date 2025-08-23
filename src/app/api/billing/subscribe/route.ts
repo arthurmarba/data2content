@@ -312,6 +312,7 @@ export async function POST(req: NextRequest) {
         : { allow_promotion_codes: true }
       ),
       subscription_data: {
+        trial_period_days: parseInt(process.env.TRIAL_DAYS ?? "7", 10),
         metadata: {
           userId: String(user._id),
           plan,
@@ -321,6 +322,7 @@ export async function POST(req: NextRequest) {
           ...(source ? { attribution_source: String(source) } : {}),
         },
       },
+      locale: "auto",
       success_url: successUrl,
       cancel_url: cancelUrl,
       client_reference_id: String(user._id),
