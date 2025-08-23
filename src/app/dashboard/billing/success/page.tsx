@@ -27,7 +27,7 @@ export default function SuccessPage() {
         const data = await res.json();
 
         // Se o plano estiver ativo, o processo terminou com sucesso.
-        if (data.planStatus === "active") {
+        if (data.planStatus === "active" || data.planStatus === "trialing") {
           setStatus("succeeded");
           if (intervalRef.current) clearInterval(intervalRef.current); // Para o polling.
           toast.success("Assinatura confirmada!");

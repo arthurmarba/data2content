@@ -23,7 +23,7 @@ describe('SubscriptionCard', () => {
     currency: 'BRL',
     paymentMethodLast4: '1234',
     defaultPaymentMethodBrand: 'Visa',
-    status: 'active',
+    planStatus: 'active',
     currentPeriodEnd: new Date().toISOString(),
   };
 

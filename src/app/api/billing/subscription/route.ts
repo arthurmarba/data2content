@@ -90,7 +90,7 @@ export async function GET(_req: NextRequest) {
       nextInvoiceAmountCents: price?.unit_amount ?? 0,
       nextInvoiceDate: periodEndIso, // compat: antes usava sub.current_period_end
       currentPeriodEnd: periodEndIso, // idem
-      status: sub.status,
+      planStatus: sub.status,
       cancelAtPeriodEnd,
       paymentMethodLast4: pm?.card?.last4 ?? null,
       defaultPaymentMethodBrand: (pm?.card?.brand as string | undefined) || null,

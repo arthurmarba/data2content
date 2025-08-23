@@ -15,7 +15,7 @@ export default function CancelRenewalCard() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const canCancel = planStatus === "active";
+  const canCancel = planStatus === "active" || planStatus === "trialing";
   const alreadyCancelled = (planStatus as string) === "canceled";
 
   // <<< INÍCIO DA CORREÇÃO >>>
@@ -62,6 +62,7 @@ export default function CancelRenewalCard() {
       case "past_due":
         return "Pagamento pendente";
       case "trial":
+      case "trialing":
         return "Período de teste";
       default:
         return "Inativo";

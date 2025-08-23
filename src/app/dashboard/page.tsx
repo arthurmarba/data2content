@@ -402,19 +402,46 @@ export default function MainDashboard() {
   }
 
   const planStatus = user.planStatus ?? "inactive";
-  const canAccessFeatures = planStatus === "active" || planStatus === "non_renewing";
+  const canAccessFeatures =
+    planStatus === "active" || planStatus === "trialing" || planStatus === "non_renewing";
   
   const getStatusInfo = () => {
     switch (planStatus) {
-      case 'active': return { text: 'Plano Ativo', colorClasses: 'text-green-700 bg-green-100 border-green-300', icon: <FaCheckCircle className="w-4 h-4"/> };
-      case 'non_renewing': return { text: 'Plano Ativo (não-renovável)', colorClasses: 'text-green-700 bg-green-100 border-green-300', icon: <FaCheckCircle className="w-4 h-4"/> };
-      case 'pending': return { text: 'Pagamento Pendente', colorClasses: 'text-yellow-700 bg-yellow-100 border-yellow-300', icon: <FaClock className="w-4 h-4"/> };
-      default: return { text: 'Plano Inativo', colorClasses: 'text-brand-red bg-red-100 border-red-300', icon: <FaTimesCircle className="w-4 h-4"/> };
+      case 'active':
+        return {
+          text: 'Plano Ativo',
+          colorClasses: 'text-green-700 bg-green-100 border-green-300',
+          icon: <FaCheckCircle className="w-4 h-4" />,
+        };
+      case 'trialing':
+        return {
+          text: 'Período de teste',
+          colorClasses: 'text-green-700 bg-green-100 border-green-300',
+          icon: <FaCheckCircle className="w-4 h-4" />,
+        };
+      case 'non_renewing':
+        return {
+          text: 'Plano Ativo (não-renovável)',
+          colorClasses: 'text-green-700 bg-green-100 border-green-300',
+          icon: <FaCheckCircle className="w-4 h-4" />,
+        };
+      case 'pending':
+        return {
+          text: 'Pagamento Pendente',
+          colorClasses: 'text-yellow-700 bg-yellow-100 border-yellow-300',
+          icon: <FaClock className="w-4 h-4" />,
+        };
+      default:
+        return {
+          text: 'Plano Inativo',
+          colorClasses: 'text-brand-red bg-red-100 border-red-300',
+          icon: <FaTimesCircle className="w-4 h-4" />,
+        };
     }
   };
   const statusInfo = getStatusInfo();
 
-  const showPlan = planStatus !== 'active';
+  const showPlan = planStatus !== 'active' && planStatus !== 'trialing';
   const defaultCurrency = ((user?.stripeAccountDefaultCurrency ?? 'BRL').toUpperCase() === 'USD') ? 'USD' : 'BRL';
   const canRedeem = Object.values((user as any)?.affiliateBalances || {}).some((c: any) => c > 0);
 
@@ -487,7 +514,7 @@ export default function MainDashboard() {
                 </p>
               )}
               <div className="flex items-center flex-wrap gap-2 justify-center sm:justify-start">
-                <div className={`inline-flex items-center gap-2 text-sm mb-1 px-4 py-1.5 rounded-full border ${statusInfo.colorClasses}`}> {statusInfo.icon} <span className="font-semibold">{statusInfo.text}</span> {planStatus === 'active' && user?.planExpiresAt && ( <span className="hidden md:inline text-xs opacity-80 ml-2">(Expira em {new Date(user.planExpiresAt).toLocaleDateString("pt-BR")})</span> )} </div>
+                <div className={`inline-flex items-center gap-2 text-sm mb-1 px-4 py-1.5 rounded-full border ${statusInfo.colorClasses}`}> {statusInfo.icon} <span className="font-semibold">{statusInfo.text}</span> {(planStatus === 'active' || planStatus === 'trialing') && user?.planExpiresAt && ( <span className="hidden md:inline text-xs opacity-80 ml-2">(Expira em {new Date(user.planExpiresAt).toLocaleDateString("pt-BR")})</span> )} </div>
                 {!canAccessFeatures && (
                   <button
                     onClick={scrollToPlanCard}
