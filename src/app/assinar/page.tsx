@@ -140,17 +140,16 @@ export default function PublicSubscribePage() {
             className="w-full bg-primary text-white py-3 px-4 rounded-xl text-lg font-semibold hover:bg-primary-dark transition-colors duration-300 shadow-md hover:shadow-lg"
             onClick={() => signIn(undefined, { callbackUrl: window.location.href })}
           >
-            Assinar agora
+            Iniciar teste gratuito
           </button>
         )}
 
         <div className="text-center mt-6">
           <p className="text-xs text-gray-500">
-            Pagamento seguro via Mercado Pago. Sem fidelidade.
+            Pagamento seguro via Mercado Pago. Teste gratuito por 7 dias; a cobrança será automática após esse período, a menos que você cancele.
           </p>
           <p className="text-xs text-gray-500 mt-1">
-            Renovação automática.{' '}
-            <span className="font-semibold text-primary">Cancele quando quiser.</span>
+            Sem fidelidade — <span className="font-semibold text-primary">cancele quando quiser.</span>
           </p>
         </div>
 
