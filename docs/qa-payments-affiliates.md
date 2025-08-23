@@ -10,8 +10,11 @@ NEXTAUTH_URL=http://localhost:3000
 STRIPE_PRICE_MONTHLY_BRL=price_...
 STRIPE_PRICE_ANNUAL_BRL=price_...
 STRIPE_COUPON_AFFILIATE10_ONCE_BRL=coupon_...
+TRIAL_DAYS=7
 INTERNAL_CRON_SECRET=algum-segredo
 ```
+
+`TRIAL_DAYS` ajusta o período de teste gratuito (padrão 7 dias).
 
 Stripe CLI:
 
