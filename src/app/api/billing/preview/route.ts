@@ -164,8 +164,8 @@ export async function POST(req: NextRequest) {
       customer: customerId,
       subscription_details: {
         items: [{ price: priceId, quantity: 1 }],
-        trial_period_days: parseInt(process.env.TRIAL_DAYS ?? "7", 10),
       },
+      subscription_trial_period_days: parseInt(process.env.TRIAL_DAYS ?? "7", 10),
       discounts: affiliateCouponId ? [{ coupon: affiliateCouponId }] : [],
     });
 
