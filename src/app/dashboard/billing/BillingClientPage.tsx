@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useDebounce } from "use-debounce";
 import { useForm } from "react-hook-form";
 import { useAffiliateCode } from "@/hooks/useAffiliateCode";
 
@@ -16,6 +17,33 @@ export default function BillingClientPage({ initialAffiliateCode = "" }: Props) 
   });
 
   const affiliateCodeValue = watch("affiliateCode");
+  const [debouncedAffiliateCode] = useDebounce(affiliateCodeValue, 400);
+
+  const [preview, setPreview] = useState<{
+    nextCycleAmount?: number | null;
+    currency?: string | null;
+  } | null>(null);
+
+  const formatCurrency = (
+    amount?: number | null,
+    currency?: string | null
+  ): string => {
+    const cur =
+      typeof currency === "string" && currency.trim()
+        ? currency.trim().toUpperCase()
+        : "BRL";
+    const locale = cur === "BRL" ? "pt-BR" : "en-US";
+    try {
+      return new Intl.NumberFormat(locale, {
+        style: "currency",
+        currency: cur,
+      }).format(((amount ?? 0) as number) / 100);
+    } catch {
+      const val = (((amount ?? 0) as number) / 100).toFixed(2);
+      const symbol = cur === "BRL" ? "R$" : "$";
+      return `${symbol} ${val}`;
+    }
+  };
 
   useEffect(() => {
     if (affiliateCodeValue || !resolvedAffiliate) return;
@@ -26,11 +54,44 @@ export default function BillingClientPage({ initialAffiliateCode = "" }: Props) 
     });
   }, [affiliateCodeValue, resolvedAffiliate, setValue]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const res = await fetch("/api/billing/preview", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            plan: "monthly",
+            currency: "BRL",
+            affiliateCode: (debouncedAffiliateCode || "").trim().toUpperCase(),
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!cancelled && res.ok) {
+          setPreview({
+            nextCycleAmount: data?.nextCycleAmount ?? data?.total,
+            currency: data?.currency || "BRL",
+          });
+        } else if (!cancelled) {
+          setPreview(null);
+        }
+      } catch {
+        if (!cancelled) setPreview(null);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedAffiliateCode]);
+
   return (
     <div className="mx-auto max-w-2xl rounded-2xl border p-6">
       <h1 className="text-2xl font-semibold mb-1">Plano Data2Content</h1>
       <p className="text-3xl font-extrabold mb-6">
-        R$49,90 <span className="text-base font-normal">/mês</span>
+        {formatCurrency(preview?.nextCycleAmount ?? 4990, preview?.currency)}
+        <span className="text-base font-normal">/mês</span>
       </p>
 
       <label className="block text-sm font-medium mb-1">
@@ -55,7 +116,7 @@ export default function BillingClientPage({ initialAffiliateCode = "" }: Props) 
         Iniciar teste gratuito
       </button>
       <p className="mt-2 text-center text-xs text-gray-500">
-        Pagamento seguro via Stripe. Teste gratuito por 7 dias; a cobrança será automática após esse período, a menos que você cancele.
+        Pagamento seguro via Stripe. Teste gratuito por 7 dias; a cobrança inicial após esse período usará o valor com desconto e será automática, a menos que você cancele.
       </p>
     </div>
   );
