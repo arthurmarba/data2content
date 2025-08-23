@@ -81,12 +81,14 @@ export default function CheckoutForm({ subscriptionId, onBack }: Props) {
         disabled={!stripe || !elements || submitting}
         className="w-full px-4 py-2 rounded bg-black text-white disabled:opacity-50"
       >
-        {submitting ? "Processando..." : "Pagar e ativar assinatura"}
+        {submitting ? "Processando..." : "Confirmar e iniciar teste"}
       </button>
 
       <p className="text-xs text-gray-500">
-        Ao confirmar, você concorda com a renovação automática conforme o plano
-        selecionado. Você pode cancelar a renovação em Configurações &gt; Assinatura.
+        O cartão informado só será cobrado após o fim do período de teste. Ao
+        confirmar, você concorda com a renovação automática conforme o plano
+        selecionado. Você pode cancelar a renovação em Configurações &gt;
+        Assinatura.
       </p>
     </form>
   );
