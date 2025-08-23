@@ -57,4 +57,24 @@ describe('BillingPanel', () => {
 
     expect(await screen.findByRole('button', { name: 'Cancelar pagamento' })).toBeInTheDocument();
   });
+
+  it('shows non renewing status and reactivate option', async () => {
+    const expires = '2030-02-20T00:00:00.000Z';
+    mockFetch({
+      planStatus: 'non_renewing',
+      planInterval: 'month',
+      planExpiresAt: expires,
+      cancelAt: expires,
+      stripeSubscriptionId: 'sub_123',
+      stripePriceId: 'price_123',
+      lastPaymentError: null,
+    });
+
+    render(<BillingPanel />);
+
+    const info = await screen.findByText(/Cancelado ao fim do período.*acesso até 20\/02\/2030/);
+    expect(info).toBeInTheDocument();
+
+    expect(await screen.findByRole('button', { name: 'Reativar' })).toBeInTheDocument();
+  });
 });

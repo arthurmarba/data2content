@@ -6,7 +6,7 @@ import { format } from 'date-fns';
 import CancelRenewalCard from './CancelRenewalCard';
 
 export type BillingStatus = {
-  planStatus: 'active' | 'trialing' | 'canceled' | 'inactive' | 'pending';
+  planStatus: 'active' | 'trialing' | 'canceled' | 'inactive' | 'pending' | 'non_renewing';
   planInterval: 'month' | 'year' | null;
   planExpiresAt: string | null;
   cancelAt: string | null;
@@ -80,7 +80,7 @@ export default function BillingPanel() {
   if (loading || !s) return <div className="text-sm text-muted-foreground">Carregando informações do plano…</div>;
 
   const fmt = (d?: string | null) => (d ? format(new Date(d), 'dd/MM/yyyy') : '-');
-  const isCanceledAtEnd = s.planStatus === 'canceled';
+  const isCanceledAtEnd = s.planStatus === 'non_renewing';
   const isTrialing = s.planStatus === 'trialing';
   const isActive = s.planStatus === 'active' || s.planStatus === 'trialing';
   const isPending = s.planStatus === 'pending';
