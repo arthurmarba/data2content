@@ -139,11 +139,11 @@ export default function PricingCard({ onSubscriptionCreated, affiliateCode }: Pr
         disabled={loading || !current}
         className="w-full rounded-xl bg-black px-4 py-3 text-white disabled:opacity-50"
       >
-        {loading ? "Iniciando…" : "Assinar agora"}
+        {loading ? "Iniciando…" : "Iniciar teste gratuito"}
       </button>
 
       <p className="mt-2 text-center text-xs text-gray-500">
-        Pagamento seguro via Stripe. Sem fidelidade — cancele quando quiser.
+        Pagamento seguro via Stripe. Teste gratuito por 7 dias; a cobrança será automática após esse período, a menos que você cancele.
       </p>
     </div>
   );

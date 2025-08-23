@@ -52,8 +52,11 @@ export default function BillingClientPage({ initialAffiliateCode = "" }: Props) 
           console.log("affiliateCode enviado:", code);
         }}
       >
-        Assinar agora
+        Iniciar teste gratuito
       </button>
+      <p className="mt-2 text-center text-xs text-gray-500">
+        Pagamento seguro via Stripe. Teste gratuito por 7 dias; a cobrança será automática após esse período, a menos que você cancele.
+      </p>
     </div>
   );
 }

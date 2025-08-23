@@ -18,10 +18,10 @@ export default function PaymentPanel({ user: _user }: PaymentPanelProps) {
           href="/dashboard/billing/checkout"
           className="w-full inline-flex items-center justify-center gap-2 bg-black text-white py-3 rounded-xl font-semibold"
         >
-          Assinar agora
+          Iniciar teste gratuito
         </Link>
         <p className="mt-2 text-center text-xs text-gray-500">
-          Pagamento seguro via Stripe. Sem fidelidade — cancele quando quiser.
+          Pagamento seguro via Stripe. Teste gratuito por 7 dias; a cobrança será automática após esse período, a menos que você cancele.
         </p>
       </div>
     </div>

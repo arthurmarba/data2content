@@ -490,11 +490,11 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
                    focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-pink
                    disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none"
       >
-        {loading ? 'Iniciando…' : 'Assinar agora'}
+        {loading ? 'Iniciando…' : 'Iniciar teste gratuito'}
       </button>
 
       <p className="mt-4 text-center text-xs text-gray-500">
-        Pagamento seguro via Stripe. Sem fidelidade — cancele quando quiser.
+        Pagamento seguro via Stripe. Teste gratuito por 7 dias; a cobrança será automática após esse período, a menos que você cancele.
       </p>
     </motion.div>
   );

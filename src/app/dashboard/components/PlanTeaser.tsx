@@ -380,11 +380,11 @@ export default function PlanTeaser() {
         disabled={loading || (!current && !preview) || isPreviewLoading}
         className="w-full rounded-2xl bg-black px-4 py-3 text-white disabled:opacity-50"
       >
-        {loading ? 'Iniciando…' : 'Assinar agora'}
+        {loading ? 'Iniciando…' : 'Iniciar teste gratuito'}
       </button>
 
       <p className="mt-2 text-center text-xs text-gray-500">
-        Pagamento seguro via Stripe. Cancele quando quiser.
+        Pagamento seguro via Stripe. Teste gratuito por 7 dias; a cobrança será automática após esse período, a menos que você cancele.
       </p>
     </div>
   );

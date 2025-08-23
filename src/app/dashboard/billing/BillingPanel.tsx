@@ -131,7 +131,7 @@ export default function BillingPanel() {
       {isInactive && (
         <div className="text-sm">
           <a href="/pricing" className="inline-flex items-center px-3 py-2 rounded-lg bg-black text-white hover:opacity-90">
-            Assinar agora
+            Iniciar teste gratuito
           </a>
         </div>
       )}
