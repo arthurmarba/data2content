@@ -85,7 +85,7 @@ export default function SubscriptionCard() {
       {subscription.cancelAtPeriodEnd && (
         <ReactivateBanner onClick={reactivate} disabled={reactivating}/>
       )}
-      <div className="mb-2 text-sm text-gray-700">Status: {subscription.status}</div>
+      <div className="mb-2 text-sm text-gray-700">Status: {subscription.planStatus}</div>
       {!subscription.cancelAtPeriodEnd && (
         <div className="mb-2 text-sm text-gray-700">
           Próxima cobrança: {amount} em {nextDate}

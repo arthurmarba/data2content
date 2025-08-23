@@ -30,7 +30,7 @@ const formatCurrency = (amount: number, currency: Currency | string) =>
 
 export default function PlanTeaser() {
   const { data: session } = useSession();
-  const isActive = session?.user?.planStatus === 'active';
+  const isActive = session?.user?.planStatus === 'active' || session?.user?.planStatus === 'trialing';
   if (isActive) return null; // já tem plano ativo → não renderiza teaser
 
   const router = useRouter();

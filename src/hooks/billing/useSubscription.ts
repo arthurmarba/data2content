@@ -6,7 +6,7 @@ export type SubResp = {
   nextInvoiceAmountCents: number;
   nextInvoiceDate: string;
   currentPeriodEnd: string;
-  status: string;
+  planStatus: string;
   cancelAtPeriodEnd: boolean;
   paymentMethodLast4?: string | null;
   defaultPaymentMethodBrand?: string | null;

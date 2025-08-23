@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 
 export type BillingStatus = {
-  planStatus: 'active' | 'canceled' | 'inactive' | 'pending';
+  planStatus: 'active' | 'trialing' | 'canceled' | 'inactive' | 'pending';
   planInterval: 'month' | 'year' | null;
   planExpiresAt: string | null;
   cancelAt: string | null;
@@ -80,7 +80,8 @@ export default function BillingPanel() {
 
   const fmt = (d?: string | null) => (d ? format(new Date(d), 'dd/MM/yyyy') : '-');
   const isCanceledAtEnd = s.planStatus === 'canceled';
-  const isActive = s.planStatus === 'active';
+  const isTrialing = s.planStatus === 'trialing';
+  const isActive = s.planStatus === 'active' || isTrialing;
   const isPending = s.planStatus === 'pending';
   const isInactive = s.planStatus === 'inactive';
 
@@ -90,7 +91,10 @@ export default function BillingPanel() {
         <div>
           <div className="text-lg font-semibold">Seu plano</div>
           <div className="text-sm text-muted-foreground">
-            {isActive && !isCanceledAtEnd && (
+            {isTrialing && !isCanceledAtEnd && (
+              <>Período de teste ({s.planInterval === 'year' ? 'Anual' : 'Mensal'}) • termina em {fmt(s.planExpiresAt)}</>
+            )}
+            {!isTrialing && isActive && !isCanceledAtEnd && (
               <>Ativo ({s.planInterval === 'year' ? 'Anual' : 'Mensal'}) • renova em {fmt(s.planExpiresAt)}</>
             )}
             {isCanceledAtEnd && <>Cancelado ao fim do período • acesso até {fmt(s.cancelAt)}</>}
