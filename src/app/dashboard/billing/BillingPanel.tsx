@@ -18,7 +18,7 @@ export type BillingStatus = {
 export default function BillingPanel() {
   const [loading, setLoading] = useState(true);
   const [s, setS] = useState<BillingStatus | null>(null);
-  const [doing, setDoing] = useState<'cancel' | 'reactivate' | 'portal' | null>(null);
+  const [doing, setDoing] = useState<'reactivate' | 'portal' | null>(null);
 
   const fetchStatus = useCallback(async (): Promise<void> => {
     setLoading(true);
@@ -47,21 +47,6 @@ export default function BillingPanel() {
       return;
     }
     window.location.href = data.url;
-  };
-
-  const cancelAtPeriodEnd = async (): Promise<void> => {
-    const ok = confirm('Cancelar ao fim do período? Você continuará com acesso até a data de renovação.');
-    if (!ok) return;
-    setDoing('cancel');
-    const res = await fetch('/api/billing/cancel', { method: 'POST' });
-    const data = await res.json();
-    setDoing(null);
-    if (!res.ok) {
-      toast.error(data?.message ?? 'Falha ao cancelar');
-      return;
-    }
-    toast.success('Cancelamento agendado.');
-    await fetchStatus();
   };
 
   const reactivate = async (): Promise<void> => {
@@ -110,11 +95,6 @@ export default function BillingPanel() {
           )}
         </div>
         <div className="flex gap-2">
-          {isActive && !isCanceledAtEnd && (
-            <button onClick={cancelAtPeriodEnd} disabled={doing === 'cancel'} className="px-3 py-2 rounded-lg border hover:bg-muted">
-              {doing === 'cancel' ? 'Cancelando…' : 'Cancelar plano'}
-            </button>
-          )}
           {isCanceledAtEnd && (
             <button onClick={reactivate} disabled={doing === 'reactivate'} className="px-3 py-2 rounded-lg border hover:bg-muted">
               {doing === 'reactivate' ? 'Reativando…' : 'Reativar'}

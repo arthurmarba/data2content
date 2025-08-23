@@ -113,7 +113,7 @@ export default function CancelRenewalCard({ planStatus, planExpiresAt }: Props) 
             disabled={loading}
             className="px-4 py-2 rounded-md bg-gray-800 text-white text-sm font-medium hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {loading ? "Cancelando..." : isTrial ? "Cancelar pagamento" : "Cancelar recorrência"}
+            {loading ? "Cancelando..." : isTrial ? "Cancelar pagamento" : "Cancelar plano"}
           </button>
           <p className="text-xs text-gray-500">
             {isTrial
