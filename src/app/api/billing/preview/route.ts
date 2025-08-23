@@ -174,15 +174,35 @@ export async function POST(req: NextRequest) {
       subscription_details: {
         items: [{ price: priceId, quantity: 1 }],
         ...(trialEnd ? { trial_end: trialEnd } : {}),
+        ...(affiliateCouponId ? { discounts: [{ coupon: affiliateCouponId }] } : {}),
       },
-      ...(affiliateCouponId ? { discounts: [{ coupon: affiliateCouponId }] } : {}),
     } satisfies Stripe.InvoiceCreatePreviewParams;
 
     const invoice = await stripe.invoices.createPreview(params);
 
     // valor nominal do próximo ciclo (sem proration): usa o price direto
     const price = await stripe.prices.retrieve(priceId);
-    const nextCycleAmount = price.unit_amount ?? 0;
+    let nextCycleAmount = price.unit_amount ?? 0;
+
+    // Se houver cupom de afiliado, aplica o desconto manualmente
+    if (affiliateCouponId) {
+      try {
+        const coupon = await stripe.coupons.retrieve(affiliateCouponId);
+        if (coupon.percent_off) {
+          nextCycleAmount = Math.round(
+            nextCycleAmount * (1 - coupon.percent_off / 100)
+          );
+        } else if (coupon.amount_off) {
+          const priceCurrency = (price.currency || "").toString().toUpperCase();
+          const couponCurrency = (coupon.currency || "").toString().toUpperCase();
+          if (!couponCurrency || couponCurrency === priceCurrency) {
+            nextCycleAmount = Math.max(nextCycleAmount - coupon.amount_off, 0);
+          }
+        }
+      } catch (err) {
+        console.error("[billing/preview] failed to retrieve coupon", err);
+      }
+    }
 
     const currencyUpper = (invoice.currency || currencyNorm).toString().toUpperCase();
 
