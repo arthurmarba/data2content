@@ -319,7 +319,10 @@ export async function POST(req: NextRequest) {
         : { allow_promotion_codes: true }
       ),
       subscription_data: {
+        // Informar trial e desconto aqui garante que o Checkout hospedado mostre
+        // "Após X dias: R$ yy com desconto" de forma consistente.
         ...(trialDays > 0 ? { trial_period_days: trialDays } : {}),
+        ...(discounts && discounts.length > 0 ? { discounts } : {}),
         metadata: {
           userId: String(user._id),
           plan,
