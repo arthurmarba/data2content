@@ -7,6 +7,7 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import { stripe } from "@/app/lib/stripe";
 import { getOrCreateStripeCustomerId } from "@/utils/stripeHelpers";
+import type Stripe from "stripe";
 
 const noStoreHeaders = { "Cache-Control": "no-store, max-age=0" } as const;
 
@@ -159,15 +160,25 @@ export async function POST(req: NextRequest) {
 
     const affiliateCouponId = affiliateCheck.couponId;
 
-    // ✅ Basil: usar Create Preview Invoice
-    const invoice = await stripe.invoices.createPreview({
+    // ✅ trial_end a partir do env TRIAL_DAYS (apenas se > 0)
+    const trialDays = Number.parseInt(process.env.TRIAL_DAYS ?? "7", 10);
+    const trialEnd =
+      Number.isFinite(trialDays) && trialDays > 0
+        ? Math.floor(Date.now() / 1000) + trialDays * 24 * 60 * 60
+        : undefined;
+
+    // ✅ Basil: usar Create Preview Invoice (API 2025-07-30.basil)
+    // Forçamos o tipo para o overload correto usando `satisfies`.
+    const params = {
       customer: customerId,
       subscription_details: {
         items: [{ price: priceId, quantity: 1 }],
+        ...(trialEnd ? { trial_end: trialEnd } : {}),
       },
-      subscription_trial_period_days: parseInt(process.env.TRIAL_DAYS ?? "7", 10),
-      discounts: affiliateCouponId ? [{ coupon: affiliateCouponId }] : [],
-    });
+      ...(affiliateCouponId ? { discounts: [{ coupon: affiliateCouponId }] } : {}),
+    } satisfies Stripe.InvoiceCreatePreviewParams;
+
+    const invoice = await stripe.invoices.createPreview(params);
 
     // valor nominal do próximo ciclo (sem proration): usa o price direto
     const price = await stripe.prices.retrieve(priceId);
