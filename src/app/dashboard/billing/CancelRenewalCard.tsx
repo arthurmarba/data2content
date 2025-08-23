@@ -1,15 +1,16 @@
 "use client";
 
 import React, { useState } from "react";
-import { useSession } from "next-auth/react";
 import { useToast } from "@/app/components/ui/ToastA11yProvider";
-import { useBillingStatus } from "@/app/hooks/useBillingStatus";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-export default function CancelRenewalCard() {
-  const { update } = useSession();
-  const { planStatus, planExpiresAt, refetch } = useBillingStatus();
+type Props = {
+  planStatus: string | null;
+  planExpiresAt: string | null;
+};
+
+export default function CancelRenewalCard({ planStatus, planExpiresAt }: Props) {
   const { toast } = useToast();
 
   const [loading, setLoading] = useState(false);
@@ -17,7 +18,7 @@ export default function CancelRenewalCard() {
 
   const canCancel = planStatus === "active" || planStatus === "trialing";
   const isTrial = planStatus === "trialing";
-  const alreadyCancelled = (planStatus as string) === "canceled";
+  const alreadyCancelled = planStatus === "canceled";
 
   // <<< INÍCIO DA CORREÇÃO >>>
   async function cancelRenewal() {

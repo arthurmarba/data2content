@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
+import CancelRenewalCard from './CancelRenewalCard';
 
 export type BillingStatus = {
   planStatus: 'active' | 'trialing' | 'canceled' | 'inactive' | 'pending';
@@ -81,11 +82,12 @@ export default function BillingPanel() {
   const fmt = (d?: string | null) => (d ? format(new Date(d), 'dd/MM/yyyy') : '-');
   const isCanceledAtEnd = s.planStatus === 'canceled';
   const isTrialing = s.planStatus === 'trialing';
-  const isActive = s.planStatus === 'active' || isTrialing;
+  const isActive = s.planStatus === 'active' || s.planStatus === 'trialing';
   const isPending = s.planStatus === 'pending';
   const isInactive = s.planStatus === 'inactive';
 
   return (
+    <>
     <div className="space-y-4 rounded-2xl border p-4 md:p-6">
       <div className="flex items-center justify-between">
         <div>
@@ -134,5 +136,7 @@ export default function BillingPanel() {
         </div>
       )}
     </div>
+    <CancelRenewalCard planStatus={s.planStatus} planExpiresAt={s.planExpiresAt} />
+    </>
   );
 }
