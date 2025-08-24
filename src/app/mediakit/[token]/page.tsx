@@ -9,8 +9,9 @@ import type { Metadata } from 'next';
 // Tipos centralizados para garantir consistência em todo o fluxo de dados.
 import { VideoListItem, PerformanceSummary, KpiComparison, DemographicsData } from '@/types/mediakit';
 
-// A revalidação é mantida como um fallback, mas 'no-store' terá prioridade.
-export const revalidate = 300; // 5 minutos
+// Força a renderização dinâmica e evita qualquer cache estático
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 // Gera metadados dinâmicos para que o link do mídia kit apresente informações
 // personalizadas do criador nas prévias de compartilhamento.
