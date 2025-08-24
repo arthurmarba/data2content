@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import useSWR from 'swr';
 import Head from 'next/head';
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -37,10 +38,14 @@ const getStartDateFromTimePeriod = (endDate: Date, timePeriod: TimePeriod): Date
 const AgencyDashboardContent: React.FC = () => {
 
   const apiPrefix = '/api/agency';
+  const fetcher = (url: string) => fetch(url, { cache: 'no-store' }).then(res => res.json());
 
-  const [inviteCode, setInviteCode] = useState<string>('');
-  const [agencyName, setAgencyName] = useState<string>('');
-  const [guests, setGuests] = useState<Array<{ id: string; name: string; email: string; planStatus: string }>>([]);
+  const { data: summary, mutate: mutateSummary } = useSWR('/api/agency/summary', fetcher);
+  const { data: guestsData, mutate: mutateGuests } = useSWR('/api/agency/guests', fetcher);
+
+  const inviteCode = summary?.inviteCode ?? '';
+  const agencyName = summary?.name ?? '';
+  const guests: Array<{ id: string; name: string; email: string; planStatus: string }> = guestsData?.guests || [];
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedUserName, setSelectedUserName] = useState<string | null>(null);
   const [selectedUserPhotoUrl, setSelectedUserPhotoUrl] = useState<string | null>(null);
@@ -52,22 +57,10 @@ const AgencyDashboardContent: React.FC = () => {
   const nameCache = useRef<Record<string, string>>({});
   const photoCache = useRef<Record<string, string | null>>({});
 
-  useEffect(() => {
-    fetch('/api/agency/summary')
-      .then(res => res.json())
-      .then(data => {
-        if (data.inviteCode) setInviteCode(data.inviteCode);
-        if (data.name) setAgencyName(data.name);
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    fetch('/api/agency/guests')
-      .then(res => res.json())
-      .then(data => setGuests(data.guests || []))
-      .catch(() => {});
-  }, []);
+  const handleRefresh = useCallback(() => {
+    mutateSummary();
+    mutateGuests();
+  }, [mutateSummary, mutateGuests]);
 
   useEffect(() => {
     const userIdFromUrl = searchParams.get('userId');
@@ -148,6 +141,12 @@ const AgencyDashboardContent: React.FC = () => {
                     { value: 'last_90_days', label: 'Últimos 90 dias' },
                   ]}
                 />
+                <button
+                  onClick={handleRefresh}
+                  className="px-3 py-1 text-sm bg-brand-pink text-white rounded"
+                >
+                  Atualizar
+                </button>
               </div>
             </div>
           </div>
