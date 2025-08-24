@@ -5,6 +5,7 @@ import { fetchPlatformSummary } from '@/app/lib/dataService/marketAnalysis/dashb
 import { DatabaseError } from '@/app/lib/errors';
 import { getAdminSession } from '@/lib/getAdminSession';
 export const dynamic = 'force-dynamic';
+const noStore = { 'Cache-Control': 'no-store' };
 
 
 const TAG = '/api/admin/dashboard/platform-summary';
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
   const session = await getAdminSession(req);
   if (!session || !session.user) {
     logger.warn(`${TAG} Unauthorized access attempt.`);
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: noStore });
   }
 
 
@@ -46,7 +47,10 @@ export async function GET(req: NextRequest) {
   const validationResult = querySchema.safeParse(definedQueryParams);
   if (!validationResult.success) {
     logger.warn(`${TAG} Invalid query parameters:`, validationResult.error.flatten());
-    return NextResponse.json({ error: 'Invalid query parameters', details: validationResult.error.flatten() }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Invalid query parameters', details: validationResult.error.flatten() },
+      { status: 400, headers: noStore }
+    );
   }
 
   let dateRange;
@@ -58,12 +62,12 @@ export async function GET(req: NextRequest) {
 
   try {
     const summaryData = await fetchPlatformSummary({ dateRange });
-    return NextResponse.json(summaryData, { status: 200 });
+    return NextResponse.json(summaryData, { status: 200, headers: noStore });
   } catch (error: any) {
     logger.error(`${TAG} Error in request handler:`, { message: error.message, stack: error.stack });
     if (error instanceof DatabaseError) {
-      return NextResponse.json({ error: 'Database error', details: error.message }, { status: 500 });
+      return NextResponse.json({ error: 'Database error', details: error.message }, { status: 500, headers: noStore });
     }
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500, headers: noStore });
   }
 }

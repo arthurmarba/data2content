@@ -32,6 +32,7 @@ describe('GET /api/admin/dashboard/platform-summary', () => {
     mockGetServerSession.mockResolvedValue(null);
     const res = await GET(makeRequest());
     expect(res.status).toBe(401);
+    expect(res.headers.get('Cache-Control')).toBe('no-store');
   });
 
   it('returns summary data when authenticated as admin', async () => {
@@ -43,6 +44,7 @@ describe('GET /api/admin/dashboard/platform-summary', () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
+    expect(res.headers.get('Cache-Control')).toBe('no-store');
     expect(body).toEqual(data);
     expect(fetchPlatformSummary).toHaveBeenCalledWith({ dateRange: {
       startDate: new Date('2024-01-01T00:00:00.000Z'),
