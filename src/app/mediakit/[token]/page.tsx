@@ -93,11 +93,20 @@ async function fetchTopVideos(baseUrl: string, userId: string): Promise<VideoLis
 }
 
 /**
- * Busca os dados de KPI para o período padrão (inicial).
+ * Busca os dados de KPI para o período comparativo informado.
+ *
+ * @param comparisonPeriod Período de comparação desejado (padrão: último 30 dias vs anteriores).
  */
-async function fetchKpis(baseUrl: string, userId: string): Promise<KpiComparison | null> {
+async function fetchKpis(
+  baseUrl: string,
+  userId: string,
+  comparisonPeriod = 'last_30d_vs_previous_30d'
+): Promise<KpiComparison | null> {
   try {
-    const res = await fetch(`${baseUrl}/api/v1/users/${userId}/kpis/periodic-comparison`, { cache: 'no-store' });
+    const res = await fetch(
+      `${baseUrl}/api/v1/users/${userId}/kpis/periodic-comparison?comparisonPeriod=${comparisonPeriod}`,
+      { cache: 'no-store' }
+    );
     if (!res.ok) {
       console.error(`[MediaKitPage] Falha ao buscar kpis: ${res.status}`);
       return null;
