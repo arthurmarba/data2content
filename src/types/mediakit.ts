@@ -1,28 +1,55 @@
-// @/types/mediakit.ts
+// src/types/mediakit.ts
 
-// Tipo para os itens da tabela de vídeos
+// --- Métricas por post ---
+export interface VideoStats {
+  views?: number;
+  likes?: number;
+  comments?: number;
+  shares?: number;
+  saves?: number;   // alguns provedores retornam "saves"
+  reach?: number;   // usado como fallback de views em alguns casos
+}
+
+// --- Item da listagem de vídeos ---
 export interface VideoListItem {
   _id: string;
-  thumbnailUrl?: string | null;
+
+  // Texto e navegação
   caption?: string;
   description?: string;
   permalink?: string | null;
   postDate?: string | Date;
-  stats?: {
-    views?: number;
-    likes?: number;
-    comments?: number;
-    shares?: number;
-  };
+
+  // Thumbnails / mídia (podem vir com nomes distintos do backend)
+  thumbnailUrl?: string | null;
+  thumbnail_url?: string | null;
+  coverUrl?: string | null;
+  cover_url?: string | null;
+  mediaUrl?: string | null;
+  media_url?: string | null;
+  previewImageUrl?: string | null;
+  preview_image_url?: string | null;
+  displayUrl?: string | null;
+  display_url?: string | null;
+
+  // Estratégia (podem vir como CSV string ou array)
+  format?: string | string[] | null;
+  proposal?: string | string[] | null;
+  context?: string | string[] | null;
+  tone?: string | string[] | null;
+  references?: string | string[] | null;
+
+  // Stats
+  stats?: VideoStats;
 }
 
-// Tipo para o resumo de performance (cards de destaque)
+// --- Resumo de performance (cards de destaque) ---
 export interface PerformanceSummary {
   topPerformingFormat?: { name: string; metricName: string; valueFormatted: string } | null;
   topPerformingContext?: { name: string; metricName: string; valueFormatted: string } | null;
 }
 
-// Tipo para os dados de cada KPI individual
+// --- KPIs individuais ---
 export interface KPIComparisonData {
   currentValue: number | null;
   previousValue: number | null;
@@ -30,7 +57,7 @@ export interface KPIComparisonData {
   chartData?: { name: string; value: number }[];
 }
 
-// Tipo para o objeto completo de KPIs que vem da API
+// --- Objeto completo de KPIs ---
 export interface KpiComparison {
   comparisonPeriod?: string;
   followerGrowth: KPIComparisonData;
@@ -57,9 +84,7 @@ export interface KpiComparison {
   };
 }
 
-// --- NOVOS TIPOS PARA DEMOGRAFIA ---
-
-// CORREÇÃO: Renomeado de AudienceDemographics para DemographicsData para corresponder ao uso.
+// --- Demografia ---
 export interface DemographicsData {
   follower_demographics?: {
     gender?: Record<string, number>;
@@ -75,7 +100,7 @@ export interface DemographicsData {
   };
 }
 
-// Props para o componente MediaKitView
+// --- Props da view ---
 export interface MediaKitViewProps {
   user: any;
   summary: PerformanceSummary | null;

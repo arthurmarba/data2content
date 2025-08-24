@@ -1,13 +1,22 @@
+// src/app/mediakit/[token]/page.tsx
 import { notFound } from 'next/navigation';
-import { connectToDatabase } from '@/app/lib/mongoose';
-import UserModel from '@/app/models/User';
 import { headers } from 'next/headers';
-import { logMediaKitAccess } from '@/lib/logMediaKitAccess';
-import MediaKitView from './MediaKitView';
 import type { Metadata } from 'next';
 
+import { connectToDatabase } from '@/app/lib/mongoose';
+import UserModel from '@/app/models/User';
+import { logMediaKitAccess } from '@/lib/logMediaKitAccess';
+import { getClientIpFromHeaders } from '@/utils/getClientIp';
+
+import MediaKitView from './MediaKitView';
+
 // Tipos centralizados para garantir consistência em todo o fluxo de dados.
-import { VideoListItem, PerformanceSummary, KpiComparison, DemographicsData } from '@/types/mediakit';
+import {
+  VideoListItem,
+  PerformanceSummary,
+  KpiComparison,
+  DemographicsData,
+} from '@/types/mediakit';
 
 // Força a renderização dinâmica e evita qualquer cache estático
 export const dynamic = 'force-dynamic';
@@ -27,7 +36,7 @@ export async function generateMetadata(
   if (!user) {
     return {
       title: 'Mídia Kit | Data2Content',
-      description: 'Conheça os dados de desempenho dos nossos criadores.'
+      description: 'Conheça os dados de desempenho dos nossos criadores.',
     };
   }
 
@@ -41,25 +50,14 @@ export async function generateMetadata(
   return {
     title,
     description,
-    openGraph: {
-      title,
-      description,
-      images,
-    },
-    twitter: {
-      card: 'summary',
-      title,
-      description,
-      images,
-    },
+    openGraph: { title, description, images },
+    twitter: { card: 'summary', title, description, images },
   };
 }
 
 // --- MÓDULO DE BUSCA DE DADOS (DATA FETCHING) ---
 
-/**
- * Busca o resumo de performance (melhores formatos e contextos).
- */
+/** Busca o resumo de performance (melhores formatos e contextos). */
 async function fetchSummary(baseUrl: string, userId: string): Promise<PerformanceSummary | null> {
   try {
     const res = await fetch(`${baseUrl}/api/v1/users/${userId}/highlights/performance-summary`, { cache: 'no-store' });
@@ -74,9 +72,7 @@ async function fetchSummary(baseUrl: string, userId: string): Promise<Performanc
   }
 }
 
-/**
- * Busca os vídeos de melhor performance (Top 5 por views).
- */
+/** Busca os vídeos de melhor performance (Top 5 por views). */
 async function fetchTopVideos(baseUrl: string, userId: string): Promise<VideoListItem[]> {
   try {
     const res = await fetch(`${baseUrl}/api/v1/users/${userId}/videos/list?sortBy=views&limit=5`, { cache: 'no-store' });
@@ -94,7 +90,6 @@ async function fetchTopVideos(baseUrl: string, userId: string): Promise<VideoLis
 
 /**
  * Busca os dados de KPI para o período comparativo informado.
- *
  * @param comparisonPeriod Período de comparação desejado (padrão: último 30 dias vs anteriores).
  */
 async function fetchKpis(
@@ -118,9 +113,7 @@ async function fetchKpis(
   }
 }
 
-/**
- * Busca os dados demográficos do público.
- */
+/** Busca os dados demográficos do público. */
 async function fetchDemographics(baseUrl: string, userId: string): Promise<DemographicsData | null> {
   try {
     const res = await fetch(`${baseUrl}/api/demographics/${userId}`, { cache: 'no-store' });
@@ -135,33 +128,39 @@ async function fetchDemographics(baseUrl: string, userId: string): Promise<Demog
   }
 }
 
-
 // --- COMPONENTE DE PÁGINA (SERVER COMPONENT) ---
 
 export default async function MediaKitPage({ params }: { params: { token: string } }) {
   await connectToDatabase();
-  
+
   const user = await UserModel.findOne({ mediaKitSlug: params.token }).lean();
-  
   if (!user) {
     notFound();
   }
 
   const reqHeaders = headers();
-  const ip = reqHeaders.get('x-real-ip') || reqHeaders.get('x-forwarded-for') || '';
+
+  // Usa o helper robusto (lida com cf-connecting-ip, x-forwarded-for, forwarded, etc.)
+  const ip = getClientIpFromHeaders(reqHeaders);
   const referer = reqHeaders.get('referer') || undefined;
+
+  // Registra o acesso (o util já normaliza e evita IP vazio)
   await logMediaKitAccess(user._id.toString(), ip, referer);
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || '';
-  
+  // baseUrl absoluto quando possível; se não houver, cai para relativo
+  const proto = reqHeaders.get('x-forwarded-proto') || 'http';
+  const host = reqHeaders.get('host') || 'localhost:3000';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${proto}://${host}`;
+
   const [summary, videos, kpis, demographics] = await Promise.all([
     fetchSummary(baseUrl, user._id.toString()),
     fetchTopVideos(baseUrl, user._id.toString()),
     fetchKpis(baseUrl, user._id.toString()),
-    fetchDemographics(baseUrl, user._id.toString()) // Adiciona a busca de demografia
+    fetchDemographics(baseUrl, user._id.toString()),
   ]);
 
-  const compatibleVideos = videos.map((video: any) => ({
+  // Normaliza para o componente client (arrays de tags)
+  const compatibleVideos = (videos || []).map((video: any) => ({
     ...video,
     format: video.format ? [video.format] : [],
     proposal: video.proposal ? [video.proposal] : [],
@@ -178,7 +177,7 @@ export default async function MediaKitPage({ params }: { params: { token: string
       summary={summary}
       videos={compatibleVideos}
       kpis={kpis}
-      demographics={demographics} // Passa a nova prop para o componente
+      demographics={demographics}
     />
   );
 }

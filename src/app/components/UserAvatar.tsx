@@ -1,60 +1,74 @@
+// src/app/components/UserAvatar.tsx
 'use client';
 
 import Image from 'next/image';
 import React from 'react';
 
 interface UserAvatarProps {
-  name: string;
-  src?: string | null; // Permite src nulo ou indefinido
+  name?: string;
+  src?: string | null;
   size?: number;
   className?: string;
 }
 
-/**
- * Componente para exibir o avatar de um usuário.
- * Renderiza uma imagem se a URL (src) for fornecida. Caso contrário,
- * exibe um fallback com a primeira letra do nome.
- * @param {string} name - O nome do usuário, usado para a inicial e o atributo alt.
- * @param {string | null} src - A URL da imagem do avatar.
- * @param {number} size - A largura e altura do avatar em pixels. Padrão: 40.
- * @param {string} className - Classes CSS adicionais para customização.
- */
+function isBlockedHost(url?: string | null): boolean {
+  if (!url) return false;
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return (
+      host.endsWith('fbcdn.net') ||
+      host.endsWith('xx.fbcdn.net') ||
+      host.endsWith('cdninstagram.com')
+    );
+  } catch {
+    return false;
+  }
+}
+
+function getInitials(name?: string) {
+  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
+  const letters = (parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '');
+  return (letters || (name ?? '?')[0] || '?').toUpperCase();
+}
+
 export function UserAvatar({
-  name,
+  name = 'Criador',
   src,
   size = 40,
   className = '',
 }: UserAvatarProps) {
-  // Garante que o nome seja uma string para evitar erros e pega a inicial
-  const initial = (name || '').charAt(0).toUpperCase();
+  const [errored, setErrored] = React.useState(false);
+  const showImage = !!src && !errored;
 
-  return src ? (
+  const initials = getInitials(name);
+  const baseClasses = `rounded-full object-cover ${className}`;
+
+  if (!showImage) {
+    return (
+      <div
+        className={`flex items-center justify-center rounded-full bg-gradient-to-br from-pink-500 to-pink-600 text-white font-semibold select-none ${className}`}
+        style={{ width: size, height: size, fontSize: Math.max(12, Math.floor(size / 3)) }}
+        aria-label={name}
+        title={name}
+      >
+        {initials}
+      </div>
+    );
+  }
+
+  const skipOptimization = isBlockedHost(src);
+
+  return (
     <Image
-      src={src}
+      src={src as string}
       alt={`Avatar de ${name}`}
       width={size}
       height={size}
-      className={`rounded-full object-cover ${className}`}
-      // Adiciona um fallback em caso de erro no carregamento da imagem
-      onError={(e) => {
-        (e.target as HTMLImageElement).style.display = 'none';
-        // Opcional: poderia mostrar um div de fallback aqui, mas por simplicidade, apenas esconde.
-      }}
+      className={baseClasses}
+      unoptimized={skipOptimization}
+      referrerPolicy="no-referrer"
+      onError={() => setErrored(true)}
+      priority
     />
-  ) : (
-    <div
-      className={`
-        flex items-center justify-center
-        bg-gray-200 dark:bg-gray-700
-        rounded-full
-        text-gray-600 dark:text-gray-300
-        font-semibold
-        select-none
-        ${className}
-      `}
-      style={{ width: size, height: size, fontSize: size * 0.5 }}
-    >
-      {initial}
-    </div>
   );
 }

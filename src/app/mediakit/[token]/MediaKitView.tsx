@@ -7,7 +7,7 @@ import VideosTable from '@/app/admin/creator-dashboard/components/VideosTable';
 import { UserAvatar } from '@/app/components/UserAvatar';
 import AverageMetricRow from '@/app/dashboard/components/AverageMetricRow';
 import PostDetailModal from '@/app/admin/creator-dashboard/PostDetailModal';
-import { MediaKitViewProps, VideoListItem, KpiComparison, DemographicsData } from '@/types/mediakit';
+import { MediaKitViewProps, VideoListItem } from '@/types/mediakit';
 
 // Placeholder para Ícones (sem alterações)
 const FaIcon = ({ path, className = "w-5 h-5" }: { path: string, className?: string }) => (
@@ -19,8 +19,8 @@ const FaIcon = ({ path, className = "w-5 h-5" }: { path: string, className?: str
 const ICONS = {
   trophy: "M512 32H0v320c0 35.3 28.7 64 64 64h128v32H96c-17.7 0-32 14.3-32 32s14.3 32 32 32h320c17.7 0 32-14.3 32-32s-14.3-32-32-32h-96v-32h128c35.3 0 64-28.7 64-64V32zM384 224c0 26.5-21.5 48-48 48s-48-21.5-48-48s21.5-48 48-48s48 21.5 48 48zM128 176c-26.5 0-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48s-21.5-48-48-48z",
   envelope: "M48 64C21.5 64 0 85.5 0 112v288c0 26.5 21.5 48 48 48h416c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H48zM64 112h384c8.8 0 16 7.2 16 16v31.2L294.1 294.1c-20.2 18.2-50.6 18.2-70.8 0L48 159.2V128c0-8.8 7.2-16 16-16zm384 288H64c-8.8 0-16-7.2-16-16V190.8l152.1 136.9c31.6 28.3 78.2 28.3 109.8 0L464 190.8V384c0 8.8-7.2 16-16 16z",
-  arrowUp: "M233.4 105.4c12.5-12.5 32.8-12.5 45.3 0l192 192c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L256 173.3 86.6 342.6c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3l192-192z",
-  arrowDown: "M233.4 406.6c12.5 12.5 32.8 12.5 45.3 0l192-192c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L256 338.7 86.6 169.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0-45.3l192 192z",
+  arrowUp: "M233.4 105.4c12.5-12.5 32.8-12.5 45.3 0l192 192c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L256 173.3 86.6 342.6c-12.5 12.5-32.8 12.5-45.3 0s-12.5 32.8 0-45.3l192-192z",
+  arrowDown: "M233.4 406.6c12.5 12.5 32.8 12.5 45.3 0l192-192c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L256 338.7 86.6 169.4c-12.5-12.5-32.8 12.5-45.3 0l192 192z",
   eye: "M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM216 336h24V272H216c-13.3 0-24-10.7-24-24s10.7-24 24-24h48c13.3 0 24 10.7 24 24v88h8c13.3 0 24 10.7 24 24s-10.7 24-24 24H216c-13.3 0-24-10.7-24-24s10.7-24 24-24zm40-144c-17.7 0-32-14.3-32-32s14.3-32 32-32s32 14.3 32 32s-14.3 32-32 32z",
   comments: "M512 240c0 114.9-114.6 208-256 208S0 354.9 0 240C0 125.1 114.6 32 256 32s256 93.1 256 208zM406.5 224h-61.2c-6.7 0-12.6 4.2-15.1 10.4s-1.6 13.5 2.2 18.7l34.6 46.1c6.1 8.1 17.5 9.4 25.6 3.3s9.4-17.5 3.3-25.6l-21.4-28.5c1.1-1.6 2.6-3 4.3-4.1l-21.4-14.2c8.3-5.5 10.8-16.5 5.3-24.8s-16.5-10.8-24.8-5.3l-21.4 14.2z",
   share: "M448 248L288 96v80c-141.2 0-256 114.8-256 256 0 44.2 35.8 80 80 80 8.8 0 16-7.2 16-16s-7.2-16-16-16c-26.5 0-48-21.5-48-48 0-88.2 71.8-160 160-160v80l160-152z",
@@ -86,48 +86,30 @@ const KpiValue: React.FC<{ value: number | null | undefined; type: 'number' | 'p
   return <>{formattedValue}</>;
 };
 
-// --- Funções Auxiliares de Demografia (sem alterações) ---
+// --- Demografia ---
 
-const genderLabelMap: Record<string, string> = {
-  f: 'Feminino',
-  m: 'Masculino',
-  u: 'Desconhecido',
-};
-
-const genderSummaryMap: Record<string, string> = {
-  f: 'feminino',
-  m: 'masculino',
-  u: 'desconhecido',
-};
+const genderLabelMap: Record<string, string> = { f: 'Feminino', m: 'Masculino', u: 'Desconhecido' };
+const genderSummaryMap: Record<string, string> = { f: 'feminino', m: 'masculino', u: 'desconhecido' };
 
 const getTopEntry = (data: Record<string, number> | undefined): [string, number] | null => {
   if (!data || Object.keys(data).length === 0) return null;
   return Object.entries(data).reduce((a, b) => (a[1] > b[1] ? a : b));
 };
 
-const generateDemographicSummary = (demographics: DemographicsData | null): string => {
+const generateDemographicSummary = (demographics: any | null): string => {
   if (!demographics?.follower_demographics) return "Dados demográficos não disponíveis.";
-  
   const { gender, age, city, country } = demographics.follower_demographics;
 
   const topGenderEntry = getTopEntry(gender);
   const topAgeEntry = getTopEntry(age);
   const topCityEntry = getTopEntry(city);
   const topCountryEntry = getTopEntry(country);
-
   const topLocation = topCityEntry?.[0] || topCountryEntry?.[0];
 
-  if (!topGenderEntry || !topAgeEntry || !topLocation) {
-    return "Perfil de público diversificado.";
-  }
-  
-  const dominantGender =
-    genderSummaryMap[topGenderEntry[0].toLowerCase()] || topGenderEntry[0];
-
+  if (!topGenderEntry || !topAgeEntry || !topLocation) return "Perfil de público diversificado.";
+  const dominantGender = genderSummaryMap[topGenderEntry[0].toLowerCase()] || topGenderEntry[0];
   return `Mais popular entre o público ${dominantGender}, ${topAgeEntry[0]} anos, em ${topLocation}.`;
 };
-
-// --- Componentes de UI para Demografia (sem alterações) ---
 
 const DemographicRow: React.FC<{ label: string; percentage: number; compact?: boolean }> = ({ label, percentage, compact }) => {
   const displayLabel = compact ? label.split(',')[0] : label;
@@ -137,10 +119,7 @@ const DemographicRow: React.FC<{ label: string; percentage: number; compact?: bo
       <span className="text-gray-600">{displayLabel}</span>
       <div className="flex items-center gap-2 w-2/3">
         <div className="w-full bg-gray-200/70 rounded-full h-2 overflow-hidden">
-          <div
-            className="h-2 rounded-full bg-gradient-to-r from-brand-pink to-pink-500"
-            style={{ width: `${percentage}%` }}
-          />
+          <div className="h-2 rounded-full bg-gradient-to-r from-brand-pink to-pink-500" style={{ width: `${percentage}%` }} />
         </div>
         <span className="font-semibold text-gray-800">{percentage.toFixed(1)}%</span>
       </div>
@@ -148,8 +127,7 @@ const DemographicRow: React.FC<{ label: string; percentage: number; compact?: bo
   );
 };
 
-
-// --- Componente Principal da View ---
+// --- Componente Principal ---
 
 export default function MediaKitView({ user, summary, videos, kpis: initialKpis, demographics }: MediaKitViewProps) {
   const cardVariants = { hidden: { opacity: 0, y: 20 }, visible: (i: number = 0) => ({ opacity: 1, y: 0, transition: { delay: i * 0.1, duration: 0.5, ease: "easeOut" } }) };
@@ -160,16 +138,15 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
   ], []);
 
   const [comparisonPeriod, setComparisonPeriod] = useState<string>(initialKpis?.comparisonPeriod || 'last_30d_vs_previous_30d');
-  const [kpiData, setKpiData] = useState<KpiComparison | null>(initialKpis);
-  const lastGoodKpisRef = useRef<KpiComparison | null>(initialKpis ?? null);
+  const [kpiData, setKpiData] = useState<any>(initialKpis);
+  const lastGoodKpisRef = useRef<any>(initialKpis ?? null);
   const [kpiError, setKpiError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(!initialKpis);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const isFirstRender = useRef(true);
 
-  // Busca de KPIs (com cache de último válido)
+  // Busca de KPIs (com cache do último válido)
   useEffect(() => {
-    // Primeira render: se já veio do servidor, evita refetch imediato
     if (isFirstRender.current && kpiData) {
       isFirstRender.current = false;
       return;
@@ -194,8 +171,7 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
           setKpiError('Não foi possível atualizar os KPIs agora.');
           setKpiData(lastGoodKpisRef.current);
         }
-      } catch (err) {
-        console.error('Erro ao buscar KPIs', err);
+      } catch {
         setKpiError('Não foi possível atualizar os KPIs agora.');
         setKpiData(lastGoodKpisRef.current);
       } finally {
@@ -221,24 +197,22 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
           lastGoodKpisRef.current = data;
           setKpiError(null);
         }
-      } catch (err) {
-        // Silencia, já temos initialKpis
-      }
+      } catch {}
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?._id]);
 
-  const handleVideoClick = (postId: string) => { setSelectedPostId(postId); };
-  const handleCloseModal = () => { setSelectedPostId(null); };
+  const handleVideoClick = (postId: string) => setSelectedPostId(postId);
+  const handleCloseModal = () => setSelectedPostId(null);
 
   const cardStyle = "bg-white p-6 sm:p-8 rounded-xl shadow-lg border-t-4 border-pink-500";
-  const compactNumberFormat = (num: number | null | undefined) => num?.toLocaleString('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }) ?? '...';
+  const compactNumberFormat = (num: number | null | undefined) =>
+    num?.toLocaleString('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }) ?? '...';
 
   const demographicSummary = useMemo(() => generateDemographicSummary(demographics), [demographics]);
 
   const demographicBreakdowns = useMemo(() => {
     if (!demographics?.follower_demographics) return null;
-    
     const { gender, age, city } = demographics.follower_demographics;
 
     const calculatePercentages = (data: Record<string, number> | undefined) => {
@@ -252,8 +226,8 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
 
     return {
       gender: calculatePercentages(gender),
-      age: calculatePercentages(age).slice(0, 5), // Top 5
-      location: calculatePercentages(city).slice(0, 3), // Top 3
+      age: calculatePercentages(age).slice(0, 5),
+      location: calculatePercentages(city).slice(0, 3),
     };
   }, [demographics]);
 
@@ -284,9 +258,13 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
                   {user.username && <p className="text-gray-500 text-lg">@{user.username}</p>}
                 </div>
               </div>
-              {user.biography && <p className="text-gray-600 mt-5 text-center whitespace-pre-line font-light">{user.biography}</p>}
+              {user.biography && (
+                <p className="text-gray-600 mt-5 text-center whitespace-pre-line font-light">
+                  {user.biography}
+                </p>
+              )}
             </motion.div>
-            
+
             {demographics && demographicBreakdowns && (
               <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={1} className={cardStyle}>
                 <h2 className="text-xl font-bold text-gray-800 mb-4">Demografia do Público</h2>
@@ -315,12 +293,7 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
                       <h3 className="text-sm font-semibold text-gray-700 mb-2">Faixas Etárias</h3>
                       <div className="space-y-1">
                         {demographicBreakdowns.age.map(item => (
-                          <DemographicRow
-                            key={item.label}
-                            label={item.label}
-                            percentage={item.percentage}
-                            compact
-                          />
+                          <DemographicRow key={item.label} label={item.label} percentage={item.percentage} compact />
                         ))}
                       </div>
                     </div>
@@ -340,15 +313,19 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
             )}
 
             <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={2} className={cardStyle}>
-               <div className="flex items-center justify-between gap-3 mb-4">
+              <div className="flex items-center justify-between gap-3 mb-4">
                 <h2 className="text-xl font-bold text-gray-800">Performance</h2>
-                <select 
-                    className="text-sm border-gray-300 rounded-md shadow-sm focus:ring-pink-500 focus:border-pink-500" 
-                    value={comparisonPeriod} 
-                    onChange={(e) => setComparisonPeriod(e.target.value)} 
-                    disabled={isLoading}
+                <select
+                  className="text-sm border-gray-300 rounded-md shadow-sm focus:ring-pink-500 focus:border-pink-500"
+                  value={comparisonPeriod}
+                  onChange={(e) => setComparisonPeriod(e.target.value)}
+                  disabled={isLoading}
                 >
-                  {PERIOD_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                  {PERIOD_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -357,7 +334,7 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
                   {kpiData ? 'Mostrando últimos dados válidos. ' : ''}{kpiError}
                 </div>
               )}
-              
+
               {isLoading ? (
                 <div className="flex justify-center items-center h-64">
                   <FaIcon path={ICONS.spinner} className="animate-spin text-pink-500 h-8 w-8" />
@@ -368,46 +345,46 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
                 </div>
               ) : (
                 <div className="transition-opacity duration-300">
-                    <div className="mb-4">
-                      <h3 className="text-sm font-semibold text-gray-700 mb-2">Números-Chave</h3>
-                      <div className="grid grid-cols-3 divide-x divide-gray-200 bg-gray-50 p-2 rounded-lg">
-                        <KeyMetric icon={<FaIcon path={ICONS.users}/>} value={compactNumberFormat(displayKpis?.avgReachPerPost?.currentValue ?? null)} label="Alcance Médio" />
-                        <KeyMetric icon={<FaIcon path={ICONS.heart}/>} value={`${displayKpis?.engagementRate?.currentValue?.toFixed(2) ?? '0'}%`} label="Taxa de Engaj." />
-                        <KeyMetric icon={<FaIcon path={ICONS.calendar}/>} value={`${displayKpis?.postingFrequency?.currentValue?.toFixed(1) ?? '0'}`} label="Posts/Semana" />
+                  <div className="mb-4">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-2">Números-Chave</h3>
+                    <div className="grid grid-cols-3 divide-x divide-gray-200 bg-gray-50 p-2 rounded-lg">
+                      <KeyMetric icon={<FaIcon path={ICONS.users} />} value={compactNumberFormat(displayKpis?.avgReachPerPost?.currentValue ?? null)} label="Alcance Médio" />
+                      <KeyMetric icon={<FaIcon path={ICONS.heart} />} value={`${displayKpis?.engagementRate?.currentValue?.toFixed(2) ?? '0'}%`} label="Taxa de Engaj." />
+                      <KeyMetric icon={<FaIcon path={ICONS.calendar} />} value={`${displayKpis?.postingFrequency?.currentValue?.toFixed(1) ?? '0'}`} label="Posts/Semana" />
+                    </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-2">Médias Detalhadas por Post</h3>
+                    <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
+                      <div className="space-y-1">
+                        <AverageMetricRow icon={<FaIcon path={ICONS.eye} className="w-4 h-4" />} label="Visualizações" value={displayKpis?.avgViewsPerPost?.currentValue} />
+                        <AverageMetricRow icon={<FaIcon path={ICONS.heart} className="w-4 h-4" />} label="Curtidas" value={displayKpis?.avgLikesPerPost?.currentValue} />
+                        <AverageMetricRow icon={<FaIcon path={ICONS.comments} className="w-4 h-4" />} label="Comentários" value={displayKpis?.avgCommentsPerPost?.currentValue} />
+                        <AverageMetricRow icon={<FaIcon path={ICONS.share} className="w-4 h-4" />} label="Compartilhamentos" value={displayKpis?.avgSharesPerPost?.currentValue} />
+                        <AverageMetricRow icon={<FaIcon path={ICONS.bookmark} className="w-4 h-4" />} label="Salvos" value={displayKpis?.avgSavesPerPost?.currentValue} />
                       </div>
                     </div>
+                  </div>
 
-                    <div className="mb-4">
-                      <h3 className="text-sm font-semibold text-gray-700 mb-2">Médias Detalhadas por Post</h3>
+                  {displayKpis.followerGrowth && (
+                    <div className="space-y-4 pt-4 border-t border-gray-100">
+                      <h3 className="text-sm font-semibold text-gray-700 mb-2">Crescimento de Seguidores</h3>
                       <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
-                          <div className="space-y-1">
-                            <AverageMetricRow icon={<FaIcon path={ICONS.eye} className="w-4 h-4"/>} label="Visualizações" value={displayKpis?.avgReachPerPost?.currentValue} />
-                            <AverageMetricRow icon={<FaIcon path={ICONS.heart} className="w-4 h-4"/>} label="Curtidas" value={displayKpis?.avgLikesPerPost?.currentValue} />
-                            <AverageMetricRow icon={<FaIcon path={ICONS.comments} className="w-4 h-4"/>} label="Comentários" value={displayKpis?.avgCommentsPerPost?.currentValue} />
-                            <AverageMetricRow icon={<FaIcon path={ICONS.share} className="w-4 h-4"/>} label="Compartilhamentos" value={displayKpis?.avgSharesPerPost?.currentValue} />
-                            <AverageMetricRow icon={<FaIcon path={ICONS.bookmark} className="w-4 h-4"/>} label="Salvos" value={displayKpis?.avgSavesPerPost?.currentValue} />
-                          </div>
+                        {user.followers_count !== undefined && (
+                          <p className="text-2xl font-bold text-gray-900 mt-1">
+                            {user.followers_count.toLocaleString('pt-BR')}
+                          </p>
+                        )}
+                        <p className="text-xs text-gray-500">Seguidores totais</p>
+                        <p className="text-sm text-gray-700 mt-3 flex items-center">
+                          <KpiValue value={displayKpis.followerGrowth?.currentValue} type="number" />
+                          <TrendIndicator value={displayKpis.followerGrowth?.percentageChange ?? null} />
+                          <span className="ml-1 text-gray-500">no período selecionado</span>
+                        </p>
                       </div>
                     </div>
-
-                    {displayKpis.followerGrowth && (
-                      <div className="space-y-4 pt-4 border-t border-gray-100">
-                        <h3 className="text-sm font-semibold text-gray-700 mb-2">Crescimento de Seguidores</h3>
-                        <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
-                          {user.followers_count !== undefined && (
-                            <p className="text-2xl font-bold text-gray-900 mt-1">
-                              {user.followers_count.toLocaleString('pt-BR')}
-                            </p>
-                          )}
-                          <p className="text-xs text-gray-500">Seguidores totais</p>
-                          <p className="text-sm text-gray-700 mt-3 flex items-center">
-                            <KpiValue value={displayKpis.followerGrowth?.currentValue} type="number" />
-                            <TrendIndicator value={displayKpis.followerGrowth?.percentageChange ?? null} />
-                            <span className="ml-1 text-gray-500">no período selecionado</span>
-                          </p>
-                        </div>
-                      </div>
-                    )}
+                  )}
                 </div>
               )}
             </motion.div>
@@ -419,12 +396,14 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
                 <FaIcon path={ICONS.trophy} className="w-6 h-6 text-pink-500" />
                 <h2 className="text-2xl font-bold text-gray-800">Top Posts em Performance</h2>
               </div>
-              <p className="text-gray-600 mb-6 font-light">Uma amostra do conteúdo de maior impacto, agora com a classificação completa. <span className="font-medium text-gray-700">Clique em um post para ver a análise detalhada.</span></p>
+              <p className="text-gray-600 mb-6 font-light">
+                Uma amostra do conteúdo de maior impacto, agora com a classificação completa. <span className="font-medium text-gray-700">Clique em um post para ver a análise detalhada.</span>
+              </p>
 
               <VideosTable
                 videos={videosWithCorrectStats}
                 readOnly
-                onRowClick={handleVideoClick}
+                onRowClick={setSelectedPostId}
               />
             </motion.div>
           </main>
@@ -432,7 +411,7 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
 
         <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={2}>
           <div className="mt-12 bg-gray-800 text-white text-center p-8 lg:p-12 rounded-xl shadow-2xl">
-            <FaIcon path={ICONS.envelope} className="w-10 h-10 mx-auto mb-4 text-pink-500"/>
+            <FaIcon path={ICONS.envelope} className="w-10 h-10 mx-auto mb-4 text-pink-500" />
 
             <h3 className="text-3xl lg:text-4xl font-bold mb-3">
               Inteligência Criativa: A Fórmula da Alta Performance.
@@ -454,7 +433,7 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
 
       <PostDetailModal
         isOpen={selectedPostId !== null}
-        onClose={handleCloseModal}
+        onClose={() => setSelectedPostId(null)}
         postId={selectedPostId}
         publicMode
       />

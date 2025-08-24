@@ -1,6 +1,6 @@
 /**
  * @fileoverview Serviço para buscar e gerenciar posts.
- * @version 1.9.7 - Restaura export findUserVideoPosts + backfill resiliente (soft-fail).
+ * @version 1.9.8 - thumbnailUrl no pipeline, coverUrl no projeto, caption fallback e enrich não destrutivo.
  */
 
 import { PipelineStage, Types } from 'mongoose';
@@ -163,7 +163,7 @@ export async function fetchPostDetails(args: IPostDetailsArgs): Promise<IPostDet
 }
 
 // ----------------------------------------------
-// Tipos para listagem de vídeos (mantidos)
+// Tipos para listagem de vídeos (atualizados)
 // ----------------------------------------------
 export interface IFindUserVideoPostsArgs {
   userId: string;
@@ -186,7 +186,9 @@ export interface IUserVideoPostResult {
   instagramMediaId?: string;
   caption?: string;
   postDate?: Date;
+  // ✅ devolvemos ambos
   thumbnailUrl?: string | null;
+  coverUrl?: string | null;
   permalink?: string | null;
   format?: string;
   type?: string;
@@ -225,7 +227,7 @@ async function fetchMediaThumbnail(mediaId: string, accessToken: string): Promis
 }
 
 // ----------------------------------------------
-// ►► Restauração: listagem de vídeos do usuário
+// ►► Listagem de vídeos do usuário (corrigida)
 // ----------------------------------------------
 export async function findUserVideoPosts({
   userId,
@@ -261,18 +263,18 @@ export async function findUserVideoPosts({
       ];
     }
 
-    const countResult = await MetricModel.countDocuments(matchStage);
-    if (countResult === 0) return { videos: [], totalVideos: 0, page, limit };
+    const totalVideos = await MetricModel.countDocuments(matchStage);
+    if (totalVideos === 0) return { videos: [], totalVideos, page, limit };
 
     const sortDirection = sortOrder === 'asc' ? 1 : -1;
     const skip = (page - 1) * limit;
 
-    // Se o sortBy pedido for "stats.views", usamos o campo derivado "viewsSortable"
+    // sortBy "stats.views" usa campo derivado
     const sortField = sortBy === 'stats.views' ? 'viewsSortable' : sortBy;
 
     const videosPipeline: PipelineStage[] = [
       { $match: matchStage },
-      // View score robusto (usa o primeiro > 0 dentre video_views, reach, views, impressions)
+      // Valor de views robusto
       {
         $addFields: {
           viewsSortable: {
@@ -294,6 +296,43 @@ export async function findUserVideoPosts({
               0,
             ],
           },
+          // thumbnail oriundo do doc (sem depender de IG)
+          thumbFromDoc: {
+            $ifNull: [
+              '$coverUrl',
+              {
+                $ifNull: [
+                  '$thumbnailUrl',
+                  {
+                    $ifNull: [
+                      '$thumbnail_url',
+                      {
+                        $ifNull: [
+                          '$mediaUrl',
+                          {
+                            $ifNull: [
+                              '$media_url',
+                              {
+                                $ifNull: [
+                                  '$previewImageUrl',
+                                  {
+                                    $ifNull: [
+                                      '$preview_image_url',
+                                      { $ifNull: ['$displayUrl', '$display_url'] }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
         },
       },
       { $sort: { [sortField]: sortDirection } },
@@ -303,18 +342,22 @@ export async function findUserVideoPosts({
         $project: {
           _id: 1,
           instagramMediaId: 1,
-          caption: '$description',
+          // caption com fallback
+          caption: { $ifNull: ['$description', '$text_content'] },
           permalink: '$postLink',
           postDate: 1,
           format: 1,
           proposal: 1,
           context: 1,
+          coverUrl: 1,
+          // já sai com thumbnail do doc; se vazio, tentaremos IG
+          thumbnailUrl: '$thumbFromDoc',
           stats: {
             views: '$viewsSortable',
             likes: '$stats.likes',
             comments: '$stats.comments',
             shares: '$stats.shares',
-            saves: '$stats.saved',
+            saves: { $ifNull: ['$stats.saved', '$stats.saves'] },
           },
         },
       },
@@ -322,30 +365,36 @@ export async function findUserVideoPosts({
 
     let videos: IUserVideoPostResult[] = await MetricModel.aggregate(videosPipeline);
 
-    // Enriquecimento com thumbnail (se IG conectado)
+    // Enriquecimento com thumbnail via Graph API, apenas para quem ainda não tem thumbnailUrl
     const connectionDetails = await getInstagramConnectionDetails(userObjectId);
     const accessToken = connectionDetails?.accessToken;
 
-    if (accessToken && videos.length > 0) {
-      logger.info(`${TAG} Fetching thumbnails for ${videos.length} videos...`);
-      const thumbnailPromises = videos.map((video) =>
-        video.instagramMediaId ? fetchMediaThumbnail(video.instagramMediaId, accessToken) : Promise.resolve(null)
-      );
+    if (accessToken) {
+      const needFetchIdx: number[] = [];
+      const fetchPromises: Promise<string | null>[] = [];
 
-      const thumbnailResults = await Promise.allSettled(thumbnailPromises);
-
-      videos = videos.map((video, index) => {
-        const result = thumbnailResults[index];
-        if (result && result.status === 'fulfilled' && result.value) {
-          return { ...video, thumbnailUrl: result.value };
+      videos.forEach((v, i) => {
+        if (!v.thumbnailUrl && v.instagramMediaId) {
+          needFetchIdx.push(i);
+          fetchPromises.push(fetchMediaThumbnail(v.instagramMediaId, accessToken));
         }
-        return video;
       });
+
+      if (fetchPromises.length > 0) {
+        logger.info(`${TAG} Fetching thumbnails from IG for ${fetchPromises.length} videos...`);
+        const results = await Promise.allSettled(fetchPromises);
+        results.forEach((res, k) => {
+          const idx = needFetchIdx[k];
+          if (res.status === 'fulfilled' && res.value) {
+            videos[idx] = { ...videos[idx], thumbnailUrl: res.value };
+          }
+        });
+      }
     }
 
     return {
       videos,
-      totalVideos: countResult,
+      totalVideos,
       page,
       limit,
     };
@@ -358,12 +407,6 @@ export async function findUserVideoPosts({
 // ----------------------------------------------
 // Backfill de capa resiliente (mantido)
 // ----------------------------------------------
-/**
- * Backfill de capa:
- * - Não lança exceção por pré-condições não atendidas (soft-fail).
- * - Marca o documento com `coverStatus`/`blockedReason` quando aplicável, usando `{ strict: false }`
- *   para não exigir alteração no schema atual.
- */
 export async function backfillPostCover(postId: string): Promise<{ success: boolean; message: string; }> {
   const TAG = `${SERVICE_TAG}[backfillPostCover]`;
   logger.info(`${TAG} Iniciando backfill para postId: ${postId}`);
