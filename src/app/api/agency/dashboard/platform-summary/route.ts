@@ -5,6 +5,7 @@ import { fetchPlatformSummary } from '@/app/lib/dataService/marketAnalysis/dashb
 import { DatabaseError } from '@/app/lib/errors';
 import { getAgencySession } from '@/lib/getAgencySession';
 export const dynamic = 'force-dynamic';
+const noStore = { 'Cache-Control': 'no-store' };
 
 
 const TAG = '/api/agency/dashboard/platform-summary';
@@ -30,14 +31,14 @@ export async function GET(req: NextRequest) {
   const session = await getAgencySession(req);
   if (!session || !session.user) {
     logger.warn(`${TAG} Unauthorized access attempt.`);
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: noStore });
   }
 
   // CORRIGIDO: Adicionado um 'type guard' para garantir que o agencyId existe.
   // Se um usuário de agência está logado, ele DEVE ter um agencyId.
   if (!session.user.agencyId) {
     logger.error(`${TAG} Authenticated user ${session.user.id || session.user.email} has no agencyId.`);
-    return NextResponse.json({ error: 'User is not associated with an agency' }, { status: 400 });
+    return NextResponse.json({ error: 'User is not associated with an agency' }, { status: 400, headers: noStore });
   }
 
   const { searchParams } = new URL(req.url);
@@ -52,7 +53,10 @@ export async function GET(req: NextRequest) {
   const validationResult = querySchema.safeParse(definedQueryParams);
   if (!validationResult.success) {
     logger.warn(`${TAG} Invalid query parameters:`, validationResult.error.flatten());
-    return NextResponse.json({ error: 'Invalid query parameters', details: validationResult.error.flatten() }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Invalid query parameters', details: validationResult.error.flatten() },
+      { status: 400, headers: noStore }
+    );
   }
 
   let dateRange;
@@ -65,12 +69,12 @@ export async function GET(req: NextRequest) {
   try {
     // A partir daqui, o TypeScript sabe que session.user.agencyId é uma string.
     const summaryData = await fetchPlatformSummary({ dateRange, agencyId: session.user.agencyId });
-    return NextResponse.json(summaryData, { status: 200 });
+    return NextResponse.json(summaryData, { status: 200, headers: noStore });
   } catch (error: any) {
     logger.error(`${TAG} Error in request handler:`, { message: error.message, stack: error.stack });
     if (error instanceof DatabaseError) {
-      return NextResponse.json({ error: 'Database error', details: error.message }, { status: 500 });
+      return NextResponse.json({ error: 'Database error', details: error.message }, { status: 500, headers: noStore });
     }
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500, headers: noStore });
   }
 }

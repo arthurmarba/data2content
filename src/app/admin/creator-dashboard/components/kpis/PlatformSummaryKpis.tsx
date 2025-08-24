@@ -48,8 +48,8 @@ const PlatformSummaryKpis: React.FC<PlatformSummaryKpisProps> = ({ apiPrefix = '
         });
 
         const [response, prevResponse] = await Promise.all([
-          fetch(`${apiPrefix}/dashboard/platform-summary?${params.toString()}`),
-          fetch(`${apiPrefix}/dashboard/platform-summary?${prevParams.toString()}`),
+          fetch(`${apiPrefix}/dashboard/platform-summary?${params.toString()}`, { cache: 'no-store' }),
+          fetch(`${apiPrefix}/dashboard/platform-summary?${prevParams.toString()}`, { cache: 'no-store' }),
         ]);
 
         if (!response.ok) {
