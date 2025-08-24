@@ -1,6 +1,7 @@
-// @/app/models/Metric.ts - v2.3
-// CORREÇÃO DEFINITIVA: Removidos TODOS os índices compostos que poderiam causar
-// o erro 'cannot index parallel arrays'. Apenas índices individuais e seguros foram mantidos.
+// @/app/models/Metric.ts - v2.4
+// ÍNDICES SEGUROS: Removidos índices compostos problemáticos (parallel arrays).
+// Mantidos apenas índices simples e UM composto seguro (user, postDate).
+// Adicionado índice simples em 'stats.total_interactions' para acelerar ordenações.
 
 import mongoose, { Schema, model, Document, Model, Types } from "mongoose";
 
@@ -36,7 +37,7 @@ export interface IMetricStats {
   engagement_deep_vs_reach?: number;
   engagement_fast_vs_reach?: number;
   deep_fast_engagement_ratio?: number;
-  // ... e todos os outros campos de stats
+  // ... outros campos de stats
   [key: string]: unknown;
 }
 
@@ -88,15 +89,18 @@ const metricSchema = new Schema<IMetric>(
     rawData: { type: Array, default: [] },
     stats: { type: Schema.Types.Mixed, default: {} },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-// --- ESTRATÉGIA DE INDEXAÇÃO FINAL E SEGURA ---
-// Apenas índices simples e um composto que não envolve múltiplos arrays.
+// --- ÍNDICES ---
+// Seguro (não envolve arrays em conjunto):
 metricSchema.index({ user: 1, postDate: -1 });
+
+// Único por usuário (mantém integridade sem parallel arrays):
 metricSchema.index({ user: 1, instagramMediaId: 1 }, { unique: true, sparse: true });
+
+// Suporte a ordenação/consulta frequente (simples):
+metricSchema.index({ 'stats.total_interactions': -1 });
 
 const MetricModel = mongoose.models.Metric
   ? (mongoose.models.Metric as Model<IMetric>)

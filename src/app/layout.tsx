@@ -21,14 +21,18 @@ import CookieConsent from "./components/CookieConsent";
 
 const inter = Inter({
   subsets: ["latin"],
-  display: 'swap',
+  display: "swap",
   variable: "--font-inter",
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://data2content.ai";
+const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "Data2Content: Gestão de Carreira IA para Criadores",
-  description: "Impulsione sua carreira de criador com insights de IA via WhatsApp, gestão estratégica e oportunidades exclusivas. Vire afiliado e comece a ganhar.",
+  description:
+    "Impulsione sua carreira de criador com insights de IA via WhatsApp, gestão estratégica e oportunidades exclusivas. Vire afiliado e comece a ganhar.",
 };
 
 export default async function RootLayout({
@@ -47,19 +51,23 @@ export default async function RootLayout({
         <link rel="preconnect" href="https://www.youtube.com" />
         <link rel="preconnect" href="https://www.google.com" />
         <link rel="preconnect" href="https://img.youtube.com" />
-        <Script
-          src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID}`}
-          strategy="afterInteractive"
-        />
-        <Script id="ga-init" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('consent', 'default', { ad_storage: 'denied', analytics_storage: 'denied' });
-            gtag('config', '${process.env.NEXT_PUBLIC_GA_ID}');
-          `}
-        </Script>
+        {GA_ID && (
+          <Script
+            src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+            strategy="afterInteractive"
+          />
+        )}
+        {GA_ID && (
+          <Script id="ga-init" strategy="afterInteractive">
+            {`
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('consent', 'default', { ad_storage: 'denied', analytics_storage: 'denied' });
+              gtag('config', '${GA_ID}');
+            `}
+          </Script>
+        )}
       </head>
       <body
         className={`
@@ -80,9 +88,7 @@ export default async function RootLayout({
               <Header />
 
               {/* ✅ O wrapper agora é usado aqui para aplicar o padding condicionalmente */}
-              <MainContentWrapper>
-                {children}
-              </MainContentWrapper>
+              <MainContentWrapper>{children}</MainContentWrapper>
 
               <Footer />
             </AuthRedirectHandler>
