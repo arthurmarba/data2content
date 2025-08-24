@@ -170,7 +170,10 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
       if (!user?._id) return;
       setIsLoading(true);
       try {
-        const res = await fetch(`/api/v1/users/${user._id}/kpis/periodic-comparison?comparisonPeriod=${comparisonPeriod}`);
+        const res = await fetch(
+          `/api/v1/users/${user._id}/kpis/periodic-comparison?comparisonPeriod=${comparisonPeriod}`,
+          { cache: 'no-store' },
+        );
         const data = res.ok ? await res.json() : null;
         setKpiData(data);
       } catch (err) {
@@ -183,6 +186,27 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
 
     fetchData();
   }, [comparisonPeriod, user?._id]);
+
+  // Revalida os dados logo após o carregamento inicial
+  useEffect(() => {
+    if (!initialKpis || !user?._id) return;
+
+    async function revalidate() {
+      try {
+        const res = await fetch(
+          `/api/v1/users/${user._id}/kpis/periodic-comparison?comparisonPeriod=${comparisonPeriod}`,
+          { cache: 'no-store' },
+        );
+        const data = res.ok ? await res.json() : null;
+        setKpiData(data);
+      } catch (err) {
+        console.error('Erro ao revalidar KPIs', err);
+      }
+    }
+
+    revalidate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?._id]);
   // --- FIM DA CORREÇÃO ---
 
 
