@@ -1,104 +1,120 @@
 // src/app/auth/complete-signup/page.tsx
-// Versão: v1.2.1 (Adiciona chamada à API de conclusão de onboarding e atualização de sessão)
+// Versão: v1.3.0
+// - Evita loops pós-checkout (redirect para /dashboard apenas 1x)
+// - Atualiza a sessão uma única vez (guard contra Strict Mode)
+// - Usa router.replace em vez de push para não adicionar histórico
+// - Mantém o fluxo de aceitação de termos (onboarding)
 
 "use client";
 
-import React, { useEffect, useState } from 'react'; // Adicionado useState
-import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
-import TermsAcceptanceStep from '@/app/components/auth/TermsAcceptanceStep';
-// Ajuste o caminho do FullPageLoader se necessário.
-import FullPageLoader from '@/app/components/auth/FullPageLoader';
+import React, { useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
+import TermsAcceptanceStep from "@/app/components/auth/TermsAcceptanceStep";
+import FullPageLoader from "@/app/components/auth/FullPageLoader";
 
 export default function CompleteSignupPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session, status, update: updateSession } = useSession();
 
-  const [isSubmitting, setIsSubmitting] = useState(false); // Estado para o processo de submissão
-  const [submitError, setSubmitError] = useState<string | null>(null); // Estado para erros na submissão
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  console.log(`[CompleteSignupPage v1.2.1] Renderizado. Status: ${status}. isNewUser: ${session?.user?.isNewUserForOnboarding}. Submitting: ${isSubmitting}`);
+  // Evita reentradas do efeito no Strict Mode / updates rápidos do NextAuth
+  const ranOnceRef = useRef(false);
 
+  // Orquestra o fluxo de navegação/refresh apenas uma vez
   useEffect(() => {
-    if (status === "authenticated") {
-      if (!session?.user) {
-        console.error("[CompleteSignupPage v1.2.1] Autenticado mas sem 'session.user'. Redirecionando para /login (segurança).");
-        router.replace('/login');
-      } else if (session.user.isNewUserForOnboarding === false && !isSubmitting) { // Não redirecionar se estiver submetendo
-        console.warn("[CompleteSignupPage v1.2.1] 'isNewUserForOnboarding' é FALSE. Redirecionando para /dashboard (segurança).");
-        router.replace('/dashboard');
+    if (status === "loading" || ranOnceRef.current) return;
+
+    ranOnceRef.current = true;
+
+    (async () => {
+      try {
+        if (status === "unauthenticated") {
+          router.replace("/login");
+          return;
+        }
+
+        // Autenticado: trate retorno de checkout imediatamente
+        const checkout = searchParams.get("checkout");
+        if (status === "authenticated" && checkout) {
+          // Ex.: ?checkout=success | ?checkout=cancel
+          try {
+            await updateSession?.();
+          } catch {
+            // ignore falha de refresh; seguimos com o redirect
+          }
+          router.replace(`/dashboard?checkout=${checkout}`);
+          return;
+        }
+
+        // Se já completou onboarding, envie ao dashboard
+        if (status === "authenticated" && session?.user?.isNewUserForOnboarding === false) {
+          router.replace("/dashboard");
+          return;
+        }
+
+        // Caso contrário, permanecemos na página para aceitar termos
+      } catch {
+        router.replace("/dashboard");
       }
-    } else if (status === "unauthenticated") {
-      console.warn("[CompleteSignupPage v1.2.1] Não autenticado. Redirecionando para /login (segurança).");
-      router.replace('/login');
-    }
-  }, [status, session, router, isSubmitting]);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, session]); // searchParams não entra para não re-disparar
 
   const handleTermsAcceptedAndContinue = async () => {
-    console.log(`[CompleteSignupPage v1.2.1] Termos aceites pelo utilizador ${session?.user?.id}. Iniciando submissão.`);
+    if (isSubmitting) return;
     setIsSubmitting(true);
     setSubmitError(null);
 
     try {
-      const response = await fetch('/api/user/complete-onboarding', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        // Não é necessário enviar body se a API apenas usa a sessão para identificar o usuário
+      const res = await fetch("/api/user/complete-onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Falha ao completar o onboarding. Resposta não JSON.' }));
-        console.error("[CompleteSignupPage v1.2.1] Falha na API complete-onboarding:", errorData);
-        throw new Error(errorData.message || `Erro ${response.status} ao completar o onboarding.`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.message || `Erro ${res.status} ao completar o onboarding.`);
       }
 
-      console.log("[CompleteSignupPage v1.2.1] Onboarding completado no backend com sucesso. Atualizando sessão do cliente...");
-      
-      // Força a atualização da sessão. Os callbacks jwt e session do NextAuth serão chamados.
-      // É importante que o callback session leia o estado atualizado do usuário do banco de dados
-      // para que 'isNewUserForOnboarding' seja atualizado para false na sessão do cliente.
-      await updateSession(); 
-      
-      console.log("[CompleteSignupPage v1.2.1] Sessão do cliente atualizada. Redirecionando para /dashboard.");
-      router.push('/dashboard');
+      try {
+        await updateSession?.(); // garantir que a sessão traga isNewUserForOnboarding=false
+      } catch {
+        /* se falhar, seguimos para o dashboard mesmo assim */
+      }
 
-    } catch (error) {
-      console.error("[CompleteSignupPage v1.2.1] Erro durante handleTermsAcceptedAndContinue:", error);
-      setSubmitError(error instanceof Error ? error.message : 'Ocorreu um erro desconhecido ao processar sua solicitação.');
-      setIsSubmitting(false); // Permite nova tentativa ou mostra erro
+      router.replace("/dashboard");
+    } catch (err: any) {
+      setSubmitError(err?.message || "Ocorreu um erro ao processar sua solicitação.");
+      setIsSubmitting(false);
     }
-    // Não definimos setIsSubmitting(false) no bloco try bem-sucedido porque o redirecionamento ocorre.
   };
 
+  // Loading geral (inclui submissão)
   if (status === "loading" || isSubmitting) {
-    const message = isSubmitting ? "A processar sua aceitação..." : "A verificar o seu estado...";
-    console.log(`[CompleteSignupPage v1.2.1] Renderizando FullPageLoader (${message}).`);
-    return <FullPageLoader message={message} />;
+    return <FullPageLoader message={isSubmitting ? "A processar sua aceitação..." : "A verificar o seu estado..."} />;
   }
 
+  // Exibe o passo de termos quando necessário
   if (status === "authenticated" && session?.user?.isNewUserForOnboarding === true) {
-    console.log("[CompleteSignupPage v1.2.1] Renderizando TermsAcceptanceStep.");
     return (
       <>
-        <TermsAcceptanceStep
-          userName={session?.user?.name}
-          onAcceptAndContinue={handleTermsAcceptedAndContinue}
-          // Você pode querer passar 'isSubmitting' para o TermsAcceptanceStep
-          // para desabilitar o botão ou mostrar um indicador de loading nele.
-          // Ex: isSubmitting={isSubmitting}
-        />
+        <TermsAcceptanceStep userName={session?.user?.name} onAcceptAndContinue={handleTermsAcceptedAndContinue} />
         {submitError && (
           <div className="fixed bottom-0 left-0 right-0 p-4 bg-red-600 text-white text-center z-50">
             <p>Erro: {submitError}</p>
-            <button onClick={() => setSubmitError(null)} className="ml-2 underline">Fechar</button>
+            <button onClick={() => setSubmitError(null)} className="ml-2 underline">
+              Fechar
+            </button>
           </div>
         )}
       </>
     );
   }
 
-  console.warn(`[CompleteSignupPage v1.2.1] Estado de renderização de fallback. Status: ${status}, isNewUser: ${session?.user?.isNewUserForOnboarding}. Aguardando redirecionamento.`);
+  // Fallback enquanto um redirect está em curso
   return <FullPageLoader message="A finalizar ou a redirecionar..." />;
 }

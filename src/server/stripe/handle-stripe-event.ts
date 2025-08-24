@@ -70,10 +70,17 @@ type Normalized = {
   currency: string | null;
 };
 
+/** Compat Basil: força status "trialing" se trial_end > agora e ancora expiração no trial_end */
 function normalizeFromSubscription(sub: Stripe.Subscription): Normalized {
   const cancelAtPeriodEnd = !!(sub as any).cancel_at_period_end;
   const baseStatus = ((sub as any).status ?? "inactive") as Normalized["planStatus"];
-  const planStatus: Normalized["planStatus"] = baseStatus;
+
+  const trialEndSec =
+    typeof (sub as any).trial_end === "number" ? (sub as any).trial_end : null;
+  const nowSec = Math.floor(Date.now() / 1000);
+  const isTrialingNow = trialEndSec != null && trialEndSec > nowSec;
+
+  const planStatus: Normalized["planStatus"] = isTrialingNow ? "trialing" : baseStatus;
 
   const item = sub.items?.data?.[0];
   const planInterval = coerceInterval(item?.price?.recurring?.interval as any);
@@ -85,7 +92,10 @@ function normalizeFromSubscription(sub: Stripe.Subscription): Normalized {
       ?.filter((n: any) => typeof n === "number") ?? [];
 
   let planExpiresAt: Date | null = null;
-  if (typeof (sub as any).cancel_at === "number") {
+  if (isTrialingNow && trialEndSec) {
+    // Durante o trial mostramos a data de término do trial
+    planExpiresAt = new Date(trialEndSec * 1000);
+  } else if (typeof (sub as any).cancel_at === "number") {
     planExpiresAt = new Date((sub as any).cancel_at * 1000);
   } else if (itemEnds.length > 0) {
     planExpiresAt = new Date(Math.min(...itemEnds) * 1000);
@@ -101,6 +111,23 @@ function normalizeFromSubscription(sub: Stripe.Subscription): Normalized {
   return { planStatus, planInterval, planExpiresAt, cancelAtPeriodEnd, stripePriceId, currency };
 }
 
+/** Mapeia o status normalizado (Stripe-like) para o status aceito pelo schema do User */
+type DbPlanStatus =
+  | "pending"
+  | "active"
+  | "canceled"
+  | "inactive"
+  | "trial"
+  | "expired"
+  | "non_renewing"
+  | undefined;
+
+function toDbPlanStatus(s: Normalized["planStatus"] | undefined): DbPlanStatus {
+  if (!s) return undefined;
+  if (s === "trialing") return "trial";
+  return s as DbPlanStatus;
+}
+
 function applyNormalizedUserBilling(
   user: any,
   sub: Stripe.Subscription,
@@ -110,18 +137,20 @@ function applyNormalizedUserBilling(
   const n = normalizeFromSubscription(sub);
   user.stripeSubscriptionId = sub.id;
   user.stripePriceId = n.stripePriceId;
-  user.planStatus = opts?.overrideStatus ?? n.planStatus;
+
+  const desired = opts?.overrideStatus ?? n.planStatus;
+  user.planStatus = toDbPlanStatus(desired);
+
   user.planInterval = n.planInterval;
   user.planExpiresAt = n.planExpiresAt;
   user.currentPeriodEnd = n.planExpiresAt;
   user.cancelAtPeriodEnd = n.cancelAtPeriodEnd;
   if (n.currency) user.currency = n.currency;
-  if (eventId) user.lastProcessedEventId = eventId;
+  if (eventId) user.lastProcessedEventId = eventId; // correção
 }
 
 /* ---------------------- Heurística anti-past_due/incomplete ---------------------- */
 
-// Em Basil, o tipo de Invoice não expõe `payment_intent` no d.ts; acessamos via `any`.
 function getInvoicePaymentIntentStatus(
   inv: Stripe.Invoice | null | undefined
 ): Stripe.PaymentIntent.Status | undefined {
@@ -137,7 +166,6 @@ function isLikelyPlanChangePaymentPending(
 ) {
   if (!inv) return false;
 
-  // Aceita qualquer billing_reason; focamos em PI pendente & recente
   const createdRecent =
     typeof inv.created === "number"
       ? Date.now() - inv.created * 1000 < 30 * 60 * 1000
@@ -162,7 +190,67 @@ function isLikelyPlanChangePaymentPending(
 
 export async function handleStripeEvent(event: Stripe.Event) {
   switch (event.type) {
-    /* -------------------- Cobrança confirmada (pró-rata) -------------------- */
+    /* ----------------- Checkout concluído (modo subscription) ----------------- */
+    case "checkout.session.completed": {
+      const cs = event.data.object as Stripe.Checkout.Session;
+      if (cs.mode !== "subscription") return;
+
+      const customerId =
+        typeof cs.customer === "string" ? cs.customer : (cs.customer as any)?.id;
+      const subscriptionId =
+        typeof cs.subscription === "string"
+          ? cs.subscription
+          : (cs.subscription as any)?.id;
+
+      const clientRef = cs.client_reference_id || null;
+      const email =
+        cs.customer_details?.email ||
+        (typeof (cs as any).customer_email === "string"
+          ? ((cs as any).customer_email as string)
+          : undefined);
+
+      // Preferência: customerId → userId (client_reference_id) → email
+      let user =
+        (customerId ? await findUserByCustomerId(customerId) : null) ||
+        (clientRef ? await User.findById(clientRef) : null) ||
+        (email ? await User.findOne({ email: String(email).toLowerCase() }) : null);
+
+      if (!user) return;
+
+      const proceed = await markEventIfNew(user, event.id);
+      if (!proceed) return;
+
+      if (customerId && !(user as any).stripeCustomerId) {
+        (user as any).stripeCustomerId = customerId;
+      }
+
+      if (subscriptionId) {
+        try {
+          const sub = await stripe.subscriptions.retrieve(subscriptionId, {
+            expand: ["items.data.price"],
+          });
+
+          // Força trial somente se trial_end > agora
+          const trialEndSec =
+            typeof (sub as any).trial_end === "number" ? (sub as any).trial_end : null;
+          const isTrialingNow = trialEndSec != null && trialEndSec * 1000 > Date.now();
+
+          // Persistimos como "trial" (schema do User), não "trialing"
+          applyNormalizedUserBilling(user, sub, event.id, {
+            overrideStatus: isTrialingNow ? "trialing" : undefined,
+          });
+        } catch {
+          (user as any).lastProcessedEventId = event.id;
+        }
+      } else {
+        (user as any).lastProcessedEventId = event.id;
+      }
+
+      await user.save();
+      return;
+    }
+
+    /* -------------------- Cobrança confirmada (pró-rata / trial $0) -------------------- */
     case "invoice.payment_succeeded": {
       const invoice = event.data.object as Stripe.Invoice;
       const customerId = (invoice.customer as any)?.id ?? (invoice.customer as string);
@@ -174,7 +262,7 @@ export async function handleStripeEvent(event: Stripe.Event) {
       const proceed = await markEventIfNew(user, event.id);
       if (!proceed) return;
 
-      // 1) Atualiza billing a partir da assinatura (fonte de verdade)
+      // 1) Atualiza billing pela assinatura
       const subId = getSubscriptionIdFromInvoice(invoice);
       if (subId) {
         try {
@@ -183,34 +271,38 @@ export async function handleStripeEvent(event: Stripe.Event) {
           });
           applyNormalizedUserBilling(user, sub, event.id);
         } catch {
-          // Fallback: usa dados do invoice (menos precisos)
+          // Fallback: se for fatura de $0 (subscription_create com trial),
+          // NÃO devemos marcar como "active".
           const period = invoice.lines?.data?.[0]?.period;
-          user.planStatus = "active";
-          user.stripeSubscriptionId = subId ?? user.stripeSubscriptionId ?? null;
-          user.planInterval =
-            coerceInterval(getIntervalFromInvoice(invoice)) ?? user.planInterval;
-          user.planExpiresAt = period?.end
+          const amountPaid = typeof invoice.amount_paid === "number" ? invoice.amount_paid : 0;
+
+          (user as any).planStatus = toDbPlanStatus(amountPaid === 0 ? "trialing" : "active");
+          (user as any).stripeSubscriptionId = subId ?? (user as any).stripeSubscriptionId ?? null;
+          (user as any).planInterval =
+            coerceInterval(getIntervalFromInvoice(invoice)) ?? (user as any).planInterval;
+          (user as any).planExpiresAt = period?.end
             ? new Date(period.end * 1000)
-            : user.planExpiresAt ?? null;
-          user.cancelAtPeriodEnd = false;
-          user.currency = (invoice.currency ?? "brl").toUpperCase();
-          user.lastProcessedEventId = event.id;
+            : (user as any).planExpiresAt ?? null;
+          (user as any).cancelAtPeriodEnd = false;
+          (user as any).currency = (invoice.currency ?? "brl").toUpperCase();
+          (user as any).lastProcessedEventId = event.id;
         }
       } else {
-        // Sem subId (raro): mantém compat a partir do invoice
         const period = invoice.lines?.data?.[0]?.period;
-        user.planStatus = "active";
-        user.planInterval =
-          coerceInterval(getIntervalFromInvoice(invoice)) ?? user.planInterval;
-        user.planExpiresAt = period?.end
+        const amountPaid = typeof invoice.amount_paid === "number" ? invoice.amount_paid : 0;
+
+        (user as any).planStatus = toDbPlanStatus(amountPaid === 0 ? "trialing" : "active");
+        (user as any).planInterval =
+          coerceInterval(getIntervalFromInvoice(invoice)) ?? (user as any).planInterval;
+        (user as any).planExpiresAt = period?.end
           ? new Date(period.end * 1000)
-          : user.planExpiresAt ?? null;
-        user.cancelAtPeriodEnd = false;
-        user.currency = (invoice.currency ?? "brl").toUpperCase();
-        user.lastProcessedEventId = event.id;
+          : (user as any).planExpiresAt ?? null;
+        (user as any).cancelAtPeriodEnd = false;
+        (user as any).currency = (invoice.currency ?? "brl").toUpperCase();
+        (user as any).lastProcessedEventId = event.id;
       }
 
-      // 2) Lógica de afiliados (mantida)
+      // 2) Afiliados — só comissiona se amount_paid > 0
       if ((invoice.amount_paid ?? 0) > 0) {
         const code = (user as any).affiliateUsed || invoice.metadata?.affiliateCode;
         if (code) {
@@ -220,8 +312,9 @@ export async function handleStripeEvent(event: Stripe.Event) {
               invoice.id!,
               String(owner._id)
             );
-            const okSub = subId
-              ? await ensureSubscriptionFirstTime(subId, String(owner._id))
+            const subId2 = getSubscriptionIdFromInvoice(invoice);
+            const okSub = subId2
+              ? await ensureSubscriptionFirstTime(subId2, String(owner._id))
               : true;
 
             if (okInvoice && okSub) {
@@ -232,7 +325,7 @@ export async function handleStripeEvent(event: Stripe.Event) {
                   type: "commission",
                   status: "pending",
                   invoiceId: invoice.id!,
-                  subscriptionId: subId ?? null,
+                  subscriptionId: subId2 ?? null,
                   affiliateUserId: owner._id,
                   buyerUserId: user._id,
                   currency: String(invoice.currency || "brl").toLowerCase(),
@@ -247,7 +340,7 @@ export async function handleStripeEvent(event: Stripe.Event) {
         }
       }
 
-      // 3) Limpa erro de pagamento anterior (se houver) e salva UMA vez
+      // 3) Limpa erro anterior e salva
       (user as any).lastPaymentError = undefined;
       await user.save();
       return;
@@ -275,8 +368,7 @@ export async function handleStripeEvent(event: Stripe.Event) {
         status: "failed",
         statusDetail: pmErr,
       };
-      // Observação: não alteramos planStatus aqui. O status “past_due/incomplete”, se aplicável,
-      // será decidido por customer.subscription.updated.
+      // planStatus será ajustado por customer.subscription.updated
       await user.save();
       return;
     }
@@ -403,12 +495,16 @@ export async function handleStripeEvent(event: Stripe.Event) {
       });
 
       const normalized = normalizeFromSubscription(sub);
-      const prev = (user as any).planStatus as Normalized["planStatus"] | undefined;
+
+      // Converte status anterior do DB ("trial") para "trialing" para a heurística
+      const prevRaw = (user as any).planStatus as string | undefined;
+      const prev = (prevRaw === "trial" ? "trialing" : prevRaw) as
+        | Normalized["planStatus"]
+        | undefined;
 
       let overrideStatus: Normalized["planStatus"] | undefined = undefined;
 
-      // (A) Se o cancelamento está agendado, mostramos como "non_renewing"
-      // quando a assinatura ainda está ativa ou em trial.
+      // (A) Se o cancelamento está agendado, mostramos "non_renewing" enquanto ativa/trial
       const cancelAtPE = (sub as any).cancel_at_period_end === true;
       if (
         cancelAtPE &&
@@ -417,14 +513,12 @@ export async function handleStripeEvent(event: Stripe.Event) {
         overrideStatus = "non_renewing";
       }
 
-      // (B) Heurística anti-downgrade: se Stripe reporta past_due/incomplete,
-      // mas a fatura da troca é recente e o PI está pendente, preserve status "bom".
+      // (B) Heurística anti-downgrade
       if (
         (normalized.planStatus === "past_due" || normalized.planStatus === "incomplete") &&
         isLikelyPlanChangePaymentPending(sub.latest_invoice as any, prev)
       ) {
         if (cancelAtPE) {
-          // Se já está para encerrar no fim do ciclo, prioriza "non_renewing"
           overrideStatus = "non_renewing";
         } else {
           if (prev === "trialing") overrideStatus = "trialing";
@@ -455,7 +549,7 @@ export async function handleStripeEvent(event: Stripe.Event) {
       (user as any).cancelAtPeriodEnd = false;
       (user as any).stripeSubscriptionId = sub.id;
       (user as any).stripePriceId = null;
-      (user as any).planInterval = undefined; // <<< não usar null aqui
+      (user as any).planInterval = undefined; // não usar null aqui
       (user as any).planExpiresAt =
         typeof (sub as any)?.ended_at === "number"
           ? new Date((sub as any).ended_at * 1000)

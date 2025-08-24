@@ -126,6 +126,7 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
   const [applyLoading, setApplyLoading] = useState(false);
 
   const [loading, setLoading] = useState(false);
+  const [trialLoading, setTrialLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [affiliateError, setAffiliateError] = useState<string | null>(null);
 
@@ -304,36 +305,30 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
     }
   }
 
-  const handleApplyAffiliate = async () => {
-    const trimmed = affiliateCode.trim().toUpperCase();
-    if (!trimmed) return;
-    setApplyLoading(true);
-    setAffiliateError(null);
-    setError(null);
+  async function startTrialCheckout() {
     try {
-      const { ok, data } = await fetchPreview(plan, currency, trimmed);
-      if (!ok) {
-        const msg = (data?.message ?? data?.error ?? '').toString().toLowerCase();
-        if (data?.code === 'SELF_REFERRAL') {
-          setAffiliateError('Você não pode usar seu próprio código.');
-        } else if (data?.code === 'INVALID_CODE' || msg.includes('inválido')) {
-          setAffiliateError(data?.message || 'Código inválido ou expirado.');
-          const fb = await fetchPreview(plan, currency, '');
-          const n = normalizePreview(fb.data, currency);
-          setPreview(fb.ok ? n : null);
-        } else {
-          setError(data?.message || data?.error || 'Não foi possível validar o código.');
-        }
-      } else {
-        const n = normalizePreview(data, currency);
-        setPreview(n);
+      setTrialLoading(true);
+      setError(null);
+      const res = await fetch('/api/billing/checkout/trial', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          plan,
+          currency,
+          affiliateCode: affiliateCode || undefined,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.url) {
+        throw new Error(json?.error || 'Não foi possível iniciar o teste.');
       }
-    } catch {
-      setError('Falha de rede. Tente novamente.');
+      window.location.href = json.url as string;
+    } catch (e: any) {
+      setError(e?.message || 'Erro ao iniciar o teste.');
     } finally {
-      setApplyLoading(false);
+      setTrialLoading(false);
     }
-  };
+  }
 
   const hasDiscount = (preview?.discountsTotal ?? 0) > 0;
   const displayCurrency = (preview?.currency ?? currency) as string;
@@ -442,7 +437,7 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
             id="aff"
             value={affiliateCode}
             onChange={(e) => setAffiliateCode(e.target.value.toUpperCase())}
-            onKeyDown={(e) => e.key === 'Enter' && handleApplyAffiliate()}
+            onKeyDown={(e) => e.key === 'Enter' && /* manter apenas aplicar manual se quiser */ null}
             placeholder="Ex: JLS29D"
             maxLength={12}
             aria-invalid={!!affiliateError}
@@ -453,7 +448,9 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
               affiliateError ? 'border-brand-red' : 'border-gray-300'
             )}
           />
-          <button
+          {/* Mantive o botão Aplicar somente se você quiser validar preview com código;
+              ele não é obrigatório para o trial, pois o cupom de afiliado é aplicado server-side */}
+          {/* <button
             type="button"
             onClick={handleApplyAffiliate}
             disabled={applyLoading || !affiliateCode.trim()}
@@ -464,7 +461,7 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
             )}
           >
             {applyLoading ? <Spinner /> : 'Aplicar'}
-          </button>
+          </button> */}
         </div>
 
         <div role="status" aria-live="polite" className="min-h-[1.25rem]">
@@ -473,25 +470,33 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
               {affiliateError}
             </p>
           )}
-          {!affiliateError && hasDiscount && (
-            <p className="mt-1 text-xs text-green-600">✓ Desconto aplicado!</p>
-          )}
         </div>
       </div>
 
       {error && <p className="mb-4 text-sm text-brand-red">{error}</p>}
 
-      <button
-        onClick={handleSubscribe}
-        disabled={loading || isPreviewLoading || !preview || preview.total == null}
-        className="w-full rounded-lg bg-gradient-to-r from-brand-red to-brand-pink px-4 py-3 text-white font-semibold
-                   transition-all duration-300 ease-in-out
-                   hover:shadow-lg hover:shadow-brand-pink/40
-                   focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-pink
-                   disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none"
-      >
-        {loading ? 'Iniciando…' : 'Assinar agora'}
-      </button>
+      <div className="flex flex-col sm:flex-row gap-2">
+        <button
+          onClick={startTrialCheckout}
+          disabled={trialLoading || isPreviewLoading}
+          className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900
+                     hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {trialLoading ? 'Iniciando teste…' : 'Iniciar teste gratuito (7 dias)'}
+        </button>
+
+        <button
+          onClick={handleSubscribe}
+          disabled={loading || isPreviewLoading || !preview || preview.total == null}
+          className="w-full rounded-lg bg-gradient-to-r from-brand-red to-brand-pink px-4 py-3 text-white font-semibold
+                     transition-all duration-300 ease-in-out
+                     hover:shadow-lg hover:shadow-brand-pink/40
+                     focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-pink
+                     disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none"
+        >
+          {loading ? 'Iniciando…' : 'Assinar agora'}
+        </button>
+      </div>
 
       <p className="mt-4 text-center text-xs text-gray-500">
         Pagamento seguro via Stripe. Sem fidelidade — cancele quando quiser.

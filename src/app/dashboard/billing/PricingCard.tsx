@@ -87,6 +87,41 @@ export default function PricingCard({ onSubscriptionCreated, affiliateCode }: Pr
     }
   }
 
+  // NOVO — inicia Checkout do Stripe com 7 dias de teste
+  async function handleStartTrial() {
+    if (!current) return;
+
+    try {
+      setLoading(true);
+      setErrorMsg(null);
+
+      const body: any = {
+        priceId: current.priceId,
+        interval: plan === "annual" ? "year" : "month",
+      };
+      if (affiliateCode?.trim()) {
+        body.affiliateCode = affiliateCode.trim().toUpperCase();
+      }
+
+      const res = await fetch("/api/billing/checkout/trial", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json?.url) {
+        throw new Error(json?.message || json?.error || "Falha ao iniciar teste gratuito.");
+      }
+
+      window.location.href = json.url;
+    } catch (e: any) {
+      setErrorMsg(e?.message || "Erro inesperado.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-xl rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
       <h2 className="mb-2 text-center text-xl font-semibold">Plano Data2Content</h2>
@@ -134,13 +169,23 @@ export default function PricingCard({ onSubscriptionCreated, affiliateCode }: Pr
 
       {errorMsg && <p className="mb-3 text-center text-sm text-red-600">{errorMsg}</p>}
 
-      <button
-        onClick={handleSubscribe}
-        disabled={loading || !current}
-        className="w-full rounded-xl bg-black px-4 py-3 text-white disabled:opacity-50"
-      >
-        {loading ? "Iniciando…" : "Assinar agora"}
-      </button>
+      <div className="grid grid-cols-1 gap-2">
+        <button
+          onClick={handleStartTrial}
+          disabled={loading || !current}
+          className="w-full rounded-xl border border-black px-4 py-3 text-black hover:bg-gray-50 disabled:opacity-50"
+        >
+          {loading ? "Iniciando…" : "Iniciar teste gratuito (7 dias)"}
+        </button>
+
+        <button
+          onClick={handleSubscribe}
+          disabled={loading || !current}
+          className="w-full rounded-xl bg-black px-4 py-3 text-white disabled:opacity-50"
+        >
+          {loading ? "Iniciando…" : "Assinar agora"}
+        </button>
+      </div>
 
       <p className="mt-2 text-center text-xs text-gray-500">
         Pagamento seguro via Stripe. Sem fidelidade — cancele quando quiser.

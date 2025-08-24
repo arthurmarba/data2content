@@ -1,113 +1,166 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
-import { connectToDatabase } from '@/app/lib/mongoose'
-import User from '@/app/models/User'
-import { stripe } from '@/app/lib/stripe'
-import Stripe from 'stripe'
+// src/app/api/billing/subscription/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { connectToDatabase } from "@/app/lib/mongoose";
+import User from "@/app/models/User";
+import { stripe } from "@/app/lib/stripe";
+import Stripe from "stripe";
 
-export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-const cacheHeader = { 'Cache-Control': 'no-store, max-age=0' } as const
+const cacheHeader = { "Cache-Control": "no-store, max-age=0" } as const;
+
+// utilito: garante número (seguro p/ campos do Stripe que podem vir como string)
+function toNumberOrNull(v: unknown): number | null {
+  const n = typeof v === "string" ? Number(v) : (v as number);
+  return Number.isFinite(n) ? (n as number) : null;
+}
 
 export async function GET(_req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json(
-        { error: 'Não autenticado' },
+        { error: "Não autenticado" },
         { status: 401, headers: cacheHeader }
-      )
+      );
     }
 
-    await connectToDatabase()
-    const user = await User.findById(session.user.id)
+    await connectToDatabase();
+    const user = await User.findById(session.user.id);
     if (!user?.stripeSubscriptionId) {
-      // Sem assinatura → 204 para o front renderizar Empty
-      return new NextResponse(null, { status: 204, headers: cacheHeader })
+      return new NextResponse(null, { status: 204, headers: cacheHeader });
     }
 
-    const res = await stripe.subscriptions.retrieve(user.stripeSubscriptionId, {
-      // GARANTIR que price venha completo no Basil
-      expand: ['items.data.price', 'default_payment_method', 'latest_invoice.payment_intent'],
-    })
+    // Inclui fallbacks úteis: price, default PM e PM do PaymentIntent da última fatura
+    const sub = (await stripe.subscriptions.retrieve(user.stripeSubscriptionId, {
+      expand: [
+        "items.data.price",
+        "default_payment_method",
+        "latest_invoice.payment_intent",
+        "latest_invoice.payment_intent.payment_method",
+      ],
+    })) as Stripe.Subscription;
 
-    const sub = res as Stripe.Subscription
-
-    if (sub.status === 'incomplete' || sub.status === 'incomplete_expired') {
+    // Estados de assinatura sem valor para UI → limpar e 204
+    if (sub.status === "incomplete" || sub.status === "incomplete_expired") {
       try {
-        await stripe.subscriptions.cancel(sub.id)
-      } catch {}
-      user.stripeSubscriptionId = undefined
-      user.planStatus = 'inactive'
-      user.stripePriceId = null
-      user.planInterval = undefined
-      user.planExpiresAt = null
-      user.cancelAtPeriodEnd = false
-      await user.save()
-      return new NextResponse(null, { status: 204, headers: cacheHeader })
+        await stripe.subscriptions.cancel(sub.id);
+      } catch {
+        /* noop */
+      }
+      user.stripeSubscriptionId = undefined as any;
+      user.planStatus = "inactive" as any;
+      user.stripePriceId = null;
+      user.planInterval = undefined;
+      user.planExpiresAt = null;
+      user.cancelAtPeriodEnd = false;
+      await user.save();
+      return new NextResponse(null, { status: 204, headers: cacheHeader });
     }
 
-    const items = sub.items?.data ?? []
-    const firstItem = items[0]
-    const price = (firstItem?.price as Stripe.Price | undefined) ?? undefined
+    // ---------- Price / moeda ----------
+    const firstItem = sub.items?.data?.[0];
+    const price = (firstItem?.price as Stripe.Price | undefined) ?? undefined;
 
-    // currency: preferir a do price; cair para a da sub; fallback 'BRL'
-    const currency = (price?.currency ?? (sub as any).currency ?? 'brl')
+    // fallback p/ APIs antigas que ainda expunham plan no root (tipagem via any para não quebrar)
+    const legacyPlan = (sub as any).plan as { amount?: number; currency?: string; nickname?: string } | undefined;
+
+    const unitAmountCents =
+      typeof price?.unit_amount === "number"
+        ? price.unit_amount
+        : typeof legacyPlan?.amount === "number"
+        ? legacyPlan.amount
+        : 0;
+
+    const currency = (price?.currency ?? legacyPlan?.currency ?? (sub as any).currency ?? "brl")
       .toString()
-      .toUpperCase()
+      .toUpperCase();
 
-    // Fim do período:
-    // 1) se houver cancel_at, usar como “expira em” (mais fiel ao UI de cancelamento)
-    // 2) senão, pegar o menor current_period_end entre os itens
-    const cancelAtSec: number | null =
-      typeof (sub as any).cancel_at === 'number' ? (sub as any).cancel_at : null
+    // ---------- Datas de ciclo ----------
+    // cancel_at, se definido (em segundos)
+    const cancelAtSec = toNumberOrNull((sub as any).cancel_at);
 
-    const periodEnds = items
-      .map((it) => (it as any)?.current_period_end)
-      .filter((n): n is number => typeof n === 'number')
+    // current_period_end (preferir do root; se não, min por item como fallback)
+    const subCpeSec = toNumberOrNull((sub as any).current_period_end);
+    const itemsCpeSecs =
+      sub.items?.data
+        ?.map((it: any) => toNumberOrNull(it?.current_period_end))
+        ?.filter((n: number | null): n is number => typeof n === "number") ?? [];
+    const minItemEndSec = itemsCpeSecs.length ? Math.min(...itemsCpeSecs) : null;
 
-    const minItemEndSec = periodEnds.length ? Math.min(...periodEnds) : null
-    const endSec = cancelAtSec ?? minItemEndSec
-    const periodEndIso = endSec ? new Date(endSec * 1000).toISOString() : null
+    const endSec = cancelAtSec ?? subCpeSec ?? minItemEndSec;
+    const periodEndIso = endSec ? new Date(endSec * 1000).toISOString() : null;
 
-    const cancelAtPeriodEnd = Boolean((sub as any).cancel_at_period_end)
+    const cancelAtPeriodEnd = Boolean((sub as any).cancel_at_period_end);
 
-    // default_payment_method pode ser string|obj|null; só usamos se vier expandido (obj)
-    const pm =
-      typeof sub.default_payment_method === 'object'
+    // ---------- Payment method ----------
+    const pmExplicit =
+      typeof sub.default_payment_method === "object"
         ? (sub.default_payment_method as Stripe.PaymentMethod)
-        : null
+        : null;
 
-    const trialEndSec: number | null =
-      typeof (sub as any).trial_end === 'number' ? (sub as any).trial_end : null
-    const trialEndIso = trialEndSec ? new Date(trialEndSec * 1000).toISOString() : null
+    const pi =
+      (typeof (sub as any)?.latest_invoice === "object" &&
+        ((sub as any).latest_invoice.payment_intent as Stripe.PaymentIntent | undefined)) ||
+      undefined;
+
+    const pmFromPI =
+      pi && typeof pi === "object" && typeof pi.payment_method === "object"
+        ? (pi.payment_method as Stripe.PaymentMethod)
+        : null;
+
+    const pm = pmExplicit ?? pmFromPI ?? null;
+
+    // ---------- Trial ----------
+    const trialEndSec = toNumberOrNull((sub as any).trial_end);
+    const trialEndIso = trialEndSec ? new Date(trialEndSec * 1000).toISOString() : null;
+
+    // ---------- Status efetivo ----------
+    const rawStatus = sub.status as string;
+    const inTrialNow = typeof trialEndSec === "number" && trialEndSec * 1000 > Date.now();
+
+    // (1) Força 'trialing' se há trial em andamento, mesmo se Stripe trouxer 'active'
+    let effectiveStatus: "active" | "trialing" | "non_renewing" | typeof rawStatus =
+      inTrialNow ? "trialing" : rawStatus;
+
+    // (2) Se houve agendamento de cancelamento e a sub está ativa/trial → 'non_renewing'
+    if (cancelAtPeriodEnd && (effectiveStatus === "active" || effectiveStatus === "trialing")) {
+      effectiveStatus = "non_renewing";
+    }
+
+    // ---------- Próxima cobrança / fim do ciclo ----------
+    const isTrialing = effectiveStatus === "trialing";
+    const nextDateIso = isTrialing && trialEndIso ? trialEndIso : periodEndIso;
+    const nextAmountCents = isTrialing ? 0 : unitAmountCents || 0;
 
     const body = {
-      planName: price?.nickname || 'Plano',
+      planName: price?.nickname || legacyPlan?.nickname || "Plano",
       currency,
-      nextInvoiceAmountCents: price?.unit_amount ?? 0,
-      nextInvoiceDate: periodEndIso, // compat: antes usava sub.current_period_end
-      currentPeriodEnd: periodEndIso, // idem
-      status: sub.status,
+      nextInvoiceAmountCents: nextAmountCents,
+      nextInvoiceDate: nextDateIso, // trial → fim do trial; senão → fim do período
+      currentPeriodEnd: nextDateIso, // compat com UI
+      status: effectiveStatus,
       cancelAtPeriodEnd,
       paymentMethodLast4: pm?.card?.last4 ?? null,
       defaultPaymentMethodBrand: (pm?.card?.brand as string | undefined) || null,
       trialEnd: trialEndIso,
-    }
+    };
 
-    return NextResponse.json(body, { headers: cacheHeader })
+    return NextResponse.json(body, { headers: cacheHeader });
   } catch (err: unknown) {
-    if (err instanceof Stripe.errors.StripeError) {
+    if (err instanceof (Stripe as any).errors?.StripeError) {
+      const stripeErr = err as Stripe.errors.StripeError;
       return NextResponse.json(
-        { error: err.message },
-        { status: err.statusCode || 500, headers: cacheHeader }
-      )
+        { error: stripeErr.message },
+        { status: stripeErr.statusCode || 500, headers: cacheHeader }
+      );
     }
     return NextResponse.json(
-      { error: 'Não foi possível carregar a assinatura.' },
+      { error: "Não foi possível carregar a assinatura." },
       { status: 500, headers: cacheHeader }
-    )
+    );
   }
 }

@@ -1,7 +1,7 @@
 // src/app/dashboard/settings/DeleteAccountSection.tsx
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -13,43 +13,117 @@ type SessionUser = {
   affiliateBalances?: Record<string, number> | Map<string, number>;
 };
 
+type PlanStatus =
+  | "active"
+  | "trialing"
+  | "past_due"
+  | "incomplete"
+  | "incomplete_expired"
+  | "unpaid"
+  | "canceled"
+  | "inactive"
+  | "non_renewing";
+
+type Interval = "month" | "year" | null;
+
+type BillingStatus = {
+  ok: boolean;
+  planStatus: PlanStatus;
+  planInterval: Interval;
+  planExpiresAt: string | null;
+  cancelAt: string | null;
+  cancelAtPeriodEnd: boolean;
+  hasActiveAccess: boolean;
+  canDeleteAccount: boolean;
+  stripeSubscriptionId: string | null;
+  stripePriceId: string | null;
+  lastPaymentError: any | null;
+} | null;
+
 export default function DeleteAccountSection() {
   const { data: session } = useSession();
   const user = (session?.user as SessionUser) || {};
-  const planStatus = user.planStatus || "";
+
+  // ---------- Novo: carregar status normalizado do backend ----------
+  const [billing, setBilling] = useState<BillingStatus>(null);
+  const [billingLoaded, setBillingLoaded] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/billing/status", {
+          cache: "no-store",
+          credentials: "include",
+        });
+        const data = (await res.json()) as BillingStatus;
+        if (alive && data && (data as any)?.ok) {
+          setBilling(data);
+        }
+      } catch {
+        // silencioso: mantemos fallback na sessão
+      } finally {
+        if (alive) setBillingLoaded(true);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // ---------- Derivações a partir do status preferindo o backend ----------
+  const planStatus: string =
+    (billing?.planStatus as string) ?? (user.planStatus || "");
+
+  const isScheduledForCancellation: boolean =
+    billing?.cancelAtPeriodEnd ?? (user.cancelAtPeriodEnd === true);
+
+  const ACTIVE_LIKE = new Set(["active", "trialing", "past_due", "unpaid"]);
+  const isPlanActiveLike = ACTIVE_LIKE.has(planStatus as any);
+
+  // Bloqueia exclusão quando está ativa (ou trial/past_due/unpaid) e NÃO há cancelamento agendado
+  const isDeletionBlocked = isPlanActiveLike && !isScheduledForCancellation;
+
+  // Fonte única pra “até quando”: preferimos cancelAt do backend; fallback p/ planExpiresAt
+  const effectiveCancelAt: Date | null = useMemo(() => {
+    const iso =
+      billing?.cancelAt ??
+      (isScheduledForCancellation
+        ? (typeof user.planExpiresAt === "string" || user.planExpiresAt instanceof Date
+            ? user.planExpiresAt
+            : null)
+        : null);
+    if (!iso) return null;
+    try {
+      return iso instanceof Date ? iso : new Date(iso);
+    } catch {
+      return null;
+    }
+  }, [billing?.cancelAt, isScheduledForCancellation, user.planExpiresAt]);
+
+  const expiresAtLabel = useMemo(() => {
+    if (!effectiveCancelAt) return null;
+    try {
+      return new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" }).format(
+        effectiveCancelAt
+      );
+    } catch {
+      return effectiveCancelAt.toLocaleDateString?.() ?? String(effectiveCancelAt);
+    }
+  }, [effectiveCancelAt]);
+
+  // ---------- Afiliados ----------
   const affiliateBalancesRaw = user.affiliateBalances || {};
   const affiliateBalances =
     affiliateBalancesRaw instanceof Map
       ? Object.fromEntries(affiliateBalancesRaw as Map<string, number>)
       : (affiliateBalancesRaw as Record<string, number>);
 
-  // --- regras de bloqueio alinhadas com o backend ---
-  const isScheduledForCancellation = user.cancelAtPeriodEnd === true;
-  const ACTIVE_LIKE = new Set(["active", "trialing", "past_due", "unpaid"]);
-  const isPlanActiveLike = ACTIVE_LIKE.has(planStatus);
-  const isDeletionBlocked = isPlanActiveLike && !isScheduledForCancellation;
+  const hasAffiliateBalance = Object.values(affiliateBalances || {}).some(
+    (v) => Number(v) > 0
+  );
 
-  const planExpiresAt: Date | null = useMemo(() => {
-    const v = user.planExpiresAt as any;
-    if (!v) return null;
-    try {
-      return v instanceof Date ? v : new Date(v);
-    } catch {
-      return null;
-    }
-  }, [user.planExpiresAt]);
-
-  const expiresAtLabel = useMemo(() => {
-    if (!planExpiresAt) return null;
-    try {
-      return new Intl.DateTimeFormat("pt-BR", {
-        dateStyle: "long",
-      }).format(planExpiresAt);
-    } catch {
-      return planExpiresAt.toLocaleDateString?.() ?? String(planExpiresAt);
-    }
-  }, [planExpiresAt]);
-
+  // ---------- UI modais ----------
   const [showBlocked, setShowBlocked] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [confirmText, setConfirmText] = useState("");
@@ -110,10 +184,6 @@ export default function DeleteAccountSection() {
       setIsDeleting(false);
     }
   };
-
-  const hasAffiliateBalance = Object.values(affiliateBalances || {}).some(
-    (v) => Number(v) > 0
-  );
 
   return (
     <section id="delete-account" className="space-y-4 pt-4 border-t">
@@ -208,7 +278,7 @@ export default function DeleteAccountSection() {
                 <strong>EXCLUIR</strong> no campo abaixo.
               </p>
 
-              {hasAffiliateBalance && (
+              {Object.keys(affiliateBalances).length > 0 && (
                 <div className="mb-4 text-sm text-yellow-800 bg-yellow-50 p-2 rounded">
                   {Object.entries(affiliateBalances).map(([cur, val]) => (
                     <div key={cur}>
@@ -234,7 +304,7 @@ export default function DeleteAccountSection() {
                   disabled={confirmText !== "EXCLUIR" || isDeleting}
                   onClick={handleDelete}
                 >
-                  {isDeleting ? "Excluindo..." : "Excluir permanentemente"}
+                  {isDeleting ? "Excluindo..." : "Excluir permanently"}
                 </button>
               </div>
             </motion.div>

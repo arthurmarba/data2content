@@ -1,4 +1,3 @@
-// src/app/api/billing/change-plan/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
@@ -35,6 +34,12 @@ function getCurrentPeriodEndSec(sub: any): number | null {
   return itemEnds.length ? Math.min(...itemEnds) : null;
 }
 
+// Helper: está em trial?
+function isTrialStatus(v?: unknown) {
+  const s = String(v ?? "").toLowerCase();
+  return s === "trial" || s === "trialing";
+}
+
 export async function POST(req: Request) {
   try {
     // >>> FIX: cast explícito evita "Property 'user' does not exist on type '{}'"
@@ -61,6 +66,46 @@ export async function POST(req: Request) {
     const sub: any = await stripe.subscriptions.retrieve(user.stripeSubscriptionId as string, {
       expand: ["items.data.price", "schedule"],
     } as any);
+
+    /** ---------------- Guard mínimo: bloquear mudança durante trial ---------------- */
+    const trialEndFromStripe: number | null =
+      typeof sub?.trial_end === "number" ? sub.trial_end : null;
+    const stripeTrialing =
+      sub?.status === "trialing" || (typeof trialEndFromStripe === "number" && trialEndFromStripe * 1000 > Date.now());
+    const dbSaysTrial = isTrialStatus((user as any)?.planStatus);
+
+    if (dbSaysTrial || stripeTrialing) {
+      const trialEndsAtIso =
+        (user as any)?.planExpiresAt
+          ? new Date((user as any).planExpiresAt).toISOString()
+          : trialEndFromStripe
+          ? new Date(trialEndFromStripe * 1000).toISOString()
+          : null;
+
+      return NextResponse.json(
+        {
+          error: "Troca de plano indisponível durante o período de teste.",
+          code: "TRIAL_CHANGE_LOCKED",
+          trialEndsAt: trialEndsAtIso,
+        },
+        { status: 409 }
+      );
+    }
+    /** ------------------------------------------------------------------------------ */
+
+    /** -------- NOVO GUARD: cancelar/encerramento agendado bloqueia mudança ---------- */
+    const cancelAtPeriodEndStripe = Boolean((sub as any)?.cancel_at_period_end);
+    const cancelAtPeriodEndDb = Boolean((user as any)?.cancelAtPeriodEnd);
+    if (cancelAtPeriodEndStripe || cancelAtPeriodEndDb || sub?.status === "canceled") {
+      return NextResponse.json(
+        {
+          error: "Troca de plano indisponível com cancelamento agendado. Reative a assinatura para alterar o plano.",
+          code: "CANCELLED_CHANGE_LOCKED",
+        },
+        { status: 409 }
+      );
+    }
+    /** ------------------------------------------------------------------------------ */
 
     const currentItem = sub.items?.data?.[0];
     if (!currentItem) {

@@ -1,13 +1,12 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useSession, signIn, signOut } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import { useRouter } from "next/navigation";
 import useSWR from 'swr';
 import Image from 'next/image';
-import Link from 'next/link';
 import type { PlanStatus, PlanType } from '@/types/enums';
-import { FaCopy, FaCheckCircle, FaClock, FaTimesCircle, FaTrophy, FaMoneyBillWave, FaCog, FaVideo, FaSpinner, FaExclamationCircle, FaInfoCircle, FaHandshake, FaEnvelope, FaUserCircle } from 'react-icons/fa';
+import { FaCopy, FaCheckCircle, FaClock, FaTimesCircle, FaTrophy, FaMoneyBillWave, FaCog, FaVideo, FaEnvelope, FaUserCircle } from 'react-icons/fa';
 import { motion } from "framer-motion";
 
 // --- Imports dos seus Componentes ---
@@ -20,7 +19,6 @@ import InstagramConnectCard from './InstagramConnectCard';
 import StepIndicator from './StepIndicator';
 import PlanCardPro from '@/components/billing/PlanCardPro';
 import AffiliateCard from '@/components/affiliate/AffiliateCard';
-import AffiliateHistory from '@/components/affiliate/history/AffiliateHistory';
 
 // --- INTERFACES ---
 export interface ExtendedUser {
@@ -38,6 +36,7 @@ export interface ExtendedUser {
   whatsappVerified?: boolean;
   planType?: PlanType;
   stripeAccountDefaultCurrency?: string | null;
+  cancelAtPeriodEnd?: boolean; // usado para rotular expiração/renovação
 }
 
 interface VideoData {
@@ -94,7 +93,6 @@ const AffiliateCardContent: React.FC<{
   const { data: session } = useSession();
   const fetcher = (url: string) => fetch(url).then(r => r.json());
   const { data: connectStatus } = useSWR('/api/affiliate/connect/status', fetcher, { revalidateOnFocus: false });
-  const destCurrency = connectStatus?.defaultCurrency?.toLowerCase();
   const balances: Record<string, number> = (session as any)?.user?.affiliateBalances || {};
   const entries = Object.entries(balances).sort(([a],[b]) => a.localeCompare(b));
   return (
@@ -149,45 +147,6 @@ const AffiliateCardContent: React.FC<{
           </div>
         )}
 
-        {/* <div className="mt-6 pt-4 border-t border-gray-200">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-sm font-semibold text-gray-700">Histórico de Comissões</h3>
-            <a href="/afiliados" className="text-xs text-brand-pink hover:underline font-medium flex items-center gap-1">
-              Saber mais <FaInfoCircle className="w-3 h-3"/>
-            </a>
-          </div>
-          {isLoadingCommissionLog && ( <div className="text-xs text-gray-500 text-center py-4 flex items-center justify-center gap-2"> <FaSpinner className="animate-spin w-4 h-4" /> <span>Carregando histórico...</span> </div> )}
-          {commissionLogError && ( <div className="text-xs text-red-500 text-center py-3 flex items-center justify-center gap-2 bg-red-50 p-2 rounded-md border border-red-200"> <FaExclamationCircle className="w-4 h-4"/> <span>{commissionLogError}</span> </div> )}
-          {!isLoadingCommissionLog && !commissionLogError && commissionLog.length === 0 && ( <p className="text-xs text-gray-500 text-center py-3 italic">Nenhuma comissão recebida ainda.</p> )}
-          {!isLoadingCommissionLog && !commissionLogError && commissionLog.length > 0 && (
-            <div className="max-h-60 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-              {commissionLog.map((logItem, index) => {
-                const amt = logItem.amountCents / 100;
-                const curr = (logItem.currency || 'BRL').toUpperCase();
-                const mismatch = destCurrency && logItem.currency && destCurrency !== logItem.currency.toLowerCase();
-                return (
-                  <div key={logItem.invoiceId || logItem._id || `commission-${index}`} className="p-2.5 bg-gray-50 rounded-lg border border-gray-200/80 text-xs hover:shadow-sm transition-shadow">
-                    <div className="flex justify-between items-start">
-                      <span className="font-medium text-gray-700">{new Date(logItem.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
-                      <div className="flex items-center gap-1">
-                        <span className="font-semibold text-green-600 text-sm">+ {amt.toLocaleString('pt-BR', { style: 'currency', currency: curr })}</span>
-                        {mismatch && (
-                          <span
-                            className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800"
-                            title="Moeda diferente da moeda da sua conta Stripe. O resgate só é possível quando a moeda coincidir."
-                          >!
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <p className="text-gray-600 mt-1 text-[11px] leading-relaxed">{logItem.note}</p>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div> */}
-
         <div className="space-y-1.5 mt-6">
           <div className="flex justify-between text-xs text-gray-500">
             <span>Progresso Rank {(user?.affiliateRank ?? 1) + 1}</span>
@@ -219,7 +178,6 @@ export default function MainDashboard() {
   const router = useRouter();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState<{ type: 'code' | 'link'; success: boolean } | null>(null);
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const swiperRef = useRef<any>(null);
   const [fullAffiliateLink, setFullAffiliateLink] = useState<string | null>(null);
 
@@ -364,7 +322,11 @@ export default function MainDashboard() {
       setTimeout(() => setCopyFeedback(null), 2000);
     });
   }, []);
-  
+
+  // === REGRA DE ACESSO: considera non_renewing como usuário vigente ===
+  const isProLike = (s?: PlanStatus) =>
+    s === "active" || s === "trial" || s === "non_renewing";
+
   if (status === "loading" || (status === "unauthenticated" && router)) {
     return (
       <div className="min-h-screen bg-brand-light p-4 sm:p-6 lg:p-8">
@@ -402,19 +364,30 @@ export default function MainDashboard() {
   }
 
   const planStatus = user.planStatus ?? "inactive";
-  const canAccessFeatures = planStatus === "active" || planStatus === "non_renewing";
-  
+  const cancelAtPeriodEnd = (user as any)?.cancelAtPeriodEnd === true;
+  const canAccessFeatures = isProLike(planStatus);
+
   const getStatusInfo = () => {
     switch (planStatus) {
-      case 'active': return { text: 'Plano Ativo', colorClasses: 'text-green-700 bg-green-100 border-green-300', icon: <FaCheckCircle className="w-4 h-4"/> };
-      case 'non_renewing': return { text: 'Plano Ativo (não-renovável)', colorClasses: 'text-green-700 bg-green-100 border-green-300', icon: <FaCheckCircle className="w-4 h-4"/> };
-      case 'pending': return { text: 'Pagamento Pendente', colorClasses: 'text-yellow-700 bg-yellow-100 border-yellow-300', icon: <FaClock className="w-4 h-4"/> };
-      default: return { text: 'Plano Inativo', colorClasses: 'text-brand-red bg-red-100 border-red-300', icon: <FaTimesCircle className="w-4 h-4"/> };
+      case 'active':
+        return cancelAtPeriodEnd
+          ? { text: 'Plano Ativo (não-renovará)', colorClasses: 'text-green-700 bg-green-100 border-green-300', icon: <FaCheckCircle className="w-4 h-4"/> }
+          : { text: 'Plano Ativo', colorClasses: 'text-green-700 bg-green-100 border-green-300', icon: <FaCheckCircle className="w-4 h-4"/> };
+      case 'non_renewing':
+        return { text: 'Plano Ativo (não-renovará)', colorClasses: 'text-green-700 bg-green-100 border-green-300', icon: <FaCheckCircle className="w-4 h-4"/> };
+      case 'trial':
+        return { text: 'Período de teste', colorClasses: 'text-blue-700 bg-blue-100 border-blue-300', icon: <FaClock className="w-4 h-4" /> };
+      case 'pending':
+        return { text: 'Pagamento Pendente', colorClasses: 'text-yellow-700 bg-yellow-100 border-yellow-300', icon: <FaClock className="w-4 h-4"/> };
+      default:
+        return { text: 'Plano Inativo', colorClasses: 'text-brand-red bg-red-100 border-red-300', icon: <FaTimesCircle className="w-4 h-4"/> };
     }
   };
   const statusInfo = getStatusInfo();
 
-  const showPlan = planStatus !== 'active';
+  // esconder card de upgrade durante trial/ativo/non_renewing
+  const showPlan = !(planStatus === 'active' || planStatus === 'trial' || planStatus === 'non_renewing');
+
   const defaultCurrency = ((user?.stripeAccountDefaultCurrency ?? 'BRL').toUpperCase() === 'USD') ? 'USD' : 'BRL';
   const canRedeem = Object.values((user as any)?.affiliateBalances || {}).some((c: any) => c > 0);
 
@@ -423,31 +396,6 @@ export default function MainDashboard() {
     { id: 'video-oDxBvhy8Gzg', title: 'Vídeo 2', youtubeVideoId: 'oDxBvhy8Gzg' },
     { id: 'video-CIGa71QiHyo', title: 'Vídeo 3', youtubeVideoId: 'CIGa71QiHyo' },
   ];
-
-  const scrollToVideoGuide = (videoId: string) => {
-    const guideSection = document.getElementById('video-guides-section');
-    if (guideSection) {
-      guideSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      if (swiperRef.current && (swiperRef.current as any).slides) { 
-        const slideIndex = videoGuidesData.findIndex(video => video.id === videoId);
-        if (slideIndex !== -1) {
-          setTimeout(() => {
-            if (swiperRef.current && typeof (swiperRef.current as any).slideTo === 'function') {
-              (swiperRef.current as any).slideTo(slideIndex);
-            } else {
-              console.warn("Swiper API `slideTo` não encontrada na referência.");
-            }
-          }, 300);
-        } else {
-          console.warn(`Vídeo com ID "${videoId}" não encontrado nos dados.`);
-        }
-      } else {
-        console.warn("Referência do Swiper (swiperRef.current) ou swiperRef.current.slides não encontrada.");
-      }
-    } else {
-      console.warn("Seção #video-guides-section não encontrada para scroll.");
-    }
-  };
 
   const affiliateCardProps = {
     user,
@@ -462,6 +410,20 @@ export default function MainDashboard() {
     canRedeem,
   };
 
+  // Texto de expiração/renovação com data em UTC para evitar “-1 dia”
+  const expiryText = (() => {
+    if (!isProLike(planStatus) || !user?.planExpiresAt) return null;
+    const label =
+      planStatus === 'trial'
+        ? 'Pagamento em '
+        : (cancelAtPeriodEnd || planStatus === 'non_renewing' ? 'Expira em ' : 'Renova em ');
+    const dt = new Date(user.planExpiresAt);
+    const formatted = isNaN(dt.getTime())
+      ? null
+      : dt.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+    return formatted ? `${label}${formatted}` : null;
+  })();
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 lg:gap-12">
       {/* --- COLUNA PRINCIPAL (ESQUERDA) --- */}
@@ -474,20 +436,33 @@ export default function MainDashboard() {
             <div className="flex-grow text-center sm:text-left">
               <h1 className="text-2xl sm:text-3xl font-semibold text-brand-dark mb-2">Bem-vindo(a), {user?.name ?? 'Usuário'}!</h1>
               <p className="text-base text-gray-600 font-light mb-4">Pronto para otimizar sua carreira de criador?</p>
+
+              {/* StepIndicator aparece só quando NÃO há acesso (trial/active/non_renewing não mostram) */}
               {!canAccessFeatures && (
                 <StepIndicator
-                  planActive={planStatus === 'pending'}
+                  planActive={false}
                   instagramConnected={!!user.isInstagramConnected}
                   whatsappConnected={!!user.whatsappVerified}
                 />
               )}
+
               {agencyName && !canAccessFeatures && (
                 <p className="mt-1 text-green-700 bg-green-50 border border-green-200 inline-block px-3 py-1 rounded text-sm">
                   Convite da agência {agencyName} ativo! Desconto aplicado.
                 </p>
               )}
+
               <div className="flex items-center flex-wrap gap-2 justify-center sm:justify-start">
-                <div className={`inline-flex items-center gap-2 text-sm mb-1 px-4 py-1.5 rounded-full border ${statusInfo.colorClasses}`}> {statusInfo.icon} <span className="font-semibold">{statusInfo.text}</span> {planStatus === 'active' && user?.planExpiresAt && ( <span className="hidden md:inline text-xs opacity-80 ml-2">(Expira em {new Date(user.planExpiresAt).toLocaleDateString("pt-BR")})</span> )} </div>
+                <div className={`inline-flex items-center gap-2 text-sm mb-1 px-4 py-1.5 rounded-full border ${statusInfo.colorClasses}`}>
+                  {statusInfo.icon}
+                  <span className="font-semibold">{statusInfo.text}</span>
+                  {expiryText && (
+                    <span className="hidden md:inline text-xs opacity-80 ml-2">
+                      ({expiryText})
+                    </span>
+                  )}
+                </div>
+
                 {!canAccessFeatures && (
                   <button
                     onClick={scrollToPlanCard}
@@ -541,41 +516,21 @@ export default function MainDashboard() {
             </div>
           ) : (
             <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={0.8}>
-              <AffiliateCardContent {...affiliateCardProps} />
+              <AffiliateCardContent
+                user={user}
+                affiliateCode={affiliateCode}
+                fullAffiliateLink={fullAffiliateLink}
+                commissionLog={commissionLog}
+                isLoadingCommissionLog={isLoadingCommissionLog}
+                commissionLogError={commissionLogError}
+                copyFeedback={copyFeedback}
+                handleCopyToClipboard={handleCopyToClipboard}
+                setShowPaymentModal={setShowPaymentModal}
+                canRedeem={canRedeem}
+              />
             </motion.section>
           )}
         </div>
-
-        {/* <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={1}>
-          <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Suas Métricas</h2>
-          <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
-            <UploadMetrics
-              canAccessFeatures={canAccessFeatures}
-              userId={userId}
-              onNeedHelp={() => scrollToVideoGuide('upload-metrics-guide')}
-              onActionRedirect={scrollToPlanCard}
-              showToast={showToastMessage}
-            />
-          </div>
-        </motion.section> */}
-
-        {/* <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={1.2}>
-          <h2 className="text-xl font-semibold text-brand-dark mb-5 ml-1">Suas Parcerias</h2>
-          <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
-            <AdDealForm
-              userId={userId}
-              canAccessFeatures={canAccessFeatures}
-              onActionRedirect={scrollToPlanCard}
-              showToast={showToastMessage}
-            />
-          </div>
-        </motion.section> */}
-
-        {/* {process.env.NEXT_PUBLIC_AFFILIATES_V2 === 'on' && (
-          <section className="mt-6">
-            <AffiliateHistory />
-          </section>
-        )} */}
       </div>
 
       {/* --- COLUNA DA DIREITA (SIDEBAR) --- */}
@@ -586,7 +541,18 @@ export default function MainDashboard() {
           </section>
         ) : (
           <motion.section variants={cardVariants} initial="hidden" animate="visible" custom={0.5}>
-            <AffiliateCardContent {...affiliateCardProps} />
+            <AffiliateCardContent
+              user={user}
+              affiliateCode={affiliateCode}
+              fullAffiliateLink={fullAffiliateLink}
+              commissionLog={commissionLog}
+              isLoadingCommissionLog={isLoadingCommissionLog}
+              commissionLogError={commissionLogError}
+              copyFeedback={copyFeedback}
+              handleCopyToClipboard={handleCopyToClipboard}
+              setShowPaymentModal={setShowPaymentModal}
+              canRedeem={canRedeem}
+            />
           </motion.section>
         )}
 

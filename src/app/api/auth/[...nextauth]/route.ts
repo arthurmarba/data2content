@@ -1,8 +1,8 @@
-// VERSÃO: v2.2.7 (FIXED HARD-ID)
-// - Garante subject/id válido no encode (nunca string vazia)
-// - customDecode recupera id de sub e invalida token quebrado
-// - jwt callback reforça fallback (sub->id, email->DB) e invalida se persistir sem id
-// - Mantém alterações da v2.2.6 (Stripe IDs, normalizações, logs)
+// VERSÃO: v2.3.0
+// - Normaliza planStatus: trialing -> trial, non_renewing -> active
+// - Se planStatus original for 'non_renewing', força cancelAtPeriodEnd = true
+// - Session revalida usando status normalizado (evita reintroduzir valores crus do DB)
+// - Mantém hard-id no JWT, custom encode/decode e refresh quando 'inactive' mas com sinais de assinatura
 
 import NextAuth from "next-auth";
 import type {
@@ -186,6 +186,21 @@ const DEFAULT_TERMS_VERSION = "1.0_community_included";
 const FACEBOOK_LINK_COOKIE_NAME = "auth-link-token";
 const MAX_TOKEN_AGE_BEFORE_REFRESH_MINUTES = 60; // 1 hour
 
+// Helpers de normalização de plano
+function isNonRenewing(v: unknown): boolean {
+  const s = String(v ?? "").toLowerCase().trim();
+  return s === "non_renewing" || s === "non-renewing" || s === "nonrenewing";
+}
+
+// Normaliza valores legados de plano
+function normalizePlanStatusValue(v: unknown): string | null {
+  if (!v) return null;
+  const s = String(v).toLowerCase().trim();
+  if (s === "trialing" || s === "trial") return "trial";
+  if (isNonRenewing(s)) return "active"; // acesso liberado até o fim do ciclo
+  return s;
+}
+
 function normalizeBalances(input: unknown): Record<string, number> {
   if (!input) return {};
   try {
@@ -205,7 +220,7 @@ function ensureStringId(v: unknown): string | null {
 }
 
 async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise<string> {
-  const TAG_ENCODE = "[NextAuth customEncode v2.2.7]";
+  const TAG_ENCODE = "[NextAuth customEncode v2.3.0]";
   if (!secret) throw new Error("NEXTAUTH_SECRET ausente em customEncode");
   const secretString = typeof secret === "string" ? secret : String(secret);
   const expirationTime = Math.floor(Date.now() / 1000) + (maxAge ?? 30 * 24 * 60 * 60);
@@ -256,7 +271,7 @@ async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise
 }
 
 async function customDecode({ token, secret }: JWTDecodeParams): Promise<JWT | null> {
-  const TAG_DECODE = "[NextAuth customDecode v2.2.7]";
+  const TAG_DECODE = "[NextAuth customDecode v2.3.0]";
   if (!token || !secret) {
     logger.error(`${TAG_DECODE} Token ou secret não fornecidos.`);
     return null;
@@ -377,7 +392,7 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async signIn({ user: authUserFromProvider, account }) {
-      const TAG_SIGNIN = "[NextAuth signIn v2.2.7]";
+      const TAG_SIGNIN = "[NextAuth signIn v2.3.0]";
       logger.debug(`${TAG_SIGNIN} Iniciado`, {
         providerAccountIdReceived: authUserFromProvider.id,
         provider: account?.provider,
@@ -598,7 +613,7 @@ export const authOptions: NextAuthOptions = {
     },
 
     async jwt({ token, user: userFromSignIn, trigger }) {
-      const TAG_JWT = "[NextAuth JWT v2.2.7]";
+      const TAG_JWT = "[NextAuth JWT v2.3.0]";
       logger.debug(
         `${TAG_JWT} Iniciado. Trigger: ${trigger}. UserID(signIn): ${userFromSignIn?.id}. TokenInID: ${token?.id}. Token.planStatus(in): ${token.planStatus}, Token.affiliateCode(in): ${token.affiliateCode}`
       );
@@ -631,11 +646,14 @@ export const authOptions: NextAuthOptions = {
         token.instagramAccessToken = (userFromSignIn as NextAuthUserArg).instagramAccessToken;
 
         // Billing
-        token.planStatus = (userFromSignIn as NextAuthUserArg).planStatus;
+        const rawStatus = (userFromSignIn as NextAuthUserArg).planStatus;
+        token.planStatus = normalizePlanStatusValue(rawStatus);
         token.planType = (userFromSignIn as NextAuthUserArg).planType;
         token.planInterval = (userFromSignIn as NextAuthUserArg).planInterval;
         token.planExpiresAt = (userFromSignIn as NextAuthUserArg).planExpiresAt;
-        (token as any).cancelAtPeriodEnd = (userFromSignIn as NextAuthUserArg).cancelAtPeriodEnd;
+        (token as any).cancelAtPeriodEnd =
+          (userFromSignIn as NextAuthUserArg).cancelAtPeriodEnd ??
+          (isNonRenewing(rawStatus) ? true : null);
 
         // Stripe IDs
         (token as any).stripeCustomerId = (userFromSignIn as any).stripeCustomerId ?? null;
@@ -700,8 +718,14 @@ export const authOptions: NextAuthOptions = {
       }
 
       if (token.id && Types.ObjectId.isValid(token.id)) {
+        // NEW: se o token diz "inactive" mas há sinais de assinatura/expiração/cancelamento, forçamos refresh imediato
+        const inactiveButHasSignals =
+          normalizePlanStatusValue(token.planStatus) === "inactive" &&
+          ((token as any).stripeSubscriptionId || token.planExpiresAt || (token as any).cancelAtPeriodEnd);
+
         let needsDbRefresh =
           trigger === "update" ||
+          inactiveButHasSignals || // <- PATCH principal
           !token.role ||
           typeof token.planStatus === "undefined" ||
           typeof token.planType === "undefined" ||
@@ -724,7 +748,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         if (needsDbRefresh) {
-          logger.debug(`${TAG_JWT} Trigger '${trigger}' ou refresh periódico/dados ausentes. Buscando dados frescos do DB para token ID: ${token.id}`);
+          logger.debug(`${TAG_JWT} Trigger '${trigger}' ou refresh necessário. Buscando dados frescos do DB para token ID: ${token.id}`);
           try {
             await connectToDatabase();
             const dbUser = await DbUser.findById(token.id)
@@ -740,6 +764,8 @@ export const authOptions: NextAuthOptions = {
               .lean<IUser>();
 
             if (dbUser) {
+              const rawDbPlanStatus = dbUser.planStatus;
+
               token.name = dbUser.name ?? token.name;
               token.email = dbUser.email ?? token.email;
               token.image = dbUser.image ?? token.image;
@@ -764,11 +790,17 @@ export const authOptions: NextAuthOptions = {
               token.instagramAccessToken = dbUser.instagramAccessToken ?? token.instagramAccessToken ?? null;
 
               // Billing
-              token.planStatus = dbUser.planStatus ?? token.planStatus ?? "inactive";
+              token.planStatus =
+                normalizePlanStatusValue(rawDbPlanStatus) ??
+                normalizePlanStatusValue(token.planStatus) ??
+                "inactive";
               token.planType = dbUser.planType ?? token.planType ?? null;
               token.planInterval = dbUser.planInterval ?? token.planInterval ?? null;
               token.planExpiresAt = dbUser.planExpiresAt ?? token.planExpiresAt ?? null;
-              (token as any).cancelAtPeriodEnd = (dbUser as any).cancelAtPeriodEnd ?? (token as any).cancelAtPeriodEnd ?? null;
+              (token as any).cancelAtPeriodEnd =
+                (dbUser as any).cancelAtPeriodEnd ??
+                (token as any).cancelAtPeriodEnd ??
+                (isNonRenewing(rawDbPlanStatus) ? true : null);
 
               // Stripe IDs
               (token as any).stripeCustomerId = dbUser.stripeCustomerId ?? (token as any).stripeCustomerId ?? null;
@@ -829,7 +861,7 @@ export const authOptions: NextAuthOptions = {
     },
 
     async session({ session, token }) {
-      const TAG_SESSION = "[NextAuth Session v2.2.7]";
+      const TAG_SESSION = "[NextAuth Session v2.3.0]";
       logger.debug(`${TAG_SESSION} Iniciado. Token ID: ${token?.id}, Token.Provider: ${token?.provider}, Token.planStatus: ${token?.planStatus}`);
 
       if (!token?.id || !Types.ObjectId.isValid(token.id)) {
@@ -860,7 +892,7 @@ export const authOptions: NextAuthOptions = {
         session.user.lastInstagramSyncSuccess = token.lastInstagramSyncSuccess;
 
         // Billing
-        session.user.planStatus = token.planStatus ?? "inactive";
+        session.user.planStatus = normalizePlanStatusValue(token.planStatus) ?? "inactive";
         session.user.planType = token.planType ?? null;
         session.user.planInterval = token.planInterval ?? null;
         session.user.planExpiresAt = token.planExpiresAt ? new Date(token.planExpiresAt).toISOString() : null;
@@ -915,7 +947,8 @@ export const authOptions: NextAuthOptions = {
 
         if (dbUserCheck && session.user) {
           logger.info(`${TAG_SESSION} Revalidando sessão com dados do DB para User ID: ${token.id}. DB planStatus: ${dbUserCheck.planStatus}.`);
-          session.user.planStatus = dbUserCheck.planStatus ?? session.user.planStatus ?? "inactive";
+          // ⚠️ Usar status normalizado para não reintroduzir 'trialing' ou 'non_renewing'
+          session.user.planStatus = normalizePlanStatusValue(dbUserCheck.planStatus) ?? session.user.planStatus ?? "inactive";
           session.user.planType = dbUserCheck.planType ?? session.user.planType ?? null;
           session.user.planInterval = dbUserCheck.planInterval ?? session.user.planInterval ?? null;
 
@@ -923,7 +956,9 @@ export const authOptions: NextAuthOptions = {
           else if (dbUserCheck.planExpiresAt === null) session.user.planExpiresAt = null;
 
           session.user.cancelAtPeriodEnd =
-            typeof dbUserCheck.cancelAtPeriodEnd === "boolean" ? dbUserCheck.cancelAtPeriodEnd : session.user.cancelAtPeriodEnd ?? false;
+            typeof dbUserCheck.cancelAtPeriodEnd === "boolean"
+              ? dbUserCheck.cancelAtPeriodEnd
+              : (session.user.cancelAtPeriodEnd ?? false) || isNonRenewing(dbUserCheck.planStatus);
 
           // Stripe IDs
           session.user.stripeCustomerId = (dbUserCheck as any).stripeCustomerId ?? session.user.stripeCustomerId ?? null;

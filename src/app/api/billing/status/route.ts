@@ -21,6 +21,13 @@ type PlanStatus =
   | "inactive"
   | "non_renewing";
 
+// Normaliza valores legados vindos do DB (ex.: "trial" -> "trialing")
+function normalizePlanStatusValue(v: unknown): PlanStatus | null {
+  if (!v) return null;
+  const s = String(v).toLowerCase();
+  return (s === "trial" ? "trialing" : s) as PlanStatus;
+}
+
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
@@ -40,12 +47,12 @@ export async function GET() {
       );
     }
 
-    // Status bruto salvo no DB (real do Stripe)
-    const raw: Exclude<PlanStatus, "non_renewing"> | undefined = (user as any).planStatus;
+    // Status bruto salvo no DB (real do Stripe) + normalização
+    const rawDb = normalizePlanStatusValue((user as any).planStatus);
     const cancelAtPeriodEnd = Boolean((user as any).cancelAtPeriodEnd);
 
     // Para a UI: quando há cancelamento agendado, mostramos "non_renewing"
-    const uiStatus: PlanStatus = cancelAtPeriodEnd ? "non_renewing" : (raw ?? "inactive");
+    const uiStatus: PlanStatus = cancelAtPeriodEnd ? "non_renewing" : (rawDb ?? "inactive");
 
     const expiresAt = (user as any).planExpiresAt ?? null;
 
@@ -84,7 +91,7 @@ export async function GET() {
     return NextResponse.json(
       {
         ok: true,
-        planStatus: uiStatus,                     // <- status para UI
+        planStatus: uiStatus, // <- status para UI
         planInterval: interval,
         planExpiresAt: expiresAt,
         cancelAt,

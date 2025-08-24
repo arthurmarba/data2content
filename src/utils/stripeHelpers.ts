@@ -8,6 +8,10 @@ import User, { type IUser } from "@/app/models/User";
  * para um determinado customer. Não toca em assinaturas ativas.
  *
  * Retorna listas de IDs cancelados e pulados (skipped).
+ *
+ * Compat Basil:
+ * - O expand abaixo continua válido; não dependemos dele para a lógica,
+ *   mas é seguro mantê-lo.
  */
 export async function cancelBlockingIncompleteSubs(
   customerId: string
@@ -17,7 +21,6 @@ export async function cancelBlockingIncompleteSubs(
   let startingAfter: string | undefined = undefined;
 
   do {
-    // ✅ Tipagem explícita evita "implicit any" e problemas de auto-referência
     const page: Stripe.ApiList<Stripe.Subscription> =
       await stripe.subscriptions.list({
         customer: customerId,
@@ -40,7 +43,6 @@ export async function cancelBlockingIncompleteSubs(
       }
     }
 
-    // Evita usar .at(-1); mantém compatibilidade com targets/lib mais antigos
     const last = page.data.length ? page.data[page.data.length - 1] : undefined;
     startingAfter = page.has_more && last ? last.id : undefined;
   } while (startingAfter);
@@ -52,6 +54,9 @@ export async function cancelBlockingIncompleteSubs(
  * Retorna o `stripeCustomerId` do usuário ou cria um novo cliente no Stripe.
  * A criação usa uma idempotency key baseada no `_id` do usuário para evitar
  * múltiplos clientes em chamadas simultâneas.
+ *
+ * Compat Basil:
+ * - Campos básicos (email/name/metadata) sem mudanças.
  */
 export async function getOrCreateStripeCustomerId(
   userOrId: IUser | string
@@ -61,10 +66,13 @@ export async function getOrCreateStripeCustomerId(
   if (!user) throw new Error("Usuário não encontrado");
   if (user.stripeCustomerId) return user.stripeCustomerId;
 
+  const email = (user.email || "").toLowerCase().trim();
+  const name = (user.name || "").trim() || undefined;
+
   const customer = await stripe.customers.create(
     {
-      email: user.email,
-      name: user.name || undefined,
+      email: email || undefined,
+      name,
       metadata: { userId: String(user._id) },
     },
     { idempotencyKey: `user-${String(user._id)}-customer` }

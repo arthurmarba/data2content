@@ -1,4 +1,3 @@
-// src/app/dashboard/billing/ChangePlanCard.tsx
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
@@ -129,15 +128,31 @@ export default function ChangePlanCard() {
     currentPlan === "annual" ? "Anual" : currentPlan === "monthly" ? "Mensal" : "—";
   const newPlanText = newPlan === "annual" ? "Anual" : "Mensal";
 
-  // Há assinatura para permitir mudança?
+  // Há assinatura para permitir mudança? (mostramos o card mesmo non_renewing, mas travamos ações)
   const hasSubscription =
     !!status?.stripeSubscriptionId &&
     ["active", "trialing", "non_renewing", "past_due", "unpaid"].includes(
       (status?.planStatus || "inactive") as PlanStatus
     );
 
+  // Locks de UI
+  const trialLock = status?.planStatus === "trialing";
+  const cancelLock =
+    status?.planStatus === "non_renewing" || status?.cancelAtPeriodEnd === true || status?.planStatus === "canceled";
+
+  const trialEndsLabel =
+    status?.planExpiresAt
+      ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" }).format(new Date(status.planExpiresAt))
+      : null;
+
   const disabled =
-    loading || isPreviewing || !hasSubscription || !currentPlan || currentPlan === newPlan;
+    trialLock ||
+    cancelLock ||
+    loading ||
+    isPreviewing ||
+    !hasSubscription ||
+    !currentPlan ||
+    currentPlan === newPlan;
 
   // Badge de status (informativo)
   const StatusBadge = () => {
@@ -167,7 +182,39 @@ export default function ChangePlanCard() {
   };
 
   /* ---------------- ações ---------------- */
+  function showTrialLockedToast() {
+    toast({
+      variant: "warning",
+      title: "Indisponível durante o teste",
+      description: trialEndsLabel
+        ? `Você poderá trocar de plano após ${trialEndsLabel}.`
+        : "Você poderá trocar de plano após o fim do período de teste.",
+    });
+  }
+
+  function showCancelLockedToast() {
+    const endLabel =
+      status?.cancelAt
+        ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" }).format(new Date(status.cancelAt))
+        : null;
+    toast({
+      variant: "warning",
+      title: "Assinatura com cancelamento agendado",
+      description: endLabel
+        ? `Para alterar o plano, reative a assinatura. Seu acesso atual segue até ${endLabel}.`
+        : "Para alterar o plano, reative a assinatura.",
+    });
+  }
+
   async function handleSubmit() {
+    if (trialLock) {
+      showTrialLockedToast();
+      return;
+    }
+    if (cancelLock) {
+      showCancelLockedToast();
+      return;
+    }
     try {
       setLoading(true);
       setErr(null);
@@ -183,13 +230,21 @@ export default function ChangePlanCard() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Falha ao mudar de plano");
+      if (!res.ok) {
+        if (res.status === 409 && (data?.code === "TRIAL_CHANGE_LOCKED" || data?.code === "CANCELLED_CHANGE_LOCKED")) {
+          if (data.code === "TRIAL_CHANGE_LOCKED") showTrialLockedToast();
+          else showCancelLockedToast();
+        } else {
+          throw new Error(data?.error || "Falha ao mudar de plano");
+        }
+        return;
+      }
 
       if (when === "period_end") {
         setOkMsg("Plano agendado para trocar no fim do ciclo atual.");
         toast({ variant: "success", title: "Mudança agendada" });
         await update();
-        await refetchAndApply(); // <- atualiza o rótulo “Plano atual”
+        await refetchAndApply();
         return;
       }
 
@@ -202,7 +257,7 @@ export default function ChangePlanCard() {
       setOkMsg("Seu plano foi alterado com sucesso.");
       toast({ variant: "success", title: "Plano atualizado" });
       await update();
-      await refetchAndApply(); // <- atualiza o rótulo “Plano atual”
+      await refetchAndApply();
     } catch (e: any) {
       const msg = e?.message || "Erro inesperado";
       setErr(msg);
@@ -218,6 +273,14 @@ export default function ChangePlanCard() {
 
   // Pré-visualiza cobrança e pede confirmação (só para when="now")
   async function handlePreviewAndConfirm() {
+    if (trialLock) {
+      showTrialLockedToast();
+      return;
+    }
+    if (cancelLock) {
+      showCancelLockedToast();
+      return;
+    }
     if (when === "period_end") {
       return handleSubmit();
     }
@@ -229,8 +292,16 @@ export default function ChangePlanCard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ toPlan: newPlan }),
       });
-      const data = (await res.json()) as PreviewData & { error?: string };
-      if (!res.ok) throw new Error(data.error || "Falha ao pré-visualizar cobrança.");
+      const data = (await res.json()) as PreviewData & { error?: string; code?: string };
+      if (!res.ok) {
+        if (res.status === 409 && (data?.code === "TRIAL_CHANGE_LOCKED" || data?.code === "CANCELLED_CHANGE_LOCKED")) {
+          if (data.code === "TRIAL_CHANGE_LOCKED") showTrialLockedToast();
+          else showCancelLockedToast();
+        } else {
+          throw new Error(data.error || "Falha ao pré-visualizar cobrança.");
+        }
+        return;
+      }
 
       setPreviewData(data);
       setIsConfirmModalOpen(true);
@@ -253,6 +324,28 @@ export default function ChangePlanCard() {
         <StatusBadge />
       </div>
 
+      {trialLock && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <strong>Troca indisponível durante o período de teste.</strong>{" "}
+          {trialEndsLabel
+            ? <>Você poderá trocar de plano após <span className="font-medium">{trialEndsLabel}</span>.</>
+            : "Você poderá trocar de plano após o fim do período de teste."}
+        </div>
+      )}
+
+      {cancelLock && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <strong>Assinatura com cancelamento agendado.</strong>{" "}
+          {status?.cancelAt
+            ? <>Para alterar o plano, reative a assinatura. Seu acesso atual segue até{" "}
+                <span className="font-medium">
+                  {new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" }).format(new Date(status.cancelAt))}
+                </span>.
+              </>
+            : "Para alterar o plano, reative a assinatura."}
+        </div>
+      )}
+
       <div className="text-sm text-gray-600">
         Plano atual: <strong>{currentPlanText}</strong>
       </div>
@@ -264,14 +357,14 @@ export default function ChangePlanCard() {
             <button
               onClick={() => setNewPlan("monthly")}
               className={`px-3 py-2 rounded border ${newPlan === "monthly" ? "bg-gray-100" : ""}`}
-              disabled={loading || isPreviewing}
+              disabled={loading || isPreviewing || trialLock || cancelLock}
             >
               Mensal
             </button>
             <button
               onClick={() => setNewPlan("annual")}
               className={`px-3 py-2 rounded border ${newPlan === "annual" ? "bg-gray-100" : ""}`}
-              disabled={loading || isPreviewing}
+              disabled={loading || isPreviewing || trialLock || cancelLock}
             >
               Anual
             </button>
@@ -292,18 +385,19 @@ export default function ChangePlanCard() {
                   value="now"
                   checked={when === "now"}
                   onChange={() => setWhen("now")}
-                  disabled={loading || isPreviewing}
+                  disabled={loading || isPreviewing || trialLock || cancelLock}
                 />
                 <span>Agora (com ajuste de valor imediato)</span>
               </label>
-              {/* <label className="flex items-center gap-2 border rounded px-3 py-2 cursor-pointer">
+              {/* Se quiser reativar agendamento no fim do ciclo, remova os comentários
+              <label className="flex items-center gap-2 border rounded px-3 py-2 cursor-pointer">
                 <input
                   type="radio"
                   name="when"
                   value="period_end"
                   checked={when === "period_end"}
                   onChange={() => setWhen("period_end")}
-                  disabled={loading || isPreviewing}
+                  disabled={loading || isPreviewing || trialLock || cancelLock}
                 />
                 <span>No fim do ciclo atual (sem cobrança agora)</span>
               </label> */}
@@ -411,7 +505,7 @@ export default function ChangePlanCard() {
                       description: "Seu plano foi atualizado.",
                     });
                     await update();
-                    await refetchAndApply(); // <- atualiza o rótulo “Plano atual”
+                    await refetchAndApply();
                   }
                 }}
                 onCancel={() => {
