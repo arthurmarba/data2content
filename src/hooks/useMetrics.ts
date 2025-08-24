@@ -59,6 +59,7 @@ export function useMetrics(): UseMetricsReturn {
     try {
       const res = await fetch(`/api/metrics?userId=${session.user.id}`, {
         credentials: "include", // Envia cookie de sessão
+        cache: "no-store",
       });
       const data: MetricsResponse = await res.json();
 
@@ -83,6 +84,7 @@ export function useMetrics(): UseMetricsReturn {
         headers: { "Content-Type": "application/json" },
         credentials: "include", // Envia cookie de sessão
         body: JSON.stringify(payload),
+        cache: "no-store",
       });
       const data: CreateMetricResponse = await res.json();
 
