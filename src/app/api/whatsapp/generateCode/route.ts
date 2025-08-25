@@ -10,9 +10,8 @@ import User from "@/app/models/User";
 export const runtime = "nodejs";
 
 // === Config ===
-// Janela de validade do código (em ms). Mesmo que o schema ainda não tenha o campo
-// de expiresAt, manter aqui torna o endpoint idempotente e pronto para o ciclo 2 (schema).
-const CODE_TTL_MS = 60 * 60 * 1000; // 60 minutos
+// ALTERADO: A validade do código foi aumentada para 24 horas.
+const CODE_TTL_MS = 24 * 60 * 60 * 1000; // 24 horas
 
 /** Gera um código de verificação aleatório com 6 caracteres maiúsculos. */
 function generateVerificationCode(): string {
@@ -63,8 +62,6 @@ async function getUserIdFromRequest(request: NextRequest): Promise<string | null
 }
 
 export async function POST(request: NextRequest) {
-  // Bloqueia quem não tem plano ativo (active | non_renewing | trial).
-  // IMPORTANTE: garantir no planGuard.ts que 'trial' está incluído como ativo.
   const guardResponse = await guardPremiumRequest(request);
   if (guardResponse) return guardResponse;
 
@@ -87,11 +84,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2) DB
     await connectToDatabase();
     console.log("[whatsapp/generateCode] DB connected. dbName =", mongoose.connection.name);
 
-    // 3) Busca o usuário e avalia estado atual (evita filtros que podem falhar silenciosamente)
     const current = await User.findById(userId).select(
       "_id whatsappVerificationCode whatsappVerificationCodeExpiresAt whatsappPhone whatsappVerified"
     );
@@ -114,7 +109,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4) Se há código pendente e ainda válido, reutiliza (idempotente)
     const now = Date.now();
     const expiresAt = current as any;
     const hasValidExisting =
@@ -135,17 +129,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 5) Gerar SEMPRE e SALVAR SEMPRE (garantindo persistência)
     const freshCode = generateVerificationCode();
     const freshExpiresAt = new Date(now + CODE_TTL_MS);
 
-    // Preferimos set direto no doc + save() para garantir persistência do valor.
-    // Mesmo que o schema ainda não tenha o campo 'whatsappVerificationCodeExpiresAt',
-    // o mais importante (o código) será persistido.
     (current as any).whatsappVerificationCode = freshCode;
     (current as any).whatsappVerificationCodeExpiresAt = freshExpiresAt;
 
-    await current.save(); // <-- Persistência garantida
+    await current.save();
 
     console.log(
       `[whatsapp/generateCode] New code generated -> user=${userId}, code=${freshCode}, expiresAt=${freshExpiresAt.toISOString()}`

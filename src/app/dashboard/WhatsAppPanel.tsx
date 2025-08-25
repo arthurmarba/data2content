@@ -26,7 +26,6 @@ export default function WhatsAppPanel({
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
 
-  // Busca o status/código ao montar (idempotente no backend)
   useEffect(() => {
     if (!canAccessFeatures) {
       setIsLoading(false);
@@ -51,12 +50,10 @@ export default function WhatsAppPanel({
           setExpiresAt(null);
         } else {
           if (data.code) {
-            // Pendente de verificação — usa o código recebido
             setWhatsappCode(data.code);
             setExpiresAt(data.expiresAt || null);
             setIsLinked(false);
           } else if (data.linked) {
-            // Já vinculado — não precisa de código
             setWhatsappCode(null);
             setExpiresAt(null);
             setIsLinked(true);
@@ -80,27 +77,33 @@ export default function WhatsAppPanel({
     fetchWhatsAppStatus();
   }, [userId, canAccessFeatures]);
 
-  // Atualiza contagem regressiva do código
   useEffect(() => {
     if (!expiresAt) {
       setTimeLeft("");
       return;
     }
 
-    function updateCountdown() {
+    const updateCountdown = () => {
       const diff = new Date(expiresAt).getTime() - Date.now();
       if (diff <= 0) {
         setTimeLeft("expirado");
         return;
       }
-      const mins = Math.floor(diff / 60000);
-      const secs = Math.floor((diff % 60000) / 1000);
-      setTimeLeft(`${mins}:${secs.toString().padStart(2, "0")}`);
-    }
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const secs = Math.floor((diff % (1000 * 60)) / 1000);
 
+      let countdown = "";
+      if (hours > 0) countdown += `${hours}h `;
+      if (mins > 0) countdown += `${mins}m `;
+      if (secs > 0 || (hours === 0 && mins === 0)) countdown += `${secs}s`;
+
+      setTimeLeft(countdown.trim());
+    };
+
+    const intervalId = setInterval(updateCountdown, 1000);
     updateCountdown();
-    const id = setInterval(updateCountdown, 1000);
-    return () => clearInterval(id);
+    return () => clearInterval(intervalId);
   }, [expiresAt]);
 
   function handleCopyCode() {
@@ -125,7 +128,6 @@ export default function WhatsAppPanel({
 
     if (isLoading) return;
 
-    // Se houver código (não vinculado), inclui na mensagem. Se já estiver vinculado, mensagem genérica.
     const text = whatsappCode
       ? `Olá, data2content! Meu código de verificação é: ${whatsappCode}`
       : "Olá, data2content!";
@@ -134,13 +136,20 @@ export default function WhatsAppPanel({
     const link = `https://wa.me/${whatsAppNumber}?text=${encodedText}`;
     window.open(link, "_blank");
   }
-
-  const buttonText = isLinked ? "Conversar com IA" : "Vincular com WhatsApp";
+  
+  const getButtonText = () => {
+    if (isLinked) return "Conversar com IA";
+    if (isLoading) return "Carregando...";
+    if (whatsappCode) return "Abrir WhatsApp";
+    return "Vincular com WhatsApp";
+  };
+  
   const buttonDisabled = canAccessFeatures && isLoading;
+  const buttonHasCode = !isLinked && whatsappCode;
 
   return (
     <div className="relative">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex flex-col gap-4"> 
         <div className="flex items-center gap-3">
           <FaWhatsapp className="w-10 h-10 text-green-500" />
           <div>
@@ -152,51 +161,86 @@ export default function WhatsAppPanel({
             </p>
           </div>
         </div>
+      </div>
 
-        <div className="flex-shrink-0 w-full sm:w-auto mt-4 sm:mt-0">
-          <div className="flex flex-col sm:items-end items-center gap-2">
+      <div className="w-full mt-6">
+        <div className="flex flex-col items-start gap-4">
+          <AnimatePresence>
             {isLinked && (
-              <motion.span
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="flex items-center gap-1.5 text-sm text-green-700 bg-green-100 px-3 py-1.5 rounded-full border border-green-300 font-medium"
+              <motion.div
+                key="linked"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="w-full flex justify-center sm:justify-end"
               >
-                <FaCheckCircle /> Conectado
-              </motion.span>
+                <span
+                  className="flex items-center gap-1.5 text-sm text-green-700 bg-green-100 px-3 py-1.5 rounded-full border border-green-300 font-medium"
+                >
+                  <FaCheckCircle /> Conectado
+                </span>
+              </motion.div>
             )}
 
-            {!isLinked && whatsappCode && (
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-sm bg-gray-50 px-3 py-1 rounded-md border border-gray-300">
-                  {whatsappCode}
-                </span>
-                <button
+            {buttonHasCode && (
+              <motion.div
+                key="verification"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="flex flex-col items-start gap-4 p-6 bg-gray-50 rounded-lg border border-gray-200 w-full shadow-sm"
+              >
+                <div className="text-left w-full">
+                  <span className="font-bold text-gray-700 text-sm">
+                    1. Seu código de verificação:
+                  </span>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Copie ou decore o código abaixo. Ele será enviado para o WhatsApp.
+                  </p>
+                </div>
+                <div
                   onClick={handleCopyCode}
-                  title="Copiar código"
-                  className={`p-2 rounded-md transition-all duration-200 ease-in-out ${
-                    copied
-                      ? "bg-green-100 text-green-600 scale-110"
-                      : "bg-gray-100 text-gray-500 hover:text-green-600 hover:bg-gray-200"
-                  }`}
+                  className="flex items-center gap-4 cursor-pointer group"
+                  title="Clique para copiar"
                 >
-                  {copied ? <FaCheckCircle className="w-4 h-4" /> : <FaCopy className="w-4 h-4" />}
-                </button>
-                {timeLeft && (
-                  <span
-                    className={`text-xs ${
-                      timeLeft === "expirado" ? "text-red-600" : "text-gray-500"
+                  <span className="font-mono text-3xl font-bold tracking-wide bg-white px-6 py-4 rounded-lg border border-gray-300 shadow-sm transition-colors group-hover:border-green-400">
+                    {/* CORRIGIDO: Removido o comentário que quebrava o JSX */}
+                    {whatsappCode}
+                  </span>
+                  <div
+                    className={`p-2 rounded-md transition-all duration-200 ease-in-out ${
+                      copied
+                        ? "bg-green-100 text-green-600"
+                        : "bg-gray-100 text-gray-500 group-hover:text-green-600"
                     }`}
                   >
-                    {timeLeft === "expirado" ? `Código expirado` : `Expira em ${timeLeft}`}
-                  </span>
+                    {copied ? <FaCheckCircle className="w-5 h-5" /> : <FaCopy className="w-5 h-5" />}
+                  </div>
+                </div>
+                {timeLeft && (
+                  <div className="text-xs text-gray-500 mt-2">
+                    Código válido por <span className={`font-semibold ${timeLeft.toLowerCase().includes("expirado") ? "text-red-600" : "text-gray-600"}`}>
+                      {timeLeft}
+                    </span>
+                  </div>
                 )}
-              </div>
+                <div className="text-left w-full mt-2">
+                  <span className="font-bold text-gray-700 text-sm">
+                    2. Clique e envie:
+                  </span>
+                  <p className="text-xs text-gray-500 mt-1">
+                    O código será preenchido automaticamente na mensagem do WhatsApp.
+                  </p>
+                </div>
+              </motion.div>
             )}
-
+          </AnimatePresence>
+          
+          <div className="w-full mt-6">
             <button
               onClick={handleActionClick}
               disabled={buttonDisabled}
-              className={`w-full sm:w-auto px-6 py-3 text-sm font-medium rounded-lg flex items-center justify-center gap-2.5
+              className={`w-full px-6 py-3 text-sm font-medium rounded-lg flex items-center justify-center gap-2.5
                           transition-all duration-150 ease-in-out transform hover:scale-105 shadow-md hover:shadow-lg
                           ${buttonDisabled ? "bg-gray-400 cursor-wait" : "bg-green-500 hover:bg-green-600 text-white"}`}
             >
@@ -205,7 +249,7 @@ export default function WhatsAppPanel({
               ) : (
                 <FaWhatsapp className="w-5 h-5" />
               )}
-              {isLoading ? "Carregando..." : buttonText}
+              {isLoading ? "Carregando..." : getButtonText()}
             </button>
           </div>
         </div>
