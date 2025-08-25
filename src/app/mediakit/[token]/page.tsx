@@ -22,6 +22,28 @@ import {
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+/** Helpers para imagem OG/Twitter */
+function toProxyUrl(raw?: string | null) {
+  if (!raw) return '';
+  if (raw.startsWith('/api/proxy/thumbnail/')) return raw;
+  if (/^https?:\/\//i.test(raw)) {
+    return `/api/proxy/thumbnail/${encodeURIComponent(raw)}`;
+  }
+  return raw;
+}
+
+function absoluteUrl(path: string) {
+  if (!path) return '';
+  if (/^https?:\/\//i.test(path)) return path;
+  const h = headers();
+  const host = h.get('host') ?? 'localhost:3000';
+  const proto =
+    process.env.NEXT_PUBLIC_APP_URL?.startsWith('https')
+      ? 'https'
+      : (process.env.NODE_ENV === 'production' ? 'https' : 'http');
+  return `${proto}://${host}${path.startsWith('/') ? path : '/' + path}`;
+}
+
 // Gera metadados dinâmicos para que o link do mídia kit apresente informações
 // personalizadas do criador nas prévias de compartilhamento.
 export async function generateMetadata(
@@ -29,8 +51,9 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   await connectToDatabase();
 
+  // Pegamos campos de perfil; se existir uma "capa" específica, priorizamos.
   const user = await UserModel.findOne({ mediaKitSlug: params.token })
-    .select('name biography profile_picture_url')
+    .select('name biography profile_picture_url profileCoverUrl profile_cover_url bannerUrl cover_url ogImage mediaKitCoverUrl')
     .lean();
 
   if (!user) {
@@ -42,16 +65,41 @@ export async function generateMetadata(
 
   const title = `Mídia Kit de ${user.name}`;
   const description = user.biography
-    ? user.biography.slice(0, 160)
+    ? String(user.biography).slice(0, 160)
     : `Dados de desempenho e publicações de destaque de ${user.name}.`;
 
-  const images = user.profile_picture_url ? [user.profile_picture_url] : undefined;
+  // Ordem de preferência para a "capa de perfil":
+  // profileCover > banner > ogImage > avatar > placeholder
+  const rawImg =
+    (user as any).profileCoverUrl ||
+    (user as any).profile_cover_url ||
+    (user as any).bannerUrl ||
+    (user as any).cover_url ||
+    (user as any).ogImage ||
+    (user as any).mediaKitCoverUrl ||
+    (user as any).profile_picture_url ||
+    'https://placehold.co/1200x630/png';
+
+  const ogImage = absoluteUrl(toProxyUrl(rawImg));
+  const pageUrl = absoluteUrl(`/mediakit/${params.token}`);
 
   return {
     title,
     description,
-    openGraph: { title, description, images },
-    twitter: { card: 'summary', title, description, images },
+    openGraph: {
+      title,
+      description,
+      type: 'website',
+      url: pageUrl,
+      images: [{ url: ogImage, width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [ogImage],
+    },
+    alternates: { canonical: pageUrl },
   };
 }
 
@@ -148,7 +196,7 @@ export default async function MediaKitPage(
   const referer = reqHeaders.get('referer') || undefined;
 
   // Registra o acesso (o util já normaliza e evita IP vazio)
-  await logMediaKitAccess(user._id.toString(), ip, referer);
+  await logMediaKitAccess((user as any)._id.toString(), ip, referer);
 
   // baseUrl absoluto quando possível; se não houver, cai para relativo
   const proto = reqHeaders.get('x-forwarded-proto') || 'http';
@@ -156,10 +204,10 @@ export default async function MediaKitPage(
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${proto}://${host}`;
 
   const [summary, videos, kpis, demographics] = await Promise.all([
-    fetchSummary(baseUrl, user._id.toString()),
-    fetchTopVideos(baseUrl, user._id.toString()),
-    fetchKpis(baseUrl, user._id.toString()),
-    fetchDemographics(baseUrl, user._id.toString()),
+    fetchSummary(baseUrl, (user as any)._id.toString()),
+    fetchTopVideos(baseUrl, (user as any)._id.toString()),
+    fetchKpis(baseUrl, (user as any)._id.toString()),
+    fetchDemographics(baseUrl, (user as any)._id.toString()),
   ]);
 
   // Normaliza para o componente client (arrays de tags)
