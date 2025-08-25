@@ -13,6 +13,7 @@ import calculateAverageEngagementPerPost from '@/utils/calculateAverageEngagemen
 import calculateWeeklyPostingFrequency from '@/utils/calculateWeeklyPostingFrequency';
 import MetricModel from '@/app/models/Metric';
 import { addDays, getStartDateFromTimePeriod as getStartDateFromTimePeriodGeneric } from '@/utils/dateHelpers';
+import { triggerDataRefresh } from '@/app/lib/instagram';
 
 // Períodos de comparação permitidos
 const ALLOWED_COMPARISON_PERIODS: {
@@ -22,6 +23,8 @@ const ALLOWED_COMPARISON_PERIODS: {
   last_7d_vs_previous_7d: { currentPeriodDays: 7, periodNameCurrent: 'Últimos 7 Dias', periodNamePrevious: '7 Dias Anteriores' },
   last_30d_vs_previous_30d: { currentPeriodDays: 30, periodNameCurrent: 'Últimos 30 Dias', periodNamePrevious: '30 Dias Anteriores' },
 };
+
+const MAX_METRIC_AGE_HOURS = 24;
 
 // Função auxiliar para calcular a variação percentual
 function calculatePercentageChange(current: number | null, previous: number | null): number | null {
@@ -82,6 +85,25 @@ export async function GET(
     await connectToDatabase();
 
     const resolvedUserId = new Types.ObjectId(userId);
+
+    const latestMetric = await MetricModel.findOne({ user: resolvedUserId })
+      .sort({ updatedAt: -1 })
+      .select('updatedAt')
+      .lean();
+    const isStale =
+      !latestMetric?.updatedAt ||
+      Date.now() - new Date(latestMetric.updatedAt).getTime() >
+        MAX_METRIC_AGE_HOURS * 60 * 60 * 1000;
+    if (isStale) {
+      try {
+        await triggerDataRefresh(userId);
+      } catch (e) {
+        console.error(
+          `[API USER KPIS/PERIODIC] refresh failed for user ${userId}:`,
+          e,
+        );
+      }
+    }
 
     async function getAverage(field: string, start: Date, end: Date): Promise<number | null> {
       const [agg] = await MetricModel.aggregate([
