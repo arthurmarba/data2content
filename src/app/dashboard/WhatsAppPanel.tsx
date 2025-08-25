@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { FaWhatsapp, FaSpinner, FaCheckCircle } from "react-icons/fa";
+import { FaWhatsapp, FaSpinner, FaCheckCircle, FaCopy } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface WhatsAppPanelProps {
@@ -21,6 +21,9 @@ export default function WhatsAppPanel({
   const [isLoading, setIsLoading] = useState(canAccessFeatures);
   const [isLinked, setIsLinked] = useState(false);
   const [whatsappCode, setWhatsappCode] = useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const [timeLeft, setTimeLeft] = useState<string>("");
+  const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
 
   // Busca o status/código ao montar (idempotente no backend)
@@ -45,25 +48,30 @@ export default function WhatsAppPanel({
           setError((data as any)?.error || "Falha ao obter status do WhatsApp.");
           setIsLinked(false);
           setWhatsappCode(null);
+          setExpiresAt(null);
         } else {
           if (data.code) {
             // Pendente de verificação — usa o código recebido
             setWhatsappCode(data.code);
+            setExpiresAt(data.expiresAt || null);
             setIsLinked(false);
           } else if (data.linked) {
             // Já vinculado — não precisa de código
             setWhatsappCode(null);
+            setExpiresAt(null);
             setIsLinked(true);
           } else {
             setError(data.error || "Resposta inesperada.");
             setIsLinked(false);
             setWhatsappCode(null);
+            setExpiresAt(null);
           }
         }
       } catch {
         setError("Falha na comunicação. Tente novamente.");
         setIsLinked(false);
         setWhatsappCode(null);
+        setExpiresAt(null);
       } finally {
         setIsLoading(false);
       }
@@ -71,6 +79,41 @@ export default function WhatsAppPanel({
 
     fetchWhatsAppStatus();
   }, [userId, canAccessFeatures]);
+
+  // Atualiza contagem regressiva do código
+  useEffect(() => {
+    if (!expiresAt) {
+      setTimeLeft("");
+      return;
+    }
+
+    function updateCountdown() {
+      const diff = new Date(expiresAt).getTime() - Date.now();
+      if (diff <= 0) {
+        setTimeLeft("expirado");
+        return;
+      }
+      const mins = Math.floor(diff / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      setTimeLeft(`${mins}:${secs.toString().padStart(2, "0")}`);
+    }
+
+    updateCountdown();
+    const id = setInterval(updateCountdown, 1000);
+    return () => clearInterval(id);
+  }, [expiresAt]);
+
+  function handleCopyCode() {
+    if (!whatsappCode) return;
+    navigator.clipboard
+      .writeText(whatsappCode)
+      .then(() => {
+        setCopied(true);
+        showToast("Código copiado!", "success");
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() => showToast("Falha ao copiar.", "error"));
+  }
 
   function handleActionClick(event: React.MouseEvent<HTMLButtonElement>) {
     if (!canAccessFeatures) {
@@ -122,10 +165,38 @@ export default function WhatsAppPanel({
               </motion.span>
             )}
 
+            {!isLinked && whatsappCode && (
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-sm bg-gray-50 px-3 py-1 rounded-md border border-gray-300">
+                  {whatsappCode}
+                </span>
+                <button
+                  onClick={handleCopyCode}
+                  title="Copiar código"
+                  className={`p-2 rounded-md transition-all duration-200 ease-in-out ${
+                    copied
+                      ? "bg-green-100 text-green-600 scale-110"
+                      : "bg-gray-100 text-gray-500 hover:text-green-600 hover:bg-gray-200"
+                  }`}
+                >
+                  {copied ? <FaCheckCircle className="w-4 h-4" /> : <FaCopy className="w-4 h-4" />}
+                </button>
+                {timeLeft && (
+                  <span
+                    className={`text-xs ${
+                      timeLeft === "expirado" ? "text-red-600" : "text-gray-500"
+                    }`}
+                  >
+                    {timeLeft === "expirado" ? `Código expirado` : `Expira em ${timeLeft}`}
+                  </span>
+                )}
+              </div>
+            )}
+
             <button
               onClick={handleActionClick}
               disabled={buttonDisabled}
-              className={`w-full sm:w-auto px-6 py-3 text-sm font-medium rounded-lg flex items-center justify-center gap-2.5 
+              className={`w-full sm:w-auto px-6 py-3 text-sm font-medium rounded-lg flex items-center justify-center gap-2.5
                           transition-all duration-150 ease-in-out transform hover:scale-105 shadow-md hover:shadow-lg
                           ${buttonDisabled ? "bg-gray-400 cursor-wait" : "bg-green-500 hover:bg-green-600 text-white"}`}
             >
