@@ -1,5 +1,6 @@
 // src/utils/getClientIp.ts
 import { NextRequest } from 'next/server';
+import type { IncomingMessage } from 'http';
 
 /**
  * Ordem de candidatos — cobre Vercel, Cloudflare, proxies comuns e RFC 7239.
@@ -65,8 +66,15 @@ function normalizeIp(raw?: string | null): string {
 
 /**
  * Extrai IP a partir de um objeto Headers (server components / route handlers).
+ * Pode opcionalmente receber o objeto Request/IncomingMessage para fallback via
+ * `socket.remoteAddress` quando nenhum cabeçalho confiável estiver presente.
+ * Esse fallback é aplicado apenas em ambientes não-produtivos para evitar
+ * spoofing.
  */
-export function getClientIpFromHeaders(hdrs: Headers): string {
+export function getClientIpFromHeaders(
+  hdrs: Headers,
+  req?: Request | IncomingMessage,
+): string {
   for (const name of CANDIDATE_HEADERS) {
     const value = hdrs.get(name);
     if (!value) continue;
@@ -83,6 +91,14 @@ export function getClientIpFromHeaders(hdrs: Headers): string {
     const n = normalizeIp(value);
     if (n !== 'unknown') return n;
   }
+
+  // Fallback para o IP do socket apenas em ambientes de confiança
+  if (req && process.env.NODE_ENV !== 'production') {
+    const addr = (req as any)?.socket?.remoteAddress;
+    const n = normalizeIp(addr);
+    if (n !== 'unknown') return n;
+  }
+
   return 'unknown';
 }
 
@@ -90,5 +106,5 @@ export function getClientIpFromHeaders(hdrs: Headers): string {
  * Versão que aceita NextRequest (middleware/route handlers no Edge/Node).
  */
 export function getClientIp(req: NextRequest): string {
-  return getClientIpFromHeaders(req.headers);
+  return getClientIpFromHeaders(req.headers, req as unknown as Request);
 }

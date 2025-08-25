@@ -28,4 +28,21 @@ describe('MediaKitPage logging', () => {
     await MediaKitPage({ params: { token: 'tok' } } as Params);
     expect(mockLogAccess).toHaveBeenCalledWith('u1', '1.1.1.1', undefined);
   });
+
+  it('falls back to socket.remoteAddress when headers lack IP', async () => {
+    mockHeaders.mockReturnValue(new Headers());
+    const req = { socket: { remoteAddress: '2.2.2.2' } } as any;
+    await MediaKitPage({ params: { token: 'tok' } } as Params, req);
+    expect(mockLogAccess).toHaveBeenCalledWith('u1', '2.2.2.2', undefined);
+  });
+
+  it('does not use socket.remoteAddress in production', async () => {
+    mockHeaders.mockReturnValue(new Headers());
+    const req = { socket: { remoteAddress: '3.3.3.3' } } as any;
+    const prev = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    await MediaKitPage({ params: { token: 'tok' } } as Params, req);
+    expect(mockLogAccess).toHaveBeenCalledWith('u1', 'unknown', undefined);
+    process.env.NODE_ENV = prev;
+  });
 });
