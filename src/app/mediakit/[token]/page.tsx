@@ -51,7 +51,6 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   await connectToDatabase();
 
-  // Pegamos campos de perfil; se existir uma "capa" específica, priorizamos.
   const user = await UserModel.findOne({ mediaKitSlug: params.token })
     .select('name biography profile_picture_url profileCoverUrl profile_cover_url bannerUrl cover_url ogImage mediaKitCoverUrl')
     .lean();
@@ -67,9 +66,7 @@ export async function generateMetadata(
   const description = user.biography
     ? String(user.biography).slice(0, 160)
     : `Dados de desempenho e publicações de destaque de ${user.name}.`;
-
-  // Ordem de preferência para a "capa de perfil":
-  // profileCover > banner > ogImage > avatar > placeholder
+  
   const rawImg =
     (user as any).profileCoverUrl ||
     (user as any).profile_cover_url ||
@@ -120,18 +117,18 @@ async function fetchSummary(baseUrl: string, userId: string): Promise<Performanc
   }
 }
 
-/** Busca os vídeos de melhor performance (Top 5 por views). */
-async function fetchTopVideos(baseUrl: string, userId: string): Promise<VideoListItem[]> {
+/** Busca os posts de melhor performance (Top 5 por views). */ // ALTERADO
+async function fetchTopPosts(baseUrl: string, userId: string): Promise<VideoListItem[]> { // ALTERADO
   try {
     const res = await fetch(`${baseUrl}/api/v1/users/${userId}/videos/list?sortBy=views&limit=5`, { cache: 'no-store' });
     if (!res.ok) {
-      console.error(`[MediaKitPage] Falha ao buscar top videos: ${res.status}`);
+      console.error(`[MediaKitPage] Falha ao buscar top posts: ${res.status}`); // ALTERADO
       return [];
     }
     const data = await res.json();
-    return data.videos || [];
+    return data.posts || []; // ALTERADO: AQUI ESTAVA O PROBLEMA
   } catch (error) {
-    console.error('[MediaKitPage] Erro de rede ao buscar top videos:', error);
+    console.error('[MediaKitPage] Erro de rede ao buscar top posts:', error); // ALTERADO
     return [];
   }
 }
@@ -190,27 +187,21 @@ export default async function MediaKitPage(
   }
 
   const reqHeaders = headers();
-
-  // Usa o helper robusto (lida com cf-connecting-ip, x-forwarded-for, forwarded, etc.)
   const ip = getClientIpFromHeaders(reqHeaders, req);
   const referer = reqHeaders.get('referer') || undefined;
-
-  // Registra o acesso (o util já normaliza e evita IP vazio)
   await logMediaKitAccess((user as any)._id.toString(), ip, referer);
 
-  // baseUrl absoluto quando possível; se não houver, cai para relativo
   const proto = reqHeaders.get('x-forwarded-proto') || 'http';
   const host = reqHeaders.get('host') || 'localhost:3000';
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${proto}://${host}`;
 
   const [summary, videos, kpis, demographics] = await Promise.all([
     fetchSummary(baseUrl, (user as any)._id.toString()),
-    fetchTopVideos(baseUrl, (user as any)._id.toString()),
+    fetchTopPosts(baseUrl, (user as any)._id.toString()), // ALTERADO
     fetchKpis(baseUrl, (user as any)._id.toString()),
     fetchDemographics(baseUrl, (user as any)._id.toString()),
   ]);
 
-  // Normaliza para o componente client (arrays de tags)
   const compatibleVideos = (videos || []).map((video: any) => ({
     ...video,
     format: video.format ? [video.format] : [],
