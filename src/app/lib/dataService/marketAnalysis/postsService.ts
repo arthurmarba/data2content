@@ -1,7 +1,7 @@
 // src/app/lib/dataService/marketAnalysis/postsService.ts
 /**
  * @fileoverview Serviço para buscar e gerenciar posts.
- * @version 1.9.10 - thumbnailUrl no pipeline, coverUrl no projeto, caption fallback e enrich com guards de índice (corrige TS).
+ * @version 1.10.0 - Graph fields completos (media_type/media_url/children) + proxificação de URLs de capa.
  */
 
 import { PipelineStage, Types } from 'mongoose';
@@ -19,6 +19,15 @@ import fetch from 'node-fetch';
 import UserModel from '@/app/models/User';
 
 const SERVICE_TAG = '[dataService][postsService]';
+
+// ----------------------------------------------
+// Utils
+// ----------------------------------------------
+function toProxyUrl(raw: string): string {
+  if (!raw) return raw;
+  if (raw.startsWith('/api/proxy/thumbnail/')) return raw;
+  return `/api/proxy/thumbnail/${encodeURIComponent(raw)}`;
+}
 
 // ----------------------------------------------
 // Global search (mantido)
@@ -211,23 +220,45 @@ export interface IUserVideoPostsPaginatedResult {
 }
 
 // ----------------------------------------------
-// Helper: thumbnail da Graph API (mantido)
+// Helper: thumbnail/capa via Graph API (atualizado)
 // ----------------------------------------------
 async function fetchMediaThumbnail(mediaId: string, accessToken: string): Promise<string | null> {
-  const fields = 'thumbnail_url';
-  const url = `https://graph.facebook.com/v20.0/${mediaId}?fields=${fields}&access_token=${accessToken}`;
+  // Pedimos campos suficientes para todos os tipos
+  const fields = 'media_type,thumbnail_url,media_url,children{media_type,thumbnail_url,media_url}';
+  const url = `https://graph.facebook.com/v20.0/${mediaId}?fields=${encodeURIComponent(fields)}&access_token=${accessToken}`;
   try {
     const response = await fetch(url);
     if (!response.ok) return null;
     const data: any = await response.json();
-    return data.thumbnail_url || null;
+
+    const pickFrom = (node: any): string | null => {
+      if (!node) return null;
+      const mt = node.media_type;
+      // Reels/Vídeos
+      if (mt === 'VIDEO' || mt === 'REEL') return node.thumbnail_url || node.media_url || null;
+      // Imagem
+      if (mt === 'IMAGE') return node.media_url || null;
+      // Carrossel: pega a primeira child válida
+      if (mt === 'CAROUSEL_ALBUM') {
+        const child = node.children?.data?.[0];
+        if (!child) return null;
+        const cmt = child.media_type;
+        if (cmt === 'VIDEO' || cmt === 'REEL') return child.thumbnail_url || child.media_url || null;
+        return child.media_url || null;
+      }
+      // Fallback
+      return node.thumbnail_url || node.media_url || null;
+    };
+
+    const chosen = pickFrom(data);
+    return chosen || null;
   } catch {
     return null;
   }
 }
 
 // ----------------------------------------------
-// ►► Listagem de vídeos do usuário (corrigida)
+// ►► Listagem de vídeos do usuário (mantida com proxificação quando enriquece)
 // ----------------------------------------------
 export async function findUserVideoPosts({
   userId,
@@ -381,15 +412,11 @@ export async function findUserVideoPosts({
 
         results.forEach((res, k) => {
           const idx = needFetchIdx[k];
+          if (typeof idx !== 'number' || idx < 0 || idx >= videos.length) return;
 
-          // Guards explícitos de índice
-          if (typeof idx !== 'number' || idx < 0 || idx >= videos.length) {
-            return;
-          }
-
-          const v = videos[idx]; // v: IUserVideoPostResult | undefined
+          const v = videos[idx];
           if (v && res.status === 'fulfilled' && res.value) {
-            v.thumbnailUrl = res.value; // ok: v é definido aqui
+            v.thumbnailUrl = toProxyUrl(res.value); // proxifica para evitar expiração
           }
         });
       }
@@ -408,7 +435,7 @@ export async function findUserVideoPosts({
 }
 
 // ----------------------------------------------
-// Backfill de capa resiliente (mantido)
+// Backfill de capa resiliente (com proxificação)
 // ----------------------------------------------
 export async function backfillPostCover(postId: string): Promise<{ success: boolean; message: string; }> {
   const TAG = `${SERVICE_TAG}[backfillPostCover]`;
@@ -470,9 +497,10 @@ export async function backfillPostCover(postId: string): Promise<{ success: bool
     const thumbnailUrl = await fetchMediaThumbnail(post.instagramMediaId, accessToken);
 
     if (thumbnailUrl) {
+      const finalCover = toProxyUrl(thumbnailUrl); // salva proxificado
       await MetricModel.updateOne(
         { _id: post._id },
-        { $set: { coverUrl: thumbnailUrl, coverStatus: 'done', updatedAt: new Date() } },
+        { $set: { coverUrl: finalCover, coverStatus: 'done', updatedAt: new Date() } },
         { strict: false }
       );
       logger.info(`${TAG} Sucesso! Capa para o post ${postId} foi atualizada.`);

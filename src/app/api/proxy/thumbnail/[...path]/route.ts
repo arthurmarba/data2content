@@ -2,6 +2,7 @@
 import { NextRequest } from "next/server";
 import { logger } from "@/app/lib/logger";
 import fs from "fs";
+import os from "os";
 import path from "path";
 import { Readable } from "stream";
 import { pipeline } from "stream/promises";
@@ -11,10 +12,25 @@ export const runtime = "nodejs";
 
 /**
  * Diretório de cache
+ * - Em serverless, /var/task é read-only. /tmp (os.tmpdir()) é gravável.
+ * - Permite desabilitar o cache via DISABLE_DISK_CACHE=true
  */
+const DISABLE_DISK_CACHE = String(process.env.DISABLE_DISK_CACHE || "").toLowerCase() === "true";
 const CACHE_DIR =
   process.env.THUMBNAIL_CACHE_DIR ||
-  path.join(process.cwd(), "tmp", "thumbnail-cache");
+  path.join(os.tmpdir(), "thumbnail-cache");
+
+function canDiskCache() {
+  return !DISABLE_DISK_CACHE;
+}
+
+function isReadOnlyFs(err: any) {
+  return (
+    err?.code === "EROFS" ||
+    err?.code === "EACCES" ||
+    /read[- ]?only/i.test(String(err?.message))
+  );
+}
 
 /**
  * TTL de cache no browser/CDN (24h).
@@ -107,7 +123,20 @@ export async function GET(
   const metaPath = `${base}.json`;
 
   try {
-    await fs.promises.mkdir(CACHE_DIR, { recursive: true });
+    // Cria diretório de cache se o disco-cache estiver habilitado
+    if (canDiskCache()) {
+      try {
+        await fs.promises.mkdir(CACHE_DIR, { recursive: true });
+      } catch (e) {
+        if (isReadOnlyFs(e)) {
+          logger.warn("[thumbnail-proxy] Disk cache disabled (read-only FS). Proceeding without cache.", {
+            cacheDir: CACHE_DIR,
+          });
+        } else {
+          logger.error("[thumbnail-proxy] Failed to ensure cache directory.", e);
+        }
+      }
+    }
 
     // Cache hit — tenta ler meta p/ content-type correto
     if (await fileExists(dataPath)) {
@@ -160,36 +189,48 @@ export async function GET(
     // Tee o body para gravar no cache e devolver ao cliente
     const [cacheStream, responseStream] = upstreamRes.body.tee();
 
-    // Gravação atômica: escreve .part e renomeia ao concluir; idem para meta
-    (async () => {
-      const partDataPath = `${dataPath}.part`;
-      const partMetaPath = `${metaPath}.part`;
-      try {
-        const nodeStream = Readable.fromWeb(cacheStream as any);
-        const writable = fs.createWriteStream(partDataPath);
-        await pipeline(nodeStream, writable);
-        await fs.promises.rename(partDataPath, dataPath);
-
-        const meta = {
-          url: targetUrl,
-          contentType,
-          ext: extFromCT,
-          createdAt: new Date().toISOString(),
-        };
-        await fs.promises.writeFile(partMetaPath, JSON.stringify(meta), "utf8");
-        await fs.promises.rename(partMetaPath, metaPath);
-      } catch (err) {
-        // Limpa .part se algo der errado
+    // Gravação atômica no disco (se habilitado). Se falhar por RO, apenas loga e segue.
+    if (canDiskCache()) {
+      (async () => {
+        const partDataPath = `${dataPath}.part`;
+        const partMetaPath = `${metaPath}.part`;
         try {
-          await fs.promises.rm(partDataPath, { force: true });
-          await fs.promises.rm(partMetaPath, { force: true });
-        } catch {}
-        logger.error(
-          `[thumbnail-proxy] Failed to cache image for ${targetUrl}`,
-          err
-        );
-      }
-    })();
+          const nodeStream = Readable.fromWeb(cacheStream as any);
+          const writable = fs.createWriteStream(partDataPath);
+          await pipeline(nodeStream, writable);
+          await fs.promises.rename(partDataPath, dataPath);
+
+          const meta = {
+            url: targetUrl,
+            contentType,
+            ext: extFromCT,
+            createdAt: new Date().toISOString(),
+          };
+          await fs.promises.writeFile(partMetaPath, JSON.stringify(meta), "utf8");
+          await fs.promises.rename(partMetaPath, metaPath);
+        } catch (err) {
+          // Limpa .part se algo der errado
+          try {
+            await fs.promises.rm(partDataPath, { force: true });
+            await fs.promises.rm(partMetaPath, { force: true });
+          } catch {}
+          if (isReadOnlyFs(err)) {
+            logger.warn(
+              `[thumbnail-proxy] Disk cache disabled (read-only FS). Proceeding without cache.`,
+              { targetUrl, dataPath }
+            );
+          } else {
+            logger.error(
+              `[thumbnail-proxy] Failed to cache image for ${targetUrl}`,
+              err
+            );
+          }
+        }
+      })();
+    } else {
+      // cache desabilitado por env
+      // nada a fazer; apenas servimos o fluxo ao cliente
+    }
 
     const headers = new Headers();
     headers.set("Content-Type", contentType);

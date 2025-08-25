@@ -1,3 +1,4 @@
+// /src/app/api/worker/backfill-post-cover/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/app/lib/logger';
 import { connectMongo } from '@/server/db/connect';
@@ -9,8 +10,8 @@ export const dynamic = 'force-dynamic';
 /**
  * POST /api/worker/backfill-post-cover
  * Worker que processa uma única tarefa de preenchimento de capa de post.
- * Regra: falhas "esperadas" (sem token/sem mediaId/sem user/post inválido/inexistente) viram SKIP (200),
- * para evitar retentativas inúteis na fila.
+ * Regra: falhas "esperadas" (sem token/sem mediaId/sem user/post inválido/inexistente e sem thumbnail na Graph)
+ * viram SKIP (200), para evitar retentativas inúteis na fila.
  */
 export async function POST(request: NextRequest) {
   const TAG = '[Worker BackfillPostCover]';
@@ -38,17 +39,23 @@ export async function POST(request: NextRequest) {
 
     const result = await backfillPostCover(postId);
 
-    // Soft-skip para casos esperados que não devem acionar retry da fila
+    // Padrões "soft-skip" — não vale a pena re-tentar
+    // Inclui casos de ausência de dados (token/user/mediaId/post) e a falta de thumbnail na Graph.
+    const SOFT_SKIP_PATTERNS = [
+      'access token not found',
+      'does not have an instagrammediaid',
+      'does not have an associated user',
+      'post not found',
+      'invalid post id format',
+      'failed to fetch thumbnail',      // mensagem atual
+      'graph returned no thumbnail',    // caso futuro/alternativo
+      'no_cover_from_ig',               // blockedReason salvo no banco
+    ];
+
     const msg = (result?.message || '').toLowerCase();
     const isSoftSkip =
       !result.success &&
-      (
-        msg.includes('access token not found') ||
-        msg.includes('does not have an instagrammediaid') ||
-        msg.includes('does not have an associated user') ||
-        msg.includes('post not found') ||
-        msg.includes('invalid post id format')
-      );
+      SOFT_SKIP_PATTERNS.some((p) => msg.includes(p));
 
     if (isSoftSkip) {
       logger.warn(`${TAG} SKIPPED (soft-fail) para postId ${postId}: ${result.message}`);
