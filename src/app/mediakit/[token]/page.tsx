@@ -130,7 +130,10 @@ async function fetchDemographics(baseUrl: string, userId: string): Promise<Demog
 
 // --- COMPONENTE DE PÁGINA (SERVER COMPONENT) ---
 
-export default async function MediaKitPage({ params }: { params: { token: string } }) {
+export default async function MediaKitPage(
+  { params }: { params: { token: string } },
+  req?: Request,
+) {
   await connectToDatabase();
 
   const user = await UserModel.findOne({ mediaKitSlug: params.token }).lean();
@@ -141,7 +144,7 @@ export default async function MediaKitPage({ params }: { params: { token: string
   const reqHeaders = headers();
 
   // Usa o helper robusto (lida com cf-connecting-ip, x-forwarded-for, forwarded, etc.)
-  const ip = getClientIpFromHeaders(reqHeaders);
+  const ip = getClientIpFromHeaders(reqHeaders, req);
   const referer = reqHeaders.get('referer') || undefined;
 
   // Registra o acesso (o util já normaliza e evita IP vazio)
