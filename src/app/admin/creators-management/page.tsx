@@ -8,6 +8,7 @@ import {
   AdminCreatorListParams,
   AdminCreatorStatus,
 } from '@/types/admin/creators'; // Ajuste o caminho se necessário
+import { PLAN_STATUSES, type PlanStatus } from '@/types/enums';
 import { 
     MagnifyingGlassIcon, 
     ChevronDownIcon, 
@@ -44,7 +45,7 @@ export default function CreatorsManagementPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<AdminCreatorStatus | ''>('');
-  const [planFilter, setPlanFilter] = useState<string>('');
+  const [planFilter, setPlanFilter] = useState<PlanStatus | ''>('');
 
   const [sortConfig, setSortConfig] = useState<SortConfig>({ sortBy: 'registrationDate', sortOrder: 'desc' });
 
@@ -76,7 +77,7 @@ export default function CreatorsManagementPage() {
 
     if (debouncedSearchTerm) params.append('search', debouncedSearchTerm);
     if (statusFilter) params.append('status', statusFilter);
-    if (planFilter) params.append('planStatus', planFilter);
+    if (planFilter) params.append('planStatus', planFilter.toLowerCase());
 
     try {
       const response = await fetch(`/api/admin/creators?${params.toString()}`);
@@ -262,16 +263,24 @@ export default function CreatorsManagementPage() {
             </select>
           </div>
           <div>
-            <label htmlFor="planFilter" className="block text-sm font-medium text-gray-700">Plano</label>
-             <input
-              type="text"
+            <label htmlFor="planFilter" className="block text-sm font-medium text-gray-700">Status do Plano</label>
+            <select
               id="planFilter"
               name="planFilter"
               className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-              placeholder="Ex: Free, Pro"
               value={planFilter}
-              onChange={(e) => {setPlanFilter(e.target.value); setCurrentPage(1);}}
-            />
+              onChange={(e) => { setPlanFilter(e.target.value.toLowerCase() as PlanStatus | ''); setCurrentPage(1); }}
+            >
+              <option value="">Todos os Status de Plano</option>
+              {PLAN_STATUSES.map(status => (
+                <option key={status} value={status}>
+                  {status
+                    .split('_')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(' ')}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </div>

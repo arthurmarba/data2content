@@ -59,6 +59,10 @@ STRIPE_COUPON_AFFILIATE10_ONCE_USD=coupon_...
 Na dashboard administrativa, utilize o componente **CreatorsScatterPlot** para comparar métricas de diferentes criadores em um gráfico de dispersão.
 Selecione múltiplos criadores e defina as métricas dos eixos X e Y para gerar o gráfico.
 
+### Filtros de Criadores
+
+Na página `/admin/creators-management`, é possível filtrar a listagem por **Status do Plano**. As opções do seletor são carregadas de `PLAN_STATUSES` (pending, active, inactive, canceled, trial, trialing, expired, past_due, incomplete, incomplete_expired, unpaid e non_renewing) e os valores enviados permanecem em minúsculas.
+
 ### User Monthly Comparison Chart
 
 O componente **UserMonthlyComparisonChart** exibe a evolução de uma métrica entre os três últimos meses para um criador específico.
