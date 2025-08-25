@@ -1,6 +1,7 @@
+// src/app/lib/dataService/marketAnalysis/postsService.ts
 /**
  * @fileoverview Serviço para buscar e gerenciar posts.
- * @version 1.9.8 - thumbnailUrl no pipeline, coverUrl no projeto, caption fallback e enrich não destrutivo.
+ * @version 1.9.10 - thumbnailUrl no pipeline, coverUrl no projeto, caption fallback e enrich com guards de índice (corrige TS).
  */
 
 import { PipelineStage, Types } from 'mongoose';
@@ -186,7 +187,6 @@ export interface IUserVideoPostResult {
   instagramMediaId?: string;
   caption?: string;
   postDate?: Date;
-  // ✅ devolvemos ambos
   thumbnailUrl?: string | null;
   coverUrl?: string | null;
   permalink?: string | null;
@@ -269,12 +269,10 @@ export async function findUserVideoPosts({
     const sortDirection = sortOrder === 'asc' ? 1 : -1;
     const skip = (page - 1) * limit;
 
-    // sortBy "stats.views" usa campo derivado
     const sortField = sortBy === 'stats.views' ? 'viewsSortable' : sortBy;
 
     const videosPipeline: PipelineStage[] = [
       { $match: matchStage },
-      // Valor de views robusto
       {
         $addFields: {
           viewsSortable: {
@@ -296,7 +294,6 @@ export async function findUserVideoPosts({
               0,
             ],
           },
-          // thumbnail oriundo do doc (sem depender de IG)
           thumbFromDoc: {
             $ifNull: [
               '$coverUrl',
@@ -342,7 +339,6 @@ export async function findUserVideoPosts({
         $project: {
           _id: 1,
           instagramMediaId: 1,
-          // caption com fallback
           caption: { $ifNull: ['$description', '$text_content'] },
           permalink: '$postLink',
           postDate: 1,
@@ -350,7 +346,6 @@ export async function findUserVideoPosts({
           proposal: 1,
           context: 1,
           coverUrl: 1,
-          // já sai com thumbnail do doc; se vazio, tentaremos IG
           thumbnailUrl: '$thumbFromDoc',
           stats: {
             views: '$viewsSortable',
@@ -383,10 +378,18 @@ export async function findUserVideoPosts({
       if (fetchPromises.length > 0) {
         logger.info(`${TAG} Fetching thumbnails from IG for ${fetchPromises.length} videos...`);
         const results = await Promise.allSettled(fetchPromises);
+
         results.forEach((res, k) => {
           const idx = needFetchIdx[k];
-          if (res.status === 'fulfilled' && res.value) {
-            videos[idx] = { ...videos[idx], thumbnailUrl: res.value };
+
+          // Guards explícitos de índice
+          if (typeof idx !== 'number' || idx < 0 || idx >= videos.length) {
+            return;
+          }
+
+          const v = videos[idx]; // v: IUserVideoPostResult | undefined
+          if (v && res.status === 'fulfilled' && res.value) {
+            v.thumbnailUrl = res.value; // ok: v é definido aqui
           }
         });
       }

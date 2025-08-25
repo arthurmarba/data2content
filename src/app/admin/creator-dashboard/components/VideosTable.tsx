@@ -25,18 +25,6 @@ interface VideosTableProps {
    Helpers para thumbnails
 ============================ */
 
-const BLOCKED_SUFFIXES = ['fbcdn.net', 'xx.fbcdn.net', 'cdninstagram.com'];
-
-function isBlockedHost(url?: string | null) {
-  if (!url) return false;
-  try {
-    const host = new URL(url).hostname.toLowerCase();
-    return BLOCKED_SUFFIXES.some((s) => host === s || host.endsWith(`.${s}`));
-  } catch {
-    return false;
-  }
-}
-
 // tenta vários nomes comuns vindos do backend
 function pickThumbUrl(v: any): string | undefined {
   const candidates = [
@@ -83,10 +71,7 @@ const SmartThumb: React.FC<{
     );
   }
 
-  // Para fbcdn/instagram, evitamos o otimizador do Next (que causa 403)
-  const unopt = isBlockedHost(src);
-
-  // Sempre busca a thumbnail via proxy para contornar bloqueios de CDN
+  // Sempre via proxy para contornar bloqueios/expiração de CDN
   const proxiedSrc = `/api/proxy/thumbnail/${encodeURIComponent(src)}`;
 
   return (
@@ -96,8 +81,10 @@ const SmartThumb: React.FC<{
       width={size}
       height={size}
       className={`shrink-0 rounded-md object-cover ${className}`}
-      unoptimized={unopt}
+      unoptimized // evita pipeline do Next/Image sobre a rota de proxy
       referrerPolicy="no-referrer"
+      loading="lazy"
+      decoding="async"
       onError={() => setErrored(true)}
     />
   );
@@ -121,7 +108,7 @@ const getTranslatedLabels = (
 
 const InstagramIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
-    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919A118.663 118.663 0 0112 2.163zm0 1.441c-3.141 0-3.503.012-4.72.068-2.759.127-3.945 1.313-4.073 4.073-.056 1.217-.067 1.575-.067 4.72s.011 3.503.067 4.72c.127 2.759 1.313 3.945 4.073 4.073 1.217.056 1.575.067 4.72.067s3.503-.011 4.72-.067c2.759-.127 3.945-1.313 4.073-4.073.056-1.217.067-1.575.067-4.72s-.011-3.503-.067-4.72c-.128-2.76-1.314-3.945-4.073-4.073-.91-.042-1.28-.055-3.626-.055zm0 2.882a4.512 4.512 0 100 9.024 4.512 4.512 0 000-9.024zM12 15a3 3 0 110-6 3 3 0 010 6zm6.406-7.875a1.125 1.125 0 100-2.25 1.125 1.125 0 000 2.25z" />
+    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919A118.663 118.663 0 0112 2.163zm0 1.441c-3.141 0-3.503.012-4.72.068-2.759.127-3.945 1.313-4.073 4.073-.056 1.217-.067 1.575-.067 4.72s.011 3.503.067 4.72c.127 2.759 1.313 3.945 4.073 4.073 1.217.056 1.575.067 4.72.067s3.503-.011 4.72-.067c2.759-.127 3.945-1.313 4.073-4.073.056-1.217.67 1.575.67 4.72s-.011 3.503-.067 4.72c-.128-2.76-1.314-3.945-4.073-4.073-.91-.042-1.28-.055-3.626-.055zm0 2.882a4.512 4.512 0 100 9.024 4.512 4.512 0 000-9.024zM12 15a3 3 0 110-6 3 3 0 010 6zm6.406-7.875a1.125 1.125 0 100-2.25 1.125 1.125 0 000 2.25z" />
   </svg>
 );
 
