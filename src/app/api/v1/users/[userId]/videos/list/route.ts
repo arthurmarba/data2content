@@ -2,30 +2,25 @@
 
 import { NextResponse } from 'next/server';
 import { Types } from 'mongoose';
-import { findUserVideoPosts } from '@/app/lib/dataService/marketAnalysis/postsService';
+// ALTERADO: Importa a função com o novo nome
+import { findUserPosts } from '@/app/lib/dataService/marketAnalysis/postsService';
 import { mapMetricToDbField } from '@/app/lib/dataService/marketAnalysis/helpers';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 
-// Força a rota a ser sempre dinâmica, pois ela lê parâmetros da URL.
 export const dynamic = 'force-dynamic';
 
-// Default sorting when none is provided via query params
 const DEFAULT_SORT_BY = 'postDate';
 
-// Helper para extrair uma thumbnail confiável de cada item
 function extractThumbnail(v: any): string | undefined {
-  // Carrossel: tenta a 1ª imagem/vídeo dos filhos
   const fromChildren =
     Array.isArray(v?.children) &&
     (
       v.children.find((c: any) => c?.thumbnail_url || c?.media_url)?.thumbnail_url ||
-      // se houver imagem (não vídeo) nos filhos, usa media_url
       v.children.find((c: any) => c?.media_type && c.media_type !== 'VIDEO' && c?.media_url)?.media_url ||
       v.children[0]?.thumbnail_url ||
       v.children[0]?.media_url
     );
 
-  // Ordem de preferência comum a IG/FB Graph e campos internos
   return (
     v.thumbnailUrl ||
     v.coverUrl ||
@@ -33,7 +28,7 @@ function extractThumbnail(v: any): string | undefined {
     v.imageUrl ||
     v.thumbnail_url ||
     v.mediaPreviewUrl ||
-    v.media_url ||       // quando for imagem single
+    v.media_url ||
     v.preview_image_url ||
     v.display_url ||
     fromChildren
@@ -58,15 +53,13 @@ export async function GET(
   try {
     const { searchParams } = new URL(request.url);
 
-    // Parâmetros de paginação e ordenação
     const timePeriodParam = searchParams.get('timePeriod') as TimePeriod | null;
     const sortByParam = searchParams.get('sortBy') || DEFAULT_SORT_BY;
     const mappedSort = mapMetricToDbField(sortByParam) || DEFAULT_SORT_BY;
     const sortOrder: 'asc' | 'desc' = searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc';
     const page = toInt(searchParams.get('page'), 1);
-    const limit = Math.min( toInt(searchParams.get('limit'), 10), 50 ); // evita abusos
+    const limit = Math.min( toInt(searchParams.get('limit'), 10), 50 );
 
-    // Filtros adicionais
     const filters = {
       proposal: searchParams.get('proposal') || undefined,
       context: searchParams.get('context') || undefined,
@@ -86,8 +79,8 @@ export async function GET(
       );
     }
 
-    // Busca
-    const result = await findUserVideoPosts({
+    // ALTERADO: Chama a função correta
+    const result = await findUserPosts({
       userId,
       timePeriod,
       sortBy: mappedSort,
@@ -97,32 +90,34 @@ export async function GET(
       filters,
     });
 
-    // Normalização: garante sempre um thumbnailUrl (quando possível)
-    const normalizedVideos = (result.videos || []).map((v: any) => {
-      const thumb = extractThumbnail(v);
+    // ALTERADO: Usa result.posts, que é a nova propriedade de retorno
+    const normalizedPosts = (result.posts || []).map((p: any) => {
+      const thumb = extractThumbnail(p);
       return {
-        ...v,
-        // preserva coverUrl se vier do serviço
-        coverUrl: v.coverUrl ?? null,
-        thumbnailUrl: thumb ?? v.thumbnailUrl ?? null,
+        ...p,
+        coverUrl: p.coverUrl ?? null,
+        thumbnailUrl: thumb ?? p.thumbnailUrl ?? null,
       };
     });
 
-    const totalPages = Math.max(1, Math.ceil(result.totalVideos / result.limit));
+    // ALTERADO: Usa result.totalPosts para calcular o total de páginas
+    const totalPages = Math.max(1, Math.ceil(result.totalPosts / result.limit));
 
+    // ALTERADO: Retorna um objeto consistente com a mudança (posts, totalPosts)
     return NextResponse.json({
-      videos: normalizedVideos,
+      posts: normalizedPosts,
       pagination: {
         currentPage: result.page,
         totalPages,
-        totalVideos: result.totalVideos,
+        totalPosts: result.totalPosts,
       },
     });
   } catch (error) {
-    console.error('[API USER/VIDEOS/LIST] Error:', error);
+    // ALTERADO: Mensagem de erro mais genérica
+    console.error('[API USER/POSTS/LIST] Error:', error);
     const message = error instanceof Error ? error.message : 'Erro desconhecido';
     return NextResponse.json(
-      { error: 'Erro ao buscar vídeos.', details: message },
+      { error: 'Erro ao buscar posts.', details: message },
       { status: 500 },
     );
   }

@@ -1,7 +1,7 @@
 // src/app/lib/dataService/marketAnalysis/postsService.ts
 /**
  * @fileoverview Serviço para buscar e gerenciar posts.
- * @version 1.10.0 - Graph fields completos (media_type/media_url/children) + proxificação de URLs de capa.
+ * @version 1.11.0 - Ranking inclui todos os tipos de mídia (vídeos, reels, imagens, carrosséis).
  */
 
 import { PipelineStage, Types } from 'mongoose';
@@ -173,9 +173,9 @@ export async function fetchPostDetails(args: IPostDetailsArgs): Promise<IPostDet
 }
 
 // ----------------------------------------------
-// Tipos para listagem de vídeos (atualizados)
+// Tipos para listagem de posts (atualizados) // ALTERADO
 // ----------------------------------------------
-export interface IFindUserVideoPostsArgs {
+export interface IFindUserPostsArgs { // ALTERADO
   userId: string;
   timePeriod: TimePeriod;
   sortBy?: string;
@@ -191,7 +191,7 @@ export interface IFindUserVideoPostsArgs {
   };
 }
 
-export interface IUserVideoPostResult {
+export interface IUserPostResult { // ALTERADO
   _id: Types.ObjectId;
   instagramMediaId?: string;
   caption?: string;
@@ -212,18 +212,17 @@ export interface IUserVideoPostResult {
   };
 }
 
-export interface IUserVideoPostsPaginatedResult {
-  videos: IUserVideoPostResult[];
-  totalVideos: number;
+export interface IUserPostsPaginatedResult { // ALTERADO
+  posts: IUserPostResult[]; // ALTERADO
+  totalPosts: number; // ALTERADO
   page: number;
   limit: number;
 }
 
 // ----------------------------------------------
-// Helper: thumbnail/capa via Graph API (atualizado)
+// Helper: thumbnail/capa via Graph API (mantido)
 // ----------------------------------------------
 async function fetchMediaThumbnail(mediaId: string, accessToken: string): Promise<string | null> {
-  // Pedimos campos suficientes para todos os tipos
   const fields = 'media_type,thumbnail_url,media_url,children{media_type,thumbnail_url,media_url}';
   const url = `https://graph.facebook.com/v20.0/${mediaId}?fields=${encodeURIComponent(fields)}&access_token=${accessToken}`;
   try {
@@ -234,11 +233,8 @@ async function fetchMediaThumbnail(mediaId: string, accessToken: string): Promis
     const pickFrom = (node: any): string | null => {
       if (!node) return null;
       const mt = node.media_type;
-      // Reels/Vídeos
       if (mt === 'VIDEO' || mt === 'REEL') return node.thumbnail_url || node.media_url || null;
-      // Imagem
       if (mt === 'IMAGE') return node.media_url || null;
-      // Carrossel: pega a primeira child válida
       if (mt === 'CAROUSEL_ALBUM') {
         const child = node.children?.data?.[0];
         if (!child) return null;
@@ -246,7 +242,6 @@ async function fetchMediaThumbnail(mediaId: string, accessToken: string): Promis
         if (cmt === 'VIDEO' || cmt === 'REEL') return child.thumbnail_url || child.media_url || null;
         return child.media_url || null;
       }
-      // Fallback
       return node.thumbnail_url || node.media_url || null;
     };
 
@@ -258,9 +253,9 @@ async function fetchMediaThumbnail(mediaId: string, accessToken: string): Promis
 }
 
 // ----------------------------------------------
-// ►► Listagem de vídeos do usuário (mantida com proxificação quando enriquece)
+// ►► Listagem de posts do usuário (atualizado para todos os tipos) // ALTERADO
 // ----------------------------------------------
-export async function findUserVideoPosts({
+export async function findUserPosts({ // ALTERADO
   userId,
   timePeriod,
   sortBy = 'postDate',
@@ -268,9 +263,9 @@ export async function findUserVideoPosts({
   page = 1,
   limit = 10,
   filters = {},
-}: IFindUserVideoPostsArgs): Promise<IUserVideoPostsPaginatedResult> {
-  const TAG = `${SERVICE_TAG}[findUserVideoPosts]`;
-  logger.info(`${TAG} Fetching video posts for user ${userId} with filters: ${JSON.stringify(filters)}`);
+}: IFindUserPostsArgs): Promise<IUserPostsPaginatedResult> { // ALTERADO
+  const TAG = `${SERVICE_TAG}[findUserPosts]`; // ALTERADO
+  logger.info(`${TAG} Fetching posts for user ${userId} with filters: ${JSON.stringify(filters)}`); // ALTERADO
 
   try {
     await connectToDatabase();
@@ -281,7 +276,12 @@ export async function findUserVideoPosts({
     const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
     const startDate = timePeriod === 'all_time' ? new Date(0) : getStartDateFromTimePeriod(today, timePeriod);
 
-    const matchStage: PipelineStage.Match['$match'] = { user: userObjectId, type: { $in: ['REEL', 'VIDEO'] } };
+    // ALTERADO: Inclui IMAGE e CAROUSEL_ALBUM na busca de posts
+    const matchStage: PipelineStage.Match['$match'] = {
+      user: userObjectId,
+      type: { $in: ['REEL', 'VIDEO', 'IMAGE', 'CAROUSEL_ALBUM'] }
+    };
+
     if (timePeriod !== 'all_time') matchStage.postDate = { $gte: startDate, $lte: endDate };
     if (filters.proposal) matchStage.proposal = { $regex: filters.proposal, $options: 'i' };
     if (filters.context) matchStage.context = { $regex: filters.context, $options: 'i' };
@@ -294,72 +294,26 @@ export async function findUserVideoPosts({
       ];
     }
 
-    const totalVideos = await MetricModel.countDocuments(matchStage);
-    if (totalVideos === 0) return { videos: [], totalVideos, page, limit };
+    const totalPosts = await MetricModel.countDocuments(matchStage); // ALTERADO
+    if (totalPosts === 0) return { posts: [], totalPosts, page, limit }; // ALTERADO
 
     const sortDirection = sortOrder === 'asc' ? 1 : -1;
     const skip = (page - 1) * limit;
 
     const sortField = sortBy === 'stats.views' ? 'viewsSortable' : sortBy;
 
-    const videosPipeline: PipelineStage[] = [
+    const postsPipeline: PipelineStage[] = [ // ALTERADO
       { $match: matchStage },
       {
         $addFields: {
           viewsSortable: {
             $ifNull: [
-              {
-                $first: {
-                  $filter: {
-                    input: [
-                      '$stats.video_views',
-                      '$stats.reach',
-                      '$stats.views',
-                      '$stats.impressions',
-                    ],
-                    as: 'viewValue',
-                    cond: { $gt: ['$$viewValue', 0] },
-                  },
-                },
-              },
+              { $first: { $filter: { input: [ '$stats.video_views', '$stats.reach', '$stats.views', '$stats.impressions' ], as: 'viewValue', cond: { $gt: ['$$viewValue', 0] } } } },
               0,
             ],
           },
           thumbFromDoc: {
-            $ifNull: [
-              '$coverUrl',
-              {
-                $ifNull: [
-                  '$thumbnailUrl',
-                  {
-                    $ifNull: [
-                      '$thumbnail_url',
-                      {
-                        $ifNull: [
-                          '$mediaUrl',
-                          {
-                            $ifNull: [
-                              '$media_url',
-                              {
-                                $ifNull: [
-                                  '$previewImageUrl',
-                                  {
-                                    $ifNull: [
-                                      '$preview_image_url',
-                                      { $ifNull: ['$displayUrl', '$display_url'] }
-                                    ]
-                                  }
-                                ]
-                              }
-                            ]
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
+            $ifNull: [ '$coverUrl', { $ifNull: [ '$thumbnailUrl', { $ifNull: [ '$thumbnail_url', { $ifNull: [ '$mediaUrl', { $ifNull: [ '$media_url', { $ifNull: [ '$previewImageUrl', { $ifNull: [ '$preview_image_url', { $ifNull: ['$displayUrl', '$display_url'] } ] } ] } ] } ] } ] } ] } ]
           }
         },
       },
@@ -376,6 +330,7 @@ export async function findUserVideoPosts({
           format: 1,
           proposal: 1,
           context: 1,
+          type: 1, // Adicionado para referência, se necessário no futuro
           coverUrl: 1,
           thumbnailUrl: '$thumbFromDoc',
           stats: {
@@ -389,9 +344,8 @@ export async function findUserVideoPosts({
       },
     ];
 
-    let videos: IUserVideoPostResult[] = await MetricModel.aggregate(videosPipeline);
+    let posts: IUserPostResult[] = await MetricModel.aggregate(postsPipeline); // ALTERADO
 
-    // Enriquecimento com thumbnail via Graph API, apenas para quem ainda não tem thumbnailUrl
     const connectionDetails = await getInstagramConnectionDetails(userObjectId);
     const accessToken = connectionDetails?.accessToken;
 
@@ -399,43 +353,43 @@ export async function findUserVideoPosts({
       const needFetchIdx: number[] = [];
       const fetchPromises: Promise<string | null>[] = [];
 
-      videos.forEach((v, i) => {
-        if (!v.thumbnailUrl && v.instagramMediaId) {
+      posts.forEach((p, i) => { // ALTERADO
+        if (!p.thumbnailUrl && p.instagramMediaId) {
           needFetchIdx.push(i);
-          fetchPromises.push(fetchMediaThumbnail(v.instagramMediaId, accessToken));
+          fetchPromises.push(fetchMediaThumbnail(p.instagramMediaId, accessToken));
         }
       });
 
       if (fetchPromises.length > 0) {
-        logger.info(`${TAG} Fetching thumbnails from IG for ${fetchPromises.length} videos...`);
+        logger.info(`${TAG} Fetching thumbnails from IG for ${fetchPromises.length} posts...`); // ALTERADO
         const results = await Promise.allSettled(fetchPromises);
 
         results.forEach((res, k) => {
           const idx = needFetchIdx[k];
-          if (typeof idx !== 'number' || idx < 0 || idx >= videos.length) return;
+          if (typeof idx !== 'number' || idx < 0 || idx >= posts.length) return; // ALTERADO
 
-          const v = videos[idx];
-          if (v && res.status === 'fulfilled' && res.value) {
-            v.thumbnailUrl = toProxyUrl(res.value); // proxifica para evitar expiração
+          const p = posts[idx]; // ALTERADO
+          if (p && res.status === 'fulfilled' && res.value) { // ALTERADO
+            p.thumbnailUrl = toProxyUrl(res.value);
           }
         });
       }
     }
 
     return {
-      videos,
-      totalVideos,
+      posts, // ALTERADO
+      totalPosts, // ALTERADO
       page,
       limit,
     };
   } catch (error: any) {
-    logger.error(`${TAG} Error fetching user video posts:`, error);
-    throw new DatabaseError(`Failed to fetch user video posts: ${error.message}`);
+    logger.error(`${TAG} Error fetching user posts:`, error); // ALTERADO
+    throw new DatabaseError(`Failed to fetch user posts: ${error.message}`); // ALTERADO
   }
 }
 
 // ----------------------------------------------
-// Backfill de capa resiliente (com proxificação)
+// Backfill de capa resiliente (mantido)
 // ----------------------------------------------
 export async function backfillPostCover(postId: string): Promise<{ success: boolean; message: string; }> {
   const TAG = `${SERVICE_TAG}[backfillPostCover]`;
@@ -497,7 +451,7 @@ export async function backfillPostCover(postId: string): Promise<{ success: bool
     const thumbnailUrl = await fetchMediaThumbnail(post.instagramMediaId, accessToken);
 
     if (thumbnailUrl) {
-      const finalCover = toProxyUrl(thumbnailUrl); // salva proxificado
+      const finalCover = toProxyUrl(thumbnailUrl);
       await MetricModel.updateOne(
         { _id: post._id },
         { $set: { coverUrl: finalCover, coverStatus: 'done', updatedAt: new Date() } },
