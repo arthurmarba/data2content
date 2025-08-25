@@ -6,6 +6,7 @@ import { logger } from '@/app/lib/logger';
 import { fetchCreators } from '@/lib/services/adminCreatorService';
 import { AdminCreatorListParams } from '@/types/admin/creators';
 import { getAdminSession } from '@/lib/getAdminSession';
+import { PLAN_STATUSES } from '@/types/enums';
 
 
 export const dynamic = 'force-dynamic';
@@ -24,8 +25,19 @@ const querySchema = z.object({
   page: z.coerce.number().int().min(1).optional().default(1),
   limit: z.coerce.number().int().min(1).max(100).optional().default(10),
   search: z.string().optional(),
-  // Usamos string genérica para permitir diferentes identificadores de plano (ex.: "Free", "Pro").
-  planStatus: z.string().optional(),
+  // Permite uma lista de status de plano separados por vírgulas
+  planStatus: z
+    .string()
+    .optional()
+    .transform(val => {
+      if (!val) return undefined;
+      return val.split(',').map(s => s.trim()).filter(Boolean);
+    })
+    .refine(
+      val =>
+        val === undefined || val.every(status => PLAN_STATUSES.includes(status as any)),
+      { message: `planStatus deve ser um dos: ${PLAN_STATUSES.join(', ')}` }
+    ),
   sortBy: z.string().optional().default('registrationDate'),
   sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
 });
@@ -58,7 +70,7 @@ export async function GET(req: NextRequest) {
       return apiError(`Parâmetros de consulta inválidos: ${errorMessage}`, 400);
     }
 
-    const validatedParams: AdminCreatorListParams = validationResult.data;
+    const validatedParams = validationResult.data as unknown as AdminCreatorListParams;
 
     logger.info(`${TAG} Calling fetchCreators with params: ${JSON.stringify(validatedParams)}`);
     const { creators, totalCreators, totalPages } = await fetchCreators(validatedParams);

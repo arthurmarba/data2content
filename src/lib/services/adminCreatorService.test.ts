@@ -65,12 +65,7 @@ describe('AdminCreatorService', () => {
       const params: AdminCreatorListParams = { search: 'testuser' };
       await fetchCreators(params);
 
-      const expectedQuery = {
-        $or: [
-          { name: { $regex: 'testuser', $options: 'i' } },
-          { email: { $regex: 'testuser', $options: 'i' } },
-        ],
-      };
+      const expectedQuery = { $text: { $search: 'testuser' } };
       expect(UserModel.find).toHaveBeenCalledWith(expectedQuery);
       expect(UserModel.countDocuments).toHaveBeenCalledWith(expectedQuery);
     });
@@ -91,10 +86,10 @@ describe('AdminCreatorService', () => {
         (UserModel.exec as jest.Mock).mockResolvedValueOnce([]);
         (UserModel.countDocuments as jest.Mock).mockResolvedValueOnce(0);
 
-        const params: AdminCreatorListParams = { planStatus: 'Free' };
+        const params: AdminCreatorListParams = { planStatus: 'active' };
         await fetchCreators(params);
 
-        const expectedQuery = { planStatus: 'Free' };
+        const expectedQuery = { planStatus: 'active' };
         expect(UserModel.find).toHaveBeenCalledWith(expectedQuery);
         expect(UserModel.countDocuments).toHaveBeenCalledWith(expectedQuery);
       });
@@ -103,10 +98,10 @@ describe('AdminCreatorService', () => {
         (UserModel.exec as jest.Mock).mockResolvedValueOnce([]);
         (UserModel.countDocuments as jest.Mock).mockResolvedValueOnce(0);
 
-        const params: AdminCreatorListParams = { planStatus: ['Free', 'Pro'] as any }; // Cast as any if type expects string
+        const params: AdminCreatorListParams = { planStatus: ['active', 'trialing'] };
         await fetchCreators(params);
 
-        const expectedQuery = { planStatus: { $in: ['Free', 'Pro'] } };
+        const expectedQuery = { planStatus: { $in: ['active', 'trialing'] } };
         expect(UserModel.find).toHaveBeenCalledWith(expectedQuery);
         expect(UserModel.countDocuments).toHaveBeenCalledWith(expectedQuery);
     });
@@ -120,7 +115,7 @@ describe('AdminCreatorService', () => {
           _id: new Types.ObjectId(date1.getTime() / 1000), // Simulate ObjectId from timestamp
           name: 'User One',
           email: 'one@example.com',
-          planStatus: 'Pro',
+          planStatus: 'active',
           adminStatus: 'approved',
           profile_picture_url: 'url1',
           mediaKitSlug: 'token1',
@@ -146,7 +141,7 @@ describe('AdminCreatorService', () => {
         _id: mockUserData[0]._id.toString(),
         name: 'User One',
         email: 'one@example.com',
-        planStatus: 'Pro',
+        planStatus: 'active',
         adminStatus: 'approved',
         profilePictureUrl: 'url1',
         mediaKitSlug: 'token1',
