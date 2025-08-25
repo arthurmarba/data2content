@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 // === Config ===
 // Janela de validade do código (em ms). Mesmo que o schema ainda não tenha o campo
 // de expiresAt, manter aqui torna o endpoint idempotente e pronto para o ciclo 2 (schema).
-const CODE_TTL_MS = 15 * 60 * 1000; // 15 minutos
+const CODE_TTL_MS = 60 * 60 * 1000; // 60 minutos
 
 /** Gera um código de verificação aleatório com 6 caracteres maiúsculos. */
 function generateVerificationCode(): string {

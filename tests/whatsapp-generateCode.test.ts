@@ -30,7 +30,8 @@ describe("POST /api/whatsapp/generateCode", () => {
       whatsappVerified: false,
       save: mockSave,
     };
-    (User.findById as jest.Mock).mockResolvedValue(user);
+    const mockSelect = jest.fn().mockResolvedValue(user);
+    (User.findById as jest.Mock).mockReturnValue({ select: mockSelect });
 
     const request = new NextRequest("http://localhost/api/whatsapp/generateCode", { method: "POST" });
     const response = await POST(request);
@@ -38,6 +39,9 @@ describe("POST /api/whatsapp/generateCode", () => {
 
     expect(response.status).toBe(200);
     expect(data.code).toHaveLength(6);
+    const diffMs = new Date(data.expiresAt).getTime() - Date.now();
+    expect(diffMs).toBeGreaterThanOrEqual(59 * 60 * 1000);
+    expect(diffMs).toBeLessThanOrEqual(60 * 60 * 1000);
     expect(user.whatsappVerificationCode).toBeTruthy();
     expect(mockSave).toHaveBeenCalled();
   });
