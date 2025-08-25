@@ -86,9 +86,12 @@ const SmartThumb: React.FC<{
   // Para fbcdn/instagram, evitamos o otimizador do Next (que causa 403)
   const unopt = isBlockedHost(src);
 
+  // Sempre busca a thumbnail via proxy para contornar bloqueios de CDN
+  const proxiedSrc = `/api/proxy/thumbnail/${encodeURIComponent(src)}`;
+
   return (
     <Image
-      src={src}
+      src={proxiedSrc}
       alt={alt}
       width={size}
       height={size}
