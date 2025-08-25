@@ -19,7 +19,8 @@
     "migrate-affiliates": "tsx --env-file=.env.local ./scripts/migrate-affiliates.ts",
     "qa:listen": "bash qa/stripe-listen.sh",
     "qa:triggers": "bash qa/stripe-triggers.sh",
-    "qa:http": "bash qa/http.sh"
+    "qa:http": "bash qa/http.sh",
+    "cron:refresh-metrics": "tsx --env-file=.env.local ./scripts/cron/refreshMetrics.ts"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.2",
