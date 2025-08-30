@@ -85,7 +85,7 @@ export default async function RootLayout({
           antialiased
           flex
           flex-col
-          min-h-screen
+          min-h-svh
           bg-brand-light
           text-brand-dark
         `}
