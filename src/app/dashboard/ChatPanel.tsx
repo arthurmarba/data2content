@@ -48,7 +48,7 @@ function renderFormatted(text: string) {
     blocks.push(
       <p
         key={`p-${i}`}
-        className="leading-relaxed"
+        className="leading-relaxed break-words"
         dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }}
       />
     );
