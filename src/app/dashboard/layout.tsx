@@ -12,10 +12,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <SidebarProvider>
       {/* container base do dashboard */}
-      <div
-        className="relative w-full bg-gray-50 overflow-x-hidden"
-        style={{ minHeight: "100dvh" }}
-      >
+      <div className="relative w-full bg-gray-50 overflow-x-hidden min-h-svh overscroll-none">
         <LayoutContent>{children}</LayoutContent>
       </div>
     </SidebarProvider>
