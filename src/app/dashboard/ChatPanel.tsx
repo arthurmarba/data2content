@@ -382,12 +382,12 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setIsToolsOpen(false)}
-              className="absolute inset-0 bg-black/40 z-10"
+              className="fixed inset-0 bg-black/40 z-50"
             />
             <motion.div
               initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               transition={{ type: "spring", stiffness: 400, damping: 40 }}
-              className="absolute bottom-0 left-0 right-0 bg-white p-4 pt-5 rounded-t-2xl shadow-2xl z-20 border-t"
+              className="fixed bottom-0 left-0 right-0 bg-white p-4 pt-5 rounded-t-2xl shadow-2xl z-[60] border-t"
               style={{ paddingBottom: safeBottom }}
             >
               <div className="flex justify-between items-center mb-4">
