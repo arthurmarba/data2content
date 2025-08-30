@@ -1,5 +1,3 @@
-// src/app/dashboard/ChatPanel.tsx
-
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
@@ -101,6 +99,41 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
   const [mkHidden, setMkHidden] = useState(false);
   const [followersCount, setFollowersCount] = useState<number | null>(null);
   const [avgReachPerPost, setAvgReachPerPost] = useState<number | null>(null);
+
+  // ==================================================================
+  // INÍCIO DA CORREÇÃO
+  // ==================================================================
+
+  /**
+   * Função centralizada para iniciar a vinculação do Instagram.
+   * Primeiro, chama a API para gerar um linkToken e definir o cookie.
+   * Apenas após o sucesso, inicia o fluxo de signIn do NextAuth.
+   */
+  const handleCorrectInstagramLink = async () => {
+    try {
+      // Etapa 1: Chamar a API para gerar o token e definir o cookie
+      const response = await fetch('/api/auth/iniciar-vinculacao-fb', {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        // Idealmente, mostre um erro para o usuário aqui
+        console.error('Falha ao preparar a vinculação da conta.');
+        // Você pode adicionar um toast de erro se tiver um sistema de notificação
+        return; // Interrompe o fluxo se a API falhar
+      }
+
+      // Etapa 2: Iniciar o processo de login do Facebook
+      signIn('facebook', { callbackUrl: '/dashboard/chat?instagramLinked=true' });
+
+    } catch (error) {
+      console.error('Erro no processo de vinculação:', error);
+    }
+  };
+
+  // ==================================================================
+  // FIM DA CORREÇÃO
+  // ==================================================================
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -345,25 +378,25 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
                         icon={<span>📅</span>}
                         text="Plano semanal com Proposta+Formato+Contexto+Tom+Referência"
                         status="locked"
-                        onClick={() => signIn('facebook', { callbackUrl: '/dashboard/chat?instagramLinked=true' })}
+                        onClick={handleCorrectInstagramLink}
                       />
                       <SmartPromptCard
                         icon={<span>⏰</span>}
                         text="Qual dia e hora de postagem gera mais curtidas?"
                         status="locked"
-                        onClick={() => signIn('facebook', { callbackUrl: '/dashboard/chat?instagramLinked=true' })}
+                        onClick={handleCorrectInstagramLink}
                       />
                       <SmartPromptCard
                         icon={<span>💬</span>}
                         text="Propostas e Toms que elevam comentários/salvamentos"
                         status="locked"
-                        onClick={() => signIn('facebook', { callbackUrl: '/dashboard/chat?instagramLinked=true' })}
+                        onClick={handleCorrectInstagramLink}
                       />
                       <SmartPromptCard
                         icon={<span>🔎</span>}
                         text="Quais das minhas narrativas não engajam?"
                         status="locked"
-                        onClick={() => signIn('facebook', { callbackUrl: '/dashboard/chat?instagramLinked=true' })}
+                        onClick={handleCorrectInstagramLink}
                       />
                     </div>
 
@@ -384,7 +417,7 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
                           className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-md bg-gray-100 text-gray-800 border border-gray-300 hover:bg-gray-200 transition-colors"
                           onClick={() => {
                             if (msg.cta?.action === 'connect_instagram') {
-                              return signIn('facebook', { callbackUrl: '/dashboard/chat?instagramLinked=true' });
+                              return handleCorrectInstagramLink();
                             }
                             if (msg.cta?.action === 'go_to_billing') {
                               if (onUpsellClick) return onUpsellClick();
@@ -471,7 +504,7 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
                 Conecte seu Instagram para respostas personalizadas e Mídia Kit gratuito.
               </div>
               <button
-                onClick={() => signIn('facebook', { callbackUrl: '/dashboard/chat?instagramLinked=true' })}
+                onClick={handleCorrectInstagramLink}
                 className="ml-3 text-xs sm:text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-md"
               >
                 Conectar agora

@@ -64,6 +64,30 @@ export default function MediaKitSelfServePage() {
     try { await navigator.clipboard.writeText(url); } catch {}
   };
 
+  // ==================================================================
+  // INÍCIO DA CORREÇÃO
+  // ==================================================================
+  const handleCorrectInstagramLink = async () => {
+    try {
+      const response = await fetch('/api/auth/iniciar-vinculacao-fb', {
+        method: 'POST',
+      });
+      if (!response.ok) {
+        console.error('Falha ao preparar a vinculação da conta.');
+        setError('Não foi possível iniciar a conexão. Tente novamente.');
+        return;
+      }
+      // O callbackUrl pode ser ajustado para voltar ao media-kit se desejado
+      signIn('facebook', { callbackUrl: '/dashboard/chat?instagramLinked=true' });
+    } catch (error) {
+      console.error('Erro no processo de vinculação:', error);
+      setError('Ocorreu um erro inesperado. Tente novamente.');
+    }
+  };
+  // ==================================================================
+  // FIM DA CORREÇÃO
+  // ==================================================================
+
   if (status === 'loading') {
     return <div className="p-6">Carregando…</div>;
   }
@@ -163,7 +187,7 @@ export default function MediaKitSelfServePage() {
           <div className="mb-4 p-4 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800 flex items-center justify-between">
             <span>Exemplo de Mídia Kit com dados fictícios para demonstração. Conecte seu Instagram para ver seu Mídia Kit real.</span>
             <button
-              onClick={() => signIn('facebook', { callbackUrl: '/dashboard/chat?instagramLinked=true' })}
+              onClick={handleCorrectInstagramLink}
               className="px-3 py-1.5 rounded-md text-sm bg-pink-600 text-white hover:bg-pink-700"
             >
               Conectar Instagram
