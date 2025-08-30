@@ -1,23 +1,23 @@
-// src/app/layout.tsx
+/* src/app/layout.tsx */
 
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 
-// Imports do NextAuth para buscar a sessão no servidor
+// NextAuth (SSR)
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "./api/auth/[...nextauth]/route"; // Ajuste o caminho se necessário
+import { authOptions } from "./api/auth/[...nextauth]/route";
 
-import Header from "./components/Header";
-import Footer from "./components/Footer";
+// Providers e utilidades globais (mantidos)
 import { Providers } from "./providers";
-import AuthRedirectHandler from "./components/auth/AuthRedirectHandler";
 import ClientHooksWrapper from "./components/ClientHooksWrapper";
-import MainContentWrapper from "./components/MainContentWrapper"; // ✅ IMPORTADO O NOVO COMPONENTE
 import { ToastA11yProvider } from "@/app/components/ui/ToastA11yProvider";
 import GoogleAnalytics from "./GoogleAnalytics";
 import CookieConsent from "./components/CookieConsent";
+// ⚠️ Header/Footer/MainContentWrapper/AuthRedirectHandler foram removidos daqui
+// O dashboard controla seu próprio layout (incluindo Header/Sidebar).
+// Páginas públicas podem ter seus próprios headers locais, se necessário.
 
 const inter = Inter({
   subsets: ["latin"],
@@ -37,20 +37,29 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  // Busca a sessão no servidor
+}: Readonly<{ children: React.ReactNode }>) {
+  // Sessão via SSR (mantido para quem precisar)
   const session = await getServerSession(authOptions);
   const serializableSession = session ? JSON.parse(JSON.stringify(session)) : null;
 
   return (
     <html lang="pt-BR" className={`${inter.variable} h-full`}>
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        {/* viewport-fit=cover para habilitar env(safe-area-inset-*) no iOS */}
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <link rel="preconnect" href="https://www.youtube.com" />
         <link rel="preconnect" href="https://www.google.com" />
         <link rel="preconnect" href="https://img.youtube.com" />
+
+        {/* Variáveis CSS base (fallbacks). Reforçaremos via globals.css no mesmo Pacote A */}
+        <style id="gemini-css-vars">{`
+          :root {
+            --header-h: 56px;               /* altura padrão do header (ajustada dinamicamente no Header do dashboard) */
+            --sat: env(safe-area-inset-top);    /* safe-area top (iOS) */
+            --sab: env(safe-area-inset-bottom); /* safe-area bottom (iOS) */
+          }
+        `}</style>
+
         {GA_ID && (
           <Script
             src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
@@ -84,14 +93,9 @@ export default async function RootLayout({
           <Providers session={serializableSession}>
             <GoogleAnalytics />
             <ClientHooksWrapper />
-            <AuthRedirectHandler>
-              <Header />
-
-              {/* ✅ O wrapper agora é usado aqui para aplicar o padding condicionalmente */}
-              <MainContentWrapper>{children}</MainContentWrapper>
-
-              <Footer />
-            </AuthRedirectHandler>
+            {/* Root neutro: apenas renderiza as páginas.
+               O /dashboard tem seu próprio layout (Header/Sidebar/overlay). */}
+            {children}
             <CookieConsent />
           </Providers>
         </ToastA11yProvider>

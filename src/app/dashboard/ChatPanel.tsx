@@ -1,297 +1,155 @@
+// src/app/dashboard/ChatPanel.tsx
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
 import { useSession, signIn } from "next-auth/react";
-import { FaPaperPlane, FaInstagram } from 'react-icons/fa';
+import {
+  FaPaperPlane, FaInstagram, FaPlus, FaExternalLinkAlt,
+  FaTimes, FaLightbulb, FaChartLine, FaQuestionCircle, FaCheckCircle, FaExclamationTriangle
+} from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import WhatsAppConnectInline from './WhatsAppConnectInline';
 
-// Definimos um tipo que inclui 'id'
 interface SessionUserWithId {
   id?: string;
   name?: string | null;
   email?: string | null;
   image?: string | null;
 }
-
-// Interface para cada mensagem do chat
 interface Message {
   sender: "user" | "consultant";
   text: string;
   cta?: { label: string; action: 'connect_instagram' | 'go_to_billing' };
 }
 
-type PromptStatus = 'locked' | 'unlocked';
-
-function SmartPromptCard({
-  icon,
-  text,
-  status,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  text: string;
-  status: PromptStatus;
-  onClick: () => void;
-}) {
-  const isLocked = status === 'locked';
+function PromptSuggestionCard({ icon, title, text, onClick }: { icon: React.ReactNode; title: string; text: string; onClick: () => void; }) {
   return (
     <button
       onClick={onClick}
-      className={`group text-left rounded-xl border px-4 py-3 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400/40 ${
-        isLocked ? 'border-gray-300 hover:bg-gray-50 bg-white' : 'border-blue-200 hover:bg-blue-50 bg-white'
-      }`}
+      className="group w-full text-left p-4 bg-white/50 hover:bg-white/80 border border-gray-200/80 rounded-xl transition-all duration-200 shadow-sm hover:shadow-lg hover:-translate-y-1"
     >
-      <div className="flex items-start gap-3">
-        <div className={`text-xl ${isLocked ? 'opacity-80' : ''}`}>{icon}</div>
-        <div className="flex-1">
-          <div className="text-sm font-medium text-gray-900">{text}</div>
-          <div className="mt-1 text-xs text-gray-500">
-            {isLocked ? 'Requer Instagram conectado' : 'Sugerido'}
-          </div>
+      <div className="flex items-start gap-4">
+        <div className="text-blue-500 mt-1">{icon}</div>
+        <div>
+          <h3 className="font-semibold text-gray-800">{title}</h3>
+          <p className="text-sm text-gray-500 mt-1">{text}</p>
         </div>
       </div>
     </button>
   );
 }
 
-// Renderizador de Markdown simples
 function renderFormatted(text: string) {
   const lines = text.split(/\r?\n/);
   const blocks: JSX.Element[] = [];
-  
   lines.forEach((line, i) => {
-    // Simplificado para o exemplo - uma implementação real teria um parser mais robusto
     if (/^\s*$/.test(line)) return;
     blocks.push(
-      <p key={`p-${i}`} className="leading-relaxed" dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+      <p
+        key={`p-${i}`}
+        className="leading-relaxed"
+        dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }}
+      />
     );
   });
-
-  return <div className="space-y-2 text-[15px] text-gray-800">{blocks}</div>;
+  return <div className="space-y-2 text-[15px]">{blocks}</div>;
 }
-
 
 export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => void } = {}) {
   const { data: session } = useSession();
   const router = useRouter();
-  const [messages, setMessages] = useState<Message[]>([
-    { sender: "consultant", text: "Olá! Em que posso te ajudar hoje?" },
-  ]);
+
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+
+  const scrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const inputWrapperRef = useRef<HTMLDivElement>(null);
-  const [inputHeight, setInputHeight] = useState(96); // Altura padrão inicial
+  const [inputHeight, setInputHeight] = useState(120);
+
+  const [isToolsOpen, setIsToolsOpen] = useState(false);
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [isSending, setIsSending] = useState(false);
+  const [inlineAlert, setInlineAlert] = useState<string | null>(null);
+  const autoScrollOnNext = useRef(false);
 
   const userWithId = session?.user as SessionUserWithId | undefined;
   const instagramConnected = Boolean((session?.user as any)?.instagramConnected);
+  const instagramUsername = ((session?.user as any)?.instagramUsername as string | undefined) || null;
   const planStatus = String((session?.user as any)?.planStatus || '').toLowerCase();
-  const isActiveLikePlan = ['active','trial','trialing','non_renewing'].includes(planStatus);
+  const isActiveLikePlan = ['active', 'trial', 'trialing', 'non_renewing'].includes(planStatus);
 
-  // --- Media Kit banner state ---
-  const [mkLoading, setMkLoading] = useState(false);
-  const [, setMkError] = useState<string | null>(null);
-  const [mkUrl, setMkUrl] = useState<string | null>(null);
-  const mkAutogenRef = useRef(false);
-  const [mkCollapsed, setMkCollapsed] = useState(true);
-  const [mkHidden, setMkHidden] = useState(false);
-  const [followersCount, setFollowersCount] = useState<number | null>(null);
-  const [avgReachPerPost, setAvgReachPerPost] = useState<number | null>(null);
-
-  // ==================================================================
-  // INÍCIO DA CORREÇÃO
-  // ==================================================================
-
-  /**
-   * Função centralizada para iniciar a vinculação do Instagram.
-   * Primeiro, chama a API para gerar um linkToken e definir o cookie.
-   * Apenas após o sucesso, inicia o fluxo de signIn do NextAuth.
-   */
   const handleCorrectInstagramLink = async () => {
     try {
-      // Etapa 1: Chamar a API para gerar o token e definir o cookie
-      const response = await fetch('/api/auth/iniciar-vinculacao-fb', {
-        method: 'POST',
-      });
-
-      if (!response.ok) {
-        // Idealmente, mostre um erro para o usuário aqui
-        console.error('Falha ao preparar a vinculação da conta.');
-        // Você pode adicionar um toast de erro se tiver um sistema de notificação
-        return; // Interrompe o fluxo se a API falhar
-      }
-
-      // Etapa 2: Iniciar o processo de login do Facebook
+      const response = await fetch('/api/auth/iniciar-vinculacao-fb', { method: 'POST' });
+      if (!response.ok) return console.error('Falha ao preparar a vinculação da conta.');
       signIn('facebook', { callbackUrl: '/dashboard/chat?instagramLinked=true' });
-
     } catch (error) {
       console.error('Erro no processo de vinculação:', error);
+      setInlineAlert('Não foi possível iniciar a conexão com o Instagram. Tente novamente.');
     }
   };
 
-  // ==================================================================
-  // FIM DA CORREÇÃO
-  // ==================================================================
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  // Auto-resize do textarea
+  // auto-resize do textarea
   useEffect(() => {
     const el = textAreaRef.current;
     if (!el) return;
-    el.style.height = 'auto'; // Reseta a altura
-    el.style.height = el.scrollHeight + 'px';
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
   }, [input]);
 
-  // Observa a altura da barra de input para ajustar o padding do histórico
+  // medir altura do composer
   useEffect(() => {
     const el = inputWrapperRef.current;
     if (!el) return;
-    
-    const observer = new ResizeObserver(() => {
-      setInputHeight(el.offsetHeight);
-    });
-    
+    const observer = new ResizeObserver(() => setInputHeight(el.offsetHeight));
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
 
-  const handleSend = async () => {
-    if (!input.trim() || !userWithId?.id) return;
-
-    const userText = input.trim();
-    setMessages((prev) => [...prev, { sender: "user", text: userText }]);
-    setInput("");
-
-    try {
-      const res = await fetch("/api/ai/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ query: userText }),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.answer) {
-        setMessages((prev) => [
-          ...prev,
-          { sender: "consultant", text: data.answer, cta: data.cta },
-        ]);
-      } else {
-        throw new Error(data.error || "Falha ao obter resposta.");
-      }
-    } catch (error) {
-      console.error("Erro ao chamar /api/ai/chat:", error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          sender: "consultant",
-          text: "Ocorreu um erro ao gerar a resposta.",
-        },
-      ]);
-    }
-  };
-
-  const isWelcome = messages.length <= 1;
-  const fullName = (session?.user?.name || "").trim();
-  const firstName = fullName ? fullName.split(" ")[0] : "você";
-  const avatarUrl = (session?.user as any)?.image as string | undefined;
-  // Init persisted UI prefs and existing MK link
+  // detectar “fim”
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try { setMkHidden(localStorage.getItem('d2c_hide_mk_banner') === '1'); } catch {}
+    const root = scrollRef.current;
+    const target = messagesEndRef.current;
+    if (!root || !target) return;
+    const io = new IntersectionObserver(
+      (entries) => setIsAtBottom(entries[0]?.isIntersecting ?? false),
+      { root, threshold: 1.0, rootMargin: "0px 0px 60px 0px" }
+    );
+    io.observe(target);
+    return () => io.disconnect();
   }, []);
 
+  // autoscroll
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      if (!instagramConnected) return;
-      setMkLoading(true);
-      setMkError(null);
-      try {
-        const res = await fetch('/api/users/media-kit-token', { cache: 'no-store' });
-        const data = await res.json();
-        if (!mounted) return;
-        if (res.ok) setMkUrl(data.url ?? null);
-      } catch (e: any) {
-        if (!mounted) return;
-        setMkError(e?.message || '');
-      } finally {
-        if (mounted) setMkLoading(false);
-      }
-    })();
-    return () => { mounted = false; };
-  }, [instagramConnected]);
-
-  // Auto-generate MK link once after IG connect
-  useEffect(() => {
-    if (!instagramConnected) return;
-    if (mkUrl) return;
-    if (mkAutogenRef.current) return;
-    mkAutogenRef.current = true;
-    (async () => { try { await handleGenerateMkLink(); } catch {} })();
-  }, [instagramConnected, mkUrl]);
-
-  // Load basic metrics for banner
-  useEffect(() => {
-    const uid = (session?.user as any)?.id as string | undefined;
-    if (!instagramConnected || !uid) return;
-    let mounted = true;
-    (async () => {
-      try {
-        const resFollowers = await fetch('/api/user/summary', { cache: 'no-store' });
-        if (resFollowers.ok) {
-          const data = await resFollowers.json();
-          if (mounted) setFollowersCount(typeof data.followersCount === 'number' ? data.followersCount : null);
-        }
-      } catch {}
-      try {
-        const resKpi = await fetch(`/api/v1/users/${uid}/kpis/periodic-comparison?comparisonPeriod=last_30d_vs_previous_30d`, { cache: 'no-store' });
-        if (resKpi.ok) {
-          const data = await resKpi.json();
-          const v = data?.avgReachPerPost?.currentValue;
-          if (mounted) setAvgReachPerPost(typeof v === 'number' ? v : null);
-        }
-      } catch {}
-    })();
-    return () => { mounted = false; };
-  }, [instagramConnected, session]);
-
-  const hideMk = () => {
-    setMkHidden(true);
-    try { localStorage.setItem('d2c_hide_mk_banner', '1'); } catch {}
-  };
-
-  const handleGenerateMkLink = async () => {
-    setMkLoading(true);
-    setMkError(null);
-    try {
-      const res = await fetch('/api/users/media-kit-token', { method: 'POST' });
-      const data = await res.json();
-      if (res.ok) setMkUrl(data.url);
-      else setMkError(data.error || 'Falha ao gerar link.');
-    } catch (e: any) {
-      setMkError(e?.message || 'Erro inesperado.');
-    } finally {
-      setMkLoading(false);
+    if (autoScrollOnNext.current || isAtBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      autoScrollOnNext.current = false;
     }
-  };
+  }, [messages, isAtBottom]);
 
-  const handleCopyMkLink = async () => {
-    if (!mkUrl) return;
-    try { await navigator.clipboard.writeText(mkUrl); } catch {}
-  };
+  const handleSend = async () => {
+    setInlineAlert(null);
+    if (!input.trim()) return;
+    if (!userWithId?.id) {
+      setInlineAlert('Você precisa estar logado para enviar mensagens.');
+      return;
+    }
+    if (isSending) return;
+    if (typeof navigator !== 'undefined' && navigator && !navigator.onLine) {
+      setInlineAlert('Sem conexão com a internet no momento.');
+      return;
+    }
 
-  const sendMessage = async (text: string) => {
-    const prompt = text.trim();
-    if (!prompt) return;
-    if (!userWithId?.id) { alert('É necessário estar logado para usar o chat.'); return; }
+    const prompt = input.trim();
+    setInput("");
+    setIsSending(true);
+    autoScrollOnNext.current = true;
 
-    setMessages((prev) => [...prev, { sender: 'user', text: prompt }]);
+    setMessages(prev => [...prev, { sender: 'user', text: prompt }]);
+
     try {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
@@ -300,125 +158,93 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
         body: JSON.stringify({ query: prompt }),
       });
       const data = await res.json();
+
       if (res.ok && data.answer) {
-        setMessages((prev) => [...prev, { sender: 'consultant', text: data.answer, cta: data.cta }]);
+        setMessages(prev => [...prev, { sender: 'consultant', text: data.answer, cta: data.cta }]);
       } else {
-        setMessages((prev) => [...prev, { sender: 'consultant', text: data.error || 'Não foi possível obter resposta.' }]);
+        throw new Error(data?.error || "Não foi possível obter resposta.");
       }
-    } catch (e) {
-      setMessages((prev) => [...prev, { sender: 'consultant', text: 'Ocorreu um erro ao gerar a resposta.' }]);
+    } catch (e: any) {
+      setMessages(prev => [...prev, { sender: 'consultant', text: 'Ocorreu um erro ao gerar a resposta.' }]);
+      setInlineAlert(e?.message || 'Falha ao consultar a IA. Tente novamente.');
+    } finally {
+      setIsSending(false);
     }
   };
 
+  const isWelcome = messages.length === 0;
+  const fullName = (session?.user?.name || "").trim();
+  const firstName = fullName ? fullName.split(" ")[0] : "visitante";
+
+  const welcomePrompts = [
+    { icon: <FaLightbulb />, title: "Gerar ideias", text: "Me dê 5 ideias de Reels sobre marketing digital.", isConnectedFeature: false, prompt: "Me dê 5 ideias de Reels sobre marketing digital para essa semana." },
+    { icon: <FaChartLine />, title: "Analisar posts", text: "Qual dos meus últimos 5 posts teve mais engajamento?", isConnectedFeature: true, prompt: "Qual dos meus últimos 5 posts teve mais engajamento?" },
+    { icon: <FaQuestionCircle />, title: "Tirar dúvidas", text: "Como usar o CTA 'salvar' de forma mais eficiente?", isConnectedFeature: false, prompt: "Como usar o CTA 'salvar' de forma mais eficiente?" },
+  ];
+
+  const safeBottom = 'env(safe-area-inset-bottom, 0px)';
+  const BLEED = 12; // espaço para a sombra do composer “respirar”
+
   return (
-    // Container principal que serve de âncora para o posicionamento absoluto
-    <div className="relative h-full w-full">
-      
-      {/* Área rolável do histórico de mensagens */}
-      <div 
-        className="absolute inset-0 overflow-y-auto custom-scrollbar pt-6" // Adicionado padding no topo
-        style={{ paddingBottom: `${inputHeight + 16}px` }} // Padding dinâmico
+    // trocado overflow-hidden -> overflow-x-hidden para não cortar a sombra no rodapé
+    <div className="relative h-full w-full bg-white overflow-x-hidden">
+      {/* timeline */}
+      <div
+        ref={scrollRef}
+        className="absolute inset-0 overflow-y-auto custom-scrollbar"
+        style={{
+          paddingTop: 'var(--header-h, 4rem)',
+          paddingBottom: `calc(${inputHeight + BLEED}px + ${safeBottom})`,
+        }}
       >
-        {/* Wrapper para alinhar as mensagens na base (quando há poucas) e crescer para cima */}
         <div className="flex flex-col justify-end min-h-full">
           {isWelcome ? (
-            instagramConnected ? (
-              <div className="flex-1 flex items-center justify-center">
-                <div className="w-full px-4 py-6">
-                  <div className="w-full max-w-[800px] mx-auto">
-                    <div className="mb-3 text-center">
-                      <h2 className="text-4xl sm:text-5xl font-semibold tracking-tight text-blue-600">Olá, {firstName}</h2>
-                      <p className="mt-1 text-base sm:text-lg text-gray-500">Sugestões rápidas para começar</p>
-                    </div>
-
-                    {/* heading removed per request */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                      <SmartPromptCard
-                        icon={<span>📅</span>}
-                        text="Plano semanal com Proposta+Formato+Contexto+Tom+Referência"
-                        status="unlocked"
-                        onClick={() => sendMessage('Usando minhas métricas reais do Instagram, monte um plano semanal combinando Proposta, Formato, Contexto, Tom e Referência por dia e horário, priorizando as combinações com melhor retenção e engajamento.')}
-                      />
-                      <SmartPromptCard
-                        icon={<span>⏰</span>}
-                        text="Qual dia e hora de postagem gera mais curtidas?"
-                        status="unlocked"
-                        onClick={() => sendMessage('Com base nos meus dados do Instagram, quais são o dia e a hora que mais geram curtidas nos próximos 7 dias? Traga as 3 melhores janelas por formato (Reel 18–22s, Carrossel 5–7) priorizando curtidas, e inclua a justificativa rápida.')}
-                      />
-                      <SmartPromptCard
-                        icon={<span>💬</span>}
-                        text="Propostas e Toms que elevam comentários/salvamentos"
-                        status="unlocked"
-                        onClick={() => sendMessage('Com base nos últimos 30 dias, quais combinações de Proposta e Tom mais aumentam comentários e salvamentos para mim? Traga exemplos de posts e horários.')}
-                      />
-                      <SmartPromptCard
-                        icon={<span>🔎</span>}
-                        text="Quais das minhas narrativas não engajam?"
-                        status="unlocked"
-                        onClick={() => sendMessage('Com base no meu histórico de desempenho, quais narrativas (Proposta/Contexto/Tom) estão com engajamento e retenção abaixo da média? Liste 3–5 apostas a pausar, cite horários/janelas fracas e sugira alternativas.')}
-                      />
-                    </div>
-
-                    {null}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="flex-1 flex items-center justify-center">
-                <div className="w-full px-4 py-6">
-                  <div className="w-full max-w-[800px] mx-auto">
-                    <div className="mb-3">
-                      <h2 className="text-4xl sm:text-5xl font-semibold tracking-tight text-blue-600">Olá, {firstName}</h2>
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Faça uma pergunta</h3>
-
-                    {/* heading removed per request */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                      <SmartPromptCard
-                        icon={<span>📅</span>}
-                        text="Plano semanal com Proposta+Formato+Contexto+Tom+Referência"
-                        status="locked"
-                        onClick={handleCorrectInstagramLink}
-                      />
-                      <SmartPromptCard
-                        icon={<span>⏰</span>}
-                        text="Qual dia e hora de postagem gera mais curtidas?"
-                        status="locked"
-                        onClick={handleCorrectInstagramLink}
-                      />
-                      <SmartPromptCard
-                        icon={<span>💬</span>}
-                        text="Propostas e Toms que elevam comentários/salvamentos"
-                        status="locked"
-                        onClick={handleCorrectInstagramLink}
-                      />
-                      <SmartPromptCard
-                        icon={<span>🔎</span>}
-                        text="Quais das minhas narrativas não engajam?"
-                        status="locked"
-                        onClick={handleCorrectInstagramLink}
-                      />
-                    </div>
-
-                    {null}
-                  </div>
-                </div>
-              </div>
-            )
+            <div className="flex-1 flex flex-col items-center justify-center p-4">
+              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }}>
+                <h1 className="text-4xl sm:text-5xl font-bold text-center">
+                  <span className="text-gray-800">Olá, </span>
+                  <span className="text-blue-600">{firstName}</span>
+                </h1>
+                <p className="text-gray-500 text-center mt-2">O que podemos criar hoje?</p>
+              </motion.div>
+              <motion.div
+                initial="hidden"
+                animate="visible"
+                variants={{ visible: { transition: { staggerChildren: 0.1 } } }}
+                className="w-full max-w-3xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4 mt-10"
+              >
+                {welcomePrompts.map((p, i) => (
+                  <motion.div key={i} variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}>
+                    <PromptSuggestionCard
+                      icon={p.icon}
+                      title={p.title}
+                      text={p.text}
+                      onClick={() => {
+                        if (p.isConnectedFeature && !instagramConnected) {
+                          handleCorrectInstagramLink();
+                        } else {
+                          setInput(p.prompt);
+                          setTimeout(handleSend, 0);
+                        }
+                      }}
+                    />
+                  </motion.div>
+                ))}
+              </motion.div>
+            </div>
           ) : (
-            <div className="mx-auto max-w-[800px] w-full space-y-5 px-4">
+            <div className="mx-auto max-w-[800px] w-full space-y-2 px-4">
               {messages.map((msg, idx) => (
                 <div key={idx} className={`w-full flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] rounded-xl px-4 py-2.5 ${msg.sender === 'user' ? 'shadow-sm border border-gray-300 bg-gray-100 text-gray-900' : 'bg-transparent text-gray-800'}`}>
+                  <div className={`max-w-[85%] px-4 py-3 shadow-md ${msg.sender === 'user' ? 'rounded-t-2xl rounded-bl-2xl bg-blue-600 text-white' : 'rounded-t-2xl rounded-br-2xl bg-gray-200 text-gray-800'}`}>
                     {renderFormatted(msg.text)}
                     {msg.cta && (
                       <div className="mt-4">
                         <button
-                          className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-md bg-gray-100 text-gray-800 border border-gray-300 hover:bg-gray-200 transition-colors"
+                          className={`inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors
+                            ${msg.sender === 'user' ? 'bg-white/20 text-white border border-white/30 hover:bg-white/30' : 'bg-gray-900 text-white hover:bg-gray-800'}`}
                           onClick={() => {
-                            if (msg.cta?.action === 'connect_instagram') {
-                              return handleCorrectInstagramLink();
-                            }
+                            if (msg.cta?.action === 'connect_instagram') return handleCorrectInstagramLink();
                             if (msg.cta?.action === 'go_to_billing') {
                               if (onUpsellClick) return onUpsellClick();
                               return router.push('/dashboard/billing');
@@ -439,116 +265,189 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
         </div>
       </div>
 
-      {/* Barra de input com posicionamento absoluto, fixada na base */}
-      <div 
-        ref={inputWrapperRef}
-        className="absolute bottom-0 left-0 right-0 px-4 pb-6 pt-2 bg-white/85 backdrop-blur-sm"
-      >
-        {instagramConnected && !mkHidden && (
-          <div className="mx-auto max-w-[800px] w-full mb-2">
-            <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-1 text-xs sm:text-sm">
-              <div className="text-gray-700 flex items-center gap-2 min-w-0">
-                <span className="truncate">Mídia Kit pronto para compartilhar</span>
-                {(followersCount !== null || avgReachPerPost !== null) && !mkCollapsed && (
-                  <span className="hidden sm:inline-flex items-center gap-2 text-[11px] text-gray-500">
-                    {typeof followersCount === 'number' && (
-                      <span>Seguidores: <strong>{followersCount.toLocaleString('pt-BR')}</strong></span>
-                    )}
-                    {typeof avgReachPerPost === 'number' && (
-                      <span>• Alcance/post: <strong>{avgReachPerPost.toLocaleString('pt-BR', { notation: 'compact', maximumFractionDigits: 1 })}</strong></span>
-                    )}
-                  </span>
-                )}
+      {/* Voltar ao fim */}
+      <AnimatePresence>
+        {!isAtBottom && messages.length > 0 && (
+          <motion.button
+            key="back-to-end"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+            onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })}
+            className="absolute right-4 z-20 rounded-full px-3 py-2 text-xs sm:text-sm bg-gray-900 text-white shadow-lg hover:bg-gray-800"
+            aria-label="Voltar ao fim da conversa"
+            style={{ bottom: `calc(${inputHeight + BLEED}px + ${safeBottom})` }}
+          >
+            Voltar ao fim
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      {/* Respondendo... */}
+      <AnimatePresence>
+        {isSending && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            className="absolute left-1/2 -translate-x-1/2 z-20 text-xs sm:text-sm bg-gray-900 text-white px-3 py-1.5 rounded-full shadow"
+            style={{ bottom: `calc(${inputHeight + BLEED + 4}px + ${safeBottom})` }}
+            aria-live="polite"
+          >
+            Respondendo…
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Drawer de ferramentas */}
+      <AnimatePresence>
+        {isToolsOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setIsToolsOpen(false)}
+              className="absolute inset-0 bg-black/40 z-10"
+            />
+            <motion.div
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 400, damping: 40 }}
+              className="absolute bottom-0 left-0 right-0 bg-white p-4 pt-5 rounded-t-2xl shadow-2xl z-20 border-t"
+              style={{ paddingBottom: `calc(${inputHeight + BLEED}px + ${safeBottom})` }}
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-sm font-semibold text-gray-600 px-1">Ferramentas e Ações</h3>
+                <button onClick={() => setIsToolsOpen(false)} className="p-1 rounded-full hover:bg-gray-100 text-gray-500"><FaTimes /></button>
               </div>
-              <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-                <button
-                  onClick={() => setMkCollapsed(v => !v)}
-                  className="px-2 py-1 rounded-md border border-gray-200 text-[11px] sm:text-xs text-gray-700 hover:bg-gray-50"
-                  aria-label={mkCollapsed ? 'Mostrar detalhes' : 'Ocultar detalhes'}
-                >{mkCollapsed ? 'Detalhes' : 'Ocultar'}</button>
-                {mkUrl ? (
-                  <>
-                    <a href={mkUrl} target="_blank" rel="noopener noreferrer" className="px-2 sm:px-3 py-1.5 rounded-md text-[11px] sm:text-xs bg-gray-900 text-white font-semibold">Abrir</a>
-                    <button
-                      className="px-2 sm:px-3 py-1.5 rounded-md text-[11px] sm:text-xs bg-gray-100 border border-gray-300 text-gray-800"
-                      onClick={handleCopyMkLink}
-                    >Copiar</button>
-                  </>
-                ) : (
+
+              <div className="grid grid-cols-1 gap-3">
+                <div className="flex items-center justify-between w-full text-left p-3 bg-gray-100 rounded-lg border border-gray-200">
+                  <div className="flex items-center gap-4">
+                    <FaInstagram className="text-pink-600 text-xl" />
+                    <div>
+                      <span className="text-sm font-medium text-gray-800">Análise Personalizada</span>
+                      <p className="text-xs text-gray-500">Use suas métricas do Instagram.</p>
+                    </div>
+                  </div>
                   <button
-                    disabled={mkLoading}
-                    onClick={handleGenerateMkLink}
-                    className="px-2 sm:px-3 py-1.5 rounded-md text-[11px] sm:text-xs font-semibold text-white bg-pink-600 hover:bg-pink-700 disabled:opacity-50"
-                  >{mkLoading ? 'Gerando…' : 'Gerar Link'}</button>
+                    onClick={handleCorrectInstagramLink}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${instagramConnected ? 'bg-blue-600' : 'bg-gray-300'}`}
+                    disabled={instagramConnected}
+                    aria-label={instagramConnected ? "Instagram conectado" : "Conectar Instagram"}
+                  >
+                    <span aria-hidden="true" className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${instagramConnected ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+
+                {instagramConnected && (
+                  <button
+                    onClick={() => { router.push('/dashboard/media-kit'); setIsToolsOpen(false); }}
+                    className="flex items-center gap-4 w-full text-left p-3 bg-gray-100 hover:bg-gray-200 rounded-lg border border-gray-200 transition-colors"
+                  >
+                    <FaExternalLinkAlt className="text-gray-600 text-lg" />
+                    <div>
+                      <span className="text-sm font-medium text-gray-800">Acessar Mídia Kit</span>
+                      <p className="text-xs text-gray-500">Ver e compartilhar seus dados.</p>
+                    </div>
+                  </button>
                 )}
-                <button
-                  onClick={hideMk}
-                  className="ml-1 px-2 py-1 rounded-md text-gray-400 hover:text-gray-600"
-                  aria-label="Fechar banner do Mídia Kit"
-                  title="Fechar"
-                >×</button>
+
+                {instagramConnected && isActiveLikePlan && (
+                  <div className="p-3 bg-gray-100 rounded-lg border border-gray-200">
+                    <WhatsAppConnectInline />
+                  </div>
+                )}
               </div>
-            </div>
-          </div>
+            </motion.div>
+          </>
         )}
-        {instagramConnected && isActiveLikePlan && (
-          <div className="mx-auto max-w-[800px] w-full mb-2">
-            <WhatsAppConnectInline />
-          </div>
-        )}
-        {!instagramConnected && (
-          <div className="mx-auto max-w-[800px] w-full mb-2">
-            <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 text-blue-900 px-3 py-2">
-              <div className="text-xs sm:text-sm flex items-center gap-2">
-                <span aria-hidden>✨</span>
-                Conecte seu Instagram para respostas personalizadas e Mídia Kit gratuito.
-              </div>
+      </AnimatePresence>
+
+      {/* Composer */}
+      <div
+        ref={inputWrapperRef}
+        className="
+          absolute bottom-0 left-0 right-0
+          px-2 sm:px-4 pt-2
+          bg-white/80 backdrop-blur-sm
+          lg:bg-transparent lg:backdrop-blur-0
+        "
+        // apenas o safe-area; em desktop vira 0px
+        style={{ paddingBottom: safeBottom }}
+      >
+        {/* Alertas inline */}
+        <AnimatePresence>
+          {inlineAlert && (
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 6 }}
+              className="mb-2 mx-auto max-w-[800px] flex items-center gap-2 text-xs text-yellow-800 bg-yellow-50 border border-yellow-200 px-3 py-2 rounded-lg"
+              role="alert"
+              aria-live="polite"
+            >
+              <FaExclamationTriangle className="flex-shrink-0" />
+              <span>{inlineAlert}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="relative mx-auto max-w-[800px] bg-gray-100 rounded-2xl p-2 shadow-2xl border border-gray-200/80">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsToolsOpen(true)}
+              className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full text-gray-600 hover:bg-gray-300 transition-colors"
+              aria-label="Abrir ferramentas"
+            >
+              <FaPlus />
+            </button>
+
+            {!instagramConnected ? (
               <button
                 onClick={handleCorrectInstagramLink}
-                className="ml-3 text-xs sm:text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-md"
+                className="flex-shrink-0 text-xs sm:text-sm font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded-lg transition-colors"
               >
-                Conectar agora
+                Conectar Instagram
               </button>
-            </div>
-          </div>
-        )}
-        <div className="relative mx-auto max-w-[800px] flex items-end gap-2.5 border border-gray-300 rounded-2xl px-3.5 py-2.5 bg-white shadow-md focus-within:border-gray-400">
-          <div className="shrink-0 self-end mb-0.5">
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="Você" className="w-10 h-10 rounded-full object-cover border border-gray-300" />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-gray-200 border border-gray-300" aria-hidden />
+              <span
+                className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-green-100 text-green-800 border border-green-300"
+                title="Instagram conectado"
+              >
+                <FaCheckCircle className="w-3 h-3" />
+                IG conectado {instagramUsername ? `• @${instagramUsername}` : ''}
+              </span>
             )}
           </div>
-          <textarea
-            ref={textAreaRef}
-            value={input}
-            rows={1}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            placeholder={`Insira um comando ou faça uma pergunta...`}
-            className="flex-1 resize-none overflow-y-auto bg-transparent border-0 ring-0 focus:ring-0 outline-none text-[15px] leading-6 placeholder-gray-500 text-gray-900 max-h-[40vh] pl-2"
-          />
-          <AnimatePresence>
-            {input.trim().length > 0 && (
-              <motion.button
-                key="send"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.15 }}
-                onClick={handleSend}
-                className="shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-pink-600 text-white hover:bg-pink-700"
-              >
-                <FaPaperPlane className="w-4 h-4" />
-              </motion.button>
-            )}
-          </AnimatePresence>
+
+          <div className="relative flex items-end mt-2">
+            <textarea
+              ref={textAreaRef}
+              value={input}
+              rows={1}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  if (!isSending) handleSend();
+                }
+              }}
+              placeholder="Envie uma mensagem..."
+              className="flex-1 resize-none bg-transparent py-2 pl-2 pr-10 border-0 ring-0 focus:ring-0 outline-none text-[15px] leading-6 placeholder-gray-500 text-gray-900 max-h-[25vh]"
+              aria-label="Campo de mensagem"
+              disabled={isSending}
+            />
+            <motion.button
+              key="send"
+              animate={{ scale: input.trim().length > 0 && !isSending ? 1 : 0.95, opacity: input.trim().length > 0 || isSending ? 1 : 0.5 }}
+              transition={{ duration: 0.15 }}
+              onClick={handleSend}
+              className="absolute right-1 bottom-1 flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+              disabled={!input.trim() || isSending}
+              aria-label="Enviar mensagem"
+            >
+              {isSending ? <span className="text-sm leading-none">…</span> : <FaPaperPlane className="w-4 h-4" />}
+            </motion.button>
+          </div>
         </div>
       </div>
     </div>

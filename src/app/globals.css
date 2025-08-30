@@ -1,44 +1,59 @@
-/* src/app/globals.css (Otimizado) */
+/* src/app/globals.css (Atualizado Pacote A) */
 
 /* Tailwind base, components, utilities */
-/* Estas são as diretivas essenciais para o Tailwind funcionar */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* REMOVIDO: @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'); */
-/* A fonte Inter agora é carregada via next/font/google no layout.tsx */
+/* =========================
+   Variáveis & Helpers Gemini
+   ========================= */
+:root {
+  /* Altura do header (atualizada dinamicamente pelo Header via ResizeObserver) */
+  --header-h: 56px;
 
-/* REMOVIDO: Bloco :root com variáveis CSS */
-/* As cores base são aplicadas via classes Tailwind no layout.tsx, usando o tailwind.config.ts */
-/* :root { ... } */
-/* @media (prefers-color-scheme: dark) { :root { ... } } */
+  /* Safe areas (iOS) — usadas para evitar conteúdo sob o notch/home bar */
+  --sat: env(safe-area-inset-top);
+  --sab: env(safe-area-inset-bottom);
+}
 
-/* REMOVIDO: Estilos diretos no body */
-/* A fonte, cor de fundo e cor de texto base são aplicadas via classes Tailwind no layout.tsx */
-/* body { ... } */
+/* Altura baseada em 100svh para evitar jumps no mobile */
+.h-svh { height: 100svh; }
+.min-h-svh { min-height: 100svh; }
 
+/* Padding-top padrão do header fixo */
+.pt-header { padding-top: var(--header-h); }
 
-/* --- ESTILOS CUSTOMIZADOS OPCIONAIS (Manter apenas se necessário) --- */
+/* Padding-bottom que respeita a home bar (ótimo pro composer do chat) */
+.pb-safe { padding-bottom: calc(0.5rem + var(--sab)); }
+
+/* Esconde scrollbar mantendo scroll (útil para overlays/drawers se necessário) */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* =========================
+   Estilos existentes
+   ========================= */
 
 /* Custom scrollbar (opcional) */
-/* Se você gosta e usa, pode manter. Caso contrário, remova para simplificar. */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: #f1f1f1; /* Cor de fundo da track um pouco mais suave */
+  background: #f1f1f1;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #c1c1c1; /* Cor do thumb um pouco mais suave */
+  background-color: #c1c1c1;
   border-radius: 3px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: #a8a8a8; /* Cor do thumb no hover */
+  background-color: #a8a8a8;
 }
 
 /* Scrollbar Hide utility (opcional) */
-/* Mantenha apenas se precisar esconder scrollbars em elementos específicos. */
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
@@ -48,12 +63,11 @@
 }
 
 /* Placeholder para campos contentEditable (opcional) */
-/* Mantenha apenas se você usa campos editáveis com placeholder via atributo data-*. */
 [data-placeholder]:empty:before {
   content: attr(data-placeholder);
-  color: #a0aec0; /* Cinza padrão do Tailwind */
-  pointer-events: none; /* Garante que o placeholder não interfira no clique */
-  display: block; /* Garante que o placeholder seja exibido */
+  color: #a0aec0;
+  pointer-events: none;
+  display: block;
 }
 
 :focus-visible {
@@ -61,20 +75,13 @@
   outline-offset: 2px;
 }
 
-/* Adicione aqui outros estilos globais realmente necessários */
-/* Exemplo: Estilos base para links, se não cobertos pelo Tailwind/Typography plugin */
-/*
+/* Exemplo: estilos base para links (mantido comentado)
 a {
   @apply text-brand-pink hover:underline;
 }
 */
 
 @keyframes shimmer {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(100%);
-  }
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
-

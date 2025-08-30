@@ -1,21 +1,26 @@
 // src/app/dashboard/chat/page.tsx
-
 "use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 import ChatPanel from "@/app/dashboard/ChatPanel";
 import InstagramConnectCard from "@/app/dashboard/InstagramConnectCard";
-import { useSearchParams } from "next/navigation";
-import { useSession } from 'next-auth/react';
-import { useEffect, useMemo, useRef, useState } from 'react';
 import BillingSubscribeModal from "@/app/dashboard/billing/BillingSubscribeModal";
 
 export default function ChatHomePage() {
+  const router = useRouter();
   const sp = useSearchParams();
-  const showIgConnect = sp.get('instagramLinked') === 'true';
-  const { data: session, status } = useSession();
+  const showIgConnect = sp.get("instagramLinked") === "true";
+
+  const { data: session } = useSession();
   const instagramConnected = Boolean(session?.user?.instagramConnected);
-  const planStatus = (session?.user?.planStatus || '').toLowerCase();
-  const isActiveLike = useMemo(() => new Set(['active','trial','trialing','non_renewing']).has(planStatus), [planStatus]);
+  const planStatus = String(session?.user?.planStatus || "").toLowerCase();
+  const isActiveLike = useMemo(
+    () => new Set(["active", "trial", "trialing", "non_renewing"]).has(planStatus),
+    [planStatus]
+  );
 
   // Modal de assinatura (PRO)
   const [showBillingModal, setShowBillingModal] = useState(false);
@@ -23,8 +28,17 @@ export default function ChatHomePage() {
   const closeBillingModal = () => setShowBillingModal(false);
   const openedAfterIgRef = useRef(false);
 
+  // Limpa o parâmetro ?instagramLinked=true do URL após a primeira renderização
+  useEffect(() => {
+    const params = new URLSearchParams(sp.toString());
+    if (params.get("instagramLinked") === "true") {
+      params.delete("instagramLinked");
+      const next = window.location.pathname + (params.toString() ? `?${params}` : "");
+      router.replace(next, { scroll: false });
+    }
+  }, [sp, router]);
 
-  // Abrir modal de assinatura automaticamente após conexão IG (apenas uma vez)
+  // Abre o modal após IG conectar (se não tiver plano ativo) — apenas uma vez
   useEffect(() => {
     if (showIgConnect && instagramConnected && !isActiveLike && !openedAfterIgRef.current) {
       openedAfterIgRef.current = true;
@@ -32,26 +46,23 @@ export default function ChatHomePage() {
     }
   }, [showIgConnect, instagramConnected, isActiveLike]);
 
-  // (Mídia Kit banner e lógica foram movidos para o ChatPanel)
-
   return (
-    // Container ajustado para sidebar: remove full-bleed
+    // Altura da área principal = viewport - header (h-16 = 4rem)
     <div className="relative w-full bg-white text-gray-900 h-[calc(100vh-4rem)] flex flex-col">
-      
-      {/* Cards superiores (Conexão IG) */}
+      {/* Card de conexão IG quando voltamos do OAuth */}
       <div className="mx-auto max-w-4xl w-full px-4 pt-2 space-y-2">
         {showIgConnect && (
           <div className="rounded-lg border border-gray-200 bg-white p-4">
             <InstagramConnectCard
               canAccessFeatures={true}
-              onActionRedirect={() => { /* no-op in chat */ }}
-              showToast={() => { /* no-op in chat */ }}
+              onActionRedirect={() => {}}
+              showToast={() => {}}
             />
           </div>
         )}
       </div>
 
-      {/* O ChatPanel agora ocupa o espaço restante de forma flexível */}
+      {/* Chat ocupa todo o restante */}
       <div className="flex-grow w-full">
         <ChatPanel onUpsellClick={openBillingModal} />
       </div>
