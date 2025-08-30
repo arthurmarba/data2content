@@ -198,7 +198,7 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
         throw new Error(errData.message || 'Falha ao preparar vinculação com Facebook.');
       }
       logger.info("/api/auth/iniciar-vinculacao-fb OK. Iniciando signIn('facebook').");
-      signIn('facebook', { callbackUrl: '/dashboard?instagramLinked=true' });
+      signIn('facebook', { callbackUrl: '/dashboard/chat?instagramLinked=true' });
     } catch (e: any) {
       logger.error('Erro ao iniciar vinculação:', e);
       setLinkError(e.message || 'Erro inesperado ao tentar conectar com Facebook.');

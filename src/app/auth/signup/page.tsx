@@ -24,7 +24,7 @@ export default function SignUpPage() {
     if (result?.error) {
       setError(result.error);
     } else {
-      router.push("/dashboard");
+      router.push("/dashboard/chat");
     }
   };
 

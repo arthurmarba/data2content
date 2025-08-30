@@ -6,9 +6,10 @@ import { motion } from "framer-motion";
 interface MarqueeProps {
   items: string[];
   direction?: "left" | "right";
+  itemClassName?: string;
 }
 
-export default function Marquee({ items, direction = "left" }: MarqueeProps) {
+export default function Marquee({ items, direction = "left", itemClassName }: MarqueeProps) {
   const marqueeContent = useMemo(() => [...items, ...items], [items]);
   return (
     <div className="relative w-full overflow-hidden">
@@ -21,7 +22,10 @@ export default function Marquee({ items, direction = "left" }: MarqueeProps) {
         {marqueeContent.map((item, index) => (
           <div
             key={index}
-            className="flex-shrink-0 whitespace-nowrap px-6 py-3 rounded-full bg-gray-200/80 text-gray-600 font-medium"
+            className={
+              itemClassName ||
+              "flex-shrink-0 whitespace-nowrap px-6 py-3 rounded-full bg-gray-200/80 text-gray-600 font-medium"
+            }
           >
             {item}
           </div>
@@ -30,4 +34,3 @@ export default function Marquee({ items, direction = "left" }: MarqueeProps) {
     </div>
   );
 }
-

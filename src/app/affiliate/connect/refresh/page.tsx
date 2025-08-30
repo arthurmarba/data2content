@@ -11,7 +11,7 @@ export default function ConnectRefreshPage() {
   useEffect(() => {
     mutate('/api/affiliate/connect/status');
     const t = setTimeout(() => {
-      router.replace('/dashboard');
+      router.replace('/dashboard/chat');
     }, 100);
     return () => clearTimeout(t);
   }, [mutate, router]);

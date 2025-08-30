@@ -8,10 +8,10 @@ import { FaCheckCircle } from 'react-icons/fa';
 export default function SubscriptionThanksPage() {
   const router = useRouter();
 
-  // Redireciona o usuário para o dashboard principal após alguns segundos
+  // Redireciona o usuário para o chat após alguns segundos
   useEffect(() => {
     const timer = setTimeout(() => {
-      router.replace('/dashboard');
+      router.replace('/dashboard/chat');
     }, 5000); // 5 segundos
 
     return () => clearTimeout(timer); // Limpa o timer se o componente for desmontado
@@ -25,10 +25,10 @@ export default function SubscriptionThanksPage() {
         Sua assinatura foi processada com sucesso. Estamos ativando seu plano e você será redirecionado em breve.
       </p>
       <button 
-        onClick={() => router.replace('/dashboard')}
+        onClick={() => router.replace('/dashboard/chat')}
         className="px-6 py-2 bg-black text-white rounded-lg font-semibold hover:bg-gray-800 transition-colors"
       >
-        Ir para o Dashboard
+        Conversar com IA
       </button>
     </div>
   );

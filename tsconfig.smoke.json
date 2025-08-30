@@ -1,0 +1,38 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@models/*": ["./src/app/models/*"],
+      "@lib/*": ["./src/app/lib/*"],
+      "@auth/*": ["./src/app/api/auth/*"]
+    },
+    "typeRoots": ["./types", "./node_modules/@types"],
+    "tsBuildInfoFile": "./tmp/tsconfig.smoke.tsbuildinfo"
+  },
+  "include": [
+    "src/app/dashboard/ChatPanel.tsx",
+    "src/app/dashboard/WhatsAppConnectInline.tsx",
+    "src/app/dashboard/billing/BillingSubscribeModal.tsx",
+    "src/app/dashboard/billing/SubscribeInline.tsx",
+    "src/app/dashboard/whatsapp/page.tsx",
+    "src/components/billing/SubscribeModal.tsx",
+    "src/components/billing/PaymentStep.tsx",
+    "src/app/dashboard/billing/CheckoutForm.tsx",
+    "src/app/billing/success/page.tsx",
+    "next-env.d.ts"
+  ]
+}

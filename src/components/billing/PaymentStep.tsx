@@ -17,7 +17,7 @@ function InnerPayment({ clientSecret, onClose }: { clientSecret: string; onClose
     if (!stripe || !elements) return;
     setLoading(true); setError(null);
     // sempre voltar para a página com polling
-    const returnUrl = `${window.location.origin}/dashboard/billing/success`;
+    const returnUrl = `${window.location.origin}/billing/success`;
 
     const { error } = await stripe.confirmPayment({
       elements,

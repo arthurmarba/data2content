@@ -10,6 +10,7 @@ interface WhatsAppPanelProps {
   canAccessFeatures: boolean;
   onActionRedirect: () => void;
   showToast: (message: string, type?: "info" | "warning" | "success" | "error") => void;
+  upsellOnly?: boolean; // quando true, renderiza apenas o upsell PRO
 }
 
 export default function WhatsAppPanel({
@@ -17,6 +18,7 @@ export default function WhatsAppPanel({
   canAccessFeatures,
   onActionRedirect,
   showToast,
+  upsellOnly = false,
 }: WhatsAppPanelProps) {
   const [isLoading, setIsLoading] = useState(canAccessFeatures);
   const [isLinked, setIsLinked] = useState(false);
@@ -26,11 +28,48 @@ export default function WhatsAppPanel({
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
 
+  // U P S E L L  –  quando não há acesso ou upsellOnly=true, mostra cartão de vendas PRO
+  if (!canAccessFeatures || upsellOnly) {
+    return (
+      <div className="relative">
+        <div className="flex items-center gap-3 mb-4">
+          <FaWhatsapp className="w-10 h-10 text-green-500" />
+          <div>
+            <h3 className="font-semibold text-lg text-gray-800">WhatsApp IA PRO</h3>
+            <p className="text-sm text-gray-500 mt-1">Alertas proativos, relatórios semanais e consultoria no seu WhatsApp.</p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+          <ul className="list-disc pl-5 text-sm text-gray-700 space-y-2">
+            <li>Alertas proativos de performance e oportunidades de conteúdo.</li>
+            <li>Resumo semanal automático com destaques e prioridades.</li>
+            <li>Atalhos de prompts para tirar dúvidas em tempo real.</li>
+            <li>Integração direta com seu Instagram conectado.</li>
+          </ul>
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <button
+              onClick={() => onActionRedirect()}
+              className="flex-1 px-4 py-2.5 bg-pink-600 text-white rounded-lg text-sm font-semibold hover:bg-pink-700 transition-colors"
+            >
+              Fazer upgrade para PRO
+            </button>
+            <a
+              href="/dashboard/billing"
+              className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 border border-gray-200 text-center"
+            >
+              Ver planos e preços
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   useEffect(() => {
-    if (!canAccessFeatures) {
-      setIsLoading(false);
-      return;
-    }
+    // fluxo funcional apenas para quem tem acesso
+    if (!canAccessFeatures) return;
+    setIsLoading(true);
 
     async function fetchWhatsAppStatus() {
       setIsLoading(true);

@@ -96,7 +96,7 @@ export default function AffiliateProgramPage() {
         {/* Seção: Seu Código e Link de Afiliado */}
         <InfoCard icon={<FaLink />} title="O seu Código e Link de Indicação">
           <p>
-            Encontra o seu código de afiliado e o seu link de indicação completo diretamente no seu <a href="/dashboard" className="text-brand-pink hover:underline font-medium">Painel de Controlo (Dashboard)</a>.
+            Encontra o seu código de afiliado e o seu link de indicação completo diretamente em <a href="/dashboard/chat" className="text-brand-pink hover:underline font-medium">Conversar com IA</a>.
           </p>
           <p className="mt-2">
             <strong>Código de Afiliado:</strong> É um código curto e fácil de memorizar (ex: <code>JOAO123</code>). O seu indicado pode inseri-lo no momento da compra do plano.
@@ -141,7 +141,7 @@ export default function AffiliateProgramPage() {
             Para solicitar o resgate:
           </p>
           <ol className="list-decimal list-inside space-y-1 mt-2 pl-2">
-            <li>Aceda ao seu <a href="/dashboard" className="text-brand-pink hover:underline font-medium">Painel de Controlo</a>.</li>
+            <li>Aceda a <a href="/dashboard/chat" className="text-brand-pink hover:underline font-medium">Conversar com IA</a>.</li>
             <li>Verifique se os seus dados de pagamento (PIX ou conta bancária) estão corretamente preenchidos na secção "Dados de Pagamento".</li>
             <li>Clique no botão "Resgatar Saldo".</li>
           </ol>

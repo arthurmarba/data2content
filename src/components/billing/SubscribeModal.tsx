@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useSession } from 'next-auth/react';
 import PaymentStep from './PaymentStep';
 
 type Plan = 'monthly'|'annual';
@@ -10,15 +9,13 @@ type Cur = 'brl'|'usd';
 interface Props {
   open: boolean;
   onClose: () => void;
-  prices: { // vindo da sua API
-    monthly: { brl: number; usd: number }; // valores exibidos (não IDs)
+  prices: {
+    monthly: { brl: number; usd: number };
     annual: { brl: number; usd: number };
   }
 }
 
 export default function SubscribeModal({ open, onClose, prices }: Props) {
-  const { data: session } = useSession();
-  const [step, setStep] = useState<1|2|3>(1);
   const [plan, setPlan] = useState<Plan>('monthly');
   const [currency, setCurrency] = useState<Cur>('brl');
   const [affiliateCode, setAffiliateCode] = useState('');
@@ -43,15 +40,57 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
       });
       const body = await res.json();
 
-      if (res.status === 422) {
+      if (res.status === 422 || body?.code === 'INVALID_CODE') {
         setCodeError(body?.message ?? 'Código inválido ou expirado.');
+        setLoading(false);
+        return;
+      }
+      if (!res.ok && body?.code === 'SELF_REFERRAL') {
+        setCodeError(body?.message ?? 'Você não pode usar seu próprio código.');
         setLoading(false);
         return;
       }
 
       if (!res.ok) throw new Error(body?.error || body?.message || 'Falha ao iniciar assinatura');
-      setClientSecret(body.clientSecret ?? null);
-      setStep(3);
+      if (body?.checkoutUrl) {
+        window.location.href = body.checkoutUrl;
+        return;
+      }
+      if (body?.clientSecret) {
+        setClientSecret(body.clientSecret);
+        return;
+      }
+      throw new Error('Resposta da API inválida. Faltando clientSecret/checkoutUrl.');
+    } catch (e:any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleStartTrial() {
+    setLoading(true);
+    setError(null);
+    setCodeError(null);
+    try {
+      const res = await fetch('/api/billing/checkout/trial', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({ plan, currency: currency.toUpperCase(), affiliateCode: affiliateCode.trim() || undefined })
+      });
+      const body = await res.json();
+      if (!res.ok || !body?.url) {
+        if (body?.code === 'SELF_REFERRAL') {
+          setCodeError(body?.message ?? 'Você não pode usar seu próprio código.');
+          return;
+        }
+        if (body?.code === 'INVALID_CODE') {
+          setCodeError(body?.message ?? 'Código inválido ou expirado.');
+          return;
+        }
+        throw new Error(body?.error || body?.message || 'Falha ao iniciar teste gratuito');
+      }
+      window.location.href = body.url;
     } catch (e:any) {
       setError(e.message);
     } finally {
@@ -60,96 +99,98 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Assinar plano</h2>
-          <button className="text-sm text-gray-500" onClick={onClose}>Fechar</button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="w-full max-w-xl rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg sm:text-xl font-semibold text-brand-dark">Assinar Data2Content</h2>
+          <button
+            className="text-sm text-gray-500 hover:text-gray-700 px-2 py-1 rounded-md hover:bg-gray-100"
+            onClick={onClose}
+            aria-label="Fechar"
+          >
+            Fechar
+          </button>
         </div>
 
-        {/* Steps header */}
-        <div className="mb-6 flex items-center gap-2 text-xs">
-          <span className={`rounded-full px-2 py-1 ${step===1?'bg-black text-white':'bg-gray-100'}`}>1. Plano & Moeda</span>
-          <span>—</span>
-          <span className={`rounded-full px-2 py-1 ${step===2?'bg-black text-white':'bg-gray-100'}`}>2. Cupom</span>
-          <span>—</span>
-          <span className={`rounded-full px-2 py-1 ${step===3?'bg-black text-white':'bg-gray-100'}`}>3. Pagamento</span>
-        </div>
-
-        {step === 1 && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <button onClick={()=>setPlan('monthly')}
-                className={`rounded-xl border p-3 ${plan==='monthly'?'border-black':'border-gray-200'}`}>
-                Mensal
-              </button>
-              <button onClick={()=>setPlan('annual')}
-                className={`rounded-xl border p-3 ${plan==='annual'?'border-black':'border-gray-200'}`}>
-                Anual
-              </button>
+        <div className="px-6 py-5 grid grid-cols-1 gap-5">
+          {/* Seletor Plano/Moeda */}
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <div className="inline-flex rounded-xl border border-gray-300 p-1 bg-gray-50">
+              <button
+                type="button"
+                onClick={() => setPlan('monthly')}
+                className={`px-3 py-1.5 text-sm rounded-lg ${plan==='monthly' ? 'bg-gray-900 text-white' : 'text-gray-700'}`}
+              >Mensal</button>
+              <button
+                type="button"
+                onClick={() => setPlan('annual')}
+                className={`px-3 py-1.5 text-sm rounded-lg ${plan==='annual' ? 'bg-gray-900 text-white' : 'text-gray-700'}`}
+              >Anual</button>
             </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <button onClick={()=>setCurrency('brl')}
-                className={`rounded-xl border p-3 ${currency==='brl'?'border-black':'border-gray-200'}`}>
-                BRL (R$)
-              </button>
-              <button onClick={()=>setCurrency('usd')}
-                className={`rounded-xl border p-3 ${currency==='usd'?'border-black':'border-gray-200'}`}>
-                USD ($)
-              </button>
-            </div>
-
-            <div className="rounded-xl bg-gray-50 p-4">
-              <p className="text-sm text-gray-600">Valor:</p>
-              <p className="text-2xl font-semibold">
-                {currency === 'brl' ? 'R$ ' : '$ '}
-                {priceShown.toFixed(2)} {plan==='monthly'?'/ mês':'/ ano'}
-              </p>
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <button className="rounded-xl border px-4 py-2" onClick={onClose}>Cancelar</button>
-              <button className="rounded-xl bg-black px-4 py-2 text-white" onClick={()=>setStep(2)}>
-                Continuar
-              </button>
+            <div className="inline-flex rounded-xl border border-gray-300 p-1 bg-gray-50">
+              <button
+                type="button"
+                onClick={() => setCurrency('brl')}
+                className={`px-3 py-1.5 text-sm rounded-lg ${currency==='brl' ? 'bg-gray-900 text-white' : 'text-gray-700'}`}
+              >BRL</button>
+              <button
+                type="button"
+                onClick={() => setCurrency('usd')}
+                className={`px-3 py-1.5 text-sm rounded-lg ${currency==='usd' ? 'bg-gray-900 text-white' : 'text-gray-700'}`}
+              >USD</button>
             </div>
           </div>
-        )}
 
-        {step === 2 && (
-          <div className="space-y-4">
-            <label className="block text-sm">Cupom / Código de Afiliado (opcional)</label>
+          {/* Valor */}
+          <div className="text-center">
+            <div className="text-3xl font-extrabold tracking-tight">
+              {currency === 'brl' ? 'R$ ' : '$ '}{priceShown.toFixed(2)} <span className="text-base font-medium text-gray-500">/{plan==='monthly'?'mês':'ano'}</span>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">Pagamento seguro via Stripe. Sem fidelidade — cancele quando quiser.</p>
+          </div>
+
+          {/* Código de afiliado */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Cupom / Código de Afiliado (opcional)</label>
             <input
               value={affiliateCode}
               onChange={e=>setAffiliateCode(e.target.value)}
               placeholder="Ex.: ABC123"
-              className="w-full rounded-xl border px-3 py-2"
+              className="w-full rounded-xl border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-500"
             />
-            {codeError && <p className="text-sm text-red-600">{codeError}</p>}
-            <div className="flex justify-between">
-              <button className="rounded-xl border px-4 py-2" onClick={()=>setStep(1)}>Voltar</button>
-              <button disabled={loading} className="rounded-xl bg-black px-4 py-2 text-white" onClick={handleStart}>
-                {loading ? 'Processando...' : 'Ir para pagamento'}
+            {codeError && <p className="text-sm text-red-600 mt-1">{codeError}</p>}
+          </div>
+
+          {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+
+          {/* Ações */}
+          {!clientSecret && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                onClick={handleStartTrial}
+                disabled={loading}
+                className="w-full rounded-xl border border-gray-900 px-4 py-3 text-gray-900 hover:bg-gray-50 disabled:opacity-50"
+              >
+                {loading ? 'Preparando…' : 'Teste gratuito (7 dias)'}
+              </button>
+              <button
+                onClick={handleStart}
+                disabled={loading}
+                className="w-full rounded-xl bg-pink-600 hover:bg-pink-700 px-4 py-3 text-white font-semibold disabled:opacity-50"
+              >
+                {loading ? 'Processando…' : 'Assinar agora'}
               </button>
             </div>
-            {error && <p className="text-sm text-red-600">{error}</p>}
-          </div>
-        )}
+          )}
 
-        {step === 3 && (
-          <div className="space-y-4">
-            {clientSecret ? (
+          {/* Pagamento inline quando clientSecret disponível */}
+          {clientSecret && (
+            <div className="rounded-xl border border-gray-200 p-4">
               <PaymentStep clientSecret={clientSecret} onClose={onClose} />
-            ) : (
-              <div className="rounded-xl bg-yellow-50 p-4 text-sm">
-                Falta confirmar o pagamento. Recarregue e tente novamente.
-              </div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
-

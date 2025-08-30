@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { stripe } from "@/app/lib/stripe";
 
+// Ensure this route is never statically generated during build
 export const runtime = "nodejs";
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 type Plan = "monthly" | "annual";
 type Currency = "BRL" | "USD";

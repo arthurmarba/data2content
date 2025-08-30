@@ -601,9 +601,18 @@ Gere a mensagem final agora.
 
         initialMsgs = [
             { role: 'system', content: systemPrompt },
-            ...historyMessages,
-            { role: 'user', content: incomingText }
         ];
+
+        // Se houver resumo de conversa no estado, adiciona como mensagem de sistema para reduzir contexto
+        try {
+            const summary = (enrichedContext as any)?.dialogueState?.conversationSummary as string | undefined;
+            if (summary && typeof summary === 'string' && summary.trim().length > 0) {
+                initialMsgs.push({ role: 'system', content: `Resumo da conversa até agora:\n${summary.trim()}` });
+            }
+        } catch {/* ignore */}
+
+        initialMsgs.push(...historyMessages);
+        initialMsgs.push({ role: 'user', content: incomingText });
     }
 
     logger.debug(`${fnTag} Histórico inicial montado com ${initialMsgs.length} mensagens.`);
@@ -686,7 +695,15 @@ Gere a mensagem final agora.
             logger.info(`${turnTag} Intenção '${currentIntent}' é leve. Function calling desabilitado.`);
         } else {
             logger.info(`${turnTag} Intenção '${currentIntent}' permite function calling. Habilitando funções padrão.`);
-            requestPayload.functions = [...functionSchemas];
+            // Filtra funções sensíveis para o chat geral: não expor inspirações da comunidade
+            const defaultFunctions = [...functionSchemas];
+            const filteredFunctions = currentIntent === 'general'
+                ? defaultFunctions.filter((fn) => fn.name !== 'fetchCommunityInspirations')
+                : defaultFunctions;
+            if (filteredFunctions.length !== defaultFunctions.length) {
+                logger.info(`${turnTag} Funções filtradas para intent 'general': removido 'fetchCommunityInspirations'.`);
+            }
+            requestPayload.functions = filteredFunctions;
             requestPayload.function_call = 'auto';
         }
 

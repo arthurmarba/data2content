@@ -10,8 +10,8 @@ const MainContentWrapper = ({ children }: { children: React.ReactNode }) => {
   // Define a classe da tag <main> dinamicamente.
   // Se estiver na página '/dashboard', não adiciona o padding no topo.
   // Em todas as outras páginas, adiciona o padding para compensar o Header fixo.
-  const mainClassName = pathname === '/dashboard' 
-    ? 'flex-grow' 
+  const mainClassName = pathname && pathname.startsWith('/dashboard')
+    ? 'flex-grow'
     : 'flex-grow pt-16 md:pt-20';
 
   return (

@@ -35,7 +35,7 @@ export default function PublicSubscribePage() {
 
   useEffect(() => {
     if (status === 'authenticated') {
-      router.replace('/dashboard');
+      router.replace('/dashboard/chat');
     }
   }, [status, router]);
 
@@ -134,7 +134,7 @@ export default function PublicSubscribePage() {
         </div>
 
         {status === 'authenticated' ? (
-          <p className="text-center">Redirecionando para seu dashboard...</p>
+          <p className="text-center">Redirecionando para Conversar com IA...</p>
         ) : (
           <button
             className="w-full bg-primary text-white py-3 px-4 rounded-xl text-lg font-semibold hover:bg-primary-dark transition-colors duration-300 shadow-md hover:shadow-lg"

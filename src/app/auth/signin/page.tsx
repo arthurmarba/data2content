@@ -31,7 +31,7 @@ export default function SignInPage() {
           signIn("credentials", {
             username: "demo",
             password: "demo",
-            callbackUrl: "/dashboard", // Mantém /dashboard para o login demo, ou pode mudar se necessário
+            callbackUrl: "/dashboard/chat", // Atualizado para nova rota principal
           })
         }
       >

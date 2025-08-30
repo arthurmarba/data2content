@@ -26,7 +26,7 @@ export default function AuthCallbackPage() {
           router.replace('/agency/subscription');
         }
       } else {
-        router.replace('/dashboard');
+        router.replace('/dashboard/chat');
       }
     } else if (status === 'unauthenticated') {
       router.replace('/login');

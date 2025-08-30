@@ -6,6 +6,7 @@ import ButtonPrimary from './ButtonPrimary';
 import TypingEffect from './TypingEffect';
 import Marquee from './Marquee';
 import heroQuestions from '@/data/heroQuestions';
+import heroAnswers from '@/data/heroAnswers';
 
 const YOUTUBE_VIDEO_ID = 'NN0_0zxwx0E';
 
@@ -42,7 +43,7 @@ export default function HeroSection() {
               variants={heroItemVariants}
               className="text-5xl md:text-7xl font-extrabold tracking-tighter text-brand-dark"
             >
-              O fim da dúvida: o que postar hoje?
+              A 1º IA do mundo que entende seus posts no Instagram
             </motion.h1>
 
             {/*
@@ -65,16 +66,28 @@ export default function HeroSection() {
             <motion.div variants={heroItemVariants} className="mt-12">
               {/* O ícone do Google foi removido para testar o layout do texto */}
               <ButtonPrimary onClick={handleSignIn}>
-                Ative IA do Instagram no WhatsApp
+                Experimente Grátis
               </ButtonPrimary>
             </motion.div>
           </div>
           
           <motion.div variants={heroItemVariants} className="mt-10 md:mt-12 w-full space-y-4">
-            <Marquee items={heroQuestions} direction="left" />
-            <Marquee items={[...heroQuestions].reverse()} direction="right" />
+            {/* Perguntas/Pedidos (cinza) */}
+            <Marquee
+              items={heroQuestions}
+              direction="left"
+              itemClassName="flex-shrink-0 whitespace-nowrap px-5 py-2.5 rounded-2xl bg-gray-100 text-gray-800 border border-gray-200 shadow-sm"
+            />
+            {/* Respostas/Insights (branco) */}
+            <Marquee
+              items={heroAnswers}
+              direction="right"
+              itemClassName="flex-shrink-0 whitespace-nowrap px-5 py-2.5 rounded-2xl bg-white text-gray-900 border border-gray-200 shadow-sm"
+            />
           </motion.div>
 
+          {/* Vídeo ocultado temporariamente */}
+          {/**
           <motion.div variants={heroItemVariants} className="mt-12 px-6">
             <div className="relative max-w-3xl mx-auto w-full rounded-lg overflow-hidden shadow-lg aspect-w-16 aspect-h-9">
               <iframe
@@ -87,6 +100,7 @@ export default function HeroSection() {
               ></iframe>
             </div>
           </motion.div>
+          */}
         </motion.div>
       </div>
     </section>

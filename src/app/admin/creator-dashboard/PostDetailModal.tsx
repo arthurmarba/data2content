@@ -35,6 +35,73 @@ const SkeletonBlock = ({ width = 'w-full', height = 'h-4' }: { width?: string; h
   <div className={`${width} ${height} bg-gray-200 rounded-md animate-pulse`}></div>
 );
 
+// --- DEMO: Dados para posts fictícios (modo público do Mídia Kit) ---
+const buildDemoSnapshots = (baseViews: number, baseLikes: number) => {
+  const days = 7;
+  const arr: ISimplifiedDailySnapshot[] = [] as any;
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const growth = 1 + (i * 0.03);
+    arr.push({
+      date: d,
+      dailyViews: Math.round(baseViews * growth * (0.8 + Math.random() * 0.4)),
+      dailyLikes: Math.round(baseLikes * growth * (0.8 + Math.random() * 0.4)),
+    });
+  }
+  return arr;
+};
+
+const DEMO_POSTS: Record<string, IPostDetailsData> = {
+  demo1: {
+    _id: 'demo1',
+    postLink: '#',
+    description: 'Reel de dica rápida com gancho forte nos 2 primeiros segundos. CTA de salvar no final.',
+    postDate: new Date(),
+    type: 'Reel',
+    format: ['reel'],
+    proposal: ['tips'],
+    context: ['technology_digital'],
+    tone: ['educational'],
+    references: ['professions'],
+    coverUrl: '/images/Colorido-Simbolo.png',
+    stats: { views: 12500, likes: 1380, comments: 95, shares: 71, reach: 12800, total_interactions: 1686, saved: 150 },
+    dailySnapshots: buildDemoSnapshots(1500, 120),
+  },
+  demo2: {
+    _id: 'demo2',
+    postLink: '#',
+    description: 'Carrossel com 7 páginas em formato checklist para iniciantes. CTA de compartilhar/salvar.',
+    postDate: new Date(),
+    type: 'Carrossel',
+    format: ['carousel'],
+    proposal: ['tips'],
+    context: ['education'],
+    tone: ['educational'],
+    references: [],
+    coverUrl: '/images/Colorido-Simbolo.png',
+    stats: { views: 9800, likes: 910, comments: 60, shares: 40, reach: 10200, total_interactions: 1220, saved: 210 },
+    dailySnapshots: buildDemoSnapshots(1100, 90),
+  },
+  demo3: {
+    _id: 'demo3',
+    postLink: '#',
+    description: 'Review leve e divertido de produto tech. Humor sutil com opinião crítica.',
+    postDate: new Date(),
+    type: 'Reel',
+    format: ['reel'],
+    proposal: ['review'],
+    context: ['technology_digital'],
+    tone: ['critical'],
+    references: ['pop_culture_music'],
+    coverUrl: '/images/Colorido-Simbolo.png',
+    stats: { views: 8600, likes: 740, comments: 48, shares: 33, reach: 9000, total_interactions: 981, saved: 95 },
+    dailySnapshots: buildDemoSnapshots(950, 80),
+  },
+};
+
+const isHexObjectId = (id: string) => /^[a-fA-F0-9]{24}$/.test(id);
+
 
 // --- Interfaces ---
 interface ISimplifiedMetricStats {
@@ -106,11 +173,22 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
       setError(null);
       setPostData(null);
 
+      // DEMO: se for modo público e um dos IDs de exemplo, não busca na API
+      if (publicMode && DEMO_POSTS[postId]) {
+        setPostData(DEMO_POSTS[postId]);
+        setIsLoading(false);
+        return;
+      }
+
       const apiUrl = publicMode
         ? `/api/v1/posts/${postId}/details`
         : `${apiPrefix}/dashboard/posts/${postId}/details`;
 
       try {
+        // Se for público e o ID não parecer um ObjectId, evita chamada e mostra erro amigável
+        if (publicMode && !isHexObjectId(postId)) {
+          throw new Error('Exemplo demonstrativo: conecte seu Instagram para ver a análise completa.');
+        }
         const response = await fetch(apiUrl);
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ message: `Erro HTTP: ${response.status}` }));

@@ -127,6 +127,31 @@ const DemographicRow: React.FC<{ label: string; percentage: number; compact?: bo
   );
 };
 
+// Skeleton helpers
+const Skeleton: React.FC<{ className?: string }> = ({ className = '' }) => (
+  <div className={`animate-pulse bg-gray-200 rounded ${className}`} />
+);
+
+const MetricSkeletonRow = () => (
+  <div className="grid grid-cols-3 divide-x divide-gray-200 bg-gray-50 p-2 rounded-lg">
+    <div className="flex flex-col items-center">
+      <Skeleton className="h-4 w-4 mb-2" />
+      <Skeleton className="h-5 w-16" />
+      <Skeleton className="h-3 w-20 mt-1" />
+    </div>
+    <div className="flex flex-col items-center">
+      <Skeleton className="h-4 w-4 mb-2" />
+      <Skeleton className="h-5 w-16" />
+      <Skeleton className="h-3 w-20 mt-1" />
+    </div>
+    <div className="flex flex-col items-center">
+      <Skeleton className="h-4 w-4 mb-2" />
+      <Skeleton className="h-5 w-16" />
+      <Skeleton className="h-3 w-20 mt-1" />
+    </div>
+  </div>
+);
+
 // --- Componente Principal ---
 
 export default function MediaKitView({ user, summary, videos, kpis: initialKpis, demographics }: MediaKitViewProps) {
@@ -311,6 +336,18 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
                 </div>
               </motion.div>
             )}
+            {(!demographics || !demographicBreakdowns) && !user?._id && (
+              <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={1} className={cardStyle}>
+                <h2 className="text-xl font-bold text-gray-800 mb-4">Demografia do Público</h2>
+                <p className="text-sm text-gray-600 mb-4">Conecte seu Instagram para ver a distribuição por gênero, faixa etária e localização.</p>
+                <div className="space-y-3">
+                  <Skeleton className="h-4 w-44" />
+                  <Skeleton className="h-2 w-full" />
+                  <Skeleton className="h-2 w-11/12" />
+                  <Skeleton className="h-2 w-10/12" />
+                </div>
+              </motion.div>
+            )}
 
             <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={2} className={cardStyle}>
               <div className="flex items-center justify-between gap-3 mb-4">
@@ -336,12 +373,25 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
               )}
 
               {isLoading ? (
-                <div className="flex justify-center items-center h-64">
-                  <FaIcon path={ICONS.spinner} className="animate-spin text-pink-500 h-8 w-8" />
+                <div className="space-y-4">
+                  <MetricSkeletonRow />
+                  <div className="p-4 rounded-lg bg-gray-50 border border-gray-200 space-y-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-11/12" />
+                    <Skeleton className="h-4 w-10/12" />
+                    <Skeleton className="h-4 w-9/12" />
+                  </div>
                 </div>
               ) : !displayKpis ? (
-                <div className="flex justify-center items-center h-64 text-center">
-                  <p className="text-red-500">Não foi possível carregar os dados de performance.</p>
+                <div className="flex flex-col justify-center items-center h-64 text-center text-gray-600">
+                  <p className="text-sm">Conecte seu Instagram para ver seus KPIs aqui.</p>
+                  <p className="text-xs mt-1 max-w-sm">
+                    Este card exibirá alcance médio, taxa de engajamento, posts por semana e outros indicadores de performance.
+                  </p>
+                  <div className="mt-5 w-full max-w-md">
+                    <MetricSkeletonRow />
+                  </div>
                 </div>
               ) : (
                 <div className="transition-opacity duration-300">
@@ -396,15 +446,29 @@ export default function MediaKitView({ user, summary, videos, kpis: initialKpis,
                 <FaIcon path={ICONS.trophy} className="w-6 h-6 text-pink-500" />
                 <h2 className="text-2xl font-bold text-gray-800">Top Posts em Performance</h2>
               </div>
-              <p className="text-gray-600 mb-6 font-light">
-                Uma amostra do conteúdo de maior impacto, agora com a classificação completa. <span className="font-medium text-gray-700">Clique em um post para ver a análise detalhada.</span>
-              </p>
-
-              <VideosTable
-                videos={videosWithCorrectStats}
-                readOnly
-                onRowClick={setSelectedPostId}
-              />
+              {videosWithCorrectStats.length === 0 ? (
+                <div>
+                  <p className="text-gray-600 mb-6 font-light">
+                    Conecte seu Instagram para ver seus posts com melhor desempenho aqui.
+                  </p>
+                  <div className="space-y-2">
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="text-gray-600 mb-6 font-light">
+                    Uma amostra do conteúdo de maior impacto, agora com a classificação completa. <span className="font-medium text-gray-700">Clique em um post para ver a análise detalhada.</span>
+                  </p>
+                  <VideosTable
+                    videos={videosWithCorrectStats}
+                    readOnly
+                    onRowClick={setSelectedPostId}
+                  />
+                </>
+              )}
             </motion.div>
           </main>
         </div>

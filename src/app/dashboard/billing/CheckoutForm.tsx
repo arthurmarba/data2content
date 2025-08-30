@@ -27,7 +27,7 @@ export default function CheckoutForm({ subscriptionId, onBack }: Props) {
       setSubmitting(true);
       setErr(null);
 
-      const returnUrl = `${window.location.origin}/dashboard/billing/success`;
+      const returnUrl = `${window.location.origin}/billing/success`;
 
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
@@ -47,14 +47,12 @@ export default function CheckoutForm({ subscriptionId, onBack }: Props) {
           await update();
         } catch {}
         router.push(
-          `/dashboard/billing/success?ok=1${
-            subscriptionId ? `&sid=${subscriptionId}` : ""
-          }`
+          `/billing/success?ok=1${subscriptionId ? `&sid=${subscriptionId}` : ""}`
         );
         return;
       }
 
-      router.push("/dashboard");
+      router.push("/dashboard/chat");
     } catch (e: any) {
       setErr(e?.message || "Erro inesperado");
       setSubmitting(false);
@@ -91,4 +89,3 @@ export default function CheckoutForm({ subscriptionId, onBack }: Props) {
     </form>
   );
 }
-

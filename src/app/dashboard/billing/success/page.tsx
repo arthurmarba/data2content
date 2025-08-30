@@ -32,7 +32,7 @@ export default function SuccessPage() {
           if (intervalRef.current) clearInterval(intervalRef.current); // Para o polling.
           toast.success("Assinatura confirmada!");
           await update(); // Força a atualização final da sessão.
-          router.push("/dashboard"); // Redireciona para o painel.
+          router.push("/dashboard/chat"); // Redireciona para o painel.
         }
       } catch (error) {
         console.error("Failed to check status:", error);

@@ -46,19 +46,19 @@ export default function CompleteSignupPage() {
           } catch {
             // ignore falha de refresh; seguimos com o redirect
           }
-          router.replace(`/dashboard?checkout=${checkout}`);
+          router.replace(`/dashboard/chat?checkout=${checkout}`);
           return;
         }
 
         // Se já completou onboarding, envie ao dashboard
         if (status === "authenticated" && session?.user?.isNewUserForOnboarding === false) {
-          router.replace("/dashboard");
+          router.replace("/dashboard/chat");
           return;
         }
 
         // Caso contrário, permanecemos na página para aceitar termos
       } catch {
-        router.replace("/dashboard");
+        router.replace("/dashboard/chat");
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -86,7 +86,7 @@ export default function CompleteSignupPage() {
         /* se falhar, seguimos para o dashboard mesmo assim */
       }
 
-      router.replace("/dashboard");
+      router.replace("/dashboard/chat");
     } catch (err: any) {
       setSubmitError(err?.message || "Ocorreu um erro ao processar sua solicitação.");
       setIsSubmitting(false);

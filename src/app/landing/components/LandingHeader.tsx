@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useSession, signIn } from 'next-auth/react';
 import { useEffect, useRef, useState } from 'react';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
@@ -42,15 +43,23 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
   return (
     <header className={`fixed top-0 w-full z-50 backdrop-blur-md transition-all ${isScrolled ? 'bg-white shadow' : 'bg-white/60'}`}>
       <Container className="flex justify-between items-center h-20 relative">
-        <Link href="/" className="font-bold text-2xl text-brand-dark flex items-center gap-2">
-          <span className="text-brand-pink">[2]</span>
+        <Link href="/" className="font-bold text-2xl text-brand-dark flex items-center gap-2 group">
+          <div className="relative h-8 w-8 overflow-hidden">
+            <Image
+              src="/images/Colorido-Simbolo.png"
+              alt="Data2Content"
+              fill
+              className="object-contain object-center group-hover:opacity-90 transition-opacity scale-[2.4]"
+              priority
+            />
+          </div>
           <span>data2content</span>
         </Link>
         <div className="flex items-center gap-5">
           <nav className="hidden md:flex items-center gap-5">
             {session ? (
               <Link
-                href="/dashboard"
+                href={MAIN_DASHBOARD_ROUTE}
                 className="text-sm font-semibold text-gray-600 hover:text-brand-pink transition-colors"
               >
                 Meu Painel
@@ -96,7 +105,7 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
             <nav id="mobile-menu" className="flex flex-col p-2">
               {session ? (
                 <Link
-                  href="/dashboard"
+                  href={MAIN_DASHBOARD_ROUTE}
                   className="px-4 py-2 text-sm hover:bg-gray-100"
                   onClick={() => setIsMenuOpen(false)}
                   ref={firstLinkRef}
@@ -136,3 +145,4 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
     </header>
   );
 }
+import { MAIN_DASHBOARD_ROUTE } from '@/constants/routes';

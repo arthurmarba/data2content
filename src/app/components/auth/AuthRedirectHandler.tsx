@@ -6,6 +6,7 @@ import { useSession } from 'next-auth/react';
 // <<< ALTERAÇÃO 1: Importar o useSearchParams >>>
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import React, { useEffect, useRef } from 'react';
+import { MAIN_DASHBOARD_ROUTE } from '@/constants/routes';
 import FullPageLoader from '@/app/components/auth/FullPageLoader'; 
 
 const AuthRedirectHandler: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -67,11 +68,11 @@ const AuthRedirectHandler: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } else { 
         if ((pathname === '/auth/complete-signup' || pathname === '/login' || isPublicRootPage) && !isLegalDocPage) {
-          console.log("[AuthRedirectHandler v2.3] Usuário existente em página de auth/raiz. Redirecionando para /dashboard.");
+          console.log("[AuthRedirectHandler v2.3] Usuário existente em página de auth/raiz. Redirecionando para /dashboard/chat.");
           
           // <<< ALTERAÇÃO 3: Construir a URL de destino com os parâmetros >>>
           const params = searchParams.toString();
-          const destination = params ? `/dashboard?${params}` : '/dashboard';
+          const destination = params ? `${MAIN_DASHBOARD_ROUTE}?${params}` : MAIN_DASHBOARD_ROUTE;
           router.replace(destination);
 
         } else {

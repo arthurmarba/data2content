@@ -61,8 +61,8 @@ export default function BillingSuccessPage() {
         </p>
       )}
 
-      <a className="mt-5 inline-block rounded-xl bg-black px-4 py-2 text-white" href="/dashboard">
-        Ir para o app
+      <a className="mt-5 inline-block rounded-xl bg-black px-4 py-2 text-white" href="/dashboard/chat">
+        Conversar com IA
       </a>
     </div>
   );

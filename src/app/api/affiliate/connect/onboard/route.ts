@@ -42,8 +42,8 @@ export async function POST() {
     process.env.NEXT_PUBLIC_APP_URL ||
     process.env.NEXTAUTH_URL ||
     'http://localhost:3000';
-  const returnUrl = `${origin}/dashboard?connect=done`;
-  const refreshUrl = `${origin}/dashboard?connect=refresh`;
+  const returnUrl = `${origin}/dashboard/chat?connect=done`;
+  const refreshUrl = `${origin}/dashboard/chat?connect=refresh`;
 
   const link = await stripe.accountLinks.create({
     account: accountId!,

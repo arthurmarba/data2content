@@ -1,16 +1,25 @@
-// src/app/dashboard/layout.tsx (CORRIGIDO)
+"use client";
 
-// Este layout agora só precisa passar os filhos adiante.
-// O RootLayout já fornecerá o Header, Footer e o container principal.
-export default function DashboardLayout({
-    children,
-  }: {
-    children: React.ReactNode;
-  }) {
-    return (
-      // <<< CORREÇÃO: Removido o espaçamento vertical 'py-12' e 'space-y-12' >>>
-      <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-        {children}
-      </main>
-    );
-  }
+import { useState } from "react";
+import SidebarNav from "./components/SidebarNav";
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const [collapsed, setCollapsed] = useState(false);
+
+  return (
+    <div className="w-full bg-transparent">
+      <div className="flex gap-0">
+        <SidebarNav isCollapsed={collapsed} onToggle={() => setCollapsed((v) => !v)} />
+        <main
+          className={`
+            flex-1 min-h-[calc(100vh-64px)]
+            transition-all duration-200
+            px-4 sm:px-6 lg:px-8 py-4
+          `}
+        >
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+}

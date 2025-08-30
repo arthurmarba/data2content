@@ -167,9 +167,9 @@ export async function POST(req: NextRequest) {
           },
         ],
         back_urls: {
-          success: `${appUrl}/dashboard?from=mp`,
-          pending: `${appUrl}/dashboard?from=mp`,
-          failure: `${appUrl}/dashboard?from=mp`,
+          success: `${appUrl}/dashboard/chat?from=mp`,
+          pending: `${appUrl}/dashboard/chat?from=mp`,
+          failure: `${appUrl}/dashboard/chat?from=mp`,
         },
         auto_return: "approved",
         external_reference: user._id.toString(),
@@ -230,7 +230,7 @@ export async function POST(req: NextRequest) {
 
     const preapprovalData = {
       reason: "Plano Mensal",
-      back_url: `${appUrl}/dashboard?from=mp`,
+      back_url: `${appUrl}/dashboard/chat?from=mp`,
       external_reference: user._id.toString(),
       payer_email: user.email,
       auto_recurring: {

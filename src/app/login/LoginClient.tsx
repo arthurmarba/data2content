@@ -6,6 +6,7 @@
 import { signIn } from "next-auth/react";
 import { useSearchParams } from 'next/navigation';
 import { useState, useEffect, Suspense } from 'react';
+import QADynamicRows from "./components/QADynamicRows";
 
 // O Suspense é usado para envolver componentes que dependem de hooks como useSearchParams
 function LoginComponent() {
@@ -71,7 +72,8 @@ function LoginComponent() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-brand-light p-4">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-brand-light p-4 gap-8">
+      <QADynamicRows />
       <div className="bg-brand-light p-8 sm:p-12 rounded-xl shadow-2xl w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl sm:text-4xl font-bold text-brand-dark tracking-tight">

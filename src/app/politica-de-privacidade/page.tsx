@@ -1,6 +1,7 @@
 import React from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function PrivacyPolicyPage() {
   return (
@@ -12,9 +13,17 @@ export default function PrivacyPolicyPage() {
       <div className="min-h-screen bg-gray-50 py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto bg-white p-8 sm:p-10 md:p-12 shadow-lg rounded-2xl">
           <header className="mb-10 text-center">
-            <Link href="/" className="inline-block mb-4 font-bold text-3xl text-brand-dark items-center gap-2">
-                <span className="text-brand-pink">[2]</span>
-                <span>Data2Content</span>
+            <Link href="/" className="inline-flex items-center gap-2 mb-4 font-bold text-3xl text-brand-dark">
+              <span className="relative inline-block h-8 w-8 overflow-hidden align-middle">
+                <Image
+                  src="/images/Colorido-Simbolo.png"
+                  alt="Data2Content"
+                  fill
+                  className="object-contain object-center scale-[2.4]"
+                  priority
+                />
+              </span>
+              <span>Data2Content</span>
             </Link>
             <h1 className="text-4xl sm:text-5xl font-extrabold text-brand-dark tracking-tight">
               Política de Privacidade

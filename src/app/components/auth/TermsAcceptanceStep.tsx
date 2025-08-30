@@ -3,6 +3,7 @@
 // - Link da Política de Privacidade mantido.
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 
 interface TermsAcceptanceStepProps {
   userName?: string | null; 
@@ -33,7 +34,18 @@ const TermsAcceptanceStep: React.FC<TermsAcceptanceStepProps> = ({
     <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">
       <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-lg transform transition-all">
         <div className="text-center mb-8">
-          <span className="text-brand-pink text-5xl font-bold">[2]</span> {/* Seu logo ou marca */}
+          <span className="inline-flex items-center justify-center gap-2">
+            <span className="relative inline-block h-8 w-8 overflow-hidden align-middle">
+              <Image
+                src="/images/Colorido-Simbolo.png"
+                alt="Data2Content"
+                fill
+                className="object-contain object-center scale-[2.4]"
+                priority
+              />
+            </span>
+            <span className="text-2xl font-extrabold tracking-tight text-brand-dark">data2content</span>
+          </span>
           {userName && (
             <h1 className="text-2xl font-semibold text-gray-800 mt-4">
               Olá, {userName}! Bem-vindo(a) à Data2Content!
