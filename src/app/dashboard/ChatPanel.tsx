@@ -221,32 +221,34 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
               </motion.div>
             </div>
           ) : (
-            <div className="mx-auto max-w-[800px] w-full space-y-2 px-4">
-              {messages.map((msg, idx) => (
-                <div key={idx} className={`w-full flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] px-4 py-3 shadow-md ${msg.sender === 'user' ? 'rounded-t-2xl rounded-bl-2xl bg-blue-600 text-white' : 'rounded-t-2xl rounded-br-2xl bg-gray-200 text-gray-800'}`}>
-                    {renderFormatted(msg.text)}
-                    {msg.cta && (
-                      <div className="mt-4">
-                        <button
-                          className={`inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors
+            <div className="mx-auto max-w-[800px] w-full px-4">
+              <ul role="list" aria-live="polite" className="space-y-2">
+                {messages.map((msg, idx) => (
+                  <li key={idx} className={`w-full flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[85%] px-4 py-3 shadow-md ${msg.sender === 'user' ? 'rounded-t-2xl rounded-bl-2xl bg-blue-600 text-white' : 'rounded-t-2xl rounded-br-2xl bg-gray-200 text-gray-800'}`}>
+                      {renderFormatted(msg.text)}
+                      {msg.cta && (
+                        <div className="mt-4">
+                          <button
+                            className={`inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors
                             ${msg.sender === 'user' ? 'bg-white/20 text-white border border-white/30 hover:bg-white/30' : 'bg-gray-900 text-white hover:bg-gray-800'}`}
-                          onClick={() => {
-                            if (msg.cta?.action === 'connect_instagram') return handleCorrectInstagramLink();
-                            if (msg.cta?.action === 'go_to_billing') {
-                              if (onUpsellClick) return onUpsellClick();
-                              return router.push('/dashboard/billing');
-                            }
-                          }}
-                        >
-                          {msg.cta.action === 'connect_instagram' && <FaInstagram />}
-                          {msg.cta.label}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
+                            onClick={() => {
+                              if (msg.cta?.action === 'connect_instagram') return handleCorrectInstagramLink();
+                              if (msg.cta?.action === 'go_to_billing') {
+                                if (onUpsellClick) return onUpsellClick();
+                                return router.push('/dashboard/billing');
+                              }
+                            }}
+                          >
+                            {msg.cta.action === 'connect_instagram' && <FaInstagram />}
+                            {msg.cta.label}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
               <div ref={messagesEndRef} />
             </div>
           )}
