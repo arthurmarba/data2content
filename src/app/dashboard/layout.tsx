@@ -1,18 +1,21 @@
-// src/app/dashboard/layout.tsx
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { SidebarProvider, useSidebar } from "./context/SidebarContext";
 import SidebarNav from "./components/SidebarNav";
 import Header from "../components/Header";
 import React from "react";
+import BillingSubscribeModal from "./billing/BillingSubscribeModal";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       {/* container base do dashboard */}
-      <div className="relative w-full bg-gray-50 overflow-x-hidden" style={{ minHeight: "100svh" }}>
+      <div
+        className="relative w-full bg-gray-50 overflow-x-hidden"
+        style={{ minHeight: "100dvh" }}
+      >
         <LayoutContent>{children}</LayoutContent>
       </div>
     </SidebarProvider>
@@ -22,51 +25,65 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const { isCollapsed, toggleSidebar } = useSidebar();
   const pathname = usePathname();
+
   const isChatPage = pathname.startsWith("/dashboard/chat");
+  const isMediaKitPage = pathname.startsWith("/dashboard/media-kit");
+  const isGeminiHeaderPage = /^\/dashboard\/(chat|media-kit|settings)/.test(pathname);
+
   const isOpen = !isCollapsed;
 
-  // Em páginas que NÃO são o chat (onde o ChatHeader já seta dinamicamente),
-  // definimos um fallback do --header-h para 4rem (h-16).
+  // Fallback de --header-h apenas para páginas que NÃO usam o ChatHeader dinâmico
   useEffect(() => {
-    if (!isChatPage) {
+    if (!isGeminiHeaderPage) {
       document.documentElement.style.setProperty("--header-h", "4rem");
     }
-  }, [isChatPage]);
+  }, [isGeminiHeaderPage]);
 
-  // No desktop, só o MAIN deve respeitar a largura do sidebar
+  // deslocamento do main conforme sidebar no desktop
   const mainOffset = isCollapsed ? "lg:ml-16" : "lg:ml-64";
+
+  // Regras de scroll por rota
+  const mainScrollClass = isMediaKitPage
+    ? "overflow-hidden pt-header"
+    : isChatPage
+    ? "overflow-hidden"
+    : "overflow-y-auto";
+
+  // === Modal global de assinatura (escuta o evento "open-subscribe-modal") ===
+  const [showBillingModal, setShowBillingModal] = useState(false);
+  useEffect(() => {
+    const handler = () => setShowBillingModal(true);
+    window.addEventListener("open-subscribe-modal" as any, handler);
+    return () => window.removeEventListener("open-subscribe-modal" as any, handler);
+  }, []);
 
   return (
     <>
-      {/* Sidebar:
-          - mobile: overlay fixed com slide (dentro do próprio componente)
-          - desktop: coluna fixa alinhada ao header (usa --header-h)
-      */}
-      <SidebarNav isCollapsed={isCollapsed} onToggle={toggleSidebar} />
+      {/* Sidebar (mobile overlay / desktop fixo) */}
+      <SidebarNav isCollapsed={isCollapsed} onToggle={() => toggleSidebar()} />
 
-      {/* Overlay escuro para mobile quando sidebar está aberta */}
+      {/* Overlay escuro para mobile quando sidebar está aberta (acima do header, abaixo da sidebar) */}
       {isOpen && (
         <div
-          onClick={toggleSidebar}
-          className="lg:hidden fixed inset-0 bg-black/40 z-30"
+          onClick={() => toggleSidebar()}
+          className="lg:hidden fixed inset-0 bg-black/40 z-50"
           aria-hidden="true"
         />
       )}
 
       {/* Área principal */}
-      <div className="flex flex-col w-full min-h-full">
+      <div className="flex flex-col w-full min-h-0">
         {/* Header sempre full-width (não recebe margem lateral) */}
         <Header />
 
         {/* O conteúdo abaixo desloca no desktop para não ficar sob o sidebar */}
-        <main
-          className={`flex-1 ${mainOffset} ${
-            isChatPage ? "overflow-hidden" : "overflow-y-auto"
-          }`}
-        >
+        <main className={`flex-1 min-h-0 ${mainOffset} ${mainScrollClass}`}>
           {children}
         </main>
       </div>
+
+      {/* Modal de Assinatura (Checkout) — GLOBAL */}
+      <BillingSubscribeModal open={showBillingModal} onClose={() => setShowBillingModal(false)} />
     </>
   );
 }

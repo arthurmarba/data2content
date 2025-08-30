@@ -3,7 +3,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
@@ -28,14 +28,13 @@ interface SessionUser {
   image?: string | null;
 }
 
-/** Header do chat (experiência Gemini) — visível apenas em /dashboard/chat */
+/** Header unificado do dashboard (chat, mídia kit, settings) */
 function ChatHeader({ user }: { user?: SessionUser }) {
-  const router = useRouter();
   const { toggleSidebar } = useSidebar();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
 
-  // Mantém --header-h sincronizada com a altura real do header (usada no ChatPanel para paddingTop)
+  // Mantém --header-h sincronizada com a altura real do header
   useEffect(() => {
     const el = headerRef.current;
     if (!el) return;
@@ -47,18 +46,23 @@ function ChatHeader({ user }: { user?: SessionUser }) {
     return () => ro.disconnect();
   }, []);
 
+  const handleSubscribeClick = () => {
+    // Dispara evento global — o layout abre o modal em qualquer página
+    window.dispatchEvent(new CustomEvent("open-subscribe-modal"));
+  };
+
   return (
     <header
       ref={headerRef}
-      style={{ paddingTop: "var(--sat)" }}
-      className="absolute top-0 left-0 right-0 z-20 p-2 sm:p-4 bg-white/80 backdrop-blur-sm border-b border-gray-200/80"
-      aria-label="Barra superior do chat"
+      style={{ paddingTop: "var(--sat)" }} // safe-area iOS
+      className="fixed top-0 left-0 right-0 z-40 p-2 sm:p-4 bg-white border-b border-gray-200"
+      aria-label="Barra superior do dashboard"
     >
-      <div className="flex items-center justify-between max-w-[800px] mx-auto">
-        {/* Burger: apenas no MOBILE. No desktop, quem abre/fecha é o botão do próprio Sidebar */}
+      <div className="flex items-center justify-between max-w-[800px] lg:max-w-7xl mx-auto px-0 lg:px-2">
+        {/* Burger (somente mobile) */}
         <button
-          onClick={toggleSidebar}
-          className="p-2 text-gray-600 hover:text-gray-900 rounded-full hover:bg-gray-200/80 transition-colors lg:hidden"
+          onClick={() => toggleSidebar()}
+          className="p-2 text-gray-600 hover:text-gray-900 rounded-full hover:bg-gray-100 transition-colors lg:hidden"
           aria-label="Abrir menu lateral"
         >
           <FaBars />
@@ -67,9 +71,7 @@ function ChatHeader({ user }: { user?: SessionUser }) {
         <div className="flex flex-col items-center">
           <h2 className="font-semibold text-gray-800 select-none">data2content</h2>
           <button
-            onClick={() =>
-              window.dispatchEvent(new CustomEvent("open-subscribe-modal"))
-            }
+            onClick={handleSubscribeClick}
             className="text-xs font-semibold text-white bg-gray-900 px-3 py-1 rounded-full hover:bg-gray-800 transition-colors shadow-sm"
             aria-label="Assine o plano Pro"
           >
@@ -188,12 +190,12 @@ export default function Header() {
   const { data: session } = useSession();
   const pathname = usePathname();
   const user = session?.user as SessionUser | undefined;
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const isDashboardPage = pathname.startsWith("/dashboard");
-  const isChatPage = pathname.startsWith("/dashboard/chat");
 
-  // Em /dashboard/chat usamos o header “Gemini”
-  if (isChatPage) {
+  // Usar o header unificado também em /dashboard/media-kit e /dashboard/settings
+  const isGeminiHeaderPage = /^\/dashboard\/(chat|media-kit|settings)/.test(pathname);
+
+  if (isGeminiHeaderPage) {
     return <ChatHeader user={user} />;
   }
 
@@ -228,92 +230,12 @@ export default function Header() {
               </Link>
               <div className="relative">
                 <button
-                  onClick={() => setIsUserMenuOpen((v) => !v)}
+                  onClick={() => {/* menu user em páginas com header padrão */}}
                   className="p-2 rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:ring-pink-400 focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors"
-                  aria-expanded={isUserMenuOpen}
-                  aria-haspopup="true"
                   aria-label="Abrir menu"
                 >
-                  {user?.image ? (
-                    <img src={user.image} alt="Menu do usuário" className="w-6 h-6 rounded-full" />
-                  ) : (
-                    <FaBars className="w-6 h-6" />
-                  )}
+                  <FaBars className="w-6 h-6" />
                 </button>
-                <AnimatePresence>
-                  {isUserMenuOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                      transition={{ duration: 0.15, ease: "easeOut" }}
-                      className="origin-top-right absolute right-0 mt-2 w-64 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50"
-                      onMouseLeave={() => setIsUserMenuOpen(false)}
-                    >
-                      <div className="px-4 py-3 border-b border-gray-100">
-                        <p className="text-sm font-semibold text-brand-dark truncate">
-                          {user?.name ?? "Usuário"}
-                        </p>
-                        <p className="text-xs text-gray-500 truncate">{user?.email || "Sem email"}</p>
-                      </div>
-                      <div className="py-1 border-t border-gray-100">
-                        <Link
-                          href="/termos-e-condicoes"
-                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
-                          onClick={() => setIsUserMenuOpen(false)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <FaFileContract className="w-4 h-4 text-gray-400" /> Termos e Condições
-                        </Link>
-                        <Link
-                          href="/politica-de-privacidade"
-                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
-                          onClick={() => setIsUserMenuOpen(false)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <FaShieldAlt className="w-4 h-4 text-gray-400" /> Política de Privacidade
-                        </Link>
-                      </div>
-                      <div className="py-1 border-t border-gray-100">
-                        <a
-                          href="mailto:arthur@data2content.ai"
-                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
-                          onClick={() => setIsUserMenuOpen(false)}
-                        >
-                          <FaEnvelope className="w-4 h-4 text-gray-400" /> Suporte por Email
-                        </a>
-                        <a
-                          href="/afiliados"
-                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
-                        >
-                          <FaHandshake className="w-4 h-4 text-gray-400" /> Programa de Afiliados
-                        </a>
-                      </div>
-                      <div className="py-1 border-t border-gray-100">
-                        <Link
-                          href="/dashboard/settings#delete-account"
-                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-brand-red transition-colors rounded-md mx-1 my-0.5"
-                          onClick={() => setIsUserMenuOpen(false)}
-                        >
-                          <FaTrashAlt className="w-4 h-4" /> Excluir Conta
-                        </Link>
-                      </div>
-                      <div className="py-1 border-t border-gray-100">
-                        <button
-                          onClick={() => {
-                            setIsUserMenuOpen(false);
-                            signOut({ callbackUrl: "/" });
-                          }}
-                          className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
-                        >
-                          <FaSignOutAlt className="w-4 h-4" /> Sair
-                        </button>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </div>
             </div>
           </div>

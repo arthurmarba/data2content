@@ -53,10 +53,10 @@ export default function ChatHomePage() {
   }, [showIgConnect, instagramConnected, isActiveLike]);
 
   return (
-    // Altura da área principal = viewport - altura do header
+    // Agora usamos altura total + padding-top do header (fixed)
     <div
       className="relative w-full bg-white text-gray-900 flex flex-col overflow-hidden"
-      style={{ height: "calc(100svh - var(--header-h, 4rem))" }}
+      style={{ minHeight: "100svh", paddingTop: "var(--header-h, 4rem)" }}
     >
       {/* Card de conexão IG quando voltamos do OAuth */}
       <div className="mx-auto max-w-4xl w-full px-4 pt-2 space-y-2">
@@ -72,7 +72,7 @@ export default function ChatHomePage() {
       </div>
 
       {/* Chat ocupa todo o restante */}
-      <div className="flex-1 w-full">
+      <div className="flex-1 w-full min-h-0">
         <ChatPanel onUpsellClick={openBillingModal} />
       </div>
 

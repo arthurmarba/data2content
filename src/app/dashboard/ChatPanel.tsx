@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useSession, signIn } from "next-auth/react";
 import {
   FaPaperPlane, FaInstagram, FaPlus, FaExternalLinkAlt,
-  FaTimes, FaLightbulb, FaChartLine, FaQuestionCircle, FaCheckCircle, FaExclamationTriangle
+  FaTimes, FaCheckCircle, FaExclamationTriangle
 } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
@@ -23,38 +23,146 @@ interface Message {
   cta?: { label: string; action: 'connect_instagram' | 'go_to_billing' };
 }
 
-function PromptSuggestionCard({ icon, title, text, onClick }: { icon: React.ReactNode; title: string; text: string; onClick: () => void; }) {
+/** Botões de sugestão minimalistas (mesma largura) */
+function PromptChip({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="group w-full text-left p-4 bg-white/50 hover:bg-white/80 border border-gray-200/80 rounded-xl transition-all duration-200 shadow-sm hover:shadow-lg hover:-translate-y-1"
+      className="
+        w-full h-10
+        inline-flex items-center justify-center
+        rounded-lg border border-gray-200
+        bg-gray-50 hover:bg-gray-100
+        px-3 text-sm font-medium text-gray-800
+        whitespace-nowrap overflow-hidden text-ellipsis
+        transition-colors
+      "
+      title={label}
+      aria-label={label}
     >
-      <div className="flex items-start gap-4">
-        <div className="text-blue-500 mt-1">{icon}</div>
-        <div>
-          <h3 className="font-semibold text-gray-800">{title}</h3>
-          <p className="text-sm text-gray-500 mt-1">{text}</p>
-        </div>
-      </div>
+      <span className="truncate">{label}</span>
     </button>
   );
 }
 
+/* ---------- Renderização tipográfica “chat-like” ---------- */
+
+function escapeHtml(s: string) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+/** `**bold**`, `code` e links (sobre HTML escapado) */
+function applyInlineMarkup(escaped: string) {
+  let out = escaped;
+  out = out.replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 rounded bg-gray-100 text-gray-800">$1</code>');
+  out = out.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>');
+  out = out.replace(
+    /(https?:\/\/[^\s)]+)(?![^<]*>)/g,
+    '<a href="$1" target="_blank" rel="noopener noreferrer" class="underline decoration-gray-300 hover:decoration-gray-500">$1</a>'
+  );
+  return out;
+}
+
+/** Tipografia compacta (14px / lh-6) com respiro reduzido */
 function renderFormatted(text: string) {
-  const lines = text.split(/\r?\n/);
-  const blocks: JSX.Element[] = [];
-  lines.forEach((line, i) => {
-    if (/^\s*$/.test(line)) return;
-    blocks.push(
+  const blocks = text.trim().split(/\n{2,}/);
+  const elements: JSX.Element[] = [];
+
+  blocks.forEach((rawBlock, idx) => {
+    const trimmed = rawBlock.trim();
+
+    // HR
+    if (/^(-{3,}|_{3,}|\*{3,})$/.test(trimmed)) {
+      elements.push(<hr key={`hr-${idx}`} className="my-4 border-t border-gray-200" />);
+      return;
+    }
+
+    // Blockquote
+    if (/^>\s+/.test(trimmed)) {
+      const quote = trimmed.replace(/^>\s+/, "");
+      const html = applyInlineMarkup(escapeHtml(quote));
+      elements.push(
+        <blockquote
+          key={`bq-${idx}`}
+          className="border-l-2 border-gray-200 pl-3 italic text-[14px] leading-6 text-gray-700 my-3"
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+      );
+      return;
+    }
+
+    // Headings
+    const h = trimmed.match(/^#{1,3}\s+(.*)$/);
+    if (h) {
+      const level = trimmed.match(/^#+/)?.[0].length ?? 1;
+      const headingText = h[1] ?? "";
+      const content = applyInlineMarkup(escapeHtml(headingText));
+      if (level === 1) {
+        elements.push(
+          <h2 key={`h1-${idx}`} className="text-[16px] leading-6 font-semibold text-gray-900 mt-3 mb-1 tracking-tight"
+              dangerouslySetInnerHTML={{ __html: content }} />
+        );
+      } else if (level === 2) {
+        elements.push(
+          <h3 key={`h2-${idx}`} className="text-[15px] leading-6 font-semibold text-gray-900 mt-3 mb-1 tracking-tight"
+              dangerouslySetInnerHTML={{ __html: content }} />
+        );
+      } else {
+        elements.push(
+          <h4 key={`h3-${idx}`} className="text-[14px] leading-6 font-semibold text-gray-900 mt-2 mb-1 tracking-tight"
+              dangerouslySetInnerHTML={{ __html: content }} />
+        );
+      }
+      return;
+    }
+
+    // Listas
+    const lines = trimmed.split(/\n/).map(l => l.trim()).filter(Boolean);
+    const isBulleted = lines.length > 0 && lines.every(l => /^[-*]\s+/.test(l));
+    const isNumbered = lines.length > 0 && lines.every(l => /^\d+\.\s+/.test(l));
+
+    if (isBulleted) {
+      const items = lines.map((l) => l.replace(/^[-*]\s+/, ""));
+      elements.push(
+        <ul key={`ul-${idx}`} className="list-disc ml-5 pl-1 space-y-1 text-[14px] leading-6 text-gray-800 my-2">
+          {items.map((it, i) => {
+            const html = applyInlineMarkup(escapeHtml(it));
+            return <li key={i} dangerouslySetInnerHTML={{ __html: html }} />;
+          })}
+        </ul>
+      );
+      return;
+    }
+
+    if (isNumbered) {
+      const items = lines.map((l) => l.replace(/^\d+\.\s+/, ""));
+      elements.push(
+        <ol key={`ol-${idx}`} className="list-decimal ml-5 pl-1 space-y-1 text-[14px] leading-6 text-gray-800 my-2">
+          {items.map((it, i) => {
+            const html = applyInlineMarkup(escapeHtml(it));
+            return <li key={i} dangerouslySetInnerHTML={{ __html: html }} />;
+          })}
+        </ol>
+      );
+      return;
+    }
+
+    // Parágrafo
+    const html = applyInlineMarkup(escapeHtml(trimmed)).replace(/\n/g, "<br/>");
+    elements.push(
       <p
-        key={`p-${i}`}
-        className="leading-relaxed break-words"
-        dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }}
+        key={`p-${idx}`}
+        className="text-[14px] leading-6 text-gray-800 my-2"
+        dangerouslySetInnerHTML={{ __html: html }}
       />
     );
   });
-  return <div className="space-y-2 text-[15px]">{blocks}</div>;
+
+  // Wrapper enxuto (sem prose)
+  return <div className="max-w-none">{elements}</div>;
 }
+
+/* ---------- Componente principal ---------- */
 
 export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => void } = {}) {
   const { data: session } = useSession();
@@ -102,14 +210,16 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
   // detectar “fim”
   useEffect(() => {
     const root = scrollRef.current;
-    const target = messagesEndRef.current;
-    if (!root || !target) return;
-    const io = new IntersectionObserver(
-      (entries) => setIsAtBottom(entries[0]?.isIntersecting ?? false),
-      { root, threshold: 1.0, rootMargin: "0px 0px 60px 0px" }
-    );
-    io.observe(target);
-    return () => io.disconnect();
+    the_target: {
+      const target = messagesEndRef.current;
+      if (!root || !target) break the_target;
+      const io = new IntersectionObserver(
+        (entries) => setIsAtBottom(entries[0]?.isIntersecting ?? false),
+        { root, threshold: 1.0, rootMargin: "0px 0px 60px 0px" }
+      );
+      io.observe(target);
+      return () => io.disconnect();
+    }
   }, []);
 
   // autoscroll
@@ -119,6 +229,17 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
       autoScrollOnNext.current = false;
     }
   }, [messages, isAtBottom]);
+
+  // mede a altura do composer em --composer-h
+  useEffect(() => {
+    const el = inputWrapperRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      document.documentElement.style.setProperty("--composer-h", `${el.offsetHeight}px`);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const handleSend = async () => {
     setInlineAlert(null);
@@ -167,51 +288,59 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
   const firstName = fullName ? fullName.split(" ")[0] : "visitante";
 
   const welcomePrompts = [
-    { icon: <FaLightbulb />, title: "Gerar ideias", text: "Me dê 5 ideias de Reels sobre marketing digital.", isConnectedFeature: false, prompt: "Me dê 5 ideias de Reels sobre marketing digital para essa semana." },
-    { icon: <FaChartLine />, title: "Analisar posts", text: "Qual dos meus últimos 5 posts teve mais engajamento?", isConnectedFeature: true, prompt: "Qual dos meus últimos 5 posts teve mais engajamento?" },
-    { icon: <FaQuestionCircle />, title: "Tirar dúvidas", text: "Como usar o CTA 'salvar' de forma mais eficiente?", isConnectedFeature: false, prompt: "Como usar o CTA 'salvar' de forma mais eficiente?" },
+    { label: "narrativa que gera compartilhamentos", requiresIG: true },
+    { label: "melhor dia/hora pra postar por formato", requiresIG: true },
+    { label: "planejamento baseado em categorias", requiresIG: true },
   ];
 
   const safeBottom = 'env(safe-area-inset-bottom, 0px)';
 
   return (
-    // trocado overflow-hidden -> overflow-x-hidden para não cortar a sombra no rodapé
-    <div className="relative flex flex-col h-full w-full bg-white overflow-x-hidden">
+    <div
+      className="relative flex flex-col h-full w-full bg-white overflow-x-hidden"
+      style={{ minHeight: 'calc(100svh - var(--header-h, 4rem))' }}
+    >
       {/* timeline */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto custom-scrollbar"
+        className="flex-1 min-h-0 overflow-y-auto scrollbar-hide overscroll-contain"
         style={{
-          paddingTop: 'var(--header-h, 4rem)',
+          scrollPaddingTop: 'var(--header-h, 4rem)',
+          scrollPaddingBottom: 'calc(var(--composer-h, 80px) + var(--sab, 0px))',
         }}
       >
-        <div className="flex flex-col justify-end min-h-full">
-          {isWelcome ? (
-            <div className="flex-1 flex flex-col items-center justify-center p-4">
+        {isWelcome ? (
+          // ESTADO VAZIO CENTRALIZADO ENTRE HEADER E COMPOSER
+          <section
+            className="grid place-items-center px-4"
+            style={{
+              height: 'calc(100svh - var(--header-h, 4rem) - var(--composer-h, 80px))',
+            }}
+          >
+            <div className="w-full max-w-[680px] text-center">
               <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }}>
-                <h1 className="text-4xl sm:text-5xl font-bold text-center">
+                <h1 className="text-4xl sm:text-5xl font-bold">
                   <span className="text-gray-800">Olá, </span>
                   <span className="text-blue-600">{firstName}</span>
                 </h1>
-                <p className="text-gray-500 text-center mt-2">O que podemos criar hoje?</p>
+                <p className="text-gray-500 mt-2">O que podemos criar hoje?</p>
               </motion.div>
+
               <motion.div
                 initial="hidden"
                 animate="visible"
-                variants={{ visible: { transition: { staggerChildren: 0.1 } } }}
-                className="w-full max-w-3xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4 mt-10"
+                variants={{ visible: { transition: { staggerChildren: 0.06 } } }}
+                className="w-full max-w-3xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 mt-8"
               >
                 {welcomePrompts.map((p, i) => (
-                  <motion.div key={i} variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}>
-                    <PromptSuggestionCard
-                      icon={p.icon}
-                      title={p.title}
-                      text={p.text}
+                  <motion.div key={i} variants={{ hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0 } }}>
+                    <PromptChip
+                      label={p.label}
                       onClick={() => {
-                        if (p.isConnectedFeature && !instagramConnected) {
+                        if (p.requiresIG && !instagramConnected) {
                           handleCorrectInstagramLink();
                         } else {
-                          setInput(p.prompt);
+                          setInput(p.label);
                           setTimeout(handleSend, 0);
                         }
                       }}
@@ -220,61 +349,96 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
                 ))}
               </motion.div>
             </div>
-          ) : (
-            <div className="mx-auto max-w-[800px] w-full px-4">
-              <ul role="list" aria-live="polite" className="space-y-2">
-                {messages.map((msg, idx) => (
-                  <li key={idx} className={`w-full flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] px-4 py-3 shadow-md ${msg.sender === 'user' ? 'rounded-t-2xl rounded-bl-2xl bg-blue-600 text-white' : 'rounded-t-2xl rounded-br-2xl bg-gray-200 text-gray-800'}`}>
-                      {renderFormatted(msg.text)}
-                      {msg.cta && (
-                        <div className="mt-4">
-                          <button
-                            className={`inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors
-                            ${msg.sender === 'user' ? 'bg-white/20 text-white border border-white/30 hover:bg-white/30' : 'bg-gray-900 text-white hover:bg-gray-800'}`}
-                            onClick={() => {
-                              if (msg.cta?.action === 'connect_instagram') return handleCorrectInstagramLink();
-                              if (msg.cta?.action === 'go_to_billing') {
-                                if (onUpsellClick) return onUpsellClick();
-                                return router.push('/dashboard/billing');
-                              }
-                            }}
-                          >
-                            {msg.cta.action === 'connect_instagram' && <FaInstagram />}
-                            {msg.cta.label}
-                          </button>
-                        </div>
-                      )}
-                    </div>
+          </section>
+        ) : (
+          // FEED DE MENSAGENS (scrollbar oculta, rolagem preservada)
+          <div className="mx-auto max-w-[680px] w-full px-4">
+            <ul role="list" aria-live="polite" className="space-y-3">
+              {messages.map((msg, idx) => {
+                const isUser = msg.sender === 'user';
+                return (
+                  <li key={idx} className={`w-full flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+                    {isUser ? (
+                      <div className="max-w-[85%] px-3 py-2 rounded-2xl border border-gray-200 bg-white text-gray-900">
+                        {renderFormatted(msg.text)}
+                        {msg.cta && (
+                          <div className="mt-3">
+                            <button
+                              className="inline-flex items-center justify-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md bg-gray-900 text-white hover:bg-gray-800 transition-colors"
+                              onClick={() => {
+                                if (msg.cta?.action === 'connect_instagram') return handleCorrectInstagramLink();
+                                if (msg.cta?.action === 'go_to_billing') {
+                                  if (onUpsellClick) return onUpsellClick();
+                                  return router.push('/dashboard/billing');
+                                }
+                              }}
+                            >
+                              {msg.cta.label}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="max-w-[85%]">
+                        {renderFormatted(msg.text)}
+                        {msg.cta && (
+                          <div className="mt-3">
+                            <button
+                              className="inline-flex items-center justify-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md bg-gray-900 text-white hover:bg-gray-800 transition-colors"
+                              onClick={() => {
+                                if (msg.cta?.action === 'connect_instagram') return handleCorrectInstagramLink();
+                                if (msg.cta?.action === 'go_to_billing') {
+                                  if (onUpsellClick) return onUpsellClick();
+                                  return router.push('/dashboard/billing');
+                                }
+                              }}
+                            >
+                              {msg.cta.label}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </li>
-                ))}
-              </ul>
-              <div ref={messagesEndRef} />
-            </div>
-          )}
-        </div>
+                );
+              })}
+
+              {/* “Respondendo…” inline */}
+              <AnimatePresence>
+                {isSending && (
+                  <motion.li
+                    key="respondendo-inline"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 6 }}
+                    className="w-full flex justify-start"
+                  >
+                    <div className="max-w-[85%] text-[13px] leading-5 text-gray-500 italic flex items-center gap-2">
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-gray-400 animate-pulse" />
+                      Respondendo…
+                    </div>
+                  </motion.li>
+                )}
+              </AnimatePresence>
+            </ul>
+            <div ref={messagesEndRef} />
+          </div>
+        )}
       </div>
 
-      {/* Composer */}
+      {/* Composer minimalista com “respiro” extra do rodapé */}
       <div
         ref={inputWrapperRef}
-        className="
-          flex-none
-          px-2 sm:px-4 pt-2
-          bg-white/80 backdrop-blur-sm
-          lg:bg-transparent lg:backdrop-blur-0
-        "
-        // apenas o safe-area; em desktop vira 0px
-        style={{ paddingBottom: safeBottom }}
+        className="flex-none px-2 sm:px-4 pt-2 bg-white"
+        style={{ paddingBottom: `calc(${safeBottom} + 12px)` }}
       >
-        {/* Alertas inline */}
         <AnimatePresence>
           {inlineAlert && (
             <motion.div
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 6 }}
-              className="mb-2 mx-auto max-w-[800px] flex items-center gap-2 text-xs text-yellow-800 bg-yellow-50 border border-yellow-200 px-3 py-2 rounded-lg"
+              className="mb-2 mx-auto max-w-[680px] flex items-center gap-2 text-xs text-yellow-800 bg-yellow-50 border border-yellow-200 px-3 py-2 rounded-lg"
               role="alert"
               aria-live="polite"
             >
@@ -284,11 +448,11 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
           )}
         </AnimatePresence>
 
-        <div className="relative mx-auto max-w-[800px] bg-gray-100 rounded-2xl p-2 shadow-2xl border border-gray-200/80">
+        <div className="relative mx-auto max-w-[680px] bg-white rounded-xl p-2 border border-gray-150">
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsToolsOpen(true)}
-              className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full text-gray-600 hover:bg-gray-300 transition-colors"
+              className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full text-gray-600 hover:bg-gray-100 transition-colors"
               aria-label="Abrir ferramentas"
             >
               <FaPlus />
@@ -297,7 +461,7 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
             {!instagramConnected ? (
               <button
                 onClick={handleCorrectInstagramLink}
-                className="flex-shrink-0 text-xs sm:text-sm font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded-lg transition-colors"
+                className="flex-shrink-0 text-xs sm:text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-lg transition-colors"
               >
                 Conectar Instagram
               </button>
@@ -324,8 +488,8 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
                   if (!isSending) handleSend();
                 }
               }}
-              placeholder="Envie uma mensagem..."
-              className="flex-1 resize-none bg-transparent py-2 pl-2 pr-10 border-0 ring-0 focus:ring-0 outline-none text-[15px] leading-6 placeholder-gray-500 text-gray-900 max-h-[25vh]"
+              placeholder="Envie uma mensagem…"
+              className="flex-1 resize-none bg-white py-2 pl-2 pr-10 border-0 ring-0 focus:ring-0 outline-none text-[14px] leading-6 placeholder-gray-500 text-gray-900 max-h-[25vh]"
               aria-label="Campo de mensagem"
               disabled={isSending}
             />
@@ -343,6 +507,7 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
           </div>
         </div>
       </div>
+
       {/* Voltar ao fim */}
       <AnimatePresence>
         {!isAtBottom && messages.length > 0 && (
@@ -353,27 +518,11 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
             exit={{ opacity: 0, y: 16 }}
             onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })}
             className="absolute right-4 z-20 rounded-full px-3 py-2 text-xs sm:text-sm bg-gray-900 text-white shadow-lg hover:bg-gray-800"
+            style={{ bottom: 'calc(var(--composer-h, 80px) + var(--sab, 0px) + 8px)' }}
             aria-label="Voltar ao fim da conversa"
-            style={{ bottom: `calc(6rem + ${safeBottom})` }}
           >
             Voltar ao fim
           </motion.button>
-        )}
-      </AnimatePresence>
-
-      {/* Respondendo... */}
-      <AnimatePresence>
-        {isSending && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 8 }}
-            className="absolute left-1/2 -translate-x-1/2 z-20 text-xs sm:text-sm bg-gray-900 text-white px-3 py-1.5 rounded-full shadow"
-            style={{ bottom: `calc(6rem + ${safeBottom})` }}
-            aria-live="polite"
-          >
-            Respondendo…
-          </motion.div>
         )}
       </AnimatePresence>
 
@@ -390,14 +539,15 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
               initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               transition={{ type: "spring", stiffness: 400, damping: 40 }}
               className="fixed bottom-0 left-0 right-0 bg-white p-4 pt-5 rounded-t-2xl shadow-2xl z-[60] border-t"
-              style={{ paddingBottom: safeBottom }}
+              style={{ paddingBottom: `calc(${safeBottom} + 20px)` }}
             >
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-sm font-semibold text-gray-600 px-1">Ferramentas e Ações</h3>
                 <button onClick={() => setIsToolsOpen(false)} className="p-1 rounded-full hover:bg-gray-100 text-gray-500"><FaTimes /></button>
               </div>
 
-              <div className="grid grid-cols-1 gap-3">
+              {/* Conteúdo rolável para evitar corte em telas pequenas/teclado aberto */}
+              <div className="grid grid-cols-1 gap-3 max-h-[60svh] overflow-y-auto scrollbar-hide overscroll-contain">
                 <div className="flex items-center justify-between w-full text-left p-3 bg-gray-100 rounded-lg border border-gray-200">
                   <div className="flex items-center gap-4">
                     <FaInstagram className="text-pink-600 text-xl" />

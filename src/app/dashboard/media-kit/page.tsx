@@ -1,113 +1,153 @@
+// src/app/dashboard/media-kit/page.tsx
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import MediaKitView from '@/app/mediakit/[token]/MediaKitView';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FaExclamationTriangle, FaShareAlt, FaLink, FaCheck } from 'react-icons/fa';
 
 export default function MediaKitSelfServePage() {
   const { data: session, status } = useSession();
-  const [slug, setSlug] = useState<string | null>(null);
   const [url, setUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const instagramConnected = Boolean(session?.user?.instagramConnected);
+  const [copied, setCopied] = useState(false);
+
+  const instagramConnected = Boolean((session?.user as any)?.instagramConnected);
+  const fetchedOnce = useRef(false);
+
+  // Toolbar sizing (para não colar no header e ajustar o iframe)
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const [toolbarH, setToolbarH] = useState<number>(0);
+  const TOP_SPACING = 8;           // px de respiro entre header e barra
+  const BELOW_BAR_GAP = 8;         // px de respiro entre barra e iframe
+  const iframeTop = url ? TOP_SPACING + toolbarH + BELOW_BAR_GAP : 0;
 
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      if (status !== 'authenticated') return;
-      try {
-        const res = await fetch('/api/users/media-kit-token', { cache: 'no-store' });
-        const data = await res.json();
-        if (!mounted) return;
-        if (res.ok) {
-          setSlug(data.slug ?? null);
-          setUrl(data.url ?? null);
-          // Redireciona diretamente para o Mídia Kit quando já existir
-          if (data.url) {
-            try { window.location.href = data.url; } catch {}
-          }
-        } else {
-          setError(data.error || 'Falha ao carregar token do Mídia Kit.');
-        }
-      } catch (e: any) {
-        if (!mounted) return;
-        setError(e?.message || 'Erro inesperado.');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => { mounted = false; };
-  }, [status]);
+    const el = toolbarRef.current;
+    if (!el) return;
+    const apply = () => setToolbarH(el.offsetHeight || 0);
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    window.addEventListener('resize', apply);
+    return () => { ro.disconnect(); window.removeEventListener('resize', apply); };
+  }, [url]);
 
-  const handleGenerate = async () => {
-    setError(null);
-    setLoading(true);
-    try {
-      const res = await fetch('/api/users/media-kit-token', { method: 'POST' });
-      const data = await res.json();
-      if (res.ok) {
-        setSlug(data.slug);
-        setUrl(data.url);
-      } else {
-        setError(data.error || 'Falha ao gerar link.');
-      }
-    } catch (e: any) {
-      setError(e?.message || 'Erro inesperado.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const copy = async () => {
-    if (!url) return;
-    try { await navigator.clipboard.writeText(url); } catch {}
-  };
-
-  // ==================================================================
-  // INÍCIO DA CORREÇÃO
-  // ==================================================================
+  // ===== Conectar Instagram =====
   const handleCorrectInstagramLink = async () => {
     try {
-      const response = await fetch('/api/auth/iniciar-vinculacao-fb', {
-        method: 'POST',
-      });
+      const response = await fetch('/api/auth/iniciar-vinculacao-fb', { method: 'POST' });
       if (!response.ok) {
         console.error('Falha ao preparar a vinculação da conta.');
         setError('Não foi possível iniciar a conexão. Tente novamente.');
         return;
       }
-      // O callbackUrl pode ser ajustado para voltar ao media-kit se desejado
-      signIn('facebook', { callbackUrl: '/dashboard/chat?instagramLinked=true' });
+      signIn('facebook', { callbackUrl: '/dashboard/media-kit?instagramLinked=true' });
     } catch (error) {
       console.error('Erro no processo de vinculação:', error);
       setError('Ocorreu um erro inesperado. Tente novamente.');
     }
   };
-  // ==================================================================
-  // FIM DA CORREÇÃO
-  // ==================================================================
+
+  // ===== Carrega/gera link automaticamente e EMBUTE no iframe =====
+  useEffect(() => {
+    let mounted = true;
+
+    const loadOrCreateLink = async () => {
+      if (status !== 'authenticated') return;
+
+      // Sem IG conectado → nada de API; renderizamos demo abaixo
+      if (!instagramConnected) {
+        setLoading(false);
+        setUrl(null);
+        return;
+      }
+
+      if (fetchedOnce.current) {
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        // 1) tenta obter link existente
+        const res = await fetch('/api/users/media-kit-token', { cache: 'no-store' });
+        const data = await res.json();
+        if (!mounted) return;
+
+        if (res.ok && (data?.url || data?.publicUrl)) {
+          setUrl(data?.url ?? data?.publicUrl);
+          fetchedOnce.current = true;
+        } else {
+          // 2) se não existir, gera automaticamente
+          const resCreate = await fetch('/api/users/media-kit-token', { method: 'POST' });
+          const created = await resCreate.json();
+          if (!mounted) return;
+
+          if (!resCreate.ok || !(created?.url || created?.publicUrl)) {
+            throw new Error(created?.error || 'Falha ao gerar link do Mídia Kit.');
+          }
+          setUrl(created?.url ?? created?.publicUrl);
+          fetchedOnce.current = true;
+        }
+      } catch (e: any) {
+        if (!mounted) return;
+        setError(e?.message || 'Erro inesperado ao carregar o Mídia Kit.');
+        setUrl(null);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    loadOrCreateLink();
+    return () => { mounted = false; };
+  }, [status, instagramConnected]);
+
+  const copyLink = async () => {
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    } catch {/* noop */}
+  };
+
+  const nativeShare = async () => {
+    if (!url) return;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'Meu Mídia Kit', url });
+      } else {
+        await copyLink();
+      }
+    } catch {/* share cancelado */}
+  };
 
   if (status === 'loading') {
     return <div className="p-6">Carregando…</div>;
   }
+
   if (status === 'unauthenticated') {
     return (
       <div className="p-6">
-        <p className="text-sm text-gray-600">Faça login para gerar seu Mídia Kit.</p>
+        <p className="text-sm text-gray-600">Faça login para visualizar seu Mídia Kit.</p>
       </div>
     );
   }
 
-  // Caso não conectado, renderizamos a mesma UI do MediaKit público, com dados ausentes e CTA
+  // ===== Estado: IG NÃO conectado → DEMO + CTA =====
   if (!instagramConnected) {
     const demoUser = {
       name: 'Criador Exemplo',
       profile_picture_url: '/images/Colorido-Simbolo.png',
       username: 'criador.exemplo',
-      biography: 'Este é um Mídia Kit demonstrativo. Conecte seu Instagram para ver seus dados reais.',
+      biography: 'Este é um Mídia Kit demonstrativo. Conecte seu Instagram para ver seu Mídia Kit real.',
       followers_count: 12300,
-      _id: undefined, // evita buscas reais de KPI
+      _id: undefined,
     };
 
     const demoKpis = {
@@ -134,7 +174,6 @@ export default function MediaKitSelfServePage() {
         caption: 'Reel • Dica de app de produtividade (18s) — Para criadores; gancho em 2s; CTA de salvar',
         permalink: null,
         thumbnailUrl: '/images/Colorido-Simbolo.png',
-        // IDs de classificação para exibir chips de estratégia
         format: ['reel'],
         proposal: ['tips'],
         context: ['technology_digital'],
@@ -205,35 +244,103 @@ export default function MediaKitSelfServePage() {
     );
   }
 
+  // ===== Estado principal (IG conectado): BARRA DE COMPARTILHAMENTO full-width + IFRAME =====
+  const safeBottom = 'env(safe-area-inset-bottom, 0px)';
+
   return (
-    <div className="max-w-2xl mx-auto bg-white rounded-xl border border-gray-200 p-6 space-y-4">
-      <h1 className="text-xl font-semibold text-brand-dark">Mídia Kit</h1>
-      {error && (
-        <div className="p-3 rounded-md bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>
-      )}
-      {loading ? (
-        <div className="text-sm text-gray-500">Carregando…</div>
-      ) : slug && url ? (
-        <div className="space-y-2">
-          <p className="text-sm text-gray-700">Seu link público de Mídia Kit está ativo.</p>
-          <div className="flex gap-2 items-center">
-            <input className="flex-1 text-xs bg-gray-50 border border-gray-300 rounded px-3 py-2" value={url} readOnly />
-            <a href={url} target="_blank" rel="noopener noreferrer" className="px-3 py-2 rounded-md text-xs bg-black text-white">Abrir</a>
-            <button onClick={copy} className="px-3 py-2 rounded-md text-xs bg-gray-100 border border-gray-300">Copiar</button>
+    <section
+      className="relative h-[calc(100svh-var(--header-h,4rem))] w-full bg-white overflow-hidden"
+      aria-label="Mídia Kit embutido"
+    >
+      {/* Barra de compartilhamento (full-width), com respiro do header */}
+      {url && (
+        <div
+          ref={toolbarRef}
+          className="absolute left-0 right-0 z-20 px-2 sm:px-4"
+          style={{ top: TOP_SPACING }}
+        >
+          <div className="w-full rounded-xl border border-gray-200 bg-white/90 supports-[backdrop-filter]:bg-white/60 backdrop-blur p-2 sm:p-3 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center gap-2">
+              <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-800 font-medium">
+                <FaShareAlt className="h-3.5 w-3.5" />
+                Compartilhar meu Mídia Kit com parceiros
+              </div>
+              <div className="flex-1" />
+              <div className="flex w-full md:w-auto items-center gap-2">
+                <input
+                  value={url}
+                  readOnly
+                  className="flex-1 md:w-[360px] text-xs bg-gray-50 border border-gray-200 rounded px-3 py-2"
+                />
+                <button
+                  onClick={copyLink}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                  title="Copiar link"
+                >
+                  {copied ? <FaCheck className="h-3.5 w-3.5" /> : <FaLink className="h-3.5 w-3.5" />}
+                  {copied ? 'Copiado' : 'Copiar'}
+                </button>
+                <button
+                  onClick={nativeShare}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                  title="Compartilhar"
+                >
+                  <FaShareAlt className="h-3.5 w-3.5" />
+                  Compartilhar
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-      ) : (
-        <div className="space-y-3">
-          <p className="text-sm text-gray-700">Gere seu link público para compartilhar com marcas e parceiros.</p>
-          <button
-            onClick={handleGenerate}
-            disabled={loading}
-            className="px-4 py-2 rounded-md text-sm font-semibold text-white bg-pink-600 hover:bg-pink-700 disabled:opacity-50"
+      )}
+
+      {/* Estados de carregamento/erro */}
+      <AnimatePresence>
+        {loading && (
+          <motion.div
+            key="loading"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 grid place-items-center bg-white z-10"
           >
-            Gerar Link do Mídia Kit
-          </button>
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span className="inline-block h-2 w-2 rounded-full bg-gray-400 animate-pulse" />
+              Carregando Mídia Kit…
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {error && (
+        <div className="absolute inset-0 grid place-items-center p-4 z-10">
+          <div className="max-w-md w-full border border-yellow-200 bg-yellow-50 text-yellow-900 rounded-lg p-3 text-sm flex items-start gap-2">
+            <FaExclamationTriangle className="mt-0.5 shrink-0" />
+            <div>
+              <p className="font-semibold">Não foi possível carregar o Mídia Kit</p>
+              <p className="mt-1">{error}</p>
+            </div>
+          </div>
         </div>
       )}
-    </div>
+
+      {/* Iframe ocupa o restante da altura da seção, abaixo da barra */}
+      {url && (
+        <div
+          className="absolute left-0 right-0 bottom-0"
+          style={{ top: iframeTop }}
+        >
+          <iframe
+            key={url}
+            src={url}
+            className="h-full w-full border-0"
+            allow="clipboard-write; fullscreen; accelerometer; gyroscope; encrypted-media"
+          />
+        </div>
+      )}
+
+      {/* respiro inferior p/ home bar (só visual) */}
+      <div style={{ height: `calc(${safeBottom})` }} aria-hidden="true" />
+    </section>
   );
 }

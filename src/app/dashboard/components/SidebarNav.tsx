@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import {
   FaComments,
   FaFileContract,
-  FaWhatsapp,
   FaCreditCard,
   FaAngleDoubleLeft,
   FaAngleDoubleRight,
@@ -27,43 +26,45 @@ type NavItem = {
 
 export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
   const pathname = usePathname();
+
+  // Evita FOUC/flash: só consideramos breakpoints depois de montar no cliente
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const [isMobile, setIsMobile] = useState(false);
   const wasOverflow = useRef<string | null>(null);
 
-  const isOpen = !isCollapsed;
-
+  // Lista
   const items: NavItem[] = useMemo(
     () => [
       { href: "/dashboard/chat", label: "Conversar com IA", icon: <FaComments /> },
       { href: "/dashboard/media-kit", label: "Mídia Kit", icon: <FaFileContract /> },
-      { href: "/dashboard/whatsapp-pro", label: "WhatsApp PRO", icon: <FaWhatsapp /> },
       { href: "/dashboard/settings", label: "Gerir Assinatura", icon: <FaCreditCard /> },
     ],
     []
   );
 
-  // Detecta breakpoint (mobile x desktop)
+  // Detecta breakpoint (mobile x desktop) — só após mounted para evitar SSR mismatch
   useEffect(() => {
+    if (!mounted) return;
     const mm = window.matchMedia("(min-width: 1024px)"); // lg
     const apply = () => setIsMobile(!mm.matches);
     apply();
     mm.addEventListener?.("change", apply);
     return () => mm.removeEventListener?.("change", apply);
-  }, []);
+  }, [mounted]);
 
-  // >>> Mantém a largura atual da sidebar em uma CSS var global
+  // Atualiza a largura global da sidebar (desktop apenas)
   useEffect(() => {
-    // desktop: 16rem (aberta) ou 4rem (colapsada)
-    // mobile (overlay): 0px — conteúdo ocupa 100%
     const width = isMobile ? "0px" : isCollapsed ? "4rem" : "16rem";
     document.documentElement.style.setProperty("--sidebar-w", width);
     return () => {
       document.documentElement.style.removeProperty("--sidebar-w");
     };
   }, [isMobile, isCollapsed]);
-  // <<<
 
-  // Scroll lock do body quando overlay mobile estiver aberto
+  // Scroll lock ao abrir no mobile
+  const isOpen = !isCollapsed;
   useEffect(() => {
     if (!isMobile) return;
     if (isOpen) {
@@ -83,7 +84,7 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
-  // Fecha com ESC (mobile aberto)
+  // Fecha com ESC (mobile)
   useEffect(() => {
     if (!(isMobile && isOpen)) return;
     const onKey = (e: KeyboardEvent) => {
@@ -97,20 +98,29 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
     if (isMobile && isOpen) onToggle();
   }, [isMobile, isOpen, onToggle]);
 
-  // Classes:
-  // - Mobile: fixed + slide
-  // - Desktop: fixed, sem transform, largura 16/64, top/height via --header-h
+  // Classes de base
   const asideBase =
     "border-r border-gray-200 bg-white flex flex-col transition-transform duration-200 ease-out";
+
+  // Enquanto não montou, **forçamos fechado** no mobile e escondemos visualmente para evitar flash
+  const mobileTransform = !mounted
+    ? "-translate-x-full"
+    : isOpen
+    ? "translate-x-0"
+    : "-translate-x-full";
+
   const mobileClasses = isMobile
-  ? `fixed inset-y-0 left-0 z-40 w-64 transform ${isOpen ? "translate-x-0" : "-translate-x-full"}`
-  : "";
-  const desktopClasses = !isMobile ? `lg:fixed lg:left-0 lg:z-30 lg:transform-none` : "";
+    ? `fixed inset-y-0 left-0 z-[60] w-64 transform ${mobileTransform}`
+    : "";
+
+  const desktopClasses = !isMobile ? `lg:fixed lg:left-0 lg:z-40 lg:transform-none` : "";
   const desktopWidth = !isMobile ? (isCollapsed ? "lg:w-16" : "lg:w-64") : "";
 
   return (
     <aside
-      className={`${asideBase} ${mobileClasses} ${desktopClasses} ${desktopWidth}`}
+      className={`${asideBase} ${mobileClasses} ${desktopClasses} ${desktopWidth} ${
+        !mounted ? "opacity-0 pointer-events-none" : "opacity-100"
+      }`}
       aria-label="Navegação do dashboard"
       style={
         !isMobile
@@ -124,7 +134,7 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
       {/* Topo: botão de recolher/fechar */}
       <div className="p-2 flex items-center justify-end">
         <button
-          onClick={onToggle}
+          onClick={() => onToggle()}
           className="inline-flex items-center gap-2 text-xs text-gray-600 hover:text-gray-900 px-2 py-1 rounded-md hover:bg-gray-100"
           aria-label={isOpen ? "Fechar menu" : "Abrir menu"}
           title={isOpen ? "Fechar" : "Abrir"}
@@ -139,8 +149,8 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
         </button>
       </div>
 
-      {/* Lista de navegação */}
-      <nav className="flex-1 overflow-y-auto px-2">
+      {/* Lista */}
+      <nav className="flex-1 overflow-y-auto scrollbar-hide px-2">
         <ul className="space-y-1">
           {items.map((item) => {
             const active =

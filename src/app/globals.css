@@ -1,4 +1,4 @@
-/* src/app/globals.css (Atualizado Pacote A) */
+/* src/app/globals.css */
 
 /* Tailwind base, components, utilities */
 @tailwind base;
@@ -13,8 +13,8 @@
   --header-h: 56px;
 
   /* Safe areas (iOS) — usadas para evitar conteúdo sob o notch/home bar */
-  --sat: env(safe-area-inset-top);
-  --sab: env(safe-area-inset-bottom);
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
 }
 
 /* Altura baseada em 100svh para evitar jumps no mobile */
@@ -25,9 +25,26 @@
 .pt-header { padding-top: var(--header-h); }
 
 /* Padding-bottom que respeita a home bar (ótimo pro composer do chat) */
-.pb-safe { padding-bottom: calc(0.5rem + var(--sab)); }
+.pb-safe { padding-bottom: calc(0.5rem + var(--sab, 0px)); }
 
-/* Esconde scrollbar mantendo scroll (útil para overlays/drawers se necessário) */
+/* === Utilitárias para o chat === */
+.scroll-pt-header { scroll-padding-top: var(--header-h, 56px); }
+.scroll-pb-composer { scroll-padding-bottom: calc(var(--composer-h, 80px) + var(--sab, 0px)); }
+
+/* =========================
+   Scrollbar helpers
+   ========================= */
+
+/* Esconde scrollbar mantendo scroll (cross-browser) */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE/Edge legacy */
+  scrollbar-width: none;     /* Firefox */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;             /* Chrome/Safari/Edge */
+}
+
+/* Mantida por compat (se houver uso legado) */
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -51,15 +68,6 @@
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: #a8a8a8;
-}
-
-/* Scrollbar Hide utility (opcional) */
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
 }
 
 /* Placeholder para campos contentEditable (opcional) */
