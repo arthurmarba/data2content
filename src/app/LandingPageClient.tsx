@@ -22,17 +22,36 @@ export default function LandingPageClient() {
 
     const apply = () => {
       const header = findHeader();
-      const h = header?.getBoundingClientRect().height ?? 0;
+      if (!header) return; // não sobrescreve o fallback até o header existir
+      const h = header.getBoundingClientRect().height;
       root.style.setProperty("--landing-header-h", `${h}px`);
     };
 
     // aplica na carga e observa mudanças de tamanho do header
     apply();
-    const hdr = findHeader();
+
     let ro: ResizeObserver | null = null;
-    if (hdr) {
+    let mo: MutationObserver | null = null;
+
+    const observeHeader = (header: HTMLElement) => {
       ro = new ResizeObserver(apply);
-      ro.observe(hdr);
+      ro.observe(header);
+    };
+
+    const hdr = findHeader();
+    if (hdr) {
+      observeHeader(hdr);
+    } else {
+      const target = headerWrapRef.current ?? document;
+      mo = new MutationObserver(() => {
+        const found = findHeader();
+        if (!found) return;
+        apply();
+        observeHeader(found);
+        mo?.disconnect();
+        mo = null;
+      });
+      target && mo.observe(target, { childList: true, subtree: true });
     }
 
     // re-aplica ao finalizar o carregamento (fonts/imagens podem alterar a altura)
@@ -41,6 +60,7 @@ export default function LandingPageClient() {
     return () => {
       window.removeEventListener("load", apply);
       ro?.disconnect();
+      mo?.disconnect();
     };
   }, []);
 
