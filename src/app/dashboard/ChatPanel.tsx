@@ -67,7 +67,6 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const inputWrapperRef = useRef<HTMLDivElement>(null);
-  const [inputHeight, setInputHeight] = useState(120);
 
   const [isToolsOpen, setIsToolsOpen] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -99,15 +98,6 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
     el.style.height = 'auto';
     el.style.height = `${el.scrollHeight}px`;
   }, [input]);
-
-  // medir altura do composer
-  useEffect(() => {
-    const el = inputWrapperRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver(() => setInputHeight(el.offsetHeight));
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
 
   // detectar “fim”
   useEffect(() => {
@@ -183,18 +173,16 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
   ];
 
   const safeBottom = 'env(safe-area-inset-bottom, 0px)';
-  const BLEED = 12; // espaço para a sombra do composer “respirar”
 
   return (
     // trocado overflow-hidden -> overflow-x-hidden para não cortar a sombra no rodapé
-    <div className="relative h-full w-full bg-white overflow-x-hidden">
+    <div className="relative flex flex-col h-full w-full bg-white overflow-x-hidden">
       {/* timeline */}
       <div
         ref={scrollRef}
-        className="absolute inset-0 overflow-y-auto custom-scrollbar"
+        className="flex-1 overflow-y-auto custom-scrollbar"
         style={{
           paddingTop: 'var(--header-h, 4rem)',
-          paddingBottom: `calc(${inputHeight + BLEED}px + ${safeBottom})`,
         }}
       >
         <div className="flex flex-col justify-end min-h-full">
@@ -265,108 +253,11 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
         </div>
       </div>
 
-      {/* Voltar ao fim */}
-      <AnimatePresence>
-        {!isAtBottom && messages.length > 0 && (
-          <motion.button
-            key="back-to-end"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 16 }}
-            onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })}
-            className="absolute right-4 z-20 rounded-full px-3 py-2 text-xs sm:text-sm bg-gray-900 text-white shadow-lg hover:bg-gray-800"
-            aria-label="Voltar ao fim da conversa"
-            style={{ bottom: `calc(${inputHeight + BLEED}px + ${safeBottom})` }}
-          >
-            Voltar ao fim
-          </motion.button>
-        )}
-      </AnimatePresence>
-
-      {/* Respondendo... */}
-      <AnimatePresence>
-        {isSending && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 8 }}
-            className="absolute left-1/2 -translate-x-1/2 z-20 text-xs sm:text-sm bg-gray-900 text-white px-3 py-1.5 rounded-full shadow"
-            style={{ bottom: `calc(${inputHeight + BLEED + 4}px + ${safeBottom})` }}
-            aria-live="polite"
-          >
-            Respondendo…
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Drawer de ferramentas */}
-      <AnimatePresence>
-        {isToolsOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setIsToolsOpen(false)}
-              className="absolute inset-0 bg-black/40 z-10"
-            />
-            <motion.div
-              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-              transition={{ type: "spring", stiffness: 400, damping: 40 }}
-              className="absolute bottom-0 left-0 right-0 bg-white p-4 pt-5 rounded-t-2xl shadow-2xl z-20 border-t"
-              style={{ paddingBottom: `calc(${inputHeight + BLEED}px + ${safeBottom})` }}
-            >
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-sm font-semibold text-gray-600 px-1">Ferramentas e Ações</h3>
-                <button onClick={() => setIsToolsOpen(false)} className="p-1 rounded-full hover:bg-gray-100 text-gray-500"><FaTimes /></button>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3">
-                <div className="flex items-center justify-between w-full text-left p-3 bg-gray-100 rounded-lg border border-gray-200">
-                  <div className="flex items-center gap-4">
-                    <FaInstagram className="text-pink-600 text-xl" />
-                    <div>
-                      <span className="text-sm font-medium text-gray-800">Análise Personalizada</span>
-                      <p className="text-xs text-gray-500">Use suas métricas do Instagram.</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleCorrectInstagramLink}
-                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${instagramConnected ? 'bg-blue-600' : 'bg-gray-300'}`}
-                    disabled={instagramConnected}
-                    aria-label={instagramConnected ? "Instagram conectado" : "Conectar Instagram"}
-                  >
-                    <span aria-hidden="true" className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${instagramConnected ? 'translate-x-5' : 'translate-x-0'}`} />
-                  </button>
-                </div>
-
-                {instagramConnected && (
-                  <button
-                    onClick={() => { router.push('/dashboard/media-kit'); setIsToolsOpen(false); }}
-                    className="flex items-center gap-4 w-full text-left p-3 bg-gray-100 hover:bg-gray-200 rounded-lg border border-gray-200 transition-colors"
-                  >
-                    <FaExternalLinkAlt className="text-gray-600 text-lg" />
-                    <div>
-                      <span className="text-sm font-medium text-gray-800">Acessar Mídia Kit</span>
-                      <p className="text-xs text-gray-500">Ver e compartilhar seus dados.</p>
-                    </div>
-                  </button>
-                )}
-
-                {instagramConnected && isActiveLikePlan && (
-                  <div className="p-3 bg-gray-100 rounded-lg border border-gray-200">
-                    <WhatsAppConnectInline />
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
       {/* Composer */}
       <div
         ref={inputWrapperRef}
         className="
-          absolute bottom-0 left-0 right-0
+          flex-none
           px-2 sm:px-4 pt-2
           bg-white/80 backdrop-blur-sm
           lg:bg-transparent lg:backdrop-blur-0
@@ -450,6 +341,102 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
           </div>
         </div>
       </div>
+      {/* Voltar ao fim */}
+      <AnimatePresence>
+        {!isAtBottom && messages.length > 0 && (
+          <motion.button
+            key="back-to-end"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+            onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })}
+            className="absolute right-4 z-20 rounded-full px-3 py-2 text-xs sm:text-sm bg-gray-900 text-white shadow-lg hover:bg-gray-800"
+            aria-label="Voltar ao fim da conversa"
+            style={{ bottom: `calc(6rem + ${safeBottom})` }}
+          >
+            Voltar ao fim
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      {/* Respondendo... */}
+      <AnimatePresence>
+        {isSending && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            className="absolute left-1/2 -translate-x-1/2 z-20 text-xs sm:text-sm bg-gray-900 text-white px-3 py-1.5 rounded-full shadow"
+            style={{ bottom: `calc(6rem + ${safeBottom})` }}
+            aria-live="polite"
+          >
+            Respondendo…
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Drawer de ferramentas */}
+      <AnimatePresence>
+        {isToolsOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setIsToolsOpen(false)}
+              className="absolute inset-0 bg-black/40 z-10"
+            />
+            <motion.div
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 400, damping: 40 }}
+              className="absolute bottom-0 left-0 right-0 bg-white p-4 pt-5 rounded-t-2xl shadow-2xl z-20 border-t"
+              style={{ paddingBottom: safeBottom }}
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-sm font-semibold text-gray-600 px-1">Ferramentas e Ações</h3>
+                <button onClick={() => setIsToolsOpen(false)} className="p-1 rounded-full hover:bg-gray-100 text-gray-500"><FaTimes /></button>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3">
+                <div className="flex items-center justify-between w-full text-left p-3 bg-gray-100 rounded-lg border border-gray-200">
+                  <div className="flex items-center gap-4">
+                    <FaInstagram className="text-pink-600 text-xl" />
+                    <div>
+                      <span className="text-sm font-medium text-gray-800">Análise Personalizada</span>
+                      <p className="text-xs text-gray-500">Use suas métricas do Instagram.</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleCorrectInstagramLink}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${instagramConnected ? 'bg-blue-600' : 'bg-gray-300'}`}
+                    disabled={instagramConnected}
+                    aria-label={instagramConnected ? "Instagram conectado" : "Conectar Instagram"}
+                  >
+                    <span aria-hidden="true" className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${instagramConnected ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+
+                {instagramConnected && (
+                  <button
+                    onClick={() => { router.push('/dashboard/media-kit'); setIsToolsOpen(false); }}
+                    className="flex items-center gap-4 w-full text-left p-3 bg-gray-100 hover:bg-gray-200 rounded-lg border border-gray-200 transition-colors"
+                  >
+                    <FaExternalLinkAlt className="text-gray-600 text-lg" />
+                    <div>
+                      <span className="text-sm font-medium text-gray-800">Acessar Mídia Kit</span>
+                      <p className="text-xs text-gray-500">Ver e compartilhar seus dados.</p>
+                    </div>
+                  </button>
+                )}
+
+                {instagramConnected && isActiveLikePlan && (
+                  <div className="p-3 bg-gray-100 rounded-lg border border-gray-200">
+                    <WhatsAppConnectInline />
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
