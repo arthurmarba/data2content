@@ -207,19 +207,18 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
     el.style.height = `${el.scrollHeight}px`;
   }, [input]);
 
-  // detectar “fim”
+  // detectar “fim” — corrigido: early return + cleanup
   useEffect(() => {
     const root = scrollRef.current;
-    the_target: {
-      const target = messagesEndRef.current;
-      if (!root || !target) break the_target;
-      const io = new IntersectionObserver(
-        (entries) => setIsAtBottom(entries[0]?.isIntersecting ?? false),
-        { root, threshold: 1.0, rootMargin: "0px 0px 60px 0px" }
-      );
-      io.observe(target);
-      return () => io.disconnect();
-    }
+    const target = messagesEndRef.current;
+    if (!root || !target) return;
+
+    const io = new IntersectionObserver(
+      (entries) => setIsAtBottom(entries[0]?.isIntersecting ?? false),
+      { root, threshold: 1.0, rootMargin: "0px 0px 60px 0px" }
+    );
+    io.observe(target);
+    return () => io.disconnect();
   }, []);
 
   // autoscroll
