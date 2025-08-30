@@ -50,6 +50,7 @@ function ChatHeader({ user }: { user?: SessionUser }) {
   return (
     <header
       ref={headerRef}
+      style={{ paddingTop: "var(--sat)" }}
       className="absolute top-0 left-0 right-0 z-20 p-2 sm:p-4 bg-white/80 backdrop-blur-sm border-b border-gray-200/80"
       aria-label="Barra superior do chat"
     >
