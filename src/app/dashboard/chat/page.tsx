@@ -28,6 +28,12 @@ export default function ChatHomePage() {
   const closeBillingModal = () => setShowBillingModal(false);
   const openedAfterIgRef = useRef(false);
 
+  useEffect(() => {
+    const handler = () => setShowBillingModal(true);
+    window.addEventListener("open-subscribe-modal" as any, handler);
+    return () => window.removeEventListener("open-subscribe-modal" as any, handler);
+  }, []);
+
   // Limpa o parâmetro ?instagramLinked=true do URL após a primeira renderização
   useEffect(() => {
     const params = new URLSearchParams(sp.toString());
