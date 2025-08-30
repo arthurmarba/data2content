@@ -66,7 +66,9 @@ function ChatHeader({ user }: { user?: SessionUser }) {
         <div className="flex flex-col items-center">
           <h2 className="font-semibold text-gray-800 select-none">data2content</h2>
           <button
-            onClick={() => router.push("/dashboard/billing?subscribe=pro")}
+            onClick={() =>
+              window.dispatchEvent(new CustomEvent("open-subscribe-modal"))
+            }
             className="text-xs font-semibold text-white bg-gray-900 px-3 py-1 rounded-full hover:bg-gray-800 transition-colors shadow-sm"
             aria-label="Assine o plano Pro"
           >
