@@ -64,13 +64,13 @@ function ChatHeader({ user }: { user?: SessionUser }) {
         </button>
 
         <div className="flex flex-col items-center">
-          <h2 className="font-semibold text-gray-800 select-none">Gemini</h2>
+          <h2 className="font-semibold text-gray-800 select-none">data2content</h2>
           <button
             onClick={() => router.push("/dashboard/billing?subscribe=pro")}
             className="text-xs font-semibold text-white bg-gray-900 px-3 py-1 rounded-full hover:bg-gray-800 transition-colors shadow-sm"
-            aria-label="Assine o plano 2.5 Pro"
+            aria-label="Assine o plano Pro"
           >
-            2.5 Pro
+            Seja Assinante
           </button>
         </div>
 

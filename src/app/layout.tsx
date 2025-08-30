@@ -55,6 +55,7 @@ export default async function RootLayout({
         <style id="gemini-css-vars">{`
           :root {
             --header-h: 56px;               /* altura padrão do header (ajustada dinamicamente no Header do dashboard) */
+            --landing-header-h: 4.5rem;  
             --sat: env(safe-area-inset-top);    /* safe-area top (iOS) */
             --sab: env(safe-area-inset-bottom); /* safe-area bottom (iOS) */
           }
