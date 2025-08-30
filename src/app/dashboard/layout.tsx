@@ -61,7 +61,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         {/* O conteúdo abaixo desloca no desktop para não ficar sob o sidebar */}
         <main
           className={`flex-1 ${mainOffset} ${
-            isChatPage ? "overflow-visible" : "overflow-y-auto"
+            isChatPage ? "overflow-hidden" : "overflow-y-auto"
           }`}
         >
           {children}
