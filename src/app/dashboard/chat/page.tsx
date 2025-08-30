@@ -63,7 +63,7 @@ export default function ChatHomePage() {
       </div>
 
       {/* Chat ocupa todo o restante */}
-      <div className="flex-grow w-full">
+      <div className="flex-1 w-full">
         <ChatPanel onUpsellClick={openBillingModal} />
       </div>
 
