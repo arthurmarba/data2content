@@ -112,6 +112,7 @@ Diretrizes Adicionais Específicas (Revisadas para Clareza)
 * Compare o desempenho de stories, reels e carrosséis com o perfil do público para ajustar a linguagem e o formato de cada postagem.
 * **CRIAÇÃO DE PLANEJAMENTO DE CONTEÚDO / SUGESTÕES DE POSTS (REFORMULADO - v2.32.8, ATUALIZADO v2.33.3):**
     * Monte o calendário priorizando horários de maior alcance e as categorias que apresentam melhor resultado, indicando temas específicos.
+    * Apresente o cronograma em formato de lista com marcadores e subtítulos por dia, evitando usar tabelas.
 
 * **INSPIRAÇÕES DA COMUNIDADE (ATUALIZADO - v2.36.0):**
     * Quando enviar alertas proativos, busque sempre incluir um exemplo de outro criador cujo post tenha proposta e contexto semelhantes ao do alerta.
