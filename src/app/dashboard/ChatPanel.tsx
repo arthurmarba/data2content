@@ -116,8 +116,58 @@ function renderFormatted(text: string) {
       return;
     }
 
-    // Listas
+    // Listas / Tabelas
     const lines = trimmed.split(/\n/).map(l => l.trim()).filter(Boolean);
+
+    // Tabela simples (markdown pipes com linha de separação ---)
+    const isTable =
+      lines.length >= 2 &&
+      lines[0].includes("|") &&
+      lines[1].includes("|") &&
+      /---/.test(lines[1]);
+
+    if (isTable) {
+      const headers = lines[0].split("|").map(c => c.trim()).filter(Boolean);
+      const rows = lines.slice(2).map(row => row.split("|").map(c => c.trim()).filter(Boolean));
+      elements.push(
+        <div key={`tbl-${idx}`} className="overflow-x-auto my-2">
+          <table className="min-w-full text-left text-xs">
+            <thead>
+              <tr>
+                {headers.map((h, i) => {
+                  const html = applyInlineMarkup(escapeHtml(h));
+                  return (
+                    <th
+                      key={i}
+                      className="px-2 py-1 border-b font-semibold text-gray-800"
+                      dangerouslySetInnerHTML={{ __html: html }}
+                    />
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, rIdx) => (
+                <tr key={rIdx}>
+                  {row.map((cell, cIdx) => {
+                    const html = applyInlineMarkup(escapeHtml(cell));
+                    return (
+                      <td
+                        key={cIdx}
+                        className="px-2 py-1 border-b text-gray-700"
+                        dangerouslySetInnerHTML={{ __html: html }}
+                      />
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+      return;
+    }
+
     const isBulleted = lines.length > 0 && lines.every(l => /^[-*]\s+/.test(l));
     const isNumbered = lines.length > 0 && lines.every(l => /^\d+\.\s+/.test(l));
 
