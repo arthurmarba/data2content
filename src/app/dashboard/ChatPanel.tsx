@@ -119,25 +119,25 @@ function renderFormatted(text: string) {
     // Listas / Tabelas
     let lines = trimmed.split(/\n/).map(l => l.trim()).filter(Boolean);
 
-    // Tabela simples (markdown pipes com linha de separação ---)
-    let isTable =
-      lines.length >= 2 &&
-      lines[0].includes("|") &&
-      lines[1].includes("|") &&
-      /---/.test(lines[1]);
+    // --- DETECÇÃO DE TABELA (com guards para TS) ---
+    let isTable = false;
+    if (lines.length >= 2) {
+      const first = lines[0] ?? "";
+      const second = lines[1] ?? "";
+      isTable = first.includes("|") && second.includes("|") && /---/.test(second);
 
-    // Normaliza a primeira linha para remover qualquer conteúdo antes do primeiro "|" e reavalia
-    if (!isTable && lines.length >= 2) {
-      lines[0] = lines[0].replace(/^[^|]*\|/, "|");
-      isTable =
-        lines[0].includes("|") &&
-        lines[1].includes("|") &&
-        /---/.test(lines[1]);
+      if (!isTable) {
+        const normFirst = first.replace(/^[^|]*\|/, "|");
+        isTable = normFirst.includes("|") && second.includes("|") && /---/.test(second);
+        lines = [normFirst, ...lines.slice(1)];
+      }
     }
 
     if (isTable) {
-      const headers = lines[0].split("|").map(c => c.trim()).filter(Boolean);
-      const rows = lines.slice(2).map(row => row.split("|").map(c => c.trim()).filter(Boolean));
+      const headers = (lines[0] ?? "").split("|").map(c => c.trim()).filter(Boolean);
+      const rows = lines.slice(2).map(row =>
+        (row ?? "").split("|").map(c => c.trim()).filter(Boolean)
+      );
       elements.push(
         <div key={`tbl-${idx}`} className="overflow-x-auto my-2">
           <table className="min-w-full text-left text-xs">
@@ -159,8 +159,8 @@ function renderFormatted(text: string) {
               {rows.map((row, rIdx) => (
                 <tr key={rIdx}>
                   {row.map((cell, cIdx) => {
-                    if (cell.includes(',')) {
-                      const parts = cell.split(',').map((p) => p.trim()).filter(Boolean);
+                    if (cell.includes(",")) {
+                      const parts = cell.split(",").map((p) => p.trim()).filter(Boolean);
                       return (
                         <td key={cIdx} className="px-2 py-1 border-b text-gray-700">
                           {parts.map((part, pIdx) => {
@@ -193,11 +193,11 @@ function renderFormatted(text: string) {
       return;
     }
 
-    const isBulleted = lines.length > 0 && lines.every(l => /^[-*]\s+/.test(l));
-    const isNumbered = lines.length > 0 && lines.every(l => /^\d+\.\s+/.test(l));
+    const isBulleted = lines.length > 0 && lines.every(l => /^[-*]\s+/.test(l ?? ""));
+    const isNumbered = lines.length > 0 && lines.every(l => /^\d+\.\s+/.test(l ?? ""));
 
     if (isBulleted) {
-      const items = lines.map((l) => l.replace(/^[-*]\s+/, ""));
+      const items = lines.map((l) => (l ?? "").replace(/^[-*]\s+/, ""));
       elements.push(
         <ul key={`ul-${idx}`} className="list-disc ml-5 pl-1 space-y-1 text-[14px] leading-6 text-gray-800 my-2">
           {items.map((it, i) => {
@@ -210,7 +210,7 @@ function renderFormatted(text: string) {
     }
 
     if (isNumbered) {
-      const items = lines.map((l) => l.replace(/^\d+\.\s+/, ""));
+      const items = lines.map((l) => (l ?? "").replace(/^\d+\.\s+/, ""));
       elements.push(
         <ol key={`ol-${idx}`} className="list-decimal ml-5 pl-1 space-y-1 text-[14px] leading-6 text-gray-800 my-2">
           {items.map((it, i) => {
@@ -372,9 +372,10 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
   return (
     <div
       className="relative flex flex-col h-full w-full bg-white overflow-hidden"
-      style={{ minHeight: 'calc(100svh - var(--header-h, 4rem))' }}
+      // FIX: altura fixa do painel para impedir scroll externo mover o composer
+      style={{ height: 'calc(100svh - var(--header-h, 4rem))' }}
     >
-      {/* timeline */}
+      {/* timeline (único scroll) */}
       <div
         ref={scrollRef}
         className="flex-1 min-h-0 overflow-y-auto scrollbar-hide overscroll-contain"
@@ -384,7 +385,6 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
         }}
       >
         {isWelcome ? (
-          // ESTADO VAZIO CENTRALIZADO ENTRE HEADER E COMPOSER
           <section
             className="grid place-items-center px-4"
             style={{
@@ -425,7 +425,6 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
             </div>
           </section>
         ) : (
-          // FEED DE MENSAGENS (scrollbar oculta, rolagem preservada)
           <div className="mx-auto max-w-[680px] w-full px-4">
             <ul role="list" aria-live="polite" className="space-y-3">
               {messages.map((msg, idx) => {
@@ -500,10 +499,10 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
         )}
       </div>
 
-      {/* Composer minimalista com “respiro” extra do rodapé */}
+      {/* Composer — sticky como reforço */}
       <div
         ref={inputWrapperRef}
-        className="flex-none px-2 sm:px-4 pt-2 bg-white"
+        className="flex-none sticky bottom-0 px-2 sm:px-4 pt-2 bg-white"
         style={{ paddingBottom: `calc(${safeBottom} + 12px)` }}
       >
         <AnimatePresence>
