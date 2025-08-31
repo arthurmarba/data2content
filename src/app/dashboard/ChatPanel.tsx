@@ -159,6 +159,22 @@ function renderFormatted(text: string) {
               {rows.map((row, rIdx) => (
                 <tr key={rIdx}>
                   {row.map((cell, cIdx) => {
+                    if (cell.includes(',')) {
+                      const parts = cell.split(',').map((p) => p.trim()).filter(Boolean);
+                      return (
+                        <td key={cIdx} className="px-2 py-1 border-b text-gray-700">
+                          {parts.map((part, pIdx) => {
+                            const htmlPart = applyInlineMarkup(escapeHtml(part));
+                            return (
+                              <div
+                                key={pIdx}
+                                dangerouslySetInnerHTML={{ __html: htmlPart }}
+                              />
+                            );
+                          })}
+                        </td>
+                      );
+                    }
                     const html = applyInlineMarkup(escapeHtml(cell));
                     return (
                       <td
