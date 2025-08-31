@@ -370,7 +370,7 @@ const StandaloneChatInterface: React.FC<StandaloneChatInterfaceProps> = ({ initi
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-800">
+    <div className="flex flex-col h-full overflow-hidden bg-gray-50 dark:bg-gray-800">
       {/* Chat Messages Area */}
       <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-2">
         {messages.length === 0 && !isLoading && (

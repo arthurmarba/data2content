@@ -355,7 +355,7 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
 
   return (
     <div
-      className="relative flex flex-col h-full w-full bg-white overflow-x-hidden"
+      className="relative flex flex-col h-full w-full bg-white overflow-hidden"
       style={{ minHeight: 'calc(100svh - var(--header-h, 4rem))' }}
     >
       {/* timeline */}
