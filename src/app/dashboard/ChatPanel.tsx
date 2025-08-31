@@ -117,14 +117,23 @@ function renderFormatted(text: string) {
     }
 
     // Listas / Tabelas
-    const lines = trimmed.split(/\n/).map(l => l.trim()).filter(Boolean);
+    let lines = trimmed.split(/\n/).map(l => l.trim()).filter(Boolean);
 
     // Tabela simples (markdown pipes com linha de separação ---)
-    const isTable =
+    let isTable =
       lines.length >= 2 &&
       lines[0].includes("|") &&
       lines[1].includes("|") &&
       /---/.test(lines[1]);
+
+    // Normaliza a primeira linha para remover qualquer conteúdo antes do primeiro "|" e reavalia
+    if (!isTable && lines.length >= 2) {
+      lines[0] = lines[0].replace(/^[^|]*\|/, "|");
+      isTable =
+        lines[0].includes("|") &&
+        lines[1].includes("|") &&
+        /---/.test(lines[1]);
+    }
 
     if (isTable) {
       const headers = lines[0].split("|").map(c => c.trim()).filter(Boolean);
