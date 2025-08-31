@@ -25,7 +25,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   const isChatPage = pathname.startsWith("/dashboard/chat");
   const isMediaKitPage = pathname.startsWith("/dashboard/media-kit");
-  const isGeminiHeaderPage = /^\/dashboard\/(chat|media-kit|settings)/.test(pathname);
+  const isGeminiHeaderPage = /^\/dashboard\/(chat|media-kit|settings|billing)/.test(pathname);
 
   const isOpen = !isCollapsed;
 

@@ -28,7 +28,7 @@ interface SessionUser {
   image?: string | null;
 }
 
-/** Header unificado do dashboard (chat, mídia kit, settings) */
+/** Header unificado do dashboard (chat, mídia kit, settings, billing) */
 function ChatHeader({ user }: { user?: SessionUser }) {
   const { toggleSidebar } = useSidebar();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -55,7 +55,7 @@ function ChatHeader({ user }: { user?: SessionUser }) {
     <header
       ref={headerRef}
       style={{ paddingTop: "var(--sat)" }} // safe-area iOS
-      className="fixed top-0 left-0 right-0 z-40 p-2 sm:p-4 bg-white border-b border-gray-200"
+      className="fixed top-0 left-0 right-0 z-40 px-2 sm:px-4 py-3 sm:py-5 bg-white"
       aria-label="Barra superior do dashboard"
     >
       <div className="flex items-center justify-between max-w-[800px] lg:max-w-7xl mx-auto px-0 lg:px-2">
@@ -192,8 +192,8 @@ export default function Header() {
   const user = session?.user as SessionUser | undefined;
   const isDashboardPage = pathname.startsWith("/dashboard");
 
-  // Usar o header unificado também em /dashboard/media-kit e /dashboard/settings
-  const isGeminiHeaderPage = /^\/dashboard\/(chat|media-kit|settings)/.test(pathname);
+  // Usar o header unificado também em /dashboard/media-kit, /dashboard/settings e /dashboard/billing
+  const isGeminiHeaderPage = /^\/dashboard\/(chat|media-kit|settings|billing)/.test(pathname);
 
   if (isGeminiHeaderPage) {
     return <ChatHeader user={user} />;
