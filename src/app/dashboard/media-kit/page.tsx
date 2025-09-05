@@ -82,8 +82,14 @@ export default function MediaKitSelfServePage() {
     return () => { ro.disconnect(); window.removeEventListener('resize', apply); };
   }, [url]);
 
-  const handleCorrectInstagramLink = () => {
+  const handleCorrectInstagramLink = async () => {
     try {
+      const response = await fetch('/api/auth/iniciar-vinculacao-fb', { method: 'POST' });
+      if (!response.ok) {
+        console.error('Falha ao preparar a vinculação da conta.');
+        setError('Falha ao preparar a vinculação com o Facebook. Tente novamente.');
+        return;
+      }
       signIn('facebook', { callbackUrl: '/dashboard/media-kit?instagramLinked=true' });
     } catch (error) {
       console.error('Erro ao iniciar o signIn com o Facebook:', error);
