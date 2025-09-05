@@ -11,7 +11,7 @@ import BillingSubscribeModal from '../billing/BillingSubscribeModal';
 import WhatsAppConnectInline from '../WhatsAppConnectInline';
 
 export default function MediaKitSelfServePage() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const router = useRouter();
   const sp = useSearchParams();
   
@@ -28,6 +28,7 @@ export default function MediaKitSelfServePage() {
   const closeBillingModal = () => setShowBillingModal(false);
   const openedAfterIgRef = useRef(false);
   const showIgConnectSuccess = sp.get("instagramLinked") === "true";
+  const processingIgLinkRef = useRef(false);
 
   const planStatus = String((session?.user as any)?.planStatus || "").toLowerCase();
   const isActiveLike = useMemo(
@@ -56,6 +57,42 @@ export default function MediaKitSelfServePage() {
       router.replace(next, { scroll: false });
     }
   }, [sp, router]);
+
+  // Após retorno do OAuth: atualiza sessão e finaliza conexão se houver apenas 1 conta IG
+  useEffect(() => {
+    const run = async () => {
+      if (!showIgConnectSuccess) return;
+      if (processingIgLinkRef.current) return;
+      processingIgLinkRef.current = true;
+      try {
+        const updated = await update();
+        const u = updated?.user as any;
+        if (!u) return;
+        if (u.instagramConnected) return; // já conectado
+
+        const accounts = Array.isArray(u.availableIgAccounts) ? u.availableIgAccounts : [];
+        if (accounts.length === 1 && accounts[0]?.igAccountId) {
+          const res = await fetch('/api/instagram/connect-selected-account', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ instagramAccountId: accounts[0].igAccountId }),
+          });
+          if (res.ok) {
+            await update(); // refletir instagramConnected=true na sessão
+          } else {
+            const err = await res.json().catch(() => ({}));
+            setError(err?.error || 'Falha ao finalizar a conexão do Instagram.');
+          }
+        } else if (accounts.length > 1) {
+          // Redireciona para o Chat, que possui o seletor de contas IG
+          router.push('/dashboard/chat?instagramLinked=true');
+        }
+      } catch (e: any) {
+        console.error('Erro ao finalizar conexão do Instagram:', e);
+      }
+    };
+    run();
+  }, [showIgConnectSuccess, update, router]);
 
   useEffect(() => {
     if (showIgConnectSuccess && instagramConnected && !isActiveLike && !openedAfterIgRef.current) {
