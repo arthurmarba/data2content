@@ -34,10 +34,11 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
   const [isMobile, setIsMobile] = useState(false);
   const wasOverflow = useRef<string | null>(null);
 
-  // Lista
+  // Lista de itens da navegação
   const items: NavItem[] = useMemo(
     () => [
-      { href: "/dashboard/chat", label: "Conversar com IA", icon: <FaComments /> },
+      // Item "Conversar com IA" comentado para não ser exibido
+      // { href: "/dashboard/chat", label: "Conversar com IA", icon: <FaComments /> },
       { href: "/dashboard/media-kit", label: "Mídia Kit", icon: <FaFileContract /> },
       { href: "/dashboard/settings", label: "Gerir Assinatura", icon: <FaCreditCard /> },
     ],

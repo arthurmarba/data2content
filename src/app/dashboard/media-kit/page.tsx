@@ -1,27 +1,74 @@
 // src/app/dashboard/media-kit/page.tsx
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useSession, signIn } from 'next-auth/react';
 import MediaKitView from '@/app/mediakit/[token]/MediaKitView';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaExclamationTriangle, FaShareAlt, FaLink, FaCheck } from 'react-icons/fa';
+import { FaExclamationTriangle, FaShareAlt, FaLink, FaCheck, FaWhatsapp, FaTimes } from 'react-icons/fa';
+import BillingSubscribeModal from '../billing/BillingSubscribeModal';
+import WhatsAppConnectInline from '../WhatsAppConnectInline';
 
 export default function MediaKitSelfServePage() {
   const { data: session, status } = useSession();
+  const router = useRouter();
+  const sp = useSearchParams();
+  
   const [url, setUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-
+  
   const instagramConnected = Boolean((session?.user as any)?.instagramConnected);
   const fetchedOnce = useRef(false);
 
-  // Toolbar sizing (para não colar no header e ajustar o iframe)
+  // Lógica do Modal de Pagamento
+  const [showBillingModal, setShowBillingModal] = useState(false);
+  const closeBillingModal = () => setShowBillingModal(false);
+  const openedAfterIgRef = useRef(false);
+  const showIgConnectSuccess = sp.get("instagramLinked") === "true";
+
+  const planStatus = String((session?.user as any)?.planStatus || "").toLowerCase();
+  const isActiveLike = useMemo(
+    () => new Set(["active", "trial", "trialing", "non_renewing"]).has(planStatus),
+    [planStatus]
+  );
+  
+  // Lógica e Estado para o Modal do WhatsApp
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  
+  const handleWhatsAppLink = () => {
+    setShowWhatsAppModal(true);
+  };
+
+  useEffect(() => {
+    const handler = () => setShowBillingModal(true);
+    window.addEventListener("open-subscribe-modal" as any, handler);
+    return () => window.removeEventListener("open-subscribe-modal" as any, handler);
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(sp.toString());
+    if (params.get("instagramLinked") === "true") {
+      params.delete("instagramLinked");
+      const next = window.location.pathname + (params.toString() ? `?${params}` : "");
+      router.replace(next, { scroll: false });
+    }
+  }, [sp, router]);
+
+  useEffect(() => {
+    if (showIgConnectSuccess && instagramConnected && !isActiveLike && !openedAfterIgRef.current) {
+      openedAfterIgRef.current = true;
+      setShowBillingModal(true);
+    }
+  }, [showIgConnectSuccess, instagramConnected, isActiveLike]);
+
+  // Toolbar sizing
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [toolbarH, setToolbarH] = useState<number>(0);
-  const TOP_SPACING = 8;           // px de respiro entre header e barra
-  const BELOW_BAR_GAP = 8;         // px de respiro entre barra e iframe
+  const TOP_SPACING = 8;
+  const BELOW_BAR_GAP = 8;
   const iframeTop = url ? TOP_SPACING + toolbarH + BELOW_BAR_GAP : 0;
 
   useEffect(() => {
@@ -35,59 +82,41 @@ export default function MediaKitSelfServePage() {
     return () => { ro.disconnect(); window.removeEventListener('resize', apply); };
   }, [url]);
 
-  // ===== Conectar Instagram =====
-  const handleCorrectInstagramLink = async () => {
+  const handleCorrectInstagramLink = () => {
     try {
-      const response = await fetch('/api/auth/iniciar-vinculacao-fb', { method: 'POST' });
-      if (!response.ok) {
-        console.error('Falha ao preparar a vinculação da conta.');
-        setError('Não foi possível iniciar a conexão. Tente novamente.');
-        return;
-      }
       signIn('facebook', { callbackUrl: '/dashboard/media-kit?instagramLinked=true' });
     } catch (error) {
-      console.error('Erro no processo de vinculação:', error);
-      setError('Ocorreu um erro inesperado. Tente novamente.');
+      console.error('Erro ao iniciar o signIn com o Facebook:', error);
+      setError('Ocorreu um erro inesperado ao tentar conectar. Tente novamente.');
     }
   };
-
-  // ===== Carrega/gera link automaticamente e EMBUTE no iframe =====
+  
   useEffect(() => {
     let mounted = true;
-
     const loadOrCreateLink = async () => {
       if (status !== 'authenticated') return;
-
-      // Sem IG conectado → nada de API; renderizamos demo abaixo
       if (!instagramConnected) {
         setLoading(false);
         setUrl(null);
         return;
       }
-
       if (fetchedOnce.current) {
         setLoading(false);
         return;
       }
-
       setLoading(true);
       setError(null);
-
       try {
-        // 1) tenta obter link existente
         const res = await fetch('/api/users/media-kit-token', { cache: 'no-store' });
         const data = await res.json();
         if (!mounted) return;
-
         if (res.ok && (data?.url || data?.publicUrl)) {
           setUrl(data?.url ?? data?.publicUrl);
           fetchedOnce.current = true;
         } else {
-          // 2) se não existir, gera automaticamente
           const resCreate = await fetch('/api/users/media-kit-token', { method: 'POST' });
           const created = await resCreate.json();
           if (!mounted) return;
-
           if (!resCreate.ok || !(created?.url || created?.publicUrl)) {
             throw new Error(created?.error || 'Falha ao gerar link do Mídia Kit.');
           }
@@ -102,7 +131,6 @@ export default function MediaKitSelfServePage() {
         if (mounted) setLoading(false);
       }
     };
-
     loadOrCreateLink();
     return () => { mounted = false; };
   }, [status, instagramConnected]);
@@ -130,13 +158,8 @@ export default function MediaKitSelfServePage() {
   if (status === 'loading') {
     return <div className="p-6">Carregando…</div>;
   }
-
   if (status === 'unauthenticated') {
-    return (
-      <div className="p-6">
-        <p className="text-sm text-gray-600">Faça login para visualizar seu Mídia Kit.</p>
-      </div>
-    );
+    return <div className="p-6"><p className="text-sm text-gray-600">Faça login para visualizar seu Mídia Kit.</p></div>;
   }
 
   // ===== Estado: IG NÃO conectado → DEMO + CTA =====
@@ -227,7 +250,7 @@ export default function MediaKitSelfServePage() {
             <span>Exemplo de Mídia Kit com dados fictícios para demonstração. Conecte seu Instagram para ver seu Mídia Kit real.</span>
             <button
               onClick={handleCorrectInstagramLink}
-              className="px-3 py-1.5 rounded-md text-sm bg-pink-600 text-white hover:bg-pink-700"
+              className="px-3 py-1.5 rounded-md text-sm bg-pink-600 text-white hover:bg-pink-700 flex-shrink-0 ml-4"
             >
               Conectar Instagram
             </button>
@@ -244,103 +267,141 @@ export default function MediaKitSelfServePage() {
     );
   }
 
-  // ===== Estado principal (IG conectado): BARRA DE COMPARTILHAMENTO full-width + IFRAME =====
+  // ===== Estado principal (IG conectado) =====
   const safeBottom = 'env(safe-area-inset-bottom, 0px)';
 
   return (
-    <section
-      className="relative h-[calc(100svh-var(--header-h,4rem))] w-full bg-white overflow-hidden"
-      aria-label="Mídia Kit embutido"
-    >
-      {/* Barra de compartilhamento (full-width), com respiro do header */}
-      {url && (
-        <div
-          ref={toolbarRef}
-          className="absolute left-0 right-0 z-20 px-2 sm:px-4"
-          style={{ top: TOP_SPACING }}
-        >
-          <div className="w-full rounded-xl border border-gray-200 bg-white/90 supports-[backdrop-filter]:bg-white/60 backdrop-blur p-2 sm:p-3 shadow-sm">
-            <div className="flex flex-col md:flex-row md:items-center gap-2">
-              <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-800 font-medium">
-                <FaShareAlt className="h-3.5 w-3.5" />
-                Compartilhar meu Mídia Kit com parceiros
-              </div>
-              <div className="flex-1" />
-              <div className="flex w-full md:w-auto items-center gap-2">
-                <input
-                  value={url}
-                  readOnly
-                  className="flex-1 md:w-[360px] text-xs bg-gray-50 border border-gray-200 rounded px-3 py-2"
-                />
-                <button
-                  onClick={copyLink}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                  title="Copiar link"
-                >
-                  {copied ? <FaCheck className="h-3.5 w-3.5" /> : <FaLink className="h-3.5 w-3.5" />}
-                  {copied ? 'Copiado' : 'Copiar'}
-                </button>
-                <button
-                  onClick={nativeShare}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                  title="Compartilhar"
-                >
+    <>
+      <section
+        className="relative h-[calc(100svh-var(--header-h,4rem))] w-full bg-white overflow-hidden"
+        aria-label="Mídia Kit embutido"
+      >
+        {url && (
+          <div
+            ref={toolbarRef}
+            className="absolute left-0 right-0 z-20 px-2 sm:px-4"
+            style={{ top: TOP_SPACING }}
+          >
+            <div className="w-full rounded-xl border border-gray-200 bg-white/90 supports-[backdrop-filter]:bg-white/60 backdrop-blur p-2 sm:p-3 shadow-sm">
+              <div className="flex flex-col md:flex-row md:items-center gap-2">
+                
+                {isActiveLike && (
+                  <button
+                    onClick={handleWhatsAppLink}
+                    className="inline-flex items-center gap-2 rounded-md bg-green-500 text-white px-3 py-1.5 text-xs font-bold hover:bg-green-600 transition-colors"
+                  >
+                    <FaWhatsapp className="h-3.5 w-3.5" />
+                    Vincular WhatsApp
+                  </button>
+                )}
+                
+                <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-800 font-medium">
                   <FaShareAlt className="h-3.5 w-3.5" />
-                  Compartilhar
-                </button>
+                  Compartilhar meu Mídia Kit
+                </div>
+                <div className="flex-1" />
+                <div className="flex w-full md:w-auto items-center gap-2">
+                  <input
+                    value={url}
+                    readOnly
+                    className="flex-1 md:w-[360px] text-xs bg-gray-50 border border-gray-200 rounded px-3 py-2"
+                  />
+                  <button
+                    onClick={copyLink}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                    title="Copiar link"
+                  >
+                    {copied ? <FaCheck className="h-3.5 w-3.5" /> : <FaLink className="h-3.5 w-3.5" />}
+                    {copied ? 'Copiado' : 'Copiar'}
+                  </button>
+                  <button
+                    onClick={nativeShare}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                    title="Compartilhar"
+                  >
+                    <FaShareAlt className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Estados de carregamento/erro */}
-      <AnimatePresence>
-        {loading && (
-          <motion.div
-            key="loading"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 grid place-items-center bg-white z-10"
-          >
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <span className="inline-block h-2 w-2 rounded-full bg-gray-400 animate-pulse" />
-              Carregando Mídia Kit…
+        <AnimatePresence>
+          {loading && (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 grid place-items-center bg-white z-10"
+            >
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span className="inline-block h-2 w-2 rounded-full bg-gray-400 animate-pulse" />
+                Carregando Mídia Kit…
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {error && (
+          <div className="absolute inset-0 grid place-items-center p-4 z-10">
+            <div className="max-w-md w-full border border-yellow-200 bg-yellow-50 text-yellow-900 rounded-lg p-3 text-sm flex items-start gap-2">
+              <FaExclamationTriangle className="mt-0.5 shrink-0" />
+              <div>
+                <p className="font-semibold">Não foi possível carregar o Mídia Kit</p>
+                <p className="mt-1">{error}</p>
+              </div>
             </div>
-          </motion.div>
+          </div>
+        )}
+
+        {url && (
+          <div
+            className="absolute left-0 right-0 bottom-0"
+            style={{ top: iframeTop }}
+          >
+            <iframe
+              key={url}
+              src={url}
+              className="h-full w-full border-0"
+              allow="clipboard-write; fullscreen; accelerometer; gyroscope; encrypted-media"
+            />
+          </div>
+        )}
+        <div style={{ height: `calc(${safeBottom})` }} aria-hidden="true" />
+      </section>
+
+      <BillingSubscribeModal open={showBillingModal} onClose={closeBillingModal} />
+
+      <AnimatePresence>
+        {showWhatsAppModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowWhatsAppModal(false)}
+              className="fixed inset-0 bg-black/50 z-50"
+              aria-hidden="true"
+            />
+            <motion.div
+              initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }}
+              transition={{ type: "spring", stiffness: 400, damping: 40 }}
+              className="fixed bottom-0 left-0 right-0 bg-gray-50 p-4 pt-5 rounded-t-2xl shadow-2xl z-[60] border-t"
+              style={{ paddingBottom: `calc(${safeBottom} + 20px)` }}
+            >
+              <div className="max-w-2xl mx-auto">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-800">Vincular com WhatsApp</h3>
+                  <button onClick={() => setShowWhatsAppModal(false)} className="p-1 rounded-full hover:bg-gray-200 text-gray-500"><FaTimes /></button>
+                </div>
+                <div className="p-4 bg-white rounded-lg border border-gray-200">
+                  <WhatsAppConnectInline />
+                </div>
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
-
-      {error && (
-        <div className="absolute inset-0 grid place-items-center p-4 z-10">
-          <div className="max-w-md w-full border border-yellow-200 bg-yellow-50 text-yellow-900 rounded-lg p-3 text-sm flex items-start gap-2">
-            <FaExclamationTriangle className="mt-0.5 shrink-0" />
-            <div>
-              <p className="font-semibold">Não foi possível carregar o Mídia Kit</p>
-              <p className="mt-1">{error}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Iframe ocupa o restante da altura da seção, abaixo da barra */}
-      {url && (
-        <div
-          className="absolute left-0 right-0 bottom-0"
-          style={{ top: iframeTop }}
-        >
-          <iframe
-            key={url}
-            src={url}
-            className="h-full w-full border-0"
-            allow="clipboard-write; fullscreen; accelerometer; gyroscope; encrypted-media"
-          />
-        </div>
-      )}
-
-      {/* respiro inferior p/ home bar (só visual) */}
-      <div style={{ height: `calc(${safeBottom})` }} aria-hidden="true" />
-    </section>
+    </>
   );
 }

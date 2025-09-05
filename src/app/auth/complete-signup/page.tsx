@@ -1,9 +1,5 @@
 // src/app/auth/complete-signup/page.tsx
-// Versão: v1.3.0
-// - Evita loops pós-checkout (redirect para /dashboard apenas 1x)
-// - Atualiza a sessão uma única vez (guard contra Strict Mode)
-// - Usa router.replace em vez de push para não adicionar histórico
-// - Mantém o fluxo de aceitação de termos (onboarding)
+// Versão: v1.3.0 (Corrigido para redirecionar para Mídia Kit)
 
 "use client";
 
@@ -21,10 +17,8 @@ export default function CompleteSignupPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Evita reentradas do efeito no Strict Mode / updates rápidos do NextAuth
   const ranOnceRef = useRef(false);
 
-  // Orquestra o fluxo de navegação/refresh apenas uma vez
   useEffect(() => {
     if (status === "loading" || ranOnceRef.current) return;
 
@@ -37,32 +31,31 @@ export default function CompleteSignupPage() {
           return;
         }
 
-        // Autenticado: trate retorno de checkout imediatamente
         const checkout = searchParams.get("checkout");
         if (status === "authenticated" && checkout) {
-          // Ex.: ?checkout=success | ?checkout=cancel
           try {
             await updateSession?.();
           } catch {
-            // ignore falha de refresh; seguimos com o redirect
+            // ignore
           }
-          router.replace(`/dashboard/chat?checkout=${checkout}`);
+          // ALTERADO: Redireciona para o Mídia Kit após o checkout
+          router.replace(`/dashboard/media-kit?checkout=${checkout}`); // <-- ALTERADO
           return;
         }
 
-        // Se já completou onboarding, envie ao dashboard
         if (status === "authenticated" && session?.user?.isNewUserForOnboarding === false) {
-          router.replace("/dashboard/chat");
+          // ALTERADO: Redireciona usuários existentes para o Mídia Kit
+          router.replace("/dashboard/media-kit"); // <-- ALTERADO
           return;
         }
 
-        // Caso contrário, permanecemos na página para aceitar termos
       } catch {
-        router.replace("/dashboard/chat");
+        // ALTERADO: Redireciona para o Mídia Kit como fallback em caso de erro
+        router.replace("/dashboard/media-kit"); // <-- ALTERADO
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, session]); // searchParams não entra para não re-disparar
+  }, [status, session]);
 
   const handleTermsAcceptedAndContinue = async () => {
     if (isSubmitting) return;
@@ -81,24 +74,23 @@ export default function CompleteSignupPage() {
       }
 
       try {
-        await updateSession?.(); // garantir que a sessão traga isNewUserForOnboarding=false
+        await updateSession?.();
       } catch {
-        /* se falhar, seguimos para o dashboard mesmo assim */
+        /* se falhar, seguimos mesmo assim */
       }
 
-      router.replace("/dashboard/chat");
+      // ALTERADO: Redireciona para o Mídia Kit após aceitar os termos
+      router.replace("/dashboard/media-kit"); // <-- ALTERADO
     } catch (err: any) {
       setSubmitError(err?.message || "Ocorreu um erro ao processar sua solicitação.");
       setIsSubmitting(false);
     }
   };
 
-  // Loading geral (inclui submissão)
   if (status === "loading" || isSubmitting) {
     return <FullPageLoader message={isSubmitting ? "A processar sua aceitação..." : "A verificar o seu estado..."} />;
   }
 
-  // Exibe o passo de termos quando necessário
   if (status === "authenticated" && session?.user?.isNewUserForOnboarding === true) {
     return (
       <>
@@ -115,6 +107,5 @@ export default function CompleteSignupPage() {
     );
   }
 
-  // Fallback enquanto um redirect está em curso
   return <FullPageLoader message="A finalizar ou a redirecionar..." />;
 }
