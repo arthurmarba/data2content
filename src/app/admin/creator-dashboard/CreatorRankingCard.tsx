@@ -50,6 +50,7 @@ const CreatorRankingCard: React.FC<CreatorRankingCardProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [failedImgIds, setFailedImgIds] = useState<Set<string>>(new Set());
 
   const fetchData = useCallback(async () => {
     if (!dateRangeFilter?.startDate || !dateRangeFilter?.endDate) {
@@ -159,12 +160,14 @@ const CreatorRankingCard: React.FC<CreatorRankingCardProps> = ({
           {rankingData.map((item, index) => (
             <li key={item.creatorId.toString()} className="flex items-center space-x-2.5 py-1">
               <span className="text-xs font-medium text-gray-500 w-5 text-center">{index + 1}.</span>
-              {item.profilePictureUrl ? (
+              {item.profilePictureUrl && !failedImgIds.has(String(item.creatorId)) ? (
                 <Image
-                  src={item.profilePictureUrl}
+                  src={`/api/proxy/thumbnail/${encodeURIComponent(item.profilePictureUrl)}`}
                   alt={item.creatorName || 'Creator'}
                   width={32}
                   height={32}
+                  unoptimized
+                  onError={() => setFailedImgIds(prev => new Set(prev).add(String(item.creatorId)))}
                   className="w-8 h-8 rounded-full object-cover"
                 />
               ) : (

@@ -5,7 +5,7 @@ import { LightBulbIcon } from '@heroicons/react/24/outline';
 import { useGlobalTimePeriod } from './filters/GlobalTimePeriodContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { TooltipProps } from 'recharts';
-import { formatNullableNumberTooltip } from '@/utils/chartFormatters';
+import { formatNullableNumberTooltip, formatAxisNumberCompact, formatDateLabel } from '@/utils/chartFormatters';
 
 interface ApiChangePoint {
   date: string;
@@ -73,10 +73,10 @@ const PlatformFollowerChangeChart: React.FC<PlatformFollowerChangeChartProps> = 
           <ResponsiveContainer>
             <BarChart data={data} margin={{ top: 5, right: 20, left: -20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-              <XAxis dataKey="date" stroke="#666" tick={{ fontSize: 12 }} />
-              <YAxis stroke="#666" tick={{ fontSize: 12 }} />
-              <Tooltip<number, string> formatter={tooltipFormatter} labelStyle={{ color: '#333' }} itemStyle={{ color: '#8884d8' }} />
-              <Bar dataKey="change" name="Variação" fill="#8884d8" />
+              <XAxis dataKey="date" stroke="#666" tick={{ fontSize: 12 }} tickFormatter={formatDateLabel} />
+              <YAxis stroke="#666" tick={{ fontSize: 12 }} tickFormatter={formatAxisNumberCompact} />
+              <Tooltip<number, string> formatter={tooltipFormatter} labelFormatter={formatDateLabel} labelStyle={{ color: '#333' }} itemStyle={{ color: '#8884d8' }} />
+              <Bar dataKey="change" name="Variação" fill="#8884d8" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         )}

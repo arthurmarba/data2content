@@ -3,9 +3,8 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import { LightBulbIcon } from '@heroicons/react/24/outline';
 import { useGlobalTimePeriod } from './filters/GlobalTimePeriodContext';
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
-} from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { formatAxisNumberCompact, formatNullableNumberTooltip, formatDateLabel } from '@/utils/chartFormatters';
 
 interface ApiChartDataPoint {
   date: string;
@@ -77,15 +76,8 @@ const PlatformFollowerTrendChart: React.FC<PlatformFollowerTrendChartProps> = ({
     setGranularity(e.target.value);
   };
 
-  const yAxisFormatter = (value: number) => {
-    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-    if (value >= 1000) return `${(value / 1000).toFixed(0)}k`;
-    return value.toString();
-  };
-
-  const tooltipFormatter = (value: number, name: string) => {
-      return [value !== null ? value.toLocaleString() : 'N/A', name];
-  };
+  const yAxisFormatter = (value: number) => formatAxisNumberCompact(value);
+  const tooltipFormatter = (value: number, name: string) => formatNullableNumberTooltip(value, name);
 
   return (
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md">
@@ -115,23 +107,30 @@ const PlatformFollowerTrendChart: React.FC<PlatformFollowerTrendChartProps> = ({
         {error && <div className="flex justify-center items-center h-full"><p className="text-red-500">Erro: {error}</p></div>}
         {!loading && !error && data.length > 0 && (
           <ResponsiveContainer>
-            <LineChart data={data} margin={{ top: 5, right: 20, left: -20, bottom: 5 }}>
+            <LineChart data={data} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="followersStroke" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#8884d8" stopOpacity={1} />
+                  <stop offset="100%" stopColor="#8884d8" stopOpacity={0.2} />
+                </linearGradient>
+              </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
               <XAxis
                 dataKey="date"
                 stroke="#666"
                 tick={{ fontSize: 12 }}
+                tickFormatter={formatDateLabel}
               />
               <YAxis stroke="#666" tick={{ fontSize: 12 }} tickFormatter={yAxisFormatter} />
-              <Tooltip formatter={tooltipFormatter} labelStyle={{ color: '#333' }} itemStyle={{ color: '#8884d8' }} />
+              <Tooltip formatter={tooltipFormatter} labelFormatter={formatDateLabel} labelStyle={{ color: '#333' }} itemStyle={{ color: '#8884d8' }} />
               <Legend wrapperStyle={{ fontSize: 14 }} />
               <Line
                 type="monotone"
                 dataKey="value"
                 name="Seguidores"
-                stroke="#8884d8"
+                stroke="url(#followersStroke)"
                 strokeWidth={2}
-                dot={{ r: 3 }}
+                dot={false}
                 activeDot={{ r: 6 }}
               />
             </LineChart>
@@ -152,4 +151,3 @@ const PlatformFollowerTrendChart: React.FC<PlatformFollowerTrendChartProps> = ({
 };
 
 export default memo(PlatformFollowerTrendChart);
-

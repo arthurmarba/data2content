@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import PaymentStep from './PaymentStep';
-import { FaCheckCircle, FaLock } from 'react-icons/fa';
+import { FaCheckCircle, FaLock, FaTimes } from 'react-icons/fa';
 
 type Plan = 'monthly' | 'annual';
 type Cur = 'brl' | 'usd';
@@ -124,7 +124,7 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-0 sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="subscribe-title"
@@ -132,9 +132,18 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
     >
       <div
         ref={dialogRef}
-        className="w-full max-w-xl rounded-2xl bg-white shadow-2xl flex flex-col max-h-[90vh]" // <-- AJUSTE 1: Controla a altura e o layout
+        className="relative w-screen h-[100svh] sm:w-full sm:h-auto sm:max-w-xl sm:max-h-[90vh] sm:rounded-2xl rounded-none bg-white shadow-2xl flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Botão fechar (mobile) */}
+        <button
+          ref={closeBtnRef}
+          onClick={onClose}
+          aria-label="Fechar"
+          className="absolute top-4 right-4 sm:hidden inline-flex items-center justify-center rounded-full w-10 h-10 bg-white/90 border border-gray-200 text-gray-700 hover:bg-gray-100 shadow-sm"
+        >
+          <FaTimes />
+        </button>
         <div className="p-6 text-center flex-shrink-0"> {/* Adicionado flex-shrink-0 para o header não encolher */}
             <h2 id="subscribe-title" className="text-2xl font-bold text-gray-900">
                 Receba Alertas e Oportunidades Diárias no seu WhatsApp
@@ -144,7 +153,7 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
             </p>
         </div>
         
-        <div className="bg-gray-50/70 px-6 py-5 border-y border-gray-200 overflow-y-auto"> {/* <-- AJUSTE 2: Permite rolagem interna */}
+        <div className="bg-gray-50/70 px-6 py-5 border-y border-gray-200 overflow-y-auto flex-1 min-h-0"> {/* Área rolável principal no mobile */}
             <div className="grid grid-cols-1 gap-5">
                 <ul className="space-y-3 text-left text-gray-700 text-sm">
                     <li className="flex items-start gap-3">
@@ -213,7 +222,7 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
             </div>
         </div>
 
-        <div className="p-4 text-xs text-gray-500 flex items-center justify-center gap-4 flex-shrink-0"> {/* Adicionado flex-shrink-0 para o footer não encolher */}
+        <div className="p-4 text-xs text-gray-500 flex items-center justify-center gap-4 flex-shrink-0"> {/* Footer fixo ao fim */}
             <span className="flex items-center gap-1.5"><FaLock /> Pagamento 100% seguro via Stripe.</span>
             <span>•</span>
             <span>Cancele a qualquer momento.</span>

@@ -8,7 +8,8 @@ import { cookies } from 'next/headers';
 import { logger } from '@/app/lib/logger'; // Importa o logger
 
 // Define o tempo de expiração do token em minutos
-const LINK_TOKEN_EXPIRY_MINUTES = 15;
+// Aumentado para maior resiliência em fluxos de OAuth (retries, atrasos)
+const LINK_TOKEN_EXPIRY_MINUTES = 60;
 
 export async function POST(request: Request) {
   const TAG = '[API /iniciar-vinculacao-fb]';

@@ -10,6 +10,7 @@ import { GlobalTimePeriodProvider, useGlobalTimePeriod } from './components/filt
 import PlatformSummaryKpis from './components/kpis/PlatformSummaryKpis';
 import PlatformOverviewSection from './components/views/PlatformOverviewSection';
 import PlatformContentAnalysisSection from './components/views/PlatformContentAnalysisSection';
+import CategoryRankingsSection from './components/CategoryRankingsSection';
 import CreatorRankingSection from './components/views/CreatorRankingSection';
 import TopMoversSection from './components/views/TopMoversSection';
 import UserDetailView from './components/views/UserDetailView';
@@ -135,6 +136,7 @@ const AdminCreatorDashboardContent: React.FC = () => {
                 >
                   <CreatorRankingSection rankingDateRange={rankingDateRange} rankingDateLabel={rankingDateLabel} />
                   <PlatformContentAnalysisSection startDate={startDate} endDate={endDate} />
+                  <CategoryRankingsSection startDate={startDate} endDate={endDate} selectedUserId={selectedUserId} />
                   <PlatformOverviewSection />
                   <TopMoversSection />
                   <GlobalPostsExplorer dateRangeFilter={{ startDate, endDate }} />

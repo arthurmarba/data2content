@@ -286,7 +286,7 @@ const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({ userId,
         isOpen={!!selectedSlot}
         onClose={() => setSelectedSlot(null)}
         dayOfWeek={selectedSlot?.dayOfWeek || 0}
-        timeBlock={selectedSlot ? hourToTimeBlock(selectedSlot.hour) : '0-6'}
+        hour={selectedSlot?.hour || 0}
         filters={{ timePeriod, format: format || undefined, proposal: proposal || undefined, context: context || undefined, metric }}
         userId={userId || undefined}
       />

@@ -62,9 +62,6 @@ export async function fetchTopEngagingCreators(
           metricValue: { $multiply: [{ $divide: ['$totalInteractions', '$totalReach'] }, 100] }
         }
       },
-      { $sort: { metricValue: -1 } },
-      { $skip: offset },
-      { $limit: limit },
       {
         $lookup: {
           from: 'users',
@@ -76,6 +73,9 @@ export async function fetchTopEngagingCreators(
       },
       { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } },
       { $match: { 'creatorDetails.isInstagramConnected': true } },
+      { $sort: { metricValue: -1 } },
+      { $skip: offset },
+      { $limit: limit },
       {
         $project: {
           _id: 0,
@@ -121,9 +121,6 @@ export async function fetchMostProlificCreators(
     const pipeline: PipelineStage[] = [
       { $match: matchStage },
       { $group: { _id: '$user', metricValue: { $sum: 1 } }},
-      { $sort: { metricValue: -1 } },
-      { $skip: offset },
-      { $limit: limit },
       {
         $lookup: {
           from: 'users',
@@ -135,6 +132,9 @@ export async function fetchMostProlificCreators(
       },
       { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } },
       { $match: { 'creatorDetails.isInstagramConnected': true } },
+      { $sort: { metricValue: -1 } },
+      { $skip: offset },
+      { $limit: limit },
       {
         $project: {
           _id: 0,
@@ -181,9 +181,6 @@ export async function fetchTopInteractionCreators(
     const pipeline: PipelineStage[] = [
       { $match: matchStage },
       { $group: { _id: '$user', metricValue: { $sum: '$stats.total_interactions' } }},
-      { $sort: { metricValue: -1 } },
-      { $skip: offset },
-      { $limit: limit },
       {
         $lookup: {
           from: 'users',
@@ -195,6 +192,9 @@ export async function fetchTopInteractionCreators(
       },
       { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } },
       { $match: { 'creatorDetails.isInstagramConnected': true } },
+      { $sort: { metricValue: -1 } },
+      { $skip: offset },
+      { $limit: limit },
       {
         $project: {
           _id: 0,
@@ -241,9 +241,6 @@ export async function fetchTopSharingCreators(
     const pipeline: PipelineStage[] = [
       { $match: matchStage },
       { $group: { _id: '$user', metricValue: { $sum: '$stats.shares' } }},
-      { $sort: { metricValue: -1 } },
-      { $skip: offset },
-      { $limit: limit },
       {
         $lookup: {
           from: 'users',
@@ -255,6 +252,9 @@ export async function fetchTopSharingCreators(
       },
       { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } },
       { $match: { 'creatorDetails.isInstagramConnected': true } },
+      { $sort: { metricValue: -1 } },
+      { $skip: offset },
+      { $limit: limit },
       {
         $project: {
           _id: 0,
@@ -311,9 +311,6 @@ export async function fetchAvgEngagementPerPostCreators(
           metricValue: { $divide: ['$totalInteractions', '$postCount'] }
         }
       },
-      { $sort: { metricValue: -1 } },
-      { $skip: offset },
-      { $limit: limit },
       {
         $lookup: {
           from: 'users',
@@ -325,6 +322,9 @@ export async function fetchAvgEngagementPerPostCreators(
       },
       { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } },
       { $match: { 'creatorDetails.isInstagramConnected': true } },
+      { $sort: { metricValue: -1 } },
+      { $skip: offset },
+      { $limit: limit },
       {
         $project: {
           _id: 0,
@@ -381,9 +381,6 @@ export async function fetchAvgReachPerPostCreators(
           metricValue: { $divide: ['$totalReach', '$postCount'] }
         }
       },
-      { $sort: { metricValue: -1 } },
-      { $skip: offset },
-      { $limit: limit },
       {
         $lookup: {
           from: 'users',
@@ -395,6 +392,9 @@ export async function fetchAvgReachPerPostCreators(
       },
       { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } },
       { $match: { 'creatorDetails.isInstagramConnected': true } },
+      { $sort: { metricValue: -1 } },
+      { $skip: offset },
+      { $limit: limit },
       {
         $project: {
           _id: 0,
@@ -473,9 +473,6 @@ export async function fetchEngagementVariationCreators(
           }
         }
       },
-      { $sort: { metricValue: -1 } },
-      { $skip: offset },
-      { $limit: limit },
       {
         $lookup: {
           from: 'users',
@@ -487,6 +484,9 @@ export async function fetchEngagementVariationCreators(
       },
       { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } },
       { $match: { 'creatorDetails.isInstagramConnected': true } },
+      { $sort: { metricValue: -1 } },
+      { $skip: offset },
+      { $limit: limit },
       {
         $project: {
           _id: 0,
@@ -549,9 +549,6 @@ export async function fetchPerformanceConsistencyCreators(
           metricValue: { $cond: [ { $eq: ['$cv', null] }, 0, { $divide: [1, { $add: ['$cv', 1] }] } ] }
         }
       },
-      { $sort: { metricValue: -1 } },
-      { $skip: offset },
-      { $limit: limit },
       {
         $lookup: {
           from: 'users',
@@ -563,6 +560,9 @@ export async function fetchPerformanceConsistencyCreators(
       },
       { $unwind: { path: '$creatorDetails', preserveNullAndEmptyArrays: true } },
       { $match: { 'creatorDetails.isInstagramConnected': true } },
+      { $sort: { metricValue: -1 } },
+      { $skip: offset },
+      { $limit: limit },
       {
         $project: {
           _id: 0,
@@ -675,7 +675,18 @@ export async function fetchTopCategories(params: {
   try {
     await connectToDatabase();
 
-    const metricField = metric === 'posts' ? null : `$stats.${metric}`;
+    // Suporte a soma e média: 'avg_<campo>' => $avg($stats.<campo>)
+    let agg: '$sum' | '$avg' = '$sum';
+    let metricField: string | null = null;
+    if (metric === 'posts') {
+      metricField = null;
+    } else if (metric.startsWith('avg_')) {
+      agg = '$avg';
+      const base = metric.replace(/^avg_/, '');
+      metricField = `$stats.${base}`;
+    } else {
+      metricField = `$stats.${metric}`;
+    }
     const categoryField = `$${category}`;
 
     // (ALTERADO) Construção do filtro de forma dinâmica
@@ -689,6 +700,11 @@ export async function fetchTopCategories(params: {
       matchFilter.user = new Types.ObjectId(userId);
     }
 
+    // Define o acumulador de forma tipada para evitar erro de TS ao usar chave dinâmica
+    const metricAccumulator = metricField
+      ? (agg === '$avg' ? { $avg: metricField } : { $sum: metricField })
+      : { $sum: 1 };
+
     const pipeline: PipelineStage[] = [
       {
         $match: matchFilter
@@ -699,7 +715,7 @@ export async function fetchTopCategories(params: {
       {
         $group: {
           _id: categoryField,
-          metricValue: metricField ? { $sum: metricField } : { $sum: 1 }
+          metricValue: metricAccumulator
         }
       },
       {
@@ -714,7 +730,8 @@ export async function fetchTopCategories(params: {
         $project: {
           _id: 0,
           category: '$_id',
-          value: { $round: ['$metricValue', 0] }
+          // arredonda para inteiro em soma, 1 casa na média
+          value: agg === '$avg' ? { $round: ['$metricValue', 1] } : { $round: ['$metricValue', 0] }
         }
       }
     ];

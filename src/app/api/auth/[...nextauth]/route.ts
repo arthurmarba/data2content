@@ -437,6 +437,16 @@ export const authOptions: NextAuthOptions = {
 
             if (dbUserRecord) {
               logger.info(`${TAG_SIGNIN} [Facebook] Utilizador Data2Content ${dbUserRecord._id} (Email DB: ${dbUserRecord.email || "N/A"}) encontrado por linkToken.`);
+              // Evita vincular uma conta Facebook já usada por outro usuário
+              const conflict = await DbUser.findOne({
+                facebookProviderAccountId: providerAccountId,
+                _id: { $ne: dbUserRecord._id },
+              }).select('_id email').lean();
+              if (conflict) {
+                logger.warn(`${TAG_SIGNIN} [Facebook] providerAccountId ${providerAccountId} já vinculado a outro usuário ${conflict._id}. Abortando.`);
+                cookies().delete(FACEBOOK_LINK_COOKIE_NAME);
+                return "/login?error=FacebookAlreadyLinked";
+              }
               dbUserRecord.facebookProviderAccountId = providerAccountId;
               if (!dbUserRecord.email && currentEmailFromProvider) {
                 dbUserRecord.email = currentEmailFromProvider;
@@ -486,8 +496,89 @@ export const authOptions: NextAuthOptions = {
               return "/login?error=FacebookLinkFailed";
             }
           } else {
-            logger.warn(`${TAG_SIGNIN} [Facebook] Sem linkToken ('${FACEBOOK_LINK_COOKIE_NAME}'). Vinculação requerida. Bloqueando login direto.`);
-            return "/login?error=FacebookLinkRequired";
+            logger.warn(`${TAG_SIGNIN} [Facebook] Sem linkToken ('${FACEBOOK_LINK_COOKIE_NAME}'). Tentando fallback pela sessão ativa.`);
+            // Fallback: usar sessão atual (se existir) para identificar o usuário-alvo da vinculação
+            let sessionUserId: string | null = null;
+            try {
+              const sessionCookieName = process.env.NODE_ENV === 'production'
+                ? '__Secure-next-auth.session-token'
+                : 'next-auth.session-token';
+              const sessionToken = cookieStore.get(sessionCookieName)?.value
+                ?? cookieStore.get('__Secure-next-auth.session-token')?.value
+                ?? cookieStore.get('next-auth.session-token')?.value;
+              if (sessionToken && process.env.NEXTAUTH_SECRET) {
+                const decoded = await customDecode({ token: sessionToken, secret: process.env.NEXTAUTH_SECRET });
+                if (decoded?.id) sessionUserId = String(decoded.id);
+              }
+            } catch (e) {
+              logger.warn(`${TAG_SIGNIN} [Facebook] Fallback sessão - falha ao decodificar token de sessão.`, e);
+            }
+
+            if (!sessionUserId) {
+              logger.warn(`${TAG_SIGNIN} [Facebook] Sem linkToken e sem sessão ativa decodificável. Bloqueando login direto.`);
+              return "/login?error=FacebookLinkRequired";
+            }
+
+            dbUserRecord = await DbUser.findById(sessionUserId);
+            if (!dbUserRecord) {
+              logger.warn(`${TAG_SIGNIN} [Facebook] Fallback sessão: user ${sessionUserId} não encontrado no DB.`);
+              return "/login?error=FacebookLinkRequired";
+            }
+
+            // Checagem de conflito: a conta Facebook já foi vinculada a outro usuário?
+            {
+              const conflict = await DbUser.findOne({
+                facebookProviderAccountId: providerAccountId,
+                _id: { $ne: dbUserRecord._id },
+              }).select('_id').lean();
+              if (conflict) {
+                logger.warn(`${TAG_SIGNIN} [Facebook] providerAccountId ${providerAccountId} já vinculado a ${conflict._id}. Abortando.`);
+                return "/login?error=FacebookAlreadyLinked";
+              }
+            }
+
+            // Aplicar atualizações de vinculação + descoberta IG (mesma lógica do ramo com linkToken)
+            dbUserRecord.facebookProviderAccountId = providerAccountId;
+            if (!dbUserRecord.email && currentEmailFromProvider) {
+              dbUserRecord.email = currentEmailFromProvider;
+            } else if (dbUserRecord.email && currentEmailFromProvider && dbUserRecord.email.toLowerCase() !== currentEmailFromProvider.toLowerCase()) {
+              logger.warn(`${TAG_SIGNIN} [Facebook] Email do Facebook ('${currentEmailFromProvider}') difere do DB ('${dbUserRecord.email}') — mantendo DB.`);
+            }
+
+            if (account?.access_token) {
+              logger.info(`${TAG_SIGNIN} [Facebook] (fallback sessão) Obtendo contas IG/LLAT…`);
+              try {
+                const igAccountsResult = await fetchAvailableInstagramAccounts(account.access_token, dbUserRecord._id.toString());
+                if (igAccountsResult.success) {
+                  logger.info(`${TAG_SIGNIN} [Facebook] (fallback sessão) ${igAccountsResult.accounts.length} contas IG; LLAT ${igAccountsResult.longLivedAccessToken ? "OK" : "N/A"}.`);
+                  dbUserRecord.availableIgAccounts = igAccountsResult.accounts;
+                  dbUserRecord.instagramAccessToken = igAccountsResult.longLivedAccessToken ?? undefined;
+                  dbUserRecord.isInstagramConnected = false;
+                  dbUserRecord.instagramAccountId = null;
+                  dbUserRecord.username = null;
+                  dbUserRecord.instagramSyncErrorMsg = null;
+                } else {
+                  logger.error(`${TAG_SIGNIN} [Facebook] (fallback sessão) Falha IG: ${igAccountsResult.error}`);
+                  dbUserRecord.instagramSyncErrorMsg = igAccountsResult.error;
+                  dbUserRecord.availableIgAccounts = [];
+                  dbUserRecord.instagramAccessToken = undefined;
+                }
+              } catch (fetchError: any) {
+                logger.error(`${TAG_SIGNIN} [Facebook] (fallback sessão) Erro crítico IG: ${fetchError.message}`);
+                dbUserRecord.instagramSyncErrorMsg = "Erro interno ao tentar buscar contas do Instagram: " + fetchError.message.substring(0, 150);
+                dbUserRecord.availableIgAccounts = [];
+                dbUserRecord.instagramAccessToken = undefined;
+              }
+            } else {
+              logger.warn(`${TAG_SIGNIN} [Facebook] (fallback sessão) account.access_token ausente — não dá pra buscar IG.`);
+              dbUserRecord.instagramSyncErrorMsg = "Token de acesso do Facebook não disponível para buscar contas do Instagram.";
+              dbUserRecord.availableIgAccounts = [];
+              dbUserRecord.instagramAccessToken = undefined;
+            }
+
+            await dbUserRecord.save();
+            cookies().delete(FACEBOOK_LINK_COOKIE_NAME);
+            logger.info(`${TAG_SIGNIN} [Facebook] Vinculação/IG processadas via sessão ativa para ${dbUserRecord._id}.`);
           }
         } else if (provider === "google") {
           dbUserRecord = await DbUser.findOne({ provider, providerAccountId }).exec();

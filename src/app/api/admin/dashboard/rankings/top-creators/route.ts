@@ -13,6 +13,7 @@ const querySchema = z.object({
   days: z.coerce.number().int().positive().max(365).optional().default(30),
   limit: z.coerce.number().int().min(1).max(50).optional().default(5),
   composite: z.coerce.boolean().optional().default(false),
+  offset: z.coerce.number().int().min(0).optional().default(0),
 });
 
 async function getAdminSession(req: NextRequest): Promise<{ user: { name: string } } | null> {
@@ -50,13 +51,14 @@ export async function GET(req: NextRequest) {
       return apiError(`Parâmetros de consulta inválidos: ${errorMessage}`, 400);
     }
 
-    const { context, metric, days, limit, composite } = validationResult.data;
+    const { context, metric, days, limit, composite, offset } = validationResult.data;
     let results;
     if (composite) {
       results = await fetchTopCreatorsWithScore({
         context: context ?? 'geral',
         days,
         limit,
+        offset,
       });
     } else {
       results = await fetchTopCreators({
@@ -64,6 +66,7 @@ export async function GET(req: NextRequest) {
         metricToSortBy: metric,
         days,
         limit,
+        offset,
       });
     }
 

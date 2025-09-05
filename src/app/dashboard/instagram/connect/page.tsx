@@ -1,0 +1,104 @@
+"use client";
+
+import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import { signIn, useSession } from "next-auth/react";
+
+export default function InstagramPreConnectPage() {
+  const router = useRouter();
+  const { status } = useSession();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const startConnect = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/auth/iniciar-vinculacao-fb", { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.message || "Falha ao preparar a vinculação.");
+      }
+      // Pós-callback iremos para a página de conexão em progresso
+      signIn("facebook", { callbackUrl: "/dashboard/instagram/connecting?instagramLinked=true" });
+    } catch (e: any) {
+      setError(e?.message || "Erro inesperado. Tente novamente.");
+      setLoading(false);
+    }
+  };
+
+  return (
+    <main className="max-w-3xl mx-auto px-4 py-8">
+      <h1 className="text-2xl font-semibold text-gray-900">Conectar Instagram</h1>
+      <p className="text-gray-600 mt-2">
+        Antes de continuar, entenda o que iremos pedir no Facebook e por quê.
+      </p>
+
+      <section className="mt-6 grid gap-4">
+        <div className="p-4 bg-white rounded-lg border border-gray-200" id="por-que">
+          <h2 className="font-medium text-gray-900">Permissões solicitadas</h2>
+          <ul className="list-disc pl-5 text-sm text-gray-700 mt-2 space-y-1">
+            <li>pages_show_list: localizar páginas que você administra para achar sua conta Instagram Profissional/Creator.</li>
+            <li>instagram_basic e instagram_manage_insights: ler posts públicos e métricas (somente leitura).</li>
+            <li>business_management: quando necessário, listar ativos para identificar sua conta.</li>
+          </ul>
+          <p className="text-sm text-gray-600 mt-2">
+            Por que pedimos isso? Para localizar sua conta profissional e autorizar apenas leitura de métricas. Você pode revogar o acesso quando quiser.
+          </p>
+        </div>
+
+        <div className="p-4 bg-white rounded-lg border border-gray-200">
+          <h2 className="font-medium text-gray-900">O que nunca faremos</h2>
+          <ul className="list-disc pl-5 text-sm text-gray-700 mt-2 space-y-1">
+            <li>Nunca postamos por você.</li>
+            <li>Não lemos mensagens nem conteúdo privado.</li>
+            <li>Você pode revogar o acesso a qualquer momento no Facebook.</li>
+          </ul>
+        </div>
+
+        <div className="p-4 bg-white rounded-lg border border-gray-200">
+          <h2 className="font-medium text-gray-900">Dicas</h2>
+          <ul className="list-disc pl-5 text-sm text-gray-700 mt-2 space-y-1">
+            <li>Use a conta do Facebook que administra seu Instagram Profissional/Creator.</li>
+            <li>Evite atualizar a página durante o processo de autorização.</li>
+          </ul>
+        </div>
+
+        <div className="p-4 bg-white rounded-lg border border-gray-200">
+          <h2 className="font-medium text-gray-900">Segurança e Privacidade</h2>
+          <ul className="list-disc pl-5 text-sm text-gray-700 mt-2 space-y-1">
+            <li>Somente leitura: usamos posts e métricas públicas para relatórios.</li>
+            <li>Sem publicações: nunca postamos em seu nome.</li>
+            <li>Revogável: remova o acesso pelo Facebook a qualquer momento.</li>
+          </ul>
+        </div>
+      </section>
+
+      {error && (
+        <div className="mt-4 p-3 rounded bg-red-50 text-red-700 border border-red-200 text-sm">{error}</div>
+      )}
+
+      <div className="mt-6 flex gap-3 flex-wrap">
+        <button
+          onClick={startConnect}
+          disabled={loading || status === "loading"}
+          className={`inline-flex items-center px-4 py-2 rounded-md text-white ${loading ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"}`}
+        >
+          {loading ? "Abrindo Facebook…" : "Entendi, conectar com Facebook"}
+        </button>
+        <button
+          onClick={() => router.push("/dashboard/onboarding")}
+          className="inline-flex items-center px-4 py-2 rounded-md border border-gray-300 text-gray-700 bg-white hover:bg-gray-50"
+        >
+          Conectar depois
+        </button>
+        <button
+          onClick={() => router.push("/dashboard/instagram/faq")}
+          className="inline-flex items-center px-4 py-2 rounded-md border border-gray-300 text-gray-700 bg-white hover:bg-gray-50"
+        >
+          Preciso de ajuda (FAQ)
+        </button>
+      </div>
+    </main>
+  );
+}

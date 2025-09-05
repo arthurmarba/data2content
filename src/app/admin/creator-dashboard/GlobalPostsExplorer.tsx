@@ -32,6 +32,66 @@ const EmptyState = ({ icon, title, message }: { icon: React.ReactNode; title: st
   </div>
 );
 
+// MultiSelect com checkboxes e busca simples
+function MultiSelectBox({
+  id,
+  label,
+  options,
+  selected,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  options: { value: string; label: string }[];
+  selected: string[];
+  onChange: (values: string[]) => void;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const [query, setQuery] = React.useState('');
+  const filtered = React.useMemo(() => {
+    if (!query) return options;
+    const q = query.toLowerCase();
+    return options.filter(o => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q));
+  }, [options, query]);
+
+  const isSelected = (v: string) => selected.includes(v);
+  const toggleValue = (v: string) => {
+    if (isSelected(v)) onChange(selected.filter(s => s !== v));
+    else onChange([...selected, v]);
+  };
+
+  return (
+    <div className="relative">
+      <label htmlFor={id} className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+      <button type="button" id={id} onClick={() => setOpen(o => !o)} className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm bg-white text-left">
+        {selected.length ? `${selected.length} selecionado(s)` : 'Selecione...'}
+        <span className="float-right text-gray-400">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="absolute z-20 mt-1 w-[min(22rem,90vw)] max-h-64 overflow-y-auto bg-white border border-gray-200 rounded-md shadow-xl p-2">
+          <div className="mb-2 flex items-center gap-2">
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar..." className="w-full px-2 py-1 border border-gray-300 rounded text-sm" />
+            <button onClick={() => onChange(filtered.map(o => o.value))} className="px-2 py-1 text-xs bg-gray-100 rounded border border-gray-200">Todos</button>
+            <button onClick={() => onChange([])} className="px-2 py-1 text-xs bg-gray-100 rounded border border-gray-200">Limpar</button>
+          </div>
+          <ul className="space-y-1">
+            {filtered.map(opt => (
+              <li key={opt.value} className="flex items-center gap-2 text-sm">
+                <input id={`${id}-${opt.value}`} type="checkbox" className="h-4 w-4" checked={isSelected(opt.value)} onChange={() => toggleValue(opt.value)} />
+                <label htmlFor={`${id}-${opt.value}`} className="cursor-pointer truncate" title={opt.label}>{opt.label}</label>
+              </li>
+            ))}
+            {filtered.length === 0 && <li className="text-xs text-gray-500">Nenhuma opção</li>}
+          </ul>
+          <div className="mt-2 text-right">
+            <button onClick={() => setOpen(false)} className="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded">Fechar</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // --- Tipos e Interfaces ---
 
 interface IGlobalPostResult {
@@ -111,7 +171,18 @@ const PostDetailModal = ({ isOpen, onClose, postId, apiPrefix }: {
         ) : data ? (
           <>
             <div className="flex space-x-4">
-              {data.coverUrl && <img src={data.coverUrl} alt="capa" className="w-40 h-40 object-cover rounded" />}
+              {data.coverUrl && (
+                <img
+                  src={data.coverUrl}
+                  alt="capa"
+                  className="w-40 h-40 object-cover rounded"
+                  onError={(e) => {
+                    const t = e.currentTarget as HTMLImageElement;
+                    t.onerror = null;
+                    t.src = 'https://placehold.co/160x160?text=%3F';
+                  }}
+                />
+              )}
               <div className="flex-1 text-sm space-y-1">
                 <p><strong>Criador:</strong> {data.creatorName || 'N/A'}</p>
                 <p><strong>Texto:</strong> {data.text_content || data.description || 'N/A'}</p>
@@ -144,22 +215,22 @@ interface SortConfig {
 }
 
 interface ActiveFilters {
-  context?: string;
-  proposal?: string;
-  format?: string;
-  tone?: string;
-  references?: string;
+  context?: string[];
+  proposal?: string[];
+  format?: string[];
+  tone?: string[];
+  references?: string[];
   searchText?: string;
   minInteractions?: number;
 }
 
 
 const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ apiPrefix = '/api/admin', dateRangeFilter }: GlobalPostsExplorerProps) {
-  const [selectedContext, setSelectedContext] = useState<string>('all');
-  const [selectedProposal, setSelectedProposal] = useState<string>('all');
-  const [selectedFormat, setSelectedFormat] = useState<string>('all');
-  const [selectedTone, setSelectedTone] = useState<string>('all');
-  const [selectedReferences, setSelectedReferences] = useState<string>('all');
+  const [selectedContext, setSelectedContext] = useState<string[]>([]);
+  const [selectedProposal, setSelectedProposal] = useState<string[]>([]);
+  const [selectedFormat, setSelectedFormat] = useState<string[]>([]);
+  const [selectedTone, setSelectedTone] = useState<string[]>([]);
+  const [selectedReferences, setSelectedReferences] = useState<string[]>([]);
   const [minInteractionsValue, setMinInteractionsValue] = useState<string>('');
   const [textSearch, setTextSearch] = useState('');
 
@@ -217,11 +288,11 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ apiPrefix = '/ap
       sortOrder: sortConfig.sortOrder,
     });
 
-    if (activeFilters.context && activeFilters.context !== 'all') params.append('context', activeFilters.context);
-    if (activeFilters.proposal && activeFilters.proposal !== 'all') params.append('proposal', activeFilters.proposal);
-    if (activeFilters.format && activeFilters.format !== 'all') params.append('format', activeFilters.format);
-    if (activeFilters.tone && activeFilters.tone !== 'all') params.append('tone', activeFilters.tone);
-    if (activeFilters.references && activeFilters.references !== 'all') params.append('references', activeFilters.references);
+    if (activeFilters.context && activeFilters.context.length) params.append('context', activeFilters.context.join(','));
+    if (activeFilters.proposal && activeFilters.proposal.length) params.append('proposal', activeFilters.proposal.join(','));
+    if (activeFilters.format && activeFilters.format.length) params.append('format', activeFilters.format.join(','));
+    if (activeFilters.tone && activeFilters.tone.length) params.append('tone', activeFilters.tone.join(','));
+    if (activeFilters.references && activeFilters.references.length) params.append('references', activeFilters.references.join(','));
     if (activeFilters.minInteractions) params.append('minInteractions', String(activeFilters.minInteractions));
     if (activeFilters.searchText) params.append('searchText', activeFilters.searchText);
 
@@ -250,11 +321,11 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ apiPrefix = '/ap
   const handleApplyLocalFilters = useCallback(() => {
     setCurrentPage(1);
     setActiveFilters({
-      context: selectedContext === 'all' ? undefined : selectedContext,
-      proposal: selectedProposal === 'all' ? undefined : selectedProposal,
-      format: selectedFormat === 'all' ? undefined : selectedFormat,
-      tone: selectedTone === 'all' ? undefined : selectedTone,
-      references: selectedReferences === 'all' ? undefined : selectedReferences,
+      context: selectedContext.length ? selectedContext : undefined,
+      proposal: selectedProposal.length ? selectedProposal : undefined,
+      format: selectedFormat.length ? selectedFormat : undefined,
+      tone: selectedTone.length ? selectedTone : undefined,
+      references: selectedReferences.length ? selectedReferences : undefined,
       searchText: textSearch || undefined,
       minInteractions: minInteractionsValue ? parseInt(minInteractionsValue) : undefined,
     });
@@ -286,17 +357,43 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ apiPrefix = '/ap
     return labels || 'N/A';
   };
   
+  // Etiquetas (chips) combinadas para otimizar espaço
+  const getTagLabels = (post: IGlobalPostResult) => {
+    const items: { label: string; color: string; title: string }[] = [];
+    const push = (labels: string[] | string | undefined, color: string, titlePrefix: string, type: 'format'|'proposal'|'context'|'tone'|'reference') => {
+      if (!labels) return;
+      const arr = Array.isArray(labels) ? labels : (labels ? String(labels).split(',') : []);
+      const resolved = idsToLabels(arr, type).filter(Boolean);
+      resolved.forEach(l => items.push({ label: l, color, title: `${titlePrefix}: ${l}` }));
+    };
+    push(post.format as any, 'bg-blue-50 text-blue-700 ring-blue-200', 'Formato', 'format');
+    push(post.proposal as any, 'bg-violet-50 text-violet-700 ring-violet-200', 'Proposta', 'proposal');
+    push(post.context as any, 'bg-amber-50 text-amber-700 ring-amber-200', 'Contexto', 'context');
+    push(post.tone as any, 'bg-teal-50 text-teal-700 ring-teal-200', 'Tom', 'tone');
+    push(post.references as any, 'bg-rose-50 text-rose-700 ring-rose-200', 'Referência', 'reference');
+    return items;
+  };
+
+  const TagChip = ({ label, color, title }: { label: string; color: string; title: string }) => (
+    <span title={title} className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium ring-1 ring-inset ${color} mr-1 mb-1 max-w-[120px] truncate`}>
+      {label}
+    </span>
+  );
+
   const columns = useMemo(() => [
     { key: 'cover', label: 'Imagem', sortable: false, getVal: (p: IGlobalPostResult) => p.coverUrl || '' },
     { key: 'text_content', label: 'Conteúdo', sortable: false, getVal: (p: IGlobalPostResult) => p.text_content || p.description || 'N/A' },
     { key: 'creatorName', label: 'Criador', sortable: true, getVal: (p: IGlobalPostResult) => p.creatorName || 'N/A' },
     { key: 'postDate', label: 'Data', sortable: true, getVal: (p: IGlobalPostResult) => formatDate(p.postDate) },
-    { key: 'format', label: 'Formato', sortable: true, getVal: (p: IGlobalPostResult) => formatClassValue(p.format, 'format') },
-    { key: 'proposal', label: 'Proposta', sortable: true, getVal: (p: IGlobalPostResult) => formatClassValue(p.proposal, 'proposal') },
-    { key: 'context', label: 'Contexto', sortable: true, getVal: (p: IGlobalPostResult) => formatClassValue(p.context, 'context') },
-    { key: 'tone', label: 'Tom', sortable: true, getVal: (p: IGlobalPostResult) => formatClassValue(p.tone, 'tone') },
-    { key: 'references', label: 'Referências', sortable: true, getVal: (p: IGlobalPostResult) => formatClassValue(p.references, 'reference') },
+    { key: 'tags', label: 'Etiquetas', sortable: false, getVal: (p: IGlobalPostResult) => getTagLabels(p) },
     { key: 'stats.total_interactions', label: 'Interações', sortable: true, getVal: (p: IGlobalPostResult) => getNestedValue(p, 'stats.total_interactions', 0) },
+    { key: 'stats.likes', label: 'Likes', sortable: true, getVal: (p: IGlobalPostResult) => getNestedValue(p, 'stats.likes', 0) },
+    { key: 'stats.comments', label: 'Comentários', sortable: true, getVal: (p: IGlobalPostResult) => getNestedValue(p, 'stats.comments', 0) },
+    { key: 'stats.shares', label: 'Compart.', sortable: true, getVal: (p: IGlobalPostResult) => getNestedValue(p, 'stats.shares', 0) },
+    { key: 'stats.saved', label: 'Salvos', sortable: true, getVal: (p: IGlobalPostResult) => getNestedValue(p, 'stats.saved', 0) },
+    { key: 'stats.reach', label: 'Alcance', sortable: true, getVal: (p: IGlobalPostResult) => getNestedValue(p, 'stats.reach', 0) },
+    { key: 'stats.views', label: 'Views', sortable: true, getVal: (p: IGlobalPostResult) => getNestedValue(p, 'stats.views', 0) },
+    { key: 'stats.impressions', label: 'Impressões', sortable: true, getVal: (p: IGlobalPostResult) => getNestedValue(p, 'stats.impressions', 0) },
     { key: 'actions', label: 'Ações', sortable: false, headerClassName: 'text-center', getVal: () => null },
   ], []);
 
@@ -323,11 +420,11 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ apiPrefix = '/ap
       {filtersOpen && (
       <div className="p-4 border border-gray-200 rounded-md bg-gray-50">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          <div><label htmlFor="gpe-format" className="block text-xs font-medium text-gray-600 mb-1">Formato</label><select id="gpe-format" value={selectedFormat} onChange={(e) => setSelectedFormat(e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm bg-white h-[38px]"><option value="all">Todos os Formatos</option>{formatOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></div>
-          <div><label htmlFor="gpe-proposal" className="block text-xs font-medium text-gray-600 mb-1">Proposta</label><select id="gpe-proposal" value={selectedProposal} onChange={(e) => setSelectedProposal(e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm bg-white h-[38px]"><option value="all">Todas as Propostas</option>{proposalOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></div>
-          <div><label htmlFor="gpe-context" className="block text-xs font-medium text-gray-600 mb-1">Contexto</label><select id="gpe-context" value={selectedContext} onChange={(e) => setSelectedContext(e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm bg-white h-[38px]"><option value="all">Todos os Contextos</option>{contextOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></div>
-          <div><label htmlFor="gpe-tone" className="block text-xs font-medium text-gray-600 mb-1">Tom</label><select id="gpe-tone" value={selectedTone} onChange={(e) => setSelectedTone(e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm bg-white h-[38px]"><option value="all">Todos os Tons</option>{toneOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></div>
-          <div><label htmlFor="gpe-references" className="block text-xs font-medium text-gray-600 mb-1">Referências</label><select id="gpe-references" value={selectedReferences} onChange={(e) => setSelectedReferences(e.target.value)} className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm bg-white h-[38px]"><option value="all">Todas as Referências</option>{referenceOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></div>
+          <MultiSelectBox id="gpe-format" label="Formato" options={formatOptions} selected={selectedFormat} onChange={setSelectedFormat} />
+          <MultiSelectBox id="gpe-proposal" label="Proposta" options={proposalOptions} selected={selectedProposal} onChange={setSelectedProposal} />
+          <MultiSelectBox id="gpe-context" label="Contexto" options={contextOptions} selected={selectedContext} onChange={setSelectedContext} />
+          <MultiSelectBox id="gpe-tone" label="Tom" options={toneOptions} selected={selectedTone} onChange={setSelectedTone} />
+          <MultiSelectBox id="gpe-references" label="Referências" options={referenceOptions} selected={selectedReferences} onChange={setSelectedReferences} />
           <div><label htmlFor="gpe-minInteractions" className="block text-xs font-medium text-gray-600 mb-1">Min. Interações</label><input type="number" id="gpe-minInteractions" value={minInteractionsValue} onChange={(e) => setMinInteractionsValue(e.target.value)} placeholder="Ex: 100" min="0" className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm bg-white h-[38px]"/></div>
           <div><label htmlFor="gpe-textSearch" className="block text-xs font-medium text-gray-600 mb-1">Buscar texto</label><input id="gpe-textSearch" type="text" value={textSearch} onChange={(e) => setTextSearch(e.target.value)} placeholder="Buscar texto..." className="w-full px-3 py-1.5 border border-gray-300 rounded-md shadow-sm sm:text-sm bg-white h-[38px]" /></div>
         </div>
@@ -357,15 +454,42 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ apiPrefix = '/ap
                       {columns.map(col => {
                           const rawValue = col.getVal(post);
                           let displayValue: React.ReactNode = rawValue;
-                          if (col.key.startsWith('stats.')) displayValue = formatNumberStd(rawValue);
+                          if (col.key.startsWith('stats.')) displayValue = (
+                            <span title={String(rawValue)} className="tabular-nums">{formatNumberStd(rawValue)}</span>
+                          );
                           if (col.key === 'cover') {
                             return (
                               <td key="cover" className="px-3 py-2 whitespace-nowrap">
                                 {rawValue ? (
-                                  <img src={rawValue} alt="capa" className="w-24 h-24 object-cover rounded" />
+                                  <img
+                                    src={rawValue}
+                                    alt="capa"
+                                    className="w-40 h-40 object-cover rounded"
+                                    onError={(e) => {
+                                      const t = e.currentTarget as HTMLImageElement;
+                                      t.onerror = null;
+                                      t.src = 'https://placehold.co/160x160?text=%3F';
+                                    }}
+                                  />
                                 ) : (
                                   '–'
                                 )}
+                              </td>
+                            );
+                          }
+                          if (col.key === 'tags') {
+                            const chips = rawValue as ReturnType<typeof getTagLabels>;
+                            const MAX = 6;
+                            const shown = chips.slice(0, MAX);
+                            const extra = chips.length - shown.length;
+                            return (
+                              <td key="tags" className="px-4 py-3 whitespace-nowrap text-left">
+                                <div className="max-w-[300px] flex flex-wrap">
+                                  {shown.map((c, i) => <TagChip key={`${c.label}_${i}`} label={c.label} color={c.color} title={c.title} />)}
+                                  {extra > 0 && (
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-gray-100 text-gray-700 ring-1 ring-inset ring-gray-200">+{extra}</span>
+                                  )}
+                                </div>
                               </td>
                             );
                           }

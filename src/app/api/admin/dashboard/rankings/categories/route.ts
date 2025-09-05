@@ -16,12 +16,16 @@ const SERVICE_TAG = '[api/admin/dashboard/rankings/categories]';
 
 // CORREÇÃO: Definindo a constante sem depender de um tipo importado.
 // O 'as const' garante que o TypeScript entenda estes como os únicos valores possíveis.
-const ALLOWED_METRICS = ['views', 'reach', 'likes', 'comments', 'shares', 'posts'] as const;
+const ALLOWED_METRICS = [
+  'views', 'reach', 'likes', 'comments', 'shares',
+  'total_interactions', 'avg_total_interactions',
+  'posts',
+] as const;
 
 // Schema para validar os parâmetros da URL da requisição
 const querySchema = z.object({
-  category: z.enum(['proposal', 'format', 'context'], {
-    errorMap: () => ({ message: "A categoria deve ser 'proposal', 'format' ou 'context'." })
+  category: z.enum(['proposal', 'format', 'context', 'tone', 'references'], {
+    errorMap: () => ({ message: "A categoria deve ser 'proposal', 'format', 'context', 'tone' ou 'references'." })
   }),
   // O z.enum agora usa a constante local, o que resolve o problema de tipo.
   metric: z.enum(ALLOWED_METRICS, {
@@ -30,6 +34,7 @@ const querySchema = z.object({
   startDate: z.string().datetime({ message: 'Formato de data inválido para startDate.' }).transform(val => new Date(val)),
   endDate: z.string().datetime({ message: 'Formato de data inválido para endDate.' }).transform(val => new Date(val)),
   limit: z.coerce.number().int().min(1).max(50).optional().default(5),
+  userId: z.string().optional(),
 }).refine(data => data.startDate <= data.endDate, {
   message: 'A data de início não pode ser posterior à data de término.',
   path: ['endDate'],
@@ -71,7 +76,7 @@ export async function GET(req: NextRequest) {
       return apiError(`Parâmetros de consulta inválidos: ${errorMessage}`, 400);
     }
 
-    const { category, metric, startDate, endDate, limit } = validationResult.data;
+    const { category, metric, startDate, endDate, limit, userId } = validationResult.data;
 
     // 3. Chamada ao serviço com os parâmetros validados
     const results = await fetchTopCategories({
@@ -79,6 +84,7 @@ export async function GET(req: NextRequest) {
       category,
       metric,
       limit,
+      userId,
     });
 
     // 4. Retorno dos resultados com sucesso

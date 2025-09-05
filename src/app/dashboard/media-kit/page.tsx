@@ -23,6 +23,13 @@ export default function MediaKitSelfServePage() {
   const instagramConnected = Boolean((session?.user as any)?.instagramConnected);
   const fetchedOnce = useRef(false);
 
+  // Gate: impedir acesso ao Mídia Kit antes de conectar Instagram
+  useEffect(() => {
+    if (status === 'authenticated' && !instagramConnected) {
+      router.replace('/dashboard/onboarding');
+    }
+  }, [status, instagramConnected, router]);
+
   // Lógica do Modal de Pagamento
   const [showBillingModal, setShowBillingModal] = useState(false);
   const closeBillingModal = () => setShowBillingModal(false);
@@ -205,109 +212,9 @@ export default function MediaKitSelfServePage() {
     return <div className="p-6"><p className="text-sm text-gray-600">Faça login para visualizar seu Mídia Kit.</p></div>;
   }
 
-  // ===== Estado: IG NÃO conectado → DEMO + CTA =====
+  // ===== IG não conectado → redireciona para Onboarding =====
   if (!instagramConnected) {
-    const demoUser = {
-      name: 'Criador Exemplo',
-      profile_picture_url: '/images/Colorido-Simbolo.png',
-      username: 'criador.exemplo',
-      biography: 'Este é um Mídia Kit demonstrativo. Conecte seu Instagram para ver seu Mídia Kit real.',
-      followers_count: 12300,
-      _id: undefined,
-    };
-
-    const demoKpis = {
-      comparisonPeriod: 'last_30d_vs_previous_30d',
-      followerGrowth: { currentValue: 320, previousValue: 250, percentageChange: 28.0 },
-      engagementRate: { currentValue: 4.2, previousValue: 3.7, percentageChange: 13.5 },
-      totalEngagement: { currentValue: 15200, previousValue: 13400, percentageChange: 13.4 },
-      postingFrequency: { currentValue: 4.5, previousValue: 3.8, percentageChange: 18.4 },
-      avgViewsPerPost: { currentValue: 8200, previousValue: 7600, percentageChange: 7.9 },
-      avgLikesPerPost: { currentValue: 1200, previousValue: 1080, percentageChange: 11.1 },
-      avgCommentsPerPost: { currentValue: 85, previousValue: 74, percentageChange: 14.9 },
-      avgSharesPerPost: { currentValue: 50, previousValue: 44, percentageChange: 13.6 },
-      avgSavesPerPost: { currentValue: 110, previousValue: 96, percentageChange: 14.6 },
-      avgReachPerPost: { currentValue: 9100, previousValue: 8300, percentageChange: 9.6 },
-      insightSummary: {
-        followerGrowth: 'Crescimento consistente puxado por Reels educativos à noite.',
-        engagementRate: 'Taxa acima da média em carrosséis com checklist e CTA de salvar.',
-      },
-    } as any;
-
-    const demoVideos = [
-      {
-        _id: 'demo1',
-        caption: 'Reel • Dica de app de produtividade (18s) — Para criadores; gancho em 2s; CTA de salvar',
-        permalink: null,
-        thumbnailUrl: '/images/Colorido-Simbolo.png',
-        format: ['reel'],
-        proposal: ['tips'],
-        context: ['technology_digital'],
-        tone: ['educational'],
-        references: ['professions'],
-        stats: { views: 12500, likes: 1380, comments: 95, shares: 71, saves: 150 },
-      },
-      {
-        _id: 'demo2',
-        caption: 'Carrossel (7 páginas) • Checklist para iniciantes — passo a passo prático',
-        permalink: null,
-        thumbnailUrl: '/images/Colorido-Simbolo.png',
-        format: ['carousel'],
-        proposal: ['tips'],
-        context: ['education'],
-        tone: ['educational'],
-        references: [],
-        stats: { views: 9800, likes: 910, comments: 60, shares: 40, saves: 210 },
-      },
-      {
-        _id: 'demo3',
-        caption: 'Reel • Review crítica de gadget (22s) — referência musical; opinião direta',
-        permalink: null,
-        thumbnailUrl: '/images/Colorido-Simbolo.png',
-        format: ['reel'],
-        proposal: ['review'],
-        context: ['technology_digital'],
-        tone: ['critical'],
-        references: ['pop_culture_music'],
-        stats: { views: 8600, likes: 740, comments: 48, shares: 33, saves: 95 },
-      },
-    ];
-
-    const demoDemographics = {
-      follower_demographics: {
-        gender: { male: 48, female: 52 },
-        age: { '18-24': 30, '25-34': 45, '35-44': 15, '45-54': 7, '55-64': 3 },
-        city: { 'São Paulo': 40, 'Rio de Janeiro': 25, 'Belo Horizonte': 10, 'Porto Alegre': 5, Lisboa: 5 },
-      },
-    } as any;
-
-    const demoSummary = {
-      topPerformingFormat: { name: 'Reel 18–22s', metricName: 'Retenção', valueFormatted: '68%' },
-      topPerformingContext: { name: 'Tecnologia/Digital • Checklist', metricName: 'Salvamentos', valueFormatted: '+18%' },
-    } as any;
-
-    return (
-      <div className="relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
-          <div className="mb-4 p-4 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800 flex items-center justify-between">
-            <span>Exemplo de Mídia Kit com dados fictícios para demonstração. Conecte seu Instagram para ver seu Mídia Kit real.</span>
-            <button
-              onClick={handleCorrectInstagramLink}
-              className="px-3 py-1.5 rounded-md text-sm bg-pink-600 text-white hover:bg-pink-700 flex-shrink-0 ml-4"
-            >
-              Conectar Instagram
-            </button>
-          </div>
-        </div>
-        <MediaKitView
-          user={demoUser}
-          summary={demoSummary}
-          videos={demoVideos as any}
-          kpis={demoKpis}
-          demographics={demoDemographics}
-        />
-      </div>
-    );
+    return <div className="p-6 text-sm text-gray-600">Redirecionando para o onboarding…</div>;
   }
 
   // ===== Estado principal (IG conectado) =====

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import MetricModel from '@/app/models/Metric';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
+import { getCategoryWithSubcategoryIds, getCategoryById } from '@/app/lib/classification';
 import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
 
 export const dynamic = 'force-dynamic';
@@ -19,6 +20,8 @@ export async function GET(request: Request) {
   const metric = searchParams.get('metric') || 'stats.total_interactions';
   const dayOfWeek = parseInt(searchParams.get('dayOfWeek') || '', 10);
   const timeBlock = searchParams.get('timeBlock');
+  const hourParam = searchParams.get('hour');
+  const hour = hourParam !== null ? parseInt(hourParam, 10) : NaN;
   const limit = parseInt(searchParams.get('limit') || '5', 10);
 
   const timePeriod: TimePeriod = isAllowedTimePeriod(timePeriodParam)
@@ -28,8 +31,8 @@ export async function GET(request: Request) {
   if (timePeriodParam && !isAllowedTimePeriod(timePeriodParam)) {
     return NextResponse.json({ error: `Time period inválido. Permitidos: ${ALLOWED_TIME_PERIODS.join(', ')}` }, { status: 400 });
   }
-  if (!dayOfWeek || !timeBlock) {
-    return NextResponse.json({ error: 'Parâmetros dayOfWeek e timeBlock são obrigatórios.' }, { status: 400 });
+  if (!dayOfWeek || (isNaN(hour) && !timeBlock)) {
+    return NextResponse.json({ error: 'Parâmetros obrigatórios: dayOfWeek e (hour ou timeBlock).' }, { status: 400 });
   }
 
   try {
@@ -41,9 +44,21 @@ export async function GET(request: Request) {
     const match: any = {
       postDate: { $gte: startDate, $lte: endDate },
     };
-    if (format) match.format = format;
-    if (proposal) match.proposal = proposal;
-    if (context) match.context = context;
+    if (format) {
+      const ids = getCategoryWithSubcategoryIds(format, 'format');
+      const labels = ids.map(id => getCategoryById(id, 'format')?.label || id);
+      match.format = { $in: labels };
+    }
+    if (proposal) {
+      const ids = getCategoryWithSubcategoryIds(proposal, 'proposal');
+      const labels = ids.map(id => getCategoryById(id, 'proposal')?.label || id);
+      match.proposal = { $in: labels };
+    }
+    if (context) {
+      const ids = getCategoryWithSubcategoryIds(context, 'context');
+      const labels = ids.map(id => getCategoryById(id, 'context')?.label || id);
+      match.context = { $in: labels };
+    }
 
     const pipeline: any[] = [
       { $match: match },
@@ -68,12 +83,33 @@ export async function GET(request: Request) {
           },
         },
       },
-      { $match: { dayOfWeek, timeBlock } },
+      // Se hour foi passado, filtra por hora exata; caso contrário, usa timeBlock
+      ...(isNaN(hour)
+        ? [{ $match: { dayOfWeek, timeBlock } }]
+        : [{ $match: { dayOfWeek, hour } }]
+      ),
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'user',
+          foreignField: '_id',
+          as: 'creator',
+          pipeline: [{ $project: { name: 1, profile_picture_url: 1 } }]
+        }
+      },
+      { $unwind: { path: '$creator', preserveNullAndEmptyArrays: true } },
       {
         $project: {
           description: 1,
           postLink: 1,
           coverUrl: 1,
+          format: 1,
+          proposal: 1,
+          context: 1,
+          tone: 1,
+          references: 1,
+          creatorName: '$creator.name',
+          creatorPhotoUrl: '$creator.profile_picture_url',
           metricValue: `$${metric}`,
         },
       },

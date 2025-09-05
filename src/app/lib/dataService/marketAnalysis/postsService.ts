@@ -11,6 +11,7 @@ import DailyMetricSnapshotModel, { IDailyMetricSnapshot } from '@/app/models/Dai
 import { connectToDatabase } from '../connection';
 import { DatabaseError } from '@/app/lib/errors';
 import { FindGlobalPostsArgs, IGlobalPostsPaginatedResult, IGlobalPostResult } from './types';
+import { getCategoryWithSubcategoryIds, getCategoryById } from '@/app/lib/classification';
 import { createBasePipeline } from './helpers';
 import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
 import { TimePeriod } from '@/app/lib/constants/timePeriods';
@@ -44,21 +45,50 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
     await connectToDatabase();
     const matchStage: PipelineStage.Match['$match'] = {};
 
-    if (context) matchStage.context = { $regex: context, $options: 'i' };
-    if (proposal) matchStage.proposal = { $regex: proposal, $options: 'i' };
-    if (format) matchStage.format = { $regex: format, $options: 'i' };
-    if (tone) matchStage.tone = { $regex: tone, $options: 'i' };
-    if (references) matchStage.references = { $regex: references, $options: 'i' };
+    // Filtros de classificação mais assertivos (ID exato + inclusão de subcategorias; aceita labels como fallback)
+    const buildClassFilter = (value: string, type: 'format'|'proposal'|'context'|'tone'|'reference') => {
+      const ids = getCategoryWithSubcategoryIds(value, type);
+      const labels = ids
+        .map((id) => getCategoryById(id, type)?.label)
+        .filter((l): l is string => Boolean(l));
+      // Nome do campo no banco
+      const field = type === 'reference' ? 'references' : type;
+      // Match se QUALQUER um dos IDs OU labels existir no array armazenado
+      return { $or: [ { [field]: { $in: ids } }, { [field]: { $in: labels } } ] } as any;
+    };
+
+    const normalizeValues = (v?: string | string[]): string[] => {
+      if (!v) return [];
+      if (Array.isArray(v)) return v.filter(Boolean).map(s => s.trim()).filter(Boolean);
+      return v.split(',').map(s => s.trim()).filter(Boolean);
+    };
+
+    const andClauses: any[] = [];
+    const fmtVals = normalizeValues(format);
+    if (fmtVals.length) andClauses.push({ $or: fmtVals.map(v => buildClassFilter(v, 'format')) });
+    const propVals = normalizeValues(proposal);
+    if (propVals.length) andClauses.push({ $or: propVals.map(v => buildClassFilter(v, 'proposal')) });
+    const ctxVals = normalizeValues(context);
+    if (ctxVals.length) andClauses.push({ $or: ctxVals.map(v => buildClassFilter(v, 'context')) });
+    const toneVals = normalizeValues(tone);
+    if (toneVals.length) andClauses.push({ $or: toneVals.map(v => buildClassFilter(v, 'tone')) });
+    const refVals = normalizeValues(references);
+    if (refVals.length) andClauses.push({ $or: refVals.map(v => buildClassFilter(v, 'reference')) });
     if (searchText) {
-      matchStage.$or = [
+      andClauses.push({ $or: [
         { text_content: { $regex: searchText, $options: 'i' } },
         { description: { $regex: searchText, $options: 'i' } },
         { creatorName: { $regex: searchText, $options: 'i' } },
-      ];
+      ]});
     }
-    if (minInteractions > 0) matchStage['stats.total_interactions'] = { $gte: minInteractions };
-    if (dateRange?.startDate) matchStage.postDate = { ...matchStage.postDate, $gte: dateRange.startDate };
-    if (dateRange?.endDate) matchStage.postDate = { ...matchStage.postDate, $lte: dateRange.endDate };
+    if (minInteractions > 0) andClauses.push({ 'stats.total_interactions': { $gte: minInteractions } });
+    if (dateRange?.startDate) andClauses.push({ postDate: { $gte: dateRange.startDate } });
+    if (dateRange?.endDate) andClauses.push({ postDate: { $lte: dateRange.endDate } });
+
+    if (andClauses.length > 0) {
+      if (matchStage.$and) matchStage.$and.push(...andClauses);
+      else (matchStage as any).$and = andClauses;
+    }
 
     if (args.agencyId) {
       const agencyUserIds = await UserModel.find({ agency: args.agencyId }).select('_id').lean();
@@ -93,14 +123,30 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
         _id: 1, text_content: 1, description: 1, creatorName: 1, postDate: 1,
         format: 1, proposal: 1, context: 1, tone: 1, references: 1,
         'stats.total_interactions': '$stats.total_interactions',
-        'stats.likes': '$stats.likes', 'stats.shares': '$stats.shares',
+        'stats.likes': '$stats.likes',
+        'stats.comments': '$stats.comments',
+        'stats.shares': '$stats.shares',
+        'stats.saved': '$stats.saved',
+        'stats.reach': '$stats.reach',
+        'stats.views': '$stats.views',
+        'stats.impressions': '$stats.impressions',
         coverUrl: 1,
         instagramMediaId: 1,
       }
     });
 
     const posts = await MetricModel.aggregate(postsPipeline);
-    return { posts: posts as IGlobalPostResult[], totalPosts, page, limit };
+    // Normaliza coverUrl para sempre usar o proxy de thumbnail
+    const normalizedPosts: IGlobalPostResult[] = (posts as IGlobalPostResult[]).map((p) => {
+      const raw = p.coverUrl || '';
+      const isProxied = raw.startsWith('/api/proxy/thumbnail/');
+      const isHttp = /^https?:\/\//i.test(raw);
+      return {
+        ...p,
+        coverUrl: isProxied ? raw : (isHttp ? toProxyUrl(raw) : p.coverUrl),
+      };
+    });
+    return { posts: normalizedPosts, totalPosts, page, limit };
   } catch (error: any) {
     logger.error(`${TAG} Erro ao executar busca global:`, error);
     throw new DatabaseError(`Falha ao buscar posts globais: ${error.message}`);

@@ -38,20 +38,20 @@ export default function CompleteSignupPage() {
           } catch {
             // ignore
           }
-          // ALTERADO: Redireciona para o Mídia Kit após o checkout
-          router.replace(`/dashboard/media-kit?checkout=${checkout}`); // <-- ALTERADO
+          // Redireciona para o Onboarding após o checkout
+          router.replace(`/dashboard/onboarding?checkout=${checkout}`);
           return;
         }
 
         if (status === "authenticated" && session?.user?.isNewUserForOnboarding === false) {
-          // ALTERADO: Redireciona usuários existentes para o Mídia Kit
-          router.replace("/dashboard/media-kit"); // <-- ALTERADO
+          // Redireciona usuários existentes para o Onboarding (mantém contexto didático)
+          router.replace("/dashboard/onboarding");
           return;
         }
 
       } catch {
-        // ALTERADO: Redireciona para o Mídia Kit como fallback em caso de erro
-        router.replace("/dashboard/media-kit"); // <-- ALTERADO
+        // Fallback em caso de erro
+        router.replace("/dashboard/onboarding");
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps

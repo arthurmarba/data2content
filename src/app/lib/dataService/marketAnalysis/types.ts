@@ -8,7 +8,7 @@ import { Types } from 'mongoose';
 import { z } from 'zod';
 
 // --- (NOVO) Tipos para Ranking de Categoria Genérico ---
-export type RankableCategory = 'proposal' | 'format' | 'context';
+export type RankableCategory = 'proposal' | 'format' | 'context' | 'tone' | 'references';
 
 export interface ICategoryMetricRankItem {
   category: string;
@@ -34,7 +34,9 @@ export const CategoryRankingMetricEnum = z.enum([
   'comments',
   'reach',
   'views',
-  'posts'
+  'total_interactions',
+  'avg_total_interactions',
+  'posts',
 ]);
 export type CategoryRankingMetric = z.infer<typeof CategoryRankingMetricEnum>;
 
@@ -80,11 +82,11 @@ export interface IFetchMultipleCreatorProfilesArgs {
 }
 
 export interface FindGlobalPostsArgs {
-    context?: string;
-    proposal?: string;
-    format?: string;
-    tone?: string;
-    references?: string;
+    context?: string | string[];
+    proposal?: string | string[];
+    format?: string | string[];
+    tone?: string | string[];
+    references?: string | string[];
     /** Texto de busca para título, descrição ou nome do criador */
     searchText?: string;
     minInteractions?: number;
@@ -114,7 +116,12 @@ export interface IGlobalPostResult {
   stats?: {
     total_interactions?: number;
     likes?: number;
+    comments?: number;
     shares?: number;
+    saved?: number;
+    reach?: number;
+    views?: number;
+    impressions?: number;
   };
 }
 
@@ -172,6 +179,9 @@ export interface IDashboardOverallStats {
   breakdownByFormat: { format: string; count: number }[];
   breakdownByProposal: { proposal: string; count: number }[];
   breakdownByContext: { context: string; count: number }[];
+  // Campos opcionais adicionados para suportar novos gráficos no dashboard
+  breakdownByTone?: { tone: string; count: number }[];
+  breakdownByReferences?: { reference: string; count: number }[];
 }
 
 

@@ -225,20 +225,37 @@ export async function fetchDashboardOverallContentStats(
         ],
         breakdownByFormat: [
           { $match: { format: { $exists: true, $ne: null } } },
-          { $group: { _id: '$format', count: { $sum: 1 }}},
+          { $unwind: '$format' },
+          { $group: { _id: '$format', count: { $sum: 1 } } },
           { $project: { _id: 0, format: '$_id', count: 1 } },
           { $sort: { count: -1 } },
         ],
         breakdownByProposal: [
           { $match: { proposal: { $exists: true, $ne: null } } },
-          { $group: { _id: '$proposal', count: { $sum: 1 }}},
+          { $unwind: '$proposal' },
+          { $group: { _id: '$proposal', count: { $sum: 1 } } },
           { $project: { _id: 0, proposal: '$_id', count: 1 } },
           { $sort: { count: -1 } },
         ],
         breakdownByContext: [
           { $match: { context: { $exists: true, $ne: null } } },
-          { $group: { _id: '$context', count: { $sum: 1 }}},
+          { $unwind: '$context' },
+          { $group: { _id: '$context', count: { $sum: 1 } } },
           { $project: { _id: 0, context: '$_id', count: 1 } },
+          { $sort: { count: -1 } },
+        ],
+        breakdownByTone: [
+          { $match: { tone: { $exists: true, $ne: null } } },
+          { $unwind: '$tone' },
+          { $group: { _id: '$tone', count: { $sum: 1 } } },
+          { $project: { _id: 0, tone: '$_id', count: 1 } },
+          { $sort: { count: -1 } },
+        ],
+        breakdownByReferences: [
+          { $match: { references: { $exists: true, $ne: null } } },
+          { $unwind: '$references' },
+          { $group: { _id: '$references', count: { $sum: 1 } } },
+          { $project: { _id: 0, reference: '$_id', count: 1 } },
           { $sort: { count: -1 } },
         ],
       },
@@ -255,6 +272,8 @@ export async function fetchDashboardOverallContentStats(
       breakdownByFormat: stats.breakdownByFormat || [],
       breakdownByProposal: stats.breakdownByProposal || [],
       breakdownByContext: stats.breakdownByContext || [],
+      breakdownByTone: stats.breakdownByTone || [],
+      breakdownByReferences: stats.breakdownByReferences || [],
     };
 
     logger.info(`${TAG} Busca concluída.`);
