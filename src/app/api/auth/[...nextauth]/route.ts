@@ -1077,6 +1077,11 @@ export const authOptions: NextAuthOptions = {
       const base = new URL(baseUrl);
 
       if (requestedUrl.origin === base.origin) {
+        // Se o provider recusar consentimento e o NextAuth tentar enviar para /login?error=...
+        if (requestedUrl.pathname === "/login" && requestedUrl.searchParams.has("error")) {
+          logger.warn(`[NextAuth Redirect Callback] Interceptando redirecionamento para /login com erro (${requestedUrl.searchParams.get("error")}). Enviando para página inicial.`);
+          return new URL("/", base).toString();
+        }
         logger.debug(`[NextAuth Redirect Callback] URL solicitada (${requestedUrl.toString()}) é interna. Permitindo.`);
         return requestedUrl.toString();
       }
