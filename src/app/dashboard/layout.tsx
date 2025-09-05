@@ -26,6 +26,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const isChatPage = pathname.startsWith("/dashboard/chat");
   const isMediaKitPage = pathname.startsWith("/dashboard/media-kit");
   const isGeminiHeaderPage = /^\/dashboard\/(chat|media-kit|settings|billing)/.test(pathname);
+  const isOnboardingFlow = /^\/dashboard\/(onboarding|instagram)/.test(pathname);
 
   const isOpen = !isCollapsed;
 
@@ -37,7 +38,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   }, [isGeminiHeaderPage]);
 
   // deslocamento do main conforme sidebar no desktop
-  const mainOffset = isCollapsed ? "lg:ml-16" : "lg:ml-64";
+  const mainOffset = isOnboardingFlow ? "" : isCollapsed ? "lg:ml-16" : "lg:ml-64";
 
   // Regras de scroll por rota
   const mainScrollClass = isMediaKitPage
@@ -56,11 +57,13 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      {/* Sidebar (mobile overlay / desktop fixo) */}
-      <SidebarNav isCollapsed={isCollapsed} onToggle={() => toggleSidebar()} />
+      {/* Sidebar (oculta no fluxo de onboarding/instagram) */}
+      {!isOnboardingFlow && (
+        <SidebarNav isCollapsed={isCollapsed} onToggle={() => toggleSidebar()} />
+      )}
 
       {/* Overlay escuro para mobile quando sidebar está aberta (acima do header, abaixo da sidebar) */}
-      {isOpen && (
+      {isOpen && !isOnboardingFlow && (
         <div
           onClick={() => toggleSidebar()}
           className="lg:hidden fixed inset-0 bg-black/40 z-50"

@@ -194,9 +194,33 @@ export default function Header() {
 
   // Usar o header unificado também em /dashboard/media-kit, /dashboard/settings e /dashboard/billing
   const isGeminiHeaderPage = /^\/dashboard\/(chat|media-kit|settings|billing)/.test(pathname);
+  // Fluxo de onboarding/instagram: header minimalista (apenas logo)
+  const isOnboardingFlow = /^\/dashboard\/(onboarding|instagram)/.test(pathname);
 
   if (isGeminiHeaderPage) {
     return <ChatHeader user={user} />;
+  }
+
+  if (isOnboardingFlow) {
+    return (
+      <header className="bg-white border-gray-200 shadow-sm sticky top-0 z-20 border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-start items-center h-16">
+            <Link href="/" className="flex-shrink-0 flex items-center gap-2 group" aria-label="Início">
+              <div className="relative h-8 w-8 overflow-hidden">
+                <Image
+                  src="/images/Colorido-Simbolo.png"
+                  alt="Data2Content"
+                  fill
+                  className="object-contain object-center group-hover:opacity-90 transition-opacity scale-[2.6]"
+                  priority
+                />
+              </div>
+            </Link>
+          </div>
+        </div>
+      </header>
+    );
   }
 
   // Demais páginas do dashboard usam o header padrão

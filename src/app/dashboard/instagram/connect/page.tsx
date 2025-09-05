@@ -45,10 +45,7 @@ export default function InstagramPreConnectPage() {
 
         <div className="p-4 bg-white rounded-lg border border-gray-200">
           <h2 className="font-medium text-gray-900">Segurança</h2>
-          <ul className="list-disc pl-5 text-sm text-gray-700 mt-2 space-y-1">
-            <li>Sem publicações em seu nome.</li>
-            <li>Você pode revogar o acesso quando quiser.</li>
-          </ul>
+          <p className="text-sm text-gray-700 mt-2">Plataforma credenciada pela Meta, com acesso de leitura às métricas.</p>
           <p className="text-xs text-gray-500 mt-2">Quer detalhes? <a href="/dashboard/instagram/faq" className="underline text-blue-700 hover:text-blue-800">Veja o FAQ</a>.</p>
         </div>
       </section>
