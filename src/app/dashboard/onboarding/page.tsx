@@ -13,35 +13,21 @@ export default function OnboardingPage() {
   const steps = useMemo<StepItem[]>(() => {
     return [
       {
-        key: "welcome",
-        title: "Boas‑vindas",
-        description: "Veja como vamos preparar seu Mídia Kit automático.",
-        state: "completed",
-      },
-      {
-        key: "about-permissions",
-        title: "Antes de conectar",
-        description: "Entenda as permissões do Facebook/Instagram e por que pedimos.",
+        key: "connect-instagram",
+        title: "Conectar Instagram",
+        description: "Autorize no Facebook (somente leitura).",
         state: instagramConnected ? "completed" : "current",
       },
       {
-        key: "connect-instagram",
-        title: "Conectar Instagram",
-        description: instagramConnected
-          ? "Conexão ativa. Podemos ler métricas públicas para gerar seu Mídia Kit."
-          : "Conecte com o Facebook para localizar sua conta Instagram Profissional/Creator.",
+        key: "sync",
+        title: "Sincronizar",
+        description: "Carregamos suas métricas públicas.",
         state: instagramConnected ? "completed" : "pending",
       },
       {
-        key: "first-sync",
-        title: "Primeira sincronização",
-        description: "Importamos métricas recentes para alimentar seus relatórios.",
-        state: instagramConnected ? "current" : "pending",
-      },
-      {
-        key: "ready",
-        title: "Pronto!",
-        description: "Acesse seu Mídia Kit e painel com dados atualizados.",
+        key: "done",
+        title: "Pronto",
+        description: "Veja seu Mídia Kit.",
         state: instagramConnected ? "current" : "pending",
       },
     ];
@@ -59,32 +45,16 @@ export default function OnboardingPage() {
         <OnboardingStepper steps={steps} />
       </div>
 
-      {/* Contexto: Por que pedimos permissões? */}
-      <div className="mt-6 p-4 rounded-lg border border-gray-200 bg-white">
-        <h2 className="text-lg font-medium text-gray-900">Por que pedimos isso?</h2>
-        <p className="text-sm text-gray-700 mt-1">
-          Precisamos de acesso de leitura às suas contas para localizar seu Instagram Profissional/Creator e coletar métricas públicas. 
-          Nunca postamos por você e você pode revogar o acesso a qualquer momento.
-        </p>
-      </div>
-
-      {/* Segurança e Privacidade fixos */}
-      <div className="mt-4 p-4 rounded-lg border border-gray-200 bg-white">
-        <h2 className="text-lg font-medium text-gray-900">Segurança e Privacidade</h2>
-        <ul className="list-disc pl-5 text-sm text-gray-700 mt-2 space-y-1">
-          <li>Somente leitura: acessamos posts e métricas públicas para gerar relatórios.</li>
-          <li>Sem publicações: nunca postamos em seu nome.</li>
-          <li>Revogável: você pode remover o acesso pelo Facebook quando quiser.</li>
-        </ul>
+      {/* Mini callout curto */}
+      <div className="mt-4 p-3 rounded-lg border border-gray-200 bg-white text-sm text-gray-700">
+        Somente leitura • Sem publicações • Revogável a qualquer momento. <a className="underline text-blue-700 hover:text-blue-800" href="/dashboard/instagram/faq">Saiba mais</a>
       </div>
 
       <div className="mt-6 p-4 rounded-lg border border-gray-200 bg-white">
         {!instagramConnected ? (
           <div>
             <h2 className="text-lg font-medium text-gray-900">Conectar Instagram</h2>
-            <p className="text-sm text-gray-600 mt-1">
-              Vamos abrir o Facebook para você autorizar o acesso de leitura às suas contas. Nunca postamos por você.
-            </p>
+            <p className="text-sm text-gray-600 mt-1">Autorize no Facebook em poucos passos.</p>
             <button
               onClick={goToPreConnect}
               className="mt-4 inline-flex items-center px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700"

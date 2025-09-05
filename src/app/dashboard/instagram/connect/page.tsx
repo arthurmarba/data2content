@@ -35,42 +35,21 @@ export default function InstagramPreConnectPage() {
       </p>
 
       <section className="mt-6 grid gap-4">
-        <div className="p-4 bg-white rounded-lg border border-gray-200" id="por-que">
-          <h2 className="font-medium text-gray-900">Permissões solicitadas</h2>
-          <ul className="list-disc pl-5 text-sm text-gray-700 mt-2 space-y-1">
-            <li>pages_show_list: localizar páginas que você administra para achar sua conta Instagram Profissional/Creator.</li>
-            <li>instagram_basic e instagram_manage_insights: ler posts públicos e métricas (somente leitura).</li>
-            <li>business_management: quando necessário, listar ativos para identificar sua conta.</li>
-          </ul>
-          <p className="text-sm text-gray-600 mt-2">
-            Por que pedimos isso? Para localizar sua conta profissional e autorizar apenas leitura de métricas. Você pode revogar o acesso quando quiser.
-          </p>
-        </div>
-
         <div className="p-4 bg-white rounded-lg border border-gray-200">
-          <h2 className="font-medium text-gray-900">O que nunca faremos</h2>
+          <h2 className="font-medium text-gray-900">O que será pedido</h2>
           <ul className="list-disc pl-5 text-sm text-gray-700 mt-2 space-y-1">
-            <li>Nunca postamos por você.</li>
-            <li>Não lemos mensagens nem conteúdo privado.</li>
-            <li>Você pode revogar o acesso a qualquer momento no Facebook.</li>
+            <li>Localizar sua conta Instagram profissional.</li>
+            <li>Ler métricas e posts públicos (somente leitura).</li>
           </ul>
         </div>
 
         <div className="p-4 bg-white rounded-lg border border-gray-200">
-          <h2 className="font-medium text-gray-900">Dicas</h2>
+          <h2 className="font-medium text-gray-900">Segurança</h2>
           <ul className="list-disc pl-5 text-sm text-gray-700 mt-2 space-y-1">
-            <li>Use a conta do Facebook que administra seu Instagram Profissional/Creator.</li>
-            <li>Evite atualizar a página durante o processo de autorização.</li>
+            <li>Sem publicações em seu nome.</li>
+            <li>Você pode revogar o acesso quando quiser.</li>
           </ul>
-        </div>
-
-        <div className="p-4 bg-white rounded-lg border border-gray-200">
-          <h2 className="font-medium text-gray-900">Segurança e Privacidade</h2>
-          <ul className="list-disc pl-5 text-sm text-gray-700 mt-2 space-y-1">
-            <li>Somente leitura: usamos posts e métricas públicas para relatórios.</li>
-            <li>Sem publicações: nunca postamos em seu nome.</li>
-            <li>Revogável: remova o acesso pelo Facebook a qualquer momento.</li>
-          </ul>
+          <p className="text-xs text-gray-500 mt-2">Quer detalhes? <a href="/dashboard/instagram/faq" className="underline text-blue-700 hover:text-blue-800">Veja o FAQ</a>.</p>
         </div>
       </section>
 

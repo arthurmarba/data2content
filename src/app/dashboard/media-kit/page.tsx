@@ -284,11 +284,28 @@ export default function MediaKitSelfServePage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 grid place-items-center bg-white z-10"
+              className="absolute inset-0 bg-white z-10"
             >
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <span className="inline-block h-2 w-2 rounded-full bg-gray-400 animate-pulse" />
-                Carregando Mídia Kit…
+              <div className="mx-auto max-w-6xl px-4 pt-6">
+                {/* Skeleton toolbar */}
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-32 bg-gray-200 rounded animate-pulse" />
+                  <div className="h-9 w-24 bg-gray-200 rounded animate-pulse" />
+                  <div className="h-9 w-9 bg-gray-200 rounded animate-pulse" />
+                  <div className="flex-1" />
+                  <div className="h-9 w-40 bg-gray-200 rounded animate-pulse" />
+                </div>
+                {/* Skeleton content blocks */}
+                <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {[...Array(6)].map((_, i) => (
+                    <div key={i} className="p-4 border border-gray-200 rounded-lg">
+                      <div className="h-4 w-1/2 bg-gray-200 rounded animate-pulse" />
+                      <div className="mt-3 h-24 bg-gray-100 rounded animate-pulse" />
+                      <div className="mt-3 h-3 w-2/3 bg-gray-200 rounded animate-pulse" />
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-6 h-64 bg-gray-100 rounded animate-pulse" />
               </div>
             </motion.div>
           )}
