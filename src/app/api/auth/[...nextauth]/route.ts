@@ -445,7 +445,7 @@ export const authOptions: NextAuthOptions = {
               if (conflict) {
                 logger.warn(`${TAG_SIGNIN} [Facebook] providerAccountId ${providerAccountId} já vinculado a outro usuário ${conflict._id}. Abortando.`);
                 cookies().delete(FACEBOOK_LINK_COOKIE_NAME);
-                return "/login?error=FacebookAlreadyLinked";
+                return "/dashboard/instagram/connect?error=FacebookAlreadyLinked";
               }
               dbUserRecord.facebookProviderAccountId = providerAccountId;
               if (!dbUserRecord.email && currentEmailFromProvider) {
@@ -493,7 +493,7 @@ export const authOptions: NextAuthOptions = {
             } else {
               logger.warn(`${TAG_SIGNIN} [Facebook] linkToken '${FACEBOOK_LINK_COOKIE_NAME}' inválido/expirado. Vinculação falhou.`);
               cookies().delete(FACEBOOK_LINK_COOKIE_NAME);
-              return "/login?error=FacebookLinkFailed";
+              return "/dashboard/instagram/connect?error=FacebookLinkFailed";
             }
           } else {
             logger.warn(`${TAG_SIGNIN} [Facebook] Sem linkToken ('${FACEBOOK_LINK_COOKIE_NAME}'). Tentando fallback pela sessão ativa.`);
@@ -516,13 +516,13 @@ export const authOptions: NextAuthOptions = {
 
             if (!sessionUserId) {
               logger.warn(`${TAG_SIGNIN} [Facebook] Sem linkToken e sem sessão ativa decodificável. Bloqueando login direto.`);
-              return "/login?error=FacebookLinkRequired";
+              return "/dashboard/instagram/connect?error=FacebookLinkRequired";
             }
 
             dbUserRecord = await DbUser.findById(sessionUserId);
             if (!dbUserRecord) {
               logger.warn(`${TAG_SIGNIN} [Facebook] Fallback sessão: user ${sessionUserId} não encontrado no DB.`);
-              return "/login?error=FacebookLinkRequired";
+              return "/dashboard/instagram/connect?error=FacebookLinkRequired";
             }
 
             // Checagem de conflito: a conta Facebook já foi vinculada a outro usuário?
@@ -533,7 +533,7 @@ export const authOptions: NextAuthOptions = {
               }).select('_id').lean();
               if (conflict) {
                 logger.warn(`${TAG_SIGNIN} [Facebook] providerAccountId ${providerAccountId} já vinculado a ${conflict._id}. Abortando.`);
-                return "/login?error=FacebookAlreadyLinked";
+                return "/dashboard/instagram/connect?error=FacebookAlreadyLinked";
               }
             }
 
