@@ -289,6 +289,38 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
     }
   };
 
+  const handleInitiateFacebookLinkNewTab = async () => {
+    if (!canAccessFeatures) {
+      showToast("Conecte seu Instagram e automatize suas métricas com um plano premium.", "info");
+      onActionRedirect();
+      return;
+    }
+    setIsLinking(true);
+    setLinkError(null);
+    setDisconnectError(null);
+    setAccountSelectionError(null);
+    try {
+      logger.info("[Nova Aba] Chamando /api/auth/iniciar-vinculacao-fb");
+      const res = await fetch("/api/auth/iniciar-vinculacao-fb", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ message: "Falha ao preparar vinculação (resposta não-JSON)." }));
+        logger.error("[Nova Aba] Erro ao chamar /api/auth/iniciar-vinculacao-fb:", errData);
+        throw new Error(errData.message || "Falha ao preparar vinculação com Facebook.");
+      }
+      const cb = encodeURIComponent("/dashboard/chat?instagramLinked=true");
+      const url = `/api/auth/signin/facebook?callbackUrl=${cb}`;
+      window.open(url, "_blank", "noopener");
+      setIsLinking(false);
+    } catch (e: any) {
+      logger.error("[Nova Aba] Erro ao iniciar vinculação:", e);
+      setLinkError(e?.message || "Erro inesperado ao tentar conectar com Facebook.");
+      setIsLinking(false);
+    }
+  };
+
   const handleDisconnectInstagram = async (event: React.MouseEvent<HTMLButtonElement>) => {
     if (!canAccessFeatures) {
       event.preventDefault();
@@ -602,6 +634,13 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
                   >
                     {mainButtonIcon}
                     {mainButtonText}
+                  </button>
+                  <button
+                    onClick={handleInitiateFacebookLinkNewTab}
+                    disabled={mainButtonDisabled}
+                    className="mt-2 w-full sm:w-auto px-6 py-2 text-xs font-medium rounded-lg border border-blue-600 text-blue-700 bg-white hover:bg-blue-50 transition-colors"
+                  >
+                    Conectar em nova aba
                   </button>
                 </div>
               )}

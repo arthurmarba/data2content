@@ -104,6 +104,20 @@ export default function InstagramConnectingPage() {
         <div className="mt-4 p-3 rounded bg-red-50 text-red-700 border border-red-200 inline-block text-left max-w-lg">
           <p className="font-medium">Não foi possível concluir:</p>
           <p className="text-sm mt-1">{error}</p>
+          <p className="text-sm mt-2">
+            Se o Facebook mostrar "fail to load" ou pedir verificação, abra
+            {" "}
+            <a
+              href="https://www.facebook.com/checkpoint"
+              target="_blank"
+              rel="noreferrer"
+              className="underline font-medium text-blue-700 hover:text-blue-800"
+            >
+              facebook.com/checkpoint
+            </a>
+            {" "}
+            em outra aba, conclua a verificação e volte.
+          </p>
           {faqLinkForError(error) && (
             <p className="text-sm mt-2">
               <a

@@ -27,6 +27,25 @@ export default function InstagramPreConnectPage() {
     }
   };
 
+  const connectInNewTab = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/auth/iniciar-vinculacao-fb", { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.message || "Falha ao preparar a vinculação.");
+      }
+      const callbackUrl = encodeURIComponent("/dashboard/instagram/connecting?instagramLinked=true");
+      const url = `/api/auth/signin/facebook?callbackUrl=${callbackUrl}`;
+      window.open(url, "_blank", "noopener");
+      setLoading(false);
+    } catch (e: any) {
+      setError(e?.message || "Erro inesperado. Tente novamente.");
+      setLoading(false);
+    }
+  };
+
   return (
     <main className="max-w-3xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-semibold text-gray-900">Conectar Instagram</h1>
@@ -61,6 +80,13 @@ export default function InstagramPreConnectPage() {
           className={`inline-flex items-center px-4 py-2 rounded-md text-white ${loading ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"}`}
         >
           {loading ? "Abrindo Facebook…" : "Entendi, conectar com Facebook"}
+        </button>
+        <button
+          onClick={connectInNewTab}
+          disabled={loading || status === "loading"}
+          className="inline-flex items-center px-4 py-2 rounded-md border border-blue-600 text-blue-700 bg-white hover:bg-blue-50"
+        >
+          Conectar em nova aba
         </button>
         <button
           onClick={() => router.push("/dashboard/onboarding")}
