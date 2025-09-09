@@ -242,7 +242,7 @@ export default function BillingSubscribeModal({ open, onClose }: BillingSubscrib
   if (loading && !prices && !error) {
     return (
       <div
-        className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-3 sm:px-4 py-4"
+        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm px-3 sm:px-4 py-4 overflow-y-auto"
         role="dialog"
         aria-modal="true"
         aria-label="Carregando preços"
@@ -295,7 +295,7 @@ export default function BillingSubscribeModal({ open, onClose }: BillingSubscrib
   if (error && !prices) {
     return (
       <div
-        className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-3 sm:px-4 py-4"
+        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm px-3 sm:px-4 py-4 overflow-y-auto"
         role="dialog"
         aria-modal="true"
         aria-labelledby="billing-error-title"
@@ -348,7 +348,7 @@ export default function BillingSubscribeModal({ open, onClose }: BillingSubscrib
   if (prices) {
     return (
       <div
-        className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-3 sm:px-4 py-4"
+        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm px-3 sm:px-4 py-4 overflow-y-auto"
         role="dialog"
         aria-modal="true"
         aria-labelledby="subscribe-modal-title"
