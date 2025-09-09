@@ -221,13 +221,14 @@ export default async function MediaKitPage(
   const plainUser = JSON.parse(JSON.stringify(user));
 
   return (
-    <MediaKitView
-      user={plainUser}
-      summary={summary}
-      videos={compatibleVideos}
-      kpis={kpis}
-      demographics={demographics}
-      showSharedBanner={!isOwner}
-    />
+        <MediaKitView
+          user={plainUser}
+          summary={summary}
+          videos={compatibleVideos}
+          kpis={kpis}
+          demographics={demographics}
+          showSharedBanner={!isOwner}
+          showOwnerCtas={false}
+        />
   );
 }

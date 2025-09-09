@@ -97,14 +97,15 @@ function SelfMediaKitContent({ userId, fallbackName, fallbackEmail, fallbackImag
   return (
     <div className="bg-slate-50">
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-        <MediaKitView
-          user={user}
-          summary={summary}
-          videos={videos}
-          kpis={kpis}
-          demographics={demographics}
-          showSharedBanner={false}
-        />
+          <MediaKitView
+            user={user}
+            summary={summary}
+            videos={videos}
+            kpis={kpis}
+            demographics={demographics}
+            showSharedBanner={false}
+            showOwnerCtas={true}
+          />
       </div>
     </div>
   );
