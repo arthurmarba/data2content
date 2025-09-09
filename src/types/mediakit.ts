@@ -109,4 +109,5 @@ export interface MediaKitViewProps {
   demographics: DemographicsData | null;
   // Exibe o banner institucional apenas em contexto de compartilhamento público
   showSharedBanner?: boolean;
+  showOwnerCtas?: boolean;
 }

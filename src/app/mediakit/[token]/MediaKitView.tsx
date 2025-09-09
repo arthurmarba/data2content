@@ -707,6 +707,7 @@ export default function MediaKitView({
   kpis: initialKpis,
   demographics,
   showSharedBanner = false,
+  showOwnerCtas = false,
 }: MediaKitViewProps) {
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -821,7 +822,7 @@ export default function MediaKitView({
       <div className="bg-slate-50 min-h-screen font-sans">
         <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
 
-          {isOwner && (
+          {isOwner && showOwnerCtas && (
             <>
               <SubscribeCtaBanner isSubscribed={isSubscribed} />
 
