@@ -124,7 +124,7 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-0 sm:p-4"
+      className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-black/60 p-0 pt-[env(safe-area-inset-top)] sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="subscribe-title"
@@ -132,7 +132,7 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
     >
       <div
         ref={dialogRef}
-        className="relative w-screen h-[100svh] sm:w-full sm:h-auto sm:max-w-xl sm:max-h-[90vh] sm:rounded-2xl rounded-none bg-white shadow-2xl flex flex-col"
+        className="relative w-screen h-full max-h-screen sm:w-full sm:h-auto sm:max-w-xl sm:max-h-[90vh] sm:rounded-2xl rounded-none bg-white shadow-2xl flex flex-col overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Botão fechar (mobile) */}
