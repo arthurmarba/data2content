@@ -19,6 +19,8 @@ export default function InstagramFacebookFAQPage() {
         <ul className="list-disc pl-5 text-sm text-blue-700 mt-2 space-y-1">
           <li><a className="underline hover:text-blue-800" href="#permissoes">Permissões (o que e por quê)</a></li>
           <li><a className="underline hover:text-blue-800" href="#ig-profissional">IG Profissional/Creator</a></li>
+          <li><a className="underline hover:text-blue-800" href="#criar-pagina">Criar Página no Facebook</a></li>
+          <li><a className="underline hover:text-blue-800" href="#vincular-ig-pagina">Vincular Instagram à Página</a></li>
           <li><a className="underline hover:text-blue-800" href="#erros-permissoes">Erros #10/#200 (Permissão negada)</a></li>
           <li><a className="underline hover:text-blue-800" href="#token-expirado">Token expirado/inválido</a></li>
           <li><a className="underline hover:text-blue-800" href="#conta-vinculada">Conta já vinculada</a></li>
@@ -45,6 +47,26 @@ export default function InstagramFacebookFAQPage() {
             Sim. Para ler métricas, o Instagram exige conta Profissional (Business/Creator) conectada a uma Página do Facebook.
             No app do Instagram: Configurações → Conta → Mudar para conta profissional.
           </p>
+          <p className="text-xs text-gray-500 mt-2">Ajuda oficial: procure por "Mudar para conta profissional Instagram" no centro de ajuda do Instagram.</p>
+        </div>
+
+        <div className="p-4 bg-white border border-gray-200 rounded-lg" id="criar-pagina">
+          <h2 className="text-lg font-medium text-gray-900">2.1) Como criar uma Página no Facebook</h2>
+          <ol className="list-decimal pl-5 text-sm text-gray-700 mt-2 space-y-1">
+            <li>Acesse o Facebook no navegador (conta que você usa para trabalho).</li>
+            <li>Abra o menu e selecione “Páginas” → “Criar nova Página”.</li>
+            <li>Defina nome, categoria e finalize a criação.</li>
+          </ol>
+          <p className="text-xs text-gray-500 mt-2">Dica: você precisa ser administrador dessa Página para conectá-la ao Instagram.</p>
+        </div>
+
+        <div className="p-4 bg-white border border-gray-200 rounded-lg" id="vincular-ig-pagina">
+          <h2 className="text-lg font-medium text-gray-900">2.2) Vincular seu Instagram à Página do Facebook</h2>
+          <ul className="list-disc pl-5 text-sm text-gray-700 mt-2 space-y-1">
+            <li>No app do Instagram: Configurações → Conta → Compartilhar em outros apps → Facebook → Conectar e escolha a Página.</li>
+            <li>Ou no Facebook: Configurações da Página → Instagram → Conectar conta e siga o passo a passo.</li>
+            <li>Depois volte ao D2C e refaça a conexão.</li>
+          </ul>
         </div>
 
         <div className="p-4 bg-white border border-gray-200 rounded-lg" id="nao-encontro">

@@ -42,7 +42,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   // Regras de scroll por rota
   const mainScrollClass = isMediaKitPage
-    ? "overflow-hidden pt-header"
+    ? "overflow-y-auto"
     : isChatPage
     ? "overflow-hidden"
     : "overflow-y-auto";
@@ -76,8 +76,14 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         {/* Header sempre full-width (não recebe margem lateral) */}
         <Header />
 
-        {/* O conteúdo abaixo desloca no desktop para não ficar sob o sidebar */}
-        <main className={`flex-1 min-h-0 ${mainOffset} ${mainScrollClass}`}>
+        {/* Conteúdo sempre abaixo do header (respeita safe-area no iOS) */}
+        <main
+          className={`flex-1 min-h-0 ${mainOffset} ${mainScrollClass}`}
+          style={{
+            paddingTop:
+              "calc(var(--header-h, 56px) + var(--sat, env(safe-area-inset-top, 0px)))",
+          }}
+        >
           {children}
         </main>
       </div>

@@ -181,7 +181,8 @@ function addCommonAveragesToGroupStage(groupStage: any): any {
 }
 
 function getDurationBucketStage(): PipelineStage.Bucket {
-    const durationBoundaries = [0, 15, 30, 60, Infinity]; // Segundos
+    // Ajuste de buckets para refletir melhor curtos (até 20s)
+    const durationBoundaries = [0, 20, 30, 60, Infinity]; // Segundos
     return {
         $bucket: {
             groupBy: "$stats.video_duration_seconds", // Campo que armazena a duração do vídeo em segundos
@@ -199,8 +200,8 @@ function getDurationBucketStage(): PipelineStage.Bucket {
 
 function mapDurationBucketIdToRange(bucketId: number | string): string {
     if (typeof bucketId !== 'number') return "Desconhecido/Outro";
-    if (bucketId === 0) return "0-15s";
-    if (bucketId === 15) return "15-30s";
+    if (bucketId === 0) return "0-20s";
+    if (bucketId === 20) return "20-30s";
     if (bucketId === 30) return "30-60s";
     if (bucketId === 60) return "60s+";
     return "Desconhecido";

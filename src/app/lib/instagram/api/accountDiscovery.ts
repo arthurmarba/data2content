@@ -294,6 +294,14 @@ export async function fetchAvailableInstagramAccounts(
       // Aqui, apenas retornamos o erro.
       return { success: false, error: `Erro ao buscar páginas: ${fetchError.message}` };
     }
+
+    // Caso sem erro explícito, mas nenhum resultado de páginas encontrado em nenhum fluxo
+    if (allPagesData.length === 0) {
+      const errorMsgNoPages =
+        'Nenhuma Página do Facebook foi encontrada para esta conta. Crie uma Página e torne-se administrador, depois vincule seu Instagram profissional a ela.';
+      logger.warn(`${TAG} ${errorMsgNoPages} User: ${userId}.`);
+      return { success: false, error: errorMsgNoPages, errorCode: 404 };
+    }
     
     logger.info(`${TAG} Processamento final de contas para User ${userId}. Total de ${allPagesData.length} Páginas FB encontradas globalmente.`);
     const availableIgAccounts: AvailableInstagramAccount[] = [];
@@ -313,12 +321,13 @@ export async function fetchAvailableInstagramAccounts(
     }
 
     if (availableIgAccounts.length === 0) {
-      // Mensagem de erro mais genérica se ambos os fluxos falharem em encontrar contas.
-      // Se houve um fetchError, ele já teria sido retornado acima se resultou em 0 contas.
-      // Este caso é mais para "nenhuma conta encontrada, mas sem erro de API explícito".
-      const errorMsg = "Nenhuma conta profissional do Instagram (Comercial ou Criador de Conteúdo) foi encontrada vinculada às Páginas do Facebook que você gerencia, mesmo após verificar Portfólios Empresariais.";
-      logger.warn(`${TAG} ${errorMsg} User: ${userId}. Total de Páginas FB processadas: ${allPagesData.length}`);
-      return { success: false, error: errorMsg, errorCode: 404 }; // errorCode 404 para indicar "não encontrado"
+      // Páginas foram encontradas, mas nenhuma possui IG Profissional vinculado
+      const errorMsg =
+        'Encontramos Páginas do Facebook, porém nenhuma possui uma conta profissional do Instagram vinculada. Vincule seu IG à Página e tente novamente.';
+      logger.warn(
+        `${TAG} ${errorMsg} User: ${userId}. Total de Páginas FB processadas: ${allPagesData.length}`
+      );
+      return { success: false, error: errorMsg, errorCode: 404 };
     }
 
     logger.info(`${TAG} Encontradas ${availableIgAccounts.length} contas IG ÚNICAS vinculadas para User ${userId}.`);

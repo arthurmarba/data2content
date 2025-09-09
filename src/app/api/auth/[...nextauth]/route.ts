@@ -230,13 +230,15 @@ async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise
     if (cleanToken[key] === undefined) delete cleanToken[key];
   });
 
-  // nunca gravar id vazio; usa sub->id; se nada, ERRO
+  // nunca gravar id vazio; usa sub->id; se nada, assina sem subject e mantém sessão básica
   const idFromToken = ensureStringId(cleanToken.id) ?? ensureStringId(cleanToken.sub);
-  if (!idFromToken) {
-    logger.error(`${TAG_ENCODE} Token sem id/sub. Abortando encode para evitar sessão inválida.`);
-    throw new Error("JWT encode sem id/sub");
+  if (idFromToken) {
+    cleanToken.id = idFromToken;
+  } else {
+    logger.warn(`${TAG_ENCODE} Token sem id/sub. Assinando JWT sem subject (sessão básica).`);
+    delete (cleanToken as any).id;
+    delete (cleanToken as any).sub;
   }
-  cleanToken.id = idFromToken;
 
   if (cleanToken.onboardingCompletedAt instanceof Date) {
     cleanToken.onboardingCompletedAt = cleanToken.onboardingCompletedAt.toISOString();
@@ -262,12 +264,14 @@ async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise
     }
   }
 
-  return new SignJWT(cleanToken)
-    .setSubject(cleanToken.id) // subject sempre válido
+  const builder = new SignJWT(cleanToken)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime(expirationTime)
-    .sign(new TextEncoder().encode(secretString));
+    .setExpirationTime(expirationTime);
+
+  if (idFromToken) builder.setSubject(idFromToken);
+
+  return builder.sign(new TextEncoder().encode(secretString));
 }
 
 async function customDecode({ token, secret }: JWTDecodeParams): Promise<JWT | null> {

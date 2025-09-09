@@ -156,7 +156,10 @@ const VideoCard: React.FC<{
             className="flex-shrink-0"
           />
           <div className="flex-grow">
-            <p className="font-semibold text-sm text-gray-800" title={video.caption || ''}>
+            <p
+              className="font-semibold text-sm text-gray-800 line-clamp-4" // MUDANÇA AQUI
+              title={video.caption || ''}
+            >
               {readOnly && index === 0 && (
                 <FireIcon
                   className="w-4 h-4 text-orange-400 inline-block mr-1.5 align-text-bottom"

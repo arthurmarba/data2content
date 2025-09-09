@@ -1,6 +1,8 @@
 // src/app/mediakit/[token]/page.tsx
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import type { Metadata } from 'next';
 
 import { connectToDatabase } from '@/app/lib/mongoose';
@@ -191,6 +193,11 @@ export default async function MediaKitPage(
   const referer = reqHeaders.get('referer') || undefined;
   await logMediaKitAccess((user as any)._id.toString(), ip, referer);
 
+  // Determina se o visitante é o dono para controlar o banner institucional
+  const session = await getServerSession(authOptions as any);
+  const sessionUserId = (session as any)?.user?.id;
+  const isOwner = sessionUserId && String(sessionUserId) === String((user as any)._id);
+
   const proto = reqHeaders.get('x-forwarded-proto') || 'http';
   const host = reqHeaders.get('host') || 'localhost:3000';
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${proto}://${host}`;
@@ -220,6 +227,7 @@ export default async function MediaKitPage(
       videos={compatibleVideos}
       kpis={kpis}
       demographics={demographics}
+      showSharedBanner={!isOwner}
     />
   );
 }

@@ -104,20 +104,44 @@ export default function InstagramConnectingPage() {
         <div className="mt-4 p-3 rounded bg-red-50 text-red-700 border border-red-200 inline-block text-left max-w-lg">
           <p className="font-medium">Não foi possível concluir:</p>
           <p className="text-sm mt-1">{error}</p>
-          <p className="text-sm mt-2">
-            Se o Facebook mostrar "fail to load" ou pedir verificação, abra
-            {" "}
-            <a
-              href="https://www.facebook.com/checkpoint"
-              target="_blank"
-              rel="noreferrer"
-              className="underline font-medium text-blue-700 hover:text-blue-800"
-            >
-              facebook.com/checkpoint
-            </a>
-            {" "}
-            em outra aba, conclua a verificação e volte.
-          </p>
+          {(() => {
+            const e = (error || '').toLowerCase();
+            const isNoIgDetected =
+              e.includes('nenhuma conta profissional do instagram') ||
+              e.includes('conta profissional do instagram') ||
+              e.includes('não encontramos contas instagram') ||
+              e.includes('no_ig_account') ||
+              e.includes('no ig account');
+            const isNoPageDetected = e.includes('nenhuma página') || e.includes('no pages');
+            if (isNoIgDetected || isNoPageDetected) {
+              return (
+                <div className="text-sm text-red-800 mt-2">
+                  <p className="font-medium">Checklist para resolver:</p>
+                  <ul className="list-disc pl-5 mt-1 space-y-1">
+                    <li>
+                      Tornar sua conta IG <b>Profissional/Criador</b> e vincular a uma Página do Facebook.
+                    </li>
+                    <li>
+                      Caso não tenha Página, crie uma e vincule seu IG a ela.
+                    </li>
+                    <li>
+                      Refaça a conexão logando no Facebook que administra essa Página.
+                    </li>
+                  </ul>
+                  <p className="mt-2">
+                    Ajuda passo a passo:
+                    {" "}
+                    <a href="/dashboard/instagram/faq#ig-profissional" className="underline text-blue-700 hover:text-blue-800">IG Profissional</a>
+                    {" • "}
+                    <a href="/dashboard/instagram/faq#criar-pagina" className="underline text-blue-700 hover:text-blue-800">Criar Página</a>
+                    {" • "}
+                    <a href="/dashboard/instagram/faq#vincular-ig-pagina" className="underline text-blue-700 hover:text-blue-800">Vincular IG à Página</a>
+                  </p>
+                </div>
+              );
+            }
+            return null;
+          })()}
           {faqLinkForError(error) && (
             <p className="text-sm mt-2">
               <a

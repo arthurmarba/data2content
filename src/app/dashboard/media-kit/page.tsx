@@ -10,6 +10,106 @@ import { FaExclamationTriangle, FaShareAlt, FaLink, FaCheck, FaWhatsapp, FaTimes
 import BillingSubscribeModal from '../billing/BillingSubscribeModal';
 import WhatsAppConnectInline from '../WhatsAppConnectInline';
 
+type Summary = any;
+type VideoListItem = any;
+type Kpis = any;
+type Demographics = any;
+
+function SelfMediaKitContent({ userId, fallbackName, fallbackEmail, fallbackImage }: { userId: string; fallbackName?: string | null; fallbackEmail?: string | null; fallbackImage?: string | null; }) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [videos, setVideos] = useState<VideoListItem[]>([]);
+  const [kpis, setKpis] = useState<Kpis | null>(null);
+  const [demographics, setDemographics] = useState<Demographics | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const [sRes, vRes, kRes, dRes] = await Promise.all([
+          fetch(`/api/v1/users/${userId}/highlights/performance-summary`, { cache: 'no-store' }),
+          fetch(`/api/v1/users/${userId}/videos/list?sortBy=views&limit=5`, { cache: 'no-store' }),
+          fetch(`/api/v1/users/${userId}/kpis/periodic-comparison?comparisonPeriod=last_30d_vs_previous_30d`, { cache: 'no-store' }),
+          fetch(`/api/demographics/${userId}`, { cache: 'no-store' })
+        ]);
+        const s = sRes.ok ? await sRes.json() : null;
+        const vj = vRes.ok ? await vRes.json() : { posts: [] };
+        const v = Array.isArray(vj?.posts) ? vj.posts : [];
+        const k = kRes.ok ? await kRes.json() : null;
+        const d = dRes.ok ? await dRes.json() : null;
+        if (!mounted) return;
+        setSummary(s);
+        setVideos((v || []).map((video: any) => ({
+          ...video,
+          format: video.format ? [video.format] : [],
+          proposal: video.proposal ? [video.proposal] : [],
+          context: video.context ? [video.context] : [],
+          tone: video.tone ? [video.tone] : [],
+          references: video.references ? [video.references] : [],
+        })));
+        setKpis(k);
+        setDemographics(d);
+      } catch (e: any) {
+        if (!mounted) return;
+        setError(e?.message || 'Falha ao carregar dados do Mídia Kit');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    if (userId) load();
+    return () => { mounted = false; };
+  }, [userId]);
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="p-4 border border-gray-200 rounded-lg">
+              <div className="h-4 w-1/2 bg-gray-200 rounded animate-pulse" />
+              <div className="mt-3 h-24 bg-gray-100 rounded animate-pulse" />
+              <div className="mt-3 h-3 w-2/3 bg-gray-200 rounded animate-pulse" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+        <div className="max-w-md w-full border border-yellow-200 bg-yellow-50 text-yellow-900 rounded-lg p-3 text-sm">{error}</div>
+      </div>
+    );
+  }
+
+  const user = {
+    _id: userId,
+    name: fallbackName || 'Criador',
+    email: fallbackEmail || undefined,
+    profile_picture_url: fallbackImage || undefined,
+  } as any;
+
+  return (
+    <div className="bg-slate-50">
+      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        <MediaKitView
+          user={user}
+          summary={summary}
+          videos={videos}
+          kpis={kpis}
+          demographics={demographics}
+          showSharedBanner={false}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function MediaKitSelfServePage() {
   const { data: session, status, update } = useSession();
   const router = useRouter();
@@ -108,23 +208,7 @@ export default function MediaKitSelfServePage() {
     }
   }, [showIgConnectSuccess, instagramConnected, isActiveLike]);
 
-  // Toolbar sizing
-  const toolbarRef = useRef<HTMLDivElement>(null);
-  const [toolbarH, setToolbarH] = useState<number>(0);
-  const TOP_SPACING = 8;
-  const BELOW_BAR_GAP = 8;
-  const iframeTop = url ? TOP_SPACING + toolbarH + BELOW_BAR_GAP : 0;
-
-  useEffect(() => {
-    const el = toolbarRef.current;
-    if (!el) return;
-    const apply = () => setToolbarH(el.offsetHeight || 0);
-    apply();
-    const ro = new ResizeObserver(apply);
-    ro.observe(el);
-    window.addEventListener('resize', apply);
-    return () => { ro.disconnect(); window.removeEventListener('resize', apply); };
-  }, [url]);
+  // Toolbar state (share link)
 
   const handleCorrectInstagramLink = async () => {
     try {
@@ -218,23 +302,14 @@ export default function MediaKitSelfServePage() {
   }
 
   // ===== Estado principal (IG conectado) =====
-  const safeBottom = 'env(safe-area-inset-bottom, 0px)';
-
   return (
     <>
-      <section
-        className="relative h-[calc(100svh-var(--header-h,4rem))] w-full bg-white overflow-hidden"
-        aria-label="Mídia Kit embutido"
-      >
+      <section className="w-full bg-white" aria-label="Mídia Kit">
+        {/* Toolbar de compartilhamento */}
         {url && (
-          <div
-            ref={toolbarRef}
-            className="absolute left-0 right-0 z-20 px-2 sm:px-4"
-            style={{ top: TOP_SPACING }}
-          >
-            <div className="w-full rounded-xl border border-gray-200 bg-white/90 supports-[backdrop-filter]:bg-white/60 backdrop-blur p-2 sm:p-3 shadow-sm">
+          <div className="px-2 sm:px-4 pt-3">
+            <div className="w-full rounded-xl border border-gray-200 bg-white p-2 sm:p-3 shadow-sm">
               <div className="flex flex-col md:flex-row md:items-center gap-2">
-                
                 {isActiveLike && (
                   <button
                     onClick={handleWhatsAppLink}
@@ -244,7 +319,6 @@ export default function MediaKitSelfServePage() {
                     Vincular WhatsApp
                   </button>
                 )}
-                
                 <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-800 font-medium">
                   <FaShareAlt className="h-3.5 w-3.5" />
                   Compartilhar meu Mídia Kit
@@ -277,66 +351,13 @@ export default function MediaKitSelfServePage() {
           </div>
         )}
 
-        <AnimatePresence>
-          {loading && (
-            <motion.div
-              key="loading"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-white z-10"
-            >
-              <div className="mx-auto max-w-6xl px-4 pt-6">
-                {/* Skeleton toolbar */}
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-32 bg-gray-200 rounded animate-pulse" />
-                  <div className="h-9 w-24 bg-gray-200 rounded animate-pulse" />
-                  <div className="h-9 w-9 bg-gray-200 rounded animate-pulse" />
-                  <div className="flex-1" />
-                  <div className="h-9 w-40 bg-gray-200 rounded animate-pulse" />
-                </div>
-                {/* Skeleton content blocks */}
-                <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {[...Array(6)].map((_, i) => (
-                    <div key={i} className="p-4 border border-gray-200 rounded-lg">
-                      <div className="h-4 w-1/2 bg-gray-200 rounded animate-pulse" />
-                      <div className="mt-3 h-24 bg-gray-100 rounded animate-pulse" />
-                      <div className="mt-3 h-3 w-2/3 bg-gray-200 rounded animate-pulse" />
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-6 h-64 bg-gray-100 rounded animate-pulse" />
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {error && (
-          <div className="absolute inset-0 grid place-items-center p-4 z-10">
-            <div className="max-w-md w-full border border-yellow-200 bg-yellow-50 text-yellow-900 rounded-lg p-3 text-sm flex items-start gap-2">
-              <FaExclamationTriangle className="mt-0.5 shrink-0" />
-              <div>
-                <p className="font-semibold">Não foi possível carregar o Mídia Kit</p>
-                <p className="mt-1">{error}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {url && (
-          <div
-            className="absolute left-0 right-0 bottom-0"
-            style={{ top: iframeTop }}
-          >
-            <iframe
-              key={url}
-              src={url}
-              className="h-full w-full border-0"
-              allow="clipboard-write; fullscreen; accelerometer; gyroscope; encrypted-media"
-            />
-          </div>
-        )}
-        <div style={{ height: `calc(${safeBottom})` }} aria-hidden="true" />
+        {/* Conteúdo do Mídia Kit (sem iframe) */}
+        <SelfMediaKitContent
+          userId={(session?.user as any)?.id as string}
+          fallbackName={session?.user?.name}
+          fallbackEmail={session?.user?.email}
+          fallbackImage={session?.user?.image}
+        />
       </section>
 
       <BillingSubscribeModal open={showBillingModal} onClose={closeBillingModal} />
@@ -354,7 +375,6 @@ export default function MediaKitSelfServePage() {
               initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }}
               transition={{ type: "spring", stiffness: 400, damping: 40 }}
               className="fixed bottom-0 left-0 right-0 bg-gray-50 p-4 pt-5 rounded-t-2xl shadow-2xl z-[60] border-t"
-              style={{ paddingBottom: `calc(${safeBottom} + 20px)` }}
             >
               <div className="max-w-2xl mx-auto">
                 <div className="flex justify-between items-center mb-4">

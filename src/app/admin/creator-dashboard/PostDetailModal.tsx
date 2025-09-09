@@ -1,31 +1,30 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { 
-  XMarkIcon, 
-  InformationCircleIcon, 
-  ChartBarIcon, 
-  CalendarDaysIcon, 
-  LinkIcon, 
-  TagIcon, 
-  ChatBubbleBottomCenterTextIcon, 
-  EyeIcon, 
-  HeartIcon, 
-  ChatBubbleOvalLeftEllipsisIcon, 
-  ShareIcon, 
-  ArrowTrendingUpIcon, 
-  PresentationChartLineIcon, 
-  UsersIcon, 
-  ExclamationCircleIcon 
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  XMarkIcon,
+  InformationCircleIcon,
+  ChartBarIcon,
+  LinkIcon,
+  EyeIcon,
+  HeartIcon,
+  ChatBubbleOvalLeftEllipsisIcon,
+  ShareIcon,
+  ArrowTrendingUpIcon,
+  PresentationChartLineIcon,
+  UsersIcon,
+  ExclamationCircleIcon,
+  CalendarDaysIcon,
+  TagIcon,
 } from '@heroicons/react/24/outline';
 import {
-  ResponsiveContainer, 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   Legend,
 } from 'recharts';
 import { idsToLabels } from '../../lib/classification';
@@ -35,73 +34,7 @@ const SkeletonBlock = ({ width = 'w-full', height = 'h-4' }: { width?: string; h
   <div className={`${width} ${height} bg-gray-200 rounded-md animate-pulse`}></div>
 );
 
-// --- DEMO: Dados para posts fictícios (modo público do Mídia Kit) ---
-const buildDemoSnapshots = (baseViews: number, baseLikes: number) => {
-  const days = 7;
-  const arr: ISimplifiedDailySnapshot[] = [] as any;
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const growth = 1 + (i * 0.03);
-    arr.push({
-      date: d,
-      dailyViews: Math.round(baseViews * growth * (0.8 + Math.random() * 0.4)),
-      dailyLikes: Math.round(baseLikes * growth * (0.8 + Math.random() * 0.4)),
-    });
-  }
-  return arr;
-};
-
-const DEMO_POSTS: Record<string, IPostDetailsData> = {
-  demo1: {
-    _id: 'demo1',
-    postLink: '#',
-    description: 'Reel de dica rápida com gancho forte nos 2 primeiros segundos. CTA de salvar no final.',
-    postDate: new Date(),
-    type: 'Reel',
-    format: ['reel'],
-    proposal: ['tips'],
-    context: ['technology_digital'],
-    tone: ['educational'],
-    references: ['professions'],
-    coverUrl: '/images/Colorido-Simbolo.png',
-    stats: { views: 12500, likes: 1380, comments: 95, shares: 71, reach: 12800, total_interactions: 1686, saved: 150 },
-    dailySnapshots: buildDemoSnapshots(1500, 120),
-  },
-  demo2: {
-    _id: 'demo2',
-    postLink: '#',
-    description: 'Carrossel com 7 páginas em formato checklist para iniciantes. CTA de compartilhar/salvar.',
-    postDate: new Date(),
-    type: 'Carrossel',
-    format: ['carousel'],
-    proposal: ['tips'],
-    context: ['education'],
-    tone: ['educational'],
-    references: [],
-    coverUrl: '/images/Colorido-Simbolo.png',
-    stats: { views: 9800, likes: 910, comments: 60, shares: 40, reach: 10200, total_interactions: 1220, saved: 210 },
-    dailySnapshots: buildDemoSnapshots(1100, 90),
-  },
-  demo3: {
-    _id: 'demo3',
-    postLink: '#',
-    description: 'Review leve e divertido de produto tech. Humor sutil com opinião crítica.',
-    postDate: new Date(),
-    type: 'Reel',
-    format: ['reel'],
-    proposal: ['review'],
-    context: ['technology_digital'],
-    tone: ['critical'],
-    references: ['pop_culture_music'],
-    coverUrl: '/images/Colorido-Simbolo.png',
-    stats: { views: 8600, likes: 740, comments: 48, shares: 33, reach: 9000, total_interactions: 981, saved: 95 },
-    dailySnapshots: buildDemoSnapshots(950, 80),
-  },
-};
-
 const isHexObjectId = (id: string) => /^[a-fA-F0-9]{24}$/.test(id);
-
 
 // --- Interfaces ---
 interface ISimplifiedMetricStats {
@@ -118,7 +51,7 @@ interface ISimplifiedMetricStats {
 }
 
 interface ISimplifiedDailySnapshot {
-  date: Date;
+  date: Date | string;
   dayNumber?: number;
   dailyViews?: number;
   dailyLikes?: number;
@@ -128,18 +61,17 @@ interface ISimplifiedDailySnapshot {
   cumulativeLikes?: number;
 }
 
-// ATUALIZADO: Interface para incluir as 5 dimensões de classificação como arrays
 export interface IPostDetailsData {
   _id: string;
   user?: any;
   postLink?: string;
   description?: string;
-  postDate?: Date;
+  postDate?: Date | string;
   type?: string;
   format?: string[];
   proposal?: string[];
   context?: string[];
-  tone?: string[];
+  tone?: string[]; // pode vir string[] ou string em algumas APIs — tratamos abaixo
   references?: string[];
   theme?: string;
   collab?: boolean;
@@ -160,6 +92,38 @@ interface PostDetailModalProps {
   apiPrefix?: string;
 }
 
+// --- UI helpers ---
+const TagPill: React.FC<{ children: React.ReactNode; color: string; title?: string }> = ({ children, color, title }) => (
+  <span title={title} className={`text-[11px] px-2 py-0.5 rounded-full ${color} border bg-opacity-60`}>{children}</span>
+);
+
+const COLOR_BY_TYPE: Record<'format'|'proposal'|'context'|'tone'|'reference', string> = {
+  format: 'bg-rose-50 text-rose-700 border-rose-200',
+  proposal: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  context: 'bg-sky-50 text-sky-700 border-sky-200',
+  tone: 'bg-purple-50 text-purple-700 border-purple-200',
+  reference: 'bg-amber-50 text-amber-700 border-amber-200',
+};
+
+function formatShortUrl(url?: string): { display: string; href?: string } {
+  if (!url) return { display: '—' };
+  try {
+    const u = new URL(url);
+    const path = u.pathname.replace(/\/+$/, '');
+    const shortPath = path.length > 24 ? path.slice(0, 24) + '…' : path;
+    return { display: `${u.hostname}${shortPath}`, href: url };
+  } catch {
+    // fallback para strings que não são URLs válidas
+    const trimmed = url.length > 28 ? url.slice(0, 28) + '…' : url;
+    return { display: trimmed, href: url };
+  }
+}
+
+function compactNumber(n?: number) {
+  if (typeof n !== 'number') return 'N/A';
+  try { return n.toLocaleString('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }); } catch { return n.toString(); }
+}
+
 const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, postId, publicMode = false, apiPrefix = '/api/admin' }) => {
   const [postData, setPostData] = useState<IPostDetailsData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -173,19 +137,11 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
       setError(null);
       setPostData(null);
 
-      // DEMO: se for modo público e um dos IDs de exemplo, não busca na API
-      if (publicMode && DEMO_POSTS[postId]) {
-        setPostData(DEMO_POSTS[postId]);
-        setIsLoading(false);
-        return;
-      }
-
       const apiUrl = publicMode
         ? `/api/v1/posts/${postId}/details`
         : `${apiPrefix}/dashboard/posts/${postId}/details`;
 
       try {
-        // Se for público e o ID não parecer um ObjectId, evita chamada e mostra erro amigável
         if (publicMode && !isHexObjectId(postId)) {
           throw new Error('Exemplo demonstrativo: conecte seu Instagram para ver a análise completa.');
         }
@@ -193,24 +149,15 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ message: `Erro HTTP: ${response.status}` }));
           let errorMessage = errorData.message || errorData.error || `Erro HTTP: ${response.status}`;
-          if (response.status === 404) {
-            errorMessage = 'Post não encontrado.';
-          }
+          if (response.status === 404) errorMessage = 'Post não encontrado.';
           throw new Error(errorMessage);
         }
         const fetchedData: IPostDetailsData = await response.json();
-
-        if (fetchedData.postDate) {
-            fetchedData.postDate = new Date(fetchedData.postDate);
-        }
+        if (fetchedData.postDate) fetchedData.postDate = new Date(fetchedData.postDate);
         if (fetchedData.dailySnapshots) {
-            fetchedData.dailySnapshots = fetchedData.dailySnapshots.map(snapshot => ({
-                ...snapshot,
-                date: new Date(snapshot.date),
-            }));
+          fetchedData.dailySnapshots = fetchedData.dailySnapshots.map((s: any) => ({ ...s, date: new Date(s.date) }));
         }
         setPostData(fetchedData);
-
       } catch (e: any) {
         console.error(`Falha ao buscar detalhes do post ${postId}:`, e);
         setError(e.message || 'Falha ao carregar os detalhes do post.');
@@ -219,59 +166,137 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
       }
     };
 
-    if (isOpen && postId) {
-      fetchPostData();
-    } else if (!isOpen) {
-      setPostData(null);
-      setIsLoading(false);
-      setError(null);
-    }
-  }, [isOpen, postId, publicMode, apiPrefix]); // Adicionado publicMode e apiPrefix às dependências
+    if (isOpen && postId) fetchPostData();
+    else if (!isOpen) { setPostData(null); setIsLoading(false); setError(null); }
+  }, [isOpen, postId, publicMode, apiPrefix]);
 
-  if (!isOpen || !postId) {
-    return null;
-  }
+  // Fecha com ESC
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
 
-  // ATUALIZADO: Função para renderizar os arrays de classificação
-  const renderMetaList = (
-    items: string[] | undefined,
-    type: 'format' | 'proposal' | 'context' | 'tone' | 'reference'
-  ) => {
+  if (!isOpen || !postId) return null;
+
+  // --- TAGS (chips) ---
+  const ChipRow = ({ label, items, type }: { label: string; items?: string[]; type: 'format'|'proposal'|'context'|'tone'|'reference' }) => {
     const labels = idsToLabels(items, type);
-    return labels.length > 0 ? labels.join(', ') : 'N/A';
+    return (
+      <div>
+        <div className="text-xs font-semibold text-gray-600 mb-1">{label}</div>
+        <div className="flex flex-wrap gap-1.5">
+          {labels.length > 0 ? (
+            labels.slice(0, 8).map((t, i) => (
+              <TagPill key={`${type}-${i}`} color={COLOR_BY_TYPE[type]}>{t}</TagPill>
+            ))
+          ) : (
+            <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">—</span>
+          )}
+        </div>
+      </div>
+    );
   };
 
-  const renderGeneralInfo = () => (
-    <div>
-      <h4 className="text-md font-semibold text-gray-700 mb-2 flex items-center"><InformationCircleIcon className="w-5 h-5 mr-2 text-indigo-500" />Informações Gerais</h4>
-      {isLoading ? (
-        <div className="space-y-2">
-          <SkeletonBlock width="w-full" height="h-4" />
-          <SkeletonBlock width="w-3/4" height="h-4" />
-          <SkeletonBlock width="w-full" height="h-10" />
-          <SkeletonBlock width="w-1/2" height="h-4" />
-        </div>
-      ) : postData && (
-        <div className="text-sm space-y-1 text-gray-600">
-          <p><strong className="font-medium text-gray-700">Link:</strong> <a href={postData.postLink} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline break-all">{postData.postLink}</a></p>
-          <p><strong className="font-medium text-gray-700">Data:</strong> {postData.postDate ? new Date(postData.postDate).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}</p>
-          <p><strong className="font-medium text-gray-700">Tipo:</strong> {postData.type || 'N/A'}</p>
-          {/* ATUALIZADO: Renderização para as 5 dimensões */}
-          <p><strong className="font-medium text-gray-700">Formato:</strong> {renderMetaList(postData.format, 'format')}</p>
-          <p><strong className="font-medium text-gray-700">Proposta:</strong> {renderMetaList(postData.proposal, 'proposal')}</p>
-          <p><strong className="font-medium text-gray-700">Contexto:</strong> {renderMetaList(postData.context, 'context')}</p>
-          <p><strong className="font-medium text-gray-700">Tom:</strong> {renderMetaList(postData.tone, 'tone')}</p>
-          <p><strong className="font-medium text-gray-700">Referências:</strong> {renderMetaList(postData.references, 'reference')}</p>
-          {postData.theme && <p><strong className="font-medium text-gray-700">Tema:</strong> {postData.theme}</p>}
-          {postData.coverUrl && <p><strong className="font-medium text-gray-700">Capa:</strong> <a href={postData.coverUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline break-all">{postData.coverUrl}</a></p>}
-          <p className="mt-2 pt-2 border-t border-gray-200"><strong className="font-medium text-gray-700">Descrição:</strong> {postData.description || 'N/A'}</p>
-        </div>
-      )}
+  // --- Blocks ---
+  const renderGeneralInfo = () => {
+    const shortPost = formatShortUrl(postData?.postLink);
+    const shortCover = formatShortUrl(postData?.coverUrl);
+    const dateStr = postData?.postDate ? new Date(postData.postDate).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
+
+    return (
+      <section>
+        <h4 className="text-md font-semibold text-gray-700 mb-3 flex items-center"><InformationCircleIcon className="w-5 h-5 mr-2 text-indigo-500" />Informações Gerais</h4>
+        {isLoading ? (
+          <div className="space-y-2">
+            <SkeletonBlock width="w-full" height="h-4" />
+            <SkeletonBlock width="w-3/4" height="h-4" />
+            <SkeletonBlock width="w-full" height="h-10" />
+            <SkeletonBlock width="w-1/2" height="h-4" />
+          </div>
+        ) : postData && (
+          <div className="text-sm text-gray-600 space-y-4">
+            {/* Capa + Ações */}
+            {postData.coverUrl && (
+              <div className="flex items-start gap-3">
+                <img src={postData.coverUrl} alt="Capa do post" className="w-24 h-24 object-cover rounded-md border" />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <a href={postData.coverUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-indigo-600 hover:underline">
+                      <LinkIcon className="w-4 h-4" /> Abrir capa
+                    </a>
+                    <button
+                      className="text-xs px-2 py-0.5 rounded border text-gray-700 hover:bg-gray-50"
+                      onClick={() => navigator.clipboard.writeText(postData.coverUrl || '')}
+                    >Copiar link</button>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1 break-all">{shortCover.display}</div>
+                </div>
+              </div>
+            )}
+
+            {/* Link do post */}
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-gray-700">Link:</span>
+              {postData.postLink ? (
+                <a href={postData.postLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-indigo-600 hover:underline">
+                  <LinkIcon className="w-4 h-4" /> {shortPost.display}
+                </a>
+              ) : (
+                <span>—</span>
+              )}
+              {postData.postLink && (
+                <button
+                  className="ml-1 text-xs px-2 py-0.5 rounded border text-gray-700 hover:bg-gray-50"
+                  onClick={() => navigator.clipboard.writeText(postData.postLink || '')}
+                >Copiar</button>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-1 text-gray-700"><CalendarDaysIcon className="w-4 h-4" /> {dateStr}</div>
+              <div className="flex items-center gap-1 text-gray-700"><TagIcon className="w-4 h-4" /> {postData.type || '—'}</div>
+            </div>
+
+            {/* Tags das categorias */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <ChipRow label="Formato" items={postData.format} type="format" />
+              <ChipRow label="Proposta" items={postData.proposal} type="proposal" />
+              <ChipRow label="Contexto" items={postData.context} type="context" />
+              <ChipRow label="Tom" items={Array.isArray(postData.tone) ? postData.tone : postData.tone ? [postData.tone as any] : []} type="tone" />
+              <ChipRow label="Referências" items={postData.references} type="reference" />
+              {postData.theme && (
+                <div>
+                  <div className="text-xs font-semibold text-gray-600 mb-1">Tema</div>
+                  <TagPill color="bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200">{postData.theme}</TagPill>
+                </div>
+              )}
+            </div>
+
+            {/* Descrição */}
+            <div>
+              <div className="font-medium text-gray-700 mb-1">Descrição</div>
+              <p className="text-gray-700 whitespace-pre-line leading-relaxed">{postData.description || '—'}</p>
+            </div>
+          </div>
+        )}
+      </section>
+    );
+  };
+
+  const MetricItem = ({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value: string | number }) => (
+    <div className="bg-gray-50 p-3 rounded-md">
+      <div className="flex items-center text-gray-500 mb-1">
+        <Icon className="w-4 h-4 mr-1.5" />
+        <span className="text-xs font-medium">{label}</span>
+      </div>
+      <p className="text-gray-800 font-semibold text-base">{value}</p>
     </div>
   );
 
   const renderMainMetrics = () => (
-    <div>
+    <section>
       <h4 className="text-md font-semibold text-gray-700 mb-3 flex items-center"><ArrowTrendingUpIcon className="w-5 h-5 mr-2 text-indigo-500" />Métricas Principais</h4>
       {isLoading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -292,21 +317,11 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
           {typeof postData.stats.total_interactions === 'number' && <MetricItem icon={ArrowTrendingUpIcon} label="Interações Totais" value={postData.stats.total_interactions.toLocaleString('pt-BR')} />}
         </div>
       )}
-    </div>
-  );
-
-  const MetricItem = ({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value: string | number }) => (
-    <div className="bg-gray-50 p-3 rounded-md">
-      <div className="flex items-center text-gray-500 mb-1">
-        <Icon className="w-4 h-4 mr-1.5" />
-        <span className="text-xs font-medium">{label}</span>
-      </div>
-      <p className="text-gray-800 font-semibold text-base">{value}</p>
-    </div>
+    </section>
   );
 
   const renderDailyPerformance = () => (
-    <div>
+    <section>
       <h4 className="text-md font-semibold text-gray-700 mb-2 flex items-center"><ChartBarIcon className="w-5 h-5 mr-2 text-indigo-500" />Desempenho Diário</h4>
       {isLoading ? (
         <SkeletonBlock width="w-full" height="h-24" />
@@ -323,35 +338,15 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
                     fontSize={12}
                     stroke="#666"
                   />
-                  <YAxis
-                    fontSize={12}
-                    stroke="#666"
-                    allowDecimals={false}
-                  />
+                  <YAxis fontSize={12} stroke="#666" allowDecimals={false} />
                   <Tooltip
                     labelFormatter={(label: Date) => new Date(label).toLocaleDateString('pt-BR')}
                     formatter={(value: number, name: string) => [value.toLocaleString('pt-BR'), name]}
                     contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}
                   />
                   <Legend wrapperStyle={{ fontSize: '14px' }} />
-                  <Line
-                    type="monotone"
-                    dataKey="dailyViews"
-                    name="Visualizações Diárias"
-                    stroke="#8884d8"
-                    strokeWidth={2}
-                    activeDot={{ r: 6 }}
-                    dot={{ r: 3 }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="dailyLikes"
-                    name="Curtidas Diárias"
-                    stroke="#82ca9d"
-                    strokeWidth={2}
-                    activeDot={{ r: 6 }}
-                    dot={{ r: 3 }}
-                  />
+                  <Line type="monotone" dataKey="dailyViews" name="Visualizações Diárias" stroke="#8884d8" strokeWidth={2} activeDot={{ r: 6 }} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="dailyLikes" name="Curtidas Diárias" stroke="#82ca9d" strokeWidth={2} activeDot={{ r: 6 }} dot={{ r: 3 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -372,7 +367,7 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {postData.dailySnapshots.map((snapshot, index) => (
-                    <tr key={snapshot.date ? snapshot.date.toISOString() : index}>
+                    <tr key={(snapshot.date as Date)?.toString() + index}>
                       <td className="px-3 py-2 whitespace-nowrap">{snapshot.date ? new Date(snapshot.date).toLocaleDateString('pt-BR') : 'N/A'}</td>
                       <td className="px-3 py-2 text-right whitespace-nowrap">{snapshot.dailyViews?.toLocaleString('pt-BR') ?? 'N/A'}</td>
                       <td className="px-3 py-2 text-right whitespace-nowrap">{snapshot.dailyLikes?.toLocaleString('pt-BR') ?? 'N/A'}</td>
@@ -384,26 +379,36 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
           )}
         </>
       )}
-    </div>
+    </section>
   );
 
   return (
-    <div className={`fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-      <div className={`bg-white p-6 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col transform transition-all duration-300 ${isOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}`}>
-        <header className="flex justify-between items-center pb-4 border-b border-gray-200">
-          <h3 className="text-xl font-semibold text-gray-800 flex items-center">
-            <TagIcon className="w-6 h-6 mr-2 text-indigo-600" />
-            Detalhes do Post <span className="text-sm text-gray-500 ml-2"> (ID: {postId})</span>
+    <div
+      className={`fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="post-detail-title"
+    >
+      <div
+        className={`bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col transform transition-all duration-300 ${isOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* HEADER */}
+        <header className="sticky top-0 bg-white/90 backdrop-blur border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+          <h3 id="post-detail-title" className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <TagIcon className="w-5 h-5 text-indigo-600" /> Detalhes do Post
           </h3>
-          <button onClick={onClose} className="p-1.5 rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+          <button onClick={onClose} className="p-1.5 rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors" aria-label="Fechar">
             <XMarkIcon className="w-6 h-6" />
           </button>
         </header>
 
-        <main className="flex-grow overflow-y-auto py-6 space-y-6">
+        {/* CONTENT */}
+        <main className="flex-grow overflow-y-auto px-6 py-6 space-y-6">
           {error && (
-            <div className="text-center py-10 text-red-500 bg-red-50 p-4 rounded-md">
-              <ExclamationCircleIcon className="w-8 h-8 mx-auto mb-2"/>
+            <div className="text-center py-10 text-red-600 bg-red-50 p-4 rounded-md">
+              <ExclamationCircleIcon className="w-8 h-8 mx-auto mb-2" />
               <p>{error}</p>
             </div>
           )}
@@ -416,7 +421,8 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
           )}
         </main>
 
-        <footer className="pt-4 border-t border-gray-200 text-right">
+        {/* FOOTER */}
+        <footer className="sticky bottom-0 bg-white/90 backdrop-blur border-t border-gray-200 px-6 py-4 text-right">
           <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors">
             Fechar
           </button>

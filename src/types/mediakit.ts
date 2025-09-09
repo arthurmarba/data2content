@@ -107,4 +107,6 @@ export interface MediaKitViewProps {
   videos: VideoListItem[];
   kpis: KpiComparison | null;
   demographics: DemographicsData | null;
+  // Exibe o banner institucional apenas em contexto de compartilhamento público
+  showSharedBanner?: boolean;
 }
