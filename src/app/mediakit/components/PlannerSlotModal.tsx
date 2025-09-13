@@ -74,6 +74,13 @@ const StatusBadge: React.FC<{ status?: PlannerSlotData['status']; isExperiment?:
 };
 
 export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({ open, onClose, userId, weekStartISO, slot, onSave, readOnly = false, altStrongBlocks = [] }) => {
+  // Proxy helper to avoid hotlink issues and allow caching via our server
+  const toProxyUrl = (raw?: string | null) => {
+    if (!raw) return '';
+    if (raw.startsWith('/api/proxy/thumbnail/')) return raw;
+    if (/^https?:\/\//i.test(raw)) return `/api/proxy/thumbnail/${encodeURIComponent(raw)}`;
+    return raw;
+  };
   const [title, setTitle] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
@@ -726,7 +733,7 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({ open, onClos
                            className="block border rounded-md overflow-hidden hover:shadow-sm bg-white">
                           {p.thumbnailUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={p.thumbnailUrl} alt="thumb" className="w-full h-28 object-cover" />
+                            <img src={toProxyUrl(p.thumbnailUrl)} alt="thumb" className="w-full h-28 object-cover" />
                           ) : (
                             <div className="w-full h-28 bg-gray-100 flex items-center justify-center text-gray-400 text-xs">sem imagem</div>
                           )}
@@ -811,7 +818,7 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({ open, onClos
                            className="block border rounded-md overflow-hidden hover:shadow-sm bg-white">
                           {p.coverUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={p.coverUrl} alt="thumb" className="w-full h-28 object-cover" />
+                            <img src={toProxyUrl(p.coverUrl)} alt="thumb" className="w-full h-28 object-cover" />
                           ) : (
                             <div className="w-full h-28 bg-gray-100 flex items-center justify-center text-gray-400 text-xs">sem imagem</div>
                           )}
