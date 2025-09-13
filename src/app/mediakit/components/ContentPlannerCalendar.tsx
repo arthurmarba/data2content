@@ -188,6 +188,7 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
                               isExperiment={s.status === 'test' || s.isExperiment}
                               status={s.status as any}
                               formatId={s.format as any}
+                              dayOfWeek={day}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setSelected(s);
@@ -225,10 +226,19 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
                 scriptShort: (selected as any).scriptShort,
                 themes: (selected as any).themes,
                 themeKeyword: (selected as any).themeKeyword,
+                // @ts-ignore — rationale pode vir do recomendador
+                rationale: (selected as any).rationale,
               }
             : null
         }
         readOnly={publicMode || !canEdit}
+        altStrongBlocks={(() => {
+          if (!selected || !heatmap) return [];
+          const sameDay = heatmap.filter(h => h.dayOfWeek === selected.dayOfWeek);
+          const sorted = sameDay.slice().sort((a,b) => b.score - a.score);
+          const alts = sorted.filter(h => h.blockStartHour !== selected.blockStartHour).slice(0, 2);
+          return alts.map(h => ({ blockStartHour: h.blockStartHour, score: h.score }));
+        })()}
         onSave={async (updated) => {
           const list: PlannerUISlot[] = Array.isArray(slots) ? ([...slots] as PlannerUISlot[]) : [];
           const idx = list.findIndex(

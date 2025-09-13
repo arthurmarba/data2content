@@ -21,6 +21,7 @@ import {
   Mail,
   ArrowUpRight,
   ArrowDownRight,
+  X,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import VideosTable from '@/app/admin/creator-dashboard/components/VideosTable';
@@ -116,6 +117,7 @@ function toPlannerSlotData(slot: PlannerUISlot | null): PlannerSlotDataModal | n
     scriptShort: (slot as any).scriptShort,
     themes: (slot as any).themes,
     themeKeyword: (slot as any).themeKeyword,
+    rationale: (slot as any).rationale,
   };
 }
 
@@ -444,6 +446,17 @@ const PlannerRowCard = ({
 
   const isTest = status === 'test';
 
+  // Tema chave (palavra-chave) — usa themeKeyword ou 1º item de themes como fallback simples
+  const themeKeyword = (() => {
+    const raw = String((slot as any).themeKeyword || '').trim();
+    if (raw) return raw;
+    const first = Array.isArray((slot as any).themes) && (slot as any).themes[0]
+      ? String((slot as any).themes[0])
+      : '';
+    const simple = first.split(/[:\-–—|]/)[0]?.trim() || first.trim();
+    return simple;
+  })();
+
   const categoryItems: React.ReactNode[] = Object.entries(categories ?? {}).reduce<React.ReactNode[]>(
     (acc, [key, value]) => {
       if (!(PLANNER_CATEGORY_KEYS as readonly string[]).includes(key)) return acc;
@@ -490,6 +503,17 @@ const PlannerRowCard = ({
             <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-xs sm:text-sm">
               <Clock size={12} /> {blockLabel}
             </div>
+            {themeKeyword && (
+              <div className="mt-1">
+                <span
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-pink-50 text-pink-700 ring-1 ring-pink-200 text-[11px] sm:text-xs max-w-[160px] truncate"
+                  title={`Tema: ${themeKeyword}`}
+                >
+                  <Sparkles size={12} />
+                  <span className="truncate">{themeKeyword}</span>
+                </span>
+              </div>
+            )}
           </div>
 
           <div
@@ -779,7 +803,7 @@ export default function MediaKitView({
     return {
       gender: calculatePercentages(gender),
       age: calculatePercentages(age).slice(0, 5),
-      location: calculatePercentages(city).slice(0, 3),
+      location: calculatePercentages(city), // lista completa; exibimos top 3 no card
     };
   }, [demographics]);
 
@@ -817,20 +841,24 @@ export default function MediaKitView({
     return !!uid && !!sid && uid === sid;
   }, [session?.user, user]);
 
+  const [isCitiesModalOpen, setCitiesModalOpen] = useState(false);
+
   return (
     <GlobalTimePeriodProvider>
       <div className="bg-slate-50 min-h-screen font-sans">
         <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-
-          {isOwner && showOwnerCtas && (
+          {isOwner && (
             <>
               <SubscribeCtaBanner isSubscribed={isSubscribed} />
 
-              <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={0.15}>
-                <div className="mb-6 sm:mb-8">
-                  <AffiliateCard variant="mediakit" />
-                </div>
-              </motion.div>
+
+              {showOwnerCtas && (
+                <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={0.15}>
+                  <div className="mb-6 sm:mb-8">
+                    <AffiliateCard variant="mediakit" />
+                  </div>
+                </motion.div>
+              )}
             </>
           )}
 
@@ -919,9 +947,20 @@ export default function MediaKitView({
                     )}
                     {demographicBreakdowns.location.length > 0 && (
                       <div>
-                        <h3 className="text-sm font-semibold text-gray-700 mb-2">Cidades</h3>
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="text-sm font-semibold text-gray-700">Cidades</h3>
+                          {demographicBreakdowns.location.length > 3 && (
+                            <button
+                              type="button"
+                              className="text-xs text-pink-600 hover:text-pink-700"
+                              onClick={() => setCitiesModalOpen(true)}
+                            >
+                              Ver mais
+                            </button>
+                          )}
+                        </div>
                         <div className="space-y-1">
-                          {demographicBreakdowns.location.map((item: any) => (
+                          {demographicBreakdowns.location.slice(0,3).map((item: any) => (
                             <div key={item.label} className="flex items-center justify-between text-xs py-0.5">
                               <span className="text-gray-600">{item.label}</span>
                               <div className="flex items-center gap-2 w-2/3">
@@ -991,6 +1030,9 @@ export default function MediaKitView({
                         <KeyMetric icon={<Heart size={18} />} value={`${displayKpis?.engagementRate?.currentValue?.toFixed?.(2) ?? '0'}%`} label="Taxa de Engaj." />
                         <KeyMetric icon={<Calendar size={18} />} value={`${displayKpis?.postingFrequency?.currentValue?.toFixed?.(1) ?? '0'}`} label="Posts/Semana" />
                       </div>
+                      <div className="mt-1 text-[11px] text-gray-500">
+                        Cálculo da taxa: interações totais ÷ alcance total no período.
+                      </div>
                     </div>
 
                     <div className="mb-4">
@@ -1051,7 +1093,7 @@ export default function MediaKitView({
                       Uma amostra do conteúdo de maior impacto{' '}
                       <span className="font-medium text-gray-700">— clique em um post para ver a análise detalhada.</span>
                     </p>
-                    <VideosTable videos={videosWithCorrectStats} readOnly onRowClick={setSelectedPostId} />
+                    <VideosTable videos={videosWithCorrectStats} readOnly onRowClick={setSelectedPostId} followersCount={user?.followers_count ?? (user as any)?.followersCount ?? 0} />
                   </>
                 )}
               </motion.div>
@@ -1065,6 +1107,40 @@ export default function MediaKitView({
                 <p className="text-gray-500 text-sm mb-6">Arraste para ver os principais insights e conquistas.</p>
                 <PerformanceHighlightsCarousel userId={String(user._id)} />
               </motion.div>
+            )}
+
+            {/* Modal de Cidades */}
+            {isCitiesModalOpen && (
+              <div className="fixed inset-0 z-[200] bg-black/50" role="dialog" aria-modal="true" aria-labelledby="cities-modal-title">
+                <div className="absolute inset-0 flex items-center justify-center p-4">
+                  <div className="w-full max-w-md bg-white rounded-lg shadow-2xl border border-gray-200 max-h-[80vh] overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 border-b">
+                      <h3 id="cities-modal-title" className="text-sm font-semibold text-gray-800">Todas as cidades</h3>
+                      <button className="p-1 text-gray-500 hover:text-gray-800" aria-label="Fechar" onClick={() => setCitiesModalOpen(false)}>
+                        <X size={18} />
+                      </button>
+                    </div>
+                    <div className="p-4 overflow-y-auto max-h-[70vh]">
+                      <div className="space-y-2">
+                        {demographicBreakdowns.location.map((item: any) => (
+                          <div key={item.label} className="flex items-center justify-between text-xs py-0.5">
+                            <span className="text-gray-600">{item.label}</span>
+                            <div className="flex items-center gap-2 w-2/3">
+                              <div className="w-full bg-gray-200/70 rounded-full h-2 overflow-hidden">
+                                <div className="h-2 rounded-full bg-gradient-to-r from-brand-pink to-pink-500" style={{ width: `${item.percentage}%` }} />
+                              </div>
+                              <span className="font-semibold text-gray-800">{item.percentage.toFixed(1)}%</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="px-4 py-3 border-t flex justify-end">
+                      <button className="px-3 py-1.5 text-sm border rounded-md text-gray-700 hover:bg-gray-50" onClick={() => setCitiesModalOpen(false)}>Fechar</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
 
             {user?._id && (

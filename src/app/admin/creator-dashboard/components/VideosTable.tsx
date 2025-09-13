@@ -19,6 +19,7 @@ interface VideosTableProps {
   videos: VideoListItem[];
   onRowClick?: (postId: string) => void;
   readOnly?: boolean;
+  followersCount?: number; // usado para calcular engajamento por post
 }
 
 /* ============================
@@ -117,7 +118,8 @@ const VideoCard: React.FC<{
   index: number;
   readOnly?: boolean;
   onRowClick?: (postId: string) => void;
-}> = ({ video, index, readOnly, onRowClick }) => {
+  followersCount?: number;
+}> = ({ video, index, readOnly, onRowClick, followersCount }) => {
   const formatDate = (d?: string | Date) => {
     if (!d) return 'N/A';
     return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -129,13 +131,17 @@ const VideoCard: React.FC<{
   };
 
   const calculateEngagementRate = (stats: VideoListItem['stats']) => {
-    const views = stats?.views ?? 0;
     const likes = stats?.likes ?? 0;
     const comments = stats?.comments ?? 0;
-    if (views === 0) return '0.00%';
-    const rate = ((likes + comments) / views) * 100;
+    const shares = (stats as any)?.shares ?? 0;
+    const saves = (stats as any)?.saves ?? (stats as any)?.saved ?? 0;
+    const totalInteractions = (stats as any)?.total_interactions ?? (likes + comments + shares + saves);
+    const denom = typeof followersCount === 'number' ? followersCount : 0;
+    if (!denom || denom <= 0) return '0.00%';
+    const rate = (totalInteractions / denom) * 100;
     return `${rate.toFixed(2)}%`;
   };
+  const engagementExplainer = 'Cálculo: interações totais ÷ seguidores.';
 
   const tagBaseClasses =
     'inline-flex items-center justify-center px-2 py-0.5 rounded-md text-xs font-medium text-center break-all max-w-[160px]';
@@ -173,42 +179,59 @@ const VideoCard: React.FC<{
         </div>
 
         {/* Estratégia (chips) */}
-        <div className="col-span-12 md:col-span-2 flex flex-wrap gap-1.5 content-start">
-          {getTranslatedLabels((video as any).format, 'format').map((tag) => (
-            <span key={tag} className={`${tagBaseClasses} bg-gray-100 text-gray-700`}>
-              {tag}
-            </span>
-          ))}
-          {getTranslatedLabels((video as any).proposal, 'proposal').map((tag) => (
-            <span key={tag} className={`${tagBaseClasses} bg-blue-100 text-blue-800`}>
-              {tag}
-            </span>
-          ))}
-          {getTranslatedLabels((video as any).context, 'context').map((tag) => (
-            <span key={tag} className={`${tagBaseClasses} bg-purple-100 text-purple-800`}>
-              {tag}
-            </span>
-          ))}
-          {getTranslatedLabels((video as any).tone, 'tone').map((tag) => (
-            <span key={tag} className={`${tagBaseClasses} bg-yellow-100 text-yellow-800`}>
-              {tag}
-            </span>
-          ))}
-          {getTranslatedLabels((video as any).references, 'reference').map((tag) => (
-            <span key={tag} className={`${tagBaseClasses} bg-green-100 text-green-800`}>
-              {tag}
-            </span>
-          ))}
+        <div className={`col-span-12 ${readOnly ? 'md:col-span-3' : 'md:col-span-2'} flex flex-col gap-1.5 content-start`}>
+          {/* Linha 1: Formato (sozinho) */}
+          <div className="w-full flex flex-wrap gap-1.5">
+            {getTranslatedLabels((video as any).format, 'format').map((tag) => (
+              <span key={tag} className={`${tagBaseClasses} bg-gray-100 text-gray-700`}>
+                {tag}
+              </span>
+            ))}
+          </div>
+          {/* Linha 2: Demais categorias */}
+          <div className="w-full flex flex-wrap gap-1.5">
+            {getTranslatedLabels((video as any).proposal, 'proposal').map((tag) => (
+              <span key={tag} className={`${tagBaseClasses} bg-blue-100 text-blue-800`}>
+                {tag}
+              </span>
+            ))}
+            {getTranslatedLabels((video as any).context, 'context').map((tag) => (
+              <span key={tag} className={`${tagBaseClasses} bg-purple-100 text-purple-800`}>
+                {tag}
+              </span>
+            ))}
+            {getTranslatedLabels((video as any).tone, 'tone').map((tag) => (
+              <span key={tag} className={`${tagBaseClasses} bg-yellow-100 text-yellow-800`}>
+                {tag}
+              </span>
+            ))}
+            {getTranslatedLabels((video as any).references, 'reference').map((tag) => (
+              <span key={tag} className={`${tagBaseClasses} bg-green-100 text-green-800`}>
+                {tag}
+              </span>
+            ))}
+          </div>
         </div>
 
-        {/* Engajamento */}
-        <div className="col-span-12 md:col-span-1 text-left md:text-center">
-          <div className="font-bold text-base text-pink-600">{calculateEngagementRate(video.stats)}</div>
-        </div>
+        {/* Engajamento (coluna dedicada somente quando NÃO readOnly) */}
+        {!readOnly && (
+          <div className="col-span-12 md:col-span-1 text-left md:text-center">
+            <div className="font-bold text-base text-pink-600" title={engagementExplainer}>
+              {calculateEngagementRate(video.stats)}
+            </div>
+          </div>
+        )}
 
-        {/* Métricas */}
+        {/* Métricas (em readOnly, mostra apenas % do engajamento acima) */}
         <div className="col-span-12 md:col-span-2">
           <div className="flex flex-col space-y-1.5 text-xs">
+            {readOnly && (
+              <div className="mb-1">
+                <div className="inline-flex items-center px-2 py-1 rounded-md bg-pink-50 text-pink-700 ring-1 ring-pink-200 text-xs font-bold">
+                  {calculateEngagementRate(video.stats)}
+                </div>
+              </div>
+            )}
             <span className="flex items-center gap-2 text-gray-700">
               <EyeIcon className="text-gray-400 w-3.5 h-3.5" /> {formatNumber(video.stats?.views)}
             </span>
@@ -251,6 +274,10 @@ const VideoCard: React.FC<{
           </a>
         </div>
       </div>
+      {/* Rodapé com explicação do cálculo de engajamento */}
+      <div className="mt-3 pt-2 border-t border-gray-100">
+        <div className="text-[11px] text-gray-500">{engagementExplainer}</div>
+      </div>
     </div>
   );
 };
@@ -262,12 +289,14 @@ const VideosTable: React.FC<VideosTableProps> = ({ videos, ...props }) => {
         <h4 className="md:col-span-5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
           Conteúdo
         </h4>
-        <h4 className="md:col-span-2 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
+        <h4 className={`${props.readOnly ? 'md:col-span-3' : 'md:col-span-2'} text-left text-xs font-semibold text-gray-400 uppercase tracking-wider`}>
           Estratégia
         </h4>
-        <h4 className="md:col-span-1 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">
-          Engaj.
-        </h4>
+        {!props.readOnly && (
+          <h4 className="md:col-span-1 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            Engaj.
+          </h4>
+        )}
         <h4 className="md:col-span-2 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
           Performance
         </h4>
@@ -277,7 +306,7 @@ const VideosTable: React.FC<VideosTableProps> = ({ videos, ...props }) => {
       </div>
 
       {videos.map((video, index) => (
-        <VideoCard key={video._id} video={video} index={index} {...props} />
+        <VideoCard key={video._id} video={video} index={index} followersCount={props.followersCount} {...props} />
       ))}
     </div>
   );

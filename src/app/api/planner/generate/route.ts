@@ -5,7 +5,7 @@ import type { Session } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import AIGeneratedPost from '@/app/models/AIGeneratedPost';
-import { generatePostDraft } from '@/app/lib/planner/ai';
+import { generatePostDraft, generateThemeKeyword } from '@/app/lib/planner/ai';
 import { fetchGoogleNewsSignals } from '@/utils/newsSignals';
 import { getCategoryById } from '@/app/lib/classification';
 import { getBlockSampleCaptions } from '@/utils/getBlockSampleCaptions';
@@ -161,6 +161,7 @@ export async function POST(request: Request) {
     const slotFromBody: any = body?.slot || null;
     const slotId: string | undefined = body?.slotId;
     const strategy: any = body?.strategy || 'default';
+    const noSignals: boolean = Boolean(body?.noSignals);
 
     if (!weekStartRaw && !slotFromBody) {
       return NextResponse.json({ ok: false, error: 'weekStart ou slot é obrigatório' }, { status: 400 });
@@ -214,23 +215,30 @@ export async function POST(request: Request) {
       5
     );
 
-    // 1) extrair do histórico
+    // 1) Tema dominante centralizado (preferir helper com IA/fallback)
     const kwFromCaptions = extractTopKeywordFromCaptions(caps);
-
-    // 2) fallbacks
     const prop0 = slot.categories?.proposal?.[0];
     const ctx0  = slot.categories?.context?.[0];
     const propLabel = prop0 ? (getCategoryById(prop0, 'proposal')?.label || prop0) : undefined;
     const ctxLabel  = ctx0 ? (getCategoryById(ctx0, 'context')?.label || ctx0) : undefined;
-
     const kwFromCat = keywordFromCategoryLabel(propLabel) || keywordFromCategoryLabel(ctxLabel);
     const kwFromThemes = (Array.isArray(slot.themes) && slot.themes.length
       ? String(slot.themes[0]).split(/[:\-–—|]/)[0]?.trim()
       : ''
     ) || undefined;
 
-    // ► tema final (sanitizado)
-    const themeKeyword = sanitizeThemeKeyword(
+    let themeKeyword = await generateThemeKeyword({
+      captions: caps,
+      categories: {
+        context: Array.isArray(slot.categories?.context) ? (slot.categories!.context as string[]) : undefined,
+        proposal: Array.isArray(slot.categories?.proposal) ? (slot.categories!.proposal as string[]) : undefined,
+      },
+      candidates: (slot.themeKeyword ? [String(slot.themeKeyword)] : []),
+    }).catch(() => undefined);
+
+    // ► sanitiza e aplica fallbacks locais caso o helper não retorne
+    themeKeyword = sanitizeThemeKeyword(
+      themeKeyword ||
       (slot.themeKeyword && String(slot.themeKeyword)) ||
       kwFromCaptions ||
       kwFromCat ||
@@ -245,7 +253,10 @@ export async function POST(request: Request) {
       slot?.slotId ?? 'new',
       strategy,
       themeKeyword ?? '(none)',
-      kwFromCaptions ? 'captions' : (slot.themeKeyword ? 'slot' : (kwFromCat ? 'category' : (kwFromThemes ? 'themes' : 'none')))
+      themeKeyword && (themeKeyword === (slot.themeKeyword && sanitizeThemeKeyword(String(slot.themeKeyword))) ? 'slot'
+        : (themeKeyword === (kwFromCaptions && sanitizeThemeKeyword(kwFromCaptions)) ? 'captions'
+          : (themeKeyword === (kwFromCat && sanitizeThemeKeyword(kwFromCat)) ? 'category'
+            : (themeKeyword === (kwFromThemes && sanitizeThemeKeyword(kwFromThemes)) ? 'themes' : 'ai'))))
     );
 
     // Caption sintético
@@ -275,13 +286,18 @@ export async function POST(request: Request) {
     if (ctxLabel) keys.push(ctxLabel);
     if (caps[0]) keys.push(...caps[0].split(/\s+/).slice(0, 4));
 
-    const signalsNews = await fetchGoogleNewsSignals(keys, { lang: 'pt-BR', country: 'BR', limit: 2 }).catch(
-      () => []
-    );
-    const signals = [
-      ...(themeKeyword ? [{ title: themeKeyword, source: 'theme' as const }] : []),
-      ...signalsNews,
-    ];
+    let signals: { title: string; url?: string; source?: string }[] = [];
+    if (!noSignals) {
+      const signalsNews = await fetchGoogleNewsSignals(keys, { lang: 'pt-BR', country: 'BR', limit: 2 }).catch(
+        () => []
+      );
+      signals = [
+        ...(themeKeyword ? [{ title: themeKeyword, source: 'theme' as const }] : []),
+        ...signalsNews,
+      ];
+    } else {
+      if (themeKeyword) signals = [{ title: themeKeyword, source: 'theme' as const }];
+    }
 
     // Geração do rascunho
     const gen = await generatePostDraft({
@@ -364,6 +380,7 @@ export async function POST(request: Request) {
       generated: gen,
       slot: updatedSlot,
       planId: planDoc._id,
+      externalSignalsUsed: signals,
     });
   } catch (err) {
     console.error('[planner/generate] Error:', err);

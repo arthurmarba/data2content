@@ -512,7 +512,14 @@ const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSc
             logger.debug(`${fnTag} Excluindo IDs de inspiração já mostrados hoje para User ${loggedUser._id}: ${excludeIds.join(', ')}`);
         }
     }
-    const inspirations = await getCommunityInspirationsDataService(filters, args.count ?? 2, excludeIds);
+    // Exclui conteúdos do próprio usuário da Comunidade de Inspiração
+    const inspirations = await getCommunityInspirationsDataService(
+      filters,
+      args.count ?? 2,
+      excludeIds,
+      undefined,
+      loggedUser._id.toString()
+    );
 
     if (!inspirations || inspirations.length === 0) {
       logger.info(`${fnTag} Nenhuma inspiração encontrada para os critérios para User ${loggedUser._id}. Filtros: ${JSON.stringify(filters)}`);

@@ -26,15 +26,24 @@ const PT_STOPWORDS_SRC = [
   'oh','ok','depois','antes','durante','entao','então','tipo','coisa','coisas',
   // termos de redes / genéricos
   'conteudo','conteúdo','video','vídeo','reel','reels','post','posts','story','stories','live','shorts','instagram','tiktok',
-  'canal','feed','viral','algoritmo','tema','temas'
+  'canal','feed','viral','algoritmo','tema','temas',
+  // estilos/formatos/propostas genéricos (evitar como tema de 1 palavra)
+  'humor','humoristico','humorístico','tutorial','guia','dica','dicas','chamada','call','publi','divulgacao','divulgação',
+  'publicidade','promo','promocao','promoção','tendencia','tendência','trend','challenge','desafio','reacao','reação',
+  'review','analise','análise','vlog','rotina','avaliacao','avaliação','teste','resenha'
 ];
 const PT_STOPWORDS = new Set(PT_STOPWORDS_SRC.map(normalizeToken).filter(Boolean));
 
 // Palavras ainda “fracas” mesmo se passarem pelo filtro
-const GENERIC_WEAK = new Set(['conteudo','video','reels','post','story','shorts','algoritmo','tema']);
+const GENERIC_WEAK = new Set([
+  'conteudo','video','reels','post','story','shorts','algoritmo','tema',
+  'humor','humoristico','humorístico','tutorial','guia','dica','dicas','chamada','call','publi','divulgacao','divulgação',
+  'publicidade','promo','promocao','promoção','tendencia','tendência','trend','challenge','desafio','reacao','reação',
+  'review','analise','análise','vlog','rotina','avaliacao','avaliação','teste','resenha'
+]);
 
 // ---------- Extração do tema pela palavra mais repetida (doc frequency) ----------
-function extractTopKeyword(captions: string[]): { keyword: string | null; count: number } {
+function extractTopKeyword(captions: string[], exclude?: Set<string>): { keyword: string | null; count: number } {
   const docFreq = new Map<string, number>();                   // token(normalizado) -> nº de legendas distintas que contêm
   const displayForms = new Map<string, Map<string, number>>(); // token(normalizado) -> { 'forma com acento': contagem }
 
@@ -48,6 +57,7 @@ function extractTopKeyword(captions: string[]): { keyword: string | null; count:
       const norm = normalizeToken(raw);
       if (!norm || norm.length < 4) continue;
       if (PT_STOPWORDS.has(norm)) continue;
+      if (exclude && exclude.has(norm)) continue; // ignora termos de categorias
       if (isAllDigits(norm)) continue;
       if (seenInThisDoc.has(norm)) continue;    // conta no máx. 1x por legenda
 
@@ -89,6 +99,26 @@ function ensureStartsWithKeyword(themes: string[], keyword: string): string[] {
   });
 }
 
+// Gera dicas de estilo a partir das categorias (usadas para orientar a IA a ser específica, sem engessar)
+function buildThemeStyleHints(cats: PlannerCategories): string[] {
+  const hints: string[] = [];
+  const proposals = (cats.proposal || []).map(p => p.toLowerCase());
+  const contexts = (cats.context || []).map(c => c.toLowerCase());
+  const tone = (cats.tone || '').toLowerCase();
+
+  const hasP = (id: string) => proposals.includes(id);
+  const hasC = (id: string) => contexts.includes(id);
+
+  if (hasP('comparison')) hints.push('comparison', 'use VS quando fizer sentido');
+  if (hasC('regional_stereotypes')) hints.push('regional_vs', 'use carioca vs paulista se adequado');
+  if (hasC('relationships_family')) hints.push('couple', 'situações de casal (namorado/namorada)');
+  if (hasP('tutorial') || hasP('how_to') || hasP('tips') || hasP('guide') || hasP('educational')) hints.push('how_to', '3 passos práticos no dia a dia');
+  if (hasP('humor_scene')) hints.push('humor_scene', 'cotidiano com humor');
+  if (/humor|sarcas|ironia|comedia/.test(tone)) hints.push('humor');
+
+  return Array.from(new Set(hints)).slice(0, 8);
+}
+
 function composeThemes(keyword: string, cats: PlannerCategories): string[] {
   const themes = new Set<string>();
   const push = (s: string) => { const t = s.replace(/\s+/g,' ').trim(); if (t) themes.add(t); };
@@ -122,7 +152,8 @@ function composeThemes(keyword: string, cats: PlannerCategories): string[] {
     push(`${baseKw} com humor ácido`);
   }
 
-  const out = ensureStartsWithKeyword(Array.from(themes), baseKw);
+  // Não impõe prefixo obrigatório pelo keyword; apenas garante que muitas ideias contenham o termo
+  const out = Array.from(themes);
   return Array.from(new Set(out)).slice(0, 5);
 }
 
@@ -147,6 +178,7 @@ function fallbackKeywordFromCategories(categories: PlannerCategories): string {
 async function aiSummarizeKeyword(params: {
   captions: string[];
   categories: PlannerCategories;
+  forbidden?: string[]; // termos a evitar (labels/tokens de categorias)
 }): Promise<string | null> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return null;
@@ -166,13 +198,15 @@ async function aiSummarizeKeyword(params: {
     }
   };
   const prompt =
-`Resuma o TEMA em **1 palavra** (português), preferindo termos concretos que apareçam ou sejam fortemente implicados nas legendas:
+`Resuma o TEMA em **1 palavra** (português), preferindo substantivos concretos (cenário/lugar/objeto/atividade) que apareçam ou sejam fortemente implicados nas legendas:
 - Sem espaços, sem hashtags, sem emojis, no máximo 20 caracteres.
-- Se não houver pista clara, escolha uma palavra plausível relacionada às categorias.
+- Evite palavras idênticas aos rótulos de categorias (forbidden) e termos genéricos (ex.: conteúdo, vídeo, humor, tutorial).
+- Se não houver pista clara, gere uma palavra plausível que simbolize as descrições.
 Responda **apenas** com JSON válido: {"keyword":"<palavra>"}.
 
 Contexto:
-${JSON.stringify(userPayload, null, 2)}`;
+${JSON.stringify(userPayload, null, 2)}
+Forbidden: ${(params.forbidden || []).join(', ')}`;
 
   try {
     const completion = await openai.chat.completions.create({
@@ -196,6 +230,7 @@ ${JSON.stringify(userPayload, null, 2)}`;
 
     const norm = normalizeToken(kw);
     if (!norm || norm.length < 3 || PT_STOPWORDS.has(norm) || GENERIC_WEAK.has(norm)) return null;
+    if ((params.forbidden || []).some(f => normalizeToken(f) === norm)) return null;
 
     return kw;
   } catch {
@@ -224,14 +259,28 @@ export async function getThemesForSlot(
     caps = await getBlockSampleCaptions(userId, periodDays, dayOfWeek, blockStartHour, selected, 20);
   } catch { caps = []; }
 
-  // 2) Palavra tema (doc frequency + superfície com acento)
-  const { keyword: kwByFreq, count: topCount } = extractTopKeyword(caps);
+  // Tokens a evitar a partir dos rótulos de categorias
+  const excludeTokens = new Set<string>();
+  const collectFromLabel = (id?: string, dim?: 'context'|'proposal'|'reference'|'tone') => {
+    if (!id) return;
+    const lbl = getCategoryById(id, dim as any)?.label || id;
+    const parts = String(lbl).split(/[^\p{L}\p{N}]+/u).map(normalizeToken).filter(Boolean);
+    parts.forEach(p => excludeTokens.add(p));
+    excludeTokens.add(normalizeToken(String(lbl)));
+  };
+  (categories.context || []).forEach(id => collectFromLabel(id, 'context'));
+  (categories.proposal || []).forEach(id => collectFromLabel(id, 'proposal'));
+  (categories.reference || []).forEach(id => collectFromLabel(id, 'reference'));
+  if (categories.tone) collectFromLabel(categories.tone, 'tone');
+
+  // 2) Palavra tema (doc frequency + superfície com acento), ignorando termos das categorias
+  const { keyword: kwByFreq, count: topCount } = extractTopKeyword(caps, excludeTokens);
   const weak = kwByFreq ? (GENERIC_WEAK.has(normalizeToken(kwByFreq)) || normalizeToken(kwByFreq).length < 3) : true;
 
   // 2b) Se não repetiu pelo menos 2 legendas OU ficou fraco/genérico → tenta IA (1 palavra)
   let keyword = kwByFreq || '';
   if (!kwByFreq || topCount < 2 || weak) {
-    const aiKw = await aiSummarizeKeyword({ captions: caps, categories });
+    const aiKw = await aiSummarizeKeyword({ captions: caps, categories, forbidden: Array.from(excludeTokens) });
     if (aiKw) keyword = aiKw;
   }
 
@@ -241,10 +290,12 @@ export async function getThemesForSlot(
 
   // 3) Variações de temas (linhas) com IA; fallback local se falhar
   try {
-    const aiThemes = await generateThemesAI({ keyword, categories, sourceCaptions: caps, count: 5 });
+    const styleHints = buildThemeStyleHints(categories);
+    const mode = (process.env.PLANNER_THEMES_MODE || 'flex').toLowerCase();
+    const startWithKeyword = mode === 'strict'; // flex = false (padrão), strict = true
+    const aiThemes = await generateThemesAI({ keyword, categories, sourceCaptions: caps, count: 5, startWithKeyword, styleHints });
     if (Array.isArray(aiThemes) && aiThemes.length) {
-      const prefixed = ensureStartsWithKeyword(aiThemes, keyword);
-      const uniq = Array.from(new Set(prefixed.map(t => t.trim()).filter(Boolean))).slice(0, 5);
+      const uniq = Array.from(new Set(aiThemes.map(t => t.trim()).filter(Boolean))).slice(0, 5);
       if (uniq.length >= 3) return { keyword, themes: uniq };
     }
   } catch { /* fallback abaixo */ }

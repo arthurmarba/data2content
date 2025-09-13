@@ -10,6 +10,8 @@ interface AverageEngagementData {
   averageEngagementPerPost: number;
   sumEngagementRateOnReach: number;
   averageEngagementRateOnReach: number;
+  sumReach: number; // soma do alcance (stats.reach)
+  sumViews: number; // soma de views (ou video_views)
   startDateUsed: Date | null; // Renomeado para clareza
   endDateUsed: Date | null;   // Renomeado para clareza
 }
@@ -42,6 +44,8 @@ async function calculateAverageEngagementPerPost(
     averageEngagementPerPost: 0,
     sumEngagementRateOnReach: 0,
     averageEngagementRateOnReach: 0,
+    sumReach: 0,
+    sumViews: 0,
     startDateUsed: effectiveStartDate,
     endDateUsed: effectiveEndDate,
   };
@@ -60,6 +64,8 @@ async function calculateAverageEngagementPerPost(
 
     let tempTotalInteractions = 0;
     let tempSumEngagementRateOnReach = 0;
+    let tempSumReach = 0;
+    let tempSumViews = 0;
     // Contagem de posts válidos para cada métrica específica não é usada no cálculo final da média
     // conforme a definição da tarefa, mas pode ser útil para entender os dados.
     // let validPostsForRate = 0;
@@ -75,12 +81,21 @@ async function calculateAverageEngagementPerPost(
           tempSumEngagementRateOnReach += post.stats.engagement_rate_on_reach;
           // validPostsForRate++;
         }
+        if (typeof (post.stats as any).reach === 'number') {
+          tempSumReach += (post.stats as any).reach as number;
+        }
+        const viewsFallback = (post.stats as any)?.views ?? (post.stats as any)?.video_views;
+        if (typeof viewsFallback === 'number') {
+          tempSumViews += viewsFallback as number;
+        }
       }
     }
 
     initialResult.numberOfPosts = posts.length;
     initialResult.totalEngagement = tempTotalInteractions;
     initialResult.sumEngagementRateOnReach = tempSumEngagementRateOnReach;
+    initialResult.sumReach = tempSumReach;
+    initialResult.sumViews = tempSumViews;
 
 
     if (initialResult.numberOfPosts > 0) {
@@ -100,9 +115,10 @@ async function calculateAverageEngagementPerPost(
       averageEngagementPerPost: 0,
       sumEngagementRateOnReach: 0,
       averageEngagementRateOnReach: 0,
+      sumReach: 0,
+      sumViews: 0,
     };
   }
 }
 
 export default calculateAverageEngagementPerPost;
-

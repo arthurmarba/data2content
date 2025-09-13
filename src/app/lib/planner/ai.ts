@@ -20,6 +20,7 @@ export interface GenerateDraftResult {
   hashtags?: string[];
   tone?: string;
   recordingTimeSec?: number;
+  beats?: string[];
 }
 
 // --- utils locais ---
@@ -331,12 +332,20 @@ export async function generatePostDraft(input: GenerateDraftInput): Promise<Gene
         titlePrefixHint,
       });
 
+      const beats: string[] = [
+        `Abertura — gancho com ${theme || scenarioTerm || 'o tema'}`,
+        'Cena principal — conflito/situação do dia a dia',
+        'Corte — reação para timing cômico',
+        `Encerramento — CTA (${ctaHint || 'comente e salve'})`,
+      ];
+
       return {
         title: enforced.title,
         script: enforced.script,
         hashtags: uniqTags,
         recordingTimeSec: estimateRecordingTimeSec(enforced.script, tone),
         tone,
+        beats,
       };
     } else {
       let fallbackTitle = baseTopic
@@ -361,12 +370,21 @@ export async function generatePostDraft(input: GenerateDraftInput): Promise<Gene
         titlePrefixHint,
       });
 
+      const beats: string[] = [
+        `Gancho — ${theme || baseTopic || 'problema'} em 3s`,
+        'Passo 1 — setup simples',
+        'Passo 2 — execução',
+        'Passo 3 — reforço/checagem',
+        'CTA — comentar e salvar',
+      ];
+
       return {
         title: enforced.title,
         script: enforced.script,
         hashtags: uniqTags,
         recordingTimeSec: estimateRecordingTimeSec(enforced.script, tone),
         tone,
+        beats,
       };
     }
   }
@@ -397,8 +415,8 @@ export async function generatePostDraft(input: GenerateDraftInput): Promise<Gene
 
   const sys =
 `Você é um assistente especializado em roteiros curtos para Instagram (Reels/Posts).
-Gere um título conciso (máx. 60 chars) e um roteiro direto, com gancho inicial forte e CTA.
-Responda obrigatoriamente em JSON com as chaves: title, script, hashtags[].`;
+Gere um título conciso (máx. 60 chars), um roteiro direto (com gancho forte) e um plano de cena (beats) com 3–6 itens curtos.
+Responda obrigatoriamente em JSON com as chaves: title, script, hashtags[], beats?.`;
 
   const user = {
     dayOfWeek,
@@ -440,6 +458,21 @@ Responda obrigatoriamente em JSON com as chaves: title, script, hashtags[].`;
   2) **inclua a palavra do tema nos primeiros 120 caracteres do roteiro** (gancho);
   3) alinhe o conteúdo do roteiro ao tema, sem enrolação.`;
 
+  // Hints adicionais baseados nas categorias para orientar, sem engessar
+  const cats = input.categories || {};
+  const pIds = (cats.proposal || []).map(x => String(x).toLowerCase());
+  const cIds = (cats.context || []).map(x => String(x).toLowerCase());
+  const hasP = (id: string) => pIds.includes(id);
+  const hasC = (id: string) => cIds.includes(id);
+  const themeWord = (input.themeKeyword || '').trim();
+
+  const comparisonRegionalHint = (hasP('comparison') && hasC('regional_stereotypes'))
+    ? `- Traga contraste regional quando fizer sentido (ex.: carioca vs paulista) aplicado ao tema ${themeWord ? '"'+themeWord+'"' : ''}.\n`
+    : '';
+  const relationshipsHint = hasC('relationships_family')
+    ? `- Sugira 1 cena em casal quando natural (ex.: "quando vou com meu namorado pra ${themeWord || 'o tema'}").\n`
+    : '';
+
   const prompt =
     `Contexto do Slot:\n${JSON.stringify(user, null, 2)}\n\n` +
     `Instruções:\n- Use categoryDetails (labels+descrições) e sourceCaptions (legendas reais do criador neste horário) como referências conceituais; **não copie literalmente**.\n` +
@@ -449,8 +482,10 @@ Responda obrigatoriamente em JSON com as chaves: title, script, hashtags[].`;
     lengthHint +
     humorHint +
     strongHookHint +
+    comparisonRegionalHint +
+    relationshipsHint +
     themeHint +
-    `\n- Se externalSignals vier preenchido, use pelo menos 1 sinal atual como gancho (não invente fatos).\n- CTA claro no final (ex.: "${ctaHint || 'Comente X e salve'}").\n- Ajuste tom conforme categories.tone.\n- Hashtags 3–6, relevantes ao contexto.\n- Saída: **JSON puro** válido.`;
+    `\n- Se externalSignals vier preenchido, use pelo menos 1 sinal atual como gancho (não invente fatos).\n- CTA claro no final (ex.: "${ctaHint || 'Comente X e salve'}").\n- Ajuste tom conforme categories.tone.\n- Hashtags 3–6, relevantes ao contexto.\n- Gere também um plano de cena (beats) com 3 a 6 itens curtos e acionáveis.\n- Saída: **JSON puro** válido com: {"title": string, "script": string, "hashtags"?: string[], "beats"?: string[]}.`;
 
   const completion = await openai.chat.completions.create({
     model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
@@ -468,6 +503,7 @@ Responda obrigatoriamente em JSON com as chaves: title, script, hashtags[].`;
   let title: string = typeof parsed.title === 'string' ? parsed.title : '[Rascunho] Título';
   let script: string = typeof parsed.script === 'string' ? parsed.script : 'Roteiro gerado.';
   const hashtagsFromAI: string[] = Array.isArray(parsed.hashtags) ? parsed.hashtags.filter((h: any) => typeof h === 'string') : [];
+  const beatsFromAI: string[] = Array.isArray(parsed.beats) ? parsed.beats.filter((b: any) => typeof b === 'string') : [];
 
   // complete hashtags (se vierem poucas)
   const fmtLabel = formatLabel(format);
@@ -495,7 +531,7 @@ Responda obrigatoriamente em JSON com as chaves: title, script, hashtags[].`;
 
   const recordingTimeSec = estimateRecordingTimeSec(script, tone);
 
-  return { title, script, hashtags, tone, recordingTimeSec };
+  return { title, script, hashtags, tone, recordingTimeSec, beats: beatsFromAI };
 }
 
 /* =============================================================================
@@ -507,6 +543,8 @@ export async function generateThemes(input: {
   sourceCaptions?: string[];
   externalSignals?: { title: string; url?: string; source?: string; }[];
   count?: number;
+  startWithKeyword?: boolean; // modo flex: keyword presente, mas não necessariamente no início
+  styleHints?: string[];      // dicas de estilo/estrutura vindas das categorias
 }): Promise<string[]> {
   const apiKey = process.env.OPENAI_API_KEY;
   const count = Math.min(8, Math.max(3, input.count || 5));
@@ -514,24 +552,51 @@ export async function generateThemes(input: {
     return [];
   }
   const openai = new OpenAI({ apiKey });
-  const sys = `Você é um gerador de TEMAS para vídeos curtos (Reels). Gere ideias curtas, diretas e específicas.`;
+  const sys = `Você é um gerador de TEMAS para vídeos curtos (Reels). Gere ideias curtas, diretas e específicas, guiadas por contexto.`;
   const userPayload = {
     keyword: input.keyword,
     categories: input.categories,
     sourceCaptions: (input.sourceCaptions || []).slice(0, 8),
     externalSignals: (input.externalSignals || []).slice(0, 3),
+    styleHints: (input.styleHints || []).slice(0, 8),
     rules: {
       language: 'pt-BR',
-      mustStartWithKeyword: true,
+      mustStartWithKeyword: !!input.startWithKeyword,
       count,
     }
   };
+  // exemplos curtos opcionais
+  const examples: string[] = [];
+  const kw = String(input.keyword || '').trim();
+  const hints = new Set((input.styleHints || []).map(h => String(h).toLowerCase()));
+  if (kw) {
+    if (hints.has('regional_vs') || hints.has('comparison')) {
+      examples.push(`carioca vs paulista na ${kw}`);
+    }
+    if (hints.has('couple') || hints.has('relationships')) {
+      examples.push(`quando vou com meu namorado pra ${kw}`);
+    }
+    if (hints.has('how_to') || hints.has('guide') || hints.has('tutorial') || hints.has('tips')) {
+      examples.push(`como usar ${kw} em 3 passos`);
+    }
+    if (hints.has('humor') || hints.has('humor_scene')) {
+      examples.push(`${kw} quando tudo dá ruim`);
+    }
+  }
+
+  const startRule = userPayload.rules.mustStartWithKeyword
+    ? `- Cada tema DEVE começar com a palavra-chave (case-insensitive): "${kw}".`
+    : `- Inclua a palavra-chave (case-insensitive): "${kw}" de forma natural; não precisa iniciar a frase.`;
+
   const prompt =
     `Gere uma lista de ${count} TEMAS. Regras:\n`+
-    `- Cada tema DEVE começar com a palavra-chave (case-insensitive): "${input.keyword}".\n`+
+    `${startRule}\n`+
     `- Use as legendas (sourceCaptions) como contexto para sugerir situações reais; não copie trechos.\n`+
     `- Considere categories (proposal/context/tone/reference) para ajustar estilo.\n`+
-    `- Seja específico ("${input.keyword} no metrô lotado", "${input.keyword} quando tudo dá ruim", "${input.keyword} pra resolver X em casa").\n`+
+    `- Evite termos genéricos, não use hashtags, não use emojis.\n`+
+    `- Seja específico (ex.: "no metrô lotado", "quando tudo dá ruim", "pra resolver X em casa").\n`+
+    (examples.length ? `- Exemplos de estilo (não copie literalmente): ${examples.map(e => `"${e}"`).join(', ')}\n` : '') +
+    (userPayload.styleHints?.length ? `- Siga estes hints de estilo quando fizer sentido: ${userPayload.styleHints.join('; ')}\n` : '') +
     `- Responda EXCLUSIVAMENTE em JSON com {"themes": string[]}.\n`+
     `\nContexto:\n${JSON.stringify(userPayload, null, 2)}`;
 
@@ -548,8 +613,13 @@ export async function generateThemes(input: {
   const content = completion.choices?.[0]?.message?.content || '{}';
   try {
     const parsed = JSON.parse(content);
-    const arr = Array.isArray(parsed?.themes) ? parsed.themes.filter((t: any) => typeof t === 'string') : [];
-    return arr.slice(0, count);
+    const arrRaw: string[] = Array.isArray(parsed?.themes)
+      ? (parsed.themes as unknown[]).filter((t: unknown): t is string => typeof t === 'string')
+      : [];
+    // Pós-processamento: dedupe simples, remove vazios e corta em até count
+    const norm = (s: string) => s.trim().replace(/\s+/g, ' ');
+    const uniq = Array.from(new Set(arrRaw.map(norm))).filter((s): s is string => !!s);
+    return uniq.slice(0, count);
   } catch {
     return [];
   }

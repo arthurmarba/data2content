@@ -213,6 +213,9 @@ export function usePlannerData(params: {
             scriptShort: r.scriptShort,
             themes: r.themes || [],
             themeKeyword: r.themeKeyword,
+            // opcional vindo do recomendador (para explicabilidade)
+            // @ts-ignore
+            rationale: r.rationale,
           }));
           safeSetSlots(recSlots);
         }

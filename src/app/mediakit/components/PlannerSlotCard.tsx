@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { Sparkles } from 'lucide-react';
 import { idsToLabels, getCategoryById } from '@/app/lib/classification';
 
 export interface PlannerSlotCardProps {
@@ -11,6 +12,7 @@ export interface PlannerSlotCardProps {
   isExperiment?: boolean;
   status?: 'planned' | 'drafted' | 'test' | 'posted';
   formatId?: 'reel' | 'photo' | 'carousel' | 'story' | 'live' | 'long_video';
+  dayOfWeek?: number; // 1..7 (7=Dom)
   onClick?: React.MouseEventHandler<HTMLButtonElement>;
 }
 
@@ -51,6 +53,7 @@ export const PlannerSlotCard: React.FC<PlannerSlotCardProps> = ({
   isExperiment,
   status,
   formatId,
+  dayOfWeek,
   onClick
 }) => {
   const p50 = expectedMetrics?.viewsP50;
@@ -90,6 +93,13 @@ export const PlannerSlotCard: React.FC<PlannerSlotCardProps> = ({
       </div>
     )
   );
+
+  const dayShort = (() => {
+    if (typeof dayOfWeek !== 'number') return '';
+    const DAYS_PT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    if (dayOfWeek === 7) return DAYS_PT[0];
+    return DAYS_PT[dayOfWeek] || '';
+  })();
 
   const allChips: { key: string; label: string; style: string }[] = [];
   const fmt = formatLabel(formatId);
@@ -141,6 +151,19 @@ export const PlannerSlotCard: React.FC<PlannerSlotCardProps> = ({
       data-theme={themeKeyword || undefined}
     >
       {badge}
+
+      {/* Chip visual para Tema + Dia (canto superior esquerdo) */}
+      {(themeKeyword && dayShort) && (
+        <div className="absolute top-3 left-3 z-10">
+          <span
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-pink-50 text-pink-700 ring-1 ring-pink-200 text-[11px] max-w-[70%] truncate"
+            title={`${dayShort} — ${themeKeyword}`}
+          >
+            <Sparkles size={12} />
+            <span className="truncate">{dayShort} — {themeKeyword}</span>
+          </span>
+        </div>
+      )}
 
       {isPosted && (
         <div

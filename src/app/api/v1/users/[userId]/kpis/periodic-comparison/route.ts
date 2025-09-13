@@ -176,13 +176,19 @@ export async function GET(
       previous: periodNamePrevious,
     });
 
+    // Nova definição: total de interações no período / total de alcance no período (sempre alcance)
+    const totalReachCurrent = (engCurrentResult as any)?.sumReach ?? 0;
+    const denomCurrent = totalReachCurrent > 0 ? totalReachCurrent : null;
     const currentEngagementRate =
-      engCurrentResult.totalEngagement !== null && fgT0 !== null && fgT0 > 0
-        ? (engCurrentResult.totalEngagement / fgT0) * 100
+      engCurrentResult.totalEngagement !== null && denomCurrent && denomCurrent > 0
+        ? (engCurrentResult.totalEngagement / denomCurrent) * 100
         : null;
+
+    const totalReachPrev = (engPreviousResult as any)?.sumReach ?? 0;
+    const denomPrev = totalReachPrev > 0 ? totalReachPrev : null;
     const previousEngagementRate =
-      engPreviousResult.totalEngagement !== null && fgT1 !== null && fgT1 > 0
-        ? (engPreviousResult.totalEngagement / fgT1) * 100
+      engPreviousResult.totalEngagement !== null && denomPrev && denomPrev > 0
+        ? (engPreviousResult.totalEngagement / denomPrev) * 100
         : null;
     const engagementRateData = createKpiDataObject(
       currentEngagementRate,

@@ -17,8 +17,9 @@ import {
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// Versão do algoritmo/snapshot (2 = baseado em views)
-const ALGO_VERSION = 2;
+// Versão do algoritmo/snapshot
+// 3 = mantém base em views, mas muda enriquecimento de TEMAS (modo flex por default)
+const ALGO_VERSION = 3;
 
 // === Toggle de freeze/cache ===
 // Em produção: segue env; em dev: desligado por padrão (p/ testes).
