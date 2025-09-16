@@ -16,7 +16,15 @@ function startOfWeekISO(d = new Date()) {
   return date.toISOString();
 }
 
-const Chip = ({ children, color = "gray" as "purple" | "magenta" | "teal" | "orange" | "gray" }) => {
+// --- CÓDIGO CORRIGIDO AQUI ---
+// Definição dos tipos para as propriedades do componente
+type ChipProps = {
+  children: React.ReactNode;
+  color?: "purple" | "magenta" | "teal" | "orange" | "gray";
+};
+
+// Componente com os tipos aplicados
+const Chip = ({ children, color = "gray" }: ChipProps) => {
   const styles: Record<string, string> = {
     purple: "bg-brand-purple/10 text-brand-purple ring-1 ring-brand-purple/30",
     magenta: "bg-brand-magenta/10 text-brand-magenta ring-1 ring-brand-magenta/30",
@@ -26,6 +34,7 @@ const Chip = ({ children, color = "gray" as "purple" | "magenta" | "teal" | "ora
   };
   return <span className={`text-xs md:text-sm px-2.5 py-1 rounded-full whitespace-nowrap ${styles[color]}`}>{children}</span>;
 };
+// --- FIM DA CORREÇÃO ---
 
 export default function PlannerDemoPage() {
   const [title, setTitle] = useState<string>("");
@@ -370,4 +379,3 @@ export default function PlannerDemoPage() {
     </div>
   );
 }
-
