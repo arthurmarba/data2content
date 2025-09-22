@@ -70,7 +70,7 @@ export default function OnboardingPage() {
               onClick={goToMediaKit}
               className="mt-4 inline-flex items-center px-4 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700"
             >
-              Ir para o Mídia Kit
+              Entrar na Comunidade
             </button>
           </div>
         )}
