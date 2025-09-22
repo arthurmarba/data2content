@@ -2,6 +2,7 @@
 import { Types } from 'mongoose';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import MetricModel from '@/app/models/Metric';
+import { createBasePipeline } from '@/app/lib/dataService/marketAnalysis/helpers';
 import { getCategoryById } from '@/app/lib/classification';
 import { getStartDateFromTimePeriod } from './dateHelpers';
 import { logger } from '@/app/lib/logger';
@@ -52,6 +53,8 @@ export interface CommunityInspirationPost {
   date: string;
   coverUrl?: string | null;
   postLink?: string | null;
+  creatorName?: string | null;
+  creatorAvatarUrl?: string | null;
   reason?: string[];
 }
 
@@ -92,11 +95,27 @@ export async function findCommunityInspirationPosts(params: {
   if (catOr.length) baseMatch.$or = catOr;
 
   // Pré-seleção por views desc (corta universo)
-  const pre = await MetricModel.find(baseMatch)
-    .select({ description: 1, 'stats.views': 1, postDate: 1, coverUrl: 1, postLink: 1, context: 1, proposal: 1, references: 1 })
-    .sort({ 'stats.views': -1 })
-    .limit(300)
-    .lean();
+  // Restringe resultados a criadores com opt-in da comunidade
+  const pre = await MetricModel.aggregate([
+    { $match: baseMatch },
+    ...createBasePipeline(),
+    { $match: { 'creatorInfo.communityInspirationOptIn': true } },
+    { $project: {
+        description: 1,
+        'stats.views': 1,
+        postDate: 1,
+        coverUrl: 1,
+        postLink: 1,
+        'creatorInfo.username': 1,
+        'creatorInfo.profile_picture_url': 1,
+        context: 1,
+        proposal: 1,
+        references: 1,
+      }
+    },
+    { $sort: { 'stats.views': -1 } },
+    { $limit: 300 },
+  ]).exec();
 
   const qTokens = extractQueryKeywords((params.script || '').toString(), params.themeKeyword, 12);
   const styleHints = (params.styleHints || []).map(s => String(s).toLowerCase());
@@ -159,6 +178,8 @@ export async function findCommunityInspirationPosts(params: {
     date: (r?.postDate instanceof Date ? r.postDate.toISOString() : new Date(r?.postDate || Date.now()).toISOString()),
     coverUrl: r?.coverUrl || null,
     postLink: r?.postLink || null,
+    creatorName: r?.creatorInfo?.username || null,
+    creatorAvatarUrl: r?.creatorInfo?.profile_picture_url || null,
     reason: reasonFor(r, s),
   }));
 

@@ -100,7 +100,29 @@ function isPendingPlanChangePayment(inv: Stripe.Invoice | null | undefined) {
   return Boolean(reasonOk && createdRecent && pendingPI);
 }
 
-export async function GET() {
+function isInactiveLike(v: unknown): boolean {
+  if (!v) return true;
+  const s = String(v).toLowerCase();
+  return (
+    s === "inactive" ||
+    s === "canceled" ||
+    s === "unpaid" ||
+    s === "incomplete_expired" ||
+    s === "expired" ||
+    s === "pending"
+  );
+}
+
+export async function GET(req: Request) {
+  const force = (() => {
+    try {
+      const url = new URL(req.url);
+      return url.searchParams.get("force") === "true";
+    } catch {
+      return false;
+    }
+  })();
+
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
@@ -129,12 +151,20 @@ export async function GET() {
     });
   };
 
-  // Fast-path: se DB já tem interval + status, evita roundtrip ao Stripe
-  if ((user as any).planInterval && (user as any).planStatus) {
-    return respondFromDb();
+  // Fast-path mais seguro: permite auto-healing quando DB está "inactive-like"
+  const hasStripeCustomer = Boolean((user as any).stripeCustomerId);
+  const hasDbIntervalAndStatus = Boolean((user as any).planInterval && (user as any).planStatus);
+  const dbStatusRaw = (user as any).planStatus ?? null;
+  if (!force) {
+    if (hasDbIntervalAndStatus) {
+      // Se não temos customer no Stripe, não tem o que buscar
+      if (!hasStripeCustomer) return respondFromDb();
+      // Se o DB NÃO está em estado inativo, pode responder do DB
+      if (!isInactiveLike(dbStatusRaw)) return respondFromDb();
+    }
   }
 
-  if (!(user as any).stripeCustomerId) {
+  if (!hasStripeCustomer) {
     return respondFromDb();
   }
 

@@ -35,7 +35,7 @@ export async function GET(_req: NextRequest) {
     }
 
     // Inclui fallbacks úteis: price, default PM e PM do PaymentIntent da última fatura
-    const sub = (await stripe.subscriptions.retrieve(user.stripeSubscriptionId, {
+    let sub = (await stripe.subscriptions.retrieve(user.stripeSubscriptionId, {
       expand: [
         "items.data.price",
         "default_payment_method",
@@ -46,19 +46,87 @@ export async function GET(_req: NextRequest) {
 
     // Estados de assinatura sem valor para UI → limpar e 204
     if (sub.status === "incomplete" || sub.status === "incomplete_expired") {
+      // 1) Cancela a assinatura incompleta/incompleta_expirada vinculada
+      try { await stripe.subscriptions.cancel(sub.id); } catch { /* noop */ }
+
+      // 2) Procura outra assinatura válida (active/trialing ou non_renewing via flag cancel_at_period_end)
       try {
-        await stripe.subscriptions.cancel(sub.id);
+        const listed = await stripe.subscriptions.list({
+          customer: user.stripeCustomerId as string,
+          status: "all",
+          limit: 10,
+          expand: [
+            "data.items.data.price",
+            "data.default_payment_method",
+            "data.latest_invoice.payment_intent",
+            "data.latest_invoice.payment_intent.payment_method",
+          ],
+        } as any);
+
+        const pick = listed.data.find((s: any) => {
+          const st = s?.status;
+          const cape = Boolean((s as any)?.cancel_at_period_end);
+          return st === "active" || st === "trialing" || (cape && (st === "active" || st === "trialing"));
+        });
+
+        if (pick) {
+          // 3) Reanexa ao usuário e segue fluxo de resposta com a nova sub
+          const firstItem: any = pick.items?.data?.[0];
+          const interval = firstItem?.price?.recurring?.interval;
+          const planInterval = interval === "month" || interval === "year" ? interval : undefined;
+          const cancelAtPeriodEnd = Boolean((pick as any)?.cancel_at_period_end);
+          const ends = (pick.items?.data ?? [])
+            .map((it: any) => it?.current_period_end)
+            .filter((n: any) => typeof n === "number");
+          const planExpiresAt =
+            typeof (pick as any).cancel_at === "number"
+              ? new Date((pick as any).cancel_at * 1000)
+              : ends.length
+              ? new Date(Math.min(...ends) * 1000)
+              : typeof (pick as any).current_period_end === "number"
+              ? new Date((pick as any).current_period_end * 1000)
+              : null;
+
+          user.stripeSubscriptionId = pick.id;
+          user.stripePriceId = firstItem?.price?.id ?? null;
+          if (planInterval !== undefined) user.planInterval = planInterval as any;
+          user.planExpiresAt = planExpiresAt;
+          (user as any).currentPeriodEnd = planExpiresAt;
+          user.cancelAtPeriodEnd = cancelAtPeriodEnd;
+          user.planStatus = (pick as any).status as any;
+          await user.save();
+
+          // Garante que os campos expandidos estejam presentes como no início
+          sub = (await stripe.subscriptions.retrieve(pick.id, {
+            expand: [
+              "items.data.price",
+              "default_payment_method",
+              "latest_invoice.payment_intent",
+              "latest_invoice.payment_intent.payment_method",
+            ],
+          })) as Stripe.Subscription;
+        } else {
+          // 4) Sem assinatura válida: converte para inactive e retorna 204
+          user.stripeSubscriptionId = undefined as any;
+          user.planStatus = "inactive" as any;
+          user.stripePriceId = null;
+          user.planInterval = undefined as any;
+          user.planExpiresAt = null;
+          user.cancelAtPeriodEnd = false;
+          await user.save();
+          return new NextResponse(null, { status: 204, headers: cacheHeader });
+        }
       } catch {
-        /* noop */
+        // Fallback defensivo se list falhar: mantém comportamento antigo
+        user.stripeSubscriptionId = undefined as any;
+        user.planStatus = "inactive" as any;
+        user.stripePriceId = null;
+        user.planInterval = undefined as any;
+        user.planExpiresAt = null;
+        user.cancelAtPeriodEnd = false;
+        await user.save();
+        return new NextResponse(null, { status: 204, headers: cacheHeader });
       }
-      user.stripeSubscriptionId = undefined as any;
-      user.planStatus = "inactive" as any;
-      user.stripePriceId = null;
-      user.planInterval = undefined;
-      user.planExpiresAt = null;
-      user.cancelAtPeriodEnd = false;
-      await user.save();
-      return new NextResponse(null, { status: 204, headers: cacheHeader });
     }
 
     // ---------- Price / moeda ----------

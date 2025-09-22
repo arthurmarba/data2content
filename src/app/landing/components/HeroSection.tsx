@@ -43,7 +43,7 @@ export default function HeroSection() {
               variants={heroItemVariants}
               className="text-5xl md:text-7xl font-extrabold tracking-tighter text-brand-dark"
             >
-              A 1º IA do mundo que entende seus posts no Instagram
+              Milhares de posts virais do Instagram, decifrados pelo ChatGPT.
             </motion.h1>
 
             {/*

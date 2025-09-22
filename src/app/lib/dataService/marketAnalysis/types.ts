@@ -87,6 +87,8 @@ export interface FindGlobalPostsArgs {
     format?: string | string[];
     tone?: string | string[];
     references?: string | string[];
+    /** Quando true, só retorna posts de criadores com opt-in da comunidade */
+    onlyOptIn?: boolean;
     /** Texto de busca para título, descrição ou nome do criador */
     searchText?: string;
     minInteractions?: number;
@@ -106,8 +108,11 @@ export interface IGlobalPostResult {
   text_content?: string;
   description?: string;
   creatorName?: string;
+  creatorAvatarUrl?: string;
   postDate?: Date;
   coverUrl?: string;
+  postLink?: string;
+  instagramMediaId?: string;
   format?: string;
   proposal?: string;
   context?: string;

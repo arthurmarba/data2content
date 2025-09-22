@@ -1,7 +1,6 @@
 // src/app/components/UserAvatar.tsx
 'use client';
 
-import Image from 'next/image';
 import React from 'react';
 
 interface UserAvatarProps {
@@ -56,19 +55,39 @@ export function UserAvatar({
     );
   }
 
-  const skipOptimization = isBlockedHost(src);
+  // Para hosts do Instagram/Facebook, preferimos usar nosso proxy para evitar 403
+  let imgSrc = src as string;
+  if (isBlockedHost(src || undefined)) {
+    if (!imgSrc.startsWith('/api/proxy/thumbnail/')) {
+      imgSrc = `/api/proxy/thumbnail/${encodeURIComponent(imgSrc)}`;
+    }
+  }
+
+  // Solicita modo estrito ao proxy (se já estiver usando) para evitar PNG 1x1 silencioso
+  if (imgSrc.startsWith('/api/proxy/thumbnail/')) {
+    imgSrc = imgSrc.includes('?') ? `${imgSrc}&strict=1` : `${imgSrc}?strict=1`;
+  }
 
   return (
-    <Image
-      src={src as string}
+    <img
+      src={imgSrc}
       alt={`Avatar de ${name}`}
       width={size}
       height={size}
       className={baseClasses}
-      unoptimized={skipOptimization}
+      style={{ width: size, height: size }}
+      loading="lazy"
+      draggable={false}
       referrerPolicy="no-referrer"
+      crossOrigin="anonymous"
       onError={() => setErrored(true)}
-      priority
+      onLoad={(e) => {
+        const el = e.currentTarget as HTMLImageElement;
+        // Se o proxy devolveu um fallback 1x1 (em modo não estrito), trata como erro
+        if (el.naturalWidth <= 2 && el.naturalHeight <= 2) {
+          setErrored(true);
+        }
+      }}
     />
   );
 }

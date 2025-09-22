@@ -1,9 +1,35 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { track } from "@/lib/track";
 
 const PlannerPreviewSection: React.FC = () => {
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      try {
+        if (!e?.data || typeof e.data !== "object") return;
+        // Segurança básica: apenas mesma origem
+        if (e.origin && e.origin !== window.location.origin) return;
+        if (e.data.type !== "planner-demo:height") return;
+        const nextH = Number(e.data.height);
+        if (!Number.isFinite(nextH)) return;
+        const iframe = iframeRef.current;
+        if (iframe) {
+          // Ajuste com limites para evitar alturas absurdas
+          const clamped = Math.max(600, Math.min(nextH + 16 /* small padding */, 2000));
+          iframe.style.height = `${clamped}px`;
+        }
+        // Se chegou mensagem, consideramos carregado também
+        setLoaded(true);
+      } catch {}
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
+
   return (
     <section id="planner-preview" className="py-20 bg-white text-black">
       <div className="container mx-auto px-6">
@@ -42,7 +68,7 @@ const PlannerPreviewSection: React.FC = () => {
           </div>
 
           <div className="w-full lg:w-7/12">
-            <div className="rounded-xl border border-gray-200 bg-white shadow-2xl overflow-hidden">
+            <div className="relative rounded-xl border border-gray-200 bg-white shadow-2xl overflow-hidden">
               <div className="h-8 bg-gray-100 flex items-center px-4 border-b border-gray-200">
                 <div className="flex items-center gap-2">
                   <span className="h-3 w-3 block rounded-full bg-red-500"></span>
@@ -50,15 +76,26 @@ const PlannerPreviewSection: React.FC = () => {
                   <span className="h-3 w-3 block rounded-full bg-green-500"></span>
                 </div>
               </div>
+              {/* Skeleton simples enquanto o iframe carrega */}
+              {!loaded && (
+                <div className="absolute inset-x-0 bottom-0 top-8 bg-white">
+                  <div className="h-full w-full animate-pulse bg-gradient-to-b from-gray-50 to-gray-100" />
+                </div>
+              )}
+
               <iframe
+                ref={iframeRef}
                 src="/planner/demo"
-                className="w-full block"
-                style={{ minHeight: 1400 }}
+                className="w-full block transition-[height] duration-300 ease-out"
+                // Altura inicial razoável até recebermos postMessage
+                style={{ height: 720 }}
                 loading="lazy"
+                title="Demonstração do Planejamento"
+                aria-label="Demonstração do Planejamento"
                 onLoad={() => {
+                  setLoaded(true);
                   try { track?.("planner_demo_iframe_load"); } catch {}
                 }}
-                aria-label="Demonstração do Planejamento"
               />
             </div>
           </div>
@@ -69,4 +106,3 @@ const PlannerPreviewSection: React.FC = () => {
 };
 
 export default PlannerPreviewSection;
-

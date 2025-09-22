@@ -336,8 +336,8 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
   const displaySubtotal = preview?.subtotal ?? null;
 
   return (
-    <motion.div {...props} className={cn('rounded-2xl border bg-white p-6 shadow-sm w-full', className)}>
-      <div className="mb-6 flex items-center justify-center gap-2">
+    <motion.div {...props} className={cn('rounded-2xl border bg-white p-4 sm:p-6 shadow-sm w-full', className)}>
+      <div className="mb-4 sm:mb-6 flex items-center justify-center gap-2">
         {(['BRL', 'USD'] as Currency[]).map((c) => (
           <button
             key={c}
@@ -367,7 +367,7 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
         ))}
       </div>
 
-      <div className="mb-8 text-center h-16 flex items-center justify-center">
+      <div className="mb-5 sm:mb-8 text-center h-14 sm:h-16 flex items-center justify-center">
         <AnimatePresence mode="wait">
           <motion.div
             key={displayTotal ? `${displayTotal}-${plan}-${currency}-${hasDiscount}` : isPreviewLoading ? 'loading' : 'empty'}
@@ -383,14 +383,14 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
               ) : displayTotal !== null ? (
                 <>
                   {hasDiscount && displaySubtotal !== null && (
-                    <span className="text-2xl text-gray-400 line-through">
+                    <span className="text-xl sm:text-2xl text-gray-400 line-through">
                       {formatCurrency(displaySubtotal, displayCurrency)}
                     </span>
                   )}
-                  <span className="text-5xl font-extrabold tracking-tight text-brand-dark">
+                  <span className="text-3xl sm:text-5xl font-extrabold tracking-tight text-brand-dark">
                     {formatCurrency(displayTotal, displayCurrency)}
                   </span>
-                  <span className="text-lg text-gray-500">/{plan === 'monthly' ? 'mês' : 'ano'}</span>
+                  <span className="text-sm sm:text-lg text-gray-500">/{plan === 'monthly' ? 'mês' : 'ano'}</span>
                 </>
               ) : (
                 <span className="text-gray-500">—</span>
@@ -406,7 +406,7 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
         </AnimatePresence>
       </div>
 
-      <ul className="mx-auto mb-8 grid max-w-2xl grid-cols-1 gap-y-3 gap-x-4 text-sm text-gray-700 sm:grid-cols-2">
+      <ul className="mx-auto mb-6 sm:mb-8 grid max-w-2xl grid-cols-1 gap-y-3 gap-x-4 text-sm text-gray-700 sm:grid-cols-2">
         {[
           'Ideias de conteúdo geradas por IA',
           'Análises automáticas do Instagram',
@@ -479,7 +479,7 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
         <button
           onClick={startTrialCheckout}
           disabled={trialLoading || isPreviewLoading}
-          className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900
+          className="w-full rounded-lg border border-gray-300 px-4 py-2 sm:py-3 text-gray-900
                      hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {trialLoading ? 'Iniciando teste…' : 'Iniciar teste gratuito (7 dias)'}
@@ -488,7 +488,7 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
         <button
           onClick={handleSubscribe}
           disabled={loading || isPreviewLoading || !preview || preview.total == null}
-          className="w-full rounded-lg bg-gradient-to-r from-brand-red to-brand-pink px-4 py-3 text-white font-semibold
+          className="w-full rounded-lg bg-gradient-to-r from-brand-red to-brand-pink px-4 py-2 sm:py-3 text-white font-semibold
                      transition-all duration-300 ease-in-out
                      hover:shadow-lg hover:shadow-brand-pink/40
                      focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-pink
@@ -498,7 +498,7 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
         </button>
       </div>
 
-      <p className="mt-4 text-center text-xs text-gray-500">
+      <p className="mt-3 sm:mt-4 text-center text-xs text-gray-500">
         Pagamento seguro via Stripe. Sem fidelidade — cancele quando quiser.
       </p>
     </motion.div>

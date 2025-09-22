@@ -1,6 +1,7 @@
+// src/app/planner/demo/page.tsx
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { idsToLabels } from "@/app/lib/classification";
 
 type SlotCategories = { context?: string[]; tone?: string; proposal?: string[]; reference?: string[] };
@@ -37,6 +38,7 @@ const Chip = ({ children, color = "gray" }: ChipProps) => {
 // --- FIM DA CORREÇÃO ---
 
 export default function PlannerDemoPage() {
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [title, setTitle] = useState<string>("");
   const [script, setScript] = useState<string>("");
   const [themes, setThemes] = useState<string[]>([
@@ -59,12 +61,15 @@ export default function PlannerDemoPage() {
   const dayOfWeek = 2; // terça
   const blockStartHour = 19;
   const weekStartISO = useMemo(() => startOfWeekISO(), []);
-  const categories: SlotCategories = useMemo(() => ({
-    proposal: ["review", "tips"],
-    context: ["beauty_personal_care"],
-    tone: "educational",
-    reference: ["pop_culture_internet"],
-  }), []);
+  const categories: SlotCategories = useMemo(
+    () => ({
+      proposal: ["review", "tips"],
+      context: ["beauty_personal_care"],
+      tone: "educational",
+      reference: ["pop_culture_internet"],
+    }),
+    []
+  );
 
   const headerText = `${DAYS_PT[dayOfWeek]} • ${blockLabel(blockStartHour)}`;
   const altStrongBlocks = [
@@ -168,12 +173,75 @@ export default function PlannerDemoPage() {
     handleLoadInspirations().catch(() => {});
   }, []);
 
+  // Emite a altura do conteúdo para o parent (landing) ajustar o iframe
+  useEffect(() => {
+    let lastSent = 0;
+    let rafId: number | null = null;
+
+    const measure = () => {
+      try {
+        const h = Math.ceil((containerRef.current?.offsetHeight ?? document.body.scrollHeight) + 24);
+        if (Math.abs(h - lastSent) < 8) return; // evita loops por variações mínimas
+        lastSent = h;
+        window.parent?.postMessage({ type: "planner-demo:height", height: h }, window.location.origin);
+      } catch {}
+    };
+
+    const post = () => {
+      if (rafId != null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(measure);
+    };
+
+    // Observa mudanças de layout (✅ corrigido null check do ResizeObserver)
+    let ro: ResizeObserver | null = null;
+    try {
+      if (typeof window !== "undefined" && "ResizeObserver" in window) {
+        ro = new (window as any).ResizeObserver(() => post());
+        const el = containerRef.current;
+        if (ro && el) ro.observe(el);
+      }
+    } catch {}
+
+    // Dispara inicialmente e em eventos comuns
+    post();
+    const onLoad = () => post();
+    const onResize = () => post();
+    window.addEventListener("load", onLoad);
+    window.addEventListener("resize", onResize);
+
+    return () => {
+      window.removeEventListener("load", onLoad);
+      window.removeEventListener("resize", onResize);
+      try {
+        ro?.disconnect();
+      } catch {}
+      if (rafId != null) cancelAnimationFrame(rafId);
+    };
+  }, []);
+
+  // Neutraliza classes globais do layout (min-h-svh e bg da raiz) dentro do iframe
+  useEffect(() => {
+    const prevMinH = document.body.style.minHeight;
+    const prevBodyBg = document.body.style.backgroundColor;
+    const prevHtmlBg = document.documentElement.style.backgroundColor;
+    try {
+      document.body.style.minHeight = "auto"; // evita feedback loop de altura
+      document.body.style.backgroundColor = "#ffffff";
+      document.documentElement.style.backgroundColor = "#ffffff";
+    } catch {}
+    return () => {
+      document.body.style.minHeight = prevMinH;
+      document.body.style.backgroundColor = prevBodyBg;
+      document.documentElement.style.backgroundColor = prevHtmlBg;
+    };
+  }, []);
+
   const label = (ids?: string[], type?: "proposal" | "context" | "reference") => idsToLabels(ids, type as any).join(", ");
   const toneLabel = (t?: string) => idsToLabels(t ? [t] : [], "tone")[0] || "";
 
   return (
     <div className="bg-white">
-      <div className="max-w-5xl mx-auto p-4 md:p-6 lg:p-8">
+      <div ref={containerRef} className="max-w-5xl mx-auto p-4 md:p-6 lg:p-8">
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="text-xs text-gray-500">Slot sugerido</div>
@@ -192,7 +260,9 @@ export default function PlannerDemoPage() {
             <div className="text-xs text-gray-500">Proposta</div>
             <div className="mt-1 flex flex-wrap gap-2">
               {idsToLabels(categories.proposal || [], "proposal").map((t) => (
-                <Chip key={`p-${t}`} color="purple">{t}</Chip>
+                <Chip key={`p-${t}`} color="purple">
+                  {t}
+                </Chip>
               ))}
             </div>
           </div>
@@ -200,7 +270,9 @@ export default function PlannerDemoPage() {
             <div className="text-xs text-gray-500">Contexto</div>
             <div className="mt-1 flex flex-wrap gap-2">
               {idsToLabels(categories.context || [], "context").map((t) => (
-                <Chip key={`c-${t}`} color="magenta">{t}</Chip>
+                <Chip key={`c-${t}`} color="magenta">
+                  {t}
+                </Chip>
               ))}
             </div>
           </div>
@@ -214,7 +286,9 @@ export default function PlannerDemoPage() {
             <div className="text-xs text-gray-500">Referência</div>
             <div className="mt-1 flex flex-wrap gap-2">
               {idsToLabels(categories.reference || [], "reference").map((t) => (
-                <Chip key={`r-${t}`} color="orange">{t}</Chip>
+                <Chip key={`r-${t}`} color="orange">
+                  {t}
+                </Chip>
               ))}
             </div>
           </div>
@@ -225,11 +299,7 @@ export default function PlannerDemoPage() {
           <div>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">Pautas sugeridas</h2>
-              <button
-                className="text-sm px-3 py-1.5 rounded-md border text-gray-700 hover:bg-gray-50"
-                onClick={handleRegenerateThemes}
-                disabled={loadingThemes}
-              >
+              <button className="text-sm px-3 py-1.5 rounded-md border text-gray-700 hover:bg-gray-50" onClick={handleRegenerateThemes} disabled={loadingThemes}>
                 {loadingThemes ? "Gerando…" : "Regenerar pautas"}
               </button>
             </div>
@@ -239,14 +309,14 @@ export default function PlannerDemoPage() {
                   {t}
                 </button>
               ))}
-              {(!themes || themes.length === 0) && (
-                <div className="text-xs text-gray-500">Sem sugestões para este horário.</div>
-              )}
+              {(!themes || themes.length === 0) && <div className="text-xs text-gray-500">Sem sugestões para este horário.</div>}
             </div>
 
             <div className="mt-5">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-semibold text-gray-900" htmlFor="title">Título</label>
+                <label className="text-sm font-semibold text-gray-900" htmlFor="title">
+                  Título
+                </label>
                 <button
                   type="button"
                   className="text-xs text-gray-600 hover:text-gray-800"
@@ -256,15 +326,36 @@ export default function PlannerDemoPage() {
                   Copiar
                 </button>
               </div>
-              <input id="title" className="w-full border rounded-md px-3 py-2 text-sm" placeholder="Ex.: 3 truques para ..." value={title} onChange={(e)=>setTitle(e.target.value)} />
+              <input
+                id="title"
+                className="w-full border rounded-md px-3 py-2 text-sm"
+                placeholder="Ex.: 3 truques para ..."
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
             </div>
 
             <div className="mt-3">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-semibold text-gray-900" htmlFor="script">Roteiro curto</label>
-                <button type="button" className="text-xs text-gray-600 hover:text-gray-800" onClick={() => navigator.clipboard?.writeText(script || "")} disabled={!script}>Copiar</button>
+                <label className="text-sm font-semibold text-gray-900" htmlFor="script">
+                  Roteiro curto
+                </label>
+                <button
+                  type="button"
+                  className="text-xs text-gray-600 hover:text-gray-800"
+                  onClick={() => navigator.clipboard?.writeText(script || "")}
+                  disabled={!script}
+                >
+                  Copiar
+                </button>
               </div>
-              <textarea id="script" className="w-full border rounded-md px-3 py-2 text-sm min-h-[120px]" placeholder="Estrutura de fala, ganchos e CTA..." value={script} onChange={(e)=>setScript(e.target.value)} />
+              <textarea
+                id="script"
+                className="w-full border rounded-md px-3 py-2 text-sm min-h-[120px]"
+                placeholder="Estrutura de fala, ganchos e CTA..."
+                value={script}
+                onChange={(e) => setScript(e.target.value)}
+              />
             </div>
 
             <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -275,7 +366,12 @@ export default function PlannerDemoPage() {
                   { id: "more_humor", label: "Mais humor" },
                   { id: "practical_imperative", label: "Mais prático" },
                 ].map((opt) => (
-                  <span key={opt.id} className={`px-3 py-1.5 text-xs bg-white text-gray-700 ${opt.id === "default" ? "bg-pink-600 text-white" : ""} ${opt.id === "default" ? "" : "border-l"} border-gray-200`}>
+                  <span
+                    key={opt.id}
+                    className={`px-3 py-1.5 text-xs bg-white text-gray-700 ${opt.id === "default" ? "bg-pink-600 text-white" : ""} ${
+                      opt.id === "default" ? "" : "border-l"
+                    } border-gray-200`}
+                  >
                     {opt.label}
                   </span>
                 ))}
@@ -289,7 +385,9 @@ export default function PlannerDemoPage() {
               <div className="mt-4">
                 <div className="text-sm font-semibold text-gray-900 mb-1">Plano de cena</div>
                 <ol className="list-decimal ml-5 text-xs text-gray-700 space-y-1">
-                  {beats.map((b, i) => (<li key={`b-${i}`}>{b}</li>))}
+                  {beats.map((b, i) => (
+                    <li key={`b-${i}`}>{b}</li>
+                  ))}
                 </ol>
               </div>
             )}
@@ -312,12 +410,18 @@ export default function PlannerDemoPage() {
               <div className="flex items-center justify-between">
                 <div className="text-sm font-semibold text-gray-900">Conteúdos que inspiraram</div>
                 <button className="px-3 py-1.5 text-sm rounded-md border text-gray-700 hover:bg-gray-50" onClick={handleLoadInspirations} disabled={loadingInsp}>
-                  {loadingInsp ? "Carregando…" : (insp.length ? "Atualizar" : "Ver conteúdos")}
+                  {loadingInsp ? "Carregando…" : insp.length ? "Atualizar" : "Ver conteúdos"}
                 </button>
               </div>
               <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {insp.map((p, idx) => (
-                  <a key={`i-${idx}`} href={p.postLink || "#"} target="_blank" rel="noreferrer" className="block border rounded-md overflow-hidden hover:shadow-sm bg-white">
+                  <a
+                    key={`i-${idx}`}
+                    href={p.postLink || "#"}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block border rounded-md overflow-hidden hover:shadow-sm bg-white"
+                  >
                     {p.thumbnailUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={p.thumbnailUrl} alt="thumb" className="w-full h-28 object-cover" />
@@ -325,16 +429,16 @@ export default function PlannerDemoPage() {
                       <div className="w-full h-28 bg-gray-100 flex items-center justify-center text-gray-400 text-xs">sem imagem</div>
                     )}
                     <div className="p-2">
-                      <div className="text-[11px] text-gray-600 line-clamp-2">{p.caption}</div>
-                      <div className="mt-1 text-[10px] text-gray-500">{new Date(p.date).toLocaleDateString("pt-BR")} • {(p.views || 0).toLocaleString("pt-BR")} views</div>
+                      <div className="text[11px] text-gray-600 line-clamp-2">{p.caption}</div>
+                      <div className="mt-1 text-[10px] text-gray-500">
+                        {new Date(p.date).toLocaleDateString("pt-BR")} • {(p.views || 0).toLocaleString("pt-BR")} views
+                      </div>
                     </div>
                   </a>
                 ))}
-                {loadingInsp && !insp.length && [...Array(2)].map((_, i) => (<div key={`sk-in-${i}`} className="h-28 bg-gray-100 rounded-md animate-pulse" />))}
+                {loadingInsp && !insp.length && [...Array(2)].map((_, i) => <div key={`sk-in-${i}`} className="h-28 bg-gray-100 rounded-md animate-pulse" />)}
               </div>
-              {!loadingInsp && !insp.length && (
-                <div className="text-[11px] text-gray-500 mt-1">Sem conteúdos suficientes para este horário.</div>
-              )}
+              {!loadingInsp && !insp.length && <div className="text-[11px] text-gray-500 mt-1">Sem conteúdos suficientes para este horário.</div>}
             </div>
 
             {/* Inspiração da comunidade */}
@@ -342,12 +446,18 @@ export default function PlannerDemoPage() {
               <div className="flex items-center justify-between">
                 <div className="text-sm font-semibold text-gray-900">Inspiração da comunidade</div>
                 <button className="px-3 py-1.5 text-sm rounded-md border text-gray-700 hover:bg-gray-50" onClick={handleLoadCommunity} disabled={loadingComm}>
-                  {loadingComm ? "Carregando…" : (comm.length ? "Atualizar" : "Ver conteúdos da comunidade")}
+                  {loadingComm ? "Carregando…" : comm.length ? "Atualizar" : "Ver conteúdos da comunidade"}
                 </button>
               </div>
               <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {comm.map((p, idx) => (
-                  <a key={`c-${idx}`} href={p.postLink || "#"} target="_blank" rel="noreferrer" className="block border rounded-md overflow-hidden hover:shadow-sm bg-white">
+                  <a
+                    key={`c-${idx}`}
+                    href={p.postLink || "#"}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block border rounded-md overflow-hidden hover:shadow-sm bg-white"
+                  >
                     {p.coverUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={p.coverUrl} alt="thumb" className="w-full h-28 object-cover" />
@@ -356,25 +466,23 @@ export default function PlannerDemoPage() {
                     )}
                     <div className="p-2">
                       <div className="text-[11px] text-gray-600 line-clamp-2">{p.caption}</div>
-                      <div className="mt-1 text-[10px] text-gray-500">{new Date(p.date).toLocaleDateString("pt-BR")} • {(p.views || 0).toLocaleString("pt-BR")} views</div>
+                      <div className="mt-1 text-[10px] text-gray-500">
+                        {new Date(p.date).toLocaleDateString("pt-BR")} • {(p.views || 0).toLocaleString("pt-BR")} views
+                      </div>
                       {Array.isArray(p.reason) && p.reason.length > 0 && (
-                        <div className="mt-1 text-[10px] text-gray-500 truncate">Por que: {p.reason.slice(0,2).join(", ")}</div>
+                        <div className="mt-1 text-[10px] text-gray-500 truncate">Por que: {p.reason.slice(0, 2).join(", ")}</div>
                       )}
                     </div>
                   </a>
                 ))}
-                {loadingComm && !comm.length && [...Array(2)].map((_, i) => (<div key={`sk-co-${i}`} className="h-28 bg-gray-100 rounded-md animate-pulse" />))}
+                {loadingComm && !comm.length && [...Array(2)].map((_, i) => <div key={`sk-co-${i}`} className="h-28 bg-gray-100 rounded-md animate-pulse" />)}
               </div>
-              {!loadingComm && !comm.length && (
-                <div className="text-[11px] text-gray-500 mt-1">Sem recomendações da comunidade no momento.</div>
-              )}
+              {!loadingComm && !comm.length && <div className="text-[11px] text-gray-500 mt-1">Sem recomendações da comunidade no momento.</div>}
             </div>
           </div>
         </div>
 
-        {error && (
-          <div className="mt-6 text-xs text-red-600">{error}</div>
-        )}
+        {error && <div className="mt-6 text-xs text-red-600">{error}</div>}
       </div>
     </div>
   );

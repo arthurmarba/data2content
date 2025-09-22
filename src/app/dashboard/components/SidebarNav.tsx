@@ -4,11 +4,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  FaComments,
-  FaFileContract,
+  FaCompass,
+  FaCalendarAlt,
   FaCreditCard,
-  FaAngleDoubleLeft,
-  FaAngleDoubleRight,
 } from "react-icons/fa";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -37,9 +35,8 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
   // Lista de itens da navegação
   const items: NavItem[] = useMemo(
     () => [
-      // Item "Conversar com IA" comentado para não ser exibido
-      // { href: "/dashboard/chat", label: "Conversar com IA", icon: <FaComments /> },
-      { href: "/dashboard/media-kit", label: "Mídia Kit", icon: <FaFileContract /> },
+      { href: "/dashboard/discover", label: "Descoberta", icon: <FaCompass /> },
+      { href: "/dashboard/media-kit", label: "Planejamento", icon: <FaCalendarAlt /> },
       { href: "/dashboard/settings", label: "Gerir Assinatura", icon: <FaCreditCard /> },
     ],
     []
@@ -101,7 +98,7 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
 
   // Classes de base
   const asideBase =
-    "border-r border-gray-200 bg-white flex flex-col transition-transform duration-200 ease-out";
+    "bg-white flex flex-col transition-transform duration-200 ease-out";
 
   // Enquanto não montou, **forçamos fechado** no mobile e escondemos visualmente para evitar flash
   const mobileTransform = !mounted
@@ -132,27 +129,9 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
           : undefined
       }
     >
-      {/* Topo: botão de recolher/fechar */}
-      <div className="p-2 flex items-center justify-end">
-        <button
-          onClick={() => onToggle()}
-          className="inline-flex items-center gap-2 text-xs text-gray-600 hover:text-gray-900 px-2 py-1 rounded-md hover:bg-gray-100"
-          aria-label={isOpen ? "Fechar menu" : "Abrir menu"}
-          title={isOpen ? "Fechar" : "Abrir"}
-        >
-          {isCollapsed ? (
-            <FaAngleDoubleRight className="w-4 h-4" />
-          ) : (
-            <FaAngleDoubleLeft className="w-4 h-4" />
-          )}
-          {!isCollapsed && !isMobile && <span>Recolher</span>}
-          {!isCollapsed && isMobile && <span>Fechar</span>}
-        </button>
-      </div>
-
       {/* Lista */}
-      <nav className="flex-1 overflow-y-auto scrollbar-hide px-2">
-        <ul className="space-y-1">
+      <nav className="flex-1 overflow-y-auto scrollbar-hide px-2 pt-2 sm:pt-3 lg:pt-4">
+        <ul className="divide-y divide-gray-200">
           {items.map((item) => {
             const active =
               pathname === item.href || (!item.exact && pathname.startsWith(item.href));
@@ -161,12 +140,12 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
                 <Link
                   href={item.href}
                   onClick={handleItemClick}
-                  className={`group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+                  className={`group flex items-center gap-3 rounded-lg px-3 py-2 text-[15px] sm:text-base transition-colors ${
                     active ? "bg-gray-900 text-white" : "text-gray-700 hover:bg-gray-100"
                   }`}
                 >
                   <span
-                    className={`text-base ${
+                    className={`text-lg ${
                       active ? "text-white" : "text-gray-600 group-hover:text-gray-900"
                     }`}
                   >

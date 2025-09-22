@@ -9,10 +9,14 @@ import React from "react";
 import BillingSubscribeModal from "./billing/BillingSubscribeModal";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isDiscoverPage = pathname?.startsWith("/dashboard/discover");
+  const isMediaKitPage = pathname?.startsWith("/dashboard/media-kit");
+  const bgClass = (isDiscoverPage || isMediaKitPage) ? "bg-white" : "bg-gray-50";
   return (
     <SidebarProvider>
       {/* container base do dashboard */}
-      <div className="relative w-full bg-gray-50 overflow-x-hidden min-h-svh overscroll-none">
+      <div className={`relative w-full ${bgClass} overflow-x-hidden min-h-svh overscroll-none`}>
         <LayoutContent>{children}</LayoutContent>
       </div>
     </SidebarProvider>
@@ -25,7 +29,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   const isChatPage = pathname.startsWith("/dashboard/chat");
   const isMediaKitPage = pathname.startsWith("/dashboard/media-kit");
-  const isGeminiHeaderPage = /^\/dashboard\/(chat|media-kit|settings|billing)/.test(pathname);
+  const isGeminiHeaderPage = /^\/dashboard\/(chat|media-kit|settings|billing|discover)/.test(pathname);
   const isOnboardingFlow = /^\/dashboard\/(onboarding|instagram)/.test(pathname);
 
   const isOpen = !isCollapsed;

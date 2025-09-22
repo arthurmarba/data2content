@@ -27,7 +27,7 @@ export default function OnboardingPage() {
       {
         key: "done",
         title: "Pronto",
-        description: "Veja seu Mídia Kit.",
+        description: "Entre na Comunidade.",
         state: instagramConnected ? "current" : "pending",
       },
     ];

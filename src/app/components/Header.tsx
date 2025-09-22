@@ -46,43 +46,41 @@ function ChatHeader({ user }: { user?: SessionUser }) {
     return () => ro.disconnect();
   }, []);
 
-  const handleSubscribeClick = () => {
-    // Dispara evento global — o layout abre o modal em qualquer página
-    window.dispatchEvent(new CustomEvent("open-subscribe-modal"));
-  };
-
   return (
     <header
       ref={headerRef}
       style={{ paddingTop: "var(--sat)" }} // safe-area iOS
-      className="fixed top-0 left-0 right-0 z-40 px-2 sm:px-4 py-3 sm:py-5 bg-white"
+      className="fixed top-0 left-0 right-0 z-40 px-3 sm:px-5 py-4 sm:py-5 bg-white"
       aria-label="Barra superior do dashboard"
     >
-      <div className="flex items-center justify-between max-w-[800px] lg:max-w-7xl mx-auto px-0 lg:px-2">
-        {/* Burger (somente mobile) */}
-        <button
-          onClick={() => toggleSidebar()}
-          className="p-2 text-gray-600 hover:text-gray-900 rounded-full hover:bg-gray-100 transition-colors lg:hidden"
-          aria-label="Abrir menu lateral"
-        >
-          <FaBars />
-        </button>
-
-        <div className="flex flex-col items-center">
-          <h2 className="font-semibold text-gray-800 select-none">data2content</h2>
+      <div className="flex items-center justify-between w-full">
+        {/* Grupo esquerdo: hambúrguer + logo */}
+        <div className="flex items-center gap-3 ml-1 sm:ml-2">
           <button
-            onClick={handleSubscribeClick}
-            className="text-xs font-semibold text-white bg-gray-900 px-3 py-1 rounded-full hover:bg-gray-800 transition-colors shadow-sm"
-            aria-label="Assine o plano Pro"
+            onClick={() => toggleSidebar()}
+            className="p-2 text-gray-700 hover:text-gray-900 rounded-full hover:bg-gray-100 transition-colors"
+            aria-label="Alternar menu lateral"
+            title="Menu"
           >
-            Seja Assinante
+            <FaBars className="w-6 h-6" />
           </button>
+          <Link href="/dashboard" aria-label="Início" className="flex items-center">
+            <Image
+              src="/images/Colorido-Simbolo.png"
+              alt="Data2Content"
+              width={48}
+              height={48}
+              className="h-10 sm:h-12 w-auto object-contain"
+              priority
+            />
+          </Link>
         </div>
 
-        <div className="relative">
+        {/* Avatar / menu do usuário (direita) */}
+        <div className="relative flex items-center mr-1 sm:mr-2">
           <button
             onClick={() => setIsUserMenuOpen((v) => !v)}
-            className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className="w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             aria-haspopup="menu"
             aria-expanded={isUserMenuOpen}
             aria-label="Abrir menu do usuário"
@@ -91,7 +89,7 @@ function ChatHeader({ user }: { user?: SessionUser }) {
               <img
                 src={user.image}
                 alt={user.name || "Usuário"}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover object-center"
               />
             ) : (
               <FaUserCircle className="w-full h-full text-gray-400" />
@@ -105,20 +103,20 @@ function ChatHeader({ user }: { user?: SessionUser }) {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: -10 }}
                 transition={{ duration: 0.15, ease: "easeOut" }}
-                className="origin-top-right absolute right-0 mt-2 w-64 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50"
+                className="origin-top-right absolute right-2 mt-2 w-64 max-w-[92vw] rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50"
                 onMouseLeave={() => setIsUserMenuOpen(false)}
                 role="menu"
               >
                 <div className="px-4 py-3 border-b border-gray-100">
-                  <p className="text-sm font-semibold text-brand-dark truncate">
+                  <p className="text-base font-semibold text-brand-dark truncate">
                     {user?.name ?? "Usuário"}
                   </p>
-                  <p className="text-xs text-gray-500 truncate">{user?.email || "Sem email"}</p>
+                  <p className="text-sm text-gray-500 truncate">{user?.email || "Sem email"}</p>
                 </div>
                 <div className="py-1 border-t border-gray-100">
                   <Link
                     href="/termos-e-condicoes"
-                    className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
+                    className="w-full text-left flex items-center gap-3 px-4 py-2.5 text-base text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
                     onClick={() => setIsUserMenuOpen(false)}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -148,7 +146,7 @@ function ChatHeader({ user }: { user?: SessionUser }) {
                   </a>
                   <a
                     href="/afiliados"
-                    className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
+                    className="w-full text-left flex items-center gap-3 px-4 py-2.5 text-base text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
                     onClick={() => setIsUserMenuOpen(false)}
                     role="menuitem"
                   >
@@ -158,7 +156,7 @@ function ChatHeader({ user }: { user?: SessionUser }) {
                 <div className="py-1 border-t border-gray-100">
                   <Link
                     href="/dashboard/settings#delete-account"
-                    className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-brand-red transition-colors rounded-md mx-1 my-0.5"
+                    className="w-full text-left flex items-center gap-3 px-4 py-2.5 text-base text-red-600 hover:bg-red-50 hover:text-brand-red transition-colors rounded-md mx-1 my-0.5"
                     onClick={() => setIsUserMenuOpen(false)}
                     role="menuitem"
                   >
@@ -171,7 +169,7 @@ function ChatHeader({ user }: { user?: SessionUser }) {
                       setIsUserMenuOpen(false);
                       signOut({ callbackUrl: "/" });
                     }}
-                    className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
+                    className="w-full text-left flex items-center gap-3 px-4 py-2.5 text-base text-gray-700 hover:bg-gray-100 hover:text-brand-dark transition-colors rounded-md mx-1 my-0.5"
                     role="menuitem"
                   >
                     <FaSignOutAlt className="w-4 h-4" /> Sair
@@ -191,9 +189,10 @@ export default function Header() {
   const pathname = usePathname();
   const user = session?.user as SessionUser | undefined;
   const isDashboardPage = pathname.startsWith("/dashboard");
+  const { toggleSidebar } = useSidebar();
 
   // Usar o header unificado também em /dashboard/media-kit, /dashboard/settings e /dashboard/billing
-  const isGeminiHeaderPage = /^\/dashboard\/(chat|media-kit|settings|billing)/.test(pathname);
+  const isGeminiHeaderPage = /^\/dashboard\/(chat|media-kit|settings|billing|discover)/.test(pathname);
   // Fluxo de onboarding/instagram: header minimalista (apenas logo)
   const isOnboardingFlow = /^\/dashboard\/(onboarding|instagram)/.test(pathname);
 
@@ -226,44 +225,51 @@ export default function Header() {
   // Demais páginas do dashboard usam o header padrão
   if (isDashboardPage) {
     return (
-      <header className="bg-white border-gray-200 shadow-sm sticky top-0 z-20 border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href={MAIN_DASHBOARD_ROUTE} className="flex-shrink-0 flex items-center gap-2 group">
-              <div className="relative h-8 w-8 overflow-hidden">
-                <Image
-                  src="/images/Colorido-Simbolo.png"
-                  alt="Data2Content"
-                  fill
-                  className="object-contain object-center group-hover:opacity-90 transition-opacity scale-[2.6]"
-                  priority
-                />
-              </div>
-              <span className="text-xl font-extrabold tracking-tight text-gray-800 group-hover:opacity-90 transition-opacity">
-                data2content
-              </span>
-            </Link>
-            <div className="flex items-center gap-2 sm:gap-3">
+      <header className="bg-white sticky top-0 z-20 px-3 sm:px-5">
+        <div className="flex justify-between items-center h-16 w-full">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => toggleSidebar()}
+                className="p-2 text-gray-700 hover:text-gray-900 rounded-full hover:bg-gray-100 transition-colors"
+                aria-label="Alternar menu lateral"
+                title="Menu"
+              >
+                <FaBars className="w-6 h-6" />
+              </button>
+              <Link href={MAIN_DASHBOARD_ROUTE} className="flex items-center" aria-label="Início">
+                <div className="relative h-8 w-8 overflow-hidden">
+                  <Image
+                    src="/images/Colorido-Simbolo.png"
+                    alt="Data2Content"
+                    fill
+                    className="object-contain object-center transition-opacity scale-[2.6]"
+                    priority
+                  />
+                </div>
+              </Link>
+            </div>
+            <div className="flex items-center gap-3">
               <Link
                 href="/dashboard/whatsapp-pro"
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-900 hover:bg-gray-800 text-white font-semibold text-xs sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2"
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-900 hover:bg-gray-800 text-white font-semibold text-sm sm:text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2"
                 aria-label="Acessar Whatsapp PRO"
               >
-                <FaWhatsapp className="w-4 h-4" />
+                <FaWhatsapp className="w-5 h-5" />
                 <span>WhatsApp PRO</span>
               </Link>
-              <div className="relative">
-                <button
-                  onClick={() => {/* menu user em páginas com header padrão */}}
-                  className="p-2 rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:ring-pink-400 focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors"
-                  aria-label="Abrir menu"
-                >
-                  <FaBars className="w-6 h-6" />
-                </button>
-              </div>
+              <button
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                aria-label="Perfil"
+                title={user?.name || 'Perfil'}
+              >
+                {user?.image ? (
+                  <img src={user.image} alt={user?.name || 'Usuário'} className="w-full h-full object-cover object-center" />
+                ) : (
+                  <FaUserCircle className="w-full h-full text-gray-400" />
+                )}
+              </button>
             </div>
           </div>
-        </div>
       </header>
     );
   }

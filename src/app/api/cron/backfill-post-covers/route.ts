@@ -80,13 +80,23 @@ export async function POST(request: NextRequest) {
     logger.debug(`${TAG} Conectado ao banco de dados.`);
 
     // 3. Buscar Posts que precisam de uma capa
-    // A query busca posts que TÊM um 'instagramMediaId', mas NÃO TÊM uma 'coverUrl'.
-    const postsToProcess = await MetricModel.find({
-        instagramMediaId: { $ne: null, $exists: true },
-        coverUrl: { $eq: null }
-    }).select('_id').lean();
+    // Force: permite reprocessar todos que têm instagramMediaId (útil para links expirados)
+    const url = new URL(request.url);
+    const force = url.searchParams.get('force') === '1';
+    const olderThanDays = parseInt(url.searchParams.get('olderThanDays') || '14', 10) || 14;
+    const olderThanDate = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000);
 
-    logger.info(`${TAG} Encontrados ${postsToProcess.length} posts para preencher a capa.`);
+    const baseQuery: any = {
+      instagramMediaId: { $ne: null, $exists: true },
+    };
+
+    const query = force
+      ? { ...baseQuery, updatedAt: { $lte: olderThanDate } }
+      : { ...baseQuery, coverUrl: { $eq: null } };
+
+    const postsToProcess = await MetricModel.find(query).select('_id').lean();
+
+    logger.info(`${TAG} Encontrados ${postsToProcess.length} posts para preencher a capa. (force=${force}, olderThanDays=${olderThanDays})`);
 
     if (postsToProcess.length === 0) {
         logger.info(`${TAG} Nenhum post elegível encontrado. Encerrando.`);
@@ -99,7 +109,7 @@ export async function POST(request: NextRequest) {
 
     for (const post of postsToProcess) {
         const postId = post._id.toString();
-        const payload = { postId }; // Corpo da mensagem para o worker
+        const payload = { postId, force }; // Corpo da mensagem para o worker
 
         try {
             logger.debug(`${TAG} Publicando tarefa de backfill para Post ${postId}...`);

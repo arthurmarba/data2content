@@ -12,6 +12,7 @@ import LandingHeader from "./landing/components/LandingHeader";
 import WhatsAppCarousel from "./landing/components/WhatsAppCarousel";
 import { proposalCategories, contextCategories, toneCategories, referenceCategories } from "@/app/lib/classification";
 import PlannerPreviewSection from "./landing/components/PlannerPreviewSection";
+import DiscoveryPostsCarousel, { Category as DiscoveryCategory } from "./landing/components/DiscoveryPostsCarousel";
 // import FeatureRowsSection from "./landing/components/FeatureRowsSection"; // removido da landing
 
 // --- ÍCONES ---
@@ -36,11 +37,9 @@ const LockIcon = () => (
 // --- COMPONENTES DE SEÇÃO ---
 
 // Seção 1: Hero (Primeira Dobra) — agora com link real e iframe de exemplo
-const NewHeroSection = ({ onCtaClick }: { onCtaClick: () => void }) => {
+const NewHeroSection = ({ onCtaClick, discovery }: { onCtaClick: () => void; discovery?: DiscoveryCategory[] }) => {
   // URL real enviada por você
   const DEMO_URL = "https://data2content.ai/mediakit/arthur-marba";
-  // ID do vídeo do YouTube (defina em NEXT_PUBLIC_LANDING_YT_VIDEO_ID para customizar)
-  const YT_VIDEO_ID = process.env.NEXT_PUBLIC_LANDING_YT_VIDEO_ID || "K6oxq0oQAvU";
 
   const [copied, setCopied] = React.useState(false);
 
@@ -63,13 +62,13 @@ const NewHeroSection = ({ onCtaClick }: { onCtaClick: () => void }) => {
       <div className="container mx-auto px-6 pt-16 md:pt-20 pb-24 md:pb-32 flex flex-col items-center text-center">
         <div className="max-w-3xl mx-auto">
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold leading-tight tracking-tight mb-4">
-          A inteligência do ChatGPT, finalmente conectada ao seu Instagram.
+            Milhares de posts virais do Instagram, decifrados pelo ChatGPT.
           </h1>
           <p className="text-lg md:text-xl text-white/90 mb-4">
           A única IA que analisa seus posts, identifica suas melhores narrativas e entrega um plano de conteúdo perfeito no seu WhatsApp.
           </p>
           <p className="text-xs md:text-sm text-white/80 mb-6 inline-block px-2 py-1 rounded-full bg-white/10 ring-1 ring-white/10">
-            Afiliados ganham 50% de comissão
+            Todo membro se torna afiliado com 50% de comissão
           </p>
 
           <div className="flex flex-col items-center space-y-3">
@@ -77,7 +76,7 @@ const NewHeroSection = ({ onCtaClick }: { onCtaClick: () => void }) => {
               onClick={onCtaClick}
               className="bg-brand-magenta hover:opacity-90 text-white font-bold py-4 px-8 rounded-lg text-lg transition-all transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-magenta/40"
             >
-              👉 Conectar ChatGPT ao meu Instagram
+              👉 Participar da Comunidade
             </button>
 
             {/* Link para o relatório real + botão de copiar */}
@@ -114,22 +113,14 @@ const NewHeroSection = ({ onCtaClick }: { onCtaClick: () => void }) => {
           </div>
         </div>
 
-        {/* Player de vídeo do YouTube (acima do carrossel) */}
+        {/* Carrossel de posts (Discovery) */}
         <div className="w-full max-w-4xl lg:max-w-6xl mt-10">
-          <div className="relative w-full aspect-[16/9] min-h-[220px] rounded-xl overflow-hidden ring-1 ring-white/15 shadow-2xl">
-            <iframe
-              src={`https://www.youtube.com/embed/${YT_VIDEO_ID}?rel=0`}
-              title="Vídeo de apresentação"
-              className="absolute inset-0 w-full h-full"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-            />
-          </div>
+          <DiscoveryPostsCarousel categories={discovery} />
         </div>
 
         {/* Título da seção do carrossel de WhatsApp */}
         <div className="w-full max-w-4xl lg:max-w-6xl mt-12 flex items-center justify-between text-white/90">
-          <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white">Mensagens no WhatsApp</h2>
+          <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white">IA que entende seus posts, com alertas no WhatsApp</h2>
           <span aria-hidden className="inline-block" />
         </div>
 
@@ -140,7 +131,7 @@ const NewHeroSection = ({ onCtaClick }: { onCtaClick: () => void }) => {
 
         {/* Título e ação da pré-visualização */}
         <div className="w-full max-w-4xl lg:max-w-6xl mt-10 flex items-center justify-between text-white/90">
-          <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white">Prévia do Relatório Gratuito</h2>
+          <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-white">Planejamento de Conteúdo</h2>
           <Link href={DEMO_URL} target="_blank" rel="noopener noreferrer" className="text-sm text-white/80 hover:text-white underline underline-offset-4">
             Abrir em nova aba
           </Link>
@@ -304,7 +295,7 @@ const FinalCTASection = ({ onCtaClick }: { onCtaClick: () => void }) => {
             onClick={onCtaClick}
             className="bg-black hover:bg-gray-800 text-white font-bold py-4 px-8 rounded-lg text-lg transition-all transform hover:scale-105"
           >
-            👉 Conectar ChatGPT ao meu Instagram
+            👉 Participar da Comunidade
           </button>
           <div className="text-center">
             <p className="text-sm text-gray-700">Conecte seu Instagram e já saia com relatório pronto + IA para planejar conteúdos.</p>
@@ -321,6 +312,7 @@ const FinalCTASection = ({ onCtaClick }: { onCtaClick: () => void }) => {
 // --- COMPONENTE PRINCIPAL ---
 export default function LandingPageClient() {
   const headerWrapRef = React.useRef<HTMLDivElement>(null);
+  const [discovery, setDiscovery] = React.useState<DiscoveryCategory[] | undefined>(undefined);
 
   // CTA de login/conexão
   const handleSignIn = () => {
@@ -379,6 +371,22 @@ export default function LandingPageClient() {
     };
   }, []);
 
+  // Carrega os posts virais para o carrossel da landing
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/landing/discovery?limit=15', { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && data?.categories) {
+          setDiscovery(data.categories);
+        }
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   return (
     <div className="bg-white font-sans">
       <div ref={headerWrapRef}>
@@ -388,7 +396,7 @@ export default function LandingPageClient() {
       <div aria-hidden className="h-[var(--landing-header-h,4.5rem)]" />
 
       <main style={{ scrollPaddingTop: "var(--landing-header-h, 4.5rem)" }}>
-        <NewHeroSection onCtaClick={handleSignIn} />
+        <NewHeroSection onCtaClick={handleSignIn} discovery={discovery} />
         {/* <FeatureRowsSection /> removido conforme pedido */}
         <BenefitsSection />
         <HowAIWorksSection />

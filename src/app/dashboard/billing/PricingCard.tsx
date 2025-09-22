@@ -123,10 +123,10 @@ export default function PricingCard({ onSubscriptionCreated, affiliateCode }: Pr
   }
 
   return (
-    <div className="mx-auto max-w-xl rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 className="mb-2 text-center text-xl font-semibold">Plano Data2Content</h2>
+    <div className="mx-auto max-w-xl rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm">
+      <h2 className="mb-2 text-center text-lg sm:text-xl font-semibold">Plano Data2Content</h2>
 
-      <div className="mb-4 flex items-center justify-center gap-2">
+      <div className="mb-3 sm:mb-4 flex items-center justify-center gap-2">
         <button
           type="button"
           onClick={() => setCurrency("BRL")}
@@ -158,8 +158,8 @@ export default function PricingCard({ onSubscriptionCreated, affiliateCode }: Pr
         </button>
       </div>
 
-      <div className="mb-4 text-center">
-        <div className="text-3xl font-bold tracking-tight">{isLoading ? "—" : priceLabel}</div>
+      <div className="mb-3 sm:mb-4 text-center">
+        <div className="text-2xl sm:text-3xl font-bold tracking-tight">{isLoading ? "—" : priceLabel}</div>
         {!current && !isLoading && (
           <p className="mt-1 text-xs text-gray-500">
             Plano não disponível para {plan.toLocaleLowerCase()}/{currency}.
@@ -173,7 +173,7 @@ export default function PricingCard({ onSubscriptionCreated, affiliateCode }: Pr
         <button
           onClick={handleStartTrial}
           disabled={loading || !current}
-          className="w-full rounded-xl border border-black px-4 py-3 text-black hover:bg-gray-50 disabled:opacity-50"
+          className="w-full rounded-xl border border-black px-4 py-2 sm:py-3 text-black hover:bg-gray-50 disabled:opacity-50"
         >
           {loading ? "Iniciando…" : "Iniciar teste gratuito (7 dias)"}
         </button>
@@ -181,7 +181,7 @@ export default function PricingCard({ onSubscriptionCreated, affiliateCode }: Pr
         <button
           onClick={handleSubscribe}
           disabled={loading || !current}
-          className="w-full rounded-xl bg-black px-4 py-3 text-white disabled:opacity-50"
+          className="w-full rounded-xl bg-black px-4 py-2 sm:py-3 text-white disabled:opacity-50"
         >
           {loading ? "Iniciando…" : "Assinar agora"}
         </button>

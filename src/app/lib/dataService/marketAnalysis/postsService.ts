@@ -103,7 +103,9 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
 
     const baseAggregation: PipelineStage[] = [
       ...createBasePipeline(),
-      { $addFields: { creatorName: '$creatorInfo.name' } },
+      { $addFields: { creatorName: '$creatorInfo.name', creatorAvatarUrl: '$creatorInfo.profile_picture_url' } },
+      // Se solicitado, filtra apenas criadores com opt-in de comunidade
+      ...(args.onlyOptIn ? [{ $match: { 'creatorInfo.communityInspirationOptIn': true } }] as PipelineStage[] : []),
       { $project: { creatorInfo: 0 } },
       { $match: matchStage },
     ];
@@ -121,6 +123,7 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
     postsPipeline.push({
       $project: {
         _id: 1, text_content: 1, description: 1, creatorName: 1, postDate: 1,
+        creatorAvatarUrl: 1,
         format: 1, proposal: 1, context: 1, tone: 1, references: 1,
         'stats.total_interactions': '$stats.total_interactions',
         'stats.likes': '$stats.likes',
@@ -129,9 +132,11 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
         'stats.saved': '$stats.saved',
         'stats.reach': '$stats.reach',
         'stats.views': '$stats.views',
+        'stats.video_duration_seconds': '$stats.video_duration_seconds',
         'stats.impressions': '$stats.impressions',
         coverUrl: 1,
         instagramMediaId: 1,
+        postLink: 1,
       }
     });
 
@@ -437,7 +442,10 @@ export async function findUserPosts({ // ALTERADO
 // ----------------------------------------------
 // Backfill de capa resiliente (mantido)
 // ----------------------------------------------
-export async function backfillPostCover(postId: string): Promise<{ success: boolean; message: string; }> {
+export async function backfillPostCover(
+  postId: string,
+  opts?: { force?: boolean }
+): Promise<{ success: boolean; message: string }> {
   const TAG = `${SERVICE_TAG}[backfillPostCover]`;
   logger.info(`${TAG} Iniciando backfill para postId: ${postId}`);
 
@@ -456,7 +464,10 @@ export async function backfillPostCover(postId: string): Promise<{ success: bool
       return { success: false, message: 'Post not found.' };
     }
 
-    if (post.coverUrl) {
+    const alreadyHasCover = Boolean(post.coverUrl);
+    const isProxied = alreadyHasCover && typeof post.coverUrl === 'string' && post.coverUrl.startsWith('/api/proxy/thumbnail/');
+    const force = Boolean(opts?.force);
+    if (alreadyHasCover && !force) {
       logger.info(`${TAG} Post ${postId} já possui uma coverUrl. Ignorando.`);
       return { success: true, message: 'Cover URL already exists.' };
     }

@@ -94,6 +94,8 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { path: string[] } }
 ) {
+  const urlIn = new URL(req.url);
+  const strict = ['1', 'true', 'yes'].includes((urlIn.searchParams.get('strict') || '').toLowerCase());
   // Recompõe a URL alvo a partir dos segmentos (espera-se que venha encodeURIComponent no cliente)
   const encoded = params.path?.join("/") ?? "";
   const targetUrl = decodeURIComponent(encoded);
@@ -163,24 +165,41 @@ export async function GET(
     // Cache miss — busca upstream
     const upstreamRes = await fetch(targetUrl, {
       headers: {
-        referer: "",
+        // Alguns CDNs do Instagram exigem referer/origin plausíveis
+        referer: "https://www.instagram.com/",
+        origin: "https://www.instagram.com",
+        "accept-language": "en-US,en;q=0.9,pt-BR;q=0.8",
         "user-agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
         accept:
           "image/avif,image/webp,image/apng,image/svg+xml,image/*;q=0.8,*/*;q=0.5",
+        "cache-control": "no-cache",
+        pragma: "no-cache",
       },
       redirect: "follow",
       cache: "no-store",
     });
 
-    if (!upstreamRes.ok || !upstreamRes.body) {
-      logger.error(
-        `[thumbnail-proxy] Upstream fetch failed for ${targetUrl}: ${upstreamRes.status}`
-      );
-      return new Response("Upstream fetch failed", {
-        status: upstreamRes.status || 502,
-      });
+  if (!upstreamRes.ok || !upstreamRes.body) {
+    logger.error(
+      `[thumbnail-proxy] Upstream fetch failed for ${targetUrl}: ${upstreamRes.status}`
+    );
+    if (strict) {
+      return new Response("Upstream image fetch failed", { status: 502 });
     }
+    // Fallback: PNG 1x1 cinza (visível) para evitar "buracos"
+    const grayPng = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAADUlEQVR42mP8z8AARQMD8Z1kGAAAAABJRU5ErkJggg==",
+      "base64"
+    );
+    return new Response(grayPng, {
+      status: 200,
+      headers: {
+        "Content-Type": "image/png",
+        "Cache-Control": `public, max-age=${60 * 5}`, // 5 minutos apenas
+      },
+    });
+  }
 
     const contentType =
       upstreamRes.headers.get("content-type") || "application/octet-stream";
@@ -239,6 +258,20 @@ export async function GET(
     return new Response(responseStream, { headers });
   } catch (err) {
     logger.error(`[thumbnail-proxy] Unexpected error for ${targetUrl}`, err);
-    return new Response("Internal error", { status: 500 });
+    if (strict) {
+      return new Response("Proxy unexpected error", { status: 500 });
+    }
+    // Fallback: PNG 1x1 cinza (visível)
+    const grayPng = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAADUlEQVR42mP8z8AARQMD8Z1kGAAAAABJRU5ErkJggg==",
+      "base64"
+    );
+    return new Response(grayPng, {
+      status: 200,
+      headers: {
+        "Content-Type": "image/png",
+        "Cache-Control": `public, max-age=${60 * 5}`,
+      },
+    });
   }
 }

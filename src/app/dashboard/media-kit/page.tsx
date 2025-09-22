@@ -15,7 +15,9 @@ type VideoListItem = any;
 type Kpis = any;
 type Demographics = any;
 
-function SelfMediaKitContent({ userId, fallbackName, fallbackEmail, fallbackImage }: { userId: string; fallbackName?: string | null; fallbackEmail?: string | null; fallbackImage?: string | null; }) {
+import React from 'react';
+
+function SelfMediaKitContent({ userId, fallbackName, fallbackEmail, fallbackImage, belowAffiliateSlot, compactPadding }: { userId: string; fallbackName?: string | null; fallbackEmail?: string | null; fallbackImage?: string | null; belowAffiliateSlot?: React.ReactNode; compactPadding?: boolean; }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -95,19 +97,17 @@ function SelfMediaKitContent({ userId, fallbackName, fallbackEmail, fallbackImag
   } as any;
 
   return (
-    <div className="bg-slate-50">
-      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-          <MediaKitView
-            user={user}
-            summary={summary}
-            videos={videos}
-            kpis={kpis}
-            demographics={demographics}
-            showSharedBanner={false}
-            showOwnerCtas={true}
-          />
-      </div>
-    </div>
+    <MediaKitView
+      user={user}
+      summary={summary}
+      videos={videos}
+      kpis={kpis}
+      demographics={demographics}
+      showSharedBanner={false}
+      showOwnerCtas={true}
+      belowAffiliateSlot={belowAffiliateSlot}
+      compactPadding={compactPadding}
+    />
   );
 }
 
@@ -305,10 +305,14 @@ export default function MediaKitSelfServePage() {
   // ===== Estado principal (IG conectado) =====
   return (
     <>
-      <section className="w-full bg-white" aria-label="Mídia Kit">
-        {/* Toolbar de compartilhamento */}
-        {url && (
-          <div className="px-2 sm:px-4 pt-3">
+      <section className="w-full bg-white pb-10" aria-label="Mídia Kit">
+        {/* Conteúdo do Mídia Kit (sem iframe) + toolbar logo abaixo do Afiliado */}
+        <SelfMediaKitContent
+          userId={(session?.user as any)?.id as string}
+          fallbackName={session?.user?.name}
+          fallbackEmail={session?.user?.email}
+          fallbackImage={session?.user?.image}
+          belowAffiliateSlot={url ? (
             <div className="w-full rounded-xl border border-gray-200 bg-white p-2 sm:p-3 shadow-sm">
               <div className="flex flex-col md:flex-row md:items-center gap-2">
                 {isActiveLike && (
@@ -327,7 +331,7 @@ export default function MediaKitSelfServePage() {
                 <div className="flex-1" />
                 <div className="flex w-full md:w-auto items-center gap-2">
                   <input
-                    value={url}
+                    value={url || ''}
                     readOnly
                     className="flex-1 md:w-[360px] text-xs bg-gray-50 border border-gray-200 rounded px-3 py-2"
                   />
@@ -349,15 +353,8 @@ export default function MediaKitSelfServePage() {
                 </div>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Conteúdo do Mídia Kit (sem iframe) */}
-        <SelfMediaKitContent
-          userId={(session?.user as any)?.id as string}
-          fallbackName={session?.user?.name}
-          fallbackEmail={session?.user?.email}
-          fallbackImage={session?.user?.image}
+          ) : null}
+          compactPadding
         />
       </section>
 

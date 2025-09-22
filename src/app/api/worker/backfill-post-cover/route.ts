@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
     }
 
-    const { postId } = payload ?? {};
+    const { postId, force } = payload ?? {};
     if (!postId) {
       logger.warn(`${TAG} Recebido payload sem postId.`);
       return NextResponse.json({ error: 'Missing postId in payload' }, { status: 400 });
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
 
     logger.info(`${TAG} Iniciando processamento para postId: ${postId}`);
 
-    const result = await backfillPostCover(postId);
+    const result = await backfillPostCover(postId, { force: Boolean(force) });
 
     // Padrões "soft-skip" — não vale a pena re-tentar
     // Inclui casos de ausência de dados (token/user/mediaId/post) e a falta de thumbnail na Graph.

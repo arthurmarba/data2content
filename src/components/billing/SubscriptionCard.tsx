@@ -155,20 +155,22 @@ export default function SubscriptionCard() {
   }
 
   return (
-    <div className="rounded-xl border p-4 bg-white">
-      <h3 className="mb-2 text-lg font-semibold">Plano {subscription.planName}</h3>
+    <div className="rounded-xl border p-3 sm:p-4 bg-white">
+      <h3 className="mb-1.5 sm:mb-2 text-base sm:text-lg font-semibold">
+        Plano {subscription.planName}
+      </h3>
 
       {showReactivate && (
         <ReactivateBanner onClick={reactivate} disabled={reactivating} />
       )}
 
-      <div className="mb-2 text-sm text-gray-700">
+      <div className="mb-1.5 sm:mb-2 text-sm text-gray-700">
         Status: <span className="font-medium">{statusLabel}</span>
       </div>
 
       {/* Informações de ciclo */}
       {isTrialing ? (
-        <div className="mb-2 text-sm text-gray-700">
+        <div className="mb-1.5 sm:mb-2 text-sm text-gray-700">
           {/* Preferimos mostrar “cobrança em …”. Usa nextInvoiceDate; se não vier, cai para trialEnd. */}
           Teste gratuito — cobrança em {nextInvoiceDateLabel || trialEndLabel || '—'}{' '}
           <span className="text-gray-500">(nenhuma cobrança até lá)</span>
@@ -178,13 +180,13 @@ export default function SubscriptionCard() {
         amount &&
         nextInvoiceDateLabel &&
         nextInvoiceDateLabel !== '—' && (
-          <div className="mb-2 text-sm text-gray-700">
+          <div className="mb-1.5 sm:mb-2 text-sm text-gray-700">
             Próxima cobrança: {amount} em {nextInvoiceDateLabel}
           </div>
         )
       )}
 
-      <div className="mb-4 text-sm text-gray-700">
+      <div className="mb-3 sm:mb-4 text-sm text-gray-700">
         Método de pagamento: {pmLabel}
       </div>
 
@@ -192,7 +194,7 @@ export default function SubscriptionCard() {
         {!showReactivate && (
           <button
             onClick={() => setShowModal(true)}
-            className="rounded bg-red-600 px-4 py-2 text-white text-sm hover:bg-red-700 disabled:opacity-50 transition-colors"
+            className="rounded bg-red-600 px-3 sm:px-4 py-1.5 sm:py-2 text-white text-sm hover:bg-red-700 disabled:opacity-50 transition-colors"
             disabled={canceling}
           >
             {canceling ? 'Cancelando...' : isTrialing ? 'Não renovar após o teste' : 'Cancelar renovação'}
@@ -202,7 +204,7 @@ export default function SubscriptionCard() {
         {showReactivate && (
           <button
             onClick={reactivate}
-            className="rounded bg-blue-600 px-4 py-2 text-white text-sm hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            className="rounded bg-blue-600 px-3 sm:px-4 py-1.5 sm:py-2 text-white text-sm hover:bg-blue-700 disabled:opacity-50 transition-colors"
             disabled={reactivating}
           >
             {reactivating ? 'Reativando...' : 'Reativar assinatura'}
