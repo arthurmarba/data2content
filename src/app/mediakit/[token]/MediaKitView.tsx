@@ -34,7 +34,6 @@ import { getCategoryById, commaSeparatedIdsToLabels } from '@/app/lib/classifica
 import { usePlannerData, PlannerUISlot } from '@/hooks/usePlannerData';
 import PlannerSlotModal, { PlannerSlotData as PlannerSlotDataModal } from '@/app/mediakit/components/PlannerSlotModal';
 import SubscribeCtaBanner from '@/app/mediakit/components/SubscribeCtaBanner';
-import AffiliateCard from '@/components/affiliate/AffiliateCard';
 import { useSession } from 'next-auth/react';
 
 /**
@@ -734,6 +733,7 @@ export default function MediaKitView({
   showOwnerCtas = false,
   belowAffiliateSlot,
   compactPadding = false,
+  publicUrlForCopy,
 }: MediaKitViewProps) {
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -852,18 +852,6 @@ export default function MediaKitView({
           {isOwner && (
             <>
               <SubscribeCtaBanner isSubscribed={isSubscribed} />
-
-
-              {showOwnerCtas && (
-                <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={0.15}>
-                  <div className="mb-6 sm:mb-8">
-                    <AffiliateCard variant="mediakit" />
-                  </div>
-                </motion.div>
-              )}
-              {belowAffiliateSlot ? (
-                <div className="mb-6 sm:mb-8">{belowAffiliateSlot}</div>
-              ) : null}
             </>
           )}
 
@@ -886,7 +874,7 @@ export default function MediaKitView({
                   )}
                   <button
                     className="border text-sm px-3 py-2 rounded-md"
-                    onClick={() => navigator.clipboard.writeText(window.location.href)}
+                    onClick={() => navigator.clipboard.writeText(publicUrlForCopy || window.location.href)}
                   >
                     Copiar link
                   </button>

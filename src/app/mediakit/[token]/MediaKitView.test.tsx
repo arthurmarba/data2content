@@ -61,10 +61,10 @@ describe('MediaKitView ownership visibility', () => {
     expect(screen.queryByTestId('affiliate-card')).not.toBeInTheDocument();
   });
 
-  it('shows cards for owner', () => {
+  it('shows owner-only elements but not affiliate card', () => {
     (useSession as jest.Mock).mockReturnValue({ data: { user: { _id: 'user1' } } });
     render(<MediaKitView {...baseProps} />);
     expect(screen.getByTestId('subscribe-banner')).toBeInTheDocument();
-    expect(screen.getByTestId('affiliate-card')).toBeInTheDocument();
+    expect(screen.queryByTestId('affiliate-card')).not.toBeInTheDocument();
   });
 });

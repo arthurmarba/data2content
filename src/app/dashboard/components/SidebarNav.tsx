@@ -7,6 +7,7 @@ import {
   FaCompass,
   FaCalendarAlt,
   FaCreditCard,
+  FaUsers,
 } from "react-icons/fa";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -37,6 +38,7 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
     () => [
       { href: "/dashboard/discover", label: "Descoberta", icon: <FaCompass /> },
       { href: "/dashboard/media-kit", label: "Planejamento", icon: <FaCalendarAlt /> },
+      { href: "/dashboard/afiliados", label: "Indique e Ganhe", icon: <FaUsers /> },
       { href: "/dashboard/settings", label: "Gerir Assinatura", icon: <FaCreditCard /> },
     ],
     []

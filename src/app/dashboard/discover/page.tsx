@@ -7,7 +7,6 @@ const SubscribeCtaBanner = NextDynamic(() => import('@/app/mediakit/components/S
 const DiscoverViewTracker = NextDynamic(() => import('../../discover/components/DiscoverViewTracker'), { ssr: false });
 const DiscoverChips = NextDynamic(() => import('../../discover/components/DiscoverChips'), { ssr: false });
 const DiscoverGrid = NextDynamic(() => import('../../discover/components/DiscoverGrid'), { ssr: false });
-const AffiliateCard = NextDynamic(() => import('@/components/affiliate/AffiliateCard'), { ssr: false });
 
 export const dynamic = 'force-dynamic';
 
@@ -102,10 +101,7 @@ export default async function DiscoverDashboardPage({ searchParams }: { searchPa
       <DiscoverViewTracker />
 
       <div className="max-w-[800px] lg:max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
-        {/* Teaser de Afiliados (mesmo card usado no Mídia Kit) */}
-        <div className="mb-4">
-          <AffiliateCard variant="mediakit" />
-        </div>
+        {/* Teaser de Afiliados removido; agora há uma página dedicada em /dashboard/afiliados */}
 
         {/* Banner para plano inativo (gating suave) */}
         {allowedPersonalized === false && (

@@ -25,7 +25,7 @@ export interface SubscribeCtaBannerProps {
 const SubscribeCtaBanner: React.FC<SubscribeCtaBannerProps> = ({
   isSubscribed,
   title = "Desbloqueie nossa IA avançada",
-  description = "Torne-se assinante e utilize nossa IA para planejamento de conteúdo.",
+  description = "Torne-se assinante e utilize nossa IA para planejar conteúdo.",
   primaryLabel = "Seja assinante",
   secondaryLabel = "Ver planos",
   className = "",
@@ -42,23 +42,23 @@ const SubscribeCtaBanner: React.FC<SubscribeCtaBannerProps> = ({
 
   return (
     <div className={`mb-6 sm:mb-8 ${className}`}>
-      <div className="relative overflow-hidden rounded-xl border border-pink-200 bg-white">
-        <div className="absolute inset-0 opacity-10 bg-gradient-to-r from-pink-500 via-fuchsia-500 to-indigo-500" />
-        <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-4 sm:px-6 py-4">
-          <div className="flex items-start gap-3">
-            <div className="shrink-0 rounded-lg bg-pink-100 p-2">
-              <Crown className="w-5 h-5 text-pink-600" />
+      <div className="relative overflow-hidden rounded-lg sm:rounded-xl border border-pink-200/60 bg-white">
+        <div className="hidden sm:block absolute inset-0 opacity-10 bg-gradient-to-r from-pink-500 via-fuchsia-500 to-indigo-500" />
+        <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 px-3 sm:px-6 py-3 sm:py-4">
+          <div className="flex items-start gap-2.5 sm:gap-3">
+            <div className="shrink-0 rounded-lg bg-pink-100 p-1.5 sm:p-2">
+              <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-pink-600" />
             </div>
             <div>
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900">{title}</h2>
-              <p className="text-sm text-gray-600">{description}</p>
+              <h2 className="text-base sm:text-xl font-bold text-gray-900">{title}</h2>
+              <p className="text-xs sm:text-sm text-gray-600 line-clamp-2 sm:line-clamp-none">{description}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 self-stretch sm:self-auto">
             <button
               onClick={openSubscribe}
-              className="inline-flex items-center justify-center rounded-md bg-pink-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400"
+              className="inline-flex w-full sm:w-auto items-center justify-center rounded-md bg-pink-600 px-3 py-1.5 sm:px-4 sm:py-2 text-sm font-semibold text-white shadow-sm hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400"
             >
               {primaryLabel}
             </button>

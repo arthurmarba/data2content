@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useSession, signIn } from 'next-auth/react';
 import MediaKitView from '@/app/mediakit/[token]/MediaKitView';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaExclamationTriangle, FaShareAlt, FaLink, FaCheck, FaWhatsapp, FaTimes } from 'react-icons/fa';
+import { FaExclamationTriangle, FaWhatsapp, FaTimes } from 'react-icons/fa';
 import BillingSubscribeModal from '../billing/BillingSubscribeModal';
 import WhatsAppConnectInline from '../WhatsAppConnectInline';
 
@@ -17,7 +17,7 @@ type Demographics = any;
 
 import React from 'react';
 
-function SelfMediaKitContent({ userId, fallbackName, fallbackEmail, fallbackImage, belowAffiliateSlot, compactPadding }: { userId: string; fallbackName?: string | null; fallbackEmail?: string | null; fallbackImage?: string | null; belowAffiliateSlot?: React.ReactNode; compactPadding?: boolean; }) {
+function SelfMediaKitContent({ userId, fallbackName, fallbackEmail, fallbackImage, compactPadding, publicUrlForCopy }: { userId: string; fallbackName?: string | null; fallbackEmail?: string | null; fallbackImage?: string | null; compactPadding?: boolean; publicUrlForCopy?: string | null; }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -105,8 +105,8 @@ function SelfMediaKitContent({ userId, fallbackName, fallbackEmail, fallbackImag
       demographics={demographics}
       showSharedBanner={false}
       showOwnerCtas={true}
-      belowAffiliateSlot={belowAffiliateSlot}
       compactPadding={compactPadding}
+      publicUrlForCopy={publicUrlForCopy || undefined}
     />
   );
 }
@@ -119,7 +119,6 @@ export default function MediaKitSelfServePage() {
   const [url, setUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   
   const instagramConnected = Boolean((session?.user as any)?.instagramConnected);
   const fetchedOnce = useRef(false);
@@ -270,25 +269,7 @@ export default function MediaKitSelfServePage() {
     return () => { mounted = false; };
   }, [status, instagramConnected]);
 
-  const copyLink = async () => {
-    if (!url) return;
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1200);
-    } catch {/* noop */}
-  };
-
-  const nativeShare = async () => {
-    if (!url) return;
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: 'Meu Mídia Kit', url });
-      } else {
-        await copyLink();
-      }
-    } catch {/* share cancelado */}
-  };
+  // (compartilhamento via toolbar removido; botão interno do MediaKitView usa publicUrlForCopy)
 
   if (status === 'loading') {
     return <div className="p-6">Carregando…</div>;
@@ -306,54 +287,13 @@ export default function MediaKitSelfServePage() {
   return (
     <>
       <section className="w-full bg-white pb-10" aria-label="Mídia Kit">
-        {/* Conteúdo do Mídia Kit (sem iframe) + toolbar logo abaixo do Afiliado */}
+        {/* Conteúdo do Mídia Kit (sem iframe) */}
         <SelfMediaKitContent
           userId={(session?.user as any)?.id as string}
           fallbackName={session?.user?.name}
           fallbackEmail={session?.user?.email}
           fallbackImage={session?.user?.image}
-          belowAffiliateSlot={url ? (
-            <div className="w-full rounded-xl border border-gray-200 bg-white p-2 sm:p-3 shadow-sm">
-              <div className="flex flex-col md:flex-row md:items-center gap-2">
-                {isActiveLike && (
-                  <button
-                    onClick={handleWhatsAppLink}
-                    className="inline-flex items-center gap-2 rounded-md bg-green-500 text-white px-3 py-1.5 text-xs font-bold hover:bg-green-600 transition-colors"
-                  >
-                    <FaWhatsapp className="h-3.5 w-3.5" />
-                    Vincular WhatsApp
-                  </button>
-                )}
-                <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-800 font-medium">
-                  <FaShareAlt className="h-3.5 w-3.5" />
-                  Compartilhar meu Mídia Kit
-                </div>
-                <div className="flex-1" />
-                <div className="flex w-full md:w-auto items-center gap-2">
-                  <input
-                    value={url || ''}
-                    readOnly
-                    className="flex-1 md:w-[360px] text-xs bg-gray-50 border border-gray-200 rounded px-3 py-2"
-                  />
-                  <button
-                    onClick={copyLink}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                    title="Copiar link"
-                  >
-                    {copied ? <FaCheck className="h-3.5 w-3.5" /> : <FaLink className="h-3.5 w-3.5" />}
-                    {copied ? 'Copiado' : 'Copiar'}
-                  </button>
-                  <button
-                    onClick={nativeShare}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                    title="Compartilhar"
-                  >
-                    <FaShareAlt className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : null}
+          publicUrlForCopy={url}
           compactPadding
         />
       </section>

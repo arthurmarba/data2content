@@ -64,15 +64,17 @@ function ChatHeader({ user }: { user?: SessionUser }) {
           >
             <FaBars className="w-6 h-6" />
           </button>
-          <Link href="/dashboard" aria-label="Início" className="flex items-center">
-            <Image
-              src="/images/Colorido-Simbolo.png"
-              alt="Data2Content"
-              width={48}
-              height={48}
-              className="h-10 sm:h-12 w-auto object-contain"
-              priority
-            />
+          <Link href="/dashboard" aria-label="Início" className="font-bold text-2xl text-brand-dark flex items-center gap-2 group">
+            <div className="relative h-8 w-8 overflow-hidden">
+              <Image
+                src="/images/Colorido-Simbolo.png"
+                alt="Data2Content"
+                fill
+                className="object-contain object-center group-hover:opacity-90 transition-opacity scale-[2.4]"
+                priority
+              />
+            </div>
+            <span>data2content</span>
           </Link>
         </div>
 
@@ -192,7 +194,7 @@ export default function Header() {
   const { toggleSidebar } = useSidebar();
 
   // Usar o header unificado também em /dashboard/media-kit, /dashboard/settings e /dashboard/billing
-  const isGeminiHeaderPage = /^\/dashboard\/(chat|media-kit|settings|billing|discover)/.test(pathname);
+  const isGeminiHeaderPage = /^\/dashboard\/(chat|media-kit|settings|billing|discover|afiliados)/.test(pathname);
   // Fluxo de onboarding/instagram: header minimalista (apenas logo)
   const isOnboardingFlow = /^\/dashboard\/(onboarding|instagram)/.test(pathname);
 
@@ -211,7 +213,7 @@ export default function Header() {
                   src="/images/Colorido-Simbolo.png"
                   alt="Data2Content"
                   fill
-                  className="object-contain object-center group-hover:opacity-90 transition-opacity scale-[2.6]"
+                  className="object-contain object-center group-hover:opacity-90 transition-opacity scale-[2.4]"
                   priority
                 />
               </div>
@@ -236,16 +238,17 @@ export default function Header() {
               >
                 <FaBars className="w-6 h-6" />
               </button>
-              <Link href={MAIN_DASHBOARD_ROUTE} className="flex items-center" aria-label="Início">
+              <Link href={MAIN_DASHBOARD_ROUTE} className="font-bold text-2xl text-brand-dark flex items-center gap-2 group" aria-label="Início">
                 <div className="relative h-8 w-8 overflow-hidden">
                   <Image
                     src="/images/Colorido-Simbolo.png"
                     alt="Data2Content"
                     fill
-                    className="object-contain object-center transition-opacity scale-[2.6]"
+                    className="object-contain object-center group-hover:opacity-90 transition-opacity scale-[2.4]"
                     priority
                   />
                 </div>
+                <span>data2content</span>
               </Link>
             </div>
             <div className="flex items-center gap-3">
