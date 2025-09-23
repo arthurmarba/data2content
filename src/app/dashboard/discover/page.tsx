@@ -107,8 +107,8 @@ export default async function DiscoverDashboardPage({ searchParams }: { searchPa
         {allowedPersonalized === false && (
           <div className="mb-4">
             <SubscribeCtaBanner
-              title="Ative seu plano para recomendações personalizadas"
-              description="Desbloqueie o feed 'Para você', 'Match com seu nicho' e sugestões no Planner."
+              title="Desbloqueie nossa IA avançada"
+              description="Torne-se assinante e utilize nossa IA para planejar conteúdo."
               primaryLabel="Ativar plano"
               secondaryLabel="Ver planos"
               isSubscribed={false}
