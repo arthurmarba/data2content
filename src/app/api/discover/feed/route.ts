@@ -11,6 +11,8 @@ import { findGlobalPostsByCriteria } from '@/app/lib/dataService/marketAnalysis/
 import { fetchTopCategories } from '@/app/lib/dataService/marketAnalysis/rankingsService';
 import { recommendWeeklySlots } from '@/app/lib/planner/recommender';
 import findCommunityInspirationPosts from '@/utils/findCommunityInspirationPosts';
+import { getExperienceFilters } from '@/app/lib/discover/experiences';
+import { getRecipe, type ShelfSpec } from '@/app/lib/discover/recipes';
 
 import MetricModel from '@/app/models/Metric';
 import { aggregatePlatformTimePerformance } from '@/utils/aggregatePlatformTimePerformance';
@@ -21,7 +23,7 @@ export const dynamic = 'force-dynamic';
 
 type Section = { key: string; title: string; items: PostCard[] };
 type SectionsResponse =
-  | { ok: true; generatedAt: string; sections: Section[]; allowedPersonalized: boolean }
+  | { ok: true; generatedAt: string; sections: Section[]; allowedPersonalized: boolean; capabilities?: { hasReels: boolean; hasDuration: boolean; hasSaved: boolean } }
   | { ok: false; error: string };
 
 type PostCard = {
@@ -38,6 +40,8 @@ type PostCard = {
     comments?: number;
     shares?: number;
     views?: number;
+    video_duration_seconds?: number;
+    saved?: number;
   };
   categories?: {
     format?: string[];
@@ -67,6 +71,9 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
   const { searchParams } = new URL(req.url);
   const days = clamp(parseInt(searchParams.get('days') || '60', 10) || 60, 7, 365);
   const limitPerRow = clamp(parseInt(searchParams.get('limitPerRow') || '12', 10) || 12, 6, 30);
+  const expParam = searchParams.get('exp');
+  const exp = expParam || undefined;
+  const viewParam = searchParams.get('view');
   // Optional category filters (comma-separated)
   const formatFilter = searchParams.get('format') || undefined;
   const proposalFilter = searchParams.get('proposal') || undefined;
@@ -83,17 +90,42 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
 
   const sections: Section[] = [];
   const seen = new Set<string>();
+  // Permitir duplicados entre prateleiras específicas para garantir exibição
+  const allowDuplicateKeys = new Set<string>([
+    'user_suggested',
+    'top_in_your_format',
+    'reels_lt_15',
+    'reels_15_45',
+    'reels_gt_45',
+  ]);
 
   const pushSection = (s: Section) => {
-    // dedup por id e corta por limite
     const dedup: PostCard[] = [];
+    const allowDupes = allowDuplicateKeys.has(s.key);
     for (const item of s.items) {
-      if (!item?.id || seen.has(item.id)) continue;
-      seen.add(item.id);
+      if (!item?.id) continue;
+      if (!allowDupes && seen.has(item.id)) continue;
+      if (!allowDupes) seen.add(item.id);
       dedup.push(item);
       if (dedup.length >= limitPerRow) break;
     }
     if (dedup.length) sections.push({ ...s, items: dedup });
+  };
+
+  const computeCapabilities = (secs: Section[]) => {
+    let hasReels = false;
+    let hasDuration = false;
+    let hasSaved = false;
+    for (const s of secs) {
+      for (const it of (s.items || [])) {
+        const formats = (it.categories?.format || []).map((x) => String(x).toLowerCase());
+        if (formats.includes('reel')) hasReels = true;
+        if (Number(it?.stats?.video_duration_seconds || 0) > 0) hasDuration = true;
+        if (Number((it as any)?.stats?.saved ?? 0) > 0) hasSaved = true;
+        if (hasReels && hasDuration && hasSaved) break;
+      }
+    }
+    return { hasReels, hasDuration, hasSaved };
   };
 
   // --- leve cache (somente quando sem filtros) para seções globais ---
@@ -109,7 +141,212 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
   const caches = (global as any).__discoverCaches as Record<string, CacheBucket>;
 
   try {
+    logger.info('[discover/debug] start', {
+      userId: userId || null,
+      allowedPersonalized,
+      params: {
+        days,
+        limitPerRow,
+        formatFilter,
+        proposalFilter,
+        contextFilter,
+        toneFilter,
+        referencesFilter,
+        exp: exp || null,
+        view: viewParam || null,
+      },
+    });
+    // Prepara filtros de experiência (Netflix-like)
+    let topContextIdsForExp: string[] | undefined;
+    if (exp === 'niche_humor' && userId) {
+      try {
+        const bestCtx = await fetchTopCategories({ userId, category: 'context', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 2 });
+        topContextIdsForExp = (bestCtx || []).map((x: any) => String(x.category)).filter(Boolean);
+      } catch {
+        topContextIdsForExp = undefined;
+      }
+    }
+    const expFilters = getExperienceFilters(exp ?? null, { allowedPersonalized, topContextIds: topContextIdsForExp });
+    const mergeCsv = (a?: string, b?: string) => {
+      const parts = [a, b]
+        .filter(Boolean)
+        .flatMap((s) => (s as string).split(',').map((x) => x.trim()).filter(Boolean));
+      return parts.length ? Array.from(new Set(parts)).join(',') : undefined;
+    };
+
+    // Se houver receita (por exp/view), usamos prateleiras específicas e retornamos somente elas
+    let topContextIdsForRecipe: string[] | undefined = topContextIdsForExp;
+    if (!topContextIdsForRecipe && userId) {
+      try {
+        const bestCtx = await fetchTopCategories({ userId, category: 'context', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 2 });
+        topContextIdsForRecipe = (bestCtx || []).map((x: any) => String(x.category)).filter(Boolean);
+      } catch {
+        /* noop */
+      }
+    }
+    const recipe = getRecipe({ exp, view: viewParam, allowedPersonalized, topContextIds: topContextIdsForRecipe });
+    if (recipe && recipe.shelves.length > 0) {
+      const tasksRecipe: Array<Promise<void>> = [];
+      const toCsv = (arr?: string[]) => (arr && arr.length ? arr.join(',') : undefined);
+      const runShelf = async (spec: ShelfSpec) => {
+        try {
+          const fmtCsv = mergeCsv(toCsv(spec.include?.format), formatFilter);
+          const propCsv = mergeCsv(toCsv(spec.include?.proposal), proposalFilter);
+          const ctxCsv = mergeCsv(toCsv(spec.include?.context), contextFilter);
+          const res = await findGlobalPostsByCriteria({
+            dateRange: { startDate, endDate },
+            sortBy: spec.sortBy || 'stats.total_interactions',
+            sortOrder: spec.sortOrder || 'desc',
+            page: 1,
+            limit: (spec.limitMultiplier ? spec.limitMultiplier : 2) * limitPerRow,
+            minInteractions: spec.minInteractions ?? 0,
+            onlyOptIn: spec.onlyOptIn ?? true,
+            format: fmtCsv,
+            proposal: propCsv,
+            context: ctxCsv,
+            tone: toneFilter,
+            references: referencesFilter,
+          });
+          let items: PostCard[] = (res.posts || []).map((p: any) => ({
+            id: String(p._id),
+            coverUrl: toProxyUrl(p.coverUrl || null),
+            caption: p.description || p.text_content || '',
+            postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
+            creatorName: (p as any).creatorName,
+            creatorAvatarUrl: toProxyUrl((p as any).creatorAvatarUrl || (p as any).creator_avatar_url || null) || null,
+            postLink: (p as any).postLink,
+            stats: {
+              total_interactions: p?.stats?.total_interactions,
+              likes: p?.stats?.likes,
+              comments: p?.stats?.comments,
+              shares: p?.stats?.shares,
+              views: p?.stats?.views,
+              video_duration_seconds: p?.stats?.video_duration_seconds,
+              saved: p?.stats?.saved,
+            },
+            categories: {
+              format: Array.isArray(p?.format) ? p.format : undefined,
+              proposal: Array.isArray(p?.proposal) ? p.proposal : undefined,
+              context: Array.isArray(p?.context) ? p.context : undefined,
+              tone: Array.isArray(p?.tone) ? p.tone : undefined,
+              references: Array.isArray(p?.references) ? p.references : undefined,
+            },
+          }));
+          // Pós-filtros do shelf (weekend/duration/hourRanges)
+          if (spec.weekendOnly) {
+            items = items.filter((it) => {
+              const d = it.postDate ? new Date(it.postDate) : null;
+              if (!d) return false;
+              const dow = d.getDay();
+              return dow === 0 || dow === 6;
+            });
+          }
+          if (spec.duration) {
+            const secsOf = (it: PostCard) => Number(it?.stats?.video_duration_seconds || 0);
+            if (spec.duration.lt != null) items = items.filter((it) => secsOf(it) > 0 && secsOf(it) < (spec.duration!.lt as number));
+            if (spec.duration.between) {
+              const [lo, hi] = spec.duration.between;
+              items = items.filter((it) => {
+                const s = secsOf(it);
+                return s >= lo && s <= hi;
+              });
+            }
+            if (spec.duration.gt != null) items = items.filter((it) => secsOf(it) > (spec.duration!.gt as number));
+          }
+          if (spec.hourRanges && spec.hourRanges.length) {
+            const toHour = (iso?: string) => {
+              if (!iso) return null;
+              const d = new Date(iso);
+              if (isNaN(d.getTime())) return null;
+              return d.getHours();
+            };
+            items = items.filter((it) => {
+              const h = toHour(it.postDate);
+              if (h == null) return false;
+              return spec.hourRanges!.some(([start, end]) => {
+                if (start <= end) return h >= start && h < end;
+                // faixa cruzando meia-noite (ex.: 22-02)
+                return h >= start || h < end;
+              });
+            });
+          }
+
+          // Ranking customizado (se weights presentes)
+          if (spec.weights) {
+            const nowMs = Date.now();
+            const get = (n: number | undefined) => (typeof n === 'number' && isFinite(n) ? n : 0);
+            const arr = items.map((it) => {
+              const s = it.stats || {} as any;
+              const saved = get((s as any).saved);
+              const denom = get((s as any).reach) || get((s as any).views) || get((s as any).impressions) || 0;
+              const savedRate = denom > 0 ? saved / denom : 0;
+              const interactions = get((s as any).total_interactions);
+              const shares = get((s as any).shares);
+              const comments = get((s as any).comments);
+              const ageDays = it.postDate ? Math.max(0, (nowMs - new Date(it.postDate).getTime()) / 86_400_000) : 999;
+              const recency = Math.exp(-ageDays / 14);
+              return { it, metrics: { savedRate, interactions, shares, comments, recency } };
+            });
+            const max = (k: keyof (typeof arr)[number]['metrics']) => Math.max(1e-9, ...arr.map(x => x.metrics[k]));
+            const mSaved = max('savedRate');
+            const mInt = max('interactions');
+            const mSha = max('shares');
+            const mCom = max('comments');
+            const mRec = max('recency');
+            items = arr
+              .map(({ it, metrics }) => {
+                const w = spec.weights!;
+                const score =
+                  (w.savedRate || 0) * (metrics.savedRate / mSaved) +
+                  (w.interactions || 0) * (metrics.interactions / mInt) +
+                  (w.shares || 0) * (metrics.shares / mSha) +
+                  (w.comments || 0) * (metrics.comments / mCom) +
+                  (w.recency || 0) * (metrics.recency / mRec);
+                return { it, score };
+              })
+              .sort((a, b) => b.score - a.score)
+              .map(x => x.it);
+          }
+
+          // Diversidade por criador (cap no topo)
+          const cap = typeof spec.maxPerCreatorTop === 'number' ? spec.maxPerCreatorTop : 2;
+          if (cap > 0 && items.length > 0) {
+            const pick: PostCard[] = [];
+            const counts = new Map<string, number>();
+            for (const it of items) {
+              const key = (it.creatorName || '').toLowerCase();
+              const c = counts.get(key) || 0;
+              if (c >= cap && pick.length < limitPerRow) continue;
+              pick.push(it);
+              counts.set(key, c + 1);
+              if (pick.length >= limitPerRow * 2) break; // margem antes do pushSection cortar
+            }
+            if (pick.length >= Math.min(items.length, limitPerRow)) items = pick;
+          }
+          pushSection({ key: spec.key, title: spec.title, items });
+        } catch (err) {
+          logger.debug('[discover/recipe_shelf] failed', { shelf: spec.key, err });
+        }
+      };
+      for (const shelf of recipe.shelves) tasksRecipe.push(runShelf(shelf));
+      await Promise.allSettled(tasksRecipe);
+      // Compute capabilities for chip gating
+      const caps = computeCapabilities(sections);
+      logger.info('[discover/debug] recipe_return', { keys: sections.map(s => s.key) });
+      return NextResponse.json({ ok: true, generatedAt: new Date().toISOString(), sections, allowedPersonalized, capabilities: caps });
+    }
+
     const tasks: Array<Promise<void>> = [];
+
+    // Flag: chips incluem Reels?
+    const isReelsSelected = (() => {
+      const vals = (formatFilter || '')
+        .split(',')
+        .map(s => s.trim().toLowerCase())
+        .filter(Boolean);
+      return vals.some(v => v === 'reel' || v === 'reels' || v.includes('reel'));
+    })();
+    logger.info('[discover/debug] reels_flag', { isReelsSelected, formatFilter });
 
     // Em alta agora (Trending)
     tasks.push((async () => {
@@ -128,9 +365,9 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             limit: limitPerRow * 2,
             minInteractions: 10,
             onlyOptIn: true,
-            format: formatFilter,
-            proposal: proposalFilter,
-            context: contextFilter,
+            format: mergeCsv(formatFilter, expFilters.format),
+            proposal: mergeCsv(proposalFilter, expFilters.proposal),
+            context: mergeCsv(contextFilter, expFilters.context),
             tone: toneFilter,
             references: referencesFilter,
           });
@@ -149,6 +386,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
               shares: p?.stats?.shares,
               views: p?.stats?.views,
               video_duration_seconds: p?.stats?.video_duration_seconds,
+              saved: p?.stats?.saved,
             },
             categories: {
               format: Array.isArray(p?.format) ? p.format : undefined,
@@ -167,121 +405,215 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
       }
     })());
 
-    // Horários quentes (combina plataforma + você quando disponível)
+    // Campeões em salvamentos
     tasks.push((async () => {
       try {
         const t0 = Date.now();
-        // Top slots da plataforma (por interações)
-        const plat = await aggregatePlatformTimePerformance(days, 'stats.total_interactions', {
+        const res = await findGlobalPostsByCriteria({
+          dateRange: { startDate, endDate },
+          sortBy: 'stats.saved',
+          sortOrder: 'desc',
+          page: 1,
+          limit: limitPerRow * 2,
+          onlyOptIn: true,
           format: formatFilter,
           proposal: proposalFilter,
           context: contextFilter,
+          tone: toneFilter,
+          references: referencesFilter,
         });
-        const platSlots = (plat.bestSlots || []).slice(0, 2);
-
-        // Top slots do usuário (se permitido)
-        let youSlots: Array<{ dayOfWeek: number; hour: number }> = [];
-        if (allowedPersonalized && userId) {
-          const you = await aggregateUserTimePerformance(userId, days, 'stats.total_interactions', {
-            format: formatFilter,
-            proposal: proposalFilter,
-            context: contextFilter,
-          });
-          youSlots = (you.bestSlots || []).slice(0, 1);
-        }
-
-        const slots = [...platSlots, ...youSlots];
-        if (slots.length === 0) return; // nada a fazer
-
-        const pool: PostCard[] = [];
-        for (const s of slots) {
-          try {
-            const hours = [s.hour, (s.hour + 1) % 24, (s.hour + 2) % 24];
-            const match: any = { postDate: { $gte: startDate, $lte: endDate } };
-            if (formatFilter) match.format = { $in: formatFilter.split(',').map(v => v.trim()).filter(Boolean) };
-            if (proposalFilter) match.proposal = { $in: proposalFilter.split(',').map(v => v.trim()).filter(Boolean) };
-            if (contextFilter) match.context = { $in: contextFilter.split(',').map(v => v.trim()).filter(Boolean) };
-            if (toneFilter) match.tone = { $in: toneFilter.split(',').map(v => v.trim()).filter(Boolean) };
-            if (referencesFilter) match.references = { $in: referencesFilter.split(',').map(v => v.trim()).filter(Boolean) };
-
-            const rows = await MetricModel.aggregate([
-              { $match: match },
-              {
-                $addFields: {
-                  dow: { $dayOfWeek: '$postDate' },
-                  h: { $hour: '$postDate' },
-                }
-              },
-              { $match: { dow: s.dayOfWeek, h: { $in: hours } } },
-              {
-                $lookup: {
-                  from: 'users',
-                  localField: 'user',
-                  foreignField: '_id',
-                  as: 'creatorInfo',
-                }
-              },
-              { $unwind: { path: '$creatorInfo', preserveNullAndEmptyArrays: true } },
-              { $match: { 'creatorInfo.communityInspirationOptIn': true } },
-              { $sort: { 'stats.total_interactions': -1 } },
-              { $limit: Math.max(6, Math.min(24, limitPerRow)) },
-              { $project: {
-                  description: 1,
-                  postDate: 1,
-                  coverUrl: 1,
-                  postLink: 1,
-                  'creatorInfo.username': 1,
-                  'creatorInfo.profile_picture_url': 1,
-                  'stats.total_interactions': 1,
-                  'stats.likes': 1,
-                  'stats.comments': 1,
-                  'stats.shares': 1,
-                  'stats.views': 1,
-                  format: 1,
-                  proposal: 1,
-                  context: 1,
-                  tone: 1,
-                  references: 1,
-                }
-              },
-            ]).exec();
-
-            for (const r of rows) {
-              pool.push({
-                id: String(r._id),
-                coverUrl: toProxyUrl(r.coverUrl || null),
-                caption: r.description || '',
-                postDate: r.postDate ? new Date(r.postDate).toISOString() : undefined,
-                creatorName: r?.creatorInfo?.username,
-                creatorAvatarUrl: toProxyUrl(r?.creatorInfo?.profile_picture_url || null) || null,
-                postLink: r.postLink || undefined,
-                stats: {
-                  total_interactions: r?.stats?.total_interactions,
-                  likes: r?.stats?.likes,
-                  comments: r?.stats?.comments,
-                  shares: r?.stats?.shares,
-                  views: r?.stats?.views,
-                },
-                categories: {
-                  format: Array.isArray(r?.format) ? r.format : undefined,
-                  proposal: Array.isArray(r?.proposal) ? r.proposal : undefined,
-                  context: Array.isArray(r?.context) ? r.context : undefined,
-                  tone: Array.isArray(r?.tone) ? r.tone : undefined,
-                  references: Array.isArray(r?.references) ? r.references : undefined,
-                },
-              });
-            }
-          } catch (sub) {
-            logger.debug('[discover/best_times] slot fetch fail', { slot: s, err: sub });
-          }
-        }
-
-        pushSection({ key: 'best_times_hot', title: 'Horários quentes', items: pool });
-        logger.info('[discover/best_times] ok', { ms: Date.now() - t0, slots: slots.length, pool: pool.length });
+        const items: PostCard[] = (res.posts || []).map((p: any) => ({
+          id: String(p._id),
+          coverUrl: toProxyUrl(p.coverUrl || null),
+          caption: p.description || p.text_content || '',
+          postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
+          creatorName: (p as any).creatorName,
+          creatorAvatarUrl: toProxyUrl((p as any).creatorAvatarUrl || (p as any).creator_avatar_url || null) || null,
+          postLink: (p as any).postLink,
+          stats: {
+            total_interactions: p?.stats?.total_interactions,
+            likes: p?.stats?.likes,
+            comments: p?.stats?.comments,
+            shares: p?.stats?.shares,
+            views: p?.stats?.views,
+            video_duration_seconds: p?.stats?.video_duration_seconds,
+            saved: p?.stats?.saved,
+          },
+          categories: {
+            format: Array.isArray(p?.format) ? p.format : undefined,
+            proposal: Array.isArray(p?.proposal) ? p.proposal : undefined,
+            context: Array.isArray(p?.context) ? p.context : undefined,
+            tone: Array.isArray(p?.tone) ? p.tone : undefined,
+            references: Array.isArray(p?.references) ? p.references : undefined,
+          },
+        }));
+        pushSection({ key: 'top_saved', title: 'Campeões em salvamentos', items });
+        logger.info('[discover/top_saved] ok', { ms: Date.now() - t0, count: items.length });
       } catch (e) {
-        logger.warn('[discover/best_times] failed', e);
+        logger.warn('[discover/top_saved] failed', e);
       }
     })());
+
+    // Campeões em comentários
+    tasks.push((async () => {
+      try {
+        const t0 = Date.now();
+        const res = await findGlobalPostsByCriteria({
+          dateRange: { startDate, endDate },
+          sortBy: 'stats.comments',
+          sortOrder: 'desc',
+          page: 1,
+          limit: limitPerRow * 2,
+          onlyOptIn: true,
+          format: formatFilter,
+          proposal: proposalFilter,
+          context: contextFilter,
+          tone: toneFilter,
+          references: referencesFilter,
+        });
+        const items: PostCard[] = (res.posts || []).map((p: any) => ({
+          id: String(p._id),
+          coverUrl: toProxyUrl(p.coverUrl || null),
+          caption: p.description || p.text_content || '',
+          postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
+          creatorName: (p as any).creatorName,
+          creatorAvatarUrl: toProxyUrl((p as any).creatorAvatarUrl || (p as any).creator_avatar_url || null) || null,
+          postLink: (p as any).postLink,
+          stats: {
+            total_interactions: p?.stats?.total_interactions,
+            likes: p?.stats?.likes,
+            comments: p?.stats?.comments,
+            shares: p?.stats?.shares,
+            views: p?.stats?.views,
+            video_duration_seconds: p?.stats?.video_duration_seconds,
+            saved: p?.stats?.saved,
+          },
+          categories: {
+            format: Array.isArray(p?.format) ? p.format : undefined,
+            proposal: Array.isArray(p?.proposal) ? p.proposal : undefined,
+            context: Array.isArray(p?.context) ? p.context : undefined,
+            tone: Array.isArray(p?.tone) ? p.tone : undefined,
+            references: Array.isArray(p?.references) ? p.references : undefined,
+          },
+        }));
+        pushSection({ key: 'top_comments', title: 'Campeões em comentários', items });
+        logger.info('[discover/top_comments] ok', { ms: Date.now() - t0, count: items.length });
+      } catch (e) {
+        logger.warn('[discover/top_comments] failed', e);
+      }
+    })());
+
+    // Campeões em compartilhamentos
+    tasks.push((async () => {
+      try {
+        const t0 = Date.now();
+        const res = await findGlobalPostsByCriteria({
+          dateRange: { startDate, endDate },
+          sortBy: 'stats.shares',
+          sortOrder: 'desc',
+          page: 1,
+          limit: limitPerRow * 2,
+          onlyOptIn: true,
+          format: formatFilter,
+          proposal: proposalFilter,
+          context: contextFilter,
+          tone: toneFilter,
+          references: referencesFilter,
+        });
+        const items: PostCard[] = (res.posts || []).map((p: any) => ({
+          id: String(p._id),
+          coverUrl: toProxyUrl(p.coverUrl || null),
+          caption: p.description || p.text_content || '',
+          postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
+          creatorName: (p as any).creatorName,
+          creatorAvatarUrl: toProxyUrl((p as any).creatorAvatarUrl || (p as any).creator_avatar_url || null) || null,
+          postLink: (p as any).postLink,
+          stats: {
+            total_interactions: p?.stats?.total_interactions,
+            likes: p?.stats?.likes,
+            comments: p?.stats?.comments,
+            shares: p?.stats?.shares,
+            views: p?.stats?.views,
+            video_duration_seconds: p?.stats?.video_duration_seconds,
+            saved: p?.stats?.saved,
+          },
+          categories: {
+            format: Array.isArray(p?.format) ? p.format : undefined,
+            proposal: Array.isArray(p?.proposal) ? p.proposal : undefined,
+            context: Array.isArray(p?.context) ? p.context : undefined,
+            tone: Array.isArray(p?.tone) ? p.tone : undefined,
+            references: Array.isArray(p?.references) ? p.references : undefined,
+          },
+        }));
+        pushSection({ key: 'top_shares', title: 'Campeões em compartilhamentos', items });
+        logger.info('[discover/top_shares] ok', { ms: Date.now() - t0, count: items.length });
+      } catch (e) {
+        logger.warn('[discover/top_shares] failed', e);
+      }
+    })());
+
+    // Duração: Reels < 15s, 15–45s, > 45s (somente quando Reels estiver selecionado nos chips)
+    if (isReelsSelected) {
+      const buildDurationRail = async (key: string, title: string, pred: (s: number) => boolean) => {
+        try {
+          const res = await findGlobalPostsByCriteria({
+            dateRange: { startDate, endDate },
+            sortBy: 'stats.total_interactions',
+            sortOrder: 'desc',
+            page: 1,
+            limit: limitPerRow * 4, // margem para filtragem por duração
+            onlyOptIn: true,
+            format: mergeCsv(formatFilter, expFilters.format),
+            proposal: mergeCsv(proposalFilter, expFilters.proposal),
+            context: mergeCsv(contextFilter, expFilters.context),
+            tone: toneFilter,
+            references: referencesFilter,
+            minInteractions: 0,
+          });
+          let items: PostCard[] = (res.posts || []).map((p: any) => ({
+            id: String(p._id),
+            coverUrl: toProxyUrl(p.coverUrl || null),
+            caption: p.description || p.text_content || '',
+            postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
+            creatorName: (p as any).creatorName,
+            creatorAvatarUrl: toProxyUrl((p as any).creatorAvatarUrl || (p as any).creator_avatar_url || null) || null,
+            postLink: (p as any).postLink,
+            stats: {
+              total_interactions: p?.stats?.total_interactions,
+              likes: p?.stats?.likes,
+              comments: p?.stats?.comments,
+              shares: p?.stats?.shares,
+              views: p?.stats?.views,
+              video_duration_seconds: p?.stats?.video_duration_seconds,
+              saved: p?.stats?.saved,
+            },
+            categories: {
+              format: Array.isArray(p?.format) ? p.format : undefined,
+              proposal: Array.isArray(p?.proposal) ? p.proposal : undefined,
+              context: Array.isArray(p?.context) ? p.context : undefined,
+              tone: Array.isArray(p?.tone) ? p.tone : undefined,
+              references: Array.isArray(p?.references) ? p.references : undefined,
+            },
+          }));
+          const secs = (it: PostCard) => Number(it?.stats?.video_duration_seconds || 0);
+          // Como o chip já filtra o formato, só filtramos por duração e ignoramos outros formatos
+          items = items.filter((it) => {
+            const s = secs(it);
+            return s > 0 && pred(s);
+          });
+          logger.info('[discover/reels_duration] ok', { key, title, count: items.length });
+          pushSection({ key, title, items });
+        } catch (e) {
+          logger.warn('[discover/duration] failed', e);
+        }
+      };
+
+      tasks.push(buildDurationRail('reels_lt_15', 'Reels até 15s', (s) => s <= 15));
+      tasks.push(buildDurationRail('reels_15_45', 'Reels de 15 a 45s', (s) => s > 15 && s <= 45));
+      tasks.push(buildDurationRail('reels_gt_45', 'Reels acima de 45s', (s) => s > 45));
+    }
+
+    // (Removido) Horários quentes — não gerado mais
 
     // Ideias para o fim de semana (últimos 2 fins de semana)
     tasks.push((async () => {
@@ -297,9 +629,9 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
           limit: limitPerRow * 3,
           minInteractions: 5,
           onlyOptIn: true,
-          format: formatFilter,
-          proposal: proposalFilter,
-          context: contextFilter,
+          format: mergeCsv(formatFilter, expFilters.format),
+          proposal: mergeCsv(proposalFilter, expFilters.proposal),
+          context: mergeCsv(contextFilter, expFilters.context),
           tone: toneFilter,
           references: referencesFilter,
         });
@@ -325,6 +657,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
               shares: p?.stats?.shares,
               views: p?.stats?.views,
               video_duration_seconds: p?.stats?.video_duration_seconds,
+              saved: p?.stats?.saved,
             },
             categories: {
               format: Array.isArray(p?.format) ? p.format : undefined,
@@ -341,73 +674,44 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
       }
     })());
 
-    // Para você (slots do planner + comunidade alinhada) — apenas para plano ativo
-    if (allowedPersonalized && userId) {
-      tasks.push((async () => {
-        try {
-          const recs = await recommendWeeklySlots({ userId, periodDays: days, targetSlotsPerWeek: 3 });
-          const picks = (recs || []).slice(0, 3);
-          const bucket: PostCard[] = [];
-          for (const r of picks) {
-            try {
-              const comm = await findCommunityInspirationPosts({
-                excludeUserId: userId,
-                categories: (formatFilter || proposalFilter || contextFilter) ? {
-                  ...(r.categories || {}),
-                  ...(proposalFilter ? { proposal: [proposalFilter] } : {}),
-                  ...(contextFilter ? { context: [contextFilter] } : {}),
-                } : (r.categories || {}),
-                periodInDays: days,
-                limit: limitPerRow,
-              });
-              for (const c of comm) {
-                bucket.push({
-                  id: String(c.id),
-                  coverUrl: toProxyUrl(c.coverUrl || null) || null,
-                  caption: c.caption,
-                  postDate: c.date,
-                  creatorName: (c as any).creatorName,
-                  creatorAvatarUrl: toProxyUrl((c as any).creatorAvatarUrl || null) || null,
-                  postLink: c.postLink || undefined,
-                  stats: { views: c.views },
-                });
-              }
-            } catch (sub) {
-              logger.debug('[discover/for_you] slot enrichment fail', sub);
-            }
-          }
-          pushSection({ key: 'for_you', title: 'Recomendados para você', items: bucket });
-        } catch (e) {
-          logger.warn('[discover/for_you] failed', e);
-        }
-      })());
-    }
+    // (Removido) Para você — desativado conforme solicitação
 
-    // Match com seu nicho — apenas para plano ativo
-    if (allowedPersonalized && userId) {
+    // Sugeridos ao usuário (baseado em categorias de melhor performance)
+    // Fallback: usa categorias globais se o usuário não tiver histórico suficiente
+    if (userId) {
       tasks.push((async () => {
         try {
-          const topCtx = await fetchTopCategories({ userId, category: 'context', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 2 });
-          const topProp = await fetchTopCategories({ userId, category: 'proposal', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 1 });
+          const t0 = Date.now();
+          let topCtx = await fetchTopCategories({ userId, category: 'context', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 2 });
+          let topProp = await fetchTopCategories({ userId, category: 'proposal', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 1 });
+          logger.info('[discover/user_suggested] cats', { ctx: (topCtx || []).length, prop: (topProp || []).length });
+          if ((!topCtx || topCtx.length === 0) && (!topProp || topProp.length === 0)) {
+            // Fallback para ranking global
+            topCtx = await fetchTopCategories({ category: 'context', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 2 });
+            topProp = await fetchTopCategories({ category: 'proposal', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 1 });
+            logger.info('[discover/user_suggested] cats_fallback', { ctx: (topCtx || []).length, prop: (topProp || []).length });
+          }
           const cats = [...(topCtx || []), ...(topProp || [])].slice(0, 3);
           const pool: PostCard[] = [];
           for (const c of cats) {
             try {
-              const byCat = await findGlobalPostsByCriteria({
+              const isProposal = topProp?.some((p: any) => String(p.category) === String((c as any).category));
+              const res = await findGlobalPostsByCriteria({
                 dateRange: { startDate, endDate },
                 sortBy: 'stats.total_interactions',
                 sortOrder: 'desc',
                 page: 1,
-                limit: limitPerRow,
+                limit: limitPerRow * 2,
                 onlyOptIn: true,
-                context: c && (c as any).category && (cats.indexOf(c) < 2 ? (c as any).category : undefined) || contextFilter,
-                proposal: c && (cats.indexOf(c) === 2 ? (c as any).category : undefined) || proposalFilter,
-                format: formatFilter,
+                // Merge filtros atuais com a categoria destacada do usuário
+                format: mergeCsv(formatFilter, expFilters.format),
+                context: mergeCsv(isProposal ? contextFilter : [String((c as any).category)].join(','), expFilters.context),
+                proposal: mergeCsv(isProposal ? [String((c as any).category)].join(',') : proposalFilter, expFilters.proposal),
                 tone: toneFilter,
                 references: referencesFilter,
                 minInteractions: 5,
               });
-              for (const p of byCat.posts || []) {
+              for (const p of res.posts || []) {
                 pool.push({
                   id: String(p._id),
                   coverUrl: toProxyUrl(p.coverUrl || null),
@@ -422,6 +726,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
                     comments: p?.stats?.comments,
                     shares: p?.stats?.shares,
                     views: p?.stats?.views,
+                    video_duration_seconds: p?.stats?.video_duration_seconds,
+                    saved: p?.stats?.saved,
                   },
                   categories: {
                     format: Array.isArray(p?.format) ? p.format : undefined,
@@ -432,84 +738,33 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
                   },
                 });
               }
-            } catch (sub) {
-              logger.debug('[discover/niche] cat load fail', sub);
+            } catch (subErr) {
+              logger.debug('[discover/user_suggested] category load fail', { err: subErr });
             }
           }
-          pushSection({ key: 'niche_match', title: 'Match com seu nicho', items: pool });
+          pushSection({ key: 'user_suggested', title: 'Sugeridos ao usuário', items: pool });
+          logger.info('[discover/user_suggested] ok', { ms: Date.now() - t0, count: pool.length });
         } catch (e) {
-          logger.warn('[discover/niche_match] failed', e);
+          logger.warn('[discover/user_suggested] failed', e);
         }
       })());
     }
 
-    // Tendências por categoria (fixas)
-    tasks.push((async () => {
-      try {
-        const t0 = Date.now();
-        const categoryRows: Array<{ key: string; title: string; context?: string; proposal?: string }> = [
-          { key: 'trend_fashion_beauty', title: 'Tendências: Moda e Beleza', context: 'fashion_style,beauty_personal_care' },
-          { key: 'trend_tips', title: 'Tendências: Dicas e Tutoriais', proposal: 'tips' },
-          { key: 'trend_humor', title: 'Tendências: Humor e Cena', proposal: 'humor_scene' },
-        ];
-        for (const row of categoryRows) {
-          try {
-            const mergedProposal = [row.proposal, proposalFilter].filter(Boolean).join(',') || undefined;
-            const mergedContext = [row.context, contextFilter].filter(Boolean).join(',') || undefined;
-            const res = await findGlobalPostsByCriteria({
-              dateRange: { startDate, endDate },
-              sortBy: 'stats.total_interactions',
-              sortOrder: 'desc',
-              page: 1,
-              limit: limitPerRow * 2,
-              onlyOptIn: true,
-              format: formatFilter,
-              proposal: mergedProposal,
-              context: mergedContext,
-              tone: toneFilter,
-              references: referencesFilter,
-              minInteractions: 5,
-            });
-            const items: PostCard[] = (res.posts || []).map((p: any) => ({
-              id: String(p._id),
-              coverUrl: toProxyUrl(p.coverUrl || null),
-              caption: p.description || p.text_content || '',
-              postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
-              creatorName: (p as any).creatorName,
-              creatorAvatarUrl: toProxyUrl((p as any).creatorAvatarUrl || (p as any).creator_avatar_url || null) || null,
-              postLink: (p as any).postLink,
-              stats: {
-                total_interactions: p?.stats?.total_interactions,
-                likes: p?.stats?.likes,
-                comments: p?.stats?.comments,
-                shares: p?.stats?.shares,
-                views: p?.stats?.views,
-              },
-              categories: {
-                format: Array.isArray(p?.format) ? p.format : undefined,
-                proposal: Array.isArray(p?.proposal) ? p.proposal : undefined,
-                context: Array.isArray(p?.context) ? p.context : undefined,
-                tone: Array.isArray(p?.tone) ? p.tone : undefined,
-                references: Array.isArray(p?.references) ? p.references : undefined,
-              },
-            }));
-            pushSection({ key: row.key, title: row.title, items });
-          } catch (sub) {
-            logger.debug('[discover/trend_category] row fail', { row: row.key, err: sub });
-          }
-        }
-        logger.info('[discover/trend_category] ok', { ms: Date.now() - t0 });
-      } catch (e) {
-        logger.warn('[discover/trend_category] failed', e);
-      }
-    })());
+    // (removido bloco duplicado de Reels por duração — agora controlado acima)
 
-    // Top no seu formato (pessoal)
-    if (allowedPersonalized && userId) {
+    // (Removido) Match com seu nicho — desativado conforme solicitação
+
+    // (Removido) Tendências fixas por categoria — não geradas mais
+
+    // Top no seu formato — fallback global quando não houver histórico do usuário
+    if (userId) {
       tasks.push((async () => {
         try {
           const t0 = Date.now();
-          const topFormats = await fetchTopCategories({ userId, category: 'format', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 2 });
+          let topFormats = await fetchTopCategories({ userId, category: 'format', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 2 });
+          if (!topFormats || topFormats.length === 0) {
+            topFormats = await fetchTopCategories({ category: 'format', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 2 });
+          }
           const ids = (topFormats || []).map((x: any) => String(x.category)).filter(Boolean);
           const pool: PostCard[] = [];
           for (const fmt of ids) {
@@ -521,9 +776,9 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
                 page: 1,
                 limit: limitPerRow,
                 onlyOptIn: true,
-                format: [fmt, formatFilter].filter(Boolean).join(',') || fmt,
-                proposal: proposalFilter,
-                context: contextFilter,
+                format: mergeCsv([fmt, formatFilter].filter(Boolean).join(',') || fmt, expFilters.format),
+                proposal: mergeCsv(proposalFilter, expFilters.proposal),
+                context: mergeCsv(contextFilter, expFilters.context),
                 tone: toneFilter,
                 references: referencesFilter,
                 minInteractions: 5,
@@ -543,6 +798,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
                     comments: p?.stats?.comments,
                     shares: p?.stats?.shares,
                     views: p?.stats?.views,
+                    video_duration_seconds: p?.stats?.video_duration_seconds,
+                    saved: p?.stats?.saved,
                   },
                   categories: {
                     format: Array.isArray(p?.format) ? p.format : undefined,
@@ -575,11 +832,14 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
           items = caches[cacheKey].items;
         } else {
           const match: any = { postDate: { $gte: startDate, $lte: endDate }, collab: true };
-        if (formatFilter) match.format = { $in: formatFilter.split(',').map(s => s.trim()).filter(Boolean) };
-        if (proposalFilter) match.proposal = { $in: proposalFilter.split(',').map(s => s.trim()).filter(Boolean) };
-        if (contextFilter) match.context = { $in: contextFilter.split(',').map(s => s.trim()).filter(Boolean) };
-        if (toneFilter) match.tone = { $in: toneFilter.split(',').map(s => s.trim()).filter(Boolean) };
-        if (referencesFilter) match.references = { $in: referencesFilter.split(',').map(s => s.trim()).filter(Boolean) };
+          const fCsvC = mergeCsv(formatFilter, expFilters.format);
+          const pCsvC = mergeCsv(proposalFilter, expFilters.proposal);
+          const cCsvC = mergeCsv(contextFilter, expFilters.context);
+          if (fCsvC) match.format = { $in: fCsvC.split(',').map(s => s.trim()).filter(Boolean) };
+          if (pCsvC) match.proposal = { $in: pCsvC.split(',').map(s => s.trim()).filter(Boolean) };
+          if (cCsvC) match.context = { $in: cCsvC.split(',').map(s => s.trim()).filter(Boolean) };
+          if (toneFilter) match.tone = { $in: toneFilter.split(',').map(s => s.trim()).filter(Boolean) };
+          if (referencesFilter) match.references = { $in: referencesFilter.split(',').map(s => s.trim()).filter(Boolean) };
           const rows = await MetricModel.aggregate([
             { $match: match },
             {
@@ -606,6 +866,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             'stats.comments': 1,
             'stats.shares': 1,
             'stats.views': 1,
+            'stats.video_duration_seconds': 1,
+            'stats.saved': 1,
             format: 1,
             proposal: 1,
             context: 1,
@@ -629,6 +891,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
               shares: r?.stats?.shares,
               views: r?.stats?.views,
               video_duration_seconds: r?.stats?.video_duration_seconds,
+              saved: r?.stats?.saved,
             },
             categories: {
               format: Array.isArray(r?.format) ? r.format : undefined,
@@ -684,6 +947,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
               'stats.comments': 1,
               'stats.shares': 1,
               'stats.views': 1,
+              'stats.video_duration_seconds': 1,
+              'stats.saved': 1,
               format: 1,
               proposal: 1,
               context: 1,
@@ -707,6 +972,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             comments: r?.stats?.comments,
             shares: r?.stats?.shares,
             views: r?.stats?.views,
+            video_duration_seconds: r?.stats?.video_duration_seconds,
+            saved: r?.stats?.saved,
           },
           categories: {
             format: Array.isArray(r?.format) ? r.format : undefined,
@@ -724,8 +991,9 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
     })());
 
     await Promise.allSettled(tasks);
-
-    return NextResponse.json({ ok: true, generatedAt: new Date().toISOString(), sections, allowedPersonalized });
+    logger.info('[discover/debug] final_sections', { keys: sections.map(s => s.key) });
+    const caps = computeCapabilities(sections);
+    return NextResponse.json({ ok: true, generatedAt: new Date().toISOString(), sections, allowedPersonalized, capabilities: caps });
   } catch (err: any) {
     logger.error('[discover/feed] unexpected error', err);
     return NextResponse.json({ ok: false, error: 'Failed to build discover feed' }, { status: 500 });

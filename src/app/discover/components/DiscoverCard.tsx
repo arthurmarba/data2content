@@ -2,7 +2,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import dynamic from 'next/dynamic';
 import { track } from '@/lib/track';
 // (Preferimos abrir direto no Instagram; modal não é mais usado)
 
@@ -38,11 +37,11 @@ function formatCompact(n?: number) {
   }
 }
 
-const SaveToPlannerButton = dynamic(() => import('./SaveToPlannerButton'), { ssr: false });
 
-export default function DiscoverCard({ item }: { item: PostCard }) {
+export default function DiscoverCard({ item, trackContext }: { item: PostCard; trackContext?: Record<string, any> }) {
   const views = item?.stats?.views ?? item?.stats?.total_interactions;
-  const metrics = views ? `${formatCompact(views)} ${item?.stats?.views !== undefined ? 'views' : 'interações'}` : '';
+  const isViews = item?.stats?.views !== undefined;
+  const metrics = views ? `${formatCompact(views)} ${isViews ? 'views' : 'interações'}` : '';
   const caption = (item?.caption || '').trim();
   const short = caption.length > 110 ? caption.slice(0, 107) + '…' : caption;
   const [imgFailed, setImgFailed] = useState(false);
@@ -51,13 +50,15 @@ export default function DiscoverCard({ item }: { item: PostCard }) {
   const fallbackCover = '/images/Colorido-Simbolo.png';
 
   return (
-    <article className="flex-shrink-0 w-[240px] select-none" aria-label={short || 'Post'}>
+    <article className="flex-shrink-0 w-[240px] select-none snap-start" aria-label={short || 'Post'}>
       {item.postLink ? (
         <a
           href={item.postLink}
           target="_blank"
           rel="noopener noreferrer"
-          onClick={() => { try { track('discover_card_click', { id: item.id, action: 'open_instagram' }); } catch {} }}
+          onClick={() => {
+            try { track('discover_card_click', { id: item.id, action: 'open_instagram', ...(trackContext || {}) }); } catch {}
+          }}
           className="relative rounded-xl overflow-hidden bg-gray-100 aspect-[4/5] shadow block"
           aria-label="Abrir no Instagram"
         >
@@ -80,8 +81,27 @@ export default function DiscoverCard({ item }: { item: PostCard }) {
               draggable={false}
             />
           )}
-
-          {/* Removido overlay: caption e métricas agora ficam fora da imagem */}
+          {/* Overlay de gradiente + linhas breves */}
+          {(short || metrics) && (
+            <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
+              {metrics && (
+                <div
+                  className="inline-block rounded-md bg-black/70 px-1.5 py-0.5 text-[13px] font-bold text-white"
+                  style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9), 0 0 1px rgba(0,0,0,0.9)' }}
+                >
+                  {metrics}
+                </div>
+              )}
+              {short && (
+                <div
+                  className="mt-1 text-[12px] leading-snug text-white/95 line-clamp-2"
+                  style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9), 0 0 1px rgba(0,0,0,0.9)' }}
+                >
+                  {short}
+                </div>
+              )}
+            </div>
+          )}
         </a>
       ) : (
         <div className="relative rounded-xl overflow-hidden bg-gray-100 aspect-[4/5] shadow">
@@ -105,29 +125,34 @@ export default function DiscoverCard({ item }: { item: PostCard }) {
               draggable={false}
             />
           )}
-
-          {/* Removido overlay: caption e métricas agora ficam fora da imagem */}
+          {(short || metrics) && (
+            <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
+              {metrics && (
+                <div
+                  className="inline-block rounded-md bg-black/70 px-1.5 py-0.5 text-[13px] font-bold text-white"
+                  style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9), 0 0 1px rgba(0,0,0,0.9)' }}
+                >
+                  {metrics}
+                </div>
+              )}
+              {short && (
+                <div
+                  className="mt-1 text-[12px] leading-snug text-white/95 line-clamp-2"
+                  style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9), 0 0 1px rgba(0,0,0,0.9)' }}
+                >
+                  {short}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Bloco de informações abaixo da imagem */}
-      {(metrics || short) && (
-        <div className="mt-2">
-          {metrics && (
-            <div className="text-[11px] text-gray-600">{metrics}</div>
-          )}
-          {short && (
-            <div className="text-[12px] leading-snug text-gray-800 line-clamp-2">{short}</div>
-          )}
-        </div>
-      )}
-
-      {/* Rodapé com ações */}
+      {/* Rodapé com autor (sem botão de salvar) */}
       <div className="mt-2 flex items-center justify-between">
-        <span className="text-[11px] text-gray-500 truncate max-w-[65%]" title={item.creatorName || ''}>
+        <span className="text-[11px] text-gray-500 truncate max-w-full" title={item.creatorName || ''}>
           {item.creatorName || ''}
         </span>
-        <SaveToPlannerButton item={item} />
       </div>
 
     </article>

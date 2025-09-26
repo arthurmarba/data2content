@@ -7,6 +7,7 @@ const SubscribeCtaBanner = NextDynamic(() => import('@/app/mediakit/components/S
 const DiscoverViewTracker = NextDynamic(() => import('../../discover/components/DiscoverViewTracker'), { ssr: false });
 const DiscoverChips = NextDynamic(() => import('../../discover/components/DiscoverChips'), { ssr: false });
 const DiscoverGrid = NextDynamic(() => import('../../discover/components/DiscoverGrid'), { ssr: false });
+const DiscoverRails = NextDynamic(() => import('../../discover/components/DiscoverRails'), { ssr: false });
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +35,7 @@ type PostCard = {
 };
 
 type Section = { key: string; title: string; items: PostCard[] };
-type FeedOk = { ok: true; sections: Section[]; allowedPersonalized: boolean };
+type FeedOk = { ok: true; sections: Section[]; allowedPersonalized: boolean; capabilities?: { hasReels?: boolean; hasDuration?: boolean; hasSaved?: boolean } };
 type FeedErr = { ok: false; status: number };
 
 function buildBaseUrl() {
@@ -46,11 +47,17 @@ function buildBaseUrl() {
 
 async function fetchFeed(qs?: string): Promise<FeedOk | FeedErr> {
   try {
+    // Use URL absoluta com cookie forward para preservar sessão no SSR
     const base = process.env.NEXT_PUBLIC_BASE_URL && process.env.NEXT_PUBLIC_BASE_URL.trim()
       ? process.env.NEXT_PUBLIC_BASE_URL
       : buildBaseUrl();
     const url = `${base}/api/discover/feed${qs ? `?${qs}` : ''}`;
-    const res = await fetch(url, { cache: 'no-store' });
+    const res = await fetch(url, {
+      cache: 'no-store',
+      headers: {
+        cookie: headers().get('cookie') || '',
+      },
+    });
     if (!res.ok) return { ok: false as const, status: res.status } as FeedErr;
     const data = await res.json();
     if (!data?.ok) return { ok: false as const, status: 500 } as FeedErr;
@@ -69,7 +76,6 @@ export default async function DiscoverDashboardPage({ searchParams }: { searchPa
     if (Array.isArray(v)) params.set(k, v.join(','));
     else params.set(k, String(v));
   }
-  const tab = ((searchParams?.tab as string) || 'trending').toLowerCase();
   const qs = params.toString();
 
   const result = await fetchFeed(qs).catch(() => ({ ok: false as const, status: 500 } as FeedErr));
@@ -94,7 +100,18 @@ export default async function DiscoverDashboardPage({ searchParams }: { searchPa
   }
 
   const { sections, allowedPersonalized } = result as FeedOk;
-  const selected = sections.find(s => s.key === tab) || sections.find(s => s.key === 'trending') || { key: 'trending', title: 'Virais', items: [] };
+
+  // Remover listas específicas solicitadas
+  const blockedTitles = new Set<string>([
+    'Tendências: Humor e Cena',
+    'Tendências: Dicas e Tutoriais',
+    'Tendências: Moda e Beleza',
+    'Horários quentes',
+    'Recomendados para você',
+  ]);
+  const visibleSections = (sections || []).filter(
+    (s) => !blockedTitles.has((s.title || '').trim())
+  );
 
   return (
     <main className="w-full max-w-none pt-2 sm:pt-3 lg:pt-4 pb-10">
@@ -116,16 +133,22 @@ export default async function DiscoverDashboardPage({ searchParams }: { searchPa
           </div>
         )}
 
-        {/* Chips de seleção e filtros */}
+        {/* Filtros por categoria */}
+        {/* Cabeçalho e orientação */}
         <div className="mb-3">
-          <DiscoverChips allowedPersonalized={allowedPersonalized} />
+          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Descubra ideias que combinam com você</h1>
+          <p className="text-sm text-gray-600 mt-1">Use as guias para filtrar por Formato, Proposta, Contexto, Tom e Referências. Combine chips para refinar seus resultados.</p>
         </div>
+        {/* Apenas uma linha envolvendo os chips */}
+        <section aria-label="Filtros" className="rounded-lg border border-gray-200 p-4 md:p-6 mb-6">
+          <DiscoverChips />
+        </section>
 
-        {/* Conteúdo em grid */}
-        <section aria-label="Conteúdo" className="mt-1">
-          <DiscoverGrid items={selected.items} />
-          {selected.items.length === 0 && (
-            <p className="text-gray-500 mt-6">Nenhum conteúdo encontrado por enquanto.</p>
+        {/* Conteúdo: modo Experiências sempre com prateleiras (rails) */}
+        <section aria-label="Coleções" className="mt-1">
+          <DiscoverRails sections={visibleSections} />
+          {visibleSections.length === 0 && (
+            <p className="text-gray-500 mt-6">Nenhuma coleção encontrada por enquanto.</p>
           )}
         </section>
       </div>

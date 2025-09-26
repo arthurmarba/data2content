@@ -127,6 +127,7 @@ export interface IGlobalPostResult {
     reach?: number;
     views?: number;
     impressions?: number;
+    video_duration_seconds?: number;
   };
 }
 
