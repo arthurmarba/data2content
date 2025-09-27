@@ -3,11 +3,11 @@ import React from 'react';
 import { headers } from 'next/headers';
 // Grid é a única visualização
 import NextDynamic from 'next/dynamic';
-const SubscribeCtaBanner = NextDynamic(() => import('@/app/mediakit/components/SubscribeCtaBanner'), { ssr: false });
 const DiscoverViewTracker = NextDynamic(() => import('../../discover/components/DiscoverViewTracker'), { ssr: false });
 const DiscoverChips = NextDynamic(() => import('../../discover/components/DiscoverChips'), { ssr: false });
 const DiscoverGrid = NextDynamic(() => import('../../discover/components/DiscoverGrid'), { ssr: false });
 const DiscoverRails = NextDynamic(() => import('../../discover/components/DiscoverRails'), { ssr: false });
+const DiscoverBillingGate = NextDynamic(() => import('./DiscoverBillingGate'), { ssr: false });
 
 export const dynamic = 'force-dynamic';
 
@@ -99,7 +99,7 @@ export default async function DiscoverDashboardPage({ searchParams }: { searchPa
     );
   }
 
-  const { sections, allowedPersonalized } = result as FeedOk;
+  const { sections } = result as FeedOk;
 
   // Remover listas específicas solicitadas
   const blockedTitles = new Set<string>([
@@ -120,18 +120,8 @@ export default async function DiscoverDashboardPage({ searchParams }: { searchPa
       <div className="max-w-[800px] lg:max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
         {/* Teaser de Afiliados removido; agora há uma página dedicada em /dashboard/afiliados */}
 
-        {/* Banner para plano inativo (gating suave) */}
-        {allowedPersonalized === false && (
-          <div className="mb-4">
-            <SubscribeCtaBanner
-              title="Desbloqueie nossa IA avançada"
-              description="Torne-se assinante e utilize nossa IA para planejar conteúdo."
-              primaryLabel="Ativar plano"
-              secondaryLabel="Ver planos"
-              isSubscribed={false}
-            />
-          </div>
-        )}
+        {/* Gate reativo de assinatura/WhatsApp (client-side) */}
+        <DiscoverBillingGate />
 
         {/* Filtros por categoria */}
         {/* Cabeçalho e orientação */}

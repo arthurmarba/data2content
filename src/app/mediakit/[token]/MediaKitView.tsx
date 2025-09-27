@@ -829,12 +829,11 @@ export default function MediaKitView({
 
   const displayKpis = kpiData as any;
 
-  const isSubscribed = Boolean(
-    (user as any)?.isSubscriber ||
-    (user as any)?.subscription?.status === 'active' ||
-    (user as any)?.billing?.status === 'active' ||
-    String((user as any)?.plan || '').toLowerCase() === 'pro'
-  );
+  // Dono do Mídia Kit: considera o planStatus da sessão para esconder o CTA de assinatura
+  const isSubscribed = useMemo(() => {
+    const plan = String(((session?.user as any)?.planStatus ?? '')).toLowerCase();
+    return ['active', 'trial', 'trialing', 'non_renewing'].includes(plan);
+  }, [session?.user]);
 
   const isOwner = useMemo(() => {
     const su = (session?.user as any) || {};

@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FaExclamationTriangle, FaWhatsapp, FaTimes } from 'react-icons/fa';
 import BillingSubscribeModal from '../billing/BillingSubscribeModal';
 import WhatsAppConnectInline from '../WhatsAppConnectInline';
+import DiscoverBillingGate from '../discover/DiscoverBillingGate';
 
 type Summary = any;
 type VideoListItem = any;
@@ -286,6 +287,11 @@ export default function MediaKitSelfServePage() {
   // ===== Estado principal (IG conectado) =====
   return (
     <>
+      {/* Gate reativo para WhatsApp/Assinatura (torna visível o vínculo para assinantes) */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+        <DiscoverBillingGate />
+      </div>
+
       <section className="w-full bg-white pb-10" aria-label="Mídia Kit">
         {/* Conteúdo do Mídia Kit (sem iframe) */}
         <SelfMediaKitContent
