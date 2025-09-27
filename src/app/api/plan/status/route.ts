@@ -19,10 +19,14 @@ function mapStripeToUiStatus(
   cancelAtPeriodEnd: boolean | null | undefined
 ): UiPlanStatus | null {
   if (cancelAtPeriodEnd) return "non_renewing";
-  switch (raw) {
+  const v = (raw || "").toString().toLowerCase();
+  switch (v) {
     case "active":
+    case "trial": // normaliza legado de DB
     case "trialing":
       return "active";
+    case "non_renewing":
+      return "non_renewing";
     case "past_due":
     case "incomplete":
       return "pending";
@@ -31,7 +35,7 @@ function mapStripeToUiStatus(
     case "canceled":
       return "inactive";
     default:
-      return raw ? "inactive" : null;
+      return v ? "inactive" : null;
   }
 }
 
