@@ -1,6 +1,7 @@
 // src/app/discover/components/DiscoverCard.tsx
 'use client';
 
+import Image from 'next/image';
 import React, { useState } from 'react';
 import { track } from '@/lib/track';
 // (Preferimos abrir direto no Instagram; modal não é mais usado)
@@ -38,7 +39,15 @@ function formatCompact(n?: number) {
 }
 
 
-export default function DiscoverCard({ item, trackContext }: { item: PostCard; trackContext?: Record<string, any> }) {
+export default function DiscoverCard({
+  item,
+  trackContext,
+  variant = 'rail',
+}: {
+  item: PostCard;
+  trackContext?: Record<string, any>;
+  variant?: 'rail' | 'grid';
+}) {
   const views = item?.stats?.views ?? item?.stats?.total_interactions;
   const isViews = item?.stats?.views !== undefined;
   const metrics = views ? `${formatCompact(views)} ${isViews ? 'views' : 'interações'}` : '';
@@ -48,9 +57,13 @@ export default function DiscoverCard({ item, trackContext }: { item: PostCard; t
   // Modal removido: abrimos direto no Instagram
 
   const fallbackCover = '/images/Colorido-Simbolo.png';
+  const isGrid = variant === 'grid';
 
   return (
-    <article className="flex-shrink-0 w-[240px] select-none snap-start" aria-label={short || 'Post'}>
+    <article
+      className={`${isGrid ? 'w-full' : 'flex-shrink-0 w-[240px] snap-start'} select-none`}
+      aria-label={short || 'Post'}
+    >
       {item.postLink ? (
         <a
           href={item.postLink}
@@ -59,22 +72,23 @@ export default function DiscoverCard({ item, trackContext }: { item: PostCard; t
           onClick={() => {
             try { track('discover_card_click', { id: item.id, action: 'open_instagram', ...(trackContext || {}) }); } catch {}
           }}
-          className="relative rounded-xl overflow-hidden bg-gray-100 aspect-[4/5] shadow block"
+          className="relative block aspect-[4/5] overflow-hidden rounded-xl bg-gray-100 shadow-[0_10px_24px_rgba(15,23,42,0.18)]"
           aria-label="Abrir no Instagram"
         >
           {item.coverUrl && !imgFailed ? (
-            <img
+            <Image
               src={item.coverUrl}
               alt={short || 'Capa do post'}
+              fill
               className="w-full h-full object-cover"
               loading="lazy"
               referrerPolicy="no-referrer"
-              crossOrigin="anonymous"
               draggable={false}
               onError={() => setImgFailed(true)}
             />
           ) : (
-            <img
+            <Image
+              fill
               src={fallbackCover}
               alt="Sem capa"
               className="w-full h-full object-cover opacity-70"
@@ -83,11 +97,11 @@ export default function DiscoverCard({ item, trackContext }: { item: PostCard; t
           )}
           {/* Overlay de gradiente + linhas breves */}
           {(short || metrics) && (
-            <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
+            <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/90 via-black/65 to-transparent">
               {metrics && (
                 <div
-                  className="inline-block rounded-md bg-black/70 px-1.5 py-0.5 text-[13px] font-bold text-white"
-                  style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9), 0 0 1px rgba(0,0,0,0.9)' }}
+                  className="inline-block rounded-md bg-black/90 px-1.5 py-0.5 text-[13px] font-bold text-white"
+                  style={{ textShadow: '0 3px 6px rgba(0,0,0,0.9), 0 0 2px rgba(0,0,0,0.9)' }}
                 >
                   {metrics}
                 </div>
@@ -95,7 +109,7 @@ export default function DiscoverCard({ item, trackContext }: { item: PostCard; t
               {short && (
                 <div
                   className="mt-1 text-[12px] leading-snug text-white/95 line-clamp-2"
-                  style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9), 0 0 1px rgba(0,0,0,0.9)' }}
+                  style={{ textShadow: '0 3px 6px rgba(0,0,0,0.9), 0 0 2px rgba(0,0,0,0.9)' }}
                 >
                   {short}
                 </div>
@@ -104,21 +118,21 @@ export default function DiscoverCard({ item, trackContext }: { item: PostCard; t
           )}
         </a>
       ) : (
-        <div className="relative rounded-xl overflow-hidden bg-gray-100 aspect-[4/5] shadow">
+        <div className="relative aspect-[4/5] overflow-hidden rounded-xl bg-gray-100 shadow-[0_10px_24px_rgba(15,23,42,0.18)]">
           {item.coverUrl && !imgFailed ? (
-            // Usamos <img> para evitar restrição de domínios do next/image
-            <img
+            <Image
               src={item.coverUrl}
               alt={short || 'Capa do post'}
+              fill
               className="w-full h-full object-cover"
               loading="lazy"
               referrerPolicy="no-referrer"
-              crossOrigin="anonymous"
               draggable={false}
               onError={() => setImgFailed(true)}
-            />)
-            : (
-            <img
+            />
+          ) : (
+            <Image
+              fill
               src={fallbackCover}
               alt="Sem capa"
               className="w-full h-full object-cover opacity-70"
@@ -126,11 +140,11 @@ export default function DiscoverCard({ item, trackContext }: { item: PostCard; t
             />
           )}
           {(short || metrics) && (
-            <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
+            <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/90 via-black/65 to-transparent">
               {metrics && (
                 <div
-                  className="inline-block rounded-md bg-black/70 px-1.5 py-0.5 text-[13px] font-bold text-white"
-                  style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9), 0 0 1px rgba(0,0,0,0.9)' }}
+                  className="inline-block rounded-md bg-black/90 px-1.5 py-0.5 text-[13px] font-bold text-white"
+                  style={{ textShadow: '0 3px 6px rgba(0,0,0,0.9), 0 0 2px rgba(0,0,0,0.9)' }}
                 >
                   {metrics}
                 </div>
@@ -138,7 +152,7 @@ export default function DiscoverCard({ item, trackContext }: { item: PostCard; t
               {short && (
                 <div
                   className="mt-1 text-[12px] leading-snug text-white/95 line-clamp-2"
-                  style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9), 0 0 1px rgba(0,0,0,0.9)' }}
+                  style={{ textShadow: '0 3px 6px rgba(0,0,0,0.9), 0 0 2px rgba(0,0,0,0.9)' }}
                 >
                   {short}
                 </div>

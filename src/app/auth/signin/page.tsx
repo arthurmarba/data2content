@@ -1,9 +1,10 @@
 // Conteúdo para o seu SignInPage.tsx
-// - ATUALIZADO: callbackUrl para Google SignIn agora aponta para /auth/complete-signup
+// - ATUALIZADO: callbackUrl para Google SignIn agora aponta para MAIN_DASHBOARD_ROUTE
 
 "use client";
 
 import { signIn } from "next-auth/react";
+import { MAIN_DASHBOARD_ROUTE } from '@/constants/routes';
 
 export default function SignInPage() {
   return (
@@ -14,8 +15,7 @@ export default function SignInPage() {
       <button
         onClick={() =>
           signIn("google", {
-            // <<< MODIFICADO: callbackUrl atualizado >>>
-            callbackUrl: "/auth/complete-signup", // Redireciona para a página de aceite de termos/finalização de cadastro
+            callbackUrl: MAIN_DASHBOARD_ROUTE,
           })
         }
         style={{ marginBottom: 10 }}
@@ -31,7 +31,7 @@ export default function SignInPage() {
           signIn("credentials", {
             username: "demo",
             password: "demo",
-            callbackUrl: "/dashboard/chat", // Atualizado para nova rota principal
+            callbackUrl: MAIN_DASHBOARD_ROUTE,
           })
         }
       >

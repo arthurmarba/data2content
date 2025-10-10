@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import PaymentStep from './PaymentStep';
 import { FaCheckCircle, FaLock, FaTimes } from 'react-icons/fa';
+import useBillingStatus from '@/app/hooks/useBillingStatus';
 
 type Plan = 'monthly' | 'annual';
 type Cur = 'brl' | 'usd';
@@ -24,18 +25,10 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [codeError, setCodeError] = useState<string | null>(null);
+  const { isLoading: billingStatusLoading, hasPremiumAccess } = useBillingStatus();
 
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
-
-  if (!open) return null;
-
-  useEffect(() => {
-    closeBtnRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
 
   const formatCurrency = (value: number, cur: Cur) =>
     new Intl.NumberFormat(cur === 'brl' ? 'pt-BR' : 'en-US', {
@@ -45,15 +38,6 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
     }).format(value);
 
   const priceShown = plan === 'monthly' ? prices.monthly[currency] : prices.annual[currency];
-
-  const savingsLabel = useMemo(() => {
-    const m = prices.monthly[currency];
-    const a = prices.annual[currency];
-    if (!m || !a) return null;
-    const pct = Math.max(0, 1 - a / (m * 12));
-    if (pct < 0.05) return null;
-    return `Economize ${Math.round(pct * 100)}%`;
-  }, [prices, currency]);
 
   const normalizedCode = affiliateCode.trim().toUpperCase();
   const codeIsValid = normalizedCode === '' || /^[A-Z0-9-]{3,24}$/.test(normalizedCode);
@@ -89,6 +73,10 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
 
   async function handleStartTrial() {
     if (loadingAction) return;
+    if (hasPremiumAccess) {
+      setError('Você já possui um plano ativo ou em teste.');
+      return;
+    }
     setLoadingAction('trial');
     setError(null);
     setCodeError(null);
@@ -103,6 +91,9 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
         }),
       });
       const body = await res.json();
+      if (res.status === 409) {
+        throw new Error(body?.message || 'Você já possui uma assinatura ativa.');
+      }
       if (!res.ok || !body?.url) {
         if (body?.code === 'SELF_REFERRAL') { setCodeError(body?.message ?? 'Você não pode usar seu próprio código.'); return; }
         if (body?.code === 'INVALID_CODE') { setCodeError(body?.message ?? 'Código inválido ou expirado.'); return; }
@@ -120,7 +111,25 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
     if (e.target === e.currentTarget) onClose();
   };
 
+  const savingsLabel = useMemo(() => {
+    const m = prices.monthly[currency];
+    const a = prices.annual[currency];
+    if (!m || !a) return null;
+    const pct = Math.max(0, 1 - a / (m * 12));
+    if (pct < 0.05) return null;
+    return `Economize ${Math.round(pct * 100)}%`;
+  }, [prices, currency]);
+
+  useEffect(() => {
+    if (!open) return;
+    closeBtnRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
   const disabled = !!loadingAction;
+  const trialDisabled = disabled || !codeIsValid || hasPremiumAccess || billingStatusLoading;
 
   return (
     <div
@@ -208,9 +217,12 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
                     </div>
 
                     {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+                    {hasPremiumAccess && !billingStatusLoading && (
+                      <p className="text-xs text-gray-600 text-center">Você já possui um plano ativo ou em período de teste.</p>
+                    )}
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <button onClick={handleStartTrial} disabled={disabled || !codeIsValid} className="w-full rounded-xl border border-gray-900 px-4 py-3 text-gray-900 hover:bg-gray-50 disabled:opacity-50" aria-busy={loadingAction === 'trial'}>
+                        <button onClick={handleStartTrial} disabled={trialDisabled} className="w-full rounded-xl border border-gray-900 px-4 py-3 text-gray-900 hover:bg-gray-50 disabled:opacity-50" aria-busy={loadingAction === 'trial'}>
                             {loadingAction === 'trial' ? 'Preparando…' : 'Teste gratuito (7 dias)'}
                         </button>
                         <button onClick={handleStart} disabled={disabled || !codeIsValid} className="w-full rounded-xl bg-pink-600 hover:bg-pink-700 px-4 py-3 text-white font-semibold disabled:opacity-50" aria-busy={loadingAction === 'subscribe'}>

@@ -4,6 +4,7 @@
 "use client";
 
 import { signIn } from "next-auth/react";
+import { MAIN_DASHBOARD_ROUTE } from '@/constants/routes';
 import { useSearchParams } from 'next/navigation';
 import { useState, useEffect, Suspense } from 'react';
 import QADynamicRows from "./components/QADynamicRows";
@@ -49,7 +50,7 @@ function LoginComponent() {
   const handleGoogleSignIn = () => {
     setIsLoading(true);
     signIn("google", {
-      callbackUrl: callbackUrlFromParams || "/auth/complete-signup",
+      callbackUrl: callbackUrlFromParams || MAIN_DASHBOARD_ROUTE,
     });
   };
 

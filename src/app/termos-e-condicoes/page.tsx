@@ -25,7 +25,7 @@ export default function TermsAndConditionsPage() {
               <strong>Última Atualização:</strong> 10 de Maio de 2025
             </p>
             <p className="mb-4">
-              Bem-vindo(a) ao Data2Content! Estes Termos e Condições de Uso ("Termos") regem o seu acesso e uso da plataforma Data2Content ("Serviço", "Plataforma"), oferecida por <strong>Mobi Media Produtores de Conteúdo LTDA</strong> ("nós", "nosso"). Ao criar uma conta ou utilizar o Serviço, você ("utilizador", "você") concorda em cumprir estes Termos e nossa <a href="/politica-de-privacidade" className="text-brand-pink hover:underline">Política de Privacidade</a>, que faz parte integrante deste acordo. Se não concordar com qualquer parte destes Termos, não utilize o Serviço.
+              Bem-vindo(a) ao Data2Content! Estes Termos e Condições de Uso (&quot;Termos&quot;) regem o seu acesso e uso da plataforma Data2Content (&quot;Serviço&quot;, &quot;Plataforma&quot;), oferecida por <strong>Mobi Media Produtores de Conteúdo LTDA</strong> (&quot;nós&quot;, &quot;nosso&quot;). Ao criar uma conta ou utilizar o Serviço, você (&quot;utilizador&quot;, &quot;você&quot;) concorda em cumprir estes Termos e nossa <a href="/politica-de-privacidade" className="text-brand-pink hover:underline">Política de Privacidade</a>, que faz parte integrante deste acordo. Se não concordar com qualquer parte destes Termos, não utilize o Serviço.
             </p>
 
             <h2 className="text-2xl font-semibold text-gray-800 mt-10 mb-5 border-t border-gray-200 pt-6">1. Aceitação dos Termos</h2>

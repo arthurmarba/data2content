@@ -1,24 +1,29 @@
 // src/app/dashboard/media-kit/page.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useSession, signIn } from 'next-auth/react';
 import MediaKitView from '@/app/mediakit/[token]/MediaKitView';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaExclamationTriangle, FaWhatsapp, FaTimes } from 'react-icons/fa';
+import { FaWhatsapp, FaTimes } from 'react-icons/fa';
 import BillingSubscribeModal from '../billing/BillingSubscribeModal';
 import WhatsAppConnectInline from '../WhatsAppConnectInline';
-import DiscoverBillingGate from '../discover/DiscoverBillingGate';
+import { useHeaderSetup } from '../context/HeaderContext';
+import useBillingStatus from '@/app/hooks/useBillingStatus';
+import { normalizePlanStatus, isPlanActiveLike } from '@/utils/planStatus';
 
 type Summary = any;
 type VideoListItem = any;
 type Kpis = any;
 type Demographics = any;
 
-import React from 'react';
-
-function SelfMediaKitContent({ userId, fallbackName, fallbackEmail, fallbackImage, compactPadding, publicUrlForCopy }: { userId: string; fallbackName?: string | null; fallbackEmail?: string | null; fallbackImage?: string | null; compactPadding?: boolean; publicUrlForCopy?: string | null; }) {
+function SelfMediaKitContent({
+  userId, fallbackName, fallbackEmail, fallbackImage, compactPadding, publicUrlForCopy,
+}: {
+  userId: string; fallbackName?: string | null; fallbackEmail?: string | null; fallbackImage?: string | null;
+  compactPadding?: boolean; publicUrlForCopy?: string | null;
+}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -31,36 +36,46 @@ function SelfMediaKitContent({ userId, fallbackName, fallbackEmail, fallbackImag
     async function load() {
       setLoading(true);
       setError(null);
-      try {
-        const [sRes, vRes, kRes, dRes] = await Promise.all([
-          fetch(`/api/v1/users/${userId}/highlights/performance-summary`, { cache: 'no-store' }),
-          fetch(`/api/v1/users/${userId}/videos/list?sortBy=views&limit=5`, { cache: 'no-store' }),
-          fetch(`/api/v1/users/${userId}/kpis/periodic-comparison?comparisonPeriod=last_30d_vs_previous_30d`, { cache: 'no-store' }),
-          fetch(`/api/demographics/${userId}`, { cache: 'no-store' })
-        ]);
-        const s = sRes.ok ? await sRes.json() : null;
-        const vj = vRes.ok ? await vRes.json() : { posts: [] };
-        const v = Array.isArray(vj?.posts) ? vj.posts : [];
-        const k = kRes.ok ? await kRes.json() : null;
-        const d = dRes.ok ? await dRes.json() : null;
-        if (!mounted) return;
-        setSummary(s);
-        setVideos((v || []).map((video: any) => ({
-          ...video,
-          format: video.format ? [video.format] : [],
-          proposal: video.proposal ? [video.proposal] : [],
-          context: video.context ? [video.context] : [],
-          tone: video.tone ? [video.tone] : [],
-          references: video.references ? [video.references] : [],
-        })));
-        setKpis(k);
-        setDemographics(d);
-      } catch (e: any) {
-        if (!mounted) return;
-        setError(e?.message || 'Falha ao carregar dados do Mídia Kit');
-      } finally {
-        if (mounted) setLoading(false);
+
+      const safeFetch = async (input: RequestInfo | URL) => {
+        try {
+          const res = await fetch(input, { cache: 'no-store' });
+          if (!res.ok) return null;
+          return await res.json();
+        } catch (err) {
+          console.warn('[MediaKit] fetch falhou', input, err);
+          return null;
+        }
+      };
+
+      const [summaryData, videosPayload, kpisData, demographicsData] = await Promise.all([
+        safeFetch(`/api/v1/users/${userId}/highlights/performance-summary`),
+        safeFetch(`/api/v1/users/${userId}/videos/list?sortBy=views&limit=5`),
+        safeFetch(`/api/v1/users/${userId}/kpis/periodic-comparison?comparisonPeriod=last_30d_vs_previous_30d`),
+        safeFetch(`/api/demographics/${userId}`),
+      ]);
+
+      if (!mounted) return;
+
+      const videosList = Array.isArray(videosPayload?.posts) ? videosPayload.posts : [];
+
+      setSummary(summaryData);
+      setVideos(videosList.map((video: any) => ({
+        ...video,
+        format: video.format ? [video.format] : [],
+        proposal: video.proposal ? [video.proposal] : [],
+        context: video.context ? [video.context] : [],
+        tone: video.tone ? [video.tone] : [],
+        references: video.references ? [video.references] : [],
+      })));
+      setKpis(kpisData);
+      setDemographics(demographicsData);
+
+      if (!summaryData && videosList.length === 0 && !kpisData && !demographicsData) {
+        setError('Não foi possível carregar dados recentes do Mídia Kit. Tente novamente em instantes.');
       }
+
+      setLoading(false);
     }
     if (userId) load();
     return () => { mounted = false; };
@@ -125,11 +140,6 @@ export default function MediaKitSelfServePage() {
   const fetchedOnce = useRef(false);
 
   // Gate: impedir acesso ao Mídia Kit antes de conectar Instagram
-  useEffect(() => {
-    if (status === 'authenticated' && !instagramConnected) {
-      router.replace('/dashboard/onboarding');
-    }
-  }, [status, instagramConnected, router]);
 
   // Lógica do Modal de Pagamento
   const [showBillingModal, setShowBillingModal] = useState(false);
@@ -138,18 +148,46 @@ export default function MediaKitSelfServePage() {
   const showIgConnectSuccess = sp.get("instagramLinked") === "true";
   const processingIgLinkRef = useRef(false);
 
-  const planStatus = String((session?.user as any)?.planStatus || "").toLowerCase();
-  const isActiveLike = useMemo(
-    () => new Set(["active", "trial", "trialing", "non_renewing"]).has(planStatus),
-    [planStatus]
+  const billingStatus = useBillingStatus();
+  const sessionPlanStatusRaw = (session?.user as any)?.planStatus;
+  const normalizedSessionPlanStatus = useMemo(
+    () => normalizePlanStatus(sessionPlanStatusRaw),
+    [sessionPlanStatusRaw]
   );
+  const effectivePlanStatus = useMemo(() => {
+    const normalized = billingStatus.normalizedStatus;
+    if (normalized && normalized !== "unknown") return normalized;
+    return normalizedSessionPlanStatus;
+  }, [billingStatus.normalizedStatus, normalizedSessionPlanStatus]);
+  const hasPremiumAccess =
+    billingStatus.hasPremiumAccess || isPlanActiveLike(effectivePlanStatus);
+  const isGracePeriod = billingStatus.isGracePeriod || effectivePlanStatus === "non_renewing";
   
   // Lógica e Estado para o Modal do WhatsApp
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
-  
-  const handleWhatsAppLink = () => {
+  const handleWhatsAppLink = useCallback(() => {
+    if (!hasPremiumAccess) {
+      setShowBillingModal(true);
+      return;
+    }
     setShowWhatsAppModal(true);
-  };
+  }, [hasPremiumAccess]);
+
+  useHeaderSetup(
+    {
+      variant: 'compact',
+      showSidebarToggle: true,
+      showUserMenu: true,
+      sticky: false,
+      contentTopPadding: 0,
+      title: undefined,
+      subtitle: undefined,
+      extraContent: undefined,
+      cta: undefined,
+      condensedOnScroll: false,
+    },
+    []
+  );
 
   useEffect(() => {
     const handler = () => setShowBillingModal(true);
@@ -203,13 +241,11 @@ export default function MediaKitSelfServePage() {
   }, [showIgConnectSuccess, update, router]);
 
   useEffect(() => {
-    if (showIgConnectSuccess && instagramConnected && !isActiveLike && !openedAfterIgRef.current) {
+    if (showIgConnectSuccess && instagramConnected && !hasPremiumAccess && !openedAfterIgRef.current) {
       openedAfterIgRef.current = true;
       setShowBillingModal(true);
     }
-  }, [showIgConnectSuccess, instagramConnected, isActiveLike]);
-
-  // Toolbar state (share link)
+  }, [showIgConnectSuccess, instagramConnected, hasPremiumAccess]);
 
   const handleCorrectInstagramLink = async () => {
     try {
@@ -270,8 +306,6 @@ export default function MediaKitSelfServePage() {
     return () => { mounted = false; };
   }, [status, instagramConnected]);
 
-  // (compartilhamento via toolbar removido; botão interno do MediaKitView usa publicUrlForCopy)
-
   if (status === 'loading') {
     return <div className="p-6">Carregando…</div>;
   }
@@ -281,19 +315,39 @@ export default function MediaKitSelfServePage() {
 
   // ===== IG não conectado → redireciona para Onboarding =====
   if (!instagramConnected) {
-    return <div className="p-6 text-sm text-gray-600">Redirecionando para o onboarding…</div>;
+    return (
+      <main className="p-6">
+        <div className="mx-auto max-w-3xl rounded-lg border border-amber-200 bg-amber-50 px-4 py-6 text-amber-900">
+          <h2 className="text-lg font-semibold">Conecte seu Instagram para ativar o Mídia Kit</h2>
+          <p className="mt-2 text-sm">
+            Precisamos sincronizar seus dados do Instagram para montar o Mídia Kit automaticamente. Você pode fazer isso em poucos passos.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              onClick={() => router.push('/dashboard/onboarding')}
+              className="inline-flex items-center justify-center rounded-md bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            >
+              Ir para o onboarding
+            </button>
+            <button
+              onClick={handleCorrectInstagramLink}
+              className="inline-flex items-center justify-center rounded-md border border-amber-500 px-4 py-2 text-sm font-medium text-amber-700 hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            >
+              Vincular Instagram agora
+            </button>
+          </div>
+        </div>
+      </main>
+    );
   }
 
   // ===== Estado principal (IG conectado) =====
   return (
     <>
-      {/* Gate reativo para WhatsApp/Assinatura (torna visível o vínculo para assinantes) */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
-        <DiscoverBillingGate />
-      </div>
+      {/* 🔥 Removido DiscoverBillingGate e qualquer CTA de assinatura aqui.
+          O CTA vive apenas dentro do MediaKitView para evitar duplicação. */}
 
       <section className="w-full bg-white pb-10" aria-label="Mídia Kit">
-        {/* Conteúdo do Mídia Kit (sem iframe) */}
         <SelfMediaKitContent
           userId={(session?.user as any)?.id as string}
           fallbackName={session?.user?.name}
@@ -326,7 +380,13 @@ export default function MediaKitSelfServePage() {
                   <button onClick={() => setShowWhatsAppModal(false)} className="p-1 rounded-full hover:bg-gray-200 text-gray-500"><FaTimes /></button>
                 </div>
                 <div className="p-4 bg-white rounded-lg border border-gray-200">
-                  <WhatsAppConnectInline />
+                  {hasPremiumAccess ? (
+                    <WhatsAppConnectInline />
+                  ) : (
+                    <p className="text-sm text-gray-600">
+                      Ative ou renove seu plano para gerar o código de verificação do WhatsApp.
+                    </p>
+                  )}
                 </div>
               </div>
             </motion.div>

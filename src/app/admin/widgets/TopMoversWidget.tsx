@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect, memo } from 'react';
+import React, { useState, useCallback, useEffect, memo, FC } from 'react';
 // import Image from 'next/image'; // Removido para compatibilidade
 import { subDays, startOfDay, endOfDay, format } from 'date-fns';
 import {
@@ -12,6 +12,7 @@ import {
     ArrowTrendingUpIcon,
     InformationCircleIcon
 } from '@heroicons/react/24/outline';
+import Image from 'next/image';
 
 import SkeletonBlock from '../components/SkeletonBlock';
 import EmptyState from '../components/EmptyState';
@@ -292,7 +293,7 @@ const TopMoversWidget = memo(function TopMoversWidget() {
                     <td className="px-3 py-2 font-medium text-gray-800">
                       <div className="flex items-center">
                         {entityType === 'creator' && item.profilePictureUrl && (
-                          <img src={item.profilePictureUrl} alt={item.entityName} width="24" height="24" className="h-6 w-6 rounded-full mr-2 object-cover" />
+                          <Image src={item.profilePictureUrl} alt={item.entityName} width="24" height="24" className="h-6 w-6 rounded-full mr-2 object-cover" />
                         )}
                         <span title={item.entityName}>{item.entityName}</span>
                       </div>

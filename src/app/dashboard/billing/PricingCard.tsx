@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import useSWR from "swr";
+import useBillingStatus from "@/app/hooks/useBillingStatus";
 
 type Plan = "monthly" | "annual";
 type Currency = "BRL" | "USD";
@@ -15,21 +16,22 @@ type PricingCardProps = {
 
 export default function PricingCard({ onSubscriptionCreated, affiliateCode }: PricingCardProps) {
   const { data, isLoading } = useSWR("/api/billing/prices", fetcher, { revalidateOnFocus: false });
-  const prices = (data?.prices ?? []) as {
-    plan: Plan;
-    currency: Currency;
-    unitAmount: number | null;
-    priceId: string;
-  }[];
 
   const [currency, setCurrency] = useState<Currency>("BRL");
   const [plan, setPlan] = useState<Plan>("monthly");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const { isLoading: billingStatusLoading, hasPremiumAccess } = useBillingStatus();
 
   const current = useMemo(() => {
+    const prices = (data?.prices ?? []) as {
+      plan: Plan;
+      currency: Currency;
+      unitAmount: number | null;
+      priceId: string;
+    }[];
     return prices.find((p) => p.plan === plan && p.currency === currency) || null;
-  }, [prices, plan, currency]);
+  }, [data?.prices, plan, currency]);
 
   const priceLabel = useMemo(() => {
     if (!current?.unitAmount) return "—";
@@ -90,6 +92,10 @@ export default function PricingCard({ onSubscriptionCreated, affiliateCode }: Pr
   // NOVO — inicia Checkout do Stripe com 7 dias de teste
   async function handleStartTrial() {
     if (!current) return;
+    if (hasPremiumAccess) {
+      setErrorMsg("Você já possui um plano ativo ou em teste.");
+      return;
+    }
 
     try {
       setLoading(true);
@@ -110,6 +116,9 @@ export default function PricingCard({ onSubscriptionCreated, affiliateCode }: Pr
       });
 
       const json = await res.json();
+      if (res.status === 409) {
+        throw new Error(json?.message || "Você já possui um plano ativo ou em teste.");
+      }
       if (!res.ok || !json?.url) {
         throw new Error(json?.message || json?.error || "Falha ao iniciar teste gratuito.");
       }
@@ -172,7 +181,7 @@ export default function PricingCard({ onSubscriptionCreated, affiliateCode }: Pr
       <div className="grid grid-cols-1 gap-2">
         <button
           onClick={handleStartTrial}
-          disabled={loading || !current}
+          disabled={loading || !current || hasPremiumAccess || billingStatusLoading}
           className="w-full rounded-xl border border-black px-4 py-2 sm:py-3 text-black hover:bg-gray-50 disabled:opacity-50"
         >
           {loading ? "Iniciando…" : "Iniciar teste gratuito (7 dias)"}
@@ -190,6 +199,11 @@ export default function PricingCard({ onSubscriptionCreated, affiliateCode }: Pr
       <p className="mt-2 text-center text-xs text-gray-500">
         Pagamento seguro via Stripe. Sem fidelidade — cancele quando quiser.
       </p>
+      {hasPremiumAccess && !billingStatusLoading && (
+        <p className="mt-1 text-center text-xs text-gray-600">
+          Você já possui um plano ativo ou em período de teste.
+        </p>
+      )}
     </div>
   );
 }

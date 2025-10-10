@@ -10,8 +10,7 @@ import { fetchGoogleNewsSignals } from '@/utils/newsSignals';
 import { getCategoryById } from '@/app/lib/classification';
 import { getBlockSampleCaptions } from '@/utils/getBlockSampleCaptions';
 import { Types } from 'mongoose';
-import User from '@/app/models/User';
-import { isActiveLike, normalizePlanStatus } from '@/app/lib/planGuard';
+import { ensurePlannerAccess } from '@/app/lib/planGuard';
 import { checkRateLimit } from '@/utils/rateLimit';
 import { logger } from '@/app/lib/logger';
 import { WINDOW_DAYS, PLANNER_TIMEZONE } from '@/app/lib/planner/constants';
@@ -21,7 +20,7 @@ export const dynamic = 'force-dynamic';
 
 /** Loader dinâmico do modelo PlannerPlan (tolerante a default/nomeados) */
 let _PlannerPlanModel: any;
-async function usePlannerPlanModel() {
+async function loadPlannerPlanModel() {
   if (_PlannerPlanModel) return _PlannerPlanModel;
   const mod: any = await import('@/app/models/PlannerPlan');
   const candidate =
@@ -172,15 +171,16 @@ export async function POST(request: Request) {
       ? normalizeToMondayInTZ(new Date(weekStartRaw), PLANNER_TIMEZONE)
       : normalizeToMondayInTZ(new Date(), PLANNER_TIMEZONE);
 
-    await connectToDatabase();
-    const PlannerPlan = await usePlannerPlanModel();
-
-    // Gating: somente usuários pagos podem gerar IA
-    const dbUser = await User.findById(session.user.id).select('planStatus').lean<{ planStatus?: string }>();
-    const norm = normalizePlanStatus(dbUser?.planStatus);
-    if (!isActiveLike(norm)) {
-      return NextResponse.json({ ok: false, error: 'Plano inativo. Assine para gerar roteiros com IA.' }, { status: 403 });
+    const routePath = new URL(request.url).pathname;
+    const access = await ensurePlannerAccess({ session, routePath, forceReload: true });
+    if (!access.ok) {
+      return NextResponse.json(
+        { ok: false, error: access.message, reason: access.reason },
+        { status: access.status }
+      );
     }
+
+    await connectToDatabase();
 
     // Rate limit: 10 gerações / 5 minutos
     const rl = await checkRateLimit(`planner:gen:${session.user.id}`, 10, 300);
@@ -190,6 +190,7 @@ export async function POST(request: Request) {
 
     // Carrega/resolve slot
     let slot: any | null = null;
+    const PlannerPlan = await loadPlannerPlanModel();
     let planDoc = await PlannerPlan.findOne({ userId: session.user.id, platform: 'instagram', weekStart });
     if (slotId && planDoc) {
       slot = planDoc.slots.find((s: any) => s.slotId === slotId) || null;

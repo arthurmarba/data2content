@@ -75,7 +75,7 @@ const PlatformSummaryKpis: React.FC<PlatformSummaryKpisProps> = ({ apiPrefix = '
     };
 
     fetchData();
-  }, [startDate, endDate]);
+  }, [startDate, endDate, apiPrefix]);
 
   const formatPercentage = (num?: number | null) => {
     if (num === null || typeof num === 'undefined') return null;
@@ -158,4 +158,3 @@ const PlatformSummaryKpis: React.FC<PlatformSummaryKpisProps> = ({ apiPrefix = '
 };
 
 export default memo(PlatformSummaryKpis);
-

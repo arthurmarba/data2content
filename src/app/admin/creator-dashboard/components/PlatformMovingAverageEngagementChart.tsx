@@ -83,7 +83,7 @@ const PlatformMovingAverageEngagementChart: React.FC<PlatformMovingAverageEngage
     } finally {
       setLoading(false);
     }
-  }, [dataWindowInDays, avgWindow]);
+  }, [dataWindowInDays, avgWindow, apiPrefix]);
 
   useEffect(() => {
     fetchData();

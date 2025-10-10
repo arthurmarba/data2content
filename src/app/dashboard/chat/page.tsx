@@ -8,6 +8,8 @@ import { useSession } from "next-auth/react";
 import ChatPanel from "@/app/dashboard/ChatPanel";
 import InstagramConnectCard from "@/app/dashboard/InstagramConnectCard";
 import BillingSubscribeModal from "@/app/dashboard/billing/BillingSubscribeModal";
+import useBillingStatus from "@/app/hooks/useBillingStatus";
+import { isPlanActiveLike } from "@/utils/planStatus";
 
 export default function ChatHomePage() {
   const router = useRouter();
@@ -15,11 +17,12 @@ export default function ChatHomePage() {
   const showIgConnect = sp.get("instagramLinked") === "true";
 
   const { data: session } = useSession();
+  const billingStatus = useBillingStatus();
   const instagramConnected = Boolean(session?.user?.instagramConnected);
-  const planStatus = String(session?.user?.planStatus || "").toLowerCase();
+  const planStatus = (session?.user as any)?.planStatus;
   const isActiveLike = useMemo(
-    () => new Set(["active", "trial", "trialing", "non_renewing"]).has(planStatus),
-    [planStatus]
+    () => Boolean(billingStatus.hasPremiumAccess || isPlanActiveLike(planStatus)),
+    [billingStatus.hasPremiumAccess, planStatus]
   );
 
   // Modal de assinatura (PRO)
@@ -53,10 +56,10 @@ export default function ChatHomePage() {
   }, [showIgConnect, instagramConnected, isActiveLike]);
 
   return (
-    // Agora usamos altura total + padding-top do header (fixed)
+    // Offset do header fixo já é tratado pelo layout; aqui garantimos altura total da viewport
     <div
       className="relative w-full bg-white text-gray-900 flex flex-col overflow-hidden"
-      style={{ minHeight: "100svh", paddingTop: "var(--header-h, 4rem)" }}
+      style={{ minHeight: "100svh" }}
     >
       {/* Card de conexão IG quando voltamos do OAuth */}
       <div className="mx-auto max-w-4xl w-full px-4 pt-2 space-y-2">

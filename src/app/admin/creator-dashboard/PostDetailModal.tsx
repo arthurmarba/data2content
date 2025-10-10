@@ -1,10 +1,11 @@
 'use client';
 
+import Image from 'next/image';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  ChartBarIcon,
   XMarkIcon,
   InformationCircleIcon,
-  ChartBarIcon,
   LinkIcon,
   EyeIcon,
   HeartIcon,
@@ -219,8 +220,13 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
           <div className="text-sm text-gray-600 space-y-4">
             {/* Capa + Ações */}
             {postData.coverUrl && (
-              <div className="flex items-start gap-3">
-                <img src={postData.coverUrl} alt="Capa do post" className="w-24 h-24 object-cover rounded-md border" />
+              <div className="flex items-start gap-3"> 
+                <Image 
+                  src={postData.coverUrl} 
+                  alt="Capa do post" 
+                  width={96} height={96} 
+                  className="w-24 h-24 object-cover rounded-md border" 
+                />
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <a href={postData.coverUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-indigo-600 hover:underline">

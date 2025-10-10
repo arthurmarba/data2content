@@ -45,7 +45,7 @@ const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 const QUICK_ACK_MODEL = process.env.OPENAI_QUICK_ACK_MODEL || 'gpt-3.5-turbo';
 const TEMP = Number(process.env.OPENAI_TEMP) || 0.7;
 const QUICK_ACK_TEMP = Number(process.env.OPENAI_QUICK_ACK_TEMP) || 0.8;
-const TOKENS = Number(process.env.OPENAI_MAXTOK) || 900;
+const TOKENS = Number(process.env.OPENAI_MAXTOK) || 1400;
 const QUICK_ACK_MAX_TOKENS = Number(process.env.OPENAI_QUICK_ACK_MAX_TOKENS) || 70;
 const MAX_ITERS = 6; // Máximo de iterações de chamada de função
 const OPENAI_TIMEOUT_MS = Number(process.env.OPENAI_TIMEOUT_MS) || 45_000;
@@ -65,6 +65,8 @@ interface AskLLMResult {
  * Preenche o system prompt com métricas e estatísticas recentes.
  * Exportada para facilitar testes unitários.
  */
+const SYSTEM_PROMPT_CACHE_VERSION = 'v2.36';
+
 export async function populateSystemPrompt(
     user: IUser,
     userName: string,
@@ -72,7 +74,7 @@ export async function populateSystemPrompt(
     forceRefresh: boolean = false
 ): Promise<string> {
     const fnTag = '[populateSystemPrompt]';
-    const cacheKey = `prompt:${user._id}:${periodDays}`;
+    const cacheKey = `prompt:${SYSTEM_PROMPT_CACHE_VERSION}:${user._id}:${periodDays}`;
 
     if (!forceRefresh) {
         const cached = await stateService.getFromCache(cacheKey);

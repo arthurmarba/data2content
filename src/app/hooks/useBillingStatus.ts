@@ -2,6 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getPlanAccessMeta } from "@/utils/planStatus";
 
 // Estados reais do Stripe + aliases de UI
 export type PlanStatus =
@@ -26,6 +27,9 @@ export type BillingStatus = {
   cancelAtPeriodEnd: boolean;
   /** Ajuda a UI a decidir qual CTA exibir */
   nextAction?: "cancel" | "reactivate" | "resubscribe";
+  normalizedStatus?: string | null;
+  hasPremiumAccess?: boolean;
+  isGracePeriod?: boolean;
 };
 
 type Options = {
@@ -122,21 +126,23 @@ export function useBillingStatus(opts: Options = {}) {
   }, [data.planStatus, pollOn, startPolling, stopPolling]);
 
   const flags = useMemo(() => {
-    const isActive = data.planStatus === "active" || data.planStatus === "trialing";
-    const isNonRenewing = data.planStatus === "non_renewing" || data.cancelAtPeriodEnd === true;
+    const meta = getPlanAccessMeta(data.planStatus, data.cancelAtPeriodEnd);
+    const normalizedStatus = meta.normalizedStatus;
+
+    const isActive =
+      normalizedStatus === "active" || normalizedStatus === "trialing" || normalizedStatus === "trial";
+    const isNonRenewing = normalizedStatus === "non_renewing" || data.cancelAtPeriodEnd === true;
     const isAnnual = data.interval === "year";
     const isMonthly = data.interval === "month";
+    const hasPremiumAccess = meta.hasPremiumAccess;
+    const isGracePeriod = meta.isGracePeriod;
 
-    // CTA:
-    // - inactive/expired/canceled/unpaid/incomplete_expired => "Assinar novamente"
-    // - non_renewing (ou cancelAtPeriodEnd true) => "Reativar"
-    // - demais (active/pending...) => "Cancelar"
     const shouldResubscribe =
-      data.planStatus === "inactive" ||
-      data.planStatus === "expired" ||
-      data.planStatus === "canceled" ||
-      data.planStatus === "unpaid" ||
-      data.planStatus === "incomplete_expired";
+      normalizedStatus === "inactive" ||
+      normalizedStatus === "expired" ||
+      normalizedStatus === "canceled" ||
+      normalizedStatus === "unpaid" ||
+      normalizedStatus === "incomplete_expired";
 
     const nextAction: "cancel" | "reactivate" | "resubscribe" = shouldResubscribe
       ? "resubscribe"
@@ -144,7 +150,16 @@ export function useBillingStatus(opts: Options = {}) {
       ? "reactivate"
       : "cancel";
 
-    return { isActive, isNonRenewing, isAnnual, isMonthly, nextAction };
+    return {
+      isActive,
+      isNonRenewing,
+      isAnnual,
+      isMonthly,
+      hasPremiumAccess,
+      isGracePeriod,
+      normalizedStatus,
+      nextAction,
+    };
   }, [data.planStatus, data.cancelAtPeriodEnd, data.interval]);
 
   return useMemo(
@@ -157,6 +172,9 @@ export function useBillingStatus(opts: Options = {}) {
       stopPolling,
       ...flags,
       nextAction: flags.nextAction,
+      hasPremiumAccess: flags.hasPremiumAccess,
+      isGracePeriod: flags.isGracePeriod,
+      normalizedStatus: flags.normalizedStatus,
     }),
     [data, loading, error, refetch, startPolling, stopPolling, flags]
   );

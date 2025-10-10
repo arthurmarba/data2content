@@ -1,24 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { SidebarProvider, useSidebar } from "./context/SidebarContext";
+import { HeaderProvider, useHeaderConfig, useHeaderSetup, type HeaderVariant, type HeaderConfig } from "./context/HeaderContext";
 import SidebarNav from "./components/SidebarNav";
 import Header from "../components/Header";
 import React from "react";
 import BillingSubscribeModal from "./billing/BillingSubscribeModal";
+import InstagramReconnectBanner from "./components/InstagramReconnectBanner";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const isDiscoverPage = pathname?.startsWith("/dashboard/discover");
-  const isMediaKitPage = pathname?.startsWith("/dashboard/media-kit");
-  const bgClass = (isDiscoverPage || isMediaKitPage) ? "bg-white" : "bg-gray-50";
   return (
     <SidebarProvider>
-      {/* container base do dashboard */}
-      <div className={`relative w-full ${bgClass} overflow-x-hidden min-h-svh overscroll-none`}>
-        <LayoutContent>{children}</LayoutContent>
-      </div>
+      <HeaderProvider>
+        {/* container base do dashboard */}
+        <div className="relative w-full bg-[#f7f8fa] overflow-x-hidden min-h-svh overscroll-none">
+          <LayoutContent>{children}</LayoutContent>
+        </div>
+      </HeaderProvider>
     </SidebarProvider>
   );
 }
@@ -26,13 +26,34 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const { isCollapsed, toggleSidebar } = useSidebar();
   const pathname = usePathname();
+  const { config: headerConfig } = useHeaderConfig();
 
   const isChatPage = pathname.startsWith("/dashboard/chat");
   const isMediaKitPage = pathname.startsWith("/dashboard/media-kit");
-  const isGeminiHeaderPage = /^\/dashboard\/(chat|media-kit|settings|billing|discover)/.test(pathname);
+  const isGeminiHeaderPage = /^\/dashboard\/(chat|media-kit|settings|billing|discover|planning)/.test(pathname);
   const isOnboardingFlow = /^\/dashboard\/(onboarding|instagram)/.test(pathname);
+  const isPlannerDemo = pathname.startsWith("/dashboard/planning");
+  const isDiscover = pathname.startsWith("/dashboard/discover");
 
   const isOpen = !isCollapsed;
+  const hasPageOverride = isMediaKitPage || isPlannerDemo || isDiscover;
+
+  const layoutHeaderConfig = useMemo<Partial<HeaderConfig> | undefined>(
+    () => {
+      if (hasPageOverride) return undefined;
+      const variant: HeaderVariant = isOnboardingFlow ? "minimal" : "default";
+      return {
+        showSidebarToggle: !isOnboardingFlow,
+        showUserMenu: !isOnboardingFlow,
+        sticky: true,
+        variant,
+        contentTopPadding: undefined,
+      };
+    },
+    [hasPageOverride, isOnboardingFlow]
+  );
+
+  useHeaderSetup(layoutHeaderConfig, [hasPageOverride, isOnboardingFlow]);
 
   // Fallback de --header-h apenas para páginas que NÃO usam o ChatHeader dinâmico
   useEffect(() => {
@@ -59,6 +80,14 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("open-subscribe-modal" as any, handler);
   }, []);
 
+  const isHeaderSticky = headerConfig?.sticky !== false;
+  const customPadding = headerConfig?.contentTopPadding;
+  const baseTopPadding = "var(--header-h, 56px)";
+  const topPaddingStyle =
+    typeof customPadding === "number"
+      ? `calc(${baseTopPadding} + ${customPadding}px)`
+      : customPadding ?? baseTopPadding; // header já embute a safe-area via padding próprio
+
   return (
     <>
       {/* Sidebar (oculta no fluxo de onboarding/instagram) */}
@@ -83,11 +112,11 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         {/* Conteúdo sempre abaixo do header (respeita safe-area no iOS) */}
         <main
           className={`flex-1 min-h-0 ${mainOffset} ${mainScrollClass}`}
-          style={{
-            paddingTop:
-              "calc(var(--header-h, 56px) + var(--sat, env(safe-area-inset-top, 0px)))",
-          }}
+          style={isHeaderSticky ? { paddingTop: topPaddingStyle } : undefined}
         >
+          <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+            <InstagramReconnectBanner />
+          </div>
           {children}
         </main>
       </div>

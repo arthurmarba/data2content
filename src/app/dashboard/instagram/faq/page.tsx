@@ -47,7 +47,7 @@ export default function InstagramFacebookFAQPage() {
             Sim. Para ler métricas, o Instagram exige conta Profissional (Business/Creator) conectada a uma Página do Facebook.
             No app do Instagram: Configurações → Conta → Mudar para conta profissional.
           </p>
-          <p className="text-xs text-gray-500 mt-2">Ajuda oficial: procure por "Mudar para conta profissional Instagram" no centro de ajuda do Instagram.</p>
+          <p className="text-xs text-gray-500 mt-2">Ajuda oficial: procure por &quot;Mudar para conta profissional Instagram&quot; no centro de ajuda do Instagram.</p>
         </div>
 
         <div className="p-4 bg-white border border-gray-200 rounded-lg" id="criar-pagina">

@@ -1,6 +1,7 @@
 // src/app/components/UserAvatar.tsx
 'use client';
 
+import Image from 'next/image';
 import React from 'react';
 
 interface UserAvatarProps {
@@ -69,9 +70,10 @@ export function UserAvatar({
   }
 
   return (
-    <img
+    <Image
       src={imgSrc}
       alt={`Avatar de ${name}`}
+      unoptimized
       width={size}
       height={size}
       className={baseClasses}

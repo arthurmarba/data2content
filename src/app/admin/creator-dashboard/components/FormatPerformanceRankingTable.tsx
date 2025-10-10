@@ -42,7 +42,7 @@ const FormatPerformanceRankingTable: React.FC<FormatPerformanceRankingTableProps
     } finally {
       setLoading(false);
     }
-  }, [timePeriod]);
+  }, [timePeriod, apiPrefix]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

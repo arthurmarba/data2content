@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import React, { useState, useEffect, useCallback } from 'react';
 import { InboxIcon } from '@heroicons/react/24/outline';
 
@@ -174,9 +175,11 @@ export default function GlobalPostsExplorer({ dateRangeFilter }: GlobalPostsExpl
                   <td className="px-6 py-4 max-w-sm">
                     <div className="flex items-center">
                       {post.coverUrl && (
-                        <img 
+                        <Image 
                           src={post.coverUrl} 
                           alt="Capa do post" 
+                          width={32}
+                          height={32}
                           className="h-8 w-8 object-cover rounded-md mr-3 flex-shrink-0" 
                         />
                       )}

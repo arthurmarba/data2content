@@ -171,7 +171,6 @@ export async function addInspiration(
     try {
         await connectToDatabase();
 
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { addedToCommunityAt, _id, ...updateFields } = inspirationData;
 
         const upsertedInspiration = await CommunityInspirationModel.findOneAndUpdate(

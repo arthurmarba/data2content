@@ -12,6 +12,8 @@ import {
   STRATEGIC_REPORT_VERSION,
 } from '@/app/lib/constants/strategicReport.constants';
 
+import { evaluateUserAccess } from '@/utils/authz';
+
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
@@ -33,24 +35,40 @@ function parseUseLLM(url: string): boolean {
   return raw === '1' || raw === 'true';
 }
 
-async function assertSelfAccess(request: NextRequest, userIdParam: string): Promise<NextResponse | null> {
+interface AuthorizedContext {
+  response?: NextResponse;
+  actorId?: string;
+  isAdmin?: boolean;
+  sessionUser?: Record<string, any> | undefined;
+}
+
+async function getAuthorizedContext(request: NextRequest, userIdParam: string): Promise<AuthorizedContext> {
   const session = await getServerSession(authOptions);
-  const sessUserId = (session as any)?.user?.id;
-  if (!sessUserId) {
-    return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
+  const sessionUser = (session as any)?.user as Record<string, any> | undefined;
+  const access = evaluateUserAccess(sessionUser, userIdParam);
+
+  if (!access.allowed) {
+    const status = access.reason === 'unauthenticated' ? 401 : 403;
+    return {
+      response: NextResponse.json({ error: status === 401 ? 'Não autenticado' : 'Acesso negado' }, { status }),
+    };
   }
-  if (sessUserId !== userIdParam) {
-    return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
-  }
-  return null;
+
+  return {
+    actorId: access.actorId,
+    isAdmin: access.isAdmin,
+    sessionUser,
+  };
 }
 
 export async function GET(request: NextRequest, { params }: { params: { userId: string } }) {
   const guardResponse = await guardPremiumRequest(request);
   if (guardResponse) return guardResponse;
 
-  const selfCheck = await assertSelfAccess(request, params.userId);
-  if (selfCheck) return selfCheck;
+  const auth = await getAuthorizedContext(request, params.userId);
+  if (auth.response) return auth.response;
+
+  const actorId = auth.actorId!;
 
   const TAG = '[StrategicReport GET]';
   try {
@@ -76,6 +94,7 @@ export async function GET(request: NextRequest, { params }: { params: { userId: 
 
     await StrategicReportModel.create({
       user: params.userId,
+      requestedBy: actorId,
       periodDays,
       version: STRATEGIC_REPORT_VERSION,
       status: 'ready',
@@ -95,8 +114,10 @@ export async function POST(request: NextRequest, { params }: { params: { userId:
   const guardResponse = await guardPremiumRequest(request);
   if (guardResponse) return guardResponse;
 
-  const selfCheck = await assertSelfAccess(request, params.userId);
-  if (selfCheck) return selfCheck;
+  const auth = await getAuthorizedContext(request, params.userId);
+  if (auth.response) return auth.response;
+
+  const actorId = auth.actorId!;
 
   const TAG = '[StrategicReport POST]';
   try {
@@ -109,6 +130,7 @@ export async function POST(request: NextRequest, { params }: { params: { userId:
 
     await StrategicReportModel.create({
       user: params.userId,
+      requestedBy: actorId,
       periodDays,
       version: STRATEGIC_REPORT_VERSION,
       status: 'ready',

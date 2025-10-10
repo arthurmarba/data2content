@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from 'recharts';
 import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
@@ -460,16 +461,18 @@ const GlobalPostsExplorer = memo(function GlobalPostsExplorer({ apiPrefix = '/ap
                           if (col.key === 'cover') {
                             return (
                               <td key="cover" className="px-3 py-2 whitespace-nowrap">
-                                {rawValue ? (
-                                  <img
+                                {rawValue ? ( // eslint-disable-next-line @next/next/no-img-element
+                                  <Image
                                     src={rawValue}
                                     alt="capa"
-                                    className="w-40 h-40 object-cover rounded"
+                                    width={160}
+                                    height={160}
+                                    className="w-40 h-40 object-cover rounded" // eslint-disable-line @next/next/no-img-element
                                     onError={(e) => {
                                       const t = e.currentTarget as HTMLImageElement;
                                       t.onerror = null;
                                       t.src = 'https://placehold.co/160x160?text=%3F';
-                                    }}
+                                    }} 
                                   />
                                 ) : (
                                   '–'

@@ -8,6 +8,7 @@ import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import ButtonPrimary from './ButtonPrimary';
 import Container from '../../components/Container';
 import { track } from '@/lib/track';
+import { MAIN_DASHBOARD_ROUTE } from '@/constants/routes';
 
 interface LandingHeaderProps {
   showLoginButton?: boolean;
@@ -22,7 +23,7 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
 
   const handleSignIn = () => {
     track('login_button_click');
-    signIn('google', { callbackUrl: '/auth/complete-signup' });
+    signIn('google', { callbackUrl: MAIN_DASHBOARD_ROUTE });
   };
 
   useEffect(() => {
@@ -145,4 +146,3 @@ export default function LandingHeader({ showLoginButton = false }: LandingHeader
     </header>
   );
 }
-import { MAIN_DASHBOARD_ROUTE } from '@/constants/routes';

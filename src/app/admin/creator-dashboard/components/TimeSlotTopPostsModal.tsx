@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useMemo, useState } from 'react';
+import Image from 'next/image';
 import { getPortugueseWeekdayName } from '@/utils/weekdays';
 import { idsToLabels } from '@/app/lib/classification';
 
@@ -155,9 +156,11 @@ const TimeSlotTopPostsModal: React.FC<TimeSlotTopPostsModalProps> = ({ isOpen, o
                   <div key={p._id} className="rounded-xl border border-gray-200 overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow">
                     <div className="relative">
                       {p.coverUrl ? (
-                        <img
+                        <Image
                           src={`/api/proxy/thumbnail/${encodeURIComponent(p.coverUrl)}`}
                           alt="capa do conteúdo"
+                          width={300}
+                          height={160}
                           className="w-full h-40 object-cover"
                           loading="lazy"
                         />
@@ -171,7 +174,9 @@ const TimeSlotTopPostsModal: React.FC<TimeSlotTopPostsModalProps> = ({ isOpen, o
                     <div className="p-3">
                       <div className="flex items-center gap-2 mb-2">
                         {p.creatorPhotoUrl ? (
-                          <img
+                          <Image
+                            width={24}
+                            height={24}
                             src={`/api/proxy/thumbnail/${encodeURIComponent(p.creatorPhotoUrl)}`}
                             alt={p.creatorName || 'Criador'}
                             className="w-6 h-6 rounded-full object-cover border border-gray-200"

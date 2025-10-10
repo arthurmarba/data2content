@@ -12,6 +12,8 @@ import QuickStatCard from '@/components/ui/QuickStatCard';
 import Heatmap from '@/components/ui/Heatmap';
 import BillingSubscribeModal from '@/app/dashboard/billing/BillingSubscribeModal';
 import type { StrategicReport } from 'types/StrategicReport';
+import useBillingStatus from '@/app/hooks/useBillingStatus';
+import { isPlanActiveLike } from '@/utils/planStatus';
 
 type ApiResponse = {
   status: 'ready' | 'building' | 'error';
@@ -23,8 +25,12 @@ type ApiResponse = {
 export default function StrategicReportInline() {
   const { data: session } = useSession();
   const userId = (session as any)?.user?.id as string | undefined;
-  const planStatus = String((session as any)?.user?.planStatus || '').toLowerCase();
-  const isActiveLike = useMemo(() => new Set(['active', 'trial', 'trialing', 'non_renewing']).has(planStatus), [planStatus]);
+  const billingStatus = useBillingStatus();
+  const planStatus = (session as any)?.user?.planStatus;
+  const isActiveLike = useMemo(
+    () => Boolean(billingStatus.hasPremiumAccess || isPlanActiveLike(planStatus)),
+    [billingStatus.hasPremiumAccess, planStatus]
+  );
 
   const [periodDays, setPeriodDays] = useState<number>(30);
   const [showBilling, setShowBilling] = useState(false);

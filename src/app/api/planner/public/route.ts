@@ -29,7 +29,7 @@ const FREEZE_ENABLED_ENV =
 
 /** Loader dinâmico e robusto do modelo PlannerPlan */
 let _PlannerPlanModel: any;
-async function usePlannerPlanModel() {
+async function loadPlannerPlanModel() {
   if (_PlannerPlanModel) return _PlannerPlanModel;
 
   // ⚠️ importante: evitar confusão de alias/rota — prefira caminho absoluto com alias
@@ -163,27 +163,22 @@ export async function GET(request: Request) {
     await connectToDatabase();
 
     // 🔸 Tente obter o Model; se falhar, seguimos sem plano salvo (rota pública não deve 500)
-    let PlannerPlan: any | null = null;
-    try {
-      PlannerPlan = await usePlannerPlanModel();
+    let PlannerPlanModel: any | null = null;
+    try { // eslint-disable-next-line react-hooks/rules-of-hooks
+      PlannerPlanModel = await loadPlannerPlanModel();
     } catch (e) {
       console.warn('[planner/public] PlannerPlan model indisponível; seguindo com recomendações. Detalhe:', e);
     }
 
     // 1) Se houver um plano salvo para a semana, retorna o plano
-    if (PlannerPlan) {
-      const plan = await PlannerPlan.findOne({
-        userId: uid,
-        platform: 'instagram',
-        weekStart,
-      }).lean().exec();
-
-      if (plan) {
+    if (PlannerPlanModel) {
+      const planData = await PlannerPlanModel.findOne({ userId: uid, platform: 'instagram', weekStart }).lean().exec();
+      if (planData) {
         return NextResponse.json({
           ok: true,
           mode: 'plan',
           metricBase: 'views',
-          plan,
+          plan: planData,
           weekStart: weekStartISO,
           freezeEnabled,
           algoVersion: ALGO_VERSION,

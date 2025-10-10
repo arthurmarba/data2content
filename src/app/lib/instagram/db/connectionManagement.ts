@@ -4,6 +4,7 @@ import { logger } from '@/app/lib/logger';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import DbUser, { IUser } from '@/app/models/User';
 import { Client } from '@upstash/qstash';
+import { sendInstagramReconnectEmail } from '@/app/lib/emailService';
 
 // Acessar variáveis de ambiente diretamente
 const qstashToken = process.env.QSTASH_TOKEN;
@@ -61,7 +62,9 @@ export async function connectInstagramAccount(
       isInstagramConnected: true,
       lastInstagramSyncAttempt: new Date(), 
       lastInstagramSyncSuccess: null,      
-      instagramSyncErrorMsg: null,         
+      instagramSyncErrorMsg: null,
+      instagramSyncErrorCode: null,
+      instagramReconnectNotifiedAt: null,
     };
 
     if (longLivedAccessToken) {
@@ -119,10 +122,22 @@ export async function connectInstagramAccount(
  *
  * @param userId - O ID do usuário (string ou ObjectId).
  * @param reason Opcional. A razão pela qual a conexão está sendo limpa. Será usada na mensagem de erro.
+ * @param code Opcional. Código padronizado para o motivo do erro (ex.: TOKEN_INVALID, PERMISSION_DENIED).
  * @returns Uma promessa que resolve quando a operação é concluída.
  */
-export async function clearInstagramConnection(userId: string | mongoose.Types.ObjectId, reason?: string): Promise<void> {
-  const TAG = '[clearInstagramConnection v2.2_env_fix]'; 
+export type InstagramDisconnectReasonCode =
+  | 'TOKEN_INVALID'
+  | 'PERMISSION_DENIED'
+  | 'MANUAL_DISCONNECT'
+  | 'NOT_CONNECTED'
+  | 'UNKNOWN';
+
+export async function clearInstagramConnection(
+  userId: string | mongoose.Types.ObjectId,
+  reason?: string,
+  code: InstagramDisconnectReasonCode = 'UNKNOWN'
+): Promise<void> {
+  const TAG = '[clearInstagramConnection v2.3_notifier]'; 
   logger.warn(`${TAG} Limpando dados de conexão Instagram para User ${userId}. Razão: ${reason || 'Não especificada'}`);
 
   if (!mongoose.isValidObjectId(userId)) {
@@ -141,17 +156,46 @@ export async function clearInstagramConnection(userId: string | mongoose.Types.O
         lastInstagramSyncAttempt: new Date(), 
         lastInstagramSyncSuccess: false,      
         instagramSyncErrorMsg: finalErrorMessage,
+        instagramSyncErrorCode: code,
         availableIgAccounts: [], 
       },
       $unset: {
         instagramAccessToken: "",    
         instagramAccountId: "",      
         instagramUsername: "",               
-      }
+      },
+      $inc: {
+        instagramDisconnectCount: 1,
+      },
     };
 
     await DbUser.findByIdAndUpdate(userId, updateFields);
-    logger.info(`${TAG} Dados de conexão Instagram limpos no DB para User ${userId}. Mensagem de erro: "${finalErrorMessage}"`);
+    logger.info(`${TAG} Dados de conexão Instagram limpos no DB para User ${userId}. Código: ${code}. Mensagem de erro: "${finalErrorMessage}"`);
+
+    if (code !== 'MANUAL_DISCONNECT') {
+      const user = await DbUser.findById(userId)
+        .select('email name instagramReconnectNotifiedAt instagramSyncErrorMsg')
+        .lean<IUser & { instagramReconnectNotifiedAt?: Date | null }>();
+
+      if (user?.email) {
+        const shouldNotify = !user.instagramReconnectNotifiedAt || (Date.now() - new Date(user.instagramReconnectNotifiedAt).getTime()) > 24 * 60 * 60 * 1000;
+
+        if (shouldNotify) {
+          try {
+            await sendInstagramReconnectEmail(user.email, {
+              name: user.name,
+              reason: reason || undefined,
+            });
+            await DbUser.findByIdAndUpdate(userId, {
+              $set: { instagramReconnectNotifiedAt: new Date() },
+            });
+            logger.info(`${TAG} Notificação de reconexão enviada para ${user.email}.`);
+          } catch (notifyErr) {
+            logger.error(`${TAG} Falha ao enviar email de reconexão para ${user.email}:`, notifyErr);
+          }
+        }
+      }
+    }
 
   } catch (error) {
     logger.error(`${TAG} Erro ao limpar dados de conexão Instagram no DB para User ${userId}:`, error);

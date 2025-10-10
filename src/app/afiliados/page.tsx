@@ -133,7 +133,7 @@ export default function AffiliateProgramPage() {
         </InfoCard>
 
         {/* Seção: Resgate de Ganhos */}
-        <InfoCard icon={<FaMoneyBillWave />} title="Resgate de Ganhos">
+        <InfoCard icon={<FaMoneyBillWave />} title="Resgate dos Ganhos">
           <p>
             Pode solicitar o resgate do seu saldo de comissões acumulado assim que atingir o valor mínimo de <strong>R$ 50,00</strong>.
           </p>
@@ -142,8 +142,8 @@ export default function AffiliateProgramPage() {
           </p>
           <ol className="list-decimal list-inside space-y-1 mt-2 pl-2">
             <li>Aceda a <a href="/dashboard/chat" className="text-brand-pink hover:underline font-medium">Conversar com IA</a>.</li>
-            <li>Verifique se os seus dados de pagamento (PIX ou conta bancária) estão corretamente preenchidos na secção "Dados de Pagamento".</li>
-            <li>Clique no botão "Resgatar Saldo".</li>
+            <li>Verifique se os seus dados de pagamento (PIX ou conta bancária) estão corretamente preenchidos na secção &quot;Dados de Pagamento&quot;.</li>
+            <li>Clique no botão &quot;Resgatar Saldo&quot;.</li>
           </ol>
           <p className="mt-2">
             As solicitações de resgate são processadas manualmente pela nossa equipa. O pagamento será efetuado na sua conta informada em até <strong>7 dias úteis</strong> após a solicitação.

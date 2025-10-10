@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { SearchBar } from "@/app/components/SearchBar";
 import { UserAvatar } from "@/app/components/UserAvatar";
 import type { AdminCreatorListItem } from "@/types/admin/creators";
@@ -109,10 +109,16 @@ export default function CreatorQuickSearch({
     return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
+  const handleSelect = useCallback((creator: AdminCreatorListItem) => {
+    onSelect({ id: creator._id, name: creator.name, profilePictureUrl: creator.profilePictureUrl });
+    setSearchTerm("");
+    setShowDropdown(false);
+  }, [onSelect]);
+
   useEffect(() => {
     if (!showDropdown) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (creators.length === 0 && !isLoading) return;
+      if (creators.length === 0) return;
       if (e.key === 'ArrowDown') { e.preventDefault(); setHighlightIndex((p) => (p + 1) % creators.length); }
       else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlightIndex((p) => (p - 1 + creators.length) % creators.length); }
       else if (e.key === 'Enter' && highlightIndex >= 0) {
@@ -126,13 +132,7 @@ export default function CreatorQuickSearch({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showDropdown, creators, highlightIndex, isLoading]);
-
-  const handleSelect = (creator: AdminCreatorListItem) => {
-    onSelect({ id: creator._id, name: creator.name, profilePictureUrl: creator.profilePictureUrl });
-    setSearchTerm("");
-    setShowDropdown(false);
-  };
+  }, [showDropdown, creators, highlightIndex, handleSelect]);
   
   const showResults = showDropdown && searchTerm.length >= 2;
 

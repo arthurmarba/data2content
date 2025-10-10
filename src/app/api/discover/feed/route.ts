@@ -69,8 +69,12 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
   const planStatusRaw = (session as any)?.user?.planStatus;
   const allowedPersonalized = isActiveLike(normalizePlanStatus(planStatusRaw));
   const { searchParams } = new URL(req.url);
-  const days = clamp(parseInt(searchParams.get('days') || '60', 10) || 60, 7, 365);
-  const limitPerRow = clamp(parseInt(searchParams.get('limitPerRow') || '12', 10) || 12, 6, 30);
+  const daysParam = searchParams.get('days');
+  const limitByDays = Boolean(daysParam && daysParam.toLowerCase() !== 'all');
+  const days = limitByDays
+    ? clamp(parseInt(daysParam || '60', 10) || 60, 7, 365)
+    : null;
+  const limitPerRow = clamp(parseInt(searchParams.get('limitPerRow') || '18', 10) || 18, 6, 48);
   const expParam = searchParams.get('exp');
   const exp = expParam || undefined;
   const viewParam = searchParams.get('view');
@@ -83,8 +87,10 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
 
   const now = new Date();
   const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-  const startDate = new Date(endDate);
-  startDate.setDate(startDate.getDate() - days);
+  const startDate = limitByDays ? new Date(endDate) : new Date(1970, 0, 1);
+  if (limitByDays && days !== null) {
+    startDate.setDate(startDate.getDate() - days);
+  }
 
   await connectToDatabase();
 
@@ -132,12 +138,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
   type CacheBucket = { expires: number; items: PostCard[] };
   const noFilter = !formatFilter && !proposalFilter && !contextFilter && !toneFilter && !referencesFilter;
   const TTL_MS = clamp(parseInt(process.env.DISCOVER_TTL_MS || '' + (7 * 60 * 1000)) || (7 * 60 * 1000), 60_000, 30 * 60_000);
-  // module-level caches (persistem no escopo do módulo enquanto o processo vive)
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-  if (!(global as any).__discoverCaches) (global as any).__discoverCaches = {} as Record<string, CacheBucket>;
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
+  if (!(global as any).__discoverCaches) (global as any).__discoverCaches = {} as Record<string, CacheBucket>; // module-level caches (persistem no escopo do módulo enquanto o processo vive)
   const caches = (global as any).__discoverCaches as Record<string, CacheBucket>;
 
   try {
@@ -145,7 +146,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
       userId: userId || null,
       allowedPersonalized,
       params: {
-        days,
+        days: limitByDays ? days : 'all',
         limitPerRow,
         formatFilter,
         proposalFilter,

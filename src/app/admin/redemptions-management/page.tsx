@@ -361,10 +361,10 @@ export default function RedemptionsManagementPage() {
                     selectedRedemption.user?.email ||
                     'Usuário'}
                 </span>{' '}
-                para "
+                para &quot;
                 {redemptionStatusDisplayConfig[newStatusForRedemption]?.label ||
                   newStatusForRedemption}
-                "?
+                &quot;?
               </p>
               <label
                 htmlFor="adminNotes"

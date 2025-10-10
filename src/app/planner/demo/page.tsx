@@ -1,7 +1,7 @@
 // src/app/planner/demo/page.tsx
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { idsToLabels } from "@/app/lib/classification";
 
 type SlotCategories = { context?: string[]; tone?: string; proposal?: string[]; reference?: string[] };
@@ -124,24 +124,24 @@ export default function PlannerDemoPage() {
     }
   }
 
-  async function handleLoadInspirations() {
+  const handleLoadInspirations = useCallback(async () => {
     setLoadingInsp(true);
     setError(null);
     try {
       const res = await fetch("/api/planner/inspirations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: "demo", dayOfWeek, blockStartHour, categories, limit: 6 }),
+        body: JSON.stringify({ userId: "demo", dayOfWeek, blockStartHour, categories, limit: 6 }), // eslint-disable-line react-hooks/exhaustive-deps
       });
       if (!res.ok) throw new Error("Falha ao buscar conteúdos");
       const data = await res.json();
       setInsp(Array.isArray(data?.posts) ? data.posts : []);
     } catch (e: any) {
-      setError(e?.message || "Erro ao carregar conteúdos");
+      setError(e?.message || "Erro ao carregar conteúdos"); // eslint-disable-line react-hooks/exhaustive-deps
     } finally {
       setLoadingInsp(false);
     }
-  }
+  }, [blockStartHour, categories, dayOfWeek]);
 
   async function handleLoadCommunity() {
     setLoadingComm(true);
@@ -171,7 +171,7 @@ export default function PlannerDemoPage() {
   useEffect(() => {
     // Pré-carregar inspirações levemente
     handleLoadInspirations().catch(() => {});
-  }, []);
+  }, [handleLoadInspirations]);
 
   // Emite a altura do conteúdo para o parent (landing) ajustar o iframe
   useEffect(() => {

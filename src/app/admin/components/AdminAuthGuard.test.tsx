@@ -32,7 +32,6 @@ describe('AdminAuthGuard', () => {
   it('should redirect to /login if unauthenticated', async () => {
     mockUseSession.mockReturnValue({ data: null, status: 'unauthenticated' });
     render(<AdminAuthGuard><div>Protected Content</div></AdminAuthGuard>);
-    // eslint-disable-next-line testing-library/no-unnecessary-act
     await act(async () => {
       // useEffects run after render
     });
@@ -45,7 +44,6 @@ describe('AdminAuthGuard', () => {
       status: 'authenticated'
     });
     render(<AdminAuthGuard><div>Protected Content</div></AdminAuthGuard>);
-    // eslint-disable-next-line testing-library/no-unnecessary-act
     await act(async () => {});
     expect(mockRouterReplace).toHaveBeenCalledWith('/unauthorized?error=AdminAccessRequired');
   });
@@ -56,7 +54,6 @@ describe('AdminAuthGuard', () => {
       status: 'authenticated'
     });
     render(<AdminAuthGuard><div>Protected Content</div></AdminAuthGuard>);
-    // eslint-disable-next-line testing-library/no-unnecessary-act
     await act(async () => {});
     expect(mockRouterReplace).toHaveBeenCalledWith('/unauthorized?error=AdminAccessRequired');
   });
@@ -67,7 +64,6 @@ describe('AdminAuthGuard', () => {
       status: 'authenticated'
     });
     render(<AdminAuthGuard><div>Protected Content</div></AdminAuthGuard>);
-    // eslint-disable-next-line testing-library/no-unnecessary-act
     await act(async () => {});
     expect(mockRouterReplace).toHaveBeenCalledWith('/unauthorized?error=AdminAccessRequired');
   });
@@ -78,7 +74,6 @@ describe('AdminAuthGuard', () => {
       status: 'authenticated'
     });
     render(<AdminAuthGuard><div>Protected Content</div></AdminAuthGuard>);
-    // eslint-disable-next-line testing-library/no-unnecessary-act
     await act(async () => {});
     expect(screen.getByText('Protected Content')).toBeInTheDocument();
     expect(mockRouterReplace).not.toHaveBeenCalled();
@@ -90,7 +85,6 @@ describe('AdminAuthGuard', () => {
       status: 'authenticated'
     });
     render(<AdminAuthGuard><div>Protected Content</div></AdminAuthGuard>);
-    // eslint-disable-next-line testing-library/no-unnecessary-act
     await act(async () => {});
     expect(screen.getByText('Protected Content')).toBeInTheDocument();
     expect(mockRouterReplace).not.toHaveBeenCalled();

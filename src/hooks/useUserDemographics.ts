@@ -23,10 +23,11 @@ export default function useUserDemographics(userId: string | null): UseCachedFet
     return res.json();
   }, [userId]);
 
+  const result = useCachedFetch<DemographicsData>(`user_demographics_${userId}`, fetcher, 10 * 60 * 1000);
+
   if (!userId) {
     return { data: null, loading: false, error: null, refresh: async () => {} };
   }
 
-  return useCachedFetch<DemographicsData>(`user_demographics_${userId}`, fetcher, 10 * 60 * 1000);
+  return result;
 }
-

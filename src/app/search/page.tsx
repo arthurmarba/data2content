@@ -17,7 +17,7 @@ export default function SearchPage({ searchParams }: SearchPageProps) {
   return (
     <div className="max-w-3xl mx-auto p-6">
       <h1 className="text-2xl font-semibold mb-4">
-        Resultados para "{searchParams.q || ""}"
+        Resultados para &quot;{searchParams.q || ""}&quot;
       </h1>
       {query === "" ? (
         <p>Digite um termo de busca acima.</p>
@@ -39,4 +39,3 @@ export default function SearchPage({ searchParams }: SearchPageProps) {
     </div>
   );
 }
-

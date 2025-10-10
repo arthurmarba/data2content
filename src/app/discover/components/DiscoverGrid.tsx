@@ -1,5 +1,6 @@
 "use client";
 
+import Image from 'next/image';
 import React, { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
@@ -45,21 +46,21 @@ function GridCard({ item }: { item: PostCard }) {
 
   const secs = Number(item?.stats?.video_duration_seconds || 0);
   const dur = secs > 0 ? new Date(secs * 1000).toISOString().substring(secs >= 3600 ? 11 : 14, 19) : '';
-  const Image = (
+  const cardImage = (
     <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-gray-100 shadow">
       {item.coverUrl && !imgFailed ? (
-        <img
+        <Image
           src={item.coverUrl}
           alt={short || 'Capa do post'}
+          fill
           className="w-full h-full object-cover"
           loading="lazy"
           referrerPolicy="no-referrer"
-          crossOrigin="anonymous"
           draggable={false}
           onError={() => setImgFailed(true)}
         />
       ) : (
-        <img src={fallbackCover} alt="Sem capa" className="w-full h-full object-cover opacity-70" draggable={false} />
+        <Image fill src={fallbackCover} alt="Sem capa" className="w-full h-full object-cover opacity-70" draggable={false} />
       )}
       {/* Menu ⋮ */}
       <div className="absolute top-1 right-1">
@@ -90,10 +91,10 @@ function GridCard({ item }: { item: PostCard }) {
           aria-label="Abrir no Instagram"
           className="block"
         >
-          {Image}
+          {cardImage}
         </a>
       ) : (
-        Image
+        cardImage
       )}
       {(metrics || short) && (
         <div className="mt-2">

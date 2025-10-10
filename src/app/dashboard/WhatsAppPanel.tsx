@@ -28,6 +28,77 @@ export default function WhatsAppPanel({
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    if (!canAccessFeatures || upsellOnly) {
+      return;
+    }
+
+    let isActive = true;
+    const fetchWhatsAppStatus = async () => {
+      setIsLoading(true);
+      setError("");
+      try {
+        const res = await fetch("/api/whatsapp/generateCode", { method: "POST", credentials: "include" });
+        const data = await res.json().catch(() => ({}));
+        if (!isActive) return;
+        if (!res.ok) throw new Error((data as any)?.error || "Falha ao obter status do WhatsApp.");
+        if (data.code) {
+          setWhatsappCode(data.code);
+          setExpiresAt(data.expiresAt || null);
+          setIsLinked(false);
+        } else if (data.linked) {
+          setWhatsappCode(null);
+          setExpiresAt(null);
+          setIsLinked(true);
+        } else {
+          throw new Error(data.error || "Resposta inesperada.");
+        }
+      } catch (e: any) {
+        if (!isActive) return;
+        setError(e.message || "Falha na comunicação. Tente novamente.");
+        setIsLinked(false);
+        setWhatsappCode(null);
+        setExpiresAt(null);
+      } finally {
+        if (isActive) setIsLoading(false);
+      }
+    };
+
+    fetchWhatsAppStatus();
+    return () => {
+      isActive = false;
+    };
+  }, [canAccessFeatures, upsellOnly, userId]);
+
+  useEffect(() => {
+    if (!expiresAt) {
+      setTimeLeft("");
+      return;
+    }
+
+    const updateCountdown = () => {
+      const diff = new Date(expiresAt).getTime() - Date.now();
+      if (diff <= 0) {
+        setTimeLeft("expirado");
+        return;
+      }
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+      let countdown = "";
+      if (hours > 0) countdown += `${hours}h `;
+      if (mins > 0) countdown += `${mins}m `;
+      if (secs > 0 || (hours === 0 && mins === 0)) countdown += `${secs}s`;
+
+      setTimeLeft(countdown.trim());
+    };
+
+    const intervalId = setInterval(updateCountdown, 1000);
+    updateCountdown();
+    return () => clearInterval(intervalId);
+  }, [expiresAt]);
+
   // U P S E L L  –  quando não há acesso ou upsellOnly=true, mostra cartão de vendas PRO
   if (!canAccessFeatures || upsellOnly) {
     return (
@@ -66,85 +137,6 @@ export default function WhatsAppPanel({
     );
   }
 
-  useEffect(() => {
-    // fluxo funcional apenas para quem tem acesso
-    if (!canAccessFeatures) return;
-    setIsLoading(true);
-
-    async function fetchWhatsAppStatus() {
-      setIsLoading(true);
-      setError("");
-      try {
-        const res = await fetch("/api/whatsapp/generateCode", {
-          method: "POST",
-          credentials: "include",
-        });
-
-        const data = await res.json().catch(() => ({}));
-
-        if (!res.ok) {
-          setError((data as any)?.error || "Falha ao obter status do WhatsApp.");
-          setIsLinked(false);
-          setWhatsappCode(null);
-          setExpiresAt(null);
-        } else {
-          if (data.code) {
-            setWhatsappCode(data.code);
-            setExpiresAt(data.expiresAt || null);
-            setIsLinked(false);
-          } else if (data.linked) {
-            setWhatsappCode(null);
-            setExpiresAt(null);
-            setIsLinked(true);
-          } else {
-            setError(data.error || "Resposta inesperada.");
-            setIsLinked(false);
-            setWhatsappCode(null);
-            setExpiresAt(null);
-          }
-        }
-      } catch {
-        setError("Falha na comunicação. Tente novamente.");
-        setIsLinked(false);
-        setWhatsappCode(null);
-        setExpiresAt(null);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    fetchWhatsAppStatus();
-  }, [userId, canAccessFeatures]);
-
-  useEffect(() => {
-    if (!expiresAt) {
-      setTimeLeft("");
-      return;
-    }
-
-    const updateCountdown = () => {
-      const diff = new Date(expiresAt).getTime() - Date.now();
-      if (diff <= 0) {
-        setTimeLeft("expirado");
-        return;
-      }
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const secs = Math.floor((diff % (1000 * 60)) / 1000);
-
-      let countdown = "";
-      if (hours > 0) countdown += `${hours}h `;
-      if (mins > 0) countdown += `${mins}m `;
-      if (secs > 0 || (hours === 0 && mins === 0)) countdown += `${secs}s`;
-
-      setTimeLeft(countdown.trim());
-    };
-
-    const intervalId = setInterval(updateCountdown, 1000);
-    updateCountdown();
-    return () => clearInterval(intervalId);
-  }, [expiresAt]);
-
   function handleCopyCode() {
     if (!whatsappCode) return;
     navigator.clipboard
@@ -175,7 +167,6 @@ export default function WhatsAppPanel({
     const link = `https://wa.me/${whatsAppNumber}?text=${encodedText}`;
     window.open(link, "_blank");
   }
-  
   const getButtonText = () => {
     if (isLinked) return "Conversar com IA";
     if (isLoading) return "Carregando...";

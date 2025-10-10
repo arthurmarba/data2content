@@ -147,7 +147,7 @@ const TimePerformanceHeatmap: React.FC<TimePerformanceHeatmapProps> = ({ userId,
     } finally {
       setLoading(false);
     }
-  }, [timePeriod, format, proposal, context, metric, userId]);
+  }, [timePeriod, format, proposal, context, metric, userId, apiPrefix]);
 
   useEffect(() => {
     fetchData();

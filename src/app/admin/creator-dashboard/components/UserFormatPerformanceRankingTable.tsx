@@ -41,7 +41,7 @@ const UserFormatPerformanceRankingTable: React.FC<Props> = ({ userId }) => {
     } finally {
       setLoading(false);
     }
-  }, [timePeriod]);
+  }, [timePeriod, userId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

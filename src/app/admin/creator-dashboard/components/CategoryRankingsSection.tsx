@@ -53,7 +53,7 @@ const MetricCard: React.FC<{
       } finally { setLoading(false); }
     };
     run();
-  }, [category, metric, startDate, endDate, apiPrefix, limit]);
+  }, [category, metric, startDate, endDate, apiPrefix, limit, userId]);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">

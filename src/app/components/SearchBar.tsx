@@ -72,7 +72,10 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(
     );
 
     useEffect(() => {
-      if (value !== inputValue) setInputValue(value ?? '');
+      setInputValue(prev => {
+        const next = value ?? '';
+        return prev === next ? prev : next;
+      });
     }, [value]);
     
     useEffect(() => {

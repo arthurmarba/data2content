@@ -6,38 +6,27 @@ import SubscribeCtaBanner from "@/app/mediakit/components/SubscribeCtaBanner";
 import WhatsAppConnectInline from "@/app/dashboard/WhatsAppConnectInline";
 
 /**
- * Renderiza o CTA correto para a Discover:
- * - Assinantes (active/trialing): mostra o bloco de vínculo do WhatsApp
- * - Não assinantes: mostra o banner de assinatura
- *
- * Mantém a decisão no client para evitar estado "travado" após SSR
- * quando a sessão ainda não refletiu a mudança de plano.
+ * Mantém CTAs auxiliares na Discover sem bloquear a experiência.
+ * Usuários sem plano veem um lembrete de upgrade, mas continuam com o acesso completo.
  */
 export default function DiscoverBillingGate() {
-  const { planStatus, isLoading, nextAction } = useBillingStatus();
-  const isActive = planStatus === "active" || planStatus === "trialing" || planStatus === "non_renewing";
+  const { hasPremiumAccess, isLoading, nextAction } = useBillingStatus();
 
   // Evita flicker inicial: não renderiza nada até primeira leitura
-  if (isLoading && !planStatus) return null;
-
-  if (isActive) {
-    return (
-      <div className="mb-4">
-        <WhatsAppConnectInline />
-      </div>
-    );
-  }
+  if (isLoading && hasPremiumAccess) return null;
 
   return (
-    <div className="mb-4">
-      <SubscribeCtaBanner
-        title="Desbloqueie nossa IA avançada"
-        description="Torne-se assinante e utilize nossa IA para planejar conteúdo."
-        primaryLabel={nextAction === "reactivate" ? "Reativar plano" : "Ativar plano"}
-        secondaryLabel="Ver planos"
-        isSubscribed={false}
-      />
+    <div className="mb-4 space-y-3">
+      {!hasPremiumAccess && (
+        <SubscribeCtaBanner
+          title="Experimente todo o potencial da IA"
+          description="Seu plano pode ser reativado a qualquer momento, mas você já pode explorar a Comunidade normalmente."
+          primaryLabel={nextAction === "reactivate" ? "Reativar plano" : "Ativar plano"}
+          secondaryLabel="Ver planos"
+          isSubscribed={false}
+        />
+      )}
+      {hasPremiumAccess && <WhatsAppConnectInline />}
     </div>
   );
 }
-

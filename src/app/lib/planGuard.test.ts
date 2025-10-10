@@ -10,13 +10,17 @@ import DbUser from '@/app/models/User';
 jest.mock('next-auth/jwt', () => ({ getToken: jest.fn() }));
 jest.mock('@/app/lib/mongoose', () => ({ connectToDatabase: jest.fn() }));
 jest.mock('@/app/models/User', () => ({ __esModule: true, default: { findById: jest.fn() } }));
+jest.mock('jose', () => ({ jwtVerify: jest.fn() }));
 
 const mockGetToken = getToken as jest.Mock;
 const mockConnect = connectToDatabase as jest.Mock;
 const mockFindById = (DbUser as any).findById as jest.Mock;
 
 function createRequest(path: string) {
-  return { nextUrl: { pathname: path } } as any;
+  return {
+    nextUrl: { pathname: path },
+    cookies: { get: () => undefined },
+  } as any;
 }
 
 describe('guardPremiumRequest', () => {
@@ -64,4 +68,3 @@ describe('guardPremiumRequest', () => {
     expect(res).toBeNull();
   });
 });
-

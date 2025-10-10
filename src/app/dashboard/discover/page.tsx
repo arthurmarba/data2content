@@ -8,6 +8,7 @@ const DiscoverChips = NextDynamic(() => import('../../discover/components/Discov
 const DiscoverGrid = NextDynamic(() => import('../../discover/components/DiscoverGrid'), { ssr: false });
 const DiscoverRails = NextDynamic(() => import('../../discover/components/DiscoverRails'), { ssr: false });
 const DiscoverBillingGate = NextDynamic(() => import('./DiscoverBillingGate'), { ssr: false });
+const DiscoverHeaderConfigurator = NextDynamic(() => import('./DiscoverHeaderConfigurator'), { ssr: false });
 
 export const dynamic = 'force-dynamic';
 
@@ -115,6 +116,7 @@ export default async function DiscoverDashboardPage({ searchParams }: { searchPa
 
   return (
     <main className="w-full max-w-none pt-2 sm:pt-3 lg:pt-4 pb-10">
+      <DiscoverHeaderConfigurator />
       <DiscoverViewTracker />
 
       <div className="max-w-[800px] lg:max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
@@ -126,13 +128,11 @@ export default async function DiscoverDashboardPage({ searchParams }: { searchPa
         {/* Filtros por categoria */}
         {/* Cabeçalho e orientação */}
         <div className="mb-3">
-          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Descubra ideias que combinam com você</h1>
-          <p className="text-sm text-gray-600 mt-1">Use as guias para filtrar por Formato, Proposta, Contexto, Tom e Referências. Combine chips para refinar seus resultados.</p>
+          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Descubra novas ideias</h1>
         </div>
-        {/* Apenas uma linha envolvendo os chips */}
-        <section aria-label="Filtros" className="rounded-lg border border-gray-200 p-4 md:p-6 mb-6">
+        <div className="mb-6">
           <DiscoverChips />
-        </section>
+        </div>
 
         {/* Conteúdo: modo Experiências sempre com prateleiras (rails) */}
         <section aria-label="Coleções" className="mt-1">

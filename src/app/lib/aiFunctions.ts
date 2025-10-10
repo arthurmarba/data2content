@@ -598,7 +598,7 @@ const getCategoryRanking: ExecutorFn = async (args, loggedUser) => {
 
   // Validação interna dos argumentos com Zod
   const validationSchema = z.object({
-      category: z.enum(['proposal', 'format', 'context']),
+      category: z.enum(['proposal', 'format', 'context', 'tone', 'references']),
       metric: CategoryRankingMetricEnum.default('shares'),
       periodDays: z.number().min(0).default(90),
       limit: z.number().min(1).max(10).default(5)
@@ -633,13 +633,23 @@ const getCategoryRanking: ExecutorFn = async (args, loggedUser) => {
       }
 
       logger.info(`${fnTag} Ranking gerado com sucesso para User ${userId}. Itens: ${results.length}`);
-      const leader = results[0];
-      const rankingList = results.map((item, index) => `${index + 1}. ${item.category}: ${item.value.toLocaleString('pt-BR')}`).join('\n');
+      const best = results[0];
+      const worst = results[results.length - 1];
+      const rankingList = results
+        .map((item, index) => `${index + 1}. ${item.category}: ${Number(item.value).toLocaleString('pt-BR')}`)
+        .join('\n');
 
       const periodText = periodDays === 0 ? 'todo o período disponível' : `nos últimos ${periodDays} dias`;
       return {
         summary: `Aqui está o ranking das suas categorias de '${category}' por '${metric}' ${periodText}, ${loggedUser.name || 'usuário'}:\n${rankingList}`,
-        ranking: results
+        ranking: results,
+        best,
+        worst,
+        meta: {
+          category,
+          metric,
+          periodDays,
+        },
       };
 
   } catch (err: any) {

@@ -64,7 +64,7 @@ const PlatformFollowerTrendChart: React.FC<PlatformFollowerTrendChartProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [timePeriod, granularity]); // Adicionado timePeriod às dependências
+  }, [timePeriod, granularity, apiPrefix]); // Adicionado timePeriod às dependências
 
   useEffect(() => {
     fetchData();

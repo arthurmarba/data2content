@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom';
+import 'next/dist/server/node-polyfill-fetch';
 
 // Polyfills for Next.js API routes during testing
 import { TextEncoder, TextDecoder } from 'util';

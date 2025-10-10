@@ -8,10 +8,9 @@ import { ICreatorProfile } from '@/app/lib/dataService/marketAnalysisService'; /
 global.fetch = jest.fn();
 
 // Mock next/image
-jest.mock('next/image', () => ({
-    __esModule: true,
-    default: ({ src, alt }: {src: string, alt: string}) => <img src={src} alt={alt} data-testid="mock-image" />,
-}));
+const MockImage = ({ src, alt }: {src: string, alt: string}) => <img src={src} alt={alt} data-testid="mock-image" />;
+MockImage.displayName = 'MockImage';
+jest.mock('next/image', () => MockImage);
 
 // Mock XMarkIcon
 jest.mock('@heroicons/react/24/solid', () => ({

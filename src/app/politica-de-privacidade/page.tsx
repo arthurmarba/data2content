@@ -37,7 +37,7 @@ export default function PrivacyPolicyPage() {
             
             <h2 className="text-2xl font-semibold text-gray-900">1. Introdução</h2>
             <p>
-              Bem-vindo(a) ao Data2Content! Esta Política de Privacidade descreve como <strong>Mobi Media Produtores de Conteúdo LTDA</strong> (“Data2Content”, “nós”) coleta, usa, armazena, partilha e protege as suas informações quando você utiliza a nossa plataforma e serviços, incluindo o nosso assistente de IA (o "Serviço").
+              Bem-vindo(a) ao Data2Content! Esta Política de Privacidade descreve como <strong>Mobi Media Produtores de Conteúdo LTDA</strong> (“Data2Content”, “nós”) coleta, usa, armazena, partilha e protege as suas informações quando você utiliza a nossa plataforma e serviços, incluindo o nosso assistente de IA (o &quot;Serviço&quot;).
             </p>
             <p>
               O nosso compromisso é garantir a transparência e a proteção dos seus dados, em conformidade com a Lei Geral de Proteção de Dados (LGPD – Lei nº 13.709/2018) do Brasil e as Políticas da Meta Platforms, Inc. (Termos da Plataforma e Políticas do Desenvolvedor). Ao criar uma conta e utilizar o nosso Serviço, você concorda com a coleta e uso de informações de acordo com esta política e com os nossos <Link href="/termos-e-condicoes" className="text-brand-pink hover:underline">Termos de Serviço</Link>.

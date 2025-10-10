@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import PaymentStep from '@/components/billing/PaymentStep';
+import useBillingStatus from '@/app/hooks/useBillingStatus';
 
 type Plan = 'monthly'|'annual';
 type Cur = 'brl'|'usd';
@@ -19,6 +20,7 @@ export default function SubscribeInline({ prices }: { prices: PricesShape }) {
   const [clientSecret, setClientSecret] = useState<string|null>(null);
   const [error, setError] = useState<string|null>(null);
   const [codeError, setCodeError] = useState<string|null>(null);
+  const { isLoading: billingStatusLoading, hasPremiumAccess } = useBillingStatus();
 
   const priceShown = plan === 'monthly' ? prices.monthly[currency] : prices.annual[currency];
 
@@ -63,6 +65,10 @@ export default function SubscribeInline({ prices }: { prices: PricesShape }) {
   }
 
   async function handleStartTrial() {
+    if (hasPremiumAccess) {
+      setError('Você já possui um plano ativo ou em teste.');
+      return;
+    }
     setLoading(true);
     setError(null);
     setCodeError(null);
@@ -73,6 +79,9 @@ export default function SubscribeInline({ prices }: { prices: PricesShape }) {
         body: JSON.stringify({ plan, currency: currency.toUpperCase(), affiliateCode: affiliateCode.trim() || undefined })
       });
       const body = await res.json();
+      if (res.status === 409) {
+        throw new Error(body?.message || 'Você já possui um plano ativo ou em teste.');
+      }
       if (!res.ok || !body?.url) {
         if (body?.code === 'SELF_REFERRAL') { setCodeError(body?.message ?? 'Você não pode usar seu próprio código.'); return; }
         if (body?.code === 'INVALID_CODE') { setCodeError(body?.message ?? 'Código inválido ou expirado.'); return; }
@@ -137,13 +146,16 @@ export default function SubscribeInline({ prices }: { prices: PricesShape }) {
       </div>
 
       {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+      {hasPremiumAccess && !billingStatusLoading && (
+        <p className="text-xs text-gray-600 text-center">Você já possui um plano ativo ou em período de teste.</p>
+      )}
 
       {/* Ações */}
       {!clientSecret && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <button
             onClick={handleStartTrial}
-            disabled={loading}
+            disabled={loading || hasPremiumAccess || billingStatusLoading}
             className="w-full rounded-xl border border-gray-900 px-4 py-3 text-gray-900 hover:bg-gray-50 disabled:opacity-50"
           >
             {loading ? 'Preparando…' : 'Teste gratuito (7 dias)'}

@@ -1,3 +1,4 @@
+// src/app/mediakit/[token]/MediaKitView.tsx
 'use client';
 
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
@@ -7,9 +8,6 @@ import {
   TrendingDown,
   Sparkles,
   CalendarDays,
-  Clock,
-  ChevronRight,
-  TestTube2,
   Users,
   Heart,
   Eye,
@@ -31,24 +29,14 @@ import PostDetailModal from '@/app/admin/creator-dashboard/PostDetailModal';
 import { MediaKitViewProps, VideoListItem } from '@/types/mediakit';
 import { useGlobalTimePeriod, GlobalTimePeriodProvider } from '@/app/admin/creator-dashboard/components/filters/GlobalTimePeriodContext';
 import { getCategoryById, commaSeparatedIdsToLabels } from '@/app/lib/classification';
-import { usePlannerData, PlannerUISlot } from '@/hooks/usePlannerData';
-import PlannerSlotModal, { PlannerSlotData as PlannerSlotDataModal } from '@/app/mediakit/components/PlannerSlotModal';
 import SubscribeCtaBanner from '@/app/mediakit/components/SubscribeCtaBanner';
 import { useSession } from 'next-auth/react';
+import useBillingStatus from '@/app/hooks/useBillingStatus';
+import { isPlanActiveLike } from '@/utils/planStatus';
 
 /**
  * UTILS & CONSTANTS
  */
-
-type PlannerCategoryKey = 'format' | 'proposal' | 'context' | 'tone' | 'reference';
-const PLANNER_CATEGORY_KEYS = ['format', 'proposal', 'context', 'tone', 'reference'] as const;
-const CATEGORY_STYLES: Record<PlannerCategoryKey, string> = {
-  format: 'bg-blue-50 text-blue-700 ring-1 ring-blue-200',
-  proposal: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200',
-  context: 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200',
-  tone: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200',
-  reference: 'bg-pink-50 text-pink-700 ring-1 ring-pink-200',
-};
 
 /**
  * MultiItemCarousel — carrossel horizontal com drag (mobile-first)
@@ -62,12 +50,14 @@ const MultiItemCarousel = ({ children }: { children: React.ReactNode }) => {
     const wrapW = wrapRef.current?.getBoundingClientRect().width ?? 0;
     const innerW = innerRef.current?.scrollWidth ?? 0;
     const max = Math.max(0, innerW - wrapW);
-    setConstraint(max);
+    setConstraint((prev) => (prev === max ? prev : max));
   }, []);
+
+  const childCount = React.Children.count(children);
 
   useEffect(() => {
     calculateConstraints();
-  }, [children, calculateConstraints]);
+  }, [childCount, calculateConstraints]);
 
   useEffect(() => {
     const handle = () => calculateConstraints();
@@ -100,34 +90,6 @@ const MultiItemCarousel = ({ children }: { children: React.ReactNode }) => {
     </div>
   );
 };
-
-/** Converte PlannerUISlot -> contrato do modal */
-function toPlannerSlotData(slot: PlannerUISlot | null): PlannerSlotDataModal | null {
-  if (!slot) return null;
-  return {
-    dayOfWeek: slot.dayOfWeek,
-    blockStartHour: slot.blockStartHour,
-    format: (slot as any).format || 'reel',
-    categories: slot.categories,
-    status: slot.status as any,
-    isExperiment: (slot as any).isExperiment,
-    expectedMetrics: slot.expectedMetrics as any,
-    title: (slot as any).title,
-    scriptShort: (slot as any).scriptShort,
-    themes: (slot as any).themes,
-    themeKeyword: (slot as any).themeKeyword,
-    rationale: (slot as any).rationale,
-  };
-}
-
-/** Retorna início da semana (Domingo) em YYYY-MM-DD */
-function getWeekStartISO(date = new Date()): string {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  const dow = d.getDay(); // 0..6 (0=Dom)
-  d.setDate(d.getDate() - dow);
-  return d.toISOString().slice(0, 10);
-}
 
 // Extrai bio de vários caminhos comuns
 function extractIgBio(obj: any): string | null {
@@ -421,219 +383,6 @@ const CategoryRankingsCarousel = ({ userId }: { userId: string }) => {
 };
 
 /**
- * Planner (lista) + Modal conectado
- */
-const PlannerRowCard = ({
-  slot,
-  onOpen,
-}: {
-  slot: PlannerUISlot;
-  onOpen: (slot: PlannerUISlot) => void;
-}) => {
-  const { dayOfWeek, blockStartHour, title, categories, expectedMetrics, status } = slot;
-
-  const DAYS_PT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-  const norm = ((dayOfWeek % 7) + 7) % 7;
-  const dayLabel = DAYS_PT[norm];
-  const end = (blockStartHour + 3) % 24;
-  const blockLabel = `${String(blockStartHour).padStart(2, '0')}h - ${String(end).padStart(2, '0')}h`;
-
-  const expectedViewsNum =
-    typeof expectedMetrics?.viewsP50 === 'number' ? (expectedMetrics!.viewsP50 as number) : null;
-  const expectedViewsLabel =
-    expectedViewsNum && expectedViewsNum > 0 ? `${(expectedViewsNum / 1000).toFixed(1)}k` : null;
-
-  const isTest = status === 'test';
-
-  // Tema chave (palavra-chave) — usa themeKeyword ou 1º item de themes como fallback simples
-  const themeKeyword = (() => {
-    const raw = String((slot as any).themeKeyword || '').trim();
-    if (raw) return raw;
-    const first = Array.isArray((slot as any).themes) && (slot as any).themes[0]
-      ? String((slot as any).themes[0])
-      : '';
-    const simple = first.split(/[:\-–—|]/)[0]?.trim() || first.trim();
-    return simple;
-  })();
-
-  const categoryItems: React.ReactNode[] = Object.entries(categories ?? {}).reduce<React.ReactNode[]>(
-    (acc, [key, value]) => {
-      if (!(PLANNER_CATEGORY_KEYS as readonly string[]).includes(key)) return acc;
-      const typedKey = key as PlannerCategoryKey;
-      const valueAsString = Array.isArray(value) ? value.join(',') : value ?? '';
-      const raw = commaSeparatedIdsToLabels(String(valueAsString), typedKey as any);
-      const labels = String(raw)
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean)
-        .map((s) => s.replace(/_/g, ' ').toLowerCase())
-        .map((s) =>
-          s
-            .split(' ')
-            .filter(Boolean)
-            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-            .join(' ')
-        );
-      if (!labels.length) return acc;
-      const style = CATEGORY_STYLES[typedKey] ?? 'bg-gray-100 text-gray-700 ring-1 ring-gray-200';
-      labels.forEach((label) => {
-        acc.push(
-          <span
-            key={`${typedKey}:${label}`}
-            className={`text-[10px] sm:text-xs px-2 py-0.5 rounded-full ${style} whitespace-nowrap leading-5`}
-            title={`${typedKey}: ${label}`}
-          >
-            {label}
-          </span>
-        );
-      });
-      return acc;
-    },
-    []
-  );
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 w-full hover:shadow-md transition-shadow duration-200">
-      <div className="grid grid-cols-12 gap-3 sm:gap-4 items-center">
-        {/* Col A — Dia/Hora/Título */}
-        <div className="col-span-12 sm:col-span-3 flex sm:block items-center gap-3 min-w-0">
-          <div className="shrink-0 text-left">
-            <div className="text-lg sm:text-xl font-extrabold tracking-tight text-gray-900">{dayLabel}</div>
-            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-xs sm:text-sm">
-              <Clock size={12} /> {blockLabel}
-            </div>
-            {themeKeyword && (
-              <div className="mt-1">
-                <span
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-pink-50 text-pink-700 ring-1 ring-pink-200 text-[11px] sm:text-xs max-w-[160px] truncate"
-                  title={`Tema: ${themeKeyword}`}
-                >
-                  <Sparkles size={12} />
-                  <span className="truncate">{themeKeyword}</span>
-                </span>
-              </div>
-            )}
-          </div>
-
-          <div
-            className="min-w-0 sm:mt-2 text-[11px] sm:text-xs text-pink-600 font-semibold truncate"
-            title={String(title ?? '')}
-          >
-            {String(title ?? '')}
-          </div>
-        </div>
-
-        {/* Col B — Categorias */}
-        <div className="col-span-12 sm:col-span-6 min-w-0">
-          <div className="flex flex-wrap gap-1.5 sm:gap-2">
-            {categoryItems.length > 0 ? (
-              categoryItems
-            ) : (
-              <span className="text-sm text-gray-400">Sem categorias definidas</span>
-            )}
-          </div>
-        </div>
-
-        {/* Col C — Métricas/Ação */}
-        <div className="col-span-12 sm:col-span-3 flex items-center justify-between gap-2">
-          {isTest ? (
-            <div className="flex items-center sm:flex-col sm:items-end text-yellow-600">
-              <TestTube2 size={18} className="mr-2 sm:mr-0" />
-              <span className="text-xs sm:text-sm font-bold">TESTE</span>
-            </div>
-          ) : expectedViewsLabel ? (
-            <div className="text-left">
-              <div className="text-xl sm:text-2xl font-bold text-green-600 leading-none">{expectedViewsLabel}</div>
-              <div className="text-[11px] sm:text-xs text-gray-500">views esperadas</div>
-            </div>
-          ) : (
-            <div className="text-[11px] sm:text-xs text-gray-500">Sem estimativa</div>
-          )}
-
-          <button
-            className="ml-auto sm:ml-0 text-pink-600 hover:text-pink-700 mt-0 sm:mt-2 inline-flex items-center text-sm font-semibold"
-            onClick={() => onOpen(slot)}
-          >
-            Ver mais <ChevronRight size={16} />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const ContentPlannerList = ({ userId, publicMode }: { userId: string; publicMode?: boolean }) => {
-  const { slots, loading, error } = usePlannerData({ userId, publicMode, targetSlotsPerWeek: 7 });
-
-  // Modal state
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<PlannerUISlot | null>(null);
-  const weekStartISO = useMemo(() => getWeekStartISO(), []);
-
-  const openModal = useCallback((slot: PlannerUISlot) => {
-    setSelectedSlot(slot);
-    setIsModalOpen(true);
-  }, []);
-
-  const closeModal = useCallback(() => {
-    setIsModalOpen(false);
-    setSelectedSlot(null);
-  }, []);
-
-  // onSave (stub)
-  const handleSave = useCallback(async (_updated: PlannerSlotDataModal) => {
-    return;
-  }, []);
-
-  const sortedSlots = useMemo(() => {
-    if (!slots) return [] as PlannerUISlot[];
-    return [...slots].sort((a, b) => {
-      if (a.dayOfWeek !== b.dayOfWeek) return a.dayOfWeek - b.dayOfWeek;
-      return a.blockStartHour - b.blockStartHour;
-    });
-  }, [slots]);
-
-  if (loading)
-    return (
-      <div className="text-center p-8">
-        <span className="text-gray-500">Carregando planejamento...</span>
-      </div>
-    );
-  if (error)
-    return (
-      <div className="text-center p-8">
-        <span className="text-red-500">{error}</span>
-      </div>
-    );
-  if (!slots || slots.length === 0)
-    return (
-      <div className="text-center p-8">
-        <span className="text-gray-500">Nenhuma sugestão de conteúdo encontrada.</span>
-      </div>
-    );
-
-  return (
-    <>
-      <div className="space-y-3">
-        {sortedSlots.map((slot, index) => (
-          <PlannerRowCard key={`${slot.dayOfWeek}-${slot.blockStartHour}-${index}`} slot={slot} onOpen={openModal} />
-        ))}
-      </div>
-
-      <PlannerSlotModal
-        open={isModalOpen}
-        onClose={closeModal}
-        userId={userId}
-        weekStartISO={weekStartISO}
-        slot={toPlannerSlotData(selectedSlot)}
-        onSave={handleSave}
-        readOnly={publicMode}
-      />
-    </>
-  );
-};
-
-/**
  * MISC UI
  */
 interface KeyMetricProps {
@@ -754,6 +503,7 @@ export default function MediaKitView({
   const [isLoading, setIsLoading] = useState(!initialKpis);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const { data: session } = useSession();
+  const billingStatus = useBillingStatus({ auto: showOwnerCtas });
 
   useEffect(() => {
     async function fetchData() {
@@ -831,9 +581,9 @@ export default function MediaKitView({
 
   // Dono do Mídia Kit: considera o planStatus da sessão para esconder o CTA de assinatura
   const isSubscribed = useMemo(() => {
-    const plan = String(((session?.user as any)?.planStatus ?? '')).toLowerCase();
-    return ['active', 'trial', 'trialing', 'non_renewing'].includes(plan);
-  }, [session?.user]);
+    if (billingStatus.hasPremiumAccess) return true;
+    return isPlanActiveLike((session?.user as any)?.planStatus);
+  }, [billingStatus.hasPremiumAccess, session?.user]);
 
   const isOwner = useMemo(() => {
     const su = (session?.user as any) || {};
@@ -1143,12 +893,6 @@ export default function MediaKitView({
               </motion.div>
             )}
 
-            {user?._id && (
-              <motion.div variants={cardVariants} initial="hidden" animate="visible" custom={0.9} className={cardStyle}>
-                <h2 className="text-2xl font-bold text-gray-800 mb-6">Planejamento de Conteúdo</h2>
-                <ContentPlannerList userId={String(user._id)} publicMode />
-              </motion.div>
-            )}
           </div>
 
           {showSharedBanner && (

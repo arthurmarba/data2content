@@ -58,7 +58,7 @@ const PlatformReachEngagementTrendChart: React.FC<PlatformReachEngagementTrendCh
     } finally {
       setLoading(false);
     }
-  }, [timePeriod, granularity]);
+  }, [timePeriod, granularity, apiPrefix]);
 
   useEffect(() => {
     fetchData();

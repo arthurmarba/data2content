@@ -230,6 +230,10 @@ export interface IUser extends Document {
   lastInstagramSyncAttempt?: Date | null;
   lastInstagramSyncSuccess?: boolean | null;
   instagramSyncErrorMsg?: string | null;
+  instagramSyncErrorCode?: string | null;
+  instagramReconnectNotifiedAt?: Date | null;
+  instagramAccessTokenExpiresAt?: Date | null;
+  instagramDisconnectCount?: number;
   username?: string | null;
   biography?: string;
   website?: string;
@@ -459,11 +463,15 @@ const userSchema = new Schema<IUser>(
     providerAccountId: { type: String, index: true },
     facebookProviderAccountId: { type: String, index: true, sparse: true },
     instagramAccessToken: { type: String },
+    instagramAccessTokenExpiresAt: { type: Date, default: null },
     instagramAccountId: { type: String, index: true, default: null },
     isInstagramConnected: { type: Boolean, default: false },
     lastInstagramSyncAttempt: { type: Date, default: null },
     lastInstagramSyncSuccess: { type: Boolean, default: null },
     instagramSyncErrorMsg: { type: String, default: null },
+    instagramSyncErrorCode: { type: String, default: null },
+    instagramReconnectNotifiedAt: { type: Date, default: null },
+    instagramDisconnectCount: { type: Number, default: 0 },
     username: { type: String, sparse: true, default: null },
     biography: { type: String },
     website: { type: String },

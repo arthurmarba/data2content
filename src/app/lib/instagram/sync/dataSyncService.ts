@@ -32,6 +32,7 @@ import {
 } from '../api/fetchers';
 import { getInstagramConnectionDetails, updateUserBasicInstagramProfile } from '../db/userActions';
 import { clearInstagramConnection } from '../db/connectionManagement';
+import type { InstagramDisconnectReasonCode } from '../db/connectionManagement';
 import { saveMetricData } from '../db/metricActions';
 import { saveAccountInsightData } from '../db/accountInsightActions';
 import { isTokenInvalidError } from '../utils/tokenUtils';
@@ -68,7 +69,12 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
     if (!connectionDetails?.accountId) {
       logger.error(`${TAG} Usuário ${userId} não conectado ou accountId ausente no DB. Abortando refresh.`);
       await DbUser.findByIdAndUpdate(userObjectId, {
-        $set: { lastInstagramSyncAttempt: new Date(), lastInstagramSyncSuccess: false, instagramSyncErrorMsg: "Usuário não conectado ou ID da conta Instagram não encontrado no sistema."}
+        $set: {
+          lastInstagramSyncAttempt: new Date(),
+          lastInstagramSyncSuccess: false,
+          instagramSyncErrorMsg: "Usuário não conectado ou ID da conta Instagram não encontrado no sistema.",
+          instagramSyncErrorCode: 'NOT_CONNECTED',
+        }
       }).catch(dbErr => logger.error(`${TAG} Falha ao atualizar status sync (conexão inválida) ${userId}:`, dbErr));
       return { success: false, message: 'Usuário não conectado ou ID da conta Instagram não encontrado.' };
     }
@@ -82,7 +88,8 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
         $set: {
             lastInstagramSyncAttempt: new Date(),
             lastInstagramSyncSuccess: false,
-            instagramSyncErrorMsg: userFacingErrorForTokenProblem
+            instagramSyncErrorMsg: userFacingErrorForTokenProblem,
+            instagramSyncErrorCode: 'TOKEN_INVALID',
         }
       }).catch(dbErr => logger.error(`${TAG} Falha ao atualizar status sync (LLAT ausente no início) ${userId}:`, dbErr));
       return { success: false, message: userFacingErrorForTokenProblem };
@@ -94,7 +101,7 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
     return { success: false, message: 'Erro ao acessar dados do usuário no banco de dados.' };
   }
 
-  await DbUser.findByIdAndUpdate(userObjectId, { $set: { lastInstagramSyncAttempt: new Date(), instagramSyncErrorMsg: null } })
+  await DbUser.findByIdAndUpdate(userObjectId, { $set: { lastInstagramSyncAttempt: new Date(), instagramSyncErrorMsg: null, instagramSyncErrorCode: null } })
     .catch(dbErr => logger.error(`${TAG} Falha ao atualizar início sync para User ${userId}:`, dbErr));
 
   let totalMediaFound = 0, totalMediaProcessedForInsights = 0, savedMediaMetrics = 0, skippedOldMedia = 0, skippedCarouselChildren = 0;
@@ -131,7 +138,8 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
             userLlatIsCompromised = true;
             criticalTokenErrorOccurred = true;
             userFacingErrorForTokenProblem = userFacingErrorForTokenProblem || "Seu token de acesso ao Instagram é inválido ou não possui as permissões necessárias para dados básicos.";
-            await clearInstagramConnection(userObjectId, "Token de usuário inválido para dados básicos.");
+            const disconnectCode: InstagramDisconnectReasonCode = isPermissionError(basicDataResult.error) ? 'PERMISSION_DENIED' : 'TOKEN_INVALID';
+            await clearInstagramConnection(userObjectId, "Token de usuário inválido para dados básicos.", disconnectCode);
         }
     } else if (basicDataResult.data) {
         collectedBasicAccountData = basicDataResult.data;
@@ -162,7 +170,7 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
             userFacingErrorForTokenProblem = userFacingErrorForTokenProblem || "Seu token de acesso ao Instagram expirou ou foi revogado durante a busca de mídias. Por favor, reconecte sua conta.";
             criticalTokenErrorOccurred = true;
             userLlatIsCompromised = true;
-            await clearInstagramConnection(userObjectId, "Token de usuário inválido para buscar mídias.");
+            await clearInstagramConnection(userObjectId, "Token de usuário inválido para buscar mídias.", 'TOKEN_INVALID');
           }
           hasMoreMediaPages = false;
           overallSuccess = false;
@@ -354,7 +362,7 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
                   logger.error(`${TAG} Erro de token irrecuperável detectado nos insights de mídia: ${errorMsg}. Interrompendo sincronização de mídias.`);
                   criticalTokenErrorOccurred = true;
                   userLlatIsCompromised = true;
-                  await clearInstagramConnection(userObjectId, "Token de usuário inválido para buscar insights de mídia.");
+                  await clearInstagramConnection(userObjectId, "Token de usuário inválido para buscar insights de mídia.", 'TOKEN_INVALID');
                   hasMoreMediaPages = false;
                   break;
                 } else {
@@ -406,7 +414,7 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
                 userFacingErrorForTokenProblem = userFacingErrorForTokenProblem || "Seu token de acesso ao Instagram expirou ou foi revogado. Por favor, reconecte sua conta.";
                 criticalTokenErrorOccurred = true;
                 userLlatIsCompromised = true;
-                await clearInstagramConnection(userObjectId, "Token de usuário inválido para insights da conta.");
+                await clearInstagramConnection(userObjectId, "Token de usuário inválido para insights da conta.", 'TOKEN_INVALID');
             }
         } else if (accountInsightsResult.error) {
              logger.warn(`${TAG} Insights da conta obtidos com alguns erros menores (User LLAT): ${accountInsightsResult.error}`);
@@ -467,7 +475,7 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
                 userFacingErrorForTokenProblem = userFacingErrorForTokenProblem || "Seu token de acesso ao Instagram expirou ou foi revogado. Por favor, reconecte sua conta.";
                 criticalTokenErrorOccurred = true;
                 userLlatIsCompromised = true;
-                await clearInstagramConnection(userObjectId, "Token de usuário inválido para demografia.");
+                await clearInstagramConnection(userObjectId, "Token de usuário inválido para demografia.", 'TOKEN_INVALID');
             }
         }
     }
@@ -497,8 +505,15 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
     const message = error instanceof Error ? error.message : String(error);
 
     const errorToSave = userFacingErrorForTokenProblem || `Erro interno crítico durante a atualização: ${message.substring(0, 200)}`;
+    const inferredCode: InstagramDisconnectReasonCode = userFacingErrorForTokenProblem
+      ? (userFacingErrorForTokenProblem.toLowerCase().includes('permiss') ? 'PERMISSION_DENIED' : 'TOKEN_INVALID')
+      : 'UNKNOWN';
     await DbUser.findByIdAndUpdate(userObjectId, {
-      $set: { lastInstagramSyncSuccess: false, instagramSyncErrorMsg: errorToSave }
+      $set: {
+        lastInstagramSyncSuccess: false,
+        instagramSyncErrorMsg: errorToSave,
+        instagramSyncErrorCode: inferredCode,
+      }
     }).catch(dbErr => logger.error(`${TAG} Falha ao atualizar status sync (erro crítico não tratado) para User ${userId}:`, dbErr));
 
     return { success: false, message: `Erro interno crítico durante a atualização: ${message}` };
@@ -581,6 +596,17 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
     logger.warn(`${TAG} Detalhes completos dos erros/avisos da sincronização (${errors.length}):`, JSON.stringify(errors.map(e => ({ step: e.step, message: e.message, token: e.tokenUsed, details: (e as any).details })), null, 2));
   }
 
+  let finalErrorCode: InstagramDisconnectReasonCode | null = null;
+  if (!finalEffectiveSuccessStatus) {
+    if (userFacingErrorForTokenProblem) {
+      finalErrorCode = userFacingErrorForTokenProblem.toLowerCase().includes('permiss') ? 'PERMISSION_DENIED' : 'TOKEN_INVALID';
+    } else if (criticalTokenErrorOccurred || userLlatIsCompromised) {
+      finalErrorCode = 'TOKEN_INVALID';
+    } else if (errorMsgForDb) {
+      finalErrorCode = 'UNKNOWN';
+    }
+  }
+
   const finalDbUpdate: any = { $set: { lastInstagramSyncSuccess: finalEffectiveSuccessStatus } };
   if (errorMsgForDb) {
     finalDbUpdate.$set.instagramSyncErrorMsg = errorMsgForDb;
@@ -588,6 +614,11 @@ export async function triggerDataRefresh(userId: string): Promise<{ success: boo
     finalDbUpdate.$set.instagramSyncErrorMsg = null;
   } else if (!finalEffectiveSuccessStatus && !finalDbUpdate.$set.instagramSyncErrorMsg) {
       finalDbUpdate.$set.instagramSyncErrorMsg = "A sincronização falhou por um motivo não detalhado. Verifique os logs do servidor.";
+  }
+  if (finalErrorCode !== null) {
+    finalDbUpdate.$set.instagramSyncErrorCode = finalErrorCode;
+  } else if (finalEffectiveSuccessStatus) {
+    finalDbUpdate.$set.instagramSyncErrorCode = null;
   }
 
   await DbUser.findByIdAndUpdate(userObjectId, finalDbUpdate)

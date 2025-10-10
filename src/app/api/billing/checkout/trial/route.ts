@@ -84,6 +84,54 @@ export async function POST(req: NextRequest) {
     // Reutiliza/garante um único customer para o usuário
     const customerId = await getOrCreateStripeCustomerId(me);
 
+    // Antes de criar outra sessão, limpamos tentativas bloqueadas e impedimos múltiplos trials
+    const existingSubs = await stripe.subscriptions.list({
+      customer: customerId,
+      status: "all",
+      limit: 20,
+    });
+
+    const cancellable = existingSubs.data.filter((sub) =>
+      sub.status === "incomplete" || sub.status === "incomplete_expired"
+    );
+    await Promise.allSettled(
+      cancellable.map((sub) => stripe.subscriptions.cancel(sub.id).catch(() => null))
+    );
+
+    const blocking = existingSubs.data.find((sub) => {
+      const status = sub.status;
+      if (!status) return false;
+      if (status === "canceled" || status === "incomplete_expired") return false;
+      if ((sub as any).cancel_at && (sub as any).cancel_at <= Date.now() / 1000) return false;
+      const cancelAtPeriodEnd = Boolean((sub as any).cancel_at_period_end);
+      const isBlockingStatus =
+        status === "trialing" ||
+        status === "active" ||
+        status === "past_due" ||
+        status === "unpaid" ||
+        status === "paused";
+      return isBlockingStatus || cancelAtPeriodEnd;
+    });
+
+    if (blocking) {
+      const code = blocking.status === "trialing"
+        ? "TRIAL_ALREADY_ACTIVE"
+        : "SUBSCRIPTION_ALREADY_ACTIVE";
+      const message =
+        code === "TRIAL_ALREADY_ACTIVE"
+          ? "Você já possui um teste gratuito ativo."
+          : "Você já possui uma assinatura ativa.";
+      return NextResponse.json(
+        {
+          code,
+          message,
+          subscriptionId: blocking.id,
+          status: blocking.status,
+        },
+        { status: 409 }
+      );
+    }
+
     // Afiliado (opcional): cupom "once" na PRIMEIRA fatura paga após o trial
     const { code: refCode, source } = resolveAffiliateCode(req, body.affiliateCode);
     let discounts: Stripe.Checkout.SessionCreateParams.Discount[] | undefined = undefined;

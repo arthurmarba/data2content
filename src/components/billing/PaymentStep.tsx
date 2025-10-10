@@ -95,15 +95,6 @@ export default function PaymentStep({
   clientSecret: string;
   onClose: () => void;
 }) {
-  if (!clientSecret) return null;
-  if (!pk) {
-    return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-        Variável <code>NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</code> não configurada.
-      </div>
-    );
-  }
-
   const options: StripeElementsOptions = useMemo(
     () => ({
       clientSecret,
@@ -116,6 +107,14 @@ export default function PaymentStep({
     }),
     [clientSecret]
   );
+  if (!clientSecret) return null;
+  if (!pk) {
+    return (
+      <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        Variável <code>NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</code> não configurada.
+      </div>
+    );
+  }
 
   return (
     <Elements options={options} stripe={stripePromise}>

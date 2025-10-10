@@ -55,11 +55,19 @@ export const GetTopPostsArgsSchema = z.object({
 }).strict();
 
 // --- (NOVO) Schema para a função getCategoryRanking ---
+const RawCategoryEnum = z.enum(['proposal', 'format', 'context', 'tone', 'references', 'reference'], {
+  required_error: "A categoria (proposal, format, context, tone ou references) é obrigatória.",
+  invalid_type_error: "Categoria inválida. Use 'proposal', 'format', 'context', 'tone' ou 'references'."
+});
+
+const NormalizedCategoryEnum = z.enum(['proposal', 'format', 'context', 'tone', 'references']);
+
+const CategorySchema = RawCategoryEnum.transform((value) => (value === 'reference' ? 'references' : value))
+  .pipe(NormalizedCategoryEnum)
+  .describe("A dimensão do conteúdo a ser ranqueada.");
+
 export const GetCategoryRankingArgsSchema = z.object({
-  category: z.enum(['proposal', 'format', 'context'], {
-    required_error: "A categoria (proposal, format, ou context) é obrigatória.",
-    invalid_type_error: "Categoria inválida. Use 'proposal', 'format' ou 'context'."
-  }).describe("A dimensão do conteúdo a ser ranqueada."),
+  category: CategorySchema,
   metric: CategoryRankingMetricEnum.default('shares').describe("A métrica para o ranking."),
   periodDays: z.number().int().min(0).default(90).describe("O período de análise em dias (0 significa todo o período disponível; padrão: 90)."),
   limit: z.number().int().min(1).max(10).default(5).describe("O número de itens no ranking (padrão: 5).")

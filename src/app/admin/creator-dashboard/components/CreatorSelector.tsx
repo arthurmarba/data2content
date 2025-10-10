@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { XMarkIcon, MagnifyingGlassIcon, CheckIcon } from '@heroicons/react/24/solid';
 import { SearchBar } from '@/app/components/SearchBar';
 import { UserAvatar } from '@/app/components/UserAvatar';
@@ -56,6 +56,14 @@ export default function CreatorSelector({ isOpen, onClose, onSelect }: CreatorSe
     }
   }, [isOpen]);
 
+  const handleSelect = useCallback((creator: AdminCreatorListItem) => {
+    setSelectedId(creator._id); // Ativa o "check"
+    setTimeout(() => {
+      onSelect({ id: creator._id, name: creator.name });
+      onClose();
+    }, 300); // Delay para o usuário ver o feedback
+  }, [onSelect, onClose]);
+
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -75,15 +83,7 @@ export default function CreatorSelector({ isOpen, onClose, onSelect }: CreatorSe
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose, creators, highlightIndex]);
-
-  const handleSelect = (creator: AdminCreatorListItem) => {
-    setSelectedId(creator._id); // Ativa o "check"
-    setTimeout(() => {
-      onSelect({ id: creator._id, name: creator.name });
-      onClose();
-    }, 300); // Delay para o usuário ver o feedback
-  };
+  }, [isOpen, onClose, creators, highlightIndex, handleSelect]);
 
   return (
     <AnimatePresence>

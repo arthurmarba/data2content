@@ -121,7 +121,7 @@ export async function fetchAvailableInstagramAccounts(
     if (llatError.message && (llatError.message.toLowerCase().includes('token') || isTokenInvalidError(undefined, undefined, llatError.message))) {
       logger.warn(`${TAG} Erro de token ao obter LLAT. Limpando conexão IG existente (se houver) para User ${userId}.`);
       const userObjectId = typeof userId === 'string' ? new mongoose.Types.ObjectId(userId) : userId;
-      await clearInstagramConnection(userObjectId); 
+      await clearInstagramConnection(userObjectId, 'Token de usuário inválido ao obter LLAT.', 'TOKEN_INVALID'); 
     }
     return { success: false, error: `Falha ao obter token de acesso de longa duração necessário: ${llatError.message}` };
   }
@@ -283,7 +283,7 @@ export async function fetchAvailableInstagramAccounts(
         if (bizError.message && (bizError.message.toLowerCase().includes('token') || isTokenInvalidError(undefined, undefined, bizError.message))) {
             logger.warn(`${fetchLogContextBiz} Erro de token durante o fluxo do Business Manager. Limpando conexão IG para User ${userId}.`);
             const userObjectId = typeof userId === 'string' ? new mongoose.Types.ObjectId(userId) : userId;
-            await clearInstagramConnection(userObjectId);
+            await clearInstagramConnection(userObjectId, 'Falha ao obter contas via Business Manager.', 'TOKEN_INVALID');
         }
       }
     } // Fim do if (allPagesData.length === 0 && userLongLivedAccessToken)

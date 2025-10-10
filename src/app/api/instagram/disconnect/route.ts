@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
         // 2. Chamar o Serviço para Limpar a Conexão
         // A função clearInstagramConnection já lida com a conexão ao DB internamente.
         // E espera um ObjectId ou string que seja um ObjectId válido.
-        await clearInstagramConnection(userId);
+        await clearInstagramConnection(userId, 'Desconectado manualmente pelo usuário.', 'MANUAL_DISCONNECT');
 
         // 3. Retornar Sucesso
         // Mesmo que a função clearInstagramConnection encontre um erro interno (ex: usuário não encontrado),

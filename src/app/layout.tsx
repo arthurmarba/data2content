@@ -10,14 +10,12 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "./api/auth/[...nextauth]/route";
 
 // Providers e utilidades globais (mantidos)
+// ⚠️ Corrigido: providers -> Providers (case-sensitive)
 import { Providers } from "./providers";
 import ClientHooksWrapper from "./components/ClientHooksWrapper";
 import { ToastA11yProvider } from "@/app/components/ui/ToastA11yProvider";
 import GoogleAnalytics from "./GoogleAnalytics";
 import CookieConsent from "./components/CookieConsent";
-// ⚠️ Header/Footer/MainContentWrapper/AuthRedirectHandler foram removidos daqui
-// O dashboard controla seu próprio layout (incluindo Header/Sidebar).
-// Páginas públicas podem ter seus próprios headers locais, se necessário.
 
 const inter = Inter({
   subsets: ["latin"],
@@ -51,13 +49,13 @@ export default async function RootLayout({
         <link rel="preconnect" href="https://www.google.com" />
         <link rel="preconnect" href="https://img.youtube.com" />
 
-        {/* Variáveis CSS base (fallbacks). Reforçaremos via globals.css no mesmo Pacote A */}
+        {/* Variáveis CSS base (fallbacks). Reforçaremos via globals.css */}
         <style id="gemini-css-vars">{`
           :root {
-            --header-h: 56px;               /* altura padrão do header (ajustada dinamicamente no Header do dashboard) */
-            --landing-header-h: 4.5rem;  
-            --sat: env(safe-area-inset-top);    /* safe-area top (iOS) */
-            --sab: env(safe-area-inset-bottom); /* safe-area bottom (iOS) */
+            --header-h: 56px;
+            --landing-header-h: 4.5rem;
+            --sat: env(safe-area-inset-top);
+            --sab: env(safe-area-inset-bottom);
           }
         `}</style>
 
@@ -94,8 +92,6 @@ export default async function RootLayout({
           <Providers session={serializableSession}>
             <GoogleAnalytics />
             <ClientHooksWrapper />
-            {/* Root neutro: apenas renderiza as páginas.
-               O /dashboard tem seu próprio layout (Header/Sidebar/overlay). */}
             {children}
             <CookieConsent />
           </Providers>

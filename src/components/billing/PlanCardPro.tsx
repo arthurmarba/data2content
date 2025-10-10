@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence, MotionProps } from 'framer-motion';
 import { FaCheck } from 'react-icons/fa';
 import { useDebounce } from 'use-debounce';
+import useBillingStatus from '@/app/hooks/useBillingStatus';
 
 function cn(...classes: (string | undefined | false)[]) {
   return classes.filter(Boolean).join(' ');
@@ -138,6 +139,7 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
 
   const sp = useSearchParams();
   const router = useRouter();
+  const { isLoading: billingStatusLoading, hasPremiumAccess } = useBillingStatus();
 
   // Hidrata código salvo (localStorage/cookie)
   useEffect(() => {
@@ -306,6 +308,10 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
   }
 
   async function startTrialCheckout() {
+    if (hasPremiumAccess) {
+      setError('Você já possui um plano ativo.');
+      return;
+    }
     try {
       setTrialLoading(true);
       setError(null);
@@ -319,6 +325,10 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
         }),
       });
       const json = await res.json().catch(() => ({}));
+      if (res.status === 409) {
+        setError(json?.message || 'Você já possui uma assinatura ativa.');
+        return;
+      }
       if (!res.ok || !json?.url) {
         throw new Error(json?.error || 'Não foi possível iniciar o teste.');
       }
@@ -478,7 +488,7 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
       <div className="flex flex-col sm:flex-row gap-2">
         <button
           onClick={startTrialCheckout}
-          disabled={trialLoading || isPreviewLoading}
+          disabled={trialLoading || isPreviewLoading || hasPremiumAccess || billingStatusLoading}
           className="w-full rounded-lg border border-gray-300 px-4 py-2 sm:py-3 text-gray-900
                      hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
         >
@@ -501,6 +511,11 @@ export default function PlanCardPro({ defaultCurrency = 'BRL', className, ...pro
       <p className="mt-3 sm:mt-4 text-center text-xs text-gray-500">
         Pagamento seguro via Stripe. Sem fidelidade — cancele quando quiser.
       </p>
+      {hasPremiumAccess && !billingStatusLoading && (
+        <p className="mt-2 text-center text-xs text-gray-600">
+          Você já possui um plano ativo ou em teste.
+        </p>
+      )}
     </motion.div>
   );
 }

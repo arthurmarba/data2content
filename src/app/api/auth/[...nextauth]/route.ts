@@ -49,10 +49,13 @@ declare module "next-auth" {
     instagramUsername?: string | null;
     igConnectionError?: string | null;
     instagramSyncErrorMsg?: string | null;
+    instagramSyncErrorCode?: string | null;
     availableIgAccounts?: ServiceAvailableIgAccount[] | null;
     instagramAccessToken?: string | null;
     lastInstagramSyncAttempt?: Date | null;
     lastInstagramSyncSuccess?: boolean | null;
+    instagramReconnectNotifiedAt?: Date | null;
+    instagramDisconnectCount?: number;
 
     // Billing
     planStatus?: string | null;
@@ -113,10 +116,13 @@ declare module "next-auth" {
       instagramAccountId?: string | null;
       instagramUsername?: string | null;
       igConnectionError?: string | null;
+      igConnectionErrorCode?: string | null;
       availableIgAccounts?: ServiceAvailableIgAccount[] | null;
       instagramAccessToken?: string | null;
       lastInstagramSyncAttempt?: string | null;
       lastInstagramSyncSuccess?: boolean | null;
+      instagramReconnectNotifiedAt?: string | null;
+      instagramDisconnectCount?: number;
 
       // Onboarding
       isNewUserForOnboarding?: boolean;
@@ -150,10 +156,13 @@ declare module "next-auth/jwt" {
     instagramAccountId?: string | null;
     instagramUsername?: string | null;
     igConnectionError?: string | null;
+    igConnectionErrorCode?: string | null;
     availableIgAccounts?: ServiceAvailableIgAccount[] | null;
     instagramAccessToken?: string | null;
     lastInstagramSyncAttempt?: Date | string | null;
     lastInstagramSyncSuccess?: boolean | null;
+    instagramReconnectNotifiedAt?: Date | string | null;
+    instagramDisconnectCount?: number;
 
     // Billing
     planStatus?: string | null;
@@ -246,12 +255,16 @@ async function customEncode({ token, secret, maxAge }: JWTEncodeParams): Promise
   if (cleanToken.lastInstagramSyncAttempt instanceof Date) {
     cleanToken.lastInstagramSyncAttempt = cleanToken.lastInstagramSyncAttempt.toISOString();
   }
+  if (cleanToken.instagramReconnectNotifiedAt instanceof Date) {
+    cleanToken.instagramReconnectNotifiedAt = cleanToken.instagramReconnectNotifiedAt.toISOString();
+  }
   if (cleanToken.planExpiresAt instanceof Date) {
     cleanToken.planExpiresAt = cleanToken.planExpiresAt.toISOString();
   }
 
   if (cleanToken.image && cleanToken.picture) delete cleanToken.picture;
   delete cleanToken.instagramSyncErrorMsg;
+  delete cleanToken.instagramSyncErrorCode;
 
   if (cleanToken.availableIgAccounts && Array.isArray(cleanToken.availableIgAccounts)) {
     try {
@@ -473,21 +486,25 @@ export const authOptions: NextAuthOptions = {
                     dbUserRecord.instagramAccountId = null;
                     dbUserRecord.username = null;
                     dbUserRecord.instagramSyncErrorMsg = null;
+                    dbUserRecord.instagramSyncErrorCode = null;
                   } else {
                     logger.error(`${TAG_SIGNIN} [Facebook] Falha IG: ${igAccountsResult.error}`);
                     dbUserRecord.instagramSyncErrorMsg = igAccountsResult.error;
+                    dbUserRecord.instagramSyncErrorCode = 'UNKNOWN';
                     dbUserRecord.availableIgAccounts = [];
                     dbUserRecord.instagramAccessToken = undefined;
                   }
                 } catch (fetchError: any) {
                   logger.error(`${TAG_SIGNIN} [Facebook] Erro crítico IG: ${fetchError.message}`);
                   dbUserRecord.instagramSyncErrorMsg = "Erro interno ao tentar buscar contas do Instagram: " + fetchError.message.substring(0, 150);
+                  dbUserRecord.instagramSyncErrorCode = 'UNKNOWN';
                   dbUserRecord.availableIgAccounts = [];
                   dbUserRecord.instagramAccessToken = undefined;
                 }
               } else {
                 logger.warn(`${TAG_SIGNIN} [Facebook] account.access_token ausente — não dá pra buscar IG.`);
                 dbUserRecord.instagramSyncErrorMsg = "Token de acesso do Facebook não disponível para buscar contas do Instagram.";
+                dbUserRecord.instagramSyncErrorCode = 'UNKNOWN';
                 dbUserRecord.availableIgAccounts = [];
                 dbUserRecord.instagramAccessToken = undefined;
               }
@@ -668,9 +685,12 @@ export const authOptions: NextAuthOptions = {
           (authUserFromProvider as NextAuthUserArg).lastInstagramSyncAttempt = dbUserRecord.lastInstagramSyncAttempt;
           (authUserFromProvider as NextAuthUserArg).lastInstagramSyncSuccess = dbUserRecord.lastInstagramSyncSuccess;
           (authUserFromProvider as NextAuthUserArg).instagramSyncErrorMsg = dbUserRecord.instagramSyncErrorMsg;
+          (authUserFromProvider as NextAuthUserArg).instagramSyncErrorCode = dbUserRecord.instagramSyncErrorCode;
           (authUserFromProvider as NextAuthUserArg).availableIgAccounts =
             (dbUserRecord.availableIgAccounts as ServiceAvailableIgAccount[] | null | undefined);
           (authUserFromProvider as NextAuthUserArg).instagramAccessToken = dbUserRecord.instagramAccessToken;
+          (authUserFromProvider as NextAuthUserArg).instagramReconnectNotifiedAt = dbUserRecord.instagramReconnectNotifiedAt;
+          (authUserFromProvider as NextAuthUserArg).instagramDisconnectCount = dbUserRecord.instagramDisconnectCount ?? 0;
 
           // Billing
           (authUserFromProvider as NextAuthUserArg).planStatus = dbUserRecord.planStatus;
@@ -737,8 +757,11 @@ export const authOptions: NextAuthOptions = {
         token.lastInstagramSyncAttempt = (userFromSignIn as NextAuthUserArg).lastInstagramSyncAttempt;
         token.lastInstagramSyncSuccess = (userFromSignIn as NextAuthUserArg).lastInstagramSyncSuccess;
         token.igConnectionError = (userFromSignIn as NextAuthUserArg).instagramSyncErrorMsg ?? null;
+        token.igConnectionErrorCode = (userFromSignIn as NextAuthUserArg).instagramSyncErrorCode ?? null;
         token.availableIgAccounts = (userFromSignIn as NextAuthUserArg).availableIgAccounts;
         token.instagramAccessToken = (userFromSignIn as NextAuthUserArg).instagramAccessToken;
+        token.instagramReconnectNotifiedAt = (userFromSignIn as NextAuthUserArg).instagramReconnectNotifiedAt ?? null;
+        token.instagramDisconnectCount = (userFromSignIn as NextAuthUserArg).instagramDisconnectCount ?? 0;
 
         // Billing
         const rawStatus = (userFromSignIn as NextAuthUserArg).planStatus;
@@ -850,7 +873,7 @@ export const authOptions: NextAuthOptions = {
               .select(
                 "name email image role agency provider providerAccountId facebookProviderAccountId " +
                   "isNewUserForOnboarding onboardingCompletedAt " +
-                  "isInstagramConnected instagramAccountId username lastInstagramSyncAttempt lastInstagramSyncSuccess instagramSyncErrorMsg " +
+                  "isInstagramConnected instagramAccountId username lastInstagramSyncAttempt lastInstagramSyncSuccess instagramSyncErrorMsg instagramSyncErrorCode instagramReconnectNotifiedAt instagramDisconnectCount " +
                   "planStatus planType planInterval planExpiresAt cancelAtPeriodEnd " +
                   "stripeCustomerId stripeSubscriptionId stripePriceId " +
                   "affiliateCode availableIgAccounts instagramAccessToken affiliateBalances " +
@@ -871,6 +894,9 @@ export const authOptions: NextAuthOptions = {
               token.isNewUserForOnboarding =
                 typeof dbUser.isNewUserForOnboarding === "boolean" ? dbUser.isNewUserForOnboarding : token.isNewUserForOnboarding ?? false;
               token.onboardingCompletedAt = dbUser.onboardingCompletedAt ?? token.onboardingCompletedAt ?? null;
+              if (token.onboardingCompletedAt && token.isNewUserForOnboarding) {
+                token.isNewUserForOnboarding = false;
+              }
 
               // Instagram
               token.isInstagramConnected = dbUser.isInstagramConnected ?? token.isInstagramConnected ?? false;
@@ -879,10 +905,16 @@ export const authOptions: NextAuthOptions = {
               token.lastInstagramSyncAttempt = dbUser.lastInstagramSyncAttempt ?? token.lastInstagramSyncAttempt ?? null;
               token.lastInstagramSyncSuccess = dbUser.lastInstagramSyncSuccess ?? token.lastInstagramSyncSuccess ?? null;
               token.igConnectionError = dbUser.instagramSyncErrorMsg ?? token.igConnectionError ?? null;
+              token.igConnectionErrorCode = dbUser.instagramSyncErrorCode ?? token.igConnectionErrorCode ?? null;
               if (dbUser.isInstagramConnected && !dbUser.instagramSyncErrorMsg) token.igConnectionError = null;
+              if (dbUser.isInstagramConnected && !dbUser.instagramSyncErrorCode) token.igConnectionErrorCode = null;
               token.availableIgAccounts =
                 (dbUser.availableIgAccounts as ServiceAvailableIgAccount[] | null | undefined) ?? token.availableIgAccounts ?? null;
               token.instagramAccessToken = dbUser.instagramAccessToken ?? token.instagramAccessToken ?? null;
+              token.instagramReconnectNotifiedAt = dbUser.instagramReconnectNotifiedAt ?? token.instagramReconnectNotifiedAt ?? null;
+              token.instagramDisconnectCount = typeof dbUser.instagramDisconnectCount === 'number'
+                ? dbUser.instagramDisconnectCount
+                : token.instagramDisconnectCount ?? 0;
 
               // Billing
               token.planStatus =
@@ -981,10 +1013,15 @@ export const authOptions: NextAuthOptions = {
         session.user.instagramAccountId = token.instagramAccountId;
         session.user.instagramUsername = token.instagramUsername;
         session.user.igConnectionError = token.igConnectionError;
+        (session.user as any).igConnectionErrorCode = token.igConnectionErrorCode ?? null;
         session.user.availableIgAccounts = token.availableIgAccounts;
         session.user.instagramAccessToken = token.instagramAccessToken;
         session.user.lastInstagramSyncAttempt = token.lastInstagramSyncAttempt ? new Date(token.lastInstagramSyncAttempt).toISOString() : null;
         session.user.lastInstagramSyncSuccess = token.lastInstagramSyncSuccess;
+        (session.user as any).instagramReconnectNotifiedAt = token.instagramReconnectNotifiedAt
+          ? new Date(token.instagramReconnectNotifiedAt).toISOString()
+          : null;
+        (session.user as any).instagramDisconnectCount = token.instagramDisconnectCount ?? 0;
 
         // Billing
         session.user.planStatus = normalizePlanStatusValue(token.planStatus) ?? "inactive";

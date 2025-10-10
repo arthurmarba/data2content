@@ -6,6 +6,7 @@ import PlannerSlotCard from './PlannerSlotCard';
 import PlannerSlotModal from './PlannerSlotModal';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
 import BillingSubscribeModal from '@/app/dashboard/billing/BillingSubscribeModal';
+import PlannerUpgradePanel from './PlannerUpgradePanel';
 
 // Blocos operacionais (9h às 21h)
 const BLOCKS = [9, 12, 15, 18] as const;
@@ -29,25 +30,33 @@ export interface ContentPlannerCalendarProps {
   userId: string;
   publicMode?: boolean;
   weekStart?: Date;
+  showHeader?: boolean;
 }
 
 export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
   userId,
   publicMode = true,
-  weekStart
+  weekStart,
+  showHeader = true
 }) => {
-  const { weekStart: normalizedWeekStart, slots, heatmap, loading, error, saveSlots } =
-    usePlannerData({ userId, publicMode, weekStart, targetSlotsPerWeek: 7 });
+  const {
+    weekStart: normalizedWeekStart,
+    slots,
+    heatmap,
+    loading,
+    error,
+    saveSlots,
+    locked,
+    lockedReason,
+  } = usePlannerData({ userId, publicMode, weekStart, targetSlotsPerWeek: 7 });
   const [showBest, setShowBest] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [selected, setSelected] = useState<PlannerUISlot | null>(null);
   const [showBilling, setShowBilling] = useState(false);
   const billing = useBillingStatus({ auto: !publicMode });
-  const canEdit =
-    !publicMode &&
-    (billing?.planStatus === 'active' ||
-      billing?.planStatus === 'trialing' ||
-      billing?.planStatus === 'non_renewing');
+  const isBillingLoading = Boolean(billing?.isLoading);
+  const hasPremiumAccess = Boolean(billing?.hasPremiumAccess);
+  const canEdit = !publicMode && !locked && hasPremiumAccess;
 
   const slotsMap = useMemo(() => {
     const m = new Map<string, PlannerUISlot[]>();
@@ -74,10 +83,36 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
     return `bg-[hsl(150,60%,${intensity}%)]`;
   };
 
+  if (!publicMode && locked && !isBillingLoading) {
+    return (
+      <>
+        <PlannerUpgradePanel
+          status={billing?.normalizedStatus ?? billing?.planStatus}
+          lockedReason={lockedReason}
+          onSubscribe={() => setShowBilling(true)}
+          billingHref="/dashboard/billing"
+        />
+        <BillingSubscribeModal open={showBilling} onClose={() => setShowBilling(false)} />
+      </>
+    );
+  }
+
+  if (!publicMode && locked && isBillingLoading) {
+    return (
+      <div className="bg-white p-6 rounded-lg border border-pink-100 text-center text-sm text-gray-500">
+        Carregando status da sua assinatura…
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white p-4 sm:p-6 rounded-none lg:rounded-none shadow-lg border-t border-b border-gray-200">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-gray-800">Planejamento de Conteúdo (Instagram)</h2>
+        {showHeader ? (
+          <h2 className="text-xl font-bold text-gray-800">Planejamento de Conteúdo (Instagram)</h2>
+        ) : (
+          <span />
+        )}
         <label className="flex items-center gap-2 text-sm text-gray-700">
           <input
             type="checkbox"

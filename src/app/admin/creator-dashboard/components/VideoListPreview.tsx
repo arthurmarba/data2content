@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import {
   EyeIcon,
@@ -97,7 +98,7 @@ const VideoListPreview: React.FC<VideoListPreviewProps> = ({ userId, timePeriod,
               onClick={() => onRowClick && onRowClick(video._id)}
               className="bg-white border border-gray-200/80 rounded-lg shadow-sm cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-1 md:flex md:items-start md:gap-4 p-4"
             >
-              <img
+              <Image
                 src={video.thumbnailUrl || "https://placehold.co/320x180/e2e8f0/a0aec0?text=Img"}
                 alt={video.caption || "thumbnail"}
                 className="w-full aspect-video object-cover rounded-md md:w-36 md:h-auto md:flex-shrink-0"

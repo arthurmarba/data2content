@@ -145,10 +145,10 @@ const AdDealForm: React.FC<AdDealFormProps> = ({
       {/* --- NOVO CABEÇALHO COM TÍTULO E DESCRIÇÃO --- */}
       <div className="border-b border-gray-200 pb-5">
           <h2 className="text-lg font-bold leading-6 text-gray-900">
-              Registre suas Parcerias
+              Registre suas Parcerias com Marcas
           </h2>
           <p className="mt-1 text-sm text-gray-500">
-              Se você faz 'publis', este é o seu cantinho! Registre os detalhes dos seus acordos aqui e deixe o Mobi precificar suas entregas.
+              Se você faz &apos;publis&apos;, este é o seu cantinho! Registre os detalhes dos seus acordos aqui e deixe o Mobi precificar suas entregas.
           </p>
       </div>
 

@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDebounce } from 'use-debounce';
+import useBillingStatus from '@/app/hooks/useBillingStatus';
+import { isPlanActiveLike } from '@/utils/planStatus';
 
 type Plan = 'monthly' | 'annual';
 type Currency = 'BRL' | 'USD';
@@ -28,10 +30,7 @@ const formatCurrency = (amount: number, currency: Currency | string) =>
     currency: typeof currency === 'string' ? currency : (currency as Currency),
   }).format((amount ?? 0) / 100);
 
-export default function PlanTeaser() {
-  const { data: session } = useSession();
-  const isActive = session?.user?.planStatus === 'active';
-  if (isActive) return null; // já tem plano ativo → não renderiza teaser
+function PlanTeaserContent() {
 
   const router = useRouter();
   const sp = useSearchParams();
@@ -388,4 +387,18 @@ export default function PlanTeaser() {
       </p>
     </div>
   );
+}
+
+export default function PlanTeaser() {
+  const { data: session } = useSession();
+  const billingStatus = useBillingStatus();
+  const sessionActive = isPlanActiveLike(session?.user?.planStatus);
+  const shouldHide = billingStatus.hasPremiumAccess || sessionActive;
+  const stillLoading = billingStatus.isLoading && sessionActive;
+
+  if (shouldHide || stillLoading) {
+    return null;
+  }
+
+  return <PlanTeaserContent />;
 }

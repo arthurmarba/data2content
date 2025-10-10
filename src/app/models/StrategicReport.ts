@@ -12,6 +12,7 @@ export interface IStrategicReportDoc extends Document {
   errorMessage?: string | null;
   generatedAt: Date;
   expiresAt: Date; // used by TTL index
+  requestedBy?: Types.ObjectId | null;
   report?: unknown; // StrategicReport payload; kept as unknown to avoid import cycles
   createdAt: Date;
   updatedAt: Date;
@@ -20,6 +21,7 @@ export interface IStrategicReportDoc extends Document {
 const strategicReportSchema = new Schema<IStrategicReportDoc>(
   {
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    requestedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null, index: true },
     periodDays: { type: Number, required: true, index: true },
     version: { type: String, required: true, index: true },
     status: { type: String, enum: ['building', 'ready', 'error'], required: true, default: 'building', index: true },
@@ -42,4 +44,3 @@ const StrategicReportModel: Model<IStrategicReportDoc> =
   model<IStrategicReportDoc>('StrategicReport', strategicReportSchema);
 
 export default StrategicReportModel;
-

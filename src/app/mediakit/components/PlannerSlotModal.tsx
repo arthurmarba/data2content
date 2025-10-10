@@ -20,6 +20,7 @@ function formatCompact(n?: number) {
 }
 
 export interface PlannerSlotData {
+  slotId?: string;
   dayOfWeek: number;
   blockStartHour: number;
   format: string;
@@ -34,6 +35,8 @@ export interface PlannerSlotData {
   themeKeyword?: string;
   /** notas internas do recomendador (para explicabilidade) */
   rationale?: string[];
+  recordingTimeSec?: number;
+  aiVersionId?: string | null;
 }
 
 export interface PlannerSlotModalProps {
@@ -45,6 +48,10 @@ export interface PlannerSlotModalProps {
   onSave: (updated: PlannerSlotData) => Promise<void>;
   readOnly?: boolean;
   altStrongBlocks?: { blockStartHour: number; score: number }[];
+  canGenerate?: boolean;
+  showGenerateCta?: boolean;
+  onUpgradeRequest?: () => void;
+  upgradeMessage?: string;
 }
 
 const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({ className = '', ...props }) => (
@@ -73,7 +80,20 @@ const StatusBadge: React.FC<{ status?: PlannerSlotData['status']; isExperiment?:
   );
 };
 
-export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({ open, onClose, userId, weekStartISO, slot, onSave, readOnly = false, altStrongBlocks = [] }) => {
+export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
+  open,
+  onClose,
+  userId,
+  weekStartISO,
+  slot,
+  onSave,
+  readOnly = false,
+  altStrongBlocks = [],
+  canGenerate = true,
+  showGenerateCta = false,
+  onUpgradeRequest,
+  upgradeMessage,
+}) => {
   // Proxy helper to avoid hotlink issues and allow caching via our server
   const toProxyUrl = (raw?: string | null) => {
     if (!raw) return '';
@@ -90,6 +110,7 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({ open, onClos
   const [strategy, setStrategy] = useState<'default'|'strong_hook'|'more_humor'|'practical_imperative'>('default');
   const triedAutoGenRef = useRef(false);
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
+  const [aiVersionId, setAiVersionId] = useState<string | null>(null);
 
   // tema derivado (fallback para primeiro item de themes se não houver themeKeyword)
   const derivedTheme = useMemo(() => {
@@ -124,11 +145,12 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({ open, onClos
     setTitle(slot.title || (slot.themes && slot.themes[0]) || '');
     setDescription(slot.scriptShort || '');
     setFormat(slot.format || 'reel');
+    setAiVersionId(typeof slot.aiVersionId === 'string' ? slot.aiVersionId : slot.aiVersionId ?? null);
     // inicializa input com o tema atual (ou derivado dos temas sugeridos)
     setThemeKw((slot.themeKeyword || derivedTheme || '').trim());
     setThemesLocal(Array.isArray(slot.themes) ? [...slot.themes] : []);
     setBeats([]);
-    setRecordingTimeSec(undefined);
+    setRecordingTimeSec(typeof slot.recordingTimeSec === 'number' ? slot.recordingTimeSec : undefined);
     triedAutoGenRef.current = false;
   }, [open, slot, derivedTheme]);
 
@@ -234,6 +256,15 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({ open, onClos
       if (typeof gen?.recordingTimeSec === 'number') setRecordingTimeSec(gen.recordingTimeSec);
       const sig: any[] = Array.isArray(data?.externalSignalsUsed) ? data.externalSignalsUsed : [];
       setSignalsUsed(sig.filter(Boolean));
+      const newSlot = data?.slot;
+      if (newSlot && typeof newSlot.aiVersionId === 'string') {
+        setAiVersionId(newSlot.aiVersionId);
+      } else if (newSlot && newSlot?.aiVersionId === null) {
+        setAiVersionId(null);
+      }
+      if (newSlot && typeof newSlot.recordingTimeSec === 'number') {
+        setRecordingTimeSec(newSlot.recordingTimeSec);
+      }
     } catch (err: any) {
       setError(err?.message || 'Erro inesperado');
     } finally {
@@ -251,7 +282,15 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({ open, onClos
     if (!slot) return;
     try {
       setLoading(true);
-      await onSave({ ...slot, title, format, themeKeyword: effectiveTheme });
+      await onSave({
+        ...slot,
+        title,
+        format,
+        themeKeyword: effectiveTheme,
+        scriptShort: description,
+        recordingTimeSec,
+        aiVersionId: typeof aiVersionId === 'string' ? aiVersionId : slot.aiVersionId ?? null,
+      });
       onClose();
     } catch (err: any) {
       setError(err?.message || 'Erro ao salvar');
@@ -624,10 +663,16 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({ open, onClos
                 </div>
 
                 {/* Controles de geração (sem Meta) */}
-                {!readOnly && (
+                {(!readOnly || showGenerateCta) && (
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <label className="inline-flex items-center gap-1 text-xs text-gray-700" title="Quando ligado, a IA pode usar sinais externos (notícias/tópicos) para criar gancho.">
-                      <input type="checkbox" className="accent-pink-600" checked={useSignals} onChange={(e)=>setUseSignals(e.target.checked)} disabled={loading || readOnly} />
+                      <input
+                        type="checkbox"
+                        className="accent-pink-600"
+                        checked={useSignals}
+                        onChange={(e) => setUseSignals(e.target.checked)}
+                        disabled={loading || readOnly}
+                      />
                       Usar sinais externos
                     </label>
                     <div className="inline-flex rounded-md overflow-hidden border ml-2">
@@ -643,18 +688,40 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({ open, onClos
                           className={`px-3 py-1.5 text-xs ${strategy === (opt.id as any) ? 'bg-pink-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'} ${opt.id === 'default' ? '' : 'border-l'} border-gray-200`}
                           onClick={() => setStrategy(opt.id as any)}
                           aria-pressed={strategy === (opt.id as any)}
+                          disabled={loading || readOnly}
                         >
                           {opt.label}
                         </button>
                       ))}
                     </div>
                     <Button
-                      disabled={loading}
+                      disabled={loading || !slot || !canGenerate}
                       className="border text-gray-700 hover:bg-gray-50"
-                      onClick={() => handleGenerate(strategy)}
+                      onClick={() => {
+                        if (!slot || !canGenerate) {
+                          if (!canGenerate && upgradeMessage) setError(upgradeMessage);
+                          if (!canGenerate) onUpgradeRequest?.();
+                          return;
+                        }
+                        handleGenerate(strategy);
+                      }}
                     >
                       {loading ? 'Gerando…' : 'Gerar roteiro'}
                     </Button>
+                    {!canGenerate && upgradeMessage && (
+                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
+                        <span>{upgradeMessage}</span>
+                        {onUpgradeRequest && (
+                          <button
+                            type="button"
+                            onClick={onUpgradeRequest}
+                            className="text-xs font-semibold text-pink-600 hover:text-pink-700"
+                          >
+                            Assinar
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 

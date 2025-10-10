@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { idsToLabels } from '../../../lib/classification';
 import { 
@@ -131,9 +132,9 @@ const VideoCard: React.FC<{ video: VideoListItem; index: number; readOnly?: bool
 
   return (
     <div className={`p-4 bg-white rounded-lg shadow-sm border border-gray-100 transition-colors ${readOnly && index === 0 ? 'bg-pink-50 border-pink-200' : ''}`}>
-      <div className="grid grid-cols-12 gap-x-4 gap-y-3 items-start">
+      <div className="grid grid-cols-12 gap-x-4 gap-y-3 items-start"> 
         <div className="col-span-12 md:col-span-4 flex items-start gap-4">
-          <img src={video.thumbnailUrl || 'https://placehold.co/96x54/e2e8f0/a0aec0?text=Img'} alt={`Thumbnail para ${video.description || 'post'}`} width={96} height={54} className="rounded-md object-cover flex-shrink-0 mt-1" />
+          <Image src={video.thumbnailUrl || 'https://placehold.co/96x54/e2e8f0/a0aec0?text=Img'} alt={`Thumbnail para ${video.description || 'post'}`} width={96} height={54} className="rounded-md object-cover flex-shrink-0 mt-1" />
           <div className="flex-grow">
             <p className="font-semibold text-base text-gray-800 line-clamp-3" title={video.description}>
               {readOnly && index === 0 && <FireIcon className="w-4 h-4 text-orange-400 inline-block mr-1.5 align-text-bottom" title="Top Performance"/>}

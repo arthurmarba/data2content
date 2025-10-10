@@ -4,8 +4,7 @@ import { getServerSession } from 'next-auth';
 import type { Session } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { connectToDatabase } from '@/app/lib/mongoose';
-import User from '@/app/models/User';
-import { isActiveLike, normalizePlanStatus } from '@/app/lib/planGuard';
+import { ensurePlannerAccess } from '@/app/lib/planGuard';
 import { logger } from '@/app/lib/logger';
 
 import { Types } from 'mongoose';
@@ -17,7 +16,7 @@ export const dynamic = 'force-dynamic';
 
 /** Loader dinâmico e robusto do modelo PlannerPlan */
 let _PlannerPlanModel: any;
-async function usePlannerPlanModel() {
+async function loadPlannerPlanModel() {
   if (_PlannerPlanModel) return _PlannerPlanModel;
 
   // ⚠️ caminho relativo evita colisão "planner/plan" vs "PlannerPlan" em FS case-insensitive
@@ -245,16 +244,28 @@ export async function GET(request: Request) {
   if (!session || !session.user || !session.user.id) {
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   }
+  const routePath = new URL(request.url).pathname;
+
+  const access = await ensurePlannerAccess({ session, routePath, forceReload: true });
+  if (!access.ok) {
+    return NextResponse.json(
+      { ok: false, error: access.message, reason: access.reason },
+      { status: access.status }
+    );
+  }
+
   const rawWeekStart = parseWeekStartParam(request.url) ?? new Date();
   const weekStart = normalizeToMondayInTZ(rawWeekStart, PLANNER_TIMEZONE);
 
   try {
+    const PlannerPlan = await loadPlannerPlanModel();
     await connectToDatabase();
 
+
     // se o model falhar, devolvemos plan=null (UI ainda funciona)
-    let PlannerPlan: any | null = null;
+    let planData: any | null = null;
     try {
-      PlannerPlan = await usePlannerPlanModel();
+      planData = await PlannerPlan.findOne({ userId: session.user.id, platform: 'instagram', weekStart }).lean().exec();
     } catch (e) {
       console.warn('[planner/plan GET] PlannerPlan model indisponível; devolvendo plan=null. Detalhe:', e);
     }
@@ -265,14 +276,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ ok: true, plan: null, weekStart });
     }
 
-    const plan = await PlannerPlan.findOne({
-      userId: session.user.id,
-      platform: 'instagram',
-      weekStart,
-    }).lean().exec();
-
-    if (!plan) return NextResponse.json({ ok: true, plan: null, weekStart });
-    return NextResponse.json({ ok: true, plan, weekStart });
+    if (!planData) return NextResponse.json({ ok: true, plan: null, weekStart });
+    return NextResponse.json({ ok: true, plan: planData, weekStart });
   } catch (err) {
     console.error('[planner/plan GET] Error:', err);
     return NextResponse.json({ ok: false, error: 'Failed to load plan' }, { status: 500 });
@@ -292,24 +297,26 @@ export async function POST(request: Request) {
       : normalizeToMondayInTZ(new Date(), PLANNER_TIMEZONE);
     const userTimeZone = typeof body?.userTimeZone === 'string' ? body.userTimeZone : undefined;
 
+    const routePath = new URL(request.url).pathname;
+    const access = await ensurePlannerAccess({ session, routePath, forceReload: true });
+    if (!access.ok) {
+      return NextResponse.json(
+        { ok: false, error: access.message, reason: access.reason },
+        { status: access.status }
+      );
+    }
+
+    const PlannerPlan = await loadPlannerPlanModel();
     await connectToDatabase();
 
-    let PlannerPlan: any;
+
     try {
-      PlannerPlan = await usePlannerPlanModel();
     } catch (e) {
       console.error('[planner/plan POST] Model PlannerPlan não resolvido:', e);
       return NextResponse.json(
         { ok: false, error: 'PlannerPlan model not available. Verifique os exports do arquivo @/app/models/PlannerPlan.' },
         { status: 500 }
       );
-    }
-
-    // Gating: somente usuários com plano ativo podem salvar
-    const dbUser = await User.findById(session.user.id).select('planStatus').lean<{ planStatus?: string }>().exec();
-    const norm = normalizePlanStatus(dbUser?.planStatus);
-    if (!isActiveLike(norm)) {
-      return NextResponse.json({ ok: false, error: 'Plano inativo. Assine para salvar seu planejamento.' }, { status: 403 });
     }
 
     // ---- Sanitização & dedupe ----

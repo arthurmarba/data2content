@@ -239,6 +239,27 @@ export async function handleStripeEvent(event: Stripe.Event) {
           applyNormalizedUserBilling(user, sub, event.id, {
             overrideStatus: isTrialingNow ? "trialing" : undefined,
           });
+
+          // Evita múltiplos trials simultâneos para o mesmo cliente
+          if (customerId) {
+            try {
+              const siblings = await stripe.subscriptions.list({
+                customer: customerId,
+                status: "all",
+                limit: 20,
+              });
+              const duplicates = siblings.data.filter(
+                (other) =>
+                  other.id !== sub.id &&
+                  (other.status === "trialing" || other.status === "incomplete")
+              );
+              await Promise.allSettled(
+                duplicates.map((other) => stripe.subscriptions.cancel(other.id))
+              );
+            } catch {
+              /* noop */
+            }
+          }
         } catch {
           (user as any).lastProcessedEventId = event.id;
         }

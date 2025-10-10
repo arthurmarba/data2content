@@ -1,6 +1,7 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from 'react';
+import Image from 'next/image';
 import { UserAvatar } from "@/app/components/UserAvatar";
 import { idsToLabels } from "@/app/lib/classification";
 
@@ -71,14 +72,14 @@ const FALLBACK_CATEGORIES: Category[] = [
 
 export default function DiscoveryPostsCarousel({ categories }: { categories?: Category[] }) {
   // Evita flicker: não usa mais FALLBACK_CATEGORIES quando não há dados.
-  const data = Array.isArray(categories) ? categories : [];
-  const [activeCat, setActiveCat] = React.useState<string>(data[0]?.id ?? '');
+  const data = useMemo(() => Array.isArray(categories) ? categories : [], [categories]);
+  const [activeCat, setActiveCat] = React.useState<string>('');
   const [broken, setBroken] = React.useState<Record<string, boolean>>({});
 
   React.useEffect(() => {
     const firstId = data[0]?.id;
     if (!firstId) return;
-    if (!activeCat || !data.some((c) => c.id === activeCat)) {
+    if (!activeCat || !data.some(c => c.id === activeCat)) {
       setActiveCat(firstId);
     }
   }, [activeCat, data]);
@@ -179,18 +180,19 @@ export default function DiscoveryPostsCarousel({ categories }: { categories?: Ca
                 {/* Imagem */}
                 <div className="relative aspect-[4/5] bg-gray-100">
                   {item.imageUrl && !broken[item.id] ? (
-                    <img
+                    <Image
                       src={item.imageUrl}
                       alt={item.title}
+                      fill
                       className="absolute inset-0 w-full h-full object-cover"
                       loading="lazy"
                       referrerPolicy="no-referrer"
-                      crossOrigin="anonymous"
                       draggable={false}
                       onError={() => setBroken((prev) => ({ ...prev, [item.id]: true }))}
                     />
                   ) : (
-                    <img
+                    <Image
+                      fill
                       src="/images/Colorido-Simbolo.png"
                       alt="Sem imagem"
                       className="absolute inset-0 w-full h-full object-cover opacity-70"

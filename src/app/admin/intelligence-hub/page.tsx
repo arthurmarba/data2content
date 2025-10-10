@@ -385,7 +385,7 @@ export default function IntelligenceHubPage() {
                   <div className="mx-auto bg-white dark:bg-slate-800 border dark:border-slate-700 w-16 h-16 rounded-full flex items-center justify-center text-3xl">💡</div>
                   <p className="text-lg mt-4 font-semibold text-gray-700 dark:text-gray-300">Bem-vindo, Administrador.</p>
                   <p className="text-sm mt-2">Comece com uma pergunta como:</p>
-                  <p className="text-sm font-mono bg-gray-200 dark:bg-gray-800 rounded px-2 py-1 mt-3 inline-block">"Ranking de criadores por engajamento no último mês"</p>
+                  <p className="text-sm font-mono bg-gray-200 dark:bg-gray-800 rounded px-2 py-1 mt-3 inline-block">&quot;Ranking de criadores por engajamento no último mês&quot;</p>
                 </div>
               )}
               {messages.map((m) => <MessageBubble key={m.id} message={m} />)}

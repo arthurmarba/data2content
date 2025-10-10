@@ -52,6 +52,7 @@ export function ToastA11yProvider({ children, maxVisible = 3 }: Props) {
   const [visible, setVisible] = useState<ToastItem[]>([]);
   const [queue, setQueue] = useState<ToastItem[]>([]);
   const timersRef = useRef<Record<string, any>>({});
+  const dismissRef = useRef<(id: string) => void>(() => {});
   const tickRef = useRef<any>(null); // 1 intervalo global p/ re-render do progress
   const [, setTick] = useState(0); // força re-render do progress
 
@@ -84,25 +85,25 @@ export function ToastA11yProvider({ children, maxVisible = 3 }: Props) {
     if (!msg) return;
     setSrPoliteness(assertive ? "assertive" : "polite");
     setSrText(msg);
-    setTimeout(() => setSrText(""), 100);
+    setTimeout(() => setSrText(""), 100); // eslint-disable-line react-hooks/exhaustive-deps
   };
 
-  const scheduleDismiss = (id: string, ms: number) => {
+  const scheduleDismiss = useCallback((id: string, ms: number) => {
     if (ms <= 0) return;
-    timersRef.current[id] = setTimeout(() => dismiss(id), ms);
-  };
+    timersRef.current[id] = setTimeout(() => dismissRef.current(id), ms);
+  }, []);
 
   const ensureTickLoop = () => {
     if (tickRef.current) return;
     tickRef.current = setInterval(() => setTick((n) => (n + 1) % 1000000), 100);
   };
-  const stopTickLoopIfIdle = () => {
+  const stopTickLoopIfIdle = useCallback(() => {
     const anyRunning = visible.some((t) => !!t.totalMs && !t.paused);
     if (!anyRunning && tickRef.current) {
       clearInterval(tickRef.current);
       tickRef.current = null;
     }
-  };
+  }, [visible]);
 
   const maybeShowFromQueue = useCallback(() => {
     setVisible((curr) => {
@@ -132,7 +133,7 @@ export function ToastA11yProvider({ children, maxVisible = 3 }: Props) {
       });
       return nextVisible;
     });
-  }, [maxVisible]);
+  }, [maxVisible, scheduleDismiss]);
 
   const dismiss = useCallback((id: string) => {
     setVisible((prev) => prev.filter((t) => t.id !== id));
@@ -141,15 +142,19 @@ export function ToastA11yProvider({ children, maxVisible = 3 }: Props) {
       delete timersRef.current[id];
     }
     setTimeout(maybeShowFromQueue, 10);
-    setTimeout(stopTickLoopIfIdle, 50);
-  }, [maybeShowFromQueue]);
+    setTimeout(stopTickLoopIfIdle, 50); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [maybeShowFromQueue, stopTickLoopIfIdle]);
 
   const dismissAll = useCallback(() => {
     Object.values(timersRef.current).forEach(clearTimeout);
     timersRef.current = {};
     setVisible([]);
-    setTimeout(stopTickLoopIfIdle, 50);
-  }, []);
+    setTimeout(stopTickLoopIfIdle, 50); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [stopTickLoopIfIdle]);
+
+  useEffect(() => {
+    dismissRef.current = dismiss;
+  }, [dismiss]);
 
   const toast = useCallback((input: ToastInput) => {
     const id = crypto.randomUUID();
@@ -324,4 +329,3 @@ export function ToastA11yProvider({ children, maxVisible = 3 }: Props) {
     </ToastCtx.Provider>
   );
 }
-

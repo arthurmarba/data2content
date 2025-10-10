@@ -96,7 +96,7 @@ export function useCreatorSearch(
     return () => {
       controller.abort();
     };
-  }, [query, limit, minChars]);
+  }, [query, limit, minChars, apiPrefix]);
 
   return { results, isLoading, error };
 }

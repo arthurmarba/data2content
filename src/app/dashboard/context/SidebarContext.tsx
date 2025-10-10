@@ -24,20 +24,23 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   // Inicia FECHADO para evitar o flash de overlay no mobile.
   const [isCollapsed, setIsCollapsed] = useState<boolean>(true);
   const mqRef = useRef<MediaQueryList | null>(null);
+  const isDesktopRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const mq = window.matchMedia("(min-width: 1024px)"); // lg
     mqRef.current = mq;
+    isDesktopRef.current = mq.matches;
 
     // 1) Tenta restaurar preferência salva
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored !== null) {
-      setIsCollapsed(stored === "1");
+    if (mq.matches) {
+      // desktop: usa preferencia ou abre por padrão
+      setIsCollapsed(stored !== null ? stored === "1" : false);
     } else {
-      // 2) Sem preferência: desktop abre por padrão, mobile fecha
-      setIsCollapsed(mq.matches ? false : true);
+      // mobile sempre começa fechado para evitar flash
+      setIsCollapsed(true);
     }
 
     // 3) Reage à mudança de breakpoint:
@@ -46,10 +49,12 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     const onChange = (e: MediaQueryListEvent) => {
       if (e.matches) {
         // desktop
+        isDesktopRef.current = true;
         const saved = localStorage.getItem(STORAGE_KEY);
         setIsCollapsed(saved !== null ? saved === "1" : false);
       } else {
         // mobile
+        isDesktopRef.current = false;
         setIsCollapsed(true);
       }
     };
@@ -59,19 +64,23 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
 
   const applyAndPersist = useCallback((v: boolean) => {
     setIsCollapsed(v);
-    try {
-      localStorage.setItem(STORAGE_KEY, v ? "1" : "0");
-    } catch {
-      /* ignore */
+    if (isDesktopRef.current) {
+      try {
+        localStorage.setItem(STORAGE_KEY, v ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
     }
   }, []);
 
   const toggleSidebar = useCallback((next?: boolean) => {
     setIsCollapsed(prev => {
       const v = typeof next === "boolean" ? next : !prev;
-      try {
-        localStorage.setItem(STORAGE_KEY, v ? "1" : "0");
-      } catch {/* ignore */}
+      if (isDesktopRef.current) {
+        try {
+          localStorage.setItem(STORAGE_KEY, v ? "1" : "0");
+        } catch {/* ignore */}
+      }
       return v;
     });
   }, []);

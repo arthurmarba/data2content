@@ -7,6 +7,7 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import { getThemesForSlot } from '@/app/lib/planner/themes';
 import { WINDOW_DAYS } from '@/app/lib/planner/constants';
 import { getBlockSampleCaptions } from '@/utils/getBlockSampleCaptions';
+import { ensurePlannerAccess } from '@/app/lib/planGuard';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,6 +19,15 @@ export async function POST(request: Request) {
   }
 
   try {
+    const routePath = new URL(request.url).pathname;
+    const access = await ensurePlannerAccess({ session, routePath, forceReload: true });
+    if (!access.ok) {
+      return NextResponse.json(
+        { ok: false, error: access.message, reason: access.reason },
+        { status: access.status }
+      );
+    }
+
     const body = await request.json();
     const dayOfWeek: number = Number(body?.dayOfWeek);
     const blockStartHour: number = Number(body?.blockStartHour);

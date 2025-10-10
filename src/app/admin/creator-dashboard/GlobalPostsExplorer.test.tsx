@@ -19,12 +19,16 @@ jest.mock('@heroicons/react/24/outline', () => ({
 }));
 
 // Mock child components
-jest.mock('./SkeletonBlock', () => () => <div data-testid="skeleton-block">Skeleton</div>);
-jest.mock('./EmptyState', () => ({ icon, title, message }) => (
+const MockSkeletonBlock = () => <div data-testid="skeleton-block">Skeleton</div>;
+MockSkeletonBlock.displayName = 'MockSkeletonBlock';
+jest.mock('./SkeletonBlock', () => MockSkeletonBlock);
+const MockEmptyState = ({ icon, title, message }: { icon: any, title: string, message: string }) => (
   <div data-testid="empty-state">
     <h1>{title}</h1><p>{message}</p>
   </div>
-));
+);
+MockEmptyState.displayName = 'MockEmptyState';
+jest.mock('./EmptyState', () => MockEmptyState);
 
 // Mock PostDetailModal
 const MockPostDetailModal = jest.fn(({ isOpen, onClose, postId }) => {

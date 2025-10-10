@@ -44,17 +44,15 @@ export default function PaymentSettings() {
   });
 
   const [isOpeningStripe, setIsOpeningStripe] = useState(false);
-  const [isRedeeming, setIsRedeeming] = useState(false);
-
-  const balances: Record<string, number> =
-    (session?.user as any)?.affiliateBalances || {};
+  const [isRedeeming, setIsRedeeming] = useState(false);  
 
   const destCurrency = connectStatus?.defaultCurrency?.toLowerCase() || null;
 
   const balanceCents = useMemo(() => {
+    const balances: Record<string, number> = (session?.user as any)?.affiliateBalances || {};
     if (!destCurrency) return 0;
-    return balances[destCurrency] ?? 0;
-  }, [balances, destCurrency]);
+    return balances[destCurrency] ?? 0; // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user, destCurrency]);
 
   const isVerified = !!connectStatus?.payoutsEnabled;
 

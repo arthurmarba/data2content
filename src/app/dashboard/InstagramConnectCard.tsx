@@ -1,6 +1,7 @@
 // InstagramConnectCard.tsx
 "use client";
 
+import Image from "next/image";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSession, signIn } from "next-auth/react";
 import {
@@ -496,9 +497,11 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
                   aria-label={`Conectar conta ${account.username || account.pageName || account.igAccountId}`}
                 >
                   <div className="flex items-center gap-3">
-                    {account.profile_picture_url ? (
-                      <img
+                    {account.profile_picture_url ? ( // eslint-disable-next-line @next/next/no-img-element
+                      <Image
                         src={account.profile_picture_url}
+                        width={32}
+                        height={32}
                         alt={`Foto de ${account.username || account.pageName || "Conta Instagram"}`}
                         className="w-8 h-8 rounded-full flex-shrink-0 object-cover"
                       />

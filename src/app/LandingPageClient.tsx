@@ -5,6 +5,7 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { signIn } from "next-auth/react";
+import { MAIN_DASHBOARD_ROUTE } from '@/constants/routes';
 import { track } from "@/lib/track";
 
 // Componentes externos
@@ -319,7 +320,7 @@ export default function LandingPageClient() {
     try {
       track("cta_create_portfolio_click", { location: "landing_page" });
     } catch {}
-    signIn("google", { callbackUrl: "/auth/complete-signup" });
+    signIn("google", { callbackUrl: MAIN_DASHBOARD_ROUTE });
   };
 
   // Lógica do Header dinâmico (mantida)

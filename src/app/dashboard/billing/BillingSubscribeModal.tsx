@@ -3,6 +3,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { X, Crown, Check, Sparkles, Shield, ArrowRight, Loader2 } from "lucide-react";
+import useBillingStatus from "@/app/hooks/useBillingStatus";
 
 interface BillingSubscribeModalProps {
   open: boolean;
@@ -43,6 +44,7 @@ export default function BillingSubscribeModal({ open, onClose }: BillingSubscrib
   const [period, setPeriod] = useState<"monthly" | "annual">("annual"); // ✅ anual como padrão
   const [currency, setCurrency] = useState<"brl" | "usd">("brl");
   const dialogRef = useRef<HTMLDivElement>(null);
+  const { isLoading: billingStatusLoading, hasPremiumAccess } = useBillingStatus();
 
   // Fecha com ESC
   useEffect(() => {
@@ -187,6 +189,9 @@ export default function BillingSubscribeModal({ open, onClose }: BillingSubscrib
     setError(null);
     setLoadingRedirect(true);
     try {
+      if (hasPremiumAccess) {
+        throw new Error("Você já possui um plano ativo ou em teste.");
+      }
       const payload = {
         plan: period,              // "monthly" | "annual"
         currency,                  // "brl" | "usd"
@@ -198,17 +203,24 @@ export default function BillingSubscribeModal({ open, onClose }: BillingSubscrib
 
       // 1) checkout com trial (principal)
       let url: string | null = null;
+      let r1: Response | null = null;
       try {
-        const r1 = await fetch("/api/billing/checkout/trial", {
+        r1 = await fetch("/api/billing/checkout/trial", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
+      } catch { /* segue pro fallback */ }
+
+      if (r1) {
+        const b1 = await r1.json().catch(() => ({}));
+        if (r1.status === 409) {
+          throw new Error(b1?.message || "Você já possui um plano ativo ou em teste.");
+        }
         if (r1.ok) {
-          const b1 = await r1.json().catch(() => ({}));
           url = b1?.url || null;
         }
-      } catch { /* segue pro fallback */ }
+      }
 
       // 2) fallback: rota de subscribe (também pode devolver uma checkout session)
       if (!url) {
@@ -506,7 +518,7 @@ export default function BillingSubscribeModal({ open, onClose }: BillingSubscrib
               <button
                 type="button"
                 onClick={handleSubscribe}
-                disabled={loadingRedirect}
+                disabled={loadingRedirect || hasPremiumAccess || billingStatusLoading}
                 className="w-full inline-flex items-center justify-center rounded-md bg-pink-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-pink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400 disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {loadingRedirect ? (
@@ -531,6 +543,11 @@ export default function BillingSubscribeModal({ open, onClose }: BillingSubscrib
                   arthur@data2content.ai
                 </a>
               </p>
+              {hasPremiumAccess && !billingStatusLoading && (
+                <p className="mt-2 text-center text-xs text-gray-600">
+                  Você já possui um plano ativo ou em período de teste.
+                </p>
+              )}
             </div>
           </div>
         </div>

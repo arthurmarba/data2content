@@ -92,7 +92,7 @@ const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps
     } finally {
       setLoading(false);
     }
-  }, [timePeriod]);
+  }, [timePeriod, apiPrefix]);
 
   useEffect(() => {
     fetchData();

@@ -67,7 +67,7 @@ export const FullDataModal: React.FC<FullDataModalProps> = ({
           setLoading(false);
         });
     }
-  }, [isOpen, groupBy, metricUsed]);
+  }, [isOpen, groupBy, metricUsed, apiPrefix, userId]);
 
   if (!isOpen) return null;
 

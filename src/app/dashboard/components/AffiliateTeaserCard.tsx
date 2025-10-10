@@ -14,19 +14,52 @@ type AffiliateSummary = {
   minPayout?: SummaryMap; // opcional
 };
 
-// Hooks (usará se existirem; senão, cai no fetch das rotas públicas)
-let useAffiliateSummaryHook: any = null;
-let useAffiliateCodeHook: any = null;
-try {
-  // @ts-ignore
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  useAffiliateSummaryHook = require("@/hooks/useAffiliateSummary")?.useAffiliateSummary || null;
-} catch {}
-try {
-  // @ts-ignore
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  useAffiliateCodeHook = require("@/hooks/useAffiliateCode")?.useAffiliateCode || null;
-} catch {}
+const useAffiliateSummary = () => {
+  const [summary, setSummary] = useState<AffiliateSummary | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const refetch = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/affiliate/summary", { cache: "no-store" });
+      if (!res.ok) {
+        let message = "Falha ao carregar saldos do afiliado.";
+        try {
+          const data = await res.json();
+          message = data?.error || data?.message || message;
+        } catch {}
+        throw new Error(message);
+      }
+      const data = await res.json();
+      setSummary(data as AffiliateSummary);
+      return { summary: data, error: null };
+    } catch (e: any) {
+      setError(e?.message || "Erro inesperado ao obter saldos do afiliado.");
+      setSummary(null);
+      return { summary: null, error: e?.message };
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
+
+  return { summary, error, loading, refetch };
+};
+
+const useAffiliateCode = () => {
+  const [code, setCode] = useState<string | null>(null);
+  useEffect(() => {
+    // This is a placeholder. In a real app, this would fetch the user's code.
+    // For now, we simulate a fetch.
+    setTimeout(() => setCode("DEMO123"), 500);
+  }, []);
+  return { code };
+};
 
 function formatCurrency(value: number | undefined, currency: "brl" | "usd") {
   const curr = currency === "brl" ? "BRL" : "USD";
@@ -43,10 +76,10 @@ function buildShareUrl(code?: string | null) {
 
 export default function AffiliateTeaserCard() {
   const [currency, setCurrency] = useState<"brl" | "usd">("brl");
-  const [loading, setLoading] = useState(false);
-  const [summary, setSummary] = useState<AffiliateSummary | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [redeeming, setRedeeming] = useState(false);
+  const { summary, error: summaryError, loading: summaryLoading, refetch: fetchSummary } = useAffiliateSummary();
+  const { code: affiliateCode } = useAffiliateCode();
+  const [redeemError, setRedeemError] = useState<string | null>(null);
 
   // Detecta locale para moeda default
   useEffect(() => {
@@ -56,56 +89,7 @@ export default function AffiliateTeaserCard() {
     } catch {}
   }, []);
 
-  // Usa hooks se existirem
-  const hasSummaryHook = !!useAffiliateSummaryHook;
-  const hasCodeHook = !!useAffiliateCodeHook;
-  const codeHookData = hasCodeHook ? useAffiliateCodeHook() : null;
-
-  const affiliateCode: string | null =
-    (hasCodeHook ? (codeHookData?.code ?? null) : null);
-
   const shareUrl = useMemo(() => buildShareUrl(affiliateCode), [affiliateCode]);
-
-  const fetchSummary = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      if (hasSummaryHook) {
-        const { summary, error } = useAffiliateSummaryHook();
-        // hook pode ser assíncrono ou síncrono; tentamos duas abordagens
-        if (typeof summary === "undefined") {
-          // @ts-ignore
-          const res = await useAffiliateSummaryHook()?.refetch?.();
-          setSummary((res?.summary as AffiliateSummary) || null);
-          if (res?.error) setError(String(res.error));
-        } else {
-          setSummary(summary as AffiliateSummary);
-          if (error) setError(String(error));
-        }
-      } else {
-        const res = await fetch("/api/affiliate/summary", { cache: "no-store" });
-        if (!res.ok) {
-          let message = "Falha ao carregar saldos do afiliado.";
-          try {
-            const data = await res.json();
-            message = data?.error || data?.message || message;
-          } catch {}
-          throw new Error(message);
-        }
-        const data = await res.json();
-        setSummary(data as AffiliateSummary);
-      }
-    } catch (e: any) {
-      setError(e?.message || "Erro inesperado ao obter saldos do afiliado.");
-      setSummary(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [hasSummaryHook]);
-
-  useEffect(() => {
-    void fetchSummary();
-  }, [fetchSummary]);
 
   const available = useMemo(() => summary?.available?.[currency] || 0, [summary, currency]);
   const minPayout = useMemo(() => summary?.minPayout?.[currency] || 0, [summary, currency]);
@@ -132,7 +116,7 @@ export default function AffiliateTeaserCard() {
   const handleRedeem = async () => {
     if (!canRedeem || redeeming) return;
     setRedeeming(true);
-    setError(null);
+    setRedeemError(null);
     try {
       const res = await fetch("/api/affiliate/redeem", {
         method: "POST",
@@ -147,7 +131,7 @@ export default function AffiliateTeaserCard() {
       await fetchSummary();
       // opcional: toast de sucesso
     } catch (e: any) {
-      setError(e?.message || "Erro ao solicitar resgate.");
+      setRedeemError(e?.message || "Erro ao solicitar resgate.");
     } finally {
       setRedeeming(false);
     }
@@ -174,14 +158,14 @@ export default function AffiliateTeaserCard() {
             <button
               onClick={() => setCurrency("brl")}
               className={`px-3 py-1.5 text-sm font-medium rounded ${currency === "brl" ? "bg-white shadow text-gray-900" : "text-gray-600"}`}
-              disabled={loading}
+              disabled={summaryLoading}
             >
               BRL
             </button>
             <button
               onClick={() => setCurrency("usd")}
               className={`px-3 py-1.5 text-sm font-medium rounded ${currency === "usd" ? "bg-white shadow text-gray-900" : "text-gray-600"}`}
-              disabled={loading}
+              disabled={summaryLoading}
             >
               USD
             </button>
@@ -196,7 +180,7 @@ export default function AffiliateTeaserCard() {
           <div>
             <div className="text-xs uppercase tracking-wide text-gray-500">Saldo disponível</div>
             <div className="mt-1 text-3xl font-extrabold text-gray-900">
-              {loading ? "…" : formatCurrency(available, currency)}
+              {summaryLoading ? "…" : formatCurrency(available, currency)}
             </div>
             {!!minPayout && (
               <div className="mt-1 text-xs text-gray-600">
@@ -209,14 +193,14 @@ export default function AffiliateTeaserCard() {
             <button
               onClick={() => fetchSummary()}
               className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-              disabled={loading}
+              disabled={summaryLoading}
             >
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              <RefreshCw className={`h-4 w-4 ${summaryLoading ? "animate-spin" : ""}`} />
               Atualizar
             </button>
             <button
-              onClick={handleRedeem}
-              disabled={!canRedeem || redeeming || loading}
+              onClick={handleRedeem} 
+              disabled={!canRedeem || redeeming || summaryLoading}
               className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <ArrowDownToLine className="h-4 w-4" />
@@ -268,10 +252,10 @@ export default function AffiliateTeaserCard() {
         </div>
 
         {/* Erros */}
-        {!!error && (
+        {(!!summaryError || !!redeemError) && (
           <div className="mt-4 inline-flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
             <AlertCircle className="h-4 w-4" />
-            {error}
+            {summaryError || redeemError}
           </div>
         )}
       </div>

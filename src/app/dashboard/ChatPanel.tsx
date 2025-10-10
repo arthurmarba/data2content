@@ -5,11 +5,14 @@ import React, { useState, useEffect, useRef } from "react";
 import { useSession, signIn } from "next-auth/react";
 import {
   FaPaperPlane, FaInstagram, FaPlus, FaExternalLinkAlt,
-  FaTimes, FaCheckCircle, FaExclamationTriangle
+  FaTimes, FaCheckCircle, FaExclamationTriangle, FaSearch
 } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import WhatsAppConnectInline from './WhatsAppConnectInline';
+import { useCreatorSearch } from '@/hooks/useCreatorSearch';
+import useBillingStatus from "@/app/hooks/useBillingStatus";
+import { isPlanActiveLike } from "@/utils/planStatus";
 
 interface SessionUserWithId {
   id?: string;
@@ -246,10 +249,16 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
 
+  const role = String((session?.user as any)?.role || '').toLowerCase();
+  const isAdmin = role === 'admin';
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const inputWrapperRef = useRef<HTMLDivElement>(null);
+  const previousTargetRef = useRef<string | null>(null);
+  const initializedTargetRef = useRef(false);
+  const suggestionContainerRef = useRef<HTMLDivElement>(null);
 
   const [isToolsOpen, setIsToolsOpen] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -260,8 +269,138 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
   const userWithId = session?.user as SessionUserWithId | undefined;
   const instagramConnected = Boolean((session?.user as any)?.instagramConnected);
   const instagramUsername = ((session?.user as any)?.instagramUsername as string | undefined) || null;
-  const planStatus = String((session?.user as any)?.planStatus || '').toLowerCase();
-  const isActiveLikePlan = ['active', 'trial', 'trialing', 'non_renewing'].includes(planStatus);
+  const billingStatus = useBillingStatus();
+  const planStatusSession = (session?.user as any)?.planStatus;
+  const hasPremiumAccess = billingStatus.hasPremiumAccess || isPlanActiveLike(planStatusSession);
+  const isActiveLikePlan = hasPremiumAccess;
+  const [targetUserId, setTargetUserId] = useState<string>('');
+  const [selectedTargetLabel, setSelectedTargetLabel] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeSuggestion, setActiveSuggestion] = useState(-1);
+
+  const { results: searchResults, isLoading: searchLoading, error: searchError } = useCreatorSearch(
+    isAdmin ? searchQuery.trim() : '',
+    { minChars: 2, limit: 6 }
+  );
+
+  useEffect(() => {
+    if (initializedTargetRef.current) return;
+    if (userWithId?.id) {
+      setTargetUserId(userWithId.id);
+      setSelectedTargetLabel(session?.user?.name || 'Meu perfil');
+      initializedTargetRef.current = true;
+    }
+  }, [session?.user?.name, userWithId?.id]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    const trimmed = targetUserId.trim();
+    if (previousTargetRef.current === null) {
+      previousTargetRef.current = trimmed;
+      return;
+    }
+    if (trimmed !== previousTargetRef.current) {
+      setMessages([]);
+      setInlineAlert(null);
+      previousTargetRef.current = trimmed;
+    }
+  }, [isAdmin, targetUserId]);
+
+  useEffect(() => {
+    const trimmed = targetUserId.trim();
+    if (!trimmed) return;
+    if (trimmed === (userWithId?.id || '')) {
+      setSelectedTargetLabel(session?.user?.name || 'Meu perfil');
+      return;
+    }
+    if (!selectedTargetLabel || selectedTargetLabel === previousTargetRef.current) {
+      setSelectedTargetLabel(trimmed);
+    }
+  }, [session?.user?.name, selectedTargetLabel, targetUserId, userWithId?.id]);
+
+  useEffect(() => {
+    if (!isAdmin) {
+      setShowSuggestions(false);
+      return;
+    }
+    if (searchQuery.trim().length < 2 || (!searchLoading && searchResults.length === 0)) {
+      setShowSuggestions(false);
+      return;
+    }
+    setShowSuggestions(true);
+    setActiveSuggestion(-1);
+  }, [isAdmin, searchQuery, searchLoading, searchResults.length]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    function handleClickOutside(event: MouseEvent) {
+      if (!suggestionContainerRef.current) return;
+      if (!suggestionContainerRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isAdmin]);
+
+  const applyTargetSelection = (id: string, label: string) => {
+    const trimmed = id.trim();
+    if (!trimmed) return;
+    initializedTargetRef.current = true;
+    setTargetUserId(trimmed);
+    setSelectedTargetLabel(label || trimmed);
+    setSearchQuery('');
+    setShowSuggestions(false);
+    setActiveSuggestion(-1);
+    setInlineAlert(null);
+  };
+
+  const handleSuggestionSelect = (creator: { _id: string; name?: string; email?: string }) => {
+    const label = creator.name || creator.email || creator._id;
+    applyTargetSelection(creator._id, label);
+  };
+
+  const handleManualApply = () => {
+    const trimmed = searchQuery.trim();
+    if (!trimmed) return;
+    const manualLabel = trimmed === (userWithId?.id || '') ? (session?.user?.name || 'Meu perfil') : `ID manual: ${trimmed}`;
+    applyTargetSelection(trimmed, manualLabel);
+  };
+
+  const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!isAdmin) return;
+    if (event.key === 'ArrowDown' && showSuggestions && searchResults.length > 0) {
+      event.preventDefault();
+      setActiveSuggestion((prev) => {
+        const next = prev + 1;
+        return next >= searchResults.length ? 0 : next;
+      });
+      return;
+    }
+    if (event.key === 'ArrowUp' && showSuggestions && searchResults.length > 0) {
+      event.preventDefault();
+      setActiveSuggestion((prev) => {
+        const next = prev - 1;
+        return next < 0 ? searchResults.length - 1 : next;
+      });
+      return;
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      if (showSuggestions && searchResults.length > 0) {
+        const index = activeSuggestion >= 0 ? activeSuggestion : 0;
+        handleSuggestionSelect(searchResults[index]!);
+      } else {
+        handleManualApply();
+      }
+      return;
+    }
+    if (event.key === 'Escape') {
+      setShowSuggestions(false);
+      setActiveSuggestion(-1);
+    }
+  };
 
   const handleCorrectInstagramLink = async () => {
     try {
@@ -336,11 +475,17 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
     setMessages(prev => [...prev, { sender: 'user', text: prompt }]);
 
     try {
+      const trimmedTarget = targetUserId.trim();
+      const payload: Record<string, unknown> = { query: prompt };
+      if (isAdmin && trimmedTarget && trimmedTarget !== userWithId?.id) {
+        payload.targetUserId = trimmedTarget;
+      }
+
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ query: prompt }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
 
@@ -372,9 +517,99 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
   return (
     <div
       className="relative flex flex-col h-full w-full bg-white overflow-hidden"
-      // FIX: altura fixa do painel para impedir scroll externo mover o composer
-      style={{ height: 'calc(100svh - var(--header-h, 4rem))' }}
+      style={{ minHeight: 'calc(100svh - var(--header-h, 4rem))' }}
     >
+      {isAdmin && (
+        <div className="border-b border-gray-200 bg-gray-50 py-3" ref={suggestionContainerRef}>
+          <div className="mx-auto flex w-full max-w-4xl flex-col gap-3 px-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-gray-700">Usuário analisado</p>
+              <p className="text-xs text-gray-500 max-w-xl">
+                Busque por nome ou e-mail para selecionar o perfil que terá as métricas usadas pelo chat. Você também pode aplicar um ID manualmente.
+              </p>
+            </div>
+            <div className="flex w-full sm:w-auto gap-2 items-start">
+              <div className="relative flex-1 sm:w-72">
+                <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" aria-hidden="true" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(event) => {
+                    setSearchQuery(event.target.value);
+                    setShowSuggestions(true);
+                  }}
+                  onFocus={() => {
+                    if (searchQuery.trim().length >= 2 && (searchLoading || searchResults.length > 0)) {
+                      setShowSuggestions(true);
+                    }
+                  }}
+                  onKeyDown={handleSearchKeyDown}
+                  placeholder="Buscar por nome ou e-mail"
+                  className="w-full border border-gray-300 rounded-lg bg-white pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                />
+                {showSuggestions && (
+                  <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg">
+                    {searchLoading && (
+                      <div className="px-3 py-2 text-xs text-gray-500">Carregando…</div>
+                    )}
+                    {searchError && !searchLoading && (
+                      <div className="px-3 py-2 text-xs text-red-600">{searchError}</div>
+                    )}
+                    {!searchLoading && searchResults.length === 0 && !searchError && (
+                      <div className="px-3 py-2 text-xs text-gray-500">Nenhum resultado encontrado.</div>
+                    )}
+                    <ul className="max-h-60 overflow-y-auto text-sm">
+                      {searchResults.map((creator, index) => {
+                        const label = creator.name || creator.email || creator._id;
+                        const isActive = index === activeSuggestion;
+                        return (
+                          <li
+                            key={creator._id}
+                            className={`cursor-pointer px-3 py-2 ${isActive ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-100 text-gray-700'}`}
+                            onMouseEnter={() => setActiveSuggestion(index)}
+                            onMouseDown={(event) => {
+                              event.preventDefault();
+                              handleSuggestionSelect(creator);
+                            }}
+                          >
+                            <div className="font-medium">{label}</div>
+                            <div className="text-xs text-gray-500">{creator._id}</div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col gap-1">
+                <button
+                  type="button"
+                  onClick={handleManualApply}
+                  disabled={!searchQuery.trim()}
+                  className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Aplicar ID
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyTargetSelection(userWithId?.id ?? '', session?.user?.name || 'Meu perfil')}
+                  disabled={!userWithId?.id}
+                  className="text-xs font-medium text-blue-600 hover:text-blue-500 disabled:cursor-not-allowed disabled:text-gray-400"
+                >
+                  Meu ID
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="mx-auto mt-2 w-full max-w-4xl px-4 text-xs text-gray-600">
+            Conversa atual: <span className="font-medium text-gray-800">{selectedTargetLabel || 'Meu perfil'}</span>
+            {targetUserId.trim() && <span className="ml-1 text-[11px] text-gray-400">({targetUserId.trim()})</span>}
+          </div>
+        </div>
+      )}
+
       {/* timeline (único scroll) */}
       <div
         ref={scrollRef}
@@ -411,7 +646,7 @@ export default function ChatPanel({ onUpsellClick }: { onUpsellClick?: () => voi
                     <PromptChip
                       label={p.label}
                       onClick={() => {
-                        if (p.requiresIG && !instagramConnected) {
+                        if (p.requiresIG && !instagramConnected && !isAdmin) {
                           handleCorrectInstagramLink();
                         } else {
                           setInput(p.label);

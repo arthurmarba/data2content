@@ -88,6 +88,8 @@ export function usePlannerData(params: {
   const [heatmap, setHeatmap] = useState<TimeBlockScoreUI[] | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [locked, setLocked] = useState<boolean>(false);
+  const [lockedReason, setLockedReason] = useState<string | null>(null);
 
   // controle de concorrência
   const fetchIdRef = useRef(0);
@@ -109,6 +111,8 @@ export function usePlannerData(params: {
     const myId = ++fetchIdRef.current;
     setLoading(true);
     setError(null);
+    setLocked(false);
+    setLockedReason(null);
 
     try {
       if (publicMode) {
@@ -119,6 +123,24 @@ export function usePlannerData(params: {
           periodDays: String(PERIOD_DAYS),
         });
         const res = await fetch(`/api/planner/public?${qs.toString()}`, { cache: 'no-store', signal: controller.signal });
+        if (res.status === 403) {
+          let message = 'Plano inativo. Assine para acessar o planner.';
+          try {
+            const data = await res.json();
+            message = data?.error || message;
+          } catch (_) {
+            // noop
+          }
+          if (fetchIdRef.current !== myId) return;
+          setLocked(true);
+          setLockedReason(message);
+          safeSetSlots(null);
+          safeSetHeatmap(null);
+          return;
+        }
+        if (res.status === 401) {
+          throw new Error('Você precisa estar autenticado para acessar o planner.');
+        }
         if (!res.ok) throw new Error('Falha ao buscar planner público');
         const data = await res.json();
 
@@ -175,6 +197,27 @@ export function usePlannerData(params: {
           fetch(`/api/planner/plan?${qsPlan.toString()}`, { cache: 'no-store', signal: controller.signal }),
           fetch(`/api/planner/recommendations?${qsRec.toString()}`, { cache: 'no-store', signal: controller.signal }),
         ]);
+
+        if (planRes.status === 403 || recRes.status === 403) {
+          const blockedRes = planRes.status === 403 ? planRes : recRes;
+          let message = 'Plano inativo. Assine para acessar o planner.';
+          try {
+            const data = await blockedRes.json();
+            message = data?.error || message;
+          } catch (_) {
+            // noop
+          }
+          if (fetchIdRef.current !== myId) return;
+          setLocked(true);
+          setLockedReason(message);
+          safeSetSlots(null);
+          safeSetHeatmap(null);
+          return;
+        }
+
+        if (planRes.status === 401 || recRes.status === 401) {
+          throw new Error('Você precisa estar autenticado para acessar o planner.');
+        }
 
         if (!planRes.ok && !recRes.ok) throw new Error('Falha ao buscar dados do planner');
 
@@ -254,6 +297,21 @@ export function usePlannerData(params: {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
+    if (res.status === 403) {
+      let message = 'Plano inativo. Assine para salvar seu planejamento.';
+      try {
+        const data = await res.json();
+        message = data?.error || message;
+      } catch (_) {
+        // noop
+      }
+      setLocked(true);
+      setLockedReason(message);
+      throw new Error(message);
+    }
+    if (res.status === 401) {
+      throw new Error('Sessão expirada. Faça login novamente.');
+    }
     if (!res.ok) throw new Error('Falha ao salvar plano');
     const data = await res.json();
     const planSlots: PlannerUISlot[] = (data?.plan?.slots || []).map((s: any) => ({
@@ -273,5 +331,15 @@ export function usePlannerData(params: {
     return planSlots;
   }, [normalizedWeekStart]);
 
-  return { weekStart: normalizedWeekStart, slots, heatmap, loading, error, reload: fetchData, saveSlots };
+  return {
+    weekStart: normalizedWeekStart,
+    slots,
+    heatmap,
+    loading,
+    error,
+    locked,
+    lockedReason,
+    reload: fetchData,
+    saveSlots,
+  };
 }

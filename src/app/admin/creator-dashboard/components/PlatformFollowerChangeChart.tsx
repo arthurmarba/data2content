@@ -48,7 +48,7 @@ const PlatformFollowerChangeChart: React.FC<PlatformFollowerChangeChartProps> = 
     } finally {
       setLoading(false);
     }
-  }, [timePeriod]);
+  }, [timePeriod, apiPrefix]);
 
   useEffect(() => {
     fetchData();

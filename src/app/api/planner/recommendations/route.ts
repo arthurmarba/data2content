@@ -7,6 +7,7 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import PlannerRecCache from '@/app/models/PlannerRecCache';
 import { recommendWeeklySlots, getTimeBlockScores } from '@/app/lib/planner/recommender';
 import { getThemesForSlot } from '@/app/lib/planner/themes';
+import { ensurePlannerAccess } from '@/app/lib/planGuard';
 import {
   TARGET_SUGGESTIONS_MIN,
   TARGET_SUGGESTIONS_MAX,
@@ -96,6 +97,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   }
   const userId = session.user.id as string;
+  const routePath = new URL(request.url).pathname;
+
+  const access = await ensurePlannerAccess({ session, routePath, forceReload: true });
+  if (!access.ok) {
+    return NextResponse.json(
+      { ok: false, error: access.message, reason: access.reason },
+      { status: access.status }
+    );
+  }
 
   // Freeze pode ser desativado pelo query param durante os testes.
   const noCache = parseBoolParam(request.url, 'nocache') || parseBoolParam(request.url, 'disableFreeze');

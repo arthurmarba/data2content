@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import React, { useEffect, useRef } from 'react';
 import { FaPlay } from 'react-icons/fa';
 
@@ -40,12 +41,12 @@ export default function FounderVideo({ videoId }: FounderVideoProps) {
       ref={videoRef}
       className="relative mt-10 overflow-hidden rounded-2xl shadow-lg w-full aspect-video"
     >
-      <img
+      <Image
         src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
         alt="Thumbnail do vídeo"
+        fill
         className="absolute top-0 left-0 h-full w-full object-cover"
         loading="lazy"
-        decoding="async"
       />
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="bg-black/60 rounded-full p-4">

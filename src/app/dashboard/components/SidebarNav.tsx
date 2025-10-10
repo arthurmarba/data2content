@@ -1,15 +1,15 @@
-// src/app/dashboard/components/SidebarNav.tsx
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 import {
   FaCompass,
   FaCalendarAlt,
+  FaAddressCard,
   FaCreditCard,
   FaUsers,
 } from "react-icons/fa";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 interface SidebarNavProps {
   isCollapsed: boolean; // true = fechado; false = aberto
@@ -21,6 +21,7 @@ type NavItem = {
   label: string;
   icon: React.ReactNode;
   exact?: boolean;
+  section: "primary" | "secondary";
 };
 
 export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
@@ -30,21 +31,30 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(true);
   const wasOverflow = useRef<string | null>(null);
 
   // Lista de itens da navegação
   const items: NavItem[] = useMemo(
     () => [
-      { href: "/dashboard/discover", label: "Descoberta", icon: <FaCompass /> },
-      { href: "/dashboard/media-kit", label: "Planejamento", icon: <FaCalendarAlt /> },
-      { href: "/dashboard/afiliados", label: "Indique e Ganhe", icon: <FaUsers /> },
-      { href: "/dashboard/settings", label: "Gerir Assinatura", icon: <FaCreditCard /> },
+      { href: "/dashboard/discover", label: "Descoberta", icon: <FaCompass />, section: "primary" },
+      { href: "/dashboard/media-kit", label: "Mídia Kit", icon: <FaAddressCard />, section: "primary" },
+      { href: "/dashboard/planning", label: "Planejamento", icon: <FaCalendarAlt />, section: "primary" },
+      { href: "/dashboard/afiliados", label: "Indique e Ganhe", icon: <FaUsers />, section: "secondary" },
+      { href: "/dashboard/settings", label: "Gerir Assinatura", icon: <FaCreditCard />, section: "secondary" },
     ],
     []
   );
 
-  // Detecta breakpoint (mobile x desktop) — só após mounted para evitar SSR mismatch
+  const { primaryItems, secondaryItems } = useMemo(
+    () => ({
+      primaryItems: items.filter((item) => item.section === "primary"),
+      secondaryItems: items.filter((item) => item.section === "secondary"),
+    }),
+    [items]
+  );
+
+  // Detecta breakpoint (mobile x desktop)
   useEffect(() => {
     if (!mounted) return;
     const mm = window.matchMedia("(min-width: 1024px)"); // lg
@@ -84,25 +94,11 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
-  // Fecha com ESC (mobile)
-  useEffect(() => {
-    if (!(isMobile && isOpen)) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onToggle();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [isMobile, isOpen, onToggle]);
-
-  const handleItemClick = useCallback(() => {
-    if (isMobile && isOpen) onToggle();
-  }, [isMobile, isOpen, onToggle]);
-
   // Classes de base
   const asideBase =
-    "bg-white flex flex-col transition-transform duration-200 ease-out";
+    "relative flex flex-col border-r border-slate-200/80 bg-transparent text-slate-900 transition-transform duration-200 ease-out";
 
-  // Enquanto não montou, **forçamos fechado** no mobile e escondemos visualmente para evitar flash
+  // Enquanto não montou, força fechado no mobile
   const mobileTransform = !mounted
     ? "-translate-x-full"
     : isOpen
@@ -113,12 +109,74 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
     ? `fixed inset-y-0 left-0 z-[60] w-64 transform ${mobileTransform}`
     : "";
 
-  const desktopClasses = !isMobile ? `lg:fixed lg:left-0 lg:z-40 lg:transform-none` : "";
+  // ↑ z-index elevado no desktop para ficar acima do header
+  const desktopClasses = !isMobile ? `lg:fixed lg:left-0 lg:z-[200] lg:transform-none` : "";
   const desktopWidth = !isMobile ? (isCollapsed ? "lg:w-16" : "lg:w-64") : "";
+
+  const showLabels = !isCollapsed || isMobile;
+  const alignClass = showLabels ? "justify-start" : "justify-center";
+  const itemPadding = showLabels ? "px-4 py-3.5" : "px-3.5 py-3";
+  const itemGap = showLabels ? "gap-4" : "gap-0";
+  const itemTextSize = showLabels ? "text-[15px]" : "text-[13px]";
+  const iconSize = showLabels ? "h-10 w-10" : "h-9 w-9";
+  const focusOffsetClass = isMobile ? "focus-visible:ring-offset-white" : "focus-visible:ring-offset-[#f7f8fa]";
+
+  const asideSurface = isMobile ? "bg-white shadow-xl" : "bg-transparent";
+
+  const renderNavList = (navItems: NavItem[]) => (
+    <ul className="flex flex-col gap-1.5">
+      {navItems.map((item) => {
+        const active = pathname === item.href || (!item.exact && pathname.startsWith(item.href));
+        return (
+          <li key={item.href}>
+            <Link
+              href={item.href}
+              prefetch={false}
+              onClick={() => {
+                if (isMobile && isOpen) onToggle();
+              }}
+              className={`group relative flex items-center ${itemGap} ${itemPadding} ${itemTextSize} rounded-xl ${alignClass} transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-magenta/60 focus-visible:ring-offset-2 ${focusOffsetClass} ${
+                active
+                  ? "bg-slate-100 font-semibold text-slate-900"
+                  : "font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+              }`}
+            >
+              {active && (
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute left-0 top-1/2 h-[60%] w-1 -translate-y-1/2 rounded-full bg-gradient-to-b from-brand-purple via-brand-magenta to-brand-orange"
+                />
+              )}
+
+              <span
+                aria-hidden="true"
+                className={`flex ${iconSize} shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-lg transition-colors duration-200 ${
+                  active
+                    ? "border-brand-magenta/40 text-brand-purple shadow-sm"
+                    : "text-slate-500 group-hover:border-brand-magenta/30 group-hover:text-brand-purple"
+                }`}
+              >
+                {item.icon}
+              </span>
+              {showLabels && (
+                <span
+                  className={`truncate leading-tight ${
+                    active ? "text-slate-900" : "text-slate-700 group-hover:text-slate-900"
+                  }`}
+                >
+                  {item.label}
+                </span>
+              )}
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+  );
 
   return (
     <aside
-      className={`${asideBase} ${mobileClasses} ${desktopClasses} ${desktopWidth} ${
+      className={`${asideBase} ${asideSurface} ${mobileClasses} ${desktopClasses} ${desktopWidth} ${
         !mounted ? "opacity-0 pointer-events-none" : "opacity-100"
       }`}
       aria-label="Navegação do dashboard"
@@ -131,38 +189,21 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
           : undefined
       }
     >
-      {/* Lista */}
-      <nav className="flex-1 overflow-y-auto scrollbar-hide px-2 pt-2 sm:pt-3 lg:pt-4">
-        <ul className="divide-y divide-gray-200">
-          {items.map((item) => {
-            const active =
-              pathname === item.href || (!item.exact && pathname.startsWith(item.href));
-            return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  onClick={handleItemClick}
-                  className={`group flex items-center gap-3 rounded-lg px-3 py-2 text-[15px] sm:text-base transition-colors ${
-                    active ? "bg-gray-900 text-white" : "text-gray-700 hover:bg-gray-100"
-                  }`}
-                >
-                  <span
-                    className={`text-lg ${
-                      active ? "text-white" : "text-gray-600 group-hover:text-gray-900"
-                    }`}
-                  >
-                    {item.icon}
-                  </span>
-                  {(!isCollapsed || isMobile) && <span className="truncate">{item.label}</span>}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+      <nav className="flex-1 overflow-y-auto px-3 pb-6 pt-6 scrollbar-hide sm:px-4">
+        {renderNavList(primaryItems)}
+        {!!secondaryItems.length && (
+          <div className="mt-8 border-t border-slate-200/80 pb-0 pt-8">
+            {renderNavList(secondaryItems)}
+          </div>
+        )}
       </nav>
 
-      <div className="p-2 text-[11px] text-gray-400 select-none">
-        {(!isCollapsed || isMobile) && <span className="px-3">v1.0</span>}
+      <div className="select-none px-4 pb-5 pt-3 text-[11px] tracking-wide text-slate-400">
+        {showLabels && (
+          <span className="inline-flex items-center gap-2 rounded-full border border-slate-200/90 bg-white px-3 py-1 uppercase text-slate-500">
+            v1.0
+          </span>
+        )}
       </div>
     </aside>
   );

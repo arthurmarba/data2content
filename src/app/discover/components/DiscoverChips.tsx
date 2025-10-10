@@ -1,192 +1,277 @@
 "use client";
 
-import React, { useMemo, useState, useCallback } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { formatCategories, proposalCategories, contextCategories, toneCategories, referenceCategories, Category, getCategoryById } from '@/app/lib/classification';
+import React, { useCallback, useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import type { Category } from "@/app/lib/classification";
+import {
+  formatCategories,
+  proposalCategories,
+  contextCategories,
+  toneCategories,
+  referenceCategories,
+} from "@/app/lib/classification";
+import {
+  CheckIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+} from "@heroicons/react/24/outline";
 
-function flatten(cats: Category[]): { id: string; label: string }[] {
-  const out: { id: string; label: string }[] = [];
-  const walk = (arr: Category[]) => {
-    for (const c of arr) {
-      // Exibe apenas o rótulo da própria categoria, sem prefixos de pai (ex.: "Cultura Pop › Livros" -> "Livros")
-      out.push({ id: c.id, label: c.label });
-      if (c.subcategories && c.subcategories.length) walk(c.subcategories);
-    }
+type CategoryId = "format" | "proposal" | "context" | "tone" | "references";
+type Option = { id: string; label: string };
+type FilterCategory = { id: CategoryId; label: string; options: Option[] };
+type SelectedFilters = Record<CategoryId, string[]>;
+type ViewState = "master" | CategoryId;
+type SearchParamsLike = Pick<URLSearchParams, "get" | "toString">;
+
+const MASTER_ORDER: CategoryId[] = [
+  "format",
+  "proposal",
+  "context",
+  "tone",
+  "references",
+];
+
+const MASTER_LABELS: Record<CategoryId, string> = {
+  format: "Formato",
+  proposal: "Proposta",
+  context: "Contexto",
+  tone: "Tom",
+  references: "Referências",
+};
+
+const createEmptySelection = (): SelectedFilters =>
+  MASTER_ORDER.reduce((acc, key) => {
+    acc[key] = [];
+    return acc;
+  }, {} as SelectedFilters);
+
+const flattenCategories = (input: Category[]): Option[] => {
+  const result: Option[] = [];
+  const visit = (items: Category[]) => {
+    items.forEach((item) => {
+      result.push({ id: item.id, label: item.label });
+      if (item.subcategories && item.subcategories.length) {
+        visit(item.subcategories);
+      }
+    });
   };
-  walk(cats);
-  return out;
-}
+  visit(input);
+  return result;
+};
+
+const FILTER_DATA: FilterCategory[] = [
+  {
+    id: "format",
+    label: MASTER_LABELS.format,
+    options: flattenCategories(formatCategories),
+  },
+  {
+    id: "proposal",
+    label: MASTER_LABELS.proposal,
+    options: flattenCategories(proposalCategories),
+  },
+  {
+    id: "context",
+    label: MASTER_LABELS.context,
+    options: flattenCategories(contextCategories),
+  },
+  {
+    id: "tone",
+    label: MASTER_LABELS.tone,
+    options: flattenCategories(toneCategories),
+  },
+  {
+    id: "references",
+    label: MASTER_LABELS.references,
+    options: flattenCategories(referenceCategories),
+  },
+];
+
+const buildSelectedFromParams = (params: SearchParamsLike): SelectedFilters => {
+  const state = createEmptySelection();
+  MASTER_ORDER.forEach((key) => {
+    const raw = params.get(key);
+    if (!raw) return;
+    const parsed = raw
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+    state[key] = Array.from(new Set(parsed));
+  });
+  return state;
+};
 
 export default function DiscoverChips() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
 
-  const formats = useMemo(() => flatten(formatCategories as any), []);
-  const proposals = useMemo(() => flatten(proposalCategories as any), []);
-  const contexts = useMemo(() => flatten(contextCategories as any), []);
-  const tones = useMemo(() => flatten(toneCategories as any), []);
-  const references = useMemo(() => flatten(referenceCategories as any), []);
+  const [selectedFilters, setSelectedFilters] = useState<SelectedFilters>(
+    () => buildSelectedFromParams(params)
+  );
+  const [currentView, setCurrentView] = useState<ViewState>("master");
 
-  const getSelected = (key: string) => (params.get(key)?.split(',').map(s => s.trim()).filter(Boolean)) || [];
-  const selected = {
-    format: getSelected('format'),
-    proposal: getSelected('proposal'),
-    context: getSelected('context'),
-    tone: getSelected('tone'),
-    references: getSelected('references'),
-  };
+  useEffect(() => {
+    setSelectedFilters(buildSelectedFromParams(params));
+  }, [params]);
 
-  // Tabs (guias) por categoria
-  const TABS: Array<{ key: keyof typeof selected; label: string }> = [
-    { key: 'format', label: 'Formato' },
-    { key: 'proposal', label: 'Proposta' },
-    { key: 'context', label: 'Contexto' },
-    { key: 'tone', label: 'Tom' },
-    { key: 'references', label: 'Referências' },
-  ];
-  const tabParam = (params.get('tab') || '').toLowerCase();
-  const defaultTab: keyof typeof selected = 'format';
-  const isValidTab = TABS.some(t => t.key === (tabParam as any));
-  const activeTab: keyof typeof selected = isValidTab ? (tabParam as keyof typeof selected) : defaultTab;
+  const hasSelections = MASTER_ORDER.some(
+    (key) => selectedFilters[key].length > 0
+  );
 
-  const setActiveTab = useCallback((key: keyof typeof selected) => {
-    const sp = new URLSearchParams(params.toString());
-    sp.set('tab', key);
-    router.replace(`${pathname}?${sp.toString()}`);
+  const updateUrl = useCallback(
+    (nextState: SelectedFilters) => {
+      const search = new URLSearchParams(params.toString());
+      MASTER_ORDER.forEach((key) => {
+        const values = nextState[key];
+        if (values.length) {
+          search.set(key, Array.from(new Set(values)).join(","));
+        } else {
+          search.delete(key);
+        }
+      });
+      const query = search.toString();
+      const href = query ? `${pathname}?${query}` : pathname;
+      router.replace(href, { scroll: false });
+    },
+    [params, pathname, router]
+  );
+
+  const handleMasterClick = useCallback((categoryId: CategoryId) => {
+    setCurrentView(categoryId);
+  }, []);
+
+  const handleBack = useCallback(() => {
+    setCurrentView("master");
+  }, []);
+
+  const toggleFilter = useCallback(
+    (categoryId: CategoryId, optionId: string) => {
+      setSelectedFilters((prev) => {
+        const current = prev[categoryId] || [];
+        const exists = current.includes(optionId);
+        const nextValues = exists
+          ? current.filter((value) => value !== optionId)
+          : [...current, optionId];
+        const nextState = { ...prev, [categoryId]: nextValues };
+        updateUrl(nextState);
+        return nextState;
+      });
+    },
+    [updateUrl]
+  );
+
+  const handleClearAll = useCallback(() => {
+    const emptyState = createEmptySelection();
+    setSelectedFilters(emptyState);
+    const search = new URLSearchParams(params.toString());
+    MASTER_ORDER.forEach((key) => search.delete(key));
+    const query = search.toString();
+    const href = query ? `${pathname}?${query}` : pathname;
+    router.replace(href, { scroll: false });
+    setCurrentView("master");
   }, [params, pathname, router]);
 
-  const updateParamList = (key: keyof typeof selected, id: string, on?: boolean) => {
-    const list = new Set(selected[key]);
-    if (on === undefined) {
-      if (list.has(id)) list.delete(id); else list.add(id);
-    } else {
-      if (on) list.add(id); else list.delete(id);
+  const currentCategory =
+    currentView === "master"
+      ? null
+      : FILTER_DATA.find((category) => category.id === currentView) || null;
+
+  useEffect(() => {
+    if (currentView !== "master" && !currentCategory) {
+      setCurrentView("master");
     }
-    const sp = new URLSearchParams(params.toString());
-    const value = Array.from(list).join(',');
-    if (value) sp.set(key, value); else sp.delete(key);
-    router.replace(`${pathname}?${sp.toString()}`);
-  };
-
-  const clearAll = () => {
-    const sp = new URLSearchParams(params.toString());
-    ['format','proposal','context','tone','references','exp','view','tab'].forEach(k => sp.delete(k));
-    router.replace(`${pathname}?${sp.toString()}`);
-  };
-
-  const SelectedRow = () => {
-    const items: Array<{ key: keyof typeof selected; id: string; label: string }> = [];
-    (Object.keys(selected) as (keyof typeof selected)[]).forEach((k) => {
-      selected[k].forEach((id) => {
-        const typeMap: any = { format: 'format', proposal: 'proposal', context: 'context', tone: 'tone', references: 'reference' };
-        const cat = getCategoryById(id, typeMap[k]);
-        items.push({ key: k, id, label: cat?.label || id });
-      });
-    });
-    if (items.length === 0) return null;
-    return (
-      <div className="flex items-center justify-between bg-white py-1">
-        <div className="flex flex-wrap gap-2" aria-label="Selecionados">
-          {items.map((it) => (
-            <button
-              key={`${it.key}:${it.id}`}
-              onClick={() => updateParamList(it.key, it.id, false)}
-              className="px-2 py-0.5 rounded-full border text-xs bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100"
-              title="Remover filtro"
-            >
-              {it.label} ×
-            </button>
-          ))}
-        </div>
-        <button onClick={clearAll} className="px-3 py-1 rounded-full border text-xs whitespace-nowrap bg-white text-gray-700 border-gray-300 hover:bg-gray-50">
-          Limpar filtros
-        </button>
-      </div>
-    );
-  };
-
-  // Expand/Collapse por guia (Top N + Ver todos)
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const TOP_N = 10;
-  const toggleExpand = (key: string) => setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
-
-  const Row = ({ title, name, options }: { title: string; name: keyof typeof selected; options: { id: string; label: string }[] }) => {
-    const isActive = activeTab === name;
-    if (!isActive) return null;
-    const showAll = !!expanded[name];
-    const list = showAll ? options : options.slice(0, TOP_N);
-    const hasMore = options.length > TOP_N;
-    return (
-      <div>
-        <div className="text-xs font-semibold text-gray-500 mb-1">{title}</div>
-        <div className="-mx-1 overflow-x-auto hide-scrollbar">
-          <div className="flex flex-nowrap gap-2 px-1 py-1 items-center">
-            {list.map((o) => {
-              const active = selected[name].includes(o.id);
-              return (
-                <button
-                  key={o.id}
-                  onClick={() => updateParamList(name, o.id)}
-                  className={`px-3 py-1.5 rounded-full border text-sm whitespace-nowrap ${
-                    active ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-800 border-gray-300 hover:bg-gray-50'
-                  }`}
-                  aria-pressed={active}
-                >
-                  {o.label}
-                </button>
-              );
-            })}
-            {hasMore && (
-              <button
-                onClick={() => toggleExpand(name)}
-                className="px-3 py-1.5 rounded-full border text-sm whitespace-nowrap bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-              >
-                {showAll ? 'Ver menos' : 'Ver todos'}
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
+  }, [currentCategory, currentView]);
 
   return (
-    <div className="mt-2 space-y-2" aria-label="Filtros por categoria">
-      <SelectedRow />
+    <div className="filter-container flex flex-wrap items-center gap-2 rounded-2xl border border-gray-200 bg-white/70 p-3 shadow-sm sm:p-4">
+      {currentView !== "master" && (
+        <button
+          type="button"
+          onClick={handleBack}
+          aria-label="Voltar para categorias"
+          className="filter-button-back inline-flex h-10 w-10 items-center justify-center rounded-full border border-transparent text-brand-magenta transition hover:bg-brand-magenta/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta"
+        >
+          <ChevronLeftIcon className="h-5 w-5" aria-hidden="true" />
+        </button>
+      )}
 
-      {/* Segmented control */}
-      <div role="tablist" aria-label="Categorias" className="flex gap-1 overflow-x-auto hide-scrollbar pb-1">
-        {TABS.map((t) => {
-          const on = activeTab === t.key;
-          return (
+      {currentView === "master" && (
+        <>
+          {FILTER_DATA.map((category) => {
+            const hasSelection = selectedFilters[category.id].length > 0;
+            return (
+              <button
+                key={category.id}
+                type="button"
+                onClick={() => handleMasterClick(category.id)}
+                className={`filter-button-master inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta ${
+                  hasSelection
+                    ? "has-selection border-transparent bg-gradient-to-r from-brand-magenta to-brand-purple text-white shadow-sm"
+                    : "border-gray-200 bg-white text-gray-700 hover:border-brand-magenta/40 hover:text-brand-magenta"
+                }`}
+              >
+                <span className="flex items-center gap-1">
+                  <span>{category.label}</span>
+                  {hasSelection && (
+                    <span className="text-base leading-none text-white" aria-hidden="true">
+                      •
+                    </span>
+                  )}
+                </span>
+                <ChevronRightIcon
+                  className={`h-4 w-4 transition ${
+                    hasSelection ? "text-white/80" : "text-brand-magenta/60"
+                  }`}
+                  aria-hidden="true"
+                />
+              </button>
+            );
+          })}
+          {hasSelections && (
             <button
-              key={t.key}
-              role="tab"
-              aria-selected={on}
-              aria-controls={`chips-${t.key}`}
-              onClick={() => setActiveTab(t.key)}
-              className={`px-3 py-1.5 rounded-full border text-sm whitespace-nowrap ${on ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-800 border-gray-300 hover:bg-gray-50'}`}
+              type="button"
+              onClick={handleClearAll}
+              className="ml-auto inline-flex items-center rounded-full border border-transparent bg-gray-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900"
             >
-              {t.label}
+              Limpar filtros
             </button>
-          );
-        })}
-      </div>
+          )}
+        </>
+      )}
 
-      {/* Uma linha por vez: só a guia ativa */}
-      <div id={`chips-${activeTab}`}>
-        <Row title="Formato" name="format" options={formats} />
-        <Row title="Proposta" name="proposal" options={proposals} />
-        <Row title="Contexto" name="context" options={contexts} />
-        <Row title="Tom" name="tone" options={tones} />
-        <Row title="Referências" name="references" options={references} />
-      </div>
+      {currentView !== "master" && currentCategory && (
+        <>
+          <span className="inline-flex items-center rounded-full bg-brand-magenta/10 px-4 py-2 text-sm font-semibold text-brand-magenta">
+            {currentCategory.label}
+          </span>
+          {currentCategory.options.map((option) => {
+            const isSelected = selectedFilters[currentCategory.id].includes(option.id);
+            return (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => toggleFilter(currentCategory.id, option.id)}
+                className={`filter-button-child inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta ${
+                  isSelected
+                    ? "is-selected border-transparent bg-gradient-to-r from-brand-magenta to-brand-purple text-white shadow-sm"
+                    : "border-gray-200 bg-white text-gray-700 hover:border-brand-magenta/40 hover:text-brand-magenta"
+                }`}
+                aria-pressed={isSelected}
+              >
+                <CheckIcon
+                  className={`h-4 w-4 transition ${
+                    isSelected ? "opacity-100 text-white" : "opacity-0 text-transparent"
+                  }`}
+                  aria-hidden="true"
+                />
+                <span className="truncate">{option.label}</span>
+              </button>
+            );
+          })}
+        </>
+      )}
 
-      <style jsx global>{`
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-      `}</style>
     </div>
   );
 }

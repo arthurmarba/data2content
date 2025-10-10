@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { jwtVerify } from 'jose';
+import type { Session } from 'next-auth';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import DbUser from '@/app/models/User';
 import mongoose from 'mongoose';
@@ -71,6 +72,101 @@ function safe<T = unknown>(v: T): T | undefined {
   return (v === undefined || v === null) ? undefined : v;
 }
 
+function registerBlock(routePath?: string) {
+  planGuardMetrics.blocked += 1;
+  if (!routePath) return;
+  planGuardMetrics.byRoute[routePath] = (planGuardMetrics.byRoute[routePath] || 0) + 1;
+}
+
+export type PlannerAccessFailureReason = 'unauthenticated' | 'inactive' | 'error';
+
+export interface EnsurePlannerAccessOptions {
+  session?: Session | null;
+  userId?: string | null;
+  email?: string | null;
+  planStatus?: unknown;
+  allowAdmin?: boolean;
+  routePath?: string;
+  forceReload?: boolean;
+}
+
+export type EnsurePlannerAccessResult =
+  | { ok: true; normalizedStatus: ActiveLikeStatus | null; source: 'session' | 'database' | 'token' }
+  | { ok: false; status: number; reason: PlannerAccessFailureReason; message: string };
+
+export async function ensurePlannerAccess(
+  options: EnsurePlannerAccessOptions = {}
+): Promise<EnsurePlannerAccessResult> {
+  const {
+    session,
+    userId,
+    email,
+    planStatus,
+    allowAdmin = true,
+    routePath,
+    forceReload = false,
+  } = options;
+
+  const sessionUser = session?.user as (Session['user'] & { role?: string; planStatus?: unknown }) | undefined;
+  const sessionRole = typeof sessionUser?.role === 'string' ? sessionUser.role.toLowerCase() : undefined;
+
+  if (allowAdmin && sessionRole === 'admin') {
+    const statusCandidate = planStatus ?? sessionUser?.planStatus;
+    const normalizedStatus = normalizePlanStatus(statusCandidate);
+    const activeLike = isActiveLike(normalizedStatus) ? (normalizedStatus as ActiveLikeStatus) : null;
+    return { ok: true, normalizedStatus: activeLike, source: 'session' };
+  }
+
+  const statusCandidate = planStatus ?? sessionUser?.planStatus;
+  const normalizedStatus = normalizePlanStatus(statusCandidate);
+  if (!forceReload) {
+    const activeLike = isActiveLike(normalizedStatus) ? (normalizedStatus as ActiveLikeStatus) : null;
+    return { ok: true, normalizedStatus: activeLike, source: 'session' };
+  }
+
+  const resolvedUserId = safe(userId) ?? safe((sessionUser as any)?.id) ?? safe((session as any)?.id);
+  const resolvedEmail = safe(email) ?? safe(sessionUser?.email);
+
+  if (!resolvedUserId && !resolvedEmail) {
+    console.warn('[planGuard] ensurePlannerAccess: missing identifiers - blocking');
+    registerBlock(routePath);
+    return {
+      ok: false,
+      status: 401,
+      reason: 'unauthenticated',
+      message: 'Não autenticado.',
+    };
+  }
+
+  try {
+    await connectToDatabase();
+
+    let dbUser: { planStatus?: string; role?: string } | null = null;
+
+    if (resolvedUserId && mongoose.isValidObjectId(resolvedUserId)) {
+      dbUser = await DbUser.findById(resolvedUserId).select('planStatus role').lean();
+    } else if (resolvedEmail) {
+      dbUser = await DbUser.findOne({ email: resolvedEmail }).select('planStatus role').lean();
+    }
+
+    const dbRole = typeof dbUser?.role === 'string' ? dbUser.role.toLowerCase() : undefined;
+    if (allowAdmin && dbRole === 'admin') {
+      return { ok: true, normalizedStatus: 'active', source: 'database' };
+    }
+
+    const dbStatusNorm = normalizePlanStatus(dbUser?.planStatus);
+    const activeLike = isActiveLike(dbStatusNorm) ? (dbStatusNorm as ActiveLikeStatus) : null;
+    return { ok: true, normalizedStatus: activeLike, source: 'database' };
+  } catch (error) {
+    console.error('[planGuard] ensurePlannerAccess() DB error:', error);
+    return {
+      ok: true,
+      normalizedStatus: null,
+      source: 'database',
+    };
+  }
+}
+
 /**
  * Tenta extrair o token do request: next-auth -> fallback manual por cookie.
  * Caso o token de `getToken` não possua identificadores básicos (id, sub ou email),
@@ -136,51 +232,33 @@ export async function guardPremiumRequest(req: NextRequest): Promise<NextRespons
       { status: 401, headers: { 'Cache-Control': 'no-store' } }
     );
   }
-
-  const claimedStatusRaw = safe((token as any)?.planStatus);
-  const claimedStatusNorm = normalizePlanStatus(claimedStatusRaw);
-
-  // ✅ Fast-path: token já indica plano válido (active-like)
-  if (isActiveLike(claimedStatusNorm)) {
-    return null;
-  }
-
-  // Token não trouxe ativo: revalida no DB
   const tokenId = (token as any)?.id ?? (token as any)?.sub;
   const tokenEmail = (token as any)?.email as string | undefined;
 
-  try {
-    await connectToDatabase();
+  const sessionStub = {
+    user: {
+      id: tokenId ? String(tokenId) : undefined,
+      email: tokenEmail,
+      role: (token as any)?.role,
+      planStatus: (token as any)?.planStatus,
+    },
+  } as Session;
 
-    let dbUser: { planStatus?: string } | null = null;
+  const result = await ensurePlannerAccess({
+    session: sessionStub,
+    userId: typeof tokenId === 'string' ? tokenId : undefined,
+    email: tokenEmail,
+    planStatus: safe((token as any)?.planStatus),
+    routePath: req.nextUrl.pathname,
+    forceReload: true,
+  });
 
-    if (tokenId && mongoose.isValidObjectId(tokenId)) {
-      dbUser = await DbUser.findById(tokenId).select('planStatus').lean<{ planStatus?: string }>();
-    } else if (tokenEmail) {
-      dbUser = await DbUser.findOne({ email: tokenEmail }).select('planStatus').lean<{ planStatus?: string }>();
-    }
-
-    const dbStatusNorm = normalizePlanStatus(dbUser?.planStatus);
-
-    if (isActiveLike(dbStatusNorm)) {
-      // ✅ DB confirma ativo-like: libera, mesmo com JWT “atrasado”
-      return null;
-    }
-  } catch (dbCheckError) {
-    console.error('[planGuard] DB check failed:', dbCheckError);
-    // Em falha de DB, se o token disser ativo-like, ainda liberamos.
-    if (isActiveLike(claimedStatusNorm)) {
-      return null;
-    }
+  if (!result.ok) {
+    return NextResponse.json(
+      { error: result.message, reason: result.reason },
+      { status: result.status, headers: { 'Cache-Control': 'no-store' } }
+    );
   }
 
-  // 🚫 Bloqueia: não ativo (token + DB)
-  const path = req.nextUrl.pathname;
-  planGuardMetrics.blocked += 1;
-  planGuardMetrics.byRoute[path] = (planGuardMetrics.byRoute[path] || 0) + 1;
-
-  return NextResponse.json(
-    { error: 'Seu acesso está inativo. Verifique sua assinatura para continuar.' },
-    { status: 403, headers: { 'Cache-Control': 'no-store' } }
-  );
+  return null;
 }

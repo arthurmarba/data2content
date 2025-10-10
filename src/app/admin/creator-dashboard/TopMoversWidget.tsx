@@ -2,6 +2,7 @@
 
 // CORREÇÃO: Removidas todas as classes de tema escuro (dark:) para unificar o design.
 import React, { useState, useCallback, useEffect } from 'react';
+import Image from 'next/image';
 import { useGlobalTimePeriod } from './components/filters/GlobalTimePeriodContext';
 import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
 import {
@@ -116,7 +117,7 @@ export default function TopMoversWidget({ apiPrefix = '/api/admin' }: { apiPrefi
       }
     }
     loadContexts();
-  }, []);
+  }, [apiPrefix]);
 
   useEffect(() => {
     const today = new Date();
@@ -216,7 +217,7 @@ export default function TopMoversWidget({ apiPrefix = '/api/admin' }: { apiPrefi
     } finally {
       setIsLoading(false);
     }
-  }, [entityType, metric, previousPeriod, currentPeriod, topN, sortBy, contentFilters]);
+  }, [entityType, metric, previousPeriod, currentPeriod, topN, sortBy, contentFilters, apiPrefix]);
 
   useEffect(() => {
     if (!previousPeriod.startDate || !currentPeriod.startDate) return;
@@ -354,14 +355,19 @@ export default function TopMoversWidget({ apiPrefix = '/api/admin' }: { apiPrefi
                   <tr key={item.entityId} className="hover:bg-gray-50">
                     <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-800">
                       <div className="flex items-center">
-                        {entityType === 'creator' && item.profilePictureUrl && (
-                           <img src={item.profilePictureUrl} alt={item.entityName} className="h-6 w-6 rounded-full mr-2 object-cover" width={24} height={24} />
+                      {entityType === 'creator' && item.profilePictureUrl && (
+                          <Image
+                            width={24}
+                            height={24}
+                            src={item.profilePictureUrl}
+                            alt={item.entityName}
+                            className="h-6 w-6 rounded-full mr-2 object-cover" />
                         )}
                         {entityType === 'creator' && !item.profilePictureUrl && (
                            <div className="h-6 w-6 rounded-full bg-gray-200 mr-2 flex items-center justify-center text-xs">{item.entityName?.substring(0,1).toUpperCase()}</div>
                         )}
                         {entityType === 'content' && item.coverUrl && (
-                          <img src={item.coverUrl} alt={item.entityName} className="h-20 w-20 object-cover rounded mr-2" />
+                          <Image src={item.coverUrl} alt={item.entityName} className="h-20 w-20 object-cover rounded mr-2" width={80} height={80} />
                         )}
                         {entityType === 'content' && !item.coverUrl && (
                           <div className="h-6 w-6 rounded bg-gray-200 mr-2 flex items-center justify-center text-gray-400">

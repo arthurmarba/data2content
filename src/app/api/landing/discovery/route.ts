@@ -44,11 +44,7 @@ const DEFAULT_CONTEXTS = [
 
 // Cache leve em memória (válido apenas enquanto o processo vive)
 type CacheBucket = { expires: number; payload: any };
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
 if (!(global as any).__landingDiscoveryCache) (global as any).__landingDiscoveryCache = {} as Record<string, CacheBucket>;
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
 const cacheStore = (global as any).__landingDiscoveryCache as Record<string, CacheBucket>;
 
 export async function GET(req: NextRequest) {

@@ -1,111 +1,63 @@
 // src/app/auth/complete-signup/page.tsx
-// Versão: v1.3.0 (Corrigido para redirecionar para Mídia Kit)
-
+// Versão: v3.0 — finaliza o fluxo marcando o usuário como onboarded antes de redirecionar.
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import TermsAcceptanceStep from "@/app/components/auth/TermsAcceptanceStep";
 import FullPageLoader from "@/app/components/auth/FullPageLoader";
+
+const DESTINATION = "/dashboard/media-kit";
 
 export default function CompleteSignupPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { data: session, status, update: updateSession } = useSession();
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-
-  const ranOnceRef = useRef(false);
+  const { update, status } = useSession();
+  const ranRef = useRef(false);
+  const [message, setMessage] = useState("Finalizando seu acesso...");
 
   useEffect(() => {
-    if (status === "loading" || ranOnceRef.current) return;
-
-    ranOnceRef.current = true;
-
-    (async () => {
-      try {
-        if (status === "unauthenticated") {
-          router.replace("/login");
-          return;
-        }
-
-        const checkout = searchParams.get("checkout");
-        if (status === "authenticated" && checkout) {
-          try {
-            await updateSession?.();
-          } catch {
-            // ignore
-          }
-          // Redireciona para o Onboarding após o checkout
-          router.replace(`/dashboard/onboarding?checkout=${checkout}`);
-          return;
-        }
-
-        if (status === "authenticated" && session?.user?.isNewUserForOnboarding === false) {
-          // Redireciona usuários existentes para o Onboarding (mantém contexto didático)
-          router.replace("/dashboard/onboarding");
-          return;
-        }
-
-      } catch {
-        // Fallback em caso de erro
-        router.replace("/dashboard/onboarding");
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, session]);
-
-  const handleTermsAcceptedAndContinue = async () => {
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-    setSubmitError(null);
-
-    try {
-      const res = await fetch("/api/user/complete-onboarding", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data?.message || `Erro ${res.status} ao completar o onboarding.`);
-      }
-
-      try {
-        await updateSession?.();
-      } catch {
-        /* se falhar, seguimos mesmo assim */
-      }
-
-      // ALTERADO: Redireciona para o Mídia Kit após aceitar os termos
-      router.replace("/dashboard/media-kit"); // <-- ALTERADO
-    } catch (err: any) {
-      setSubmitError(err?.message || "Ocorreu um erro ao processar sua solicitação.");
-      setIsSubmitting(false);
+    if (ranRef.current) return;
+    if (status === "loading") return;
+    if (status === "unauthenticated") {
+      router.replace("/login");
+      return;
     }
-  };
 
-  if (status === "loading" || isSubmitting) {
-    return <FullPageLoader message={isSubmitting ? "A processar sua aceitação..." : "A verificar o seu estado..."} />;
-  }
+    ranRef.current = true;
 
-  if (status === "authenticated" && session?.user?.isNewUserForOnboarding === true) {
-    return (
-      <>
-        <TermsAcceptanceStep userName={session?.user?.name} onAcceptAndContinue={handleTermsAcceptedAndContinue} />
-        {submitError && (
-          <div className="fixed bottom-0 left-0 right-0 p-4 bg-red-600 text-white text-center z-50">
-            <p>Erro: {submitError}</p>
-            <button onClick={() => setSubmitError(null)} className="ml-2 underline">
-              Fechar
-            </button>
-          </div>
-        )}
-      </>
-    );
-  }
+    const finalize = async () => {
+      try {
+        const response = await fetch("/api/user/complete-onboarding", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          cache: "no-store",
+        });
 
-  return <FullPageLoader message="A finalizar ou a redirecionar..." />;
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => "");
+          console.error("[complete-signup] Falha ao completar onboarding:", response.status, errorText);
+          setMessage("Não foi possível finalizar seu acesso automaticamente. Redirecionando...");
+        }
+      } catch (error) {
+        console.error("[complete-signup] Erro inesperado ao finalizar onboarding:", error);
+        setMessage("Não foi possível finalizar seu acesso automaticamente. Redirecionando...");
+      }
+
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("onboardingCompletedByClient", "1");
+      }
+
+      try {
+        await update?.({ isNewUserForOnboarding: false });
+      } catch (error) {
+        console.warn("[complete-signup] Não foi possível atualizar a sessão local:", error);
+      }
+
+      router.replace(DESTINATION);
+    };
+
+    finalize();
+  }, [router, status, update]);
+
+  return <FullPageLoader message={message} />;
 }

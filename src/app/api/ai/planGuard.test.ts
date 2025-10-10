@@ -10,6 +10,7 @@ import DbUser from '@/app/models/User';
 jest.mock('next-auth/jwt', () => ({ getToken: jest.fn() }));
 jest.mock('@/app/lib/mongoose', () => ({ connectToDatabase: jest.fn() }));
 jest.mock('@/app/models/User', () => ({ __esModule: true, default: { findById: jest.fn() } }));
+jest.mock('jose', () => ({ jwtVerify: jest.fn() }));
 
 const mockGetToken = getToken as jest.Mock;
 const mockConnect = connectToDatabase as jest.Mock;
@@ -45,4 +46,3 @@ describe('plan guard for ai routes', () => {
     expect(res.status).toBe(403);
   });
 });
-
