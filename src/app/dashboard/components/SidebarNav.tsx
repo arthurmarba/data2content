@@ -96,7 +96,7 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
 
   // Classes de base
   const asideBase =
-    "relative flex flex-col border-r border-slate-200/80 bg-transparent text-slate-900 transition-transform duration-200 ease-out";
+    "flex flex-col border-slate-200/80 text-slate-900 transition-transform duration-200 ease-out";
 
   // Enquanto não montou, força fechado no mobile
   const mobileTransform = !mounted
@@ -105,13 +105,19 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
     ? "translate-x-0"
     : "-translate-x-full";
 
-  const mobileClasses = isMobile
-    ? `fixed inset-y-0 left-0 z-[60] w-64 transform ${mobileTransform}`
+  const mobileVisibility = isMobile
+    ? isOpen
+      ? "translate-x-0 opacity-100"
+      : "-translate-x-full opacity-0 pointer-events-none"
     : "";
 
-  // ↑ z-index elevado no desktop para ficar acima do header
-  const desktopClasses = !isMobile ? `lg:fixed lg:left-0 lg:z-[200] lg:transform-none` : "";
-  const desktopWidth = !isMobile ? (isCollapsed ? "lg:w-16" : "lg:w-64") : "";
+  const mobileClasses = isMobile
+    ? `fixed inset-y-0 left-0 z-[60] w-64 transform transition-opacity ${mobileVisibility}`
+    : "";
+
+  const desktopClasses = !isMobile
+    ? `hidden lg:flex lg:flex-col lg:sticky lg:top-[var(--header-h,4rem)] lg:h-[calc(100svh - var(--header-h,4rem))] lg:z-[200] ${isCollapsed ? "lg:w-16" : "lg:w-64"}`
+    : "";
 
   const showLabels = !isCollapsed || isMobile;
   const alignClass = showLabels ? "justify-start" : "justify-center";
@@ -121,7 +127,7 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
   const iconSize = showLabels ? "h-10 w-10" : "h-9 w-9";
   const focusOffsetClass = isMobile ? "focus-visible:ring-offset-white" : "focus-visible:ring-offset-[#f7f8fa]";
 
-  const asideSurface = isMobile ? "bg-white shadow-xl" : "bg-transparent";
+  const asideSurface = isMobile ? "bg-white shadow-xl border-r" : "bg-transparent border-r";
 
   const renderNavList = (navItems: NavItem[]) => (
     <ul className="flex flex-col gap-1.5">
@@ -176,18 +182,11 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
 
   return (
     <aside
-      className={`${asideBase} ${asideSurface} ${mobileClasses} ${desktopClasses} ${desktopWidth} ${
+      className={`${asideBase} ${asideSurface} ${mobileClasses} ${desktopClasses} ${
         !mounted ? "opacity-0 pointer-events-none" : "opacity-100"
       }`}
       aria-label="Navegação do dashboard"
-      style={
-        !isMobile
-          ? {
-              top: "var(--header-h, 4rem)",
-              height: "calc(100svh - var(--header-h, 4rem))",
-            }
-          : undefined
-      }
+      aria-hidden={isMobile ? !isOpen : false}
     >
       <nav className="flex-1 overflow-y-auto px-3 pb-6 pt-6 scrollbar-hide sm:px-4">
         {renderNavList(primaryItems)}

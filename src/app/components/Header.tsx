@@ -53,9 +53,21 @@ function buildLayoutClasses(variant: HeaderVariant, condensed: boolean) {
   return base.join(" ");
 }
 
-function buildShellClasses(variant: HeaderVariant, sticky: boolean, condensed: boolean) {
+function buildShellClasses(
+  variant: HeaderVariant,
+  sticky: boolean,
+  condensed: boolean,
+  mobileDocked: boolean
+) {
+  const docked = sticky && mobileDocked;
+  const basePosition = docked
+    ? "fixed inset-x-0 bottom-0"
+    : sticky
+    ? "sticky top-0 inset-x-0"
+    : "relative";
+
   const base = [
-    sticky ? "fixed inset-x-0 top-0" : "relative",
+    basePosition,
     // ↓ z-index menor que a sidebar (que usa lg:z-[200])
     "z-30",
     "w-full",
@@ -263,7 +275,8 @@ export default function Header() {
     }
   }, [config.showUserMenu]);
 
-  const shellClasses = buildShellClasses(config.variant, config.sticky, condensed);
+  const isDockedToBottom = Boolean(config.sticky && config.mobileDocked);
+  const shellClasses = buildShellClasses(config.variant, config.sticky, condensed, config.mobileDocked);
   const innerClasses = buildLayoutClasses(config.variant, condensed);
 
   const effectiveCta = useMemo<HeaderCta | null>(() => {
@@ -319,7 +332,11 @@ export default function Header() {
     <header
       ref={headerRef}
       className={shellClasses}
-      style={{ paddingTop: "var(--sat)" }}
+      style={
+        isDockedToBottom
+          ? { paddingBottom: "var(--sab, 0px)" }
+          : { paddingTop: "var(--sat, 0px)" }
+      }
       aria-label="Barra superior do dashboard"
     >
       {/* -> CORREÇÃO: A classe pointer-events-auto foi removida deste container principal */}

@@ -115,7 +115,7 @@ export default async function DiscoverDashboardPage({ searchParams }: { searchPa
   );
 
   return (
-    <main className="w-full max-w-none pt-2 sm:pt-3 lg:pt-4 pb-10">
+    <main className="w-full max-w-none pb-10">
       <DiscoverHeaderConfigurator />
       <DiscoverViewTracker />
 

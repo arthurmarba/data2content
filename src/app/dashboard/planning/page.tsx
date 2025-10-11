@@ -18,7 +18,7 @@ export default function PlanningPage() {
       showSidebarToggle: true,
       showUserMenu: true,
       sticky: true,
-      contentTopPadding: 16,
+      contentTopPadding: 8,
       title: undefined,
       subtitle: undefined,
       condensedOnScroll: false,
@@ -28,7 +28,7 @@ export default function PlanningPage() {
 
   if (status === 'loading') {
     return (
-      <main className="w-full max-w-none pt-2 sm:pt-3 lg:pt-4 pb-12">
+      <main className="w-full max-w-none pb-12">
         <div className="max-w-[800px] lg:max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
           <p className="text-sm text-gray-500">Carregando…</p>
         </div>
@@ -38,7 +38,7 @@ export default function PlanningPage() {
 
   if (!userId) {
     return (
-      <main className="w-full max-w-none pt-2 sm:pt-3 lg:pt-4 pb-12">
+      <main className="w-full max-w-none pb-12">
         <div className="max-w-[800px] lg:max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
           <p className="text-sm text-gray-500">Você precisa estar autenticado para acessar o planejamento.</p>
         </div>
@@ -48,7 +48,7 @@ export default function PlanningPage() {
 
   if (status === 'authenticated' && !instagramConnected) {
     return (
-      <main className="w-full max-w-none pt-2 sm:pt-3 lg:pt-4 pb-12">
+      <main className="w-full max-w-none pb-12">
         <div className="max-w-[800px] lg:max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-6 text-amber-900">
             <h2 className="text-lg font-semibold">Conecte seu Instagram para liberar o Planner</h2>
@@ -70,7 +70,7 @@ export default function PlanningPage() {
   }
 
   return (
-    <main className="w-full max-w-none pt-2 sm:pt-3 lg:pt-4 pb-12">
+    <main className="w-full max-w-none pb-12">
       <div className="max-w-[800px] lg:max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
         <ContentPlannerSection
           userId={userId}

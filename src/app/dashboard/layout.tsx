@@ -80,13 +80,20 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("open-subscribe-modal" as any, handler);
   }, []);
 
-  const isHeaderSticky = headerConfig?.sticky !== false;
+  const wantsStickyHeader = headerConfig?.sticky !== false;
+  const isMobileDocked = Boolean(headerConfig?.mobileDocked);
+  const isHeaderSticky = !isMediaKitPage && wantsStickyHeader && !isMobileDocked;
   const customPadding = headerConfig?.contentTopPadding;
   const baseTopPadding = "var(--header-h, 56px)";
-  const topPaddingStyle =
-    typeof customPadding === "number"
+  const resolvedPaddingTop = isHeaderSticky
+    ? typeof customPadding === "number"
       ? `calc(${baseTopPadding} + ${customPadding}px)`
-      : customPadding ?? baseTopPadding; // header já embute a safe-area via padding próprio
+      : customPadding ?? baseTopPadding
+    : typeof customPadding === "number"
+    ? `${customPadding}px`
+    : typeof customPadding === "string"
+    ? customPadding
+    : "0px"; // evita gap cinza quando o header não é sticky
 
   return (
     <>
@@ -105,14 +112,15 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Área principal */}
-      <div className="flex flex-col w-full min-h-0">
+      <div className="flex flex-col w-full min-h-svh" id="dashboard-shell">
         {/* Header sempre full-width (não recebe margem lateral) */}
         <Header />
 
         {/* Conteúdo sempre abaixo do header (respeita safe-area no iOS) */}
         <main
-          className={`flex-1 min-h-0 ${mainOffset} ${mainScrollClass}`}
-          style={isHeaderSticky ? { paddingTop: topPaddingStyle } : undefined}
+          id="dashboard-main"
+          className={`flex flex-col flex-1 min-h-0 ${mainOffset} ${mainScrollClass}`}
+          style={{ paddingTop: resolvedPaddingTop }}
         >
           <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
             <InstagramReconnectBanner />

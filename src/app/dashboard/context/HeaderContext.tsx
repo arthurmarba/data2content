@@ -21,6 +21,7 @@ export interface HeaderCta {
 export interface HeaderConfig {
   variant: HeaderVariant;
   sticky: boolean;
+  mobileDocked: boolean;
   showSidebarToggle: boolean;
   showUserMenu: boolean;
   condensedOnScroll: boolean;
@@ -34,6 +35,7 @@ export interface HeaderConfig {
 const defaultConfig: HeaderConfig = {
   variant: "default",
   sticky: true,
+  mobileDocked: false,
   showSidebarToggle: true,
   showUserMenu: true,
   condensedOnScroll: false,

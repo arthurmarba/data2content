@@ -179,6 +179,7 @@ export default function MediaKitSelfServePage() {
       showSidebarToggle: true,
       showUserMenu: true,
       sticky: false,
+      mobileDocked: false,
       contentTopPadding: 0,
       title: undefined,
       subtitle: undefined,
