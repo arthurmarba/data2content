@@ -492,6 +492,8 @@ export default function MediaKitView({
     () => [
       { value: 'last_7d_vs_previous_7d', label: 'Últimos 7 dias' },
       { value: 'last_30d_vs_previous_30d', label: 'Últimos 30 dias' },
+      { value: 'last_60d_vs_previous_60d', label: 'Últimos 60 dias' },
+      { value: 'last_90d_vs_previous_90d', label: 'Últimos 90 dias' },
     ],
     []
   );

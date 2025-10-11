@@ -29,6 +29,9 @@ export function getStartDateFromTimePeriod(
     case 'last_30_days':
       d.setDate(d.getDate() - 29);
       break;
+    case 'last_60_days':
+      d.setDate(d.getDate() - 59);
+      break;
     case 'last_3_months':
     case 'last_90_days':
       d.setDate(d.getDate() - 89);

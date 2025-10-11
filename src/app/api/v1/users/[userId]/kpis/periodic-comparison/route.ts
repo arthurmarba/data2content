@@ -22,6 +22,8 @@ const ALLOWED_COMPARISON_PERIODS: {
   month_vs_previous: { currentPeriodDays: 30, periodNameCurrent: 'Este Mês', periodNamePrevious: 'Mês Passado' },
   last_7d_vs_previous_7d: { currentPeriodDays: 7, periodNameCurrent: 'Últimos 7 Dias', periodNamePrevious: '7 Dias Anteriores' },
   last_30d_vs_previous_30d: { currentPeriodDays: 30, periodNameCurrent: 'Últimos 30 Dias', periodNamePrevious: '30 Dias Anteriores' },
+  last_60d_vs_previous_60d: { currentPeriodDays: 60, periodNameCurrent: 'Últimos 60 Dias', periodNamePrevious: '60 Dias Anteriores' },
+  last_90d_vs_previous_90d: { currentPeriodDays: 90, periodNameCurrent: 'Últimos 90 Dias', periodNamePrevious: '90 Dias Anteriores' },
 };
 
 const MAX_METRIC_AGE_HOURS = 24;
