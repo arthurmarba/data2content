@@ -600,7 +600,7 @@ export default function MediaKitView({
         <div className={compactPadding ? "max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 pt-2 sm:pt-3 lg:pt-4 pb-8" : "max-w-7xl mx-auto p-4 sm:p-6 lg:p-8"}>
           {isOwner && (
             <>
-              <SubscribeCtaBanner isSubscribed={isSubscribed} />
+              <SubscribeCtaBanner isSubscribed={isSubscribed} className="mt-6 sm:mt-8 lg:mt-12" />
             </>
           )}
 

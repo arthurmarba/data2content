@@ -116,7 +116,9 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
     : "";
 
   const desktopClasses = !isMobile
-    ? `hidden lg:flex lg:flex-col lg:sticky lg:top-[var(--header-h,4rem)] lg:h-[calc(100svh - var(--header-h,4rem))] lg:z-[200] ${isCollapsed ? "lg:w-16" : "lg:w-64"}`
+    ? `hidden lg:flex lg:flex-col lg:fixed lg:top-[var(--header-h,4rem)] lg:left-0 lg:h-[calc(100svh - var(--header-h,4rem))] lg:z-[200] lg:transform-none ${
+        isCollapsed ? "lg:w-16" : "lg:w-64"
+      }`
     : "";
 
   const showLabels = !isCollapsed || isMobile;

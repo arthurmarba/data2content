@@ -63,7 +63,7 @@ function buildShellClasses(
   const basePosition = docked
     ? "fixed inset-x-0 bottom-0"
     : sticky
-    ? "sticky top-0 inset-x-0"
+    ? "fixed inset-x-0 top-0"
     : "relative";
 
   const base = [
@@ -335,7 +335,9 @@ export default function Header() {
       style={
         isDockedToBottom
           ? { paddingBottom: "var(--sab, 0px)" }
-          : { paddingTop: "var(--sat, 0px)" }
+          : config.sticky
+          ? { paddingTop: "var(--sat, 0px)" }
+          : undefined
       }
       aria-label="Barra superior do dashboard"
     >

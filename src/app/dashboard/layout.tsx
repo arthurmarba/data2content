@@ -81,19 +81,23 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   }, []);
 
   const wantsStickyHeader = headerConfig?.sticky !== false;
-  const isMobileDocked = Boolean(headerConfig?.mobileDocked);
-  const isHeaderSticky = !isMediaKitPage && wantsStickyHeader && !isMobileDocked;
+  const isMobileDocked = Boolean(headerConfig?.mobileDocked && wantsStickyHeader);
+  const isStickyHeader = !isMediaKitPage && wantsStickyHeader && !isMobileDocked;
+
   const customPadding = headerConfig?.contentTopPadding;
+  const resolvedContentTopPadding =
+    typeof customPadding === "number"
+      ? `${customPadding}px`
+      : typeof customPadding === "string"
+      ? customPadding
+      : undefined;
+
   const baseTopPadding = "var(--header-h, 56px)";
-  const resolvedPaddingTop = isHeaderSticky
-    ? typeof customPadding === "number"
-      ? `calc(${baseTopPadding} + ${customPadding}px)`
-      : customPadding ?? baseTopPadding
-    : typeof customPadding === "number"
-    ? `${customPadding}px`
-    : typeof customPadding === "string"
-    ? customPadding
-    : "0px"; // evita gap cinza quando o header não é sticky
+  const resolvedPaddingTop = isMobileDocked
+    ? "0px"
+    : isStickyHeader
+    ? `calc(${baseTopPadding} + ${resolvedContentTopPadding ?? "0px"})`
+    : resolvedContentTopPadding ?? "0px";
 
   return (
     <>
