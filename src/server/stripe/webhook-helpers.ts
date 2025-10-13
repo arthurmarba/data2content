@@ -11,9 +11,9 @@ export async function findUserByCustomerId(customerId: string) {
 }
 
 export async function markEventIfNew(user: any, eventId: string): Promise<boolean> {
+  if (!eventId) return true;
   if (user.lastProcessedEventId === eventId) return false;
   user.lastProcessedEventId = eventId;
-  await user.save();
   return true;
 }
 

@@ -30,7 +30,10 @@ export async function POST(req: Request) {
     await handleStripeEvent(event);
   } catch (err: any) {
     console.error("Webhook processing error:", event.type, err?.message);
-    // ainda respondemos 200 para o Stripe não fazer retry infinito em dev
+    return NextResponse.json(
+      { received: false, error: "processing-error" },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ received: true }, { status: 200 });

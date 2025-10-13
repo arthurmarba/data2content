@@ -1,5 +1,6 @@
 // src/server/stripe/handle-stripe-event.ts
 import type Stripe from "stripe";
+import { connectToDatabase } from "@/app/lib/mongoose";
 import { User } from "@/server/db/models/User";
 import { stripe } from "@/app/lib/stripe";
 import {
@@ -189,6 +190,8 @@ function isLikelyPlanChangePaymentPending(
 /* ----------------------------- Handler ----------------------------- */
 
 export async function handleStripeEvent(event: Stripe.Event) {
+  await connectToDatabase();
+
   switch (event.type) {
     /* ----------------- Checkout concluído (modo subscription) ----------------- */
     case "checkout.session.completed": {
@@ -389,6 +392,7 @@ export async function handleStripeEvent(event: Stripe.Event) {
         status: "failed",
         statusDetail: pmErr,
       };
+      (user as any).lastProcessedEventId = event.id;
       // planStatus será ajustado por customer.subscription.updated
       await user.save();
       return;
@@ -402,9 +406,18 @@ export async function handleStripeEvent(event: Stripe.Event) {
       const buyer = await findUserByCustomerId(customerId);
       if (!buyer) return;
 
-      if (!(buyer as any).affiliateUsed) return;
+      const proceed = await markEventIfNew(buyer, event.id);
+      if (!proceed) return;
+
+      if (!(buyer as any).affiliateUsed) {
+        await buyer.save();
+        return;
+      }
       const owner = await User.findOne({ affiliateCode: (buyer as any).affiliateUsed });
-      if (!owner) return;
+      if (!owner) {
+        await buyer.save();
+        return;
+      }
 
       const idx = (owner as any).commissionLog.findIndex(
         (e: any) =>
@@ -422,6 +435,7 @@ export async function handleStripeEvent(event: Stripe.Event) {
         (entry as any).reversalReason = "invoice.voided";
         await owner.save();
       }
+      await buyer.save();
       return;
     }
 
@@ -460,6 +474,7 @@ export async function handleStripeEvent(event: Stripe.Event) {
         }
       }
 
+      let updated = false;
       if (subId) {
         try {
           const sub = await stripe.subscriptions.retrieve(subId, {
@@ -468,9 +483,14 @@ export async function handleStripeEvent(event: Stripe.Event) {
           applyNormalizedUserBilling(user, sub, event.id);
           (user as any).lastPaymentError = undefined;
           await user.save();
+          updated = true;
         } catch {
           /* ignore */
         }
+      }
+      if (!updated) {
+        (user as any).lastProcessedEventId = event.id;
+        await user.save();
       }
       return;
     }
@@ -494,6 +514,7 @@ export async function handleStripeEvent(event: Stripe.Event) {
           (pi.last_payment_error as any)?.message ||
           "Falha ao processar o pagamento.",
       };
+      (user as any).lastProcessedEventId = event.id;
       await user.save();
       return;
     }
