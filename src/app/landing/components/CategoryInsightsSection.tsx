@@ -82,21 +82,21 @@ export const CategoryInsightsSection: React.FC<Props> = ({ categories }) => {
   const items = categories?.slice(0, 4) ?? [];
 
   return (
-    <section id="categorias" className="bg-gray-50 py-20 text-gray-900">
+    <section id="categorias" className="bg-gray-50 py-16 text-gray-900 md:py-20 lg:py-24 xl:py-28">
       <div className="container mx-auto px-6">
-        <div className="max-w-3xl">
-          <h2 className="text-3xl font-extrabold tracking-tight md:text-4xl">Inteligência por categoria</h2>
-          <p className="mt-3 text-lg text-gray-600">
+        <div className="max-w-3xl lg:max-w-4xl">
+          <h2 className="text-3xl font-extrabold tracking-tight md:text-4xl lg:text-[2.7rem]">Inteligência por categoria</h2>
+          <p className="mt-3 text-lg text-gray-600 lg:text-xl">
             Dados reais da comunidade para você entender o que está crescendo agora — por nicho, formato e proposta.
           </p>
         </div>
 
         {items.length === 0 ? (
-          <div className="mt-10 rounded-3xl border border-dashed border-brand-purple/30 bg-brand-purple/5 p-10 text-center text-sm text-brand-purple">
+          <div className="mt-8 rounded-3xl border border-dashed border-brand-purple/30 bg-brand-purple/5 p-10 text-center text-sm text-brand-purple sm:mt-10 lg:mt-12 xl:p-12">
             As estatísticas estão sendo carregadas. Atualize a página em alguns segundos.
           </div>
         ) : (
-          <div className="mt-10 grid gap-6 md:grid-cols-2">
+          <div className="mt-8 grid gap-6 sm:mt-10 md:grid-cols-2 lg:mt-12 lg:gap-7 xl:gap-9">
             {items.map((category) => (
               <CategoryCard key={category.id} category={category} />
             ))}

@@ -52,21 +52,16 @@ export const CommunityHero: React.FC<HeroProps> = ({ onPrimaryCta, metrics, next
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.12)_0%,_rgba(255,255,255,0)_55%)]" />
       </div>
 
-      <div className="relative container mx-auto px-6 pt-18 pb-32 md:pt-26 md:pb-40 lg:pt-32 lg:pb-48">
+      <div className="relative container mx-auto px-6 pt-0 pb-24 sm:pt-2 sm:pb-28 md:pt-6 md:pb-28 lg:pt-6 lg:pb-32 xl:pt-8 xl:pb-36">
         <div className="mx-auto max-w-6xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/15 px-5 py-1 text-xs font-semibold tracking-[0.2em] uppercase text-white/80 backdrop-blur">
-            Comunidade + IA
-          </div>
-
-          <div className="mt-8 rounded-[32px] border border-white/20 bg-white/10 p-8 shadow-[0_40px_140px_rgba(74,37,153,0.35)] backdrop-blur-md md:p-12 lg:p-16">
-            <div className="flex flex-col gap-10 lg:flex-row lg:items-start lg:justify-between">
-              <div className="max-w-3xl lg:max-w-4xl">
-                <h1 className="text-4xl font-extrabold leading-tight tracking-tight md:text-6xl lg:text-[3.5rem] lg:leading-[1.05]">
-                  A comunidade transforma dados em clareza para criar.
+          <div className="rounded-[32px] border border-white/20 bg-white/10 p-8 shadow-[0_40px_140px_rgba(74,37,153,0.35)] backdrop-blur-md md:p-12 lg:mt-6 lg:p-16 xl:p-20">
+            <div className="flex flex-col gap-10 lg:flex-row lg:items-start lg:justify-between lg:gap-12">
+              <div className="max-w-3xl lg:max-w-4xl xl:max-w-5xl">
+                <h1 className="text-4xl font-extrabold leading-tight tracking-tight md:text-6xl lg:text-[3.6rem] lg:leading-[1.05] xl:text-[3.9rem]">
+                  A comunidade de criadores apoiada por IA.
                 </h1>
-                <p className="mt-6 text-lg text-white/85 md:text-xl lg:text-[1.35rem] lg:leading-8">
-                  Mentorias semanais, network e um planner alimentado por IA que aprende com o coletivo para você postar com
-                  confiança. Entre agora e receba o convite pro WhatsApp assim que logar.
+                <p className="mt-6 text-lg text-white/85 md:text-xl lg:text-[1.35rem] lg:leading-8 xl:text-[1.45rem]">
+                  Planner inteligente, referências filtradas e trocas diárias com quem também está crescendo — tudo grátis ao entrar.
                 </p>
               </div>
               <div className="hidden shrink-0 lg:block">
@@ -82,12 +77,12 @@ export const CommunityHero: React.FC<HeroProps> = ({ onPrimaryCta, metrics, next
               </div>
             </div>
 
-            <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-center lg:gap-6">
+            <div className="mt-8 flex flex-col gap-4 sm:mt-10 sm:flex-row sm:items-center lg:mt-12 lg:gap-6 xl:gap-8">
               <button
                 onClick={onPrimaryCta}
                 className="group w-full rounded-xl bg-white px-8 py-4 text-base font-semibold text-brand-purple shadow-lg transition-all hover:-translate-y-0.5 hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:w-auto lg:text-lg"
               >
-                Entrar na Comunidade (via Google)
+                Entrar na comunidade (via Google)
                 <span className="ml-2 inline-flex translate-x-0 items-center transition-transform group-hover:translate-x-1">
                   →
                 </span>
@@ -100,11 +95,11 @@ export const CommunityHero: React.FC<HeroProps> = ({ onPrimaryCta, metrics, next
               </a>
             </div>
 
-            <p className="mt-4 text-sm text-white/70">
-              Login gratuito. Link do WhatsApp e planner destravados imediatamente após o acesso.
+            <p className="mt-3 text-sm text-white/80 sm:mt-4">
+              Ao ativar o PRO você libera o Grupo VIP — mentorias semanais, salas reservadas e acompanhamento estratégico.
             </p>
 
-            <div className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+            <div className="mt-10 grid gap-4 sm:mt-12 md:grid-cols-2 lg:grid-cols-4 lg:gap-7 xl:gap-8">
               {quickStats.map((stat) => (
                 <div
                   key={stat.label}
@@ -118,6 +113,62 @@ export const CommunityHero: React.FC<HeroProps> = ({ onPrimaryCta, metrics, next
                   <p className="mt-3 text-xs text-white/65 lg:mt-auto lg:text-sm">{stat.description}</p>
                 </div>
               ))}
+            </div>
+
+            <div className="mt-10 grid gap-6 sm:mt-12 lg:grid-cols-2 lg:gap-8 xl:mt-14" id={CTA_SECONDARY_ID}>
+              <div className="rounded-3xl border border-white/15 bg-white/12 p-7 shadow-lg backdrop-blur-lg md:p-8 lg:p-9">
+                <div className="text-xs font-semibold uppercase tracking-[0.22em] text-white/70 md:text-sm md:tracking-[0.24em]">
+                  Comunidade Aberta (Grátis)
+                </div>
+                <p className="mt-3 text-xl font-semibold text-white md:text-[1.6rem] lg:text-[1.75rem] lg:leading-tight">
+                  Entre agora e comece a usar tudo que a IA entrega para a base.
+                </p>
+                <ul className="mt-5 space-y-3 text-sm text-white/85 md:text-base">
+                  <li className="flex items-start gap-3">
+                    <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-white/80" />
+                    Planner IA pronto para sugerir seus próximos posts.
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-white/80" />
+                    Biblioteca inteligente com referências filtradas.
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-white/80" />
+                    Network aberta com criadores crescendo juntos.
+                  </li>
+                </ul>
+              </div>
+              <div className="rounded-3xl border border-white/25 bg-gradient-to-br from-[#F862CE]/30 via-white/20 to-[#5B2ADE]/30 p-[1px] shadow-xl">
+                <div className="h-full rounded-[28px] bg-[#180633]/80 p-7 backdrop-blur-xl md:p-8 lg:p-9">
+                  <div className="text-xs font-semibold uppercase tracking-[0.22em] text-white/80 md:text-sm md:tracking-[0.24em]">
+                    Grupo VIP (Plano PRO)
+                  </div>
+                  <p className="mt-3 text-xl font-semibold text-white md:text-[1.6rem] lg:text-[1.75rem] lg:leading-tight">
+                    Upgrade para ser acompanhado pela IA e pelo time a cada semana.
+                  </p>
+                  <ul className="mt-5 space-y-3 text-sm text-white/85 md:text-base">
+                    <li className="flex items-start gap-3">
+                      <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-[#FDF2FF]" />
+                      Mentorias semanais ao vivo com especialistas.
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-[#FDF2FF]" />
+                      Acompanhamento conjunto IA + time para destravar métricas.
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-[#FDF2FF]" />
+                      Alertas premium e calendário exclusivo de campanhas.
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-[#FDF2FF]" />
+                      Salas reservadas para feedbacks e networking avançado.
+                    </li>
+                  </ul>
+                  <p className="mt-6 text-xs font-medium uppercase tracking-[0.18em] text-white/60">
+                    Incluído no PRO e no trial de 48h
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -77,18 +77,18 @@ const CreatorCard: React.FC<{ creator: LandingCreatorHighlight }> = ({ creator }
 export const TopCreatorsSection: React.FC<Props> = ({ creators }) => {
   const items = creators?.slice(0, 6) ?? [];
   return (
-    <section id="ranking" className="bg-white py-20 text-gray-900">
+    <section id="ranking" className="bg-white py-16 text-gray-900 md:py-20 lg:py-24 xl:py-28">
       <div className="container mx-auto px-6">
-        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-          <div className="max-w-2xl">
-            <h2 className="text-3xl font-extrabold tracking-tight md:text-4xl">Quem tá brilhando esta semana</h2>
-            <p className="mt-3 text-lg text-gray-600">
+        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between lg:gap-10">
+          <div className="max-w-2xl lg:max-w-3xl">
+            <h2 className="text-3xl font-extrabold tracking-tight md:text-4xl lg:text-[2.7rem]">Quem tá brilhando esta semana</h2>
+            <p className="mt-3 text-lg text-gray-600 lg:text-xl">
               Baseado em consistência e alcance recente dos criadores que compartilham seus dados com a comunidade.
             </p>
           </div>
           <a
             href="/dashboard"
-            className="inline-flex items-center gap-2 font-semibold text-brand-purple hover:text-brand-magenta"
+            className="inline-flex items-center gap-2 font-semibold text-brand-purple hover:text-brand-magenta lg:text-lg"
           >
             Ver ranking completo (requer login)
             <span aria-hidden>→</span>
@@ -96,11 +96,11 @@ export const TopCreatorsSection: React.FC<Props> = ({ creators }) => {
         </div>
 
         {items.length === 0 ? (
-          <div className="mt-10 rounded-3xl border border-dashed border-brand-purple/30 bg-brand-purple/5 p-10 text-center text-sm text-brand-purple">
+          <div className="mt-8 rounded-3xl border border-dashed border-brand-purple/30 bg-brand-purple/5 p-10 text-center text-sm text-brand-purple sm:mt-10 lg:mt-12 xl:p-12">
             Estamos atualizando o ranking desta semana. Volte em instantes.
           </div>
         ) : (
-          <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-8 grid gap-6 sm:mt-10 md:grid-cols-2 lg:mt-12 lg:grid-cols-3 lg:gap-7 xl:gap-9">
             {items.map((creator) => (
               <CreatorCard key={creator.id} creator={creator} />
             ))}

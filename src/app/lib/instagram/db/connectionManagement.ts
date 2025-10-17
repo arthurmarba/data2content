@@ -4,7 +4,7 @@ import { logger } from '@/app/lib/logger';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import DbUser, { IUser } from '@/app/models/User';
 import { Client } from '@upstash/qstash';
-import { sendInstagramReconnectEmail } from '@/app/lib/emailService';
+import { sendInstagramReconnectEmail, sendTrialWelcomeEmail } from '@/app/lib/emailService';
 import { isPlanActiveLike } from '@/utils/planStatus';
 
 // Acessar variáveis de ambiente diretamente
@@ -58,7 +58,7 @@ export async function connectInstagramAccount(
   try {
     await connectToDatabase();
 
-    const existingUser = await DbUser.findById(userId).select('planStatus planExpiresAt role');
+    const existingUser = await DbUser.findById(userId).select('planStatus planExpiresAt role email name');
     if (!existingUser) {
       const errorMsg = `Usuário ${userId} não encontrado no DB para conectar conta IG.`;
       logger.error(`${TAG} ${errorMsg}`);
@@ -83,8 +83,10 @@ export async function connectInstagramAccount(
       instagramReconnectNotifiedAt: null,
     };
 
+    let trialEndsAt: Date | null = null;
+
     if (eligibleForTrial) {
-      const trialEndsAt = new Date(now + 48 * 60 * 60 * 1000);
+      trialEndsAt = new Date(now + 48 * 60 * 60 * 1000);
       updateData.role = 'guest';
       updateData.planStatus = 'trial';
       updateData.planExpiresAt = trialEndsAt;
@@ -106,6 +108,17 @@ export async function connectInstagramAccount(
       const errorMsg = `Falha ao encontrar usuário ${userId} no DB para conectar conta IG.`;
       logger.error(`${TAG} ${errorMsg}`);
       return { success: false, error: errorMsg };
+    }
+
+    if (trialEndsAt && updateResult.email) {
+      try {
+        await sendTrialWelcomeEmail(updateResult.email, {
+          name: updateResult.name,
+          expiresAt: trialEndsAt,
+        });
+      } catch (err) {
+        logger.error(`${TAG} Falha ao enviar email de boas-vindas do trial para ${updateResult.email}`, err);
+      }
     }
 
     logger.info(`${TAG} Usuário ${userId} atualizado no DB. Conexão com IG ${instagramAccountId} marcada como ativa.`);

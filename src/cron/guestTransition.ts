@@ -1,7 +1,7 @@
 import { connectToDatabase } from '@/app/lib/mongoose';
 import { logger } from '@/app/lib/logger';
 import UserModel from '@/app/models/User';
-import { sendGuestMigrationEmail } from '@/app/lib/emailService';
+import { sendGuestMigrationEmail, sendVipInviteEmail } from '@/app/lib/emailService';
 import { sendWhatsAppMessage } from '@/app/lib/whatsappService';
 import billingService from '@/services/billingService';
 
@@ -38,6 +38,7 @@ export async function handleGuestTransitions() {
 
       if (guest.email) {
         await sendGuestMigrationEmail(guest.email, expiredAt);
+        await sendVipInviteEmail(guest.email, { name: guest.name });
       }
 
       if (guest.whatsappVerified && guest.whatsappPhone) {

@@ -13,7 +13,6 @@ import LandingHeader from "./landing/components/LandingHeader";
 import CommunityHero from "./landing/components/CommunityHero";
 import TopCreatorsSection from "./landing/components/TopCreatorsSection";
 import CategoryInsightsSection from "./landing/components/CategoryInsightsSection";
-import CommunityBenefitsSection from "./landing/components/CommunityBenefitsSection";
 import HowItWorksSection from "./landing/components/HowItWorksSection";
 import FinalCTASection from "./landing/components/FinalCTASection";
 
@@ -153,7 +152,6 @@ export default function LandingPageClient() {
         <CommunityHero onPrimaryCta={handleSignIn} metrics={metrics} nextMentorship={nextMentorship} />
         <TopCreatorsSection creators={resolvedStats.ranking} />
         <CategoryInsightsSection categories={resolvedStats.categories} />
-        <CommunityBenefitsSection />
         <HowItWorksSection />
         <FinalCTASection onPrimaryCta={handleSignIn} />
       </main>

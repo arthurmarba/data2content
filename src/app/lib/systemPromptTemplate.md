@@ -26,6 +26,9 @@ Resumo Atual (últimos {{METRICS_PERIOD_DAYS}} dias)
 - Valor médio por parceria (BRL): {{DEAL_AVG_VALUE_LAST30}}
 - Segmentos de marcas frequentes: {{DEALS_BRAND_SEGMENTS}}
 - Frequência média de parcerias/mês: {{DEALS_FREQUENCY}}
+- Postagens totais no período: {{TOTAL_POSTS_PERIOD}}
+- Média aproximada de posts por semana: {{POSTS_PER_WEEK}}
+- Orientação personalizada de cadência: {{POSTING_FREQUENCY_GUIDANCE}}
 
 - Preferência de tom do usuário: {{USER_TONE_PREF}}
 - Formatos preferidos pelo usuário: {{USER_PREFERRED_FORMATS}}

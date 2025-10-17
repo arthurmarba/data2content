@@ -127,6 +127,35 @@ export async function populateSystemPrompt(
         const brandSegText = Array.isArray(deals.commonBrandSegments) && deals.commonBrandSegments.length ? deals.commonBrandSegments.join(', ') : 'Dados insuficientes';
         const dealsFreqText = typeof deals.dealsFrequency === 'number' ? deals.dealsFrequency.toFixed(1) : 'Dados insuficientes';
 
+        const totalPostsValue = typeof stats.totalPosts === 'number' ? stats.totalPosts : null;
+        const totalPostsText = totalPostsValue !== null ? `${totalPostsValue} posts nos últimos ${periodDays} dias` : 'Dados insuficientes';
+        const postsPerWeekNumeric = totalPostsValue !== null ? (totalPostsValue / periodDays) * 7 : null;
+
+        const formatWeekly = (value: number) => {
+            if (value <= 0) return '0';
+            if (value >= 10) return value.toFixed(0);
+            if (value >= 3) return value.toFixed(1);
+            return value.toFixed(1);
+        };
+
+        let postsPerWeekText = 'Dados insuficientes';
+        let postingCadenceGuidance = 'Sem dados recentes de frequência; incentive o criador a registrar mais publicações para calibrar a cadência sugerida.';
+
+        if (postsPerWeekNumeric !== null) {
+            const weeklyFormatted = formatWeekly(postsPerWeekNumeric);
+            postsPerWeekText = `${weeklyFormatted} posts/semana (média nos últimos ${periodDays} dias)`;
+
+            if (postsPerWeekNumeric < 1) {
+                postingCadenceGuidance = `O criador está publicando em média ${weeklyFormatted} posts por semana. Estruture planos para atingir 2 a 3 posts/semana nas próximas duas semanas, sugerindo calendários simples, batching e checkpoints de revisão.`;
+            } else if (postsPerWeekNumeric < 2.5) {
+                postingCadenceGuidance = `O criador mantém cerca de ${weeklyFormatted} posts por semana. Ajude a evoluir para 3 postagens semanais propondo blocos temáticos fixos, agendas recorrentes e ideias específicas para cada dia.`;
+            } else if (postsPerWeekNumeric < 5) {
+                postingCadenceGuidance = `O criador já publica em média ${weeklyFormatted} posts por semana. Garanta que ele mantenha essa constância com um calendário claro e introduza formatos criativos extras (séries, desafios, reciclagem de conteúdos) para evitar repetição.`;
+            } else {
+                postingCadenceGuidance = `O criador publica aproximadamente ${weeklyFormatted} posts por semana. Reconheça a disciplina, proponha otimizações avançadas (reaproveitamento multiplataforma, conteúdos profundos) e cuidados para evitar saturação ou burnout.`;
+            }
+        }
+
         const fpcStats = reportRes?.reportData?.detailedContentStats || [];
         const emergingCombosArr = fpcStats
             .filter((s: any) => typeof s.shareDiffPercentage === 'number' && s.shareDiffPercentage > 0)
@@ -431,6 +460,9 @@ export async function populateSystemPrompt(
             .replace('{{DEAL_AVG_VALUE_LAST30}}', dealsAvgValueText)
             .replace('{{DEALS_BRAND_SEGMENTS}}', brandSegText)
             .replace('{{DEALS_FREQUENCY}}', dealsFreqText)
+            .replace('{{TOTAL_POSTS_PERIOD}}', totalPostsText)
+            .replace('{{POSTS_PER_WEEK}}', postsPerWeekText)
+            .replace('{{POSTING_FREQUENCY_GUIDANCE}}', postingCadenceGuidance)
             .replace('{{EMERGING_FPC_COMBOS}}', emergingCombos)
             .replace('{{HOT_TIMES_LAST_ANALYSIS}}', hotTimeText)
             .replace('{{TOP_DAY_PCO_COMBOS}}', topDayCombosText)
@@ -478,6 +510,9 @@ export async function populateSystemPrompt(
             .replace('{{DEAL_AVG_VALUE_LAST30}}', 'Dados insuficientes')
             .replace('{{DEALS_BRAND_SEGMENTS}}', 'Dados insuficientes')
             .replace('{{DEALS_FREQUENCY}}', 'Dados insuficientes')
+            .replace('{{TOTAL_POSTS_PERIOD}}', 'Dados insuficientes')
+            .replace('{{POSTS_PER_WEEK}}', 'Dados insuficientes')
+            .replace('{{POSTING_FREQUENCY_GUIDANCE}}', 'Sem dados recentes de frequência; incentive o criador a registrar posts para calcular uma cadência personalizada.')
             .replace('{{USER_TONE_PREF}}', 'Dados insuficientes')
             .replace('{{USER_PREFERRED_FORMATS}}', 'Dados insuficientes')
             .replace('{{USER_DISLIKED_TOPICS}}', 'Dados insuficientes')

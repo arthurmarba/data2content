@@ -9,6 +9,7 @@ import Header from "../components/Header";
 import React from "react";
 import BillingSubscribeModal from "./billing/BillingSubscribeModal";
 import InstagramReconnectBanner from "./components/InstagramReconnectBanner";
+import TrialBanner from "./components/TrialBanner";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -126,8 +127,9 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
           className={`flex flex-col flex-1 min-h-0 ${mainOffset} ${mainScrollClass}`}
           style={{ paddingTop: resolvedPaddingTop }}
         >
-          <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 space-y-4">
             <InstagramReconnectBanner />
+            <TrialBanner />
           </div>
           {children}
         </main>

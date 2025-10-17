@@ -7,6 +7,7 @@ import { logger } from "@/app/lib/logger"; // Ajuste o caminho se for diferente
 import { NextResponse } from "next/server";
 import { Types } from "mongoose";
 import { isPlanActiveLike } from "@/utils/planStatus";
+import { sendTrialWelcomeEmail } from "@/app/lib/emailService";
 
 export async function POST(req: Request) {
   const TAG = "[API complete-onboarding]";
@@ -74,6 +75,17 @@ export async function POST(req: Request) {
     if (!updatedUser) {
       logger.error(`${TAG} Usuário não encontrado no banco de dados para atualização: ${userId}`);
       return NextResponse.json({ message: "Usuário não encontrado." }, { status: 404 });
+    }
+
+    if (eligibleForTrial && trialEndsAt && updatedUser.email) {
+      try {
+        await sendTrialWelcomeEmail(updatedUser.email, {
+          name: updatedUser.name,
+          expiresAt: trialEndsAt,
+        });
+      } catch (err) {
+        logger.error(`${TAG} Falha ao enviar email de boas-vindas do trial para ${updatedUser.email}`, err);
+      }
     }
 
     logger.info(`${TAG} Onboarding completado e usuário atualizado com sucesso para: ${userId}. isNewUserForOnboarding agora é ${updatedUser.isNewUserForOnboarding}.`);
