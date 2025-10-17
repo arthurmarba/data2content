@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Sparkles, Clock, ChevronRight, TestTube2 } from 'lucide-react';
 import { commaSeparatedIdsToLabels } from '@/app/lib/classification';
 import { usePlannerData, PlannerUISlot } from '@/hooks/usePlannerData';
@@ -183,6 +183,8 @@ export const ContentPlannerList = ({
   onLockChange,
   billingStatus,
   hasPremiumAccess: hasPremiumAccessProp,
+  initialSlotId,
+  onInitialSlotConsumed,
 }: {
   userId: string;
   publicMode?: boolean;
@@ -194,6 +196,8 @@ export const ContentPlannerList = ({
   }) => void;
   billingStatus?: ReturnType<typeof useBillingStatus>;
   hasPremiumAccess?: boolean;
+  initialSlotId?: string | null;
+  onInitialSlotConsumed?: () => void;
 }) => {
   const {
     slots,
@@ -209,6 +213,7 @@ export const ContentPlannerList = ({
   const [savingError, setSavingError] = useState<string | null>(null);
   const [showBillingModal, setShowBillingModal] = useState(false);
   const weekStartISO = useMemo(() => getWeekStartISO(), []);
+  const initialSlotHandledRef = useRef(false);
 
   const fallbackBilling = useBillingStatus({ auto: !publicMode && !billingStatus });
   const billing = billingStatus ?? fallbackBilling;
@@ -306,6 +311,22 @@ export const ContentPlannerList = ({
     });
   }, [slots]);
 
+  useEffect(() => {
+    if (initialSlotId) {
+      initialSlotHandledRef.current = false;
+    }
+  }, [initialSlotId]);
+
+  useEffect(() => {
+    if (!initialSlotId || initialSlotHandledRef.current) return;
+    if (!slots || !slots.length) return;
+    const target = slots.find((slot) => slot.slotId && slot.slotId === initialSlotId);
+    if (!target) return;
+    initialSlotHandledRef.current = true;
+    openModal(target);
+    onInitialSlotConsumed?.();
+  }, [initialSlotId, slots, openModal, onInitialSlotConsumed]);
+
   if (!publicMode && isBillingLoading && (locked || !hasPremiumAccess)) {
     return (
       <div className="text-center p-8">
@@ -393,12 +414,16 @@ export function ContentPlannerSection({
   title = 'Planejamento de Conteúdo',
   description,
   onLockChange,
+  initialSlotId,
+  onInitialSlotConsumed,
 }: {
   userId: string;
   publicMode?: boolean;
   title?: string;
   description?: string;
   onLockChange?: Parameters<typeof ContentPlannerList>[0]['onLockChange'];
+  initialSlotId?: string | null;
+  onInitialSlotConsumed?: () => void;
 }) {
   const [lockInfo, setLockInfo] = useState<{
     locked: boolean;
@@ -470,6 +495,8 @@ export function ContentPlannerSection({
         onLockChange={handleLockChange}
         billingStatus={billing}
         hasPremiumAccess={hasPremiumAccess}
+        initialSlotId={initialSlotId}
+        onInitialSlotConsumed={onInitialSlotConsumed}
       />
     </section>
   );

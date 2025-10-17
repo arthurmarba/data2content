@@ -1,6 +1,7 @@
 "use client";
 
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import ContentPlannerSection from '@/app/mediakit/components/ContentPlannerSection';
 import { useHeaderSetup } from '../context/HeaderContext';
@@ -8,6 +9,13 @@ import { useHeaderSetup } from '../context/HeaderContext';
 export default function PlanningPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const slotIdParam = searchParams?.get('slotId') ?? searchParams?.get('slot') ?? null;
+  const [initialSlotId, setInitialSlotId] = useState<string | null>(slotIdParam);
+
+  useEffect(() => {
+    setInitialSlotId(slotIdParam);
+  }, [slotIdParam]);
 
   const instagramConnected = Boolean((session?.user as any)?.instagramConnected);
   const userId = (session?.user as any)?.id as string | undefined;
@@ -76,6 +84,13 @@ export default function PlanningPage() {
           userId={userId}
           publicMode={false}
           description="Explore as recomendações personalizadas do Planner IA para organizar seus conteúdos da semana, acompanhar os melhores horários de publicação e receber sugestões geradas automaticamente com base na sua performance recente."
+          initialSlotId={initialSlotId}
+          onInitialSlotConsumed={() => {
+            if (initialSlotId) {
+              setInitialSlotId(null);
+              router.replace('/dashboard/planning');
+            }
+          }}
         />
       </div>
     </main>

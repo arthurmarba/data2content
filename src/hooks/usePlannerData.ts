@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 export interface PlannerUISlot {
+  slotId?: string;
   dayOfWeek: number; // 1..7
   blockStartHour: number; // 0,3,6,9,12,15,18,21 (UI só exibe 9,12,15,18)
   format: string;
@@ -148,6 +149,7 @@ export function usePlannerData(params: {
 
         if (data.mode === 'plan' && data.plan) {
           const planSlots: PlannerUISlot[] = (data.plan.slots || []).map((s: any) => ({
+            slotId: typeof s.slotId === 'string' ? s.slotId : undefined,
             dayOfWeek: s.dayOfWeek,
             blockStartHour: s.blockStartHour,
             format: (typeof s.format === 'string' && s.format) ? s.format : 'reel',
@@ -164,6 +166,7 @@ export function usePlannerData(params: {
           safeSetHeatmap(null); // público: quando vem plan, não há heatmap
         } else {
           const recSlots: PlannerUISlot[] = (data.recommendations || []).map((r: any) => ({
+            slotId: typeof r.slotId === 'string' ? r.slotId : undefined,
             dayOfWeek: r.dayOfWeek,
             blockStartHour: r.blockStartHour,
             format: (typeof r.format === 'string' && r.format) ? r.format : 'reel',
@@ -230,6 +233,7 @@ export function usePlannerData(params: {
 
         if (planData?.plan?.slots?.length) {
           const planSlots: PlannerUISlot[] = planData.plan.slots.map((s: any) => ({
+            slotId: typeof s.slotId === 'string' ? s.slotId : undefined,
             dayOfWeek: s.dayOfWeek,
             blockStartHour: s.blockStartHour,
             format: (typeof s.format === 'string' && s.format) ? s.format : 'reel',
@@ -245,6 +249,7 @@ export function usePlannerData(params: {
           safeSetSlots(planSlots);
         } else if (recData) {
           const recSlots: PlannerUISlot[] = (recData.recommendations || []).map((r: any) => ({
+            slotId: typeof r.slotId === 'string' ? r.slotId : undefined,
             dayOfWeek: r.dayOfWeek,
             blockStartHour: r.blockStartHour,
             format: (typeof r.format === 'string' && r.format) ? r.format : 'reel',
@@ -315,6 +320,7 @@ export function usePlannerData(params: {
     if (!res.ok) throw new Error('Falha ao salvar plano');
     const data = await res.json();
     const planSlots: PlannerUISlot[] = (data?.plan?.slots || []).map((s: any) => ({
+      slotId: typeof s.slotId === 'string' ? s.slotId : undefined,
       dayOfWeek: s.dayOfWeek,
       blockStartHour: s.blockStartHour,
       format: (typeof s.format === 'string' && s.format) ? s.format : 'reel',

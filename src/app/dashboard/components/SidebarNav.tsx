@@ -2,13 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import {
-  FaCompass,
-  FaCalendarAlt,
-  FaAddressCard,
-  FaCreditCard,
-  FaUsers,
-} from "react-icons/fa";
+import { FaHome, FaCompass, FaCalendarAlt, FaAddressCard, FaCreditCard, FaUsers } from "react-icons/fa";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 interface SidebarNavProps {
@@ -37,6 +31,7 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
   // Lista de itens da navegação
   const items: NavItem[] = useMemo(
     () => [
+      { href: "/dashboard/home", label: "Início", icon: <FaHome />, section: "primary", exact: true },
       { href: "/dashboard/discover", label: "Descoberta", icon: <FaCompass />, section: "primary" },
       { href: "/dashboard/media-kit", label: "Mídia Kit", icon: <FaAddressCard />, section: "primary" },
       { href: "/dashboard/planning", label: "Planejamento", icon: <FaCalendarAlt />, section: "primary" },

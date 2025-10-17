@@ -22,6 +22,8 @@ import {
 import { idsToLabels } from '@/app/lib/classification';
 
 const SCRIPT_TAG = '[MIGRATION_SCRIPT_RECLASSIFY_ALL_OPENAI_FINAL]';
+const OPENAI_CLASSIFICATION_MODEL =
+  process.env.OPENAI_CLASSIFIER_MODEL?.trim() || 'gpt-4o-mini';
 
 // --- Lógica de Classificação Otimizada ---
 
@@ -116,7 +118,7 @@ async function classifyContent(description: string): Promise<ClassificationResul
     const userPrompt = `**Descrição:**\n"${description}"\n\n**Categorias:**\nFormato: ${buildCategoryDescriptions(formatCategories)}\nProposta: ${buildCategoryDescriptions(proposalCategories)}\nContexto: ${buildCategoryDescriptions(contextCategories)}\nTom: ${buildCategoryDescriptions(toneCategories)}\nReferências: ${buildCategoryDescriptions(referenceCategories)}`;
 
     const payload = {
-      model: "gpt-4o",
+      model: OPENAI_CLASSIFICATION_MODEL,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
