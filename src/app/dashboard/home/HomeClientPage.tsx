@@ -7,7 +7,17 @@ import React from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { FaBullhorn, FaCalendarAlt, FaChalkboardTeacher, FaRocket } from "react-icons/fa";
+import {
+  FaBolt,
+  FaBullhorn,
+  FaCalendarAlt,
+  FaChalkboardTeacher,
+  FaChevronDown,
+  FaGem,
+  FaRocket,
+  FaWhatsapp,
+  FaUsers,
+} from "react-icons/fa";
 
 import NextPostCard from "./components/cards/NextPostCard";
 import ConsistencyCard from "./components/cards/ConsistencyCard";
@@ -28,6 +38,14 @@ type HeroStat = {
   value: string;
   hint?: string;
   accent?: "up" | "down";
+};
+
+type HeroAction = {
+  key: string;
+  label: string;
+  onClick: () => void;
+  icon: React.ReactNode;
+  variant: "primary" | "secondary" | "ghost" | "whatsapp" | "pro" | "vip";
 };
 
 const HERO_STATS_FALLBACK: HeroStat[] = [
@@ -61,7 +79,7 @@ interface JourneyStep {
   status: StepStatus;
   actionLabel: string;
   action: () => void;
-  variant: "primary" | "secondary" | "ghost";
+  variant: "primary" | "secondary" | "ghost" | "vip";
   disabled?: boolean;
   metric?: string;
   helper?: string;
@@ -84,13 +102,15 @@ const STEP_STATUS_CLASSES: Record<StepStatus, string> = {
 export default function HomeClientPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
-  const { trackCardAction, trackCardPeriodChange } = useHomeTelemetry();
+  const { trackCardAction, trackCardPeriodChange, trackHeroAction, trackSurfaceView } = useHomeTelemetry();
 
   const [summary, setSummary] = React.useState<HomeSummaryResponse | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [metricsLoading, setMetricsLoading] = React.useState(false);
   const [initialFetch, setInitialFetch] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [isChecklistOpen, setIsChecklistOpen] = React.useState(false);
+  const checklistId = React.useId();
 
   const appendQueryParam = React.useCallback((url: string, key: string, value: string) => {
     if (!value) return url;
@@ -236,20 +256,6 @@ export default function HomeClientPage() {
     [trackCardAction, summary?.consistency, handleNavigate]
   );
 
-  const handleMentorshipAction = React.useCallback(
-    (action: string) => {
-      trackCardAction("mentorship", action);
-      if (action === "join_community") {
-        handleNavigate(summary?.mentorship?.joinCommunityUrl ?? "/dashboard/whatsapp");
-      } else if (action === "add_to_calendar") {
-        handleNavigate(summary?.mentorship?.calendarUrl);
-      } else if (action === "whatsapp_reminder") {
-        handleNavigate(summary?.mentorship?.whatsappReminderUrl ?? "/dashboard/whatsapp");
-      }
-    },
-    [trackCardAction, summary?.mentorship, handleNavigate]
-  );
-
   const handleMediaKitAction = React.useCallback(
     (action: string) => {
       trackCardAction("media_kit", action);
@@ -369,19 +375,251 @@ export default function HomeClientPage() {
   }, [quickStats]);
 
   const isInstagramConnected = summary?.nextPost?.isInstagramConnected ?? false;
-  const isCommunityMember = summary?.mentorship?.isMember ?? false;
   const hasMediaKit = summary?.mediaKit?.hasMediaKit ?? false;
+  const communityFreeMember = summary?.community?.free?.isMember ?? false;
+  const communityFreeInviteUrl = summary?.community?.free?.inviteUrl ?? "/dashboard/discover";
+  const communityVipHasAccess = summary?.community?.vip?.hasAccess ?? false;
+  const communityVipMember = summary?.community?.vip?.isMember ?? false;
+  const communityVipInviteUrl = summary?.community?.vip?.inviteUrl ?? "/dashboard/whatsapp";
+  const whatsappLinked = summary?.whatsapp?.linked ?? false;
+  const whatsappTrialActive = summary?.whatsapp?.trial?.active ?? false;
+  const whatsappTrialEligible = summary?.whatsapp?.trial?.eligible ?? false;
+  const whatsappTrialStarted = summary?.whatsapp?.trial?.started ?? false;
+  const whatsappStartUrl = summary?.whatsapp?.startUrl ?? "/dashboard/whatsapp";
+  const planIsPro = summary?.plan?.isPro ?? false;
 
-  const heroPrimaryLabel = isInstagramConnected ? "Abrir planner diário" : "Conectar Instagram";
-  const heroSecondaryLabel = isCommunityMember ? "Configurar lembrete" : "Entrar na comunidade";
+  type HeroStage = "join_free" | "start_trial" | "use_trial" | "upgrade" | "join_vip" | "pro_engaged";
 
-  const heroPrimaryAction = React.useCallback(() => {
-    handleNextPostAction(isInstagramConnected ? "generate_script" : "connect_instagram");
-  }, [handleNextPostAction, isInstagramConnected]);
+  const plannerActionKey = isInstagramConnected ? "generate_script" : "connect_instagram";
+  const plannerButtonLabel = isInstagramConnected ? "Abrir planner da semana" : "Conectar Instagram";
 
-  const heroSecondaryAction = React.useCallback(() => {
-    handleMentorshipAction(isCommunityMember ? "whatsapp_reminder" : "join_community");
-  }, [handleMentorshipAction, isCommunityMember]);
+  const heroStage = React.useMemo<HeroStage>(() => {
+    if (!communityFreeMember) return "join_free";
+    if (!whatsappTrialStarted && whatsappTrialEligible) return "start_trial";
+    if (whatsappTrialActive && !planIsPro) return "use_trial";
+    if (!planIsPro) return "upgrade";
+    if (planIsPro && !communityVipMember) return "join_vip";
+    return "pro_engaged";
+  }, [communityFreeMember, communityVipMember, planIsPro, whatsappTrialActive, whatsappTrialEligible, whatsappTrialStarted]);
+
+  const heroMessage = React.useMemo(() => {
+    switch (heroStage) {
+      case "join_free":
+        return "Entre na comunidade gratuita e ative o WhatsApp IA por 48h para testar na prática.";
+      case "start_trial":
+        return "Ative o WhatsApp IA por 48h e veja a IA sugerindo ideias e alertas em tempo real.";
+      case "use_trial":
+        return whatsappLinked
+          ? "Aproveite o teste do WhatsApp IA enquanto ele está ativo."
+          : "Finalize a conexão com o WhatsApp para começar a falar com a IA.";
+      case "upgrade":
+        return "Curtiu o teste? Assine o plano PRO para continuar com a IA e liberar o Grupo VIP.";
+      case "join_vip":
+        return "Seu plano PRO está ativo. Entre no Grupo VIP e participe das mentorias semanais.";
+      case "pro_engaged":
+      default:
+        return "Use o planner e os alertas para manter o ritmo da sua estratégia PRO.";
+    }
+  }, [heroStage, whatsappLinked]);
+
+  const handleMentorshipAction = React.useCallback(
+    (action: string) => {
+      trackCardAction("mentorship", action);
+      if (action === "join_community") {
+        handleNavigate(summary?.mentorship?.joinCommunityUrl ?? communityFreeInviteUrl);
+      } else if (action === "add_to_calendar") {
+        handleNavigate(summary?.mentorship?.calendarUrl);
+      } else if (action === "whatsapp_reminder") {
+        handleNavigate(
+          summary?.mentorship?.whatsappReminderUrl ?? communityVipInviteUrl ?? communityFreeInviteUrl
+        );
+      }
+    },
+    [communityFreeInviteUrl, communityVipInviteUrl, handleNavigate, summary?.mentorship, trackCardAction]
+  );
+
+  const openSubscribeModal = React.useCallback(() => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("open-subscribe-modal"));
+    }
+  }, []);
+
+  const handleJoinFreeCommunity = React.useCallback(() => {
+    handleNavigate(communityFreeInviteUrl);
+  }, [communityFreeInviteUrl, handleNavigate]);
+
+  const handleOpenWhatsApp = React.useCallback(() => {
+    handleNavigate(whatsappStartUrl);
+  }, [handleNavigate, whatsappStartUrl]);
+
+  const handleJoinVip = React.useCallback(() => {
+    handleNavigate(communityVipInviteUrl);
+  }, [communityVipInviteUrl, handleNavigate]);
+
+  const handleOpenPlanner = React.useCallback(() => {
+    handleNextPostAction(plannerActionKey);
+  }, [handleNextPostAction, plannerActionKey]);
+
+  const handleConfigureReminder = React.useCallback(() => {
+    handleMentorshipAction("whatsapp_reminder");
+  }, [handleMentorshipAction]);
+
+  const handleJoinCommunityCta = React.useCallback(() => {
+    if (communityVipHasAccess) {
+      handleMentorshipAction("join_community");
+    } else {
+      handleJoinFreeCommunity();
+    }
+  }, [communityVipHasAccess, handleJoinFreeCommunity, handleMentorshipAction]);
+
+  const baseHeroActions = React.useMemo(
+    () => ({
+      joinFree: {
+        key: "join-free-community",
+        label: "Entrar na comunidade gratuita",
+        icon: <FaUsers />,
+        onClick: handleJoinFreeCommunity,
+      },
+      startTrial: {
+        key: "start-whatsapp-trial",
+        label: "Ativar WhatsApp IA por 48h",
+        icon: <FaBolt />,
+        onClick: handleOpenWhatsApp,
+      },
+      openWhatsapp: {
+        key: "open-whatsapp",
+        label: whatsappLinked ? "Abrir WhatsApp IA" : "Conectar WhatsApp IA",
+        icon: <FaWhatsapp />,
+        onClick: handleOpenWhatsApp,
+      },
+      upgradePro: {
+        key: "upgrade-pro",
+        label: "Assinar plano PRO",
+        icon: <FaGem />,
+        onClick: openSubscribeModal,
+      },
+      joinVip: {
+        key: "join-vip",
+        label: "Entrar no Grupo VIP",
+        icon: <FaChalkboardTeacher />,
+        onClick: handleJoinVip,
+      },
+      openPlanner: {
+        key: "open-planner",
+        label: plannerButtonLabel,
+        icon: <FaRocket />,
+        onClick: handleOpenPlanner,
+      },
+      reminder: {
+        key: "reminder",
+        label: "Configurar lembrete",
+        icon: <FaChalkboardTeacher />,
+        onClick: handleConfigureReminder,
+      },
+    }),
+    [
+      handleConfigureReminder,
+      handleJoinFreeCommunity,
+      handleJoinVip,
+      handleOpenPlanner,
+      handleOpenWhatsApp,
+      openSubscribeModal,
+      plannerButtonLabel,
+      whatsappLinked,
+    ]
+  );
+
+  const heroCtas = React.useMemo(() => {
+    const resolveVariant = (
+      actionKey: keyof typeof baseHeroActions,
+      fallback: HeroAction["variant"]
+    ): HeroAction["variant"] => {
+      switch (actionKey) {
+        case "startTrial":
+        case "openWhatsapp":
+          return "whatsapp";
+        case "upgradePro":
+          return "pro";
+        case "joinVip":
+          return "vip";
+        default:
+          return fallback;
+      }
+    };
+
+    const build = (
+      actionKey: keyof typeof baseHeroActions,
+      fallback: HeroAction["variant"],
+      overrides?: Partial<Omit<HeroAction, "variant">>
+    ): HeroAction => ({
+      ...baseHeroActions[actionKey],
+      ...overrides,
+      variant: resolveVariant(actionKey, fallback),
+    });
+
+    let primary: HeroAction = build("openPlanner", "primary");
+    let secondary: HeroAction | null = null;
+
+    switch (heroStage) {
+      case "join_free": {
+        primary = build("joinFree", "primary");
+        secondary = build("startTrial", "whatsapp");
+        break;
+      }
+      case "start_trial": {
+        primary = build("joinFree", "primary");
+        secondary = build("startTrial", "whatsapp");
+        break;
+      }
+      case "use_trial": {
+        primary = build("joinFree", "primary");
+        secondary = build("openWhatsapp", "whatsapp");
+        break;
+      }
+      case "upgrade": {
+        primary = build("upgradePro", "pro");
+        secondary = build("openPlanner", "secondary");
+        break;
+      }
+      case "join_vip": {
+        primary = build("joinVip", "vip");
+        secondary = build("openPlanner", "secondary");
+        break;
+      }
+      case "pro_engaged":
+      default: {
+        primary = build("openPlanner", "primary");
+        secondary = build("openWhatsapp", "whatsapp");
+        break;
+      }
+    }
+
+    const resolvedSecondary = secondary && secondary.key !== primary.key ? secondary : null;
+    return { primary, secondary: resolvedSecondary };
+  }, [baseHeroActions, heroStage]);
+
+  const heroButtons = heroCtas.secondary ? [heroCtas.primary, heroCtas.secondary] : [heroCtas.primary];
+
+  React.useEffect(() => {
+    if (!hasHydratedSummary) return;
+    trackSurfaceView("home_hero", {
+      stage: heroStage,
+      whatsapp_linked: whatsappLinked,
+      plan_is_pro: planIsPro,
+      community_free_member: communityFreeMember,
+      community_vip_member: communityVipMember,
+    });
+  }, [
+    communityFreeMember,
+    communityVipMember,
+    hasHydratedSummary,
+    heroStage,
+    planIsPro,
+    trackSurfaceView,
+    whatsappLinked,
+  ]);
+
+  const isCommunityMember = communityVipHasAccess ? communityVipMember : communityFreeMember;
 
   const steps = React.useMemo<JourneyStep[]>(() => {
     const plannerStatus: StepStatus = isInitialLoading
@@ -401,7 +639,15 @@ export default function HomeClientPage() {
       : "todo";
 
     const mediaKitStatus: StepStatus = isInitialLoading ? "loading" : hasMediaKit ? "done" : "todo";
-    const mentorshipStatus: StepStatus = isInitialLoading ? "loading" : isCommunityMember ? "done" : "todo";
+    const mentorshipStatus: StepStatus = isInitialLoading
+      ? "loading"
+      : communityVipHasAccess
+      ? communityVipMember
+        ? "done"
+        : "todo"
+      : communityFreeMember
+      ? "in-progress"
+      : "todo";
 
     return [
       {
@@ -456,9 +702,25 @@ export default function HomeClientPage() {
         description: "Troque com a comunidade e leve dúvidas para especialistas.",
         icon: <FaChalkboardTeacher />,
         status: mentorshipStatus,
-        actionLabel: isCommunityMember ? "Agendar lembrete" : "Entrar na comunidade",
-        action: () => handleMentorshipAction(isCommunityMember ? "whatsapp_reminder" : "join_community"),
-        variant: isCommunityMember ? "ghost" : "secondary",
+        actionLabel: communityVipHasAccess
+          ? communityVipMember
+            ? "Agendar lembrete"
+            : "Entrar no Grupo VIP"
+          : communityFreeMember
+          ? "Abrir comunidade gratuita"
+          : "Entrar na comunidade gratuita",
+        action: () => {
+          if (communityVipHasAccess) {
+            if (communityVipMember) {
+              handleMentorshipAction("whatsapp_reminder");
+            } else {
+              handleJoinVip();
+            }
+          } else {
+            handleJoinFreeCommunity();
+          }
+        },
+        variant: communityVipHasAccess ? (communityVipMember ? "ghost" : "vip") : communityFreeMember ? "ghost" : "secondary",
         disabled: isInitialLoading,
         metric: summary?.mentorship?.nextSessionLabel,
         helper: summary?.mentorship?.topic ?? undefined,
@@ -468,11 +730,15 @@ export default function HomeClientPage() {
     hasMediaKit,
     hasHydratedSummary,
     handleConsistencyAction,
+    handleJoinFreeCommunity,
+    handleJoinVip,
     handleMediaKitAction,
     handleMentorshipAction,
     handleNextPostAction,
-    isCommunityMember,
     isInstagramConnected,
+    communityFreeMember,
+    communityVipHasAccess,
+    communityVipMember,
     isInitialLoading,
     postsSoFar,
     summary,
@@ -489,26 +755,29 @@ export default function HomeClientPage() {
               Dashboard
             </span>
             <div className="space-y-2">
-              <h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl">Oi, {firstName}.</h1>
-              <p className="text-sm text-slate-600 sm:text-base">
-                Aqui você encontra o essencial: planejar a semana, atualizar provas e aprender com a comunidade sem perder tempo.
-              </p>
+              <h1 className="text-3xl font-semibold text-slate-900 sm:text-4xl">Oi, {firstName}!</h1>
+              <p className="text-sm text-slate-600 sm:text-base">{heroMessage}</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <ActionButton
-                label={heroPrimaryLabel}
-                onClick={heroPrimaryAction}
-                icon={<FaRocket />}
-                variant="primary"
-                disabled={isInitialLoading}
-              />
-              <ActionButton
-                label={heroSecondaryLabel}
-                onClick={heroSecondaryAction}
-                icon={<FaChalkboardTeacher />}
-                variant="secondary"
-                disabled={isInitialLoading}
-              />
+              {heroButtons.map((action) => (
+                <ActionButton
+                  key={action.key}
+                  label={action.label}
+                  onClick={() => {
+                    trackHeroAction(action.key, {
+                      stage: heroStage,
+                      whatsapp_linked: whatsappLinked,
+                      plan_is_pro: planIsPro,
+                      community_free_member: communityFreeMember,
+                      community_vip_member: communityVipMember,
+                    });
+                    action.onClick();
+                  }}
+                  icon={action.icon}
+                  variant={action.variant}
+                  disabled={isInitialLoading}
+                />
+              ))}
             </div>
           </div>
 
@@ -536,15 +805,84 @@ export default function HomeClientPage() {
         </div>
       </section>
 
-      <section className="mt-6 rounded-3xl border border-slate-200 bg-white px-5 py-5 shadow-sm">
-        <header>
-          <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">Checklist da semana</h2>
+      <section className="mt-8">
+        <header className="mb-5 space-y-1.5">
+          <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">Ações rápidas de hoje</h2>
           <p className="text-sm text-slate-600 sm:text-base">
-            Quatro pilares para manter ritmo, provas e comunidade alinhados.
+            Priorize o próximo post, revise constância, aqueça a comunidade e monitore números coletivos.
           </p>
+          {error ? <p className="text-sm text-rose-600">{error}</p> : null}
         </header>
 
-        <ol className="mt-5 space-y-3">
+        <HomeGrid className="gap-y-5">
+          <NextPostCard
+            data={summary?.nextPost}
+            loading={loading}
+            onGenerateScript={() => handleNextPostAction("generate_script")}
+            onShowVariations={() => handleNextPostAction("show_variations")}
+            onTestIdea={() => handleNextPostAction("test_idea")}
+            onConnectInstagram={() => handleNextPostAction("connect_instagram")}
+          />
+
+          <ConsistencyCard
+            data={summary?.consistency}
+            loading={loading}
+            onPlanWeek={() => handleConsistencyAction("plan_week")}
+            onViewHotSlots={() => handleConsistencyAction("view_hot_slots")}
+          />
+
+          <MentorshipCard
+            data={summary?.mentorship}
+            loading={loading}
+            onJoinCommunity={handleJoinCommunityCta}
+            onAddToCalendar={() => handleMentorshipAction("add_to_calendar")}
+            onAskReminder={() => handleMentorshipAction("whatsapp_reminder")}
+          />
+
+          <MediaKitCard
+            data={summary?.mediaKit}
+            loading={loading}
+            onCopyLink={() => handleMediaKitAction("copy_link")}
+            onRefreshHighlights={() => handleMediaKitAction("refresh_highlights")}
+            onOpenForBrands={() => handleMediaKitAction("open_brand_view")}
+            onCreateMediaKit={() => handleMediaKitAction("create_media_kit")}
+          />
+
+          <CommunityMetricsCard
+            data={summary?.communityMetrics}
+            loading={loading || metricsLoading}
+            onChangePeriod={handleChangePeriod}
+            onViewInsights={handleViewCommunityInsights}
+          />
+        </HomeGrid>
+      </section>
+
+      <section className="mt-10 rounded-3xl border border-slate-200 bg-white px-5 py-5 shadow-sm">
+        <button
+          type="button"
+          onClick={() => setIsChecklistOpen((prev) => !prev)}
+          className="flex w-full items-center justify-between gap-4 text-left"
+          aria-expanded={isChecklistOpen}
+          aria-controls={checklistId}
+        >
+          <div className="space-y-1">
+            <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">Checklist da semana</h2>
+            <p className="text-sm text-slate-600 sm:text-base">
+              Quatro pilares para manter ritmo, provas e comunidade alinhados.
+            </p>
+          </div>
+          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500">
+            <FaChevronDown
+              className={`transition-transform duration-200 ${isChecklistOpen ? "rotate-180" : ""}`}
+            />
+          </span>
+        </button>
+
+        <ol
+          id={checklistId}
+          className={`mt-5 space-y-3 ${isChecklistOpen ? "" : "hidden"}`}
+          aria-hidden={!isChecklistOpen}
+        >
           {steps.map((step) => (
             <li key={step.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -577,58 +915,6 @@ export default function HomeClientPage() {
             </li>
           ))}
         </ol>
-      </section>
-
-      <section className="mt-10">
-        <header className="mb-5 space-y-1.5">
-          <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">Ações rápidas de hoje</h2>
-          <p className="text-sm text-slate-600 sm:text-base">
-            Priorize o próximo post, revise constância, aqueça a comunidade e monitore números coletivos.
-          </p>
-          {error ? <p className="text-sm text-rose-600">{error}</p> : null}
-        </header>
-
-        <HomeGrid className="gap-y-5">
-          <NextPostCard
-            data={summary?.nextPost}
-            loading={loading}
-            onGenerateScript={() => handleNextPostAction("generate_script")}
-            onShowVariations={() => handleNextPostAction("show_variations")}
-            onTestIdea={() => handleNextPostAction("test_idea")}
-            onConnectInstagram={() => handleNextPostAction("connect_instagram")}
-          />
-
-          <ConsistencyCard
-            data={summary?.consistency}
-            loading={loading}
-            onPlanWeek={() => handleConsistencyAction("plan_week")}
-            onViewHotSlots={() => handleConsistencyAction("view_hot_slots")}
-          />
-
-          <MentorshipCard
-            data={summary?.mentorship}
-            loading={loading}
-            onJoinCommunity={() => handleMentorshipAction("join_community")}
-            onAddToCalendar={() => handleMentorshipAction("add_to_calendar")}
-            onAskReminder={() => handleMentorshipAction("whatsapp_reminder")}
-          />
-
-          <MediaKitCard
-            data={summary?.mediaKit}
-            loading={loading}
-            onCopyLink={() => handleMediaKitAction("copy_link")}
-            onRefreshHighlights={() => handleMediaKitAction("refresh_highlights")}
-            onOpenForBrands={() => handleMediaKitAction("open_brand_view")}
-            onCreateMediaKit={() => handleMediaKitAction("create_media_kit")}
-          />
-
-          <CommunityMetricsCard
-            data={summary?.communityMetrics}
-            loading={loading || metricsLoading}
-            onChangePeriod={handleChangePeriod}
-            onViewInsights={handleViewCommunityInsights}
-          />
-        </HomeGrid>
       </section>
     </div>
   );

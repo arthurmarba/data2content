@@ -7,7 +7,7 @@ import { logger } from "@/app/lib/logger";
 import { Types } from "mongoose";
 import PlannerPlanModel from "@/app/models/PlannerPlan";
 import MetricModel from "@/app/models/Metric";
-import UserModel from "@/app/models/User";
+import UserModel, { type IUser } from "@/app/models/User";
 import AudienceDemographicSnapshotModel from "@/app/models/demographics/AudienceDemographicSnapshot";
 import { recommendWeeklySlots } from "@/app/lib/planner/recommender";
 import { PLANNER_TIMEZONE } from "@/app/lib/planner/constants";
@@ -17,6 +17,7 @@ import { formatCompactNumber } from "@/app/landing/utils/format";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { getUpcomingMentorshipEvent } from "@/app/lib/community/events";
+import { getPlanAccessMeta, isPlanActiveLike } from "@/utils/planStatus";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,6 +36,24 @@ const communityTotalsCache = new Map<
   PeriodKey,
   { expires: number; data: { current: any; previous: any } }
 >();
+
+const FREE_COMMUNITY_URL = process.env.NEXT_PUBLIC_COMMUNITY_FREE_URL || "/dashboard/discover";
+const VIP_COMMUNITY_URL = process.env.NEXT_PUBLIC_COMMUNITY_VIP_URL || "/dashboard/whatsapp";
+const WHATSAPP_TRIAL_URL = process.env.NEXT_PUBLIC_WHATSAPP_TRIAL_URL || "/dashboard/whatsapp";
+
+type UserSnapshot = Pick<
+  IUser,
+  | "communityInspirationOptIn"
+  | "communityInspirationOptInDate"
+  | "whatsappVerified"
+  | "whatsappPhone"
+  | "planStatus"
+  | "planExpiresAt"
+  | "planInterval"
+  | "cancelAtPeriodEnd"
+  | "stripePriceId"
+  | "role"
+>;
 
 const WEEKDAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -656,30 +675,134 @@ export async function GET(request: Request) {
     null;
 
   const responsePayload: Record<string, unknown> = {};
+  let userSnapshot: UserSnapshot | null = null;
 
   if (scope === "all") {
     try {
-      const instagramConnected = Boolean((session.user as any)?.instagramConnected);
+      userSnapshot = (await UserModel.findById(userId)
+        .select({
+          communityInspirationOptIn: 1,
+          communityInspirationOptInDate: 1,
+          whatsappVerified: 1,
+          whatsappPhone: 1,
+          planStatus: 1,
+          planExpiresAt: 1,
+          planInterval: 1,
+          cancelAtPeriodEnd: 1,
+          stripePriceId: 1,
+          role: 1,
+        })
+        .lean()
+        .exec()) as UserSnapshot | null;
+    } catch (error) {
+      logger.error("[home.summary] Failed to load user snapshot", error);
+    }
+  }
+
+  if (scope === "all") {
+    const instagramConnected = Boolean((session.user as any)?.instagramConnected);
+    try {
       responsePayload.nextPost = instagramConnected ? await computeNextPostCard(userId) : { isInstagramConnected: false };
     } catch (error) {
       logger.error("[home.summary] Failed to compute next post card", error);
-      responsePayload.nextPost = { isInstagramConnected: Boolean((session.user as any)?.instagramConnected) };
+      responsePayload.nextPost = { isInstagramConnected: instagramConnected };
     }
 
     try {
-      responsePayload.consistency = await computeConsistencyCard(userId);
+      const consistency = await computeConsistencyCard(userId);
+      responsePayload.consistency = consistency;
+      responsePayload.goals = consistency
+        ? {
+            weeklyPostsTarget:
+              typeof consistency.weeklyGoal === "number" ? consistency.weeklyGoal : null,
+            currentStreak: typeof consistency.streakDays === "number" ? consistency.streakDays : null,
+          }
+        : {
+            weeklyPostsTarget: null,
+            currentStreak: null,
+          };
     } catch (error) {
       logger.error("[home.summary] Failed to compute consistency card", error);
       responsePayload.consistency = null;
+      responsePayload.goals = {
+        weeklyPostsTarget: null,
+        currentStreak: null,
+      };
     }
 
-    try {
-      const user = await UserModel.findById(userId)
-        .select({ communityInspirationOptIn: 1, whatsappVerified: 1 })
-        .lean()
-        .exec();
+    const planStatus = userSnapshot?.planStatus ?? null;
+    const cancelAtPeriodEnd = Boolean(userSnapshot?.cancelAtPeriodEnd);
+    const accessMeta = getPlanAccessMeta(planStatus, cancelAtPeriodEnd);
+    const normalizedStatus = accessMeta.normalizedStatus;
+    const planIntervalRaw = userSnapshot?.planInterval ?? null;
+    const planInterval =
+      planIntervalRaw === "month" || planIntervalRaw === "year" ? planIntervalRaw : null;
+    const planExpiresAtRaw = userSnapshot?.planExpiresAt ?? null;
+    const planExpiresAt =
+      planExpiresAtRaw instanceof Date
+        ? planExpiresAtRaw
+        : planExpiresAtRaw
+        ? new Date(planExpiresAtRaw)
+        : null;
+    const validPlanExpiresAt =
+      planExpiresAt && !Number.isNaN(planExpiresAt.getTime()) ? planExpiresAt : null;
+    const trialActive = normalizedStatus === "trial" || normalizedStatus === "trialing";
+    const hasPremiumAccess = accessMeta.hasPremiumAccess && !trialActive ? true : false;
+    const hasEverHadPlan = Boolean(validPlanExpiresAt);
+    const trialEligible = !trialActive && !hasPremiumAccess && !hasEverHadPlan;
+    const trialStarted = trialActive || (!trialEligible && !hasPremiumAccess && hasEverHadPlan);
+    const trialExpiresIso =
+      trialActive && validPlanExpiresAt ? validPlanExpiresAt.toISOString() : null;
 
-      const isMember = Boolean(user?.communityInspirationOptIn || user?.whatsappVerified);
+    responsePayload.plan = {
+      status: planStatus ?? null,
+      normalizedStatus,
+      interval: planInterval,
+      cancelAtPeriodEnd,
+      expiresAt: validPlanExpiresAt ? validPlanExpiresAt.toISOString() : null,
+      priceId: userSnapshot?.stripePriceId ?? null,
+      hasPremiumAccess,
+      isPro: hasPremiumAccess,
+      trial: {
+        active: trialActive,
+        eligible: trialEligible,
+        started: trialStarted,
+        expiresAt: trialExpiresIso,
+      },
+    };
+
+    const whatsappLinked = Boolean(userSnapshot?.whatsappVerified);
+
+    responsePayload.whatsapp = {
+      linked: whatsappLinked,
+      phone: userSnapshot?.whatsappPhone ?? null,
+      trial: {
+        active: trialActive,
+        eligible: trialEligible,
+        started: trialStarted,
+        expiresAt: trialExpiresIso,
+      },
+      startUrl: WHATSAPP_TRIAL_URL,
+    };
+
+    const freeCommunityMember = Boolean(userSnapshot?.communityInspirationOptIn);
+    const vipHasAccess = hasPremiumAccess;
+    const vipMember = vipHasAccess && whatsappLinked;
+    const mentorshipIsMember = vipMember;
+
+    responsePayload.community = {
+      free: {
+        isMember: freeCommunityMember,
+        inviteUrl: FREE_COMMUNITY_URL,
+      },
+      vip: {
+        hasAccess: vipHasAccess,
+        isMember: vipMember,
+        inviteUrl: vipHasAccess ? VIP_COMMUNITY_URL : null,
+      },
+    };
+
+    try {
       const mentorshipEvent = await getUpcomingMentorshipEvent().catch(() => null);
       const fallbackSlot = computeNextMentorshipSlot(new Date());
 
@@ -705,14 +828,19 @@ export async function GET(request: Request) {
         joinUrl: mentorshipEvent?.joinUrl ?? null,
       });
 
+      const joinCommunityUrl = vipHasAccess
+        ? mentorshipEvent?.joinUrl ?? VIP_COMMUNITY_URL
+        : FREE_COMMUNITY_URL;
+      const reminderUrl = vipHasAccess ? mentorshipEvent?.reminderUrl ?? VIP_COMMUNITY_URL : null;
+
       responsePayload.mentorship = {
         nextSessionLabel: label,
         topic: mentorshipEvent?.title ?? "Mentoria semanal Data2Content",
         description: mentorshipEvent?.description ?? undefined,
-        joinCommunityUrl: mentorshipEvent?.joinUrl ?? "/dashboard/whatsapp",
+        joinCommunityUrl,
         calendarUrl,
-        whatsappReminderUrl: mentorshipEvent?.reminderUrl ?? "/dashboard/whatsapp",
-        isMember,
+        whatsappReminderUrl: reminderUrl,
+        isMember: mentorshipIsMember,
       };
     } catch (error) {
       logger.error("[home.summary] Failed to compute mentorship card", error);

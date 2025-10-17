@@ -6,7 +6,7 @@
 import React from "react";
 import Link from "next/link";
 
-type Variant = "primary" | "secondary" | "ghost";
+type Variant = "primary" | "secondary" | "ghost" | "whatsapp" | "pro" | "vip";
 
 interface BaseProps {
   label: string;
@@ -33,7 +33,7 @@ function cn(...classes: Array<string | undefined | false | null>) {
 
 function getVariantClasses(variant: Variant, disabled?: boolean) {
   const base =
-    "inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple/40 focus-visible:ring-offset-1 disabled:cursor-not-allowed";
+    "inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 disabled:cursor-not-allowed";
 
   if (disabled) {
     return cn(base, "border-slate-200 bg-slate-100 text-slate-400");
@@ -41,11 +41,32 @@ function getVariantClasses(variant: Variant, disabled?: boolean) {
 
   switch (variant) {
     case "primary":
-      return cn(base, "border-brand-purple bg-brand-purple text-white hover:bg-brand-magenta");
+      return cn(base, "border-brand-purple bg-brand-purple text-white hover:bg-brand-magenta focus-visible:ring-brand-purple/40");
     case "secondary":
-      return cn(base, "border-slate-200 bg-white text-brand-purple hover:border-brand-purple/50 hover:bg-brand-purple/5");
+      return cn(
+        base,
+        "border-slate-200 bg-white text-brand-purple hover:border-brand-purple/50 hover:bg-brand-purple/5 focus-visible:ring-brand-purple/30"
+      );
+    case "whatsapp":
+      return cn(
+        base,
+        "border-emerald-500 bg-emerald-500 text-white hover:bg-emerald-600 focus-visible:ring-emerald-400"
+      );
+    case "pro":
+      return cn(
+        base,
+        "border-brand-magenta bg-brand-magenta text-white hover:bg-brand-purple focus-visible:ring-brand-magenta/40"
+      );
+    case "vip":
+      return cn(
+        base,
+        "border-amber-400 bg-amber-400 text-slate-900 hover:bg-amber-500 focus-visible:ring-amber-300"
+      );
     default:
-      return cn(base, "border-transparent bg-transparent text-brand-purple hover:bg-brand-purple/10");
+      return cn(
+        base,
+        "border-transparent bg-transparent text-brand-purple hover:bg-brand-purple/10 focus-visible:ring-brand-purple/20"
+      );
   }
 }
 

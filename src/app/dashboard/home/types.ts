@@ -55,10 +55,60 @@ export interface CommunityMetricsCardData {
   period: "7d" | "30d" | "90d";
 }
 
+export interface HomePlanSummary {
+  status: string | null;
+  normalizedStatus: string;
+  interval: "month" | "year" | null;
+  cancelAtPeriodEnd: boolean;
+  expiresAt?: string | null;
+  priceId?: string | null;
+  hasPremiumAccess: boolean;
+  isPro: boolean;
+  trial: {
+    active: boolean;
+    eligible: boolean;
+    started: boolean;
+    expiresAt?: string | null;
+  };
+}
+
+export interface HomeWhatsAppSummary {
+  linked: boolean;
+  phone?: string | null;
+  startUrl?: string | null;
+  trial: {
+    active: boolean;
+    eligible: boolean;
+    started: boolean;
+    expiresAt?: string | null;
+  };
+}
+
+export interface HomeCommunitySummary {
+  free: {
+    isMember: boolean;
+    inviteUrl?: string | null;
+  };
+  vip: {
+    hasAccess: boolean;
+    isMember: boolean;
+    inviteUrl?: string | null;
+  };
+}
+
+export interface HomeGoalsSummary {
+  weeklyPostsTarget?: number | null;
+  currentStreak?: number | null;
+}
+
 export interface HomeSummaryResponse {
   nextPost?: NextPostCardData | null;
   consistency?: ConsistencyCardData | null;
   mentorship?: MentorshipCardData | null;
   mediaKit?: MediaKitCardData | null;
   communityMetrics: CommunityMetricsCardData;
+  plan?: HomePlanSummary | null;
+  whatsapp?: HomeWhatsAppSummary | null;
+  community?: HomeCommunitySummary | null;
+  goals?: HomeGoalsSummary | null;
 }

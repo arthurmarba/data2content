@@ -31,9 +31,24 @@ export function useHomeTelemetry() {
     [emit]
   );
 
+  const trackHeroAction = React.useCallback(
+    (action: string, extra?: Record<string, unknown>) => {
+      emit("home_hero_click", { action, ...extra });
+    },
+    [emit]
+  );
+
+  const trackSurfaceView = React.useCallback(
+    (surface: string, extra?: Record<string, unknown>) => {
+      emit("home_surface_view", { surface, ...extra });
+    },
+    [emit]
+  );
+
   return {
     trackCardAction,
     trackCardPeriodChange,
+    trackHeroAction,
+    trackSurfaceView,
   };
 }
-
