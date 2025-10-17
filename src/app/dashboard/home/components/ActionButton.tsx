@@ -14,12 +14,12 @@ interface BaseProps {
   variant?: Variant;
   className?: string;
   disabled?: boolean;
-  onClick?: React.MouseEventHandler<HTMLButtonElement>;
   "aria-label"?: string;
 }
 
 interface ButtonProps extends BaseProps {
   href?: undefined;
+  onClick?: React.MouseEventHandler<HTMLButtonElement>;
 }
 
 interface LinkProps extends BaseProps {

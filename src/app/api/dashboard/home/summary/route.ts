@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { logger } from "@/app/lib/logger";
@@ -630,8 +631,8 @@ function buildCommunityMetrics(period: PeriodKey, current: any, previous: any) {
 }
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions as any);
-  if (!session || !session.user || !session.user.id) {
+  const session = (await getServerSession(authOptions)) as Session | null;
+  if (!session?.user?.id) {
     return respondError("Unauthorized", 401);
   }
 
